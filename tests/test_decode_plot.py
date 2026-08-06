@@ -3,7 +3,9 @@
 import math
 
 from canlib.commands.decode import plot as dp
+from canlib.commands.decode import plot_draw
 from canlib.inspect_bytes import InspectType
+from canlib.stats import fmt_num
 
 U16 = InspectType("u16", 2, "int", False)
 
@@ -110,9 +112,9 @@ class TestNonFinite:
     """Float byte-interpretations can yield NaN/Inf — must never crash the plot."""
 
     def test_fmt_num_handles_nonfinite(self):
-        assert dp._fmt_num(float("nan")) == "nan"
-        assert dp._fmt_num(float("inf")) == "inf"
-        assert dp._fmt_num(float("-inf")) == "-inf"
+        assert fmt_num(float("nan")) == "nan"
+        assert fmt_num(float("inf")) == "inf"
+        assert fmt_num(float("-inf")) == "-inf"
 
     def test_float_interpretation_can_be_nan(self):
         nan_bytes = bytes([0x7F, 0xC0, 0x00, 0x00])  # IEEE-754 quiet NaN, big-endian
@@ -128,9 +130,9 @@ class TestNonFinite:
 
 class TestCaptureView:
     def test_cap_ts_combines_date_and_time(self):
-        assert dp._cap_ts(_VIEW_CAPS[0]) == "2026-07-19 22:12:07"
-        assert dp._cap_ts({"date": "2026-07-19", "time": ""}) == "2026-07-19"
-        assert dp._cap_ts({"date": "", "time": ""}) == ""
+        assert plot_draw._cap_ts(_VIEW_CAPS[0]) == "2026-07-19 22:12:07"
+        assert plot_draw._cap_ts({"date": "2026-07-19", "time": ""}) == "2026-07-19"
+        assert plot_draw._cap_ts({"date": "", "time": ""}) == ""
 
     def test_view_time_range(self):
         assert dp._view_time_range(_VIEW_CAPS) == ("2026-07-19 22:12:07", "2026-07-20 14:03:11")

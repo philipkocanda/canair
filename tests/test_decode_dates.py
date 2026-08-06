@@ -15,7 +15,7 @@ from canlib.capture_dates import (
     resolve_date_bounds,
     resolve_scope_bounds,
 )
-from canlib.commands.decode import query, render
+from canlib.commands.decode import query, views
 
 # ---------------------------------------------------------------------------
 # capture_dates helpers
@@ -414,7 +414,7 @@ class TestPrintCompact:
                 ("16:00:01", "drive", {"SPEED": 10}),
             ]
         )
-        render.print_compact(results, ["SPEED"], {"SPEED": {"unit": "km/h"}}, set())
+        views.print_compact(results, ["SPEED"], {"SPEED": {"unit": "km/h"}}, set())
         out = capsys.readouterr().out
         # Param name appears once (header), NOT on every data row.
         assert out.count("SPEED") == 1
@@ -428,7 +428,7 @@ class TestPrintCompact:
                 ("16:00:02", "drive B", {"SPEED": 8}),
             ]
         )
-        render.print_compact(results, ["SPEED"], {"SPEED": {"unit": ""}}, set())
+        views.print_compact(results, ["SPEED"], {"SPEED": {"unit": ""}}, set())
         out = capsys.readouterr().out
         assert out.count("[drive A]") == 1
         assert out.count("[drive B]") == 1
@@ -442,7 +442,7 @@ class TestPrintCompact:
                 ("16:00:03", "s", {"SPEED": 7}),
             ]
         )
-        render.print_compact(results, ["SPEED"], {"SPEED": {"unit": ""}}, set(), changes_only=True)
+        views.print_compact(results, ["SPEED"], {"SPEED": {"unit": ""}}, set(), changes_only=True)
         out = capsys.readouterr().out
         # First 0 prints, next two identical 0s are dropped, then 7 prints.
         assert "16:00:00" in out
@@ -452,7 +452,7 @@ class TestPrintCompact:
 
     def test_no_present_params(self, capsys):
         results = _compact_results([("16:00:00", "s", {})])
-        render.print_compact(results, ["SPEED"], {"SPEED": {"unit": ""}}, set())
+        views.print_compact(results, ["SPEED"], {"SPEED": {"unit": ""}}, set())
         out = capsys.readouterr().out
         assert "no decodable parameters" in out
 
@@ -471,7 +471,7 @@ class TestPrintStatsGrouped:
                 ("16:00:02", "drive B", {"P": 100}),
             ]
         )
-        render.print_stats_grouped(results, ["P"], {"P": {"unit": ""}}, set(), "state")
+        views.print_stats_grouped(results, ["P"], {"P": {"unit": ""}}, set(), "state")
         out = capsys.readouterr().out
         assert "[drive A]" in out and "[drive B]" in out
         # Group A max is 3, group B max is 100 — proves per-group stats.

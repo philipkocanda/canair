@@ -1,0 +1,256 @@
+"""The analysis views: discriminability, mirrors, and correlations.
+
+The ranked/comparative tables — ``--discriminate``, ``--find-mirrors``,
+``--corr`` — as opposed to the value views in :mod:`.views`. These are the ones
+that render **byte labels**, so they are the renderers the notation goldens in
+``tests/test_analysis_golden.py`` pin.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Callable
+from typing import TYPE_CHECKING
+
+from canlib.align import longest_payload_len
+from canlib.inspect_bytes import apply_transform
+from canlib.mirrors import DEFAULT_MIRROR_MATCH
+from canlib.notation import ByteNotation, relabel_signal
+from canlib.states import join_states as _join_states
+from canlib.stats import correlation as _correlation
+from canlib.xanalysis import byte_state_buckets as _byte_state_buckets
+from canlib.xanalysis import discriminability as _discriminability
+
+from .calc import _local_series, _paired, _paired_timed, _transform_series, find_mirrors
+from .format import _BOLD, _CYAN, _DIM, _GREEN, _RESET, _YELLOW, _mark_for
+
+if TYPE_CHECKING:
+    from canlib.align import TimePoint
+
+
+def print_discriminate(
+    all_results: list[dict],
+    param_names: list[str],
+    parameters: dict,
+    candidate_names: set[str],
+    field: str,
+    *,
+    include_bytes: bool = False,
+    include_bits: bool = False,
+    notation: ByteNotation = ByteNotation.WICAN,
+    sub_bytes: int = 1,
+    group_of: Callable[[dict], str | None] | None = None,
+) -> None:
+    """Rank params (and optionally raw bytes/bits) by how cleanly they separate
+    across ``field`` groups.
+
+    The confirmation lever for state-dependent signals (thermal/mode/relay) that
+    a driving-anchor correlation misses — e.g. MCU inverter temp reads distinctly
+    across charging/ready/driving. Uses an F-like between/within variance ratio.
+
+    With ``include_bytes`` (``--bytes``) every varying non-PCI raw byte is ranked
+    alongside the params; with ``include_bits`` (``--bits``) so is every varying
+    bit (``Bn:k``) — finding a state-dependent byte/bit without a ``--try``.
+
+    ``group_of`` overrides the grouping key per result — the arbitrary-axis
+    generalization (bucket by a cross-signal's discretized value, not the vehicle
+    state). It defaults to the session vehicle-state key; a capture it maps to
+    ``None`` (e.g. no axis sample within tolerance) is dropped from every bucket.
+    """
+
+    def _grp(r: dict) -> str | None:
+        if group_of is not None:
+            return group_of(r)
+        return _join_states(r["capture"].get("vehicle_states")) or "(no state)"
+
+    buckets: dict[str, dict[str, list[float]]] = {name: {} for name in param_names}
+    # Parallel categorical view: for typed enum/bitmask params, collect the
+    # nominal category per capture alongside its group, so we can score them with
+    # Cramér's V (F assumes interval scale — invalid for a mode/flag set).
+    cat_pairs: dict[str, tuple[list, list]] = {}
+    for r in all_results:
+        key = _grp(r)
+        if key is None:
+            continue
+        for name in param_names:
+            d = r["decoded"].get(name, {})
+            v = d.get("value")
+            if v is not None:
+                buckets[name].setdefault(key, []).append(v)
+            cat = d.get("category")
+            if cat is not None:
+                xs, ys = cat_pairs.setdefault(name, ([], []))
+                xs.append(cat)
+                ys.append(key)
+
+    byte_names: set[str] = set()
+    if include_bytes or include_bits:
+        byte_buckets = _byte_state_buckets(
+            all_results, field, include_bits=include_bits, group_of=group_of
+        )
+        byte_names = set(byte_buckets)
+        buckets.update(byte_buckets)
+
+    rows = []
+    for name in list(buckets):
+        score = _discriminability(buckets[name])
+        rows.append((name, score, buckets[name]))
+    rows.sort(key=lambda t: (t[1] is None, -(t[1] if t[1] is not None else 0)))
+
+    hdr_extra = ""
+    if include_bytes and include_bits:
+        hdr_extra = " (params + bytes + bits)"
+    elif include_bytes:
+        hdr_extra = " (params + bytes)"
+    elif include_bits:
+        hdr_extra = " (params + bits)"
+    print(
+        f"  {_BOLD}Discriminability by {field}{hdr_extra}{_RESET} "
+        f"{_DIM}(numeric: between/within variance F; categorical: Cramér's V — "
+        f"higher = cleaner separation){_RESET}"
+    )
+    plen = longest_payload_len([r.get("capture") for r in all_results])
+    for name, score, groups in rows:
+        if name in byte_names:
+            mark = f"{_DIM}·{_RESET}"
+        else:
+            mark = _mark_for(name, parameters, candidate_names)
+        disp = relabel_signal(name, notation, sub_bytes=sub_bytes, payload_len=plen)
+        try_tag = f" {_CYAN}(try){_RESET}" if name in candidate_names else ""
+
+        # Categorical params: report Cramér's V vs state (nominal association)
+        # instead of the interval-scale F, which doesn't apply to a mode/flag set.
+        if name in cat_pairs:
+            from canlib.stats import cramers_v
+
+            xs, ys = cat_pairs[name]
+            v = cramers_v(xs, ys)
+            if v is None:
+                print(f"    {mark} {disp}{try_tag}  {_DIM}V=n/a{_RESET}")
+                continue
+            vcolor = _GREEN if v >= 0.6 else _YELLOW if v >= 0.3 else _DIM
+            distinct = "  ".join(sorted({str(c) for c in xs})[:6])
+            print(
+                f"    {mark} {disp}{try_tag}  {vcolor}V={v:.2f}{_RESET}  "
+                f"{_DIM}(categorical: {distinct}){_RESET}"
+            )
+            continue
+
+        if score is None:
+            print(f"    {mark} {disp}{try_tag}  {_DIM}F=n/a{_RESET}")
+            continue
+        color = _GREEN if score >= 10 or score == float("inf") else _YELLOW if score >= 2 else _DIM
+        fstr = "∞" if score == float("inf") else f"{score:.1f}"
+        means = "  ".join(f"{g}={sum(v) / len(v):.1f}" for g, v in groups.items() if v)
+        print(f"    {mark} {disp}{try_tag}  {color}F={fstr}{_RESET}  {_DIM}{means}{_RESET}")
+    print()
+
+
+def print_mirrors(
+    all_results: list[dict],
+    *,
+    bits: bool = False,
+    notation: ByteNotation = ByteNotation.WICAN,
+    sub_bytes: int = 1,
+    min_fraction: float = DEFAULT_MIRROR_MATCH,
+    allow_offset: bool = False,
+) -> None:
+    """Print byte/bit mirrors (redundant signals) found across this PID's captures."""
+    mirrors = find_mirrors(
+        all_results, bits=bits, min_fraction=min_fraction, allow_offset=allow_offset
+    )
+    what = "positions equal" if not allow_offset else "positions equal up to an offset/scale"
+    print(
+        f"  {_BOLD}Mirrors{_RESET} {_DIM}({what} in ≥{min_fraction * 100:.0f}% of captures){_RESET}"
+    )
+    if not mirrors:
+        print(f"    {_DIM}none{_RESET}")
+        print()
+        return
+    plen = longest_payload_len([r.get("capture") for r in all_results])
+    for hit in mirrors:
+        da = relabel_signal(hit.a, notation, sub_bytes=sub_bytes, payload_len=plen)
+        db = relabel_signal(hit.b, notation, sub_bytes=sub_bytes, payload_len=plen)
+        rel = hit.relation
+        print(f"    {_GREEN}{da} == {rel.describe(db)}{_RESET}  {_DIM}({rel.quality()}){_RESET}")
+    print()
+
+
+def print_correlations(
+    all_results: list[dict],
+    param_names: list[str],
+    parameters: dict,
+    candidate_names: set[str],
+    ref: str,
+    *,
+    cross_ref_series: list[TimePoint] | None = None,
+    cross_ref_label: str | None = None,
+    tol_s: float | None = None,
+    transform: str | None = None,
+    method: str = "pearson",
+) -> None:
+    """Correlation of every parameter against ``ref`` across captures.
+
+    The key reverse-engineering lever: correlate a candidate expression against
+    a known signal (e.g. a torque guess vs MCU_MOTOR_RPM) to confirm it tracks.
+
+    When ``cross_ref_series`` (a list[TimePoint] from another ECU/PID) is given,
+    every local param is time-aligned against it by nearest timestamp instead of
+    the fast same-payload positional pairing. ``transform`` optionally reshapes
+    the reference series first (e.g. ``delta`` to test level vs rate); ``method``
+    selects pearson (linear) or spearman (monotone/rank).
+    """
+    from canlib.align import DEFAULT_JOIN_TOL_S, join_nearest
+
+    cross = cross_ref_series is not None
+    ref_label = cross_ref_label if cross else ref
+    tol = tol_s if tol_s is not None else DEFAULT_JOIN_TOL_S
+
+    if cross and transform and transform != "raw":
+        cross_ref_series = _transform_series(cross_ref_series, transform)
+
+    rows = []
+    for name in param_names:
+        if not cross and name == ref:
+            continue
+        if cross:
+            local = _local_series(all_results, name)
+            # cross implies cross_ref_series is not None (set together above)
+            assert cross_ref_series is not None
+            # join_nearest(ref, cand): keep ref as the external signal
+            xs, ys, n = join_nearest(cross_ref_series, local, tol_s=tol)
+            r = _correlation(xs, ys, method)
+            rows.append((name, r, n))
+        else:
+            if transform and transform != "raw":
+                # delta/cumsum are order-sensitive: pair in time order, not
+                # capture-list order, so the reference transform is meaningful.
+                xs, ys = _paired_timed(all_results, ref, name)
+                xs = apply_transform(xs, transform)
+            else:
+                xs, ys = _paired(all_results, ref, name)
+            r = _correlation(xs, ys, method)
+            rows.append((name, r, len(xs)))
+    # Strongest absolute correlations first; undefined (None) last.
+    rows.sort(key=lambda t: (t[1] is None, -abs(t[1]) if t[1] is not None else 0))
+
+    coeff = {
+        "spearman": "Spearman ρ",
+        "cramers_v": "Cramér's V",
+        "mutual_info": "norm. MI",
+    }.get(method, "Pearson r")
+    header = f"  {_BOLD}Correlation vs {ref_label}{_RESET} {_DIM}({coeff}"
+    if transform and transform != "raw":
+        header += f", ref {transform}"
+    if cross:
+        header += f", nearest-join ≤{tol:g}s"
+    header += f"){_RESET}"
+    print(header)
+    for name, r, n in rows:
+        mark = _mark_for(name, parameters, candidate_names)
+        try_tag = f" {_CYAN}(try){_RESET}" if name in candidate_names else ""
+        if r is None:
+            print(f"    {mark} {name}{try_tag}  {_DIM}r=n/a  n={n}{_RESET}")
+            continue
+        color = _GREEN if abs(r) >= 0.7 else _YELLOW if abs(r) >= 0.3 else _DIM
+        print(f"    {mark} {name}{try_tag}  {color}r={r:+.3f}{_RESET}  {_DIM}n={n}{_RESET}")
+    print()

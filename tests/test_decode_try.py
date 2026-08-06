@@ -2,7 +2,7 @@
 
 import pytest
 
-from canlib.commands.decode import calc, query, render
+from canlib.commands.decode import analysis, calc, query, views
 from canlib.stats import compute_stats
 from canlib.xanalysis import discriminability as _discriminability
 
@@ -69,27 +69,27 @@ def _results(*value_seq):
 
 class TestValueRanges:
     def test_min_max_rendered(self, capsys):
-        render.print_value_ranges(
+        views.print_value_ranges(
             _results(1, 5, 3), ["P"], {"P": {"unit": "", "verified": False}}, set()
         )
         out = capsys.readouterr().out
         assert "1" in out and "5" in out and "—" in out
 
     def test_constant_marked(self, capsys):
-        render.print_value_ranges(
+        views.print_value_ranges(
             _results(7, 7), ["P"], {"P": {"unit": "", "verified": False}}, set()
         )
         assert "(constant)" in capsys.readouterr().out
 
     def test_all_errored_surfaces_error(self, capsys):
         # A param that only ever errors must NOT be silently hidden.
-        render.print_value_ranges(
+        views.print_value_ranges(
             _results(None, None), ["P"], {"P": {"unit": "", "verified": False}}, set()
         )
         assert "ERROR: boom" in capsys.readouterr().out
 
     def test_candidate_marker(self, capsys):
-        render.print_value_ranges(
+        views.print_value_ranges(
             _results(1, 2), ["P"], {"P": {"unit": "", "verified": False}}, {"P"}
         )
         assert "(try)" in capsys.readouterr().out
@@ -214,7 +214,7 @@ class TestCrossSignalCorrelation:
             TimePoint(datetime(2026, 7, 22, 9, 0, 0, 300000), 10.0),
             TimePoint(datetime(2026, 7, 22, 9, 0, 2, 200000), 20.0),
         ]
-        render.print_correlations(
+        analysis.print_correlations(
             self._results_with_time(),
             ["B"],
             {"B": {"expression": "B4"}},
@@ -258,7 +258,7 @@ class TestDiscriminate:
             {"capture": {"vehicle_states": ["driving"]}, "decoded": {"T": {"value": 90.0}}},
             {"capture": {"vehicle_states": ["driving"]}, "decoded": {"T": {"value": 92.0}}},
         ]
-        render.print_discriminate(results, ["T"], {}, set(), "state")
+        analysis.print_discriminate(results, ["T"], {}, set(), "state")
         out = capsys.readouterr().out
         assert "Discriminability by state" in out
         assert "charging=20" in out and "driving=91" in out
@@ -279,7 +279,7 @@ class TestDiscriminate:
             cap("charging", 0x00, 0x12),
             cap("charging", 0x00, 0x77),
         ]
-        render.print_discriminate(results, [], {}, set(), "state", include_bytes=True)
+        analysis.print_discriminate(results, [], {}, set(), "state", include_bytes=True)
         out = capsys.readouterr().out
         assert "params + bytes" in out
         assert "B4" in out  # the near-binary state byte is surfaced
@@ -299,7 +299,7 @@ class TestDiscriminate:
             }
 
         results = [cap("ready", 1), cap("ready", 2), cap("charging", 200), cap("charging", 201)]
-        render.print_discriminate(results, [], {}, set(), "state", include_bytes=True)
+        analysis.print_discriminate(results, [], {}, set(), "state", include_bytes=True)
         out = capsys.readouterr().out
         assert " B0 " not in out and " B1 " not in out
 
@@ -318,7 +318,7 @@ class TestDiscriminate:
             cap("charging", 0x00),
             cap("charging", 0x00),
         ]
-        render.print_discriminate(results, [], {}, set(), "state", include_bits=True)
+        analysis.print_discriminate(results, [], {}, set(), "state", include_bits=True)
         out = capsys.readouterr().out
         assert "params + bits" in out
         assert "B4:0" in out
@@ -347,7 +347,7 @@ class TestCorrTransform:
             {"decoded": {"REF": {"value": 6.0}, "B": {"value": 3.0}}},
         ]
         # delta(REF) = [0,1,2,3] which equals B exactly -> r=+1
-        render.print_correlations(results, ["B"], {"B": {}}, set(), "REF", transform="delta")
+        analysis.print_correlations(results, ["B"], {"B": {}}, set(), "REF", transform="delta")
         out = capsys.readouterr().out
         assert "ref delta" in out
         assert "r=+1.000" in out

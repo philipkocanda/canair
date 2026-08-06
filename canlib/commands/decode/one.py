@@ -32,20 +32,13 @@ from canlib.notation import resolve_notation, subfunction_bytes_for_pid
 from canlib.stats import compute_stats
 from canlib.stats import correlation as _correlation
 
+from .analysis import print_correlations, print_discriminate, print_mirrors
 from .calc import _local_series, _paired, _series, axis_group_keys, load_cross_ref_series
+from .dump import _dump_bytes
+from .format import scope_banner
 from .plot import build_plot_model, cmd_plot, plot_pid_options
 from .query import resolve_ref, scope_captures, tolerates_missing_pid
-from .render import (
-    _dump_bytes,
-    print_compact,
-    print_correlations,
-    print_discriminate,
-    print_mirrors,
-    print_stats_grouped,
-    print_stats_table,
-    print_value_ranges,
-    scope_banner,
-)
+from .views import print_compact, print_stats_grouped, print_stats_table, print_value_ranges
 
 _BOLD = "\033[1m"
 _DIM = "\033[2m"
