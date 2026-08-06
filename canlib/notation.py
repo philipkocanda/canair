@@ -18,10 +18,11 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import StrEnum
 
 from .byteindex import (
+    elm_to_wican_idx,
     isotp_to_torque,
     isotp_to_wican,
     torque_label,
@@ -255,9 +256,100 @@ class ByteRef:
 
 
 # Matches an analysis signal label ending in a WiCAN byte token — an optional
-# "ECU:PID:" prefix then "Bn" or "Bn:k". Anything else (a named parameter) is
+# "ECU:PID:" prefix then "Bn" or "Bn:k". Anything else (a named signal) is
 # left untouched by :func:`relabel_signal`.
 _WICAN_BYTE_LABEL = re.compile(r"^(?P<prefix>.*:)?B(?P<off>\d+)(?::(?P<bit>\d+))?$")
+
+
+# Per-notation sigil for a byte label, so a rendered reference can't be mistaken
+# for a position in another notation's space. Torque letters and bix numbers are
+# self-identifying, so they carry none.
+_NOTATION_SIGIL = {
+    ByteNotation.WICAN: "B",
+    ByteNotation.ISOTP: "i",
+    ByteNotation.TORQUE: "",
+    ByteNotation.BIX: "",
+}
+
+
+@dataclass(frozen=True)
+class ByteDisplay:
+    """Renders payload byte positions in one chosen notation.
+
+    Bundles the three things a renderer needs to name a byte — the ``notation``,
+    the payload's length (which decides the WiCAN frame layout) and the PID's
+    subfunction width (needed only for the Torque/bix views) — so a byte ruler
+    and a signal's byte-reference column are rendered from *one* source and can
+    never disagree about which space their numbers are in.
+
+    Offsets passed in are always canonical ISO-TP payload indices (see
+    :class:`ByteRef`); the notation is applied on the way out.
+    """
+
+    notation: ByteNotation = ByteNotation.WICAN
+    payload_len: int = 0
+    sub_bytes: int = 1
+
+    @property
+    def row_label(self) -> str:
+        """Label for a ruler row rendered in this notation (e.g. ``wican``)."""
+        return self.notation.value
+
+    def cell(self, offset: int, pad: int = 2) -> str:
+        """Bare (sigil-free) ruler cell for a payload column, padded to ``pad``."""
+        fill = "0" if self.notation in (ByteNotation.WICAN, ByteNotation.ISOTP) else " "
+        return self._token(offset, sigil=False).rjust(pad, fill)
+
+    def ref(self, start: int, end: int | None = None) -> str:
+        """Sigil'd label for a byte or a contiguous byte run (e.g. ``B10-B11``)."""
+        first = self._token(start)
+        if end is None or end == start:
+            return first
+        return f"{first}-{self._token(end)}"
+
+    @property
+    def fits_ruler(self) -> bool:
+        """Whether every column's cell fits the two-character hex byte column."""
+        return all(len(self._token(i, sigil=False)) <= 2 for i in range(self.payload_len))
+
+    def ordinal(self, offset: int) -> int:
+        """This byte's position in the notation's own sequence.
+
+        Used to decide whether two payload bytes are *adjacent as rendered*, which
+        is not the same as adjacent in the payload: WiCAN interleaves PCI framing
+        bytes, so payload bytes 12..15 are ``B15,B17-B19`` — collapsing them to
+        ``B15-B19`` would claim the signal reads the PCI byte B16.
+        """
+        if self.notation is ByteNotation.WICAN:
+            return elm_to_wican_idx(offset, self.payload_len)
+        if self.notation is ByteNotation.ISOTP:
+            return offset
+        # Torque and bix are both derived from the Torque index, which counts data
+        # bytes — so the Torque ordinal is the adjacency measure for both.
+        torque = isotp_to_torque(offset, self.sub_bytes)
+        return torque if torque is not None else -1
+
+    def aligned(self) -> ByteDisplay:
+        """This display, or a WiCAN one when its cells can't align under the hex.
+
+        bix is a *bit* index (payload byte 20 is bix 160) and Torque runs out of
+        letters, so neither can label a two-character byte column on a longer
+        payload. Falling back keeps a ruler and the signal byte-reference column
+        in one shared space instead of letting them disagree — the confusion this
+        type exists to prevent.
+        """
+        return self if self.fits_ruler else replace(self, notation=ByteNotation.WICAN)
+
+    def _token(self, offset: int, *, sigil: bool = True) -> str:
+        if self.notation is ByteNotation.WICAN:
+            # WiCAN indices are payload-length dependent (PCI framing bytes), so
+            # derive them from the length rather than ByteRef's layout-free view.
+            value = str(elm_to_wican_idx(offset, self.payload_len))
+        elif self.notation is ByteNotation.ISOTP:
+            value = str(offset)
+        else:
+            value = ByteRef.from_isotp(offset).render(self.notation, sub_bytes=self.sub_bytes)
+        return (_NOTATION_SIGIL[self.notation] + value) if sigil else value
 
 
 def relabel_signal(

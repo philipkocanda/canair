@@ -12,6 +12,7 @@ from .uds_parse import UdsResponse
 
 if TYPE_CHECKING:
     from .modes.multi_batch import ResultEntry
+    from .notation import ByteDisplay
 
 # Which byte space a raw buffer is in. Both are plain ``bytes`` and they differ by
 # the ISO-TP PCI framing bytes, so the distinction has to be carried explicitly —
@@ -129,44 +130,56 @@ def param_byte_indices(expression: str, n_bytes: int) -> list[int]:
     return sorted(elm)
 
 
-def format_byte_ranges(indices: list[int]) -> str:
-    """Collapse a sorted index list into compact ranges: ``[3,4,5,9] → '3-5,9'``."""
-    if not indices:
-        return ""
-    parts: list[str] = []
-    start = prev = indices[0]
-    for i in indices[1:]:
-        if i == prev + 1:
-            prev = i
-            continue
-        parts.append(f"{start}-{prev}" if start != prev else f"{start}")
-        start = prev = i
-    parts.append(f"{start}-{prev}" if start != prev else f"{start}")
-    return ",".join(parts)
+def param_byte_index_str(expression: str, display: "ByteDisplay") -> str:
+    """Human-readable byte reference for a signal's expression.
 
-
-def param_byte_index_str(expression: str, n_bytes: int) -> str:
-    """Human-readable byte reference for a parameter's expression.
-
-    Valid payload positions are shown as compact ranges (e.g. ``16-17``). WiCAN
-    indices that don't map to a payload byte — PCI/ISO-TP framing bytes, or
-    indices beyond the payload — are flagged as ``⚠B<idx>`` (a common definition
-    bug: reading a framing byte as data). Returns ``""`` if nothing is referenced.
+    Valid payload positions are rendered as compact ranges in ``display``'s
+    notation (e.g. ``B18-B19``), so the column names bytes in the *same* space as
+    the ruler drawn above the hex. WiCAN indices that don't map to a payload byte
+    — PCI/ISO-TP framing bytes, or indices beyond the payload — are flagged as
+    ``⚠B<idx>`` (a common definition bug: reading a framing byte as data).
+    Returns ``""`` if nothing is referenced.
     """
     valid: list[int] = []
     bad_wican: list[int] = []
     for wi in sorted(extract_byte_indices(expression)):
-        ei = wican_to_elm_idx(wi, n_bytes)
-        if ei is not None and 0 <= ei < n_bytes:
+        ei = wican_to_elm_idx(wi, display.payload_len)
+        if ei is not None and 0 <= ei < display.payload_len:
             valid.append(ei)
         else:
             bad_wican.append(wi)
     parts: list[str] = []
     if valid:
-        parts.append(format_byte_ranges(sorted(set(valid))))
+        parts.append(
+            ",".join(
+                display.ref(start, end if end != start else None)
+                for start, end in _rendered_runs(sorted(set(valid)), display)
+            )
+        )
     if bad_wican:
         parts.append("⚠B" + ",".join(str(w) for w in bad_wican))
     return " ".join(parts)
+
+
+def _rendered_runs(indices: list[int], display: "ByteDisplay") -> list[tuple[int, int]]:
+    """Split payload offsets into runs that are *adjacent as rendered*.
+
+    Contiguity is judged in the display notation's own sequence, not the payload's:
+    WiCAN interleaves PCI framing bytes, so payload bytes 12..15 must render as
+    ``B15,B17-B19`` rather than a ``B15-B19`` that would claim the PCI byte.
+    """
+    runs: list[tuple[int, int]] = []
+    if not indices:
+        return runs
+    start = prev = indices[0]
+    for i in indices[1:]:
+        if i == prev + 1 and display.ordinal(i) == display.ordinal(prev) + 1:
+            prev = i
+            continue
+        runs.append((start, prev))
+        start = prev = i
+    runs.append((start, prev))
+    return runs
 
 
 def format_value(value: float | str | None, unit: str, display: str = "") -> str:
@@ -253,26 +266,27 @@ def render_param_table(
     *,
     verbose: bool = False,
     indent: str = "      ",
-    n_bytes: int | None = None,
+    display: "ByteDisplay | None" = None,
     selected_name: str | None = None,
     changed_styles: dict[str, str] | None = None,
 ) -> Text:
-    """Render decoded parameter rows as an aligned Rich Text block.
+    """Render decoded signal rows as an aligned Rich Text block.
 
     Each row is ``(name, value, unit, expression, error, verified[, display])``.
     Layout: ``{indent}{name}  {value}  ✓|?`` with columns aligned; ``verbose``
     appends the dimmed expression. Error rows show ``ERROR: <msg>`` in red.
 
-    When ``n_bytes`` is given, a dimmed byte-index column is appended after the
-    mark, showing which payload byte position(s) each parameter reads (aligned
-    with the hex view's ruler). Returns an empty ``Text`` when there are no params.
+    When ``display`` (a :class:`~canlib.notation.ByteDisplay`) is given, a dimmed
+    byte-reference column is appended after the mark, naming which payload
+    byte(s) each signal reads in the *same* notation as the ruler drawn above the
+    hex (e.g. ``B18-B19``). Returns an empty ``Text`` when there are no signals.
 
-    When ``selected_name`` matches a row's parameter name, that row is marked
-    with a ``▶`` cursor and reverse-styled — used by the live monitor to show the
-    parameter currently targeted for in-place editing.
+    When ``selected_name`` matches a row's signal name, that row is marked with a
+    ``▶`` cursor and reverse-styled — used by the live monitor to show the signal
+    currently targeted for in-place editing.
 
     ``changed_styles`` (``{name: style}``, from :func:`changed_param_highlights`)
-    backgrounds a parameter's name/value cells with the highlight variant of the
+    backgrounds a signal's name/value cells with the highlight variant of the
     changed byte it decodes, linking a byte flash to the value it produced. The
     ``▶`` selection style takes precedence when a row is both selected and changed.
     """
@@ -287,17 +301,17 @@ def render_param_table(
         for r in params
     )
 
-    # Precompute byte-index strings (and their column width) when requested.
+    # Precompute byte-reference strings (and their column width) when requested.
     byte_strs: dict[int, str] = {}
     max_bytes_w = 0
-    if n_bytes is not None:
+    if display is not None:
         for idx, row in enumerate(params):
-            byte_strs[idx] = param_byte_index_str(row[3], n_bytes)
+            byte_strs[idx] = param_byte_index_str(row[3], display)
         max_bytes_w = max((len(s) for s in byte_strs.values()), default=0)
 
     for idx, row in enumerate(params):
         name, value, unit, expression, perr, verified = row[:6]
-        display = row[6] if len(row) > 6 else ""
+        disp_expr = row[6] if len(row) > 6 else ""
         mark_style = "green" if verified else "yellow"
         mark_char = "✓" if verified else "?"
         is_sel = selected_name is not None and name == selected_name
@@ -313,11 +327,11 @@ def render_param_table(
             t.append(f"ERROR: {perr or 'no value'}\n", style="red")
             continue
 
-        val_str = format_value(value, unit, display)
+        val_str = format_value(value, unit, disp_expr)
         t.append(f"{name_prefix}{name:<{max_name}}  ", style=name_style)
         t.append(f"{val_str:<{max_val}}  ", style=name_style)
         t.append(mark_char, style=mark_style)
-        if n_bytes is not None:
+        if display is not None:
             byte_str = byte_strs.get(idx, "")
             pad = max_bytes_w if verbose else 0
             t.append(f"  {byte_str:<{pad}}", style="dim")
@@ -390,39 +404,40 @@ def render_param_ranges(
     return t
 
 
-def render_byte_rulers(n_bytes: int, params: list[ParamRow], *, prefix_width: int = 8) -> Text:
-    """Return a two-row byte-index ruler (``idx`` + ``wican``) as Rich Text.
+def render_byte_rulers(
+    display: "ByteDisplay", params: list[ParamRow], *, prefix_width: int = 8
+) -> Text:
+    """Return a byte-index ruler row for a payload, as Rich Text.
 
-    ``idx`` = payload byte position; ``wican`` = WiCAN Bnn index (which skips PCI
-    framing bytes). Numbers are coverage-coloured (green=verified, yellow=
-    unverified, grey=uncovered) to match the hex view, on a dark background bar,
-    and aligned under each hex byte column.
+    **One** row is drawn, in ``display``'s notation (the user's
+    ``display.byte_notation``, WiCAN by default) and labelled with it — showing
+    two rows in two different spaces made the columns ambiguous rather than
+    clearer, and the signal byte-reference column beside each value is rendered
+    from the same :class:`~canlib.notation.ByteDisplay`, so the two always agree.
+
+    Numbers are coverage-coloured (green=verified, yellow=unverified,
+    grey=uncovered) to match the hex view, on a dark background bar, and aligned
+    under each hex byte column.
 
     ``prefix_width`` must equal the width of the prefix used on the hex lines
-    rendered below (e.g. timestamp column) so the ruler columns line up. Each
-    row is newline-terminated.
+    rendered below (e.g. timestamp column) so the ruler columns line up. The row
+    is newline-terminated.
     """
-    from .byteindex import elm_to_wican_idx
-
+    n_bytes = display.payload_len
     bg = "on grey23"
     # Lift uncovered grey to a readable tone against the dark background.
     fg_map = {"green": "green", "yellow": "yellow", "bright_black": "grey58"}
     byte_colors = _build_byte_colors(params, n_bytes) if params else None
 
     out = Text()
-
-    def _row(label: str, value_fn) -> None:
-        # Label sits in the leftmost 6 chars, padded out to the full prefix width.
-        out.append(f"{label:>6}".ljust(prefix_width), style=f"bold white {bg}")
-        for i in range(n_bytes):
-            if i > 0:
-                out.append(" ", style=bg)
-            base = byte_colors[i] if byte_colors else "bright_black"
-            out.append(f"{value_fn(i):02d}", style=f"{fg_map.get(base, base)} {bg}")
-        out.append("\n")
-
-    _row("idx", lambda i: i)
-    _row("wican", lambda i: elm_to_wican_idx(i, n_bytes))
+    # Label sits in the leftmost 6 chars, padded out to the full prefix width.
+    out.append(f"{display.row_label:>6}".ljust(prefix_width), style=f"bold white {bg}")
+    for i in range(n_bytes):
+        if i > 0:
+            out.append(" ", style=bg)
+        base = byte_colors[i] if byte_colors else "bright_black"
+        out.append(display.cell(i), style=f"{fg_map.get(base, base)} {bg}")
+    out.append("\n")
     return out
 
 
@@ -433,7 +448,7 @@ def print_decoded_params(params_results: list, verbose: bool = False):
         params_results: list of (name, value, unit, expression, error, verified[, display])
     """
     if not params_results:
-        print("  No parameters to display")
+        print("  No signals to display")
         return
 
     max_name = max(len(r[0]) for r in params_results)

@@ -1,5 +1,5 @@
 
-IGPM PID 22BC03 — 18 parameters (15 verified, 3 unverified), 310 captures
+IGPM PID 22BC03 — 19 parameters (15 verified, 4 unverified), 310 captures
 
   scope: earliest .. 2026-08-02
 

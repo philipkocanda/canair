@@ -15,6 +15,7 @@ from textual.containers import VerticalScroll
 from textual.widgets import Static
 
 from canlib.tui_help import HelpMixin
+from canlib.tui_status import P_ESSENTIAL, P_HIGH, P_LOW, P_NORMAL, StatusBar, StatusItem
 
 if TYPE_CHECKING:
     from canlib.commands.sniff import SniffStats
@@ -31,7 +32,6 @@ class SniffApp(HelpMixin, App):
     Screen { layout: vertical; background: transparent; }
     #scroll { height: 1fr; scrollbar-gutter: stable; scrollbar-size-vertical: 1; background: transparent; }
     #body { height: auto; padding: 0 1; background: transparent; }
-    #status { dock: bottom; height: 1; padding: 0 1; background: transparent; }
     """
 
     BINDINGS: ClassVar[list[Binding]] = [
@@ -51,7 +51,7 @@ class SniffApp(HelpMixin, App):
     def compose(self) -> ComposeResult:
         with VerticalScroll(id="scroll"):
             yield Static("", id="body", markup=False)
-        yield Static("", id="status", markup=True)
+        yield StatusBar(id="status")
 
     def on_mount(self) -> None:
         if "ansi-dark" in self.available_themes:
@@ -67,10 +67,16 @@ class SniffApp(HelpMixin, App):
         try:
             self.query_one("#body", Static).update(render_sniff_table(rows))
             elapsed = time.monotonic() - self._start
-            self.query_one("#status", Static).update(
-                f"[dim]sniff[/] {self.host} [dim]·[/] {len(rows)} IDs [dim]·[/] "
-                f"{self.stats.total_frames} frames [dim]·[/] {elapsed:.0f}s"
-                "    [dim]? help · c clear · q quit[/]"
+            self.query_one("#status", StatusBar).set_lines(
+                [
+                    StatusItem(f"[dim]sniff[/] {self.host}", P_LOW),
+                    StatusItem(f"{len(rows)} [dim]IDs[/]", P_HIGH),
+                    StatusItem(f"{self.stats.total_frames} [dim]frames[/]", P_NORMAL),
+                    StatusItem(f"{elapsed:.0f}[dim]s[/]", P_LOW),
+                    StatusItem("[dim]c clear[/]", P_NORMAL),
+                    StatusItem("[dim]? help[/]", P_ESSENTIAL),
+                    StatusItem("[dim]q quit[/]", P_ESSENTIAL),
+                ]
             )
         except Exception:  # transient teardown query misses are harmless
             return

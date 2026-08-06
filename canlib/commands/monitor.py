@@ -1,4 +1,4 @@
-"""``canair monitor`` — live, continuously-refreshing view of ECU parameters.
+"""``canair monitor`` — live, continuously-refreshing view of ECU signals.
 
 Promoted from the former ``canair query --monitor`` flag into its own top-level
 command. Positional STEPs use the same multi mini-language as ``canair read``;
@@ -25,6 +25,7 @@ from canlib.commands._live import (
     step_completer,
     to_step,
 )
+from canlib.notation import add_notation_arg
 
 NAME = "monitor"
 ALIASES = ["mon"]
@@ -34,8 +35,8 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
         aliases=ALIASES,
-        help="Live, continuously-refreshing view of ECU parameters (scrollable TUI)",
-        description="Monitor ECUs/parameters live in a scrollable, refreshing view. "
+        help="Live, continuously-refreshing view of ECU signals (scrollable TUI)",
+        description="Monitor ECUs/signals live in a scrollable, refreshing view. "
         "Positional STEPs use the multi mini-language (same as `canair read`).",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
@@ -49,11 +50,11 @@ examples:
   canair monitor BMS:2101 --save --label "…" --state "READY, PARKED"  Record while monitoring
 
 In the TUI: mouse wheel / scrollbar / arrows-jk / PgUp-PgDn / g-G scroll,
-f toggles follow-tail, space pauses, =/- change the poll interval live,
-r toggles byte-index rulers, l opens the errors/diagnostics log,
+space pauses, =/- change the poll interval live,
+r toggles the byte-index ruler, l opens the errors/diagnostics log,
 V cycles the view mode (ecus / ranges / signals / full),
 i opens the session-info overlay (segment history + summary),
-↑/↓ select a parameter (esc deselects), e/v/d/F edit/verify/en-disable/filter,
+↑/↓ select a signal (esc deselects), e/v/d/F edit/verify/en-disable/filter,
 s labels the recording (or saves now when not using --save),
 n finishes the current --save session and starts a fresh one,
 ? shows all shortcuts, q quits.
@@ -100,8 +101,12 @@ For a single one-shot read (no live refresh) use `canair read` instead.
     parser.add_argument("--state", metavar="TEXT", default=None, help="Session state for --save")
     parser.add_argument("--notes", metavar="TEXT", default=None, help="Session notes for --save")
     parser.add_argument(
-        "--rulers", action="store_true", help="Show byte-index rulers above the hex"
+        "--rulers",
+        action="store_true",
+        help="Show a byte-index ruler above the hex (in the notation from "
+        "--notation / display.byte_notation)",
     )
+    add_notation_arg(parser)
     parser.add_argument(
         "--include-static",
         action="store_true",

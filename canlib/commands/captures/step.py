@@ -16,6 +16,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from canlib.capture_types import CaptureEntry
+from canlib.notation import ByteNotation
 
 from .query import (
     _DIM,
@@ -49,6 +50,7 @@ def build_model(
     show_all: bool = False,
     captures_dir: Path | None = None,
     rulers: bool = False,
+    notation: ByteNotation = ByteNotation.WICAN,
     view: str = VIEW_AUTO,
     tol_s: float = DEFAULT_STEP_JOIN_TOL_S,
     warn: bool = True,
@@ -77,6 +79,7 @@ def build_model(
         tol_s=tol_s,
         show_all=show_all,
         rulers=rulers,
+        notation=notation,
         captures_dir=captures_dir,
         aliases=_safe_alias_index(),
     )
@@ -88,6 +91,7 @@ def cmd_step(
     show_all: bool = False,
     captures_dir: Path | None = None,
     rulers: bool = False,
+    notation: ByteNotation = ByteNotation.WICAN,
     view: str = VIEW_AUTO,
     tol_s: float = DEFAULT_STEP_JOIN_TOL_S,
     as_json: bool = False,
@@ -116,6 +120,7 @@ def cmd_step(
         show_all=show_all,
         captures_dir=captures_dir,
         rulers=rulers,
+        notation=notation,
         view=view,
         tol_s=tol_s,
         warn=not as_json,

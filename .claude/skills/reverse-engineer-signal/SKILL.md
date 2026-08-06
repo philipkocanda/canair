@@ -301,7 +301,7 @@ canair captures uds MCU --latest              # most recent payload per PID (ECU
 canair captures uds MCU 2102                  # list captures + decoded (latest --limit; --limit 0 for all)
 canair captures uds MCU:2102 --diff           # unique payloads, byte-diff
 canair captures uds MCU:2102 --diff --all     # every payload, not just unique ones
-canair captures uds MCU:2102 --diff --rulers  # add the idx/wican byte-index ruler above the hex
+canair captures uds MCU:2102 --diff --rulers  # add the byte ruler above the hex (--notation to switch)
 canair captures uds MCU:2102 --diff --since 2026-07-19   # scope by date
 canair captures uds MCU:2102 --diff --state DRIVING       # scope to one drive/state
 canair captures uds MCU:2102 --step           # interactive step-through (e=note, d=delete)

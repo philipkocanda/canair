@@ -149,9 +149,9 @@ class TestRenderResults:
         t = _render_results(results, verbose=False, cycle=1, elapsed=0.1, interval=5.0)
         assert "(unmapped)" in t.plain
 
-    def test_rulers_annotate_params_with_byte_index(self):
-        # With show_rulers, each param gets its payload byte-index column (like
-        # the diff view). B02 -> payload byte 1 for a single-frame reply.
+    def test_rulers_annotate_signals_with_byte_reference(self):
+        # With show_rulers, each signal gets its byte-reference column, rendered
+        # in the same notation as the ruler (WiCAN by default — so it echoes B2).
         params = [("VOLT", 12.3, "V", "B02", None, True)]
         entry = self._make_pid_result(pid="2101", params=params, raw_hex="6101AB")
         results = [("BMS (0x7E4)", [entry])]
@@ -159,8 +159,30 @@ class TestRenderResults:
             results, verbose=False, cycle=1, elapsed=0.1, interval=5.0, show_rulers=True
         ).plain
         line = next(ln for ln in with_r.splitlines() if "VOLT" in ln)
-        # Byte-index annotation (payload index 1) trails the verified mark.
-        assert line.rstrip().endswith("✓  1")
+        # Byte reference trails the verified mark.
+        assert line.rstrip().endswith("✓  B2")
+        # One ruler row, labelled with the notation it is drawn in.
+        assert len([ln for ln in with_r.splitlines() if ln.strip().startswith("wican")]) == 1
+        assert "idx" not in with_r
+
+    def test_ruler_notation_follows_request(self):
+        from canlib.notation import ByteNotation
+
+        params = [("VOLT", 12.3, "V", "B02", None, True)]
+        entry = self._make_pid_result(pid="2101", params=params, raw_hex="6101AB")
+        results = [("BMS (0x7E4)", [entry])]
+        out = _render_results(
+            results,
+            verbose=False,
+            cycle=1,
+            elapsed=0.1,
+            interval=5.0,
+            show_rulers=True,
+            notation=ByteNotation.ISOTP,
+        ).plain
+        line = next(ln for ln in out.splitlines() if "VOLT" in ln)
+        assert line.rstrip().endswith("✓  i1")
+        assert any(ln.strip().startswith("isotp") for ln in out.splitlines())
 
     def test_keep_all_history_render_is_capped(self):
         # With --keep-all, a PID can accrue thousands of payloads; the render must

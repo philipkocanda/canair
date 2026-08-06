@@ -8,14 +8,15 @@
 usage: canair monitor [-h] [--interval SECONDS] [--session] [--wake]
                       [--keep-changes | --keep-unique | --keep-all | --keep N]
                       [--save] [--label TEXT] [--state TEXT] [--notes TEXT]
-                      [--rulers] [--include-static] [--wican WICAN]
+                      [--rulers] [--notation NAME] [--include-static]
+                      [--wican WICAN]
                       [--transport {slcan-tcp,wican-ws,elm327-tcp}]
                       [--no-fallback] [--wait] [--elm-timeout MS]
                       [--timeout SECONDS] [--json] [--verbose] [--timings]
                       [--reboot] [--unsafe] [--force]
                       [STEP ...]
 
-[UDS] Monitor ECUs/parameters live in a scrollable, refreshing view. Positional STEPs use the multi mini-language (same as `canair read`).
+[UDS] Monitor ECUs/signals live in a scrollable, refreshing view. Positional STEPs use the multi mini-language (same as `canair read`).
 
 positional arguments:
   STEP                  Query selector(s), @group(s), or multi mini-language
@@ -39,7 +40,11 @@ options:
   --label TEXT          Session label for --save
   --state TEXT          Session state for --save
   --notes TEXT          Session notes for --save
-  --rulers              Show byte-index rulers above the hex
+  --rulers              Show a byte-index ruler above the hex (in the notation
+                        from --notation / display.byte_notation)
+  --notation NAME       byte-index notation for output labels: wican
+                        (default), isotp, torque, bix. Overrides the
+                        display.byte_notation config key.
   --include-static      Include static config/identity PIDs (e.g. 21F2) in a
                         bare-ECU sweep. By default `canair monitor ECU` omits
                         PIDs flagged static:true; naming one explicitly
@@ -85,11 +90,11 @@ examples:
   canair monitor BMS:2101 --save --label "…" --state "READY, PARKED"  Record while monitoring
 
 In the TUI: mouse wheel / scrollbar / arrows-jk / PgUp-PgDn / g-G scroll,
-f toggles follow-tail, space pauses, =/- change the poll interval live,
-r toggles byte-index rulers, l opens the errors/diagnostics log,
+space pauses, =/- change the poll interval live,
+r toggles the byte-index ruler, l opens the errors/diagnostics log,
 V cycles the view mode (ecus / ranges / signals / full),
 i opens the session-info overlay (segment history + summary),
-↑/↓ select a parameter (esc deselects), e/v/d/F edit/verify/en-disable/filter,
+↑/↓ select a signal (esc deselects), e/v/d/F edit/verify/en-disable/filter,
 s labels the recording (or saves now when not using --save),
 n finishes the current --save session and starts a fresh one,
 ? shows all shortcuts, q quits.

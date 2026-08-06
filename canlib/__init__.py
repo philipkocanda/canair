@@ -23,7 +23,6 @@ from .ecus import (
     rx_from_name,
 )
 from .formatting import (
-    format_byte_ranges,
     format_value,
     param_byte_index_str,
     param_byte_indices,
@@ -55,7 +54,6 @@ __all__ = [
     "decode_param_rows",
     "ecu_name",
     "ecu_name_from_ref",
-    "format_byte_ranges",
     "format_value",
     "init_logging",
     "load_ecus",

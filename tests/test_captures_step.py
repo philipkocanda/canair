@@ -119,7 +119,7 @@ class TestCaptureBlockText:
         out = _render(
             capture_block_text(caps, 1, defs, [None, 0], [(1, 2), (2, 2)], changed_only=True)
         )
-        assert "no param changes" in out
+        assert "no signal changes" in out
 
     def test_cursor_and_delta_label(self):
         out = _block(selected=True, dt_label="Δt=+1.24s")

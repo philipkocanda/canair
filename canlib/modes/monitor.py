@@ -37,6 +37,7 @@ from ..formatting import (
     _render_hex_line,
 )
 from ..keepmode import KEEP_ALL, KEEP_LAST, KeepMode
+from ..notation import ByteNotation
 from ..session_manager import SessionManager
 from ..stop_signals import graceful_stop
 from ._monitor_record import MonitorRecorder, _merge_history, _open_journal, _write_merged
@@ -127,6 +128,7 @@ class MonitorController:
         keep_n: int | None = None,
         save: bool = False,
         show_rulers: bool = False,
+        notation: ByteNotation = ByteNotation.WICAN,
         raw_client=None,
         include_static: bool = False,
     ):
@@ -141,6 +143,9 @@ class MonitorController:
         self.keep_n = keep_n
         self.save = save
         self.show_rulers = show_rulers
+        # Byte-index notation for the rulers + per-signal byte-reference column
+        # (the user's display.byte_notation, or --notation).
+        self.notation = notation
         self.include_static = include_static
         # Live display view mode (cycled with 'V' in the TUI). See VIEW_MODES:
         # "full" (signals + hex payloads, the default), "signals" (decoded params
@@ -604,6 +609,7 @@ class MonitorController:
             prev_params=self.prev_params_snapshot,
             view_mode=self.view_mode,
             param_stats=self.param_stats,
+            notation=self.notation,
         )
 
     def cycle_view(self) -> str:
@@ -687,6 +693,7 @@ class MonitorController:
             "unique_frames": self.unique_frames,
             "transport": self.transport_type,
             "captures_dir": str(self.captures_dir) if self.captures_dir else None,
+            "journal_path": str(self.journal.path) if self.journal is not None else None,
             "run_started_at": r.run_started_at,
             "segment_started_at": r.segment_started_at,
             "segment_frames": self.total_frames - r.segment_frames_base,
@@ -878,6 +885,7 @@ async def mode_monitor(
     keep_n: int | None = None,
     save: bool = False,
     show_rulers: bool = False,
+    notation: ByteNotation = ByteNotation.WICAN,
     label: str | None = None,
     vehicle_states=None,
     notes: str | None = None,
@@ -910,17 +918,19 @@ async def mode_monitor(
                         recoverable journal). Metadata comes from label/state/
                         notes (auto-suggested when omitted) and the TUI 's' key;
                         'n' rotates to a fresh segment mid-run.
-        show_rulers:    Show byte-index rulers (idx/wican) once per PID.
+        show_rulers:    Show a byte-index ruler once per PID.
+        notation:       Byte-index notation for the ruler + the per-signal
+                        byte-reference column (default WiCAN ``Bnn``).
 
-    TUI keys: ↑/↓ move the parameter-selection cursor, j/k scroll, PgUp/PgDn
-    page, g/Home top, G/End bottom, f toggle follow-tail, space pause/resume
-    polling, e edit the selected parameter, v toggle its verified flag, d
-    toggle enabled/disabled, F cycle the display filter (all/verified/
-    unverified/enabled/disabled), V cycle the display view mode (ecus/ranges/
-    signals/full), i open the session-info overlay, s save/label the current
-    session, n close the current --save segment and start a new one, q or Ctrl+C
-    stop. A blinking ``● REC`` in the status line marks an active --save
-    recording.
+    TUI keys: ↑/↓ move the signal-selection cursor, j/k scroll, PgUp/PgDn
+    page, g/Home top, G/End bottom, space pause/resume polling, e edit the
+    selected signal, v toggle its verified flag, d toggle enabled/disabled,
+    F cycle the display filter (all/verified/unverified/enabled/disabled),
+    V cycle the display view mode (ecus/ranges/signals/full), r toggle the
+    byte-index ruler, i open the session-info overlay, l open the diagnostics
+    log, s save/label the current session, n close the current --save segment
+    and start a new one, q or Ctrl+C stop. A blinking ``● REC`` in the status
+    line marks an active --save recording.
     """
     from ..profile import active
     from ..states import parse_states
@@ -937,6 +947,7 @@ async def mode_monitor(
         keep_n=keep_n,
         save=save,
         show_rulers=show_rulers,
+        notation=notation,
         raw_client=raw_client,
         include_static=include_static,
     )

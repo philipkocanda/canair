@@ -1,19 +1,15 @@
 """Textual TUI for the live monitor (``canair monitor``).
 
 The latest values render into a single widget that updates *in place* inside a
-scrollable container. The scroll position is independent of the data refresh, so
-values keep updating wherever you are — the view never jumps or freezes, and
-mouse wheel / scrollbar / keys all scroll natively.
-
-Auto-follow uses the familiar "stick to the bottom only while already at the
-bottom" rule (like ``tail -f`` in a pager): if you scroll up to read, new data
-won't yank you back down; scroll to the bottom again to resume sticking. ``f``
-disables sticking entirely, ``space`` pauses polling.
+scrollable container. The scroll position is **never** moved by a data refresh:
+values keep updating wherever you are, so a byte you are reading can't be yanked
+out from under you. ``space`` pauses polling; ``G``/``End`` jumps to the newest
+output when you do want the tail.
 
 The monitor doubles as a lightweight PID editor: ``↑``/``↓`` move a selection
-cursor over the decoded parameter rows, ``e`` opens an in-place edit dialog
+cursor over the decoded signal rows, ``e`` opens an in-place edit dialog
 (expression / unit / min / max / notes / verified / enabled), ``v`` and ``d``
-quick-toggle the selected parameter's verified/enabled flags, and ``F`` cycles
+quick-toggle the selected signal's verified/enabled flags, and ``F`` cycles
 a display filter (all / verified / unverified / enabled / disabled). Edits are
 written through :mod:`canlib.pids_edit` and picked up on the next poll.
 
@@ -29,8 +25,12 @@ payloads captured so far and ``n`` is unavailable.
 ``full``): a bare ECU list, each signal's captured value span, the decoded
 signals only, or the signals plus raw byte payloads (the default). ``i`` opens a
 read-only session-info overlay showing the current segment's label/state/notes,
-the run's frame/cycle counters and retain mode, and the history of finished
-``--save`` segments this run.
+the run's frame/cycle counters and retain mode, where the ``--save`` journal is
+being written, and the history of finished ``--save`` segments this run.
+
+The bottom bar is built from :mod:`canlib.tui_status`, so it fits itself to the
+terminal width instead of clipping its tail on a narrow screen; ``?`` remains
+the authoritative key list.
 """
 
 from __future__ import annotations
@@ -48,6 +48,7 @@ from textual.widgets import Button, Checkbox, Input, Label, OptionList, Static
 from textual.widgets.option_list import Option
 
 from canlib.tui_help import HelpMixin
+from canlib.tui_status import P_ESSENTIAL, P_HIGH, P_LOW, P_NORMAL, StatusBar, StatusItem
 
 if TYPE_CHECKING:
     from .monitor import MonitorController
@@ -469,10 +470,11 @@ class SessionInfoModal(ModalScreen[None]):
     """Read-only overlay: the run's session summary + closed-segment history.
 
     Shows the current segment's label/states/notes, the run-level counters
-    (frames, cycles, retain mode, transport, start time) and a list of the
-    ``--save`` segments already finished this run (the ``n`` rotations). Renaming
-    the current segment is done from here's hint via ``s`` (label) — this view is
-    a read-only snapshot, reopen to refresh.
+    (frames, cycles, retain mode, transport, start time), where captures and the
+    ``--save`` write-ahead journal are being written, and a list of the ``--save``
+    segments already finished this run (the ``n`` rotations). Renaming the current
+    segment is done from here's hint via ``s`` (label) — this view is a read-only
+    snapshot, reopen to refresh.
     """
 
     CSS = """
@@ -552,6 +554,14 @@ class SessionInfoModal(ModalScreen[None]):
         row("run started", run_txt)
         if s.get("captures_dir"):
             row("captures dir", str(s["captures_dir"]))
+        # Where the write-ahead journal is streaming to. Worth surfacing: it is
+        # what `canair captures uds --recover` reads if this run is killed.
+        if s.get("journal_path"):
+            row("journal (WAL)", str(s["journal_path"]))
+            out.append(
+                "                  recoverable with: canair captures uds --recover\n",
+                style="dim",
+            )
 
         n = len(self._segments)
         out.append(f"\nFinished segments this run ({n})\n", style="bold cyan")
@@ -603,7 +613,6 @@ class MonitorApp(HelpMixin, App):
     #header { dock: top; height: auto; max-height: 3; padding: 0 1; background: transparent; }
     #scroll { height: 1fr; scrollbar-gutter: stable; scrollbar-size-vertical: 1; background: transparent; }
     #body { height: auto; padding: 0 1; background: transparent; }
-    #status { dock: bottom; height: 2; padding: 0 1; background: transparent; }
     """
 
     BINDINGS: ClassVar[list[Binding]] = [
@@ -612,8 +621,7 @@ class MonitorApp(HelpMixin, App):
         Binding("question_mark", "help", "help"),
         Binding("s", "save", "save / label"),
         Binding("n", "new_segment", "new session"),
-        Binding("f", "toggle_follow", "follow"),
-        Binding("r", "toggle_rulers", "rulers"),
+        Binding("r", "toggle_rulers", "byte ruler"),
         Binding("l", "event_log", "errors/log"),
         Binding("i", "session_info", "session info"),
         Binding("V", "cycle_view", "view mode"),
@@ -638,10 +646,6 @@ class MonitorApp(HelpMixin, App):
     def __init__(self, controller: MonitorController):
         super().__init__()
         self.controller = controller
-        # Default: history modes tail the newest output; the plain dashboard
-        # stays put (it fits, and users scroll to read). Either way the
-        # stick-if-at-bottom rule keeps it non-annoying.
-        self.follow_enabled = bool(controller.keep_mode)
         self.paused = False
         # Set when the user asks to quit, so an in-flight reconnect aborts cleanly.
         self._stopping = False
@@ -654,7 +658,7 @@ class MonitorApp(HelpMixin, App):
         yield Static("", id="header", markup=True)
         with VerticalScroll(id="scroll"):
             yield Static(self.controller.render(), id="body", markup=False)
-        yield Static("", id="status", markup=True)
+        yield StatusBar(id="status")
 
     def on_mount(self) -> None:
         # Use the terminal's own palette + default background (ansi_default)
@@ -736,120 +740,99 @@ class MonitorApp(HelpMixin, App):
         return ok
 
     def _refresh_body(self) -> None:
+        """Repaint the body in place, never moving the user's scroll position."""
         # The poll worker can fire mid-teardown (after quit); ignore if the DOM
         # is already gone.
         try:
-            scroll = self.query_one("#scroll", VerticalScroll)
             body = self.query_one("#body", Static)
         except NoMatches:
             return
-        # Measure BEFORE swapping content: were we pinned to the bottom?
-        at_bottom = scroll.scroll_offset.y >= scroll.max_scroll_y - 1
         body.update(self.controller.render())
-        if self.follow_enabled and at_bottom:
-            self.call_after_refresh(scroll.scroll_end, animate=False)
         self._update_status()
 
     def _update_status(self) -> None:
         try:
-            status = self.query_one("#status", Static)
+            status = self.query_one("#status", StatusBar)
         except NoMatches:
             return
+        status.set_lines(self._metric_items(), self._hint_items())
+
+    def _metric_items(self) -> list[StatusItem]:
+        """First status line: what the run is doing right now, most vital first."""
         c = self.controller
-        follow = "[green]follow[/]" if self.follow_enabled else "[yellow]manual[/]"
-        paused = " · [reverse] PAUSED [/]" if self.paused else ""
+        items: list[StatusItem] = []
+
+        # Reconnecting banner (auto-failover / --wait): while a reconnect attempt
+        # is in flight, lead the status line with its live note.
+        if getattr(c, "reconnecting", False):
+            note = getattr(c, "reconnect_note", "") or "reconnecting…"
+            items.append(StatusItem(f"[b yellow]⟳ {note}[/]", P_ESSENTIAL))
         # Blinking ● REC while a --save journal is active. The dot pulses ~1s
         # on / 1s off, derived from wall-clock time so the rate is independent of
         # the status tick (0.25s); the label stays put so it doesn't jump layout.
-        rec = ""
         if getattr(c, "journal", None) is not None:
-            on = int(time.monotonic()) % 2 == 0
-            dot = "[b red]●[/]" if on else "[dim red]●[/]"
-            rec = f"{dot} [red]REC[/] [dim]·[/] "
-        # Reconnecting banner (auto-failover / --wait): while a reconnect attempt
-        # is in flight, lead the status line with its live note.
-        reconnecting = ""
-        if getattr(c, "reconnecting", False):
-            note = getattr(c, "reconnect_note", "") or "reconnecting…"
-            reconnecting = f"[b yellow]⟳ {note}[/] [dim]·[/] "
+            dot = "[b red]●[/]" if int(time.monotonic()) % 2 == 0 else "[dim red]●[/]"
+            items.append(StatusItem(f"{dot} [red]REC[/]", P_ESSENTIAL))
+        if self.paused:
+            items.append(StatusItem("[reverse] PAUSED [/]", P_ESSENTIAL))
+        items.append(StatusItem(f"[dim]cycle[/] {c.cycle}", P_NORMAL))
+        items.append(StatusItem(f"{c.interval:.1f}[dim]s[/]", P_NORMAL))
+        items.append(StatusItem(f"{c.elapsed:.1f}[dim]s[/]", P_LOW))
         # ELM path reports commands + time spent in the ELM327; the raw path
-        # reports UDS requests (no ELM involved). Kept compact to leave room for
-        # the live state / flash message on the same line.
+        # reports UDS requests (no ELM involved).
         if getattr(c, "raw", False):
-            metric = f"{c.last_cmds}[dim] req[/]"
+            items.append(StatusItem(f"{c.last_cmds}[dim] req[/]", P_LOW))
         else:
-            metric = f"{c.last_cmds}[dim] cmds ·[/] {c.last_elm_time:.1f}[dim]s ELM[/]"
+            items.append(
+                StatusItem(
+                    f"{c.last_cmds}[dim] cmds ·[/] {c.last_elm_time:.1f}[dim]s ELM[/]", P_LOW
+                )
+            )
         # Captured (all fresh payloads) vs unique (distinct values kept) — the two
         # differ from the on-screen row count (one row per polled PID).
         captured = getattr(c, "total_frames", 0)
         uniq = getattr(c, "unique_frames", 0)
-        frames = f"[dim]· captured[/] {captured}[dim]/uniq[/] {uniq} "
-        # Transport health: dropped/stale frames (the reassembly-corruption class
-        # that silently poisoned historical captures) and other errors (timeouts,
-        # bus, decode). Surfaced live to raise awareness of connection/latency
-        # problems. Only shown when non-zero so a clean run stays uncluttered.
-        health = ""
-        diag_fn = getattr(c, "diag", None)
-        diag = diag_fn() if callable(diag_fn) else None
-        if diag is not None:
-            drops = diag.drops
-            other = diag.errors - drops
-            segs = []
-            if drops:
-                segs.append(f"[b red]drops {drops}[/]")
-            if other:
-                segs.append(f"[yellow]errs {other}[/]")
-            if segs:
-                health = "[dim]·[/] " + " [dim]·[/] ".join(segs) + " "
-        flash = ""
-        if self._flash_msg:
-            if time.monotonic() < self._flash_expires:
-                flash = f"    [b green]{self._flash_msg}[/]"
-            else:
-                self._flash_msg = ""
-        # Live auto-suggested vehicle state (from decoded PID values), if any.
-        state_txt = ""
+        items.append(StatusItem(f"[dim]captured[/] {captured}[dim]/uniq[/] {uniq}", P_NORMAL))
+        items.extend(self._health_items())
+        # Live auto-suggested vehicle state (from decoded values), if any.
         state_fn = getattr(c, "suggested_state", None)
         if callable(state_fn):
             try:
-                s = state_fn()
+                state = state_fn()
             except Exception:
-                s = None
-            if s:
-                state_txt = f"[dim]· state[/] [cyan]{s}[/] "
-        status.update(
-            f"{reconnecting}{rec}[dim]cycle[/] {c.cycle} [dim]·[/] {c.interval:.1f}[dim]s ·[/] "
-            f"{c.elapsed:.1f}[dim]s ·[/] {metric} "
-            f"{frames}{health}{state_txt}{follow}{paused}"
-            f"{flash}\n"
-            f"{self._edit_status_line()}"
-        )
+                state = None
+            if state:
+                items.append(StatusItem(f"[dim]state[/] [cyan]{state}[/]", P_HIGH))
+        if self._flash_msg:
+            if time.monotonic() < self._flash_expires:
+                items.append(StatusItem(f"[b green]{self._flash_msg}[/]", P_ESSENTIAL))
+            else:
+                self._flash_msg = ""
+        return items
 
-    def _health_segment(self) -> str:
-        """Transport-health indicator: cumulative dropped/stale frames + errors.
+    def _health_items(self) -> list[StatusItem]:
+        """Transport-health segments: dropped/stale ISO-TP frames + other errors.
 
-        Reads the active client's diagnostics recorder (drops = dropped/stale
-        ISO-TP frames, the data-integrity headline; err = all non-answer errors).
-        ``drops`` is always shown (dim 0 when clean, red when any) to keep the
-        connection's health visible; a per-cycle spike (``+N``) flags a live
-        burst. Omitted entirely when the client exposes no recorder.
+        Drops are the data-integrity headline (the reassembly corruption that
+        silently poisoned historical captures), so a live burst also shows a
+        per-cycle ``+N`` spike. Both are omitted when zero, keeping a clean run
+        uncluttered.
         """
-        c = self.controller
-        diag_fn = getattr(c, "diag_recorder", None)
+        diag_fn = getattr(self.controller, "diag", None)
         diag = diag_fn() if callable(diag_fn) else None
         if diag is None:
-            return ""
+            return []
         drops = diag.drops
-        errs = diag.errors - drops  # non-drop errors (timeouts/bus/decode) — disjoint from drops
-        last_d = getattr(c, "last_drops", 0)
+        # Non-drop errors (timeouts/bus/decode) — disjoint from drops.
+        errs = diag.errors - drops
+        items: list[StatusItem] = []
         if drops:
-            spike = f" [b red]+{last_d}[/]" if last_d else ""
-            seg = f"[dim]· drops[/] [red]{drops}[/]{spike} "
-        else:
-            seg = "[dim]· drops 0[/] "
+            spike = getattr(self.controller, "last_drops", 0)
+            spike_txt = f" [b red]+{spike}[/]" if spike else ""
+            items.append(StatusItem(f"[dim]drops[/] [b red]{drops}[/]{spike_txt}", P_HIGH))
         if errs:
-            seg += f"[dim]· err[/] [yellow]{errs}[/] "
-        return seg
+            items.append(StatusItem(f"[dim]errs[/] [yellow]{errs}[/]", P_HIGH))
+        return items
 
     def _editor(self):
         """The controller's edit collaborator, or None (older/fake controllers)."""
@@ -883,34 +866,55 @@ class MonitorApp(HelpMixin, App):
             lines.append(f"[dim]{notes}[/]")
         header.update("\n".join(lines))
 
-    def _edit_status_line(self) -> str:
-        """Second status line: current selection, active filter, and edit keys."""
+    def _hint_items(self) -> list[StatusItem]:
+        """Second status line: the current selection/filter plus the key hints.
+
+        Ranked so a narrow terminal keeps the escape hatches (``? help``,
+        ``q quit``), the recording controls and the current context, and drops
+        the browsing hints first — ``?`` is the complete key list either way.
+        """
+        c = self.controller
         # While recording (--save), `s` labels the session and `n` finishes it and
         # starts a new one; without --save, `s` is a one-off save and `n` is N/A.
-        recording = getattr(self.controller, "journal", None) is not None
-        save_key = "s label" if recording else "s save"
-        seg = " · n new-session" if recording else ""
-        # Surface the active view mode when it's not the default full view.
-        view = getattr(self.controller, "view_mode", "full")
-        view_txt = f"[cyan]{view}[/] " if view and view != "full" else ""
+        recording = getattr(c, "journal", None) is not None
+        items: list[StatusItem] = []
+
         ed = self._editor()
-        if ed is None:
-            return (
-                f"{view_txt}[dim]↑↓/jk PgUp/PgDn g/G · f follow · space pause · r rulers · "
-                f"V view · i info · l errors · {save_key}{seg} · ? help · q quit[/]"
-            )
-        filt = getattr(ed, "filter_mode", "all")
-        filt_txt = f"[cyan]{filt}[/]" if filt != "all" else "[dim]all[/]"
-        sel = ""
-        label = ed.selection_label() if hasattr(ed, "selection_label") else ""
+        label = ed.selection_label() if ed is not None and hasattr(ed, "selection_label") else ""
         if label:
-            sel = f"[b]▶ {label}[/]  "
-        deselect = " · esc deselect" if label else ""
-        return (
-            f"{sel}[dim]filter[/] {filt_txt} {view_txt}"
-            "[dim]· ↑↓ select · e edit · v verify · d en/disable · F filter · V view · "
-            f"i info · {save_key}{seg}{deselect} · ? help · q quit[/]"
-        )
+            items.append(StatusItem(f"[b]▶ {label}[/]", P_HIGH))
+        if ed is not None:
+            filt = getattr(ed, "filter_mode", "all")
+            if filt != "all":
+                items.append(StatusItem(f"[dim]filter[/] [cyan]{filt}[/]", P_HIGH))
+        # Surface the active view mode when it's not the default full view.
+        view = getattr(c, "view_mode", "full")
+        if view and view != "full":
+            items.append(StatusItem(f"[dim]view[/] [cyan]{view}[/]", P_HIGH))
+
+        items.append(StatusItem(f"[dim]{'s label' if recording else 's save'}[/]", P_HIGH))
+        if recording:
+            items.append(StatusItem("[dim]n new-session[/]", P_HIGH))
+        if ed is not None:
+            items.append(StatusItem("[dim]↑↓ select[/]", P_NORMAL))
+            items.append(StatusItem("[dim]e edit[/]", P_NORMAL))
+            items.append(StatusItem("[dim]v verify[/]", P_LOW))
+            items.append(StatusItem("[dim]d en/disable[/]", P_LOW))
+            items.append(StatusItem("[dim]F filter[/]", P_LOW))
+        else:
+            items.append(StatusItem("[dim]↑↓/jk PgUp/PgDn g/G[/]", P_LOW))
+        # The keys nothing else hints at (a view/ruler/overlay) rank above the
+        # ones a user would try anyway (space to pause, arrows to scroll).
+        items.append(StatusItem("[dim]V view[/]", P_NORMAL))
+        items.append(StatusItem("[dim]r ruler[/]", P_NORMAL))
+        items.append(StatusItem("[dim]i info[/]", P_NORMAL))
+        items.append(StatusItem("[dim]l errors[/]", P_LOW))
+        items.append(StatusItem("[dim]space pause[/]", P_LOW))
+        if label:
+            items.append(StatusItem("[dim]esc deselect[/]", P_LOW))
+        items.append(StatusItem("[dim]? help[/]", P_ESSENTIAL))
+        items.append(StatusItem("[dim]q quit[/]", P_ESSENTIAL))
+        return items
 
     # -- actions -----------------------------------------------------------
     def action_scroll(self, delta: int) -> None:
@@ -921,12 +925,6 @@ class MonitorApp(HelpMixin, App):
 
     def action_to_bottom(self) -> None:
         self.query_one("#scroll", VerticalScroll).scroll_end(animate=False)
-
-    def action_toggle_follow(self) -> None:
-        self.follow_enabled = not self.follow_enabled
-        if self.follow_enabled:
-            self.query_one("#scroll", VerticalScroll).scroll_end(animate=False)
-        self._update_status()
 
     def action_toggle_pause(self) -> None:
         self.paused = not self.paused
@@ -948,6 +946,7 @@ class MonitorApp(HelpMixin, App):
         self._flash(f"Poll interval: {value:.1f}s", secs=2.0)
 
     def action_toggle_rulers(self) -> None:
+        """Toggle the byte-index ruler + the per-signal byte-reference column."""
         self.controller.show_rulers = not self.controller.show_rulers
         self._refresh_body()
 
@@ -976,7 +975,7 @@ class MonitorApp(HelpMixin, App):
         if not callable(cycle_fn):
             return
         mode = cycle_fn()
-        self._render_no_follow()
+        self._refresh_body()
         self._flash(f"View: {mode}")
 
     # -- selection / in-place editing --------------------------------------
@@ -988,7 +987,7 @@ class MonitorApp(HelpMixin, App):
         return len(self.screen_stack) > 1
 
     def action_select(self, delta: int) -> None:
-        """Move the parameter-selection cursor and scroll it into view.
+        """Move the signal-selection cursor and scroll it into view.
 
         Falls back to plain scrolling when there is no editor or nothing is
         selectable, so the arrow keys never feel dead.
@@ -999,12 +998,12 @@ class MonitorApp(HelpMixin, App):
         if ed is None or ed.move(self._last_queries(), delta) is None:
             self.action_scroll(delta)
             return
-        self._render_no_follow()
+        self._refresh_body()
         self._scroll_to_selection()
         self._update_status()
 
     def action_clear_selection(self) -> None:
-        """Drop the ▶ parameter cursor so ↑/↓ resume plain scrolling.
+        """Drop the ▶ signal cursor so ↑/↓ resume plain scrolling.
 
         No-ops (letting escape fall through) when a modal owns the screen or
         nothing is selected, so it never steals escape from a dialog.
@@ -1016,7 +1015,7 @@ class MonitorApp(HelpMixin, App):
             return
         if not ed.clear_selection():
             return
-        self._render_no_follow()
+        self._refresh_body()
         self._flash("Selection cleared.")
 
     def action_cycle_filter(self) -> None:
@@ -1024,7 +1023,7 @@ class MonitorApp(HelpMixin, App):
         if ed is None or self._modal_active():
             return
         mode = ed.cycle_filter(self._last_queries())
-        self._render_no_follow()
+        self._refresh_body()
         self._flash(f"Filter: {mode}")
 
     def action_verify(self) -> None:
@@ -1032,29 +1031,29 @@ class MonitorApp(HelpMixin, App):
         if ed is None or self._modal_active():
             return
         if getattr(ed, "selected", None) is None:
-            self._flash("Select a parameter first (↑↓).")
+            self._flash("Select a signal first (↑↓).")
             return
         self._flash(ed.toggle_verified())
-        self._render_no_follow()
+        self._refresh_body()
 
     def action_disable(self) -> None:
         ed = self._editor()
         if ed is None or self._modal_active():
             return
         if getattr(ed, "selected", None) is None:
-            self._flash("Select a parameter first (↑↓).")
+            self._flash("Select a signal first (↑↓).")
             return
         self._flash(ed.toggle_enabled())
-        self._render_no_follow()
+        self._refresh_body()
 
     def action_edit(self) -> None:
-        """Open the edit dialog for the selected parameter (polling pauses)."""
+        """Open the edit dialog for the selected signal (polling pauses)."""
         ed = self._editor()
         if ed is None or self._modal_active():
             return
         target = ed.edit_target() if hasattr(ed, "edit_target") else None
         if not target:
-            self._flash("Select a parameter first (↑↓).")
+            self._flash("Select a signal first (↑↓).")
             return
         # Auto-pause polling while the modal is open; restore prior state after.
         was_paused = self.paused
@@ -1070,18 +1069,9 @@ class MonitorApp(HelpMixin, App):
             except Exception as exc:  # keep the TUI alive on any edit error
                 msg = f"Edit failed: {exc}"
             self._flash(msg)
-            self._render_no_follow()
+            self._refresh_body()
 
         self.push_screen(EditParamDialog(target), _done)
-
-    def _render_no_follow(self) -> None:
-        """Repaint the body without the follow-tail snap (used during editing)."""
-        try:
-            body = self.query_one("#body", Static)
-        except NoMatches:
-            return
-        body.update(self.controller.render())
-        self._update_status()
 
     def _scroll_to_selection(self) -> None:
         """Scroll so the ``▶`` selection cursor is within the viewport."""

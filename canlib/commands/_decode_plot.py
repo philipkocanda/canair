@@ -514,12 +514,23 @@ class PlotModel:
         out.extend(render_plot(series, ref=refseries if overlay else None, caption=caption))
         return out
 
+    def hint_bits(self) -> list[str]:
+        """Key hints for the current mode as separate segments, most useful first.
+
+        Segments (not one joined string) so the TUI's status bar can drop the
+        least essential ones on a narrow terminal rather than clipping the line;
+        :meth:`hint` joins them for anything that wants the whole thing.
+        """
+        mode = (
+            ["←/→ offset", "t/T type", "e endian", "m param"]
+            if self.mode == "bytes"
+            else ["←/→ param", "m bytes"]
+        )
+        return [*mode, "f transform", "o overlay", "i captures", "+/- zoom", ",/. pan", "0 reset-x"]
+
     def hint(self) -> str:
         """The one-line key hint for the current mode."""
-        common = "  +/- zoom · ,/. pan · 0 reset-x · f transform · o overlay · i captures · ? help · q quit"
-        if self.mode == "bytes":
-            return "←/→ offset · t/T type · e endian · m param" + common
-        return "←/→ param · m bytes" + common
+        return " · ".join([*self.hint_bits(), "? help", "q quit"])
 
     # -- current-interpretation accessors (for annotation / promotion) -----
     def current_expr(self) -> str | None:

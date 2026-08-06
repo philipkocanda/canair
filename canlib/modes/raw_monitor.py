@@ -129,6 +129,7 @@ async def run_raw_monitor(args, host: str, port: int, bitrate: int, pids_data: d
     # a traceback. (The ELM monitor gets this via dispatch_mode/run_session_guarded;
     # the raw monitor bypasses dispatch_mode for its pipelined client, so guard here.)
     from ..commands._live import wants_save
+    from ..notation import resolve_notation
     from ..transport.errors import describe_transport_error, transport_error_types
 
     try:
@@ -143,10 +144,12 @@ async def run_raw_monitor(args, host: str, port: int, bitrate: int, pids_data: d
             keep_n=getattr(args, "keep", None),
             save=args.save,
             show_rulers=getattr(args, "rulers", False),
+            notation=resolve_notation(getattr(args, "notation", None)),
             label=args.label,
             vehicle_states=args.state,
             notes=args.notes,
             raw_client=client,
+            include_static=getattr(args, "include_static", False),
             reconnect=build_raw_reconnector(args, ecus, pids_data),
         )
     except transport_error_types() as e:

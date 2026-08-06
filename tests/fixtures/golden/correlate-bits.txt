@@ -1,5 +1,5 @@
 
-  Cross-signal correlations (68 signals, |r|≥0.6, n≥15, ≤5s)
+  Cross-signal correlations (69 signals, |r|≥0.6, n≥15, ≤5s)
     ≈ cluster (|r|≥0.995, 9 signals)  IGPM:22BC03:B10:1, IGPM:22BC03:B10:3, IGPM:22BC03:DOOR_LOCK_RL, IGPM:22BC03:DOOR_LOCK_RR, +5 more
     ≈ cluster (|r|≥0.995, 8 signals)  IGPM:22BC03:ACC2_IGN_ON, IGPM:22BC03:B11:5, IGPM:22BC03:B11:6, IGPM:22BC03:IGN_STATUS_MIRROR, +4 more
     ≈ cluster (|r|≥0.995, 5 signals)  IGPM:22BC03:B10:7, IGPM:22BC03:TRUNK_OPEN, IGPM:22BC05:B11:3, IGPM:22BC05:TRUNK_INDICATOR, +1 more

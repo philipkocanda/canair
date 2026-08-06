@@ -55,7 +55,7 @@ flowchart LR
     defs -.->|"decode responses"| cli
 ```
 
-Responses are decoded into named parameters using the active profile's definitions. See [Architecture](https://philipkocanda.github.io/canair/concepts/architecture/) for the transports, protocols (UDS / KWP2000 / ISO-TP), and the two data domains.
+Responses are decoded into named signals using the active profile's definitions. See [Architecture](https://philipkocanda.github.io/canair/concepts/architecture/) for the transports, protocols (UDS / KWP2000 / ISO-TP), and the two data domains.
 
 ## Commands
 
@@ -67,8 +67,8 @@ All functionality is exposed as `canair <subcommand>`; run `canair <cmd> --help`
 |--------|---------|
 | `canair status` | Snapshot of transport, device mode, reachability, and canair/WiCAN versions (alias: `st`). |
 | `canair logs` | View the central diagnostics log (transport drops/errors), size-rotated and self-cleaning. |
-| `canair read` | Send UDS/KWP2000 requests — parameter reads, multi-ECU pipelines (alias: `query`). Companions: `discover`, `io`, `routines`, `raw`, `repl`. |
-| `canair monitor` | Live, continuously-refreshing view of ECU parameters (scrollable TUI); records with `--save`, `--wait` to start when the device appears and auto-reconnect on drops (alias: `mon`). |
+| `canair read` | Send UDS/KWP2000 requests — signal reads, multi-ECU pipelines (alias: `query`). Companions: `discover`, `io`, `routines`, `raw`, `repl`. |
+| `canair monitor` | Live, continuously-refreshing view of ECU signals (scrollable TUI); records with `--save`, `--wait` to start when the device appears and auto-reconnect on drops (alias: `mon`). |
 | `canair scan` | Probe DID/routine/iocontrol/session ranges for responses. |
 | `canair dtc` | Read/clear Diagnostic Trouble Codes; report changes since the last scan. |
 | `canair identity` | Decode ECU identity DIDs — part number, versions, serial, VIN (alias: `id`). |
@@ -92,7 +92,7 @@ All functionality is exposed as `canair <subcommand>`; run `canair <cmd> --help`
 
 | Subcommand | Purpose |
 |--------|---------|
-| `canair pids` | Add/update `ecus/` parameters and research entries (validated). |
+| `canair pids` | Add/update `ecus/` signals and research entries (validated). |
 | `canair signals` | Add/update broadcast signal definitions (`signals/`, DBC-compatible linear model). |
 | `canair ecu` | Inspect ECUs (`ecu <ECU> pids` = per-PID latest state), register one offline (`ecu add`), or open its YAML in `$EDITOR` (`ecu <ECU> edit`, TTY only). |
 | `canair bus` | List the profile's CAN bus segments, their descriptions, and ECU counts. |
@@ -167,7 +167,7 @@ A *profile* bundles one vehicle's data — `ecus/` (one file per ECU, the source
 
 ## The bundled Ioniq profile
 
-The `ioniq-2017` profile makes canair a ready-to-use diagnostics toolkit for the **2017 Hyundai Ioniq Electric (28 kWh, `AE` platform)** — read live battery, motor, charging, climate, and body data over WiFi with no dealer tools. It maps **30 ECUs** and **350+ parameters** (the majority verified on the car), including:
+The `ioniq-2017` profile makes canair a ready-to-use diagnostics toolkit for the **2017 Hyundai Ioniq Electric (28 kWh, `AE` platform)** — read live battery, motor, charging, climate, and body data over WiFi with no dealer tools. It maps **30 ECUs** and **350+ signals** (the majority verified on the car), including:
 
 - Battery SOC / voltage / current / power, all 96 individual cell voltages, and State of Health
 - Motor gear, torque, and temperatures; vehicle speed and **individual wheel speeds** (from the ESC module)
@@ -180,7 +180,7 @@ See [the bundled Ioniq profile](https://philipkocanda.github.io/canair/profiles/
 
 ## Contributing 🎉
 
-**Reverse-engineered your car? Please contribute it back!** A profile you share means the next person with the same vehicle starts with a head start instead of from zero — it's how canair grows beyond one car. Whole profiles, a few decoded parameters, corrected offsets, or fixes to canair itself are all welcome as pull requests. See [CONTRIBUTING.md](CONTRIBUTING.md) and [Bring your own car → Share](https://philipkocanda.github.io/canair/bring-your-own-car/08-share/#contribute-your-profile-back).
+**Reverse-engineered your car? Please contribute it back!** A profile you share means the next person with the same vehicle starts with a head start instead of from zero — it's how canair grows beyond one car. Whole profiles, a few decoded signals, corrected offsets, or fixes to canair itself are all welcome as pull requests. See [CONTRIBUTING.md](CONTRIBUTING.md) and [Bring your own car → Share](https://philipkocanda.github.io/canair/bring-your-own-car/08-share/#contribute-your-profile-back).
 
 ## License
 

@@ -27,6 +27,7 @@ from textual.widgets.option_list import Option
 from canlib.capture_types import CaptureEntry
 from canlib.tui_help import HelpMixin
 from canlib.tui_modals import ConfirmModal, TextPromptModal
+from canlib.tui_status import P_ESSENTIAL, P_HIGH, P_LOW, P_NORMAL, StatusBar, StatusItem
 
 from .step_render import key_label
 
@@ -288,7 +289,6 @@ class CapturesStepApp(HelpMixin, App):
     #header { dock: top; height: 1; padding: 0 1; background: transparent; }
     #scroll { height: 1fr; scrollbar-gutter: stable; scrollbar-size-vertical: 1; background: transparent; }
     #body { height: auto; padding: 0 1; background: transparent; }
-    #status { dock: bottom; height: 1; padding: 0 1; background: transparent; }
     """
 
     BINDINGS: ClassVar[list[Binding]] = [
@@ -343,7 +343,7 @@ class CapturesStepApp(HelpMixin, App):
         yield Static("", id="header", markup=True)
         with VerticalScroll(id="scroll"):
             yield Static("", id="body", markup=False)
-        yield Static("", id="status", markup=True)
+        yield StatusBar(id="status")
 
     def on_mount(self) -> None:
         if "ansi-dark" in self.available_themes:
@@ -357,19 +357,30 @@ class CapturesStepApp(HelpMixin, App):
         try:
             body = self.query_one("#body", Static)
             header = self.query_one("#header", Static)
-            status = self.query_one("#status", Static)
+            status = self.query_one("#status", StatusBar)
             scroll = self.query_one("#scroll", VerticalScroll)
         except NoMatches:  # transient teardown query misses are harmless
             return
         body.update(self.model.render())
         header.update(f"[b]captures step[/] [dim]·[/] {self.model.keys_label()}")
-        flash = f"    [b green]{self._flash_msg}[/]" if self._flash_msg else ""
         # Deliberately terse: `?` is the cheat-sheet, so the status bar does not
-        # have to be one (and stays readable on a narrow terminal).
-        status.update(
-            f"[dim]{self.model.status_line()}[/]{flash}"
-            "    [dim]←/→ frame · a PIDs · t tol · ? help · q quit[/]"
-        )
+        # have to be one — and it drops its least essential parts rather than
+        # clipping its tail on a narrow terminal.
+        bits = self.model.status_bits()
+        # The frame position is the one segment always worth the space.
+        items = [
+            StatusItem(f"[dim]{bit}[/]", P_HIGH if i == 0 else P_LOW) for i, bit in enumerate(bits)
+        ]
+        if self._flash_msg:
+            items.append(StatusItem(f"[b green]{self._flash_msg}[/]", P_ESSENTIAL))
+        items += [
+            StatusItem("[dim]←/→ frame[/]", P_NORMAL),
+            StatusItem("[dim]a PIDs[/]", P_NORMAL),
+            StatusItem("[dim]t tol[/]", P_LOW),
+            StatusItem("[dim]? help[/]", P_ESSENTIAL),
+            StatusItem("[dim]q quit[/]", P_ESSENTIAL),
+        ]
+        status.set_lines(items)
         if to_top:
             # A new frame starts at its top; scrolling is for reading *within* one.
             scroll.scroll_home(animate=False)

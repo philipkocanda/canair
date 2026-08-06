@@ -25,11 +25,13 @@ default_profile: ioniq-2017
 
 # Display preferences.
 #   byte_notation — default byte-index notation for analysis output labels
-#   (correlate / hunt / investigate / coverage / decode). One of:
+#   (correlate / hunt / investigate / coverage / decode), and for the byte ruler
+#   plus the per-signal byte-reference column in monitor / captures --diff|--step.
+#   One of:
 #     wican  — WiCAN Bnn frame index (default; the promotable/firmware form)
 #     isotp  — ISO-TP payload index (iN)
 #     torque — Torque/OBDb letter notation
-#     bix    — Torque bit index
+#     bix    — Torque bit index (a ruler falls back to wican: it needs >2 columns)
 #   Overridden per-command by --notation. See docs/concepts/byte-indexing.md.
 # display:
 #   byte_notation: wican

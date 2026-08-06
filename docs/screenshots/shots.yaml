@@ -56,7 +56,7 @@ shots:
     kind: rich
     cols: 96
     command: [decode, "BMS:2102", --stats]
-    caption: "canair decode --stats — per-parameter statistics"
+    caption: "canair decode --stats — per-signal statistics"
 
   - id: coverage
     kind: rich
@@ -68,7 +68,7 @@ shots:
     kind: rich
     cols: 80
     command: [bix, -a, 6101FFE12C, --ecu, BMS, --pid, "2101"]
-    caption: "canair bix -a — map a raw payload to byte notations and params"
+    caption: "canair bix -a — map a raw payload to byte notations and signals"
 
   - id: research-summary
     kind: rich

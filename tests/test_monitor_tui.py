@@ -84,6 +84,9 @@ class FakeController:
             "unique_frames": self.unique_frames,
             "transport": self.transport_type,
             "captures_dir": "/tmp/captures",
+            "journal_path": "/tmp/captures/.journal/20260806T101010-42.jsonl"
+            if self.journal is not None
+            else None,
             "run_started_at": datetime.now(),
             "segment_started_at": datetime.now(),
             "segment_frames": self.total_frames,
@@ -253,38 +256,45 @@ class TestMonitorApp:
             assert ctrl.show_rulers is False
             # The status line advertises the shortcut.
             status = _plain(app.query_one("#status").render())
-            assert "r rulers" in status
+            assert "r ruler" in status
             await pilot.press("q")
 
     @pytest.mark.asyncio
-    async def test_follow_default_depends_on_keep_mode(self):
-        assert MonitorApp(FakeController(keep_mode=None)).follow_enabled is False
-        assert MonitorApp(FakeController(keep_mode="all")).follow_enabled is True
+    async def test_scroll_position_never_moved_by_a_poll(self):
+        """The monitor never follows the tail — a repaint must not move the view.
+
+        Regression for the removed follow/manual mode: reading a byte mid-buffer
+        was interrupted whenever fresh data arrived while pinned to the bottom.
+        """
+        for keep_mode in (None, "all"):
+            ctrl = FakeController(keep_mode=keep_mode, n_lines=60)
+            app = MonitorApp(ctrl)
+            async with app.run_test(size=(80, 12)) as pilot:
+                await pilot.pause(0.15)
+                scroll = app.query_one("#scroll", VerticalScroll)
+                assert scroll.max_scroll_y > 0  # content overflows
+                await pilot.press("g")  # jump to top
+                await pilot.pause(0.2)  # let several polls update the body
+                assert scroll.scroll_offset.y == 0  # stayed at top
+                await pilot.press("q")
 
     @pytest.mark.asyncio
-    async def test_scroll_position_independent_of_updates(self):
-        # Dashboard (follow off): scrolling to top must NOT be undone by a poll.
-        ctrl = FakeController(keep_mode=None, n_lines=60)
-        app = MonitorApp(ctrl)
-        async with app.run_test(size=(80, 12)) as pilot:
-            await pilot.pause(0.15)
-            scroll = app.query_one("#scroll", VerticalScroll)
-            assert scroll.max_scroll_y > 0  # content overflows
-            await pilot.press("g")  # jump to top
-            await pilot.pause(0.2)  # let several polls update the body
-            assert scroll.scroll_offset.y == 0  # stayed at top
-            await pilot.press("q")
+    async def test_no_follow_binding(self):
+        assert "f" not in {b.key for b in MonitorApp.BINDINGS}
 
     @pytest.mark.asyncio
-    async def test_follow_sticks_to_bottom(self):
-        ctrl = FakeController(keep_mode="all", n_lines=60)
+    async def test_status_bar_survives_a_phone_width(self):
+        """A 45-column terminal must still show the way out and to the help."""
+        ctrl = FakeController(journal=object())
         app = MonitorApp(ctrl)
-        async with app.run_test(size=(80, 12)) as pilot:
-            await pilot.pause(0.1)
-            scroll = app.query_one("#scroll", VerticalScroll)
-            await pilot.press("G")  # bottom + follow on
+        async with app.run_test(size=(45, 16)) as pilot:
             await pilot.pause(0.2)
-            assert scroll.scroll_offset.y >= scroll.max_scroll_y - 1
+            status = _plain(app.query_one("#status").render())
+            assert "? help" in status and "q quit" in status
+            assert "REC" in status  # an active recording is never shed
+            # Two composed lines, neither wrapped out of the docked region.
+            assert len(status.splitlines()) == 2
+            assert all(len(ln) <= 45 for ln in status.splitlines())
             await pilot.press("q")
 
     @pytest.mark.asyncio
@@ -508,7 +518,7 @@ class TestMonitorApp:
             from textual.widgets import Static
 
             text = "\n".join(_plain(s.render()) for s in app.screen.query(Static))
-            assert "save" in text and "follow" in text
+            assert "save" in text and "byte ruler" in text
             await pilot.press("escape")
             await pilot.pause(0.1)
             assert not isinstance(app.screen, HelpModal)
@@ -622,6 +632,10 @@ class TestMonitorApp:
             assert "test drive" in text
             assert "retain mode" in text
             assert "Finished segments" in text
+            # Where the write-ahead journal is streaming to (what --recover reads).
+            assert "journal (WAL)" in text
+            assert "20260806T101010-42.jsonl" in text
+            assert "captures uds --recover" in text
             await pilot.press("escape")
             await pilot.pause(0.1)
             assert not isinstance(app.screen, SessionInfoModal)
@@ -790,7 +804,7 @@ class TestMonitorEditing:
             await pilot.pause(0.05)
             assert ed.verified_toggles == 0
             status = _plain(app.query_one("#status").render())
-            assert "Select a parameter" in status
+            assert "Select a signal" in status
             await pilot.press("q")
 
     @pytest.mark.asyncio

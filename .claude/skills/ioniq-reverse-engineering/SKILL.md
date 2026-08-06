@@ -273,12 +273,16 @@ Live-refreshing poll (its own top-level command; positional query steps like
 `canair read`, plus `--interval SECONDS`, default 5.0). Non-query steps run once
 as setup, `query` steps poll in a
 background worker with TesterPresent keepalives. On a TTY it's a scrollable
-Textual TUI (`↑↓/j/k`/wheel scroll, `f` follow-tail, `space` pause, `=`/`-` poll
-faster/slower live, `r` toggle byte-index rulers, `l` open the errors/diagnostics
-log overlay, `↑`/`↓` select a parameter (`esc` deselects), `e`/`v`/`d`/`F`
-edit/verify/en-disable/filter, `s` save payloads with a metadata modal, `?` a
+Textual TUI (`↑↓/j/k`/wheel scroll — the view **never** follows the tail, a
+repaint leaves the scroll position put; `space` pause, `=`/`-` poll
+faster/slower live, `r` toggle the byte ruler + per-signal byte-reference column
+(in `display.byte_notation`/`--notation`), `l` open the errors/diagnostics
+log overlay, `↑`/`↓` select a signal (`esc` deselects), `e`/`v`/`d`/`F`
+edit/verify/en-disable/filter, `s` save payloads with a metadata modal, `i` the
+session-info overlay (incl. the `--save` journal path), `?` a
 keybinding help modal, `q` quit); piped, it polls silently until
-Ctrl+C. Hex view highlights bytes changed since the previous cycle, colors bytes
+Ctrl+C. Signals are listed in **payload order** (by the byte each reads first),
+so a value sits above the hex byte it came from. Hex view highlights bytes changed since the previous cycle, colors bytes
 by verification state, and shows ASCII for unmapped PIDs; a changed byte also
 highlights the parameter row(s) whose expression decodes it, with the same
 coverage-coloured background the byte gets. The status line shows a

@@ -173,7 +173,7 @@ canair coverage BMS 2101 --unmapped --notation torque          # A, B, F …
 ```
 
 `--notation` takes `wican` (default), `isotp`, `torque`, or `bix`. It only
-changes **display** — named parameters are untouched, and the machine-readable
+changes **display** — named signals are untouched, and the machine-readable
 `--json` output and `--promote` always use the canonical WiCAN form (the
 promotable/firmware expression). Set a persistent default with:
 
@@ -184,6 +184,29 @@ canair config set display.byte_notation isotp
 Internally canair models a byte position in **ISO-TP** space (the canonical,
 framing-free payload index) and derives the WiCAN / Torque / bix views from it —
 so WiCAN is treated as one *view* of the byte, not the tool's native unit.
+
+### The byte ruler in the value views
+
+`canair monitor --rulers` (`r` in the TUI) and `canair captures --diff/--step
+--rulers` draw a **single** ruler row above the payload hex, numbering each byte
+column in your chosen notation — and each signal's byte-reference column (next to
+its value) is rendered from the *same* notation, so a value and the ruler always
+name the byte the same way:
+
+```
+      SOC_BMS      92.50 %  ✓  B9
+      BATTERY_POWER 0.71 kW ✓  B15,B17-B19
+ wican   02 03 04 05 06 07 09 10 11 12 13 14 15 17 18 19 …
+         61 01 FF FF FF FF B4 24 A4 26 48 03 00 05 0F 30 …
+```
+
+Both views take `--notation` too (and honour `display.byte_notation`). Note that
+a run of payload bytes can be non-adjacent *as rendered* — WiCAN interleaves PCI
+framing bytes, so four consecutive payload bytes show as `B15,B17-B19` rather
+than a `B15-B19` that would claim the framing byte. `bix` is a *bit* index, so it
+cannot fit a two-character byte column; a ruler asked for it falls back to WiCAN
+rather than skewing the columns (the row label always says which notation is
+actually drawn).
 
 ## Further reading
 

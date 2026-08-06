@@ -26,6 +26,7 @@ from textual.widgets.option_list import Option
 
 from canlib.tui_help import HelpMixin
 from canlib.tui_modals import TextPromptModal
+from canlib.tui_status import P_ESSENTIAL, P_LOW, P_NORMAL, StatusBar, StatusItem
 
 if TYPE_CHECKING:
     from canlib.commands._decode_plot import PlotModel
@@ -82,7 +83,6 @@ class PlotApp(HelpMixin, App):
     Screen { layout: vertical; background: transparent; }
     #scroll { height: 1fr; scrollbar-gutter: stable; scrollbar-size-vertical: 1; background: transparent; }
     #body { height: auto; padding: 0 1; background: transparent; }
-    #status { dock: bottom; height: 2; padding: 0 1; background: transparent; }
     """
 
     BINDINGS: ClassVar[list[Binding]] = [
@@ -131,7 +131,7 @@ class PlotApp(HelpMixin, App):
     def compose(self) -> ComposeResult:
         with VerticalScroll(id="scroll"):
             yield Static("", id="body", markup=False)
-        yield Static("", id="status", markup=True)
+        yield StatusBar(id="status")
 
     def on_mount(self) -> None:
         if "ansi-dark" in self.available_themes:
@@ -143,12 +143,23 @@ class PlotApp(HelpMixin, App):
     def _refresh(self) -> None:
         try:
             body = self.query_one("#body", Static)
-            status = self.query_one("#status", Static)
+            status = self.query_one("#status", StatusBar)
         except NoMatches:
             return
         body.update(Text.from_ansi("\n".join(self.model.render_lines())))
-        flash = f"    [b green]{self._flash_msg}[/]" if self._flash_msg else ""
-        status.update(f"[dim]{self.model.hint()}[/]{flash}")
+        # Mode-specific keys (the ones that move the plot) outrank the rest; the
+        # bar sheds the tail on a narrow terminal instead of clipping it.
+        items = [
+            StatusItem(f"[dim]{bit}[/]", P_NORMAL if i < 2 else P_LOW)
+            for i, bit in enumerate(self.model.hint_bits())
+        ]
+        if self._flash_msg:
+            items.append(StatusItem(f"[b green]{self._flash_msg}[/]", P_ESSENTIAL))
+        items += [
+            StatusItem("[dim]? help[/]", P_ESSENTIAL),
+            StatusItem("[dim]q quit[/]", P_ESSENTIAL),
+        ]
+        status.set_lines(items)
 
     def _flash(self, msg: str) -> None:
         self._flash_msg = msg

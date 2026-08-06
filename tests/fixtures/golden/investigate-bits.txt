@@ -1,6 +1,6 @@
 
   Investigate IGPM 22BC03 (292 timed captures, ≤5s join)
     B11:6 [IGN_STATUS_MIRROR?]  stateF=2306.8  r=+1.000 vs IGPM:22BC04:IGPM_BC04_B10_0 n=274 fit y=1.0000·x+0.00 slope≈1.0000 ⇒ raw (×1)
-    B13 unmapped  stateF=6.2  r=+0.686 vs HVAC:220102:HVAC_HOTSIDE_TEMP n=16 fit y=0.0550·x-1.65  enum
-    B13:1 unmapped  stateF=6.2  r=+0.686 vs HVAC:220102:HVAC_HOTSIDE_TEMP n=16 fit y=0.0275·x-0.82
+    B13 [UNKNOWN_B13_1?]  stateF=6.2  r=+0.686 vs HVAC:220102:HVAC_HOTSIDE_TEMP n=16 fit y=0.0550·x-1.65  enum
+    B13:1 [UNKNOWN_B13_1?]  stateF=6.2  r=+0.686 vs HVAC:220102:HVAC_HOTSIDE_TEMP n=16 fit y=0.0275·x-0.82
 

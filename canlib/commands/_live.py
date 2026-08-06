@@ -53,6 +53,7 @@ from canlib.modes.iocontrol import mode_iocontrol_execute, mode_iocontrol_list
 from canlib.modes.iocontrol_scan import mode_iocontrol_scan
 from canlib.modes.routines import mode_routines_execute, mode_routines_list
 from canlib.modes.routines_scan import mode_routines_scan
+from canlib.notation import resolve_notation
 from canlib.states import parse_states
 from canlib.stop_signals import graceful_stop
 from canlib.transport.config import DEFAULT_TRANSPORT, VALID_TRANSPORTS
@@ -822,6 +823,7 @@ async def dispatch_mode(args, terminal: Terminal, pids_data, host):
             keep_n=args.keep,
             save=args.save,
             show_rulers=args.rulers,
+            notation=resolve_notation(getattr(args, "notation", None)),
             label=args.label,
             vehicle_states=args.state,
             notes=args.notes,

@@ -1,6 +1,6 @@
-"""The ``--diff`` view: monitor-style decoded params + coloured byte-diff.
+"""The ``--diff`` view: monitor-style decoded signals + coloured byte-diff.
 
-One block per (ECU, PID): header, decoded-parameter table, an optional byte-index
+One block per (ECU, PID): header, decoded-signal table, an optional byte-index
 ruler, then the payload hex lines with per-byte change highlighting. The
 interactive counterpart is the stepper (:mod:`step`), which renders the same
 information one time-joined frame at a time.
@@ -10,6 +10,7 @@ from collections.abc import Sequence
 
 from canlib.capture_store import decoded_preview
 from canlib.capture_types import CaptureEntry
+from canlib.notation import ByteNotation
 
 from .query import (
     _dedupe_payloads,
@@ -26,17 +27,25 @@ def _render_diff_group(
     tx_id: int | None,
     show_all: bool,
     rulers: bool = False,
+    notation: ByteNotation = ByteNotation.WICAN,
 ) -> None:
-    """Render one ECU+PID block: header, decoded params, optional ruler, byte-diff hex."""
+    """Render one ECU+PID block: header, decoded signals, optional ruler, byte-diff hex."""
     from rich.markup import escape
 
     from canlib.decoding import decode_param_rows
     from canlib.formatting import _render_hex_line, render_byte_rulers, render_param_table
+    from canlib.notation import ByteDisplay, subfunction_bytes_for_pid
 
     # Decode the most recent payload into param rows (drives the table + colours).
     rows = decode_param_rows(payloads[-1]["payload"], parameters)
     unmapped = not rows
     n_bytes = len(payloads[-1]["payload"].replace(" ", "")) // 2
+    # One byte-notation view for both the ruler and the per-signal byte column.
+    display = ByteDisplay(
+        notation,
+        payload_len=n_bytes,
+        sub_bytes=subfunction_bytes_for_pid(str(payloads[0]["pid"])),
+    ).aligned()
 
     unique = _dedupe_payloads(payloads)
     total = len(payloads)
@@ -53,19 +62,19 @@ def _render_diff_group(
     console.print(f"\n  [bold cyan]{ecu_display}{tx_str}[/bold cyan]")
     console.print(f"    [yellow]{pid_display}[/yellow]  [dim]{count_str}[/dim]")
 
-    # Decoded-parameter block (aligned columns, verification marks, byte indices).
+    # Decoded-signal block (aligned columns, verification marks, byte references).
     if rows:
-        console.print(render_param_table(rows, n_bytes=n_bytes), end="")
+        console.print(render_param_table(rows, display=display), end="")
 
     # Payload hex lines with per-byte change highlighting, under a byte-index ruler.
     render_list = payloads if show_all else unique
     max_ts = max((len(e.get("time") or e.get("date") or "") for e in render_list), default=0)
 
     # Byte-index ruler (opt-in via --rulers), aligned with the hex byte columns
-    # below. Two rows: "idx" = payload byte position, "wican" = WiCAN Bnn (skips PCI).
+    # below, in the user's preferred byte notation (default WiCAN Bnn).
     if rulers and n_bytes:
         console.print(
-            render_byte_rulers(n_bytes, rows, prefix_width=8 + max_ts), end="", soft_wrap=True
+            render_byte_rulers(display, rows, prefix_width=8 + max_ts), end="", soft_wrap=True
         )
 
     prev_norm = ""
@@ -87,6 +96,7 @@ def cmd_diff(
     show_all: bool = False,
     rulers: bool = False,
     as_json: bool = False,
+    notation: ByteNotation = ByteNotation.WICAN,
 ) -> None:
     """Show payloads matching ``query`` in monitor style, per ECU+PID.
 
@@ -133,6 +143,6 @@ def cmd_diff(
 
     for key, group in sorted(groups.items()):
         parameters, tx_id = defs.get(key, ({}, None))
-        _render_diff_group(console, group, parameters, tx_id, show_all, rulers)
+        _render_diff_group(console, group, parameters, tx_id, show_all, rulers, notation)
 
     console.print()

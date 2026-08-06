@@ -100,6 +100,7 @@ from canlib.capture_dates import (
 from canlib.capture_store import load_all_captures
 from canlib.capture_types import CaptureEntry
 from canlib.commands._hints import ecu_completer as _ecu_completer
+from canlib.notation import add_notation_arg, resolve_notation
 from canlib.state_infer import DEFAULT_CYCLE_TOL_S
 
 from .backfill import cmd_backfill_states
@@ -258,8 +259,11 @@ def _add_uds_parser(kinds) -> argparse.ArgumentParser:
         "--rulers",
         "-r",
         action="store_true",
-        help="For --diff/--step: show the byte-index ruler (idx/wican) above the hex",
+        help="For --diff/--step: show the byte-index ruler above the hex (in the "
+        "notation from --notation / display.byte_notation)",
     )
+
+    add_notation_arg(parser)
 
     parser.add_argument(
         "--view",
@@ -394,7 +398,14 @@ def _dispatch(mode: Mode, args, query: str, entries: list[CaptureEntry]) -> int:
             )
         cmd_latest(entries, as_json=args.json)
     elif mode == "diff":
-        cmd_diff(entries, query, show_all=args.all, rulers=args.rulers, as_json=args.json)
+        cmd_diff(
+            entries,
+            query,
+            show_all=args.all,
+            rulers=args.rulers,
+            as_json=args.json,
+            notation=resolve_notation(args.notation),
+        )
     elif mode == "step":
         cmd_step(
             entries,
@@ -402,6 +413,7 @@ def _dispatch(mode: Mode, args, query: str, entries: list[CaptureEntry]) -> int:
             show_all=args.all,
             captures_dir=args.dir,
             rulers=args.rulers,
+            notation=resolve_notation(args.notation),
             view=args.view,
             tol_s=args.join_tol,
             as_json=args.json,

@@ -38,6 +38,7 @@ usage: canair captures uds [-h] [--diff | --step]
                            [--summary | --sessions | --latest | --recover | --delete | --backfill-states | --set-state STATES]
                            [--discard] [--overwrite] [--cycle-tol SECONDS]
                            [--dry-run] [--yes] [--all] [--limit N] [--rulers]
+                           [--notation NAME]
                            [--view {auto,stacked,signals,changed,interleaved}]
                            [--join-tol SECONDS] [--json] [--since WHEN]
                            [--until WHEN] [--date YYYY-MM-DD] [--today]
@@ -100,8 +101,12 @@ options:
                         captures (default 50; 0 = no cap). A loud footer
                         reports any hidden history. Also caps the frames
                         rendered by a piped/--json --step.
-  --rulers, -r          For --diff/--step: show the byte-index ruler
-                        (idx/wican) above the hex
+  --rulers, -r          For --diff/--step: show the byte-index ruler above the
+                        hex (in the notation from --notation /
+                        display.byte_notation)
+  --notation NAME       byte-index notation for output labels: wican
+                        (default), isotp, torque, bix. Overrides the
+                        display.byte_notation config key.
   --view {auto,stacked,signals,changed,interleaved}
                         For --step: how a frame is rendered — stacked (one
                         block per PID), signals (params only), changed (only

@@ -32,6 +32,7 @@ from rich.text import Text
 from canlib.capture_dates import entry_datetime
 from canlib.capture_store import PidDefs, load_all_captures, load_ecu_index, resolve_pid_defs
 from canlib.capture_types import CaptureEntry
+from canlib.notation import ByteNotation
 from canlib.states import join_states as _join_states
 
 from .join import JoinFrame, build_join_frames
@@ -176,6 +177,8 @@ class StepModel:
     tol_s: float = DEFAULT_STEP_JOIN_TOL_S
     show_all: bool = False
     rulers: bool = False
+    #: Byte-index notation for the ruler + per-signal byte-reference column.
+    notation: ByteNotation = ByteNotation.WICAN
     captures_dir: Path | None = None
     aliases: dict[str, str] = field(default_factory=dict)
     #: Draw the block cursor. Off for the static/piped render, where there is
@@ -216,6 +219,7 @@ class StepModel:
         tol_s: float = DEFAULT_STEP_JOIN_TOL_S,
         show_all: bool = False,
         rulers: bool = False,
+        notation: ByteNotation = ByteNotation.WICAN,
         captures_dir: Path | None = None,
         aliases: dict[str, str] | None = None,
     ) -> StepModel:
@@ -227,6 +231,7 @@ class StepModel:
             tol_s=tol_s,
             show_all=show_all,
             rulers=rulers,
+            notation=notation,
             captures_dir=captures_dir,
             aliases=dict(aliases or {}),
             entries=list(entries),
@@ -629,6 +634,7 @@ class StepModel:
             self.prev_idx,
             self.ordinals,
             rulers=self.rulers,
+            notation=self.notation,
             position=f"capture {i + 1}/{len(self.captures)}",
             aliases=self.aliases,
             show_per_pid=len(self.keys) > 1,
@@ -665,6 +671,7 @@ class StepModel:
                     self.prev_idx,
                     self.ordinals,
                     rulers=self.rulers,
+                    notation=self.notation,
                     aliases=self.aliases,
                     show_hex=show_hex,
                     changed_only=changed_only,
@@ -682,8 +689,13 @@ class StepModel:
             return ""
         return f"Δt={(dt - anchor).total_seconds():+.2f}s"
 
-    def status_line(self) -> str:
-        """One-line summary of position and settings (plain text)."""
+    def status_bits(self) -> list[str]:
+        """Position + settings as separate segments, most important first.
+
+        Kept as segments (rather than one joined string) so the TUI's status bar
+        can drop the least important ones on a narrow terminal instead of
+        clipping the line; :meth:`status_line` joins them for static output.
+        """
         total = self.frame_count()
         position = f"frame {self.frame_idx + 1}/{total}" if total else "no frames"
         bits = [position, f"view {self.view}"]
@@ -693,7 +705,11 @@ class StepModel:
         bits.append("all payloads" if self.show_all else "unique payloads")
         if self.n_no_time:
             bits.append(f"{self.n_no_time} untimed excluded")
-        return " · ".join(bits)
+        return bits
+
+    def status_line(self) -> str:
+        """One-line summary of position and settings (plain text)."""
+        return " · ".join(self.status_bits())
 
     def keys_label(self) -> str:
         """The selected keys as a compact ``HVAC:220100 HVAC:2201A0`` string."""

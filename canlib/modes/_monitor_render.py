@@ -16,12 +16,13 @@ from ..formatting import (
     render_param_ranges,
     render_param_table,
 )
+from ..notation import ByteDisplay, ByteNotation, subfunction_bytes_for_pid
 from .multi_batch import EcuFrame, ResultEntry
 
 # Ordered display view modes cycled by the TUI 'V' key. Increasing detail:
 #   ecus    — just the responding ECUs (+ a PID/signal count)
 #   ranges  — each signal's captured value span (min-max / distinct labels)
-#   signals — the decoded parameter table (no raw hex)
+#   signals — the decoded signal table (no raw hex)
 #   full    — signals + the raw byte payloads (the default)
 VIEW_MODES = ("ecus", "ranges", "signals", "full")
 
@@ -89,6 +90,7 @@ def _entry_signature(
     history: list[tuple[str, str]] | None,
     view_mode: str = "full",
     stat_sig: tuple | None = None,
+    notation: ByteNotation = ByteNotation.WICAN,
 ) -> tuple:
     """A hashable signature of everything that affects one PID entry's render.
 
@@ -119,6 +121,7 @@ def _entry_signature(
         params,
         view_mode,
         stat_sig,
+        notation,
     )
 
 
@@ -154,6 +157,7 @@ def _render_entry(
     history: list[tuple[str, str]] | None,
     view_mode: str = "full",
     pid_stats: dict | None = None,
+    notation: ByteNotation = ByteNotation.WICAN,
 ) -> Text:
     """Render one PID entry (mark line, param table, hex/history) to its own Text.
 
@@ -165,6 +169,9 @@ def _render_entry(
     signal's accumulated value span (from ``pid_stats``) instead of the live
     table; ``"signals"`` shows the decoded table but omits the raw hex payload;
     ``"full"`` (the default) shows the table and the hex/history lines.
+
+    ``notation`` is the byte-index notation the ruler and each signal's
+    byte-reference column are drawn in (the user's ``display.byte_notation``).
     """
     pid = entry["pid"]
     error = entry.get("error")
@@ -213,14 +220,23 @@ def _render_entry(
             entry_text.stylize("dim")
         return entry_text
 
+    # One byte-notation view per entry, shared by the ruler and the per-signal
+    # byte-reference column so the two can never name bytes in different spaces.
+    byte_display = (
+        ByteDisplay(
+            notation,
+            payload_len=len(raw_hex) // 2,
+            sub_bytes=subfunction_bytes_for_pid(pid),
+        ).aligned()
+        if (show_rulers and raw_hex and show_hex)
+        else None
+    )
+
     if params:
-        # With rulers on, annotate each param with the payload byte index(es) it
-        # maps to (e.g. "16-17"), matching the diff view.
-        n_bytes = len(raw_hex) // 2 if (show_rulers and raw_hex and show_hex) else None
-        # Highlight the param(s) whose *decoded value* just changed, with the
+        # Highlight the signal(s) whose *decoded value* just changed, with the
         # same background the changed byte gets in the hex line (skipped when
         # stale — a timed-out reuse of last-good data is not a live change). The
-        # per-byte hex highlight still tracks raw byte changes; only the param
+        # per-byte hex highlight still tracks raw byte changes; only the signal
         # name/value cells are gated on the interpreted value moving.
         changed_styles = (
             changed_param_highlights(params, raw_hex, prev_raw, prev_values)
@@ -231,7 +247,7 @@ def _render_entry(
             render_param_table(
                 params,
                 verbose=verbose,
-                n_bytes=n_bytes,
+                display=byte_display,
                 selected_name=sel_name,
                 changed_styles=changed_styles,
             )
@@ -241,11 +257,9 @@ def _render_entry(
 
     if raw_hex and show_hex:
         # Byte-index ruler, once per PID, above the hex lines.
-        if show_rulers:
+        if byte_display is not None:
             ruler_pw = 16 if history is not None else 6
-            entry_text.append_text(
-                render_byte_rulers(len(raw_hex) // 2, params, prefix_width=ruler_pw)
-            )
+            entry_text.append_text(render_byte_rulers(byte_display, params, prefix_width=ruler_pw))
         if history is not None:
             # Show all unique payloads chronologically, each diffed against predecessor
             history_hexes = [h for h, _ts in history]
@@ -301,6 +315,7 @@ def _render_results(
     cache: RenderCache | None = None,
     view_mode: str = "full",
     param_stats=None,
+    notation: ByteNotation = ByteNotation.WICAN,
 ) -> Text:
     """Render all ECU query results as a Rich Text object for display.
 
@@ -323,6 +338,9 @@ def _render_results(
     ``cache`` (a :class:`RenderCache`) reuses per-PID blocks whose inputs are
     unchanged since the last render, avoiding the per-byte Text churn and
     expression re-parsing for static PIDs. ``None`` renders everything fresh.
+
+    ``notation`` selects the byte-index notation used by the rulers and the
+    per-signal byte-reference column (see :class:`~canlib.notation.ByteDisplay`).
 
     ``view_mode`` (see :data:`VIEW_MODES`) selects the presentation: ``"ecus"``
     lists only the responding ECUs (+ a PID/signal count); ``"ranges"`` shows
@@ -403,6 +421,7 @@ def _render_results(
                     history=history,
                     view_mode=view_mode,
                     stat_sig=stat_sig,
+                    notation=notation,
                 )
                 block = cache.get(hex_key, sig)
                 if block is None:
@@ -419,6 +438,7 @@ def _render_results(
                         history=history,
                         view_mode=view_mode,
                         pid_stats=pid_stats,
+                        notation=notation,
                     )
                     cache.put(hex_key, sig, block)
             else:
@@ -435,6 +455,7 @@ def _render_results(
                     history=history,
                     view_mode=view_mode,
                     pid_stats=pid_stats,
+                    notation=notation,
                 )
             text.append_text(block)
 

@@ -30,7 +30,7 @@ canair config edit           # open in $EDITOR
 | `wican_model` | `pro` (default) or `classic`. `classic` makes canair cleanly refuse Pro-only features. |
 | `check_for_updates` | `true` (default) or `false`. Disables the automatic once-a-day update check (also disabled by `CANAIR_NO_UPDATE_CHECK`). |
 | `grid_region` | Charging-grid region for the physical-value scan: `EU`, `UK`, `US`, `JP`, `CN`, or `AU` (case-insensitive). Sets the mains-voltage / line-frequency bands (see below). |
-| `display.byte_notation` | Default byte-index notation for analysis output labels: `wican` (default), `isotp`, `torque`, or `bix`. Overridden per-command by `--notation`. |
+| `display.byte_notation` | Default byte-index notation for analysis output labels, and for the byte ruler / signal byte-reference column in `monitor` and `captures --diff/--step`: `wican` (default), `isotp`, `torque`, or `bix`. Overridden per-command by `--notation`. |
 | `transport` | Advanced: explicit CAN transport selection (see below). |
 
 ## `grid_region` — physical-scan grid bands

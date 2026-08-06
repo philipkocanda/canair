@@ -73,6 +73,7 @@ from canlib.commands._decode_render import (
 )
 from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.commands._join import add_join_args, add_mirror_args, fill_policy_from_args
+from canlib.decoding import ordered_signal_names
 from canlib.expression import evaluate_expression
 from canlib.inspect_bytes import POST_TRANSFORMS
 from canlib.keepmode import CHANGES_BANNER, scope_is_keep_changes, scope_is_keep_unique
@@ -472,7 +473,7 @@ def _build_plot_model(args, ecu: str, pid: str) -> PlotModel | None:
 
     model = PlotModel(
         all_results,
-        list(parameters.keys()),
+        ordered_signal_names(parameters),
         parameters,
         set(),
         None,
@@ -787,7 +788,7 @@ def _decode_one(
                 return 1
             corr_ref = cross_ref_label
         else:
-            corr_ref = resolve_ref(args.corr, list(parameters.keys()))
+            corr_ref = resolve_ref(args.corr, ordered_signal_names(parameters))
             if corr_ref is None:
                 print(
                     f"--corr reference '{args.corr}' not found. Available: {', '.join(parameters)}"
@@ -846,7 +847,7 @@ def _decode_one(
     if args.plot:
         cmd_plot(
             all_results,
-            list(parameters.keys()),
+            ordered_signal_names(parameters),
             parameters,
             candidate_names,
             corr_ref,
@@ -859,7 +860,7 @@ def _decode_one(
         return 0
 
     if args.json:
-        param_names = list(parameters.keys())
+        param_names = ordered_signal_names(parameters)
         if args.stats or corr_ref:
             # Aggregate JSON: per-param statistics and/or correlations vs the ref.
             out: dict = {}
@@ -926,8 +927,8 @@ def _decode_one(
         print()
         return 0
 
-    # Param column order (definition order; --try candidates appended last).
-    param_names = list(parameters.keys())
+    # Signal column order: payload position (--try candidates appended last).
+    param_names = ordered_signal_names(parameters)
 
     # Header
     n_verified = sum(1 for p in parameters.values() if p.get("verified", False))

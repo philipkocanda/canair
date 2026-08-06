@@ -1,17 +1,24 @@
-"""Payload decoding — evaluate PID parameter expressions against a response.
+"""Payload decoding — evaluate PID signal expressions against a response.
 
 Shared by the live monitor (``modes.multi._exec_query``), the historical capture
-viewer (``query-captures.py``), and anything else that needs decoded parameter
+viewer (``query-captures.py``), and anything else that needs decoded signal
 rows. Decoded values are never persisted; they are regenerated on demand from the
 payload + PID definitions.
+
+Rows come out ordered by **where the signal sits in the payload** (see
+:func:`signal_order_key`), not by definition order, so every view that decodes a
+payload lists its signals in the same order the hex bytes are printed in.
 """
 
+from collections.abc import Mapping
 from functools import lru_cache
+from typing import Any
 
 from .autopid_layout import uds_hex_to_wican_bytes
+from .byteindex import extract_bit_indices, extract_byte_indices
 from .expression import evaluate_expression
 
-# A decoded parameter row, as consumed by ``formatting.render_param_table`` and
+# A decoded signal row, as consumed by ``formatting.render_param_table`` and
 # ``formatting._build_byte_colors`` / ``_render_hex_line``:
 #   (name, value, unit, expression, error, verified, display)
 # ``value`` is None when the expression errored (``error`` holds the message).
@@ -19,9 +26,45 @@ from .expression import evaluate_expression
 # (there is no numeric scalar); numeric/enum/bitmask/bcd carry the ``float``.
 ParamRow = tuple[str, float | str | None, str, str, str | None, bool, str]
 
-# One parameter's identity for the decode cache key — everything that affects the
+# One signal's identity for the decode cache key — everything that affects the
 # decoded row (name/expr/unit/verified/display). Hashable so it can key an LRU.
 _ParamSig = tuple[str, str, str, bool, str]
+
+
+def signal_order_key(expression: str) -> tuple[int, int, int]:
+    """Sort key placing a signal at the byte it reads first.
+
+    Definition order in ``ecus/`` reflects how a PID was reverse-engineered, not
+    the payload's layout, so a table in definition order forces the reader to
+    hunt back and forth between a value and the hex byte it came from. Ordering by
+    first byte (then by bit within it, whole-byte reads before the bits inside
+    them) makes the table read top-to-bottom in the same direction as the hex.
+
+    WiCAN indices are monotonic in the ISO-TP payload position, so no payload
+    length is needed. A signal that references no byte (a constant, or a typed
+    read with no expression) sorts last.
+    """
+    byte_indices = extract_byte_indices(expression)
+    if not byte_indices:
+        return (1, 0, 0)
+    first = min(byte_indices)
+    bits = [bit for offset, bit in extract_bit_indices(expression) if offset == first]
+    return (0, first, min(bits) if bits else -1)
+
+
+def order_signals(parameters: Mapping[str, Any]) -> list[tuple[str, Any]]:
+    """``parameters`` as ``(name, definition)`` pairs in payload-position order.
+
+    A stable sort, so signals reading the same byte keep their definition order.
+    """
+    return sorted(
+        parameters.items(), key=lambda kv: signal_order_key((kv[1] or {}).get("expression", ""))
+    )
+
+
+def ordered_signal_names(parameters: Mapping[str, Any]) -> list[str]:
+    """Signal names in payload-position order (see :func:`order_signals`)."""
+    return [name for name, _ in order_signals(parameters)]
 
 
 @lru_cache(maxsize=8192)
@@ -51,7 +94,7 @@ def _decode_cached(payload_hex: str, params_sig: tuple[_ParamSig, ...]) -> tuple
     return tuple(rows)
 
 
-def _decode_typed_rows(payload_hex: str, parameters: dict) -> list[ParamRow]:
+def _decode_typed_rows(payload_hex: str, ordered: list[tuple[str, Any]]) -> list[ParamRow]:
     """Decode when at least one parameter declares a ``type:`` (enum/bitmask/…).
 
     Typed params can't ride the numeric LRU cache (their ``values``/``bits`` maps
@@ -68,7 +111,7 @@ def _decode_typed_rows(payload_hex: str, parameters: dict) -> list[ParamRow]:
         return []
 
     rows: list[ParamRow] = []
-    for name, pdef in parameters.items():
+    for name, pdef in ordered:
         ptype = (pdef.get("type") or NUMERIC).lower()
         expr = pdef.get("expression", "")
         unit = pdef.get("unit", "")
@@ -114,7 +157,7 @@ def _decode_typed_rows(payload_hex: str, parameters: dict) -> list[ParamRow]:
 
 
 def decode_param_rows(payload_hex: str, parameters: dict) -> list[ParamRow]:
-    """Decode a UDS response payload into parameter rows.
+    """Decode a UDS response payload into signal rows.
 
     Args:
         payload_hex: Raw UDS response hex (ELM327 form, PCI stripped), e.g.
@@ -124,15 +167,17 @@ def decode_param_rows(payload_hex: str, parameters: dict) -> list[ParamRow]:
 
     Returns:
         A list of ``(name, value, unit, expression, error, verified, display)``
-        tuples — one per parameter that has an expression. Empty if there are no
-        parameters or the payload can't be parsed.
+        tuples — one per signal that has an expression, ordered by the payload
+        byte each reads first (see :func:`signal_order_key`). Empty if there are
+        no signals or the payload can't be parsed.
     """
     if not parameters:
         return []
-    # Typed (enum/bitmask/ascii/date/bcd/struct) params take a slower, uncached
+    ordered = order_signals(parameters)
+    # Typed (enum/bitmask/ascii/date/bcd/struct) signals take a slower, uncached
     # path so their label/text interpretation is rendered (not just the float).
     if any((p.get("type") or "numeric").lower() != "numeric" for p in parameters.values()):
-        return _decode_typed_rows(payload_hex, parameters)
+        return _decode_typed_rows(payload_hex, ordered)
     params_sig = tuple(
         (
             name,
@@ -141,7 +186,7 @@ def decode_param_rows(payload_hex: str, parameters: dict) -> list[ParamRow]:
             bool(pdef.get("verified", False)),
             pdef.get("display", ""),
         )
-        for name, pdef in parameters.items()
+        for name, pdef in ordered
     )
     # Copy the cached tuple into a fresh list so callers can't mutate the cache.
     return list(_decode_cached(payload_hex, params_sig))

@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **The signal tables now read in payload order.** Every view that decodes a
+  payload — `monitor`, `read`, `captures --diff`/`--step`, `decode` — lists a
+  PID's signals sorted by the byte each one reads first, rather than in the order
+  they happen to be defined in `ecus/`. Definition order records how a PID was
+  reverse-engineered; it forced the reader to hunt back and forth between a value
+  and the hex byte it came from. Signals sharing a byte keep their relative order,
+  a whole-byte read sorts before the bit-fields inside it, and a signal that reads
+  no byte sorts last.
+- **`--notation` now applies to the value views too** (`monitor`,
+  `captures --diff`/`--step`). The byte ruler and each signal's byte-reference
+  column are rendered from one notation — `--notation`, or the
+  `display.byte_notation` config key, WiCAN `Bnn` by default — so a value and the
+  ruler above the hex can no longer name the same byte two different ways.
 - **Time-aligned joins now carry run-length values forward** (`--fill`,
   `--max-hold` on `align`/`correlate`/`hunt`/`investigate`/`decode`). A
   `keep:changes` row means "this value holds until the next row", but the joins
@@ -59,6 +72,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   outright. The monitor's TUI routes stop signals through its own quit action, so
   Textual tears down cleanly instead of unwinding a `KeyboardInterrupt` through
   its internals.
+
+### Changed
+- **The byte ruler shows one row, in your notation, and the signal byte column
+  matches it.** The ruler used to print two rows in two different byte spaces
+  (`idx` = ISO-TP payload position and `wican` = WiCAN `Bnn`) while the signal
+  table's byte column silently used a third rendering — bare ISO-TP numbers, which
+  read like a bix index. It is now a single row labelled with the notation it is
+  drawn in, and the per-signal column uses the same one (`B18-B19` under a `wican`
+  ruler). A byte run that is non-adjacent *as rendered* is shown as such
+  (`B15,B17-B19`), since WiCAN interleaves ISO-TP framing bytes — the old
+  ISO-TP-contiguous form claimed bytes the signal does not read. Asking for `bix`
+  on a ruler falls back to WiCAN, because a *bit* index cannot fit a
+  two-character byte column.
+- **The TUI status bars fit narrow terminals.** Every canair TUI (`monitor`,
+  `sniff`, `captures --step`, `decode --plot`) docked a long single-line status at
+  a fixed height, so on a narrow terminal — a phone SSH client sits around 45
+  columns — Rich soft-wrapped the line and the fixed height clipped the overflow,
+  hiding the tail *including* the `? help` pointer to the full key list. Each bar
+  is now composed from priority-ranked segments and renders only what fits the
+  current width, shedding the least essential first and re-composing on resize;
+  alerts, an active `● REC`, `? help` and `q quit` are the last to go.
+- **The monitor no longer follows the tail; the `f` key is gone.** Auto-follow
+  stuck the view to the bottom whenever you were already there, which meant fresh
+  data could pull the screen out from under a byte you were reading. A repaint now
+  never moves the scroll position — `G`/`End` jumps to the newest output when you
+  want it. The status hints and `?` list drop `f`/`follow`/`manual` accordingly.
+- **The monitor's session-info overlay (`i`) shows the write-ahead journal path.**
+  A `--save` run streams every payload to `captures/.journal/*.jsonl` before
+  reconciling it on exit, and that file is what `canair captures uds --recover`
+  reads after a crash — the overlay reported the captures directory but not the
+  journal, so the one path you need mid-incident was the one not shown.
+- **Vocabulary: a decoded quantity is a *signal*.** The tool called the same thing
+  a "parameter" in some views and a "signal" in others (the monitor's own view
+  modes were already `ecus`/`ranges`/`signals`/`full`). "Signal" is now the settled
+  user-facing term in both data domains; the strings in the views touched here were
+  updated, and the rest is tracked in
+  `plans/2026-08-06-signal-naming-convention.md`. The `parameters:` key in `ecus/`
+  and the `canair pids upsert-param`/`rm-param`/`rename-param` CLI keep their
+  names.
 
 ### Fixed
 - **Short signals were silently excluded from correlation ranking.** The bucket

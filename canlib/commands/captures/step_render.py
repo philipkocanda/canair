@@ -21,6 +21,7 @@ from rich.text import Text
 
 from canlib.capture_store import PidDefs
 from canlib.capture_types import CaptureEntry
+from canlib.notation import ByteNotation
 from canlib.states import join_states as _join_states
 
 from .query import _capture_key
@@ -56,8 +57,9 @@ def capture_block_text(
     selected: bool = False,
     dt_label: str = "",
     show_per_pid: bool = True,
+    notation: ByteNotation = ByteNotation.WICAN,
 ) -> Text:
-    """Render one capture: header, decoded params, optional ruler, byte-diff hex.
+    """Render one capture: header, decoded signals, optional ruler, byte-diff hex.
 
     The byte-diff compares the payload against the previous capture of the *same*
     (ECU, PID) — via ``prev_idx`` — shown dimmed above, and parameters whose
@@ -69,8 +71,10 @@ def capture_block_text(
     multi-PID selection. ``selected`` marks the block with a ``▶`` cursor (the
     stacked view's block focus) and ``dt_label`` shows its offset from the
     frame's anchor time. ``show_hex`` drops the hex/ruler lines (the params-only
-    view); ``changed_only`` narrows the parameter table to rows whose decoded
+    view); ``changed_only`` narrows the signal table to rows whose decoded
     value changed, leaving byte colouring computed from the full set.
+    ``notation`` is the byte-index notation the ruler and each signal's
+    byte-reference column are drawn in.
     """
     from canlib.decoding import decode_param_rows
     from canlib.formatting import (
@@ -79,6 +83,7 @@ def capture_block_text(
         render_byte_rulers,
         render_param_table,
     )
+    from canlib.notation import ByteDisplay, subfunction_bytes_for_pid
 
     e = captures[i]
     key = _capture_key(e)
@@ -90,6 +95,10 @@ def capture_block_text(
     norm = _payload_hex(e)
     prev_norm = _payload_hex(prev)
     n_bytes = len(norm) // 2
+    # One byte-notation view for both the ruler and the per-signal byte column.
+    display = ByteDisplay(
+        notation, payload_len=n_bytes, sub_bytes=subfunction_bytes_for_pid(str(e["pid"]))
+    ).aligned()
 
     rows = decode_param_rows(e["payload"] or "", parameters)
     unmapped = not rows
@@ -141,12 +150,12 @@ def capture_block_text(
         out.append("    note:", style="dim")
         out.append(f" {note}\n")
 
-    # Decoded-parameter block (aligned columns, verification marks, byte indices).
+    # Decoded-signal block (aligned columns, verification marks, byte references).
     table_rows = [r for r in rows if r[0] in changed_styles] if changed_only else rows
     if table_rows:
-        out.append(render_param_table(table_rows, n_bytes=n_bytes, changed_styles=changed_styles))
+        out.append(render_param_table(table_rows, display=display, changed_styles=changed_styles))
     elif changed_only and rows:
-        out.append("      (no param changes)\n", style="dim")
+        out.append("      (no signal changes)\n", style="dim")
 
     if not show_hex:
         return out
@@ -155,7 +164,7 @@ def capture_block_text(
     prev_ts = (prev.get("time") or prev.get("date") or "") if prev else ""
     max_ts = max(len(ts), len(prev_ts))
     if rulers and n_bytes:
-        out.append(render_byte_rulers(n_bytes, rows, prefix_width=8 + max_ts))
+        out.append(render_byte_rulers(display, rows, prefix_width=8 + max_ts))
 
     # Previous same-PID capture (dimmed, no highlight) for visual reference, then
     # the current capture with per-byte change highlighting against it.
