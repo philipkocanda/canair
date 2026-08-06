@@ -22,9 +22,9 @@ from .capture_store import load_all_captures
 # NOTE on the scope filters below: they are deliberately shape-agnostic. Each
 # reads only a handful of keys (date/time/vehicle_states/label) and is applied
 # both to full `CaptureEntry` rows and to the slimmer row
-# `decode.load_captures` reshapes to. The `_Row` type parameter keeps them honest
-# *and* preserves the caller's row type through the filter, so a precisely-typed
-# input doesn't degrade to `list[dict]` on the way out.
+# `capture_store.load_pid_captures` reshapes to. The `_Row` type parameter keeps
+# them honest *and* preserves the caller's row type through the filter, so a
+# precisely-typed input doesn't degrade to `list[dict]` on the way out.
 
 __all__ = [
     "add_scope_args",

@@ -43,12 +43,14 @@ import json
 import sys
 
 from canlib.align import join_nearest
+from canlib.byteindex import payload_to_wican_bytes
 from canlib.capture_dates import (
     add_scope_args,
     filter_by_date_range,
     filter_by_text,
     resolve_scope_bounds,
 )
+from canlib.capture_store import load_pid_captures
 from canlib.commands._decode_calc import (
     _local_series,
     _paired,
@@ -73,8 +75,7 @@ from canlib.commands._decode_render import (
 )
 from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.commands._join import add_join_args, add_mirror_args, fill_policy_from_args
-from canlib.decoding import ordered_signal_names
-from canlib.expression import evaluate_expression
+from canlib.decoding import decode_payload, ordered_signal_names
 from canlib.inspect_bytes import POST_TRANSFORMS
 from canlib.keepmode import CHANGES_BANNER, scope_is_keep_changes, scope_is_keep_unique
 from canlib.notation import (
@@ -100,40 +101,6 @@ _CYAN = "\033[96m"
 _RESET = "\033[0m"
 
 
-def load_captures(ecu: str, pid: str) -> list[dict]:
-    """Load all payload captures matching ECU+PID from capture files.
-
-    Thin wrapper over the canonical :func:`capture_store.load_all_captures`
-    (one loader for the whole tool), narrowed to a single ECU+PID and reshaped to
-    the slim dict decode's views expect: ``{file, date, label, vehicle_states,
-    payload, notes, time}``. Capture ``ecu`` addresses are resolved to canonical
-    short names by the shared loader.
-    """
-    from canlib.capture_store import load_all_captures
-
-    entries = []
-    for e in load_all_captures():
-        if str(e.get("ecu", "")).upper() != ecu.upper():
-            continue
-        if str(e.get("pid", "")).upper() != pid.upper():
-            continue
-        if not e.get("payload"):
-            continue
-        entries.append(
-            {
-                "file": e.get("file", ""),
-                "date": str(e.get("date", "")),
-                "label": e.get("session_label", ""),
-                "vehicle_states": list(e.get("vehicle_states") or []),
-                "payload": e["payload"],
-                "notes": e.get("notes", ""),
-                "time": e.get("time", ""),
-                "keep_mode": e.get("keep_mode", ""),
-            }
-        )
-    return entries
-
-
 def scope_captures(
     entries: list[dict],
     *,
@@ -150,7 +117,7 @@ def scope_captures(
     then slice the chronologically-ordered survivors. ``first`` and ``last`` are
     applied in that order, so combining them yields the first ``first`` then its
     last ``last`` (rarely useful, but well-defined). Entries are assumed already
-    in capture (chronological) order from :func:`load_captures`.
+    in capture (chronological) order from :func:`capture_store.load_pid_captures`.
     """
     entries = filter_by_date_range(entries, since, until)
     entries = filter_by_text(entries, state=state, label=label)
@@ -159,63 +126,6 @@ def scope_captures(
     if last is not None and last >= 0:
         entries = entries[-last:] if last else []
     return entries
-
-
-def payload_to_wican_bytes(payload_hex: str) -> bytes:
-    """Convert raw UDS payload hex to WiCAN frame bytes (with PCI inserted).
-
-    Delegates to the canonical converter in ``byteindex`` (one PCI-reconstruction
-    path for the whole tool); kept as a re-export for decode's callers/tests.
-    """
-    from canlib.byteindex import payload_to_wican_bytes as _to_bytes
-
-    return _to_bytes(payload_hex)
-
-
-def decode_payload(wican_bytes: bytes, parameters: dict) -> dict[str, dict]:
-    """Evaluate all parameter expressions against a WiCAN frame.
-
-    Returns dict: param_name -> {value, expression, unit, verified, error}.
-
-    For a param declaring a ``type:`` (enum/bitmask/ascii/date/bcd/struct) the
-    result also carries ``display`` (the rendered typed string) and ``category``
-    (a nominal key for categorical stats). ``value`` remains the raw float so
-    every numeric consumer (min/max/corr/stats) is unaffected.
-    """
-    from canlib.decode_value import decode_typed, render
-
-    results = {}
-    for name, param in parameters.items():
-        expr = param.get("expression", "")
-        ptype = (param.get("type") or "numeric").lower()
-        if not expr and ptype in ("numeric", "enum", "bitmask", "bcd"):
-            continue
-        try:
-            entry: dict = {
-                "expression": expr,
-                "unit": param.get("unit", ""),
-                "verified": param.get("verified", False),
-                "min": param.get("min"),
-                "max": param.get("max"),
-            }
-            if ptype != "numeric":
-                dv = decode_typed(param, wican_bytes)
-                entry["value"] = dv.raw
-                entry["type"] = ptype
-                entry["display"] = render(dv, param.get("unit", ""))
-                entry["category"] = dv.category()
-            else:
-                entry["value"] = evaluate_expression(expr, wican_bytes)
-            results[name] = entry
-        except Exception as e:
-            results[name] = {
-                "value": None,
-                "expression": expr,
-                "unit": param.get("unit", ""),
-                "verified": param.get("verified", False),
-                "error": str(e),
-            }
-    return results
 
 
 def parse_try_expr(arg: str) -> tuple[str, str, str]:
@@ -461,7 +371,7 @@ def _build_plot_model(args, ecu: str, pid: str) -> PlotModel | None:
         parameters = ecu_index[ecu_key]["pids"].get(pid_key, {}).get("parameters", {}) or {}
     defined_params = dict(parameters)
 
-    captures = scope_captures(load_captures(ecu_key, pid_key), **scope)
+    captures = scope_captures(load_pid_captures(ecu_key, pid_key), **scope)
     all_results: list[dict] = []
     for cap in captures:
         try:
@@ -732,9 +642,9 @@ def _decode_one(
         # Be capture-aware and split the two cases that used to collapse into one
         # misleading message: filters excluded everything vs. nothing defined yet.
         # (This is a terminating error path, so loading captures here doesn't
-        # double-load — the normal path at load_captures() below is only reached
+        # double-load — the normal path at load_pid_captures() below is only reached
         # when there are parameters to decode.)
-        caps = scope_captures(load_captures(ecu_key, pid_key), **scope)
+        caps = scope_captures(load_pid_captures(ecu_key, pid_key), **scope)
         if multi:
             # Terse one-liner per PID inside a multi-PID query (keep it scannable).
             note = (
@@ -796,7 +706,7 @@ def _decode_one(
                 return 1
 
     # Load captures (with any date/state/label/first/last scoping applied).
-    captures = scope_captures(load_captures(ecu_key, pid_key), **scope)
+    captures = scope_captures(load_pid_captures(ecu_key, pid_key), **scope)
     if not captures:
         if multi:
             print(f"\n{_BOLD}{ecu_key} {pid_key}{_RESET} — {_DIM}no captures in scope{_RESET}")

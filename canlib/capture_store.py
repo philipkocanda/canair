@@ -11,6 +11,8 @@ Three concerns, in dependency order:
 
 * :func:`load_all_captures` — flatten every capture file into one list of rows,
   with the stored RX address resolved to its canonical ECU short name.
+* :func:`load_pid_captures` — the same, narrowed to one ECU+PID and reshaped to
+  the slim rows the value-centric analysis views consume.
 * :func:`load_ecu_index` / :func:`resolve_pid_defs` — look up a PID's parameters
   and its ECU's TX id.
 * :func:`decoded_preview` — regenerate a capture's decoded parameter values.
@@ -157,6 +159,39 @@ def load_all_captures(captures_dir: Path | None = None) -> list[CaptureEntry]:
                     "_capture_idx": c_idx,
                 }
                 entries.append(entry)
+    return entries
+
+
+def load_pid_captures(ecu: str, pid: str) -> list[dict]:
+    """Every payload capture for one ECU+PID, as the slim rows the analysis verbs use.
+
+    Narrows :func:`load_all_captures` to a single ECU+PID (both matched
+    case-insensitively, with the stored RX address already resolved to its
+    canonical short name) and reshapes each row to the keys the value-centric
+    views and the ``capture_dates`` scope filters read: ``file``, ``date``,
+    ``label`` (the *session* label), ``vehicle_states``, ``payload``, ``notes``,
+    ``time``, ``keep_mode``. Captures with no payload are skipped.
+    """
+    entries: list[dict] = []
+    for e in load_all_captures():
+        if str(e.get("ecu", "")).upper() != ecu.upper():
+            continue
+        if str(e.get("pid", "")).upper() != pid.upper():
+            continue
+        if not e.get("payload"):
+            continue
+        entries.append(
+            {
+                "file": e.get("file", ""),
+                "date": str(e.get("date", "")),
+                "label": e.get("session_label", ""),
+                "vehicle_states": list(e.get("vehicle_states") or []),
+                "payload": e["payload"],
+                "notes": e.get("notes", ""),
+                "time": e.get("time", ""),
+                "keep_mode": e.get("keep_mode", ""),
+            }
+        )
     return entries
 
 

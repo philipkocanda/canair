@@ -190,3 +190,52 @@ def decode_param_rows(payload_hex: str, parameters: dict) -> list[ParamRow]:
     )
     # Copy the cached tuple into a fresh list so callers can't mutate the cache.
     return list(_decode_cached(payload_hex, params_sig))
+
+
+def decode_payload(wican_bytes: bytes, parameters: dict) -> dict[str, dict]:
+    """Evaluate every signal expression against a WiCAN frame, keyed by name.
+
+    The richer sibling of :func:`decode_param_rows`: where that returns display
+    rows for a table, this returns one entry per signal carrying the pieces the
+    analysis verbs need — ``value`` plus ``expression``/``unit``/``verified``/
+    ``min``/``max``, or ``error`` when the expression raised.
+
+    For a signal declaring a ``type:`` (enum/bitmask/ascii/date/bcd/struct) the
+    entry also carries ``display`` (the rendered typed string) and ``category`` (a
+    nominal key for categorical stats). ``value`` stays the raw float so every
+    numeric consumer (min/max/corr/stats) is unaffected.
+    """
+    from .decode_value import decode_typed, render
+
+    results: dict[str, dict] = {}
+    for name, param in parameters.items():
+        expr = param.get("expression", "")
+        ptype = (param.get("type") or "numeric").lower()
+        if not expr and ptype in ("numeric", "enum", "bitmask", "bcd"):
+            continue
+        try:
+            entry: dict = {
+                "expression": expr,
+                "unit": param.get("unit", ""),
+                "verified": param.get("verified", False),
+                "min": param.get("min"),
+                "max": param.get("max"),
+            }
+            if ptype != "numeric":
+                dv = decode_typed(param, wican_bytes)
+                entry["value"] = dv.raw
+                entry["type"] = ptype
+                entry["display"] = render(dv, param.get("unit", ""))
+                entry["category"] = dv.category()
+            else:
+                entry["value"] = evaluate_expression(expr, wican_bytes)
+            results[name] = entry
+        except Exception as e:
+            results[name] = {
+                "value": None,
+                "expression": expr,
+                "unit": param.get("unit", ""),
+                "verified": param.get("verified", False),
+                "error": str(e),
+            }
+    return results

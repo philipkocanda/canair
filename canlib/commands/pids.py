@@ -131,13 +131,11 @@ def _echo_capture_range(ecu: str, pid: str, name: str, param: dict) -> None:
     captures is swallowed (the edit already succeeded and was validated).
     """
     try:
-        from canlib.commands.decode import (
-            decode_payload,
-            load_captures,
-            payload_to_wican_bytes,
-        )
+        from canlib.byteindex import payload_to_wican_bytes
+        from canlib.capture_store import load_pid_captures
+        from canlib.decoding import decode_payload
 
-        caps = load_captures(ecu, pid)
+        caps = load_pid_captures(ecu, pid)
         if not caps:
             print(f"    {_DIM}(no captures for {ecu} {pid} yet — expression unverified){_RESET}")
             return

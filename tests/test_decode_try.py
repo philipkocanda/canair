@@ -46,9 +46,12 @@ class TestBuildTryParams:
         # End-to-end: a candidate expression evaluates through the real decode path.
         # payload_to_wican_bytes inserts the ISO-TP PCI byte, so 6101ABCD becomes
         # frame 04 61 01 AB CD -> B0=PCI, B1=SID, B2=PID echo, B3=first data byte.
+        from canlib.byteindex import payload_to_wican_bytes
+        from canlib.decoding import decode_payload
+
         params = build_try_params(["FIRST=B3"])
-        wican = decode_script.payload_to_wican_bytes("6101ABCD")
-        decoded = decode_script.decode_payload(wican, params)
+        wican = payload_to_wican_bytes("6101ABCD")
+        decoded = decode_payload(wican, params)
         assert decoded["FIRST"]["value"] == 0xAB
         assert decoded["FIRST"]["verified"] is False
 
