@@ -612,10 +612,13 @@ def decode_uds_response(data: bytes) -> str | None:
         payload_len = len(data) - 3
         return f"ReadDataByIdentifier: DID 0x{did:04X}, {payload_len} data bytes"
 
+    # 0x61 answers 0x21 ReadDataByLocalIdentifier (KWP2000), whose identifier is a
+    # 1-byte Local Identifier — not the 2-byte DID of UDS 0x22. Named to match the
+    # uds_services registry and the LID role canair reports elsewhere.
     if sid == 0x61 and len(data) >= 2:
-        pid = data[1]
+        lid = data[1]
         payload_len = len(data) - 2
-        return f"ReadDataByIdentifier (mfr): PID 0x{pid:02X}, {payload_len} data bytes"
+        return f"ReadDataByLocalIdentifier: LID 0x{lid:02X}, {payload_len} data bytes"
 
     if sid == 0x6E and len(data) >= 3:
         did = (data[1] << 8) | data[2]
@@ -679,19 +682,41 @@ def decode_uds_response(data: bytes) -> str | None:
     if sid == 0x77:
         return "WARNING: TransferExit — firmware transfer completed"
 
-    if sid == 0x68 and len(data) >= 3:
-        did = (data[1] << 8) | data[2]
-        return f"WARNING: ControlDTCSetting — DID 0x{did:04X}, DTC logging may be altered"
-
-    if sid == 0x6C and len(data) >= 2:
-        sub = data[1]
-        sub_names = {
-            0x01: "enableRxAndTx",
-            0x02: "enableRxAndDisableTx",
+    # 0x68 is the response to 0x28 CommunicationControl (request SID + 0x40).
+    # controlType values are ISO 14229-1 Table (0x00-0x03); note 0x00 is a valid
+    # value, so the map must not start at 0x01.
+    if sid == 0x68 and len(data) >= 2:
+        control_types = {
+            0x00: "enableRxAndTx",
+            0x01: "enableRxAndDisableTx",
+            0x02: "disableRxAndEnableTx",
             0x03: "disableRxAndTx",
         }
-        name = sub_names.get(sub, f"0x{sub:02X}")
+        ctype = data[1]
+        name = control_types.get(ctype, f"0x{ctype:02X}")
         return f"CommunicationControl: {name}"
+
+    # 0x6C is the response to 0x2C DynamicallyDefineDataIdentifier. The define
+    # variants echo the 2-byte dynamic DID they defined; a clear may omit it.
+    if sid == 0x6C and len(data) >= 2:
+        sub_names = {
+            0x01: "defineByIdentifier",
+            0x02: "defineByMemoryAddress",
+            0x03: "clearDynamicallyDefinedDataIdentifier",
+        }
+        sub = data[1]
+        name = sub_names.get(sub, f"subFunction 0x{sub:02X}")
+        result = f"DynamicallyDefineDataIdentifier: {name}"
+        if len(data) >= 4:
+            did = (data[2] << 8) | data[3]
+            result += f", dynamic DID 0x{did:04X}"
+        return result
+
+    # 0xC5 is the response to 0x85 ControlDTCSetting, which carries a
+    # DTCSettingType — not a DID.
+    if sid == 0xC5 and len(data) >= 2:
+        setting = {0x01: "on", 0x02: "off"}.get(data[1], f"0x{data[1]:02X}")
+        return f"WARNING: ControlDTCSetting — DTC setting {setting}, DTC logging may be altered"
 
     if sid == 0x7E:
         return "TesterPresent: acknowledged"
