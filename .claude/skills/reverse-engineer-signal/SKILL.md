@@ -1,6 +1,6 @@
 ---
 name: reverse-engineer-signal
-description: Generic, vehicle-agnostic reverse-engineering workflow for canair — the whole flow from orient/discover through capture, analyze, define, verify, integrate, for ANY signal (a PID/DID parameter, a raw broadcast frame field, a routine, an IOControl actuator) on ANY car. Covers WiCAN Bnn / ISO-TP / PCI byte indexing, expression syntax, the analysis reasoning (signal types, physics/EE, statistics), and writing/validating definitions. Use when discovering, decoding, or verifying anything on a vehicle bus, writing or fixing an expression, working out a byte offset, or working a research: backlog — on the bundled Ioniq profile or a profile you built for another car. Examples use the Ioniq for concreteness; the method is generic.
+description: "Generic, vehicle-agnostic reverse-engineering workflow for canair — the whole flow from orient/discover through capture, analyze, define, verify, integrate, for ANY signal (a PID/DID parameter, a raw broadcast frame field, a routine, an IOControl actuator) on ANY car. Covers WiCAN Bnn / ISO-TP / PCI byte indexing, expression syntax, the analysis reasoning (signal types, physics/EE, statistics), and writing/validating definitions. Use when discovering, decoding, or verifying anything on a vehicle bus, writing or fixing an expression, working out a byte offset, or working a research: backlog — on the bundled Ioniq profile or a profile you built for another car. Examples use the Ioniq for concreteness; the method is generic."
 ---
 
 # Reverse-engineering a vehicle signal (generic)
@@ -380,7 +380,8 @@ same "reason from the ECU's role" applies to any powertrain):
   timeline aligned to your notes, and `canair correlate --find-mirrors --bits` to
   find the same bit exposed on a second ECU (e.g. an IGPM door bit mirrored in
   BCM). This is how DOOR_DRV_OPEN / HOOD_OPEN / the BC05 unlock+trunk bits were
-  decoded (2026-07-24).
+  decoded (2026-07-24). The **decode-bitfields** skill covers this loop in full,
+  including `--dwell` and the partially-decoded-byte audit.
 
 > **Typed (multi-modal) signals.** A byte that is a *mode/flag/schedule/date*,
 > not a number on a line, is modelled with a param **`type:`**
@@ -441,7 +442,9 @@ Not every byte is analog. Discrete/logic signals have distinct fingerprints:
   reads and label each value.
 - **Bitfields** — individual bits toggle independently with discrete events
   (a light, a door, a relay). Read bit-by-bit (`Bnn:k`); `canair coverage
-  --bitfields` flags bytes only partly decoded.
+  --bitfields` flags bytes only partly decoded. For the full bit-level loop —
+  and for the common case of a byte with only 1-2 of 8 bits decoded — use the
+  **decode-bitfields** skill.
 - **Counters / alive / checksum** — monotonic wrap-around, or high-distinct noise
   with *no* physical correlation to anything (a rolling counter or CRC). Don't
   try to give these a physical unit; mark them as such.
