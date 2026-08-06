@@ -263,6 +263,27 @@ VCU:
             anti-correlates r=-0.66 with speed(ESC)/motor-RPM/pack-current across a drive. Likely a
             pedal/brake/power/load signal (inverse of load). TEST LIVE: standstill accelerator press
             vs brake press to disambiguate; note sign/scale.
+        VCU_INVERTER_ARMED:
+          expression: B23:4
+          source: canair bitfield analysis 2026-08-06; same-payload cross-tab n=6367
+          verified: false
+          notes: >-
+            B23:4. Strict superset of VCU_INVERTER_ENABLED (B23:2): bit2 set implies bit4 set, 0
+            violations in 6367 captures. Set in 100% of VCU_POWER_STATE=4 drive_ready rows
+            (1620/1620); B23 reads 0 in every charge_standby row with bit4 clear. 13 captures show
+            bit4=1 while B23:2=0 — the arming window before inverter enable. NOT the HV main relay:
+            BMS_MAIN_RELAY reads 1 during charging while this bit reads 0, so it tracks the
+            drive/inverter path, not the contactors. B23 takes only 3 values across 6367 captures:
+            0, 48 (bits 4,5), 52 (bits 2,4,5).
+        VCU_INVERTER_ARMED_MIRROR_B23_5:
+          expression: B23:5
+          source: canair bitfield analysis 2026-08-06
+          verified: false
+          notes: >-
+            B23:5. Identical to VCU_INVERTER_ARMED (B23:4) in 6367/6367 captures — a mirrored pair,
+            never observed diverging. Disabled so it does not ship a duplicate device signal;
+            defined to record that bit 5 is accounted for.
+          enabled: false
     2102:
       status: active
       period: 5000

@@ -286,6 +286,19 @@ IGPM:
           verified: true
           notes: >
             Hood/bonnet ajar sensor. 1=open. Discovered 2026-07-24: B11 flipped 0x00->0x01 exactly at the narrated 'open hood' step (09:38:03), while the driver door was still open, in sleep mode with no ACC power. Single clean event so far — verify with a second open/close cycle. Note: this also reassigns 'possible hood' away from B10:6 (UNKNOWN_B10_6), which did NOT change on hood open.
+        UNKNOWN_B13_1:
+          expression: B13:1
+          source: canair bitfield analysis 2026-08-06 (2026-07-30 defroster/DC-load session)
+          verified: false
+          notes: >-
+            Bit flag, meaning unknown. Only unlabelled toggling bit on 22BC03: 2 episodes / 4
+            transitions, median-on 234s, all inside the 2026-07-30 10:17-10:25 rear-defroster +
+            DC-load window. r=+0.604 (n=18) vs VCU:2102:VCU_AUX_POWER, so it tracks a 12V load — but
+            HVAC blower bits reach r=0.883 against that same reference, and one edge contradicts its
+            own note (cleared 10:20:41 while the note records the defroster still on). NOT confirmed
+            as the rear defogger despite IGPM's 'Rear defogger relay' IOControl. Enabled unverified
+            for live monitoring; see the 22BC03 B13:1 verify research entry for the A/B/A test that
+            would settle it.
 
 
     22BC04:
@@ -819,6 +832,26 @@ IGPM:
         - "Dedicated IGPM event capture with --keep-changes: doors/trunk/hood/windows/lights/lock-unlock in a scripted order with capture notes per action, so investigate --events can attribute each bit to an action."
         - B10:4 — what is 1 for 50 s after arriving from a drive AND for 3.5 h before a charge starts? Log it across plug-in-without-charge vs charge-start, and across arrival/lock/sleep.
         - B12:2 — time the latch across SLEEP->ACC->READY transitions and a pure CAN-wake to confirm it is a self-expiring wake latch.
+    - type: verify
+      target: 22BC03 B13:1
+      status: pending
+      priority: P2
+      vehicle_states: [READY]
+      created: "2026-08-06"
+      updated: "2026-08-06"
+      notes: "B13:1 is the only unlabelled toggling bit on 22BC03: 2 episodes / 4 transitions, median-on 234s, all within the 2026-07-30 10:17-10:25 defroster + DC-load window. r=+0.604 (n=18) vs VCU:2102:VCU_AUX_POWER, so it is a 12V load or load-related flag, but the HVAC blower bits dominate that signal (r=0.883) and one edge contradicts the note (bit cleared at 10:20:41 while the note says the defroster was still on). Not nameable from this data."
+      what_to_test:
+        - Repeat the controlled A/B/A rear-defroster ON/OFF test used for OBC LDC_OUTPUT_V on 2026-07-22, but co-poll IGPM:22BC03 (that session polled OBC only, so B13:1 was unavailable). Also toggle heated mirrors and heated seats separately to separate the loads.
+    - type: decode
+      target: 22BC03 B11:3,B11:4,B11:7 B12:0,B12:1,B12:6,B12:7
+      status: pending
+      priority: P3
+      vehicle_states: [RUN]
+      created: "2026-08-06"
+      updated: "2026-08-06"
+      notes: Declared bitfield gaps that are CONSTANT across all 297 timed captures — never exercised, so unknowable from current data rather than unused. B11 has bits 0,1,2,5,6 decoded (hood, seatbelts, ACC2/ign); B12 has 2,3,4,5 decoded (DRL, tail, high beam, low beam).
+      what_to_test:
+        - "Narrated event capture exercising the untested body functions: fog lights, hazard/turn indicators, rear seatbelts, reverse lights, parking/position lamps, wiper and washer, horn. One actuation at a time with an 's' note per action, --keep-changes."
 
   iocontrol_discoveries:
     BC01:

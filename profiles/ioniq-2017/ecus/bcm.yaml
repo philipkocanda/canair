@@ -888,6 +888,15 @@ BCM:
       notes: "BCM supports SecurityAccess (0x27) in the 10 03 extended session: 27 01 returns a fresh random 4-byte seed each request. The seed-key is a non-trivial HKMC scheme (likely SA2 bytecode/secret), not a simple transform, so opening security access requires dealer-level tooling — out of scope for canair (read/diagnostics only). Aggressive lockout (~2 attempts -> NRC 0x37 11s delay)."
       sources:
         - on-car 2026-07-22
+    - type: decode
+      target: 22B004 B10 (enum, not bitfield)
+      status: pending
+      priority: P3
+      created: "2026-08-06"
+      updated: "2026-08-06"
+      notes: "coverage --bitfields reports 'BITS B11 have{6}' for this PID, but B10 is the byte carrying the live signal and it is an ENUM, not independent flags: across 893 captures it takes only 3 values — 0 (n=861), 14 = bits 1,2,3 (n=30), 192 = bits 6,7 (n=2). Bits 1/2/3 never move independently, nor do 6/7, so defining them as separate flags would misrepresent one state code as five flags. Value 14 coincides with READY / powered states, 0 with SLEEP; n=2 for 192 is too thin to name."
+      what_to_test:
+        - "Model B10 as a whole-byte enum (type: enum with values 0/14/192) once each value has a confirmed state. Capture more instances of value 192 to identify it."
   iocontrol_discoveries:
     B003:
       response: "6FB00300"
