@@ -19,9 +19,11 @@ options:
   -h, --help       show this help message and exit
   --all            Include fully-mapped PIDs (no gaps)
   --unmapped       Only report unmapped-byte findings
-  --unverified     Only report bytes mapped by an unverified param (needs
+  --unverified     Only report bytes mapped by an unverified signal (needs
                    confirming)
-  --bitfields      Only report incomplete-bitfield findings
+  --bitfields      Only report bytes with undecoded bits (partial bitfields).
+                   A byte some signal also reads whole is still reported,
+                   flagged '(also read whole)'
   --no-capture     Only report PIDs with params but no capture
   --json           Output as JSON
   --notation NAME  byte-index notation for output labels: wican (default),

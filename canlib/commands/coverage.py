@@ -1,12 +1,15 @@
 """Audit PID definitions for decoding gaps (unmapped bytes, partial bitfields).
 
-For every ECU/PID in ecus/, this cross-references the parameter expressions
+For every ECU/PID in ecus/, this cross-references the signal expressions
 against the *longest* captured payload for that PID and reports:
 
   - UNMAPPED  data bytes present in the payload that no expression reads
-  - UNVERIFIED data bytes mapped only by an unverified param (needs confirming)
-  - BITS      bytes read only bit-by-bit (Bn:k) with some bits still undecoded
-  - NO CAPTURE PIDs that have parameters defined but no payload captured yet
+  - UNVERIFIED data bytes mapped only by an unverified signal (needs confirming)
+  - BITS      bytes read bit-wise (Bn:k, or a type: bitmask map) with some bits
+              still undecoded. A byte some signal *also* reads whole is still
+              reported, flagged "(also read whole)" — a raw-byte read does not
+              account for the byte's individual bits.
+  - NO CAPTURE PIDs that have signals defined but no payload captured yet
 
 Byte indices are WiCAN Bnn (the flat CAN-frame index used by expressions,
 including PCI bytes). PCI, SID, and subfunction/DID-echo bytes are excluded
@@ -31,7 +34,7 @@ import sys
 from typing import NotRequired, TypedDict
 
 from canlib import capture_io
-from canlib.byteindex import extract_byte_indices, mapped_offsets
+from canlib.byteindex import extract_bit_indices, extract_byte_indices, mapped_offsets
 from canlib.byteindex import mappable_data_indices as _mappable_data_indices
 from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.commands._hints import pid_completer as _pid_completer
@@ -48,11 +51,18 @@ ALIASES = ["cov"]
 
 
 class BitfieldGap(TypedDict):
-    """One byte read only bit-by-bit with some bits still undecoded."""
+    """One byte read bit-by-bit with some bits still undecoded.
+
+    ``also_whole`` marks a byte that some param *additionally* reads whole
+    (``Bn``/``Sn``). That does not account for the byte's bits, so the gap is
+    still reported — but it is flagged, because on a byte that is genuinely a
+    discrete code rather than independent flags the gap may be intentional.
+    """
 
     byte: int
     have: list[int]
     missing: list[int]
+    also_whole: bool
 
 
 class PidAnalysis(TypedDict):
@@ -151,20 +161,32 @@ def mappable_data_indices(payload_hex: str, sfb: int) -> list[int]:
     return _mappable_data_indices(payload_hex, sfb)
 
 
-_BIT_RE = re.compile(r"(?<!\[)B(\d+):(\d+)(?!\d)")
-
-
-def bit_references(expr: str) -> dict[int, set[int]]:
-    """Map WiCAN byte index -> set of bit positions read via ``Bn:k``."""
-    out: dict[int, set[int]] = {}
-    for m in _BIT_RE.finditer(expr):
-        out.setdefault(int(m.group(1)), set()).add(int(m.group(2)))
-    return out
-
-
 def references_full_byte(expr: str, idx: int) -> bool:
     """True if ``expr`` reads byte ``idx`` as a whole byte (Bn/Sn, not Bn:k)."""
     return re.search(rf"(?<!\[)[BS]0*{idx}(?![0-9:])", expr) is not None
+
+
+def declared_bits(pdef: dict) -> dict[int, set[int]]:
+    """Map WiCAN byte index -> bit positions a param accounts for.
+
+    Two models declare a bit: the ``Bn:k``/``Sn:k`` accessor (one param per bit)
+    and a ``type: bitmask`` param whose ``bits:`` map labels positions of the
+    whole byte it reads. Both are real decodings, so both count as coverage —
+    otherwise converting a half-labelled byte to a bitmask would hide the rest
+    of the gap.
+    """
+    expr = pdef.get("expression") or ""
+    if not expr:
+        return {}
+    out: dict[int, set[int]] = {}
+    for byte, bit in extract_bit_indices(expr):
+        out.setdefault(byte, set()).add(bit)
+    if pdef.get("type") == "bitmask":
+        labelled = {int(k) for k in (pdef.get("bits") or {})}
+        if labelled:
+            for byte in extract_byte_indices(expr):
+                out.setdefault(byte, set()).update(labelled)
+    return out
 
 
 def analyze_pid(parameters: dict, payload_hex: str, sfb: int) -> PidAnalysis:
@@ -177,7 +199,7 @@ def analyze_pid(parameters: dict, payload_hex: str, sfb: int) -> PidAnalysis:
         if not expr:
             continue
         covered |= extract_byte_indices(expr)
-        for b, bits in bit_references(expr).items():
+        for b, bits in declared_bits(pdef).items():
             all_bits.setdefault(b, set()).update(bits)
 
     unmapped = [i for i in data_idx if i not in covered]
@@ -188,12 +210,23 @@ def analyze_pid(parameters: dict, payload_hex: str, sfb: int) -> PidAnalysis:
 
     incomplete: list[BitfieldGap] = []
     for b, bits in sorted(all_bits.items()):
-        if b not in data_idx:
+        if b not in data_idx or len(bits) >= 8:
             continue
-        full = any(references_full_byte(p.get("expression", ""), b) for p in parameters.values())
-        if not full and len(bits) < 8:
-            missing = [x for x in range(8) if x not in bits]
-            incomplete.append({"byte": b, "have": sorted(bits), "missing": missing})
+        # A whole-byte read does NOT excuse the gap: `DEBUG_*_FLAGS`-style raw
+        # bytes coexist with per-bit params by convention, and suppressing here
+        # hid genuinely undecoded bits on the profile's most-captured bitfields.
+        # Flag it instead and let the reader judge.
+        also_whole = any(
+            references_full_byte(p.get("expression", ""), b) for p in parameters.values()
+        )
+        incomplete.append(
+            {
+                "byte": b,
+                "have": sorted(bits),
+                "missing": [x for x in range(8) if x not in bits],
+                "also_whole": also_whole,
+            }
+        )
 
     return {
         "data_bytes": len(data_idx),
@@ -226,10 +259,13 @@ def add_parser(subparsers):
     parser.add_argument(
         "--unverified",
         action="store_true",
-        help="Only report bytes mapped by an unverified param (needs confirming)",
+        help="Only report bytes mapped by an unverified signal (needs confirming)",
     )
     parser.add_argument(
-        "--bitfields", action="store_true", help="Only report incomplete-bitfield findings"
+        "--bitfields",
+        action="store_true",
+        help="Only report bytes with undecoded bits (partial bitfields). A byte "
+        "some signal also reads whole is still reported, flagged '(also read whole)'",
     )
     parser.add_argument(
         "--no-capture", action="store_true", help="Only report PIDs with params but no capture"
@@ -345,6 +381,7 @@ def run(args) -> int:
             byte_label = relabel_signal(
                 f"B{bf['byte']}", notation, sub_bytes=sub_bytes, payload_len=payload_len
             )
-            print(f"      {_RED}BITS{_RESET} {byte_label} have{{{have}}} missing{{{miss}}}")
+            whole = f" {_DIM}(also read whole){_RESET}" if bf.get("also_whole") else ""
+            print(f"      {_RED}BITS{_RESET} {byte_label} have{{{have}}} missing{{{miss}}}{whole}")
     print()
     return 0

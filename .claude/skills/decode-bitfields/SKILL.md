@@ -29,19 +29,14 @@ completely separate code paths:
 | | Model A — one param per bit | Model B — one `type: bitmask` param |
 |---|---|---|
 | Expression | `expression: B10:5` (×8 params) | `expression: B10` + `bits: {5: door_drv}` |
-| Analysis tooling sees it | **yes** — all of `--bits`, `coverage --bitfields`, `bix` overlay | **no** (see below) |
+| Analysis tooling sees it | **yes** — all of `--bits`, `coverage --bitfields`, `bix` overlay | partly — `coverage --bitfields` counts its `bits:` map, but `--bits` sweeps do not split it |
 | Best for | signals decoded incrementally, mixed verified/unverified, per-bit notes/`ha_class` | a byte that is *wholly* a known flag set (e.g. a weekday schedule mask) |
 
 **Model A is the working default.** The bundled `ioniq-2017` profile uses it
 exclusively — verified: zero `type: bitmask` params exist in any bundled
 profile. Prefer A while bits are still being discovered; it is the only model
-the gap-finding and ranking tools understand.
-
-> **Model B is invisible to `coverage --bitfields`.** A bitmask param's
-> expression is a bare `B10`, so `references_full_byte()`
-> (`canlib/commands/coverage.py:165-167`) returns True and the byte is treated as
-> **fully mapped** — even if its `bits:` map labels only 3 of 8 bits. Converting
-> a partially-decoded byte to Model B *hides the remaining gap*. Don't.
+the per-bit ranking sweeps (`--discriminate --bits`, `--find-mirrors --bits`,
+`investigate --bits`) can attribute individually.
 
 Model B's payoff is elsewhere: a single logical signal for
 `investigate --events --field NAME` and categorical stats (Cramér's V). Reach
@@ -58,33 +53,46 @@ uv run canair --profile ioniq-2017 coverage --bitfields
       UNMAPPED B5,B6,B7,B13,B14,B15,B17
       BITS B11 have{0,1,2,5,6} missing{3,4,7}
       BITS B12 have{2,3,4,5} missing{0,1,6,7}
+  VCU 2101 (…)
+      BITS B10 have{0,1,2,3} missing{4,5,6,7} (also read whole)
 ```
 
 A `BITS` line is exactly this skill's work item: `have{}` = bit indices some
-param reads (0 = LSB), `missing{}` = the unknowns. A byte is listed only when
-(a) ≥1 param reads it bit-wise, (b) it is a real data byte (PCI/SID/DID echo
-excluded), (c) no param reads it whole, and (d) fewer than 8 bits are covered
-(`canlib/commands/coverage.py:189-196`).
+param reads (0 = LSB), `missing{}` = the unknowns. A byte is listed when (a) ≥1
+param reads it bit-wise (`Bn:k`/`Sn:k`) **or** a `type: bitmask` param labels
+some of its bits, (b) it is a real data byte (PCI/SID/DID echo excluded), and
+(c) fewer than 8 bits are covered (`canlib/commands/coverage.py::analyze_pid`).
+
+**`(also read whole)`** means some param *additionally* reads the byte as a
+whole (`Bn`), the `DEBUG_*_FLAGS` convention. That is not a decoding of the
+individual bits, so the gap still counts — the flag just tells you the raw byte
+is already exposed, and warns that on a byte which is really a discrete *code*
+rather than independent flags the "gap" may be intentional (run Step 4.5 to
+tell which).
 
 Scope with `coverage IGPM 22BC03 --bitfields`; `--json` gives
-`incomplete_bitfields: [{byte, have, missing}]` for scripting. Note `--bitfields`
-filters which **PIDs** print, not which lines — `UNMAPPED`/`UNVERIFIED` still
-appear on a selected PID.
+`incomplete_bitfields: [{byte, have, missing, also_whole}]` for scripting. Note
+`--bitfields` filters which **PIDs** print, not which lines — `UNMAPPED`/
+`UNVERIFIED` still appear on a selected PID.
 
-### Coverage's three blind spots (all verified against the current tree)
+### Coverage's remaining blind spot
 
-`coverage --bitfields` under-reports. Cross-check before concluding a byte is done:
+`coverage --bitfields` used to under-report badly; two of the three historical
+gaps are now fixed (a whole-byte read no longer suppresses the finding, and
+`Sn:k` + `type: bitmask` maps are counted). One remains — cross-check before
+concluding a byte is done:
 
-1. **Mask-style expressions defeat it entirely.** `(B09 & 0x04)` yields *no* bit
-   references **and** makes `references_full_byte` return True — the byte is
-   silently marked fully mapped. Always author bits as the `Bn:k` accessor,
-   never a `&` mask. (Zero `&` expressions exist in bundled profiles today; keep
-   it that way.)
-2. **Signed-byte bit reads are missed.** Coverage's private `_BIT_RE`
-   (`coverage.py:154`) matches only `B`, not `S`, so `S10:5` is invisible to it
-   (the shared `byteindex.extract_bit_indices` does catch it). Bit reads on a
-   signed byte are nonsense anyway — use `Bn:k`.
-3. **Model B**, as above.
+**Mask-style expressions are invisible to it.** `(B09 & 0x04)` yields no bit
+references at all, so a byte read only that way reports no gap even though seven
+bits are undecoded. Always author bits as the `Bn:k` accessor, never an `&`
+mask. (Zero `&` expressions exist in bundled profiles today; keep it that way.)
+
+> Historical note, in case you meet an old profile or doc: before 2026-08-06 a
+> byte vanished from this report entirely if *any* param read it whole. That hid
+> the two most-captured bitfields in the bundled profile — VCU 2101 B10 (the
+> PRND byte, 6365 captures) and BMS 2101 B14 (5997) — because both follow the
+> `DEBUG_*_FLAGS` "raw byte + individual bits below" convention. See
+> `plans/2026-08-06-bitfield-audit-and-gear-state.md`.
 
 ## Step 2 — orient on the byte
 
@@ -252,13 +260,41 @@ read does **not** suppress the bitfield-gap report, because
 - **Mirror agreement must beat coincidence.** Two mostly-zero flags "agree" 99%
   of the time by construction; the matcher guards this with Cohen's κ
   (`canlib/mirrors.py:196`). Trust the reported κ, not the raw agreement.
-- **One episode is not evidence.** Prefer ≥2–3 clean, independent
-  actuation→edge pairs before naming a bit. `--dwell`'s `episodes`/`trans`
-  columns are the count to check.
+- **A high correlation with a named signal may mean SUPERSET, not equality.**
+  This is the single most productive check in the skill, because it catches
+  *already-verified* mistakes. `VCU 2101 B26:3` shipped as `GEAR_DRIVE` on the
+  strength of `r=+0.984` vs the drive-gear bit — but it is really "gear is not
+  Park": it also reads 1 in Reverse and Neutral, which simply had not been
+  sampled when the correlation was computed. 57 false positives, 0 false
+  negatives, and 99.1% agreement, which is exactly what a superset looks like.
+  A correlation cannot distinguish `A == B` from `A ⊇ B`; a cross-tab against
+  *every* value of the reference can. Always tabulate the reference's full value
+  set (`P/R/N/D`, not `D`/not-`D`) and read the **asymmetry** of the errors —
+  all-false-positives-no-false-negatives means superset, and the honest name is
+  the superset (`GEAR_PARK_INV`), not the special case.
+- **A near-perfect correlation computed on a thin corpus expires.** Re-run the
+  old evidence before trusting a note: the `r=+0.984` above was true over 773
+  captures and false over 6365. When a note cites an `n`, check today's `n`.
+- **One episode is not evidence — and a single sample can tell a coherent
+  story.** Prefer ≥2–3 clean, independent actuation→edge pairs before naming a
+  bit (`--dwell`'s `episodes`/`trans` columns are the count). The failure mode is
+  not obvious noise: one `BMS 2101 B14 = 0x45` row produced a *physically
+  sensible* three-part reading (two HV contactors plus a rapid-charge relay) that
+  survived scrutiny until the capture itself was withdrawn as untrustworthy.
+  Naming it `UNKNOWN_B14_*` per the rule below is what kept the profile honest.
 - **Never-toggling bits are unknowable, not absent.** Constant bits are dropped
   from every `--bits` series by design (`canlib/xanalysis.py:334-361`). A bit
   in `missing{}` that never appears in `--events` simply wasn't exercised — file
   a `research:` lead naming the state/action to try, don't conclude "unused".
+- **A constant-decoding param is a defect, whatever its `verified` flag.** Sweep
+  for them (decode every bit param and check `len(set(values)) == 1`): the
+  bundled profile had `1-B11:5` shipping a constant 1 under the name
+  `VEHICLE_STATE_MAIN_RELAY_ON`, i.e. asserting "HV relay closed" in `SLEEP` and
+  while charging. An inverted expression (`1-Bn:k`) is especially dangerous —
+  it turns "bit never set" into a confident `true`. Distinguish *unexercised*
+  (siblings vary; keep the claim, add a caveat + research lead) from *wrong*
+  (the expression cannot be what the name says; rename to the position and
+  disable).
 
 ## Step 6 — define the bits
 
@@ -293,15 +329,16 @@ uv run canair --profile ioniq-2017 bix -a <payload> --ecu IGPM --pid 22BC03
 ```
 
 `have{}` must have grown by exactly the bits you defined and `missing{}` shrunk
-to match. If the byte *disappeared* from the report, you likely wrote a
-whole-byte or masked expression and silently claimed the whole byte — go back to
-Step 1's blind spots.
+to match. If the byte *disappeared* from the report, you wrote an `&`-mask
+expression and silently claimed the whole byte — go back to Step 1's blind spot.
+(A plain whole-byte `Bn` no longer hides the gap; it just adds
+`(also read whole)`.)
 
 ## Pitfalls
 
 | Symptom | Cause |
 |---|---|
-| Byte vanished from `coverage --bitfields` after an edit | Whole-byte / `&`-mask / `type: bitmask` expression now claims it |
+| Byte vanished from `coverage --bitfields` after an edit | An `&`-mask expression now claims it (a plain `Bn` only adds `(also read whole)`) |
 | New bit param reads `constant` in the upsert echo | Wrong byte offset (WiCAN `Bnn` includes ISO-TP PCI) or wrong bit index |
 | `bix -a` roles shifted by one | Annotating a `22xxxx` payload with no `--pid` and no `-2` |
 | `--dwell` classes all `unknown` | Session recorded `--keep-unique`; falling edges dropped |
@@ -317,6 +354,9 @@ Step 1's blind spots.
   and analog-byte bits were not filed as flags.
 - `coverage --bitfields` shows the byte's `have{}` grown and `missing{}`
   shrunk — the byte did not disappear.
-- No `&`-mask or whole-byte expression was introduced on a partially-decoded byte.
+- No `&`-mask expression was introduced on a partially-decoded byte.
+- Every bit claimed against a *named* reference was cross-tabbed over the
+  reference's full value set, not just correlated — supersets were ruled out.
+- No param decodes a constant under a name that asserts a state.
 - Unexercised bits have a `research:` lead naming the state/action needed.
 - `canair validate pids` passes; notes are bare facts.

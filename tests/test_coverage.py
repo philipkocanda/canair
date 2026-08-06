@@ -36,6 +36,87 @@ class TestAnalyzePid:
         assert result["unmapped"] == []
 
 
+class TestBitfieldGaps:
+    """A byte read bit-wise reports its undecoded bits.
+
+    Regression cover for three defects that made real gaps invisible: a
+    whole-byte read used to suppress the finding entirely, ``Sn:k`` bit reads
+    were not counted, and a ``type: bitmask`` map contributed no coverage.
+    """
+
+    # 2101 single-frame: B3..B6 are the data bytes (see TestAnalyzePid).
+    PAYLOAD = "6101AABBCCDD"
+
+    def _gaps(self, params):
+        return coverage.analyze_pid(params, self.PAYLOAD, sfb=1)["incomplete_bitfields"]
+
+    def test_partial_bitfield_reported(self):
+        params = {"F0": {"expression": "B3:0"}, "F1": {"expression": "B3:1"}}
+        assert self._gaps(params) == [
+            {"byte": 3, "have": [0, 1], "missing": [2, 3, 4, 5, 6, 7], "also_whole": False}
+        ]
+
+    def test_whole_byte_read_does_not_suppress_the_gap(self):
+        """The `DEBUG_*_FLAGS` convention — a raw byte plus per-bit params.
+
+        The raw byte does not decode the individual bits, so the gap stands; it
+        is only flagged. This hid VCU 2101 B10 (the PRND byte) and BMS 2101 B14.
+        """
+        params = {
+            "DEBUG_FLAGS": {"expression": "B3", "verified": True},
+            "BIT0": {"expression": "B3:0", "verified": True},
+        }
+        (gap,) = self._gaps(params)
+        assert gap["have"] == [0]
+        assert gap["missing"] == [1, 2, 3, 4, 5, 6, 7]
+        assert gap["also_whole"] is True
+
+    def test_whole_byte_only_is_not_a_bitfield(self):
+        """No bit is read, so the byte has no bit gap — unchanged behaviour."""
+        assert self._gaps({"SCALAR": {"expression": "B3"}}) == []
+
+    def test_signed_bit_read_counts(self):
+        """`Sn:k` is a bit read too — the old private regex matched only `B`."""
+        (gap,) = self._gaps({"F": {"expression": "S3:4"}})
+        assert gap["have"] == [4]
+
+    def test_bitmask_map_contributes_coverage(self):
+        """A `type: bitmask` param's labelled bits are decoded bits."""
+        params = {
+            "MASK": {
+                "expression": "B3",
+                "type": "bitmask",
+                "bits": {0: "mon", 1: "tue", 2: "wed"},
+            }
+        }
+        (gap,) = self._gaps(params)
+        assert gap["have"] == [0, 1, 2]
+        assert gap["missing"] == [3, 4, 5, 6, 7]
+
+    def test_fully_labelled_bitmask_has_no_gap(self):
+        params = {
+            "MASK": {
+                "expression": "B3",
+                "type": "bitmask",
+                "bits": {i: f"b{i}" for i in range(8)},
+            }
+        }
+        assert self._gaps(params) == []
+
+    def test_bits_from_both_models_are_unioned(self):
+        params = {
+            "MASK": {"expression": "B3", "type": "bitmask", "bits": {0: "a"}},
+            "BIT7": {"expression": "B3:7"},
+        }
+        (gap,) = self._gaps(params)
+        assert gap["have"] == [0, 7]
+        assert gap["also_whole"] is True
+
+    def test_non_data_byte_is_not_reported(self):
+        """A bit read on the PCI/SID/echo header is not a data-byte gap."""
+        assert self._gaps({"F": {"expression": "B1:0"}}) == []
+
+
 class TestKeepFilter:
     """The default view treats unverified-mapped bytes as a gap; --unverified isolates them."""
 

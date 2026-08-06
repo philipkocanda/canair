@@ -1,7 +1,8 @@
 
 PID coverage audit — 1 PID(s) with gaps, 0 without captures
 
-  BMS 2101 (35p, 32 verified)  61 data bytes, 2025-08-07
-      UNMAPPED B4,B5,B6,B7,B11,B12,B13,B28,B61,B66,B67,B68,B70,B71,B73
+  BMS 2101 (36p, 31 verified)  60 data bytes, 2026-04-14
+      UNMAPPED B4,B5,B6,B7,B11,B12,B13,B28,B61,B66,B67,B68,B70,B71
       UNVERIFIED B10,B63
+      BITS B14 have{0,1,5,6,7} missing{2,3,4} (also read whole)
 
