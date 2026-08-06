@@ -178,11 +178,14 @@ OBC:
           ha_class: voltage
           min: "0"
           max: "300"
-          source: Live 16A AC charge 2026-07-26 + calibrated grid voltage
-          verified: true
-          notes: >
-            AC mains input (RMS) at the OBC inlet. ~222V during charging (218-228V across all charging history), idles ~8.5V in READY with EVSE disconnected (B14=3), like the other OBC senses.
-            Confirmed against calibrated measurements from grid connection meter.
+          source: Live 16A AC charge 2026-07-26; grid voltage NOT yet cross-checked with a calibrated instrument (unlike AC_INPUT_A, which was)
+          verified: false
+          notes: >-
+            AC mains input (RMS) at the OBC inlet. ~222V during charging (218-228V across all
+            charging history), idles ~8.5V in READY with EVSE disconnected (B14=3), like the other
+            OBC senses. NOT yet confirmed against a calibrated meter (corrected 2026-08-06 — a prior
+            note here overstated this as calibrated-confirmed; only AC_INPUT_A has an instrument
+            cross-check so far).
         AC_INPUT_A:
           expression: "[B33:B34]/100"
           unit: A
@@ -209,6 +212,28 @@ OBC:
             plugged, pilot 100%, 1h+ after charge) read a STEADY 3 - confirming 3 is the persistent
             connected-idle state, not a transient handshake. All-history only 0/2/3 (n=4654);
             AC-only profile, DC-charge states unobserved.
+        OBC_EFFICIENCY:
+          expression: 100*[B10:B11]*[B17:B18]/([B14:B15]*[B33:B34])
+          unit: "%"
+          min: "0"
+          max: "105"
+          source: "Derived: 100 * OBC_DC_POWER*1000 / (AC_INPUT_V*AC_INPUT_A), reduced to raw bytes (2026-08-06)"
+          verified: false
+          notes: >-
+            AC→DC charger conversion efficiency = OBC DC output power ÷ AC input power, as a
+            percentage. Algebraically 100*OBC_CHARGE_V*OBC_DC_A / (AC_INPUT_V*AC_INPUT_A), reduced
+            to raw bytes so it needs no cross-parameter lookup:
+            100*[B10:B11]*[B17:B18]/([B14:B15]*[B33:B34]). AC_INPUT_A has been cross-checked against
+            a calibrated instrument (see its notes); AC_INPUT_V has NOT — so this figure's accuracy
+            currently rests on an unverified voltage decode, not just the apparent-vs-real-power
+            caveat below. Also: AC_INPUT_V*AC_INPUT_A is apparent (V*A) power, not measured real
+            power, so this tracks true efficiency only if the OBC's PFC front-end holds power factor
+            ≈1. Reads NULL/decode-error when AC_INPUT_A=0 (not charging — division by zero by
+            construction, matches the other AC-charge-only params in this PID idling to non-physical
+            values). On the 2026-08-05 charging session: mean ~98.1% at steady ~4.3-4.5kW AC input
+            (n=1317); an earlier wattmeter cross-check on 2026-07-26 at a lower 16A/~3.5kW charge
+            measured ~95% (see OBC_DC_POWER notes) — unreconciled pending the AC_INPUT_V
+            verification.
     2102:
       status: static
       period: 5000
