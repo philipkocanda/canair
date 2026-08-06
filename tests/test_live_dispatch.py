@@ -1,4 +1,4 @@
-"""Transport guards in the shared live dispatcher (canlib/commands/_live.py).
+"""Transport guards in the shared live dispatcher (canlib/modes/dispatch/).
 
 ``dispatch_mode`` is typed against the :class:`~canlib.transport.protocol.Terminal`
 contract, so WiCAN-only modes must narrow explicitly. The interactive REPL sets
@@ -50,7 +50,7 @@ class TestRunLiveStopSignals:
         device connection released."""
         import signal
 
-        from canlib.commands import _live
+        from canlib.commands._live import runtime as _live
         from canlib.stop_signals import STOP_SIGNALS
 
         monkeypatch.setattr(_live, "WiCANLock", lambda *a, **k: _FakeLock())
@@ -73,7 +73,7 @@ class TestRunLiveStopSignals:
             assert signal.getsignal(sig) == before[sig]
 
     def test_keyboardinterrupt_exits_cleanly(self, monkeypatch, capsys):
-        from canlib.commands import _live
+        from canlib.commands._live import runtime as _live
 
         monkeypatch.setattr(_live, "WiCANLock", lambda *a, **k: _FakeLock())
 
@@ -89,7 +89,7 @@ class TestRunLiveStopSignals:
         """After a SIGHUP the tty is gone, so the closing print can fail (EIO)."""
         import builtins
 
-        from canlib.commands import _live
+        from canlib.commands._live import runtime as _live
 
         lock = _FakeLock()
         monkeypatch.setattr(_live, "WiCANLock", lambda *a, **k: lock)
@@ -107,7 +107,7 @@ class TestRunLiveStopSignals:
 
     def test_runs_a_lock_watchdog_for_the_session(self, monkeypatch):
         """An orphaned session must notice when another run asks for the device."""
-        from canlib.commands import _live
+        from canlib.commands._live import runtime as _live
 
         lock = _FakeLock()
         monkeypatch.setattr(_live, "WiCANLock", lambda *a, **k: lock)
