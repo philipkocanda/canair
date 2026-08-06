@@ -11,9 +11,22 @@ response — was unrecognised.
 it asserts each branch names the service the response SID actually belongs to.
 """
 
+import inspect
+import re
+
 import pytest
 
 from canlib.formatting import decode_uds_response
+from canlib.uds_layout import (
+    ROLE_CTRL,
+    ROLE_DID,
+    ROLE_LID,
+    ROLE_RID,
+    ROLE_SF,
+    SUBFUNCTION_NAMES,
+    response_layout,
+    subfunction_name,
+)
 from canlib.uds_services import RESPONSE_SID_OFFSET, SERVICES, service_name
 
 
@@ -195,3 +208,183 @@ class TestGracefulHandling:
     def test_truncated_payloads_do_not_raise(self, payload):
         # A short/garbled frame must degrade to None, never IndexError.
         decode_uds_response(bytes.fromhex(payload))
+
+    @pytest.mark.parametrize("resp_sid", list(range(0x40, 0x100)))
+    def test_no_response_sid_raises_on_any_short_payload(self, resp_sid):
+        # Exhaustive: every response SID, at every truncation, must degrade
+        # cleanly. A branch whose length guard is one too small would IndexError
+        # on a real truncated frame.
+        for n in range(0, 6):
+            decode_uds_response(bytes([resp_sid]) + bytes(n))
+
+
+class TestCrossCheckedAgainstUdsLayout:
+    """``uds_layout`` and ``decode_uds_response`` are two independent models of the
+    same response headers. Any disagreement means one of them is wrong, so pin
+    them to each other rather than trusting each in isolation.
+    """
+
+    # Sentinel identifier bytes, chosen so a value read from the wrong offset
+    # cannot coincidentally match the right one.
+    _SENTINELS = bytes([0xA1, 0xB2, 0xC3, 0xD4, 0xE5])
+
+    def _payload(self, resp_sid: int, layout) -> bytes:
+        """A payload whose header bytes are distinctive, per ``layout``."""
+        out = bytearray([resp_sid])
+        for field in layout.fields:
+            if field.role == ROLE_SF:
+                # A sub-function must be a *valid* value or the decode reports hex.
+                out.append(0x01)
+            elif field.role == ROLE_CTRL:
+                out.append(0x00)  # returnControlToECU
+            else:
+                out.extend(self._SENTINELS[: field.width])
+        out.extend(b"\x11\x22")  # trailing data
+        return bytes(out)
+
+    @pytest.mark.parametrize("resp_sid", [0x62, 0x61, 0x6E, 0x6F, 0x71, 0x6C])
+    def test_identifier_is_read_from_the_offset_uds_layout_declares(self, resp_sid):
+        layout = response_layout(resp_sid)
+        assert layout is not None
+        id_field = next(
+            (f for f in layout.fields if f.role in (ROLE_DID, ROLE_LID, ROLE_RID)), None
+        )
+        assert id_field is not None, f"0x{resp_sid:02X} has no identifier field to check"
+        payload = self._payload(resp_sid, layout)
+        decoded = _decode(payload.hex())
+        assert decoded is not None
+
+        # Where uds_layout says the identifier sits, and what it should read as.
+        offset = 1 + sum(f.width for f in layout.fields[: layout.fields.index(id_field)])
+        expected = payload[offset : offset + id_field.width]
+        want = f"0x{int.from_bytes(expected, 'big'):0{id_field.width * 2}X}"
+        assert want in decoded, (
+            f"0x{resp_sid:02X}: uds_layout puts {id_field.role} at payload byte "
+            f"{offset} (={want}) but decode_uds_response said {decoded!r}"
+        )
+
+    @pytest.mark.parametrize("payload,request_sid", _NAMED_RESPONSES)
+    def test_decoded_services_have_a_layout(self, payload, request_sid):
+        # If formatting.py can name a response, uds_layout should be able to lay it
+        # out — otherwise `bix --annotate` silently falls back to generic labels
+        # for a service the rest of the tool understands.
+        resp_sid = int(payload[:2], 16)
+        assert response_layout(resp_sid) is not None, (
+            f"0x{resp_sid:02X} is decoded by formatting.py but has no uds_layout entry"
+        )
+
+    def test_every_decoded_response_sid_has_a_layout(self):
+        """Total, self-maintaining version of the check above.
+
+        The set of response SIDs is read out of ``decode_uds_response`` itself, so
+        adding a branch there without a matching ``uds_layout`` entry fails here —
+        no hand-maintained list to forget. The exemptions are services whose header
+        is genuinely variable-length or absent (documented in ``_RESPONSE_FIELDS``).
+        """
+        variable_or_headerless = {0x63, 0x74, 0x75, 0x76, 0x77}
+        src = inspect.getsource(decode_uds_response)
+        decoded = {int(m, 16) for m in re.findall(r"sid == (0x[0-9A-Fa-f]{2})", src)}
+        assert decoded, "could not extract any response SIDs — did the source change?"
+        missing = sorted(
+            sid for sid in decoded - variable_or_headerless if response_layout(sid) is None
+        )
+        assert not missing, (
+            "decode_uds_response handles these response SIDs but uds_layout has no "
+            f"entry: {[hex(s) for s in missing]}"
+        )
+
+    def test_subfunction_names_are_shared_not_copied(self):
+        # The session table lives in one place now; a private copy is what let
+        # formatting.py's drift out of step (missing the KWP2000 0x8x range).
+        from canlib.modes.sessions_scan import SESSION_NAMES
+
+        assert SESSION_NAMES is SUBFUNCTION_NAMES[0x10]
+
+
+class TestSubfunctionCoverage:
+    @pytest.mark.parametrize("session", [0x01, 0x02, 0x03, 0x04, 0x81, 0x82, 0x83, 0x85])
+    def test_every_probed_session_type_is_named(self, session):
+        # A KWP2000 ECU answers 0x81/0x82/0x83; those printed as bare hex before.
+        decoded = _decode(f"50{session:02X}")
+        assert decoded is not None
+        assert f"0x{session:02X}" not in decoded, f"session 0x{session:02X} rendered as hex"
+
+    def test_scanned_session_modes_are_all_named(self):
+        from canlib.modes.sessions_scan import KWP_SESSION_MODES, UDS_SESSION_MODES
+
+        for mode in (*UDS_SESSION_MODES, *KWP_SESSION_MODES):
+            assert subfunction_name(0x10, mode) is not None
+
+    @pytest.mark.parametrize("reset", [0x01, 0x02, 0x03, 0x04, 0x05])
+    def test_ecu_reset_types_are_named(self, reset):
+        decoded = _decode(f"51{reset:02X}")
+        assert decoded is not None
+        assert f"0x{reset:02X}" not in decoded
+
+    def test_iocontrol_params_match_the_scanner_constants(self):
+        # formatting.py and the two IOControl scanners must agree on these values.
+        from canlib.modes.iocontrol_scan import (
+            SF_FREEZE,
+            SF_RESET_TO_DEFAULT,
+            SF_RETURN_CONTROL,
+            SF_SHORT_TERM_ADJ,
+        )
+
+        assert subfunction_name(0x2F, SF_RETURN_CONTROL) == "returnControlToECU"
+        assert subfunction_name(0x2F, SF_RESET_TO_DEFAULT) == "resetToDefault"
+        assert subfunction_name(0x2F, SF_FREEZE) == "freezeCurrentState"
+        assert subfunction_name(0x2F, SF_SHORT_TERM_ADJ) == "shortTermAdjustment"
+
+    def test_kwp_iocontrol_shares_the_uds_control_values(self):
+        from canlib.modes.kwp_iocontrol_scan import IOCP_RETURN_CONTROL
+
+        assert subfunction_name(0x30, IOCP_RETURN_CONTROL) == "returnControlToECU"
+
+    def test_routine_subfunctions_match_the_routines_module(self):
+        from canlib.modes.routines import SF_RESULTS, SF_START, SF_STOP
+
+        assert subfunction_name(0x31, SF_START) == "startRoutine"
+        assert subfunction_name(0x31, SF_STOP) == "stopRoutine"
+        assert subfunction_name(0x31, SF_RESULTS) == "requestRoutineResults"
+
+    def test_unnamed_value_returns_none_rather_than_inventing_a_label(self):
+        assert subfunction_name(0x10, 0xEE) is None
+        assert subfunction_name(0x99, 0x01) is None
+
+
+class TestFirmwareTransferBlockSize:
+    """0x74/0x75 previously reported the response's RESERVED low nibble as an
+    "addrLen" — request semantics (addressAndLengthFormatIdentifier) read into a
+    response, which carries a lengthFormatIdentifier instead.
+    """
+
+    def test_block_size_is_decoded_from_the_length_format_identifier(self):
+        # 0x20 -> high nibble 2 = a 2-byte maxNumberOfBlockLength (0x02F0 = 752).
+        decoded = _decode("742002F0")
+        assert decoded is not None
+        assert "max block 752 bytes" in decoded
+
+    def test_reserved_nibble_is_not_reported_as_an_address_length(self):
+        for payload in ("742002F0", "752002F0"):
+            decoded = _decode(payload)
+            assert decoded is not None
+            assert "addrLen" not in decoded
+            assert "memLen" not in decoded
+
+    def test_single_byte_block_length(self):
+        decoded = _decode("7410FF")
+        assert decoded is not None
+        assert "max block 255 bytes" in decoded
+
+    def test_truncated_block_length_is_reported_not_guessed(self):
+        # Declared 4 bytes but only 1 present: say so rather than print a wrong size.
+        decoded = _decode("7440FF")
+        assert decoded is not None
+        assert "truncated" in decoded
+
+    def test_both_transfer_directions_keep_their_warning(self):
+        for payload, word in (("742002F0", "RequestDownload"), ("752002F0", "RequestUpload")):
+            decoded = _decode(payload)
+            assert decoded is not None
+            assert decoded.startswith("WARNING:")
+            assert word in decoded

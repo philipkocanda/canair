@@ -131,8 +131,11 @@ def _f(role: str, width: int = 1) -> HeaderField:
 # Header fields per **response** SID (what is actually in a payload).
 #
 # Only layouts established elsewhere in this repo (or unambiguous in ISO
-# 14229 / SAE J1979) are listed. An absent service resolves to None so the caller
-# keeps its previous behaviour rather than asserting a guessed layout.
+# 14229-1 / SAE J1979) are listed. An absent service resolves to None so the caller
+# keeps its previous behaviour rather than asserting a guessed layout. Services
+# whose header is genuinely variable-length or absent are deliberately NOT listed:
+# 0x63 ReadMemoryByAddress (all data), 0x74/0x75 (a lengthFormatIdentifier plus an
+# n-byte maxNumberOfBlockLength), 0x76 (a block-sequence counter), 0x77 (all data).
 _RESPONSE_FIELDS: dict[int, tuple[HeaderField, ...]] = {
     0x41: (_f(ROLE_PID),),  # 0x01 OBD-II show current data
     0x42: (_f(ROLE_PID), _f(ROLE_FRAME)),  # 0x02 freeze-frame data
@@ -144,6 +147,11 @@ _RESPONSE_FIELDS: dict[int, tuple[HeaderField, ...]] = {
     0x61: (_f(ROLE_LID),),  # 0x21 ReadDataByLocalIdentifier
     0x62: (_f(ROLE_DID, 2),),  # 0x22 ReadDataByIdentifier
     0x67: (_f(ROLE_SF),),  # 0x27 SecurityAccess — level
+    0x68: (_f(ROLE_SF),),  # 0x28 CommunicationControl — controlType
+    0x6C: (_f(ROLE_SF), _f(ROLE_DID, 2)),  # 0x2C DynamicallyDefineDataIdentifier
+    # ^ the define variants echo the dynamic DID; a "clear all" response may omit
+    #   it. role_at() only labels bytes that exist, so a short response is not
+    #   mislabelled — it simply has no data bytes to misattribute.
     0x6E: (_f(ROLE_DID, 2),),  # 0x2E WriteDataByIdentifier
     0x6F: (_f(ROLE_DID, 2), _f(ROLE_CTRL)),  # 0x2F IOControlByIdentifier
     0x70: (_f(ROLE_LID), _f(ROLE_CTRL)),  # 0x30 IOControlByLocalIdentifier
@@ -152,10 +160,103 @@ _RESPONSE_FIELDS: dict[int, tuple[HeaderField, ...]] = {
     0x73: (_f(ROLE_LID),),  # 0x33 RequestRoutineResultsByLocalIdentifier
     0x7B: (_f(ROLE_LID),),  # 0x3B WriteDataByLocalIdentifier
     0x7E: (_f(ROLE_SF),),  # 0x3E TesterPresent — zeroSubFunction echo
+    0xC5: (_f(ROLE_SF),),  # 0x85 ControlDTCSetting — DTCSettingType
 }
 
 #: A negative response is ``7F <rejected SID> <NRC>`` regardless of service.
 _NEGATIVE_FIELDS: tuple[HeaderField, ...] = (_f(ROLE_REJ_SID), _f(ROLE_NRC))
+
+
+# Named values of each service's sub-function / control byte, keyed by **request**
+# SID. One home for these enums: they were previously re-declared per consumer
+# (a display table in ``formatting.py``, scan constants in ``modes/*_scan.py``),
+# which is how ``0x28``'s controlType names ended up shifted a slot and filed
+# under the wrong service. Unlisted values are rendered as hex by callers, so an
+# incomplete table degrades rather than lies.
+SUBFUNCTION_NAMES: dict[int, dict[int, str]] = {
+    # DiagnosticSessionControl — sessionType. Includes the KWP2000 0x8x range;
+    # omitting it made a Hyundai/Kia session response print bare hex.
+    0x10: {
+        0x01: "defaultSession",
+        0x02: "programmingSession",
+        0x03: "extendedDiagnosticSession",
+        0x04: "safetySystemDiagnosticSession",
+        0x81: "standardDiagnosticSession",
+        0x82: "periodicDiagnosticSession",
+        0x83: "extendedDiagnosticSession",
+        0x85: "programmingSession",
+    },
+    # ECUReset — resetType.
+    0x11: {
+        0x01: "hardReset",
+        0x02: "keyOffOnReset",
+        0x03: "softReset",
+        0x04: "enableRapidPowerShutDown",
+        0x05: "disableRapidPowerShutDown",
+    },
+    # ReadDTCInformation — reportType (contiguous 0x01-0x0E plus the two counters).
+    0x19: {
+        0x01: "reportNumberOfDTCByStatusMask",
+        0x02: "reportDTCByStatusMask",
+        0x03: "reportDTCSnapshotIdentification",
+        0x04: "reportDTCSnapshotRecordByDTCNumber",
+        0x05: "reportDTCStoredDataByRecordNumber",
+        0x06: "reportDTCExtDataRecordByDTCNumber",
+        0x07: "reportNumberOfDTCBySeverityMaskRecord",
+        0x08: "reportDTCBySeverityMaskRecord",
+        0x09: "reportSeverityInformationOfDTC",
+        0x0A: "reportSupportedDTC",
+        0x0B: "reportFirstTestFailedDTC",
+        0x0C: "reportFirstConfirmedDTC",
+        0x0D: "reportMostRecentTestFailedDTC",
+        0x0E: "reportMostRecentConfirmedDTC",
+        0x14: "reportDTCFaultDetectionCounter",
+        0x15: "reportDTCWithPermanentStatus",
+    },
+    # CommunicationControl — controlType. 0x00 IS a valid value.
+    0x28: {
+        0x00: "enableRxAndTx",
+        0x01: "enableRxAndDisableTx",
+        0x02: "disableRxAndEnableTx",
+        0x03: "disableRxAndTx",
+        0x04: "enableRxAndDisableTxWithEnhancedAddressInformation",
+        0x05: "enableRxAndTxWithEnhancedAddressInformation",
+    },
+    # DynamicallyDefineDataIdentifier — definitionType.
+    0x2C: {
+        0x01: "defineByIdentifier",
+        0x02: "defineByMemoryAddress",
+        0x03: "clearDynamicallyDefinedDataIdentifier",
+    },
+    # InputOutputControlByIdentifier — inputOutputControlParameter. Mirrored by
+    # the KWP2000 0x30 entry below (protocol-shared values).
+    0x2F: {
+        0x00: "returnControlToECU",
+        0x01: "resetToDefault",
+        0x02: "freezeCurrentState",
+        0x03: "shortTermAdjustment",
+    },
+    # RoutineControl — routineControlType.
+    0x31: {
+        0x01: "startRoutine",
+        0x02: "stopRoutine",
+        0x03: "requestRoutineResults",
+    },
+    # ControlDTCSetting — DTCSettingType.
+    0x85: {0x01: "on", 0x02: "off"},
+}
+# KWP2000 InputOutputControlByLocalIdentifier takes the same control parameter
+# values as UDS 0x2F (see canlib/modes/kwp_iocontrol_scan.py).
+SUBFUNCTION_NAMES[0x30] = SUBFUNCTION_NAMES[0x2F]
+
+
+def subfunction_name(request_sid: int, value: int) -> str | None:
+    """Named sub-function/control value for ``request_sid``, or ``None``.
+
+    ``None`` means "not named here" — a caller should fall back to hex rather
+    than invent a label.
+    """
+    return SUBFUNCTION_NAMES.get(request_sid, {}).get(value)
 
 
 def response_layout(resp_sid: int) -> ResponseLayout | None:

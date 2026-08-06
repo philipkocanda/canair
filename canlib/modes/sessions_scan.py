@@ -28,16 +28,14 @@ import sys
 from typing import NamedTuple
 
 from ..transport.protocol import Terminal
+from ..uds_layout import SUBFUNCTION_NAMES
 from ..uds_parse import UdsResponse
 
-# Human labels for the session sub-functions we know about.
-SESSION_NAMES = {
-    0x01: "defaultSession",
-    0x03: "extendedDiagnosticSession",
-    0x81: "standardDiagnosticSession",
-    0x82: "periodicDiagnosticSession",
-    0x83: "extendedDiagnosticSession",
-}
+# Human labels for the session sub-functions, from the shared table in
+# canlib.uds_layout — the single home for these enums. Keeping a private copy here
+# is what let it drift out of step with formatting.py's (which was missing the
+# whole KWP2000 0x8x range).
+SESSION_NAMES = SUBFUNCTION_NAMES[0x10]
 
 # Safe session sub-functions to probe, per protocol. Programming sessions
 # (UDS 0x02, KWP2000 0x85) are deliberately excluded — they are blocked by

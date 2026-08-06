@@ -8,6 +8,7 @@ from rich.text import Text
 
 from .byteindex import extract_byte_indices, wican_to_elm_idx
 from .decoding import ParamRow
+from .uds_layout import subfunction_name
 from .uds_parse import UdsResponse
 
 if TYPE_CHECKING:
@@ -578,26 +579,16 @@ def decode_uds_response(data: bytes) -> str | None:
 
     sid = data[0]
 
-    # UDS control types (0x2F IOControl)
-    CONTROL_TYPES = {
-        0x00: "returnControlToECU",
-        0x01: "resetToDefault",
-        0x02: "freezeCurrentState",
-        0x03: "shortTermAdjustment",
-    }
+    def _sub(request_sid: int, value: int) -> str:
+        """Name a sub-function/control byte from the shared table, else hex."""
+        return subfunction_name(request_sid, value) or f"0x{value:02X}"
 
     # 0x50-0x5F: DiagnosticSessionControl, ECUReset, SecurityAccess, etc.
     if sid == 0x50 and len(data) >= 2:
-        session_names = {0x01: "default", 0x02: "programming", 0x03: "extended"}
-        stype = data[1]
-        name = session_names.get(stype, f"0x{stype:02X}")
-        return f"DiagnosticSessionControl: {name} session"
+        return f"DiagnosticSessionControl: {_sub(0x10, data[1])}"
 
     if sid == 0x51 and len(data) >= 2:
-        reset_names = {0x01: "hardReset", 0x02: "keyOffOnReset", 0x03: "softReset"}
-        rtype = data[1]
-        name = reset_names.get(rtype, f"0x{rtype:02X}")
-        return f"ECUReset: {name}"
+        return f"ECUReset: {_sub(0x11, data[1])}"
 
     if sid == 0x67 and len(data) >= 2:
         level = data[1]
@@ -626,8 +617,7 @@ def decode_uds_response(data: bytes) -> str | None:
 
     if sid == 0x6F and len(data) >= 3:
         did = (data[1] << 8) | data[2]
-        ctrl = data[3] if len(data) >= 4 else None
-        ctrl_name = CONTROL_TYPES.get(ctrl, f"0x{ctrl:02X}") if ctrl is not None else "?"
+        ctrl_name = _sub(0x2F, data[3]) if len(data) >= 4 else "?"
         status = data[4:].hex().upper() if len(data) > 4 else ""
         result = f"IOControl: DID 0x{did:04X}, {ctrl_name}"
         if status:
@@ -635,44 +625,40 @@ def decode_uds_response(data: bytes) -> str | None:
         return result
 
     if sid == 0x71 and len(data) >= 4:
-        rtype = data[1]
         rid = (data[2] << 8) | data[3]
-        type_names = {0x01: "start", 0x02: "stop", 0x03: "requestResults"}
-        name = type_names.get(rtype, f"0x{rtype:02X}")
-        return f"RoutineControl: {name} routine 0x{rid:04X}"
+        return f"RoutineControl: {_sub(0x31, data[1])} routine 0x{rid:04X}"
 
     if sid == 0x59 and len(data) >= 2:
-        sub = data[1]
-        sub_names = {
-            0x01: "reportNumberOfDTCByStatusMask",
-            0x02: "reportDTCByStatusMask",
-            0x03: "reportDTCSnapshotIdentification",
-            0x04: "reportDTCSnapshotRecordByDTCNumber",
-            0x06: "reportDTCExtendedDataRecordByDTCNumber",
-            0x09: "reportSeverityInformationOfDTC",
-            0x0A: "reportSupportedDTC",
-            0x0B: "reportFirstTestFailedDTC",
-            0x0E: "reportMostRecentConfirmedDTC",
-        }
-        name = sub_names.get(sub, f"subFunction 0x{sub:02X}")
-        dtc_count = len(data) - 2
-        return f"ReadDTCInformation: {name}, {dtc_count} data bytes"
+        name = subfunction_name(0x19, data[1]) or f"subFunction 0x{data[1]:02X}"
+        return f"ReadDTCInformation: {name}, {len(data) - 2} data bytes"
 
     if sid == 0x63 and len(data) >= 2:
         addr_len = len(data) - 1
         return f"ReadMemoryByAddress: {addr_len} bytes returned"
 
+    # 0x74/0x75 carry a *lengthFormatIdentifier*, not the request's
+    # addressAndLengthFormatIdentifier: ISO 14229-1 defines its high nibble as the
+    # byte-length of the maxNumberOfBlockLength that follows, and its low nibble as
+    # RESERVED (0). Reporting that low nibble as an "addrLen" read request
+    # semantics into a response; the useful datum is the block size itself.
+    def _transfer_block_size(data: bytes) -> str:
+        n = (data[1] >> 4) & 0xF
+        block = data[2 : 2 + n]
+        if n and len(block) == n:
+            return f"max block {int.from_bytes(block, 'big')} bytes"
+        return f"max-block length field {n} byte(s), value truncated"
+
     if sid == 0x74 and len(data) >= 2:
-        fmt = data[1]
-        mem_len = (fmt >> 4) & 0xF
-        addr_len = fmt & 0xF
-        return f"WARNING: RequestDownload ACCEPTED — ECU ready to receive firmware (addrLen={addr_len}, memLen={mem_len})"
+        return (
+            "WARNING: RequestDownload ACCEPTED — ECU ready to receive firmware "
+            f"({_transfer_block_size(data)})"
+        )
 
     if sid == 0x75 and len(data) >= 2:
-        fmt = data[1]
-        mem_len = (fmt >> 4) & 0xF
-        addr_len = fmt & 0xF
-        return f"WARNING: RequestUpload ACCEPTED — ECU ready to send memory (addrLen={addr_len}, memLen={mem_len})"
+        return (
+            "WARNING: RequestUpload ACCEPTED — ECU ready to send memory "
+            f"({_transfer_block_size(data)})"
+        )
 
     if sid == 0x76 and len(data) >= 2:
         seq = data[1]
@@ -682,30 +668,15 @@ def decode_uds_response(data: bytes) -> str | None:
     if sid == 0x77:
         return "WARNING: TransferExit — firmware transfer completed"
 
-    # 0x68 is the response to 0x28 CommunicationControl (request SID + 0x40).
-    # controlType values are ISO 14229-1 Table (0x00-0x03); note 0x00 is a valid
-    # value, so the map must not start at 0x01.
+    # 0x68 is the response to 0x28 CommunicationControl (request SID + 0x40),
+    # which carries a controlType — not an identifier.
     if sid == 0x68 and len(data) >= 2:
-        control_types = {
-            0x00: "enableRxAndTx",
-            0x01: "enableRxAndDisableTx",
-            0x02: "disableRxAndEnableTx",
-            0x03: "disableRxAndTx",
-        }
-        ctype = data[1]
-        name = control_types.get(ctype, f"0x{ctype:02X}")
-        return f"CommunicationControl: {name}"
+        return f"CommunicationControl: {_sub(0x28, data[1])}"
 
     # 0x6C is the response to 0x2C DynamicallyDefineDataIdentifier. The define
     # variants echo the 2-byte dynamic DID they defined; a clear may omit it.
     if sid == 0x6C and len(data) >= 2:
-        sub_names = {
-            0x01: "defineByIdentifier",
-            0x02: "defineByMemoryAddress",
-            0x03: "clearDynamicallyDefinedDataIdentifier",
-        }
-        sub = data[1]
-        name = sub_names.get(sub, f"subFunction 0x{sub:02X}")
+        name = subfunction_name(0x2C, data[1]) or f"subFunction 0x{data[1]:02X}"
         result = f"DynamicallyDefineDataIdentifier: {name}"
         if len(data) >= 4:
             did = (data[2] << 8) | data[3]
@@ -715,8 +686,10 @@ def decode_uds_response(data: bytes) -> str | None:
     # 0xC5 is the response to 0x85 ControlDTCSetting, which carries a
     # DTCSettingType — not a DID.
     if sid == 0xC5 and len(data) >= 2:
-        setting = {0x01: "on", 0x02: "off"}.get(data[1], f"0x{data[1]:02X}")
-        return f"WARNING: ControlDTCSetting — DTC setting {setting}, DTC logging may be altered"
+        return (
+            f"WARNING: ControlDTCSetting — DTC setting {_sub(0x85, data[1])}, "
+            "DTC logging may be altered"
+        )
 
     if sid == 0x7E:
         return "TesterPresent: acknowledged"
