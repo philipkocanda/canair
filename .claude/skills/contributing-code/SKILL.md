@@ -420,6 +420,30 @@ bolting on more:
   device orchestration, the TUI, the record/table data). `modes/identity.py`
   splitting out `identity_decode.py`/`identity_records.py` is the pattern to
   copy.
+- **A command is one module until it needs two — then it becomes a package.**
+  When a subcommand outgrows `commands/<name>.py`, create `commands/<name>/` and
+  put the concerns inside it. Do **not** add a flat `_<name>_*.py` sibling; that
+  convention is retired for new work. `commands/captures/` (19 files) and
+  `commands/validate/` are the precedents, and `cli.py::_GROUP_DEFAULTS` /
+  `commands/__init__.py::COMMAND_NAMES` are keyed by the command *name string*, so
+  the module layout is free to change. Two corollaries:
+  - **Package shape ≠ module size.** They are orthogonal. The largest file in the
+    tree is `commands/validate/pids.py` (1441 lines) — *inside* a package.
+    Packaging discharges nothing; the ~500-line rule still binds every member.
+  - **Split and package in one commit.** Splitting a monolith into a `.py` plus a
+    `_<name>_render.py` sibling, intending to package it "later", just books the
+    rename twice.
+  Existing flat-sibling commands are grandfathered — convert them when the size or
+  concern count justifies the churn, or opportunistically when next touched, not
+  as a campaign. Rationale and the measured per-command breakdown:
+  `plans/2026-08-06-command-packages-and-live-split.md`.
+- **Command-private vs shared command-layer infra.** Before moving a `_x.py` into
+  a package, check who imports it. Used by *one* command (+ its test)? It is
+  package-private — move it in. Used by several commands (`_group`, `_join`,
+  `_categories`, `_hexarg`, `_hints`, `_promote`, `_can_args`)? It is a shared
+  layer — leave it a flat sibling, or push it down to `canlib/` if nothing about
+  it is CLI-specific. A *library* module importing up into `canlib.commands` is
+  always the second case, and always a bug.
 - **Duplication across transports/commands is a refactor signal.** If you find
   the same policy implemented in two places (as the command blocklist once was —
   duplicated and *divergent* between `WiCANTerminal` and `RawTerminal`), extract
