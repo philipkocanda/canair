@@ -1,19 +1,98 @@
 # Command packages: adopt the trigger rule, split `_live.py`
 
-Status: **PLANNED** (2026-08-06). Internal refactor — **no user-facing change in
-any commit**. Every view's stdout stays byte-identical, every `--json` shape
-unchanged, every `--help` unchanged (gated by `make gen-check`). Consequently
-nothing lands in `CHANGELOG.md` or `README.md`; the only prose to touch is
-`AGENTS.md` + three skills carrying module paths that move.
+Status: **DONE** (2026-08-06). Twelve commits, each independently green; no
+user-facing change in any of them.
 
-Answers the question *"should all commands be in their own package, like
-`captures`?"* — **no**, and this plan writes down the rule that replaces
-"everything" with "when".
+- `caa3d6e` `docs:` adopt the command-package trigger rule
+- `52f2e09` `test:` pin the analysis verbs' default views with goldens
+- `a50c530` `refactor:` push decode's library-grade helpers down to canlib
+- `fc77328` `refactor(align):` hoist `_discover_specs` into `discover_signal_specs`
+- `f3446af` `refactor(decode):` become a package (rename only)
+- `99481dd` `refactor(decode):` split the package by concern
+- `298538d` `refactor(decode):` split render and plot by what they render
+- `40e885a` `refactor(correlate):` become a package, split by kind and concern
+- `d68d0dc` `refactor(investigate):` become a package, split by kind and concern
+- `f04128a` `refactor:` push `wants_save`/`split_ecus_by_protocol` into the library
+- `a7e37f9` `refactor(modes):` move the live dispatcher out of the command layer
+- `d4c2081` `refactor(dispatch):` replace the 470-line if/elif chain with a table
+- `c7b5e2e` `refactor(_live):` become a package, split along its own section markers
+- `16ba097` `docs:` retarget the module paths this refactor moved
 
-Follows `plans/2026-08-05-captures-command-package-split.md` (DONE) and picks up
-one of the two items deferred in
-`plans/2026-08-05-layering-and-module-size-followups.md` (the `_live.py` inversion
-is *adjacent to* its Part A, not the same code).
+Result: **no command in the tree uses the flat-sibling idiom, and no module under
+`canlib/` imports `canlib.commands`** (except `cli.py`, the entry point). Suite
+5075 → 5179 tests, green in parallel and serially (`-n0`); `ruff`, `ruff format`,
+`ty` clean; every parser's `--help` byte-identical; CLI reference unchanged;
+`mkdocs --strict` clean.
+
+Largest module per command, before → after:
+
+| Command | Before | After | Files |
+|---|---:|---:|---:|
+| `decode` | 1048 | 494 | 5 → 13 |
+| `correlate` | 966 | 395 | 3 → 8 |
+| `investigate` | 742 | 499 | 2 → 6 |
+| `_live` (shared) | 1263 | 256 | 1 → 7 |
+| `modes/dispatch` | — (470-line function) | 201 | new, 8 |
+
+## Deviations from the plan as written
+
+Recorded because each was a plan error found while executing it, not a change of
+mind:
+
+1. **`_decode_one` was not turned into a mode table.** The plan prescribed the
+   `captures/mode_select.py` precedent. Reading the code, it is a *pipeline* whose
+   last step is a **sequence** of independent output sections
+   (`--find-mirrors`/`--stats`/`--discriminate`/`--corr`), several of which can
+   print in one run, closed by a `printed` fall-through. A selection table would
+   have broken it. The table precedent applied one level up instead, to the
+   modifier-flag guards in `entry.py`.
+2. **Stages 9 and 10 swapped.** `dispatch_mode` calls `wants_save` and
+   `split_ecus_by_protocol`, so moving it before them would have required a
+   temporary upward import — the exact thing being removed.
+3. **`parse_range` stayed with dispatch**, not `ecus.py` as sketched: it is a hex
+   range parser, not ECU logic, and it raises `argparse.ArgumentTypeError`, which
+   should not spread further into the library.
+4. **`render.py`/`plot.py` split into four and two modules**, not left as the
+   plan's single-file targets — both were still over the line after the package
+   move, which the plan anticipated but under-specified.
+
+## Defects found and fixed en route
+
+- **`tolerate_missing` computed twice**, identically, in `run` and `_decode_one`.
+- **`decode/run.py` shadowed its own `run` function.** Naming the entry module
+  `run.py` while `__init__` exported `run` made `canlib.commands.decode.run`
+  resolve to the *function*, so `monkeypatch.setattr("…decode.run.load_pids", …)`
+  patched a function attribute and a guard-ordering test passed against code that
+  violated it. Renamed to `entry.py`.
+- **`_live`'s import-time side effects were duplicated ×5.** The stdout
+  line-buffering and the `websockets` hard-exit were in the shared import block, so
+  the generator copied both into every submodule. Now once, in `__init__.py`.
+- **Three untested policies gained tests**, all mutation-verified: decode's
+  modifier guards (`tests/test_decode_guards.py`), `wants_save`
+  (`TestWantsSave`), and the dispatch table's order + coverage
+  (`tests/test_dispatch_table.py`).
+- **A false `--help` baseline.** The snapshot for `investigate uds`/`can` was
+  captured with a quoted `"investigate uds"` argument, so it recorded an argparse
+  *error*, not help text — it would have "verified" nothing. Recaptured from a
+  stashed tree.
+
+## Still open (flagged, not fixed)
+
+- **The ANSI escape block is duplicated across ~20 modules** tree-wide. Tracked in
+  `plans/2026-08-06-ansi-palette-consolidation.md`.
+- **Part A** of `plans/2026-08-05-layering-and-module-size-followups.md` — the
+  validators are library API inside a command (`validate/pids.py` is 1441 lines,
+  the largest file in the tree, and `load_schema` calls `sys.exit(1)` from a path
+  `ecus_edit.py` reaches). Untouched by this work.
+- **Part B** of the same plan — `captures/step_model.py` (764) and `step_tui.py`
+  (622), still the two largest modules in a command package.
+- **`bix.py` (985), `ecu.py` (919), `pids.py` (841), `hunt.py` (751),
+  `wican.py` (719)** — single-file monoliths over the line. Under the adopted rule
+  each becomes a package when split.
+- **A third hex-range parser** — `dispatch/ranges.py::parse_range` (raises) vs
+  `modes/iocontrol_scan.py::_parse_range_str` (returns `None`).
+- **`connect_elm_terminal` down to `canlib/transport/`** — needs an args→options
+  refactor of the live connect path.
 
 ---
 
