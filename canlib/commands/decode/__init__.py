@@ -51,28 +51,6 @@ from canlib.capture_dates import (
     resolve_scope_bounds,
 )
 from canlib.capture_store import load_pid_captures
-from canlib.commands._decode_calc import (
-    _local_series,
-    _paired,
-    _series,
-    axis_group_keys,
-    load_cross_ref_series,
-)
-from canlib.commands._decode_plot import (
-    PlotModel,
-    cmd_plot,
-)
-from canlib.commands._decode_render import (
-    _dump_bytes,
-    print_compact,
-    print_correlations,
-    print_discriminate,
-    print_mirrors,
-    print_stats_grouped,
-    print_stats_table,
-    print_value_ranges,
-    scope_banner,
-)
 from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.commands._join import add_join_args, add_mirror_args, fill_policy_from_args
 from canlib.decoding import decode_payload, ordered_signal_names
@@ -87,6 +65,29 @@ from canlib.pids import build_ecu_index, load_pids
 from canlib.stats import METHOD_CHEAT_SHEET as _METHOD_CHEAT_SHEET
 from canlib.stats import compute_stats
 from canlib.stats import correlation as _correlation
+
+from .calc import (
+    _local_series,
+    _paired,
+    _series,
+    axis_group_keys,
+    load_cross_ref_series,
+)
+from .plot import (
+    PlotModel,
+    cmd_plot,
+)
+from .render import (
+    _dump_bytes,
+    print_compact,
+    print_correlations,
+    print_discriminate,
+    print_mirrors,
+    print_stats_grouped,
+    print_stats_table,
+    print_value_ranges,
+    scope_banner,
+)
 
 NAME = "decode"
 ALIASES = ["dec"]

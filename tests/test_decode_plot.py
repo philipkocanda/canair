@@ -2,7 +2,7 @@
 
 import math
 
-from canlib.commands import _decode_plot as dp
+from canlib.commands.decode import plot as dp
 from canlib.inspect_bytes import InspectType
 
 U16 = InspectType("u16", 2, "int", False)
@@ -188,7 +188,7 @@ class TestOverlayCycle:
 
 import pytest  # noqa: E402
 
-from canlib.commands._decode_plot import INSPECT_TYPES, PlotModel  # noqa: E402
+from canlib.commands.decode.plot import INSPECT_TYPES, PlotModel  # noqa: E402
 
 
 def _plot_results(values, pid="2101", ecu="BMS"):
@@ -272,7 +272,7 @@ class TestPlotModel:
 class TestPlotApp:
     @pytest.mark.asyncio
     async def test_renders_and_navigates(self):
-        from canlib.commands._decode_plot_tui import PlotApp
+        from canlib.commands.decode.plot_tui import PlotApp
 
         app = PlotApp(_plot_model())
         async with app.run_test(size=(110, 30)) as pilot:
@@ -287,7 +287,7 @@ class TestPlotApp:
 
     @pytest.mark.asyncio
     async def test_help_modal(self):
-        from canlib.commands._decode_plot_tui import PlotApp
+        from canlib.commands.decode.plot_tui import PlotApp
         from canlib.tui_help import HelpModal
 
         app = PlotApp(_plot_model())
@@ -301,7 +301,7 @@ class TestPlotApp:
 
     @pytest.mark.asyncio
     async def test_pid_switch_reloads_model(self):
-        from canlib.commands._decode_plot_tui import PlotApp
+        from canlib.commands.decode.plot_tui import PlotApp
 
         other = _plot_model((9, 8, 7))
         other.ecu_key, other.pid_key = "VCU", "2102"
@@ -321,7 +321,7 @@ class TestPlotApp:
 
     @pytest.mark.asyncio
     async def test_annotate_param_calls_upsert(self, monkeypatch):
-        from canlib.commands._decode_plot_tui import PlotApp
+        from canlib.commands.decode.plot_tui import PlotApp
 
         calls = []
 

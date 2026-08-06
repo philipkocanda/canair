@@ -918,14 +918,12 @@ class TestAxisGroupKeys:
         return [{"capture": {"date": "2026-07-22", "time": f"09:00:{s:02d}"}} for s in secs]
 
     def test_discretizes_and_maps(self, monkeypatch):
-        from canlib.commands import _decode_calc
+        from canlib.commands.decode import calc
 
         axis = [_tp(s, v) for s, v in [(0, 0.0), (2, 0.0), (4, 1.0), (6, 1.0)]]
-        monkeypatch.setattr(
-            _decode_calc, "load_cross_ref_series", lambda spec, **kw: (axis, "AXIS")
-        )
+        monkeypatch.setattr(calc, "load_cross_ref_series", lambda spec, **kw: (axis, "AXIS"))
         results = self._results([0, 2, 4, 6])
-        keys, label = _decode_calc.axis_group_keys(results, "E:P:X", scope={}, tol_s=2.5)
+        keys, label = calc.axis_group_keys(results, "E:P:X", scope={}, tol_s=2.5)
         assert label == "AXIS"
         assert keys[id(results[0])] == "0"  # integer-valued → no ".0"
         assert keys[id(results[1])] == "0"
@@ -933,26 +931,22 @@ class TestAxisGroupKeys:
         assert keys[id(results[3])] == "1"
 
     def test_rejects_high_cardinality(self, monkeypatch):
-        from canlib.commands import _decode_calc
+        from canlib.commands.decode import calc
 
         axis = [_tp(s, float(s)) for s in range(20)]  # 20 distinct values
-        monkeypatch.setattr(
-            _decode_calc, "load_cross_ref_series", lambda spec, **kw: (axis, "AXIS")
-        )
+        monkeypatch.setattr(calc, "load_cross_ref_series", lambda spec, **kw: (axis, "AXIS"))
         results = self._results(list(range(20)))
         with pytest.raises(ValueError, match="distinct values"):
-            _decode_calc.axis_group_keys(results, "E:P:X", scope={}, tol_s=2.5)
+            calc.axis_group_keys(results, "E:P:X", scope={}, tol_s=2.5)
 
     def test_no_alignment_raises(self, monkeypatch):
-        from canlib.commands import _decode_calc
+        from canlib.commands.decode import calc
 
         axis = [_tp(1000 + s, 1.0) for s in range(4)]  # far from the captures
-        monkeypatch.setattr(
-            _decode_calc, "load_cross_ref_series", lambda spec, **kw: (axis, "AXIS")
-        )
+        monkeypatch.setattr(calc, "load_cross_ref_series", lambda spec, **kw: (axis, "AXIS"))
         results = self._results([0, 2, 4, 6])
         with pytest.raises(ValueError, match="aligned to no captures"):
-            _decode_calc.axis_group_keys(results, "E:P:X", scope={}, tol_s=2.5)
+            calc.axis_group_keys(results, "E:P:X", scope={}, tol_s=2.5)
 
 
 # ---------------------------------------------------------------------------

@@ -6,7 +6,7 @@ These helpers operate on decode's ``all_results`` shape — a list of
 plain/time-stamped series the correlation, mirror, and stats views consume. They
 are the decode-shaped glue over the generic primitives in ``canlib.align`` /
 ``canlib.stats`` / ``canlib.xanalysis``; keeping them here leaves decode.py as
-argparse + orchestration and lets the renderers (``_decode_render``) stay pure
+argparse + orchestration and lets the renderers (``decode.render``) stay pure
 presentation.
 """
 

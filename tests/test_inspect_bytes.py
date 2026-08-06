@@ -1,7 +1,7 @@
 """Tests for canlib.inspect_bytes: byte interpretation, WiCAN expression
 synthesis, series transforms, and float-noise filtering.
 
-These primitives were extracted from ``commands/_decode_plot`` into the neutral
+These primitives were extracted from ``commands/decode/plot`` into the neutral
 library leaf ``canlib.inspect_bytes`` so the analysis engine (``xanalysis`` /
 ``frame_series``) imports *down* rather than up from a command helper.
 """

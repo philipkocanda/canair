@@ -2,7 +2,7 @@
 """Presentation layer for ``canair decode`` (extracted from decode.py).
 
 Pure rendering: turns decode's ``all_results`` (and the series helpers in
-``_decode_calc``) into the terminal tables/JSON/CSV the command prints. Kept
+``decode.calc``) into the terminal tables/JSON/CSV the command prints. Kept
 separate so decode.py stays argparse + orchestration and this module has no
 import-time dependency back on decode.
 """
@@ -15,14 +15,6 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from canlib.align import longest_payload_len
-from canlib.commands._decode_calc import (
-    _local_series,
-    _paired,
-    _paired_timed,
-    _series,
-    _transform_series,
-    find_mirrors,
-)
 from canlib.inspect_bytes import apply_transform
 from canlib.mirrors import DEFAULT_MIRROR_MATCH
 from canlib.notation import ByteNotation, relabel_signal
@@ -32,6 +24,15 @@ from canlib.stats import correlation as _correlation
 from canlib.stats import fmt_num as _fmt_num
 from canlib.xanalysis import byte_state_buckets as _byte_state_buckets
 from canlib.xanalysis import discriminability as _discriminability
+
+from .calc import (
+    _local_series,
+    _paired,
+    _paired_timed,
+    _series,
+    _transform_series,
+    find_mirrors,
+)
 
 if TYPE_CHECKING:
     from canlib.align import TimePoint

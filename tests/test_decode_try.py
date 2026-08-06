@@ -2,8 +2,8 @@
 
 import pytest
 
-from canlib.commands import _decode_calc
 from canlib.commands import decode as decode_script
+from canlib.commands.decode import calc
 from canlib.xanalysis import discriminability as _discriminability
 
 parse_try_expr = decode_script.parse_try_expr
@@ -156,7 +156,7 @@ class TestStatistics:
                 "decoded": {"A": {"value": 3.0}, "B": {"value": 30.0}},
             },
         ]
-        xs, ys = _decode_calc._paired_timed(results, "A", "B")
+        xs, ys = calc._paired_timed(results, "A", "B")
         assert xs == [1.0, 3.0, 2.0]  # ordered by 09:00:00, :01, :02
         assert ys == [10.0, 30.0, 20.0]
 
@@ -171,7 +171,7 @@ class TestStatistics:
                 "decoded": {"A": {"value": 1.0}, "B": {"value": 10.0}},
             },
         ]
-        xs, ys = _decode_calc._paired_timed(results, "A", "B")
+        xs, ys = calc._paired_timed(results, "A", "B")
         assert xs == [1.0, 9.0] and ys == [10.0, 90.0]
 
 
@@ -333,7 +333,7 @@ class TestCorrTransform:
         from canlib.align import TimePoint
 
         s = [TimePoint(datetime(2026, 7, 22, 9, 0, i), float(i * i)) for i in range(4)]
-        out = _decode_calc._transform_series(s, "delta")
+        out = calc._transform_series(s, "delta")
         # delta of [0,1,4,9] = [0,1,3,5]
         assert [tp.value for tp in out] == [0.0, 1.0, 3.0, 5.0]
         assert [tp.dt for tp in out] == [tp.dt for tp in s]  # times preserved
@@ -366,30 +366,30 @@ class TestFindMirrors:
         # payload 62 B0 04 <d0> <d1> <d2> -> WiCAN B4=d0, B5=d1, B6=d2 (B0=PCI)
         # d0 and d1 always equal; d2 varies independently
         results = self._results("62B0040A0A01", "62B004141405", "62B0040909FF")
-        pairs = self._pairs(_decode_calc.find_mirrors(results))
+        pairs = self._pairs(calc.find_mirrors(results))
         assert ("B4", "B5") in pairs
         assert ("B4", "B6") not in pairs
 
     def test_constant_bytes_not_reported(self):
         # d0 constant 0x00 in all -> WiCAN B4 excluded (only varying positions)
         results = self._results("62B00400AA", "62B00400BB", "62B00400CC")
-        mirrors = _decode_calc.find_mirrors(results)
+        mirrors = calc.find_mirrors(results)
         assert all("B4" not in (h.a, h.b) for h in mirrors)
 
     def test_bit_mirror(self):
         # payload 62 B0 04 <d0> -> WiCAN B4=d0; bits 0 and 2 co-vary (0x00/0x05)
         results = self._results("62B00400", "62B00405", "62B00400", "62B00405")
-        pairs = self._pairs(_decode_calc.find_mirrors(results, bits=True))
+        pairs = self._pairs(calc.find_mirrors(results, bits=True))
         assert ("B4:0", "B4:2") in pairs
 
     def test_too_few_captures(self):
-        assert _decode_calc.find_mirrors(self._results("62B00401")) == []
+        assert calc.find_mirrors(self._results("62B00401")) == []
 
     def test_offset_mirror_needs_allow_offset(self):
         """A byte that mirrors another at +100 is only reported when asked for."""
         results = self._results("62B00401650296", "62B0040A6E02A0", "62B00414780229")
-        assert not self._pairs(_decode_calc.find_mirrors(results))
-        pairs = self._pairs(_decode_calc.find_mirrors(results, allow_offset=True))
+        assert not self._pairs(calc.find_mirrors(results))
+        pairs = self._pairs(calc.find_mirrors(results, allow_offset=True))
         assert ("B4", "B5") in pairs
 
     def test_near_mirror_survives_one_disagreement(self):
@@ -397,5 +397,5 @@ class TestFindMirrors:
         payloads = [f"62B004{v:02X}{v:02X}" for v in range(1, 21)]
         payloads[7] = "62B0040807"  # one row off by one
         results = self._results(*payloads)
-        assert ("B4", "B5") in self._pairs(_decode_calc.find_mirrors(results))
-        assert not self._pairs(_decode_calc.find_mirrors(results, min_fraction=1.0))
+        assert ("B4", "B5") in self._pairs(calc.find_mirrors(results))
+        assert not self._pairs(calc.find_mirrors(results, min_fraction=1.0))

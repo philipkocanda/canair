@@ -86,7 +86,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
 def _load_one(spec: str, *, since, until, state, label, fill=None):
     """Load one ``ECU:PID:PARAM|EXPR`` signal → ``(label, series, captures)``.
 
-    Mirrors ``_decode_calc.load_cross_ref_series`` but also returns the backing
+    Mirrors ``decode.calc.load_cross_ref_series`` but also returns the backing
     captures so the caller can flag ``keep:changes`` scope. Raises ``ValueError``
     with a clean message when the signal can't be built.
     """

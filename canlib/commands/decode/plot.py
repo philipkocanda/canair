@@ -314,7 +314,7 @@ def cmd_plot(
         print("  (interactive --plot needs a TTY for navigation)")
         return
 
-    from canlib.commands._decode_plot_tui import run_plot_app
+    from .plot_tui import run_plot_app
 
     run_plot_app(model, reload_pid=reload_pid, pid_options=pid_options)
 
@@ -325,7 +325,7 @@ class PlotModel:
     Holds the capture-derived data and the mutable view state (byte/param mode,
     offset, interpretation type, endianness, transform, overlay reference, x-axis
     window, info modal). :meth:`render_lines` produces the ANSI-colored frame; the
-    Textual app (``_decode_plot_tui``) binds keys to the mutator methods. Kept
+    Textual app (``decode.plot_tui``) binds keys to the mutator methods. Kept
     UI-framework-free so the non-TTY path can render one frame without Textual.
     """
 
