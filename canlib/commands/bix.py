@@ -21,6 +21,17 @@ from canlib.byteindex import (
     wican_to_torque,
 )
 from canlib.notation import subfunction_bytes_for_pid
+from canlib.uds_layout import (
+    ROLE_DID,
+    ROLE_PCI,
+    ROLE_PID,
+    ROLE_SID,
+    ResponseLayout,
+    nrc_name,
+    response_layout,
+    role_definitions,
+)
+from canlib.uds_services import service_response_name
 
 NAME = "bix"
 
@@ -141,6 +152,13 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         help="Show the OBDb bix (bit-index) column (--table/--annotate). Hidden by "
         "default. bix is a distinct notation from Torque (data-byte index × 8) — "
         "request it independently of --torque.",
+    )
+    parser.add_argument(
+        "--no-legend",
+        dest="legend",
+        action="store_false",
+        help="With --annotate: omit the trailing definition list of the Role terms "
+        "(PCI/SID/DID/LID/RID/NRC/…) that appear in the payload.",
     )
     parser.add_argument(
         "--max", type=int, default=71, help="Max WiCAN index for table (default: 71)"
@@ -563,15 +581,125 @@ def _warn_sub_bytes_contradicts_pid(sub_bytes: int, pid: str, implied: int):
     )
 
 
+def _frame_sid(frame: list[tuple[int, int | None]]) -> int | None:
+    """The response SID of a reconstructed WiCAN frame (ISO-TP payload byte 0)."""
+    return next((value for value, pi in frame if pi == 0), None)
+
+
+def _resolve_annotate_layout(
+    frame: list[tuple[int, int | None]], explicit: int | None, pid: str | None
+) -> tuple[int, ResponseLayout | None, str | None]:
+    """Resolve ``(sub_bytes, layout, derived_from)`` for an annotate run.
+
+    Evidence order, strongest first:
+
+    1. the payload's own **response SID** — it names the service, which fixes the
+       whole header shape (``0x62`` → ``DID``, ``0x71`` → ``SF`` + ``RID``, ``0x7F``
+       → rejected SID + NRC). Nothing a flag or a PID string says is better
+       evidence than the bytes in hand.
+    2. a conclusive ``--pid`` (see :func:`_pid_sub_bytes`) — a width only.
+    3. the 1-byte default.
+
+    An explicit ``-1``/``-2`` overrides all of it. When it *agrees* with the
+    recognised layout the rich per-field roles are kept; when it disagrees the
+    layout is dropped (its roles imply its own width, so mixing the two would
+    label bytes by a shape the user just rejected) and the generic ``SID`` +
+    ``PID``/``DID`` labelling is used instead, with a warning.
+    """
+    sid = _frame_sid(frame)
+    layout = response_layout(sid) if sid is not None else None
+    # Carry the conclusive PID and its width together, so the non-optional name is
+    # available wherever the width is (and neither can be used without the other).
+    from_pid: tuple[str, int] | None = None
+    if pid:
+        width = _pid_sub_bytes(pid)
+        if width is not None:
+            from_pid = (pid, width)
+    if layout is not None:
+        if explicit is None:
+            return layout.subfunction_bytes, layout, f"SID 0x{sid:02X}"
+        if explicit == layout.subfunction_bytes:
+            return explicit, layout, None
+        _warn_sub_bytes_contradicts_sid(explicit, layout)
+        return explicit, None, None
+    if explicit is not None:
+        # No recognisable service, so --pid is the only other evidence a
+        # contradicting override can be checked against.
+        if from_pid is not None:
+            _warn_sub_bytes_contradicts_pid(explicit, from_pid[0], from_pid[1])
+        return explicit, None, None
+    if from_pid is not None:
+        return from_pid[1], None, f"--pid {from_pid[0].upper()}"
+    return 1, None, None
+
+
+def _warn_sub_bytes_contradicts_sid(sub_bytes: int, layout: ResponseLayout):
+    """Warn when an explicit ``-1``/``-2`` disagrees with the payload's own service."""
+    name = service_response_name(layout.resp_sid) or "unknown service"
+    shape = " + ".join(f.role if f.width == 1 else f"{f.role}({f.width}B)" for f in layout.fields)
+    _emit_warning(
+        f"-{sub_bytes} contradicts the payload: SID 0x{layout.resp_sid:02X} is {name},",
+        f"whose header is SID + {shape} ({layout.subfunction_bytes} byte(s) after the SID).",
+        f"Honouring the explicit -{sub_bytes} and falling back to generic role labels; "
+        f"drop it to use the service's own layout.",
+    )
+
+
+def _generic_role(isotp_idx: int, sub_bytes: int) -> str:
+    """Role of a payload byte with no recognised service: SID then PID/DID by width."""
+    if isotp_idx == 0:
+        return ROLE_SID
+    if isotp_idx < 1 + sub_bytes:
+        return ROLE_DID if sub_bytes == 2 else ROLE_PID
+    return ""
+
+
+def _print_service_line(layout: ResponseLayout, frame: list[tuple[int, int | None]]):
+    """One dim line naming the service the payload came from (and, if negative, why)."""
+    name = service_response_name(layout.resp_sid) or "unknown service"
+    if layout.negative:
+        by_idx = {pi: value for value, pi in frame if pi is not None}
+        rejected, nrc = by_idx.get(1), by_idx.get(2)
+        detail = ""
+        if rejected is not None:
+            rej_name = service_response_name(rejected) or f"service 0x{rejected:02X}"
+            detail = f" rejecting 0x{rejected:02X} {rej_name}"
+        if nrc is not None:
+            detail += f" — NRC 0x{nrc:02X} {nrc_name(nrc)}"
+        print(_c(f"  {name}{detail}", _DIM))
+        return
+    shape = " + ".join(f"{f.role}×{f.width}" if f.width > 1 else f.role for f in layout.fields)
+    header = f"SID + {shape}" if shape else "SID only"
+    print(_c(f"  service: 0x{layout.resp_sid:02X} {name} — header {header}", _DIM))
+
+
+def _print_role_legend(roles: list[str], *, has_data: bool):
+    """The trailing definition list: only the Role terms this payload actually used."""
+    defs = role_definitions(roles)
+    if not defs and not has_data:
+        return
+    blank = "(blank)"
+    # Size the term column to every label rendered, "(blank)" included, so the
+    # definitions line up as one block whatever roles the payload used.
+    width = max([len(r) for r, _ in defs] + [len(blank) if has_data else 0])
+    print()
+    print(_c("  Roles in this payload", _BOLD))
+    for role, help_ in defs:
+        print(f"    {_pad(role, width, _CYAN)}  {help_}")
+    if has_data:
+        print(f"    {blank:<{width}}  data — the bytes an expression reads")
+
+
 def _annotate_payload(
     payload_hex: str,
-    sub_bytes: int,
+    explicit_sub_bytes: int | None,
     params: dict | None = None,
     *,
     raw_frame: bool = False,
     show_torque: bool = False,
     show_obdb: bool = False,
-    derived_from_pid: str | None = None,
+    pid: str | None = None,
+    legend: bool = True,
 ) -> int:
     """Annotate each byte of a UDS response payload with WiCAN Bnn indices.
 
@@ -585,10 +713,14 @@ def _annotate_payload(
     only when its flag (``show_torque`` / ``show_obdb``) is set — WiCAN and
     ISO-TP are the notations canair expressions use.
 
-    ``derived_from_pid`` names the ``--pid`` that ``sub_bytes`` was derived from
-    (see :func:`_resolve_sub_bytes`); it is captioned so the width is never a
-    silent choice — the reader can see which bytes were counted as the UDS header
-    and how to override it.
+    **Roles come from the payload's own service.** The response SID is looked up in
+    :mod:`canlib.uds_layout`, so each header byte is named for what it actually is
+    (``DID`` / ``LID`` / ``RID`` / ``SF`` / ``CTRL``, or a negative response's
+    rejected SID + ``NRC``) instead of being guessed from a 1-vs-2-byte width.
+    ``explicit_sub_bytes`` (``-1``/``-2``) overrides that and ``pid`` is the weaker
+    fallback — see :func:`_resolve_annotate_layout`. The chosen width is captioned
+    so it is never a silent choice, and with ``legend`` a definition list of the
+    roles this payload used is printed underneath.
 
     When ``params`` (a PID's ``parameters`` dict) is given, add a ``Param`` column
     showing which defined parameter maps each byte (``[NAME]`` verified,
@@ -610,45 +742,64 @@ def _annotate_payload(
     else:
         frame = payload_to_wican_frame(payload_bytes)
 
-    header_size = 1 + sub_bytes
+    sub_bytes, layout, derived_from = _resolve_annotate_layout(frame, explicit_sub_bytes, pid)
     overlay = params is not None
     mapped = mapped_offsets(params) if overlay else {}
     mbits = mapped_bits(params) if overlay else {}
 
-    if derived_from_pid:
+    if layout is not None:
+        _print_service_line(layout, frame)
+    elif derived_from:
         kind = "2-byte DID" if sub_bytes == 2 else "1-byte PID"
         print(
             _c(
-                f"  subfunction: {kind} — derived from --pid {derived_from_pid.upper()} "
-                f"(override with -1/-2)",
+                f"  subfunction: {kind} — derived from {derived_from} (override with -1/-2)",
                 _DIM,
             )
         )
 
     if show_torque or show_obdb:
         # The Torque/OBDb numbering isn't fixed — it counts from the first UDS
-        # *data* byte, so it shifts with the subfunction width (Torque 1 for 21xx,
-        # Torque 2 for 22xxxx). Name the active variant and point at the other.
-        variant = "Torque 2" if sub_bytes == 2 else "Torque 1"
-        skipped = "SID + 2 DID bytes" if sub_bytes == 2 else "SID + 1 PID byte"
-        other = 3 - sub_bytes
+        # *data* byte, so it shifts with the header size. For a plain identifier
+        # read that is the familiar Torque 1 (21xx) / Torque 2 (22xxxx) split; a
+        # richer header (e.g. 0x71's SF + RID) simply skips more bytes, so describe
+        # the header generically and only offer the -1/-2 hint where it applies.
+        if layout is not None:
+            skipped = "SID + " + " + ".join(
+                f.role if f.width == 1 else f"{f.width} {f.role} bytes" for f in layout.fields
+            )
+        else:
+            skipped = "SID + 2 DID bytes" if sub_bytes == 2 else "SID + 1 PID byte"
+        variant = f"Torque {sub_bytes}" if sub_bytes in (1, 2) else f"Torque (sub={sub_bytes})"
+        hint = f" pass -{3 - sub_bytes} for the other variant." if sub_bytes in (1, 2) else ""
         if show_torque:
             cols = "Torque + bix columns" if show_obdb else "Torque column"
-            caption = (
-                f"  {cols} = {variant} (skips {skipped}); pass -{other} for the other variant."
-            )
+            caption = f"  {cols} = {variant} (skips {skipped});{hint}"
         else:  # bix only — describe it without leaning on the Torque label
             caption = (
                 f"  bix column = OBDb bit index from the first UDS data byte "
-                f"(skips {skipped}); pass -{other} for the other variant."
+                f"(skips {skipped});{hint}"
             )
-        print(_c(caption, _DIM))
+        print(_c(caption.rstrip(";").rstrip(), _DIM))
+
+    # Per-byte roles come from the payload's own service when it is recognised, so
+    # every header field is named (SF/RID/CTRL/NRC/…); otherwise fall back to the
+    # width-based SID + PID/DID labelling. Computed up front so the Role column can
+    # be sized to the widest label actually rendered.
+    roles = [
+        ROLE_PCI
+        if pi is None
+        else (layout.role_at(pi) or "" if layout is not None else _generic_role(pi, sub_bytes))
+        for _, pi in frame
+    ]
 
     # Column widths, shared by header / separator / data rows so everything lines
     # up (the Role cell must be padded to width, else the trailing Param divider
-    # floats). Torque is a letter (A, AB…), bix up to 3 digits, Role up to 6 (FF
-    # PCI / CF PCI). Torque and bix are independent opt-ins (--torque / --obdb).
-    W_WICAN, W_HEX, W_ISOTP, W_TORQUE, W_BIX, W_ROLE = 5, 4, 6, 6, 5, 6
+    # floats). Torque is a letter (A, AB…), bix up to 3 digits. Role stays at 6 for
+    # the common labels and only widens for a longer one ("REJ SID"), so existing
+    # output is byte-identical. Torque and bix are independent opt-ins.
+    W_WICAN, W_HEX, W_ISOTP, W_TORQUE, W_BIX = 5, 4, 6, 6, 5
+    W_ROLE = max(6, *(len(r) for r in roles)) if roles else 6
 
     def _row(wican, hex_, isotp, role, param=None, *, torque=None, bix=None):
         line = f"  {wican:>{W_WICAN}} | {hex_:>{W_HEX}} | {isotp:>{W_ISOTP}} | "
@@ -711,14 +862,7 @@ def _annotate_payload(
         else:
             torque = bix = letter = None
 
-        role = ""
-        if pi is None:
-            role = "PCI"
-        elif pi == 0:
-            role = "SID"
-        elif pi < header_size:
-            role = "DID" if sub_bytes == 2 else "PID"
-
+        role = roles[w]
         param = _param_cell(w, byte_val, role, mapped, mbits) if overlay else None
         line = _row(
             f"B{w:02d}",
@@ -729,14 +873,22 @@ def _annotate_payload(
             torque=letter if letter else "—",
             bix=str(bix) if bix is not None else "—",
         )
-        print(_c(line, _DIM) if role == "PCI" else line)
+        print(_c(line, _DIM) if role == ROLE_PCI else line)
+
+    if legend:
+        _print_role_legend(roles, has_data=any(r == "" for r in roles))
     return 0
 
 
 def _param_cell(offset: int, byte_val: int, role: str, mapped: dict, mbits: dict) -> str:
-    """The Param-overlay cell for one byte: covering param(s), or 'unmapped'."""
-    if role in ("PCI", "SID", "DID", "PID"):
-        return ""  # framing byte — never a parameter
+    """The Param-overlay cell for one byte: covering param(s), or 'unmapped'.
+
+    Any non-empty ``role`` is ISO-TP framing or a UDS header field, which a
+    parameter can never read — an empty role is the only thing that means "data",
+    so new roles (``SF``/``RID``/``CTRL``/``NRC``/…) are excluded automatically.
+    """
+    if role:
+        return ""
     bit_hits = sorted((k, mbits[(offset, k)]) for k in range(8) if (offset, k) in mbits)
     parts = []
     byte_map = mapped.get(offset)
@@ -772,9 +924,10 @@ def _print_overview(sub_bytes: int, *, show_torque: bool = False, show_obdb: boo
 
 
 def run(args) -> int:
-    sub_bytes, derived = _resolve_sub_bytes(args)
-
+    # --annotate resolves its own width from the payload (the strongest evidence),
+    # so _resolve_sub_bytes is only for the payload-less views below.
     if args.table:
+        sub_bytes, _ = _resolve_sub_bytes(args)
         _print_table(
             sub_bytes,
             args.max,
@@ -808,12 +961,13 @@ def run(args) -> int:
             return 1
         return _annotate_payload(
             " ".join(args.annotate),
-            sub_bytes,
+            args.sub_bytes,
             params,
             raw_frame=args.raw_frame,
             show_torque=args.show_torque,
             show_obdb=args.show_obdb,
-            derived_from_pid=args.pid if derived else None,
+            pid=args.pid,
+            legend=args.legend,
         )
 
     if args.raw_frame:
@@ -821,9 +975,11 @@ def run(args) -> int:
         return 1
 
     if not args.value:
+        sub_bytes, _ = _resolve_sub_bytes(args)
         _print_overview(sub_bytes, show_torque=args.show_torque, show_obdb=args.show_obdb)
         return 0
 
     notation, idx = _parse_input(args.value)
+    sub_bytes, _ = _resolve_sub_bytes(args)
     _print_result(notation, idx, sub_bytes)
     return 0

@@ -56,7 +56,22 @@ class TestServiceResponseName:
         assert service_response_name(0x7F) == "NegativeResponse"
 
     def test_unknown(self):
-        assert service_response_name(0x01) is None
+        # A byte that is neither a registered request SID nor request+0x40.
+        assert service_response_name(0x0B) is None
+        assert service_response_name(0xFE) is None
+
+    def test_obd2_mode_responses_are_named(self):
+        # OBD-II modes share the request-SID byte and the +0x40 response rule, so
+        # a mode-01/09 response names its mode rather than reading as unknown.
+        assert service_response_name(0x41) == "ShowCurrentData (response)"
+        assert service_response_name(0x49) == "RequestVehicleInformation (response)"
+
+    def test_obd2_monitor_modes_stay_unregistered(self):
+        # 0x05/0x06/0x08 are excluded on purpose: their identifier is an
+        # O2-monitor id / MID / TID, not a PID, so registering an id_width would
+        # let a caller mislabel that byte.
+        for sid in (0x05, 0x06, 0x08):
+            assert service_info(sid) is None
 
 
 def test_registry_has_no_duplicate_sids():

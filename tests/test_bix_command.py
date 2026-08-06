@@ -161,8 +161,10 @@ def test_pid_derives_one_byte_subfunction(capsys):
     args = _parse(["-a", "6101FFEEDD", "--ecu", "BMS", "--pid", "2101"])
     assert bix.run(args) == 0
     out = capsys.readouterr().out
-    assert _role(out, "B02") == "PID"
-    assert _role(out, "B03") == ""  # data starts one byte earlier than under -2
+    # Service 0x21's identifier is a KWP2000 Local Identifier, so the payload's
+    # own SID names it LID (1 byte) — data starts one byte earlier than under -2.
+    assert _role(out, "B02") == "LID"
+    assert _role(out, "B03") == ""
 
 
 def test_derived_width_matches_explicit_flag(capsys):
@@ -178,13 +180,28 @@ def test_derived_width_matches_explicit_flag(capsys):
 
 
 def test_derived_width_is_captioned(capsys):
-    # The width must never be a silent choice — say where it came from.
-    args = _parse(["-a", "62BC03000000", "--ecu", "IGPM", "--pid", "22BC03"])
+    # The width must never be a silent choice — say where it came from. With an
+    # UNRECOGNISED service SID (0x99) there is no layout, so --pid is the evidence.
+    args = _parse(["-a", "99BC03000000", "--ecu", "IGPM", "--pid", "22BC03"])
     assert bix.run(args) == 0
     out = capsys.readouterr().out
     assert "subfunction: 2-byte DID" in out
     assert "derived from --pid 22BC03" in out
     assert "-1/-2" in out  # names the override
+    assert _role(out, "B03") == "DID"
+
+
+def test_payload_sid_outranks_pid_for_the_width(capsys):
+    # The payload is stronger evidence than the PID string: a 0x62 response is a
+    # 2-byte DID read whatever --pid says, so the service line replaces the
+    # --pid caption.
+    args = _parse(["-a", "62B004740299", "--ecu", "MCU", "--pid", "B004"])
+    assert bix.run(args) == 0
+    out = capsys.readouterr().out
+    assert "service: 0x62 ReadDataByIdentifier" in out
+    assert "derived from --pid" not in out
+    assert _role(out, "B02") == "DID"
+    assert _role(out, "B03") == "DID"
 
 
 def test_explicit_flag_overrides_pid_derivation(capsys):
@@ -196,16 +213,27 @@ def test_explicit_flag_overrides_pid_derivation(capsys):
     assert "derived from --pid" not in out  # not a derivation
 
 
-def test_explicit_flag_contradicting_pid_warns(capsys):
+def test_explicit_flag_contradicting_payload_warns(capsys):
     # ...but a contradiction is flagged, since silently honouring it reproduces
-    # the exact mislabelling the derivation fixes.
+    # the exact mislabelling the derivation fixes. The payload's SID is the
+    # authority, so the warning names the service and its real header shape.
     args = _parse(["-1", "-a", "62BC0300000000", "--ecu", "IGPM", "--pid", "22BC03"])
     assert bix.run(args) == 0
     err = capsys.readouterr().err
     assert "⚠ WARNING" in err
+    assert "-1 contradicts the payload" in err
+    assert "0x62" in err and "ReadDataByIdentifier" in err
+    assert "SID + DID" in err  # states the layout it is overriding
+
+
+def test_explicit_flag_contradicting_pid_warns_without_a_known_sid(capsys):
+    # With no recognisable service the --pid is the only evidence, so the
+    # contradiction is reported against it instead.
+    args = _parse(["-1", "-a", "99BC0300000000", "--ecu", "IGPM", "--pid", "22BC03"])
+    assert bix.run(args) == 0
+    err = capsys.readouterr().err
     assert "-1 contradicts --pid 22BC03" in err
     assert "2-byte DID" in err
-    assert "-2" in err  # points at the right flag
 
 
 def test_explicit_flag_agreeing_with_pid_does_not_warn(capsys):
@@ -215,12 +243,22 @@ def test_explicit_flag_agreeing_with_pid_does_not_warn(capsys):
 
 
 def test_no_pid_still_defaults_to_one_byte_subfunction(capsys):
-    # Without --pid the default is unchanged (sub=1), and nothing is captioned.
+    # With no --pid the payload still identifies itself: 0x61 is a 1-byte LID read.
     args = _parse(["-a", "6101FFEEDD"])
+    assert bix.run(args) == 0
+    out = capsys.readouterr().out
+    assert _role(out, "B02") == "LID"
+    assert "derived from --pid" not in out
+
+
+def test_unrecognised_sid_falls_back_to_the_plain_default(capsys):
+    # No layout and no --pid: keep the historical 1-byte default, silently.
+    args = _parse(["-a", "9901FFEEDD"])
     assert bix.run(args) == 0
     out = capsys.readouterr().out
     assert _role(out, "B02") == "PID"
     assert "derived from" not in out
+    assert "service:" not in out
 
 
 @pytest.mark.parametrize("argv", [[], ["--table", "--max", "7"], ["w9"], ["-a", "6101FF"]])
@@ -266,14 +304,16 @@ def test_pid_sub_bytes_none_when_service_is_unstated(pid):
     assert bix._pid_sub_bytes(pid) is None
 
 
-def test_short_form_did_is_not_captioned_as_one_byte(capsys):
-    # `--pid B004` is a 2-byte DID written short. The old code silently defaulted to
-    # 1; deriving would have CAPTIONED that wrong width as fact. Stay silent instead.
+def test_short_form_did_is_read_from_the_payload_instead(capsys):
+    # `--pid B004` is a 2-byte DID written short, so it is not conclusive on its
+    # own (see _pid_sub_bytes) — but the payload's 0x62 SID is, so the DID bytes
+    # are still labelled correctly and no wrong width is ever captioned.
     args = _parse(["-a", "62B004740299", "--ecu", "MCU", "--pid", "B004"])
     assert bix.run(args) == 0
     out = capsys.readouterr().out
-    assert "derived from" not in out
-    assert "subfunction:" not in out
+    assert "subfunction:" not in out  # no width guessed from the PID string
+    assert _role(out, "B02") == "DID"
+    assert _role(out, "B03") == "DID"
 
 
 def test_short_form_did_does_not_warn_against_correct_flag(capsys):
@@ -302,6 +342,114 @@ def test_derived_width_never_disagrees_with_shared_helper():
 
     for pid in ("2101", "2102", "22BC03", "22C101", "22B002"):
         assert bix._pid_sub_bytes(pid) == subfunction_bytes_for_pid(pid)
+
+
+# ── service-driven Role labels (DID / LID / PID / RID / SF / CTRL / NRC) ──
+
+
+def test_negative_response_names_the_rejected_service_and_nrc(capsys):
+    # `7F 22 31` used to label 0x22 as "PID" and the NRC as a DATA byte.
+    args = _parse(["-a", "7F2231"])
+    assert bix.run(args) == 0
+    out = capsys.readouterr().out
+    assert _role(out, "B02") == "REJ SID"
+    assert _role(out, "B03") == "NRC"
+    assert "NegativeResponse" in out
+    assert "0x22 ReadDataByIdentifier" in out  # the service being rejected
+    assert "requestOutOfRange" in out  # the NRC spelled out
+
+
+def test_routine_response_labels_sf_then_rid(capsys):
+    # RoutineControl is `71 {SF} {RID_HI} {RID_LO}` — the width-only model split the
+    # RID across the header/data boundary and called B04 a data byte.
+    args = _parse(["-a", "710312A10041"])
+    assert bix.run(args) == 0
+    out = capsys.readouterr().out
+    assert _role(out, "B02") == "SF"
+    assert _role(out, "B03") == "RID"
+    assert _role(out, "B04") == "RID"
+    assert _role(out, "B05") == ""  # data starts only after the RID
+
+
+def test_iocontrol_response_labels_the_control_parameter(capsys):
+    args = _parse(["-a", "6FB0030001"])
+    assert bix.run(args) == 0
+    out = capsys.readouterr().out
+    assert [_role(out, f"B0{i}") for i in (2, 3, 4, 5)] == ["DID", "DID", "CTRL", ""]
+
+
+def test_obd2_mode_01_labels_a_pid(capsys):
+    args = _parse(["-a", "410C1A80"])
+    assert bix.run(args) == 0
+    out = capsys.readouterr().out
+    assert _role(out, "B02") == "PID"
+    assert "ShowCurrentData" in out
+
+
+def test_role_column_widens_only_for_a_long_label(capsys):
+    # "REJ SID" is 7 chars; every other label fits the historical width of 6, so
+    # ordinary output must stay byte-identical.
+    assert bix.run(_parse(["-a", "62B004740299", "--no-legend"])) == 0
+    plain = capsys.readouterr().out
+    assert "| DID   \n" not in plain  # not over-padded
+    assert bix.run(_parse(["-a", "7F2231", "--no-legend"])) == 0
+    wide = capsys.readouterr().out
+    assert "REJ SID" in wide
+    # The widened column keeps the header/rule/rows in lockstep.
+    lines = [ln for ln in wide.splitlines() if "|" in ln]
+    assert len({len(ln.rstrip()) for ln in lines[:2]}) <= 2
+
+
+# ── the trailing definition list ──
+
+
+def test_legend_defines_only_the_roles_present(capsys):
+    args = _parse(["-a", "62B004740299"])
+    assert bix.run(args) == 0
+    out = capsys.readouterr().out
+    assert "Roles in this payload" in out
+    assert "Data Identifier" in out  # DID is present
+    assert "Routine Identifier" not in out  # RID is not
+    assert "Negative Response Code" not in out
+    assert "(blank)" in out  # data bytes are explained too
+
+
+def test_legend_explains_nrc_terms_for_a_negative_response(capsys):
+    args = _parse(["-a", "7F2231"])
+    assert bix.run(args) == 0
+    out = capsys.readouterr().out
+    assert "Negative Response Code" in out
+    assert "rejected service" in out
+    assert "(blank)" not in out  # a bare NRC response has no data bytes
+
+
+def test_legend_bridges_lid_to_canair_pid_wording(capsys):
+    args = _parse(["-a", "6101FFEEDD"])
+    assert bix.run(args) == 0
+    out = capsys.readouterr().out
+    assert "Local Identifier" in out
+    assert '21xx "PIDs"' in out
+
+
+def test_no_legend_suppresses_the_definition_list(capsys):
+    args = _parse(["-a", "62B004740299", "--no-legend"])
+    assert bix.run(args) == 0
+    out = capsys.readouterr().out
+    assert "Roles in this payload" not in out
+    assert "Data Identifier" not in out
+    assert "B02" in out  # the table itself still renders
+
+
+def test_param_overlay_never_claims_a_new_header_role(capsys):
+    # SF/RID/CTRL/NRC are header bytes: the Param column must leave them blank
+    # rather than flagging them "unmapped" (which would invite defining a param
+    # over the routine id).
+    args = _parse(["-a", "710312A10041", "--ecu", "IGPM", "--pid", "22BC03"])
+    assert bix.run(args) == 0
+    out = capsys.readouterr().out
+    for wican in ("B02", "B03", "B04"):
+        assert "unmapped" not in _row(out, wican)
+    assert "unmapped" in _row(out, "B05")  # the first real data byte is flagged
 
 
 # ── --annotate is length-aware: single-frame vs multi-frame Torque/ISO-TP ──

@@ -880,16 +880,19 @@ canair bix -2 w5     # 2-byte subfunction mode (22xxxx DIDs)
 canair bix --table   # Full conversion table
 canair bix -2 --annotate 62B0047402990C0040A000AAAA   # annotate a real payload
 canair bix --annotate 6101FFFF...                     # service 21 (1-byte PID)
-canair bix -a 62BC03... --ecu IGPM --pid 22BC03        # --pid derives the 2-byte width
+canair bix -a 62BC03... --ecu IGPM --pid 22BC03        # roles read from the 0x62 SID
+canair bix -a 7F2231                                   # refused read: REJ SID + NRC, named
 ```
 
 `--annotate` (`-a`) reconstructs the WiCAN frame with PCI bytes inserted and
-prints each byte's WiCAN Bnn, ISO-TP index, Torque letter, bix, and role. Use
-`-1` (default) for service 21, `-2` for service 22 DIDs — **or just pass `--pid`
-and the width is derived from it** when it names its service (`22xxxx` → 2 bytes,
-`21xx` → 1), captioned in the output. An explicit `-1`/`-2` overrides it and is
-warned about if it contradicts the PID. A short-form DID (`B004`) states no
-service, so it keeps the 1-byte default — write `22B004` or pass `-2`.
+prints each byte's WiCAN Bnn, ISO-TP index, Torque letter, bix, and role. **The
+role comes from the payload's own response SID**, so each header byte is named for
+what it is — `DID` (UDS `0x22`), `LID` (KWP2000 `0x21`), `PID` (OBD-II mode 01),
+`SF` + `RID` (`0x31` RoutineControl — sub-function *before* the routine id), `CTRL`
+(IOControl parameter, *after* the DID), and `REJ SID` + `NRC` (spelled out by name)
+for a refused request. A definition list of the roles used is printed underneath
+(`--no-legend` to omit). `-1`/`-2` only override an unrecognised service and are
+warned about when they contradict the payload; `--pid` is the weaker fallback.
 
 ### Conversion table (WiCAN ↔ ISO-TP ↔ Torque ↔ bix)
 

@@ -18,10 +18,29 @@ start counting and whether you include the transport's framing (PCI) bytes, the
   stripped). This is what SavvyCAN/ImHex-style tools show.
 - **Torque / OBDb bix** — the index into the actual **UDS** payload, counted from
   the first data byte. Because it skips the service header (SID + subfunction), the
-  offset depends on the subfunction width: **Torque 1** for `21xx` PIDs (1-byte
-  subfunction) and **Torque 2** for `22xxxx` DIDs (2-byte). `canair bix` selects
-  the variant with `-1` (default) / `-2`, and names the active one so it's clear
-  the Torque mapping is *not* fixed.
+  offset depends on the header's size: **Torque 1** for `21xx` PIDs (1-byte
+  subfunction) and **Torque 2** for `22xxxx` DIDs (2-byte). `canair bix` reads that
+  from the payload's own service and names the active variant so it's clear the
+  Torque mapping is *not* fixed (`-1`/`-2` override it).
+
+## The header is not always "SID + 1 or 2 bytes"
+
+How many bytes sit between the SID and the first *data* byte is a property of the
+**service**, and it is not just a width — the fields have names and an order:
+
+| Response | Header after the SID | First data byte at ISO-TP |
+|---|---|---|
+| `62 xx xx …` (`0x22` ReadDataByIdentifier) | `DID` (2) | 3 |
+| `61 xx …` (`0x21` ReadDataByLocalIdentifier) | `LID` (1) | 2 |
+| `41 xx …` (OBD-II mode `0x01`) | `PID` (1) | 2 |
+| `6F xx xx yy …` (`0x2F` IOControl) | `DID` (2) + `CTRL` (1) | 4 |
+| `71 ss xx xx …` (`0x31` RoutineControl) | `SF` (1) + `RID` (2) | 4 |
+| `7F ss nn` (negative response) | `REJ SID` (1) + `NRC` (1) | — |
+
+Note `0x31` puts its sub-function **before** the routine id while `0x2F` puts its
+control parameter **after** the DID — a 1-vs-2-byte "subfunction width" cannot
+express either, which is why `canair bix --annotate` labels each header field from
+the service instead (see below). The table lives in `canlib/uds_layout.py`.
 
 !!! warning "The WiCAN↔ISO-TP offset depends on the response's length"
 
@@ -86,6 +105,35 @@ first byte (`0x00`–`0x3F`) occupy disjoint ranges — so a raw frame fed witho
 boundaries fall and which rows are framing rather than data. `--annotate` marks the
 same frame boundaries on a concrete payload.
 
+### `--annotate` names each header byte from the service
+
+`--table` has no payload, so it can only assume a generic `SID` + `PID`/`DID`
+header. `--annotate` **does** have one, and the response SID identifies the
+service — so every header byte is labelled for what it actually is:
+
+| Role | Meaning |
+|---|---|
+| `PCI` | ISO-TP framing byte — never data |
+| `SID` | Service Identifier (request SID + `0x40`) |
+| `SF` | sub-function byte, selecting the mode within the service |
+| `DID` | Data Identifier — 2-byte UDS identifier (`0x22`/`0x2E`/`0x2F`) |
+| `LID` | Local Identifier — 1-byte KWP2000 identifier (`0x21`/`0x30`/`0x33`); canair writes these as `21xx` "PIDs" elsewhere |
+| `PID` | Parameter ID — 1-byte OBD-II parameter (modes `0x01`/`0x02`) |
+| `RID` | Routine Identifier — 2-byte UDS routine id (`0x31`) |
+| `CTRL` | inputOutputControlParameter — what the ECU was told to do |
+| `REJ SID` | the rejected service's SID, echoed in a negative response |
+| `NRC` | Negative Response Code — why the request was refused |
+| *(blank)* | real data — the bytes your expression reads |
+
+A definition list of just the roles the payload used is printed underneath the
+table (suppress it with `--no-legend`). A negative response also spells out the
+code, e.g. `NegativeResponse rejecting 0x22 ReadDataByIdentifier — NRC 0x31
+requestOutOfRange`, so a refused read explains itself instead of showing the NRC as
+a data byte.
+
+An unrecognised service falls back to the generic `SID` + `PID`/`DID` labelling
+using the width from `-1`/`-2` or `--pid`.
+
 Add `--ecu ECU --pid PID` to `--annotate` to overlay which defined parameter maps
 each byte and flag `unmapped` data bytes — the fastest way to catch a wrong
 offset in an expression:
@@ -94,17 +142,20 @@ offset in an expression:
 canair bix --annotate 62B004… --ecu MyECU --pid 22B004
 ```
 
-`--pid` also settles the **subfunction width** for you when it names its service:
-a `22xxxx` DID has a 2-byte echo, a `21xx` PID a 1-byte one. So
-`canair bix -a 62BC03… --ecu IGPM --pid 22BC03` needs no `-2`, and the annotation
-captions the width it derived. An explicit `-1`/`-2` still wins as an override, and
-`bix` warns when it contradicts the PID — before, the 1-byte default silently
-mislabelled the second DID echo byte as an unmapped data byte.
+`--pid` also settles the **subfunction width** when the payload's own service can't:
+a `22xxxx` DID has a 2-byte echo, a `21xx` PID a 1-byte one. You rarely need it now
+that the response SID is read directly — it matters for a payload whose service
+`canair` doesn't recognise. An explicit `-1`/`-2` overrides everything, and `bix`
+warns when it contradicts the payload's service (or, failing that, the PID):
 
-Write the PID with its full service prefix (`22B004`, not the short `B004`) to get
-this. A short-form DID doesn't state its service, so `bix` can't tell it from a
-1-byte PID; it keeps the 1-byte default without claiming otherwise, and you should
-pass `-2` yourself.
+```
+⚠ WARNING  -1 contradicts the payload: SID 0x62 is ReadDataByIdentifier (response),
+           whose header is SID + DID(2B) (2 byte(s) after the SID).
+```
+
+Write the PID with its full service prefix (`22B004`, not the short `B004`) if you
+are relying on it: a short-form DID doesn't state its service, so it can't be told
+from a 1-byte PID.
 
 ![canair bix --annotate with --ecu/--pid — per-byte notations, roles, and mapped params](../screenshots/bix-annotate.svg)
 

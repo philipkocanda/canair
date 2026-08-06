@@ -22,6 +22,7 @@ from dataclasses import dataclass
 UDS = "UDS"
 KWP2000 = "KWP2000"
 BOTH = "UDS/KWP2000"
+OBD2 = "OBD-II"
 
 
 @dataclass(frozen=True)
@@ -44,6 +45,20 @@ class ServiceInfo:
 
 # Ordered registry. Kept in ascending SID order for readability.
 SERVICES: tuple[ServiceInfo, ...] = (
+    # --- SAE J1979 OBD-II modes ---
+    # Legislated OBD-II modes share the request-SID byte position and the same
+    # "+0x40 on a positive response" convention as UDS/KWP2000, in a disjoint
+    # low range (0x01-0x0A vs 0x10+), so they belong in the same registry. Modes
+    # 0x05/0x06/0x08 are deliberately absent: their identifiers are an O2-monitor
+    # id / MID / TID rather than a PID, and modelling them as one would mislabel
+    # the byte (an absent service falls back to the caller's default instead).
+    ServiceInfo(0x01, "ShowCurrentData", OBD2, id_width=1),
+    ServiceInfo(0x02, "ShowFreezeFrameData", OBD2, id_width=1),
+    ServiceInfo(0x03, "ShowStoredDTCs", OBD2),
+    ServiceInfo(0x04, "ClearDTCsAndStoredValues", OBD2, actuates=True),
+    ServiceInfo(0x07, "ShowPendingDTCs", OBD2),
+    ServiceInfo(0x09, "RequestVehicleInformation", OBD2, id_width=1),
+    ServiceInfo(0x0A, "ShowPermanentDTCs", OBD2),
     # --- ISO 14230 KWP2000 diagnostic management / data ---
     ServiceInfo(0x10, "DiagnosticSessionControl", BOTH),
     ServiceInfo(0x11, "ECUReset", BOTH, actuates=True),

@@ -228,11 +228,12 @@ Everything the rest of this document claims is visible in one screen:
 
 For a `22xxxx` DID the two subfunction bytes are labelled `DID` (B03–B04) and the
 first real data byte is **B05**, not B04 (also where `Torque A` lands under
-`--torque`). When you pass `--pid`, `bix` derives that 2-byte width from the PID
-itself — `canair bix -a 62BC03… --ecu IGPM --pid 22BC03` needs no `-2`, and
-captions the width it used. Use `-1`/`-2` only to override it (annotating a payload
-you have no `--pid` for, or a deliberately mismatched read); a flag that
-contradicts `--pid` is warned about.
+`--torque`). You don't have to tell `bix` which it is: the response SID identifies
+the service, so `62 …` is labelled `DID`, `61 …` `LID`, an OBD-II `41 …` `PID`, a
+routine `71 …` `SF` + `RID`, and a refused `7F …` `REJ SID` + `NRC` (spelled out by
+name). `-1`/`-2` exist to override an unrecognised service, and a flag that
+contradicts the payload is warned about. The roles used are defined in a list under
+the table — `--no-legend` to omit it.
 
 ## Multi-byte and bit forms (same buffer, same rule)
 
@@ -306,6 +307,9 @@ buffer the firmware sees:
 - `canlib/autopid_layout.py` — `uds_hex_to_wican_bytes()` (the reconstruction).
 - `canlib/byteindex.py` — all four notations and their conversions
   (`wican_to_isotp`, `wican_to_torque`, `torque_*`, `conversion_table`).
+- `canlib/uds_layout.py` — which response bytes are header, and what each one is
+  (`DID`/`LID`/`PID`/`RID`/`SF`/`CTRL`/`REJ SID`/`NRC`), built on the
+  `canlib/uds_services.py` SID registry.
 
 Use the tooling instead of converting by hand:
 
@@ -316,7 +320,8 @@ canair bix --torque                            # add the Torque letter column (T
 canair bix --obdb                              # add the OBDb bix (bit-index) column
 canair bix --table                             # the full conversion table
 canair bix -a 6101FFFF… --ecu BMS --pid 2101   # annotate a payload + overlay defined params
-canair bix -a 62BC03… --ecu IGPM --pid 22BC03  # ditto; --pid derives the 2-byte DID width
+canair bix -a 7F2231                           # a refused read: REJ SID + NRC, named
+canair bix -a 710312A1…                        # a routine response: SF + RID
 ```
 
 ## See also
