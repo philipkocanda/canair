@@ -99,8 +99,11 @@ canair speaks to the bus through one of two transports, selected explicitly in
 Both classes expose the **same async surface**: `set_header(tx_id)`,
 `send_uds(pid, timeout=, expected_sid=, expected_did=)`, `send_command(cmd)`,
 `enter_extended_session(wake=)`, `close()`. Live commands are dispatched through
-the **single shared** `canlib/commands/_live.py::dispatch_mode`, which both the
-ELM path (`async_main`) and the raw path (`modes/raw_ops.py::run_raw`) call.
+the **single shared** `canlib/modes/dispatch/::dispatch_mode`, which both the
+ELM path (`commands/_live/runtime.py::async_main`) and the raw path
+(`modes/raw_ops.py::run_raw`) call. It lives in `canlib/modes/` because it
+dispatches *to* that package and is called *from* it — a mode importing up into
+the command layer was a layering inversion.
 
 **Consequence — the design contract:**
 
@@ -202,12 +205,16 @@ help order).
 **Live (device-talking) commands** additionally:
 
 - Call `add_connection_args(parser)` and `finalize_live_parser(parser, …)` from
-  `canlib/commands/_live.py`. `finalize_live_parser` backfills every attribute
-  in `CANAIR_DEFAULTS` the parser doesn't expose and wires `func=run` (which
+  `canlib/commands/_live/` (re-exported from the package root).
+  `finalize_live_parser` backfills every attribute in `CANAIR_DEFAULTS`
+  (`_live/defaults.py`) the parser doesn't expose and wires `func=run` (which
   delegates to `run_live`).
 - Add any **new mode-selector attribute** to `CANAIR_DEFAULTS` with a falsy
-  default. `dispatch_mode`'s `elif` chain reads `args.<selector>` for *every*
-  command, so a missing default will `AttributeError` on unrelated commands.
+  default, **and** an entry to `canlib/modes/dispatch/::_DISPATCH` — the selection
+  table pairs each handler with the predicate that selects it. A selector with no
+  table entry is not an error: it falls through to the interactive REPL.
+  `tests/test_dispatch_table.py` fails if you forget, and pins the table's order
+  (which is load-bearing: `multi` + `monitor` must be tested before bare `multi`).
 - Add the dispatch branch in `dispatch_mode` (keep options read *inside* the
   guarded branch so they need not be global defaults). Delegate to a handler in
   `canlib/modes/<name>.py` and export it from `canlib/modes/__init__.py`.
@@ -234,7 +241,7 @@ drifts from the established UX.
   the registry so `SMK`→`SKM`). Device-pipeline commands go through
   `canlib/modes/multi_parse.py::parse_sub_commands` (which owns the
   "`IGPM 22BC07` is a bogus ECU — bind with a colon" guard). Follow
-  `commands/captures/` (positional QUERY) or `commands/correlate.py` (optional
+  `commands/captures/` (positional QUERY) or `commands/correlate/` (optional
   `ECU[:PID]` selector) as templates.
 - **The remaining `--ecu`/`--pid`/`--param` flags are legacy, not the pattern to
   copy.** A few survive as narrow filters (`decode --param`, `research --ecu`,

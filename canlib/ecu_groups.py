@@ -38,7 +38,7 @@ GROUP_SIGIL = "@"
 
 # Leading verbs of the multi mini-language whose steps are NOT query selectors —
 # a group ref inside one is meaningless, so those steps pass through unexpanded.
-# Mirrors the query-excluded subset of ``canlib.commands._live.STEP_VERBS`` (a
+# Mirrors the query-excluded subset of ``canlib.commands._live.steps.STEP_VERBS`` (a
 # drift guard test keeps them in sync); kept local so this low-level module never
 # imports the heavy live-command runtime.
 _NON_QUERY_VERBS = frozenset({"skm-wake", "session", "raw", "scan", "iocontrol", "sleep", "repl"})

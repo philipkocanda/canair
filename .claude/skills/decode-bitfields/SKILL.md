@@ -153,7 +153,7 @@ uv run canair --profile ioniq-2017 investigate IGPM 22BC03 --events --bits
 Every rising/falling edge with its timestamp and the nearest capture note. An
 **unlabelled bit that toggles at the same instant as your noted action is the
 finding.** When bit edges exist for a byte the redundant whole-byte edge is
-suppressed (`_investigate_render.py:193-201`).
+suppressed (`commands/investigate/render.py`).
 
 **2. Dwell classification — separates a pulse from a state.**
 ```
