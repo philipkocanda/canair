@@ -1,0 +1,4 @@
+
+  vs ALPHA:22F001:ALPHA_RAMP (nearest-join ≤5s, ref 24 samples)
+    r=+1.000  BETA:22F002:BETA_RAMP  n=24
+

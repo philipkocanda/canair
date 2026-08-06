@@ -1,0 +1,7 @@
+
+IGPM PID 22BC02 — 1 parameters (0 verified, 1 unverified), 275 captures
+
+  scope: earliest .. 2026-08-02
+
+    ? IGPM_BC02_STATIC               0  (constant)
+

@@ -1,0 +1,7 @@
+
+ALPHA PID 22F001 — 2 parameters (1 verified, 1 unverified), 24 captures
+
+    ✓ ALPHA_RAMP []  n=24 distinct=24  min=10 max=79 mean=44.50 median=44.50 stdev=21.21
+    ? ALPHA_FLAGS_B6_0 []  n=24 distinct=2  min=0 max=1 mean=0.50 median=0.50 stdev=0.51
+        values: 0(n=12)  1(n=12)
+

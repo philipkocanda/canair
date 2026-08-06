@@ -1,0 +1,4 @@
+
+  Cross-signal correlations (3 signals, |r|≥0.6, n≥15, ≤5s)
+    r=+1.000  ALPHA:22F001:ALPHA_RAMP  ⟷  BETA:22F002:BETA_RAMP  n=24
+

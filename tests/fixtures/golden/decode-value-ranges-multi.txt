@@ -1,0 +1,11 @@
+
+ALPHA PID 22F001 — 2 parameters (1 verified, 1 unverified), 24 captures
+
+    ✓ ALPHA_RAMP                    10 — 79
+    ? ALPHA_FLAGS_B6_0               0 — 1
+
+
+BETA PID 22F002 — 1 parameters (1 verified, 0 unverified), 24 captures
+
+    ✓ BETA_RAMP              10 — 79
+

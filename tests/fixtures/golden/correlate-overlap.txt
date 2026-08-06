@@ -1,0 +1,7 @@
+
+  Co-poll overlap (nearest-join ≤5s)
+    ALPHA:22F001: 24 timed samples
+    BETA:22F002: 24 timed samples
+
+    n=24   ALPHA:22F001  ⟷  BETA:22F002
+
