@@ -109,6 +109,7 @@ rename, one commit, no behaviour change:
 |---|---|
 | `decoding.ParamRow` | `SignalRow` |
 | `decoding.decode_param_rows` | `decode_signal_rows` |
+| `decoding.decode_payload` | `decode_signals` |
 | `formatting.render_param_table` | `render_signal_table` |
 | `formatting.render_param_ranges` | `render_signal_ranges` |
 | `formatting.param_byte_indices` | `signal_byte_indices` |
@@ -116,6 +117,13 @@ rename, one commit, no behaviour change:
 | `formatting.changed_param_highlights` | `changed_signal_highlights` |
 | `formatting.print_decoded_params` | `print_decoded_signals` |
 | `_monitor_stats.ParamStats` | `SignalStats` (already has `SignalStat`) |
+
+`decoding.decode_payload` arrived in this module from `commands/decode.py` in
+`a50c530` and deliberately kept its old name: renaming it there and then would
+have left `decoding.py` half-renamed beside `decode_param_rows`, which is exactly
+what this plan exists to prevent. `decode_signals` is the right name — it returns
+one entry per signal, and "payload" describes its *input*, not its output — so it
+renames here with its neighbours.
 
 `canlib/__init__.py` re-exports several of these — update `__all__` in the same
 commit. No deprecation aliases: this is an internal API with no external

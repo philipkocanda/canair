@@ -39,6 +39,7 @@ __all__ = [
     "SignalRef",
     "TimePoint",
     "align_many",
+    "discover_signal_specs",
     "extract_series",
     "join_fill_stats",
     "join_indices",
@@ -271,6 +272,49 @@ class LoadedPid:
             cached = hold_until_vector(entries, dts, session_ends=self.session_ends, policy=policy)
             self._hold_cache[policy] = cached
         return cached
+
+
+def discover_signal_specs(
+    query: str | None = None,
+    *,
+    since: date | datetime | None = None,
+    until: date | datetime | None = None,
+    state: str | None = None,
+    label: str | None = None,
+    captures_dir: Path | None = None,
+) -> list[tuple[str, str]]:
+    """Which ``(ECU, PID)`` pairs have *time-joinable* captures in scope.
+
+    The discovery half of the pair completed by :func:`load_signal_captures`: this
+    answers "what is there to correlate?", that one loads it. Applies the same
+    scope filters, and optionally narrows to a QUERY in the shared mini-language
+    (:func:`canlib.query.parse_query`) so ``correlate IGPM`` and
+    ``correlate "BMS:2101 VCU:2101"`` restrict identically to the other verbs.
+
+    A pair qualifies only if it has a ``payload`` *and* a usable timestamp —
+    scan/probe reads and untimed legacy captures can't take part in a time join,
+    so including them would offer the caller specs that always yield zero samples.
+    """
+    entries = load_all_captures(captures_dir)
+    entries = filter_by_date_range(entries, since, until)
+    entries = filter_by_text(entries, state=state, label=label)
+
+    q = None
+    if query:
+        from .query import parse_query
+
+        q = parse_query(query)
+
+    specs: set[tuple[str, str]] = set()
+    for e in entries:
+        ecu = str(e.get("ecu", "")).upper()
+        pid = str(e.get("pid", "")).upper()
+        if not e.get("payload") or entry_datetime(e) is None:
+            continue
+        if q is not None and not q.matches(ecu, pid):
+            continue
+        specs.add((ecu, pid))
+    return sorted(specs)
 
 
 def load_signal_captures(

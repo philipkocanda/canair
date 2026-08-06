@@ -55,7 +55,7 @@ def _run(tmp_path, monkeypatch, argv):
     monkeypatch.setattr("canlib.commands.correlate.load_signal_captures", scoped)
     monkeypatch.setattr("canlib.commands._correlate_render.load_signal_captures", scoped)
     monkeypatch.setattr(
-        "canlib.commands.correlate._discover_specs",
+        "canlib.commands.correlate.discover_signal_specs",
         lambda *a, **k: [("IGPM", "22BC03"), ("IGPM", "22BC05")],
     )
     p = correlate.add_parser(argparse.ArgumentParser().add_subparsers())
@@ -132,7 +132,7 @@ class TestAgainstFile:
             "2026-07-24 09:00:06,7.0\n"
         )
         monkeypatch.setattr(
-            "canlib.commands.correlate._discover_specs",
+            "canlib.commands.correlate.discover_signal_specs",
             lambda *a, **k: [("IGPM", "22BC03")],
         )
         rc = _run(
@@ -204,7 +204,7 @@ class TestControl:
             ),
         )
         monkeypatch.setattr(
-            "canlib.commands.correlate._discover_specs", lambda *a, **k: [("OBC", "2101")]
+            "canlib.commands.correlate.discover_signal_specs", lambda *a, **k: [("OBC", "2101")]
         )
         p = correlate.add_parser(argparse.ArgumentParser().add_subparsers())
         args = p.parse_args(["uds", *argv])

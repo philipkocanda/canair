@@ -18,13 +18,14 @@ import sys
 from canlib.align import (
     DEFAULT_SESSION_GAP_S,
     detrend_by_session,
+    discover_signal_specs,
     join_nearest,
     join_prepared,
     load_signal_captures,
     payload_lengths,
     prepare_series,
 )
-from canlib.capture_dates import add_scope_args, entry_datetime, resolve_scope_bounds
+from canlib.capture_dates import add_scope_args, resolve_scope_bounds
 from canlib.commands._can_args import add_can_log_source_args
 from canlib.commands._correlate_calc import _apply_gate
 from canlib.commands._correlate_render import (
@@ -349,34 +350,6 @@ examples:
     return parser
 
 
-def _discover_specs(query, since, until, state, label):
-    """Which (ECU, PID) pairs have timed payload captures in scope."""
-    from canlib.capture_dates import (
-        filter_by_date_range,
-        filter_by_text,
-    )
-    from canlib.capture_store import load_all_captures
-
-    entries = load_all_captures()
-    entries = filter_by_date_range(entries, since, until)
-    entries = filter_by_text(entries, state=state, label=label)
-    q = None
-    if query:
-        from canlib.query import parse_query
-
-        q = parse_query(query)
-    specs: set[tuple[str, str]] = set()
-    for e in entries:
-        ecu = str(e.get("ecu", "")).upper()
-        pid = str(e.get("pid", "")).upper()
-        if not e.get("payload") or entry_datetime(e) is None:
-            continue
-        if q is not None and not q.matches(ecu, pid):
-            continue
-        specs.add((ecu, pid))
-    return sorted(specs)
-
-
 def _fill_json(policy: FillPolicy, fills) -> dict:
     """The ``fill`` block every ``--json`` report carries.
 
@@ -576,7 +549,9 @@ def run(args) -> int:
         return 2
 
     notation = resolve_notation(args.notation)
-    specs = _discover_specs(args.query, since, until, args.state, args.label)
+    specs = discover_signal_specs(
+        args.query, since=since, until=until, state=args.state, label=args.label
+    )
 
     if args.overlap:
         return _print_overlap(

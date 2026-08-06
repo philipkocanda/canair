@@ -20,6 +20,7 @@ from typing import NamedTuple
 from canlib.align import (
     PreparedSeries,
     TimePoint,
+    discover_signal_specs,
     join_prepared,
     load_signal_captures,
     prepare_series,
@@ -305,7 +306,6 @@ def _state_f(frames_by_state: dict[str, list[float]]):
 
 
 def run(args) -> int:
-    from canlib.commands.correlate import _discover_specs
     from canlib.ecus import canonical_ecu_name_safe
     from canlib.pids import build_ecu_index, load_pids
     from canlib.xanalysis import byte_state_buckets as _byte_state_buckets
@@ -406,7 +406,9 @@ def run(args) -> int:
     fills = fill_summaries([lp], fill, args.join_tol)
     other_specs = [
         s
-        for s in _discover_specs(None, since, until, args.state, args.label)
+        for s in discover_signal_specs(
+            None, since=since, until=until, state=args.state, label=args.label
+        )
         if s != (ecu.upper(), pid)
     ]
     if other_specs:

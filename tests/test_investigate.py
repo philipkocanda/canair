@@ -59,7 +59,7 @@ class TestInvestigate:
             ),
         )
         monkeypatch.setattr(
-            "canlib.commands.correlate._discover_specs",
+            "canlib.commands.investigate.discover_signal_specs",
             lambda *a, **k: [("AAF", "2181"), ("ESC", "22C101")],
         )
 
@@ -152,7 +152,7 @@ def _run(tmp_path, monkeypatch, argv, specs):
             s, captures_dir=tmp_path, **{k: v for k, v in kw.items() if k != "captures_dir"}
         ),
     )
-    monkeypatch.setattr("canlib.commands.correlate._discover_specs", lambda *a, **k: specs)
+    monkeypatch.setattr("canlib.commands.investigate.discover_signal_specs", lambda *a, **k: specs)
     p = investigate.add_parser(argparse.ArgumentParser().add_subparsers())
     return investigate.run(p.parse_args(["uds", *argv]))
 
@@ -378,7 +378,7 @@ class TestIndependentOf:
             ),
         )
         monkeypatch.setattr(
-            "canlib.commands.correlate._discover_specs", lambda *a, **k: [("AAF", "2181")]
+            "canlib.commands.investigate.discover_signal_specs", lambda *a, **k: [("AAF", "2181")]
         )
         p = investigate.add_parser(argparse.ArgumentParser().add_subparsers())
         args = p.parse_args(
@@ -430,7 +430,7 @@ class TestTriageIntegration:
             ),
         )
         monkeypatch.setattr(
-            "canlib.commands.correlate._discover_specs", lambda *a, **k: [("OBC", "2101")]
+            "canlib.commands.investigate.discover_signal_specs", lambda *a, **k: [("OBC", "2101")]
         )
         p = investigate.add_parser(argparse.ArgumentParser().add_subparsers())
         args = p.parse_args(["uds", "OBC", "2101", "--min-n", "3", "--json"])
@@ -471,7 +471,7 @@ class TestTriageIntegration:
             ),
         )
         monkeypatch.setattr(
-            "canlib.commands.correlate._discover_specs", lambda *a, **k: [("OBC", "2101")]
+            "canlib.commands.investigate.discover_signal_specs", lambda *a, **k: [("OBC", "2101")]
         )
         p = investigate.add_parser(argparse.ArgumentParser().add_subparsers())
         args = p.parse_args(["uds", "OBC", "2101", "--min-n", "3", "--json"])

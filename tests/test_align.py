@@ -11,6 +11,7 @@ from canlib.align import (
     TimePoint,
     align_many,
     detrend_by_session,
+    discover_signal_specs,
     extract_series,
     join_fill_stats,
     join_indices,
@@ -340,6 +341,43 @@ def _write_captures(tmp_path):
     }
     (tmp_path / "2026-07-22.json").write_text(json.dumps(doc))
     return tmp_path
+
+
+class TestDiscoverSignalSpecs:
+    """``discover_signal_specs``: what is there to correlate, in scope?
+
+    It is the discovery half of the pair completed by ``load_signal_captures``, so
+    the two must agree on what counts as time-joinable — a spec it returns that
+    loads zero samples would send every caller on a wild goose chase. The fixture
+    holds exactly the three rejects: an untimed payload, a scan capture with no
+    payload, and (via ``state=``) an out-of-scope session.
+    """
+
+    def test_finds_only_time_joinable_pairs(self, tmp_path):
+        _write_captures(tmp_path)
+        assert discover_signal_specs(captures_dir=tmp_path) == [
+            ("AAF", "2181"),
+            ("ESC", "22C101"),
+        ]
+
+    def test_agrees_with_load_signal_captures(self, tmp_path):
+        """Every discovered spec must actually yield timed captures."""
+        _write_captures(tmp_path)
+        specs = discover_signal_specs(captures_dir=tmp_path)
+        loaded = load_signal_captures(specs, captures_dir=tmp_path)
+        assert all(loaded[s].captures for s in specs)
+
+    def test_query_narrows_to_one_ecu(self, tmp_path):
+        _write_captures(tmp_path)
+        assert discover_signal_specs("AAF", captures_dir=tmp_path) == [("AAF", "2181")]
+
+    def test_query_narrows_to_one_ecu_pid(self, tmp_path):
+        _write_captures(tmp_path)
+        assert discover_signal_specs("ESC:22C101", captures_dir=tmp_path) == [("ESC", "22C101")]
+
+    def test_scope_filters_apply(self, tmp_path):
+        _write_captures(tmp_path)
+        assert discover_signal_specs(state="charging", captures_dir=tmp_path) == []
 
 
 class TestLoadSignalCaptures:
