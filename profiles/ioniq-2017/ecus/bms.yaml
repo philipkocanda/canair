@@ -107,14 +107,26 @@ BMS:
           notes: "J1772 / AC charge plug connected (bit5). 2026-07-20: set only during AC charging (0xA3), not DC (0x45)."
 
         CHARGING_DC:
-          expression: "B14:6"
+          expression: B14:6
           unit: ""
           ha_class: plug
           min: ""
           max: ""
-          verified: true
-          notes: "CCS / DC charge plug connected (bit6). 2026-07-20: set in the CCS/DC capture (0x45), clear on AC."
-
+          verified: false
+          notes: >-
+            B14 bit6 — UNCONFIRMED on this car: never observed set. Hypothesis (not our own
+            observation): CCS/DC charge plug connected / DC fast charge active. Community lineage:
+            WiCAN's own hyundai_ioniq_electric_38kwh profile maps DC charging to bit6 of this same
+            status byte — (B15&64)/64 there; their B15 is our B14, off by the 3-byte 220101 DID vs
+            our 2-byte 2101, confirmed by their SOC sitting at B10 where ours is B09. Treat that
+            lineage with care: it labels bit5 "AC charging", whereas our corpus shows bit5 = plug
+            connected (set in 0x20 = plugged with contactors open, not charging) and bit7 = charging
+            active. 2026-08-06: across 5997 BMS:2101 captures B14 only ever reads 0x03 / 0x20 / 0x23
+            / 0xA3 — bits 2, 3, 4 and 6 are never set — and the corpus contains no DC/CCS charge
+            session at all. A single earlier 0x45 reading was withdrawn together with the
+            hand-transcribed August-2025 captures (hand-assembled from CarScanner screenshots via
+            ImHex; that session had 4 of its 9 payloads byte-identical to the previous session's, so
+            its provenance was not trustworthy). Verify on the first real DC fast charge.
         CHARGING:
           expression: "B14:7"
           unit: ""
