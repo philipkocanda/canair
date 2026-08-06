@@ -11,7 +11,7 @@
         {
           "type": "toml",
           "path": "uv.lock",
-          "jsonpath": "$.package[?(@.name=='canair')].version"
+          "jsonpath": "$.package[?(@.name.value=='canair')].version"
         }
       ],
       "changelog-sections": [
