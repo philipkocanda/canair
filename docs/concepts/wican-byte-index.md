@@ -226,9 +226,13 @@ Everything the rest of this document claims is visible in one screen:
   `B14:k`), and a multi-byte value can span several (`BATTERY_POWER` over B15–B19).
   `unmapped` flags data bytes still open for reverse-engineering.
 
-For a `22xxxx` DID, pass `-2` so the two subfunction bytes are labelled `DID`
-(B03–B04); the first real data byte is then **B05**, not B04 (also where `Torque A`
-lands under `--torque`).
+For a `22xxxx` DID the two subfunction bytes are labelled `DID` (B03–B04) and the
+first real data byte is **B05**, not B04 (also where `Torque A` lands under
+`--torque`). When you pass `--pid`, `bix` derives that 2-byte width from the PID
+itself — `canair bix -a 62BC03… --ecu IGPM --pid 22BC03` needs no `-2`, and
+captions the width it used. Use `-1`/`-2` only to override it (annotating a payload
+you have no `--pid` for, or a deliberately mismatched read); a flag that
+contradicts `--pid` is warned about.
 
 ## Multi-byte and bit forms (same buffer, same rule)
 
@@ -312,6 +316,7 @@ canair bix --torque                            # add the Torque letter column (T
 canair bix --obdb                              # add the OBDb bix (bit-index) column
 canair bix --table                             # the full conversion table
 canair bix -a 6101FFFF… --ecu BMS --pid 2101   # annotate a payload + overlay defined params
+canair bix -a 62BC03… --ecu IGPM --pid 22BC03  # ditto; --pid derives the 2-byte DID width
 ```
 
 ## See also

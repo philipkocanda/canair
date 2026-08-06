@@ -20,6 +20,7 @@ from canlib.byteindex import (
     wican_to_isotp,
     wican_to_torque,
 )
+from canlib.notation import subfunction_bytes_for_pid
 
 NAME = "bix"
 
@@ -62,6 +63,11 @@ subfunction modes:
   -1          1-byte subfunction (21xx PIDs) — default
   -2          2-byte subfunction (22xxxx DIDs)
 
+  with a `--pid` that names its service (`22xxxx` / `21xx`) the width is DERIVED
+  from it, so `bix -a HEX --ecu IGPM --pid 22BC03` needs no -2; an explicit -1/-2
+  still wins (and is flagged when it contradicts the PID). A short-form DID
+  (`B004`) doesn't state its service — pass -2 yourself.
+
 optional columns (--table / --annotate; both hidden by default):
   --torque    add the Torque letter column (Torque app, Car Scanner & similar)
   --obdb      add the OBDb bix (bit-index) column — a distinct notation
@@ -80,13 +86,15 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         epilog=_EPILOG,
     )
     parser.add_argument("value", nargs="?", help="Index to convert (see formats below)")
+    # default=None (not 1) so run() can tell an EXPLICIT -1 from an unset flag and
+    # fall back to deriving the width from --pid; _resolve_sub_bytes applies the 1.
     parser.add_argument(
         "-1",
         dest="sub_bytes",
         action="store_const",
         const=1,
-        default=1,
-        help="1-byte subfunction mode (default)",
+        default=None,
+        help="1-byte subfunction mode (default, unless derived from --pid)",
     )
     parser.add_argument(
         "-2",
@@ -144,7 +152,9 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--pid",
-        help="With --annotate --ecu: the PID whose parameters to overlay (e.g. 22BC03).",
+        help="With --annotate --ecu: the PID whose parameters to overlay (e.g. 22BC03). "
+        "Also sets the subfunction width when it names its service (22xxxx DID → 2 "
+        "bytes, 21xx → 1) unless -1/-2 is passed explicitly.",
     )
     parser.set_defaults(func=run)
     return parser
@@ -490,6 +500,69 @@ def _warn_payload_kind_mismatch(first_byte: int, raw_frame: bool):
         )
 
 
+def _pid_sub_bytes(pid: str) -> int | None:
+    """The subfunction width ``pid`` *conclusively* implies, or ``None``.
+
+    :func:`canlib.notation.subfunction_bytes_for_pid` answers "2 for ``22xxxx``,
+    else 1" — a **default**, not a determination. Its "else" branch swallows forms
+    that say nothing about the service: the short DID form profiles also accept
+    (``B004`` for ``22B004``) and standard OBD-II PIDs (``010C``) both read as
+    1-byte. Deriving a width from that — or warning that an explicit ``-2``
+    "contradicts" it — would state a layout with false confidence and, for a short
+    DID, the wrong one. So only an explicit ``21``/``22`` service prefix counts as
+    conclusive here; anything else keeps the plain 1-byte default, silently.
+
+    The width itself still comes from the shared helper, so a conclusive PID can
+    never be labelled differently here than by ``decode``/``hunt``/``coverage``.
+    """
+    if not pid.upper().startswith(("21", "22")):
+        return None
+    return subfunction_bytes_for_pid(pid)
+
+
+def _resolve_sub_bytes(args) -> tuple[int, bool]:
+    """Effective subfunction width and whether it was derived from ``--pid``.
+
+    Precedence: an explicit ``-1``/``-2`` > the width ``--pid`` conclusively
+    implies (:func:`_pid_sub_bytes`) > 1 (the ``21xx`` default). A ``--pid`` names
+    the request whose echo is in the payload, so its service fixes the width — the
+    derivation every other command does via
+    :func:`canlib.notation.subfunction_bytes_for_pid`. Without it, ``--pid 22BC03``
+    silently kept the 1-byte default and mislabelled the second DID echo byte as
+    an unmapped data byte.
+    """
+    pid = getattr(args, "pid", None)
+    explicit = args.sub_bytes
+    if pid:
+        implied = _pid_sub_bytes(pid)
+        if implied is not None:
+            if explicit is None:
+                return implied, True
+            _warn_sub_bytes_contradicts_pid(explicit, pid, implied)
+    return (explicit if explicit is not None else 1), False
+
+
+def _warn_sub_bytes_contradicts_pid(sub_bytes: int, pid: str, implied: int):
+    """Warn when an explicit ``-1``/``-2`` disagrees with ``--pid``'s service.
+
+    The explicit flag still wins (it is the override), but silently honouring
+    ``-1 --pid 22BC03`` reproduces the very mislabelling the derivation fixes, so
+    say so. Same spirit as :func:`_warn_payload_kind_mismatch`: the input
+    contradicts the chosen mode. Only ever called for a *conclusive* ``--pid``
+    (see :func:`_pid_sub_bytes`) — warning off the 1-byte default would tell users
+    to drop a correct ``-2`` from a short-form DID.
+    """
+    if implied == sub_bytes:
+        return
+    kind = "2-byte DID" if implied == 2 else "1-byte PID"
+    _emit_warning(
+        f"-{sub_bytes} contradicts --pid {pid.upper()}, which is a {kind} subfunction.",
+        f"Honouring the explicit -{sub_bytes}; the header/Param columns will be off by one",
+        f"if that is not what you meant. Drop it (or pass {_cerr(f'-{implied}', _BOLD)}) "
+        "to use the PID's own width.",
+    )
+
+
 def _annotate_payload(
     payload_hex: str,
     sub_bytes: int,
@@ -498,6 +571,7 @@ def _annotate_payload(
     raw_frame: bool = False,
     show_torque: bool = False,
     show_obdb: bool = False,
+    derived_from_pid: str | None = None,
 ) -> int:
     """Annotate each byte of a UDS response payload with WiCAN Bnn indices.
 
@@ -510,6 +584,11 @@ def _annotate_payload(
     The Torque letter and OBDb bix columns are distinct notations, each shown
     only when its flag (``show_torque`` / ``show_obdb``) is set — WiCAN and
     ISO-TP are the notations canair expressions use.
+
+    ``derived_from_pid`` names the ``--pid`` that ``sub_bytes`` was derived from
+    (see :func:`_resolve_sub_bytes`); it is captioned so the width is never a
+    silent choice — the reader can see which bytes were counted as the UDS header
+    and how to override it.
 
     When ``params`` (a PID's ``parameters`` dict) is given, add a ``Param`` column
     showing which defined parameter maps each byte (``[NAME]`` verified,
@@ -535,6 +614,16 @@ def _annotate_payload(
     overlay = params is not None
     mapped = mapped_offsets(params) if overlay else {}
     mbits = mapped_bits(params) if overlay else {}
+
+    if derived_from_pid:
+        kind = "2-byte DID" if sub_bytes == 2 else "1-byte PID"
+        print(
+            _c(
+                f"  subfunction: {kind} — derived from --pid {derived_from_pid.upper()} "
+                f"(override with -1/-2)",
+                _DIM,
+            )
+        )
 
     if show_torque or show_obdb:
         # The Torque/OBDb numbering isn't fixed — it counts from the first UDS
@@ -683,9 +772,11 @@ def _print_overview(sub_bytes: int, *, show_torque: bool = False, show_obdb: boo
 
 
 def run(args) -> int:
+    sub_bytes, derived = _resolve_sub_bytes(args)
+
     if args.table:
         _print_table(
-            args.sub_bytes,
+            sub_bytes,
             args.max,
             legend=True,
             show_torque=args.show_torque,
@@ -717,11 +808,12 @@ def run(args) -> int:
             return 1
         return _annotate_payload(
             " ".join(args.annotate),
-            args.sub_bytes,
+            sub_bytes,
             params,
             raw_frame=args.raw_frame,
             show_torque=args.show_torque,
             show_obdb=args.show_obdb,
+            derived_from_pid=args.pid if derived else None,
         )
 
     if args.raw_frame:
@@ -729,9 +821,9 @@ def run(args) -> int:
         return 1
 
     if not args.value:
-        _print_overview(args.sub_bytes, show_torque=args.show_torque, show_obdb=args.show_obdb)
+        _print_overview(sub_bytes, show_torque=args.show_torque, show_obdb=args.show_obdb)
         return 0
 
     notation, idx = _parse_input(args.value)
-    _print_result(notation, idx, args.sub_bytes)
+    _print_result(notation, idx, sub_bytes)
     return 0

@@ -137,6 +137,173 @@ def test_annotate_no_overlay_has_no_param_column(capsys):
     assert "Param" not in capsys.readouterr().out
 
 
+# ── --pid derives the subfunction width (no explicit -1/-2 needed) ──
+
+
+def _role(out: str, wican: str) -> str:
+    """The Role cell of the annotate row whose WiCAN cell is ``wican``."""
+    return _row(out, wican).split("|")[3].strip()
+
+
+def test_pid_derives_two_byte_subfunction(capsys):
+    # Regression: --pid 22BC03 alone used to fall back to the 1-byte default, so
+    # B04 (the second DID echo byte) was mislabelled as an unmapped DATA byte.
+    args = _parse(["-a", "62BC0300000000", "--ecu", "IGPM", "--pid", "22BC03"])
+    assert bix.run(args) == 0
+    out = capsys.readouterr().out
+    assert _role(out, "B02") == "DID"
+    assert _role(out, "B03") == "DID"  # both DID echo bytes marked as header
+    assert "unmapped" not in _row(out, "B03")
+    assert _role(out, "B04") == ""  # data starts here
+
+
+def test_pid_derives_one_byte_subfunction(capsys):
+    args = _parse(["-a", "6101FFEEDD", "--ecu", "BMS", "--pid", "2101"])
+    assert bix.run(args) == 0
+    out = capsys.readouterr().out
+    assert _role(out, "B02") == "PID"
+    assert _role(out, "B03") == ""  # data starts one byte earlier than under -2
+
+
+def test_derived_width_matches_explicit_flag(capsys):
+    # Deriving from --pid must produce exactly the table an explicit -2 produces.
+    args = _parse(["-a", "62BC0300000000", "--ecu", "IGPM", "--pid", "22BC03"])
+    assert bix.run(args) == 0
+    derived = capsys.readouterr().out
+    args = _parse(["-2", "-a", "62BC0300000000", "--ecu", "IGPM", "--pid", "22BC03"])
+    assert bix.run(args) == 0
+    explicit = capsys.readouterr().out
+    # The derived run adds the caption line; the table itself must be identical.
+    assert [ln for ln in derived.splitlines() if "derived from" not in ln] == explicit.splitlines()
+
+
+def test_derived_width_is_captioned(capsys):
+    # The width must never be a silent choice — say where it came from.
+    args = _parse(["-a", "62BC03000000", "--ecu", "IGPM", "--pid", "22BC03"])
+    assert bix.run(args) == 0
+    out = capsys.readouterr().out
+    assert "subfunction: 2-byte DID" in out
+    assert "derived from --pid 22BC03" in out
+    assert "-1/-2" in out  # names the override
+
+
+def test_explicit_flag_overrides_pid_derivation(capsys):
+    # -1/-2 is the override: it wins over the PID's implied width...
+    args = _parse(["-1", "-a", "62BC0300000000", "--ecu", "IGPM", "--pid", "22BC03"])
+    assert bix.run(args) == 0
+    out = capsys.readouterr().out
+    assert _role(out, "B02") == "PID"  # honoured the explicit -1
+    assert "derived from --pid" not in out  # not a derivation
+
+
+def test_explicit_flag_contradicting_pid_warns(capsys):
+    # ...but a contradiction is flagged, since silently honouring it reproduces
+    # the exact mislabelling the derivation fixes.
+    args = _parse(["-1", "-a", "62BC0300000000", "--ecu", "IGPM", "--pid", "22BC03"])
+    assert bix.run(args) == 0
+    err = capsys.readouterr().err
+    assert "⚠ WARNING" in err
+    assert "-1 contradicts --pid 22BC03" in err
+    assert "2-byte DID" in err
+    assert "-2" in err  # points at the right flag
+
+
+def test_explicit_flag_agreeing_with_pid_does_not_warn(capsys):
+    args = _parse(["-2", "-a", "62BC0300000000", "--ecu", "IGPM", "--pid", "22BC03"])
+    assert bix.run(args) == 0
+    assert "WARNING" not in capsys.readouterr().err
+
+
+def test_no_pid_still_defaults_to_one_byte_subfunction(capsys):
+    # Without --pid the default is unchanged (sub=1), and nothing is captioned.
+    args = _parse(["-a", "6101FFEEDD"])
+    assert bix.run(args) == 0
+    out = capsys.readouterr().out
+    assert _role(out, "B02") == "PID"
+    assert "derived from" not in out
+
+
+@pytest.mark.parametrize("argv", [[], ["--table", "--max", "7"], ["w9"], ["-a", "6101FF"]])
+def test_unset_subfunction_flag_resolves_for_every_mode(argv, capsys):
+    # -1/-2 now default to None, so every run() branch must go through the
+    # resolver — a raw None would crash or leak into the formatting.
+    assert bix.run(_parse(argv)) == 0
+    out = capsys.readouterr().out
+    assert "None" not in out
+    assert "sub=None" not in out
+
+
+def test_resolve_sub_bytes_precedence():
+    assert bix._resolve_sub_bytes(_parse(["-a", "62"])) == (1, False)
+    assert bix._resolve_sub_bytes(_parse(["-a", "62", "--pid", "22BC03"])) == (2, True)
+    assert bix._resolve_sub_bytes(_parse(["-a", "62", "--pid", "2101"])) == (1, True)
+    assert bix._resolve_sub_bytes(_parse(["-2", "-a", "62"])) == (2, False)
+    assert bix._resolve_sub_bytes(_parse(["-1", "-a", "62", "--pid", "22BC03"])) == (1, False)
+
+
+# ── only a CONCLUSIVE --pid drives the derivation ──
+
+
+@pytest.mark.parametrize("pid", ["2101", "21F2", "22BC03", "22b004"])
+def test_pid_sub_bytes_conclusive_for_service_prefixes(pid):
+    assert bix._pid_sub_bytes(pid) == (2 if pid.upper().startswith("22") else 1)
+
+
+@pytest.mark.parametrize(
+    "pid",
+    [
+        "B004",  # short DID form (== 22B004) — says nothing about the service
+        "BC03",
+        "010C",  # standard OBD-II mode-01 PID
+        "0x22B004",  # prefixed hex literal
+        "F190",
+    ],
+)
+def test_pid_sub_bytes_none_when_service_is_unstated(pid):
+    # subfunction_bytes_for_pid() answers 1 for all of these as a DEFAULT; treating
+    # that as a determination would state a width with false confidence — and for a
+    # short-form DID, the wrong one.
+    assert bix._pid_sub_bytes(pid) is None
+
+
+def test_short_form_did_is_not_captioned_as_one_byte(capsys):
+    # `--pid B004` is a 2-byte DID written short. The old code silently defaulted to
+    # 1; deriving would have CAPTIONED that wrong width as fact. Stay silent instead.
+    args = _parse(["-a", "62B004740299", "--ecu", "MCU", "--pid", "B004"])
+    assert bix.run(args) == 0
+    out = capsys.readouterr().out
+    assert "derived from" not in out
+    assert "subfunction:" not in out
+
+
+def test_short_form_did_does_not_warn_against_correct_flag(capsys):
+    # ...and an explicit -2 (which is CORRECT for B004) must not be reported as
+    # contradicting the PID — that would tell the user to break their own command.
+    args = _parse(["-2", "-a", "62B004740299", "--ecu", "MCU", "--pid", "B004"])
+    assert bix.run(args) == 0
+    captured = capsys.readouterr()
+    assert "WARNING" not in captured.err
+    assert "contradicts" not in captured.err
+    assert _role(captured.out, "B03") == "DID"  # -2 honoured
+
+
+def test_unconclusive_pid_keeps_the_plain_default(capsys):
+    args = _parse(["-a", "410C1A80", "--ecu", "ENGINE", "--pid", "010C"])
+    assert bix.run(args) == 0
+    out = capsys.readouterr().out
+    assert _role(out, "B02") == "PID"  # sub=1 default
+    assert "derived from" not in out
+
+
+def test_derived_width_never_disagrees_with_shared_helper():
+    # The value comes from the shared derivation, so a conclusive PID can't be
+    # labelled one way here and another by decode/hunt/coverage.
+    from canlib.notation import subfunction_bytes_for_pid
+
+    for pid in ("2101", "2102", "22BC03", "22C101", "22B002"):
+        assert bix._pid_sub_bytes(pid) == subfunction_bytes_for_pid(pid)
+
+
 # ── --annotate is length-aware: single-frame vs multi-frame Torque/ISO-TP ──
 
 

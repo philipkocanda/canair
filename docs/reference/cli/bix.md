@@ -14,7 +14,8 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
-  -1                    1-byte subfunction mode (default)
+  -1                    1-byte subfunction mode (default, unless derived from
+                        --pid)
   -2                    2-byte subfunction mode (22xxxx DIDs)
   --table, -t           Print the full conversion table (all frames)
   --annotate HEX [HEX ...], -a HEX [HEX ...]
@@ -40,7 +41,9 @@ options:
   --ecu ECU             With --annotate: overlay which defined parameter maps
                         each byte (and flag unmapped bytes). Requires --pid.
   --pid PID             With --annotate --ecu: the PID whose parameters to
-                        overlay (e.g. 22BC03).
+                        overlay (e.g. 22BC03). Also sets the subfunction width
+                        when it names its service (22xxxx DID → 2 bytes, 21xx
+                        → 1) unless -1/-2 is passed explicitly.
 
 run `canair bix` with no arguments for a guided overview (a legend explaining
 each notation + a compact 2-frame table); `--table` prints the full table.
@@ -56,6 +59,11 @@ input formats:
 subfunction modes:
   -1          1-byte subfunction (21xx PIDs) — default
   -2          2-byte subfunction (22xxxx DIDs)
+
+  with a `--pid` that names its service (`22xxxx` / `21xx`) the width is DERIVED
+  from it, so `bix -a HEX --ecu IGPM --pid 22BC03` needs no -2; an explicit -1/-2
+  still wins (and is flagged when it contradicts the PID). A short-form DID
+  (`B004`) doesn't state its service — pass -2 yourself.
 
 optional columns (--table / --annotate; both hidden by default):
   --torque    add the Torque letter column (Torque app, Car Scanner & similar)

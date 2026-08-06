@@ -65,8 +65,10 @@ ECU's protocol.
 The service byte also shifts where the *data* starts in the response, which is why
 `canair bix` has `-1` (1-byte subfunction, service `21`) and `-2` (2-byte
 subfunction, service `22`) modes. A `21 01` response starts `61 01 <data…>`
-(1 echo byte); a `22 B0 02` response starts `62 B0 02 <data…>` (2 echo bytes). See
-[Byte indexing](byte-indexing.md) for how that feeds into `Bnn` offsets.
+(1 echo byte); a `22 B0 02` response starts `62 B0 02 <data…>` (2 echo bytes).
+Pass `--pid` and you don't need the flag at all — the width is derived from the
+PID's service. See [Byte indexing](byte-indexing.md) for how that feeds into `Bnn`
+offsets.
 
 ## See it in a profile
 

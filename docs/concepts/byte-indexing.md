@@ -91,8 +91,20 @@ each byte and flag `unmapped` data bytes — the fastest way to catch a wrong
 offset in an expression:
 
 ```bash
-canair bix --annotate 62B004… --ecu MyECU --pid B004
+canair bix --annotate 62B004… --ecu MyECU --pid 22B004
 ```
+
+`--pid` also settles the **subfunction width** for you when it names its service:
+a `22xxxx` DID has a 2-byte echo, a `21xx` PID a 1-byte one. So
+`canair bix -a 62BC03… --ecu IGPM --pid 22BC03` needs no `-2`, and the annotation
+captions the width it derived. An explicit `-1`/`-2` still wins as an override, and
+`bix` warns when it contradicts the PID — before, the 1-byte default silently
+mislabelled the second DID echo byte as an unmapped data byte.
+
+Write the PID with its full service prefix (`22B004`, not the short `B004`) to get
+this. A short-form DID doesn't state its service, so `bix` can't tell it from a
+1-byte PID; it keeps the 1-byte default without claiming otherwise, and you should
+pass `-2` yourself.
 
 ![canair bix --annotate with --ecu/--pid — per-byte notations, roles, and mapped params](../screenshots/bix-annotate.svg)
 

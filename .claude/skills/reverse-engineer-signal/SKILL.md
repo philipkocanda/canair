@@ -801,7 +801,7 @@ PR — see the `ioniq-reverse-engineering` skill's goals.
 | talk to the car | `canair read`/`monitor`/`scan`/`discover` (`--save`) |
 | onboard a reading (no device) | `canair import uds ECU:PID=PAYLOAD --label … --state …` |
 | see captures | `canair captures` (`--diff`/`--step`/`--rulers`/`--all`/`--latest`/`--summary`/`--since`/`--until`/`--state`/`--label`) |
-| map bytes | `canair bix --annotate` (+ `--ecu ECU --pid PID` to overlay which param maps each byte / flag unmapped) |
+| map bytes | `canair bix --annotate` (+ `--ecu ECU --pid PID` to overlay which param maps each byte / flag unmapped; `--pid` also derives the 1-vs-2-byte subfunction width) |
 | reason about a signal | step 6 Hypothesize — ECU context, physics/EE (thermal mass), CS (enums/counters), statistics (`--corr`/`--stats`/autocorr) |
 | test expressions | `canair decode --try` / `--stats` / `--corr` / `--plot` |
 | explain an unknown PID | `canair investigate <ECU> <PID>` (mapped? / state F / best anchor + unit / triage class / physical band, one table; `--bits`, `--events`; flags probable multi-byte `[Bn:Bn+1]` words) |
@@ -880,11 +880,16 @@ canair bix -2 w5     # 2-byte subfunction mode (22xxxx DIDs)
 canair bix --table   # Full conversion table
 canair bix -2 --annotate 62B0047402990C0040A000AAAA   # annotate a real payload
 canair bix --annotate 6101FFFF...                     # service 21 (1-byte PID)
+canair bix -a 62BC03... --ecu IGPM --pid 22BC03        # --pid derives the 2-byte width
 ```
 
 `--annotate` (`-a`) reconstructs the WiCAN frame with PCI bytes inserted and
 prints each byte's WiCAN Bnn, ISO-TP index, Torque letter, bix, and role. Use
-`-1` (default) for service 21, `-2` for service 22 DIDs.
+`-1` (default) for service 21, `-2` for service 22 DIDs — **or just pass `--pid`
+and the width is derived from it** when it names its service (`22xxxx` → 2 bytes,
+`21xx` → 1), captioned in the output. An explicit `-1`/`-2` overrides it and is
+warned about if it contradicts the PID. A short-form DID (`B004`) states no
+service, so it keeps the 1-byte default — write `22B004` or pass `-2`.
 
 ### Conversion table (WiCAN ↔ ISO-TP ↔ Torque ↔ bix)
 
