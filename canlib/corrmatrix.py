@@ -32,8 +32,8 @@ whole series — see :func:`_sub_stats`.
 from __future__ import annotations
 
 import math
-from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import NamedTuple
 
 from .align import (
     DEFAULT_JOIN_TOL_S,
@@ -59,6 +59,24 @@ class CorrHit:
     b: str
     r: float
     n: int
+    # How many of ``n`` rows came from carrying a run-length value forward rather
+    # than from a sample of ``b`` near the reference instant (see canlib.fill).
+    # Clock-only, so it is the same for every pair sharing a bucket pair.
+    n_filled: int = 0
+
+
+class _Clock(NamedTuple):
+    """A series' join identity: its timestamp vector and its validity windows.
+
+    The bucket key. The timestamp vector alone was enough while every join was
+    strict, but forward fill makes the join depend on the *hold* vector too — two
+    signals with identical timestamps but different validity windows join
+    differently, so the hold must be part of the key or one would silently borrow
+    the other's mapping.
+    """
+
+    ts: tuple[float, ...]
+    hold: tuple[float, ...] | None
 
 
 def signal_group_key(label: str) -> str:
@@ -204,12 +222,19 @@ def correlate_matrix(
     # every signal in a bucket shares one join with every other bucket.
     prepared = {name: prepare_series(series[name]) for name in names}
     order = {name: i for i, name in enumerate(names)}
-    buckets: dict[tuple[float, ...], list[str]] = {}
+    buckets: dict[_Clock, list[str]] = {}
     for name in names:
-        buckets.setdefault(tuple(prepared[name].ts), []).append(name)
-    # O(1) prune, lifted to the bucket: a series shorter than min_n can never
-    # reach a min_n overlap.
-    keys = [k for k in buckets if len(k) >= min_n]
+        ps = prepared[name]
+        clock = _Clock(tuple(ps.ts), tuple(ps.hold_ts) if ps.hold_ts is not None else None)
+        buckets.setdefault(clock, []).append(name)
+    # Every clock stays in the sweep. The old ``len(ts) >= min_n`` prune here read
+    # like a mechanical impossibility and was not one: a join emits one row per
+    # *reference* sample, and several reference rows may map to the same candidate
+    # sample, so a short series can still supply a min_n overlap as the candidate —
+    # and with forward fill a run-length signal of a handful of transitions covers a
+    # whole window. Dropping it silently discarded exactly those signals. The bound
+    # is applied per ordered pair below, where it belongs (on the reference side).
+    keys = list(buckets)
 
     numeric = method not in CATEGORICAL_METHODS
     ranked = method == "spearman"
@@ -221,7 +246,7 @@ def correlate_matrix(
     for x, ka in enumerate(keys):
         for y in range(x, len(keys)):
             kb = keys[y]
-            if x != y and timestamps_disjoint(ka, kb, tol_s):
+            if x != y and timestamps_disjoint(ka.ts, kb.ts, tol_s):
                 continue
             forward, reverse = _pairs_between(
                 buckets[ka],
@@ -230,14 +255,14 @@ def correlate_matrix(
                 order=order,
                 include_intra=include_intra,
             )
-            for ref_ts, cand_ts, pairs in ((ka, kb, forward), (kb, ka, reverse)):
-                if not pairs:
-                    continue
+            for ref_clock, cand_clock, pairs in ((ka, kb, forward), (kb, ka, reverse)):
+                if not pairs or len(ref_clock.ts) < min_n:
+                    continue  # a join can never exceed the reference's own row count
                 found.extend(
                     _rank_bucket_pair(
                         pairs,
-                        ref_ts,
-                        cand_ts,
+                        ref_clock,
+                        cand_clock,
                         prepared=prepared,
                         order=order,
                         n_names=n_names,
@@ -256,8 +281,8 @@ def correlate_matrix(
 
 def _rank_bucket_pair(
     pairs: list[tuple[str, str]],
-    ref_ts: Sequence[float],
-    cand_ts: Sequence[float],
+    ref_clock: _Clock,
+    cand_clock: _Clock,
     *,
     prepared: dict,
     order: dict[str, int],
@@ -277,10 +302,16 @@ def _rank_bucket_pair(
     (a self-pair, where the two clocks are the same vector but the join need not be
     the identity when timestamps repeat), hence one cache per side.
     """
-    ref_idx, cand_idx = join_indices(ref_ts, cand_ts, tol_s)
+    ref_idx, cand_idx = join_indices(ref_clock.ts, cand_clock.ts, tol_s, cand_clock.hold)
     n = len(ref_idx)
     if n < min_n or n < 2:
         return []
+    # Clock-only, like the join itself: one extra strict join per *bucket* pair
+    # (not per signal pair) tells every hit here how much of its overlap was
+    # reconstructed by forward fill rather than measured.
+    n_filled = 0
+    if cand_clock.hold is not None:
+        n_filled = n - len(join_indices(ref_clock.ts, cand_clock.ts, tol_s)[0])
 
     ref_stats: dict[str, _SubStats | None] = {}
     cand_stats: dict[str, _SubStats | None] = {}
@@ -318,7 +349,7 @@ def _rank_bucket_pair(
             r = coeff
         if abs(r) < min_r:
             continue
-        out.append((order[a] * n_names + order[b], CorrHit(a, b, r, n)))
+        out.append((order[a] * n_names + order[b], CorrHit(a, b, r, n, n_filled)))
     return out
 
 

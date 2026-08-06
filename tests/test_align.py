@@ -12,17 +12,18 @@ from canlib.align import (
     align_many,
     detrend_by_session,
     extract_series,
+    join_fill_stats,
     join_indices,
     join_nearest,
     join_nearest_presorted,
     join_prepared,
     load_reference_file,
     load_signal_captures,
-    mirror_aligned_count,
     prepare_series,
     series_time_ranges_disjoint,
     timestamps_disjoint,
 )
+from canlib.fill import FillPolicy
 
 
 # ---------------------------------------------------------------------------
@@ -209,24 +210,79 @@ class TestTimestampsDisjoint:
         assert timestamps_disjoint(a.ts, b.ts, 5.0) is False
 
 
-class TestMirrorAlignedCount:
-    """The single time-aligned mirror primitive (both cross-ECU and cross-ID
-    mirror finders route through it): equal-on-every-aligned-pair count, else -1."""
+# ---------------------------------------------------------------------------
+# Forward fill — a run-length sample is a segment, not a point
+# ---------------------------------------------------------------------------
+def _held(sec: float, val: float, until: float) -> TimePoint:
+    """A sample at ``sec`` whose value is known to hold until ``until``."""
+    base = datetime(2026, 7, 22, 9, 0, 0)
+    return TimePoint(base + _sec(sec), val, base + _sec(until))
 
-    def test_equal_series_returns_overlap(self):
-        a = prepare_series([_tp(i, i % 4) for i in range(20)])
-        b = prepare_series([_tp(i + 0.1, i % 4) for i in range(20)])  # same values, small skew
-        assert mirror_aligned_count(a, b, tol_s=0.5) == 20
 
-    def test_first_mismatch_returns_minus_one(self):
-        a = prepare_series([_tp(i, i % 4) for i in range(20)])
-        b = prepare_series([_tp(i + 0.1, (i % 4) + 1) for i in range(20)])  # off by one
-        assert mirror_aligned_count(a, b, tol_s=0.5) == -1
+class TestForwardFill:
+    def test_carries_a_value_onto_rows_beyond_the_join_window(self):
+        """The measured case: a value known for a whole window, sampled twice."""
+        ref = [_tp(float(i), float(i)) for i in range(0, 200, 5)]
+        cand = [_held(0.0, 1.0, 195.0)]
+        _xs, ys, n = join_prepared(prepare_series(ref), prepare_series(cand), 5.0)
+        assert n == len(ref)
+        assert set(ys) == {1.0}
 
-    def test_empty_returns_zero(self):
-        a = prepare_series([])
-        b = prepare_series([_tp(i + 0.1, i % 4) for i in range(5)])
-        assert mirror_aligned_count(a, b, tol_s=0.5) == 0
+    def test_a_real_nearby_sample_always_wins(self):
+        """Filling is a fallback: it must never displace a measured value."""
+        ref = [_tp(10.0, 0.0)]
+        cand = [_held(0.0, 1.0, 100.0), _tp(11.0, 2.0)]
+        _xs, ys, _n = join_prepared(prepare_series(ref), prepare_series(cand), 5.0)
+        assert ys == [2.0]
+
+    def test_never_fills_past_the_hold(self):
+        ref = [_tp(50.0, 0.0)]
+        cand = [_held(0.0, 1.0, 20.0)]
+        assert join_prepared(prepare_series(ref), prepare_series(cand), 5.0)[2] == 0
+
+    def test_never_fills_backwards(self):
+        """A value is known *after* it was read, never before."""
+        ref = [_tp(0.0, 0.0)]
+        cand = [_held(100.0, 1.0, 200.0)]
+        assert join_prepared(prepare_series(ref), prepare_series(cand), 5.0)[2] == 0
+
+    def test_a_series_without_holds_joins_identically(self):
+        """No hold vector must be bit-identical to the pre-fill strict join."""
+        ref = [_tp(float(i), float(i)) for i in range(0, 100, 5)]
+        cand = [_tp(2.0, 1.0), _tp(60.0, 2.0)]
+        assert prepare_series(cand).hold_ts is None
+        strict = join_indices([tp.dt.timestamp() for tp in ref], [tp.dt.timestamp() for tp in cand])
+        assert strict == join_indices(
+            [tp.dt.timestamp() for tp in ref],
+            [tp.dt.timestamp() for tp in cand],
+            DEFAULT_JOIN_TOL_S,
+            None,
+        )
+
+    def test_align_many_fills_its_columns(self):
+        ref = [_tp(float(i), float(i)) for i in range(0, 40, 5)]
+        _vals, cols = align_many(ref, {"B": [_held(0.0, 7.0, 35.0)]}, tol_s=1.0)
+        assert cols["B"] == [7.0] * len(ref)
+
+
+class TestJoinFillStats:
+    def test_splits_measured_from_reconstructed(self):
+        ref = [_tp(float(i), float(i)) for i in range(0, 40, 5)]
+        stats = join_fill_stats(prepare_series(ref), prepare_series([_held(0.0, 7.0, 35.0)]), 1.0)
+        assert stats.n_direct == 1  # only the t=0 row was actually sampled
+        assert stats.n_filled == len(ref) - 1
+        assert stats.n == len(ref)
+        assert stats.max_hold_s == pytest.approx(35.0)
+
+    def test_reports_which_rows_were_filled(self):
+        ref = [_tp(0.0, 0.0), _tp(20.0, 1.0)]
+        stats = join_fill_stats(prepare_series(ref), prepare_series([_held(0.0, 7.0, 30.0)]), 1.0)
+        assert stats.filled_rows == frozenset({1})
+
+    def test_nothing_filled_without_holds(self):
+        ref = [_tp(0.0, 0.0), _tp(20.0, 1.0)]
+        stats = join_fill_stats(prepare_series(ref), prepare_series([_tp(0.0, 7.0)]), 1.0)
+        assert (stats.n_direct, stats.n_filled, stats.max_hold_s) == (1, 0, 0.0)
 
 
 # ---------------------------------------------------------------------------
@@ -327,6 +383,51 @@ class TestExtractSeries:
         assert n == 2
         assert xs == [10.0, 20.0]
         assert ys == [10.0, 20.0]
+
+
+class TestExtractSeriesFill:
+    """``extract_series`` is where a capture's validity window becomes a sample's."""
+
+    def _run_length(self, tmp_path):
+        doc = {
+            "sessions": [
+                {
+                    "date": "2026-07-22",
+                    "label": "charge",
+                    "keep_mode": "changes",
+                    "captures": [
+                        {"ecu": "AAF", "pid": "2181", "payload": "6181000A", "time": "09:00:00"},
+                        # nothing stored for 10 minutes: the value did not change
+                        {"ecu": "AAF", "pid": "2181", "payload": "61810014", "time": "09:10:00"},
+                        {"ecu": "AAF", "pid": "2181", "payload": "6181001E", "time": "09:20:00"},
+                    ],
+                }
+            ]
+        }
+        (tmp_path / "2026-07-22.json").write_text(json.dumps(doc))
+        return load_signal_captures([("AAF", "2181")], captures_dir=tmp_path)[("AAF", "2181")]
+
+    def test_no_policy_means_point_samples(self, tmp_path):
+        series = extract_series(self._run_length(tmp_path), "B4")
+        assert all(tp.hold_until is None for tp in series)
+
+    def test_auto_holds_a_run_length_session(self, tmp_path):
+        series = extract_series(self._run_length(tmp_path), "B4", fill=FillPolicy())
+        assert series[0].hold_until == series[1].dt
+        assert series[-1].hold_until is None  # last row of the session — nothing to carry
+
+    def test_max_hold_caps_the_segment(self, tmp_path):
+        series = extract_series(self._run_length(tmp_path), "B4", fill=FillPolicy(max_hold_s=60))
+        assert (series[0].hold_until - series[0].dt).total_seconds() == 60
+
+    def test_holds_come_from_the_capture_timeline_not_the_decoded_series(self, tmp_path):
+        """A capture that fails to decode still closes the previous run: a stored row
+        means the payload changed, whether or not this expression can read it."""
+        lp = self._run_length(tmp_path)
+        # B40 is past the end of every frame, so only some captures decode — the
+        # hold vector must still be derived from all of them.
+        holds = lp.timed_holds(FillPolicy())
+        assert holds[0] is not None and len(holds) == 3
 
 
 # ---------------------------------------------------------------------------

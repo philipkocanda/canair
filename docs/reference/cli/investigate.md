@@ -29,7 +29,8 @@ options:
 
 ```
 usage: canair investigate uds [-h] [--min-r R] [--min-n N]
-                              [--join-tol SECONDS] [--all] [--bits] [--events]
+                              [--join-tol SECONDS] [--fill {auto,hold,none}]
+                              [--max-hold SECONDS] [--all] [--bits] [--events]
                               [--dwell] [--field NAME]
                               [--independent-of ECU:PID:PARAM]
                               [--independent-of-file FILE] [--json]
@@ -71,7 +72,6 @@ options:
   -h, --help            show this help message and exit
   --min-r R             Only report an anchor when |r| ≥ this (default 0.6)
   --min-n N             Min aligned points (default 15)
-  --join-tol SECONDS    Nearest-timestamp join window (default 5.0s)
   --all                 Include bytes a verified param already maps (default:
                         hide only verified-mapped)
   --bits                Also analyse individual toggling bits (Bn:k) — the
@@ -107,6 +107,18 @@ options:
   --notation NAME       byte-index notation for output labels: wican
                         (default), isotp, torque, bix. Overrides the
                         display.byte_notation config key.
+
+time joining:
+  --join-tol SECONDS    Nearest-timestamp join window (default 5s)
+  --fill {auto,hold,none}
+                        Carry a run-length (keep:changes) value forward to
+                        reference instants it has no sample at: 'auto'
+                        (default) fills only keep:changes sessions, 'hold'
+                        forces it everywhere, 'none' keeps strict point
+                        semantics
+  --max-hold SECONDS    Cap how long a filled value may be carried (default:
+                        until the next sample or the end of its recording
+                        session)
 
 scoping:
   Restrict to captures within a date/time range (inclusive) and/or by session state/label substring. --since/--until accept a date (YYYY-MM-DD) or a timestamp (YYYY-MM-DD HH:MM[:SS[.ffffff]])
@@ -153,6 +165,7 @@ tip: no anchors found? widen scope (drop --state), lower --min-r, or grow the
 usage: canair investigate can [-h] --id ID
                               [--can-format {auto,asc,blf,csv,log,gvret}]
                               [--min-r R] [--min-n N] [--join-tol SECONDS]
+                              [--fill {auto,hold,none}] [--max-hold SECONDS]
                               [--bits] [--json]
                               FILE
 
@@ -179,9 +192,20 @@ options:
                         Log format (default: auto-detect by extension)
   --min-r R             Only report an anchor when |r| ≥ this (default 0.6)
   --min-n N             Min aligned points (default 15)
-  --join-tol SECONDS    Nearest-timestamp join window (default 5.0s)
   --bits                Also analyse individual toggling bits (rN:k)
   --json                Machine-readable output
+
+time joining:
+  --join-tol SECONDS    Nearest-timestamp join window (default 5s)
+  --fill {auto,hold,none}
+                        Carry a run-length (keep:changes) value forward to
+                        reference instants it has no sample at: 'auto'
+                        (default) fills only keep:changes sessions, 'hold'
+                        forces it everywhere, 'none' keeps strict point
+                        semantics
+  --max-hold SECONDS    Cap how long a filled value may be carried (default:
+                        until the next sample or the end of its recording
+                        session)
 
 examples:
   canair investigate can drive.blf --id 0x386        # rank each byte of 0x386 by best cross-ID anchor

@@ -10,6 +10,8 @@ usage: canair decode [-h] [--param NAME [NAME ...]] [--verified]
                      [--stats] [--group-by FIELD] [--discriminate AXIS]
                      [--find-mirrors] [--bits] [--bytes] [--first N]
                      [--last N] [--corr PARAM] [--join-tol SECONDS]
+                     [--fill {auto,hold,none}] [--max-hold SECONDS]
+                     [--mirror-match FRACTION] [--allow-offset]
                      [--corr-transform MODE]
                      [--method {pearson,spearman,cramers_v,mutual_info}]
                      [--plot] [--try NAME[:unit]=EXPR] [--dump-bytes]
@@ -55,9 +57,11 @@ options:
                         vehicle power state) or a cross-signal ECU:PID:PARAM
                         to group by (e.g. HVAC:220102:HVAC_COMPRESSOR_ON —
                         which byte separates on from off)
-  --find-mirrors        Report byte positions that are exactly equal across
-                        all captures (redundant status mirrors / unit-
-                        variants); add --bits for bit-level
+  --find-mirrors        Report byte positions on this PID that mirror each
+                        other — redundant status mirrors and unit-variants.
+                        Add --bits for bit-level, --allow-offset to accept an
+                        offset/scale, --mirror-match to change the agreement
+                        required
   --bits                With --find-mirrors: compare individual bits (Bn:k).
                         With --discriminate: also rank individual toggling
                         bits across the axis
@@ -71,8 +75,6 @@ options:
                         cross-signal reference ECU:PID:PARAM or ECU:PID:EXPR
                         (e.g. ESC:22C101:REAL_SPEED_KMH) which is time-aligned
                         by nearest timestamp.
-  --join-tol SECONDS    Nearest-timestamp join window for a cross-signal
-                        --corr (default 2.5s)
   --corr-transform MODE
                         Transform the --corr reference before pairing
                         (raw/delta/abs/cumsum/normalize/smooth) — e.g. --corr-
@@ -112,6 +114,28 @@ options:
   --notation NAME       byte-index notation for output labels: wican
                         (default), isotp, torque, bix. Overrides the
                         display.byte_notation config key.
+
+time joining:
+  --join-tol SECONDS    Nearest-timestamp join window (default 5s)
+  --fill {auto,hold,none}
+                        Carry a run-length (keep:changes) value forward to
+                        reference instants it has no sample at: 'auto'
+                        (default) fills only keep:changes sessions, 'hold'
+                        forces it everywhere, 'none' keeps strict point
+                        semantics
+  --max-hold SECONDS    Cap how long a filled value may be carried (default:
+                        until the next sample or the end of its recording
+                        session)
+
+mirror matching:
+  --mirror-match FRACTION
+                        Fraction of compared rows that must agree (default
+                        0.9; use 1 to demand every row, which round-robin poll
+                        skew alone is enough to defeat)
+  --allow-offset        Also accept a mirror at a constant offset or scale (a
+                        == b + k, a == b × s) — real mirrors are frequently
+                        the same quantity in different units or with a
+                        different zero
 
 scoping:
   Restrict to captures within a date/time range (inclusive) and/or by session state/label substring. --since/--until accept a date (YYYY-MM-DD) or a timestamp (YYYY-MM-DD HH:MM[:SS[.ffffff]])

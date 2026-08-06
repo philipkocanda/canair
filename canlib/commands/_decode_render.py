@@ -24,6 +24,7 @@ from canlib.commands._decode_calc import (
     find_mirrors,
 )
 from canlib.inspect_bytes import apply_transform
+from canlib.mirrors import DEFAULT_MIRROR_MATCH
 from canlib.notation import ByteNotation, relabel_signal
 from canlib.states import join_states as _join_states
 from canlib.stats import compute_stats
@@ -494,19 +495,27 @@ def print_mirrors(
     bits: bool = False,
     notation: ByteNotation = ByteNotation.WICAN,
     sub_bytes: int = 1,
+    min_fraction: float = DEFAULT_MIRROR_MATCH,
+    allow_offset: bool = False,
 ) -> None:
-    """Print exact byte/bit mirrors (redundant signals) found across captures."""
-    mirrors = find_mirrors(all_results, bits=bits)
-    print(f"  {_BOLD}Exact mirrors{_RESET} {_DIM}(positions equal across all captures){_RESET}")
+    """Print byte/bit mirrors (redundant signals) found across this PID's captures."""
+    mirrors = find_mirrors(
+        all_results, bits=bits, min_fraction=min_fraction, allow_offset=allow_offset
+    )
+    what = "positions equal" if not allow_offset else "positions equal up to an offset/scale"
+    print(
+        f"  {_BOLD}Mirrors{_RESET} {_DIM}({what} in ≥{min_fraction * 100:.0f}% of captures){_RESET}"
+    )
     if not mirrors:
         print(f"    {_DIM}none{_RESET}")
         print()
         return
     plen = longest_payload_len([r.get("capture") for r in all_results])
-    for a, b, n in mirrors:
-        da = relabel_signal(a, notation, sub_bytes=sub_bytes, payload_len=plen)
-        db = relabel_signal(b, notation, sub_bytes=sub_bytes, payload_len=plen)
-        print(f"    {_GREEN}{da} == {db}{_RESET}  {_DIM}(n={n}){_RESET}")
+    for hit in mirrors:
+        da = relabel_signal(hit.a, notation, sub_bytes=sub_bytes, payload_len=plen)
+        db = relabel_signal(hit.b, notation, sub_bytes=sub_bytes, payload_len=plen)
+        rel = hit.relation
+        print(f"    {_GREEN}{da} == {rel.describe(db)}{_RESET}  {_DIM}({rel.quality()}){_RESET}")
     print()
 
 

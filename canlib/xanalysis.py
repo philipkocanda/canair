@@ -32,6 +32,7 @@ from .corrmatrix import (
     correlate_matrix,
     signal_group_key,
 )
+from .fill import FillPolicy
 from .inspect_bytes import (
     INSPECT_TYPES,
     NO_EXPR,
@@ -265,16 +266,18 @@ def transform_ref(ref: list[TimePoint], mode: str | None) -> list[TimePoint]:
 
     ordered = sorted(ref, key=lambda tp: tp.dt)
     vals = apply_transform([tp.value for tp in ordered], mode)
-    return [TimePoint(tp.dt, v) for tp, v in zip(ordered, vals, strict=True)]
+    return [TimePoint(tp.dt, v, tp.hold_until) for tp, v in zip(ordered, vals, strict=True)]
 
 
-def build_param_series(loaded: LoadedPid, parameters: dict) -> dict[str, list[TimePoint]]:
+def build_param_series(
+    loaded: LoadedPid, parameters: dict, *, fill: FillPolicy | None = None
+) -> dict[str, list[TimePoint]]:
     """One time series per defined (non-empty-expression) param on this PID."""
     out: dict[str, list[TimePoint]] = {}
     for name, pdef in parameters.items():
         if not pdef.get("expression"):
             continue
-        series = extract_series(loaded, name, parameters=parameters)
+        series = extract_series(loaded, name, parameters=parameters, fill=fill)
         if series:
             out[f"{loaded.ecu}:{loaded.pid}:{name}"] = series
     return out
@@ -286,6 +289,7 @@ def build_byte_series(
     min_distinct: int = 4,
     skip_offsets: set[int] | None = None,
     skip_pci: bool = True,
+    fill: FillPolicy | None = None,
 ) -> dict[str, list[TimePoint]]:
     """One series per single raw data byte (``Bn``) that varies enough to matter.
 
@@ -310,8 +314,8 @@ def build_byte_series(
     # by indexing the frame. Calling extract_series per offset would re-parse
     # (payload_to_wican_bytes + evaluate_expression + entry_datetime) every capture
     # once per byte — O(bytes * captures) redundant parsing.
-    frames = loaded.timed_frames()
-    max_len = max((len(fr) for _dt, fr in frames), default=0)
+    rows = list(zip(loaded.timed_frames(), loaded.timed_holds(fill), strict=True))
+    max_len = max((len(fr) for (_dt, fr), _h in rows), default=0)
     if not max_len:
         return {}
     if skip_pci:
@@ -320,14 +324,16 @@ def build_byte_series(
     for bn in range(max_len):
         if bn in skip_offsets:
             continue
-        series = [TimePoint(dt, float(fr[bn])) for dt, fr in frames if bn < len(fr)]
+        series = [TimePoint(dt, float(fr[bn]), h) for (dt, fr), h in rows if bn < len(fr)]
         if len({tp.value for tp in series}) < min_distinct:
             continue
         out[f"{loaded.ecu}:{loaded.pid}:B{bn}"] = series
     return out
 
 
-def build_bit_series(loaded: LoadedPid, *, skip_pci: bool = True) -> dict[str, list[TimePoint]]:
+def build_bit_series(
+    loaded: LoadedPid, *, skip_pci: bool = True, fill: FillPolicy | None = None
+) -> dict[str, list[TimePoint]]:
     """One 0/1 series per individual data bit (``Bn:k``) that actually toggles.
 
     The bit-level companion to :func:`build_byte_series`. Only bits with ≥2
@@ -339,8 +345,8 @@ def build_bit_series(loaded: LoadedPid, *, skip_pci: bool = True) -> dict[str, l
 
     from .byteindex import wican_to_isotp
 
-    frames = loaded.timed_frames()
-    max_len = max((len(fr) for _dt, fr in frames), default=0)
+    rows = list(zip(loaded.timed_frames(), loaded.timed_holds(fill), strict=True))
+    max_len = max((len(fr) for (_dt, fr), _h in rows), default=0)
 
     out: dict[str, list[TimePoint]] = {}
     for off in range(max_len):
@@ -348,58 +354,11 @@ def build_bit_series(loaded: LoadedPid, *, skip_pci: bool = True) -> dict[str, l
             continue
         for k in range(8):
             series = [
-                TimePoint(dt, float((fr[off] >> k) & 1)) for dt, fr in frames if off < len(fr)
+                TimePoint(dt, float((fr[off] >> k) & 1), h) for (dt, fr), h in rows if off < len(fr)
             ]
             if len({tp.value for tp in series}) >= 2:
                 out[f"{loaded.ecu}:{loaded.pid}:B{off}:{k}"] = series
     return out
-
-
-def find_frame_mirrors(frames: list[bytes], *, bits: bool = False) -> list[tuple[str, str, int]]:
-    """Byte (and optionally bit) positions *exactly equal* across every frame.
-
-    The intra-frame, positionally-aligned mirror finder (the single-PID case of
-    ``decode --find-mirrors``): given one reconstructed frame per capture — all in
-    the same offset space — report position pairs whose value columns are
-    identical in all frames. Unlike the time-aligned cross-signal mirror
-    (:func:`~canlib.align.mirror_aligned_count`), no timestamp join is needed
-    because the columns are already row-aligned by capture index.
-
-    Returns ``(a, b, n)`` tuples where position ``a`` == position ``b`` in all
-    ``n`` frames. Byte positions are ``Bn``; bits are ``Bn:k``. Only positions
-    that actually vary (≥2 distinct values) are considered, so all-constant
-    padding doesn't produce spurious "mirrors".
-    """
-    if len(frames) < 2:
-        return []
-    max_len = min(len(f) for f in frames)  # only positions present in every frame
-    n = len(frames)
-
-    # Collect per-position value columns for varying byte (and bit) positions.
-    cols: dict[str, list[int]] = {}
-    for i in range(max_len):
-        col = [f[i] for f in frames]
-        if len(set(col)) >= 2:
-            cols[f"B{i}"] = col
-    if bits:
-        for i in range(max_len):
-            for k in range(8):
-                col = [(f[i] >> k) & 1 for f in frames]
-                if len(set(col)) >= 2:
-                    cols[f"B{i}:{k}"] = col
-
-    names = list(cols)
-    mirrors: list[tuple[str, str, int]] = []
-    for i in range(len(names)):
-        for j in range(i + 1, len(names)):
-            a, b = names[i], names[j]
-            # A byte and one of its own bits trivially "mirror" for single-bit
-            # bytes; skip a bit compared against its own containing byte.
-            if a.split(":")[0] == b.split(":")[0] and (":" in a) != (":" in b):
-                continue
-            if cols[a] == cols[b]:
-                mirrors.append((a, b, n))
-    return mirrors
 
 
 # ---------------------------------------------------------------------------
@@ -552,7 +511,15 @@ def lag_scan(
         step = 1.0
     best: LagHit | None = None
     for k in range(-max_lag, max_lag + 1):
-        shifted = [TimePoint(tp.dt + timedelta(seconds=k * step), tp.value) for tp in cand]
+        shift = timedelta(seconds=k * step)
+        shifted = [
+            TimePoint(
+                tp.dt + shift,
+                tp.value,
+                None if tp.hold_until is None else tp.hold_until + shift,
+            )
+            for tp in cand
+        ]
         xs, ys, n = join_nearest(ref, shifted, tol_s=tol_s)
         r = correlation(xs, ys, method)
         if r is None:
@@ -601,6 +568,7 @@ def hunt_byte(
     candidates: list[tuple[float, float, str, str | None, str | None]] | None = None,
     per_session: bool = False,
     session_gap_s: float = DEFAULT_SESSION_GAP_S,
+    fill: FillPolicy | None = None,
 ) -> list[HuntHit]:
     """Sweep every byte offset × interpretation, rank by |r| vs ``ref``.
 
@@ -625,6 +593,7 @@ def hunt_byte(
     # non-hex payload (a stored "NO DATA", a mis-transcribed capture) is dropped
     # there rather than aborting the sweep — every sibling series builder agrees.
     frames = loaded.timed_frames()
+    holds = loaded.timed_holds(fill)
     max_len = max((len(fr) for _dt, fr in frames), default=0)
     if not frames:
         return []
@@ -687,8 +656,8 @@ def hunt_byte(
                 if any((off + k) in pci for k in range(width)):
                     continue
                 cand = [
-                    TimePoint(dt, v)
-                    for dt, frame in frames
+                    TimePoint(dt, v, hold)
+                    for (dt, frame), hold in zip(frames, holds, strict=True)
                     if (v := interpret_bytes(frame, off, spec, little=endian_little)) is not None
                 ]
                 if len({tp.value for tp in cand}) < 3:
@@ -713,8 +682,8 @@ def hunt_byte(
                 continue  # contiguous — already covered by the sweep above
             for signed in (False, True):
                 cand = [
-                    TimePoint(dt, v)
-                    for dt, frame in frames
+                    TimePoint(dt, v, hold)
+                    for (dt, frame), hold in zip(frames, holds, strict=True)
                     if (v := read_indices(frame, idxs, signed)) is not None
                 ]
                 if len({tp.value for tp in cand}) < 3:
@@ -764,10 +733,13 @@ def load_ref(
     until: date | datetime | None = None,
     state: str | None = None,
     label: str | None = None,
+    fill: FillPolicy | None = None,
 ) -> tuple[list[TimePoint], str]:
     """Load an ``ECU:PID:PARAM|EXPR`` reference series (shared by hunt/correlate).
 
     Raises ``ValueError`` with a clean message when the reference can't be built.
+    ``fill`` stamps the samples with their validity windows, so a run-length
+    reference can still be joined onto instants it has no sample at.
     """
     from .pids import build_ecu_index, load_pids
 
@@ -789,7 +761,7 @@ def load_ref(
     ecu_pids = build_ecu_index(load_pids()).get(sref.ecu.upper(), {}).get("pids", {})
     if sref.pid.upper() in ecu_pids:
         params = ecu_pids[sref.pid.upper()].get("parameters", {})
-    series = extract_series(lp, sref.name_or_expr, parameters=params)
+    series = extract_series(lp, sref.name_or_expr, parameters=params, fill=fill)
     if not series:
         raise ValueError(f"reference {sref.label} decoded no numeric values in scope")
     return series, sref.label

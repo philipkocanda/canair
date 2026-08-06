@@ -12,8 +12,8 @@ PID coverage audit — 4 PID(s) with gaps, 0 without captures
       UNMAPPED B6,B7,B9,B12,B13,B14,B15
       UNVERIFIED B5,B10,B11
       BITS B11 have{3} missing{0,1,2,4,5,6,7}
-  IGPM 22BC07 (3p, 2 verified)  10 data bytes, 2026-04-16
+  IGPM 22BC07 (4p, 2 verified)  10 data bytes, 2026-04-16
       UNMAPPED B5,B6,B7,B9,B10,B13,B14,B15
       BITS B11 have{7} missing{0,1,2,3,4,5,6}
-      BITS B12 have{0,3} missing{1,2,4,5,6,7}
+      BITS B12 have{0,2,3} missing{1,4,5,6,7}
 

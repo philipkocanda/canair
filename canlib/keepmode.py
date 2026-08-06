@@ -86,17 +86,27 @@ def persisted_keep_mode(mode: str | None) -> PersistedKeepMode | None:
     return None
 
 
-# Mild caveat — run-length recording (``keep_mode: changes``).
+# Provenance note — run-length recording (``keep_mode: changes``).
+#
+# Deliberately *not* phrased as "this data is degraded". A run-length row is a
+# value-transition, which is strictly more informative than a sample: the value is
+# known to hold until the next row, which is what lets the time-aligned joins carry
+# it forward (see :mod:`canlib.fill` and ``--fill``). The banner exists to name what
+# genuinely is *not* recorded, so a reader doesn't mistake stored-row counts for a
+# sampling rate — the misreading that once produced a wrong "barely polled"
+# conclusion about an ECU that was polled every cycle and simply rarely changed.
 #
 # There is deliberately no blanket ``keep:unique`` counterpart: most historical
-# captures were recorded that way, so a scope banner fired on nearly every
-# report and became noise. The unique caveat is now raised only where it changes
-# a reading — the dwell classes (``investigate --events``) and the
-# ``--transform``/``--lag-scan`` time-gap warnings in ``decode``/``correlate``.
+# captures were recorded that way, so a scope banner fired on nearly every report
+# and became noise. The unique caveat is now raised only where it changes a
+# reading — the dwell classes (``investigate --events``), the
+# ``--transform``/``--lag-scan`` time-gap warnings in ``decode``/``correlate``, and
+# a forced ``--fill hold``.
 CHANGES_BANNER = (
     "scope includes keep:changes sessions — stored rows are value-transitions "
-    "(run-length); the intra-run sampling cadence and the final run's duration are "
-    "not captured"
+    "(run-length), so each value holds until the next row and time joins carry it "
+    "forward (--fill); a stored-row count measures volatility, not sampling. Not "
+    "recorded: the intra-run polling cadence, and the final run's end"
 )
 
 

@@ -3,45 +3,57 @@
 # `canair align`
 
 ```
-usage: canair align [-h] [--csv | --json] [--join-tol SECONDS] [--since WHEN]
-                    [--until WHEN] [--date YYYY-MM-DD] [--today]
-                    [--last-sessions [N]] [--last-session] [--state SUBSTR]
-                    [--label SUBSTR]
+usage: canair align [-h] [--csv | --json] [--join-tol SECONDS]
+                    [--fill {auto,hold,none}] [--max-hold SECONDS]
+                    [--since WHEN] [--until WHEN] [--date YYYY-MM-DD]
+                    [--today] [--last-sessions [N]] [--last-session]
+                    [--state SUBSTR] [--label SUBSTR]
                     ECU:PID:PARAM [ECU:PID:PARAM ...]
 
 Emit a time-aligned, wide table of several ECU:PID:PARAM signals — one row per reference sample, one column per signal, nearest-joined within a tolerance. The first selector sets the row cadence; the rest join onto it.
 
 positional arguments:
-  ECU:PID:PARAM        Two or more signal selectors (ECU:PID:PARAM or
-                       ECU:PID:EXPR). May be separate args or one quoted
-                       whitespace-separated string. The first is the reference
-                       (sets the row cadence).
+  ECU:PID:PARAM         Two or more signal selectors (ECU:PID:PARAM or
+                        ECU:PID:EXPR). May be separate args or one quoted
+                        whitespace-separated string. The first is the
+                        reference (sets the row cadence).
 
 options:
-  -h, --help           show this help message and exit
-  --csv                Output CSV (time + one column per signal)
-  --json               Output JSON (list of row objects)
-  --join-tol SECONDS   Nearest-join tolerance in seconds (default 5.0)
+  -h, --help            show this help message and exit
+  --csv                 Output CSV (time + one column per signal)
+  --json                Output JSON (list of row objects)
+
+time joining:
+  --join-tol SECONDS    Nearest-timestamp join window (default 5s)
+  --fill {auto,hold,none}
+                        Carry a run-length (keep:changes) value forward to
+                        reference instants it has no sample at: 'auto'
+                        (default) fills only keep:changes sessions, 'hold'
+                        forces it everywhere, 'none' keeps strict point
+                        semantics
+  --max-hold SECONDS    Cap how long a filled value may be carried (default:
+                        until the next sample or the end of its recording
+                        session)
 
 scoping:
   Restrict to captures within a date/time range (inclusive) and/or by session state/label substring. --since/--until accept a date (YYYY-MM-DD) or a timestamp (YYYY-MM-DD HH:MM[:SS[.ffffff]])
 
-  --since WHEN         Only captures on or after this date/time (YYYY-MM-DD[
-                       HH:MM:SS])
-  --until WHEN         Only captures on or before this date/time (YYYY-MM-DD[
-                       HH:MM:SS])
-  --date YYYY-MM-DD    Only captures on this exact date (shorthand for --since
-                       X --until X)
-  --today              Only captures recorded today (shorthand for --date
-                       <today>)
-  --last-sessions [N]  Only the most recent N recorded sessions in scope (N
-                       defaults to 1)
-  --last-session       Only the most recent recorded session in scope (alias
-                       for --last-sessions 1)
-  --state SUBSTR       Only captures whose session vehicle_states contain
-                       SUBSTR (case-insensitive), e.g. --state driving
-  --label SUBSTR       Only captures whose session/capture label contains
-                       SUBSTR (case-insensitive)
+  --since WHEN          Only captures on or after this date/time (YYYY-MM-DD[
+                        HH:MM:SS])
+  --until WHEN          Only captures on or before this date/time (YYYY-MM-DD[
+                        HH:MM:SS])
+  --date YYYY-MM-DD     Only captures on this exact date (shorthand for
+                        --since X --until X)
+  --today               Only captures recorded today (shorthand for --date
+                        <today>)
+  --last-sessions [N]   Only the most recent N recorded sessions in scope (N
+                        defaults to 1)
+  --last-session        Only the most recent recorded session in scope (alias
+                        for --last-sessions 1)
+  --state SUBSTR        Only captures whose session vehicle_states contain
+                        SUBSTR (case-insensitive), e.g. --state driving
+  --label SUBSTR        Only captures whose session/capture label contains
+                        SUBSTR (case-insensitive)
 
 Examples:
   # eyeball the compressor state, heat power and pack power together

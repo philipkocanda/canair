@@ -30,7 +30,8 @@ usage: canair hunt uds [-h]
                        (--against ECU:PID:PARAM | --against-file FILE | --physical)
                        [--min-n N] [--top N] [--transform MODE]
                        [--method {pearson,spearman}] [--join-tol SECONDS]
-                       [--json] [--all-interps] [--control ECU:PID:PARAM]
+                       [--fill {auto,hold,none}] [--max-hold SECONDS] [--json]
+                       [--all-interps] [--control ECU:PID:PARAM]
                        [--control-file FILE] [--promote NAME] [--per-session]
                        [--session-gap SECONDS] [--notation NAME]
                        [--since WHEN] [--until WHEN] [--date YYYY-MM-DD]
@@ -78,7 +79,6 @@ options:
   --method {pearson,spearman}
                         Ranking coefficient: pearson (linear, default) or
                         spearman (rank)
-  --join-tol SECONDS    Nearest-timestamp join window (default 5.0s)
   --json                Machine-readable output
   --all-interps         Show every interpretation per offset (u8/i16/u24/…);
                         default collapses to the best interpretation per byte
@@ -109,6 +109,18 @@ options:
   --notation NAME       byte-index notation for output labels: wican
                         (default), isotp, torque, bix. Overrides the
                         display.byte_notation config key.
+
+time joining:
+  --join-tol SECONDS    Nearest-timestamp join window (default 5s)
+  --fill {auto,hold,none}
+                        Carry a run-length (keep:changes) value forward to
+                        reference instants it has no sample at: 'auto'
+                        (default) fills only keep:changes sessions, 'hold'
+                        forces it everywhere, 'none' keeps strict point
+                        semantics
+  --max-hold SECONDS    Cap how long a filled value may be carried (default:
+                        until the next sample or the end of its recording
+                        session)
 
 scoping:
   Restrict to captures within a date/time range (inclusive) and/or by session state/label substring. --since/--until accept a date (YYYY-MM-DD) or a timestamp (YYYY-MM-DD HH:MM[:SS[.ffffff]])
@@ -169,7 +181,8 @@ tip: --against takes a known signal ECU:PID:PARAM (or a raw ECU:PID:EXPR). Use
 usage: canair hunt can [-h] [--can-format {auto,asc,blf,csv,log,gvret}] --id
                        ID --against 0xID:rN [--min-n N] [--top N]
                        [--transform MODE] [--method {pearson,spearman}]
-                       [--join-tol SECONDS] [--json] [--all-interps]
+                       [--join-tol SECONDS] [--fill {auto,hold,none}]
+                       [--max-hold SECONDS] [--json] [--all-interps]
                        [--notation NAME]
                        FILE
 
@@ -193,7 +206,6 @@ options:
   --method {pearson,spearman}
                         Ranking coefficient: pearson (linear, default) or
                         spearman (rank)
-  --join-tol SECONDS    Nearest-timestamp join window (default 5.0s)
   --json                Machine-readable output
   --all-interps         Show every interpretation per offset (u8/i16/u24/…);
                         default collapses to the best interpretation per byte
@@ -201,4 +213,16 @@ options:
   --notation NAME       byte-index notation for output labels: wican
                         (default), isotp, torque, bix. Overrides the
                         display.byte_notation config key.
+
+time joining:
+  --join-tol SECONDS    Nearest-timestamp join window (default 5s)
+  --fill {auto,hold,none}
+                        Carry a run-length (keep:changes) value forward to
+                        reference instants it has no sample at: 'auto'
+                        (default) fills only keep:changes sessions, 'hold'
+                        forces it everywhere, 'none' keeps strict point
+                        semantics
+  --max-hold SECONDS    Cap how long a filled value may be carried (default:
+                        until the next sample or the end of its recording
+                        session)
 ```

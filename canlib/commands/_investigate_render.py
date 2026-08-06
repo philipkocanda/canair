@@ -51,7 +51,16 @@ def print_keep_banner(captures) -> None:
 
 
 def print_report(
-    ecu, pid, reports, args, lp, has_anchors: bool, *, driver_label=None, words=None
+    ecu,
+    pid,
+    reports,
+    args,
+    lp,
+    has_anchors: bool,
+    *,
+    driver_label=None,
+    words=None,
+    fill_line: str | None = None,
 ) -> None:
     notation = resolve_notation(args.notation)
     sub_bytes = subfunction_bytes_for_pid(pid)
@@ -61,6 +70,8 @@ def print_report(
         f"{_DIM}({len(lp.captures)} timed captures, ≤{args.join_tol:g}s join){_RESET}"
     )
     print_keep_banner(lp.captures)
+    if fill_line:
+        print(f"  {_CYAN}{fill_line}{_RESET}")
     if not reports:
         what = "varying " if not args.all else ""
         unit = "bytes/bits" if args.bits else "bytes"

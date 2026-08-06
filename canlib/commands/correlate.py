@@ -16,7 +16,6 @@ import json as _json
 import sys
 
 from canlib.align import (
-    DEFAULT_JOIN_TOL_S,
     DEFAULT_SESSION_GAP_S,
     detrend_by_session,
     join_nearest,
@@ -35,7 +34,15 @@ from canlib.commands._correlate_render import (
     _print_overlap,
 )
 from canlib.commands._group import group_help
+from canlib.commands._join import (
+    add_join_args,
+    add_mirror_args,
+    fill_policy_from_args,
+    fill_summaries,
+    fill_summary_line,
+)
 from canlib.corrmatrix import CLUSTER_THRESHOLD
+from canlib.fill import FILL_HOLD, FORCED_HOLD_WARNING, FillPolicy
 from canlib.keepmode import CHANGES_BANNER, scope_is_keep_changes, scope_is_keep_unique
 from canlib.notation import add_notation_arg, relabel_signal, resolve_notation
 from canlib.stats import METHOD_CHEAT_SHEET as _METHOD_CHEAT_SHEET
@@ -59,6 +66,7 @@ NAME = "correlate"
 _BOLD = "\033[1m"
 _DIM = "\033[2m"
 _GREEN = "\033[92m"
+_CYAN = "\033[96m"
 _YELLOW = "\033[93m"
 _RESET = "\033[0m"
 
@@ -112,10 +120,12 @@ def _add_can_parser(kinds) -> argparse.ArgumentParser:
     parser.add_argument(
         "--find-mirrors",
         action="store_true",
-        help="Instead of ranking correlations, report byte/bit positions that are "
-        "time-aligned equal ACROSS arbitration IDs — a signal mirrored on two IDs "
-        "(e.g. wheel speed on 0x386 and 0x331). Use with --bits for bit-level",
+        help="Instead of ranking correlations, report byte/bit positions mirrored "
+        "ACROSS arbitration IDs (time-aligned) — a signal broadcast on two IDs (e.g. "
+        "wheel speed on 0x386 and 0x331). Use with --bits for bit-level and "
+        "--allow-offset for offset/scale mirrors",
     )
+    add_mirror_args(parser)
     parser.add_argument(
         "--no-cluster",
         action="store_true",
@@ -151,13 +161,7 @@ def _add_shared_analysis_args(parser) -> None:
         "the categorical cramers_v / mutual_info (treat each value as a nominal "
         "category — for mode/flag/enum bytes where numeric spacing is meaningless)",
     )
-    parser.add_argument(
-        "--join-tol",
-        type=float,
-        default=DEFAULT_JOIN_TOL_S,
-        metavar="SECONDS",
-        help=f"Nearest-timestamp join window (default {DEFAULT_JOIN_TOL_S}s)",
-    )
+    add_join_args(parser)
     parser.add_argument(
         "--bits",
         action="store_true",
@@ -332,11 +336,13 @@ examples:
     parser.add_argument(
         "--find-mirrors",
         action="store_true",
-        help="Instead of ranking correlations, report byte/bit positions that are "
-        "time-aligned equal ACROSS co-polled ECU/PIDs — e.g. a door bit in IGPM "
-        "mirrored in BCM. Use with --bits for bit-level. Cross-ECU companion to "
-        "`decode --find-mirrors` (which is single-PID)",
+        help="Instead of ranking correlations, report byte/bit positions mirrored "
+        "ACROSS co-polled ECU/PIDs (time-aligned) — e.g. a door bit in IGPM also "
+        "present in BCM, or a temperature another ECU reports at a different offset. "
+        "Use with --bits for bit-level and --allow-offset for offset/scale mirrors. "
+        "Cross-ECU companion to `decode --find-mirrors` (which is single-PID)",
     )
+    add_mirror_args(parser)
     add_notation_arg(parser)
     add_scope_args(parser)
     parser.set_defaults(func=run)
@@ -371,6 +377,20 @@ def _discover_specs(query, since, until, state, label):
     return sorted(specs)
 
 
+def _fill_json(policy: FillPolicy, fills) -> dict:
+    """The ``fill`` block every ``--json`` report carries.
+
+    Machine consumers need the same "measured vs reconstructed" distinction the
+    human report gets, or an agent reading a strong correlation cannot tell whether
+    its rows were sampled or carried forward.
+    """
+    return {
+        "mode": policy.mode,
+        "max_hold_s": policy.max_hold_s,
+        "signals": [f.as_json() for f in fills],
+    }
+
+
 def _scope_keep_flags(specs, since, until, state, label) -> tuple[bool, bool]:
     """(has keep:unique, has keep:changes) across the captures in scope."""
     loaded = load_signal_captures(specs, since=since, until=until, state=state, label=label)
@@ -379,12 +399,16 @@ def _scope_keep_flags(specs, since, until, state, label) -> tuple[bool, bool]:
     return has_unique, has_changes
 
 
-def _gather_series(specs, since, until, state, label, want_bytes, want_bits=False):
+def _gather_series(
+    specs, since, until, state, label, want_bytes, want_bits=False, fill=None, tol_s=0.0
+):
     """Build all signal series (params + optionally varying bytes/bits) for specs.
 
-    Returns ``(series, payload_lens)``. The ranked output mixes labels from every
-    PID in scope, so the render layer needs each PID's payload length to resolve
-    a WiCAN offset against the right frame layout (see notation.relabel_signal).
+    Returns ``(series, payload_lens, fills)``. The ranked output mixes labels from
+    every PID in scope, so the render layer needs each PID's payload length to
+    resolve a WiCAN offset against the right frame layout (see
+    notation.relabel_signal); ``fills`` names which PIDs contribute forward-filled
+    run-length values, for the report header.
     """
     from canlib.pids import build_ecu_index, load_pids
 
@@ -395,12 +419,13 @@ def _gather_series(specs, since, until, state, label, want_bytes, want_bits=Fals
         if not lp.captures:
             continue
         params = ecu_index.get(ecu, {}).get("pids", {}).get(pid, {}).get("parameters", {})
-        series.update(build_param_series(lp, params))
+        series.update(build_param_series(lp, params, fill=fill))
         if want_bytes:
-            series.update(build_byte_series(lp))
+            series.update(build_byte_series(lp, fill=fill))
         if want_bits:
-            series.update(build_bit_series(lp))
-    return series, payload_lengths(loaded)
+            series.update(build_bit_series(lp, fill=fill))
+    fills = fill_summaries(loaded.values(), fill, tol_s) if fill is not None else []
+    return series, payload_lengths(loaded), fills
 
 
 def _run_can_log(args) -> int:
@@ -559,20 +584,12 @@ def run(args) -> int:
         )
 
     if args.find_mirrors:
-        return _print_cross_mirrors(
-            specs,
-            since,
-            until,
-            args.state,
-            args.label,
-            args.join_tol,
-            args.min_n,
-            args.bits,
-            args.json,
-            notation,
-        )
+        return _print_cross_mirrors(specs, since, until, args, notation)
 
     keep_unique, keep_changes = _scope_keep_flags(specs, since, until, args.state, args.label)
+    fill = fill_policy_from_args(args)
+    if keep_unique and fill.mode == FILL_HOLD:
+        print(f"correlate: {FORCED_HOLD_WARNING}", file=sys.stderr)
     if not args.json:
         transform_caveat = args.transform in ("delta", "cumsum") or args.lag_scan
         what = (
@@ -598,7 +615,7 @@ def run(args) -> int:
                 print(f"  {_YELLOW}{line}{_RESET}")
             print()
 
-    series, plens = _gather_series(
+    series, plens, fills = _gather_series(
         specs,
         since,
         until,
@@ -606,10 +623,16 @@ def run(args) -> int:
         args.label,
         args.bytes,
         args.bits,
+        fill,
+        args.join_tol,
     )
     if not series:
         print("No time-aligned signals found in scope.", file=sys.stderr)
         return 1
+
+    fill_line = fill_summary_line(fills, fill)
+    if fill_line and not args.json:
+        print(f"  {_CYAN}{fill_line}{_RESET}\n")
 
     per_session = getattr(args, "per_session", False)
     if per_session:
@@ -629,7 +652,12 @@ def run(args) -> int:
                 ref_series, ref_label = load_reference_file(args.against_file)
             else:
                 ref_series, ref_label = load_ref(
-                    args.against, since=since, until=until, state=args.state, label=args.label
+                    args.against,
+                    since=since,
+                    until=until,
+                    state=args.state,
+                    label=args.label,
+                    fill=fill,
                 )
         except ValueError as e:
             flag = "--against-file" if args.against_file else "--against"
@@ -704,7 +732,12 @@ def run(args) -> int:
                     control_series, control_label = load_reference_file(args.control_file)
                 else:
                     control_series, control_label = load_ref(
-                        args.control, since=since, until=until, state=args.state, label=args.label
+                        args.control,
+                        since=since,
+                        until=until,
+                        state=args.state,
+                        label=args.label,
+                        fill=fill,
                     )
             except ValueError as e:
                 flag = "--control-file" if args.control_file else "--control"
@@ -777,6 +810,7 @@ def run(args) -> int:
                     "reference": ref_label,
                     "method": args.method,
                     "join_tol_s": args.join_tol,
+                    "fill": _fill_json(fill, fills),
                     "lag_scan": args.lag_scan,
                     "hits": [
                         {"signal": n, "r": r, "n": nn, "lag_seconds": lag} for n, r, nn, lag in rows
@@ -815,7 +849,11 @@ def run(args) -> int:
         _json.dump(
             {
                 "join_tol_s": args.join_tol,
-                "hits": [{"a": h.a, "b": h.b, "r": h.r, "n": h.n} for h in hits[: args.top]],
+                "fill": _fill_json(fill, fills),
+                "hits": [
+                    {"a": h.a, "b": h.b, "r": h.r, "n": h.n, "n_filled": h.n_filled}
+                    for h in hits[: args.top]
+                ],
             },
             sys.stdout,
             indent=2,

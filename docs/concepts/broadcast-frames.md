@@ -57,7 +57,8 @@ canair correlate can drive.blf --min-r 0.9
 canair hunt can drive.blf --id 0x220 --against 0x386:r0
 
 # Which positions are the SAME signal broadcast on two arbitration IDs?
-# (e.g. wheel speed mirrored on 0x386 and 0x331). --bits for bit-level.
+# (e.g. wheel speed mirrored on 0x386 and 0x331). --bits for bit-level,
+# --allow-offset to also accept a different zero/scale.
 canair correlate can drive.blf --find-mirrors
 ```
 

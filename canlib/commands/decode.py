@@ -42,7 +42,7 @@ import argparse
 import json
 import sys
 
-from canlib.align import DEFAULT_JOIN_TOL_S, join_nearest
+from canlib.align import join_nearest
 from canlib.capture_dates import (
     add_scope_args,
     filter_by_date_range,
@@ -72,6 +72,7 @@ from canlib.commands._decode_render import (
     scope_banner,
 )
 from canlib.commands._hints import ecu_completer as _ecu_completer
+from canlib.commands._join import add_join_args, add_mirror_args, fill_policy_from_args
 from canlib.expression import evaluate_expression
 from canlib.inspect_bytes import POST_TRANSFORMS
 from canlib.keepmode import CHANGES_BANNER, scope_is_keep_changes, scope_is_keep_unique
@@ -319,8 +320,9 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     parser.add_argument(
         "--find-mirrors",
         action="store_true",
-        help="Report byte positions that are exactly equal across all captures "
-        "(redundant status mirrors / unit-variants); add --bits for bit-level",
+        help="Report byte positions on this PID that mirror each other — redundant "
+        "status mirrors and unit-variants. Add --bits for bit-level, --allow-offset "
+        "to accept an offset/scale, --mirror-match to change the agreement required",
     )
     parser.add_argument(
         "--bits",
@@ -348,13 +350,8 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "ECU:PID:PARAM or ECU:PID:EXPR (e.g. ESC:22C101:REAL_SPEED_KMH) which is "
         "time-aligned by nearest timestamp.",
     )
-    parser.add_argument(
-        "--join-tol",
-        type=float,
-        default=None,
-        metavar="SECONDS",
-        help="Nearest-timestamp join window for a cross-signal --corr (default 2.5s)",
-    )
+    add_join_args(parser)
+    add_mirror_args(parser)
     parser.add_argument(
         "--corr-transform",
         choices=list(POST_TRANSFORMS),
@@ -778,11 +775,12 @@ def _decode_one(
     corr_ref = None
     cross_ref_series = None
     cross_ref_label = None
+    _fill = fill_policy_from_args(args)
     if args.corr:
         if ":" in args.corr:
             try:
                 cross_ref_series, cross_ref_label = load_cross_ref_series(
-                    args.corr, scope=scope, tol_s=args.join_tol
+                    args.corr, scope=scope, tol_s=args.join_tol, fill=_fill
                 )
             except ValueError as e:
                 print(f"--corr error: {e}", file=sys.stderr)
@@ -880,11 +878,10 @@ def _decode_one(
                 out["method"] = args.method
                 out["correlations"] = {}
                 if cross_ref_series is not None:
-                    tol = args.join_tol if args.join_tol is not None else DEFAULT_JOIN_TOL_S
-                    out["join_tol_s"] = tol
+                    out["join_tol_s"] = args.join_tol
                     for name in param_names:
                         local = _local_series(all_results, name)
-                        xs, ys, n = join_nearest(cross_ref_series, local, tol_s=tol)
+                        xs, ys, n = join_nearest(cross_ref_series, local, tol_s=args.join_tol)
                         out["correlations"][name] = {"r": _correlation(xs, ys, args.method), "n": n}
                 else:
                     for name in param_names:
@@ -975,7 +972,14 @@ def _decode_one(
     _sub_bytes = subfunction_bytes_for_pid(pid_key)
     printed = False
     if args.find_mirrors:
-        print_mirrors(all_results, bits=args.bits, notation=_notation, sub_bytes=_sub_bytes)
+        print_mirrors(
+            all_results,
+            bits=args.bits,
+            notation=_notation,
+            sub_bytes=_sub_bytes,
+            min_fraction=args.mirror_match,
+            allow_offset=args.allow_offset,
+        )
         printed = True
     if args.stats:
         if args.group_by == "state":
@@ -992,7 +996,8 @@ def _decode_one(
                     all_results,
                     args.discriminate,
                     scope=scope,
-                    tol_s=args.join_tol if args.join_tol is not None else DEFAULT_JOIN_TOL_S,
+                    tol_s=args.join_tol,
+                    fill=_fill,
                 )
             except ValueError as e:
                 print(f"--discriminate error: {e}", file=sys.stderr)

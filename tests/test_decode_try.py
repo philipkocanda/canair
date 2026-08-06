@@ -351,17 +351,19 @@ class TestCorrTransform:
 
 
 class TestFindMirrors:
-    """Tranche 2.3 — exact byte/bit mirror detection."""
+    """Byte/bit mirror detection on one PID (decode --find-mirrors)."""
 
     def _results(self, *payloads):
         return [{"capture": {"payload": p}} for p in payloads]
+
+    def _pairs(self, mirrors):
+        return {(h.a, h.b) for h in mirrors}
 
     def test_byte_mirror_detected(self):
         # payload 62 B0 04 <d0> <d1> <d2> -> WiCAN B4=d0, B5=d1, B6=d2 (B0=PCI)
         # d0 and d1 always equal; d2 varies independently
         results = self._results("62B0040A0A01", "62B004141405", "62B0040909FF")
-        mirrors = _decode_calc.find_mirrors(results)
-        pairs = {(a, b) for a, b, _ in mirrors}
+        pairs = self._pairs(_decode_calc.find_mirrors(results))
         assert ("B4", "B5") in pairs
         assert ("B4", "B6") not in pairs
 
@@ -369,14 +371,28 @@ class TestFindMirrors:
         # d0 constant 0x00 in all -> WiCAN B4 excluded (only varying positions)
         results = self._results("62B00400AA", "62B00400BB", "62B00400CC")
         mirrors = _decode_calc.find_mirrors(results)
-        assert all("B4" not in (a, b) for a, b, _ in mirrors)
+        assert all("B4" not in (h.a, h.b) for h in mirrors)
 
     def test_bit_mirror(self):
         # payload 62 B0 04 <d0> -> WiCAN B4=d0; bits 0 and 2 co-vary (0x00/0x05)
         results = self._results("62B00400", "62B00405", "62B00400", "62B00405")
-        mirrors = _decode_calc.find_mirrors(results, bits=True)
-        pairs = {(a, b) for a, b, _ in mirrors}
+        pairs = self._pairs(_decode_calc.find_mirrors(results, bits=True))
         assert ("B4:0", "B4:2") in pairs
 
     def test_too_few_captures(self):
         assert _decode_calc.find_mirrors(self._results("62B00401")) == []
+
+    def test_offset_mirror_needs_allow_offset(self):
+        """A byte that mirrors another at +100 is only reported when asked for."""
+        results = self._results("62B00401650296", "62B0040A6E02A0", "62B00414780229")
+        assert not self._pairs(_decode_calc.find_mirrors(results))
+        pairs = self._pairs(_decode_calc.find_mirrors(results, allow_offset=True))
+        assert ("B4", "B5") in pairs
+
+    def test_near_mirror_survives_one_disagreement(self):
+        """Poll skew / a single stale row must not disqualify an obvious mirror."""
+        payloads = [f"62B004{v:02X}{v:02X}" for v in range(1, 21)]
+        payloads[7] = "62B0040807"  # one row off by one
+        results = self._results(*payloads)
+        assert ("B4", "B5") in self._pairs(_decode_calc.find_mirrors(results))
+        assert not self._pairs(_decode_calc.find_mirrors(results, min_fraction=1.0))

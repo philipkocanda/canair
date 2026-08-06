@@ -874,46 +874,6 @@ class TestPhysicalScan:
         ]
 
 
-class TestFindFrameMirrors:
-    """Generic positional (intra-frame) mirror finder shared by decode's
-    single-PID --find-mirrors (via _decode_calc.find_mirrors)."""
-
-    def test_byte_mirror_detected(self):
-        # Frames b4/b5 always equal; b6 varies independently.
-        frames = [
-            bytes([0, 0, 0, 0, 0x0A, 0x0A, 0x01]),
-            bytes([0, 0, 0, 0, 0x14, 0x14, 0x05]),
-            bytes([0, 0, 0, 0, 0x09, 0x09, 0xFF]),
-        ]
-        pairs = {(a, b) for a, b, _ in xanalysis.find_frame_mirrors(frames)}
-        assert ("B4", "B5") in pairs
-        assert ("B4", "B6") not in pairs
-
-    def test_constant_positions_excluded(self):
-        # B4 constant 0x00 across all frames -> excluded (only varying positions).
-        frames = [
-            bytes([0, 0, 0, 0, 0x00, 0xAA]),
-            bytes([0, 0, 0, 0, 0x00, 0xBB]),
-            bytes([0, 0, 0, 0, 0x00, 0xCC]),
-        ]
-        mirrors = xanalysis.find_frame_mirrors(frames)
-        assert all("B4" not in (a, b) for a, b, _ in mirrors)
-
-    def test_bit_mirror(self):
-        # B4 bits 0 and 2 co-vary (0x00/0x05).
-        frames = [bytes([0, 0, 0, 0, v]) for v in (0x00, 0x05, 0x00, 0x05)]
-        pairs = {(a, b) for a, b, _ in xanalysis.find_frame_mirrors(frames, bits=True)}
-        assert ("B4:0", "B4:2") in pairs
-
-    def test_too_few_frames(self):
-        assert xanalysis.find_frame_mirrors([bytes([1, 2, 3])]) == []
-
-    def test_n_is_frame_count(self):
-        frames = [bytes([0, 0, 0, 0, v, v]) for v in (1, 2, 3)]
-        mirrors = xanalysis.find_frame_mirrors(frames)
-        assert mirrors and all(n == 3 for _, _, n in mirrors)
-
-
 # ---------------------------------------------------------------------------
 # byte_state_buckets — arbitrary grouping axis (group_of)
 # ---------------------------------------------------------------------------

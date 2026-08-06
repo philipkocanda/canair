@@ -116,3 +116,89 @@ class TestAlign:
         err = capsys.readouterr().err
         assert "joined 0 of 3 reference rows" in err
         assert "--join-tol" in err
+
+
+def _write_run_length(tmp_path):
+    """A dense reference plus a run-length signal read once and then held.
+
+    The shape the whole forward-fill change exists for (measured on the bundled
+    profile as IGPM's charge-port lock vs BMS SOC): the sparse signal's value is
+    known for the entire window, but it has a stored row at only one instant.
+    """
+    caps = []
+    for i in range(20):
+        t = f"09:00:{i * 3:02d}"
+        caps.append(
+            {"ecu": "IGPM", "pid": "22BC03", "payload": f"62BC03FDEE3C73{i:02X}0000", "time": t}
+        )
+    caps.insert(
+        1, {"ecu": "IGPM", "pid": "22BC05", "payload": "62BC057F112001000000", "time": "09:00:00"}
+    )
+    doc = {
+        "sessions": [
+            {
+                "date": "2026-07-24",
+                "vehicle_states": ["charging"],
+                "keep_mode": "changes",
+                "captures": caps,
+            }
+        ]
+    }
+    (tmp_path / "2026-07-24.json").write_text(json.dumps(doc))
+
+
+class TestAlignForwardFill:
+    def _rows(self, tmp_path, monkeypatch, capsys, extra=()):
+        _write_run_length(tmp_path)
+        rc = _run(
+            tmp_path,
+            monkeypatch,
+            ["IGPM:22BC03:B7", "IGPM:22BC05:B7", "--json", *extra],
+        )
+        assert rc == 0
+        return json.loads(capsys.readouterr().out)
+
+    def test_fills_every_reference_row_by_default(self, tmp_path, monkeypatch, capsys):
+        rows = self._rows(tmp_path, monkeypatch, capsys)
+        assert len(rows) == 20
+        assert all(r["values"]["IGPM:22BC05:B7"] is not None for r in rows)
+
+    def test_fill_none_drops_the_rows_again(self, tmp_path, monkeypatch, capsys):
+        rows = self._rows(tmp_path, monkeypatch, capsys, extra=["--fill", "none"])
+        joined = [r for r in rows if r["values"]["IGPM:22BC05:B7"] is not None]
+        assert len(rows) == 20 and len(joined) < 3
+
+    def test_filled_rows_are_marked_and_measured_rows_are_not(self, tmp_path, monkeypatch, capsys):
+        rows = self._rows(tmp_path, monkeypatch, capsys)
+        assert "filled" not in rows[0]  # the instant it was actually read
+        assert rows[-1]["filled"] == ["IGPM:22BC05:B7"]
+
+    def test_max_hold_bounds_the_carry(self, tmp_path, monkeypatch, capsys):
+        rows = self._rows(tmp_path, monkeypatch, capsys, extra=["--max-hold", "10"])
+        filled = [r for r in rows if "filled" in r]
+        assert 0 < len(filled) < 15
+
+    def test_table_reports_the_carry_per_column(self, tmp_path, monkeypatch, capsys):
+        _write_run_length(tmp_path)
+        assert _run(tmp_path, monkeypatch, ["IGPM:22BC03:B7", "IGPM:22BC05:B7"]) == 0
+        out = capsys.readouterr().out
+        assert "2 joined + 18 held" in out and "up to 57s" in out
+
+    def test_csv_stays_a_plain_table_but_says_so_on_stderr(self, tmp_path, monkeypatch, capsys):
+        _write_run_length(tmp_path)
+        assert _run(tmp_path, monkeypatch, ["IGPM:22BC03:B7", "IGPM:22BC05:B7", "--csv"]) == 0
+        cap = capsys.readouterr()
+        assert cap.out.splitlines()[0] == "time,IGPM:22BC03:B7,IGPM:22BC05:B7"
+        assert "forward-filled" in cap.err
+
+    def test_forced_hold_over_unique_data_warns(self, tmp_path, monkeypatch, capsys):
+        _write(tmp_path)  # keep_mode: unique
+        assert (
+            _run(
+                tmp_path,
+                monkeypatch,
+                ["IGPM:22BC03:B10", "IGPM:22BC05:B10", "--fill", "hold", "--json"],
+            )
+            == 0
+        )
+        assert "--fill hold" in capsys.readouterr().err

@@ -120,13 +120,84 @@ All of these share the scope flags (`--since`/`--until`/`--date`, `--state`,
     `--keep-unique` is **global** dedup: it keeps only globally-distinct values,
     so return-to-previous transitions and durations are absent.
     `align`/`decode`/`correlate`/`investigate` print a banner when
-    `keep:changes` sessions are in scope (stored rows are transitions, not
-    fixed-rate samples). `keep:unique` gets **no blanket banner** — most
+    `keep:changes` sessions are in scope, because a **stored-row count then
+    measures volatility, not sampling** — an ECU polled every cycle that rarely
+    changes looks "barely polled". `keep:unique` gets **no blanket banner** — most
     historical captures were recorded that way, so it was noise on nearly every
     report; it is called out only where it actually changes a reading (the
-    `investigate --events` dwell classes, and the `--transform`/`--lag-scan`
-    time-gap warnings). Rate/`delta` analysis is unreliable on either; use
-    `--keep-all` when you need real sampling cadence.
+    `investigate --events` dwell classes, the `--transform`/`--lag-scan`
+    time-gap warnings, and a forced `--fill hold`). Rate/`delta` analysis is
+    unreliable on either; use `--keep-all` when you need real sampling cadence.
+
+## Forward fill: a run-length row is a segment, not a sample
+
+A `keep:changes` row means *"the value changed to this, and stays this until the
+next row"*. The time-aligned joins used to treat it as a point measurement, so a
+signal that legitimately did not change had nothing to attach to and the row was
+silently dropped. Measured on the bundled profile: aligning IGPM's charge-port
+lock (known with certainty for a whole 3 h charge, in which it changed exactly
+twice) against BMS SOC joined **5 of 2016 rows** — a 99.75 % loss of a window that
+was never unknown.
+
+`align`, `correlate`, `hunt`, `investigate` and `decode` therefore **carry a
+run-length value forward** to reference instants it has no sample at:
+
+| Flag | Effect |
+|---|---|
+| `--fill auto` | **Default.** Fills only rows from `keep:changes` sessions — per *row*, so a scope spanning a run-length and a `keep:unique` session fills only the part it may |
+| `--fill hold` | Force it everywhere (legacy or `keep:all` data, whose provenance is unrecorded). Warns loudly on `keep:unique`, where global dedup genuinely destroyed the run structure |
+| `--fill none` | Strict point semantics — the pre-fill behaviour, for comparison |
+| `--max-hold SECONDS` | Cap the carry (default: until the next row or the end of its recording session) |
+
+**A value is never carried across a session boundary** — the ECU may have changed
+unobserved between two recordings — and the final run of a session closes when that
+*session* stopped recording, not at the PID's own last capture.
+
+**Filling is always reported**, because a filled row is reconstructed rather than
+measured: `align` shows a per-column `[N joined + M held, up to 2h58m]` and marks
+`filled` per row in `--json`; `correlate`/`hunt`/`investigate` name the run-length
+signals they carried forward, in text and in a `--json` `fill` block. `--csv` stays
+a pure numeric table and reports the carry on stderr instead.
+
+!!! warning "A narrow time window can hide a run-length signal entirely"
+    Scope filters run *before* the validity windows are computed, so
+    `--since 13:00 --until 13:01` excludes the earlier row that established the
+    value held through that minute — and the signal then appears absent. Prefer
+    scoping by `--date`, `--state` or `--last-session` (which keep whole sessions)
+    when a run-length signal is involved.
+
+!!! note "Correlation magnitudes change under fill"
+    A filled candidate contributes many repeated values, so `|r|` reflects the
+    step-wise reconstruction rather than the handful of transition instants the
+    strict join happened to keep. That is more honest — the strict join silently
+    restricted the comparison to transitions, which *inflates* `|r|` — but it is a
+    different number. Weighting statistics by segment duration is deliberately a
+    follow-up (see `plans/2026-08-05-run-length-forward-fill-joins.md`).
+
+## Mirrors: the same quantity reachable two ways
+
+A mirror is one physical value exposed by two signals — a status bit an ECU
+publishes that another repeats, a temperature a second module reports at a
+different offset, a raw byte and the parameter derived from it. It is the fastest
+possible identification of an unknown byte, because it needs no correlation
+reasoning: the byte simply *is* the known signal.
+
+- `decode --find-mirrors` — within one PID (rows aligned by capture, no time join)
+- `correlate --find-mirrors` — across co-polled ECU/PIDs, time-aligned
+- `correlate can --find-mirrors` — across arbitration IDs in a frame log
+
+Two knobs, shared by all three:
+
+| Flag | Why |
+|---|---|
+| `--mirror-match FRACTION` (default `0.9`) | Round-robin polling reads a *drifting* signal on two ECUs seconds apart, so they disagree by ±1 on a minority of rows. Demanding every row (`--mirror-match 1`) is enough on its own to hide most real mirrors |
+| `--allow-offset` | Real mirrors are frequently the same quantity at a different zero or in different units — `AAF:2181:AAF_LDC_TEMP + 100` is the OBC's raw LDC temperature byte; a raw 12 V byte is `× 12.8` the decoded rail |
+
+Raw agreement alone is not evidence, so a pair must *also* agree better than
+coincidence (Cohen's κ, reported whenever agreement isn't unanimous). Without that
+floor, two flags that are both zero in 99 % of rows "agree" 99 % of the time by
+construction — on the bundled profile that turned 3 real mirrors into 73 reported
+pairs.
 
 !!! warning "Bimodal references defeat correlation ranking"
     When a reference signal collapses into **two flat, well-separated clusters** —

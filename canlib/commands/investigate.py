@@ -18,7 +18,6 @@ from dataclasses import dataclass
 from typing import NamedTuple
 
 from canlib.align import (
-    DEFAULT_JOIN_TOL_S,
     PreparedSeries,
     TimePoint,
     join_prepared,
@@ -29,6 +28,13 @@ from canlib.byteindex import mapped_bits, mapped_offsets
 from canlib.capture_dates import add_scope_args, resolve_scope_bounds
 from canlib.commands._group import group_help
 from canlib.commands._investigate_render import print_dwell, print_events, print_report
+from canlib.commands._join import (
+    add_join_args,
+    fill_policy_from_args,
+    fill_summaries,
+    fill_summary_line,
+)
+from canlib.fill import forced_hold_warning
 from canlib.keepmode import scope_is_keep_changes, scope_is_keep_unique
 from canlib.notation import (
     add_notation_arg,
@@ -136,13 +142,7 @@ tip: no anchors found? widen scope (drop --state), lower --min-r, or grow the
     parser.add_argument(
         "--min-n", type=int, default=15, metavar="N", help="Min aligned points (default 15)"
     )
-    parser.add_argument(
-        "--join-tol",
-        type=float,
-        default=DEFAULT_JOIN_TOL_S,
-        metavar="SECONDS",
-        help=f"Nearest-timestamp join window (default {DEFAULT_JOIN_TOL_S}s)",
-    )
+    add_join_args(parser)
     parser.add_argument(
         "--all",
         action="store_true",
@@ -248,13 +248,7 @@ examples:
     parser.add_argument(
         "--min-n", type=int, default=15, metavar="N", help="Min aligned points (default 15)"
     )
-    parser.add_argument(
-        "--join-tol",
-        type=float,
-        default=DEFAULT_JOIN_TOL_S,
-        metavar="SECONDS",
-        help=f"Nearest-timestamp join window (default {DEFAULT_JOIN_TOL_S}s)",
-    )
+    add_join_args(parser)
     parser.add_argument(
         "--bits",
         action="store_true",
@@ -323,6 +317,7 @@ def run(args) -> int:
 
     ecu = canonical_ecu_name_safe(args.ecu)
     pid = args.pid.upper()
+    fill = fill_policy_from_args(args)
 
     loaded = load_signal_captures(
         [(ecu, pid)], since=since, until=until, state=args.state, label=args.label
@@ -336,8 +331,12 @@ def run(args) -> int:
         )
         return 1
 
+    forced = forced_hold_warning(lp.captures, fill)
+    if forced:
+        print(f"investigate: {forced}", file=sys.stderr)
+
     # Target byte series (min_distinct=2 so near-binary relay bytes count).
-    target = build_byte_series(lp, min_distinct=2)
+    target = build_byte_series(lp, min_distinct=2, fill=fill)
 
     # Which offsets/bits are already mapped by a defined param, and at what confidence.
     ecu_index = build_ecu_index(load_pids())
@@ -395,6 +394,7 @@ def run(args) -> int:
                     until=until,
                     state=args.state,
                     label=args.label,
+                    fill=fill,
                 )
         except ValueError as e:
             flag = "--independent-of-file" if args.independent_of_file else "--independent-of"
@@ -403,6 +403,7 @@ def run(args) -> int:
 
     # Anchor signals: every param on the OTHER co-polled ECU/PIDs in scope.
     anchors: dict[str, list] = {}
+    fills = fill_summaries([lp], fill, args.join_tol)
     other_specs = [
         s
         for s in _discover_specs(None, since, until, args.state, args.label)
@@ -416,7 +417,11 @@ def run(args) -> int:
             if not alp.captures:
                 continue
             aparams = ecu_index.get(aecu, {}).get("pids", {}).get(apid, {}).get("parameters", {})
-            anchors.update(build_param_series(alp, aparams))
+            anchors.update(build_param_series(alp, aparams, fill=fill))
+        # Anchors are the *joined* side, so a run-length anchor is exactly what
+        # filling recovers: it can now reach every target instant instead of only
+        # the few where it happened to be re-polled.
+        fills.extend(fill_summaries(aloaded.values(), fill, args.join_tol))
 
     # Prepare anchor + driver series ONCE (sort + flatten to float epoch arrays);
     # _best_anchor/_driver_r are called per target byte/bit, so re-preparing these
@@ -461,7 +466,7 @@ def run(args) -> int:
     # ISO-TP-adjacent (PCI-straddling pairs included, filter gaps excluded).
     word_cols = [
         (int(k.rsplit(":B", 1)[1]), [int(tp.value) for tp in s])
-        for k, s in build_byte_series(lp, min_distinct=1).items()
+        for k, s in build_byte_series(lp, min_distinct=1, fill=fill).items()
     ]
     # Keep only pairs that render to a real adjacent word expression (drops any
     # non-adjacent pair rather than emit a misleading [Bhi:Blo] spanning a gap).
@@ -470,7 +475,7 @@ def run(args) -> int:
     ]
 
     if args.bits:
-        for key, series in build_bit_series(lp).items():
+        for key, series in build_bit_series(lp, fill=fill).items():
             off, bit = _parse_bit_key(key)
             best = _best_anchor(series, anchors_prepared, args.join_tol, args.min_n)
             sb = state_buckets.get(f"B{off}:{bit}")
@@ -512,6 +517,11 @@ def run(args) -> int:
             {
                 "target": f"{ecu}:{pid}",
                 "join_tol_s": args.join_tol,
+                "fill": {
+                    "mode": fill.mode,
+                    "max_hold_s": fill.max_hold_s,
+                    "signals": [f.as_json() for f in fills],
+                },
                 "independent_of": driver_label,
                 "keep_unique": scope_is_keep_unique(lp.captures),
                 "keep_changes": scope_is_keep_changes(lp.captures),
@@ -528,7 +538,15 @@ def run(args) -> int:
         return 0
 
     print_report(
-        ecu, pid, reports, args, lp, bool(anchors), driver_label=driver_label, words=word_candidates
+        ecu,
+        pid,
+        reports,
+        args,
+        lp,
+        bool(anchors),
+        driver_label=driver_label,
+        words=word_candidates,
+        fill_line=fill_summary_line(fills, fill),
     )
     return 0
 

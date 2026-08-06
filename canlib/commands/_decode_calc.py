@@ -15,9 +15,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from canlib.inspect_bytes import apply_transform
+from canlib.mirrors import DEFAULT_MIRROR_MATCH
 
 if TYPE_CHECKING:
     from canlib.align import TimePoint
+    from canlib.fill import FillPolicy
 
 
 def _series(all_results: list[dict], name: str) -> list[float]:
@@ -88,12 +90,13 @@ def _local_series(all_results: list[dict], name: str) -> list:
     return out
 
 
-def load_cross_ref_series(ref: str, *, scope: dict, tol_s: float):
+def load_cross_ref_series(ref: str, *, scope: dict, tol_s: float, fill: FillPolicy | None = None):
     """Load an external ``ECU:PID:PARAM|EXPR`` reference as a TimePoint series.
 
     Returns ``(series, resolved_label)`` or raises ``ValueError`` with a clean
     message. Applies the same date/state/label scope as the local decode so the
-    reference is drawn from the same drive/window.
+    reference is drawn from the same drive/window, and the same ``fill`` policy so a
+    run-length reference can be carried onto the local captures' instants.
     """
     from canlib.align import SignalRef, extract_series, load_signal_captures
     from canlib.pids import build_ecu_index, load_pids
@@ -118,14 +121,19 @@ def load_cross_ref_series(ref: str, *, scope: dict, tol_s: float):
     ecu_pids = ecu_index.get(sref.ecu.upper(), {}).get("pids", {})
     if sref.pid.upper() in ecu_pids:
         params = ecu_pids[sref.pid.upper()]["parameters"]
-    series = extract_series(lp, sref.name_or_expr, parameters=params)
+    series = extract_series(lp, sref.name_or_expr, parameters=params, fill=fill)
     if not series:
         raise ValueError(f"reference {sref.label} decoded no numeric values in scope")
     return series, sref.label
 
 
 def axis_group_keys(
-    all_results: list[dict], axis_spec: str, *, scope: dict, tol_s: float
+    all_results: list[dict],
+    axis_spec: str,
+    *,
+    scope: dict,
+    tol_s: float,
+    fill: FillPolicy | None = None,
 ) -> tuple[dict[int, str | None], str]:
     """Map each result to a group key from a cross-signal ``ECU:PID:PARAM`` axis.
 
@@ -139,37 +147,29 @@ def axis_group_keys(
     too high-cardinality to be a sensible grouping (``--discriminate`` wants an
     enum/flag/mode axis, not a continuous analog).
     """
-    import bisect
-
-    from canlib.align import prepare_series
+    from canlib.align import join_indices, prepare_series
     from canlib.capture_dates import entry_datetime
 
-    series, label = load_cross_ref_series(axis_spec, scope=scope, tol_s=tol_s)
-    prepared = prepare_series(series)
-    ts, vals = prepared.ts, prepared.values
+    series, label = load_cross_ref_series(axis_spec, scope=scope, tol_s=tol_s, fill=fill)
+    axis = prepare_series(series)
 
-    def _nearest(dt) -> float | None:
-        if dt is None or not ts:
-            return None
-        t = dt.timestamp()
-        i = bisect.bisect_left(ts, t)
-        best: float | None = None
-        best_d = tol_s + 1.0
-        for j in (i - 1, i):
-            if 0 <= j < len(ts):
-                d = abs(ts[j] - t)
-                if d < best_d:
-                    best_d = d
-                    best = vals[j]
-        return best if best_d <= tol_s else None
-
-    keys: dict[int, str | None] = {}
+    # Nearest-join the axis onto the captures' own clock. The captures arrive in
+    # file order, so sort a *view* of them for the join and scatter the results back
+    # by identity — the shared join primitive requires a sorted reference, and
+    # reusing it is what keeps this axis honouring the same tie-breaking (and
+    # forward-fill) rule as every other join.
+    timed: list[tuple[float, dict]] = []
     for r in all_results:
-        v = _nearest(entry_datetime(r["capture"]))
-        if v is None:
-            keys[id(r)] = None
-        else:
-            keys[id(r)] = str(int(v)) if float(v).is_integer() else f"{v:.3f}"
+        dt = entry_datetime(r["capture"])
+        if dt is not None:
+            timed.append((dt.timestamp(), r))
+    timed.sort(key=lambda t: t[0])
+
+    keys: dict[int, str | None] = {id(r): None for r in all_results}
+    ref_idx, cand_idx = join_indices([t for t, _ in timed], axis.ts, tol_s, axis.hold_ts)
+    for k, j in zip(ref_idx, cand_idx, strict=True):
+        v = axis.values[j]
+        keys[id(timed[k][1])] = str(int(v)) if float(v).is_integer() else f"{v:.3f}"
 
     distinct = {k for k in keys.values() if k is not None}
     if not distinct:
@@ -182,16 +182,23 @@ def axis_group_keys(
     return keys, label
 
 
-def find_mirrors(all_results: list[dict], *, bits: bool = False) -> list[tuple[str, str, int]]:
-    """Find byte (and optionally bit) positions that are exactly equal across
-    every capture — redundant status mirrors and unit-variants.
+def find_mirrors(
+    all_results: list[dict],
+    *,
+    bits: bool = False,
+    min_fraction: float = DEFAULT_MIRROR_MATCH,
+    allow_offset: bool = False,
+):
+    """Byte/bit positions on this PID that mirror each other — redundant signals.
 
     Extracts each capture's reconstructed WiCAN frame from decode's
-    ``all_results`` and delegates the positional equality scan to the generic
-    :func:`canlib.xanalysis.find_frame_mirrors`.
+    ``all_results`` and delegates to the generic matcher in
+    :mod:`canlib.mirrors`. Rows are aligned by capture index (all the frames come
+    from the same captures), so no timestamp join is involved — the intra-PID
+    counterpart of ``correlate --find-mirrors``.
     """
     from canlib.byteindex import payload_to_wican_bytes
-    from canlib.xanalysis import find_frame_mirrors
+    from canlib.mirrors import byte_owns_bit, find_column_mirrors, frame_columns
 
     frames: list[bytes] = []
     for r in all_results:
@@ -200,7 +207,12 @@ def find_mirrors(all_results: list[dict], *, bits: bool = False) -> list[tuple[s
             frames.append(payload_to_wican_bytes(cap["payload"]))
         except Exception:
             continue
-    return find_frame_mirrors(frames, bits=bits)
+    return find_column_mirrors(
+        frame_columns(frames, bits=bits),
+        min_fraction=min_fraction,
+        allow_offset=allow_offset,
+        same_source=byte_owns_bit,
+    )
 
 
 def _transform_series(series: list[TimePoint], mode: str) -> list[TimePoint]:

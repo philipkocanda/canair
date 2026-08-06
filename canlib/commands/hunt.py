@@ -17,7 +17,6 @@ import json as _json
 import sys
 
 from canlib.align import (
-    DEFAULT_JOIN_TOL_S,
     DEFAULT_SESSION_GAP_S,
     load_signal_captures,
     longest_payload_len,
@@ -25,6 +24,13 @@ from canlib.align import (
 from canlib.capture_dates import add_scope_args, resolve_scope_bounds
 from canlib.commands._can_args import add_can_log_source_args
 from canlib.commands._group import group_help
+from canlib.commands._join import (
+    add_join_args,
+    fill_policy_from_args,
+    fill_summaries,
+    fill_summary_line,
+)
+from canlib.fill import forced_hold_warning
 from canlib.inspect_bytes import NO_EXPR
 from canlib.notation import (
     ByteNotation,
@@ -93,13 +99,7 @@ def _add_shared_hunt_args(parser) -> None:
         default="pearson",
         help="Ranking coefficient: pearson (linear, default) or spearman (rank)",
     )
-    parser.add_argument(
-        "--join-tol",
-        type=float,
-        default=DEFAULT_JOIN_TOL_S,
-        metavar="SECONDS",
-        help=f"Nearest-timestamp join window (default {DEFAULT_JOIN_TOL_S}s)",
-    )
+    add_join_args(parser)
     parser.add_argument("--json", action="store_true", help="Machine-readable output")
     parser.add_argument(
         "--all-interps",
@@ -427,6 +427,7 @@ def run(args) -> int:
         print("error: --control and --control-file are mutually exclusive", file=sys.stderr)
         return 2
 
+    fill = fill_policy_from_args(args)
     try:
         if args.against_file:
             from canlib.align import load_reference_file
@@ -434,7 +435,12 @@ def run(args) -> int:
             ref_series, ref_label = load_reference_file(args.against_file)
         else:
             ref_series, ref_label = load_ref(
-                args.against, since=since, until=until, state=args.state, label=args.label
+                args.against,
+                since=since,
+                until=until,
+                state=args.state,
+                label=args.label,
+                fill=fill,
             )
     except ValueError as e:
         flag = "--against-file" if args.against_file else "--against"
@@ -475,7 +481,12 @@ def run(args) -> int:
                 control_series, control_label = load_reference_file(args.control_file)
             else:
                 control_series, control_label = load_ref(
-                    args.control, since=since, until=until, state=args.state, label=args.label
+                    args.control,
+                    since=since,
+                    until=until,
+                    state=args.state,
+                    label=args.label,
+                    fill=fill,
                 )
         except ValueError as e:
             flag = "--control-file" if args.control_file else "--control"
@@ -499,6 +510,10 @@ def run(args) -> int:
     # frame timestamps, so the ref-vs-frames overlap is the exact ceiling on any
     # candidate's `n`. Without this, a non-overlapping scope reports "no byte
     # correlates" — indistinguishable from a real negative result.
+    forced = forced_hold_warning(lp.captures, fill)
+    if forced:
+        print(f"hunt: {forced}", file=sys.stderr)
+    fills = fill_summaries([lp], fill, args.join_tol)
     _warn_thin_reference_join(args, lp, ref_series, ref_label)
 
     hits = hunt_byte(
@@ -514,6 +529,7 @@ def run(args) -> int:
         candidates=resolve_unit_candidates(active().meta),
         per_session=args.per_session,
         session_gap_s=args.session_gap,
+        fill=fill,
     )
 
     if args.promote:
@@ -525,6 +541,11 @@ def run(args) -> int:
                 "target": f"{ecu}:{pid}",
                 "reference": ref_label,
                 "join_tol_s": args.join_tol,
+                "fill": {
+                    "mode": fill.mode,
+                    "max_hold_s": fill.max_hold_s,
+                    "signals": [f.as_json() for f in fills],
+                },
                 "hits": [
                     {
                         "expr": h.expr,
@@ -555,6 +576,9 @@ def run(args) -> int:
         f"\n  {_BOLD}Hunt {ecu} {pid} vs {ref_label}{_RESET} "
         f"{_DIM}(nearest-join ≤{args.join_tol:g}s){_RESET}"
     )
+    fill_line = fill_summary_line(fills, fill)
+    if fill_line:
+        print(f"  {_CYAN}{fill_line}{_RESET}")
     for h in hits:
         color = _GREEN if abs(h.r) >= 0.7 else _YELLOW if abs(h.r) >= 0.3 else _DIM
         unit = f"  {_CYAN}{h.unit_guess}{_RESET}" if h.unit_guess else ""

@@ -1,0 +1,24 @@
+
+  Cross-ECU mirrors (equal up to a constant offset/scale in ≥90% of aligned rows, ≤5s join, n≥15)
+    AAF:2181:AMBIENT_TEMP  ==  AAF:2180:AMBIENT_TEMP  n=673
+    AAF:2181:B10  ==  AAF:2180:B10  n=673
+    AAF:2181:B18  ==  AAF:2180:B18  n=673
+    AAF:2181:B9  ==  AAF:2180:B9  n=673
+    AAF:2181:AAF_AUX_BATTERY_VOLTAGE  ==  AAF:2180:AAF_AUX_BATTERY_VOLTAGE  n=673, 659 agree, κ=0.98
+    AAF:2181:AAF_AUX_BATTERY_VOLTAGE  ==  AAF:2180:B25 × 0.1  n=673, 659 agree, κ=0.98
+    AAF:2181:B25  ==  AAF:2180:AAF_AUX_BATTERY_VOLTAGE × 10  n=673, 659 agree, κ=0.98
+    AAF:2181:B25  ==  AAF:2180:B25  n=673, 659 agree, κ=0.98
+    OBC:2101:B35  ==  AAF:2181:B14  n=1124, 1100 agree, κ=0.96
+    OBC:2101:B19  ==  AAF:2181:AAF_LDC_TEMP + 100  n=1124, 1070 agree, κ=0.95
+    OBC:2101:B19  ==  AAF:2181:B19  n=1124, 1070 agree, κ=0.95
+    OBC:2101:LDC_TEMP  ==  AAF:2181:AAF_LDC_TEMP  n=1124, 1070 agree, κ=0.95
+    OBC:2101:LDC_TEMP  ==  AAF:2181:B19 - 100  n=1124, 1070 agree, κ=0.95
+    AAF:2181:B17  ==  AAF:2180:B17  n=673, 633 agree, κ=0.93
+    AAF:2181:B17  ==  AAF:2180:HEATER_ELEMENT_TEMP × 2  n=673, 633 agree, κ=0.93
+    AAF:2181:B21  ==  AAF:2180:B21  n=673, 619 agree, κ=0.91
+    AAF:2181:B21  ==  AAF:2180:COMPRESSOR_TEMP + 40  n=673, 619 agree, κ=0.91
+    AAF:2181:B28  ==  AAF:2180:B28  n=673, 607 agree, κ=0.86
+    AAF:2181:B28  ==  AAF:2180:B29  n=673, 607 agree, κ=0.86
+    AAF:2181:B29  ==  AAF:2180:B28  n=673, 607 agree, κ=0.86
+    AAF:2181:B29  ==  AAF:2180:B29  n=673, 607 agree, κ=0.86
+

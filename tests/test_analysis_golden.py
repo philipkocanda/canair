@@ -106,6 +106,22 @@ CASES: list[tuple[str, str, list[str]]] = [
         ["decode", "IGPM", "22BC03", "--find-mirrors", "--bits", "--until", FROZEN_UNTIL],
     ),
     (
+        # Pins the offset/scale mirror rendering on real data: the AAF/OBC LDC
+        # temperature mirror (equal at -100) is exactly what the old all-rows
+        # exact-equality test reported as "no mirror".
+        "correlate-mirrors-offset",
+        "ioniq-2017",
+        [
+            "correlate",
+            "uds",
+            "AAF OBC",
+            "--find-mirrors",
+            "--allow-offset",
+            "--until",
+            FROZEN_UNTIL,
+        ],
+    ),
+    (
         "decode-discriminate-bytes",
         "ioniq-2017",
         [

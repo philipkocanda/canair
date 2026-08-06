@@ -41,12 +41,19 @@ def _run(tmp_path, monkeypatch, argv):
     import canlib.align as align
 
     orig = align.load_signal_captures
-    monkeypatch.setattr(
-        "canlib.commands.correlate.load_signal_captures",
-        lambda s, **kw: orig(
+
+    def scoped(s, **kw):
+        return orig(
             s, captures_dir=tmp_path, **{k: v for k, v in kw.items() if k != "captures_dir"}
-        ),
-    )
+        )
+
+    # Both modules must be redirected: the mirror/overlap views live in
+    # _correlate_render and import the loader themselves, so patching only
+    # `commands.correlate` left them reading the *active profile's* whole capture
+    # corpus — slow, and the assertions were passing on real data instead of the
+    # fixture.
+    monkeypatch.setattr("canlib.commands.correlate.load_signal_captures", scoped)
+    monkeypatch.setattr("canlib.commands._correlate_render.load_signal_captures", scoped)
     monkeypatch.setattr(
         "canlib.commands.correlate._discover_specs",
         lambda *a, **k: [("IGPM", "22BC03"), ("IGPM", "22BC05")],
@@ -256,3 +263,85 @@ class TestControl:
         )
         assert rc == 2
         assert "undefined for a categorical" in capsys.readouterr().err
+
+
+def _write_offset_mirror(tmp_path):
+    """Two co-polled PIDs where one PID's byte is another's, offset by +100.
+
+    The measured shape the exact-equality detector missed: ``AAF:2181:B19 - 100``
+    is the OBC's LDC temperature.
+    """
+    caps = []
+    for i in range(20):
+        t = f"09:00:{i * 2:02d}"
+        v = 40 + i
+        caps.append(
+            {"ecu": "IGPM", "pid": "22BC03", "payload": f"62BC03FDEE3C73{v:02X}0000", "time": t}
+        )
+        caps.append(
+            {
+                "ecu": "IGPM",
+                "pid": "22BC05",
+                "payload": f"62BC057F1120{v + 100:02X}000000",
+                "time": t,
+            }
+        )
+    doc = {
+        "sessions": [
+            {"date": "2026-07-24", "keep_mode": "changes", "captures": caps},
+        ]
+    }
+    (tmp_path / "2026-07-24.json").write_text(json.dumps(doc))
+
+
+class TestMirrorTolerance:
+    def _mirrors(self, tmp_path, monkeypatch, capsys, extra=()):
+        rc = _run(
+            tmp_path, monkeypatch, ["IGPM", "--find-mirrors", "--min-n", "5", "--json", *extra]
+        )
+        assert rc == 0
+        return json.loads(capsys.readouterr().out)["mirrors"]
+
+    def test_offset_mirror_needs_allow_offset(self, tmp_path, monkeypatch, capsys):
+        _write_offset_mirror(tmp_path)
+        assert self._mirrors(tmp_path, monkeypatch, capsys) == []
+        hits = self._mirrors(tmp_path, monkeypatch, capsys, extra=["--allow-offset"])
+        assert any(abs(h["offset"]) == 100 for h in hits)
+
+    def test_near_mirror_reported_and_its_fraction_shown(self, tmp_path, monkeypatch, capsys):
+        """One disagreeing row (poll skew) must not disqualify an obvious mirror."""
+        caps = []
+        for i in range(20):
+            t = f"09:00:{i * 2:02d}"
+            v = 40 + i
+            w = v + 1 if i == 7 else v  # a single ±1 disagreement
+            caps.append(
+                {"ecu": "IGPM", "pid": "22BC03", "payload": f"62BC03FDEE3C73{v:02X}0000", "time": t}
+            )
+            caps.append(
+                {
+                    "ecu": "IGPM",
+                    "pid": "22BC05",
+                    "payload": f"62BC057F1120{w:02X}000000",
+                    "time": t,
+                }
+            )
+        (tmp_path / "2026-07-24.json").write_text(
+            json.dumps({"sessions": [{"date": "2026-07-24", "captures": caps}]})
+        )
+        hits = self._mirrors(tmp_path, monkeypatch, capsys)
+        near = [h for h in hits if h["n_match"] < h["n"]]
+        assert near and near[0]["fraction"] < 1.0
+
+    def test_unanimity_can_still_be_demanded(self, tmp_path, monkeypatch, capsys):
+        _write_offset_mirror(tmp_path)
+        hits = self._mirrors(
+            tmp_path, monkeypatch, capsys, extra=["--allow-offset", "--mirror-match", "1"]
+        )
+        assert all(h["fraction"] == 1.0 for h in hits)
+
+    def test_text_header_names_what_was_accepted(self, tmp_path, monkeypatch, capsys):
+        _write_offset_mirror(tmp_path)
+        _run(tmp_path, monkeypatch, ["IGPM", "--find-mirrors", "--min-n", "5", "--allow-offset"])
+        out = capsys.readouterr().out
+        assert "offset/scale" in out and "≥90%" in out

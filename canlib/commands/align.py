@@ -23,13 +23,17 @@ import json
 import sys
 
 from canlib.align import (
-    DEFAULT_JOIN_TOL_S,
+    JoinStats,
     SignalRef,
     align_many,
     extract_series,
+    join_fill_stats,
     load_signal_captures,
+    prepare_series,
 )
 from canlib.capture_dates import add_scope_args, resolve_scope_bounds
+from canlib.commands._join import add_join_args, fill_policy_from_args
+from canlib.fill import forced_hold_warning, format_hold_duration
 from canlib.keepmode import CHANGES_BANNER, scope_is_keep_changes
 
 NAME = "align"
@@ -73,19 +77,13 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     fmt = parser.add_mutually_exclusive_group()
     fmt.add_argument("--csv", action="store_true", help="Output CSV (time + one column per signal)")
     fmt.add_argument("--json", action="store_true", help="Output JSON (list of row objects)")
-    parser.add_argument(
-        "--join-tol",
-        type=float,
-        default=DEFAULT_JOIN_TOL_S,
-        metavar="SECONDS",
-        help=f"Nearest-join tolerance in seconds (default {DEFAULT_JOIN_TOL_S})",
-    )
+    add_join_args(parser)
     add_scope_args(parser)
     parser.set_defaults(func=run)
     return parser
 
 
-def _load_one(spec: str, *, since, until, state, label):
+def _load_one(spec: str, *, since, until, state, label, fill=None):
     """Load one ``ECU:PID:PARAM|EXPR`` signal → ``(label, series, captures)``.
 
     Mirrors ``_decode_calc.load_cross_ref_series`` but also returns the backing
@@ -106,7 +104,7 @@ def _load_one(spec: str, *, since, until, state, label):
         )
     ecu_pids = build_ecu_index(load_pids()).get(sref.ecu.upper(), {}).get("pids", {})
     params = ecu_pids.get(sref.pid.upper(), {}).get("parameters", {})
-    series = extract_series(lp, sref.name_or_expr, parameters=params)
+    series = extract_series(lp, sref.name_or_expr, parameters=params, fill=fill)
     if not series:
         raise ValueError(f"{sref.label} decoded no numeric values in scope")
     return sref.label, series, lp.captures
@@ -129,13 +127,15 @@ def run(args) -> int:
         )
         return 2
 
+    fill = fill_policy_from_args(args)
     labels: list[str] = []
     series_by_label: dict[str, list] = {}
     any_keep_changes = False
+    all_caps: list = []
     for tok in tokens:
         try:
             label, series, caps = _load_one(
-                tok, since=since, until=until, state=args.state, label=args.label
+                tok, since=since, until=until, state=args.state, label=args.label, fill=fill
             )
         except ValueError as e:
             print(f"align: {e}", file=sys.stderr)
@@ -146,10 +146,15 @@ def run(args) -> int:
         labels.append(label)
         series_by_label[label] = series
         any_keep_changes = any_keep_changes or scope_is_keep_changes(caps)
+        all_caps.extend(caps)
 
     if len(labels) < 2:
         print("align: need at least two distinct signals", file=sys.stderr)
         return 2
+
+    forced = forced_hold_warning(all_caps, fill)
+    if forced:
+        print(f"align: {forced}", file=sys.stderr)
 
     ref_label = labels[0]
     ref_series = series_by_label[ref_label]
@@ -157,22 +162,53 @@ def run(args) -> int:
     ref_sorted = sorted(ref_series, key=lambda tp: tp.dt)
     _ref_vals, cols = align_many(ref_series, others, tol_s=args.join_tol)
 
+    ref_prepared = prepare_series(ref_series)
+    fills = {
+        lbl: join_fill_stats(ref_prepared, prepare_series(series_by_label[lbl]), args.join_tol)
+        for lbl in labels[1:]
+    }
     _warn_thin_joins(cols, labels, len(ref_sorted), args.join_tol)
 
-    rows: list[tuple] = []  # (datetime, {label: value|None})
+    rows: list[tuple] = []  # (datetime, {label: value|None}, {labels carried forward})
     for i, tp in enumerate(ref_sorted):
         values: dict[str, float | None] = {ref_label: tp.value}
+        filled: set[str] = set()
         for lbl in labels[1:]:
             values[lbl] = cols[lbl][i]
-        rows.append((tp.dt, values))
+            if i in fills[lbl].filled_rows:
+                filled.add(lbl)
+        rows.append((tp.dt, values, filled))
 
     if args.json:
         _emit_json(rows, labels)
     elif args.csv:
         _emit_csv(rows, labels)
+        _warn_csv_fills(fills)
     else:
-        _emit_table(rows, labels, args.join_tol, any_keep_changes)
+        _emit_table(rows, labels, args.join_tol, any_keep_changes, fills)
     return 0
+
+
+def _warn_csv_fills(fills: dict[str, JoinStats]) -> None:
+    """Tell a ``--csv`` reader that some values were reconstructed, not measured.
+
+    The CSV itself stays a pure numeric table (see :func:`_emit_csv`), so this is
+    the only place the fill surfaces on that path — silence would make the
+    reconstruction invisible, which is the failure mode filling is meant to end.
+    """
+    held = {lbl: st for lbl, st in fills.items() if st.n_filled}
+    if not held:
+        return
+    detail = ", ".join(
+        f"{lbl} +{st.n_filled} (up to {format_hold_duration(st.max_hold_s)})"
+        for lbl, st in held.items()
+    )
+    print(
+        f"align: note: some values are forward-filled run-length segments, not samples "
+        f"at these instants — {detail}. Use --json for per-row provenance, or "
+        f"--fill none to keep only measured rows.",
+        file=sys.stderr,
+    )
 
 
 def _warn_thin_joins(cols, labels, n_ref: int, tol: float) -> None:
@@ -202,21 +238,39 @@ def _warn_thin_joins(cols, labels, n_ref: int, tol: float) -> None:
 
 
 def _emit_json(rows, labels) -> None:
-    out = [
-        {
+    """One object per reference row (the documented shape — a plain JSON list).
+
+    A row whose value for some signal was carried forward rather than sampled near
+    that instant also carries ``filled``, naming those signals. Only present when
+    non-empty, so measured rows stay terse and a consumer can select
+    measured-only data (``.filled // [] | length == 0``) — the machine-readable
+    counterpart of the table's per-column "+N held" note.
+    """
+    out = []
+    for dt, values, filled in rows:
+        row = {
             "date": dt.date().isoformat(),
             "time": dt.strftime("%H:%M:%S.%f"),
             "values": {lbl: values[lbl] for lbl in labels},
         }
-        for dt, values in rows
-    ]
+        if filled:
+            row["filled"] = [lbl for lbl in labels if lbl in filled]
+        out.append(row)
     print(json.dumps(out, indent=2))
 
 
 def _emit_csv(rows, labels) -> None:
+    """Numeric interchange: exactly ``time`` + one column per signal, as documented.
+
+    Forward-filled values are deliberately *not* marked here — a trailing
+    provenance column would break every positional consumer of a shape whose whole
+    point is joining against another CSV. The caller reports the fill count on
+    stderr instead, so the data stream stays byte-compatible while the
+    reconstruction never goes unmentioned.
+    """
     w = csv.writer(sys.stdout)
     w.writerow(["time", *labels])
-    for dt, values in rows:
+    for dt, values, _filled in rows:
         cells = ["" if values[lbl] is None else values[lbl] for lbl in labels]
         w.writerow([dt.strftime("%Y-%m-%d %H:%M:%S.%f"), *cells])
 
@@ -229,7 +283,13 @@ def _fmt_val(v: float | None) -> str:
     return f"{v:.3f}".rstrip("0").rstrip(".")
 
 
-def _emit_table(rows, labels, tol: float, keep_changes: bool = False) -> None:
+def _emit_table(
+    rows,
+    labels,
+    tol: float,
+    keep_changes: bool = False,
+    fills: dict[str, JoinStats] | None = None,
+) -> None:
     # Short cN handles keep the table narrow; a legend maps them to full labels.
     handles = [f"c{i + 1}" for i in range(len(labels))]
     print(
@@ -239,10 +299,18 @@ def _emit_table(rows, labels, tol: float, keep_changes: bool = False) -> None:
     if keep_changes:
         print(f"  {_YELLOW}⚠ {CHANGES_BANNER}{_RESET}")
     for h, lbl in zip(handles, labels, strict=True):
-        print(f"  {_DIM}{h} = {lbl}{_RESET}")
+        st = (fills or {}).get(lbl)
+        note = ""
+        if st is not None and st.n_filled:
+            note = (
+                f"  {_CYAN}[{st.n_direct} joined + {st.n_filled} held"
+                f", up to {format_hold_duration(st.max_hold_s)}]{_RESET}"
+            )
+        print(f"  {_DIM}{h} = {lbl}{_RESET}{note}")
 
     str_rows = [
-        [dt.strftime("%H:%M:%S"), *[_fmt_val(values[lbl]) for lbl in labels]] for dt, values in rows
+        [dt.strftime("%H:%M:%S"), *[_fmt_val(values[lbl]) for lbl in labels]]
+        for dt, values, _filled in rows
     ]
     headers = ["time", *handles]
     widths = [

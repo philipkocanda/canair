@@ -33,12 +33,14 @@ usage: canair correlate uds [-h] [--transform MODE] [--matrix]
                             [--include-self] [--against ECU:PID:PARAM]
                             [--min-r R] [--min-n N] [--top N]
                             [--method {pearson,spearman,cramers_v,mutual_info}]
-                            [--join-tol SECONDS] [--bits] [--json]
+                            [--join-tol SECONDS] [--fill {auto,hold,none}]
+                            [--max-hold SECONDS] [--bits] [--json]
                             [--per-session] [--session-gap SECONDS]
                             [--no-cluster] [--bytes] [--lag-scan N]
                             [--gate '[SIGNAL] OP VALUE']
                             [--control ECU:PID:PARAM] [--control-file FILE]
                             [--promote NAME] [--overlap] [--find-mirrors]
+                            [--mirror-match FRACTION] [--allow-offset]
                             [--notation NAME] [--since WHEN] [--until WHEN]
                             [--date YYYY-MM-DD] [--today]
                             [--last-sessions [N]] [--last-session]
@@ -102,7 +104,6 @@ options:
                         categorical cramers_v / mutual_info (treat each value
                         as a nominal category — for mode/flag/enum bytes where
                         numeric spacing is meaningless)
-  --join-tol SECONDS    Nearest-timestamp join window (default 5.0s)
   --bits                Include individual toggling bits (rN:k / Bn:k)
   --json                Machine-readable output
   --per-session         Remove each recording session's DC baseline before
@@ -146,13 +147,38 @@ options:
                         pick a viable --against reference without trial and
                         error
   --find-mirrors        Instead of ranking correlations, report byte/bit
-                        positions that are time-aligned equal ACROSS co-polled
-                        ECU/PIDs — e.g. a door bit in IGPM mirrored in BCM.
-                        Use with --bits for bit-level. Cross-ECU companion to
-                        `decode --find-mirrors` (which is single-PID)
+                        positions mirrored ACROSS co-polled ECU/PIDs (time-
+                        aligned) — e.g. a door bit in IGPM also present in
+                        BCM, or a temperature another ECU reports at a
+                        different offset. Use with --bits for bit-level and
+                        --allow-offset for offset/scale mirrors. Cross-ECU
+                        companion to `decode --find-mirrors` (which is single-
+                        PID)
   --notation NAME       byte-index notation for output labels: wican
                         (default), isotp, torque, bix. Overrides the
                         display.byte_notation config key.
+
+time joining:
+  --join-tol SECONDS    Nearest-timestamp join window (default 5s)
+  --fill {auto,hold,none}
+                        Carry a run-length (keep:changes) value forward to
+                        reference instants it has no sample at: 'auto'
+                        (default) fills only keep:changes sessions, 'hold'
+                        forces it everywhere, 'none' keeps strict point
+                        semantics
+  --max-hold SECONDS    Cap how long a filled value may be carried (default:
+                        until the next sample or the end of its recording
+                        session)
+
+mirror matching:
+  --mirror-match FRACTION
+                        Fraction of compared rows that must agree (default
+                        0.9; use 1 to demand every row, which round-robin poll
+                        skew alone is enough to defeat)
+  --allow-offset        Also accept a mirror at a constant offset or scale (a
+                        == b + k, a == b × s) — real mirrors are frequently
+                        the same quantity in different units or with a
+                        different zero
 
 scoping:
   Restrict to captures within a date/time range (inclusive) and/or by session state/label substring. --since/--until accept a date (YYYY-MM-DD) or a timestamp (YYYY-MM-DD HH:MM[:SS[.ffffff]])
@@ -229,10 +255,12 @@ examples:
 ```
 usage: canair correlate can [-h] [--can-format {auto,asc,blf,csv,log,gvret}]
                             [--id IDS] [--include-intra] [--find-mirrors]
+                            [--mirror-match FRACTION] [--allow-offset]
                             [--no-cluster] [--against ECU:PID:PARAM]
                             [--min-r R] [--min-n N] [--top N]
                             [--method {pearson,spearman,cramers_v,mutual_info}]
-                            [--join-tol SECONDS] [--bits] [--json]
+                            [--join-tol SECONDS] [--fill {auto,hold,none}]
+                            [--max-hold SECONDS] [--bits] [--json]
                             [--notation NAME]
                             FILE
 
@@ -251,10 +279,10 @@ options:
   --include-intra       Include same-arbitration-ID pairs (default: cross-ID
                         only)
   --find-mirrors        Instead of ranking correlations, report byte/bit
-                        positions that are time-aligned equal ACROSS
-                        arbitration IDs — a signal mirrored on two IDs (e.g.
-                        wheel speed on 0x386 and 0x331). Use with --bits for
-                        bit-level
+                        positions mirrored ACROSS arbitration IDs (time-
+                        aligned) — a signal broadcast on two IDs (e.g. wheel
+                        speed on 0x386 and 0x331). Use with --bits for bit-
+                        level and --allow-offset for offset/scale mirrors
   --no-cluster          Don't collapse near-perfectly-correlated (|r|≥0.995)
                         byte groups into one line
   --against ECU:PID:PARAM
@@ -271,12 +299,33 @@ options:
                         categorical cramers_v / mutual_info (treat each value
                         as a nominal category — for mode/flag/enum bytes where
                         numeric spacing is meaningless)
-  --join-tol SECONDS    Nearest-timestamp join window (default 5.0s)
   --bits                Include individual toggling bits (rN:k / Bn:k)
   --json                Machine-readable output
   --notation NAME       byte-index notation for output labels: wican
                         (default), isotp, torque, bix. Overrides the
                         display.byte_notation config key.
+
+mirror matching:
+  --mirror-match FRACTION
+                        Fraction of compared rows that must agree (default
+                        0.9; use 1 to demand every row, which round-robin poll
+                        skew alone is enough to defeat)
+  --allow-offset        Also accept a mirror at a constant offset or scale (a
+                        == b + k, a == b × s) — real mirrors are frequently
+                        the same quantity in different units or with a
+                        different zero
+
+time joining:
+  --join-tol SECONDS    Nearest-timestamp join window (default 5s)
+  --fill {auto,hold,none}
+                        Carry a run-length (keep:changes) value forward to
+                        reference instants it has no sample at: 'auto'
+                        (default) fills only keep:changes sessions, 'hold'
+                        forces it everywhere, 'none' keeps strict point
+                        semantics
+  --max-hold SECONDS    Cap how long a filled value may be carried (default:
+                        until the next sample or the end of its recording
+                        session)
 
 --method cheat sheet (which coefficient when):
   pearson      linear correlation of two continuous signals (DEFAULT). Use for

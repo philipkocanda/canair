@@ -8,6 +8,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Time-aligned joins now carry run-length values forward** (`--fill`,
+  `--max-hold` on `align`/`correlate`/`hunt`/`investigate`/`decode`). A
+  `keep:changes` row means "this value holds until the next row", but the joins
+  treated it as a point measurement — so a signal that legitimately did not change
+  had nothing to attach to and the row was silently dropped. Measured on the
+  bundled profile: aligning IGPM's charge-port lock (known for a whole 3 h charge,
+  in which it changed twice) against BMS SOC joined **5 of 2016 rows**, losing
+  99.75 % of a window that was never unknown. It now joins all 2016. Defaults to
+  `--fill auto`, which fills only `keep:changes` rows, never carries a value across
+  a recording-session boundary, and closes a session's final run where that session
+  stopped recording. `--fill hold` forces it over data whose provenance is
+  unrecorded (warning loudly on `keep:unique`, where global dedup genuinely
+  destroyed the run structure); `--fill none` restores strict point semantics.
+  Every filled row is reported — a per-column `[N joined + M held, up to 2h58m]` in
+  `align`'s table, a per-row `filled` key in its `--json`, and a `fill` block plus
+  a named-signal line elsewhere — so reconstructed coverage is never mistaken for
+  measured coverage. See `plans/2026-08-05-run-length-forward-fill-joins.md`.
+- **`--find-mirrors` finds the mirrors it used to miss** (`--mirror-match`,
+  `--allow-offset` on `decode --find-mirrors` and both `correlate --find-mirrors`
+  kinds). It previously demanded *exact* equality on *every* row, which two
+  mechanisms defeated: round-robin polling reads a drifting signal on two ECUs
+  seconds apart, so they disagree by ±1 on a minority of rows; and real mirrors are
+  frequently the same quantity at a different zero or scale. `--mirror-match`
+  (default 0.9) sets the agreement required, and `--allow-offset` accepts
+  `a == b + k` / `a == b × s` — which recovers, on the bundled profile,
+  `OBC:2101:B19 == AAF:2181:AAF_LDC_TEMP + 100`,
+  `AAF:2180:B21 == COMPRESSOR_TEMP + 40` and a raw 12 V byte at `× 12.8`, all
+  previously reported as no mirror. Defined parameters are now swept alongside raw
+  bytes, so an unknown byte can mirror a *named, decoded* signal on another ECU.
+  Agreement must also beat coincidence (Cohen's κ, reported when not unanimous):
+  without that floor two flags that are both zero in 99 % of rows "agree" 99 % of
+  the time by construction, which turned 3 real mirrors into 73 reported pairs.
 - **`canair lock`** — inspect and clear the device connection mutex without
   starting a session. A bare `canair lock` names the holder (PID, command line,
   age, any pending release request); `canair lock steal` asks it to release the
@@ -29,6 +61,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its internals.
 
 ### Fixed
+- **Short signals were silently excluded from correlation ranking.** The bucket
+  prune in `correlate`'s ranked sweep dropped any series with fewer than `--min-n`
+  samples, described as a mechanical impossibility — but a join emits one row per
+  *reference* sample, and several reference rows may map to one candidate sample, so
+  a short series can supply a full overlap as the *candidate*. Combined with
+  run-length recording it discarded exactly the sparse signals worth finding. The
+  bound now applies where it belongs, to the reference side of each pair.
 - **`--force` hung forever against a live session.** It took the lock with a
   *blocking* `flock`, so the one case it existed for — an orphaned session still
   holding the device — made every `--force` run wait indefinitely (leaving no way

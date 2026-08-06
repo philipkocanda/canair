@@ -68,9 +68,15 @@ canair hunt can drive.blf --id 0x220 --against 0x386:r0 # which byte of 0x220 tr
 (e.g. wheel speed on both `0x386` and `0x331`):
 
 ```bash
-canair correlate can drive.blf --find-mirrors          # byte-level mirrors across IDs
-canair correlate can drive.blf --find-mirrors --bits   # bit-level
+canair correlate can drive.blf --find-mirrors                  # byte-level mirrors across IDs
+canair correlate can drive.blf --find-mirrors --bits           # bit-level
+canair correlate can drive.blf --find-mirrors --allow-offset    # also at a different zero/scale
 ```
+
+Frames captured microseconds apart still disagree occasionally, and the same
+quantity is often broadcast in different units, so a mirror needs neither
+unanimity nor exact equality — see
+[mirrors](../concepts/analysis-commands.md#mirrors-the-same-quantity-reachable-two-ways).
 
 The reasoning is the same as [step 6](06-analyze.md): a byte that ramps with
 motion and mirrors a known wheel-speed frame *is* a wheel speed; confirm it with
