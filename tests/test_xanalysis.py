@@ -286,14 +286,14 @@ class TestCorrelateGate:
     """T2.3 — signal-predicate gating on correlate --against."""
 
     def test_parse_gate_reference_form(self):
-        from canlib.commands._correlate_calc import _parse_gate
+        from canlib.commands.correlate.calc import _parse_gate
 
         signal, op_fn, value, _ = _parse_gate("> 0")
         assert signal is None and value == 0.0
         assert op_fn(1, 0) and not op_fn(-1, 0)
 
     def test_parse_gate_named_signal(self):
-        from canlib.commands._correlate_calc import _parse_gate
+        from canlib.commands.correlate.calc import _parse_gate
 
         signal, op_fn, value, _ = _parse_gate("MCU:2102:MCU_MOTOR_RPM >= 100")
         assert signal == "MCU:2102:MCU_MOTOR_RPM" and value == 100.0
@@ -303,13 +303,13 @@ class TestCorrelateGate:
         # The documented '[SIGNAL] OP VALUE' form must parse to the same bare
         # signal — otherwise the brackets leak into SignalRef.parse, yield a bogus
         # ECU, and the gate silently matches nothing (the field-observed trap).
-        from canlib.commands._correlate_calc import _parse_gate
+        from canlib.commands.correlate.calc import _parse_gate
 
         signal, _op, value, _ = _parse_gate("[MCU:2102:MCU_MOTOR_RPM] > 0")
         assert signal == "MCU:2102:MCU_MOTOR_RPM" and value == 0.0
 
     def test_parse_gate_bracketed_matches_bare(self):
-        from canlib.commands._correlate_calc import _parse_gate
+        from canlib.commands.correlate.calc import _parse_gate
 
         assert (
             _parse_gate("[HVAC:220102:HVAC_COMPRESSOR_ON] > 0")[0]
@@ -319,13 +319,13 @@ class TestCorrelateGate:
     def test_parse_gate_invalid(self):
         import pytest
 
-        from canlib.commands._correlate_calc import _parse_gate
+        from canlib.commands.correlate.calc import _parse_gate
 
         with pytest.raises(ValueError):
             _parse_gate("not a gate")
 
     def test_apply_gate_reference_value(self):
-        from canlib.commands._correlate_calc import _apply_gate
+        from canlib.commands.correlate.calc import _apply_gate
 
         ref = [_tp(0, -5.0), _tp(1, 0.0), _tp(2, 10.0), _tp(3, 20.0)]
         kept = _apply_gate(ref, "> 0", 1.0, since=None, until=None, state=None, label=None)
@@ -612,7 +612,7 @@ class TestOverlap:
 
     def test_reports_overlapping_pairs(self, capsys, monkeypatch):
         from canlib.align import LoadedPid
-        from canlib.commands import correlate
+        from canlib.commands.correlate import render as correlate_render
 
         def lp(ecu, pid, secs):
             x = LoadedPid(ecu, pid)
@@ -628,8 +628,10 @@ class TestOverlap:
             ("MCU", "2102"): lp("MCU", "2102", [0, 2, 4, 6]),
             ("BMS", "2101"): lp("BMS", "2101", [40, 42]),
         }
-        monkeypatch.setattr(correlate, "load_signal_captures", lambda *a, **k: fake)
-        rc = correlate._print_overlap(list(fake), None, None, None, None, 1.0, 2, as_json=False)
+        monkeypatch.setattr(correlate_render, "load_signal_captures", lambda *a, **k: fake)
+        rc = correlate_render._print_overlap(
+            list(fake), None, None, None, None, 1.0, 2, as_json=False
+        )
         assert rc == 0
         out = capsys.readouterr().out
         assert "ESC:22C101" in out and "MCU:2102" in out
@@ -720,14 +722,12 @@ class TestCorrelatePromote:
         return rows, series, ramp
 
     def test_promote_picks_first_raw_byte(self, tmp_path, monkeypatch):
-        from canlib.commands import correlate
+        from canlib.commands.correlate import promote
 
         f = _temp_ecu_profile(tmp_path, "aaf.yaml")
 
         rows, series, ref = self._rows_and_series()
-        rc = correlate._promote_top_byte(
-            "AAF_CAND", rows, series, ref, "MCU:2102:MCU_MOTOR_RPM", 1.0
-        )
+        rc = promote._promote_top_byte("AAF_CAND", rows, series, ref, "MCU:2102:MCU_MOTOR_RPM", 1.0)
         assert rc == 0
         doc = yaml.safe_load(f.read_text())
         pid_block = doc["AAF"]["pids"].get(2181) or doc["AAF"]["pids"].get("2181")
@@ -737,12 +737,12 @@ class TestCorrelatePromote:
         assert "r=+0.950" in p["notes"]
 
     def test_promote_refuses_when_no_byte_hit(self, capsys):
-        from canlib.commands import correlate
+        from canlib.commands.correlate import promote
 
         # only a defined-param hit — nothing raw to promote
         rows = [("MCU:2102:MCU_MOTOR_RPM", 0.99, 20)]
         series = {"MCU:2102:MCU_MOTOR_RPM": [_tp(i, i) for i in range(20)]}
-        rc = correlate._promote_top_byte("X", rows, series, [], "REF", 1.0)
+        rc = promote._promote_top_byte("X", rows, series, [], "REF", 1.0)
         assert rc == 1
         assert "no raw-byte hit" in capsys.readouterr().err
 

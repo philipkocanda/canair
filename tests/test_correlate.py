@@ -47,15 +47,17 @@ def _run(tmp_path, monkeypatch, argv):
             s, captures_dir=tmp_path, **{k: v for k, v in kw.items() if k != "captures_dir"}
         )
 
-    # Both modules must be redirected: the mirror/overlap views live in
-    # _correlate_render and import the loader themselves, so patching only
-    # `commands.correlate` left them reading the *active profile's* whole capture
-    # corpus — slow, and the assertions were passing on real data instead of the
-    # fixture.
-    monkeypatch.setattr("canlib.commands.correlate.load_signal_captures", scoped)
-    monkeypatch.setattr("canlib.commands._correlate_render.load_signal_captures", scoped)
+    # Every module that imports the loader must be redirected. `from ... import
+    # load_signal_captures` binds the name in the importer, so patching
+    # canlib.align (its definition) would not reach any of them. Two modules
+    # import it: `series` builds the ranked series, and `render` re-loads for the
+    # mirror/overlap views. Missing one leaves those views reading the *active
+    # profile's* whole capture corpus — slow, and the assertions then pass on real
+    # data instead of the fixture.
+    monkeypatch.setattr("canlib.commands.correlate.series.load_signal_captures", scoped)
+    monkeypatch.setattr("canlib.commands.correlate.render.load_signal_captures", scoped)
     monkeypatch.setattr(
-        "canlib.commands.correlate.discover_signal_specs",
+        "canlib.commands.correlate.uds.discover_signal_specs",
         lambda *a, **k: [("IGPM", "22BC03"), ("IGPM", "22BC05")],
     )
     p = correlate.add_parser(argparse.ArgumentParser().add_subparsers())
@@ -132,7 +134,7 @@ class TestAgainstFile:
             "2026-07-24 09:00:06,7.0\n"
         )
         monkeypatch.setattr(
-            "canlib.commands.correlate.discover_signal_specs",
+            "canlib.commands.correlate.uds.discover_signal_specs",
             lambda *a, **k: [("IGPM", "22BC03")],
         )
         rc = _run(
@@ -197,14 +199,14 @@ class TestControl:
         import canlib.align as align
 
         orig = align.load_signal_captures
-        monkeypatch.setattr(
-            "canlib.commands.correlate.load_signal_captures",
-            lambda s, **kw: orig(
-                s, captures_dir=tmp_path, **{k: v for k, v in kw.items() if k != "captures_dir"}
-            ),
+        scoped = lambda s, **kw: orig(  # noqa: E731
+            s, captures_dir=tmp_path, **{k: v for k, v in kw.items() if k != "captures_dir"}
         )
+        # See _run above: both importers of the loader must be redirected.
+        monkeypatch.setattr("canlib.commands.correlate.series.load_signal_captures", scoped)
+        monkeypatch.setattr("canlib.commands.correlate.render.load_signal_captures", scoped)
         monkeypatch.setattr(
-            "canlib.commands.correlate.discover_signal_specs", lambda *a, **k: [("OBC", "2101")]
+            "canlib.commands.correlate.uds.discover_signal_specs", lambda *a, **k: [("OBC", "2101")]
         )
         p = correlate.add_parser(argparse.ArgumentParser().add_subparsers())
         args = p.parse_args(["uds", *argv])
