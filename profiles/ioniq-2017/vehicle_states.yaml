@@ -55,7 +55,7 @@ states:
     when: IGPM.ACC2_IGN_ON == 1
   - name: PARKED
     description: Stationary, gear in Park.
-    when: VCU.GEAR_PARK == 1 or ESC.GEAR_SELECTOR == 1
+    when: VCU.GEAR_P == 1 or ESC.GEAR_SELECTOR == 1
   - name: DRIVING
     description: In motion.
     when: ESC.REAL_SPEED_KMH > 0.5 or VCU.VCU_VEHICLE_SPEED > 0.5 or EPS.EPS_VEHICLE_SPEED > 0.5 or MCU.MCU_MOTOR_RPM > 100

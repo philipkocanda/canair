@@ -6,8 +6,9 @@
       BMS_2101_B10                   27            ?  B10
       DEBUG_BMS_STATE_FLAGS          3             ✓  B14
       BMS_MAIN_RELAY                 1             ✓  B14
+      BMS_MAIN_RELAY_MIRROR_B14_1    1             ?  B14
       CHARGER_CONNECTED              0             ✓  B14
-      CHARGING_DC                    0             ✓  B14
+      CHARGING_DC                    0             ?  B14
       CHARGING                       0             ✓  B14
       BATTERY_POWER                  0.71 kW       ✓  B15,B17-B19
       BATTERY_CURRENT                1.80 A        ✓  B15,B17

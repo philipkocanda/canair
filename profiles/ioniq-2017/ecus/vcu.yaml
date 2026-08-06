@@ -79,36 +79,59 @@ VCU:
           verified: false
           notes: "Raw accelerator-related sensor (APS). Tracks pedal (0-254). ISO-TP byte 0x0d."
 
-        DEBUG_DRIVE_MODE_FLAGS:
-          expression: "B10"
+        GEAR:
+          expression: B10
           unit: ""
           verified: true
-          notes: "Raw byte — individual bits below"
-
-        DRIVE_MODE_P:
-          expression: "B10:0"
+          notes: >-
+            Transmission range (PRND) as one readable value. RENAMED from DEBUG_DRIVE_MODE_FLAGS
+            2026-08-06: this profile uses 'drive mode' for Eco/Normal/Sport, so the old name
+            misdescribed it — B10 is the gear/shifter position. Across 6365 captures B10 takes
+            exactly 5 values: 0x21 park (n=5982), 0x28 drive (n=317), 0x22 reverse (n=54), 0x24
+            neutral (n=3), 0x01 park with bit5 clear (n=9). Bits 0-3 are one-hot P/R/N/D (see
+            GEAR_P/R/N/D); bit5 is GEAR_SIGNAL_VALID; bits 4,6,7 are constant 0 in all captured
+            data. Value 0x01 is park while the gear signal reads invalid, seen only during VCU
+            power-mode transitions.
+          type: enum
+          values:
+            1: park_gear_signal_invalid
+            33: park
+            34: reverse
+            36: neutral
+            40: drive
+          source: canair bitfield analysis 2026-08-06; same-payload enumeration n=6365
+        GEAR_P:
+          expression: B10:0
           unit: ""
           verified: true
-          notes: ""
-
-        DRIVE_MODE_R:
-          expression: "B10:1"
+          notes: >-
+            Gear = Park. One-hot bit of the GEAR byte (B10). n=5991 across 6365 captures. RENAMED
+            from DRIVE_MODE_P 2026-08-06 (this profile uses 'drive mode' for Eco/Normal/Sport; B10
+            is the transmission range). Mirrored into B26:5 — see GEAR_P_MIRROR_B26_5.
+        GEAR_R:
+          expression: B10:1
           unit: ""
           verified: true
-          notes: ""
-
-        DRIVE_MODE_N:
-          expression: "B10:2"
+          notes: >-
+            Gear = Reverse. One-hot bit of the GEAR byte (B10). n=54, all on 2026-07-19 and
+            2026-07-26. RENAMED from DRIVE_MODE_R 2026-08-06. Cross-confirmed by ESC GEAR_SELECTOR=2
+            over the 2026-07-26 driveway reversing segments.
+        GEAR_N:
+          expression: B10:2
           unit: ""
           verified: true
-          notes: ""
-
-        DRIVE_MODE_D:
-          expression: "B10:3"
+          notes: >-
+            Gear = Neutral. One-hot bit of the GEAR byte (B10). Only n=3, all at 2026-07-19 17:42 —
+            the sole Neutral observation in the corpus, and ESC 22C101 was not co-polled that day,
+            so ESC GEAR_SELECTOR=3 is still unconfirmed. RENAMED from DRIVE_MODE_N 2026-08-06.
+        GEAR_D:
+          expression: B10:3
           unit: ""
           verified: true
-          notes: ""
-
+          notes: >-
+            Gear = Drive. One-hot bit of the GEAR byte (B10). n=317 across 6365 captures. RENAMED
+            from DRIVE_MODE_D 2026-08-06. NOTE: B26:3 is NOT this signal — it is not-Park (set in R
+            and N too); see GEAR_PARK_INV.
         DEBUG_VEHICLE_STATE_FLAGS:
           expression: "B11"
           unit: ""
@@ -122,17 +145,26 @@ VCU:
           notes: ""
 
         VEHICLE_STATE_NOT_BRAKING:
-          expression: "B11:1"
+          expression: B11:1
           unit: ""
           verified: true
-          notes: ""
-
-        VEHICLE_STATE_START_KEY:
-          expression: "B11:2"
+          notes: >-
+            Brake released (the complement switch of VEHICLE_STATE_BRAKE_LAMP, B11:0). 2026-08-06:
+            B11 bits 0/1 are a REDUNDANT SWITCH PAIR, not complements — across 6365 captures both
+            read 0 in 4178 rows (almost all VCU_POWER_STATE=7 charge standby) and both read 1 in 5.
+            So 0 does NOT mean 'braking': it also means the brake signal is not available, which is
+            the usual case whenever the drive path is down. Only trust this bit while drive-ready
+            (VCU_POWER_STATE=4).
+        UNKNOWN_B11_2:
+          expression: B11:2
           unit: ""
           verified: false
-          notes: ""
-
+          notes: >-
+            Constant 0 in all 6365 captures — meaning unknown. RENAMED from VEHICLE_STATE_START_KEY
+            2026-08-06: the start-key reading was never observed to be true, so the name asserted
+            more than the data supports. Never exercised in scope rather than proven unused.
+          source: canair bitfield analysis 2026-08-06; n=6365
+          enabled: false
         VEHICLE_STATE_EV_READY:
           expression: "B11:3"
           unit: ""
@@ -145,24 +177,32 @@ VCU:
           verified: true
           notes: ""
 
-        VEHICLE_STATE_MAIN_RELAY_ON:
-          expression: "1-B11:5"
+        UNKNOWN_B11_5:
+          expression: B11:5
           unit: ""
           verified: false
-          notes: "Inverted from MAIN_RELAY_OFF bit. 1=relay closed (normal Ready/charging), 0=relay open (car off)."
-
-        VEHICLE_STATE_POWER_ENABLE:
-          expression: "B11:6"
+          notes: >-
+            Constant 0 in all 6365 captures — meaning unknown. RENAMED from
+            VEHICLE_STATE_MAIN_RELAY_ON 2026-08-06, and the expression corrected from 1-B11:5 to
+            B11:5: the inversion made it decode a constant 1, i.e. it reported 'HV main relay
+            closed' in SLEEP and while charging, and the 0 state its note described was never once
+            observed. Use BMS_MAIN_RELAY (BMS 2101 B14:0) for the real HV relay state. Never
+            exercised in scope rather than proven unused.
+          source: canair bitfield analysis 2026-08-06; n=6365
+          enabled: false
+        VEHICLE_STATE_EV_READY_MIRROR_B11_6:
+          expression: B11:6
           unit: ""
-          verified: false
-          notes: >
-            HV power-enable flag. 2026-07-30 power-cycle (READY->OFF->ACC1->ACC2->READY, keep-unique):
-            B11:6 = 1 in READY (B11=0x5A), 0 in the accessory/off states (B11=0x92/0x91/0x80), toggling
-            together with EV_READY (B11:3) and LDC (1-B11:7) — physically consistent (HV power enable
-            drops when the car leaves READY). Direction proven; kept unverified because keep-unique only
-            resolved READY vs one accessory blend — ACC1(amber)/ACC2(blue)/true-OFF not individually
-            separated (needs a keep-all IGPM+VCU cycle capture).
-
+          verified: true
+          notes: >-
+            Exact mirror of VEHICLE_STATE_EV_READY (B11:3) — identical in 6365/6365 captures.
+            RENAMED from VEHICLE_STATE_POWER_ENABLE 2026-08-06: the earlier note observed the two
+            'toggling together' and inferred a separate HV power-enable flag, but they never
+            diverge, so there is no evidence of a second signal. Disabled so it does not ship a
+            duplicate; kept defined so bit6 is accounted for. If a state is ever found where the two
+            differ, this becomes a real signal again.
+          source: canair bitfield analysis 2026-08-06; decode --find-mirrors --bits, n=6365 unanimous
+          enabled: false
         VEHICLE_STATE_LDC_ENABLED:
           expression: "1-B11:7"
           unit: ""
@@ -170,51 +210,63 @@ VCU:
           notes: "Inverted from LDC_INHIBIT bit. 1=LDC active, 0=inhibited. 2026-07-30 power-cycle: LDC=1 in READY (B11=0x5A), 0 in accessory/off (B11=0x92/0x91/0x80) — DC-DC converter inhibited when not READY, toggles with EV_READY/POWER_ENABLE. Direction proven; ACC1/ACC2/OFF not individually resolved under keep-unique."
 
         VCU_STATE_FLAGS_RAW:
-          expression: "B12"
+          expression: B12
           unit: ""
           verified: false
-          notes: >
-            To investigate
-
+          notes: >-
+            NOT a bitfield despite the name — 2026-08-06 triage: B12 takes 136 distinct values
+            across 6365 captures with all 8 bits varying independently, which is the signature of a
+            continuous analog value or a counter, not a flag set. Do not decode it bit-by-bit. Needs
+            analog triage (autocorrelation / step distribution) and a correlation sweep against
+            speed/pedal/power to identify it; rename once known.
+          source: canair bitfield analysis 2026-08-06; byte-value enumeration n=6365
         DEBUG_GEAR_STATE_FLAGS:
-          expression: "B26"
+          expression: B26
           unit: ""
           verified: true
-          source: "canair historical analysis 2026-07-23"
-          notes: >
-            Raw B26 gear/shifter bitfield — a second copy of the gear state that parallels B10
-            (DEBUG_DRIVE_MODE_FLAGS) in a different byte. Across 773 captures B26 takes only two
-            values: 0x20 (Park) and 0x08 (Drive). Bit 3 (0x08) tracks Drive (r=+0.984 vs DRIVE_MODE_D),
-            bit 5 (0x20) tracks Park (r=+1.000 vs DRIVE_MODE_P). Bits 0,1,2,4,6,7 are constant 0 in all
-            captured data (R/N almost never sampled, so any R/N bits are unconfirmed). See the individual
-            bits below.
-
-        GEAR_DRIVE:
-          expression: "B26:3"
+          source: canair bitfield analysis 2026-08-06; same-payload cross-tab vs GEAR (B10) n=6365
+          notes: >-
+            Park / not-Park state, mirrored out of the gear byte. CORRECTED 2026-08-06: across 6365
+            captures B26 takes only two values — 0x20 (Park) and 0x08 (Reverse, Neutral OR Drive).
+            The earlier note read 0x08 as 'Drive' and cited r=+0.984 vs the drive bit over 773
+            captures; with R and N now sampled (54 and 3) that is disproven — 0x08 is simply
+            not-Park. Bit3 and bit5 are exact complements and both mirror GEAR (B10), so B26 carries
+            no information B10 does not; its two bit params are disabled as mirrors. Bits
+            0,1,2,4,6,7 are constant 0 in all captured data.
+          type: enum
+          values:
+            8: not_park
+            32: park
+        GEAR_PARK_INV:
+          expression: B26:3
           unit: ""
-          source: "canair historical analysis 2026-07-23 (was mislabeled CAR_READY, Kia Niro PR#716)"
+          source: canair bitfield analysis 2026-08-06; same-payload cross-tab vs GEAR (B10) n=6365
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
-          notes: >
-            Gear = Drive. RENAMED from CAR_READY 2026-07-23: B26:3 is NOT car-ready (DISPROVEN — read 0 in
-            full READY when the car was definitely ready; VEHICLE_STATE_EV_READY B11:3 already covers ready).
-            B26:3 correlates r=+0.984 with DRIVE_MODE_D (B10:3) across 773 captures — it is the drive-gear
-            bit mirrored into B26. Niro's CAR_READY offset does not transfer to the Ioniq.
-
-        GEAR_PARK:
-          expression: "B26:5"
+          notes: >-
+            Gear is NOT Park. RENAMED from GEAR_DRIVE 2026-08-06 — it was NOT the drive gear: B26:3
+            reads 1 in Reverse (n=54) and Neutral (n=3) as well as Drive (n=317), i.e. 57 false
+            positives against the real gear with 0 false negatives (99.10% agreement, which is why
+            an earlier r=+0.984 vs the drive bit looked convincing when R and N were still
+            unsampled). B26 takes only 2 values across 6365 captures: 0x20 park, 0x08 not-park — so
+            bit3 is the exact complement of bit5, and both are redundant with GEAR (B10). Disabled:
+            it would ship a duplicate device signal. Kept defined so bit3 is accounted for.
+          enabled: false
+        GEAR_P_MIRROR_B26_5:
+          expression: B26:5
           unit: ""
-          source: "canair historical analysis 2026-07-23 (was mislabeled PARK_BRAKE, Kia Niro PR#716)"
+          source: canair bitfield analysis 2026-08-06; decode --find-mirrors --bits, n=6365 unanimous
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
-          notes: >
-            Gear = Park. RENAMED from PARK_BRAKE 2026-07-23: B26:5 correlates r=+1.000 with DRIVE_MODE_P
-            (B10:0) across 773 captures — it is the park-gear bit mirrored into B26, NOT the electronic
-            park brake (EPB). The earlier PARK_BRAKE guess (Niro PR#716) coincidentally matched because the
-            EPB is typically engaged whenever the car is in Park; the true signal is gear=P.
-
+          notes: >-
+            Gear = Park, mirrored into B26. RENAMED from GEAR_PARK 2026-08-06: identical to GEAR_P
+            (B10:0) in 6365/6365 captures, so it is the same fact from a second byte, not an
+            independent signal. (Its own earlier rename from PARK_BRAKE stands — it is the park
+            GEAR, not the electronic park brake, which merely co-occurs.) Disabled so it does not
+            ship a duplicate of GEAR_P; kept defined so bit5 is accounted for.
+          enabled: false
         VCU_UNKNOWN:
           expression: "B20/2"
           unit: "%"
@@ -242,12 +294,21 @@ VCU:
           unit: ""
           min: "0"
           max: "7"
-          source: canair historical analysis 2026-07-23; enum + value 6 confirmed 2026-07-27 charge-stop
+          source: canair historical analysis 2026-07-23; enum + value 6 confirmed 2026-07-27 charge-stop; value 1 added 2026-08-06
           verified: true
-          notes: >
-            VCU/EPCU power-mode state machine (B25). 4=drive_ready (EV READY, inverter/drive path enabled), 7=charge_standby (drive path down — AC charging OR key-off standby), 6=transition (caught at charge termination 2026-07-27, HV spinning down). r=-1.000 vs VEHICLE_STATE_EV_READY across the fleet of captures. Independent of the B11 state bitfield.
+          notes: >-
+            VCU/EPCU power-mode state machine (B25). 4=drive_ready (EV READY, inverter/drive path
+            enabled), 7=charge_standby (drive path down — AC charging OR key-off standby),
+            6=transition (caught at charge termination 2026-07-27, HV spinning down). r=-1.000 vs
+            VEHICLE_STATE_EV_READY across the fleet of captures. Independent of the B11 state
+            bitfield. 2026-08-06: value 1 (n=21) was undeclared by this enum — it occurs only in the
+            2026-07-30 power-cycle window, bracketed by GEAR_SIGNAL_VALID (B10:5) dropping, with
+            B23=0x34 (inverter still enabled) throughout. Labelled unknown_1 rather than guessed:
+            the value is established, its meaning is not. A --keep-all power cycle should resolve
+            it.
           type: enum
           values:
+            1: unknown_1
             4: drive_ready
             6: transition
             7: charge_standby
@@ -284,6 +345,19 @@ VCU:
             never observed diverging. Disabled so it does not ship a duplicate device signal;
             defined to record that bit 5 is accounted for.
           enabled: false
+        GEAR_SIGNAL_VALID:
+          expression: B10:5
+          source: canair bitfield analysis 2026-08-06; n=6365, 4 transitions in the 2026-07-30 power-cycle session
+          verified: false
+          notes: >-
+            Gear/shifter signal valid. Set in 6356 of 6365 captures; clear in exactly 9, all on
+            2026-07-30 at four VCU power-mode transitions (09:52:00 and 09:53:56 falling, 09:52:28
+            and 09:54:23 rising — bracketing the window where VCU_POWER_STATE reads its undeclared
+            value 1). NOT a gear bit: it is set in every one of P/R/N/D, so it does not encode a
+            position; it reads as a validity/plausibility flag for the PRND field, dropping while
+            the VCU re-initialises. Unverified: 4 episodes from a single session, all with the car
+            in Park, and that session was recorded --keep-unique so the transition timing is not
+            recoverable. Verify with a --keep-all power cycle.
     2102:
       status: active
       period: 5000
@@ -528,11 +602,12 @@ VCU:
       priority: P1
       vehicle_states: [ACC]
       notes: >
-        Several unverified params: CAR_READY (B26:3) causes OOB on 22-byte response, PARK_BRAKE (B26:5) same issue, ACCEL_PEDAL_DEPTH (B17), LDC_INHIBIT (B11:7),
-        MCU_STATE (B11:6).
+        Several unverified params: ACCEL_PEDAL_DEPTH (B17), LDC_INHIBIT (B11:7). The B26 pair
+        (formerly CAR_READY / PARK_BRAKE) and B11:6 (formerly MCU_STATE / POWER_ENABLE) were
+        resolved 2026-08-06 — see what_to_test below.
         DRIVE MODE / REGEN: 2026-07-21 stationary test (READY, in D) cycled Normal(regen1) -> Sport(regen2) ->
         ECO(regen1) -> Normal(regen1) -> regen0 while polling VCU/MCU/BCM/IGPM. RESULT: NOT found. Across the
-        whole window VCU 2101 B10 (DEBUG_DRIVE_MODE_FLAGS) stays flat at 0x28 (D) — the "ECO/Sport/Normal in B10
+        whole window VCU 2101 B10 (GEAR) stays flat at 0x28 (D) — the "ECO/Sport/Normal in B10
         upper nibble" hypothesis is DISPROVEN (upper nibble constant). No other byte on any polled PID (VCU
         2101/2102, MCU 2101/2102/2103, BCM 22B0xx/BCxx, IGPM 22BCxx) steps through the 5-state sequence; every
         varying byte is analog noise (currents/voltages/temps/counters). HYPOTHESIS (untested): modes may only
@@ -540,8 +615,8 @@ VCU:
         scan entry below — Ioniq 5 exposes drive mode / regen level there); (2) re-capture WHILE DRIVING,
         holding one mode per labelled session, or --monitor a single PID fast while cycling modes.
       what_to_test:
-        - "CAR_READY (B26:3) — RESOLVED 2026-07-23: RENAMED to GEAR_DRIVE. B26:3 is the drive-gear bit (r=+0.984 vs DRIVE_MODE_D), not car-ready. Now verified:true."
-        - "PARK_BRAKE (B26:5) — RESOLVED 2026-07-23: RENAMED to GEAR_PARK. B26:5 is the park-gear bit (r=+1.000 vs DRIVE_MODE_P), not EPB (it just co-occurs with EPB in Park). Now verified:true."
+        - "CAR_READY (B26:3) — RESOLVED 2026-07-23, CORRECTED 2026-08-06: now GEAR_PARK_INV. It is NOT car-ready and NOT the drive gear either — B26:3 reads 1 in Reverse (n=54) and Neutral (n=3) as well as Drive, so it is simply 'gear is not Park'. The 2026-07-23 r=+0.984 vs the drive bit only looked convincing because R and N were unsampled then. Disabled: it is the exact complement of B26:5 and redundant with GEAR (B10)."
+        - "PARK_BRAKE (B26:5) — RESOLVED 2026-07-23, CORRECTED 2026-08-06: now GEAR_P_MIRROR_B26_5. The park-gear reading stands (not EPB, which merely co-occurs), but it is identical to GEAR_P (B10:0) in 6365/6365 captures, so it is a mirror rather than an independent signal. Disabled to avoid shipping a duplicate."
         - "B23 / B25 — RESOLVED 2026-07-23: added VCU_INVERTER_ENABLED (B23:2; B23=0x34 ready / 0 charge, r=+0.997 vs EV_READY) and VCU_POWER_STATE (B25=4 ready / 7 standby, r=-1.000 vs EV_READY). Both verified:true, independent-byte cross-checks of the B11 state bitfield."
         - "ECO/Sport/Normal mode — NOT in B10 upper nibble (disproven 2026-07-21 stationary); try 22 E006 or capture while driving"
         - "Regen mode (off/1/2/3) — not in any 2101/2102 byte stationary; try 22 E007 or capture while coasting/braking (regen torque only appears in motion)"
@@ -752,6 +827,70 @@ VCU:
       notes: Identify VCU 2102 B18 (placeholder 'check if voltage/temp-like').
       sources:
         - canair align cross-ECU offset-mirror + state-divergence 2026-08-05
+    - type: verify
+      target: 2101 gear PRND enum + ESC cross-check
+      status: pending
+      priority: P1
+      vehicle_states: [READY]
+      created: "2026-08-06"
+      updated: "2026-08-06"
+      notes: "The gear byte VCU 2101 B10 is decoded as GEAR (enum) + GEAR_P/R/N/D, but two of the four positions rest on thin data: Reverse n=54 (two sessions) and Neutral n=3 (a single 2026-07-19 17:42 window). ESC 22C101 GEAR_SELECTOR's Neutral value (expected 3 on its sequential 1=P/2=R/4=D encoding) is still unobserved purely because ESC was not co-polled on the one day VCU saw Neutral. One capture closes both, and simultaneously re-tests the corrected B26 reading (GEAR_PARK_INV must read 1 in R and N, not just D)."
+      sources:
+        - canair bitfield analysis 2026-08-06 (plans/2026-08-06-bitfield-audit-and-gear-state.md)
+      what_to_test:
+        - ESC 22C101 GEAR_SELECTOR = 3 in Neutral (last unobserved value)
+        - GEAR_PARK_INV (B26:3) = 1 in Reverse and Neutral — confirms it is not-Park, not drive
+        - Whether B26 ever takes a third value (would break the park/not_park enum)
+      capture_protocol: >-
+        canair monitor 'VCU:2101 ESC:22C101' --save --keep-changes --label 'gear PRND sweep' --state
+        READY. Park, foot on brake, shift P->R->N->D->N->R->P pausing ~10s in each position; press
+        's' in the monitor to note each shift. Expect: GEAR enum steps park/reverse/neutral/drive;
+        ESC GEAR_SELECTOR steps 1/2/3/4 with 3 finally observed; GEAR_PARK_INV (B26:3) reads 1 in
+        all of R/N/D and 0 only in P.
+    - type: verify
+      target: 2101 B10:5 GEAR_SIGNAL_VALID + B25 value 1
+      status: pending
+      priority: P1
+      vehicle_states: [ACC, READY]
+      created: "2026-08-06"
+      updated: "2026-08-06"
+      notes: Two findings from the 2026-07-30 power-cycle session need a repeat at full sample rate. (1) GEAR_SIGNAL_VALID (B10:5) is clear in only 9 of 6365 captures, all at four power-mode transitions, and always with the car in Park — so 'validity flag' is inferred from when it drops, not from seeing it drop in another gear. (2) VCU_POWER_STATE (B25) reads an undeclared value 1 (n=21) inside that same window, currently labelled unknown_1. The blocker is that the 2026-07-30 session was recorded --keep-unique, which drops falling edges and makes the transition timing unrecoverable — the repeat MUST be --keep-all.
+      sources:
+        - canair bitfield analysis 2026-08-06 (plans/2026-08-06-bitfield-audit-and-gear-state.md)
+      what_to_test:
+        - B10:5 falls at every power-mode transition (>=3 independent episodes) — promotes GEAR_SIGNAL_VALID to verified
+        - Whether B10:5 also drops when the gear is not Park (distinguishes 'signal valid' from 'park position confirmed')
+        - Which button press maps to B25=1 — replaces the unknown_1 enum label
+        - B11 values 0x80/0x90/0x91/0x92 vs the 4 LED states (feeds the existing 2101 power-state LED item)
+      capture_protocol: >-
+        canair monitor VCU:2101 --save --keep-all --interval 1 --label 'VCU power cycle keep-all'
+        --state ACC. From READY: press start to OFF, then ACC1 (amber), then ACC2 (blue), then back
+        to READY; press 's' to note each press. Repeat 3x. Then, if safe and stationary with brake
+        held, repeat one cycle while NOT in Park to see whether B10:5 drops there too.
+    - type: decode
+      target: 2101 B12 (analog, misnamed VCU_STATE_FLAGS_RAW)
+      status: captured
+      priority: P3
+      created: "2026-08-06"
+      updated: "2026-08-06"
+      notes: "VCU_STATE_FLAGS_RAW is not a flag byte: B12 takes 136 distinct values across 6365 captures with all 8 bits varying independently. Triage it as an analog value or counter, then rename. Do NOT decode it bit-by-bit."
+      sources:
+        - canair bitfield analysis 2026-08-06
+      what_to_test:
+        - Autocorrelation / mean step size — smooth analog vs counter vs checksum
+        - correlate/hunt against speed, pedal, motor RPM, pack current and the 12V rail
+    - type: decode
+      target: 2101 B13/B15 (same quantity, two resolutions)
+      status: captured
+      priority: P3
+      created: "2026-08-06"
+      updated: "2026-08-06"
+      notes: "B13 and B15 are both unmapped and hold one quantity at two resolutions: B15 == B13>>1 in 6351 of 6365 captures. B13 is mostly 0x06 (n=6204) and B15 mostly 0x03, so it is a small-range value, not a wide analog. Decoding either one decodes both; the 2x relationship is itself a strong hint (a half-step unit, or a raw-vs-rounded pair)."
+      sources:
+        - canair bitfield analysis 2026-08-06 (decode --find-mirrors --bits)
+      what_to_test:
+        - canair decode VCU 2101 --find-mirrors --allow-offset to confirm the exact scale/offset
+        - investigate --events on B13 against session notes — what changes it away from 6
   sessions:
     "81":
       name: "standardDiagnosticSession"

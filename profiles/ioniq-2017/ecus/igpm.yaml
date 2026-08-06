@@ -150,14 +150,19 @@ IGPM:
           notes: "Bit flag — 1=open. Verified 2026-04-15."
 
         DOOR_RR_OPEN:
-          expression: "B10:2"
+          expression: B10:2
           ha_class: door
           source: "Kia Niro EV WiCAN PR#716"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
-          notes: "Bit flag — 1=open. Verified 2026-04-15."
-
+          notes: >-
+            Bit flag — 1=open. Verified 2026-04-15 (live door test). CAVEAT 2026-08-06: constant 0
+            across all 315 retained captures, while every sibling bit on B10 varies (DOOR_RL_OPEN,
+            DOOR_LOCK_RL, DOOR_LOCK_RR, DOOR_PAS_OPEN, DOOR_DRV_OPEN, TRUNK_OPEN) — the rear-right
+            door was simply never opened in the retained corpus. Left verified because the
+            2026-04-15 observation stands on its own; absence of a transition here is not disproof.
+            Re-exercise it in the next narrated body capture to put evidence back in the corpus.
         TRUNK_OPEN:
           expression: "B10:7"
           ha_class: door
@@ -343,33 +348,51 @@ IGPM:
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
       parameters:
         BRAKE_LIGHT:
-          expression: "B10"
+          expression: B10
           ha_class: ""
           min: "0"
           max: "255"
           source: "Decoded from live captures (2026-04-15)"
           source_links: []
           verified: true
-          notes: "Scalar value. 0x00=off, 0x2D=brake pressed. Ioniq 5 OBDb had this at B4 — wrong for Ioniq 2017. Actual position is B7 (data byte 4). Verified 2026-04-15."
-
+          notes: >-
+            Brake-pressed state code, NOT a boolean despite the name. Across 290 captures B10 reads
+            0x00 off (n=267) and 0x2D pressed (n=23), plus one-off 0x01 and 0x02 (turn-signal bits).
+            0x2D sets bits 0,2,3,5 together, so the brake press drives four bits at once — bit2 is
+            the cleanest brake candidate (BRAKE_PEDAL_BITS); bits 3 and 5 are undecoded and never
+            move independently of it, so they are co-driven rather than separate signals. Position
+            verified 2026-04-15 (Ioniq 5 OBDb had this at B4, wrong for the 2017). Deliberately left
+            as a raw byte with no type: enum, so coverage --bitfields keeps reporting the undecoded
+            bits 3 and 5.
         LEFT_TURN_SIGNAL:
-          expression: "B10:0"
+          expression: B10:0
           ha_class: ""
-          source: "Decoded from live captures (2026-04-15)"
+          source: Decoded from live captures 2026-04-15; DISPROVEN as a standalone indicator 2026-08-06
           source_links: []
           verified: false
-          notes: >
-            2026-04-15: Left turn signal stalk. Bit flag — 1=on, persistent (not blinking state). Hazard lights do NOT register here.
-            2026-07-21: live car (READY mode) falsely shows LEFT_TURN_SIGNAL=1 when neither is active!
-
-
+          notes: >-
+            UNUSABLE as a turn-signal indicator — bit0 is set as part of the brake pattern. Across
+            290 captures B10 takes only 0x00 (n=267), 0x2D (n=23, brake pressed), 0x01 (n=1) and
+            0x02 (n=1); bit0 is set in 23 of its 24 set-samples as part of 0x2D, so it reads 1
+            whenever the brake is pressed. This matches the 2026-07-21 live observation already
+            noted here ('falsely shows LEFT_TURN_SIGNAL=1 when neither is active'). Disabled rather
+            than deleted: the single 0x01 sample may be a genuine isolated left-stalk reading, so
+            the bit is not disproven, only inseparable from brake on current data. Test: press brake
+            with both signals off, then each stalk alone.
+          enabled: false
         RIGHT_TURN_SIGNAL:
-          expression: "B10:1"
+          expression: B10:1
           ha_class: ""
-          source: "Decoded from live captures (2026-04-15)"
+          source: Decoded from live captures 2026-04-15; downgraded 2026-08-06 (n=1)
           source_links: []
-          verified: true
-          notes: "Right turn signal stalk. Bit flag — 1=on, persistent (not blinking state). Hazard lights do NOT register here. Verified 2026-04-15."
+          verified: false
+          notes: >-
+            Right turn signal stalk. Bit flag — 1=on, persistent (not blinking state). Hazard lights
+            do NOT register here. DOWNGRADED from verified 2026-08-06: bit1 is set in exactly ONE of
+            290 captures (B10=0x02), which is below the bar for a verified claim even though the
+            reading is consistent with the original 2026-04-15 observation. Unlike bit0 it is at
+            least clean — it is not part of the 0x2D brake pattern. Re-verify with a deliberate
+            signal-only capture.
         BRAKE_PEDAL_BITS:
           expression: B10:2
           min: "0"
@@ -852,6 +875,38 @@ IGPM:
       notes: Declared bitfield gaps that are CONSTANT across all 297 timed captures — never exercised, so unknowable from current data rather than unused. B11 has bits 0,1,2,5,6 decoded (hood, seatbelts, ACC2/ign); B12 has 2,3,4,5 decoded (DRL, tail, high beam, low beam).
       what_to_test:
         - "Narrated event capture exercising the untested body functions: fog lights, hazard/turn indicators, rear seatbelts, reverse lights, parking/position lamps, wiper and washer, horn. One actuation at a time with an 's' note per action, --keep-changes."
+    - type: verify
+      target: 22BC06 B10 — isolate brake from the turn-signal bits
+      status: pending
+      priority: P2
+      vehicle_states: [ACC2, READY]
+      created: "2026-08-06"
+      updated: "2026-08-06"
+      notes: B10 takes only 0x00 (n=267), 0x2D (n=23, brake pressed), 0x01 (n=1) and 0x02 (n=1) across 290 captures. The brake press sets bits 0,2,3,5 at once, which means LEFT_TURN_SIGNAL (bit0) reads 1 on every brake press — matching the 2026-07-21 live observation that it 'falsely shows 1 when neither is active'. It is now disabled. RIGHT_TURN_SIGNAL (bit1) has exactly one supporting sample and was downgraded to unverified. Bits 3 and 5 are undecoded and never move independently of bit2, so they are co-driven by the brake rather than separate signals. A deliberate one-actuation-at-a-time capture separates all of this.
+      sources:
+        - canair bitfield analysis 2026-08-06 (plans/2026-08-06-bitfield-audit-and-gear-state.md)
+      what_to_test:
+        - Does bit0 rise on a left stalk with the brake released? (would restore LEFT_TURN_SIGNAL)
+        - Do bits 3 and 5 ever move without bit2? (would make them separate signals rather than brake-co-driven)
+        - Confirm RIGHT_TURN_SIGNAL (bit1) with >=3 clean episodes
+      capture_protocol: >-
+        canair monitor IGPM:22BC06 --save --keep-changes --label 'brake vs turn signals' --state
+        ACC2. With both stalks off: press and release the brake 3x (note each). Then, brake
+        released: left stalk on/off 3x, then right stalk on/off 3x. Then hazards on/off. Then brake
+        + left together. Note every action with 's'.
+    - type: verify
+      target: 22BC03 B10:2 DOOR_RR_OPEN — no transition in the corpus
+      status: pending
+      priority: P3
+      vehicle_states: [ACC2]
+      created: "2026-08-06"
+      updated: "2026-08-06"
+      notes: DOOR_RR_OPEN is verified:true from a 2026-04-15 live door test, but it reads constant 0 across all 315 retained captures while every sibling bit on B10 varies (DOOR_RL_OPEN, DOOR_LOCK_RL, DOOR_LOCK_RR, DOOR_PAS_OPEN, DOOR_DRV_OPEN, TRUNK_OPEN). The rear-right door was simply never opened in the retained data, so the verification is undocumented rather than wrong. Open that door once during the next narrated body capture to put the evidence back in the corpus. Same applies to SEATBELT_FR (B11:2, already unverified) — buckle the front passenger belt.
+      sources:
+        - canair bitfield analysis 2026-08-06
+      capture_protocol: >-
+        During any narrated IGPM body capture: open and close the rear-right door, and separately
+        buckle/unbuckle the front passenger seatbelt, noting each with 's'.
 
   iocontrol_discoveries:
     BC01:

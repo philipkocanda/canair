@@ -9,10 +9,9 @@ GSA:
     hw_version: "KOSTAL_HW_G07"
     sw_version: "KOSTAL_SW_G07"
     id_protocol: UDS  # F1xx
-    notes: >
-      Gear Shift Assembly (Kostal shift-lever module). Responds only to 220100
-      (all other service 21/22 ranges NRC); gear state is better read via
-      VCU 2101 DRIVE_MODE_*.
+    notes: >-
+      Gear Shift Assembly (Kostal shift-lever module). Responds only to 220100 (all other service
+      21/22 ranges NRC); gear state is better read via VCU 2101 GEAR.
   vehicle_states: [ACC, ACC2, READY]
   scan_log: # GSA (gear shift assembly)
     - service: 0x22
@@ -20,7 +19,7 @@ GSA:
       date: 2026-07-22
       hits: 0
       vehicle_states: [READY]
-      notes: "Also service 21 01-0F: all NRC. No live-data DIDs exposed via OBD — gear state is available via VCU 2101 DRIVE_MODE_* instead."
+      notes: "Also service 21 01-0F: all NRC. No live-data DIDs exposed via OBD — gear state is available via VCU 2101 GEAR instead."
   pids:
     220100:
       status: draft

@@ -76,10 +76,20 @@ ESC:
           unit: ""
           min: "0"
           max: "8"
-          source: canair investigate/hunt vs VCU:2101:DRIVE_MODE_P, 2026-07-22 drive; Reverse confirmed 2026-07-26
+          source: canair investigate/hunt vs VCU:2101:GEAR_P, 2026-07-22 drive; Reverse confirmed 2026-07-26
           verified: true
-          notes: >
-            Transmission range / shifter position echoed on the ESC/ABS module. B14 (ISO-TP data). Sequential PRND encoding 1=Park, 2=Reverse, 4=Drive (3=Neutral assumed, still unobserved). r=-1.000 vs VCU:2101:DRIVE_MODE_P over the 2026-07-22 drive (fit park->1, drive->4). VERIFIED 2026-07-26 driveway back-and-forth: value 2 tracked the reverse segments exactly (n=52 while backing up at 17:00:20-43 and 17:01:06-17:03:03), value 4 the forward pulls, 1 at rest — real-driving confirmation of R=2/D=4/P=1. NOTE: this is the direction source for vehicle speed (REAL_SPEED_KMH/wheel speeds are unsigned magnitudes). Neutral (expected 3) still needs a capture.
+          notes: >-
+            Transmission range / shifter position echoed on the ESC/ABS module. B14 (ISO-TP data).
+            Sequential PRND encoding 1=Park, 2=Reverse, 4=Drive (3=Neutral assumed, still
+            unobserved). r=-1.000 vs VCU:2101:GEAR_P over the 2026-07-22 drive (fit park->1,
+            drive->4). VERIFIED 2026-07-26 driveway back-and-forth: value 2 tracked the reverse
+            segments exactly (n=52 while backing up at 17:00:20-43 and 17:01:06-17:03:03), value 4
+            the forward pulls, 1 at rest — real-driving confirmation of R=2/D=4/P=1. NOTE: this is
+            the direction source for vehicle speed (REAL_SPEED_KMH/wheel speeds are unsigned
+            magnitudes). Neutral (expected 3) still needs a capture: 2026-08-06 found that
+            VCU:2101:GEAR_N DID catch Neutral (n=3, 2026-07-19 17:42), but ESC 22C101 was not
+            co-polled that day, so value 3 remains unconfirmed — one co-polled shift through N
+            closes it.
         LONG_ACCEL_RAW:
           expression: S23-128
           unit: ""
