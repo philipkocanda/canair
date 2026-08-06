@@ -2,8 +2,8 @@
 
 import json
 
-from canlib.commands import _investigate_render as render
 from canlib.commands import investigate
+from canlib.commands.investigate import render, report
 
 
 def _write(tmp_path):
@@ -38,7 +38,7 @@ class TestInvestigate:
             "E:P:MATCH": prepare_series(s([float(i) for i in range(20)])),  # perfect
             "E:P:NOISE": prepare_series(s([(i * 7) % 5 for i in range(20)])),
         }
-        best = investigate._best_anchor(target, anchors, tol=1.0, min_n=10)
+        best = report._best_anchor(target, anchors, tol=1.0, min_n=10)
         assert best is not None
         assert best[0] == "E:P:MATCH"
         assert abs(best[1]) > 0.99
@@ -51,7 +51,7 @@ class TestInvestigate:
 
         orig = align.load_signal_captures
         monkeypatch.setattr(
-            "canlib.commands.investigate.load_signal_captures",
+            "canlib.commands.investigate.uds.load_signal_captures",
             lambda specs, **kw: orig(
                 specs,
                 captures_dir=tmp_path,
@@ -59,7 +59,7 @@ class TestInvestigate:
             ),
         )
         monkeypatch.setattr(
-            "canlib.commands.investigate.discover_signal_specs",
+            "canlib.commands.investigate.uds.discover_signal_specs",
             lambda *a, **k: [("AAF", "2181"), ("ESC", "22C101")],
         )
 
@@ -75,7 +75,7 @@ class TestInvestigate:
         import argparse
 
         rpts = [
-            investigate._ByteReport(
+            report._ByteReport(
                 offset=12,
                 mapped_by=None,
                 mapped_verified=False,
@@ -87,7 +87,7 @@ class TestInvestigate:
                 intercept=0.0,
                 unit_guess="slope≈0.6243 ⇒ raw×1.609 (mph→km/h)",
             ),
-            investigate._ByteReport(
+            report._ByteReport(
                 offset=20,
                 mapped_by="VCU_VEHICLE_SPEED",
                 mapped_verified=True,
@@ -147,12 +147,14 @@ def _run(tmp_path, monkeypatch, argv, specs):
 
     orig = align.load_signal_captures
     monkeypatch.setattr(
-        "canlib.commands.investigate.load_signal_captures",
+        "canlib.commands.investigate.uds.load_signal_captures",
         lambda s, **kw: orig(
             s, captures_dir=tmp_path, **{k: v for k, v in kw.items() if k != "captures_dir"}
         ),
     )
-    monkeypatch.setattr("canlib.commands.investigate.discover_signal_specs", lambda *a, **k: specs)
+    monkeypatch.setattr(
+        "canlib.commands.investigate.uds.discover_signal_specs", lambda *a, **k: specs
+    )
     p = investigate.add_parser(argparse.ArgumentParser().add_subparsers())
     return investigate.run(p.parse_args(["uds", *argv]))
 
@@ -328,15 +330,15 @@ class TestIndependenceScore:
     def test_high_statef_low_driver_wins(self):
         # A byte that separates by state (high F) but barely tracks the driver
         # scores higher than one that separates equally but tracks it strongly.
-        indep = investigate._independence_score(10.0, 0.05)
-        dependent = investigate._independence_score(10.0, 0.95)
+        indep = report._independence_score(10.0, 0.05)
+        dependent = report._independence_score(10.0, 0.95)
         assert indep > dependent
 
     def test_none_state_f_is_none(self):
-        assert investigate._independence_score(None, 0.1) is None
+        assert report._independence_score(None, 0.1) is None
 
     def test_missing_driver_counts_as_independent(self):
-        assert investigate._independence_score(4.0, None) == 4.0
+        assert report._independence_score(4.0, None) == 4.0
 
 
 class TestIndependentOf:
@@ -372,13 +374,14 @@ class TestIndependentOf:
 
         orig = align.load_signal_captures
         monkeypatch.setattr(
-            "canlib.commands.investigate.load_signal_captures",
+            "canlib.commands.investigate.uds.load_signal_captures",
             lambda specs, **kw: orig(
                 specs, captures_dir=tmp_path, **{k: v for k, v in kw.items() if k != "captures_dir"}
             ),
         )
         monkeypatch.setattr(
-            "canlib.commands.investigate.discover_signal_specs", lambda *a, **k: [("AAF", "2181")]
+            "canlib.commands.investigate.uds.discover_signal_specs",
+            lambda *a, **k: [("AAF", "2181")],
         )
         p = investigate.add_parser(argparse.ArgumentParser().add_subparsers())
         args = p.parse_args(
@@ -424,13 +427,14 @@ class TestTriageIntegration:
 
         orig = align.load_signal_captures
         monkeypatch.setattr(
-            "canlib.commands.investigate.load_signal_captures",
+            "canlib.commands.investigate.uds.load_signal_captures",
             lambda specs, **kw: orig(
                 specs, captures_dir=tmp_path, **{k: v for k, v in kw.items() if k != "captures_dir"}
             ),
         )
         monkeypatch.setattr(
-            "canlib.commands.investigate.discover_signal_specs", lambda *a, **k: [("OBC", "2101")]
+            "canlib.commands.investigate.uds.discover_signal_specs",
+            lambda *a, **k: [("OBC", "2101")],
         )
         p = investigate.add_parser(argparse.ArgumentParser().add_subparsers())
         args = p.parse_args(["uds", "OBC", "2101", "--min-n", "3", "--json"])
@@ -465,13 +469,14 @@ class TestTriageIntegration:
 
         orig = align.load_signal_captures
         monkeypatch.setattr(
-            "canlib.commands.investigate.load_signal_captures",
+            "canlib.commands.investigate.uds.load_signal_captures",
             lambda specs, **kw: orig(
                 specs, captures_dir=tmp_path, **{k: v for k, v in kw.items() if k != "captures_dir"}
             ),
         )
         monkeypatch.setattr(
-            "canlib.commands.investigate.discover_signal_specs", lambda *a, **k: [("OBC", "2101")]
+            "canlib.commands.investigate.uds.discover_signal_specs",
+            lambda *a, **k: [("OBC", "2101")],
         )
         p = investigate.add_parser(argparse.ArgumentParser().add_subparsers())
         args = p.parse_args(["uds", "OBC", "2101", "--min-n", "3", "--json"])
