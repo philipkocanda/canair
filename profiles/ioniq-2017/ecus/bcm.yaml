@@ -503,23 +503,21 @@ BCM:
     22C011:
       status: draft
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
-      notes: >
+      notes: >-
         13 bytes. NOT static — bytes 8-9 (ELM index) change rapidly every 2s. PARTLY DECODED
         2026-08-05: the slowly-drifting "byte 8" (WiCAN B11, ~0xA2/0xA1) is NOT TPMS RSSI — it is
         the 12V BUS VOLTAGE (B11/12.8, verified against the verified 22B003 BCM_12V_BATTERY; see
         BCM_12V_BUS_C011). Its "slow drift" is just the bus moving between rest (~12.7 V) and
-        DC-DC-active (~14.5 V). Byte 9 (WiCAN B12) still jumps 20-100 counts per read
-        (ADC-like jitter) and remains unidentified — it is now the sole RSSI candidate here.
-        Tail bytes 10-11 are NOT static (corrected 2026-08-07): they are a 16-bit BE
-        monotonic event counter, 9835 -> 10092 over 112 days, 13 up-steps and 0 down —
-        see BCM_EVENT_COUNTER_C011. They only looked static because the counter steps
-        ~2.3x/day and never moves *within* a recording session; 0x266E was simply an
-        earlier, lower value. The single-read capture (0xA2D3266B) was misleading for
-        the same reason, and separately made byte 9 look static when it was one snapshot.
-        Test: compare B12 with C012-C014 and correlate with tyre
-        proximity. Sample: 62C011E000000000A25F266EAA (byte 9 varies).
-        Payload length varies 12/13 bytes (trailing 0xAA is ISO-TP padding); byte
-        offsets are unaffected.
+        DC-DC-active (~14.5 V). Byte 9 (WiCAN B12) still jumps 20-100 counts per read (ADC-like
+        jitter) and remains unidentified — it is now the sole RSSI candidate here. Tail bytes 10-11
+        are NOT static (corrected 2026-08-07): they are a 16-bit BE monotonic event counter, 9835 ->
+        10092 over 112 days, 13 up-steps and 0 down — see BCM_EVENT_COUNTER_C011. They only looked
+        static because the counter steps ~2.3x/day and never moves *within* a recording session;
+        0x266E was simply an earlier, lower value. The single-read capture (0xA2D3266B) was
+        misleading for the same reason, and separately made byte 9 look static when it was one
+        snapshot. Test: compare B12 with C012-C014 and correlate with tyre proximity. Sample:
+        62C011E000000000A25F266EAA (byte 9 varies). Payload length varies 12/13 bytes (trailing 0xAA
+        is ISO-TP padding); byte offsets are unaffected.
       parameters:
         BCM_12V_BUS_C011:
           expression: B11/12.8

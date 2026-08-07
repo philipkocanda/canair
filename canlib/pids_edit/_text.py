@@ -487,10 +487,12 @@ def _replace_field_in_block_at(block: str, field: str, new_line_or_lines, indent
         while out and out[-1].strip() == "":
             out.pop()
         out.extend(replacement_lines)
-    result = "\n".join(out)
-    if block.endswith("\n") and not result.endswith("\n"):
-        result += "\n"
-    return result
+    # ``splitlines()`` + ``"\n".join()`` collapses a trailing blank line, which
+    # would silently eat the blank separator between this block and its next
+    # sibling — and compound over repeated edits. Re-attach the block's exact
+    # trailing newline run instead.
+    trailing = block[len(block.rstrip("\n")) :]
+    return "\n".join(out).rstrip("\n") + (trailing or ("\n" if block.endswith("\n") else ""))
 
 
 def _today() -> str:

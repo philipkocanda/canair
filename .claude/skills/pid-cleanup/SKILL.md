@@ -111,8 +111,11 @@ guess from the note (rule 2).
    superseded name, rule 4), and/or rewrite the note to bare facts (rule 2).
    Move any speculation worth keeping into a `research:` lead.
 4. **Apply via `canair pids`** — `rm-param` / `rename-param` / `upsert-param`
-   (with `--notes`, `--type`/`--value`/`--bit`), `add-research`. Never
-   hand-edit YAML. Watch the `upsert-param` decoded-range echo as a sanity
+   (with `--notes`, `--type`/`--value`/`--bit`), `add-research`, and
+   `set-pid-notes <ECU> <PID> "…"` for the **PID-level** header note (omit the
+   text to clear it) — that note ages fastest of anything in the file, since it
+   describes what the page *is* while the decode underneath keeps changing.
+   Never hand-edit YAML. Watch the `upsert-param` decoded-range echo as a sanity
    check on the offset.
 5. **Fix cross-references** — after any rename, grep the profile and update
    expressions, notes, and research targets that named the old param.

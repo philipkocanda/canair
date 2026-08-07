@@ -15,6 +15,7 @@ Subcommands:
   add-research ECU ...             Append a research: entry
   set-status  ECU TARGET STATUS    Update a research item's status
   set-pid-status ECU PID STATUS    Set a PID's lifecycle (active|draft|static|ignored)
+  set-pid-notes ECU PID [TEXT]     Set (or clear) a PID's free-text notes
   set-identity ECU FIELD VALUE     Set a curated identity field (e.g. notes)
   rm-identity  ECU FIELD           Remove an identity field (e.g. a redundant duplicate)
   set-can-bus  ECU CODE [CODE ...] Set the physical CAN bus segment(s) (see can_buses.yaml)
@@ -57,6 +58,7 @@ from canlib.pids_edit import (
     set_can_bus,
     set_identity_field,
     set_iocontrol_scan_ranges,
+    set_pid_notes,
     set_pid_status,
     set_pid_variable_length,
     set_research_status,
@@ -400,6 +402,18 @@ def cmd_set_pid_variable_length(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_set_pid_notes(args: argparse.Namespace) -> int:
+    notes = args.value
+
+    def do():
+        set_pid_notes(args.ecu, args.pid, notes, pids_dir=args.dir)
+
+    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
+    what = "cleared" if not (notes or "").strip() else f"set ({len((notes or '').split())} words)"
+    print(f"{_GREEN}  ✓ {args.ecu} {args.pid} notes {what}{_RESET}  {_DIM}({fpath.name}){_RESET}")
+    return 0
+
+
 def cmd_set_identity(args: argparse.Namespace) -> int:
     def do():
         set_identity_field(args.ecu, args.field, args.value, pids_dir=args.dir)
@@ -711,6 +725,29 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     )
     _add_common(spv)
     spv.set_defaults(_pids_func=cmd_set_pid_variable_length)
+
+    spn = sub.add_parser(
+        "set-pid-notes",
+        help="Set (or clear) a PID's free-text notes",
+        description=(
+            "Set the PID-level notes: — the record of what the page is and what is "
+            "known about it. Because that record goes stale as decoding progresses, "
+            "correcting it needs a validated editor rather than a hand-edit.\n\n"
+            "Omit VALUE to clear the field. Short notes stay inline; longer ones "
+            "become a word-wrapped folded block scalar. An existing note keeps its "
+            "position; a new one is inserted above parameters:."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    spn.add_argument("ecu")
+    spn.add_argument("pid")
+    spn.add_argument(
+        "value",
+        nargs="?",
+        help="New notes text (omit to clear the field)",
+    )
+    _add_common(spn)
+    spn.set_defaults(_pids_func=cmd_set_pid_notes)
 
     si = sub.add_parser("set-identity", help="Set a curated identity field (e.g. notes)")
     si.add_argument("ecu")

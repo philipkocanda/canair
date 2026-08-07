@@ -667,6 +667,87 @@ def set_pid_variable_length(
     return fpath
 
 
+def set_pid_notes(
+    ecu_name: str, pid: str, notes: str | None, *, pids_dir: Path | None = None
+) -> Path:
+    """Set (or clear) a PID's free-text ``notes:``.
+
+    The PID-level counterpart to :func:`set_identity_field` for ``notes``. A PID's
+    header note is the record of what the page *is* and what is known about it, so
+    it goes stale as decoding progresses — correcting it needs a surgical, validated
+    editor rather than a hand-edit (the one thing the edit-via-tool discipline
+    forbids).
+
+    ``notes=None`` (or blank) removes the field. Rendered by the shared note policy
+    (:func:`canlib.pids_edit._text._format_block_scalar`): short notes stay inline,
+    longer ones become a word-wrapped folded ``>-`` block.
+
+    An existing note is replaced in place, preserving its position. A *new* note is
+    inserted before ``parameters:`` — keeping the short metadata (``status:``,
+    ``vehicle_states:``) above the prose and the prose above the parameter list,
+    which is how the hand-authored files read. Verified by a YAML re-parse; the
+    original file is restored on failure.
+    """
+    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
+    original = fpath.read_text()
+    ecu_key = ecu_name.strip().upper()
+    pid_u = str(pid).strip().upper()
+    text_val = "" if notes is None else str(notes).strip()
+    clearing = not text_val
+
+    def transform(text: str) -> str:
+        ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
+        pids = _keyed_block(text, "pids", 2, ecu_start, ecu_end)
+        if not pids:
+            raise PidsEditError(f"ECU {ecu_name!r} has no pids: section")
+        _, _, pids_body_start, pids_body_end, _ = pids
+        pidb = _keyed_block(text, pid_u, 4, pids_body_start, pids_body_end)
+        if not pidb:
+            raise PidsEditError(f"PID {pid_u!r} not found under {ecu_name!r}")
+        p_hdr, _p_line_end, _p_body_start, p_body_end, _inline = pidb
+        block = text[p_hdr:p_body_end]
+
+        has_note = re.search(r"^ {6}notes:", block, re.MULTILINE) is not None
+        if clearing:
+            if not has_note:
+                raise PidsEditError(f"PID {pid_u!r} has no notes: to clear")
+            # Replace with nothing rather than _remove_field_line, which drops only
+            # the `notes:` header and would orphan a block scalar's body lines.
+            new_block = _replace_field_in_block_at(block, "notes", [], indent=6)
+        else:
+            repl = _format_block_scalar(" " * 6, "notes", text_val)
+            if has_note:
+                new_block = _replace_field_in_block_at(block, "notes", repl, indent=6)
+            else:
+                lines = block.splitlines(keepends=True)
+                at = next(
+                    (i for i, ln in enumerate(lines) if re.match(r"^ {6}parameters:", ln)),
+                    len(lines),
+                )
+                new_block = "".join(lines[:at] + [f"{ln}\n" for ln in repl] + lines[at:])
+        return text[:p_hdr] + new_block + text[p_body_end:]
+
+    def checker(ecu_def: dict) -> None:
+        pids_map = ecu_def.get("pids", {}) or {}
+        pdef = next((v for k, v in pids_map.items() if str(k).upper() == pid_u), None)
+        if pdef is None:
+            raise PidsEditError(f"PID {pid_u!r} missing after edit")
+        got = (pdef or {}).get("notes")
+        if clearing:
+            if got is not None:
+                raise PidsEditError(f"PID {pid_u!r} notes still present after clear")
+            return
+        if got is None:
+            raise PidsEditError(f"PID {pid_u!r} notes missing after edit")
+        # A folded block scalar collapses newlines to spaces; compare normalized.
+        if " ".join(str(got).split()) != " ".join(text_val.split()):
+            raise PidsEditError(f"PID {pid_u!r} notes mismatch after edit")
+
+    new_text = transform(original)
+    _safe_write(fpath, original, new_text, ecu_key, checker)
+    return fpath
+
+
 def rename_pid(ecu_name: str, old_pid: str, new_pid: str, *, pids_dir: Path | None = None) -> Path:
     """Rename a PID key under ``ECU.pids`` (e.g. ``B002`` -> ``22B002``).
 

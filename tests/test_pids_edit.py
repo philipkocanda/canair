@@ -16,6 +16,7 @@ from canlib.pids_edit import (
     PidsEditError,
     find_ecu_file,
     promote_discovery,
+    set_pid_notes,
     set_pid_variable_length,
     update_iocontrol_field,
 )
@@ -312,3 +313,117 @@ class TestSetPidVariableLength:
         )
         p = set_pid_variable_length("Unknown-746", "21F2", True, pids_dir=d)
         assert _reload(p)["Unknown-746"]["pids"]["21F2"]["variable_length"] is True
+
+
+_NOTES_FIXTURE = """\
+TEST:
+  tx_id: 0x7E0
+  pids:
+    "2200":
+      status: draft
+      vehicle_states: [SLEEP, READY]
+      notes: >
+        An existing folded note
+        spanning several lines.
+      parameters:
+        DUMMY:
+          expression: "B:0"
+
+    "2201":
+      status: draft
+      parameters:
+        OTHER:
+          expression: "B:1"
+"""
+
+
+class TestSetPidNotes:
+    """PID-level free-text notes — the editor that closes the hand-edit gap.
+
+    A PID's header note records what the page *is*, so it goes stale as decoding
+    progresses; correcting it previously had no surgical editor at all.
+    """
+
+    @pytest.fixture
+    def d(self, tmp_path: Path) -> Path:
+        p = tmp_path / "pids"
+        p.mkdir()
+        (p / "test.yaml").write_text(_NOTES_FIXTURE)
+        return p
+
+    def test_replaces_existing_block_scalar_in_place(self, d: Path):
+        p = set_pid_notes("TEST", "2200", "Corrected: the tail bytes are a counter.", pids_dir=d)
+        pid = _reload(p)["TEST"]["pids"]["2200"]
+        assert pid["notes"] == "Corrected: the tail bytes are a counter."
+        # Siblings and the parameter block survive.
+        assert pid["status"] == "draft"
+        assert pid["parameters"]["DUMMY"]["expression"] == "B:0"
+        # Position preserved: the note stays above parameters:.
+        text = p.read_text()
+        assert text.index("notes:") < text.index("parameters:")
+
+    def test_inserts_above_parameters_when_absent(self, d: Path):
+        p = set_pid_notes("TEST", "2201", "A brand new note.", pids_dir=d)
+        assert _reload(p)["TEST"]["pids"]["2201"]["notes"] == "A brand new note."
+        block = p.read_text().split('"2201":')[1]
+        assert block.index("notes:") < block.index("parameters:"), (
+            "a new note belongs above parameters:, not appended after it"
+        )
+
+    def test_long_note_becomes_wrapped_folded_block(self, d: Path):
+        long = " ".join(f"word{i}" for i in range(60))
+        p = set_pid_notes("TEST", "2201", long, pids_dir=d)
+        text = p.read_text()
+        assert "notes: >-" in text
+        assert _reload(p)["TEST"]["pids"]["2201"]["notes"] == long
+        assert max(len(ln) for ln in text.splitlines()) <= 100
+
+    def test_short_note_stays_inline(self, d: Path):
+        p = set_pid_notes("TEST", "2201", "13 bytes.", pids_dir=d)
+        assert "notes: 13 bytes." in p.read_text()
+
+    def test_clears_a_block_scalar_without_orphaning_its_body(self, d: Path):
+        # Regression: removing only the `notes:` header line leaves the folded
+        # body indented under nothing, which is invalid YAML.
+        p = set_pid_notes("TEST", "2200", None, pids_dir=d)
+        pid = _reload(p)["TEST"]["pids"]["2200"]
+        assert "notes" not in pid
+        assert pid["parameters"]["DUMMY"]["expression"] == "B:0"
+        assert "spanning several lines" not in p.read_text()
+
+    def test_blank_value_clears(self, d: Path):
+        p = set_pid_notes("TEST", "2200", "   ", pids_dir=d)
+        assert "notes" not in _reload(p)["TEST"]["pids"]["2200"]
+
+    def test_clearing_absent_note_errors(self, d: Path):
+        with pytest.raises(PidsEditError, match="no notes"):
+            set_pid_notes("TEST", "2201", None, pids_dir=d)
+
+    def test_preserves_blank_line_between_pid_blocks(self, d: Path):
+        # The blank separator before the next PID must survive, and must keep
+        # surviving across repeated edits (it used to be eaten one line at a time).
+        for i in range(3):
+            p = set_pid_notes("TEST", "2200", f"note {i}", pids_dir=d)
+        assert '\n\n    "2201":' in p.read_text()
+
+    def test_round_trips_repeated_edits(self, d: Path):
+        for i in range(3):
+            p = set_pid_notes("TEST", "2200", f"revision {i} of the note", pids_dir=d)
+        text = p.read_text()
+        assert text.count("notes:") == 1, "no duplicate notes: field"
+        assert _reload(p)["TEST"]["pids"]["2200"]["notes"] == "revision 2 of the note"
+
+    def test_unknown_pid(self, d: Path):
+        with pytest.raises(PidsEditError, match="not found"):
+            set_pid_notes("TEST", "9999", "x", pids_dir=d)
+
+    def test_unknown_ecu(self, d: Path):
+        with pytest.raises(PidsEditError):
+            set_pid_notes("NOPE", "2200", "x", pids_dir=d)
+
+    def test_ecu_without_pids_section(self, tmp_path: Path):
+        p = tmp_path / "pids"
+        p.mkdir()
+        (p / "bare.yaml").write_text("BARE:\n  tx_id: 0x700\n")
+        with pytest.raises(PidsEditError, match="no pids:"):
+            set_pid_notes("BARE", "2200", "x", pids_dir=p)

@@ -4,13 +4,13 @@
 
 ```
 usage: canair pids [-h]
-                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,set-pid-status,set-pid-variable-length,set-identity,rm-identity,set-can-bus,set-iocontrol-ranges,set-wake,set-addressing}
+                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,set-pid-status,set-pid-variable-length,set-pid-notes,set-identity,rm-identity,set-can-bus,set-iocontrol-ranges,set-wake,set-addressing}
                    ...
 
 [UDS] Safely edit ecus/ parameters and research entries (domain A — diagnostic UDS PIDs, freeform WiCAN expressions). The broadcast-frame (domain B) authoring counterpart is `canair signals` (linear signals/ maps).
 
 positional arguments:
-  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,set-pid-status,set-pid-variable-length,set-identity,rm-identity,set-can-bus,set-iocontrol-ranges,set-wake,set-addressing}
+  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,set-pid-status,set-pid-variable-length,set-pid-notes,set-identity,rm-identity,set-can-bus,set-iocontrol-ranges,set-wake,set-addressing}
     upsert-param        Add or update a parameter
     rename-param        Rename a parameter (key only; fields preserved)
     rm-param            Remove a parameter
@@ -24,6 +24,7 @@ positional arguments:
     set-pid-variable-length
                         Flag a PID as returning legitimately variable-length
                         responses
+    set-pid-notes       Set (or clear) a PID's free-text notes
     set-identity        Set a curated identity field (e.g. notes)
     rm-identity         Remove an identity field from an ECU
     set-can-bus         Set the physical CAN bus segment(s) the ECU sits on
@@ -281,6 +282,27 @@ positional arguments:
   pid
   {true,false}   true = variable-length (a short payload is not truncation);
                  false = clear the flag (fixed-length, the default)
+
+options:
+  -h, --help     show this help message and exit
+  --dir DIR      ecus/ directory (default: active profile)
+  --no-validate  Skip the post-edit schema validation gate
+```
+
+## `canair pids set-pid-notes`
+
+```
+usage: canair pids set-pid-notes [-h] [--dir DIR] [--no-validate]
+                                 ecu pid [value]
+
+Set the PID-level notes: — the record of what the page is and what is known about it. Because that record goes stale as decoding progresses, correcting it needs a validated editor rather than a hand-edit.
+
+Omit VALUE to clear the field. Short notes stay inline; longer ones become a word-wrapped folded block scalar. An existing note keeps its position; a new one is inserted above parameters:.
+
+positional arguments:
+  ecu
+  pid
+  value          New notes text (omit to clear the field)
 
 options:
   -h, --help     show this help message and exit

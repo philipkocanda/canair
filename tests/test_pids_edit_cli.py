@@ -99,3 +99,39 @@ def test_set_iocontrol_ranges_rejects_bad_range(pids_dir):
 
     with pytest.raises((PidsEditError, SystemExit)):
         cli.cmd_set_iocontrol_ranges(_RangeArgs(["not-a-range"], dir=pids_dir))
+
+
+class _NotesArgs:
+    def __init__(self, value, **kw):
+        self.ecu = "TESTECU"
+        self.pid = "2101"
+        self.dir = None
+        self.value = value
+        self.no_validate = True  # skip the active-profile schema gate in unit tests
+        self.__dict__.update(kw)
+
+
+def test_set_pid_notes_writes_and_clears(pids_dir, capsys):
+    import canlib.yaml_io as yaml_io
+
+    def notes():
+        doc = yaml_io.safe_load((pids_dir / "e.yaml").read_text())
+        return doc["TESTECU"]["pids"][2101].get("notes")
+
+    assert cli.cmd_set_pid_notes(_NotesArgs("Corrected by RE.", dir=pids_dir)) == 0
+    assert notes() == "Corrected by RE."
+    assert "notes set" in capsys.readouterr().out
+
+    # Omitting the value (argparse nargs="?" -> None) clears the field.
+    assert cli.cmd_set_pid_notes(_NotesArgs(None, dir=pids_dir)) == 0
+    assert notes() is None
+    assert "notes cleared" in capsys.readouterr().out
+
+
+def test_set_pid_notes_parses_optional_value():
+    import argparse
+
+    p = cli.add_parser(argparse.ArgumentParser().add_subparsers())
+    # VALUE is optional so the same verb both sets and clears.
+    assert p.parse_args(["set-pid-notes", "BCM", "22C011"]).value is None
+    assert p.parse_args(["set-pid-notes", "BCM", "22C011", "hi"]).value == "hi"

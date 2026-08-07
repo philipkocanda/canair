@@ -182,7 +182,8 @@ vehicle_states.yaml may add composites like `PARKED`/`DRIVING`, and is
 listed/edited with `canair states`). It's written as an inline flow list
 (`[READY, CHARGING]`); input is case-insensitive.
 
-Edit with `canair pids upsert-param / add-research / set-status / set-pid-status`
+Edit with `canair pids upsert-param / add-research / set-status / set-pid-status /
+set-pid-notes`
 (surgical, comment-preserving, schema-validated, auto-reverted on failure) — prefer it over
 hand-editing. After changes: `canair validate pids` then `canair wican autopid write`.
 
