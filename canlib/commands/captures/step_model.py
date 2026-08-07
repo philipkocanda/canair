@@ -247,14 +247,20 @@ class StepModel:
         """True when frames stack one block per key (i.e. not the interleaved walk)."""
         return self.view != VIEW_INTERLEAVED
 
-    def rebuild(self, *, preserve_time: bool = False) -> None:
+    def rebuild(self, *, preserve_time: bool = False, anchor: datetime | None = None) -> None:
         """Re-select captures for the current keys and re-join them.
 
         ``preserve_time`` re-seeks the frame cursor to the same point on the
         timeline afterwards, so changing the tolerance or the key set does not
-        throw the user back to the end of the recording.
+        throw the user back to the end of the recording. Pass an explicit
+        ``anchor`` when the caller already knows the timestamp under the
+        *old* view/frame shape — ``self.current_time()`` would otherwise be
+        evaluated against ``self.frame_idx`` from that old shape but
+        ``self.stacked`` from whatever is current, which can already have
+        changed (e.g. mid-``cycle_view``) and index out of range.
         """
-        anchor = self.current_time() if preserve_time else None
+        if preserve_time and anchor is None:
+            anchor = self.current_time()
 
         caps: list[CaptureEntry] = []
         for k in self.keys:
@@ -587,9 +593,10 @@ class StepModel:
     def cycle_view(self) -> str:
         """Advance to the next view; rebuilds when the frame shape changes."""
         was_stacked = self.stacked
+        anchor = self.current_time()
         self.view = VIEWS[(VIEWS.index(self.view) + 1) % len(VIEWS)]
         if was_stacked != self.stacked:
-            self.rebuild(preserve_time=True)
+            self.rebuild(preserve_time=True, anchor=anchor)
         return self.view
 
     def toggle_rulers(self) -> bool:

@@ -359,6 +359,19 @@ class TestStepModelMutation:
         assert m.cycle_view() == VIEW_STACKED
         assert m.frame_count() == 2
 
+    def test_cycle_view_from_last_interleaved_frame_does_not_crash(self):
+        """Regression: cycling INTERLEAVED -> STACKED from the last frame used to
+        raise IndexError, because the anchor timestamp was read with the *new*
+        view's `stacked` flag against the *old* view's still-large `frame_idx`,
+        before frames were rebuilt to the new (smaller, stacked) shape.
+        """
+        m = _model(view=VIEW_INTERLEAVED)
+        m.last()
+        assert m.frame_idx == m.frame_count() - 1 == 5
+        assert m.cycle_view() == VIEW_STACKED
+        assert m.frame_count() == 2
+        assert m.frame_idx == 1  # clamped to the last stacked frame
+
     def test_toggles(self):
         m = _model()
         assert m.toggle_rulers() is True
