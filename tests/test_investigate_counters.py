@@ -47,7 +47,7 @@ def _odometer_payload(km: int, *, pad: bool = False, noise: int = 0xAD) -> str:
 _NOISE = [0xAA, 0xAD, 0xAB, 0xAD]
 
 
-def _write_odometer(tmp_path, *, days, pad_from=None):
+def _write_odometer(tmp_path, *, days, pad_from=None, keep_mode=None):
     """One session per day, several reads each, odometer rising between days."""
     sessions = []
     for idx, (date, km) in enumerate(days):
@@ -63,7 +63,10 @@ def _write_odometer(tmp_path, *, days, pad_from=None):
                     "payload": _odometer_payload(km, pad=pad, noise=_NOISE[i]),
                 }
             )
-        sessions.append({"date": date, "vehicle_states": ["READY"], "captures": caps})
+        session = {"date": date, "vehicle_states": ["READY"], "captures": caps}
+        if keep_mode is not None:
+            session["keep_mode"] = keep_mode
+        sessions.append(session)
         (tmp_path / f"{date}.json").write_text(json.dumps({"sessions": [sessions[-1]]}))
     return sessions
 
@@ -241,6 +244,65 @@ class TestCountersCli:
         assert "Nothing above 8 bits" in out
         assert "--min-bits 2" in out
         assert "[B12:B14]" in out
+
+    def test_notation_torque_relabels_the_label(self, tmp_path, monkeypatch, capsys):
+        """--notation re-renders the ISO-TP label; the expression stays WiCAN."""
+        from canlib.notation import ByteNotation, ByteRef, subfunction_bytes_for_pid
+
+        _write_odometer(tmp_path, days=_DAYS)
+        rc = _run(
+            tmp_path,
+            monkeypatch,
+            ["CLU", "22B002", "--counters", "--min-bits", "4", "--notation", "torque"],
+        )
+        assert rc == 0
+        out = capsys.readouterr().out
+        expected = ByteRef.from_isotp(9, width=3).render(
+            ByteNotation.TORQUE, sub_bytes=subfunction_bytes_for_pid("22B002")
+        )
+        assert expected in out, "the label column must be relabelled to torque"
+        assert "i9-i11" not in out, "the ISO-TP label must not survive under --notation torque"
+        assert "[B12:B14]" in out, "the expression stays WiCAN regardless of --notation"
+
+    def test_notation_default_keeps_isotp_label(self, tmp_path, monkeypatch, capsys):
+        _write_odometer(tmp_path, days=_DAYS)
+        rc = _run(tmp_path, monkeypatch, ["CLU", "22B002", "--counters", "--min-bits", "4"])
+        assert rc == 0
+        out = capsys.readouterr().out
+        assert "i9-i11" in out, "the default label is the canonical ISO-TP window"
+        assert "[B12:B14]" in out
+
+    def test_scoped_run_warns(self, tmp_path, monkeypatch, capsys):
+        """A scope filter understates the bits ranking; warn + flag it in --json."""
+        _write_odometer(tmp_path, days=_DAYS)
+        rc = _run(
+            tmp_path,
+            monkeypatch,
+            ["CLU", "22B002", "--counters", "--min-bits", "4", "--state", "READY", "--json"],
+        )
+        assert rc == 0
+        cap = capsys.readouterr()
+        assert "scope filter" in cap.err and "--state" in cap.err
+        doc = json.loads(cap.out)
+        assert doc["scoped"] is True
+
+    def test_unscoped_run_not_flagged(self, tmp_path, monkeypatch, capsys):
+        _write_odometer(tmp_path, days=_DAYS)
+        rc = _run(
+            tmp_path, monkeypatch, ["CLU", "22B002", "--counters", "--min-bits", "4", "--json"]
+        )
+        assert rc == 0
+        cap = capsys.readouterr()
+        assert "scope filter" not in cap.err
+        assert json.loads(cap.out)["scoped"] is False
+
+    def test_keep_changes_scope_shows_banner(self, tmp_path, monkeypatch, capsys):
+        """A keep:changes scope must be flagged in the counters view like the others."""
+        _write_odometer(tmp_path, days=_DAYS, keep_mode="changes")
+        rc = _run(tmp_path, monkeypatch, ["CLU", "22B002", "--counters", "--min-bits", "4"])
+        assert rc == 0
+        out = capsys.readouterr().out
+        assert "keep:changes" in out
 
     def test_too_few_captures_errors(self, tmp_path, monkeypatch, capsys):
         _write_odometer(tmp_path, days=_DAYS[:1])

@@ -1,6 +1,26 @@
 # Analysis-tooling follow-ups from the monotonic-counter work
 
-Status: **PLANNED** (2026-08-07). Nine independent items. A–C are corrections of
+Status: **IMPLEMENTED** (A–F, H) / **DEFERRED** (G) — 2026-08-07.
+
+- **A** (counters `--notation` / scoped-run warning / keep-mode banner) — done.
+- **B** (untimed-capture ratchet: `validate captures --max-untimed N`, CI gates
+  each bundled profile at its baseline) — done.
+- **C** (`_remove_field_line` now skips block-scalar/nested bodies) — done.
+- **D** (`hunt`'s thin-join sentence names a concrete `--min-n`; `correlate`
+  ranked + `--against` empty paths now name the strongest sub-threshold `|r|`).
+  The `mirrors.py` near-miss retention is left as its own decision (it costs the
+  `_verify` early bail) — not done here.
+- **E** (corpus-wide `investigate`: optional positionals + QUERY, ranked summary
+  sweep, `--top`; `investigate --counters` sweeps the whole car) — done.
+- **F** (bit-flip boundary gradient wired as a **tie-break** in
+  `cluster_counters` — `counters.boundary_gradient`) — done.
+- **G** (a "tracks a known signal by a constant Δ-ratio" primitive) — **deferred**
+  to its own design pass: it is large-ish and the verb-vs-mirror-matcher-flag
+  question is unresolved (see Part G below).
+- **H** (collapse the untimed-payload warning stream to a footer count;
+  `--show-untimed` restores per-file detail) — done.
+
+Nine independent items. A–C are corrections of
 things this work got wrong or walked past and should land regardless; D–H are
 genuine improvements the work surfaced; the process notes at the end are not
 actionable code.

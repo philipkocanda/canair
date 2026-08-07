@@ -54,18 +54,59 @@ _RESET = "\033[0m"
 
 
 def run(args) -> int:
-    from canlib.ecus import canonical_ecu_name_safe
-    from canlib.pids import build_ecu_index, load_pids
-    from canlib.xanalysis import byte_state_buckets as _byte_state_buckets
-
     since, until, err = resolve_scope_bounds(args)
     if err:
         print(f"error: {err}", file=sys.stderr)
         return 2
 
-    ecu = canonical_ecu_name_safe(args.ecu)
-    pid = args.pid.upper()
     fill = fill_policy_from_args(args)
+    specs, single = _resolve_targets(args, since, until)
+    if single is not None:
+        return _run_single(single[0], single[1], args, since, until, fill)
+
+    # Corpus/ECU sweep — no single PID resolved. The per-byte deep-dive is far too
+    # verbose to repeat N times, so the sweep renders a ranked SUMMARY per PID
+    # (and, for --counters, one ranked list of every counter found).
+    from .sweep import run_sweep
+
+    return run_sweep(specs, args, since, until, fill)
+
+
+def _resolve_targets(args, since, until) -> tuple[list[tuple[str, str]], tuple[str, str] | None]:
+    """Resolve the ECU/PID positionals into (specs, single).
+
+    ``single`` is the one ``(ECU, PID)`` to render in full, or ``None`` for a
+    sweep. Following the ``coverage`` precedent both positionals are optional:
+
+      - ``ECU PID``  → that single PID (the classic deep-dive).
+      - ``ECU`` / a QUERY (``"BMS:2101,2102"``) → every matching captured PID.
+      - (nothing)    → every captured PID in the profile.
+
+    A bare single ECU token is canonicalized (alias/case) before it becomes a
+    query; a full QUERY is passed through to the shared mini-language parser. A
+    query that resolves to exactly one PID is still rendered in full.
+    """
+    from canlib.ecus import canonical_ecu_name_safe
+
+    if args.ecu and args.pid:
+        ecu = canonical_ecu_name_safe(args.ecu).upper()
+        spec = (ecu, args.pid.upper())
+        return [spec], spec
+
+    query = args.ecu
+    if query and not any(ch in query for ch in ":, "):
+        query = canonical_ecu_name_safe(query)
+    specs = discover_signal_specs(
+        query, since=since, until=until, state=args.state, label=args.label
+    )
+    if len(specs) == 1:
+        return specs, specs[0]
+    return specs, None
+
+
+def _run_single(ecu: str, pid: str, args, since, until, fill) -> int:
+    from canlib.pids import build_ecu_index, load_pids
+    from canlib.xanalysis import byte_state_buckets as _byte_state_buckets
 
     loaded = load_signal_captures(
         [(ecu, pid)], since=since, until=until, state=args.state, label=args.label

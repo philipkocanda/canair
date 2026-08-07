@@ -74,6 +74,10 @@ def _add_uds_parser(kinds) -> argparse.ArgumentParser:
             "Bytes are ranked strongest-anchor-first, then by state separation, so\n"
             "the most decodable bytes float to the top. This bundles the manual\n"
             "coverage -> discriminate -> correlate -> hunt loop into a single call.\n\n"
+            "ECU and PID are optional: give both for the full per-byte deep-dive,\n"
+            "an ECU (or a QUERY) alone to sweep its PIDs, or nothing to sweep the\n"
+            "whole profile. A sweep prints a ranked SUMMARY per PID (--top caps it)\n"
+            "rather than N full reports.\n\n"
             "--counters switches to a different question — 'which bytes here only\n"
             "ever go UP?' — sweeping multi-byte windows for odometers, operating-hour\n"
             "tallies, power-cycle counts and uptime timers. Those are invisible to\n"
@@ -88,6 +92,10 @@ def _add_uds_parser(kinds) -> argparse.ArgumentParser:
 examples:
   canair investigate MCU 2102              # rank unmapped + unverified-mapped bytes of MCU 2102
   canair investigate MCU 2102 --all        # include bytes a verified param already maps
+  canair investigate BMS                   # sweep every captured BMS PID (ranked summary)
+  canair investigate                       # sweep the whole profile (ranked summary)
+  canair investigate --counters            # find every monotonic counter in the car
+  canair investigate BMS --counters        # every counter across BMS's PIDs
   canair investigate IGPM 22BC03 --bits    # rank toggling bits (body/status-ECU work)
   canair investigate IGPM 22BC03 --events  # bit/byte edges aligned to the event timeline
   canair investigate CLU 22B002 --counters # hunt monotonic counters (odometer / cycle count)
@@ -105,8 +113,13 @@ tip: no anchors found? widen scope (drop --state), lower --min-r, or grow the
      a body/comfort PID with no co-polled partner, use --bits / --events (the
      signals are toggling status bits, ranked by state separation + edge time).""",
     )
-    parser.add_argument("ecu", help="Target ECU (e.g. MCU)")
-    parser.add_argument("pid", help="Target PID (e.g. 2102)")
+    parser.add_argument(
+        "ecu",
+        nargs="?",
+        help='Target ECU (e.g. MCU), or a QUERY (e.g. "BMS:2101,2102"). Omit ECU '
+        "and PID to sweep the whole profile; give an ECU alone to sweep its PIDs.",
+    )
+    parser.add_argument("pid", nargs="?", help="Target PID (e.g. 2102). Omit to sweep the ECU.")
     parser.add_argument(
         "--min-r",
         type=float,
@@ -200,6 +213,14 @@ tip: no anchors found? widen scope (drop --state), lower --min-r, or grow the
         "CSV (mutually exclusive with --independent-of)",
     )
     parser.add_argument("--json", action="store_true", help="Machine-readable output")
+    parser.add_argument(
+        "--top",
+        type=int,
+        default=40,
+        metavar="N",
+        help="In a corpus/ECU sweep (ECU or PID omitted): cap the ranked summary to "
+        "the top N rows (default 40; 0 = no cap). Ignored for a single PID.",
+    )
     add_notation_arg(parser)
     add_scope_args(parser)
     parser.set_defaults(func=run)

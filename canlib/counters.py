@@ -48,7 +48,7 @@ Caveats for the caller to surface, not this module:
 from __future__ import annotations
 
 import math
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from itertools import pairwise
 from typing import TypedDict
@@ -65,6 +65,7 @@ __all__ = [
     "TICK_RATES",
     "CounterCandidate",
     "SessionFit",
+    "boundary_gradient",
     "cluster_counters",
     "find_counters",
     "mono_bits",
@@ -496,6 +497,8 @@ def find_counters(
 
 def cluster_counters(
     candidates: Sequence[CounterCandidate],
+    *,
+    bit_flip: Mapping[object, Sequence[float]] | None = None,
 ) -> list[tuple[CounterCandidate, list[CounterCandidate]]]:
     """Collapse overlapping windows of one counter to a representative + members.
 
@@ -509,16 +512,29 @@ def cluster_counters(
     Accumulator and cycle candidates cluster **together** (both are corpus-wide
     monotonic, so a counter's high half must not resurface as a separate "cycle
     count"); timers cluster separately.
+
+    ``bit_flip`` (per-column bit-flip rates, keyed like ``CounterCandidate.keys``)
+    is an optional **tie-break**: among equally-wide, equally-evidenced windows it
+    prefers the one whose per-bit flip rates decrease most cleanly from LSB to MSB
+    (:func:`boundary_gradient`) — the fingerprint of a correctly-aligned counter,
+    which pins the byte boundary better than ``msb_jump`` alone. Omitting it leaves
+    the ranking byte-identical to the pre-gradient behaviour.
     """
     groups: dict[str, list[CounterCandidate]] = {}
     for c in candidates:
         groups.setdefault("timer" if c.kind == "timer" else "monotonic", []).append(c)
+
+    def rank_key(c: CounterCandidate):
+        if bit_flip is None:
+            return (not c.canonical, -c.width, -c.bits, c.msb_jump)
+        grad = boundary_gradient(c.keys, c.little, bit_flip)
+        # Higher gradient is better; a missing/undefined gradient sorts neutral-last
+        # among ties (0.0) without disturbing the stronger canonical/width/bits keys.
+        return (not c.canonical, -c.width, -c.bits, -(grad or 0.0), c.msb_jump)
+
     out: list[tuple[CounterCandidate, list[CounterCandidate]]] = []
     for group in groups.values():
-        ranked = sorted(
-            group,
-            key=lambda c: (not c.canonical, -c.width, -c.bits, c.msb_jump),
-        )
+        ranked = sorted(group, key=rank_key)
         reps: list[tuple[CounterCandidate, list[CounterCandidate], set[object]]] = []
         for cand in ranked:
             keyset = set(cand.keys)
@@ -530,3 +546,46 @@ def cluster_counters(
                 reps.append((cand, [], keyset))
         out.extend((rep, members) for rep, members, _seen in reps)
     return out
+
+
+def boundary_gradient(
+    keys: Sequence[object], little: bool, bit_flip: Mapping[object, Sequence[float]]
+) -> float | None:
+    """How cleanly a window's per-bit flip rates fall from LSB to MSB (0..1).
+
+    A true multi-byte counter flips its low bits far more often than its high
+    bits, and monotonically so: laid out from the whole word's least- to
+    most-significant bit, the flip-rate gradient of a *correctly aligned* window
+    slopes smoothly down, while a window shifted onto a neighbouring byte breaks
+    the slope. Returns the fraction of adjacent bit-pairs (ordered LSB->MSB across
+    the whole window) that are non-increasing — 1.0 is a perfect gradient — or
+    ``None`` when a key's rates are missing or the window is a single byte (no
+    boundary to locate).
+
+    ``bit_flip`` maps each column key to that byte's 8 per-bit flip rates (bit 0 =
+    that byte's LSB), as produced by :func:`canlib.triage.bit_flip_rates`. Keys are
+    in adjacency order (ascending offset); for a big-endian window the LSB sits at
+    the highest offset, so the byte order is reversed before concatenating.
+    """
+    if len(keys) < 2:
+        return None
+    rates: list[Sequence[float]] = []
+    for k in keys:
+        r = bit_flip.get(k)
+        if r is None:
+            return None
+        rates.append(r)
+    # Bytes LSB->MSB: little-endian keys are already LSB-first; big-endian has the
+    # LSB at the highest offset, so reverse. Within each byte, bit 0 (its LSB) is
+    # the less-significant end, and byte N's bit 0 is more significant than byte
+    # N-1's bit 7 — so concatenating (LSB byte first, bits 0..7 each) yields the
+    # whole word's bits in ascending significance.
+    ordered = rates if little else list(reversed(rates))
+    gradient: list[float] = []
+    for byte_rates in ordered:
+        gradient.extend(byte_rates)
+    pairs = list(pairwise(gradient))
+    if not pairs:
+        return None
+    non_increasing = sum(1 for a, b in pairs if b <= a + 1e-9)
+    return non_increasing / len(pairs)

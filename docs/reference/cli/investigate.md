@@ -35,12 +35,12 @@ usage: canair investigate uds [-h] [--min-r R] [--min-n N]
                               [--min-bits BITS] [--counter-width N]
                               [--unmapped-only]
                               [--independent-of ECU:PID:PARAM]
-                              [--independent-of-file FILE] [--json]
+                              [--independent-of-file FILE] [--json] [--top N]
                               [--notation NAME] [--since WHEN] [--until WHEN]
                               [--date YYYY-MM-DD] [--today]
                               [--last-sessions [N]] [--last-session]
                               [--state SUBSTR] [--label SUBSTR]
-                              ecu pid
+                              [ecu] [pid]
 
 Point this at an unknown PID and get one ranked table telling you
 everything worth knowing about each of its bytes — the fastest way to
@@ -62,6 +62,11 @@ Bytes are ranked strongest-anchor-first, then by state separation, so
 the most decodable bytes float to the top. This bundles the manual
 coverage -> discriminate -> correlate -> hunt loop into a single call.
 
+ECU and PID are optional: give both for the full per-byte deep-dive,
+an ECU (or a QUERY) alone to sweep its PIDs, or nothing to sweep the
+whole profile. A sweep prints a ranked SUMMARY per PID (--top caps it)
+rather than N full reports.
+
 --counters switches to a different question — 'which bytes here only
 ever go UP?' — sweeping multi-byte windows for odometers, operating-hour
 tallies, power-cycle counts and uptime timers. Those are invisible to
@@ -73,8 +78,10 @@ byte looks promising, confirm the exact expression with `canair hunt
 ECU PID --against ...` and write it with `canair pids upsert-param`.
 
 positional arguments:
-  ecu                   Target ECU (e.g. MCU)
-  pid                   Target PID (e.g. 2102)
+  ecu                   Target ECU (e.g. MCU), or a QUERY (e.g.
+                        "BMS:2101,2102"). Omit ECU and PID to sweep the whole
+                        profile; give an ECU alone to sweep its PIDs.
+  pid                   Target PID (e.g. 2102). Omit to sweep the ECU.
 
 options:
   -h, --help            show this help message and exit
@@ -128,6 +135,9 @@ options:
                         timestamp,value CSV (mutually exclusive with
                         --independent-of)
   --json                Machine-readable output
+  --top N               In a corpus/ECU sweep (ECU or PID omitted): cap the
+                        ranked summary to the top N rows (default 40; 0 = no
+                        cap). Ignored for a single PID.
   --notation NAME       byte-index notation for output labels: wican
                         (default), isotp, torque, bix. Overrides the
                         display.byte_notation config key.
@@ -167,6 +177,10 @@ scoping:
 examples:
   canair investigate MCU 2102              # rank unmapped + unverified-mapped bytes of MCU 2102
   canair investigate MCU 2102 --all        # include bytes a verified param already maps
+  canair investigate BMS                   # sweep every captured BMS PID (ranked summary)
+  canair investigate                       # sweep the whole profile (ranked summary)
+  canair investigate --counters            # find every monotonic counter in the car
+  canair investigate BMS --counters        # every counter across BMS's PIDs
   canair investigate IGPM 22BC03 --bits    # rank toggling bits (body/status-ECU work)
   canair investigate IGPM 22BC03 --events  # bit/byte edges aligned to the event timeline
   canair investigate CLU 22B002 --counters # hunt monotonic counters (odometer / cycle count)

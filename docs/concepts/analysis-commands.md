@@ -62,6 +62,7 @@ has nothing co-polled to correlate against.
 | a confounder to remove | correlation with a nuisance regressed out | `… --control REF` (hunt/correlate) |
 | no on-bus anchor | a byte that lands in a physical band | `hunt --physical` |
 | a suspected odometer / hour meter / cycle count | the bytes that **only ever rise** | `investigate <ECU> <PID> --counters` |
+| no idea which PID hides a counter | every counter in the car, ranked | `investigate --counters` (bare) |
 
 ## Counters: the one thing correlation cannot find
 
@@ -91,7 +92,17 @@ signal:
 canair investigate CLU 22B002 --counters          # → [B12:B14] 70047 → 73048 (the odometer)
 canair investigate BMS 2101 --counters            # → the five cumulative BMS registers
 canair investigate BCM 22C011 --counters --unmapped-only   # only counters not settled yet
+canair investigate --counters                     # sweep the WHOLE profile — every counter in the car
+canair investigate BMS --counters                 # sweep every BMS PID
 ```
+
+`investigate` sweeps when you omit the PID: give an ECU (or a QUERY like
+`"BMS:2101,2102"`) to sweep its captured PIDs, or nothing to sweep the whole
+profile. A sweep prints a ranked **summary** — for `--counters`, one list of every
+counter found; otherwise one line per PID with the cheap local facts (varying /
+unmapped byte counts, best state-separation F, physical-band hits) that mark a PID
+worth a deep-dive. `--top N` caps it. The per-signal timelines
+(`--events`/`--dwell`/`--field`) stay single-PID.
 
 `--unmapped-only` hides a window only when **every** parameter covering it is
 `verified`. A window mapped by an *unverified* guess is kept and tagged
@@ -114,9 +125,11 @@ alone (`B14 = 88`) says nothing.
 !!! note "This is the one analysis you should *not* scope"
     Unlike everything else on this page, `--counters` wants the **whole history**.
     A `--state`/`--since` filter shortens the horizon, and the horizon *is* the
-    evidence. Only narrow it to exclude known-bad data. If the report is empty it
-    names the best sub-threshold window and the `--min-bits` value that would show
-    it, so a dead end still points somewhere.
+    evidence, so a scope filter is **warned** on stderr (and flagged `scoped: true`
+    in `--json`) — it understates the bits ranking. Only narrow it to exclude
+    known-bad data. If the report is empty it names the best sub-threshold window
+    and the `--min-bits` value that would show it, so a dead end still points
+    somewhere.
 
 Currently `uds` (diagnostic PIDs) only; the raw broadcast-CAN counterpart is not
 implemented.

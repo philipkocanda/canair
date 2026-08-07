@@ -27,6 +27,7 @@ from .capture_store import load_all_captures
 # precisely-typed input doesn't degrade to `list[dict]` on the way out.
 
 __all__ = [
+    "active_scope_flags",
     "add_scope_args",
     "entry_date",
     "entry_datetime",
@@ -273,6 +274,33 @@ def filter_by_text[Row: Mapping[str, Any]](
             if l_needle not in haystack:
                 continue
         out.append(e)
+    return out
+
+
+def active_scope_flags(args: argparse.Namespace) -> list[str]:
+    """Names of the scope flags actually set on ``args``.
+
+    The user-facing spelling of every scoping flag that is set (empty when the
+    invocation is unscoped), for a command that needs to warn when a scope was
+    applied — e.g. ``investigate --counters``, which wants the whole history.
+    Checks the raw flags rather than a resolved ``since``/``until`` so
+    ``--last-session`` (which resolves *into* a ``since`` cutoff) is still named.
+    """
+    out: list[str] = []
+    if getattr(args, "since", None) is not None:
+        out.append("--since")
+    if getattr(args, "until", None) is not None:
+        out.append("--until")
+    if getattr(args, "date", None) is not None:
+        out.append("--date")
+    if getattr(args, "today", False):
+        out.append("--today")
+    if getattr(args, "last_sessions", None):
+        out.append("--last-session")
+    if getattr(args, "state", None) is not None:
+        out.append("--state")
+    if getattr(args, "label", None) is not None:
+        out.append("--label")
     return out
 
 

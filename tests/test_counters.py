@@ -310,3 +310,87 @@ class TestClusterCounters:
 
     def test_empty_input(self):
         assert cluster_counters([]) == []
+
+
+class TestBoundaryGradient:
+    """The bit-flip boundary-gradient tie-break (Part F)."""
+
+    def test_high_for_an_aligned_big_endian_counter(self):
+        from canlib.counters import boundary_gradient
+        from canlib.triage import bit_flip_rates
+
+        values = list(range(0, 600))  # a 2-byte rising counter
+        cols = _columns(values, 2)  # big-endian: key0=MSB, key1=LSB
+        bf = {k: bit_flip_rates(v) for k, v in cols}
+        keys = tuple(k for k, _ in cols)
+        score = boundary_gradient(keys, little=False, bit_flip=bf)
+        assert score is not None and score >= 0.9
+
+    def test_lower_when_the_endianness_is_wrong(self):
+        from canlib.counters import boundary_gradient
+        from canlib.triage import bit_flip_rates
+
+        values = list(range(0, 600))
+        cols = _columns(values, 2)  # laid out big-endian
+        bf = {k: bit_flip_rates(v) for k, v in cols}
+        keys = tuple(k for k, _ in cols)
+        good = boundary_gradient(keys, little=False, bit_flip=bf)
+        bad = boundary_gradient(keys, little=True, bit_flip=bf)  # read LSB<->MSB flipped
+        assert good is not None and bad is not None and good > bad
+
+    def test_none_for_single_byte_or_missing_rates(self):
+        from canlib.counters import boundary_gradient
+
+        assert boundary_gradient((0,), little=False, bit_flip={0: [0.0] * 8}) is None
+        assert boundary_gradient((0, 1), little=False, bit_flip={0: [0.0] * 8}) is None
+
+    def test_tie_break_prefers_the_aligned_endianness(self):
+        """Given two same-width/-evidence windows over the same bytes, the gradient
+        picks the correctly-aligned endianness as the representative."""
+        from canlib.counters import CounterCandidate, cluster_counters
+        from canlib.triage import bit_flip_rates
+
+        values = list(range(0, 600))
+        cols = _columns(values, 2)  # big-endian layout
+        bf = {k: bit_flip_rates(v) for k, v in cols}
+        keys = tuple(k for k, _ in cols)
+
+        def _cand(little: bool) -> CounterCandidate:
+            return CounterCandidate(
+                keys=keys,
+                little=little,
+                kind="accumulator",
+                bits=20.0,
+                n=600,
+                n_distinct=600,
+                n_up=599,
+                n_down=0,
+                n_varying=2,
+                canonical=True,
+                first=0.0,
+                last=599.0,
+                lo=0.0,
+                hi=599.0,
+                med_step=1.0,
+                max_step=1.0,
+                msb_jump=0.0,
+                step_ratio=0.01,
+                span_s=3000.0,
+                n_sessions=1,
+                flat_sessions=0,
+                boundary_steps=0,
+            )
+
+        groups = cluster_counters([_cand(little=True), _cand(little=False)], bit_flip=bf)
+        assert len(groups) == 1, "same bytes -> one physical counter"
+        rep, _members = groups[0]
+        assert rep.little is False, "the aligned big-endian window must win the tie-break"
+
+    def test_no_bit_flip_is_byte_identical_ranking(self):
+        # Without bit_flip the representative choice must not change (guards the 30
+        # existing tests' behaviour).
+        values = [0x010000 + k for k in range(60)]
+        cands = find_counters(
+            _columns(values, 3), _dense_ts(60), session_gap_s=SESSION_GAP, min_bits=4.0
+        )
+        assert cluster_counters(cands) == cluster_counters(cands, bit_flip=None)
