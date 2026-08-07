@@ -46,6 +46,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+from canlib import ansi
 from canlib.capture_types import CaptureEntry
 from canlib.commands._group import group_help
 from canlib.commands._hexarg import HexArgError, parse_hex_arg
@@ -57,15 +58,6 @@ from canlib.states import ecu_states
 NAME = "ecu"
 
 # ANSI colors (match the sibling audit tools: research, coverage)
-_BOLD = "\033[1m"
-_DIM = "\033[2m"
-_GREEN = "\033[92m"
-_YELLOW = "\033[93m"
-_RED = "\033[91m"
-_CYAN = "\033[96m"
-_RESET = "\033[0m"
-
-
 # Identity fields to surface in the detail view, in display order.
 # (name/alias/description/id_protocol are handled separately in the header.)
 _IDENTITY_FIELDS = [
@@ -250,15 +242,17 @@ def cmd_list(records: list[dict], as_json: bool, show_states: bool = False) -> i
         return 0
 
     n_pids = sum(1 for r in records if r["has_pids"])
-    print(f"\n  {_BOLD}ECUs{_RESET} — {len(records)} in registry, {n_pids} with PID definitions\n")
+    print(
+        f"\n  {ansi.BOLD}ECUs{ansi.RESET} — {len(records)} in registry, {n_pids} with PID definitions\n"
+    )
 
     # Column header. BUS (and optional STATES) are last: they're the widest,
     # most-variable columns, so trailing them keeps the numeric columns aligned.
     bus_hdr = f"{'BUS':<12}" if show_states else "BUS"
     states_hdr = "  STATES" if show_states else ""
     print(
-        f"  {_DIM}{'NAME':<12} {'TX':<6} {'PROTO':<8} "
-        f"{'PIDS':>4} {'VERIF':>7} {'CAPS':>5}  {bus_hdr}{states_hdr}{_RESET}"
+        f"  {ansi.DIM}{'NAME':<12} {'TX':<6} {'PROTO':<8} "
+        f"{'PIDS':>4} {'VERIF':>7} {'CAPS':>5}  {bus_hdr}{states_hdr}{ansi.RESET}"
     )
 
     for r in records:
@@ -272,23 +266,25 @@ def cmd_list(records: list[dict], as_json: bool, show_states: bool = False) -> i
         if not r["has_pids"]:
             # Registry-only module: no PID data to summarise.
             print(
-                f"  {_CYAN}{name:<12}{_RESET} {r['tx']:<6} {proto:<8} "
-                f"{_DIM}{'—':>4} {'—':>7} {'—':>5}{_RESET}  {_CYAN}{bus_disp}{_RESET}{states_seg}"
+                f"  {ansi.CYAN}{name:<12}{ansi.RESET} {r['tx']:<6} {proto:<8} "
+                f"{ansi.DIM}{'—':>4} {'—':>7} {'—':>5}{ansi.RESET}  {ansi.CYAN}{bus_disp}{ansi.RESET}{states_seg}"
             )
             continue
         params = r["params"]
         verified = r["verified"]
-        vcolor = _GREEN if params and verified == params else (_YELLOW if verified else _DIM)
+        vcolor = (
+            ansi.GREEN if params and verified == params else (ansi.YELLOW if verified else ansi.DIM)
+        )
         vstr = f"{verified}/{params}"
         caps = r.get("captures")
         if caps:
             cstr = f"{caps:>5}"
         else:
-            cstr = f"{_YELLOW}{'0':>5}{_RESET}"
+            cstr = f"{ansi.YELLOW}{'0':>5}{ansi.RESET}"
         print(
-            f"  {_CYAN}{name:<12}{_RESET} {r['tx']:<6} {proto:<8} "
-            f"{r['pids']:>4} {vcolor}{vstr:>7}{_RESET} "
-            f"{cstr}  {_CYAN}{bus_disp}{_RESET}{states_seg}"
+            f"  {ansi.CYAN}{name:<12}{ansi.RESET} {r['tx']:<6} {proto:<8} "
+            f"{r['pids']:>4} {vcolor}{vstr:>7}{ansi.RESET} "
+            f"{cstr}  {ansi.CYAN}{bus_disp}{ansi.RESET}{states_seg}"
         )
     print()
     return 0
@@ -363,9 +359,9 @@ def cmd_detail(rec: dict, as_json: bool) -> int:
         return 0
 
     # Header
-    title = f"{_BOLD}{_CYAN}{rec['name']}{_RESET}"
+    title = f"{ansi.BOLD}{ansi.CYAN}{rec['name']}{ansi.RESET}"
     if rec.get("alias"):
-        title += f" {_DIM}(alias: {rec['alias']}){_RESET}"
+        title += f" {ansi.DIM}(alias: {rec['alias']}){ansi.RESET}"
     print(f"\n  {title}")
     if rec.get("description"):
         print(f"  {rec['description']}")
@@ -373,8 +369,8 @@ def cmd_detail(rec: dict, as_json: bool) -> int:
     # Addresses / protocol
     proto = rec.get("id_protocol") or "?"
     print(
-        f"\n  {_DIM}TX{_RESET} {rec['tx']}    {_DIM}RX{_RESET} {rec['rx']}    "
-        f"{_DIM}protocol{_RESET} {proto}"
+        f"\n  {ansi.DIM}TX{ansi.RESET} {rec['tx']}    {ansi.DIM}RX{ansi.RESET} {rec['rx']}    "
+        f"{ansi.DIM}protocol{ansi.RESET} {proto}"
     )
     if rec.get("can_bus"):
         labels = rec.get("can_bus_labels") or rec["can_bus"]
@@ -383,11 +379,11 @@ def cmd_detail(rec: dict, as_json: bool) -> int:
             f"{code} ({label})" if label and label != code else code
             for code, label in zip(rec["can_bus"], labels, strict=False)
         ]
-        print(f"  {_DIM}CAN bus{_RESET} {', '.join(parts)}")
+        print(f"  {ansi.DIM}CAN bus{ansi.RESET} {', '.join(parts)}")
 
     # Identity fields
     if rec["identity"]:
-        print(f"\n  {_BOLD}Identity{_RESET}")
+        print(f"\n  {ansi.BOLD}Identity{ansi.RESET}")
         for key, label in _IDENTITY_FIELDS:
             if key in rec["identity"]:
                 print(f"    {label:<12} {rec['identity'][key]}")
@@ -396,29 +392,31 @@ def cmd_detail(rec: dict, as_json: bool) -> int:
     stats = rec.get("stats")
     if stats is None:
         print(
-            f"\n  {_YELLOW}No PID definitions{_RESET} "
-            f"{_DIM}(no pids: — identity-only module){_RESET}"
+            f"\n  {ansi.YELLOW}No PID definitions{ansi.RESET} "
+            f"{ansi.DIM}(no pids: — identity-only module){ansi.RESET}"
         )
     else:
-        print(f"\n  {_BOLD}Stats{_RESET}")
+        print(f"\n  {ansi.BOLD}Stats{ansi.RESET}")
         verified = stats["verified"]
         params = stats["params"]
-        vcolor = _GREEN if params and verified == params else (_YELLOW if verified else _DIM)
+        vcolor = (
+            ansi.GREEN if params and verified == params else (ansi.YELLOW if verified else ansi.DIM)
+        )
         print(
             f"    {'PIDs':<14} {stats['pids']}"
-            + (f"  {_DIM}(+{stats['ignored']} ignored){_RESET}" if stats["ignored"] else "")
+            + (f"  {ansi.DIM}(+{stats['ignored']} ignored){ansi.RESET}" if stats["ignored"] else "")
         )
         print(f"    {'Parameters':<14} {params}")
-        print(f"    {'Verified':<14} {vcolor}{verified}/{params}{_RESET}")
+        print(f"    {'Verified':<14} {vcolor}{verified}/{params}{ansi.RESET}")
         print(f"    {'Captures':<14} {rec['captures']}")
         if stats["research_total"]:
             print(
                 f"    {'Research':<14} {stats['research_open']} open "
-                f"{_DIM}/ {stats['research_total']} total{_RESET}"
+                f"{ansi.DIM}/ {stats['research_total']} total{ansi.RESET}"
             )
         if stats["iocontrol"] or stats["iocontrol_discoveries"]:
             extra = (
-                f"  {_DIM}(+{stats['iocontrol_discoveries']} discoveries){_RESET}"
+                f"  {ansi.DIM}(+{stats['iocontrol_discoveries']} discoveries){ansi.RESET}"
                 if stats["iocontrol_discoveries"]
                 else ""
             )
@@ -431,32 +429,32 @@ def cmd_detail(rec: dict, as_json: bool) -> int:
 
     # Per-PID breakdown
     if rec["pid_list"]:
-        print(f"\n  {_BOLD}PIDs{_RESET}")
+        print(f"\n  {ansi.BOLD}PIDs{ansi.RESET}")
         for p in rec["pid_list"]:
             flags = []
             status = p.get("status", "active")
             if status != "active":
-                flags.append(f"{_DIM}{status}{_RESET}")
+                flags.append(f"{ansi.DIM}{status}{ansi.RESET}")
             caps = p["captures"]
             if not caps:
-                flags.append(f"{_YELLOW}no capture{_RESET}")
+                flags.append(f"{ansi.YELLOW}no capture{ansi.RESET}")
             flag_str = ("  " + " ".join(flags)) if flags else ""
-            vcolor = _GREEN if p["params"] and p["verified"] == p["params"] else _DIM
-            cap_seg = f"  {_DIM}{caps} cap{_RESET}"
+            vcolor = ansi.GREEN if p["params"] and p["verified"] == p["params"] else ansi.DIM
+            cap_seg = f"  {ansi.DIM}{caps} cap{ansi.RESET}"
             print(
-                f"    {_CYAN}{p['pid']:<8}{_RESET} "
-                f"{p['params']:>2}p  {vcolor}{p['verified']:>2} verified{_RESET}"
+                f"    {ansi.CYAN}{p['pid']:<8}{ansi.RESET} "
+                f"{p['params']:>2}p  {vcolor}{p['verified']:>2} verified{ansi.RESET}"
                 f"{cap_seg}{flag_str}"
             )
         print(
-            f"\n  {_DIM}Tip: `canair ecu {rec['name']} pids` shows each PID's "
-            f"latest decoded state.{_RESET}"
+            f"\n  {ansi.DIM}Tip: `canair ecu {rec['name']} pids` shows each PID's "
+            f"latest decoded state.{ansi.RESET}"
         )
 
     # Notes last (can be long/multiline)
     if rec.get("notes"):
         notes = " ".join(str(rec["notes"]).split())
-        print(f"\n  {_BOLD}Notes{_RESET}\n    {notes}")
+        print(f"\n  {ansi.BOLD}Notes{ansi.RESET}\n    {notes}")
     print()
     return 0
 
@@ -556,7 +554,7 @@ def _value_grid(values: Mapping[str, Any], width: int, indent: str, ncols: int =
     lines: list[str] = []
     for row in rows:
         cells = [
-            f"{_DIM}{n:<{name_w[c]}}{_RESET} {_BOLD}{v:>{val_w[c]}}{_RESET}"
+            f"{ansi.DIM}{n:<{name_w[c]}}{ansi.RESET} {ansi.BOLD}{v:>{val_w[c]}}{ansi.RESET}"
             for c, (n, v) in enumerate(row)
         ]
         lines.append(indent + gap.join(cells))
@@ -583,22 +581,24 @@ def cmd_pids(info: Mapping[str, Any], tx_id: int, ecu_def: dict | None, as_json:
         print()
         return 0
 
-    title = f"{_BOLD}{_CYAN}{name}{_RESET}"
+    title = f"{ansi.BOLD}{ansi.CYAN}{name}{ansi.RESET}"
     if info.get("alias"):
-        title += f" {_DIM}(alias: {info['alias']}){_RESET}"
-    print(f"\n  {title} {_DIM}(0x{tx_id:03X}){_RESET} — latest decoded state")
+        title += f" {ansi.DIM}(alias: {info['alias']}){ansi.RESET}"
+    print(f"\n  {title} {ansi.DIM}(0x{tx_id:03X}){ansi.RESET} — latest decoded state")
 
     if ecu_def is None:
-        print(f"\n  {_YELLOW}No PID definitions{_RESET} {_DIM}(identity-only module){_RESET}\n")
+        print(
+            f"\n  {ansi.YELLOW}No PID definitions{ansi.RESET} {ansi.DIM}(identity-only module){ansi.RESET}\n"
+        )
         return 0
     if not records:
-        print(f"\n  {_YELLOW}No PIDs defined for {name}.{_RESET}\n")
+        print(f"\n  {ansi.YELLOW}No PIDs defined for {name}.{ansi.RESET}\n")
         return 0
 
     n_with = sum(1 for r in records if r["values"])
     print(
-        f"  {_DIM}{len(records)} PIDs · {n_with} with a recent capture "
-        f"(each PID's newest value + the vehicle state it was read in){_RESET}\n"
+        f"  {ansi.DIM}{len(records)} PIDs · {n_with} with a recent capture "
+        f"(each PID's newest value + the vehicle state it was read in){ansi.RESET}\n"
     )
 
     from canlib.states import join_states
@@ -607,7 +607,7 @@ def cmd_pids(info: Mapping[str, Any], tx_id: int, ecu_def: dict | None, as_json:
     for r in records:
         flags = []
         if r["status"] != "active":
-            flags.append(f"{_YELLOW}{r['status']}{_RESET}")
+            flags.append(f"{ansi.YELLOW}{r['status']}{ansi.RESET}")
         # Context (state/date) for the capture the values came from.
         ctx = ""
         if r["values"]:
@@ -615,26 +615,32 @@ def cmd_pids(info: Mapping[str, Any], tx_id: int, ecu_def: dict | None, as_json:
             when = " ".join(x for x in [r.get("date") or "", r.get("time") or ""] if x).strip()
             bits = []
             if st:
-                bits.append(f"{_DIM}vehicle_state{_RESET} {_BOLD}{_GREEN}{st}{_RESET}")
+                bits.append(
+                    f"{ansi.DIM}vehicle_state{ansi.RESET} {ansi.BOLD}{ansi.GREEN}{st}{ansi.RESET}"
+                )
             if when:
-                bits.append(f"{_CYAN}{when}{_RESET}")
-            ctx = f"  {_DIM}·{_RESET} " + f" {_DIM}·{_RESET} ".join(bits) if bits else ""
+                bits.append(f"{ansi.CYAN}{when}{ansi.RESET}")
+            ctx = (
+                f"  {ansi.DIM}·{ansi.RESET} " + f" {ansi.DIM}·{ansi.RESET} ".join(bits)
+                if bits
+                else ""
+            )
         flag_str = ("  " + " ".join(flags)) if flags else ""
-        print(f"  {_BOLD}{_CYAN}{r['pid']}{_RESET}{ctx}{flag_str}")
+        print(f"  {ansi.BOLD}{ansi.CYAN}{r['pid']}{ansi.RESET}{ctx}{flag_str}")
 
         if r["values"]:
             for line in _value_grid(r["values"], width, "      "):
                 print(line)
         elif r["n_params"] == 0:
-            print(f"      {_DIM}(no parameters defined){_RESET}")
+            print(f"      {ansi.DIM}(no parameters defined){ansi.RESET}")
         else:
             print(
-                f"      {_YELLOW}no capture{_RESET} {_DIM}({r['n_params']} params defined){_RESET}"
+                f"      {ansi.YELLOW}no capture{ansi.RESET} {ansi.DIM}({r['n_params']} params defined){ansi.RESET}"
             )
 
     print(
-        f"\n  {_DIM}Latest values only. Full history/diff: "
-        f"`canair captures {name} <PID>` · stats: `canair decode {name} <PID> --stats`{_RESET}\n"
+        f"\n  {ansi.DIM}Latest values only. Full history/diff: "
+        f"`canair captures {name} <PID>` · stats: `canair decode {name} <PID> --stats`{ansi.RESET}\n"
     )
     return 0
 
@@ -658,11 +664,11 @@ def cmd_edit(info: Mapping[str, Any], tx_id: int) -> int:
 
     if not (sys.stdin.isatty() and sys.stdout.isatty()):
         print(
-            f"{_RED}`canair ecu {name} edit` requires an interactive terminal.{_RESET}\n"
-            f"{_DIM}It opens $EDITOR by design, so it can't be scripted or driven by an "
+            f"{ansi.RED}`canair ecu {name} edit` requires an interactive terminal.{ansi.RESET}\n"
+            f"{ansi.DIM}It opens $EDITOR by design, so it can't be scripted or driven by an "
             f"agent.\nUse the surgical, validated editors instead — e.g. "
             f"`canair pids upsert-param`, `canair pids set-can-bus`, "
-            f"`canair ecu add`.{_RESET}",
+            f"`canair ecu add`.{ansi.RESET}",
             file=sys.stderr,
         )
         return 1
@@ -670,8 +676,8 @@ def cmd_edit(info: Mapping[str, Any], tx_id: int) -> int:
     path = find_ecu_file_by_tx(tx_id)
     if path is None or not path.exists():
         print(
-            f"{_RED}No ecus/ file found for {name} (0x{tx_id:03X}).{_RESET}\n"
-            f"{_DIM}Register it first with `canair ecu add`.{_RESET}",
+            f"{ansi.RED}No ecus/ file found for {name} (0x{tx_id:03X}).{ansi.RESET}\n"
+            f"{ansi.DIM}Register it first with `canair ecu add`.{ansi.RESET}",
             file=sys.stderr,
         )
         return 1
@@ -686,25 +692,25 @@ def cmd_edit(info: Mapping[str, Any], tx_id: int) -> int:
 
     rc = subprocess.call([*editor.split(), str(path)])
     if rc != 0:
-        print(f"{_YELLOW}Editor exited with status {rc}; skipping validation.{_RESET}")
+        print(f"{ansi.YELLOW}Editor exited with status {rc}; skipping validation.{ansi.RESET}")
         return rc
 
     # Re-validate the edited file (not auto-reverted — the user owns the edit).
     from canlib.commands.validate.pids import _run_pids
 
-    print(f"\n{_DIM}Validating {path.name} …{_RESET}")
+    print(f"\n{ansi.DIM}Validating {path.name} …{ansi.RESET}")
     vrc = _run_pids([str(path)], stats=False)
     if vrc:
         print(
-            f"{_YELLOW}Validation failed — re-run `canair ecu {name} edit` to fix, "
-            f"or `canair validate pids`.{_RESET}",
+            f"{ansi.YELLOW}Validation failed — re-run `canair ecu {name} edit` to fix, "
+            f"or `canair validate pids`.{ansi.RESET}",
             file=sys.stderr,
         )
     return vrc
 
 
 def _unknown_ecu(value: str, records: list[dict]) -> int:
-    print(f"{_RED}Unknown ECU {value!r}.{_RESET}", file=sys.stderr)
+    print(f"{ansi.RED}Unknown ECU {value!r}.{ansi.RESET}", file=sys.stderr)
     names = [r["name"] for r in records]
     print("\nAvailable ECUs:", file=sys.stderr)
     print("  " + ", ".join(names), file=sys.stderr)
@@ -836,7 +842,8 @@ def cmd_add(args) -> int:
         tx_id = int(str(args.tx), 16)
     except ValueError:
         print(
-            f"{_RED}Invalid TX id {args.tx!r} — expected hex (e.g. 7C6).{_RESET}", file=sys.stderr
+            f"{ansi.RED}Invalid TX id {args.tx!r} — expected hex (e.g. 7C6).{ansi.RESET}",
+            file=sys.stderr,
         )
         return 1
 
@@ -872,15 +879,15 @@ def cmd_add(args) -> int:
             **fields,
         )
     except EcusEditError as e:
-        print(f"{_RED}{e}{_RESET}", file=sys.stderr)
+        print(f"{ansi.RED}{e}{ansi.RESET}", file=sys.stderr)
         return 1
 
     disp = tx_key(tx_id)
     label = args.name or f"Unknown-{tx_id:03X}"
     if wrote:
-        print(f"{_GREEN}  ✓ registered {label} ({disp}){_RESET}")
+        print(f"{ansi.GREEN}  ✓ registered {label} ({disp}){ansi.RESET}")
     else:
-        print(f"{_DIM}  {label} ({disp}) already registered; nothing to change.{_RESET}")
+        print(f"{ansi.DIM}  {label} ({disp}) already registered; nothing to change.{ansi.RESET}")
     return 0
 
 

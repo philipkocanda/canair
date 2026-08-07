@@ -11,6 +11,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
+from canlib import ansi
 from canlib.align import longest_payload_len
 from canlib.inspect_bytes import apply_transform
 from canlib.mirrors import DEFAULT_MIRROR_MATCH
@@ -21,7 +22,7 @@ from canlib.xanalysis import byte_state_buckets as _byte_state_buckets
 from canlib.xanalysis import discriminability as _discriminability
 
 from .calc import _local_series, _paired, _paired_timed, _transform_series, find_mirrors
-from .format import _BOLD, _CYAN, _DIM, _GREEN, _RESET, _YELLOW, _mark_for
+from .format import _mark_for
 
 if TYPE_CHECKING:
     from canlib.align import TimePoint
@@ -104,18 +105,18 @@ def print_discriminate(
     elif include_bits:
         hdr_extra = " (params + bits)"
     print(
-        f"  {_BOLD}Discriminability by {field}{hdr_extra}{_RESET} "
-        f"{_DIM}(numeric: between/within variance F; categorical: Cramér's V — "
-        f"higher = cleaner separation){_RESET}"
+        f"  {ansi.BOLD}Discriminability by {field}{hdr_extra}{ansi.RESET} "
+        f"{ansi.DIM}(numeric: between/within variance F; categorical: Cramér's V — "
+        f"higher = cleaner separation){ansi.RESET}"
     )
     plen = longest_payload_len([r.get("capture") for r in all_results])
     for name, score, groups in rows:
         if name in byte_names:
-            mark = f"{_DIM}·{_RESET}"
+            mark = f"{ansi.DIM}·{ansi.RESET}"
         else:
             mark = _mark_for(name, parameters, candidate_names)
         disp = relabel_signal(name, notation, sub_bytes=sub_bytes, payload_len=plen)
-        try_tag = f" {_CYAN}(try){_RESET}" if name in candidate_names else ""
+        try_tag = f" {ansi.CYAN}(try){ansi.RESET}" if name in candidate_names else ""
 
         # Categorical params: report Cramér's V vs state (nominal association)
         # instead of the interval-scale F, which doesn't apply to a mode/flag set.
@@ -125,23 +126,31 @@ def print_discriminate(
             xs, ys = cat_pairs[name]
             v = cramers_v(xs, ys)
             if v is None:
-                print(f"    {mark} {disp}{try_tag}  {_DIM}V=n/a{_RESET}")
+                print(f"    {mark} {disp}{try_tag}  {ansi.DIM}V=n/a{ansi.RESET}")
                 continue
-            vcolor = _GREEN if v >= 0.6 else _YELLOW if v >= 0.3 else _DIM
+            vcolor = ansi.GREEN if v >= 0.6 else ansi.YELLOW if v >= 0.3 else ansi.DIM
             distinct = "  ".join(sorted({str(c) for c in xs})[:6])
             print(
-                f"    {mark} {disp}{try_tag}  {vcolor}V={v:.2f}{_RESET}  "
-                f"{_DIM}(categorical: {distinct}){_RESET}"
+                f"    {mark} {disp}{try_tag}  {vcolor}V={v:.2f}{ansi.RESET}  "
+                f"{ansi.DIM}(categorical: {distinct}){ansi.RESET}"
             )
             continue
 
         if score is None:
-            print(f"    {mark} {disp}{try_tag}  {_DIM}F=n/a{_RESET}")
+            print(f"    {mark} {disp}{try_tag}  {ansi.DIM}F=n/a{ansi.RESET}")
             continue
-        color = _GREEN if score >= 10 or score == float("inf") else _YELLOW if score >= 2 else _DIM
+        color = (
+            ansi.GREEN
+            if score >= 10 or score == float("inf")
+            else ansi.YELLOW
+            if score >= 2
+            else ansi.DIM
+        )
         fstr = "∞" if score == float("inf") else f"{score:.1f}"
         means = "  ".join(f"{g}={sum(v) / len(v):.1f}" for g, v in groups.items() if v)
-        print(f"    {mark} {disp}{try_tag}  {color}F={fstr}{_RESET}  {_DIM}{means}{_RESET}")
+        print(
+            f"    {mark} {disp}{try_tag}  {color}F={fstr}{ansi.RESET}  {ansi.DIM}{means}{ansi.RESET}"
+        )
     print()
 
 
@@ -160,10 +169,10 @@ def print_mirrors(
     )
     what = "positions equal" if not allow_offset else "positions equal up to an offset/scale"
     print(
-        f"  {_BOLD}Mirrors{_RESET} {_DIM}({what} in ≥{min_fraction * 100:.0f}% of captures){_RESET}"
+        f"  {ansi.BOLD}Mirrors{ansi.RESET} {ansi.DIM}({what} in ≥{min_fraction * 100:.0f}% of captures){ansi.RESET}"
     )
     if not mirrors:
-        print(f"    {_DIM}none{_RESET}")
+        print(f"    {ansi.DIM}none{ansi.RESET}")
         print()
         return
     plen = longest_payload_len([r.get("capture") for r in all_results])
@@ -171,7 +180,9 @@ def print_mirrors(
         da = relabel_signal(hit.a, notation, sub_bytes=sub_bytes, payload_len=plen)
         db = relabel_signal(hit.b, notation, sub_bytes=sub_bytes, payload_len=plen)
         rel = hit.relation
-        print(f"    {_GREEN}{da} == {rel.describe(db)}{_RESET}  {_DIM}({rel.quality()}){_RESET}")
+        print(
+            f"    {ansi.GREEN}{da} == {rel.describe(db)}{ansi.RESET}  {ansi.DIM}({rel.quality()}){ansi.RESET}"
+        )
     print()
 
 
@@ -238,19 +249,21 @@ def print_correlations(
         "cramers_v": "Cramér's V",
         "mutual_info": "norm. MI",
     }.get(method, "Pearson r")
-    header = f"  {_BOLD}Correlation vs {ref_label}{_RESET} {_DIM}({coeff}"
+    header = f"  {ansi.BOLD}Correlation vs {ref_label}{ansi.RESET} {ansi.DIM}({coeff}"
     if transform and transform != "raw":
         header += f", ref {transform}"
     if cross:
         header += f", nearest-join ≤{tol:g}s"
-    header += f"){_RESET}"
+    header += f"){ansi.RESET}"
     print(header)
     for name, r, n in rows:
         mark = _mark_for(name, parameters, candidate_names)
-        try_tag = f" {_CYAN}(try){_RESET}" if name in candidate_names else ""
+        try_tag = f" {ansi.CYAN}(try){ansi.RESET}" if name in candidate_names else ""
         if r is None:
-            print(f"    {mark} {name}{try_tag}  {_DIM}r=n/a  n={n}{_RESET}")
+            print(f"    {mark} {name}{try_tag}  {ansi.DIM}r=n/a  n={n}{ansi.RESET}")
             continue
-        color = _GREEN if abs(r) >= 0.7 else _YELLOW if abs(r) >= 0.3 else _DIM
-        print(f"    {mark} {name}{try_tag}  {color}r={r:+.3f}{_RESET}  {_DIM}n={n}{_RESET}")
+        color = ansi.GREEN if abs(r) >= 0.7 else ansi.YELLOW if abs(r) >= 0.3 else ansi.DIM
+        print(
+            f"    {mark} {name}{try_tag}  {color}r={r:+.3f}{ansi.RESET}  {ansi.DIM}n={n}{ansi.RESET}"
+        )
     print()

@@ -15,17 +15,11 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
+from canlib import ansi
 from canlib.capture_types import CaptureEntry
 from canlib.notation import ByteNotation
 
-from .query import (
-    _DIM,
-    _RESET,
-    _YELLOW,
-    _capture_key,
-    _dump_json,
-    _gather_query,
-)
+from .query import _capture_key, _dump_json, _gather_query
 from .step_model import (
     DEFAULT_STEP_JOIN_TOL_S,
     VIEW_AUTO,
@@ -151,13 +145,13 @@ def _print_frames(model: StepModel, *, limit: int = 0) -> None:
     total = model.frame_count()
     start = max(total - limit, 0) if limit > 0 else 0
     model.cursor = False  # nothing to focus in a static render
-    print(f"  {_DIM}(not a TTY — rendering frames statically){_RESET}")
+    print(f"  {ansi.DIM}(not a TTY — rendering frames statically){ansi.RESET}")
     for n in range(start, total):
         console.print(model.render(n), end="", soft_wrap=True)
     if start:
         hidden = start
         print(
-            f"\n  {_YELLOW}{hidden} earlier frame(s) hidden{_RESET} "
-            f"{_DIM}— widen with --limit N (0 = all){_RESET}"
+            f"\n  {ansi.YELLOW}{hidden} earlier frame(s) hidden{ansi.RESET} "
+            f"{ansi.DIM}— widen with --limit N (0 = all){ansi.RESET}"
         )
-    print(f"  {_DIM}{model.status_line()}{_RESET}")
+    print(f"  {ansi.DIM}{model.status_line()}{ansi.RESET}")

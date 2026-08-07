@@ -8,13 +8,7 @@ use, so the three of them cannot drift apart.
 
 from __future__ import annotations
 
-_BOLD = "\033[1m"
-_DIM = "\033[2m"
-_GREEN = "\033[92m"
-_YELLOW = "\033[93m"
-_RED = "\033[91m"
-_CYAN = "\033[96m"
-_RESET = "\033[0m"
+from canlib import ansi
 
 
 def format_value(v: float | None, unit: str) -> str:
@@ -71,6 +65,6 @@ def _compact_cell(v: float | None) -> str:
 
 def _mark_for(name: str, parameters: dict, candidate_names: set[str]) -> str:
     if name in candidate_names:
-        return f"{_CYAN}»{_RESET}"
+        return f"{ansi.CYAN}»{ansi.RESET}"
     verified = parameters.get(name, {}).get("verified", False)
-    return f"{_GREEN}✓{_RESET}" if verified else f"{_YELLOW}?{_RESET}"
+    return f"{ansi.GREEN}✓{ansi.RESET}" if verified else f"{ansi.YELLOW}?{ansi.RESET}"

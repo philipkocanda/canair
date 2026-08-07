@@ -14,6 +14,7 @@ from __future__ import annotations
 import json as _json
 import sys
 
+from canlib import ansi
 from canlib.align import (
     TimePoint,
     join_prepared,
@@ -26,16 +27,10 @@ from canlib.capture_dates import entry_datetime
 from canlib.notation import ByteNotation, relabel_signal
 from canlib.xanalysis import build_bit_series, build_byte_series, build_param_series
 
-_BOLD = "\033[1m"
-_DIM = "\033[2m"
-_GREEN = "\033[92m"
-_YELLOW = "\033[93m"
-_RESET = "\033[0m"
-
 
 def _color_r(r: float) -> str:
-    c = _GREEN if abs(r) >= 0.7 else _YELLOW if abs(r) >= 0.3 else _DIM
-    return f"{c}r={r:+.3f}{_RESET}"
+    c = ansi.GREEN if abs(r) >= 0.7 else ansi.YELLOW if abs(r) >= 0.3 else ansi.DIM
+    return f"{c}r={r:+.3f}{ansi.RESET}"
 
 
 def weak_correlation_hint(best_r: float | None, best_label: str | None, min_r: float) -> str | None:
@@ -104,23 +99,25 @@ def _print_overlap(specs, since, until, state, label, tol, min_n, as_json) -> in
     if not stamps:
         print("No timed captures in scope.", file=sys.stderr)
         return 1
-    print(f"\n  {_BOLD}Co-poll overlap{_RESET} {_DIM}(nearest-join ≤{tol:g}s){_RESET}")
+    print(
+        f"\n  {ansi.BOLD}Co-poll overlap{ansi.RESET} {ansi.DIM}(nearest-join ≤{tol:g}s){ansi.RESET}"
+    )
     for name in names:
-        print(f"    {_DIM}{name}: {len(stamps[name])} timed samples{_RESET}")
+        print(f"    {ansi.DIM}{name}: {len(stamps[name])} timed samples{ansi.RESET}")
     print()
     shown = [p for p in pairs if p[2] >= min_n]
     if not shown:
-        print(f"    {_DIM}no pair shares ≥{min_n} aligned samples{_RESET}")
+        print(f"    {ansi.DIM}no pair shares ≥{min_n} aligned samples{ansi.RESET}")
     for a, b, n in shown:
-        color = _GREEN if n >= 50 else _YELLOW if n >= min_n else _DIM
-        print(f"    {color}n={n:<4}{_RESET} {a}  {_DIM}⟷{_RESET}  {b}")
+        color = ansi.GREEN if n >= 50 else ansi.YELLOW if n >= min_n else ansi.DIM
+        print(f"    {color}n={n:<4}{ansi.RESET} {a}  {ansi.DIM}⟷{ansi.RESET}  {b}")
     print()
     return 0
 
 
 def _mirror_summary(hit) -> str:
     """How well a reported mirror held (row count, and the agreement that earned it)."""
-    return f"{_DIM}{hit.relation.quality()}{_RESET}"
+    return f"{ansi.DIM}{hit.relation.quality()}{ansi.RESET}"
 
 
 def _mirror_flags(args) -> dict:
@@ -203,15 +200,17 @@ def _print_cross_mirrors(specs, since, until, args, notation=ByteNotation.WICAN)
         print()
         return 0
 
-    print(f"\n  {_BOLD}Cross-ECU mirrors{_RESET} {_DIM}({_mirror_header(args)}){_RESET}")
+    print(
+        f"\n  {ansi.BOLD}Cross-ECU mirrors{ansi.RESET} {ansi.DIM}({_mirror_header(args)}){ansi.RESET}"
+    )
     if not mirrors:
-        print(f"    {_DIM}no cross-PID byte/bit position mirrors another{_RESET}\n")
+        print(f"    {ansi.DIM}no cross-PID byte/bit position mirrors another{ansi.RESET}\n")
         return 0
     for hit in mirrors:
         la = relabel_signal(hit.a, notation, payload_lens=plens)
         lb = relabel_signal(hit.b, notation, payload_lens=plens)
         print(
-            f"    {_GREEN}{la}{_RESET}  {_DIM}=={_RESET}  {hit.relation.describe(lb)}  "
+            f"    {ansi.GREEN}{la}{ansi.RESET}  {ansi.DIM}=={ansi.RESET}  {hit.relation.describe(lb)}  "
             f"{_mirror_summary(hit)}"
         )
     print()
@@ -257,15 +256,15 @@ def _print_can_mirrors(series: dict, path, args) -> int:
         return 0
 
     print(
-        f"\n  {_BOLD}Cross-ID frame mirrors{_RESET} "
-        f"{_DIM}({path.name}, {_mirror_header(args)}){_RESET}"
+        f"\n  {ansi.BOLD}Cross-ID frame mirrors{ansi.RESET} "
+        f"{ansi.DIM}({path.name}, {_mirror_header(args)}){ansi.RESET}"
     )
     if not mirrors:
-        print(f"    {_DIM}no cross-ID byte/bit position mirrors another{_RESET}\n")
+        print(f"    {ansi.DIM}no cross-ID byte/bit position mirrors another{ansi.RESET}\n")
         return 0
     for hit in mirrors:
         print(
-            f"    {_GREEN}{hit.a}{_RESET}  {_DIM}=={_RESET}  "
+            f"    {ansi.GREEN}{hit.a}{ansi.RESET}  {ansi.DIM}=={ansi.RESET}  "
             f"{hit.relation.describe(hit.b)}  {_mirror_summary(hit)}"
         )
     print()

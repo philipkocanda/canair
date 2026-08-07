@@ -24,18 +24,12 @@ import json
 import sys
 from typing import TypedDict
 
+from canlib import ansi
+
 NAME = "groups"
 
+
 # ANSI colors — emitted only when stdout is a TTY (piped output stays plain).
-_BOLD = "\033[1m"
-_DIM = "\033[2m"
-_GREEN = "\033[92m"
-_YELLOW = "\033[93m"
-_CYAN = "\033[96m"
-_RED = "\033[91m"
-_RESET = "\033[0m"
-
-
 class GroupRecord(TypedDict):
     """One group row in the ``canair groups`` output / ``--json`` payload."""
 
@@ -49,7 +43,7 @@ def _use_color() -> bool:
 
 
 def _c(text: str, code: str) -> str:
-    return f"{code}{text}{_RESET}" if _use_color() else text
+    return f"{code}{text}{ansi.RESET}" if _use_color() else text
 
 
 def cmd_list(args) -> int:
@@ -60,7 +54,7 @@ def cmd_list(args) -> int:
     try:
         groups = load_groups(prof)
     except GroupError as e:
-        print(f"{_c('Invalid groups.yaml:', _RED)} {e}", file=sys.stderr)
+        print(f"{_c('Invalid groups.yaml:', ansi.RED)} {e}", file=sys.stderr)
         return 1
 
     records: list[GroupRecord] = [
@@ -80,24 +74,24 @@ def cmd_list(args) -> int:
 
     if not groups:
         print(
-            f"\n  No selector groups declared for profile {_c(prof.name, _CYAN)} "
-            f"{_c('(no groups.yaml)', _DIM)}.\n"
-            f"  Add one with {_c('canair groups add NAME SEL [SEL ...]', _CYAN)}.\n"
+            f"\n  No selector groups declared for profile {_c(prof.name, ansi.CYAN)} "
+            f"{_c('(no groups.yaml)', ansi.DIM)}.\n"
+            f"  Add one with {_c('canair groups add NAME SEL [SEL ...]', ansi.CYAN)}.\n"
         )
         return 0
 
     print(
-        f"\n  {_c('Selector groups', _BOLD)} — {len(groups)} group(s) in "
-        f"{_c(prof.name, _CYAN)}  {_c(f'(use as {GROUP_SIGIL}name)', _DIM)}\n"
+        f"\n  {_c('Selector groups', ansi.BOLD)} — {len(groups)} group(s) in "
+        f"{_c(prof.name, ansi.CYAN)}  {_c(f'(use as {GROUP_SIGIL}name)', ansi.DIM)}\n"
     )
     for r in records:
-        name = _c(f"{GROUP_SIGIL}{r['name']}", _CYAN)
+        name = _c(f"{GROUP_SIGIL}{r['name']}", ansi.CYAN)
         print(f"  {name}")
         if r["description"]:
-            print(f"    {_c(r['description'], _DIM)}")
-        print(f"    {_c('members:', _DIM)} {' '.join(r['members'])}")
+            print(f"    {_c(r['description'], ansi.DIM)}")
+        print(f"    {_c('members:', ansi.DIM)} {' '.join(r['members'])}")
 
-    print(f"\n  {_c(f'source: {prof.groups_file}', _DIM)}\n")
+    print(f"\n  {_c(f'source: {prof.groups_file}', ansi.DIM)}\n")
     return 0
 
 
@@ -107,8 +101,8 @@ def _run_edit(args, action) -> int:
     try:
         path = action()
     except GroupsEditError as e:
-        raise SystemExit(f"{_c('  Error: ' + str(e), _RED)}") from None
-    print(f"{_c('  ✓ ' + args._groups_msg, _GREEN)}  {_c(f'({path.name})', _DIM)}")
+        raise SystemExit(f"{_c('  Error: ' + str(e), ansi.RED)}") from None
+    print(f"{_c('  ✓ ' + args._groups_msg, ansi.GREEN)}  {_c(f'({path.name})', ansi.DIM)}")
     return 0
 
 

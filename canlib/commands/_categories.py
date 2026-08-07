@@ -18,12 +18,10 @@ from __future__ import annotations
 import argparse
 import sys
 
+from canlib import ansi
+
 # ANSI styling for category headers (match the sibling tools: bix, decode, …).
 # Emitted only when stdout is a TTY so piped/redirected help stays plain.
-_BOLD = "\033[1m"
-_CYAN = "\033[96m"
-_RESET = "\033[0m"
-
 # Ordered (title, command-names) groups. Order is the display order in --help.
 CATEGORIES: list[tuple[str, tuple[str, ...]]] = [
     (
@@ -68,7 +66,7 @@ def _header(title: str, indent: str) -> str:
     from the previous group."""
     label = title.upper()
     if sys.stdout.isatty():
-        label = f"{_BOLD}{_CYAN}{label}{_RESET}"
+        label = f"{ansi.BOLD}{ansi.CYAN}{label}{ansi.RESET}"
     return f"\n{indent}{label}\n"
 
 
@@ -135,4 +133,4 @@ class CategorizedHelpFormatter(argparse.RawDescriptionHelpFormatter):
         if "(" not in inv or ")" not in inv:
             return text
         hint = inv[inv.index("(") : inv.rindex(")") + 1]
-        return text.replace(hint, f"{_BOLD}{hint}{_RESET}", 1)
+        return text.replace(hint, f"{ansi.BOLD}{hint}{ansi.RESET}", 1)

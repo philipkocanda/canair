@@ -21,6 +21,8 @@ import json
 import sys
 from typing import TypedDict
 
+from canlib import ansi
+
 NAME = "bus"
 
 
@@ -35,21 +37,13 @@ class BusRecord(TypedDict):
 
 
 # ANSI colors — emitted only when stdout is a TTY (piped output stays plain).
-_BOLD = "\033[1m"
-_DIM = "\033[2m"
-_GREEN = "\033[92m"
-_YELLOW = "\033[93m"
-_CYAN = "\033[96m"
-_RESET = "\033[0m"
-
-
 def _use_color() -> bool:
     return sys.stdout.isatty()
 
 
 def _c(text: str, code: str) -> str:
     """Wrap ``text`` in an ANSI ``code`` when stdout is a TTY, else return it plain."""
-    return f"{code}{text}{_RESET}" if _use_color() else text
+    return f"{code}{text}{ansi.RESET}" if _use_color() else text
 
 
 def _fmt_bitrate(bitrate: int | None) -> str:
@@ -148,40 +142,42 @@ def run(args) -> int:
 
     if not buses and not undeclared:
         print(
-            f"\n  No CAN buses declared for profile {_c(prof.name, _CYAN)} "
-            f"{_c('(no can_buses.yaml)', _DIM)}.\n"
+            f"\n  No CAN buses declared for profile {_c(prof.name, ansi.CYAN)} "
+            f"{_c('(no can_buses.yaml)', ansi.DIM)}.\n"
             f"  Declare the vocabulary in {prof.can_buses_file}.\n"
         )
         return 0
 
-    print(f"\n  {_c('CAN buses', _BOLD)} — {len(buses)} segment(s) in {_c(prof.name, _CYAN)}\n")
+    print(
+        f"\n  {_c('CAN buses', ansi.BOLD)} — {len(buses)} segment(s) in {_c(prof.name, ansi.CYAN)}\n"
+    )
     header = f"{'CODE':<6} {'ECUS':>4}  {'NAME':<16} {'SPEED':<10} DESCRIPTION"
-    print(f"  {_c(header, _DIM)}")
+    print(f"  {_c(header, ansi.DIM)}")
     for r in records:
-        code = _c(f"{r['code']:<6}", _CYAN)
+        code = _c(f"{r['code']:<6}", ansi.CYAN)
         n = r["ecus"]
-        n_str = f"{n:>4}" if n else _c(f"{0:>4}", _YELLOW)
+        n_str = f"{n:>4}" if n else _c(f"{0:>4}", ansi.YELLOW)
         name = str(r["name"] or "—")[:16]
         speed = _fmt_bitrate(r["bitrate"])
         desc = str(r["description"] or "")
-        print(f"  {code} {n_str}  {name:<16} {speed:<10} {_c(desc, _DIM)}")
+        print(f"  {code} {n_str}  {name:<16} {speed:<10} {_c(desc, ansi.DIM)}")
 
     if undeclared:
         print(
-            f"\n  {_c('Undeclared codes', _YELLOW)} "
-            f"{_c('(used by ECUs but absent from can_buses.yaml):', _DIM)}"
+            f"\n  {_c('Undeclared codes', ansi.YELLOW)} "
+            f"{_c('(used by ECUs but absent from can_buses.yaml):', ansi.DIM)}"
         )
         for code in undeclared:
-            print(f"    {_c(code, _YELLOW)}  {per_bus[code]} ECU(s)")
+            print(f"    {_c(code, ansi.YELLOW)}  {per_bus[code]} ECU(s)")
 
     if n_unbussed:
-        print(f"\n  {_c(f'{n_unbussed} ECU(s) have no can_bus set.', _DIM)}")
+        print(f"\n  {_c(f'{n_unbussed} ECU(s) have no can_bus set.', ansi.DIM)}")
 
     if n_gateway:
         plural = "s" if n_gateway != 1 else ""
         print(
-            f"\n  {_c(f'{n_gateway} gateway ECU{plural} on `{ALL_CODE}` counted on every segment.', _DIM)}"
+            f"\n  {_c(f'{n_gateway} gateway ECU{plural} on `{ALL_CODE}` counted on every segment.', ansi.DIM)}"
         )
 
-    print(f"\n  {_c(f'source: {prof.can_buses_file}', _DIM)}\n")
+    print(f"\n  {_c(f'source: {prof.can_buses_file}', ansi.DIM)}\n")
     return 0

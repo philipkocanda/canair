@@ -20,6 +20,7 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime
 
+from canlib import ansi
 from canlib.align import DEFAULT_SESSION_GAP_S, LoadedPid
 from canlib.byteindex import mapped_offsets, wican_to_isotp
 from canlib.capture_dates import active_scope_flags
@@ -38,13 +39,6 @@ from .render import print_keep_banner
 # Fraction of captures that must reach the common prefix length (see
 # _payload_matrix). Below this, a payload is treated as too short to align.
 MIN_LEN_FRAC = 0.9
-
-_BOLD = "\033[1m"
-_DIM = "\033[2m"
-_GREEN = "\033[92m"
-_YELLOW = "\033[93m"
-_CYAN = "\033[96m"
-_RESET = "\033[0m"
 
 _KIND_TITLES = {
     "accumulator": (
@@ -373,9 +367,9 @@ def _print_counters(
     span_days = (dts[-1] - dts[0]).total_seconds() / 86400
     print()
     print(
-        f"  {_BOLD}{_CYAN}{ecu} {pid}{_RESET} monotonic counters — "
+        f"  {ansi.BOLD}{ansi.CYAN}{ecu} {pid}{ansi.RESET} monotonic counters — "
         f"{len(dts)} captures over {n_days} day(s) / {span_days:.0f}d span"
-        f"  {_DIM}(min-bits {args.min_bits:g}, width ≤{args.counter_width}){_RESET}"
+        f"  {ansi.DIM}(min-bits {args.min_bits:g}, width ≤{args.counter_width}){ansi.RESET}"
     )
     # keep:changes rows are value-transitions, not fixed-rate samples — monotonicity
     # survives run-length dedup, but the step counts / n do change, so the caveat belongs.
@@ -385,31 +379,33 @@ def _print_counters(
         if best_below is not None:
             expr = _expression(best_below) or _display_label(best_below, notation, sub_bytes)
             print(
-                f"  {_DIM}Nothing above {args.min_bits:g} bits. Best below it: "
-                f"{_RESET}{expr}{_DIM} at {best_below.bits:.1f} bits "
-                f"({_fmt(best_below.first)} → {_fmt(best_below.last)}).{_RESET}"
+                f"  {ansi.DIM}Nothing above {args.min_bits:g} bits. Best below it: "
+                f"{ansi.RESET}{expr}{ansi.DIM} at {best_below.bits:.1f} bits "
+                f"({_fmt(best_below.first)} → {_fmt(best_below.last)}).{ansi.RESET}"
             )
             print(
-                f"  {_DIM}Re-run with {_RESET}--min-bits {best_below.bits:g}{_DIM} to see it "
+                f"  {ansi.DIM}Re-run with {ansi.RESET}--min-bits {best_below.bits:g}{ansi.DIM} to see it "
                 f"— but treat it as a lead, not a finding: {best_below.bits:.0f} clean "
-                f"rise(s){_RESET}"
+                f"rise(s){ansi.RESET}"
             )
-            print(f"  {_DIM}happen by chance about 1 in {2**best_below.bits:.0f} times.{_RESET}")
+            print(
+                f"  {ansi.DIM}happen by chance about 1 in {2**best_below.bits:.0f} times.{ansi.RESET}"
+            )
             if scoped:
                 # The threshold above was computed from the FILTERED subset, so it
                 # is only right for this scope — the full history could surface more.
                 print(
-                    f"  {_YELLOW}Note: computed from a scoped subset — re-run unscoped "
-                    f"for the true threshold.{_RESET}"
+                    f"  {ansi.YELLOW}Note: computed from a scoped subset — re-run unscoped "
+                    f"for the true threshold.{ansi.RESET}"
                 )
         else:
             print(
-                f"  {_DIM}No counter-like window found. A counter needs a long enough "
-                f"horizon to prove it only rises —{_RESET}"
+                f"  {ansi.DIM}No counter-like window found. A counter needs a long enough "
+                f"horizon to prove it only rises —{ansi.RESET}"
             )
             print(
-                f"  {_DIM}widen the scope (drop --state/--since) or grow the capture "
-                f"set for this PID.{_RESET}"
+                f"  {ansi.DIM}widen the scope (drop --state/--since) or grow the capture "
+                f"set for this PID.{ansi.RESET}"
             )
         print()
         return
@@ -420,7 +416,7 @@ def _print_counters(
             continue
         title, blurb = _KIND_TITLES[kind]
         print()
-        print(f"  {_BOLD}{title}{_RESET} {_DIM}— {blurb}{_RESET}")
+        print(f"  {ansi.BOLD}{title}{ansi.RESET} {ansi.DIM}— {blurb}{ansi.RESET}")
         for rep, members in sel:
             _print_one(rep, members, mapped, notation, sub_bytes)
     print()
@@ -436,48 +432,48 @@ def _print_one(
     expr = _expression(rep) or "?"
     mapped_by, mapped_verified = _mapped_by(rep, mapped)
     if mapped_by is None:
-        tag = f"{_YELLOW}UNMAPPED{_RESET}"
+        tag = f"{ansi.YELLOW}UNMAPPED{ansi.RESET}"
     elif mapped_verified:
-        tag = f"{_DIM}[{mapped_by}]{_RESET}"
+        tag = f"{ansi.DIM}[{mapped_by}]{ansi.RESET}"
     else:
-        tag = f"{_YELLOW}[{mapped_by}?]{_RESET}"  # mapped but unverified — still open
+        tag = f"{ansi.YELLOW}[{mapped_by}?]{ansi.RESET}"  # mapped but unverified — still open
     print()
     print(
-        f"    {_BOLD}{_display_label(rep, notation, sub_bytes):<12}{_RESET} "
-        f"{_GREEN}{expr}{_RESET}  {tag}"
+        f"    {ansi.BOLD}{_display_label(rep, notation, sub_bytes):<12}{ansi.RESET} "
+        f"{ansi.GREEN}{expr}{ansi.RESET}  {tag}"
     )
     print(
         f"      {_fmt(rep.first)} → {_fmt(rep.last)}  (Δ{_fmt(rep.total_delta)})"
-        f"   {_DIM}bits={rep.bits:.1f}  up={rep.n_up} down={rep.n_down}"
-        f"  vary={rep.n_varying}/{rep.width}{_RESET}"
+        f"   {ansi.DIM}bits={rep.bits:.1f}  up={rep.n_up} down={rep.n_down}"
+        f"  vary={rep.n_varying}/{rep.width}{ansi.RESET}"
     )
     detail = (
-        f"      {_DIM}med step {_fmt(rep.med_step)} · max step {_fmt(rep.max_step)}"
+        f"      {ansi.DIM}med step {_fmt(rep.med_step)} · max step {_fmt(rep.max_step)}"
         f" · {rep.n_sessions} session(s)"
     )
     if rep.per_year is not None:
         detail += f" · ≈{_fmt(rep.per_year)}/year"
-    print(detail + _RESET)
+    print(detail + ansi.RESET)
     if rep.kind == "cycle":
         print(
-            f"      {_DIM}flat in {rep.flat_sessions}/{rep.n_sessions} sessions, "
-            f"stepped across {rep.boundary_steps} boundary(ies){_RESET}"
+            f"      {ansi.DIM}flat in {rep.flat_sessions}/{rep.n_sessions} sessions, "
+            f"stepped across {rep.boundary_steps} boundary(ies){ansi.RESET}"
         )
     if rep.kind == "timer" and rep.tick:
         print(
-            f"      {_DIM}tick ≈ {rep.tick} (err {rep.tick_err:.0%}, "
-            f"slope cv {rep.slope_cv:.0%}, resets to {rep.reset_frac:.1%}){_RESET}"
+            f"      {ansi.DIM}tick ≈ {rep.tick} (err {rep.tick_err:.0%}, "
+            f"slope cv {rep.slope_cv:.0%}, resets to {rep.reset_frac:.1%}){ansi.RESET}"
         )
         for fit in rep.sessions[:2]:
             when = datetime.fromtimestamp(fit.start_t).isoformat(sep=" ", timespec="seconds")
             print(
-                f"        {_DIM}{when}  n={fit.n} dur={fit.duration_s:.0f}s "
-                f"{_fmt(fit.lo)}→{_fmt(fit.hi)} slope={fit.slope:.4g} r={fit.r:.4f}{_RESET}"
+                f"        {ansi.DIM}{when}  n={fit.n} dur={fit.duration_s:.0f}s "
+                f"{_fmt(fit.lo)}→{_fmt(fit.hi)} slope={fit.slope:.4g} r={fit.r:.4f}{ansi.RESET}"
             )
     if not rep.canonical:
         print(
-            f"      {_DIM}note: window is padded (a constant zero high byte or a "
-            f"constant low byte) — the real counter may be narrower{_RESET}"
+            f"      {ansi.DIM}note: window is padded (a constant zero high byte or a "
+            f"constant low byte) — the real counter may be narrower{ansi.RESET}"
         )
     elif rep.n_varying < rep.width:
         # Canonical only checks the OUTERMOST bytes, so a constant non-zero high
@@ -485,10 +481,10 @@ def _print_one(
         # magnitude by 256 per byte — the printed first→last then reads as
         # millions where the informative range is a couple of counts.
         print(
-            f"      {_DIM}note: only {rep.n_varying} of {rep.width} bytes vary — the "
+            f"      {ansi.DIM}note: only {rep.n_varying} of {rep.width} bytes vary — the "
             f"constant one(s) inflate the magnitude; read the varying byte(s) alone "
-            f"for the real count{_RESET}"
+            f"for the real count{ansi.RESET}"
         )
     if members:
         subsumed = ", ".join(_display_label(m, notation, sub_bytes) for m in members[:10])
-        print(f"      {_DIM}subsumed: {subsumed}{_RESET}")
+        print(f"      {ansi.DIM}subsumed: {subsumed}{ansi.RESET}")

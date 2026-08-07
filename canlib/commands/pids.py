@@ -43,6 +43,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from canlib import ansi
 from canlib.commands._hexarg import HexArgError, parse_hex_arg
 from canlib.pids import PID_STATUSES
 from canlib.pids_edit import (
@@ -68,12 +69,6 @@ from canlib.pids_edit import (
 
 NAME = "pids"
 
-_GREEN = "\033[92m"
-_RED = "\033[91m"
-_DIM = "\033[2m"
-_YELLOW = "\033[93m"
-_RESET = "\033[0m"
-
 
 def _schema_validate(fpath: Path) -> tuple[bool, str]:
     """Validate a single pids file in-process. Returns (ok, output)."""
@@ -92,7 +87,9 @@ def _guarded(ecu: str, pids_dir: Path | None, do_edit, *, validate: bool):
         if not ok:
             fpath.write_text(snapshot)
             print(out)
-            raise SystemExit(f"{_RED}  Schema validation failed — reverted {fpath.name}{_RESET}")
+            raise SystemExit(
+                f"{ansi.RED}  Schema validation failed — reverted {fpath.name}{ansi.RESET}"
+            )
     return fpath
 
 
@@ -112,13 +109,15 @@ def _parse_pairs(raw: list[str] | None, kind: str) -> dict | None:
     out: dict[int, str] = {}
     for item in raw:
         if "=" not in item:
-            raise SystemExit(f"{_RED}  Error: --{kind} expects KEY=LABEL, got {item!r}{_RESET}")
+            raise SystemExit(
+                f"{ansi.RED}  Error: --{kind} expects KEY=LABEL, got {item!r}{ansi.RESET}"
+            )
         k, _, v = item.partition("=")
         try:
             out[int(k.strip(), 0)] = v.strip()
         except ValueError:
             raise SystemExit(
-                f"{_RED}  Error: --{kind} key must be an integer, got {k!r}{_RESET}"
+                f"{ansi.RED}  Error: --{kind} key must be an integer, got {k!r}{ansi.RESET}"
             ) from None
     return out
 
@@ -139,7 +138,9 @@ def _echo_capture_range(ecu: str, pid: str, name: str, param: dict) -> None:
 
         caps = load_pid_captures(ecu, pid)
         if not caps:
-            print(f"    {_DIM}(no captures for {ecu} {pid} yet — expression unverified){_RESET}")
+            print(
+                f"    {ansi.DIM}(no captures for {ecu} {pid} yet — expression unverified){ansi.RESET}"
+            )
             return
 
         values: list[float] = []
@@ -166,20 +167,20 @@ def _echo_capture_range(ecu: str, pid: str, name: str, param: dict) -> None:
         if displays:
             shown = "  ".join(displays[:6]) + ("  …" if len(displays) > 6 else "")
             tag = "(constant)" if len(displays) == 1 else f"({len(displays)} values)"
-            print(f"    {_DIM}captures:{_RESET} {shown}  {_DIM}{tag}{_RESET}")
+            print(f"    {ansi.DIM}captures:{ansi.RESET} {shown}  {ansi.DIM}{tag}{ansi.RESET}")
         elif values:
             mn, mx = min(values), max(values)
             if mn == mx:
                 print(
-                    f"    {_YELLOW}captures: constant {mn:g}{unit}{_RESET}"
-                    f"  {_DIM}(check the offset if you expected variation){_RESET}"
+                    f"    {ansi.YELLOW}captures: constant {mn:g}{unit}{ansi.RESET}"
+                    f"  {ansi.DIM}(check the offset if you expected variation){ansi.RESET}"
                 )
             else:
-                print(f"    {_DIM}captures:{_RESET} {mn:g}{unit} — {mx:g}{unit}")
+                print(f"    {ansi.DIM}captures:{ansi.RESET} {mn:g}{unit} — {mx:g}{unit}")
         elif err:
-            print(f"    {_RED}captures: ERROR — {err}{_RESET}")
+            print(f"    {ansi.RED}captures: ERROR — {err}{ansi.RESET}")
         else:
-            print(f"    {_DIM}(captures present but expression yielded no value){_RESET}")
+            print(f"    {ansi.DIM}(captures present but expression yielded no value){ansi.RESET}")
     except Exception:
         # Never let a sanity-check echo break a successful write.
         pass
@@ -220,7 +221,9 @@ def cmd_upsert_param(args: argparse.Namespace) -> int:
         )
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
-    print(f"{_GREEN}  ✓ {args.ecu} {args.pid} {args.name}{_RESET}  {_DIM}({fpath.name}){_RESET}")
+    print(
+        f"{ansi.GREEN}  ✓ {args.ecu} {args.pid} {args.name}{ansi.RESET}  {ansi.DIM}({fpath.name}){ansi.RESET}"
+    )
 
     # Passive sanity-check: decode the new expression against existing captures so
     # a wrong byte offset surfaces at write time (a PCI byte reads constant, etc.).
@@ -255,10 +258,10 @@ def _warn_state_predicates(ecu: str, param: str, consequence: str, hint: str) ->
     if not states:
         return
     print(
-        f"  {_YELLOW}warn:{_RESET} vehicle_states.yaml predicate(s) "
+        f"  {ansi.YELLOW}warn:{ansi.RESET} vehicle_states.yaml predicate(s) "
         f"{', '.join(states)} read {ecu.upper()}.{param} — {consequence}"
     )
-    print(f"    {_DIM}{hint}{_RESET}")
+    print(f"    {ansi.DIM}{hint}{ansi.RESET}")
 
 
 def cmd_rename_param(args: argparse.Namespace) -> int:
@@ -267,8 +270,8 @@ def cmd_rename_param(args: argparse.Namespace) -> int:
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
     print(
-        f"{_GREEN}  ✓ {args.ecu} {args.pid} {args.old} → {args.new}{_RESET}  "
-        f"{_DIM}({fpath.name}){_RESET}"
+        f"{ansi.GREEN}  ✓ {args.ecu} {args.pid} {args.old} → {args.new}{ansi.RESET}  "
+        f"{ansi.DIM}({fpath.name}){ansi.RESET}"
     )
     _warn_state_predicates(
         args.ecu,
@@ -285,8 +288,8 @@ def cmd_rm_param(args: argparse.Namespace) -> int:
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
     print(
-        f"{_GREEN}  ✓ removed {args.ecu} {args.pid} {args.name}{_RESET}  "
-        f"{_DIM}({fpath.name}){_RESET}"
+        f"{ansi.GREEN}  ✓ removed {args.ecu} {args.pid} {args.name}{ansi.RESET}  "
+        f"{ansi.DIM}({fpath.name}){ansi.RESET}"
     )
     _warn_state_predicates(
         args.ecu,
@@ -303,7 +306,9 @@ def cmd_rename_pid(args: argparse.Namespace) -> int:
         rename_pid(args.ecu, args.old, args.new, pids_dir=args.dir)
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
-    print(f"{_GREEN}  ✓ {args.ecu} {args.old} → {args.new}{_RESET}  {_DIM}({fpath.name}){_RESET}")
+    print(
+        f"{ansi.GREEN}  ✓ {args.ecu} {args.old} → {args.new}{ansi.RESET}  {ansi.DIM}({fpath.name}){ansi.RESET}"
+    )
     return 0
 
 
@@ -312,7 +317,9 @@ def cmd_rm_pid(args: argparse.Namespace) -> int:
         delete_pid(args.ecu, args.pid, pids_dir=args.dir)
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
-    print(f"{_GREEN}  ✓ removed {args.ecu} {args.pid}{_RESET}  {_DIM}({fpath.name}){_RESET}")
+    print(
+        f"{ansi.GREEN}  ✓ removed {args.ecu} {args.pid}{ansi.RESET}  {ansi.DIM}({fpath.name}){ansi.RESET}"
+    )
     return 0
 
 
@@ -330,7 +337,7 @@ def cmd_add_pid(args: argparse.Namespace) -> int:
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
     print(
-        f"{_GREEN}  ✓ {args.ecu} {args.pid} [{args.status}]{_RESET}  {_DIM}({fpath.name}){_RESET}"
+        f"{ansi.GREEN}  ✓ {args.ecu} {args.pid} [{args.status}]{ansi.RESET}  {ansi.DIM}({fpath.name}){ansi.RESET}"
     )
     return 0
 
@@ -357,8 +364,8 @@ def cmd_add_research(args: argparse.Namespace) -> int:
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
     print(
-        f"{_GREEN}  ✓ research {args.ecu} {args.type} {args.target} "
-        f"[{args.status}]{_RESET}  {_DIM}({fpath.name}){_RESET}"
+        f"{ansi.GREEN}  ✓ research {args.ecu} {args.type} {args.target} "
+        f"[{args.status}]{ansi.RESET}  {ansi.DIM}({fpath.name}){ansi.RESET}"
     )
     return 0
 
@@ -369,8 +376,8 @@ def cmd_set_status(args: argparse.Namespace) -> int:
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
     print(
-        f"{_GREEN}  ✓ {args.ecu} research {args.target} -> {args.status}{_RESET}  "
-        f"{_DIM}({fpath.name}){_RESET}"
+        f"{ansi.GREEN}  ✓ {args.ecu} research {args.target} -> {args.status}{ansi.RESET}  "
+        f"{ansi.DIM}({fpath.name}){ansi.RESET}"
     )
     return 0
 
@@ -381,8 +388,8 @@ def cmd_set_pid_status(args: argparse.Namespace) -> int:
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
     print(
-        f"{_GREEN}  ✓ {args.ecu} {args.pid} status -> {args.status}{_RESET}  "
-        f"{_DIM}({fpath.name}){_RESET}"
+        f"{ansi.GREEN}  ✓ {args.ecu} {args.pid} status -> {args.status}{ansi.RESET}  "
+        f"{ansi.DIM}({fpath.name}){ansi.RESET}"
     )
     return 0
 
@@ -396,8 +403,8 @@ def cmd_set_pid_variable_length(args: argparse.Namespace) -> int:
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
     state = "true" if value else "false (cleared)"
     print(
-        f"{_GREEN}  ✓ {args.ecu} {args.pid} variable_length -> {state}{_RESET}  "
-        f"{_DIM}({fpath.name}){_RESET}"
+        f"{ansi.GREEN}  ✓ {args.ecu} {args.pid} variable_length -> {state}{ansi.RESET}  "
+        f"{ansi.DIM}({fpath.name}){ansi.RESET}"
     )
     return 0
 
@@ -410,7 +417,9 @@ def cmd_set_pid_notes(args: argparse.Namespace) -> int:
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
     what = "cleared" if not (notes or "").strip() else f"set ({len((notes or '').split())} words)"
-    print(f"{_GREEN}  ✓ {args.ecu} {args.pid} notes {what}{_RESET}  {_DIM}({fpath.name}){_RESET}")
+    print(
+        f"{ansi.GREEN}  ✓ {args.ecu} {args.pid} notes {what}{ansi.RESET}  {ansi.DIM}({fpath.name}){ansi.RESET}"
+    )
     return 0
 
 
@@ -420,8 +429,8 @@ def cmd_set_identity(args: argparse.Namespace) -> int:
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
     print(
-        f"{_GREEN}  ✓ {args.ecu} identity.{args.field} updated{_RESET}  "
-        f"{_DIM}({fpath.name}){_RESET}"
+        f"{ansi.GREEN}  ✓ {args.ecu} identity.{args.field} updated{ansi.RESET}  "
+        f"{ansi.DIM}({fpath.name}){ansi.RESET}"
     )
     return 0
 
@@ -432,8 +441,8 @@ def cmd_rm_identity(args: argparse.Namespace) -> int:
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
     print(
-        f"{_GREEN}  ✓ {args.ecu} identity.{args.field} removed{_RESET}  "
-        f"{_DIM}({fpath.name}){_RESET}"
+        f"{ansi.GREEN}  ✓ {args.ecu} identity.{args.field} removed{ansi.RESET}  "
+        f"{ansi.DIM}({fpath.name}){ansi.RESET}"
     )
     return 0
 
@@ -452,8 +461,8 @@ def cmd_set_can_bus(args: argparse.Namespace) -> int:
         bad = [c for c in args.codes if c not in allowed]
         if bad:
             raise SystemExit(
-                f"{_RED}  Error: unknown CAN bus code(s) {bad} — "
-                f"declared in can_buses.yaml: {sorted(allowed)}{_RESET}"
+                f"{ansi.RED}  Error: unknown CAN bus code(s) {bad} — "
+                f"declared in can_buses.yaml: {sorted(allowed)}{ansi.RESET}"
             )
 
     def do():
@@ -461,8 +470,8 @@ def cmd_set_can_bus(args: argparse.Namespace) -> int:
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
     print(
-        f"{_GREEN}  ✓ {args.ecu} can_bus -> [{', '.join(args.codes)}]{_RESET}  "
-        f"{_DIM}({fpath.name}){_RESET}"
+        f"{ansi.GREEN}  ✓ {args.ecu} can_bus -> [{', '.join(args.codes)}]{ansi.RESET}  "
+        f"{ansi.DIM}({fpath.name}){ansi.RESET}"
     )
     return 0
 
@@ -473,8 +482,8 @@ def cmd_set_iocontrol_ranges(args: argparse.Namespace) -> int:
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
     print(
-        f"{_GREEN}  ✓ {args.ecu} iocontrol_scan_ranges -> [{', '.join(args.ranges)}]{_RESET}  "
-        f"{_DIM}({fpath.name}){_RESET}"
+        f"{ansi.GREEN}  ✓ {args.ecu} iocontrol_scan_ranges -> [{', '.join(args.ranges)}]{ansi.RESET}  "
+        f"{ansi.DIM}({fpath.name}){ansi.RESET}"
     )
     return 0
 
@@ -499,7 +508,9 @@ def cmd_set_wake(args: argparse.Namespace) -> int:
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
     detail = ", ".join(f"{k}={v}" for k, v in fields.items() if k != "notes")
-    print(f"{_GREEN}  ✓ {args.ecu} wake -> {{{detail}}}{_RESET}  {_DIM}({fpath.name}){_RESET}")
+    print(
+        f"{ansi.GREEN}  ✓ {args.ecu} wake -> {{{detail}}}{ansi.RESET}  {ansi.DIM}({fpath.name}){ansi.RESET}"
+    )
     return 0
 
 
@@ -513,8 +524,8 @@ def cmd_set_addressing(args: argparse.Namespace) -> int:
         for k in ("mode", "target_address", "source_address", "fc_id", "rx_id")
     ):
         raise SystemExit(
-            f"{_RED}  Error: nothing to set — pass at least one of --mode/"
-            f"--target-address/--source-address/--fc-id/--rx-id{_RESET}"
+            f"{ansi.RED}  Error: nothing to set — pass at least one of --mode/"
+            f"--target-address/--source-address/--fc-id/--rx-id{ansi.RESET}"
         )
 
     fpath = find_ecu_file(args.ecu, pids_dir=args.dir)
@@ -524,7 +535,7 @@ def cmd_set_addressing(args: argparse.Namespace) -> int:
         None,
     )
     if tx_id is None:
-        raise SystemExit(f"{_RED}  Error: no tx_id found in {fpath.name}{_RESET}")
+        raise SystemExit(f"{ansi.RED}  Error: no tx_id found in {fpath.name}{ansi.RESET}")
 
     try:
         changed = set_addressing(
@@ -539,16 +550,16 @@ def cmd_set_addressing(args: argparse.Namespace) -> int:
     except HexArgError as e:
         raise SystemExit(str(e)) from None
     except EcusEditError as e:
-        raise SystemExit(f"{_RED}  Error: {e}{_RESET}") from None
+        raise SystemExit(f"{ansi.RED}  Error: {e}{ansi.RESET}") from None
 
     disp = tx_key(tx_id)
     if changed:
         print(
-            f"{_GREEN}  ✓ {args.ecu} addressing updated ({disp}){_RESET}  {_DIM}({fpath.name}){_RESET}"
+            f"{ansi.GREEN}  ✓ {args.ecu} addressing updated ({disp}){ansi.RESET}  {ansi.DIM}({fpath.name}){ansi.RESET}"
         )
     else:
         print(
-            f"{_DIM}  {args.ecu} ({disp}) addressing already as requested; nothing to change.{_RESET}"
+            f"{ansi.DIM}  {args.ecu} ({disp}) addressing already as requested; nothing to change.{ansi.RESET}"
         )
     return 0
 
@@ -902,7 +913,7 @@ def run(args) -> int:
     try:
         return args._pids_func(args)
     except PidsEditError as e:
-        raise SystemExit(f"{_RED}  Error: {e}{_RESET}") from None
+        raise SystemExit(f"{ansi.RED}  Error: {e}{ansi.RESET}") from None
 
 
 if __name__ == "__main__":

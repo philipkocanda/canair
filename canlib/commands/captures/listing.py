@@ -9,20 +9,12 @@ these two views are their only callers.
 import sys
 from collections.abc import Sequence
 
+from canlib import ansi
 from canlib.capture_store import decoded_preview
 from canlib.capture_types import CaptureEntry
 from canlib.states import join_states as _join_states
 
-from .query import (
-    _BOLD,
-    _CYAN,
-    _DIM,
-    _RESET,
-    _YELLOW,
-    _dump_json,
-    _entry_to_dict,
-    _parse_query,
-)
+from .query import _dump_json, _entry_to_dict, _parse_query
 
 
 def cmd_list(entries: Sequence[CaptureEntry], query, as_json: bool = False, limit: int = 0) -> None:
@@ -66,8 +58,8 @@ def cmd_list(entries: Sequence[CaptureEntry], query, as_json: bool = False, limi
             hint = ""
             if not sel.pids and sel.ecu not in known and any(c.isdigit() for c in sel.ecu):
                 hint = "  (did you mean to attach it as a PID, e.g. ECU:PID?)"
-            print(f"  {_YELLOW}No captures matched selector '{sel}'{_RESET}{hint}")
-        print(f"  {_DIM}Available ECUs: {', '.join(sorted(known))}{_RESET}")
+            print(f"  {ansi.YELLOW}No captures matched selector '{sel}'{ansi.RESET}{hint}")
+        print(f"  {ansi.DIM}Available ECUs: {', '.join(sorted(known))}{ansi.RESET}")
 
     if not matched:
         return
@@ -75,7 +67,7 @@ def cmd_list(entries: Sequence[CaptureEntry], query, as_json: bool = False, limi
     header = f"{total} captures"
     if truncated:
         header = f"latest {len(shown)} of {total} captures"
-    print(f"\n  {_BOLD}{q}{_RESET} — {header}\n")
+    print(f"\n  {ansi.BOLD}{q}{ansi.RESET} — {header}\n")
 
     # Show the ECU column only when the results span more than one ECU.
     show_ecu = len({e["ecu"] for e in shown}) > 1
@@ -85,15 +77,15 @@ def cmd_list(entries: Sequence[CaptureEntry], query, as_json: bool = False, limi
     if truncated:
         # Loud, always-printed (not TTY-gated) so an agent sees hidden history.
         print(
-            f"  {_YELLOW}… {total - len(shown)} more not shown{_RESET} "
+            f"  {ansi.YELLOW}… {total - len(shown)} more not shown{ansi.RESET} "
             f"(showing latest {len(shown)} of {total}). "
-            f"Use {_BOLD}--limit 0{_RESET} for all, or narrow with "
+            f"Use {ansi.BOLD}--limit 0{ansi.RESET} for all, or narrow with "
             f"--since/--last-session/--state.\n"
         )
     if sys.stdout.isatty():
         print(
-            f"  {_DIM}Tip: add --step to interactively step through these captures "
-            f"one at a time.{_RESET}\n"
+            f"  {ansi.DIM}Tip: add --step to interactively step through these captures "
+            f"one at a time.{ansi.RESET}\n"
         )
 
 
@@ -131,7 +123,7 @@ def cmd_latest(entries: Sequence[CaptureEntry], as_json: bool = False) -> None:
         _dump_json([_entry_to_dict(e) for _key, e in ordered])
         return
 
-    print(f"\n  {_BOLD}Latest payloads{_RESET} — {len(latest)} PIDs\n")
+    print(f"\n  {ansi.BOLD}Latest payloads{ansi.RESET} — {len(latest)} PIDs\n")
 
     for (ecu, pid), e in ordered:
         payload = e["payload"] or ""
@@ -139,7 +131,7 @@ def cmd_latest(entries: Sequence[CaptureEntry], as_json: bool = False) -> None:
         _st = _join_states(e.get("vehicle_states"))
         state = f"  ({_st})" if _st else ""
         trunc = payload[:80] + "..." if len(payload) > 80 else payload
-        print(f"  {_CYAN}{ecu:<10}{_RESET} {pid!s:<10} {_DIM}{date}{state}{_RESET}")
+        print(f"  {ansi.CYAN}{ecu:<10}{ansi.RESET} {pid!s:<10} {ansi.DIM}{date}{state}{ansi.RESET}")
         print(f"    {trunc}")
         decoded = decoded_preview(e)
         if decoded:
@@ -164,18 +156,20 @@ def _print_decoded_preview(
     """
     items = list(decoded.items())
     for k, v in items[:limit]:
-        print(f"{indent}{_DIM}{k}: {v}{_RESET}")
+        print(f"{indent}{ansi.DIM}{k}: {v}{ansi.RESET}")
     hidden = len(items) - limit
     if hidden > 0:
         where = (
             f"canair decode {ecu} {pid}".strip() if (ecu and pid) else "canair decode <ECU> <PID>"
         )
-        print(f"{indent}{_DIM}… +{hidden} more param(s) not shown — `{where}` for all{_RESET}")
+        print(
+            f"{indent}{ansi.DIM}… +{hidden} more param(s) not shown — `{where}` for all{ansi.RESET}"
+        )
 
 
 def _print_entry(e: dict, show_ecu: bool = False) -> None:
     """Print a single capture entry."""
-    ecu_prefix = f"{_CYAN}{e['ecu']:<10}{_RESET} " if show_ecu else ""
+    ecu_prefix = f"{ansi.CYAN}{e['ecu']:<10}{ansi.RESET} " if show_ecu else ""
     date = e["date"]
     time_str = e.get("time", "")
     ts = f"{date} {time_str}".strip()
@@ -183,7 +177,7 @@ def _print_entry(e: dict, show_ecu: bool = False) -> None:
     state = f"  ({_st})" if _st else ""
     label = f"  [{e['label']}]" if e.get("label") else ""
 
-    print(f"  {ecu_prefix}{_DIM}{ts}{state}{label}{_RESET}")
+    print(f"  {ecu_prefix}{ansi.DIM}{ts}{state}{label}{ansi.RESET}")
     print(f"    PID: {e['pid']}")
 
     if e["payload"]:
@@ -210,4 +204,4 @@ def _print_entry(e: dict, show_ecu: bool = False) -> None:
         notes_str = str(e["notes"]).strip()
         if len(notes_str) > 80:
             notes_str = notes_str[:77] + "..."
-        print(f"    {_DIM}Notes: {notes_str}{_RESET}")
+        print(f"    {ansi.DIM}Notes: {notes_str}{ansi.RESET}")

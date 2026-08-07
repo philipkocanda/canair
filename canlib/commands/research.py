@@ -43,6 +43,7 @@ import textwrap
 from collections import Counter
 from pathlib import Path
 
+from canlib import ansi
 from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.pids import load_pids
 from canlib.states import allowed_states, parse_states
@@ -50,14 +51,6 @@ from canlib.states import allowed_states, parse_states
 NAME = "research"
 
 # ANSI colors (match the sibling audit tools)
-_BOLD = "\033[1m"
-_DIM = "\033[2m"
-_GREEN = "\033[92m"
-_YELLOW = "\033[93m"
-_RED = "\033[91m"
-_CYAN = "\033[96m"
-_RESET = "\033[0m"
-
 VALID_TYPES = ("scan", "decode", "verify", "iocontrol_scan")
 VALID_STATUSES = ("pending", "captured", "nrc", "done")
 VALID_PRIORITIES = ("P1", "P2", "P3")
@@ -68,12 +61,12 @@ _PRIO_RANK = {"P1": 0, "P2": 1, "P3": 2}
 _STATUS_RANK = {"pending": 0, "nrc": 1, "captured": 2, "done": 3}
 
 # Priority colors.
-_PRIO_COLOR = {"P1": _RED, "P2": _YELLOW, "P3": _DIM}
+_PRIO_COLOR = {"P1": ansi.RED, "P2": ansi.YELLOW, "P3": ansi.DIM}
 _STATUS_COLOR = {
-    "pending": _YELLOW,
-    "captured": _CYAN,
-    "nrc": _DIM,
-    "done": _GREEN,
+    "pending": ansi.YELLOW,
+    "captured": ansi.CYAN,
+    "nrc": ansi.DIM,
+    "done": ansi.GREEN,
 }
 
 
@@ -160,7 +153,7 @@ def _wrapped(label: str, text: str, indent: int = 7, max_lines: int | None = Non
     """
     text = " ".join(str(text).split())
     pad = " " * indent
-    lead = f"{pad}{_DIM}{label}:{_RESET} "
+    lead = f"{pad}{ansi.DIM}{label}:{ansi.RESET} "
     cont = pad + " " * (len(label) + 2)
     body_width = _term_width() - len(cont)
     lines = textwrap.wrap(text, width=max(20, body_width)) or [""]
@@ -173,7 +166,7 @@ def _wrapped(label: str, text: str, indent: int = 7, max_lines: int | None = Non
     out = [lead + lines[0]]
     out.extend(cont + ln for ln in lines[1:])
     if hidden:
-        out.append(f"{cont}{_DIM}… (+{hidden} lines, -v for full){_RESET}")
+        out.append(f"{cont}{ansi.DIM}… (+{hidden} lines, -v for full){ansi.RESET}")
     return out
 
 
@@ -184,14 +177,14 @@ def _test_preview(items: list, limit: int = 2) -> str:
     heads = [h if len(h) <= 60 else h[:59] + "…" for h in heads]
     extra = len(items) - len(heads)
     joined = "; ".join(heads)
-    return f"{joined}  {_DIM}(+{extra} more){_RESET}" if extra > 0 else joined
+    return f"{joined}  {ansi.DIM}(+{extra} more){ansi.RESET}" if extra > 0 else joined
 
 
 def cmd_summary(records: list[dict]) -> None:
     """Print aggregate counts across the (already filtered) records."""
     open_records = [r for r in records if r.get("status") != "done"]
 
-    print(f"\n  {_BOLD}Research Summary{_RESET}")
+    print(f"\n  {ansi.BOLD}Research Summary{ansi.RESET}")
     print(
         f"  Items: {len(records)} total ({len(open_records)} open, "
         f"{len(records) - len(open_records)} done)"
@@ -200,7 +193,7 @@ def cmd_summary(records: list[dict]) -> None:
     def _dump(title: str, counter: Counter, order=None) -> None:
         if not counter:
             return
-        print(f"\n  {_BOLD}{title}{_RESET}")
+        print(f"\n  {ansi.BOLD}{title}{ansi.RESET}")
         keys = order if order else sorted(counter, key=lambda k: -counter[k])
         for k in keys:
             if counter.get(k):
@@ -226,8 +219,8 @@ def cmd_list(records: list[dict], hidden_done: int = 0, verbose: bool = False) -
     # Cap prose blocks in the default view; -v shows the full text.
     cap = None if verbose else 4
     records = sorted(records, key=_sort_key)
-    hint = f"  {_DIM}({hidden_done} done hidden — use --all){_RESET}" if hidden_done else ""
-    print(f"\n  {_BOLD}Research backlog{_RESET} — {len(records)} items{hint}")
+    hint = f"  {ansi.DIM}({hidden_done} done hidden — use --all){ansi.RESET}" if hidden_done else ""
+    print(f"\n  {ansi.BOLD}Research backlog{ansi.RESET} — {len(records)} items{hint}")
 
     prio = None
     for r in records:
@@ -242,14 +235,16 @@ def cmd_list(records: list[dict], hidden_done: int = 0, verbose: bool = False) -
         status = str(r.get("status", "?"))
 
         prio_str = (
-            f"{_PRIO_COLOR.get(prio, _DIM)}[{prio}]{_RESET}" if prio else f"{_DIM}[--]{_RESET}"
+            f"{_PRIO_COLOR.get(prio, ansi.DIM)}[{prio}]{ansi.RESET}"
+            if prio
+            else f"{ansi.DIM}[--]{ansi.RESET}"
         )
-        status_str = f"{_STATUS_COLOR.get(status, '')}{status:<8}{_RESET}"
+        status_str = f"{_STATUS_COLOR.get(status, '')}{status:<8}{ansi.RESET}"
 
         # Aligned, scannable header row; target (variable width) ends the line.
         print(
-            f"  {prio_str} {status_str} {rtype:<14} {_CYAN}{ecu:<11}{_RESET} "
-            f"{_BOLD}{target}{_RESET}"
+            f"  {prio_str} {status_str} {rtype:<14} {ansi.CYAN}{ecu:<11}{ansi.RESET} "
+            f"{ansi.BOLD}{target}{ansi.RESET}"
         )
 
         # Dim meta line: where it can be tested + when it was last touched.
@@ -261,7 +256,7 @@ def cmd_list(records: list[dict], hidden_done: int = 0, verbose: bool = False) -
         if when:
             meta.append(f"updated {when}")
         if meta:
-            print(f"       {_DIM}{'  ·  '.join(meta)}{_RESET}")
+            print(f"       {ansi.DIM}{'  ·  '.join(meta)}{ansi.RESET}")
 
         if r.get("result"):
             for line in _wrapped("result", r["result"], max_lines=cap):
@@ -272,7 +267,7 @@ def cmd_list(records: list[dict], hidden_done: int = 0, verbose: bool = False) -
         wtt = r.get("what_to_test")
         if isinstance(wtt, list) and wtt:
             if verbose:
-                print(f"       {_DIM}to test:{_RESET}")
+                print(f"       {ansi.DIM}to test:{ansi.RESET}")
                 width = _term_width() - 11
                 for item in wtt:
                     body = textwrap.wrap(" ".join(str(item).split()), width=max(20, width))

@@ -16,6 +16,7 @@ from __future__ import annotations
 import json as _json
 import sys
 
+from canlib import ansi
 from canlib.align import longest_payload_len
 from canlib.keepmode import (
     CHANGES_BANNER,
@@ -24,16 +25,9 @@ from canlib.keepmode import (
 )
 from canlib.notation import relabel_signal, resolve_notation, subfunction_bytes_for_pid
 
+
 # ANSI colors — kept local (not imported from investigate) so this module has no
 # import-time dependency on the command, which imports the renderers back.
-_BOLD = "\033[1m"
-_DIM = "\033[2m"
-_GREEN = "\033[92m"
-_YELLOW = "\033[93m"
-_CYAN = "\033[96m"
-_RESET = "\033[0m"
-
-
 def cap_note(cap) -> str:
     """The best free-text note for a capture: its own note, else the session's."""
     return str(cap.get("notes") or cap.get("session_notes") or "").strip()
@@ -47,7 +41,7 @@ def print_keep_banner(captures) -> None:
     reading (the dwell classes, and the ``--transform`` time-gap warnings).
     """
     if scope_is_keep_changes(captures):
-        print(f"    {_YELLOW}⚠ {CHANGES_BANNER}.{_RESET}")
+        print(f"    {ansi.YELLOW}⚠ {CHANGES_BANNER}.{ansi.RESET}")
 
 
 def print_report(
@@ -66,74 +60,74 @@ def print_report(
     sub_bytes = subfunction_bytes_for_pid(pid)
     plen = longest_payload_len(getattr(lp, "captures", None))
     print(
-        f"\n  {_BOLD}Investigate {ecu} {pid}{_RESET} "
-        f"{_DIM}({len(lp.captures)} timed captures, ≤{args.join_tol:g}s join){_RESET}"
+        f"\n  {ansi.BOLD}Investigate {ecu} {pid}{ansi.RESET} "
+        f"{ansi.DIM}({len(lp.captures)} timed captures, ≤{args.join_tol:g}s join){ansi.RESET}"
     )
     print_keep_banner(lp.captures)
     if fill_line:
-        print(f"  {_CYAN}{fill_line}{_RESET}")
+        print(f"  {ansi.CYAN}{fill_line}{ansi.RESET}")
     if not reports:
         what = "varying " if not args.all else ""
         unit = "bytes/bits" if args.bits else "bytes"
-        print(f"    {_DIM}no {what}{unit} to report{_RESET}\n")
+        print(f"    {ansi.DIM}no {what}{unit} to report{ansi.RESET}\n")
         return
     for r in reports:
         if r.mapped_by is None:
-            tag = f"{_YELLOW}unmapped{_RESET}"
+            tag = f"{ansi.YELLOW}unmapped{ansi.RESET}"
         elif r.mapped_verified:
-            tag = f"{_DIM}[{r.mapped_by}]{_RESET}"
+            tag = f"{ansi.DIM}[{r.mapped_by}]{ansi.RESET}"
         else:
-            tag = f"{_YELLOW}[{r.mapped_by}?]{_RESET}"  # mapped but unverified — still open
+            tag = f"{ansi.YELLOW}[{r.mapped_by}?]{ansi.RESET}"  # mapped but unverified — still open
         f_str = ""
         if r.state_f is not None:
-            fc = _GREEN if r.state_f >= 10 else _YELLOW if r.state_f >= 2 else _DIM
+            fc = ansi.GREEN if r.state_f >= 10 else ansi.YELLOW if r.state_f >= 2 else ansi.DIM
             f_val = "∞" if r.state_f == float("inf") else f"{r.state_f:.1f}"
-            f_str = f"  {fc}stateF={f_val}{_RESET}"
+            f_str = f"  {fc}stateF={f_val}{ansi.RESET}"
         anchor = ""
         if r.anchor and r.anchor_r is not None and abs(r.anchor_r) >= args.min_r:
-            rc = _GREEN if abs(r.anchor_r) >= 0.7 else _YELLOW
+            rc = ansi.GREEN if abs(r.anchor_r) >= 0.7 else ansi.YELLOW
             fit = f" fit y={r.slope:.4f}·x{r.intercept:+.2f}" if r.slope is not None else ""
-            unit = f" {_CYAN}{r.unit_guess}{_RESET}" if r.unit_guess else ""
+            unit = f" {ansi.CYAN}{r.unit_guess}{ansi.RESET}" if r.unit_guess else ""
             # NOTE: no payload_len here — the anchor is a signal on a *different*
             # ECU:PID (the co-polled cross-signal reference), so this PID's frame
             # layout does not apply to it. Passing it would be actively wrong; the
             # anchor is normally a named param, which relabel_signal passes through.
             anchor_label = relabel_signal(r.anchor, notation)
-            anchor = f"  {rc}r={r.anchor_r:+.3f}{_RESET} vs {anchor_label} {_DIM}n={r.anchor_n}{fit}{_RESET}{unit}"
+            anchor = f"  {rc}r={r.anchor_r:+.3f}{ansi.RESET} vs {anchor_label} {ansi.DIM}n={r.anchor_n}{fit}{ansi.RESET}{unit}"
         drv = ""
         if driver_label is not None:
             # Low |driver r| = independent of the driver (the signal we want).
             dv = "—" if r.driver_r is None else f"{r.driver_r:+.3f}"
-            dc = _GREEN if (r.driver_r is None or abs(r.driver_r) < 0.3) else _DIM
-            drv = f"  {dc}drv={dv}{_RESET}"
-        phys = f"  {_CYAN}{r.physical}{_RESET}" if r.physical else ""
+            dc = ansi.GREEN if (r.driver_r is None or abs(r.driver_r) < 0.3) else ansi.DIM
+            drv = f"  {dc}drv={dv}{ansi.RESET}"
+        phys = f"  {ansi.CYAN}{r.physical}{ansi.RESET}" if r.physical else ""
         kind = ""
         if r.kind and r.bit is None and r.kind != "continuous":
             # Flag the non-analog byte classes (constant/counter/checksum/enum);
             # "continuous" is the unremarkable default, left unlabelled.
-            kind = f"  {_DIM}{r.kind}{_RESET}"
+            kind = f"  {ansi.DIM}{r.kind}{ansi.RESET}"
         print(
-            f"    {_BOLD}{relabel_signal(r.label, notation, sub_bytes=sub_bytes, payload_len=plen)}{_RESET} "
+            f"    {ansi.BOLD}{relabel_signal(r.label, notation, sub_bytes=sub_bytes, payload_len=plen)}{ansi.RESET} "
             f"{tag}{f_str}{drv}{anchor}{phys}{kind}"
         )
     if words:
         print(
-            f"\n    {_BOLD}probable multi-byte words{_RESET} "
-            f"{_DIM}(near-constant hi byte + full-range lo byte){_RESET}"
+            f"\n    {ansi.BOLD}probable multi-byte words{ansi.RESET} "
+            f"{ansi.DIM}(near-constant hi byte + full-range lo byte){ansi.RESET}"
         )
         for w, expr in words[:6]:
-            print(f"      {_CYAN}{expr}{_RESET}  {_DIM}score={w.score:.2f}{_RESET}")
+            print(f"      {ansi.CYAN}{expr}{ansi.RESET}  {ansi.DIM}score={w.score:.2f}{ansi.RESET}")
     if driver_label is not None:
         print(
-            f"    {_DIM}ranked by state separation × independence from {driver_label} "
-            f"(drv = |r| vs that driver; low drv + high stateF = the target).{_RESET}"
+            f"    {ansi.DIM}ranked by state separation × independence from {driver_label} "
+            f"(drv = |r| vs that driver; low drv + high stateF = the target).{ansi.RESET}"
         )
     if not has_anchors:
         # Body/comfort PIDs have no co-polled partner, so there is no anchor
         # column — that's expected, not "nothing here". Point at the right tool.
         print(
-            f"    {_DIM}no co-polled anchor in scope — ranked by state separation. "
-            f"For status bits try {_BOLD}--events{_RESET}{_DIM} (edge timeline).{_RESET}"
+            f"    {ansi.DIM}no co-polled anchor in scope — ranked by state separation. "
+            f"For status bits try {ansi.BOLD}--events{ansi.RESET}{ansi.DIM} (edge timeline).{ansi.RESET}"
         )
     print()
 
@@ -283,19 +277,19 @@ def print_field_events(ecu, pid, lp, args, param: dict) -> None:
         print()
         return
     print(
-        f"\n  {_BOLD}Events {ecu} {pid} · {args.field}{_RESET} "
-        f"{_DIM}({len(lp.captures)} timed captures){_RESET}"
+        f"\n  {ansi.BOLD}Events {ecu} {pid} · {args.field}{ansi.RESET} "
+        f"{ansi.DIM}({len(lp.captures)} timed captures){ansi.RESET}"
     )
     print_keep_banner(lp.captures)
     if not edges:
-        print(f"    {_DIM}no transitions of {args.field} in scope.{_RESET}\n")
+        print(f"    {ansi.DIM}no transitions of {args.field} in scope.{ansi.RESET}\n")
         return
     for dt, before, after, cap in edges:
         note = cap_note(cap)
-        note_str = f"  {_DIM}~ note: {_CYAN}{note}{_RESET}" if note else ""
+        note_str = f"  {ansi.DIM}~ note: {ansi.CYAN}{note}{ansi.RESET}" if note else ""
         print(
-            f"    {_DIM}{dt.strftime('%H:%M:%S')}{_RESET}  "
-            f"{_BOLD}{before}{_RESET} → {_BOLD}{after}{_RESET}{note_str}"
+            f"    {ansi.DIM}{dt.strftime('%H:%M:%S')}{ansi.RESET}  "
+            f"{ansi.BOLD}{before}{ansi.RESET} → {ansi.BOLD}{after}{ansi.RESET}{note_str}"
         )
     print()
 
@@ -307,7 +301,7 @@ def print_events(ecu, pid, lp, mapped, mapped_bit, args, params_def=None) -> Non
         param = params_def.get(args.field)
         if param is None:
             print(
-                f"\n  {_YELLOW}investigate: no parameter {args.field!r} on {ecu} {pid}.{_RESET}\n",
+                f"\n  {ansi.YELLOW}investigate: no parameter {args.field!r} on {ecu} {pid}.{ansi.RESET}\n",
                 file=sys.stderr,
             )
             return
@@ -340,30 +334,32 @@ def print_events(ecu, pid, lp, mapped, mapped_bit, args, params_def=None) -> Non
         print()
         return
     print(
-        f"\n  {_BOLD}Events {ecu} {pid}{_RESET} {_DIM}({len(lp.captures)} timed captures){_RESET}"
+        f"\n  {ansi.BOLD}Events {ecu} {pid}{ansi.RESET} {ansi.DIM}({len(lp.captures)} timed captures){ansi.RESET}"
     )
     print_keep_banner(lp.captures)
     if not edges:
-        print(f"    {_DIM}no transitions in scope.{_RESET}\n")
+        print(f"    {ansi.DIM}no transitions in scope.{ansi.RESET}\n")
         return
     notation = resolve_notation(args.notation)
     sub_bytes = subfunction_bytes_for_pid(pid)
     plen = longest_payload_len(getattr(lp, "captures", None))
     for dt, label, before, after, mapped_by, verified, cap, _kind in edges:
         if mapped_by is None:
-            tag = f"{_YELLOW}candidate{_RESET}"
+            tag = f"{ansi.YELLOW}candidate{ansi.RESET}"
         elif verified:
-            tag = f"{_DIM}[{mapped_by}]{_RESET}"
+            tag = f"{ansi.DIM}[{mapped_by}]{ansi.RESET}"
         else:
-            tag = f"{_YELLOW}[{mapped_by}?]{_RESET}"
+            tag = f"{ansi.YELLOW}[{mapped_by}?]{ansi.RESET}"
         note = cap_note(cap)
-        note_str = f"  {_DIM}~ note: {_CYAN}{note}{_RESET}" if note else ""
+        note_str = f"  {ansi.DIM}~ note: {ansi.CYAN}{note}{ansi.RESET}" if note else ""
         arrow = (
-            f"{_BOLD}{before:#04x}→{after:#04x}{_RESET}" if _kind == "byte" else f"{before}→{after}"
+            f"{ansi.BOLD}{before:#04x}→{after:#04x}{ansi.RESET}"
+            if _kind == "byte"
+            else f"{before}→{after}"
         )
         shown = relabel_signal(label, notation, sub_bytes=sub_bytes, payload_len=plen)
         print(
-            f"    {_DIM}{dt.strftime('%H:%M:%S')}{_RESET}  {_BOLD}{shown}{_RESET} {arrow}  {tag}{note_str}"
+            f"    {ansi.DIM}{dt.strftime('%H:%M:%S')}{ansi.RESET}  {ansi.BOLD}{shown}{ansi.RESET} {arrow}  {tag}{note_str}"
         )
     print()
 
@@ -465,35 +461,37 @@ def print_dwell(ecu, pid, lp, mapped, mapped_bit, args) -> None:
         )
         print()
         return
-    print(f"\n  {_BOLD}Dwell {ecu} {pid}{_RESET} {_DIM}({len(lp.captures)} timed captures){_RESET}")
+    print(
+        f"\n  {ansi.BOLD}Dwell {ecu} {pid}{ansi.RESET} {ansi.DIM}({len(lp.captures)} timed captures){ansi.RESET}"
+    )
     print_keep_banner(lp.captures)
     if scope_is_keep_unique(lp.captures):
         print(
-            f"    {_YELLOW}⚠ keep:unique scope — falling edges were dropped, so on-durations "
+            f"    {ansi.YELLOW}⚠ keep:unique scope — falling edges were dropped, so on-durations "
             f"are unavailable (classes will read 'unknown'). Re-capture with "
-            f"--keep-all/--keep-changes for real dwell.{_RESET}"
+            f"--keep-all/--keep-changes for real dwell.{ansi.RESET}"
         )
     if not rows:
-        print(f"    {_DIM}no transitions in scope.{_RESET}\n")
+        print(f"    {ansi.DIM}no transitions in scope.{ansi.RESET}\n")
         return
     notation = resolve_notation(args.notation)
     sub_bytes = subfunction_bytes_for_pid(pid)
     plen = longest_payload_len(getattr(lp, "captures", None))
     print(
-        f"    {_DIM}{'signal':16} {'class':10} {'episodes':>8} {'trans':>6} "
-        f"{'median-on':>10}{_RESET}"
+        f"    {ansi.DIM}{'signal':16} {'class':10} {'episodes':>8} {'trans':>6} "
+        f"{'median-on':>10}{ansi.RESET}"
     )
     for r in rows:
         shown = relabel_signal(r["signal"], notation, sub_bytes=sub_bytes, payload_len=plen)
         med = "—" if r["median_on_s"] is None else f"{r['median_on_s']:.1f}s"
         color = (
-            _GREEN
+            ansi.GREEN
             if r["class"] == "sustained"
-            else (_YELLOW if r["class"] == "momentary" else _DIM)
+            else (ansi.YELLOW if r["class"] == "momentary" else ansi.DIM)
         )
-        mapped_by = f"  {_DIM}[{r['mapped_by']}]{_RESET}" if r["mapped_by"] else ""
+        mapped_by = f"  {ansi.DIM}[{r['mapped_by']}]{ansi.RESET}" if r["mapped_by"] else ""
         print(
-            f"    {shown:16} {color}{r['class']:10}{_RESET} {r['episodes']:>8} "
+            f"    {shown:16} {color}{r['class']:10}{ansi.RESET} {r['episodes']:>8} "
             f"{r['transitions']:>6} {med:>10}{mapped_by}"
         )
     print()

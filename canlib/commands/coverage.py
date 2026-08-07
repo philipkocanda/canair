@@ -33,7 +33,7 @@ import re
 import sys
 from typing import NotRequired, TypedDict
 
-from canlib import capture_io
+from canlib import ansi, capture_io
 from canlib.byteindex import extract_bit_indices, extract_byte_indices, mapped_offsets
 from canlib.byteindex import mappable_data_indices as _mappable_data_indices
 from canlib.commands._hints import ecu_completer as _ecu_completer
@@ -95,15 +95,6 @@ class CoverageEntry(TypedDict):
 
 
 # ANSI colors
-_BOLD = "\033[1m"
-_DIM = "\033[2m"
-_GREEN = "\033[92m"
-_YELLOW = "\033[93m"
-_RED = "\033[91m"
-_CYAN = "\033[96m"
-_RESET = "\033[0m"
-
-
 def load_longest_payloads() -> dict[tuple[str, str], dict]:
     """Return {(ECU_UPPER, PID_UPPER): {payload, date, label, file}} for the
     longest captured payload seen per PID (most complete response).
@@ -344,7 +335,7 @@ def run(args) -> int:
     n_nocap = sum(1 for e in results if e.get("no_capture"))
     n_gaps = len(results) - n_nocap
     print(
-        f"\n{_BOLD}PID coverage audit{_RESET} — {n_gaps} PID(s) with gaps, "
+        f"\n{ansi.BOLD}PID coverage audit{ansi.RESET} — {n_gaps} PID(s) with gaps, "
         f"{n_nocap} without captures\n"
     )
 
@@ -356,32 +347,36 @@ def run(args) -> int:
         # notations need it to name the right byte (see ByteRef.from_wican).
         payload_len = e.get("payload_len")
         header = (
-            f"  {_BOLD}{_CYAN}{e['ecu']} {e['pid']}{_RESET} "
-            f"{_DIM}({e['params']}p, {e['verified']} verified){_RESET}"
+            f"  {ansi.BOLD}{ansi.CYAN}{e['ecu']} {e['pid']}{ansi.RESET} "
+            f"{ansi.DIM}({e['params']}p, {e['verified']} verified){ansi.RESET}"
         )
         if e.get("no_capture"):
-            print(f"{header}  {_YELLOW}NO CAPTURE{_RESET}")
+            print(f"{header}  {ansi.YELLOW}NO CAPTURE{ansi.RESET}")
             continue
-        print(f"{header}  {_DIM}{e['data_bytes']} data bytes, {e['capture']['date']}{_RESET}")
+        print(
+            f"{header}  {ansi.DIM}{e['data_bytes']} data bytes, {e['capture']['date']}{ansi.RESET}"
+        )
         if e["unmapped"]:
             byts = ",".join(
                 relabel_signal(f"B{i}", notation, sub_bytes=sub_bytes, payload_len=payload_len)
                 for i in e["unmapped"]
             )
-            print(f"      {_YELLOW}UNMAPPED{_RESET} {byts}")
+            print(f"      {ansi.YELLOW}UNMAPPED{ansi.RESET} {byts}")
         if e.get("unverified_mapped"):
             byts = ",".join(
                 relabel_signal(f"B{i}", notation, sub_bytes=sub_bytes, payload_len=payload_len)
                 for i in e["unverified_mapped"]
             )
-            print(f"      {_YELLOW}UNVERIFIED{_RESET} {byts}")
+            print(f"      {ansi.YELLOW}UNVERIFIED{ansi.RESET} {byts}")
         for bf in e["incomplete_bitfields"]:
             have = ",".join(map(str, bf["have"]))
             miss = ",".join(map(str, bf["missing"]))
             byte_label = relabel_signal(
                 f"B{bf['byte']}", notation, sub_bytes=sub_bytes, payload_len=payload_len
             )
-            whole = f" {_DIM}(also read whole){_RESET}" if bf.get("also_whole") else ""
-            print(f"      {_RED}BITS{_RESET} {byte_label} have{{{have}}} missing{{{miss}}}{whole}")
+            whole = f" {ansi.DIM}(also read whole){ansi.RESET}" if bf.get("also_whole") else ""
+            print(
+                f"      {ansi.RED}BITS{ansi.RESET} {byte_label} have{{{have}}} missing{{{miss}}}{whole}"
+            )
     print()
     return 0

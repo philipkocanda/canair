@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 import sys
 
+from canlib import ansi
 from canlib.align import join_nearest
 from canlib.byteindex import payload_to_wican_bytes
 from canlib.capture_store import load_pid_captures
@@ -39,12 +40,6 @@ from .format import scope_banner
 from .plot import build_plot_model, cmd_plot, plot_pid_options
 from .query import resolve_ref, scope_captures, tolerates_missing_pid
 from .views import print_compact, print_stats_grouped, print_stats_table, print_value_ranges
-
-_BOLD = "\033[1m"
-_DIM = "\033[2m"
-_YELLOW = "\033[93m"
-_CYAN = "\033[96m"
-_RESET = "\033[0m"
 
 
 def _resolve_parameters(
@@ -110,7 +105,7 @@ def _report_nothing_to_decode(
             if defined_params
             else (f"no params defined ({len(caps)} captures)" if caps else "no params/captures")
         )
-        print(f"\n{_BOLD}{ecu_key} {pid_key}{_RESET} — {_DIM}{note}{_RESET}")
+        print(f"\n{ansi.BOLD}{ecu_key} {pid_key}{ansi.RESET} — {ansi.DIM}{note}{ansi.RESET}")
         return 1
     if defined_params:
         # Params exist for this PID; the active --param/--verified/--unverified
@@ -122,13 +117,17 @@ def _report_nothing_to_decode(
     elif caps:
         # Captured but not yet decoded — signpost the byte-level tools.
         print(
-            f"{_BOLD}{ecu_key} {pid_key}{_RESET} — no parameters defined yet, "
+            f"{ansi.BOLD}{ecu_key} {pid_key}{ansi.RESET} — no parameters defined yet, "
             f"but {len(caps)} capture(s) exist."
         )
-        print(f"  {_DIM}·{_RESET} Inspect raw bytes:  canair captures {ecu_key} {pid_key} --diff")
-        print(f"  {_DIM}·{_RESET} Explore signals:    canair decode {ecu_key}:{pid_key} --plot")
         print(
-            f"  {_DIM}·{_RESET} Test a candidate:   "
+            f"  {ansi.DIM}·{ansi.RESET} Inspect raw bytes:  canair captures {ecu_key} {pid_key} --diff"
+        )
+        print(
+            f"  {ansi.DIM}·{ansi.RESET} Explore signals:    canair decode {ecu_key}:{pid_key} --plot"
+        )
+        print(
+            f"  {ansi.DIM}·{ansi.RESET} Test a candidate:   "
             f'canair decode {ecu_key}:{pid_key} --try "NAME:unit=EXPR"'
         )
     else:
@@ -253,30 +252,32 @@ def _print_header(args, ecu_key, pid_key, parameters, candidate_names, captures,
     n_verified = sum(1 for p in parameters.values() if p.get("verified", False))
     n_total = len(parameters)
     try_note = (
-        f", {_CYAN}{len(candidate_names)} candidate (--try){_RESET}" if candidate_names else ""
+        f", {ansi.CYAN}{len(candidate_names)} candidate (--try){ansi.RESET}"
+        if candidate_names
+        else ""
     )
     print(
-        f"\n{_BOLD}{ecu_key} PID {pid_key}{_RESET} — "
+        f"\n{ansi.BOLD}{ecu_key} PID {pid_key}{ansi.RESET} — "
         f"{n_total} parameters ({n_verified} verified, {n_total - n_verified} unverified){try_note}, "
         f"{len(captures)} captures\n"
     )
     banner = scope_banner(since, until, args.state, args.label, args.first, args.last)
     if banner:
-        print(f"  {_DIM}scope: {banner}{_RESET}\n")
+        print(f"  {ansi.DIM}scope: {banner}{ansi.RESET}\n")
 
     if scope_is_keep_unique(captures) and args.corr_transform in ("delta", "cumsum"):
         print(
-            f"  {_YELLOW}⚠ --corr-transform {args.corr_transform} on keep:unique data is "
+            f"  {ansi.YELLOW}⚠ --corr-transform {args.corr_transform} on keep:unique data is "
             f"unreliable — the time gaps between stored rows are dedup artifacts, not "
-            f"real sampling intervals.{_RESET}"
+            f"real sampling intervals.{ansi.RESET}"
         )
         print()
     if scope_is_keep_changes(captures):
-        print(f"  {_YELLOW}⚠ {CHANGES_BANNER}.{_RESET}")
+        print(f"  {ansi.YELLOW}⚠ {CHANGES_BANNER}.{ansi.RESET}")
         if args.corr_transform in ("delta", "cumsum"):
             print(
-                f"  {_YELLOW}  ⚠ --corr-transform {args.corr_transform} on keep:changes data is "
-                f"unreliable — stored rows are value-transitions, not fixed-rate samples.{_RESET}"
+                f"  {ansi.YELLOW}  ⚠ --corr-transform {args.corr_transform} on keep:changes data is "
+                f"unreliable — stored rows are value-transitions, not fixed-rate samples.{ansi.RESET}"
             )
         print()
 
@@ -379,7 +380,9 @@ def decode_one(
     captures = scope_captures(load_pid_captures(ecu_key, pid_key), **scope)
     if not captures:
         if multi:
-            print(f"\n{_BOLD}{ecu_key} {pid_key}{_RESET} — {_DIM}no captures in scope{_RESET}")
+            print(
+                f"\n{ansi.BOLD}{ecu_key} {pid_key}{ansi.RESET} — {ansi.DIM}no captures in scope{ansi.RESET}"
+            )
             return 1
         if scoped:
             print(f"No captures for {ecu_key} PID {pid_key} match the scope filters.")
@@ -488,7 +491,7 @@ def decode_one(
         print_value_ranges(all_results, param_names, parameters, candidate_names)
         if sys.stdout.isatty():
             print(
-                f"\n  {_DIM}Tip: add --plot to interactively explore these signals "
-                f"(byte interpretations, transforms, correlations).{_RESET}"
+                f"\n  {ansi.DIM}Tip: add --plot to interactively explore these signals "
+                f"(byte interpretations, transforms, correlations).{ansi.RESET}"
             )
     return 0

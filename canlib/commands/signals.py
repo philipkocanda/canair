@@ -20,13 +20,9 @@ import argparse
 import json
 import sys
 
-NAME = "signals"
+from canlib import ansi
 
-_BOLD = "\033[1m"
-_DIM = "\033[2m"
-_CYAN = "\033[96m"
-_GREEN = "\033[92m"
-_RESET = "\033[0m"
+NAME = "signals"
 
 
 def add_parser(subparsers) -> argparse.ArgumentParser:
@@ -97,21 +93,23 @@ def cmd_list(args) -> int:
         messages = data.get("messages") or {}
         nsig = sum(len((m or {}).get("signals") or {}) for m in messages.values())
         total += nsig
-        print(f"\n  {_BOLD}{bus}{_RESET} {_DIM}({len(messages)} messages, {nsig} signals){_RESET}")
+        print(
+            f"\n  {ansi.BOLD}{bus}{ansi.RESET} {ansi.DIM}({len(messages)} messages, {nsig} signals){ansi.RESET}"
+        )
         for mid, msg in messages.items():
             msg = msg or {}
             name = f" {msg['name']}" if msg.get("name") else ""
-            tx = f" {_DIM}[{msg['tx_ecu']}]{_RESET}" if msg.get("tx_ecu") else ""
-            print(f"    {_CYAN}{mid}{_RESET}{name}{tx}")
+            tx = f" {ansi.DIM}[{msg['tx_ecu']}]{ansi.RESET}" if msg.get("tx_ecu") else ""
+            print(f"    {ansi.CYAN}{mid}{ansi.RESET}{name}{tx}")
             for sname, sig in (msg.get("signals") or {}).items():
                 sig = sig or {}
-                v = f" {_GREEN}✓{_RESET}" if sig.get("verified") else ""
+                v = f" {ansi.GREEN}✓{ansi.RESET}" if sig.get("verified") else ""
                 unit = f" {sig['unit']}" if sig.get("unit") else ""
                 sc = sig.get("scale")
                 scale = f" ×{sc}" if sc not in (None, 1) else ""
                 print(
-                    f"      {sname}{v}  {_DIM}bit {sig.get('start_bit')}+{sig.get('length')} "
-                    f"{sig.get('byte_order', 'little')}{scale}{unit}{_RESET}"
+                    f"      {sname}{v}  {ansi.DIM}bit {sig.get('start_bit')}+{sig.get('length')} "
+                    f"{sig.get('byte_order', 'little')}{scale}{unit}{ansi.RESET}"
                 )
     print()
     return 0
@@ -144,7 +142,7 @@ def cmd_upsert(args) -> int:
         print(f"signals upsert: {e}", file=sys.stderr)
         return 1
     print(
-        f"{_GREEN}✓{_RESET} [{_CYAN}{active().name}{_RESET}] {args.bus}: "
+        f"{ansi.GREEN}✓{ansi.RESET} [{ansi.CYAN}{active().name}{ansi.RESET}] {args.bus}: "
         f"{args.arb_id} {args.name} → {path}"
     )
     return 0
@@ -159,5 +157,7 @@ def cmd_rm(args) -> int:
     except SignalsEditError as e:
         print(f"signals rm: {e}", file=sys.stderr)
         return 1
-    print(f"{_GREEN}✓{_RESET} [{_CYAN}{active().name}{_RESET}] removed {args.arb_id} {args.name}")
+    print(
+        f"{ansi.GREEN}✓{ansi.RESET} [{ansi.CYAN}{active().name}{ansi.RESET}] removed {args.arb_id} {args.name}"
+    )
     return 0

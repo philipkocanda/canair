@@ -6,6 +6,7 @@ import argparse
 import re
 import sys
 
+from canlib import ansi
 from canlib.byteindex import (
     bix_to_wican,
     conversion_table,
@@ -35,27 +36,21 @@ from canlib.uds_services import service_response_name
 
 NAME = "bix"
 
+
 # ANSI colors (match the sibling tools: decode, coverage, research).
 # Emitted only when stdout is a TTY so piped/redirected output stays plain.
-_BOLD = "\033[1m"
-_DIM = "\033[2m"
-_CYAN = "\033[96m"
-_YELLOW = "\033[93m"
-_RESET = "\033[0m"
-
-
 def _use_color() -> bool:
     return sys.stdout.isatty()
 
 
 def _c(text: str, code: str) -> str:
     """Wrap ``text`` in an ANSI ``code`` when stdout is a TTY, else return it plain."""
-    return f"{code}{text}{_RESET}" if _use_color() else text
+    return f"{code}{text}{ansi.RESET}" if _use_color() else text
 
 
 def _cerr(text: str, code: str) -> str:
     """Like :func:`_c`, but gated on stderr's TTY-ness (warnings go to stderr)."""
-    return f"{code}{text}{_RESET}" if sys.stderr.isatty() else text
+    return f"{code}{text}{ansi.RESET}" if sys.stderr.isatty() else text
 
 
 _EPILOG = """\
@@ -318,18 +313,22 @@ def _print_legend(sub_bytes: int, *, show_torque: bool = False, show_obdb: bool 
     variant = "Torque 2" if sub_bytes == 2 else "Torque 1"
     n_extra = int(show_torque) + int(show_obdb)
     count = {0: "these", 1: "three", 2: "four"}[n_extra]
-    print(_c(f"How a UDS response is counted {count} different ways", _BOLD))
+    print(_c(f"How a UDS response is counted {count} different ways", ansi.BOLD))
     print(
         "  A response rides on CAN frames (8 bytes each) → ISO-TP → UDS. Where you\n"
         "  start counting, and whether you include the transport framing, changes a\n"
         "  byte's index. canair expressions use the WiCAN index.\n"
     )
-    print(_c("  Columns", _BOLD))
-    print(f"    {_pad('WiCAN', 8, _CYAN)}  byte # in the raw CAN frames, framing INCLUDED (Bnn)")
+    print(_c("  Columns", ansi.BOLD))
+    print(
+        f"    {_pad('WiCAN', 8, ansi.CYAN)}  byte # in the raw CAN frames, framing INCLUDED (Bnn)"
+    )
     print("    ISO-TP    byte # in the reassembled payload, framing stripped")
     if show_torque:
         print(f"    Torque    UDS data byte, letter notation ({variant} here: skips {sub_desc})")
-        print(_c("              ↳ used by the Torque app, Car Scanner & similar OBD apps", _DIM))
+        print(
+            _c("              ↳ used by the Torque app, Car Scanner & similar OBD apps", ansi.DIM)
+        )
     if show_obdb:
         print("    bix       OBDb bit index — the UDS data-byte index × 8")
     if show_torque or show_obdb:
@@ -338,20 +337,22 @@ def _print_legend(sub_bytes: int, *, show_torque: bool = False, show_obdb: bool 
                 "              ↳ Torque/OBDb count from the first UDS data byte, so the\n"
                 "                mapping shifts with the subfunction width: use -1 for\n"
                 "                21xx PIDs (Torque 1) and -2 for 22xxxx DIDs (Torque 2).",
-                _DIM,
+                ansi.DIM,
             )
         )
     else:
         print(
             _c(
                 "    (add --torque for the Torque letter column, --obdb for the OBDb bix column)",
-                _DIM,
+                ansi.DIM,
             ),
         )
     print()
-    print(_c("  Role — what a WiCAN row actually is", _BOLD))
-    print(f"    {_pad('FF PCI', 8, _DIM)}  First-Frame framing (bytes B00–B01: type + length)")
-    print(f"    {_pad('CF PCI', 8, _DIM)}  Consecutive-Frame framing (1 byte at B08, B16, B24…)")
+    print(_c("  Role — what a WiCAN row actually is", ansi.BOLD))
+    print(f"    {_pad('FF PCI', 8, ansi.DIM)}  First-Frame framing (bytes B00–B01: type + length)")
+    print(
+        f"    {_pad('CF PCI', 8, ansi.DIM)}  Consecutive-Frame framing (1 byte at B08, B16, B24…)"
+    )
     print("    SID       UDS Service ID (the response service byte)")
     if sub_bytes == 2:
         print("    DID       the 2 Data Identifier bytes (UDS subfunction) echoing the request")
@@ -363,7 +364,7 @@ def _print_legend(sub_bytes: int, *, show_torque: bool = False, show_obdb: bool 
         _c(
             "  PCI = ISO-TP framing bytes. They are NOT data — never index them in an\n"
             "  expression, and never let a multi-byte range straddle one.",
-            _DIM,
+            ansi.DIM,
         )
     )
     print()
@@ -425,7 +426,7 @@ def _print_table(
         if frame != prev_frame:
             label = f"── Frame {frame} "
             label += "─" * (width - 1 - len(label))  # fill to the table's right border
-            print(_c(f"|{label}|", _CYAN))
+            print(_c(f"|{label}|", ansi.CYAN))
             prev_frame = frame
 
         role = _table_role(w_idx, sub_bytes)
@@ -437,7 +438,7 @@ def _print_table(
             bix_c=str(row["bix"]) if row["bix"] is not None else "",
         )
         # Dim the ISO-TP framing (PCI) rows so real data stands out.
-        print(_c(line, _DIM) if role.endswith("PCI") else line)
+        print(_c(line, ansi.DIM) if role.endswith("PCI") else line)
 
 
 def _parse_hex_payload(raw: str) -> list[int]:
@@ -486,10 +487,10 @@ def _emit_warning(headline: str, *detail_lines: str):
     A blank line above and below sets it apart from the table that follows on
     stdout; a bold-yellow ``⚠ WARNING`` banner and an indented rule draw the eye.
     """
-    bar = _cerr("⚠ WARNING", _BOLD + _YELLOW)
-    rule = _cerr("  " + "─" * 68, _YELLOW)
+    bar = _cerr("⚠ WARNING", ansi.BOLD + ansi.YELLOW)
+    rule = _cerr("  " + "─" * 68, ansi.YELLOW)
     print("", file=sys.stderr)
-    print(f"  {bar}  {_cerr(headline, _BOLD)}", file=sys.stderr)
+    print(f"  {bar}  {_cerr(headline, ansi.BOLD)}", file=sys.stderr)
     print(rule, file=sys.stderr)
     for line in detail_lines:
         print(f"  {line}", file=sys.stderr)
@@ -508,13 +509,13 @@ def _warn_payload_kind_mismatch(first_byte: int, raw_frame: bool):
         _emit_warning(
             f"first byte 0x{first_byte:02X} looks like an ISO-TP PCI byte, not a UDS response SID.",
             "--annotate expects the reassembled UDS payload (SID-first, PCI stripped).",
-            f"If this is a raw CAN frame straight off the bus, pass {_cerr('--raw', _BOLD)}.",
+            f"If this is a raw CAN frame straight off the bus, pass {_cerr('--raw', ansi.BOLD)}.",
         )
     elif raw_frame and _looks_like_uds_sid(first_byte):
         _emit_warning(
             f"first byte 0x{first_byte:02X} looks like a UDS response SID, not an ISO-TP PCI byte.",
             "--raw expects an already-framed CAN payload (PCI present).",
-            f"If this is a PCI-stripped UDS payload, drop {_cerr('--raw', _BOLD)}.",
+            f"If this is a PCI-stripped UDS payload, drop {_cerr('--raw', ansi.BOLD)}.",
         )
 
 
@@ -576,7 +577,7 @@ def _warn_sub_bytes_contradicts_pid(sub_bytes: int, pid: str, implied: int):
     _emit_warning(
         f"-{sub_bytes} contradicts --pid {pid.upper()}, which is a {kind} subfunction.",
         f"Honouring the explicit -{sub_bytes}; the header/Param columns will be off by one",
-        f"if that is not what you meant. Drop it (or pass {_cerr(f'-{implied}', _BOLD)}) "
+        f"if that is not what you meant. Drop it (or pass {_cerr(f'-{implied}', ansi.BOLD)}) "
         "to use the PID's own width.",
     )
 
@@ -666,11 +667,11 @@ def _print_service_line(layout: ResponseLayout, frame: list[tuple[int, int | Non
             detail = f" rejecting 0x{rejected:02X} {rej_name}"
         if nrc is not None:
             detail += f" — NRC 0x{nrc:02X} {nrc_name(nrc)}"
-        print(_c(f"  {name}{detail}", _DIM))
+        print(_c(f"  {name}{detail}", ansi.DIM))
         return
     shape = " + ".join(f"{f.role}×{f.width}" if f.width > 1 else f.role for f in layout.fields)
     header = f"SID + {shape}" if shape else "SID only"
-    print(_c(f"  service: 0x{layout.resp_sid:02X} {name} — header {header}", _DIM))
+    print(_c(f"  service: 0x{layout.resp_sid:02X} {name} — header {header}", ansi.DIM))
 
 
 def _print_role_legend(roles: list[str], *, has_data: bool):
@@ -683,9 +684,9 @@ def _print_role_legend(roles: list[str], *, has_data: bool):
     # definitions line up as one block whatever roles the payload used.
     width = max([len(r) for r, _ in defs] + [len(blank) if has_data else 0])
     print()
-    print(_c("  Roles in this payload", _BOLD))
+    print(_c("  Roles in this payload", ansi.BOLD))
     for role, help_ in defs:
-        print(f"    {_pad(role, width, _CYAN)}  {help_}")
+        print(f"    {_pad(role, width, ansi.CYAN)}  {help_}")
     if has_data:
         print(f"    {blank:<{width}}  data — the bytes an expression reads")
 
@@ -754,7 +755,7 @@ def _annotate_payload(
         print(
             _c(
                 f"  subfunction: {kind} — derived from {derived_from} (override with -1/-2)",
-                _DIM,
+                ansi.DIM,
             )
         )
 
@@ -780,7 +781,7 @@ def _annotate_payload(
                 f"  bix column = OBDb bit index from the first UDS data byte "
                 f"(skips {skipped});{hint}"
             )
-        print(_c(caption.rstrip(";").rstrip(), _DIM))
+        print(_c(caption.rstrip(";").rstrip(), ansi.DIM))
 
     # Per-byte roles come from the payload's own service when it is recognised, so
     # every header field is named (SF/RID/CTRL/NRC/…); otherwise fall back to the
@@ -844,7 +845,7 @@ def _annotate_payload(
             # Only mark boundaries for genuinely multi-frame responses.
             label = f"  ── Frame {cur_frame} "
             label += "─" * max(0, divider_width - len(label))
-            print(_c(label, _CYAN))
+            print(_c(label, ansi.CYAN))
             prev_frame = cur_frame
 
         # Derive every notation from the byte's ACTUAL ISO-TP index (pi) in the
@@ -873,7 +874,7 @@ def _annotate_payload(
             torque=letter if letter else "—",
             bix=str(bix) if bix is not None else "—",
         )
-        print(_c(line, _DIM) if role == ROLE_PCI else line)
+        print(_c(line, ansi.DIM) if role == ROLE_PCI else line)
 
     if legend:
         _print_role_legend(roles, has_data=any(r == "" for r in roles))
@@ -909,7 +910,7 @@ def _print_overview(sub_bytes: int, *, show_torque: bool = False, show_obdb: boo
     """
     _print_table(sub_bytes, max_wican=15, legend=True, show_torque=show_torque, show_obdb=show_obdb)
     print()
-    print(_c("  Go further", _BOLD))
+    print(_c("  Go further", ansi.BOLD))
     print("    canair bix --table          full table (all frames, up to --max)")
     print("    canair bix w9               convert one index (WiCAN B09) to every notation")
     print("    canair bix E                convert a Torque letter; also i6, b32, or a number")
@@ -920,7 +921,9 @@ def _print_overview(sub_bytes: int, *, show_torque: bool = False, show_obdb: boo
         )
     if not show_obdb:
         print("    canair bix --obdb           add the OBDb bix (bit-index) column")
-    print(_c("    canair bix -2 …             same, for 22xxxx DIDs (2-byte subfunction)", _DIM))
+    print(
+        _c("    canair bix -2 …             same, for 22xxxx DIDs (2-byte subfunction)", ansi.DIM)
+    )
 
 
 def run(args) -> int:

@@ -34,13 +34,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from canlib import ansi
 from canlib.capture_types import CaptureRecord
-
-_GREEN = "\033[92m"
-_YELLOW = "\033[93m"
-_RED = "\033[91m"
-_DIM = "\033[2m"
-_RESET = "\033[0m"
 
 
 def _parse_spec(spec: str) -> tuple[str, str, str]:
@@ -96,7 +91,7 @@ def run(args) -> int:
         try:
             capture, warns = _build_capture(spec, name_index)
         except ValueError as e:
-            print(f"{_RED}error: {e}{_RESET}", file=sys.stderr)
+            print(f"{ansi.RED}error: {e}{ansi.RESET}", file=sys.stderr)
             return 2
         # A payload capture must always be timestamped, or it is silently excluded
         # from every time-aligned analysis (and from the long-horizon counter
@@ -119,7 +114,7 @@ def run(args) -> int:
     )
 
     for w in warnings:
-        print(f"{_YELLOW}  warning: {w}{_RESET}", file=sys.stderr)
+        print(f"{ansi.YELLOW}  warning: {w}{ansi.RESET}", file=sys.stderr)
 
     fpath = save_session(session, args.dir)
 
@@ -127,7 +122,9 @@ def run(args) -> int:
         print(json.dumps({"file": str(fpath), "session": session, "warnings": warnings}))
     else:
         for c in captures:
-            print(f"{_GREEN}  ✓ {c['rx']} {c['pid']}{_RESET}  {_DIM}{c['payload']}{_RESET}")
+            print(
+                f"{ansi.GREEN}  ✓ {c['rx']} {c['pid']}{ansi.RESET}  {ansi.DIM}{c['payload']}{ansi.RESET}"
+            )
     return 0
 
 

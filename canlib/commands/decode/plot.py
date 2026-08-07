@@ -21,6 +21,7 @@ import math
 import shutil
 import sys
 
+from canlib import ansi
 from canlib.byteindex import payload_to_wican_bytes
 from canlib.capture_dates import resolve_scope_bounds
 from canlib.capture_store import load_pid_captures
@@ -50,15 +51,6 @@ from .query import scope_captures
 # Terminal colors — mirror decode's palette. Kept local (not imported from
 # decode) so this leaf module has no import-time dependency on decode, which
 # imports the plot primitives back at its own module top.
-_BOLD = "\033[1m"
-_DIM = "\033[2m"
-_GREEN = "\033[92m"
-_YELLOW = "\033[93m"
-_CYAN = "\033[96m"
-_RED = "\033[91m"
-_RESET = "\033[0m"
-
-
 _V_AXIS = "\u2502"  # box vertical
 _CORNER = "\u2514"  # box corner
 _HLINE = "\u2500"  # box horizontal
@@ -211,18 +203,20 @@ class PlotModel:
             exact, overlap = _mapping_for_offset(self.defined_params, self.offset, width, expr)
             if exact:
                 n_, e_, v_ = exact[0]
-                mk = f"{_GREEN}✓{_RESET}" if v_ else f"{_YELLOW}?{_RESET}"
-                map_line = f"  {_GREEN}= mapped: {n_}{_RESET} {mk} {_DIM}({e_}){_RESET}"
+                mk = f"{ansi.GREEN}✓{ansi.RESET}" if v_ else f"{ansi.YELLOW}?{ansi.RESET}"
+                map_line = (
+                    f"  {ansi.GREEN}= mapped: {n_}{ansi.RESET} {mk} {ansi.DIM}({e_}){ansi.RESET}"
+                )
             elif overlap:
-                shown = "  ".join(f"{n_} {_DIM}({e_}){_RESET}" for n_, e_, _ in overlap[:3])
+                shown = "  ".join(f"{n_} {ansi.DIM}({e_}){ansi.RESET}" for n_, e_, _ in overlap[:3])
                 more = f" +{len(overlap) - 3}" if len(overlap) > 3 else ""
-                map_line = f"  {_YELLOW}~ reads B{self.offset}:{_RESET} {shown}{more}"
+                map_line = f"  {ansi.YELLOW}~ reads B{self.offset}:{ansi.RESET} {shown}{more}"
             else:
-                map_line = f"  {_DIM}unmapped{_RESET}"
+                map_line = f"  {ansi.DIM}unmapped{ansi.RESET}"
         else:
             if not self.plottable_params:
                 return [
-                    f"{_BOLD}{self.ecu_key} {self.pid_key}{_RESET}",
+                    f"{ansi.BOLD}{self.ecu_key} {self.pid_key}{ansi.RESET}",
                     "  No numeric parameters to plot — press m for byte mode.",
                 ]
             name = self.plottable_params[self.pi % len(self.plottable_params)]
@@ -280,9 +274,9 @@ class PlotModel:
         if overlay and refseries is not None:
             r = _pearson(refseries, series)
             rstr = (
-                f"  {_CYAN}r={r:+.3f} vs {self.overlay_ref}{_RESET}"
+                f"  {ansi.CYAN}r={r:+.3f} vs {self.overlay_ref}{ansi.RESET}"
                 if r is not None
-                else f"  {_DIM}r=n/a vs {self.overlay_ref}{_RESET}"
+                else f"  {ansi.DIM}r=n/a vs {self.overlay_ref}{ansi.RESET}"
             )
         else:
             rstr = ""
@@ -296,14 +290,14 @@ class PlotModel:
         )
 
         out = [
-            f"{_BOLD}{self.ecu_key} {self.pid_key}{_RESET}  {_DIM}·  {self.mode} mode{_RESET}",
-            f"  {_CYAN}{src}{_RESET}   {_DIM}{expr_line}{_RESET}",
+            f"{ansi.BOLD}{self.ecu_key} {self.pid_key}{ansi.RESET}  {ansi.DIM}·  {self.mode} mode{ansi.RESET}",
+            f"  {ansi.CYAN}{src}{ansi.RESET}   {ansi.DIM}{expr_line}{ansi.RESET}",
         ]
         if map_line:
             out.append(map_line)
         out.append(
-            f"  transform={_YELLOW}{self.tmode}{_RESET}  {_series_stats_str(series)}{rstr}"
-            + (f"   {_RED}\u26a0 {warn}{_RESET}" if warn else "")
+            f"  transform={ansi.YELLOW}{self.tmode}{ansi.RESET}  {_series_stats_str(series)}{rstr}"
+            + (f"   {ansi.RED}\u26a0 {warn}{ansi.RESET}" if warn else "")
         )
         out.append("")
         out.extend(render_plot(series, ref=refseries if overlay else None, caption=caption))

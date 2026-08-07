@@ -20,6 +20,7 @@ from __future__ import annotations
 import json as _json
 import sys
 
+from canlib import ansi
 from canlib.align import LoadedPid, load_signal_captures
 from canlib.byteindex import mapped_offsets
 from canlib.notation import ByteNotation, resolve_notation, subfunction_bytes_for_pid
@@ -31,13 +32,6 @@ from .counters import (
     scan_counters,
     warn_scoped_counters,
 )
-
-_BOLD = "\033[1m"
-_DIM = "\033[2m"
-_GREEN = "\033[92m"
-_YELLOW = "\033[93m"
-_CYAN = "\033[96m"
-_RESET = "\033[0m"
 
 
 def run_sweep(specs: list[tuple[str, str]], args, since, until, fill) -> int:
@@ -130,30 +124,30 @@ def _sweep_counters(specs, loaded, args, params_of) -> int:
         return 0
 
     print(
-        f"\n  {_BOLD}Monotonic counters{_RESET} {_DIM}— {len(rows)} found across "
-        f"{n_scanned} PID(s){_RESET}"
+        f"\n  {ansi.BOLD}Monotonic counters{ansi.RESET} {ansi.DIM}— {len(rows)} found across "
+        f"{n_scanned} PID(s){ansi.RESET}"
     )
     if not rows:
         print(
-            f"    {_DIM}No counter-like window in scope. Grow the capture set, or "
-            f"lower --min-bits on a single PID to see near-misses.{_RESET}\n"
+            f"    {ansi.DIM}No counter-like window in scope. Grow the capture set, or "
+            f"lower --min-bits on a single PID to see near-misses.{ansi.RESET}\n"
         )
         return 0
     for ecu, pid, rep, mapped in shown:
         expr = _expression(rep) or _display_label(rep, notation, subfunction_bytes_for_pid(pid))
         mapped_by, mapped_verified = _mapped_by(rep, mapped)
         if mapped_by is None:
-            tag = f"{_YELLOW}UNMAPPED{_RESET}"
+            tag = f"{ansi.YELLOW}UNMAPPED{ansi.RESET}"
         elif mapped_verified:
-            tag = f"{_DIM}[{mapped_by}]{_RESET}"
+            tag = f"{ansi.DIM}[{mapped_by}]{ansi.RESET}"
         else:
-            tag = f"{_YELLOW}[{mapped_by}?]{_RESET}"
+            tag = f"{ansi.YELLOW}[{mapped_by}?]{ansi.RESET}"
         print(
-            f"    {_BOLD}{ecu:<6} {pid:<8}{_RESET} {_GREEN}{expr}{_RESET}  "
-            f"{_DIM}{rep.kind} bits={rep.bits:.1f}{_RESET}  {rep.first:.0f}→{rep.last:.0f}  {tag}"
+            f"    {ansi.BOLD}{ecu:<6} {pid:<8}{ansi.RESET} {ansi.GREEN}{expr}{ansi.RESET}  "
+            f"{ansi.DIM}{rep.kind} bits={rep.bits:.1f}{ansi.RESET}  {rep.first:.0f}→{rep.last:.0f}  {tag}"
         )
     if args.top and len(rows) > args.top:
-        print(f"    {_DIM}… (+{len(rows) - args.top} more; raise --top){_RESET}")
+        print(f"    {ansi.DIM}… (+{len(rows) - args.top} more; raise --top){ansi.RESET}")
     print()
     return 0
 
@@ -241,26 +235,26 @@ def _sweep_default(specs, loaded, args, params_of, fill) -> int:
         return 0
 
     print(
-        f"\n  {_BOLD}Investigate sweep{_RESET} {_DIM}— {len(rows)} PID(s) with varying "
-        f"bytes, ranked by decodability{_RESET}"
+        f"\n  {ansi.BOLD}Investigate sweep{ansi.RESET} {ansi.DIM}— {len(rows)} PID(s) with varying "
+        f"bytes, ranked by decodability{ansi.RESET}"
     )
     if not rows:
-        print(f"    {_DIM}No varying data bytes in scope.{_RESET}\n")
+        print(f"    {ansi.DIM}No varying data bytes in scope.{ansi.RESET}\n")
         return 0
     for ecu, pid, s in shown:
         f = s["best_state_f"]
         f_str = "∞" if f == float("inf") else f"{f:.1f}"
-        fc = _GREEN if (f == float("inf") or f >= 10) else _YELLOW if f >= 2 else _DIM
-        phys = f"  {_CYAN}phys={s['physical']}{_RESET}" if s["physical"] else ""
+        fc = ansi.GREEN if (f == float("inf") or f >= 10) else ansi.YELLOW if f >= 2 else ansi.DIM
+        phys = f"  {ansi.CYAN}phys={s['physical']}{ansi.RESET}" if s["physical"] else ""
         print(
-            f"    {_BOLD}{ecu:<6} {pid:<8}{_RESET} "
-            f"{_DIM}varying={s['varying']:<3} unmapped={s['unmapped']:<3}{_RESET} "
-            f"{fc}topF={f_str}{_RESET}{phys}"
+            f"    {ansi.BOLD}{ecu:<6} {pid:<8}{ansi.RESET} "
+            f"{ansi.DIM}varying={s['varying']:<3} unmapped={s['unmapped']:<3}{ansi.RESET} "
+            f"{fc}topF={f_str}{ansi.RESET}{phys}"
         )
     if args.top and len(rows) > args.top:
-        print(f"    {_DIM}… (+{len(rows) - args.top} more; raise --top){_RESET}")
+        print(f"    {ansi.DIM}… (+{len(rows) - args.top} more; raise --top){ansi.RESET}")
     print(
-        f"\n  {_DIM}Deep-dive a promising PID with {_RESET}"
-        f"canair investigate <ECU> <PID>{_DIM} (adds cross-signal anchors).{_RESET}"
+        f"\n  {ansi.DIM}Deep-dive a promising PID with {ansi.RESET}"
+        f"canair investigate <ECU> <PID>{ansi.DIM} (adds cross-signal anchors).{ansi.RESET}"
     )
     return 0

@@ -10,6 +10,7 @@ from __future__ import annotations
 import json as _json
 import sys
 
+from canlib import ansi
 from canlib.align import (
     detrend_by_session,
     discover_signal_specs,
@@ -48,13 +49,6 @@ from .render import (
 from .series import _fill_json, _gather_series, _scope_keep_flags
 
 NAME = "correlate"
-
-_BOLD = "\033[1m"
-_DIM = "\033[2m"
-_GREEN = "\033[92m"
-_CYAN = "\033[96m"
-_YELLOW = "\033[93m"
-_RESET = "\033[0m"
 
 
 def run(args) -> int:
@@ -106,7 +100,7 @@ def run(args) -> int:
                 )
         if caveats:
             for line in caveats:
-                print(f"  {_YELLOW}{line}{_RESET}")
+                print(f"  {ansi.YELLOW}{line}{ansi.RESET}")
             print()
 
     series, plens, fills = _gather_series(
@@ -126,7 +120,7 @@ def run(args) -> int:
 
     fill_line = fill_summary_line(fills, fill)
     if fill_line and not args.json:
-        print(f"  {_CYAN}{fill_line}{_RESET}\n")
+        print(f"  {ansi.CYAN}{fill_line}{ansi.RESET}\n")
 
     per_session = getattr(args, "per_session", False)
     if per_session:
@@ -332,14 +326,14 @@ def run(args) -> int:
             f", lag ±{args.lag_scan} samples (apparent, incl. poll offset)" if args.lag_scan else ""
         )
         print(
-            f"\n  {_BOLD}vs {ref_label}{_RESET} "
-            f"{_DIM}(nearest-join ≤{args.join_tol:g}s, ref {len(ref_series)} samples{lag_hdr}){_RESET}"
+            f"\n  {ansi.BOLD}vs {ref_label}{ansi.RESET} "
+            f"{ansi.DIM}(nearest-join ≤{args.join_tol:g}s, ref {len(ref_series)} samples{lag_hdr}){ansi.RESET}"
         )
         for name, r, n, lag in rows:
-            lag_str = f"  {_DIM}lag={lag:+.1f}s{_RESET}" if lag is not None else ""
+            lag_str = f"  {ansi.DIM}lag={lag:+.1f}s{ansi.RESET}" if lag is not None else ""
             print(
                 f"    {_color_r(r)}  {relabel_signal(name, notation, payload_lens=plens)}  "
-                f"{_DIM}n={n}{_RESET}{lag_str}"
+                f"{ansi.DIM}n={n}{ansi.RESET}{lag_str}"
             )
         if not rows:
             hint = weak_correlation_hint(
@@ -350,9 +344,9 @@ def run(args) -> int:
                 args.min_r,
             )
             print(
-                f"    {_DIM}{hint}{_RESET}"
+                f"    {ansi.DIM}{hint}{ansi.RESET}"
                 if hint
-                else f"    {_DIM}no signal cleared the thresholds.{_RESET}"
+                else f"    {ansi.DIM}no signal cleared the thresholds.{ansi.RESET}"
             )
         print()
         return 0
@@ -401,7 +395,7 @@ def run(args) -> int:
             )
             hint = weak_correlation_hint(top.r, label, args.min_r)
             if hint:
-                print(f"  {_DIM}{hint}{_RESET}")
+                print(f"  {ansi.DIM}{hint}{ansi.RESET}")
         return 0
 
     clusters = [] if args.no_cluster else colinear_clusters(hits)
@@ -417,9 +411,9 @@ def run(args) -> int:
     ]
     remaining = remaining[: args.top]
     print(
-        f"\n  {_BOLD}Cross-signal correlations{_RESET} "
-        f"{_DIM}({len(series)} signals, |r|≥{args.min_r}, n≥{args.min_n}, "
-        f"≤{args.join_tol:g}s){_RESET}"
+        f"\n  {ansi.BOLD}Cross-signal correlations{ansi.RESET} "
+        f"{ansi.DIM}({len(series)} signals, |r|≥{args.min_r}, n≥{args.min_n}, "
+        f"≤{args.join_tol:g}s){ansi.RESET}"
     )
     for c in sorted(clusters, key=len, reverse=True):
         members = sorted(c)
@@ -428,14 +422,14 @@ def run(args) -> int:
             f", +{len(members) - 4} more" if len(members) > 4 else ""
         )
         print(
-            f"    {_GREEN}≈ cluster{_RESET} {_DIM}(|r|≥{CLUSTER_THRESHOLD:g}, "
-            f"{len(members)} signals){_RESET}  {shown}"
+            f"    {ansi.GREEN}≈ cluster{ansi.RESET} {ansi.DIM}(|r|≥{CLUSTER_THRESHOLD:g}, "
+            f"{len(members)} signals){ansi.RESET}  {shown}"
         )
     for h in remaining:
         print(
             f"    {_color_r(h.r)}  {relabel_signal(h.a, notation, payload_lens=plens)}  "
-            f"{_DIM}⟷{_RESET}  {relabel_signal(h.b, notation, payload_lens=plens)}  "
-            f"{_DIM}n={h.n}{_RESET}"
+            f"{ansi.DIM}⟷{ansi.RESET}  {relabel_signal(h.b, notation, payload_lens=plens)}  "
+            f"{ansi.DIM}n={h.n}{ansi.RESET}"
         )
     print()
     return 0

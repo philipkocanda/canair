@@ -25,13 +25,6 @@ from canlib.xanalysis import (
 
 NAME = "correlate"
 
-_BOLD = "\033[1m"
-_DIM = "\033[2m"
-_GREEN = "\033[92m"
-_CYAN = "\033[96m"
-_YELLOW = "\033[93m"
-_RESET = "\033[0m"
-
 
 def _fill_json(policy: FillPolicy, fills) -> dict:
     """The ``fill`` block every ``--json`` report carries.

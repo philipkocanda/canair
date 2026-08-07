@@ -18,6 +18,7 @@ import sys
 from collections.abc import Mapping, Sequence
 from typing import Any, TypedDict
 
+from canlib import ansi
 from canlib.capture_store import (
     PidDefs,
     decoded_preview,
@@ -27,16 +28,8 @@ from canlib.capture_store import (
 from canlib.capture_types import CaptureEntry, Quality
 from canlib.keepmode import EntryKeepMode
 
+
 # ANSI color helpers (shared across the captures command family).
-_RED = "\033[91m"
-_GREEN = "\033[92m"
-_YELLOW = "\033[93m"
-_CYAN = "\033[96m"
-_DIM = "\033[2m"
-_BOLD = "\033[1m"
-_RESET = "\033[0m"
-
-
 def _dump_json(obj) -> None:
     """Write ``obj`` to stdout as pretty JSON (dates/other objects via str())."""
     import json
@@ -151,9 +144,9 @@ def _gather_query[R: Mapping[str, Any]](
             # likely the old `ECU PID` space form; nudge toward `ECU:PID`.
             if not sel.pids and sel.ecu not in known_ecus and looks_like_pid(sel.ecu):
                 hint = "  (did you mean to attach it as a PID, e.g. ECU:PID?)"
-            print(f"  {_YELLOW}No captures matched selector '{sel}'{_RESET}{hint}")
+            print(f"  {ansi.YELLOW}No captures matched selector '{sel}'{ansi.RESET}{hint}")
         avail = ", ".join(sorted(known_ecus))
-        print(f"  {_DIM}Available ECUs: {avail}{_RESET}")
+        print(f"  {ansi.DIM}Available ECUs: {avail}{ansi.RESET}")
 
     return matched, defs
 

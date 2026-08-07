@@ -91,6 +91,7 @@ import argparse
 import sys
 from pathlib import Path
 
+from canlib import ansi
 from canlib.capture_dates import (
     add_scope_args,
     filter_by_date_range,
@@ -109,7 +110,7 @@ from .diff import cmd_diff
 from .listing import cmd_latest, cmd_list
 from .maint import cmd_recover
 from .mode_select import Mode, ModeError, resolve_mode
-from .query import _DIM, _RESET, _parse_query, build_query
+from .query import _parse_query, build_query
 from .sessions import cmd_sessions, cmd_summary
 from .set_state import cmd_set_state
 from .step import cmd_step
@@ -332,7 +333,7 @@ def _scope(args, since, until) -> list[CaptureEntry] | int:
             return 1
         # Keep JSON output clean (no human banner) when scoping --sessions --json.
         if not args.json:
-            print(f"  {_DIM}Date range: {lo} .. {hi}  ({len(entries)} entries){_RESET}")
+            print(f"  {ansi.DIM}Date range: {lo} .. {hi}  ({len(entries)} entries){ansi.RESET}")
 
     if args.state or args.label:
         entries = filter_by_text(entries, state=args.state, label=args.label)

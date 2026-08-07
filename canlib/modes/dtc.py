@@ -19,6 +19,8 @@ from __future__ import annotations
 import asyncio
 import json
 
+from canlib import ansi
+
 from ..ecus import ecu_display
 from ..transport.protocol import Terminal
 
@@ -334,12 +336,6 @@ def _jsonable(records: list[dict]) -> list[dict]:
     ]
 
 
-_C_DIM = "\033[2m"
-_C_YEL = "\033[93m"
-_C_GRN = "\033[92m"
-_C_RST = "\033[0m"
-
-
 def _scan_status(res: dict) -> str:
     """One-line result summary for a single ECU in an all-ECU scan."""
     if "dtcs" in res:
@@ -367,12 +363,12 @@ def _classify(res: dict) -> str:
 def _scan_line(res: dict, name_w: int) -> str:
     """Colored 'ECU proto status' cell — clean is dim, no-response/faulty stand out."""
     color = {
-        "faulty": _C_YEL,
-        "clean": _C_DIM,
-        "nrc": _C_DIM,
-        "no_response": _C_YEL,
+        "faulty": ansi.YELLOW,
+        "clean": ansi.DIM,
+        "nrc": ansi.DIM,
+        "no_response": ansi.YELLOW,
     }[_classify(res)]
-    return f"{res['ecu']:<{name_w}}  {res['protocol']:<4}  {color}{_scan_status(res)}{_C_RST}"
+    return f"{res['ecu']:<{name_w}}  {res['protocol']:<4}  {color}{_scan_status(res)}{ansi.RESET}"
 
 
 async def _wake_read(terminal, tx_id, mask, protocol, verbose, timeout):
@@ -433,8 +429,8 @@ async def mode_dtc_scan_all(
         retry_timeout = max(timeout * 3, 5.0)
         if not as_json:
             print(
-                f"\n  {_C_DIM}Retrying {len(retry_idx)} unresponsive ECU(s) "
-                f"with wake + {retry_timeout:.0f}s timeout...{_C_RST}\n"
+                f"\n  {ansi.DIM}Retrying {len(retry_idx)} unresponsive ECU(s) "
+                f"with wake + {retry_timeout:.0f}s timeout...{ansi.RESET}\n"
             )
         for i in retry_idx:
             res2 = await _wake_read(terminal, tx_ids[i], mask, protocol, verbose, retry_timeout)
@@ -443,9 +439,9 @@ async def mode_dtc_scan_all(
                 results[i] = res2
             if not as_json:
                 mark = (
-                    f"{_C_GRN}↻ recovered{_C_RST}"
+                    f"{ansi.GREEN}↻ recovered{ansi.RESET}"
                     if recovered
-                    else f"{_C_DIM}↻ still silent{_C_RST}"
+                    else f"{ansi.DIM}↻ still silent{ansi.RESET}"
                 )
                 print(f"  {_scan_line(results[i], name_w)}  {mark}")
 
@@ -482,11 +478,11 @@ async def mode_dtc_scan_all(
     if nrc:
         summary += f", {len(nrc)} not supported"
     if no_resp:
-        summary += f", {_C_YEL}{len(no_resp)} no response{_C_RST}"
+        summary += f", {ansi.YELLOW}{len(no_resp)} no response{ansi.RESET}"
     print(summary)
     if no_resp:
         print(
-            f"  {_C_YEL}⚠ no response{_C_RST} {_C_DIM}(skipped — asleep/unpowered?):{_C_RST} "
+            f"  {ansi.YELLOW}⚠ no response{ansi.RESET} {ansi.DIM}(skipped — asleep/unpowered?):{ansi.RESET} "
             + ", ".join(r["ecu"] for r in no_resp)
         )
     print()

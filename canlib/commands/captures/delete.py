@@ -11,10 +11,11 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
+from canlib import ansi
 from canlib.capture_io import resolve_captures_dir
 from canlib.capture_types import CaptureEntry
 
-from .query import _DIM, _RESET, _parse_query
+from .query import _parse_query
 
 
 def cmd_delete(
@@ -76,9 +77,9 @@ def cmd_delete(
     print(f"  {verb} {len(matched)} capture(s) matching {query!r}:")
     for e in matched:
         print(
-            f"    {_DIM}{e.get('file', '?')}{_RESET} "
+            f"    {ansi.DIM}{e.get('file', '?')}{ansi.RESET} "
             f"{e.get('ecu', '?')} {e.get('pid', '?')} @ {e.get('date', '?')} "
-            f"{e.get('time', '') or '(no time)'}  {_DIM}{e.get('payload', '') or ''}{_RESET}"
+            f"{e.get('time', '') or '(no time)'}  {ansi.DIM}{e.get('payload', '') or ''}{ansi.RESET}"
         )
 
     if dry_run:

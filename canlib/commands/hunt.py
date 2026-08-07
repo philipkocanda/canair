@@ -16,6 +16,7 @@ import argparse
 import json as _json
 import sys
 
+from canlib import ansi
 from canlib.align import (
     DEFAULT_SESSION_GAP_S,
     load_signal_captures,
@@ -49,13 +50,6 @@ from canlib.xanalysis import (
 )
 
 NAME = "hunt"
-
-_BOLD = "\033[1m"
-_DIM = "\033[2m"
-_GREEN = "\033[92m"
-_YELLOW = "\033[93m"
-_CYAN = "\033[96m"
-_RESET = "\033[0m"
 
 
 def add_parser(subparsers) -> argparse.ArgumentParser:
@@ -369,16 +363,16 @@ def _run_can_log(args) -> int:
         print(f"No byte of 0x{target:X} correlates with {ref_label} in {path.name}.")
         return 0
     print(
-        f"\n  {_BOLD}Hunt 0x{target:X} vs {ref_label}{_RESET} "
-        f"{_DIM}({path.name}, nearest-join ≤{args.join_tol:g}s){_RESET}"
+        f"\n  {ansi.BOLD}Hunt 0x{target:X} vs {ref_label}{ansi.RESET} "
+        f"{ansi.DIM}({path.name}, nearest-join ≤{args.join_tol:g}s){ansi.RESET}"
     )
     for h in hits:
-        color = _GREEN if abs(h.r) >= 0.7 else _YELLOW if abs(h.r) >= 0.3 else _DIM
-        unit = f"  {_CYAN}{h.unit_guess}{_RESET}" if h.unit_guess else ""
+        color = ansi.GREEN if abs(h.r) >= 0.7 else ansi.YELLOW if abs(h.r) >= 0.3 else ansi.DIM
+        unit = f"  {ansi.CYAN}{h.unit_guess}{ansi.RESET}" if h.unit_guess else ""
         print(
-            f"    {color}r={h.r:+.3f}{_RESET}  {_BOLD}{h.expr}{_RESET} "
-            f"{_DIM}({h.interp}){_RESET}  fit y={h.slope:.4f}·x{h.intercept:+.2f} "
-            f"{_DIM}resid={h.resid:.2f} n={h.n}{_RESET}{unit}"
+            f"    {color}r={h.r:+.3f}{ansi.RESET}  {ansi.BOLD}{h.expr}{ansi.RESET} "
+            f"{ansi.DIM}({h.interp}){ansi.RESET}  fit y={h.slope:.4f}·x{h.intercept:+.2f} "
+            f"{ansi.DIM}resid={h.resid:.2f} n={h.n}{ansi.RESET}{unit}"
         )
     print()
     return 0
@@ -573,22 +567,22 @@ def run(args) -> int:
     notation = resolve_notation(args.notation)
     sub_bytes = subfunction_bytes_for_pid(pid)
     print(
-        f"\n  {_BOLD}Hunt {ecu} {pid} vs {ref_label}{_RESET} "
-        f"{_DIM}(nearest-join ≤{args.join_tol:g}s){_RESET}"
+        f"\n  {ansi.BOLD}Hunt {ecu} {pid} vs {ref_label}{ansi.RESET} "
+        f"{ansi.DIM}(nearest-join ≤{args.join_tol:g}s){ansi.RESET}"
     )
     fill_line = fill_summary_line(fills, fill)
     if fill_line:
-        print(f"  {_CYAN}{fill_line}{_RESET}")
+        print(f"  {ansi.CYAN}{fill_line}{ansi.RESET}")
     for h in hits:
-        color = _GREEN if abs(h.r) >= 0.7 else _YELLOW if abs(h.r) >= 0.3 else _DIM
-        unit = f"  {_CYAN}{h.unit_guess}{_RESET}" if h.unit_guess else ""
+        color = ansi.GREEN if abs(h.r) >= 0.7 else ansi.YELLOW if abs(h.r) >= 0.3 else ansi.DIM
+        unit = f"  {ansi.CYAN}{h.unit_guess}{ansi.RESET}" if h.unit_guess else ""
         label = _hit_label(
             h, notation, sub_bytes, longest_payload_len(getattr(lp, "captures", None))
         )
         print(
-            f"    {color}r={h.r:+.3f}{_RESET}  {_BOLD}{label}{_RESET} "
-            f"{_DIM}({h.interp}){_RESET}  fit y={h.slope:.4f}·x{h.intercept:+.2f} "
-            f"{_DIM}resid={h.resid:.2f} n={h.n}{_RESET}{unit}"
+            f"    {color}r={h.r:+.3f}{ansi.RESET}  {ansi.BOLD}{label}{ansi.RESET} "
+            f"{ansi.DIM}({h.interp}){ansi.RESET}  fit y={h.slope:.4f}·x{h.intercept:+.2f} "
+            f"{ansi.DIM}resid={h.resid:.2f} n={h.n}{ansi.RESET}{unit}"
         )
     print()
     # A float reinterpretation has no WiCAN expression, so it can't be promoted or
@@ -663,11 +657,11 @@ def _run_physical(args, ecu: str, pid: str, since, until) -> int:
     notation = resolve_notation(args.notation)
     sub_bytes = subfunction_bytes_for_pid(pid)
     print(
-        f"\n  {_BOLD}Physical-band scan {ecu} {pid}{_RESET} "
-        f"{_DIM}({len(lp.captures)} timed captures){_RESET}"
+        f"\n  {ansi.BOLD}Physical-band scan {ecu} {pid}{ansi.RESET} "
+        f"{ansi.DIM}({len(lp.captures)} timed captures){ansi.RESET}"
     )
     for h in hits:
-        color = _GREEN if h.frac >= 0.9 else _YELLOW if h.frac >= 0.7 else _DIM
+        color = ansi.GREEN if h.frac >= 0.9 else ansi.YELLOW if h.frac >= 0.7 else ansi.DIM
         if notation is ByteNotation.WICAN:
             label = h.expr
         else:
@@ -677,9 +671,9 @@ def _run_physical(args, ecu: str, pid: str, since, until) -> int:
                 payload_len=longest_payload_len(getattr(lp, "captures", None)),
             ).render(notation, sub_bytes=sub_bytes)
         print(
-            f"    {color}{h.frac * 100:3.0f}% in-band{_RESET}  {_BOLD}{h.scaling}·{label}{_RESET} "
-            f"{_DIM}({h.interp}){_RESET}  {_CYAN}{h.band}{_RESET} "
-            f"{_DIM}median≈{h.median:.1f} n={h.n}{_RESET}"
+            f"    {color}{h.frac * 100:3.0f}% in-band{ansi.RESET}  {ansi.BOLD}{h.scaling}·{label}{ansi.RESET} "
+            f"{ansi.DIM}({h.interp}){ansi.RESET}  {ansi.CYAN}{h.band}{ansi.RESET} "
+            f"{ansi.DIM}median≈{h.median:.1f} n={h.n}{ansi.RESET}"
         )
     print()
     return 0

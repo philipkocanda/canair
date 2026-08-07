@@ -8,19 +8,13 @@ raw byte matrix in :mod:`.dump`.
 
 from __future__ import annotations
 
+from canlib import ansi
 from canlib.states import join_states as _join_states
 from canlib.stats import compute_stats
 from canlib.stats import fmt_num as _fmt_num
 
 from .calc import _series
 from .format import (
-    _BOLD,
-    _CYAN,
-    _DIM,
-    _GREEN,
-    _RED,
-    _RESET,
-    _YELLOW,
     _compact_cell,
     _mark_for,
     check_range,
@@ -49,7 +43,7 @@ def print_compact(
     # Only params that actually appear in the decoded results, in definition order.
     present = [n for n in param_names if any(n in r["decoded"] for r in all_results)]
     if not present:
-        print(f"  {_DIM}(no decodable parameters in scope){_RESET}\n")
+        print(f"  {ansi.DIM}(no decodable parameters in scope){ansi.RESET}\n")
         return
 
     # Column widths: header name/unit vs the widest formatted value in the column.
@@ -75,16 +69,16 @@ def print_compact(
 
     def _colored_header(n: str) -> str:
         color = (
-            _CYAN
+            ansi.CYAN
             if n in candidate_names
-            else (_GREEN if parameters.get(n, {}).get("verified") else _YELLOW)
+            else (ansi.GREEN if parameters.get(n, {}).get("verified") else ansi.YELLOW)
         )
-        return f"{color}{headers[n]:>{widths[n]}}{_RESET}"
+        return f"{color}{headers[n]:>{widths[n]}}{ansi.RESET}"
 
     if single_day and day:
-        print(f"  {_DIM}date {day}{_RESET}")
+        print(f"  {ansi.DIM}date {day}{ansi.RESET}")
     header_cells = "  ".join(_colored_header(n) for n in present)
-    print(f"  {_DIM}{'time':<{ts_w}}{_RESET}  {header_cells}")
+    print(f"  {ansi.DIM}{'time':<{ts_w}}{ansi.RESET}  {header_cells}")
 
     prev_state = None
     prev_row_vals = None
@@ -94,7 +88,7 @@ def print_compact(
         state = _join_states(cap.get("vehicle_states"))
         if state != prev_state:
             label = state if state else "(no state)"
-            print(f"  {_DIM}── [{label}] ─────{_RESET}")
+            print(f"  {ansi.DIM}── [{label}] ─────{ansi.RESET}")
             prev_state = state
             prev_row_vals = None  # force first row of a new state to print
 
@@ -105,12 +99,12 @@ def print_compact(
             d = cap.get("date", "")
             t = cap.get("time", "")
             if d != cur_date:
-                print(f"  {_DIM}date {d}{_RESET}")
+                print(f"  {ansi.DIM}date {d}{ansi.RESET}")
                 cur_date = d
             ts = t or d
 
         if r.get("error"):
-            print(f"  {_DIM}{ts:<{ts_w}}{_RESET}  {_RED}{r['error']}{_RESET}")
+            print(f"  {ansi.DIM}{ts:<{ts_w}}{ansi.RESET}  {ansi.RED}{r['error']}{ansi.RESET}")
             prev_row_vals = None
             continue
 
@@ -124,7 +118,7 @@ def print_compact(
             d = r["decoded"].get(n)
             cell = _compact_cell(d["value"]) if d else ""
             cells.append(f"{cell:>{widths[n]}}")
-        print(f"  {_DIM}{ts:<{ts_w}}{_RESET}  {'  '.join(cells)}")
+        print(f"  {ansi.DIM}{ts:<{ts_w}}{ansi.RESET}  {'  '.join(cells)}")
     print()
 
 
@@ -146,13 +140,13 @@ def print_value_ranges(
         is_cand = name in candidate_names
         verified = parameters[name].get("verified", False)
         mark = (
-            f"{_CYAN}»{_RESET}"
+            f"{ansi.CYAN}»{ansi.RESET}"
             if is_cand
-            else f"{_GREEN}✓{_RESET}"
+            else f"{ansi.GREEN}✓{ansi.RESET}"
             if verified
-            else f"{_YELLOW}?{_RESET}"
+            else f"{ansi.YELLOW}?{ansi.RESET}"
         )
-        try_tag = f"  {_CYAN}(try){_RESET}" if is_cand else ""
+        try_tag = f"  {ansi.CYAN}(try){ansi.RESET}" if is_cand else ""
         unit = parameters[name].get("unit", "")
 
         values = [
@@ -173,9 +167,9 @@ def print_value_ranges(
             if seen_a:
                 shown_a = "  ".join(seen_a[:8]) + ("  …" if len(seen_a) > 8 else "")
                 tag_a = (
-                    f"{_DIM}(constant){_RESET}"
+                    f"{ansi.DIM}(constant){ansi.RESET}"
                     if len(seen_a) == 1
-                    else f"{_DIM}({len(seen_a)} values){_RESET}"
+                    else f"{ansi.DIM}({len(seen_a)} values){ansi.RESET}"
                 )
                 print(f"    {mark} {name:<{name_w}}  {shown_a}  {tag_a}{try_tag}")
                 continue
@@ -189,14 +183,16 @@ def print_value_ranges(
                 ),
                 None,
             )
-            msg = f"{_RED}ERROR: {err}{_RESET}" if err else f"{_DIM}no value{_RESET}"
+            msg = (
+                f"{ansi.RED}ERROR: {err}{ansi.RESET}" if err else f"{ansi.DIM}no value{ansi.RESET}"
+            )
             print(f"    {mark} {name:<{name_w}}  {msg}{try_tag}")
             continue
 
         mn, mx = min(values), max(values)
         mm = {"min": parameters[name].get("min"), "max": parameters[name].get("max")}
         warn = check_range(mn, mm) or check_range(mx, mm)
-        warn_str = f"  {_RED}⚠ {warn}{_RESET}" if warn else ""
+        warn_str = f"  {ansi.RED}⚠ {warn}{ansi.RESET}" if warn else ""
 
         if ptype in ("enum", "bitmask", "bcd"):
             # Categorical/typed: show the distinct decoded labels, not a numeric
@@ -208,9 +204,9 @@ def print_value_ranges(
                     seen.append(d["display"])
             shown = "  ".join(seen[:8]) + ("  …" if len(seen) > 8 else "")
             tag = (
-                f"{_DIM}(constant){_RESET}"
+                f"{ansi.DIM}(constant){ansi.RESET}"
                 if len(seen) == 1
-                else f"{_DIM}({len(seen)} values){_RESET}"
+                else f"{ansi.DIM}({len(seen)} values){ansi.RESET}"
             )
             print(f"    {mark} {name:<{name_w}}  {shown}  {tag}{try_tag}{warn_str}")
             continue
@@ -218,7 +214,7 @@ def print_value_ranges(
         if mn == mx:
             print(
                 f"    {mark} {name:<{name_w}}  {format_value(mn, unit):>14}  "
-                f"{_DIM}(constant){_RESET}{try_tag}{warn_str}"
+                f"{ansi.DIM}(constant){ansi.RESET}{try_tag}{warn_str}"
             )
         else:
             print(
@@ -238,15 +234,15 @@ def print_stats_table(
     """
     for name in param_names:
         mark = _mark_for(name, parameters, candidate_names)
-        try_tag = f" {_CYAN}(try){_RESET}" if name in candidate_names else ""
+        try_tag = f" {ansi.CYAN}(try){ansi.RESET}" if name in candidate_names else ""
         values = _series(all_results, name)
         if not values:
-            print(f"    {mark} {name}{try_tag}: {_DIM}no value{_RESET}")
+            print(f"    {mark} {name}{try_tag}: {ansi.DIM}no value{ansi.RESET}")
             continue
         s = compute_stats(values)
         unit = parameters[name].get("unit", "")
         print(
-            f"    {mark} {_BOLD}{name}{_RESET}{try_tag} {_DIM}[{unit}]{_RESET}  "
+            f"    {mark} {ansi.BOLD}{name}{ansi.RESET}{try_tag} {ansi.DIM}[{unit}]{ansi.RESET}  "
             f"n={s['n']} distinct={s['distinct']}  "
             f"min={_fmt_num(s['min'])} max={_fmt_num(s['max'])} "
             f"mean={_fmt_num(s['mean'])} median={_fmt_num(s['median'])} "
@@ -257,9 +253,9 @@ def print_stats_table(
             for v in values:
                 counts[v] = counts.get(v, 0) + 1
             enum = "  ".join(f"{_fmt_num(v)}(n={counts[v]})" for v in s["values"])
-            print(f"        {_DIM}values: {enum}{_RESET}")
+            print(f"        {ansi.DIM}values: {enum}{ansi.RESET}")
         elif s["distinct"] == 1:
-            print(f"        {_DIM}(constant){_RESET}")
+            print(f"        {ansi.DIM}(constant){ansi.RESET}")
     print()
 
 
@@ -289,5 +285,5 @@ def print_stats_grouped(
     for gi, (key, rows) in enumerate(groups.items()):
         if gi:
             print()
-        print(f"  {_BOLD}[{key}]{_RESET} {_DIM}— {len(rows)} captures{_RESET}")
+        print(f"  {ansi.BOLD}[{key}]{ansi.RESET} {ansi.DIM}— {len(rows)} captures{ansi.RESET}")
         print_stats_table(rows, param_names, parameters, candidate_names)

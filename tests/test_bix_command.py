@@ -4,6 +4,7 @@ import argparse
 
 import pytest
 
+from canlib import ansi
 from canlib.commands import bix
 
 
@@ -532,18 +533,18 @@ def test_table_no_ansi_when_not_a_tty(capsys):
 
 def test_c_helper_wraps_only_on_tty(monkeypatch):
     monkeypatch.setattr("sys.stdout.isatty", lambda: True)
-    assert bix._c("X", bix._CYAN) == f"{bix._CYAN}X{bix._RESET}"
+    assert bix._c("X", ansi.CYAN) == f"{ansi.CYAN}X{ansi.RESET}"
     monkeypatch.setattr("sys.stdout.isatty", lambda: False)
-    assert bix._c("X", bix._CYAN) == "X"
+    assert bix._c("X", ansi.CYAN) == "X"
 
 
 def test_cerr_helper_gates_on_stderr_tty(monkeypatch):
     # Warnings go to stderr, so their color must follow stderr's TTY-ness — not
     # stdout's (which may be redirected to a file/pipe independently).
     monkeypatch.setattr("sys.stderr.isatty", lambda: True)
-    assert bix._cerr("X", bix._YELLOW) == f"{bix._YELLOW}X{bix._RESET}"
+    assert bix._cerr("X", ansi.YELLOW) == f"{ansi.YELLOW}X{ansi.RESET}"
     monkeypatch.setattr("sys.stderr.isatty", lambda: False)
-    assert bix._cerr("X", bix._YELLOW) == "X"
+    assert bix._cerr("X", ansi.YELLOW) == "X"
 
 
 def test_table_role_multiframe_layout():
@@ -652,9 +653,9 @@ def test_pad_aligns_before_coloring(monkeypatch):
     monkeypatch.setattr("sys.stdout.isatty", lambda: True)
     # The visible text is padded to width BEFORE the ANSI codes wrap it, so the
     # padded region stays width-correct regardless of color.
-    assert bix._pad("AB", 5, bix._CYAN) == f"{bix._CYAN}AB   {bix._RESET}"
+    assert bix._pad("AB", 5, ansi.CYAN) == f"{ansi.CYAN}AB   {ansi.RESET}"
     monkeypatch.setattr("sys.stdout.isatty", lambda: False)
-    assert bix._pad("AB", 5, bix._CYAN) == "AB   "
+    assert bix._pad("AB", 5, ansi.CYAN) == "AB   "
 
 
 def _row(out: str, wican: str) -> str:
@@ -732,22 +733,22 @@ def test_table_emits_ansi_on_tty(monkeypatch, capsys):
     args = _parse(["--table"])
     assert bix.run(args) == 0
     out = capsys.readouterr().out
-    assert bix._CYAN in out  # frame dividers are colored
-    assert bix._DIM in out  # PCI rows are dimmed
+    assert ansi.CYAN in out  # frame dividers are colored
+    assert ansi.DIM in out  # PCI rows are dimmed
 
 
 def test_bare_bix_emits_ansi_on_tty(monkeypatch, capsys):
     monkeypatch.setattr("sys.stdout.isatty", lambda: True)
     args = _parse([])
     assert bix.run(args) == 0
-    assert bix._BOLD in capsys.readouterr().out  # legend section headers are bold
+    assert ansi.BOLD in capsys.readouterr().out  # legend section headers are bold
 
 
 def test_annotate_emits_ansi_on_tty(monkeypatch, capsys):
     monkeypatch.setattr("sys.stdout.isatty", lambda: True)
     args = _parse(["-1", "-a", "6101FFEEDDCCBBAA"])  # multi-frame → colored divider
     assert bix.run(args) == 0
-    assert bix._CYAN in capsys.readouterr().out
+    assert ansi.CYAN in capsys.readouterr().out
 
 
 # ── --table --max controls how many frames render ──

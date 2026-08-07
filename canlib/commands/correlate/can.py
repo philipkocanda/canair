@@ -10,6 +10,7 @@ from __future__ import annotations
 import json as _json
 import sys
 
+from canlib import ansi
 from canlib.align import (
     join_prepared,
     prepare_series,
@@ -27,13 +28,6 @@ from .render import (
 )
 
 NAME = "correlate"
-
-_BOLD = "\033[1m"
-_DIM = "\033[2m"
-_GREEN = "\033[92m"
-_CYAN = "\033[96m"
-_YELLOW = "\033[93m"
-_RESET = "\033[0m"
 
 
 def _run_can_log(args) -> int:
@@ -116,14 +110,14 @@ def _run_can_log(args) -> int:
             print()
             return 0
         print(
-            f"\n  {_BOLD}vs {args.against}{_RESET} "
-            f"{_DIM}({src}, nearest-join ≤{args.join_tol:g}s){_RESET}"
+            f"\n  {ansi.BOLD}vs {args.against}{ansi.RESET} "
+            f"{ansi.DIM}({src}, nearest-join ≤{args.join_tol:g}s){ansi.RESET}"
         )
         if not rows:
-            print(f"    {_DIM}no byte with |r| ≥ {args.min_r} (n ≥ {args.min_n}){_RESET}\n")
+            print(f"    {ansi.DIM}no byte with |r| ≥ {args.min_r} (n ≥ {args.min_n}){ansi.RESET}\n")
             return 0
         for name, r, n in rows:
-            print(f"    {_color_r(r)}  {name}  {_DIM}n={n}{_RESET}")
+            print(f"    {_color_r(r)}  {name}  {ansi.DIM}n={n}{ansi.RESET}")
         print()
         return 0
 
@@ -160,14 +154,18 @@ def _run_can_log(args) -> int:
         )
     ][: args.top]
     print(
-        f"\n  {_BOLD}Frame-byte correlations{_RESET} "
-        f"{_DIM}({src}, |r|≥{args.min_r}, n≥{args.min_n}){_RESET}"
+        f"\n  {ansi.BOLD}Frame-byte correlations{ansi.RESET} "
+        f"{ansi.DIM}({src}, |r|≥{args.min_r}, n≥{args.min_n}){ansi.RESET}"
     )
     for c in sorted(clusters, key=len, reverse=True):
         members = sorted(c)
         shown = ", ".join(members[:4]) + (f", +{len(members) - 4} more" if len(members) > 4 else "")
-        print(f"    {_GREEN}≈ cluster{_RESET} {_DIM}({len(members)} signals){_RESET}  {shown}")
+        print(
+            f"    {ansi.GREEN}≈ cluster{ansi.RESET} {ansi.DIM}({len(members)} signals){ansi.RESET}  {shown}"
+        )
     for h in remaining:
-        print(f"    {_color_r(h.r)}  {h.a}  {_DIM}⟷{_RESET}  {h.b}  {_DIM}n={h.n}{_RESET}")
+        print(
+            f"    {_color_r(h.r)}  {h.a}  {ansi.DIM}⟷{ansi.RESET}  {h.b}  {ansi.DIM}n={h.n}{ansi.RESET}"
+        )
     print()
     return 0

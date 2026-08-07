@@ -45,13 +45,6 @@ from .report import (
 
 NAME = "investigate"
 
-_BOLD = "\033[1m"
-_DIM = "\033[2m"
-_GREEN = "\033[92m"
-_YELLOW = "\033[93m"
-_CYAN = "\033[96m"
-_RESET = "\033[0m"
-
 
 def run(args) -> int:
     since, until, err = resolve_scope_bounds(args)

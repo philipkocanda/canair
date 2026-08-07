@@ -11,10 +11,11 @@ import sys
 from collections import defaultdict
 from collections.abc import Sequence
 
+from canlib import ansi
 from canlib.capture_types import CaptureEntry, Quality
 from canlib.states import join_states as _join_states
 
-from .query import _BOLD, _CYAN, _DIM, _RED, _RESET, _YELLOW, _dump_json, group_sessions
+from .query import _dump_json, group_sessions
 
 
 def cmd_summary(entries: Sequence[CaptureEntry], as_json: bool = False) -> None:
@@ -56,16 +57,16 @@ def cmd_summary(entries: Sequence[CaptureEntry], as_json: bool = False) -> None:
         )
         return
 
-    print(f"\n  {_BOLD}Capture Summary{_RESET}")
+    print(f"\n  {ansi.BOLD}Capture Summary{ansi.RESET}")
     print(f"  Files:    {len({e['file'] for e in entries})}")
     print(f"  Sessions: {n_sessions}")
     print(f"  Entries:  {len(entries)} ({payloads} payloads, {scans} scans, {responses} responses)")
 
-    print(f"\n  {_BOLD}By ECU:{_RESET}")
+    print(f"\n  {ansi.BOLD}By ECU:{ansi.RESET}")
     for ecu, count in sorted(by_ecu.items(), key=lambda x: -x[1]):
         print(f"    {ecu:<12} {count:>4}")
 
-    print(f"\n  {_BOLD}By Date:{_RESET}")
+    print(f"\n  {ansi.BOLD}By Date:{ansi.RESET}")
     for day, count in sorted(by_date.items()):
         print(f"    {day}  {count:>4}")
     print()
@@ -101,14 +102,14 @@ def _quality_tag(quality: Quality | None) -> str:
     errs = sum(quality.get(k, 0) or 0 for k in ("no_data", "bus", "decode", "other"))
     parts: list[str] = []
     if drops:
-        parts.append(f"{_RED}drops {drops}{_RESET}")
+        parts.append(f"{ansi.RED}drops {drops}{ansi.RESET}")
     if errs:
-        parts.append(f"{_YELLOW}errors {errs}{_RESET}")
+        parts.append(f"{ansi.YELLOW}errors {errs}{ansi.RESET}")
     if not parts:
         return ""
     ex = quality.get("exchanges")
-    ex_txt = f" {_DIM}/ {ex} exchanges{_RESET}" if ex else ""
-    return f"{_DIM}⚠ quality:{_RESET} " + " ".join(parts) + ex_txt
+    ex_txt = f" {ansi.DIM}/ {ex} exchanges{ansi.RESET}" if ex else ""
+    return f"{ansi.DIM}⚠ quality:{ansi.RESET} " + " ".join(parts) + ex_txt
 
 
 def cmd_sessions(
@@ -154,7 +155,7 @@ def cmd_sessions(
         print("  No sessions found.")
         return
 
-    print(f"\n  {_BOLD}Sessions{_RESET} — {len(sessions)} total\n")
+    print(f"\n  {ansi.BOLD}Sessions{ansi.RESET} — {len(sessions)} total\n")
     for s in sessions:
         span = ""
         if s["times"]:
@@ -162,21 +163,23 @@ def cmd_sessions(
             lo, hi = lo.split(".")[0], hi.split(".")[0]
             span = lo if lo == hi else f"{lo}-{hi}"
         state_str = _join_states(s["vehicle_states"])
-        state = f"  {_CYAN}{_clean(state_str)}{_RESET}" if state_str else ""
-        print(f"  {_BOLD}{s['date']}{_RESET}{('  ' + _DIM + span + _RESET) if span else ''}{state}")
+        state = f"  {ansi.CYAN}{_clean(state_str)}{ansi.RESET}" if state_str else ""
+        print(
+            f"  {ansi.BOLD}{s['date']}{ansi.RESET}{('  ' + ansi.DIM + span + ansi.RESET) if span else ''}{state}"
+        )
         if s["label"]:
             print(f"    {_clean(s['label'])}")
         if s["notes"]:
-            print(f"    {_DIM}{_clean(s['notes'])}{_RESET}")
+            print(f"    {ansi.DIM}{_clean(s['notes'])}{ansi.RESET}")
         ecus = ", ".join(s["ecus"]) or "—"
         keep = s.get("keep_mode")
-        keep_tag = f" · {_CYAN}keep:{keep}{_RESET}{_DIM}" if keep else ""
+        keep_tag = f" · {ansi.CYAN}keep:{keep}{ansi.RESET}{ansi.DIM}" if keep else ""
         transport = s.get("transport")
         transport_tag = f" · {transport}" if transport else ""
         version = s.get("version")
         version_tag = f" · v{version}" if version else ""
         print(
-            f"    {_DIM}{s['n']} captures · {ecus}{keep_tag}{transport_tag}{version_tag} · {s['file']}{_RESET}"
+            f"    {ansi.DIM}{s['n']} captures · {ecus}{keep_tag}{transport_tag}{version_tag} · {s['file']}{ansi.RESET}"
         )
         # Data-quality footprint: flag any drops/errors recorded for the session
         # (the transport-health provenance) so a suspect capture stands out.
@@ -187,7 +190,9 @@ def cmd_sessions(
         for cn in s["cap_notes"][:max_notes]:
             clean = _clean(cn)
             trunc = clean if len(clean) <= 100 else clean[:97] + "..."
-            print(f"      {_DIM}▸ {trunc}{_RESET}")
+            print(f"      {ansi.DIM}▸ {trunc}{ansi.RESET}")
         if len(s["cap_notes"]) > max_notes:
-            print(f"      {_DIM}… +{len(s['cap_notes']) - max_notes} more capture-notes{_RESET}")
+            print(
+                f"      {ansi.DIM}… +{len(s['cap_notes']) - max_notes} more capture-notes{ansi.RESET}"
+            )
         print()

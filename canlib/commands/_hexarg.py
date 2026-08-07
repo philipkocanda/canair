@@ -13,8 +13,7 @@ free of any one command's control-flow shape.
 
 from __future__ import annotations
 
-_RED = "\033[91m"
-_RESET = "\033[0m"
+from canlib import ansi
 
 
 class HexArgError(ValueError):
@@ -34,5 +33,5 @@ def parse_hex_arg(value: str | None, label: str) -> int | None:
         return int(str(value), 16)
     except ValueError:
         raise HexArgError(
-            f"{_RED}  Error: --{label} expects hex (e.g. 0x784), got {value!r}{_RESET}"
+            f"{ansi.RED}  Error: --{label} expects hex (e.g. 0x784), got {value!r}{ansi.RESET}"
         ) from None

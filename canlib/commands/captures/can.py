@@ -7,7 +7,7 @@ Ingest is ``canair import can`` (:mod:`canlib.commands.import_`).
 
 import argparse
 
-from .query import _BOLD, _CYAN, _DIM, _RESET
+from canlib import ansi
 
 
 def cmd_can_logs(as_json: bool = False) -> int:
@@ -27,7 +27,9 @@ def cmd_can_logs(as_json: bool = False) -> int:
             "`canair import can <FILE>`."
         )
         return 0
-    print(f"\n  {_BOLD}Raw-CAN frame logs{_RESET} {_DIM}({len(logs)} in captures/can/){_RESET}")
+    print(
+        f"\n  {ansi.BOLD}Raw-CAN frame logs{ansi.RESET} {ansi.DIM}({len(logs)} in captures/can/){ansi.RESET}"
+    )
     for e in logs:
         ids = e.get("id_set", [])
         meta = []
@@ -37,16 +39,16 @@ def cmd_can_logs(as_json: bool = False) -> int:
             meta.append(",".join(e["vehicle_states"]))
         if e.get("bitrate"):
             meta.append(f"{e['bitrate']}bps")
-        meta_str = f"  {_DIM}[{' · '.join(meta)}]{_RESET}" if meta else ""
+        meta_str = f"  {ansi.DIM}[{' · '.join(meta)}]{ansi.RESET}" if meta else ""
         label = f"  {e['label']}" if e.get("label") else ""
         print(
-            f"    {_CYAN}{e.get('file', '?')}{_RESET} {_DIM}({e.get('format', '?')}){_RESET}"
+            f"    {ansi.CYAN}{e.get('file', '?')}{ansi.RESET} {ansi.DIM}({e.get('format', '?')}){ansi.RESET}"
             f"{meta_str}{label}"
         )
         print(
-            f"      {_DIM}{e.get('frame_count', 0)} frames, {len(ids)} IDs"
+            f"      {ansi.DIM}{e.get('frame_count', 0)} frames, {len(ids)} IDs"
             + (f": {', '.join(ids[:10])}{', …' if len(ids) > 10 else ''}" if ids else "")
-            + _RESET
+            + ansi.RESET
         )
     print()
     return 0

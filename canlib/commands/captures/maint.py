@@ -11,9 +11,8 @@ import argparse
 import sys
 from pathlib import Path
 
+from canlib import ansi
 from canlib.capture_io import resolve_captures_dir
-
-from .query import _DIM, _RESET, _YELLOW
 
 
 def cmd_recover(captures_dir: Path | None, discard: bool = False) -> int:
@@ -62,7 +61,7 @@ def cmd_migrate(captures_dir: Path | None, *, dry_run: bool = False, as_json: bo
             _json.dump({"error": str(e)}, sys.stdout)
             print()
         else:
-            print(f"  {_YELLOW}migration aborted:{_RESET} {e}", file=sys.stderr)
+            print(f"  {ansi.YELLOW}migration aborted:{ansi.RESET} {e}", file=sys.stderr)
         return 1
 
     if as_json:
@@ -89,7 +88,7 @@ def cmd_migrate(captures_dir: Path | None, *, dry_run: bool = False, as_json: bo
     print(f"  {verb} {len(results)} file(s), {caps} capture(s):")
     for r in results:
         print(
-            f"    {r.yaml_path.name} \u2192 {r.json_path.name}  {_DIM}({r.captures} caps){_RESET}"
+            f"    {r.yaml_path.name} \u2192 {r.json_path.name}  {ansi.DIM}({r.captures} caps){ansi.RESET}"
         )
     if dry_run:
         print("  Re-run without --dry-run to write.")
@@ -129,7 +128,7 @@ def cmd_migrate_rx(
     verb = "Would rename" if dry_run else "Renamed"
     print(f"  {verb} {total} `ecu` field(s) \u2192 `rx` across {len(touched)} file(s):")
     for r in touched:
-        print(f"    {r.path.name}  {_DIM}({r.renamed} field(s)){_RESET}")
+        print(f"    {r.path.name}  {ansi.DIM}({r.renamed} field(s)){ansi.RESET}")
     if dry_run:
         print("  Re-run without --dry-run to write.")
     return 0

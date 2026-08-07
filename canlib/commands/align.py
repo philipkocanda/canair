@@ -22,6 +22,7 @@ import csv
 import json
 import sys
 
+from canlib import ansi
 from canlib.align import (
     JoinStats,
     SignalRef,
@@ -37,12 +38,6 @@ from canlib.fill import forced_hold_warning, format_hold_duration
 from canlib.keepmode import CHANGES_BANNER, scope_is_keep_changes
 
 NAME = "align"
-
-_BOLD = "\033[1m"
-_DIM = "\033[2m"
-_CYAN = "\033[96m"
-_YELLOW = "\033[93m"
-_RESET = "\033[0m"
 
 
 def add_parser(subparsers) -> argparse.ArgumentParser:
@@ -293,20 +288,20 @@ def _emit_table(
     # Short cN handles keep the table narrow; a legend maps them to full labels.
     handles = [f"c{i + 1}" for i in range(len(labels))]
     print(
-        f"\n  {_BOLD}align{_RESET} — {len(labels)} signals, {len(rows)} rows "
-        f"{_DIM}(nearest-join ≤{tol}s; c1 is the reference){_RESET}"
+        f"\n  {ansi.BOLD}align{ansi.RESET} — {len(labels)} signals, {len(rows)} rows "
+        f"{ansi.DIM}(nearest-join ≤{tol}s; c1 is the reference){ansi.RESET}"
     )
     if keep_changes:
-        print(f"  {_YELLOW}⚠ {CHANGES_BANNER}{_RESET}")
+        print(f"  {ansi.YELLOW}⚠ {CHANGES_BANNER}{ansi.RESET}")
     for h, lbl in zip(handles, labels, strict=True):
         st = (fills or {}).get(lbl)
         note = ""
         if st is not None and st.n_filled:
             note = (
-                f"  {_CYAN}[{st.n_direct} joined + {st.n_filled} held"
-                f", up to {format_hold_duration(st.max_hold_s)}]{_RESET}"
+                f"  {ansi.CYAN}[{st.n_direct} joined + {st.n_filled} held"
+                f", up to {format_hold_duration(st.max_hold_s)}]{ansi.RESET}"
             )
-        print(f"  {_DIM}{h} = {lbl}{_RESET}{note}")
+        print(f"  {ansi.DIM}{h} = {lbl}{ansi.RESET}{note}")
 
     str_rows = [
         [dt.strftime("%H:%M:%S"), *[_fmt_val(values[lbl]) for lbl in labels]]

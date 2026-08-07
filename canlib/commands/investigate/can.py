@@ -10,6 +10,7 @@ from __future__ import annotations
 import json as _json
 import sys
 
+from canlib import ansi
 from canlib.align import (
     prepare_series,
 )
@@ -17,13 +18,6 @@ from canlib.align import (
 from .report import _best_anchor
 
 NAME = "investigate"
-
-_BOLD = "\033[1m"
-_DIM = "\033[2m"
-_GREEN = "\033[92m"
-_YELLOW = "\033[93m"
-_CYAN = "\033[96m"
-_RESET = "\033[0m"
 
 
 def _run_can(args) -> int:
@@ -105,28 +99,30 @@ def _run_can(args) -> int:
         return 0
 
     print(
-        f"\n  {_BOLD}Investigate {target_label}{_RESET} "
-        f"{_DIM}({path.name}, {len(target)} varying "
-        f"{'bits' if args.bits else 'bytes'}, ≤{args.join_tol:g}s join){_RESET}"
+        f"\n  {ansi.BOLD}Investigate {target_label}{ansi.RESET} "
+        f"{ansi.DIM}({path.name}, {len(target)} varying "
+        f"{'bits' if args.bits else 'bytes'}, ≤{args.join_tol:g}s join){ansi.RESET}"
     )
     shown = False
     for name, best in rows:
         if best and best.r is not None and abs(best.r) >= args.min_r:
             _label, r, n, m, c, unit = best
-            rc = _GREEN if abs(r) >= 0.7 else _YELLOW
+            rc = ansi.GREEN if abs(r) >= 0.7 else ansi.YELLOW
             fit = f" fit y={m:.4f}·x{c:+.2f}" if m is not None else ""
-            unit_s = f" {_CYAN}{unit}{_RESET}" if unit else ""
+            unit_s = f" {ansi.CYAN}{unit}{ansi.RESET}" if unit else ""
             print(
-                f"    {_BOLD}{name}{_RESET}  {rc}r={r:+.3f}{_RESET} vs {best.label} "
-                f"{_DIM}n={n}{fit}{_RESET}{unit_s}"
+                f"    {ansi.BOLD}{name}{ansi.RESET}  {rc}r={r:+.3f}{ansi.RESET} vs {best.label} "
+                f"{ansi.DIM}n={n}{fit}{ansi.RESET}{unit_s}"
             )
             shown = True
         else:
-            print(f"    {_BOLD}{name}{_RESET}  {_DIM}no cross-ID anchor ≥ {args.min_r}{_RESET}")
+            print(
+                f"    {ansi.BOLD}{name}{ansi.RESET}  {ansi.DIM}no cross-ID anchor ≥ {args.min_r}{ansi.RESET}"
+            )
     if not shown:
         print(
-            f"    {_DIM}no byte cleared |r| ≥ {args.min_r} — lower --min-r, or the ID may "
-            f"carry only counters/constants.{_RESET}"
+            f"    {ansi.DIM}no byte cleared |r| ≥ {args.min_r} — lower --min-r, or the ID may "
+            f"carry only counters/constants.{ansi.RESET}"
         )
     print()
     return 0

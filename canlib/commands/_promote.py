@@ -18,10 +18,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-_GREEN = "\033[92m"
-_DIM = "\033[2m"
-_BOLD = "\033[1m"
-_RESET = "\033[0m"
+from canlib import ansi
 
 
 def _reject_pci_reads(ecu: str, pid: str, name: str, expr: str) -> None:
@@ -74,10 +71,10 @@ def write_candidate(ecu: str, pid: str, name: str, expr: str, *, source: str, no
 
 def print_promoted(ecu: str, pid: str, name: str, expr: str, r: float, fpath: Path) -> None:
     print(
-        f"{_GREEN}✓ promoted{_RESET} {ecu} {pid} {name} = {_BOLD}{expr}{_RESET} "
-        f"{_DIM}(r={r:+.3f}, {fpath.name}){_RESET}"
+        f"{ansi.GREEN}✓ promoted{ansi.RESET} {ecu} {pid} {name} = {ansi.BOLD}{expr}{ansi.RESET} "
+        f"{ansi.DIM}(r={r:+.3f}, {fpath.name}){ansi.RESET}"
     )
     print(
-        f"  {_DIM}Review + verify, then: canair pids upsert-param {ecu} {pid} {name} "
-        f'"{expr}" --verified{_RESET}'
+        f"  {ansi.DIM}Review + verify, then: canair pids upsert-param {ecu} {pid} {name} "
+        f'"{expr}" --verified{ansi.RESET}'
     )

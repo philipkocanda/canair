@@ -15,13 +15,6 @@ from canlib.align import (
 
 NAME = "correlate"
 
-_BOLD = "\033[1m"
-_DIM = "\033[2m"
-_GREEN = "\033[92m"
-_CYAN = "\033[96m"
-_YELLOW = "\033[93m"
-_RESET = "\033[0m"
-
 
 def _warn_thin_reference_join(command: str, ref_label: str, best_n: int, n_ref: int, args) -> None:
     """Print the shared thin/zero-join warning for an ``--against`` sweep."""

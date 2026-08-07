@@ -12,6 +12,7 @@ wican_expr, ...) live one level further down in :mod:`canlib.inspect_bytes`.
 
 from __future__ import annotations
 
+from canlib import ansi
 from canlib.byteindex import extract_byte_indices, payload_to_wican_frame
 from canlib.inspect_bytes import norm01
 from canlib.states import join_states as _join_states
@@ -20,14 +21,6 @@ from canlib.stats import mean as _mean
 
 # Terminal colors — mirror decode's palette (see decode.format for the shared set;
 # these stay local because this module is a leaf the renderers must not depend on).
-_BOLD = "\033[1m"
-_DIM = "\033[2m"
-_GREEN = "\033[92m"
-_YELLOW = "\033[93m"
-_CYAN = "\033[96m"
-_RED = "\033[91m"
-_RESET = "\033[0m"
-
 _V_AXIS = "\u2502"  # box vertical
 _CORNER = "\u2514"  # box corner
 _HLINE = "\u2500"  # box horizontal
@@ -110,16 +103,16 @@ def render_plot(
         cells = []
         for c in range(width):
             if mg[r][c]:
-                cells.append(f"{_GREEN}{chr(mg[r][c])}{_RESET}")
+                cells.append(f"{ansi.GREEN}{chr(mg[r][c])}{ansi.RESET}")
             elif rg and rg[r][c]:
-                cells.append(f"{_DIM}{chr(rg[r][c])}{_RESET}")
+                cells.append(f"{ansi.DIM}{chr(rg[r][c])}{ansi.RESET}")
             else:
                 cells.append(" ")
         lines.append(f"{ylab:>{gutter}} {_V_AXIS}{''.join(cells)}")
     lines.append(f"{'':>{gutter}} {_CORNER}{_HLINE * width}")
     if caption is None:
         caption = "normalized 0-1" if overlay else f"{len(values)} captures"
-    lines.append(f"{'':>{gutter}}  {_DIM}{caption}{_RESET}")
+    lines.append(f"{'':>{gutter}}  {ansi.DIM}{caption}{ansi.RESET}")
     return lines
 
 
@@ -222,9 +215,9 @@ def _info_lines(
 ) -> list[str]:
     """Modal body: list the captures backing the current view (date/state/label/notes/file)."""
     out = [
-        f"{_BOLD}{ecu_key} {pid_key}{_RESET}  {_DIM}·  captures in view{_RESET}",
-        f"  {_DIM}{len(caps_view)} capture(s)  ·  {ts_range or 'no timestamps'}  ·  "
-        f"i/Esc to close{_RESET}",
+        f"{ansi.BOLD}{ecu_key} {pid_key}{ansi.RESET}  {ansi.DIM}·  captures in view{ansi.RESET}",
+        f"  {ansi.DIM}{len(caps_view)} capture(s)  ·  {ts_range or 'no timestamps'}  ·  "
+        f"i/Esc to close{ansi.RESET}",
         "",
     ]
     for n, cap in enumerate(caps_view[:max_rows]):
@@ -232,15 +225,15 @@ def _info_lines(
         label = cap.get("label", "")
         meta = "  ".join(x for x in [f"[{state}]" if state else "", label] if x)
         out.append(
-            f"  {_CYAN}{i0 + n:>4}{_RESET}  {_BOLD}{_cap_ts(cap) or '?':<20}{_RESET}  "
-            f"{_DIM}{cap.get('file', '')}{_RESET}" + (f"  {meta}" if meta else "")
+            f"  {ansi.CYAN}{i0 + n:>4}{ansi.RESET}  {ansi.BOLD}{_cap_ts(cap) or '?':<20}{ansi.RESET}  "
+            f"{ansi.DIM}{cap.get('file', '')}{ansi.RESET}" + (f"  {meta}" if meta else "")
         )
         notes = (cap.get("notes", "") or "").replace("\n", " ").strip()
         if notes:
-            out.append(f"        {_DIM}{notes[:100]}{_RESET}")
+            out.append(f"        {ansi.DIM}{notes[:100]}{ansi.RESET}")
     if len(caps_view) > max_rows:
         out.append(
-            f"  {_DIM}... and {len(caps_view) - max_rows} more — "
-            f"zoom in (+ or ,/.) to narrow the window{_RESET}"
+            f"  {ansi.DIM}... and {len(caps_view) - max_rows} more — "
+            f"zoom in (+ or ,/.) to narrow the window{ansi.RESET}"
         )
     return out
