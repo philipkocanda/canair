@@ -31,6 +31,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import datetime
 from pathlib import Path
 
 from canlib.capture_types import CaptureRecord
@@ -97,8 +98,12 @@ def run(args) -> int:
         except ValueError as e:
             print(f"{_RED}error: {e}{_RESET}", file=sys.stderr)
             return 2
-        if args.time:
-            capture["time"] = args.time
+        # A payload capture must always be timestamped, or it is silently excluded
+        # from every time-aligned analysis (and from the long-horizon counter
+        # sweep, where the calendar span IS the evidence). An imported reading has
+        # no true acquisition time, so it is stamped like --date is: the import
+        # instant, overridable with --time.
+        capture["time"] = args.time or datetime.now().strftime("%H:%M:%S")
         if args.capture_note:
             capture["notes"] = args.capture_note
         captures.append(capture)
@@ -156,7 +161,13 @@ def add_uds_parser(subparsers) -> argparse.ArgumentParser:
         dest="capture_note",
         help="Per-capture note applied to each imported payload",
     )
-    parser.add_argument("--time", metavar="HH:MM:SS", help="Capture time (optional)")
+    parser.add_argument(
+        "--time",
+        metavar="HH:MM:SS",
+        help="Capture time (default: the import instant, like --date defaults to "
+        "today). A payload capture is always timestamped so it can participate in "
+        "time-aligned analysis",
+    )
     parser.add_argument(
         "--date", metavar="YYYY-MM-DD", help="Capture date (default: today; sets the target file)"
     )

@@ -9,6 +9,7 @@ import pytest
 
 from canlib.captures import (
     build_query_session,
+    build_raw_session,
     resolve_metadata,
     save_session,
 )
@@ -673,11 +674,37 @@ class TestCmdDiffJson:
 
 
 class TestTimeEnforcement:
-    """Tranche 2.6 — payload captures always timestamped; validator gate."""
+    """Tranche 2.6 — payload captures always timestamped; validator gate.
+
+    The invariant is enforced at every *write* path; the 284 legacy untimed rows in
+    the bundled profile stay readable and are only flagged by `validate --strict`.
+    An untimed payload capture is silently dropped by every time-aligned analysis,
+    and by the long-horizon counter sweep the calendar span is the evidence for.
+    """
 
     def test_payload_capture_backfills_time(self):
         s = build_query_session([("0x7EC", "2101", "6101AA", "")], "l", [], "")
         assert s["captures"][0].get("time")  # never untimed
+
+    def test_raw_session_payload_is_timestamped(self):
+        s = build_raw_session("0x7EC", 0x7E4, "2101", {"ok": True, "hex": "6101AA"}, "l", [], "")
+        assert s["captures"][0].get("time"), "canair raw --save must stamp a time"
+
+    def test_raw_session_non_answer_stays_untimed(self):
+        # An NRC/error is not a time-series sample, so it is deliberately untimed
+        # (and the validator exempts it).
+        s = build_raw_session(
+            "0x7EC",
+            0x7E4,
+            "2101",
+            {"ok": False, "nrc": 0x31, "nrc_desc": "requestOutOfRange"},
+            "l",
+            [],
+            "",
+        )
+        cap = s["captures"][0]
+        assert "payload" not in cap
+        assert "time" not in cap
 
     def test_journal_append_stamps_time(self, tmp_path):
         from canlib.capture_journal import CaptureJournal
@@ -1211,7 +1238,13 @@ class TestBuildRawSession:
         resp = _uds_response(ok=True, hex="62b00412", bytes=b"\x62\xb0\x04\x12")
         s = build_raw_session("0x7EC", 0x7E4, "22B004", resp, "L", ["ready"], "note")
         cap = s["captures"][0]
-        assert cap == {"rx": "0x7EC", "pid": "22B004", "payload": "62B00412"}
+        # `time` is stamped for every payload capture (see TestTimeEnforcement).
+        assert {k: v for k, v in cap.items() if k != "time"} == {
+            "rx": "0x7EC",
+            "pid": "22B004",
+            "payload": "62B00412",
+        }
+        assert cap["time"]
         assert s["vehicle_states"] == ["ready"]
         assert s["notes"] == "note"
 

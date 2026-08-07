@@ -53,7 +53,10 @@ options:
   --notes NOTES         Session notes (context, source/attribution)
   --capture-note CAPTURE_NOTE
                         Per-capture note applied to each imported payload
-  --time HH:MM:SS       Capture time (optional)
+  --time HH:MM:SS       Capture time (default: the import instant, like --date
+                        defaults to today). A payload capture is always
+                        timestamped so it can participate in time-aligned
+                        analysis
   --date YYYY-MM-DD     Capture date (default: today; sets the target file)
   --json                Machine-readable JSON output
   --dir DIR             Captures directory (default: active profile)

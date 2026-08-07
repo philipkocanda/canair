@@ -122,6 +122,26 @@ class TestRun:
             "time": "09:38:15",
         }
 
+    def test_time_defaults_to_import_instant(self, tmp_path):
+        # A payload capture must never be written untimed: an untimed row is
+        # silently excluded from every time-aligned analysis (and from the
+        # long-horizon counter sweep, where the calendar span is the evidence).
+        rc = run(
+            _args(
+                spec=["CLU:22B002=62B002E0000000FFB7008D08000000"],
+                date="2026-07-25",
+                dir=tmp_path,
+            )
+        )
+        assert rc == 0
+        data = json.loads((tmp_path / "2026-07-25.json").read_text())
+        cap = data["sessions"][0]["captures"][0]
+        assert cap.get("time"), "import uds without --time must still stamp one"
+        # ...and it must be a time the validator can actually parse.
+        from canlib.capture_dates import entry_datetime
+
+        assert entry_datetime({"date": "2026-07-25", "time": cap["time"]}) is not None
+
     def test_multi_capture_one_session(self, tmp_path):
         rc = run(
             _args(

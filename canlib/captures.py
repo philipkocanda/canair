@@ -282,7 +282,13 @@ def build_raw_session(
 
     if response["ok"]:
         capture["payload"] = response["hex"].upper()
+        # Same invariant as build_query_session: a payload capture is a
+        # time-series sample, so it must carry a timestamp or it is silently
+        # excluded from every time-aligned analysis. The raw path has no caller
+        # timestamp to pass through, so it stamps acquisition time here.
+        capture["time"] = datetime.now().strftime("%H:%M:%S")
     else:
+        # A non-answer (NRC / error) is not a sample and is deliberately untimed.
         if response.get("nrc") is not None:
             capture["response"] = f"NRC 0x{response['nrc']:02X} ({response['nrc_desc']})"
         else:
