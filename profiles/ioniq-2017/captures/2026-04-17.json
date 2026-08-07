@@ -5375,8 +5375,8 @@
         {
           "rx": "0x7EA",
           "pid": "1A90",
-          "response": "KMHCXXXXXXXXXXXX",
-          "notes": "Full VIN (redacted)"
+          "response": "KMHCXXXXXXXXXXXXX",
+          "notes": "Full VIN — redacted. Mask is KMHC (Hyundai/Ioniq WMI+VDS prefix, not identifying) + 13 'X'; the 17-char length is ISO 3779's, NOT an observed payload length — the raw response bytes were never stored. Re-capture VCU:1A90 to confirm the record's real byte length."
         },
         {
           "rx": "0x7EA",
@@ -5439,8 +5439,8 @@
               },
               {
                 "did": "90",
-                "response": "KMHCXXXXXXXXXXXX",
-                "notes": "VIN (redacted)"
+                "response": "KMHCXXXXXXXXXXXXX",
+                "notes": "Full VIN — redacted. Mask is KMHC (Hyundai/Ioniq WMI+VDS prefix, not identifying) + 13 'X'; the 17-char length is ISO 3779's, NOT an observed payload length — the raw response bytes were never stored. Re-capture VCU:1A90 to confirm the record's real byte length."
               },
               {
                 "did": "91",

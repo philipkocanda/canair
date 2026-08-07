@@ -28,7 +28,7 @@ VCU:
     ecu_id: AEVLDC53  # KWP2000 1A8C — "VLDC": VCU with the LDC integrated (standalone at 0x7CD on Kia Soul)
     sw_id: "EAEEO5L-NS7-D060"
     calibration: "C5210617"
-    vin: "KMHCXXXXXXXXXXXX"
+    vin: KMHCXXXXXXXXXXXXX
     id_protocol: KWP2000  # 1Axx
     notes: >
       Vehicle Control Unit (aka VMCU) with integrated LDC — the logical brain
@@ -613,6 +613,31 @@ VCU:
           charge-timer field (unchanged when only precondition changed). Preconditioning schedule
           is stored elsewhere — AVN 0x780 (never polled) or the unprobed HVAC 0x7B3 21F2 page.
           To crack the charge-timer packing, do the single-variable A/B on a CHARGE-timer field.
+    1A90:
+      parameters:
+        VIN:
+          expression: "[B04:B22]"
+          type: ascii
+          source: 2026-04-17 KWP2000 1A80-1A9F identity scan (decoded ASCII only; raw bytes not retained)
+          verified: false
+          notes: >-
+            Vehicle VIN, 17 ASCII chars (ISO 3779). Range spans the ISO-TP
+            First-Frame/Consecutive-Frame boundary: B04-B07 + B09-B15 + B17-B22 as rendered in WiCAN
+            notation, since B08/B16 are Consecutive-Frame PCI framing bytes that the ascii decoder
+            skips. UNVERIFIED: the 19-byte payload length (SID+REC+17) is inferred from the
+            canonical VIN length, not from a retained payload — the 2026-04-17 capture stored only
+            the decoded, redacted string. PRIVACY: this decodes to the owner's real VIN. Any capture
+            of it is personally identifying — redact before contributing upstream (canair
+            contribute's PII pre-flight flags 1A90 as 'VIN (KWP2000)').
+      status: draft
+      vehicle_states: [READY]
+      notes: >-
+        KWP2000 ReadEcuIdentification record 0x90 — the vehicle VIN as ASCII (SID 0x5A + REC 0x90 +
+        VIN bytes). Discovered by the 2026-04-17 1A80-1A9F identity scan; only the decoded ASCII was
+        kept (redacted), so the record's real byte length is UNCONFIRMED. Kept draft: never ship a
+        VIN to the device AutoPID, and the ascii range expression is not a device float expression.
+        Re-capture with 'canair read VCU:1A90' to confirm the length — see the PRIVACY note on the
+        VIN signal before saving.
 
   research:
     - type: verify
