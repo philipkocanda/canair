@@ -55,7 +55,13 @@ shared it:
 
 - runs `canair validate all` (and refuses if it fails),
 - scans for anything that could **identify or locate you** — a VIN, an ECU
-  serial, an email or phone number in a label/note — and asks you to confirm, and
+  serial, an email or phone number in a label/note — and asks you to confirm.
+  It looks at both your `captures/` and the `identity:` blocks in `ecus/` (where
+  `canair identity` records a live VIN read), so a definitions-only
+  `--no-captures` PR is checked too. A value you have already masked
+  (`KMHCXXXXXXXXXXXXX`) is recognised as redacted and not re-flagged, and per-unit
+  **ECU** serials in `identity:` are deliberately left alone — they identify a
+  module, not you,
 - **warns if your profile looks stale** — if it was read from an installed
   snapshot (a bare `canair` reads the frozen `site-packages` copy, not your
   checkout) or if the contribution would *remove* lines already merged upstream
@@ -114,8 +120,10 @@ A standard GitHub pull request works too:
      model/year/market/battery so someone can tell if it matches theirs.
    - **Decide on `captures/`.** They're great evidence but large — include a
      representative subset rather than everything if size is a concern.
-   - **Scrub for privacy.** No VINs, ECU serials, addresses, or other
-     identifying/location data (the tree is public).
+   - **Scrub for privacy.** No VINs, addresses, or other identifying/location
+     data — the tree is public. Redact a VIN rather than deleting the reading
+     (`KMHC` + `X`s keeps the make/model prefix, which is useful and not
+     identifying). Per-unit ECU serials are fine: they name a module, not a person.
 3. Open a PR. Even a *partial* profile is welcome — a few verified signals beats
    nothing, and others can build on it.
 

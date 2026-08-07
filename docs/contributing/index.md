@@ -22,7 +22,8 @@ This is the highest-value contribution and needs no changes to canair's code.
      large — you don't have to ship everything).
 3. **Share it with `canair contribute`** — one command opens the pull request
    for you (no manual fork/clone/branch), no matter where your profile is stored.
-   It runs `canair validate all`, scans for VIN/serial/PII, then opens the PR via
+   It runs `canair validate all`, scans your captures *and* `ecus/` identity
+   blocks for a VIN/PII, then opens the PR via
    the [GitHub CLI](https://github.com/cli/cli#installation) (`gh` — install it
    and run `gh auth login` once; `canair contribute` prints these steps if it's
    missing). Use `--no-captures` for a smaller, definitions-only PR, or

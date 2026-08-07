@@ -14,8 +14,24 @@ leak:
   identity in the raw bytes even though the capture "is just hex".
 * **VIN-shaped ASCII** — any capture payload whose bytes decode to a 17-char
   VIN, regardless of which identifier it was filed under.
+* **The curated VIN** — ``ecus/<ecu>.yaml``'s ``identity.vin``, which
+  ``canair identity`` writes from a live read. Unlike the rest of ``identity:``
+  this is *the* vehicle's unique number, and it reaches a PR through the
+  definitions, not the captures — so a definitions-only contribution can leak it.
 * **PII-looking free text** — emails, long digit runs (phone-ish), and
-  VIN-shaped tokens in capture labels/notes, session notes, and ``car_model``.
+  VIN-shaped tokens in capture labels/notes, session notes, and ``car_model``;
+  emails and VIN tokens (only) in an ECU's identity free text, whose technical
+  prose makes the digit-run heuristic useless there.
+
+Deliberately **not** flagged: per-unit ECU hardware serials
+(``identity.serial``/``ecu_id``/``part_number``/…). They identify a *module*, not
+a person or a location, the project treats them as shareable diagnostic data, and
+several are long opaque alphanumerics that collide with the VIN charset — so
+scanning them is false positives without a privacy gain.
+
+A value carrying an obvious redaction mask is never flagged (see
+:func:`looks_redacted`) — a report that fires on data already scrubbed teaches
+the reviewer to skip it.
 
 The reviewer remains the backstop; the scan only forces the look.
 """
@@ -41,11 +57,37 @@ from .profile import Profile
 _SENSITIVE_UDS_DIDS = {"F190", "F18C"}  # VIN, ECU serial / calibration ID
 _SENSITIVE_KWP_RECORDS = {"90"}  # ECU name / VIN
 
+# ``ecus/<ecu>.yaml`` identity fields worth scanning, and how.
+#
+# ``vin`` is *the* vehicle's unique number — always flagged when it holds a real
+# value. The free-text fields get the two *specific* patterns (email, VIN token)
+# but NOT the long-digit-run heuristic: identity prose is technical, and DID
+# ranges like ``220100-0103`` read as phone numbers to it. Every other identity
+# field (``serial``, ``ecu_id``, ``part_number``, versions, …) is deliberately
+# unscanned: those identify a module rather than a person, and long opaque serials
+# collide with the VIN charset.
+_IDENTITY_VIN_FIELD = "vin"
+_IDENTITY_FREE_TEXT_FIELDS = ("notes", "description", "alias", "supplier")
+
 # A VIN is 17 chars, upper alphanumeric excluding I/O/Q (ISO 3779).
 _VIN_RE = re.compile(r"\b[A-HJ-NPR-Z0-9]{17}\b")
 _EMAIL_RE = re.compile(r"\b[\w.+-]+@[\w-]+\.[\w.-]+\b")
 # A run of 10+ digits (phone number, long serial) allowing spaces/dashes.
 _PHONE_RE = re.compile(r"(?:\d[\s-]?){10,}")
+# 4+ identical mask characters in a row — the signature of a redacted value.
+_MASK_RUN_RE = re.compile(r"([Xx*#?])\1{3,}")
+
+
+def looks_redacted(value: str) -> bool:
+    """True when ``value`` carries a run of 4+ identical mask characters.
+
+    An already-scrubbed value (``KMHCXXXXXXXXXXXXX``) is not PII, and re-flagging
+    it on every run trains the reviewer to skip the report — the failure mode that
+    makes a security check useless. Four identical ``X``/``*``/``#``/``?`` in a row
+    does not occur in a real VIN or serial, so this is specific without having to
+    know which redaction convention was used.
+    """
+    return bool(_MASK_RUN_RE.search(value))
 
 
 @dataclass(frozen=True)
@@ -100,7 +142,7 @@ def _scan_free_text(text: str, location: str) -> list[Finding]:
         return findings
     if _EMAIL_RE.search(text):
         findings.append(Finding(location, "email", "contains an email address"))
-    if _VIN_RE.search(text):
+    if _VIN_RE.search(text) and not looks_redacted(text):
         findings.append(Finding(location, "vin-text", "contains a VIN-shaped token"))
     if _PHONE_RE.search(text):
         findings.append(Finding(location, "digits", "contains a long digit run (phone/serial?)"))
@@ -117,8 +159,12 @@ def _scan_capture(cap: object, loc: str) -> list[Finding]:
     if reason:
         findings.append(Finding(f"{loc} ({pid})", "identity-did", reason))
     payload = cap.get("payload") or cap.get("response")
-    if isinstance(payload, str) and _VIN_RE.search(_payload_ascii(payload)):
-        findings.append(Finding(f"{loc} ({pid})", "vin-payload", "payload decodes to a VIN"))
+    if isinstance(payload, str) and not looks_redacted(payload):
+        # `payload` is response hex; `response` is a free-form summary that may
+        # already hold *decoded* text (an identity read's ASCII), so test both the
+        # hex-decoded bytes and the string as written.
+        if _VIN_RE.search(_payload_ascii(payload)) or _VIN_RE.search(payload):
+            findings.append(Finding(f"{loc} ({pid})", "vin-payload", "payload decodes to a VIN"))
     for field in ("label", "notes"):
         findings += _scan_free_text(str(cap.get(field) or ""), f"{loc}.{field}")
     return findings
@@ -157,6 +203,60 @@ def _scan_captures(profile: Profile) -> list[Finding]:
     return findings
 
 
+def _scan_identity(identity: object, loc: str) -> list[Finding]:
+    """Flag the curated VIN and any PII in one ECU's ``identity:`` free text.
+
+    ``identity.vin`` is the one field here that is *the* vehicle's unique number,
+    so a real value is always flagged. The free-text fields are swept for the two
+    specific patterns only (email, VIN token) — not the digit-run heuristic, which
+    reads a DID range as a phone number. Serials/part numbers/versions are
+    intentionally skipped — see the module docstring.
+    """
+    findings: list[Finding] = []
+    if not isinstance(identity, dict):
+        return findings
+    vin = str(identity.get(_IDENTITY_VIN_FIELD) or "").strip()
+    if vin and not looks_redacted(vin):
+        findings.append(
+            Finding(
+                f"{loc} identity.{_IDENTITY_VIN_FIELD}",
+                "identity-vin",
+                f"holds an unredacted VIN ({len(vin)} chars, starts {vin[:4]!r})",
+            )
+        )
+    for field in _IDENTITY_FREE_TEXT_FIELDS:
+        text = str(identity.get(field) or "")
+        where = f"{loc} identity.{field}"
+        if _EMAIL_RE.search(text):
+            findings.append(Finding(where, "email", "contains an email address"))
+        if _VIN_RE.search(text) and not looks_redacted(text):
+            findings.append(Finding(where, "vin-text", "contains a VIN-shaped token"))
+    return findings
+
+
+def _scan_ecus(profile: Profile) -> list[Finding]:
+    """Scan every ECU's ``identity:`` block in the profile's ``ecus/``.
+
+    This is the *definitions* leak path: ``canair identity`` writes a live VIN read
+    straight into ``ecus/<ecu>.yaml``, so it reaches a PR even from a
+    ``--no-captures`` contribution — which is exactly the case the capture-only
+    scan could never see.
+    """
+    from .pids import load_pids
+
+    if not profile.ecus_dir.is_dir():
+        return []
+    try:
+        data = load_pids(profile.ecus_dir)
+    except (OSError, ValueError, KeyError, TypeError):
+        return []  # a malformed profile is `canair validate`'s job to report
+    findings: list[Finding] = []
+    for name, ecu in (data.get("ecus") or {}).items():
+        if isinstance(ecu, dict):
+            findings += _scan_identity(ecu.get("identity"), f"ecus/ {name}")
+    return findings
+
+
 def scan_profile(profile: Profile, *, include_captures: bool = True) -> list[Finding]:
     """Scan a **whole** profile for likely-PII data. Returns a flat list.
 
@@ -165,9 +265,13 @@ def scan_profile(profile: Profile, *, include_captures: bool = True) -> list[Fin
 
     Scope is deliberately the **high-risk** free text: capture session/capture
     labels and notes (auto-suggested from real drives, so the most likely to name
-    a place or person) plus ``car_model``. Curated free text — an ECU's
-    ``notes``/``research``, and the state/bus/group vocabularies' descriptions —
-    is *not* scanned; keep it technical.
+    a place or person), ``car_model``, and each ECU's ``identity:`` VIN + free
+    text. The rest of the curated definitions — an ECU's ``notes``/``research``,
+    and the state/bus/group vocabularies' descriptions — is *not* scanned; keep it
+    technical.
+
+    ``ecus/`` is scanned regardless of ``include_captures``: the VIN lives in the
+    definitions, so a definitions-only contribution can leak it.
 
     Within that scope this scans everything, including data already committed
     upstream. For a *contribution* review — where re-flagging already-shared
@@ -176,6 +280,7 @@ def scan_profile(profile: Profile, *, include_captures: bool = True) -> list[Fin
     """
     findings: list[Finding] = []
     findings += _scan_free_text(str(profile.meta.get("car_model") or ""), "profile.yaml car_model")
+    findings += _scan_ecus(profile)
     if include_captures:
         findings += _scan_captures(profile)
     return findings
@@ -216,12 +321,14 @@ def scan_contribution(
     file at ``profiles/<name>/captures/<file>`` (or ``None`` when the file is new
     upstream). Sessions byte-identical to the base are skipped, so a
     definitions-only PR — or one that only appends new sessions — no longer
-    re-flags already-shared captures. ``car_model`` is always scanned (cheap).
+    re-flags already-shared captures. ``car_model`` and the ``ecus/`` identity
+    blocks are always scanned (cheap, and the VIN ships with the definitions).
     """
     from . import capture_io
 
     findings: list[Finding] = []
     findings += _scan_free_text(str(profile.meta.get("car_model") or ""), "profile.yaml car_model")
+    findings += _scan_ecus(profile)
     if not include_captures or not captures_dir.is_dir():
         return findings
 

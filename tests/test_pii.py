@@ -8,14 +8,24 @@ from canlib import pii
 from canlib.profile import Profile
 
 
-def _write_profile(root, *, car_model="Test Car 2020", captures=None):
-    (root / "ecus").mkdir(parents=True, exist_ok=True)
+def _write_profile(root, *, car_model="Test Car 2020", captures=None, ecus=None):
+    ecus_dir = root / "ecus"
+    ecus_dir.mkdir(parents=True, exist_ok=True)
     (root / "profile.yaml").write_text(f"car_model: {car_model}\ninit: ATSP6;\n")
+    if ecus:
+        for name, body in ecus.items():
+            (ecus_dir / f"{name.lower()}.yaml").write_text(body)
     caps_dir = root / "captures"
     caps_dir.mkdir(exist_ok=True)
     if captures is not None:
         (caps_dir / "2026-01-01.json").write_text(json.dumps({"sessions": [captures]}))
     return Profile("testcar", root)
+
+
+def _ecu_yaml(name: str, **identity: str) -> str:
+    lines = [f"{name}:", "  tx_id: 0x7E2", "  identity:"]
+    lines += [f"    {k}: {v!r}" for k, v in identity.items()]
+    return "\n".join(lines) + "\n"
 
 
 def _vin_hex() -> str:
@@ -103,6 +113,130 @@ class TestPrefixStrip:
         assert pii._strip_service_prefix("F190") == "F190"
 
 
+class TestLooksRedacted:
+    """A value already scrubbed is not PII — re-flagging it trains reviewers to skip."""
+
+    def test_masked_vin(self):
+        assert pii.looks_redacted("KMHCXXXXXXXXXXXXX")
+
+    def test_other_mask_chars(self):
+        assert pii.looks_redacted("WBA****1234")
+        assert pii.looks_redacted("1HG####33A004352")
+        assert pii.looks_redacted("VF1????1234")
+
+    def test_real_vin_is_not_redacted(self):
+        assert not pii.looks_redacted("KMHC851HFHU012435")
+        assert not pii.looks_redacted("1HGCM82633A004352")
+
+    def test_short_run_is_not_a_mask(self):
+        # 3 X's could plausibly occur; 4 is the threshold.
+        assert not pii.looks_redacted("ABCXXX123")
+        assert pii.looks_redacted("ABCXXXX123")
+
+
+class TestEcuIdentityScan:
+    """ecus/<ecu>.yaml identity: — the DEFINITIONS leak path.
+
+    `canair identity` writes a live VIN read straight into the ECU file, which a
+    --no-captures contribution still ships. The capture-only scan never saw it.
+    """
+
+    def test_flags_unredacted_vin(self, tmp_path):
+        prof = _write_profile(tmp_path, ecus={"VCU": _ecu_yaml("VCU", vin="KMHC851HFHU012435")})
+        findings = pii.scan_profile(prof)
+        vin = [f for f in findings if f.kind == "identity-vin"]
+        assert len(vin) == 1
+        assert "identity.vin" in vin[0].location
+        # The value itself is not reproduced in full — only a locating prefix.
+        assert "KMHC851HFHU012435" not in vin[0].detail
+        assert "KMHC" in vin[0].detail
+
+    def test_redacted_vin_not_flagged(self, tmp_path):
+        prof = _write_profile(tmp_path, ecus={"VCU": _ecu_yaml("VCU", vin="KMHCXXXXXXXXXXXXX")})
+        assert not [f for f in pii.scan_profile(prof) if f.kind == "identity-vin"]
+
+    def test_scanned_even_without_captures(self, tmp_path):
+        # The whole point: a definitions-only PR still ships the VIN.
+        prof = _write_profile(tmp_path, ecus={"VCU": _ecu_yaml("VCU", vin="KMHC851HFHU012435")})
+        assert any(f.kind == "identity-vin" for f in pii.scan_profile(prof, include_captures=False))
+
+    def test_ecu_serial_not_flagged(self, tmp_path):
+        # Per-unit module serials are shareable diagnostic data by project policy,
+        # and 17-digit ones would otherwise false-positive as VIN-shaped.
+        prof = _write_profile(
+            tmp_path,
+            ecus={
+                "BSD": _ecu_yaml("BSD", serial="31114851712211429"),
+                "ESC": _ecu_yaml("ESC", serial="GWLK7F01A986826"),
+            },
+        )
+        assert pii.scan_profile(prof) == []
+
+    def test_part_number_and_versions_not_flagged(self, tmp_path):
+        prof = _write_profile(
+            tmp_path,
+            ecus={
+                "VCU": _ecu_yaml(
+                    "VCU",
+                    part_number="36601-0E250",
+                    sw_id="EAEEO5L-NS7-D060",
+                    calibration="C5210617",
+                )
+            },
+        )
+        assert pii.scan_profile(prof) == []
+
+    def test_vin_token_in_identity_notes(self, tmp_path):
+        prof = _write_profile(
+            tmp_path,
+            ecus={"VCU": _ecu_yaml("VCU", notes="read the VIN KMHC851HFHU012435 here")},
+        )
+        assert any(f.kind == "vin-text" for f in pii.scan_profile(prof))
+
+    def test_email_in_identity_notes(self, tmp_path):
+        prof = _write_profile(
+            tmp_path, ecus={"VCU": _ecu_yaml("VCU", notes="reported by me@example.com")}
+        )
+        assert any(f.kind == "email" for f in pii.scan_profile(prof))
+
+    def test_did_range_in_notes_is_not_a_phone_number(self, tmp_path):
+        # Identity prose is technical; the digit-run heuristic reads a DID range
+        # like 220100-0103 as a phone number, so it is not applied here.
+        prof = _write_profile(
+            tmp_path,
+            ecus={"SCC": _ecu_yaml("SCC", notes="Live data via 220100-0103/0105, undecoded")},
+        )
+        assert pii.scan_profile(prof) == []
+
+
+class TestRedactionSuppressesCaptureFindings:
+    def test_masked_response_not_flagged_as_vin(self, tmp_path):
+        # A `response` holding an already-redacted decoded VIN. The 1A90 identity
+        # DID still fires (that is about the request, not the value).
+        prof = _write_profile(
+            tmp_path,
+            captures={
+                "label": "identity",
+                "captures": [{"rx": "0x7EA", "pid": "1A90", "response": "KMHCXXXXXXXXXXXXX"}],
+            },
+        )
+        kinds = {f.kind for f in pii.scan_profile(prof)}
+        assert "vin-payload" not in kinds
+        assert "identity-did" in kinds
+
+    def test_plain_ascii_vin_in_response_is_flagged(self, tmp_path):
+        # `response` is a free-form summary that may hold DECODED text, so the
+        # string is tested as written as well as hex-decoded.
+        prof = _write_profile(
+            tmp_path,
+            captures={
+                "label": "identity",
+                "captures": [{"rx": "0x7EA", "pid": "2101", "response": "KMHC851HFHU012435"}],
+            },
+        )
+        assert any(f.kind == "vin-payload" for f in pii.scan_profile(prof))
+
+
 class TestScanContribution:
     def test_skips_sessions_already_upstream(self, tmp_path):
         # captures/ in the (workspace) contribution has two sessions: one that
@@ -157,3 +291,11 @@ class TestScanContribution:
             prof, caps, include_captures=False, base_reader=lambda rel: None
         )
         assert len(findings) == 1 and findings[0].kind == "email"
+
+    def test_ecus_identity_scanned_on_definitions_only_pr(self, tmp_path):
+        # A --no-captures contribution still ships ecus/, so the VIN must be caught.
+        prof = _write_profile(tmp_path, ecus={"VCU": _ecu_yaml("VCU", vin="KMHC851HFHU012435")})
+        findings = pii.scan_contribution(
+            prof, tmp_path / "captures", include_captures=False, base_reader=lambda rel: None
+        )
+        assert any(f.kind == "identity-vin" for f in findings)
