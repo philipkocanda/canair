@@ -47,11 +47,20 @@ jobs:
       - name: Validate bundled profile data
         # The repo bundles more than one profile, so `validate all` can't
         # auto-resolve a single one — validate each bundled profile explicitly.
+        #
+        # --max-untimed is the untimed-payload ratchet: writes are enforced to
+        # carry a timestamp, so a profile's untimed count only ever falls. New
+        # profiles are gated at 0; a profile carrying grandfathered legacy rows
+        # (only ioniq-2017 today, at 284) declares its baseline here so the gate
+        # forbids GROWTH without a history rewrite. Lower a baseline as its count
+        # drops; a real regression (untimed rows creeping back in) fails CI.
         run: |
+          declare -A UNTIMED_BASELINE=( [ioniq-2017]=284 )
           for p in profiles/*/; do
             name="$(basename "$p")"
-            echo "::group::validate $name"
-            uv run canair --profile "$name" validate all
+            max_untimed="${UNTIMED_BASELINE[$name]:-0}"
+            echo "::group::validate $name (max-untimed $max_untimed)"
+            uv run canair --profile "$name" validate all --max-untimed "$max_untimed"
             echo "::endgroup::"
           done
 

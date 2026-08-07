@@ -5,7 +5,8 @@
 *Alias: `val`*
 
 ```
-usage: canair validate [-h] [--stats] [--strict]
+usage: canair validate [-h] [--stats] [--strict] [--max-untimed N]
+                       [--show-untimed]
                        [{pids,captures,ecus,states,can-buses,signals,groups,can,all}]
                        [files ...]
 
@@ -48,6 +49,15 @@ options:
   --strict              Treat soft warnings that gate new data (currently:
                         untimed payload captures) as errors — for CI / new-
                         capture checks
+  --max-untimed N       Fail (exit 1) if the profile has MORE than N untimed
+                        payload captures — a ratchet baseline for CI. Writes
+                        are enforced to carry a timestamp, so the count only
+                        ever falls; lower N as it drops. Distinct from
+                        --strict (which forbids any untimed row)
+  --show-untimed        List untimed payload captures per file instead of
+                        collapsing them to a single count — they otherwise
+                        drown the echo/quality warnings that need attention
+                        (the count is always reported in the footer)
 
 examples:
   canair validate                     # validate everything (pids + captures + states)

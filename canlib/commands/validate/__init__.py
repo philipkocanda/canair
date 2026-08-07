@@ -151,16 +151,37 @@ examples:
         help="Treat soft warnings that gate new data (currently: untimed payload "
         "captures) as errors — for CI / new-capture checks",
     )
+    parser.add_argument(
+        "--max-untimed",
+        type=int,
+        default=None,
+        metavar="N",
+        dest="max_untimed",
+        help="Fail (exit 1) if the profile has MORE than N untimed payload captures "
+        "— a ratchet baseline for CI. Writes are enforced to carry a timestamp, so "
+        "the count only ever falls; lower N as it drops. Distinct from --strict "
+        "(which forbids any untimed row)",
+    )
+    parser.add_argument(
+        "--show-untimed",
+        action="store_true",
+        dest="show_untimed",
+        help="List untimed payload captures per file instead of collapsing them to a "
+        "single count — they otherwise drown the echo/quality warnings that need "
+        "attention (the count is always reported in the footer)",
+    )
     parser.set_defaults(func=run)
     return parser
 
 
 def run(args) -> int:
     strict = getattr(args, "strict", False)
+    max_untimed = getattr(args, "max_untimed", None)
+    show_untimed = getattr(args, "show_untimed", False)
     if args.target in ("pids", "ecus"):
         return _run_pids(args.files or None, args.stats)
     if args.target == "captures":
-        return _run_captures(strict=strict)
+        return _run_captures(strict=strict, max_untimed=max_untimed, show_untimed=show_untimed)
     if args.target == "states":
         return _run_states()
     if args.target == "can-buses":
@@ -174,7 +195,7 @@ def run(args) -> int:
     # all: the ecus/ files are validated once via _run_pids (they are the registry).
     rc_p = _run_pids(None, args.stats)
     print()
-    rc_c = _run_captures(strict=strict)
+    rc_c = _run_captures(strict=strict, max_untimed=max_untimed, show_untimed=show_untimed)
     print()
     rc_s = _run_states()
     print()

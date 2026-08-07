@@ -121,7 +121,9 @@ def validate_captures_file(path: Path, validator: Validator, rx_addrs: set[int])
     return errors
 
 
-def _run_captures(strict: bool = False) -> int:
+def _run_captures(
+    strict: bool = False, max_untimed: int | None = None, show_untimed: bool = False
+) -> int:
     with open(CAPTURES_SCHEMA_FILE) as f:
         schema = json.load(f)
     Draft202012Validator.check_schema(schema)
@@ -160,11 +162,14 @@ def _run_captures(strict: bool = False) -> int:
         warnings += _capture_nonhex_warnings(path)
         warnings += _capture_quality_warnings(path)
         # Missing-time on payload captures: an error under --strict (new-data
-        # gate), otherwise a soft warning (existing rows grandfathered).
+        # gate). Otherwise the grandfathered rows are a single tracked COUNT (the
+        # footer + the --max-untimed ratchet), not a per-file warning stream — 284
+        # identical untimed lines otherwise drown the handful of echo/quality
+        # warnings that need attention. --show-untimed opts back into per-file detail.
         time_gaps = _capture_missing_time_warnings(path)
         total_time_gaps += len(time_gaps)
         strict_gaps = time_gaps if strict else []
-        if not strict:
+        if not strict and show_untimed:
             warnings += time_gaps
         error_count = len(errors) + len(strict_gaps)
         # Only print files that have something to report — a clean profile can
@@ -186,17 +191,35 @@ def _run_captures(strict: bool = False) -> int:
         print(
             f"\n{total_warnings} warning(s) — see `canair validate states` / echo mismatches above"
         )
+    # Untimed-payload ratchet: writes are enforced to carry a timestamp, so the
+    # untimed count only ever falls. A --max-untimed baseline turns "must be zero"
+    # (which the grandfathered legacy rows can never satisfy) into "must not GROW",
+    # a real CI gate that needs no history rewrite and ratchets down opportunistically.
+    ratchet_failed = max_untimed is not None and total_time_gaps > max_untimed
     if not strict and total_time_gaps:
+        ceiling = ""
+        if max_untimed is not None:
+            ceiling = (
+                f" (exceeds the --max-untimed {max_untimed} baseline)"
+                if ratchet_failed
+                else f" (within the --max-untimed {max_untimed} baseline)"
+            )
+        detail = "" if show_untimed else " (--show-untimed lists them, --strict fails on them)"
+        print(f"  ({total_time_gaps} untimed payload capture(s){ceiling}){detail}")
+    if ratchet_failed:
         print(
-            f"  ({total_time_gaps} untimed payload capture(s); run "
-            "`canair validate captures --strict` to treat as errors)"
+            f"\n{total_time_gaps} untimed payload capture(s) exceeds the "
+            f"--max-untimed {max_untimed} baseline — new untimed captures are not "
+            "allowed (the write path enforces a timestamp). If this is legacy data, "
+            "raise the baseline deliberately; otherwise fix the capture(s)."
         )
     if total_errors:
         print(f"\n{total_errors} total errors across {len(files)} files")
         return 1
-    else:
-        print(f"\nAll {len(files)} files valid.")
-        return 0
+    if ratchet_failed:
+        return 1
+    print(f"\nAll {len(files)} files valid.")
+    return 0
 
 
 def _capture_state_warnings(path: Path, vocab: set[str]) -> list[CaptureWarning]:
