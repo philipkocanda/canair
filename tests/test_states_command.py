@@ -26,7 +26,7 @@ def _patched(monkeypatch):
         StateRule("ALL", "Every state"),
     ]
     usage = {"CHARGING": 12, "READY": 30, "SLEEP": 0, "ALL": 0, "FOB PRESENT": 1}
-    monkeypatch.setattr(states_cmd, "_use_color", lambda: False)
+    monkeypatch.setenv("NO_COLOR", "1")
     monkeypatch.setattr("canlib.states.load_states", lambda profile=None: rules)
     monkeypatch.setattr(states_cmd, "_load_usage", lambda: usage)
     monkeypatch.setattr("canlib.profile.active", lambda: _FakeProfile())
@@ -76,7 +76,7 @@ def test_no_color_when_piped(_patched, capsys):
 
 
 def test_empty_vocabulary(monkeypatch, capsys):
-    monkeypatch.setattr(states_cmd, "_use_color", lambda: False)
+    monkeypatch.setenv("NO_COLOR", "1")
     monkeypatch.setattr("canlib.states.load_states", lambda profile=None: [])
     monkeypatch.setattr(states_cmd, "_load_usage", lambda: {})
     monkeypatch.setattr("canlib.profile.active", lambda: _FakeProfile())
@@ -97,7 +97,7 @@ class TestEditDispatch:
             return tmp_path / "vehicle_states.yaml"
 
         monkeypatch.setattr("canlib.states_edit.add_state", _add)
-        monkeypatch.setattr(states_cmd, "_use_color", lambda: False)
+        monkeypatch.setenv("NO_COLOR", "1")
         args = argparse.Namespace(
             name="precondition", description="d", when=None, _states_func=states_cmd.cmd_add
         )
@@ -113,7 +113,7 @@ class TestEditDispatch:
             raise StatesEditError("already exists")
 
         monkeypatch.setattr("canlib.states_edit.add_state", _add)
-        monkeypatch.setattr(states_cmd, "_use_color", lambda: False)
+        monkeypatch.setenv("NO_COLOR", "1")
         args = argparse.Namespace(
             name="READY", description=None, when=None, _states_func=states_cmd.cmd_add
         )
@@ -140,7 +140,7 @@ class TestReverseLookup:
             }
         }
         ecus = {0x7E4: {"can_bus": ["P-CAN"]}, 0x7C6: {"can_bus": ["C-CAN"]}, 0x770: {}}
-        monkeypatch.setattr(states_cmd, "_use_color", lambda: False)
+        monkeypatch.setenv("NO_COLOR", "1")
         monkeypatch.setattr("canlib.profile.active", lambda: _FakeProfile())
         monkeypatch.setattr("canlib.states.load_states", lambda profile=None: rules)
         monkeypatch.setattr("canlib.pids.load_pids", lambda: pids_data)

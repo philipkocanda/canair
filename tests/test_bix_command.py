@@ -531,22 +531,6 @@ def test_table_no_ansi_when_not_a_tty(capsys):
     assert "\033[" not in capsys.readouterr().out
 
 
-def test_c_helper_wraps_only_on_tty(monkeypatch):
-    monkeypatch.setattr("sys.stdout.isatty", lambda: True)
-    assert bix._c("X", ansi.CYAN) == f"{ansi.CYAN}X{ansi.RESET}"
-    monkeypatch.setattr("sys.stdout.isatty", lambda: False)
-    assert bix._c("X", ansi.CYAN) == "X"
-
-
-def test_cerr_helper_gates_on_stderr_tty(monkeypatch):
-    # Warnings go to stderr, so their color must follow stderr's TTY-ness — not
-    # stdout's (which may be redirected to a file/pipe independently).
-    monkeypatch.setattr("sys.stderr.isatty", lambda: True)
-    assert bix._cerr("X", ansi.YELLOW) == f"{ansi.YELLOW}X{ansi.RESET}"
-    monkeypatch.setattr("sys.stderr.isatty", lambda: False)
-    assert bix._cerr("X", ansi.YELLOW) == "X"
-
-
 def test_table_role_multiframe_layout():
     # sub=1 (21xx): B00/B01 FF PCI, B02 SID, B03 PID, B04.. data; B08 CF PCI.
     assert bix._table_role(0, 1) == "FF PCI"

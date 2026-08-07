@@ -23,7 +23,7 @@ def _patched(monkeypatch):
         "charging": Group("charging", "SoC while plugged", ("BMS:2101", "OBC")),
         "driving": Group("driving", "", ("BMS", "VCU", "MCU")),
     }
-    monkeypatch.setattr(groups_cmd, "_use_color", lambda: False)
+    monkeypatch.setenv("NO_COLOR", "1")
     monkeypatch.setattr("canlib.ecu_groups.load_groups", lambda profile=None: groups)
     monkeypatch.setattr("canlib.profile.active", lambda: _FakeProfile())
 
@@ -59,7 +59,7 @@ def test_no_color_when_piped(_patched, capsys):
 
 
 def test_empty_profile_message(monkeypatch, capsys):
-    monkeypatch.setattr(groups_cmd, "_use_color", lambda: False)
+    monkeypatch.setenv("NO_COLOR", "1")
     monkeypatch.setattr("canlib.ecu_groups.load_groups", lambda profile=None: {})
     monkeypatch.setattr("canlib.profile.active", lambda: _FakeProfile())
     rc = _run()

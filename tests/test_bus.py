@@ -30,7 +30,7 @@ def _patched(monkeypatch):
         0x7E3: {"name": "MCU", "can_bus": ["P-CAN", "H-CAN"]},  # spans P + undeclared H
         0x7D2: {"name": "SRS"},  # unbussed
     }
-    monkeypatch.setattr(bus, "_use_color", lambda: False)
+    monkeypatch.setenv("NO_COLOR", "1")
     monkeypatch.setattr("canlib.can_buses.load_can_buses", lambda prof=None: buses)
     monkeypatch.setattr("canlib.ecus.load_ecus", lambda path=None: ecus)
     monkeypatch.setattr("canlib.profile.active", lambda: _FakeProfile())
@@ -88,7 +88,7 @@ def test_gateway_all_counted_on_every_segment(monkeypatch, capsys):
         0x770: {"name": "IGPM", "can_bus": ["ALL"]},  # gateway
         0x7A0: {"name": "BCM", "can_bus": ["B-CAN"]},
     }
-    monkeypatch.setattr(bus, "_use_color", lambda: False)
+    monkeypatch.setenv("NO_COLOR", "1")
     monkeypatch.setattr("canlib.can_buses.load_can_buses", lambda prof=None: buses)
     monkeypatch.setattr("canlib.ecus.load_ecus", lambda path=None: ecus)
     monkeypatch.setattr("canlib.profile.active", lambda: _FakeProfile())
@@ -105,4 +105,4 @@ def test_gateway_all_counted_on_every_segment(monkeypatch, capsys):
 def test_no_color_when_piped(_patched, capsys):
     _run()
     out = capsys.readouterr().out
-    assert "\033[" not in out  # _use_color() False → no ANSI escapes
+    assert "\033[" not in out  # NO_COLOR set → no ANSI escapes

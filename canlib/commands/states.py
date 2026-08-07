@@ -45,14 +45,6 @@ class StateRecord(TypedDict):
     broken: list[dict[str, str]]
 
 
-def _use_color() -> bool:
-    return sys.stdout.isatty()
-
-
-def _c(text: str, code: str) -> str:
-    return f"{code}{text}{ansi.RESET}" if _use_color() else text
-
-
 def _collect_state_usage(obj, counts: dict[str, int]) -> None:
     """Recursively tally every ``vehicle_states`` token found under ``obj``.
 
@@ -110,7 +102,7 @@ def cmd_show_state(args) -> int:
     try:
         rules = load_states(prof)
     except StatePredicateError as e:
-        print(f"{_c('Invalid vehicle_states.yaml:', ansi.RED)} {e}", file=sys.stderr)
+        print(f"{ansi.c('Invalid vehicle_states.yaml:', ansi.RED)} {e}", file=sys.stderr)
         return 1
 
     vocab = allowed_states(prof)
@@ -122,10 +114,10 @@ def cmd_show_state(args) -> int:
             print()
         else:
             print(
-                f"\n  {_c('Unknown state', ansi.RED)} {_c(target, ansi.YELLOW)} "
-                f"{_c('(not in vehicle_states.yaml).', ansi.DIM)}"
+                f"\n  {ansi.c('Unknown state', ansi.RED)} {ansi.c(target, ansi.YELLOW)} "
+                f"{ansi.c('(not in vehicle_states.yaml).', ansi.DIM)}"
             )
-            print(f"  {_c('Known states:', ansi.DIM)} {', '.join(sorted(vocab))}\n")
+            print(f"  {ansi.c('Known states:', ansi.DIM)} {', '.join(sorted(vocab))}\n")
         return 1
 
     rule = next((r for r in rules if r.name.upper() == target), None)
@@ -162,16 +154,18 @@ def cmd_show_state(args) -> int:
         return 0
 
     header = f"ECUs readable in {target}"
-    print(f"\n  {_c(header, ansi.BOLD)} — {len(matches)} ECU(s) in {_c(prof.name, ansi.CYAN)}")
+    print(
+        f"\n  {ansi.c(header, ansi.BOLD)} — {len(matches)} ECU(s) in {ansi.c(prof.name, ansi.CYAN)}"
+    )
     if rule and rule.description:
-        print(f"  {_c(rule.description, ansi.DIM)}")
+        print(f"  {ansi.c(rule.description, ansi.DIM)}")
     if rule and rule.expr:
-        print(f"  {_c('when: ' + rule.expr, ansi.DIM)}")
+        print(f"  {ansi.c('when: ' + rule.expr, ansi.DIM)}")
 
     if not matches:
         print(
-            f"\n  {_c('No ECUs declare this state.', ansi.YELLOW)} "
-            f"{_c('Annotate an ECU/PID with `vehicle_states: [' + target + ']`.', ansi.DIM)}\n"
+            f"\n  {ansi.c('No ECUs declare this state.', ansi.YELLOW)} "
+            f"{ansi.c('Annotate an ECU/PID with `vehicle_states: [' + target + ']`.', ansi.DIM)}\n"
         )
         return 0
 
@@ -182,14 +176,14 @@ def cmd_show_state(args) -> int:
     }
     print()
     hdr = f"{'NAME':<12} {'TX':<6} {'SOURCE':<18} BUS"
-    print(f"  {_c(hdr, ansi.DIM)}")
+    print(f"  {ansi.c(hdr, ansi.DIM)}")
     for m in matches:
         tx = f"0x{m['tx_id']:03X}" if m.get("tx_id") else "—"
         bus = "/".join(m["bus"]) if m["bus"] else "—"
         src = _SOURCE_LABEL.get(m["source"], m["source"])
-        src_c = _c(f"{src:<18}", ansi.GREEN if m["source"] == "all" else ansi.DIM)
-        name_c = _c(f"{m['name']:<12}", ansi.CYAN)
-        print(f"  {name_c} {tx:<6} {src_c} {_c(bus, ansi.CYAN)}")
+        src_c = ansi.c(f"{src:<18}", ansi.GREEN if m["source"] == "all" else ansi.DIM)
+        name_c = ansi.c(f"{m['name']:<12}", ansi.CYAN)
+        print(f"  {name_c} {tx:<6} {src_c} {ansi.c(bus, ansi.CYAN)}")
     print()
     return 0
 
@@ -231,7 +225,7 @@ def cmd_list(args) -> int:
     try:
         rules = load_states(prof)
     except StatePredicateError as e:
-        print(f"{_c('Invalid vehicle_states.yaml:', ansi.RED)} {e}", file=sys.stderr)
+        print(f"{ansi.c('Invalid vehicle_states.yaml:', ansi.RED)} {e}", file=sys.stderr)
         return 1
 
     usage = _load_usage()
@@ -267,53 +261,53 @@ def cmd_list(args) -> int:
 
     if not rules:
         print(
-            f"\n  No vehicle states declared for profile {_c(prof.name, ansi.CYAN)} "
-            f"{_c('(no vehicle_states.yaml)', ansi.DIM)}.\n"
-            f"  Add one with {_c('canair states add NAME', ansi.CYAN)} "
+            f"\n  No vehicle states declared for profile {ansi.c(prof.name, ansi.CYAN)} "
+            f"{ansi.c('(no vehicle_states.yaml)', ansi.DIM)}.\n"
+            f"  Add one with {ansi.c('canair states add NAME', ansi.CYAN)} "
             f"or declare them in {prof.states_file}.\n"
         )
         return 0
 
     print(
-        f"\n  {_c('Vehicle states', ansi.BOLD)} — {len(rules)} state(s) in {_c(prof.name, ansi.CYAN)}\n"
+        f"\n  {ansi.c('Vehicle states', ansi.BOLD)} — {len(rules)} state(s) in {ansi.c(prof.name, ansi.CYAN)}\n"
     )
     header = f"{'STATE':<14} {'USES':>4}  {'AUTO':<4}  DESCRIPTION"
-    print(f"  {_c(header, ansi.DIM)}")
+    print(f"  {ansi.c(header, ansi.DIM)}")
     for r in records:
-        name = _c(f"{r['name']:<14}", ansi.CYAN)
+        name = ansi.c(f"{r['name']:<14}", ansi.CYAN)
         n = r["uses"]
-        n_str = f"{n:>4}" if n else _c(f"{0:>4}", ansi.YELLOW)
+        n_str = f"{n:>4}" if n else ansi.c(f"{0:>4}", ansi.YELLOW)
         if r["broken"]:
-            auto = _c(f"{'✗':<4}", ansi.RED)
+            auto = ansi.c(f"{'✗':<4}", ansi.RED)
         elif r["when"]:
-            auto = _c(f"{'●':<4}", ansi.GREEN)
+            auto = ansi.c(f"{'●':<4}", ansi.GREEN)
         else:
-            auto = _c(f"{'—':<4}", ansi.DIM)
+            auto = ansi.c(f"{'—':<4}", ansi.DIM)
         desc = str(r["description"] or "")
-        print(f"  {name} {n_str}  {auto}  {_c(desc, ansi.DIM)}")
+        print(f"  {name} {n_str}  {auto}  {ansi.c(desc, ansi.DIM)}")
         if r["when"]:
-            print(f"  {'':<14} {'':>4}        {_c('when: ' + r['when'], ansi.DIM)}")
+            print(f"  {'':<14} {'':>4}        {ansi.c('when: ' + r['when'], ansi.DIM)}")
         for issue in r["broken"]:
             print(
-                f"  {'':<14} {'':>4}        {_c(issue['ref'] + ' — ' + issue['message'], ansi.RED)}"
+                f"  {'':<14} {'':>4}        {ansi.c(issue['ref'] + ' — ' + issue['message'], ansi.RED)}"
             )
 
-    print(f"\n  {_c('● = auto-suggested from decoded PIDs (has a when: predicate)', ansi.DIM)}")
+    print(f"\n  {ansi.c('● = auto-suggested from decoded PIDs (has a when: predicate)', ansi.DIM)}")
     if any(r["broken"] for r in records):
         print(
-            f"  {_c('✗ = predicate references a signal that does not exist — it can', ansi.DIM)}\n"
-            f"  {_c('    never match (see `canair validate states`)', ansi.DIM)}"
+            f"  {ansi.c('✗ = predicate references a signal that does not exist — it can', ansi.DIM)}\n"
+            f"  {ansi.c('    never match (see `canair validate states`)', ansi.DIM)}"
         )
 
     if undeclared:
         print(
-            f"\n  {_c('Undeclared tokens', ansi.YELLOW)} "
-            f"{_c('(used in ecus/ but absent from vehicle_states.yaml):', ansi.DIM)}"
+            f"\n  {ansi.c('Undeclared tokens', ansi.YELLOW)} "
+            f"{ansi.c('(used in ecus/ but absent from vehicle_states.yaml):', ansi.DIM)}"
         )
         for tok in undeclared:
-            print(f"    {_c(tok, ansi.YELLOW)}  {usage[tok]} use(s)")
+            print(f"    {ansi.c(tok, ansi.YELLOW)}  {usage[tok]} use(s)")
 
-    print(f"\n  {_c(f'source: {prof.states_file}', ansi.DIM)}\n")
+    print(f"\n  {ansi.c(f'source: {prof.states_file}', ansi.DIM)}\n")
     return 0
 
 
@@ -324,8 +318,8 @@ def _run_edit(args, action) -> int:
     try:
         path = action()
     except (StatesEditError, StatePredicateError) as e:
-        raise SystemExit(f"{_c('  Error: ' + str(e), ansi.RED)}") from None
-    print(f"{_c('  ✓ ' + args._states_msg, ansi.GREEN)}  {_c(f'({path.name})', ansi.DIM)}")
+        raise SystemExit(f"{ansi.c('  Error: ' + str(e), ansi.RED)}") from None
+    print(f"{ansi.c('  ✓ ' + args._states_msg, ansi.GREEN)}  {ansi.c(f'({path.name})', ansi.DIM)}")
     return 0
 
 
@@ -348,9 +342,11 @@ def _warn_unresolved_refs(state: str, expr: str | None) -> None:
     except Exception:
         return  # never let an advisory check fail a successful write
     for issue in issues:
-        print(f"  {_c('warn:', ansi.YELLOW)} {issue.ref} — {issue.message}")
+        print(f"  {ansi.c('warn:', ansi.YELLOW)} {issue.ref} — {issue.message}")
     if issues:
-        print(f"    {_c('this predicate can never match until the reference resolves', ansi.DIM)}")
+        print(
+            f"    {ansi.c('this predicate can never match until the reference resolves', ansi.DIM)}"
+        )
 
 
 def cmd_add(args) -> int:
@@ -378,7 +374,7 @@ def cmd_rename(args) -> int:
     args._states_msg = f"renamed {args.old.upper()} → {args.new.upper()}"
     rc = _run_edit(args, lambda: rename_state(args.old, args.new))
     print(
-        f"  {_c('note:', ansi.YELLOW)} existing ecus/ and captures/ references still use "
+        f"  {ansi.c('note:', ansi.YELLOW)} existing ecus/ and captures/ references still use "
         f"{args.old.upper()!r} — update them (e.g. re-run the migration script)."
     )
     return rc
