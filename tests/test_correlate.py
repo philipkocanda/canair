@@ -347,3 +347,23 @@ class TestMirrorTolerance:
         _run(tmp_path, monkeypatch, ["IGPM", "--find-mirrors", "--min-n", "5", "--allow-offset"])
         out = capsys.readouterr().out
         assert "offset/scale" in out and "≥90%" in out
+
+
+class TestWeakCorrelationHint:
+    """The data-derived retry hint for an empty --min-r result (Part D)."""
+
+    def test_names_the_strongest_subthreshold_and_a_reachable_min_r(self):
+        from canlib.commands.correlate.render import weak_correlation_hint
+
+        hint = weak_correlation_hint(-0.573, "A ~ B", min_r=0.6)
+        assert hint is not None
+        assert "A ~ B" in hint
+        assert "0.573" in hint  # the achieved |r|
+        # Suggested floor is rounded DOWN so re-running actually includes the hit.
+        assert "--min-r 0.57" in hint
+
+    def test_none_when_nothing_below(self):
+        from canlib.commands.correlate.render import weak_correlation_hint
+
+        assert weak_correlation_hint(None, None, min_r=0.6) is None
+        assert weak_correlation_hint(0.0, None, min_r=0.6) is None

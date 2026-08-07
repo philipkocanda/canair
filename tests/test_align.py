@@ -606,3 +606,38 @@ class TestDetrendBySession:
 
     def test_empty(self):
         assert detrend_by_session([]) == []
+
+
+class TestThinJoinWarning:
+    """The thin-reference-join diagnostic (canlib.align.thin_join_warning)."""
+
+    def test_min_n_branch_names_a_concrete_min_n_to_lower_to(self):
+        from canlib.align import thin_join_warning
+
+        msg = thin_join_warning(
+            command="hunt",
+            ref_label="ESC:22C101:REAL_SPEED_KMH",
+            n_joined=5,
+            n_candidates=200,
+            tol_s=5.0,
+            min_n=15,
+        )
+        assert msg is not None
+        assert "below --min-n 15" in msg
+        # The unfinished sentence now names the reachable value (Part D).
+        assert "lower --min-n to 5" in msg
+
+    def test_healthy_join_returns_none(self):
+        from canlib.align import thin_join_warning
+
+        assert (
+            thin_join_warning(
+                command="hunt",
+                ref_label="x",
+                n_joined=180,
+                n_candidates=200,
+                tol_s=5.0,
+                min_n=15,
+            )
+            is None
+        )

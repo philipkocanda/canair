@@ -841,7 +841,8 @@ def thin_join_warning(
             f"{command}: warning: reference {ref_label!r} joined at most {n_joined} "
             f"sample(s) onto any candidate (within \u2264{tol_s:g}s), below --min-n "
             f"{min_n} \u2014 every candidate was dropped for thin overlap, not for a weak "
-            "correlation. Widen --join-tol or lower --min-n."
+            f"correlation. Widen --join-tol, or lower --min-n to {n_joined} to rank "
+            "the best-aligned candidate."
         )
     floor = max(1, n_candidates // 20)  # 5% — matches align's per-column floor
     if n_joined < floor:

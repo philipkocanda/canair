@@ -38,6 +38,27 @@ def _color_r(r: float) -> str:
     return f"{c}r={r:+.3f}{_RESET}"
 
 
+def weak_correlation_hint(best_r: float | None, best_label: str | None, min_r: float) -> str | None:
+    """Retry hint naming the strongest sub-threshold correlation, or ``None``.
+
+    When the ``--min-r`` floor rejects everything, name the ``|r|`` that WOULD
+    have surfaced a result (computed from the data) and the concrete ``--min-r``
+    to re-run with, so the empty report is a lead rather than a dead end. The
+    suggested floor is rounded *down* so the re-run actually includes the hit.
+    Consistent phrasing across correlate's ranked and ``--against`` empty paths.
+    """
+    import math
+
+    if best_r is None or best_label is None:
+        return None
+    suggested = math.floor(abs(best_r) * 100) / 100
+    return (
+        f"Nothing at |r| ≥ {min_r:g}. Strongest below it: {best_label} at "
+        f"|r|={abs(best_r):.3f}. Re-run with --min-r {suggested:g} to see it "
+        "— treat it as a lead, not a finding."
+    )
+
+
 def _print_overlap(specs, since, until, state, label, tol, min_n, as_json) -> int:
     """Report which ECU:PID pairs share time-aligned samples (and how many).
 

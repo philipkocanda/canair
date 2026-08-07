@@ -43,6 +43,7 @@ from .render import (
     _color_r,
     _print_cross_mirrors,
     _print_overlap,
+    weak_correlation_hint,
 )
 from .series import _fill_json, _gather_series, _scope_keep_flags
 
@@ -245,6 +246,16 @@ def run(args) -> int:
 
         rows = []
         best_n = 0  # best realised overlap across the sweep (pre-min_n) — see below
+        # Strongest correlation that cleared min_n but not min_r, so an empty
+        # report can name the --min-r that WOULD surface something (data-derived).
+        best_below_r = 0.0
+        best_below_label: str | None = None
+
+        def _note_below(name: str, r: float | None, n: int) -> None:
+            nonlocal best_below_r, best_below_label
+            if r is not None and n >= args.min_n and abs(r) > best_below_r:
+                best_below_r, best_below_label = abs(r), name
+
         ref_prepared = prepare_series(ref_series)
         for name, s in series.items():
             if not args.include_self and name == args.against:
@@ -255,6 +266,7 @@ def run(args) -> int:
                 )
                 if hit is not None:
                     best_n = max(best_n, hit.n)
+                    _note_below(name, hit.r, hit.n)
                 if hit is None or abs(hit.r) < args.min_r or hit.n < args.min_n:
                     continue
                 rows.append((name, hit.r, hit.n, hit.lag_seconds))
@@ -269,6 +281,7 @@ def run(args) -> int:
                 if n < args.min_n:
                     continue
                 r = partial_correlation(xs, ys, zs, args.method)
+                _note_below(name, r, n)
                 if r is None or abs(r) < args.min_r:
                     continue
                 rows.append((name, r, n, None))
@@ -278,6 +291,7 @@ def run(args) -> int:
                 if n < args.min_n:
                     continue
                 r = correlation(xs, ys, args.method)
+                _note_below(name, r, n)
                 if r is None or abs(r) < args.min_r:
                     continue
                 rows.append((name, r, n, None))
@@ -327,6 +341,19 @@ def run(args) -> int:
                 f"    {_color_r(r)}  {relabel_signal(name, notation, payload_lens=plens)}  "
                 f"{_DIM}n={n}{_RESET}{lag_str}"
             )
+        if not rows:
+            hint = weak_correlation_hint(
+                best_below_r or None,
+                relabel_signal(best_below_label, notation, payload_lens=plens)
+                if best_below_label
+                else None,
+                args.min_r,
+            )
+            print(
+                f"    {_DIM}{hint}{_RESET}"
+                if hint
+                else f"    {_DIM}no signal cleared the thresholds.{_RESET}"
+            )
         print()
         return 0
 
@@ -356,6 +383,25 @@ def run(args) -> int:
 
     if not hits:
         print(f"No cross-signal correlations with |r| ≥ {args.min_r} (n ≥ {args.min_n}).")
+        # Name the strongest sub-threshold pair (data-derived): re-sweep at min_r=0
+        # — only on the empty path, so the extra pass is paid at most once.
+        below = correlate_matrix(
+            series,
+            tol_s=args.join_tol,
+            min_r=0.0,
+            min_n=args.min_n,
+            include_intra=args.include_intra,
+            method=args.method,
+        )
+        if below:
+            top = below[0]
+            label = (
+                f"{relabel_signal(top.a, notation, payload_lens=plens)} ~ "
+                f"{relabel_signal(top.b, notation, payload_lens=plens)}"
+            )
+            hint = weak_correlation_hint(top.r, label, args.min_r)
+            if hint:
+                print(f"  {_DIM}{hint}{_RESET}")
         return 0
 
     clusters = [] if args.no_cluster else colinear_clusters(hits)
