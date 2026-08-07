@@ -510,10 +510,16 @@ BCM:
         BCM_12V_BUS_C011). Its "slow drift" is just the bus moving between rest (~12.7 V) and
         DC-DC-active (~14.5 V). Byte 9 (WiCAN B12) still jumps 20-100 counts per read
         (ADC-like jitter) and remains unidentified — it is now the sole RSSI candidate here.
-        Tail bytes 10-11 (0x266E) are static. Earlier
-        single-read capture (0xA2D3266B) was misleading — appeared static but byte 9
-        was just one snapshot. Test: compare B12 with C012-C014 and correlate with tyre
+        Tail bytes 10-11 are NOT static (corrected 2026-08-07): they are a 16-bit BE
+        monotonic event counter, 9835 -> 10092 over 112 days, 13 up-steps and 0 down —
+        see BCM_EVENT_COUNTER_C011. They only looked static because the counter steps
+        ~2.3x/day and never moves *within* a recording session; 0x266E was simply an
+        earlier, lower value. The single-read capture (0xA2D3266B) was misleading for
+        the same reason, and separately made byte 9 look static when it was one snapshot.
+        Test: compare B12 with C012-C014 and correlate with tyre
         proximity. Sample: 62C011E000000000A25F266EAA (byte 9 varies).
+        Payload length varies 12/13 bytes (trailing 0xAA is ISO-TP padding); byte
+        offsets are unaffected.
       parameters:
         BCM_12V_BUS_C011:
           expression: B11/12.8
@@ -537,6 +543,23 @@ BCM:
             still unidentified and remains the RSSI candidate. Redundant with the shipped 22B003
             copy and 22C011 is a draft page, so enabled:false.
           enabled: false
+        BCM_EVENT_COUNTER_C011:
+          expression: "[B13:B14]"
+          unit: ""
+          min: "0"
+          max: "65535"
+          source: monotonic-counter sweep of all captures 2026-04-16..2026-08-05
+          verified: false
+          notes: >-
+            16-bit BE at B13:B14 (ISO-TP i10-i11). Monotonic across the whole corpus: 9835 -> 10092
+            over 112 days, 13 up-steps, 0 down (p = 2^-13). FLAT within all 20 recording sessions,
+            stepping only between them, so it is event-driven, not a timer. Rate ~2.3/day; 73048 km
+            / 10092 counts = 7.24 km per count over the vehicle's life, 11.7 km/count over the
+            observed span. CORRECTS this PID's header claim that the tail bytes are static: 0x266E
+            was simply an earlier, lower value of this counter. Most consistent with an
+            ignition/power-cycle or trip count; NOT hours of operation (that would imply an 11.7
+            km/h average). UNVERIFIED: to identify, read 22C011, cycle the ignition once without
+            driving, re-read. +1 => power/ignition cycles; unchanged => a distance-gated trip count.
 
     22C012:
       status: ignored
@@ -897,6 +920,14 @@ BCM:
       notes: "coverage --bitfields reports 'BITS B11 have{6}' for this PID, but B10 is the byte carrying the live signal and it is an ENUM, not independent flags: across 893 captures it takes only 3 values — 0 (n=861), 14 = bits 1,2,3 (n=30), 192 = bits 6,7 (n=2). Bits 1/2/3 never move independently, nor do 6/7, so defining them as separate flags would misrepresent one state code as five flags. Value 14 coincides with READY / powered states, 0 with SLEEP; n=2 for 192 is too thin to name."
       what_to_test:
         - "Model B10 as a whole-byte enum (type: enum with values 0/14/192) once each value has a confirmed state. Capture more instances of value 192 to identify it."
+    - type: verify
+      target: 22C011
+      status: captured
+      priority: P2
+      vehicle_states: [ACC, READY]
+      created: "2026-08-07"
+      updated: "2026-08-07"
+      notes: "Identify BCM_EVENT_COUNTER_C011 (B13:B14, monotonic 9835->10092 over 112 days, ~2.3/day, 7.24 km per count lifetime). Controlled test: read 22C011, cycle the ignition ONCE without moving the car, re-read. +1 => ignition/power-cycle count; unchanged => distance-gated trip count. Repeat with a short drive to separate the two."
   iocontrol_discoveries:
     B003:
       response: "6FB00300"

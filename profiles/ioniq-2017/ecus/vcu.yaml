@@ -540,6 +540,25 @@ VCU:
           verified: false
           notes: >
             WiCAN B75 (ISO-TP payload index 0x40). Changed 0x10->0x14 (16->20) on 2026-07-28 charge-schedule reprogram; 0x14=20 = weekend-END hour (20:50). Single before/after point — needs a second value to verify. Rest of schedule packed in B38/B39/B41/B42/B43.
+        VCU_ODOMETER:
+          expression: (B14 | (B15 << 8) | (B17 << 16) | (B18 << 24)) / 256
+          unit: km
+          min: "0"
+          max: "1000000"
+          source: monotonic-counter sweep of all captures 2026-07-22..08-05; cross-checked vs the verified CLU 22B002 ODOMETER
+          verified: false
+          notes: >-
+            32-bit LE at ISO-TP i11-i14 = WiCAN B14/B15/B17/B18 (straddles the B16 CF PCI byte),
+            /256 = km. i11 is the 1/256 km (3.9 m) fraction and WRAPS on its own (3 up / 5 down over
+            9 changes); i12-i14 LE carries the integer km. Monotonic over the whole corpus: 8
+            up-steps, 0 down, 72986.45 -> 73178.06 km. PROOF vs the VERIFIED CLU 22B002 ODOMETER at
+            5 co-polled points: constant offset +4.36..+4.66 km (a fixed calibration difference, not
+            a drifting scale), and the two freeze in lock-step while parked (CLU 73039 across 3
+            reads <-> VCU 73043.66). Distance, not time: the ratio against BMS OPERATING_TIME varies
+            0.18-5.66 and is unbounded across an interval where the car moved but operating time did
+            not advance. 256x finer than the cluster odometer. UNVERIFIED: only 5 CLU overlap
+            points, all parked. To verify, co-poll VCU 21F2 with CLU 22B002 across a drive and
+            confirm the fraction advances smoothly and the offset holds.
 
 
       status: active
@@ -891,6 +910,14 @@ VCU:
       what_to_test:
         - canair decode VCU 2101 --find-mirrors --allow-offset to confirm the exact scale/offset
         - investigate --events on B13 against session notes — what changes it away from 6
+    - type: verify
+      target: 21F2
+      status: captured
+      priority: P2
+      vehicle_states: [READY]
+      created: "2026-08-07"
+      updated: "2026-08-07"
+      notes: "Verify VCU_ODOMETER (ISO-TP i11-i14 LE / 256 = km, 1/256 km resolution). Co-poll VCU 21F2 with CLU 22B002 across a drive: confirm the i11 fraction advances smoothly (not in whole-km jumps) and the +4.4..+4.7 km offset vs the verified CLU ODOMETER stays constant. Currently only 5 co-polled points, all parked."
   sessions:
     "81":
       name: "standardDiagnosticSession"
