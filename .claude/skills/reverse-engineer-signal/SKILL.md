@@ -5,93 +5,65 @@ description: "Generic, vehicle-agnostic reverse-engineering workflow for canair 
 
 # Reverse-engineering a vehicle signal (generic)
 
-This is the **vehicle-agnostic, end-to-end** workflow for taking a signal from
-"unknown" to a verified, decoded parameter in a profile's `ecus/`. It is **not
-Ioniq-specific and not PID-specific**: the same orient → discover → capture →
-inspect → hypothesize → define → validate → verify → integrate loop applies to
-any car and any kind of signal — a service-`22`/`21` PID/DID, a passively-sniffed
-broadcast frame field, a routine, or an IOControl actuator. The concrete
-examples below use the bundled 2017 Ioniq profile because it's a fully-worked
-reference, but treat the *method* as the transferable part, not the byte offsets.
+The **vehicle-agnostic, end-to-end** workflow for taking a signal from "unknown" to a
+verified, decoded parameter in a profile's `ecus/`. Not PID-specific: the same loop
+serves a service-`22`/`21` PID/DID, a passively-sniffed broadcast frame field, a
+routine, or an IOControl actuator. Examples use the bundled 2017 Ioniq because it is
+fully worked — the *method* transfers, not the byte offsets. This skill is the
+*procedure*; the profile is the *data* (which ECU carries which signal, marque quirks
+and addresses live in the active profile's `ecus/`).
 
-For **vehicle-specific** facts (which ECU carries which signal, marque quirks,
-the exact addresses) consult the active profile's `ecus/` and, for the bundled
-car, the `ioniq-reverse-engineering` skill. This skill is the *procedure*; the
-profile is the *data*.
+Related skills: **`ioniq-reverse-engineering`** (bundled-car ECU table, device and
+transport reference — load it too when working the Ioniq), **`decode-bitfields`** (the
+bit-level loop for discrete body signals), **`contributing-profiles`** (sharing the
+result upstream).
 
-> Related skills: **`ioniq-reverse-engineering`** carries the bundled-car facts
-> (ECU status table, device/transport details, the `canair`/`wican-cli` command
-> reference) — load it too when working the *Ioniq* specifically. When working
-> **another** car, this skill plus that car's profile is what you need; the Ioniq
-> skill is then just an illustrative example of a finished profile.
-
-> **Target the right profile — the repo ships several** (`ioniq-2017`,
-> `ioniq-5-2022`, `xpeng-g6`, …) and **none auto-selects**. **Pass `--profile NAME`
-> explicitly on every mutative/authoring command** in this workflow — `pids
-> upsert-param`/`rename-*`/`rm-*`/`add-research`/`set-status`, `hunt … --promote`,
-> `import uds`, `signals upsert`, and `--save` reads. Without it these write to
-> whatever `default_profile`/`CANAIR_PROFILE` resolves to — *not necessarily the
-> car you mean* (this is exactly how signals once landed in the wrong profile).
-> Read-only commands (`decode`/`captures`/`correlate`/`hunt`/`investigate`/`coverage`)
-> resolve the same way, so prefer explicit `--profile` there too when a specific
-> car is intended. The examples below omit `--profile` for brevity — add it.
+> **Target the right profile.** The repo ships several (`ioniq-2017`, `ioniq-5-2022`,
+> …) and **none auto-selects**. **Pass `--profile NAME` on every mutative command** —
+> `pids …`, `hunt --promote`, `import uds`, `signals upsert`, `--save` reads —
+> otherwise they write to whatever `default_profile`/`CANAIR_PROFILE` resolves to,
+> *not necessarily the car you mean* (exactly how signals once landed in the wrong
+> profile). Prefer it on read-only commands too. Examples below omit it — add it.
 
 ## Safety first (non-negotiable)
 
-- **NEVER** use UDS programming session (`10 02`) or any firmware write/upload.
-  A car's ECUs can be bricked — treat every bus as a real, in-use vehicle.
-- Be gentle: ECUs vary in speed and some are finicky, especially the first
-  request after idle. **One `canair` connection at a time, any transport** —
-  canair enforces a `flock` mutex (`/tmp/wican-connection.lock`); a second
-  `slcan-tcp` client hangs unserved and a second `wican-ws` WebSocket can lock up
-  the device (power-cycle to recover). No concurrent requests to the same ECU. A
-  stuck/orphaned session is cleared with `--force` (asks it to release, waits) or
-  `canair lock` — never by rebooting the device.
-- **Never reboot the device without asking.** Using the WebSocket terminal
-  overrides AutoPID; ask before rebooting to restore the AutoPID/MQTT feed.
-- Treat `0x22Fxxx` (flash/cal) as read-only. `2E` writes and `2F` IOControl can
-  brick or actuate hardware — out of scope for signal decoding.
-- Disable device sleep during a session, then re-enable after. This is a
-  **`wican-cli`** command (a *separate* package — see the `ioniq-reverse-engineering`
-  skill), NOT canair: `wican sleep --disable` / `wican sleep --enable`. `canair`
-  itself has no sleep control (`canair wican` is only `autopid`/`mode`); check the
-  device's current sleep/voltage with `canair status`.
+Full policy: `docs/concepts/safety.md`. The essentials:
+
+- **NEVER** open a programming session (`10 02`) or do any firmware write/upload —
+  ECUs can be bricked. canair blocks these; never work around it.
+- `0x22Fxxx` (flash/cal) is read-only. `2E` writes and `2F` actuation can brick or
+  move hardware — out of scope for signal decoding.
+- **One canair connection at a time, any transport** (a `flock` mutex enforces it); no
+  concurrent requests to one ECU. Clear a stuck session with `--force` or
+  `canair lock` — **never by rebooting the device**, and never reboot without asking
+  (the WebSocket terminal overrides AutoPID; the reboot is what restores it).
+- Be gentle: the first request after idle often fails — retry once before concluding a
+  PID/ECU is dead.
+- Disable device sleep for a long session, then re-enable. That is **`wican-cli`** (a
+  *separate* package), NOT canair: `wican sleep --disable`. Status: `canair status`.
 
 ## Working principles
 
-- **Put yourself in the shoes of the ECU's automotive systems engineer.** Before
-  guessing at bytes, ask: *if I designed this module, what would it need to
-  measure, report, and control?* A BMS engineer thinks in cell voltages, pack
-  current, temperatures, SOC, contactor and relay states, isolation resistance;
-  an ESC engineer thinks in wheel speeds, yaw rate, lateral/longitudinal accel,
-  brake pressure. Signals cluster by the ECU's job, come in physically sensible
-  units and ranges, are laid out in orderly blocks (e.g. four wheel speeds in a
-  row), and are scaled to fit their field width. Let that domain model generate
-  your hypotheses and sanity-check your results — a decode that no real systems
-  engineer would design is probably wrong.
-- **Be rigorous.** Reverse engineering is evidence, not vibes. Don't accept a
-  byte interpretation because it "looks about right" — confirm it with data
-  (range, distribution, correlation, physical plausibility across states). State
-  your confidence honestly: a hypothesis is a hypothesis until it's validated.
-  Prefer "unverified until proven" over an optimistic guess promoted to fact.
-- **NEVER mark a parameter `verified: true` without proof.** `verified` is a
-  factual claim that the decode was checked against *real data from this vehicle*
-  — a capture whose values match known physical state, a scan-tool cross-check, or
-  a definitive constant. It is **not** a statement that the expression looks
-  plausible, was copied from another car's sheet, or "should" be right. With **no
-  capture, there is no proof, so it stays `--unverified`** — no exceptions, even
-  when porting a structure that's verified on a *different* profile (a sibling
-  car's byte offset is a *hypothesis* here, not a verification). Marking something
-  verified on a guess is a correctness bug that poisons every downstream user and
-  every correlation that trusts it. When in doubt, leave it unverified and record
-  what proof is still missing in `notes:`.
-- **Write notes to the point.** Notes on ECUs/PIDs/research are technical
-  records, not prose. State the facts — byte offset, observed range, per-state
-  values, correlation results, the decision and why — and stop. Cut filler,
-  hedging, and narration. **Hold off on speculation**: record what the data shows
-  and, at most, a one-line best interpretation; leave extended theorizing to the
-  reader. These files are read repeatedly and grow forever — every excess word is
-  a tax on everyone after you. Terse and factual beats thorough and unwieldy.
+- **Put yourself in the shoes of the ECU's systems engineer.** Before looking at
+  bytes, ask what this module must measure, report and control: a BMS engineer thinks
+  cell voltages, pack current, temperatures, SOC, contactors, isolation resistance; an
+  ESC engineer thinks wheel speeds, yaw rate, accelerations, brake pressure. Signals
+  cluster by the ECU's job, come in physically sensible units and ranges, sit in
+  orderly blocks (four wheel speeds in a row), and are scaled to fit their field
+  width. A decode no real systems engineer would design is probably wrong.
+- **Evidence, not vibes.** Never accept a byte because it "looks about right": confirm
+  it (range, distribution, correlation, physical plausibility across states) and state
+  your confidence honestly.
+- **NEVER mark a parameter `verified: true` without proof.** `verified` claims the
+  decode was checked against *real data from this vehicle* — a capture matching known
+  physical state, a scan-tool cross-check, or a definitive constant. Not "looks
+  plausible", not "copied from another car's sheet". **No capture ⇒ no proof ⇒ stays
+  `--unverified`**, even when porting a structure verified on a *different* profile
+  (here it is a hypothesis). A false `verified` poisons every downstream user and every
+  correlation that trusts it; record the missing proof in `notes:`.
+- **Notes are technical records, not prose**: byte offset, observed range, per-state
+  values, the key evidence, the decision and why — then stop. Speculation gets one line
+  at most. These files are read repeatedly and grow forever.
 
 ## The lifecycle
 
@@ -100,621 +72,235 @@ orient → prerequisites → discover → capture → inspect → hypothesize
        → define → decode/validate → verify → integrate
 ```
 
-Progress is tracked per-ECU in the `research:` block of the profile's `ecus/<ecu>.yaml`
-(schema in `canlib/schema/pids_schema.yaml`), graduating:
-`pending → captured → done` (plus `nrc` for a dead scan), at which point a real
-`parameters:` entry exists and is marked `verified: true`.
+Progress is tracked per-ECU in the `research:` block of `ecus/<ecu>.yaml` (schema
+`canlib/schema/pids_schema.yaml`): `pending → captured → done` (plus `nrc` for a dead
+scan), ending in a real `parameters:` entry marked `verified: true`.
 
-**Two domains.** The above is **domain A** (diagnostic request/response: `ecus/`
-PIDs, freeform WiCAN `Bnn` expressions). For **domain B** — passively-broadcast
-CAN frames (no request elicits them; drive-mode/regen/thermal signals often live
-here) — the shape differs: `import can <log>` a frame log into `captures/can/`,
-find fields with `correlate can <log>` / `hunt can <log> --id 0xID --against
-0xREF:rN` (frame bytes are `0xID:rN`, raw-CAN, no PCI; `correlate can
---find-mirrors [--bits]` reports the same signal broadcast on two arbitration
-IDs, e.g. wheel speed on 0x386 and 0x331), and *define* them in the
-DBC-compatible **linear** `signals/<bus>.yaml` via `canair signals upsert` (or
-`import dbc`). See `docs/concepts/broadcast-frames.md`. The `uds`/`can` kind is
-the domain selector across ingest/list/analyze (`import uds`/`import can`,
-`captures uds`/`captures can`, `correlate`/`hunt` `uds`/`can`); a bare invocation
-defaults to `uds` (domain A). The analysis reasoning
-below (physics/EE/statistics) applies to both; only the byte-notation and the
-definition model differ.
-
-**Storing the log you imported.** Your **own** captured frame logs are committed
-**fully** (via Git LFS when large — `.gitattributes` tracks `*.blf`/`*.asc`/`*.trc`
-+ `profiles/*/captures/can/**`; run `git lfs install` on a fresh clone). A
-**third-party** log goes in the repo **only if its license permits
-redistribution**; an unlicensed corpus (e.g. uhi22 Ioniq-28) stays
-fetch-on-demand in gitignored `references/can/` (`scripts/fetch_can_corpus.py`)
-with just a tiny fair-use excerpt committed under `tests/fixtures/can/`. LFS is
-storage only — it grants no redistribution right. Full policy:
-`docs/concepts/broadcast-frames.md` → "Storing raw-CAN logs".
+**Two domains.** The above is **domain A** (diagnostic request/response: `ecus/` PIDs,
+freeform WiCAN `Bnn` expressions). **Domain B** is passively-broadcast CAN frames — no
+request elicits them, and drive-mode/regen/thermal signals often live there:
+`import can <log>` into `captures/can/` (list what's imported with `captures can`), find
+fields with `correlate can` / `hunt can --id 0xID --against 0xREF:rN` / `investigate can`
+(bytes are `0xID:rN` — raw CAN, no PCI), then define them in the DBC-compatible
+**linear** `signals/<bus>.yaml` via `signals upsert` (or `import dbc`). The `uds`/`can`
+kind selects the domain across ingest/list/analyze; bare = `uds`. Step 6's reasoning
+applies to both; only the byte notation and definition model differ.
+`docs/concepts/broadcast-frames.md` has the detail plus the log-storage/licensing policy
+(own logs committed, Git LFS when large; third-party only if the license permits
+redistribution; unlicensed corpora stay fetch-on-demand in gitignored `references/can/`).
 
 ### 1. Orient — pick a target
 
 ```bash
-canair research --summary                 # backlog counts by status/type/priority
-canair research --priority P1             # highest-value open items
-canair research --ecu MCU                 # one ECU's backlog
-canair coverage --no-capture              # params defined but never captured
-canair coverage --unmapped                # captured PIDs with undecoded bytes
+canair research --summary       # backlog counts; --priority P1 / --ecu MCU to narrow
+canair coverage --no-capture    # params defined but never captured
+canair coverage --unmapped      # captured PIDs with undecoded bytes
 ```
 
-`canair research` surfaces *planned* work; `canair coverage` surfaces *undecoded
-bytes* in PIDs you already capture. `canair ecu` (and, for the bundled car, the
-`ioniq-reverse-engineering` skill's ECU status table) shows which ECUs carry
-which kind of signal and are worth probing.
+`research` surfaces *planned* work; `coverage` surfaces *undecoded bytes* in PIDs you
+already capture. `canair ecu` shows which ECUs carry which kind of signal.
 
 ### 2. Prerequisites — power state & access
 
-Decide the car power state the PID needs (`vehicle_states`: UPPERCASE
-`SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING` + the `ALL` meta-token — the same
-field on PIDs/ECUs and in `research:` entries, written as an inline flow list
-like `[READY]`; see/edit the vocabulary with `canair states`) and whether the
-ECU needs waking /
-an extended session. IGPM (0x770) and BCM (0x7A0) wake from CAN activity;
-powertrain ECUs (BMS/VCU/MCU) generally need ACC/ignition or charging.
-
-```bash
-canair discover                  # which ECUs are answering right now
-```
+Decide the power state the PID needs (`vehicle_states`: UPPERCASE `SLEEP, PLUGGED,
+ACC, ACC2, READY, CHARGING` + the `ALL` meta-token — the same field on PIDs/ECUs and in
+`research:`, written as an inline flow list `[READY]`; see/edit the vocabulary with
+`canair states`) and whether the ECU needs waking or an extended session. Body ECUs
+(Ioniq IGPM 0x770, BCM 0x7A0) wake from CAN activity; powertrain ECUs (BMS/VCU/MCU)
+generally need ACC/ignition or charging. `canair discover` shows what answers now.
 
 ### 3. Discover — which DIDs respond
 
 ```bash
-# service 21 (live data), service 22 (DID read; often needs session+wake)
-canair scan MCU --service 21 --range 01-FF --save
-canair scan IGPM --service 22 --range BC00-BCFF --session --wake --save
+canair scan MCU --service 21 --range 01-FF --save                        # KWP live data
+canair scan IGPM --service 22 --range BC00-BCFF --session --wake --save  # UDS DIDs
 ```
 
-`canair scan` is a group of SAFE discovery kinds — a bare `canair scan <ECU>` is
-shorthand for `scan range`. The others map to the non-PID signal types this skill
-covers: `canair scan sessions <ECU>` (which diagnostic session types the ECU
-supports — informs the session prerequisite in step 2), `canair scan routines
-<ECU>` (RoutineControl `0x31`/KWP `0x33`, auto by `id_protocol`), and
-`canair scan iocontrol <ECU>` (IOControl `0x2F`/KWP `0x30`). Hits are saved to the
-ECU's `routines:`/`iocontrol_discoveries:` sections.
+A bare `canair scan <ECU>` is `scan range`. The other SAFE kinds cover the non-PID
+signal types: `scan sessions` (which session types the ECU supports — informs step 2),
+`scan routines` (`0x31`/KWP `0x33`), `scan iocontrol` (`0x2F`/KWP `0x30`); hits land in
+the ECU's `routines:`/`iocontrol_discoveries:`.
 
-Record a research lead as you go:
+**Always record the outcome — a discovered DID must never be lost:**
+
+- **New responding DID → register it immediately** with `canair pids add-pid`
+  (defaults to `status: draft`) as a parameter-less placeholder, raw payload in
+  `--notes`, then add a `decode` lead. `draft` = tracked, queryable and captured but
+  kept out of the generated WiCAN profile until decoded (`set-pid-status … active` to
+  ship, `ignored` for a dead DID). Check first whether it is already registered — a
+  re-scan refreshes payload/notes, it does not duplicate. (Ioniq placeholders:
+  `ESC 22C102`, `EPS 220101/220102`, `CLU 22B001/B003`.)
+- **NRC / no response → close the lead** (`pids set-status <ECU> "<target>" nrc --type
+  scan`) so nobody re-probes it. `nrc` = "probed, ECU said no / silent"; `done` =
+  "scan complete, responders registered".
 
 ```bash
 canair pids add-research MCU --type decode --target 2102 \
     --status captured --priority P1 --prereq CHARGING --notes "62 bytes, undecoded"
 ```
 
-**Always record the scan outcome — a discovered DID must never be lost:**
-
-- **New responding DID → register it immediately** as a `status: draft` placeholder
-  PID in `ecus/<ecu>.yaml`, with the raw payload pasted into `notes` (and an empty
-  `expression`), then add a `decode` research lead. This is the established project
-  convention (e.g. `ESC 22C102`, `EPS 220101/220102`, `CLU 22B001/B003` are all such
-  placeholders). `status: draft` means it is tracked, queryable and captured but stays
-  out of the generated WiCAN profile until it's actually decoded (set `canair pids
-  set-pid-status <ECU> <PID> active` to ship it, or `ignored` for a dead DID). Before
-  adding, always check whether the DID is already registered — a re-scan of a known DID
-  should just refresh the payload/notes, not create a duplicate.
-- **Negative probe (NRC / no response) → close the scan lead** with
-  `canair pids set-status <ECU> "<target>" nrc --type scan` so nobody re-probes it.
-  Use `nrc` for "probed, ECU said no / silent" and `done` for "scan complete, responders
-  found and registered". (Example: on the Ioniq the powertrain ECUs — BMS/VCU/MCU/LDC —
-  are KWP2000/service-21 and reliably NRC every `22 xxxx` DID ported from the Ioniq 5;
-  confirm once, mark `nrc`, move on. Watch for the analogous mismatch on your own car.)
-
-Whether an ECU speaks UDS (service `22`/`0x19`/`0x31`/`0x2F`) or KWP2000 (service
-`21`/`0x18`/`0x33`/`0x30`) is recorded per-ECU as **`id_protocol`** in
-`ecus/<ecu>.yaml` — `canair scan`/`dtc`/`routines`/`iocontrol` auto-select the
-right service from it, so a wrong `id_protocol` makes an ECU blind-probe the wrong
-service and NRC everything. On a non-Hyundai car, confirm each ECU's protocol
-(one successful read of a known service) and set `id_protocol` before bulk
-scanning; see `docs/concepts/ecu-protocols.md`.
+Whether an ECU speaks UDS (`22`/`0x19`/`0x31`/`0x2F`) or KWP2000
+(`21`/`0x18`/`0x33`/`0x30`) is recorded per-ECU as **`id_protocol`**, and
+`scan`/`dtc`/`routines`/`iocontrol` auto-select the service from it — so a wrong value
+makes an ECU blind-probe the wrong service and NRC everything. On a non-Hyundai car,
+confirm each ECU's protocol with one successful read before bulk scanning
+(`docs/concepts/ecu-protocols.md`). Ioniq example: the KWP2000 powertrain ECUs reliably
+NRC every `22 xxxx` DID ported from the Ioniq 5 — confirm once, mark `nrc`, move on.
+Expect the analogous mismatch on your own car.
 
 ### 4. Capture — record real payloads across states
 
 ```bash
-# Preferred: decoded, session-managed, saved (bind PID to ECU with a colon)
 canair read MCU:2102 --save --label "MCU 2102 driving" \
-    --state "READY, DRIVING" --notes "hard launches + regen"
-# Capture change across time (values that move reveal what a byte means)
-canair monitor MCU:2102 --interval 1 --keep-all --save
+    --state "READY, DRIVING" --notes "hard launches + regen"  # bind PID with a colon
+canair monitor MCU:2102 --interval 1 --keep-all --save        # values that move reveal meaning
 ```
 
-**No device on hand? You can still do most of this skill.** The bulk of the work
-— steps 5–9 (inspect → hypothesize → try → verify) — runs entirely against the
-*existing* capture corpus; you need a live car only to record *new* data. And a
-reading pasted from a forum/GitHub issue/another tool is onboarded device-free
-with **`canair import uds`**, which files it through the same machinery as a live
-`--save` (so it's immediately queryable by `decode`/`captures`/`coverage`):
+Capture the SAME PID in DIFFERENT states (park vs drive, cold vs warm, charging vs
+ready) — contrast separates signal bytes from constants. For step 6, **co-poll the
+target together with an ECU carrying a known reference** (speed on ESC, RPM on MCU) in
+one run so `hunt`/`correlate`/`align` can time-align them; save a recurring co-poll set
+as a group and recall it with `@` (`canair monitor @driving CLU:220B`, managed by
+`canair groups`).
+
+**Never hand-edit `captures/`, and never read the raw capture JSON** — always go
+through `canair captures`/`decode` (step 5), or you get undecoded payloads with no
+byte-diffing, decoding or scoping. Saves are journaled and reconciled on exit, so a
+killed session is recoverable with `captures uds --recover`. In `monitor`, `state` is
+auto-suggested from decoded values; `s` edits the session's metadata, `n` starts a
+fresh labelled segment, `● REC` blinks while recording. After saving, run
+`captures uds --summary`.
+
+**No device on hand? Steps 5–9 still work** — they run against the *existing* corpus;
+a live car is needed only for *new* data. A reading pasted from a forum/issue is
+onboarded device-free with `canair import uds`, filed through the same machinery as a
+live `--save` (immediately queryable by `decode`/`captures`/`coverage`) — the
+sanctioned alternative to hand-writing `captures/`:
 
 ```bash
 canair import uds MCU:2102=6102... --label "forum: cold-soak" --state SLEEP \
-    --notes "posted by <user>, 2017 Ioniq"    # ECU:PID=reassembled-payload (SID-first, PCI stripped)
+    --notes "posted by <user>, 2017 Ioniq"   # ECU:PID=payload (SID-first, PCI stripped)
 ```
 
-This is the sanctioned way to add a reading you didn't capture yourself — **never
-hand-write `captures/`** as an alternative.
-
-Capture the SAME PID in DIFFERENT states (park vs drive, cold vs warm, charging
-vs ready) — contrast is what lets you separate signal bytes from constants. For
-**cross-signal analysis** (step 7), co-poll the target PID *together with* an ECU
-carrying a known reference (speed on ESC, RPM on MCU) in one `canair read` /
-`canair monitor` run — they'll share a drive so `hunt`/`correlate`/cross-ECU `--corr`
-can time-align them. A recurring co-poll set is worth saving as a **group** and
-recalling with the `@` sigil (`canair monitor @driving CLU:220B` = the saved
-`driving` group plus an extra selector); manage groups with `canair groups`.
-Every payload capture is now timestamped automatically, so
-any co-polled drive is joinable; only one-shot scans/identity reads stay untimed.
-**Never hand-edit `captures/` — and never read the raw capture files
-(`captures/YYYY-MM-DD.json`) directly.** Always inspect captures through
-`canair captures`/`canair decode` (next step): reading the JSON by hand gives you
-undecoded raw payloads and skips byte-diffing, decoding, and state/date scoping. Saves are journaled to `captures/.journal/` and
-reconciled on exit (a killed/disconnected `canair monitor` session is recoverable with
-`canair captures uds --recover`); in `canair monitor` the `state` is auto-suggested from
-decoded values (press `s` to edit the current session's metadata live, `n` to start
-a fresh labelled segment; a `● REC` blinks while recording). After saving, run
-`canair captures uds --summary`.
-
-> **Keep modes change what "a capture" *means* — and how you must read it.**
-> `canair monitor --save` defaults to **`--keep-changes`** (run-length): a payload
-> is stored only when it *differs from the immediately preceding one for that PID*.
-> Two consequences that routinely mislead:
+> **Keep modes change what "a capture" *means*.** `monitor --save` defaults to
+> **`--keep-changes`** (run-length): a payload is stored only when it differs from the
+> previous one for that PID. So **a stored-row count measures VOLATILITY, not
+> sampling** — an ECU with 30 rows over 3 h was polled every cycle and merely didn't
+> *change*, while another in the same run with one noisy ADC byte stores thousands.
+> Never read a low count as "barely polled" or compare two ECUs' counts as sample
+> sizes (that misreading produced a wrong conclusion about IGPM). Read the mode and span
+> from `captures uds --sessions`.
 >
-> - **A stored-row count measures VOLATILITY, not sampling.** An ECU that stored
->   30 rows over a 3 h session was polled every cycle — it just barely *changed*;
->   another ECU in the very same run with one noisy ADC byte stores thousands.
->   Never read a low count as "barely polled" and never compare two ECUs' counts
->   as if they were sample sizes. (This exact misreading produced a wrong
->   conclusion about IGPM on 2026-08-05 — it looked unpolled at 30 rows vs BCM's
->   4697, when both were polled identically.) Check the recording mode and span in
->   `canair captures uds --sessions`.
-> - **A stored value stays valid until the next stored row** — that is the whole
->   point of run-length — **but the time-aligned joins do not know that.**
->   `align`/`correlate`/`hunt`/`investigate` nearest-join within `--join-tol` and
->   treat rows as *samples*, with no forward-fill, so a signal that legitimately
->   held steady has nothing to attach to and the row is silently dropped. Measured:
->   aligning a charge-port-lock bit (known with certainty for a whole 3 h window —
->   it changed twice) against a dense BMS signal joined **5 of 2016 rows, losing
->   99.75 %**. So when you need a run-length signal *alongside* a dense one, read
->   its dwell from the timestamps (`investigate --events`, `decode --compact`)
->   instead of trusting a join, and treat a near-empty join column as a *storage
->   artefact*, not as absent data. Gap tracked in
->   `plans/2026-08-05-run-length-forward-fill-joins.md`.
->
-> Choose deliberately: **`--keep-all`** when you need true timing/rate (dRPM,
-> `--transform delta`, dwell durations); **`--keep-changes`** for narrated event
-> captures (keeps both edges *and* recoverable dwell); avoid **`--keep-unique`**
-> when timing matters at all — global dedup discards return-to-previous
-> transitions, so the run structure is genuinely unrecoverable.
+> A run-length value stays valid until the next stored row, and the joins know it:
+> `align`/`correlate`/`hunt`/`investigate`/`decode` **forward-fill** `keep:changes` rows
+> (`--fill auto` default, `hold`/`none` to force/disable, `--max-hold` caps it), never
+> across a session boundary, and always report what they carried. Choose deliberately:
+> **`--keep-all`** for true timing/rate (dRPM, `--transform delta`, dwell);
+> **`--keep-changes`** for narrated event captures (both edges + recoverable dwell);
+> avoid **`--keep-unique`** whenever timing matters — global dedup discards
+> return-to-previous transitions, so the run structure is unrecoverable and fill cannot
+> reconstruct it.
 
 ### 5. Inspect — see the bytes
 
-`canair captures` is a `uds`/`can` group: `captures uds …` is the diagnostic
-domain (below); `captures can` lists raw broadcast-CAN frame logs. A bare
-`canair captures MCU 2102` still works — it's shorthand for `captures uds …`.
-
 ```bash
-canair captures uds --sessions                # what's in the captures? (TOC: date/state/label/notes/ECUs)
-canair captures uds --sessions --state DRIVING  # index of every drive
-canair captures uds --sessions --json         # machine-readable TOC
-canair captures uds --summary                 # overview: captures per ECU / per date / totals
-canair captures uds MCU --latest              # most recent payload per PID (ECU/PID from the QUERY)
-canair captures uds MCU 2102                  # list captures + decoded (latest --limit; --limit 0 for all)
-canair captures uds MCU:2102 --diff           # unique payloads, byte-diff
-canair captures uds MCU:2102 --diff --all     # every payload, not just unique ones
-canair captures uds MCU:2102 --diff --rulers  # add the byte ruler above the hex (--notation to switch)
-canair captures uds MCU:2102 --diff --since 2026-07-19   # scope by date
-canair captures uds MCU:2102 --diff --state DRIVING       # scope to one drive/state
-canair captures uds MCU:2102 --step           # interactive step-through (e=note, d=delete)
-canair captures uds OBC 2101 --delete --dry-run  # preview a targeted delete (then --yes / confirm)
-canair captures uds --recover                 # reconcile orphaned journals (--discard to drop)
-canair captures can                           # list imported raw broadcast-CAN frame logs (domain B)
-canair bix -1 --annotate 6101FFFF...          # map each byte -> Bnn/ISO-TP/Torque/role
+canair captures uds --sessions          # START HERE: TOC (date/span/state/label/notes/ECUs)
+canair captures uds --summary           # captures per ECU / per date / totals
+canair captures uds MCU 2102            # list + decoded (latest --limit; --limit 0 for all)
+canair captures uds MCU:2102 --diff     # unique payloads, byte-diff (+ --all, --rulers)
+canair captures uds MCU:2102 --diff --rulers --notation isotp   # re-label the byte ruler
+canair captures uds MCU:2102 --step     # interactive stepper (e=note, d=delete, ?=keys)
+canair captures uds "HVAC:220100,2201A2" --step   # several PIDs, time-joined in one frame
+canair bix -1 --annotate 6101FFFF...    # map each byte → Bnn / ISO-TP / Torque / role
 ```
 
-The QUERY mini-language is shared with `canair decode`: `MCU 2102` (one PID),
-`MCU:2102,2103` (several PIDs), `MCU` (all PIDs for an ECU), `"VCU:2101 BMS:2101"`
-(cross-ECU — quote the space), and `BCM:22` (prefix PID match — all `22xxxx`
-DIDs on an ECU; a suffix token like `BCM:BC03` matches the stored `22BC03`).
+Full flag set: `canair captures uds --help`. The **QUERY mini-language** is shared with
+`decode`: `MCU 2102`, `MCU:2102,2103`, `MCU` (all its PIDs), `"VCU:2101 BMS:2101"`
+(cross-ECU — quote the space), `BCM:22` (prefix match) —
+`docs/concepts/query-mini-language.md`.
 
-Start with `canair captures uds --sessions` to see what data exists (labels, states,
-notes per session — no payloads) and pick a drive/state to analyze; `--json`
-gives a machine-readable index.
-Byte-diff highlights which bytes moved between states — your candidate signal
-bytes; add `--rulers` to overlay the byte-index ruler and `--all` to include
-duplicate payloads. Both `captures` and `decode` share the same scoping flags —
-`--since`/`--until`/`--date`, `--state SUBSTR`/`--label SUBSTR`, `--first`/
-`--last N` — so you can isolate a single drive (`--state DRIVING`) before
-diffing/decoding. `canair bix --annotate` tells you each byte's WiCAN index and
-flags the PCI bytes you must not read across (see Reference below); add
-`--ecu ECU --pid PID` to overlay which defined parameter (and bit) maps each byte
-and flag `unmapped` data bytes — the fastest way to catch a wrong byte offset in
-an expression.
+Start with `--sessions` to see what data exists and pick a drive/state. Byte-diff
+highlights which bytes moved between states — your candidate signal bytes. `captures`
+and `decode` share the scoping flags (`--since`/`--until`/`--date`, `--state SUBSTR`/
+`--label SUBSTR`, `--first`/`--last N`, `--last-session`), so isolate one drive
+(`--state DRIVING`) before diffing. `--step` with a multi-PID QUERY stacks those PIDs
+time-joined in one frame — how you cross-compare signals at the same instant.
+`canair bix --annotate` gives each byte's WiCAN index and flags the PCI bytes you must
+not read across (see Reference); `--ecu ECU --pid PID` overlays which parameter (and
+bit) maps each byte and flags `unmapped` ones — the fastest way to catch a wrong offset.
 
 !!! note "Scripting over captures — use `load_all_captures()`, mind the RX address"
-    If you must script over captures (a bulk edit/delete keyed on a payload
-    predicate the QUERY can't express, e.g. "drop every truncated read"), go
-    through `canlib.commands.captures.query.load_all_captures()`. It returns
-    flat entries with `ecu` already **resolved to the short name** (e.g. `OBC`),
-    the raw `ecu_addr` (`0x7ED`), and `_session_idx`/`_capture_idx` locators that
-    plug straight into `canlib.captures.delete_capture` (delete in reverse
-    `(file, session, capture)` order). **Do not re-derive the list with a raw
-    `ecu == "OBC"` filter** — the stored `rx` field is the CAN **response
-    address** (`0x7ED`), *not* the short name, so that scan silently matches
-    nothing. Prefer `canair captures uds --delete` when the QUERY can express the
-    selection.
+    For a bulk edit/delete keyed on a predicate the QUERY can't express, go through
+    `canlib.commands.captures.query.load_all_captures()`: flat entries with `ecu`
+    already **resolved to the short name** (`OBC`), the raw `ecu_addr` (`0x7ED`), and
+    `_session_idx`/`_capture_idx` locators for `canlib.captures.delete_capture` (delete
+    in reverse `(file, session, capture)` order). **Do not re-derive the list with a raw
+    `ecu == "OBC"` filter** — the stored `rx` field is the CAN **response address**, not
+    the short name, so that scan silently matches nothing. Prefer
+    `captures uds --delete` when the QUERY can express it.
 
 ### 6. Hypothesize — form an expression
 
-Cross-reference any external signal maps you have for this car or a close
-relative (for the Ioniq: the Kia Soul/Niro PID sheets in
-`profiles/ioniq-2017/references/` and the Obsidian vault); watch the PCI-boundary
-caution for `[Bnn:Bmm]`. See the Byte Index & Expression reference at the bottom.
+Hypothesizing is not guessing a byte offset — it is reasoning from *domain knowledge*
+about what a signal must physically be, then confirming it in the data. The full
+reasoning toolkit is the sibling [`signal-reasoning.md`](signal-reasoning.md) — **load
+it for this step**:
 
-Hypothesizing is not just guessing a byte offset — it's reasoning from *domain
-knowledge* about what a signal must physically be, then confirming it in the
-data. Use every discipline you have.
+- **Let the ECU narrow the search space** — what a BMS/MCU/VCU/OBC/HVAC/body module must
+  measure, and why a body PID is bitfields rather than analog.
+- **Typed signals** — a mode/flag/date byte gets a param `type:` + `values:`/`bits:` map
+  and *categorical* stats, never Pearson (`docs/concepts/typed-signals.md`).
+- **Physics / EE** — thermal mass (the most useful lever), signed symmetry, conservation
+  checks, rate limits.
+- **Computer science** — enums, bitfields, fast counters vs slow accumulators, constants.
+- **Statistics** — distribution shape, correlation (cross-ECU is the fastest lever),
+  mirrors (the jackpot), state discrimination, sweeps/transforms/fits, and eyeballing the
+  raw series before trusting an r.
+- **Thematic grouping** as a lead only, and **trust-but-verify** on existing `verified`
+  params — they can be wrong.
 
-#### Let the ECU narrow the search space
-
-**What an ECU is tells you what signals to expect.** Reason about the
-component's job before you look at bytes (the examples below are EV modules; the
-same "reason from the ECU's role" applies to any powertrain):
-
-- **BMS (battery)** — cell/pack voltages (tight clusters of similar 2-byte
-  values), currents (signed, symmetric about zero, charge vs discharge),
-  temperatures (slow, per-module), state-of-charge/health (bounded 0–100%),
-  contactor/relay states (enum/bit), cell-balancing flags (bitfields).
-- **MCU/inverter** — motor RPM (signed, ±, symmetric under regen), torque
-  (signed), phase currents (large, load-tracking), DC-link voltage, and *several
-  temperatures of different components* (see thermal-mass reasoning below).
-- **VCU** — gear/drive-mode (enum), vehicle speed, pedal positions (0–100%),
-  ready/charging state machine (enum/bits).
-- **OBC/LDC** — AC/DC input & output voltages/currents, charger/converter
-  temperatures, charge-state enums.
-- **BCM/IGPM (body)** — mostly *discrete* signals: lights, locks, doors,
-  switches → **bitfields and enums**, not continuous analog. Decode these with
-  the **bit-level, event-driven** workflow: capture a *narrated* event sequence
-  (`canair monitor --save`, the default `keep:changes` run-length recording, which
-  keeps both edges — noting each physical action), then
-  `canair investigate <ECU> <PID> --events --bits` to get the rising/falling-edge
-  timeline aligned to your notes, and `canair correlate --find-mirrors --bits` to
-  find the same bit exposed on a second ECU (e.g. an IGPM door bit mirrored in
-  BCM). This is how DOOR_DRV_OPEN / HOOD_OPEN / the BC05 unlock+trunk bits were
-  decoded (2026-07-24). The **decode-bitfields** skill covers this loop in full,
-  including `--dwell` and the partially-decoded-byte audit.
-
-> **Typed (multi-modal) signals.** A byte that is a *mode/flag/schedule/date*,
-> not a number on a line, is modelled with a param **`type:`**
-> (`enum`/`bitmask`/`ascii`/`date`/`bcd`/`struct`) + a companion `values:`/`bits:`
-> map (author via `canair pids upsert-param --type … --value RAW=LABEL / --bit
-> INDEX=LABEL`). The WiCAN `expression` stays the pure-float device value; the
-> type is a parallel decoding (`canlib/decode_value.py`). Analyse them with
-> **categorical** stats, not Pearson: `canair decode … --discriminate state`
-> (Cramér's V for typed params), `canair correlate … --method cramers_v` ("which
-> byte is this mode?"), and `canair investigate … --events --field NAME` (one
-> logical transition per decoded-value change, e.g. `fanMAX (45) → fan1 (40)`).
-> For a setting the *head unit writes* (schedule/clock), use **toggle → re-read →
-> `captures uds --diff`** on the storing DID. See
-> `docs/concepts/typed-signals.md`.
-
-- **HVAC/AAF** — temperatures (ambient/evaporator/heatsink), fan/compressor
-  states, flap positions.
-
-A byte's plausible identity is constrained by its ECU: a load-tracking current
-on the BCM is unlikely; a door-ajar bit on the MCU is unlikely.
-
-#### Reason from physics / electrical engineering / power electronics
-
-The *dynamics* of a signal reveal its nature even before you know its scale:
-
-- **Thermal mass (the most useful physics lever).** Temperatures change *slowly*
-  and are *decoupled from instantaneous load*: high lag-1 autocorrelation, tiny
-  per-sample step. Crucially, **thermal mass varies by component**, so *how
-  slowly* a temperature moves tells you *which* component it measures:
-  - A small-die IGBT **junction** temperature can rise/fall within ~1 s (low
-    thermal mass) yet still sit near coolant temp at idle — it looks *fast* but
-    keeps a temperature-like baseline.
-  - A **heatsink / coolant / motor-winding** temperature drifts over minutes
-    (large thermal mass) and lags load heavily.
-  - Which state a temperature is *hottest* in disambiguates the component: a byte
-    hottest while **charging** (motor idle) is inverter/charger/power-stage; one
-    that warms only with **driving** is motor/coolant. Use `--stats
-    --group-by state` to read these per-state means straight out.
-- **Signed vs unsigned & symmetry.** Motor RPM, torque, and battery current are
-  **signed** and roughly **symmetric about zero** (regen ≈ –drive). A value that
-  never goes negative and tracks |load| is a *magnitude* (current RMS, power),
-  not a signed torque.
-- **Conservation / relationships you can check.** Power ≈ V·I; DC-link current ≈
-  motor power / DC-link voltage; pack current integrates toward SOC change. A
-  candidate that violates a physical identity is wrong even if its range "looks
-  right." Validate these with `--corr` against an already-known signal.
-- **Rate limits.** Real physical quantities can't step arbitrarily fast — a
-  "temperature" that jumps 5 °C between two 5 s samples is a load/current metric,
-  not a temperature (a real example from this project).
-
-#### Reason from computer science (state machines, counters, logic)
-
-Not every byte is analog. Discrete/logic signals have distinct fingerprints:
-
-- **Enums / state machines** — a small set of distinct integer values (`--stats`
-  shows low `distinct`), transitions only between "adjacent" states (park→ready→
-  driving), and correlation with a known mode. Map with per-bit or whole-byte
-  reads and label each value.
-- **Bitfields** — individual bits toggle independently with discrete events
-  (a light, a door, a relay). Read bit-by-bit (`Bnn:k`); `canair coverage
-  --bitfields` flags bytes only partly decoded. For the full bit-level loop —
-  and for the common case of a byte with only 1-2 of 8 bits decoded — use the
-  **decode-bitfields** skill.
-- **Counters / alive / checksum** — a *fast* rolling counter or CRC is
-  high-distinct noise with *no* physical correlation to anything; don't give it a
-  physical unit, mark it as such. A **slow accumulator** (odometer, operating
-  hours, ignition/power-cycle count, cumulative Ah/Wh) is the opposite problem:
-  it barely moves inside one session, so it reads as a *constant* byte to
-  `--corr`/`--discriminate`/`hunt`/`investigate` and to triage's own `counter`
-  class (which is direction-blind and single-byte). Only its behaviour across the
-  **whole capture history** identifies it — it never decreases. Find these with
-  **`canair investigate <ECU> <PID> --counters`**, which sweeps 1-4-byte windows x
-  endianness and groups hits into `accumulator` / `cycle` / `timer`. Evidence is in
-  **bits** (one clean rise with no fall = 1 bit), so read a 3-bit hit as a lead and
-  a 300-bit hit as a fact — and do **not** scope it, because the horizon is the
-  evidence (a scope filter is now *warned*, since it understates the score). You
-  don't have to name a PID: **omit ECU/PID entirely** — `canair investigate
-  --counters` — to sweep the *whole car* ("find every counter in it"), or give a
-  bare ECU / QUERY to sweep its PIDs. That is the natural discovery form, since a
-  counter is exactly the thing you haven't decoded a PID for yet.
-- **Constants / calibration** — never (or rarely) change across all states →
-  cal/identity block, not live data. Confirm with `--stats` (distinct = 1–2).
-
-#### Reason from statistics & mathematics
-
-The tooling exposes real statistical levers — use them as evidence, not decoration:
-
-- **Distribution shape** (`--stats`: n / distinct / mean / median / stdev) —
-  continuous vs enum vs constant; a bimodal/low-distinct byte is likely discrete.
-- **Correlation** (`--corr PARAM`, Pearson r) — the single strongest validation:
-  test a candidate against a *known* signal it should relate to (a temp vs
-  |torque| ≈ 0; a current vs |torque| ≈ high). Correlate against a *derived*
-  reference too (e.g. |Δbyte| vs |Δload|) to separate fast load-trackers from
-  slow temps.
-- **Cross-ECU correlation** — a signal on one ECU often mirrors a *verified*
-  signal on another (speed appears on ESC/EPS/VCU/AAF; RPM on MCU/VCU). Three
-  ways to exploit it, all time-aligned by nearest timestamp over a co-polled
-  drive:
-  - `canair decode <ECU> <PID> --corr ESC:22C101:REAL_SPEED_KMH` — correlate a
-    PID's params against a *cross-ECU* reference (`ECU:PID:PARAM` or
-    `ECU:PID:EXPR`). Add `--corr-transform delta` to test level-vs-rate, or
-    `--method spearman` for monotone-but-nonlinear/quantized links Pearson misses.
-  - `canair hunt <ECU> <PID> --against ESC:22C101:REAL_SPEED_KMH` — "which byte
-    *is* this known signal?": sweeps every byte×interpretation, ranks by |r|,
-    and prints the linear fit + a unit guess (`×1.609 mph→km/h`, `raw−40 °C`).
-    Collapses to the best interpretation per offset (`--all-interps` to expand).
-    `--transform delta` hunts the byte tracking the reference's *rate* (torque vs
-    acceleration); `--promote NAME` writes the winner into `ecus/` as an
-    enabled-unverified candidate. Fastest path from "unknown byte" to "candidate".
-  - `canair correlate --state DRIVING` — rank *every* strong cross-signal
-    relationship in a drive at once (`--against REF` to focus one, `--bytes`/
-    `--bits` to include raw bytes/toggling bits, `--promote NAME` on the top
-    raw-byte hit). `--lag-scan N` reports the apparent lead/lag (command→response
-    ordering; "apparent" because sequential polling adds a fixed offset);
-    `--gate '> 0'` restricts to a regime (while-moving); near-perfect co-linear
-    groups collapse to one line. Run `canair correlate --overlap` **first** to see
-    which ECU:PID pairs actually share time-aligned samples (pick a viable
-    `--against` reference instead of guessing).
-  - `canair investigate <ECU> <PID>` — the one-shot "explain this PID": per byte,
-    is it mapped?, its state-discriminability F, and its strongest co-polled
-    anchor (r + fit + unit) in a single ranked table. Point it at an unknown PID
-    before hand-running the loop below. **ECU/PID are optional** (the `coverage`
-    precedent): omit the PID (or both) to *sweep* an ECU — or the whole profile —
-    as a ranked summary (`--top` caps it) rather than N full reports, the "which
-    PID is worth a deep-dive?" triage. Add **`--bits`** to rank toggling bits
-    (`Bn:k`) — the body/comfort finder (a body PID with no anchor is still ranked
-    by state separation, not dropped). Add **`--events`** for the bit/byte **edge
-    timeline** — every rising/falling transition with its timestamp, aligned to
-    the nearest capture note; the fastest way to decode a narrated event capture
-    (door/lock/hood). Both **caveat `keep:changes` scope** (the run-length
-    default: stored rows are transitions, not fixed-rate samples). `keep:unique`
-    gets no blanket banner — it is flagged only where it changes a reading (the
-    `--events` dwell classes), so read the recording mode from
-    `canair captures --sessions` when timing matters. Add **`--counters`** to ask
-    the orthogonal question — "which windows only ever go *up*?" — for odometers,
-    operating-hour tallies, power-cycle counts and uptime timers. It is the only
-    tool that finds these, because a slow counter is stationary within a session
-    and therefore invisible to every correlation/discrimination view; unlike the
-    rest of this list it should be run **unscoped**, since the calendar horizon is
-    the evidence. `--counters` sweeps too (a bare `canair investigate --counters`
-    finds every counter in the car); the narrated timelines
-    (`--events`/`--dwell`/`--field`) stay single-PID and refuse a sweep.
-- **Cross-ECU mirror detection** (`canair correlate --find-mirrors [--bits]`) —
-  reports byte/bit positions time-aligned *equal* across co-polled ECU/PIDs (a
-  door bit in IGPM also present in BCM); the cross-ECU companion to
-  `decode --find-mirrors` (single-PID). Beware small `--min-n`: noisy low bits
-  (e.g. a voltage ADC's LSBs) can match by chance over a handful of samples.
-  **It matches only EXACT equality in ALL rows, so it misses two very common real
-  cases:** (a) an **offset/scaled** mirror — the same physical quantity carried at
-  a different offset or scale (`AAF:2181:B19 − 100 == OBC LDC_TEMP`,
-  `VCU:2102:B18 − 100 == AAF coolant temp`, `BCM:22C011:B11 == 12.8 ×
-  BCM_12V_BATTERY`); and (b) a **drifting** signal read by two ECUs seconds apart
-  in the poll round-robin, where skew makes rows differ by ±1 and disqualifies the
-  pair outright (one genuine mirror was exact in 94.9 % of 1729 rows and reported
-  as nothing). **A null result is therefore not evidence of no mirror.** Test
-  candidates with an **absolute-difference** check instead: align the two signals
-  and look for a *constant integer difference* (or constant ratio) in the large
-  majority of rows — `canair align "ECU:PID:A" "ECU:PID:B" --csv` and tabulate the
-  differences. That test found all three mirrors above on 2026-08-05, none of
-  which `--find-mirrors` reported.
-  **A mirror of an already-VERIFIED signal is the jackpot of this whole skill:** it
-  decodes an unmapped byte at near-certainty with no new capture and no physical
-  reasoning, so when a PID is co-polled with well-mapped ECUs, sweep for mirrors
-  *before* reaching for correlation or physics. It also cuts the other way — a
-  "new" byte that merely mirrors a known one should be recorded and left disabled
-  (redundant), not shipped twice.
-- **State discrimination** (`canair decode … --discriminate state`, add `--bytes`
-  for raw bytes / `--bits` for toggling bits — no `--try` needed) — ranks
-  bytes/params by between-state vs within-state variance (F). Surfaces
-  thermal/mode/relay signals that shift by *power state* (charging vs ready vs
-  driving) rather than by a driving anchor — how the MCU inverter-temp byte was
-  confirmed (charging 22 °C vs driving 90 °C). Complements correlation.
-- **Mirror detection** (`canair decode … --find-mirrors [--bits]`) — reports
-  byte/bit positions exactly equal across all captures: redundant status mirrors
-  and unit-variants (the km/h-vs-MPH speed pair, an ignition bit echoed in two
-  places). A fast way to prune "new" bytes that are just copies. Same
-  exact-equality caveat as the cross-ECU version above — it will not see an
-  offset/scaled mirror, so a null result proves nothing; fall back to the
-  constant-difference test.
-- **Autocorrelation / step size** — lag-1 autocorrelation and mean |Δ| per sample
-  separate slow (thermal, integrating) from fast (load, switching) signals.
-- **Differencing / transforms** (`--plot` `delta/abs/cumsum/normalize/smooth`) —
-  a byte whose *cumulative sum* tracks SOC is a current; a byte whose *delta*
-  correlates with load acceleration is a torque/power proxy.
-- **Endianness & word width sweeps** (`--plot` `t`/`e`) — try `u8/i8/u16/i16/…`
-  ×endianness; the physically-plausible, smooth, correctly-signed interpretation
-  is usually the right one. Beware readings that only look smooth because they
-  cross a PCI byte (garbage).
-- **Linear fit for scale/offset** — once a byte tracks a known engineering value,
-  a straight-line fit (value = a·byte + b) gives the scale and offset; sanity
-  check the intercept physically (a temperature's cold-park reading ≈ ambient).
-- **Eyeball the raw series side by side** (`canair align A B C …`) — before you
-  trust a correlation coefficient or a `--stats` min/max, print the candidate
-  byte(s) *next to* the reference (and any mode/state columns) as one
-  time-aligned table, one row per sample. **A single r or a min/max flattens the
-  *dynamics*** — a signal with a non-zero **baseline/offset** or **mode-dependent**
-  behaviour can post a strong r (or a tidy-looking range) yet mean something quite
-  different up close, and the raw series is the cheap check that catches it. Real
-  case: HVAC 2201A2 B41 looked like a clean "cooling power, 0 in heating" from
-  `--stats` (min=0), so it was written as `HVAC_COOL_POWER`; a `canair align` of
-  B41 beside `HVAC_HEAT_POWER`/`BATTERY_POWER` then showed a **~20 idle baseline
-  in *both* modes** (only cooling elevates it, heating never zeroes it) —
-  correcting the mislabel to `HVAC_COOL_LOAD_B41` *before* it misled anyone. Run
-  it as a routine pre-commit sanity check on any candidate with an offset or a
-  per-mode/per-state story. The first selector sets the row cadence; the rest
-  nearest-join onto it (`--join-tol`); `--csv`/`--json` export a drive slice for
-  an external plot or a `--against-file`, and it takes the standard scope flags
-  (`--state`/`--date`/…). Watch the reference-cadence gotcha: rows follow the
-  first selector's timestamps, so columns read `—` where a signal wasn't
-  co-polled at that instant (a quick way to *see* which window actually overlaps).
-
-#### Expect thematic grouping (but don't rely on it)
-
-Related signals are **often** laid out contiguously — a run of cell voltages, a
-cluster of temperatures, a phase-current pair next to the temperatures that track
-it. Finding one member of a group is a strong hint the neighbors are related
-(e.g. the MCU B18–B21 "thermal cluster"). Use adjacency as a *lead*: if `Bn` is a
-temperature, probe `Bn±1` for more temperatures. **But grouping is a heuristic,
-not a rule** — manufacturers interleave unrelated bytes, pad with calibration
-constants, and reorder across DIDs. Always confirm each byte on its own evidence;
-never assume a neighbor's identity.
-
-#### Trust but verify existing PIDs
-
-Cross-referencing the profile's existing PIDs is essential, but **existing
-definitions can be wrong — even ones marked `verified: true`.** A "verified"
-flag records that *someone* checked it once, possibly against a single short
-drive, a cross-vehicle sheet with a byte offset, or a plausible-but-untested
-hypothesis. Sources of error to watch for:
-
-- **Offset-by-one / cross-vehicle drift** — Kia Soul/Niro sheets are offset by 1
-  byte from the Ioniq; a definition ported from them may read the wrong byte.
-- **Misclassified signal** — a byte labeled a temperature that is actually a
-  load/current metric (this project has real examples that were later demoted to
-  `enabled: false`).
-- **Right byte, wrong scale/sign/endianness** — plausible range but subtly wrong
-  transform.
-- **Stale after re-analysis** — a fuller capture corpus can overturn an earlier
-  single-drive conclusion.
-
-So: **use existing PIDs as priors and correlation references, but re-validate**
-when they contradict your data or physical reasoning. If you find a mistake in a
-`verified` param, that *is* the finding — demote it (`enabled: false` /
-`--unverified`), record the corrected reasoning in `notes:`, and open/adjust a
-`research:` lead rather than silently trusting it. Trust, but verify.
+Cross-reference external signal maps for this car or a close relative (Ioniq: the Kia
+Soul/Niro sheets in `profiles/ioniq-2017/references/`), and mind the PCI-boundary rule
+when a value spans a frame (see Reference below).
 
 ### 7. Test the expression WITHOUT committing
 
-`canair decode --try` evaluates a candidate against every capture — no YAML edit:
+`canair decode --try` evaluates a candidate against every capture with no YAML edit (a
+bad expression shows `ERROR` rather than hiding):
 
 ```bash
-canair decode MCU 2102 --try "MOTOR_RPM:RPM=[S10:S11]"        # value range across captures
-canair decode MCU 2102 --try "TORQUE:Nm=[S12:S13]/100" --stats  # mean/median/stdev/distinct
-# Validate by correlation against a known signal (the key RE lever):
-canair decode MCU 2102 --try "T=[S17:S18]" --corr MCU_MOTOR_RPM
-# Or hunt visually: interactive plot, sweep byte interpretations + transforms.
-canair decode MCU 2102 --plot                      # sweep interpretations, find the signal
-canair decode MCU 2102 --plot --corr MCU_MOTOR_RPM # overlay a known signal + live r
-```
-
-**Cross-ECU / cross-PID** — the fastest lever when a *known* signal on another
-ECU (speed on ESC, RPM on MCU) should relate to your unknown byte. All three
-time-align by nearest timestamp over a co-polled drive (see the "Cross-ECU
-correlation" bullet in step 6 for the full detail):
-
-```bash
-# "Which byte on this PID IS the known signal?" — sweeps every byte×interp,
-# ranks by |r|, prints the linear fit + a physical-unit guess.
+canair decode MCU 2102 --try "MOTOR_RPM:RPM=[S10:S11]"           # value range
+canair decode MCU 2102 --try "TORQUE:Nm=[S12:S13]/100" --stats    # distribution
+canair decode MCU 2102 --try "T=[S17:S18]" --corr MCU_MOTOR_RPM   # validate by correlation
 canair hunt AAF 2181 --against ESC:22C101:REAL_SPEED_KMH --state DRIVING
-canair hunt AAF 2181 --against ESC:22C101:REAL_SPEED_KMH --promote AAF_SPEED  # → candidate param
-# Correlate this PID's params against a cross-ECU reference (level or rate):
-canair decode MCU 2101 --corr MCU:2102:[S10:S11] --corr-transform delta
-# Rank EVERY strong relationship in a drive at once:
-canair correlate --state DRIVING --against ESC:22C101:REAL_SPEED_KMH
-# Eyeball several signals as ONE time-aligned table — the cheap sanity-check
-# that catches what a lone r / min-max hides (baseline offsets, per-mode behaviour):
 canair align HVAC:2201A2:HVAC_HEAT_POWER HVAC:2201A2:B41 BMS:2101:BATTERY_POWER --state READY
-```
-
-`canair align` complements the correlation tools: `hunt`/`correlate` give you the
-*coefficient and fit*, `align` shows the *series* they were computed from. Reach
-for it whenever a candidate has a non-zero baseline, a mode/state-dependent story,
-or you just want to watch A, B and C move together before you write a label (see
-"Eyeball the raw series side by side" in step 6). The first `ECU:PID:PARAM` sets
-the row cadence; the rest nearest-join onto it (columns read `—` where a signal
-wasn't co-polled). `--csv`/`--json` export a slice for an external plot.
-
-**Scope the captures** so a candidate is judged on the relevant drive/state, not
-the whole history (shared with `canair captures`): `--since`/`--until`/`--date`,
-`--state SUBSTR`/`--label SUBSTR` (case-insensitive; the natural unit of drive
-analysis, e.g. `--state DRIVING`), and `--first N`/`--last N`. Combine with
-`--stats --group-by state` to contrast a candidate across drive segments, or
-`--compact --changes-only` to watch it evolve with stationary runs collapsed:
-
-```bash
-canair decode MCU 2102 --try "T=[S12:S13]/100" --state DRIVING --stats  # one drive
-canair decode MCU 2102 --stats --group-by state --state DRIVING          # per-segment
+canair decode MCU 2102 --try "T=[S12:S13]/100" --state DRIVING --stats   # scope one drive
 canair decode ESC 22C101 --param REAL_SPEED_KMH --state DRIVING --compact --changes-only
 ```
 
-Iterate until the range is physical, the distribution makes sense (constant?
-enum? continuous?), and — where a relationship should exist — the correlation
-confirms it. A bad expression shows `ERROR` rather than hiding.
+`hunt`/`correlate` give the *coefficient and fit*; `align` shows the *series* they were
+computed from (its first selector sets the row cadence and the rest nearest-join onto
+it, so a column reads `—` where a signal wasn't co-polled — a quick way to *see* which
+window overlaps; `--csv`/`--json` export a slice). Scope with the step-5 flags so a
+candidate is judged on the relevant drive, not the whole history; `--stats --group-by
+state` contrasts segments and `--compact --changes-only` collapses stationary runs.
+Iterate until the range is physical, the distribution makes sense (constant? enum?
+continuous?), and — where a relationship should exist — the correlation confirms it.
 
-**`--plot` (interactive signal explorer)** is the fastest way to *find* a signal
-when you don't yet have a candidate expression. It works even on a not-yet-defined
-PID (raw payloads only). It's a Textual TUI (same look/feel as `canair monitor`);
-keys:
-- `←`/`→` move the byte offset (byte mode) or switch parameter (param mode)
-- `t`/`T` cycle the interpretation type (`u8 i8 u16 i16 u24 i24 u32 i32 u64 i64 f16 f32 f64`)
-- `e` toggle endianness · `f` cycle post-transform (`raw delta abs cumsum normalize smooth`)
-- `+`/`-` (or `=`/`-`) zoom the x-axis · `,`/`.` pan · `0` reset x-range
-- `i` toggle a modal listing the captures behind the current view (date/time, state, label, notes, file)
-- `m` toggle byte↔param source · `o` overlay the `--corr` reference (with live Pearson r)
-- `p` switch to another captured PID in place · `a` annotate the current param/byte (writes via `canair pids`) · `R` rename the current PID
-- `?` keybinding help modal · `q` quit
-
-The caption under the chart shows the visible capture index range **and its
-date/time span**, both tracking zoom/pan, so you always know which captures —
-and when — the plotted segment came from. Byte mode shows the **equivalent
-WiCAN expression** for the current interpretation (e.g. `[S10:S11]`) — copy it
-straight into step 8 — and whether that byte is **already mapped** by a defined
-parameter (`= mapped: NAME`, or `~ reads Bn: …` for a partial overlap, or
-`unmapped`), so you don't re-decode known bytes. It also warns when a multi-byte
-read crosses a PCI byte (garbage); endianness and float types with no direct
-WiCAN expression are flagged as such. Zoom/pan (`+`/`-`/`,`/`.`) narrows the
-x-axis to inspect a segment (e.g. a single launch or regen event); `i` lists the
-exact captures in that segment.
+**`canair decode <ECU> <PID> --plot`** is the fastest way to *find* a signal when you
+have no candidate expression yet; it works even on a not-yet-defined PID (raw payloads
+only). A Textual TUI that sweeps byte offsets × interpretation type (`u8 … f64`) ×
+endianness with post-transforms, zooms/pans, lists the captures behind the view (`i`),
+switches PID in place (`p`), annotates/renames via `canair pids` (`a`/`R`) and overlays
+a `--corr` reference with live Pearson r — press **`?`** for the keymap. Crucially it
+shows the **equivalent WiCAN expression** for the current interpretation (copy straight
+into step 8), whether that byte is **already mapped**, and a warning when a multi-byte
+read crosses a PCI byte.
 
 ### 8. Define — write it to ecus/
 
-Use `canair pids` (surgical, comment-preserving, auto-validated + auto-reverted
-on schema failure) rather than hand-editing:
+Use `canair pids` (surgical, comment-preserving, auto-validated and auto-reverted on
+schema failure) rather than hand-editing:
 
 ```bash
 canair pids upsert-param MCU 2102 MCU_MOTOR_RPM "[S10:S11]" \
@@ -722,224 +308,181 @@ canair pids upsert-param MCU 2102 MCU_MOTOR_RPM "[S10:S11]" \
     --source "Kia Soul VMCU CSV" --notes "signed 16-bit BE at B10:B11 (ISO-TP 0x07:0x08)"
 ```
 
-If you found the byte with `canair hunt`, skip the manual step: `hunt … --promote
-NAME` writes the top hit straight to `ecus/` as an enabled, unverified candidate
-(same validated path) with the correlation r/n, linear fit, and unit guess
-auto-filled into `notes`.
+Found the byte with `canair hunt`? Skip the manual step: `hunt … --promote NAME` writes
+the top hit through the same validated path with the r/n, linear fit and unit guess
+auto-filled into `notes`. After a write, `upsert-param` echoes the new expression's
+decoded **range across existing captures** — a `constant` where you expected variation
+usually means the offset landed on a PCI byte.
 
-New params start **`--unverified` and `--enabled`** — this is the default.
-Enabled+unverified means the candidate is generated into the WiCAN profile and
-streams live, so it's easy to test against reality (that's the whole point of a
-candidate). Do **not** add candidates as `--disabled`; only reach for
-`--disabled` (or `enabled: false`) when a byte is *proven* bogus/redundant and
-you're keeping it solely for the research trail (e.g. a constant/FF-padding byte,
-or an exact mirror of an already-mapped param). A plausible-but-unconfirmed
-hypothesis belongs enabled so you can watch it move. (Hand-editing `ecus/` is
-allowed, but the tool keeps field order/quoting correct and runs
-`canair validate pids` for you.)
-
-**Keep `--notes` terse and factual** (see Working principles). State the byte
-offset, observed range/per-state values, and the one key piece of evidence
-(e.g. correlation) — not a narrative. Record what the data shows; leave
-speculation to the reader.
+New params start **`--unverified` and enabled** (the default): enabled+unverified means
+the candidate is generated into the WiCAN profile and streams live, so it is easy to
+test against reality — the whole point of a candidate. Only use `--disabled` when a
+byte is *proven* bogus or redundant and you're keeping it for the research trail
+(padding, a counter, an exact mirror of a mapped param). **Keep `--notes` terse and
+factual**: byte offset, observed range/per-state values, the one key piece of evidence.
 
 ### 9. Verify — confirm against reality
 
-Confirm the decoded values across the full history and against known physical
-state, then flip to verified:
-
 ```bash
-canair decode MCU 2102                      # ranges (default) — sanity across captures
-canair decode MCU 2102 --stats              # distribution / enum detection
-canair decode MCU 2102 --param MCU_MOTOR_RPM  # isolate the one param you're verifying
-canair decode MCU 2102 --unverified         # validation focus: only not-yet-verified params
-canair coverage MCU 2102                    # any bytes still unmapped?
-canair validate pids                        # schema + PCI-boundary checks
+canair decode MCU 2102 --param MCU_MOTOR_RPM   # ranges for the one param you're verifying
+canair decode MCU 2102 --stats --unverified    # distribution; validation focus
+canair coverage MCU 2102                       # any bytes still unmapped?
+canair validate pids                           # schema + PCI-boundary checks
 
-canair pids upsert-param MCU 2102 MCU_MOTOR_RPM "[S10:S11]" --verified   # promote
-canair pids set-status MCU 2102 done --type decode                       # close the lead
+canair pids upsert-param MCU 2102 MCU_MOTOR_RPM "[S10:S11]" --verified  # promote
+canair pids set-status MCU 2102 done --type decode                      # close the lead
 ```
 
-A parameter is `verified: true` only when validated against real data / known
-state (physical correlation, matching a scan tool, or a definitive constant).
-**No capture ⇒ no proof ⇒ stays `--unverified`** (see Working principles) — never
-promote on a plausible guess or a byte offset ported from another car's profile.
+A parameter is `verified: true` only when validated against real data / known state
+(physical correlation, a matching scan tool, or a definitive constant). **No capture ⇒
+no proof ⇒ stays `--unverified`** — never promote on a plausible guess or an offset
+ported from another car.
 
 ### Always mark off a worked lead (do not leave it open)
 
-**Every time you touch a `research:` lead you MUST update its status before moving
-on** — a lead you investigated but left `pending`/`captured` will be re-surfaced by
-`canair research` and re-worked from scratch, wasting effort (and risking
-re-probing the car). Close it to match reality. Valid statuses are
-`pending → captured → done` (plus `nrc` for a dead scan); a lead awaiting live
-confirmation is a `verify`-**type** item that stays `captured` until confirmed,
-then goes `done`:
+**Every time you touch a `research:` lead you MUST update its status before moving on**
+— one left `pending`/`captured` is re-surfaced by `canair research` and re-worked from
+scratch, wasting effort and risking re-probing the car.
 
 ```bash
-canair pids set-status <ECU> "<target>" done      --type decode   # decoded + a param now exists
-canair pids set-status <ECU> "<target>" captured  --type verify   # candidate defined, awaiting live check
-canair pids set-status <ECU> "<target>" nrc       --type scan     # probed, ECU said no / silent
+canair pids set-status <ECU> "<target>" done     --type decode  # decoded, a param exists
+canair pids set-status <ECU> "<target>" captured --type verify  # candidate awaiting live check
+canair pids set-status <ECU> "<target>" nrc      --type scan    # probed, ECU said no / silent
 ```
 
-This applies to **every** outcome, not just success:
+Every outcome counts, not just success:
 
-- **Fully decoded / verified → `done`** (a real `parameters:` entry exists,
-  promoted to `verified` where possible; for a `verify`-type lead, `done` once
-  confirmed against reality).
-- **Decoded a candidate but it still needs a live/physical check → keep it
-  `captured`** (as a `decode`- or `verify`-type item) with the enabled+unverified
-  param in place, and note exactly what to test.
-- **"Nothing to decode here" is also a result → mark it `done`.** If analysis proves
-  the unmapped bytes are constants/padding, message counters, checksums, or exact
-  mirrors of an already-mapped param, record that finding in the lead's `notes`
-  (with the evidence) and set it `done` — the negative result is the deliverable
-  (e.g. MCU 2102 B52/B53 = counter/checksum, HVAC 220100 FF-padding tail). Do NOT
-  silently drop it.
-- **Only part done → keep it open, but add a follow-up.** If you did part of the
-  work (e.g. registered candidates but they need a drive to verify), update the
-  `notes`/`what_to_test` to reflect exactly what's left so the next pass starts where
-  you stopped, rather than re-deriving it.
+- **Decoded / verified → `done`** (a real `parameters:` entry exists, promoted to
+  `verified` where possible).
+- **Candidate still needs a live check → keep it `captured`** (a `verify`-type item)
+  with the enabled+unverified param in place, noting exactly what to test.
+- **"Nothing to decode here" is also a result → `done`.** If analysis proves the
+  unmapped bytes are constants/padding, counters, checksums or exact mirrors of a mapped
+  param, record that finding *with its evidence* in the lead's notes and close it — the
+  negative result is the deliverable (e.g. MCU 2102 B52/B53 = counter/checksum, HVAC
+  220100 FF-padding tail). Do NOT silently drop it.
+- **Only part done → keep it open with a follow-up**: update `notes`/`what_to_test` so
+  the next pass starts where you stopped instead of re-deriving it.
 
-Rule of thumb: after any analysis or capture session, run `canair research --ecu
-<ECU>` and confirm no lead you touched is still showing its old status. Prefer
-`canair pids set-status` (surgical, validated) over hand-editing the `research:`
-block.
+Rule of thumb: after any analysis or capture session, run `canair research --ecu <ECU>`
+and confirm no lead you touched still shows its old status.
 
 ### 10. Integrate
 
 ```bash
-canair wican autopid write       # regenerate the bundle's out/autopid.json
-canair wican autopid diff        # compare to device (optional)
-uv run pytest -q                 # keep the suite green (always `uv run` from the repo root)
+canair wican autopid write   # regenerate out/autopid.json (--include-unverified for candidates)
+canair wican autopid diff    # compare to device (optional)
+uv run pytest -q             # keep the suite green (always `uv run` from the repo root)
 ```
 
-Then consider contributing the profile back with **`canair contribute`** (alias
-`canair share`) — it opens the upstream PR for you (fork/branch/commit/push via
-`gh`) and runs a PII pre-flight first. Load the **`contributing-profiles`** skill
-before you do: it covers the scrubbing that gates the PR and the quality bar a
-shared profile must clear. For the bundled car, also consider an upstream wican-fw
-PR — see the `ioniq-reverse-engineering` skill's goals.
+Then consider contributing the profile upstream with **`canair contribute`** (alias
+`share`) — it opens the PR via `gh` and runs a PII pre-flight first. Load the
+**`contributing-profiles`** skill first: it covers the scrubbing that gates the PR and
+the quality bar a shared profile must clear. For the bundled car, also consider an
+upstream wican-fw PR — see `ioniq-reverse-engineering`.
 
 ## Tool cheat-sheet (this workflow)
 
-| Step | Tool |
+Flags live in each command's `--help`; `docs/concepts/analysis-commands.md` is the
+"which command when" map.
+
+| Question | Tool |
 |------|------|
 | what to work on | `canair research`, `canair coverage` |
-| what's captured | `canair captures uds --sessions` (TOC: date/state/label/notes/ECUs; `--json`) |
+| what's captured | `canair captures uds --sessions` (TOC; `--json`) |
 | talk to the car | `canair read`/`monitor`/`scan`/`discover` (`--save`) |
 | onboard a reading (no device) | `canair import uds ECU:PID=PAYLOAD --label … --state …` |
-| see captures | `canair captures` (`--diff`/`--step`/`--rulers`/`--all`/`--latest`/`--summary`/`--since`/`--until`/`--state`/`--label`) |
-| map bytes | `canair bix --annotate` (+ `--ecu ECU --pid PID` to overlay which param maps each byte / flag unmapped; `--pid` also derives the 1-vs-2-byte subfunction width) |
-| reason about a signal | step 6 Hypothesize — ECU context, physics/EE (thermal mass), CS (enums/counters), statistics (`--corr`/`--stats`/autocorr) |
+| see captures | `canair captures uds` (`--diff`/`--step`/`--rulers`/`--latest`/`--summary`) |
+| map bytes | `canair bix --annotate` (+ `--ecu`/`--pid`: which param maps each byte) |
+| reason about a signal | [`signal-reasoning.md`](signal-reasoning.md) — ECU role, physics/EE, CS (enums/counters), statistics |
+| explain an unknown PID | `canair investigate <ECU> <PID>` (mapped? / state F / best anchor + unit / triage / band); omit positionals to sweep an ECU or the profile |
 | test expressions | `canair decode --try` / `--stats` / `--corr` / `--plot` |
-| explain an unknown PID | `canair investigate <ECU> <PID>` (mapped? / state F / best anchor + unit / triage class / physical band, one table; `--bits`, `--events`; flags probable multi-byte `[Bn:Bn+1]` words) — omit the PID (or both positionals) to sweep an ECU / the whole profile as a ranked summary (`--top` caps it) |
-| decode a body event capture | `canair investigate <ECU> <PID> --events --bits` (edge timeline vs capture notes) + `canair correlate --find-mirrors --bits` (cross-ECU bit mirrors) |
-| find an odometer / hour meter / cycle count | `canair investigate [<ECU> [<PID>]] --counters` (monotonic windows across the WHOLE corpus, scored in bits; bare = every counter in the car; `--unmapped-only`) — the one question correlation can't answer |
-| what's co-polled here | `canair correlate --overlap` (which ECU:PID pairs share timed samples) |
-| cross-ECU correlate | `canair decode … --corr ECU:PID:PARAM` (+ `--corr-transform`, `--method spearman`); `canair correlate [--against REF] [--bytes/--bits] [--lag-scan N] [--gate '>0'] [--promote NAME]` |
-| which byte is signal Y | `canair hunt <ECU> <PID> --against ECU:PID:PARAM` (linear fit + unit guess; `--transform delta`, `--promote NAME`, `--all-interps`) |
-| eyeball signals side by side | `canair align ECU:PID:PARAM …` (time-aligned wide table; sanity-check a fit before labelling / export a slice `--csv`/`--json`) |
-| reference an external log | `canair hunt/correlate … --against-file series.csv` (timestamp,value; absolute clock) |
-| a signal with no bus anchor | `canair hunt <ECU> <PID> --physical` (named physical bands); `canair investigate … --independent-of ECU:PID:PARAM` (active-but-independent) |
-| remove a confounder | `canair hunt/correlate … --against REF --control ECU:PID:PARAM` (partial correlation) |
-| dump raw bytes for external analysis | `canair decode <ECU> <PID> --dump-bytes [--json]` (timestamp × byte matrix) |
+| decode a body event capture | `canair investigate … --events --bits` + `canair correlate --find-mirrors --bits` |
+| find an odometer / hour meter / cycle count | `canair investigate [<ECU> [<PID>]] --counters` (monotonic windows over the WHOLE corpus, scored in bits) — the one question correlation can't answer |
+| what's co-polled here | `canair correlate --overlap` |
+| cross-ECU correlate | `canair decode … --corr ECU:PID:PARAM`; `canair correlate [--against REF] [--bytes/--bits]` |
+| which byte is signal Y | `canair hunt <ECU> <PID> --against ECU:PID:PARAM` (fit + unit guess; `--promote`) |
+| eyeball signals side by side | `canair align ECU:PID:PARAM …` (time-aligned table; `--csv`/`--json`) |
+| reference an external log | `canair hunt/correlate … --against-file series.csv` |
+| a signal with no bus anchor | `canair hunt … --physical`; `canair investigate … --independent-of` |
+| remove a confounder | `canair hunt/correlate … --control ECU:PID:PARAM` (partial correlation) |
+| raw bytes for external analysis | `canair decode <ECU> <PID> --dump-bytes [--json]` |
 | find state-dependent signals | `canair decode … --discriminate state [--bytes] [--bits]` |
-| find redundant mirrors | `canair decode … --find-mirrors [--bits]` (single-PID); `canair correlate --find-mirrors [--bits]` (cross-ECU) |
-| scope a drive | `--state DRIVING` / `--since`/`--until`/`--date` / `--first`/`--last N` (both `captures` + `decode`) |
-| per-segment stats | `canair decode … --stats --group-by state` |
-| watch evolution | `canair decode … --compact --changes-only` |
-| write definitions | `canair pids upsert-param` / `rename-param` / `rm-param` / `add-research` / `set-status` |
-| correct a stale PID note | `canair pids set-pid-notes <ECU> <PID> "…"` (omit the text to clear) — the PID header note records what the page *is*, so it goes stale as the decode underneath advances |
-| validate | `canair validate pids`, `canair coverage` |
-| ship | `canair wican autopid write` |
+| find redundant mirrors | `canair decode --find-mirrors` / `canair correlate --find-mirrors` (+ `--allow-offset`) |
+| scope a drive | `--state DRIVING` / `--since`/`--until`/`--date` / `--last-session` |
+| per-segment stats · evolution | `canair decode … --stats --group-by state` · `--compact --changes-only` |
+| write definitions | `canair pids upsert-param`/`add-pid`/`rename-param`/`rm-param`/`add-research`/`set-status` |
+| correct a stale PID note | `canair pids set-pid-notes <ECU> <PID> "…"` (omit text to clear) |
+| validate · ship | `canair validate pids`, `canair coverage` · `canair wican autopid write` |
 
 ---
 
 ## Reference: WiCAN byte index notation
 
-WiCAN expressions index into the **raw CAN frame data including PCI bytes**. The
-firmware's ELM327 parser (`parse_elm327_response()` in `autopid.c`) runs headers
-ON and copies ALL 8 CAN data bytes per frame (including ISO-TP PCI bytes)
-sequentially into a flat byte array.
+Full treatment: `docs/concepts/byte-indexing.md` (plus
+`docs/concepts/wican-byte-index.md` for the firmware-grounded detail).
 
-### Byte layout (AutoPID internal format)
-
-For a multi-frame response to `2101` on BMS (0x7E4):
+WiCAN expressions index the **raw CAN frame data including ISO-TP PCI bytes** — the
+firmware's ELM327 parser copies all 8 CAN data bytes per frame sequentially into a flat
+array. For a *multi-frame* response to `2101` on BMS (0x7E4):
 
 ```
 Frame 0 (First Frame):  [10 3B] [61 01 FF FF FF FF]  → B00-B07
 Frame 1 (Consecutive):  [21]    [d  d  d  d  d  d  d] → B08-B15
 Frame 2 (Consecutive):  [22]    [d  d  d  d  d  d  d] → B16-B23
-...
 ```
 
-- `B00` = PCI high byte (0x10), `B01` = PCI low byte (length)
-- `B02` = SID response (0x61), `B03` = PID echo (0x01)
-- `B08` = PCI consecutive (0x21), `B09` = first actual data byte of frame 1
-- PCI bytes occupy indices 0, 8, 16, 24, 32, 40, 48, 56, ...
-
-### Byte indexing examples
-
-For a `0x21` service request (PID `01`), the response starts `61 01 <data...>`:
-- `B0` = `0x61` (service response ID)
-- `B1` = `0x01` (PID echo)
-- `B2` = first data byte
-
-For a `0x22` service request (DID `C00B`), the response starts `62 C0 0B <data...>`:
-- `B0` = `0x62` (service response ID)
-- `B1` = `0xC0` (DID high byte)
-- `B2` = `0x0B` (DID low byte)
-- `B3` = first data byte
+- `B00`/`B01` = First-Frame PCI, `B02` = response SID (`0x61`), `B03` = PID echo, `B04`
+  = first data byte; PCI bytes recur at B08, B16, B24, …
+- A **single-frame** (≤7-byte payload) response carries only **one** PCI byte, so its
+  SID sits at `B01` — the WiCAN↔ISO-TP offset is length-dependent. `canair bix` resolves
+  this from the payload; assuming multi-frame on a short response shifts every byte by
+  one.
+- The header after the SID is a property of the *service*, not a fixed width: `0x22` →
+  2-byte DID, `0x21` → 1-byte LID, `0x01` → 1-byte OBD PID, `0x31` → SF *before* the
+  RID, `0x2F` → CTRL *after* the DID, `0x7F` → rejected SID + NRC.
 
 ### Expression syntax
 
-`Bnn` (unsigned byte), `Snn` (signed), `[Bnn:Bmm]` (multi-byte unsigned),
-`[Snn:Smm]` (multi-byte signed), `Bnn:k` (bit k, 0=LSB). Operators:
-`+ - * / << >> & | ^`. See `expression_parser.c` for the full reference.
+`Bnn` (unsigned byte), `Snn` (signed), `[Bnn:Bmm]` / `[Snn:Smm]` (multi-byte), `Bnn:k`
+(bit k, 0 = LSB). Operators `+ - * / << >> & | ^`. Full reference:
+`expression_parser.c` in `wican-fw/`.
 
-**CAUTION: `[Bnn:Bmm]` reads consecutive raw bytes — it does NOT skip PCI
-bytes.** If a multi-byte value spans a CAN frame boundary (B07-B08, B15-B16,
-etc.), the PCI byte at B08/B16/... is included, producing garbage. Use manual
-bit-shifting instead: `(B07 << 8) | B09` to skip the PCI byte at B08. Always use
-`canair bix` to check whether a byte range crosses a PCI boundary.
+**CAUTION: `[Bnn:Bmm]` reads consecutive raw bytes — it does NOT skip PCI bytes.** A
+value spanning a frame boundary (B07-B08, B15-B16, …) swallows the PCI byte and
+produces garbage; shift manually instead — `(B07 << 8) | B09`. Always check a range
+with `canair bix`. (Exception: the byte-run types `ascii`/`date` take a plain range and
+their decoder skips PCI, since a 17-char VIN cannot fit in one frame.)
 
 ```bash
-canair bix w9        # WiCAN B09 → ISO-TP 0x06, Torque E, bix 32
-canair bix E         # Torque letter → all notations
-canair bix -2 w5     # 2-byte subfunction mode (22xxxx DIDs)
-canair bix --table   # Full conversion table
-canair bix -2 --annotate 62B0047402990C0040A000AAAA   # annotate a real payload
-canair bix --annotate 6101FFFF...                     # service 21 (1-byte PID)
-canair bix -a 62BC03... --ecu IGPM --pid 22BC03        # roles read from the 0x62 SID
-canair bix -a 7F2231                                   # refused read: REJ SID + NRC, named
+canair bix                  # guided overview: legend + compact 2-frame table
+canair bix w9               # WiCAN B09 → ISO-TP 0x06, Torque E, bix 32, CAN frame 1
+canair bix --table          # full conversion table, grouped by CAN frame
+canair bix -a 62BC03… --ecu IGPM --pid 22BC03   # annotate a payload; roles from the SID
+canair bix -a 7F2231        # refused read: REJ SID + NRC, named
 ```
 
-`--annotate` (`-a`) reconstructs the WiCAN frame with PCI bytes inserted and
-prints each byte's WiCAN Bnn, ISO-TP index, Torque letter, bix, and role. **The
-role comes from the payload's own response SID**, so each header byte is named for
-what it is — `DID` (UDS `0x22`), `LID` (KWP2000 `0x21`), `PID` (OBD-II mode 01),
-`SF` + `RID` (`0x31` RoutineControl — sub-function *before* the routine id), `CTRL`
-(IOControl parameter, *after* the DID), and `REJ SID` + `NRC` (spelled out by name)
-for a refused request. A definition list of the roles used is printed underneath
-(`--no-legend` to omit). `-1`/`-2` only override an unrecognised service and are
-warned about when they contradict the payload; `--pid` is the weaker fallback.
+`--annotate` (`-a`) takes the **reassembled UDS payload** (SID-first, PCI stripped —
+what the transport and `captures/` hold); `--raw` annotates an already-framed CAN
+payload. It reconstructs the WiCAN frame, prints each byte's WiCAN Bnn / ISO-TP index /
+Torque letter / bix / role — labelling every header byte from the payload's own response
+SID — and warns when a `-1`/`-2` override or `--pid` contradicts it.
 
-### Conversion table (WiCAN ↔ ISO-TP ↔ Torque ↔ bix)
-
-You rarely need the raw table — **`canair bix` does the conversion**
-(`canair bix w9`, `canair bix --table`, `canair bix --annotate <payload>`). The
-full lookup table lives in the sibling file
-[`byte-index-conversion-table.md`](byte-index-conversion-table.md); load it only
-when converting by hand.
+**Never convert a byte index by hand — run `canair bix`.** It is the only trustworthy
+source, because the WiCAN ↔ ISO-TP ↔ Torque ↔ bix mapping is not a fixed table: it
+depends on the response's *length* (one vs two PCI bytes) and its *service* (header
+width and field order), both of which `bix` reads off the actual payload. A static
+table is therefore wrong for a large share of real payloads and goes stale whenever the
+notation model changes — a hand-maintained one used to live beside this skill and was
+deleted for exactly that reason. Use `canair bix --table` when you want the table
+itself, `canair bix w9` for one index, and `--annotate` for a real payload.
 
 ## Reference: UDS decoding conventions (Hyundai/Kia example)
 
-Marque-specific DID conventions for the bundled Ioniq (and other Hyundai/Kia) —
-PID categories, DID paging vs indexing, DID range semantics (`22Bxxx` cluster,
-`22Cxxx` body, `22Fxxx` flash), and the Hyundai/Kia identity-DID `-1` offset — are
-in the sibling file
+Marque DID conventions for the bundled Ioniq — PID categories, DID paging vs indexing,
+range semantics (`22Bxxx` cluster, `22Cxxx` body, `22Fxxx` flash), and the Hyundai/Kia
+identity-DID `-1` offset — are in the sibling
 [`hyundai-kia-uds-conventions.md`](hyundai-kia-uds-conventions.md). **These are
-marque-specific, not universal**; for another car, expect a different scheme and
-re-derive it. The generic UDS-`0x22`-vs-KWP2000-`0x21` distinction (per each ECU's
-`id_protocol`) is summarized in the skill body above and in
-`docs/concepts/ecu-protocols.md`.
+marque-specific, not universal**; for another car expect a different scheme and
+re-derive it. The generic UDS-`22`-vs-KWP2000-`21` distinction (per each ECU's
+`id_protocol`) is in the body above and `docs/concepts/ecu-protocols.md`.
