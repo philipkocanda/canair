@@ -711,8 +711,9 @@ def set_pid_notes(
         if clearing:
             if not has_note:
                 raise PidsEditError(f"PID {pid_u!r} has no notes: to clear")
-            # Replace with nothing rather than _remove_field_line, which drops only
-            # the `notes:` header and would orphan a block scalar's body lines.
+            # Both _remove_field_line and _replace_field_in_block_at now skip a
+            # block scalar's body; using the latter with an empty replacement keeps
+            # this path symmetric with the set branch below.
             new_block = _replace_field_in_block_at(block, "notes", [], indent=6)
         else:
             repl = _format_block_scalar(" " * 6, "notes", text_val)

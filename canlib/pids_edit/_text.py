@@ -417,9 +417,41 @@ def _safe_write(fpath: Path, original: str, new_text: str, ecu: str, checker) ->
 
 
 def _remove_field_line(block: str, field: str, indent: int) -> str:
-    """Drop a scalar ``field:`` line at ``indent`` spaces from ``block``."""
-    field_re = re.compile(rf"^ {{{indent}}}{re.escape(field)}:")
-    return "".join(ln for ln in block.splitlines(keepends=True) if not field_re.match(ln))
+    """Drop a ``field:`` entry at ``indent`` spaces from ``block``.
+
+    Removes the field's header line **and any continuation that belongs to it** —
+    a folded/literal block scalar's indented body (``notes: >-`` + wrapped text)
+    or a nested list/map body. Removing only the header line would orphan that
+    body and produce invalid YAML — a trap the caller cannot see from the name.
+    A plain single-line scalar (the common case) is removed byte-for-byte, so the
+    surrounding whitespace is preserved exactly. Only the first match is removed;
+    if ``field`` is absent the block is returned unchanged.
+    """
+    header_re = re.compile(rf"^ {{{indent}}}{re.escape(field)}:(.*)$")
+    deeper = " " * (indent + 1)
+    lines = block.splitlines(keepends=True)
+    out: list[str] = []
+    i = 0
+    removed = False
+    while i < len(lines):
+        line = lines[i]
+        m = header_re.match(line)
+        if m and not removed:
+            rest = m.group(1).strip()
+            i += 1
+            # A block scalar (``>``/``|`` + variants), or a header with no inline
+            # value followed by a deeper-indented body (a nested list/map), owns
+            # the following deeper-indented lines — drop them too, else orphaned.
+            is_block = rest in (">", "|", ">-", "|-", ">+", "|+")
+            has_nested_body = rest == "" and i < len(lines) and lines[i].startswith(deeper)
+            if is_block or has_nested_body:
+                while i < len(lines) and (lines[i].strip() == "" or lines[i].startswith(deeper)):
+                    i += 1
+            removed = True
+            continue
+        out.append(line)
+        i += 1
+    return "".join(out)
 
 
 def _insert_lines(text: str, region_start: int, region_end: int, lines: list[str]) -> str:

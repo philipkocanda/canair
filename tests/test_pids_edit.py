@@ -427,3 +427,52 @@ class TestSetPidNotes:
         (p / "bare.yaml").write_text("BARE:\n  tx_id: 0x700\n")
         with pytest.raises(PidsEditError, match="no pids:"):
             set_pid_notes("BARE", "2200", "x", pids_dir=p)
+
+
+class TestRemoveFieldLine:
+    """Unit tests for the _remove_field_line block-scalar trap (Part C)."""
+
+    def test_removes_a_plain_scalar_line_exactly(self):
+        from canlib.pids_edit._text import _remove_field_line
+
+        block = "      status: draft\n      verified: true\n"
+        assert _remove_field_line(block, "status", indent=6) == "      verified: true\n"
+
+    def test_absent_field_returns_block_unchanged(self):
+        from canlib.pids_edit._text import _remove_field_line
+
+        block = "      verified: true\n      notes: hi\n"
+        assert _remove_field_line(block, "status", indent=6) == block
+
+    def test_removing_a_folded_block_leaves_valid_yaml(self):
+        # A folded `>-` field's indented body must go with its header, or the
+        # orphaned continuation lines produce invalid YAML (the trap this fixes).
+        block = (
+            "    22B002:\n"
+            "      status: draft\n"
+            "      notes: >-\n"
+            "        a long folded note that wraps\n"
+            "        across two physical lines\n"
+            "      verified: true\n"
+        )
+        from canlib.pids_edit._text import _remove_field_line
+
+        out = _remove_field_line(block, "notes", indent=6)
+        assert "folded note" not in out, "the block body must be removed with its header"
+        assert "verified: true" in out
+        data = yaml.safe_load(out)  # raises on invalid YAML
+        assert data == {"22B002": {"status": "draft", "verified": True}}
+
+    def test_removing_a_nested_map_leaves_valid_yaml(self):
+        block = (
+            "      status: draft\n"
+            "      values:\n"
+            "        40: fan1\n"
+            "        45: fanMAX\n"
+            "      verified: true\n"
+        )
+        from canlib.pids_edit._text import _remove_field_line
+
+        out = _remove_field_line(block, "values", indent=6)
+        assert "fan1" not in out
+        assert yaml.safe_load(out) == {"status": "draft", "verified": True}
