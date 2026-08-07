@@ -33,12 +33,14 @@ help most: the command you ran, what you expected, and what happened.
 
 ## Contribute code
 
-Changes to the `canlib/` package are welcome. Engineering guidelines (transport
-contract, adding subcommands, testing, docs-upkeep policy) are in
-`.claude/skills/contributing-code/SKILL.md` (the profile-contribution guidance —
-`canair contribute`, PII/security scrubbing — lives in
-`.claude/skills/contributing-profiles/SKILL.md`). Before opening a code PR, run
-from the repo root:
+Changes to the `canlib/` package are welcome. The full dev guide — setup, hooks,
+the pre-PR checks, commit messages, and the screenshot pipeline — is
+[docs/development](https://philipkocanda.github.io/canair/development/).
+Engineering guidelines (transport contract, adding subcommands, testing,
+docs-upkeep policy) are in `.claude/skills/contributing-code/SKILL.md` (the
+profile-contribution guidance — `canair contribute`, PII/security scrubbing —
+lives in `.claude/skills/contributing-profiles/SKILL.md`). Before opening a code
+PR, run from the repo root:
 
 ```bash
 uv run pre-commit install --install-hooks           # once per clone: enable git hooks

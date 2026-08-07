@@ -504,7 +504,11 @@ rather than assume it.
   and **PID/profile contributors**: `getting-started/`, the
   `bring-your-own-car/` journey (create → discover → identity → scan → capture →
   analyze → define/verify → share), `concepts/`, and `reference/`. New detail,
-  worked examples, per-command flags, and walkthroughs go here.
+  worked examples, per-command flags, and walkthroughs go here. Two sections are
+  contributor-facing rather than user-facing: `contributing/` (share a profile)
+  and **`development/`** (change canair's own code — dev setup, the pre-PR
+  checks, commit messages, the screenshot pipeline, offline testing); a change to
+  the engineering workflow belongs there, not in `contributing/`.
 - **`docs/` is the human-facing rendering of the same knowledge in AGENTS.md and
   the skills** — it should *reference* them, not duplicate them. Where a fact is
   authoritative elsewhere (config keys in `config.example.yaml`, flags in

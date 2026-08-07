@@ -139,5 +139,8 @@ nav:
       - Overview: profiles/index.md
       - Ioniq 2017: profiles/ioniq-2017.md
   - Development:
+      - Overview: development/index.md
+      - Commit messages: development/commit-messages.md
+      - Documentation screenshots: development/screenshots.md
       - Offline testing (emulator): development/offline-testing.md
   - Contributing: contributing/index.md
