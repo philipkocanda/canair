@@ -31,6 +31,7 @@ from canlib.xanalysis import (
     build_param_series,
 )
 
+from .counters import run_counters
 from .render import print_dwell, print_events, print_report
 from .report import (
     _best_anchor,
@@ -104,6 +105,12 @@ def run(args) -> int:
         if args.dwell:
             print_dwell(ecu, pid, lp, mapped, mapped_bit, args)
         return 0
+
+    # --counters asks a different question of the same captures ("which window only
+    # ever rises?"), over multi-byte windows rather than single bytes, so it has its
+    # own sweep and view rather than another column on the per-byte table.
+    if args.counters:
+        return run_counters(ecu, pid, lp, args, params_def)
 
     # Physical-band hits per starting offset (plausibility, needs no reference).
     # Computed after the --events short-circuit so it isn't wasted there.

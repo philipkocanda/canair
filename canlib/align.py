@@ -188,6 +188,18 @@ class DecodedCapture:
     payload: str
     entry: CaptureEntry
 
+    @property
+    def payload_bytes(self) -> bytes:
+        """The reassembled UDS payload as bytes (SID-first, **no** PCI).
+
+        The ISO-TP-space counterpart to ``frame``. Contiguous by construction —
+        unlike ``frame``, where PCI framing bytes interleave every 7 data bytes —
+        so it is the right space for a multi-byte window that must be genuinely
+        adjacent (see :mod:`canlib.counters`). Safe to parse unconditionally:
+        ``decoded`` already dropped any capture whose payload isn't valid hex.
+        """
+        return bytes.fromhex(self.payload.replace(" ", ""))
+
 
 @dataclass
 class LoadedPid:

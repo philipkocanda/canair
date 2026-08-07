@@ -31,7 +31,9 @@ options:
 usage: canair investigate uds [-h] [--min-r R] [--min-n N]
                               [--join-tol SECONDS] [--fill {auto,hold,none}]
                               [--max-hold SECONDS] [--all] [--bits] [--events]
-                              [--dwell] [--field NAME]
+                              [--dwell] [--field NAME] [--counters]
+                              [--min-bits BITS] [--counter-width N]
+                              [--unmapped-only]
                               [--independent-of ECU:PID:PARAM]
                               [--independent-of-file FILE] [--json]
                               [--notation NAME] [--since WHEN] [--until WHEN]
@@ -59,6 +61,12 @@ For every varying data byte of ECU PID it reports, in one pass:
 Bytes are ranked strongest-anchor-first, then by state separation, so
 the most decodable bytes float to the top. This bundles the manual
 coverage -> discriminate -> correlate -> hunt loop into a single call.
+
+--counters switches to a different question — 'which bytes here only
+ever go UP?' — sweeping multi-byte windows for odometers, operating-hour
+tallies, power-cycle counts and uptime timers. Those are invisible to
+the default view (a slow counter looks constant within one session),
+so they need the whole capture history rather than a scoped window.
 
 Read-only: analyses captures/ only, never talks to the device. Once a
 byte looks promising, confirm the exact expression with `canair hunt
@@ -92,6 +100,22 @@ options:
                         value (e.g. {Mon 08:00}->{Tue 07:30}), not scattered
                         per-byte edges. NAME is a parameter of the target
                         ECU:PID.
+  --counters            Hunt MONOTONIC COUNTERS instead: sweep every 1-4-byte
+                        window x endianness for a value that only ever rises
+                        across the capture corpus (odometer, operating-hours,
+                        ignition/power-cycle count) or ramps and resets per
+                        session (uptime). Ranks by bits of monotonic evidence
+  --min-bits BITS       With --counters: minimum bits of monotonic evidence
+                        (default 4). Each clean up-step with no down-step is 1
+                        bit, so 8 bits ≈ 8 rises and no falls (1-in-256 by
+                        chance). Lower it to surface sparse long-horizon
+                        counters read only a handful of times
+  --counter-width N     With --counters: widest byte window to test (default
+                        4)
+  --unmapped-only       With --counters: hide windows a VERIFIED parameter
+                        already decodes. A window mapped only by an unverified
+                        guess is kept (tagged [NAME?]) — monotonicity is often
+                        the evidence that refutes such a guess
   --independent-of ECU:PID:PARAM
                         Rank bytes that separate by state yet DON'T track this
                         driver signal — the 'active-but-independent' finder
@@ -145,6 +169,8 @@ examples:
   canair investigate MCU 2102 --all        # include bytes a verified param already maps
   canair investigate IGPM 22BC03 --bits    # rank toggling bits (body/status-ECU work)
   canair investigate IGPM 22BC03 --events  # bit/byte edges aligned to the event timeline
+  canair investigate CLU 22B002 --counters # hunt monotonic counters (odometer / cycle count)
+  canair investigate BMS 2101 --counters --unmapped-only   # only counters not settled yet
   canair investigate BMS 2101 --state driving   # only consider drive captures
   canair investigate ESC 22C101 --min-r 0.8      # only show strong anchors (|r| >= 0.8)
   canair investigate AAF 2181 --json       # machine-readable output

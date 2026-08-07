@@ -36,6 +36,12 @@ are the "reason about it" tools; **`align`** reads *several* signals side by sid
 `decode --try` → `pids upsert-param` → `decode --stats`/`--corr` is the
 define→verify loop.
 
+Two tools sit outside the map because they need **no reference signal at all** —
+they judge a byte by its own shape instead of by what it tracks:
+`hunt --physical` (does its scaled value land in a named physical band?) and
+`investigate --counters` (does it only ever go *up*?). Reach for these when a PID
+has nothing co-polled to correlate against.
+
 ## "I have X, I want Y → use Z"
 
 | I have… | I want to… | Command |
@@ -55,6 +61,65 @@ define→verify loop.
 | a session's end | what to work on next | `research` |
 | a confounder to remove | correlation with a nuisance regressed out | `… --control REF` (hunt/correlate) |
 | no on-bus anchor | a byte that lands in a physical band | `hunt --physical` |
+| a suspected odometer / hour meter / cycle count | the bytes that **only ever rise** | `investigate <ECU> <PID> --counters` |
+
+## Counters: the one thing correlation cannot find
+
+An odometer, an operating-hours tally, a power-cycle count and an uptime timer are
+all invisible to every tool above, for the same reason: within any single session a
+slow counter **does not move**, so it has no variance to correlate and reads as a
+constant byte. What identifies it is its behaviour across the *whole* capture
+history — it never decreases.
+
+`investigate --counters` sweeps every 1–4-byte window × endianness and scores how
+much evidence there is that the window only rises, in **bits**: each clean up-step
+with no down-step is one bit, so 8 bits means 8 rises and no falls (about a 1-in-256
+coincidence). That single scale is what lets a densely-polled cumulative-Ah counter
+and an odometer read six times in a year be ranked together, instead of the sparse
+one being lost under a step-count threshold.
+
+Results are grouped by *where* the monotonicity lives, which is what names the
+signal:
+
+| Fingerprint | Behaviour | Typically |
+|---|---|---|
+| **accumulator** | rises across the corpus **and** within sessions | odometer, operating-seconds, cumulative Ah/Wh |
+| **cycle counter** | rises across the corpus but **flat inside every session** | ignition / power-cycle / trip count |
+| **run timer** | ramps per session, **resets to ~0**, tracks wall-clock | uptime, seconds-since-key-on |
+
+```bash
+canair investigate CLU 22B002 --counters          # → [B12:B14] 70047 → 73048 (the odometer)
+canair investigate BMS 2101 --counters            # → the five cumulative BMS registers
+canair investigate BCM 22C011 --counters --unmapped-only   # only counters not settled yet
+```
+
+`--unmapped-only` hides a window only when **every** parameter covering it is
+`verified`. A window mapped by an *unverified* guess is kept and tagged
+`[NAME?]`, because monotonicity is frequently the evidence that **refutes** the
+guess — a byte labelled as a user-set hour that in fact only ever rises is a
+counter, not an hour. Suppressing those would hide the finding.
+
+Multi-byte windows are formed in **ISO-TP** space, where payload bytes are truly
+contiguous, then rendered as a WiCAN expression — so a counter that straddles a PCI
+framing byte comes out as an explicit shift composition
+(`B14 | (B15 << 8) | (B17 << 16) | (B18 << 24)`) rather than a wrong `[Bn:Bm]`
+range. See [Byte indexing](byte-indexing.md).
+
+Because one physical counter makes every *prefix* window monotonic too (dropping
+the low byte just divides by 256), nested hits are collapsed to one representative —
+the widest window whose end bytes aren't padding, because the width is what recovers
+the readable magnitude. `[B12:B14] = 72982` is instantly an odometer; its low byte
+alone (`B14 = 88`) says nothing.
+
+!!! note "This is the one analysis you should *not* scope"
+    Unlike everything else on this page, `--counters` wants the **whole history**.
+    A `--state`/`--since` filter shortens the horizon, and the horizon *is* the
+    evidence. Only narrow it to exclude known-bad data. If the report is empty it
+    names the best sub-threshold window and the `--min-bits` value that would show
+    it, so a dead end still points somewhere.
+
+Currently `uds` (diagnostic PIDs) only; the raw broadcast-CAN counterpart is not
+implemented.
 
 ## Where each sits in the RE lifecycle
 

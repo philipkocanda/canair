@@ -88,6 +88,28 @@ def pearson(xs: list[float], ys: list[float]) -> float | None:
     return r
 
 
+def linear_fit(xs: list[float], ys: list[float]) -> tuple[float, float, float] | None:
+    """Least-squares fit ``y = m*x + c``; returns ``(m, c, mean_abs_resid)``.
+
+    ``xs`` is the reference (e.g. known speed), ``ys`` the candidate byte. None
+    if degenerate.
+    """
+    n = len(xs)
+    if n < 2:
+        return None
+    sx = sum(xs)
+    sy = sum(ys)
+    sxx = sum(x * x for x in xs)
+    sxy = sum(x * y for x, y in zip(xs, ys, strict=True))
+    denom = n * sxx - sx * sx
+    if denom == 0:
+        return None
+    m = (n * sxy - sx * sy) / denom
+    c = (sy - m * sx) / n
+    resid = sum(abs(y - (m * x + c)) for x, y in zip(xs, ys, strict=True)) / n
+    return m, c, resid
+
+
 def rank(values: list[float]) -> list[float]:
     """Fractional ranks (1-based); tied values share their average rank.
 

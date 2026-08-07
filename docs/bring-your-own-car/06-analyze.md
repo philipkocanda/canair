@@ -293,6 +293,47 @@ when it hides across a byte boundary.
 It's the fastest way to get oriented; the individual tools above are how you
 follow up on what it surfaces.
 
+### Odometers, hour meters and cycle counts: `--counters`
+
+The triage `counter` class above spots a *fast rolling* byte — a message/alive
+counter cycling through every value. It cannot find the counters you actually want
+a name for, because they are slow: an odometer or an operating-hours tally does not
+move at all within one recording session, so it looks **constant** to every tool on
+this page, correlation included.
+
+`--counters` asks the one question that finds them — *which byte windows only ever
+go up across the entire capture history?*
+
+```bash
+canair investigate MyECU 2101 --counters
+canair investigate MyECU 2101 --counters --unmapped-only   # skip what's already verified
+```
+
+It sweeps 1–4-byte windows in both endiannesses (a real odometer is usually 3 or 4
+bytes) and sorts hits into **accumulators** (rise within sessions too — odometer,
+cumulative Ah/Wh), **cycle counters** (flat inside every session, stepping only
+between them — ignition/trip counts) and **run timers** (ramp and reset each
+session, tracking wall-clock — uptime).
+
+Two things to know before you trust a hit:
+
+- **Evidence is reported in bits.** Each clean rise with no fall is one bit, so a
+  window at 3 bits rose three times and never fell — a 1-in-8 coincidence, i.e. a
+  *lead*, not a finding. A long-running accumulator scores in the hundreds. Don't
+  write a parameter off a handful of bits; go get more captures across more days.
+- **Don't scope it.** This is the one analysis that wants your whole history —
+  `--state`/`--since` shorten the horizon, and the horizon is the evidence.
+
+The magnitude usually identifies the signal on sight: a 3-byte window reading
+`70047 → 73048` over four months is a kilometre odometer, and one reading
+`21268317 → 22312975` at roughly one per second is an operating-second counter.
+Cross-check a distance candidate against your cluster odometer, and confirm it is
+*distance* and not *time* by checking that its ratio to a known time counter is not
+constant.
+
+See [Analysis commands](../concepts/analysis-commands.md#counters-the-one-thing-correlation-cannot-find)
+for the fingerprint table and the ISO-TP window details.
+
 ## Categorical signals: modes, flags, schedules
 
 This is the **discrete** family from the taxonomy above — a fan level, a climate

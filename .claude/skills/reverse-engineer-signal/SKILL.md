@@ -445,9 +445,19 @@ Not every byte is analog. Discrete/logic signals have distinct fingerprints:
   --bitfields` flags bytes only partly decoded. For the full bit-level loop —
   and for the common case of a byte with only 1-2 of 8 bits decoded — use the
   **decode-bitfields** skill.
-- **Counters / alive / checksum** — monotonic wrap-around, or high-distinct noise
-  with *no* physical correlation to anything (a rolling counter or CRC). Don't
-  try to give these a physical unit; mark them as such.
+- **Counters / alive / checksum** — a *fast* rolling counter or CRC is
+  high-distinct noise with *no* physical correlation to anything; don't give it a
+  physical unit, mark it as such. A **slow accumulator** (odometer, operating
+  hours, ignition/power-cycle count, cumulative Ah/Wh) is the opposite problem:
+  it barely moves inside one session, so it reads as a *constant* byte to
+  `--corr`/`--discriminate`/`hunt`/`investigate` and to triage's own `counter`
+  class (which is direction-blind and single-byte). Only its behaviour across the
+  **whole capture history** identifies it — it never decreases. Find these with
+  **`canair investigate <ECU> <PID> --counters`**, which sweeps 1-4-byte windows x
+  endianness and groups hits into `accumulator` / `cycle` / `timer`. Evidence is in
+  **bits** (one clean rise with no fall = 1 bit), so read a 3-bit hit as a lead and
+  a 300-bit hit as a fact — and do **not** scope it, because the horizon is the
+  evidence.
 - **Constants / calibration** — never (or rarely) change across all states →
   cal/identity block, not live data. Confirm with `--stats` (distinct = 1–2).
 
@@ -498,7 +508,13 @@ The tooling exposes real statistical levers — use them as evidence, not decora
     default: stored rows are transitions, not fixed-rate samples). `keep:unique`
     gets no blanket banner — it is flagged only where it changes a reading (the
     `--events` dwell classes), so read the recording mode from
-    `canair captures --sessions` when timing matters.
+    `canair captures --sessions` when timing matters. Add **`--counters`** to ask
+    the orthogonal question — "which windows only ever go *up*?" — for odometers,
+    operating-hour tallies, power-cycle counts and uptime timers. It is the only
+    tool that finds these, because a slow counter is stationary within a session
+    and therefore invisible to every correlation/discrimination view; unlike the
+    rest of this list it should be run **unscoped**, since the calendar horizon is
+    the evidence.
 - **Cross-ECU mirror detection** (`canair correlate --find-mirrors [--bits]`) —
   reports byte/bit positions time-aligned *equal* across co-polled ECU/PIDs (a
   door bit in IGPM also present in BCM); the cross-ECU companion to
@@ -809,6 +825,7 @@ PR — see the `ioniq-reverse-engineering` skill's goals.
 | test expressions | `canair decode --try` / `--stats` / `--corr` / `--plot` |
 | explain an unknown PID | `canair investigate <ECU> <PID>` (mapped? / state F / best anchor + unit / triage class / physical band, one table; `--bits`, `--events`; flags probable multi-byte `[Bn:Bn+1]` words) |
 | decode a body event capture | `canair investigate <ECU> <PID> --events --bits` (edge timeline vs capture notes) + `canair correlate --find-mirrors --bits` (cross-ECU bit mirrors) |
+| find an odometer / hour meter / cycle count | `canair investigate <ECU> <PID> --counters` (monotonic windows across the WHOLE corpus, scored in bits; `--unmapped-only`) — the one question correlation can't answer |
 | what's co-polled here | `canair correlate --overlap` (which ECU:PID pairs share timed samples) |
 | cross-ECU correlate | `canair decode … --corr ECU:PID:PARAM` (+ `--corr-transform`, `--method spearman`); `canair correlate [--against REF] [--bytes/--bits] [--lag-scan N] [--gate '>0'] [--promote NAME]` |
 | which byte is signal Y | `canair hunt <ECU> <PID> --against ECU:PID:PARAM` (linear fit + unit guess; `--transform delta`, `--promote NAME`, `--all-interps`) |
@@ -823,6 +840,7 @@ PR — see the `ioniq-reverse-engineering` skill's goals.
 | per-segment stats | `canair decode … --stats --group-by state` |
 | watch evolution | `canair decode … --compact --changes-only` |
 | write definitions | `canair pids upsert-param` / `rename-param` / `rm-param` / `add-research` / `set-status` |
+| correct a stale PID note | `canair pids set-pid-notes <ECU> <PID> "…"` (omit the text to clear) — the PID header note records what the page *is*, so it goes stale as the decode underneath advances |
 | validate | `canair validate pids`, `canair coverage` |
 | ship | `canair wican autopid write` |
 

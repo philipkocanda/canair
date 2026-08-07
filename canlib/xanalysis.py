@@ -44,7 +44,7 @@ from .inspect_bytes import (
     wican_expr_indices,
 )
 from .physical_bands import DEFAULT_PHYSICAL_BANDS
-from .stats import correlation, pearson
+from .stats import correlation, linear_fit, pearson
 from .unit_guess import DEFAULT_UNIT_CANDIDATES as _UNIT_CANDIDATES
 
 __all__ = [
@@ -146,30 +146,8 @@ def reference_is_absolute_level(
 
 
 # ---------------------------------------------------------------------------
-# Stats: linear fit + unit sniffing (pearson/spearman live in canlib.stats)
+# Stats: unit sniffing (pearson/spearman/linear_fit live in canlib.stats)
 # ---------------------------------------------------------------------------
-def linear_fit(xs: list[float], ys: list[float]) -> tuple[float, float, float] | None:
-    """Least-squares fit ``y = m*x + c``; returns ``(m, c, mean_abs_resid)``.
-
-    ``xs`` is the reference (e.g. known speed), ``ys`` the candidate byte. None
-    if degenerate.
-    """
-    n = len(xs)
-    if n < 2:
-        return None
-    sx = sum(xs)
-    sy = sum(ys)
-    sxx = sum(x * x for x in xs)
-    sxy = sum(x * y for x, y in zip(xs, ys, strict=True))
-    denom = n * sxx - sx * sx
-    if denom == 0:
-        return None
-    m = (n * sxy - sx * sy) / denom
-    c = (sy - m * sx) / n
-    resid = sum(abs(y - (m * x + c)) for x, y in zip(xs, ys, strict=True)) / n
-    return m, c, resid
-
-
 # Common physical scalings for the unit sniffer. The candidate table + resolver
 # live in canlib.unit_guess (make-neutral built-ins + profile extension); this
 # module just consumes the resolved list (imported above as _UNIT_CANDIDATES for

@@ -9,6 +9,7 @@ from canlib.commands._group import group_help
 from canlib.commands._join import (
     add_join_args,
 )
+from canlib.counters import DEFAULT_MAX_WIDTH, DEFAULT_MIN_BITS
 from canlib.notation import (
     add_notation_arg,
 )
@@ -73,6 +74,11 @@ def _add_uds_parser(kinds) -> argparse.ArgumentParser:
             "Bytes are ranked strongest-anchor-first, then by state separation, so\n"
             "the most decodable bytes float to the top. This bundles the manual\n"
             "coverage -> discriminate -> correlate -> hunt loop into a single call.\n\n"
+            "--counters switches to a different question — 'which bytes here only\n"
+            "ever go UP?' — sweeping multi-byte windows for odometers, operating-hour\n"
+            "tallies, power-cycle counts and uptime timers. Those are invisible to\n"
+            "the default view (a slow counter looks constant within one session),\n"
+            "so they need the whole capture history rather than a scoped window.\n\n"
             "Read-only: analyses captures/ only, never talks to the device. Once a\n"
             "byte looks promising, confirm the exact expression with `canair hunt\n"
             "ECU PID --against ...` and write it with `canair pids upsert-param`."
@@ -84,6 +90,8 @@ examples:
   canair investigate MCU 2102 --all        # include bytes a verified param already maps
   canair investigate IGPM 22BC03 --bits    # rank toggling bits (body/status-ECU work)
   canair investigate IGPM 22BC03 --events  # bit/byte edges aligned to the event timeline
+  canair investigate CLU 22B002 --counters # hunt monotonic counters (odometer / cycle count)
+  canair investigate BMS 2101 --counters --unmapped-only   # only counters not settled yet
   canair investigate BMS 2101 --state driving   # only consider drive captures
   canair investigate ESC 22C101 --min-r 0.8      # only show strong anchors (|r| >= 0.8)
   canair investigate AAF 2181 --json       # machine-readable output
@@ -142,6 +150,38 @@ tip: no anchors found? widen scope (drop --state), lower --min-r, or grow the
         "date field) as a single logical signal — emit one transition per change of "
         "its DECODED value (e.g. {Mon 08:00}->{Tue 07:30}), not scattered per-byte "
         "edges. NAME is a parameter of the target ECU:PID.",
+    )
+    parser.add_argument(
+        "--counters",
+        action="store_true",
+        help="Hunt MONOTONIC COUNTERS instead: sweep every 1-4-byte window x "
+        "endianness for a value that only ever rises across the capture corpus "
+        "(odometer, operating-hours, ignition/power-cycle count) or ramps and "
+        "resets per session (uptime). Ranks by bits of monotonic evidence",
+    )
+    parser.add_argument(
+        "--min-bits",
+        type=float,
+        default=DEFAULT_MIN_BITS,
+        metavar="BITS",
+        help=f"With --counters: minimum bits of monotonic evidence (default "
+        f"{DEFAULT_MIN_BITS:g}). Each clean up-step with no down-step is 1 bit, so "
+        f"8 bits ≈ 8 rises and no falls (1-in-256 by chance). Lower it to surface "
+        f"sparse long-horizon counters read only a handful of times",
+    )
+    parser.add_argument(
+        "--counter-width",
+        type=int,
+        default=DEFAULT_MAX_WIDTH,
+        metavar="N",
+        help=f"With --counters: widest byte window to test (default {DEFAULT_MAX_WIDTH})",
+    )
+    parser.add_argument(
+        "--unmapped-only",
+        action="store_true",
+        help="With --counters: hide windows a VERIFIED parameter already decodes. A "
+        "window mapped only by an unverified guess is kept (tagged [NAME?]) — "
+        "monotonicity is often the evidence that refutes such a guess",
     )
     parser.add_argument(
         "--independent-of",
