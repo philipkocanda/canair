@@ -325,9 +325,10 @@ Watch for these leaks (not exhaustive — reason about the *class*, not the list
 
 - **Identity:** real names, emails, phone numbers, usernames, faces, signatures.
 - **Vehicle identity:** VINs, license plates, insurance/registration numbers —
-  and remember these hide *inside captured payloads* (identity DIDs like
-  F190/F19x return VIN/serials). A capture is not automatically safe just
-  because it's "raw bytes".
+  and remember these hide *inside captured payloads* (the VIN comes back from UDS
+  `F190` / KWP2000 record `90`). A capture is not automatically safe just
+  because it's "raw bytes". A per-unit ECU serial (`F18C`/`F18B`) is *not* in this
+  class — it names a module, not a person.
 - **Location:** home/work addresses, GPS/lat-lon, odometer-at-a-place, Wi-Fi
   SSIDs/BSSIDs, and network coordinates that pin a place — real LAN/VPN IPs,
   MAC addresses, hostnames. Config carrying these (`wican_addresses`, etc.)

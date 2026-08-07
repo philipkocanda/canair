@@ -70,6 +70,45 @@ class TestIdentityDids:
         )
         assert not any(f.kind == "identity-did" for f in pii.scan_profile(prof))
 
+    def test_serial_did_not_flagged(self, tmp_path):
+        # F18C/F18B return a per-unit ECU serial. That names a MODULE, not a
+        # person, and the project treats it as shareable diagnostic data — the same
+        # call as leaving identity.serial unscanned. Kept symmetric on purpose.
+        prof = _write_profile(
+            tmp_path,
+            captures={
+                "label": "x",
+                "captures": [
+                    {
+                        "rx": "0x7EC",
+                        "pid": "22F18C",
+                        "payload": "62F18C" + b"GWLK7F01A986826".hex(),
+                    },
+                    {"rx": "0x7EC", "pid": "22F18B", "payload": "62F18B" + b"1705304705".hex()},
+                ],
+            },
+        )
+        assert pii.scan_profile(prof) == []
+
+    def test_serial_response_that_is_vin_shaped_is_still_caught(self, tmp_path):
+        # The value check is keyed on the payload, not the identifier, so a serial
+        # DID whose response really does decode to a VIN doesn't get a free pass.
+        prof = _write_profile(
+            tmp_path,
+            captures={
+                "label": "x",
+                "captures": [
+                    {
+                        "rx": "0x7EC",
+                        "pid": "22F18C",
+                        "payload": "62F18C" + b"KMHC851HFHU012435".hex(),
+                    }
+                ],
+            },
+        )
+        kinds = {f.kind for f in pii.scan_profile(prof)}
+        assert kinds == {"vin-payload"}
+
 
 class TestFreeText:
     def test_flags_email_in_label(self, tmp_path):
@@ -235,6 +274,61 @@ class TestRedactionSuppressesCaptureFindings:
             },
         )
         assert any(f.kind == "vin-payload" for f in pii.scan_profile(prof))
+
+
+class TestVinTokenRequiresALetter:
+    """A 17-char all-digit token is an ECU serial, not a VIN.
+
+    The VIN charset is a superset of the digits, so a 17-digit serial (exactly
+    what the BSD modules report) matches the VIN *shape*. Flagging it contradicts
+    the policy of not reporting ECU serials at all.
+    """
+
+    def test_all_digit_serial_in_notes_not_flagged(self, tmp_path):
+        prof = _write_profile(
+            tmp_path,
+            captures={
+                "label": "identity",
+                "captures": [
+                    {
+                        "rx": "0x7EC",
+                        "pid": "22F191",
+                        "payload": "62F19141",
+                        "notes": "Part 95821G2000 (HW version). Serial 31114851712211429.",
+                    }
+                ],
+            },
+        )
+        assert not any(f.kind == "vin-text" for f in pii.scan_profile(prof))
+
+    def test_real_vin_in_notes_still_flagged(self, tmp_path):
+        prof = _write_profile(
+            tmp_path,
+            captures={"label": "read KMHC851HFHU012435 off the VCU", "captures": []},
+        )
+        assert any(f.kind == "vin-text" for f in pii.scan_profile(prof))
+
+    def test_all_digit_payload_not_flagged(self, tmp_path):
+        prof = _write_profile(
+            tmp_path,
+            captures={
+                "label": "x",
+                "captures": [
+                    {
+                        "rx": "0x7EC",
+                        "pid": "22F18C",
+                        "payload": "62F18C" + b"31114851712211429".hex(),
+                    }
+                ],
+            },
+        )
+        assert pii.scan_profile(prof) == []
+
+    def test_helper_directly(self):
+        assert pii._has_vin_token("KMHC851HFHU012435")
+        assert pii._has_vin_token("1HGCM82633A004352")
+        assert not pii._has_vin_token("31114851712211429")  # all digits -> serial
+        assert not pii._has_vin_token("too short")
 
 
 class TestScanContribution:

@@ -62,7 +62,7 @@ Whichever it is, the data lives in a **profile bundle** (`ecus/`, `profile.yaml`
 1. **It must validate.** `canair validate all` must pass — no exceptions. A
    profile that doesn't validate can't be trusted or merged.
 2. **Never commit PII or location data.** Profiles, captures, and git history are
-   public forever. VINs/serials hide *inside* capture payloads. See "No PII or
+   public forever. A VIN hides *inside* capture payloads. See "No PII or
    location data" — this is what the `canair contribute` pre-flight scans for,
    but the reviewer (you) is the backstop.
 3. **Never share ECU security keys, seeds, or unlock algorithms.** Distributing
@@ -105,9 +105,11 @@ fork/clone/branch/push, and it works regardless of where the profile is stored
 `canair contribute --help` for the current flags; the shape of the flow:
 
 1. Runs `canair validate all` and **refuses a broken profile**.
-2. Runs the **PII pre-flight** (`canlib/pii.py`) — VIN/serial identity DIDs,
-   VIN-shaped payloads, and PII-looking free text in labels/notes/`car_model` —
-   and requires you to confirm before continuing.
+2. Runs the **PII pre-flight** (`canlib/pii.py`) — VIN identity DIDs, VIN-shaped
+   payloads, the curated `ecus/` `identity.vin`, and PII-looking free text in
+   labels/notes/`car_model` — and requires you to confirm before continuing.
+   Per-unit ECU serials are deliberately *not* flagged, in captures or in
+   `identity:`: they name a module, not a person.
 3. Runs the **staleness / self-collision guards** and asks you to confirm past
    each: an *installed-snapshot* warning when the profile was read from a frozen
    `site-packages`/`uv tool` copy (a bare `canair`, not `uv run canair` from a
@@ -150,10 +152,12 @@ doubt, leave it out and ask. (The same rule constrains *code* contributions — 
 Watch for these leaks (reason about the *class*, not just the list):
 
 - **Vehicle identity:** VINs, license plates, insurance/registration numbers —
-  and remember **these hide inside captured payloads.** Identity DIDs (F190/F18x
-  and KWP2000 `90`) return VINs/serials in raw bytes; a capture is *not* safe just
+  and remember **these hide inside captured payloads.** Identity DIDs (UDS `F190`,
+  KWP2000 record `90`) return the VIN in raw bytes; a capture is *not* safe just
   because it "is just hex". The `canair contribute` PII scan flags these, but
-  redact them yourself.
+  redact them yourself. A per-unit **ECU serial** (`F18C`/`F18B`,
+  `identity.serial`) is *not* in this class — it names a module, not a person, and
+  the project treats it as shareable diagnostic data.
 - **Identity:** real names, emails, phone numbers, usernames.
 - **Location:** home/work addresses, GPS, odometer-at-a-place, Wi-Fi SSIDs, and
   network coordinates (real LAN/VPN IPs, MACs, hostnames). Device addresses live

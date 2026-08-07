@@ -9,9 +9,9 @@ in the contributing-profiles skill.
 It is a *heuristic* net, not a guarantee. It scans the classes that most often
 leak:
 
-* **Identity DIDs** — capture payloads answering a VIN / ECU-serial identifier
-  (UDS ``F190``/``F18C``, KWP2000 ``90``). These embed the vehicle's unique
-  identity in the raw bytes even though the capture "is just hex".
+* **VIN identity DIDs** — capture payloads answering a VIN identifier (UDS
+  ``F190``, KWP2000 record ``90``). These embed the vehicle's unique identity in
+  the raw bytes even though the capture "is just hex".
 * **VIN-shaped ASCII** — any capture payload whose bytes decode to a 17-char
   VIN, regardless of which identifier it was filed under.
 * **The curated VIN** — ``ecus/<ecu>.yaml``'s ``identity.vin``, which
@@ -23,11 +23,14 @@ leak:
   emails and VIN tokens (only) in an ECU's identity free text, whose technical
   prose makes the digit-run heuristic useless there.
 
-Deliberately **not** flagged: per-unit ECU hardware serials
-(``identity.serial``/``ecu_id``/``part_number``/…). They identify a *module*, not
-a person or a location, the project treats them as shareable diagnostic data, and
-several are long opaque alphanumerics that collide with the VIN charset — so
-scanning them is false positives without a privacy gain.
+Deliberately **not** flagged: per-unit **ECU hardware serials**, in either place
+they appear — a capture of the serial DID (UDS ``F18C``/``F18B``) and the curated
+``identity.serial``/``ecu_id``/``part_number``. They identify a *module*, not a
+person or a location; the project treats them as shareable diagnostic data; and
+several are long opaque alphanumerics that collide with the VIN charset, so
+scanning them is false positives without a privacy gain. A serial response that
+happens to decode to something VIN-shaped is still caught by the payload check
+above, which is keyed on the *value*, not the identifier.
 
 A value carrying an obvious redaction mask is never flagged (see
 :func:`looks_redacted`) — a report that fires on data already scrubbed teaches
@@ -49,13 +52,15 @@ from .profile import Profile
 # Sensitive identity identifiers
 # ---------------------------------------------------------------------------
 
-# UDS ReadDataByIdentifier DIDs (and KWP2000 records) that return *identifying*
-# data (a VIN or an ECU serial). Part numbers / SW versions are the same across
-# every car of a model, so they are deliberately NOT here — only fields that pin
-# down one specific vehicle. Suffixes are matched after stripping the service
-# prefix (``22``/``1A``) so ``22F190``, ``F190`` and a bare ``F190`` all match.
-_SENSITIVE_UDS_DIDS = {"F190", "F18C"}  # VIN, ECU serial / calibration ID
-_SENSITIVE_KWP_RECORDS = {"90"}  # ECU name / VIN
+# UDS ReadDataByIdentifier DIDs (and KWP2000 records) whose response identifies
+# the *vehicle*. Only the VIN qualifies: part numbers and SW versions are the same
+# across every car of a model, and a per-unit ECU serial (``F18C``/``F18B``) names
+# a module rather than a person — the project treats those as shareable diagnostic
+# data, so flagging them was noise. Suffixes are matched after stripping the
+# service prefix (``22``/``1A``) so ``22F190``, ``1AF190`` and a bare ``F190`` all
+# match.
+_SENSITIVE_UDS_DIDS = {"F190"}  # VIN
+_SENSITIVE_KWP_RECORDS = {"90"}  # VIN
 
 # ``ecus/<ecu>.yaml`` identity fields worth scanning, and how.
 #
@@ -76,6 +81,18 @@ _EMAIL_RE = re.compile(r"\b[\w.+-]+@[\w-]+\.[\w.-]+\b")
 _PHONE_RE = re.compile(r"(?:\d[\s-]?){10,}")
 # 4+ identical mask characters in a row — the signature of a redacted value.
 _MASK_RUN_RE = re.compile(r"([Xx*#?])\1{3,}")
+
+
+def _has_vin_token(text: str) -> bool:
+    """True when ``text`` contains a token that could be a VIN.
+
+    Shape alone is not enough. A VIN's charset is a *superset* of digits, so a
+    17-digit ECU serial — the exact format the BSD modules report — matches
+    ``_VIN_RE`` and used to be reported as a VIN. Requiring at least one letter
+    separates the two: every real-world WMI carries letters, while an all-numeric
+    17-char run is a serial, which this scanner deliberately does not flag.
+    """
+    return any(any(c.isalpha() for c in m.group()) for m in _VIN_RE.finditer(text))
 
 
 def looks_redacted(value: str) -> bool:
@@ -114,10 +131,10 @@ def _strip_service_prefix(pid: str) -> str:
 
 
 def _did_is_sensitive(pid: str) -> str | None:
-    """Return a human reason if ``pid`` addresses a VIN/serial identifier, else None."""
+    """Return a human reason if ``pid`` addresses a VIN identifier, else None."""
     ident = _strip_service_prefix(pid)
     if ident in _SENSITIVE_UDS_DIDS:
-        return "VIN" if ident == "F190" else "ECU serial"
+        return "VIN"
     if ident in _SENSITIVE_KWP_RECORDS:
         return "VIN (KWP2000)"
     return None
@@ -142,7 +159,7 @@ def _scan_free_text(text: str, location: str) -> list[Finding]:
         return findings
     if _EMAIL_RE.search(text):
         findings.append(Finding(location, "email", "contains an email address"))
-    if _VIN_RE.search(text) and not looks_redacted(text):
+    if _has_vin_token(text) and not looks_redacted(text):
         findings.append(Finding(location, "vin-text", "contains a VIN-shaped token"))
     if _PHONE_RE.search(text):
         findings.append(Finding(location, "digits", "contains a long digit run (phone/serial?)"))
@@ -163,7 +180,7 @@ def _scan_capture(cap: object, loc: str) -> list[Finding]:
         # `payload` is response hex; `response` is a free-form summary that may
         # already hold *decoded* text (an identity read's ASCII), so test both the
         # hex-decoded bytes and the string as written.
-        if _VIN_RE.search(_payload_ascii(payload)) or _VIN_RE.search(payload):
+        if _has_vin_token(_payload_ascii(payload)) or _has_vin_token(payload):
             findings.append(Finding(f"{loc} ({pid})", "vin-payload", "payload decodes to a VIN"))
     for field in ("label", "notes"):
         findings += _scan_free_text(str(cap.get(field) or ""), f"{loc}.{field}")
@@ -229,7 +246,7 @@ def _scan_identity(identity: object, loc: str) -> list[Finding]:
         where = f"{loc} identity.{field}"
         if _EMAIL_RE.search(text):
             findings.append(Finding(where, "email", "contains an email address"))
-        if _VIN_RE.search(text) and not looks_redacted(text):
+        if _has_vin_token(text) and not looks_redacted(text):
             findings.append(Finding(where, "vin-text", "contains a VIN-shaped token"))
     return findings
 
