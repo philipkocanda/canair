@@ -7,8 +7,6 @@ example of the kind of manufacturer patterns worth discovering for *your* car; D
 range semantics, paging vs indexing, and identity-DID offsets all vary by OEM. For
 another car, expect a different scheme and re-derive it.
 
-Source: `KB/EV/Hyundai Ioniq/Reverse engineering/Hyundai Kia UDS DID Conventions.md`
-
 The generic protocol distinction (UDS `0x22` vs KWP2000 `0x21`, tied to each ECU's
 `id_protocol`) is explained in `docs/concepts/ecu-protocols.md` and, at a glance,
 in the skill's own body.
