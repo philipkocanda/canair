@@ -1,6 +1,37 @@
 # Consolidate the ANSI palette (and fix the colour-gating split it hides)
 
-Status: **PLANNED** (2026-08-06). Flagged during
+Status: **DONE** (2026-08-07). Landed as four commits, matching the sequence
+below:
+
+- `b4ebb64` feat(ansi): add canlib.ansi as the one home for the ANSI palette
+- `cbaabce` refactor(ansi): point 44 modules at canlib.ansi (behaviour-inert;
+  byte-identical against a 44-command corpus)
+- `9cb2c1c` refactor(ansi): fold _use_color/_c/_cerr onto canlib.ansi
+- `5bd2c45` fix(ansi): gate every coloured write on ansi.use_color, honour
+  NO_COLOR
+
+The user-visible outcome is what commit 4 gates — every command emits zero ANSI
+escapes when its output is piped or when `NO_COLOR` is set, and `FORCE_COLOR`
+force-overrides (which the screenshot suite depends on). Pinned by
+`tests/test_ansi_gating.py`, which runs 20 commands through a subprocess and
+asserts no `\x1b[` bytes appear in captured output.
+
+The final commit deviated from the plan slightly. Rather than mechanically
+rewriting 1117 `f"{ansi.BOLD}text{ansi.RESET}"` interpolations into
+`ansi.c(text, ansi.BOLD)` calls (37-file diff), commit 4 uses PEP 562 module
+`__getattr__` so that `ansi.BOLD` etc. resolve at *read time* to the raw code
+when `use_color()` is True and to `""` when it isn't. Existing interpolation
+patterns work unchanged; the diff is 4 files. Raw codes remain at
+`ansi.raw.BOLD` for `ansi.c` itself, tests, and the two inline `\033[` literals
+in `dtc_log.py` that the palette-name greps couldn't have caught.
+
+---
+
+The historical write-up (why the duplication mattered, what was measured, and
+the risk analysis) is preserved below.
+
+---
+Original status when planned: **PLANNED** (2026-08-06). Flagged during
 `plans/2026-08-06-command-packages-and-live-split.md`, where three of the modules
 being split each carried their own copy of the palette. Deliberately deferred
 there: consolidating it touches ~32 files and is its own change.
