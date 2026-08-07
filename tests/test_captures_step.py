@@ -12,6 +12,7 @@ import json
 
 import pytest
 from rich.console import Console
+from textual.containers import VerticalScroll
 
 from canlib.commands.captures.step import cmd_step
 from canlib.commands.captures.step_model import (
@@ -524,6 +525,19 @@ def _plain(renderable) -> str:
     return _render(renderable)
 
 
+def _marker_visible(app) -> bool:
+    """Whether the ``▶`` block cursor lies inside the scroll viewport."""
+    from textual.widgets import Static
+
+    from canlib.tui_scroll import marker_line
+
+    scroll = app.query_one("#scroll", VerticalScroll)
+    line = marker_line(app.query_one("#body", Static))
+    assert line is not None
+    top = int(scroll.scroll_offset.y)
+    return top <= line < top + (scroll.size.height or 1)
+
+
 class TestCapturesStepApp:
     """The Textual shell. Model behavior is covered above; these drive the keys."""
 
@@ -571,6 +585,72 @@ class TestCapturesStepApp:
             frame = app.model.frame_idx
             await pilot.press("down", "j", "pagedown")
             assert app.model.frame_idx == frame
+
+    @pytest.mark.asyncio
+    async def test_frame_moves_keep_the_scroll_position(self):
+        """Stepping repaints in place — the viewport must not jump to the top.
+
+        Regression: the stepper used to `scroll_home()` on every frame move, so
+        watching one byte deep in a tall stacked frame meant scrolling back down
+        after every `→`. The comparison is the whole point of the view.
+        """
+        app = self._app()
+        async with app.run_test(size=(120, 10)) as pilot:
+            await pilot.pause()
+            scroll = app.query_one("#scroll", VerticalScroll)
+            assert scroll.max_scroll_y > 0  # a stacked frame overflows the screen
+            await pilot.press("down", "down", "down")
+            await pilot.pause()
+            parked = int(scroll.scroll_offset.y)
+            assert parked > 0
+            for key in ("left", "right", "[", "]", "g", "G"):
+                await pilot.press(key)
+                await pilot.pause()
+                assert int(scroll.scroll_offset.y) == parked, f"{key} moved the viewport"
+
+    @pytest.mark.asyncio
+    async def test_block_cursor_reveals_an_offscreen_block(self):
+        """`tab` is a request to see a block, so it may scroll — only if it must."""
+        app = self._app()
+        async with app.run_test(size=(120, 10)) as pilot:
+            await pilot.pause()
+            scroll = app.query_one("#scroll", VerticalScroll)
+            assert int(scroll.scroll_offset.y) == 0
+            assert _marker_visible(app)  # block 0 is already on screen
+            await pilot.press("tab")
+            await pilot.pause()
+            assert app.model.block_idx == 1
+            assert int(scroll.scroll_offset.y) > 0  # had to scroll to show it
+            assert _marker_visible(app)
+
+    @pytest.mark.asyncio
+    async def test_status_bar_carries_the_frame_timestamp(self):
+        """The body's frame header scrolls away, so the bar has to hold the time."""
+        app = self._app()
+        async with app.run_test(size=(120, 10)) as pilot:
+            await pilot.pause()
+            status = _plain(app.query_one("#status").render())
+            assert "12:01:00.000" in status
+            assert "2026-08-02" in status
+            await pilot.press("g")
+            await pilot.pause()
+            assert "12:00:00.000" in _plain(app.query_one("#status").render())
+
+    @pytest.mark.asyncio
+    async def test_help_lists_the_framework_scroll_keys(self):
+        """Home/End have no Binding to derive a row from, so they're declared."""
+        from canlib.commands.captures.step_tui import CapturesStepApp
+
+        rows = dict(CapturesStepApp.HELP_EXTRA_ROWS)
+        assert "top / bottom of this frame" in rows.values()
+        app = self._app()
+        async with app.run_test(size=(120, 30)) as pilot:
+            await pilot.pause()
+            await pilot.press("?")
+            await pilot.pause()
+            help_text = _plain(app.screen.query_one("#help-rows Static").render())
+            assert "home/end" in help_text
+            assert "next frame" in help_text  # derived rows still there
 
     @pytest.mark.asyncio
     async def test_tab_moves_the_block_cursor(self):

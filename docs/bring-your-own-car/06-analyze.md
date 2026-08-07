@@ -108,11 +108,20 @@ anchor, and a PID
 with no capture in range is reported rather than hidden, so you always know
 whether you are looking at a real simultaneous reading.
 
-Inside the stepper: `←`/`→` move between frames, `↑`/`↓` scroll a tall frame,
-**`a`** adds/removes PIDs from the comparison, **`t`** changes the join tolerance,
+Inside the stepper: `←`/`→` move between frames, `↑`/`↓` scroll a tall frame
+(`Home`/`End` for its top/bottom), **`a`** adds/removes PIDs from the comparison,
+**`t`** changes the join tolerance,
 **`V`** switches rendering (`signals` drops the hex to fit more PIDs; `changed`
 shows only parameters whose value actually moved), **`tab`** picks a block so
 **`e`** can annotate that capture, and **`?`** lists every key.
+
+**Moving between frames keeps your scroll position.** A stacked frame is usually
+taller than the terminal, so scroll down to the byte you care about — three PIDs
+down, halfway through the hex — and then step with `←`/`→`: the view stays put and
+the numbers underneath change. That is what makes the stepper a comparator rather
+than a pager. The frame's timestamp is repeated in the status bar so you still
+know *when* you are while the frame header is scrolled out of sight, and `Home`
+takes you back to it.
 
 This is the fastest way to watch an event-driven signal: put the *known* signal
 (a compressor flag, a door state) in the same frame as the *candidate* byte, then

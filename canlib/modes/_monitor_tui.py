@@ -41,13 +41,13 @@ from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, VerticalScroll
-from textual.content import Content
 from textual.css.query import NoMatches
 from textual.screen import ModalScreen
 from textual.widgets import Button, Checkbox, Input, Label, OptionList, Static
 from textual.widgets.option_list import Option
 
 from canlib.tui_help import HelpMixin
+from canlib.tui_scroll import reveal_marker
 from canlib.tui_status import P_ESSENTIAL, P_HIGH, P_LOW, P_NORMAL, StatusBar, StatusItem
 
 if TYPE_CHECKING:
@@ -1080,20 +1080,7 @@ class MonitorApp(HelpMixin, App):
             body = self.query_one("#body", Static)
         except NoMatches:
             return
-        rendered = body.render()
-        # A Static's render() returns the visualized Content (str updates are
-        # visualized into a Content too), which exposes .plain.
-        assert isinstance(rendered, Content)
-        plain = rendered.plain
-        line = next((i for i, ln in enumerate(plain.splitlines()) if "▶" in ln), None)
-        if line is None:
-            return
-        top = int(scroll.scroll_offset.y)
-        height = scroll.size.height or 1
-        if line < top:
-            scroll.scroll_to(y=line, animate=False)
-        elif line >= top + height:
-            scroll.scroll_to(y=max(0, line - height + 1), animate=False)
+        reveal_marker(scroll, body)
 
     def _flash(self, msg: str, secs: float = 5.0) -> None:
         """Show a transient message in the status line for ``secs`` seconds."""

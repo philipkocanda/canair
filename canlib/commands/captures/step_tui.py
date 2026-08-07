@@ -5,7 +5,9 @@ A thin shell over :class:`~canlib.commands.captures.step_model.StepModel`, which
 owns all state and renders the frame. The app contributes only interaction:
 
 - frame navigation, plus **scrolling** (a stacked multi-PID frame is routinely
-  taller than the terminal — the reason this view is Textual at all);
+  taller than the terminal — the reason this view is Textual at all). Moving
+  between frames keeps the scroll position, so one byte deep in a stacked frame
+  can be watched *across* frames instead of being scrolled back to every step;
 - a **block cursor** (``tab``) so note/delete/drop act on a chosen stacked block;
 - **live editing of the comparison**: ``a`` adds/removes PIDs, ``t``/``<``/``>``
   change the join tolerance, ``V`` cycles the view — no restart needed.
@@ -27,6 +29,7 @@ from textual.widgets.option_list import Option
 from canlib.capture_types import CaptureEntry
 from canlib.tui_help import HelpMixin
 from canlib.tui_modals import ConfirmModal, TextPromptModal
+from canlib.tui_scroll import reveal_marker
 from canlib.tui_status import P_ESSENTIAL, P_HIGH, P_LOW, P_NORMAL, StatusBar, StatusItem
 
 from .step_render import key_label
@@ -284,6 +287,14 @@ class CapturesStepApp(HelpMixin, App):
 
     HELP_TITLE = "canair captures --step — keyboard shortcuts"
 
+    # Handled by the focused scroll container itself, so there is no Binding to
+    # derive these from — but they are the way back to a tall frame's header,
+    # which matters now that a frame move keeps the scroll position.
+    HELP_EXTRA_ROWS: ClassVar[tuple[tuple[str, str], ...]] = (
+        ("home/end", "top / bottom of this frame"),
+        ("pgup/pgdn", "page within this frame"),
+    )
+
     CSS = """
     Screen { layout: vertical; background: transparent; }
     #header { dock: top; height: 1; padding: 0 1; background: transparent; }
@@ -353,12 +364,20 @@ class CapturesStepApp(HelpMixin, App):
 
     # -- rendering ---------------------------------------------------------
 
-    def _refresh(self, *, to_top: bool = True) -> None:
+    def _refresh(self, *, reveal: bool = False) -> None:
+        """Repaint the current frame in place, never moving the scroll position.
+
+        A stacked frame is routinely taller than the terminal, and stepping is
+        how a byte is watched *across* frames — so the viewport stays exactly
+        where the reader put it and only the content underneath changes (the
+        same rule as the live monitor). ``reveal`` additionally brings the
+        focused ``▶`` block on screen, for the actions whose whole point is to
+        show a particular block.
+        """
         try:
             body = self.query_one("#body", Static)
             header = self.query_one("#header", Static)
             status = self.query_one("#status", StatusBar)
-            scroll = self.query_one("#scroll", VerticalScroll)
         except NoMatches:  # transient teardown query misses are harmless
             return
         body.update(self.model.render())
@@ -371,6 +390,10 @@ class CapturesStepApp(HelpMixin, App):
         items = [
             StatusItem(f"[dim]{bit}[/]", P_HIGH if i == 0 else P_LOW) for i, bit in enumerate(bits)
         ]
+        # The frame's own timestamp lives in the body header, which scrolls out
+        # of view in a tall frame — so keep it in the always-visible bar too, or
+        # stepping while scrolled down says nothing about *when* you are.
+        items[1:1] = self._time_items()
         if self._flash_msg:
             items.append(StatusItem(f"[b green]{self._flash_msg}[/]", P_ESSENTIAL))
         items += [
@@ -381,13 +404,32 @@ class CapturesStepApp(HelpMixin, App):
             StatusItem("[dim]q quit[/]", P_ESSENTIAL),
         ]
         status.set_lines(items)
-        if to_top:
-            # A new frame starts at its top; scrolling is for reading *within* one.
-            scroll.scroll_home(animate=False)
+        if reveal:
+            # After the repaint has been laid out, so the scroll clamp sees the
+            # new frame's height rather than the previous one's.
+            self.call_after_refresh(self._reveal_focused_block)
+
+    def _time_items(self) -> list[StatusItem]:
+        """The current frame's timestamp, date droppable before the clock."""
+        when = self.model.current_time()
+        if when is None:
+            return []
+        return [
+            StatusItem(f"[dim]{when:%Y-%m-%d}[/]", P_LOW),
+            StatusItem(f"[dim]{when:%H:%M:%S}.{when.microsecond // 1000:03d}[/]", P_HIGH),
+        ]
+
+    def _reveal_focused_block(self) -> None:
+        try:
+            scroll = self.query_one("#scroll", VerticalScroll)
+            body = self.query_one("#body", Static)
+        except NoMatches:
+            return
+        reveal_marker(scroll, body)
 
     def _flash(self, msg: str) -> None:
         self._flash_msg = msg
-        self._refresh(to_top=False)
+        self._refresh()
 
     def _modal_active(self) -> bool:
         return len(self.screen_stack) > 1
@@ -451,7 +493,7 @@ class CapturesStepApp(HelpMixin, App):
     def action_block(self, delta: int) -> None:
         self.model.move_block(delta)
         self._flash_msg = ""
-        self._refresh(to_top=False)
+        self._refresh(reveal=True)
 
     def action_goto(self) -> None:
         total = self.model.frame_count()
@@ -488,9 +530,12 @@ class CapturesStepApp(HelpMixin, App):
                 return
             if target.is_note and target.ref is not None:
                 self._flash_msg = self.model.seek_capture(target.ref, target.key)
-            else:
-                self._flash_msg = self.model.seek_session(target.session)
-            self._refresh()  # a jump lands on a new frame, so start at its top
+                # Jumping to a note is a request to *see* that capture, so its
+                # block is brought on screen even when it sits below the fold.
+                self._refresh(reveal=True)
+                return
+            self._flash_msg = self.model.seek_session(target.session)
+            self._refresh()
 
         self.push_screen(JumpModal(self.model.jump_targets()), _done)
 

@@ -7,6 +7,10 @@ list can never drift from what the keys actually do.
 
 Mix :class:`HelpMixin` into an ``App`` and add a ``Binding("question_mark",
 "help", "help")`` to its ``BINDINGS``; the modal is populated automatically.
+Keys the app does *not* declare because the framework already handles them
+(``Home``/``End``/``PgUp``/``PgDn`` on a focused scroll container) can be listed
+via ``HELP_EXTRA_ROWS`` — otherwise they are real, working keys the cheat-sheet
+would silently omit.
 """
 
 from __future__ import annotations
@@ -104,13 +108,18 @@ class HelpMixin:
 
     Mix in *before* ``App`` in the base list and add
     ``Binding("question_mark", "help", "help")`` to the app's ``BINDINGS``.
+    Set :attr:`HELP_EXTRA_ROWS` for keys the framework handles on the app's
+    behalf, which therefore have no ``Binding`` to derive a row from.
     """
 
     HELP_TITLE: ClassVar[str] = "Keyboard shortcuts"
+    #: ``(keys, description)`` rows appended after the derived ones.
+    HELP_EXTRA_ROWS: ClassVar[tuple[tuple[str, str], ...]] = ()
 
     def action_help(self) -> None:
         assert isinstance(self, App)
         # Don't stack a second modal (or open over an existing dialog).
         if len(self.screen_stack) > 1:
             return
-        self.push_screen(HelpModal(self.HELP_TITLE, bindings_help_rows(self)))
+        rows = bindings_help_rows(self) + list(self.HELP_EXTRA_ROWS)
+        self.push_screen(HelpModal(self.HELP_TITLE, rows))
