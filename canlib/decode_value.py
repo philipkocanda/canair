@@ -37,6 +37,13 @@ STRUCT = "struct"
 
 VALID_TYPES = (NUMERIC, ENUM, BITMASK, ASCII, DATE, BCD, STRUCT)
 
+# Types whose expression range delimits a **run of bytes** rather than a scalar.
+# Their decoder walks the run and drops the ISO-TP framing bytes it spans (see
+# `_data_run`), so — unlike every numeric type — a range crossing a CAN frame
+# boundary is correct, not a byte-index mistake. `validate pids`' PCI check
+# consults this to avoid flagging the only valid spelling of e.g. a 17-char VIN.
+BYTE_RUN_TYPES = frozenset({ASCII, DATE})
+
 # Plausible calendar-year window for date detection (shared with identity).
 _MIN_YEAR = 1990
 _MAX_YEAR = 2099
@@ -177,13 +184,55 @@ def _decode_bitmask(raw: float, bits: dict) -> list[str]:
     return out
 
 
+def _data_run(wican_bytes: bytes, lo: int, hi: int) -> bytes:
+    """The DATA bytes of WiCAN range ``B{lo}..B{hi}``, ISO-TP framing removed.
+
+    ``ascii``/``date`` read a *run* of bytes, but in the WiCAN AutoPID layout a run
+    is interrupted by ISO-TP PCI bytes (B00/B01, then B08, B16, …). Those are
+    framing, not data — and a Consecutive-Frame PCI value (``0x21``, ``0x22``, …)
+    is *printable ASCII* (``!``, ``"``), so leaving it in silently corrupts the
+    text instead of failing loudly: a 17-char VIN read as ``[B04:B22]`` decoded to
+    ``KMHC!XXXXXXX"XXXXXX``.
+
+    The layout is read from the PCI itself (:func:`framed_to_wican_frame`), so
+    single-frame (one PCI byte) and multi-frame (two, plus one per consecutive
+    frame) buffers are both exact — no length guessing. Trailing CAN-frame padding
+    is dropped by comparing against the PCI's declared payload length.
+    """
+    from .byteindex import NotAFrameError, declared_payload_len, framed_to_wican_frame
+
+    try:
+        frame = framed_to_wican_frame(list(wican_bytes))
+    except NotAFrameError:
+        return wican_bytes[lo : hi + 1]
+    limit = declared_payload_len(wican_bytes)
+    out = bytearray()
+    for value, isotp_idx in frame[lo : hi + 1]:
+        if isotp_idx is None:
+            continue  # ISO-TP framing byte — never data
+        if limit is not None and isotp_idx >= limit:
+            continue  # trailing CAN-frame padding, not payload
+        out.append(value)
+    return bytes(out)
+
+
 def _payload_slice_for_type(wican_bytes: bytes, param: dict) -> bytes:
     """Best-effort byte slice for ascii/date types.
 
     ``ascii``/``date`` interpret a *run* of bytes, not a single scalar. When the
-    expression is a simple multi-byte range ``[Bn:Bm]`` we honor it; otherwise
-    we fall back to the whole frame after the header. This keeps the common case
-    (an explicit range) exact without requiring a full expression AST.
+    expression is a simple multi-byte range ``[Bn:Bm]`` we honor it; otherwise we
+    fall back to the whole payload minus its UDS header.
+
+    Either way the run goes through :func:`_data_run`, which strips the ISO-TP
+    framing bytes the range spans — they are not data and would otherwise land in
+    the decoded text.
+
+    The fallback's header width is **looked up, not guessed**: the payload's own
+    response SID resolves through :func:`canlib.uds_layout.response_layout`, so a
+    ``0x5A`` KWP2000 record read drops ``SID + REC`` (2 bytes) while a ``0x62`` DID
+    read drops ``SID + DID`` (3). An unregistered service drops only the SID —
+    the one byte every positive response certainly has — since eating a
+    speculative subfunction byte would silently truncate real data.
     """
     import re
 
@@ -192,10 +241,15 @@ def _payload_slice_for_type(wican_bytes: bytes, param: dict) -> bytes:
     if m:
         lo, hi = int(m.group(1)), int(m.group(2))
         if 0 <= lo <= hi < len(wican_bytes):
-            return wican_bytes[lo : hi + 1]
-    # Fallback: drop the PCI + SID/DID header heuristically (first 3 bytes) and
-    # use the rest. Callers that need precision should give an explicit range.
-    return wican_bytes[3:] if len(wican_bytes) > 3 else wican_bytes
+            return _data_run(wican_bytes, lo, hi)
+
+    from .uds_layout import response_layout
+
+    data = _data_run(wican_bytes, 0, len(wican_bytes) - 1)
+    if not data:
+        return data
+    layout = response_layout(data[0])
+    return data[layout.header_bytes if layout else 1 :]
 
 
 def decode_typed(param: dict, wican_bytes: bytes) -> DecodedValue:

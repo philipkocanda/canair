@@ -6,6 +6,7 @@ from datetime import date
 
 from canlib import decode_value as dv
 from canlib import stats
+from canlib.autopid_layout import uds_hex_to_wican_bytes
 
 
 class TestTypedDecode:
@@ -95,6 +96,67 @@ class TestTypedDecode:
         )
         assert b.category() == "x"
         assert dv.decode_typed({"expression": "B3"}, bytes([0, 0, 0, 1])).category() is None
+
+
+class TestAsciiDateRunSlicing:
+    """``ascii``/``date`` read a byte RUN — ISO-TP framing must not leak into it.
+
+    ``decode_typed`` takes WiCAN-layout bytes (PCI re-inserted), so any run wider
+    than one CAN frame spans framing bytes. A Consecutive-Frame PCI byte is
+    ``0x21``/``0x22``/… — *printable ASCII* (``!``, ``"``) — so leaving it in
+    corrupts the text silently instead of failing loudly. Regression guard for the
+    VIN that decoded as ``KMHC!XXXXXXX"XXXXXX``.
+    """
+
+    VIN = "KMHCXXXXXXXXXXXXX"  # 17 chars, the ISO 3779 length
+
+    @staticmethod
+    def _wican(payload_hex: str) -> bytes:
+        return uds_hex_to_wican_bytes(payload_hex)
+
+    def _vin_1a90(self) -> bytes:
+        # KWP2000 ReadEcuIdentification record 0x90: SID 0x5A + REC + 17 ASCII.
+        return self._wican("5A90" + self.VIN.encode().hex().upper())
+
+    def test_multiframe_ascii_skips_cf_pci(self):
+        p = {"expression": "[B04:B22]", "type": "ascii"}
+        assert dv.decode_typed(p, self._vin_1a90()).text == self.VIN
+
+    def test_multiframe_range_past_payload_ignores_padding(self):
+        # B23 is the zero-padding of the final CAN frame, past the declared
+        # 19-byte payload — dropped, not rendered.
+        p = {"expression": "[B04:B23]", "type": "ascii"}
+        assert dv.decode_typed(p, self._vin_1a90()).text == self.VIN
+
+    def test_singleframe_ascii_range(self):
+        # A single-frame response carries ONE PCI byte, so data starts at B02.
+        wb = self._wican("5A90" + b"ABCDE".hex().upper())
+        p = {"expression": "[B03:B07]", "type": "ascii"}
+        assert dv.decode_typed(p, wb).text == "ABCDE"
+
+    def test_fallback_looks_up_header_width_kwp(self):
+        # No usable range expression: 0x5A (KWP2000 1A) header is SID + REC = 2.
+        assert dv.decode_typed({"type": "ascii"}, self._vin_1a90()).text == self.VIN
+
+    def test_fallback_looks_up_header_width_did(self):
+        # 0x62 (UDS 22) header is SID + DID = 3 — a different width, same code path.
+        wb = self._wican("62F190" + self.VIN.encode().hex().upper())
+        assert dv.decode_typed({"type": "ascii"}, wb).text == self.VIN
+
+    def test_fallback_unknown_service_drops_only_the_sid(self):
+        # 0x05 is not a response SID canair has a layout for; only the byte every
+        # positive response certainly has (the SID) is dropped.
+        wb = self._wican("05" + b"ABCDEFGHIJKLMNOP".hex().upper())
+        assert dv.decode_typed({"type": "ascii"}, wb).text == "ABCDEFGHIJKLMNOP"
+
+    def test_multiframe_date_skips_cf_pci(self):
+        # A BCD date straddling the FF/CF boundary: payload 5A 91 <4 pad> 20 17 06 06
+        # puts the 4 date bytes at B08(PCI) onwards, so the run must skip B08.
+        payload = "5A91" + "AA" * 4 + "20170606"
+        wb = self._wican(payload)
+        d = dv.decode_typed({"expression": "[B09:B12]", "type": "date"}, wb)
+        assert d.text == "2017-06-06"
+        assert d.dt == date(2017, 6, 6)
 
 
 class TestCategoricalStats:

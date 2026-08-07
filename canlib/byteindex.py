@@ -436,6 +436,29 @@ def framed_to_wican_frame(framed_bytes: list[int]) -> list[tuple[int, int | None
     )
 
 
+def declared_payload_len(framed_bytes: bytes) -> int | None:
+    """The UDS payload length an ISO-TP frame's PCI *declares*, or None.
+
+    Read straight out of the framing bytes — Single Frame ``0x0N`` declares ``N``,
+    First Frame ``0x1N NN`` declares a 12-bit length. A lone Consecutive Frame
+    carries no length, and neither does an empty buffer, so both give None.
+
+    The point is telling **payload from padding**: a WiCAN buffer pads its final
+    CAN frame out to 8 bytes (see
+    :func:`canlib.autopid_layout.uds_hex_to_wican_bytes`), so a byte with a valid
+    ISO-TP index is not necessarily a payload byte. Compare an index against this
+    to drop the tail.
+    """
+    if not framed_bytes:
+        return None
+    ftype = (framed_bytes[0] >> 4) & 0x0F
+    if ftype == 0x0:
+        return framed_bytes[0] & 0x0F
+    if ftype == 0x1 and len(framed_bytes) >= 2:
+        return ((framed_bytes[0] & 0x0F) << 8) | framed_bytes[1]
+    return None
+
+
 def payload_to_wican_bytes(payload_hex: str) -> bytes:
     """Raw UDS payload hex → WiCAN frame bytes (PCI inserted).
 

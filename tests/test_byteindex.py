@@ -6,6 +6,7 @@ from canlib.byteindex import (
     NotAFrameError,
     bix_to_torque,
     conversion_table,
+    declared_payload_len,
     elm_to_wican_idx,
     extract_bit_indices,
     extract_byte_indices,
@@ -463,3 +464,38 @@ class TestFramedToWicanFrame:
     def test_empty_rejected(self):
         with pytest.raises(NotAFrameError):
             framed_to_wican_frame([])
+
+
+class TestDeclaredPayloadLen:
+    """declared_payload_len: the payload length an ISO-TP PCI header states.
+
+    Its job is telling payload from padding — a WiCAN buffer pads its final CAN
+    frame out to 8 bytes, so a byte with a valid ISO-TP index is not necessarily a
+    payload byte.
+    """
+
+    def test_single_frame_low_nibble(self):
+        assert declared_payload_len(bytes([0x06, 0x62, 0xB0, 0x04, 0x74, 0x02, 0x99])) == 6
+
+    def test_first_frame_twelve_bit_length(self):
+        assert declared_payload_len(bytes([0x10, 0x12, 0x62])) == 0x12
+        # The high nibble of byte 0 is the length's top 4 bits, not just a marker.
+        assert declared_payload_len(bytes([0x11, 0x00])) == 0x100
+
+    def test_lone_consecutive_frame_declares_nothing(self):
+        assert declared_payload_len(bytes([0x21, 0xAA, 0xBB])) is None
+
+    def test_flow_control_declares_nothing(self):
+        assert declared_payload_len(bytes([0x30, 0x00, 0x0A])) is None
+
+    def test_empty(self):
+        assert declared_payload_len(b"") is None
+
+    def test_truncated_first_frame(self):
+        # An FF header needs 2 bytes; one alone can't state a length.
+        assert declared_payload_len(bytes([0x10])) is None
+
+    def test_agrees_with_payload_to_wican_frame(self):
+        for n in (1, 6, 7, 8, 19, 20, 63):
+            wican = bytes(v for v, _ in payload_to_wican_frame(list(range(n))))
+            assert declared_payload_len(wican) == n

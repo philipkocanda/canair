@@ -35,6 +35,28 @@ class TestPciByteDetection:
         assert "PCI" in msg and "B8" in msg
 
 
+class TestByteRunTypesExemptFromRangeCheck:
+    """ascii/date ranges delimit a byte RUN — spanning a frame boundary is correct.
+
+    Their decoder drops the ISO-TP framing bytes the range spans, so a 17-char VIN
+    (which cannot fit in one CAN frame) has no PCI-free spelling. Numeric types get
+    no such exemption: there the range really is read as consecutive raw bytes.
+    """
+
+    @pytest.mark.parametrize("ptype", ["ascii", "date", "ASCII"])
+    def test_range_spanning_pci_allowed(self, ptype):
+        assert not check_pci_bytes("[B04:B22]", "VIN", "1A90", "VCU", ptype)
+
+    @pytest.mark.parametrize("ptype", [None, "numeric", "enum", "bitmask", "bcd", "struct"])
+    def test_range_spanning_pci_still_flagged_for_scalars(self, ptype):
+        assert check_pci_bytes("[B04:B22]", "P", "1A90", "VCU", ptype)
+
+    def test_single_pci_byte_still_flagged_for_runs(self):
+        # The exemption is for the range form only — a bare PCI byte reference is
+        # a mistake whatever the type.
+        assert check_pci_bytes("B8", "P", "2101", "ECU", "ascii")
+
+
 class TestRealPidsHaveNoPciBytes:
     """The shipped ecus/ must not read PCI bytes."""
 
@@ -58,7 +80,7 @@ class TestRealPidsHaveNoPciBytes:
                         if not isinstance(pmeta, dict):
                             continue
                         expr = pmeta.get("expression", "") or ""
-                        offenders += check_pci_bytes(expr, pname, str(pid), ecu)
+                        offenders += check_pci_bytes(expr, pname, str(pid), ecu, pmeta.get("type"))
         assert not offenders, "PCI bytes referenced:\n" + "\n".join(offenders)
 
 

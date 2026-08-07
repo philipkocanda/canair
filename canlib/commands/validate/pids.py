@@ -11,6 +11,7 @@ import yaml
 
 from canlib import yaml_io
 from canlib.byteindex import wican_to_isotp
+from canlib.decode_value import BYTE_RUN_TYPES as _BYTE_RUN_TYPES
 from canlib.pids import PID_STATUSES
 
 from ._common import EXPR_TOKEN_RE, SCHEMA_FILE
@@ -122,7 +123,9 @@ def _validate_param_type(
     return errors
 
 
-def check_pci_bytes(expr: str, param_name: str, pid: str, ecu: str) -> list[str]:
+def check_pci_bytes(
+    expr: str, param_name: str, pid: str, ecu: str, param_type: str | None = None
+) -> list[str]:
     """Warn if an expression reads ISO-TP PCI bytes.
 
     PCI (frame-header) bytes live at WiCAN indices 0, 1, 8, 16, 24, 32, ...
@@ -130,8 +133,15 @@ def check_pci_bytes(expr: str, param_name: str, pid: str, ecu: str) -> list[str]
     counter/length, not real data — a common byte-index mistake. This also
     flags multi-byte ranges ``[Bnn:Bmm]`` that *span* a PCI byte, since those
     read consecutive raw bytes without skipping PCI.
+
+    ``param_type`` exempts the range form for the **byte-run** types
+    (``ascii``/``date``): there the range delimits a run of text/date bytes rather
+    than a scalar, and the decoder drops the framing bytes it spans (see
+    :func:`canlib.decode_value._data_run`). A 17-char VIN necessarily crosses a
+    frame boundary, so flagging it would be flagging the only correct spelling.
     """
     warnings = []
+    run_type = (param_type or "").lower() in _BYTE_RUN_TYPES
 
     def is_pci(idx: int) -> bool:
         return wican_to_isotp(idx) is None
@@ -143,7 +153,7 @@ def check_pci_bytes(expr: str, param_name: str, pid: str, ecu: str) -> list[str]
         lo, hi = min(a, b), max(a, b)
         ranges.append((m.span(), lo, hi))
         pci = [x for x in range(lo, hi + 1) if is_pci(x)]
-        if pci:
+        if pci and not run_type:
             warnings.append(
                 f"{ecu}/{pid}/{param_name}: range '{m.group(0)}' spans ISO-TP PCI byte(s) "
                 f"{', '.join(f'B{x}' for x in pci)} — reads frame header, not data"
@@ -615,7 +625,7 @@ def _validate_parameters(
         expr = param.get("expression", "")
         if expr:
             errors.extend(validate_expression(expr, param_name, pid_str, ecu_name))
-            warnings.extend(check_pci_bytes(expr, param_name, pid_str, ecu_name))
+            warnings.extend(check_pci_bytes(expr, param_name, pid_str, ecu_name, param.get("type")))
 
         # Typed (multi-modal) decoding validation
         errors.extend(
