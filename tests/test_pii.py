@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from canlib import pii
 from canlib.profile import Profile
 
@@ -239,11 +241,45 @@ class TestEcuIdentityScan:
         assert any(f.kind == "email" for f in pii.scan_profile(prof))
 
     def test_did_range_in_notes_is_not_a_phone_number(self, tmp_path):
-        # Identity prose is technical; the digit-run heuristic reads a DID range
-        # like 220100-0103 as a phone number, so it is not applied here.
+        # Identity prose is technical. There is no digit-run heuristic to trip
+        # (see TestNoDigitRunHeuristic) — this guards it staying that way.
         prof = _write_profile(
             tmp_path,
             ecus={"SCC": _ecu_yaml("SCC", notes="Live data via 220100-0103/0105, undecoded")},
+        )
+        assert pii.scan_profile(prof) == []
+
+
+class TestNoDigitRunHeuristic:
+    """There is deliberately no "long run of digits" check.
+
+    It could not tell a phone number from a part number, an ECU serial, a DID
+    range or raw payload hex — which is what capture notes consist of. On the
+    bundled Ioniq profile it fired 15 times and was wrong every time, burying the
+    real findings.
+    """
+
+    def test_regex_is_gone(self):
+        assert not hasattr(pii, "_PHONE_RE")
+
+    @pytest.mark.parametrize(
+        "note",
+        [
+            "Part 95821G2000 (HW version). Serial 31114851712211429.",
+            "Scanned 22 0101-0130 on this ECU",
+            "Live data via 220100-0103/0105",
+            "payload 17060100003900000000",
+            "AVN serial 00000076FE0085-003240",
+            "call me on 555 123 4567",  # a real phone number is also not flagged
+        ],
+    )
+    def test_digit_runs_produce_no_findings(self, tmp_path, note):
+        prof = _write_profile(
+            tmp_path,
+            captures={
+                "label": "x",
+                "captures": [{"rx": "0x7EC", "pid": "2101", "payload": "6101AB", "notes": note}],
+            },
         )
         assert pii.scan_profile(prof) == []
 

@@ -324,6 +324,8 @@ it's about scrubbing *data*; here it's about not baking a real IP/email/VIN into
 Watch for these leaks (not exhaustive — reason about the *class*, not the list):
 
 - **Identity:** real names, emails, phone numbers, usernames, faces, signatures.
+  The `canair contribute` scan only looks for emails here — a phone number in a
+  note is on the author/reviewer to catch.
 - **Vehicle identity:** VINs, license plates, insurance/registration numbers —
   and remember these hide *inside captured payloads* (the VIN comes back from UDS
   `F190` / KWP2000 record `90`). A capture is not automatically safe just

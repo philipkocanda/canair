@@ -106,10 +106,12 @@ fork/clone/branch/push, and it works regardless of where the profile is stored
 
 1. Runs `canair validate all` and **refuses a broken profile**.
 2. Runs the **PII pre-flight** (`canlib/pii.py`) — VIN identity DIDs, VIN-shaped
-   payloads, the curated `ecus/` `identity.vin`, and PII-looking free text in
+   payloads, the curated `ecus/` `identity.vin`, and email/VIN text in
    labels/notes/`car_model` — and requires you to confirm before continuing.
    Per-unit ECU serials are deliberately *not* flagged, in captures or in
-   `identity:`: they name a module, not a person.
+   `identity:`: they name a module, not a person. Neither are phone numbers —
+   there is no digit-run check, because it cannot be told apart from a part
+   number, a DID range or payload hex. **You** are the backstop for those.
 3. Runs the **staleness / self-collision guards** and asks you to confirm past
    each: an *installed-snapshot* warning when the profile was read from a frozen
    `site-packages`/`uv tool` copy (a bare `canair`, not `uv run canair` from a
@@ -158,7 +160,8 @@ Watch for these leaks (reason about the *class*, not just the list):
   redact them yourself. A per-unit **ECU serial** (`F18C`/`F18B`,
   `identity.serial`) is *not* in this class — it names a module, not a person, and
   the project treats it as shareable diagnostic data.
-- **Identity:** real names, emails, phone numbers, usernames.
+- **Identity:** real names, emails, phone numbers, usernames. Only emails are
+  scanned for — a phone number is on you to keep out.
 - **Location:** home/work addresses, GPS, odometer-at-a-place, Wi-Fi SSIDs, and
   network coordinates (real LAN/VPN IPs, MACs, hostnames). Device addresses live
   in the **gitignored** `~/.config/canair/config.yaml` — keep real values out of

@@ -54,14 +54,14 @@ there's no guessing which copy is being shared. Before anything is
 shared it:
 
 - runs `canair validate all` (and refuses if it fails),
-- scans for anything that could **identify or locate you** — a VIN, an email or
-  phone number in a label/note — and asks you to confirm. It looks at both your
-  `captures/` and the `identity:` blocks in `ecus/` (where `canair identity`
-  records a live VIN read), so a definitions-only `--no-captures` PR is checked
-  too. A value you have already masked (`KMHCXXXXXXXXXXXXX`) is recognised as
-  redacted and not re-flagged. Per-unit **ECU serials** are deliberately left
-  alone wherever they appear — a capture of the serial DID *and* `identity.serial`
-  — because they name a module, not you,
+- scans for anything that could **identify you** — a VIN, or an email address in
+  a label/note — and asks you to confirm. It looks at both your `captures/` and
+  the `identity:` blocks in `ecus/` (where `canair identity` records a live VIN
+  read), so a definitions-only `--no-captures` PR is checked too. A value you have
+  already masked (`KMHCXXXXXXXXXXXXX`) is recognised as redacted and not
+  re-flagged. Per-unit **ECU serials** are deliberately left alone wherever they
+  appear — a capture of the serial DID *and* `identity.serial` — because they name
+  a module, not you,
 - **warns if your profile looks stale** — if it was read from an installed
   snapshot (a bare `canair` reads the frozen `site-packages` copy, not your
   checkout) or if the contribution would *remove* lines already merged upstream

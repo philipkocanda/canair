@@ -18,10 +18,8 @@ leak:
   ``canair identity`` writes from a live read. Unlike the rest of ``identity:``
   this is *the* vehicle's unique number, and it reaches a PR through the
   definitions, not the captures — so a definitions-only contribution can leak it.
-* **PII-looking free text** — emails, long digit runs (phone-ish), and
-  VIN-shaped tokens in capture labels/notes, session notes, and ``car_model``;
-  emails and VIN tokens (only) in an ECU's identity free text, whose technical
-  prose makes the digit-run heuristic useless there.
+* **PII-looking free text** — emails and VIN-shaped tokens in capture
+  labels/notes, session notes, ``car_model``, and an ECU's identity free text.
 
 Deliberately **not** flagged: per-unit **ECU hardware serials**, in either place
 they appear — a capture of the serial DID (UDS ``F18C``/``F18B``) and the curated
@@ -31,6 +29,13 @@ several are long opaque alphanumerics that collide with the VIN charset, so
 scanning them is false positives without a privacy gain. A serial response that
 happens to decode to something VIN-shaped is still caught by the payload check
 above, which is keyed on the *value*, not the identifier.
+
+Also not flagged: **phone numbers**. A "run of 10+ digits" is indistinguishable
+from a part number, an ECU serial, a DID range (``22 0101-0130``) or raw payload
+hex, which is what capture notes are made of — measured on the bundled Ioniq
+profile it matched 15 times and was wrong 15 times. A check that is never right
+only buries the ones that are, so it was removed rather than tuned. Keeping a
+phone number out of a note remains a reviewer/authoring rule.
 
 A value carrying an obvious redaction mask is never flagged (see
 :func:`looks_redacted`) — a report that fires on data already scrubbed teaches
@@ -65,20 +70,15 @@ _SENSITIVE_KWP_RECORDS = {"90"}  # VIN
 # ``ecus/<ecu>.yaml`` identity fields worth scanning, and how.
 #
 # ``vin`` is *the* vehicle's unique number — always flagged when it holds a real
-# value. The free-text fields get the two *specific* patterns (email, VIN token)
-# but NOT the long-digit-run heuristic: identity prose is technical, and DID
-# ranges like ``220100-0103`` read as phone numbers to it. Every other identity
-# field (``serial``, ``ecu_id``, ``part_number``, versions, …) is deliberately
-# unscanned: those identify a module rather than a person, and long opaque serials
-# collide with the VIN charset.
+# value. The free-text fields get the same email/VIN-token sweep as capture notes.
+# Every other identity field (``serial``, ``ecu_id``, ``part_number``, versions, …)
+# is deliberately unscanned: those identify a module rather than a person.
 _IDENTITY_VIN_FIELD = "vin"
 _IDENTITY_FREE_TEXT_FIELDS = ("notes", "description", "alias", "supplier")
 
 # A VIN is 17 chars, upper alphanumeric excluding I/O/Q (ISO 3779).
 _VIN_RE = re.compile(r"\b[A-HJ-NPR-Z0-9]{17}\b")
 _EMAIL_RE = re.compile(r"\b[\w.+-]+@[\w-]+\.[\w.-]+\b")
-# A run of 10+ digits (phone number, long serial) allowing spaces/dashes.
-_PHONE_RE = re.compile(r"(?:\d[\s-]?){10,}")
 # 4+ identical mask characters in a row — the signature of a redacted value.
 _MASK_RUN_RE = re.compile(r"([Xx*#?])\1{3,}")
 
@@ -153,7 +153,7 @@ def _payload_ascii(payload: str) -> str:
 
 
 def _scan_free_text(text: str, location: str) -> list[Finding]:
-    """Flag emails / phone-ish digit runs / VIN-shaped tokens in free text."""
+    """Flag emails / VIN-shaped tokens in free text."""
     findings: list[Finding] = []
     if not text:
         return findings
@@ -161,8 +161,6 @@ def _scan_free_text(text: str, location: str) -> list[Finding]:
         findings.append(Finding(location, "email", "contains an email address"))
     if _has_vin_token(text) and not looks_redacted(text):
         findings.append(Finding(location, "vin-text", "contains a VIN-shaped token"))
-    if _PHONE_RE.search(text):
-        findings.append(Finding(location, "digits", "contains a long digit run (phone/serial?)"))
     return findings
 
 
@@ -224,10 +222,9 @@ def _scan_identity(identity: object, loc: str) -> list[Finding]:
     """Flag the curated VIN and any PII in one ECU's ``identity:`` free text.
 
     ``identity.vin`` is the one field here that is *the* vehicle's unique number,
-    so a real value is always flagged. The free-text fields are swept for the two
-    specific patterns only (email, VIN token) — not the digit-run heuristic, which
-    reads a DID range as a phone number. Serials/part numbers/versions are
-    intentionally skipped — see the module docstring.
+    so a real value is always flagged. The free-text fields get the same sweep as
+    capture notes. Serials/part numbers/versions are intentionally skipped — see
+    the module docstring.
     """
     findings: list[Finding] = []
     if not isinstance(identity, dict):
@@ -242,12 +239,7 @@ def _scan_identity(identity: object, loc: str) -> list[Finding]:
             )
         )
     for field in _IDENTITY_FREE_TEXT_FIELDS:
-        text = str(identity.get(field) or "")
-        where = f"{loc} identity.{field}"
-        if _EMAIL_RE.search(text):
-            findings.append(Finding(where, "email", "contains an email address"))
-        if _has_vin_token(text) and not looks_redacted(text):
-            findings.append(Finding(where, "vin-text", "contains a VIN-shaped token"))
+        findings += _scan_free_text(str(identity.get(field) or ""), f"{loc} identity.{field}")
     return findings
 
 
