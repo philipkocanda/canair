@@ -457,7 +457,11 @@ Not every byte is analog. Discrete/logic signals have distinct fingerprints:
   endianness and groups hits into `accumulator` / `cycle` / `timer`. Evidence is in
   **bits** (one clean rise with no fall = 1 bit), so read a 3-bit hit as a lead and
   a 300-bit hit as a fact — and do **not** scope it, because the horizon is the
-  evidence.
+  evidence (a scope filter is now *warned*, since it understates the score). You
+  don't have to name a PID: **omit ECU/PID entirely** — `canair investigate
+  --counters` — to sweep the *whole car* ("find every counter in it"), or give a
+  bare ECU / QUERY to sweep its PIDs. That is the natural discovery form, since a
+  counter is exactly the thing you haven't decoded a PID for yet.
 - **Constants / calibration** — never (or rarely) change across all states →
   cal/identity block, not live data. Confirm with `--stats` (distinct = 1–2).
 
@@ -499,7 +503,10 @@ The tooling exposes real statistical levers — use them as evidence, not decora
   - `canair investigate <ECU> <PID>` — the one-shot "explain this PID": per byte,
     is it mapped?, its state-discriminability F, and its strongest co-polled
     anchor (r + fit + unit) in a single ranked table. Point it at an unknown PID
-    before hand-running the loop below. Add **`--bits`** to rank toggling bits
+    before hand-running the loop below. **ECU/PID are optional** (the `coverage`
+    precedent): omit the PID (or both) to *sweep* an ECU — or the whole profile —
+    as a ranked summary (`--top` caps it) rather than N full reports, the "which
+    PID is worth a deep-dive?" triage. Add **`--bits`** to rank toggling bits
     (`Bn:k`) — the body/comfort finder (a body PID with no anchor is still ranked
     by state separation, not dropped). Add **`--events`** for the bit/byte **edge
     timeline** — every rising/falling transition with its timestamp, aligned to
@@ -514,7 +521,9 @@ The tooling exposes real statistical levers — use them as evidence, not decora
     tool that finds these, because a slow counter is stationary within a session
     and therefore invisible to every correlation/discrimination view; unlike the
     rest of this list it should be run **unscoped**, since the calendar horizon is
-    the evidence.
+    the evidence. `--counters` sweeps too (a bare `canair investigate --counters`
+    finds every counter in the car); the narrated timelines
+    (`--events`/`--dwell`/`--field`) stay single-PID and refuse a sweep.
 - **Cross-ECU mirror detection** (`canair correlate --find-mirrors [--bits]`) —
   reports byte/bit positions time-aligned *equal* across co-polled ECU/PIDs (a
   door bit in IGPM also present in BCM); the cross-ECU companion to
@@ -823,9 +832,9 @@ PR — see the `ioniq-reverse-engineering` skill's goals.
 | map bytes | `canair bix --annotate` (+ `--ecu ECU --pid PID` to overlay which param maps each byte / flag unmapped; `--pid` also derives the 1-vs-2-byte subfunction width) |
 | reason about a signal | step 6 Hypothesize — ECU context, physics/EE (thermal mass), CS (enums/counters), statistics (`--corr`/`--stats`/autocorr) |
 | test expressions | `canair decode --try` / `--stats` / `--corr` / `--plot` |
-| explain an unknown PID | `canair investigate <ECU> <PID>` (mapped? / state F / best anchor + unit / triage class / physical band, one table; `--bits`, `--events`; flags probable multi-byte `[Bn:Bn+1]` words) |
+| explain an unknown PID | `canair investigate <ECU> <PID>` (mapped? / state F / best anchor + unit / triage class / physical band, one table; `--bits`, `--events`; flags probable multi-byte `[Bn:Bn+1]` words) — omit the PID (or both positionals) to sweep an ECU / the whole profile as a ranked summary (`--top` caps it) |
 | decode a body event capture | `canair investigate <ECU> <PID> --events --bits` (edge timeline vs capture notes) + `canair correlate --find-mirrors --bits` (cross-ECU bit mirrors) |
-| find an odometer / hour meter / cycle count | `canair investigate <ECU> <PID> --counters` (monotonic windows across the WHOLE corpus, scored in bits; `--unmapped-only`) — the one question correlation can't answer |
+| find an odometer / hour meter / cycle count | `canair investigate [<ECU> [<PID>]] --counters` (monotonic windows across the WHOLE corpus, scored in bits; bare = every counter in the car; `--unmapped-only`) — the one question correlation can't answer |
 | what's co-polled here | `canair correlate --overlap` (which ECU:PID pairs share timed samples) |
 | cross-ECU correlate | `canair decode … --corr ECU:PID:PARAM` (+ `--corr-transform`, `--method spearman`); `canair correlate [--against REF] [--bytes/--bits] [--lag-scan N] [--gate '>0'] [--promote NAME]` |
 | which byte is signal Y | `canair hunt <ECU> <PID> --against ECU:PID:PARAM` (linear fit + unit guess; `--transform delta`, `--promote NAME`, `--all-interps`) |

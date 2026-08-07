@@ -102,8 +102,10 @@ guess from the note (rule 2).
 ## Workflow
 
 1. **Scope** — pick the ECU/PID(s). `canair ecu <ECU> pids` for the current
-   state, `canair coverage <ECU>` for gaps/constants, `canair investigate ECU
-   PID` for a per-byte triage.
+   state, `canair coverage <ECU>` for gaps/constants, `canair investigate <ECU>`
+   (PID optional) for a per-byte triage — a bare ECU sweeps every captured PID as
+   a ranked summary, so you can eyeball a whole ECU's decodability before drilling
+   into one PID with `canair investigate <ECU> <PID>`.
 2. **Gather evidence** — `canair decode ECU:PID --stats --group-by state`,
    `canair captures uds --sessions` for state coverage, and `git log --follow`
    for the provenance/date of each existing claim (rule 1).
