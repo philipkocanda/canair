@@ -261,5 +261,14 @@ Two defects surfaced while building it:
 
 ## Follow-up
 
-Not implemented: a `can` (raw broadcast frame) counterpart. `canlib/counters.py` is
-byte-space-agnostic specifically so that stays a thin addition.
+**`plans/2026-08-07-analysis-tooling-followups.md`** collects everything this
+work surfaced but did not fix — including three defects in the shipped
+`--counters` view (`--notation` ignored, no scoped-run warning, no keep-mode
+banner), the fact that `validate --strict` cannot actually serve as the CI gate
+the untimed-capture decision assumed, and the reusable ideas (the data-derived
+threshold hint, a corpus-wide `investigate`, the Δ-ratio "tracks a known signal"
+test).
+
+Not implemented here: a `can` (raw broadcast frame) counterpart.
+`canlib/counters.py` is byte-space-agnostic specifically so that stays a thin
+addition.
