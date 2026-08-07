@@ -60,14 +60,23 @@ _PRIO_RANK = {"P1": 0, "P2": 1, "P3": 2}
 # Open statuses roughly ordered by "closeness to done" for stable display.
 _STATUS_RANK = {"pending": 0, "nrc": 1, "captured": 2, "done": 3}
 
-# Priority colors.
-_PRIO_COLOR = {"P1": ansi.RED, "P2": ansi.YELLOW, "P3": ansi.DIM}
-_STATUS_COLOR = {
-    "pending": ansi.YELLOW,
-    "captured": ansi.CYAN,
-    "nrc": ansi.DIM,
-    "done": ansi.GREEN,
-}
+
+# Priority + status colour lookups. Defined as functions (not module-level
+# dicts) because the values come from :mod:`canlib.ansi`'s gated attributes,
+# which resolve to the escape code or ``""`` based on whether stdout is a TTY;
+# a dict evaluated at import time would freeze the decision the process started
+# with and misgate every subsequent print. Callers use ``_prio_color(prio)``.
+def _prio_color(prio: str) -> str:
+    return {"P1": ansi.RED, "P2": ansi.YELLOW, "P3": ansi.DIM}.get(prio, ansi.DIM)
+
+
+def _status_color(status: str) -> str:
+    return {
+        "pending": ansi.YELLOW,
+        "captured": ansi.CYAN,
+        "nrc": ansi.DIM,
+        "done": ansi.GREEN,
+    }.get(status, "")
 
 
 def load_research(pids_dir: Path | None = None) -> list[dict]:
@@ -235,11 +244,9 @@ def cmd_list(records: list[dict], hidden_done: int = 0, verbose: bool = False) -
         status = str(r.get("status", "?"))
 
         prio_str = (
-            f"{_PRIO_COLOR.get(prio, ansi.DIM)}[{prio}]{ansi.RESET}"
-            if prio
-            else f"{ansi.DIM}[--]{ansi.RESET}"
+            f"{_prio_color(prio)}[{prio}]{ansi.RESET}" if prio else f"{ansi.DIM}[--]{ansi.RESET}"
         )
-        status_str = f"{_STATUS_COLOR.get(status, '')}{status:<8}{ansi.RESET}"
+        status_str = f"{_status_color(status)}{status:<8}{ansi.RESET}"
 
         # Aligned, scannable header row; target (variable width) ends the line.
         print(

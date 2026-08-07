@@ -38,6 +38,8 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
+from . import ansi
+
 
 def log_path(path: Path | None = None) -> Path:
     """Path to the active profile's dtc_log.yaml (or the override ``path``)."""
@@ -166,16 +168,17 @@ def format_diff(diff: dict, previous: dict) -> list[str]:
     cleared, new = diff["cleared"], diff["new"]
     if cleared:
         lines.append(
-            f"    \033[92m✓ cleared ({len(cleared)})\033[0m: "
+            f"    {ansi.GREEN}✓ cleared ({len(cleared)}){ansi.RESET}: "
             + ", ".join(f"{e} {c}" for e, c in cleared)
         )
     if new:
         lines.append(
-            f"    \033[91m+ new ({len(new)})\033[0m: " + ", ".join(f"{e} {c}" for e, c in new)
+            f"    {ansi.RED}+ new ({len(new)}){ansi.RESET}: "
+            + ", ".join(f"{e} {c}" for e, c in new)
         )
     lines.append(f"    = still present: {len(diff['persisting'])}")
     if not cleared and not new:
-        lines.append("    \033[2m(no change since last scan)\033[0m")
+        lines.append(f"    {ansi.DIM}(no change since last scan){ansi.RESET}")
     return lines
 
 
