@@ -1,7 +1,8 @@
----
-name: contributing-code
-description: Guidelines for agents making code or architecture changes to the canair codebase (CLI subcommands, transports, modes, library code, tests, releases). Load this whenever you are adding, refactoring, or removing canair Python code — NOT for contributing a vehicle profile/PIDs upstream (use contributing-profiles) or reverse-engineering signals (use ioniq-reverse-engineering / reverse-engineer-signal).
----
+--- name: contributing-code description: Guidelines for agents making code or architecture changes
+to the canair codebase (CLI subcommands, transports, modes, library code, tests, releases). Load
+this whenever you are adding, refactoring, or removing canair Python code — NOT for contributing a
+vehicle profile/PIDs upstream (use contributing-profiles) or reverse-engineering signals (use
+ioniq-reverse-engineering / reverse-engineer-signal). ---
 
 # Contributing code to canair
 
@@ -471,6 +472,14 @@ bolting on more:
 
 ## Code style (see also ~/.config AGENTS.md)
 
+- **Hard-wrap every file at 100 columns** — Python, Markdown, YAML, JSON, commit messages, plan
+  docs, skills. It matches `line-length = 100` in `pyproject.toml` (ruff enforces it for Python;
+  prose is on you). Do not write one-line paragraphs: a multi-thousand-character line is unreadable
+  in a terminal, unreviewable in a diff (any edit rewrites the whole line), and expensive to patch.
+  Wrap only where it doesn't break meaning — a Markdown table row, a long URL, a YAML frontmatter
+  `description:`, verbatim fenced code and generated files (`docs/reference/cli/`, `--help`-derived
+  blocks) are the exceptions. If you touch a long line, re-wrap it (Boy Scout). Policy:
+  `AGENTS.md` → "Formatting".
 - Self-documenting code; comments explain *why*, not *what*.
 - Match the surrounding style; type hints as used elsewhere in `canlib/`.
 - **Type-hint the critical paths.** Where a mistake is easy to make and costly —
