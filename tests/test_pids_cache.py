@@ -165,6 +165,26 @@ class TestMergeEcuDocuments:
         err = capsys.readouterr().err
         assert "BMS" in err and "first.yaml" in err and "second.yaml" in err
 
+    def test_non_mapping_document_is_skipped_with_a_warning(self, capsys):
+        from pathlib import Path
+
+        from canlib.pids import merge_ecu_documents
+
+        # Every reader of ecus/ funnels through here, so a stray scalar must not
+        # raise — that turns one malformed file into an opaque AttributeError in
+        # whatever command happened to load the profile.
+        merged = merge_ecu_documents(
+            [
+                (Path("junk.yaml"), "x"),
+                (Path("list.yaml"), ["BMS"]),
+                (Path("ok.yaml"), {"BMS": {"tx_id": 0x7E4}}),
+            ]
+        )
+        assert list(merged) == ["BMS"]
+        err = capsys.readouterr().err
+        assert "junk.yaml" in err and "str" in err
+        assert "list.yaml" in err and "list" in err
+
 
 class TestLoadPidsCacheKey:
     def test_two_profiles_do_not_share_a_cache_entry(self, tmp_path):

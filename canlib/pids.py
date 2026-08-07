@@ -211,11 +211,27 @@ def merge_ecu_documents(docs: Iterable[tuple[Path, dict]]) -> dict[str, Any]:
     tool would ever see), so it warns and keeps the first — reporting the
     collision rather than silently letting file order decide. ``canair validate
     pids`` errors on it.
+
+    A document whose top level is not a mapping (an empty file, a stray scalar) is
+    skipped with a warning for the same reason: every reader of ``ecus/`` goes
+    through here, so raising would turn one malformed file into an opaque crash in
+    whatever command happened to touch it. ``canair validate pids`` is the gate
+    that reports it as an error.
     """
     merged: dict[str, Any] = {}
     origin: dict[str, Path] = {}
     for path, data in docs:
-        for name, definition in (data or {}).items():
+        if data is None:
+            continue
+        if not isinstance(data, dict):
+            print(
+                f"warning: {path.name} is not an ECU definition mapping "
+                f"(top level is {type(data).__name__}); skipping. "
+                f"Run `canair validate pids`.",
+                file=sys.stderr,
+            )
+            continue
+        for name, definition in data.items():
             if name in merged:
                 print(
                     f"warning: ECU '{name}' is defined in both {origin[name].name} "
