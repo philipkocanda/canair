@@ -128,7 +128,10 @@ became suspect; see the note below):
   `exchanges` (total UDS round-trips) plus any **non-zero** error categories
   (`drop`/`stale` = dropped/mis-assembled ISO-TP frames, `no_data` = timeouts,
   `bus`, `decode`). A clean session records just `exchanges`; NRCs are
-  legitimate ECU answers and are **not** counted.
+  legitimate ECU answers and are **not** counted. `resyncs` rides along in the
+  same block when non-zero: it counts the times the transport had to realign a
+  desynchronised ELM327 pipe — a *recovery* rather than a lost payload, but
+  several of them mark a marginal link.
 
 `canair captures uds --sessions` shows all three per session (flagging any
 drops), and every error is also written to the central log — inspect it with

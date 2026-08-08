@@ -198,6 +198,56 @@ AAF:
             coolant temp at B22; 2180's same offsets do not match), so each byte must be tested
             individually rather than assumed to transfer.
           enabled: false
+        AAF_CHARGE_ACTIVE:
+          expression: B27
+          type: enum
+          values:
+            7: charging
+          source: 2026-08-08 DCFC byte-diff + full-corpus state check
+          verified: false
+          notes: >-
+            CORRECTED: NOT DC-specific. raw=7 constant across ALL plugged+charging states in the
+            whole corpus (1525 historical AC-charge captures AND the 2026-08-08 16:31:44-16:43:54
+            DCFC session alike) - a general charge-active flag, any charge type. Other values
+            (0,2,5,6; seen across various non-charging READY/PARKED/driving combos, e.g. 2/5/6 in
+            [READY,PARKED] n=309, 0/6 in [READY,ACC2,PARKED] n=108) are unmapped - likely an
+            unrelated flap-duty/thermal mode component, not decoded here.
+          enabled: true
+        AAF_OPERATING_MODE:
+          expression: B15
+          type: enum
+          values:
+            0: dc_charging
+            52: idle_parked
+            67: driving
+          source: 2026-08-08 DCFC byte-diff + full-corpus state check
+          verified: false
+          notes: >-
+            CORRECTED: not a clean charge/drive/park tri-state. raw=0 during EVERY charging state
+            (AC or DC, 1525+ historical + 2026-08-08 DCFC alike) but ALSO 0 in 224/309 plain
+            [READY,PARKED] samples with no charging - so 0 is not charge-specific. raw=52 only seen
+            in narrow states (pure 'ready', or READY+ACC2+PARKED, 8/108 samples) - possibly
+            ignition-on-stationary-briefly. raw=67 seen in states involving DRIVING or
+            driving-adjacent PARKED/READY combos (85/309 and 32/108 samples) - possibly a
+            moving/recently-moved flap duty level. Net: likely a flap-position/duty enum driven by
+            speed+thermal need that happens to read 0 during charging (stationary, low airflow need)
+            rather than a dedicated charge detector. Needs the raw byte re-tested against
+            AAF_VEHICLE_SPEED_KMH/duration-parked, not charge state.
+          enabled: true
+        AAF_COOLANT_TEMP_2:
+          expression: B23-40
+          unit: degC
+          source: 2026-08-08 DCFC session byte-diff
+          verified: false
+          notes: >-
+            r=+0.976 vs VCU:2102:VCU_COOLANT_TEMP (same powertrain loop - the pack is air-cooled per
+            BMS notes, so this is NOT battery coolant). Reads a few degC different from AAF's own
+            existing MOTOR_COOLANT_TEMP (B22) in the same PID - candidate second sensor on the same
+            loop (e.g. radiator-side vs motor-side), consistent with AAF needing both supply and
+            return readings to drive the flap. Climbed 36->43C over the 2026-08-08 16:25-16:46
+            DCFC-2 window (heat soak from fast-charge power electronics). Physical sensor location
+            unconfirmed.
+          enabled: true
 
   research:
     - type: scan
@@ -244,3 +294,15 @@ AAF:
       created: "2026-07-23"
       updated: "2026-07-23"
       notes: "AAF 2180 B25 RESOLVED = AAF_AUX_BATTERY_VOLTAGE (B25/10, r=0.995 vs VCU aux) — was mis-guessed as a temp. Renamed from AUX_BATTERY_VOLTAGE to AAF_AUX_BATTERY_VOLTAGE 2026-07-24 to avoid a shipped-signal-name collision with BMS 2101 AUX_BATTERY_VOLTAGE. Remaining: B28==B29 mirror pair (raw 141-152, distinct=3 among timed caps) still undecoded; near-constant, not a temp (doesn't track ambient). Low priority; needs a wider-range capture."
+    - type: verify
+      target: 2181 AAF_CHARGE_ACTIVE/AAF_OPERATING_MODE/AAF_COOLANT_TEMP_2
+      status: captured
+      priority: P2
+      vehicle_states: [CHARGING, DRIVING]
+      created: "2026-08-08"
+      updated: "2026-08-08"
+      notes: "2026-08-08 DCFC-2 session (16:31:44-16:43:54) yielded 3 new AAF 2181 candidates via byte-diff: AAF_CHARGE_ACTIVE (B27, raw 7 = any charging AC/DC, other values 0/2/5/6 unmapped), AAF_OPERATING_MODE (B15, raw 0/52/67, correlated with charge+motion state but not a clean tri-state - likely flap-duty tied to speed/thermal need), AAF_COOLANT_TEMP_2 (B23-40 degC, r=0.976 vs VCU:2102:VCU_COOLANT_TEMP - candidate 2nd sensor on the SAME powertrain loop as AAF's own MOTOR_COOLANT_TEMP at B22; battery is air-cooled so this is not battery-related). All --unverified, single-session evidence only."
+      what_to_test:
+        - "AAF_CHARGE_ACTIVE: what do raw 0/2/5/6 correspond to (speed? time-since-stop?)"
+        - "AAF_OPERATING_MODE: correlate raw value directly against AAF_VEHICLE_SPEED_KMH and time-parked instead of charge state"
+        - "AAF_COOLANT_TEMP_2: confirm sensor location vs existing MOTOR_COOLANT_TEMP (B22) - inlet/outlet pair?"

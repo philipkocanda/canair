@@ -400,7 +400,20 @@ OBC:
       vehicle_states: [CHARGING]
       created: "2026-08-02"
       updated: "2026-08-02"
-      notes: "OBC 2101 charge-phase byte cluster (2026-08-02 AC charge triage). ENUM/STATE: B20=OBC_CHARGE_STATE (defined, 0/3/2). FLAGS/CONSTANTS while charging (r=1.0 vs BMS.CHARGING, fixed values, not analog): B28=16, B29=32, B31=200, B27=65/67 (charge-active). B17=3 only while current flows; B22=1 only pre-handshake; B35=0/3/1. CHECKSUM: B47,B49. B21 tracks LDC-enabled but INVERSE (73 charging / 131 off) - not the 12V current. Probable mirrors of mapped signals: [B25:B26]/100~=LDC_OUTPUT_V, [B33:B34]/100~=AC_INPUT_A. Remaining to decode: B37/B38 (r=0.97 vs VCU_POWER_STATE), multi-byte [B33:B34]. Needs DC fast-charge for more states. NOTE: charger delivers ~3.41 kW to HV bus but only ~3.05 kW into pack while READY - ~360 W (25 A @ 14.5 V) LDC/accessory overhead; 12V-rail current not found broadcast on OBC."
+      notes: >-
+        OBC 2101 charge-phase byte cluster (2026-08-02 AC charge triage). ENUM/STATE:
+        B20=OBC_CHARGE_STATE (defined, 0/3/2). FLAGS/CONSTANTS while charging (r=1.0 vs
+        BMS.CHARGING, fixed values, not analog): B28=16, B29=32, B31=200, B27=65/67 (charge-active).
+        B17=3 only while current flows; B22=1 only pre-handshake; B35=0/3/1. CHECKSUM: B47,B49. B21
+        tracks LDC-enabled but INVERSE (73 charging / 131 off) - not the 12V current. Probable
+        mirrors of mapped signals: [B25:B26]/100~=LDC_OUTPUT_V, [B33:B34]/100~=AC_INPUT_A. Remaining
+        to decode: B37/B38 (r=0.97 vs VCU_POWER_STATE), multi-byte [B33:B34]. DC FAST-CHARGE TESTED
+        2026-08-08 (DCFC-2, 16:32-16:43): NEGATIVE RESULT - B21/B23/B36 all sit flat at their
+        AC-idle baseline (B21=51, B23=189, B36=142) throughout the DCFC session;
+        OBC_DC_POWER/OBC_DC_A/OBC_EFFICIENCY read constant 0. Confirms OBC is fully bypassed/idle
+        during CCS DC fast-charging as expected - no new DCFC signal lives on OBC 2101. NOTE:
+        charger delivers ~3.41 kW to HV bus but only ~3.05 kW into pack while READY - ~360 W (25 A @
+        14.5 V) LDC/accessory overhead; 12V-rail current not found broadcast on OBC.
 
   sessions:
     "81":

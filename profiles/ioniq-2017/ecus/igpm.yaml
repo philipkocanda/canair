@@ -80,21 +80,25 @@ IGPM:
             1=ACC2, 0=all other modes. Verified 2026-07-18.
         IGPM_WAKE_LATCH_B12_2:
           expression: B12:2
-          source: RE 2026-08-05 corpus-wide event-timeline analysis (investigate --events --bits)
+          source: RE 2026-08-05 event-timeline analysis; revisited 2026-08-08 session
           verified: false
           notes: >-
-            Candidate transient wake / power-transition latch at B12 bit 2 — SELF-CLEARING, not a
-            steady state. Two clean episodes across the whole corpus (285 captures), both ~2-3 min
-            long: (a) 2026-08-02 09:52:59 -> 09:54:42 (1m43s), set when the car was powered to READY
-            (brake+start), cleared ~24 s after AC charging began; (b) 2026-08-05 08:28:30 ->
-            08:31:28 (2m58s), set at the first CAN contact of the day (which is what wakes IGPM) and
-            cleared WHILE polling continued, i.e. it timed out rather than tracking bus activity.
-            Distinct from B12:3 (ACC2_RELATED) and from the charge-lock pair B11:7 / B12:0, all of
-            which moved independently. Reads as a wake-source latch or power-mode-transition timer
-            that expires once the module settles. NOT confirmed: only 4 transitions exist, so this
-            is a lead, not a decode. TO TEST: capture with --keep-changes across deliberate power
-            transitions (SLEEP->ACC->READY->off) and across a pure CAN-wake with the car untouched,
-            timing how long the bit holds each time.
+            Candidate transient latch at B12 bit 2 — NOT confirmed as a wake indicator; original
+            hypothesis contradicted by new evidence. Two clean episodes across an earlier
+            285-capture corpus, both ~2-3 min long: (a) 2026-08-02 09:52:59 -> 09:54:42 (1m43s), set
+            when the car was powered to READY (brake+start), cleared ~24s after AC charging began;
+            (b) 2026-08-05 08:28:30 -> 08:31:28 (2m58s), set at the first CAN contact of the day,
+            cleared while polling continued (timed out, not bus-driven). REVISED 2026-08-08: in a
+            parked-then-charging session, this bit set at 17:53:19 alongside CHARGE_PORT_LOCK
+            (B11:7) 0->1 and CHARGE_PORT_LOCK_INV (B12:0) 1->0 — a charge-port-lock event, not a
+            power-up wake — then did not self-clear; B12 kept oscillating 0x14<->0x10 every 3-13 min
+            for the rest of the parked/charging window (18:09, 18:14, 18:16, 18:18, 18:22, 18:25,
+            18:28, 18:30). Looks more like periodic IGPM housekeeping (possibly charge-port-latch
+            polling while PLUGGED) than a wake-source latch. Distinct from B12:3 (ACC2_RELATED) and
+            from the charge-lock pair B11:7 / B12:0, all of which moved independently. TO TEST:
+            capture with --keep-changes across deliberate power transitions (SLEEP->ACC->READY->off)
+            AND across a long plugged-in idle period with no power transitions, to separate
+            wake-correlation from charging-housekeeping-correlation.
           enabled: false
 
     22BC03:

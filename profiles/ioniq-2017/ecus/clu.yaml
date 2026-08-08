@@ -31,6 +31,18 @@ CLU:
           source_links: []
           verified: true
           notes: "3-byte odometer value"
+        CLU_B11_TEMP:
+          expression: B11/2-40
+          unit: degC
+          source: 2026-08-08 whole-day byte scan (canair bix confirmed real data byte, just before the [B12:B14] ODOMETER field)
+          verified: false
+          notes: >-
+            Range 40-47C across 2026-08-08 (09:00-19:00), 7 distinct values, slowly rising through
+            the day incl. both DCFC sessions - too warm to be outside ambient, more likely an
+            internal CLU/cluster electronics temp. Formula is the standard raw/2-40 EV temp
+            convention seen elsewhere in this profile. Physical sensor identity unconfirmed - no
+            cross-ECU ambient-temp match attempted yet.
+          enabled: true
     22B001:
       status: draft
       period: 10000
@@ -104,3 +116,13 @@ CLU:
       notes: "e-Niro cluster: in a 10 03 session, 2F B0 01 03 turns ON all cluster indicator lamps, 2F B0 01 00 restores normal. LEAD: probe returnControlToECU (2F B001 00) on CLU 0x7C6 to confirm the actuator exists on the Ioniq (safe, non-actuating) before any ShortTermAdjustment. e-Niro CM PIDs 22B001-B003 largely match Ioniq (B002=odo)."
       sources:
         - kia-e-niro-can-messages.xlsx (CM Commands sheet)
+    - type: verify
+      target: 22B002 CLU_B11_TEMP
+      status: captured
+      priority: P3
+      vehicle_states: [ALL]
+      created: "2026-08-08"
+      updated: "2026-08-08"
+      notes: "2026-08-08 whole-day scan: B11 (byte just before the [B12:B14] ODOMETER field, confirmed real data via canair bix) decodes to a sensible 40-47 degC range on the raw/2-40 EV-temp formula, slowly rising through the day. Too warm for outside ambient - candidate CLU/cluster internal electronics temp. --unverified, no cross-ECU ambient match attempted."
+      what_to_test:
+        - Correlate against AAF:2181:AMBIENT_TEMP (should NOT match if this is an internal temp) and against cabin/sun-load proxies

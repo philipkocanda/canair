@@ -358,6 +358,15 @@ VCU:
             the VCU re-initialises. Unverified: 4 episodes from a single session, all with the car
             in Park, and that session was recorded --keep-unique so the transition timing is not
             recoverable. Verify with a --keep-all power cycle.
+        VCU_CHARGING_DC_MIRROR:
+          expression: B25:1
+          source: canair correlate, 2026-08-08 DCFC-2
+          verified: false
+          notes: >-
+            Exact mirror (r=1.000, n=110) of BMS:2101:CHARGING_DC during today's DCFC-2 session.
+            Redundant - disabled per convention for exact mirrors of an existing mapped param. Kept
+            for research trail: gives VCU its own independent DC-fast-charge-active bit.
+          enabled: false
     2102:
       status: active
       period: 5000
@@ -374,6 +383,9 @@ VCU:
           notes: >
             HV DC-link (= battery pack) voltage. 2026-07-20: identified via Kia Soul EV VMCU
             reference (0x7E2, "Inverter Input Voltage = f*2"). Old guess B10*2 gave ~2V (B10=0x01, wrong).
+            2026-08-08: cross-validated against OBC:2101:LDC_HV_INPUT_V across the whole corpus
+            (r=0.998, n=5689, fit slope 0.5024 matches B17*2 almost exactly) using today's DCFC-2
+            high-voltage swing as a wide-range test signal.
             B17*2 reads 364–382V in ready/driving across 1317 captures (range 28–412V over all states),
             matching BMS pack voltage (~369V) and LDC HV input (~353V) — the inverter DC-link is the pack.
             Cross-validated while charging (2026-07-20, SOC 94%): B17*2 = 396V vs BMS pack 396.4V — spot on.

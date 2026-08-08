@@ -593,29 +593,45 @@ BMS:
           verified: true
           notes: "Display SOC (what the dashboard shows)"
 
-        DEBUG_BMS_STATE_FLAGS_2105:
-          expression: "B42"
+        BMS_DCFC_TICK_COUNTER:
+          expression: B42
           unit: ""
           ha_class: ""
           min: ""
           max: ""
-          source: "Original WiCAN config (UNKNOWN_4); decoded via ioniq-ev-bms-2101-2105.xls"
+          source: 2026-08-08 DCFC session byte-diff (was DEBUG_BMS_STATE_FLAGS_2105, a misnamed guess from the Niro xls)
           source_links: []
           verified: false
-          notes: >
-            BMS state/status bitfield (was UNKNOWN_4). 2026-07-20: identified via research/ioniq-ev-bms-2101-2105.xls
-            ("Bitfield? 41 when car off, 45 when car on"). Reads 0x29=41 in EVERY capture we have (ready, AC & DC/CCS
-            charging, driving in the JejuSoul logs) — i.e. the "car off / charging" value; a car-on/driving 2105
-            would be expected to read 0x2D=45 (bit2 set). Hypothesised bits (all unverified, xls marks them "?"):
-            b0=Main Relay ON, b1=Controllable State, b2=Warning (set when car on?), b3=Fault, b4=Weld flag,
-            b5=Normal Charge Port, b6=Rapid Charge Port, b7=Charging. NOTE: b7=Charging did NOT hold in our
-            AC/DC charging captures (stayed 0), so the bit labels need verification. Capture a car-on driving 2105
-            (expect 45) and a mid-charge 2105 to confirm the bits.
-
+          notes: >-
+            CORRECTED 2026-08-08: NOT a bitfield. During the 2026-08-08 16:32-16:43 DCFC session it
+            free-runs as an 8-bit wrapping counter (~0.52/s, one tick every ~1.9s) for the entire
+            CHARGING_DC=1 span, then holds flat at 0x29=41 the instant CHARGING_DC drops back to 0.
+            CONFIRMED DC-specific: flat at 41 (occasional 49 blips) across ALL 2379 historical
+            AC-charge captures ([CHARGING,PLUGGED,PARKED/ACC2,...] states) - only the one mixed
+            [CHARGING,READY,PLUGGED,ACC2,PARKED,DRIVING] state (136 captures, today's DCFC-2 only)
+            shows it moving (7,24,96,179). B41 (sibling byte) steps 0->13/14 at the same instant.
+            Meaning of the tick is still unconfirmed (elapsed time vs cycle count) - only one DCFC
+            session tested. Old bitfield hypothesis (b0..b7 relay/fault/charge-port flags) is
+            refuted: the byte visits far more than 8 states.
     # Cell voltage PIDs — 96 cells across 3 PIDs (32 each)
     # Format: B(6+n)*0.02 where n=cell index within PID (0-31)
     # Cells 1-32 in 2102, 33-64 in 2103, 65-96 in 2104
     # Only a subset are defined here; add more as needed.
+          enabled: true
+        BMS_2105_B41:
+          expression: B41
+          source: 2026-08-08 DCFC session byte-diff
+          verified: false
+          notes: >-
+            Steps 0->13 at DCFC onset (2026-08-08 16:32:18), then 13->14 after ~30s, 14->15 after
+            ~9min, staying in a narrow 13-15 band for the rest of the session. CONFIRMED
+            DC-specific: constant 0 across ALL 2379 historical AC-charge captures - only moves in
+            the mixed [CHARGING,READY,PLUGGED,ACC2,PARKED,DRIVING] state (today's DCFC-2, 136
+            captures: 132x0, 2x13, 2x14). Weakly tracks SOC_DISP rise (40->77.5% over the session)
+            but far too coarse to be SOC directly (3 distinct values over 37 SOC points) - more
+            likely a coarse DC-charge phase/stage counter. Needs a second DCFC session (ideally full
+            0-100%) to separate 'SOC-quantised' from 'phase-counter' hypotheses.
+          enabled: true
     2102:
       status: active
       period: 10000
@@ -1606,6 +1622,17 @@ BMS:
       notes: DRIVE_MOTOR_SPEED was corrected 2026-08-08 to [S65:S66] (signed 16-bit BE, r=+0.997 n=1149 measured-only vs MCU:2102:MCU_MOTOR_RPM). B67 duplicates B65, so a second mirrored or filtered copy of motor speed likely sits at B67:B68.
       what_to_test:
         - Decode [S67:S68] and compare against [S65:S66] - identical, lagged/filtered, or a different shaft
+    - type: verify
+      target: 2105 BMS_DCFC_TICK_COUNTER/BMS_2105_B41
+      status: captured
+      priority: P2
+      vehicle_states: [CHARGING]
+      created: "2026-08-08"
+      updated: "2026-08-08"
+      notes: "2026-08-08 DCFC-2 session: renamed misnamed DEBUG_BMS_STATE_FLAGS_2105 (B42) to BMS_DCFC_TICK_COUNTER - proven to free-run as an 8-bit wrapping counter (~0.52/s) only while CHARGING_DC=1, confirmed flat across 2379 historical AC-charge captures. Sibling B41 steps 0->13->14->15 across the same DCFC session, also confirmed 0 during all historical AC charging. Both --unverified, single DCFC session tested."
+      what_to_test:
+        - "BMS_DCFC_TICK_COUNTER: confirm tick rate/meaning on a 2nd DCFC session; check if it's elapsed time (would give a clean rate) or a cycle counter"
+        - "BMS_2105_B41: capture a full 0-100% DCFC to see if it's SOC-quantised (would give many more distinct values) or a coarse phase counter (would stay in a small band)"
 
   sessions:
     "81":
