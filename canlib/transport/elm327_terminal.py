@@ -59,6 +59,35 @@ _RESYNC_MAX_SECONDS = 3.0
 # "ELM327 v1.5"), so this never matches on reply text.
 _RESYNC_PROBE = "ATI"
 
+# The ELM327's reply delimiter. The adapter emits exactly one per response it
+# sends, which makes it the only per-exchange framing signal the protocol offers
+# (UDS itself carries no transaction id — a SID+DID echo identifies the request's
+# *content*, so an offset of exactly one poll cycle, or any single-PID poll, is
+# invisible to it). Counting prompts is therefore the primary defence against a
+# desynchronised pipe; see `_send_command_locked`.
+_PROMPT = ">"
+
+# Ceiling on how many unanswered prompts we keep tracking. Reached only when the
+# adapter owes replies it will never send, at which point the count is no longer
+# evidence of anything and a drain-and-probe resync is the honest fallback.
+_MAX_OWED_PROMPTS = 4
+
+
+def _compact(text: str) -> str:
+    """Strip whitespace/line breaks, so hex tests work with ``ATS1`` and ``ATS0``."""
+    return text.replace(" ", "").replace("\r", "").replace("\n", "")
+
+
+def _split_prompt_blocks(text: str) -> tuple[list[str], str]:
+    """Split adapter output into completed ``>``-terminated blocks and a remainder.
+
+    Each returned block is one complete adapter response with its prompt removed;
+    the remainder is whatever trailed the last prompt (an incomplete block, kept
+    for the next read rather than discarded — see the ``_carry`` field).
+    """
+    parts = text.split(_PROMPT)
+    return parts[:-1], parts[-1]
+
 
 class Elm327Terminal:
     """ELM327 protocol engine over an injected byte :class:`Channel`."""
@@ -88,6 +117,18 @@ class Elm327Terminal:
         # (see _send_command_locked). This attacks the stale-frame root cause that
         # the parser's expected_sid/expected_echo validation only catches after.
         self._pipe_dirty = False
+        # Prompt accounting — the primary desync defence. `_owed_prompts` is how
+        # many `>` prompts the adapter still owes us: one per command sent, plus
+        # one more for every interim ResponsePending frame, minus those consumed.
+        # It normally sits at 1 for the duration of a command, so a reply is
+        # returned the instant its prompt lands (no added latency). It only
+        # exceeds 1 after a command was abandoned mid-flight, and *that* is what
+        # lets the next read positively identify the late reply as somebody
+        # else's: wait for the 2nd prompt, discard the 1st. `_carry` holds bytes
+        # that trailed the returned block's prompt, so a block is never torn
+        # across two reads.
+        self._owed_prompts = 0
+        self._carry = ""
         self.elm_timeout_cmd = "ATST96"  # current ELM327 timeout command
         self._cmd_lock = asyncio.Lock()  # serialize all ELM327 commands
         # The task currently holding `_cmd_lock`, so a multi-command *transaction*
@@ -125,6 +166,8 @@ class Elm327Terminal:
         self._cur_fc_header = None
         self._pipe_dirty = False
         self._resyncing = False
+        self._owed_prompts = 0
+        self._carry = ""
 
     async def close(self):
         """Close the underlying channel."""
@@ -270,6 +313,11 @@ class Elm327Terminal:
                 max_seconds=max(_RESYNC_MAX_SECONDS, quiet),
             )
             self._pipe_dirty = False
+            # The drain discarded whatever the adapter still owed, so the prompt
+            # ledger must be zeroed with it — otherwise the probe below would wait
+            # for prompts that were just thrown away.
+            self._owed_prompts = 0
+            self._carry = ""
             reply = await self._send_command_locked(_RESYNC_PROBE, quiet)
             if self._pipe_dirty or not reply.strip():
                 raise ConnectionError(
@@ -287,94 +335,94 @@ class Elm327Terminal:
         log_command(cmd)
         self._track_header(cmd)
 
-        # If the previous command left the pipe dirty (timed out before its ELM
-        # prompt), realign before sending so a late reply can't be mistaken for
-        # this command's response.
-        if self._pipe_dirty:
+        # A dirty pipe is normally resolved by prompt accounting below: the
+        # abandoned command's prompt is still owed, so this command waits for
+        # *its* prompt and discards the late reply positively, with no timing
+        # guess. Fall back to a drain-and-probe resync only when accounting has
+        # nothing to work with — no owed prompt to count (so a stray banner or
+        # garbage is the likely content), or a backlog that has stopped shrinking
+        # and is therefore no longer evidence of anything.
+        if self._pipe_dirty and not 0 < self._owed_prompts < _MAX_OWED_PROMPTS:
             await self._resync("dirty pipe")
 
         self.cmd_count += 1
         _t0 = time.monotonic()
         await self._channel.send(cmd + "\r")
 
-        response_parts = []
-        deadline = time.monotonic() + timeout
-        got_prompt = False
-        # Cleared to True only when the loop exits having consumed the ELM `>`
-        # prompt with no unresolved ResponsePending; any other exit (deadline,
-        # partial-data early break) leaves the pipe dirty for the next command.
-        clean_exit = False
+        self._owed_prompts += 1
+        buf = self._carry
+        self._carry = ""
+        done: list[str] = []  # completed blocks, oldest first
 
-        while time.monotonic() < deadline:
+        def harvest() -> bool:
+            """Move completed blocks out of ``buf``; True if a pending frame arrived."""
+            nonlocal buf
+            blocks, buf = _split_prompt_blocks(buf)
+            saw_pending = False
+            for block in blocks:
+                if _PENDING_RE.search(_compact(block)):
+                    # UDS ResponsePending (7F xx 78) — an interim "still working"
+                    # ack which the adapter terminates with its own prompt, NOT
+                    # the answer. It leaves the ledger alone on purpose: it
+                    # consumed a prompt but promises another for the *same*
+                    # answer, so the number of real blocks still expected has not
+                    # changed. All it buys the ECU is more time. (The raw path
+                    # does the same in uds_raw.is_response_pending.)
+                    saw_pending = True
+                    continue
+                done.append(block)
+            return saw_pending
+
+        deadline = time.monotonic() + timeout
+        # The carry may already hold this command's whole reply, so harvest before
+        # waiting on the channel at all.
+        if harvest():
+            deadline = time.monotonic() + timeout
+
+        while len(done) < self._owed_prompts:
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 break
             msg = await self._channel.recv(min(remaining, 1.0))
             if msg is None:
-                # Receive timeout (no data within the window).
-                if got_prompt:
-                    full = "".join(response_parts)
-                    clean = full.replace(" ", "").replace("\r", "").replace("\n", "")
-                    if _PENDING_RE.search(clean):
-                        # An unresolved ResponsePending: the ECU said "still
-                        # working", so keep waiting within the (already extended)
-                        # deadline rather than returning the interim frame.
-                        continue
-                    clean_exit = True
-                    break
-                if response_parts:
-                    text = "".join(response_parts)
-                    stripped = text.replace("\r", "").replace("\n", "").strip()
-                    if stripped:
-                        stripped_nfc = re.sub(r"\bF0[0-9A-Fa-f]?\b", "", stripped).strip()
-                    else:
-                        stripped_nfc = ""
-                    if stripped_nfc and "\r" in text and "7F" not in text:
-                        # Don't early-exit if the only content is a request echo
-                        # (a short hex string matching a UDS service byte 0x10-0x3E)
-                        echo_only = stripped_nfc.replace(" ", "")
-                        is_echo = (
-                            len(echo_only) <= 8
-                            and all(c in "0123456789ABCDEFabcdef" for c in echo_only)
-                            and len(echo_only) >= 2
-                            and 0x10 <= int(echo_only[:2], 16) <= 0x3E
-                        )
-                        if not is_echo:
-                            break
                 continue
+            buf += msg
+            if harvest():
+                deadline = time.monotonic() + timeout
 
-            response_parts.append(msg)
-
-            full = "".join(response_parts)
-            if ">" in full:
-                got_prompt = True
-                clean = full.replace(" ", "").replace("\r", "").replace("\n", "")
-                if _PENDING_RE.search(clean):
-                    # UDS ResponsePending (7F xx 78): an interim acknowledgement,
-                    # NOT the answer. The ELM327 terminates it with its own `>`
-                    # prompt, so discard it and go back to waiting for a fresh
-                    # reply (matching the raw path, which *replaces* resp rather
-                    # than appending — see uds_raw.is_response_pending).
-                    #
-                    # Resetting the accumulator matters twice over: keeping the
-                    # pending frame made the `7F..78` test match forever, so the
-                    # exchange never exited cleanly (it burned the full timeout,
-                    # left the pipe dirty, and returned the pending frame
-                    # concatenated with the real reply — so parse_uds_response
-                    # reported NRC 0x78 even though the ECU had answered).
-                    response_parts = []
-                    got_prompt = False
-                    deadline = time.monotonic() + timeout
-                    continue
-                clean_exit = True
-                break
-
-        # Mark the pipe dirty when we never cleanly consumed the prompt: the ELM
-        # may still emit trailing frames the next command must drain first.
+        # Every block but the last belongs to an earlier, abandoned command, so
+        # the newest is the answer. That holds both ways: when the owed count is
+        # satisfied the last block is *provably* ours, and when the deadline
+        # expired first (an owed reply the adapter will never send — a frame lost
+        # on the link) it is still the best candidate, with send_uds's echo
+        # validation as the backstop. Either beats returning the *oldest* buffered
+        # block, which is how a single late reply used to become a permanent
+        # one-command offset that served every PID's value under the next PID's
+        # name.
+        for block in done[:-1]:
+            self.diag.record(
+                CAT_STALE,
+                detail=f"discarded a late reply to an earlier command: {_compact(block)[:40]!r}",
+            )
+        # A block was consumed prompt-and-all, so nothing is half-read; the carry
+        # keeps any bytes that trailed it rather than tearing the next block.
+        clean_exit = bool(done)
         self._pipe_dirty = not clean_exit
+        self._carry = buf
+        if clean_exit:
+            # Whatever else was owed has now either been consumed or written off
+            # (see the block-selection note above); starting the next command from
+            # a clean ledger is what keeps one lost frame from inflating the count
+            # forever and turning it into a dead session.
+            self._owed_prompts = 0
+        # Otherwise the ledger stands: this command's prompt is still outstanding,
+        # so the *next* command waits for two and can name the late reply as
+        # somebody else's instead of guessing. `_MAX_OWED_PROMPTS` bounds the
+        # optimism — past that the adapter is not paying its debts and
+        # `_send_command_locked` falls back to a drain-and-probe resync.
 
-        raw = "".join(response_parts)
-        raw = raw.replace(">", "").replace("\r\n", "\n").replace("\r", "\n")
+        raw = done[-1] if done else buf
+        raw = raw.replace("\r\n", "\n").replace("\r", "\n")
         raw = re.sub(r"[\x00-\x09\x0b-\x1f]", "", raw)
 
         result = raw.strip()

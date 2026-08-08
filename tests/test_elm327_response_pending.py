@@ -45,6 +45,10 @@ class ScriptedChannel:
         # because drain() discards whatever is pending.
         self.after_drain: list[str | None] = []
 
+    def feed(self, *chunks: str | None) -> None:
+        """Queue further messages onto the line (e.g. a late reply plus a fresh one)."""
+        self._chunks.extend(chunks)
+
     async def connect(self) -> None:  # pragma: no cover - not used here
         pass
 
@@ -195,8 +199,8 @@ class TestPipeHygieneAroundPending:
     async def test_an_unresolved_pending_marks_the_pipe_dirty(self):
         """Timing out mid-exchange must dirty the pipe.
 
-        The device may still deliver the late reply; it has to be drained so it
-        can't be returned as the *next* command's response.
+        The device may still deliver the late reply; it has to be accounted for so
+        it can't be returned as the *next* command's response.
         """
         ch = ScriptedChannel(["7F 19 78\r>"])
         term = Elm327Terminal(ch)
@@ -204,15 +208,34 @@ class TestPipeHygieneAroundPending:
         assert term._pipe_dirty is True
 
     @pytest.mark.asyncio
-    async def test_the_next_command_drains_a_dirty_pipe(self):
+    async def test_a_pending_frame_does_not_inflate_the_prompt_ledger(self):
+        """An interim 0x78 promises another prompt for the *same* answer.
+
+        So it must leave `_owed_prompts` alone: counting it would make the next
+        command wait for two real replies when only one is coming.
+        """
+        ch = ScriptedChannel(["7F 19 78\r>"])
+        term = Elm327Terminal(ch)
+        await term.send_command("1902", timeout=0.2)
+        assert term._owed_prompts == 1
+
+    @pytest.mark.asyncio
+    async def test_the_next_command_discards_the_late_reply_it_is_owed(self):
+        """Recovery is by prompt accounting, not by draining.
+
+        After the abandoned exchange above the adapter owes one prompt, so this
+        command waits for *two* and returns the second — positively identifying
+        the late `59 02 AA` as the previous command's, with no drain and no timing
+        guess about the link.
+        """
         ch = ScriptedChannel(["7F 19 78\r>"])
         term = Elm327Terminal(ch)
         await term.send_command("1902", timeout=0.2)
         assert term._pipe_dirty is True
-        # The resync drains, then confirms alignment with an ATI probe before the
-        # real command goes out — so the line must answer both, *after* the drain.
-        ch.after_drain = ["ELM327 v1.5\r>", "59 02 AA\r>"]
+
+        ch.feed("59 02 AA\r>", "59 02 BB\r>")
         resp = await term.send_command("1902", timeout=0.5)
-        assert ch.drains == 1
-        assert "5902AA" in resp.replace(" ", "")
+        assert ch.drains == 0
+        assert "5902BB" in resp.replace(" ", "")
         assert term._pipe_dirty is False
+        assert term.diag.stale == 1
