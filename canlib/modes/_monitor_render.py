@@ -185,6 +185,15 @@ def _render_entry(
     entry_text = Text()
     entry_text.append("    ")
     entry_text.append(pid, style="yellow")
+    entry_text.append(" ")
+    # Freshness indicator: a small hollow circle, colored green while the value
+    # came from this cycle's own answer and grey once it's a carried-forward
+    # last-good reuse (see _decide_display). Deliberately a *different* glyph
+    # from the solid "●" change flash below (bright_green, only for one cycle)
+    # so the two never look like the same dot doubling up, and grepping for the
+    # plain "●" (as existing "changed"/"unchanged" tests do) is unaffected by
+    # this being present on every row.
+    entry_text.append("○", style="grey58" if stale else "green")
     if changed and not stale:
         entry_text.append(" ●", style="bright_green")
     if stale:

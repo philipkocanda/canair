@@ -7,6 +7,7 @@ from canlib.pids import (
     PID_STATUSES,
     build_ecu_index,
     build_param_index,
+    build_sessions_index,
     load_pids,
     pid_status,
 )
@@ -75,6 +76,35 @@ class TestBuildEcuIndex:
         idx = build_ecu_index(pids_data)
         for key in idx:
             assert key == key.upper()
+
+
+class TestBuildSessionsIndex:
+    def test_bms_known_sessions_from_scan_history(self, pids_data):
+        idx = build_sessions_index(pids_data)
+        assert "BMS" in idx
+        sessions = idx["BMS"]["sessions"]
+        assert sessions["81"]["supported"] is True
+        assert sessions["81"]["name"] == "standardDiagnosticSession"
+        assert sessions["82"]["supported"] is False
+        assert sessions["82"]["nrc"] == 0x12
+
+    def test_ecu_with_no_sessions_block_omitted(self):
+        pids_data = {"ecus": {"FOO": {"tx_id": 0x700, "pids": {}}}}
+        idx = build_sessions_index(pids_data)
+        assert "FOO" not in idx
+
+    def test_mode_keys_normalized_to_2_hex_digits(self):
+        pids_data = {
+            "ecus": {
+                "FOO": {
+                    "tx_id": 0x700,
+                    "sessions": {"3": {"name": "extendedDiagnosticSession", "supported": True}},
+                }
+            }
+        }
+        idx = build_sessions_index(pids_data)
+        assert "03" in idx["FOO"]["sessions"]
+        assert idx["FOO"]["sessions"]["03"]["supported"] is True
 
 
 class TestPidStatus:

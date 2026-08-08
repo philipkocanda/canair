@@ -167,7 +167,16 @@ class MonitorController:
         self.view_mode = "full"
 
         self.sm = SessionManager(terminal, verbose=verbose) if not self.raw else None
+        # Raw backend has no SessionManager (sessions/keepalives aren't tracked
+        # there at all), so its opened-session mode is tracked separately here:
+        # ECU name (upper) -> last-opened "10 xx" sub-function (2-hex-digit str).
+        self._raw_session_modes: dict[str, str] = {}
         self._ecu_index: dict | None = None
+        # ECU_NAME -> {tx_id, sessions: {mode_hex: {name, supported, ...}}},
+        # lazily built from the profile's recorded `sessions:` scan history (see
+        # ..pids.build_sessions_index). Backs the TUI's session-type picker's
+        # "known-good" suggestions; rebuilt alongside the PID index on reload.
+        self._sessions_index: dict | None = None
         self._batch_state = None  # multi.BatchState, created in setup()
         # Raw-backend poll cycle + multi-DID batching state lives in the poller.
         self.raw_poller = MonitorRawPoller(self)
@@ -403,6 +412,180 @@ class MonitorController:
 
         self.pids_data = load_pids(self.pids_dir)
         self._ecu_index = build_ecu_index(self.pids_data)
+        self._sessions_index = None  # rebuilt lazily on next access
+
+    # --- Live PID selection (TUI 'p' picker): mutating self.query_steps is safe
+    # mid-poll — _poll_elm/_poll_raw both iterate a fresh `for step in
+    # self.query_steps` each cycle, so an add/remove takes effect on the very
+    # next cycle with no separate "apply". See _monitor_tui.PidPickerScreen.
+
+    def available_ecus(self) -> list[str]:
+        """Every ECU known in the active profile, for the PID-picker."""
+        return sorted(self._ecu_index.keys()) if self._ecu_index else []
+
+    def available_pids(self, ecu_name: str) -> list[tuple[str, str]]:
+        """(pid_code, description) pairs for one ECU's defined PIDs.
+
+        The description is a comma-joined list of the PID's decoded parameter
+        names (empty for an undecoded/placeholder PID) — enough for the picker
+        to show what a selector actually reads without opening the YAML.
+        """
+        info = (self._ecu_index or {}).get(ecu_name.upper())
+        if not info:
+            return []
+        out: list[tuple[str, str]] = []
+        for code, pdef in sorted(info["pids"].items()):
+            params = pdef.get("parameters") or {}
+            out.append((code, ", ".join(params.keys())))
+        return out
+
+    def active_selectors(self) -> set[tuple[str, str]]:
+        """(ECU, PID) pairs currently polled with an explicit PID filter."""
+        out: set[tuple[str, str]] = set()
+        for step in self.query_steps:
+            ecu = step["ecu"].upper()
+            for pid in step.get("pids") or []:
+                out.add((ecu, pid.upper()))
+        return out
+
+    def swept_ecus(self) -> set[str]:
+        """ECUs currently polled with NO PID filter (a bare whole-ECU sweep).
+
+        A PID under a swept ECU is already covered by that sweep — the picker
+        marks it distinctly and can't "remove" it individually (only removing
+        the whole-ECU step would narrow the sweep, which isn't what a single
+        PID toggle means).
+        """
+        return {step["ecu"].upper() for step in self.query_steps if not step.get("pids")}
+
+    def add_pid_selector(self, ecu_name: str, pid_code: str) -> None:
+        """Start polling one PID on ``ecu_name`` (TUI PID-picker toggle-on).
+
+        No-ops if the ECU is already swept whole (nothing to add) or the PID is
+        already an explicit selector. Appends a new query step if the ECU isn't
+        polled at all yet.
+        """
+        ecu = ecu_name.upper()
+        pid = pid_code.upper()
+        if ecu in self.swept_ecus():
+            return
+        for step in self.query_steps:
+            if step["ecu"].upper() == ecu:
+                pids = step.setdefault("pids", [])
+                if pid not in [p.upper() for p in pids]:
+                    pids.append(pid)
+                return
+        self.query_steps.append({"type": "query", "ecu": ecu, "pids": [pid]})
+
+    def remove_pid_selector(self, ecu_name: str, pid_code: str) -> None:
+        """Stop polling one PID on ``ecu_name`` (TUI PID-picker toggle-off).
+
+        Drops the whole query step once its PID list empties, and purges the
+        removed key from the last-good/last-shown caches so a re-added PID
+        starts fresh instead of instantly reusing a now-stale cached value.
+        """
+        ecu = ecu_name.upper()
+        pid = pid_code.upper()
+        for step in list(self.query_steps):
+            if step["ecu"].upper() != ecu:
+                continue
+            pids = step.get("pids") or []
+            if pid not in [p.upper() for p in pids]:
+                continue
+            step["pids"] = [p for p in pids if p.upper() != pid]
+            if not step["pids"]:
+                self.query_steps.remove(step)
+            self._last_good.pop((ecu, pid), None)
+            self._last_shown.pop((ecu, pid), None)
+            return
+
+    # --- Diagnostic session type: status + live switching (TUI 't' picker).
+    # Session *opening* on setup() already forwards a mini-language `--mode`
+    # (see setup() above); these cover showing what's active now and changing
+    # it live, mid-run, from the TUI.
+
+    def active_session_modes(self) -> dict[str, str]:
+        """ECU_NAME -> currently-open "10 xx" sub-function (2-hex-digit str).
+
+        Sourced from SessionManager on the ELM backend or ``_raw_session_modes``
+        on the raw backend (which has no SessionManager at all). Omits any ECU
+        with no tracked session — e.g. one polled without a preceding `session`
+        step never sent `10 xx` and has nothing to show.
+        """
+        if not self._ecu_index:
+            return {}
+        out: dict[str, str] = {}
+        for ecu_name, info in self._ecu_index.items():
+            if self.raw:
+                mode = self._raw_session_modes.get(ecu_name)
+            else:
+                mode = self.sm.session_mode(info["tx_id"]) if self.sm else None
+            if mode:
+                out[ecu_name] = mode
+        return out
+
+    def known_session_types(self, ecu_name: str) -> list[tuple[str, str, bool | None]]:
+        """(mode_hex, label, supported) options for the session-type picker.
+
+        Prefers the ECU's own recorded ``sessions:`` scan history (written by
+        ``canair scan sessions`` — see ..pids.build_sessions_index) so the
+        picker shows what's *actually confirmed* on this ECU (``supported``
+        True/False); falls back to the fixed safe list (01/03/81/82/83, all
+        cleared by canlib.safety) with ``supported=None`` (untested) when the
+        ECU has no scan history yet. Never offers 0x02/0x85 (programming
+        sessions) — canlib.safety blocks them outright.
+        """
+        from ..uds_layout import SUBFUNCTION_NAMES
+
+        names = SUBFUNCTION_NAMES.get(0x10, {})
+        if self._sessions_index is None:
+            from ..pids import build_sessions_index
+
+            self._sessions_index = build_sessions_index(self.pids_data)
+        entry = self._sessions_index.get(ecu_name.upper())
+        if entry and entry.get("sessions"):
+            out = []
+            for mode, sdef in sorted(entry["sessions"].items()):
+                label = sdef.get("name") or names.get(int(mode, 16), "")
+                out.append((mode, label, sdef.get("supported")))
+            return out
+        fallback = ("01", "03", "81", "82", "83")
+        return [(m, names.get(int(m, 16), ""), None) for m in fallback]
+
+    async def switch_session(self, ecu_name: str, mode: str) -> str:
+        """Force-switch one ECU to a new diagnostic session type, live.
+
+        Sends ``10 <mode>`` even if a session of a *different* type is already
+        tracked open — SessionManager.open_session's default refresh-only path
+        would otherwise silently no-op the switch. Returns a human status
+        string for the TUI's flash message.
+        """
+        from ..safety import check_command_safety
+        from ..uds_layout import SUBFUNCTION_NAMES
+
+        ecu = ecu_name.upper()
+        info = (self._ecu_index or {}).get(ecu)
+        if not info:
+            return f"Unknown ECU {ecu_name}."
+        mode = str(mode).upper().removeprefix("0X").zfill(2)
+        blocked = check_command_safety(f"10{mode}")
+        if blocked:
+            return blocked
+        label = SUBFUNCTION_NAMES.get(0x10, {}).get(int(mode, 16), "")
+        suffix = f" ({label})" if label else ""
+        tx_id = info["tx_id"]
+        if self.raw:
+            assert self.raw_client is not None  # self.raw ⟺ raw_client was provided
+            try:
+                self.raw_client.read(ecu, bytes.fromhex(f"10{mode}"), timeout=2.0)
+            except Exception as exc:
+                return f"{ecu}: session switch failed ({exc})"
+            self._raw_session_modes[ecu] = mode
+            return f"{ecu}: switched to session 0x10{mode}{suffix}."
+        assert self.sm is not None  # not self.raw ⟺ sm was constructed
+        ok = await self.sm.open_session(tx_id, mode=mode, force=True)
+        verb = "switched to" if ok else "attempted"
+        return f"{ecu}: {verb} session 0x10{mode}{suffix}."
 
     async def setup(self, session_steps: list[dict] | None) -> None:
         """Build the ECU index, run one-shot session setup, start keepalives."""
@@ -420,8 +603,10 @@ class MonitorController:
                 if step["type"] == "session":
                     tgt = step["target"].upper()
                     if tgt in self._ecu_index:
+                        mode = str(step.get("mode", "03")).upper().removeprefix("0X").zfill(2)
                         with contextlib.suppress(Exception):
-                            self.raw_client.read(tgt, bytes.fromhex("1003"), timeout=1.0)
+                            self.raw_client.read(tgt, bytes.fromhex(f"10{mode}"), timeout=1.0)
+                        self._raw_session_modes[tgt] = mode
             # Warm each ECU up: the first diagnostic request after idle is slow
             # (the ECU/gateway has to wake). Prime with one throwaway read per ECU
             # on a longer timeout so the first *monitored* cycle is already warm.
@@ -457,7 +642,11 @@ class MonitorController:
             elif stype == "session":
                 print(f"  Opening session on {step['target']}...")
                 await _exec_session(
-                    self.sm, step["target"], step.get("wake", False), self._ecu_index
+                    self.sm,
+                    step["target"],
+                    step.get("wake", False),
+                    self._ecu_index,
+                    mode=step.get("mode", "03"),
                 )
         self.sm.start_background_keepalive(interval=2.0)
         # Prime each ECU once (parity with the raw path): the first request after
@@ -1052,8 +1241,11 @@ async def mode_monitor(
     V cycle the display view mode (ecus/ranges/signals/full), r toggle the
     byte-index ruler, i open the session-info overlay, l open the diagnostics
     log, s save/label the current session, n close the current --save segment
-    and start a new one, q or Ctrl+C stop. A blinking ``● REC`` in the status
-    line marks an active --save recording.
+    and start a new one, p open the PID picker (add/remove signals live), t
+    open the diagnostic session-type switcher, q or Ctrl+C stop. A blinking
+    ``● REC`` in the status line marks an active --save recording; a ``sess``
+    status item shows each ECU's currently-open diagnostic session type; each
+    signal row shows a small circle (green when fresh, grey when stale).
     """
     from ..profile import active
     from ..states import parse_states

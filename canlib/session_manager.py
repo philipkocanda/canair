@@ -40,6 +40,12 @@ class SessionManager:
         self.verbose = verbose
         # {tx_id: last_keepalive_timestamp}
         self._sessions: dict[int, float] = {}
+        # {tx_id: last "10 xx" sub-function actually sent, 2-hex-digit str}.
+        # Populated only when a session is (re-)opened via open_session — a plain
+        # keepalive (3E00) never changes it. Read by callers that need to show
+        # which diagnostic session type is currently active on an ECU (e.g. the
+        # monitor TUI status bar / session-type picker).
+        self._session_modes: dict[int, str] = {}
         self._bg_task: asyncio.Task | None = None
 
     async def rapid_read_wake(self, tx_id: int, plan: WakePlan) -> bool:
@@ -100,12 +106,17 @@ class SessionManager:
     def has_session(self, tx_id: int) -> bool:
         return tx_id in self._sessions
 
+    def session_mode(self, tx_id: int) -> str | None:
+        """The last "10 xx" sub-function opened on this ECU, or None if untracked."""
+        return self._session_modes.get(tx_id)
+
     async def open_session(
         self,
         tx_id: int,
         wake: bool = False,
         mode: str = "03",
         wake_plan: WakePlan | None = None,
+        force: bool = False,
     ) -> bool:
         """Enter a diagnostic session on an ECU.
 
@@ -123,6 +134,11 @@ class SessionManager:
                 the way to rouse a fast-sleeping ECU (e.g. a Smart Key Module).
                 The plan's ``session_mode`` overrides ``mode`` when it differs
                 from the default.
+            force: Resend ``10 xx`` even if a session is already tracked open on
+                this ECU. Without this, an already-open session only has its
+                keepalive timestamp refreshed (see below) — which would silently
+                no-op a live mode switch (e.g. the monitor TUI's session-type
+                picker moving an ECU from extended to KWP standard session).
 
         Returns:
             True if session was established (or at least attempted).
@@ -133,7 +149,7 @@ class SessionManager:
         req = f"10{mode}"
         await self.terminal.set_header(tx_id)
 
-        if not wake and tx_id in self._sessions:
+        if not wake and not force and tx_id in self._sessions:
             # Already in an extended session on this ECU — refresh rather than
             # re-sending 10xx (a repeated `session <ECU>` step / REPL command).
             self._sessions[tx_id] = time.monotonic()
@@ -168,6 +184,7 @@ class SessionManager:
             print(f"  [session] 0x{tx_id:03X}: failed ({error}) -- continuing anyway")
 
         self._sessions[tx_id] = time.monotonic()
+        self._session_modes[tx_id] = mode
         return resp.get("ok", False)
 
     async def send_keepalive(self, tx_id: int):
@@ -263,6 +280,7 @@ class SessionManager:
             except Exception:
                 pass
             del self._sessions[tx_id]
+            self._session_modes.pop(tx_id, None)
             if self.verbose:
                 print(f"  [session] 0x{tx_id:03X}: closed (returned to default session)")
 

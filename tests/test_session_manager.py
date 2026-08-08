@@ -78,6 +78,55 @@ class TestOpenSession:
         assert sm.has_session(0x770)
 
 
+# --- session_mode / force-switching ---
+
+
+class TestSessionMode:
+    @pytest.mark.asyncio
+    async def test_session_mode_tracked_after_open(self):
+        t = MockTerminal()
+        sm = SessionManager(t)
+        assert sm.session_mode(0x770) is None
+        await sm.open_session(0x770, mode="81")
+        assert sm.session_mode(0x770) == "81"
+        assert ("send_uds", "1081") in t.calls
+
+    @pytest.mark.asyncio
+    async def test_open_session_already_active_mode_switch_needs_force(self):
+        """Without force, a second open_session on an already-open session is a
+        pure refresh (no resend) even when a *different* mode is requested —
+        so the tracked mode does NOT change; this is the bug the picker's
+        force=True path exists to bypass."""
+        t = MockTerminal()
+        sm = SessionManager(t)
+        await sm.open_session(0x770, mode="03")
+        await sm.open_session(0x770, mode="81")  # no wake, no force -> refresh-only
+        assert sm.session_mode(0x770) == "03"
+        assert [c for c in t.calls if c[0] == "send_uds"] == [("send_uds", "1003")]
+
+    @pytest.mark.asyncio
+    async def test_open_session_force_resends_and_updates_mode(self):
+        t = MockTerminal()
+        sm = SessionManager(t)
+        await sm.open_session(0x770, mode="03")
+        result = await sm.open_session(0x770, mode="81", force=True)
+        assert result is True
+        assert sm.session_mode(0x770) == "81"
+        assert [c for c in t.calls if c[0] == "send_uds"] == [
+            ("send_uds", "1003"),
+            ("send_uds", "1081"),
+        ]
+
+    @pytest.mark.asyncio
+    async def test_close_session_clears_mode(self):
+        t = MockTerminal()
+        sm = SessionManager(t)
+        await sm.open_session(0x770, mode="81")
+        assert sm.session_mode(0x770) == "81"
+        await sm.close_session(0x770)
+        assert sm.session_mode(0x770) is None
+
+
 # --- keepalive ---
 
 

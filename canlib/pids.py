@@ -132,6 +132,13 @@ class RoutineIndexEntry(TypedDict):
     routines: dict[str, dict[str, Any]]
 
 
+class SessionIndexEntry(TypedDict):
+    """One ECU's entry in a :func:`build_sessions_index` result."""
+
+    tx_id: int
+    sessions: dict[str, dict[str, Any]]
+
+
 def _yaml_load(fh) -> dict:
     return yaml_io.safe_load(fh)
 
@@ -370,6 +377,37 @@ def build_routines_index(pids_data: dict) -> dict[str, RoutineIndexEntry]:
         index[ecu_name.upper()] = {
             "tx_id": ecu_def["tx_id"],
             "routines": rmap,
+        }
+    return index
+
+
+def build_sessions_index(pids_data: dict) -> dict[str, SessionIndexEntry]:
+    """Build lookup: ECU_NAME -> {tx_id, sessions: {MODE_HEX: {name, supported, ...}}}.
+
+    Reads the ``sessions:`` section from each ECU's YAML, written by
+    ``canair scan sessions`` (see :mod:`canlib.modes.sessions_scan`). Keys are
+    2-hex-digit DiagnosticSessionControl (0x10) sub-functions, e.g. "03"/"81".
+    Used to pre-populate a session-type picker with an ECU's *known-good*
+    session types instead of a blind fixed list.
+    """
+    index: dict[str, SessionIndexEntry] = {}
+    for ecu_name, ecu_def in pids_data.get("ecus", {}).items():
+        sessions = ecu_def.get("sessions", {})
+        if not sessions:
+            continue
+        smap = {}
+        for mode, sdef in sessions.items():
+            mode_str = str(mode).upper().zfill(2)
+            sdef = sdef or {}
+            smap[mode_str] = {
+                "name": sdef.get("name", ""),
+                "supported": bool(sdef.get("supported", False)),
+                "nrc": sdef.get("nrc"),
+                "nrc_desc": sdef.get("nrc_desc", ""),
+            }
+        index[ecu_name.upper()] = {
+            "tx_id": ecu_def["tx_id"],
+            "sessions": smap,
         }
     return index
 
