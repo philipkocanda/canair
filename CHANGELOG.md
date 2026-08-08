@@ -15,6 +15,39 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [1.18.0](https://github.com/philipkocanda/canair/compare/v1.17.0...v1.18.0) (2026-08-08)
+
+
+### Added
+
+* **monitor:** add PID picker, session-type switcher, staleness dot ([74bc401](https://github.com/philipkocanda/canair/commit/74bc40105fc12e160034e93539026074b613fd3f))
+* **pids:** add set-research-result verb ([db9bdde](https://github.com/philipkocanda/canair/commit/db9bdde2b891dd99db0ec74064882e11c96e403b))
+* **profiles:** decode MCU 2101 phase currents, close the DCFC-blocked Ioniq leads ([a2e4c5a](https://github.com/philipkocanda/canair/commit/a2e4c5ae981e1b5db270670e66bcd97dddbd576f))
+* **states:** resolve the most specific matching vehicle state ([da0846d](https://github.com/philipkocanda/canair/commit/da0846d57ca25ef88cda1b9697a25126ac217573))
+* **transport:** name the transport as the limit on a slow link, and document it ([7a1a833](https://github.com/philipkocanda/canair/commit/7a1a833f7fbf69c1f612a78001ced6fdceda1bbb))
+
+
+### Fixed
+
+* **config:** size the connect and reconnect defaults for a mobile link ([cb070c3](https://github.com/philipkocanda/canair/commit/cb070c32939ced72f12ede62262de6c068c21118))
+* **monitor:** coalesce overlapping selectors so each ECU is polled once ([73f9815](https://github.com/philipkocanda/canair/commit/73f98152f50c639b86840ce70a59a0eeeba493f7))
+* **pids:** disambiguate research items by --index, add rm-research/set-research-notes ([2ff05ff](https://github.com/philipkocanda/canair/commit/2ff05ff401766c2de394772c7fb41c6c1e448da8))
+* **profiles:** base CHARGING on the BMS charging bits, not battery current ([f140eb0](https://github.com/philipkocanda/canair/commit/f140eb01163772733c951cb559858223fd73404c))
+* **states:** gate CHARGING against driving signals to stop READY/CHARGING flip-flop ([299012f](https://github.com/philipkocanda/canair/commit/299012f77bcb6a091b5f42d8507966108f27d802))
+* **transport:** budget the network's share on the raw ISO-TP path ([85b0ba4](https://github.com/philipkocanda/canair/commit/85b0ba4a204ede87f11c8c7345437f22e95c6e70))
+* **transport:** clamp multi-DID batches to what the transport can send ([ef1b3c7](https://github.com/philipkocanda/canair/commit/ef1b3c7ad2c441999191d1a0607f18282248b855))
+* **transport:** correlate ELM327 replies to commands by counting prompts ([ba9fb09](https://github.com/philipkocanda/canair/commit/ba9fb09e1171f690dfee6949c89dfbf687280271))
+* **transport:** correlate raw-CAN replies to their requests ([bc45bd1](https://github.com/philipkocanda/canair/commit/bc45bd1f015aad82e15fb2c06cc56e4399b3b518))
+* **transport:** recover from an ELM327 pipe desync instead of going stale forever ([485a37f](https://github.com/philipkocanda/canair/commit/485a37f2f3edfaa0acb8f9dde410a955e217d758))
+* **transport:** size pipe realignment from the measured link, not a guess ([eb9662a](https://github.com/philipkocanda/canair/commit/eb9662a7ccfb596512a756ed1a524e80078b649a))
+
+
+### Documentation
+
+* ioniq-2017 ([7581f61](https://github.com/philipkocanda/canair/commit/7581f61e777c3b08652f5d4b96c816518b3c3085))
+* **profiles:** note air-cooled 28 kWh battery pack ([76ceda0](https://github.com/philipkocanda/canair/commit/76ceda0ab5f55ce90bcf4edeeeb305e0b8c5d500))
+* record the SLCAN acceptance-filter findings and why filtering is unshipped ([dc16102](https://github.com/philipkocanda/canair/commit/dc16102458771da7601532f946894aedd3cba339))
+
 ## [1.17.0](https://github.com/philipkocanda/canair/compare/v1.16.0...v1.17.0) (2026-08-08)
 
 
