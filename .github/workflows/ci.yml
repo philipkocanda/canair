@@ -44,6 +44,9 @@ jobs:
       - name: Type check (ty)
         run: uv run ty check
 
+      - name: Skill frontmatter is Claude Code / OpenCode compatible
+        run: uv run python scripts/validate_skills.py
+
       - name: Validate bundled profile data
         # The repo bundles more than one profile, so `validate all` can't
         # auto-resolve a single one — validate each bundled profile explicitly.

@@ -36,6 +36,13 @@ repos:
         pass_filenames: false
         require_serial: true
 
+      - id: validate-skills
+        name: skill frontmatter is Claude Code / OpenCode compatible
+        entry: uv run python scripts/validate_skills.py
+        language: system
+        files: ^\.claude/skills/.*/SKILL\.md$
+        pass_filenames: false
+
       # ── push stage: the generated-artifact currency checks CI enforces ─────
       # Slower and repo-wide, so they run on push rather than every commit.
       - id: cli-reference-current

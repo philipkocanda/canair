@@ -22,8 +22,8 @@ for why.
 
 ## Enable the git hooks (once per clone)
 
-The hooks run the fast CI gates automatically — `ruff format`/`ruff check`/`ty` on
-each commit, the [Conventional Commits](commit-messages.md) check on each commit
+The hooks run the fast CI gates automatically — `ruff format`/`ruff check`/`ty`/skill-frontmatter
+validation on each commit, the [Conventional Commits](commit-messages.md) check on each commit
 message, and the generated-artifact currency checks on each push:
 
 ```bash
@@ -41,7 +41,9 @@ uv run pytest -q                                    # tests (parallel; ~14s)
 uv run ruff check . && uv run ruff format --check .  # lint + format
 uv run ty check                                     # type check (canlib/)
 uv run canair validate all                          # if you touched profile data
+uv run python scripts/validate_skills.py             # if you touched a skill's frontmatter
 uv run python scripts/gen_cli_reference.py --check   # if you changed a command's flags
+uv run python scripts/gen_profiles_index.py --check  # if a profile's headline counts changed
 uv run python scripts/gen_screenshots.py --check     # if you changed screenshotted command output
 ```
 

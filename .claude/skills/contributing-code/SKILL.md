@@ -1,10 +1,6 @@
 ---
 name: contributing-code
-description: Guidelines for agents making code or architecture changes
-to the canair codebase (CLI subcommands, transports, modes, library code, tests, releases). Load
-this whenever you are adding, refactoring, or removing canair Python code — NOT for contributing a
-vehicle profile/PIDs upstream (use contributing-profiles) or reverse-engineering signals (use
-ioniq-reverse-engineering / reverse-engineer-signal).
+description: Guidelines for agents making code or architecture changes to the canair codebase (CLI subcommands, transports, modes, library code, tests, releases). Load this whenever you are adding, refactoring, or removing canair Python code — NOT for contributing a vehicle profile/PIDs upstream (use contributing-profiles) or reverse-engineering signals (use ioniq-reverse-engineering / reverse-engineer-signal).
 ---
 
 # Contributing code to canair
