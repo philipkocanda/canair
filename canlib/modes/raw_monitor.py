@@ -51,6 +51,7 @@ def build_raw_client(
     mid-session reconnect, so both apply the same timeouts / ISO-TP config.
     Raises ``OSError`` if the SLCAN socket can't be opened.
     """
+    from ..quirks import HK_F1XX_MINUS_ONE, has_quirk
     from ..timeouts import cli_timeout, ecu_timeouts_by_name
     from ..transport import RawUdsClient, SlcanTcpBus
 
@@ -62,6 +63,7 @@ def build_raw_client(
         timeout=(cli if cli is not None else 3.0),
         ecu_timeouts=(None if cli is not None else ecu_timeouts_by_name(pids_data)),
         isotp_config=pids_data.get("isotp"),
+        hk_f1xx_offset=has_quirk(pids_data, HK_F1XX_MINUS_ONE),
     )
 
 

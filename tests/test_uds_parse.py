@@ -164,8 +164,16 @@ class TestRequestEcho:
         # Unusual multi-PID 21 request — we don't validate it.
         assert request_echo("210102") is None
 
-    def test_service_22_multi_did_not_validated(self):
-        assert request_echo("22BC03BC04") is None
+    def test_service_22_multi_did_validated_against_its_first_did(self):
+        # A batch response repeats its DIDs in request order, so the first one
+        # always follows the SID — validatable however many were asked for. The
+        # later DIDs sit at data-dependent offsets and are left to split_multi_did.
+        assert request_echo("22BC03BC04") == (0x22, b"\xbc\x03")
+        assert request_echo("22BC03BC04BC05") == (0x22, b"\xbc\x03")
+
+    def test_service_22_odd_trailing_byte_not_validated(self):
+        # Not a whole number of 2-byte DIDs, so we can't say what it asked for.
+        assert request_echo("22BC03BC") is None
 
     def test_other_service_none(self):
         assert request_echo("1003") is None

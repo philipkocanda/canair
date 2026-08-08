@@ -210,7 +210,9 @@ def request_echo(request_hex: str) -> tuple[int, bytes] | None:
       response is ``61 xx …``. This is the case the ELM327 stale-frame bug hits
       (a ``61 01`` response leaking into a ``2102`` request slot passes a
       SID-only check because both PIDs share SID ``0x61``).
-    - ``22 xxxx`` (readDataByIdentifier): 2-byte DID echo — ``62 xx xx …``.
+    - ``22 xxxx`` (readDataByIdentifier): 2-byte DID echo — ``62 xx xx …``. A
+      multi-DID batch (``22 xxxx yyyy …``) is validated against its *first* DID,
+      which the response must still repeat immediately after the SID.
 
     Returns ``(sid, echo_bytes)`` for those two services (``echo_bytes`` may be
     empty if the request carried no identifier), or ``None`` when the request
@@ -230,8 +232,13 @@ def request_echo(request_hex: str) -> tuple[int, bytes] | None:
         # only validate the single-PID form we actually emit).
         return (sid, req[1:2]) if len(req) == 2 else None
     if sid == 0x22:
-        # service 22 carries one 2-byte DID (multi-DID batches skip validation).
-        return (sid, req[1:3]) if len(req) == 3 else None
+        # service 22 carries 2-byte DIDs. A positive response repeats them in
+        # request order, so the *first* DID always follows the response SID — the
+        # one byte pair that is validatable whatever the batch size. A batch's
+        # later DIDs sit at data-dependent offsets, so they are left to
+        # `multi_batch.split_multi_did`, which walks the response to find them.
+        odd_length = len(req) % 2 == 1
+        return (sid, req[1:3]) if len(req) >= 3 and odd_length else None
     return None
 
 

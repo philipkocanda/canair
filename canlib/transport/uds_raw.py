@@ -16,6 +16,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
+from collections import defaultdict, deque
 
 import can
 import isotp
@@ -23,6 +24,7 @@ import isotp
 from ..addressing import DEFAULT_RX_OFFSET, EcuAddress, build_isotp_address
 from ..timing import TimingRecorder
 from ..transport_stats import TransportStats
+from ..uds_parse import CAT_STALE, payload_echo_mismatch
 from .isotp_stack import build_isotp_stack
 
 # Quiet can-isotp's transient recovered-timeout warnings (e.g. a cold ECU's first
@@ -56,6 +58,26 @@ def is_response_pending(resp: bytes) -> bool:
 PENDING_RECV_TIMEOUT = 5.0  # per follow-up wait after a 0x78
 PENDING_TOTAL_TIMEOUT = 20.0  # overall cap while the ECU keeps saying "pending"
 
+# How many unpaid responses one ECU may owe before the ledger stops being evidence.
+#
+# An abandoned request leaves the ECU owing an answer, and an ISO-TP stack delivers
+# one reassembled message per exchange — so "how many queued messages belong to
+# earlier requests?" is arithmetic, exactly as the `>` prompt count is on the
+# ELM327 path (see Elm327Terminal._send_command_locked). It is the only mechanism
+# that catches a one-cycle offset when the same PID is polled repeatedly, because
+# then the stale reply echoes the requested identifier and validation has nothing
+# to compare.
+#
+# Past this many, the responses were genuinely lost rather than queued (a dropped
+# frame owes forever), so the count is abandoned instead of discarding good replies
+# for the rest of the session. Echo validation remains as the backstop.
+_MAX_OWED_RESPONSES = 4
+
+# Settling time for the notifier thread + ISO-TP stacks before the first request.
+# Without it the opening frames are lost to warmup (observed: the whole first poll
+# cycle dropped). Named so tests can zero it instead of patching `time.sleep`.
+STACK_WARMUP_S = 0.2
+
 
 class RawUdsClient:
     """UDS reads over raw CAN with per-ECU ISO-TP stacks and pipelined polling."""
@@ -68,6 +90,7 @@ class RawUdsClient:
         timeout: float = 1.0,
         isotp_config: dict | None = None,
         ecu_timeouts: dict[str, float] | None = None,
+        hk_f1xx_offset: bool = False,
     ):
         """``addresses``: name -> resolved :class:`EcuAddress`. ``timeout``: per-request seconds.
 
@@ -76,16 +99,24 @@ class RawUdsClient:
         ``isotp_config``: optional profile ``isotp:`` block (flow-control/padding/
         CAN-FD). Each ECU's :class:`EcuAddress` shapes its ISO-TP stack (11-bit vs
         29-bit normal/fixed/extended, plus any flow-control-address override).
+        ``hk_f1xx_offset``: profile opts into the Hyundai/Kia F1xx identity-DID -1
+        quirk, so echo validation tolerates that off-by-one (see
+        :func:`canlib.uds_parse.payload_echo_mismatch`).
         """
         from .isotp_params import build_isotp_params
 
         self.bus = bus
         self.timeout = timeout
         self.ecu_timeouts = ecu_timeouts or {}
+        self.hk_f1xx_offset = hk_f1xx_offset
         # Per-(ECU, PID) round-trip timing (surfaced by `canair read --timings`).
         self.timings = TimingRecorder()
         # Per-exchange outcome tally (drops/errors/decode), same as the terminals.
         self.diag = TransportStats(transport="slcan-tcp")
+        # Responses each ECU still owes us, from requests abandoned at their
+        # deadline. See _MAX_OWED_RESPONSES: the count is what lets a late reply be
+        # recognised as an earlier request's even when it echoes the right PID.
+        self._owed: dict[str, int] = defaultdict(int)
         self.notifier = can.Notifier(bus, [], timeout=0.1)
         self._stacks: dict[str, isotp.NotifierBasedCanStack] = {}
         # Set to abort an in-flight poll() promptly (Ctrl-C / SIGTERM), so the
@@ -106,35 +137,101 @@ class RawUdsClient:
             self._stacks[name] = stack
         # Let the notifier thread + stacks settle before the first request so the
         # opening frames aren't lost to warmup (observed: first poll cycle drops).
-        time.sleep(0.2)
+        time.sleep(STACK_WARMUP_S)
 
-    def _drain(self, ecu: str) -> None:
+    def _stale(self, ecu: str, resp: bytes, reason: str, pid: str | None = None) -> None:
+        """Tally one response discarded as belonging to an earlier request."""
+        self.diag.record(
+            CAT_STALE,
+            ecu=ecu,
+            pid=pid,
+            detail=f"discarded {resp[:8].hex().upper()} — {reason}",
+        )
+
+    def _stale_reason(self, ecu: str, req: bytes, resp: bytes, owed: int) -> str | None:
+        """Why ``resp`` cannot be ``req``'s answer, or None if it can be.
+
+        Two independent tests, in order of strength. The ledger is decisive: while
+        the ECU owes earlier answers, the next ones off its stack *are* those
+        answers, whatever they contain — which is the only way to catch a repeated
+        single-PID poll drifting one cycle behind. Echo validation then covers the
+        case the ledger cannot see, a reply for a PID we never abandoned.
+        """
+        if owed > 0:
+            return f"{ecu} still owed {owed} earlier response(s)"
+        return payload_echo_mismatch(req.hex().upper(), resp.hex().upper(), self.hk_f1xx_offset)
+
+    def _abandon(self, ecu: str) -> None:
+        """Record that ``ecu`` never answered, so its reply may still be in flight."""
+        owed = self._owed[ecu] + 1
+        if owed >= _MAX_OWED_RESPONSES:
+            # Nothing is coming: these responses were lost, not delayed. Holding
+            # the debt open would discard every genuine reply from here on.
+            owed = 0
+        self._owed[ecu] = owed
+
+    def _drain(self, ecu: str) -> int:
+        """Discard messages already queued on ``ecu``'s stack; return how many.
+
+        Anything sitting here when a request is about to go out answers an
+        *earlier* request, so serving it would report a stale value as fresh. Each
+        one settles part of what the ECU owed.
+        """
         stack = self._stacks[ecu]
+        discarded = 0
         while stack.available():
-            stack.recv()
+            msg = stack.recv()
+            discarded += 1
+            if msg is not None:
+                self._stale(ecu, bytes(msg), "queued before the request was sent")
+        if discarded:
+            self._owed[ecu] = max(0, self._owed[ecu] - discarded)
+        return discarded
 
     def read(self, ecu: str, request: bytes, timeout: float | None = None) -> bytes:
         """Send one UDS request to ``ecu`` and return the reassembled response."""
         stack = self._stacks[ecu]
         self._drain(ecu)
+        pid = request.hex().upper()
+        t = timeout if timeout is not None else self.ecu_timeouts.get(ecu, self.timeout)
         t0 = time.monotonic()
         stack.send(request)
-        t = timeout if timeout is not None else self.ecu_timeouts.get(ecu, self.timeout)
-        resp = stack.recv(block=True, timeout=t)
-        if resp is None:
-            self.diag.record("no_data", ecu=ecu, pid=request.hex().upper())
-            raise TimeoutError(f"no UDS response from {ecu}")
-        resp = bytes(resp)
-        # Wait through UDS ResponsePending (0x78) so slow services return their
-        # final answer — parity with the ELM327 path + RawTerminal.
-        pending_deadline = time.monotonic() + PENDING_TOTAL_TIMEOUT
-        while is_response_pending(resp) and time.monotonic() < pending_deadline:
-            nxt = stack.recv(block=True, timeout=PENDING_RECV_TIMEOUT)
-            if nxt is None:
+        deadline = t0 + t
+        owed = self._owed[ecu]
+        pending_cap: float | None = None
+        last_pending: bytes | None = None
+        while True:
+            remaining = deadline - time.monotonic()
+            resp_raw = stack.recv(block=True, timeout=max(0.0, remaining))
+            if resp_raw is None:
+                if last_pending is not None:
+                    # The ECU acknowledged but never delivered. Surface its own
+                    # "pending" answer, as before, rather than a bare timeout.
+                    resp = last_pending
+                    break
+                self.diag.record("no_data", ecu=ecu, pid=pid)
+                self._abandon(ecu)
+                raise TimeoutError(f"no UDS response from {ecu}")
+            resp = bytes(resp_raw)
+            # Wait through UDS ResponsePending (0x78) so slow services return their
+            # final answer — parity with the ELM327 path + RawTerminal.
+            if is_response_pending(resp):
+                last_pending = resp
+                if pending_cap is None:
+                    pending_cap = time.monotonic() + PENDING_TOTAL_TIMEOUT
+                deadline = min(time.monotonic() + PENDING_RECV_TIMEOUT, pending_cap)
+                continue
+            reason = self._stale_reason(ecu, request, resp, owed)
+            if reason is None:
                 break
-            resp = bytes(nxt)
-        self.timings.record(ecu, request.hex().upper(), time.monotonic() - t0)
-        self.diag.record_raw(resp, ecu=ecu, pid=request.hex().upper())
+            # A late answer to an earlier request. Discard it and keep waiting
+            # within this request's own budget rather than returning it as ours.
+            self._stale(ecu, resp, reason, pid=pid)
+            owed = max(0, owed - 1)
+            self._owed[ecu] = owed
+        self._owed[ecu] = 0
+        self.timings.record(ecu, pid, time.monotonic() - t0)
+        self.diag.record_raw(resp, ecu=ecu, pid=pid)
         return resp
 
     def poll(
@@ -164,8 +261,12 @@ class RawUdsClient:
         each request resolves (bytes) or gives up (Exception). Lets the caller
         render results *incrementally* so one slow/timing-out request can't hold
         up displaying the others (the monitor uses this to stay live).
+
+        Every harvested message is checked against the request it is claimed to
+        answer (see :meth:`_stale_reason`); a late reply to an earlier request is
+        discarded and waiting continues, so a stalled link can't leave this client
+        reporting values one cycle behind for the rest of the session.
         """
-        from collections import defaultdict, deque
 
         def _finish(ecu: str, req: bytes, value):
             out[(ecu, req)] = value
@@ -181,28 +282,31 @@ class RawUdsClient:
         queues: dict[str, deque] = defaultdict(deque)
         for ecu, req in requests:
             queues[ecu].append(req)
-        for ecu in queues:
-            self._drain(ecu)
 
         out: dict[tuple[str, bytes], bytes | Exception] = {}
         while any(queues.values()):
             if self._interrupt.is_set():
                 break
             # Send one request per ECU (concurrent on the bus).
-            pending: dict[str, dict] = {}  # ecu -> {req, sent_at, deadline, cap}
-            now = time.monotonic()
+            pending: dict[str, dict] = {}  # ecu -> {req, sent_at, deadline, cap, owed}
             for ecu, q in queues.items():
-                if q:
-                    req = q.popleft()
-                    self._stacks[ecu].send(req)
-                    # Per-ECU budget applies unless the caller forced a timeout.
-                    ecu_t = t if explicit else self.ecu_timeouts.get(ecu, t)
-                    pending[ecu] = {
-                        "req": req,
-                        "sent_at": now,
-                        "deadline": now + ecu_t,
-                        "cap": None,
-                    }
+                if not q:
+                    continue
+                req = q.popleft()
+                # Drain per *round*, not once per poll(): a reply that landed while
+                # the previous round was being harvested is stale for this one.
+                self._drain(ecu)
+                now = time.monotonic()
+                self._stacks[ecu].send(req)
+                # Per-ECU budget applies unless the caller forced a timeout.
+                ecu_t = t if explicit else self.ecu_timeouts.get(ecu, t)
+                pending[ecu] = {
+                    "req": req,
+                    "sent_at": now,
+                    "deadline": now + ecu_t,
+                    "cap": None,
+                    "owed": self._owed[ecu],
+                }
             # Harvest whichever completes first; each ECU only spends its own budget.
             while pending:
                 if self._interrupt.is_set():
@@ -230,6 +334,16 @@ class RawUdsClient:
                             info["deadline"] = min(now + PENDING_RECV_TIMEOUT, info["cap"])
                             progressed = True
                             continue
+                        reason = self._stale_reason(ecu, req, resp, info["owed"])
+                        if reason is not None:
+                            # An earlier request's answer. Drop it and keep waiting
+                            # on this one's own deadline.
+                            self._stale(ecu, resp, reason, pid=req.hex().upper())
+                            info["owed"] = max(0, info["owed"] - 1)
+                            self._owed[ecu] = info["owed"]
+                            progressed = True
+                            continue
+                        self._owed[ecu] = 0
                         self.timings.record(
                             ecu, req.hex().upper(), time.monotonic() - info["sent_at"]
                         )
@@ -237,6 +351,7 @@ class RawUdsClient:
                         del pending[ecu]
                         progressed = True
                     elif now >= info["deadline"]:
+                        self._abandon(ecu)
                         _finish(ecu, req, TimeoutError("no response"))
                         del pending[ecu]
                         progressed = True
