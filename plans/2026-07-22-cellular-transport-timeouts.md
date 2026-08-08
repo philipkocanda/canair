@@ -8,6 +8,16 @@ Revisit only if cellular drive querying is needed again. Two checks still want a
 cellular link: the `terminal.py` early-break truncation heuristic, and confirming
 the VCU/MCU-specific hypothesis (well-supported, not proven).
 
+**Superseded in part (2026-08-08)** by
+`plans/2026-08-08-high-latency-link-hardening.md`. Cellular drive querying *was*
+needed again, and the decision recorded above — leave `slcan-tcp` alone and use
+`wican-ws` over cellular — has been **reversed**: `slcan-tcp` is now to be made
+latency-tolerant too. The physical conclusion below still stands (only device-side
+ISO-TP repeals the FC round trip), so that plan pursues tolerance, not parity. It
+also absorbs the first of the two open checks above — the early-break truncation
+heuristic, now at `canlib/transport/elm327_terminal.py:325-343`, is replaced by
+`>`-prompt accounting rather than empirically tuned.
+
 Analysis of a drive session (2026-07-22, "Driving from kidswijs to home") where
 VCU and MCU saw many timeouts while ESC/EPS/AAF did not, and all frames were
 slow to appear. WiCAN was reachable over the **cellular/VPN** link (iPhone
