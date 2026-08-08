@@ -14,6 +14,7 @@ from canlib.modes.multi import (
     parse_sub_commands,
     resolve_tx_id,
 )
+from canlib.transport.isotp_params import ISOTP_MAX_REQUEST_BYTES
 
 # --- resolve_tx_id ---
 
@@ -262,6 +263,7 @@ class TestExecQueryTimestamp:
         sm.has_session = MagicMock(return_value=True)
         sm.terminal = MagicMock()
         sm.terminal.set_header = AsyncMock()
+        sm.terminal.max_request_bytes = ISOTP_MAX_REQUEST_BYTES
 
         async def fake_send_uds(pid_code, *a, **k):
             await asyncio.sleep(latency)  # simulate round-trip so each PID lands at a distinct time

@@ -19,6 +19,11 @@ from __future__ import annotations
 # 0xAA). Exposed so callers/tests can reference the historical default by name.
 DEFAULT_TX_PADDING = 0xAA
 
+# Largest single ISO-TP message, from the 12-bit length field of a First Frame.
+# Practically unreachable for a UDS *request*, so a client that segments has no
+# batch-size ceiling worth worrying about — unlike an ELM327, which fits one frame.
+ISOTP_MAX_REQUEST_BYTES = 0xFFF
+
 # Every tunable + its historical default. The key set is also the whitelist of
 # accepted ``isotp:`` fields (see canair validate) — an unknown key is a typo.
 _DEFAULTS: dict[str, int | bool] = {

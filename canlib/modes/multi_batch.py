@@ -9,11 +9,13 @@ rather than each other.
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 from typing import NotRequired, TypedDict
 
 from ..decoding import ParamRow, decode_param_rows
 from ..formatting import decode_uds_response
+from ..log import log_event
 from ..uds_parse import UdsResponse
 
 
@@ -57,6 +59,20 @@ EcuFrame = tuple[str, list[ResultEntry]]
 MULTI_DID_MAX_DEFAULT = 3
 
 
+def transport_did_cap(max_request_bytes: int) -> int:
+    """How many 2-byte DIDs fit in one ``22 D1 D2 …`` request on this transport.
+
+    The request is ``22`` plus two bytes per DID, so ``max_request_bytes`` bounds
+    the group size. This is a *hard* ceiling, not a preference: an ELM327 fits 7
+    data bytes (⇒ 3 DIDs) and answers an over-long request with a bare ``?``,
+    which carries no NRC and so reads as "batching unsupported" — permanently
+    demoting the ECU to per-DID reads for the rest of the session. A profile
+    tuned on ``slcan-tcp`` (where the client segments) would otherwise lose
+    batching entirely the moment it ran over ``wican-ws``.
+    """
+    return max(1, (max_request_bytes - 1) // 2)
+
+
 def resolve_multi_did_max(pids_data: dict | None, ecu_def: dict | None = None) -> int:
     """Resolve the multi-DID batch size cap (per-ECU → profile → default).
 
@@ -90,6 +106,37 @@ class BatchState:
         self.disabled: set[int] = set()  # tx_ids that don't support batching
         self.pad = pad  # ISO-TP padding byte (profile isotp.tx_padding)
         self.max_dids = max_dids  # max DIDs combined per multi-DID request
+        self._clamped: set[tuple[int, int]] = set()  # (tx_id, cap) already warned about
+
+    def note_clamp(self, tx_id: int, cap: int) -> bool:
+        """Register a transport clamp for ``tx_id``; True the first time only.
+
+        Keeps the "your ``multi_did_max`` doesn't fit this transport" notice to one
+        line per ECU instead of one per poll cycle.
+        """
+        key = (tx_id, cap)
+        if key in self._clamped:
+            return False
+        self._clamped.add(key)
+        return True
+
+    def disable(self, tx_id: int, reason: str) -> None:
+        """Permanently stop batching ``tx_id`` for this session, and say why.
+
+        Irreversible by design (an ECU that rejects a multi-DID request once will
+        reject it every time), which is exactly why it must not be silent: the
+        symptom is a poll cycle that quietly takes several times longer, with
+        nothing in the output to explain it.
+        """
+        if tx_id in self.disabled:
+            return
+        self.disabled.add(tx_id)
+        log_event(
+            "config",
+            f"multi-DID batching disabled for 0x{tx_id:03X} for this session: {reason}",
+            level=logging.INFO,
+            ecu=f"0x{tx_id:03X}",
+        )
 
     def learn(self, tx_id: int, did4: str, resp_hex: str) -> None:
         """Record a DID's data length from a single-DID ``62 DID <data>`` response."""

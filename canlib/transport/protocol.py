@@ -42,6 +42,13 @@ class Terminal(Protocol):
     # Per-(ECU, PID) round-trip timings — read by `--timings` after a session.
     timings: TimingRecorder
 
+    # Largest UDS request, in data bytes, this transport can put on the wire as
+    # one exchange. A transport that runs ISO-TP itself segments freely; an
+    # ELM327 does not, and rejects an over-long request outright. Callers that
+    # *build* a request whose size they control (multi-DID batching) must clamp
+    # to this rather than discover the ceiling from a failure.
+    max_request_bytes: int
+
     async def set_header(self, tx_id: int) -> None: ...
 
     def transaction(self) -> AbstractAsyncContextManager[None]:

@@ -38,6 +38,13 @@ from .channel import Channel, TcpChannel
 # The raw-CAN counterpart is `uds_raw.is_response_pending`.
 _PENDING_RE = re.compile(r"7F[0-9A-Fa-f]{2}78")
 
+# Largest UDS request an ELM327 will accept as one exchange. The adapter writes
+# the bytes you give it into a single CAN frame and prepends the ISO-TP PCI byte
+# itself, leaving 7 for the request; it does not segment, and rejects anything
+# longer with a bare `?` rather than an NRC. So a `22` + 2-bytes-per-DID batch fits
+# only 3 DIDs — see `multi_batch.transport_did_cap`.
+_ELM_MAX_REQUEST_BYTES = 7
+
 # Default ELM327 ECU-wait budget in seconds, used when `elm_timeout_cmd` can't be
 # parsed. `ATST hh` sets the wait to hh * 4.096 ms, so ATST96 (0x96 = 150) is ~614ms.
 _ELM_ST_UNIT = 0.004096
@@ -145,6 +152,9 @@ class Elm327Terminal:
         self.cmd_time = 0.0
         # Per-(ECU, PID) round-trip timing (surfaced by `canair read --timings`).
         self.timings = TimingRecorder()
+        # The adapter builds one CAN frame per request and never segments, so a
+        # request longer than this is rejected outright rather than split.
+        self.max_request_bytes = _ELM_MAX_REQUEST_BYTES
         # Per-exchange outcome tally (drops/errors/decode) — the sibling of
         # `timings` read by the monitor for its live status line and stamped into
         # recorded-capture provenance.

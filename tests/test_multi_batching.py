@@ -19,7 +19,9 @@ from canlib.modes.multi_batch import (
     _did_data_len,
     resolve_multi_did_max,
     split_multi_did,
+    transport_did_cap,
 )
+from canlib.transport.isotp_params import ISOTP_MAX_REQUEST_BYTES
 from tests._fakes import FakeTerminal
 from tests._fakes import nrc as _nrc
 from tests._fakes import ok as _ok
@@ -93,13 +95,56 @@ class TestResolveMultiDidMax:
         assert resolve_multi_did_max({"multi_did_max": "x"}) == 3
 
 
-def _mk_sm(send_uds):
+class TestTransportDidCap:
+    """How many 2-byte DIDs fit in one `22 …` request, per transport."""
+
+    def test_an_elm327_fits_three(self):
+        # 7 data bytes: `22` + 3 x 2. This is why MULTI_DID_MAX_DEFAULT is 3.
+        assert transport_did_cap(7) == 3
+
+    def test_a_segmenting_transport_is_effectively_unbounded(self):
+        assert transport_did_cap(ISOTP_MAX_REQUEST_BYTES) > 100
+
+    def test_never_returns_a_useless_cap(self):
+        # A cap of 0 would batch nothing *and* loop forever building groups.
+        for n in (0, 1, 2, 3):
+            assert transport_did_cap(n) == 1
+
+
+class TestLoudDemotion:
+    """Disabling batching is irreversible, so it must never be silent."""
+
+    def test_disable_logs_once_with_the_reason(self, monkeypatch):
+        events: list[tuple] = []
+        monkeypatch.setattr(
+            "canlib.modes.multi_batch.log_event",
+            lambda cat, detail="", **kw: events.append((cat, detail, kw)),
+        )
+        bs = BatchState()
+        bs.disable(0x770, "rejected a 3-DID request with NRC 0x13/0x31")
+        bs.disable(0x770, "some other reason")
+
+        assert 0x770 in bs.disabled
+        assert len(events) == 1
+        assert "0x770" in events[0][1]
+        assert "NRC 0x13" in events[0][1]
+
+    def test_note_clamp_is_true_only_the_first_time(self):
+        bs = BatchState()
+        assert bs.note_clamp(0x770, 6) is True
+        assert bs.note_clamp(0x770, 6) is False
+        assert bs.note_clamp(0x7E4, 6) is True  # per-ECU, not global
+
+
+def _mk_sm(send_uds, max_request_bytes: int = ISOTP_MAX_REQUEST_BYTES):
     sm = MagicMock()
     sm.keepalive_stale = AsyncMock()
     sm.has_session = MagicMock(return_value=True)
     sm.terminal = MagicMock()
     sm.terminal.set_header = AsyncMock()
     sm.terminal.send_uds = send_uds
+    sm.terminal.max_request_bytes = max_request_bytes
+    sm.terminal.diag.transport = "fake"
     return sm
 
 
@@ -196,6 +241,41 @@ class TestBatchingExecutor:
         )
         assert term.sent == ["22BC03BC04", "22BC06"]
         assert {x["pid"] for x in r} == {"22BC03", "22BC04", "22BC06"}
+
+    def test_a_profile_cap_is_clamped_to_what_the_transport_can_send(self):
+        """The Ioniq ships `multi_did_max: 6`, which no ELM327 can put on the wire.
+
+        An over-long request comes back as a bare `?` — no NRC, so the caller reads
+        it as "this ECU can't batch" and demotes it to per-DID reads for the whole
+        session. Clamping up front keeps the profile portable: the same
+        `multi_did_max` is honoured on a segmenting transport and trimmed here.
+        """
+        term = FakeTerminal({**_SINGLES, "22BC04": _ok(BC04_SINGLE), "22BC03BC04BC06": _ok(MULTI3)})
+        sm = _mk_sm(term.send_uds, max_request_bytes=7)  # an ELM327
+        bs = BatchState()
+        for d in ("BC03", "BC04", "BC06"):
+            bs.lengths[(0x770, d)] = 8
+        idx = _igpm_index3(max_dids=6)
+
+        asyncio.run(
+            _exec_query(sm, "IGPM", [], idx, {}, False, return_results=True, batch_state=bs)
+        )
+        # 7 data bytes = `22` + three DIDs, so the 6 asked for became 3.
+        assert term.sent == ["22BC03BC04BC06"]
+
+    def test_a_cap_within_the_transport_ceiling_is_untouched(self):
+        term = FakeTerminal({**_SINGLES, "22BC03BC06": _ok(MULTI)})
+        sm = _mk_sm(term.send_uds, max_request_bytes=7)
+        bs = BatchState()
+        for d in ("BC03", "BC06"):
+            bs.lengths[(0x770, d)] = 8
+
+        asyncio.run(
+            _exec_query(
+                sm, "IGPM", [], _igpm_index(True), {}, False, return_results=True, batch_state=bs
+            )
+        )
+        assert term.sent == ["22BC03BC06"]
 
     def test_batched_request_is_echo_validated(self):
         """A batch must carry its own echo expectation, not just a SID.

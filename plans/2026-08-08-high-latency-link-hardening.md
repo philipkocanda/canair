@@ -1,6 +1,7 @@
 # High-latency link hardening: request/response correlation and cellular tolerance
 
-Status: **PLANNED** (2026-08-08). Follow-up to
+Status: **IN PROGRESS** (2026-08-08). Phase A items 1–4 and 8 are done (`ba9fb09`, `bc45bd1`);
+items 5–7 and Phases B–C remain. Follow-up to
 `plans/2026-08-08-elm327-pipe-desync-recovery.md`, which fixed the reported symptom on
 `wican-ws` but left the same failure class open on the raw path and left the ELM327
 detection resting on a hardcoded latency guess.
@@ -275,7 +276,7 @@ the ELM327 emulator, but **not on `wican-ws`** — it cannot carry the primary d
 
 ### Phase A — correlate responses to requests
 
-1. **Prompt accounting in `Elm327Terminal._send_command_locked`**
+1. **Prompt accounting in `Elm327Terminal._send_command_locked`** *(done)*
    (`canlib/transport/elm327_terminal.py:296-380`). Count prompts across the accumulation
    loop, discount ResponsePending frames, return the *last* complete block, and tally each
    discarded block as `stale` via `TransportStats`. Stop erasing prompt structure before the
@@ -287,33 +288,35 @@ the ELM327 emulator, but **not on `wican-ws`** — it cannot carry the primary d
    when cellular delays a chunk past 1 s and left as "worth an empirical check on cellular".
    Prompt accounting replaces the guess it encodes — a block is complete when its prompt
    arrives, not when a hex-shape heuristic says it looks like an echo.
-2. **Flush the ISO-TP stack on abandonment** in `RawUdsClient.poll`
+2. **Flush the ISO-TP stack on abandonment** *(done)* in `RawUdsClient.poll`
    (`canlib/transport/uds_raw.py:239-242`) and in `read` on timeout
    (`canlib/transport/uds_raw.py:116-135`): drain `while st.available(): st.recv()` before the
    next round, and tally the discards.
-3. **Echo-validate the raw path.** `poll` currently validates nothing; route its responses
-   through `request_echo` + the same `CAT_STALE` classification the ELM path uses, so a raw
-   desync is loud rather than silent.
-4. **Widen `request_echo` coverage** beyond single-identifier `0x21`/`0x22`
-   (`canlib/uds_parse.py:202-235`) — at minimum the multi-DID `0x22` batch form, which is the
-   one that carries several signals per response and so does the most damage when misfiled.
+3. **Echo-validate the raw path.** *(done)* `poll` validated nothing; its responses now go
+   through `request_echo` + the same `CAT_STALE` classification the ELM path uses, backed by a
+   per-ECU owed-response ledger (`_MAX_OWED_RESPONSES`) that catches the case echo validation
+   structurally cannot — a repeated single-PID poll running one cycle behind.
+4. **Widen `request_echo` coverage** *(done)* beyond single-identifier `0x21`/`0x22`
+   (`canlib/uds_parse.py`): the multi-DID `0x22` batch form now validates against its **first**
+   DID, which is the one byte pair that sits at a fixed offset at any batch size.
 5. **Demote `_LINK_LATENCY_MARGIN`** (`canlib/transport/elm327_terminal.py:43`) to the
    no-data-at-all fallback, and drive it from measured RTT with a configured floor.
 6. **Extend `_resync` to `decode`**, so a connect banner or garbage in the slot recovers.
    Revisit the now-partly-stale warning at `canlib/transport/channel.py:30-46`.
 7. **Opportunistic command-echo validation on `elm327-tcp`** — probe at init whether the
    adapter echoes; if it does, use it as an exact per-instance tag. Never assume it.
-8. **Make `resolve_multi_did_max` transport-aware** (`canlib/modes/multi_batch.py:60-75`):
-   clamp to the 7-data-byte ELM327 command ceiling (⇒ 3 two-byte DIDs) on `wican-ws` /
-   `elm327-tcp`, while letting `slcan-tcp` honour a larger profile value. Have
-   `canair validate` warn when a profile's `multi_did_max` exceeds the ELM ceiling — the Ioniq
-   profile's `multi_did_max: 6` (`profiles/ioniq-2017/profile.yaml:71`) is the live example.
-   Also stop a single rejected batch from permanently disabling batching for the whole session,
-   or at minimum log that demotion loudly — a silent fallback is what hid this.
+8. **Clamp the multi-DID batch size to what the transport can send.** *(done)* The ceiling is
+   an ELM327-protocol fact, not a WiCAN one, so it is expressed as a transport capability —
+   `Terminal.max_request_bytes` (`canlib/transport/protocol.py`), `7` on `Elm327Terminal` and
+   `0xFFF` on `RawTerminal` — and applied once in `_run_query_plan` via `_clamp_cap`
+   (`canlib/modes/multi_exec.py`), which both the `multi` pipeline and the monitor funnel
+   through. `transport_did_cap` (`canlib/modes/multi_batch.py`) converts bytes to DIDs.
+   Demotion is no longer silent: `BatchState.disable` logs the reason once per ECU, and the
+   clamp itself logs once per ECU.
 
 ### Phase B — make `slcan-tcp` latency-proof
 
-8. **Device-side acceptance filters.** Emit `M`/`m` between the bitrate and `O` in
+9. **Device-side acceptance filters.** Emit `M`/`m` between the bitrate and `O` in
    `SlcanTcpBus.__init__` (`canlib/transport/slcan_tcp.py:133-135`), computed from the
    profile's ECU response addresses. Verify whether the WiCAN applies
    `can_set_filter`/`can_set_mask` live or only at driver start; if only at start, the
@@ -321,24 +324,24 @@ the ELM327 emulator, but **not on `wican-ws`** — it cannot carry the primary d
    Note the hardware constraint: the ESP32 TWAI peripheral offers a *single* code+mask pair,
    so a profile with disjoint response addresses gets a superset mask, not an exact set. A
    superset is still a very large reduction versus the whole bus.
-9. **Latency-adaptive ISO-TP budgets** — scale `rx_flowcontrol_timeout` and
+10. **Latency-adaptive ISO-TP budgets** — scale `rx_flowcontrol_timeout` and
    `rx_consecutive_frame_timeout` (`canlib/transport/isotp_params.py:28-29`) by measured RTT.
-10. **Raise the raw per-request default** from `1.0` s
+11. **Raise the raw per-request default** from `1.0` s
     (`canlib/transport/uds_raw.py:68`) and make it latency-adaptive.
-11. **Warn on `blocksize > 0` with a non-local host** in `canair validate` — one RTT per
+12. **Warn on `blocksize > 0` with a non-local host** in `canair validate` — one RTT per
     block is a cliff, not a slope.
 
 ### Phase C — defaults, escalation, guidance
 
-12. **`_DEFAULT_RECONNECT_MAX_WAIT` 6.0 → 60.0** (`canlib/config.py:48`), with
+13. **`_DEFAULT_RECONNECT_MAX_WAIT` 6.0 → 60.0** (`canlib/config.py:48`), with
     `config.example.yaml` and `docs/reference/config.md` updated. This is the agreed fix for
     the ping-induced regression in finding 8.
-13. **Raise or adapt `_DEFAULT_CONNECT_TIMEOUT`** (`canlib/config.py:45`) so radio wake-up
+14. **Raise or adapt `_DEFAULT_CONNECT_TIMEOUT`** (`canlib/config.py:45`) so radio wake-up
     does not read as a dead device.
-14. **A single link-latency knob** distinct from `response_timeout_ms`/`ATST` (which is the
+15. **A single link-latency knob** distinct from `response_timeout_ms`/`ATST` (which is the
     *car's* budget, per `canlib/timeouts.py:13-17`), so one setting covers a slow link.
-15. **Warn once when a remote host is paired with `slcan-tcp`**, pointing at `wican-ws`.
-16. **`docs/concepts/remote-and-cellular.md`** — the transport tradeoff from finding 6, the
+16. **Warn once when a remote host is paired with `slcan-tcp`**, pointing at `wican-ws`.
+17. **`docs/concepts/remote-and-cellular.md`** — the transport tradeoff from finding 6, the
     knobs, batching as the latency lever, and the data-usage arithmetic from finding 2.
     Precedent: `plans/2026-07-22-cellular-transport-timeouts.md`.
 
@@ -358,6 +361,13 @@ the ELM327 emulator, but **not on `wican-ws`** — it cannot carry the primary d
   car's budget with the network's is precisely the trap that makes finding 8 hard to
   diagnose.
 - **No retry-forever default** — see Design decisions.
+- **No `canair validate` warning for a `multi_did_max` above the ELM327 ceiling** (dropped from
+  item 8 during implementation). The Ioniq's `multi_did_max: 6`
+  (`profiles/ioniq-2017/profile.yaml:71`) is *correct* for `slcan-tcp`, the default transport,
+  so warning about it would fire on the bundled profile on every `validate all` including CI —
+  a false alarm about a portable setting. The profile value states the car's capability; which
+  part of it is reachable is the transport's business, and the runtime clamp plus a one-line
+  log per ECU is the honest place to say so.
 
 ## Verification
 

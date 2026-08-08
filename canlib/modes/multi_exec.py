@@ -8,6 +8,7 @@ step executors. Orchestration (looping over steps, journaling) lives in
 """
 
 import asyncio
+import logging
 import re
 import time
 
@@ -16,6 +17,7 @@ from ..formatting import (
     print_ecu_results,
     print_hexdump,
 )
+from ..log import log_event
 from ..pids import EcuIndexEntry, PidIndexEntry, build_iocontrol_index
 from ..session_manager import SessionManager
 from ..transport.elm327_terminal import Elm327Terminal
@@ -26,6 +28,7 @@ from .multi_batch import (
     _error_result,
     _is_did22,
     split_multi_did,
+    transport_did_cap,
 )
 from .multi_parse import resolve_tx_id
 
@@ -138,7 +141,7 @@ async def _read_batch(sm, tx_id, group, out, batch_state) -> bool:
         sm.mark_active(tx_id)  # a real answer resets S3 — no redundant 3E00 needed
     if not resp.get("ok"):
         if resp.get("nrc") in (0x13, 0x31):
-            batch_state.disabled.add(tx_id)
+            batch_state.disable(tx_id, f"rejected a {len(dids)}-DID request with NRC 0x13/0x31")
         return False
     split = split_multi_did(
         resp.get("hex", ""),
@@ -146,7 +149,7 @@ async def _read_batch(sm, tx_id, group, out, batch_state) -> bool:
         batch_state.pad,
     )
     if split is None:
-        batch_state.disabled.add(tx_id)
+        batch_state.disable(tx_id, "multi-DID response did not split into the requested DIDs")
         return False
     for pid_code, pid_info, unmapped in group:
         sub_hex = split[pid_code[2:]]
@@ -223,6 +226,28 @@ def build_query_plan(
     return query_plan
 
 
+def _clamp_cap(sm, tx_id: int, cap: int, batch_state) -> int:
+    """Clamp a requested batch size to the transport's single-request ceiling.
+
+    Warned about once per (ECU, cap) so a mismatched profile is visible without
+    spamming a poll loop; the warning names the transport because the same
+    profile is correct on a segmenting one.
+    """
+    limit = transport_did_cap(sm.terminal.max_request_bytes)
+    if cap <= limit:
+        return cap
+    if batch_state is not None and batch_state.note_clamp(tx_id, cap):
+        log_event(
+            "config",
+            f"multi_did_max {cap} exceeds what {sm.terminal.diag.transport} can send "
+            f"in one request; batching 0x{tx_id:03X} in groups of {limit}",
+            level=logging.INFO,
+            transport=sm.terminal.diag.transport,
+            ecu=f"0x{tx_id:03X}",
+        )
+    return limit
+
+
 async def _run_query_plan(sm, tx_id, query_plan, out, batch_state, max_dids=None):
     """Execute a query plan, batching consecutive service-22 DIDs when possible.
 
@@ -231,8 +256,14 @@ async def _run_query_plan(sm, tx_id, query_plan, out, batch_state, max_dids=None
     are already known are read in one ``22 D1 D2 …`` request (up to ``max_dids``,
     defaulting to the batch state's cap); everything else is read singly. A batch
     that fails falls back to per-DID reads for that group.
+
+    The requested cap is clamped to what the *transport* can put on the wire
+    (:func:`~canlib.modes.multi_batch.transport_did_cap`). A profile may legally
+    ask for more than an ELM327 can send, and discovering that from the adapter's
+    bare ``?`` costs the ECU its batching for the whole session.
     """
     cap = max_dids if max_dids is not None else (batch_state.max_dids if batch_state else 1)
+    cap = _clamp_cap(sm, tx_id, cap, batch_state)
     i, n = 0, len(query_plan)
     while i < n:
         code = query_plan[i][0]

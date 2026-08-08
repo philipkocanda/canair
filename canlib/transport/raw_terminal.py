@@ -68,7 +68,7 @@ class RawTerminal:
         mode: AddressingMode = DEFAULT_MODE,
         hk_f1xx_offset: bool = False,
     ):
-        from .isotp_params import build_isotp_params
+        from .isotp_params import ISOTP_MAX_REQUEST_BYTES, build_isotp_params
         from .slcan_tcp import SlcanTcpBus
 
         self.host = host
@@ -90,6 +90,9 @@ class RawTerminal:
         self.elm_timeout_cmd = ""
         # Per-(ECU, PID) round-trip timing (surfaced by `canair read --timings`).
         self.timings = TimingRecorder()
+        # We run ISO-TP ourselves, so a long request is segmented rather than
+        # refused; the ceiling is ISO-TP's own single-message limit.
+        self.max_request_bytes = ISOTP_MAX_REQUEST_BYTES
         # Per-exchange outcome tally (drops/errors/decode), same as WiCANTerminal
         # and RawUdsClient — read by the monitor + stamped into capture provenance.
         self.diag = TransportStats(transport="slcan-tcp")
