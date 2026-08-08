@@ -446,15 +446,26 @@ the ELM327 emulator, but **not on `wican-ws`** — it cannot carry the primary d
 
 ## Verification
 
-- **Unit**: prompt accounting against a scripted channel with 2 and 3 queued
-  prompt-terminated replies, including a ResponsePending interleaved, asserting the *last*
-  block is returned and the rest are tallied `stale`. Raw-path flush asserting a late reply
-  is discarded rather than served to the next request. Echo validation on `poll`.
-- **The regression that matters most**: a **single-PID** monitor with a one-cycle offset —
-  the case echo validation cannot see and prompt accounting can. This must fail before the
-  change and pass after.
-- **Latency simulation**: a channel/fake bus that injects a configurable delay, run at 0 ms,
-  300 ms and 2000 ms RTT, asserting no desync survives a cycle at any of them.
+Done:
+
+- **Unit**: prompt accounting against a scripted channel with queued prompt-terminated
+  replies, including a ResponsePending interleaved, asserting the *last* block is returned and
+  the rest tallied `stale` (`tests/test_elm327_prompt_accounting.py`). Raw-path flush and echo
+  validation on `poll` (`tests/test_uds_raw_correlation.py`). Realignment sizing, probe
+  failure, transaction re-entrancy (`tests/test_terminal.py`). Escalation thresholds
+  (`tests/test_monitor_reconnect.py`). Measurement behaviour (`tests/test_link_latency.py`).
+- **The regression that matters most** — a repeated **single-PID** poll running one cycle
+  behind, the case echo validation structurally cannot see — is covered on both paths:
+  `test_the_same_pid_twice_still_recovers` (ELM, via the prompt ledger) and
+  `test_the_same_pid_recovers_via_the_ledger` (raw, via the owed-response ledger).
+- `uv run ruff check canlib tests`, `uv run ruff format --check canlib tests`,
+  `uv run ty check canlib`, `uv run pytest -q` — clean, 5517 passed.
+
+Still outstanding (needs a device or a drive):
+
+- **Latency simulation**: a channel/fake bus injecting a configurable delay, run at 0 ms,
+  300 ms and 2000 ms RTT, asserting no desync survives a cycle at any of them. The unit tests
+  cover the *mechanisms* at zero latency; this would cover their interaction under delay.
 - **Batching**: confirm on a device that a 6-DID request is rejected with `?` on `wican-ws`
   and accepted on `slcan-tcp`, and that after the transport-aware clamp the Ioniq profile
   actually batches on `wican-ws` (visible as fewer exchanges per cycle in `TransportStats`).
@@ -462,10 +473,10 @@ the ELM327 emulator, but **not on `wican-ws`** — it cannot carry the primary d
   `elm327-tcp` echo path, which the WiCAN cannot.
 - **On-vehicle**: a drive over the same hotspot + WireGuard path with `--save`, then
   `canair captures uds --sessions` to confirm the `quality` line shows resyncs/stale
-  recovered rather than a dead session, and a tunnel to confirm the 60 s reconnect budget
+  recovered rather than a dead session, and a tunnel drop to confirm the 60 s reconnect budget
   brings the recording back.
-- `uv run ruff check canlib tests`, `uv run ruff format --check canlib tests`,
-  `uv run ty check canlib`, `uv run pytest -q`.
+- **Item 9's bench check** — set an acceptance filter on a real WiCAN and confirm the expected
+  response IDs still arrive while others stop. This is the gate on shipping item 9 at all.
 
 ## Open questions
 
@@ -474,3 +485,22 @@ the ELM327 emulator, but **not on `wican-ws`** — it cannot carry the primary d
   single-pair constraint forces a superset.
 - Does `canair sniff` need a partial filter mode (e.g. one bus segment) for cellular use, or
   is unfiltered-only acceptable given it is an explicitly bandwidth-heavy command?
+
+## Adjacent defects noticed, not fixed here
+
+Both were spotted while working this plan and left alone because fixing either is a behaviour
+change rather than a tidy-up, and neither is on this plan's path.
+
+- **A dead classification rule.** `canlib/uds_parse.py`'s `_ERROR_RULES` contains
+  `("unknown command", "decode")`, but the parser returns `_fail(CAT_BUS, "Unknown command")`
+  for a bare `?` before any rule is consulted, so the rule never fires and the two
+  classification models disagree about what a `?` is. Changing it moves an outcome between
+  `decode` and `bus`, and `error_kind` feeds both a capture's `quality` provenance and the
+  monitor's counters — so it needs a deliberate decision about which model is right, not a
+  silent edit. (This plan's item 6 depends on the answer being `bus`, which is why the
+  disagreement surfaced.)
+- **`MonitorController.diag()` and `diag_recorder()` are near-duplicates**
+  (`canlib/modes/monitor.py`), both resolving `raw_client or terminal` then `getattr(..., "diag")`.
+  Deduplicating touches a duck-typed seam (`canlib/modes/_monitor_record.py` probes for
+  `diag_recorder` with `getattr`), a fake in `tests/test_monitor_stop.py`, and several
+  assertions in `tests/test_monitor_diag.py`.

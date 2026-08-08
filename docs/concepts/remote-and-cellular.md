@@ -148,6 +148,41 @@ magnitude reduction. If you *do* need the whole bus — `canair sniff`, or impor
 log — you need `slcan-tcp` and you need the bandwidth; consider running canair in the car and
 copying the log afterwards.
 
+### Why canair doesn't filter this on the device (yet)
+
+The WiCAN's SLCAN interface *does* expose the hardware acceptance filter, so in principle canair
+could ask the dongle to send only the ECU response addresses the profile cares about and cut the
+idle cost to near zero. It does not do this today, deliberately. The firmware reading is worth
+recording so the next attempt starts from facts rather than repeating it:
+
+- **The filter must be set while the channel is closed.** `can_set_filter` and `can_set_mask`
+  (`wican-fw/main/can.c`) return immediately when the bus state is `ON_BUS`; they only stash
+  into a config struct that is copied into the driver at install time. So `M`/`m` have to be
+  sent between the bitrate command and `O`, and after `O` they are silently ignored.
+- **A mask bit of `1` means *don't care*.** The firmware's idle default is
+  `mask = 0xFFFFFFFF, filter = 0`, i.e. accept everything. Acceptance is
+  `(id ^ code) & ~mask == 0`.
+- **Wire format** is eight ASCII hex digits, most significant first, for each of `M`
+  (acceptance code) and `m` (mask).
+- **The peripheral offers a single code+mask pair**, so a set of disjoint response addresses can
+  only be covered by a *superset*. For a typical Hyundai/Kia diagnostic set that superset is
+  `0x7C0`–`0x7FF` — 64 IDs, and still a very large win, because the broadcast traffic that
+  dominates the byte count lives well below `0x7C0`.
+
+What is **not** established is where an 11-bit identifier sits inside that 32-bit acceptance
+word. Single-filter mode uses the SJA1000-derived layout, in which the ID is not right-aligned —
+RTR and the leading data bytes share the word below it — and that is an ESP32 peripheral detail,
+not something the WiCAN sources state.
+
+That matters because of the failure mode. Get the bit position wrong and *no frame matches*: the
+bus goes completely silent, which is indistinguishable from a dead bus or an asleep car, and
+canair would spend the drive reconnecting. A wrong filter is worse than no filter, and it cannot
+be caught by a unit test — what is in doubt is the hardware's behaviour, not the arithmetic. So
+it waits on a bench check against a real device. Tracked in
+`plans/2026-08-08-high-latency-link-hardening.md` (item 9), which also sketches a self-healing
+variant: apply the filter, and reopen unfiltered if the first few exchanges return nothing, so
+the worst case is "slow" rather than "silent".
+
 ## Settings that matter here
 
 All of these live under `transport:` in `~/.config/canair/config.yaml`; see
