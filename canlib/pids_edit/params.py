@@ -1243,12 +1243,98 @@ def set_wake(
     return fpath
 
 
+def _find_research_block(text: str, ecu_name: str):
+    """Return the ``_keyed_block`` tuple for ``ECU_NAME``'s ``research:`` section.
+
+    Raises ``PidsEditError`` if the ECU has no ``research:`` section.
+    """
+    ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
+    research = _keyed_block(text, "research", 2, ecu_start, ecu_end)
+    if not research:
+        raise PidsEditError(f"ECU {ecu_name!r} has no research: section")
+    return research
+
+
+def _research_item_spans(text: str, research_block) -> list[tuple[int, int]]:
+    """Return ``[(start, end), ...]`` spans of every item in a ``research:`` list."""
+    _, _, r_body_start, r_body_end, _ = research_block
+    item_re = re.compile(r"^ {4}- ", re.MULTILINE)
+    starts = [r_body_start + m.start() for m in item_re.finditer(text[r_body_start:r_body_end])]
+    return [(s, starts[i + 1] if i + 1 < len(starts) else r_body_end) for i, s in enumerate(starts)]
+
+
+def _match_research_items(
+    text: str, research_block, target: str, type: str | None = None
+) -> list[tuple[int, int]]:
+    """Return the ``research:`` item spans matching ``target`` (and ``type``, if given).
+
+    Spans are returned in list order.
+    """
+    target_re = re.compile(r"^ {4,6}(?:- )?target:[ \t]*(.*)$", re.MULTILINE)
+    type_re = re.compile(r"^ {4,6}(?:- )?type:[ \t]*(.*)$", re.MULTILINE)
+    target_norm = str(target).strip().strip('"').strip("'")
+
+    matches = []
+    for s, e in _research_item_spans(text, research_block):
+        item = text[s:e]
+        tm = target_re.search(item)
+        if not tm or tm.group(1).strip().strip('"').strip("'") != target_norm:
+            continue
+        if type is not None:
+            ty = type_re.search(item)
+            if not ty or ty.group(1).strip().strip('"').strip("'") != type:
+                continue
+        matches.append((s, e))
+    return matches
+
+
+def _select_research_match(
+    target: str, type: str | None, matches: list[tuple[int, int]], *, index: int | None = None
+) -> tuple[int, int]:
+    """Apply the shared "refuse rather than guess" selector policy.
+
+    ``matches`` is the list of ``(start, end)`` spans already narrowed by
+    ``target`` (and ``type``, if given). Real profiles routinely carry several
+    research items with the same ``(type, target)`` as a signal is worked
+    byte-by-byte, so ``type`` alone does not guarantee uniqueness — ``index``
+    (0-based, within this already-narrowed group) is the final disambiguator.
+    """
+    type_suffix = f" and type {type!r}" if type else ""
+    if not matches:
+        raise PidsEditError(f"no research item with target {target!r}" + type_suffix)
+    if index is not None:
+        if not (0 <= index < len(matches)):
+            raise PidsEditError(
+                f"index {index} out of range for target {target!r}{type_suffix} "
+                f"({len(matches)} matching item{'s' if len(matches) != 1 else ''})"
+            )
+        return matches[index]
+    if len(matches) > 1:
+        raise PidsEditError(
+            f"ambiguous target {target!r} ({len(matches)} matches); pass type= or index="
+        )
+    return matches[0]
+
+
+def _research_list_index(text: str, research_block, span: tuple[int, int]) -> int:
+    """Ordinal position of ``span`` among ALL items in the research: list.
+
+    Lets a caller build a positionally-robust post-write checker: even when
+    several items share the same ``(type, target)``, checking
+    ``research[list_index]`` verifies the *specific* item that was edited,
+    rather than just "some item with this target/type looks right".
+    """
+    spans = _research_item_spans(text, research_block)
+    return next(i for i, (s, _e) in enumerate(spans) if s == span[0])
+
+
 def set_research_status(
     ecu_name: str,
     target: str,
     status: str,
     *,
     type: str | None = None,
+    index: int | None = None,
     pids_dir: Path | None = None,
 ) -> Path:
     """Update the ``status:`` of the research item matching ``target`` (and ``type``).
@@ -1256,8 +1342,13 @@ def set_research_status(
     Also refreshes the item's ``updated`` timestamp to today's date so status
     transitions are dated automatically.
 
-    Raises ``PidsEditError`` if no matching item is found or the match is
-    ambiguous (multiple items share the target and no ``type`` was given).
+    Selector policy: matches are narrowed by ``target`` (exact) and, if given,
+    ``type``. When more than one item still shares that ``target``/``type``
+    pair (common — a signal is often worked over several ``decode`` passes),
+    pass ``index`` (0-based, within the narrowed group) to pick one; the group
+    order matches the item order in the ``research:`` list. Raises
+    ``PidsEditError`` if no item matches, ``index`` is out of range, or the
+    match is still ambiguous.
     """
     fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
     original = fpath.read_text()
@@ -1265,43 +1356,12 @@ def set_research_status(
     target_norm = str(target).strip().strip('"').strip("'")
     today = _today()
 
+    research_block = _find_research_block(original, ecu_name)
+    matches = _match_research_items(original, research_block, target, type)
+    s, e = _select_research_match(target, type, matches, index=index)
+    list_index = _research_list_index(original, research_block, (s, e))
+
     def transform(text: str) -> str:
-        ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
-        research = _keyed_block(text, "research", 2, ecu_start, ecu_end)
-        if not research:
-            raise PidsEditError(f"ECU {ecu_name!r} has no research: section")
-        _, _, r_body_start, r_body_end, _ = research
-        body = text[r_body_start:r_body_end]
-
-        item_re = re.compile(r"^ {4}- ", re.MULTILINE)
-        starts = [r_body_start + m.start() for m in item_re.finditer(body)]
-        target_re = re.compile(r"^ {4,6}(?:- )?target:[ \t]*(.*)$", re.MULTILINE)
-        type_re = re.compile(r"^ {4,6}(?:- )?type:[ \t]*(.*)$", re.MULTILINE)
-
-        matches = []
-        for idx, s in enumerate(starts):
-            e = starts[idx + 1] if idx + 1 < len(starts) else r_body_end
-            item = text[s:e]
-            tm = target_re.search(item)
-            if not tm:
-                continue
-            item_target = tm.group(1).strip().strip('"').strip("'")
-            if item_target != target_norm:
-                continue
-            if type is not None:
-                ty = type_re.search(item)
-                if not ty or ty.group(1).strip().strip('"').strip("'") != type:
-                    continue
-            matches.append((s, e))
-
-        if not matches:
-            raise PidsEditError(
-                f"no research item with target {target!r}" + (f" and type {type!r}" if type else "")
-            )
-        if len(matches) > 1:
-            raise PidsEditError(f"ambiguous target {target!r} ({len(matches)} matches); pass type=")
-
-        s, e = matches[0]
         item = text[s:e]
         new_item = _replace_field_in_block_at(item, "status", f"      status: {status}", indent=6)
         new_item = _replace_field_in_block_at(
@@ -1311,15 +1371,158 @@ def set_research_status(
 
     def checker(ecu_def: dict) -> None:
         research = ecu_def.get("research") or []
-        ok = any(
-            e.get("target") == target_norm
-            and e.get("status") == status
-            and e.get("updated") == today
-            and (type is None or e.get("type") == type)
-            for e in research
+        if list_index >= len(research):
+            raise PidsEditError("status not applied after edit")
+        item = research[list_index]
+        ok = (
+            item.get("target") == target_norm
+            and item.get("status") == status
+            and item.get("updated") == today
+            and (type is None or item.get("type") == type)
         )
         if not ok:
             raise PidsEditError("status not applied after edit")
+
+    new_text = transform(original)
+    _safe_write(fpath, original, new_text, ecu_key, checker)
+    return fpath
+
+
+def delete_research_entry(
+    ecu_name: str,
+    target: str,
+    *,
+    type: str | None = None,
+    index: int | None = None,
+    pids_dir: Path | None = None,
+) -> Path:
+    """Remove an item from the ECU's ``research:`` list.
+
+    A lead is dropped once it's a dead end, superseded, or folded into another
+    entry — previously the only way to do this was hand-editing the YAML,
+    which the edit-via-tool discipline forbids. Selector policy (``type``/
+    ``index``) mirrors :func:`set_research_status`.
+
+    Drops the whole ``research:`` section if this was the last remaining item
+    (an empty ``research:`` key parses to ``None`` and fails the schema).
+    Verified by YAML re-parse; the file is restored on failure.
+    """
+    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
+    original = fpath.read_text()
+    ecu_key = ecu_name.strip().upper()
+    target_norm = str(target).strip().strip('"').strip("'")
+
+    research_block = _find_research_block(original, ecu_name)
+    matches = _match_research_items(original, research_block, target, type)
+    s, e = _select_research_match(target, type, matches, index=index)
+    pre_count = len(matches)
+
+    def transform(text: str) -> str:
+        r_start, _, _r_body_start, r_body_end, _ = research_block
+        others = [span for span in _research_item_spans(text, research_block) if span[0] != s]
+        if not others:
+            # Last item — drop the whole research: block, else an empty
+            # ``research:`` key parses to None and fails the schema.
+            block = text[r_start:r_body_end]
+            trailing = block[len(block.rstrip("\n")) :]
+            return text[:r_start] + trailing + text[r_body_end:]
+        block = text[s:e]
+        trailing = block[len(block.rstrip("\n")) :]
+        return text[:s] + trailing + text[e:]
+
+    def checker(ecu_def: dict) -> None:
+        research = ecu_def.get("research") or []
+        post_count = sum(
+            1
+            for item in research
+            if str(item.get("target")) == target_norm and (type is None or item.get("type") == type)
+        )
+        if post_count != pre_count - 1:
+            raise PidsEditError("research entry still present after delete")
+
+    new_text = transform(original)
+    _safe_write(fpath, original, new_text, ecu_key, checker)
+    return fpath
+
+
+def set_research_notes(
+    ecu_name: str,
+    target: str,
+    notes: str | None,
+    *,
+    type: str | None = None,
+    index: int | None = None,
+    pids_dir: Path | None = None,
+) -> Path:
+    """Set (or clear) a research item's free-text ``notes:``.
+
+    The research-list counterpart to :func:`set_pid_notes` — lets a lead's
+    notes be corrected or extended as work on it progresses, without touching
+    ``status``/other fields and without hand-editing the YAML. Selector policy
+    (``type``/``index``) mirrors :func:`set_research_status`.
+
+    ``notes=None`` (or blank) removes the field. Rendered by the shared note
+    policy (:func:`canlib.pids_edit._text._format_block_scalar`): short notes
+    stay inline, longer ones become a word-wrapped folded ``>-`` block. An
+    existing note is replaced in place; a new one is inserted before whichever
+    of ``sources:``/``what_to_test:``/``capture_protocol:`` comes first (or at
+    the end of the item if none are present), matching the field order in
+    ``RESEARCH_FIELD_ORDER``.
+    """
+    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
+    original = fpath.read_text()
+    ecu_key = ecu_name.strip().upper()
+    target_norm = str(target).strip().strip('"').strip("'")
+    text_val = "" if notes is None else str(notes).strip()
+    clearing = not text_val
+
+    research_block = _find_research_block(original, ecu_name)
+    matches = _match_research_items(original, research_block, target, type)
+    s, e = _select_research_match(target, type, matches, index=index)
+    list_index = _research_list_index(original, research_block, (s, e))
+
+    def transform(text: str) -> str:
+        item = text[s:e]
+        has_note = re.search(r"^ {6}notes:", item, re.MULTILINE) is not None
+        if clearing:
+            if not has_note:
+                raise PidsEditError(f"research item {target_norm!r} has no notes: to clear")
+            new_item = _replace_field_in_block_at(item, "notes", [], indent=6)
+        else:
+            repl = _format_block_scalar(" " * 6, "notes", text_val)
+            if has_note:
+                new_item = _replace_field_in_block_at(item, "notes", repl, indent=6)
+            else:
+                lines = item.splitlines(keepends=True)
+                anchor = next(
+                    (
+                        i
+                        for i, ln in enumerate(lines)
+                        if re.match(r"^ {6}(sources|what_to_test|capture_protocol):", ln)
+                    ),
+                    len(lines),
+                )
+                new_item = "".join(lines[:anchor] + [f"{ln}\n" for ln in repl] + lines[anchor:])
+        return text[:s] + new_item + text[e:]
+
+    def checker(ecu_def: dict) -> None:
+        research = ecu_def.get("research") or []
+        if list_index >= len(research):
+            raise PidsEditError(f"research item {target_norm!r} missing after edit")
+        item = research[list_index]
+        if str(item.get("target")) != target_norm or (
+            type is not None and item.get("type") != type
+        ):
+            raise PidsEditError(f"research item {target_norm!r} missing after edit")
+        got = item.get("notes")
+        if clearing:
+            if got is not None:
+                raise PidsEditError("notes still present after clear")
+            return
+        if got is None:
+            raise PidsEditError("notes missing after edit")
+        if " ".join(str(got).split()) != " ".join(text_val.split()):
+            raise PidsEditError("notes mismatch after edit")
 
     new_text = transform(original)
     _safe_write(fpath, original, new_text, ecu_key, checker)

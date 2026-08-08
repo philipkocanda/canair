@@ -13,7 +13,10 @@ Subcommands:
   rename-pid   ECU OLD NEW         Rename a PID key (e.g. B002 -> 22B002)
   rm-pid       ECU PID             Remove a whole PID (header, status, parameters)
   add-research ECU ...             Append a research: entry
-  set-status  ECU TARGET STATUS    Update a research item's status
+  set-status  ECU TARGET STATUS    Update a research item's status (--type/--index disambiguate)
+  rm-research  ECU TARGET          Remove a research item (--type/--index disambiguate)
+  set-research-notes ECU TARGET [TEXT] Set (or clear) a research item's notes
+                                    (--type/--index disambiguate)
   set-pid-status ECU PID STATUS    Set a PID's lifecycle (active|draft|static|ignored)
   set-pid-notes ECU PID [TEXT]     Set (or clear) a PID's free-text notes
   set-identity ECU FIELD VALUE     Set a curated identity field (e.g. notes)
@@ -52,6 +55,7 @@ from canlib.pids_edit import (
     add_research_entry,
     delete_parameter,
     delete_pid,
+    delete_research_entry,
     find_ecu_file,
     remove_identity_field,
     rename_parameter,
@@ -62,6 +66,7 @@ from canlib.pids_edit import (
     set_pid_notes,
     set_pid_status,
     set_pid_variable_length,
+    set_research_notes,
     set_research_status,
     set_wake,
     upsert_parameter,
@@ -372,11 +377,44 @@ def cmd_add_research(args: argparse.Namespace) -> int:
 
 def cmd_set_status(args: argparse.Namespace) -> int:
     def do():
-        set_research_status(args.ecu, args.target, args.status, type=args.type, pids_dir=args.dir)
+        set_research_status(
+            args.ecu, args.target, args.status, type=args.type, index=args.index, pids_dir=args.dir
+        )
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
     print(
         f"{ansi.GREEN}  ✓ {args.ecu} research {args.target} -> {args.status}{ansi.RESET}  "
+        f"{ansi.DIM}({fpath.name}){ansi.RESET}"
+    )
+    return 0
+
+
+def cmd_rm_research(args: argparse.Namespace) -> int:
+    def do():
+        delete_research_entry(
+            args.ecu, args.target, type=args.type, index=args.index, pids_dir=args.dir
+        )
+
+    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
+    print(
+        f"{ansi.GREEN}  ✓ removed {args.ecu} research {args.target}{ansi.RESET}  "
+        f"{ansi.DIM}({fpath.name}){ansi.RESET}"
+    )
+    return 0
+
+
+def cmd_set_research_notes(args: argparse.Namespace) -> int:
+    notes = args.value
+
+    def do():
+        set_research_notes(
+            args.ecu, args.target, notes, type=args.type, index=args.index, pids_dir=args.dir
+        )
+
+    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
+    what = "cleared" if not (notes or "").strip() else f"set ({len((notes or '').split())} words)"
+    print(
+        f"{ansi.GREEN}  ✓ {args.ecu} research {args.target} notes {what}{ansi.RESET}  "
         f"{ansi.DIM}({fpath.name}){ansi.RESET}"
     )
     return 0
@@ -712,8 +750,64 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         choices=["scan", "decode", "verify", "iocontrol_scan"],
         help="Disambiguate when multiple items share the target",
     )
+    ss.add_argument(
+        "--index",
+        type=int,
+        help="Disambiguate by 0-based position among matches (after --type filtering); "
+        "needed when several items share the same target and type",
+    )
     _add_common(ss)
     ss.set_defaults(_pids_func=cmd_set_status)
+
+    rr = sub.add_parser("rm-research", help="Remove a research: item")
+    rr.add_argument("ecu")
+    rr.add_argument("target")
+    rr.add_argument(
+        "--type",
+        choices=["scan", "decode", "verify", "iocontrol_scan"],
+        help="Disambiguate when multiple items share the target",
+    )
+    rr.add_argument(
+        "--index",
+        type=int,
+        help="Disambiguate by 0-based position among matches (after --type filtering); "
+        "needed when several items share the same target and type",
+    )
+    _add_common(rr)
+    rr.set_defaults(_pids_func=cmd_rm_research)
+
+    srn = sub.add_parser(
+        "set-research-notes",
+        help="Set (or clear) a research item's free-text notes",
+        description=(
+            "Set a research: item's notes: without touching status: or other fields, "
+            "and without hand-editing the YAML.\n\n"
+            "Omit VALUE to clear the field. Short notes stay inline; longer ones "
+            "become a word-wrapped folded block scalar. Disambiguate with --type/--index "
+            "the same way as set-status/rm-research."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    srn.add_argument("ecu")
+    srn.add_argument("target")
+    srn.add_argument(
+        "value",
+        nargs="?",
+        help="New notes text (omit to clear the field)",
+    )
+    srn.add_argument(
+        "--type",
+        choices=["scan", "decode", "verify", "iocontrol_scan"],
+        help="Disambiguate when multiple items share the target",
+    )
+    srn.add_argument(
+        "--index",
+        type=int,
+        help="Disambiguate by 0-based position among matches (after --type filtering); "
+        "needed when several items share the same target and type",
+    )
+    _add_common(srn)
+    srn.set_defaults(_pids_func=cmd_set_research_notes)
 
     sps = sub.add_parser("set-pid-status", help="Set a PID's lifecycle status")
     sps.add_argument("ecu")

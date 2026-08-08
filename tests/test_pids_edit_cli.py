@@ -135,3 +135,93 @@ def test_set_pid_notes_parses_optional_value():
     # VALUE is optional so the same verb both sets and clears.
     assert p.parse_args(["set-pid-notes", "BCM", "22C011"]).value is None
     assert p.parse_args(["set-pid-notes", "BCM", "22C011", "hi"]).value == "hi"
+
+
+class _ResearchArgs:
+    def __init__(self, **kw):
+        self.ecu = "TESTECU"
+        self.target = "2101"
+        self.dir = None
+        self.type = None
+        self.index = None
+        self.no_validate = True  # skip the active-profile schema gate in unit tests
+        self.__dict__.update(kw)
+
+
+@pytest.fixture
+def research_pids_dir(tmp_path):
+    (tmp_path / "e.yaml").write_text(
+        "TESTECU:\n"
+        "  tx_id: 0x700\n"
+        "  pids:\n"
+        "    2101:\n"
+        "      status: active\n"
+        "      parameters: {}\n"
+        "  research:\n"
+        "    - type: decode\n"
+        '      target: "2101"\n'
+        "      status: captured\n"
+        "    - type: decode\n"
+        '      target: "2101"\n'
+        "      status: captured\n"
+    )
+    return tmp_path
+
+
+def test_set_status_index_disambiguates(research_pids_dir):
+    import canlib.yaml_io as yaml_io
+
+    args = _ResearchArgs(status="done", type="decode", index=1, dir=research_pids_dir)
+    assert cli.cmd_set_status(args) == 0
+    doc = yaml_io.safe_load((research_pids_dir / "e.yaml").read_text())
+    research = doc["TESTECU"]["research"]
+    assert research[0]["status"] == "captured"
+    assert research[1]["status"] == "done"
+
+
+def test_set_status_ambiguous_without_index_exits(research_pids_dir):
+    from canlib.pids_edit import PidsEditError
+
+    args = _ResearchArgs(status="done", type="decode", dir=research_pids_dir)
+    with pytest.raises((PidsEditError, SystemExit)):
+        cli.cmd_set_status(args)
+
+
+def test_rm_research_removes_selected_item(research_pids_dir):
+    import canlib.yaml_io as yaml_io
+
+    args = _ResearchArgs(type="decode", index=0, dir=research_pids_dir)
+    assert cli.cmd_rm_research(args) == 0
+    doc = yaml_io.safe_load((research_pids_dir / "e.yaml").read_text())
+    assert len(doc["TESTECU"]["research"]) == 1
+
+
+def test_set_research_notes_sets_and_clears(research_pids_dir):
+    import canlib.yaml_io as yaml_io
+
+    def notes(index):
+        doc = yaml_io.safe_load((research_pids_dir / "e.yaml").read_text())
+        return doc["TESTECU"]["research"][index].get("notes")
+
+    args = _ResearchArgs(value="Corrected lead.", type="decode", index=0, dir=research_pids_dir)
+    assert cli.cmd_set_research_notes(args) == 0
+    assert notes(0) == "Corrected lead."
+
+    args = _ResearchArgs(value=None, type="decode", index=0, dir=research_pids_dir)
+    assert cli.cmd_set_research_notes(args) == 0
+    assert notes(0) is None
+
+
+def test_research_verbs_parse_index_and_optional_value():
+    import argparse
+
+    p = cli.add_parser(argparse.ArgumentParser().add_subparsers())
+    a = p.parse_args(["set-status", "BCM", "2101", "done", "--type", "decode", "--index", "1"])
+    assert a.index == 1
+    b = p.parse_args(["rm-research", "BCM", "2101", "--index", "0"])
+    assert b.index == 0
+    # VALUE is optional on set-research-notes, same as set-pid-notes.
+    c = p.parse_args(["set-research-notes", "BCM", "2101"])
+    assert c.value is None
+    d = p.parse_args(["set-research-notes", "BCM", "2101", "hi", "--index", "1"])
+    assert d.value == "hi" and d.index == 1

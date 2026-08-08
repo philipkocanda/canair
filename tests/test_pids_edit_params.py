@@ -9,6 +9,8 @@ from canlib.pids_edit import (
     PidsEditError,
     add_pid,
     add_research_entry,
+    delete_research_entry,
+    set_research_notes,
     set_research_status,
     upsert_parameter,
 )
@@ -464,6 +466,113 @@ class TestResearch:
         entry = _load(pids_dir)["TESTECU"]["research"][0]
         assert entry["status"] == "done"
         assert entry["updated"] == datetime.date.today().isoformat()
+
+    def test_set_status_disambiguates_with_index(self, pids_dir):
+        # Real profiles often carry several decode/target items for the same
+        # PID as it's captured across multiple sessions -- type alone can't
+        # disambiguate them (this was the reported blocker).
+        add_research_entry(
+            "TESTECU", type="decode", target="2102", status="captured", pids_dir=pids_dir
+        )
+        with pytest.raises(PidsEditError, match="ambiguous"):
+            set_research_status("TESTECU", "2102", "done", type="decode", pids_dir=pids_dir)
+
+        set_research_status("TESTECU", "2102", "done", type="decode", index=1, pids_dir=pids_dir)
+        research = [e for e in _load(pids_dir)["TESTECU"]["research"] if e["target"] == "2102"]
+        assert research[0]["status"] == "captured"  # index 0 untouched
+        assert research[1]["status"] == "done"  # index 1 picked
+
+    def test_set_status_index_out_of_range(self, pids_dir):
+        with pytest.raises(PidsEditError, match="out of range"):
+            set_research_status("TESTECU", "2102", "done", index=5, pids_dir=pids_dir)
+
+
+class TestDeleteResearchEntry:
+    def test_delete_removes_matching_item(self, pids_dir):
+        add_research_entry(
+            "TESTECU", type="decode", target="22Z001", status="pending", pids_dir=pids_dir
+        )
+        delete_research_entry("TESTECU", "22Z001", pids_dir=pids_dir)
+        research = _load(pids_dir)["TESTECU"]["research"]
+        assert all(e["target"] != "22Z001" for e in research)
+
+    def test_delete_last_item_drops_whole_section(self, pids_dir):
+        # The fixture's only research item is target "2102"/type decode.
+        delete_research_entry("TESTECU", "2102", type="decode", pids_dir=pids_dir)
+        assert _load(pids_dir)["TESTECU"].get("research") is None
+
+    def test_delete_not_found(self, pids_dir):
+        with pytest.raises(PidsEditError):
+            delete_research_entry("TESTECU", "9999", pids_dir=pids_dir)
+
+    def test_delete_ambiguous_without_index(self, pids_dir):
+        add_research_entry(
+            "TESTECU", type="decode", target="2102", status="captured", pids_dir=pids_dir
+        )
+        with pytest.raises(PidsEditError, match="ambiguous"):
+            delete_research_entry("TESTECU", "2102", type="decode", pids_dir=pids_dir)
+
+    def test_delete_with_index_removes_correct_item(self, pids_dir):
+        add_research_entry(
+            "TESTECU",
+            type="decode",
+            target="2102",
+            status="captured",
+            notes="dup",
+            pids_dir=pids_dir,
+        )
+        delete_research_entry("TESTECU", "2102", type="decode", index=0, pids_dir=pids_dir)
+        research = [e for e in _load(pids_dir)["TESTECU"]["research"] if e["target"] == "2102"]
+        assert len(research) == 1
+        assert research[0].get("notes") == "dup"
+
+
+class TestSetResearchNotes:
+    def test_set_new_notes(self, pids_dir):
+        set_research_notes("TESTECU", "2102", "new lead notes", pids_dir=pids_dir)
+        entry = _load(pids_dir)["TESTECU"]["research"][0]
+        assert entry["notes"] == "new lead notes"
+
+    def test_replace_existing_notes(self, pids_dir):
+        add_research_entry(
+            "TESTECU",
+            type="decode",
+            target="22Z002",
+            status="pending",
+            notes="stale note",
+            pids_dir=pids_dir,
+        )
+        set_research_notes("TESTECU", "22Z002", "corrected note", pids_dir=pids_dir)
+        new = next(e for e in _load(pids_dir)["TESTECU"]["research"] if e["target"] == "22Z002")
+        assert new["notes"] == "corrected note"
+
+    def test_clear_notes(self, pids_dir):
+        add_research_entry(
+            "TESTECU",
+            type="decode",
+            target="22Z003",
+            status="pending",
+            notes="to be cleared",
+            pids_dir=pids_dir,
+        )
+        set_research_notes("TESTECU", "22Z003", None, pids_dir=pids_dir)
+        new = next(e for e in _load(pids_dir)["TESTECU"]["research"] if e["target"] == "22Z003")
+        assert new.get("notes") is None
+
+    def test_clear_notes_when_absent_raises(self, pids_dir):
+        with pytest.raises(PidsEditError):
+            set_research_notes("TESTECU", "2102", None, pids_dir=pids_dir)
+
+    def test_disambiguates_with_index(self, pids_dir):
+        add_research_entry(
+            "TESTECU", type="decode", target="2102", status="captured", pids_dir=pids_dir
+        )
+        with pytest.raises(PidsEditError, match="ambiguous"):
+            set_research_notes("TESTECU", "2102", "text", type="decode", pids_dir=pids_dir)
+        set_research_notes("TESTECU", "2102", "text", type="decode", index=1, pids_dir=pids_dir)
+        research = [e for e in _load(pids_dir)["TESTECU"]["research"] if e["target"] == "2102"]
+        assert research[1]["notes"] == "text"
+        assert research[0].get("notes") is None
 
 
 def _load2(pids_dir):
