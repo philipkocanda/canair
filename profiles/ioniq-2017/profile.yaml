@@ -45,6 +45,12 @@
 car_model: "Hyundai Ioniq 2017"
 init: "ATSP6;ATS0;ATAL;ATST96;"
 
+# BATTERY COOLING: this car's 28 kWh pack is AIR-COOLED (no liquid thermal
+# management loop). This is true of every Ioniq 28 kWh variant, not a quirk of
+# this specific car — relevant when investigating thermal-related signals on
+# BMS (e.g. no coolant temp/flow PIDs to expect) or comparing against later
+# Hyundai/Kia EVs, which use liquid cooling.
+
 # Make-specific quirks this profile opts into (make-neutral profiles omit this).
 # hk_f1xx_minus_one: Hyundai/Kia identity DIDs answer one less than requested
 #   (request 22F188 -> response 62F187); echo validation tolerates it for F1xx.

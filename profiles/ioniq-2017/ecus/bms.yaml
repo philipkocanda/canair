@@ -15,7 +15,9 @@ BMS:
     sw_id: CGBMSE305AE1000A  # KWP2000 1A8C
     calibration: "4604"  # KWP2000 1A8D
     id_protocol: KWP2000  # 1Axx
-    notes: "1A80 firmware build date 2008-07-09 (likely platform date, not unit manufacture)"
+    notes: >-
+      1A80 firmware build date 2008-07-09 (likely platform date, not unit manufacture). Air-cooled
+      battery pack — all Ioniq 28 kWh variants use air cooling, no liquid thermal management.
   vehicle_states: [READY, CHARGING]
   pids:
     2101:
