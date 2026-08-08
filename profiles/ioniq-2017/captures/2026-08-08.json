@@ -24301,8 +24301,7 @@
         "READY",
         "ACC2",
         "PARKED",
-        "DRIVING",
-        "CHARGING"
+        "DRIVING"
       ],
       "keep_mode": "changes",
       "transport": "wican-ws",
@@ -26194,6 +26193,7 @@
       "vehicle_states": [
         "READY",
         "ACC2",
+        "PARKED",
         "DRIVING"
       ],
       "keep_mode": "changes",
@@ -32360,7 +32360,6 @@
       "label": "IGPM BMS VCU MCU EPS ESC CLU",
       "version": "1.16.0",
       "vehicle_states": [
-        "CHARGING",
         "READY",
         "ACC2",
         "DRIVING"
@@ -33075,7 +33074,6 @@
       "label": "IGPM OBC BMS VCU MCU EPS ESC CLU",
       "version": "1.16.0",
       "vehicle_states": [
-        "CHARGING",
         "READY",
         "ACC2",
         "DRIVING"
@@ -42588,8 +42586,7 @@
       "vehicle_states": [
         "READY",
         "ACC2",
-        "DRIVING",
-        "CHARGING"
+        "DRIVING"
       ],
       "keep_mode": "changes",
       "transport": "wican-ws",
@@ -47168,11 +47165,10 @@
       "version": "1.16.0",
       "vehicle_states": [
         "READY",
+        "PLUGGED",
         "ACC2",
-        "DRIVING",
-        "CHARGING",
         "PARKED",
-        "PLUGGED"
+        "DRIVING"
       ],
       "keep_mode": "changes",
       "transport": "wican-ws",

@@ -34180,7 +34180,6 @@
       "date": "2026-07-26",
       "label": "BMS LDC VCU",
       "vehicle_states": [
-        "CHARGING",
         "PLUGGED",
         "PARKED"
       ],

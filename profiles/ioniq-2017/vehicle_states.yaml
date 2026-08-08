@@ -32,7 +32,7 @@ states:
   # the OBC reports DC output current only while charging (verified).
   - name: CHARGING
     description: HV battery actively charging (AC or DC). Implies plugged.
-    when: "BMS.BATTERY_CURRENT < -1 or OBC.OBC_DC_A > 0.5"
+    when: "(BMS.BATTERY_CURRENT < -1 or OBC.OBC_DC_A > 0.5) and not (ESC.REAL_SPEED_KMH > 0.5 or VCU.VCU_VEHICLE_SPEED > 0.5 or EPS.EPS_VEHICLE_SPEED > 0.5 or MCU.MCU_MOTOR_RPM > 100)"
 
   # HV active / driveable. VEHICLE_STATE_EV_READY (VCU 2101 B11:3) is verified.
   - name: READY

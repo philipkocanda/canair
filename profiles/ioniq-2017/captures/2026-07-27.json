@@ -45182,7 +45182,6 @@
         }
       ],
       "vehicle_states": [
-        "CHARGING",
         "PLUGGED",
         "PARKED"
       ],
