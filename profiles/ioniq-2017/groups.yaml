@@ -17,18 +17,18 @@ groups:
   # BMS:2105 = SOC_DISP (dash SoC); OBC/VCU/MCU round out the charge picture.
   charging:
     description: SoC, charge power and OBC while plugged in
-    members: [BMS:2101, BMS:2105, OBC, VCU, MCU]
+    members: [IGPM, BMS:2101, BMS:2105, OBC, VCU, MCU]
 
   # Powertrain + chassis while driving (odometer/distance changes on CLU).
   driving:
     description: Powertrain + chassis while driving (odometer on CLU)
-    members: [BMS, VCU, MCU, EPS, ESC, CLU]
+    members: [IGPM, BMS:2101, BMS:2105, VCU:2101, VCU:2102, MCU, EPS, ESC, CLU, AAF:2180, AAF:2181]
 
   # HV drive-core essentials — the most-co-polled trio for drive analysis
   # (pack power, vehicle state, motor torque).
   powertrain:
-    description: HV drive-core essentials (pack power, vehicle state, motor torque)
-    members: [BMS:2101, VCU:2101, MCU:2102]
+    description: HV drive-core essentials (pack power, vehicle state, motor torque, cooling system)
+    members: [BMS:2101, VCU:2101, MCU:2101, MCU:2102, AAF:2180, AAF:2181]
 
   # Climate power / heat-pump / active air flap work.
   climate:
