@@ -307,3 +307,59 @@ class TestControllerInterrupt:
         # No raw_client (ELM path): interrupt must be a safe no-op, not raise.
         c = MonitorController(None, [], {}, verbose=False)
         c.interrupt()  # no raise
+
+
+class TestLayoutStability:
+    """A cycle must not add or remove rows — every removal shifts the whole view."""
+
+    def test_nrc_only_pid_keeps_its_row_while_pending(self):
+        # A DID whose only ever answer is a negative response has no last-*good*
+        # entry, so keying the mid-cycle fallback on _last_good made its row vanish
+        # at every cycle start and reappear on resolve — a per-cycle layout jump.
+        table = {("IGPM", bytes.fromhex("22BC03")): bytes.fromhex("7F2231")}
+        steps = [{"ecu": "IGPM", "pids": ["BC03"]}]
+        c = _mk_ctrl(steps, _IGPM_BMS_INDEX, table=table)
+
+        asyncio.run(c._poll_raw())
+        entry = c.last_queries[0][1][0]
+        assert "NRC 0x31" in entry["error"]
+
+        _subs, plan_by_ecu = c._build_raw_submissions()
+        pending = c._raw_build_queries(plan_by_ecu, {})  # nothing resolved yet
+        assert [r["pid"] for _lbl, res in pending for r in res] == ["22BC03"]
+        assert "NRC 0x31" in pending[0][1][0]["error"]
+
+    def test_never_answered_pid_has_no_row_to_hold(self):
+        # Nothing has ever been shown for it, so there is nothing to carry — the
+        # row simply doesn't exist yet (it appears once the first answer lands).
+        steps = [{"ecu": "IGPM", "pids": ["BC03"]}]
+        c = _mk_ctrl(steps, _IGPM_BMS_INDEX)
+        _subs, plan_by_ecu = c._build_raw_submissions()
+        assert c._raw_build_queries(plan_by_ecu, {}) == [("IGPM (0x770)", [])]
+
+    def test_selection_keys_are_unique(self):
+        # (ecu_label, pid, param_name) is the monitor's selection cursor. A repeated
+        # ECU made two rows share a key, so MonitorEditor.move()'s items.index()
+        # snapped the cursor (and the viewport) back to the earlier copy.
+        from canlib.modes.multi_parse import normalize_query_steps
+
+        steps = normalize_query_steps(
+            [
+                {"type": "query", "ecu": "IGPM", "pids": []},
+                {"type": "query", "ecu": "IGPM", "pids": ["BC03"]},
+                {"type": "query", "ecu": "BMS", "pids": ["2101"]},
+            ],
+            name_index={},
+        )
+        table = {
+            ("IGPM", bytes.fromhex("22BC03")): bytes.fromhex("62BC03AA"),
+            ("IGPM", bytes.fromhex("22BC06")): bytes.fromhex("62BC06BB"),
+            ("IGPM", bytes.fromhex("22BC07")): bytes.fromhex("62BC07CC"),
+            ("BMS", bytes.fromhex("2101")): bytes.fromhex("6101AA"),
+        }
+        c = _mk_ctrl(steps, _IGPM_BMS_INDEX, table=table)
+        asyncio.run(c._poll_raw())
+
+        keys = [(lbl, r["pid"]) for lbl, res in c.last_queries for r in res]
+        assert len(keys) == len(set(keys))
+        assert [lbl for lbl, _res in c.last_queries] == ["IGPM (0x770)", "BMS (0x7E4)"]

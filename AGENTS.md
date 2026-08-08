@@ -295,7 +295,16 @@ reuse these instead of re-declaring a flag:
   (`canlib/ecu_groups.py::expand_group_refs`), so a group composes with other groups and with ad-hoc
   selectors. Members are plain selectors (never other groups, never full pipeline steps) and carry
   no PID suffix. `@group` works in `read`/`monitor` today; analysis commands don't expand groups
-  yet.
+  yet. **Because a group routinely overlaps a hand-typed selector, `parse_sub_commands` ends by
+  coalescing every contiguous run of `query` steps to one step per canonical ECU**
+  (`canlib/modes/multi_parse.py::normalize_query_steps`): a bare ECU supersedes its `ECU:PID`
+  selectors, distinct PIDs union, aliases resolve to the canonical name, and first-mention position
+  is kept. A non-`query` step ends the run, so a deliberate pipeline re-read survives. Overlaps are
+  reported (never silently collapsed) by `merged_selector_notes` via
+  `canlib/commands/_live/steps.py::report_merged_selectors`. This is load-bearing for `monitor`: a
+  duplicated ECU was polled twice per cycle *and* its rows collided on the
+  `(ecu_label, pid, param_name)` selection key, snapping the TUI cursor and viewport back to the
+  first copy.
 - **`canair bus`** — Read-only list of the profile's CAN bus segments from `can_buses.yaml` with ECU
   counts; flags **undeclared** codes and counts **unbussed** ECUs. Companion to `pids set-can-bus`.
 - **`canair validate`** (alias `val`) — `validate

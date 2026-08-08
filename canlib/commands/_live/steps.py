@@ -33,3 +33,23 @@ def expand_step_groups(steps: list[str]) -> list[str]:
     from canlib.ecu_groups import expand_group_refs, load_groups
 
     return expand_group_refs(steps, load_groups())
+
+
+def report_merged_selectors(commands: list[dict]) -> None:
+    """Print a note for each ECU whose redundant selectors were coalesced.
+
+    An overlap is easy to create without noticing — ``@driving`` already contains
+    ``IGPM`` and ``AAF:2180``, so ``mon IGPM OBC AAF @driving`` names them twice.
+    The normaliser merges them (see
+    :func:`canlib.modes.multi_parse.normalize_query_steps`); saying so teaches the
+    group's contents instead of silently rewriting the command. No output when
+    nothing overlapped.
+    """
+    from canlib.modes.multi_parse import merged_selector_notes
+
+    notes = merged_selector_notes(commands)
+    if not notes:
+        return
+    print("Merged overlapping selectors (each ECU is polled once):")
+    for note in notes:
+        print(f"  {note}")

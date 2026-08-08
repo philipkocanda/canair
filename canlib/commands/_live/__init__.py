@@ -57,7 +57,7 @@ from .connect import build_elm_reconnector, connect_elm_terminal
 from .defaults import CANAIR_DEFAULTS
 from .parser import add_connection_args, finalize_live_parser
 from .runtime import async_main, run, run_live
-from .steps import STEP_VERBS, expand_step_groups, to_step
+from .steps import STEP_VERBS, expand_step_groups, report_merged_selectors, to_step
 
 __all__ = [
     "CANAIR_DEFAULTS",
@@ -72,6 +72,7 @@ __all__ = [
     "load_pids",
     "param_completer",
     "pid_completer",
+    "report_merged_selectors",
     "run",
     "run_live",
     "step_completer",

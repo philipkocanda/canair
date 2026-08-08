@@ -66,8 +66,8 @@ class MonitorRawPoller:
 
     A collaborator of :class:`~canlib.modes.monitor.MonitorController` (accessed
     as ``controller.raw_poller``); reads/writes the controller's shared live
-    state (``last_queries``, ``_last_good``, ``disconnected``, …) through the
-    back-reference ``self.c``.
+    state (``last_queries``, ``_last_good``, ``_last_shown``, ``disconnected``, …)
+    through the back-reference ``self.c``.
     """
 
     def __init__(self, controller: MonitorController):
@@ -272,7 +272,9 @@ class MonitorRawPoller:
     ) -> list[EcuFrame]:
         """Build the render frame in plan order. A PID resolved as a timeout keeps
         its last-good values (stale/dimmed); a PID not yet resolved this cycle
-        shows its last-good values so the view neither flickers nor stutters."""
+        re-shows whatever was last displayed for it — values, or an honest ``NRC``
+        line — so the row holds its place and the view neither flickers nor
+        stutters."""
         c = self.c
         new_queries: list[EcuFrame] = []
         for ecu, tx_id, plan in plan_by_ecu:
@@ -280,8 +282,8 @@ class MonitorRawPoller:
             pid_results = []
             for cd, _pi, _un in plan:
                 entry = by_pid.get((ecu, cd))
-                if entry is None:  # pending this cycle → show last good if any
-                    last = c._last_good.get((label, cd))
+                if entry is None:  # pending this cycle → re-show what it last showed
+                    last = c._last_shown.get((label, cd))
                     if last is not None:
                         pid_results.append(last)
                     continue

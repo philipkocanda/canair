@@ -36,7 +36,7 @@ composes with other groups and with ad-hoc selectors:
 canair monitor @charging            # e.g. BMS:2101 BMS:2105 OBC VCU MCU
 canair read @driving                # a whole group
 canair monitor @driving CLU:220B    # a group plus an extra selector
-canair monitor "@charging @powertrain"   # two groups in one step (de-duped)
+canair monitor "@charging @powertrain"   # two groups in one step
 ```
 
 Groups work anywhere `canair read`/`canair monitor` take steps. Members are
@@ -49,11 +49,42 @@ List and edit the vocabulary with [`canair groups`](../reference/cli/index.md)
 `groups.yaml`; the editor re-validates on write. `canair validate groups` checks
 every member's ECU exists.
 
-!!! note "De-dup is per step"
-    Identical selectors within one step are de-duped. Two groups given as
-    *separate* args (`@charging @powertrain`) become separate steps, so a shared
-    selector is polled once per step; put both in one quoted arg to de-dup
-    globally. This matches how hand-typed selectors already behave.
+## Overlapping selectors are coalesced
+
+Groups overlap, and a group often already contains an ECU you also named by hand.
+`canair read`/`canair monitor` therefore **coalesce every overlapping selector down
+to one per ECU** before polling, however many steps or groups they came from:
+
+```bash
+canair monitor IGPM OBC AAF @driving
+```
+
+If `@driving` already contains `IGPM` and `AAF:2180 AAF:2181`, that names IGPM
+twice and AAF three times. Only one block per ECU is polled and rendered, and the
+overlap is reported up front so the collapse is never silent:
+
+```
+Merged overlapping selectors (each ECU is polled once):
+  IGPM ← IGPM ×2
+  AAF ← AAF, AAF:2180, AAF:2181
+```
+
+The rules:
+
+- **A bare ECU supersedes its `ECU:PID` selectors.** `AAF` already means every AAF
+  PID, so `AAF` + `AAF:2180` is just `AAF`.
+- **Different PIDs on one ECU union.** `BMS:2101` + `BMS:2105` becomes
+  `BMS:2101,2105` — a legitimate combination, so it merges without a note.
+- **Aliases resolve to the canonical ECU.** `LDC` and `OBC` are one ECU, so
+  `canair read LDC OBC:2101` polls it once.
+- **Position is the first mention's.** Coalescing never reorders the display.
+- **A non-`query` step ends the run.** A deliberate re-read across a pipeline
+  (`canair read "query BMS:2101" "sleep 5" "query BMS:2101"`) keeps both reads.
+
+!!! note "Why this matters in `canair monitor`"
+    A duplicated ECU used to be polled twice per cycle — halving the refresh rate
+    for no new data — and its rows shared a selection key, so the TUI cursor and
+    viewport would snap back to the first copy. Coalescing removes both.
 
 ## Pipelines
 

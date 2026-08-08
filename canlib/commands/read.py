@@ -21,6 +21,7 @@ from canlib.commands._live import (
     expand_step_groups,
     finalize_live_parser,
     param_completer,
+    report_merged_selectors,
     run_live,
     step_completer,
     to_step,
@@ -113,6 +114,7 @@ def run(args) -> int:
             if ecu_err:
                 print(f"Error: {ecu_err}", file=sys.stderr)
                 return 2
+            report_merged_selectors(query_steps)
     # else: --param / interactive fall through to async_main's dispatch
 
     # On an interactive terminal, nudge toward the live monitor — `read` is a

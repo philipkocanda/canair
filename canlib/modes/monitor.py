@@ -166,9 +166,15 @@ class MonitorController:
         self._on_partial = None
         # Last *good* entry seen per (ecu_label, pid). A PID that times out reuses
         # this (marked stale → dimmed) so its values stay on screen instead of
-        # collapsing to an error line and jolting the layout; a pending PID (raw,
-        # mid-cycle) shows it too until its own result lands.
+        # collapsing to an error line and jolting the layout.
         self._last_good: dict[tuple[str, str], ResultEntry] = {}
+        # Last entry *shown* per (ecu_label, pid) — whatever _displayify last
+        # returned, including an honest `NRC …` line. A pending PID (raw,
+        # mid-cycle) re-shows this until its own result lands. It must be a
+        # superset of _last_good: keying the mid-cycle fallback on good data alone
+        # made a PID that only ever answers NRC vanish at every cycle start and
+        # reappear on resolve, shifting every row below it once per cycle.
+        self._last_shown: dict[tuple[str, str], ResultEntry] = {}
 
         # Live state (read by the renderer).
         self.cycle = 0
@@ -628,7 +634,17 @@ class MonitorController:
         - a timeout / no-data / transport error: reuse the last-good entry marked
           ``stale`` (dimmed on screen) so its parameters stay put and the layout
           doesn't jump; if we never had good data, show the error.
+
+        Whatever it settles on is also remembered as the last-*shown* entry, so the
+        mid-cycle pending fallback can hold the row's place even for a PID that
+        never returns data.
         """
+        shown = self._decide_display(key, entry)
+        self._last_shown[key] = shown
+        return shown
+
+    def _decide_display(self, key: tuple[str, str], entry: ResultEntry) -> ResultEntry:
+        """The display decision itself — see :meth:`_displayify`."""
         if entry.get("raw_hex"):
             self._last_good[key] = entry
             self._cycle_answered = True

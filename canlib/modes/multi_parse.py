@@ -1,10 +1,12 @@
 """Multi-ECU pipeline — sub-command parsing and ECU/PID token resolution.
 
-Pure, device-free parsing helpers for :mod:`canlib.modes.multi`: resolving an
-ECU name/hex to a TX id, recognising a bare PID token, expanding a ``query``
-step into ``(ecu, pids)`` pairs, and turning the raw sub-command strings into
-structured dicts. Kept separate from the execution/orchestration layers so the
-parsing can be unit-tested and reused without importing the transport stack.
+Device-free parsing helpers for :mod:`canlib.modes.multi`: resolving an ECU
+name/hex to a TX id, recognising a bare PID token, expanding a ``query`` step
+into ``(ecu, pids)`` pairs, normalising overlapping selectors, and turning the
+raw sub-command strings into structured dicts. Kept separate from the
+execution/orchestration layers so the parsing can be unit-tested and reused
+without importing the transport stack. The ECU registry is consulted for
+name/alias canonicalisation only, and its absence is tolerated.
 """
 
 import shlex
@@ -45,6 +47,10 @@ def _query_selectors(tokens: list[str]) -> list[tuple[str, list[str]]]:
     ECU yields an empty PID list = all PIDs). Identical selectors are de-duped so
     a repeated ECU/PID isn't polled twice. Raises ``QueryError`` (a ``ValueError``)
     on malformed input.
+
+    This de-dup is *exact-match, within one step*; overlapping selectors spread
+    across steps (``IGPM AAF @driving``) are coalesced afterwards by
+    :func:`normalize_query_steps`.
 
     Fails loudly on the classic space-vs-colon mistake: a bare selector that
     looks like a PID/DID (e.g. ``query IGPM 22BC07``, meant to be
@@ -90,10 +96,139 @@ def _query_selectors(tokens: list[str]) -> list[tuple[str, list[str]]]:
     return pairs
 
 
+def selector_text(step: dict) -> str:
+    """Render a parsed ``query`` step back as its mini-language selector.
+
+    ``{"ecu": "AAF", "pids": ["2180"]}`` -> ``"AAF:2180"``; a step with no PIDs
+    (all of them) renders as the bare ECU name. Used to report which original
+    selectors a normalised step absorbed.
+    """
+    pids = step.get("pids") or []
+    return f"{step['ecu']}:{','.join(pids)}" if pids else step["ecu"]
+
+
+def _canonical_name_index() -> dict[str, str] | None:
+    """The ECU name/alias index, or ``None`` when no registry is available."""
+    from ..ecus import build_canonical_name_index
+
+    try:
+        return build_canonical_name_index()
+    except FileNotFoundError:
+        return None
+
+
+def _merge_query_run(run: list[dict], name_index: dict[str, str] | None) -> list[dict]:
+    """Coalesce one contiguous run of ``query`` steps to one step per ECU.
+
+    ECU names are canonicalised first, so an alias selector (``LDC``) merges with
+    its canonical form (``OBC``) instead of becoming a second, unresolvable step.
+    PID lists are unioned in first-appearance order, and a **bare** ECU selector
+    (empty ``pids`` = all PIDs) absorbs every PID-specific selector for that ECU
+    rather than sitting beside it.
+
+    A step records ``merged_from`` only when a merge was genuinely *redundant* —
+    an exact repeat, or a selector subsumed by a bare one — since that is the
+    mistake worth reporting. Combining two distinct PID selectors on one ECU
+    (``BMS:2101`` + ``BMS:2105``) is normal and stays silent, and an unmerged step
+    is returned byte-identical (no extra key).
+    """
+    from ..ecus import canonical_ecu_name_safe
+
+    merged: dict[str, dict] = {}
+    sources: dict[str, list[str]] = {}
+    overlapped: set[str] = set()
+    order: list[str] = []
+    for step in run:
+        canon = canonical_ecu_name_safe(step["ecu"], name_index).upper()
+        pids = list(step.get("pids") or [])
+        prev = merged.get(canon)
+        if prev is None:
+            merged[canon] = {"type": "query", "ecu": canon, "pids": pids}
+            sources[canon] = [selector_text(step)]
+            order.append(canon)
+            continue
+        sources[canon].append(selector_text(step))
+        if not prev["pids"]:  # already "all PIDs" — nothing an extra selector adds
+            overlapped.add(canon)
+            continue
+        if not pids:  # a bare selector widens to all PIDs and subsumes the earlier ones
+            prev["pids"] = []
+            overlapped.add(canon)
+            continue
+        fresh = [p for p in pids if p not in prev["pids"]]
+        if not fresh:
+            overlapped.add(canon)
+        prev["pids"].extend(fresh)
+
+    out = []
+    for canon in order:
+        step = merged[canon]
+        if canon in overlapped:
+            step["merged_from"] = sources[canon]
+        out.append(step)
+    return out
+
+
+def normalize_query_steps(
+    commands: list[dict], name_index: dict[str, str] | None = None
+) -> list[dict]:
+    """Canonicalise ECU names and coalesce overlapping ``query`` selectors.
+
+    Without this, ``canair mon IGPM OBC AAF @driving`` polls IGPM and AAF twice:
+    ``@driving`` already contains them, but each positional STEP is parsed
+    independently (so :func:`_query_selectors`' within-step de-dup never sees the
+    other step) and a bare ``AAF`` is a different key from ``AAF:2180``. The
+    duplicates render as duplicate ECU blocks, collide on every
+    ``(ecu_label, pid)``-keyed structure in the monitor, and double the poll
+    rounds for the affected ECUs.
+
+    Merging is scoped to each **contiguous run** of ``query`` steps, so a
+    deliberate pipeline re-read (``read BMS:2101 "sleep 5" BMS:2101``) keeps both
+    of its reads: the intervening step ends the run. Non-query steps pass through
+    untouched, and run order is preserved (an ECU keeps its first position).
+
+    ``name_index`` is the ECU name/alias map; it is loaded from the active profile
+    when omitted, and a missing registry degrades to plain upper-casing.
+    """
+    if name_index is None:
+        name_index = _canonical_name_index()
+    out: list[dict] = []
+    run: list[dict] = []
+    for cmd in commands:
+        if cmd["type"] == "query":
+            run.append(cmd)
+            continue
+        out.extend(_merge_query_run(run, name_index))
+        run = []
+        out.append(cmd)
+    out.extend(_merge_query_run(run, name_index))
+    return out
+
+
+def merged_selector_notes(commands: list[dict]) -> list[str]:
+    """One ``ECU <- sel, sel`` line per step that absorbed a redundant selector.
+
+    Repeats collapse to ``sel x2``, so an accidentally doubled ECU reads as such
+    rather than as the same name twice.
+    """
+    from collections import Counter
+
+    notes = []
+    for cmd in commands:
+        if not cmd.get("merged_from"):
+            continue
+        counts = Counter(cmd["merged_from"])
+        parts = [s if n == 1 else f"{s} \u00d7{n}" for s, n in counts.items()]
+        notes.append(f"{cmd['ecu']} \u2190 {', '.join(parts)}")
+    return notes
+
+
 def parse_sub_commands(args: list[str]) -> list[dict]:
     """Parse multi-mode sub-command strings into structured dicts.
 
     Each string is a mini-command like 'skm-wake acc' or 'raw 770:22BC03'.
+    Overlapping ``query`` selectors are coalesced afterwards — see
+    :func:`normalize_query_steps`.
     """
     commands = []
     for arg in args:
@@ -171,4 +306,4 @@ def parse_sub_commands(args: list[str]) -> list[dict]:
                 f"iocontrol, repl"
             )
 
-    return commands
+    return normalize_query_steps(commands)

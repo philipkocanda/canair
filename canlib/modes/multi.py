@@ -64,8 +64,11 @@ from .multi_exec import (
 from .multi_parse import (
     _looks_like_pid,
     _query_selectors,
+    merged_selector_notes,
+    normalize_query_steps,
     parse_sub_commands,
     resolve_tx_id,
+    selector_text,
 )
 from .multi_repl import _multi_repl
 
@@ -87,9 +90,12 @@ __all__ = [
     "_rx_addr_for_ecu_label",
     "_rx_addr_for_tx",
     "build_query_plan",
+    "merged_selector_notes",
     "mode_multi",
+    "normalize_query_steps",
     "parse_sub_commands",
     "resolve_tx_id",
+    "selector_text",
 ]
 
 

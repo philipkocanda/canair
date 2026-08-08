@@ -21,6 +21,7 @@ from canlib.commands._live import (
     add_connection_args,
     expand_step_groups,
     finalize_live_parser,
+    report_merged_selectors,
     run_live,
     step_completer,
     to_step,
@@ -157,6 +158,7 @@ def run(args) -> int:
     if not query_steps:
         print("Error: monitor requires at least one 'query' step", file=sys.stderr)
         return 2
+    report_merged_selectors(query_steps)
 
     # Reject typo'd/unknown ECU names before connecting (mirrors `canair read`).
     from canlib.commands._live import load_pids

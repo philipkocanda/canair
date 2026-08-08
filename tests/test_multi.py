@@ -11,8 +11,11 @@ from canlib.modes.multi import (
     _exec_iocontrol,
     _exec_query,
     _finalize_journal,
+    merged_selector_notes,
+    normalize_query_steps,
     parse_sub_commands,
     resolve_tx_id,
+    selector_text,
 )
 from canlib.transport.isotp_params import ISOTP_MAX_REQUEST_BYTES
 
@@ -545,3 +548,148 @@ class TestBuildQueryPlanStatic:
             "pids": {"BC03": {"parameters": {}, "period": 5000, "status": "active"}},
         }
         assert "BC03" in self._codes(build_query_plan(info, []))
+
+
+# --- selector normalisation / coalescing ---
+
+# A minimal name/alias index: LDC is the Ioniq's alias for OBC, so the two must
+# resolve to one ECU instead of becoming two steps (only one of which the monitor
+# could look up in its canonical-only ECU index).
+_NAME_INDEX = {"OBC": "OBC", "LDC": "OBC", "IGPM": "IGPM", "AAF": "AAF", "BMS": "BMS"}
+
+
+def _q(ecu, *pids):
+    return {"type": "query", "ecu": ecu, "pids": list(pids)}
+
+
+class TestSelectorText:
+    def test_bare_ecu(self):
+        assert selector_text(_q("AAF")) == "AAF"
+
+    def test_with_pids(self):
+        assert selector_text(_q("AAF", "2180", "2181")) == "AAF:2180,2181"
+
+
+class TestNormalizeQuerySteps:
+    def _norm(self, steps):
+        return normalize_query_steps(steps, name_index=_NAME_INDEX)
+
+    def test_exact_repeat_collapses(self):
+        out = self._norm([_q("IGPM"), _q("IGPM")])
+        assert [(c["ecu"], c["pids"]) for c in out] == [("IGPM", [])]
+        assert out[0]["merged_from"] == ["IGPM", "IGPM"]
+
+    def test_bare_ecu_absorbs_pid_selectors(self):
+        # `mon AAF @driving` names AAF bare *and* as AAF:2180/AAF:2181 — the bare
+        # selector already covers every PID, so it must win outright.
+        out = self._norm([_q("AAF"), _q("AAF", "2180"), _q("AAF", "2181")])
+        assert [(c["ecu"], c["pids"]) for c in out] == [("AAF", [])]
+        assert out[0]["merged_from"] == ["AAF", "AAF:2180", "AAF:2181"]
+
+    def test_pid_selector_then_bare_widens_to_all(self):
+        # Order-independent: a later bare selector subsumes the earlier specific one.
+        out = self._norm([_q("AAF", "2180"), _q("AAF")])
+        assert [(c["ecu"], c["pids"]) for c in out] == [("AAF", [])]
+        assert out[0]["merged_from"] == ["AAF:2180", "AAF"]
+
+    def test_distinct_pids_union_without_a_merge_note(self):
+        # Two different PIDs on one ECU are a legitimate combination, not an
+        # overlap: they merge into one block but must not be reported as redundant.
+        out = self._norm([_q("BMS", "2101"), _q("BMS", "2105")])
+        assert [(c["ecu"], c["pids"]) for c in out] == [("BMS", ["2101", "2105"])]
+        assert "merged_from" not in out[0]
+
+    def test_partial_pid_overlap_unions_silently(self):
+        # The second selector still contributes 2105, so the merge was necessary,
+        # not redundant — only a selector that adds *nothing* is worth reporting.
+        out = self._norm([_q("BMS", "2101"), _q("BMS", "2101", "2105")])
+        assert out[0]["pids"] == ["2101", "2105"]
+        assert "merged_from" not in out[0]
+
+    def test_fully_covered_pid_selector_is_reported(self):
+        out = self._norm([_q("BMS", "2101", "2105"), _q("BMS", "2105")])
+        assert out[0]["pids"] == ["2101", "2105"]
+        assert out[0]["merged_from"] == ["BMS:2101,2105", "BMS:2105"]
+
+    def test_alias_merges_with_canonical_name(self):
+        out = self._norm([_q("LDC"), _q("OBC", "2101")])
+        assert [(c["ecu"], c["pids"]) for c in out] == [("OBC", [])]
+
+    def test_alias_alone_is_canonicalised(self):
+        # The monitor's ECU index is keyed by canonical names only, so an alias
+        # selector left as-is would be silently skipped every poll cycle.
+        out = self._norm([_q("LDC", "2101")])
+        assert [(c["ecu"], c["pids"]) for c in out] == [("OBC", ["2101"])]
+
+    def test_first_position_is_kept(self):
+        out = self._norm([_q("IGPM"), _q("BMS", "2101"), _q("IGPM")])
+        assert [c["ecu"] for c in out] == ["IGPM", "BMS"]
+
+    def test_non_query_step_ends_the_run(self):
+        # A deliberate pipeline re-read (read BMS:2101 "sleep 5" BMS:2101) must
+        # keep both reads — the intervening step separates the runs.
+        out = self._norm([_q("BMS", "2101"), {"type": "sleep", "seconds": 5.0}, _q("BMS", "2101")])
+        assert [c["type"] for c in out] == ["query", "sleep", "query"]
+        assert all("merged_from" not in c for c in out if c["type"] == "query")
+
+    def test_unknown_ecu_passes_through_upper_cased(self):
+        out = self._norm([_q("nope", "2101")])
+        assert out[0]["ecu"] == "NOPE"
+
+    def test_empty(self):
+        assert self._norm([]) == []
+
+
+class TestMergedSelectorNotes:
+    def test_repeats_collapse_to_a_count(self):
+        out = normalize_query_steps([_q("IGPM"), _q("IGPM")], name_index=_NAME_INDEX)
+        assert merged_selector_notes(out) == ["IGPM \u2190 IGPM \u00d72"]
+
+    def test_distinct_sources_are_listed(self):
+        out = normalize_query_steps(
+            [_q("AAF"), _q("AAF", "2180"), _q("AAF", "2181")], name_index=_NAME_INDEX
+        )
+        assert merged_selector_notes(out) == ["AAF \u2190 AAF, AAF:2180, AAF:2181"]
+
+    def test_silent_when_nothing_overlapped(self):
+        out = normalize_query_steps([_q("BMS", "2101"), _q("IGPM")], name_index=_NAME_INDEX)
+        assert merged_selector_notes(out) == []
+
+
+class TestOverlappingSelectorRegression:
+    """`canair mon IGPM OBC AAF @driving` must poll each ECU exactly once.
+
+    The group already contains IGPM and AAF:2180/AAF:2181, so before coalescing
+    this rendered 14 ECU blocks and issued 33 requests per cycle (9 redundant),
+    doubling IGPM's poll-round depth and colliding on every (ecu_label, pid) key
+    in the monitor.
+    """
+
+    def _steps(self):
+        from canlib.commands._live.steps import expand_step_groups, to_step
+
+        raw = ["IGPM", "OBC", "AAF", "@driving"]
+        return parse_sub_commands(expand_step_groups([to_step(s) for s in raw]))
+
+    def test_one_step_per_ecu(self):
+        steps = [c for c in self._steps() if c["type"] == "query"]
+        ecus = [c["ecu"] for c in steps]
+        assert len(ecus) == len(set(ecus))
+
+    def test_requests_are_unique(self):
+        from canlib.modes.multi_exec import build_query_plan
+        from canlib.pids import build_ecu_index, load_pids
+
+        index = build_ecu_index(load_pids())
+        requests = []
+        for step in self._steps():
+            info = index.get(step["ecu"])
+            assert info is not None, f"{step['ecu']} not resolvable in the ECU index"
+            plan = build_query_plan(info, step["pids"], quiet=True) or []
+            requests += [(step["ecu"], code) for code, _pi, _un in plan]
+        assert len(requests) == len(set(requests))
+
+    def test_overlap_is_reported(self):
+        notes = merged_selector_notes(self._steps())
+        assert any(n.startswith("IGPM \u2190") for n in notes)
+        assert any(n.startswith("AAF \u2190") for n in notes)
