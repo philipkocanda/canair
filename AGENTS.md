@@ -288,8 +288,12 @@ reuse these instead of re-declaring a flag:
   `canair states <STATE>` is the reverse lookup (which ECUs are readable in that state, via
   `canlib/states.py::ecus_in_state`). A state with a `when:` predicate is marked ● — or **`✗` with
   the reason** when the predicate references a signal the registry doesn't define, so a dead
-  predicate can't hide behind a healthy ●. **Never hand-edit `vehicle_states.yaml`**
-  (`canlib/states_edit.py`).
+  predicate can't hide behind a healthy ●. `set-implies NAME [STATES]` (and `add --implies`)
+  declares the **specificity hierarchy** — see `vehicle_states.yaml` under Key Files; the list view
+  shows it as a dim `specializes:` line and `canair states <STATE>` also reports the reverse edges
+  (`specialized by:`). **Never hand-edit `vehicle_states.yaml`** (`canlib/states_edit.py`) — its
+  editors also retarget/drop sibling `implies:` references on `rename`/`remove`, which a hand-edit
+  would leave dangling (and a dangling target fails the next validate).
 - **`canair groups`** — List/edit `groups.yaml`, the named selector groups recalled with the `@`
   sigil. Expansion is **textual, before the query parser**
   (`canlib/ecu_groups.py::expand_group_refs`), so a group composes with other groups and with ad-hoc
@@ -468,8 +472,17 @@ what the blind-test strip withholds, so a new bundle member is one edit there.
   **auto-suggests** a capture's states. Predicates evaluate with **three-valued (Kleene) logic** — a
   predicate on an unpolled signal abstains rather than reading false — and *every* matching
   predicate contributes, so a session is composite and predicate order is display-only, not
-  priority. The make-neutral base is the ignition ladder `SLEEP/ACC/RUN/CRANK` (`RUN`/`SLEEP`
-  because `ON`/`OFF` are YAML booleans) plus the `ALL` meta-token; EV states
+  priority. **A view with one state slot instead takes the most SPECIFIC match**, resolved from each
+  entry's optional `implies:` list — an entailment DAG (`DRIVING implies [READY]` means driving *is*
+  a narrower reading of READY), not a priority number, so adding a state never renumbers anything.
+  `canlib/states.py::most_specific_states` drops every matched state that another match implies
+  (transitively); it **preserves the caller's order** and never re-sorts, and file order only
+  tie-breaks states unrelated in the DAG. It backs `suggest_state` (and so the monitor status bar);
+  `suggest_states` deliberately does **not** apply it, because a recorded session keeps every state
+  it was in. `implies:` must name declared states, may not self-reference or involve `ALL`, and must
+  be acyclic — enforced by `validate states`, by `states_edit`'s post-write reparse, and by
+  `load_states` itself. The make-neutral base is the ignition ladder `SLEEP/ACC/RUN/CRANK`
+  (`RUN`/`SLEEP` because `ON`/`OFF` are YAML booleans) plus the `ALL` meta-token; EV states
   (`PLUGGED`/`READY`/`CHARGING`) and finer vendor rungs are **declared per profile**, and
   `allowed_states()` returns base ∪ `ALL` ∪ the profile's own, so `--state`/`--prereq` validate
   without a static choice list. Input is normalized to uppercase. Edit via `canair states` (never

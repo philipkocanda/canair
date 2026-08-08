@@ -25,7 +25,7 @@ _GROUP_DEFAULTS = {
     # A bare token after `states` (e.g. `canair states READY`) is a state name to
     # look up (which ECUs are readable in it), routed through the `list` kind.
     "states": (
-        {"list", "add", "rm", "rename", "set-description", "set-predicate"},
+        {"list", "add", "rm", "rename", "set-description", "set-predicate", "set-implies"},
         "list",
     ),
     # The uds/can domain-kind spine (ingest/list/analyze). A bare invocation

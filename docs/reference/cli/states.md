@@ -4,12 +4,13 @@
 
 ```
 usage: canair states [-h] [--json]
-                     {list,add,rm,rename,set-description,set-predicate} ...
+                     {list,add,rm,rename,set-description,set-predicate,set-implies}
+                     ...
 
-List the active profile's vehicle operating states, or edit the vocabulary (add/rm/rename/set-description/set-predicate). Read-only companion of the state auto-suggestion used when recording captures.
+List the active profile's vehicle operating states, or edit the vocabulary (add/rm/rename/set-description/set-predicate/set-implies). Read-only companion of the state auto-suggestion used when recording captures.
 
 positional arguments:
-  {list,add,rm,rename,set-description,set-predicate}
+  {list,add,rm,rename,set-description,set-predicate,set-implies}
     list                List the vocabulary, or look up one state's ECUs
                         (default)
     add                 Add a new state to the vocabulary
@@ -17,6 +18,7 @@ positional arguments:
     rename              Rename a state (references are NOT rewritten)
     set-description     Set/clear a state's description
     set-predicate       Set/clear a state's when: auto-suggest predicate
+    set-implies         Set/clear which broader states this one specializes
 
 options:
   -h, --help            show this help message and exit
@@ -28,6 +30,8 @@ options:
   canair states CHARGING --json                   # reverse lookup as JSON
   canair states add PRECONDITION --description "Cabin pre-conditioning"
   canair states set-predicate CHARGING "BMS.BATTERY_CURRENT < -1"
+  canair states set-implies DRIVING READY         # DRIVING is the specific reading
+  canair states set-implies DRIVING               # clear the hierarchy
   canair states set-description ACC "Accessory power (ACC1)"
   canair states rename ACC2 IGN
   canair states rm PRECONDITION
@@ -50,7 +54,9 @@ options:
 ## `canair states add`
 
 ```
-usage: canair states add [-h] [--description DESCRIPTION] [--when EXPR] name
+usage: canair states add [-h] [--description DESCRIPTION] [--when EXPR]
+                         [--implies STATES]
+                         name
 
 positional arguments:
   name                  State name (normalized to UPPERCASE)
@@ -60,6 +66,10 @@ options:
   --description DESCRIPTION, -d DESCRIPTION
                         Human-readable description
   --when EXPR, -w EXPR  Auto-suggest predicate over ECU.PARAM
+  --implies STATES, -i STATES
+                        Comma-separated broader states this one specializes
+                        (e.g. READY) — when both match, the live view shows
+                        this one
 ```
 
 ## `canair states rm`
@@ -108,6 +118,23 @@ usage: canair states set-predicate [-h] name [EXPR]
 positional arguments:
   name
   EXPR        Predicate (omit to clear)
+
+options:
+  -h, --help  show this help message and exit
+```
+
+## `canair states set-implies`
+
+```
+usage: canair states set-implies [-h] name [STATES]
+
+Declare the specificity hierarchy: DRIVING implies READY means that when both
+predicates match, DRIVING is the more specific (and shown) reading. Targets
+must be declared states and the hierarchy must stay acyclic.
+
+positional arguments:
+  name
+  STATES      Comma-separated state names (omit to clear)
 
 options:
   -h, --help  show this help message and exit

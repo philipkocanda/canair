@@ -36,6 +36,45 @@ def _state_reference_errors(predicates: list[tuple[str, str]]) -> tuple[list[str
     return ([str(issue) for issue in check_references(predicates, pids_data)], None)
 
 
+def _state_hierarchy_errors(entries: list[tuple[str, object]], declared: set[str]) -> list[str]:
+    """Validate the ``implies:`` specificity hierarchy: shape, targets, acyclicity.
+
+    An unresolvable target silently disables arbitration for that state (the
+    closure walk just doesn't find it), and a cycle makes "more specific than"
+    meaningless, so both are hard errors rather than warnings.
+    """
+    from canlib.states import ALL_STATE, StateRule, implication_cycle, parse_implies
+
+    errors: list[str] = []
+    rules: list[StateRule] = []
+    for name, raw in entries:
+        upper = str(name).upper()
+        if not isinstance(raw, (list, tuple, str)):
+            errors.append(f"state '{name}': implies must be a list of state names")
+            continue
+        targets = parse_implies(raw)
+        for target in targets:
+            if target == upper:
+                errors.append(f"state '{name}': implies itself")
+            elif target == ALL_STATE:
+                errors.append(
+                    f"state '{name}': implies ALL — ALL is the meta-token for "
+                    "'readable in every state', not a state to specialize"
+                )
+            elif target not in declared:
+                errors.append(f"state '{name}': implies '{target}', which is not a declared state")
+        if upper == ALL_STATE and targets:
+            errors.append(f"state '{name}': the ALL meta-token cannot imply anything")
+        # Self-implication is already reported above; excluding it here keeps one
+        # mistake to one error instead of also tripping the cycle check.
+        rules.append(StateRule(name=upper, implies=tuple(t for t in targets if t != upper)))
+
+    cycle = implication_cycle(rules)
+    if cycle:
+        errors.append(f"implies: cycle {' -> '.join(cycle)} — the hierarchy must be acyclic")
+    return errors
+
+
 def _run_states() -> int:
     """Validate the profile's optional vehicle_states.yaml (structure + predicates)."""
     from canlib.profile import active
@@ -59,11 +98,12 @@ def _run_states() -> int:
         return 1
 
     predicates: list[tuple[str, str]] = []
+    implies_entries: list[tuple[str, object]] = []
     for i, entry in enumerate(states):
         if not isinstance(entry, dict):
             errors.append(f"states[{i}]: must be a mapping")
             continue
-        for extra in set(entry) - {"name", "description", "when"}:
+        for extra in set(entry) - {"name", "description", "when", "implies"}:
             errors.append(f"states[{i}]: unknown field '{extra}'")
         name = entry.get("name")
         if not name:
@@ -80,6 +120,10 @@ def _run_states() -> int:
                 errors.append(f"states[{i}] ('{name}'): invalid when: {ex}")
             else:
                 predicates.append((str(name), str(expr)))
+        if entry.get("implies") is not None and name:
+            implies_entries.append((str(name), entry["implies"]))
+
+    errors += _state_hierarchy_errors(implies_entries, {n.upper() for n in seen})
 
     ref_errors, skipped = _state_reference_errors(predicates)
     errors += ref_errors
@@ -94,7 +138,10 @@ def _run_states() -> int:
                 "match — fix it with `canair states set-predicate NAME EXPR`)"
             )
         return 1
-    print(f"{path.name}: OK ({len(seen)} states, {len(predicates)} predicate(s))")
+    # Only mention the hierarchy when there is one — a profile that declares no
+    # `implies:` should not carry a permanent ", 0 with implies:" in its OK line.
+    hierarchy = f", {len(implies_entries)} with implies:" if implies_entries else ""
+    print(f"{path.name}: OK ({len(seen)} states, {len(predicates)} predicate(s){hierarchy})")
     if skipped:
         print(f"  note: predicate signal references not checked — {skipped}")
     return 0

@@ -32,6 +32,37 @@ class TestGroupDefaults:
         assert default == "list"
         assert {"list", "add", "rm", "rename"} <= kinds
 
+    @pytest.mark.parametrize("group", sorted(_GROUP_DEFAULTS))
+    def test_declared_kinds_match_the_real_subparsers(self, group):
+        """Every registered sub-kind must be declared in ``_GROUP_DEFAULTS``.
+
+        The injection runs on raw argv *before* argparse, so the kind set is a
+        hand-maintained mirror of the parser tree — a new subcommand that is not
+        listed gets `list`/`uds` wedged in front of it and dies with a top-level
+        "unrecognized arguments". This test is that mirror's only guard.
+        """
+        import argparse
+
+        from canlib.commands import iter_command_modules
+
+        parser = argparse.ArgumentParser()
+        subparsers = parser.add_subparsers(dest="command")
+        mods = {}
+        for mod in iter_command_modules():
+            mod.add_parser(subparsers)
+            mods[mod.NAME] = mod
+        action = next(a for a in parser._actions if isinstance(a, argparse._SubParsersAction))
+        group_parser = action.choices[group]
+        nested = next(
+            (a for a in group_parser._actions if isinstance(a, argparse._SubParsersAction)),
+            None,
+        )
+        assert nested is not None, f"{group} declares kinds but registers no subparsers"
+        declared = _GROUP_DEFAULTS[group][0]
+        assert set(nested.choices) - declared == set(), (
+            f"{group}: sub-kind(s) missing from cli._GROUP_DEFAULTS"
+        )
+
 
 class TestInjectDefaultSubcommand:
     @pytest.mark.parametrize(

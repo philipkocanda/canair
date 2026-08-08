@@ -3,10 +3,16 @@
 # Canonical, ordered operating states for capture sessions (`vehicle_states`
 # field). State names are UPPERCASE (a controlled vocabulary, like the CAN-bus
 # codes). Add a `when:` predicate over decoded PID values to auto-suggest the
-# state at save time (first match wins). See canlib/schema/states_schema.yaml
+# state at save time — EVERY matching predicate contributes, so a session is
+# naturally composite ("READY, DRIVING"). See canlib/schema/states_schema.yaml
 # and `canair validate states` / `canair states`. Predicate grammar: ECU.PARAM
 # names, and/or/not, == != < <= > >=, numeric/'string' literals, and the
 # sentinels __no_response__ / __responded__.
+#
+# `implies:` declares which broader states a state specializes (DRIVING implies
+# READY): both really are true while driving, and this is how a view that must
+# name ONE state (the monitor status bar) knows to name DRIVING. Targets must be
+# declared states, the graph must be acyclic, and ALL takes no part in it.
 #
 # The make-neutral base ladder (SLEEP/ACC/RUN/CRANK) + ALL is always accepted
 # even if you delete it below; it's re-listed here just to describe each state.
@@ -35,16 +41,19 @@ states:
     description: Stationary, gear in Park.
   - name: DRIVING
     description: In motion.
+    implies: [RUN]
 
   # --- EV / PHEV states — uncomment if your car has a traction battery -------
   # - name: PLUGGED
   #   description: Charge cable connected, not necessarily charging.
   # - name: CHARGING
   #   description: HV battery actively charging (implies plugged).
+  #   implies: [PLUGGED]
   #   # when: "BMS.BATTERY_CURRENT < -1"
   # - name: READY
   #   description: HV active, driveable (the EV name for the IGN-and-go state).
   #   # when: "VCU.EV_READY == 1"
+  #   # …and then DRIVING above should say `implies: [READY]` instead of [RUN].
 
   - name: ALL
     description: Applicable/readable in every vehicle state.

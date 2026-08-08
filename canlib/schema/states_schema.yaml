@@ -9,11 +9,30 @@
 #
 # Top-level structure:
 #   states:                 # ordered list; order is display order, not priority —
+#                           # specificity comes from `implies:` below, and file
+#                           # order only tie-breaks states unrelated in it
 #     - name: str           # required — the state name (e.g. "READY", "CHARGING")
 #       description: str    # optional — human-readable explanation
+#       implies: [str]      # optional — broader states this one specializes
 #       when: str           # optional — boolean predicate over ECU.PARAM values
 #                           # (every matching predicate contributes: a session is
 #                           # naturally composite, e.g. "READY, PARKED")
+#
+# Specificity hierarchy (`implies:`) — several predicates are true at once BY
+# DESIGN: driving a running EV is genuinely both READY and DRIVING. `implies:`
+# names the broader states a state specializes (`DRIVING implies [READY]`), so a
+# view that must name ONE state names the specific one (canlib/states.py
+# ::most_specific_states, used by `suggest_state` and the monitor status bar). It
+# is NOT a priority number: it encodes entailment, so it needs no renumbering when
+# a state is added and it is machine-checkable. Rules, all enforced by
+# `canair validate states` and by the `canair states` editor's post-write check:
+#   * every target must be a DECLARED state (a typo is an error, not a no-op)
+#   * a state may not imply itself, and the graph must be ACYCLIC
+#   * the ALL meta-token may neither imply nor be implied — it means "readable in
+#     every state", not a state to specialize
+# The hierarchy narrows only the SINGLE-state answer. A recorded capture keeps
+# every state it was in (`suggest_states`), because a session that was READY and
+# DRIVING really was both and a `--state READY` query must still find it.
 #
 # State names are an UPPERCASE controlled vocabulary (like the CAN-bus segment
 # codes in can_buses.yaml). Input is normalized to uppercase, so any casing
@@ -52,4 +71,5 @@ required_state_fields:
 
 optional_state_fields:
   - description
+  - implies
   - when

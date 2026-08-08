@@ -6,7 +6,11 @@ from canlib.states import (
     StatePredicateError,
     StateRule,
     compile_predicate,
+    implication_cycle,
+    implied_closure,
     load_states,
+    most_specific_states,
+    parse_implies,
     state_names,
     state_options,
     suggest_state,
@@ -97,6 +101,138 @@ class TestSuggestState:
         rules = self._rules()
         # Something responded (not deep sleep) but no usable values → None.
         assert suggest_state(rules, {}, {"BCM"}) is None
+
+
+class TestSpecificityHierarchy:
+    """`implies:` — parsing, cycles, closure, and narrowing to the most specific."""
+
+    def _rules(self):
+        # DRIVING -> READY -> ACC2 -> ACC, CHARGING -> PLUGGED (file order matters
+        # only for states unrelated in the hierarchy).
+        return [
+            StateRule("CHARGING", implies=("PLUGGED",)),
+            StateRule("READY", implies=("ACC2",)),
+            StateRule("PLUGGED"),
+            StateRule("ACC"),
+            StateRule("ACC2", implies=("ACC",)),
+            StateRule("PARKED"),
+            StateRule("DRIVING", implies=("READY",)),
+        ]
+
+    def test_parse_implies_normalizes(self):
+        assert parse_implies("ready, acc2") == ("READY", "ACC2")
+        assert parse_implies(["ready", "READY"]) == ("READY",)
+        assert parse_implies(None) == ()
+        assert parse_implies("") == ()
+
+    def test_implied_closure_is_transitive(self):
+        assert implied_closure(self._rules(), "DRIVING") == {"READY", "ACC2", "ACC"}
+        assert implied_closure(self._rules(), "ACC") == set()
+
+    def test_implied_closure_excludes_itself(self):
+        rules = [StateRule("A", implies=("B",)), StateRule("B", implies=("A",))]
+        assert "A" not in implied_closure(rules, "A")
+
+    def test_driving_wins_over_the_ready_it_implies(self):
+        # The reported bug: both are true while driving; the one-slot view must
+        # name the specific one even though READY is declared first.
+        assert most_specific_states(self._rules(), ["READY", "DRIVING"]) == ["DRIVING"]
+
+    def test_transitive_matches_are_all_dropped(self):
+        matched = ["ACC", "ACC2", "READY", "DRIVING"]
+        assert most_specific_states(self._rules(), matched) == ["DRIVING"]
+
+    def test_unrelated_matches_all_survive_in_given_order(self):
+        # The input order is preserved (suggest_states already yields file order);
+        # most_specific_states only removes entailed states, it never re-sorts.
+        assert most_specific_states(self._rules(), ["CHARGING", "PARKED"]) == [
+            "CHARGING",
+            "PARKED",
+        ]
+        assert most_specific_states(self._rules(), ["PARKED", "CHARGING"]) == [
+            "PARKED",
+            "CHARGING",
+        ]
+
+    def test_single_match_is_returned_unchanged(self):
+        assert most_specific_states(self._rules(), ["READY"]) == ["READY"]
+        assert most_specific_states([], ["READY"]) == ["READY"]
+
+    def test_suggest_state_applies_the_hierarchy(self):
+        rules = [
+            StateRule("READY", predicate=compile_predicate("VCU.EV_READY == 1"), implies=()),
+            StateRule(
+                "DRIVING",
+                predicate=compile_predicate("ESC.SPEED > 0.5"),
+                implies=("READY",),
+            ),
+        ]
+        values = {"VCU.EV_READY": 1, "ESC.SPEED": 42}
+        assert suggest_state(rules, values, {"VCU", "ESC"}) == "DRIVING"
+        # Stationary in READY: the broader state is then the most specific match.
+        assert suggest_state(rules, {"VCU.EV_READY": 1, "ESC.SPEED": 0}, {"VCU", "ESC"}) == "READY"
+
+    def test_suggest_states_keeps_every_match(self):
+        rules = [
+            StateRule("READY", predicate=compile_predicate("VCU.EV_READY == 1")),
+            StateRule(
+                "DRIVING", predicate=compile_predicate("ESC.SPEED > 0.5"), implies=("READY",)
+            ),
+        ]
+        matched, _false = suggest_states(
+            rules, {"VCU.EV_READY": 1, "ESC.SPEED": 42}, {"VCU", "ESC"}
+        )
+        assert matched == ["READY", "DRIVING"]
+
+    def test_implication_cycle_detected(self):
+        rules = [
+            StateRule("A", implies=("B",)),
+            StateRule("B", implies=("C",)),
+            StateRule("C", implies=("A",)),
+        ]
+        cycle = implication_cycle(rules)
+        assert cycle is not None
+        assert cycle[0] == cycle[-1]
+        assert set(cycle) == {"A", "B", "C"}
+
+    def test_self_implication_is_a_cycle(self):
+        assert implication_cycle([StateRule("A", implies=("A",))]) == ["A", "A"]
+
+    def test_acyclic_hierarchy_has_no_cycle(self):
+        assert implication_cycle(self._rules()) is None
+
+    def test_undeclared_target_is_not_a_cycle(self):
+        # An undeclared target is validate's problem, not the cycle checker's.
+        assert implication_cycle([StateRule("A", implies=("NOPE",))]) is None
+
+    def test_load_states_reads_implies(self, tmp_path):
+        (tmp_path / "vehicle_states.yaml").write_text(
+            "states:\n"
+            "  - name: READY\n"
+            "  - name: DRIVING\n"
+            "    implies: [READY]\n"
+            "  - name: CHARGING\n"
+            "    implies: READY, DRIVING\n"
+        )
+
+        class _P:
+            states_file = tmp_path / "vehicle_states.yaml"
+
+        rules = load_states(_P())
+        assert rules[0].implies == ()
+        assert rules[1].implies == ("READY",)
+        assert rules[2].implies == ("READY", "DRIVING")
+
+    def test_load_states_rejects_a_cycle(self, tmp_path):
+        (tmp_path / "vehicle_states.yaml").write_text(
+            "states:\n  - name: A\n    implies: [B]\n  - name: B\n    implies: [A]\n"
+        )
+
+        class _P:
+            states_file = tmp_path / "vehicle_states.yaml"
+
+        with pytest.raises(StatePredicateError, match="cycle"):
+            load_states(_P())
 
 
 class TestStatesFileFallback:

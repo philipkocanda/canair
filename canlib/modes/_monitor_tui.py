@@ -829,7 +829,9 @@ class MonitorApp(HelpMixin, App):
         uniq = getattr(c, "unique_frames", 0)
         items.append(StatusItem(f"[dim]captured[/] {captured}[dim]/uniq[/] {uniq}", P_NORMAL))
         items.extend(self._health_items())
-        # Live auto-suggested vehicle state (from decoded values), if any.
+        # Live auto-suggested vehicle state (from decoded values), if any. One slot,
+        # so this is the MOST SPECIFIC matching state (DRIVING, not the READY it
+        # implies) — see MonitorController.suggested_state.
         state_fn = getattr(c, "suggested_state", None)
         if callable(state_fn):
             try:

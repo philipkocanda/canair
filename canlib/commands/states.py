@@ -6,6 +6,11 @@ of ``can_buses.yaml`` for the state axis). A capture session's ``vehicle_states`
 and each PID/DID/research entry's ``vehicle_states`` draw from this vocabulary,
 and states with a ``when:`` predicate are auto-suggested from decoded PID values.
 
+Several predicates are true at once by design — driving a running EV matches both
+``READY`` and ``DRIVING``. An ``implies:`` list declares which of them is the more
+*specific* reading (``DRIVING implies [READY]``), so a live view that must name one
+state names the specific one. See :func:`canlib.states.most_specific_states`.
+
 A bare ``canair states`` lists the vocabulary (like ``canair bus``); the edit
 subcommands surgically modify ``vehicle_states.yaml`` (comment-preserving,
 re-validated, reverted on failure) so you never hand-edit it.
@@ -17,6 +22,8 @@ Examples:
   canair states CHARGING --json                   # reverse lookup as JSON
   canair states add PRECONDITION --description "Cabin pre-conditioning"
   canair states set-predicate CHARGING "BMS.BATTERY_CURRENT < -1"
+  canair states set-implies DRIVING READY         # DRIVING is the specific reading
+  canair states set-implies DRIVING               # clear the hierarchy
   canair states set-description ACC "Accessory power (ACC1)"
   canair states rename ACC2 IGN
   canair states rm PRECONDITION
@@ -41,6 +48,7 @@ class StateRecord(TypedDict):
     name: str
     description: str | None
     when: str | None
+    implies: list[str]
     uses: int
     broken: list[dict[str, str]]
 
@@ -122,6 +130,8 @@ def cmd_show_state(args) -> int:
 
     rule = next((r for r in rules if r.name.upper() == target), None)
     matches = ecus_in_state(target, load_pids(), prof)
+    implies = list(rule.implies) if rule else []
+    specialized_by = [r.name for r in rules if target in r.implies]
 
     # Join CAN-bus segment(s) from the registry for context.
     ecus = load_ecus()
@@ -136,6 +146,8 @@ def cmd_show_state(args) -> int:
                 "state": target,
                 "description": (rule.description or None) if rule else None,
                 "when": (rule.expr or None) if rule else None,
+                "implies": implies,
+                "specialized_by": specialized_by,
                 "ecus": [
                     {
                         "name": m["name"],
@@ -161,6 +173,10 @@ def cmd_show_state(args) -> int:
         print(f"  {ansi.c(rule.description, ansi.DIM)}")
     if rule and rule.expr:
         print(f"  {ansi.c('when: ' + rule.expr, ansi.DIM)}")
+    if implies:
+        print(f"  {ansi.c('specializes: ' + ', '.join(implies), ansi.DIM)}")
+    if specialized_by:
+        print(f"  {ansi.c('specialized by: ' + ', '.join(specialized_by), ansi.DIM)}")
 
     if not matches:
         print(
@@ -235,6 +251,7 @@ def cmd_list(args) -> int:
             "name": r.name,
             "description": r.description or None,
             "when": r.expr or None,
+            "implies": list(r.implies),
             "uses": usage.get(r.name.upper(), 0),
             "broken": broken.get(r.name, []),
         }
@@ -285,6 +302,9 @@ def cmd_list(args) -> int:
             auto = ansi.c(f"{'—':<4}", ansi.DIM)
         desc = str(r["description"] or "")
         print(f"  {name} {n_str}  {auto}  {ansi.c(desc, ansi.DIM)}")
+        if r["implies"]:
+            arrow = "specializes: " + ", ".join(r["implies"])
+            print(f"  {'':<14} {'':>4}        {ansi.c(arrow, ansi.DIM)}")
         if r["when"]:
             print(f"  {'':<14} {'':>4}        {ansi.c('when: ' + r['when'], ansi.DIM)}")
         for issue in r["broken"]:
@@ -293,6 +313,11 @@ def cmd_list(args) -> int:
             )
 
     print(f"\n  {ansi.c('● = auto-suggested from decoded PIDs (has a when: predicate)', ansi.DIM)}")
+    if any(r["implies"] for r in records):
+        print(
+            f"  {ansi.c('specializes: = this state is the more specific reading when both', ansi.DIM)}\n"
+            f"  {ansi.c('    match, so the live view shows it instead of the broader one', ansi.DIM)}"
+        )
     if any(r["broken"] for r in records):
         print(
             f"  {ansi.c('✗ = predicate references a signal that does not exist — it can', ansi.DIM)}\n"
@@ -355,7 +380,9 @@ def cmd_add(args) -> int:
     args._states_msg = f"added state {args.name.upper()}"
     rc = _run_edit(
         args,
-        lambda: add_state(args.name, description=args.description, when=args.when),
+        lambda: add_state(
+            args.name, description=args.description, when=args.when, implies=args.implies
+        ),
     )
     _warn_unresolved_refs(args.name.upper(), args.when)
     return rc
@@ -397,13 +424,21 @@ def cmd_set_predicate(args) -> int:
     return rc
 
 
+def cmd_set_implies(args) -> int:
+    from canlib.states_edit import set_state_field
+
+    verb = "cleared" if not args.value else "set"
+    args._states_msg = f"{verb} implies: on {args.name.upper()}"
+    return _run_edit(args, lambda: set_state_field(args.name, "implies", args.value or None))
+
+
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
         help="List and edit the profile's vehicle-state vocabulary (vehicle_states.yaml)",
         description="List the active profile's vehicle operating states, or edit the "
-        "vocabulary (add/rm/rename/set-description/set-predicate). Read-only companion "
-        "of the state auto-suggestion used when recording captures.",
+        "vocabulary (add/rm/rename/set-description/set-predicate/set-implies). Read-only "
+        "companion of the state auto-suggestion used when recording captures.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__.split("Examples:")[1] if "Examples:" in __doc__ else "",
     )
@@ -423,6 +458,13 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     add.add_argument("name", help="State name (normalized to UPPERCASE)")
     add.add_argument("--description", "-d", help="Human-readable description")
     add.add_argument("--when", "-w", metavar="EXPR", help="Auto-suggest predicate over ECU.PARAM")
+    add.add_argument(
+        "--implies",
+        "-i",
+        metavar="STATES",
+        help="Comma-separated broader states this one specializes (e.g. READY) — when both "
+        "match, the live view shows this one",
+    )
     add.set_defaults(_states_func=cmd_add)
 
     rm = sub.add_parser("rm", help="Remove a state from the vocabulary")
@@ -445,6 +487,23 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "value", nargs="?", default=None, metavar="EXPR", help="Predicate (omit to clear)"
     )
     sp.set_defaults(_states_func=cmd_set_predicate)
+
+    si = sub.add_parser(
+        "set-implies",
+        help="Set/clear which broader states this one specializes",
+        description="Declare the specificity hierarchy: DRIVING implies READY means that when "
+        "both predicates match, DRIVING is the more specific (and shown) reading. Targets must "
+        "be declared states and the hierarchy must stay acyclic.",
+    )
+    si.add_argument("name")
+    si.add_argument(
+        "value",
+        nargs="?",
+        default=None,
+        metavar="STATES",
+        help="Comma-separated state names (omit to clear)",
+    )
+    si.set_defaults(_states_func=cmd_set_implies)
 
     parser.set_defaults(func=run)
     return parser

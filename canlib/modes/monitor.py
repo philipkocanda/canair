@@ -57,6 +57,17 @@ from .multi_batch import EcuFrame, ResultEntry
 if TYPE_CHECKING:
     from .monitor_reconnect import Reconnector
 
+# How many poll cycles a decoded value stays eligible for state auto-suggestion.
+# The live suggestion answers "what state is the car in NOW", so its inputs must
+# expire — an unbounded map keeps matching DRIVING off a speed read before the car
+# parked. Counted in cycles rather than seconds so it adapts to the poll rate: a
+# round-robin sweep over a dozen ECUs takes far longer per cycle than a two-PID
+# one, and a wall-clock window short enough for the latter would expire the
+# former's values before they were ever refreshed. Three (the same tolerance as
+# `transport.stale_cycles_before_reconnect`) rides out a transient dropped frame
+# without keeping a genuinely gone signal alive.
+STATE_INPUT_STALE_CYCLES = 3
+
 # _HIGHLIGHT_STYLE, _bytes_to_ascii and _render_hex_line moved to canlib.formatting;
 # _render_results/_RENDER_MAX_ROWS/RenderCache to _monitor_render; _raw_pid_result to
 # monitor_raw; _merge_history/_write_merged/_open_journal + the recording/journaling
@@ -244,8 +255,13 @@ class MonitorController:
         self._name_index: dict | None = None
         # Auto-suggest state: latest decoded {ECU.PARAM: value} + responded ECUs,
         # evaluated against the profile's vehicle_states.yaml rules (lazy-loaded).
+        # Both EXPIRE after STATE_INPUT_STALE_CYCLES (see _expire_state_inputs):
+        # the live suggestion must answer "what is true now", not "what was ever
+        # true this run".
         self.decoded_values: dict[str, float] = {}
         self.responded: set[str] = set()
+        self._value_cycle: dict[str, int] = {}
+        self._responded_cycle: dict[str, int] = {}
         self._state_rules: list | None = None
         # In-place editing / filtering of PID definitions from the TUI. The
         # editor owns the selection cursor + display filter and writes edits
@@ -462,6 +478,28 @@ class MonitorController:
                     await self.sm.terminal.set_header(info["tx_id"])
                     await self.sm.terminal.send_uds(plan[0][0], retries=1)
 
+    def _expire_state_inputs(self) -> None:
+        """Drop state-suggestion inputs not refreshed in the last few cycles.
+
+        ``decoded_values``/``responded`` accumulate across the run, so without
+        this they answer "was this ever true", not "is it true now": after a
+        drive ends, the last non-zero speed would keep DRIVING matching forever,
+        and an ECU that stopped answering would keep vouching for its state.
+        Expiring restores the three-valued contract — a signal we no longer read
+        goes back to UNKNOWN (abstain) instead of lingering as a stale fact.
+        """
+        cutoff = self.cycle - STATE_INPUT_STALE_CYCLES
+        if cutoff < 0:
+            return
+        for key, seen in list(self._value_cycle.items()):
+            if seen < cutoff:
+                del self._value_cycle[key]
+                self.decoded_values.pop(key, None)
+        for ecu, seen in list(self._responded_cycle.items()):
+            if seen < cutoff:
+                del self._responded_cycle[ecu]
+                self.responded.discard(ecu)
+
     def _record(self, new_queries: list[EcuFrame]) -> None:
         """Record freshly-polled payloads into prev_hex / display / save history."""
         # Refresh the decoded-value snapshot used for state auto-suggestion.
@@ -470,6 +508,11 @@ class MonitorController:
         values, responded = collect_values(new_queries)
         self.decoded_values.update(values)
         self.responded |= responded
+        for key in values:
+            self._value_cycle[key] = self.cycle
+        for ecu in responded:
+            self._responded_cycle[ecu] = self.cycle
+        self._expire_state_inputs()
         # Snapshot the prior cycle's payloads before the recorder overwrites them,
         # so the renderer can diff current-vs-previous (prev_hex is about to become
         # the current values).
@@ -777,13 +820,21 @@ class MonitorController:
         return list(self.recorder.segments)
 
     def suggested_state(self) -> str | None:
-        """Auto-suggest the (single, highest-priority) vehicle state.
+        """Auto-suggest the single, most *specific* vehicle state.
 
-        Thin wrapper over :meth:`suggested_states` returning the first match —
-        for the callers/UI that still expect a single state.
+        Several states are true at once by design — driving is genuinely both
+        READY and DRIVING — so a one-slot display must not just take the first
+        match: it applies the profile's ``implies:`` hierarchy and drops every
+        state another match specializes (:func:`canlib.states.most_specific_states`).
+        Among states unrelated in that hierarchy, file order still decides.
         """
+        from ..states import most_specific_states
+
         matched = self.suggested_states()
-        return matched[0] if matched else None
+        if not matched:
+            return None
+        specific = most_specific_states(self._state_rules or [], matched)
+        return specific[0] if specific else matched[0]
 
     def suggested_states(self) -> list[str]:
         """Auto-suggest the vehicle state(s) from the latest decoded values.

@@ -228,13 +228,17 @@ def _scrub_capture_labels(captures_dir: Path) -> int:
 
 
 def _strip_vehicle_states(path: Path) -> None:
-    """Rebuild vehicle_states.yaml with only names+descriptions.
+    """Rebuild vehicle_states.yaml with only names, descriptions and ``implies``.
 
     The ``when:`` auto-suggest predicates (and this file's comments) reference
     decoded parameters as ``ECU.PARAM`` and even cite byte offsets — a direct
     answer leak. Dropping them is safe for the blind test: ``--discriminate
     state`` reads each capture's *stored* ``vehicle_states``, not a re-derived
     label, so state analysis still works.
+
+    ``implies:`` is kept: it names only other states (already visible here) and
+    leaks no ECU, parameter or offset, while preserving the specificity hierarchy
+    that decides which single state a one-slot view shows.
     """
     import yaml
 
@@ -246,6 +250,8 @@ def _strip_vehicle_states(path: Path) -> None:
         entry: dict[str, Any] = {"name": s["name"]}
         if s.get("description"):
             entry["description"] = s["description"]
+        if s.get("implies"):
+            entry["implies"] = s["implies"]
         clean.append(entry)
     path.write_text(yaml.safe_dump({"states": clean}, sort_keys=False, allow_unicode=True))
 

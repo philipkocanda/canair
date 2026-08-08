@@ -232,6 +232,15 @@ just the state active at the instant it closed. So a segment that charged and th
 went idle still reconciles as `charging`, rather than losing the label because the
 car happened to stop charging just before you stopped recording.
 
+The **status bar** answers the opposite question — what the car is doing *now* —
+so its inputs expire: a decoded value stops feeding the state predicates a few
+poll cycles after it was last read, which returns that signal to "unknown"
+instead of leaving it asserted forever. Without that, a parked car kept reading
+`DRIVING` from the last speed sample of the drive. Expiry is counted in **poll
+cycles, not seconds**, so it scales with the sweep: polling a dozen ECUs takes far
+longer per cycle than polling two, and a fixed wall-clock window would expire the
+wide sweep's values before it could refresh them.
+
 ## Vehicle states
 
 A byte's meaning often only becomes clear *relative to what the car is doing*. A
@@ -246,7 +255,8 @@ of power states, each with an optional predicate over decoded values. Because of
 those predicates, canair can **auto-suggest** a capture's state from the data it
 just read, so tagging is mostly automatic. A session is naturally **composite** —
 *every* predicate that matches contributes, so a parked, ready car reads as
-`READY, PARKED`. Predicate order is display order only, not priority.
+`READY, PARKED`. Predicate order is display order, not priority: it only
+tie-breaks states unrelated in the hierarchy below.
 
 Predicates use **three-valued (Kleene) logic**: a predicate that depends on a
 parameter that wasn't polled *abstains* (neither matches nor is falsified) rather
@@ -270,6 +280,50 @@ canair states add PRECONDITION -d "Cabin pre-conditioning"
 canair states set-predicate CHARGING "BMS.BATTERY_CURRENT < -1"
 canair validate states                 # check the vocabulary + its signal references
 ```
+
+### Some states are more specific than others (`implies:`)
+
+Composite is right for a *recording* — a segment that spanned a drive really was
+both `READY` and `DRIVING` — but a view with room for one state has to choose,
+and "the first one declared" is the wrong answer: the monitor's status bar read
+`READY` while the car was driving.
+
+A state therefore declares which broader states it **specializes**:
+
+```yaml
+  - name: DRIVING
+    implies: [READY]           # driving is a *more specific* reading of READY
+    when: ESC.REAL_SPEED_KMH > 0.5 or MCU.MCU_MOTOR_RPM > 100
+```
+
+This is entailment, not priority — DRIVING isn't "more important" than READY, it
+*means* READY plus motion. So the hierarchy needs no renumbering when you add a
+state, and it reads as documentation. The bundled Ioniq declares
+`DRIVING → READY → ACC2 → ACC` and `CHARGING → PLUGGED`.
+
+Where it applies:
+
+- **Single-state views narrow to the most specific match** — the monitor status
+  bar shows `DRIVING`, dropping every state another match implies (transitively:
+  a match on DRIVING also suppresses ACC2 and ACC). States unrelated in the
+  hierarchy both survive, and file order decides between them.
+- **Recordings keep every match.** A `--save` segment's states, the save
+  dialog's pre-fill and `captures uds --backfill-states` are unchanged: they
+  store `READY, DRIVING`, because the session genuinely was in both.
+
+Edit it with `canair states` (never hand-edit the file):
+
+```bash
+canair states set-implies DRIVING READY      # declare / replace
+canair states set-implies DRIVING            # clear
+canair states add DRIVING --implies READY --when "ESC.REAL_SPEED_KMH > 0.5"
+```
+
+`canair validate states` (and every `canair states` edit) rejects a target that
+isn't a declared state, a state implying itself, an `implies: [ALL]` (`ALL` is
+the "readable in every state" meta-token, not a state to specialize), and any
+cycle — a cycle would make "more specific than" meaningless. Removing or
+renaming a state retargets the states that referenced it.
 
 ### Predicates are cross-checked against the signal registry
 

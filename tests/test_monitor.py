@@ -949,6 +949,83 @@ class TestControllerSuggestedState:
         c = self._controller(monkeypatch, [])
         assert c.suggested_state() is None
 
+    def _frame(self, ecu, pid, params):
+        return [(ecu, [{"pid": pid, "raw_hex": "6101", "params": params}])]
+
+    def _driving_rules(self):
+        from canlib.states import StateRule, compile_predicate
+
+        # READY is declared first, so file order alone would report READY while
+        # driving even though DRIVING is the specific reading. This is the bug.
+        return [
+            StateRule("READY", predicate=compile_predicate("VCU.EV_READY == 1")),
+            StateRule(
+                "DRIVING",
+                predicate=compile_predicate("ESC.SPEED > 0.5"),
+                implies=("READY",),
+            ),
+        ]
+
+    def _poll(self, c, speed):
+        c.cycle += 1
+        c._record(
+            self._frame("VCU (0x7E2)", "2101", [("EV_READY", 1.0, "", "", None, True, "")])
+            + self._frame("ESC (0x7D1)", "22C101", [("SPEED", speed, "km/h", "", None, True, "")])
+        )
+
+    def test_driving_beats_the_ready_it_implies(self, monkeypatch):
+        c = self._controller(monkeypatch, self._driving_rules())
+        self._poll(c, 42.0)
+        assert c.suggested_state() == "DRIVING"
+        # The recorded session still keeps both — a segment is composite.
+        assert c.suggested_states() == ["READY", "DRIVING"]
+
+    def test_stale_speed_expires_so_driving_stops_matching(self, monkeypatch):
+        from canlib.modes.monitor import STATE_INPUT_STALE_CYCLES
+
+        c = self._controller(monkeypatch, self._driving_rules())
+        self._poll(c, 42.0)
+        assert c.suggested_state() == "DRIVING"
+        # Car parks: ESC stops answering entirely (its rows vanish from the
+        # cycle). An unbounded value map would keep matching DRIVING forever.
+        for _ in range(STATE_INPUT_STALE_CYCLES + 1):
+            c.cycle += 1
+            c._record(
+                self._frame("VCU (0x7E2)", "2101", [("EV_READY", 1.0, "", "", None, True, "")])
+            )
+        assert "ESC.SPEED" not in c.decoded_values
+        assert c.suggested_state() == "READY"
+
+    def test_refreshed_values_never_expire(self, monkeypatch):
+        from canlib.modes.monitor import STATE_INPUT_STALE_CYCLES
+
+        c = self._controller(monkeypatch, self._driving_rules())
+        for _ in range(STATE_INPUT_STALE_CYCLES * 3):
+            self._poll(c, 42.0)
+        assert c.suggested_state() == "DRIVING"
+
+    def test_a_single_dropped_cycle_is_tolerated(self, monkeypatch):
+        # Expiry must ride out a transient drop, or the status bar flaps.
+        c = self._controller(monkeypatch, self._driving_rules())
+        self._poll(c, 42.0)
+        c.cycle += 1
+        c._record([])
+        assert c.suggested_state() == "DRIVING"
+
+    def test_responded_expires_too(self, monkeypatch):
+        from canlib.modes.monitor import STATE_INPUT_STALE_CYCLES
+        from canlib.states import StateRule, compile_predicate
+
+        rules = [StateRule("SLEEP", predicate=compile_predicate("__no_response__"))]
+        c = self._controller(monkeypatch, rules)
+        self._poll(c, 0.0)
+        assert c.suggested_state() is None  # something answered → not asleep
+        for _ in range(STATE_INPUT_STALE_CYCLES + 1):
+            c.cycle += 1
+            c._record([])
+        assert c.responded == set()
+        assert c.suggested_state() == "SLEEP"
+
 
 class TestQueryLabel:
     def _controller(self, steps):

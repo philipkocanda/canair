@@ -18,6 +18,12 @@
 # ECU.PARAM and use three-valued logic — a predicate depending on an unpolled
 # parameter abstains rather than reading false. See canlib/states.py.
 #
+# `implies:` names the broader states a state specializes: DRIVING implies READY,
+# CHARGING implies PLUGGED, READY implies ACC2, ACC2 implies ACC. Both readings
+# stay true (a recorded session keeps every state it was in), but a view that
+# must name ONE — the monitor status bar — names the most specific, so driving
+# reads DRIVING rather than READY.
+#
 # Schema: canlib/schema/states_schema.yaml   (canair validate states)
 #
 # TODO:
@@ -32,11 +38,13 @@ states:
   # the OBC reports DC output current only while charging (verified).
   - name: CHARGING
     description: HV battery actively charging (AC or DC). Implies plugged.
+    implies: [PLUGGED]
     when: "(BMS.BATTERY_CURRENT < -1 or OBC.OBC_DC_A > 0.5) and not (ESC.REAL_SPEED_KMH > 0.5 or VCU.VCU_VEHICLE_SPEED > 0.5 or EPS.EPS_VEHICLE_SPEED > 0.5 or MCU.MCU_MOTOR_RPM > 100)"
 
   # HV active / driveable. VEHICLE_STATE_EV_READY (VCU 2101 B11:3) is verified.
   - name: READY
     description: HV active, car in READY (driveable).
+    implies: [ACC2]
     when: "VCU.VEHICLE_STATE_EV_READY == 1"
 
   # --- States below here were predicate-less; predicates added 2026-08-04 from
@@ -52,12 +60,14 @@ states:
     description: ACC1 — one start-button press, accessory power.
   - name: ACC2
     description: ACC2/IGN — full ignition, no HV.
+    implies: [ACC]
     when: IGPM.ACC2_IGN_ON == 1
   - name: PARKED
     description: Stationary, gear in Park.
     when: VCU.GEAR_P == 1 or ESC.GEAR_SELECTOR == 1
   - name: DRIVING
     description: In motion.
+    implies: [READY]
     when: ESC.REAL_SPEED_KMH > 0.5 or VCU.VCU_VEHICLE_SPEED > 0.5 or EPS.EPS_VEHICLE_SPEED > 0.5 or MCU.MCU_MOTOR_RPM > 100
 
   # The gateway/meta token — applicable in every vehicle state (the state

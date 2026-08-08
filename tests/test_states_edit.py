@@ -234,6 +234,91 @@ class TestSetStateField:
             set_state_field("READY", "bogus", "x", profile=prof)
 
 
+class TestImpliesField:
+    """`implies:` — writing, clearing, key placement, and hierarchy validation."""
+
+    def test_add_state_with_implies(self, tmp_path):
+        prof = _Prof(tmp_path)
+        add_state("READY", profile=prof)
+        add_state("DRIVING", implies="ready", profile=prof)
+        assert _states(prof)[1]["implies"] == ["READY"]
+
+    def test_set_and_clear_implies(self, tmp_path):
+        prof = _Prof(tmp_path)
+        add_state("READY", profile=prof)
+        add_state("ACC2", profile=prof)
+        add_state("DRIVING", profile=prof)
+        set_state_field("DRIVING", "implies", "ready, acc2", profile=prof)
+        assert _states(prof)[2]["implies"] == ["READY", "ACC2"]
+        set_state_field("DRIVING", "implies", None, profile=prof)
+        assert "implies" not in _states(prof)[2]
+
+    def test_implies_is_written_as_a_flow_list_above_when(self, tmp_path):
+        # Key order matters: appending after `when:` lands the key after that
+        # entry's trailing comment, which for the last entry is the comment
+        # introducing the next state.
+        prof = _Prof(tmp_path)
+        add_state("READY", profile=prof)
+        add_state("DRIVING", when="ESC.SPEED > 0.5", profile=prof)
+        set_state_field("DRIVING", "implies", "READY", profile=prof)
+        text = prof.states_file.read_text()
+        assert "implies: [READY]" in text
+        assert text.index("implies:") < text.index("when: ESC.SPEED")
+
+    def test_undeclared_target_reverts(self, tmp_path):
+        prof = _Prof(tmp_path)
+        add_state("DRIVING", profile=prof)
+        original = prof.states_file.read_text()
+        with pytest.raises(StatesEditError, match="undeclared state"):
+            set_state_field("DRIVING", "implies", "NOPE", profile=prof)
+        assert prof.states_file.read_text() == original
+
+    def test_self_implication_reverts(self, tmp_path):
+        prof = _Prof(tmp_path)
+        add_state("DRIVING", profile=prof)
+        with pytest.raises(StatesEditError, match="itself"):
+            set_state_field("DRIVING", "implies", "driving", profile=prof)
+
+    def test_cycle_reverts(self, tmp_path):
+        prof = _Prof(tmp_path)
+        add_state("A", profile=prof)
+        add_state("B", implies="A", profile=prof)
+        with pytest.raises(StatesEditError, match="cycle"):
+            set_state_field("A", "implies", "B", profile=prof)
+        assert "implies" not in _states(prof)[0]
+
+    def test_implies_all_is_rejected(self, tmp_path):
+        prof = _Prof(tmp_path)
+        add_state("ALL", profile=prof)
+        add_state("DRIVING", profile=prof)
+        with pytest.raises(StatesEditError, match="ALL"):
+            set_state_field("DRIVING", "implies", "ALL", profile=prof)
+
+    def test_remove_state_drops_dangling_references(self, tmp_path):
+        # Without this the removal would fail its own re-parse and revert.
+        prof = _Prof(tmp_path)
+        add_state("READY", profile=prof)
+        add_state("DRIVING", implies="READY", profile=prof)
+        remove_state("READY", profile=prof)
+        assert _names(prof) == ["DRIVING"]
+        assert "implies" not in _states(prof)[0]
+
+    def test_remove_state_keeps_other_targets(self, tmp_path):
+        prof = _Prof(tmp_path)
+        add_state("ACC", profile=prof)
+        add_state("READY", profile=prof)
+        add_state("DRIVING", implies="READY, ACC", profile=prof)
+        remove_state("READY", profile=prof)
+        assert _states(prof)[1]["implies"] == ["ACC"]
+
+    def test_rename_state_retargets_references(self, tmp_path):
+        prof = _Prof(tmp_path)
+        add_state("READY", profile=prof)
+        add_state("DRIVING", implies="READY", profile=prof)
+        rename_state("READY", "LIVE", profile=prof)
+        assert _states(prof)[1]["implies"] == ["LIVE"]
+
+
 class TestReparseGuard:
     def test_duplicate_after_edit_reverts(self, tmp_path, monkeypatch):
         # Force a corrupt write and confirm the file is reverted to the original.

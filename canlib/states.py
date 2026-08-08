@@ -21,7 +21,18 @@ small boolean expression referencing parameters by ``ECU.PARAM``::
 ``suggest_states`` evaluates the rules against the latest decoded values and
 returns every match (a session is naturally composite, e.g. ``READY, PARKED``) —
 implementing the project goal of using known PIDs to deduce vehicle state.
-``suggest_state`` is the single-result wrapper older callers use.
+
+More than one state is genuinely true at once, so a state may declare which
+broader states it is a *specialization* of::
+
+    states:
+      - name: DRIVING
+        implies: [READY]
+        when: "ESC.REAL_SPEED_KMH > 0.5"
+
+``most_specific_states`` uses that hierarchy to reduce a composite match to the
+states nothing else implies, which is how a single-state display picks DRIVING
+over READY while both are true. ``suggest_state`` is that single-result wrapper.
 
 Predicates are evaluated with a whitelisted-AST evaluator (no ``eval``): only
 boolean/comparison operators, ``ECU.PARAM`` names, numeric/string/bool literals,
@@ -153,12 +164,21 @@ _ALLOWED_NODES = (
 
 @dataclass(frozen=True)
 class StateRule:
-    """One declared state: a name, optional description, and optional predicate."""
+    """One declared state: a name, optional description, predicate, and implications.
+
+    ``implies`` names the broader states this one is a *specialization* of — a car
+    that is DRIVING is necessarily READY, one that is CHARGING is necessarily
+    PLUGGED. It is the profile's declarative specificity hierarchy, and it is
+    what lets a single-state display pick DRIVING over READY when both match
+    (see :func:`most_specific_states`) without the file's order having to double
+    as a priority list.
+    """
 
     name: str
     description: str = ""
     predicate: Callable[[dict, set | None], Tristate] | None = None
     expr: str = ""
+    implies: tuple[str, ...] = ()
 
 
 def _dotted_name(node: ast.AST) -> str:
@@ -350,7 +370,8 @@ def _states_path(profile=None) -> Path:
 def load_states(profile=None) -> list[StateRule]:
     """Load and compile the profile's vehicle_states.yaml. Returns [] when absent.
 
-    Raises :class:`StatePredicateError` when a ``when:`` expression is invalid.
+    Raises :class:`StatePredicateError` when a ``when:`` expression is invalid or
+    the ``implies:`` hierarchy contains a cycle.
     """
     path = _states_path(profile)
     if not path.exists():
@@ -368,8 +389,14 @@ def load_states(profile=None) -> list[StateRule]:
                 description=str(entry.get("description", "")),
                 predicate=pred,
                 expr=expr,
+                implies=parse_implies(entry.get("implies")),
             )
         )
+    # A cycle makes "more specific than" meaningless, so refuse the file outright
+    # rather than let the arbitration silently pick an arbitrary member.
+    cycle = implication_cycle(rules)
+    if cycle:
+        raise StatePredicateError(f"implies: cycle {' -> '.join(cycle)}")
     return rules
 
 
@@ -519,16 +546,129 @@ def ecus_in_state(state, pids_data, profile=None) -> list[dict]:
     return out
 
 
-def suggest_state(rules: list[StateRule], values: dict, responded: set | None) -> str | None:
-    """Return the first state whose predicate matches the decoded values.
+# ---------------------------------------------------------------------------
+# Specificity hierarchy (`implies:`)
+# ---------------------------------------------------------------------------
+#
+# States are not one axis, and more than one is genuinely true at a time: a car
+# being driven is READY *and* DRIVING, one taking a charge is PLUGGED *and*
+# CHARGING. Recording keeps every match (a session is composite), but any
+# single-state display has to choose one, and it must not choose by file order —
+# that would make an editorial decision (where a state was typed) load-bearing.
+#
+# `implies:` declares the real relation instead: DRIVING is a *specialization* of
+# READY. The most specific matches are the ones no other match implies, which is
+# also the smallest set that still entails every match — nothing is lost by
+# showing only them. Implication is the semantic relation, not a priority
+# number, so it is self-documenting and needs no renumbering when a state is
+# inserted. The hierarchy must be a DAG (`load_states` refuses a cycle) and its
+# targets must be declared states (`canair validate states` checks that).
 
-    A thin wrapper over :func:`suggest_states` that returns only the first match
-    (highest priority in file order) — the single-state shape older callers and
-    the interactive prompts expect. Prefer :func:`suggest_states` for offline
-    back-fill, where a session is naturally composite (e.g. ``READY, PARKED``).
+
+def parse_implies(value) -> tuple[str, ...]:
+    """Normalize an ``implies:`` value into an UPPER-cased, de-duplicated tuple.
+
+    Accepts a list/tuple of names, a comma-separated string, or None. Kept
+    deliberately permissive about *which* names appear (an undeclared target is
+    reported by ``canair validate states``, not raised here) so one stale
+    reference cannot make the whole profile unloadable.
+    """
+    return tuple(dict.fromkeys(parse_states(value)))
+
+
+def _implies_map(rules: list[StateRule]) -> dict[str, tuple[str, ...]]:
+    """``{UPPER state: direct implications}`` for the declared rules."""
+    return {r.name.upper(): r.implies for r in rules}
+
+
+def implication_cycle(rules: list[StateRule]) -> list[str] | None:
+    """Return one ``implies:`` cycle as a name path, or None when the graph is a DAG.
+
+    The returned path starts and ends on the same state (``["A", "B", "A"]``) so
+    the error message can show the loop. A state implying itself is a cycle too.
+    """
+    direct = _implies_map(rules)
+    # 0 = unvisited, 1 = on the current path, 2 = fully explored.
+    mark: dict[str, int] = {}
+
+    def walk(node: str, path: list[str]) -> list[str] | None:
+        mark[node] = 1
+        for nxt in direct.get(node, ()):
+            if nxt not in direct:
+                continue  # undeclared target: validate's problem, not a cycle
+            if mark.get(nxt) == 1:
+                return [*path[path.index(nxt) :], nxt]
+            if mark.get(nxt, 0) == 0:
+                found = walk(nxt, [*path, nxt])
+                if found:
+                    return found
+        mark[node] = 2
+        return None
+
+    for name in direct:
+        if mark.get(name, 0) == 0:
+            found = walk(name, [name])
+            if found:
+                return found
+    return None
+
+
+def implied_closure(rules: list[StateRule], state: str) -> set[str]:
+    """Every state ``state`` implies, transitively (UPPER-cased, excluding itself).
+
+    Safe on a cyclic graph (the visited set terminates the walk), so callers that
+    run before validation cannot hang.
+    """
+    direct = _implies_map(rules)
+    out: set[str] = set()
+    stack = list(direct.get(str(state).upper(), ()))
+    while stack:
+        nxt = stack.pop()
+        if nxt in out:
+            continue
+        out.add(nxt)
+        stack.extend(direct.get(nxt, ()))
+    out.discard(str(state).upper())
+    return out
+
+
+def most_specific_states(rules: list[StateRule], matched) -> list[str]:
+    """Reduce ``matched`` to the states no other match implies, in input order.
+
+    ``[READY, DRIVING]`` becomes ``[DRIVING]`` when DRIVING implies READY. States
+    the hierarchy leaves unrelated all survive, so a car both plugged in and
+    driveable still reports ``[READY, PLUGGED]`` rather than silently dropping
+    one. The graph is a DAG once :func:`load_states` has accepted it, so a state
+    is never dropped by something it implies in turn.
+    """
+    tokens = [str(s) for s in matched or []]
+    if len(tokens) < 2:
+        return tokens
+    entailed: set[str] = set()
+    for tok in tokens:
+        entailed |= implied_closure(rules, tok)
+    return [t for t in tokens if t.upper() not in entailed]
+
+
+# ---------------------------------------------------------------------------
+# Suggestion
+# ---------------------------------------------------------------------------
+
+
+def suggest_state(rules: list[StateRule], values: dict, responded: set | None) -> str | None:
+    """Return the single most representative state whose predicate matches.
+
+    Arbitrates the matches by the profile's ``implies:`` hierarchy: a state that
+    another match *implies* is redundant, so DRIVING (which implies READY) wins
+    over READY when both are true. Among states the hierarchy leaves unrelated
+    (say PLUGGED and READY) the first in file order is returned, since there is
+    no declared reason to prefer either — use :func:`most_specific_states` to see
+    them all. Prefer :func:`suggest_states` for offline back-fill, where a
+    session is naturally composite (e.g. ``READY, PARKED``).
     """
     matched, _false = suggest_states(rules, values, responded)
-    return matched[0] if matched else None
+    specific = most_specific_states(rules, matched)
+    return specific[0] if specific else None
 
 
 def suggest_states(
@@ -544,6 +684,9 @@ def suggest_states(
     - ``matched`` — states whose predicate is definitely ``True``, in file order.
       Multiple can match (the composite case); a predicate that resolves to
       :data:`UNKNOWN` (references an unpolled param) is neither matched nor false.
+      The ``implies:`` hierarchy is deliberately *not* applied here — a recorded
+      session should keep every state it was in. Reduce to the representative
+      subset with :func:`most_specific_states` when a display needs one label.
     - ``definitely_false`` — states whose predicate is definitely ``False``. This
       lets a caller flag a *conflict* between an already-recorded state and the
       decoded evidence without needing an explicit state-axis model.

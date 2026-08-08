@@ -92,18 +92,27 @@ class TestEditDispatch:
     def test_add_dispatch(self, monkeypatch, capsys, tmp_path):
         called = {}
 
-        def _add(name, *, description=None, when=None, profile=None):
-            called.update(name=name, description=description, when=when)
+        def _add(name, *, description=None, when=None, implies=None, profile=None):
+            called.update(name=name, description=description, when=when, implies=implies)
             return tmp_path / "vehicle_states.yaml"
 
         monkeypatch.setattr("canlib.states_edit.add_state", _add)
         monkeypatch.setenv("NO_COLOR", "1")
         args = argparse.Namespace(
-            name="precondition", description="d", when=None, _states_func=states_cmd.cmd_add
+            name="precondition",
+            description="d",
+            when=None,
+            implies="READY",
+            _states_func=states_cmd.cmd_add,
         )
         rc = states_cmd.run(args)
         assert rc == 0
-        assert called == {"name": "precondition", "description": "d", "when": None}
+        assert called == {
+            "name": "precondition",
+            "description": "d",
+            "when": None,
+            "implies": "READY",
+        }
         assert "added state PRECONDITION" in capsys.readouterr().out
 
     def test_add_error_is_clean(self, monkeypatch):
@@ -115,7 +124,11 @@ class TestEditDispatch:
         monkeypatch.setattr("canlib.states_edit.add_state", _add)
         monkeypatch.setenv("NO_COLOR", "1")
         args = argparse.Namespace(
-            name="READY", description=None, when=None, _states_func=states_cmd.cmd_add
+            name="READY",
+            description=None,
+            when=None,
+            implies=None,
+            _states_func=states_cmd.cmd_add,
         )
         with pytest.raises(SystemExit) as exc:
             states_cmd.run(args)
