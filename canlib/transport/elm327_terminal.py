@@ -23,11 +23,12 @@ import sys
 import time
 from collections.abc import AsyncIterator
 
+from ..link_latency import LinkLatency
 from ..log import log_command, log_response
 from ..safety import enforce_command_safety
 from ..timing import TimingRecorder
 from ..transport_stats import TransportStats
-from ..uds_parse import CAT_STALE, UdsResponse, parse_uds_response
+from ..uds_parse import CAT_DECODE, CAT_STALE, UdsResponse, parse_uds_response
 from .channel import Channel, TcpChannel
 
 # UDS ResponsePending negative response: `7F <sid> 78` ("request received,
@@ -37,6 +38,12 @@ from .channel import Channel, TcpChannel
 # response that merely *contains* those bytes from being mistaken for the NRC.
 # The raw-CAN counterpart is `uds_raw.is_response_pending`.
 _PENDING_RE = re.compile(r"7F[0-9A-Fa-f]{2}78")
+
+# Response classes that prove the pipe is carrying something other than this
+# request's answer, and so warrant realigning it. See the call site in `send_uds`
+# for why `no_data` is not one of them.
+_RESYNC_ON = frozenset({CAT_STALE, CAT_DECODE})
+
 
 # Largest UDS request an ELM327 will accept as one exchange. The adapter writes
 # the bytes you give it into a single CAN frame and prepends the ISO-TP PCI byte
@@ -50,15 +57,33 @@ _ELM_MAX_REQUEST_BYTES = 7
 _ELM_ST_UNIT = 0.004096
 _DEFAULT_ELM_BUDGET = 0x96 * _ELM_ST_UNIT
 
-# Extra slack added to the ELM's own budget when deciding how long "quiet" must
-# last for the pipe to be provably empty. It covers the link round-trip, which on
-# a cellular/VPN path is the dominant term — the failure this guards against is a
-# stalled link delivering a late reply *after* a too-short drain window.
+# Floor for the link-latency slack added to the ELM's own budget when deciding how
+# long "quiet" must last for the pipe to be provably empty. It is only a floor:
+# the slack is normally the *measured* round trip (`LinkLatency`), because the
+# failure this guards against is a stalled link delivering a late reply after a
+# too-short drain window, and on a cellular/VPN path the link term is the dominant
+# one and unknowable up front. Keeping the old constant as the floor means a fast
+# link never gets a tighter window than the one already known to work.
 _LINK_LATENCY_MARGIN = 0.5
+
+# ELM327 commands the adapter answers from memory — no CAN traffic, no hardware
+# work — so their round trip *is* the link's, which is the only thing
+# `LinkLatency` may be fed. An allowlist on purpose: `ATZ` resets the chip and
+# `ATSP` can probe the bus, and either would inflate the estimate with time the
+# network never spent. Header writes dominate the hot path (one pair per ECU
+# switch), so this samples often enough to track a link that changes while
+# driving. Matched as prefixes, since the header writes carry an argument
+# (`ATSH7E4`); none of them is a prefix of a command that does more work.
+_LINK_PROBE_CMDS = ("ATI", "ATSH", "ATFCSH")
 
 # Ceiling on one resync: enough for several quiet windows, short enough that a
 # wedged adapter escalates to a reconnect instead of stalling the poll loop.
 _RESYNC_MAX_SECONDS = 3.0
+
+# Ceiling on the quiet window itself. Generous, because on a hotspot/VPN path the
+# adapter's own budget plus a measured round trip is legitimately seconds — but
+# bounded, so one absurd measurement cannot wedge the poll loop.
+_RESYNC_QUIET_MAX = 8.0
 
 # State-free ELM327 command used as the post-drain alignment probe. Any AT command
 # would do — what matters is that *a* prompt-terminated reply comes back, not what
@@ -152,6 +177,13 @@ class Elm327Terminal:
         self.cmd_time = 0.0
         # Per-(ECU, PID) round-trip timing (surfaced by `canair read --timings`).
         self.timings = TimingRecorder()
+        # Live link round-trip estimate, fed from `_LINK_PROBE_CMDS` — the commands
+        # the adapter answers without touching the bus, so the sample is the
+        # network's time and not the car's. Sizes the resync quiet window; a
+        # reconnect deliberately does *not* clear it, since the link that just
+        # dropped is usually the same one coming back and the estimate is most
+        # valuable precisely then.
+        self.link = LinkLatency()
         # The adapter builds one CAN frame per request and never segments, so a
         # request longer than this is rejected outright rather than split.
         self.max_request_bytes = _ELM_MAX_REQUEST_BYTES
@@ -303,6 +335,9 @@ class Elm327Terminal:
         Soundness comes from the adapter's own contract rather than a tuned
         constant: a reply is due within ``ATST`` (:meth:`_elm_response_budget`), so
         silence for longer than that plus link latency means nothing is in flight.
+        The link term is *measured* (:class:`~canlib.link_latency.LinkLatency`),
+        with ``_LINK_LATENCY_MARGIN`` only as a floor — guessing it is what made
+        this recovery fail on the hotspot/VPN path it was written for.
         A single state-free probe then confirms alignment — we require only that
         *a* prompt-terminated reply comes back, never specific text.
 
@@ -316,7 +351,15 @@ class Elm327Terminal:
             # The probe below is itself a command; never recurse.
             return
         self._resyncing = True
-        quiet = min(self.timeout, self._elm_response_budget() + _LINK_LATENCY_MARGIN)
+        # Not capped by `self.timeout`: that is a per-command budget tuned for a
+        # LAN, and letting it veto a measured round trip is exactly how the drain
+        # ended up shorter than the reply it was chasing. Capped by its own ceiling
+        # instead, so a pathological measurement escalates to a reconnect rather
+        # than stalling the poll loop.
+        quiet = min(
+            _RESYNC_QUIET_MAX,
+            self._elm_response_budget() + self.link.allowance(_LINK_LATENCY_MARGIN),
+        )
         try:
             await self._channel.drain(
                 per_recv_timeout=quiet,
@@ -439,8 +482,13 @@ class Elm327Terminal:
         log_response(cmd, result)
         elapsed = time.monotonic() - _t0
         self.cmd_time += elapsed
-        # Record RTT for real UDS requests only (skip AT setup + 3E00 keepalives).
         cu = cmd.replace(" ", "").upper()
+        # Feed the link estimate only from commands the adapter answers by itself,
+        # and only when a reply actually arrived — a timed-out command's elapsed is
+        # the deadline, which says nothing about the link.
+        if clean_exit and cu.startswith(_LINK_PROBE_CMDS):
+            self.link.observe(elapsed)
+        # Record RTT for real UDS requests only (skip AT setup + 3E00 keepalives).
         if not cu.startswith("AT") and cu != "3E00" and self._cur_header is not None:
             self.timings.record(f"0x{self._cur_header:03X}", cu, elapsed)
         return result
@@ -555,14 +603,29 @@ class Elm327Terminal:
                     ecu=(f"0x{self._cur_header:03X}" if self._cur_header is not None else None),
                     pid=service_pid,
                 )
-                if resp.get("error_kind") == CAT_STALE:
-                    # A validation failure *proves* the pipe is offset — we just
-                    # read an older request's reply, so a newer one is still
-                    # queued. Realign unconditionally, even when not retrying:
-                    # leaving the offset in place is the bug (every later reply
-                    # arrives prompt-terminated, so the dirty-pipe flag never
-                    # trips again and the session never recovers).
-                    await self._resync(f"stale response to {service_pid}")
+                if resp.get("error_kind") in _RESYNC_ON:
+                    # Two different proofs that the pipe holds something that is
+                    # not this request's answer:
+                    #
+                    # - `stale`: validation caught an *older request's* reply, so a
+                    #   newer one is still queued. Leaving the offset in place is
+                    #   the original bug — every later reply arrives
+                    #   prompt-terminated, so the dirty-pipe flag never trips
+                    #   again and the session never recovers.
+                    # - `decode`: the adapter sent bytes that are not a UDS
+                    #   response at all — a connect banner, an `?`, line noise.
+                    #   Prompt accounting cannot catch this one, because a banner
+                    #   carries its own prompt and so looks like a paid debt; only
+                    #   its content gives it away.
+                    #
+                    # Realign unconditionally, even when not retrying: the caller
+                    # may never send another request on this PID.
+                    #
+                    # `no_data` deliberately does *not* qualify. An ECU that simply
+                    # did not answer is the normal case during a scan, and draining
+                    # on every miss would cost a probe round trip per unmapped PID.
+                    await self._resync(f"{resp.get('error_kind')} response to {service_pid}")
+
                 if resp.get("ok") or resp.get("nrc") is not None or attempt >= retries:
                     return resp
                 attempt += 1

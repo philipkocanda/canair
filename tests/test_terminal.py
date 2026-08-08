@@ -10,6 +10,7 @@ import contextlib
 import pytest
 
 from canlib.terminal import WiCANTerminal
+from canlib.transport.elm327_terminal import _RESYNC_QUIET_MAX
 
 
 class FakeWS:
@@ -363,14 +364,29 @@ class TestPipeResync:
         assert calls[0]["max_seconds"] >= 3.0
 
     @pytest.mark.asyncio
-    async def test_quiet_window_never_exceeds_the_command_timeout(self):
+    async def test_a_short_command_timeout_does_not_veto_the_window(self):
+        # A per-command timeout is tuned for a LAN. Letting it shorten the drain is
+        # how the drain ended up shorter than the reply it was chasing, so the
+        # window is now bounded by its own ceiling instead.
         t = _term_prog(["ELM327 v1.5\r>", "6101AA\r>"])
         calls = self._drain_spy(t)
-        t.elm_timeout_cmd = "ATSTFF"
+        t.elm_timeout_cmd = "ATSTFF"  # 0xFF * 4.096ms = 1.044s
         t.timeout = 0.3
         t._pipe_dirty = True
         await t.send_command("2101")
-        assert calls[0]["per_recv_timeout"] == 0.3
+        assert calls[0]["per_recv_timeout"] > 1.044
+
+    @pytest.mark.asyncio
+    async def test_the_window_is_bounded_by_its_ceiling(self):
+        # One absurd measurement must not wedge the poll loop.
+        t = _term_prog(["ELM327 v1.5\r>", "6101AA\r>"])
+        calls = self._drain_spy(t)
+        t.timeout = 60.0
+        for _ in range(5):
+            t.link.observe(30.0)
+        t._pipe_dirty = True
+        await t.send_command("2101")
+        assert calls[0]["per_recv_timeout"] == _RESYNC_QUIET_MAX
 
     @pytest.mark.asyncio
     async def test_unparseable_st_falls_back_to_the_default_budget(self):
@@ -416,6 +432,43 @@ class TestPipeResync:
         assert r["ok"] is False
         assert "Echo mismatch" in r["error"]
         assert [s[:4] for s in t.ws.sent] == ["2102", "ATI\r"]  # realigned for next time
+
+    @pytest.mark.asyncio
+    async def test_a_connect_banner_in_a_reply_slot_resyncs(self):
+        # The case prompt accounting cannot catch: a banner that slipped past
+        # connect()'s settle+drain carries its own `>`, so the ledger reads it as a
+        # paid debt. Only its content betrays it — it does not parse as UDS.
+        t = _term_prog(["ELM327 v1.5\r>", "ELM327 v1.5\r>", "6101AA\r>"])
+        t.timeout = 0.2
+        r = await t.send_uds("2101", retries=1, expected_sid=0x21, expected_echo=b"\x01")
+        assert r["ok"] is True
+        assert r["hex"] == "6101AA"
+        assert [s[:4] for s in t.ws.sent] == ["2101", "ATI\r", "2101"]
+
+    @pytest.mark.asyncio
+    async def test_a_rejected_command_does_not_resync(self):
+        # An ELM327 answers anything it dislikes with a bare `?` — e.g. a request
+        # longer than 7 data bytes. That is a complete, prompt-terminated reply in
+        # the correct slot: the pipe is aligned and nothing is queued, so a drain
+        # and probe would buy nothing. The fix for a `?` is to send less (see
+        # `multi_batch.transport_did_cap`), not to realign.
+        t = _term_prog(["?\r>"])
+        t.timeout = 0.2
+        await t.send_uds("22BC03BC04BC05BC06", expected_sid=0x22)
+        assert t.ws.sent == ["22BC03BC04BC05BC06\r"]
+        assert t.diag.resyncs == 0
+
+    @pytest.mark.asyncio
+    async def test_a_silent_ecu_does_not_resync(self):
+        # `no_data` is the normal case while scanning: draining and probing on
+        # every unmapped PID would cost a round trip per miss on the slow links
+        # this whole mechanism exists to serve.
+        t = _term_prog(["NO DATA\r>"])
+        t.timeout = 0.2
+        r = await t.send_uds("2101", expected_sid=0x21, expected_echo=b"\x01")
+        assert r["ok"] is False
+        assert t.ws.sent == ["2101\r"]
+        assert t.diag.resyncs == 0
 
     @pytest.mark.asyncio
     async def test_good_response_never_resyncs(self):

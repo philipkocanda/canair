@@ -360,6 +360,16 @@ class MonitorController:
         src = self.raw_client if self.raw else self.terminal
         return getattr(src, "diag", None)
 
+    def link(self):
+        """The active transport's :class:`~canlib.link_latency.LinkLatency`, or None.
+
+        Surfaced so the TUI can show the measured round trip: on a remote link it
+        is the difference between "the car is not answering" and "the network is
+        slow", which otherwise look identical from the driver's seat.
+        """
+        src = self.raw_client if self.raw else self.terminal
+        return getattr(src, "link", None)
+
     def reload_pids(self) -> None:
         """Re-read PID definitions after an in-place edit and rebuild the index.
 

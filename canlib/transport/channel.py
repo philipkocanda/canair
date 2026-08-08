@@ -39,9 +39,14 @@ except ImportError as e:  # pragma: no cover - import-time guard
 #                  with `ELM327 v1.5\r\r>`. The engine detects a reply by its `>`
 #                  prompt, so an undrained banner is consumed as the *first*
 #                  command's response, leaving that command's real reply buffered
-#                  — a permanent one-command offset for the whole session, which
-#                  the engine's stale-frame defence cannot recover because
-#                  connect() also clears the dirty-pipe flag.
+#                  — a one-command offset for the whole session. Prompt accounting
+#                  cannot catch this one (the banner carries its own prompt, so it
+#                  looks like a paid debt); the engine recovers only because a
+#                  banner fails to parse as a UDS response and that `decode` class
+#                  now triggers a realign. Draining here is still the cheap fix —
+#                  it costs 0.3s once, versus a drain-and-probe round trip on a
+#                  link slow enough that 0.3s wasn't enough.
+
 CONNECT_TIMEOUT = 10.0
 SETTLE_SECONDS = 0.3
 

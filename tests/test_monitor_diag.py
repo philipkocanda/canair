@@ -119,3 +119,57 @@ class TestHealthLineSegments:
 
         stub = SimpleNamespace(controller=SimpleNamespace(), _last_stale=lambda: 0)
         assert MonitorApp._health_items(stub) == []  # type: ignore[arg-type]
+
+
+class TestLinkLatencySegment:
+    """On a remote link, "the car is quiet" and "the network is slow" look alike."""
+
+    @staticmethod
+    def _controller(rtt):
+        from canlib.link_latency import LinkLatency
+
+        link = LinkLatency()
+        if rtt is not None:
+            for _ in range(10):
+                link.observe(rtt)
+        return SimpleNamespace(link=lambda: link)
+
+    def _markup(self, rtt):
+        from canlib.modes._monitor_tui import _link_items
+
+        return " ".join(i.markup for i in _link_items(self._controller(rtt)))
+
+    def test_an_unmeasured_link_shows_nothing(self):
+        assert self._markup(None) == ""
+
+    def test_a_lan_round_trip_is_not_worth_a_column(self):
+        # Sub-50ms is not what limits a poll cycle, so it is noise on the line.
+        assert self._markup(0.001) == ""
+
+    def test_a_cellular_round_trip_is_reported(self):
+        markup = self._markup(0.8)
+        assert "rtt" in markup
+        assert "800ms" in markup
+
+    def test_a_controller_without_a_link_is_tolerated(self):
+        from canlib.modes._monitor_tui import _link_items
+
+        # The raw client exposes no estimator yet.
+        assert _link_items(SimpleNamespace(link=lambda: None)) == []
+
+    def test_a_controller_without_the_accessor_is_tolerated(self):
+        from canlib.modes._monitor_tui import _link_items
+
+        assert _link_items(SimpleNamespace()) == []
+
+    def test_the_segment_lands_on_the_health_line(self):
+        from canlib.modes._monitor_tui import MonitorApp
+        from canlib.transport_stats import TransportStats
+
+        controller = self._controller(0.8)
+        controller.diag = lambda: TransportStats(transport="wican-ws")
+        controller.last_drops = 0
+        controller.last_stale = 0
+        stub = SimpleNamespace(controller=controller, _last_stale=lambda: 0)
+        items = MonitorApp._health_items(stub)  # type: ignore[arg-type]
+        assert any("rtt" in i.markup for i in items)

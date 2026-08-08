@@ -362,6 +362,26 @@ _EVENT_CATEGORY_STYLE = {
     "decode": "yellow",
 }
 
+# Round trip above which the health line reports it. Below this the link is not
+# what is limiting a poll cycle and the number is only noise; above it, latency is
+# the explanation for a slow or drop-prone session and the driver should see it.
+_RTT_NOTABLE_S = 0.05
+
+
+def _link_items(controller) -> list[StatusItem]:
+    """Measured link round trip, once there is enough evidence to show one.
+
+    Only shown when the link is slow enough to matter: on a LAN the number is
+    noise, and every always-on segment costs a column a real signal could use.
+    Tolerates a controller with no estimator (the raw client has none yet).
+    """
+    link_fn = getattr(controller, "link", None)
+    link = link_fn() if callable(link_fn) else None
+    rtt = getattr(link, "rtt", None) if link is not None else None
+    if rtt is None or rtt < _RTT_NOTABLE_S:
+        return []
+    return [StatusItem(f"[dim]rtt[/] [yellow]{rtt * 1000:.0f}ms[/]", P_NORMAL)]
+
 
 class EventLogModal(ModalScreen[None]):
     """Scrollable overlay of the central diagnostics event log.
@@ -859,6 +879,7 @@ class MonitorApp(HelpMixin, App):
             items.append(StatusItem(f"[dim]resync[/] [yellow]{resyncs}[/]", P_HIGH))
         if errs:
             items.append(StatusItem(f"[dim]errs[/] [yellow]{errs}[/]", P_HIGH))
+        items.extend(_link_items(self.controller))
         return items
 
     def _last_stale(self) -> int:
