@@ -24,6 +24,8 @@ from collections import deque
 
 import can
 
+from ..link_latency import LinkLatency
+
 # SLCAN bitrate command table (Lawicel S0..S8).
 _BITRATE_CMD = {
     10_000: "S0",
@@ -116,7 +118,14 @@ class SlcanTcpBus(can.BusABC):
         # send() concurrently — a lock keeps their SLCAN frames from interleaving.
         self._send_lock = threading.Lock()
 
+        # A completed TCP handshake is one round trip by construction, measured
+        # before a single CAN frame moves. That matters because the ISO-TP
+        # flow-control budgets have to be chosen at stack-construction time, i.e.
+        # before there is any protocol traffic to learn from.
+        self.link = LinkLatency()
+        started = time.monotonic()
         self._sock = socket.create_connection((host, port), timeout=connect_timeout)
+        self.link.seed(time.monotonic() - started)
         self._sock.setblocking(False)
         # Disable Nagle. ISO-TP flow-control frames are tiny and latency-critical:
         # with Nagle on, a fast/low-RTT link parks the FC frame behind the peer's

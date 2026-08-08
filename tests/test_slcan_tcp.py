@@ -177,3 +177,33 @@ class TestBus:
         bus.shutdown()
         assert fake.sent.decode() == "C\r"
         assert fake.closed
+
+
+class TestHandshakeMeasuresTheLink:
+    """SYN -> SYN/ACK is one round trip, available before any CAN frame moves."""
+
+    def _bus(self, monkeypatch, connect_seconds):
+        fake = FakeSocket()
+        clock = iter([100.0, 100.0 + connect_seconds])
+        monkeypatch.setattr(slcan_tcp.time, "monotonic", lambda: next(clock))
+        monkeypatch.setattr(slcan_tcp.socket, "create_connection", lambda *a, **k: fake)
+        monkeypatch.setattr(slcan_tcp.select, "select", lambda r, w, x, t: ([], [], []))
+        return SlcanTcpBus("h", bitrate=500_000)
+
+    def test_the_bus_exposes_an_estimate_immediately(self, monkeypatch):
+        bus = self._bus(monkeypatch, 0.75)
+        assert bus.link.rtt == pytest.approx(0.75)
+        assert bus.link.budget is not None
+        bus.shutdown()
+
+    def test_a_lan_handshake_reports_a_lan_round_trip(self, monkeypatch):
+        bus = self._bus(monkeypatch, 0.0004)
+        assert bus.link.rtt == pytest.approx(0.0004)
+        bus.shutdown()
+
+    def test_an_instantaneous_connect_leaves_no_opinion(self, monkeypatch):
+        # A monotonic clock with 0 resolution for the call, or a reused socket:
+        # better to have no opinion than to claim the link is infinitely fast.
+        bus = self._bus(monkeypatch, 0.0)
+        assert bus.link.budget is None
+        bus.shutdown()

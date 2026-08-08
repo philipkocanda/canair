@@ -12,6 +12,7 @@ seam). The fake's conformance is what would have caught the divergent
 
 import pytest
 
+from canlib.link_latency import LinkLatency
 from canlib.terminal import WiCANTerminal
 from canlib.transport import Terminal, raw_terminal
 from canlib.transport import slcan_tcp as slcan_mod
@@ -20,7 +21,7 @@ from tests._fakes import FakeTerminal
 
 class _FakeBus:
     def __init__(self, *a, **k):
-        pass
+        self.link = LinkLatency()
 
     def shutdown(self):
         pass

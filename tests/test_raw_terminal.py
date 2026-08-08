@@ -2,6 +2,7 @@
 
 import pytest
 
+from canlib.link_latency import LinkLatency
 from canlib.transport import raw_terminal
 from canlib.transport import slcan_tcp as slcan_mod
 
@@ -9,6 +10,9 @@ from canlib.transport import slcan_tcp as slcan_mod
 class FakeBus:
     def __init__(self, *a, **k):
         self.shutdown_called = False
+        # The real SlcanTcpBus measures the link at its TCP handshake; an
+        # unmeasured estimate keeps the LAN defaults, which is what these tests want.
+        self.link = LinkLatency()
 
     def shutdown(self):
         self.shutdown_called = True

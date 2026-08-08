@@ -22,10 +22,12 @@ Device-free: fake ISO-TP stacks with a test-controlled inbox.
 from __future__ import annotations
 
 from collections import deque
+from types import SimpleNamespace
 
 import pytest
 
 from canlib.addressing import EcuAddress
+from canlib.link_latency import LinkLatency
 from canlib.transport import uds_raw
 from canlib.transport.uds_raw import _MAX_OWED_RESPONSES, RawUdsClient
 
@@ -40,8 +42,9 @@ class QueuedStack:
     :meth:`on_send` (a reply that arrives after it).
     """
 
-    def __init__(self, txid: int):
+    def __init__(self, txid: int, params: dict | None = None):
         self.txid = txid
+        self.params = params or {}
         self.sent: list[bytes] = []
         self.inbox: deque[bytes] = deque()
         self.on_send: deque[list[str]] = deque()
@@ -94,11 +97,13 @@ def _client(monkeypatch, ecus: dict[str, tuple[int, int]], **kw) -> RawUdsClient
     monkeypatch.setattr(
         uds_raw.isotp,
         "NotifierBasedCanStack",
-        lambda bus, notifier, address=None, params=None: QueuedStack(address._txid),
+        lambda bus, notifier, address=None, params=None: QueuedStack(address._txid, params),
     )
     addresses = {name: EcuAddress(tx, rx) for name, (tx, rx) in ecus.items()}
     kw.setdefault("timeout", 0.05)
-    return RawUdsClient(bus=object(), addresses=addresses, **kw)
+    bus_link = kw.pop("bus_link", None)
+    bus = SimpleNamespace(link=bus_link) if bus_link is not None else object()
+    return RawUdsClient(bus=bus, addresses=addresses, **kw)
 
 
 def _bms(monkeypatch, **kw) -> tuple[RawUdsClient, QueuedStack]:
@@ -296,3 +301,42 @@ class TestReadPath:
         c, st = _bms(monkeypatch, timeout=0.05)
         st.answers(["7F2178"])
         assert c.read("BMS", bytes.fromhex("2101")) == bytes.fromhex("7F2178")
+
+
+class TestPerRequestBudget:
+    """A deadline must cover the ECU's think time *and* the network's share."""
+
+    def test_an_unmeasured_link_leaves_the_configured_budget_alone(self, monkeypatch):
+        c = _client(monkeypatch, {"BMS": (0x7E4, 0x7EC)}, timeout=1.0)
+        assert c._budget("BMS", None) == 1.0
+
+    def test_the_measured_link_is_added_to_the_default(self, monkeypatch):
+        c = _client(monkeypatch, {"BMS": (0x7E4, 0x7EC)}, timeout=1.0)
+        c.link.seed(0.5)
+        assert c._budget("BMS", None) == pytest.approx(1.0 + c.link.budget)
+
+    def test_the_measured_link_is_added_to_a_per_ecu_budget(self, monkeypatch):
+        # The profile's response_timeout_ms states what the *car* may take; the
+        # network's share is on top of it, not carved out of it.
+        c = _client(monkeypatch, {"BMS": (0x7E4, 0x7EC)}, timeout=1.0, ecu_timeouts={"BMS": 4.0})
+        c.link.seed(0.5)
+        assert c._budget("BMS", None) == pytest.approx(4.0 + c.link.budget)
+
+    def test_a_forced_timeout_is_an_instruction_not_a_budget(self, monkeypatch):
+        c = _client(monkeypatch, {"BMS": (0x7E4, 0x7EC)}, timeout=1.0)
+        c.link.seed(2.0)
+        assert c._budget("BMS", 0.25) == 0.25
+
+    def test_a_bus_estimate_is_adopted_at_construction(self, monkeypatch):
+        # RawUdsClient is handed a bus, so it takes the bus's measurement rather
+        # than starting a second, blinder one.
+        link = LinkLatency()
+        link.seed(0.3)
+        c = _client(monkeypatch, {"BMS": (0x7E4, 0x7EC)}, bus_link=link)
+        assert c.link is link
+
+    def test_the_flow_control_budgets_are_widened_by_the_bus_measurement(self, monkeypatch):
+        link = LinkLatency()
+        link.seed(1.0)
+        c = _client(monkeypatch, {"BMS": (0x7E4, 0x7EC)}, bus_link=link)
+        assert c._stacks["BMS"].params["rx_flowcontrol_timeout"] > 1000

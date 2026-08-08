@@ -100,8 +100,11 @@ class RawTerminal:
         self.ecu_timeouts: dict[int, float] = {}
 
         self.bus = SlcanTcpBus(host, port=port, bitrate=bitrate)
+        # Measured at the TCP handshake, so the flow-control budgets below and
+        # every per-request deadline can account for the network's share.
+        self.link = self.bus.link
         self.notifier = can.Notifier(self.bus, [], timeout=0.1)
-        self._params = build_isotp_params(isotp_config)
+        self._params = build_isotp_params(isotp_config, self.link.budget)
         self._stacks: dict[int, isotp.NotifierBasedCanStack] = {}
         self._cur: int | None = None
 
@@ -252,7 +255,13 @@ class RawTerminal:
         return await self._exchange_tx(self._cur, req, timeout)
 
     async def _exchange_tx(self, tx_id: int, req: bytes, timeout: float | None):
-        t = timeout if timeout is not None else self.ecu_timeouts.get(tx_id, self.timeout)
+        # An explicit timeout is an instruction; a budget is the ECU's think time
+        # plus the network's measured share (see LinkLatency).
+        t = (
+            timeout
+            if timeout is not None
+            else self.ecu_timeouts.get(tx_id, self.timeout) + (self.link.budget or 0.0)
+        )
 
         def _io():
             # Create/settle the ISO-TP stack in the executor thread so the one-time

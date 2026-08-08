@@ -15,6 +15,10 @@ flow-control cadence sets those under ``isotp:`` in ``profile.yaml``.
 
 from __future__ import annotations
 
+import logging
+
+from ..log import log_event
+
 # Byte an unspecified profile transmits as ISO-TP padding (Hyundai/Kia pad with
 # 0xAA). Exposed so callers/tests can reference the historical default by name.
 DEFAULT_TX_PADDING = 0xAA
@@ -39,13 +43,32 @@ _DEFAULTS: dict[str, int | bool] = {
 # Names of the accepted fields (for schema/validation reuse).
 ISOTP_FIELDS: tuple[str, ...] = tuple(_DEFAULTS)
 
+# The two budgets above wait for a frame that has to cross the network, so on a
+# remote link the round trip is spent *inside* them. They are widened by the
+# measured link budget rather than replaced by it: the configured value is the
+# ECU's share and the measurement is the network's, and the two delays add.
+_LINK_SCALED_FIELDS = ("rx_flowcontrol_timeout", "rx_consecutive_frame_timeout")
 
-def build_isotp_params(config: dict | None = None) -> dict[str, int | bool]:
+# Link budget above which a non-zero flow-control BlockSize is worth a word. Below
+# it the extra round trips are cheap enough not to be worth a log line.
+_BLOCKSIZE_WARN_BUDGET_S = 0.1
+
+
+def build_isotp_params(
+    config: dict | None = None, link_budget: float | None = None
+) -> dict[str, int | bool]:
     """Build a ``can-isotp`` params dict, overlaying a profile ``isotp:`` block.
 
     ``config`` is the profile's ``isotp:`` mapping (or ``None``). Each recognised,
     non-``None`` key overrides its default; missing/unknown keys keep the default
     (validation flags unknown keys — this stays lenient at runtime).
+
+    ``link_budget`` is the measured network round-trip allowance in *seconds*
+    (see :class:`~canlib.link_latency.LinkLatency`). When given, it is added to
+    the two flow-control budgets. Without it a LAN-tuned 1 s wait is spent on the
+    network alone on a hotspot-behind-a-VPN link, the stack gives up on a
+    multi-frame response mid-reassembly, and the largest PIDs are the first to
+    fail — which is how the same symptom kept being read as a flaky ECU.
     """
     params = dict(_DEFAULTS)
     if config:
@@ -53,7 +76,33 @@ def build_isotp_params(config: dict | None = None) -> dict[str, int | bool]:
             value = config.get(key)
             if value is not None:
                 params[key] = value
+    if link_budget and link_budget > 0.0:
+        extra = int(link_budget * 1000.0)
+        for key in _LINK_SCALED_FIELDS:
+            params[key] = int(params[key]) + extra
+        _warn_blocksize_cost(int(params["blocksize"]), link_budget)
     return params
+
+
+def _warn_blocksize_cost(blocksize: int, link_budget: float) -> None:
+    """Note that a non-zero BlockSize buys a round trip per block on a slow link.
+
+    ``blocksize: 0`` asks the ECU to send every consecutive frame after a single
+    flow-control frame, so one round trip covers the whole response. Any non-zero
+    value makes canair send a fresh flow-control frame every N frames, and on a
+    remote link each of those is a full round trip that a local setup never pays —
+    a large response can take seconds. Worth saying once, since the setting is
+    usually inherited from a profile written on a LAN.
+    """
+    if blocksize <= 0 or link_budget < _BLOCKSIZE_WARN_BUDGET_S:
+        return
+    log_event(
+        "config",
+        f"isotp.blocksize={blocksize} costs one round trip per {blocksize} frames on a "
+        f"link measured at {link_budget * 1000.0:.0f}ms; blocksize 0 sends the whole "
+        "response after a single flow-control frame",
+        level=logging.INFO,
+    )
 
 
 def resolve_tx_padding(pids_data: dict | None) -> int:

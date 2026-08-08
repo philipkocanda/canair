@@ -22,6 +22,7 @@ import can
 import isotp
 
 from ..addressing import DEFAULT_RX_OFFSET, EcuAddress, build_isotp_address
+from ..link_latency import LinkLatency
 from ..timing import TimingRecorder
 from ..transport_stats import TransportStats
 from ..uds_parse import CAT_STALE, payload_echo_mismatch
@@ -124,7 +125,10 @@ class RawUdsClient:
         # whole cycle's per-ECU timeouts — otherwise asyncio joins it at shutdown
         # and the process hangs for seconds. See canair monitor's interrupt path.
         self._interrupt = threading.Event()
-        params = build_isotp_params(isotp_config)
+        # The bus measures the link at connect (TCP handshake ≈ one round trip);
+        # a bus that doesn't offer an estimate leaves the LAN defaults in place.
+        self.link: LinkLatency = getattr(bus, "link", None) or LinkLatency()
+        params = build_isotp_params(isotp_config, self.link.budget)
         for name, address in addresses.items():
             stack = build_isotp_stack(
                 bus,
@@ -188,12 +192,26 @@ class RawUdsClient:
             self._owed[ecu] = max(0, self._owed[ecu] - discarded)
         return discarded
 
+    def _budget(self, ecu: str, forced: float | None) -> float:
+        """Per-request deadline: the ECU's think time plus the network's share.
+
+        A caller-forced ``timeout`` is returned untouched — that is an explicit
+        instruction, not a budget to be adjusted. Otherwise the profile's per-ECU
+        value (or this client's default) states how long the *car* may take, and
+        the measured link allowance is added on top; without that a value tuned
+        against a LAN expires while the answer is still crossing the network, and
+        the answer then arrives during the next request.
+        """
+        if forced is not None:
+            return forced
+        return self.ecu_timeouts.get(ecu, self.timeout) + (self.link.budget or 0.0)
+
     def read(self, ecu: str, request: bytes, timeout: float | None = None) -> bytes:
         """Send one UDS request to ``ecu`` and return the reassembled response."""
         stack = self._stacks[ecu]
         self._drain(ecu)
         pid = request.hex().upper()
-        t = timeout if timeout is not None else self.ecu_timeouts.get(ecu, self.timeout)
+        t = self._budget(ecu, timeout)
         t0 = time.monotonic()
         stack.send(request)
         deadline = t0 + t
@@ -250,7 +268,7 @@ class RawUdsClient:
         an ``Exception`` on failure.
 
         Collection is a **non-blocking multiplexed harvest**: each in-flight
-        request gets its *own* deadline (``sent_at + t``) and we round-robin over
+        request gets its *own* deadline (``sent_at + its budget``) and we round-robin
         all stacks, taking whichever completes first. This avoids the earlier
         shared-deadline bug where one slow/silent ECU consumed the whole budget
         and starved the ECUs collected after it (leaving them ~0.05s → spurious
@@ -277,8 +295,6 @@ class RawUdsClient:
                 except Exception:
                     pass  # a rendering callback must never break polling
 
-        explicit = timeout is not None
-        t = timeout if explicit else self.timeout
         queues: dict[str, deque] = defaultdict(deque)
         for ecu, req in requests:
             queues[ecu].append(req)
@@ -299,7 +315,7 @@ class RawUdsClient:
                 now = time.monotonic()
                 self._stacks[ecu].send(req)
                 # Per-ECU budget applies unless the caller forced a timeout.
-                ecu_t = t if explicit else self.ecu_timeouts.get(ecu, t)
+                ecu_t = timeout if timeout is not None else self._budget(ecu, None)
                 pending[ecu] = {
                     "req": req,
                     "sent_at": now,

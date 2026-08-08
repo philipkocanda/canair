@@ -213,3 +213,43 @@ class TestMeasurementSizesTheResyncWindow:
         t._pipe_dirty = True
         await t.send_command("2101")
         assert calls[0]["per_recv_timeout"] == pytest.approx(0.614 + _LINK_LATENCY_MARGIN, abs=0.01)
+
+
+class TestSeedFromAnUnambiguousMeasurement:
+    """A TCP handshake is one round trip by construction — one is enough."""
+
+    def test_a_single_seed_yields_an_estimate(self):
+        link = LinkLatency()
+        link.seed(0.4)
+        assert link.rtt == 0.4
+        assert link.budget == pytest.approx(0.4 + _K * 0.2)
+
+    def test_a_seed_is_available_before_any_protocol_traffic(self):
+        # This is the whole point: the ISO-TP budgets are chosen at stack
+        # construction, before there is a single exchange to learn from.
+        link = LinkLatency()
+        assert link.budget is None
+        link.seed(1.0)
+        assert link.budget is not None
+
+    def test_observations_refine_a_seed(self):
+        link = LinkLatency()
+        link.seed(1.0)
+        for _ in range(40):
+            link.observe(0.1)
+        assert link.rtt is not None
+        assert link.rtt < 0.3
+
+    def test_a_bad_seed_is_ignored(self):
+        link = LinkLatency()
+        for bad in (0.0, -1.0, float("inf"), float("nan")):
+            link.seed(bad)
+        assert link.snapshot() is None
+
+    def test_a_seed_does_not_discard_existing_samples(self):
+        link = LinkLatency()
+        for _ in range(5):
+            link.observe(0.2)
+        link.seed(0.5)
+        assert link.n == 5
+        assert link.rtt == 0.5

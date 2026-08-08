@@ -81,6 +81,25 @@ class LinkLatency:
         self.rttvar = (1.0 - _BETA) * self.rttvar + _BETA * abs(self.srtt - rtt)
         self.srtt = (1.0 - _ALPHA) * self.srtt + _ALPHA * rtt
 
+    def seed(self, rtt: float) -> None:
+        """Establish an estimate from a single *unambiguous* measurement.
+
+        :meth:`observe` needs several samples because an application-level round
+        trip could always have been a scheduling hiccup. A TCP handshake is not
+        like that: SYN → SYN/ACK is one round trip by construction, with no peer
+        processing to confuse it, so one is enough to hold an opinion — and it is
+        available before any protocol traffic, which is exactly when the ISO-TP
+        timeouts have to be chosen.
+
+        Only ever call this with a directly observed network round trip. Later
+        :meth:`observe` samples refine it in the usual way.
+        """
+        if not math.isfinite(rtt) or rtt <= 0.0:
+            return
+        self.srtt = rtt
+        self.rttvar = rtt / 2.0
+        self.n = max(self.n, _MIN_SAMPLES)
+
     @property
     def rtt(self) -> float | None:
         """The smoothed round trip, or ``None`` before enough samples."""
