@@ -34,12 +34,19 @@
 # - IGN3 (START) (cranking on ICE cars)
 
 states:
-  # Actively charging — BMS current is negative while charging (verified), and
-  # the OBC reports DC output current only while charging (verified).
+  # Actively charging. BMS 2101 B14 bit7 (CHARGING) is energy flow of either
+  # kind — set in all 1576 AC-charging captures and in the DC byte 0xC3 — and
+  # bit6 (CHARGING_DC) backs it up on DC. Both live in one BMS byte, so a single
+  # BMS read decides this state; an earlier cross-ECU predicate (BMS current OR
+  # OBC DC amps) abstained under Kleene logic whenever OBC was not co-polled,
+  # and inferred CHARGING in 0 of 237 stored sessions. Battery current is
+  # deliberately NOT used: it is negative under regen too (626 aligned rows
+  # while moving), which is why that predicate needed a hand-rolled `and not
+  # (speed…)` mutex. Bit 7 reads 0 in every one of those rows, so no mutex.
   - name: CHARGING
     description: HV battery actively charging (AC or DC). Implies plugged.
     implies: [PLUGGED]
-    when: "(BMS.BATTERY_CURRENT < -1 or OBC.OBC_DC_A > 0.5) and not (ESC.REAL_SPEED_KMH > 0.5 or VCU.VCU_VEHICLE_SPEED > 0.5 or EPS.EPS_VEHICLE_SPEED > 0.5 or MCU.MCU_MOTOR_RPM > 100)"
+    when: "BMS.CHARGING == 1 or BMS.CHARGING_DC == 1"
 
   # HV active / driveable. VEHICLE_STATE_EV_READY (VCU 2101 B11:3) is verified.
   - name: READY

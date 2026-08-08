@@ -39984,6 +39984,7 @@
       "label": "BCM IGPM BMS:2101,2105 VCU MCU OBC AAF",
       "version": "1.14.1",
       "vehicle_states": [
+        "CHARGING",
         "PLUGGED",
         "PARKED"
       ],

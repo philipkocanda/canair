@@ -5,6 +5,7 @@
       "label": "AAF OBC VCU MCU BMS IGPM HVAC BCM",
       "version": "1.10.0",
       "vehicle_states": [
+        "CHARGING",
         "READY",
         "PLUGGED",
         "ACC2",
@@ -2173,6 +2174,7 @@
       "label": "AAF OBC VCU MCU BMS IGPM HVAC BCM",
       "version": "1.10.0",
       "vehicle_states": [
+        "CHARGING",
         "PLUGGED",
         "ACC2",
         "PARKED"

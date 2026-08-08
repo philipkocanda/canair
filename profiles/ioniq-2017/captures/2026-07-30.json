@@ -22559,6 +22559,7 @@
       "label": "OBC BMS AAF VCU IGPM BCM",
       "version": "1.9.0",
       "vehicle_states": [
+        "CHARGING",
         "PLUGGED",
         "PARKED"
       ],
