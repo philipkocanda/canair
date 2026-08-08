@@ -15,6 +15,66 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [1.17.0](https://github.com/philipkocanda/canair/compare/v1.16.0...v1.17.0) (2026-08-08)
+
+
+### Added
+
+* **analysis:** name a reachable threshold when hunt/correlate finds nothing ([3aeae7b](https://github.com/philipkocanda/canair/commit/3aeae7b7385282bed99aa30c190d3c6abf4a31da))
+* **ansi:** add canlib.ansi as the one home for the ANSI palette ([b4ebb64](https://github.com/philipkocanda/canair/commit/b4ebb641c0a1f736db894169dc6a98ab289f5d3f))
+* **bix:** minor improvements to better differentiate index from value ([db921fe](https://github.com/philipkocanda/canair/commit/db921fe87b98d3bba7425290f3bad70f1cbd5123))
+* **captures:** always timestamp a payload capture ([893489e](https://github.com/philipkocanda/canair/commit/893489e16592919dc49c2bb9e2e253504135ad83))
+* **investigate:** hunt monotonic counters with --counters ([c8c8a93](https://github.com/philipkocanda/canair/commit/c8c8a931b156261f8c1cb3c539f66377cf47bbd6))
+* **investigate:** sweep a whole ECU/profile, and fix the --counters view ([498213c](https://github.com/philipkocanda/canair/commit/498213c7dbe9aaef57a38284ce2313bc3c536a25))
+* **pids:** add set-pid-notes, and stop eating blank lines between blocks ([7102314](https://github.com/philipkocanda/canair/commit/71023142ea009c16278b25866dfefdc8fa39480f))
+* **pii:** flag the curated VIN in ecus/ identity blocks ([9d43e4f](https://github.com/philipkocanda/canair/commit/9d43e4f51b7c09cf8550db8fd95f02433b10c4b7))
+* **profiles:** define VCU 1A90 VIN, and make its redaction length-faithful ([c17e3bf](https://github.com/philipkocanda/canair/commit/c17e3bf35ccd68999ebaa19f1ad1585d57e87f7c))
+* **profiles:** Update ioniq-2017 profile (VCU and BCM) ([b37ed28](https://github.com/philipkocanda/canair/commit/b37ed28618bca9da9ab88b9f1e0b39f7014c4455))
+* **validate:** cross-check vehicle-state predicates against signal names ([2b32225](https://github.com/philipkocanda/canair/commit/2b32225e88c04e1bd146976c506934379639b1cb))
+* **validate:** ratchet untimed-payload captures, and quiet their warning stream ([c9920ce](https://github.com/philipkocanda/canair/commit/c9920cea67aa4b0d960816468220d3f13b65b235))
+
+
+### Fixed
+
+* **ansi:** gate every coloured write on ansi.use_color, honour NO_COLOR ([5bd2c45](https://github.com/philipkocanda/canair/commit/5bd2c45beefa9d459b11c41d539724963abb3f25))
+* **captures:** fix IndexError when cycling step viewer view mode ([c79e4f5](https://github.com/philipkocanda/canair/commit/c79e4f55bf6f120b2fd320d890d3ff9bf75b7aa6))
+* **captures:** keep the step viewer's scroll position across frames ([0f7993a](https://github.com/philipkocanda/canair/commit/0f7993a8e233b248080c688b0c8132df143ccb1f))
+* **coverage:** report bitfield gaps hidden behind a whole-byte read ([ed6836c](https://github.com/philipkocanda/canair/commit/ed6836c7c56aa6c30d3f6ac0ad7328906541b7c6))
+* **decoding:** strip ISO-TP framing from ascii/date byte runs ([2c3f505](https://github.com/philipkocanda/canair/commit/2c3f505f431f3ed7f6799a60659ea86637518888))
+* **pids:** remove a block scalar's body with its field, not just the header ([0fb67b0](https://github.com/philipkocanda/canair/commit/0fb67b01a6f3131375943080db4b42e7d5acd016))
+* **pids:** skip a non-mapping ecus/ document instead of crashing ([244c58f](https://github.com/philipkocanda/canair/commit/244c58fa70192652d44e97e0a23218f79bc13bcc))
+* **pii:** drop the phone-number heuristic ([bfa28ab](https://github.com/philipkocanda/canair/commit/bfa28ab355fb75154b4d4ace7c1d18530259241b))
+* **pii:** stop flagging per-unit ECU serials as identifying ([4b27227](https://github.com/philipkocanda/canair/commit/4b27227e2321db3075e18be663bb69fc53903bbe))
+* **profiles:** correct OBC AC_INPUT_V verification claim, add OBC_EFFICIENCY ([9da6fab](https://github.com/philipkocanda/canair/commit/9da6fab44eb6c8d1684737b3a9320276d93663b2))
+* **profiles:** correct the Ioniq VCU/BMS gear and vehicle-state bitfields ([e1cb9a5](https://github.com/philipkocanda/canair/commit/e1cb9a515cd97448d898e572c2709ba5bbe5d67b))
+* **profiles:** drop the hand-transcribed August-2025 captures ([52f1eb3](https://github.com/philipkocanda/canair/commit/52f1eb3a88c8c33dc3e5a87b33479c259de1f5e7))
+
+
+### Changed
+
+* **_live:** become a package, split along its own section markers ([c7b5e2e](https://github.com/philipkocanda/canair/commit/c7b5e2e3816dfac8f7354b842ad818f0f5b85d10))
+* **align:** hoist _discover_specs into canlib as discover_signal_specs ([fc77328](https://github.com/philipkocanda/canair/commit/fc77328b5a90f263ae0a654106dcba0a13c392c7))
+* **ansi:** fold _use_color/_c/_cerr onto canlib.ansi ([9cb2c1c](https://github.com/philipkocanda/canair/commit/9cb2c1c453d4dcd4c11c4f963e67249aa4f7962a))
+* **ansi:** point 44 modules at canlib.ansi ([cbaabce](https://github.com/philipkocanda/canair/commit/cbaabcef79445a70bc8c96f7cca9af649b5b1e49))
+* **correlate:** become a package, split by kind and concern ([40e885a](https://github.com/philipkocanda/canair/commit/40e885ae31ee6779e40cdcde50aefa1188f7e500))
+* **decode:** become a package (rename only) ([f3446af](https://github.com/philipkocanda/canair/commit/f3446af3c540348a506b5579d3072bb15b2d2172))
+* **decode:** split render and plot by what they render ([298538d](https://github.com/philipkocanda/canair/commit/298538d0182b23bbab8cadecdfa764932aa6fac5))
+* **decode:** split the package by concern ([99481dd](https://github.com/philipkocanda/canair/commit/99481dda757e8129458f123613d356ade2aa0e8f))
+* **dispatch:** replace the 470-line if/elif chain with a table ([d4c2081](https://github.com/philipkocanda/canair/commit/d4c2081514ea6707c8a539265c8b3eed3d0dce7d))
+* **investigate:** become a package, split by kind and concern ([d68d0dc](https://github.com/philipkocanda/canair/commit/d68d0dc2c261e26a16fdfa58e663d0d4bc6b3a48))
+* **modes:** move the live dispatcher out of the command layer ([a7e37f9](https://github.com/philipkocanda/canair/commit/a7e37f9b11de01ec64c6351ed4fb30d7bf4de17f))
+* push decode's library-grade helpers down to canlib ([a50c530](https://github.com/philipkocanda/canair/commit/a50c530c856267eaef089a3a2000acb77d65521c))
+* push wants_save and split_ecus_by_protocol into the library ([f04128a](https://github.com/philipkocanda/canair/commit/f04128a012b7d4c6ba6dbbaae78973741c8fa6d4))
+
+
+### Documentation
+
+* **agents:** halve AGENTS.md, wrap at 100 cols, defer method to the skills ([2af0434](https://github.com/philipkocanda/canair/commit/2af0434f849c9ceaf9e0636e26514f1b3968bc60))
+* **profiles:** refresh generated bundled-profile stats ([4dc8c1b](https://github.com/philipkocanda/canair/commit/4dc8c1b842ef34aa88cfcdce45c7ea134a61547e))
+* retarget the module paths this refactor moved ([16ba097](https://github.com/philipkocanda/canair/commit/16ba097422e88bdf22b8003fd2a052e4ea60cc50))
+* rewrite the release process around the release PR ([a4509eb](https://github.com/philipkocanda/canair/commit/a4509ebc17841440f3e5b92fc1cdd097f1530d68))
+* split code contribution into a development section ([e620612](https://github.com/philipkocanda/canair/commit/e620612232910e75f2f151479c7e7987da96f145))
+
 ## [1.16.0](https://github.com/philipkocanda/canair/compare/v1.15.0...v1.16.0) (2026-08-06)
 
 
