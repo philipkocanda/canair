@@ -138,12 +138,42 @@ def test_annotate_no_overlay_has_no_param_column(capsys):
     assert "Param" not in capsys.readouterr().out
 
 
+def test_annotate_groups_index_columns_before_the_value_columns(capsys):
+    # A byte's INDEX (Bnn / ISO-TP) and its VALUE (0x…) are both hex-ish, so the
+    # two are kept in separate groups split by ‖ — indices left, value right.
+    args = _parse(["-2", "-a", "6201A055", "--torque", "--obdb"])
+    assert bix.run(args) == 0
+    out = capsys.readouterr().out
+    assert "WiCAN | ISO-TP | Torque |   bix ‖  Hex | Dec | Role" in out
+    indices, values = _row(out, "B04").split("‖")
+    assert indices.split("|")[0].strip() == "B04"  # index group: WiCAN first
+    assert [c.strip() for c in values.split("|")[:2]] == ["0x55", "85"]  # Hex then Dec
+
+
+def test_annotate_dec_column_shows_the_decimal_byte_value(capsys):
+    args = _parse(["-2", "-a", "620100FF"])
+    assert bix.run(args) == 0
+    out = capsys.readouterr().out
+    assert _dec(out, "B03") == "0"
+    assert _dec(out, "B04") == "255"
+
+
 # ── --pid derives the subfunction width (no explicit -1/-2 needed) ──
 
 
 def _role(out: str, wican: str) -> str:
-    """The Role cell of the annotate row whose WiCAN cell is ``wican``."""
-    return _row(out, wican).split("|")[3].strip()
+    """The Role cell of the annotate row whose WiCAN cell is ``wican``.
+
+    An annotate row is two column groups separated by ``‖`` — the byte-INDEX
+    notations, then the byte VALUE (``Hex | Dec | Role``, plus ``Param`` with an
+    overlay) — so Role is the third cell of the second group.
+    """
+    return _row(out, wican).split("‖")[1].split("|")[2].strip()
+
+
+def _dec(out: str, wican: str) -> str:
+    """The Dec (decimal byte value) cell of the annotate row for ``wican``."""
+    return _row(out, wican).split("‖")[1].split("|")[1].strip()
 
 
 def test_pid_derives_two_byte_subfunction(capsys):

@@ -672,6 +672,14 @@ def _print_role_legend(roles: list[str], *, has_data: bool):
     # definitions line up as one block whatever roles the payload used.
     width = max([len(r) for r, _ in defs] + [len(blank) if has_data else 0])
     print()
+    print(
+        ansi.c(
+            "  ‖ separates the byte-INDEX columns (where the byte sits) from the byte's\n"
+            "  actual VALUE (Hex/Dec) — canair expressions index with WiCAN Bnn.",
+            ansi.DIM,
+        )
+    )
+    print()
     print(ansi.c("  Roles in this payload", ansi.BOLD))
     for role, help_ in defs:
         print(f"    {_pad(role, width, ansi.CYAN)}  {help_}")
@@ -787,33 +795,39 @@ def _annotate_payload(
     # floats). Torque is a letter (A, AB…), bix up to 3 digits. Role stays at 6 for
     # the common labels and only widens for a longer one ("REJ SID"), so existing
     # output is byte-identical. Torque and bix are independent opt-ins.
-    W_WICAN, W_HEX, W_ISOTP, W_TORQUE, W_BIX = 5, 4, 6, 6, 5
+    #
+    # Layout groups the columns by what they MEAN: every byte-INDEX notation first
+    # (WiCAN | ISO-TP | Torque | bix), then the byte's actual VALUE (Hex | Dec),
+    # then Role. A double rule (╫) separates the two groups, because an index
+    # rendered as 0x0A and a value rendered as 0x0A are otherwise easy to confuse.
+    W_WICAN, W_ISOTP, W_TORQUE, W_BIX, W_HEX, W_DEC = 5, 6, 6, 5, 4, 3
     W_ROLE = max(6, *(len(r) for r in roles)) if roles else 6
 
-    def _row(wican, hex_, isotp, role, param=None, *, torque=None, bix=None):
-        line = f"  {wican:>{W_WICAN}} | {hex_:>{W_HEX}} | {isotp:>{W_ISOTP}} | "
+    def _row(wican, isotp, hex_, dec, role, param=None, *, torque=None, bix=None):
+        index_cells = [f"{wican:>{W_WICAN}}", f"{isotp:>{W_ISOTP}}"]
         if show_torque:
-            line += f"{torque:>{W_TORQUE}} | "
+            index_cells.append(f"{torque:>{W_TORQUE}}")
         if show_obdb:
-            line += f"{bix:>{W_BIX}} | "
-        line += f"{role:<{W_ROLE}}"
+            index_cells.append(f"{bix:>{W_BIX}}")
+        value_cells = [f"{hex_:>{W_HEX}}", f"{dec:>{W_DEC}}", f"{role:<{W_ROLE}}"]
         if param is not None:
-            line += f" | {param}"
-        return line.rstrip()
+            value_cells.append(str(param))
+        return ("  " + " | ".join(index_cells) + " ‖ " + " | ".join(value_cells)).rstrip()
 
     def _seg():
-        parts = [f"{'─' * W_WICAN}─", f"─{'─' * W_HEX}─", f"─{'─' * W_ISOTP}─"]
+        index_parts = [f"{'─' * W_WICAN}─", f"─{'─' * W_ISOTP}─"]
         if show_torque:
-            parts.append(f"─{'─' * W_TORQUE}─")
+            index_parts.append(f"─{'─' * W_TORQUE}─")
         if show_obdb:
-            parts.append(f"─{'─' * W_BIX}─")
-        parts.append(f"─{'─' * W_ROLE}")
-        return "  " + "┼".join(parts)
+            index_parts.append(f"─{'─' * W_BIX}─")
+        value_parts = [f"─{'─' * W_HEX}─", f"─{'─' * W_DEC}─", f"─{'─' * W_ROLE}"]
+        return "  " + "┼".join(index_parts) + "╫" + "┼".join(value_parts)
 
     hdr = _row(
         "WiCAN",
-        "Hex",
         "ISO-TP",
+        "Hex",
+        "Dec",
         "Role",
         "Param" if overlay else None,
         torque="Torque",
@@ -855,8 +869,9 @@ def _annotate_payload(
         param = _param_cell(w, byte_val, role, mapped, mbits) if overlay else None
         line = _row(
             f"B{w:02d}",
-            f"0x{byte_val:02X}",
             f"0x{isotp:02X}" if isotp is not None else "—",
+            f"0x{byte_val:02X}",
+            str(byte_val),
             role,
             param,
             torque=letter if letter else "—",

@@ -182,32 +182,37 @@ a genuine `BMS 2101` battery-status response from the bundled Ioniq profile:
 
 ```text
 $ canair bix -a 6101FFFFFFFF80264826480300050E32 --ecu BMS --pid 2101
-  WiCAN |  Hex | ISO-TP | Role   | Param
-  ──────┼──────┼────────┼────────┼─────────────
-  ── Frame 0 ───────────────────
-    B00 | 0x10 |      — | PCI    |
-    B01 | 0x10 |      — | PCI    |
-    B02 | 0x61 |   0x00 | SID    |
-    B03 | 0x01 |   0x01 | PID    |
-    B04 | 0xFF |   0x02 |        | unmapped
-    B05 | 0xFF |   0x03 |        | unmapped
-    B06 | 0xFF |   0x04 |        | unmapped
-    B07 | 0xFF |   0x05 |        | unmapped
-  ── Frame 1 ───────────────────
-    B08 | 0x21 |      — | PCI    |
-    B09 | 0x80 |   0x06 |        | [SOC_BMS]
-    B10 | 0x26 |   0x07 |        | unmapped
-    B11 | 0x48 |   0x08 |        | unmapped
-    B12 | 0x26 |   0x09 |        | unmapped
-    B13 | 0x48 |   0x0A |        | unmapped
-    B14 | 0x03 |   0x0B |        | [BMS_MAIN_RELAY:0] [CHARGER_CONNECTED:5] [CHARGING_DC:6] [CHARGING:7]
-    B15 | 0x00 |   0x0C |        | [BATTERY_POWER]
-  ── Frame 2 ───────────────────
-    B16 | 0x22 |      — | PCI    |
-    B17 | 0x05 |   0x0D |        | [BATTERY_POWER]
-    B18 | 0x0E |   0x0E |        | [BATTERY_POWER]
-    B19 | 0x32 |   0x0F |        | [BATTERY_POWER]
+  WiCAN | ISO-TP ‖  Hex | Dec | Role   | Param
+  ──────┼────────╫──────┼─────┼────────┼─────────────
+  ── Frame 0 ─────────────────────────
+    B00 |      — ‖ 0x10 |  16 | PCI    |
+    B01 |      — ‖ 0x10 |  16 | PCI    |
+    B02 |   0x00 ‖ 0x61 |  97 | SID    |
+    B03 |   0x01 ‖ 0x01 |   1 | LID    |
+    B04 |   0x02 ‖ 0xFF | 255 |        | unmapped
+    B05 |   0x03 ‖ 0xFF | 255 |        | unmapped
+    B06 |   0x04 ‖ 0xFF | 255 |        | unmapped
+    B07 |   0x05 ‖ 0xFF | 255 |        | unmapped
+  ── Frame 1 ─────────────────────────
+    B08 |      — ‖ 0x21 |  33 | PCI    |
+    B09 |   0x06 ‖ 0x80 | 128 |        | [SOC_BMS]
+    B10 |   0x07 ‖ 0x26 |  38 |        | [BMS_2101_B10?]
+    B11 |   0x08 ‖ 0x48 |  72 |        | unmapped
+    B12 |   0x09 ‖ 0x26 |  38 |        | unmapped
+    B13 |   0x0A ‖ 0x48 |  72 |        | unmapped
+    B14 |   0x0B ‖ 0x03 |   3 |        | [BMS_MAIN_RELAY:0] [CHARGER_CONNECTED:5] [CHARGING_DC?:6] [CHARGING:7]
+    B15 |   0x0C ‖ 0x00 |   0 |        | [BATTERY_POWER]
+  ── Frame 2 ─────────────────────────
+    B16 |      — ‖ 0x22 |  34 | PCI    |
+    B17 |   0x0D ‖ 0x05 |   5 |        | [BATTERY_POWER]
+    B18 |   0x0E ‖ 0x0E |  14 |        | [BATTERY_POWER]
+    B19 |   0x0F ‖ 0x32 |  50 |        | [BATTERY_POWER]
 ```
+
+The `‖` divider is the point of the layout: everything left of it is *where the byte
+sits* (an index, in one notation or another); everything right of it is the byte's
+actual *value* (`Hex` and `Dec` are the same byte, two bases) plus what that byte
+means. Expressions index with the WiCAN `Bnn` column — never with a `Hex` value.
 
 Everything the rest of this document claims is visible in one screen:
 
