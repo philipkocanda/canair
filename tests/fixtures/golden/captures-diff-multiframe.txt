@@ -6,9 +6,9 @@
       BMS_2101_B10                   27            ?  B10
       DEBUG_BMS_STATE_FLAGS          3             ✓  B14
       BMS_MAIN_RELAY                 1             ✓  B14
-      BMS_MAIN_RELAY_MIRROR_B14_1    1             ?  B14
-      CHARGER_CONNECTED              0             ✓  B14
-      CHARGING_DC                    0             ?  B14
+      BMS_MAIN_RELAY_MIRROR_B14_1    1             ✓  B14
+      AC_CHARGER_CONNECTED           0             ✓  B14
+      CHARGING_DC                    0             ✓  B14
       CHARGING                       0             ✓  B14
       BATTERY_POWER                  0.71 kW       ✓  B15,B17-B19
       BATTERY_CURRENT                1.80 A        ✓  B15,B17
@@ -36,7 +36,7 @@
       INVERTER_CAPACITOR_VOLTAGE     0.10 V        ?  B62
       BMS_HV_RELAY_FLAG              1             ✓  B62
       BMS_2101_B63                   136           ?  B63
-      DRIVE_MOTOR_SPEED              0             ✓  B65
+      DRIVE_MOTOR_SPEED              0 RPM         ✓  B65-B66
       ISOLATION_RESISTANCE           3000 kΩ       ✓  B69
  wican              02 03 04 05 06 07 09 10 11 12 13 14 15 17 18 19 20 21 22 23 25 26 27 28 29 30 31 33 34 35 36 37 38 39 41 42 43 44 45 46 47 49 50 51 52 53 54 55 57 58 59 60 61 62 63 65 66 67 68 69 70 71
       2026-07-21    61 01 FF FF FF FF B4 24 A4 26 48 03 00 05 0F 30 14 13 14 14 13 13 13 00 14 CA 3D CA 01 00 00 91 00 05 5F F7 00 05 5D AD 00 01 F2 9D 00 01 E2 C9 01 51 B0 E9 0D 01 84 00 00 00 00 03 E8  (61 B)
