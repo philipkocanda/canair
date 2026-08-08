@@ -113,7 +113,7 @@
     "quality": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Transport data-quality footprint recorded at capture time (from the client's exchange tally). Always carries 'exchanges'; error categories appear only when non-zero. NRCs are legitimate ECU answers and are not counted here.",
+      "description": "Transport data-quality footprint recorded at capture time (from the client's exchange tally). Always carries 'exchanges'; error categories and 'resyncs' appear only when non-zero. NRCs are legitimate ECU answers and are not counted here.",
       "properties": {
         "exchanges": { "type": "integer", "description": "Total UDS exchanges during the session." },
         "drop": { "type": "integer", "description": "Dropped/duplicate/out-of-order/truncated ISO-TP multi-frame reads." },
@@ -121,7 +121,8 @@
         "no_data": { "type": "integer", "description": "No answer (NO DATA / empty / timeout)." },
         "bus": { "type": "integer", "description": "Transport/bus-level failures." },
         "decode": { "type": "integer", "description": "Malformed/undecodable responses." },
-        "other": { "type": "integer", "description": "Unclassified errors." }
+        "other": { "type": "integer", "description": "Unclassified errors." },
+        "resyncs": { "type": "integer", "description": "Times the transport realigned a desynchronised pipe (a recovery, not a lost payload) — several means a marginal link." }
       }
     }
   }

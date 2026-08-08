@@ -48,6 +48,8 @@ class Quality(TypedDict):
 
     ``exchanges`` is always present; the error categories appear only when
     non-zero (NRCs are legitimate ECU answers and are not counted here).
+    ``resyncs`` is not a response category — it counts transport realignments
+    (recoveries) and is likewise only present when non-zero.
     """
 
     exchanges: int
@@ -57,6 +59,7 @@ class Quality(TypedDict):
     bus: NotRequired[int]
     decode: NotRequired[int]
     other: NotRequired[int]
+    resyncs: NotRequired[int]
 
 
 class CaptureRecord(TypedDict):

@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+import json
+
+from jsonschema import Draft202012Validator
+
+from canlib.commands.validate._common import CAPTURES_SCHEMA_FILE
 from canlib.transport_stats import TransportStats, classify_raw_value
 from canlib.uds_parse import (
     ERROR_CATEGORIES,
@@ -151,3 +156,34 @@ class TestTransportStats:
         assert not d
         d.record("ok")
         assert d
+
+
+class TestQualityMatchesCaptureSchema:
+    """``quality()`` is written verbatim into a capture session, so every key it can
+    emit must be declared in the schema's ``quality`` block.
+
+    The schema sets ``additionalProperties: false``, so a key added here but not
+    there makes every session recorded afterwards fail ``validate captures`` —
+    which is how ``resyncs`` shipped and broke CI on already-recorded profiles.
+    """
+
+    def _quality_schema(self) -> dict:
+        schema = json.loads(CAPTURES_SCHEMA_FILE.read_text())
+        return schema["$defs"]["quality"]
+
+    def test_every_emittable_key_is_declared(self):
+        d = TransportStats()
+        for cat in RESPONSE_CATEGORIES:
+            d.record(cat)
+        d.record_resync("stale echo")
+        q = d.quality()
+        assert "resyncs" in q  # guards against the test passing vacuously
+        declared = set(self._quality_schema()["properties"])
+        assert set(q) <= declared
+
+    def test_maximal_quality_validates(self):
+        d = TransportStats()
+        for cat in RESPONSE_CATEGORIES:
+            d.record(cat)
+        d.record_resync("stale echo")
+        Draft202012Validator(self._quality_schema()).validate(d.quality())
