@@ -40,30 +40,45 @@ MCU:
       status: draft
       period: 5000
       vehicle_states: [CHARGING]
-      notes: >
-        34 bytes. Captured but not decoded.
-        Raw payload (charging): 6101000003FF083801268D7F390000000A00460253044F397A007A000CFF...
+      notes: >-
+        30-byte KWP2000 live-data block (a 34-byte variant exists = same payload + four trailing 00
+        pad bytes, so all offsets hold for both). 2026-08-08: THREE-PHASE MOTOR CURRENTS LOCATED at
+        payload idx 24-29 as three SIGNED LITTLE-ENDIAN 16-bit words (note the LE convention here,
+        opposite to BMS 2101's big-endian): MCU_PHASE_CURRENT_1=(S30<<8)|B29,
+        MCU_PHASE_CURRENT_2=(S33<<8)|B31 (CROSSES THE PCI BYTE AT B32 - [S31:S33] would swallow it),
+        MCU_PHASE_CURRENT_3=(S35<<8)|B34. Proof: the three sum to zero (mean -0.13, stdev 21.51 vs
+        +/-20678 full scale, n=5181) so the ECU measures two phases and derives the third;
+        sum-of-squares is 462x higher driving than at DCFC standstill; SQ vs RPM r=-0.039 rules out
+        phase VOLTAGES (back-EMF would track RPM); SQ ~ 1.2*torque^2 with field-weakening outliers
+        at high RPM. Absolute scale (A/LSB) still unknown. Also here: MCU_HV_VOLTAGE=B13*2.56
+        (verified; the finer LE-16 refinement was tested and REJECTED - B12 carries no voltage
+        information). B22 and B25 are NOT temperatures (see their notes); B23/B26 are constants
+        0x02/0x04.
       parameters:
-        MCU_INVERTER_TEMP:
+        MCU_2101_B22:
           expression: B22
           unit: °C
           min: "0"
           max: "150"
-          source: cross-ECU + multi-state analysis 2026-07-23; charge-cooldown confirmed 2026-08-05
+          source: canair analysis 2026-08-08 (long drive + 50 kW DCFC), gap-verified against CLU ODOMETER
           verified: false
           notes: >-
-            Inverter / power-module temperature, raw byte = °C (no -40 offset). STRONG new evidence
-            2026-08-05: over a 3h AC charge (motor idle) B22 shows a clean, smooth exponential
-            thermal DECAY from 80 °C at plug-in (hot from the preceding drive) to ~21 °C, while
-            every actively-heated signal ROSE (motor coolant 29->44, heatsink 25->40, LDC 37->63). A
-            cooling hot mass independent of the coolant loop = a component temp, and the raw=°C
-            calibration is confirmed by the physical asymptote (~21 °C, near garage ambient; a -40
-            offset would give an impossible -20 °C tail). Earlier: r=+0.84 vs MCU 2102 RPM, state
-            contrast charging 16-26 / READY parked 41-49 / driving 7-104. Confirmed a genuine slow
-            inverter/power-stage temp; exact sensor (IGBT module vs inverter housing) still
-            unconfirmed -> verified:false pending scan-tool cross-check. Sibling hot-cooling mass at
-            B25 (see MCU_TEMP_B25).
-          enabled: true
+            NOT A TEMPERATURE - was mis-mapped as MCU_INVERTER_TEMP, demoted 2026-08-08. Raw range
+            21-136; B23 is constant 0x02 so this byte is standalone, not a word's low half. (1) NO
+            THERMAL INERTIA, verified on continuously-polled rows: 59 at 16:31:12 -> 22 at 16:31:34
+            (-37 in 22.4 s, at DC charge start) -> 48 at 16:32:20 (+26 in 46 s); then 30 at 16:43:42
+            -> 75 at 16:44:32 (+45 in 49.7 s, as driving resumes). Superimposed +/-3-6 unit jitter
+            on an 8-20 s cadence throughout. Timing is trustworthy: the day's only recording outage
+            was 11:40-15:33 (42 km driven unrecorded per CLU ODOMETER 73322->73364) and it contains
+            none of these excursions; polling is dense on both sides of each. (2) Reads 22-31
+            through the DCFC while AAF:2181 MOTOR_COOLANT_TEMP is 39-43 C - no junction or heatsink
+            sits 15 C below its own coolant. (3) r=+0.012 vs AAF coolant and heatsink over the day,
+            only +0.335 in DRIVING with a 7.60 C residual (measured-only n=1326). Steps DOWN when
+            propulsion stops and UP when it resumes, so it tracks load/mode: candidates are a
+            duty-cycle/modulation index, a current limit, or a derating factor. Supersedes the
+            2026-08-05 'smooth 80->21 C decay over 3 h' reading, which came from a single unloaded
+            AC charge where many unrelated quantities also decay monotonically.
+          enabled: false
         MCU_HV_VOLTAGE:
           expression: B13*2.56
           unit: V
@@ -85,20 +100,44 @@ MCU:
           unit: °C
           min: "0"
           max: "150"
-          source: RE 2026-08-05 charge-cooldown + all-state distribution analysis
+          source: canair analysis 2026-08-08 long drive + DCFC
           verified: false
           notes: >-
-            Second component temperature at B25 (ISO-TP 0x14), parallel to MCU_INVERTER_TEMP (B22).
-            Over the 3h AC charge (motor idle) it cools smoothly 82 -> ~46 °C while the coolant loop
-            rises — a hot mass shed from the preceding drive, higher thermal mass / warmer asymptote
-            than B22 (~46 vs ~21 °C), likely the motor stator/winding or a separate power component.
-            Clean bounded temp in EVERY state (41-99 °C across all 3619 captures: charging 41-91,
-            READY/parked 46-89, driving 45-88), autocorrelated, no spikes. Raw = °C plausible.
-            RESOLVED 2026-08-05: the earlier 'B25 spikes to 249' caveat was a MISATTRIBUTION — B25
-            never exceeds 99; the 240-255 spikes belong to the neighbouring high-entropy
-            counter/status bytes B27/B29/B30/B31/B33/B35, not B25. verified:false only pending
-            scan-tool identification of the exact sensor.
-          enabled: true
+            Smooth, slow-moving quantity with real physical inertia (unlike B22), but NOT the
+            powertrain cooling loop: r=-0.720 vs AAF:2181:MOTOR_COOLANT_TEMP and -0.720 vs
+            AAF:2181:HEATSINK_TEMP (n=1488) - strong but INVERSELY signed, so the 2026-08-05 'likely
+            motor stator' claim is unsupported. Also r=-0.936 vs MCU:2102:MCU_TEMP_3, itself already
+            demoted as not-a-temperature. Adjacent B26 is constant 0x04, so this is a standalone
+            byte. Raw range today 43-98. Identity unresolved - see research lead.
+          enabled: false
+        MCU_PHASE_CURRENT_1:
+          expression: (S30 << 8) | B29
+          source: canair analysis 2026-08-08 long drive + DCFC
+          verified: false
+          notes: >-
+            Signed 16-bit LITTLE-endian at WiCAN B29(low):B30(high) (ISO-TP 0x18:0x19). One of a
+            three-phase set with MCU_PHASE_CURRENT_2/_3; the three sum to zero (n=1562, mean 0.82,
+            stdev 30.9 against a +/-10600 full scale) = Kirchhoff, so the ECU likely measures two
+            phases and computes the third. Range -9545..10473 raw. Identity proven, ABSOLUTE SCALE
+            UNKNOWN so no unit is claimed: value is raw counts, not amperes.
+        MCU_PHASE_CURRENT_2:
+          expression: (S33 << 8) | B31
+          source: canair analysis 2026-08-08 long drive + DCFC
+          verified: false
+          notes: >-
+            Signed 16-bit LITTLE-endian, low byte WiCAN B31, high byte WiCAN B33 (ISO-TP 0x1A:0x1B).
+            CROSSES THE ISO-TP PCI BYTE AT B32, so it must be built with an explicit shift;
+            [S31:S33] would swallow the PCI byte. Second of the three-phase set. Range -9130..10571
+            raw over 2026-08-08. Identity proven via the Kirchhoff sum, absolute scale unknown so no
+            unit is claimed.
+        MCU_PHASE_CURRENT_3:
+          expression: (S35 << 8) | B34
+          source: canair analysis 2026-08-08 long drive + DCFC
+          verified: false
+          notes: >-
+            Signed 16-bit LITTLE-endian at WiCAN B34(low):B35(high) (ISO-TP 0x1C:0x1D). Third of the
+            three-phase set. Range -10644..9448 raw over 2026-08-08. Identity proven via the
+            Kirchhoff sum, absolute scale unknown so no unit is claimed.
     2102:
       status: active
       period: 5000
@@ -355,24 +394,29 @@ MCU:
         - "Obsidian: MCU.md"
     - type: decode
       target: "2101"
-      status: captured
+      status: done
       priority: P1
       vehicle_states: [READY]
-      notes: >
-        34 bytes. 2026-07-20: live READY capture at ~18°C ambient did NOT yield clean temps —
-        candidate bytes are bimodal/constant (B10 = 4 or 56, B15 ≈ constant 57, B13 tight ~150),
-        i.e. status/calibration, not motor/inverter/heat-sink temps. The July drive was short and cool,
-        so components barely warmed. Re-attempt temp mapping (Soul motor/MCU/heat-sink = val-40) after a
-        longer drive that heats the inverter, comparing cold-soak vs warm bytes. Also search for HV DC-link
-        voltage here (VCU 2102 has B17*2; MCU may carry its own).
-        2026-07-23: MCU_INVERTER_TEMP = B22 (raw = °C, no -40 offset). r=+0.84 vs MCU 2102
-        motor RPM, confirmed thermal by state contrast: charging 16-26 °C (motor idle),
-        READY parked 41-49, driving 7-104. Neighbour B25 thermal-ish but spikes to 249.
-        Open: which temp (inverter/motor/heat-sink); pin B25; HV DC-link voltage not located.
+      notes: >-
+        RESOLVED 2026-08-08 (long drive + 50 kW DCFC, 1562 timed MCU 2101 captures). (1) HV DC-link
+        voltage LOCATED & VERIFIED: MCU_HV_VOLTAGE=B13*2.56. A finer LE-16 read ((B13<<8)|B12)/100
+        was tested and REJECTED - r identical to 3 decimals in every scope (DCFC ramp n=51 both
+        +0.510; today CHARGING n=538 both +0.613; all-history CHARGING n=1236 both +0.693) and B12
+        spans only 30-52 where a true low byte would sweep 0-255, so the 2.56 V resolution is real.
+        (2) NEGATIVE RESULT - THERE IS NO POWERTRAIN TEMPERATURE ON THIS PID. hunt vs AAF:2181
+        MOTOR_COOLANT_TEMP over today's drive (measured-only, --fill none, n=1326) gives a best
+        expressible hit of B22 at r=+0.335 with 7.60 C residual; next is B13 at r=+0.261; nothing
+        reaches r=0.4. The suspected B10/B13/B15 temps do not exist. Real motor/inverter thermals
+        live on AAF 2181 (MOTOR_COOLANT_TEMP=B22-40, HEATSINK_TEMP=B20-40) - the AAF is the thermal
+        ECU. Method note: hunt's top raw hits here were f16/f32 float reinterpretations with no
+        WiCAN expression and correlate spuriously; always read the best EXPRESSIBLE hit. (3) The PID
+        is far from exhausted, but the remaining questions are now tracked as their own leads:
+        phase-current absolute scale, B22/B25 identity, B14:B15 + B27:B28 mirrored words.
       sources:
         - "Kia Soul EV VMCU CSV — temps (w/x/y - 40)"
         - "Obsidian: MCU.md"
         - "OBDb Ioniq 5 MCU 22E001"
+      updated: "2026-08-08"
     - type: decode
       target: "2103"
       status: captured
@@ -463,12 +507,35 @@ MCU:
       notes: "93 captures (62 driving 2026-07-22, +charge/ACC2/parked). ASSESSMENT 2026-08-02: 21F2 is a static-per-session identity+monitor page, NOT dynamic data. Structure (SID 61F2, 67B reassembled): constant framing/markers (FFFFFF3F, 7DD6, 09, CDABC2CD, C1CD) + ASCII software/part ID 'EHEL-MS2' at the tail (WiCAN B69-B77 but CROSSES the CF PCI byte at B72 -> not cleanly shippable as one contiguous expression; visible only in the reassembled payload). Varying bytes do NOT correlate with motor RPM (MCU 2102 [S10:S11]), vehicle speed (ESC 22C101) or the MCU slow temp - because they are ~constant WITHIN a session and only differ BETWEEN sessions. Candidate temp pair at reassembled idx 57-58 (two adjacent bytes, session-stable, tracking within 0-3, range 17-46 across sessions) = likely two related temperatures. TO DECODE: a keep-all thermal-sweep capture (long charge or warm-up) co-polling a known temp (AAF MOTOR_COOLANT_TEMP) so the temps actually vary within scope; motor/speed correlation is a dead end here."
     - type: decode
       target: "2101"
-      status: captured
+      status: done
       priority: P2
       vehicle_states: [CHARGING]
       created: "2026-08-05"
-      updated: "2026-08-05"
-      notes: "2026-08-05 (3h AC charge, MCU+BMS+OBC+AAF co-polled, 2016 timed caps). RESULTS — (1) HV DC-link voltage LOCATED & VERIFIED at B13: MCU_HV_VOLTAGE=B13*2.56 tracks the verified BMS BATTERY_VOLTAGE 1:1 over the SOC-driven 360-399 V charge sweep (slope 0.991, r=0.981, resid 2.30 V=1 LSB). Supersedes the earlier 'HV DC-link voltage not located' note. (2) MCU_INVERTER_TEMP (B22) CONFIRMED a genuine slow inverter/power-module temp: smooth exponential decay 80->21 C over 3h (motor idle) while the coolant loop rose; raw=C calibration confirmed by the physical asymptote. (3) NEW second thermal mass MCU_TEMP_B25 (B25): cools 82->46 C in parallel, higher mass, likely motor stator (added enabled:false; historical 249 spikes in other states unresolved)."
+      updated: "2026-08-08"
+      notes: >-
+        2026-08-05 (3h AC charge, MCU+BMS+OBC+AAF co-polled, 2016 timed caps). (1) STANDS: HV
+        DC-link voltage LOCATED & VERIFIED at B13, MCU_HV_VOLTAGE=B13*2.56, tracks the verified BMS
+        BATTERY_VOLTAGE 1:1 over the SOC-driven 360-399 V sweep (slope 0.991, r=0.981, resid 2.30 V
+        = 1 LSB). (2) WITHDRAWN 2026-08-08: B22 is NOT an inverter temp - renamed MCU_2101_B22,
+        disabled. It has NO thermal inertia, on continuously-polled rows: 59 at 16:31:12 -> 22 at
+        16:31:34 (-37 in 22.4 s, at DC charge start) -> 48 at 16:32:20 (+26 in 46 s); then 30 at
+        16:43:42 -> 75 at 16:44:32 (+45 in 49.7 s, as driving resumes); plus +/-3-6 unit jitter on
+        an 8-20 s cadence throughout. It reads 22-31 through the DCFC while AAF:2181
+        MOTOR_COOLANT_TEMP is 39-43 C, and nothing sits 15 C below its own coolant. r=+0.012 vs AAF
+        coolant and heatsink over the day. The original 'smooth exponential decay 80->21 C over 3h'
+        came from a single unloaded AC charge where many unrelated quantities also decay
+        monotonically - a decay curve alone does not identify a thermal mass. Timing is gap-verified
+        against CLU ODOMETER: the day's only recording outage was 11:40-15:33 (42 km driven
+        unrecorded, 73322->73364) and it contains none of these excursions. B22 steps DOWN when
+        propulsion stops and UP when it resumes, so it tracks load/mode - candidates are a
+        duty-cycle/modulation index, a current limit or a derating factor. (3) WITHDRAWN 2026-08-08:
+        MCU_TEMP_B25 'likely motor stator' is unsupported. B25 IS genuinely smooth and slow (real
+        inertia, unlike B22) but r=-0.720 vs BOTH AAF coolant and heatsink - strong yet INVERSELY
+        signed, which no coolant-fed thermal mass does. Identity unresolved; carried forward as the
+        '2101 B22 / B25 identity' lead. NOTE the what_to_test entries below are superseded:
+        'identify the exact B22 sensor' rests on the withdrawn premise, and the B25 249-spike
+        question was already answered by the P3 item (byte misattribution to
+        B27/B29/B30/B31/B33/B35).
       sources:
         - canair align/hunt/decode charge-cooldown analysis 2026-08-05
       what_to_test:
@@ -510,6 +577,40 @@ MCU:
       what_to_test:
         - Locate the real phase-current field (the [B17:B18] pair is disproven); look for a 16-bit word whose low byte actually sweeps 0-255 under load.
         - Explain MCU_MOTOR_TORQUE_2's systematic ~+30 raw standstill offset — biased/filtered torque, different quantity, or deliberate zero-offset?
+    - type: verify
+      target: 2101 phase-current absolute scale
+      status: captured
+      priority: P1
+      vehicle_states: [DRIVING]
+      created: "2026-08-08"
+      updated: "2026-08-08"
+      notes: MCU_PHASE_CURRENT_1/2/3 are located and proven to be currents (Kirchhoff sum-to-zero mean -0.13 stdev 21.51 over n=5181; sum-of-squares 462x higher driving than at DCFC standstill; SQ vs RPM r=-0.039 rules out phase voltages; SQ ~ 1.2*torque^2 with field-weakening at high RPM). Only the SCALE is unknown, so all three ship unverified with no unit. Observed peak |I| 11516 raw; apparent standstill quantum ~24.4 raw. A 2017 Ioniq 28 kWh draws ~400 A peak phase current at full torque, which would imply roughly 0.035 A/LSB, but that is arithmetic on an assumed peak, not a measurement.
+      what_to_test:
+        - Compare the SQ-derived peak against a scan tool reporting motor phase current during a hard launch
+        - Or clamp-meter one phase lead (workshop only) at a known steady torque
+        - "Power balance cross-check: 1.5*Ipk^2*R vs BMS BATTERY_POWER minus mechanical output at steady cruise"
+    - type: decode
+      target: 2101 B22 / B25 identity
+      status: captured
+      priority: P2
+      vehicle_states: [DRIVING]
+      created: "2026-08-08"
+      updated: "2026-08-08"
+      notes: "Both bytes were previously mis-mapped as temperatures and were demoted 2026-08-08. B22 (was MCU_INVERTER_TEMP, now MCU_2101_B22, disabled): r=+0.012 vs AAF:2181 coolant/heatsink over the whole day, only +0.335 in DRIVING with a 7.60 C residual; reads 22-31 while its own coolant is 39-43 C; steps 55->22 instantly at charge start and 31->75 in 4 min, so it has no thermal inertia. Raw range 21-136, B23 constant 0x02 so standalone. B25 (MCU_TEMP_B25, disabled) IS smooth and slow but correlates r=-0.720 vs AAF coolant AND heatsink, i.e. strong but INVERSELY signed, so the earlier motor-stator claim is unsupported; B26 constant 0x04 so also standalone. NEGATIVE RESULT for the whole PID: no byte on MCU 2101 tracks a real powertrain temperature (best expressible hit r=+0.335 measured-only n=1326); the genuine motor/inverter thermals live on AAF 2181 (MOTOR_COOLANT_TEMP=B22-40, HEATSINK_TEMP=B20-40), the thermal ECU."
+      what_to_test:
+        - Identify B22 - fast, bounded 21-136, inversely related to load; try duty-cycle/modulation index, current limit, or derating factor
+        - Identify B25 - slow with real inertia but inversely signed vs coolant; try inverter EFFICIENCY or a cooling-demand/fan-request signal, not a temperature
+    - type: decode
+      target: 2101 B14:B15 and B27:B28 mirrored words
+      status: captured
+      priority: P2
+      vehicle_states: [DRIVING]
+      created: "2026-08-08"
+      updated: "2026-08-08"
+      notes: "Two unidentified LE-16 words that MIRROR EACH OTHER, range 12285-14983. Aux-12V hypothesis REJECTED: r=-0.38 and -0.43 vs AAF_AUX_BATTERY_VOLTAGE, i.e. wrong sign for a supply rail. Not temperatures either (r~-0.43 vs AAF coolant). The tight ~12300-15000 span on a 16-bit field suggests a scaled quantity with a large offset, or a resolver/angle-derived value."
+      what_to_test:
+        - Check whether the pair is a redundant safety-channel duplicate (identical by design) via correlate --find-mirrors --allow-offset
+        - Try against DC-link voltage, modulation index, and resolver angle from MCU 2102 (MCU_ROTOR_ANGLE)
 
   sessions:
     "81":

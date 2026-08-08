@@ -97,7 +97,7 @@ BMS:
           verified: true
           notes: "BMS main (HV) relay closed. 2026-07-20: set (1) in all responsive captures — READY, AC & DC charging."
 
-        CHARGER_CONNECTED:
+        AC_CHARGER_CONNECTED:
           expression: B14:5
           unit: ""
           ha_class: plug
@@ -105,34 +105,33 @@ BMS:
           max: ""
           verified: true
           notes: >-
-            Charge plug connected (bit5). Set in 0x20 (plugged, contactors still open), 0x23
-            (plugged + ready) and 0xA3 (AC charging) across 5997 captures — so it tracks the plug
-            being present, not charging itself (CHARGING, bit7, does that). 2026-08-06: an earlier
-            note contrasted this against 'not DC (0x45)'; that 0x45 reading was withdrawn with the
-            hand-transcribed August-2025 captures (commit 52f1eb3), and the corpus has no DC/CCS
-            session, so whether bit5 also sets on a CCS plug is untested. Note the WiCAN community
-            profile labels this bit 'AC charging', which our captures contradict.
+            AC / EVSE-PLUG PRESENCE ONLY - narrowed 2026-08-08 from two complementary observations.
+            (1) DC: b5 stays 0 through the entire 16:31:47-16:44:28 CCS fast charge (n=50,
+            distinct=1) even at -173 A / 64 kW with the connector physically latched, so it is not a
+            general 'a charger is connected' flag. (2) AC cable, no energy: 17:53-18:30 the car sat
+            on a home EVSE that only supplies power on a schedule; b5=1 while CHARGING (b7)=0 and
+            BMS_MAIN_RELAY (b0)=0 (n=31, byte 0x20), with OBC_PILOT_DUTY 100% (pilot high, no PWM
+            current offer) and contactors open. So b5 tracks AC cable/pilot PRESENCE, not energy
+            flow - it is set whether or not the EVSE is delivering. Do not use it to detect charging
+            of either kind: use CHARGING (b7) for AC energy flow and CHARGING_DC (b6) for DC. Set in
+            0x20 (AC plugged, contactors open) and 0xA3 (AC charging). Backs the PLUGGED state
+            predicate.
+          source: canair analysis 2026-08-08 (CCS DCFC + scheduled home-EVSE wait)
         CHARGING_DC:
           expression: B14:6
           unit: ""
           ha_class: plug
           min: ""
           max: ""
-          verified: false
+          verified: true
           notes: >-
-            B14 bit6 — UNCONFIRMED on this car: never observed set. Hypothesis (not our own
-            observation): CCS/DC charge plug connected / DC fast charge active. Community lineage:
-            WiCAN's own hyundai_ioniq_electric_38kwh profile maps DC charging to bit6 of this same
-            status byte — (B15&64)/64 there; their B15 is our B14, off by the 3-byte 220101 DID vs
-            our 2-byte 2101, confirmed by their SOC sitting at B10 where ours is B09. Treat that
-            lineage with care: it labels bit5 "AC charging", whereas our corpus shows bit5 = plug
-            connected (set in 0x20 = plugged with contactors open, not charging) and bit7 = charging
-            active. 2026-08-06: across 5997 BMS:2101 captures B14 only ever reads 0x03 / 0x20 / 0x23
-            / 0xA3 — bits 2, 3, 4 and 6 are never set — and the corpus contains no DC/CCS charge
-            session at all. A single earlier 0x45 reading was withdrawn together with the
-            hand-transcribed August-2025 captures (hand-assembled from CarScanner screenshots via
-            ImHex; that session had 4 of its 9 payloads byte-identical to the previous session's, so
-            its provenance was not trustworthy). Verify on the first real DC fast charge.
+            CONFIRMED 2026-08-08 on this vehicle - previously community lineage only, never observed
+            set. During the 16:31-16:43 50 kW DC fast charge (sustained -172 A, SOC 39->77%) b6
+            reads 1; across 1576 pre-2026-08-08 AC-charging captures b6 reads 0 in every single one
+            while b7 (CHARGING) reads 1. So b6 is set ONLY on DC charging and is genuinely distinct
+            from b7, not a duplicate of it. New byte value 0xC3 = b0+b1+b6+b7 = DC charging, versus
+            0xA3 = b0+b1+b5+b7 = AC charging. Note b5 (CHARGER_CONNECTED) stays CLEAR on CCS.
+          source: canair analysis 2026-08-08 50 kW DCFC session (first real rapid charge on this car)
         CHARGING:
           expression: "B14:7"
           unit: ""
@@ -328,13 +327,24 @@ BMS:
             key-off→READY capture. Kept for research trail.
           enabled: false
         DRIVE_MOTOR_SPEED:
-          expression: "B65"
-          unit: ""
+          expression: "[S65:S66]"
+          unit: RPM
           ha_class: ""
-          min: ""
-          max: ""
+          min: "-500"
+          max: "8000"
           verified: true
-          notes: ""
+          notes: >-
+            CORRECTED 2026-08-08. Was expression B65, which read only the HIGH byte as UNSIGNED: it
+            saturated 0-255 and scored just r=+0.391 vs real motor RPM. Correct field is signed
+            16-bit BIG-endian at WiCAN B65:B66 (payload idx 55:56, same ISO-TP frame as B65 so no
+            PCI crossing; BE matches the rest of the BMS 2101 payload convention). Verified r=+0.997
+            vs MCU:2102:MCU_MOTOR_RPM on n=1149 MEASURED rows (--fill none, no forward-fill), fit
+            slope 0.986 so the raw value is RPM directly; observed -200..7400 RPM vs the reference's
+            -208..7649 including negative regen. Null test: median 0 through the 16:31-16:43 50 kW
+            DCFC, the single 500 RPM sample being the coast-down at the drive/park boundary. Note
+            B67 duplicates B65, so a mirrored or filtered copy of this signal likely follows at
+            B67:B68.
+          source: canair analysis 2026-08-08 long drive + DCFC (cross-ECU vs MCU 2102)
 
         ISOLATION_RESISTANCE:
           expression: "B69*1000"
@@ -351,21 +361,22 @@ BMS:
           ha_class: ""
           min: ""
           max: ""
-          source: AutoPID config (on device); bitfield decoded via ITStromer community sheet + ioniq-ev-bms xls; re-enumerated 2026-08-06
+          source: AutoPID config (on device); bitfield decoded via ITStromer community sheet + ioniq-ev-bms xls; re-enumerated 2026-08-06; DC bits resolved 2026-08-08
           source_links: []
           verified: true
           notes: >-
-            BMS charging/relay state bitfield. CORRECTED 2026-08-06 after the hand-transcribed
-            August-2025 captures were withdrawn (commit 52f1eb3) — they supplied the only 0x45
-            reading, and the old note's DC-charging claims rested entirely on it. Across 5997
-            captures B14 takes exactly four values: 0x03 ready/not charging (n=1065), 0x20 plugged,
-            contactors open (n=55), 0x23 plugged + ready (n=12), 0xA3 AC charging (n=4865). Bits:
-            b0=HV main relay closed (BMS_MAIN_RELAY); b1=identical to b0 in all 5997 captures, a
-            mirror with no observed divergence (BMS_MAIN_RELAY_MIRROR_B14_1); b2,b3,b4,b6 never set
-            in any capture — the corpus contains no DC/CCS charge session, so they are unexercised
-            rather than unused; b5=plug connected (CHARGER_CONNECTED — set in 0x20, i.e. plugged
-            with contactors open); b7=charging active (CHARGING). b6 is mapped as CHARGING_DC on
-            community lineage only — see its note.
+            BMS charging/relay state bitfield. DC BITS RESOLVED 2026-08-08 by the first real DC fast
+            charge on this car (50 kW CCS, 16:31-16:43, SOC 39->77%), which supplied the DC state
+            the AC-only 5997-capture corpus lacked. Byte values now: 0x03 ready/not charging, 0x20
+            plugged contactors open, 0x23 plugged + ready, 0xA3 AC charging, 0xC3 DC CHARGING (new
+            2026-08-08). Bits: b0=HV main relay closed (BMS_MAIN_RELAY); b1=exact mirror of b0,
+            (b1-b0)=0 in all 7179 captures INCLUDING the DCFC, so not a second contactor;
+            b2,b3,b4=still clear through a real rapid charge, so no longer merely
+            unexercised-by-state, which kills the withdrawn 0x45 reading's bit2 rapid-charge
+            candidate (other unobserved states such as V2L or a battery-heater/fault condition could
+            still set them); b5=AC/EVSE plug presence ONLY, clear throughout the CCS session
+            (CHARGER_CONNECTED); b6=DC charging, set on CCS and clear in all 1576 AC-charging
+            captures (CHARGING_DC); b7=charging active (CHARGING).
         BMS_2101_B10:
           expression: B10
           min: "0"
@@ -404,16 +415,14 @@ BMS:
             dropped, and live in ACC2 read 0 (bus disconnected, pack still 367.7V internally).
         BMS_MAIN_RELAY_MIRROR_B14_1:
           expression: B14:1
-          source: canair bitfield analysis 2026-08-06; n=5997 unanimous
-          verified: false
+          source: canair analysis 2026-08-08 DCFC
+          verified: true
           notes: >-
-            Identical to BMS_MAIN_RELAY (B14:0) in 5997/5997 captures — a mirrored pair, never
-            observed diverging. An earlier pass read it as a second, independent HV contactor
-            because it appeared to diverge during DC charging; that divergence came from the single
-            0x45 reading in the withdrawn August-2025 captures (commit 52f1eb3) and does not
-            survive. Disabled so it does not ship a duplicate of BMS_MAIN_RELAY; kept defined so
-            bit1 is accounted for. A real DC fast-charge session is the test that could still
-            separate the two.
+            EXACT MIRROR of BMS_MAIN_RELAY (B14:0) - 'second contactor' hypothesis now DEFINITIVELY
+            DEAD. (B14:1)-(B14:0) is exactly 0 across all 7179 captures (5997 historical + 1182 on
+            2026-08-08), distinct=1, and that now INCLUDES a real 50 kW DC fast charge, which was
+            the one state expected to split a second DC contactor from the main one. Stays disabled
+            so it does not ship a duplicate signal; kept defined as the research record.
           enabled: false
     2105:
       status: active
@@ -1433,7 +1442,7 @@ BMS:
   research:
     - type: verify
       target: "2101 extended bytes"
-      status: captured
+      status: done
       priority: P1
       vehicle_states: [READY]
       notes: >
@@ -1461,6 +1470,7 @@ BMS:
       sources:
         - "decode-captures.py output"
         - "captures/ — 2026-07-21 (62 B monitor), 2026-07-22 (READY parked)"
+      updated: "2026-08-08"
     - type: scan
       target: "22 BC01-BC0B"
       status: nrc
@@ -1567,11 +1577,11 @@ BMS:
       notes: "2026-07-30 AC-charge analysis. Registered 2 unverified candidates: BMS_2101_B10 (=B10, r=+0.998 vs BMS:2105:AVAIL_CHARGE_POWER, ~0.4 kW/LSB — likely charge-power-limit mirror) and BMS_2101_B63 (=B63, r=+0.998 vs cell voltage, charge-monotone, low confidence). Both are SOC-monotone in a steady charge so confounded. NEGATIVE RESULT: over the whole 2.7h charge the other unmapped 2101 bytes B4-B7, B12, B13, B28, B66-B73 stayed CONSTANT = cal/reserved/counter, not live charge signals. NEXT: co-poll BMS:2101+BMS:2105+VCU:2102 with --keep-all across a plug/unplug charge cycle AND a drive to give B10/B63 independent variation; then hunt --against AVAIL_CHARGE_POWER / cell voltage to confirm scaling."
     - type: verify
       target: 2101 B14 bits 1,2,3,4,6 — needs a DC fast charge
-      status: pending
+      status: done
       priority: P2
       vehicle_states: [CHARGING, PLUGGED]
       created: "2026-08-06"
-      updated: "2026-08-06"
+      updated: "2026-08-08"
       notes: "The corpus (5997 captures) contains NO DC/CCS charge session, so five bits of the BMS state byte are unexercised rather than unused: bits 2,3,4,6 are never set, and bit1 is indistinguishable from bit0 (BMS_MAIN_RELAY) in 5997/5997 captures. All prior DC evidence came from the single B14=0x45 reading in the hand-transcribed August-2025 captures, withdrawn in commit 52f1eb3 because that session's provenance was untrustworthy — so CHARGING_DC (bit6) is currently community lineage only, and the 'second contactor' reading of bit1 has no support. One real rapid charge resolves all of it."
       sources:
         - canair bitfield analysis 2026-08-06 (plans/2026-08-06-bitfield-audit-and-gear-state.md)
@@ -1584,6 +1594,16 @@ BMS:
         At a CCS charger: canair monitor 'BMS:2101,2105 VCU:2101 OBC:2101' --save --keep-changes
         --label 'DC fast charge' --state 'CHARGING, PLUGGED'. Start recording BEFORE plugging in and
         keep it running through plug-in, handshake, ramp-up, and unplug, noting each phase with 's'.
+    - type: decode
+      target: 2101 B67:B68 drive-motor-speed mirror
+      status: captured
+      priority: P3
+      vehicle_states: [DRIVING]
+      created: "2026-08-08"
+      updated: "2026-08-08"
+      notes: DRIVE_MOTOR_SPEED was corrected 2026-08-08 to [S65:S66] (signed 16-bit BE, r=+0.997 n=1149 measured-only vs MCU:2102:MCU_MOTOR_RPM). B67 duplicates B65, so a second mirrored or filtered copy of motor speed likely sits at B67:B68.
+      what_to_test:
+        - Decode [S67:S68] and compare against [S65:S66] - identical, lagged/filtered, or a different shaft
 
   sessions:
     "81":

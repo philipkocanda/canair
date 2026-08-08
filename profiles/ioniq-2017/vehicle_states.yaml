@@ -47,7 +47,7 @@ states:
     description: Light sleep / 12V standby (unplugged).
   - name: PLUGGED
     description: Charge cable connected (AC or DC), not necessarily charging.
-    when: BMS.CHARGER_CONNECTED == 1 or IGPM.CHARGE_PORT_LOCK == 1
+    when: BMS.AC_CHARGER_CONNECTED == 1 or BMS.CHARGING_DC == 1 or IGPM.CHARGE_PORT_LOCK == 1
   - name: ACC
     description: ACC1 — one start-button press, accessory power.
   - name: ACC2

@@ -878,7 +878,17 @@ VCU:
       vehicle_states: [READY]
       created: "2026-08-06"
       updated: "2026-08-06"
-      notes: "The gear byte VCU 2101 B10 is decoded as GEAR (enum) + GEAR_P/R/N/D, but two of the four positions rest on thin data: Reverse n=54 (two sessions) and Neutral n=3 (a single 2026-07-19 17:42 window). ESC 22C101 GEAR_SELECTOR's Neutral value (expected 3 on its sequential 1=P/2=R/4=D encoding) is still unobserved purely because ESC was not co-polled on the one day VCU saw Neutral. One capture closes both, and simultaneously re-tests the corrected B26 reading (GEAR_PARK_INV must read 1 in R and N, not just D)."
+      notes: >-
+        The gear byte VCU 2101 B10 is decoded as GEAR (enum) + GEAR_P/R/N/D, but two of the four
+        positions rest on thin evidence. 2026-08-08 (long drive + several park manoeuvres, 1831 VCU
+        and 1417 ESC gear samples) ADDS A THIRD INDEPENDENT REVERSE SESSION but does NOT close the
+        lead: VCU GEAR values 1(n=1), 33(n=551), 34(n=13), 40(n=1266); ESC 22C101 GEAR_SELECTOR
+        values 1(n=105), 2(n=15), 4(n=1297). NEUTRAL WAS NEVER ENGAGED all day (no GEAR_SELECTOR==3
+        and no VCU Neutral code across 3248 samples), so the sequential-encoding hypothesis
+        1=P/2=R/4=D with 3=N is still inferred from the gap rather than observed - a
+        parked-and-plugged period does not pass through N. STILL NEEDED: one deliberate P-R-N-D
+        sweep at standstill dwelling ~5 s in Neutral, co-polling VCU:2101 with ESC:22C101.
+        Everything else in this lead is unchanged.
       sources:
         - canair bitfield analysis 2026-08-06 (plans/2026-08-06-bitfield-audit-and-gear-state.md)
       what_to_test:
