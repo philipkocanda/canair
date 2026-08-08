@@ -175,6 +175,12 @@ escalating: a reply that fails its echo check triggers a drain-and-probe resync,
 tallied as `resync` on the monitor's health line. A rising `stale`/`resync` count
 is how a marginal link looks while it is still coping.
 
+canair also **measures** the link (the TCP handshake on `slcan-tcp`, adapter-only
+AT commands on `wican-ws`) and adds that allowance to its ISO-TP and per-request
+budgets, so these are the only latency-related keys you should need to touch. See
+[Remote & cellular links](../concepts/remote-and-cellular.md) for the whole
+picture, including which transport to pick and what `slcan-tcp` costs in data.
+
 
 ## The `transport` block
 

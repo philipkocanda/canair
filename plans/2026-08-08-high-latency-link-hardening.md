@@ -1,7 +1,9 @@
 # High-latency link hardening: request/response correlation and cellular tolerance
 
-Status: **IN PROGRESS** (2026-08-08). Phase A items 1–4 and 8 are done (`ba9fb09`, `bc45bd1`);
-items 5–7 and Phases B–C remain. Follow-up to
+Status: **IN PROGRESS** (2026-08-08). Everything is done except item 9 (device-side SLCAN
+acceptance filters), which needs hardware verification before it can ship — see its entry.
+Items 7 and 15 were dropped with reasons recorded below. Shipped in `ba9fb09`, `bc45bd1`,
+`ef1b3c7`, `eb9662a`, `85b0ba4`, `cb070c3`. Follow-up to
 `plans/2026-08-08-elm327-pipe-desync-recovery.md`, which fixed the reported symptom on
 `wican-ws` but left the same failure class open on the raw path and left the ELM327
 detection resting on a hardcoded latency guess.
@@ -299,12 +301,24 @@ the ELM327 emulator, but **not on `wican-ws`** — it cannot carry the primary d
 4. **Widen `request_echo` coverage** *(done)* beyond single-identifier `0x21`/`0x22`
    (`canlib/uds_parse.py`): the multi-DID `0x22` batch form now validates against its **first**
    DID, which is the one byte pair that sits at a fixed offset at any batch size.
-5. **Demote `_LINK_LATENCY_MARGIN`** (`canlib/transport/elm327_terminal.py:43`) to the
-   no-data-at-all fallback, and drive it from measured RTT with a configured floor.
-6. **Extend `_resync` to `decode`**, so a connect banner or garbage in the slot recovers.
-   Revisit the now-partly-stale warning at `canlib/transport/channel.py:30-46`.
-7. **Opportunistic command-echo validation on `elm327-tcp`** — probe at init whether the
-   adapter echoes; if it does, use it as an exact per-instance tag. Never assume it.
+5. **Demote `_LINK_LATENCY_MARGIN`** *(done)* (`canlib/transport/elm327_terminal.py`) to a
+   *floor*, and drive the window from measured RTT. New leaf `canlib/link_latency.py` holds an
+   RFC-6298 smoother (`srtt + 4*rttvar` — TCP's retransmit-timer problem is this problem, and a
+   plain mean is an underestimate about half the time, each one orphaning another reply). Fed
+   **only** by adapter-only AT commands (`_LINK_PROBE_CMDS`), never by a UDS read, which mixes
+   link and ECU and cannot be decomposed. The command timeout no longer vetoes the window; a
+   separate `_RESYNC_QUIET_MAX` bounds it.
+6. **Extend `_resync` to `decode`** *(done)*, so a connect banner or garbage in the slot
+   recovers — `_RESYNC_ON = {CAT_STALE, CAT_DECODE}`. This is the case prompt accounting
+   structurally cannot catch: a banner carries its own `>`, so the ledger reads it as a paid
+   debt and only its *content* betrays it. `no_data` deliberately stays out (a silent ECU is
+   normal while scanning; realigning on every miss costs a round trip per unmapped PID), and so
+   does a bare `?`, which `canlib/uds_parse.py` classifies as `CAT_BUS` — it is a complete,
+   prompt-terminated reply in the right slot, so the pipe is aligned and the fix is to send less
+   (item 8), not to realign. The warning at `canlib/transport/channel.py` was rewritten
+   accordingly.
+7. ~~**Opportunistic command-echo validation on `elm327-tcp`**~~ — **dropped**, see
+   *Deliberately not done*.
 8. **Clamp the multi-DID batch size to what the transport can send.** *(done)* The ceiling is
    an ELM327-protocol fact, not a WiCAN one, so it is expressed as a transport capability —
    `Terminal.max_request_bytes` (`canlib/transport/protocol.py`), `7` on `Elm327Terminal` and
@@ -316,34 +330,83 @@ the ELM327 emulator, but **not on `wican-ws`** — it cannot carry the primary d
 
 ### Phase B — make `slcan-tcp` latency-proof
 
-9. **Device-side acceptance filters.** Emit `M`/`m` between the bitrate and `O` in
-   `SlcanTcpBus.__init__` (`canlib/transport/slcan_tcp.py:133-135`), computed from the
-   profile's ECU response addresses. Verify whether the WiCAN applies
-   `can_set_filter`/`can_set_mask` live or only at driver start; if only at start, the
-   ordering above is mandatory. `sniff` must opt out and stay unfiltered.
-   Note the hardware constraint: the ESP32 TWAI peripheral offers a *single* code+mask pair,
-   so a profile with disjoint response addresses gets a superset mask, not an exact set. A
-   superset is still a very large reduction versus the whole bus.
-10. **Latency-adaptive ISO-TP budgets** — scale `rx_flowcontrol_timeout` and
-   `rx_consecutive_frame_timeout` (`canlib/transport/isotp_params.py:28-29`) by measured RTT.
-11. **Raise the raw per-request default** from `1.0` s
-    (`canlib/transport/uds_raw.py:68`) and make it latency-adaptive.
-12. **Warn on `blocksize > 0` with a non-local host** in `canair validate` — one RTT per
-    block is a cliff, not a slope.
+9. **Device-side acceptance filters.** *(blocked on hardware verification — the only item
+   not shipped.)* Emit `M`/`m` between the bitrate command and `O` in `SlcanTcpBus.__init__`
+   (`canlib/transport/slcan_tcp.py`), computed from the profile's ECU response addresses.
+   `sniff` must opt out and stay unfiltered.
+
+   Firmware reading (`wican-fw/`) settled three of the four unknowns:
+
+   - **Ordering is mandatory, not merely preferable.** `can_set_filter`
+     (`wican-fw/main/can.c:197`) and `can_set_mask` (`wican-fw/main/can.c:207`) both
+     `return` immediately when `bus_state == ON_BUS`. They only stash into `can_cfg`, which
+     `can_enable` copies into `f_config.acceptance_code`/`acceptance_mask`
+     (`wican-fw/main/can.c:127-129`) at driver install. So `M`/`m` after `O` are silently
+     ignored.
+   - **Mask polarity: a mask bit of `1` means *don't care*.** The vendor's own idle default is
+     `.mask = 0xFFFFFFFF, .filter = 0` (`wican-fw/main/can.c:71`), matching
+     `TWAI_FILTER_CONFIG_ACCEPT_ALL()` (`wican-fw/main/can.c:84`). Acceptance is therefore
+     `(id ^ code) & ~mask == 0`.
+   - **Wire format**: eight ASCII hex digits, MSB first, assembled at
+     `wican-fw/main/slcan.c:470-500`; command letters parsed at `wican-fw/main/slcan.c:399-410`
+     (`M` → `SL_ACP_CODE`, `m` → `SL_MASK_REG`).
+   - **Still unverified: where an 11-bit ID sits inside the 32-bit word.** `single_filter = 1`
+     means the SJA1000-derived single-filter layout, in which the ID is *not* right-aligned —
+     it occupies the high bits, with RTR and the first data bytes below it. That layout is an
+     ESP32 TWAI hardware detail, not present anywhere in `wican-fw/`, so it cannot be confirmed
+     from the sources available here.
+
+   **Why that blocks shipping:** the failure mode of a wrong bit position is that *no frame
+   matches*, i.e. total silence with no error — indistinguishable from a dead bus, and it would
+   send canair into a reconnect loop. Unlike everything else in this plan, it cannot be
+   validated by unit tests, because what is in doubt is the peripheral's behaviour rather than
+   our arithmetic. It needs one bench check against a real WiCAN: set a filter, confirm the
+   expected IDs still arrive, confirm others stop.
+
+   Design notes for when it is picked up:
+
+   - The ESP32 TWAI peripheral offers a *single* code+mask pair, so disjoint response addresses
+     get a **superset** mask, not an exact set. For a typical Hyundai/Kia response set
+     (`0x7C0`–`0x7FF`) the superset is 64 IDs — still a very large win, because the broadcast
+     traffic that dominates the byte count lives well below `0x7C0`.
+   - Consider a self-healing fallback rather than trusting the filter blindly: if nothing is
+     received in the first few exchanges, reopen with accept-all and log it. That keeps the
+     failure mode "slow" instead of "silent".
+10. **Latency-adaptive ISO-TP budgets** *(done)* — `build_isotp_params(config, link_budget)`
+    **adds** the measured allowance to `rx_flowcontrol_timeout` and
+    `rx_consecutive_frame_timeout`. Additive, not replacing: the configured value is the ECU's
+    share and the measurement is the network's, and the two delays are sequential, so a profile
+    that needs 3000 ms from a slow ECU still gets it. Measurement comes from the TCP handshake,
+    seeded in `SlcanTcpBus.__init__` — one round trip by construction, and available before any
+    CAN traffic exists, which is when the stack params must be chosen.
+11. **Raise the raw per-request default** *(done)* — resolved by making it adaptive rather
+    than by bumping the magic number: `RawUdsClient._budget` adds the measured allowance to the
+    per-ECU/global timeout. A caller-forced `--timeout` is an *instruction*, not a budget, so it
+    is left exactly as given.
+12. **Warn on `blocksize > 0` on a slow link** *(done)* — `isotp_params._warn_blocksize_cost`,
+    once per session at INFO. Driven by the **measurement**, not a hostname/is-local heuristic:
+    the real question is whether round trips are expensive, which is now directly known. Left
+    out of `canair validate`, which has no link to measure.
 
 ### Phase C — defaults, escalation, guidance
 
-13. **`_DEFAULT_RECONNECT_MAX_WAIT` 6.0 → 60.0** (`canlib/config.py:48`), with
-    `config.example.yaml` and `docs/reference/config.md` updated. This is the agreed fix for
-    the ping-induced regression in finding 8.
-14. **Raise or adapt `_DEFAULT_CONNECT_TIMEOUT`** (`canlib/config.py:45`) so radio wake-up
-    does not read as a dead device.
-15. **A single link-latency knob** distinct from `response_timeout_ms`/`ATST` (which is the
-    *car's* budget, per `canlib/timeouts.py:13-17`), so one setting covers a slow link.
-16. **Warn once when a remote host is paired with `slcan-tcp`**, pointing at `wican-ws`.
-17. **`docs/concepts/remote-and-cellular.md`** — the transport tradeoff from finding 6, the
-    knobs, batching as the latency lever, and the data-usage arithmetic from finding 2.
-    Precedent: `plans/2026-07-22-cellular-transport-timeouts.md`.
+13. **`_DEFAULT_RECONNECT_MAX_WAIT` 6.0 → 60.0** *(done)*, with `config.example.yaml`,
+    `docs/reference/config.md` and `AGENTS.md` updated. Fixes the ping-induced regression in
+    finding 8.
+14. **Raise `_DEFAULT_CONNECT_TIMEOUT` 2.0 → 5.0** *(done)*, so a cellular radio's
+    idle-to-connected transition does not read as a dead device.
+    `TestDefaultsAreSizedForAMobileLink` pins the *direction* (floors) rather than the exact
+    values, since each was originally a LAN number that failed on cellular.
+15. ~~**A single link-latency knob**~~ — **dropped**, see *Deliberately not done*.
+16. **Warn once when the measured link makes `slcan-tcp` the limiting factor** *(done)* —
+    `RawUdsClient._hint_transport_choice`, above `_TRANSPORT_HINT_RTT_S`. Again measured rather
+    than inferred from the host. It quotes the measured **round trip**, not the internal
+    allowance, so the number means what the user thinks it means.
+17. **`docs/concepts/remote-and-cellular.md`** *(done)* — the transport tradeoff from finding
+    6 as a comparison table, what canair measures and what it feeds, the two failure modes
+    (link dies vs link stays open but stops being useful), the data-usage arithmetic from
+    finding 2, and a settings table. Linked from `mkdocs.yml`, `docs/reference/config.md` and
+    `AGENTS.md`.
 
 ## Deliberately not done, and hard limits
 
@@ -361,6 +424,18 @@ the ELM327 emulator, but **not on `wican-ws`** — it cannot carry the primary d
   car's budget with the network's is precisely the trap that makes finding 8 hard to
   diagnose.
 - **No retry-forever default** — see Design decisions.
+- **No opportunistic ELM327 command-echo validation** (item 7). It is impossible on the
+  transport that actually had the bug: `elm327_config.echo` is assigned in the WiCAN firmware
+  (`wican-fw/main/elm327.c:122,187,191`) and never read, so the dongle answers `OK` to `ATE1`
+  and then never echoes. It would only work on `elm327-tcp` clones and the emulator — and
+  prompt accounting (item 1) already solves correlation generically on *both* ELM transports.
+  Building it would add a second, transport-specific mechanism that does nothing for the
+  reported failure.
+- **No configurable link-latency knob** (item 15). Every consumer is now driven by a
+  *measurement* (`canlib/link_latency.py`, seeded from the TCP handshake and refined by
+  adapter-only AT commands). A config key duplicating a measurement is a number the user cannot
+  know better than canair does, and it would drift out of agreement with the thing it shadows.
+  The measurement stays; the knob is not added.
 - **No `canair validate` warning for a `multi_did_max` above the ELM327 ceiling** (dropped from
   item 8 during implementation). The Ioniq's `multi_did_max: 6`
   (`profiles/ioniq-2017/profile.yaml:71`) is *correct* for `slcan-tcp`, the default transport,

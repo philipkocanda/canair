@@ -98,8 +98,8 @@ def _warn_blocksize_cost(blocksize: int, link_budget: float) -> None:
         return
     log_event(
         "config",
-        f"isotp.blocksize={blocksize} costs one round trip per {blocksize} frames on a "
-        f"link measured at {link_budget * 1000.0:.0f}ms; blocksize 0 sends the whole "
+        f"isotp.blocksize={blocksize} costs one round trip per {blocksize} frames, and "
+        f"this link is budgeted at {link_budget * 1000.0:.0f}ms per round trip; blocksize 0 sends the whole "
         "response after a single flow-control frame",
         level=logging.INFO,
     )

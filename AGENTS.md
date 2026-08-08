@@ -580,6 +580,22 @@ sit under the reconnect above, and a new request path must not bypass them:
   so without it a concurrent keepalive can retarget `ATSH` between a read's header and its request.
   It is re-entrant per task; `RawTerminal`'s is a no-op (raw addresses every frame explicitly).
 
+**The link is measured, not configured.** `canlib/link_latency.py::LinkLatency` is an RFC-6298
+smoother (`srtt + 4*rttvar`) shared by both domains; a plain mean underestimates half the time and
+every underestimate orphans a reply. `seed()` takes a one-shot unambiguous measurement (the TCP
+handshake, timed in `SlcanTcpBus.__init__` — available *before* any protocol traffic, which is when
+the ISO-TP budgets must be chosen); `observe()` needs `_MIN_SAMPLES` and is fed **only** by
+adapter-only AT commands (`_LINK_PROBE_CMDS = ("ATI", "ATSH", "ATFCSH")`) — never a UDS read, which
+mixes link and ECU and cannot be decomposed. `allowance(floor)` keeps the caller's default as a
+floor. Consumers **add** it to the configured value (the config is the *car's* share, the
+measurement the *network's*; the delays are sequential): `build_isotp_params(config, link_budget)`
+scales `rx_flowcontrol_timeout`/`rx_consecutive_frame_timeout`, `RawUdsClient._budget` the
+per-request deadline (a caller-forced `--timeout` is an instruction, not a budget, so it is
+untouched), and `Elm327Terminal._resync` the quiet window. Two once-per-session INFO hints are
+derived from it rather than from a hostname heuristic: `isotp_params._warn_blocksize_cost` and
+`uds_raw._hint_transport_choice`. User-facing guidance:
+`docs/concepts/remote-and-cellular.md`; plan `plans/2026-08-08-high-latency-link-hardening.md`.
+
 Two config keys back this: `transport.ws_ping_interval` (default 20s, `0` disables) makes a dead
 `wican-ws` link *raise*, and `transport.stale_cycles_before_reconnect` (default 3, `0` disables) is
 the backstop — `MonitorController._check_liveness()` reconnects after N poll cycles in which nothing

@@ -23,6 +23,7 @@ import isotp
 
 from ..addressing import DEFAULT_RX_OFFSET, EcuAddress, build_isotp_address
 from ..link_latency import LinkLatency
+from ..log import log_event
 from ..timing import TimingRecorder
 from ..transport_stats import TransportStats
 from ..uds_parse import CAT_STALE, payload_echo_mismatch
@@ -79,6 +80,16 @@ _MAX_OWED_RESPONSES = 4
 # cycle dropped). Named so tests can zero it instead of patching `time.sleep`.
 STACK_WARMUP_S = 0.2
 
+# Measured round trip above which `slcan-tcp` is the wrong transport for this link.
+#
+# canair runs ISO-TP itself on this transport, so every flow-control frame of a
+# multi-frame response crosses the network. `wican-ws` hands ISO-TP to the dongle,
+# which keeps the flow control on the car's side of the link. Adaptive budgets buy
+# tolerance, not parity: they stop a slow link from *aborting* a read, but they
+# cannot stop it from costing a round trip per block. Past this, the transport
+# choice — not the timeouts — is what limits a session.
+_TRANSPORT_HINT_RTT_S = 0.25
+
 
 class RawUdsClient:
     """UDS reads over raw CAN with per-ECU ISO-TP stacks and pipelined polling."""
@@ -129,6 +140,7 @@ class RawUdsClient:
         # a bus that doesn't offer an estimate leaves the LAN defaults in place.
         self.link: LinkLatency = getattr(bus, "link", None) or LinkLatency()
         params = build_isotp_params(isotp_config, self.link.budget)
+        self._hint_transport_choice()
         for name, address in addresses.items():
             stack = build_isotp_stack(
                 bus,
@@ -191,6 +203,25 @@ class RawUdsClient:
         if discarded:
             self._owed[ecu] = max(0, self._owed[ecu] - discarded)
         return discarded
+
+    def _hint_transport_choice(self) -> None:
+        """Say once, on a slow link, that the transport is the limiting factor.
+
+        Only the user can act on this — it is a connection choice, not a tunable —
+        so it is stated once per session rather than per failed read, where it
+        would read as a symptom instead of a cause.
+        """
+        rtt = self.link.rtt
+        if rtt is None or rtt < _TRANSPORT_HINT_RTT_S:
+            return
+        log_event(
+            "config",
+            f"link round trip measured at {rtt * 1000.0:.0f}ms; on slcan-tcp every "
+            "flow-control frame of a multi-frame response crosses it. "
+            "`--transport wican-ws` moves ISO-TP onto the dongle (WiCAN Pro only).",
+            level=logging.INFO,
+            transport="slcan-tcp",
+        )
 
     def _budget(self, ecu: str, forced: float | None) -> float:
         """Per-request deadline: the ECU's think time plus the network's share.

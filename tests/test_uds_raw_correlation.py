@@ -340,3 +340,47 @@ class TestPerRequestBudget:
         link.seed(1.0)
         c = _client(monkeypatch, {"BMS": (0x7E4, 0x7EC)}, bus_link=link)
         assert c._stacks["BMS"].params["rx_flowcontrol_timeout"] > 1000
+
+
+class TestTransportChoiceHint:
+    """A slow link makes `slcan-tcp` itself the limit; say so once, not per read."""
+
+    @staticmethod
+    def _logged(monkeypatch):
+        seen: list[tuple[str, str]] = []
+        monkeypatch.setattr(
+            uds_raw, "log_event", lambda cat, detail="", **kw: seen.append((cat, detail))
+        )
+        return seen
+
+    def test_a_lan_link_gets_no_advice(self, monkeypatch):
+        seen = self._logged(monkeypatch)
+        link = LinkLatency()
+        link.seed(0.001)
+        _bms(monkeypatch, bus_link=link)
+        assert seen == []
+
+    def test_an_unmeasured_link_gets_no_advice(self, monkeypatch):
+        seen = self._logged(monkeypatch)
+        _bms(monkeypatch)
+        assert seen == []
+
+    def test_a_slow_link_is_told_the_transport_is_the_limit(self, monkeypatch):
+        seen = self._logged(monkeypatch)
+        link = LinkLatency()
+        link.seed(0.4)
+        _bms(monkeypatch, bus_link=link)
+        assert len(seen) == 1
+        detail = seen[0][1]
+        assert "400ms" in detail  # the measured round trip, not the internal allowance
+        assert "wican-ws" in detail
+
+    def test_the_advice_is_given_once_per_session(self, monkeypatch):
+        seen = self._logged(monkeypatch)
+        link = LinkLatency()
+        link.seed(0.4)
+        c, st = _bms(monkeypatch, bus_link=link)
+        st.answers(["6101AA"], ["6101BB"])
+        _poll(c, "BMS", "2101")
+        _poll(c, "BMS", "2101")
+        assert len(seen) == 1
