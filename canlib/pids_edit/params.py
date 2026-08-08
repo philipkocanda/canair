@@ -1527,3 +1527,88 @@ def set_research_notes(
     new_text = transform(original)
     _safe_write(fpath, original, new_text, ecu_key, checker)
     return fpath
+
+
+def set_research_result(
+    ecu_name: str,
+    target: str,
+    result: str | None,
+    *,
+    type: str | None = None,
+    index: int | None = None,
+    pids_dir: Path | None = None,
+) -> Path:
+    """Set (or clear) a research item's short ``result:`` summary.
+
+    The research-list counterpart to :func:`set_research_notes`, for the
+    ``result`` field instead of ``notes`` — lets a lead's outcome be recorded
+    or corrected without touching ``status``/other fields and without
+    hand-editing the YAML. Selector policy (``type``/``index``) mirrors
+    :func:`set_research_status`.
+
+    ``result=None`` (or blank) removes the field. Rendered by the shared note
+    policy (:func:`canlib.pids_edit._text._format_block_scalar`): short text
+    stays inline, longer text becomes a word-wrapped folded ``>-`` block. An
+    existing result is replaced in place; a new one is inserted before
+    whichever of ``notes:``/``sources:``/``what_to_test:``/``capture_protocol:``
+    comes first (or at the end of the item if none are present), matching the
+    field order in ``RESEARCH_FIELD_ORDER``.
+    """
+    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
+    original = fpath.read_text()
+    ecu_key = ecu_name.strip().upper()
+    target_norm = str(target).strip().strip('"').strip("'")
+    text_val = "" if result is None else str(result).strip()
+    clearing = not text_val
+
+    research_block = _find_research_block(original, ecu_name)
+    matches = _match_research_items(original, research_block, target, type)
+    s, e = _select_research_match(target, type, matches, index=index)
+    list_index = _research_list_index(original, research_block, (s, e))
+
+    def transform(text: str) -> str:
+        item = text[s:e]
+        has_result = re.search(r"^ {6}result:", item, re.MULTILINE) is not None
+        if clearing:
+            if not has_result:
+                raise PidsEditError(f"research item {target_norm!r} has no result: to clear")
+            new_item = _replace_field_in_block_at(item, "result", [], indent=6)
+        else:
+            repl = _format_block_scalar(" " * 6, "result", text_val)
+            if has_result:
+                new_item = _replace_field_in_block_at(item, "result", repl, indent=6)
+            else:
+                lines = item.splitlines(keepends=True)
+                anchor = next(
+                    (
+                        i
+                        for i, ln in enumerate(lines)
+                        if re.match(r"^ {6}(notes|sources|what_to_test|capture_protocol):", ln)
+                    ),
+                    len(lines),
+                )
+                new_item = "".join(lines[:anchor] + [f"{ln}\n" for ln in repl] + lines[anchor:])
+        return text[:s] + new_item + text[e:]
+
+    def checker(ecu_def: dict) -> None:
+        research = ecu_def.get("research") or []
+        if list_index >= len(research):
+            raise PidsEditError(f"research item {target_norm!r} missing after edit")
+        item = research[list_index]
+        if str(item.get("target")) != target_norm or (
+            type is not None and item.get("type") != type
+        ):
+            raise PidsEditError(f"research item {target_norm!r} missing after edit")
+        got = item.get("result")
+        if clearing:
+            if got is not None:
+                raise PidsEditError("result still present after clear")
+            return
+        if got is None:
+            raise PidsEditError("result missing after edit")
+        if " ".join(str(got).split()) != " ".join(text_val.split()):
+            raise PidsEditError("result mismatch after edit")
+
+    new_text = transform(original)
+    _safe_write(fpath, original, new_text, ecu_key, checker)
+    return fpath

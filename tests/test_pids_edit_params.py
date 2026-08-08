@@ -11,6 +11,7 @@ from canlib.pids_edit import (
     add_research_entry,
     delete_research_entry,
     set_research_notes,
+    set_research_result,
     set_research_status,
     upsert_parameter,
 )
@@ -573,6 +574,68 @@ class TestSetResearchNotes:
         research = [e for e in _load(pids_dir)["TESTECU"]["research"] if e["target"] == "2102"]
         assert research[1]["notes"] == "text"
         assert research[0].get("notes") is None
+
+
+class TestSetResearchResult:
+    def test_set_new_result(self, pids_dir):
+        set_research_result("TESTECU", "2102", "confirmed at B3", pids_dir=pids_dir)
+        entry = _load(pids_dir)["TESTECU"]["research"][0]
+        assert entry["result"] == "confirmed at B3"
+
+    def test_replace_existing_result(self, pids_dir):
+        add_research_entry(
+            "TESTECU",
+            type="decode",
+            target="22Z002",
+            status="pending",
+            result="stale result",
+            pids_dir=pids_dir,
+        )
+        set_research_result("TESTECU", "22Z002", "corrected result", pids_dir=pids_dir)
+        new = next(e for e in _load(pids_dir)["TESTECU"]["research"] if e["target"] == "22Z002")
+        assert new["result"] == "corrected result"
+
+    def test_clear_result(self, pids_dir):
+        add_research_entry(
+            "TESTECU",
+            type="decode",
+            target="22Z003",
+            status="pending",
+            result="to be cleared",
+            pids_dir=pids_dir,
+        )
+        set_research_result("TESTECU", "22Z003", None, pids_dir=pids_dir)
+        new = next(e for e in _load(pids_dir)["TESTECU"]["research"] if e["target"] == "22Z003")
+        assert new.get("result") is None
+
+    def test_clear_result_when_absent_raises(self, pids_dir):
+        with pytest.raises(PidsEditError):
+            set_research_result("TESTECU", "2102", None, pids_dir=pids_dir)
+
+    def test_disambiguates_with_index(self, pids_dir):
+        add_research_entry(
+            "TESTECU", type="decode", target="2102", status="captured", pids_dir=pids_dir
+        )
+        with pytest.raises(PidsEditError, match="ambiguous"):
+            set_research_result("TESTECU", "2102", "text", type="decode", pids_dir=pids_dir)
+        set_research_result("TESTECU", "2102", "text", type="decode", index=1, pids_dir=pids_dir)
+        research = [e for e in _load(pids_dir)["TESTECU"]["research"] if e["target"] == "2102"]
+        assert research[1]["result"] == "text"
+        assert research[0].get("result") is None
+
+    def test_result_inserted_before_notes(self, pids_dir):
+        add_research_entry(
+            "TESTECU",
+            type="decode",
+            target="22Z004",
+            status="pending",
+            notes="existing note",
+            pids_dir=pids_dir,
+        )
+        set_research_result("TESTECU", "22Z004", "the result", pids_dir=pids_dir)
+        new = next(e for e in _load(pids_dir)["TESTECU"]["research"] if e["target"] == "22Z004")
+        assert new["result"] == "the result"
+        assert new["notes"] == "existing note"
 
 
 def _load2(pids_dir):

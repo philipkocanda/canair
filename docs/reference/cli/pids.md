@@ -4,13 +4,13 @@
 
 ```
 usage: canair pids [-h]
-                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-pid-status,set-pid-variable-length,set-pid-notes,set-identity,rm-identity,set-can-bus,set-iocontrol-ranges,set-wake,set-addressing}
+                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-pid-status,set-pid-variable-length,set-pid-notes,set-identity,rm-identity,set-can-bus,set-iocontrol-ranges,set-wake,set-addressing}
                    ...
 
 [UDS] Safely edit ecus/ parameters and research entries (domain A — diagnostic UDS PIDs, freeform WiCAN expressions). The broadcast-frame (domain B) authoring counterpart is `canair signals` (linear signals/ maps).
 
 positional arguments:
-  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-pid-status,set-pid-variable-length,set-pid-notes,set-identity,rm-identity,set-can-bus,set-iocontrol-ranges,set-wake,set-addressing}
+  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-pid-status,set-pid-variable-length,set-pid-notes,set-identity,rm-identity,set-can-bus,set-iocontrol-ranges,set-wake,set-addressing}
     upsert-param        Add or update a parameter
     rename-param        Rename a parameter (key only; fields preserved)
     rm-param            Remove a parameter
@@ -22,6 +22,8 @@ positional arguments:
     set-status          Update a research item's status
     rm-research         Remove a research: item
     set-research-notes  Set (or clear) a research item's free-text notes
+    set-research-result
+                        Set (or clear) a research item's short result summary
     set-pid-status      Set a PID's lifecycle status
     set-pid-variable-length
                         Flag a PID as returning legitimately variable-length
@@ -299,6 +301,35 @@ positional arguments:
   ecu
   target
   value                 New notes text (omit to clear the field)
+
+options:
+  -h, --help            show this help message and exit
+  --type {scan,decode,verify,iocontrol_scan}
+                        Disambiguate when multiple items share the target
+  --index INDEX         Disambiguate by 0-based position among matches (after
+                        --type filtering); needed when several items share the
+                        same target and type
+  --dir DIR             ecus/ directory (default: active profile)
+  --no-validate         Skip the post-edit schema validation gate
+```
+
+## `canair pids set-research-result`
+
+```
+usage: canair pids set-research-result [-h]
+                                       [--type {scan,decode,verify,iocontrol_scan}]
+                                       [--index INDEX] [--dir DIR]
+                                       [--no-validate]
+                                       ecu target [value]
+
+Set a research: item's result: without touching status: or other fields, and without hand-editing the YAML.
+
+Omit VALUE to clear the field. Short results stay inline; longer ones become a word-wrapped folded block scalar. Disambiguate with --type/--index the same way as set-status/rm-research.
+
+positional arguments:
+  ecu
+  target
+  value                 New result text (omit to clear the field)
 
 options:
   -h, --help            show this help message and exit

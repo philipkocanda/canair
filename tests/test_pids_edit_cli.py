@@ -212,6 +212,22 @@ def test_set_research_notes_sets_and_clears(research_pids_dir):
     assert notes(0) is None
 
 
+def test_set_research_result_sets_and_clears(research_pids_dir):
+    import canlib.yaml_io as yaml_io
+
+    def result(index):
+        doc = yaml_io.safe_load((research_pids_dir / "e.yaml").read_text())
+        return doc["TESTECU"]["research"][index].get("result")
+
+    args = _ResearchArgs(value="Confirmed at B3.", type="decode", index=0, dir=research_pids_dir)
+    assert cli.cmd_set_research_result(args) == 0
+    assert result(0) == "Confirmed at B3."
+
+    args = _ResearchArgs(value=None, type="decode", index=0, dir=research_pids_dir)
+    assert cli.cmd_set_research_result(args) == 0
+    assert result(0) is None
+
+
 def test_research_verbs_parse_index_and_optional_value():
     import argparse
 
@@ -225,3 +241,8 @@ def test_research_verbs_parse_index_and_optional_value():
     assert c.value is None
     d = p.parse_args(["set-research-notes", "BCM", "2101", "hi", "--index", "1"])
     assert d.value == "hi" and d.index == 1
+    # VALUE is optional on set-research-result too.
+    e = p.parse_args(["set-research-result", "BCM", "2101"])
+    assert e.value is None
+    f = p.parse_args(["set-research-result", "BCM", "2101", "yo", "--index", "1"])
+    assert f.value == "yo" and f.index == 1
