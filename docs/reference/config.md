@@ -101,15 +101,15 @@ canair config set devices.home.transport wican-ws   # validated: slcan-tcp | wic
 ## Auto-fallback across devices
 
 When the selected device is unreachable at connect time, canair tries the other
-configured devices instead of failing. It's on by default; a fast, configurable
-probe timeout skips a dead device quickly.
+configured devices instead of failing. It's on by default; a configurable probe
+timeout decides how long each candidate gets to answer.
 
 ```yaml
 transport:
   fallback: true                   # default true
-  connect_timeout: 2.0             # seconds — per-device liveness probe
+  connect_timeout: 5.0             # seconds — per-device liveness probe
   fallback_order: [home, vpn, ap]  # optional; default = selected device, then the rest
-  reconnect_max_wait: 6.0          # seconds — bounded mid-session reconnect window
+  reconnect_max_wait: 60.0         # seconds — bounded mid-session reconnect window
 ```
 
 - The explicitly selected device (`--wican X`, else `transport.host`, else
@@ -121,6 +121,10 @@ transport:
   that transport).
 - Set the order from the CLI with a comma-separated value:
   `canair config set transport.fallback_order home,vpn,ap`.
+- **`connect_timeout` is paid once per candidate**, so it trades "never call a
+  reachable device dead" against "skip a dead one quickly". The `5.0` default is
+  sized for a mobile link: a cellular radio's idle-to-connected transition can
+  burn a second or two before the SYN even leaves. Lower it on a LAN.
 
 ### Mid-session reconnect & `--wait`
 
@@ -128,7 +132,7 @@ transport:
 giving up: on a disconnect it re-probes the reachable **same-transport** devices,
 reconnects, re-opens any sessions, and resumes — a `--save` recording simply
 continues (the gap shows in the timestamps). By default this is bounded to
-`transport.reconnect_max_wait` seconds (default `6.0`); `--wait` makes it retry
+`transport.reconnect_max_wait` seconds (default `60.0`); `--wait` makes it retry
 **forever** (Ctrl-C to stop).
 
 `--wait` also governs the *initial* connect for every live command: it blocks,

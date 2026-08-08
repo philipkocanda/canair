@@ -541,7 +541,7 @@ WebSocket terminal: `ws://<ip>/ws` (send `{"ws_mode": "terminal", "terminal_type
 
 **Auto-fallback** — when the selected device is unreachable at connect time, canair tries the other
 configured devices (`transport.fallback`, default true; `--no-fallback` per command).
-`transport.connect_timeout` (default 2.0s) is the per-device liveness probe and
+`transport.connect_timeout` (default 5.0s) is the per-device liveness probe and
 `transport.fallback_order` sequences the attempts (the selected device is always tried first).
 Candidates: `canlib/transport/config.py::resolve_transport_candidates`; connect-time selection:
 `canlib/transport/fallback.py::select_reachable_transport`, called before the raw/ELM branch so a
@@ -555,7 +555,7 @@ device comes online. Backed by `fallback.py::wait_for_reachable`.
 rather than abandoned: it re-probes reachable **same-transport** devices (raw↔raw / ws↔ws — only the
 *initial* connect crosses transports), rebuilds the client, re-opens sessions and resumes, with a
 `--save` recording continuing on the same journal (the gap shows in the timestamps). Bounded by
-`transport.reconnect_max_wait` (default 6.0s); `--wait` retries forever. Infra
+`transport.reconnect_max_wait` (default 60.0s); `--wait` retries forever. Infra
 `canlib/modes/monitor_reconnect.py` plus the per-transport connect closures in
 `commands/_live/connect.py` and `modes/raw_monitor.py`. Plan:
 `plans/2026-08-03-monitor-reconnect-and-wait.md`.

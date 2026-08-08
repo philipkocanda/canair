@@ -39,13 +39,22 @@ _DEFAULT_ADDRESSES = {"ap": "192.168.80.1"}
 _DEFAULT_WICAN_KEY = "ap"
 
 # Auto-fallback defaults (the `transport:` block, keys fallback / connect_timeout
-# / fallback_order). Fallback is on by default; the probe timeout is short so a
-# dead device is skipped quickly (the full connect uses the normal, longer path).
+# / fallback_order). Fallback is on by default.
 _DEFAULT_FALLBACK = True
-_DEFAULT_CONNECT_TIMEOUT = 2.0
+# Per-device liveness probe (seconds). This is a compromise: it has to be long
+# enough that a *reachable* device is never mistaken for a dead one, and short
+# enough that a genuinely dead one is skipped quickly, because fallback pays it
+# once per candidate. 2s was too tight for a cellular link, where the radio's
+# idle-to-connected transition can take a second or two before the SYN even
+# leaves — canair would declare the device unreachable while it was fine.
+_DEFAULT_CONNECT_TIMEOUT = 5.0
 # Bounded reconnect window (seconds) for a mid-session monitor drop when the user
 # did NOT pass --wait. --wait retries forever instead; see wait_for_reachable.
-_DEFAULT_RECONNECT_MAX_WAIT = 6.0
+# Sized for a mobile link rather than a LAN: a hotspot handing over between cells,
+# or a VPN re-keying, is routinely out for tens of seconds, and a recording that
+# gives up after 6s of that loses the rest of the drive. The cost of waiting is
+# only latency before an eventual failure, so it is the cheaper error.
+_DEFAULT_RECONNECT_MAX_WAIT = 60.0
 # WebSocket keepalive ping interval/timeout (seconds) for the wican-ws terminal.
 # Without it a half-open link (a hotspot NAT timeout, a VPN re-key) never raises —
 # reads just time out forever and the monitor shows every signal as stale with no
@@ -147,7 +156,7 @@ def coerce_scalar(value: str):
     """Coerce a CLI string into a bool/int/float/None where unambiguous, else str.
 
     Used by ``canair config set`` so that e.g. ``transport.port 35000`` stores
-    an int, ``transport.connect_timeout 2.0`` stores a float, and
+    an int, ``transport.connect_timeout 5.0`` stores a float, and
     ``true``/``false`` store bools. IPs/hostnames stay strings (they never parse
     as a number); non-finite floats (``inf``/``nan``) are kept as strings. Pass
     through :func:`set_config_key` with ``--string`` to bypass this.

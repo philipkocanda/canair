@@ -379,7 +379,8 @@ class TestDevicesAndFallbackConfig:
 
         _reset()
         enabled, timeout, order = config.fallback_settings()
-        assert enabled is True and timeout == 2.0 and order is None
+        assert enabled is True and timeout == config._DEFAULT_CONNECT_TIMEOUT
+        assert order is None
 
     def test_fallback_settings_read(self, tmp_path, monkeypatch):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
@@ -400,7 +401,7 @@ class TestDevicesAndFallbackConfig:
         config.set_config_key("transport.connect_timeout", -3)
         _reset()
         _, timeout, _ = config.fallback_settings()
-        assert timeout == 2.0
+        assert timeout == config._DEFAULT_CONNECT_TIMEOUT
 
     def test_ws_ping_interval_default(self, tmp_path, monkeypatch):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
@@ -533,3 +534,33 @@ class TestConfigCommandDevices:
         assert out["fallback"]["enabled"] is True
         # back-compat: wican.addresses stays {alias: host}
         assert out["wican"]["addresses"]["home"] == "10.0.0.9"
+
+
+class TestDefaultsAreSizedForAMobileLink:
+    """These defaults exist to make a phone-hotspot session survivable.
+
+    Exact values are a judgement call and may be retuned, but the *direction* is
+    not: each was originally a LAN number that failed on a cellular link, so a
+    change back below these floors would reintroduce a known failure.
+    """
+
+    def test_the_liveness_probe_outlasts_a_radio_wakeup(self):
+        from canlib import config
+
+        # A cellular radio's idle-to-connected transition can take a second or two
+        # before the SYN leaves; probing for less declares a live device dead.
+        assert config._DEFAULT_CONNECT_TIMEOUT >= 4.0
+
+    def test_the_reconnect_window_outlasts_a_cell_handover(self):
+        from canlib import config
+
+        # A hotspot changing cells, or a VPN re-key, is routinely out for tens of
+        # seconds. Giving up sooner loses the rest of a drive's recording.
+        assert config._DEFAULT_RECONNECT_MAX_WAIT >= 30.0
+
+    def test_the_ws_ping_outlasts_a_cellular_round_trip(self):
+        from canlib import config
+
+        # The ping has to detect a half-open link without severing a slow-but-live
+        # one, so its timeout must comfortably exceed a cellular+VPN round trip.
+        assert config._DEFAULT_WS_PING_INTERVAL >= 10.0

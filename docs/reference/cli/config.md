@@ -134,7 +134,7 @@ examples:
   canair config set devices.home.host 10.0.2.86
   canair config set devices.home.transport slcan-tcp   # or: wican-ws
   canair config set transport.fallback false            # disable auto-fallback
-  canair config set transport.connect_timeout 2.0       # fallback probe timeout (s)
+  canair config set transport.connect_timeout 5.0       # fallback probe timeout (s)
   canair config set transport.fallback_order home,vpn,ap   # comma-separated
   canair config set wican_model pro               # or: classic
   canair config set check_for_updates false

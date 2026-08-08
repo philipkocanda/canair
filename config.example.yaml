@@ -110,10 +110,15 @@ default_wican: home
 #
 #   # Auto-fallback: when the selected device is unreachable, try the others.
 #   fallback: true             # default true; --no-fallback overrides per-command
-#   connect_timeout: 2.0       # seconds — the (short) per-device liveness probe
+#   connect_timeout: 5.0       # seconds — per-device liveness probe. Paid once per
+#                              # candidate, so it must outlast a cellular radio's
+#                              # idle-to-connected transition (1-2s before the SYN
+#                              # even leaves) without stalling on a dead device.
 #   fallback_order: [home, vpn, ap]  # optional; default = selected device, then the rest
-#   reconnect_max_wait: 6.0    # seconds — bounded window to re-home a dropped
-#                              # `canair monitor` session (--wait retries forever)
+#   reconnect_max_wait: 60.0   # seconds — bounded window to re-home a dropped
+#                              # `canair monitor` session (--wait retries forever).
+#                              # Sized for a mobile link: a cell handover or a VPN
+#                              # re-key is routinely out for tens of seconds.
 #
 #   # Link-health watchdogs. Both exist because a session can stop being usable
 #   # without anything raising: a half-open socket keeps accepting writes, and a
