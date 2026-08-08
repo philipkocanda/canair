@@ -560,6 +560,32 @@ rather than abandoned: it re-probes reachable **same-transport** devices (raw↔
 `commands/_live/connect.py` and `modes/raw_monitor.py`. Plan:
 `plans/2026-08-03-monitor-reconnect-and-wait.md`.
 
+**Reconnect is correctness-triggered, not only liveness-triggered.** A session can stop being usable
+while **nothing raises**: a half-open socket keeps accepting writes, and a desynchronised ELM327
+pipe keeps returning well-formed replies — to the *previous* request, forever. So three mechanisms
+sit under the reconnect above, and a new request path must not bypass them:
+
+- **Every request slot is echo-validated**, so a one-slot offset is detectable at all. Pass
+  `expected_sid` *and* `expected_echo` (`canlib/uds_parse.py::request_echo`) on any new
+  `send_uds` call — an unvalidated request laughs off a desync and returns the wrong PID's bytes as
+  the right PID's value. Keepalives are validated too (`3E00` with `expected_sid=0x3E`): an
+  unvalidated one *consumes* the orphaned reply and clears the dirty-pipe flag, which is precisely
+  how the offset used to become permanent.
+- **The ELM327 engine repairs itself** — a `CAT_STALE` response triggers
+  `Elm327Terminal._resync()`: drain for a window derived from the adapter's own `ATSThh` budget
+  (never hardcoded — a drain shorter than the adapter's ECU wait cannot discard the reply it is
+  chasing), then probe with `ATI` and raise `ConnectionError` if the adapter itself goes silent.
+  Each repair is tallied as `resyncs` on `TransportStats`.
+- **Hold `terminal.transaction()` across `set_header` + `send_uds`.** `_cmd_lock` is per-*command*,
+  so without it a concurrent keepalive can retarget `ATSH` between a read's header and its request.
+  It is re-entrant per task; `RawTerminal`'s is a no-op (raw addresses every frame explicitly).
+
+Two config keys back this: `transport.ws_ping_interval` (default 20s, `0` disables) makes a dead
+`wican-ws` link *raise*, and `transport.stale_cycles_before_reconnect` (default 3, `0` disables) is
+the backstop — `MonitorController._check_liveness()` reconnects after N poll cycles in which nothing
+answered coherently (an **NRC counts as answered**: the reply landed in the right slot). Plan:
+`plans/2026-08-08-elm327-pipe-desync-recovery.md`.
+
 ## Transports
 
 canair reaches the bus through one **explicitly selected** transport (never auto-detected).

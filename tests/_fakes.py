@@ -22,6 +22,8 @@ Response dicts mirror :func:`canlib.uds_parse.parse_uds_response`: positives are
 
 from __future__ import annotations
 
+import contextlib
+
 from canlib.timing import TimingRecorder
 from canlib.transport_stats import TransportStats
 from canlib.uds_parse import UdsResponse
@@ -99,6 +101,15 @@ class FakeTerminal:
         self.header = tx_id
         self.headers.append(tx_id)
         self.calls.append(("set_header", tx_id))
+
+    @contextlib.asynccontextmanager
+    async def transaction(self):
+        """Record transaction boundaries so tests can assert atomic grouping."""
+        self.calls.append(("transaction_enter", None))
+        try:
+            yield
+        finally:
+            self.calls.append(("transaction_exit", None))
 
     async def send_uds(
         self,

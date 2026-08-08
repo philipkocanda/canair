@@ -46,6 +46,17 @@ _DEFAULT_CONNECT_TIMEOUT = 2.0
 # Bounded reconnect window (seconds) for a mid-session monitor drop when the user
 # did NOT pass --wait. --wait retries forever instead; see wait_for_reachable.
 _DEFAULT_RECONNECT_MAX_WAIT = 6.0
+# WebSocket keepalive ping interval/timeout (seconds) for the wican-ws terminal.
+# Without it a half-open link (a hotspot NAT timeout, a VPN re-key) never raises —
+# reads just time out forever and the monitor shows every signal as stale with no
+# way to notice the socket is dead. Generous enough for a cellular+VPN round-trip;
+# 0 disables (`transport.ws_ping_interval`).
+_DEFAULT_WS_PING_INTERVAL = 20.0
+# Consecutive monitor cycles in which no signal produced a fresh value before the
+# session is declared dead and re-homed (`transport.stale_cycles_before_reconnect`;
+# 0 disables). This is the catch-all for desyncs the transport can't self-detect —
+# notably multi-DID batches, which carry no echo to validate.
+_DEFAULT_STALE_CYCLES = 3
 
 # WiCAN hardware model. AutoPID vehicle profiles and the wican-ws ELM327
 # terminal are Pro-only; the classic (non-Pro) WiCAN only supports raw SLCAN.
@@ -419,6 +430,48 @@ def reconnect_max_wait() -> float:
     except (TypeError, ValueError):
         return _DEFAULT_RECONNECT_MAX_WAIT
     return value
+
+
+def ws_ping_interval() -> float | None:
+    """WebSocket keepalive ping interval (seconds), or ``None`` when disabled.
+
+    Read from ``transport.ws_ping_interval`` (default 20.0; ``0`` disables). The
+    ``wican-ws`` terminal needs this to notice a *half-open* link: with pings off,
+    a link that has silently died (hotspot NAT eviction, VPN re-key) is
+    indistinguishable from an ECU that simply isn't answering, so the monitor
+    reports stale signals indefinitely instead of reconnecting. The WiCAN's
+    ``/ws`` handler does not claim control frames, so ESP-IDF's HTTP server
+    answers the ping itself. A negative or non-finite value falls back to the
+    default.
+    """
+    raw_block = load_config().get("transport")
+    block = raw_block if isinstance(raw_block, dict) else {}
+    try:
+        value = float(block.get("ws_ping_interval", _DEFAULT_WS_PING_INTERVAL))
+    except (TypeError, ValueError):
+        return _DEFAULT_WS_PING_INTERVAL
+    if not math.isfinite(value) or value < 0:
+        return _DEFAULT_WS_PING_INTERVAL
+    return None if value == 0 else value
+
+
+def stale_cycles_before_reconnect() -> int:
+    """Consecutive all-stale monitor cycles that trigger a reconnect (0 = never).
+
+    Read from ``transport.stale_cycles_before_reconnect`` (default 3). A cycle is
+    "all stale" when every polled signal failed to produce a fresh value, so the
+    display is showing nothing but carried-forward history. That is the symptom of
+    a desynchronised or dead session, and unlike a transport error it raises
+    nothing — without this threshold the monitor waits forever. Deliberately a
+    *cycle* count, not a duration: it scales with the poll rate.
+    """
+    raw_block = load_config().get("transport")
+    block = raw_block if isinstance(raw_block, dict) else {}
+    try:
+        value = int(block.get("stale_cycles_before_reconnect", _DEFAULT_STALE_CYCLES))
+    except (TypeError, ValueError):
+        return _DEFAULT_STALE_CYCLES
+    return value if value >= 0 else _DEFAULT_STALE_CYCLES
 
 
 def wican_model() -> str:

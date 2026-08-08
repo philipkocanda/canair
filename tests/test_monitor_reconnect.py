@@ -387,6 +387,95 @@ class TestControllerRebind:
 
 
 # ---------------------------------------------------------------------------
+# all-stale escalation (a live-but-useless pipe)
+# ---------------------------------------------------------------------------
+
+
+class TestStaleEscalation:
+    """A desynced pipe raises nothing, so only response *content* can trigger a
+    reconnect. Without this, `monitor` sits forever showing carried-forward
+    values on a connection that will never answer again — the reported bug."""
+
+    def _controller(self):
+        from canlib.modes.monitor import MonitorController
+
+        steps = [{"type": "query", "ecu": "BMS", "pids": ["2101"]}]
+        c = MonitorController(object(), steps, {"ecus": {}}, verbose=False)
+        c.last_queries = [{"ecu": "BMS"}]  # a cycle that did ask for something
+        return c
+
+    @staticmethod
+    def _cycle(c, entry):
+        """One poll cycle whose only PID resolved to ``entry``."""
+        c._cycle_answered = False
+        c._displayify(("BMS", "2101"), entry)
+        c._check_liveness()
+
+    def test_all_stale_cycles_escalate_at_the_threshold(self, monkeypatch):
+        from canlib import config
+
+        monkeypatch.setattr(config, "stale_cycles_before_reconnect", lambda: 3)
+        c = self._controller()
+        c._last_good[("BMS", "2101")] = {"raw_hex": "6101AA"}  # so rows carry forward
+        for expected in (1, 2):
+            self._cycle(c, {"error": "Echo mismatch"})
+            assert c.dead_cycles == expected
+            assert c.disconnected is False
+        self._cycle(c, {"error": "Echo mismatch"})
+        assert c.disconnected is True
+        assert c.dead_cycles == 0  # armed afresh for the post-reconnect run
+
+    def test_one_good_response_resets_the_count(self, monkeypatch):
+        from canlib import config
+
+        monkeypatch.setattr(config, "stale_cycles_before_reconnect", lambda: 3)
+        c = self._controller()
+        self._cycle(c, {"error": "timeout"})
+        self._cycle(c, {"error": "timeout"})
+        assert c.dead_cycles == 2
+        self._cycle(c, {"raw_hex": "6101AA"})
+        assert c.dead_cycles == 0
+        assert c.disconnected is False
+
+    def test_an_nrc_counts_as_alive(self, monkeypatch):
+        # A negative response proves the request reached the ECU and its reply
+        # came back in the right slot: the pipe is healthy and refusing, which is
+        # not something reconnecting would fix.
+        from canlib import config
+
+        monkeypatch.setattr(config, "stale_cycles_before_reconnect", lambda: 2)
+        c = self._controller()
+        self._cycle(c, {"error": "NRC 0x31 requestOutOfRange"})
+        self._cycle(c, {"error": "NRC 0x31 requestOutOfRange"})
+        self._cycle(c, {"error": "NRC 0x31 requestOutOfRange"})
+        assert c.dead_cycles == 0
+        assert c.disconnected is False
+
+    def test_zero_disables_escalation(self, monkeypatch):
+        from canlib import config
+
+        monkeypatch.setattr(config, "stale_cycles_before_reconnect", lambda: 0)
+        c = self._controller()
+        for _ in range(20):
+            self._cycle(c, {"error": "timeout"})
+        assert c.disconnected is False
+        assert c.dead_cycles == 20  # still observed, just not acted on
+
+    def test_an_idle_cycle_is_not_a_dead_cycle(self, monkeypatch):
+        # Every PID filtered out (or a paused/empty plan) means nothing was asked,
+        # so nothing failing to answer is not evidence of a broken link.
+        from canlib import config
+
+        monkeypatch.setattr(config, "stale_cycles_before_reconnect", lambda: 1)
+        c = self._controller()
+        c.last_queries = []
+        c._cycle_answered = False
+        c._check_liveness()
+        assert c.dead_cycles == 0
+        assert c.disconnected is False
+
+
+# ---------------------------------------------------------------------------
 # --wait initial connect (async_main)
 # ---------------------------------------------------------------------------
 

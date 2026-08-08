@@ -22,6 +22,8 @@ additionally emitted to the central rotating event log
 
 from __future__ import annotations
 
+import logging
+
 from .uds_parse import (
     ERROR_CATEGORIES,
     RESPONSE_CATEGORIES,
@@ -63,6 +65,11 @@ class TransportStats:
     def __init__(self, transport: str | None = None) -> None:
         self.transport = transport
         self.counts: dict[str, int] = dict.fromkeys(RESPONSE_CATEGORIES, 0)
+        # Pipe realignments performed (see Elm327Terminal._resync). Not a
+        # RESPONSE_CATEGORIES member because it is a recovery *action*, not the
+        # outcome of an exchange — it must not inflate `errors`, and the stale
+        # responses that provoked it are already counted under `stale`.
+        self.resyncs: int = 0
 
     # -- recording ---------------------------------------------------------
     def record(
@@ -103,6 +110,24 @@ class TransportStats:
         self.record(category, ecu=ecu, pid=pid, detail=detail)
         return category
 
+    def record_resync(self, reason: str, *, ecu: str | None = None) -> None:
+        """Tally one successful pipe realignment and log it.
+
+        Logged at INFO, not WARNING: a resync is the recovery working. The fault
+        that triggered it was already recorded as an error category, so counting
+        it again would double-report one incident.
+        """
+        self.resyncs += 1
+        from .log import log_event
+
+        log_event(
+            "resync",
+            reason,
+            level=logging.INFO,
+            transport=self.transport,
+            ecu=ecu,
+        )
+
     # -- reads -------------------------------------------------------------
     @property
     def exchanges(self) -> int:
@@ -111,8 +136,19 @@ class TransportStats:
 
     @property
     def drops(self) -> int:
-        """ISO-TP reassembly failures (drop + stale) — the headline signal."""
+        """ISO-TP reassembly failures (drop + stale) — the headline signal.
+
+        Kept as the sum for back-compat with recorded-capture provenance. When
+        *diagnosing*, read :attr:`stale` separately: a pipe desync and a genuinely
+        dropped frame need opposite responses, and conflating them hides which one
+        is happening.
+        """
         return self.counts["drop"] + self.counts["stale"]
+
+    @property
+    def stale(self) -> int:
+        """Replies that failed echo/SID validation — the pipe-desync signal."""
+        return self.counts["stale"]
 
     @property
     def errors(self) -> int:
@@ -123,8 +159,12 @@ class TransportStats:
         return self.exchanges > 0
 
     def snapshot(self) -> dict[str, int]:
-        """A copy of the raw per-category counts."""
-        return dict(self.counts)
+        """A copy of the raw per-category counts, plus ``resyncs``.
+
+        The extra key is not a response category; it rides along so :meth:`diff`
+        can report per-segment recovery activity from a single snapshot.
+        """
+        return {**self.counts, "resyncs": self.resyncs}
 
     def quality(self) -> dict:
         """Compact data-quality summary for capture metadata.
@@ -132,12 +172,16 @@ class TransportStats:
         Always carries ``exchanges``; error categories are included only when
         non-zero so a clean session's record stays terse. ``nrc`` is a
         legitimate ECU answer, not a fault, so it is not reported here.
+        ``resyncs`` records how often the transport had to realign itself — a
+        session that needed several was on a marginal link.
         """
         q: dict = {"exchanges": self.exchanges}
         for cat in ERROR_CATEGORIES:
             n = self.counts[cat]
             if n:
                 q[cat] = n
+        if self.resyncs:
+            q["resyncs"] = self.resyncs
         return q
 
     def diff(self, base: dict[str, int]) -> TransportStats:
@@ -149,4 +193,5 @@ class TransportStats:
         delta = TransportStats(self.transport)
         for cat in RESPONSE_CATEGORIES:
             delta.counts[cat] = max(0, self.counts[cat] - base.get(cat, 0))
+        delta.resyncs = max(0, self.resyncs - base.get("resyncs", 0))
         return delta

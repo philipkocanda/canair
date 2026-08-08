@@ -17,15 +17,17 @@ live mode drives it through the shared ``dispatch_mode`` unchanged.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import re
 import sys
 import time
+from collections.abc import AsyncIterator
 
 from ..log import log_command, log_response
 from ..safety import enforce_command_safety
 from ..timing import TimingRecorder
 from ..transport_stats import TransportStats
-from ..uds_parse import UdsResponse, parse_uds_response
+from ..uds_parse import CAT_STALE, UdsResponse, parse_uds_response
 from .channel import Channel, TcpChannel
 
 # UDS ResponsePending negative response: `7F <sid> 78` ("request received,
@@ -35,6 +37,27 @@ from .channel import Channel, TcpChannel
 # response that merely *contains* those bytes from being mistaken for the NRC.
 # The raw-CAN counterpart is `uds_raw.is_response_pending`.
 _PENDING_RE = re.compile(r"7F[0-9A-Fa-f]{2}78")
+
+# Default ELM327 ECU-wait budget in seconds, used when `elm_timeout_cmd` can't be
+# parsed. `ATST hh` sets the wait to hh * 4.096 ms, so ATST96 (0x96 = 150) is ~614ms.
+_ELM_ST_UNIT = 0.004096
+_DEFAULT_ELM_BUDGET = 0x96 * _ELM_ST_UNIT
+
+# Extra slack added to the ELM's own budget when deciding how long "quiet" must
+# last for the pipe to be provably empty. It covers the link round-trip, which on
+# a cellular/VPN path is the dominant term — the failure this guards against is a
+# stalled link delivering a late reply *after* a too-short drain window.
+_LINK_LATENCY_MARGIN = 0.5
+
+# Ceiling on one resync: enough for several quiet windows, short enough that a
+# wedged adapter escalates to a reconnect instead of stalling the poll loop.
+_RESYNC_MAX_SECONDS = 3.0
+
+# State-free ELM327 command used as the post-drain alignment probe. Any AT command
+# would do — what matters is that *a* prompt-terminated reply comes back, not what
+# it says (the WiCAN answers ATI with "OBDLink MX", a real ELM327 with
+# "ELM327 v1.5"), so this never matches on reply text.
+_RESYNC_PROBE = "ATI"
 
 
 class Elm327Terminal:
@@ -61,12 +84,19 @@ class Elm327Terminal:
         # Set when a command's read loop exits WITHOUT consuming the ELM `>`
         # prompt (a timeout mid-response): the adapter may still emit trailing
         # frames + a late prompt, which would otherwise leak into — and corrupt
-        # — the next command's response. The next command drains first (see
-        # _send_command_locked). This attacks the stale-frame root cause that
+        # — the next command's response. The next command resynchronises first
+        # (see _send_command_locked). This attacks the stale-frame root cause that
         # the parser's expected_sid/expected_echo validation only catches after.
         self._pipe_dirty = False
         self.elm_timeout_cmd = "ATST96"  # current ELM327 timeout command
         self._cmd_lock = asyncio.Lock()  # serialize all ELM327 commands
+        # The task currently holding `_cmd_lock`, so a multi-command *transaction*
+        # (see `transaction()`) can nest send_command calls without deadlocking on
+        # the non-reentrant asyncio.Lock.
+        self._lock_owner: asyncio.Task | None = None
+        # Guards against a resync recursing into itself: `_resync` sends its own
+        # probe command, which must not re-trigger the dirty-pipe check.
+        self._resyncing = False
         # Lightweight instrumentation: total ELM commands sent and time spent
         # waiting on them. Callers (e.g. the monitor) snapshot these to report
         # per-cycle command counts / ELM latency.
@@ -94,6 +124,7 @@ class Elm327Terminal:
         self._cur_header = None
         self._cur_fc_header = None
         self._pipe_dirty = False
+        self._resyncing = False
 
     async def close(self):
         """Close the underlying channel."""
@@ -147,8 +178,109 @@ class Elm327Terminal:
 
         await enforce_command_safety(cmd, self.unsafe)
 
-        async with self._cmd_lock:
+        # Already inside a transaction on this task: the lock is held, and
+        # asyncio.Lock is not reentrant, so acquiring again would deadlock.
+        if self._lock_owner is asyncio.current_task():
             return await self._send_command_locked(cmd, timeout)
+
+        async with self._cmd_lock:
+            self._lock_owner = asyncio.current_task()
+            try:
+                return await self._send_command_locked(cmd, timeout)
+            finally:
+                self._lock_owner = None
+
+    @contextlib.asynccontextmanager
+    async def transaction(self) -> AsyncIterator[None]:
+        """Hold the command lock across several commands as one atomic exchange.
+
+        ``_cmd_lock`` alone serialises individual *commands*, which is not enough:
+        a UDS read is ``ATSH`` + ``ATFCSH`` + the request, and the background
+        TesterPresent keepalive (a different task) could acquire the lock between
+        them and re-point the header — sending the request to the wrong ECU, whose
+        reply then fails echo validation and desynchronises the pipe. Callers that
+        must not be interleaved wrap the whole sequence::
+
+            async with terminal.transaction():
+                await terminal.set_header(tx_id)
+                resp = await terminal.send_uds(pid, ...)
+
+        Nested ``send_command``/``send_uds`` calls on the same task reuse the held
+        lock (see ``_lock_owner``). Keep genuinely independent work — e.g.
+        ``keepalive_stale()`` — *outside* the transaction, so it isn't serialised
+        behind an unrelated exchange.
+        """
+        if self._lock_owner is asyncio.current_task():
+            # Already transacting on this task — reuse the outer transaction so
+            # nesting is harmless.
+            yield
+            return
+        async with self._cmd_lock:
+            self._lock_owner = asyncio.current_task()
+            try:
+                yield
+            finally:
+                self._lock_owner = None
+
+    def _elm_response_budget(self) -> float:
+        """Seconds the adapter itself may spend waiting for an ECU, from ``ATST``.
+
+        The ELM327 guarantees it emits *something* (data, ``NO DATA``, an error)
+        within its ``ATST`` timeout, so this is the basis for deciding how long
+        silence must last before the pipe is provably empty — see :meth:`_resync`.
+        """
+        cu = self.elm_timeout_cmd.upper().replace(" ", "")
+        if cu.startswith("ATST"):
+            try:
+                return int(cu[4:], 16) * _ELM_ST_UNIT
+            except ValueError:
+                pass
+        return _DEFAULT_ELM_BUDGET
+
+    async def _resync(self, reason: str) -> None:
+        """Realign the command/response pipe, or raise :class:`ConnectionError`.
+
+        Called when the pipe is known to be offset — either the previous command
+        left it dirty, or a reply failed echo/SID validation (proof that a *past*
+        request's response was just consumed). Blindly draining is not enough: the
+        window must outlast anything still in flight, or the late reply survives
+        the drain and the offset becomes permanent (each subsequent stale reply
+        arrives prompt-terminated, so the dirty-pipe flag never sets again).
+
+        Soundness comes from the adapter's own contract rather than a tuned
+        constant: a reply is due within ``ATST`` (:meth:`_elm_response_budget`), so
+        silence for longer than that plus link latency means nothing is in flight.
+        A single state-free probe then confirms alignment — we require only that
+        *a* prompt-terminated reply comes back, never specific text.
+
+        Raises:
+            ConnectionError: the probe never came back, so the pipe cannot be
+                trusted. Live modes translate this into a full reconnect (rebuild
+                the socket, re-init ELM, re-open sessions), which is the only
+                remaining way to recover.
+        """
+        if self._resyncing:
+            # The probe below is itself a command; never recurse.
+            return
+        self._resyncing = True
+        quiet = min(self.timeout, self._elm_response_budget() + _LINK_LATENCY_MARGIN)
+        try:
+            await self._channel.drain(
+                per_recv_timeout=quiet,
+                max_seconds=max(_RESYNC_MAX_SECONDS, quiet),
+            )
+            self._pipe_dirty = False
+            reply = await self._send_command_locked(_RESYNC_PROBE, quiet)
+            if self._pipe_dirty or not reply.strip():
+                raise ConnectionError(
+                    f"ELM327 pipe resync failed ({reason}): "
+                    f"no reply to {_RESYNC_PROBE} within {quiet:.1f}s"
+                )
+        finally:
+            self._resyncing = False
+        self.diag.record_resync(reason)
+        if self.verbose:
+            print(f"  [resync] pipe realigned after {reason}", file=sys.stderr)
 
     async def _send_command_locked(self, cmd: str, timeout: float) -> str:
         """Send command while holding the lock (internal)."""
@@ -156,11 +288,10 @@ class Elm327Terminal:
         self._track_header(cmd)
 
         # If the previous command left the pipe dirty (timed out before its ELM
-        # prompt), discard any stale/late frames still buffered before sending so
-        # they can't leak into this response.
+        # prompt), realign before sending so a late reply can't be mistaken for
+        # this command's response.
         if self._pipe_dirty:
-            await self._channel.drain()
-            self._pipe_dirty = False
+            await self._resync("dirty pipe")
 
         self.cmd_count += 1
         _t0 = time.monotonic()
@@ -338,6 +469,9 @@ class Elm327Terminal:
                 response (NRC) or a positive response is returned immediately —
                 only silence is retried. The Ioniq's first request after idle
                 often times out (see profile note); one retry recovers it.
+                A reply that fails echo/SID validation is retried too, but only
+                after the pipe has been realigned (see :meth:`_resync`) — a plain
+                re-send into an offset pipe just draws the next stale reply.
 
         Returns:
             Parsed response dict from parse_uds_response()
@@ -346,29 +480,40 @@ class Elm327Terminal:
             # Per-ECU budget for the current header, else the client default.
             timeout = self.ecu_timeouts.get(self._cur_header, self.timeout)
         attempt = 0
-        while True:
-            raw = await self.send_command(service_pid, timeout=timeout)
-            resp = parse_uds_response(
-                raw,
-                expected_sid=expected_sid,
-                expected_did=expected_did,
-                expected_echo=expected_echo,
-                hk_f1xx_offset=self.hk_f1xx_offset,
-            )
-            self.diag.record_response(
-                resp,
-                ecu=(f"0x{self._cur_header:03X}" if self._cur_header is not None else None),
-                pid=service_pid,
-            )
-            if resp.get("ok") or resp.get("nrc") is not None or attempt >= retries:
-                return resp
-            attempt += 1
-            if self.verbose:
-                print(
-                    f"  [retry] {service_pid}: {resp.get('error', 'no response')}"
-                    f" — retry {attempt}/{retries}",
-                    file=sys.stderr,
+        # One transaction for the whole retry sequence: a keepalive slipping in
+        # between attempts would re-point the header and invalidate the retry.
+        async with self.transaction():
+            while True:
+                raw = await self.send_command(service_pid, timeout=timeout)
+                resp = parse_uds_response(
+                    raw,
+                    expected_sid=expected_sid,
+                    expected_did=expected_did,
+                    expected_echo=expected_echo,
+                    hk_f1xx_offset=self.hk_f1xx_offset,
                 )
+                self.diag.record_response(
+                    resp,
+                    ecu=(f"0x{self._cur_header:03X}" if self._cur_header is not None else None),
+                    pid=service_pid,
+                )
+                if resp.get("error_kind") == CAT_STALE:
+                    # A validation failure *proves* the pipe is offset — we just
+                    # read an older request's reply, so a newer one is still
+                    # queued. Realign unconditionally, even when not retrying:
+                    # leaving the offset in place is the bug (every later reply
+                    # arrives prompt-terminated, so the dirty-pipe flag never
+                    # trips again and the session never recovers).
+                    await self._resync(f"stale response to {service_pid}")
+                if resp.get("ok") or resp.get("nrc") is not None or attempt >= retries:
+                    return resp
+                attempt += 1
+                if self.verbose:
+                    print(
+                        f"  [retry] {service_pid}: {resp.get('error', 'no response')}"
+                        f" — retry {attempt}/{retries}",
+                        file=sys.stderr,
+                    )
 
     async def enter_extended_session(
         self, wake: bool = False, mode: str = "03"
@@ -433,12 +578,26 @@ class Elm327Terminal:
                 while True:
                     await asyncio.sleep(2.0)
                     try:
-                        await self.send_command("3E00", timeout=1.5)
+                        # Validated, not fire-and-forget: an unchecked keepalive is
+                        # how a transient stall becomes a permanent pipe offset — it
+                        # consumes the late reply owed to the previous request, sees
+                        # a prompt, and leaves its own reply buffered for the next
+                        # reader. expected_sid makes that mismatch visible so
+                        # send_uds can resync instead of hiding it.
+                        resp = await self.send_uds("3E00", timeout=1.5, expected_sid=0x3E)
                         if verbose:
-                            print("  [tester] 3E00 keepalive sent", file=sys.stderr)
+                            state = "ok" if resp.get("ok") else resp.get("error", "failed")
+                            print(f"  [tester] 3E00 keepalive: {state}", file=sys.stderr)
+                    except ConnectionError:
+                        # The pipe could not be realigned; the session is done for.
+                        # Let the task end so the caller's reconnect path takes over
+                        # rather than looping on a broken link.
+                        raise
                     except Exception:
                         pass
             except asyncio.CancelledError:
+                pass
+            except ConnectionError:
                 pass
 
         tester_task = asyncio.create_task(_tester_present_loop())

@@ -171,15 +171,34 @@ class SessionManager:
         return resp.get("ok", False)
 
     async def send_keepalive(self, tx_id: int):
-        """Send TesterPresent (3E00) to a specific ECU."""
-        await self.terminal.set_header(tx_id)
+        """Send TesterPresent (3E00) to a specific ECU.
+
+        Validated (``expected_sid=0x3E``) and transactional on purpose. An
+        unchecked keepalive is how a transient link stall turns into a permanent
+        response offset: it consumes the late reply still owed to the *previous*
+        request, sees that reply's ELM prompt, and leaves its own ``7E00``
+        buffered for whoever reads next — with no error and no diagnostic trace.
+        Validating it lets ``send_uds`` realign the pipe instead of hiding the
+        desync.
+        """
         try:
-            await self.terminal.send_command("3E00", timeout=1.5)
-            self._sessions[tx_id] = time.monotonic()
-            if self.verbose:
-                print(f"  [session] 3E00 -> 0x{tx_id:03X}", end="")
+            async with self.terminal.transaction():
+                await self.terminal.set_header(tx_id)
+                resp = await self.terminal.send_uds("3E00", timeout=1.5, expected_sid=0x3E)
+        except ConnectionError:
+            # The pipe could not be realigned — surface it so the caller's
+            # reconnect path runs rather than silently polling a broken link.
+            raise
         except Exception:
-            pass
+            resp = {}
+        # Refresh regardless of the reply: the *request* went out, so the ECU's S3
+        # timer was reset either way, and this timestamp only rate-limits how often
+        # keepalive_stale re-sends. Gating it on success would hammer an ECU that
+        # never answers with a 3E00 on every poll cycle.
+        self._sessions[tx_id] = time.monotonic()
+        if self.verbose:
+            state = "ok" if resp.get("ok") else resp.get("error", "failed")
+            print(f"  [session] 3E00 -> 0x{tx_id:03X}: {state}", end="")
 
     def mark_active(self, tx_id: int) -> None:
         """Note real traffic to an ECU as keepalive-equivalent.

@@ -89,9 +89,42 @@ class TestKeepalive:
         sm._sessions[0x770] = time.monotonic() - 10  # stale
         await sm.send_keepalive(0x770)
         assert ("set_header", 0x770) in t.calls
-        assert ("send_command", "3E00") in t.calls
+        # Sent as a *validated* UDS request, not a fire-and-forget send_command:
+        # an unchecked keepalive silently absorbs a desynced reply.
+        assert ("send_uds", "3E00") in t.calls
+        assert t.uds_kwargs[-1]["expected_sid"] == 0x3E
+        # Header + request must be one transaction so a concurrent poll can't
+        # re-point the header between them.
+        assert t.calls.index(("transaction_enter", None)) < t.calls.index(("set_header", 0x770))
         # Timestamp should be updated
         assert time.monotonic() - sm._sessions[0x770] < 1
+
+    @pytest.mark.asyncio
+    async def test_keepalive_refreshes_timestamp_even_when_the_reply_is_stale(self):
+        """A mismatched reply must not make keepalive_stale re-send every cycle.
+
+        The *request* went out, so the ECU's S3 timer was reset regardless of what
+        came back; the timestamp only rate-limits re-sends. Gating it on success
+        would hammer a non-answering ECU with a 3E00 on every poll.
+        """
+        t = MockTerminal()
+        t.default = {"ok": False, "error": "Echo mismatch", "error_kind": "stale"}
+        sm = SessionManager(t)
+        sm._sessions[0x770] = time.monotonic() - 10
+        await sm.send_keepalive(0x770)
+        assert time.monotonic() - sm._sessions[0x770] < 1
+
+    @pytest.mark.asyncio
+    async def test_keepalive_propagates_a_failed_resync(self):
+        """An unrecoverable pipe must escalate, not be swallowed as a hiccup."""
+
+        class Wedged(FakeTerminal):
+            async def send_uds(self, *a, **kw):
+                raise ConnectionError("ELM327 pipe resync failed")
+
+        sm = SessionManager(Wedged())
+        with pytest.raises(ConnectionError):
+            await sm.send_keepalive(0x770)
 
     @pytest.mark.asyncio
     async def test_keepalive_stale_only_refreshes_old(self):
@@ -158,7 +191,7 @@ class TestBackgroundKeepalive:
         sm.stop_background_keepalive()
         assert sm._bg_task is None
         # Should have sent at least one keepalive
-        assert any(c == ("send_command", "3E00") for c in t.calls)
+        assert any(c == ("send_uds", "3E00") for c in t.calls)
 
     @pytest.mark.asyncio
     async def test_double_start_cancels_old(self):

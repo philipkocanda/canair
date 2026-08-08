@@ -139,6 +139,38 @@ moment it appears.
 Mid-session re-home stays on the connected transport (raw↔raw / ws↔ws); the
 initial connect can still cross transports via `fallback_order`.
 
+### Link-health watchdogs
+
+Reconnecting only on a raised error is not enough: a session can stop being
+usable while nothing raises at all. A half-open socket (mobile NAT eviction, VPN
+re-key) keeps accepting writes forever, and a desynchronised ELM327 pipe keeps
+returning perfectly well-formed replies — to the *previous* request. Both look
+identical to "the car isn't answering", so the monitor would show every signal as
+`stale` indefinitely until restarted by hand.
+
+```yaml
+transport:
+  ws_ping_interval: 20.0            # seconds — wican-ws keepalive ping (0 = off)
+  stale_cycles_before_reconnect: 3  # all-stale poll cycles before reconnecting (0 = off)
+```
+
+- **`ws_ping_interval`** turns a silently dead `wican-ws` link into a real
+  `ConnectionError`, which the mid-session reconnect above already handles. The
+  WiCAN's firmware does not claim WebSocket control frames, so its HTTP server
+  answers the ping itself — no firmware support needed. Lower it on a flaky
+  mobile link, set `0` to disable.
+- **`stale_cycles_before_reconnect`** is the correctness backstop: after this
+  many consecutive poll cycles in which *nothing* answered coherently, the
+  monitor reconnects even though no error was raised. A negative response (NRC)
+  counts as answering — it proves the request reached the ECU and its reply came
+  back in the right slot. It is a *cycle* count, not a duration, so it scales
+  with the poll rate.
+
+On the ELM327 transports canair also realigns the pipe by itself before
+escalating: a reply that fails its echo check triggers a drain-and-probe resync,
+tallied as `resync` on the monitor's health line. A rising `stale`/`resync` count
+is how a marginal link looks while it is still coping.
+
 
 ## The `transport` block
 

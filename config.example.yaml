@@ -114,3 +114,16 @@ default_wican: home
 #   fallback_order: [home, vpn, ap]  # optional; default = selected device, then the rest
 #   reconnect_max_wait: 6.0    # seconds — bounded window to re-home a dropped
 #                              # `canair monitor` session (--wait retries forever)
+#
+#   # Link-health watchdogs. Both exist because a session can stop being usable
+#   # without anything raising: a half-open socket keeps accepting writes, and a
+#   # desynchronised ELM327 pipe keeps returning well-formed replies — for the
+#   # *previous* request. Without these the monitor shows every signal as "stale"
+#   # indefinitely and only a manual restart recovers.
+#   ws_ping_interval: 20.0     # seconds — WebSocket keepalive ping for wican-ws
+#                              # (0 disables). Makes a dead link raise instead of
+#                              # going quiet. Lower it on a flaky mobile link.
+#   stale_cycles_before_reconnect: 3  # consecutive monitor poll cycles in which
+#                              # nothing answered coherently, before reconnecting
+#                              # (0 disables). A cycle count, not a duration, so
+#                              # it scales with the poll rate.

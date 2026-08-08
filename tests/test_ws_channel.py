@@ -25,6 +25,7 @@ import json
 import pytest
 import websockets
 
+from canlib import config as canair_config
 from canlib.transport import channel
 from canlib.transport.channel import WebSocketChannel
 
@@ -91,7 +92,7 @@ class TestConnectHandshake:
         assert json.loads(fake.sent[0]) == {"ws_mode": "terminal", "terminal_type": "elm327"}
 
     @pytest.mark.asyncio
-    async def test_connect_applies_the_shared_timeout_and_disables_pings(self, monkeypatch):
+    async def test_connect_applies_the_shared_timeout_and_enables_pings(self, monkeypatch):
         fake = FakeWS()
         captured = {}
 
@@ -101,11 +102,34 @@ class TestConnectHandshake:
 
         monkeypatch.setattr(channel.websockets, "connect", fake_connect)
         monkeypatch.setattr(channel, "SETTLE_SECONDS", 0)
+        monkeypatch.setattr(canair_config, "ws_ping_interval", lambda: 20.0)
         await WebSocketChannel("h").connect()
 
         assert captured["open_timeout"] == channel.CONNECT_TIMEOUT
-        # The ELM terminal is request/response; keepalive pings would interleave
-        # with reply framing.
+        # Pings are the only thing that notices a silently dead carrier (a NAT
+        # rebind or a VPN re-key drops packets without a FIN), and the WiCAN's
+        # /ws handler leaves PING to esp_http_server, so they never reach the
+        # ELM327 reply framing.
+        assert captured["ping_interval"] == 20.0
+        assert captured["ping_timeout"] == 20.0
+
+    @pytest.mark.asyncio
+    async def test_ping_interval_is_configurable_and_disablable(self, monkeypatch):
+        captured = {}
+
+        async def fake_connect(url, **kwargs):
+            captured.update(kwargs)
+            return FakeWS()
+
+        monkeypatch.setattr(channel.websockets, "connect", fake_connect)
+        monkeypatch.setattr(channel, "SETTLE_SECONDS", 0)
+
+        monkeypatch.setattr(canair_config, "ws_ping_interval", lambda: 5.0)
+        await WebSocketChannel("h").connect()
+        assert captured["ping_interval"] == 5.0
+
+        monkeypatch.setattr(canair_config, "ws_ping_interval", lambda: None)
+        await WebSocketChannel("h").connect()
         assert captured["ping_interval"] is None
 
     @pytest.mark.asyncio
@@ -210,6 +234,18 @@ class TestDrainAndClose:
     async def test_drain_without_a_connection_is_a_noop(self):
         ch = WebSocketChannel("h")
         await ch.drain()  # must not raise
+
+    @pytest.mark.asyncio
+    async def test_drain_surfaces_a_closed_socket(self):
+        """A drain that hits a dead socket must not report success.
+
+        The drain runs as the first half of a pipe resync; swallowing the close
+        here made a dead link look like a line that had gone quiet, so the resync
+        "succeeded" and the session kept polling a socket that would never answer.
+        """
+        ch = _channel(closed_after=0)
+        with pytest.raises(ConnectionError, match="closed"):
+            await ch.drain(per_recv_timeout=0.05, max_seconds=0.5)
 
     @pytest.mark.asyncio
     async def test_close_closes_and_clears_the_socket(self):

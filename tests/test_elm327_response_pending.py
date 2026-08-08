@@ -40,6 +40,10 @@ class ScriptedChannel:
         self._chunks: list[str | None] = list(chunks)
         self.drains = 0
         self.closed = False
+        # Messages the line delivers *after* a drain has swept it. Lets a test
+        # stage the post-recovery exchange, which a plain queue can't express
+        # because drain() discards whatever is pending.
+        self.after_drain: list[str | None] = []
 
     async def connect(self) -> None:  # pragma: no cover - not used here
         pass
@@ -59,7 +63,8 @@ class ScriptedChannel:
 
     async def drain(self, per_recv_timeout: float = 0.2, max_seconds: float = 1.0) -> None:
         self.drains += 1
-        self._chunks.clear()
+        self._chunks = list(self.after_drain)
+        self.after_drain = []
 
     async def close(self) -> None:
         self.closed = True
@@ -204,6 +209,10 @@ class TestPipeHygieneAroundPending:
         term = Elm327Terminal(ch)
         await term.send_command("1902", timeout=0.2)
         assert term._pipe_dirty is True
-        ch._chunks = ["59 02 AA\r>"]
-        await term.send_command("1902", timeout=0.5)
+        # The resync drains, then confirms alignment with an ATI probe before the
+        # real command goes out — so the line must answer both, *after* the drain.
+        ch.after_drain = ["ELM327 v1.5\r>", "59 02 AA\r>"]
+        resp = await term.send_command("1902", timeout=0.5)
         assert ch.drains == 1
+        assert "5902AA" in resp.replace(" ", "")
+        assert term._pipe_dirty is False

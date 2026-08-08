@@ -19,8 +19,10 @@ SID/DID echo validation.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import time
+from collections.abc import AsyncIterator
 
 import can
 import isotp
@@ -109,6 +111,16 @@ class RawTerminal:
 
     async def set_header(self, tx_id: int) -> None:
         self._cur = tx_id
+
+    @contextlib.asynccontextmanager
+    async def transaction(self) -> AsyncIterator[None]:
+        """No-op: the raw path has no shared header state to protect.
+
+        Every ISO-TP exchange carries its own addressing, so there is nothing a
+        concurrent keepalive could retarget (the ELM327 counterpart must serialise
+        ``ATSH`` + request — see ``Elm327Terminal.transaction``).
+        """
+        yield
 
     async def send_uds(
         self,

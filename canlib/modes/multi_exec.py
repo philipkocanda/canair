@@ -76,18 +76,21 @@ async def _exec_session(
 async def _read_single(sm, tx_id, pid_code, pid_info, unmapped, batch_state):
     """Send one PID, return its result dict; learn its 22-DID length for batching.
 
-    keepalive_stale + set_header are cheap under header caching (no-op / cache
-    hit) yet re-establish the header if a background keepalive switched it.
+    keepalive_stale runs *outside* the transaction (it is unrelated traffic that
+    shouldn't be serialised behind this exchange); set_header + send_uds run
+    *inside* it, so a background keepalive can't re-point the ELM header between
+    them and send this request to the wrong ECU.
     """
     await sm.keepalive_stale()
-    await sm.terminal.set_header(tx_id)
     echo = request_echo(pid_code)
     expected_sid = echo[0] if echo else None
     expected_echo = echo[1] if echo else None
     t0 = time.monotonic()
-    resp = await sm.terminal.send_uds(
-        pid_code, retries=1, expected_sid=expected_sid, expected_echo=expected_echo
-    )
+    async with sm.terminal.transaction():
+        await sm.terminal.set_header(tx_id)
+        resp = await sm.terminal.send_uds(
+            pid_code, retries=1, expected_sid=expected_sid, expected_echo=expected_echo
+        )
     # Wall-clock round-trip (transport + ECU) for this single read — persisted on
     # the capture as a relative timing signal. Batched multi-DID reads don't get
     # this (one round-trip answers several PIDs), so it lives here, not in
@@ -118,8 +121,18 @@ async def _read_batch(sm, tx_id, group, out, batch_state) -> bool:
     """
     dids = [e[0][2:] for e in group]
     await sm.keepalive_stale()
-    await sm.terminal.set_header(tx_id)
-    resp = await sm.terminal.send_uds("22" + "".join(dids))
+    # Validated like the single-PID path: a 62 response repeats the first
+    # requested DID, so expected_sid/expected_echo classify a leaked reply as
+    # `stale` (triggering a pipe resync) instead of letting split_multi_did fail
+    # silently — which the caller reads as "unsplittable" and reacts to by
+    # permanently disabling batching for the whole ECU.
+    async with sm.terminal.transaction():
+        await sm.terminal.set_header(tx_id)
+        resp = await sm.terminal.send_uds(
+            "22" + "".join(dids),
+            expected_sid=0x22,
+            expected_echo=bytes.fromhex(dids[0]) if dids else None,
+        )
     acquired_at = time.time()
     if resp.get("ok") or resp.get("nrc") is not None:
         sm.mark_active(tx_id)  # a real answer resets S3 — no redundant 3E00 needed

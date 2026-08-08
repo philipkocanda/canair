@@ -57,6 +57,9 @@ import asyncio
 import time
 from datetime import datetime
 
+from ..log import log_event, log_exception
+from ..transport.errors import transport_error_types
+
 
 def _split_state_tokens(value: str) -> tuple[list[str], str]:
     """Split a comma-separated state string into (completed tokens, active token).
@@ -637,6 +640,7 @@ class MonitorApp(HelpMixin, App):
         Binding("v", "verify", "verify"),
         Binding("d", "disable", "en/disable"),
         Binding("F", "cycle_filter", "filter"),
+        Binding("R", "force_reconnect", "reconnect"),
         Binding("j", "scroll(1)", "down", show=False),
         Binding("k", "scroll(-1)", "up", show=False),
         Binding("g", "to_top", "top", show=False),
@@ -689,9 +693,20 @@ class MonitorApp(HelpMixin, App):
                 t0 = time.monotonic()
                 try:
                     await self.controller.poll_once()
-                except Exception:
-                    # Unexpected poll failure: stop cleanly rather than leaving a
-                    # silently-frozen UI. Treated like a disconnect on exit.
+                except transport_error_types() as e:
+                    # The link died mid-cycle. Same handling as a poll that set
+                    # `disconnected` itself: re-home rather than abandon the run.
+                    log_event(
+                        "bus",
+                        f"poll cycle failed: {type(e).__name__}: {e}",
+                        transport=self.controller.transport_type,
+                    )
+                    self.controller.disconnected = True
+                except Exception as e:
+                    # Not the transport — a genuine internal fault. Reconnecting
+                    # would not fix it and would hide it, so stop cleanly rather
+                    # than leaving a silently-frozen UI.
+                    log_exception("unexpected monitor poll failure", e)
                     self.controller.disconnected = True
                     self.exit()
                     return
@@ -811,28 +826,43 @@ class MonitorApp(HelpMixin, App):
         return items
 
     def _health_items(self) -> list[StatusItem]:
-        """Transport-health segments: dropped/stale ISO-TP frames + other errors.
+        """Transport-health segments: dropped frames, pipe desyncs, other errors.
 
         Drops are the data-integrity headline (the reassembly corruption that
         silently poisoned historical captures), so a live burst also shows a
-        per-cycle ``+N`` spike. Both are omitted when zero, keeping a clean run
+        per-cycle ``+N`` spike. ``stale`` is broken out rather than folded into
+        drops because it means something different and actionable — replies
+        landing in the wrong request's slot — and ``resync`` next to it shows the
+        transport realigning itself, which is how a marginal link looks while it
+        is still coping. All are omitted when zero, keeping a clean run
         uncluttered.
         """
         diag_fn = getattr(self.controller, "diag", None)
         diag = diag_fn() if callable(diag_fn) else None
         if diag is None:
             return []
-        drops = diag.drops
-        # Non-drop errors (timeouts/bus/decode) — disjoint from drops.
-        errs = diag.errors - drops
+        stale = getattr(diag, "stale", 0)
+        drops = diag.drops - stale
+        resyncs = getattr(diag, "resyncs", 0)
+        # Non-drop errors (timeouts/bus/decode) — disjoint from drops and stale.
+        errs = diag.errors - drops - stale
         items: list[StatusItem] = []
         if drops:
-            spike = getattr(self.controller, "last_drops", 0)
+            spike = max(getattr(self.controller, "last_drops", 0) - self._last_stale(), 0)
             spike_txt = f" [b red]+{spike}[/]" if spike else ""
             items.append(StatusItem(f"[dim]drops[/] [b red]{drops}[/]{spike_txt}", P_HIGH))
+        if stale:
+            spike = self._last_stale()
+            spike_txt = f" [b red]+{spike}[/]" if spike else ""
+            items.append(StatusItem(f"[dim]stale[/] [b red]{stale}[/]{spike_txt}", P_HIGH))
+        if resyncs:
+            items.append(StatusItem(f"[dim]resync[/] [yellow]{resyncs}[/]", P_HIGH))
         if errs:
             items.append(StatusItem(f"[dim]errs[/] [yellow]{errs}[/]", P_HIGH))
         return items
+
+    def _last_stale(self) -> int:
+        return getattr(self.controller, "last_stale", 0)
 
     def _editor(self):
         """The controller's edit collaborator, or None (older/fake controllers)."""
@@ -1025,6 +1055,22 @@ class MonitorApp(HelpMixin, App):
         mode = ed.cycle_filter(self._last_queries())
         self._refresh_body()
         self._flash(f"Filter: {mode}")
+
+    def action_force_reconnect(self) -> None:
+        """Ask the poll loop to rebuild the connection after the current cycle.
+
+        Deliberately only sets the flag the loop already watches instead of
+        reconnecting here: an attempt started from a key handler would race the
+        in-flight poll for the same terminal.
+        """
+        c = self.controller
+        if self._modal_active() or c.reconnecting:
+            return
+        if getattr(c, "reconnect", None) is None:
+            self._flash("Reconnect unavailable (no reconnector for this session)")
+            return
+        c.disconnected = True
+        self._flash("Reconnecting after this poll cycle…")
 
     def action_verify(self) -> None:
         ed = self._editor()

@@ -402,6 +402,68 @@ class TestDevicesAndFallbackConfig:
         _, timeout, _ = config.fallback_settings()
         assert timeout == 2.0
 
+    def test_ws_ping_interval_default(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        from canlib import config
+
+        _reset()
+        assert config.ws_ping_interval() == 20.0
+
+    def test_ws_ping_interval_read(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        from canlib import config
+
+        _reset()
+        config.set_config_key("transport.ws_ping_interval", 5.0)
+        _reset()
+        assert config.ws_ping_interval() == 5.0
+
+    def test_ws_ping_interval_zero_disables(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        from canlib import config
+
+        _reset()
+        config.set_config_key("transport.ws_ping_interval", 0)
+        _reset()
+        assert config.ws_ping_interval() is None
+
+    def test_bad_ws_ping_interval_falls_back_to_default(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        from canlib import config
+
+        _reset()
+        config.set_config_key("transport.ws_ping_interval", -1)
+        _reset()
+        assert config.ws_ping_interval() == 20.0
+
+    def test_stale_cycles_default(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        from canlib import config
+
+        _reset()
+        assert config.stale_cycles_before_reconnect() == 3
+
+    def test_stale_cycles_read_and_zero_disables(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        from canlib import config
+
+        _reset()
+        config.set_config_key("transport.stale_cycles_before_reconnect", 8)
+        _reset()
+        assert config.stale_cycles_before_reconnect() == 8
+        config.set_config_key("transport.stale_cycles_before_reconnect", 0)
+        _reset()
+        assert config.stale_cycles_before_reconnect() == 0
+
+    def test_bad_stale_cycles_falls_back_to_default(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        from canlib import config
+
+        _reset()
+        config.set_config_key("transport.stale_cycles_before_reconnect", -2)
+        _reset()
+        assert config.stale_cycles_before_reconnect() == 3
+
 
 class TestConfigCommandDevices:
     def test_set_device_transport_valid(self, tmp_path, monkeypatch):

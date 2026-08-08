@@ -5,6 +5,7 @@ caching decisions under test are the production ones.
 """
 
 import asyncio
+import contextlib
 
 import pytest
 
@@ -272,8 +273,8 @@ class DrainWS:
 
 class TestStaleFrameDrain:
     """A command that times out before consuming the ELM `>` prompt leaves the
-    pipe dirty; the next command must drain the adapter's late/stale frames
-    before sending so they can't leak into (and corrupt) the next response."""
+    pipe dirty; the next command must realign before sending so late/stale frames
+    can't leak into (and corrupt) the next response."""
 
     @pytest.mark.asyncio
     async def test_timeout_marks_pipe_dirty(self):
@@ -295,7 +296,7 @@ class TestStaleFrameDrain:
     async def test_stale_frames_drained_before_next_command(self):
         # Dirty pipe with two stale frames buffered; the next command must
         # discard them so its parsed response is only the real reply.
-        t = WiCANTerminal(host="test")
+        t = WiCANTerminal(host="test", timeout=0.2)
         t.ws = DrainWS(reply="6101AA\r>")
         t._pipe_dirty = True
         t.ws.preload("6F BC 09 00\r", "STALE\r")  # late frames from a prior read
@@ -305,10 +306,198 @@ class TestStaleFrameDrain:
 
     @pytest.mark.asyncio
     async def test_no_drain_when_pipe_clean(self):
-        # A clean pipe must not drain: a frame arriving concurrently with the
+        # A clean pipe does not drain: a frame arriving concurrently with the
         # send is this command's real response, not stale, and is preserved.
+        # (Recovery from a stale frame that *does* arrive prompt-terminated on a
+        # clean pipe is response-content-driven — see TestPipeResync.)
         t = WiCANTerminal(host="test")
         t.ws = DrainWS(reply="6101AA\r>")
         assert t._pipe_dirty is False
         resp = await t.send_command("2101")
         assert resp == "6101AA"
+
+
+class TestPipeResync:
+    """Recovering the request/response alignment of an ELM327 pipe.
+
+    The failure this covers: a transient link stall makes a read time out, the
+    adapter's reply lands afterwards *with* its `>` prompt, and from then on every
+    reply answers the previous request. Nothing raises — the socket is open and
+    every read "succeeds" — so the only evidence is that the response doesn't echo
+    the request that was sent. The fix reacts to that evidence.
+    """
+
+    @staticmethod
+    def _drain_spy(t):
+        calls: list[dict] = []
+
+        async def drain(per_recv_timeout: float = 0.2, max_seconds: float = 1.0) -> None:
+            calls.append({"per_recv_timeout": per_recv_timeout, "max_seconds": max_seconds})
+
+        t._channel.drain = drain
+        return calls
+
+    @pytest.mark.asyncio
+    async def test_resync_probes_the_adapter_after_draining(self):
+        t = _term_prog(["ELM327 v1.5\r>", "6101AA\r>"])
+        t._pipe_dirty = True
+        resp = await t.send_command("2101")
+        # ATI goes first: draining alone proves nothing, since the drain can't
+        # distinguish "line was quiet" from "line was dead".
+        assert t.ws.sent[0].startswith("ATI")
+        assert t.ws.sent[1].startswith("2101")
+        assert resp == "6101AA"
+        assert t._pipe_dirty is False
+
+    @pytest.mark.asyncio
+    async def test_quiet_window_covers_the_adapters_own_ecu_wait(self):
+        # Draining for less than the adapter's ATST budget is the bug, not the
+        # fix: the late reply arrives after the drain gives up and survives it.
+        t = _term_prog(["ELM327 v1.5\r>", "6101AA\r>"])
+        calls = self._drain_spy(t)
+        t.elm_timeout_cmd = "ATST96"  # 0x96 * 4.096ms = 614ms
+        t.timeout = 30.0  # not the binding constraint here
+        t._pipe_dirty = True
+        await t.send_command("2101")
+        assert calls[0]["per_recv_timeout"] > 0.614
+        assert calls[0]["max_seconds"] >= 3.0
+
+    @pytest.mark.asyncio
+    async def test_quiet_window_never_exceeds_the_command_timeout(self):
+        t = _term_prog(["ELM327 v1.5\r>", "6101AA\r>"])
+        calls = self._drain_spy(t)
+        t.elm_timeout_cmd = "ATSTFF"
+        t.timeout = 0.3
+        t._pipe_dirty = True
+        await t.send_command("2101")
+        assert calls[0]["per_recv_timeout"] == 0.3
+
+    @pytest.mark.asyncio
+    async def test_unparseable_st_falls_back_to_the_default_budget(self):
+        t = _term_prog(["ELM327 v1.5\r>", "6101AA\r>"])
+        calls = self._drain_spy(t)
+        t.elm_timeout_cmd = "ATSTZZ"
+        t.timeout = 30.0
+        t._pipe_dirty = True
+        await t.send_command("2101")
+        assert calls[0]["per_recv_timeout"] > 0.614
+
+    @pytest.mark.asyncio
+    async def test_silent_probe_raises_connection_error(self):
+        # ATI is answered by the adapter itself without touching the CAN bus, so
+        # its silence cannot be blamed on the car: the link is gone. Raising is
+        # what lets the monitor's reconnector take over.
+        t = WiCANTerminal(host="test", timeout=0.1)
+        t.ws = DrainWS(reply=None)
+        t._pipe_dirty = True
+        with pytest.raises(ConnectionError, match="resync failed"):
+            await t.send_command("2101")
+
+    @pytest.mark.asyncio
+    async def test_stale_echo_triggers_a_resync_then_succeeds(self):
+        # The reported bug, replayed: the reply to 2102 answers 2101. Both share
+        # response SID 0x61, so only the echo byte reveals the offset.
+        t = _term_prog(["6101AA\r>", "ELM327 v1.5\r>", "6102BB\r>"])
+        t.timeout = 0.2
+        r = await t.send_uds("2102", retries=1, expected_sid=0x21, expected_echo=b"\x02")
+        assert r["ok"] is True
+        assert r["hex"] == "6102BB"
+        assert [s[:4] for s in t.ws.sent] == ["2102", "ATI\r", "2102"]
+
+    @pytest.mark.asyncio
+    async def test_stale_echo_resyncs_even_with_no_retries(self):
+        # retries=0 must still realign. The validated TesterPresent keepalive runs
+        # with no retries, and it is the exchange most likely to notice the offset
+        # first — if it returned the stale reply without resyncing, the desync
+        # would survive every keepalive tick.
+        t = _term_prog(["6101AA\r>", "ELM327 v1.5\r>"])
+        t.timeout = 0.2
+        r = await t.send_uds("2102", expected_sid=0x21, expected_echo=b"\x02")
+        assert r["ok"] is False
+        assert "Echo mismatch" in r["error"]
+        assert [s[:4] for s in t.ws.sent] == ["2102", "ATI\r"]  # realigned for next time
+
+    @pytest.mark.asyncio
+    async def test_good_response_never_resyncs(self):
+        t = _term_prog(["6102BB\r>"])
+        r = await t.send_uds("2102", expected_sid=0x21, expected_echo=b"\x02")
+        assert r["ok"] is True
+        assert not any(s.startswith("ATI") for s in t.ws.sent)
+
+    @pytest.mark.asyncio
+    async def test_nrc_never_resyncs(self):
+        # A negative response is a healthy pipe: the request reached the ECU and
+        # its refusal came back in the right slot.
+        t = _term_prog(["7F2112\r>"])
+        r = await t.send_uds("2102", expected_sid=0x21, expected_echo=b"\x02")
+        assert r["nrc"] == 0x12
+        assert not any(s.startswith("ATI") for s in t.ws.sent)
+
+    @pytest.mark.asyncio
+    async def test_resync_is_tallied_separately_from_the_fault(self):
+        t = _term_prog(["6101AA\r>", "ELM327 v1.5\r>", "6102BB\r>"])
+        t.timeout = 0.2
+        await t.send_uds("2102", retries=1, expected_sid=0x21, expected_echo=b"\x02")
+        assert t.diag.resyncs == 1
+        assert t.diag.stale == 1  # the fault, counted once and not as a resync
+
+    @pytest.mark.asyncio
+    async def test_resync_does_not_recurse(self):
+        # The probe goes through the same send path that triggers a resync, so a
+        # dirty probe must not start another one.
+        t = _term_prog(["ELM327 v1.5\r>", "6101AA\r>"])
+        t.timeout = 0.2
+        t._pipe_dirty = True
+        await t.send_command("2101")
+        assert len([s for s in t.ws.sent if s.startswith("ATI")]) == 1
+
+
+class TestTransaction:
+    """`set_header` + the request it applies to must not be interleaved.
+
+    ATSH is sticky adapter state, so a keepalive that retargets the header
+    between them sends the request to the wrong ECU — and the reply that comes
+    back is then a perfectly-formed answer attributed to the wrong PID.
+    """
+
+    @pytest.mark.asyncio
+    async def test_transaction_serialises_against_a_concurrent_command(self):
+        t = _term_prog(["OK\r>", "6101AA\r>", "OK\r>"])
+        order: list[str] = []
+
+        async def owner():
+            async with t.transaction():
+                await t.send_command("ATSH7E4")
+                order.append("header")
+                await asyncio.sleep(0.05)  # a window an unlocked rival would use
+                await t.send_command("2101")
+                order.append("request")
+
+        async def rival():
+            await asyncio.sleep(0.01)
+            await t.send_command("ATSH770")
+            order.append("rival")
+
+        await asyncio.gather(owner(), rival())
+        assert order == ["header", "request", "rival"]
+
+    @pytest.mark.asyncio
+    async def test_transaction_is_reentrant_for_its_owner(self):
+        # send_uds opens a transaction of its own; nesting it inside a caller's
+        # must not deadlock on the same lock.
+        # set_header issues two commands (ATSH + ATFCSH) before the request.
+        t = _term_prog(["OK\r>", "OK\r>", "6101AA\r>"])
+        async with t.transaction():
+            await t.set_header(0x7E4)
+            r = await t.send_uds("2101", expected_sid=0x21)
+        assert r["ok"] is True
+
+    @pytest.mark.asyncio
+    async def test_lock_owner_is_cleared_after_a_failure(self):
+        t = WiCANTerminal(host="test", timeout=0.05)
+        t.ws = DrainWS(reply=None)
+        with contextlib.suppress(ConnectionError):
+            async with t.transaction():
+                await t.send_command("2101")
+        assert t._lock_owner is None
+        assert not t._cmd_lock.locked()

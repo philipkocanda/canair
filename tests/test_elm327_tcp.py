@@ -91,6 +91,15 @@ class TestTcpChannel:
             await ch.recv(1.0)
 
     @pytest.mark.asyncio
+    async def test_drain_eof_raises_connection_error(self):
+        # A drain runs as the first half of a pipe resync; treating EOF as "the
+        # line went quiet" made a dead socket look successfully realigned.
+        ch = _tcp_channel()
+        ch._reader.feed(b"")
+        with pytest.raises(ConnectionError):
+            await ch.drain(per_recv_timeout=0.05, max_seconds=0.5)
+
+    @pytest.mark.asyncio
     async def test_close_closes_writer(self):
         ch = _tcp_channel()
         writer = ch._writer

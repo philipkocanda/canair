@@ -197,6 +197,63 @@ class TestBatchingExecutor:
         assert term.sent == ["22BC03BC04", "22BC06"]
         assert {x["pid"] for x in r} == {"22BC03", "22BC04", "22BC06"}
 
+    def test_batched_request_is_echo_validated(self):
+        """A batch must carry its own echo expectation, not just a SID.
+
+        The batch path used to pass no `expected_sid` at all, so a response that
+        had slipped one slot behind still parsed as a valid `0x62` reply and its
+        bytes were split into the *wrong* DIDs — silently wrong decoded values,
+        with nothing logged. Validating the leading DID makes the desync a
+        detectable stale response that triggers a pipe resync instead.
+        """
+        term = FakeTerminal({**_SINGLES, "22BC03BC06": _ok(MULTI)})
+        sm = _mk_sm(term.send_uds)
+        bs = BatchState()
+        for d in ("BC03", "BC06"):
+            bs.lengths[(0x770, d)] = 8
+
+        asyncio.run(
+            _exec_query(
+                sm,
+                "IGPM",
+                [],
+                _igpm_index(multi_did=True),
+                {},
+                False,
+                return_results=True,
+                batch_state=bs,
+            )
+        )
+        assert term.sent == ["22BC03BC06"]
+        kwargs = term.uds_kwargs[-1]
+        assert kwargs["expected_sid"] == 0x22
+        assert kwargs["expected_echo"] == b"\xbc\x03"
+
+    def test_batch_holds_the_transaction_across_header_and_request(self):
+        # The header is per-ECU adapter state; a keepalive that retargets it
+        # between ATSH and the batch request sends the DIDs to the wrong ECU.
+        term = FakeTerminal({**_SINGLES, "22BC03BC06": _ok(MULTI)})
+        sm = _mk_sm(term.send_uds)
+        sm.terminal = term
+        bs = BatchState()
+        for d in ("BC03", "BC06"):
+            bs.lengths[(0x770, d)] = 8
+
+        asyncio.run(
+            _exec_query(
+                sm,
+                "IGPM",
+                [],
+                _igpm_index(multi_did=True),
+                {},
+                False,
+                return_results=True,
+                batch_state=bs,
+            )
+        )
+        names = [c[0] for c in term.calls]
+        assert names[-4:] == ["transaction_enter", "set_header", "send_uds", "transaction_exit"]
+
     def test_nrc13_disables_and_falls_back(self):
         term = FakeTerminal(
             {**_SINGLES, "22BC03BC06": _nrc(0x13, "incorrectMessageLengthOrInvalidFormat")}

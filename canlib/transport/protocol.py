@@ -19,6 +19,7 @@ signatures — the real oracle is ``ty check`` over the retyped seam.
 from __future__ import annotations
 
 import asyncio
+from contextlib import AbstractAsyncContextManager
 from typing import Protocol, runtime_checkable
 
 from ..timing import TimingRecorder
@@ -42,6 +43,17 @@ class Terminal(Protocol):
     timings: TimingRecorder
 
     async def set_header(self, tx_id: int) -> None: ...
+
+    def transaction(self) -> AbstractAsyncContextManager[None]:
+        """Group several commands into one non-interleavable exchange.
+
+        Needed because a UDS read is *stateful* on an ELM327 — the header is set
+        by a separate command — so a concurrent keepalive landing between the
+        header and the request retargets it. Backends with no such shared state
+        (the raw ISO-TP path addresses every frame explicitly) satisfy this with a
+        no-op.
+        """
+        ...
 
     async def send_uds(
         self,

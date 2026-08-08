@@ -90,8 +90,19 @@ class WebSocketChannel:
     async def connect(self) -> None:
         if self.verbose:
             print(f"  [ws] Connecting to {self.url}...", file=sys.stderr)
+        # Keepalive pings are what make a *half-open* link detectable: without
+        # them a socket killed upstream (hotspot NAT eviction, VPN re-key) never
+        # raises, so every read merely times out and the session hangs forever
+        # looking like an unresponsive ECU. With them, the drop surfaces as
+        # ConnectionClosed -> ConnectionError -> the normal reconnect path.
+        from ..config import ws_ping_interval
+
+        ping = ws_ping_interval()
         self.ws = await websockets.connect(
-            self.url, ping_interval=None, open_timeout=CONNECT_TIMEOUT
+            self.url,
+            ping_interval=ping,
+            ping_timeout=ping,
+            open_timeout=CONNECT_TIMEOUT,
         )
         mode_msg = json.dumps({"ws_mode": "terminal", "terminal_type": "elm327"})
         await self.ws.send(mode_msg)
@@ -142,7 +153,9 @@ class WebSocketChannel:
 
         Loops until a ``per_recv_timeout`` window passes with no message, or the
         overall ``max_seconds`` budget is spent (so a continuous stream can't
-        hang the drain).
+        hang the drain). A dropped link propagates as :class:`ConnectionError`
+        exactly as in :meth:`recv` — reporting it as a completed drain would let
+        the engine conclude the pipe is clean when the socket is in fact gone.
         """
         if self.ws is None:
             return
@@ -152,8 +165,10 @@ class WebSocketChannel:
                 msg = await asyncio.wait_for(self.ws.recv(), timeout=per_recv_timeout)
                 if self.verbose:
                     print(f"  [ws] Drained: {msg!r}", file=sys.stderr)
-            except (TimeoutError, Exception):
+            except TimeoutError:
                 break
+            except websockets.exceptions.ConnectionClosed as e:
+                raise ConnectionError("WebSocket connection closed") from e
 
     async def close(self) -> None:
         if self.ws:
@@ -222,19 +237,24 @@ class TcpChannel:
         return text
 
     async def drain(self, per_recv_timeout: float = 0.2, max_seconds: float = 1.0) -> None:
-        """Read and discard any pending bytes (clears stale/late frames)."""
+        """Read and discard any pending bytes (clears stale/late frames).
+
+        A closed socket propagates as :class:`ConnectionError` exactly as in
+        :meth:`recv`: swallowing it here would report a dead link as a completed
+        drain, leaving the engine believing the pipe is clean.
+        """
         if self._reader is None:
             return
         deadline = time.monotonic() + max_seconds
         while time.monotonic() < deadline:
             try:
                 chunk = await asyncio.wait_for(self._reader.read(4096), timeout=per_recv_timeout)
-                if chunk == b"":
-                    break
-                if self.verbose:
-                    print(f"  [tcp] Drained: {chunk!r}", file=sys.stderr)
-            except (TimeoutError, Exception):
+            except TimeoutError:
                 break
+            if chunk == b"":
+                raise ConnectionError("ELM327 TCP connection closed")
+            if self.verbose:
+                print(f"  [tcp] Drained: {chunk!r}", file=sys.stderr)
 
     async def close(self) -> None:
         if self._writer is not None:

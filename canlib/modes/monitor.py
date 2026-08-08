@@ -31,12 +31,14 @@ from typing import TYPE_CHECKING
 from rich.console import Console
 from rich.text import Text
 
+from .. import config
 from ..formatting import (
     _HIGHLIGHT_STYLE,
     _bytes_to_ascii,
     _render_hex_line,
 )
 from ..keepmode import KEEP_ALL, KEEP_LAST, KeepMode
+from ..log import log_event
 from ..notation import ByteNotation
 from ..session_manager import SessionManager
 from ..stop_signals import graceful_stop
@@ -178,6 +180,10 @@ class MonitorController:
         # issues: dropped/stale ISO-TP frames + all non-answer errors this cycle.
         self.last_drops = 0
         self.last_errors = 0
+        # Echo/SID validation failures this cycle, tracked apart from last_drops
+        # (which sums drop + stale for capture back-compat): a desync and a lost
+        # frame call for opposite responses, so the status line names them apart.
+        self.last_stale = 0
         # Resolved transport label (e.g. "slcan-tcp"/"wican-ws"), recorded into
         # saved-capture provenance. Set by mode_monitor.
         self.transport_type: str | None = None
@@ -202,6 +208,16 @@ class MonitorController:
         # Set by mode_monitor; resolved lazily if left None.
         self.captures_dir: Path | None = None
         self.disconnected = False
+        # Consecutive poll cycles in which not one PID answered coherently (no
+        # payload and no negative response — every row carried forward as stale).
+        # A desynced-but-open pipe raises nothing, so this count is the only thing
+        # that can tell a live-but-useless link from a healthy one; at
+        # `config.stale_cycles_before_reconnect()` it sets `disconnected` and lets
+        # the reconnector rebuild the client. An NRC counts as answered: a negative
+        # response proves the request reached the ECU and its reply came back in the
+        # right slot, which is a healthy pipe refusing, not a broken one.
+        self.dead_cycles = 0
+        self._cycle_answered = False
         # Mid-session reconnect / auto-failover (set by mode_monitor). When a
         # reconnector is present the poll loop re-homes a dropped session instead
         # of exiting; session_steps are replayed on each reconnect to re-open
@@ -465,6 +481,7 @@ class MonitorController:
         self.cycle += 1
         diag = self.diag_recorder()
         base = diag.snapshot() if diag is not None else None
+        self._cycle_answered = False
         t0 = time.monotonic()
         if self.raw:
             await self._poll_raw()
@@ -475,7 +492,34 @@ class MonitorController:
             delta = diag.diff(base)
             self.last_drops = delta.drops
             self.last_errors = delta.errors
+            self.last_stale = delta.stale
         self._record(self.last_queries)
+        self._check_liveness()
+
+    def _check_liveness(self) -> None:
+        """Escalate an all-stale run to a reconnect.
+
+        A transport error raises and is caught by the poll loop, but a pipe that
+        is *open and useless* — every reply landing one slot behind its request —
+        raises nothing, so ``disconnected`` would never be set and the session
+        would sit there showing carried-forward values forever. That is the bug
+        this guards: count cycles where nothing answered, and hand the session to
+        the reconnector once it is clearly not recovering on its own.
+        """
+        if self._cycle_answered or not self.last_queries:
+            self.dead_cycles = 0
+            return
+        limit = config.stale_cycles_before_reconnect()
+        self.dead_cycles += 1
+        if limit <= 0 or self.dead_cycles < limit:
+            return
+        log_event(
+            "stale",
+            f"no coherent response for {self.dead_cycles} poll cycles - reconnecting",
+            transport=self.transport_type,
+        )
+        self.dead_cycles = 0
+        self.disconnected = True
 
     def diag_recorder(self):
         """The active client's transport-diagnostics recorder, or None.
@@ -577,8 +621,10 @@ class MonitorController:
         """
         if entry.get("raw_hex"):
             self._last_good[key] = entry
+            self._cycle_answered = True
             return entry
         if str(entry.get("error", "")).startswith("NRC"):
+            self._cycle_answered = True
             return entry
         last = self._last_good.get(key)
         if last is not None:
