@@ -34,6 +34,20 @@ from canlib.profile_create import overlay_profile
 CAPTURES_CMD = Path(__file__).resolve().parents[1] / "canlib" / "commands" / "captures"
 CANLIB_CMD = CAPTURES_CMD.parent
 
+# Anything calling one of these rewrites a capture file, so it owes the base-layer
+# check. Discovering the modules beats listing them: the list cannot go stale.
+_CAPTURE_WRITERS = (
+    "delete_capture",
+    "set_capture_note",
+    "set_session_states",
+    "set_session_state_spans",
+)
+_MUTATING_CAPTURE_MODULES = {
+    p.name
+    for p in CAPTURES_CMD.glob("*.py")
+    if any(f"{w}(" in p.read_text() for w in _CAPTURE_WRITERS)
+}
+
 
 @pytest.fixture(autouse=True)
 def _isolate_profile_state():
@@ -77,22 +91,22 @@ def _bundled(env, name: str = "ev6") -> Path:
     return root
 
 
-def _seed(path: Path, label: str, *, time: str = "09:00:00", date: str = "2026-01-01") -> None:
-    path.write_text(
-        json.dumps(
-            {
-                "sessions": [
-                    {
-                        "date": date,
-                        "label": label,
-                        "captures": [
-                            {"rx": "0x7EC", "pid": "2101", "payload": "6101AA", "time": time}
-                        ],
-                    }
-                ]
-            }
-        )
-    )
+def _seed(
+    path: Path,
+    label: str,
+    *,
+    time: str = "09:00:00",
+    date: str = "2026-01-01",
+    states: list[str] | None = None,
+) -> None:
+    session: dict = {
+        "date": date,
+        "label": label,
+        "captures": [{"rx": "0x7EC", "pid": "2101", "payload": "6101AA", "time": time}],
+    }
+    if states:
+        session["vehicle_states"] = states
+    path.write_text(json.dumps({"sessions": [session]}))
 
 
 def _overlay(env, name: str = "ev6") -> Path:
@@ -101,6 +115,42 @@ def _overlay(env, name: str = "ev6") -> Path:
     (dest / "captures").mkdir(parents=True)
     (dest / "profile.yaml").write_text(f"extends: {name}\n")
     return dest
+
+
+def _with_predicates(root: Path) -> None:
+    """Give a profile a predicate-bearing state vocabulary.
+
+    ``cmd_backfill_state_spans`` bails out before touching anything when no state
+    has a ``when:`` rule, so a layering test needs at least one.
+    """
+    (root / "vehicle_states.yaml").write_text(
+        "states:\n  - name: ACC\n    when: BMS.SOC == 1\n  - name: READY\n    when: BMS.SOC == 2\n"
+    )
+
+
+def _force_a_timeline(monkeypatch) -> None:
+    """Make every session look like it has a real timeline to write.
+
+    Building a decodable multi-cycle fixture would test the *inference*, which is
+    covered elsewhere. What needs pinning here is which file the command opens and
+    whether it consults the base-layer policy.
+    """
+    from canlib import state_infer
+
+    spans = [
+        {"at": "09:00:00", "states": ["ACC"]},
+        {"at": "09:01:00", "states": ["READY"]},
+    ]
+
+    def fake(recorded, caps, rules, ecu_index, **kw):
+        return state_infer.SessionSpans(
+            spans=list(spans),
+            inference=state_infer.SpanInference(
+                spans=list(spans), n_cycles=2, n_informative=2, union=["ACC", "READY"]
+            ),
+        )
+
+    monkeypatch.setattr("canlib.commands.captures.backfill_spans.session_state_spans", fake)
 
 
 class TestResolution:
@@ -403,11 +453,88 @@ class TestBaseLayerMutationsAreRefused:
         entries = [e for e in load_all_captures_for("ev6") if e["date"] == "2026-01-02"]
         assert cmd_delete(entries, "BMS:2101", assume_yes=True) == 0
 
-    @pytest.mark.parametrize("module", ["delete", "set_state", "backfill"])
+    def test_backfill_state_spans_refuses_a_base_layer_session(self, env, capsys, monkeypatch):
+        base = _bundled(env)
+        _with_predicates(base)
+        _overlay(env)
+        _seed(base / "captures" / "2026-01-01.json", "upstream", states=["ACC", "READY"])
+        _force_a_timeline(monkeypatch)
+        from canlib.commands.captures.backfill_spans import cmd_backfill_state_spans
+
+        entries = load_all_captures_for("ev6")
+        before = (base / "captures" / "2026-01-01.json").read_text()
+        assert cmd_backfill_state_spans(entries, assume_yes=True) == 1
+        assert "cannot be back-filled" in capsys.readouterr().err
+        assert (base / "captures" / "2026-01-01.json").read_text() == before
+
+    def test_backfill_state_spans_writes_to_the_file_the_session_came_from(self, env, monkeypatch):
+        """Both layers can hold the same file name, so the row's path is the truth."""
+        base = _bundled(env)
+        _with_predicates(base)
+        dest = _overlay(env)
+        mine = dest / "captures" / "2026-01-01.json"
+        _seed(mine, "mine", time="10:00:00", states=["ACC", "READY"])
+        _force_a_timeline(monkeypatch)
+        from canlib.commands.captures.backfill_spans import cmd_backfill_state_spans
+
+        theirs = base / "captures" / "2026-01-01.json"
+        before = theirs.read_text()
+        entries = [e for e in load_all_captures_for("ev6") if e["time"] == "10:00:00"]
+        assert cmd_backfill_state_spans(entries, assume_yes=True) == 0
+        assert "state_spans" in json.loads(mine.read_text())["sessions"][0]
+        assert theirs.read_text() == before
+
+    def test_a_base_files_live_spans_do_not_shield_the_overlays_same_name(self, env, monkeypatch):
+        """Span provenance is keyed by path, not by file name.
+
+        Both layers routinely hold ``<date>.json``. Keyed by name, the base's
+        live-recorded timeline would make the command treat the *overlay's*
+        unrelated session as live and silently decline to write it.
+        """
+        base = _bundled(env)
+        _with_predicates(base)
+        theirs = base / "captures" / "2026-01-01.json"
+        data = json.loads(theirs.read_text())
+        data["sessions"][0]["state_spans"] = {
+            "source": "live",
+            "spans": [{"at": "09:00:00", "states": ["ACC"]}],
+        }
+        theirs.write_text(json.dumps(data))
+
+        dest = _overlay(env)
+        mine = dest / "captures" / "2026-01-01.json"
+        _seed(mine, "mine", time="10:00:00", states=["ACC", "READY"])
+        _force_a_timeline(monkeypatch)
+        from canlib.commands.captures.backfill_spans import cmd_backfill_state_spans
+
+        entries = load_all_captures_for("ev6")
+        assert cmd_backfill_state_spans(entries, assume_yes=True) == 0
+        assert json.loads(mine.read_text())["sessions"][0]["state_spans"]["source"] == "backfill"
+        # The base session keeps its live timeline: it is protected, not merely skipped.
+        assert json.loads(theirs.read_text())["sessions"][0]["state_spans"]["source"] == "live"
+
+    @pytest.mark.parametrize("module", sorted(_MUTATING_CAPTURE_MODULES))
     def test_every_mutating_command_consults_the_policy(self, module):
-        """Pins the wiring so a new mutation path cannot skip the refusal."""
-        src = (CAPTURES_CMD / f"{module}.py").read_text()
-        assert "layers.refusal(" in src, f"{module}.py does not check the base-layer policy"
+        """Pins the wiring so a new mutation path cannot skip the refusal.
+
+        The module list is *discovered* from the writers each one calls rather than
+        hand-maintained, so adding a capture-mutating command fails this test until
+        it consults the policy.
+        """
+        src = (CAPTURES_CMD / module).read_text()
+        assert "layers.refusal(" in src or "layers.read_only_files(" in src, (
+            f"{module} writes to captures/ but does not check the base-layer policy"
+        )
+
+    def test_the_discovery_finds_every_known_mutation_path(self):
+        """A canary: if the writer names change, the pin above must not go quiet."""
+        assert _MUTATING_CAPTURE_MODULES >= {
+            "backfill.py",
+            "backfill_spans.py",
+            "delete.py",
+            "set_state.py",
+            "step_tui.py",
+        }
 
 
 class TestLayerAwareReaders:

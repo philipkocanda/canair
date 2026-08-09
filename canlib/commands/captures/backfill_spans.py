@@ -21,15 +21,15 @@ scope-filtered entries, preview, confirm on a TTY unless ``--yes``, never write 
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 from typing import TYPE_CHECKING
 
-from canlib.capture_io import resolve_captures_dir
+from canlib.capture_store import entry_path
 from canlib.state_infer import DEFAULT_CYCLE_TOL_S, session_state_spans
 from canlib.states import parse_states
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
-    from pathlib import Path
 
     from canlib.capture_types import CaptureEntry
 
@@ -46,8 +46,8 @@ _LIVE = "live"  # live-observed spans already present → don't clobber
 _NO_EVIDENCE = "no-evidence"  # nothing decodable/timed to reconstruct from
 
 
-def _existing_span_sources(cdir: Path, files: set[str]) -> dict[tuple[str, int], str]:
-    """Map ``(file, session_idx) → state_spans.source`` for the files in scope.
+def _existing_span_sources(paths: set[str]) -> dict[tuple[str, int], str]:
+    """Map ``(path, session_idx) → state_spans.source`` for the files in scope.
 
     Read straight off disk rather than from the flattened entries: a capture row
     carries its *resolved* states, not the provenance of the block they came from,
@@ -56,15 +56,15 @@ def _existing_span_sources(cdir: Path, files: set[str]) -> dict[tuple[str, int],
     from canlib import capture_io
 
     sources: dict[tuple[str, int], str] = {}
-    for name in sorted(files):
+    for path in sorted(paths):
         try:
-            data = capture_io.load_capture_file(cdir / name)
+            data = capture_io.load_capture_file(Path(path))
         except Exception:
             continue
         for idx, session in enumerate(data.get("sessions") or []):
             block = session.get("state_spans")
             if isinstance(block, dict) and block.get("source"):
-                sources[(name, idx)] = str(block["source"])
+                sources[(path, idx)] = str(block["source"])
     return sources
 
 
@@ -86,10 +86,9 @@ def cmd_backfill_state_spans(
     from canlib.pids import build_ecu_index, load_pids
     from canlib.states import StatePredicateError, join_states, load_states
 
+    from . import layers
     from .backfill_spans_render import print_span_report
     from .query import group_sessions
-
-    cdir = resolve_captures_dir(captures_dir)
 
     try:
         rules = load_states()
@@ -111,13 +110,14 @@ def cmd_backfill_state_spans(
     for e in entries:
         if not e.get("payload"):
             continue
-        payloads_by_session.setdefault((e["file"], e.get("_session_idx", 0)), []).append(e)
+        key = (str(entry_path(e, captures_dir)), e.get("_session_idx", 0))
+        payloads_by_session.setdefault(key, []).append(e)
 
-    span_source = _existing_span_sources(cdir, {e["file"] for e in entries})
+    span_source = _existing_span_sources({str(entry_path(e, captures_dir)) for e in entries})
 
     rows: list[dict] = []
     for g in group_sessions(entries):
-        key = (g["file"], g["session_idx"])
+        key = (g["path"], g["session_idx"])
         recorded = parse_states(g.get("vehicle_states") or [])
         caps = payloads_by_session.get(key, [])
 
@@ -139,6 +139,7 @@ def cmd_backfill_state_spans(
         rows.append(
             {
                 "file": g["file"],
+                "path": g["path"],
                 "session_idx": g["session_idx"],
                 "date": g["date"],
                 "label": g["label"],
@@ -171,6 +172,10 @@ def cmd_backfill_state_spans(
         print("  (--dry-run: nothing written)")
         return 0
 
+    if blocked := layers.refusal((Path(r["path"]) for r in to_write), "back-filled"):
+        print(blocked, file=sys.stderr)
+        return 1
+
     if not assume_yes:
         if not (sys.stdin.isatty() and sys.stdout.isatty()):
             print(
@@ -189,7 +194,7 @@ def cmd_backfill_state_spans(
     for r in to_write:
         try:
             set_session_state_spans(
-                cdir / r["file"],
+                Path(r["path"]),
                 r["session_idx"],
                 r["spans"],
                 source="backfill",
