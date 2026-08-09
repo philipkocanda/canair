@@ -17,7 +17,9 @@ BMS:
     id_protocol: KWP2000  # 1Axx
     notes: >-
       1A80 firmware build date 2008-07-09 (likely platform date, not unit manufacture). Air-cooled
-      battery pack — all Ioniq 28 kWh variants use air cooling, no liquid thermal management.
+      battery pack — all Ioniq 28 kWh variants use air cooling, no liquid thermal management like on the 38 kWh facelift.
+      When the cells get hot after DCFC, cabin air is forced through the pack by a fan in the trunk which is controlled by the BMS.
+      The air inlet is under the middle rear seat, the outlet is in the right rear wheel well.
   vehicle_states: [READY, CHARGING]
   pids:
     2101:
