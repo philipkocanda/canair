@@ -64,11 +64,15 @@ def select_reachable_transport(
     immediately without probing — preserving today's behaviour. When every
     candidate fails the probe, returns ``candidates[0]`` so the normal
     connect/error path reports the primary's failure as usual.
+
+    ``notice`` receives unprefixed progress lines; the default handler prints
+    them to stderr as ``note: …``. A caller that renders its own layout (e.g.
+    ``canair status``) collects them instead.
     """
     if notice is None:
 
         def notice(msg: str) -> None:
-            print(msg, file=sys.stderr)
+            print(f"note: {msg}", file=sys.stderr)
 
     if len(candidates) <= 1:
         return candidates[0]
@@ -80,11 +84,11 @@ def select_reachable_transport(
             continue
         if _tcp_open(cand.host, _probe_port(cand), connect_timeout):
             if i > 0:
-                notice(f"note: falling back to {cand.describe()} (earlier device unreachable)")
+                notice(f"falling back to {cand.describe()} (earlier device unreachable)")
             return cand
         if i < len(candidates) - 1:
             nxt = candidates[i + 1]
-            notice(f"note: {cand.describe()} unreachable — trying {nxt.describe()}…")
+            notice(f"{cand.describe()} unreachable — trying {nxt.describe()}…")
     # None reachable: hand back the primary so the normal rich-error path fires.
     return candidates[0]
 

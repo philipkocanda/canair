@@ -121,6 +121,9 @@ transport:
   that transport).
 - Set the order from the CLI with a comma-separated value:
   `canair config set transport.fallback_order home,vpn,ap`.
+- **`canair status` runs the same probe**, so it reports the device a live command
+  would actually use — it says *ready* when the selected device is down but
+  another one answers, and names the device it fell back to.
 - **`connect_timeout` is paid once per candidate**, so it trades "never call a
   reachable device dead" against "skip a dead one quickly". The `5.0` default is
   sized for a mobile link: a cellular radio's idle-to-connected transition can

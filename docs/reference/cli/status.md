@@ -6,7 +6,7 @@
 
 ```
 usage: canair status [-h] [--transport {slcan-tcp,wican-ws,elm327-tcp}]
-                     [--wican WICAN] [--json]
+                     [--wican WICAN] [--no-fallback] [--json]
 
 ``canair status`` — show the configured transport, device state, and profile.
 
@@ -18,16 +18,27 @@ git checkout rather than an installed release, names that checkout's branch and
 short commit (``1.15.0+main.343b244``) — and, when the WiCAN HTTP API answers,
 the device's firmware/hardware version.
 
+It reports the device a live command would actually use: like ``read``/
+``monitor`` it resolves the whole candidate list and runs the same connect-time
+fallback probe, so a setup where the selected device is down but another
+configured one answers reads as ready here too (``--no-fallback`` to pin the
+selected device).
+
 options:
   -h, --help            show this help message and exit
   --transport {slcan-tcp,wican-ws,elm327-tcp}
                         Override the configured transport type
   --wican WICAN         Override device host (alias or IP)
+  --no-fallback         Report only the selected device — don't fall back to
+                        the other configured devices when it's unreachable
+                        (see config transport.fallback). Without it, status
+                        reports the device a live command would use.
   --json                Emit machine-readable JSON
 
 examples:
   canair status                       # what am I talking to, in what mode, is it up?
   canair status --wican vpn           # check the device at the 'vpn' address
+  canair status --no-fallback         # only the selected device, no fallback probe
   canair status --json                # machine-readable (for scripts/CI)
 
 exit codes: 0 = reachable & usable, 1 = unreachable, 2 = misconfigured.

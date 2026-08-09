@@ -169,7 +169,12 @@ and **`g`/`G` address the view's primary axis**.
 - **`canair status`** (alias `st`) — "What am I talking to, in what mode, is it usable?" Also prints
   the running canair version (`canlib/build_info.py::full_version` — branch + commit from a
   checkout), the device firmware/hardware version when the WiCAN HTTP API answers, and the
-  connection-mutex state (read-only, probed without taking it).
+  connection-mutex state (read-only, probed without taking it). It resolves the **whole candidate
+  list** and runs the same connect-time fallback probe as a live command, so it reports the device
+  `read`/`monitor` would actually use (naming what it fell back from) instead of calling a setup
+  dead because the *selected* device is down — a real, reported bug. `--no-fallback` pins the
+  selected device. **Never reintroduce `resolve_transport(args)` here** (it is just
+  `resolve_transport_candidates(args)[0]`, which is exactly what discarded the fallback).
 - **`canair lock`** — Inspect/clear the **device connection mutex** (`flock(2)` on
   `/tmp/wican-connection.lock`, released by the kernel on exit, so a dead session never leaves a
   stale lock). `lock steal` runs the cooperative steal; `lock kill` signals a holder that won't
@@ -636,7 +641,8 @@ configured devices (`transport.fallback`, default true; `--no-fallback` per comm
 `transport.fallback_order` sequences the attempts (the selected device is always tried first).
 Candidates: `canlib/transport/config.py::resolve_transport_candidates`; connect-time selection:
 `canlib/transport/fallback.py::select_reachable_transport`, called before the raw/ELM branch so a
-fallback **can cross transports**. A `wican-ws` device is skipped on a `classic` WiCAN.
+fallback **can cross transports**. A `wican-ws` device is skipped on a `classic` WiCAN. **`canair
+status` runs the same probe**, so a diagnosis matches what a live command will do.
 
 **`--wait` (all live commands)** — block on the initial connect, retrying indefinitely until a
 candidate appears, then start; so `canair monitor @driving --save --wait` records the moment the

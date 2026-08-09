@@ -7,6 +7,12 @@ Also reports the running canair version — which, when canair is running from a
 git checkout rather than an installed release, names that checkout's branch and
 short commit (``1.15.0+main.343b244``) — and, when the WiCAN HTTP API answers,
 the device's firmware/hardware version.
+
+It reports the device a live command would actually use: like ``read``/
+``monitor`` it resolves the whole candidate list and runs the same connect-time
+fallback probe, so a setup where the selected device is down but another
+configured one answers reads as ready here too (``--no-fallback`` to pin the
+selected device).
 """
 
 from __future__ import annotations
@@ -22,7 +28,10 @@ _OK = 0
 _UNREACHABLE = 1
 _MISCONFIGURED = 2
 
-# Per-probe network timeout (s) for the read-only reachability checks.
+# Floor for the read-only reachability probes (s). The effective timeout is the
+# larger of this and the configured `transport.connect_timeout`, so a user who
+# raised it for a slow VPN/cellular link isn't told "unreachable" by a probe
+# stricter than the one the live commands use.
 _PROBE_TIMEOUT = 4.0
 
 
@@ -43,6 +52,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
 examples:
   canair status                       # what am I talking to, in what mode, is it up?
   canair status --wican vpn           # check the device at the 'vpn' address
+  canair status --no-fallback         # only the selected device, no fallback probe
   canair status --json                # machine-readable (for scripts/CI)
 
 exit codes: 0 = reachable & usable, 1 = unreachable, 2 = misconfigured.
@@ -55,6 +65,14 @@ exit codes: 0 = reachable & usable, 1 = unreachable, 2 = misconfigured.
         help="Override the configured transport type",
     )
     parser.add_argument("--wican", default=None, help="Override device host (alias or IP)")
+    parser.add_argument(
+        "--no-fallback",
+        dest="no_fallback",
+        action="store_true",
+        help="Report only the selected device — don't fall back to the other "
+        "configured devices when it's unreachable (see config transport.fallback). "
+        "Without it, status reports the device a live command would use.",
+    )
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON")
     parser.set_defaults(func=run)
     return parser
@@ -92,16 +110,30 @@ def _device_status(host: str, timeout: float) -> dict | None:
 def _gather(args) -> dict:
     """Collect everything status reports into a plain dict (also used for --json)."""
     from ..build_info import full_version
-    from ..transport import TransportError, resolve_transport
+    from ..config import fallback_settings
+    from ..transport import (
+        TransportError,
+        resolve_transport_candidates,
+        select_reachable_transport,
+    )
 
     info: dict = {"exit": _OK, "warnings": [], "errors": [], "canair_version": full_version()}
 
     try:
-        t = resolve_transport(args)
+        candidates = resolve_transport_candidates(args)
     except TransportError as e:
         info["errors"].append(str(e))
         info["exit"] = _MISCONFIGURED
         return info
+
+    # Probe the whole candidate list exactly as a live command does, so status
+    # reports the device `read`/`monitor` would actually connect to instead of
+    # calling the setup unreachable because the *selected* device is down.
+    _, connect_timeout, _ = fallback_settings()
+    probe_timeout = max(_PROBE_TIMEOUT, connect_timeout)
+    notes: list[str] = []
+    t = select_reachable_transport(candidates, connect_timeout=connect_timeout, notice=notes.append)
+    info["notes"] = notes
 
     info["transport"] = {
         "type": t.type,
@@ -110,6 +142,9 @@ def _gather(args) -> dict:
         "bitrate": t.bitrate,
         "family": "raw" if t.is_raw else "elm",
         "summary": t.summary,
+        "selected": candidates[0].describe(),
+        "candidates": [c.describe() for c in candidates],
+        "fell_back": t is not candidates[0],
     }
 
     # Active vehicle profile.
@@ -132,10 +167,10 @@ def _gather(args) -> dict:
     # (slcan-tcp / wican-ws). A direct ELM327 adapter (elm327-tcp) has no such
     # API, so skip the probe entirely and report device: None.
     if t.is_wican_http:
-        cfg = _load_device_config(host, _PROBE_TIMEOUT)
+        cfg = _load_device_config(host, probe_timeout)
     else:
         cfg = None
-    st = _device_status(host, _PROBE_TIMEOUT) if cfg is not None else None
+    st = _device_status(host, probe_timeout) if cfg is not None else None
     device_protocol = str(cfg.get("protocol")) if cfg else None
     dev_port = None
     if cfg and cfg.get("port"):
@@ -175,7 +210,7 @@ def _gather(args) -> dict:
 
         elm_port = t.port or DEFAULT_ELM327_TCP_PORT
         info["transport"]["port"] = elm_port
-        elm_ok = _tcp_open(host, elm_port, _PROBE_TIMEOUT)
+        elm_ok = _tcp_open(host, elm_port, probe_timeout)
         info["transport"]["usable"] = elm_ok
         if not elm_ok:
             info["errors"].append(
@@ -186,7 +221,7 @@ def _gather(args) -> dict:
     else:
         raw_port = t.port or dev_port or 3333
         info["transport"]["port"] = raw_port
-        raw_ok = _tcp_open(host, raw_port, _PROBE_TIMEOUT)
+        raw_ok = _tcp_open(host, raw_port, probe_timeout)
         mismatch = bool(device_protocol and device_protocol != "slcan")
         # Usable only if the port is open AND the device is actually serving SLCAN
         # (an open port in the wrong mode won't speak SLCAN).
@@ -204,6 +239,13 @@ def _gather(args) -> dict:
             info["errors"].append(f"SLCAN port {host}:{raw_port} not reachable{hint}")
             if info["exit"] == _OK:
                 info["exit"] = _UNREACHABLE
+
+    # A liveness probe that rejected the primary and still handed it back means
+    # every candidate was down; say so, or the verdict reads as if only the
+    # selected device had been tried.
+    if info["exit"] == _UNREACHABLE and notes and t is candidates[0]:
+        others = ", ".join(c.describe() for c in candidates[1:])
+        info["errors"].append(f"no other configured device answered either (tried {others})")
 
     # Connection mutex (local-only): who, if anyone, currently owns the device
     # connection. Read-only — it never takes or clears the lock.
@@ -267,6 +309,13 @@ def _render(info: dict) -> None:
             c.print(f"             [dim]{summary}[/dim]")
         if t.get("bitrate"):
             c.print(f"             [dim]bitrate:[/dim]  {t['bitrate']}")
+        if t.get("fell_back"):
+            c.print(
+                f"             [yellow]fell back from {t['selected']}[/yellow] "
+                "[dim](a live command would use this device too)[/dim]"
+            )
+        for note in info.get("notes", []):
+            c.print(f"             [dim]{note}[/dim]")
 
     p = info.get("profile")
     if p:

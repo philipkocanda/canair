@@ -405,3 +405,87 @@ class TestStatusGather:
         info = status._gather(Args(transport="slcan-tcp"))
         assert info["exit"] == 0
         assert info["transport"]["usable"] is True
+
+
+class TestStatusFallback:
+    """`status` must report the device a live command would use, not just the primary.
+
+    Without this, a setup whose selected device is down but whose fallback answers
+    reads as "unreachable" from `status` while `monitor` connects fine.
+    """
+
+    @pytest.fixture
+    def patch_status(self, monkeypatch, env):
+        from canlib import wican_mode
+        from canlib.commands import status
+
+        # Two candidates (vpn primary, home fallback), fallback enabled.
+        monkeypatch.setattr(tc, "_fallback_settings", lambda: (True, 2.0, None))
+
+        def setup(*, reachable: set[str]):
+            monkeypatch.setattr(wican_mode, "_tcp_open", lambda h, p, t: h in reachable)
+            monkeypatch.setattr(status, "_tcp_open", lambda h, p, t: h in reachable)
+            monkeypatch.setattr(
+                status,
+                "_load_device_config",
+                lambda h, t: {"protocol": "slcan", "port": "3333"} if h in reachable else None,
+            )
+            monkeypatch.setattr(status, "_device_status", lambda h, t: None)
+
+        return setup, status
+
+    def test_falls_back_to_reachable_device(self, patch_status):
+        setup, status = patch_status
+        setup(reachable={"10.0.0.9"})  # primary (vpn, 1.2.3.4) is down
+        info = status._gather(Args())
+        assert info["transport"]["host"] == "10.0.0.9"
+        assert info["transport"]["fell_back"] is True
+        assert info["transport"]["usable"] is True
+        assert info["exit"] == 0
+        assert any("falling back" in n for n in info["notes"])
+
+    def test_no_fallback_pins_the_selected_device(self, patch_status):
+        setup, status = patch_status
+        setup(reachable={"10.0.0.9"})
+        info = status._gather(Args(no_fallback=True))
+        assert info["transport"]["host"] == "1.2.3.4"
+        assert info["transport"]["fell_back"] is False
+        assert info["exit"] == 1
+
+    def test_all_down_reports_the_primary_and_names_the_others(self, patch_status):
+        setup, status = patch_status
+        setup(reachable=set())
+        info = status._gather(Args())
+        assert info["transport"]["host"] == "1.2.3.4"  # primary, for the familiar error
+        assert info["transport"]["fell_back"] is False
+        assert info["exit"] == 1
+        assert any("no other configured device answered" in e for e in info["errors"])
+
+    def test_primary_reachable_is_unchanged(self, patch_status):
+        setup, status = patch_status
+        setup(reachable={"1.2.3.4", "10.0.0.9"})
+        info = status._gather(Args())
+        assert info["transport"]["host"] == "1.2.3.4"
+        assert info["transport"]["fell_back"] is False
+        assert info["notes"] == []
+        assert info["exit"] == 0
+
+    def test_probe_timeout_honours_a_raised_connect_timeout(self, monkeypatch, env):
+        """A user who raised `transport.connect_timeout` must not be second-guessed."""
+        from canlib import wican_mode
+        from canlib.commands import status
+
+        monkeypatch.setattr(tc, "_fallback_settings", lambda: (True, 30.0, None))
+        monkeypatch.setattr("canlib.config.fallback_settings", lambda: (True, 30.0, None))
+        monkeypatch.setattr(wican_mode, "_tcp_open", lambda h, p, t: True)
+        seen: list[float] = []
+
+        def probe(h, p, t):
+            seen.append(t)
+            return True
+
+        monkeypatch.setattr(status, "_tcp_open", probe)
+        monkeypatch.setattr(status, "_load_device_config", lambda h, t: seen.append(t) or None)
+        monkeypatch.setattr(status, "_device_status", lambda h, t: None)
+        status._gather(Args(transport="elm327-tcp"))
+        assert seen and max(seen) == 30.0
