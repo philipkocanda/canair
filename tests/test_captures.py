@@ -156,6 +156,28 @@ class TestSavedBanner:
         line = saved_banner(tmp_path / "2026-08-04.json", 3)
         assert line.strip() == f"→ Saved 3 capture(s) to {tmp_path / '2026-08-04.json'}"
 
+    def test_banner_warns_when_the_save_landed_in_an_install_snapshot(self, tmp_path):
+        """A write into site-packages "succeeds" and the next reinstall erases it."""
+        from canlib.captures import saved_banner
+
+        snap = (
+            tmp_path
+            / "uv"
+            / "tools"
+            / "canair"
+            / "lib"
+            / "python3.12"
+            / "site-packages"
+            / "profiles"
+            / "ioniq-2017"
+            / "captures"
+        )
+        snap.mkdir(parents=True)
+        line = saved_banner(snap / "2026-08-04.json", 3)
+        assert "Saved 3 capture(s)" in line
+        assert "uv tool install snapshot" in line
+        assert "A reinstall" in line
+
 
 def _entry(**kw):
     """A minimal flat capture entry as load_all_captures would produce."""
@@ -1052,6 +1074,28 @@ class TestCmdDelete:
         assert len(rows) == 2
         assert all(r["pid"] == "2102" for r in rows)
 
+    def test_deletes_from_the_file_the_row_came_from(self, tmp_path):
+        """A row's own locator decides the target, never ``captures_dir / file``.
+
+        Both directories hold a same-named file (dates collide by construction),
+        so rebuilding the path from the display name silently mutates the wrong
+        store — the bug this locator closes, and the reason a layered profile can
+        be read from two directories at once.
+        """
+        from canlib.capture_store import load_all_captures
+        from canlib.commands.captures.delete import cmd_delete
+
+        mine, theirs = tmp_path / "mine", tmp_path / "theirs"
+        self._seed(mine)
+        self._seed(theirs)
+
+        entries = load_all_captures(mine)
+        rc = cmd_delete(entries, "MCU:2102", captures_dir=theirs, assume_yes=True)
+
+        assert rc == 0
+        assert [str(e["pid"]) for e in load_all_captures(mine)] == ["2101"]
+        assert len(load_all_captures(theirs)) == 3
+
 
 class TestCmdBackfillStates:
     """`canair captures uds --backfill-states` — offline state inference back-fill.
@@ -1634,3 +1678,190 @@ class TestPrintDecodedPreview:
     def test_exactly_at_limit_no_hint(self, capsys):
         _print_decoded_preview({"A": 1, "B": 2, "C": 3}, limit=3, ecu="HVAC", pid="2201A0")
         assert "more param" not in capsys.readouterr().out
+
+
+class TestCmdBackfillStateSpans:
+    """`canair captures uds --backfill-state-spans` — state *timeline* back-fill.
+
+    Uses the pinned real ``ioniq-2017`` profile and real VCU payloads that decode
+    to known state signals, at two timestamps far enough apart to land in separate
+    pseudo-cycles.
+    """
+
+    # VCU:2101, EV_READY=1 & GEAR_PARK=1 → READY, PARKED.
+    _READY_PARK = TestCmdBackfillStates._VCU_READY_PARK
+    # VCU:2101, EV_READY=0 & GEAR_PARK=1 → PARKED (READY provably false).
+    _PARK_ONLY = TestCmdBackfillStates._VCU_PARK_NOT_READY
+
+    def _seed(self, cdir, states, rows=None):
+        rows = rows or [
+            ("0x7EA", "2101", self._READY_PARK, "10:00:00"),
+            ("0x7EA", "2101", self._PARK_ONLY, "10:30:00"),
+        ]
+        save_session(build_query_session(rows, "drive then park", states, ""), cdir)
+
+    def _session(self, cdir):
+        files = list(cdir.glob("*.json"))
+        assert len(files) == 1
+        return json.loads(files[0].read_text())["sessions"][0]
+
+    def _run(self, cdir, **kw):
+        from canlib.capture_store import load_all_captures
+        from canlib.commands.captures.backfill_spans import cmd_backfill_state_spans
+
+        return cmd_backfill_state_spans(load_all_captures(cdir), captures_dir=cdir, **kw)
+
+    def test_writes_a_timeline_for_a_sequential_session(self, tmp_path):
+        self._seed(tmp_path, ["READY", "PARKED"])
+        assert self._run(tmp_path, assume_yes=True) == 0
+        block = self._session(tmp_path)["state_spans"]
+        assert block["source"] == "backfill"
+        assert [s["states"] for s in block["spans"]] == [["READY", "PARKED"], ["PARKED"]]
+        assert [s["at"] for s in block["spans"]] == ["10:00:00", "10:30:00"]
+
+    def test_each_capture_then_resolves_to_its_own_states(self, tmp_path):
+        """The reported defect: --state READY must not return the parked capture."""
+        from canlib.capture_dates import filter_by_text
+        from canlib.capture_store import load_all_captures
+
+        self._seed(tmp_path, ["READY", "PARKED"])
+        self._run(tmp_path, assume_yes=True)
+
+        entries = load_all_captures(tmp_path)
+        assert len(entries) == 2
+        ready = filter_by_text(entries, state="READY")
+        assert [e["time"] for e in ready] == ["10:00:00"]
+        # PARKED spans the whole session, so both captures still match it.
+        assert len(filter_by_text(entries, state="PARKED")) == 2
+
+    def test_single_state_session_is_skipped(self, tmp_path):
+        self._seed(tmp_path, ["PARKED"])
+        assert self._run(tmp_path, assume_yes=True) == 0
+        assert "state_spans" not in self._session(tmp_path)
+
+    def test_an_unplaceable_recorded_state_is_carried_into_every_span(self, tmp_path):
+        """SLEEP has no `when:` predicate, so back-fill may not un-tag it."""
+        from canlib.capture_dates import filter_by_text
+        from canlib.capture_store import load_all_captures
+
+        self._seed(tmp_path, ["READY", "PARKED", "SLEEP"])
+        assert self._run(tmp_path, assume_yes=True) == 0
+        block = self._session(tmp_path)["state_spans"]
+        assert all("SLEEP" in s["states"] for s in block["spans"])
+        assert len(filter_by_text(load_all_captures(tmp_path), state="SLEEP")) == 2
+
+    def test_live_spans_are_not_clobbered(self, tmp_path, capsys):
+        from canlib.captures import set_session_state_spans
+
+        self._seed(tmp_path, ["READY", "PARKED"])
+        fpath = next(tmp_path.glob("*.json"))
+        live = [{"at": "10:00:00", "states": ["READY"]}]
+        set_session_state_spans(fpath, 0, live, source="live")
+
+        assert self._run(tmp_path, assume_yes=True) == 0
+        assert self._session(tmp_path)["state_spans"]["spans"] == live
+        assert "live" in capsys.readouterr().out
+
+        assert self._run(tmp_path, assume_yes=True, overwrite=True) == 0
+        assert len(self._session(tmp_path)["state_spans"]["spans"]) == 2
+
+    def test_dry_run_leaves_the_stored_timeline_untouched(self, tmp_path):
+        # save_session annotates on the way in (source="record"), so a dry run is
+        # proven inert by the provenance staying "record" rather than by absence.
+        self._seed(tmp_path, ["READY", "PARKED"])
+        before = self._session(tmp_path)["state_spans"]
+        assert before["source"] == "record"
+        assert self._run(tmp_path, dry_run=True) == 0
+        assert self._session(tmp_path)["state_spans"] == before
+
+    def test_rederiving_a_recorded_timeline_is_allowed(self, tmp_path):
+        # "record" spans came from these same payloads, so re-deriving is idempotent
+        # — and is how a session picks up changed definitions. Only "live" is fenced.
+        self._seed(tmp_path, ["READY", "PARKED"])
+        recorded = self._session(tmp_path)["state_spans"]["spans"]
+        assert self._run(tmp_path, assume_yes=True) == 0
+        after = self._session(tmp_path)["state_spans"]
+        assert after["source"] == "backfill"
+        assert after["spans"] == recorded
+
+    def test_json_dry_run_emits_rows(self, tmp_path, capsys):
+        self._seed(tmp_path, ["READY", "PARKED"])
+        capsys.readouterr()
+        assert self._run(tmp_path, dry_run=True, as_json=True) == 0
+        out = capsys.readouterr().out
+        rows = json.loads(out[out.index("[") :])
+        assert [r["verdict"] for r in rows] == ["spans"]
+        assert rows[0]["n_spans"] == 2
+
+
+class TestSaveSessionAnnotatesSpans:
+    """`save_session` derives the state timeline as a recording lands on disk.
+
+    Every save path (streaming query/monitor, one-shot scan/raw/discover, journal
+    recovery, `import uds`) funnels through `save_session`, so this one hook makes
+    a new recording queryable at per-capture state resolution with no follow-up.
+    """
+
+    _READY_PARK = TestCmdBackfillStates._VCU_READY_PARK
+    _PARK_ONLY = TestCmdBackfillStates._VCU_PARK_NOT_READY
+
+    def _save(self, cdir, states, rows):
+        save_session(build_query_session(rows, "seed", states, ""), cdir)
+        return json.loads(next(cdir.glob("*.json")).read_text())["sessions"][0]
+
+    def test_sequential_session_gets_a_timeline(self, tmp_path):
+        session = self._save(
+            tmp_path,
+            ["READY", "PARKED"],
+            [
+                ("0x7EA", "2101", self._READY_PARK, "10:00:00"),
+                ("0x7EA", "2101", self._PARK_ONLY, "10:30:00"),
+            ],
+        )
+        block = session["state_spans"]
+        assert block["source"] == "record"
+        assert block["version"]  # provenance, as for a back-fill
+        assert [s["states"] for s in block["spans"]] == [["READY", "PARKED"], ["PARKED"]]
+
+    def test_each_capture_resolves_to_its_own_states(self, tmp_path):
+        """The reported defect, fixed at the moment of recording."""
+        self._save(
+            tmp_path,
+            ["READY", "PARKED"],
+            [
+                ("0x7EA", "2101", self._READY_PARK, "10:00:00"),
+                ("0x7EA", "2101", self._PARK_ONLY, "10:30:00"),
+            ],
+        )
+        from canlib.capture_dates import filter_by_text
+        from canlib.capture_store import load_all_captures
+
+        entries = load_all_captures(tmp_path)
+        assert [e["time"] for e in filter_by_text(entries, state="READY")] == ["10:00:00"]
+        assert len(filter_by_text(entries, state="PARKED")) == 2
+
+    def test_single_state_session_is_not_annotated(self, tmp_path):
+        session = self._save(tmp_path, ["PARKED"], [("0x7EA", "2101", self._PARK_ONLY, "10:00:00")])
+        assert "state_spans" not in session
+
+    def test_flat_multi_state_session_is_not_annotated(self, tmp_path):
+        """Simultaneous overlap needs no timeline — the union is already exact."""
+        session = self._save(
+            tmp_path,
+            ["READY", "PARKED"],
+            [
+                ("0x7EA", "2101", self._READY_PARK, "10:00:00"),
+                ("0x7EA", "2101", self._READY_PARK, "10:30:00"),
+            ],
+        )
+        assert "state_spans" not in session
+
+    def test_undecodable_payload_still_saves(self, tmp_path):
+        """A failure to derive spans must never cost the captures just recorded."""
+        session = self._save(
+            tmp_path,
+            ["READY", "PARKED"],
+            [("0x7EA", "2101", "7F2131", "10:00:00")],
+        )
+        assert len(session["captures"]) == 1
+        assert "state_spans" not in session

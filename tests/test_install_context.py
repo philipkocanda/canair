@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from pathlib import Path
 
 from canlib import install_context as ic
 
@@ -137,7 +138,7 @@ class TestUpdateCommandReportsInstall:
         clone = _make_clone(tmp_path, "1.2.0")
         data_home, _sp = _make_tool_venv(tmp_path, "0.1.0")
         monkeypatch.setenv("XDG_DATA_HOME", str(data_home))
-        monkeypatch.setattr(update_cmd, "_find_clone_dir", lambda: clone)
+        monkeypatch.setattr(update_cmd, "source_clone", lambda: clone)
         monkeypatch.setattr(ic, "running_package_dir", lambda: clone / "canlib")
         monkeypatch.setattr(update_cmd, "fetch_latest_release", lambda *a, **k: None)
         import canlib
@@ -157,7 +158,7 @@ class TestUpdateCommandReportsInstall:
         clone = _make_clone(tmp_path, "1.2.0")
         data_home, _sp = _make_tool_venv(tmp_path, "0.1.0")
         monkeypatch.setenv("XDG_DATA_HOME", str(data_home))
-        monkeypatch.setattr(update_cmd, "_find_clone_dir", lambda: clone)
+        monkeypatch.setattr(update_cmd, "source_clone", lambda: clone)
         monkeypatch.setattr(ic, "running_package_dir", lambda: clone / "canlib")
         monkeypatch.setattr(update_cmd, "fetch_latest_release", lambda *a, **k: None)
         import canlib
@@ -168,3 +169,154 @@ class TestUpdateCommandReportsInstall:
         assert rc == 0
         out = capsys.readouterr().out
         assert "out of sync" in out
+
+
+class TestInstalledSnapshotKind:
+    """Is a profile path inside a frozen install snapshot?"""
+
+    def test_working_checkout_is_none(self, tmp_path):
+        assert (
+            ic.installed_snapshot_kind(tmp_path / "projects" / "canair" / "profiles" / "x") is None
+        )
+
+    def test_uv_tool_snapshot(self):
+        p = Path(
+            "/home/u/.local/share/uv/tools/canair/lib/python3.12/site-packages/profiles/ioniq-2017"
+        )
+        assert ic.installed_snapshot_kind(p) == "uv tool"
+
+    def test_pipx_snapshot(self):
+        p = Path("/home/u/.local/pipx/venvs/canair/lib/python3.12/site-packages/profiles/x")
+        assert ic.installed_snapshot_kind(p) == "pipx"
+
+    def test_generic_site_packages(self):
+        p = Path("/usr/lib/python3.12/site-packages/profiles/ioniq-2017")
+        assert ic.installed_snapshot_kind(p) == "installed package"
+
+
+class TestSnapshotWriteNote:
+    """The warning every profile write emits when it lands in a snapshot."""
+
+    def test_a_writable_location_says_nothing(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(ic, "source_clone", lambda: None)
+        assert ic.snapshot_write_note(tmp_path / "profiles" / "mycar" / "captures") is None
+
+    def test_names_the_path_the_cost_and_the_fix(self, monkeypatch, tmp_path):
+        clone = tmp_path / "projects" / "canair"
+        monkeypatch.setattr(ic, "source_clone", lambda: clone)
+        p = Path("/home/u/.local/share/uv/tools/canair/lib/python3.12/site-packages/profiles/car")
+
+        note = ic.snapshot_write_note(p)
+
+        assert note is not None
+        assert "uv tool" in note
+        assert str(p) in note
+        # The remedy is a runnable command naming the clone we actually found.
+        assert f"canair config set profiles_dir {clone / 'profiles'}" in note
+
+    def test_without_a_clone_it_suggests_adopting(self, monkeypatch):
+        monkeypatch.setattr(ic, "source_clone", lambda: None)
+        p = Path("/usr/lib/python3.12/site-packages/profiles/car")
+
+        note = ic.snapshot_write_note(p)
+
+        assert note is not None
+        assert "canair profile adopt" in note
+        assert "profiles_dir" not in note
+
+
+class TestSnapshotProfileRisks:
+    """What a reinstall would delete: snapshot profile data absent from the clone."""
+
+    def _snapshot(self, tmp_path):
+        """A bundled-profiles dir inside a uv-tool site-packages, with one profile."""
+        sp = tmp_path / "data" / "uv" / "tools" / "canair" / "lib" / "python3.12" / "site-packages"
+        root = sp / "profiles" / "ioniq-2017"
+        (root / "ecus").mkdir(parents=True)
+        (root / "captures").mkdir()
+        (root / "profile.yaml").write_text('car_model: "T"\ninit: "x"\n')
+        (root / "ecus" / "bms.yaml").write_text("BMS:\n  tx_id: 0x7E4\n")
+        return sp / "profiles", root
+
+    def _clone_copy(self, tmp_path, snapshot_root):
+        """A clone whose profiles/ mirrors the snapshot profile exactly."""
+        import shutil
+
+        clone = tmp_path / "clone"
+        dest = clone / "profiles" / snapshot_root.name
+        dest.parent.mkdir(parents=True)
+        shutil.copytree(snapshot_root, dest)
+        return clone
+
+    def test_no_clone_makes_no_claim(self, tmp_path, monkeypatch):
+        bundled, _root = self._snapshot(tmp_path)
+        monkeypatch.setattr("canlib.profile.BUNDLED_PROFILES_DIR", bundled)
+        assert ic.snapshot_profile_risks(None) == []
+
+    def test_a_dev_checkout_is_never_at_risk(self, tmp_path, monkeypatch):
+        """Bundled profiles outside site-packages *are* the clone — nothing to lose."""
+        bundled = tmp_path / "repo" / "profiles"
+        root = bundled / "ioniq-2017"
+        (root / "ecus").mkdir(parents=True)
+        (root / "profile.yaml").write_text('car_model: "T"\ninit: "x"\n')
+        monkeypatch.setattr("canlib.profile.BUNDLED_PROFILES_DIR", bundled)
+        assert ic.snapshot_profile_risks(tmp_path / "clone") == []
+
+    def test_an_identical_copy_is_not_a_risk(self, tmp_path, monkeypatch):
+        bundled, root = self._snapshot(tmp_path)
+        clone = self._clone_copy(tmp_path, root)
+        monkeypatch.setattr("canlib.profile.BUNDLED_PROFILES_DIR", bundled)
+        assert ic.snapshot_profile_risks(clone) == []
+
+    def test_reports_a_capture_written_only_into_the_snapshot(self, tmp_path, monkeypatch):
+        bundled, root = self._snapshot(tmp_path)
+        clone = self._clone_copy(tmp_path, root)
+        (root / "captures" / "2026-08-05.json").write_text('{"sessions": []}')
+        monkeypatch.setattr("canlib.profile.BUNDLED_PROFILES_DIR", bundled)
+
+        (risk,) = ic.snapshot_profile_risks(clone)
+
+        assert risk.name == "ioniq-2017"
+        assert risk.missing == [Path("captures/2026-08-05.json")]
+        assert risk.differing == []
+
+    def test_reports_a_definition_edited_in_the_snapshot(self, tmp_path, monkeypatch):
+        bundled, root = self._snapshot(tmp_path)
+        clone = self._clone_copy(tmp_path, root)
+        (root / "ecus" / "bms.yaml").write_text("BMS:\n  tx_id: 0x7E4\n  # edited\n")
+        monkeypatch.setattr("canlib.profile.BUNDLED_PROFILES_DIR", bundled)
+
+        (risk,) = ic.snapshot_profile_risks(clone)
+
+        assert risk.differing == [Path("ecus/bms.yaml")]
+        assert risk.files == [Path("ecus/bms.yaml")]
+
+    def test_generated_output_is_not_a_loss(self, tmp_path, monkeypatch):
+        """``out/`` is regenerated by `canair wican autopid write` — not data."""
+        bundled, root = self._snapshot(tmp_path)
+        clone = self._clone_copy(tmp_path, root)
+        (root / "out").mkdir()
+        (root / "out" / "autopid.json").write_text("[]")
+        monkeypatch.setattr("canlib.profile.BUNDLED_PROFILES_DIR", bundled)
+        assert ic.snapshot_profile_risks(clone) == []
+
+
+class TestSourceClone:
+    def test_prefers_the_uv_receipt_directory(self, tmp_path, monkeypatch):
+        clone = tmp_path / "from-receipt"
+        (clone / ".git").mkdir(parents=True)
+        root = tmp_path / "data" / "uv" / "tools" / "canair"
+        root.mkdir(parents=True)
+        (root / "uv-receipt.toml").write_text(
+            f'[tool]\nrequirements = [{{ name = "canair", directory = "{clone}" }}]\n'
+        )
+        monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+
+        assert ic.source_clone() == clone
+
+    def test_falls_back_to_the_packages_own_repo_root(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "empty"))
+        # The running tree is a git clone, so this resolves to the repo root.
+        from canlib.constants import SCRIPT_DIR
+
+        assert ic.source_clone() == Path(SCRIPT_DIR)

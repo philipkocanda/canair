@@ -47,8 +47,13 @@ class MergeConflict(Exception):
     """
 
 
-def _canonical(session: Any) -> str:
-    """Stable content key for a session (order-insensitive JSON)."""
+def session_key(session: Any) -> str:
+    """Stable content key for a session (order-insensitive JSON).
+
+    A session has no id — its identity *is* its content, deliberately, which is
+    what makes both this merge and the layered-profile read (where the same
+    session may exist in two layers) safe to deduplicate.
+    """
     return json.dumps(session, sort_keys=True, ensure_ascii=False)
 
 
@@ -101,9 +106,9 @@ def merge_sessions(base: Any, ours: Any, theirs: Any) -> list[dict]:
     ours_s = _sessions(ours)
     theirs_s = _sessions(theirs)
 
-    base_keys = {_canonical(s) for s in base_s}
-    ours_keys = {_canonical(s) for s in ours_s}
-    theirs_keys = {_canonical(s) for s in theirs_s}
+    base_keys = {session_key(s) for s in base_s}
+    ours_keys = {session_key(s) for s in ours_s}
+    theirs_keys = {session_key(s) for s in theirs_s}
 
     # Conflict guard: a base session that survives on neither side means both
     # sides changed/removed the very same recording. For an append-only log this
@@ -123,12 +128,12 @@ def merge_sessions(base: Any, ours: Any, theirs: Any) -> list[dict]:
     # the other, is dropped) while genuine same-day appends are added.
     merged: dict[str, dict] = {}
     for s in ours_s:
-        k = _canonical(s)
+        k = session_key(s)
         if k in base_keys and k not in theirs_keys:
             continue  # deleted on theirs, unchanged on ours → honour deletion
         merged.setdefault(k, s)
     for s in theirs_s:
-        k = _canonical(s)
+        k = session_key(s)
         if k in base_keys and k not in ours_keys:
             continue  # deleted on ours, unchanged on theirs → honour deletion
         merged.setdefault(k, s)
@@ -163,11 +168,11 @@ def overlay_documents(upstream: Any, source: Any) -> dict | None:
     """
     up_raw = upstream.get("sessions") if isinstance(upstream, dict) else None
     up_sessions = list(up_raw) if isinstance(up_raw, list) else []
-    seen = {_canonical(s) for s in up_sessions}
+    seen = {session_key(s) for s in up_sessions}
 
     added: list[dict] = []
     for session in _sessions(source):
-        key = _canonical(session)
+        key = session_key(session)
         if key in seen:
             continue
         seen.add(key)

@@ -32,6 +32,28 @@ uv run canair --help
 `uv run canair …` executes the code in the current repo checkout. This is also
 what you'll use if you're hacking on canair itself.
 
+## Point your writes somewhere durable
+
+`uv tool install` bakes a **frozen copy** of canair — including the profiles it
+ships with — into uv's tool venv, and a reinstall (`canair update`) replaces that
+copy wholesale. So a capture or PID edit recorded against a *bundled* profile from
+a bare `canair` is deleted by your next update. Decide once, up front:
+
+```bash
+# You have the clone (you just used it to install) — keep profile data in it:
+canair config set profiles_dir /path/to/canair/profiles
+
+# Or take your own copy of a bundled profile:
+canair profile adopt ioniq-2017
+```
+
+A profile you create yourself (`canair profile create`, or the first-run chooser)
+already lands in `~/.config/canair/profiles/` and is unaffected. canair warns at
+the moment of the write if data lands in the snapshot, and `canair update` lists
+what a reinstall would delete — but neither is a substitute for the one-time
+setting above. Details: [Profiles → Where your writes
+land](../concepts/profiles.md#where-your-writes-land).
+
 ## Staying up to date
 
 canair checks GitHub once a day (in a background thread — it never blocks a

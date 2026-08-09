@@ -62890,7 +62890,28 @@
           "payload": "6102F8F8000001000000008400888888330000306A6B3300000000",
           "time": "12:21:49.625"
         }
-      ]
+      ],
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {
+            "at": "11:34:44.688",
+            "states": [
+              "CHARGING",
+              "PLUGGED",
+              "PARKED"
+            ]
+          },
+          {
+            "at": "12:18:42.443",
+            "states": [
+              "PLUGGED",
+              "PARKED"
+            ]
+          }
+        ],
+        "version": "1.17.0+main.4178d4a.dirty"
+      }
     },
     {
       "date": "2026-07-26",
@@ -79479,7 +79500,85 @@
           "payload": "6102FFFC0000684F792A694A79286E847927650F791B7499791F7293792B74827931",
           "time": "17:06:14.986"
         }
-      ]
+      ],
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {
+            "at": "16:59:33.955",
+            "states": [
+              "READY",
+              "PARKED"
+            ]
+          },
+          {
+            "at": "16:59:44.159",
+            "states": [
+              "READY"
+            ]
+          },
+          {
+            "at": "17:00:04.680",
+            "states": [
+              "READY",
+              "DRIVING"
+            ]
+          },
+          {
+            "at": "17:00:14.760",
+            "states": [
+              "READY"
+            ]
+          },
+          {
+            "at": "17:00:24.979",
+            "states": [
+              "READY",
+              "DRIVING"
+            ]
+          },
+          {
+            "at": "17:00:35.242",
+            "states": [
+              "READY"
+            ]
+          },
+          {
+            "at": "17:00:45.353",
+            "states": [
+              "READY",
+              "DRIVING"
+            ]
+          },
+          {
+            "at": "17:00:55.475",
+            "states": [
+              "READY"
+            ]
+          },
+          {
+            "at": "17:02:58.560",
+            "states": [
+              "READY",
+              "DRIVING"
+            ]
+          },
+          {
+            "at": "17:03:28.765",
+            "states": [
+              "READY"
+            ]
+          },
+          {
+            "at": "17:03:39.005",
+            "states": [
+              "READY",
+              "PARKED"
+            ]
+          }
+        ],
+        "version": "1.17.0+main.4178d4a.dirty"
+      }
     },
     {
       "date": "2026-07-26",

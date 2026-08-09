@@ -26,6 +26,7 @@ from .states import (
     StatePredicateError,
     StateRule,
     compile_predicate,
+    exclusion_conflicts,
     implication_cycle,
     parse_implies,
 )
@@ -91,14 +92,21 @@ def _find(states: list, name: str) -> int:
     return -1
 
 
-def _flow_implies(implies) -> CommentedSeq | None:
-    """Normalize an ``implies:`` value to canonical UPPERCASE, flow-styled.
+# Canonical field order within a state entry. Both relation keys sit between the
+# prose and the predicate, so a new one is inserted at the first key that follows
+# it rather than appended (see _put_relation).
+_RELATION_FIELDS = ("implies", "excludes")
+_FIELD_ORDER = ("name", "description", "implies", "excludes", "when")
+
+
+def _flow_states(value) -> CommentedSeq | None:
+    """Normalize a relation value (``implies:``/``excludes:``) to flow-styled UPPERCASE.
 
     Renders inline (``implies: [READY]``) to match how the ``ecus``/``pids``
     editors write ``vehicle_states``. Returns ``None`` for an empty value so the
     caller omits the key.
     """
-    toks = parse_implies(implies)
+    toks = parse_implies(value)
     if not toks:
         return None
     seq = CommentedSeq(list(toks))
@@ -106,32 +114,44 @@ def _flow_implies(implies) -> CommentedSeq | None:
     return seq
 
 
-def _put_implies(entry: CommentedMap, flow: CommentedSeq | None) -> None:
-    """Set/clear ``implies:`` on an existing entry, keeping it above ``when:``.
+def _put_relation(entry: CommentedMap, field: str, flow: CommentedSeq | None) -> None:
+    """Set/clear a relation key on an existing entry, keeping canonical field order.
 
     Appending would put the key *after* the last key's trailing comment — which,
     for the final entry, is the block comment introducing the next state. Insert
-    at ``when:``'s position instead so the canonical field order
-    (name/description/implies/when) holds however the entry was authored.
+    at the position of the first key that should follow it instead, so the
+    canonical order (name/description/implies/excludes/when) holds however the
+    entry was authored.
     """
     if flow is None:
-        entry.pop("implies", None)
+        entry.pop(field, None)
         return
-    if "implies" in entry or "when" not in entry:
-        entry["implies"] = flow
+    if field in entry:
+        entry[field] = flow
         return
-    entry.insert(list(entry).index("when"), "implies", flow)
+    successors = _FIELD_ORDER[_FIELD_ORDER.index(field) + 1 :]
+    present = [k for k in successors if k in entry]
+    if not present:
+        entry[field] = flow
+        return
+    entry.insert(list(entry).index(present[0]), field, flow)
 
 
-def _new_entry(name: str, description: str | None, when: str | None, implies=None) -> CommentedMap:
-
+def _new_entry(
+    name: str,
+    description: str | None,
+    when: str | None,
+    implies=None,
+    excludes=None,
+) -> CommentedMap:
     entry = CommentedMap()
     entry["name"] = name
     if description:
         entry["description"] = description
-    flow = _flow_implies(implies)
-    if flow is not None:
-        entry["implies"] = flow
+    for field, value in (("implies", implies), ("excludes", excludes)):
+        flow = _flow_states(value)
+        if flow is not None:
+            entry[field] = flow
     if when:
         entry["when"] = when
     return entry
@@ -198,7 +218,7 @@ def _reparse_validate(path: Path) -> None:
     if not isinstance(states, list):
         raise StatesEditError("top-level 'states:' must be a list after edit")
     seen: set[str] = set()
-    implies: dict[str, tuple[str, ...]] = {}
+    relations: dict[str, dict[str, tuple[str, ...]]] = {f: {} for f in _RELATION_FIELDS}
     for entry in states:
         if not isinstance(entry, dict) or "name" not in entry:
             raise StatesEditError("each state needs a 'name' after edit")
@@ -206,32 +226,54 @@ def _reparse_validate(path: Path) -> None:
         if nm in seen:
             raise StatesEditError(f"duplicate state name {nm!r} after edit")
         seen.add(nm)
-        implies[nm] = parse_implies(entry.get("implies"))
+        for field in _RELATION_FIELDS:
+            relations[field][nm] = parse_implies(entry.get(field))
         when = entry.get("when")
         if when:
             compile_predicate(str(when))  # raises StatePredicateError on bad syntax
-    _validate_implies(implies, seen)
+    _validate_relations(relations, seen)
 
 
-def _validate_implies(implies: dict[str, tuple[str, ...]], declared: set[str]) -> None:
-    """Check the ``implies:`` hierarchy is well-formed and acyclic after an edit.
+def _validate_relations(
+    relations: dict[str, dict[str, tuple[str, ...]]], declared: set[str]
+) -> None:
+    """Check ``implies:``/``excludes:`` are well-formed after an edit.
 
-    Mirrors ``canair validate states`` so a bad hierarchy is reverted at write
+    Mirrors ``canair validate states`` so a bad relation is reverted at write
     time rather than shipped and only caught later.
     """
-    for name, targets in implies.items():
-        for target in targets:
-            if target == name:
-                raise StatesEditError(f"state {name!r} implies itself after edit")
-            if target == ALL_STATE:
-                raise StatesEditError(f"state {name!r} implies ALL, the meta-token")
-            if target not in declared:
-                raise StatesEditError(f"state {name!r} implies undeclared state {target!r}")
-        if name == ALL_STATE and targets:
-            raise StatesEditError("the ALL meta-token cannot imply anything")
-    cycle = implication_cycle([StateRule(name=n, implies=t) for n, t in implies.items()])
+    for field, verb, infinitive in (
+        ("implies", "implies", "imply"),
+        ("excludes", "excludes", "exclude"),
+    ):
+        for name, targets in relations[field].items():
+            for target in targets:
+                if target == name:
+                    raise StatesEditError(f"state {name!r} {verb} itself after edit")
+                if target == ALL_STATE:
+                    raise StatesEditError(f"state {name!r} {verb} ALL, the meta-token")
+                if target not in declared:
+                    raise StatesEditError(f"state {name!r} {verb} undeclared state {target!r}")
+            if name == ALL_STATE and targets:
+                raise StatesEditError(f"the ALL meta-token cannot {infinitive} anything")
+    rules = [
+        StateRule(
+            name=n,
+            implies=relations["implies"].get(n, ()),
+            excludes=relations["excludes"].get(n, ()),
+        )
+        for n in declared
+    ]
+    cycle = implication_cycle(rules)
     if cycle:
         raise StatesEditError(f"implies: cycle {' -> '.join(cycle)} after edit")
+    conflicts = exclusion_conflicts(rules)
+    if conflicts:
+        pairs = ", ".join(f"{a}+{b}" for a, b in conflicts)
+        raise StatesEditError(
+            f"excludes: contradicts implies: for {pairs} after edit — "
+            "implies: says one always holds with the other, excludes: says it never can"
+        )
 
 
 def _safe_write(path: Path, original: str | None, data) -> None:
@@ -265,13 +307,15 @@ def add_state(
     description: str | None = None,
     when: str | None = None,
     implies=None,
+    excludes=None,
     profile: Profile | None = None,
 ) -> Path:
     """Append a new state to the vocabulary (scaffolds the file if absent).
 
-    Rejects a duplicate name (case-insensitive), an invalid ``when:`` predicate
-    and a malformed/cyclic ``implies:`` hierarchy. The write is verified by a
-    re-parse; on failure it is reverted.
+    Rejects a duplicate name (case-insensitive), an invalid ``when:`` predicate,
+    a malformed/cyclic ``implies:`` hierarchy and an ``excludes:`` that
+    contradicts it. The write is verified by a re-parse; on failure it is
+    reverted.
     """
     name = normalize_name(name)
     if when:
@@ -282,7 +326,7 @@ def add_state(
     data = _load_doc(path)
     if _find(data["states"], name) != -1:
         raise StatesEditError(f"state {name!r} already exists")
-    data["states"].append(_new_entry(name, description, when, implies))
+    data["states"].append(_new_entry(name, description, when, implies, excludes))
     _safe_write(path, original, data)
     return path
 
@@ -292,8 +336,8 @@ def remove_state(name: str, *, profile: Profile | None = None) -> Path:
 
     The removed entry's own leading comment goes with it; every surviving
     entry keeps the comment written above it (see :func:`_delete_state_entry`).
-    Sibling ``implies:`` targets naming it are dropped, so the hierarchy is
-    never left pointing at a state that no longer exists.
+    Sibling ``implies:``/``excludes:`` targets naming it are dropped, so neither
+    relation is left pointing at a state that no longer exists.
     """
     name = normalize_name(name)
     path = _states_path(profile)
@@ -306,9 +350,10 @@ def remove_state(name: str, *, profile: Profile | None = None) -> Path:
         raise StatesEditError(f"state {name!r} not found")
     _delete_state_entry(data, idx)
     for entry in data["states"]:
-        targets = parse_implies(entry.get("implies"))
-        if name in targets:
-            _put_implies(entry, _flow_implies([t for t in targets if t != name]))
+        for field in _RELATION_FIELDS:
+            targets = parse_implies(entry.get(field))
+            if name in targets:
+                _put_relation(entry, field, _flow_states([t for t in targets if t != name]))
     _safe_write(path, original, data)
     return path
 
@@ -320,8 +365,9 @@ def rename_state(old: str, new: str, *, profile: Profile | None = None) -> Path:
     references keep the old token. The caller should warn the user to update
     those (or re-run the migration) — this keeps the edit surgical.
 
-    Sibling ``implies:`` targets ARE retargeted: they live in this same file, so
-    leaving one dangling would make the rename fail its own post-write check.
+    Sibling ``implies:``/``excludes:`` targets ARE retargeted: they live in this
+    same file, so leaving one dangling would make the rename fail its own
+    post-write check.
     """
     old = normalize_name(old)
     new = normalize_name(new)
@@ -337,9 +383,11 @@ def rename_state(old: str, new: str, *, profile: Profile | None = None) -> Path:
         raise StatesEditError(f"state {new!r} already exists")
     data["states"][idx]["name"] = new
     for entry in data["states"]:
-        targets = parse_implies(entry.get("implies"))
-        if old in targets:
-            entry["implies"] = _flow_implies([new if t == old else t for t in targets])  # in place
+        for field in _RELATION_FIELDS:
+            targets = parse_implies(entry.get(field))
+            if old in targets:
+                # In place: the key already exists, so field order is unaffected.
+                entry[field] = _flow_states([new if t == old else t for t in targets])
     _safe_write(path, original, data)
     return path
 
@@ -351,15 +399,17 @@ def set_state_field(
     *,
     profile: Profile | None = None,
 ) -> Path:
-    """Set/clear a state's ``description``, ``when:`` predicate or ``implies:``.
+    """Set/clear a state's ``description``, ``when:``, ``implies:`` or ``excludes:``.
 
     A ``None``/empty ``value`` removes the field. A ``when:`` value is
-    syntax-checked before the write; an ``implies:`` value is a comma-separated
-    list of state names, written as an inline flow list and checked for
-    undeclared targets and cycles by the post-write re-parse.
+    syntax-checked before the write; a relation value is a comma-separated list
+    of state names, written as an inline flow list and checked for undeclared
+    targets, cycles and implies/excludes contradictions by the post-write
+    re-parse.
     """
-    if field not in ("description", "when", "implies"):
-        raise StatesEditError("field must be 'description', 'when' or 'implies'")
+    if field not in ("description", "when", *_RELATION_FIELDS):
+        allowed = "', '".join(("description", "when", *_RELATION_FIELDS))
+        raise StatesEditError(f"field must be one of '{allowed}'")
     name = normalize_name(name)
     if field == "when" and value:
         compile_predicate(value)
@@ -373,8 +423,8 @@ def set_state_field(
     if idx == -1:
         raise StatesEditError(f"state {name!r} not found")
     entry = data["states"][idx]
-    if field == "implies":
-        _put_implies(entry, _flow_implies(value))
+    if field in _RELATION_FIELDS:
+        _put_relation(entry, field, _flow_states(value))
     elif value:
         entry[field] = value
     elif field in entry:

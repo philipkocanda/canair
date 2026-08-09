@@ -173,6 +173,11 @@ canair captures uds OBC 2101 --delete --yes        # non-interactive
 addresses captures through canair's own helpers, so the record stays consistent
 — never hand-edit files to remove data.
 
+On a [layered profile](profiles.md#layering-your-captures-over-someone-elses-definitions)
+the base layer's captures are **read-only**: `--delete`, `--set-state` and
+`--backfill-states` refuse when a matched row belongs to the base, naming the file.
+`--dry-run` still previews it, and rows in your own layer are freely editable.
+
 ## Journaling — you won't lose data
 
 Saves are **journaled**: written to a write-ahead log under `captures/.journal/`
@@ -233,7 +238,10 @@ When a `--save` segment ends without an explicit state, canair back-fills it wit
 the **union of every state auto-suggested across that segment's whole span** — not
 just the state active at the instant it closed. So a segment that charged and then
 went idle still reconciles as `charging`, rather than losing the label because the
-car happened to stop charging just before you stopped recording.
+car happened to stop charging just before you stopped recording. If the car changed
+state *during* the segment, the saved session also carries a
+[`state_spans` timeline](#simultaneous-vs-sequential-overlap-state_spans) so each
+capture still answers for the state it was actually recorded in.
 
 The **status bar** answers the opposite question — what the car is doing *now* —
 so its inputs expire: a decoded value stops feeding the state predicates a few
@@ -313,6 +321,15 @@ Where it applies:
 - **Recordings keep every match.** A `--save` segment's states, the save
   dialog's pre-fill and `captures uds --backfill-states` are unchanged: they
   store `READY, DRIVING`, because the session genuinely was in both.
+- **`--state` widens through it when filtering.** `--state ready` selects a
+  `DRIVING` capture, because driving *is* a reading of ready. The converse does
+  not hold: `--state driving` never returns a merely-`READY` capture.
+- **Analysis groups by the reduced set.** `decode --group-by state` and
+  `investigate`'s discriminability ranking bucket `READY, ACC2, PARKED` as
+  `READY, PARKED` — one bucket, not two near-duplicates. Before this, a nine-state
+  vocabulary produced **39** distinct buckets from the same data, splitting each
+  population thin enough to distort the F ranking (and, where a split bucket held
+  two identical samples, to manufacture a bogus perfect separation).
 
 Edit it with `canair states` (never hand-edit the file):
 
@@ -327,6 +344,90 @@ isn't a declared state, a state implying itself, an `implies: [ALL]` (`ALL` is
 the "readable in every state" meta-token, not a state to specialize), and any
 cycle — a cycle would make "more specific than" meaningless. Removing or
 renaming a state retargets the states that referenced it.
+
+### Simultaneous vs sequential overlap (`state_spans`)
+
+A session holds a *set* of states, but a recording holds a *span of time* — and
+those two facts fight each other. Two very different things look identical on disk:
+
+- **Simultaneous** — a parked, ready car is `READY, PARKED` for the whole session.
+  Every capture in it really does answer for both. The union is exact.
+- **Sequential** — you drove, parked, plugged in and charged, all in one recording.
+  The session is `READY, DRIVING, PARKED, PLUGGED, CHARGING`, but no single instant
+  was all of those.
+
+Left alone, the second case corrupts filtering: `--state charging` returns the
+whole session, driving captures included. On the bundled Ioniq's own history that
+was **17.7% of everything `--state CHARGING` returned**, including 9,162 captures
+recorded at speed.
+
+So a session whose payloads show the car changing state carries a **timeline**
+alongside the union:
+
+```json
+"vehicle_states": ["READY", "DRIVING", "PARKED", "CHARGING"],
+"state_spans": {
+  "source": "record",
+  "spans": [
+    {"at": "15:47:56.192", "states": ["READY", "DRIVING"]},
+    {"at": "16:31:12.044", "states": ["READY", "PARKED"]},
+    {"at": "16:31:44.901", "states": ["CHARGING", "PLUGGED", "PARKED"]}
+  ]
+}
+```
+
+A span records a *change*, not an interval — one timestamp and the states that
+held from it until the next span. Half-open intervals would need arbitration for
+the gap left by a poll cycle that decoded nothing; a change point simply has no
+gaps. The timeline is derived from the session's own stored payloads, so it costs
+one write and no new measurement (52 spans for a 6,872-capture drive: 2.4 KB in a
+4.2 MB file).
+
+Filtering and analysis then read the state **at each capture's own timestamp**,
+with the union as a fallback when there is no timeline. `--state charging` on that
+session returns only the charging captures. Corpus-wide, the provably-wrong share
+of filtered rows fell from ~18–21% to **0.01%**.
+
+Nothing about the session-level union is lost — `captures uds --sessions` still
+reports what the whole recording covered, because "what did this session span?"
+and "what was the car doing when *this* byte was read?" are different questions.
+
+**Declare what cannot co-occur (`excludes:`).** canair cannot tell simultaneous
+from sequential on its own — `READY, PARKED` is fine, `DRIVING, PARKED` is not, and
+only the vehicle's physics says which. So a state declares its incompatibilities,
+the complement of `implies:`:
+
+```bash
+canair states set-excludes DRIVING PARKED,CHARGING   # symmetric — either side suffices
+```
+
+`canair validate captures` then warns on a session tagged with an exclusive pair
+but *no* timeline — the one shape that is provably wrong — and points at the fix.
+Declaring the pairs is what keeps that warning specific instead of firing on every
+multi-state session until you learn to ignore it. `validate states` rejects a pair
+declared both exclusive and implied, since `implies:` says the two always hold
+together and `excludes:` says they never can.
+
+**Back-filling old recordings.** Sessions recorded before this existed have no
+timeline. Derive one from their stored payloads:
+
+```bash
+canair captures uds --backfill-state-spans --dry-run   # preview every verdict
+canair captures uds --backfill-state-spans             # write
+```
+
+Each session gets one of five verdicts: **timeline** (states changed — spans
+written), **flat** (the states really were simultaneous, union already exact),
+**single-state**, **no evidence** (too little decodable data to place a change),
+and **live** (spans observed during recording, left alone unless `--overwrite`).
+A capture that ends up with no timeline and more than one state is reported as
+unresolved rather than silently trusted.
+
+One limit worth knowing: a state canair cannot *place* in time — one with no
+`when:` predicate, like `SLEEP`, or one that never matched the stored payloads —
+is carried into **every** span rather than dropped. Losing it would make captures
+stop matching a state they used to match, trading a precision problem for a data-loss
+one.
 
 ### Predicates are cross-checked against the signal registry
 
@@ -386,6 +487,11 @@ previews with `--dry-run`, emits `--json`, and confirms before writing unless
 so timed captures are grouped into pseudo-cycles within `--cycle-tol` seconds
 (default 10s); untimed legacy sessions collapse to one whole-session cycle.
 
+`--backfill-states` answers "*which* states was this session in?"; its companion
+[`--backfill-state-spans`](#simultaneous-vs-sequential-overlap-state_spans) answers
+"*when* was it in each of them?". Run the former first — spans can only place states
+the session is tagged with.
+
 Offline, a capture existing *is* a response, so the `__no_response__` /
 `__responded__` sentinels can't be evaluated (a predicate using them abstains) —
 which is why `SLEEP` has no offline predicate.
@@ -418,5 +524,5 @@ canair captures can                  # list imported raw broadcast-CAN frame log
 ```
 
 Scope any of these by date (`--since`/`--until`/`--date`) or by
-`--state`/`--label` substring — `--state driving` is the natural unit of drive
+`--state` token / `--label` substring — `--state driving` is the natural unit of drive
 analysis.

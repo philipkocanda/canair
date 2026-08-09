@@ -49,6 +49,7 @@ import argparse
 from pathlib import Path
 
 from canlib import ansi
+from canlib.commands._edit_echo import echo_edit
 from canlib.commands._hexarg import HexArgError, parse_hex_arg
 from canlib.pids import PID_STATUSES
 from canlib.pids_edit import (
@@ -74,6 +75,7 @@ from canlib.pids_edit import (
     set_wake,
     upsert_parameter,
 )
+from canlib.profile import require_writable_definitions
 
 NAME = "pids"
 
@@ -87,6 +89,8 @@ def _schema_validate(fpath: Path) -> tuple[bool, str]:
 
 def _guarded(ecu: str, pids_dir: Path | None, do_edit, *, validate: bool):
     """Snapshot -> edit -> schema-validate -> commit or roll back."""
+    if pids_dir is None:
+        require_writable_definitions()
     fpath = find_ecu_file(ecu, pids_dir=pids_dir)
     snapshot = fpath.read_text()
     do_edit()
@@ -95,9 +99,7 @@ def _guarded(ecu: str, pids_dir: Path | None, do_edit, *, validate: bool):
         if not ok:
             fpath.write_text(snapshot)
             print(out)
-            raise SystemExit(
-                f"{ansi.RED}  Schema validation failed — reverted {fpath.name}{ansi.RESET}"
-            )
+            raise SystemExit(f"{ansi.RED}  Schema validation failed — reverted {fpath}{ansi.RESET}")
     return fpath
 
 
@@ -229,9 +231,7 @@ def cmd_upsert_param(args: argparse.Namespace) -> int:
         )
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
-    print(
-        f"{ansi.GREEN}  ✓ {args.ecu} {args.pid} {args.name}{ansi.RESET}  {ansi.DIM}({fpath.name}){ansi.RESET}"
-    )
+    echo_edit(f"{args.ecu} {args.pid} {args.name}", fpath)
 
     # Passive sanity-check: decode the new expression against existing captures so
     # a wrong byte offset surfaces at write time (a PCI byte reads constant, etc.).
@@ -277,10 +277,7 @@ def cmd_rename_param(args: argparse.Namespace) -> int:
         rename_parameter(args.ecu, args.pid, args.old, args.new, pids_dir=args.dir)
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
-    print(
-        f"{ansi.GREEN}  ✓ {args.ecu} {args.pid} {args.old} → {args.new}{ansi.RESET}  "
-        f"{ansi.DIM}({fpath.name}){ansi.RESET}"
-    )
+    echo_edit(f"{args.ecu} {args.pid} {args.old} → {args.new}", fpath)
     _warn_state_predicates(
         args.ecu,
         args.old,
@@ -295,10 +292,7 @@ def cmd_rm_param(args: argparse.Namespace) -> int:
         delete_parameter(args.ecu, args.pid, args.name, pids_dir=args.dir)
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
-    print(
-        f"{ansi.GREEN}  ✓ removed {args.ecu} {args.pid} {args.name}{ansi.RESET}  "
-        f"{ansi.DIM}({fpath.name}){ansi.RESET}"
-    )
+    echo_edit(f"removed {args.ecu} {args.pid} {args.name}", fpath)
     _warn_state_predicates(
         args.ecu,
         args.name,
@@ -314,9 +308,7 @@ def cmd_rename_pid(args: argparse.Namespace) -> int:
         rename_pid(args.ecu, args.old, args.new, pids_dir=args.dir)
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
-    print(
-        f"{ansi.GREEN}  ✓ {args.ecu} {args.old} → {args.new}{ansi.RESET}  {ansi.DIM}({fpath.name}){ansi.RESET}"
-    )
+    echo_edit(f"{args.ecu} {args.old} → {args.new}", fpath)
     return 0
 
 
@@ -325,9 +317,7 @@ def cmd_rm_pid(args: argparse.Namespace) -> int:
         delete_pid(args.ecu, args.pid, pids_dir=args.dir)
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
-    print(
-        f"{ansi.GREEN}  ✓ removed {args.ecu} {args.pid}{ansi.RESET}  {ansi.DIM}({fpath.name}){ansi.RESET}"
-    )
+    echo_edit(f"removed {args.ecu} {args.pid}", fpath)
     return 0
 
 
@@ -344,9 +334,7 @@ def cmd_add_pid(args: argparse.Namespace) -> int:
         )
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
-    print(
-        f"{ansi.GREEN}  ✓ {args.ecu} {args.pid} [{args.status}]{ansi.RESET}  {ansi.DIM}({fpath.name}){ansi.RESET}"
-    )
+    echo_edit(f"{args.ecu} {args.pid} [{args.status}]", fpath)
     return 0
 
 
@@ -371,10 +359,7 @@ def cmd_add_research(args: argparse.Namespace) -> int:
         )
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
-    print(
-        f"{ansi.GREEN}  ✓ research {args.ecu} {args.type} {args.target} "
-        f"[{args.status}]{ansi.RESET}  {ansi.DIM}({fpath.name}){ansi.RESET}"
-    )
+    echo_edit(f"research {args.ecu} {args.type} {args.target} [{args.status}]", fpath)
     return 0
 
 
@@ -385,10 +370,7 @@ def cmd_set_status(args: argparse.Namespace) -> int:
         )
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
-    print(
-        f"{ansi.GREEN}  ✓ {args.ecu} research {args.target} -> {args.status}{ansi.RESET}  "
-        f"{ansi.DIM}({fpath.name}){ansi.RESET}"
-    )
+    echo_edit(f"{args.ecu} research {args.target} -> {args.status}", fpath)
     return 0
 
 
@@ -399,10 +381,7 @@ def cmd_rm_research(args: argparse.Namespace) -> int:
         )
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
-    print(
-        f"{ansi.GREEN}  ✓ removed {args.ecu} research {args.target}{ansi.RESET}  "
-        f"{ansi.DIM}({fpath.name}){ansi.RESET}"
-    )
+    echo_edit(f"removed {args.ecu} research {args.target}", fpath)
     return 0
 
 
@@ -416,10 +395,7 @@ def cmd_set_research_notes(args: argparse.Namespace) -> int:
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
     what = "cleared" if not (notes or "").strip() else f"set ({len((notes or '').split())} words)"
-    print(
-        f"{ansi.GREEN}  ✓ {args.ecu} research {args.target} notes {what}{ansi.RESET}  "
-        f"{ansi.DIM}({fpath.name}){ansi.RESET}"
-    )
+    echo_edit(f"{args.ecu} research {args.target} notes {what}", fpath)
     return 0
 
 
@@ -433,10 +409,7 @@ def cmd_set_research_result(args: argparse.Namespace) -> int:
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
     what = "cleared" if not (result or "").strip() else f"set ({len((result or '').split())} words)"
-    print(
-        f"{ansi.GREEN}  ✓ {args.ecu} research {args.target} result {what}{ansi.RESET}  "
-        f"{ansi.DIM}({fpath.name}){ansi.RESET}"
-    )
+    echo_edit(f"{args.ecu} research {args.target} result {what}", fpath)
     return 0
 
 
@@ -445,10 +418,7 @@ def cmd_set_pid_status(args: argparse.Namespace) -> int:
         set_pid_status(args.ecu, args.pid, args.status, pids_dir=args.dir)
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
-    print(
-        f"{ansi.GREEN}  ✓ {args.ecu} {args.pid} status -> {args.status}{ansi.RESET}  "
-        f"{ansi.DIM}({fpath.name}){ansi.RESET}"
-    )
+    echo_edit(f"{args.ecu} {args.pid} status -> {args.status}", fpath)
     return 0
 
 
@@ -460,10 +430,7 @@ def cmd_set_pid_variable_length(args: argparse.Namespace) -> int:
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
     state = "true" if value else "false (cleared)"
-    print(
-        f"{ansi.GREEN}  ✓ {args.ecu} {args.pid} variable_length -> {state}{ansi.RESET}  "
-        f"{ansi.DIM}({fpath.name}){ansi.RESET}"
-    )
+    echo_edit(f"{args.ecu} {args.pid} variable_length -> {state}", fpath)
     return 0
 
 
@@ -475,9 +442,7 @@ def cmd_set_pid_notes(args: argparse.Namespace) -> int:
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
     what = "cleared" if not (notes or "").strip() else f"set ({len((notes or '').split())} words)"
-    print(
-        f"{ansi.GREEN}  ✓ {args.ecu} {args.pid} notes {what}{ansi.RESET}  {ansi.DIM}({fpath.name}){ansi.RESET}"
-    )
+    echo_edit(f"{args.ecu} {args.pid} notes {what}", fpath)
     return 0
 
 
@@ -486,10 +451,7 @@ def cmd_set_identity(args: argparse.Namespace) -> int:
         set_identity_field(args.ecu, args.field, args.value, pids_dir=args.dir)
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
-    print(
-        f"{ansi.GREEN}  ✓ {args.ecu} identity.{args.field} updated{ansi.RESET}  "
-        f"{ansi.DIM}({fpath.name}){ansi.RESET}"
-    )
+    echo_edit(f"{args.ecu} identity.{args.field} updated", fpath)
     return 0
 
 
@@ -498,10 +460,7 @@ def cmd_rm_identity(args: argparse.Namespace) -> int:
         remove_identity_field(args.ecu, args.field, pids_dir=args.dir)
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
-    print(
-        f"{ansi.GREEN}  ✓ {args.ecu} identity.{args.field} removed{ansi.RESET}  "
-        f"{ansi.DIM}({fpath.name}){ansi.RESET}"
-    )
+    echo_edit(f"{args.ecu} identity.{args.field} removed", fpath)
     return 0
 
 
@@ -527,10 +486,7 @@ def cmd_set_can_bus(args: argparse.Namespace) -> int:
         set_can_bus(args.ecu, args.codes, pids_dir=args.dir)
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
-    print(
-        f"{ansi.GREEN}  ✓ {args.ecu} can_bus -> [{', '.join(args.codes)}]{ansi.RESET}  "
-        f"{ansi.DIM}({fpath.name}){ansi.RESET}"
-    )
+    echo_edit(f"{args.ecu} can_bus -> [{', '.join(args.codes)}]", fpath)
     return 0
 
 
@@ -539,10 +495,7 @@ def cmd_set_iocontrol_ranges(args: argparse.Namespace) -> int:
         set_iocontrol_scan_ranges(args.ecu, args.ranges, pids_dir=args.dir)
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
-    print(
-        f"{ansi.GREEN}  ✓ {args.ecu} iocontrol_scan_ranges -> [{', '.join(args.ranges)}]{ansi.RESET}  "
-        f"{ansi.DIM}({fpath.name}){ansi.RESET}"
-    )
+    echo_edit(f"{args.ecu} iocontrol_scan_ranges -> [{', '.join(args.ranges)}]", fpath)
     return 0
 
 
@@ -566,9 +519,7 @@ def cmd_set_wake(args: argparse.Namespace) -> int:
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
     detail = ", ".join(f"{k}={v}" for k, v in fields.items() if k != "notes")
-    print(
-        f"{ansi.GREEN}  ✓ {args.ecu} wake -> {{{detail}}}{ansi.RESET}  {ansi.DIM}({fpath.name}){ansi.RESET}"
-    )
+    echo_edit(f"{args.ecu} wake -> {{{detail}}}", fpath)
     return 0
 
 
@@ -586,6 +537,8 @@ def cmd_set_addressing(args: argparse.Namespace) -> int:
             f"--target-address/--source-address/--fc-id/--rx-id{ansi.RESET}"
         )
 
+    if args.dir is None:
+        require_writable_definitions()
     fpath = find_ecu_file(args.ecu, pids_dir=args.dir)
     doc = yaml_io.safe_load(fpath.read_text()) or {}
     tx_id = next(
@@ -593,7 +546,7 @@ def cmd_set_addressing(args: argparse.Namespace) -> int:
         None,
     )
     if tx_id is None:
-        raise SystemExit(f"{ansi.RED}  Error: no tx_id found in {fpath.name}{ansi.RESET}")
+        raise SystemExit(f"{ansi.RED}  Error: no tx_id found in {fpath}{ansi.RESET}")
 
     try:
         changed = set_addressing(
@@ -612,9 +565,7 @@ def cmd_set_addressing(args: argparse.Namespace) -> int:
 
     disp = tx_key(tx_id)
     if changed:
-        print(
-            f"{ansi.GREEN}  ✓ {args.ecu} addressing updated ({disp}){ansi.RESET}  {ansi.DIM}({fpath.name}){ansi.RESET}"
-        )
+        echo_edit(f"{args.ecu} addressing updated ({disp})", fpath)
     else:
         print(
             f"{ansi.DIM}  {args.ecu} ({disp}) addressing already as requested; nothing to change.{ansi.RESET}"

@@ -14,6 +14,7 @@
 #     - name: str           # required — the state name (e.g. "READY", "CHARGING")
 #       description: str    # optional — human-readable explanation
 #       implies: [str]      # optional — broader states this one specializes
+#       excludes: [str]     # optional — states that cannot hold at the same instant
 #       when: str           # optional — boolean predicate over ECU.PARAM values
 #                           # (every matching predicate contributes: a session is
 #                           # naturally composite, e.g. "READY, PARKED")
@@ -33,6 +34,24 @@
 # The hierarchy narrows only the SINGLE-state answer. A recorded capture keeps
 # every state it was in (`suggest_states`), because a session that was READY and
 # DRIVING really was both and a `--state READY` query must still find it.
+#
+# Exclusivity (`excludes:`) — the complement of `implies:`. Where `implies:`
+# explains why an overlap is legitimate, `excludes:` names the overlaps that
+# cannot be real at one instant: a car is not DRIVING and PARKED together, nor
+# CHARGING and DRIVING. The relation is SYMMETRIC — declare it on either side.
+# It buys two checks that are otherwise impossible:
+#   * a *recording* tagged with an exclusive pair spans time, so its captures
+#     need a `state_spans` timeline before a `--state` filter or a state-axis
+#     bucket means anything — `canair validate captures` warns when one lacks it
+#   * a *live* suggestion of an exclusive pair means a `when:` predicate matches
+#     when it should not — a definition bug, surfaced instead of averaged away
+# Declaring the pair is what separates those from an honestly simultaneous
+# `READY, PARKED`, so the warning stays specific rather than firing on every
+# multi-state session. Rules, enforced by `canair validate states`, the `canair
+# states` editor's post-write check, and `load_states` itself:
+#   * every target must be a DECLARED state; no self-exclusion; not ALL
+#   * a pair may not be both excluded and implied (`A implies B` says B always
+#     holds when A does; `A excludes B` says it never can — one is wrong)
 #
 # State names are an UPPERCASE controlled vocabulary (like the CAN-bus segment
 # codes in can_buses.yaml). Input is normalized to uppercase, so any casing
@@ -72,4 +91,5 @@ required_state_fields:
 optional_state_fields:
   - description
   - implies
+  - excludes
   - when

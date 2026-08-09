@@ -8,7 +8,7 @@ import pytest
 import yaml
 
 from canlib.commands.profile import (
-    DEFAULT_INIT,
+    _cmd_adopt,
     _cmd_create,
     _cmd_default,
     _cmd_list,
@@ -16,6 +16,7 @@ from canlib.commands.profile import (
     _cmd_use,
 )
 from canlib.commands.validate import collect_pids_validation
+from canlib.profile_create import DEFAULT_INIT
 
 
 @pytest.fixture(autouse=True)
@@ -354,3 +355,122 @@ class TestProfileDefaultDispatch:
         if cfg_file.exists():
             cfg = yaml.safe_load(cfg_file.read_text()) or {}
             assert cfg.get("default_profile") is None
+
+
+def _adopt_args(**kw) -> argparse.Namespace:
+    base = {"name": "ev6", "profiles_dir": None, "set_default": False, "force": False}
+    base.update(kw)
+    return argparse.Namespace(**base)
+
+
+class TestProfileAdopt:
+    """`profile adopt` copies a read-only/bundled profile into the user directory."""
+
+    @pytest.fixture(autouse=True)
+    def _env(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
+        monkeypatch.delenv("CANAIR_PROFILES_DIR", raising=False)
+        # Pose tmp_path/profiles as the repo-bundled root — the lowest-precedence
+        # search root, which is what adopting is meant to lift a profile out of.
+        monkeypatch.setattr("canlib.profile.BUNDLED_PROFILES_DIR", tmp_path / "profiles")
+        from canlib import config
+
+        config.load_config.cache_clear()
+        self.user_dir = tmp_path / "cfg" / "canair" / "profiles"
+
+    def test_copies_bundle_members(self, tmp_path, capsys):
+        source = _scaffold(tmp_path, "ev6")
+        (source / "ecus" / "bms.yaml").write_text("tx_id: 0x7E4\n")
+        (source / "captures").mkdir()
+        (source / "captures" / "2026-08-05.json").write_text("{}")
+        (source / "out").mkdir()
+        (source / "out" / "autopid.json").write_text("[]")
+
+        assert _cmd_adopt(_adopt_args()) == 0
+        dest = self.user_dir / "ev6"
+        assert (dest / "profile.yaml").exists()
+        assert (dest / "ecus" / "bms.yaml").read_text() == "tx_id: 0x7E4\n"
+        assert (dest / "captures" / "2026-08-05.json").exists()
+        # Generated artifacts are regenerated, never copied.
+        assert not (dest / "out").exists()
+        out = capsys.readouterr().out
+        assert "Adopted 'ev6'" in out
+        assert str(dest) in out
+
+    def test_adopted_copy_shadows_the_original(self, tmp_path):
+        _scaffold(tmp_path, "ev6")
+        assert _cmd_adopt(_adopt_args()) == 0
+        from canlib.profile import resolve_profile
+
+        assert resolve_profile("ev6").root == self.user_dir / "ev6"
+
+    def test_skips_transient_journal_and_temp_files(self, tmp_path):
+        source = _scaffold(tmp_path, "ev6")
+        (source / "captures" / ".journal").mkdir(parents=True)
+        (source / "captures" / ".journal" / "live.wal").write_text("x")
+        (source / "captures" / "scratch.tmp").write_text("x")
+        (source / "captures" / "2026-08-05.json").write_text("{}")
+
+        assert _cmd_adopt(_adopt_args()) == 0
+        dest = self.user_dir / "ev6"
+        assert (dest / "captures" / "2026-08-05.json").exists()
+        assert not (dest / "captures" / ".journal").exists()
+        assert not (dest / "captures" / "scratch.tmp").exists()
+
+    def test_unknown_profile_lists_what_exists(self, tmp_path, capsys):
+        _scaffold(tmp_path, "ev6")
+        assert _cmd_adopt(_adopt_args(name="nope")) == 1
+        err = capsys.readouterr().err
+        assert "not found" in err
+        assert "ev6" in err
+
+    def test_refuses_a_profile_that_is_already_a_user_copy(self, tmp_path, capsys):
+        root = self.user_dir / "ev6"
+        (root / "ecus").mkdir(parents=True)
+        (root / "profile.yaml").write_text('car_model: "ev6"\n')
+
+        assert _cmd_adopt(_adopt_args()) == 2
+        assert "already" in capsys.readouterr().err
+
+    def test_refuses_to_clobber_an_existing_copy_without_force(self, tmp_path, capsys):
+        source = _scaffold(tmp_path, "ev6")
+        (source / "ecus" / "bms.yaml").write_text("tx_id: 0x7E4\n")
+        dest = self.user_dir / "ev6"
+        (dest / "ecus").mkdir(parents=True)
+        (dest / "ecus" / "mine.yaml").write_text("tx_id: 0x7A0\n")
+
+        assert _cmd_adopt(_adopt_args()) == 1
+        assert "--force" in capsys.readouterr().err
+        assert not (dest / "ecus" / "bms.yaml").exists()
+
+        assert _cmd_adopt(_adopt_args(force=True)) == 0
+        assert (dest / "ecus" / "bms.yaml").exists()
+
+    def test_refuses_when_a_higher_precedence_root_would_keep_winning(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        """A configured `profiles_dir` outranks the user dir, so a copy is inert."""
+        elsewhere = tmp_path / "elsewhere"
+        root = elsewhere / "ev6"
+        (root / "ecus").mkdir(parents=True)
+        (root / "profile.yaml").write_text('car_model: "ev6"\n')
+        monkeypatch.setenv("CANAIR_PROFILES_DIR", str(elsewhere))
+
+        assert _cmd_adopt(_adopt_args()) == 2
+        err = capsys.readouterr().err
+        assert "outranks" in err
+        assert "CANAIR_PROFILES_DIR" in err
+        assert not (self.user_dir / "ev6").exists()
+
+    def test_set_default_records_the_choice(self, tmp_path):
+        _scaffold(tmp_path, "ev6")
+        assert _cmd_adopt(_adopt_args(set_default=True)) == 0
+        cfg = yaml.safe_load((tmp_path / "cfg" / "canair" / "config.yaml").read_text())
+        assert cfg["default_profile"] == "ev6"
+
+    def test_warns_that_the_copy_stops_tracking_upstream(self, tmp_path, capsys):
+        _scaffold(tmp_path, "ev6")
+        assert _cmd_adopt(_adopt_args()) == 0
+        out = capsys.readouterr().out
+        assert "no longer tracks upstream" in out
+        assert "profiles_dir" in out

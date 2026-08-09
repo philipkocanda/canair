@@ -62,6 +62,21 @@ def resolve_captures_dir(explicit: Path | None = None) -> Path:
     return active().captures_dir
 
 
+def resolve_capture_layers(explicit: Path | None = None) -> list[Path]:
+    """Every captures directory to *read*, least specific (the base) first.
+
+    An explicit ``--dir`` means exactly that directory. Otherwise a layered
+    profile contributes its read-only base's store followed by the user's
+    overlay, so analysis sees the whole history while
+    :func:`resolve_captures_dir` keeps writes in the overlay.
+    """
+    if explicit is not None:
+        return [explicit]
+    from .profile import active
+
+    return active().capture_layers
+
+
 def iter_capture_files(captures_dir: Path) -> list[Path]:
     """Sorted list of capture JSON files in ``captures_dir`` (SCHEMA/_ skipped)."""
     return [p for p in sorted(captures_dir.glob(f"*{CAPTURE_SUFFIX}")) if _is_capture_file(p)]

@@ -225,10 +225,10 @@ def _gather(args) -> dict:
     # Install context (local-only): warn when a bare `canair` would run a
     # different version than `uv run canair` in the source clone.
     try:
-        from ..commands.update import _find_clone_dir
         from ..install_context import describe as describe_install
+        from ..install_context import source_clone
 
-        install = describe_install(_find_clone_dir())
+        install = describe_install(source_clone())
         info["install"] = install
         if install["out_of_sync"]:
             info["warnings"].append(

@@ -49,7 +49,7 @@ import ast
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from canlib import yaml_io
 
@@ -90,6 +90,11 @@ POWER_STATES = ("SLEEP", "ACC", "RUN", "CRANK")
 # state. It carries no ``when:`` predicate (nothing to auto-suggest) and is
 # always an accepted token (see :func:`allowed_states`).
 ALL_STATE = "ALL"
+
+# Bucket label for a capture carrying no state at all. An explicit population, so
+# a state-axis analysis reports how much of its evidence is untagged instead of
+# quietly analyzing a subset.
+NO_STATE_KEY = "(no state)"
 
 # Backwards-compatible alias (older code/imports referred to BASE_STATES).
 BASE_STATES = POWER_STATES
@@ -164,7 +169,7 @@ _ALLOWED_NODES = (
 
 @dataclass(frozen=True)
 class StateRule:
-    """One declared state: a name, optional description, predicate, and implications.
+    """One declared state: a name, optional description, predicate, and relations.
 
     ``implies`` names the broader states this one is a *specialization* of — a car
     that is DRIVING is necessarily READY, one that is CHARGING is necessarily
@@ -172,6 +177,13 @@ class StateRule:
     what lets a single-state display pick DRIVING over READY when both match
     (see :func:`most_specific_states`) without the file's order having to double
     as a priority list.
+
+    ``excludes`` is its complement: states that cannot hold at the *same instant*
+    (a car is not DRIVING and PARKED at once). Overlap is normal and mostly
+    legitimate — the two relations are what separate a genuine simultaneous
+    reading from an impossible one, which is the difference between a session
+    whose state union is exact and one whose captures need a
+    ``state_spans`` timeline (see :func:`contradictory_states`).
     """
 
     name: str
@@ -179,6 +191,7 @@ class StateRule:
     predicate: Callable[[dict, set | None], Tristate] | None = None
     expr: str = ""
     implies: tuple[str, ...] = ()
+    excludes: tuple[str, ...] = ()
 
 
 def _dotted_name(node: ast.AST) -> str:
@@ -390,6 +403,7 @@ def load_states(profile=None) -> list[StateRule]:
                 predicate=pred,
                 expr=expr,
                 implies=parse_implies(entry.get("implies")),
+                excludes=parse_excludes(entry.get("excludes")),
             )
         )
     # A cycle makes "more specific than" meaningless, so refuse the file outright
@@ -397,6 +411,12 @@ def load_states(profile=None) -> list[StateRule]:
     cycle = implication_cycle(rules)
     if cycle:
         raise StatePredicateError(f"implies: cycle {' -> '.join(cycle)}")
+    # An implied pair that also claims exclusivity is a straight contradiction;
+    # every downstream answer built on it would be arbitrary.
+    conflicts = exclusion_conflicts(rules)
+    if conflicts:
+        pairs = "; ".join(f"{a} / {b}" for a, b in conflicts)
+        raise StatePredicateError(f"excludes: contradicts implies: for {pairs}")
     return rules
 
 
@@ -576,6 +596,13 @@ def parse_implies(value) -> tuple[str, ...]:
     return tuple(dict.fromkeys(parse_states(value)))
 
 
+# `excludes:` is `implies:`'s complement and parses identically, so it shares the
+# normalization. It is a *separate name* rather than a shared generic call because
+# the two relations mean opposite things and a reader at the call site needs to
+# know which one is being handled.
+parse_excludes = parse_implies
+
+
 def _implies_map(rules: list[StateRule]) -> dict[str, tuple[str, ...]]:
     """``{UPPER state: direct implications}`` for the declared rules."""
     return {r.name.upper(): r.implies for r in rules}
@@ -629,6 +656,178 @@ def implied_closure(rules: list[StateRule], state: str) -> set[str]:
         out.add(nxt)
         stack.extend(direct.get(nxt, ()))
     out.discard(str(state).upper())
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Exclusivity (`excludes:`)
+# ---------------------------------------------------------------------------
+# `implies:` explains why states legitimately overlap; `excludes:` marks the
+# overlaps that cannot be real. A session tagged both DRIVING and PARKED was not
+# both at once — it was each in turn, and its captures must be separated by a
+# `state_spans` timeline before a state filter or a state-axis bucket means
+# anything. Declaring the pair is what lets the tool tell that apart from an
+# honestly simultaneous `READY, PARKED`, instead of warning on every multi-state
+# session and training the user to ignore it.
+#
+# The relation is symmetric: declaring it on either side is enough.
+
+
+def exclusive_pairs(rules: list[StateRule]) -> set[frozenset[str]]:
+    """Every declared mutually-exclusive pair, as unordered ``{A, B}`` pairs.
+
+    Self-pairs are dropped rather than raised — validation reports those; a
+    caller running before validation must not blow up on a malformed file.
+    """
+    pairs: set[frozenset[str]] = set()
+    for rule in rules:
+        name = rule.name.upper()
+        for other in rule.excludes:
+            if other != name:
+                pairs.add(frozenset((name, other)))
+    return pairs
+
+
+def contradictory_states(rules: list[StateRule], states) -> list[tuple[str, str]]:
+    """Declared-exclusive pairs present together in ``states``, sorted for output.
+
+    A non-empty result means the tokens cannot all describe one instant, so
+    whatever they are attached to spans time (a recording) or is wrong (a live
+    suggestion, i.e. a predicate that matches when it should not).
+    """
+    have = {str(s).upper() for s in states or []}
+    out: list[tuple[str, str]] = []
+    for pair in exclusive_pairs(rules):
+        if pair <= have:
+            a, b = sorted(pair)
+            out.append((a, b))
+    return sorted(out)
+
+
+def exclusion_conflicts(rules: list[StateRule]) -> list[tuple[str, str]]:
+    """Pairs a profile declares as BOTH exclusive and implied — a contradiction.
+
+    ``A implies B`` asserts B holds whenever A does; ``A excludes B`` asserts it
+    never can. One of the two is wrong, and left unchecked the pair would make
+    every session carrying A look self-contradictory.
+    """
+    out: list[tuple[str, str]] = []
+    for pair in exclusive_pairs(rules):
+        a, b = sorted(pair)
+        if b in implied_closure(rules, a) or a in implied_closure(rules, b):
+            out.append((a, b))
+    return sorted(out)
+
+
+def satisfied_states(rules: list[StateRule], states) -> set[str]:
+    """Every state ``states`` satisfies: the tokens themselves plus what they imply.
+
+    The read direction of the ``implies:`` DAG. Because DRIVING implies READY, a
+    capture tagged ``[DRIVING]`` satisfies a READY query — the hierarchy says
+    driving *is* a narrower reading of ready. The converse does not hold, so a
+    ``[READY]`` capture does not satisfy a DRIVING query.
+    """
+    out: set[str] = set()
+    for s in states or []:
+        tok = str(s).upper()
+        out.add(tok)
+        out |= implied_closure(rules, tok)
+    return out
+
+
+def state_bucket_key(states, rules: list[StateRule] | None = None, *, profile=None) -> str:
+    """Canonical grouping key for a capture's states, for state-axis analysis.
+
+    Discriminability buckets captures by this key, so it must name the *logical*
+    state and nothing else. Three normalizations get folded in: the tokens are
+    UPPER-cased (legacy recordings stored them lower-case, which split every
+    bucket in two), ordered by the profile's vocabulary (so ``PARKED, SLEEP`` and
+    ``SLEEP, PARKED`` are one bucket), and reduced by ``implies:`` (so a DRIVING
+    capture buckets with DRIVING whether or not the recording also listed the
+    READY it entails).
+
+    Returns ``"(no state)"`` for an untagged capture — an explicit bucket rather
+    than a silent drop, since "unknown" is a real and often large population.
+    """
+    tokens = (
+        parse_states(states) if isinstance(states, str) else [str(s).upper() for s in states or []]
+    )
+    if not tokens:
+        return NO_STATE_KEY
+    if rules is None:
+        rules = load_states(profile)
+    ordered = _order_states(tokens, profile)
+    return join_states(most_specific_states(rules, ordered)) or NO_STATE_KEY
+
+
+def format_state_selector(selector) -> str:
+    """Render a ``--state`` selector back into its own grammar, for a scope banner.
+
+    Alternatives keep their comma and conjoined groups join with ``+``, so the
+    echo reads the way the flag was typed (``ready,driving + parked``).
+    """
+    groups = []
+    for raw in selector if isinstance(selector, list | tuple) else [selector]:
+        tokens = parse_states(raw)
+        if tokens:
+            groups.append(",".join(tokens))
+    return " + ".join(groups)
+
+
+def state_matcher(
+    selector, rules: list[StateRule] | None = None, *, profile=None
+) -> Callable[[Any], bool]:
+    """Build a predicate testing a capture's states against a ``--state`` selector.
+
+    ``selector`` is the parsed flag: one string, or a list of them when the flag
+    was repeated. Commas *within* one value are alternatives (``READY,DRIVING``
+    means either) and repeats are conjunctive (``--state CHARGING --state
+    PARKED`` means both), so the two axes are expressible without a second flag.
+    Matching is by token through :func:`satisfied_states`, never by substring:
+    ``ACC`` no longer selects ACC2 by accident, though ACC2 still satisfies ACC
+    because it declares ``implies: [ACC]``.
+
+    An empty selector — and the ``ALL`` meta-token — matches everything. The
+    returned predicate memoizes per distinct state tuple, since a filter pass
+    sees tens of thousands of captures drawn from a handful of state sets.
+    """
+    groups: list[frozenset[str]] = []
+    for raw in selector if isinstance(selector, list | tuple) else [selector]:
+        tokens = parse_states(raw)
+        if not tokens or ALL_STATE in tokens:
+            continue
+        groups.append(frozenset(tokens))
+    if not groups:
+        return lambda _states: True
+    if rules is None:
+        rules = load_states(profile)
+    cache: dict[tuple[str, ...], bool] = {}
+
+    def matches(states: Any) -> bool:
+        key = tuple(str(s).upper() for s in states or [])
+        hit = cache.get(key)
+        if hit is None:
+            have = satisfied_states(rules, key)
+            hit = all(not g.isdisjoint(have) for g in groups)
+            cache[key] = hit
+        return hit
+
+    return matches
+
+
+def unknown_state_tokens(selector, profile=None) -> list[str]:
+    """Selector tokens that are not in the profile's state vocabulary, in order.
+
+    For a command that wants to warn that ``--state DRIVNG`` can only ever match
+    nothing. Reports rather than raises, so a typo does not become a hard failure
+    on a profile whose vocabulary is still being written.
+    """
+    allowed = allowed_states(profile)
+    out: list[str] = []
+    for raw in selector if isinstance(selector, list | tuple) else [selector]:
+        for tok in parse_states(raw):
+            if tok not in allowed and tok not in out:
+                out.append(tok)
     return out
 
 

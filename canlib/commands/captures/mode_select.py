@@ -29,6 +29,7 @@ Mode = Literal[
     "summary",
     "sessions",
     "backfill_states",
+    "backfill_state_spans",
     "set_state",
     "delete",
     "latest",
@@ -38,10 +39,16 @@ Mode = Literal[
 ]
 
 # Aggregate/whole-store modes that take no QUERY, in dispatch precedence order.
-STANDALONE_MODES: tuple[Mode, ...] = ("summary", "sessions", "backfill_states", "set_state")
+STANDALONE_MODES: tuple[Mode, ...] = (
+    "summary",
+    "sessions",
+    "backfill_states",
+    "backfill_state_spans",
+    "set_state",
+)
 
 # How those modes are named back to the user in a rejection message.
-_STANDALONE_LABEL = "--summary/--sessions/--backfill-states/--set-state"
+_STANDALONE_LABEL = "--summary/--sessions/--backfill-states/--backfill-state-spans/--set-state"
 
 # View modifiers on top of a QUERY, in dispatch precedence order.
 VIEW_MODES: tuple[Mode, ...] = ("diff", "step")

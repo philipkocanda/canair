@@ -36,7 +36,7 @@ usage: canair hunt uds [-h]
                        [--session-gap SECONDS] [--notation NAME]
                        [--since WHEN] [--until WHEN] [--date YYYY-MM-DD]
                        [--today] [--last-sessions [N]] [--last-session]
-                       [--state SUBSTR] [--label SUBSTR]
+                       [--state STATE] [--label SUBSTR]
                        [ecu] [pid]
 
 Sweeps every byte offset of the target PID under every interpretation
@@ -123,7 +123,7 @@ time joining:
                         session)
 
 scoping:
-  Restrict to captures within a date/time range (inclusive) and/or by session state/label substring. --since/--until accept a date (YYYY-MM-DD) or a timestamp (YYYY-MM-DD HH:MM[:SS[.ffffff]])
+  Restrict to captures within a date/time range (inclusive) and/or by session state (token-matched) or label substring. --since/--until accept a date (YYYY-MM-DD) or a timestamp (YYYY-MM-DD HH:MM[:SS[.ffffff]])
 
   --since WHEN          Only captures on or after this date/time (YYYY-MM-DD[
                         HH:MM:SS])
@@ -137,8 +137,12 @@ scoping:
                         defaults to 1)
   --last-session        Only the most recent recorded session in scope (alias
                         for --last-sessions 1)
-  --state SUBSTR        Only captures whose session vehicle_states contain
-                        SUBSTR (case-insensitive), e.g. --state driving
+  --state STATE         Only captures recorded in STATE, matched by token and
+                        widened by the profile's implies: hierarchy (--state
+                        ready also matches DRIVING). Comma-separate
+                        alternatives (--state ready,driving); repeat the flag
+                        to require several at once (--state charging --state
+                        parked)
   --label SUBSTR        Only captures whose session/capture label contains
                         SUBSTR (case-insensitive)
 

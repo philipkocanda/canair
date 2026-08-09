@@ -19,8 +19,11 @@ from .capture_types import (
     RespondingEntry,
     ScanResults,
     SessionMeta,
+    StateSpans,
+    StateSpanSource,
 )
 from .keepmode import KeepMode, persisted_keep_mode
+from .state_spans import StateSpan
 from .states import join_states as _join_states
 from .states import parse_states as _parse_states
 from .uds_parse import UdsResponse
@@ -413,8 +416,16 @@ def saved_banner(capture_file: Path, n_captures: int) -> str:
     user has to guess which profile's captures/ directory it went into. Shared
     by :func:`save_session` (every save path funnels through it) and by the
     monitor's post-TUI replay of banners Textual swallowed.
+
+    When the path is inside an install snapshot the banner grows a warning and a
+    remedy, because that write "succeeds" and is then destroyed by the next
+    reinstall — the loudest place to say so is next to the path itself.
     """
-    return f"  \u2192 Saved {n_captures} capture(s) to {capture_file}"
+    banner = f"  \u2192 Saved {n_captures} capture(s) to {capture_file}"
+    from .install_context import snapshot_write_note
+
+    note = snapshot_write_note(capture_file)
+    return f"{banner}\n{note}" if note else banner
 
 
 def save_session(session: CaptureSession, captures_dir: Path | None = None) -> Path:
@@ -426,7 +437,9 @@ def save_session(session: CaptureSession, captures_dir: Path | None = None) -> P
     active vehicle profile's captures/ directory is used.
 
     Every session is stamped with the recording canair ``version`` here (the one
-    place all save paths funnel through), unless it already carries one.
+    place all save paths funnel through), unless it already carries one, and is
+    annotated with a ``state_spans`` timeline when its payloads show the vehicle
+    changing state mid-recording — see :func:`annotate_session_spans`.
     """
     session = _stamp_version(session)
     if captures_dir is None:
@@ -449,6 +462,7 @@ def save_session(session: CaptureSession, captures_dir: Path | None = None) -> P
         data = {"sessions": [session]}
 
     capture_io.dump_capture_file(capture_file, data)
+    annotate_session_spans(capture_file)
 
     n_captures = len(session.get("captures", []))
     print(saved_banner(capture_file, n_captures))
@@ -562,6 +576,91 @@ def set_session_states(fpath: Path, session_idx: int, vehicle_states) -> None:
     else:
         session.pop("vehicle_states", None)
     _write_captures_file(fpath, data)
+
+
+def set_session_state_spans(
+    fpath: Path,
+    session_idx: int,
+    spans,
+    *,
+    source: str = "backfill",
+    version: str | None = None,
+) -> None:
+    """Set (or clear) the ``state_spans`` block on one session, by index.
+
+    An empty ``spans`` removes the block, so a re-run that can no longer
+    reconstruct a timeline leaves no stale one behind. ``source`` records who
+    produced it (``live`` while recording, ``backfill`` after the fact), which is
+    what lets a back-fill refuse to overwrite live-recorded truth. Raises
+    IndexError if the index doesn't resolve.
+    """
+    data = capture_io.load_capture_file(fpath)
+    session = data["sessions"][session_idx]
+    if spans:
+        block: StateSpans = {"source": cast("StateSpanSource", source), "spans": list(spans)}
+        if version:
+            block["version"] = version
+        session["state_spans"] = block
+    else:
+        session.pop("state_spans", None)
+    _write_captures_file(fpath, data)
+
+
+def annotate_session_spans(
+    fpath: Path,
+    session_idx: int = -1,
+    *,
+    cycle_tol: float | None = None,
+) -> list[StateSpan] | None:
+    """Derive and store the ``state_spans`` timeline for a just-saved session.
+
+    Called right after a session lands on disk, so a recording is queryable at
+    per-capture state resolution without a manual back-fill. It reconstructs the
+    timeline from the *saved payloads* (:func:`canlib.state_infer.session_state_spans`)
+    rather than from what the monitor happened to suggest per cycle — the same
+    single model ``--backfill-state-spans`` uses, on strictly better evidence
+    (every decoded signal, not just the ones the live suggester had fresh).
+
+    Returns the spans written, or ``None`` when there was nothing to record (a
+    single-state session, no decodable evidence, or a profile with no ``when:``
+    predicates). Never raises: a failure here must not lose the captures that were
+    just saved, so the session simply keeps its state union.
+    """
+    try:
+        from .capture_store import flatten_session
+        from .pids import build_ecu_index, load_pids
+        from .state_infer import DEFAULT_CYCLE_TOL_S, session_state_spans
+        from .states import load_states
+
+        data = capture_io.load_capture_file(fpath)
+        sessions = data.get("sessions") or []
+        if not sessions:
+            return None
+        idx = session_idx if session_idx >= 0 else len(sessions) - 1
+        session = sessions[idx]
+        recorded = _parse_states(session.get("vehicle_states") or [])
+        if len(recorded) <= 1:
+            return None  # nothing temporal to disambiguate
+
+        rules = load_states()
+        if not any(r.predicate is not None for r in rules):
+            return None
+        entries = flatten_session(fpath, idx, session)
+        result = session_state_spans(
+            recorded,
+            [e for e in entries if e.get("payload")],
+            rules,
+            build_ecu_index(load_pids()),
+            cycle_tol=cycle_tol if cycle_tol is not None else DEFAULT_CYCLE_TOL_S,
+        )
+        if not result.is_timeline:
+            return None
+        from .build_info import full_version
+
+        set_session_state_spans(fpath, idx, result.spans, source="record", version=full_version())
+        return list(result.spans)
+    except Exception:
+        return None
 
 
 def delete_capture(fpath: Path, session_idx: int, capture_idx: int) -> bool:

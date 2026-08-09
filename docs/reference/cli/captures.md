@@ -35,7 +35,7 @@ options:
 
 ```
 usage: canair captures uds [-h] [--diff | --step]
-                           [--summary | --sessions | --latest | --recover | --delete | --backfill-states | --set-state STATES]
+                           [--summary | --sessions | --latest | --recover | --delete | --backfill-states | --backfill-state-spans | --set-state STATES]
                            [--discard] [--overwrite] [--cycle-tol SECONDS]
                            [--dry-run] [--yes] [--all] [--limit N] [--rulers]
                            [--notation NAME]
@@ -43,7 +43,7 @@ usage: canair captures uds [-h] [--diff | --step]
                            [--join-tol SECONDS] [--json] [--since WHEN]
                            [--until WHEN] [--date YYYY-MM-DD] [--today]
                            [--last-sessions [N]] [--last-session]
-                           [--state SUBSTR] [--label SUBSTR] [--dir DIR]
+                           [--state STATE] [--label SUBSTR] [--dir DIR]
                            [QUERY ...]
 
 Query captured UDS payloads.
@@ -77,6 +77,12 @@ options:
                         conflicts (never writes them unless --overwrite).
                         Previews with --dry-run; confirms unless --yes. Honors
                         the scope filters.
+  --backfill-state-spans
+                        Reconstruct WHEN each state held during a session (a
+                        state_spans timeline) so analysis resolves a capture's
+                        state at its own timestamp instead of the session-wide
+                        union. Only narrows states the evidence can place in
+                        time. Previews with --dry-run; confirms unless --yes.
   --set-state STATES    Manually set vehicle_states (comma-separated) on the
                         scope-selected sessions — for a state known from the
                         label but not inferable from the data (e.g. --set-
@@ -87,14 +93,17 @@ options:
                         saving them
   --overwrite           With --backfill-states: also rewrite sessions whose
                         recorded states conflict with / differ from the
-                        inferred states (default: fill empty only)
-  --cycle-tol SECONDS   With --backfill-states: max timestamp gap grouping
-                        captures into one pseudo-cycle for cross-ECU
-                        predicates (default 10s)
-  --dry-run             With --delete/--backfill-states/--set-state: preview
-                        the changes, write nothing
-  --yes, -y             With --delete/--backfill-states/--set-state: skip the
-                        confirmation prompt (scripting)
+                        inferred states (default: fill empty only). With
+                        --backfill-state-spans: also replace live-observed
+                        timelines
+  --cycle-tol SECONDS   With --backfill-states/--backfill-state-spans: max
+                        timestamp gap grouping captures into one pseudo-cycle
+                        for cross-ECU predicates (default 10s)
+  --dry-run             With --delete/--backfill-states/--backfill-state-
+                        spans/--set-state: preview the changes, write nothing
+  --yes, -y             With --delete/--backfill-states/--backfill-state-
+                        spans/--set-state: skip the confirmation prompt
+                        (scripting)
   --all, -a             For --diff/--step: use every payload instead of
                         unique-only
   --limit N, -L N       Default list view: show only the most recent N
@@ -123,7 +132,7 @@ options:
   --dir DIR             Captures directory (default: active profile)
 
 scoping:
-  Restrict to captures within a date/time range (inclusive) and/or by session state/label substring. --since/--until accept a date (YYYY-MM-DD) or a timestamp (YYYY-MM-DD HH:MM[:SS[.ffffff]])
+  Restrict to captures within a date/time range (inclusive) and/or by session state (token-matched) or label substring. --since/--until accept a date (YYYY-MM-DD) or a timestamp (YYYY-MM-DD HH:MM[:SS[.ffffff]])
 
   --since WHEN          Only captures on or after this date/time (YYYY-MM-DD[
                         HH:MM:SS])
@@ -137,8 +146,12 @@ scoping:
                         defaults to 1)
   --last-session        Only the most recent recorded session in scope (alias
                         for --last-sessions 1)
-  --state SUBSTR        Only captures whose session vehicle_states contain
-                        SUBSTR (case-insensitive), e.g. --state driving
+  --state STATE         Only captures recorded in STATE, matched by token and
+                        widened by the profile's implies: hierarchy (--state
+                        ready also matches DRIVING). Comma-separate
+                        alternatives (--state ready,driving); repeat the flag
+                        to require several at once (--state charging --state
+                        parked)
   --label SUBSTR        Only captures whose session/capture label contains
                         SUBSTR (case-insensitive)
 
@@ -195,7 +208,7 @@ Date scoping (inclusive, YYYY-MM-DD; combines with any mode):
   --until DATE          captures on or before DATE
   --date DATE           captures on DATE only (--since DATE --until DATE)
 
-State/label scoping (case-insensitive substring; combines with any mode):
+State/label scoping (state by token, label by substring; combines with any mode):
   --state SUBSTR        only sessions whose vehicle_states contain SUBSTR (e.g. driving)
   --label SUBSTR        only sessions/captures whose label contains SUBSTR
 

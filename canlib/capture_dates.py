@@ -3,7 +3,8 @@
 
 Both ``canair captures`` and ``canair decode`` load capture entries and let the
 user narrow them by session date (``--since``/``--until``/``--date``) and by a
-substring of the session ``state`` or ``label``. The parsing/filtering logic is
+session ``state`` (matched by token, widened by ``implies:``) or a substring
+of its ``label``. The parsing/filtering logic is
 identical, so it lives here and is imported by both to keep their scoping surface
 consistent.
 
@@ -12,7 +13,8 @@ and (for captures) ``session_label`` keys, so any capture-shaped dict works.
 """
 
 import argparse
-from collections.abc import Mapping
+import sys
+from collections.abc import Mapping, Sequence
 from datetime import date, datetime, time
 from pathlib import Path
 from typing import Any
@@ -248,26 +250,33 @@ def filter_by_date_range[Row: Mapping[str, Any]](
 
 
 def filter_by_text[Row: Mapping[str, Any]](
-    entries: list[Row], state: str | None = None, label: str | None = None
+    entries: list[Row],
+    state: str | Sequence[str] | None = None,
+    label: str | None = None,
 ) -> list[Row]:
-    """Keep entries whose session ``vehicle_states``/``label`` match the substrings.
+    """Keep entries whose ``vehicle_states``/``label`` match the selector.
 
-    Matching is case-insensitive and substring-based against the joined
-    ``vehicle_states`` list (the natural unit of drive analysis, e.g. a session
-    tagged ``[driving]``). ``label`` is matched against both the session label
-    (stored as ``session_label`` by ``captures`` and ``label`` by ``decode``)
-    and any per-capture ``label``. Both filters are ANDed; ``None`` means "don't
-    filter on this field".
+    ``state`` is matched by *token* against the capture's resolved
+    ``vehicle_states``, expanded through the profile's ``implies:`` hierarchy —
+    see :func:`states.state_matcher` for the alternative/conjunctive grammar. It
+    reads the per-capture value that ``capture_store`` resolved from the
+    session's ``state_spans``, so a session that charged and then drove no longer
+    returns its driving captures under ``--state CHARGING``.
+
+    ``label`` stays a case-insensitive substring, matched against both the
+    session label (stored as ``session_label`` by ``captures`` and ``label`` by
+    ``decode``) and any per-capture ``label``. Both filters are ANDed; ``None``
+    means "don't filter on this field".
     """
-    from .states import join_states
+    from .states import state_matcher
 
     if not state and not label:
         return entries
-    s_needle = state.lower() if state else None
+    matches_state = state_matcher(state) if state else None
     l_needle = label.lower() if label else None
     out = []
     for e in entries:
-        if s_needle is not None and s_needle not in join_states(e.get("vehicle_states")).lower():
+        if matches_state is not None and not matches_state(e.get("vehicle_states")):
             continue
         if l_needle is not None:
             haystack = f"{e.get('session_label', '')} {e.get('label', '')}".lower()
@@ -313,7 +322,7 @@ def add_scope_args(parser: argparse.ArgumentParser) -> None:
     date_group = parser.add_argument_group(
         "scoping",
         "Restrict to captures within a date/time range (inclusive) and/or by "
-        "session state/label substring. --since/--until accept a date "
+        "session state (token-matched) or label substring. --since/--until accept a date "
         "(YYYY-MM-DD) or a timestamp (YYYY-MM-DD HH:MM[:SS[.ffffff]])",
     )
     date_group.add_argument(
@@ -358,9 +367,12 @@ def add_scope_args(parser: argparse.ArgumentParser) -> None:
     )
     date_group.add_argument(
         "--state",
-        metavar="SUBSTR",
-        help="Only captures whose session vehicle_states contain SUBSTR "
-        "(case-insensitive), e.g. --state driving",
+        action="append",
+        metavar="STATE",
+        help="Only captures recorded in STATE, matched by token and widened by the "
+        "profile's implies: hierarchy (--state ready also matches DRIVING). "
+        "Comma-separate alternatives (--state ready,driving); repeat the flag to "
+        "require several at once (--state charging --state parked)",
     )
     date_group.add_argument(
         "--label",
@@ -401,7 +413,7 @@ def resolve_date_bounds(
 def _session_starts(
     since: date | datetime | None,
     until: date | datetime | None,
-    state: str | None,
+    state: str | Sequence[str] | None,
     label: str | None,
     captures_dir: Path | None = None,
 ) -> list[datetime]:
@@ -440,15 +452,31 @@ def resolve_scope_bounds(
     number of most-recent sessions (within any date/state/label scope) is turned
     into an effective ``since`` cutoff — the start of the Nth-from-last session —
     so every capture-consuming command inherits the behavior through its existing
-    ``since`` plumbing. ``--last-sessions`` is applied *after* the date/state/label
+    ``since`` plumbing.     ``--last-sessions`` is applied *after* the date/state/label
     scope, so ``--state driving --last-session`` means "the last driving session".
+
+    Also emits a non-fatal stderr note for a ``--state`` token outside the
+    profile's vocabulary. Since matching is by token, a typo can only ever match
+    nothing, and silently returning an empty result reads as "no such captures"
+    rather than "no such state". Every capture-consuming command routes its scope
+    through here, so the note lands once for all of them.
     """
     since, until, err = resolve_date_bounds(args)
     if err:
         return since, until, err
+    state = getattr(args, "state", None)
+    if state:
+        from .states import allowed_states, unknown_state_tokens
+
+        unknown = unknown_state_tokens(state)
+        if unknown:
+            print(
+                f"  note: --state {', '.join(unknown)} not in this profile's state "
+                f"vocabulary ({', '.join(sorted(allowed_states()))}) — nothing can match.",
+                file=sys.stderr,
+            )
     n = getattr(args, "last_sessions", None)
     if n:
-        state = getattr(args, "state", None)
         label = getattr(args, "label", None)
         starts = _session_starts(since, until, state, label, captures_dir)
         if starts:

@@ -32,7 +32,12 @@ build provenance (:mod:`canlib.build_info`), and computes whether the tool copy 
 from __future__ import annotations
 
 import os
+from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .profile import BundleMember
 
 # --- Locations -------------------------------------------------------------
 
@@ -69,6 +74,48 @@ def uv_tool_site_packages() -> Path | None:
     for candidate in sorted(root.glob("lib/python*/site-packages")):
         if (candidate / "canlib").is_dir():
             return candidate
+    return None
+
+
+def uv_receipt_directory() -> Path | None:
+    """The source directory uv's tool receipt records for ``uv tool install .``."""
+    receipt = uv_tools_root() / "uv-receipt.toml"
+    try:
+        import tomllib
+
+        parsed = tomllib.loads(receipt.read_text())
+    except (OSError, ValueError, ModuleNotFoundError):
+        return None
+    for req in parsed.get("tool", {}).get("requirements", []):
+        directory = req.get("directory") if isinstance(req, dict) else None
+        if directory:
+            return Path(directory)
+    return None
+
+
+def source_clone() -> Path | None:
+    """Locate the source git clone canair was installed from.
+
+    Preference order:
+      1. uv's tool receipt (``~/.local/share/uv/tools/canair/uv-receipt.toml``),
+         which records the ``directory`` a ``uv tool install .`` came from.
+      2. The package's own repo root (``canlib.constants.SCRIPT_DIR``), covering
+         editable / ``uv run`` dev checkouts.
+    Returns the first that is an existing git working tree, else ``None``.
+    """
+    candidates: list[Path] = []
+    receipt = uv_receipt_directory()
+    if receipt is not None:
+        candidates.append(receipt)
+    try:
+        from .constants import SCRIPT_DIR
+
+        candidates.append(Path(SCRIPT_DIR))
+    except Exception:
+        pass
+    for path in candidates:
+        if (path / ".git").exists():
+            return path
     return None
 
 
@@ -164,6 +211,141 @@ def bundled_profiles_are_snapshot() -> bool:
     picked up.
     """
     return running_origin() == "uv-tool"
+
+
+# --- Write targets ---------------------------------------------------------
+
+
+def installed_snapshot_kind(path: Path) -> str | None:
+    """Name the install kind if ``path`` lives in a package snapshot, else None.
+
+    A bare ``canair`` (a ``uv tool`` / ``pipx`` / ``pip`` install) resolves the
+    active profile from the package copy in ``site-packages`` — a **frozen
+    snapshot** taken at install time. Writes to it appear to succeed and are
+    destroyed by the next reinstall; and because the snapshot can be arbitrarily
+    behind the working checkout (while simultaneously *ahead* on captures written
+    by bare ``--save`` runs), contributing from it silently reverts upstream work.
+
+    Returns e.g. ``"uv tool"`` / ``"pipx"`` / ``"installed package"``, or ``None``
+    for a profile in a normal writable location.
+    """
+    try:
+        parts = path.resolve().parts
+    except OSError:
+        parts = path.parts
+    if not ({"site-packages", "dist-packages"} & set(parts)):
+        return None
+    if "uv" in parts and "tools" in parts:
+        return "uv tool"
+    if "pipx" in parts:
+        return "pipx"
+    return "installed package"
+
+
+def snapshot_write_note(path: Path) -> str | None:
+    """Warn that ``path`` is inside an install snapshot, and name the one fix.
+
+    Every command that writes into a profile calls this on the file it just wrote
+    (``canlib.captures.saved_banner``, the definition editors' confirmations), so
+    the warning appears where the data actually landed rather than only at
+    contribution time. ``None`` when the path is in a writable location, so a
+    caller can simply skip a falsy note.
+
+    The remedy is the one this process can verify: if the source clone is
+    locatable, pointing the profile search path at it keeps the data inside a
+    checkout that survives a reinstall (and can be contributed from). Otherwise
+    the profile has to be copied somewhere writable. Plain, non-scolding wording:
+    where the data went, why that is a dead end, then the single command.
+    """
+    kind = installed_snapshot_kind(path)
+    if kind is None:
+        return None
+    lines = [
+        f"warning: this wrote into the {kind} install snapshot, outside any checkout:",
+        f"  {path}",
+        "  A reinstall (canair update, uv tool install --reinstall) replaces that",
+        "  directory, taking this data with it. Fix it once:",
+    ]
+    clone = source_clone()
+    if clone is not None:
+        lines.append(f"    canair config set profiles_dir {clone / 'profiles'}")
+    else:
+        lines.append("    canair profile adopt <name>    # copy it to ~/.config/canair/profiles/")
+    return "\n".join(lines)
+
+
+@dataclass(frozen=True)
+class SnapshotRisk:
+    """Profile data in the install snapshot that a reinstall would destroy.
+
+    ``missing`` files exist only in the snapshot (captures written by a bare
+    ``canair … --save``, ECUs registered by a bare ``discover --register``);
+    ``differing`` ones exist in both but were edited in the snapshot. Paths are
+    relative to the profile root so they read as ``captures/2026-08-05.json``.
+    """
+
+    name: str
+    root: Path
+    missing: list[Path]
+    differing: list[Path]
+
+    @property
+    def files(self) -> list[Path]:
+        return sorted(self.missing + self.differing)
+
+
+def snapshot_profile_risks(clone: Path | None) -> list[SnapshotRisk]:
+    """Profile data that would be lost by reinstalling over the bundled snapshot.
+
+    A reinstall replaces the whole package directory, so anything written into a
+    snapshot profile is gone. The wheel is built from the clone, which makes the
+    clone's ``profiles/`` the right reference for "would this file come back?" —
+    a snapshot file absent there (or differing from it) is unrecoverable.
+
+    Returns an empty list when the bundled profiles are not a snapshot (a dev
+    checkout, where the profiles *are* the clone) or when there is no clone to
+    compare against — the caller cannot make a claim it can't substantiate.
+    """
+    from .profile import BUNDLE_MEMBERS, BUNDLED_PROFILES_DIR, discover_profiles
+
+    if clone is None or not installed_snapshot_kind(BUNDLED_PROFILES_DIR):
+        return []
+
+    reference = clone / "profiles"
+    tracked = [m for m in BUNDLE_MEMBERS if m.role != "generated"]
+    risks: list[SnapshotRisk] = []
+    for name, root in sorted(discover_profiles(BUNDLED_PROFILES_DIR).items()):
+        missing: list[Path] = []
+        differing: list[Path] = []
+        for member in tracked:
+            for path in _member_files(root, member):
+                rel = path.relative_to(root)
+                other = reference / name / rel
+                if not other.is_file():
+                    missing.append(rel)
+                elif not _same_bytes(path, other):
+                    differing.append(rel)
+        if missing or differing:
+            risks.append(SnapshotRisk(name, root, sorted(missing), sorted(differing)))
+    return risks
+
+
+def _member_files(root: Path, member: BundleMember) -> list[Path]:
+    """Every file a bundle member contributes, honouring its aliases."""
+    for candidate in (member.name, *member.aliases):
+        target = root / candidate
+        if member.kind == "dir" and target.is_dir():
+            return [p for p in sorted(target.rglob("*")) if p.is_file()]
+        if member.kind != "dir" and target.is_file():
+            return [target]
+    return []
+
+
+def _same_bytes(a: Path, b: Path) -> bool:
+    try:
+        return a.read_bytes() == b.read_bytes()
+    except OSError:
+        return False
 
 
 def describe(clone: Path | None) -> dict:

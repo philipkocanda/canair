@@ -342,14 +342,21 @@ def build_bit_series(
 # ---------------------------------------------------------------------------
 # State discrimination (F-like separation of a signal across power states)
 # ---------------------------------------------------------------------------
-def discriminability(groups: dict[str, list[float]]) -> float | None:
+def discriminability(groups: dict[str, list[float]], *, min_group_n: int = 2) -> float | None:
     """F-like score: between-group variance / within-group (pooled) variance.
 
     High when a signal is nearly constant within each state but differs across
     states (a mode/thermal/relay signal). ``None`` when undefined (too few
     groups/points).
+
+    ``min_group_n`` is the sample floor a group must clear to take part. The
+    default 2 is the statistical minimum (a single sample has no within-group
+    variance to pool), but a group sitting *at* the floor can manufacture a
+    perfect separation: two identical samples in their own bucket contribute zero
+    within-group spread, so ``msw`` collapses to 0 and the byte is ranked as an
+    infinitely good discriminator. Raise the floor to demand real evidence.
     """
-    pops = [vals for vals in groups.values() if len(vals) >= 2]
+    pops = [vals for vals in groups.values() if len(vals) >= max(2, min_group_n)]
     if len(pops) < 2:
         return None
     all_vals = [v for vals in pops for v in vals]
@@ -364,9 +371,15 @@ def discriminability(groups: dict[str, list[float]]) -> float | None:
     msb = between / df_between
     msw = within / df_within
     if msw == 0:
-        # Perfect separation with zero within-group spread: rank very high but
-        # finite ordering falls back to between-group spread.
-        return float("inf") if msb > 0 else None
+        # Every group internally constant. Genuine perfect separation is possible,
+        # but so is an artifact of thin buckets, and `inf` outranks every measured
+        # byte either way. Score it on between-group spread relative to the pooled
+        # scale instead, so a real 0/1 relay still ranks high while a two-sample
+        # singleton cannot beat it on a technicality.
+        if msb <= 0:
+            return None
+        scale = (sum((v - grand) ** 2 for v in all_vals) / n) or 1.0
+        return msb / scale * n
     return msb / msw
 
 
@@ -394,7 +407,18 @@ def byte_state_buckets(
     skipped. Defaults to the session vehicle-state key.
     """
     from .byteindex import payload_to_wican_bytes, wican_to_isotp
-    from .states import join_states
+    from .states import load_states, state_bucket_key
+
+    rules = load_states() if group_of is None else []
+    key_cache: dict[tuple[str, ...], str] = {}
+
+    def _state_key(cap: dict) -> str:
+        raw = tuple(str(s).upper() for s in cap.get("vehicle_states") or [])
+        hit = key_cache.get(raw)
+        if hit is None:
+            hit = state_bucket_key(raw, rules)
+            key_cache[raw] = hit
+        return hit
 
     frames: list[tuple[bytes, str]] = []
     max_len = 0
@@ -412,7 +436,7 @@ def byte_state_buckets(
             if grp is None:
                 continue
         else:
-            grp = join_states(cap.get("vehicle_states")) or "(no state)"
+            grp = _state_key(cap)
         frames.append((fr, grp))
         max_len = max(max_len, len(fr))
 
@@ -709,7 +733,7 @@ def load_ref(
     *,
     since: date | datetime | None = None,
     until: date | datetime | None = None,
-    state: str | None = None,
+    state: str | Sequence[str] | None = None,
     label: str | None = None,
     fill: FillPolicy | None = None,
 ) -> tuple[list[TimePoint], str]:

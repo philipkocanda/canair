@@ -45186,7 +45186,34 @@
         "PLUGGED",
         "PARKED"
       ],
-      "notes": "Charging wind-down: BMS current ~-10.8A until 13:28:16, then tapered to ~0.4A (charge stopped). Labelled charging for the whole segment (started charging); tail is idle. Back-filled after the span-aware state fix."
+      "notes": "Charging wind-down: BMS current ~-10.8A until 13:28:16, then tapered to ~0.4A (charge stopped). Labelled charging for the whole segment (started charging); tail is idle. Back-filled after the span-aware state fix.",
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {
+            "at": "13:27:33.952",
+            "states": [
+              "CHARGING",
+              "PLUGGED",
+              "PARKED"
+            ]
+          },
+          {
+            "at": "13:28:44.846",
+            "states": [
+              "PLUGGED",
+              "PARKED"
+            ]
+          },
+          {
+            "at": "13:29:05.856",
+            "states": [
+              "PARKED"
+            ]
+          }
+        ],
+        "version": "1.17.0+main.4178d4a.dirty"
+      }
     }
   ]
 }

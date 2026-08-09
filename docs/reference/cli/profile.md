@@ -5,7 +5,8 @@
 *Alias: `prof`*
 
 ```
-usage: canair profile [-h] {list,show,path,use,create,init,new} ...
+usage: canair profile [-h]
+                      {list,show,path,use,create,init,new,adopt,overlay} ...
 
 List, inspect, and create vehicle profiles — the per-vehicle
 bundles that hold all the reverse-engineering data. `show` lists every
@@ -17,6 +18,8 @@ Subcommands:
   path [NAME]     print a profile's root directory (handy for scripting)
   use NAME        set NAME as the default profile (default_profile in config)
   create NAME     scaffold a new empty profile bundle
+  adopt NAME      copy a read-only profile to ~/.config/canair/profiles/ to write to it
+  overlay NAME    record your own captures over a read-only profile's definitions
 
 A bare `canair profile` opens an interactive arrow-key picker on a TTY (choose
 the default profile); piped/non-interactive it prints the list. Select the
@@ -24,13 +27,17 @@ active profile with the global --profile flag, CANAIR_PROFILE, or
 default_profile in config (set the last with `canair profile use NAME`).
 
 positional arguments:
-  {list,show,path,use,create,init,new}
+  {list,show,path,use,create,init,new,adopt,overlay}
     list                List discovered profiles
     show                Show details of a profile (default: active)
     path                Print the root directory of a profile
     use                 Set the default profile (default_profile in the user
                         config)
     create (init, new)  Scaffold a new empty profile
+    adopt               Copy a profile to ~/.config/canair/profiles/ so you
+                        can write to it
+    overlay             Record into your own captures/ while definitions stay
+                        with the base profile
 
 options:
   -h, --help            show this help message and exit
@@ -43,6 +50,8 @@ examples:
   canair profile use ioniq-2017               # set the default profile
   canair profile create ev6 --car-model "Kia EV6 2022"
   canair profile create ev6 --car-model "Kia EV6 2022" --set-default
+  canair profile adopt ioniq-2017              # writable copy under ~/.config/canair
+  canair profile overlay ioniq-2017            # keep its definitions, record your own captures
 ```
 
 ## `canair profile list`
@@ -114,4 +123,48 @@ options:
                         ~/.config/canair/profiles/<name>
   --set-default         Set this profile as default_profile in the user config
   --force               Allow a non-empty target directory
+```
+
+## `canair profile adopt`
+
+```
+usage: canair profile adopt [-h] [--set-default] [--force] name
+
+Copy a discovered profile into ~/.config/canair/profiles/<name>, where it
+shadows the original by name and is writable. Use it when the profile you are
+reading is read-only or lives in an install snapshot (site-packages), whose
+contents a reinstall replaces. Generated out/ is not copied — regenerate it
+with `canair wican autopid write`.
+
+positional arguments:
+  name           Name of the discovered profile to copy
+
+options:
+  -h, --help     show this help message and exit
+  --set-default  Set this profile as default_profile in the user config
+  --force        Overwrite an existing user copy of this profile
+
+Working on a repo-bundled profile you intend to contribute back? Point canair
+at the checkout instead — `canair config set profiles_dir <clone>/profiles` —
+so your edits stay in git.
+```
+
+## `canair profile overlay`
+
+```
+usage: canair profile overlay [-h] [--set-default] name
+
+Create a capture layer over a discovered profile: a bundle at
+~/.config/canair/profiles/<name>/ holding an `extends:` marker and an empty
+captures/. Nothing is copied, so the base profile's definitions keep resolving
+(and keep tracking upstream) while every capture you record lands in your
+layer. Analysis reads both layers; the base layer's captures are read-only.
+Use `adopt` instead when you need to edit definitions too.
+
+positional arguments:
+  name           Name of the discovered profile to layer onto
+
+options:
+  -h, --help     show this help message and exit
+  --set-default  Set this profile as default_profile in the user config
 ```

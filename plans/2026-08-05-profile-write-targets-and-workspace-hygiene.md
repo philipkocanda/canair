@@ -1,9 +1,28 @@
 # Profile write targets & contribution-workspace hygiene
 
-Status: **NOT STARTED** — investigated and designed 2026-08-05; every claim below
-is backed by evidence gathered from this machine and from the second machine
-(`ssh agent`). Phase A is approved for implementation; Phase B is approved as a
-design to write up here and implement after a review round.
+Status: **DONE** (2026-08-09) — §A1–§A4 and Phase B are implemented and tested.
+Investigated and designed 2026-08-05; every claim below is backed by evidence
+gathered from this machine and from the second machine (`ssh agent`).
+
+Phase A landed as: `canlib/contribute.py::is_managed_workspace`/`reset_workspace`/
+`local_changes`/`find_open_pr` (§A1, §A3); `canlib/install_context.py::snapshot_write_note`/
+`source_clone`/`snapshot_profile_risks` (§A2a, §A2f); `canlib/profile_create.py::adopt_profile`
+behind `canair profile adopt` (§A2b); the snapshot note on `captures.saved_banner` (§A2c);
+`canlib/commands/_edit_echo.py::echo_edit` plus the `CaptureEntry._path` locator and
+`capture_store.entry_path` (§A2d); `first_run._offer_adopt_if_snapshot` (§A2e).
+
+Phase B landed as: `Profile.overlays`/`layered`/`write_root`/`capture_layers` with
+`profile_layers`/`extends_target`/`require_writable_definitions` in
+`canlib/profile.py`; `canlib/capture_io.py::resolve_capture_layers` and a
+layer-aware `capture_store.load_all_captures` (deduping by the now-public
+`captures_merge.session_key`); `canlib/commands/captures/layers.py` enforcing the
+read-only base in `--delete`/`--set-state`/`--backfill-states` and the `--step`
+TUI; `canlib/profile_create.py::overlay_profile` behind `canair profile overlay`;
+layer walks in `commands/validate/captures.py` and `commands/coverage.py`; and the
+definition-edit refusal wired into `pids`/`states`/`groups`/`signals`/`ecu add`.
+Definitions still do **not** overlay — that needs
+`plans/2026-07-30-profile-variant-inheritance.md`, whose `extends:` key this
+deliberately reuses.
 
 Direct follow-up to `plans/2026-08-05-contribute-workspace-self-collision.md`
 (the capture-overlay + self-collision fixes, landed in `6393566`/`85b4985`). That

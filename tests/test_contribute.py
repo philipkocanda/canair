@@ -321,27 +321,6 @@ class TestCopyProfile:
         assert (dest / "signals" / "p-can.yaml").exists()
 
 
-class TestInstalledSnapshotKind:
-    def test_working_checkout_is_none(self, tmp_path):
-        assert (
-            C.installed_snapshot_kind(tmp_path / "projects" / "canair" / "profiles" / "x") is None
-        )
-
-    def test_uv_tool_snapshot(self):
-        from pathlib import Path
-
-        p = Path(
-            "/home/u/.local/share/uv/tools/canair/lib/python3.12/site-packages/profiles/ioniq-2017"
-        )
-        assert C.installed_snapshot_kind(p) == "uv tool"
-
-    def test_generic_site_packages(self):
-        from pathlib import Path
-
-        p = Path("/usr/lib/python3.12/site-packages/profiles/ioniq-2017")
-        assert C.installed_snapshot_kind(p) == "installed package"
-
-
 class TestCopyProfileCapturesUnion:
     def test_union_keeps_upstream_sessions_a_behind_source_lacks(self, tmp_path):
         # Upstream has a session the (behind) source doesn't; the contribution
@@ -511,10 +490,7 @@ class TestCopyProfileSelfPath:
 class TestDefinitionRollback:
     def _repo_with_committed_ecu(self, tmp_path, ecu_text):
         ws = tmp_path / "ws"
-        ws.mkdir()
-        _git(ws, "init", "-b", "main")
-        _git(ws, "config", "user.email", "t@example.com")
-        _git(ws, "config", "user.name", "T")
+        _init_repo(ws)
         d = ws / "profiles" / "testcar" / "ecus"
         d.mkdir(parents=True)
         (d / "bms.yaml").write_text(ecu_text)
@@ -542,19 +518,112 @@ class TestDiffProfile:
         # A real throwaway repo: copy a profile in, then diff should include the
         # freshly-copied (untracked) files as additions.
         ws = tmp_path / "ws"
-        ws.mkdir()
-        _git(ws, "init", "-b", "main")
-        _git(ws, "config", "user.email", "t@example.com")
-        _git(ws, "config", "user.name", "T")
-        (ws / "README.md").write_text("seed\n")
-        _git(ws, "add", "README.md")
-        _git(ws, "commit", "-m", "seed")
+        _seed_repo(ws)
 
         prof = _make_profile(tmp_path / "prof")
         C.copy_profile(prof, ws, include_captures=False)
         diff = C.diff_profile(_ready(), ws, prof.name)
         assert "profiles/testcar/ecus/bms.yaml" in diff
         assert "car_model: Test EV 2022" in diff
+
+
+class TestIsManagedWorkspace:
+    """Only canair's own throwaway clone may be reset; a user checkout never is."""
+
+    def test_the_managed_clone_is_recognized(self, tmp_path, monkeypatch):
+        managed = tmp_path / "contribute" / "canair"
+        monkeypatch.setattr(C, "workspace_dir", lambda: managed)
+        assert C.is_managed_workspace(managed)
+        # Paths are compared resolved, so an equivalent spelling still matches.
+        assert C.is_managed_workspace(managed / ".." / "canair")
+
+    def test_a_user_repo_dir_is_not_managed(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(C, "workspace_dir", lambda: tmp_path / "contribute" / "canair")
+        assert not C.is_managed_workspace(tmp_path / "my" / "canair")
+
+
+def _seed_profile_repo(ws, *, body="one\n"):
+    """A repo whose ``main`` already carries a committed profile capture file."""
+    _init_repo(ws)
+    caps = ws / "profiles" / "testcar" / "captures"
+    caps.mkdir(parents=True)
+    (caps / "2026-08-05.json").write_text(body)
+    _git(ws, "add", "-A")
+    _git(ws, "commit", "-m", "seed profile")
+    return caps / "2026-08-05.json"
+
+
+class TestResetWorkspace:
+    def test_discards_tracked_and_untracked_leftovers(self, tmp_path):
+        ws = tmp_path / "ws"
+        tracked = _seed_profile_repo(ws)
+        _git(ws, "checkout", "-B", "contribute/testcar-20260805", "main")
+        tracked.write_text("re-sorted by a later canair version\n")
+        stale = tracked.parent / "2026-08-03.json"
+        stale.write_text("left behind by an earlier --diff run\n")
+
+        steps = C.reset_workspace(_ready(), ws)
+
+        assert all(s.ok for s in steps)
+        assert tracked.read_text() == "one\n"
+        assert not stale.exists()
+
+    def test_checkout_b_alone_leaves_the_stale_file(self, tmp_path):
+        # Pins the failure mode reset_workspace exists for: `checkout -B` only
+        # overwrites paths that differ between the old HEAD and the new base, so
+        # a leftover from a previous run rides along into the next commit.
+        ws = tmp_path / "ws"
+        tracked = _seed_profile_repo(ws)
+        _git(ws, "checkout", "-B", "contribute/testcar-20260805", "main")
+        tracked.write_text("stale\n")
+
+        _git(ws, "checkout", "-B", "contribute/testcar-20260806", "main")
+
+        assert tracked.read_text() == "stale\n"
+
+
+class TestLocalChanges:
+    def test_reports_only_changes_under_the_profile(self, tmp_path):
+        ws = tmp_path / "ws"
+        tracked = _seed_profile_repo(ws)
+        assert C.local_changes(_ready(), ws, "testcar") == []
+
+        (ws / "README.md").write_text("unrelated\n")
+        assert C.local_changes(_ready(), ws, "testcar") == []
+
+        tracked.write_text("edited\n")
+        entries = C.local_changes(_ready(), ws, "testcar")
+        assert len(entries) == 1
+        assert "profiles/testcar/captures/2026-08-05.json" in entries[0]
+
+
+class TestFindOpenPr:
+    def test_finds_the_pr_for_the_plain_branch_name(self, monkeypatch):
+        seen: list[list[str]] = []
+
+        def responder(args):
+            seen.append(args)
+            return 0, '[{"number": 7, "url": "https://github.com/x/canair/pull/7"}]', ""
+
+        monkeypatch.setattr(C, "_run", FakeRunner(responder))
+        found = C.find_open_pr(_ready(), "contribute/testcar-20260805")
+
+        assert found == (7, "https://github.com/x/canair/pull/7")
+        args = seen[0]
+        # `gh pr list` filters on the head *ref* — an owner-qualified head (what
+        # `pr_head` builds for `pr create`) matches nothing here.
+        assert args[args.index("--head") + 1] == "contribute/testcar-20260805"
+        assert args[args.index("--state") + 1] == "open"
+
+    def test_no_open_pr_is_none(self, monkeypatch):
+        monkeypatch.setattr(C, "_run", FakeRunner(lambda args: (0, "[]", "")))
+        assert C.find_open_pr(_ready(), "contribute/testcar-20260805") is None
+
+    def test_a_failed_or_unparsable_lookup_is_none(self, monkeypatch):
+        monkeypatch.setattr(C, "_run", FakeRunner(lambda args: (1, "", "gh: not logged in")))
+        assert C.find_open_pr(_ready(), "b") is None
+        monkeypatch.setattr(C, "_run", FakeRunner(lambda args: (0, "not json", "")))
+        assert C.find_open_pr(_ready(), "b") is None
 
 
 # --- command-level -----------------------------------------------------------
@@ -587,6 +656,22 @@ def _git(repo, *args):
     subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True)
 
 
+def _init_repo(ws):
+    """An empty git repo with a committer identity, ready to be seeded."""
+    ws.mkdir(parents=True, exist_ok=True)
+    _git(ws, "init", "-b", "main")
+    _git(ws, "config", "user.email", "t@example.com")
+    _git(ws, "config", "user.name", "T")
+
+
+def _seed_repo(ws):
+    """A repo with one unrelated commit on ``main`` — a plausible upstream clone."""
+    _init_repo(ws)
+    (ws / "README.md").write_text("seed\n")
+    _git(ws, "add", "README.md")
+    _git(ws, "commit", "-m", "seed")
+
+
 class TestContributeCommand:
     def test_gh_missing_reports_cannot(self, tmp_path, monkeypatch):
         prof = _make_profile(tmp_path / "prof")
@@ -601,13 +686,7 @@ class TestContributeCommand:
     def test_dry_run_prepares_commit(self, tmp_path, monkeypatch, capsys):
         # Real throwaway upstream-less repo used as the workspace.
         ws = tmp_path / "ws"
-        ws.mkdir()
-        _git(ws, "init", "-b", "main")
-        _git(ws, "config", "user.email", "t@example.com")
-        _git(ws, "config", "user.name", "T")
-        (ws / "README.md").write_text("seed\n")
-        _git(ws, "add", "README.md")
-        _git(ws, "commit", "-m", "seed")
+        _seed_repo(ws)
 
         prof = _make_profile(tmp_path / "prof")
         monkeypatch.setattr(cmd, "active", lambda: prof)
@@ -625,13 +704,7 @@ class TestContributeCommand:
 
     def test_pii_blocks_json_without_yes(self, tmp_path, monkeypatch):
         ws = tmp_path / "ws"
-        ws.mkdir()
-        _git(ws, "init", "-b", "main")
-        _git(ws, "config", "user.email", "t@example.com")
-        _git(ws, "config", "user.name", "T")
-        (ws / "README.md").write_text("seed\n")
-        _git(ws, "add", "README.md")
-        _git(ws, "commit", "-m", "seed")
+        _seed_repo(ws)
 
         root = tmp_path / "prof"
         prof = _make_profile(root)
@@ -642,20 +715,11 @@ class TestContributeCommand:
         rc = cmd.run(_cmd_args(repo_dir=str(ws), yes=False, json=True))
         assert rc == report.CANNOT
 
-    def _seed_repo(self, ws):
-        ws.mkdir()
-        _git(ws, "init", "-b", "main")
-        _git(ws, "config", "user.email", "t@example.com")
-        _git(ws, "config", "user.name", "T")
-        (ws / "README.md").write_text("seed\n")
-        _git(ws, "add", "README.md")
-        _git(ws, "commit", "-m", "seed")
-
     def test_diff_emits_diff_and_does_not_commit(self, tmp_path, monkeypatch, capsys):
         import json as _json
 
         ws = tmp_path / "ws"
-        self._seed_repo(ws)
+        _seed_repo(ws)
         prof = _make_profile(tmp_path / "prof")
         monkeypatch.setattr(cmd, "active", lambda: prof)
         monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
@@ -677,7 +741,7 @@ class TestContributeCommand:
         # Non-interactive (json) without --yes must not push; it aborts at the
         # push-confirmation gate rather than opening a PR.
         ws = tmp_path / "ws"
-        self._seed_repo(ws)
+        _seed_repo(ws)
         prof = _make_profile(tmp_path / "prof")
         monkeypatch.setattr(cmd, "active", lambda: prof)
         monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
@@ -701,10 +765,7 @@ class TestContributeCommand:
         # A source that removes committed upstream definition lines is refused
         # (json, no --yes) at the rollback gate.
         ws = tmp_path / "ws"
-        ws.mkdir()
-        _git(ws, "init", "-b", "main")
-        _git(ws, "config", "user.email", "t@example.com")
-        _git(ws, "config", "user.name", "T")
+        _init_repo(ws)
         d = ws / "profiles" / "testcar" / "ecus"
         d.mkdir(parents=True)
         (d / "bms.yaml").write_text("a\nb\nc\n")
@@ -772,7 +833,7 @@ class TestContributeCommand:
         import json as _json
 
         ws = tmp_path / "ws"
-        self._seed_repo(ws)
+        _seed_repo(ws)
         prof = _make_profile(tmp_path / "prof")
         monkeypatch.setattr(cmd, "active", lambda: prof)
         monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
@@ -803,4 +864,87 @@ class TestContributeCommand:
         assert payload["error"] == "gh not found"
         assert payload["profile"] == "testcar"
         assert payload["source"] == str(prof.root)
+
+
+class TestWorkspaceHygiene:
+    """The staging area is rebuilt every run; a user's own checkout never is."""
+
+    def test_managed_workspace_is_reset_before_the_copy(self, tmp_path, monkeypatch):
+        ws = tmp_path / "contribute" / "canair"
+        tracked = _seed_profile_repo(ws)
+        tracked.write_text("re-sorted leftover\n")
+        stale = tracked.parent / "2026-08-03.json"
+        stale.write_text("left behind by an earlier --diff run\n")
+
+        prof = _make_profile(tmp_path / "prof")
+        monkeypatch.setattr(cmd, "active", lambda: prof)
+        monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(C, "preflight", lambda: _ready())
+        monkeypatch.setattr(C, "workspace_dir", lambda: ws)
+
+        rc = cmd.run(_cmd_args(dry_run=True))
+
+        assert rc == report.OK
+        # Neither leftover reached the commit.
+        assert not stale.exists()
+        show = subprocess.run(
+            ["git", "-C", str(ws), "show", "--stat", "--oneline", "HEAD"],
+            capture_output=True,
+            text=True,
+        ).stdout
+        assert "2026-08-03.json" not in show
+        assert "2026-08-05.json" not in show
+
+    def test_dirty_user_repo_dir_warns_and_is_left_alone(self, tmp_path, monkeypatch, capsys):
+        import json as _json
+
+        ws = tmp_path / "ws"
+        tracked = _seed_profile_repo(ws)
+        tracked.write_text("my own uncommitted work\n")
+
+        prof = _make_profile(tmp_path / "prof")
+        monkeypatch.setattr(cmd, "active", lambda: prof)
+        monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(C, "preflight", lambda: _ready())
+
+        rc = cmd.run(_cmd_args(repo_dir=str(ws), yes=False, json=True))
+
+        assert rc == report.CANNOT
+        payload = _json.loads(capsys.readouterr().out)
+        assert payload["dirty_workspace"]
+        # A checkout canair does not own is never reset.
+        assert tracked.read_text() == "my own uncommitted work\n"
+
+
+class TestExistingPullRequest:
+    def test_a_second_run_reports_the_updated_pr(self, tmp_path, monkeypatch, capsys):
+        import json as _json
+
+        ws = tmp_path / "ws"
+        _seed_repo(ws)
+        prof = _make_profile(tmp_path / "prof")
+        monkeypatch.setattr(cmd, "active", lambda: prof)
+        monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(C, "preflight", lambda: _ready())
+        monkeypatch.setattr(
+            C,
+            "push_branch",
+            lambda *a, **k: C.Step(cmd=["push"], returncode=0, stdout="", stderr=""),
+        )
+        monkeypatch.setattr(
+            C, "find_open_pr", lambda pre, branch: (7, "https://github.com/x/canair/pull/7")
+        )
+
+        def no_create(*a, **k):
+            raise AssertionError("gh pr create must not run when a PR is already open")
+
+        monkeypatch.setattr(C, "create_pr", no_create)
+
+        rc = cmd.run(_cmd_args(repo_dir=str(ws), yes=True, json=True))
+
+        assert rc == report.OK
+        payload = _json.loads(capsys.readouterr().out)
+        assert payload["pr_number"] == 7
+        assert payload["pr_url"] == "https://github.com/x/canair/pull/7"
+        assert payload["pr_updated"] is True
         assert payload["branch"].startswith("contribute/testcar-")

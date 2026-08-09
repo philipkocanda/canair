@@ -11,6 +11,12 @@ Several predicates are true at once by design — driving a running EV matches b
 *specific* reading (``DRIVING implies [READY]``), so a live view that must name one
 state names the specific one. See :func:`canlib.states.most_specific_states`.
 
+Its complement is ``excludes:``, which declares that two states cannot hold at the
+same *instant* (``DRIVING excludes [PARKED]``). Together the two relations separate
+a genuine simultaneous reading from a session that merely *sequenced* through both
+— the latter needs a ``state_spans`` timeline for per-capture filtering to be
+exact. See :func:`canlib.states.contradictory_states`.
+
 A bare ``canair states`` lists the vocabulary (like ``canair bus``); the edit
 subcommands surgically modify ``vehicle_states.yaml`` (comment-preserving,
 re-validated, reverted on failure) so you never hand-edit it.
@@ -24,6 +30,7 @@ Examples:
   canair states set-predicate CHARGING "BMS.BATTERY_CURRENT < -1"
   canair states set-implies DRIVING READY         # DRIVING is the specific reading
   canair states set-implies DRIVING               # clear the hierarchy
+  canair states set-excludes DRIVING PARKED       # the two cannot co-occur
   canair states set-description ACC "Accessory power (ACC1)"
   canair states rename ACC2 IGN
   canair states rm PRECONDITION
@@ -37,6 +44,7 @@ import sys
 from typing import TypedDict
 
 from canlib import ansi
+from canlib.commands._edit_echo import echo_edit
 
 NAME = "states"
 
@@ -49,6 +57,7 @@ class StateRecord(TypedDict):
     description: str | None
     when: str | None
     implies: list[str]
+    excludes: list[str]
     uses: int
     broken: list[dict[str, str]]
 
@@ -101,6 +110,7 @@ def cmd_show_state(args) -> int:
         StatePredicateError,
         allowed_states,
         ecus_in_state,
+        exclusive_pairs,
         load_states,
     )
 
@@ -132,6 +142,10 @@ def cmd_show_state(args) -> int:
     matches = ecus_in_state(target, load_pids(), prof)
     implies = list(rule.implies) if rule else []
     specialized_by = [r.name for r in rules if target in r.implies]
+    # excludes: is symmetric, so a pair declared on either side is reported here.
+    excludes = sorted(
+        {s for a, b in exclusive_pairs(rules) if target in (a, b) for s in (a, b)} - {target}
+    )
 
     # Join CAN-bus segment(s) from the registry for context.
     ecus = load_ecus()
@@ -148,6 +162,7 @@ def cmd_show_state(args) -> int:
                 "when": (rule.expr or None) if rule else None,
                 "implies": implies,
                 "specialized_by": specialized_by,
+                "excludes": excludes,
                 "ecus": [
                     {
                         "name": m["name"],
@@ -177,6 +192,8 @@ def cmd_show_state(args) -> int:
         print(f"  {ansi.c('specializes: ' + ', '.join(implies), ansi.DIM)}")
     if specialized_by:
         print(f"  {ansi.c('specialized by: ' + ', '.join(specialized_by), ansi.DIM)}")
+    if excludes:
+        print(f"  {ansi.c('excludes: ' + ', '.join(excludes), ansi.DIM)}")
 
     if not matches:
         print(
@@ -252,6 +269,7 @@ def cmd_list(args) -> int:
             "description": r.description or None,
             "when": r.expr or None,
             "implies": list(r.implies),
+            "excludes": list(r.excludes),
             "uses": usage.get(r.name.upper(), 0),
             "broken": broken.get(r.name, []),
         }
@@ -305,6 +323,9 @@ def cmd_list(args) -> int:
         if r["implies"]:
             arrow = "specializes: " + ", ".join(r["implies"])
             print(f"  {'':<14} {'':>4}        {ansi.c(arrow, ansi.DIM)}")
+        if r["excludes"]:
+            excl = "excludes: " + ", ".join(r["excludes"])
+            print(f"  {'':<14} {'':>4}        {ansi.c(excl, ansi.DIM)}")
         if r["when"]:
             print(f"  {'':<14} {'':>4}        {ansi.c('when: ' + r['when'], ansi.DIM)}")
         for issue in r["broken"]:
@@ -317,6 +338,11 @@ def cmd_list(args) -> int:
         print(
             f"  {ansi.c('specializes: = this state is the more specific reading when both', ansi.DIM)}\n"
             f"  {ansi.c('    match, so the live view shows it instead of the broader one', ansi.DIM)}"
+        )
+    if any(r["excludes"] for r in records):
+        print(
+            f"  {ansi.c('excludes:    = the two cannot hold at one instant, so a session', ansi.DIM)}\n"
+            f"  {ansi.c('    tagged with both sequenced through them and needs a timeline', ansi.DIM)}"
         )
     if any(r["broken"] for r in records):
         print(
@@ -337,14 +363,16 @@ def cmd_list(args) -> int:
 
 
 def _run_edit(args, action) -> int:
+    from canlib.profile import require_writable_definitions
     from canlib.states import StatePredicateError
     from canlib.states_edit import StatesEditError
 
+    require_writable_definitions()
     try:
         path = action()
     except (StatesEditError, StatePredicateError) as e:
         raise SystemExit(f"{ansi.c('  Error: ' + str(e), ansi.RED)}") from None
-    print(f"{ansi.c('  ✓ ' + args._states_msg, ansi.GREEN)}  {ansi.c(f'({path.name})', ansi.DIM)}")
+    echo_edit(args._states_msg, path)
     return 0
 
 
@@ -381,7 +409,11 @@ def cmd_add(args) -> int:
     rc = _run_edit(
         args,
         lambda: add_state(
-            args.name, description=args.description, when=args.when, implies=args.implies
+            args.name,
+            description=args.description,
+            when=args.when,
+            implies=args.implies,
+            excludes=args.excludes,
         ),
     )
     _warn_unresolved_refs(args.name.upper(), args.when)
@@ -432,12 +464,20 @@ def cmd_set_implies(args) -> int:
     return _run_edit(args, lambda: set_state_field(args.name, "implies", args.value or None))
 
 
+def cmd_set_excludes(args) -> int:
+    from canlib.states_edit import set_state_field
+
+    verb = "cleared" if not args.value else "set"
+    args._states_msg = f"{verb} excludes: on {args.name.upper()}"
+    return _run_edit(args, lambda: set_state_field(args.name, "excludes", args.value or None))
+
+
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
         help="List and edit the profile's vehicle-state vocabulary (vehicle_states.yaml)",
         description="List the active profile's vehicle operating states, or edit the "
-        "vocabulary (add/rm/rename/set-description/set-predicate/set-implies). Read-only "
+        "vocabulary (add/rm/rename/set-description/set-predicate/set-implies/set-excludes). Read-only "
         "companion of the state auto-suggestion used when recording captures.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__.split("Examples:")[1] if "Examples:" in __doc__ else "",
@@ -464,6 +504,13 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         metavar="STATES",
         help="Comma-separated broader states this one specializes (e.g. READY) — when both "
         "match, the live view shows this one",
+    )
+    add.add_argument(
+        "--excludes",
+        "-x",
+        metavar="STATES",
+        help="Comma-separated states this one cannot hold at the same instant (e.g. PARKED) — "
+        "a session tagged with both sequenced through them",
     )
     add.set_defaults(_states_func=cmd_add)
 
@@ -504,6 +551,25 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         help="Comma-separated state names (omit to clear)",
     )
     si.set_defaults(_states_func=cmd_set_implies)
+
+    sx = sub.add_parser(
+        "set-excludes",
+        help="Set/clear which states this one cannot hold at the same instant",
+        description="Declare mutual exclusivity: DRIVING excludes PARKED means the two cannot "
+        "describe one instant, so a session tagged with both sequenced through them and needs a "
+        "state_spans timeline (canair captures uds --backfill-state-spans) for per-capture "
+        "filtering to be exact. The relation is symmetric — declaring it on either side is "
+        "enough. Targets must be declared states and may not also be related by implies:.",
+    )
+    sx.add_argument("name")
+    sx.add_argument(
+        "value",
+        nargs="?",
+        default=None,
+        metavar="STATES",
+        help="Comma-separated state names (omit to clear)",
+    )
+    sx.set_defaults(_states_func=cmd_set_excludes)
 
     parser.set_defaults(func=run)
     return parser

@@ -29,10 +29,11 @@
           "type": "string"
         },
         "vehicle_states": {
-          "description": "Power states the car was in during this session (vocabulary from vehicle_states.yaml). Array of tokens, e.g. [ready, parked].",
+          "description": "Power states the car was in during this session (vocabulary from vehicle_states.yaml). Array of tokens, e.g. [ready, parked]. A UNION over the whole recording: it answers 'what did this session cover?', not 'what was the car doing when this capture was sampled?'. For that, see state_spans.",
           "type": "array",
           "items": { "type": "string" }
         },
+        "state_spans": { "$ref": "#/$defs/state_spans" },
         "notes": { "type": "string" },
         "keep_mode": {
           "description": "How the monitor deduplicated payloads: 'changes' (run-length) stores a payload only when it differs from the immediately preceding one per PID, so value-transitions and dwell durations are preserved; 'unique' (legacy global dedup) stores a payload only when it differs from any seen before, so return-to-previous transitions and durations are absent. Absent/other = every polled payload kept.",
@@ -123,6 +124,44 @@
         "decode": { "type": "integer", "description": "Malformed/undecodable responses." },
         "other": { "type": "integer", "description": "Unclassified errors." },
         "resyncs": { "type": "integer", "description": "Times the transport realigned a desynchronised pipe (a recovery, not a lost payload) — several means a marginal link." }
+      }
+    },
+    "state_spans": {
+      "type": "object",
+      "required": ["spans"],
+      "additionalProperties": false,
+      "description": "The session's vehicle state resolved over TIME, because state is piecewise constant: vehicle_states is a union over the whole recording, so a session that drove then charged is tagged both and filtering it by either returns the other's captures. Spans fix that. Provenance is nested with the data it describes rather than glued on as sibling keys.",
+      "properties": {
+        "source": {
+          "description": "What produced the spans. 'record' — derived at save time from the payloads this session just wrote, the normal case for a new recording. 'live' — observed per poll cycle while recording, and never overwritten by a back-fill (the live evaluation saw signals a stored capture may not). 'backfill' — reconstructed later from stored payloads by 'canair captures uds --backfill-state-spans', which is deterministic only given the definitions current at that time.",
+          "type": "string",
+          "enum": ["record", "live", "backfill"]
+        },
+        "version": {
+          "description": "The canair version that computed the spans. Distinct from the session's 'version' (which recorded the payloads): a back-fill runs later, under later definitions.",
+          "type": "string"
+        },
+        "spans": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/state_span" }
+        }
+      }
+    },
+    "state_span": {
+      "type": "object",
+      "required": ["at", "states"],
+      "additionalProperties": false,
+      "description": "One piece of the session's timeline. Carries only its START: the states hold from 'at' until the next span begins (half-open intervals), and the last span runs to the end of the session. A start-only model cannot express a gap or an overlap, so there is no 'which span owns this capture?' ambiguity to arbitrate at read time.",
+      "properties": {
+        "at": {
+          "description": "Time of day the span begins, HH:MM:SS[.fff], on the session's own date (as a capture's 'time' is stored). A session crossing midnight is out of scope, as it already is for time-joined analysis.",
+          "type": "string"
+        },
+        "states": {
+          "description": "The states holding across this span, vocabulary-ordered. May be EMPTY, which is a real answer ('nothing matched here') and distinct from a capture that falls outside every span ('no information').",
+          "type": "array",
+          "items": { "type": "string" }
+        }
       }
     }
   }

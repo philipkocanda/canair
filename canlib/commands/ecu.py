@@ -48,11 +48,13 @@ from typing import Any
 
 from canlib import ansi
 from canlib.capture_types import CaptureEntry
+from canlib.commands._edit_echo import echo_edit
 from canlib.commands._group import group_help
 from canlib.commands._hexarg import HexArgError, parse_hex_arg
 from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.ecus import load_ecus, resolve_tx, rx_addr_str
 from canlib.pids import load_pids, pid_status
+from canlib.profile import require_writable_definitions
 from canlib.states import ecu_states
 
 NAME = "ecu"
@@ -836,7 +838,7 @@ def _add_add_parser(kinds) -> argparse.ArgumentParser:
 
 
 def cmd_add(args) -> int:
-    from canlib.ecus_edit import EcusEditError, register_ecu, tx_key
+    from canlib.ecus_edit import EcusEditError, find_ecu_file_by_tx, register_ecu, tx_key
 
     try:
         tx_id = int(str(args.tx), 16)
@@ -865,6 +867,8 @@ def cmd_add(args) -> int:
         )
         if v is not None
     }
+    if args.dir is None:
+        require_writable_definitions()
     try:
         wrote = register_ecu(
             tx_id,
@@ -885,7 +889,11 @@ def cmd_add(args) -> int:
     disp = tx_key(tx_id)
     label = args.name or f"Unknown-{tx_id:03X}"
     if wrote:
-        print(f"{ansi.GREEN}  ✓ registered {label} ({disp}){ansi.RESET}")
+        fpath = find_ecu_file_by_tx(tx_id, args.dir)
+        if fpath is None:  # pragma: no cover - a write that left no file is a bug
+            print(f"{ansi.GREEN}  ✓ registered {label} ({disp}){ansi.RESET}")
+        else:
+            echo_edit(f"registered {label} ({disp})", fpath)
     else:
         print(f"{ansi.DIM}  {label} ({disp}) already registered; nothing to change.{ansi.RESET}")
     return 0

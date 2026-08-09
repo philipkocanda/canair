@@ -5,10 +5,12 @@ from __future__ import annotations
 import argparse
 import json
 import time
+from pathlib import Path
 
 import pytest
 
 from canlib import build_info, update_check
+from canlib import install_context as ic
 
 
 @pytest.fixture(autouse=True)
@@ -201,7 +203,7 @@ class TestUpdateCommand:
         import canlib
 
         monkeypatch.setattr(canlib, "__version__", "1.0.0")
-        monkeypatch.setattr(update_cmd, "_find_clone_dir", lambda: None)
+        monkeypatch.setattr(update_cmd, "source_clone", lambda: None)
 
         rc = update_cmd.run(self._args(json=True))
         assert rc == 0
@@ -224,7 +226,7 @@ class TestUpdateCommand:
         import canlib
 
         monkeypatch.setattr(canlib, "__version__", "1.0.0")
-        monkeypatch.setattr(update_cmd, "_find_clone_dir", lambda: None)
+        monkeypatch.setattr(update_cmd, "source_clone", lambda: None)
         monkeypatch.setattr(
             build_info,
             "running_build",
@@ -253,7 +255,7 @@ class TestUpdateCommand:
         import canlib
 
         monkeypatch.setattr(canlib, "__version__", "1.0.0")
-        monkeypatch.setattr(update_cmd, "_find_clone_dir", lambda: tmp_path)
+        monkeypatch.setattr(update_cmd, "source_clone", lambda: tmp_path)
         monkeypatch.setattr(build_info, "head_label", lambda clone: "main")
 
         rc = update_cmd.run(self._args(json=True))
@@ -273,7 +275,7 @@ class TestUpdateCommand:
         import canlib
 
         monkeypatch.setattr(canlib, "__version__", "1.0.0")
-        monkeypatch.setattr(update_cmd, "_find_clone_dir", lambda: tmp_path)
+        monkeypatch.setattr(update_cmd, "source_clone", lambda: tmp_path)
         monkeypatch.setattr(build_info, "head_label", lambda clone: "main")
         monkeypatch.setattr(build_info, "is_dirty", lambda clone: False)
         monkeypatch.setattr(update_cmd.shutil, "which", lambda name: None)
@@ -326,7 +328,7 @@ class TestUpdateCommand:
         import canlib
 
         monkeypatch.setattr(canlib, "__version__", "1.0.0")
-        monkeypatch.setattr(update_cmd, "_find_clone_dir", lambda: None)
+        monkeypatch.setattr(update_cmd, "source_clone", lambda: None)
 
         rc = update_cmd.run(self._args(yes=True))
         assert rc == update_cmd._CANNOT
@@ -341,7 +343,7 @@ class TestUpdateCommand:
         import canlib
 
         monkeypatch.setattr(canlib, "__version__", "1.0.0")
-        monkeypatch.setattr(update_cmd, "_find_clone_dir", lambda: None)
+        monkeypatch.setattr(update_cmd, "source_clone", lambda: None)
 
         rc = update_cmd.run(self._args(check=True))
         assert rc == 0
@@ -356,7 +358,7 @@ class TestUpdateCommand:
         import canlib
 
         monkeypatch.setattr(canlib, "__version__", "1.0.0")
-        monkeypatch.setattr(update_cmd, "_find_clone_dir", lambda: tmp_path)
+        monkeypatch.setattr(update_cmd, "source_clone", lambda: tmp_path)
         monkeypatch.setattr(build_info, "head_label", lambda clone: "main")
 
         git_calls: list[tuple[str, ...]] = []
@@ -378,7 +380,7 @@ class TestUpdateCommand:
         import canlib
 
         monkeypatch.setattr(canlib, "__version__", "1.0.0")
-        monkeypatch.setattr(update_cmd, "_find_clone_dir", lambda: tmp_path)
+        monkeypatch.setattr(update_cmd, "source_clone", lambda: tmp_path)
         monkeypatch.setattr(build_info, "is_dirty", lambda clone: False)
         monkeypatch.setattr(update_cmd.shutil, "which", lambda name: "/usr/bin/uv")
 
@@ -413,6 +415,51 @@ class TestUpdateCommand:
         # And reinstalled the tool from the clone.
         assert any("install" in cmd and "--reinstall" in cmd for cmd in install_calls)
 
+    def test_names_snapshot_data_the_reinstall_would_delete(self, monkeypatch, capsys, tmp_path):
+        """The reinstall wipes the installed copy's profiles — list what's at stake.
+
+        A bare ``canair … --save`` writes there, so the update that refreshes the
+        CLI is also the one that destroys those captures.
+        """
+        from canlib.commands import update as update_cmd
+
+        monkeypatch.setattr(
+            update_cmd,
+            "fetch_latest_release",
+            lambda *a, **k: {"tag": "v9.9.9", "url": "https://example/rel"},
+        )
+        import canlib
+
+        monkeypatch.setattr(canlib, "__version__", "1.0.0")
+        monkeypatch.setattr(update_cmd, "source_clone", lambda: tmp_path / "clone")
+        monkeypatch.setattr(build_info, "is_dirty", lambda clone: False)
+        monkeypatch.setattr(update_cmd.shutil, "which", lambda name: "/usr/bin/uv")
+
+        class _CP:
+            returncode = 0
+            stdout = ""
+            stderr = ""
+
+        monkeypatch.setattr(build_info, "run_git", lambda clone, *a: _CP())
+        monkeypatch.setattr(update_cmd.subprocess, "run", lambda cmd, *a, **k: _CP())
+
+        risk = ic.SnapshotRisk(
+            name="ioniq-2017",
+            root=tmp_path / "site-packages" / "profiles" / "ioniq-2017",
+            missing=[Path("captures/2026-08-05.json")],
+            differing=[],
+        )
+        monkeypatch.setattr(ic, "snapshot_profile_risks", lambda clone: [risk])
+
+        rc = update_cmd.run(self._args(yes=True))
+
+        out = capsys.readouterr().out
+        assert rc == 0
+        assert "captures/2026-08-05.json" in out
+        assert "ioniq-2017" in out
+        # The warning has to land before the reinstall is confirmed, not after it.
+        assert out.index("2026-08-05.json") < out.index("Reinstalling")
+
     def test_checkout_failure_reports(self, monkeypatch, capsys, tmp_path):
         from canlib.commands import update as update_cmd
 
@@ -424,7 +471,7 @@ class TestUpdateCommand:
         import canlib
 
         monkeypatch.setattr(canlib, "__version__", "1.0.0")
-        monkeypatch.setattr(update_cmd, "_find_clone_dir", lambda: tmp_path)
+        monkeypatch.setattr(update_cmd, "source_clone", lambda: tmp_path)
         monkeypatch.setattr(build_info, "is_dirty", lambda clone: False)
         monkeypatch.setattr(update_cmd.shutil, "which", lambda name: "/usr/bin/uv")
 
@@ -471,7 +518,7 @@ class TestUpdateCommand:
         import canlib
 
         monkeypatch.setattr(canlib, "__version__", "1.0.0")
-        monkeypatch.setattr(update_cmd, "_find_clone_dir", lambda: tmp_path)
+        monkeypatch.setattr(update_cmd, "source_clone", lambda: tmp_path)
         monkeypatch.setattr(build_info, "head_label", lambda clone: "main")
         monkeypatch.setattr(
             update_cmd,
@@ -516,7 +563,7 @@ class TestUpdateCommand:
         import canlib
 
         monkeypatch.setattr(canlib, "__version__", "1.0.0")
-        monkeypatch.setattr(update_cmd, "_find_clone_dir", lambda: tmp_path)
+        monkeypatch.setattr(update_cmd, "source_clone", lambda: tmp_path)
         monkeypatch.setattr(build_info, "head_label", lambda clone: "main")
         monkeypatch.setattr(
             update_cmd,
@@ -542,7 +589,7 @@ class TestUpdateCommand:
         import canlib
 
         monkeypatch.setattr(canlib, "__version__", "1.0.0")
-        monkeypatch.setattr(update_cmd, "_find_clone_dir", lambda: tmp_path)
+        monkeypatch.setattr(update_cmd, "source_clone", lambda: tmp_path)
         monkeypatch.setattr(build_info, "head_label", lambda clone: "main")
         monkeypatch.setattr(
             update_cmd,

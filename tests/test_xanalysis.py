@@ -152,9 +152,10 @@ class TestDiscriminability:
     def test_single_group_none(self):
         assert xanalysis.discriminability({"a": [1.0, 2.0, 3.0]}) is None
 
-    def test_zero_within_is_inf(self):
+    def test_zero_within_is_finite_but_high(self):
         groups = {"a": [1.0, 1.0], "b": [2.0, 2.0]}
-        assert xanalysis.discriminability(groups) == float("inf")
+        f = xanalysis.discriminability(groups)
+        assert f is not None and f > 10 and f != float("inf")
 
 
 class TestSniffUnit:

@@ -99,15 +99,15 @@ class TestBundleRegistry:
         assert member.contributable is expected
 
     def test_required_members_identify_a_profile(self, tmp_path):
-        from canlib.profile import _looks_like_profile
+        from canlib.profile import looks_like_profile
 
-        assert not _looks_like_profile(tmp_path)
+        assert not looks_like_profile(tmp_path)
         for member in (m for m in BUNDLE_MEMBERS if m.required):
             root = tmp_path / member.name.replace(".", "_")
             root.mkdir()
             path = root / member.name
             path.mkdir() if member.kind == "dir" else path.write_text("")
-            assert _looks_like_profile(root), f"{member.name} should identify a profile"
+            assert looks_like_profile(root), f"{member.name} should identify a profile"
 
 
 class TestProfileForPath:

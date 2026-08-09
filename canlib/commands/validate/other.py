@@ -36,42 +36,74 @@ def _state_reference_errors(predicates: list[tuple[str, str]]) -> tuple[list[str
     return ([str(issue) for issue in check_references(predicates, pids_data)], None)
 
 
-def _state_hierarchy_errors(entries: list[tuple[str, object]], declared: set[str]) -> list[str]:
-    """Validate the ``implies:`` specificity hierarchy: shape, targets, acyclicity.
+def _state_relation_errors(
+    implies_entries: list[tuple[str, object]],
+    excludes_entries: list[tuple[str, object]],
+    declared: set[str],
+) -> list[str]:
+    """Validate the ``implies:`` hierarchy and the ``excludes:`` exclusivity relation.
 
-    An unresolvable target silently disables arbitration for that state (the
-    closure walk just doesn't find it), and a cycle makes "more specific than"
-    meaningless, so both are hard errors rather than warnings.
+    Both are hard errors rather than warnings because both fail *silently* at
+    runtime: an unresolvable target disables the relation for that state (the
+    closure walk simply doesn't find it), a cycle makes "more specific than"
+    meaningless, and a pair declared both implied and exclusive makes every
+    session carrying it look self-contradictory.
     """
-    from canlib.states import ALL_STATE, StateRule, implication_cycle, parse_implies
+    from canlib.states import (
+        ALL_STATE,
+        StateRule,
+        exclusion_conflicts,
+        implication_cycle,
+        parse_excludes,
+        parse_implies,
+    )
 
     errors: list[str] = []
-    rules: list[StateRule] = []
-    for name, raw in entries:
-        upper = str(name).upper()
-        if not isinstance(raw, (list, tuple, str)):
-            errors.append(f"state '{name}': implies must be a list of state names")
-            continue
-        targets = parse_implies(raw)
-        for target in targets:
-            if target == upper:
-                errors.append(f"state '{name}': implies itself")
-            elif target == ALL_STATE:
-                errors.append(
-                    f"state '{name}': implies ALL — ALL is the meta-token for "
-                    "'readable in every state', not a state to specialize"
-                )
-            elif target not in declared:
-                errors.append(f"state '{name}': implies '{target}', which is not a declared state")
-        if upper == ALL_STATE and targets:
-            errors.append(f"state '{name}': the ALL meta-token cannot imply anything")
-        # Self-implication is already reported above; excluding it here keeps one
-        # mistake to one error instead of also tripping the cycle check.
-        rules.append(StateRule(name=upper, implies=tuple(t for t in targets if t != upper)))
+    targets_by_state: dict[str, dict[str, tuple[str, ...]]] = {}
+
+    for field, entries, verb, infinitive, tail in (
+        ("implies", implies_entries, "implies", "imply", "not a state to specialize"),
+        ("excludes", excludes_entries, "excludes", "exclude", "not a state to exclude"),
+    ):
+        for name, raw in entries:
+            upper = str(name).upper()
+            if not isinstance(raw, (list, tuple, str)):
+                errors.append(f"state '{name}': {field} must be a list of state names")
+                continue
+            parse = parse_implies if field == "implies" else parse_excludes
+            targets = parse(raw)
+            for target in targets:
+                if target == upper:
+                    errors.append(f"state '{name}': {verb} itself")
+                elif target == ALL_STATE:
+                    errors.append(
+                        f"state '{name}': {verb} ALL — ALL is the meta-token for "
+                        f"'readable in every state', {tail}"
+                    )
+                elif target not in declared:
+                    errors.append(
+                        f"state '{name}': {verb} '{target}', which is not a declared state"
+                    )
+            if upper == ALL_STATE and targets:
+                errors.append(f"state '{name}': the ALL meta-token cannot {infinitive} anything")
+            # A self-reference is already reported above; dropping it here keeps one
+            # mistake to one error instead of also tripping the cycle/conflict checks.
+            slot = targets_by_state.setdefault(upper, {})
+            slot[field] = tuple(t for t in targets if t != upper)
+
+    rules = [
+        StateRule(name=upper, implies=rel.get("implies", ()), excludes=rel.get("excludes", ()))
+        for upper, rel in targets_by_state.items()
+    ]
 
     cycle = implication_cycle(rules)
     if cycle:
         errors.append(f"implies: cycle {' -> '.join(cycle)} — the hierarchy must be acyclic")
+    for a, b in exclusion_conflicts(rules):
+        errors.append(
+            f"states '{a}' and '{b}': declared both implied and mutually exclusive — "
+            "implies: says one always holds with the other, excludes: says it never can"
+        )
     return errors
 
 
@@ -99,11 +131,12 @@ def _run_states() -> int:
 
     predicates: list[tuple[str, str]] = []
     implies_entries: list[tuple[str, object]] = []
+    excludes_entries: list[tuple[str, object]] = []
     for i, entry in enumerate(states):
         if not isinstance(entry, dict):
             errors.append(f"states[{i}]: must be a mapping")
             continue
-        for extra in set(entry) - {"name", "description", "when", "implies"}:
+        for extra in set(entry) - {"name", "description", "when", "implies", "excludes"}:
             errors.append(f"states[{i}]: unknown field '{extra}'")
         name = entry.get("name")
         if not name:
@@ -122,8 +155,10 @@ def _run_states() -> int:
                 predicates.append((str(name), str(expr)))
         if entry.get("implies") is not None and name:
             implies_entries.append((str(name), entry["implies"]))
+        if entry.get("excludes") is not None and name:
+            excludes_entries.append((str(name), entry["excludes"]))
 
-    errors += _state_hierarchy_errors(implies_entries, {n.upper() for n in seen})
+    errors += _state_relation_errors(implies_entries, excludes_entries, {n.upper() for n in seen})
 
     ref_errors, skipped = _state_reference_errors(predicates)
     errors += ref_errors
@@ -138,9 +173,10 @@ def _run_states() -> int:
                 "match — fix it with `canair states set-predicate NAME EXPR`)"
             )
         return 1
-    # Only mention the hierarchy when there is one — a profile that declares no
+    # Only mention a relation when the profile declares one — a profile with no
     # `implies:` should not carry a permanent ", 0 with implies:" in its OK line.
     hierarchy = f", {len(implies_entries)} with implies:" if implies_entries else ""
+    hierarchy += f", {len(excludes_entries)} with excludes:" if excludes_entries else ""
     print(f"{path.name}: OK ({len(seen)} states, {len(predicates)} predicate(s){hierarchy})")
     if skipped:
         print(f"  note: predicate signal references not checked — {skipped}")

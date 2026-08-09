@@ -5917,7 +5917,26 @@
           "payload": "6102F8F8000001010000009515C486223AAB075C99D83900000000",
           "time": "12:53:16.862"
         }
-      ]
+      ],
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {
+            "at": "12:51:27.403",
+            "states": [
+              "READY"
+            ]
+          },
+          {
+            "at": "12:51:38.166",
+            "states": [
+              "READY",
+              "ACC2"
+            ]
+          }
+        ],
+        "version": "1.17.0+main.4178d4a.dirty"
+      }
     },
     {
       "date": "2026-07-21",

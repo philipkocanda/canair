@@ -159,32 +159,7 @@ def gh_install_hint() -> str:
     )
 
 
-# --- source-profile sanity -------------------------------------------------
-
-
-def installed_snapshot_kind(path: Path) -> str | None:
-    """Name the install kind if ``path`` lives in a package snapshot, else None.
-
-    A bare ``canair`` (a ``uv tool`` / ``pipx`` / ``pip`` install) resolves the
-    active profile from the package copy in ``site-packages`` — a **frozen
-    snapshot** taken at install time. That snapshot can be arbitrarily behind
-    the working checkout (and simultaneously *ahead* on captures written by bare
-    ``--save`` runs), so contributing from it silently reverts upstream work.
-    Detecting it lets the command warn and steer the user back to ``uv run
-    canair`` from a checkout. Returns e.g. ``"uv tool"`` / ``"pipx"`` /
-    ``"installed package"``, or ``None`` for a normal working-tree profile.
-    """
-    try:
-        parts = path.resolve().parts
-    except OSError:
-        parts = path.parts
-    if not ({"site-packages", "dist-packages"} & set(parts)):
-        return None
-    if "uv" in parts and "tools" in parts:
-        return "uv tool"
-    if "pipx" in parts:
-        return "pipx"
-    return "installed package"
+# --- source-profile sanity --------------------------------------------------
 
 
 # Curated-definition members that normally only move *forward* — the same set
@@ -269,6 +244,20 @@ def workspace_dir() -> Path:
     from .config import config_dir
 
     return config_dir() / "contribute" / UPSTREAM_REPO.split("/")[-1]
+
+
+def is_managed_workspace(path: Path) -> bool:
+    """Whether ``path`` is the throwaway clone canair manages (vs the user's own).
+
+    Load-bearing for :func:`reset_workspace`: the managed clone holds nothing a
+    contributor authored, so discarding its local state is always safe. A
+    ``--repo-dir`` checkout is the opposite — it may hold hours of unrelated work,
+    so it is only ever *warned* about.
+    """
+    try:
+        return path.resolve() == workspace_dir().resolve()
+    except OSError:
+        return path == workspace_dir()
 
 
 def viewer_permission(pre: Preflight) -> str:
@@ -405,6 +394,46 @@ def start_branch(pre: Preflight, workspace: Path, branch: str) -> Step:
     assert pre.git
     base = _upstream_ref(workspace, pre.git)
     return _run([pre.git, "-C", str(workspace), "checkout", "-B", branch, base])
+
+
+def reset_workspace(pre: Preflight, workspace: Path) -> list[Step]:
+    """Discard every local change in ``workspace``, making the staging area hermetic.
+
+    ``git checkout -B`` alone is **not** enough: it only overwrites paths whose
+    content differs between the old HEAD and the new base, so an uncommitted file
+    left by an earlier run (``--diff`` stages a copy and never commits) survives
+    into the next contribution and is swept into its commit by
+    ``git add -- profiles/<name>``. That is how eight stale capture files once
+    rode along in a PR.
+
+    So the staged tree is rebuilt from the base ref every run: ``reset --hard``
+    for tracked modifications, ``clean -fd -- profiles/`` for untracked leftovers
+    (scoped to ``profiles/`` — nothing else is ever written there, and a full
+    clean would drop the LFS/config state of the clone).
+
+    Only ever called for :func:`is_managed_workspace`; a user's own ``--repo-dir``
+    checkout is warned about instead. Returns the steps for reporting.
+    """
+    assert pre.git
+    git = pre.git
+    base = _upstream_ref(workspace, git)
+    return [
+        _run([git, "-C", str(workspace), "reset", "--hard", "--quiet", base]),
+        _run([git, "-C", str(workspace), "clean", "-fd", "--quiet", "--", "profiles/"]),
+    ]
+
+
+def local_changes(pre: Preflight, workspace: Path, profile_name: str) -> list[str]:
+    """``git status --porcelain`` entries under ``profiles/<name>`` in ``workspace``.
+
+    Used to warn before a **user-supplied** ``--repo-dir`` contributes work canair
+    did not put there: ``commit_profile`` stages the whole profile directory, so
+    an unrelated uncommitted edit in it would silently join the PR.
+    """
+    assert pre.git
+    rel = f"profiles/{profile_name}"
+    res = _run([pre.git, "-C", str(workspace), "status", "--porcelain", "--", rel])
+    return [line.strip() for line in res.stdout.splitlines() if line.strip()]
 
 
 # --- copying the profile ----------------------------------------------------
@@ -585,6 +614,50 @@ def push_branch(pre: Preflight, workspace: Path, branch: str) -> Step:
     return _run(
         [pre.git, "-C", str(workspace), "push", "--force-with-lease", "-u", "origin", branch]
     )
+
+
+def find_open_pr(pre: Preflight, branch: str) -> tuple[int, str] | None:
+    """The open upstream PR for ``branch``, as ``(number, url)``, or None.
+
+    A re-run is the normal case, not an error: the default branch name is
+    date-based, so contributing twice in a day pushes to a branch that already has
+    a pull request — and ``gh pr create`` then fails outright. Pushing the branch
+    has *already* updated that PR, so the run succeeded; this lookup is what lets
+    the command say so instead of reporting a failure.
+
+    ``--head`` takes the plain branch name here (unlike :func:`pr_head`'s
+    ``owner:branch``): ``gh pr list`` filters on the head *ref*, and qualifying it
+    with an owner matches nothing.
+    """
+    assert pre.gh
+    res = _run(
+        [
+            pre.gh,
+            "pr",
+            "list",
+            "--repo",
+            UPSTREAM_REPO,
+            "--head",
+            branch,
+            "--state",
+            "open",
+            "--json",
+            "number,url",
+        ]
+    )
+    if not res.ok:
+        return None
+    import json
+
+    try:
+        prs = json.loads(res.stdout or "[]")
+    except json.JSONDecodeError:
+        return None
+    for pr in prs if isinstance(prs, list) else []:
+        number, url = pr.get("number"), pr.get("url")
+        if isinstance(number, int) and url:
+            return number, str(url)
+    return None
 
 
 def create_pr(

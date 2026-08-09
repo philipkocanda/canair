@@ -16,9 +16,13 @@ modelled here rather than passed around as a bare ``dict``.
 
 from __future__ import annotations
 
-from typing import NotRequired, TypedDict
+from typing import Literal, NotRequired, TypedDict
 
 from .keepmode import EntryKeepMode, PersistedKeepMode
+from .state_spans import StateSpan
+
+StateSpanSource = Literal["record", "live", "backfill"]
+"""How a session's ``state_spans`` were produced (see :class:`StateSpans`)."""
 
 
 class RespondingEntry(TypedDict):
@@ -85,6 +89,20 @@ class CaptureRecord(TypedDict):
     elapsed_ms: NotRequired[int]
 
 
+class StateSpans(TypedDict):
+    """A session's ``state_spans`` block: the spans plus what produced them.
+
+    Provenance is nested with the data it describes rather than added as sibling
+    ``state_spans_*`` session keys, so one concept stays one field. ``source``
+    matters at write time: a back-fill must never overwrite ``live`` spans, since
+    the live evaluation saw signals a stored capture may not have preserved.
+    """
+
+    spans: list[StateSpan]
+    source: NotRequired[StateSpanSource]
+    version: NotRequired[str]
+
+
 class SessionMeta(TypedDict, total=False):
     """The optional metadata fields of a :class:`CaptureSession`.
 
@@ -104,6 +122,7 @@ class SessionMeta(TypedDict, total=False):
     """
 
     vehicle_states: list[str]
+    state_spans: StateSpans
     notes: str
     # Only the two dedup policies are recordable; `all`/`last` applied no dedup,
     # so the field is omitted rather than claiming one (see keepmode.py).
@@ -144,8 +163,19 @@ class CaptureEntry(TypedDict):
     ``ecu_addr``. ``session_*`` keys carry the owning session's metadata;
     ``label``/``notes`` are the capture's own.
 
-    ``_session_idx``/``_capture_idx`` locate the row inside its source ``file``,
-    which is how in-place note edits and deletes address a capture.
+    **States are resolved per row, not copied from the session.** ``vehicle_states``
+    is what held at *this capture's* timestamp, resolved through the session's
+    ``state_spans`` by :func:`canlib.capture_store.resolve_capture_states`;
+    ``session_states`` keeps the session-level union (what a session view wants);
+    and ``states_resolved`` is False when the row had to fall back to that union,
+    so the imprecision can be reported rather than assumed away.
+
+    ``_session_idx``/``_capture_idx`` locate the row inside its source file, which
+    is how in-place note edits and deletes address a capture. ``file`` is the
+    *display* name (``"2026-08-05.json"``, ambiguous across profiles) and ``_path``
+    the absolute path a mutation must actually open — the two differ once reads
+    span more than one directory, so never rebuild a path by joining ``file`` onto
+    a captures dir.
 
     Consumers that only *read* rows should accept ``Sequence[CaptureEntry]``, not
     ``list[CaptureEntry]``: ``list`` is invariant, so a ``list`` parameter refuses
@@ -158,7 +188,9 @@ class CaptureEntry(TypedDict):
     # -- the owning session's metadata, denormalised onto every row --
     session_label: str
     session_version: str
-    vehicle_states: list[str]
+    vehicle_states: list[str]  # resolved to this capture's own timestamp
+    session_states: list[str]  # the session-level union
+    states_resolved: bool  # False when the row fell back to the union
     session_notes: str
     keep_mode: EntryKeepMode  # "" when the session recorded no dedup policy
     transport: str
@@ -174,5 +206,6 @@ class CaptureEntry(TypedDict):
     time: str
     label: str
     # -- locator within ``file`` (for in-place edit/delete) --
+    _path: str
     _session_idx: int
     _capture_idx: int

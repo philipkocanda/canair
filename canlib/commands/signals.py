@@ -21,6 +21,7 @@ import json
 import sys
 
 from canlib import ansi
+from canlib.commands._edit_echo import echo_edit
 
 NAME = "signals"
 
@@ -116,9 +117,10 @@ def cmd_list(args) -> int:
 
 
 def cmd_upsert(args) -> int:
-    from canlib.profile import active
+    from canlib.profile import active, require_writable_definitions
     from canlib.signals_edit import SignalsEditError, upsert_signal
 
+    require_writable_definitions()
     try:
         path = upsert_signal(
             args.bus,
@@ -141,23 +143,21 @@ def cmd_upsert(args) -> int:
     except SignalsEditError as e:
         print(f"signals upsert: {e}", file=sys.stderr)
         return 1
-    print(
-        f"{ansi.GREEN}✓{ansi.RESET} [{ansi.CYAN}{active().name}{ansi.RESET}] {args.bus}: "
-        f"{args.arb_id} {args.name} → {path}"
+    echo_edit(
+        f"[{ansi.CYAN}{active().name}{ansi.RESET}] {args.bus}: {args.arb_id} {args.name}", path
     )
     return 0
 
 
 def cmd_rm(args) -> int:
-    from canlib.profile import active
+    from canlib.profile import active, require_writable_definitions
     from canlib.signals_edit import SignalsEditError, remove_signal
 
+    require_writable_definitions()
     try:
-        remove_signal(args.bus, args.arb_id, args.name)
+        path = remove_signal(args.bus, args.arb_id, args.name)
     except SignalsEditError as e:
         print(f"signals rm: {e}", file=sys.stderr)
         return 1
-    print(
-        f"{ansi.GREEN}✓{ansi.RESET} [{ansi.CYAN}{active().name}{ansi.RESET}] removed {args.arb_id} {args.name}"
-    )
+    echo_edit(f"[{ansi.CYAN}{active().name}{ansi.RESET}] removed {args.arb_id} {args.name}", path)
     return 0

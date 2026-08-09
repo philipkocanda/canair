@@ -397,6 +397,14 @@ reuse these instead of re-declaring a flag:
   self-collision guard** (hard-refuses, not `--yes`-overridable, when the active profile *is* the
   workspace's own copy) → **rollback guard** (the contribution would remove committed upstream
   definition lines, signalling a stale source) → branch → copy → commit → push → `gh pr create`.
+  **The managed workspace is made hermetic before the copy** (`contribute.reset_workspace`: `reset
+  --hard` to the upstream base + `clean -fd -- profiles/`) — `checkout -B` alone keeps an
+  uncommitted file an earlier `--diff` left behind, and `commit_profile` stages the whole profile
+  directory, which is how eight stale capture files once rode along in a PR. A user's own
+  `--repo-dir` is **never** reset; it is warned about instead (`_own_checkout_is_clean`), gated on
+  `is_managed_workspace`. **A re-run updates the open PR** rather than failing: the branch name is
+  date-based, so `find_open_pr` looks it up (`gh pr list --head <plain branch>`) after the push and
+  reports `updated PR #N` as success instead of letting `gh pr create` error.
   Captures are **overlaid** (append-only, `canlib/captures_merge.py::overlay_documents`), so a
   source behind upstream never proposes deleting upstream sessions, and a capture log it adds
   nothing to stays byte-identical. `--diff` previews, `--dry-run` stops before pushing, `--yes`
@@ -426,13 +434,51 @@ optional `signals/`, generated `out/`. The repo bundles several under `profiles/
 flag, before the subcommand) > `CANAIR_PROFILE` > `default_profile` in config > a single discovered
 profile. Discovery: `--profiles-dir`, `$CANAIR_PROFILES_DIR`, `profiles_dir` in config,
 `~/.config/canair/profiles/` (user, uncommitted), then the repo's `profiles/`; user profiles shadow
-bundled ones by name.
+bundled ones by name — **unless the user one declares `extends:`, which layers instead** (see
+Layered profiles).
 
 `canair profile list`/`show [NAME]`/`path [NAME]` inspect; `canair profile use NAME` sets the config
 default; a bare `canair profile` opens an arrow-key picker on a TTY. `profile create <name>
---car-model "…"` scaffolds a new vehicle. The bundle component list is **not hand-written** — it is
-the `BUNDLE_MEMBERS` registry in `canlib/profile.py`, which also decides what `contribute` ships and
-what the blind-test strip withholds, so a new bundle member is one edit there.
+--car-model "…"` scaffolds a new vehicle and **`profile adopt <name>`** copies a read-only one into
+`~/.config/canair/profiles/` (where it shadows the original) so it can be written to. Both live in
+the library module `canlib/profile_create.py`; `commands/profile.py` is CLI only. `adopt` **refuses
+when a higher-precedence discovery root would keep winning** (an explicit `--profiles-dir` or
+`$CANAIR_PROFILES_DIR`), because the copy would then never be read — the message names the blocking
+root. It skips `role: generated` members (`out/` is regenerated, not inherited). The bundle
+component list is **not hand-written** — it is the `BUNDLE_MEMBERS` registry in `canlib/profile.py`,
+which also decides what `contribute` ships and what the blind-test strip withholds, so a new bundle
+member is one edit there.
+
+**Layered profiles — a read-only base plus your capture layer.** `canair profile overlay <name>`
+(`canlib/profile_create.py::overlay_profile`) writes *only* `~/.config/canair/profiles/<name>/
+profile.yaml` with `extends: <name>` plus an empty `captures/`; the base then keeps tracking
+upstream while every recording lands in the layer. Adopt when you want to change definitions,
+overlay when you only want to record. Resolution is `canlib/profile.py::profile_layers` (walks
+`profiles_roots`, stops at the first bundle with no `extends:`) + `::_from_layers`, which errors on
+a **dangling** overlay (nothing underneath) and on `extends:` naming a *different* profile (deferred
+to `plans/2026-07-30-profile-variant-inheritance.md` — `extends:` is deliberately that plan's key).
+- **`Profile` gained `overlays: tuple[Path, ...]`** (least specific first) with `layered`,
+  `write_root` and `capture_layers`. Definitions (`ecus_dir`, `states_file`, `signals_dir`,
+  `can_buses_file`, `groups_file`, `meta_file`) stay on `root`; `captures_dir`/`dtc_log_file`/
+  `out_dir` derive from `write_root`. **Definitions do not overlay in this slice** — an edit is
+  refused by `canlib/profile.py::require_writable_definitions()`, called from the single edit funnel
+  in each of `pids`/`states`/`groups`/`signals`/`ecu add`. It raises `ProfileError`, which
+  `canlib/cli.py` already turns into `error: …` + exit 2, so no command handles it.
+- **Reads span layers, writes do not.** `canlib/capture_io.py::resolve_capture_layers` is the read
+  seam; `capture_store.load_all_captures` iterates it, dedupes sessions across layers by
+  `captures_merge.session_key` (base wins, so a contributed-then-pulled session stays read-only) and
+  sorts chronologically **only when layered**, so single-layer results stay byte-identical. A reader
+  that bypasses `load_all_captures` needs deciding per call site:
+  `commands/validate/captures.py` and `commands/coverage.py` walk **both** layers (a schema break or
+  a payload in the base still matters); `canlib/pii.py` and `capture_migrate.py` intentionally stay
+  on `captures_dir` (= the overlay, which is exactly what `contribute` ships and the only layer a
+  migration may rewrite).
+- **Base captures are read-only**, enforced by `canlib/commands/captures/layers.py::refusal` in
+  `--delete`/`--set-state`/`--backfill-states` and in the `captures uds --step` TUI. `--dry-run`
+  still previews. Tombstones and copy-on-write were rejected: a session has no id — **its identity
+  is its content**, which is what makes both the git merge driver and the contribution overlay
+  correct. `read_only_files` returns `[]` whenever fewer than two layers are resolved, so nothing
+  changes for an ordinary profile.
 
 > **Pass `--profile NAME` explicitly on every mutative/authoring command** — `pids …`, `signals
 > upsert`, `import uds|can|dbc`, `discover --register`, `ecu add`, `wican autopid write`, and
@@ -441,6 +487,22 @@ what the blind-test strip withholds, so a new bundle member is one edit there.
 > once landed in `profiles/ioniq-5-2022/` instead of `ioniq-2017/` (fixed in the git history).
 > `signals`/`import` echo the target profile and full path on write — read it back. Read-only
 > commands resolve the same way, so prefer explicit `--profile` there too.
+
+**Never let a write land in the install snapshot.** A profile resolved from `site-packages` (a bare
+`canair` from `uv tool install`/`pipx`/`pip`) accepts writes that the next reinstall deletes — this
+really happened, costing two sessions' captures. The detection and the user-facing remedy are
+`canlib/install_context.py::installed_snapshot_kind` and `::snapshot_write_note`, and **every write
+path emits that note**: `canlib/captures.py::saved_banner` for captures and
+`canlib/commands/_edit_echo.py::echo_edit` for every definition edit (`pids`/`signals`/`states`/
+`groups`/`ecu add` all route their `✓ …` confirmation through it, which is also what guarantees the
+confirmation names a **full path** rather than a bare `bms.yaml`). `canair update` refuses to be the
+thing that erases the data: `::snapshot_profile_risks` diffs the snapshot's profiles against the
+clone's and lists what a reinstall would delete before asking to proceed. `canlib/first_run.py`
+offers to adopt rather than recording a doomed `default_profile`. Fix an existing setup with `canair
+config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and contributable) or
+`canair profile adopt <name>`. Plan:
+`plans/2026-08-05-profile-write-targets-and-workspace-hygiene.md`.
+
 
 ## Key Files
 

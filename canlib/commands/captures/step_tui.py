@@ -18,6 +18,7 @@ key string, so the stepper cannot drift from the monitor and plot explorer.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
 from rich.text import Text
@@ -605,14 +606,11 @@ class CapturesStepApp(HelpMixin, App):
     def _write_note(self, cap: CaptureEntry, note: str) -> None:
         from canlib.captures import set_capture_note
 
+        target = self._writable_target(cap)
+        if target is None:
+            return
         try:
-            assert self.model.captures_dir is not None
-            set_capture_note(
-                self.model.captures_dir / cap["file"],
-                cap["_session_idx"],
-                cap["_capture_idx"],
-                note,
-            )
+            set_capture_note(target, cap["_session_idx"], cap["_capture_idx"], note)
         except Exception as ex:
             self._flash(f"Note save failed: {ex}")
             return
@@ -642,16 +640,30 @@ class CapturesStepApp(HelpMixin, App):
             _done,
         )
 
+    def _writable_target(self, cap: CaptureEntry) -> Path | None:
+        """The file to edit for ``cap``, or None (flashing why) if it is read-only.
+
+        Goes through the row's own locator: joining ``file`` onto the captures dir
+        picks the wrong directory as soon as reads span two layers.
+        """
+        from canlib.capture_store import entry_path
+
+        from . import layers
+
+        target = entry_path(cap, self.model.captures_dir)
+        if layers.read_only_files([target], self.model.captures_dir):
+            self._flash("Read-only: this capture belongs to the profile's base layer.")
+            return None
+        return target
+
     def _delete(self, cap: CaptureEntry) -> None:
         from canlib.captures import delete_capture
 
+        target = self._writable_target(cap)
+        if target is None:
+            return
         try:
-            assert self.model.captures_dir is not None
-            delete_capture(
-                self.model.captures_dir / cap["file"],
-                cap["_session_idx"],
-                cap["_capture_idx"],
-            )
+            delete_capture(target, cap["_session_idx"], cap["_capture_idx"])
         except Exception as ex:
             self._flash(f"Delete failed: {ex}")
             return

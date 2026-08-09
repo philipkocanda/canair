@@ -105,7 +105,7 @@ def load_longest_payloads() -> dict[tuple[str, str], dict]:
     from canlib.ecus import build_rx_index, ecu_name_from_ref
     from canlib.profile import active
 
-    captures_dir = active().captures_dir
+    layers = active().capture_layers
 
     try:
         rx_index = build_rx_index()
@@ -113,25 +113,28 @@ def load_longest_payloads() -> dict[tuple[str, str], dict]:
         rx_index = {}
 
     best: dict[tuple[str, str], dict] = {}
-    capture_io.ensure_migrated(captures_dir)
-    for fpath in capture_io.iter_capture_files(captures_dir):
-        data = capture_io.load_capture_file(fpath) or {}
-        for session in data.get("sessions", []):
-            for cap in session.get("captures", []):
-                payload = cap.get("payload")
-                if not payload:
-                    continue
-                payload = payload.replace(" ", "")
-                ecu_name = ecu_name_from_ref(capture_io.capture_rx(cap), rx_index)
-                key = (ecu_name.upper(), str(cap.get("pid", "")).upper())
-                prev = best.get(key)
-                if prev is None or len(payload) > len(prev["payload"]):
-                    best[key] = {
-                        "payload": payload,
-                        "date": str(session.get("date", "")),
-                        "label": session.get("label", ""),
-                        "file": fpath.name,
-                    }
+    for layer in layers:
+        if not layer.is_dir():
+            continue
+        capture_io.ensure_migrated(layer)
+        for fpath in capture_io.iter_capture_files(layer):
+            data = capture_io.load_capture_file(fpath) or {}
+            for session in data.get("sessions", []):
+                for cap in session.get("captures", []):
+                    payload = cap.get("payload")
+                    if not payload:
+                        continue
+                    payload = payload.replace(" ", "")
+                    ecu_name = ecu_name_from_ref(capture_io.capture_rx(cap), rx_index)
+                    key = (ecu_name.upper(), str(cap.get("pid", "")).upper())
+                    prev = best.get(key)
+                    if prev is None or len(payload) > len(prev["payload"]):
+                        best[key] = {
+                            "payload": payload,
+                            "date": str(session.get("date", "")),
+                            "label": session.get("label", ""),
+                            "file": fpath.name,
+                        }
     return best
 
 

@@ -12,7 +12,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from canlib import ansi
-from canlib.capture_io import resolve_captures_dir
+from canlib.capture_store import entry_path
 from canlib.capture_types import CaptureEntry
 
 from .query import _parse_query
@@ -38,9 +38,8 @@ def cmd_delete(
     import json as _json
 
     from canlib.captures import delete_capture
+    from canlib.commands.captures import layers
     from canlib.query import QueryError
-
-    cdir = resolve_captures_dir(captures_dir)
 
     q = _parse_query(query)
     try:
@@ -86,6 +85,10 @@ def cmd_delete(
         print("  (--dry-run: nothing deleted)")
         return 0
 
+    if blocked := layers.refusal((entry_path(e, captures_dir) for e in matched), "deleted"):
+        print(blocked, file=sys.stderr)
+        return 1
+
     if not assume_yes:
         if not (sys.stdin.isatty() and sys.stdout.isatty()):
             print(
@@ -103,13 +106,14 @@ def cmd_delete(
     # remain valid as we remove entries from each file.
     to_delete = sorted(
         matched,
-        key=lambda e: (e["file"], e["_session_idx"], e["_capture_idx"]),
+        key=lambda e: (e["_path"], e["_session_idx"], e["_capture_idx"]),
         reverse=True,
     )
     deleted = 0
     for e in to_delete:
         try:
-            delete_capture(cdir / e["file"], e["_session_idx"], e["_capture_idx"])
+            target = entry_path(e, captures_dir)
+            delete_capture(target, e["_session_idx"], e["_capture_idx"])
             deleted += 1
         except Exception as ex:  # keep going; report the failure
             print(f"    ! {e.get('file', '?')} {e.get('ecu', '?')} {e.get('pid', '?')}: {ex}")

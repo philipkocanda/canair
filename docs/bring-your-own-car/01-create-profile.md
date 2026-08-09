@@ -27,16 +27,39 @@ elsewhere.
     ```bash
     canair profile create ioniq-5-2022 --car-model "Hyundai Ioniq 5 2022" \
         --path profiles/ioniq-5-2022
+    canair config set profiles_dir /path/to/canair/profiles
     ```
 
     A profile placed there is still discoverable by name (`--profile
-    ioniq-5-2022`), and it's where you'd open a pull request from.
+    ioniq-5-2022`), and it's where you'd open a pull request from. The
+    `profiles_dir` setting is what makes a globally-installed `canair` find it —
+    and, just as importantly, keeps everything you record inside the checkout
+    instead of the install snapshot, which a reinstall erases (see
+    [Profiles → Where your writes land](../concepts/profiles.md#where-your-writes-land)).
 
     Once you have **more than one** profile and no `default_profile` set, every
     command needs `--profile NAME` (or `CANAIR_PROFILE=NAME`) — canair won't
     guess. Set a default with `canair profile use NAME` (an alias for `canair
     config set default_profile NAME`) if you'll be working on one profile for a
     while.
+
+!!! tip "Starting from a car that's already bundled?"
+    If canair already ships a profile for a *related* car, don't scaffold a blank
+    one — take a writable copy and edit from there:
+
+    ```bash
+    canair profile adopt ioniq-2017 --set-default
+    ```
+
+    It lands in `~/.config/canair/profiles/ioniq-2017/` and shadows the bundled
+    one by name. Note that the copy stops tracking upstream, so if the goal is to
+    *contribute back* to that profile, set `profiles_dir` to your clone instead.
+
+    If the bundled profile already fits your car and you only want to **record
+    against it**, take a layer rather than a copy — `canair profile overlay
+    ioniq-2017` keeps its definitions tracking upstream while your captures land
+    in your own directory. See
+    [Layering your captures](../concepts/profiles.md#layering-your-captures-over-someone-elses-definitions).
 
 ## What you get
 

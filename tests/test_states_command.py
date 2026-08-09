@@ -92,8 +92,14 @@ class TestEditDispatch:
     def test_add_dispatch(self, monkeypatch, capsys, tmp_path):
         called = {}
 
-        def _add(name, *, description=None, when=None, implies=None, profile=None):
-            called.update(name=name, description=description, when=when, implies=implies)
+        def _add(name, *, description=None, when=None, implies=None, excludes=None, profile=None):
+            called.update(
+                name=name,
+                description=description,
+                when=when,
+                implies=implies,
+                excludes=excludes,
+            )
             return tmp_path / "vehicle_states.yaml"
 
         monkeypatch.setattr("canlib.states_edit.add_state", _add)
@@ -103,6 +109,7 @@ class TestEditDispatch:
             description="d",
             when=None,
             implies="READY",
+            excludes="PARKED",
             _states_func=states_cmd.cmd_add,
         )
         rc = states_cmd.run(args)
@@ -112,6 +119,7 @@ class TestEditDispatch:
             "description": "d",
             "when": None,
             "implies": "READY",
+            "excludes": "PARKED",
         }
         assert "added state PRECONDITION" in capsys.readouterr().out
 
@@ -128,6 +136,7 @@ class TestEditDispatch:
             description=None,
             when=None,
             implies=None,
+            excludes=None,
             _states_func=states_cmd.cmd_add,
         )
         with pytest.raises(SystemExit) as exc:

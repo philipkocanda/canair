@@ -4,13 +4,13 @@
 
 ```
 usage: canair states [-h] [--json]
-                     {list,add,rm,rename,set-description,set-predicate,set-implies}
+                     {list,add,rm,rename,set-description,set-predicate,set-implies,set-excludes}
                      ...
 
-List the active profile's vehicle operating states, or edit the vocabulary (add/rm/rename/set-description/set-predicate/set-implies). Read-only companion of the state auto-suggestion used when recording captures.
+List the active profile's vehicle operating states, or edit the vocabulary (add/rm/rename/set-description/set-predicate/set-implies/set-excludes). Read-only companion of the state auto-suggestion used when recording captures.
 
 positional arguments:
-  {list,add,rm,rename,set-description,set-predicate,set-implies}
+  {list,add,rm,rename,set-description,set-predicate,set-implies,set-excludes}
     list                List the vocabulary, or look up one state's ECUs
                         (default)
     add                 Add a new state to the vocabulary
@@ -19,6 +19,8 @@ positional arguments:
     set-description     Set/clear a state's description
     set-predicate       Set/clear a state's when: auto-suggest predicate
     set-implies         Set/clear which broader states this one specializes
+    set-excludes        Set/clear which states this one cannot hold at the
+                        same instant
 
 options:
   -h, --help            show this help message and exit
@@ -32,6 +34,7 @@ options:
   canair states set-predicate CHARGING "BMS.BATTERY_CURRENT < -1"
   canair states set-implies DRIVING READY         # DRIVING is the specific reading
   canair states set-implies DRIVING               # clear the hierarchy
+  canair states set-excludes DRIVING PARKED       # the two cannot co-occur
   canair states set-description ACC "Accessory power (ACC1)"
   canair states rename ACC2 IGN
   canair states rm PRECONDITION
@@ -55,7 +58,7 @@ options:
 
 ```
 usage: canair states add [-h] [--description DESCRIPTION] [--when EXPR]
-                         [--implies STATES]
+                         [--implies STATES] [--excludes STATES]
                          name
 
 positional arguments:
@@ -70,6 +73,10 @@ options:
                         Comma-separated broader states this one specializes
                         (e.g. READY) — when both match, the live view shows
                         this one
+  --excludes STATES, -x STATES
+                        Comma-separated states this one cannot hold at the
+                        same instant (e.g. PARKED) — a session tagged with
+                        both sequenced through them
 ```
 
 ## `canair states rm`
@@ -131,6 +138,26 @@ usage: canair states set-implies [-h] name [STATES]
 Declare the specificity hierarchy: DRIVING implies READY means that when both
 predicates match, DRIVING is the more specific (and shown) reading. Targets
 must be declared states and the hierarchy must stay acyclic.
+
+positional arguments:
+  name
+  STATES      Comma-separated state names (omit to clear)
+
+options:
+  -h, --help  show this help message and exit
+```
+
+## `canair states set-excludes`
+
+```
+usage: canair states set-excludes [-h] name [STATES]
+
+Declare mutual exclusivity: DRIVING excludes PARKED means the two cannot
+describe one instant, so a session tagged with both sequenced through them and
+needs a state_spans timeline (canair captures uds --backfill-state-spans) for
+per-capture filtering to be exact. The relation is symmetric — declaring it on
+either side is enough. Targets must be declared states and may not also be
+related by implies:.
 
 positional arguments:
   name

@@ -10,6 +10,7 @@ from jsonschema import Draft202012Validator
 from jsonschema.protocols import Validator
 
 from canlib import capture_io
+from canlib.states import StateRule, contradictory_states
 
 from ._common import CAPTURES_SCHEMA_FILE, DEPRECATED_FIELDS
 
@@ -37,8 +38,9 @@ def _print_grouped(warnings: list[CaptureWarning], marker: str) -> None:
     """Print warnings, collapsing repeats of the same message into one line.
 
     A message seen once prints inline (``marker location: message``); a message
-    seen multiple times prints once as ``marker message — N captures:`` followed
-    by an indented, capped list of the offending locations.
+    seen multiple times prints once as ``marker message — N locations:`` followed
+    by an indented, capped list of them. "Locations", not "captures": the same
+    lint can be session-scoped (a state or quality warning) or capture-scoped.
     """
     groups: OrderedDict[str, list[str]] = OrderedDict()
     for w in warnings:
@@ -50,7 +52,7 @@ def _print_grouped(warnings: list[CaptureWarning], marker: str) -> None:
         shown = locations[:_MAX_GROUP_LOCATIONS]
         extra = len(locations) - len(shown)
         tail = f", … (+{extra} more)" if extra else ""
-        print(f"  {marker} {message} — {len(locations)} captures:")
+        print(f"  {marker} {message} — {len(locations)} locations:")
         print(f"      {', '.join(shown)}{tail}")
 
 
@@ -133,9 +135,15 @@ def _run_captures(
     from canlib.profile import active
 
     prof = active()
-    captures_dir = prof.captures_dir
-    capture_io.ensure_migrated(captures_dir)
-    files = capture_io.iter_capture_files(captures_dir)
+    # Both layers are validated: a layered profile's base holds captures the user
+    # cannot edit, but a schema break there still breaks every analysis, so
+    # `validate captures` must report it rather than only auditing the overlay.
+    files: list[Path] = []
+    for layer in prof.capture_layers:
+        if not layer.is_dir():
+            continue
+        capture_io.ensure_migrated(layer)
+        files.extend(capture_io.iter_capture_files(layer))
 
     if not files:
         print("No capture files found.")
@@ -145,6 +153,15 @@ def _run_captures(
     from canlib.states import state_names
 
     vocab = {n.lower() for n in state_names()}
+
+    # excludes: declarations, for the sequenced-session warning. Empty (or a
+    # profile whose states fail to load) simply disables that check.
+    from canlib.states import StatePredicateError, load_states
+
+    try:
+        state_rules = [r for r in load_states() if r.excludes]
+    except StatePredicateError:
+        state_rules = []
 
     # Profile HK F1xx -1 identity-DID quirk: only tolerate off-by-one F1xx echoes
     # on a profile that opts in (make-neutral profiles flag them).
@@ -157,7 +174,9 @@ def _run_captures(
     total_time_gaps = 0
     for path in files:
         errors = validate_captures_file(path, validator, rx_addrs)
-        warnings: list[CaptureWarning] = _capture_state_warnings(path, vocab) if vocab else []
+        warnings: list[CaptureWarning] = (
+            _capture_state_warnings(path, vocab, state_rules) if vocab else []
+        )
         warnings += _capture_echo_warnings(path, hk_f1xx_offset)
         warnings += _capture_nonhex_warnings(path)
         warnings += _capture_quality_warnings(path)
@@ -222,15 +241,26 @@ def _run_captures(
     return 0
 
 
-def _capture_state_warnings(path: Path, vocab: set[str]) -> list[CaptureWarning]:
-    """Soft warnings for session vehicle_states outside the declared vocabulary.
+def _capture_state_warnings(
+    path: Path, vocab: set[str], rules: list[StateRule] | None = None
+) -> list[CaptureWarning]:
+    """Soft warnings for a session's vehicle_states: vocabulary, then exclusivity.
 
     A session's ``vehicle_states`` is a list of tokens (e.g. [ready, parked]); a
     session is flagged only when *none* of its tokens is a known state name
     (case-insensitive). Never an error — this only nudges toward the
     standardized vehicle_states.yaml vocabulary.
+
+    The second check needs the profile's ``excludes:`` declarations. A session
+    tagged with a pair that cannot hold at one instant did not overlap, it
+    *sequenced* — so its tokens describe a span of time rather than a reading,
+    and every capture in it currently answers for states it was never in. That
+    is only a warning while the session carries no ``state_spans`` timeline to
+    resolve each capture against; once it does, the pair is expected and
+    correct.
     """
     warnings: list[CaptureWarning] = []
+    exclusive = list(rules or [])
     data = capture_io.load_capture_file(path)
     if not isinstance(data, dict):
         return warnings
@@ -251,7 +281,23 @@ def _capture_state_warnings(path: Path, vocab: set[str]) -> list[CaptureWarning]
                     f"vehicle_states {states} has no token in the vehicle_states.yaml vocabulary",
                 )
             )
+        if exclusive and not _has_spans(session):
+            for a, b in contradictory_states(exclusive, states):
+                warnings.append(
+                    CaptureWarning(
+                        f"sessions[{si}]",
+                        f"vehicle_states has the mutually exclusive pair {a}+{b} but no "
+                        "state_spans timeline — every capture in it answers for both; "
+                        "run: canair captures uds --backfill-state-spans",
+                    )
+                )
     return warnings
+
+
+def _has_spans(session: dict) -> bool:
+    """Whether a session carries a non-empty ``state_spans`` timeline."""
+    block = session.get("state_spans")
+    return isinstance(block, dict) and bool(block.get("spans"))
 
 
 def _capture_quality_warnings(path: Path) -> list[CaptureWarning]:

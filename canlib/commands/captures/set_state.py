@@ -19,7 +19,6 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from canlib.capture_io import resolve_captures_dir
 from canlib.states import allowed_states, join_states, parse_states
 
 if TYPE_CHECKING:
@@ -42,9 +41,8 @@ def cmd_set_state(
 
     from canlib.captures import set_session_states
 
+    from . import layers
     from .query import group_sessions
-
-    cdir = resolve_captures_dir(captures_dir)
 
     states = parse_states(states_arg)
     if not states:
@@ -69,6 +67,7 @@ def cmd_set_state(
     rows: list[dict] = [
         {
             "file": g["file"],
+            "path": g["path"],
             "session_idx": g["session_idx"],
             "date": g["date"],
             "label": g["label"],
@@ -97,6 +96,10 @@ def cmd_set_state(
         print("  (--dry-run: nothing written)")
         return 0
 
+    if blocked := layers.refusal((Path(r["path"]) for r in to_write), "relabelled"):
+        print(blocked, file=sys.stderr)
+        return 1
+
     if not assume_yes:
         if not (sys.stdin.isatty() and sys.stdout.isatty()):
             print(
@@ -120,7 +123,7 @@ def cmd_set_state(
     written = 0
     for r in to_write:
         try:
-            set_session_states(cdir / r["file"], r["session_idx"], states)
+            set_session_states(Path(r["path"]), r["session_idx"], states)
             written += 1
             print(
                 f"    \u2192 {r['file']} [{r['session_idx']}] {r['date']} = {join_states(states)}"

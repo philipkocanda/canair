@@ -162,7 +162,7 @@ def _contribute(args, rep: Reporter) -> int:
     gates.validate(rep, profile)
     pre = gates.environment(rep, profile, branch)
     gates.capture_size(rep, profile, include_captures=include_captures)
-    workspace = gates.workspace(rep, args, profile)
+    workspace = gates.workspace(rep, args, profile, pre)
 
     run_ = _Contribution(
         args=args,
@@ -249,6 +249,8 @@ def _stage_contribution(run_: _Contribution) -> int | None:
             ),
         )
 
+    _make_hermetic(run_)
+
     C.copy_profile(run_.profile, workspace, include_captures=run_.include_captures, warn=rep.warn)
 
     if not C.has_changes(pre, workspace, run_.profile.name):
@@ -264,6 +266,33 @@ def _stage_contribution(run_: _Contribution) -> int | None:
     # and the privacy gate report it.
     run_.rollback = C.definition_rollback(pre, workspace, run_.profile.name)
     return None
+
+
+def _make_hermetic(run_: _Contribution) -> None:
+    """Discard leftovers in the managed workspace so only this run's copy is staged.
+
+    Branching does not remove an uncommitted file an earlier run left behind (a
+    ``--diff`` stages a copy and never commits it), and ``commit_profile`` stages
+    the whole profile directory — so without this, stale files ride along in the
+    PR. Skipped for a user-supplied ``--repo-dir``, whose local work is theirs;
+    that case is warned about by the workspace gate instead.
+    """
+    rep = run_.rep
+    if not C.is_managed_workspace(run_.workspace):
+        return
+    failed = next((s for s in C.reset_workspace(run_.pre, run_.workspace) if not s.ok), None)
+    if failed is None:
+        return
+    detail = failed.output
+    rep.fail(
+        "workspace reset failed",
+        detail=detail,
+        human=lambda: rep.console.print(
+            "  [red]could not clean the staging workspace:[/red] "
+            f"[dim]{detail}[/dim]\n"
+            f"  Delete it and retry: [cyan]rm -rf {run_.workspace}[/cyan]"
+        ),
+    )
 
 
 def _report_diff(run_: _Contribution) -> int:
@@ -354,6 +383,24 @@ def _push_and_open_pr(run_: _Contribution) -> int:
             human=lambda: rep.console.print(f"  [red]push failed:[/red] [dim]{push.output}[/dim]"),
         )
 
+    # Re-running on the same day pushes to a branch that already has a PR, and the
+    # push has just updated it — so that is a success, not a `gh pr create` error.
+    if existing := C.find_open_pr(pre, run_.branch):
+        number, url = existing
+
+        def updated() -> None:
+            rep.console.print(f"\n  [green]✓ Updated pull request #{number}:[/green] {url}")
+            rep.console.print("  Thank you for contributing! 🎉")
+
+        return rep.done(
+            updated,
+            dry_run=False,
+            findings=findings_json(run_.findings),
+            pr_url=url,
+            pr_number=number,
+            pr_updated=True,
+        )
+
     pr = C.create_pr(
         pre,
         workspace,
@@ -376,7 +423,13 @@ def _push_and_open_pr(run_: _Contribution) -> int:
         rep.console.print(f"\n  [green]✓ Pull request opened:[/green] {pr_url}")
         rep.console.print("  Thank you for contributing! 🎉")
 
-    return rep.done(celebrate, dry_run=False, findings=findings_json(run_.findings), pr_url=pr_url)
+    return rep.done(
+        celebrate,
+        dry_run=False,
+        findings=findings_json(run_.findings),
+        pr_url=pr_url,
+        pr_updated=False,
+    )
 
 
 # --- helpers ----------------------------------------------------------------

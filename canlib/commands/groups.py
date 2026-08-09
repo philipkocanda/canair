@@ -25,6 +25,7 @@ import sys
 from typing import TypedDict
 
 from canlib import ansi
+from canlib.commands._edit_echo import echo_edit
 
 NAME = "groups"
 
@@ -89,12 +90,14 @@ def cmd_list(args) -> int:
 
 def _run_edit(args, action) -> int:
     from canlib.groups_edit import GroupsEditError
+    from canlib.profile import require_writable_definitions
 
+    require_writable_definitions()
     try:
         path = action()
     except GroupsEditError as e:
         raise SystemExit(f"{ansi.c('  Error: ' + str(e), ansi.RED)}") from None
-    print(f"{ansi.c('  ✓ ' + args._groups_msg, ansi.GREEN)}  {ansi.c(f'({path.name})', ansi.DIM)}")
+    echo_edit(args._groups_msg, path)
     return 0
 
 

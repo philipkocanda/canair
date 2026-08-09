@@ -16,7 +16,7 @@ from canlib.align import longest_payload_len
 from canlib.inspect_bytes import apply_transform
 from canlib.mirrors import DEFAULT_MIRROR_MATCH
 from canlib.notation import ByteNotation, relabel_signal
-from canlib.states import join_states as _join_states
+from canlib.states import load_states, state_bucket_key
 from canlib.stats import correlation as _correlation
 from canlib.xanalysis import byte_state_buckets as _byte_state_buckets
 from canlib.xanalysis import discriminability as _discriminability
@@ -58,10 +58,18 @@ def print_discriminate(
     ``None`` (e.g. no axis sample within tolerance) is dropped from every bucket.
     """
 
+    rules = load_states() if group_of is None else []
+    key_cache: dict[tuple[str, ...], str] = {}
+
     def _grp(r: dict) -> str | None:
         if group_of is not None:
             return group_of(r)
-        return _join_states(r["capture"].get("vehicle_states")) or "(no state)"
+        raw = tuple(str(s).upper() for s in r["capture"].get("vehicle_states") or [])
+        hit = key_cache.get(raw)
+        if hit is None:
+            hit = state_bucket_key(raw, rules)
+            key_cache[raw] = hit
+        return hit
 
     buckets: dict[str, dict[str, list[float]]] = {name: {} for name in param_names}
     # Parallel categorical view: for typed enum/bitmask params, collect the

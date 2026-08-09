@@ -52,7 +52,7 @@ Date scoping (inclusive, YYYY-MM-DD; combines with any mode):
   --until DATE          captures on or before DATE
   --date DATE           captures on DATE only (--since DATE --until DATE)
 
-State/label scoping (case-insensitive substring; combines with any mode):
+State/label scoping (state by token, label by substring; combines with any mode):
   --state SUBSTR        only sessions whose vehicle_states contain SUBSTR (e.g. driving)
   --label SUBSTR        only sessions/captures whose label contains SUBSTR
 
@@ -103,8 +103,10 @@ from canlib.capture_types import CaptureEntry
 from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.notation import add_notation_arg, resolve_notation
 from canlib.state_infer import DEFAULT_CYCLE_TOL_S
+from canlib.states import format_state_selector
 
 from .backfill import cmd_backfill_states
+from .backfill_spans import cmd_backfill_state_spans
 from .delete import cmd_delete
 from .diff import cmd_diff
 from .listing import cmd_latest, cmd_list
@@ -193,6 +195,15 @@ def _add_uds_parser(kinds) -> argparse.ArgumentParser:
         "Honors the scope filters.",
     )
     standalone.add_argument(
+        "--backfill-state-spans",
+        action="store_true",
+        dest="backfill_state_spans",
+        help="Reconstruct WHEN each state held during a session (a state_spans "
+        "timeline) so analysis resolves a capture's state at its own timestamp "
+        "instead of the session-wide union. Only narrows states the evidence can "
+        "place in time. Previews with --dry-run; confirms unless --yes.",
+    )
+    standalone.add_argument(
         "--set-state",
         metavar="STATES",
         default=None,
@@ -213,7 +224,8 @@ def _add_uds_parser(kinds) -> argparse.ArgumentParser:
         "--overwrite",
         action="store_true",
         help="With --backfill-states: also rewrite sessions whose recorded states "
-        "conflict with / differ from the inferred states (default: fill empty only)",
+        "conflict with / differ from the inferred states (default: fill empty only). "
+        "With --backfill-state-spans: also replace live-observed timelines",
     )
 
     parser.add_argument(
@@ -221,21 +233,24 @@ def _add_uds_parser(kinds) -> argparse.ArgumentParser:
         type=float,
         default=DEFAULT_CYCLE_TOL_S,
         metavar="SECONDS",
-        help="With --backfill-states: max timestamp gap grouping captures into one "
+        help="With --backfill-states/--backfill-state-spans: max timestamp gap "
+        "grouping captures into one "
         f"pseudo-cycle for cross-ECU predicates (default {DEFAULT_CYCLE_TOL_S:g}s)",
     )
 
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="With --delete/--backfill-states/--set-state: preview the changes, write nothing",
+        help="With --delete/--backfill-states/--backfill-state-spans/--set-state: "
+        "preview the changes, write nothing",
     )
 
     parser.add_argument(
         "--yes",
         "-y",
         action="store_true",
-        help="With --delete/--backfill-states/--set-state: skip the confirmation prompt (scripting)",
+        help="With --delete/--backfill-states/--backfill-state-spans/--set-state: "
+        "skip the confirmation prompt (scripting)",
     )
 
     parser.add_argument(
@@ -344,7 +359,7 @@ def _scope(args, since, until) -> list[CaptureEntry] | int:
             crit = ", ".join(
                 x
                 for x in [
-                    f"state~'{args.state}'" if args.state else "",
+                    f"state={format_state_selector(args.state)}" if args.state else "",
                     f"label~'{args.label}'" if args.label else "",
                 ]
                 if x
@@ -363,6 +378,16 @@ def _dispatch(mode: Mode, args, query: str, entries: list[CaptureEntry]) -> int:
         cmd_sessions(entries, as_json=args.json)
     elif mode == "backfill_states":
         return cmd_backfill_states(
+            entries,
+            captures_dir=args.dir,
+            overwrite=args.overwrite,
+            cycle_tol=args.cycle_tol,
+            dry_run=args.dry_run,
+            assume_yes=args.yes,
+            as_json=args.json,
+        )
+    elif mode == "backfill_state_spans":
+        return cmd_backfill_state_spans(
             entries,
             captures_dir=args.dir,
             overwrite=args.overwrite,

@@ -41,12 +41,13 @@ import shutil
 import sys
 import textwrap
 from collections import Counter
+from collections.abc import Sequence
 from pathlib import Path
 
 from canlib import ansi
 from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.pids import load_pids
-from canlib.states import allowed_states, parse_states
+from canlib.states import allowed_states, state_matcher, unknown_state_tokens
 
 NAME = "research"
 
@@ -112,7 +113,7 @@ def filter_records(
     rtype: str | None = None,
     status: str | None = None,
     priority: str | None = None,
-    state: str | None = None,
+    state: str | Sequence[str] | None = None,
     include_done: bool = False,
 ) -> list[dict]:
     """Apply the AND-combined CLI filters to the flattened research records.
@@ -121,6 +122,7 @@ def filter_records(
     explicitly filters ``status='done'``.
     """
     out = []
+    matches_state = state_matcher(state) if state else None
     for r in records:
         if not include_done and status != "done" and r.get("status") == "done":
             continue
@@ -132,9 +134,9 @@ def filter_records(
             continue
         if priority and r.get("priority") != priority:
             continue
-        if state:
+        if matches_state is not None:
             entry_states = r.get("vehicle_states") or []
-            if not isinstance(entry_states, list) or state not in entry_states:
+            if not isinstance(entry_states, list) or not matches_state(entry_states):
                 continue
         out.append(r)
     return out
@@ -347,11 +349,11 @@ def run(args) -> int:
     # Friendly (non-fatal) note when filtering on a state outside the profile's
     # vocabulary — the filter still runs (yields nothing) but the user learns why.
     if args.state:
-        allowed = allowed_states()
-        if not set(parse_states(args.state)) <= allowed:
+        unknown = unknown_state_tokens(args.state)
+        if unknown:
             print(
-                f"  note: '{args.state}' is not in this profile's state vocabulary "
-                f"({', '.join(sorted(allowed))}).",
+                f"  note: {', '.join(unknown)} not in this profile's state vocabulary "
+                f"({', '.join(sorted(allowed_states()))}).",
                 file=sys.stderr,
             )
 

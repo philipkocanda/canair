@@ -247,9 +247,19 @@ class TestDiscriminate:
     def test_discriminability_single_group_none(self):
         assert _discriminability({"a": [1.0, 2.0, 3.0]}) is None
 
-    def test_discriminability_perfect_zero_within(self):
+    def test_discriminability_perfect_zero_within_is_finite(self):
+        """Zero within-group spread scores high but stays comparable, never inf.
+
+        An unbounded score cannot be ranked against a measured one, and thin
+        buckets reach it by accident (see xanalysis.discriminability).
+        """
         groups = {"a": [10.0, 10.0], "b": [50.0, 50.0]}
-        assert _discriminability(groups) == float("inf")
+        f = _discriminability(groups)
+        assert f is not None and f > 10 and f != float("inf")
+
+    def test_discriminability_respects_min_group_n(self):
+        groups = {"a": [10.0, 10.0], "b": [50.0, 50.0]}
+        assert _discriminability(groups, min_group_n=3) is None
 
     def test_print_discriminate(self, capsys):
         results = [
@@ -261,7 +271,7 @@ class TestDiscriminate:
         analysis.print_discriminate(results, ["T"], {}, set(), "state")
         out = capsys.readouterr().out
         assert "Discriminability by state" in out
-        assert "charging=20" in out and "driving=91" in out
+        assert "CHARGING=20" in out and "DRIVING=91" in out
 
     def test_discriminate_bytes_surfaces_state_byte(self, capsys):
         # T1.1: a raw byte that is state-dependent (and near-binary: 2 distinct

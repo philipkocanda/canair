@@ -291,13 +291,37 @@ class TestFilterByText:
         e = self._entries()
         assert filter_by_text(e) is e
 
-    def test_state_substring_case_insensitive(self):
-        out = filter_by_text(self._entries(), state="PARK")
+    def test_state_matches_whole_token_case_insensitively(self):
+        out = filter_by_text(self._entries(), state="PARKED")
         assert len(out) == 1 and out[0]["vehicle_states"] == ["ready", "parked"]
+
+    def test_state_no_longer_matches_a_bare_prefix(self):
+        """``--state PARK`` used to select PARKED by substring; it is a token now."""
+        assert filter_by_text(self._entries(), state="PARK") == []
 
     def test_state_matches_multiple(self):
         out = filter_by_text(self._entries(), state="driving")
         assert len(out) == 2
+
+    def test_state_widens_through_implies(self):
+        """DRIVING implies READY in the bundled vocabulary, so READY selects both."""
+        out = filter_by_text(self._entries(), state="ready")
+        assert len(out) == 3
+
+    def test_state_comma_separated_tokens_are_alternatives(self):
+        out = filter_by_text(self._entries(), state="parked,driving")
+        assert len(out) == 3
+
+    def test_repeated_state_is_conjunctive(self):
+        out = filter_by_text(self._entries(), state=["ready", "parked"])
+        assert len(out) == 1 and out[0]["vehicle_states"] == ["ready", "parked"]
+
+    def test_conjunction_with_no_common_capture_is_empty(self):
+        assert filter_by_text(self._entries(), state=["driving", "parked"]) == []
+
+    def test_all_matches_everything(self):
+        out = filter_by_text(self._entries(), state="ALL")
+        assert len(out) == 3
 
     def test_label_matches_session_label(self):
         out = filter_by_text(self._entries(), label="city")
@@ -473,7 +497,7 @@ class TestPrintStatsGrouped:
         )
         views.print_stats_grouped(results, ["P"], {"P": {"unit": ""}}, set(), "state")
         out = capsys.readouterr().out
-        assert "[drive A]" in out and "[drive B]" in out
+        assert "[DRIVE A]" in out and "[DRIVE B]" in out
         # Group A max is 3, group B max is 100 — proves per-group stats.
         assert "max=3" in out
         assert "max=100" in out

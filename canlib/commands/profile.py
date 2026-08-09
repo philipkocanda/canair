@@ -12,18 +12,14 @@ from canlib.profile import (
     active,
     config_dir_hint,
     discover_profiles,
+    extends_target,
+    profile_layers,
     resolve_profile,
 )
+from canlib.profile_create import DEFAULT_INIT, adopt_profile, create_profile, overlay_profile
 
 NAME = "profile"
 ALIASES = ["prof"]
-
-# Default ELM327 init string for a new profile: ISO 15765-4 CAN 11-bit/500 kbit
-# (the common modern-vehicle protocol), spaces off, allow long messages. The
-# response timeout (ATST) is deliberately NOT baked in here — it is vehicle-
-# specific and set via the profile's `response_timeout_ms:` (the Ioniq needs a
-# high value; faster cars want a lower one). Editable in profile.yaml afterwards.
-DEFAULT_INIT = "ATSP6;ATS0;ATAL;"
 
 
 def add_parser(subparsers) -> argparse.ArgumentParser:
@@ -39,7 +35,9 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "  show [NAME]     details of a profile (ECU/PID counts, paths); default active\n"
         "  path [NAME]     print a profile's root directory (handy for scripting)\n"
         "  use NAME        set NAME as the default profile (default_profile in config)\n"
-        "  create NAME     scaffold a new empty profile bundle\n\n"
+        "  create NAME     scaffold a new empty profile bundle\n"
+        "  adopt NAME      copy a read-only profile to ~/.config/canair/profiles/ to write to it\n"
+        "  overlay NAME    record your own captures over a read-only profile's definitions\n\n"
         "A bare `canair profile` opens an interactive arrow-key picker on a TTY (choose\n"
         "the default profile); piped/non-interactive it prints the list. Select the\n"
         "active profile with the global --profile flag, CANAIR_PROFILE, or\n"
@@ -54,6 +52,8 @@ examples:
   canair profile use ioniq-2017               # set the default profile
   canair profile create ev6 --car-model "Kia EV6 2022"
   canair profile create ev6 --car-model "Kia EV6 2022" --set-default
+  canair profile adopt ioniq-2017              # writable copy under ~/.config/canair
+  canair profile overlay ioniq-2017            # keep its definitions, record your own captures
 """,
     )
     sub = parser.add_subparsers(dest="profile_command")
@@ -100,6 +100,47 @@ examples:
     )
     crt.add_argument("--force", action="store_true", help="Allow a non-empty target directory")
     crt.set_defaults(_profile_func=_cmd_create)
+
+    adopt = sub.add_parser(
+        "adopt",
+        help="Copy a profile to ~/.config/canair/profiles/ so you can write to it",
+        description="Copy a discovered profile into ~/.config/canair/profiles/<name>, "
+        "where it shadows the original by name and is writable. Use it when the "
+        "profile you are reading is read-only or lives in an install snapshot "
+        "(site-packages), whose contents a reinstall replaces. Generated out/ is "
+        "not copied — regenerate it with `canair wican autopid write`.",
+        epilog="Working on a repo-bundled profile you intend to contribute back? "
+        "Point canair at the checkout instead — `canair config set profiles_dir "
+        "<clone>/profiles` — so your edits stay in git.",
+    )
+    adopt.add_argument("name", help="Name of the discovered profile to copy")
+    adopt.add_argument(
+        "--set-default",
+        action="store_true",
+        help="Set this profile as default_profile in the user config",
+    )
+    adopt.add_argument(
+        "--force", action="store_true", help="Overwrite an existing user copy of this profile"
+    )
+    adopt.set_defaults(_profile_func=_cmd_adopt)
+
+    ovl = sub.add_parser(
+        "overlay",
+        help="Record into your own captures/ while definitions stay with the base profile",
+        description="Create a capture layer over a discovered profile: a bundle at "
+        "~/.config/canair/profiles/<name>/ holding an `extends:` marker and an empty "
+        "captures/. Nothing is copied, so the base profile's definitions keep "
+        "resolving (and keep tracking upstream) while every capture you record lands "
+        "in your layer. Analysis reads both layers; the base layer's captures are "
+        "read-only. Use `adopt` instead when you need to edit definitions too.",
+    )
+    ovl.add_argument("name", help="Name of the discovered profile to layer onto")
+    ovl.add_argument(
+        "--set-default",
+        action="store_true",
+        help="Set this profile as default_profile in the user config",
+    )
+    ovl.set_defaults(_profile_func=_cmd_overlay)
 
     parser.set_defaults(func=run, _profile_func=_cmd_default)
     return parser
@@ -180,6 +221,9 @@ def _cmd_list(args) -> int:
     for name, root in profiles.items():
         marker = "*" if name == active_name else " "
         print(f"{marker} {name}\t{root}")
+        if extends_target(root):
+            for base in profile_layers(name, getattr(args, "profiles_dir", None))[1:]:
+                print(f"    \tlayered over {base}")
 
     if not load_config().get("default_profile"):
         print()
@@ -268,6 +312,8 @@ def _cmd_show(args) -> int:
     meta = prof.meta
     print(f"name:       {prof.name}")
     print(f"root:       {prof.root}")
+    for overlay in prof.overlays:
+        print(f"overlay:    {overlay}  (your layer — captures land here)")
     print(f"car_model:  {meta.get('car_model', '?')}")
     print(f"init:       {meta.get('init', '?')}")
 
@@ -285,6 +331,8 @@ def _cmd_show(args) -> int:
             print(f"{'':<12}{line}")
         # The raw-CAN frame-log store lives inside captures/.
         if member.name == "captures":
+            for layer in prof.capture_layers[:-1]:
+                print(f"{'':<12}{layer}  (base layer, read-only)")
             if prof.can_dir.is_dir():
                 idx = "index ok" if prof.can_index_file.exists() else "no index"
             else:
@@ -312,69 +360,6 @@ def _cmd_use(args) -> int:
     print(f"default_profile = {name}")
     print(f"Saved to {path}")
     return 0
-
-
-# Scaffold templates live in the repo-root `templates/` dir (shipped in the wheel
-# via pyproject force-include). Placeholders use `string.Template` ($var) syntax
-# so literal braces in YAML/comments never need escaping. See templates/*.tmpl.
-def _render_template(filename: str, **subs: str) -> str:
-    """Read templates/<filename> and substitute $placeholders (safe_substitute
-    tolerates each template using only the vars it needs)."""
-    from string import Template
-
-    from canlib.constants import TEMPLATES_DIR
-
-    text = (TEMPLATES_DIR / filename).read_text()
-    return Template(text).safe_substitute(subs)
-
-
-def create_profile(
-    name: str,
-    *,
-    car_model: str,
-    init: str | None = None,
-    path=None,
-    set_default: bool = False,
-    force: bool = False,
-) -> Path:
-    """Scaffold a new profile bundle. Returns its root; raises on error.
-
-    Pure of argparse — callable from the CLI and the first-run wizard alike.
-    """
-    from canlib.config import set_config_value, user_profiles_dir
-
-    name = name.strip()
-    if not name:
-        raise ValueError("profile name cannot be empty")
-
-    root = Path(path) if path else user_profiles_dir() / name
-    if root.exists() and any(root.iterdir()) and not force:
-        raise FileExistsError(f"{root} already exists and is not empty (use force to proceed).")
-
-    car_model = car_model.strip()
-    if not car_model:
-        raise ValueError("car_model is required")
-
-    init = init or DEFAULT_INIT
-
-    (root / "ecus").mkdir(parents=True, exist_ok=True)
-    (root / "captures").mkdir(parents=True, exist_ok=True)
-    (root / "out").mkdir(parents=True, exist_ok=True)
-
-    (root / "profile.yaml").write_text(
-        _render_template("profile.yaml.tmpl", car_model=car_model, init=init)
-    )
-    (root / "vehicle_states.yaml").write_text(
-        _render_template("vehicle_states.yaml.tmpl", car_model=car_model)
-    )
-    (root / "can_buses.yaml").write_text(
-        _render_template("can_buses.yaml.tmpl", car_model=car_model)
-    )
-    (root / "groups.yaml").write_text(_render_template("groups.yaml.tmpl", car_model=car_model))
-
-    if set_default:
-        set_config_value("default_profile", name)
-    return root
 
 
 def _cmd_create(args) -> int:
@@ -424,6 +409,74 @@ def _cmd_create(args) -> int:
     print(f"  car_model: {car_model}")
     print(f"  init:      {init}")
     print(default_note.lstrip("\n"))
+    return 0
+
+
+def _cmd_adopt(args) -> int:
+    name = args.name.strip()
+    try:
+        source, dest = adopt_profile(
+            name,
+            profiles_dir=getattr(args, "profiles_dir", None),
+            set_default=args.set_default,
+            force=args.force,
+        )
+    except LookupError:
+        profiles = discover_profiles(getattr(args, "profiles_dir", None))
+        avail = ", ".join(profiles) or "none"
+        print(f"error: profile '{name}' not found. Available: {avail}.", file=sys.stderr)
+        return 1
+    except FileExistsError as e:
+        print(f"error: {e}. Overwrite it with --force.", file=sys.stderr)
+        return 1
+    except ValueError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+
+    print(f"Adopted '{name}'")
+    print(f"  from: {source}")
+    print(f"  to:   {dest}")
+    print(f"\n'{name}' now resolves to your copy, which writes survive a reinstall.")
+    print("The copy no longer tracks upstream, so `canair contribute` may report a")
+    print("rollback once upstream moves on — for contribution work point canair at a")
+    print("checkout instead: `canair config set profiles_dir <clone>/profiles`.")
+    if args.set_default:
+        print(f"\nSet as default_profile in {user_config_file()}.")
+    return 0
+
+
+def _cmd_overlay(args) -> int:
+    name = args.name.strip()
+    try:
+        base, dest = overlay_profile(
+            name,
+            profiles_dir=getattr(args, "profiles_dir", None),
+            set_default=args.set_default,
+        )
+    except LookupError:
+        profiles = discover_profiles(getattr(args, "profiles_dir", None))
+        avail = ", ".join(profiles) or "none"
+        print(f"error: profile '{name}' not found. Available: {avail}.", file=sys.stderr)
+        return 1
+    except FileExistsError as e:
+        print(f"error: {e}.", file=sys.stderr)
+        print(
+            "A layer is only ever created once. Remove that directory, or use it as-is.",
+            file=sys.stderr,
+        )
+        return 1
+    except ValueError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+
+    print(f"Layered '{name}'")
+    print(f"  base:    {base}  (definitions, read-only captures)")
+    print(f"  overlay: {dest}  (everything you record)")
+    print(f"\n`--profile {name}` now reads both layers and records into yours.")
+    print("Definitions still belong to the base, so editing them is refused — run")
+    print(f"`canair profile adopt {name}` if you need to change PIDs or signals too.")
+    if args.set_default:
+        print(f"\nSet as default_profile in {user_config_file()}.")
     return 0
 
 

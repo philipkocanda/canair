@@ -127,7 +127,13 @@ fork/clone/branch/push, and it works regardless of where the profile is stored
 4. Copies the profile into a managed fork checkout, commits, pushes to your fork,
    and opens the PR via the **GitHub CLI (`gh`)**. When `gh` is missing or
    unauthenticated it prints install + `gh auth login` steps (and the manual
-   equivalent) and changes nothing.
+   equivalent) and changes nothing. The managed checkout is rebuilt from upstream
+   first, so nothing an earlier run left there is staged; a `--repo-dir` you
+   supplied is never reset, but uncommitted changes it holds under
+   `profiles/<name>/` are listed for you to confirm, because they would be
+   committed too. **Re-running is how you revise a contribution** — the same-day
+   branch already has a pull request, and pushing to it reports an *updated PR*
+   rather than an error.
 
 Useful modes (verify against `--help`): `--no-captures` (definitions-only PR),
 `--dry-run` (prepare branch+commit, no push/PR), `--yes` (non-interactive, for

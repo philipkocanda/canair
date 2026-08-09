@@ -19,13 +19,28 @@ from canlib.commands import iter_command_modules
 _GLOBAL_OPTS_WITH_VALUE = {"--profile", "--profiles-dir"}
 # Command groups that default to a kind when the token after them isn't a known
 # sub-kind. Maps command -> (known kinds, default kind).
+#
+# The kind sets are duplicated from each command's subparsers because injection
+# runs on raw argv, before a parser exists. A kind missing here is not an error —
+# it is silently rewritten into the default kind and then rejected as a stray
+# argument, which is why tests/test_cli_group_defaults.py pins each set against
+# the real subparsers.
 _GROUP_DEFAULTS = {
     "scan": ({"range", "iocontrol", "routines", "sessions"}, "range"),
     "ecu": ({"show", "add"}, "show"),
     # A bare token after `states` (e.g. `canair states READY`) is a state name to
     # look up (which ECUs are readable in it), routed through the `list` kind.
     "states": (
-        {"list", "add", "rm", "rename", "set-description", "set-predicate", "set-implies"},
+        {
+            "list",
+            "add",
+            "rm",
+            "rename",
+            "set-description",
+            "set-predicate",
+            "set-implies",
+            "set-excludes",
+        },
         "list",
     ),
     # The uds/can domain-kind spine (ingest/list/analyze). A bare invocation

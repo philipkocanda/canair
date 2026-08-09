@@ -6294,7 +6294,40 @@
           "payload": "6201A301050103FFFFFFFF000000F200F80600000000000000000010104A490000D1220000000000000002BC02DA00000000000000",
           "time": "09:57:49.770"
         }
-      ]
+      ],
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {
+            "at": "09:41:56.303",
+            "states": [
+              "READY",
+              "SLEEP",
+              "ACC",
+              "ACC2",
+              "PARKED"
+            ]
+          },
+          {
+            "at": "09:50:29.365",
+            "states": [
+              "SLEEP",
+              "ACC",
+              "PARKED"
+            ]
+          },
+          {
+            "at": "09:53:49.457",
+            "states": [
+              "READY",
+              "SLEEP",
+              "ACC",
+              "PARKED"
+            ]
+          }
+        ],
+        "version": "1.17.0+main.4178d4a.dirty"
+      }
     },
     {
       "date": "2026-07-30",
@@ -49481,7 +49514,28 @@
           "payload": "62C011E0000000009EBE2762",
           "time": "15:03:36.585"
         }
-      ]
+      ],
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {
+            "at": "12:20:45.815",
+            "states": [
+              "CHARGING",
+              "PLUGGED",
+              "PARKED"
+            ]
+          },
+          {
+            "at": "14:43:31.164",
+            "states": [
+              "PLUGGED",
+              "PARKED"
+            ]
+          }
+        ],
+        "version": "1.17.0+main.4178d4a.dirty"
+      }
     }
   ]
 }

@@ -22,6 +22,7 @@ from canlib import ansi
 from canlib.capture_store import (
     PidDefs,
     decoded_preview,
+    entry_path,
     load_ecu_index,
     resolve_pid_defs,
 )
@@ -256,12 +257,13 @@ def key_index[R: Mapping[str, Any]](entries: Sequence[R]) -> dict[tuple[str, str
 class SessionGroup(TypedDict):
     """Rolled-up per-session accumulator built by :func:`group_sessions`."""
 
-    file: str
+    file: str  # display name
+    path: str  # the file a mutation reopens (see capture_store.entry_path)
     session_idx: int
     date: str
     label: str
     version: str
-    vehicle_states: list
+    vehicle_states: list  # the session-level union, not a per-capture resolution
     notes: str
     keep_mode: EntryKeepMode
     transport: str
@@ -276,7 +278,7 @@ class SessionGroup(TypedDict):
 def group_sessions(entries: Sequence[CaptureEntry]) -> list[SessionGroup]:
     """Reconstruct per-session metadata from flat capture entries.
 
-    Groups by ``(file, _session_idx)`` — the true session identity — and rolls
+    Groups by ``(_path, _session_idx)`` — the true session identity — and rolls
     up each session's date, label, state, session-level notes, capture count,
     the distinct ECUs touched, the time span, any distinct capture-level notes,
     and the noted capture entries themselves (which carry the locators a jump
@@ -285,16 +287,22 @@ def group_sessions(entries: Sequence[CaptureEntry]) -> list[SessionGroup]:
     """
     groups: dict[tuple[str, int], SessionGroup] = {}
     for e in entries:
-        key = (e["file"], e.get("_session_idx", 0))
+        path = str(entry_path(e))
+        key = (path, e.get("_session_idx", 0))
         g: SessionGroup | None = groups.get(key)
         if g is None:
             g = {
                 "file": e["file"],
+                "path": path,
                 "session_idx": e.get("_session_idx", 0),
                 "date": e.get("date", ""),
                 "label": e.get("session_label", ""),
                 "version": e.get("session_version", ""),
-                "vehicle_states": e.get("vehicle_states") or [],
+                # The session's union, never a row's resolved states: a session
+                # view answers "what did this recording cover?". Falls back to the
+                # row's own states for a hand-built entry (tests, external
+                # callers) that predates the per-capture resolution.
+                "vehicle_states": e.get("session_states") or e.get("vehicle_states") or [],
                 "notes": e.get("session_notes", ""),
                 "keep_mode": e.get("keep_mode", ""),
                 "transport": e.get("transport", ""),

@@ -5674,7 +5674,39 @@
           "payload": "61F2FF00000008AB67995C741A1D01D2CF0300000000000011018CFB6E00060BE121CB65F30102005E0000000000000001000000000000000000000000005B0010030000000000000000000000000000000036303030",
           "time": "09:07:43.600"
         }
-      ]
+      ],
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {
+            "at": "09:02:19.245",
+            "states": [
+              "PARKED"
+            ]
+          },
+          {
+            "at": "09:02:38.139",
+            "states": [
+              "DRIVING"
+            ]
+          },
+          {
+            "at": "09:02:59.960",
+            "states": [
+              "READY",
+              "DRIVING"
+            ]
+          },
+          {
+            "at": "09:06:33.366",
+            "states": [
+              "READY",
+              "PARKED"
+            ]
+          }
+        ],
+        "version": "1.17.0+main.4178d4a.dirty"
+      }
     },
     {
       "date": "2026-07-22",
@@ -15966,7 +15998,40 @@
           "payload": "6201018A8EFF0083FFE10000000010102101",
           "time": "17:11:10.374"
         }
-      ]
+      ],
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {
+            "at": "16:51:52.484",
+            "states": [
+              "PARKED"
+            ]
+          },
+          {
+            "at": "16:52:04.687",
+            "states": [
+              "READY",
+              "PARKED"
+            ]
+          },
+          {
+            "at": "16:52:17.577",
+            "states": [
+              "READY",
+              "DRIVING"
+            ]
+          },
+          {
+            "at": "17:04:44.940",
+            "states": [
+              "READY",
+              "PARKED"
+            ]
+          }
+        ],
+        "version": "1.17.0+main.4178d4a.dirty"
+      }
     },
     {
       "date": "2026-07-22",
@@ -16156,7 +16221,26 @@
       "vehicle_states": [
         "READY",
         "PARKED"
-      ]
+      ],
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {
+            "at": "17:11:47.459",
+            "states": [
+              "PARKED"
+            ]
+          },
+          {
+            "at": "17:12:12.029",
+            "states": [
+              "READY",
+              "PARKED"
+            ]
+          }
+        ],
+        "version": "1.17.0+main.4178d4a.dirty"
+      }
     },
     {
       "date": "2026-07-22",
@@ -19101,7 +19185,25 @@
           "payload": "6102F8F8000001010000008B18B6816236220A8B8EE735",
           "time": "17:19:38.405"
         }
-      ]
+      ],
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {
+            "at": "17:13:09.445",
+            "states": [
+              "PARKED"
+            ]
+          },
+          {
+            "at": "17:14:04.696",
+            "states": [
+              "DRIVING"
+            ]
+          }
+        ],
+        "version": "1.17.0+main.4178d4a.dirty"
+      }
     },
     {
       "date": "2026-07-22",

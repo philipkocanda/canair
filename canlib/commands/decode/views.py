@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from canlib import ansi
 from canlib.states import join_states as _join_states
+from canlib.states import load_states, state_bucket_key
 from canlib.stats import compute_stats
 from canlib.stats import fmt_num as _fmt_num
 
@@ -273,13 +274,14 @@ def print_stats_grouped(
     in one shot instead of pooling every capture together. Groups are printed in
     first-appearance order so they follow the chronological session order.
     """
+    rules = load_states() if field in ("state", "vehicle_states") else []
     groups: dict[str, list[dict]] = {}
     for r in all_results:
         cap = r["capture"]
         if field in ("state", "vehicle_states"):
-            key = _join_states(cap.get("vehicle_states")) or "(no state)"
+            key = state_bucket_key(cap.get("vehicle_states"), rules)
         else:
-            key = str(cap.get(field, "")) or "(no state)"
+            key = str(cap.get(field, "")) or "(none)"
         groups.setdefault(key, []).append(r)
 
     for gi, (key, rows) in enumerate(groups.items()):

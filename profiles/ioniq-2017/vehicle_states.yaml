@@ -46,6 +46,7 @@ states:
   - name: CHARGING
     description: HV battery actively charging (AC or DC). Implies plugged.
     implies: [PLUGGED]
+    excludes: [DRIVING]
     when: "BMS.CHARGING == 1 or BMS.CHARGING_DC == 1"
 
   # HV active / driveable. VEHICLE_STATE_EV_READY (VCU 2101 B11:3) is verified.
@@ -60,6 +61,7 @@ states:
   # unobservable in a stored capture), so they stay vocabulary-only.
   - name: SLEEP
     description: Light sleep / 12V standby (unplugged).
+    excludes: [READY, ACC, ACC2, DRIVING, CHARGING, PLUGGED]
   - name: PLUGGED
     description: Charge cable connected (AC or DC), not necessarily charging.
     when: BMS.AC_CHARGER_CONNECTED == 1 or BMS.CHARGING_DC == 1 or IGPM.CHARGE_PORT_LOCK == 1
@@ -75,6 +77,7 @@ states:
   - name: DRIVING
     description: In motion.
     implies: [READY]
+    excludes: [PARKED]
     when: ESC.REAL_SPEED_KMH > 0.5 or VCU.VCU_VEHICLE_SPEED > 0.5 or EPS.EPS_VEHICLE_SPEED > 0.5 or MCU.MCU_MOTOR_RPM > 100
 
   # The gateway/meta token — applicable in every vehicle state (the state

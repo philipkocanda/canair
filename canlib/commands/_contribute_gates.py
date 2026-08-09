@@ -24,6 +24,7 @@ from typing import Any
 
 from .. import contribute as C
 from .. import pii
+from ..install_context import installed_snapshot_kind
 from ._contribute_report import CANNOT, Reporter, Stop, confirm, findings_json, rollback_json
 
 # Warn before contributing a captures/ dir larger than this (bytes).
@@ -37,7 +38,7 @@ def snapshot(rep: Reporter, profile) -> None:
     can be behind the checkout (and ahead on captures written by bare ``--save``
     runs), so contributing it may revert upstream work.
     """
-    kind = C.installed_snapshot_kind(profile.root)
+    kind = installed_snapshot_kind(profile.root)
     if not kind:
         return
     rep.gate(
@@ -121,21 +122,23 @@ def capture_size(rep: Reporter, profile, *, include_captures: bool) -> None:
         raise Stop(CANNOT)
 
 
-def workspace(rep: Reporter, args, profile) -> Path:
+def workspace(rep: Reporter, args, profile, pre: C.Preflight) -> Path:
     """Resolve the staging checkout, refusing to stage a profile into itself.
 
     The managed workspace is a full canair checkout, so it bundles profiles of its
     own; running canair from inside it resolves the active profile to the very
-    directory the copy writes to. Even short of that,
-    :func:`canlib.contribute.start_branch` resets the workspace's tracked files
-    before the copy, so a source living there changes mid-run.
+    directory the copy writes to. Even short of that, preparing the branch
+    (:func:`canlib.contribute.start_branch`, then
+    :func:`canlib.contribute.reset_workspace` for a managed one) rewrites the
+    workspace's tracked files before the copy, so a source living there changes
+    mid-run.
     """
     ws = Path(args.repo_dir).expanduser() if args.repo_dir else C.workspace_dir()
     rep.note(workspace=str(ws))
 
     collision = C.workspace_collision(profile.root, ws, profile.name)
     if collision is None:
-        return ws
+        return _own_checkout_is_clean(rep, ws, profile, pre)
 
     def paths() -> None:
         rep.console.print(f"  profile:   [dim]{profile.root}[/dim]")
@@ -173,6 +176,48 @@ def workspace(rep: Reporter, args, profile) -> Path:
         prompt="Contribute from inside the workspace anyway?",
         human=warn_inside,
         workspace_collision=collision,
+    )
+    return ws
+
+
+def _own_checkout_is_clean(rep: Reporter, ws: Path, profile, pre: C.Preflight) -> Path:
+    """Warn when a user's own ``--repo-dir`` has uncommitted work in the profile dir.
+
+    The managed workspace is rebuilt from the upstream base every run
+    (:func:`canlib.contribute.reset_workspace`), so nothing there can leak into a
+    PR. A ``--repo-dir`` checkout is never reset — it may hold hours of unrelated
+    work — but ``commit_profile`` stages the whole profile directory, so any
+    uncommitted edit already sitting in it *would* join the contribution.
+    """
+    if C.is_managed_workspace(ws):
+        return ws
+    dirty = C.local_changes(pre, ws, profile.name)
+    if not dirty:
+        return ws
+
+    warning = (
+        f"the checkout at {ws} has uncommitted changes under profiles/{profile.name}; "
+        "they would be committed as part of this contribution"
+    )
+
+    def show() -> None:
+        rep.console.print(f"\n[yellow]⚠ Uncommitted changes in {ws}:[/yellow]\n")
+        for entry in dirty[:10]:
+            rep.console.print(f"  [dim]{entry}[/dim]")
+        if len(dirty) > 10:
+            rep.console.print(f"  [dim]… and {len(dirty) - 10} more[/dim]")
+        rep.console.print(
+            f"\n  Everything under [cyan]profiles/{profile.name}/[/cyan] is staged, so "
+            "these ride\n  along in the PR. canair leaves your own checkout alone — commit, "
+            "stash or\n  revert them first, or drop [cyan]--repo-dir[/cyan] to use the "
+            "managed workspace.\n"
+        )
+
+    rep.gate(
+        error=warning,
+        prompt="Contribute those changes too?",
+        human=show,
+        dirty_workspace=dirty,
     )
     return ws
 

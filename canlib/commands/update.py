@@ -29,6 +29,12 @@ tag checkout needed — to bring the bare ``canair`` back in line with the clone
 The reported *current* version is the provenance-bearing one
 (:func:`canlib.build_info.full_version`) — from a checkout it names the branch and
 commit — while the release comparison runs on the pure package version.
+
+Because a reinstall replaces the installed package directory wholesale, it also
+deletes anything written into that copy's bundled profiles (a bare
+``canair … --save`` lands there). Before either reinstall path asks for
+confirmation, the profile data that exists only in the snapshot is listed, so it
+can be rescued instead of silently discarded.
 """
 
 from __future__ import annotations
@@ -41,6 +47,7 @@ from pathlib import Path
 
 from .. import build_info
 from ..install_context import describe as describe_install
+from ..install_context import source_clone
 from ..update_check import (
     CHANGELOG_URL,
     _is_newer,
@@ -84,51 +91,6 @@ examples:
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON")
     parser.set_defaults(func=run)
     return parser
-
-
-def _find_clone_dir() -> Path | None:
-    """Locate the source git clone canair was installed from.
-
-    Preference order:
-      1. uv's tool receipt (``~/.local/share/uv/tools/canair/uv-receipt.toml``),
-         which records the ``directory`` a ``uv tool install .`` came from.
-      2. The package's own repo root (``canlib.constants.SCRIPT_DIR``), covering
-         editable / ``uv run`` dev checkouts.
-    Returns the first that is an existing git working tree, else ``None``.
-    """
-    candidates: list[Path] = []
-    receipt = _uv_receipt_directory()
-    if receipt is not None:
-        candidates.append(receipt)
-    try:
-        from ..constants import SCRIPT_DIR
-
-        candidates.append(Path(SCRIPT_DIR))
-    except Exception:
-        pass
-    for path in candidates:
-        if (path / ".git").exists():
-            return path
-    return None
-
-
-def _uv_receipt_directory() -> Path | None:
-    """Read the source directory from uv's tool receipt, if present."""
-    import os
-
-    data_home = os.environ.get("XDG_DATA_HOME") or (Path.home() / ".local" / "share")
-    receipt = Path(data_home) / "uv" / "tools" / "canair" / "uv-receipt.toml"
-    try:
-        import tomllib
-
-        parsed = tomllib.loads(receipt.read_text())
-    except (OSError, ValueError, ModuleNotFoundError):
-        return None
-    for req in parsed.get("tool", {}).get("requirements", []):
-        directory = req.get("directory") if isinstance(req, dict) else None
-        if directory:
-            return Path(directory)
-    return None
 
 
 def _manual_instructions(clone: Path | None, tag: str | None = None) -> str:
@@ -214,6 +176,8 @@ def _sync_reinstall(c, args, clone: Path | None, install: dict) -> int:
     c.print(f"  This will reinstall from [bold]{clone}[/bold] to sync them:")
     c.print(f"    uv tool install {clone} --reinstall\n")
 
+    _warn_about_snapshot_data(c, clone)
+
     if not _confirm(c, args.yes):
         return _CANNOT
 
@@ -223,6 +187,42 @@ def _sync_reinstall(c, args, clone: Path | None, install: dict) -> int:
         return rc
     c.print("\n  [green]✓ Reinstalled.[/green] The installed `canair` now matches the clone.\n")
     return _OK
+
+
+def _warn_about_snapshot_data(c, clone: Path | None) -> None:
+    """Name the snapshot-only profile data a reinstall is about to delete.
+
+    A bare ``canair … --save`` writes into the installed package's bundled
+    profiles, so the very command that updates canair is also the command that
+    erases those captures. Reporting them *before* the confirmation prompt is the
+    last chance to rescue them; the update is still allowed to proceed (and
+    ``--yes`` still skips the prompt) because refusing outright would strand a
+    user who has no intention of keeping them.
+    """
+    from ..install_context import snapshot_profile_risks
+
+    risks = snapshot_profile_risks(clone)
+    if not risks:
+        return
+
+    total = sum(len(r.files) for r in risks)
+    c.print(
+        f"  [yellow]⚠ {total} file(s) in the installed copy's profiles are not in the "
+        "clone[/yellow]"
+    )
+    c.print("  [dim]The reinstall replaces that directory, so they would be lost:[/dim]")
+    for risk in risks:
+        c.print(f"    [bold]{risk.name}[/bold]  [dim]{risk.root}[/dim]")
+        shown = risk.files[:5]
+        for rel in shown:
+            state = "differs" if rel in risk.differing else "only here"
+            c.print(f"      {rel}  [dim]({state})[/dim]")
+        if len(risk.files) > len(shown):
+            c.print(f"      [dim]… and {len(risk.files) - len(shown)} more[/dim]")
+    c.print(
+        "  [dim]To keep them: copy them into the clone's profiles/ (or run\n"
+        "  `canair profile adopt <name>` from that install) before updating.[/dim]\n"
+    )
 
 
 def _origin_label(origin: str) -> str:
@@ -269,7 +269,7 @@ def _print_install_context(c, install: dict) -> None:
 def run(args) -> int:
     from .. import __version__
 
-    clone = _find_clone_dir()
+    clone = source_clone()
     install = describe_install(clone)
     release = fetch_latest_release()
     latest = release["tag"] if release else None
@@ -369,6 +369,8 @@ def run(args) -> int:
     c.print(
         f"    git fetch --tags  &&  git checkout {latest}  &&  uv tool install {clone} --reinstall\n"
     )
+
+    _warn_about_snapshot_data(c, clone)
 
     if not _confirm(c, args.yes):
         return _CANNOT

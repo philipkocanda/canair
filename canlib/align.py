@@ -291,7 +291,7 @@ def discover_signal_specs(
     *,
     since: date | datetime | None = None,
     until: date | datetime | None = None,
-    state: str | None = None,
+    state: str | Sequence[str] | None = None,
     label: str | None = None,
     captures_dir: Path | None = None,
 ) -> list[tuple[str, str]]:
@@ -334,7 +334,7 @@ def load_signal_captures(
     *,
     since: date | datetime | None = None,
     until: date | datetime | None = None,
-    state: str | None = None,
+    state: str | Sequence[str] | None = None,
     label: str | None = None,
     captures_dir: Path | None = None,
 ) -> dict[tuple[str, str], LoadedPid]:

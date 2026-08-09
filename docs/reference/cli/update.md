@@ -37,6 +37,12 @@ The reported *current* version is the provenance-bearing one
 (:func:`canlib.build_info.full_version`) — from a checkout it names the branch and
 commit — while the release comparison runs on the pure package version.
 
+Because a reinstall replaces the installed package directory wholesale, it also
+deletes anything written into that copy's bundled profiles (a bare
+``canair … --save`` lands there). Before either reinstall path asks for
+confirmation, the profile data that exists only in the snapshot is listed, so it
+can be rescued instead of silently discarded.
+
 options:
   -h, --help  show this help message and exit
   --check     Only report the current/latest version and changelog; make no

@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from canlib.capture_io import resolve_captures_dir
+from canlib.capture_store import entry_path
 from canlib.state_infer import (
     DEFAULT_CYCLE_TOL_S,
     SessionInference,
@@ -87,10 +87,9 @@ def cmd_backfill_states(
     from canlib.pids import build_ecu_index, load_pids
     from canlib.states import StatePredicateError, join_states, load_states
 
+    from . import layers
     from .backfill_render import print_report
     from .query import group_sessions
-
-    cdir = resolve_captures_dir(captures_dir)
 
     try:
         rules = load_states()
@@ -112,14 +111,14 @@ def cmd_backfill_states(
     for e in entries:
         if not e.get("payload"):
             continue
-        key = (e["file"], e.get("_session_idx", 0))
+        key = (str(entry_path(e, captures_dir)), e.get("_session_idx", 0))
         payloads_by_session.setdefault(key, []).append(e)
 
     sessions = group_sessions(entries)
 
     rows: list[dict] = []
     for g in sessions:
-        key = (g["file"], g["session_idx"])
+        key = (g["path"], g["session_idx"])
         caps = payloads_by_session.get(key, [])
         recorded = parse_states(g.get("vehicle_states") or [])
         inf = infer_session_states(caps, rules, ecu_index, cycle_tol=cycle_tol)
@@ -131,6 +130,7 @@ def cmd_backfill_states(
         rows.append(
             {
                 "file": g["file"],
+                "path": g["path"],
                 "session_idx": g["session_idx"],
                 "date": g["date"],
                 "label": g["label"],
@@ -164,6 +164,10 @@ def cmd_backfill_states(
         print("  (--dry-run: nothing written)")
         return 0
 
+    if blocked := layers.refusal((Path(r["path"]) for r in to_write), "back-filled"):
+        print(blocked, file=sys.stderr)
+        return 1
+
     if not assume_yes:
         if not (sys.stdin.isatty() and sys.stdout.isatty()):
             print(
@@ -180,7 +184,7 @@ def cmd_backfill_states(
     written = 0
     for r in to_write:
         try:
-            set_session_states(cdir / r["file"], r["session_idx"], r["new_states"])
+            set_session_states(Path(r["path"]), r["session_idx"], r["new_states"])
             written += 1
             print(
                 f"    \u2192 {r['file']} [{r['session_idx']}] "

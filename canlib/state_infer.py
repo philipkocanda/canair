@@ -29,10 +29,19 @@ from typing import TYPE_CHECKING, Any
 from canlib.capture_dates import entry_datetime
 from canlib.capture_store import resolve_pid_defs
 from canlib.decoding import decode_param_rows
-from canlib.states import StateRule, _order_states, suggest_states
+from canlib.state_spans import build_spans, span_state_union
+from canlib.states import (
+    StatePredicateError,
+    StateRule,
+    _order_states,
+    predicate_references,
+    suggest_states,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
+
+    from canlib.state_spans import StateSpan
 
 # Default pseudo-cycle window (seconds). Wider than align's 5.0s join tolerance:
 # a full round-robin monitor cycle over several ECUs spans ~8-10s, so a cross-ECU
@@ -164,3 +173,179 @@ def infer_session_states(
         n_decoded_params=len(all_params),
         timed=timed,
     )
+
+
+@dataclass
+class SpanInference:
+    """Reconstructed state *timeline* for one capture session."""
+
+    spans: list[StateSpan] = field(default_factory=list)
+    """Coalesced ``{at, states}`` observations, chronological."""
+    n_cycles: int = 0
+    """Pseudo-cycles the session's captures grouped into."""
+    n_informative: int = 0
+    """Cycles that could evaluate at least one predicate — the ones that shaped
+    the timeline. The rest carry the previous span forward."""
+    n_untimed: int = 0
+    """Cycles with no usable timestamp, which cannot be placed on a timeline."""
+    union: list[str] = field(default_factory=list)
+    """States appearing in at least one span, vocabulary-ordered. Compared
+    against the recorded session ``vehicle_states`` to detect a stale union."""
+
+
+def _predicate_refs(rules: list[StateRule]) -> dict[str, frozenset[str]]:
+    """``state → the ECU.PARAM signals its predicate reads`` (upper-cased).
+
+    Used to decide whether a cycle carries *fresh evidence* about a state, which
+    is what a latched state needs before it may be retracted.
+    """
+    refs: dict[str, frozenset[str]] = {}
+    for rule in rules:
+        if rule.predicate is None or not rule.expr:
+            continue
+        try:
+            refs[rule.name] = frozenset(r.upper() for r in predicate_references(rule.expr))
+        except StatePredicateError:  # pragma: no cover — load_states already parsed it
+            refs[rule.name] = frozenset()
+    return refs
+
+
+def infer_state_spans(
+    captures: Sequence[Mapping[str, Any]],
+    rules: list[StateRule],
+    ecu_index: dict,
+    *,
+    cycle_tol: float = DEFAULT_CYCLE_TOL_S,
+    profile=None,
+) -> SpanInference:
+    """Reconstruct *when* each state held during one session.
+
+    The temporal counterpart of :func:`infer_session_states`: instead of unioning
+    every cycle's match into one set, each cycle contributes a timestamped
+    observation, and :func:`canlib.state_spans.build_spans` coalesces consecutive
+    equal observations into spans.
+
+    **A matched state latches until a cycle carries fresh evidence against it.** A
+    cycle sees only the signals it happened to poll, so a round-robin sweep
+    re-observes ``BMS.CHARGING`` on one cycle and ``VCU.GEAR_P`` on the next.
+    Ending a state the moment it is not re-observed made the reconstruction flap
+    between the subsets of predicates each cycle could evaluate — 807 cycles of one
+    stationary charge produced 312 spans. Requiring a *definite False* instead is
+    the other extreme, and too sticky: a predicate that ORs across ECUs
+    (``ESC.REAL_SPEED_KMH > 0.5 or VCU.VCU_VEHICLE_SPEED > 0.5 or …``) can never be
+    falsified once one of those ECUs stops answering, because Kleene ``False or
+    UNKNOWN`` is UNKNOWN — DRIVING then latched through the charge that followed
+    the drive.
+
+    So a latched state is retracted when the cycle decoded **any** signal its
+    predicate reads and the predicate still did not match. That is evidence about
+    *this* state, gathered now; a cycle that decoded none of its signals says
+    nothing and leaves it alone.
+
+    A cycle that can evaluate no predicate at all contributes nothing — the
+    previous span simply continues. A cycle that held nothing after evaluation
+    contributes an explicit empty observation, because "measured, and no state
+    applies" is a real answer.
+    """
+    cycles, _timed = _bucket_cycles(captures, cycle_tol)
+    refs_by_state = _predicate_refs(rules)
+
+    observations: list[tuple[Any, list[str]]] = []
+    held: set[str] = set()
+    n_informative = 0
+    n_untimed = 0
+
+    for cycle in cycles:
+        when = cycle[0].get("time") if cycle else None
+        if when is None:
+            n_untimed += 1
+            continue
+        values = _decode_cycle(cycle, ecu_index)
+        if not values:
+            continue
+        matched, definitely_false = suggest_states(rules, values, None)
+        if not matched and not definitely_false:
+            continue
+        n_informative += 1
+
+        seen = {k.upper() for k in values}
+        matched_now = set(matched)
+        held |= matched_now
+        held -= {
+            name
+            for name in held
+            if name not in matched_now
+            and (name in set(definitely_false) or refs_by_state.get(name, frozenset()) & seen)
+        }
+        observations.append((when, _order_states(sorted(held), profile=profile)))
+
+    spans = build_spans(observations)
+    return SpanInference(
+        spans=spans,
+        n_cycles=len(cycles),
+        n_informative=n_informative,
+        n_untimed=n_untimed,
+        union=_order_states(sorted(span_state_union(spans)), profile=profile),
+    )
+
+
+@dataclass
+class SessionSpans:
+    """The ``state_spans`` block to store for one session, plus how it was derived."""
+
+    spans: list[StateSpan] = field(default_factory=list)
+    carried: list[str] = field(default_factory=list)
+    """Recorded states carried into every span because the evidence cannot place
+    them in time — see :func:`session_state_spans`."""
+    inference: SpanInference = field(default_factory=SpanInference)
+
+    @property
+    def is_timeline(self) -> bool:
+        """True when the states actually change during the session.
+
+        A single distinct state-set over the whole session has no temporal
+        ambiguity for a filter to resolve, so storing it adds bytes and no
+        information.
+        """
+        return len({tuple(s["states"]) for s in self.spans}) > 1
+
+
+def session_state_spans(
+    recorded: Sequence[str],
+    captures: Sequence[Mapping[str, Any]],
+    rules: list[StateRule],
+    ecu_index: dict,
+    *,
+    cycle_tol: float = DEFAULT_CYCLE_TOL_S,
+    profile=None,
+) -> SessionSpans:
+    """The spans to store for a session recorded as ``recorded``.
+
+    Wraps :func:`infer_state_spans` with the one rule that makes writing spans
+    safe: **a back-fill may narrow only what it can see.** A recorded state the
+    predicates cannot place on the timeline — one the profile declares without a
+    ``when:`` rule at all (``SLEEP``), or one that no cycle ever matched — is
+    unioned into *every* span. Without that, resolving a capture through its spans
+    would make it stop matching a state it used to match, turning a precision fix
+    into data loss.
+
+    Shared by ``captures uds --backfill-state-spans`` and the save-time hook
+    (:func:`canlib.captures.annotate_session_spans`) so both derive a timeline the
+    same way.
+    """
+    inf = infer_state_spans(captures, rules, ecu_index, cycle_tol=cycle_tol, profile=profile)
+    inferable = {r.name for r in rules if r.predicate is not None}
+    placed = set(inf.union)
+    carried = _order_states(
+        [s for s in recorded if s not in inferable or s not in placed], profile=profile
+    )
+    spans: list[StateSpan] = inf.spans
+    if carried:
+        spans = [
+            {
+                "at": s["at"],
+                "states": _order_states(list({*s["states"], *carried}), profile=profile),
+            }
+            for s in inf.spans
+        ]
+    return SessionSpans(spans=spans, carried=carried, inference=inf)

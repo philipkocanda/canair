@@ -117379,7 +117379,28 @@
           "payload": "6101FFE000000921805E064A03000000004A69000620",
           "time": "15:30:59.292"
         }
-      ]
+      ],
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {
+            "at": "13:31:57.258",
+            "states": [
+              "CHARGING",
+              "PLUGGED",
+              "PARKED"
+            ]
+          },
+          {
+            "at": "15:27:59.410",
+            "states": [
+              "PLUGGED",
+              "PARKED"
+            ]
+          }
+        ],
+        "version": "1.17.0+main.4178d4a.dirty"
+      }
     }
   ]
 }

@@ -19,9 +19,12 @@ from __future__ import annotations
 
 import os
 import sys
+from pathlib import Path
 
 from .config import set_config_value, user_profiles_dir
+from .install_context import installed_snapshot_kind
 from .profile import discover_profiles
+from .profile_create import adopt_profile, create_profile
 
 # Commands that manage config/profiles themselves, or don't touch a profile —
 # never interrupt these with the wizard.
@@ -92,6 +95,7 @@ def run_first_run_setup(args) -> None:
 
     if choice.isdigit() and 1 <= int(choice) <= len(items):
         name, path = items[int(choice) - 1]
+        path = _offer_adopt_if_snapshot(name, path)
         set_config_value("default_profile", name)
         print(f"\n  ✓ Default profile set to '{name}'.")
         print(f"    ({path})")
@@ -104,9 +108,37 @@ def run_first_run_setup(args) -> None:
     )
 
 
-def _create_new_profile_interactive(args) -> None:
-    from .commands.profile import create_profile  # local import to avoid cycles
+def _offer_adopt_if_snapshot(name: str, path: Path) -> Path:
+    """Offer to adopt a profile that only exists inside the install snapshot.
 
+    Recording such a profile as the default is a trap: every ``--save``, PID edit
+    and state edit lands under ``site-packages`` and the next reinstall deletes it.
+    Adopting first is the difference between keeping your captures and losing them,
+    so ask before the choice is persisted rather than warning after each write.
+    """
+    kind = installed_snapshot_kind(path)
+    if not kind:
+        return path
+
+    print(f"\n  Note: '{name}' ships inside the {kind} install snapshot:")
+    print(f"    {path}")
+    print("  Anything you record or edit there is deleted by the next reinstall.")
+    print(f"  A copy under {user_profiles_dir()} is yours and survives.\n")
+    if _prompt("  Copy it there now? [Y/n]: ").lower() in ("n", "no"):
+        print("\n  Left as-is. Copy it later with `canair profile adopt " + name + "`.")
+        return path
+
+    try:
+        _source, dest = adopt_profile(name)
+    except (LookupError, ValueError, FileExistsError, OSError) as e:
+        print(f"\n  Copy failed: {e}")
+        print(f"  Do it later with `canair profile adopt {name}`.")
+        return path
+    print(f"\n  ✓ Copied to {dest}")
+    return dest
+
+
+def _create_new_profile_interactive(args) -> None:
     name = _prompt("\n  New profile name (e.g. my-car): ")
     if not name:
         print("  No name given — skipping.\n")

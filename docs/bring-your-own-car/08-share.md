@@ -75,6 +75,11 @@ sessions — even a source that's behind upstream on captures won't propose
 deleting the sessions it lacks, and a capture log your contribution adds nothing
 to is left exactly as it is upstream (so the PR diff stays small and reviewable).
 
+Re-running is the normal way to revise a contribution: the default branch name is
+per-day, so a second run on the same day pushes to the branch your pull request
+already tracks, and canair reports the **updated PR** rather than failing to open
+a second one for it.
+
 !!! tip "Run it from your own checkout"
 
     The **workspace** canair prints is a throwaway clone it manages for you
@@ -83,6 +88,12 @@ to is left exactly as it is upstream (so the PR diff stays small and reviewable)
     that clone's own copy, which is exactly where this command *writes*. canair
     refuses that case with an explanation, but the fix is always the same — run
     `canair contribute` from your own checkout (or wherever your profile lives).
+
+    That clone is rebuilt from upstream on every run, so a leftover from an
+    earlier `--diff` can never ride along in a later PR. Your own checkout is
+    never reset: if you point `--repo-dir` at one that has uncommitted changes
+    under `profiles/<your-car>/`, canair lists them and asks first, because
+    everything in that directory is committed as part of the contribution.
 
 Not sure what you're about to send? Run `canair contribute --diff` first — it
 prepares everything and prints the full diff of `profiles/<your-car>/` vs

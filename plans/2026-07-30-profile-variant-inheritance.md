@@ -1,12 +1,21 @@
 # Multi-variant profile support — sharing a profile across model variants without duplication
 
-Status: **DESIGN / DECISION DOC — NOT STARTED.** "No behaviour ships from this
-file." There is no inheritance/composition/variant mechanism in `canlib/` or the
-schemas today (confirmed 2026-08-04: no `extends:` anywhere). **Blocked on a
-decision before any code:** pick Option A/B/C/D (A recommended), the ECU merge
-granularity (PID-level recommended), and the write-target policy (the plan
-explicitly defers this one). Only pays off once a real second variant exists —
-e.g. XPeng G6 SR vs LR.
+Status: **DESIGN / DECISION DOC — NOT STARTED for *definition* inheritance.**
+There is no definition inheritance/composition/variant mechanism in `canlib/` or
+the schemas. **Blocked on a decision before any code:** pick Option A/B/C/D (A
+recommended), the ECU merge granularity (PID-level recommended), and the
+write-target policy (the plan explicitly defers this one). Only pays off once a
+real second variant exists — e.g. XPeng G6 SR vs LR.
+
+**`extends:` now exists, but only for captures.**
+`plans/2026-08-05-profile-write-targets-and-workspace-hygiene.md` §B shipped
+*layered profiles*: a same-named user bundle whose `profile.yaml` carries
+`extends: <name>` layers its `captures/` over a read-only base, while every
+definition still resolves from the base alone. `canlib/profile.py::profile_layers`
+walks the chain and `::_from_layers` deliberately **errors** when `extends:` names
+a *different* profile — that case is this plan. So the key, the resolver walk and
+the `Profile.overlays` model are already in place; what remains here is the
+definition merge (which is the hard part, and the reason it was split off).
 
 **A preparation pass has since landed** (`plans/2026-08-04-profile-variant-inheritance-prep.md`,
 2026-08-04): the seams this plan would have to touch were consolidated so a chain
