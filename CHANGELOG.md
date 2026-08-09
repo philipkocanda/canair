@@ -15,6 +15,22 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [1.18.1](https://github.com/philipkocanda/canair/compare/v1.18.0...v1.18.1) (2026-08-09)
+
+
+### Fixed
+
+* **captures:** reopen the file a state-span back-fill row came from ([cf3357b](https://github.com/philipkocanda/canair/commit/cf3357b1c30a74e873c06d32c02ef4a7a15959b6))
+* **ioniq-2017:** correct IGPM turn signal byte offset B10-&gt;B11 ([6ac90c0](https://github.com/philipkocanda/canair/commit/6ac90c0db5d10b206f5ba617da83c7101f418169))
+* profile sharing fix and vehicle overlap in captures ([07d620a](https://github.com/philipkocanda/canair/commit/07d620afd14ea5fbe1e143f9753fc07bcc312e20))
+* **tui:** normalize keybindings across TUIs and make modals keyboard-accessible ([4178d4a](https://github.com/philipkocanda/canair/commit/4178d4a64420c63669bbd8b30c11fb9a85b72a86))
+
+
+### Documentation
+
+* ioniq-2017 ([c5ab73b](https://github.com/philipkocanda/canair/commit/c5ab73bedb9270f76ea3b7bbfebf064f948ba058))
+* **ioniq-2017:** BMS and OBC notes ([2dc6a38](https://github.com/philipkocanda/canair/commit/2dc6a388f8487bd2d46352f78f797191772195b2))
+
 ## [1.18.0](https://github.com/philipkocanda/canair/compare/v1.17.0...v1.18.0) (2026-08-08)
 
 
