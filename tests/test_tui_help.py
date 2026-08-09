@@ -130,9 +130,9 @@ class TestRealAppsHaveReadableHelp:
         assert rows["+100 frames"] == "]"
         assert rows["-100 frames"] == "["
         assert rows["goto frame"] == ":"
-        assert rows["wider tolerance"] == ">"
-        assert rows["tighter tolerance"] == "<"
-        assert rows["next frame"] == "→/l/n/space"
+        assert rows["wider tolerance"] == "."
+        assert rows["tighter tolerance"] == ","
+        assert rows["next frame"] == "→/l"
 
 
 class _HelpApp(HelpMixin, App):

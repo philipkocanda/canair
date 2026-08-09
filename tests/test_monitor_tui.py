@@ -789,7 +789,7 @@ class TestMonitorEditing:
             await pilot.press("v")
             await pilot.pause(0.05)
             assert ed.verified_toggles == 1
-            await pilot.press("d")
+            await pilot.press("x")
             await pilot.pause(0.05)
             assert ed.enabled_toggles == 1
             await pilot.press("q")
@@ -889,7 +889,7 @@ class TestMonitorEditing:
         app = MonitorApp(FakeController(editor=FakeEditor()))
         async with app.run_test(size=(100, 30)) as pilot:
             await pilot.pause(0.1)
-            await pilot.press("l")
+            await pilot.press("E")
             await pilot.pause(0.1)
             assert isinstance(app.screen, EventLogModal)
             await pilot.press("escape")

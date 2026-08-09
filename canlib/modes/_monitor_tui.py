@@ -60,6 +60,7 @@ from textual.widgets import Button, Checkbox, Input, Label, OptionList, Static
 from textual.widgets.option_list import Option
 
 from canlib.tui_help import HelpMixin
+from canlib.tui_keys import DISMISS_DESCRIPTION, bind
 from canlib.tui_scroll import reveal_marker
 from canlib.tui_status import P_ESSENTIAL, P_HIGH, P_LOW, P_NORMAL, StatusBar, StatusItem
 
@@ -142,9 +143,15 @@ class SaveDialog(ModalScreen[tuple[str, str, str] | None]):
     #state-options.visible { display: block; }
     #dialog-buttons { height: auto; align-horizontal: right; margin-top: 1; }
     #dialog-buttons Button { margin-left: 2; }
+    #dialog-keys { color: $text-muted; margin-top: 1; }
     """
 
-    BINDINGS: ClassVar[list[Binding]] = [Binding("escape", "cancel", "cancel")]
+    BINDINGS: ClassVar[list[Binding]] = [
+        *bind("back", "cancel", desc="cancel"),
+        # The form has three Inputs, a dropdown and two Buttons, so what `enter`
+        # does depends on what is focused. ctrl+s saves from anywhere.
+        *bind("apply", "submit", desc="save", priority=True),
+    ]
 
     def __init__(
         self,
@@ -192,6 +199,7 @@ class SaveDialog(ModalScreen[tuple[str, str, str] | None]):
             with Horizontal(id="dialog-buttons"):
                 yield Button(self._save_button, variant="primary", id="save")
                 yield Button("Cancel", id="cancel")
+            yield Label("tab moves · ctrl+s save · esc cancel", id="dialog-keys")
 
     def on_mount(self) -> None:
         self.query_one("#f-label", Input).focus()
@@ -275,6 +283,9 @@ class SaveDialog(ModalScreen[tuple[str, str, str] | None]):
         notes = self.query_one("#f-notes", Input).value.strip()
         self.dismiss((label, state, notes))
 
+    def action_submit(self) -> None:
+        self._submit()
+
     def action_cancel(self) -> None:
         self.dismiss(None)
 
@@ -300,9 +311,16 @@ class EditParamDialog(ModalScreen[dict | None]):
     #edit-dialog Checkbox { height: 1; margin-top: 1; }
     #edit-buttons { height: auto; align-horizontal: right; margin-top: 1; }
     #edit-buttons Button { margin-left: 2; }
+    #edit-keys { color: $text-muted; margin-top: 1; }
     """
 
-    BINDINGS: ClassVar[list[Binding]] = [Binding("escape", "cancel", "cancel")]
+    BINDINGS: ClassVar[list[Binding]] = [
+        *bind("back", "cancel", desc="cancel"),
+        # Enter submits only from an Input; the two Checkboxes and the Buttons
+        # consume it themselves, so without this the dialog had no confirm key
+        # once focus moved past the text fields.
+        *bind("apply", "submit", desc="save", priority=True),
+    ]
 
     def __init__(self, target: dict):
         super().__init__()
@@ -331,6 +349,7 @@ class EditParamDialog(ModalScreen[dict | None]):
             with Horizontal(id="edit-buttons"):
                 yield Button("Save", variant="primary", id="edit-save")
                 yield Button("Cancel", id="edit-cancel")
+            yield Label("tab moves · space toggles · ctrl+s save · esc cancel", id="edit-keys")
 
     def on_mount(self) -> None:
         self.query_one("#e-expr", Input).focus()
@@ -356,6 +375,9 @@ class EditParamDialog(ModalScreen[dict | None]):
                 "enabled": self.query_one("#e-enabled", Checkbox).value,
             }
         )
+
+    def action_submit(self) -> None:
+        self._submit()
 
     def action_cancel(self) -> None:
         self.dismiss(None)
@@ -419,13 +441,13 @@ class EventLogModal(ModalScreen[None]):
     """
 
     BINDINGS: ClassVar[list[Binding]] = [
-        Binding("escape", "close", "close"),
-        Binding("q", "close", "close"),
-        Binding("l", "close", "close"),
-        Binding("j", "scroll_down", "down", show=False),
-        Binding("k", "scroll_up", "up", show=False),
-        Binding("g", "to_top", "top", show=False),
-        Binding("G", "to_bottom", "bottom", show=False),
+        *bind("back", "close", desc=DISMISS_DESCRIPTION),
+        *bind("quit", "close", desc=DISMISS_DESCRIPTION),
+        *bind("event_log", "close", desc=DISMISS_DESCRIPTION),
+        *bind("move_down", "scroll_down", show=False),
+        *bind("move_up", "scroll_up", show=False),
+        *bind("axis_start", "to_top", show=False),
+        *bind("axis_end", "to_bottom", show=False),
     ]
 
     def compose(self) -> ComposeResult:
@@ -435,11 +457,18 @@ class EventLogModal(ModalScreen[None]):
             yield Label("Diagnostics event log (canair logs)", id="evlog-title")
             with VerticalScroll(id="evlog-rows"):
                 yield Static(self._render_events(), id="evlog-body", markup=False)
-            yield Label("newest last · j/k g/G scroll · l / esc / q to close", id="evlog-hint")
+            yield Label(
+                "newest last · j/k g/G pgup/pgdn scroll · E / esc / q to close", id="evlog-hint"
+            )
 
     def on_mount(self) -> None:
+        # Focus the scroll container so the framework's own pgup/pgdn/home/end
+        # work here too — the j/k/g/G bindings below only exist because this
+        # was previously the *only* way to move.
+        rows = self.query_one("#evlog-rows", VerticalScroll)
+        rows.focus()
         # Land on the newest events (the file is oldest→newest).
-        self.query_one("#evlog-rows", VerticalScroll).scroll_end(animate=False)
+        rows.scroll_end(animate=False)
 
     def _render_events(self) -> Text:
         from ..log import parse_event_line, read_event_log
@@ -525,13 +554,13 @@ class SessionInfoModal(ModalScreen[None]):
     """
 
     BINDINGS: ClassVar[list[Binding]] = [
-        Binding("escape", "close", "close"),
-        Binding("q", "close", "close"),
-        Binding("i", "close", "close"),
-        Binding("j", "scroll_down", "down", show=False),
-        Binding("k", "scroll_up", "up", show=False),
-        Binding("g", "to_top", "top", show=False),
-        Binding("G", "to_bottom", "bottom", show=False),
+        *bind("back", "close", desc=DISMISS_DESCRIPTION),
+        *bind("quit", "close", desc=DISMISS_DESCRIPTION),
+        *bind("info", "close", desc=DISMISS_DESCRIPTION),
+        *bind("move_down", "scroll_down", show=False),
+        *bind("move_up", "scroll_up", show=False),
+        *bind("axis_start", "to_top", show=False),
+        *bind("axis_end", "to_bottom", show=False),
     ]
 
     def __init__(self, summary: dict, segments: list[dict]):
@@ -547,7 +576,8 @@ class SessionInfoModal(ModalScreen[None]):
             with VerticalScroll(id="sess-rows"):
                 yield Static(self._build_body(), id="sess-body", markup=False)
             yield Label(
-                "s relabel · n new session · j/k g/G scroll · i / esc / q close", id="sess-hint"
+                "s relabel · n new session · j/k g/G pgup/pgdn scroll · i / esc / q close",
+                id="sess-hint",
             )
 
     def _build_body(self) -> Text:
@@ -621,7 +651,12 @@ class SessionInfoModal(ModalScreen[None]):
         return out
 
     def on_mount(self) -> None:
-        self.query_one("#sess-rows", VerticalScroll).scroll_home(animate=False)
+        # Focus the scroll container: the segment history grows with every `n`
+        # rotation and quickly outgrows the box, and without focus pgup/pgdn and
+        # the arrow keys do nothing here.
+        rows = self.query_one("#sess-rows", VerticalScroll)
+        rows.focus()
+        rows.scroll_home(animate=False)
 
     def action_close(self) -> None:
         self.dismiss(None)
@@ -666,12 +701,18 @@ class PidPickerScreen(ModalScreen[None]):
     #pid-hint { color: $text-muted; margin-top: 1; }
     """
 
-    BINDINGS: ClassVar[list[Binding]] = [Binding("escape", "back", "back")]
+    BINDINGS: ClassVar[list[Binding]] = [
+        *bind("back", "back"),
+        *bind("filter", "focus_filter", show=False),
+    ]
 
     def __init__(self, controller: MonitorController):
         super().__init__()
         self._controller = controller
         self._ecu: str | None = None  # None while choosing an ECU
+
+    def action_focus_filter(self) -> None:
+        self.query_one("#pid-input", Input).focus()
 
     def compose(self) -> ComposeResult:
         from textual.containers import Vertical
@@ -688,7 +729,7 @@ class PidPickerScreen(ModalScreen[None]):
     def _show_ecus(self) -> None:
         self._ecu = None
         self.query_one("#pid-title", Label).update("PID picker — choose an ECU")
-        self.query_one("#pid-hint", Label).update("enter select ECU · esc close")
+        self.query_one("#pid-hint", Label).update("enter select ECU · / filter · esc close")
         field = self.query_one("#pid-input", Input)
         field.value = ""
         field.focus()
@@ -712,7 +753,7 @@ class PidPickerScreen(ModalScreen[None]):
         if swept:
             title += "  [dim](whole-ECU sweep — every PID already polled)[/]"
         self.query_one("#pid-title", Label).update(title)
-        hint = "esc back · type to filter" if swept else "enter toggle · esc back · type to filter"
+        hint = "esc back · / filter" if swept else "enter toggle · esc back · / filter"
         self.query_one("#pid-hint", Label).update(hint)
         field = self.query_one("#pid-input", Input)
         field.value = ""
@@ -788,11 +829,15 @@ class SessionPickerScreen(ModalScreen[tuple[str, str] | None]):
         border: round $accent; background: $surface;
     }
     #sess-pick-title { text-style: bold; margin-bottom: 1; }
+    #sess-pick-input { margin-bottom: 1; }
     #sess-pick-list { height: auto; max-height: 20; }
     #sess-pick-hint { color: $text-muted; margin-top: 1; }
     """
 
-    BINDINGS: ClassVar[list[Binding]] = [Binding("escape", "back", "back")]
+    BINDINGS: ClassVar[list[Binding]] = [
+        *bind("back", "back"),
+        *bind("filter", "focus_filter", show=False),
+    ]
 
     def __init__(self, controller: MonitorController):
         super().__init__()
@@ -804,24 +849,52 @@ class SessionPickerScreen(ModalScreen[tuple[str, str] | None]):
 
         with Vertical(id="sess-pick-box"):
             yield Label("", id="sess-pick-title")
+            yield Input(placeholder="type to filter…", id="sess-pick-input")
             yield OptionList(id="sess-pick-list")
             yield Label("", id="sess-pick-hint")
 
     def on_mount(self) -> None:
         self._show_ecus()
 
+    def action_focus_filter(self) -> None:
+        self.query_one("#sess-pick-input", Input).focus()
+
+    def _needle(self) -> str:
+        return self.query_one("#sess-pick-input", Input).value.strip().lower()
+
+    def on_input_changed(self, _event: Input.Changed) -> None:
+        if self._ecu is None:
+            self._fill_ecus()
+        else:
+            self._fill_modes(self._ecu)
+
+    def on_input_submitted(self, _event: Input.Submitted) -> None:
+        options = self.query_one("#sess-pick-list", OptionList)
+        if options.option_count:
+            options.focus()
+            if options.highlighted is None:
+                options.highlighted = 0
+
     def _show_ecus(self) -> None:
         self._ecu = None
         self.query_one("#sess-pick-title", Label).update("Session type — choose an ECU")
-        self.query_one("#sess-pick-hint", Label).update("enter select ECU · esc close")
+        self.query_one("#sess-pick-hint", Label).update("enter select ECU · / filter · esc close")
+        field = self.query_one("#sess-pick-input", Input)
+        field.value = ""
+        field.focus()
+        self._fill_ecus()
+
+    def _fill_ecus(self) -> None:
+        needle = self._needle()
         options = self.query_one("#sess-pick-list", OptionList)
         options.clear_options()
         active = self._controller.active_session_modes()
         for ecu in self._controller.available_ecus():
+            if needle and needle not in ecu.lower():
+                continue
             mode = active.get(ecu)
             suffix = f"  [dim](active: 0x10{mode})[/]" if mode else "  [dim](no session)[/]"
             options.add_option(Option(f"{ecu}{suffix}", id=ecu))
-        options.focus()
 
     def _show_modes(self, ecu: str) -> None:
         self._ecu = ecu
@@ -830,7 +903,15 @@ class SessionPickerScreen(ModalScreen[tuple[str, str] | None]):
         if active:
             title += f"  [dim](current: 0x10{active})[/]"
         self.query_one("#sess-pick-title", Label).update(title)
-        self.query_one("#sess-pick-hint", Label).update("enter switch · esc back")
+        self.query_one("#sess-pick-hint", Label).update("enter switch · / filter · esc back")
+        field = self.query_one("#sess-pick-input", Input)
+        field.value = ""
+        field.focus()
+        self._fill_modes(ecu)
+
+    def _fill_modes(self, ecu: str) -> None:
+        needle = self._needle()
+        active = self._controller.active_session_modes().get(ecu)
         options = self.query_one("#sess-pick-list", OptionList)
         options.clear_options()
         for mode, label, supported in self._controller.known_session_types(ecu):
@@ -840,10 +921,11 @@ class SessionPickerScreen(ModalScreen[tuple[str, str] | None]):
                 tag = "known-unsupported"
             else:
                 tag = "untested"
+            if needle and needle not in f"{mode} {label} {tag}".lower():
+                continue
             mark = "→ " if mode == active else "  "
             desc = f" {label}" if label else ""
             options.add_option(Option(f"{mark}0x10{mode}{desc}  [dim]({tag})[/]", id=mode))
-        options.focus()
 
     def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
         option_id = event.option.id or ""
@@ -872,34 +954,33 @@ class MonitorApp(HelpMixin, App):
     """
 
     BINDINGS: ClassVar[list[Binding]] = [
-        Binding("q", "quit", "quit"),
-        Binding("ctrl+c", "quit", "quit", show=False, priority=True),
-        Binding("question_mark", "help", "help"),
-        Binding("s", "save", "save / label"),
-        Binding("n", "new_segment", "new session"),
-        Binding("r", "toggle_rulers", "byte ruler"),
-        Binding("l", "event_log", "errors/log"),
-        Binding("i", "session_info", "session info"),
-        Binding("V", "cycle_view", "view mode"),
-        Binding("space", "toggle_pause", "pause"),
-        Binding("equals_sign", "faster", "poll faster"),
-        Binding("plus", "faster", "poll faster", show=False),
-        Binding("minus", "slower", "poll slower"),
-        Binding("underscore", "slower", "poll slower", show=False),
-        Binding("down", "select(1)", "select down", show=False, priority=True),
-        Binding("up", "select(-1)", "select up", show=False, priority=True),
-        Binding("escape", "clear_selection", "clear selection", show=False),
-        Binding("e", "edit", "edit"),
-        Binding("v", "verify", "verify"),
-        Binding("d", "disable", "en/disable"),
-        Binding("F", "cycle_filter", "filter"),
-        Binding("R", "force_reconnect", "reconnect"),
-        Binding("p", "pid_picker", "PIDs"),
-        Binding("t", "session_type", "session type"),
-        Binding("j", "scroll(1)", "down", show=False),
-        Binding("k", "scroll(-1)", "up", show=False),
-        Binding("g", "to_top", "top", show=False),
-        Binding("G", "to_bottom", "bottom", show=False),
+        *bind("quit", "quit"),
+        *bind("quit_force", "quit", show=False, priority=True),
+        *bind("help", "help"),
+        *bind("session", "save", desc="save / label"),
+        *bind("new", "new_segment", desc="new session"),
+        *bind("rulers", "toggle_rulers", desc="byte ruler"),
+        *bind("event_log", "event_log"),
+        *bind("info", "session_info", desc="session info"),
+        *bind("view", "cycle_view"),
+        *bind("pause", "toggle_pause"),
+        *bind("increase", "faster", desc="poll faster"),
+        *bind("decrease", "slower", desc="poll slower"),
+        # Down/up and j/k are the same movement: the signal cursor, which falls
+        # back to plain scrolling when nothing is selectable. priority beats the
+        # focused scroll container's own arrow handling.
+        *bind("move_down", "select(1)", desc="select down", show=False, priority=True),
+        *bind("move_up", "select(-1)", desc="select up", show=False, priority=True),
+        *bind("axis_start", "to_top", desc="top", show=False),
+        *bind("axis_end", "to_bottom", desc="bottom", show=False),
+        *bind("back", "clear_selection", desc="back", show=False),
+        *bind("edit", "edit"),
+        *bind("verify", "verify"),
+        *bind("exclude", "disable", desc="en/disable"),
+        *bind("filter_cycle", "cycle_filter"),
+        *bind("reconnect", "force_reconnect"),
+        *bind("pick", "pid_picker"),
+        *bind("value_type", "session_type", desc="session type"),
     ]
 
     def __init__(self, controller: MonitorController):
@@ -1202,7 +1283,7 @@ class MonitorApp(HelpMixin, App):
             items.append(StatusItem("[dim]↑↓ select[/]", P_NORMAL))
             items.append(StatusItem("[dim]e edit[/]", P_NORMAL))
             items.append(StatusItem("[dim]v verify[/]", P_LOW))
-            items.append(StatusItem("[dim]d en/disable[/]", P_LOW))
+            items.append(StatusItem("[dim]x en/disable[/]", P_LOW))
             items.append(StatusItem("[dim]F filter[/]", P_LOW))
         else:
             items.append(StatusItem("[dim]↑↓/jk PgUp/PgDn g/G[/]", P_LOW))
@@ -1213,7 +1294,7 @@ class MonitorApp(HelpMixin, App):
         items.append(StatusItem("[dim]i info[/]", P_NORMAL))
         items.append(StatusItem("[dim]p PIDs[/]", P_NORMAL))
         items.append(StatusItem("[dim]t session[/]", P_NORMAL))
-        items.append(StatusItem("[dim]l errors[/]", P_LOW))
+        items.append(StatusItem("[dim]E errors[/]", P_LOW))
         items.append(StatusItem("[dim]space pause[/]", P_LOW))
         if label:
             items.append(StatusItem("[dim]esc deselect[/]", P_LOW))

@@ -20,6 +20,8 @@ from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Button, Input, Label
 
+from .tui_keys import bind
+
 
 class TextPromptModal(ModalScreen["str | None"]):
     """A single-line text prompt (a note, a name, a numeric setting).
@@ -32,11 +34,18 @@ class TextPromptModal(ModalScreen["str | None"]):
     #prompt-box { width: 70; height: auto; padding: 1 2;
                   border: round $accent; background: $surface; }
     #prompt-title { text-style: bold; margin-bottom: 1; }
+    #prompt-hint { color: $text-muted; margin-top: 1; }
     #prompt-buttons { height: auto; align-horizontal: right; margin-top: 1; }
     #prompt-buttons Button { margin-left: 2; }
     """
 
-    BINDINGS: ClassVar[list[Binding]] = [Binding("escape", "cancel", "cancel")]
+    BINDINGS: ClassVar[list[Binding]] = [
+        *bind("back", "cancel", desc="cancel"),
+        # ctrl+s confirms from anywhere, including once focus has tabbed onto a
+        # Button, where enter presses that button instead of submitting the form.
+        # A printable key could not serve here — the Input would swallow it.
+        *bind("apply", "submit", priority=True),
+    ]
 
     def __init__(self, title: str, placeholder: str = "", value: str = ""):
         super().__init__()
@@ -51,6 +60,7 @@ class TextPromptModal(ModalScreen["str | None"]):
             with Horizontal(id="prompt-buttons"):
                 yield Button("OK", variant="primary", id="ok")
                 yield Button("Cancel", id="cancel")
+            yield Label("enter / ctrl+s confirm · esc cancel", id="prompt-hint")
 
     def on_mount(self) -> None:
         self.query_one("#prompt-input", Input).focus()
@@ -62,6 +72,9 @@ class TextPromptModal(ModalScreen["str | None"]):
             self.dismiss(None)
 
     def on_input_submitted(self, _event: Input.Submitted) -> None:
+        self._submit()
+
+    def action_submit(self) -> None:
         self._submit()
 
     def _submit(self) -> None:
@@ -79,14 +92,17 @@ class ConfirmModal(ModalScreen["bool"]):
     #confirm-box { width: 64; height: auto; padding: 1 2;
                    border: round $error; background: $surface; }
     #confirm-title { text-style: bold; margin-bottom: 1; }
+    #confirm-hint { color: $text-muted; margin-top: 1; }
     #confirm-buttons { height: auto; align-horizontal: right; margin-top: 1; }
     #confirm-buttons Button { margin-left: 2; }
     """
 
+    #: Only the confirm side is styled as an error; ``escape``/``n`` are the safe
+    #: exits and focus starts on Cancel, so a stray ``enter`` cannot destroy data.
     BINDINGS: ClassVar[list[Binding]] = [
-        Binding("escape", "cancel", "cancel"),
-        Binding("n", "cancel", "no"),
-        Binding("y", "confirm", "yes"),
+        *bind("back", "cancel", desc="cancel"),
+        *bind("confirm_no", "cancel"),
+        *bind("confirm_yes", "confirm"),
     ]
 
     def __init__(self, title: str, detail: str = "", confirm_label: str = "Delete"):
@@ -103,6 +119,7 @@ class ConfirmModal(ModalScreen["bool"]):
             with Horizontal(id="confirm-buttons"):
                 yield Button(self._confirm_label, variant="error", id="ok")
                 yield Button("Cancel", id="cancel")
+            yield Label("y confirm · n / esc cancel", id="confirm-hint")
 
     def on_mount(self) -> None:
         self.query_one("#cancel", Button).focus()

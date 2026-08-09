@@ -709,9 +709,9 @@ class TestCapturesStepApp:
         async with app.run_test(size=(120, 30)) as pilot:
             await pilot.pause()
             assert app.model.tol_s == DEFAULT_STEP_JOIN_TOL_S
-            await pilot.press(">")
+            await pilot.press(".")
             assert app.model.tol_s == 30.0
-            await pilot.press("<")
+            await pilot.press(",")
             assert app.model.tol_s == DEFAULT_STEP_JOIN_TOL_S
 
     @pytest.mark.asyncio
@@ -719,7 +719,7 @@ class TestCapturesStepApp:
         app = self._app()
         async with app.run_test(size=(120, 30)) as pilot:
             await pilot.pause()
-            await pilot.press("t")
+            await pilot.press("J")
             await pilot.pause()
             assert app._modal_active()
             for ch in "0.5":
@@ -734,7 +734,7 @@ class TestCapturesStepApp:
         app = self._app()
         async with app.run_test(size=(120, 30)) as pilot:
             await pilot.pause()
-            await pilot.press("t")
+            await pilot.press("J")
             await pilot.pause()
             await pilot.press("ctrl+a")  # select existing value
             for ch in "abc":
@@ -835,7 +835,7 @@ class TestCapturesStepApp:
             await pilot.pause()
             rows = bindings_help_rows(app)
             descs = {d for _k, d in rows}
-            assert "add/remove PIDs" in descs
+            assert "add/remove signals" in descs
             assert "join tolerance" in descs
             assert "view mode" in descs
             await pilot.press("?")
@@ -1302,7 +1302,7 @@ class TestJumpModal:
             await pilot.press("s")
             await pilot.pause()
             everything = len(app.screen._shown)
-            await pilot.press("n")
+            await pilot.press("ctrl+n")
             await pilot.pause()
             assert len(app.screen._shown) < everything
             # Only noted sessions and their notes survive.

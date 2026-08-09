@@ -119,10 +119,17 @@ Verify internal links still resolve — a broken cross-link is a defect. Policy:
 > partially-decoded bitflag bytes are **decode-bitfields**; bundled-car/device context is
 > **ioniq-reverse-engineering**; changing canair's code is **contributing-code**.
 
-All functionality is one CLI, `canair` (invoked as `uv run canair` here). **Flags, subcommand lists
-and TUI keymaps are in `canair <cmd> --help` and `docs/reference/cli/<cmd>.md`** — the entries below
-give each command's purpose plus the agent-facing rules and code pointers that `--help` does not
-carry.
+All functionality is one CLI, `canair` (invoked as `uv run canair` here). **Flags and subcommand
+lists are in `canair <cmd> --help` and `docs/reference/cli/<cmd>.md`** — the entries below give each
+command's purpose plus the agent-facing rules and code pointers that `--help` does not carry.
+
+**TUI keys are not in `--help`.** Every Textual view's keymap is assembled from the shared role
+registry **`canlib/tui_keys.py`** (`ROLES` + `bind(role, action)`), so one key means one thing in
+every view; press `?` in any TUI for its live cheat-sheet. Never hardcode a `Binding` key in a TUI —
+add or reuse a role, or `tests/test_tui_keymap.py` fails (it pins that every declared key resolves to
+a role, that its description matches the role's accepted wording, and that `escape` never quits).
+Two standing conventions: **`escape` backs out one level and never exits** (`q` is the only exit),
+and **`g`/`G` address the view's primary axis**.
 
 ### Live device
 

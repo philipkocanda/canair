@@ -9,8 +9,11 @@ owns all state and renders the frame. The app contributes only interaction:
   between frames keeps the scroll position, so one byte deep in a stacked frame
   can be watched *across* frames instead of being scrolled back to every step;
 - a **block cursor** (``tab``) so note/delete/drop act on a chosen stacked block;
-- **live editing of the comparison**: ``a`` adds/removes PIDs, ``t``/``<``/``>``
+- **live editing of the comparison**: ``p`` adds/removes PIDs, ``J``/``,``/``.``
   change the join tolerance, ``V`` cycles the view — no restart needed.
+
+Keys come from the shared keymap (:mod:`canlib.tui_keys`), never from a literal
+key string, so the stepper cannot drift from the monitor and plot explorer.
 """
 
 from __future__ import annotations
@@ -28,6 +31,7 @@ from textual.widgets.option_list import Option
 
 from canlib.capture_types import CaptureEntry
 from canlib.tui_help import HelpMixin
+from canlib.tui_keys import bind
 from canlib.tui_modals import ConfirmModal, TextPromptModal
 from canlib.tui_scroll import reveal_marker
 from canlib.tui_status import P_ESSENTIAL, P_HIGH, P_LOW, P_NORMAL, StatusBar, StatusItem
@@ -61,9 +65,9 @@ class PidSelectModal(ModalScreen["list[Key] | None"]):
     """
 
     BINDINGS: ClassVar[list[Binding]] = [
-        Binding("escape", "cancel", "cancel"),
-        Binding("ctrl+s", "apply", "apply"),
-        Binding("slash", "focus_filter", "filter"),
+        *bind("back", "cancel", desc="cancel"),
+        *bind("apply", "apply", priority=True),
+        *bind("filter", "focus_filter", show=False),
     ]
 
     def __init__(self, available: list[tuple[Key, int]], selected: list[Key]):
@@ -163,9 +167,12 @@ class JumpModal(ModalScreen["JumpTarget | None"]):
     """
 
     BINDINGS: ClassVar[list[Binding]] = [
-        Binding("escape", "cancel", "cancel"),
-        Binding("slash", "focus_filter", "filter"),
-        Binding("n", "toggle_notes", "notes only"),
+        *bind("back", "cancel", desc="cancel"),
+        *bind("filter", "focus_filter", show=False),
+        # ctrl+n, not `n`: the stepper beneath uses `n` for "next" and a modal
+        # that redefines a host key to something unrelated is exactly the
+        # inconsistency this keymap exists to prevent.
+        *bind("notes_only", "toggle_notes"),
     ]
 
     def __init__(self, targets: JumpList, *, notes_only: bool = False):
@@ -180,7 +187,7 @@ class JumpModal(ModalScreen["JumpTarget | None"]):
     def compose(self) -> ComposeResult:
         with Vertical(id="jump-box"):
             yield Label("Jump to session / note", id="jump-title")
-            yield Label("enter jump · / filter · n notes-only · esc cancel", id="jump-hint")
+            yield Label("enter jump · / filter · ctrl+n notes-only · esc cancel", id="jump-hint")
             yield Input(placeholder="filter (date, label, state, note text)", id="jump-filter")
             yield OptionList(id="jump-list")
             yield Label("", id="jump-footer")
@@ -303,44 +310,36 @@ class CapturesStepApp(HelpMixin, App):
     """
 
     BINDINGS: ClassVar[list[Binding]] = [
-        Binding("q", "quit", "quit"),
-        Binding("escape", "quit", "quit", show=False),
-        Binding("ctrl+c", "quit", "quit", show=False, priority=True),
-        Binding("question_mark", "help", "help"),
-        # Frame navigation.
-        Binding("right", "advance(1)", "next frame"),
-        Binding("l", "advance(1)", "next frame", show=False),
-        Binding("n", "advance(1)", "next frame", show=False),
-        Binding("space", "advance(1)", "next frame", show=False),
-        Binding("left", "advance(-1)", "prev frame"),
-        Binding("h", "advance(-1)", "prev frame", show=False),
-        Binding("p", "advance(-1)", "prev frame", show=False),
-        Binding("right_square_bracket", "page(1)", "+100 frames"),
-        Binding("left_square_bracket", "page(-1)", "-100 frames"),
-        Binding("g", "first", "first frame"),
-        Binding("G", "last", "last frame"),
-        Binding("colon", "goto", "goto frame"),
+        *bind("quit", "quit"),
+        *bind("quit_force", "quit", show=False, priority=True),
+        *bind("help", "help"),
+        # Frame navigation (the primary axis, so g/G address it).
+        *bind("next", "advance(1)", desc="next frame"),
+        *bind("prev", "advance(-1)", desc="prev frame"),
+        *bind("page_next", "page(1)", desc="+100 frames"),
+        *bind("page_prev", "page(-1)", desc="-100 frames"),
+        *bind("axis_start", "first", desc="first frame"),
+        *bind("axis_end", "last", desc="last frame"),
+        *bind("goto", "goto", desc="goto frame"),
         # Scrolling within a (tall) frame.
-        Binding("down", "scroll(1)", "scroll down", show=False),
-        Binding("up", "scroll(-1)", "scroll up", show=False),
-        Binding("j", "scroll(1)", "scroll down", show=False),
-        Binding("k", "scroll(-1)", "scroll up", show=False),
+        *bind("move_down", "scroll(1)", desc="scroll down", show=False),
+        *bind("move_up", "scroll(-1)", desc="scroll up", show=False),
         # The comparison itself.
         # priority: Textual would otherwise consume tab for focus movement.
-        Binding("tab", "block(1)", "next block", show=False, priority=True),
-        Binding("shift+tab", "block(-1)", "prev block", show=False, priority=True),
-        Binding("s", "jump", "sessions & notes"),
-        Binding("a", "pick_pids", "add/remove PIDs"),
-        Binding("x", "drop_pid", "drop this PID"),
-        Binding("t", "set_tol", "join tolerance"),
-        Binding("greater_than_sign", "nudge_tol(1)", "wider tolerance", show=False),
-        Binding("less_than_sign", "nudge_tol(-1)", "tighter tolerance", show=False),
-        Binding("V", "cycle_view", "view mode"),
-        Binding("r", "toggle_rulers", "rulers"),
-        Binding("u", "toggle_all", "unique/all payloads"),
+        *bind("block_next", "block(1)", show=False, priority=True),
+        *bind("block_prev", "block(-1)", show=False, priority=True),
+        *bind("session", "jump", desc="sessions & notes"),
+        *bind("pick", "pick_pids", desc="add/remove signals"),
+        *bind("exclude", "drop_pid", desc="drop this PID"),
+        *bind("join_tol", "set_tol"),
+        *bind("nudge_up", "nudge_tol(1)", desc="wider tolerance", show=False),
+        *bind("nudge_down", "nudge_tol(-1)", desc="tighter tolerance", show=False),
+        *bind("view", "cycle_view"),
+        *bind("rulers", "toggle_rulers"),
+        *bind("unique", "toggle_all"),
         # Per-capture edits (act on the focused block).
-        Binding("e", "edit_note", "edit note"),
-        Binding("d", "delete", "delete capture"),
+        *bind("edit", "edit_note", desc="edit note"),
+        *bind("delete", "delete", desc="delete capture"),
     ]
 
     _gated_cache: ClassVar[frozenset[str] | None] = None
@@ -398,8 +397,8 @@ class CapturesStepApp(HelpMixin, App):
             items.append(StatusItem(f"[b green]{self._flash_msg}[/]", P_ESSENTIAL))
         items += [
             StatusItem("[dim]←/→ frame[/]", P_NORMAL),
-            StatusItem("[dim]a PIDs[/]", P_NORMAL),
-            StatusItem("[dim]t tol[/]", P_LOW),
+            StatusItem("[dim]p PIDs[/]", P_NORMAL),
+            StatusItem("[dim]J tol[/]", P_LOW),
             StatusItem("[dim]? help[/]", P_ESSENTIAL),
             StatusItem("[dim]q quit[/]", P_ESSENTIAL),
         ]

@@ -108,9 +108,10 @@ anchor, and a PID
 with no capture in range is reported rather than hidden, so you always know
 whether you are looking at a real simultaneous reading.
 
-Inside the stepper: `←`/`→` move between frames, `↑`/`↓` scroll a tall frame
-(`Home`/`End` for its top/bottom), **`a`** adds/removes PIDs from the comparison,
-**`t`** changes the join tolerance,
+Inside the stepper: `←`/`→` (or `h`/`l`) move between frames, `↑`/`↓` (or `k`/`j`)
+scroll a tall frame (`g`/`G` for its first/last frame, `Home`/`End` for the view's
+top/bottom), **`p`** adds/removes signals from the comparison,
+**`J`** changes the join tolerance,
 **`V`** switches rendering (`signals` drops the hex to fit more PIDs; `changed`
 shows only parameters whose value actually moved), **`tab`** picks a block so
 **`e`** can annotate that capture, and **`?`** lists every key.

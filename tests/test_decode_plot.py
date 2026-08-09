@@ -316,6 +316,8 @@ class TestPlotApp:
             await pilot.pause(0.1)
             await pilot.press("p")
             await pilot.pause(0.1)
+            await pilot.press("enter")  # filter -> list
+            await pilot.pause(0.1)
             await pilot.press("enter")  # select the only option
             await pilot.pause(0.1)
             assert app.model is other
@@ -338,7 +340,7 @@ class TestPlotApp:
             await pilot.pause(0.1)
             await pilot.press("m")  # param mode -> annotate current param P
             await pilot.pause(0.05)
-            await pilot.press("a")
+            await pilot.press("e")
             await pilot.pause(0.1)
             from textual.widgets import Input
 

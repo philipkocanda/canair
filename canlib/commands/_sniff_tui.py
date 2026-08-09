@@ -15,6 +15,7 @@ from textual.containers import VerticalScroll
 from textual.widgets import Static
 
 from canlib.tui_help import HelpMixin
+from canlib.tui_keys import bind
 from canlib.tui_status import P_ESSENTIAL, P_HIGH, P_LOW, P_NORMAL, StatusBar, StatusItem
 
 if TYPE_CHECKING:
@@ -35,10 +36,14 @@ class SniffApp(HelpMixin, App):
     """
 
     BINDINGS: ClassVar[list[Binding]] = [
-        Binding("q", "quit", "quit", priority=True),
-        Binding("ctrl+c", "quit", "quit", show=False, priority=True),
-        Binding("question_mark", "help", "help"),
-        Binding("c", "clear", "clear"),
+        *bind("quit", "quit", priority=True),
+        *bind("quit_force", "quit", show=False, priority=True),
+        *bind("help", "help"),
+        *bind("clear", "clear"),
+        *bind("move_down", "scroll(1)", desc="scroll down", show=False),
+        *bind("move_up", "scroll(-1)", desc="scroll up", show=False),
+        *bind("axis_start", "to_top", desc="top", show=False),
+        *bind("axis_end", "to_bottom", desc="bottom", show=False),
     ]
 
     def __init__(self, stats: SniffStats, host: str, duration: float | None = None):
@@ -86,6 +91,15 @@ class SniffApp(HelpMixin, App):
     def action_clear(self) -> None:
         self.stats.clear()
         self._refresh()
+
+    def action_scroll(self, delta: int) -> None:
+        self.query_one("#scroll", VerticalScroll).scroll_relative(y=delta, animate=False)
+
+    def action_to_top(self) -> None:
+        self.query_one("#scroll", VerticalScroll).scroll_home(animate=False)
+
+    def action_to_bottom(self) -> None:
+        self.query_one("#scroll", VerticalScroll).scroll_end(animate=False)
 
 
 def run_sniff_app(stats: SniffStats, host: str, duration: float | None = None) -> None:

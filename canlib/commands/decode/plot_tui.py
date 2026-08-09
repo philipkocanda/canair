@@ -6,8 +6,11 @@ feel of the query monitor / sniff TUIs and inherits the shared ``?`` help modal.
 
 Beyond the byte/param sweep the model provides, the app adds:
 - ``p`` — switch to another captured PID without leaving the explorer (B2).
-- ``a`` — annotate the current param/byte (writes through ``canair pids``) (B4).
-- ``R`` — rename the current PID (``pids rename-pid``) (B4).
+- ``e`` — annotate the current param/byte (writes through ``canair pids``) (B4).
+- ``N`` — rename the current PID (``pids rename-pid``) (B4).
+
+Keys come from the shared keymap (:mod:`canlib.tui_keys`), never from a literal
+key string, so the explorer cannot drift from the monitor and the stepper.
 """
 
 from __future__ import annotations
@@ -21,10 +24,11 @@ from textual.binding import Binding
 from textual.containers import Vertical, VerticalScroll
 from textual.css.query import NoMatches
 from textual.screen import ModalScreen
-from textual.widgets import Label, OptionList, Static
+from textual.widgets import Input, Label, OptionList, Static
 from textual.widgets.option_list import Option
 
 from canlib.tui_help import HelpMixin
+from canlib.tui_keys import bind
 from canlib.tui_modals import TextPromptModal
 from canlib.tui_status import P_ESSENTIAL, P_LOW, P_NORMAL, StatusBar, StatusItem
 
@@ -36,17 +40,25 @@ ReloadFn = Callable[[str, str], "PlotModel | None"]
 
 
 class PidPickerModal(ModalScreen["tuple[str, str] | None"]):
-    """Pick an ``(ECU, PID)`` from the captured set to re-plot."""
+    """Pick an ``(ECU, PID)`` from the captured set to re-plot.
+
+    Filterable: a profile with a hundred captured PIDs is unusable as an
+    arrow-key-only list, and ``/`` is the filter key in every canair picker.
+    """
 
     CSS = """
     PidPickerModal { align: center middle; background: $background 60%; }
     #pick-box { width: 60; height: auto; max-height: 80%; padding: 1 2;
                 border: round $accent; background: $surface; }
     #pick-title { text-style: bold; margin-bottom: 1; }
+    #pick-filter { margin-bottom: 1; }
     #pick-list { height: auto; max-height: 20; }
     """
 
-    BINDINGS: ClassVar[list[Binding]] = [Binding("escape", "cancel", "cancel")]
+    BINDINGS: ClassVar[list[Binding]] = [
+        *bind("back", "cancel", desc="cancel"),
+        *bind("filter", "focus_filter", show=False),
+    ]
 
     def __init__(self, options: list[tuple[str, str]]):
         super().__init__()
@@ -54,17 +66,39 @@ class PidPickerModal(ModalScreen["tuple[str, str] | None"]):
 
     def compose(self) -> ComposeResult:
         with Vertical(id="pick-box"):
-            yield Label("Switch PID (↑↓ + enter · esc cancel)", id="pick-title")
-            lst = OptionList(id="pick-list")
-            for ecu, pid in self._options:
-                lst.add_option(Option(f"{ecu}  {pid}", id=f"{ecu}:{pid}"))
-            yield lst
+            yield Label("Switch PID (↑↓ + enter · / filter · esc cancel)", id="pick-title")
+            yield Input(placeholder="type to filter…", id="pick-filter")
+            yield OptionList(id="pick-list")
 
     def on_mount(self) -> None:
+        self._repopulate()
+        # Focus the filter, not the list: typing narrows immediately and enter
+        # hands focus to the list. Same contract as the monitor's PidPickerScreen.
+        self.query_one("#pick-filter", Input).focus()
+
+    def _repopulate(self) -> None:
+        needle = self.query_one("#pick-filter", Input).value.strip().lower()
         lst = self.query_one("#pick-list", OptionList)
-        lst.focus()
+        lst.clear_options()
+        for ecu, pid in self._options:
+            if needle and needle not in f"{ecu} {pid}".lower():
+                continue
+            lst.add_option(Option(f"{ecu}  {pid}", id=f"{ecu}:{pid}"))
         if lst.option_count:
             lst.highlighted = 0
+
+    def action_focus_filter(self) -> None:
+        self.query_one("#pick-filter", Input).focus()
+
+    def on_input_changed(self, _event: Input.Changed) -> None:
+        self._repopulate()
+
+    def on_input_submitted(self, _event: Input.Submitted) -> None:
+        lst = self.query_one("#pick-list", OptionList)
+        if lst.option_count:
+            lst.focus()
+            if lst.highlighted is None:
+                lst.highlighted = 0
 
     def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
         ecu, pid = (event.option.id or ":").split(":", 1)
@@ -86,34 +120,31 @@ class PlotApp(HelpMixin, App):
     """
 
     BINDINGS: ClassVar[list[Binding]] = [
-        Binding("q", "quit", "quit"),
-        Binding("ctrl+c", "quit", "quit", show=False, priority=True),
-        Binding("question_mark", "help", "help"),
-        Binding("escape", "escape", "back/quit", show=False),
-        Binding("left", "move(-1)", "prev offset/param"),
-        Binding("h", "move(-1)", "prev", show=False),
-        Binding("right", "move(1)", "next offset/param"),
-        Binding("l", "move(1)", "next", show=False),
-        Binding("t", "type_next", "type +"),
-        Binding("T", "type_prev", "type -", show=False),
-        Binding("e", "endian", "endianness"),
-        Binding("m", "mode", "bytes/param mode"),
-        Binding("f", "transform", "transform"),
-        Binding("o", "overlay", "overlay ref"),
-        Binding("O", "overlay", "overlay", show=False),
-        Binding("equals_sign", "zoom_in", "zoom in"),
-        Binding("plus", "zoom_in", "zoom in", show=False),
-        Binding("minus", "zoom_out", "zoom out"),
-        Binding("underscore", "zoom_out", "zoom out", show=False),
-        Binding("comma", "pan(-1)", "pan left"),
-        Binding("less_than_sign", "pan(-1)", "pan left", show=False),
-        Binding("full_stop", "pan(1)", "pan right"),
-        Binding("greater_than_sign", "pan(1)", "pan right", show=False),
-        Binding("0", "reset_x", "reset x"),
-        Binding("i", "info", "captures in view"),
-        Binding("p", "pick_pid", "switch PID"),
-        Binding("a", "annotate", "annotate"),
-        Binding("R", "rename_pid", "rename PID"),
+        *bind("quit", "quit"),
+        *bind("quit_force", "quit", show=False, priority=True),
+        *bind("help", "help"),
+        *bind("back", "escape", show=False),
+        *bind("prev", "move(-1)", desc="prev offset/param"),
+        *bind("next", "move(1)", desc="next offset/param"),
+        *bind("move_down", "scroll(1)", desc="scroll down", show=False),
+        *bind("move_up", "scroll(-1)", desc="scroll up", show=False),
+        *bind("axis_start", "to_top", desc="top", show=False),
+        *bind("axis_end", "to_bottom", desc="bottom", show=False),
+        *bind("value_type", "type_next", desc="type"),
+        *bind("value_type_prev", "type_prev", show=False),
+        *bind("byte_order", "endian"),
+        *bind("mode", "mode"),
+        *bind("transform", "transform"),
+        *bind("overlay", "overlay"),
+        *bind("increase", "zoom_in", desc="zoom in"),
+        *bind("decrease", "zoom_out", desc="zoom out"),
+        *bind("nudge_down", "pan(-1)", desc="pan left"),
+        *bind("nudge_up", "pan(1)", desc="pan right"),
+        *bind("reset", "reset_x", desc="reset"),
+        *bind("info", "info", desc="captures in view"),
+        *bind("pick", "pick_pid", desc="switch PID"),
+        *bind("edit", "annotate", desc="annotate"),
+        *bind("rename", "rename_pid", desc="rename"),
     ]
 
     def __init__(
@@ -218,14 +249,36 @@ class PlotApp(HelpMixin, App):
         self._refresh()
 
     def action_escape(self) -> None:
-        # Esc closes the info modal first, else quits (dialog screens handle their own).
+        """Back out one level; never quit (``q`` is the only exit).
+
+        An escape that sometimes exits the program is the one key a user cannot
+        safely press to find out where they are, so at the top level this is a
+        deliberate no-op — the same rule the monitor and stepper now follow.
+        """
         if self._modal_active():
             return
         if self.model.show_info:
             self.model.toggle_info()
             self._refresh()
+
+    def action_scroll(self, delta: int) -> None:
+        try:
+            scroll = self.query_one("#scroll", VerticalScroll)
+        except NoMatches:
             return
-        self.exit()
+        scroll.scroll_relative(y=delta, animate=False)
+
+    def action_to_top(self) -> None:
+        try:
+            self.query_one("#scroll", VerticalScroll).scroll_home(animate=False)
+        except NoMatches:
+            return
+
+    def action_to_bottom(self) -> None:
+        try:
+            self.query_one("#scroll", VerticalScroll).scroll_end(animate=False)
+        except NoMatches:
+            return
 
     # -- PID switch (B2) ---------------------------------------------------
     def action_pick_pid(self) -> None:

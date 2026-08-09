@@ -291,7 +291,7 @@ continuous?), and — where a relationship should exist — the correlation conf
 have no candidate expression yet; it works even on a not-yet-defined PID (raw payloads
 only). A Textual TUI that sweeps byte offsets × interpretation type (`u8 … f64`) ×
 endianness with post-transforms, zooms/pans, lists the captures behind the view (`i`),
-switches PID in place (`p`), annotates/renames via `canair pids` (`a`/`R`) and overlays
+switches PID in place (`p`), annotates/renames via `canair pids` (`e`/`N`) and overlays
 a `--corr` reference with live Pearson r — press **`?`** for the keymap. Crucially it
 shows the **equivalent WiCAN expression** for the current interpretation (copy straight
 into step 8), whether that byte is **already mapped**, and a warning when a multi-byte
