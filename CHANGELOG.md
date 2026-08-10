@@ -15,6 +15,23 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [1.19.0](https://github.com/philipkocanda/canair/compare/v1.18.1...v1.19.0) (2026-08-10)
+
+
+### Added
+
+* **transport:** learn the ELM327 expected-response-frame count ([8c00a04](https://github.com/philipkocanda/canair/commit/8c00a044d1d5cc469c33fc629c36cf621c93c012))
+
+
+### Changed
+
+* **transport:** split the ELM327 engine into focused modules ([b3b8936](https://github.com/philipkocanda/canair/commit/b3b8936a187775637b89fb2780c996027bfe7ee7))
+
+
+### Documentation
+
+* WiCAN Pro hardware/protocol skill and wican-ws throughput audit ([fe5a106](https://github.com/philipkocanda/canair/commit/fe5a10612c218d939b1f234cfffb2b935651cea4))
+
 ## [1.18.1](https://github.com/philipkocanda/canair/compare/v1.18.0...v1.18.1) (2026-08-09)
 
 
