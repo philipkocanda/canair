@@ -367,7 +367,7 @@ BMS:
           max: ""
           source: AutoPID config (on device); bitfield decoded via ITStromer community sheet + ioniq-ev-bms xls; re-enumerated 2026-08-06; DC bits resolved 2026-08-08
           source_links: []
-          verified: true
+          verified: false
           notes: >-
             BMS charging/relay state bitfield. DC BITS RESOLVED 2026-08-08 by the first real DC fast
             charge on this car (50 kW CCS, 16:31-16:43, SOC 39->77%), which supplied the DC state
@@ -381,6 +381,7 @@ BMS:
             still set them); b5=AC/EVSE plug presence ONLY, clear throughout the CCS session
             (CHARGER_CONNECTED); b6=DC charging, set on CCS and clear in all 1576 AC-charging
             captures (CHARGING_DC); b7=charging active (CHARGING).
+
         BMS_2101_B10:
           expression: B10
           min: "0"
@@ -407,7 +408,7 @@ BMS:
             charge-progression (SOC-monotone) confound — can't be distinguished from any other
             rising quantity in this steady charge. Low confidence; needs a dynamic capture
             (drive/charge-cycle) to characterize.
-        BMS_HV_RELAY_FLAG:
+        BMS_HV_RELAY:
           expression: B62
           min: "0"
           max: "1"
@@ -1460,56 +1461,6 @@ BMS:
         21F2 decode research entry.
       parameters: {}
   research:
-    - type: verify
-      target: "2101 extended bytes"
-      status: done
-      priority: P1
-      vehicle_states: [READY]
-      notes: >
-        2026-07-22 (READY, parked): BMS 2101 payload is 61 bytes (the 62 B seen on a 07-21
-        wican-ws monitor run was 61 B + 1 trailing ELM327 padding byte — NOT a state-driven
-        variable length; confirmed 61 B in both READY-slcan and the 2026-07-30 CHARGING
-        wican-ws session, see plans/2026-07-28-variable-length-recapture.md). The three
-        "extended" params are NOT out of bounds —
-        they decode within the payload: DRIVE_MOTOR_SPEED = 0 at park (plausible),
-        ISOLATION_RESISTANCE = 3000 kOhm (plausible, healthy HV isolation). BUT
-        INVERTER_CAPACITOR_VOLTAGE reads 0.10 V in READY, which is implausible — the
-        inverter DC-link cap should sit near pack voltage (~388 V) once the main relay is
-        closed (BMS_MAIN_RELAY=1). So its byte offset/scale is still wrong; the other two
-        are single-point-plausible but need a moving capture (non-zero motor speed) to verify.
-        2026-07-23 (69-capture audit): INVERTER_CAPACITOR_VOLTAGE disproven + disabled —
-        B62 is constant 1 (a single byte can't hold ~388 V). All 69 captures have
-        BMS_MAIN_RELAY=1, so history has no relay-open (0 V) vs closed contrast to locate
-        the true 16-bit DC-link field. DRIVE_MOTOR_SPEED (B65) reads 0/18 at park;
-        ISOLATION_RESISTANCE (B69) is constant 3 (=3000 kOhm) — both single-point-plausible,
-        need a moving/HV-varying capture. Remaining items require car access.
-      what_to_test:
-        - "INVERTER_CAPACITOR_VOLTAGE — B62 disproven (constant 1); capture key-off→READY (relay open→closed) to find the real 16-bit DC-link byte (0 V → ~pack V)"
-        - "DRIVE_MOTOR_SPEED — 0 at park; confirm tracks motor RPM while driving (cross-check MCU 2102 [S10:S11])"
-        - "ISOLATION_RESISTANCE — 3000 kOhm plausible; confirm it varies with HV state"
-      sources:
-        - "decode-captures.py output"
-        - "captures/ — 2026-07-21 (62 B monitor), 2026-07-22 (READY parked)"
-      updated: "2026-08-08"
-    - type: scan
-      target: "22 BC01-BC0B"
-      status: nrc
-      priority: P2
-      sources:
-        - "ChatGPT"
-    - type: scan
-      target: "22 B002-B005"
-      status: nrc
-      priority: P3
-      sources:
-        - "ChatGPT"
-    - type: scan
-      target: "22 E003-E005"
-      status: nrc
-      priority: P2
-      notes: "E003 estimated range, E005 time to full charge (charging only)."
-      sources:
-        - "ChatGPT"
     - type: iocontrol_scan
       target: "30 00-FF"
       status: done
