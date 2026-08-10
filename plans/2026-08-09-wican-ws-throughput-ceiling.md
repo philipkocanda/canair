@@ -1,13 +1,14 @@
 # `wican-ws` throughput ceiling: why 30 PIDs take 8.9 s, and what can actually be reclaimed
 
-Status: **INVESTIGATION ONLY** (2026-08-09). Nothing implemented. This records a firmware-level
-audit of the `wican-ws` request path and the fixes it makes available, so a later change does not
-have to re-derive any of it. No code in canair changed; `wican-fw/` was moved onto the correct
-branch (see "Correction" below).
+Status: **ITEM A IMPLEMENTED** (2026-08-09). Started as a firmware-level audit of the `wican-ws`
+request path, recording the fixes it makes available so a later change does not have to re-derive
+any of it; item A (the expected-response-count digit, ~3.3–3.9× per read) has since landed. Items
+B–E remain unimplemented, with B and C deliberately rejected. `wican-fw/` was moved onto the correct
+branch during the audit (see "Correction" below).
 
-**Items A–C were subsequently measured on the live device** — see "Verified on the live device".
-That testing re-ranked the items and retracted item C; the pre-test reasoning is kept, marked, so
-the corrections are auditable.
+**Items A–C were measured on the live device** — see "Verified on the live device". That testing
+re-ranked the items and retracted item C; the pre-test reasoning is kept, marked, so the corrections
+are auditable.
 
 Prompted by three user questions in one session: whether capture dedup keys on raw payloads or
 decoded signals, why recorded PIDs show 5–20 s gaps when RTT was 60 ms, and what the theoretical
@@ -44,6 +45,12 @@ useful, and not documented). Two ECUs answered with the car parked and asleep: I
 `wican-fw/components/ws_server/ws_router.c` are byte-identical between `v4.50p` and the
 `v4.51p_beta-01` checkout** (`git diff --stat` empty).
 Every line reference in this document therefore describes the firmware actually running.
+
+Exact basis for every citation below: `wican-fw` branch `wican-pro`, commit
+`10672628cc662665e8ad0d993e6a71d7f1d8813f` (`1067262`, "idf v6.0.2"), tag `v4.51p_beta-01`; device
+firmware `v4.50p`; co-processor `MIC3624 V2.3` carrying `STN2120 v5.8.1`; schematic
+`wican-fw/sch/wican_obd_pro_sch_v151.pdf` rev V1.51 (sheet 3 of 3 only). Re-check these before
+trusting a line number.
 
 ### The chip is an STN2120, not an "OBDLink MX"
 
@@ -290,7 +297,7 @@ second; measurement showed the count digit carries the entire gain and `STPX` ad
 is now B and demoted to "not worth it". Read the "Verified on the live device" section above before
 acting on any item here.
 
-### A. The expected-response-count digit — the whole win, **~3.3–3.9× measured**
+### A. The expected-response-count digit — the whole win, **~3.3–3.9× measured**. IMPLEMENTED
 
 An odd-length ELM327 data request treats its last digit as the number of response frames to expect,
 letting the adapter return the instant it has them instead of waiting out its timeout. The
@@ -299,27 +306,44 @@ classic-firmware emulation implements this explicitly, with a comment naming the
 natively — **confirmed on the device**: 205.8→52.7 ms on `0x7A0` `22C00B`, 255.4→77.8 ms on `0x770`
 `22BC01`, both to roughly the link RTT floor.
 
-canair never uses it. `canlib/transport/elm327_terminal.py:593` sends the bare PID:
+Before this change canair sent the bare, always-even-length PID (`"2101"`, `"22BC01"`), so the digit
+was never present and no request could exit early. That every canair request is whole-byte is
+exactly what makes appending one nibble unambiguous.
 
-```python
-raw = await self.send_command(service_pid, timeout=timeout)
-```
+**What landed.** `canlib/transport/elm327_frame_count.py::FrameCountCache` holds the policy;
+`Elm327Terminal.send_uds` holds the control flow; `transport.expected_responses` (default true) is
+the kill switch; `UdsResponse.isotp_frame_count` (`canlib/uds_parse.py`) is the new observation that
+makes any of it checkable. The design follows from one asymmetry: **an overcount is merely slow
+(150 ms vs 53 ms), an undercount leaves the response's tail queued and hands it back as the *next*
+request's answer** — it manufactures the very desync
+`plans/2026-08-08-elm327-pipe-desync-recovery.md` exists to recover from. So:
 
-`service_pid` is `"2101"` or `"22BC01"` — always even length, so the digit is never present and no
-request can ever exit early. That every canair PID is even-length is what makes appending one digit
-unambiguous.
+- **Learn only from a plain request whose reply is `ok`.** A digit-bearing reply can only ever
+  confirm the count it asked for, so learning from one would let a truncation self-ratify. `ok`
+  already means echo validation and the ISO-TP declared-length check passed.
+- **Opt out rather than clamp** above `MAX_REQUESTABLE_FRAMES` (9). Clamping is a deliberate
+  undercount; the ≥10-frame PIDs simply stay unoptimized.
+- **A mismatch resyncs, then retries plain without charging the caller's `retries`.** The resync set
+  is `_DIGIT_RESYNC_ON` = `_RESYNC_ON | {CAT_DROP}` — truncation is precisely the queued-tail case,
+  and is *not* worth realigning for when no digit was in play. The feature can cost latency; it
+  cannot cost a reading.
+- **Opt-out is decided by attribution, not by blame.** Only when the plain retry actually answers.
+  Otherwise a transiently silent ECU would permanently deoptimize a healthy PID.
+- **An NRC counts as held** — a complete, valid answer that just occupies fewer frames than the
+  positive response the count was measured from. Treating it as a failure would opt out every PID an
+  ECU refuses while a session is closed, i.e. most of them.
+- The cache is **per-connection**, so a count never outlives the link it was measured on.
 
-**The hazard is an undercount, and it is severe** — truncation plus a persistent pipe desync that
-corrupts the *following* request. Measurements and the required guards are in "The count digit's
-hazard" above; do not implement this without a learned-and-validated per-PID count, resync on
-mismatch, and a permanent opt-out for variable-length responses. An overcount is safe but forfeits
-most of the gain (150 ms vs 53 ms).
+Tests: `tests/test_elm327_frame_count.py` (18, device-free, driving the real engine through the
+shared `QueuedChannel` fake — moved to `tests/_fakes.py` in this change so it is not a third copy).
+They pin the safety properties rather than the speedup, including that the recovery retry is not
+funded from the caller's retry budget.
 
 Frame counts derived from existing captures: `0x7EC:2101` = 9 frames, `0x7EA:21F2` = 13,
-`0x778:22BC02` = 1. Note the classic firmware caps the digit at 9 with a `FIXME`
+`0x778:22BC02` = 1. The classic firmware caps the digit at 9 with a `FIXME`
 (`wican-fw/main/elm327.c:783-785`), and the STN2120's own cap is **still untested** — the ≥10-frame
 PIDs (`0x7EA:21F2`, `0x7EB:21F2`) need checking, and they are exactly the ones with the most to
-gain. This is the top open question.
+gain. Still the top open question; they currently opt out and read at the old speed.
 
 ### B. `STPX` — works, but delivers nothing over item A. **Not worth it.**
 
@@ -374,14 +398,19 @@ implementation. Weigh against `plans/2026-08-08-high-latency-link-hardening.md` 
 
 **It is a bigger switch than "another transport", and this is the strongest argument for it.** On
 WiCAN Pro the two transports do not share a route to the vehicle: `wican-ws` talks to the MIC3624
-co-processor over UART1, while `slcan-tcp` uses the ESP32-S3's own TWAI controller (GPIO2/GPIO1).
-Under `protocol = auto_pid`/`elm327` the firmware **never calls `can_enable()`** — it is commented
-out at `wican-fw/main/main.c:902-907` — so the TWAI controller is not merely unused, it is *off*,
-and the TWAI→ELM327 frame hand-off is compiled out entirely at `wican-fw/main/main.c:432-438`. That
-is why `canair wican mode set` has to change the device mode rather than just the client transport,
-and it means the two transports have genuinely different failure modes, different filtering
-behaviour and different silicon. See the **wican-hardware-and-protocol** skill for the full
-topology.
+co-processor over UART1, while `slcan-tcp` uses the ESP32-S3's own TWAI controller (GPIO2/GPIO1,
+`wican-fw/main/hw_config.h:31-33`), whose single transceiver is wired to the connector's **HS-CAN**
+pins. Under `protocol = auto_pid`/`elm327` the firmware **never calls `can_enable()`** — it is
+commented out at `wican-fw/main/main.c:902-907` — so the TWAI controller is not merely unused, it is
+*off*, and the TWAI→ELM327 frame hand-off is compiled out entirely at
+`wican-fw/main/main.c:432-438`. That is why `canair wican mode set` has to change the device mode
+rather than just the client transport, and it means the two transports have genuinely different
+failure modes, different filtering behaviour and different silicon.
+
+The OBD connector additionally breaks out **MS-CAN** (`MS_CAN_H`/`MS_CAN_L`) and **SW-CAN**
+(`SW_CAN`), neither of which the ESP32 firmware drives at all — so switching transport changes which
+silicon talks to HS-CAN, but no transport reaches the other two buses. See the
+**wican-hardware-and-protocol** skill for the full topology and the evidence.
 
 ### E. Multi-DID batching — real but small, and capped lower than configured
 
@@ -473,29 +502,38 @@ canair's
   comment's assumption should be re-examined; a capability probe should use `STI` with `AT@2`'s `?`
   as the negative reference.
 
-## Verification before any of this ships
+## Verification
 
 Items 1–4 of the original checklist were **executed on 2026-08-09** — results in "Verified on the
 live device" above. `STPX` works but is redundant (item B), the count digit gives 3.3–3.9× (item A),
 `ATAT` is already optimal (item C), and the device is on `v4.50p` with the audited files
-byte-identical to the checkout. What remains untested:
+byte-identical to the checkout.
+
+Item A's safety case is covered device-free by `tests/test_elm327_frame_count.py`: an undercounted
+reply realigns the pipe, retries plain, still returns the reading, and opts the request out — and the
+retry is not funded from the caller's `retries`. A variable-length response needs no special
+handling and no hunting for an example, because the generic mismatch path opts it out on first
+occurrence.
+
+What remains untested, and needs a car:
 
 1. **The digit cap above 9 frames.** `0x7EA:21F2` (13 frames) and `0x7EB:21F2` are the PIDs with the
    most to gain and the ones the cap would break. The classic emulation caps at 9 with a `FIXME`
-   (`wican-fw/main/elm327.c:783-785`); the STN2120's behaviour for a 13-frame response is unknown.
-   Requires the BMS awake, so it needs a drive or a wake ritual.
-2. **Undercount recovery in canair, not just in the REPL.** Confirm that a deliberate undercount is
-   caught by the ISO-TP first-frame length check, that `Elm327Terminal._resync()` clears the
-   leftover frame, and that the *next* read returns its own response. This is the safety case for
-   item A and it must be proven before shipping.
-3. **A variable-length PID.** Find one whose response length changes with vehicle state; it must
-   permanently opt out of the digit. Unknown whether any exist in the Ioniq profile.
-4. **End-to-end cycle time.** The per-request numbers are from a 2-ECU parked car. Confirm the gain
-   survives a real 9-ECU/30-PID drive cycle, where ECU-switch cost and timeouts also contribute.
+   (`wican-fw/main/elm327.c:783-785`); the STN2120's behaviour for a 13-frame response is unknown, so
+   `MAX_REQUESTABLE_FRAMES = 9` is a conservative floor and these PIDs currently opt out and read at
+   the old speed. Requires the BMS awake, so it needs a drive or a wake ritual.
+2. **End-to-end cycle time.** The per-request numbers are from a 2-ECU parked car. Confirm the gain
+   survives a real 9-ECU/30-PID drive cycle, where ECU-switch cost and timeouts also contribute, and
+   that no PID opts out unexpectedly. The recording's `quality` provenance and `canair logs` are the
+   places to look.
+3. **`elm327-tcp` against a real clone.** The digit is a documented ELM327 feature rather than an ST
+   extension, so it should be portable, but "should" is what this whole audit distrusts. A clone that
+   answers `?` degrades to plain automatically (covered by a unit test); one that answers something
+   *plausible* would not, and that is the case worth looking for.
 
 ## Open questions
 
-Three of the original open questions are now **answered** and kept here for the record:
+Most of the original open questions are now **answered** and kept here for the record:
 
 - ~~Which STN part, and does it support `STPX`?~~ **STN2120 v5.8.1, and yes** — but `STPX` is
   redundant given the count digit (item B).
@@ -505,18 +543,21 @@ Three of the original open questions are now **answered** and kept here for the 
   never applies — which explains why captures on `0x7BB`/`0x778`/`0x7CE` exist at all. A narrower
   `ATCRA` might still cut chip-side work on a busy bus; unmeasured.
 - ~~Would `STPX` obsolete the `_cur_header` cache?~~ Moot — `STPX` is not being adopted, so the
-  `transaction()`-held `set_header` + `send_uds` invariant
-  (`canlib/transport/elm327_terminal.py:591`) stays exactly as it is.
+  `transaction()`-held `set_header` + `send_uds` invariant stays exactly as it is.
+- ~~Where should the learned frame count live?~~ **In memory, per connection**
+  (`FrameCountCache`, held by the terminal). Persisting into `ecus/` would make the first cycle fast
+  too, but a device- and firmware-dependent fact does not belong in a vehicle-definition file, and a
+  count is only valid for the link it was measured on.
+- ~~Does the digit interact with multi-DID batching (item E)?~~ Not harmfully: the cache is keyed on
+  the *request as sent*, so a batched request learns its own count independently of the single-DID
+  ones. Both optimisations still touch the same call site, so implementing E means re-reading the
+  `send_uds` loop.
 
 Still open:
 
-- **Where should the learned frame count live?** A per-session in-memory cache (like
-  `canlib/modes/multi_batch.py:141 BatchState.learn()`) is the safe default. Persisting it into
-  `ecus/` would make the first cycle fast too, but it is a device/firmware-dependent fact stored in
-  a vehicle-definition file, which is the wrong home. Leaning in-memory.
-- **Does the digit interact with multi-DID batching (item E)?** A batched request returns a
-  concatenated response with a different frame count than any single DID, so the learned count is
-  keyed on the *request as sent*, not the PID. Both optimisations touch the same call site.
-- **Does `elm327-tcp` (generic clones) support the digit?** It is a documented ELM327 feature, not
-  an ST extension, so it should be portable — but "should" is what this whole audit distrusts. Needs
-  a capability probe or a conservative opt-in per transport.
+- **Can the digit exceed 9?** See verification item 1. If the STN2120 accepts hex `A`–`F`, raising
+  `MAX_REQUESTABLE_FRAMES` to 15 is a one-constant change that would optimize the largest responses
+  in the profile — the ones where the saving is worth the most.
+- **Should the profile's `response_timeout_ms` come down now?** The digit makes the `ATST` budget a
+  tail-latency parameter rather than a per-read cost, so the argument for keeping it at 600 ms is
+  stronger, not weaker. Measure before touching it.
