@@ -186,7 +186,7 @@ class TestMeasurementSizesTheResyncWindow:
         t = _term_prog(["ELM327 v1.5\r>", "6101AA\r>"])
         calls = self._drain_spy(t)
         t.elm_timeout_cmd = "ATST96"  # 0x96 * 4.096ms = 614ms
-        t._pipe_dirty = True
+        t._pipe.dirty = True
         await t.send_command("2101")
         assert calls[0]["per_recv_timeout"] == pytest.approx(0.614 + _LINK_LATENCY_MARGIN, abs=0.01)
 
@@ -198,7 +198,7 @@ class TestMeasurementSizesTheResyncWindow:
         t.elm_timeout_cmd = "ATST96"
         for _ in range(30):
             t.link.observe(1.2)
-        t._pipe_dirty = True
+        t._pipe.dirty = True
         await t.send_command("2101")
         assert calls[0]["per_recv_timeout"] > 1.8
         assert calls[0]["per_recv_timeout"] <= _RESYNC_QUIET_MAX
@@ -210,7 +210,7 @@ class TestMeasurementSizesTheResyncWindow:
         t.elm_timeout_cmd = "ATST96"
         for _ in range(30):
             t.link.observe(0.0005)  # LAN
-        t._pipe_dirty = True
+        t._pipe.dirty = True
         await t.send_command("2101")
         assert calls[0]["per_recv_timeout"] == pytest.approx(0.614 + _LINK_LATENCY_MARGIN, abs=0.01)
 

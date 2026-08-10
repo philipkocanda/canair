@@ -29,6 +29,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from ..uds_parse import CAT_DECODE, CAT_DROP, CAT_STALE, UdsResponse
+
 # Highest count we are willing to emit. The digit is a single hex nibble, so the
 # wire format allows 1..15, but only 1..9 is verified on the STN2120 in the WiCAN
 # Pro; whether it reads A..F as 10..15 is untested, and the classic WiCAN
@@ -39,6 +41,12 @@ MAX_REQUESTABLE_FRAMES = 9
 # Learned counts are per response address *and* request, because the same DID on
 # two ECUs need not return the same number of frames.
 CountKey = tuple[int | None, str]
+
+# Response classifications that prove the pipe still holds bytes which are not
+# this request's answer, so it must be realigned before anything is re-sent.
+# ``drop`` is the undercount signature specifically: a short reassembly means the
+# frames we did not wait for are still queued.
+_DIRTY_PIPE = frozenset({CAT_DROP, CAT_STALE, CAT_DECODE})
 
 
 @dataclass
@@ -102,3 +110,106 @@ class FrameCountCache:
         byte, so the 7-byte request ceiling is unaffected.
         """
         return f"{request}{frames:X}"
+
+    def attempt(self, key: CountKey) -> CountAttempt:
+        """Start the decision procedure for one request on ``key``."""
+        return CountAttempt(self, key)
+
+
+@dataclass(frozen=True)
+class CountVerdict:
+    """What the caller should do with the reply to a request it just sent.
+
+    ``retry_plain`` asks for one more exchange without the digit; it never
+    consumes the caller's own retry budget, because the extra round trip is the
+    optimization's cost to bear, not the reader's. ``realign`` means the reply
+    proved bytes are still queued, so the pipe must be repaired *before* the
+    retry — a plain re-send into an offset pipe just draws the next stale reply.
+    """
+
+    retry_plain: bool = False
+    realign: bool = False
+    note: str = ""
+
+
+@dataclass
+class CountAttempt:
+    """The expected-response-count decision procedure for one ``send_uds`` call.
+
+    Holds the retry state that makes the optimization safe, so the terminal is
+    left with the I/O. Call :meth:`command` to form each request and
+    :meth:`verdict` with the parsed reply; when the verdict does not ask for a
+    retry the attempt has settled and the cache has been updated.
+
+    The invariant worth protecting is *attribution*: a digit-bearing failure is
+    only ever blamed on the digit when the plain form of the same request then
+    works. Opting out on the failure alone would deoptimize every PID that
+    happened to be read while its ECU was briefly silent.
+    """
+
+    cache: FrameCountCache
+    key: CountKey
+    requested: int | None = field(default=None, init=False)
+    _force_plain: bool = field(default=False, init=False)
+    _diagnosing: bool = field(default=False, init=False)
+
+    def command(self, request: str) -> str:
+        """The request to send now — annotated with a digit, or plain."""
+        self.requested = None if self._force_plain else self.cache.count_for(self.key)
+        if self.requested is None:
+            return request
+        return self.cache.annotate(request, self.requested)
+
+    def verdict(self, resp: UdsResponse) -> CountVerdict:
+        """Judge ``resp``, settling the cache unless a plain retry is needed."""
+        requested = self.requested
+        if requested is not None and not digit_held(resp, requested):
+            # The digit is implicated: either the reply is short of what we asked
+            # for, or asking changed the outcome. Retry plain before concluding
+            # anything — it costs one exchange and guarantees the optimization
+            # can never lose a read.
+            self._force_plain = True
+            self._diagnosing = True
+            return CountVerdict(
+                retry_plain=True,
+                realign=resp.get("error_kind") in _DIRTY_PIPE,
+                note=(
+                    f"asked {requested} frame(s), got {resp.get('isotp_frame_count')}"
+                    f" ({resp.get('error', 'complete')}) — retrying plain"
+                ),
+            )
+
+        if self._diagnosing:
+            self._diagnosing = False
+            if resp.get("ok") or resp.get("nrc") is not None:
+                # The plain form answered where the digit did not, which convicts
+                # the digit: a genuinely variable-length response, or a clone that
+                # rejects the nibble outright. A still-silent ECU proves nothing
+                # and keeps the optimization.
+                self.cache.opt_out(self.key)
+        elif requested is None and resp.get("ok"):
+            # Learn only here. A digit-bearing reply carries exactly the count we
+            # requested, so it can only ever confirm itself; and ``ok`` means
+            # SID/echo validation and the ISO-TP declared-length check already
+            # proved this one complete.
+            self.cache.learn(self.key, resp.get("isotp_frame_count"))
+
+        return CountVerdict()
+
+
+def digit_held(resp: UdsResponse, requested: int) -> bool:
+    """Did a request carrying an expected-response-count digit come back whole?
+
+    A negative response counts as held: the ECU gave a complete, valid answer that
+    simply occupies fewer frames than the positive one the count was measured from,
+    so the digit did not fail — nothing is left in the pipe. Treating an NRC as a
+    failure would opt out every PID an ECU refuses while a session is closed, which
+    on most cars is most of them.
+
+    Anything else (a short reassembly, a reply the adapter never produced, a clone
+    answering ``?`` to the unexpected nibble) is treated as the digit's fault until
+    a plain retry proves otherwise.
+    """
+    if resp.get("nrc") is not None:
+        return True
+    return bool(resp.get("ok")) and resp.get("isotp_frame_count") == requested

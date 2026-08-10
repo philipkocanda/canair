@@ -704,22 +704,23 @@ answered coherently (an **NRC counts as answered**: the reply landed in the righ
 **An ELM327 request's odd-length final nibble is an expected-response-frame count**, and supplying
 it is the dominant per-read win on the ELM327 transports (measured ~206→53 ms on a WiCAN Pro,
 variance collapsing too) because the adapter stops waiting out its `ATST` budget to be sure no
-further frame is coming. `canlib/transport/elm327_frame_count.py::FrameCountCache` owns the policy
-and `Elm327Terminal.send_uds` the control flow; `transport.expected_responses` (default true) is the
+further frame is coming. `canlib/transport/elm327_frame_count.py` owns the whole policy —
+`FrameCountCache` the learned counts, `CountAttempt`/`CountVerdict` the per-request decision — while
+`Elm327Terminal.send_uds` keeps only the I/O; `transport.expected_responses` (default true) is the
 kill switch. **The count is learned, never guessed** — and the asymmetry is the whole design: an
 *over*count is merely slow, an **undercount leaves the response's tail queued, which then answers
 the next request**, i.e. it manufactures exactly the desync above. Hence four rules a change here
 must not break: learn only from a *plain* request whose reply is `ok` (a digit-bearing reply can
 only confirm the count it asked for); `learn()` **opts out rather than clamping** above
 `MAX_REQUESTABLE_FRAMES` (clamping is a deliberate undercount — the Ioniq's `0x7EA:21F2` needs 13
-frames and so must stay unoptimized); a mismatch resyncs on `_DIGIT_RESYNC_ON` (`_RESYNC_ON` plus
-`CAT_DROP`, since truncation is precisely the queued-tail case) and retries plain **without charging
-the caller's `retries`**, so the optimization can cost latency but never a reading; and opt-out is
-decided by *attribution*, only when that plain retry actually answers — otherwise a transiently
-silent ECU would permanently deoptimize a healthy PID. An **NRC counts as held** (a complete answer
-that just occupies fewer frames), or every PID an ECU refuses while a session is closed would opt
-out. The cache is per-connection so a count never outlives the link it was measured on. Plan:
-`plans/2026-08-09-wican-ws-throughput-ceiling.md`.
+frames and so must stay unoptimized); a mismatch realigns the pipe on `_DIRTY_PIPE`
+(`drop`/`stale`/`decode` — truncation is precisely the queued-tail case) and retries plain **without
+charging the caller's `retries`**, so the optimization can cost latency but never a reading; and
+opt-out is decided by *attribution*, only when that plain retry actually answers — otherwise a
+transiently silent ECU would permanently deoptimize a healthy PID. An **NRC counts as held** (a
+complete answer that just occupies fewer frames), or every PID an ECU refuses while a session is
+closed would opt out. The cache is per-connection so a count never outlives the link it was measured
+on. Plan: `plans/2026-08-09-wican-ws-throughput-ceiling.md`.
 
 ## Transports
 
@@ -747,13 +748,28 @@ default `slcan-tcp`. Registry-driven — each is a `TransportSpec` in
 **Shared ELM327 engine.** The protocol logic lives once in `Elm327Terminal`
 (`canlib/transport/elm327_terminal.py`), driven by a swappable async byte `Channel`
 (`canlib/transport/channel.py`: `WebSocketChannel` for the WiCAN, `TcpChannel` for a clone).
-`WiCANTerminal`/`Elm327TcpTerminal` are thin subclasses wiring their channel — a new ELM327 wire
-(e.g. serial) is a new `Channel`, not a duplicated engine. The engine exposes `drain()` +
-`recv_frame(timeout)` so modes that collect late frames go through the transport-agnostic surface,
-not a raw socket. All three backends satisfy the `Terminal` protocol (`transport/protocol.py`) and
-run through the shared `dispatch_mode`. ELM-only features (`repl`, `skm-wake`) gate on
-`isinstance(terminal, Elm327Terminal)`, so they work on `wican-ws` **and** `elm327-tcp` but are
-refused on raw `slcan-tcp` (which parses no ELM text).
+`WiCANTerminal` (`canlib/terminal.py`) and `Elm327TcpTerminal` (`canlib/transport/elm327_tcp.py`)
+are thin subclasses wiring their channel — a new ELM327 wire (e.g. serial) is a new `Channel`, not a
+duplicated engine. **The engine keeps the I/O; three sibling modules own the stateful policies it
+used to inline**, each exercisable with no channel at all — so put new protocol policy in a sibling,
+not in the terminal:
+- **`canlib/transport/elm327_pipe.py::ResponsePipe`** — the `>`-prompt ledger (owed prompts,
+  carry-over of a half-arrived block, the dirty-pipe flag, ResponsePending). `carry` deliberately
+  *prefixes* the next collection, so a reply whose prompt merely arrived late is reassembled whole.
+- **`canlib/transport/elm327_frame_count.py`** — the expected-response-count digit:
+  `FrameCountCache` (learn/opt-out) plus `CountAttempt`/`CountVerdict`, the per-request decision
+  procedure. See the frame-count paragraph under WiCAN Access for the four rules a change here must
+  not break.
+- **`canlib/transport/elm327_session.py::enter_extended_session`** — session open, the wake ritual,
+  the TesterPresent keepalive loop. **`canlib/transport/raw_terminal.py` has its own, divergent
+  copy** (shorter timeout, no retry, an unvalidated + exception-swallowed keepalive); unifying them
+  changes raw-path behaviour, so it is a deliberate open item, not shared code you can assume.
+
+The engine exposes `drain()` + `recv_frame(timeout)` so modes that collect late frames go through
+the transport-agnostic surface, not a raw socket. All three backends satisfy the `Terminal` protocol
+(`transport/protocol.py`) and run through the shared `dispatch_mode`. ELM-only features (`repl`,
+`skm-wake`) gate on `isinstance(terminal, Elm327Terminal)`, so they work on `wican-ws` **and**
+`elm327-tcp` but are refused on raw `slcan-tcp` (which parses no ELM text).
 
 **`is_wican_http`** is spec-driven (`TransportSpec.wican_http` + a host), **not** `host is not
 None`: true only for the WiCAN transports (queryable `/load_config`, `/check_status`), false for

@@ -20,7 +20,8 @@ import asyncio
 
 import pytest
 
-from canlib.transport.elm327_terminal import _MAX_OWED_PROMPTS, Elm327Terminal
+from canlib.transport.elm327_pipe import MAX_OWED_PROMPTS
+from canlib.transport.elm327_terminal import Elm327Terminal
 
 from ._fakes import QueuedChannel
 
@@ -45,7 +46,7 @@ class TestNormalExchangeIsUnaffected:
         resp = await asyncio.wait_for(term.send_command("2101", timeout=5.0), timeout=1.0)
         assert _compact(resp) == "6101AA"
         assert ch.drains == 0
-        assert term._pipe_dirty is False
+        assert term._pipe.dirty is False
         assert term.diag.stale == 0
 
 
@@ -60,16 +61,16 @@ class TestLateReplyIsAttributed:
         # The link stalls: nothing arrives, so this command is abandoned owing a
         # prompt. (This is the "Empty response" that opened the reported cascade.)
         await term.send_command("2102", timeout=0.05)
-        assert term._pipe_dirty is True
-        assert term._owed_prompts == 1
+        assert term._pipe.dirty is True
+        assert term._pipe.owed == 1
 
         # Now both replies land: the late one for 2102, then this command's.
         ch.feed("61 02 AA\r>", "61 03 BB\r>")
         resp = await asyncio.wait_for(term.send_command("2103", timeout=5.0), timeout=1.0)
         assert _compact(resp) == "6103BB"
         assert term.diag.stale == 1
-        assert term._pipe_dirty is False
-        assert term._owed_prompts == 0
+        assert term._pipe.dirty is False
+        assert term._pipe.owed == 0
 
     @pytest.mark.asyncio
     async def test_recovery_needs_no_drain_and_no_timing_guess(self):
@@ -109,7 +110,7 @@ class TestLateReplyIsAttributed:
         term = Elm327Terminal(ch, timeout=5.0)
         await term.send_command("2102", timeout=0.05)
         await term.send_command("2103", timeout=0.05)
-        assert term._owed_prompts == 2
+        assert term._pipe.owed == 2
 
         ch.feed("61 02 AA\r>", "61 03 BB\r>", "61 04 CC\r>")
         resp = await asyncio.wait_for(term.send_command("2104", timeout=5.0), timeout=1.0)
@@ -130,7 +131,7 @@ class TestBlockFraming:
         term = Elm327Terminal(ch, timeout=5.0)
         resp = await asyncio.wait_for(term.send_command("2101", timeout=5.0), timeout=1.0)
         assert _compact(resp) == "6101AA"
-        assert term._carry == "61 0"
+        assert term._pipe.carry == "61 0"
 
         ch.feed("2 BB\r>")
         resp = await asyncio.wait_for(term.send_command("2102", timeout=5.0), timeout=1.0)
@@ -149,7 +150,7 @@ class TestLedgerBounds:
 
     @pytest.mark.asyncio
     async def test_an_unpaid_backlog_falls_back_to_a_drain_and_probe(self):
-        """Past `_MAX_OWED_PROMPTS` the arithmetic has stopped explaining anything.
+        """Past `MAX_OWED_PROMPTS` the arithmetic has stopped explaining anything.
 
         A silent adapter would otherwise make every later command wait for prompts
         that are never coming, so the engine reverts to the drain-and-probe resync
@@ -157,9 +158,9 @@ class TestLedgerBounds:
         """
         ch = QueuedChannel()
         term = Elm327Terminal(ch, timeout=5.0)
-        for _ in range(_MAX_OWED_PROMPTS):
+        for _ in range(MAX_OWED_PROMPTS):
             await term.send_command("2101", timeout=0.05)
-        assert term._owed_prompts == _MAX_OWED_PROMPTS
+        assert term._pipe.owed == MAX_OWED_PROMPTS
         assert ch.drains == 0
 
         with pytest.raises(ConnectionError, match="resync failed"):
@@ -171,12 +172,12 @@ class TestLedgerBounds:
         """The drain threw the owed replies away, so the count must go with them."""
         ch = QueuedChannel()
         term = Elm327Terminal(ch, timeout=5.0)
-        for _ in range(_MAX_OWED_PROMPTS):
+        for _ in range(MAX_OWED_PROMPTS):
             await term.send_command("2101", timeout=0.05)
 
         # The probe is answered, so the resync succeeds and leaves a clean ledger.
         ch.after_drain = ["OBDLink MX\r>", "61 01 AA\r>"]
         resp = await asyncio.wait_for(term.send_command("2101", timeout=5.0), timeout=2.0)
         assert _compact(resp) == "6101AA"
-        assert term._owed_prompts == 0
+        assert term._pipe.owed == 0
         assert term.diag.resyncs == 1

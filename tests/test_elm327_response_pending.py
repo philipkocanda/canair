@@ -193,7 +193,7 @@ class TestPipeHygieneAroundPending:
         ch = ScriptedChannel(["7F 19 78\r>", "59 02 AA\r>"])
         term = Elm327Terminal(ch)
         await term.send_command("1902", timeout=2.0)
-        assert term._pipe_dirty is False
+        assert term._pipe.dirty is False
 
     @pytest.mark.asyncio
     async def test_an_unresolved_pending_marks_the_pipe_dirty(self):
@@ -205,7 +205,7 @@ class TestPipeHygieneAroundPending:
         ch = ScriptedChannel(["7F 19 78\r>"])
         term = Elm327Terminal(ch)
         await term.send_command("1902", timeout=0.2)
-        assert term._pipe_dirty is True
+        assert term._pipe.dirty is True
 
     @pytest.mark.asyncio
     async def test_a_pending_frame_does_not_inflate_the_prompt_ledger(self):
@@ -217,7 +217,7 @@ class TestPipeHygieneAroundPending:
         ch = ScriptedChannel(["7F 19 78\r>"])
         term = Elm327Terminal(ch)
         await term.send_command("1902", timeout=0.2)
-        assert term._owed_prompts == 1
+        assert term._pipe.owed == 1
 
     @pytest.mark.asyncio
     async def test_the_next_command_discards_the_late_reply_it_is_owed(self):
@@ -231,11 +231,11 @@ class TestPipeHygieneAroundPending:
         ch = ScriptedChannel(["7F 19 78\r>"])
         term = Elm327Terminal(ch)
         await term.send_command("1902", timeout=0.2)
-        assert term._pipe_dirty is True
+        assert term._pipe.dirty is True
 
         ch.feed("59 02 AA\r>", "59 02 BB\r>")
         resp = await term.send_command("1902", timeout=0.5)
         assert ch.drains == 0
         assert "5902BB" in resp.replace(" ", "")
-        assert term._pipe_dirty is False
+        assert term._pipe.dirty is False
         assert term.diag.stale == 1

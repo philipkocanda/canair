@@ -24,7 +24,8 @@ from __future__ import annotations
 
 from ..terminal import WiCANTerminal
 from .channel import Channel, TcpChannel, WebSocketChannel
-from .elm327_terminal import Elm327TcpTerminal, Elm327Terminal
+from .elm327_tcp import Elm327TcpTerminal
+from .elm327_terminal import Elm327Terminal
 from .protocol import Terminal
 from .raw_terminal import RawTerminal
 

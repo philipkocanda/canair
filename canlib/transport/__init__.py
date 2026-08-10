@@ -22,7 +22,8 @@ from .config import (
     resolve_transport,
     resolve_transport_candidates,
 )
-from .elm327_terminal import Elm327TcpTerminal, Elm327Terminal
+from .elm327_tcp import Elm327TcpTerminal
+from .elm327_terminal import Elm327Terminal
 from .errors import (
     connect_error_detail,
     describe_transport_error,

@@ -20,7 +20,8 @@ import yaml
 from canlib.decoding import decode_param_rows
 from canlib.transport import channel
 from canlib.transport.channel import Channel, TcpChannel
-from canlib.transport.elm327_terminal import Elm327TcpTerminal, Elm327Terminal
+from canlib.transport.elm327_tcp import Elm327TcpTerminal
+from canlib.transport.elm327_terminal import Elm327Terminal
 
 _EMU_ENGINE_YAML = Path(__file__).parent / "fixtures/profiles/elm327-emulator/ecus/engine.yaml"
 

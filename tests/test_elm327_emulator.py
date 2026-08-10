@@ -32,7 +32,7 @@ import pytest
 
 pytest.importorskip("elm", reason="ELM327-emulator not installed (opt-in offline test)")
 
-from canlib.transport.elm327_terminal import Elm327TcpTerminal
+from canlib.transport.elm327_tcp import Elm327TcpTerminal
 
 
 def _free_port() -> int:

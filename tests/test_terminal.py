@@ -281,17 +281,17 @@ class TestStaleFrameDrain:
     async def test_timeout_marks_pipe_dirty(self):
         t = WiCANTerminal(host="test")
         t.ws = DrainWS(reply=None)  # no reply -> the recv loop times out
-        assert t._pipe_dirty is False
+        assert t._pipe.dirty is False
         await t.send_command("2101", timeout=0.05)
-        assert t._pipe_dirty is True
+        assert t._pipe.dirty is True
 
     @pytest.mark.asyncio
     async def test_clean_prompt_keeps_pipe_clean(self):
         t = WiCANTerminal(host="test")
         t.ws = DrainWS(reply="6101AA\r>")
-        t._pipe_dirty = True  # pretend a prior command left it dirty
+        t._pipe.dirty = True  # pretend a prior command left it dirty
         await t.send_command("2101")
-        assert t._pipe_dirty is False  # this command consumed its prompt
+        assert t._pipe.dirty is False  # this command consumed its prompt
 
     @pytest.mark.asyncio
     async def test_stale_frames_drained_before_next_command(self):
@@ -299,11 +299,11 @@ class TestStaleFrameDrain:
         # discard them so its parsed response is only the real reply.
         t = WiCANTerminal(host="test", timeout=0.2)
         t.ws = DrainWS(reply="6101AA\r>")
-        t._pipe_dirty = True
+        t._pipe.dirty = True
         t.ws.preload("6F BC 09 00\r", "STALE\r")  # late frames from a prior read
         resp = await t.send_command("2101")
         assert resp == "6101AA"  # stale frames drained, not concatenated
-        assert t._pipe_dirty is False
+        assert t._pipe.dirty is False
 
     @pytest.mark.asyncio
     async def test_no_drain_when_pipe_clean(self):
@@ -313,7 +313,7 @@ class TestStaleFrameDrain:
         # clean pipe is response-content-driven — see TestPipeResync.)
         t = WiCANTerminal(host="test")
         t.ws = DrainWS(reply="6101AA\r>")
-        assert t._pipe_dirty is False
+        assert t._pipe.dirty is False
         resp = await t.send_command("2101")
         assert resp == "6101AA"
 
@@ -341,14 +341,14 @@ class TestPipeResync:
     @pytest.mark.asyncio
     async def test_resync_probes_the_adapter_after_draining(self):
         t = _term_prog(["ELM327 v1.5\r>", "6101AA\r>"])
-        t._pipe_dirty = True
+        t._pipe.dirty = True
         resp = await t.send_command("2101")
         # ATI goes first: draining alone proves nothing, since the drain can't
         # distinguish "line was quiet" from "line was dead".
         assert t.ws.sent[0].startswith("ATI")
         assert t.ws.sent[1].startswith("2101")
         assert resp == "6101AA"
-        assert t._pipe_dirty is False
+        assert t._pipe.dirty is False
 
     @pytest.mark.asyncio
     async def test_quiet_window_covers_the_adapters_own_ecu_wait(self):
@@ -358,7 +358,7 @@ class TestPipeResync:
         calls = self._drain_spy(t)
         t.elm_timeout_cmd = "ATST96"  # 0x96 * 4.096ms = 614ms
         t.timeout = 30.0  # not the binding constraint here
-        t._pipe_dirty = True
+        t._pipe.dirty = True
         await t.send_command("2101")
         assert calls[0]["per_recv_timeout"] > 0.614
         assert calls[0]["max_seconds"] >= 3.0
@@ -372,7 +372,7 @@ class TestPipeResync:
         calls = self._drain_spy(t)
         t.elm_timeout_cmd = "ATSTFF"  # 0xFF * 4.096ms = 1.044s
         t.timeout = 0.3
-        t._pipe_dirty = True
+        t._pipe.dirty = True
         await t.send_command("2101")
         assert calls[0]["per_recv_timeout"] > 1.044
 
@@ -384,7 +384,7 @@ class TestPipeResync:
         t.timeout = 60.0
         for _ in range(5):
             t.link.observe(30.0)
-        t._pipe_dirty = True
+        t._pipe.dirty = True
         await t.send_command("2101")
         assert calls[0]["per_recv_timeout"] == _RESYNC_QUIET_MAX
 
@@ -394,7 +394,7 @@ class TestPipeResync:
         calls = self._drain_spy(t)
         t.elm_timeout_cmd = "ATSTZZ"
         t.timeout = 30.0
-        t._pipe_dirty = True
+        t._pipe.dirty = True
         await t.send_command("2101")
         assert calls[0]["per_recv_timeout"] > 0.614
 
@@ -405,7 +405,7 @@ class TestPipeResync:
         # what lets the monitor's reconnector take over.
         t = WiCANTerminal(host="test", timeout=0.1)
         t.ws = DrainWS(reply=None)
-        t._pipe_dirty = True
+        t._pipe.dirty = True
         with pytest.raises(ConnectionError, match="resync failed"):
             await t.send_command("2101")
 
@@ -500,7 +500,7 @@ class TestPipeResync:
         # dirty probe must not start another one.
         t = _term_prog(["ELM327 v1.5\r>", "6101AA\r>"])
         t.timeout = 0.2
-        t._pipe_dirty = True
+        t._pipe.dirty = True
         await t.send_command("2101")
         assert len([s for s in t.ws.sent if s.startswith("ATI")]) == 1
 

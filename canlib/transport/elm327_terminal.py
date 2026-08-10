@@ -2,13 +2,25 @@
 
 canair reaches an ELM327-style adapter (a WiCAN Pro's WebSocket terminal, a
 direct WiFi ELM327 clone over TCP, or — future — a serial dongle) through this
-one engine. It owns the whole ELM327 conversation — ELM init, ``ATSH``/``ATFCSH``
-header caching, the ``>``-prompt reply accumulation, UDS ResponsePending (0x78)
-handling, ``send_uds`` parsing, and the diagnostic-session + TesterPresent
-keepalive — and moves bytes only through an injected
+one engine. It owns the ELM327 *conversation*: ELM init, ``ATSH``/``ATFCSH``
+header caching, command serialisation and transactions, the timing loop that
+collects a reply, pipe realignment, and ``send_uds`` request/retry orchestration.
+Bytes move only through an injected
 :class:`~canlib.transport.channel.Channel`. Swapping the channel is the whole of
 "support a new ELM327 wire" (the "keep the WiCAN replaceable" rule): the delicate
 timing loop lives here exactly once, never duplicated per transport.
+
+Three concerns deliberately live in sibling modules, each testable without a
+channel, a clock, or an event loop:
+
+- :mod:`~canlib.transport.elm327_pipe` — the ``>``-prompt ledger that decides
+  *which* reply answers the command in hand.
+- :mod:`~canlib.transport.elm327_session` — DiagnosticSessionControl and the
+  TesterPresent keepalive.
+- :mod:`~canlib.transport.elm327_frame_count` — expected-response-count policy.
+
+Wire bindings are separate too: :class:`canlib.transport.elm327_tcp.Elm327TcpTerminal`
+and :class:`canlib.terminal.WiCANTerminal`.
 
 It structurally satisfies :class:`canlib.transport.protocol.Terminal`, so every
 live mode drives it through the shared ``dispatch_mode`` unchanged.
@@ -28,28 +40,16 @@ from ..log import log_command, log_response
 from ..safety import enforce_command_safety
 from ..timing import TimingRecorder
 from ..transport_stats import TransportStats
-from ..uds_parse import CAT_DECODE, CAT_DROP, CAT_STALE, UdsResponse, parse_uds_response
-from .channel import Channel, TcpChannel
+from ..uds_parse import CAT_DECODE, CAT_STALE, UdsResponse, parse_uds_response
+from .channel import Channel
 from .elm327_frame_count import FrameCountCache
-
-# UDS ResponsePending negative response: `7F <sid> 78` ("request received,
-# response pending"). Matched against the whitespace-stripped ELM327 text, so it
-# works with `ATS1` (spaces on) and `ATS0` alike. Anchoring to the full 3-byte
-# shape — rather than testing for `7F` and `78` separately — keeps a positive
-# response that merely *contains* those bytes from being mistaken for the NRC.
-# The raw-CAN counterpart is `uds_raw.is_response_pending`.
-_PENDING_RE = re.compile(r"7F[0-9A-Fa-f]{2}78")
+from .elm327_pipe import ResponsePipe, compact
+from .elm327_session import enter_extended_session
 
 # Response classes that prove the pipe is carrying something other than this
 # request's answer, and so warrant realigning it. See the call site in `send_uds`
 # for why `no_data` is not one of them.
 _RESYNC_ON = frozenset({CAT_STALE, CAT_DECODE})
-
-# Additionally warrants realigning when an expected-response-count digit was in
-# play. A truncated reassembly normally just fails the read, but when *we* told
-# the adapter how many frames to wait for, the frames it did not wait for are
-# still queued and would be handed back as the next request's answer.
-_DIGIT_RESYNC_ON = _RESYNC_ON | {CAT_DROP}
 
 
 # Largest UDS request an ELM327 will accept as one exchange. The adapter writes
@@ -98,35 +98,6 @@ _RESYNC_QUIET_MAX = 8.0
 # "ELM327 v1.5"), so this never matches on reply text.
 _RESYNC_PROBE = "ATI"
 
-# The ELM327's reply delimiter. The adapter emits exactly one per response it
-# sends, which makes it the only per-exchange framing signal the protocol offers
-# (UDS itself carries no transaction id — a SID+DID echo identifies the request's
-# *content*, so an offset of exactly one poll cycle, or any single-PID poll, is
-# invisible to it). Counting prompts is therefore the primary defence against a
-# desynchronised pipe; see `_send_command_locked`.
-_PROMPT = ">"
-
-# Ceiling on how many unanswered prompts we keep tracking. Reached only when the
-# adapter owes replies it will never send, at which point the count is no longer
-# evidence of anything and a drain-and-probe resync is the honest fallback.
-_MAX_OWED_PROMPTS = 4
-
-
-def _compact(text: str) -> str:
-    """Strip whitespace/line breaks, so hex tests work with ``ATS1`` and ``ATS0``."""
-    return text.replace(" ", "").replace("\r", "").replace("\n", "")
-
-
-def _split_prompt_blocks(text: str) -> tuple[list[str], str]:
-    """Split adapter output into completed ``>``-terminated blocks and a remainder.
-
-    Each returned block is one complete adapter response with its prompt removed;
-    the remainder is whatever trailed the last prompt (an incomplete block, kept
-    for the next read rather than discarded — see the ``_carry`` field).
-    """
-    parts = text.split(_PROMPT)
-    return parts[:-1], parts[-1]
-
 
 class Elm327Terminal:
     """ELM327 protocol engine over an injected byte :class:`Channel`."""
@@ -155,25 +126,11 @@ class Elm327Terminal:
         # cache is per-connection, so a reconnect re-learns rather than trusting a
         # count measured on a link that has since been rebuilt.
         self._frame_counts = FrameCountCache(enabled=expected_responses)
-        # Set when a command's read loop exits WITHOUT consuming the ELM `>`
-        # prompt (a timeout mid-response): the adapter may still emit trailing
-        # frames + a late prompt, which would otherwise leak into — and corrupt
-        # — the next command's response. The next command resynchronises first
-        # (see _send_command_locked). This attacks the stale-frame root cause that
-        # the parser's expected_sid/expected_echo validation only catches after.
-        self._pipe_dirty = False
-        # Prompt accounting — the primary desync defence. `_owed_prompts` is how
-        # many `>` prompts the adapter still owes us: one per command sent, plus
-        # one more for every interim ResponsePending frame, minus those consumed.
-        # It normally sits at 1 for the duration of a command, so a reply is
-        # returned the instant its prompt lands (no added latency). It only
-        # exceeds 1 after a command was abandoned mid-flight, and *that* is what
-        # lets the next read positively identify the late reply as somebody
-        # else's: wait for the 2nd prompt, discard the 1st. `_carry` holds bytes
-        # that trailed the returned block's prompt, so a block is never torn
-        # across two reads.
-        self._owed_prompts = 0
-        self._carry = ""
+        # The prompt ledger that attributes each reply to the command that earned
+        # it — the primary defence against a desynchronised pipe. See
+        # :mod:`canlib.transport.elm327_pipe` for why counting prompts is the only
+        # per-exchange framing signal the ELM327 protocol offers.
+        self._pipe = ResponsePipe()
         self.elm_timeout_cmd = "ATST96"  # current ELM327 timeout command
         self._cmd_lock = asyncio.Lock()  # serialize all ELM327 commands
         # The task currently holding `_cmd_lock`, so a multi-command *transaction*
@@ -219,10 +176,8 @@ class Elm327Terminal:
         await self._channel.connect()
         self._cur_header = None
         self._cur_fc_header = None
-        self._pipe_dirty = False
+        self._pipe.reset()
         self._resyncing = False
-        self._owed_prompts = 0
-        self._carry = ""
         # A learned frame count measures one link. A reconnect may have re-homed
         # the session onto a different device, so forget them all rather than
         # trusting a count across the boundary.
@@ -382,14 +337,12 @@ class Elm327Terminal:
                 per_recv_timeout=quiet,
                 max_seconds=max(_RESYNC_MAX_SECONDS, quiet),
             )
-            self._pipe_dirty = False
             # The drain discarded whatever the adapter still owed, so the prompt
             # ledger must be zeroed with it — otherwise the probe below would wait
             # for prompts that were just thrown away.
-            self._owed_prompts = 0
-            self._carry = ""
+            self._pipe.clear_backlog()
             reply = await self._send_command_locked(_RESYNC_PROBE, quiet)
-            if self._pipe_dirty or not reply.strip():
+            if self._pipe.dirty or not reply.strip():
                 raise ConnectionError(
                     f"ELM327 pipe resync failed ({reason}): "
                     f"no reply to {_RESYNC_PROBE} within {quiet:.1f}s"
@@ -405,93 +358,43 @@ class Elm327Terminal:
         log_command(cmd)
         self._track_header(cmd)
 
-        # A dirty pipe is normally resolved by prompt accounting below: the
-        # abandoned command's prompt is still owed, so this command waits for
-        # *its* prompt and discards the late reply positively, with no timing
-        # guess. Fall back to a drain-and-probe resync only when accounting has
-        # nothing to work with — no owed prompt to count (so a stray banner or
-        # garbage is the likely content), or a backlog that has stopped shrinking
-        # and is therefore no longer evidence of anything.
-        if self._pipe_dirty and not 0 < self._owed_prompts < _MAX_OWED_PROMPTS:
+        # A dirty pipe is normally resolved by prompt accounting: the abandoned
+        # command's prompt is still owed, so this command waits for *its* prompt
+        # and discards the late reply positively, with no timing guess. Fall back
+        # to a drain-and-probe resync only when accounting has nothing to work
+        # with — see `ResponsePipe.needs_resync`.
+        if self._pipe.needs_resync():
             await self._resync("dirty pipe")
 
         self.cmd_count += 1
         _t0 = time.monotonic()
         await self._channel.send(cmd + "\r")
 
-        self._owed_prompts += 1
-        buf = self._carry
-        self._carry = ""
-        done: list[str] = []  # completed blocks, oldest first
-
-        def harvest() -> bool:
-            """Move completed blocks out of ``buf``; True if a pending frame arrived."""
-            nonlocal buf
-            blocks, buf = _split_prompt_blocks(buf)
-            saw_pending = False
-            for block in blocks:
-                if _PENDING_RE.search(_compact(block)):
-                    # UDS ResponsePending (7F xx 78) — an interim "still working"
-                    # ack which the adapter terminates with its own prompt, NOT
-                    # the answer. It leaves the ledger alone on purpose: it
-                    # consumed a prompt but promises another for the *same*
-                    # answer, so the number of real blocks still expected has not
-                    # changed. All it buys the ECU is more time. (The raw path
-                    # does the same in uds_raw.is_response_pending.)
-                    saw_pending = True
-                    continue
-                done.append(block)
-            return saw_pending
-
         deadline = time.monotonic() + timeout
         # The carry may already hold this command's whole reply, so harvest before
-        # waiting on the channel at all.
-        if harvest():
+        # waiting on the channel at all. A ResponsePending frame restarts the
+        # deadline: the ECU asked for more time, so the wait is not the request's.
+        if self._pipe.begin():
             deadline = time.monotonic() + timeout
 
-        while len(done) < self._owed_prompts:
+        while not self._pipe.satisfied:
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 break
             msg = await self._channel.recv(min(remaining, 1.0))
             if msg is None:
                 continue
-            buf += msg
-            if harvest():
+            if self._pipe.feed(msg):
                 deadline = time.monotonic() + timeout
 
-        # Every block but the last belongs to an earlier, abandoned command, so
-        # the newest is the answer. That holds both ways: when the owed count is
-        # satisfied the last block is *provably* ours, and when the deadline
-        # expired first (an owed reply the adapter will never send — a frame lost
-        # on the link) it is still the best candidate, with send_uds's echo
-        # validation as the backstop. Either beats returning the *oldest* buffered
-        # block, which is how a single late reply used to become a permanent
-        # one-command offset that served every PID's value under the next PID's
-        # name.
-        for block in done[:-1]:
+        read = self._pipe.finish()
+        for block in read.stale:
             self.diag.record(
                 CAT_STALE,
-                detail=f"discarded a late reply to an earlier command: {_compact(block)[:40]!r}",
+                detail=f"discarded a late reply to an earlier command: {compact(block)[:40]!r}",
             )
-        # A block was consumed prompt-and-all, so nothing is half-read; the carry
-        # keeps any bytes that trailed it rather than tearing the next block.
-        clean_exit = bool(done)
-        self._pipe_dirty = not clean_exit
-        self._carry = buf
-        if clean_exit:
-            # Whatever else was owed has now either been consumed or written off
-            # (see the block-selection note above); starting the next command from
-            # a clean ledger is what keeps one lost frame from inflating the count
-            # forever and turning it into a dead session.
-            self._owed_prompts = 0
-        # Otherwise the ledger stands: this command's prompt is still outstanding,
-        # so the *next* command waits for two and can name the late reply as
-        # somebody else's instead of guessing. `_MAX_OWED_PROMPTS` bounds the
-        # optimism — past that the adapter is not paying its debts and
-        # `_send_command_locked` falls back to a drain-and-probe resync.
 
-        raw = done[-1] if done else buf
+        raw = read.block
         raw = raw.replace("\r\n", "\n").replace("\r", "\n")
         raw = re.sub(r"[\x00-\x09\x0b-\x1f]", "", raw)
 
@@ -503,7 +406,7 @@ class Elm327Terminal:
         # Feed the link estimate only from commands the adapter answers by itself,
         # and only when a reply actually arrived — a timed-out command's elapsed is
         # the deadline, which says nothing about the link.
-        if clean_exit and cu.startswith(_LINK_PROBE_CMDS):
+        if read.clean and cu.startswith(_LINK_PROBE_CMDS):
             self.link.observe(elapsed)
         # Record RTT for real UDS requests only (skip AT setup + 3E00 keepalives).
         if not cu.startswith("AT") and cu != "3E00" and self._cur_header is not None:
@@ -566,21 +469,6 @@ class Elm327Terminal:
             if self.verbose:
                 print(f"  [header] ATFCSH{hex_id} -> {resp!r}", file=sys.stderr)
 
-    @staticmethod
-    def _count_digit_held(resp: UdsResponse, requested: int) -> bool:
-        """Did a request carrying an expected-response-count digit come back whole?
-
-        A negative response counts as held: the ECU gave a complete, valid answer
-        that simply occupies fewer frames than the positive one the count was
-        measured from, so the digit did not fail — nothing is left in the pipe.
-        Anything else (a short reassembly, a reply the adapter never produced, a
-        clone answering ``?`` to the unexpected nibble) is treated as the digit's
-        fault until a plain retry proves otherwise.
-        """
-        if resp.get("nrc") is not None:
-            return True
-        return bool(resp.get("ok")) and resp.get("isotp_frame_count") == requested
-
     async def send_uds(
         self,
         service_pid: str,
@@ -618,24 +506,15 @@ class Elm327Terminal:
             # Per-ECU budget for the current header, else the client default.
             timeout = self.ecu_timeouts.get(self._cur_header, self.timeout)
         attempt = 0
-        # Set once a digit-bearing request has failed, to force the immediate
-        # retry (and the remainder of this call) onto the plain request form.
-        force_plain = False
-        # True while the *next* iteration is the controlled plain retry that
-        # follows a digit-bearing failure, so its outcome can attribute the
-        # failure: plain succeeding where the digit failed convicts the digit.
-        diagnosing_digit = False
+        # The header cannot move under us here: `transaction()` locks out the
+        # keepalive, `send_uds` never re-points it, and `_resync` probes with a
+        # command `_track_header` does not treat as a reset.
+        counting = self._frame_counts.attempt((self._cur_header, service_pid))
         # One transaction for the whole retry sequence: a keepalive slipping in
         # between attempts would re-point the header and invalidate the retry.
         async with self.transaction():
             while True:
-                count_key = (self._cur_header, service_pid)
-                requested = None if force_plain else self._frame_counts.count_for(count_key)
-                command = (
-                    service_pid
-                    if requested is None
-                    else self._frame_counts.annotate(service_pid, requested)
-                )
+                command = counting.command(service_pid)
                 raw = await self.send_command(command, timeout=timeout)
                 resp = parse_uds_response(
                     raw,
@@ -649,46 +528,18 @@ class Elm327Terminal:
                     ecu=(f"0x{self._cur_header:03X}" if self._cur_header is not None else None),
                     pid=service_pid,
                 )
-                answered = resp.get("ok") or resp.get("nrc") is not None
 
-                if requested is not None and not self._count_digit_held(resp, requested):
-                    # The digit is implicated: either the reply is short of what
-                    # we asked for, or asking changed the outcome. Retry plain
-                    # before concluding anything — it costs one exchange and
-                    # guarantees the optimization can never lose a read.
-                    #
-                    # Realign first when the reply proves the pipe still holds
-                    # frames: an undercount leaves the tail of the response
-                    # queued, and *that* is what surfaces as the next request's
-                    # answer. `_resync` is idempotent and skips when already
-                    # realigning, so a drop mid-recovery cannot recurse.
-                    if resp.get("error_kind") in _DIGIT_RESYNC_ON:
+                verdict = counting.verdict(resp)
+                if verdict.retry_plain:
+                    # `_resync` is idempotent and skips when already realigning, so
+                    # a drop mid-recovery cannot recurse. The retry is not funded
+                    # from `retries`, so the optimization can cost latency but
+                    # never a reading.
+                    if verdict.realign:
                         await self._resync(f"{resp.get('error_kind')} response to {command}")
                     if self.verbose:
-                        print(
-                            f"  [count] {command}: asked {requested} frame(s), got"
-                            f" {resp.get('isotp_frame_count')}"
-                            f" ({resp.get('error', 'complete')}) — retrying plain",
-                            file=sys.stderr,
-                        )
-                    force_plain = True
-                    diagnosing_digit = True
+                        print(f"  [count] {command}: {verdict.note}", file=sys.stderr)
                     continue
-
-                if diagnosing_digit:
-                    # Attribution, not guesswork: only opt out when the plain form
-                    # actually works, so a transiently silent ECU keeps the
-                    # optimization while a genuinely variable-length response (or
-                    # a clone that rejects the digit outright) loses it for good.
-                    diagnosing_digit = False
-                    if answered:
-                        self._frame_counts.opt_out(count_key)
-                elif requested is None and resp.get("ok"):
-                    # Learn only here. A digit-bearing reply carries exactly the
-                    # count we requested, so it can only ever confirm itself;
-                    # and `ok` means SID/echo validation and the ISO-TP
-                    # declared-length check already proved this one complete.
-                    self._frame_counts.learn(count_key, resp.get("isotp_frame_count"))
 
                 if resp.get("error_kind") in _RESYNC_ON:
                     # Two different proofs that the pipe holds something that is
@@ -726,119 +577,13 @@ class Elm327Terminal:
     async def enter_extended_session(
         self, wake: bool = False, mode: str = "03"
     ) -> tuple[bool, asyncio.Task | None]:
-        """Enter a diagnostic session (default 10 03) and start TesterPresent keepalive.
+        """Enter a diagnostic session and start the TesterPresent keepalive.
 
-        Args:
-            wake: If True, send a default session request (10 01) first to wake the
-                ECU from deep sleep before entering the session.
-            mode: DiagnosticSessionControl sub-function (hex, no 0x). Default
-                ``"03"`` (UDS extendedDiagnosticSession); use ``"81"`` for the
-                KWP2000 standardDiagnosticSession on ECUs that reject 10 03.
+        Required by :class:`canlib.transport.protocol.Terminal`; the ritual itself
+        lives in :mod:`canlib.transport.elm327_session`, since it is UDS-level
+        policy rather than part of speaking ELM327.
 
         Returns:
-            (success, tester_task) -- success indicates if session was established,
-            tester_task is the background keepalive task (must be cancelled by caller).
+            ``(success, tester_task)`` — the caller owns cancelling the task.
         """
-        mode = mode.upper().removeprefix("0X").zfill(2)
-        req = f"10{mode}"
-        if wake:
-            # Use fast timeout during wake — some ECUs (SKM) have a ~2s sleep
-            # timer and need rapid CAN traffic to stay awake
-            await self.send_command("ATST10")  # 64ms
-            wake_resp = await self.send_uds("1001", timeout=3.0)
-            if not wake_resp.get("ok"):
-                # First frame may just trigger the transceiver — retry
-                wake_resp = await self.send_uds("1001", timeout=3.0)
-            if wake_resp.get("ok"):
-                print("  Wake-up: ECU responded.")
-            await self.send_command(self.elm_timeout_cmd)  # restore
-
-        resp = await self.send_uds(req, timeout=5.0)
-        if resp.get("ok"):
-            print(f"  Session (10 {mode}) established.")
-        elif resp.get("nrc") is not None:
-            nrc = resp["nrc"]
-            desc = resp["nrc_desc"]
-            print(f"  WARNING: Session request returned NRC 0x{nrc:02X} ({desc})")
-            print("  Continuing anyway -- some ECUs may not need extended session.")
-        else:
-            error = resp.get("error", "unknown")
-            print(f"  Session request failed: {error} — retrying in 0.5s...")
-            await asyncio.sleep(0.5)
-            resp = await self.send_uds(req, timeout=5.0)
-            if resp.get("ok"):
-                print(f"  Session (10 {mode}) established (on retry).")
-            elif resp.get("nrc") is not None:
-                nrc = resp["nrc"]
-                desc = resp["nrc_desc"]
-                print(f"  WARNING: Session retry returned NRC 0x{nrc:02X} ({desc})")
-                print("  Continuing anyway.")
-            else:
-                error2 = resp.get("error", "unknown")
-                print(f"  WARNING: Session retry also failed: {error2}")
-                print("  Continuing anyway.")
-
-        verbose = self.verbose
-
-        async def _tester_present_loop():
-            """Send 3E 00 every 2s to keep the extended session alive."""
-            try:
-                while True:
-                    await asyncio.sleep(2.0)
-                    try:
-                        # Validated, not fire-and-forget: an unchecked keepalive is
-                        # how a transient stall becomes a permanent pipe offset — it
-                        # consumes the late reply owed to the previous request, sees
-                        # a prompt, and leaves its own reply buffered for the next
-                        # reader. expected_sid makes that mismatch visible so
-                        # send_uds can resync instead of hiding it.
-                        resp = await self.send_uds("3E00", timeout=1.5, expected_sid=0x3E)
-                        if verbose:
-                            state = "ok" if resp.get("ok") else resp.get("error", "failed")
-                            print(f"  [tester] 3E00 keepalive: {state}", file=sys.stderr)
-                    except ConnectionError:
-                        # The pipe could not be realigned; the session is done for.
-                        # Let the task end so the caller's reconnect path takes over
-                        # rather than looping on a broken link.
-                        raise
-                    except Exception:
-                        pass
-            except asyncio.CancelledError:
-                pass
-            except ConnectionError:
-                pass
-
-        tester_task = asyncio.create_task(_tester_present_loop())
-        return resp.get("ok", False), tester_task
-
-
-class Elm327TcpTerminal(Elm327Terminal):
-    """ELM327 engine over a direct TCP socket (transport ``elm327-tcp``).
-
-    The counterpart to :class:`canlib.terminal.WiCANTerminal` for a generic WiFi
-    ELM327 adapter (or the ELM327-Emulator's ``-n`` network mode): same engine,
-    only the channel differs (a plain :class:`~canlib.transport.channel.TcpChannel`
-    instead of the WiCAN WebSocket). Unlike the WiCAN, there is no HTTP config API
-    and no ``reboot``.
-    """
-
-    def __init__(
-        self,
-        host: str,
-        port: int,
-        timeout: float = 3.0,
-        verbose: bool = False,
-        unsafe: bool = False,
-        hk_f1xx_offset: bool = False,
-        expected_responses: bool = True,
-    ):
-        self.port = port
-        channel = TcpChannel(host, port, verbose=verbose)
-        super().__init__(
-            channel,
-            timeout=timeout,
-            verbose=verbose,
-            unsafe=unsafe,
-            hk_f1xx_offset=hk_f1xx_offset,
-            expected_responses=expected_responses,
-        )
+        return await enter_extended_session(self, wake=wake, mode=mode)

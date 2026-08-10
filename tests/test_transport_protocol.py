@@ -60,7 +60,7 @@ def test_elm327_tcp_terminal_satisfies_protocol():
     # The third transport. It was absent from this module entirely, which is how
     # it shipped with a connect() missing the timeout/settle/drain its WebSocket
     # twin had — isinstance only checks method *presence*, never signatures.
-    from canlib.transport.elm327_terminal import Elm327TcpTerminal
+    from canlib.transport.elm327_tcp import Elm327TcpTerminal
 
     assert isinstance(Elm327TcpTerminal("h", 35000), Terminal)
 
@@ -70,7 +70,7 @@ def test_elm327_tcp_terminal_satisfies_protocol():
     [
         lambda: WiCANTerminal(host="10.0.2.86"),
         lambda: __import__(
-            "canlib.transport.elm327_terminal", fromlist=["Elm327TcpTerminal"]
+            "canlib.transport.elm327_tcp", fromlist=["Elm327TcpTerminal"]
         ).Elm327TcpTerminal("h", 35000),
     ],
     ids=["wican-ws", "elm327-tcp"],

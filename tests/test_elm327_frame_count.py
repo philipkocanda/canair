@@ -25,8 +25,13 @@ from __future__ import annotations
 
 import pytest
 
-from canlib.transport.elm327_frame_count import MAX_REQUESTABLE_FRAMES, FrameCountCache
+from canlib.transport.elm327_frame_count import (
+    MAX_REQUESTABLE_FRAMES,
+    CountVerdict,
+    FrameCountCache,
+)
 from canlib.transport.elm327_terminal import Elm327Terminal
+from canlib.uds_parse import CAT_BUS, CAT_DROP, CAT_NO_DATA
 
 from ._fakes import QueuedChannel
 
@@ -272,3 +277,122 @@ class TestSelfHealing:
         assert ch.drains == 0
         assert ch.sent == ["22C00B\r", "22C00B4\r", "22C00B\r"]
         assert term._frame_counts.count_for(_KEY) is None
+
+
+class TestDecisionProcedure:
+    """`CountAttempt` on its own — the retry policy with no channel or clock.
+
+    `TestLearningFromTheWire` and `TestSelfHealing` above prove the same rules
+    end-to-end through a terminal; these pin them directly, which is what makes the
+    attribution logic readable as policy rather than as control flow.
+    """
+
+    @staticmethod
+    def _ok(frames: int) -> dict:
+        return {"raw": "", "ok": True, "isotp_frame_count": frames}
+
+    @staticmethod
+    def _short(frames: int) -> dict:
+        return {
+            "raw": "",
+            "ok": False,
+            "isotp_frame_count": frames,
+            "error": "truncated ISO-TP",
+            "error_kind": CAT_DROP,
+        }
+
+    @staticmethod
+    def _nrc() -> dict:
+        return {"raw": "", "ok": False, "nrc": 0x31, "isotp_frame_count": 1}
+
+    @staticmethod
+    def _silent() -> dict:
+        return {"raw": "", "ok": False, "error": "no response", "error_kind": CAT_NO_DATA}
+
+    def test_the_first_request_is_plain_and_teaches_the_count(self):
+        cache = FrameCountCache()
+        attempt = cache.attempt((0x7A0, "22C00B"))
+        assert attempt.command("22C00B") == "22C00B"
+        assert attempt.verdict(self._ok(4)) == CountVerdict()
+        assert cache.count_for((0x7A0, "22C00B")) == 4
+
+    def test_a_later_request_carries_the_digit_and_settles(self):
+        cache = FrameCountCache()
+        cache.learn((0x7A0, "22C00B"), 4)
+        attempt = cache.attempt((0x7A0, "22C00B"))
+        assert attempt.command("22C00B") == "22C00B4"
+        assert not attempt.verdict(self._ok(4)).retry_plain
+
+    def test_an_incomplete_plain_reply_teaches_nothing(self):
+        cache = FrameCountCache()
+        attempt = cache.attempt((0x7A0, "22C00B"))
+        attempt.command("22C00B")
+        attempt.verdict(self._short(2))
+        assert cache.count_for((0x7A0, "22C00B")) is None
+
+    def test_a_short_digit_reply_asks_to_realign_then_retry_plain(self):
+        cache = FrameCountCache()
+        cache.learn((0x7A0, "22C00B"), 4)
+        attempt = cache.attempt((0x7A0, "22C00B"))
+        attempt.command("22C00B")
+        verdict = attempt.verdict(self._short(2))
+        assert verdict.retry_plain and verdict.realign
+        assert "asked 4 frame(s), got 2" in verdict.note
+
+    def test_the_retry_drops_the_digit(self):
+        cache = FrameCountCache()
+        cache.learn((0x7A0, "22C00B"), 4)
+        attempt = cache.attempt((0x7A0, "22C00B"))
+        attempt.command("22C00B")
+        attempt.verdict(self._short(2))
+        assert attempt.command("22C00B") == "22C00B"
+
+    def test_a_plain_retry_that_works_convicts_the_digit(self):
+        cache = FrameCountCache()
+        cache.learn((0x7A0, "22C00B"), 4)
+        attempt = cache.attempt((0x7A0, "22C00B"))
+        attempt.command("22C00B")
+        attempt.verdict(self._short(2))
+        attempt.command("22C00B")
+        assert attempt.verdict(self._ok(6)) == CountVerdict()
+        assert cache.count_for((0x7A0, "22C00B")) is None, "opted out"
+
+    def test_a_still_silent_ecu_proves_nothing_and_keeps_the_optimization(self):
+        cache = FrameCountCache()
+        cache.learn((0x7A0, "22C00B"), 4)
+        attempt = cache.attempt((0x7A0, "22C00B"))
+        attempt.command("22C00B")
+        attempt.verdict(self._silent())
+        attempt.command("22C00B")
+        attempt.verdict(self._silent())
+        assert cache.count_for((0x7A0, "22C00B")) == 4
+
+    def test_a_rejected_nibble_needs_no_realign(self):
+        # `?` is a complete, prompt-terminated refusal: nothing is left queued, so
+        # draining would cost a probe round trip for no reason.
+        cache = FrameCountCache()
+        cache.learn((0x7A0, "22C00B"), 4)
+        attempt = cache.attempt((0x7A0, "22C00B"))
+        attempt.command("22C00B")
+        verdict = attempt.verdict(
+            {"raw": "?", "ok": False, "error": "Unknown command", "error_kind": CAT_BUS}
+        )
+        assert verdict.retry_plain and not verdict.realign
+
+    def test_an_nrc_is_a_complete_answer_and_keeps_the_count(self):
+        cache = FrameCountCache()
+        cache.learn((0x7A0, "22C00B"), 4)
+        attempt = cache.attempt((0x7A0, "22C00B"))
+        attempt.command("22C00B")
+        assert attempt.verdict(self._nrc()) == CountVerdict()
+        assert cache.count_for((0x7A0, "22C00B")) == 4
+
+    def test_a_digit_reply_never_relearns_its_own_count(self):
+        # It can only ever confirm the number it asked for, so learning from it
+        # would launder a wrong count into a permanent one.
+        cache = FrameCountCache()
+        cache.learn((0x7A0, "22C00B"), 4)
+        attempt = cache.attempt((0x7A0, "22C00B"))
+        attempt.command("22C00B")
+        attempt.verdict(self._ok(4))
+        assert cache.count_for((0x7A0, "22C00B")) == 4
