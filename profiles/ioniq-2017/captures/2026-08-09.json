@@ -57743,7 +57743,28 @@
           "payload": "6102F8F80000010000000082008A90D8320000DF6BC032",
           "time": "11:44:20.160"
         }
-      ]
+      ],
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {
+            "at": "09:36:44.035",
+            "states": [
+              "CHARGING",
+              "PLUGGED",
+              "PARKED"
+            ]
+          },
+          {
+            "at": "11:44:08.074",
+            "states": [
+              "PLUGGED",
+              "PARKED"
+            ]
+          }
+        ],
+        "version": "1.18.1+main.22a9bf9"
+      }
     },
     {
       "date": "2026-08-09",
@@ -68436,7 +68457,71 @@
           "payload": "6201A3005F008AFFFFFFFF0000029C0193000000000000068E000011C410100000D5130CE4010002000002BC02DA00010000010000",
           "time": "14:08:08.684"
         }
-      ]
+      ],
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {
+            "at": "13:51:37.997",
+            "states": [
+              "READY",
+              "ACC2",
+              "PARKED"
+            ]
+          },
+          {
+            "at": "13:55:06.642",
+            "states": [
+              "READY",
+              "ACC2",
+              "DRIVING"
+            ]
+          },
+          {
+            "at": "14:00:00.531",
+            "states": [
+              "READY",
+              "ACC2",
+              "PARKED",
+              "DRIVING"
+            ]
+          },
+          {
+            "at": "14:00:22.713",
+            "states": [
+              "READY",
+              "ACC2",
+              "DRIVING"
+            ]
+          },
+          {
+            "at": "14:05:45.677",
+            "states": [
+              "READY",
+              "ACC2",
+              "PARKED",
+              "DRIVING"
+            ]
+          },
+          {
+            "at": "14:06:17.393",
+            "states": [
+              "READY",
+              "ACC2",
+              "DRIVING"
+            ]
+          },
+          {
+            "at": "14:07:46.982",
+            "states": [
+              "READY",
+              "ACC2",
+              "PARKED"
+            ]
+          }
+        ],
+        "version": "1.18.1+main.22a9bf9"
+      }
     }
   ]
 }
