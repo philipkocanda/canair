@@ -84,22 +84,7 @@ IGPM:
           source: RE 2026-08-05 event-timeline analysis; revisited 2026-08-08 session
           verified: false
           notes: >-
-            Candidate transient latch at B12 bit 2 — NOT confirmed as a wake indicator; original
-            hypothesis contradicted by new evidence. Two clean episodes across an earlier
-            285-capture corpus, both ~2-3 min long: (a) 2026-08-02 09:52:59 -> 09:54:42 (1m43s), set
-            when the car was powered to READY (brake+start), cleared ~24s after AC charging began;
-            (b) 2026-08-05 08:28:30 -> 08:31:28 (2m58s), set at the first CAN contact of the day,
-            cleared while polling continued (timed out, not bus-driven). REVISED 2026-08-08: in a
-            parked-then-charging session, this bit set at 17:53:19 alongside CHARGE_PORT_LOCK
-            (B11:7) 0->1 and CHARGE_PORT_LOCK_INV (B12:0) 1->0 — a charge-port-lock event, not a
-            power-up wake — then did not self-clear; B12 kept oscillating 0x14<->0x10 every 3-13 min
-            for the rest of the parked/charging window (18:09, 18:14, 18:16, 18:18, 18:22, 18:25,
-            18:28, 18:30). Looks more like periodic IGPM housekeeping (possibly charge-port-latch
-            polling while PLUGGED) than a wake-source latch. Distinct from B12:3 (ACC2_RELATED) and
-            from the charge-lock pair B11:7 / B12:0, all of which moved independently. TO TEST:
-            capture with --keep-changes across deliberate power transitions (SLEEP->ACC->READY->off)
-            AND across a long plugged-in idle period with no power transitions, to separate
-            wake-correlation from charging-housekeeping-correlation.
+            unverified
           enabled: false
 
     22BC03:
@@ -122,10 +107,7 @@ IGPM:
           expression: "B10:6"
           verified: false
           notes: >
-            Bit flag, meaning unknown. NOT hood — the hood/bonnet sensor is
-            B11:0 (HOOD_OPEN), confirmed 2026-07-24 when B10:6 stayed 0 through
-            the open-hood event. B10:6 was constant 0 across the whole
-            2026-07-24 door/lock/hood event sequence; still undecoded.
+            Bit flag, meaning unknown.
 
         DOOR_DRV_OPEN:
           expression: B10:5
@@ -135,7 +117,8 @@ IGPM:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
           notes: >
-            Bit flag — 1=open. CONFIRMED 2026-07-24: B10:5 went 0->1 only when the driver door was opened during a narrated sleep-mode event sequence (fob unlock -> trunk -> pax door -> driver door -> hood), with no ACC power present. Refutes the earlier SUSPECT hypothesis that bit5 was an ACC power-state flag.
+            Bit flag — 1=open
+
         DOOR_PAS_OPEN:
           expression: "B10:4"
           ha_class: door
@@ -162,12 +145,8 @@ IGPM:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
           notes: >-
-            Bit flag — 1=open. Verified 2026-04-15 (live door test). CAVEAT 2026-08-06: constant 0
-            across all 315 retained captures, while every sibling bit on B10 varies (DOOR_RL_OPEN,
-            DOOR_LOCK_RL, DOOR_LOCK_RR, DOOR_PAS_OPEN, DOOR_DRV_OPEN, TRUNK_OPEN) — the rear-right
-            door was simply never opened in the retained corpus. Left verified because the
-            2026-04-15 observation stands on its own; absence of a transition here is not disproof.
-            Re-exercise it in the next narrated body capture to put evidence back in the corpus.
+            Bit flag — 1=open. Verified 2026-04-15 (live door test).
+
         TRUNK_OPEN:
           expression: "B10:7"
           ha_class: door
@@ -295,7 +274,7 @@ IGPM:
           source: Timed event capture 2026-07-24
           verified: true
           notes: >
-            Hood/bonnet ajar sensor. 1=open. Discovered 2026-07-24: B11 flipped 0x00->0x01 exactly at the narrated 'open hood' step (09:38:03), while the driver door was still open, in sleep mode with no ACC power. Single clean event so far — verify with a second open/close cycle. Note: this also reassigns 'possible hood' away from B10:6 (UNKNOWN_B10_6), which did NOT change on hood open.
+            Hood/bonnet ajar sensor. 1=open. Discovered 2026-07-24.
         UNKNOWN_B13_1:
           expression: B13:1
           source: canair bitfield analysis 2026-08-06 (2026-07-30 defroster/DC-load session)
@@ -316,8 +295,7 @@ IGPM:
       period: 2500
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
       parameters:
-        # TODO: All the other bytes on here!
-        # Maybe window states?
+        # TODO: All the other bytes on here
         DOOR_LOCK_FL:
           expression: "B10:3"
           ha_class: lock
@@ -464,7 +442,7 @@ IGPM:
           source: Timed event capture 2026-07-24; byte offset corrected via bix --annotate overlay 2026-07-24
           verified: false
           notes: >
-            Unlock/hazard-flash indicator bits. B10 = 0x00 -> 0xF0 (top 4 bits) at fob unlock (09:36:50), back to 0x00 at first door/trunk event. CORRECTED 2026-07-24: was defined as B09 (which stays 0x00) — the toggling byte is B10, confirmed by 'investigate --events --bits' (B10:4-7 toggled) and 'bix --annotate --ecu IGPM --pid 22BC05' param overlay. Not static (earlier 'static register' conclusion was steady-state-only).
+            Unlock/hazard-flash indicator bits. B10 = 0x00 -> 0xF0 (top 4 bits) at fob unlock (09:36:50), back to 0x00 at first door/trunk event.
         TRUNK_INDICATOR:
           expression: B11:3
           min: "0"
@@ -472,20 +450,12 @@ IGPM:
           source: canair correlate --find-mirrors + investigate --events 2026-07-24
           verified: false
           notes: >
-            Trunk/tailgate indicator bit on BC05. B11:3 went 0->1 at the narrated 'open trunk' event (09:37:08), and 'canair correlate --find-mirrors --bits' reports IGPM:22BC05:B11:3 == IGPM:22BC03:B10:7 (TRUNK_OPEN) across the session — i.e. BC05 mirrors the confirmed BC03 trunk bit. Single event under keep:unique (rising edge only); verify with a repeat open/close cycle.
+            Trunk/tailgate indicator bit. Could be trunk light output state.
     22BC08:
       status: ignored
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
       notes: >
-        NRC 0x31 (requestOutOfRange) — no response, ignored for now. Every
-        test to date has been in READY / ignition-on (2026-04-14, retested
-        after keyfob-wake 2026-04-16, full BC-family boundary sweep, and again
-        2026-07-29); it has NEVER been probed in CHARGING or driving. There are
-        zero valid captures of BC08 in any state (no 62BC08 positive response
-        ever recorded) — the earlier "DID does not exist" conclusion rests only
-        on READY-state data, so it may be state-gated (e.g. charge-cable/lock
-        related, cf. the BC09/BC0A/BC0C charge IOControls). Re-probe in
-        CHARGING and driving before treating as truly absent.
+        NRC 0x31 (requestOutOfRange) — no response, ignored for now.
       parameters: {}
 
   # ─── IOControl (service 2F) ──────────────────────────────────────────
@@ -755,86 +725,6 @@ IGPM:
         ACC: ConditionsNotCorrect.
   research:
     - type: decode
-      target: "22BC01"
-      status: done
-      priority: P1
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
-      notes: >
-        Data bytes = 40 00 00 00 00 02. 2026-07-22 (READY, ignition on) contrast vs the
-        deep-sleep 2026-04-14/16 captures: IDENTICAL data (only ISO-TP padding length
-        differs) — so BC01 is static config, NOT dynamic body state. Low value for
-        state monitoring; revisit only if a byte moves in some untested state (e.g. charging).
-      sources:
-        - "captures/ — 2026-04-14"
-      updated: "2026-07-23"
-    - type: decode
-      target: "22BC02"
-      status: done
-      priority: P1
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
-      notes: >
-        All data bytes zero (62 BC 02 00 00 00 00). 2026-07-22 (READY) contrast: still
-        all zeros — constant across deep-sleep and READY, carries no observable signal.
-        Deprioritize unless a value appears in a charging/plugged state.
-      sources:
-        - "captures/ — 2026-04-14"
-      updated: "2026-07-23"
-    - type: decode
-      target: "22BC05"
-      status: done
-      priority: P1
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
-      notes: >
-        Data bytes = 7F 11 20 00 00 00 00 00. 2026-07-22 (READY) contrast: IDENTICAL to
-        the deep-sleep 2026-04-14/16 captures (only padding differs) — static config,
-        not dynamic state. Low value for monitoring.
-      sources:
-        - "captures/ — 2026-04-14"
-      updated: "2026-07-23"
-    - type: decode
-      target: "22BC07"
-      status: done
-      priority: P2
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
-      notes: >
-        Data = 08 41 FB CC 00 00 <b9> 00. Byte 9 varies (0x19 in deep-sleep & READY
-        2026-07-22, 0x11 on 2026-04-17) — the CHARGE_PORT_LOCK/ACC2_RELATED bits already
-        defined against it. Remaining bytes (08 41 FB CC) static across states so far;
-        needs a charging capture to see the charge-port bits toggle.
-      sources:
-        - "captures/ — 2026-04-14"
-      updated: "2026-07-23"
-    - type: decode
-      target: "22BC03 IGPM_CONFIG_BYTE (was POWER_MODE)"
-      status: done
-      priority: P2
-      vehicle_states: [SLEEP]
-      notes: >
-        RESOLVED 2026-04-18: POWER_MODE (B09) = 0x73 in all deep sleep states
-        (key in/out, locked/unlocked). The earlier 0x0A attribution was a byte offset
-        error — 0x0A was actually B10 (rear door lock bits RL+RR=1).
-        Remaining: test ACC and ready states to confirm bit 5 (0x20) = ACC.
-      sources:
-        - "live queries 2026-04-18 — key in unlocked, key out unlocked, locked no key: all B09=0x73"
-    - type: verify
-      target: 22BC03 extended-session requirement
-      status: done
-      priority: P2
-      vehicle_states: [READY]
-      result: REFUTED — reads work in default session
-      notes: "RESOLVED 2026-07-21: IGPM service-22 reads (22BC03/04/06) do NOT require extended session. Verified live in READY mode — bare ATSH770;ATFCSH770;22BC03 returned valid 62BC03, no 1003 sent, reconfirmed after 8s idle. Removed session:true from igpm.yaml; corrected 2026-04-15 capture notes. 2F IOControl still needs 1003 (handled per-command, not this flag)."
-      sources:
-        - captures/2026-07-21.yaml — default-session read test
-    - type: scan
-      target: 22 BC00-BC1F
-      status: done
-      priority: P3
-      vehicle_states: [READY]
-      date: "2026-07-22"
-      result: "Full BC-family boundary sweep (ignition on): only BC01-BC07 respond; BC00 and BC08-BC1F all NRC. Confirms the readable BC family is exactly BC01-BC07 (BC08 already known absent). Note: BC09/BC0A/BC0C exist as 2F IOControl DIDs but do NOT answer service-22 reads — IOControl DID space != readable DID space here."
-      notes: Hidden-page hunt 2026-07-22. Closes the question of readable pages beyond BC07.
-      updated: "2026-07-23"
-    - type: decode
       target: 22BC04/BC06 body bits
       status: captured
       priority: P3
@@ -876,32 +766,6 @@ IGPM:
       notes: Declared bitfield gaps that are CONSTANT across all 297 timed captures — never exercised, so unknowable from current data rather than unused. B11 has bits 0,1,2,5,6 decoded (hood, seatbelts, ACC2/ign); B12 has 2,3,4,5 decoded (DRL, tail, high beam, low beam).
       what_to_test:
         - "Narrated event capture exercising the untested body functions: fog lights, hazard/turn indicators, rear seatbelts, reverse lights, parking/position lamps, wiper and washer, horn. One actuation at a time with an 's' note per action, --keep-changes."
-    - type: verify
-      target: 22BC06 B10 — isolate brake from the turn-signal bits
-      status: done
-      priority: P2
-      vehicle_states: [ACC2, READY]
-      created: "2026-08-06"
-      updated: "2026-08-09"
-      result: >-
-        Resolved 2026-08-09: the real turn signal is on B11, not B10 (user-confirmed 1=left,
-        2=right). Dump-bytes over 500 captures: B11=0 n=423, 1 n=35 (left), 2 n=42 (right), never 3.
-        LEFT_TURN_SIGNAL/RIGHT_TURN_SIGNAL re-pointed to B11:0/B11:1 and re-verified. The B10
-        one-off 0x01/0x02 samples were unrelated noise, not turn-signal bits. Bits 3 and 5
-        co-driven-with-brake question is still open — see the still-pending part of this
-        investigation if revisited.
-      notes: B10 takes only 0x00 (n=267), 0x2D (n=23, brake pressed), 0x01 (n=1) and 0x02 (n=1) across 290 captures. The brake press sets bits 0,2,3,5 at once, which means LEFT_TURN_SIGNAL (bit0) reads 1 on every brake press — matching the 2026-07-21 live observation that it 'falsely shows 1 when neither is active'. It is now disabled. RIGHT_TURN_SIGNAL (bit1) has exactly one supporting sample and was downgraded to unverified. Bits 3 and 5 are undecoded and never move independently of bit2, so they are co-driven by the brake rather than separate signals. A deliberate one-actuation-at-a-time capture separates all of this.
-      sources:
-        - canair bitfield analysis 2026-08-06 (plans/2026-08-06-bitfield-audit-and-gear-state.md)
-      what_to_test:
-        - Does bit0 rise on a left stalk with the brake released? (would restore LEFT_TURN_SIGNAL)
-        - Do bits 3 and 5 ever move without bit2? (would make them separate signals rather than brake-co-driven)
-        - Confirm RIGHT_TURN_SIGNAL (bit1) with >=3 clean episodes
-      capture_protocol: >-
-        canair monitor IGPM:22BC06 --save --keep-changes --label 'brake vs turn signals' --state
-        ACC2. With both stalks off: press and release the brake 3x (note each). Then, brake
-        released: left stalk on/off 3x, then right stalk on/off 3x. Then hazards on/off. Then brake
-        + left together. Note every action with 's'.
     - type: verify
       target: 22BC03 B10:2 DOOR_RR_OPEN — no transition in the corpus
       status: pending

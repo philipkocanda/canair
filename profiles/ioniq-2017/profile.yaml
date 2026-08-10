@@ -23,25 +23,6 @@
 # │ passively (see `canair sniff`). Reads are request/response only.           │
 # └──────────────────────────────────────────────────────────────────────────┘
 #
-# ┌──────────────────────────────────────────────────────────────────────────┐
-# │ DATA-PROVENANCE CAVEAT — historical payload LENGTHS are not fully trusted  │
-# ├──────────────────────────────────────────────────────────────────────────┤
-# │ A capture-transport bug truncated some multi-frame ISO-TP reads (the       │
-# │ ELM327 / wican-ws path occasionally dropped a consecutive frame), so a     │
-# │ payload recorded BEFORE 2026-07-28 can be short of the real response and   │
-# │ misaligned after the gap. Fixed 2026-07-28: parse_uds_response now rejects │
-# │ a short multi-frame read (ISO-TP declared-length check), and captures over │
-# │ slcan-tcp cannot truncate at all (client-side ISO-TP guarantees a complete │
-# │ reassembly or nothing).                                                    │
-# │                                                                            │
-# │ Consequence: do NOT infer a PID's variable-length behaviour or byte layout │
-# │ from pre-fix length VARIATION alone — a "short" historical payload may be  │
-# │ a dropped frame, not a real shorter response. Confirm with a post-fix      │
-# │ re-capture (ideally slcan-tcp). Known-truncated captures have been purged; │
-# │ genuinely variable-length PIDs are marked `variable_length: true` in their │
-# │ ecus/ definition.                                                          │
-# └──────────────────────────────────────────────────────────────────────────┘
-
 car_model: "Hyundai Ioniq 2017"
 init: "ATSP6;ATS0;ATAL;ATST96;"
 
