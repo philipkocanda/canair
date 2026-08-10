@@ -40,6 +40,7 @@ class WiCANTerminal(Elm327Terminal):
         verbose: bool = False,
         unsafe: bool = False,
         hk_f1xx_offset: bool = False,
+        expected_responses: bool = True,
     ):
         channel = WebSocketChannel(host, verbose=verbose)
         super().__init__(
@@ -48,6 +49,7 @@ class WiCANTerminal(Elm327Terminal):
             verbose=verbose,
             unsafe=unsafe,
             hk_f1xx_offset=hk_f1xx_offset,
+            expected_responses=expected_responses,
         )
 
     # The raw WebSocket is exposed for the WiCAN-only paths that read it directly

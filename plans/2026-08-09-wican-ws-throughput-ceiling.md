@@ -510,8 +510,8 @@ live device" above. `STPX` works but is redundant (item B), the count digit give
 byte-identical to the checkout.
 
 Item A's safety case is covered device-free by `tests/test_elm327_frame_count.py`: an undercounted
-reply realigns the pipe, retries plain, still returns the reading, and opts the request out — and the
-retry is not funded from the caller's `retries`. A variable-length response needs no special
+reply realigns the pipe, retries plain, still returns the reading, and opts the request out — and
+the retry is not funded from the caller's `retries`. A variable-length response needs no special
 handling and no hunting for an example, because the generic mismatch path opts it out on first
 occurrence.
 
@@ -519,17 +519,17 @@ What remains untested, and needs a car:
 
 1. **The digit cap above 9 frames.** `0x7EA:21F2` (13 frames) and `0x7EB:21F2` are the PIDs with the
    most to gain and the ones the cap would break. The classic emulation caps at 9 with a `FIXME`
-   (`wican-fw/main/elm327.c:783-785`); the STN2120's behaviour for a 13-frame response is unknown, so
-   `MAX_REQUESTABLE_FRAMES = 9` is a conservative floor and these PIDs currently opt out and read at
-   the old speed. Requires the BMS awake, so it needs a drive or a wake ritual.
+   (`wican-fw/main/elm327.c:783-785`); the STN2120's behaviour for a 13-frame response is unknown,
+   so `MAX_REQUESTABLE_FRAMES = 9` is a conservative floor and these PIDs currently opt out and read
+   at the old speed. Requires the BMS awake, so it needs a drive or a wake ritual.
 2. **End-to-end cycle time.** The per-request numbers are from a 2-ECU parked car. Confirm the gain
    survives a real 9-ECU/30-PID drive cycle, where ECU-switch cost and timeouts also contribute, and
    that no PID opts out unexpectedly. The recording's `quality` provenance and `canair logs` are the
    places to look.
 3. **`elm327-tcp` against a real clone.** The digit is a documented ELM327 feature rather than an ST
-   extension, so it should be portable, but "should" is what this whole audit distrusts. A clone that
-   answers `?` degrades to plain automatically (covered by a unit test); one that answers something
-   *plausible* would not, and that is the case worth looking for.
+   extension, so it should be portable, but "should" is what this whole audit distrusts. A clone
+   that answers `?` degrades to plain automatically (covered by a unit test); one that answers
+   something *plausible* would not, and that is the case worth looking for.
 
 ## Open questions
 

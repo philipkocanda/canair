@@ -1,4 +1,8 @@
-"""Shared async fake terminal for device-free mode/command tests.
+"""Shared async fakes for device-free mode/command/transport tests.
+
+Two layers, because canair's tests need both. :class:`FakeTerminal` stands in for
+a whole terminal; :class:`QueuedChannel` stands in for the byte channel *beneath*
+one, so a test can drive the real ELM327 engine.
 
 canair talks to the bus through a terminal exposing a small async surface
 (``set_header``/``send_uds``/``send_command``/``enter_extended_session``/
@@ -22,6 +26,7 @@ Response dicts mirror :func:`canlib.uds_parse.parse_uds_response`: positives are
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 
 from canlib.timing import TimingRecorder
@@ -156,3 +161,53 @@ class FakeTerminal:
 
     async def close(self) -> None:
         self.calls.append(("close", None))
+
+
+class QueuedChannel:
+    """A fake byte channel with a queue of chunks, independent of how many sends.
+
+    One layer *below* :class:`FakeTerminal`: this drives the real
+    :class:`~canlib.transport.elm327_terminal.Elm327Terminal` engine, so tests can
+    exercise prompt accounting, resync and request framing rather than stubbing
+    them out. Unlike a reply-per-send fake it can express the situations those
+    features exist for — one command with *two* prompt-terminated blocks already
+    on the line, or a line that only delivers once a drain has swept it.
+    """
+
+    transport_name = "wican-ws"
+
+    def __init__(self, *chunks: str | None):
+        self.sent: list[str] = []
+        self.drains = 0
+        self.closed = False
+        self._chunks: list[str | None] = list(chunks)
+        # Messages the line delivers *after* a drain has swept it — a plain queue
+        # can't express this, because drain() discards whatever is pending.
+        self.after_drain: list[str | None] = []
+
+    def feed(self, *chunks: str | None) -> None:
+        self._chunks.extend(chunks)
+
+    async def connect(self) -> None:  # pragma: no cover - not exercised here
+        pass
+
+    async def send(self, text: str) -> None:
+        self.sent.append(text)
+
+    async def recv(self, timeout: float) -> str | None:
+        if not self._chunks:
+            await asyncio.sleep(min(timeout, 0.001))
+            return None
+        chunk = self._chunks.pop(0)
+        if chunk is None:
+            await asyncio.sleep(min(timeout, 0.001))
+            return None
+        return chunk
+
+    async def drain(self, per_recv_timeout: float = 0.2, max_seconds: float = 1.0) -> None:
+        self.drains += 1
+        self._chunks = list(self.after_drain)
+        self.after_drain = []
+
+    async def close(self) -> None:
+        self.closed = True

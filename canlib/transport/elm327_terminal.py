@@ -28,8 +28,9 @@ from ..log import log_command, log_response
 from ..safety import enforce_command_safety
 from ..timing import TimingRecorder
 from ..transport_stats import TransportStats
-from ..uds_parse import CAT_DECODE, CAT_STALE, UdsResponse, parse_uds_response
+from ..uds_parse import CAT_DECODE, CAT_DROP, CAT_STALE, UdsResponse, parse_uds_response
 from .channel import Channel, TcpChannel
+from .elm327_frame_count import FrameCountCache
 
 # UDS ResponsePending negative response: `7F <sid> 78` ("request received,
 # response pending"). Matched against the whitespace-stripped ELM327 text, so it
@@ -43,6 +44,12 @@ _PENDING_RE = re.compile(r"7F[0-9A-Fa-f]{2}78")
 # request's answer, and so warrant realigning it. See the call site in `send_uds`
 # for why `no_data` is not one of them.
 _RESYNC_ON = frozenset({CAT_STALE, CAT_DECODE})
+
+# Additionally warrants realigning when an expected-response-count digit was in
+# play. A truncated reassembly normally just fails the read, but when *we* told
+# the adapter how many frames to wait for, the frames it did not wait for are
+# still queued and would be handed back as the next request's answer.
+_DIGIT_RESYNC_ON = _RESYNC_ON | {CAT_DROP}
 
 
 # Largest UDS request an ELM327 will accept as one exchange. The adapter writes
@@ -131,6 +138,7 @@ class Elm327Terminal:
         verbose: bool = False,
         unsafe: bool = False,
         hk_f1xx_offset: bool = False,
+        expected_responses: bool = True,
     ):
         self._channel = channel
         # Connection host if the channel is host-based (WebSocket/TCP), else None
@@ -142,6 +150,11 @@ class Elm327Terminal:
         # Profile HK F1xx -1 identity-DID quirk (tolerate 62F187 for a 22F188
         # request); forwarded to parse_uds_response's echo validation.
         self.hk_f1xx_offset = hk_f1xx_offset
+        # Learned expected-response-count digits, which let the adapter return as
+        # soon as a reply is complete instead of waiting out its ATST budget. The
+        # cache is per-connection, so a reconnect re-learns rather than trusting a
+        # count measured on a link that has since been rebuilt.
+        self._frame_counts = FrameCountCache(enabled=expected_responses)
         # Set when a command's read loop exits WITHOUT consuming the ELM `>`
         # prompt (a timeout mid-response): the adapter may still emit trailing
         # frames + a late prompt, which would otherwise leak into — and corrupt
@@ -210,6 +223,10 @@ class Elm327Terminal:
         self._resyncing = False
         self._owed_prompts = 0
         self._carry = ""
+        # A learned frame count measures one link. A reconnect may have re-homed
+        # the session onto a different device, so forget them all rather than
+        # trusting a count across the boundary.
+        self._frame_counts.reset()
 
     async def close(self):
         """Close the underlying channel."""
@@ -549,6 +566,21 @@ class Elm327Terminal:
             if self.verbose:
                 print(f"  [header] ATFCSH{hex_id} -> {resp!r}", file=sys.stderr)
 
+    @staticmethod
+    def _count_digit_held(resp: UdsResponse, requested: int) -> bool:
+        """Did a request carrying an expected-response-count digit come back whole?
+
+        A negative response counts as held: the ECU gave a complete, valid answer
+        that simply occupies fewer frames than the positive one the count was
+        measured from, so the digit did not fail — nothing is left in the pipe.
+        Anything else (a short reassembly, a reply the adapter never produced, a
+        clone answering ``?`` to the unexpected nibble) is treated as the digit's
+        fault until a plain retry proves otherwise.
+        """
+        if resp.get("nrc") is not None:
+            return True
+        return bool(resp.get("ok")) and resp.get("isotp_frame_count") == requested
+
     async def send_uds(
         self,
         service_pid: str,
@@ -586,11 +618,25 @@ class Elm327Terminal:
             # Per-ECU budget for the current header, else the client default.
             timeout = self.ecu_timeouts.get(self._cur_header, self.timeout)
         attempt = 0
+        # Set once a digit-bearing request has failed, to force the immediate
+        # retry (and the remainder of this call) onto the plain request form.
+        force_plain = False
+        # True while the *next* iteration is the controlled plain retry that
+        # follows a digit-bearing failure, so its outcome can attribute the
+        # failure: plain succeeding where the digit failed convicts the digit.
+        diagnosing_digit = False
         # One transaction for the whole retry sequence: a keepalive slipping in
         # between attempts would re-point the header and invalidate the retry.
         async with self.transaction():
             while True:
-                raw = await self.send_command(service_pid, timeout=timeout)
+                count_key = (self._cur_header, service_pid)
+                requested = None if force_plain else self._frame_counts.count_for(count_key)
+                command = (
+                    service_pid
+                    if requested is None
+                    else self._frame_counts.annotate(service_pid, requested)
+                )
+                raw = await self.send_command(command, timeout=timeout)
                 resp = parse_uds_response(
                     raw,
                     expected_sid=expected_sid,
@@ -603,6 +649,47 @@ class Elm327Terminal:
                     ecu=(f"0x{self._cur_header:03X}" if self._cur_header is not None else None),
                     pid=service_pid,
                 )
+                answered = resp.get("ok") or resp.get("nrc") is not None
+
+                if requested is not None and not self._count_digit_held(resp, requested):
+                    # The digit is implicated: either the reply is short of what
+                    # we asked for, or asking changed the outcome. Retry plain
+                    # before concluding anything — it costs one exchange and
+                    # guarantees the optimization can never lose a read.
+                    #
+                    # Realign first when the reply proves the pipe still holds
+                    # frames: an undercount leaves the tail of the response
+                    # queued, and *that* is what surfaces as the next request's
+                    # answer. `_resync` is idempotent and skips when already
+                    # realigning, so a drop mid-recovery cannot recurse.
+                    if resp.get("error_kind") in _DIGIT_RESYNC_ON:
+                        await self._resync(f"{resp.get('error_kind')} response to {command}")
+                    if self.verbose:
+                        print(
+                            f"  [count] {command}: asked {requested} frame(s), got"
+                            f" {resp.get('isotp_frame_count')}"
+                            f" ({resp.get('error', 'complete')}) — retrying plain",
+                            file=sys.stderr,
+                        )
+                    force_plain = True
+                    diagnosing_digit = True
+                    continue
+
+                if diagnosing_digit:
+                    # Attribution, not guesswork: only opt out when the plain form
+                    # actually works, so a transiently silent ECU keeps the
+                    # optimization while a genuinely variable-length response (or
+                    # a clone that rejects the digit outright) loses it for good.
+                    diagnosing_digit = False
+                    if answered:
+                        self._frame_counts.opt_out(count_key)
+                elif requested is None and resp.get("ok"):
+                    # Learn only here. A digit-bearing reply carries exactly the
+                    # count we requested, so it can only ever confirm itself;
+                    # and `ok` means SID/echo validation and the ISO-TP
+                    # declared-length check already proved this one complete.
+                    self._frame_counts.learn(count_key, resp.get("isotp_frame_count"))
+
                 if resp.get("error_kind") in _RESYNC_ON:
                     # Two different proofs that the pipe holds something that is
                     # not this request's answer:
@@ -743,6 +830,7 @@ class Elm327TcpTerminal(Elm327Terminal):
         verbose: bool = False,
         unsafe: bool = False,
         hk_f1xx_offset: bool = False,
+        expected_responses: bool = True,
     ):
         self.port = port
         channel = TcpChannel(host, port, verbose=verbose)
@@ -752,4 +840,5 @@ class Elm327TcpTerminal(Elm327Terminal):
             verbose=verbose,
             unsafe=unsafe,
             hk_f1xx_offset=hk_f1xx_offset,
+            expected_responses=expected_responses,
         )

@@ -701,6 +701,26 @@ the backstop — `MonitorController._check_liveness()` reconnects after N poll c
 answered coherently (an **NRC counts as answered**: the reply landed in the right slot). Plan:
 `plans/2026-08-08-elm327-pipe-desync-recovery.md`.
 
+**An ELM327 request's odd-length final nibble is an expected-response-frame count**, and supplying
+it is the dominant per-read win on the ELM327 transports (measured ~206→53 ms on a WiCAN Pro,
+variance collapsing too) because the adapter stops waiting out its `ATST` budget to be sure no
+further frame is coming. `canlib/transport/elm327_frame_count.py::FrameCountCache` owns the policy
+and `Elm327Terminal.send_uds` the control flow; `transport.expected_responses` (default true) is the
+kill switch. **The count is learned, never guessed** — and the asymmetry is the whole design: an
+*over*count is merely slow, an **undercount leaves the response's tail queued, which then answers
+the next request**, i.e. it manufactures exactly the desync above. Hence four rules a change here
+must not break: learn only from a *plain* request whose reply is `ok` (a digit-bearing reply can
+only confirm the count it asked for); `learn()` **opts out rather than clamping** above
+`MAX_REQUESTABLE_FRAMES` (clamping is a deliberate undercount — the Ioniq's `0x7EA:21F2` needs 13
+frames and so must stay unoptimized); a mismatch resyncs on `_DIGIT_RESYNC_ON` (`_RESYNC_ON` plus
+`CAT_DROP`, since truncation is precisely the queued-tail case) and retries plain **without charging
+the caller's `retries`**, so the optimization can cost latency but never a reading; and opt-out is
+decided by *attribution*, only when that plain retry actually answers — otherwise a transiently
+silent ECU would permanently deoptimize a healthy PID. An **NRC counts as held** (a complete answer
+that just occupies fewer frames), or every PID an ECU refuses while a session is closed would opt
+out. The cache is per-connection so a count never outlives the link it was measured on. Plan:
+`plans/2026-08-09-wican-ws-throughput-ceiling.md`.
+
 ## Transports
 
 > **Before changing a transport backend, debugging a desync/timeout, or calling a device API, load

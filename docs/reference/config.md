@@ -184,6 +184,37 @@ budgets, so these are the only latency-related keys you should need to touch. Se
 [Remote & cellular links](../concepts/remote-and-cellular.md) for the whole
 picture, including which transport to pick and what `slcan-tcp` costs in data.
 
+### Expected response counts (ELM327 transports)
+
+An ELM327 adapter has no way to know a multi-frame reply has ended, so by default
+it waits out its whole `ATST` ECU-response budget after the last frame just to be
+sure another is not coming. That wait, not the car and not the network, is the
+dominant per-request cost on `wican-ws` and `elm327-tcp`.
+
+The protocol has an escape hatch: a data request with an *odd* hex length has its
+final nibble read as the number of response frames to expect, letting the adapter
+return the moment the reply is whole. Measured on a WiCAN Pro, this is about **4x
+faster per read** (~206 ms → ~53 ms), and it also collapses the variance.
+
+```yaml
+transport:
+  expected_responses: true   # default true
+```
+
+canair **never guesses the count.** The first read of a request goes out in the
+plain form and the count is learned from a reply that already passed its echo and
+ISO-TP length checks. Asking for too few frames is the one genuinely unsafe move —
+the frames the adapter did not wait for stay queued and would come back as the
+*next* request's answer — so a reply that does not match what was asked for makes
+canair realign the pipe, retry in the plain form, and stop optimizing that request
+for the rest of the session. The retry is not charged to the caller's retry
+budget: a wrong count can cost latency, never a reading.
+
+Leave it on. Set it `false` to rule it out while debugging a misbehaving adapter,
+or if a clone rejects the extra nibble in a way canair has not learned to detect.
+It has no effect on `slcan-tcp`, where canair runs ISO-TP itself and already knows
+when a response is complete.
+
 
 ## The `transport` block
 

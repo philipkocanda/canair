@@ -69,6 +69,7 @@ async def connect_elm_terminal(transport, pids_data: dict, args) -> Terminal:
     reconnect. Raises a transport error on failure (closing the partially-opened
     terminal first); the caller classifies it.
     """
+    from canlib import config
     from canlib.quirks import HK_F1XX_MINUS_ONE, has_quirk
     from canlib.timeouts import cli_timeout, ecu_timeouts_by_tx
     from canlib.transport import DEFAULT_ELM327_TCP_PORT, Elm327TcpTerminal
@@ -82,6 +83,7 @@ async def connect_elm_terminal(transport, pids_data: dict, args) -> Terminal:
     _cli_timeout = cli_timeout(args)
     _ws_timeout = _cli_timeout if _cli_timeout is not None else 3.0
     hk = has_quirk(pids_data, HK_F1XX_MINUS_ONE)
+    counts = config.expected_responses()
     terminal: Terminal
     if transport.type == "elm327-tcp":
         port = transport.port or DEFAULT_ELM327_TCP_PORT
@@ -92,6 +94,7 @@ async def connect_elm_terminal(transport, pids_data: dict, args) -> Terminal:
             verbose=args.verbose,
             unsafe=args.unsafe,
             hk_f1xx_offset=hk,
+            expected_responses=counts,
         )
         connecting = f"Connecting to ELM327 adapter at {host}:{port}..."
     else:
@@ -101,6 +104,7 @@ async def connect_elm_terminal(transport, pids_data: dict, args) -> Terminal:
             verbose=args.verbose,
             unsafe=args.unsafe,
             hk_f1xx_offset=hk,
+            expected_responses=counts,
         )
         connecting = f"Connecting to WiCAN at {host}..."
     # Per-ECU response budgets apply only when the user didn't force --timeout.

@@ -66,6 +66,14 @@ _DEFAULT_WS_PING_INTERVAL = 20.0
 # 0 disables). This is the catch-all for desyncs the transport can't self-detect —
 # notably multi-DID batches, which carry no echo to validate.
 _DEFAULT_STALE_CYCLES = 3
+# Whether an ELM327 request may carry an expected-response-count digit, letting
+# the adapter return the moment a reply is complete instead of waiting out its
+# ATST budget (`transport.expected_responses`). Measured ~4x faster on a WiCAN
+# Pro; on by default because a count is learned from a completed plain read and
+# any mismatch self-heals into a plain retry. Turn it off to pin an adapter to
+# the plain request form. Only the ELM327 transports read it — the raw path runs
+# its own ISO-TP and has no adapter to instruct.
+_DEFAULT_EXPECTED_RESPONSES = True
 
 # WiCAN hardware model. AutoPID vehicle profiles and the wican-ws ELM327
 # terminal are Pro-only; the classic (non-Pro) WiCAN only supports raw SLCAN.
@@ -481,6 +489,23 @@ def stale_cycles_before_reconnect() -> int:
     except (TypeError, ValueError):
         return _DEFAULT_STALE_CYCLES
     return value if value >= 0 else _DEFAULT_STALE_CYCLES
+
+
+def expected_responses() -> bool:
+    """Whether ELM327 requests may carry an expected-response-count digit.
+
+    Read from ``transport.expected_responses`` (default True). Appending the
+    frame count to an odd-length request lets the adapter stop listening as soon
+    as the reply is whole, instead of waiting out ``ATST`` to be sure no further
+    frame is coming — the dominant per-request cost on the ELM327 transports.
+    Set it false to keep every request in the plain form, e.g. for an adapter
+    that answers ``?`` to the extra nibble on requests canair has not yet
+    learned to opt out of.
+    """
+    raw_block = load_config().get("transport")
+    block = raw_block if isinstance(raw_block, dict) else {}
+    value = block.get("expected_responses", _DEFAULT_EXPECTED_RESPONSES)
+    return _DEFAULT_EXPECTED_RESPONSES if value is None else bool(value)
 
 
 def wican_model() -> str:

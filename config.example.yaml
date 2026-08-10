@@ -132,3 +132,14 @@ default_wican: home
 #                              # nothing answered coherently, before reconnecting
 #                              # (0 disables). A cycle count, not a duration, so
 #                              # it scales with the poll rate.
+#
+#   # Per-request speed on the ELM327 transports (wican-ws, elm327-tcp).
+#   expected_responses: true   # default true. Tell the adapter how many response
+#                              # frames to expect, so it returns as soon as the
+#                              # reply is whole instead of waiting out ATST to be
+#                              # sure no further frame is coming — measured ~4x
+#                              # faster per read on a WiCAN Pro. The count is
+#                              # learned from a first plain read, never guessed,
+#                              # and a mismatch realigns, retries plain, and
+#                              # gives up on that request for the session. Set
+#                              # false only to rule it out while debugging.

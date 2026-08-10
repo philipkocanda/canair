@@ -465,6 +465,37 @@ class TestDevicesAndFallbackConfig:
         _reset()
         assert config.stale_cycles_before_reconnect() == 3
 
+    def test_expected_responses_defaults_on(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        from canlib import config
+
+        _reset()
+        assert config.expected_responses() is True
+
+    def test_expected_responses_can_be_disabled(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        from canlib import config
+
+        _reset()
+        config.set_config_key("transport.expected_responses", False)
+        _reset()
+        assert config.expected_responses() is False
+
+    def test_null_expected_responses_falls_back_to_default(self, tmp_path, monkeypatch):
+        """An explicitly blank key means "unset", not "off".
+
+        YAML turns a bare ``expected_responses:`` into None, which would otherwise
+        silently disable the optimization for anyone who uncommented the line in
+        ``config.example.yaml`` without filling in a value.
+        """
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        from canlib import config
+
+        _reset()
+        config.set_config_key("transport.expected_responses", None)
+        _reset()
+        assert config.expected_responses() is True
+
 
 class TestConfigCommandDevices:
     def test_set_device_transport_valid(self, tmp_path, monkeypatch):

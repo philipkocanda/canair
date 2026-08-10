@@ -71,6 +71,7 @@ class UdsResponse(TypedDict):
     hex: NotRequired[str]  # parseable positive: uppercased, space-stripped
     bytes: NotRequired[bytes]  # parseable positive
     isotp_declared_len: NotRequired[int]  # multi-frame: ISO-TP First Frame length
+    isotp_frame_count: NotRequired[int]  # CAN frames/responses the adapter handed back
     nrc: NotRequired[int]  # negative (7F): the NRC byte
     nrc_service: NotRequired[int]  # negative: echoed service byte
     nrc_desc: NotRequired[str]  # negative: human description
@@ -482,9 +483,19 @@ def parse_uds_response(
             result["error_kind"] = CAT_DROP
             return result
         hex_clean = "".join(frame_hex)
+        frame_count = len(frame_hex)
     else:
         hex_str = " ".join(data_lines)
         hex_clean = hex_str.replace(" ", "")
+        # Each unprefixed line is one CAN frame, so a single-frame ISO-TP reply
+        # counts 1. Several lines here means several responders to one request.
+        frame_count = len(data_lines)
+
+    # How many frames the adapter actually handed back. This is the ground truth
+    # the ELM327 expected-response-count optimization validates its learned count
+    # against (see canlib/transport/elm327_frame_count.py); recorded before the
+    # truncation checks below so a short read still reports what did arrive.
+    result["isotp_frame_count"] = frame_count
 
     if not all(c in "0123456789ABCDEFabcdef" for c in hex_clean):
         return _fail(CAT_DECODE, f"Non-hex response: {hex_clean[:80]}")

@@ -22,51 +22,7 @@ import pytest
 
 from canlib.transport.elm327_terminal import _MAX_OWED_PROMPTS, Elm327Terminal
 
-
-class QueuedChannel:
-    """A channel with a queue of chunks, independent of how many commands are sent.
-
-    Unlike a reply-per-send fake, this can express the situation the whole feature
-    exists for: one command, and *two* prompt-terminated blocks already on the line.
-    """
-
-    transport_name = "wican-ws"
-
-    def __init__(self, *chunks: str | None):
-        self.sent: list[str] = []
-        self.drains = 0
-        self.closed = False
-        self._chunks: list[str | None] = list(chunks)
-        # Messages the line delivers *after* a drain has swept it — a plain queue
-        # can't express this, because drain() discards whatever is pending.
-        self.after_drain: list[str | None] = []
-
-    def feed(self, *chunks: str | None) -> None:
-        self._chunks.extend(chunks)
-
-    async def connect(self) -> None:  # pragma: no cover - not exercised here
-        pass
-
-    async def send(self, text: str) -> None:
-        self.sent.append(text)
-
-    async def recv(self, timeout: float) -> str | None:
-        if not self._chunks:
-            await asyncio.sleep(min(timeout, 0.001))
-            return None
-        chunk = self._chunks.pop(0)
-        if chunk is None:
-            await asyncio.sleep(min(timeout, 0.001))
-            return None
-        return chunk
-
-    async def drain(self, per_recv_timeout: float = 0.2, max_seconds: float = 1.0) -> None:
-        self.drains += 1
-        self._chunks = list(self.after_drain)
-        self.after_drain = []
-
-    async def close(self) -> None:
-        self.closed = True
+from ._fakes import QueuedChannel
 
 
 def _compact(text: str) -> str:

@@ -57,6 +57,10 @@ _KNOWN_KEYS = (
     "transport.fallback",
     "transport.connect_timeout",
     "transport.fallback_order",
+    "transport.reconnect_max_wait",
+    "transport.ws_ping_interval",
+    "transport.stale_cycles_before_reconnect",
+    "transport.expected_responses",
 )
 
 

@@ -195,6 +195,7 @@ All of these live under `transport:` in `~/.config/canair/config.yaml`; see
 | `reconnect_max_wait` | `60.0` | Bounded mid-session reconnect window. Sized for a cell handover or VPN re-key. `--wait` makes it unbounded. |
 | `ws_ping_interval` | `20.0` | WebSocket keepalive, so a dead `wican-ws` link raises instead of going quiet. Lower it on a flaky link; `0` disables. |
 | `stale_cycles_before_reconnect` | `3` | Correctness backstop. A cycle count, not a duration, so it scales with your poll rate; `0` disables. |
+| `expected_responses` | `true` | ELM327 transports only, and the biggest per-read lever: tells the adapter how many frames to expect so it stops waiting out `ATST` after the last one. ~4x faster per read; leave it on. |
 | `fallback`, `fallback_order` | on | Try your other configured devices when the selected one is unreachable. |
 
 Profile-level `isotp:` settings also matter:
@@ -206,7 +207,10 @@ Profile-level `isotp:` settings also matter:
 
 And `response_timeout_ms` in `profile.yaml` is the **car's** budget — on `wican-ws` it becomes the
 adapter's `ATST` wait, i.e. how long the dongle waits for the ECU. It is deliberately not a
-network setting; do not inflate it to compensate for a slow link.
+network setting; do not inflate it to compensate for a slow link. What keeps you from *paying* it
+on every read is `expected_responses` above: once canair has learned how many frames a request
+answers with, the adapter returns as soon as the reply is whole instead of sitting out the budget
+to be sure no further frame is coming.
 
 ## Diagnosing a bad session
 
