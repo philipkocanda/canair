@@ -117,7 +117,9 @@ Verify internal links still resolve — a broken cross-link is a defect. Policy:
 
 > Workflows: reverse-engineering a signal end-to-end is the **reverse-engineer-signal** skill;
 > partially-decoded bitflag bytes are **decode-bitfields**; bundled-car/device context is
-> **ioniq-reverse-engineering**; changing canair's code is **contributing-code**.
+> **ioniq-reverse-engineering**; changing canair's code is **contributing-code**. Deep
+> protocol/transport/device-API work (the WiCAN Pro hardware, its ELM327 co-processor, the
+> firmware's modes and API) is **wican-hardware-and-protocol** — not needed for ordinary work.
 
 All functionality is one CLI, `canair` (invoked as `uv run canair` here). **Flags and subcommand
 lists are in `canair <cmd> --help` and `docs/reference/cli/<cmd>.md`** — the entries below give each
@@ -126,8 +128,8 @@ command's purpose plus the agent-facing rules and code pointers that `--help` do
 **TUI keys are not in `--help`.** Every Textual view's keymap is assembled from the shared role
 registry **`canlib/tui_keys.py`** (`ROLES` + `bind(role, action)`), so one key means one thing in
 every view; press `?` in any TUI for its live cheat-sheet. Never hardcode a `Binding` key in a TUI —
-add or reuse a role, or `tests/test_tui_keymap.py` fails (it pins that every declared key resolves to
-a role, that its description matches the role's accepted wording, and that `escape` never quits).
+add or reuse a role, or `tests/test_tui_keymap.py` fails (it pins that every declared key resolves
+to a role, that its description matches the role's accepted wording, and that `escape` never quits).
 Two standing conventions: **`escape` backs out one level and never exits** (`q` is the only exit),
 and **`g`/`G` address the view's primary axis**.
 
@@ -700,6 +702,13 @@ answered coherently (an **NRC counts as answered**: the reply landed in the righ
 `plans/2026-08-08-elm327-pipe-desync-recovery.md`.
 
 ## Transports
+
+> **Before changing a transport backend, debugging a desync/timeout, or calling a device API, load
+> the wican-hardware-and-protocol skill.** It carries the device ground truth this section assumes:
+> that on WiCAN Pro `wican-ws`/`elm327-tcp` reach the bus through a **separate MIC3624/STN2120
+> co-processor** while `slcan-tcp` uses the ESP32's own TWAI controller (which the firmware leaves
+> *disabled* under `elm327`/`auto_pid`), plus the wican-fw branch/dead-code traps that make a
+> wrongly-sourced citation look plausible.
 
 canair reaches the bus through one **explicitly selected** transport (never auto-detected).
 Precedence: `--transport`/`--wican` CLI > per-device `transport:` > global `transport:` block >
