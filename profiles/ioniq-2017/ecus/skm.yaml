@@ -4,7 +4,7 @@
 # Falls asleep after ~60s of bus inactivity.
 SKM:
   tx_id: 0x7A5
-  can_bus: [B-CAN]
+  can_bus: [B-CAN, P-CAN] # + SSB CAN
   identity:
     alias: SMK  # ECU self-identifies as "SMK"
     description: Smart Key Module

@@ -4,6 +4,7 @@ IGPM:
   iocontrol_scan_ranges: [B000-BFFF, BD00-BDFF, C000-C0FF]
   can_bus: [ALL]
   identity:
+    alias: "SJB" # Smart Junction Box (older HKMC naming)
     description: Integrated Gateway & Power Module
     part_number: "91950G7510"
     mfg_date: "2017-06-06"

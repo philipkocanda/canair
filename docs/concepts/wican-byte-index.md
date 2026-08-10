@@ -13,23 +13,6 @@
 
 ## Provenance — grounded in current `wican-fw` truth
 
-This analysis was read directly out of the WiCAN firmware source checked out at
-`wican-fw/`, not from second-hand notes:
-
-| | |
-|---|---|
-| Repo | `https://github.com/meatpiHQ/wican-fw.git` |
-| Branch | `ioniq-2017-profile-update` (tracking `fork/ioniq-2017-profile-update`) |
-| Commit | `164f617de4cb6192ffed7dc8144eaa8321b76bb1` (`164f617`) |
-| `git describe` | `v4.21-41-g164f617` |
-| Commit tip subject | *"Add vehicle speed and more BMS fields to Ioniq 2017 profile"* |
-| Commit date | `2026-07-21T00:59:40+02:00` |
-| Working tree | clean (nothing to commit) |
-| Analysis written | `2026-07-24 20:50 CEST` |
-
-If the firmware buffer/indexing logic changes upstream, re-verify against the
-files and line numbers cited below and update this doc.
-
 ## TL;DR
 
 The WiCAN `Bnn` index is the position of a byte in the **flat buffer the firmware

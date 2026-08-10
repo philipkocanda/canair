@@ -2,6 +2,7 @@
 #
 AAF:
   tx_id: 0x7E6
+  can_bus: [P-CAN]
   identity:
     description: Active Air Flap controller
     part_number: M3062000307  # KWP2000 1A91

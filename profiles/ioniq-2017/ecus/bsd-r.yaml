@@ -3,6 +3,7 @@
 # No live data DIDs discovered yet. Service 22 ranges untested.
 BSD-R:
   tx_id: 0x7B7
+  can_bus: [C-CAN]
   identity:
     description: Blind Spot Detection radar (right)
     part_number: "95811G2000"
