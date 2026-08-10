@@ -1,10 +1,11 @@
 # ─── SKM (Smart Key Module) ────────────────────────────────────────────
 # Self-identifies as "SMK". Wakes from at least two or more CAN requests, slow to wake (>1s).
-# Likely responsible for key fob detection, immobilizer, and remote functions.
+# Responsible for key fob detection, immobilizer, and keyfob functions.
 # Falls asleep after ~60s of bus inactivity.
+# Connected directly to the SSB (start/stop button) via dedicated CAN line.
 SKM:
   tx_id: 0x7A5
-  can_bus: [B-CAN, P-CAN] # + SSB CAN
+  can_bus: [B-CAN, P-CAN] # + SSB CAN 
   identity:
     alias: SMK  # ECU self-identifies as "SMK"
     description: Smart Key Module

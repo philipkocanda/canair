@@ -1,6 +1,8 @@
 SRS:
   tx_id: 0x7D2
+  can_bus: [C-CAN]
   identity:
+    alias: ACU # Airbag control unit
     description: Airbag / Supplemental Restraint System
     id_protocol: none  # NRC 0x11 on all UDS F1xx and KWP2000 1Axx
     notes: >

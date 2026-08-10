@@ -1,6 +1,7 @@
 # ─── EPS (Electric Power Steering) ───────────────────────────────────
 EPS:
   tx_id: 0x7D4
+  can_bus: [C-CAN]
   identity:
     alias: MDPS  # Motor-Driven Power Steering
     description: Electric Power Steering

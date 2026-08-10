@@ -1,14 +1,15 @@
 # ─── ESC (Electronic Stability Control) ──────────────────────────────
 ESC:
   tx_id: 0x7D1
+  can_bus: [C-CAN]
   identity:
-    alias: ABS
+    alias: AHB
     description: Electronic Stability Control
     serial: "GWLK7F01A986826"
     app_sw: "G7"
     id_protocol: UDS  # F1xx (limited — no part number DID)
     notes: >
-      Electronic Stability Control (ABS). Exposes vehicle speed and the four
+      Electronic Stability Control (ABS/AHB). Exposes vehicle speed and the four
       individual wheel speeds via 22C101; candidate yaw-rate / accel dynamics
       still undecoded.
   vehicle_states: [ACC, ACC2, READY]
