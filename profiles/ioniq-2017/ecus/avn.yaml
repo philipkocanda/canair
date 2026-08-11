@@ -1,9 +1,17 @@
 # ─── AVN (Audio/Video/Navigation) ─────────────────────────────────────
-# Head unit at 0x780. Firmware: AE_EV EURSOP 12 017.1
 # No live data DIDs discovered yet. Service 22 ranges untested.
 #
-# Runs Hyundai/MOBIS D-Audio 2V.
-# Linux kernel, Yocto-based root filesystem, systemd for service management.
+# From the "Version info" screen in settings:
+# - Platform: Compact Gen5 navigation
+# - Model: AEAE.S5ALN.EU
+# - Updated: 27.09.2024
+# - Software version: AE_EV.EUR.SOP.017.1.240306
+# - Firmware version: AE_EV.EUR.0.5.434.220809.MICOM
+# - Navigation version: COM5.EUR.HMC.240621.3f75729
+# - Device ID: 3391961266
+#
+# Runs Android, see XDA forum for hacking.
+# The Linux version has no navigation and *looks* almost the same but isn't!
 #
 # This unit is what is used to set:
 # - The two cabin preconditioning schedules
@@ -18,7 +26,6 @@
 #
 # Links/sources:
 # - Connector pinouts: https://gitlab.com/g4933/wideopen/-/wikis/Unit/Pinouts
-# - Firmware update hacking: https://programmingwithstyle.com/posts/howihackedmycar
 #
 AVN:
   tx_id: 0x780
