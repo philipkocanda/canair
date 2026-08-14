@@ -7,9 +7,13 @@
 # - Drive mode logic
 # - Regen braking strength (0-1-2-3) and brake blending
 # - Coordination between motor, inverter, battery, and safety systems
-# - Suspected: preconditioning, charge timer, charge power limit settings (station/portable).
+# - Calculates remaining range
+# - Controls allowed AC power 
+# - Initiates 12V battery top-up as needed (a setting managed by CLU)
+# - Controls ECO setting and drive modes
+# - Preconditioning (climate) timer, charge timer, charge power limit settings.
 #
-# The Vehicle Control Unit (VCU) and Motor Control Unit (MCU)
+# The Vehicle Control Unit (VCU) and Motor Control Unit (MCU, the inverter)
 # are both part of the Electronic Powertrain Control Unit (EPCU) physical housing.
 #
 # KWP2000 diagnostic sessions (service 0x10) — probed 2026-07-22, car in READY:
@@ -20,7 +24,7 @@
 #
 VCU:
   tx_id: 0x7E2
-  can_bus: [H-CAN, P-CAN]
+  can_bus: [H-CAN, P-CAN] # P-CAN tells CLU about power/regen
   identity:
     alias: VLDC  # KWP2000 ecu_id module code (VCU with integrated LDC)
     description: Vehicle Control Unit (integrated LDC)

@@ -33,6 +33,7 @@ BCM:
         TODO: Resume scan from 0xC8D3. Also re-scan 0x95CE-0xC8D2 to capture hits to log.
   pids:
     22C00B:
+      response_frames: 4
       status: active
       period: 15000
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
@@ -130,6 +131,7 @@ BCM:
           verified: true
           notes: ""
     22B00D:
+      response_frames: 2
       status: draft
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
       notes: >
@@ -137,6 +139,7 @@ BCM:
       parameters: {}
 
     22B00E:
+      response_frames: 2
       status: active
       period: 5000
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
@@ -161,6 +164,7 @@ BCM:
       parameters: {}
 
     22B004:
+      response_frames: 2
       status: draft
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
       notes: >
@@ -182,6 +186,7 @@ BCM:
             Needs further testing to confirm
 
     22B005:
+      response_frames: 2
       status: draft
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
       notes: >
@@ -201,6 +206,7 @@ BCM:
           notes: >
             Unlock indicator bits. B10 = 0x00 locked -> 0x0C (bits 2,3) on fob unlock. Corrected 2026-07-24: expression was reading B12 (constant 0x08) but the byte that actually toggles on unlock is B10 (0x00<->0x0C), matching the DID note and reconfirmed by the 2026-07-24 fob-unlock event at 09:36:51. Possibly courtesy lamp / interior lighting trigger.
     22B006:
+      response_frames: 2
       status: draft
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
       notes: >
@@ -220,6 +226,7 @@ BCM:
           notes: >
             Unlock indicator bit. B10 = 0x00 locked -> 0x04 (bit 2) on fob unlock. Corrected 2026-07-24: expression was reading B12 (constant 0) but the byte that actually toggles is B10 (0x00<->0x04), matching the DID note and reconfirmed by the 2026-07-24 fob-unlock event at 09:36:52. Possibly turn-signal confirmation flash.
     22B007:
+      response_frames: 2
       status: draft
       period: 60000
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
@@ -237,6 +244,7 @@ BCM:
           notes: >
             LIKELY INCORRECT / UNVERIFIED. Decodes to a constant 480 across all 25 captures (2026-04-15, spanning sleep/ACC/charging) and was never observed to change. 0x01E0=480=08:00 was pattern-matched, not confirmed by changing the departure time. The bytes that DO vary between captures (payload B08/B09 area) are not the ones this reads; 0x01E0 sits among static BCM config registers (cf. B008/B009), so it is probably a fixed config/format constant, not the live preheat time. Re-capture after actually changing the departure setting to see which bytes move.
     22B008:
+      response_frames: 2
       status: draft
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
       notes: >
@@ -246,6 +254,7 @@ BCM:
       parameters: {}
 
     22B009:
+      response_frames: 2
       status: draft
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
       notes: >
@@ -254,6 +263,7 @@ BCM:
       parameters: {}
 
     22B00A:
+      response_frames: 2
       status: draft
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
       notes: >
@@ -272,6 +282,7 @@ BCM:
       parameters: {}
 
     22B00C:
+      response_frames: 2
       status: draft
       period: 60000
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
@@ -289,6 +300,7 @@ BCM:
           notes: >
             LIKELY INCORRECT / UNVERIFIED. Constant 0x3F (=63) across all 23 captures and never observed to change. 0x3F=0b111111 was pattern-matched to '6 days set' but never confirmed by toggling days, and the bit mapping is unknown. Probably a static config/format byte, not the live schedule. Re-capture after changing schedule days to confirm which bytes move.
     22B001:
+      response_frames: 3
       status: draft
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
       notes: >
@@ -299,6 +311,7 @@ BCM:
       parameters: {}
 
     22B002:
+      response_frames: 2
       status: draft
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
       notes: >
@@ -307,6 +320,7 @@ BCM:
       parameters: {}
 
     22B003:
+      response_frames: 4
       status: draft
       period: 10000
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
@@ -481,6 +495,7 @@ BCM:
       parameters: {}
 
     22C011:
+      response_frames: 2
       status: draft
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
       notes: >-

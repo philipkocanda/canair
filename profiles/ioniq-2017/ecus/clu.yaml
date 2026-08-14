@@ -1,4 +1,5 @@
 # ─── CLU (Cluster / Instrument Panel) ─────────────────────────────────
+# BCM seems to be implicated in a lot of cluster functions and diagnostics!
 CLU:
   tx_id: 0x7C6
   can_bus: [C-CAN, MM-CAN]

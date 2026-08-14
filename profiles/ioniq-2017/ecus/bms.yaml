@@ -7,7 +7,7 @@
 # are identical across sessions: 2101=61B, 2102=38B, 2103=38B, 2104=38B, 2105=45B.
 BMS:
   tx_id: 0x7E4
-  can_bus: [P-CAN]
+  can_bus: [P-CAN, H-CAN, C-CAN] # C-CAN transmits SOC to CLU - could be a mixup between P-CAN/C-CAN?
   identity:
     description: Battery Management System
     ecu_id: "AEEV__ BMS"  # KWP2000 1A90
@@ -34,7 +34,9 @@ BMS:
           min: "0"
           max: "100"
           verified: true
-          notes: "BMS state of charge (raw, not display-adjusted)"
+          notes: 
+            BMS state of charge (raw, not display-adjusted)
+            Ranges between 5-95%
 
         BATTERY_POWER:
           expression: "(([B18:B19]/10) * (((S15 << 8) | S17)/10)) / 1000"
@@ -49,8 +51,8 @@ BMS:
           expression: "[B18:B19]/10"
           unit: V
           ha_class: voltage
-          min: "0"
-          max: ""
+          min: "200"
+          max: "450"
           verified: true
           notes: ""
 
@@ -149,14 +151,14 @@ BMS:
           expression: "B35"
           unit: ""
           ha_class: ""
-          min: ""
-          max: ""
+          min: "0"
+          max: "9"
           verified: true
           notes: ""
 
         BATTERY_FAN_FEEDBACK:
           expression: "B36"
-          unit: ""
+          unit: "Hz"
           ha_class: ""
           min: ""
           max: ""
@@ -354,8 +356,8 @@ BMS:
           expression: "B69*1000"
           unit: "kΩ"
           ha_class: ""
-          min: ""
-          max: ""
+          min: "300"
+          max: "1000"
           verified: true
           notes: ""
 
@@ -408,16 +410,7 @@ BMS:
             charge-progression (SOC-monotone) confound — can't be distinguished from any other
             rising quantity in this steady charge. Low confidence; needs a dynamic capture
             (drive/charge-cycle) to characterize.
-        BMS_HV_RELAY:
-          expression: B62
-          min: "0"
-          max: "1"
-          source: RE 2026-08-02, live ACC2 confirmed
-          verified: true
-          notes: >-
-            Whole-byte HV main-relay flag at B62. 0/1, mirrors BMS_MAIN_RELAY bit (B14:0) and
-            VCU:2102:B10. Verified: 1 while charging (HV closed), flipped 0 at 11:18:39 when HV
-            dropped, and live in ACC2 read 0 (bus disconnected, pack still 367.7V internally).
+
         BMS_MAIN_RELAY_MIRROR_B14_1:
           expression: B14:1
           source: canair analysis 2026-08-08 DCFC

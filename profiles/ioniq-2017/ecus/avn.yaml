@@ -20,6 +20,8 @@
 # - Portable ("granny charger") AC charging power (normal/reduced/minimum)
 # - Default/Eco/Sport profiles (regen level and climate ECO setting)
 #
+# AVN communicates with the VCU over P-CAN to change timer settings, preconditioning (climate), and control AC charging speed and schedule.
+#
 # TODO:
 # - Add details on how schedules are defined in the UI exactly!
 # - Scan for PIDs with the screen in another state (engineering menu / "info" page) — some DIDs may only be exposed in those states.
@@ -29,7 +31,7 @@
 #
 AVN:
   tx_id: 0x780
-  can_bus: [MM-CAN, B-CAN, P-CAN, C-CAN] # Source: connector pinouts
+  can_bus: [MM-CAN, B-CAN, P-CAN] # Source: connector pinouts
   identity:
     alias: IVI # In-Vehicle Infotainment
     description: Audio/Video/Navigation head unit
