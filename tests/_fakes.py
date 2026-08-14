@@ -29,6 +29,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 
+from canlib.frame_counts import FrameCountLedger
 from canlib.timing import TimingRecorder
 from canlib.transport.isotp_params import ISOTP_MAX_REQUEST_BYTES
 from canlib.transport_stats import TransportStats
@@ -102,6 +103,9 @@ class FakeTerminal:
         self._seen: set[str] = set()
         self.diag = TransportStats(transport="fake")
         self.timings = TimingRecorder()
+        # The write-back seam. Tests that exercise it script the ledger directly
+        # rather than driving learning through the fake's canned responses.
+        self.frame_counts = FrameCountLedger()
         # A segmenting transport's ceiling, so batching tests aren't clamped
         # unless they opt in by lowering it.
         self.max_request_bytes = ISOTP_MAX_REQUEST_BYTES

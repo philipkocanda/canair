@@ -374,3 +374,49 @@ class TestCanBusValidation:
     def test_no_vocabulary_skips_membership(self, tmp_path):
         # No can_buses.yaml declared → any code accepted (shape/dup still checked).
         assert self._errors(tmp_path, "[ZZ]", vocab=None) == []
+
+
+class TestResponseFramesValidation:
+    """``response_frames:`` is the persisted ELM327 expected-response count."""
+
+    def _validate(self, tmp_path, *fields: str):
+        p = tmp_path / "e.yaml"
+        pid_fields = "".join(f"      {f}\n" for f in fields)
+        p.write_text(
+            "ECU:\n"
+            "  tx_id: 0x7E4\n"
+            "  pids:\n"
+            '    "2101":\n'
+            "      status: active\n"
+            f"{pid_fields}"
+            "      parameters:\n"
+            "        SOC:\n"
+            "          expression: B09/2\n"
+        )
+        errors, _warnings, _stats = validate_pids.validate_ecu_file(p, validate_pids.load_schema())
+        return errors
+
+    def test_a_valid_count_passes(self, tmp_path):
+        assert self._validate(tmp_path, "response_frames: 4") == []
+
+    def test_zero_is_rejected(self, tmp_path):
+        # Every response occupies at least one frame, so 0 is never evidence.
+        errs = self._validate(tmp_path, "response_frames: 0")
+        assert any("response_frames" in e for e in errs)
+
+    def test_a_string_is_rejected(self, tmp_path):
+        errs = self._validate(tmp_path, 'response_frames: "4"')
+        assert any("response_frames" in e for e in errs)
+
+    def test_true_is_rejected(self, tmp_path):
+        # bool is an int subclass, so `true` would otherwise validate as 1 and
+        # truncate every multi-frame response.
+        errs = self._validate(tmp_path, "response_frames: true")
+        assert any("response_frames" in e for e in errs)
+
+    def test_a_count_on_a_variable_length_pid_is_rejected(self, tmp_path):
+        errs = self._validate(tmp_path, "response_frames: 4", "variable_length: true")
+        assert any("variable_length" in e for e in errs)
+
+    def test_variable_length_alone_still_passes(self, tmp_path):
+        assert self._validate(tmp_path, "variable_length: true") == []

@@ -1,4 +1,4 @@
-"""The shared authoring-confirmation line (:mod:`canlib.commands._edit_echo`).
+"""The shared authoring-confirmation line (:mod:`canlib.edit_echo`).
 
 Two behaviours are load-bearing enough to pin: the confirmation names the *full*
 path (a bare ``bms.yaml`` does not say which profile got the edit, and canair
@@ -8,7 +8,7 @@ the next reinstall erases it.
 
 from pathlib import Path
 
-from canlib.commands._edit_echo import echo_edit, edit_line
+from canlib.edit_echo import echo_edit, edit_line
 
 
 def _plain(text: str) -> str:

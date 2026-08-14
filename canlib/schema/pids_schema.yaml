@@ -334,6 +334,19 @@ optional_pid_fields:
                       #   Truncation is guarded at capture time regardless (the
                       #   ISO-TP declared-length check in parse_uds_response);
                       #   this flag documents intent for analysis/lint tooling.
+  - response_frames   # int >= 1: how many CAN frames this PID's positive response
+                      #   occupies on the wire, measured and confirmed live (never
+                      #   inferred from stored payload lengths, which multi-DID
+                      #   batching and historical truncated reads make unreliable).
+                      #   Lets an ELM327 adapter be told up front how many frames to
+                      #   wait for, instead of sitting out its ~614ms ATST budget on
+                      #   every read. Maintained automatically by the live commands;
+                      #   edit with `canair pids set-response-frames`. Mutually
+                      #   exclusive with variable_length (a response with no fixed
+                      #   length has no count, and shipping one would be a
+                      #   deliberate undercount). The true count is recorded even
+                      #   when it exceeds what an adapter can be asked for — that
+                      #   ceiling is consumer policy (MAX_REQUESTABLE_FRAMES).
   - vehicle_states   # Power states in which this PID responds. Array of tokens:
                      #   sleep    — deep sleep, 12V standby only (unplugged)
                      #   plugged  — charge cable connected (AC or DC)

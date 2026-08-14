@@ -42,7 +42,7 @@ from ..timing import TimingRecorder
 from ..transport_stats import TransportStats
 from ..uds_parse import CAT_DECODE, CAT_STALE, UdsResponse, parse_uds_response
 from .channel import Channel
-from .elm327_frame_count import FrameCountCache
+from .elm327_frame_count import CountKey, FrameCountCache
 from .elm327_pipe import ResponsePipe, compact
 from .elm327_session import enter_extended_session
 
@@ -110,6 +110,7 @@ class Elm327Terminal:
         unsafe: bool = False,
         hk_f1xx_offset: bool = False,
         expected_responses: bool = True,
+        response_frames: dict[CountKey, int] | None = None,
     ):
         self._channel = channel
         # Connection host if the channel is host-based (WebSocket/TCP), else None
@@ -121,11 +122,19 @@ class Elm327Terminal:
         # Profile HK F1xx -1 identity-DID quirk (tolerate 62F187 for a 22F188
         # request); forwarded to parse_uds_response's echo validation.
         self.hk_f1xx_offset = hk_f1xx_offset
-        # Learned expected-response-count digits, which let the adapter return as
-        # soon as a reply is complete instead of waiting out its ATST budget. The
-        # cache is per-connection, so a reconnect re-learns rather than trusting a
-        # count measured on a link that has since been rebuilt.
+        # Expected-response-count digits, which let the adapter return as soon as a
+        # reply is complete instead of waiting out its ATST budget. Learned counts
+        # are per-connection, so a reconnect re-learns rather than trusting one
+        # measured on a link that has since been rebuilt; counts seeded from the
+        # profile survive a reconnect, because the car's answer length does not
+        # depend on how canair reached it.
         self._frame_counts = FrameCountCache(enabled=expected_responses)
+        if response_frames:
+            self._frame_counts.seed(response_frames)
+        # What this session observed, for the write-back that persists a confirmed
+        # count into the profile. Read through the Terminal surface, so the raw path
+        # exposes the same attribute.
+        self.frame_counts = self._frame_counts.ledger
         # The prompt ledger that attributes each reply to the command that earned
         # it — the primary defence against a desynchronised pipe. See
         # :mod:`canlib.transport.elm327_pipe` for why counting prompts is the only
@@ -538,7 +547,11 @@ class Elm327Terminal:
                     if verdict.realign:
                         await self._resync(f"{resp.get('error_kind')} response to {command}")
                     if self.verbose:
-                        print(f"  [count] {command}: {verdict.note}", file=sys.stderr)
+                        origin = "profile" if counting.was_seeded else "learned"
+                        print(
+                            f"  [count] {command}: {verdict.note} ({origin})",
+                            file=sys.stderr,
+                        )
                     continue
 
                 if resp.get("error_kind") in _RESYNC_ON:

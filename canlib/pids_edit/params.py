@@ -667,6 +667,69 @@ def set_pid_variable_length(
     return fpath
 
 
+def set_response_frames(
+    ecu_name: str, pid: str, value: int | None, *, pids_dir: Path | None = None
+) -> Path:
+    """Set (or clear) a PID's ``response_frames:`` count.
+
+    The number of CAN frames the PID's positive response occupies on the wire, so
+    an ELM327 adapter can be told up front how many to wait for instead of sitting
+    out its ~614ms ``ATST`` budget. Passing ``None`` removes the field, which is
+    what a live session does when the count it had is contradicted — a *stale*
+    count is the dangerous direction, because an undercount leaves the response's
+    tail queued for the next request.
+
+    The true count is stored even when it exceeds ``MAX_REQUESTABLE_FRAMES``: the
+    field records a measurement, and the wire ceiling is the consumer's policy.
+    Refused on a PID flagged ``variable_length`` (schema-enforced too), since a
+    response with no fixed length has no count.
+    """
+    if value is not None:
+        value = int(value)
+        if value < 1:
+            raise PidsEditError(f"response_frames must be >= 1, got {value}")
+
+    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
+    original = fpath.read_text()
+    ecu_key = ecu_name.strip().upper()
+    pid_u = str(pid).strip().upper()
+
+    def transform(text: str) -> str:
+        ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
+        pids = _keyed_block(text, "pids", 2, ecu_start, ecu_end)
+        if not pids:
+            raise PidsEditError(f"ECU {ecu_name!r} has no pids: section")
+        _, _, pids_body_start, pids_body_end, _ = pids
+        pidb = _keyed_block(text, pid_u, 4, pids_body_start, pids_body_end)
+        if not pidb:
+            raise PidsEditError(f"PID {pid_u!r} not found under {ecu_name!r}")
+        p_hdr, _p_line_end, _p_body_start, p_body_end, _inline = pidb
+        block_text = text[p_hdr:p_body_end]
+        block_text = _remove_field_line(block_text, "response_frames", indent=6)
+        if value is not None:
+            lines = block_text.splitlines(keepends=True)
+            block_text = lines[0] + f"      response_frames: {value}\n" + "".join(lines[1:])
+        return text[:p_hdr] + block_text + text[p_body_end:]
+
+    def checker(ecu_def: dict) -> None:
+        pids_map = ecu_def.get("pids", {}) or {}
+        pdef = next((v for k, v in pids_map.items() if str(k).upper() == pid_u), None)
+        if pdef is None:
+            raise PidsEditError(f"PID {pid_u!r} missing after edit")
+        got = (pdef or {}).get("response_frames")
+        if got != value:
+            raise PidsEditError(f"response_frames mismatch after edit: {got!r} != {value!r}")
+        if value is not None and (pdef or {}).get("variable_length"):
+            raise PidsEditError(
+                f"PID {pid_u!r} is variable_length — a variable-length response has no "
+                "fixed frame count"
+            )
+
+    new_text = transform(original)
+    _safe_write(fpath, original, new_text, ecu_key, checker)
+    return fpath
+
+
 def set_pid_notes(
     ecu_name: str, pid: str, notes: str | None, *, pids_dir: Path | None = None
 ) -> Path:

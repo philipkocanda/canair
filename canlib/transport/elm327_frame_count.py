@@ -29,6 +29,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from ..frame_counts import CountKey, FrameCountLedger
 from ..uds_parse import CAT_DECODE, CAT_DROP, CAT_STALE, UdsResponse
 
 # Highest count we are willing to emit. The digit is a single hex nibble, so the
@@ -38,9 +39,21 @@ from ..uds_parse import CAT_DECODE, CAT_DROP, CAT_STALE, UdsResponse
 # whose response needs more frames than this simply keeps the unoptimized path.
 MAX_REQUESTABLE_FRAMES = 9
 
-# Learned counts are per response address *and* request, because the same DID on
-# two ECUs need not return the same number of frames.
-CountKey = tuple[int | None, str]
+# ``CountKey`` is defined with the ledger, in ``canlib/frame_counts.py``: the key
+# identifies a *response length*, which both transport families observe, while only
+# this module decides what to ask for. Re-exported because the terminals key their
+# call sites off it.
+__all__ = [
+    "MAX_REQUESTABLE_FRAMES",
+    "CountAttempt",
+    "CountKey",
+    "CountVerdict",
+    "FrameCountCache",
+    "annotate_request",
+    "digit_held",
+    "requestable",
+]
+
 
 # Response classifications that prove the pipe still holds bytes which are not
 # this request's answer, so it must be realigned before anything is re-sent.
@@ -49,30 +62,99 @@ CountKey = tuple[int | None, str]
 _DIRTY_PIPE = frozenset({CAT_DROP, CAT_STALE, CAT_DECODE})
 
 
+def requestable(request: str, frames: int | None) -> bool:
+    """Can ``frames`` be appended to ``request`` as an expected-response digit?
+
+    The single home for the wire rules, so the live transport and the generated
+    AutoPID profile cannot disagree about which counts are safe to ask for:
+
+    - The request must be **even-length**. The digit is only distinguishable from
+      data because it makes the command odd-length; appending to an already-odd
+      request would have the adapter absorb the nibble as a data byte and ask the
+      ECU something else entirely.
+    - The count must fit ``1..MAX_REQUESTABLE_FRAMES``. Never clamped — a clamp is
+      a deliberate undercount, and an undercount leaves the response's tail queued
+      to answer the *next* request.
+    """
+    if frames is None or frames < 1 or frames > MAX_REQUESTABLE_FRAMES:
+        return False
+    return len(request) % 2 == 0
+
+
+def annotate_request(request: str, frames: int) -> str:
+    """``request`` with ``frames`` appended as the expected-response-count digit.
+
+    Uppercase hex, to match the request casing the adapter echoes. Lengthens the
+    command by a character without adding a data byte, so the 7-byte request
+    ceiling is unaffected.
+    """
+    return f"{request}{frames:X}"
+
+
 @dataclass
 class FrameCountCache:
     """Per-connection record of how many frames each request's answer occupies.
 
-    Connection-scoped on purpose, via ``reset()`` on connect: a count measures one
-    link, and a reconnect may have re-homed the session onto a different device
-    entirely. A monitor cycle re-learns within one poll, so the cost of forgetting
-    is one plain read per request.
+    The *digit policy*: which requests get a count appended, and what to do when
+    one turns out to be wrong. Connection-scoped on purpose, via ``reset()`` on
+    connect: a count measures one link, and a reconnect may have re-homed the
+    session onto a different device entirely. A monitor cycle re-learns within one
+    poll, so the cost of forgetting is one plain read per request — and a profile
+    that already knows the count skips even that, via ``seed()``.
+
+    The durable *evidence* is kept separately, in ``ledger``, which survives being
+    read at teardown and does not care which transport produced it.
     """
 
     enabled: bool = True
+    ledger: FrameCountLedger = field(default_factory=FrameCountLedger)
     _counts: dict[CountKey, int] = field(default_factory=dict)
     _opted_out: set[CountKey] = field(default_factory=set)
+    _seeded: dict[CountKey, int] = field(default_factory=dict)
+
+    def seed(self, counts: dict[CountKey, int]) -> None:
+        """Prime the cache from the profile's ``response_frames:`` values.
+
+        Kept apart from the learned counts so a reconnect can re-apply them: the
+        profile's claim outlives the link, unlike a value measured on it. A wrong
+        seed is safe — it takes the same retry-plain/realign/opt-out path as a
+        wrong learned count, costing latency but never a reading, and the opt-out
+        retires the key so the stale value gets cleared from the profile.
+        """
+        self._seeded = {k: v for k, v in counts.items() if requestable(k[1], v)}
+        self._apply_seed()
 
     def reset(self) -> None:
-        """Forget every learned count and opt-out, keeping the enabled setting."""
+        """Forget every learned count and opt-out, then re-apply the seed."""
         self._counts.clear()
         self._opted_out.clear()
+        self._apply_seed()
+
+    def _apply_seed(self) -> None:
+        for key, frames in self._seeded.items():
+            self._counts.setdefault(key, frames)
+
+    def is_seeded(self, key: CountKey) -> bool:
+        """Did ``key``'s current count come from the profile rather than the wire?"""
+        return key in self._seeded
 
     def count_for(self, key: CountKey) -> int | None:
         """Frames to request for ``key``, or None to send a plain request."""
         if not self.enabled:
             return None
         return self._counts.get(key)
+
+    def observe(self, key: CountKey, frames: int | None) -> None:
+        """Record a complete digit-free response as evidence.
+
+        Separate from :meth:`learn` because the two answer different questions.
+        ``learn`` decides what to ask for and so stops caring once it has an answer
+        (or has opted out); the ledger wants every reading, which is what lets a
+        response too long to request — the Ioniq's 13-frame ``21F2`` — still earn
+        its true count in the profile, and lets a later disagreement retire a key
+        the digit policy had already settled.
+        """
+        self.ledger.observe(key, frames)
 
     def learn(self, key: CountKey, frames: int | None) -> None:
         """Record the frame count observed on a complete digit-free reply.
@@ -84,32 +166,30 @@ class FrameCountCache:
             return
         if frames is None or frames < 1:
             return
-        if len(key[1]) % 2 != 0:
-            # The digit is only distinguishable from data because it makes the
-            # request odd-length. A request that is *already* odd would absorb
-            # the nibble as a data byte and ask the ECU something else entirely.
-            # UDS requests are whole bytes, so this should be unreachable —
-            # refuse rather than trust that.
-            self._opted_out.add(key)
-            return
-        if frames > MAX_REQUESTABLE_FRAMES:
+        if not requestable(key[1], frames):
             self._opted_out.add(key)
             return
         self._counts[key] = frames
 
     def opt_out(self, key: CountKey) -> None:
-        """Stop using a digit for ``key`` for the rest of the session."""
+        """Stop using a digit for ``key`` for the rest of the session.
+
+        This is the conviction, so it also retires the key in the ledger: the plain
+        retry answered where the digit did not, which means the response length is
+        not the fixed thing a stored count claims it is.
+        """
         self._counts.pop(key, None)
+        self._seeded.pop(key, None)
         self._opted_out.add(key)
+        self.ledger.mark_conflict(key)
+
+    def confirm(self, key: CountKey, frames: int) -> None:
+        """Record that a request carrying ``frames`` came back whole."""
+        self.ledger.confirm(key, frames)
 
     def annotate(self, request: str, frames: int) -> str:
-        """Append ``frames`` to ``request`` as the expected-response-count digit.
-
-        The nibble is uppercase hex to match the request casing the adapter
-        echoes, and lengthens the command by a character without adding a data
-        byte, so the 7-byte request ceiling is unaffected.
-        """
-        return f"{request}{frames:X}"
+        """Append ``frames`` to ``request`` as the expected-response-count digit."""
+        return annotate_request(request, frames)
 
     def attempt(self, key: CountKey) -> CountAttempt:
         """Start the decision procedure for one request on ``key``."""
@@ -160,6 +240,16 @@ class CountAttempt:
             return request
         return self.cache.annotate(request, self.requested)
 
+    @property
+    def was_seeded(self) -> bool:
+        """Did the digit this attempt used come from the profile, not this session?
+
+        Only for reporting. A seeded count that fails is worth naming separately,
+        because it means a stored definition is wrong — not merely that a fresh
+        measurement was unlucky.
+        """
+        return self.cache.is_seeded(self.key)
+
     def verdict(self, resp: UdsResponse) -> CountVerdict:
         """Judge ``resp``, settling the cache unless a plain retry is needed."""
         requested = self.requested
@@ -187,12 +277,23 @@ class CountAttempt:
                 # rejects the nibble outright. A still-silent ECU proves nothing
                 # and keeps the optimization.
                 self.cache.opt_out(self.key)
-        elif requested is None and resp.get("ok"):
+        elif requested is not None:
+            # A request that *carried* the count came back whole. This is the only
+            # direct test of the count there is, and passing it is what promotes the
+            # count to something worth writing into the profile. An NRC does not
+            # count: `digit_held` accepts one because nothing is left in the pipe,
+            # but a refusal occupies fewer frames and so proves nothing about the
+            # positive response's length.
+            if resp.get("ok"):
+                self.cache.confirm(self.key, requested)
+        elif resp.get("ok"):
             # Learn only here. A digit-bearing reply carries exactly the count we
             # requested, so it can only ever confirm itself; and ``ok`` means
             # SID/echo validation and the ISO-TP declared-length check already
             # proved this one complete.
-            self.cache.learn(self.key, resp.get("isotp_frame_count"))
+            frames = resp.get("isotp_frame_count")
+            self.cache.observe(self.key, frames)
+            self.cache.learn(self.key, frames)
 
         return CountVerdict()
 

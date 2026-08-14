@@ -112,3 +112,72 @@ class TestNormalizeRoundTrip:
         device_data = {"car_model": "Y", "init": "I;", "pids": []}
         norm = normalize_device_profile(device_data)
         assert norm["car_model"] == "Y" and norm["pids"] == []
+
+
+class TestExpectedResponseDigit:
+    """Emitting a recorded ``response_frames`` count into the ``pid`` request.
+
+    The firmware passes this string to its ELM327 co-processor verbatim and has no
+    desync recovery — it accumulates into one static buffer cleared only after a
+    parse — so an undercount's queued tail would silently prefix the next PID's
+    response. Every guard below is what keeps that from happening.
+    """
+
+    def _with(self, **pid_fields):
+        data = _data()
+        data["ecus"]["BMS"]["pids"]["2101"].update(pid_fields)
+        return data
+
+    def _pid(self, data, **kw) -> str:
+        return generate_profile(data, **kw)["pids"][0]["pid"]
+
+    def test_off_by_default(self):
+        # Opt-in: a user who has not asked for it keeps the firmware's own
+        # behaviour, whatever the profile records.
+        assert self._pid(self._with(response_frames=4)) == "2101"
+
+    def test_the_digit_is_appended_when_requested(self):
+        assert self._pid(self._with(response_frames=4), expected_responses=True) == "21014"
+
+    def test_a_pid_with_no_recorded_count_is_left_plain(self):
+        assert self._pid(self._with(), expected_responses=True) == "2101"
+
+    def test_a_count_over_the_ceiling_is_left_plain(self):
+        # Refused, never clamped: a clamp is a deliberate undercount.
+        assert self._pid(self._with(response_frames=13), expected_responses=True) == "2101"
+
+    def test_a_variable_length_pid_is_left_plain(self):
+        data = self._with(response_frames=4, variable_length=True)
+        assert self._pid(data, expected_responses=True) == "2101"
+
+    def test_a_non_integer_count_is_ignored(self):
+        assert self._pid(self._with(response_frames="4"), expected_responses=True) == "2101"
+        assert self._pid(self._with(response_frames=True), expected_responses=True) == "2101"
+
+    def test_an_int_pid_key_is_annotated(self):
+        # ecus/ YAML leaves numeric PIDs unquoted, so the key is often an int.
+        data = _data()
+        pids = data["ecus"]["BMS"]["pids"]
+        pids[2101] = {**pids.pop("2101"), "response_frames": 4}
+        assert self._pid(data, expected_responses=True) == "21014"
+
+    def test_an_odd_length_request_is_left_plain(self):
+        # A request that is already odd would absorb the nibble as a data byte and
+        # ask the ECU something else. This also catches an int key whose leading
+        # zero str()s away (0100 -> "100").
+        data = _data()
+        pids = data["ecus"]["BMS"]["pids"]
+        pids["100"] = {**pids.pop("2101"), "response_frames": 2}
+        assert self._pid(data, expected_responses=True) == "100"
+
+    def test_the_digit_survives_conversion_to_device_format(self):
+        # to_device_format copies the request verbatim, so an upload carries it.
+        profile = generate_profile(self._with(response_frames=4), expected_responses=True)
+        device = to_device_format(profile)
+        assert device["cars"][0]["pids"][0]["pid"] == "21014"
+
+    def test_the_digit_round_trips_through_normalization(self):
+        # So `autopid diff` compares like with like instead of reporting churn.
+        profile = generate_profile(self._with(response_frames=4), expected_responses=True)
+        device = to_device_format(profile)
+        assert normalize_device_profile(device)["pids"][0]["pid"] == "21014"

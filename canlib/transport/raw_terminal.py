@@ -35,6 +35,7 @@ from ..addressing import (
     build_isotp_address,
     resolve_rx,
 )
+from ..frame_counts import FrameCountLedger, frames_for_payload
 from ..log import log_response
 from ..safety import enforce_command_safety
 from ..timing import TimingRecorder
@@ -105,6 +106,17 @@ class RawTerminal:
         self.link = self.bus.link
         self.notifier = can.Notifier(self.bus, [], timeout=0.1)
         self._params = build_isotp_params(isotp_config, self.link.budget)
+        # A classic-CAN frame carries at most 7 payload bytes, which fixes the frame
+        # count a given response length occupies. On CAN-FD (up to 64) it does not,
+        # so the count is simply not derived rather than guessed wrong.
+        self._classic_can = (
+            not self._params.get("can_fd") and self._params.get("tx_data_length", 8) == 8
+        )
+        # What this session observed about response frame counts. The raw path runs
+        # ISO-TP itself so it has no adapter to hint, but the *fact* is the same one
+        # an ELM327 measures, and persisting it is what lets the generated AutoPID
+        # profile skip the device's own wait.
+        self.frame_counts = FrameCountLedger()
         self._stacks: dict[int, isotp.NotifierBasedCanStack] = {}
         self._cur: int | None = None
 
@@ -154,6 +166,14 @@ class RawTerminal:
                 expected_echo=expected_echo,
                 hk_f1xx_offset=self.hk_f1xx_offset,
             )
+            if resp_bytes is not None and self._classic_can:
+                # parse_uds_response counts response *lines*, and this path hands it
+                # exactly one — the already-reassembled message — so its count is
+                # always 1. The true figure is what the ISO-TP layer put on the bus,
+                # which the payload length fixes.
+                resp["isotp_frame_count"] = frames_for_payload(len(resp_bytes))
+                if resp.get("ok"):
+                    self.frame_counts.observe((self._cur, service_pid), resp["isotp_frame_count"])
             self.diag.record_response(
                 resp,
                 ecu=(f"0x{self._cur:03X}" if self._cur is not None else None),

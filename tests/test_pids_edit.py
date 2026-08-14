@@ -18,6 +18,7 @@ from canlib.pids_edit import (
     promote_discovery,
     set_pid_notes,
     set_pid_variable_length,
+    set_response_frames,
     update_iocontrol_field,
 )
 
@@ -266,6 +267,65 @@ class TestPromoteDiscovery:
     def test_unknown_ecu(self, tmp_pids_dir: Path):
         with pytest.raises(PidsEditError):
             promote_discovery("NOPE", "BB01", "x", pids_dir=tmp_pids_dir)
+
+
+class TestSetResponseFrames:
+    """The persisted ELM327 expected-response-frame count."""
+
+    def test_sets_a_count(self, tmp_pids_dir: Path):
+        p = set_response_frames("TEST", "2200", 4, pids_dir=tmp_pids_dir)
+        pid = _reload(p)["TEST"]["pids"][2200]
+        assert pid["response_frames"] == 4
+        # Existing content preserved.
+        assert pid["parameters"]["DUMMY"]["expression"] == "B:0"
+
+    def test_clears_when_none(self, tmp_pids_dir: Path):
+        set_response_frames("TEST", "2200", 4, pids_dir=tmp_pids_dir)
+        p = set_response_frames("TEST", "2200", None, pids_dir=tmp_pids_dir)
+        assert "response_frames" not in _reload(p)["TEST"]["pids"][2200]
+
+    def test_overwrites_rather_than_duplicating(self, tmp_pids_dir: Path):
+        set_response_frames("TEST", "2200", 4, pids_dir=tmp_pids_dir)
+        p = set_response_frames("TEST", "2200", 7, pids_dir=tmp_pids_dir)
+        text = p.read_text()
+        assert text.count("response_frames:") == 1
+        assert _reload(p)["TEST"]["pids"][2200]["response_frames"] == 7
+
+    def test_rejects_zero(self, tmp_pids_dir: Path):
+        # A response always occupies at least one frame, so 0 is never evidence.
+        with pytest.raises(PidsEditError, match="response_frames"):
+            set_response_frames("TEST", "2200", 0, pids_dir=tmp_pids_dir)
+
+    def test_rejects_a_negative_count(self, tmp_pids_dir: Path):
+        with pytest.raises(PidsEditError, match="response_frames"):
+            set_response_frames("TEST", "2200", -1, pids_dir=tmp_pids_dir)
+
+    def test_refuses_a_variable_length_pid(self, tmp_pids_dir: Path):
+        # A response whose length varies has no single frame count, and asking for
+        # the wrong one leaves the tail queued for the next request.
+        set_pid_variable_length("TEST", "2200", True, pids_dir=tmp_pids_dir)
+        with pytest.raises(PidsEditError):
+            set_response_frames("TEST", "2200", 4, pids_dir=tmp_pids_dir)
+
+    def test_a_refusal_leaves_the_file_untouched(self, tmp_pids_dir: Path):
+        set_pid_variable_length("TEST", "2200", True, pids_dir=tmp_pids_dir)
+        before = (tmp_pids_dir / "test.yaml").read_text()
+        with pytest.raises(PidsEditError):
+            set_response_frames("TEST", "2200", 4, pids_dir=tmp_pids_dir)
+        assert (tmp_pids_dir / "test.yaml").read_text() == before
+
+    def test_clearing_an_unset_count_is_a_no_op(self, tmp_pids_dir: Path):
+        before = (tmp_pids_dir / "test.yaml").read_text()
+        set_response_frames("TEST", "2200", None, pids_dir=tmp_pids_dir)
+        assert (tmp_pids_dir / "test.yaml").read_text() == before
+
+    def test_unknown_pid(self, tmp_pids_dir: Path):
+        with pytest.raises(PidsEditError, match="not found"):
+            set_response_frames("TEST", "9999", 4, pids_dir=tmp_pids_dir)
+
+    def test_unknown_ecu(self, tmp_pids_dir: Path):
+        with pytest.raises(PidsEditError):
+            set_response_frames("NOPE", "2200", 4, pids_dir=tmp_pids_dir)
 
 
 class TestSetPidVariableLength:

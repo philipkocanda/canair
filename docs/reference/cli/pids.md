@@ -4,13 +4,13 @@
 
 ```
 usage: canair pids [-h]
-                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-pid-status,set-pid-variable-length,set-pid-notes,set-identity,rm-identity,set-can-bus,set-iocontrol-ranges,set-wake,set-addressing}
+                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-pid-status,set-pid-variable-length,set-response-frames,set-pid-notes,set-identity,rm-identity,set-can-bus,set-iocontrol-ranges,set-wake,set-addressing}
                    ...
 
 [UDS] Safely edit ecus/ parameters and research entries (domain A — diagnostic UDS PIDs, freeform WiCAN expressions). The broadcast-frame (domain B) authoring counterpart is `canair signals` (linear signals/ maps).
 
 positional arguments:
-  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-pid-status,set-pid-variable-length,set-pid-notes,set-identity,rm-identity,set-can-bus,set-iocontrol-ranges,set-wake,set-addressing}
+  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-pid-status,set-pid-variable-length,set-response-frames,set-pid-notes,set-identity,rm-identity,set-can-bus,set-iocontrol-ranges,set-wake,set-addressing}
     upsert-param        Add or update a parameter
     rename-param        Rename a parameter (key only; fields preserved)
     rm-param            Remove a parameter
@@ -28,6 +28,9 @@ positional arguments:
     set-pid-variable-length
                         Flag a PID as returning legitimately variable-length
                         responses
+    set-response-frames
+                        Set how many CAN frames a PID's response occupies
+                        (skips the adapter's wait)
     set-pid-notes       Set (or clear) a PID's free-text notes
     set-identity        Set a curated identity field (e.g. notes)
     rm-identity         Remove an identity field from an ECU
@@ -370,6 +373,25 @@ positional arguments:
   pid
   {true,false}   true = variable-length (a short payload is not truncation);
                  false = clear the flag (fixed-length, the default)
+
+options:
+  -h, --help     show this help message and exit
+  --dir DIR      ecus/ directory (default: active profile)
+  --no-validate  Skip the post-edit schema validation gate
+```
+
+## `canair pids set-response-frames`
+
+```
+usage: canair pids set-response-frames [-h] [--dir DIR] [--no-validate]
+                                       ecu pid N|clear
+
+positional arguments:
+  ecu
+  pid
+  N|clear        frame count (int >= 1), or 'clear' to remove it. Normally
+                 maintained automatically by the live commands once a count is
+                 confirmed on the wire
 
 options:
   -h, --help     show this help message and exit

@@ -12,6 +12,7 @@ from types import ModuleType
 from typing import cast
 
 from .transport.channel import WebSocketChannel
+from .transport.elm327_frame_count import CountKey
 from .transport.elm327_terminal import Elm327Terminal
 
 
@@ -41,6 +42,7 @@ class WiCANTerminal(Elm327Terminal):
         unsafe: bool = False,
         hk_f1xx_offset: bool = False,
         expected_responses: bool = True,
+        response_frames: dict[CountKey, int] | None = None,
     ):
         channel = WebSocketChannel(host, verbose=verbose)
         super().__init__(
@@ -50,6 +52,7 @@ class WiCANTerminal(Elm327Terminal):
             unsafe=unsafe,
             hk_f1xx_offset=hk_f1xx_offset,
             expected_responses=expected_responses,
+            response_frames=response_frames,
         )
 
     # The raw WebSocket is exposed for the WiCAN-only paths that read it directly

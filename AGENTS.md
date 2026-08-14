@@ -349,7 +349,15 @@ reuse these instead of re-declaring a flag:
 - **`canair wican`** — Build/sync the device's AutoPID profile from the active bundle's `ecus/`. A
   bare `canair wican` prints help (writes nothing). `autopid write` generates JSON into `out/`
   — **verified-only by default**, `--include-unverified` also emits in-progress candidates;
-  `upload`/`download`/`diff` sync the device (Pro-only, same verified-only default). `mode set MODE`
+  `upload`/`download`/`diff` sync the device (Pro-only, same verified-only default). **Opt in with
+  `--expected-responses`** (on `write`/`upload`/`diff`) to append each PID's persisted
+  `response_frames` count to its request string, so the device's ELM327 co-processor answers as soon
+  as that many frames arrive instead of waiting out its `ATST96` ~614 ms budget. Opt-in because the
+  **firmware has no desync recovery** — it accumulates into one static buffer cleared only *after* a
+  parse, so an undercount's queued tail would silently prefix the next PID's response; the emit path
+  therefore goes through `elm327_frame_count.requestable()` and skips anything unproven,
+  `variable_length`, over the 9-frame ceiling, or on an odd-length request. `autopid stats` shows a
+  `Frames` column so you can see which PIDs have earned one. `mode set MODE`
   switches the device protocol and **auto-aligns the config `transport.type`** (`slcan`→`slcan-tcp`,
   `elm327`→`wican-ws`; `--no-transport` opts out).
 - **`canair bix`** — Byte-index converter and payload annotator (WiCAN ↔ ISO-TP ↔ Torque ↔ bix). A
@@ -500,7 +508,7 @@ to `plans/2026-07-30-profile-variant-inheritance.md` — `extends:` is deliberat
 really happened, costing two sessions' captures. The detection and the user-facing remedy are
 `canlib/install_context.py::installed_snapshot_kind` and `::snapshot_write_note`, and **every write
 path emits that note**: `canlib/captures.py::saved_banner` for captures and
-`canlib/commands/_edit_echo.py::echo_edit` for every definition edit (`pids`/`signals`/`states`/
+`canlib/edit_echo.py::echo_edit` for every definition edit (`pids`/`signals`/`states`/
 `groups`/`ecu add` all route their `✓ …` confirmation through it, which is also what guarantees the
 confirmation names a **full path** rather than a bare `bms.yaml`). `canair update` refuses to be the
 thing that erases the data: `::snapshot_profile_risks` diffs the snapshot's profiles against the
@@ -521,7 +529,9 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   `can_bus:` (flow list of `can_buses.yaml` codes), optional `wake:` (a per-ECU **wake ritual** for
   a fast-sleeping ECU — resolver `canlib/wake.py`), `scan_log:`, `dtcs:`, `pids:`, `iocontrol:`,
   optional `iocontrol_scan_ranges:`, `routines:`, `research:`. Identity-only modules (AMP/SRS) have
-  no `pids:`. Edit via `canair pids`/`ecu`; validate with `canair validate pids`.
+  no `pids:`. A PID may also carry **`response_frames:`** — how many CAN frames its response occupies,
+  written back automatically once a session proves it (never hand-set; mutually exclusive with
+  `variable_length:`). Edit via `canair pids`/`ecu`; validate with `canair validate pids`.
 - **`profiles/<car>/captures/`** — Recorded UDS payloads, one **JSON** file per date
   (`captures/YYYY-MM-DD.json`; JSON parses ~60× faster than YAML, the dominant cost of every
   history-consuming command). The read/write seam is `canlib/capture_io.py`; there is **no YAML
@@ -719,8 +729,45 @@ charging the caller's `retries`**, so the optimization can cost latency but neve
 opt-out is decided by *attribution*, only when that plain retry actually answers — otherwise a
 transiently silent ECU would permanently deoptimize a healthy PID. An **NRC counts as held** (a
 complete answer that just occupies fewer frames), or every PID an ECU refuses while a session is
-closed would opt out. The cache is per-connection so a count never outlives the link it was measured
-on. Plan: `plans/2026-08-09-wican-ws-throughput-ceiling.md`.
+closed would opt out. Plan: `plans/2026-08-09-wican-ws-throughput-ceiling.md`.
+
+**A confirmed count is persisted to the profile, so it survives the link that measured it.** The
+learned cache is still per-connection (a count measures one link, and a reconnect may have re-homed
+onto another device), but the *fact* about the response is a property of the car, so it is written
+back to the PID's `response_frames:` in `ecus/` and re-seeded on the next connect — which is what
+makes a cold first read fast instead of paying one plain read per PID to re-learn. Plan:
+`plans/2026-08-13-persisted-response-frame-counts.md`.
+
+- **`canlib/frame_counts.py`** is the transport-neutral ledger (`FrameCountLedger`,
+  `FrameCountRecord`, `frames_for_payload`, and `CountKey` itself). Evidence has two grades:
+  `confirm()` (a digit was *held* — a direct test of the count, so `CONFIRMATIONS_REQUIRED = 1`) and
+  `observe()` (a count merely seen, needing `OBSERVATIONS_REQUIRED = 3` agreeing sightings). **Any
+  disagreement retires the key permanently** and further agreement cannot rehabilitate it: if the
+  length varies, every single count is an undercount for some response.
+- **`canlib/response_frames.py`** is the bidirectional bridge — `stored_count()` is the **single
+  reader** of the field (its `bool` exclusion is load-bearing: `bool` is an `int` subclass, so a
+  stray `response_frames: true` would read as a 1-frame count), `seed_counts()` builds the
+  `{(tx_id, request): frames}` seed, `resolve_edits()` diffs a ledger against the profile, and
+  `persist()` applies the edits. Two deliberate boundaries: `seed_counts` **does not** apply
+  `MAX_REQUESTABLE_FRAMES` (the ceiling belongs to the layer that must emit the nibble, so a profile
+  fact is never silently rewritten by whoever reads it), and `resolve_edits` **refuses a TX header
+  shared by several ECUs** (under `normal_extended_11bit` they are told apart by a target-address
+  byte a `CountKey` does not carry) — reported, not guessed.
+- **The write-back seam is `Terminal.frame_counts`**, so one implementation covers every transport:
+  `canlib/modes/dispatch/__init__.py::run_session_guarded` calls `_persist_frame_counts` in a
+  `finally`, so an interrupted or failed session still banks what it proved (Ctrl-C is the *normal*
+  way a long `monitor` ends). `--no-learn-frames` opts out. A failure there never propagates — the
+  measurement is a by-product of whatever the user actually ran. It is deliberately **not** wrapped
+  in the `pids` command's validate-and-revert guard, which would discard a correct edit over
+  unrelated pre-existing breakage in the same file.
+- **The raw `slcan-tcp` path participates too**, but must *derive* the count: `parse_uds_response`
+  counts response *lines* and the raw stack hands it one already-reassembled message, so every raw
+  read reported `isotp_frame_count: 1` until `raw_terminal.send_uds` began computing
+  `frames_for_payload(len(resp_bytes))` (classic CAN only — CAN-FD carries up to 64 B/frame). It has
+  no digit to hold, so its evidence is only ever `observe()`.
+- **`requestable()`/`annotate_request()` in `canlib/transport/elm327_frame_count.py` are the single
+  home for the wire rules** — even-length request, `1..MAX_REQUESTABLE_FRAMES`, never clamped — read
+  by both the live transport and `autopid_profile.request_with_count`, so the two cannot disagree.
 
 ## Transports
 

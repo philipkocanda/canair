@@ -68,6 +68,7 @@ CANAIR_DEFAULTS: dict = {
     # the module was imported, not because a device was ever contacted).
     "wican": None,
     "no_fallback": False,
+    "no_learn_frames": False,
     "wait": False,
     "timeout": 3.0,  # WebSocket response timeout (s); fixed default, no CLI flag
     "elm_timeout": None,

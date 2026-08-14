@@ -49,8 +49,8 @@ import argparse
 from pathlib import Path
 
 from canlib import ansi
-from canlib.commands._edit_echo import echo_edit
 from canlib.commands._hexarg import HexArgError, parse_hex_arg
+from canlib.edit_echo import echo_edit
 from canlib.pids import PID_STATUSES
 from canlib.pids_edit import (
     PidsEditError,
@@ -72,6 +72,7 @@ from canlib.pids_edit import (
     set_research_notes,
     set_research_result,
     set_research_status,
+    set_response_frames,
     set_wake,
     upsert_parameter,
 )
@@ -431,6 +432,18 @@ def cmd_set_pid_variable_length(args: argparse.Namespace) -> int:
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
     state = "true" if value else "false (cleared)"
     echo_edit(f"{args.ecu} {args.pid} variable_length -> {state}", fpath)
+    return 0
+
+
+def cmd_set_response_frames(args: argparse.Namespace) -> int:
+    value = None if args.value.lower() == "clear" else int(args.value)
+
+    def do():
+        set_response_frames(args.ecu, args.pid, value, pids_dir=args.dir)
+
+    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
+    state = "cleared" if value is None else str(value)
+    echo_edit(f"{args.ecu} {args.pid} response_frames -> {state}", fpath)
     return 0
 
 
@@ -834,6 +847,21 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     )
     _add_common(spv)
     spv.set_defaults(_pids_func=cmd_set_pid_variable_length)
+
+    srf = sub.add_parser(
+        "set-response-frames",
+        help="Set how many CAN frames a PID's response occupies (skips the adapter's wait)",
+    )
+    srf.add_argument("ecu")
+    srf.add_argument("pid")
+    srf.add_argument(
+        "value",
+        metavar="N|clear",
+        help="frame count (int >= 1), or 'clear' to remove it. Normally maintained "
+        "automatically by the live commands once a count is confirmed on the wire",
+    )
+    _add_common(srf)
+    srf.set_defaults(_pids_func=cmd_set_response_frames)
 
     spn = sub.add_parser(
         "set-pid-notes",

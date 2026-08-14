@@ -577,6 +577,18 @@ def _validate_one_pid(
     if variable_length is not None and not isinstance(variable_length, bool):
         errors.append(f"{label}: variable_length must be a boolean")
 
+    frames = pid_def.get("response_frames")
+    if frames is not None:
+        # `bool` is an `int` subclass, so exclude it explicitly — `response_frames:
+        # true` would otherwise validate as 1 and ship a one-frame undercount.
+        if isinstance(frames, bool) or not isinstance(frames, int) or frames < 1:
+            errors.append(f"{label}: response_frames must be an int >= 1")
+        elif variable_length:
+            errors.append(
+                f"{label}: response_frames cannot be set with variable_length: true "
+                "(a variable-length response has no fixed frame count)"
+            )
+
     status = pid_def.get("status")
     if status is not None and status not in fields.valid_pid_status:
         errors.append(

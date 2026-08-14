@@ -64,6 +64,15 @@ def add_connection_args(parser: argparse.ArgumentParser) -> None:
         help="Overall UDS response timeout in seconds (default 3.0 ELM / 2.0 raw). "
         "Overrides any per-ECU response_timeout_ms for the whole run.",
     )
+    parser.add_argument(
+        "--no-learn-frames",
+        dest="no_learn_frames",
+        action="store_true",
+        help="Don't write response_frames back into the profile's ecus/ when this "
+        "session confirms how many CAN frames a PID's response occupies (the "
+        "count that lets the adapter answer without waiting out its full ECU "
+        "timeout). Use when reading a car the active profile doesn't describe.",
+    )
     parser.add_argument("--json", action="store_true", help="Output results as JSON")
     parser.add_argument(
         "--verbose", "-v", action="store_true", help="Show raw transport traffic and expressions"

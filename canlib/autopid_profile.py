@@ -18,6 +18,8 @@ from __future__ import annotations
 from collections import OrderedDict
 
 from canlib.pids import pid_status
+from canlib.response_frames import stored_count
+from canlib.transport.elm327_frame_count import annotate_request, requestable
 
 
 class DuplicateParameterError(Exception):
@@ -45,7 +47,31 @@ def make_pid_init(tx_id: int, session: bool = False) -> str:
     return init
 
 
-def generate_profile(data: dict, verified_only: bool = False) -> dict:
+def request_with_count(pid_code: object, pid_def: dict) -> str:
+    """The AutoPID ``pid`` string, carrying an expected-response digit if earned.
+
+    The firmware passes this string to its ELM327 co-processor verbatim
+    (``strcpy`` + ``strcat("\\r")``, no validation), so a trailing count nibble
+    reaches the adapter and lets it return the instant that many frames have
+    arrived instead of sitting out its ``ATST96`` budget — ~614 ms per PID.
+
+    The firmware, however, has no desync recovery: it accumulates into a single
+    static buffer that is cleared only *after* a parse, so an undercount's queued
+    tail silently prefixes the next PID's response forever. Hence a digit is only
+    emitted for a count that :mod:`canlib.response_frames` recorded from verified
+    wire evidence, and only when :func:`requestable` says the wire allows it.
+    """
+    request = str(pid_code)
+    frames = stored_count(pid_def)
+    if not requestable(request, frames):
+        return request
+    assert frames is not None
+    return annotate_request(request, frames)
+
+
+def generate_profile(
+    data: dict, verified_only: bool = False, expected_responses: bool = False
+) -> dict:
     """Generate Vehicle Profile format JSON (grouped parameters per PID).
 
     Produces the upstream source format where parameters is a dict of
@@ -55,6 +81,9 @@ def generate_profile(data: dict, verified_only: bool = False) -> dict:
 
     The firmware does NOT accept this format directly — use to_device_format()
     to convert before uploading.
+
+    ``expected_responses`` opts each eligible PID's request into the trailing
+    frame-count digit — see :func:`request_with_count` for why it is opt-in.
     """
     profile = {
         "car_model": data["car_model"],
@@ -101,7 +130,11 @@ def generate_profile(data: dict, verified_only: bool = False) -> dict:
             profile["pids"].append(
                 {
                     "pid_init": pid_init,
-                    "pid": str(pid_code),
+                    "pid": (
+                        request_with_count(pid_code, pid_data)
+                        if expected_responses
+                        else str(pid_code)
+                    ),
                     "enabled": True,
                     "period": str(pid_data.get("period", 5000)),
                     "parameters": parameters,

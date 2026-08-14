@@ -40,6 +40,7 @@ from .params import (
     set_research_notes,
     set_research_result,
     set_research_status,
+    set_response_frames,
     set_wake,
     upsert_parameter,
 )
@@ -70,6 +71,7 @@ __all__ = [
     "set_research_notes",
     "set_research_result",
     "set_research_status",
+    "set_response_frames",
     "set_wake",
     "update_iocontrol_field",
     "update_routines_field",

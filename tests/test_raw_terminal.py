@@ -455,3 +455,60 @@ class TestRawTerminalFcOverride:
         t = raw_terminal.RawTerminal("h", 3333, 500000)
         t._stack(0x750)
         assert capture_fc[0x750] is None
+
+
+class TestRawTerminalFrameCounts:
+    """The raw path derives ISO-TP frame counts, which the ELM path reads off the wire.
+
+    ``parse_uds_response`` counts *response lines*; the raw stack hands it one
+    already-reassembled message, so every raw read reported a count of 1 until the
+    length arithmetic was applied here. Those counts are what
+    ``canair pids set-response-frames`` ends up persisting, so the mapping from
+    payload length to frame count has to be right.
+    """
+
+    @pytest.mark.asyncio
+    async def test_a_single_frame_response_counts_one(self, make_terminal):
+        t = make_terminal({(0x770, bytes.fromhex("22BC03")): bytes.fromhex("62BC03FDEE")})
+        await t.set_header(0x770)
+        r = await t.send_uds("22BC03")
+        assert r["isotp_frame_count"] == 1
+        await t.close()
+
+    @pytest.mark.asyncio
+    async def test_a_multi_frame_response_counts_its_frames(self, make_terminal):
+        # 23 bytes: one first frame carrying 6, then three consecutive frames of 7.
+        payload = bytes.fromhex("62C00B") + bytes(20)
+        assert len(payload) == 23
+        t = make_terminal({(0x7A0, bytes.fromhex("22C00B")): payload})
+        await t.set_header(0x7A0)
+        r = await t.send_uds("22C00B")
+        assert r["isotp_frame_count"] == 4
+        await t.close()
+
+    @pytest.mark.asyncio
+    async def test_a_complete_response_is_observed_in_the_ledger(self, make_terminal):
+        t = make_terminal({(0x770, bytes.fromhex("22BC03")): bytes.fromhex("62BC03FDEE")})
+        await t.set_header(0x770)
+        await t.send_uds("22BC03")
+        assert t.frame_counts.record((0x770, "22BC03")).frames == 1
+        await t.close()
+
+    @pytest.mark.asyncio
+    async def test_a_negative_response_is_not_observed(self, make_terminal):
+        # An NRC occupies fewer frames than the positive answer, so recording it
+        # would persist an undercount for the PID.
+        t = make_terminal({(0x7A0, bytes.fromhex("22B004")): bytes.fromhex("7F2213")})
+        await t.set_header(0x7A0)
+        await t.send_uds("22B004")
+        assert t.frame_counts.record((0x7A0, "22B004")) is None
+        await t.close()
+
+    @pytest.mark.asyncio
+    async def test_repeated_agreement_confirms_a_count(self, make_terminal):
+        t = make_terminal({(0x770, bytes.fromhex("22BC03")): bytes.fromhex("62BC03FDEE")})
+        await t.set_header(0x770)
+        for _ in range(3):
+            await t.send_uds("22BC03")
+        assert t.frame_counts.confirmed() == {(0x770, "22BC03"): 1}
+        await t.close()

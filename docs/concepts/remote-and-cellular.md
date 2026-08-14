@@ -212,6 +212,23 @@ on every read is `expected_responses` above: once canair has learned how many fr
 answers with, the adapter returns as soon as the reply is whole instead of sitting out the budget
 to be sure no further frame is coming.
 
+Those learned counts are **saved to your profile** as each PID's `response_frames:`, so the speedup
+survives the session that measured it — a fresh connection is fast from its first read instead of
+paying one slow read per PID to re-learn. Nothing to configure: any session that confirms a count
+writes it back, and `--no-learn-frames` opts out. A count is only recorded once the wire proved it,
+and a response whose length turns out to vary has its count withdrawn rather than guessed at.
+
+You can see which PIDs have earned one, and how much of the profile is covered, with:
+
+```bash
+uv run canair wican autopid stats     # a Frames column, plus an N/M coverage line
+```
+
+On a slow link this is the difference between a first poll cycle at ~600 ms per PID and one at
+roughly the network round trip. It applies to the ELM327 transports (`wican-ws`, `elm327-tcp`); the
+raw `slcan-tcp` path measures the same counts as a by-product, since canair runs ISO-TP itself there
+and already knows when a response is complete.
+
 ## Diagnosing a bad session
 
 ```bash

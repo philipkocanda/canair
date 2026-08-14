@@ -22,6 +22,7 @@ subcommand can reach is readable in one screen here.
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 from collections.abc import Awaitable, Callable
 
@@ -100,6 +101,30 @@ async def run_session_guarded(
             file=sys.stderr,
         )
         return 1
+    finally:
+        _persist_frame_counts(args, terminal, pids_data)
+
+
+def _persist_frame_counts(args, terminal: Terminal, pids_data) -> None:
+    """Record what this session proved about response lengths into the profile.
+
+    Here rather than in either entry point because ``terminal.frame_counts`` is
+    part of the :class:`~canlib.transport.protocol.Terminal` contract, so one
+    implementation covers every transport — the same reason the error handling
+    above lives here. In the ``finally`` so an interrupted or failed session still
+    banks the counts it did confirm; the evidence is already collected, and a
+    Ctrl-C during a long monitor run is the *normal* way it ends.
+    """
+    if getattr(args, "no_learn_frames", False):
+        return
+    from canlib.response_frames import persist
+
+    try:
+        persist(pids_data, terminal.frame_counts, verbose=getattr(args, "verbose", False))
+    except Exception:
+        # Never let a bookkeeping by-product change the outcome of the command the
+        # user actually ran, nor mask the exception this `finally` is unwinding.
+        logging.getLogger(__name__).exception("failed to persist response frame counts")
 
 
 async def dispatch_mode(args, terminal: Terminal, pids_data, host, *, reconnect=None):

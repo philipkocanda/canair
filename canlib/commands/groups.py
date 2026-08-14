@@ -25,7 +25,7 @@ import sys
 from typing import TypedDict
 
 from canlib import ansi
-from canlib.commands._edit_echo import echo_edit
+from canlib.edit_echo import echo_edit
 
 NAME = "groups"
 

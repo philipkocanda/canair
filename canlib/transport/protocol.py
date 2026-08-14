@@ -22,6 +22,7 @@ import asyncio
 from contextlib import AbstractAsyncContextManager
 from typing import Protocol, runtime_checkable
 
+from ..frame_counts import FrameCountLedger
 from ..timing import TimingRecorder
 from ..transport_stats import TransportStats
 from ..uds_parse import UdsResponse
@@ -41,6 +42,12 @@ class Terminal(Protocol):
 
     # Per-(ECU, PID) round-trip timings — read by `--timings` after a session.
     timings: TimingRecorder
+
+    # What this session observed about response frame counts, per request. Both
+    # families feed it (an ELM327 from the adapter's frame lines, the raw path from
+    # its own reassembly), so the write-back that persists a confirmed count into
+    # the profile's `response_frames:` needs no knowledge of the transport.
+    frame_counts: FrameCountLedger
 
     # Largest UDS request, in data bytes, this transport can put on the wire as
     # one exchange. A transport that runs ISO-TP itself segments freely; an

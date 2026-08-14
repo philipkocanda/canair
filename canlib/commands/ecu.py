@@ -48,11 +48,11 @@ from typing import Any
 
 from canlib import ansi
 from canlib.capture_types import CaptureEntry
-from canlib.commands._edit_echo import echo_edit
 from canlib.commands._group import group_help
 from canlib.commands._hexarg import HexArgError, parse_hex_arg
 from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.ecus import load_ecus, resolve_tx, rx_addr_str
+from canlib.edit_echo import echo_edit
 from canlib.pids import load_pids, pid_status
 from canlib.profile import require_writable_definitions
 from canlib.states import ecu_states

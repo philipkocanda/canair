@@ -29,6 +29,8 @@ from canlib.transport.elm327_frame_count import (
     MAX_REQUESTABLE_FRAMES,
     CountVerdict,
     FrameCountCache,
+    annotate_request,
+    requestable,
 )
 from canlib.transport.elm327_terminal import Elm327Terminal
 from canlib.uds_parse import CAT_BUS, CAT_DROP, CAT_NO_DATA
@@ -396,3 +398,136 @@ class TestDecisionProcedure:
         attempt.command("22C00B")
         attempt.verdict(self._ok(4))
         assert cache.count_for((0x7A0, "22C00B")) == 4
+
+
+class TestWireRules:
+    """``requestable``/``annotate_request`` — the rules the emit paths share."""
+
+    def test_a_plausible_count_on_an_even_request_is_requestable(self):
+        assert requestable("2101", 4) is True
+
+    def test_no_count_is_not_requestable(self):
+        assert requestable("2101", None) is False
+
+    def test_a_count_below_one_is_not_requestable(self):
+        assert requestable("2101", 0) is False
+
+    def test_a_count_above_the_ceiling_is_refused_not_clamped(self):
+        # Clamping would send a deliberate undercount, whose queued tail then
+        # answers the next request. The Ioniq's 13-frame 21F2 read is the case.
+        assert requestable("21F2", MAX_REQUESTABLE_FRAMES) is True
+        assert requestable("21F2", MAX_REQUESTABLE_FRAMES + 1) is False
+        assert requestable("21F2", 13) is False
+
+    def test_an_odd_length_request_cannot_carry_a_digit(self):
+        # The nibble is only distinguishable from data because it makes the
+        # command odd-length; appending to an odd request changes the question.
+        assert requestable("210", 4) is False
+
+    def test_the_digit_is_uppercase_hex_appended(self):
+        assert annotate_request("2101", 4) == "21014"
+        assert annotate_request("22C00B", 9) == "22C00B9"
+
+    def test_annotating_never_adds_a_data_byte(self):
+        # One character, so the adapter's 7-byte request ceiling is unaffected.
+        assert len(annotate_request("22C00B", 4)) == len("22C00B") + 1
+
+
+class TestSeeding:
+    """A count carried in from the profile is used before anything is learned."""
+
+    def test_a_seeded_count_is_requested_on_the_very_first_read(self):
+        cache = FrameCountCache()
+        cache.seed({_KEY: _FRAMES})
+        attempt = cache.attempt(_KEY)
+        assert attempt.command("22C00B") == f"22C00B{_FRAMES}"
+
+    def test_a_seeded_count_is_reported_as_seeded(self):
+        cache = FrameCountCache()
+        cache.seed({_KEY: _FRAMES})
+        assert cache.is_seeded(_KEY) is True
+        assert cache.is_seeded((None, "2101")) is False
+
+    def test_a_seed_too_large_to_request_is_dropped(self):
+        cache = FrameCountCache()
+        cache.seed({_KEY: MAX_REQUESTABLE_FRAMES + 1})
+        assert cache.attempt(_KEY).command("22C00B") == "22C00B"
+
+    def test_a_seed_survives_a_reconnect(self):
+        # reset() forgets what this link taught us, but a profile fact is not a
+        # property of the link, so it is re-applied.
+        cache = FrameCountCache()
+        cache.seed({_KEY: _FRAMES})
+        cache.reset()
+        assert cache.attempt(_KEY).command("22C00B") == f"22C00B{_FRAMES}"
+
+    def test_opting_out_defeats_the_seed_and_retires_it(self):
+        # A seeded count that this session disproves must not come back on the
+        # next reconnect, and must be cleared from the profile.
+        cache = FrameCountCache()
+        cache.seed({_KEY: _FRAMES})
+        cache.opt_out(_KEY)
+        cache.reset()
+        assert cache.attempt(_KEY).command("22C00B") == "22C00B"
+        assert _KEY in cache.ledger.retired()
+
+    def test_a_disabled_cache_ignores_seeds(self):
+        cache = FrameCountCache(enabled=False)
+        cache.seed({_KEY: _FRAMES})
+        assert cache.attempt(_KEY).command("22C00B") == "22C00B"
+
+
+class TestLedgerFeeding:
+    """What the decision procedure banks for the profile write-back."""
+
+    def _resp(self, frames: int, ok: bool = True) -> dict:
+        return {"ok": ok, "isotp_frame_count": frames}
+
+    def test_a_plain_complete_reply_is_observed(self):
+        cache = FrameCountCache()
+        attempt = cache.attempt(_KEY)
+        attempt.command("22C00B")
+        attempt.verdict(self._resp(_FRAMES))
+        assert cache.ledger.record(_KEY).observations == 1
+
+    def test_a_held_digit_confirms(self):
+        cache = FrameCountCache()
+        cache.seed({_KEY: _FRAMES})
+        attempt = cache.attempt(_KEY)
+        attempt.command("22C00B")
+        assert attempt.verdict(self._resp(_FRAMES)).retry_plain is False
+        assert cache.ledger.confirmed() == {_KEY: _FRAMES}
+
+    def test_an_nrc_to_a_digit_bearing_request_does_not_confirm(self):
+        # digit_held accepts an NRC (nothing is left queued), but a refusal
+        # occupies fewer frames than the positive response the count measures.
+        cache = FrameCountCache()
+        cache.seed({_KEY: _FRAMES})
+        attempt = cache.attempt(_KEY)
+        attempt.command("22C00B")
+        attempt.verdict({"ok": False, "nrc": 0x7F, "isotp_frame_count": 1})
+        assert cache.ledger.confirmed() == {}
+
+    def test_a_count_too_large_to_request_is_still_observed(self):
+        # learn() opts such a key out, but the true count is a profile fact worth
+        # recording — and a later disagreement must still be able to retire it.
+        cache = FrameCountCache()
+        attempt = cache.attempt(_KEY)
+        attempt.command("22C00B")
+        attempt.verdict(self._resp(MAX_REQUESTABLE_FRAMES + 4))
+        assert cache.ledger.record(_KEY).frames == MAX_REQUESTABLE_FRAMES + 4
+
+    def test_a_convicted_digit_retires_the_count(self):
+        cache = FrameCountCache()
+        cache.seed({_KEY: _FRAMES})
+        attempt = cache.attempt(_KEY)
+
+        attempt.command("22C00B")
+        verdict = attempt.verdict({"ok": False, "error_kind": CAT_DROP, "isotp_frame_count": 3})
+        assert verdict.retry_plain is True
+
+        # The plain form answers, which convicts the digit.
+        assert attempt.command("22C00B") == "22C00B"
+        attempt.verdict(self._resp(_FRAMES + 1))
+        assert _KEY in cache.ledger.retired()
+        assert cache.ledger.confirmed() == {}

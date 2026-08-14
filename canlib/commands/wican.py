@@ -22,6 +22,7 @@ Subcommands:
 Examples:
   canair wican autopid write                       # verified-only out/autopid.json
   canair wican autopid write --include-unverified  # also include unverified params
+  canair wican autopid write --expected-responses  # faster reads where counts are known
   canair wican autopid upload --reboot             # upload + reboot to apply
   canair wican autopid diff --wican home           # compare device vs generated
   canair wican mode set slcan                 # raw CAN + set transport slcan-tcp
@@ -47,6 +48,7 @@ from canlib.autopid_profile import (
     to_device_format,
 )
 from canlib.commands._group import group_help
+from canlib.response_frames import stored_count
 from canlib.transport.config import TransportType
 
 
@@ -280,10 +282,14 @@ def print_stats(data: dict) -> None:
     total_params = 0
     verified_count = 0
     unverified_count = 0
+    counted = 0
+    total_pids = 0
 
-    print(
-        f"\n{'ECU':<10} {'TX ID':<8} {'PID':<10} {'Period':<8} {'Params':<8} {'Verified':<10} {'Source Summary'}"
+    header = (
+        f"\n{'ECU':<10} {'TX ID':<8} {'PID':<10} {'Period':<8} {'Frames':<8} "
+        f"{'Params':<8} {'Verified':<10} {'Source Summary'}"
     )
+    print(header)
     print("─" * 100)
 
     for ecu_name, ecu in data["ecus"].items():
@@ -296,19 +302,32 @@ def print_stats(data: dict) -> None:
             total_params += n_params
             verified_count += n_verified
             unverified_count += n_unverified
+            total_pids += 1
 
             sources = {p.get("source", "?") for p in params.values()}
             source_str = "; ".join(sorted(sources))[:40]
 
+            # A dash means the PID still pays the adapter's full response-wait
+            # budget; the count is only shown once wire evidence confirmed it.
+            frames = stored_count(pid_data)
+            if frames is not None:
+                counted += 1
+            frames_str = str(frames) if frames is not None else "—"
+
             v_str = f"{n_verified}/{n_params}"
             print(
-                f"{ecu_name:<10} 0x{tx_id:03X}    {pid_code!s:<10} {pid_data.get('period', '?')!s:<8} {n_params:<8} {v_str:<10} {source_str}"
+                f"{ecu_name:<10} 0x{tx_id:03X}    {pid_code!s:<10} "
+                f"{pid_data.get('period', '?')!s:<8} {frames_str:<8} "
+                f"{n_params:<8} {v_str:<10} {source_str}"
             )
 
     print("─" * 100)
     print(
-        f"{'TOTAL':<10} {'':8} {'':10} {'':8} {total_params:<8} {verified_count}/{total_params} verified ({unverified_count} unverified)"
+        f"{'TOTAL':<10} {'':8} {'':10} {'':8} {f'{counted}/{total_pids}':<8} "
+        f"{total_params:<8} {verified_count}/{total_params} verified "
+        f"({unverified_count} unverified)"
     )
+    print(f"\n{counted}/{total_pids} PIDs carry a response_frames count.")
 
 
 _PROTOCOLS = ("elm327", "slcan", "savvycan", "realdash66", "auto_pid")
@@ -332,6 +351,27 @@ def _add_wican_arg(parser: argparse.ArgumentParser) -> None:
         "--wican",
         default=default,
         help=f"WiCAN address: {', '.join(wican_addresses())} or URL (default: {default})",
+    )
+
+
+def _add_generate_args(parser: argparse.ArgumentParser) -> None:
+    """Flags shared by every action that generates a profile from ``ecus/``."""
+    parser.add_argument(
+        "--include-unverified",
+        action="store_true",
+        help="Include unverified parameters (default: verified only)",
+    )
+    parser.add_argument(
+        "--verified-only",
+        action="store_true",
+        help=argparse.SUPPRESS,  # deprecated no-op: verified-only is the default
+    )
+    parser.add_argument(
+        "--expected-responses",
+        action="store_true",
+        help="Append each PID's recorded response_frames count to its request, so "
+        "the adapter answers as soon as that many frames arrive instead of waiting "
+        "out its ~614ms budget (opt-in: the firmware cannot recover from a wrong count)",
     )
 
 
@@ -385,22 +425,13 @@ def _add_autopid_parser(groups) -> argparse.ArgumentParser:
         "active bundle's out/autopid.json.",
     )
     write.add_argument(
-        "--include-unverified",
-        action="store_true",
-        help="Include unverified parameters (default: verified only)",
-    )
-    write.add_argument(
-        "--verified-only",
-        action="store_true",
-        help=argparse.SUPPRESS,  # deprecated no-op: verified-only is the default
-    )
-    write.add_argument(
         "--out",
         metavar="PATH",
         type=Path,
         default=None,
         help="Write to PATH instead of the bundle's out/autopid.json",
     )
+    _add_generate_args(write)
     write.set_defaults(_wican_func=_cmd_autopid_write)
 
     upload = sub.add_parser(
@@ -409,17 +440,8 @@ def _add_autopid_parser(groups) -> argparse.ArgumentParser:
         description="Generate the AutoPID profile and upload it to the WiCAN "
         "device (POST /store_car_data). WiCAN Pro only.",
     )
-    upload.add_argument(
-        "--include-unverified",
-        action="store_true",
-        help="Include unverified parameters (default: verified only)",
-    )
-    upload.add_argument(
-        "--verified-only",
-        action="store_true",
-        help=argparse.SUPPRESS,  # deprecated no-op: verified-only is the default
-    )
     upload.add_argument("--reboot", action="store_true", help="Reboot the device after upload")
+    _add_generate_args(upload)
     _add_wican_arg(upload)
     upload.set_defaults(_wican_func=_cmd_autopid_upload)
 
@@ -438,16 +460,7 @@ def _add_autopid_parser(groups) -> argparse.ArgumentParser:
         description="Download the device's current AutoPID profile and show a "
         "parameter-level diff against the freshly generated one. WiCAN Pro only.",
     )
-    diff.add_argument(
-        "--include-unverified",
-        action="store_true",
-        help="Include unverified parameters (default: verified only)",
-    )
-    diff.add_argument(
-        "--verified-only",
-        action="store_true",
-        help=argparse.SUPPRESS,  # deprecated no-op: verified-only is the default
-    )
+    _add_generate_args(diff)
     _add_wican_arg(diff)
     diff.set_defaults(_wican_func=_cmd_autopid_diff)
 
@@ -541,15 +554,21 @@ def _generate(args) -> tuple[dict, dict]:
 
     verified_only = _verified_only(args)
     label = "" if getattr(args, "include_unverified", False) else " (verified only)"
+    counts = getattr(args, "expected_responses", False)
     print(f"\nGenerating AutoPID profile{label}...")
     try:
-        profile = generate_profile(data, verified_only)
+        profile = generate_profile(data, verified_only, expected_responses=counts)
     except DuplicateParameterError as e:
         print(f"error: {e}", file=sys.stderr)
         sys.exit(1)
     n_groups = len(profile["pids"])
     n_params = sum(len(p["parameters"]) for p in profile["pids"])
     print(f"  {n_groups} PID groups, {n_params} parameters")
+    if counts:
+        n_counted = sum(1 for p in profile["pids"] if len(p["pid"]) % 2)
+        print(f"  {n_counted}/{n_groups} carry an expected-response count")
+        if n_counted < n_groups:
+            print("  (the rest keep the unoptimized path — record more with canair monitor)")
     return data, profile
 
 

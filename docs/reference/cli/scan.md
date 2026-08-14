@@ -45,8 +45,9 @@ usage: canair scan range [-h] [-i] [--service SVC] [--range START-END]
                          [--wican WICAN]
                          [--transport {slcan-tcp,wican-ws,elm327-tcp}]
                          [--no-fallback] [--wait] [--elm-timeout MS]
-                         [--timeout SECONDS] [--json] [--verbose] [--timings]
-                         [--reboot] [--unsafe] [--force]
+                         [--timeout SECONDS] [--no-learn-frames] [--json]
+                         [--verbose] [--timings] [--reboot] [--unsafe]
+                         [--force]
                          [ECU]
 
 Scan a range of PIDs/DIDs on an ECU. One scan at a time only.
@@ -90,6 +91,12 @@ options:
   --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0
                         ELM / 2.0 raw). Overrides any per-ECU
                         response_timeout_ms for the whole run.
+  --no-learn-frames     Don't write response_frames back into the profile's
+                        ecus/ when this session confirms how many CAN frames a
+                        PID's response occupies (the count that lets the
+                        adapter answer without waiting out its full ECU
+                        timeout). Use when reading a car the active profile
+                        doesn't describe.
   --json                Output results as JSON
   --verbose, -v         Show raw transport traffic and expressions
   --timings             Print per-ECU/PID round-trip timing stats on exit (to
@@ -135,8 +142,9 @@ usage: canair scan iocontrol [-h] [--did-range START-END]
                              [--mode HEX] [--wican WICAN]
                              [--transport {slcan-tcp,wican-ws,elm327-tcp}]
                              [--no-fallback] [--wait] [--elm-timeout MS]
-                             [--timeout SECONDS] [--json] [--verbose]
-                             [--timings] [--reboot] [--unsafe] [--force]
+                             [--timeout SECONDS] [--no-learn-frames] [--json]
+                             [--verbose] [--timings] [--reboot] [--unsafe]
+                             [--force]
                              ECU [ECU ...]
 
 Probe returnControlToECU across an id range on one or more ECUs. The service is auto-selected per ECU from its id_protocol: UDS ECUs use InputOutputControlByIdentifier (0x2F, 16-bit DID); KWP2000 ECUs (BMS, VCU, MCU, LDC, AAF) use InputOutputControlByLocalIdentifier (0x30, 8-bit LID). Only the side-effect-free sub-function is ever sent — the scanner never actuates. Hits are written to pids/<ecu>.yaml under an iocontrol_discoveries: section.
@@ -176,6 +184,12 @@ options:
   --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0
                         ELM / 2.0 raw). Overrides any per-ECU
                         response_timeout_ms for the whole run.
+  --no-learn-frames     Don't write response_frames back into the profile's
+                        ecus/ when this session confirms how many CAN frames a
+                        PID's response occupies (the count that lets the
+                        adapter answer without waiting out its full ECU
+                        timeout). Use when reading a car the active profile
+                        doesn't describe.
   --json                Output results as JSON
   --verbose, -v         Show raw transport traffic and expressions
   --timings             Print per-ECU/PID round-trip timing stats on exit (to
@@ -201,8 +215,9 @@ usage: canair scan routines [-h] [--rid-range START-END]
                             [--mode HEX] [--wican WICAN]
                             [--transport {slcan-tcp,wican-ws,elm327-tcp}]
                             [--no-fallback] [--wait] [--elm-timeout MS]
-                            [--timeout SECONDS] [--json] [--verbose]
-                            [--timings] [--reboot] [--unsafe] [--force]
+                            [--timeout SECONDS] [--no-learn-frames] [--json]
+                            [--verbose] [--timings] [--reboot] [--unsafe]
+                            [--force]
                             ECU [ECU ...]
 
 Probe routine results across a range on one or more ECUs. The service is auto-selected per ECU from its id_protocol: UDS ECUs use RoutineControl (0x31, requestRoutineResults SF 0x03); KWP2000 ECUs (BMS, VCU, MCU, LDC, AAF) use RequestRoutineResultsByLocalIdentifier (0x33). 0x31 (StartRoutine on KWP2000) is NEVER sent to a KWP2000 ECU — only the read-only results service. Hits are written to pids/<ecu>.yaml under a routines: section.
@@ -242,6 +257,12 @@ options:
   --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0
                         ELM / 2.0 raw). Overrides any per-ECU
                         response_timeout_ms for the whole run.
+  --no-learn-frames     Don't write response_frames back into the profile's
+                        ecus/ when this session confirms how many CAN frames a
+                        PID's response occupies (the count that lets the
+                        adapter answer without waiting out its full ECU
+                        timeout). Use when reading a car the active profile
+                        doesn't describe.
   --json                Output results as JSON
   --verbose, -v         Show raw transport traffic and expressions
   --timings             Print per-ECU/PID round-trip timing stats on exit (to
@@ -266,8 +287,9 @@ usage: canair scan sessions [-h] [--modes HEX[,HEX...]]
                             [--throttle-ms THROTTLE_MS] [--wican WICAN]
                             [--transport {slcan-tcp,wican-ws,elm327-tcp}]
                             [--no-fallback] [--wait] [--elm-timeout MS]
-                            [--timeout SECONDS] [--json] [--verbose]
-                            [--timings] [--reboot] [--unsafe] [--force]
+                            [--timeout SECONDS] [--no-learn-frames] [--json]
+                            [--verbose] [--timings] [--reboot] [--unsafe]
+                            [--force]
                             ECU [ECU ...]
 
 Probe which DiagnosticSessionControl (service 0x10) session types an ECU supports. The session-mode set is auto-selected per ECU from its id_protocol: UDS ECUs are probed with 01 (default) + 03 (extended); KWP2000 ECUs (BMS, VCU, MCU, LDC, AAF) with 81 (standard) + 82 + 83 (extended). Only these SAFE read-only modes are ever sent — the programming sessions (UDS 0x02, KWP2000 0x85) are NEVER probed. Results are written to ecus/<ecu>.yaml under a sessions: section.
@@ -303,6 +325,12 @@ options:
   --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0
                         ELM / 2.0 raw). Overrides any per-ECU
                         response_timeout_ms for the whole run.
+  --no-learn-frames     Don't write response_frames back into the profile's
+                        ecus/ when this session confirms how many CAN frames a
+                        PID's response occupies (the count that lets the
+                        adapter answer without waiting out its full ECU
+                        timeout). Use when reading a car the active profile
+                        doesn't describe.
   --json                Output results as JSON
   --verbose, -v         Show raw transport traffic and expressions
   --timings             Print per-ECU/PID round-trip timing stats on exit (to

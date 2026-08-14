@@ -47,6 +47,7 @@ Subcommands:
 Examples:
   canair wican autopid write                       # verified-only out/autopid.json
   canair wican autopid write --include-unverified  # also include unverified params
+  canair wican autopid write --expected-responses  # faster reads where counts are known
   canair wican autopid upload --reboot             # upload + reboot to apply
   canair wican autopid diff --wican home           # compare device vs generated
   canair wican mode set slcan                 # raw CAN + set transport slcan-tcp
