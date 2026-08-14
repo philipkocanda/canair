@@ -120,7 +120,7 @@ class TestCanonicalEcuName:
     def test_alias_resolves_to_primary(self):
         assert canonical_ecu_name("SMK") == "SKM"
         assert canonical_ecu_name("MDPS") == "EPS"
-        assert canonical_ecu_name("ABS") == "ESC"
+        assert canonical_ecu_name("AHB") == "ESC"
 
     def test_primary_name_passthrough(self):
         assert canonical_ecu_name("BMS") == "BMS"

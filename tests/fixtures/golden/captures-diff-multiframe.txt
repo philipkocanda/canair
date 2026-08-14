@@ -4,7 +4,7 @@
     2101  (11 entries)
       SOC_BMS                        92.50 %       ✓  B9
       BMS_2101_B10                   27            ?  B10
-      DEBUG_BMS_STATE_FLAGS          3             ✓  B14
+      DEBUG_BMS_STATE_FLAGS          3             ?  B14
       BMS_MAIN_RELAY                 1             ✓  B14
       BMS_MAIN_RELAY_MIRROR_B14_1    1             ✓  B14
       AC_CHARGER_CONNECTED           0             ✓  B14
@@ -34,7 +34,7 @@
       CUMULATIVE_ENERGY_DISCHARGED   12358.40 kWh  ✓  B52-B55
       OPERATING_TIME                 6142.78 h     ✓  B57-B60
       INVERTER_CAPACITOR_VOLTAGE     0.10 V        ?  B62
-      BMS_HV_RELAY_FLAG              1             ✓  B62
+      BMS_HV_RELAY                   1             ✓  B62
       BMS_2101_B63                   136           ?  B63
       DRIVE_MOTOR_SPEED              0 RPM         ✓  B65-B66
       ISOLATION_RESISTANCE           3000 kΩ       ✓  B69
