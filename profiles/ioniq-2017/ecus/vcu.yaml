@@ -42,6 +42,7 @@ VCU:
   vehicle_states: [READY, CHARGING]
   pids:
     2101:
+      response_frames: 4
       status: active
       period: 2500
       vehicle_states: [READY, CHARGING]
@@ -372,6 +373,7 @@ VCU:
             for research trail: gives VCU its own independent DC-fast-charge-active bit.
           enabled: false
     2102:
+      response_frames: 4
       status: active
       period: 5000
       vehicle_states: [READY, CHARGING]
@@ -546,6 +548,7 @@ VCU:
             1->0 at 11:18:39 as LDC_HV_INPUT collapsed 206->6.7V, and live in ACC2 read 0 with bus
             at 6.3V. Mirrors BMS_MAIN_RELAY and BMS_HV_RELAY_FLAG (B62).
     21F2:
+      response_frames: 13
       parameters:
         CHARGE_TIMER_WKND_END_HOUR:
           expression: B75

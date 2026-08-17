@@ -1,6 +1,7 @@
 # ─── MFC (Multi-Function Camera / ADAS) ───────────────────────────────
 MFC:
   tx_id: 0x7C4
+  can_bus: [C-CAN]
   identity:
     description: Multi-Function Camera (ADAS)
     part_number: "95740-G2200"

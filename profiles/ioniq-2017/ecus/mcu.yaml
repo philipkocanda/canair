@@ -37,6 +37,7 @@ MCU:
   vehicle_states: [READY, CHARGING]
   pids:
     2101:
+      response_frames: 5
       status: draft
       period: 5000
       vehicle_states: [CHARGING]
@@ -139,6 +140,7 @@ MCU:
             three-phase set. Range -10644..9448 raw over 2026-08-08. Identity proven via the
             Kirchhoff sum, absolute scale unknown so no unit is claimed.
     2102:
+      response_frames: 9
       status: active
       period: 5000
       vehicle_states: [CHARGING]
@@ -343,6 +345,7 @@ MCU:
             Load/current-related signal. B21 (distinct=16, range 13-34, median 16) tracks MCU_PHASE_CURRENT_RMS at r=+0.859 over 477 driving pts (resid 1.1) — genuinely dynamic, not a low-variance artifact. Likely a scaled/filtered current or a DC-bus current proxy (slope 0.065, offset ~15). Exact quantity/scale TBD; verify against a high-load capture.
 
     2103:
+      response_frames: 4
       status: draft
       period: 0
       vehicle_states: [CHARGING]
@@ -353,6 +356,7 @@ MCU:
       parameters: {}
 
     21F2:
+      response_frames: 10
       status: active
       period: 0
       vehicle_states: [CHARGING]

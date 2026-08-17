@@ -300,7 +300,6 @@ BCM:
           notes: >
             LIKELY INCORRECT / UNVERIFIED. Constant 0x3F (=63) across all 23 captures and never observed to change. 0x3F=0b111111 was pattern-matched to '6 days set' but never confirmed by toggling days, and the bit mapping is unknown. Probably a static config/format byte, not the live schedule. Re-capture after changing schedule days to confirm which bytes move.
     22B001:
-      response_frames: 3
       status: draft
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
       notes: >
@@ -495,7 +494,6 @@ BCM:
       parameters: {}
 
     22C011:
-      response_frames: 2
       status: draft
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
       notes: >-

@@ -1,6 +1,7 @@
 # ─── HVAC (Heating, Ventilation, Air Conditioning) ────────────────────
 HVAC:
   tx_id: 0x7B3
+  can_bus: [P-CAN]
   iocontrol_scan_ranges: [F000-FFFF]
   identity:
     alias: DATC  # Digital Automatic Temperature Control

@@ -1,6 +1,7 @@
 # ─── GSA (Gear Shift Assembly — Kostal) ────────────────────────────────────────
 GSA:
   tx_id: 0x7B6
+  can_bus: [P-CAN]
   identity:
     description: Gear Shift Assembly (gear selector module)
     part_number: "46700-G7100"

@@ -45,6 +45,7 @@ SKM:
         and READY — useful power-state contrast for decoding key/immobiliser bytes.
   pids:
     22B002:
+      response_frames: 26
       status: draft
       period: 10000
       vehicle_states: [SLEEP]

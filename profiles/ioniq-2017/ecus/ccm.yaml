@@ -3,12 +3,13 @@
 # No live data DIDs discovered. Likely only active during DC fast charging.
 # Service 22 scan returned no results (2026-04-17, car not charging).
 #
-# Suspected physical location: under left seat (unverified)
+# Confirmed physical location: under front left seat!
 
 # https://www.projectgus.com/2024/12/fakon/
 # https://github.com/uhi22/Ioniq28Investigations/blob/main/CCM_ChargeControlModule_PLC_CCS/readme.md
 CCM:
   tx_id: 0x733
+  can_bus: [P-CAN]
   identity:
     alias: PLC
     description: Charge Control Module (Power Line Communication for DC CCS fast-charging)

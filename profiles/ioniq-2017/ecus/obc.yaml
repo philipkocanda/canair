@@ -21,6 +21,7 @@
 
 OBC:
   tx_id: 0x7E5
+  can_bus: [P-CAN]
   identity:
     alias: LDC  # Combined unit — also houses the LDC (DC-DC converter); reports its 12V output live while driving
     description: On-Board Charger (integrated LDC / DC-DC converter)
@@ -43,6 +44,7 @@ OBC:
   vehicle_states: [READY, CHARGING, ACC2]
   pids:
     2101:
+      response_frames: 7
       status: active
       period: 5000
       vehicle_states: [READY, CHARGING, ACC2]

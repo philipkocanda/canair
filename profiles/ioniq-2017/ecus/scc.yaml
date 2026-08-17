@@ -1,6 +1,7 @@
 # ─── SCC (Smart Cruise Control) ───────────────────────────────────────
 SCC:
   tx_id: 0x7D0
+  can_bus: [C-CAN]
   identity:
     description: Smart Cruise Control
     part_number: "96400-G7000"
