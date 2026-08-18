@@ -10,7 +10,9 @@ captures, coverage, research, pids, validate, wican, bix, ...). Run
 from __future__ import annotations
 
 import argparse
+import re
 import sys
+from typing import NoReturn
 
 from canlib.commands import iter_command_modules
 
@@ -56,6 +58,43 @@ _GROUP_DEFAULTS = {
 # argparse resolves aliases itself, but _inject_default_subcommand runs on raw
 # argv before argparse, so it must know the alias maps to a _GROUP_DEFAULTS key.
 _GROUP_ALIASES = {"cap": "captures"}
+
+# Intuitive-but-wrong top-level tokens that are really subcommands living under
+# another command. When argparse rejects one as an invalid <command> choice, we
+# append a pointer to where it actually lives, so a user typing `canair mode …`
+# is steered to `canair wican mode` instead of only being shown the raw choice
+# list. Keyed conservatively: every value must be a real command path.
+_RELOCATED_COMMANDS = {
+    "mode": "wican mode",
+    "autopid": "wican autopid",
+    "auto-pid": "wican autopid",
+    "auto_pid": "wican autopid",
+}
+
+_INVALID_CHOICE_RE = re.compile(r"invalid choice: '([^']+)'")
+
+
+def _relocation_hint(message: str) -> str | None:
+    """A pointer to a relocated command, if ``message`` rejected one as <command>."""
+    m = _INVALID_CHOICE_RE.search(message)
+    if m is None:
+        return None
+    dest = _RELOCATED_COMMANDS.get(m.group(1))
+    if dest is None:
+        return None
+    return f"hint: '{m.group(1)}' is not a canair command — try 'canair {dest}'."
+
+
+class _CanairParser(argparse.ArgumentParser):
+    """Top-level parser that points a relocated command to its real home."""
+
+    def error(self, message: str) -> NoReturn:
+        hint = _relocation_hint(message)
+        if hint is None:
+            super().error(message)
+        self.print_usage(sys.stderr)
+        self.exit(2, f"{self.prog}: error: {message}\n\n{hint}\n")
+
 
 # Commands that manage/report versions themselves or shouldn't be interrupted by
 # an update notice (they have their own output contract or run non-interactively).
@@ -187,7 +226,7 @@ def build_parser() -> argparse.ArgumentParser:
     """Build the top-level argument parser with all subcommands registered."""
     from canlib.commands._categories import CategorizedHelpFormatter
 
-    parser = argparse.ArgumentParser(
+    parser = _CanairParser(
         prog="canair",
         description=__doc__,
         formatter_class=CategorizedHelpFormatter,
