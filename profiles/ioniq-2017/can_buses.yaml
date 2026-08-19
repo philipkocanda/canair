@@ -6,9 +6,10 @@
 # Edit an ECU's segment(s) with `canair pids set-can-bus ECU CODE [CODE ...]`.
 #
 # `bitrate` is the segment's bus speed in bit/s (optional). Hyundai runs the
-# high-speed segments (P-CAN/C-CAN/MM-CAN/H-CAN/D-CAN) at 500 kbit/s and the
-# low-speed Body CAN (B-CAN) at 100 kbit/s. D-CAN (500 kbit/s) is confirmed; the
-# rest are the standard Hyundai/Ioniq figures.
+# high-speed segments (P-CAN/C-CAN/H-CAN/D-CAN) at 500 kbit/s and the low-speed
+# Body CAN (B-CAN) at 100 kbit/s. MM-CAN is the exception: it is a low-speed
+# 100 kbit/s segment. D-CAN (500 kbit/s) and MM-CAN (100 kbit/s) are confirmed;
+# the rest are the standard Hyundai/Ioniq figures.
 
 can_buses:
   ALL:
@@ -29,7 +30,12 @@ can_buses:
   MM-CAN:
     name: Multimedia CAN
     description: Infotainment/audio (head unit, amplifier).
-    bitrate: 500000
+    # 100 kbit/s, not 500. Recovered from the AVN head unit's MICOM firmware:
+    # its Renesas RS-CAN controller is configured with prescaler 25 and 16 tq per
+    # bit (400 CAN-clock periods per bit) off a 40 MHz CAN clock. Independently
+    # corroborated by the Kia Soul EV community matrix, whose `M_CAN` sheet is
+    # also 100 kb/s and shares 18 arbitration IDs with this firmware's tables.
+    bitrate: 100000
   H-CAN:
     name: Hybrid CAN
     description: Hybrid/EV powertrain segment (motor/inverter, VMCU).
