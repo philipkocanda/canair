@@ -46,8 +46,8 @@ IGPM:
         (requestRoutineResults). Sub-function 01 (startRoutine) untested (unsafe to scan blindly).
   pids:
     22BC07:
+      status: active
       response_frames: 2
-      status: draft
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
       notes: >
         B12:
