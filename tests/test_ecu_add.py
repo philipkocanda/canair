@@ -16,7 +16,7 @@ import pytest
 import yaml
 
 from canlib import profile
-from canlib.commands.ecu import cmd_add
+from canlib.commands.ecu import cmd_add, cmd_rename
 from canlib.ecus_edit import register_ecu
 from canlib.pids import clear_cache
 
@@ -150,6 +150,62 @@ class TestEcuAdd:
         data = yaml.safe_load((root / "ecus" / "dme.yaml").read_text())
         assert data["DME"]["addressing"]["mode"] == "normal_extended_11bit"
         assert data["DME"]["addressing"]["target_address"] == 0x12
+
+
+class TestEcuRename:
+    """`canair ecu rename` resolves the old ECU against the active profile, then
+    rewrites its key + file via the comment-preserving writer."""
+
+    def _activate(self, tmp_path, monkeypatch, name="prof"):
+        from canlib import config
+
+        root = _mk_profile(tmp_path, name)
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
+        monkeypatch.setenv("CANAIR_PROFILES_DIR", str(tmp_path))
+        monkeypatch.setenv("CANAIR_PROFILE", name)
+        config.load_config.cache_clear()
+        profile._active = None
+        clear_cache()
+        return root
+
+    def _rargs(self, **kw):
+        base = {"ecu": None, "new_name": None, "dir": None}
+        base.update(kw)
+        return argparse.Namespace(**base)
+
+    def test_rename_by_name(self, tmp_path, monkeypatch, capsys):
+        root = self._activate(tmp_path, monkeypatch)
+        register_ecu(0x7D5, "Unknown-7D5", ecus_dir=root / "ecus")
+        clear_cache()
+        rc = cmd_rename(self._rargs(ecu="Unknown-7D5", new_name="EPB"))
+        assert rc == 0
+        assert (root / "ecus" / "epb.yaml").exists()
+        assert not (root / "ecus" / "unknown-7d5.yaml").exists()
+        assert "EPB" in yaml.safe_load((root / "ecus" / "epb.yaml").read_text())
+
+    def test_rename_by_hex(self, tmp_path, monkeypatch):
+        root = self._activate(tmp_path, monkeypatch)
+        register_ecu(0x7D5, "Unknown-7D5", ecus_dir=root / "ecus")
+        clear_cache()
+        rc = cmd_rename(self._rargs(ecu="0x7D5", new_name="EPB"))
+        assert rc == 0
+        assert (root / "ecus" / "epb.yaml").exists()
+
+    def test_unknown_ecu_is_error(self, tmp_path, monkeypatch, capsys):
+        self._activate(tmp_path, monkeypatch)
+        clear_cache()
+        rc = cmd_rename(self._rargs(ecu="NOPE", new_name="EPB"))
+        assert rc == 1
+        assert "Unknown ECU" in capsys.readouterr().err
+
+    def test_collision_is_error(self, tmp_path, monkeypatch, capsys):
+        root = self._activate(tmp_path, monkeypatch)
+        register_ecu(0x7D5, "Unknown-7D5", ecus_dir=root / "ecus")
+        register_ecu(0x7E0, "VCU", ecus_dir=root / "ecus")
+        clear_cache()
+        rc = cmd_rename(self._rargs(ecu="Unknown-7D5", new_name="VCU"))
+        assert rc == 1
+        assert "already exists" in capsys.readouterr().err
 
 
 class TestOfflineValidationProfileScoping:

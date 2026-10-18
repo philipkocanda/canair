@@ -1,0 +1,8 @@
+TPMS:
+  tx_id: 0x7D6
+  identity:
+    description: TPMS (Tire Pressure Monitoring System)
+    notes: >-
+      Seeded offline from Ioniq AVN head-unit firmware RE (IONIQ_AVN_FW_FINDINGS.md §2: US
+      telematics diag table maps 0x7D6 -> TPMS). Firmware-derived address, UNCONFIRMED on this car's
+      bus — confirm with canair discover / scan 0x7D6. No PIDs yet.

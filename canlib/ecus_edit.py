@@ -320,6 +320,59 @@ def register_ecu(
     return True
 
 
+def rename_ecu(tx_id: int, new_name: str, *, ecus_dir: Path | None = None) -> Path:
+    """Rename an ECU: rewrite its top-level key and rename ``ecus/<name>.yaml``.
+
+    An ECU's name *is* its single top-level YAML key plus its filename, so a
+    rename touches both. The key is rewritten in place through :func:`_safe_write`
+    (re-parsed, schema-validated, reverted on failure — comments and field order
+    survive), then the file is moved to ``_slug(new_name)`` if the slug changed.
+    The document-leading comment block and every nested comment are preserved.
+
+    Returns the (possibly new) file path. Raises :class:`EcusEditError` if the
+    ECU isn't registered, ``new_name`` is empty, the new name is already the
+    current one, its slug collides with a *different* ECU file, or the file
+    doesn't hold exactly one top-level ECU key.
+    """
+    new_name = (new_name or "").strip()
+    if not new_name:
+        raise EcusEditError("new ECU name must be non-empty")
+
+    disp = tx_key(tx_id)
+    ecus_dir = _resolve_dir(ecus_dir)
+    fpath, old_name = _find_file_by_tx(tx_id, ecus_dir)
+    if fpath is None:
+        raise EcusEditError(f"ECU {disp} not registered; nothing to rename")
+    if new_name == old_name:
+        raise EcusEditError(f"ECU {disp} is already named {new_name!r}")
+
+    new_path = ecus_dir / _slug(new_name)
+    if new_path.exists() and new_path.resolve() != fpath.resolve():
+        raise EcusEditError(
+            f"cannot rename {old_name!r} → {new_name!r}: {new_path.name} already exists"
+        )
+
+    original = fpath.read_text()
+    data = _load_doc(fpath)
+    keys = list(data.keys())
+    if len(keys) != 1 or keys[0] != old_name:
+        raise EcusEditError(
+            f"{fpath.name} must hold exactly one top-level ECU key ({old_name!r}) to rename"
+        )
+
+    # Rewrite the single top-level key, keeping the (comment-bearing) value object.
+    data[new_name] = data[old_name]
+    del data[old_name]
+    # In-place validate+revert first, then move the file (a pure rename can't
+    # invalidate an already-validated document), so a broken edit never leaves a
+    # renamed file behind.
+    _safe_write(fpath, original, data)
+    if new_path.resolve() != fpath.resolve():
+        fpath.rename(new_path)
+        _invalidate()
+    return new_path
+
+
 def set_ecu_fields(
     tx_id: int,
     *,

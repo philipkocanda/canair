@@ -6,8 +6,9 @@
 usage: canair ecu [-h] <kind> ...
 
 [UDS] Inspect or edit the profile's ECU registry.
-  show   list ECUs, or show one ECU's details and PID stats (default)
-  add    register a new ECU in the active profile's ecus/ (offline)
+  show     list ECUs, or show one ECU's details and PID stats (default)
+  add      register a new ECU in the active profile's ecus/ (offline)
+  rename   rename an ECU (rewrites its key and ecus/ file)
 
 A bare `canair ecu` or `canair ecu BMS` is shorthand for `canair ecu show …`.
 
@@ -15,6 +16,7 @@ positional arguments:
   <kind>
     show      List ECUs, or show one ECU's details and PID stats
     add       Register a new ECU in the active profile (offline; no device)
+    rename    Rename an ECU (rewrites its key and ecus/ file)
 
 options:
   -h, --help  show this help message and exit
@@ -29,6 +31,7 @@ options:
   canair ecu BMS --json      # machine-readable
   canair ecu --json          # all ECUs as JSON
   canair ecu HVAC edit       # open HVAC's ecus/ YAML in $EDITOR (TTY only)
+  canair ecu rename Unknown-7D5 EPB   # rename an ECU (rewrites key + file)
 
 Columns & legend:
   BUS    physical CAN bus segment(s) the ECU sits on (profile-specific codes,
@@ -89,6 +92,7 @@ options:
   canair ecu BMS --json      # machine-readable
   canair ecu --json          # all ECUs as JSON
   canair ecu HVAC edit       # open HVAC's ecus/ YAML in $EDITOR (TTY only)
+  canair ecu rename Unknown-7D5 EPB   # rename an ECU (rewrites key + file)
 
 Columns & legend:
   BUS    physical CAN bus segment(s) the ECU sits on (profile-specific codes,
@@ -158,4 +162,26 @@ examples:
   canair ecu add 0x704 --name BMS --rx-id 0x784   # non-standard response addr
   canair ecu add 0x18DB33F1 --name EVC --mode normal_29bit --rx-id 0x18DAF1DB --fc-id 0x18DADBF1
   canair ecu add 770 --name IGPM --notes 'Seeded offline; no PIDs yet'
+```
+
+## `canair ecu rename`
+
+```
+usage: canair ecu rename [-h] [--dir DIR] ECU NEW_NAME
+
+Rename an ECU in the active profile.
+
+An ECU's name is its top-level YAML key plus its ecus/<name>.yaml filename, so this rewrites the key and moves the file. The write is validated and comment-preserving (never hand-edit ecus/). Use it to promote a placeholder (e.g. Unknown-7D5) to a real name once identified.
+
+positional arguments:
+  ECU         ECU to rename: current name, alias, or hex TX/RX id
+  NEW_NAME    New ECU short name
+
+options:
+  -h, --help  show this help message and exit
+  --dir DIR   ecus/ directory (default: active profile)
+
+examples:
+  canair ecu rename Unknown-7D5 EPB
+  canair ecu rename 0x7D5 EPB          # resolve the old ECU by hex id
 ```

@@ -202,13 +202,16 @@ class TestSelfHealing:
     """A wrong count must cost latency, never a lost or corrupted read."""
 
     @pytest.mark.asyncio
-    async def test_a_short_reply_realigns_retries_plain_and_opts_out(self):
+    async def test_a_short_reply_realigns_retries_plain_and_drops_the_digit(self):
         """The whole safety argument in one exchange.
 
-        The response shrinks after the count was learned, so the digit now asks
-        for more frames than arrive. The reply is short, and the caller passed no
+        The digit-bearing read comes back a frame short, and the caller passed no
         ``retries`` — proof the recovery is not funded from the caller's retry
-        budget, which would make the optimization able to consume a read.
+        budget, which would make the optimization able to consume a read. The plain
+        retry then returns the *same* complete length, so this was a frame lost in
+        transit, not a variable response: the digit is dropped for the session, but
+        the durable count is **not** retired (that would delete a verified profile
+        value over one dropped frame — the bug a flaky wican-ws link exposed).
         """
         ch = QueuedChannel(_block(_COMPLETE))
         term = _term(ch)
@@ -222,7 +225,8 @@ class TestSelfHealing:
         assert resp["ok"] is True, "the caller must still get the reading"
         assert ch.drains == 1, "the queued tail must be swept, not left to alias"
         assert ch.sent == ["22C00B\r", "22C00B4\r", "ATI\r", "22C00B\r"]
-        assert term._frame_counts.count_for(_KEY) is None
+        assert term._frame_counts.count_for(_KEY) is None, "digit dropped for the session"
+        assert _KEY not in term._frame_counts.ledger.retired(), "count kept in the profile"
 
     @pytest.mark.asyncio
     async def test_a_negative_response_is_not_the_digit_failing(self):
@@ -262,11 +266,14 @@ class TestSelfHealing:
         assert term._frame_counts.count_for(_KEY) == _FRAMES
 
     @pytest.mark.asyncio
-    async def test_an_adapter_that_rejects_the_nibble_opts_out(self):
+    async def test_an_adapter_that_rejects_the_nibble_drops_the_digit(self):
         """A clone answering `?` must degrade to plain, not fail every read.
 
         And must not pay for a drain doing it: `?` is a complete, prompt-
-        terminated refusal, so nothing is left queued to realign.
+        terminated refusal, so nothing is left queued to realign. The plain retry
+        returns the same complete length, so the count itself is fine — this
+        adapter just can't use the hint — and the durable value stays put for a
+        capable adapter, while the digit is dropped for this session.
         """
         ch = QueuedChannel(_block(_COMPLETE))
         term = _term(ch)
@@ -278,7 +285,8 @@ class TestSelfHealing:
         assert resp["ok"] is True
         assert ch.drains == 0
         assert ch.sent == ["22C00B\r", "22C00B4\r", "22C00B\r"]
-        assert term._frame_counts.count_for(_KEY) is None
+        assert term._frame_counts.count_for(_KEY) is None, "digit dropped for the session"
+        assert _KEY not in term._frame_counts.ledger.retired(), "count kept in the profile"
 
 
 class TestDecisionProcedure:
@@ -358,6 +366,69 @@ class TestDecisionProcedure:
         attempt.command("22C00B")
         assert attempt.verdict(self._ok(6)) == CountVerdict()
         assert cache.count_for((0x7A0, "22C00B")) is None, "opted out"
+
+    def test_a_plain_retry_of_a_different_length_retires_the_count(self):
+        # A COMPLETE plain reply of a different length than the digit asked for is
+        # the only thing that proves the stored count wrong, so it is the only
+        # thing that retires the key and clears the profile value.
+        key = (0x7A0, "22C00B")
+        cache = FrameCountCache()
+        cache.learn(key, 4)
+        attempt = cache.attempt(key)
+        attempt.command("22C00B")
+        attempt.verdict(self._short(2))
+        attempt.command("22C00B")
+        attempt.verdict(self._ok(6))
+        assert key in cache.ledger.retired()
+
+    def test_a_transient_drop_disables_the_digit_but_keeps_the_count(self):
+        # The regression: a digit-bearing read that merely loses a frame in transit
+        # looks identical to an undercount at the moment of failure. The plain
+        # retry returning the SAME length proves it was transient loss, not a
+        # variable response — so the digit is dropped for the session but the
+        # durable count is NOT retired. Deleting a verified profile value over a
+        # dropped frame is exactly the bug a flaky wican-ws link exposed.
+        key = (0x7A0, "22C00B")
+        cache = FrameCountCache()
+        cache.learn(key, 4)
+        attempt = cache.attempt(key)
+        assert attempt.command("22C00B") == "22C00B4"
+        assert attempt.verdict(self._short(2)).retry_plain
+        attempt.command("22C00B")
+        assert attempt.verdict(self._ok(4)) == CountVerdict()
+        assert cache.count_for(key) is None, "digit disabled for the session"
+        assert key not in cache.ledger.retired(), "count NOT cleared from the profile"
+
+    def test_a_transient_drop_does_not_defeat_a_seed_across_reconnect(self):
+        # End-to-end BCM shape: a seeded count hits a dirty pipe, the plain retry
+        # shows the same length, and the seed survives — so a reconnect (a fresh
+        # link) re-applies it and the digit is tried again.
+        key = (0x7A0, "22C00B")
+        cache = FrameCountCache()
+        cache.seed({key: 4})
+        attempt = cache.attempt(key)
+        assert attempt.command("22C00B") == "22C00B4"
+        attempt.verdict(self._short(2))
+        attempt.command("22C00B")
+        attempt.verdict(self._ok(4))
+        assert key not in cache.ledger.retired()
+        cache.reset()
+        assert cache.attempt(key).command("22C00B") == "22C00B4"
+
+    def test_an_nrc_on_the_plain_retry_keeps_the_count(self):
+        # An NRC is a complete answer that simply occupies fewer frames; it proves
+        # nothing about the positive response's length, so it disables the digit
+        # for the session but must not retire the stored count.
+        key = (0x7A0, "22C00B")
+        cache = FrameCountCache()
+        cache.learn(key, 4)
+        attempt = cache.attempt(key)
+        attempt.command("22C00B")
+        attempt.verdict(self._short(2))
+        attempt.command("22C00B")
+        assert attempt.verdict(self._nrc()) == CountVerdict()
+        assert cache.count_for(key) is None, "digit disabled"
+        assert key not in cache.ledger.retired(), "count kept"
 
     def test_a_still_silent_ecu_proves_nothing_and_keeps_the_optimization(self):
         cache = FrameCountCache()

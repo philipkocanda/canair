@@ -15,6 +15,26 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [1.20.0](https://github.com/philipkocanda/canair/compare/v1.19.0...v1.20.0) (2026-08-25)
+
+
+### Added
+
+* **ecu:** `canair ecu rename <ECU> <NEW>` renames a registered ECU — rewriting its top-level YAML key and moving its `ecus/<name>.yaml` file in one validated, comment-preserving edit — so an identified placeholder like `Unknown-7D5` can be promoted to its real name without hand-editing profile data ([b6d4c1f](https://github.com/philipkocanda/canair/commit/b6d4c1fa762f242b985054d0e4e0b1d31a6951c4))
+* **transport:** persist a verified ELM327 expected-response-frame count to the PID in the profile, so it survives the link that measured it and a cold reconnect starts fast instead of re-learning one plain read per PID ([83478f8](https://github.com/philipkocanda/canair/commit/83478f8bb6da2edbc534896972eceeb107e7a91e))
+* **cli:** route a relocated top-level command to its real home so it no longer falls through to the interactive REPL ([ce4724b](https://github.com/philipkocanda/canair/commit/ce4724b6640768064c0df14451ef8235c868f4a0))
+
+
+### Fixed
+
+* **transport:** keep a verified response-frame count through a transient drop on a flaky link, dropping only the session's digit rather than deleting the durable count over one lost frame ([d9ededf](https://github.com/philipkocanda/canair/commit/d9ededfe04043708626ac522779217566ac43ecc))
+
+
+### Documentation
+
+* **ioniq-2017:** identify the EPB (0x7D5) and seed the TPMS (0x7D6) ECU by cross-referencing the AVN head-unit firmware diagnostic-address table against the profile's unregistered ECUs ([70bea96](https://github.com/philipkocanda/canair/commit/70bea96))
+* **ioniq-2017:** document the ECU CAN-bus assignments and expand the AVN firmware research notes ([7d8a977](https://github.com/philipkocanda/canair/commit/7d8a9776d27e9c34c5f0890c1ad4496408b4342f))
+
 ## [1.19.0](https://github.com/philipkocanda/canair/compare/v1.18.1...v1.19.0) (2026-08-10)
 
 

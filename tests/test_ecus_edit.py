@@ -16,6 +16,7 @@ from canlib.ecus_edit import (
     EcusEditError,
     append_scan_log,
     register_ecu,
+    rename_ecu,
     set_addressing,
     set_ecu_fields,
     tx_key,
@@ -100,6 +101,50 @@ class TestRegisterEcu:
     def test_preserves_header_comment(self, ecus_dir):
         register_ecu(0x770, part_number="91950G7510", ecus_dir=ecus_dir)
         assert "hand-authored header comment" in (ecus_dir / "igpm.yaml").read_text()
+
+
+class TestRenameEcu:
+    def test_renames_key_and_file(self, ecus_dir):
+        register_ecu(0x7D5, "Unknown-7D5", ecus_dir=ecus_dir)
+        new_path = rename_ecu(0x7D5, "EPB", ecus_dir=ecus_dir)
+        assert new_path == ecus_dir / "epb.yaml"
+        assert new_path.exists()
+        assert not (ecus_dir / "unknown-7d5.yaml").exists()  # old file gone
+        data = _load_ecu(ecus_dir, "epb.yaml")
+        assert "EPB" in data
+        assert "Unknown-7D5" not in data
+        assert data["EPB"]["tx_id"] == 0x7D5
+
+    def test_preserves_header_comment(self, ecus_dir):
+        # The IGPM seed carries a leading document comment; renaming keeps it.
+        rename_ecu(0x770, "Gateway", ecus_dir=ecus_dir)
+        assert "hand-authored header comment" in (ecus_dir / "gateway.yaml").read_text()
+
+    def test_resolves_old_by_tx(self, ecus_dir):
+        # The caller resolves the selector to a tx_id; rename finds the file by it.
+        rename_ecu(0x770, "Gateway", ecus_dir=ecus_dir)
+        assert _load_ecu(ecus_dir, "gateway.yaml")["Gateway"]["tx_id"] == 0x770
+
+    def test_empty_name_rejected(self, ecus_dir):
+        with pytest.raises(EcusEditError, match="non-empty"):
+            rename_ecu(0x770, "   ", ecus_dir=ecus_dir)
+
+    def test_same_name_rejected(self, ecus_dir):
+        with pytest.raises(EcusEditError, match="already named"):
+            rename_ecu(0x770, "IGPM", ecus_dir=ecus_dir)
+
+    def test_unregistered_rejected(self, ecus_dir):
+        with pytest.raises(EcusEditError, match="not registered"):
+            rename_ecu(0x7E0, "VCU", ecus_dir=ecus_dir)
+
+    def test_collision_with_other_ecu_rejected(self, ecus_dir):
+        # A second ECU already owns the target slug — refuse rather than clobber.
+        register_ecu(0x7E0, "VCU", ecus_dir=ecus_dir)
+        with pytest.raises(EcusEditError, match="already exists"):
+            rename_ecu(0x770, "VCU", ecus_dir=ecus_dir)
+        # The would-be victim and source both survive untouched.
+        assert _load_ecu(ecus_dir, "vcu.yaml")["VCU"]["tx_id"] == 0x7E0
+        assert "IGPM" in _load_ecu(ecus_dir, "igpm.yaml")
 
 
 class TestSetEcuFields:

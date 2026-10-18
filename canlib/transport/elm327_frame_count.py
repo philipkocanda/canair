@@ -117,9 +117,9 @@ class FrameCountCache:
 
         Kept apart from the learned counts so a reconnect can re-apply them: the
         profile's claim outlives the link, unlike a value measured on it. A wrong
-        seed is safe — it takes the same retry-plain/realign/opt-out path as a
-        wrong learned count, costing latency but never a reading, and the opt-out
-        retires the key so the stale value gets cleared from the profile.
+        seed is safe — it takes the same retry-plain/realign path as a wrong
+        learned count, costing latency but never a reading, and is retired from the
+        profile only once a plain reply proves a genuinely different length.
         """
         self._seeded = {k: v for k, v in counts.items() if requestable(k[1], v)}
         self._apply_seed()
@@ -171,16 +171,32 @@ class FrameCountCache:
             return
         self._counts[key] = frames
 
-    def opt_out(self, key: CountKey) -> None:
-        """Stop using a digit for ``key`` for the rest of the session.
+    def disable_digit(self, key: CountKey) -> None:
+        """Stop appending a digit for ``key`` for the rest of *this session*.
 
-        This is the conviction, so it also retires the key in the ledger: the plain
-        retry answered where the digit did not, which means the response length is
-        not the fixed thing a stored count claims it is.
+        A purely session-local safety measure with no bearing on the profile: the
+        digit is risky on a link that just desynced, but a dropped frame is not
+        evidence that the response length varies. The seed is left intact, so a
+        reconnect (a fresh link, via :meth:`reset`) re-applies it and gives the
+        digit another chance; and plain reads keep feeding the ledger
+        (:meth:`observe` ignores the opt-out), so a count that was merely unlucky
+        can still earn its place back.
         """
         self._counts.pop(key, None)
-        self._seeded.pop(key, None)
         self._opted_out.add(key)
+
+    def opt_out(self, key: CountKey) -> None:
+        """Convict ``key``: disable the digit, drop the seed, and retire the count.
+
+        Reserved for proof that the response length is not the fixed thing a stored
+        count claims — a plain reply of a genuinely *different* length. Dropping the
+        seed stops a reconnect resurrecting it, and the ledger conflict clears the
+        stored value from the profile. A transient drop (which looks identical at
+        the moment of failure) must never reach here; that path stops at
+        :meth:`disable_digit`.
+        """
+        self.disable_digit(key)
+        self._seeded.pop(key, None)
         self.ledger.mark_conflict(key)
 
     def confirm(self, key: CountKey, frames: int) -> None:
@@ -232,6 +248,7 @@ class CountAttempt:
     requested: int | None = field(default=None, init=False)
     _force_plain: bool = field(default=False, init=False)
     _diagnosing: bool = field(default=False, init=False)
+    _suspect: int | None = field(default=None, init=False)
 
     def command(self, request: str) -> str:
         """The request to send now — annotated with a digit, or plain."""
@@ -260,6 +277,7 @@ class CountAttempt:
             # can never lose a read.
             self._force_plain = True
             self._diagnosing = True
+            self._suspect = requested
             return CountVerdict(
                 retry_plain=True,
                 realign=resp.get("error_kind") in _DIRTY_PIPE,
@@ -271,12 +289,25 @@ class CountAttempt:
 
         if self._diagnosing:
             self._diagnosing = False
-            if resp.get("ok") or resp.get("nrc") is not None:
-                # The plain form answered where the digit did not, which convicts
-                # the digit: a genuinely variable-length response, or a clone that
-                # rejects the nibble outright. A still-silent ECU proves nothing
-                # and keeps the optimization.
+            plain = resp.get("isotp_frame_count")
+            if resp.get("ok") and plain is not None and plain != self._suspect:
+                # The plain retry returned a COMPLETE response of a *different*
+                # length than the digit asked for. That — and only that — proves
+                # the stored count wrong (a genuinely variable-length response, or
+                # a clone that answers a shorter form when the nibble is rejected),
+                # so it is retired and the profile value cleared.
                 self.cache.opt_out(self.key)
+            elif resp.get("ok") or resp.get("nrc") is not None:
+                # The ECU answered, but not with a different length. A plain reply
+                # of the SAME length means the digit-bearing read merely lost a
+                # frame in transit — a dirty pipe the resync already repaired, not
+                # a variable response — and an NRC proves nothing about the
+                # positive response's length. Stop the digit for this session as a
+                # precaution, but keep the durable count: deleting a verified
+                # profile value over a transient drop is the bug this guards.
+                # Continued silence falls through untouched — it proves nothing, so
+                # the digit stays for the next poll.
+                self.cache.disable_digit(self.key)
         elif requested is not None:
             # A request that *carried* the count came back whole. This is the only
             # direct test of the count there is, and passing it is what promotes the

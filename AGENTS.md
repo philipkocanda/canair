@@ -296,7 +296,10 @@ reuse these instead of re-declaring a flag:
   protocol, addresses, CAN bus, `--states`). `ecu <ECU> pids` lists every PID with its **latest
   decoded state**. **`ecu add TX …`** registers an ECU offline (no device) — the counterpart to
   `discover --register`, and how you seed a known ECU into a blank profile (including a non-standard
-  `--rx-id` or a 29-bit/extended addressing block in one valid write). **`ecu <ECU> edit`** opens
+  `--rx-id` or a 29-bit/extended addressing block in one valid write). **`ecu <ECU> rename NEW`**
+  renames an ECU — its name *is* its top-level YAML key plus its `ecus/<name>.yaml` filename, so the
+  rename rewrites the key and moves the file (validated, comment-preserving); use it to promote a
+  placeholder like `Unknown-7D5` once identified. **`ecu <ECU> edit`** opens
   `$EDITOR` and is **TTY-only — agents cannot drive it**; use `pids …`/`ecu add` instead.
 - **`canair states`** — List/edit the profile's vehicle-state vocabulary (`vehicle_states.yaml`);
   `canair states <STATE>` is the reverse lookup (which ECUs are readable in that state, via
@@ -725,11 +728,18 @@ only confirm the count it asked for); `learn()` **opts out rather than clamping*
 `MAX_REQUESTABLE_FRAMES` (clamping is a deliberate undercount — the Ioniq's `0x7EA:21F2` needs 13
 frames and so must stay unoptimized); a mismatch realigns the pipe on `_DIRTY_PIPE`
 (`drop`/`stale`/`decode` — truncation is precisely the queued-tail case) and retries plain **without
-charging the caller's `retries`**, so the optimization can cost latency but never a reading; and
-opt-out is decided by *attribution*, only when that plain retry actually answers — otherwise a
-transiently silent ECU would permanently deoptimize a healthy PID. An **NRC counts as held** (a
-complete answer that just occupies fewer frames), or every PID an ECU refuses while a session is
-closed would opt out. Plan: `plans/2026-08-09-wican-ws-throughput-ceiling.md`.
+charging the caller's `retries`**, so the optimization can cost latency but never a reading; and the
+plain retry's *length* is the disambiguator between two very different failures. A retry of a
+**different** complete length proves the response genuinely varies, so the count is **retired** —
+`opt_out` clears `response_frames:` from the profile. A **same-length** retry (or an NRC) means the
+digit-bearing read merely lost a frame in transit — a dirty pipe the resync already repaired, not a
+variable response — so only the *session's* digit is dropped (`disable_digit`) and the **durable
+count is kept**; deleting a verified count over one transient drop on a flaky link was a real,
+reported bug. Attribution still gates both: a *transiently silent* ECU (the retry brings neither
+`ok` nor an NRC) proves nothing and keeps the optimization, so one missed read never deoptimizes a
+healthy PID. An **NRC counts as held** (a complete answer that just occupies fewer frames), or every
+PID an ECU refuses while a session is closed would opt out. Plan:
+`plans/2026-08-09-wican-ws-throughput-ceiling.md`.
 
 **A confirmed count is persisted to the profile, so it survives the link that measured it.** The
 learned cache is still per-connection (a count measures one link, and a reconnect may have re-homed

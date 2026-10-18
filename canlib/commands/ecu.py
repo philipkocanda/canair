@@ -17,6 +17,7 @@ Examples:
   canair ecu BMS --json      # machine-readable
   canair ecu --json          # all ECUs as JSON
   canair ecu HVAC edit       # open HVAC's ecus/ YAML in $EDITOR (TTY only)
+  canair ecu rename Unknown-7D5 EPB   # rename an ECU (rewrites key + file)
 
 Columns & legend:
   BUS    physical CAN bus segment(s) the ECU sits on (profile-specific codes,
@@ -722,10 +723,11 @@ def _unknown_ecu(value: str, records: list[dict]) -> int:
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
-        help="Inspect ECUs (list/detail) or add one: show | add",
+        help="Inspect ECUs (list/detail), add one, or rename one: show | add | rename",
         description="Inspect or edit the profile's ECU registry.\n"
-        "  show   list ECUs, or show one ECU's details and PID stats (default)\n"
-        "  add    register a new ECU in the active profile's ecus/ (offline)\n\n"
+        "  show     list ECUs, or show one ECU's details and PID stats (default)\n"
+        "  add      register a new ECU in the active profile's ecus/ (offline)\n"
+        "  rename   rename an ECU (rewrites its key and ecus/ file)\n\n"
         "A bare `canair ecu` or `canair ecu BMS` is shorthand for `canair ecu show …`.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__.split("Examples:")[1] if "Examples:" in __doc__ else "",
@@ -733,6 +735,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     kinds = parser.add_subparsers(dest="ecu_kind", metavar="<kind>")
     _add_show_parser(kinds)
     _add_add_parser(kinds)
+    _add_rename_parser(kinds)
     parser.set_defaults(func=group_help("_ecu_group_parser"), _ecu_group_parser=parser)
     return parser
 
@@ -896,6 +899,50 @@ def cmd_add(args) -> int:
             echo_edit(f"registered {label} ({disp})", fpath)
     else:
         print(f"{ansi.DIM}  {label} ({disp}) already registered; nothing to change.{ansi.RESET}")
+    return 0
+
+
+def _add_rename_parser(kinds) -> argparse.ArgumentParser:
+    parser = kinds.add_parser(
+        "rename",
+        help="Rename an ECU (rewrites its key and ecus/ file)",
+        description="Rename an ECU in the active profile.\n\n"
+        "An ECU's name is its top-level YAML key plus its ecus/<name>.yaml "
+        "filename, so this rewrites the key and moves the file. The write is "
+        "validated and comment-preserving (never hand-edit ecus/). Use it to "
+        "promote a placeholder (e.g. Unknown-7D5) to a real name once identified.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="examples:\n"
+        "  canair ecu rename Unknown-7D5 EPB\n"
+        "  canair ecu rename 0x7D5 EPB          # resolve the old ECU by hex id\n",
+    )
+    parser.add_argument(
+        "ecu", metavar="ECU", help="ECU to rename: current name, alias, or hex TX/RX id"
+    ).completer = _ecu_completer
+    parser.add_argument("new_name", metavar="NEW_NAME", help="New ECU short name")
+    parser.add_argument(
+        "--dir", type=Path, default=None, help="ecus/ directory (default: active profile)"
+    )
+    parser.set_defaults(func=cmd_rename)
+    return parser
+
+
+def cmd_rename(args) -> int:
+    from canlib.ecus_edit import EcusEditError, rename_ecu, tx_key
+
+    tx_id = resolve_tx(args.ecu)
+    if tx_id is None:
+        return _unknown_ecu(args.ecu, _list_records(load_ecus(), load_pids()))
+
+    if args.dir is None:
+        require_writable_definitions()
+    try:
+        new_path = rename_ecu(tx_id, args.new_name, ecus_dir=args.dir)
+    except EcusEditError as e:
+        print(f"{ansi.RED}{e}{ansi.RESET}", file=sys.stderr)
+        return 1
+
+    echo_edit(f"renamed {args.ecu} → {args.new_name} ({tx_key(tx_id)})", new_path)
     return 0
 
 
