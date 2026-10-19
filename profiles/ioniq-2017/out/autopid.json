@@ -8,12 +8,16 @@
       "enabled": true,
       "period": "10000",
       "parameters": {
-        "AMBIENT_TEMP": "(B18-80)/2"
+        "AMBIENT_TEMP": "(B18-80)/2",
+        "HEATER_ELEMENT_TEMP": "S17/2",
+        "HEATSINK_TEMP": "B20-40",
+        "COMPRESSOR_TEMP": "B21-40",
+        "AAF_AUX_BATTERY_VOLTAGE": "B25/10"
       }
     },
     {
       "pid_init": "ATSH7A0;ATFCSH7A0;",
-      "pid": "22C00B",
+      "pid": "22C00B4",
       "enabled": true,
       "period": "15000",
       "parameters": {
@@ -29,7 +33,7 @@
     },
     {
       "pid_init": "ATSH7A0;ATFCSH7A0;",
-      "pid": "22B00E",
+      "pid": "22B00E2",
       "enabled": true,
       "period": "5000",
       "parameters": {
@@ -38,7 +42,7 @@
     },
     {
       "pid_init": "ATSH7E4;ATFCSH7E4;",
-      "pid": "2101",
+      "pid": "21019",
       "enabled": true,
       "period": "1000",
       "parameters": {
@@ -71,7 +75,10 @@
         "CUMULATIVE_CURRENT_DISCHARGED": "((B43<<24)|(B44<<16)|(B45<<8)|B46)/10",
         "OPERATING_TIME": "[B57:B60]/3600",
         "DRIVE_MOTOR_SPEED": "[S65:S66]",
-        "ISOLATION_RESISTANCE": "B69*1000"
+        "ISOLATION_RESISTANCE": "B69*1000",
+        "DEBUG_BMS_STATE_FLAGS": "B14",
+        "BMS_2101_B10": "B10",
+        "BMS_2101_B63": "B63"
       },
       "send_to": {
         "BATTERY_POWER": "wican/ioniq/stream/battery_power"
@@ -79,7 +86,7 @@
     },
     {
       "pid_init": "ATSH7E4;ATFCSH7E4;",
-      "pid": "2105",
+      "pid": "21057",
       "enabled": true,
       "period": "5000",
       "parameters": {
@@ -100,12 +107,14 @@
         "MAX_DETERIORATION_CELL_NO": "B35",
         "MIN_DETERIORATION": "[B36:B37]/10",
         "MIN_DETERIORATION_CELL_NO": "B38",
-        "SOC_DISP": "B39/2"
+        "SOC_DISP": "B39/2",
+        "BMS_DCFC_TICK_COUNTER": "B42",
+        "BMS_2105_B41": "B41"
       }
     },
     {
       "pid_init": "ATSH7E4;ATFCSH7E4;",
-      "pid": "2102",
+      "pid": "21026",
       "enabled": true,
       "period": "10000",
       "parameters": {
@@ -145,7 +154,7 @@
     },
     {
       "pid_init": "ATSH7E4;ATFCSH7E4;",
-      "pid": "2103",
+      "pid": "21036",
       "enabled": true,
       "period": "10000",
       "parameters": {
@@ -185,7 +194,7 @@
     },
     {
       "pid_init": "ATSH7E4;ATFCSH7E4;",
-      "pid": "2104",
+      "pid": "21046",
       "enabled": true,
       "period": "10000",
       "parameters": {
@@ -229,7 +238,8 @@
       "enabled": true,
       "period": "10000",
       "parameters": {
-        "ODOMETER": "[B12:B14]"
+        "ODOMETER": "[B12:B14]",
+        "CLU_B11_TEMP": "B11/2-40"
       }
     },
     {
@@ -238,7 +248,12 @@
       "enabled": true,
       "period": "2500",
       "parameters": {
+        "EPS_0101_STEERING_UNMAPPED": "",
         "EPS_VEHICLE_SPEED": "B14",
+        "EPS_STEERING_TORQUE": "(B12+S13*256)",
+        "EPS_MDPS_ASSIST": "B17",
+        "EPS_STEERING_TORQUE_ALT": "S7",
+        "EPS_SPEED_BAND": "B15",
         "EPS_STEERING_ANGLE": "0-(S9*256+B10)/10"
       }
     },
@@ -254,6 +269,8 @@
         "WHEEL_SPEED_RL": "B20",
         "WHEEL_SPEED_RR": "B21",
         "GEAR_SELECTOR": "B14",
+        "LONG_ACCEL_RAW": "B23-128",
+        "BRAKE_PRESSURE": "B44",
         "STEERING_ANGLE": "([B35:B36]-32768)/10"
       }
     },
@@ -265,7 +282,15 @@
       "parameters": {
         "HVAC_INTERIOR_TEMP": "(B11/2)-40",
         "HVAC_AAT": "(B12/2)-40",
-        "HVAC_HEAT_PUMP_TEMP": "(B13/2)-40"
+        "HVAC_HEAT_PUMP_TEMP": "(B13/2)-40",
+        "HVAC_COMPRESSOR_DUTY": "B15",
+        "HVAC_UNKNOWN_B17": "B17",
+        "HVAC_COMPRESSOR_TRANSITION": "B22",
+        "HVAC_DUCT_TEMP_1": "(B36/2)-40",
+        "HVAC_DUCT_TEMP_2": "(B37/2)-40",
+        "HVAC_HEAT_DEMAND": "B34",
+        "HVAC_ACTUATOR_B14": "B14",
+        "HVAC_ACTUATOR_B35": "B35"
       }
     },
     {
@@ -274,7 +299,12 @@
       "enabled": true,
       "period": "5000",
       "parameters": {
-        "HVAC_COMPRESSOR_ON": "B17"
+        "HVAC_HEAT_EXCHANGER_TEMP": "(B10/2)-40",
+        "HVAC_HEAT_EXCHANGER_TEMP_2": "(B11/2)-40",
+        "HVAC_COMPRESSOR_ON": "B17",
+        "HVAC_COMPRESSOR_ON_MIRROR_B18": "B18",
+        "HVAC_HOTSIDE_TEMP": "B19",
+        "HVAC_COMPRESSOR_ON_MIRROR_B12": "B12"
       }
     },
     {
@@ -286,17 +316,31 @@
         "HVAC_SET_TEMP_DRIVER": "B44",
         "HVAC_SET_TEMP_PASSENGER": "B45",
         "HVAC_ON_FLAG": "B23",
+        "HVAC_STARTUP_FLAG": "B22",
+        "HVAC_COOLING_MODE_B25": "B25",
+        "HVAC_HEAT_MODE": "B06",
+        "HVAC_DEFROST_FLAGS": "(B58 << 8) | B59",
+        "HVAC_ACTUATOR_TARGET_1": "B5",
+        "HVAC_ACTUATOR_TARGET_2": "B7",
+        "HVAC_ACTUATOR_TARGET_3": "B9",
+        "HVAC_ACTUATOR_TARGET_4": "B11",
+        "HVAC_MODE_DOOR_FEEDBACK": "B17",
+        "HVAC_DOOR_FEEDBACK_B13": "B13",
+        "HVAC_DOOR_FEEDBACK_B15": "B15",
+        "HVAC_MOTOR_DRIVE_B47": "B47",
+        "HVAC_MOTOR_DRIVE_B50": "B50",
         "HVAC_BLOWER_FAN_SPEED": "B18"
       }
     },
     {
       "pid_init": "ATSH770;ATFCSH770;",
-      "pid": "22BC07",
+      "pid": "22BC072",
       "enabled": true,
       "period": "5000",
       "parameters": {
         "CHARGE_PORT_LOCK": "B11:7",
-        "CHARGE_PORT_LOCK_INV": "B12:0"
+        "CHARGE_PORT_LOCK_INV": "B12:0",
+        "ACC2_RELATED": "B12:3"
       }
     },
     {
@@ -305,6 +349,7 @@
       "enabled": true,
       "period": "2500",
       "parameters": {
+        "UNKNOWN_B10_6": "B10:6",
         "DOOR_DRV_OPEN": "B10:5",
         "DOOR_PAS_OPEN": "B10:4",
         "DOOR_RL_OPEN": "B10:0",
@@ -317,9 +362,11 @@
         "ACC2_IGN_ON": "B11:5",
         "IGPM_CONFIG_BYTE": "B09",
         "SEATBELT_FL": "B11:1",
+        "SEATBELT_FR": "B11:2",
         "DOOR_LOCK_RL": "B10:1",
         "DOOR_LOCK_RR": "B10:3",
-        "HOOD_OPEN": "B11:0"
+        "HOOD_OPEN": "B11:0",
+        "UNKNOWN_B13_1": "B13:1"
       }
     },
     {
@@ -329,7 +376,8 @@
       "period": "2500",
       "parameters": {
         "DOOR_LOCK_FL": "B10:3",
-        "DOOR_LOCK_FR": "B10:2"
+        "DOOR_LOCK_FR": "B10:2",
+        "IGPM_BC04_B10_0": "B10:0"
       }
     },
     {
@@ -340,21 +388,25 @@
       "parameters": {
         "BRAKE_LIGHT": "B10",
         "LEFT_TURN_SIGNAL": "B11:0",
-        "RIGHT_TURN_SIGNAL": "B11:1"
+        "RIGHT_TURN_SIGNAL": "B11:1",
+        "BRAKE_PEDAL_BITS": "B10:2"
       }
     },
     {
       "pid_init": "ATSH7E3;ATFCSH7E3;",
-      "pid": "2102",
+      "pid": "21029",
       "enabled": true,
       "period": "5000",
       "parameters": {
-        "MCU_MOTOR_RPM": "[S10:S11]"
+        "MCU_MOTOR_RPM": "[S10:S11]",
+        "MCU_MOTOR_TORQUE": "[S12:S13]/100",
+        "MCU_ROTOR_ANGLE": "B9",
+        "MCU_CURRENT_RELATED": "B21"
       }
     },
     {
       "pid_init": "ATSH7E5;ATFCSH7E5;",
-      "pid": "2101",
+      "pid": "21017",
       "enabled": true,
       "period": "5000",
       "parameters": {
@@ -369,39 +421,64 @@
         "OBC_DC_POWER": "[B10:B11]*[B17:B18]/10000000",
         "AC_INPUT_V": "[B14:B15]/100",
         "AC_INPUT_A": "[B33:B34]/100",
-        "OBC_CHARGE_STATE": "B20"
+        "OBC_CHARGE_STATE": "B20",
+        "OBC_EFFICIENCY": "100*[B10:B11]*[B17:B18]/([B14:B15]*[B33:B34])"
       }
     },
     {
       "pid_init": "ATSH7E2;ATFCSH7E2;",
-      "pid": "2101",
+      "pid": "21014",
       "enabled": true,
       "period": "2500",
       "parameters": {
         "VCU_VEHICLE_SPEED": "((S20*256)+B19)*1.609344/100",
+        "ACCEL_PEDAL_DEPTH": "B18/2",
+        "ACCEL_PEDAL_RELATED": "B17",
         "GEAR": "B10",
         "GEAR_P": "B10:0",
         "GEAR_R": "B10:1",
         "GEAR_N": "B10:2",
         "GEAR_D": "B10:3",
+        "DEBUG_VEHICLE_STATE_FLAGS": "B11",
         "VEHICLE_STATE_BRAKE_LAMP": "B11:0",
         "VEHICLE_STATE_NOT_BRAKING": "B11:1",
         "VEHICLE_STATE_EV_READY": "B11:3",
         "VEHICLE_STATE_VCU_READY": "B11:4",
+        "VEHICLE_STATE_LDC_ENABLED": "1-B11:7",
+        "VCU_STATE_FLAGS_RAW": "B12",
         "DEBUG_GEAR_STATE_FLAGS": "B26",
         "VCU_INVERTER_ENABLED": "B23:2",
-        "VCU_POWER_STATE": "B25"
+        "VCU_POWER_STATE": "B25",
+        "VCU_LOAD_INVERSE_B21": "B21",
+        "VCU_INVERTER_ARMED": "B23:4",
+        "GEAR_SIGNAL_VALID": "B10:5"
       }
     },
     {
       "pid_init": "ATSH7E2;ATFCSH7E2;",
-      "pid": "2102",
+      "pid": "21024",
       "enabled": true,
       "period": "5000",
       "parameters": {
         "VCU_INVERTER_INPUT_VOLTAGE": "B17*2",
         "VCU_AUX_BATTERY_VOLTAGE": "B14*0.0974",
+        "VCU_AUX_POWER": "[B22:B23]/10",
+        "VCU_AUX_POWER_COARSE": "B15*10",
+        "VCU_2102_B19": "B19",
+        "VCU_2102_B20": "B20",
+        "VCU_2102_B27": "B27",
+        "VCU_COOLANT_TEMP": "B18-100",
         "VCU_HV_MAIN_RELAY_ON": "B10"
+      }
+    },
+    {
+      "pid_init": "ATSH7E2;ATFCSH7E2;",
+      "pid": "21F2",
+      "enabled": true,
+      "period": "0",
+      "parameters": {
+        "VCU_21F2_B75_COUNTER": "B75",
+        "VCU_ODOMETER": "(B14 | (B15 << 8) | (B17 << 16) | (B18 << 24)) / 256"
       }
     }
   ],
