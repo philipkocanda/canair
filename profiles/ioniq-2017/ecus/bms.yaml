@@ -47,6 +47,7 @@ BMS:
           max: ""
           verified: true
           notes: "Computed from voltage * current. Negative = charging."
+          send_to: wican/ioniq/stream/battery_power
 
         BATTERY_VOLTAGE:
           expression: "[B18:B19]/10"
