@@ -644,6 +644,7 @@ VCU:
           is stored elsewhere — AVN 0x780 (never polled) or the unprobed HVAC 0x7B3 21F2 page.
           To crack the charge-timer packing, do the single-variable A/B on a CHARGE-timer field.
     1A90:
+      response_frames: 3
       parameters:
         VIN:
           expression: "[B04:B22]"

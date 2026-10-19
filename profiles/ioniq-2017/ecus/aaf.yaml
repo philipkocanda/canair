@@ -16,6 +16,7 @@ AAF:
   vehicle_states: [READY, CHARGING]
   pids:
     2180:
+      response_frames: 4
       status: active
       period: 10000
       vehicle_states: [READY, CHARGING]
@@ -84,6 +85,7 @@ AAF:
           notes: >
             Aux 12V battery voltage. B25/10 = 12.9-15.2 V (mean 13.4), r=+0.995 vs VCU:2102 VCU_AUX_BATTERY_VOLTAGE over 61 co-polled pts. CORRECTS an earlier guess that B25 was a (x-80)/2 temperature — it is the 12V rail voltage, /10 V/LSB.
     2181:
+      response_frames: 4
       status: draft
       period: 0
       vehicle_states: [CHARGING]

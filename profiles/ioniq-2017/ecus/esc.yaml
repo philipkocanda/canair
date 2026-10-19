@@ -19,6 +19,7 @@ ESC:
   multi_did: true
   pids:
     22C101:
+      response_frames: 7
       status: active
       period: 2500
       vehicle_states: []

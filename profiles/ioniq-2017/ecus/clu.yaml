@@ -18,6 +18,7 @@ CLU:
   vehicle_states: [ACC, ACC2, READY]
   pids:
     22B002:
+      response_frames: 3
       status: active
       period: 10000
       vehicle_states: [ACC, ACC2, READY]
@@ -45,6 +46,7 @@ CLU:
             cross-ECU ambient-temp match attempted yet.
           enabled: true
     22B001:
+      response_frames: 2
       status: draft
       period: 10000
       vehicle_states: []
@@ -60,6 +62,7 @@ CLU:
           verified: false
           notes: "13 bytes, all zeros when stationary. Purpose unknown. Payload: 62B00100000000000000000000"
     22B003:
+      response_frames: 2
       status: draft
       period: 10000
       vehicle_states: []

@@ -13,6 +13,7 @@ EPS:
   vehicle_states: [ACC, ACC2, READY]
   pids:
     220101:
+      response_frames: 3
       status: active
       period: 2500
       vehicle_states: [READY]
