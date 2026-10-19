@@ -61,14 +61,15 @@ BMS:
           expression: "((S15 << 8) | B17)/10"
           unit: A
           ha_class: current
-          min: "-200"
-          max: "200"
+          min: "-300"
+          max: "300"
           verified: true
           notes: >-
             Signed 16-bit, negative = charging. High byte B15 (signed), PCI at B16, low byte B17 (unsigned).
             Fixed 2026-10-19: the low byte was previously decoded as signed (S17), which shifted every value
             whose low byte is >= 0x80 by -25.6 A (e.g. +15.0 A read as -10.6 A). Only -25.6..0 A (AC charging)
             decoded correctly; HA history had zero positive samples with a low byte >= 0x80 out of 618.
+            Bounds widened to +/-300 A: with the fixed decode, captures reach +276.7 A (95.9 kW at 346.5 V) under hard acceleration.
 
         MAX_CELL_VOLTAGE:
           expression: "B30*0.02"
