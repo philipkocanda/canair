@@ -15,6 +15,27 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [1.21.0](https://github.com/philipkocanda/canair/compare/v1.20.0...v1.21.0) (2026-10-19)
+
+
+### Added
+
+* **wican:** stream a signal to its own MQTT topic on every poll ([208220b](https://github.com/philipkocanda/canair/commit/208220b944a069a1b060d2c1fa55d7c31d1ed7f2))
+
+
+### Fixed
+
+* **ioniq:** decode BMS pack current low byte as unsigned ([e809c51](https://github.com/philipkocanda/canair/commit/e809c5114f99985440e7a9d503e9f019d634830c))
+* **ioniq:** decode ESC LONG_ACCEL_RAW as offset-binary ([7889b22](https://github.com/philipkocanda/canair/commit/7889b22e40005f389ce28f0058a74f23a977f23b))
+* **ioniq:** reclassify VCU 21F2 B75 as a monotonic counter ([7d4bcf7](https://github.com/philipkocanda/canair/commit/7d4bcf77b7c4802c1a333cf0a26365d3487947ee))
+* **ioniq:** widen BMS BATTERY_CURRENT bounds to +/-300 A ([88f13c4](https://github.com/philipkocanda/canair/commit/88f13c48375d3dc2013f14683eb261ee474bafce))
+
+
+### Documentation
+
+* add ioniq avn fw findings ([cb881c3](https://github.com/philipkocanda/canair/commit/cb881c36a2266fc9d0c767eafee58e033326d194))
+* regenerate bundled-profiles index ([4fedcc7](https://github.com/philipkocanda/canair/commit/4fedcc74e1ee82c687a01ac4d5057b173aa2be41))
+
 ## [1.20.0](https://github.com/philipkocanda/canair/compare/v1.19.0...v1.20.0) (2026-08-25)
 
 
