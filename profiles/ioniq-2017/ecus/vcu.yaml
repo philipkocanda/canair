@@ -550,15 +550,24 @@ VCU:
     21F2:
       response_frames: 13
       parameters:
-        CHARGE_TIMER_WKND_END_HOUR:
+        VCU_21F2_B75_COUNTER:
           expression: B75
-          unit: h
+          unit: ""
           min: "0"
-          max: "23"
-          source: "canair before/after 2026-07-28: AVN charge timer set weekends 17:40-20:50, weekdays 01:20-03:40"
+          max: "255"
+          source: canair before/after 2026-07-28 (originally misread as a charge-timer hour); monotonic sweep of all 21F2 captures 2026-07-22..08-15
           verified: false
-          notes: >
-            WiCAN B75 (ISO-TP payload index 0x40). Changed 0x10->0x14 (16->20) on 2026-07-28 charge-schedule reprogram; 0x14=20 = weekend-END hour (20:50). Single before/after point — needs a second value to verify. Rest of schedule packed in B38/B39/B41/B42/B43.
+          notes: >-
+            Probable monotonic event counter (single byte), purpose unknown. NOT a charge-timer
+            hour: it was first defined as CHARGE_TIMER_WKND_END_HOUR because 0x10->0x14 (16->20) on
+            the 2026-07-28 schedule reprogram matched a 20:50 weekend-end timer. Across 157 VCU 21F2
+            captures 2026-07-22..08-15 it only ever rises (16, 20, 21, 22, 23, 26, 27, 28, 29, 30,
+            31), stays flat within a session, and kept climbing with no further timer changes, so it
+            passed the old max of 23 hours. Steps of +1 roughly every 1-3 days, sometimes +3 or +4
+            between captures. The increments do not line up one-to-one with AC or DC charge sessions
+            in HA history, and one +1 (2026-08-08 08:08->10:02) happened with no charging at all, so
+            it may count wake, ignition or drive cycles. Check whether it wraps at 255 or carries
+            into B73/B74.
         VCU_ODOMETER:
           expression: (B14 | (B15 << 8) | (B17 << 16) | (B18 << 24)) / 256
           unit: km
@@ -599,9 +608,11 @@ VCU:
         (09:02/11:15/16:48) yet changed on 07-28 are the config set (WiCAN indexing, incl.
         ISO-TP PCI framing): contiguous B38/B39 + B41/B42/B43 (ISO-TP 0x20-0x24:
         E1 21 CB 65 F3 -> A0 27 D3 D3 F4), plus B75 (ISO-TP 0x40: 0x10 -> 0x14) and a small
-        B11 tick (0x67->0x68, likely counter/checksum). B75=0x14=20 cleanly matches the
-        weekend-END charge-timer hour (20:50) -> strong single-field hit (defined as candidate
-        CHARGE_TIMER_WKND_END_HOUR). The B38-B43 block is the packed schedule payload but does
+        B11 tick (0x67->0x68, likely counter/checksum). B75=0x14=20 looked like the
+        weekend-END charge-timer hour (20:50), but later captures show B75 only ever rises
+        (16 -> 31 by 08-15) with no further reprogramming: it is a counter that happened to tick
+        that day, not part of the schedule (now VCU_21F2_B75_COUNTER). The B38-B43 block is
+        the packed schedule payload but does
         NOT decode as plain hour/minute/temp bytes or BCD, and the raw values 15/16/30 (the
         preconditioning temp/hours/minutes) do NOT appear as any byte in the 07-28 payload ->
         the schedule is bit-packed (and the block likely carries BOTH charge windows AND the
@@ -821,10 +832,10 @@ VCU:
       vehicle_states: [CHARGING]
       created: "2026-07-28"
       updated: "2026-07-30"
-      notes: "Crack the packed charge/precondition-SCHEDULE encoding in VCU 21F2 (WiCAN indexing, incl. ISO-TP PCI: B00/B01=FF PCI, B08/B16/...=CF PCI, SID 0x61 at B02). Config bytes = constant across three 2026-07-22 reads yet changed on 2026-07-28 when BOTH the charge timer AND the two preconditioning schedules were reprogrammed via the AVN/IVI: contiguous B38/B39 + B41/B42/B43 (ISO-TP 0x20-0x24: E1 21 CB 65 F3 -> A0 27 D3 D3 F4) + B75 (ISO-TP 0x40: 0x10 -> 0x14) + a small B11 tick (0x67->0x68, likely counter/checksum). KNOWN 07-28 settings (ground truth, see PID notes): charge timer weekends 17:40-20:50 / weekdays 01:20-03:40; preconditioning ALWAYS exactly TWO: (1) 15 C Thu 15:30, (2) 15 C Thu 16:00. SOLVED so far: B75=0x14=20 = weekend-end HOUR (candidate CHARGE_TIMER_WKND_END_HOUR). UNSOLVED: the B38-B43 block does NOT decode to any schedule value as plain bytes/BCD, and the raw preconditioning numbers 15/16/30 do not appear as any byte in the 07-28 payload -> bit-packed. It likely carries BOTH charge windows and both precondition schedules, so the single 07-28 before/after (where everything changed at once) cannot separate the fields. Live analog bytes to IGNORE: B10,B12,B13,B14,B15,B19,B20,B21,B29-B37,B45,B47,B57."
+      notes: "Crack the packed charge/precondition-SCHEDULE encoding in VCU 21F2 (WiCAN indexing, incl. ISO-TP PCI: B00/B01=FF PCI, B08/B16/...=CF PCI, SID 0x61 at B02). Config bytes = constant across three 2026-07-22 reads yet changed on 2026-07-28 when BOTH the charge timer AND the two preconditioning schedules were reprogrammed via the AVN/IVI: contiguous B38/B39 + B41/B42/B43 (ISO-TP 0x20-0x24: E1 21 CB 65 F3 -> A0 27 D3 D3 F4) + B75 (ISO-TP 0x40: 0x10 -> 0x14) + a small B11 tick (0x67->0x68, likely counter/checksum). KNOWN 07-28 settings (ground truth, see PID notes): charge timer weekends 17:40-20:50 / weekdays 01:20-03:40; preconditioning ALWAYS exactly TWO: (1) 15 C Thu 15:30, (2) 15 C Thu 16:00. B75 (0x10->0x14) is NOT part of the schedule: it is a monotonic counter (16->31 by 2026-08-15, now VCU_21F2_B75_COUNTER) that happened to tick between the two reads. UNSOLVED: the B38-B43 block does NOT decode to any schedule value as plain bytes/BCD, and the raw preconditioning numbers 15/16/30 do not appear as any byte in the 07-28 payload -> bit-packed. It likely carries BOTH charge windows and both precondition schedules, so the single 07-28 before/after (where everything changed at once) cannot separate the fields. Live analog bytes to IGNORE: B10,B12,B13,B14,B15,B19,B20,B21,B29-B37,B45,B47,B57."
       what_to_test:
-        - Capture 21F2 after changing ONLY ONE schedule field at a time (e.g. move only the weekday-start minute, or only precondition schedule 1's minute), diffing each read against the recorded reference state, to attribute individual bits to charge-timer vs preconditioning fields, then map the packing of B38-B43/B75.
-        - Confirm B75 = weekend-end hour by setting a different weekend-end hour and re-reading.
+        - Capture 21F2 after changing ONLY ONE schedule field at a time (e.g. move only the weekday-start minute, or only precondition schedule 1's minute), diffing each read against the recorded reference state, to attribute individual bits to charge-timer vs preconditioning fields, then map the packing of B38-B43.
+        - Identify what VCU_21F2_B75_COUNTER counts: read 21F2 before/after a single wake, ignition cycle, drive and charge session and see which one increments it.
         - Note preconditioning is always exactly 2 schedules — a change from 15:30/16:00 to a distinct pair should move a specific sub-region; use that to locate the precondition block within B38-B43.
       result: >
         2026-07-28 VCU-wide search (07-22 vs 07-28 static-then-changed byte diff across every
