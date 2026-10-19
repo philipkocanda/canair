@@ -46,6 +46,35 @@ cannot carry the digit, or a response longer than 9 frames. PIDs without a
 confirmed count are simply left as they were, so the flag is safe to pass even on
 a partly-decoded profile — read the car some more and re-run to widen coverage.
 
+### Streaming a signal at its poll rate
+
+The WiCAN publishes AutoPID results to MQTT as one batch snapshot (the latest
+value of every signal) on the destination's own timer, which is 10 s unless you
+changed it in the device's AutoPID settings. Polling a PID faster does **not**
+make the broker see it more often. When you need every sample of one signal (to
+average power draw, say), give that signal its own topic with `send_to`:
+
+```bash
+canair pids upsert-param BMS 2101 BATTERY_POWER "<expression>" \
+    --send-to car/stream/battery_power
+canair wican autopid diff      # ~ BATTERY_POWER: send_to (none) → car/stream/battery_power
+canair wican autopid upload
+```
+
+The device then publishes `{"BATTERY_POWER": <value>, "timestamp": <unix seconds>}`
+to that topic **after every successful poll**, at the PID's `period`, alongside the
+normal batch. The message is retained, so the broker keeps the last sample. Pass
+`--send-to ""` to stop streaming a signal.
+
+- A topic must be unique across shipped signals and must not contain `#` or `+`
+  or start or end with `/`. `canair validate pids` checks this.
+- Pick a topic that whatever consumes the batch topic does not also subscribe to,
+  or the stream gets processed a second time as batch data.
+- The payload `timestamp` has whole-second resolution, so stamp samples on
+  receipt if you need sub-second spacing.
+- The batch destination itself (its topic and `cycle`) is device configuration
+  that canair does not manage.
+
 ## Contribute your profile back
 
 **Please do — this is the single most valuable thing you can do for the

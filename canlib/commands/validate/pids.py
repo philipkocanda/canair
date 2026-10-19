@@ -15,6 +15,7 @@ from canlib.decode_value import BYTE_RUN_TYPES as _BYTE_RUN_TYPES
 from canlib.pids import PID_STATUSES
 
 from ._common import EXPR_TOKEN_RE, SCHEMA_FILE
+from .send_to import send_to_findings
 
 
 def load_schema(path: Path = SCHEMA_FILE) -> dict:
@@ -1290,6 +1291,11 @@ def collect_pids_validation(files: list[Path], profile=None) -> tuple[list[str],
         all_warnings.extend(warnings)
         for k in total_stats:
             total_stats[k] += stats[k]
+
+    # Across the given files (so the single-file edit guard catches a bad topic too).
+    errors, warnings = send_to_findings(files)
+    all_errors.extend(errors)
+    all_warnings.extend(warnings)
 
     return all_errors, all_warnings, total_stats
 

@@ -49,6 +49,7 @@ PARAM_FIELD_ORDER = (
     "unit",
     "ha_class",
     "mqtt_topic",
+    "send_to",
     "min",
     "max",
     "source",
@@ -58,6 +59,11 @@ PARAM_FIELD_ORDER = (
     "enabled",
     "display",
 )
+
+# Optional param fields an empty value *removes* rather than writes as ``""``. An empty
+# send_to is not "no destination" to the profile — it fails validation — so clearing a
+# stream must drop the key.
+CLEARABLE_PARAM_FIELDS = ("send_to",)
 
 # Canonical field order for a rendered research entry.
 RESEARCH_FIELD_ORDER = (
@@ -151,6 +157,7 @@ def upsert_parameter(
     unit: str | None = None,
     ha_class: str | None = None,
     mqtt_topic: str | None = None,
+    send_to: str | None = None,
     min: str | None = None,
     max: str | None = None,
     source: str | None = None,
@@ -168,7 +175,8 @@ def upsert_parameter(
 
     New parameters are rendered from the provided fields in canonical order.
     Existing parameters have only the *provided* fields replaced in place
-    (other fields and formatting are preserved). Creates the ``PID`` block
+    (other fields and formatting are preserved); an empty string for a field in
+    :data:`CLEARABLE_PARAM_FIELDS` removes that field instead. Creates the ``PID`` block
     and/or ``parameters:`` map if missing, and scaffolds a whole ``pids:``
     section if the ECU has none yet (upsert is the create path — e.g. a
     freshly registered, PID-less ECU). Requires only that the ECU exists.
@@ -188,6 +196,7 @@ def upsert_parameter(
         "unit": unit,
         "ha_class": ha_class,
         "mqtt_topic": mqtt_topic,
+        "send_to": send_to,
         "min": min,
         "max": max,
         "source": source,
@@ -198,6 +207,9 @@ def upsert_parameter(
         "display": display,
     }
     fields = {k: v for k, v in provided.items() if v is not None}
+    cleared = {k for k in CLEARABLE_PARAM_FIELDS if fields.get(k) == ""}
+    for key in cleared:
+        del fields[key]
 
     fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
     original = fpath.read_text()
@@ -272,6 +284,8 @@ def upsert_parameter(
             e_start = existing[0]
             e_end = existing[3]
             block_text = text[e_start:e_end]
+            for key in cleared:
+                block_text = _remove_field_line(block_text, key, indent=10)
             for key in PARAM_FIELD_ORDER:
                 if key not in fields:
                     continue

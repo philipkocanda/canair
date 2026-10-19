@@ -217,6 +217,7 @@ def cmd_upsert_param(args: argparse.Namespace) -> int:
             unit=args.unit,
             ha_class=args.ha_class,
             mqtt_topic=args.mqtt_topic,
+            send_to=args.send_to,
             min=args.min,
             max=args.max,
             source=args.source,
@@ -598,14 +599,27 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="pids_command", required=True)
 
-    up = sub.add_parser("upsert-param", help="Add or update a parameter")
+    up = sub.add_parser("upsert-param", help="Add or update a signal")
     up.add_argument("ecu")
     up.add_argument("pid")
     up.add_argument("name")
     up.add_argument("expression")
     up.add_argument("--unit")
     up.add_argument("--ha-class", dest="ha_class")
-    up.add_argument("--mqtt-topic", dest="mqtt_topic")
+    up.add_argument(
+        "--mqtt-topic",
+        dest="mqtt_topic",
+        help="Legacy, inert Home Assistant name for the signal (read by no code); "
+        "to stream a signal use --send-to",
+    )
+    up.add_argument(
+        "--send-to",
+        dest="send_to",
+        metavar="TOPIC",
+        help="Full MQTT topic the WiCAN publishes this signal to on every poll, instead of "
+        "only in the AutoPID batch (e.g. wican/car/stream/battery_power). Must be unique "
+        "across shipped signals. Pass an empty string to stop streaming the signal",
+    )
     up.add_argument("--min")
     up.add_argument("--max")
     up.add_argument("--source")
@@ -642,15 +656,15 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     _add_common(up)
     up.set_defaults(_pids_func=cmd_upsert_param)
 
-    rn = sub.add_parser("rename-param", help="Rename a parameter (key only; fields preserved)")
+    rn = sub.add_parser("rename-param", help="Rename a signal (key only; fields preserved)")
     rn.add_argument("ecu")
     rn.add_argument("pid")
-    rn.add_argument("old", help="Current parameter name")
-    rn.add_argument("new", help="New parameter name")
+    rn.add_argument("old", help="Current signal name")
+    rn.add_argument("new", help="New signal name")
     _add_common(rn)
     rn.set_defaults(_pids_func=cmd_rename_param)
 
-    rm = sub.add_parser("rm-param", help="Remove a parameter")
+    rm = sub.add_parser("rm-param", help="Remove a signal")
     rm.add_argument("ecu")
     rm.add_argument("pid")
     rm.add_argument("name")

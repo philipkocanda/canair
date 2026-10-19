@@ -17,17 +17,30 @@ from __future__ import annotations
 
 from collections import OrderedDict
 
+from canlib.autopid_send_to import DEFAULT_TYPE, MQTT_TOPIC_TYPE, topic_problem
 from canlib.pids import pid_status
 from canlib.response_frames import stored_count
 from canlib.transport.elm327_frame_count import annotate_request, requestable
 
 
-class DuplicateParameterError(Exception):
+class ProfileGenerationError(Exception):
+    """The ``ecus/`` definitions cannot be turned into a shippable AutoPID profile."""
+
+
+class DuplicateParameterError(ProfileGenerationError):
     """Two shipped parameters share the same name across the AutoPID profile.
 
     Parameter names become distinct signals/entities on the device, so a
     collision means one silently shadows the other. We refuse to generate such
     a profile rather than ship an ambiguous one.
+    """
+
+
+class InvalidSendToError(ProfileGenerationError):
+    """A shipped signal's ``send_to`` topic is malformed or shared with another signal.
+
+    Two signals on one topic would interleave on a single stream, and a malformed
+    topic is published verbatim by the firmware — so either is refused at generation.
     """
 
 
@@ -84,6 +97,11 @@ def generate_profile(
 
     ``expected_responses`` opts each eligible PID's request into the trailing
     frame-count digit — see :func:`request_with_count` for why it is opt-in.
+
+    A PID entry whose shipped signals stream to their own MQTT topic carries a
+    ``send_to`` map of ``{"SIGNAL_NAME": "topic"}`` alongside ``parameters`` (see
+    :mod:`canlib.autopid_send_to`); the key is omitted when no signal has one, so a
+    profile without streams is unchanged.
     """
     profile = {
         "car_model": data["car_model"],
@@ -94,9 +112,11 @@ def generate_profile(
 
     # Where each shipped parameter name was first seen, so a collision can name
     # both origins. Populated as we build; checked after the full pass so every
-    # duplicate is reported at once.
+    # duplicate is reported at once. The same for send_to topics.
     name_origin: dict[str, str] = {}
     collisions: dict[str, list[str]] = {}
+    topic_origin: dict[str, str] = {}
+    topic_errors: list[str] = []
 
     for ecu_name, ecu in data["ecus"].items():
         tx_id = ecu["tx_id"]
@@ -111,6 +131,7 @@ def generate_profile(
                 continue
 
             parameters = {}
+            send_to = {}
             for param_name, param in pid_data["parameters"].items():
                 if not param.get("enabled", True):
                     continue
@@ -124,22 +145,36 @@ def generate_profile(
                 else:
                     name_origin[param_name] = origin
 
+                if "send_to" not in param:
+                    continue
+                topic = param["send_to"]
+                problem = topic_problem(topic)
+                if problem:
+                    topic_errors.append(f"  '{param_name}' ({origin}): send_to {problem}")
+                elif topic in topic_origin:
+                    topic_errors.append(
+                        f"  '{param_name}' ({origin}): send_to '{topic}' is also used by "
+                        f"'{topic_origin[topic]}'"
+                    )
+                else:
+                    topic_origin[topic] = param_name
+                    send_to[param_name] = topic
+
             if not parameters:
                 continue
 
-            profile["pids"].append(
-                {
-                    "pid_init": pid_init,
-                    "pid": (
-                        request_with_count(pid_code, pid_data)
-                        if expected_responses
-                        else str(pid_code)
-                    ),
-                    "enabled": True,
-                    "period": str(pid_data.get("period", 5000)),
-                    "parameters": parameters,
-                }
-            )
+            entry = {
+                "pid_init": pid_init,
+                "pid": (
+                    request_with_count(pid_code, pid_data) if expected_responses else str(pid_code)
+                ),
+                "enabled": True,
+                "period": str(pid_data.get("period", 5000)),
+                "parameters": parameters,
+            }
+            if send_to:
+                entry["send_to"] = send_to
+            profile["pids"].append(entry)
 
     if collisions:
         lines = [
@@ -150,6 +185,11 @@ def generate_profile(
             "duplicate parameter name(s) in the AutoPID profile — each name must "
             "be unique across all shipped PIDs (they become distinct signals on "
             "the device):\n" + "\n".join(lines)
+        )
+    if topic_errors:
+        raise InvalidSendToError(
+            "invalid send_to topic(s) in the AutoPID profile — each shipped signal's "
+            "topic must be well-formed and unique:\n" + "\n".join(topic_errors)
         )
 
     return profile
@@ -164,6 +204,9 @@ def to_device_format(profile: dict, data: dict | None = None) -> dict:
     Each PID entry must have parameters as an array of objects:
       [{"name": "SOC", "expression": "B09/2", "unit": "%", "class": "battery",
         "period": "5000", "min": "", "max": "", "type": "Default", "send_to": ""}]
+
+    A signal named in the entry's ``send_to`` map is emitted with ``type:
+    MQTT_Topic`` and its topic, so the firmware publishes it on every poll.
 
     The web UI's build system (cars.js process_profile) does this same conversion
     when building vehicle_profiles.json from upstream source files.
@@ -187,9 +230,11 @@ def to_device_format(profile: dict, data: dict | None = None) -> dict:
     }
 
     for pid_entry in profile["pids"]:
+        send_to = pid_entry.get("send_to") or {}
         params_array = []
         for name, expression in pid_entry["parameters"].items():
             meta = param_meta.get(name, {})
+            topic = send_to.get(name, "")
             params_array.append(
                 {
                     "name": name,
@@ -199,8 +244,8 @@ def to_device_format(profile: dict, data: dict | None = None) -> dict:
                     "period": pid_entry.get("period", "5000"),
                     "min": str(meta.get("min", "")) if meta.get("min", "") != "" else "",
                     "max": str(meta.get("max", "")) if meta.get("max", "") != "" else "",
-                    "type": "Default",
-                    "send_to": "",
+                    "type": MQTT_TOPIC_TYPE if topic else DEFAULT_TYPE,
+                    "send_to": topic,
                 }
             )
 
@@ -227,6 +272,10 @@ def normalize_device_profile(device_data: dict) -> dict:
     In both cases, the web UI creates one PID entry per parameter (flat), but
     our upload groups multiple parameters per PID entry. This normalizes
     everything to grouped dict format for diffing.
+
+    A signal the firmware will stream (``type: MQTT_Topic``) lands in the group's
+    ``send_to`` map, mirroring :func:`generate_profile`; a ``send_to`` string under
+    any other type is inert on the device and is dropped.
     """
     if device_data.get("cars"):
         car = device_data["cars"][0]
@@ -244,6 +293,7 @@ def normalize_device_profile(device_data: dict) -> dict:
                 "enabled": entry.get("enabled", True),
                 "period": "5000",
                 "parameters": {},
+                "send_to": {},
             }
 
         params = entry.get("parameters", {})
@@ -255,6 +305,8 @@ def normalize_device_profile(device_data: dict) -> dict:
                 expr = param.get("expression", "")
                 if name:
                     groups[key]["parameters"][name] = expr
+                    if param.get("type") == MQTT_TOPIC_TYPE:
+                        groups[key]["send_to"][name] = param.get("send_to") or ""
                 # Use period from first parameter if available
                 if "period" in param and groups[key]["period"] == "5000":
                     groups[key]["period"] = str(param["period"])
@@ -262,6 +314,10 @@ def normalize_device_profile(device_data: dict) -> dict:
             # Dict format: {NAME: expression}
             for name, expr in params.items():
                 groups[key]["parameters"][name] = expr
+
+    for group in groups.values():
+        if not group["send_to"]:
+            del group["send_to"]
 
     return {
         "car_model": car.get("car_model", ""),

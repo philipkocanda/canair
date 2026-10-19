@@ -918,3 +918,28 @@ class TestLeadingZeroPidKeys:
         add_pid("TESTECU", "2104", status="active", pids_dir=pids_dir)
         text = (pids_dir / "test.yaml").read_text()
         assert "    2104:" in text and '"2104":' not in text
+
+
+class TestUpsertSendTo:
+    def test_sets_send_to_on_a_new_signal(self, pids_dir):
+        upsert_parameter(
+            "TESTECU", "2101", "POWER", "B4", send_to="car/stream/power", pids_dir=pids_dir
+        )
+        assert _params(pids_dir, "2101")["POWER"]["send_to"] == "car/stream/power"
+
+    def test_sets_send_to_on_an_existing_signal(self, pids_dir):
+        upsert_parameter("TESTECU", "2101", "EXISTING", "B3", send_to="car/x", pids_dir=pids_dir)
+        p = _params(pids_dir, "2101")["EXISTING"]
+        assert p["send_to"] == "car/x"
+        assert p["unit"] == "%"  # preserved
+
+    def test_an_empty_value_clears_send_to(self, pids_dir):
+        upsert_parameter("TESTECU", "2101", "EXISTING", "B3", send_to="car/x", pids_dir=pids_dir)
+        upsert_parameter("TESTECU", "2101", "EXISTING", "B3", send_to="", pids_dir=pids_dir)
+        p = _params(pids_dir, "2101")["EXISTING"]
+        assert "send_to" not in p
+        assert p["verified"] is True  # preserved
+
+    def test_an_empty_value_on_a_new_signal_writes_nothing(self, pids_dir):
+        upsert_parameter("TESTECU", "2101", "POWER", "B4", send_to="", pids_dir=pids_dir)
+        assert "send_to" not in _params(pids_dir, "2101")["POWER"]

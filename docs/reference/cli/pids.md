@@ -11,9 +11,9 @@ usage: canair pids [-h]
 
 positional arguments:
   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-pid-status,set-pid-variable-length,set-response-frames,set-pid-notes,set-identity,rm-identity,set-can-bus,set-iocontrol-ranges,set-wake,set-addressing}
-    upsert-param        Add or update a parameter
-    rename-param        Rename a parameter (key only; fields preserved)
-    rm-param            Remove a parameter
+    upsert-param        Add or update a signal
+    rename-param        Rename a signal (key only; fields preserved)
+    rm-param            Remove a signal
     rename-pid          Rename a PID key (e.g. B002 -> 22B002)
     rm-pid              Remove a whole PID (header, status, parameters)
     add-pid             Create a new parameter-less PID (discovery/identity
@@ -64,8 +64,8 @@ options:
 
 ```
 usage: canair pids upsert-param [-h] [--unit UNIT] [--ha-class HA_CLASS]
-                                [--mqtt-topic MQTT_TOPIC] [--min MIN]
-                                [--max MAX] [--source SOURCE]
+                                [--mqtt-topic MQTT_TOPIC] [--send-to TOPIC]
+                                [--min MIN] [--max MAX] [--source SOURCE]
                                 [--source-link URL] [--display DISPLAY]
                                 [--notes NOTES]
                                 [--type {numeric,enum,bitmask,ascii,date,bcd}]
@@ -86,6 +86,13 @@ options:
   --unit UNIT
   --ha-class HA_CLASS
   --mqtt-topic MQTT_TOPIC
+                        Legacy, inert Home Assistant name for the signal (read
+                        by no code); to stream a signal use --send-to
+  --send-to TOPIC       Full MQTT topic the WiCAN publishes this signal to on
+                        every poll, instead of only in the AutoPID batch (e.g.
+                        wican/car/stream/battery_power). Must be unique across
+                        shipped signals. Pass an empty string to stop
+                        streaming the signal
   --min MIN
   --max MAX
   --source SOURCE
@@ -117,8 +124,8 @@ usage: canair pids rename-param [-h] [--dir DIR] [--no-validate]
 positional arguments:
   ecu
   pid
-  old            Current parameter name
-  new            New parameter name
+  old            Current signal name
+  new            New signal name
 
 options:
   -h, --help     show this help message and exit

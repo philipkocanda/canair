@@ -1,6 +1,7 @@
 # Per-signal MQTT streaming from the AutoPID profile
 
-Status: **PROPOSED** (2026-10-18).
+Status: **IMPLEMENTED** (2026-10-19) as option (b), a new `send_to` field. The topic rule is
+`canlib/autopid_send_to.py`. The first use (§6) and the measurement are still to do.
 
 Lets a profile mark individual signals as "publish every poll to this MQTT topic", so a
 high-rate signal such as `BMS:2101:BATTERY_POWER` reaches the broker at its poll rate instead of
@@ -108,6 +109,14 @@ changed `send_to`, so a stale device would report "No differences". Extend the c
 the normalized download view) to include `type`/`send_to`, and print a changed destination as
 `~ CHANGED`.
 
+*As built:* `generate_profile()` gives a PID entry a `send_to: {SIGNAL: topic}` map next to
+`parameters` when at least one of its shipped signals streams. The map is omitted otherwise, so
+`out/autopid.json` is unchanged for a profile without streams. `to_device_format()` reads that
+map, not the YAML metadata, so a written `out/autopid.json` uploads the same streams.
+`normalize_device_profile()` rebuilds the same map from signals with `type: MQTT_Topic`, which
+makes `diff` compare like with like. Generation also refuses a malformed or shared topic
+(`InvalidSendToError`), just as it refuses a duplicate signal name.
+
 ### 4. Validation
 
 - `validate pids`: `send_to` must be a non-empty string without wildcards (`#`, `+`) or
@@ -140,9 +149,16 @@ the prefix check above), keep BMS `2101` at `period: 1000`, upload with
 3. **Publishing is not gated by a change filter.** `webhook_data_mode: changed` applies to
    HTTP/webhook destinations; this plan assumes it does not suppress `publish_parameter_mqtt`.
    Confirm by watching a stream where the value is constant (it was flat at 0.13 kW).
+   *Source check (v4.50p, 2026-10-19):* the only gate before the publish is
+   `autopid_prepare_parameter_value()` (`autopid.c:128`), which drops a non-finite value or one
+   outside the signal's `min`/`max`. There is no change filter, but a sample outside `min`/`max`
+   is silently not streamed. The live check is still worth doing.
 4. **QoS and retain.** `mqtt_publish(topic, payload, 0, 0, 1)` — the argument order and the
    meaning of the trailing `1` should be read in `mqtt.c`; if it retains, each topic keeps only
    its last sample, which is harmless for streaming but visible in a broker UI.
+   *Resolved (v4.50p `main/mqtt.c:638`):* the signature is
+   `mqtt_publish(topic, data, len, qos, retain)`, so a stream is published at QoS 0 and
+   **retained**.
 5. **MQTT backlog under load.** One extra publish per second is small next to the 10 s batch
    (~231 keys), but measure that the batch cadence does not slip.
 

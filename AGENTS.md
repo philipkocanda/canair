@@ -360,9 +360,12 @@ reuse these instead of re-declaring a flag:
   parse, so an undercount's queued tail would silently prefix the next PID's response; the emit path
   therefore goes through `elm327_frame_count.requestable()` and skips anything unproven,
   `variable_length`, over the 9-frame ceiling, or on an odd-length request. `autopid stats` shows a
-  `Frames` column so you can see which PIDs have earned one. `mode set MODE`
-  switches the device protocol and **auto-aligns the config `transport.type`** (`slcan`→`slcan-tcp`,
-  `elm327`→`wican-ws`; `--no-transport` opts out).
+  `Frames` column so you can see which PIDs have earned one. **A signal with `send_to: TOPIC`
+  streams to that MQTT topic on every poll** (emitted as `type: MQTT_Topic`; rule in
+  `canlib/autopid_send_to.py`), because the batch snapshot's `cycle` (10 s default) is **device
+  config canair does not manage** — a faster `period` alone never reaches the broker faster.
+  `mode set MODE` switches the device protocol and **auto-aligns the config `transport.type`**
+  (`slcan`→`slcan-tcp`, `elm327`→`wican-ws`; `--no-transport` opts out).
 - **`canair bix`** — Byte-index converter and payload annotator (WiCAN ↔ ISO-TP ↔ Torque ↔ bix). A
   bare `canair bix` prints a guided overview, `--table` the full table grouped by CAN frame, and
   **`--annotate HEX` (`-a`)** maps a real payload byte-by-byte with a `Role` column (`--ecu`/`--pid`

@@ -5,12 +5,17 @@ shipping gate and duplicate-name rejection) by covering the device-format
 conversion and the device→grouped normalization round-trip.
 """
 
+import pytest
+
 from canlib.autopid_profile import (
+    InvalidSendToError,
     generate_profile,
     make_pid_init,
     normalize_device_profile,
     to_device_format,
 )
+from canlib.autopid_send_to import topic_problem
+from canlib.commands.wican import show_diff
 
 
 def _data():
@@ -181,3 +186,110 @@ class TestExpectedResponseDigit:
         profile = generate_profile(self._with(response_frames=4), expected_responses=True)
         device = to_device_format(profile)
         assert normalize_device_profile(device)["pids"][0]["pid"] == "21014"
+
+
+class TestSendTo:
+    """A signal's ``send_to`` topic: streamed by the firmware on every poll.
+
+    The firmware only publishes a signal per poll when its ``type`` is the exact
+    string ``MQTT_Topic``; everything else parses as ``Default`` and is seen only in
+    the batch snapshot. See plans/2026-10-18-per-signal-mqtt-streaming.md.
+    """
+
+    TOPIC = "car/stream/soc"
+
+    def _data(self, **soc_fields):
+        data = _data()
+        data["ecus"]["BMS"]["pids"]["2101"]["parameters"]["SOC"].update(soc_fields)
+        return data
+
+    def _device_params(self, profile) -> dict:
+        params = to_device_format(profile)["cars"][0]["pids"][0]["parameters"]
+        return {p["name"]: p for p in params}
+
+    def test_a_streamed_signal_is_grouped_under_send_to(self):
+        entry = generate_profile(self._data(send_to=self.TOPIC))["pids"][0]
+        assert entry["send_to"] == {"SOC": self.TOPIC}
+        assert entry["parameters"] == {"SOC": "B09/2", "PACK_V": "[B12:B13]/10"}
+
+    def test_no_stream_leaves_the_entry_unchanged(self):
+        assert "send_to" not in generate_profile(_data())["pids"][0]
+
+    def test_device_format_marks_the_stream_as_mqtt_topic(self):
+        params = self._device_params(generate_profile(self._data(send_to=self.TOPIC)))
+        assert params["SOC"]["type"] == "MQTT_Topic"
+        assert params["SOC"]["send_to"] == self.TOPIC
+
+    def test_device_format_keeps_unstreamed_signals_default(self):
+        # Regression guard for the output before send_to existed.
+        params = self._device_params(generate_profile(self._data(send_to=self.TOPIC)))
+        assert params["PACK_V"]["type"] == "Default"
+        assert params["PACK_V"]["send_to"] == ""
+
+    def test_an_unshipped_signal_carries_no_stream(self):
+        # Verified-only (the default build) drops the unverified PACK_V — and its topic.
+        data = _data()
+        data["ecus"]["BMS"]["pids"]["2101"]["parameters"]["PACK_V"]["send_to"] = "car/v"
+        entry = generate_profile(data, verified_only=True)["pids"][0]
+        assert "send_to" not in entry
+
+    def test_the_stream_round_trips_through_normalization(self):
+        profile = generate_profile(self._data(send_to=self.TOPIC))
+        norm = normalize_device_profile(to_device_format(profile))
+        assert norm["pids"][0]["send_to"] == {"SOC": self.TOPIC}
+
+    def test_an_inert_send_to_under_default_is_not_a_stream(self):
+        # The firmware ignores send_to unless type is MQTT_Topic.
+        device = to_device_format(generate_profile(_data()))
+        device["cars"][0]["pids"][0]["parameters"][0]["send_to"] = "car/x"
+        assert "send_to" not in normalize_device_profile(device)["pids"][0]
+
+    def test_a_malformed_topic_is_refused(self):
+        with pytest.raises(InvalidSendToError, match="wildcard"):
+            generate_profile(self._data(send_to="car/#"))
+
+    def test_a_shared_topic_is_refused(self):
+        data = self._data(send_to=self.TOPIC)
+        data["ecus"]["BMS"]["pids"]["2101"]["parameters"]["PACK_V"]["send_to"] = self.TOPIC
+        with pytest.raises(InvalidSendToError, match="also used by 'SOC'"):
+            generate_profile(data)
+
+
+class TestTopicProblem:
+    @pytest.mark.parametrize("topic", ["car/stream/soc", "soc", "a/b-c_d.e"])
+    def test_accepts(self, topic):
+        assert topic_problem(topic) is None
+
+    @pytest.mark.parametrize(
+        "topic",
+        ["", None, 5, "car/#", "car/+/soc", "/car/soc", "car/soc/", "car//soc", "car/s oc"],
+    )
+    def test_rejects(self, topic):
+        assert topic_problem(topic)
+
+
+class TestDiffSeesSendTo:
+    """``autopid diff`` must not report "No differences" when only a stream changed."""
+
+    def _profile(self, topic=None):
+        data = _data()
+        if topic:
+            data["ecus"]["BMS"]["pids"]["2101"]["parameters"]["SOC"]["send_to"] = topic
+        return generate_profile(data)
+
+    def test_an_added_stream_is_a_change(self, capsys):
+        device = to_device_format(self._profile())
+        assert show_diff(device, self._profile("car/soc")) is True
+        out = capsys.readouterr().out
+        assert "~ CHANGED" in out
+        assert "SOC: send_to (none) → car/soc" in out
+
+    def test_a_removed_stream_is_a_change(self, capsys):
+        device = to_device_format(self._profile("car/soc"))
+        assert show_diff(device, self._profile()) is True
+        assert "SOC: send_to car/soc → (none)" in capsys.readouterr().out
+
+    def test_an_identical_stream_is_no_change(self, capsys):
+        profile = self._profile("car/soc")
+        assert show_diff(to_device_format(profile), profile) is False
+        assert "No differences" in capsys.readouterr().out

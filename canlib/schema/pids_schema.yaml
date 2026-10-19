@@ -375,6 +375,11 @@ optional_param_fields:
   - unit
   - ha_class
   - mqtt_topic
+  - send_to         # Full MQTT topic the WiCAN publishes this signal to on EVERY poll,
+                    #   independent of the AutoPID batch cycle (device config canair does
+                    #   not manage). Unique across shipped signals; no wildcards, no
+                    #   leading/trailing '/'. Rule: canlib/autopid_send_to.py. Unrelated to
+                    #   the inert legacy mqtt_topic (a bare name no code reads).
   - min
   - max
   - source

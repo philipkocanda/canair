@@ -1,5 +1,7 @@
 """Tests for `canair pids` CLI orchestration (snapshot -> edit -> validate gate)."""
 
+import argparse
+
 import pytest
 
 from canlib.commands import pids as cli
@@ -246,3 +248,27 @@ def test_research_verbs_parse_index_and_optional_value():
     assert e.value is None
     f = p.parse_args(["set-research-result", "BCM", "2101", "yo", "--index", "1"])
     assert f.value == "yo" and f.index == 1
+
+
+def _upsert_args(pids_dir, *flags):
+    # Through the real parser, so the --send-to wiring is covered too.
+    parser = argparse.ArgumentParser()
+    cli.add_parser(parser.add_subparsers())
+    argv = ["pids", "upsert-param", "TESTECU", "2101", "POWER", "B10", "--dir", str(pids_dir)]
+    return parser.parse_args([*argv, *flags])
+
+
+def test_upsert_send_to_round_trips(pids_dir):
+    import canlib.yaml_io as yaml_io
+
+    assert cli.cmd_upsert_param(_upsert_args(pids_dir, "--send-to", "car/stream/power")) == 0
+    doc = yaml_io.safe_load((pids_dir / "e.yaml").read_text())
+    assert doc["TESTECU"]["pids"][2101]["parameters"]["POWER"]["send_to"] == "car/stream/power"
+
+
+def test_upsert_reverts_an_invalid_send_to(pids_dir):
+    fp = pids_dir / "e.yaml"
+    original = fp.read_text()
+    with pytest.raises(SystemExit, match="reverted"):
+        cli.cmd_upsert_param(_upsert_args(pids_dir, "--send-to", "car/#"))
+    assert fp.read_text() == original

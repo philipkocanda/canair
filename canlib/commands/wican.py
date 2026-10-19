@@ -42,7 +42,7 @@ except ImportError:
     sys.exit(1)
 
 from canlib.autopid_profile import (
-    DuplicateParameterError,
+    ProfileGenerationError,
     generate_profile,
     normalize_device_profile,
     to_device_format,
@@ -158,28 +158,35 @@ def download_profile(base_url: str) -> dict | None:
         return None
 
 
-def show_diff(current_raw: dict | None, generated: dict) -> bool:
-    """Show parameter-level diff between device and generated profile.
+def _signal_map(profile: dict) -> dict[tuple[str, str], dict[str, tuple[str, str]]]:
+    """``(pid_init, pid) -> {signal: (expression, send_to topic or "")}`` for diffing."""
+    result = {}
+    for entry in profile["pids"]:
+        send_to = entry.get("send_to") or {}
+        result[(entry["pid_init"], entry["pid"])] = {
+            name: (expr, send_to.get(name, "")) for name, expr in entry["parameters"].items()
+        }
+    return result
 
-    Normalizes the device's flat format to grouped format for comparison.
+
+def _describe(signal: tuple[str, str]) -> str:
+    expr, topic = signal
+    return f"{expr}  → {topic}" if topic else expr
+
+
+def show_diff(current_raw: dict | None, generated: dict) -> bool:
+    """Show signal-level diff between device and generated profile.
+
+    Normalizes the device's flat format to grouped format for comparison. A signal
+    differs if its expression or its ``send_to`` stream topic differs.
     Returns True if there are differences.
     """
     if current_raw is None:
         print("\n  No current config to compare (download failed)")
         return True
 
-    current = normalize_device_profile(current_raw)
-
-    # Build lookup: (pid_init, pid) -> {param: expression}
-    def profile_map(profile):
-        result = {}
-        for entry in profile["pids"]:
-            key = (entry["pid_init"], entry["pid"])
-            result[key] = entry["parameters"]
-        return result
-
-    cur_map = profile_map(current)
-    gen_map = profile_map(generated)
+    cur_map = _signal_map(normalize_device_profile(current_raw))
+    gen_map = _signal_map(generated)
 
     all_keys = sorted(set(list(cur_map.keys()) + list(gen_map.keys())))
 
@@ -199,32 +206,38 @@ def show_diff(current_raw: dict | None, generated: dict) -> bool:
             added_pids += 1
             added_params += len(gen_params)
             has_diff = True
-            print(f"\n  + NEW PID: {pid_init} {pid} ({len(gen_params)} params)")
+            print(f"\n  + NEW PID: {pid_init} {pid} ({len(gen_params)} signals)")
             for name in gen_params:
-                print(f"      + {name}: {gen_params[name]}")
+                print(f"      + {name}: {_describe(gen_params[name])}")
             continue
 
         if cur_params and not gen_params:
             removed_pids += 1
             removed_params += len(cur_params)
             has_diff = True
-            print(f"\n  - REMOVED PID: {pid_init} {pid} ({len(cur_params)} params)")
+            print(f"\n  - REMOVED PID: {pid_init} {pid} ({len(cur_params)} signals)")
             for name in cur_params:
-                print(f"      - {name}: {cur_params[name]}")
+                print(f"      - {name}: {_describe(cur_params[name])}")
             continue
 
-        # Both exist — compare parameters
+        # Both exist — compare signals
         all_param_names = sorted(set(list(cur_params.keys()) + list(gen_params.keys())))
         pid_diffs = []
         for name in all_param_names:
             if name not in cur_params:
-                pid_diffs.append(f"      + {name}: {gen_params[name]}")
+                pid_diffs.append(f"      + {name}: {_describe(gen_params[name])}")
                 added_params += 1
             elif name not in gen_params:
-                pid_diffs.append(f"      - {name}: {cur_params[name]}")
+                pid_diffs.append(f"      - {name}: {_describe(cur_params[name])}")
                 removed_params += 1
             elif cur_params[name] != gen_params[name]:
-                pid_diffs.append(f"      ~ {name}: {cur_params[name]} → {gen_params[name]}")
+                (cur_expr, cur_topic), (gen_expr, gen_topic) = cur_params[name], gen_params[name]
+                if cur_expr != gen_expr:
+                    pid_diffs.append(f"      ~ {name}: {cur_expr} → {gen_expr}")
+                if cur_topic != gen_topic:
+                    pid_diffs.append(
+                        f"      ~ {name}: send_to {cur_topic or '(none)'} → {gen_topic or '(none)'}"
+                    )
                 changed_params += 1
 
         if pid_diffs:
@@ -238,7 +251,7 @@ def show_diff(current_raw: dict | None, generated: dict) -> bool:
     else:
         print(
             f"\n  Summary: +{added_pids} PIDs, -{removed_pids} PIDs, "
-            f"+{added_params} params, -{removed_params} params, ~{changed_params} changed"
+            f"+{added_params} signals, -{removed_params} signals, ~{changed_params} changed"
         )
 
     return has_diff
@@ -262,7 +275,7 @@ def upload_profile(base_url: str, device_payload: dict, reboot: bool = False) ->
     try:
         resp = req.post(url, json=device_payload, timeout=WICAN_TIMEOUT)
         resp.raise_for_status()
-        print(f"  Uploaded to {url} — {resp.status_code} ({n_pids} PIDs, {n_params} params)")
+        print(f"  Uploaded to {url} — {resp.status_code} ({n_pids} PIDs, {n_params} signals)")
     except req.RequestException as e:
         print(f"  FAILED to upload to {url}: {e}", file=sys.stderr)
         sys.exit(1)
@@ -558,12 +571,15 @@ def _generate(args) -> tuple[dict, dict]:
     print(f"\nGenerating AutoPID profile{label}...")
     try:
         profile = generate_profile(data, verified_only, expected_responses=counts)
-    except DuplicateParameterError as e:
+    except ProfileGenerationError as e:
         print(f"error: {e}", file=sys.stderr)
         sys.exit(1)
     n_groups = len(profile["pids"])
     n_params = sum(len(p["parameters"]) for p in profile["pids"])
-    print(f"  {n_groups} PID groups, {n_params} parameters")
+    print(f"  {n_groups} PID groups, {n_params} signals")
+    n_streams = sum(len(p.get("send_to") or {}) for p in profile["pids"])
+    if n_streams:
+        print(f"  {n_streams} stream(s) to their own MQTT topic on every poll (send_to)")
     if counts:
         n_counted = sum(1 for p in profile["pids"] if len(p["pid"]) % 2)
         print(f"  {n_counted}/{n_groups} carry an expected-response count")
@@ -593,7 +609,7 @@ def _cmd_autopid_upload(args) -> int:
     device_payload = to_device_format(profile, data)
     n_pids = len(device_payload["cars"][0]["pids"])
     n_dev_params = sum(len(p["parameters"]) for p in device_payload["cars"][0]["pids"])
-    print(f"  {n_pids} PID groups, {n_dev_params} parameters (array-of-objects)")
+    print(f"  {n_pids} PID groups, {n_dev_params} signals (array-of-objects)")
 
     print(f"\nUploading to {base_url}...")
     upload_profile(base_url, device_payload, reboot=args.reboot)
