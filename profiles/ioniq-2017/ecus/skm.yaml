@@ -73,6 +73,7 @@ SKM:
             predating the truncation guard), NOT valid state data.
 
     22B003:
+      response_frames: 4
       status: draft
       period: 10000
       vehicle_states: [SLEEP]
@@ -85,6 +86,7 @@ SKM:
           verified: false
           notes: "27 bytes. Raw: 62B003000000003412900300000000C6A21261000000000F00AAAA"
     22B005:
+      response_frames: 2
       status: draft
       period: 10000
       vehicle_states: [SLEEP]
@@ -97,6 +99,7 @@ SKM:
           verified: false
           notes: "13 bytes. Raw: 62B005FA60900000040000AAAA"
     22B006:
+      response_frames: 4
       status: draft
       period: 10000
       vehicle_states: [SLEEP]
@@ -119,6 +122,7 @@ SKM:
             Redundant mirror of SKM_B006_VAL_A (B10): tracks it within +-1 (B10/B21 = 9C/9B, 9B/9A,
             9A/9A, 9F/9F, A2/A1...). Same unknown analog quantity read twice.
     22B007:
+      response_frames: 3
       status: draft
       period: 10000
       vehicle_states: [SLEEP]
@@ -133,6 +137,7 @@ SKM:
             enum/flag. Meaning unknown; correlate with a physical event (button/fob/door) to
             identify.
     22B008:
+      response_frames: 3
       status: draft
       period: 10000
       vehicle_states: [SLEEP]
@@ -145,6 +150,7 @@ SKM:
           verified: false
           notes: "20 bytes, all zeros. Raw: 62B0080000000000000000000000000000AAAAAA"
     22B009:
+      response_frames: 5
       status: draft
       period: 10000
       vehicle_states: [SLEEP]
@@ -157,6 +163,7 @@ SKM:
           verified: false
           notes: "34 bytes, mostly zeros. Raw: 62B00900000000000000000000000000000000000000..."
     22B00A:
+      response_frames: 3
       status: draft
       period: 10000
       vehicle_states: [SLEEP]
@@ -169,6 +176,7 @@ SKM:
           verified: false
           notes: "20 bytes. Raw: 62B00A0100F038000501080600000040010000AA"
     22B00B:
+      response_frames: 8
       status: draft
       period: 10000
       vehicle_states: [SLEEP]
