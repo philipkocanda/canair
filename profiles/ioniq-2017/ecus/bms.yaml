@@ -25,7 +25,7 @@ BMS:
     2101:
       response_frames: 9
       status: active
-      period: 2500
+      period: 1000
       vehicle_states: [READY, CHARGING]
       parameters:
         SOC_BMS:
