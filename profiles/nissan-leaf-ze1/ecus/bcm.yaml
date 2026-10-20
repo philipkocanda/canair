@@ -17,6 +17,60 @@ BCM:
         0x745): data bytes 0-2 encode wiper, indicator and light switch positions as a lookup of raw
         values (see dalathegreat 2018 poll list). Not decoded here.
 
+  iocontrol:
+    # Actuator frames captured from Nissan CONSULT III USB traffic by PCAutomotive,
+    # presented at Black Hat Asia 2025 (https://i.blackhat.com/Asia-25/Asia-25-Evdokimov-Remote-Exploitation-of-Nissan-Leaf.pdf).
+    # Service 0x30 = KWP2000 InputOutputControlByLocalIdentifier (not UDS 0x2F).
+    # IOCP 0x01/0x02 = shortTermAdjustment ON/ON-alt; 0x00 = returnControlToECU (OFF/release).
+    # All commands are unverified on the ZE1; test with caution.
+    0700:
+      label: Doors lock / unlock
+      verified: false
+      on: "30070001"
+      off: "30070000"
+      notes: >-
+        0x01 = lock, 0x02 = unlock. The 'on' command locks; to unlock send
+        "30070002" manually. Source: PCAutomotive Black Hat Asia 2025.
+      session: true
+      hold: false
+    6900:
+      label: Mirrors fold / unfold
+      verified: false
+      on: "30690001"
+      off: "30690000"
+      notes: >-
+        0x01 = fold (close), 0x02 = unfold (open). The 'on' command folds; to
+        unfold send "30690002" manually. Source: PCAutomotive Black Hat Asia 2025.
+      session: true
+      hold: false
+    2200:
+      label: Horn
+      verified: false
+      on: "30220001"
+      off: "30220000"
+      notes: >-
+        0x01 = horn on; 0x00 = release. Source: PCAutomotive Black Hat Asia 2025.
+      session: true
+      hold: true
+    4520:
+      label: Wiper
+      verified: false
+      on: "30452003"
+      off: "30452000"
+      notes: >-
+        0x03 = wiper actuate. Source: PCAutomotive Black Hat Asia 2025.
+      session: true
+      hold: false
+    3B20:
+      label: Lights
+      verified: false
+      on: "303b2002"
+      off: "303b2000"
+      notes: >-
+        0x02 = lights on. Source: PCAutomotive Black Hat Asia 2025.
+      session: true
+      hold: false
+
   research:
     - type: decode
       target: "2109"
