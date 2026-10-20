@@ -445,11 +445,11 @@
         "VEHICLE_STATE_EV_READY": "B11:3",
         "VEHICLE_STATE_VCU_READY": "B11:4",
         "VEHICLE_STATE_LDC_ENABLED": "1-B11:7",
-        "VCU_STATE_FLAGS_RAW": "B12",
+        "VCU_2101_B12": "B12",
         "DEBUG_GEAR_STATE_FLAGS": "B26",
         "VCU_INVERTER_ENABLED": "B23:2",
         "VCU_POWER_STATE": "B25",
-        "VCU_LOAD_INVERSE_B21": "B21",
+        "VCU_2101_B21": "B21",
         "VCU_INVERTER_ARMED": "B23:4",
         "GEAR_SIGNAL_VALID": "B10:5"
       }
