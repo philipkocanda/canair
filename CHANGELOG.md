@@ -15,6 +15,34 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [1.25.0](https://github.com/philipkocanda/canair/compare/v1.24.0...v1.25.0) (2026-10-20)
+
+
+### Added
+
+* **nissan-leaf-ze1:** add publicly documented ZE1 PIDs and selector groups ([f01adbb](https://github.com/philipkocanda/canair/commit/f01adbb0099af02a52d160004f8ec896d230fd03))
+* **nissan-leaf-ze1:** add publicly documented ZE1 PIDs and selector groups ([2dd4456](https://github.com/philipkocanda/canair/commit/2dd4456c4a42f9053a0d923fa1f69070b84cade6))
+* **search:** find a string, VIN or byte pattern anywhere in the captures ([3eeea55](https://github.com/philipkocanda/canair/commit/3eeea5560387499988de51b5c607b64f25c53d60))
+* **search:** find a string, VIN or byte pattern anywhere in the captures ([a557aac](https://github.com/philipkocanda/canair/commit/a557aacbc59e0f933aab63bda74567c36c459aa5))
+
+
+### Fixed
+
+* **pids:** stop rm-research leaving blank lines behind ([061beae](https://github.com/philipkocanda/canair/commit/061beae36eb2c9278cae4e444f5e453e85a175d3))
+* **pids:** stop rm-research leaving blank lines; fix profiles-index maturity wording ([418786d](https://github.com/philipkocanda/canair/commit/418786d5d7f4847fb3f424eba2d572125692ccb6))
+
+
+### Changed
+
+* **pii:** move VIN and redaction primitives into a textscan leaf ([718d59f](https://github.com/philipkocanda/canair/commit/718d59fd9bbad82a7ce8d43a8110e54b609d4ea4))
+
+
+### Documentation
+
+* **ioniq-2017:** correct profile-level claims outside the PID definitions ([40c7027](https://github.com/philipkocanda/canair/commit/40c702723eb4c5266accc3ce5c38a1369f159628))
+* **profiles:** fix the maturity wording in the bundled-profiles index ([8c017b4](https://github.com/philipkocanda/canair/commit/8c017b4caa9489e67838dc1f48ed9c2a9a32d48b))
+* **profiles:** regenerate the bundled-profiles index for the Leaf ZE1 ([6915fe6](https://github.com/philipkocanda/canair/commit/6915fe647808046bb9d3eedfce5356973b1b54ae))
+
 ## [1.24.0](https://github.com/philipkocanda/canair/compare/v1.23.0...v1.24.0) (2026-10-20)
 
 
