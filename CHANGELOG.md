@@ -15,6 +15,19 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [1.23.0](https://github.com/philipkocanda/canair/compare/v1.22.0...v1.23.0) (2026-10-20)
+
+
+### Added
+
+* **nissan-leaf-ze1:** add a Nissan Leaf ZE1 40 kWh profile ([1afb272](https://github.com/philipkocanda/canair/commit/1afb272a2f10963e75f5579a43b0d912154e3994))
+
+
+### Fixed
+
+* **pids:** keep an unchanged expression byte-for-byte on upsert-param ([1b7e115](https://github.com/philipkocanda/canair/commit/1b7e115c4727711619c34b190c1f72d7e6b6506d))
+* **pids:** quote PID keys the round-trip YAML reader parses as floats ([18f78c9](https://github.com/philipkocanda/canair/commit/18f78c95b273c8c37a250bd5a542bba1f0b5d608))
+
 ## [1.22.0](https://github.com/philipkocanda/canair/compare/v1.21.0...v1.22.0) (2026-10-19)
 
 
