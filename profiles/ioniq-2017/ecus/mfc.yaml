@@ -27,48 +27,17 @@ MFC:
       status: draft
       period: 2500
       vehicle_states: [READY]
-      parameters:
-        MFC_0100_UNKNOWN:
-          expression: ""
-          unit: ""
-          ha_class: ""
-          min: ""
-          max: ""
-          source: "DID scan 2026-04-17"
-          source_links: []
-          verified: false
-          notes: "13 bytes: 620100000102FB010008AAAAAA. ADAS camera status — lane detection, speed sign recognition."
+      notes: "13 bytes: 620100000102FB010008AAAAAA."
     220101:
       status: draft
       period: 2500
       vehicle_states: [READY]
-      parameters:
-        MFC_0101_UNKNOWN:
-          expression: ""
-          unit: ""
-          ha_class: ""
-          min: ""
-          max: ""
-          source: "DID scan 2026-04-17"
-          source_links: []
-          verified: false
-          notes: "4 bytes: 620101FE. Single status byte (0xFE)."
+      notes: "4 bytes: 620101FE."
     220102:
       status: draft
       period: 2500
       vehicle_states: [READY]
-      parameters:
-        MFC_0102_UNKNOWN:
-          expression: ""
-          unit: ""
-          ha_class: ""
-          min: ""
-          max: ""
-          source: "DID scan 2026-04-17"
-          source_links: []
-          verified: false
-          notes: "7 bytes: 620102FB010008. Overlaps with 0100 payload — possibly subset or alternate view."
-
+      notes: "7 bytes: 620102FB010008, the same as bytes 6-12 of 220100."
   research:
     - type: scan
       target: 21 00-20

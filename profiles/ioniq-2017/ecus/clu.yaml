@@ -32,51 +32,28 @@ CLU:
           source: "Original WiCAN config"
           source_links: []
           verified: true
-          notes: "3-byte odometer value"
+          notes: 3-byte odometer in km.
         CLU_B11_TEMP:
           expression: B11/2-40
           unit: degC
           source: 2026-08-08 whole-day byte scan (canair bix confirmed real data byte, just before the [B12:B14] ODOMETER field)
           verified: false
           notes: >-
-            Range 40-47C across 2026-08-08 (09:00-19:00), 7 distinct values, slowly rising through
-            the day incl. both DCFC sessions - too warm to be outside ambient, more likely an
-            internal CLU/cluster electronics temp. Formula is the standard raw/2-40 EV temp
-            convention seen elsewhere in this profile. Physical sensor identity unconfirmed - no
-            cross-ECU ambient-temp match attempted yet.
+            Read 40-47 °C through 2026-08-08, rising slowly across the day; warmer than ambient.
+            Which sensor is unknown.
           enabled: true
     22B001:
       response_frames: 2
       status: draft
       period: 10000
       vehicle_states: []
-      parameters:
-        CLU_B001_UNKNOWN:
-          expression: ""
-          unit: ""
-          ha_class: ""
-          min: ""
-          max: ""
-          source: "DID scan 2026-04-17"
-          source_links: []
-          verified: false
-          notes: "13 bytes, all zeros when stationary. Purpose unknown. Payload: 62B00100000000000000000000"
+      notes: "13 bytes, all 0 when stationary: 62B00100000000000000000000."
     22B003:
       response_frames: 2
       status: draft
       period: 10000
       vehicle_states: []
-      parameters:
-        CLU_B003_UNKNOWN:
-          expression: ""
-          unit: ""
-          ha_class: ""
-          min: ""
-          max: ""
-          source: "DID scan 2026-04-17"
-          source_links: []
-          verified: false
-          notes: "13 bytes. B3=0x88, B7=0x01, rest zeros. Purpose unknown. Payload: 62B00388000000010000000000"
+      notes: "13 bytes: 62B00388000000010000000000."
   research:
     - type: verify
       target: "22B002"

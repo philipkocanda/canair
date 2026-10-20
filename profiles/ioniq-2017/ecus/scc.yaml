@@ -7,9 +7,7 @@ SCC:
     part_number: "96400-G7000"
     boot_sw: "AEev SCC F-CUP 1.00 1.00"
     id_protocol: UDS  # F1xx (3 DIDs)
-    notes: >
-      Smart Cruise Control (front radar). Live data via 220100-0103/0105
-      (mode/target/gap/radar), all still undecoded — needs driving captures.
+    notes: Smart Cruise Control (front radar). Live-data DIDs 220100-0103 and 0105, all undecoded.
   vehicle_states: [ACC, ACC2, READY]
   # UDS service-22 multi-DID batching: verified on-device 2026-07-29 (READY) —
   # SCC answers `22 0100 0101` with `620100 <data> 0101 <data>` and the response
@@ -27,78 +25,27 @@ SCC:
       status: draft
       period: 2500
       vehicle_states: [READY]
-      parameters:
-        SCC_0100_UNKNOWN:
-          expression: ""
-          unit: ""
-          ha_class: ""
-          min: ""
-          max: ""
-          source: "DID scan 2026-04-17"
-          source_links: []
-          verified: false
-          notes: "6 bytes: 620100030200. Likely cruise control mode/state. Needs driving captures."
+      notes: "6 bytes: 620100030200. Not captured while driving."
     220101:
       status: draft
       period: 2500
       vehicle_states: []
-      parameters:
-        SCC_0101_UNKNOWN:
-          expression: ""
-          unit: ""
-          ha_class: ""
-          min: ""
-          max: ""
-          source: "DID scan 2026-04-17"
-          source_links: []
-          verified: false
-          notes: "6 bytes: 620101081401. Possibly target speed or gap setting."
+      notes: "6 bytes: 620101081401. Not captured while driving."
     220102:
       status: draft
       period: 2500
       vehicle_states: []
-      parameters:
-        SCC_0102_UNKNOWN:
-          expression: ""
-          unit: ""
-          ha_class: ""
-          min: ""
-          max: ""
-          source: "DID scan 2026-04-17"
-          source_links: []
-          verified: false
-          notes: "6 bytes: 6201020D000C. Possibly distance or relative speed."
+      notes: "6 bytes: 6201020D000C. Not captured while driving."
     220103:
       status: draft
       period: 2500
       vehicle_states: []
-      parameters:
-        SCC_0103_UNKNOWN:
-          expression: ""
-          unit: ""
-          ha_class: ""
-          min: ""
-          max: ""
-          source: "DID scan 2026-04-17"
-          source_links: []
-          verified: false
-          notes: "7 bytes: 62010328543521. Radar data — target distance or closing speed."
+      notes: "7 bytes: 62010328543521. Not captured while driving."
     220105:
       status: draft
       period: 2500
       vehicle_states: []
-      parameters:
-        SCC_0105_UNKNOWN:
-          expression: ""
-          unit: ""
-          ha_class: ""
-          min: ""
-          max: ""
-          source: "DID scan 2026-04-17"
-          source_links: []
-          verified: false
-          notes: "5 bytes: 6201050307. Status flags."
-
+      notes: "5 bytes: 6201050307. Not captured while driving."
   research:
     - type: scan
       target: 22 0104-0110

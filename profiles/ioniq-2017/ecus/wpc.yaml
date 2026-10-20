@@ -35,7 +35,7 @@ WPC:
           source: "DID scan 2026-04-17"
           source_links: []
           verified: false
-          notes: "Signed 16-bit at B03-B04. Was initially guessed as steering angle — re-examine with phone on/off pad."
+          notes: Signed 16-bit. Meaning unknown.
         WPC_0100_B05_B06:
           expression: "[S05:S06]"
           unit: ""
@@ -45,4 +45,4 @@ WPC:
           source: "DID scan 2026-04-17"
           source_links: []
           verified: false
-          notes: "Signed 16-bit at B05-B06. Was initially guessed as steering rate — re-examine with phone on/off pad."
+          notes: Signed 16-bit. Meaning unknown.

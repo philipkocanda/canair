@@ -49,55 +49,23 @@ SKM:
       status: draft
       period: 10000
       vehicle_states: [SLEEP]
-      notes: >
-        Stable 178-byte block. Reproduces byte-identical across sessions/dates and
-        across states (READY+fob-present 2026-07-22 == SLEEP+fob-absent 2026-07-29),
-        so no observed byte encodes power state or fob presence. Repeated 6-7B motifs
-        suggest a per-key record table / config, not live status. Decoding needs
-        controlled experiments (fob near/far; add/remove a registered key).
-      parameters:
-        SKM_B002_UNKNOWN:
-          expression: ""
-          unit: ""
-          source: "DID scan 2026-04-18; state-contrast 2026-07-29"
-          source_links: []
-          verified: false
-          notes: >
-            178 data bytes (stable). Example (2026-07-29, SLEEP, no fob):
-            62 B0 02 00 00 00 00 3C 0A 46 2C 3F 75 FE FF 1E C8 96 64 FA 14 32 32 05 06
-            14 03 07 32 46 14 1E 1E 1E 2C 3F 75 FE 00 00 00 00 FF FA C8 96 64 96 12 08
-            0F 0A 14 10 0A C8 64 03 0F 3C C8 14 64 28 08 10 10 03 1E ... (repeats/zeros).
-            CORRECTION: the older 2026-04-18 "136-byte" capture is a CORRUPT multi-frame
-            reassembly (same chunks appear REORDERED — dropped/misordered ISO-TP
-            consecutive frames from the fast-sleeping SKM over a ~26-frame read,
-            predating the truncation guard), NOT valid state data.
+      notes: >-
+        178 data bytes, byte-identical across sessions and states (READY with fob 2026-07-22, SLEEP
+        without fob 2026-07-29), with repeating 6-7 byte groups. The 136-byte 2026-04-18 capture is
+        a corrupt reassembly with reordered frames.
 
     22B003:
       response_frames: 4
       status: draft
       period: 10000
       vehicle_states: [SLEEP]
-      parameters:
-        SKM_B003_UNKNOWN:
-          expression: ""
-          unit: ""
-          source: "DID scan 2026-04-18"
-          source_links: []
-          verified: false
-          notes: "27 bytes. Raw: 62B003000000003412900300000000C6A21261000000000F00AAAA"
+      notes: "27 bytes: 62B003000000003412900300000000C6A21261000000000F00AAAA."
     22B005:
       response_frames: 2
       status: draft
       period: 10000
       vehicle_states: [SLEEP]
-      parameters:
-        SKM_B005_UNKNOWN:
-          expression: ""
-          unit: ""
-          source: "DID scan 2026-04-18"
-          source_links: []
-          verified: false
-          notes: "13 bytes. Raw: 62B005FA60900000040000AAAA"
+      notes: "13 bytes: 62B005FA60900000040000AAAA."
     22B006:
       response_frames: 4
       status: draft
@@ -109,18 +77,12 @@ SKM:
           expression: B10
           source: state-contrast analysis 2026-07-29
           verified: false
-          notes: >-
-            Live slow-drift byte at WiCAN B10 (reassembled idx 7). Observed 0x9A-0xA2 across
-            sessions; drifts ~1/reading. Mirrored by SKM_B006_VAL_B (B21). Unknown unit — candidate
-            SKM supply voltage or internal temp; needs a controlled voltage/temp reference to
-            identify.
+          notes: 0x9A-0xA2 across sessions, drifting about 1 per reading.
         SKM_B006_VAL_B:
           expression: B21
           source: state-contrast analysis 2026-07-29
           verified: false
-          notes: >-
-            Redundant mirror of SKM_B006_VAL_A (B10): tracks it within +-1 (B10/B21 = 9C/9B, 9B/9A,
-            9A/9A, 9F/9F, A2/A1...). Same unknown analog quantity read twice.
+          notes: Within 1 of SKM_B006_VAL_A in every capture.
     22B007:
       response_frames: 3
       status: draft
@@ -132,101 +94,31 @@ SKM:
           expression: B11
           source: state-contrast analysis 2026-07-29
           verified: false
-          notes: >-
-            Only varying byte in B007 (WiCAN B11, reassembled idx 8). Observed 0x00 and 0x06 — small
-            enum/flag. Meaning unknown; correlate with a physical event (button/fob/door) to
-            identify.
+          notes: Only 0x00 and 0x06 observed; the only byte in B007 that varies.
     22B008:
       response_frames: 3
       status: draft
       period: 10000
       vehicle_states: [SLEEP]
-      parameters:
-        SKM_B008_UNKNOWN:
-          expression: ""
-          unit: ""
-          source: "DID scan 2026-04-18"
-          source_links: []
-          verified: false
-          notes: "20 bytes, all zeros. Raw: 62B0080000000000000000000000000000AAAAAA"
+      notes: "20 bytes, all 0: 62B0080000000000000000000000000000AAAAAA."
     22B009:
       response_frames: 5
       status: draft
       period: 10000
       vehicle_states: [SLEEP]
-      parameters:
-        SKM_B009_UNKNOWN:
-          expression: ""
-          unit: ""
-          source: "DID scan 2026-04-18"
-          source_links: []
-          verified: false
-          notes: "34 bytes, mostly zeros. Raw: 62B00900000000000000000000000000000000000000..."
+      notes: 34 bytes, mostly 0.
     22B00A:
       response_frames: 3
       status: draft
       period: 10000
       vehicle_states: [SLEEP]
-      parameters:
-        SKM_B00A_UNKNOWN:
-          expression: ""
-          unit: ""
-          source: "DID scan 2026-04-18"
-          source_links: []
-          verified: false
-          notes: "20 bytes. Raw: 62B00A0100F038000501080600000040010000AA"
+      notes: "20 bytes: 62B00A0100F038000501080600000040010000AA."
     22B00B:
       response_frames: 8
       status: draft
       period: 10000
       vehicle_states: [SLEEP]
-      parameters:
-        SKM_B00B_UNKNOWN:
-          expression: ""
-          unit: ""
-          source: "DID scan 2026-04-18"
-          source_links: []
-          verified: false
-          notes: "55 bytes. Raw: 62B00B800000000200000000000000000000000400005319420000000002..."
-
-  # ─── IOControl (service 2F) ──────────────────────────────────────────
-  # Requires extended session (10 03).
-  # CRITICAL: Fob proximity required for relay to physically close.
-  # SKM returns positive UDS response even without fob, but relay doesn't latch.
-  # ACC does NOT latch — relay stays on only while session is held (TesterPresent).
-  # Magic bytes 0A 0A 05 from Kia Soul, confirmed working on Ioniq 2017.
-  # Usage: canair io SKM --did <DID>
-  #
-  # Scan status (2026-04-18):
-  #   B000-B0FF: not scanned (session dropped on B0xx — SKM may sleep mid-scan)
-  #   B100-B1FF: 150/256 responding (returnControl 00 probe). Likely diagnostic test
-  #     points for factory QA — relay drivers, antenna circuits, LED, buzzer, key slot.
-  #     Only B108-B10B are documented individually (relay control with magic bytes).
-  #     First 20 B1xx DIDs added for identification testing.
-  #     Remaining ~130 DIDs not listed — add individually as identified through testing.
-  #
-  # ⚠ SAFETY WARNINGS for unknown B1xx DIDs:
-  #   HIGH RISK:
-  #   - ESCL (steering column lock) — locking without proper key state may require
-  #     dealer tools to unlock. Could physically immobilize the car.
-  #   - Main B+ relay — cutting main power kills OBD port. WiCAN loses connection,
-  #     cannot send OFF command. Need physical car restart.
-  #   - Start contactor — engaging HV contactor unexpectedly could confuse BMS
-  #     or trigger safety interlocks.
-  #   - Immobilizer re-learn — triggering a reset cycle may prevent starting until
-  #     dealer re-programs the key.
-  #   MEDIUM RISK:
-  #   - Door locks — UDS-triggered lock with key inside could lock you out (anti-lockout
-  #     logic may not apply to diagnostic commands).
-  #   - Alarm/siren/horn — annoying, hard to stop if WiCAN connection drops.
-  #   MITIGATION:
-  #   - Always have physical key fob in hand.
-  #   - Keep activations brief — don't hold 03 on unknown DIDs.
-  #   - Test during daytime (horn/siren tolerance).
-  #   - Have someone in the car who can press start button or fob.
-  #   - Skip B101-B103 until identified — likely most dangerous (power/ESCL/immobilizer).
-  #   - Note: B108-B10B proved that UDS positive response ≠ physical actuation without
-  #     fob. Same safety MAY apply to other dangerous DIDs, but don't count on it.
+      notes: 55 bytes, beginning 62B00B800000000200000000000000000000000400005319420000000002.
   iocontrol:
     B108:
       vehicle_states: []

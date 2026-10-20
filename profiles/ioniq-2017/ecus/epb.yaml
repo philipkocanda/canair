@@ -45,22 +45,9 @@ EPB:
       status: draft
       period: 2500
       vehicle_states: [READY]
-      parameters:
-        UNKNOWN_7D5_C101:
-          expression: ""
-          unit: ""
-          ha_class: ""
-          min: ""
-          max: ""
-          source: "DID scan 2026-07-22 (READY)"
-          source_links: []
-          verified: false
-          notes: >
-            27 bytes: 62C101FB180000BD0DFFF4FCFD020001FFFFFFFFFF000026180004.
-            First live-data DID ever found on 0x7D5 (same DID index as ESC 22C101).
-            Signed-looking words (FFF4, FCFD) — likely brake pressure / pedal / accel or a
-            chassis sensor. Captured at standstill in READY; needs a driving/braking capture
-            to decode. Compare byte layout against ESC 0x7D1 22C101 (42 bytes).
+      notes: >-
+        27 bytes at READY, standstill: 62C101FB180000BD0DFFF4FCFD020001FFFFFFFFFF000026180004. The
+        only live-data DID found on 0x7D5.
   research:
     - type: decode
       target: "22C101"

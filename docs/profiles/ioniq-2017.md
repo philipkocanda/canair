@@ -38,7 +38,7 @@ scan logs), which is exactly the shape you're building toward for your own car.
 | Vehicle | 2017 Hyundai Ioniq Electric, 28 kWh, `AE` platform (NL market) | <!-- BEGIN generated-stats -->
 | ECUs mapped | **30** (all registered with identity) |
 | PIDs | **99** active/draft |
-| Parameters | **362** decoded (**231 verified**, 131 unverified/candidate) |
+| Parameters | **339** decoded (**231 verified**, 108 unverified/candidate) |
 | IOControl DIDs | **107** actuators (UDS `0x2F`) |
 | Research backlog | **73** open reverse-engineering leads | <!-- END generated-stats -->
 

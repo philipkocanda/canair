@@ -10,9 +10,7 @@ GSA:
     hw_version: "KOSTAL_HW_G07"
     sw_version: "KOSTAL_SW_G07"
     id_protocol: UDS  # F1xx
-    notes: >-
-      Gear Shift Assembly (Kostal shift-lever module). Responds only to 220100 (all other service
-      21/22 ranges NRC); gear state is better read via VCU 2101 GEAR.
+    notes: Gear Shift Assembly (Kostal shift-lever module). Gear state is read from VCU 2101 GEAR.
   vehicle_states: [ACC, ACC2, READY]
   scan_log: # GSA (gear shift assembly)
     - service: 0x22
@@ -26,25 +24,9 @@ GSA:
       status: draft
       period: 5000
       vehicle_states: [ACC, ACC2, READY]
-      parameters:
-        GSA_0100_UNKNOWN:
-          expression: ""
-          unit: ""
-          ha_class: ""
-          min: ""
-          max: ""
-          source: "DID scan 2026-04-17"
-          source_links: []
-          verified: false
-          notes: |
-            27 bytes. GSA (0x7B6) responds ONLY to 220100 (service 21 and 22 0101-0130 all NRC — scanned 2026-07-20).
-            Two P-gear captures compared:
-              2026-04-17 (P):     620100FF00000080AA010000000000930191940001000000000000
-              2026-07-20 (ACC2,P): 620100FF00000080AA010000000000770176780001000000000000
-            Changed bytes (both in P): B19 0x93->0x77 (147->119), B21 0x91->0x76 (145->118), B22 0x94->0x78 (148->120);
-            B20 constant 0x01. Three clustered values that drifted ~30 between captures (same gear) -> likely
-            shift-lever hall position sensors or temperature, NOT gear. Needs a gear-shift test to decode.
-            NOTE: GSA is the shift-lever assembly — likely holds gear/lever data. Drive mode (Eco/Normal/Sport)
-            button is on the centre console; regen paddles are steering-wheel mounted -> most likely in
-            the cluster (0x7C6) or an SCU/steering-wheel controller (0x7A1/0x7A2 are the DDM/ADM door
-            modules, NOT steering-wheel remotes — corrected 2026-07-27). See TODO "Drive mode + regen" section.
+      notes: >-
+        27 bytes; the only DID GSA answers (service 21 and 22 0101-0130 all NRC, 2026-07-20). In
+        Park on 2026-04-17 and 2026-07-20, B19, B21 and B22 changed from 0x93, 0x91, 0x94 to 0x77,
+        0x76, 0x78; B20 is constant 0x01. Payloads:
+        620100FF00000080AA010000000000930191940001000000000000 and
+        620100FF00000080AA010000000000770176780001000000000000.

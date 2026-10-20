@@ -8,10 +8,9 @@ ESC:
     serial: "GWLK7F01A986826"
     app_sw: "G7"
     id_protocol: UDS  # F1xx (limited — no part number DID)
-    notes: >
-      Electronic Stability Control (ABS/AHB). Exposes vehicle speed and the four
-      individual wheel speeds via 22C101; candidate yaw-rate / accel dynamics
-      still undecoded.
+    notes: >-
+      Electronic Stability Control (ABS/AHB). 22C101 carries vehicle speed, the four wheel speeds,
+      gear, brake pressure and steering angle.
   vehicle_states: [ACC, ACC2, READY]
   # UDS service-22 multi-DID batching: verified on-device 2026-07-29 (READY) —
   # ESC answers `22 C101 C102` with `62C101 <data> C102 <data>` and the response
@@ -34,9 +33,10 @@ ESC:
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/660
           verified: true
-          notes: >
-            ESC vehicle-speed estimate, 1 km/h/bit at ISO-TP 0x09. Verified against 4 wheel speeds (B18-B21, r=+1.000) and driving profile 0-39 km/h. Reads 0 at standstill.
-            UNSIGNED magnitude — reads POSITIVE when reversing (2026-07-26: gear=Reverse segments show +1..2 km/h). This is correct wheel-speed-sensor behaviour, NOT a decode bug: there is no sign and no high byte — the neighbours B10/B11/B13 are constant 0xFF padding (distinct=1). Direction of travel is carried separately by GEAR_SELECTOR (B14). A signed/directional speed must be derived downstream (magnitude x gear-direction); it can't be expressed as single-frame WiCAN arithmetic (no conditional, and the gear enum->sign isn't clean arithmetic).
+          notes: >-
+            1 km/h per LSB. r=+1.000 vs the four wheel speeds; 0 at standstill. Unsigned: positive
+            when reversing (2026-07-26); direction comes from GEAR_SELECTOR. B10, B11 and B13 are
+            constant 0xFF.
         WHEEL_SPEED_FL:
           expression: B18
           unit: km/h
@@ -44,8 +44,10 @@ ESC:
           max: "250"
           source: RE 2026-07-22 driving capture; r=+1.000 vs REAL_SPEED_KMH
           verified: true
-          notes: >
-            Individual wheel speed, 1 km/h/bit. ISO-TP 0x0E. Left/right grouping confirmed (B18/B20 track together = left pair, diverge with B19/B21 in turns). Front/rear within side by Ioniq5/OBDb FL,FR,RL,RR convention — not independently verified.
+          notes: >-
+            1 km/h per LSB. B18 and B20 track together and diverge from B19 and B21 in turns, so
+            they are the left pair; front versus rear follows the Ioniq 5 OBDb order and is not
+            checked.
         WHEEL_SPEED_FR:
           expression: B19
           unit: km/h
@@ -53,8 +55,7 @@ ESC:
           max: "250"
           source: RE 2026-07-22 driving capture; r=+1.000 vs REAL_SPEED_KMH
           verified: true
-          notes: >
-            Individual wheel speed, 1 km/h/bit. ISO-TP 0x0F. Right pair (B19/B21 track together). Front/rear by convention.
+          notes: 1 km/h per LSB. Right pair with B21; front versus rear not checked.
         WHEEL_SPEED_RL:
           expression: B20
           unit: km/h
@@ -62,8 +63,7 @@ ESC:
           max: "250"
           source: RE 2026-07-22 driving capture; r=+1.000 vs REAL_SPEED_KMH
           verified: true
-          notes: >
-            Individual wheel speed, 1 km/h/bit. ISO-TP 0x10. Left pair (B18/B20 track together). Front/rear by convention.
+          notes: 1 km/h per LSB. Left pair with B18; front versus rear not checked.
         WHEEL_SPEED_RR:
           expression: B21
           unit: km/h
@@ -71,8 +71,7 @@ ESC:
           max: "250"
           source: RE 2026-07-22 driving capture; r=+1.000 vs REAL_SPEED_KMH
           verified: true
-          notes: >
-            Individual wheel speed, 1 km/h/bit. ISO-TP 0x11. Right pair (B19/B21 track together). Front/rear by convention.
+          notes: 1 km/h per LSB. Right pair with B19; front versus rear not checked.
         GEAR_SELECTOR:
           expression: B14
           unit: ""
@@ -81,17 +80,8 @@ ESC:
           source: canair investigate/hunt vs VCU:2101:GEAR_P, 2026-07-22 drive; Reverse confirmed 2026-07-26
           verified: true
           notes: >-
-            Transmission range / shifter position echoed on the ESC/ABS module. B14 (ISO-TP data).
-            Sequential PRND encoding 1=Park, 2=Reverse, 4=Drive (3=Neutral assumed, still
-            unobserved). r=-1.000 vs VCU:2101:GEAR_P over the 2026-07-22 drive (fit park->1,
-            drive->4). VERIFIED 2026-07-26 driveway back-and-forth: value 2 tracked the reverse
-            segments exactly (n=52 while backing up at 17:00:20-43 and 17:01:06-17:03:03), value 4
-            the forward pulls, 1 at rest — real-driving confirmation of R=2/D=4/P=1. NOTE: this is
-            the direction source for vehicle speed (REAL_SPEED_KMH/wheel speeds are unsigned
-            magnitudes). Neutral (expected 3) still needs a capture: 2026-08-06 found that
-            VCU:2101:GEAR_N DID catch Neutral (n=3, 2026-07-19 17:42), but ESC 22C101 was not
-            co-polled that day, so value 3 remains unconfirmed — one co-polled shift through N
-            closes it.
+            1 Park, 2 Reverse, 4 Drive, confirmed on the 2026-07-26 driveway manoeuvres (2 during
+            both reversing segments, n=52). Neutral, expected as 3, has not been captured here.
         LONG_ACCEL_RAW:
           expression: B23-128
           unit: ""
@@ -99,11 +89,11 @@ ESC:
           max: "127"
           source: canair hunt/investigate 2026-07-22 drive
           verified: false
-          notes: >
-            Candidate longitudinal accelerometer / force sensor on the ESC/ABS module. B23 is centered at 127 (min 113, max 139, mean 127.29, median 127 over 381 driving pts) — the structural signature of a signed sensor with 0x7F/0x80 = zero. Moderately tracks acceleration (r=+0.49 vs delta(REAL_SPEED_KMH) at 2.5s join) and accel pedal (r=+0.70 vs VCU ACCEL_PEDAL_DEPTH) but the sign/scale are UNRESOLVED: correlation is unstable across join tolerances (+0.49 at 2.5s, -0.23 at 1.2s) because the sensor changes faster than the ~1s poll, and it also correlates with braking (r=-0.90 vs VCU NOT_BRAKING). Needs a high-rate synced capture with hard accel + hard braking to fix direction and g-scale.
-            Fixed 2026-10-19: was S23-128, which reads the offset-binary byte as signed and then subtracts 128 again,
-            so raw 0x7F/0x80 (the two values either side of zero) decoded as -1 and -256 (range -256..-1 across 2141
-            captures). B23-128 gives a continuous -34..+127 centred on 0.
+          notes: >-
+            Name is unconfirmed. Offset binary centred on 127 (113-139 over 381 driving samples),
+            giving -34 to +127. r=+0.70 vs VCU ACCEL_PEDAL_DEPTH and -0.90 vs VCU NOT_BRAKING; the
+            correlation with acceleration flips sign between 2.5 s and 1.2 s joins. Sign and scale
+            unknown.
         BRAKE_PRESSURE:
           expression: B44
           unit: ""
@@ -111,8 +101,9 @@ ESC:
           max: "255"
           source: canair correlate/decode 2026-07-22 drive
           verified: false
-          notes: >
-            Brake pressure (master-cylinder / wheel-circuit) on the ESC/ABS module. B44 continuous 0-53 (median 0 = off, distinct=32) — NOT a binary lamp. r=+0.973 vs VCU:2101 VEHICLE_STATE_BRAKE_LAMP and -0.973 vs NOT_BRAKING over 124 co-polled pts. At a stop (09:06:38-41) B44 ramps hard as speed hits 0 while the driver holds the pedal. B45 is a near-identical sibling (both 0-53, mean 11.4) — likely the second brake circuit. Raw units (bar/scale TBD); verify with a known brake-force capture.
+          notes: >-
+            Continuous 0-53, median 0. r=+0.973 vs VCU:2101:VEHICLE_STATE_BRAKE_LAMP (n=124). B45
+            reads almost the same. Raw units.
         STEERING_ANGLE:
           expression: ([B35:B36]-32768)/10
           unit: deg
@@ -121,30 +112,16 @@ ESC:
           source: RE 2026-07-26 held-wheel + 2026-07-30 DRIVING steer-sweep; EPS 220101 cross-check
           verified: true
           notes: >-
-            Absolute steering wheel angle sensor (SAS) echoed on ESC/ABS. Big-endian offset-binary
-            16-bit at ISO-TP 0x1D:0x1E (WiCAN B35:B36, both in CAN frame 4 — no PCI between), zero
-            at 0x8000, scale /10 deg. VERIFIED 2026-07-30: over the DRIVING steer-sweep it tracks
-            EPS 220101 EPS_STEERING_ANGLE r=+1.000, both crossing ~0 at centre together (independent
-            ECUs, same SAS) and matching magnitudes across +-90deg; scale and 0x8000 zero confirmed.
-            Holds large non-zero values while stationary => angle, not yaw rate. The 2026-07-26
-            '+24deg at rest' was the wheel parked slightly off-centre, not a zero offset. NOTE: rare
-            ECU init/invalid frames read ~3276deg (raw ~0xFFFx) — filter as out-of-range. Distinct
-            from EPS B12:B13 (fast rate/torque).
+            Big-endian offset binary, zero at 0x8000, 0.1 ° per LSB. r=+1.000 vs EPS_STEERING_ANGLE
+            over a ±90 ° sweep (2026-07-30). Holds its value while stationary. Rare frames read
+            about 3276 ° (raw near 0xFFFF) and are invalid.
     22C102:
       status: draft
       period: 2500
       vehicle_states: []
-      parameters:
-        ESC_C102_UNKNOWN:
-          expression: ""
-          unit: ""
-          ha_class: ""
-          min: ""
-          max: ""
-          source: "DID scan 2026-04-17"
-          source_links: []
-          verified: false
-          notes: "26-27 bytes. 2026-04-17: 62C1023FE00000FFFFFFFFFFFF01010000A9AA000000C0C0D4D400. 2026-07-22 (READY, parked) re-scan: 62C1023FE00000FFFFFFFFFFFF010100009C9C000000C0C0D4D4 — the 16-bit word after '01010000' changed A9AA->9C9C between captures while the 0x3FE0 prefix and 0xC0C0D4D4 tail stayed constant. So that word (ISO-TP ~byte 0x0F-0x10) is a dynamic signal (candidate wheel/ABS sensor), the rest static. Needs a driving capture to decode."
+      notes: >-
+        26-27 bytes. 2026-04-17: 62C1023FE00000FFFFFFFFFFFF01010000A9AA000000C0C0D4D400. 2026-07-22
+        (READY, parked): the word after 01010000 read 9C9C instead of A9AA; the rest was unchanged.
   research:
     - type: decode
       target: "22C101"
