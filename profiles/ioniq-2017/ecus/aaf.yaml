@@ -30,9 +30,9 @@ AAF:
           source: "Original WiCAN config"
           source_links: []
           verified: true
-          notes: >
-            Outside/ambient air temp. Cross-validated vs ITStromer community sheet known-temp rows:
-            10°C→9, 0°C→0.5, 14°C→14. ISO-TP 0x0E (Torque M).
+          notes: >-
+            Matches the ITStromer community sheet rows at known temperatures (10 °C read 9, 0 °C
+            read 0.5, 14 °C read 14).
 
         HEATER_ELEMENT_TEMP:
           expression: "S17/2"
@@ -43,10 +43,9 @@ AAF:
           source: "ITStromer community PID sheet (heating element = signed(l)/2)"
           source_links: []
           verified: false
-          notes: >
-            PTC/heater element temperature. 2026-07-20: from community sheet (signed(l)/2 = signed(B17)/2).
-            Tracks heat setting in the sheet's rows: 8°C (heat set 15.5°C) → 27°C (heat set 30°C); ~19°C with
-            heat off (≈ambient). Live ACC2 (heat off) = 19°C. ISO-TP 0x0D (Torque L).
+          notes: >-
+            Community sheet: 8 °C with heat set to 15.5 °C, 27 °C with heat set to 30 °C, about
+            ambient with heat off. Range 14.5-51 across 3428 captures.
 
         HEATSINK_TEMP:
           expression: "B20-40"
@@ -57,10 +56,7 @@ AAF:
           source: "ITStromer community PID sheet (VMCU heat sink = o-40)"
           source_links: []
           verified: false
-          notes: >
-            EPCU/power-electronics heat-sink temperature (0x7E6 appears to be an EPCU/climate thermal node,
-            not just ambient). 2026-07-20: from community sheet (o-40 = B20-40). Live ACC2 reading was 42°C
-            right after a charge finished — consistent with OBC/inverter warmth cooling down. ISO-TP 0x10.
+          notes: Community sheet. Range 9-70 °C across 3428 captures.
 
         COMPRESSOR_TEMP:
           expression: "B21-40"
@@ -71,9 +67,8 @@ AAF:
           source: "ITStromer community PID sheet (compressor = p-40)"
           source_links: []
           verified: false
-          notes: >
-            A/C compressor temperature. 2026-07-20: from community sheet (p-40 = B21-40). Reads ≈ambient with
-            AC off (live ACC2 = 19°C). Needs an AC-on capture to confirm behaviour. ISO-TP 0x11.
+          notes: >-
+            Community sheet. About ambient with the A/C off; range 12-66 °C across 3428 captures.
 
         AAF_AUX_BATTERY_VOLTAGE:
           expression: B25/10
@@ -82,24 +77,17 @@ AAF:
           max: "16"
           source: canair correlate 2026-07-22 drive
           verified: false
-          notes: >
-            Aux 12V battery voltage. B25/10 = 12.9-15.2 V (mean 13.4), r=+0.995 vs VCU:2102 VCU_AUX_BATTERY_VOLTAGE over 61 co-polled pts. CORRECTS an earlier guess that B25 was a (x-80)/2 temperature — it is the 12V rail voltage, /10 V/LSB.
+          notes: 12 V rail. r=+0.995 vs VCU:2102:VCU_AUX_BATTERY_VOLTAGE (n=61).
     2181:
       response_frames: 4
       status: draft
       period: 0
       vehicle_states: [CHARGING]
+      notes: >-
+        27 bytes, same layout as 2180 with extra populated bytes (B19, B22, B23, B24); answers in
+        ACC2.
       parameters:
-        AAF_2181_UNKNOWN:
-          expression: ""
-          unit: ""
-          source: "DID scan 2026-04-17"
-          source_links: []
-          verified: false
-          notes: >
-            27 bytes, same layout as 2180 but a richer variant (available in ACC2). 2026-07-20 live: identical
-            to 2180 for ambient (B18) and the temp bytes, but exposes extra non-zero bytes where 2180 has zeros
-            (B19, B22, B23, B24 populated). Likely additional temps/status. Payload: 6181FFFFC0002229000000000026778F523B5A5A981306969600 00
+
         AAF_VEHICLE_SPEED_KMH:
           expression: B13
           unit: km/h
@@ -107,10 +95,9 @@ AAF:
           max: "250"
           source: cross-ECU correlation vs ESC REAL_SPEED_KMH, 2026-07-22 drive
           verified: false
-          notes: >
-            Speed km/h. r=0.997 vs ESC 22C101 REAL_SPEED_KMH (66 joined points,
-            2026-07-22 drive; B13 ≈ ESC km/h, e.g. 40 vs 39, 25 vs 26). Companion
-            B12 = MPH. Unverified: scale not checked at high speed.
+          notes: >-
+            r=0.997 vs ESC:22C101:REAL_SPEED_KMH (n=66, 2026-07-22 drive, up to about 40 km/h).
+            Range 0-121 across 4319 captures.
           enabled: true
         AAF_VEHICLE_SPEED_MPH:
           expression: B12
@@ -119,10 +106,7 @@ AAF:
           max: "160"
           source: cross-ECU correlation vs ESC REAL_SPEED_KMH, 2026-07-22 drive
           verified: false
-          notes: >
-            Speed MPH. r=0.997 vs ESC REAL_SPEED_KMH; slope 0.6244 raw/km/h ≈
-            0.6214 km/h→mph, mean residual 0.14 mph. Companion B13 = km/h. Car
-            reports MPH internally (cf. VCU 2101 speed).
+          notes: Slope 0.6244 vs ESC:22C101:REAL_SPEED_KMH (0.6214 expected for mph), r=0.997.
           enabled: true
         AAF_AUX_BATTERY_VOLTAGE:
           expression: B25/10
@@ -131,8 +115,7 @@ AAF:
           max: "16"
           source: canair correlate 2026-07-22 drive
           verified: false
-          notes: >
-            Aux 12V battery voltage. B25/10 = 12.9-15.2 V (mean 13.4), r=+0.995 vs VCU:2102 VCU_AUX_BATTERY_VOLTAGE over 61 co-polled pts. CORRECTS an earlier guess that B25 was a (x-80)/2 temperature — it is the 12V rail voltage, /10 V/LSB.
+          notes: Same byte and scale as AAF:2180:AAF_AUX_BATTERY_VOLTAGE.
         HEATSINK_TEMP:
           expression: B20-40
           unit: °C
@@ -140,8 +123,7 @@ AAF:
           max: "150"
           source: canair correlate 2026-07-22 drive
           verified: false
-          notes: >
-            Inverter heat-sink temperature, mirrors AAF 2180 HEATSINK_TEMP (B20-40). r=+0.987 vs MCU:2102 MCU_INVERTER_TEMP over 61 co-polled driving pts — the AAF (HVAC/thermal ECU) exposes the powertrain-cooling-loop temps.
+          notes: Same byte and scale as AAF:2180:HEATSINK_TEMP.
         MOTOR_COOLANT_TEMP:
           expression: B22-40
           unit: °C
@@ -150,19 +132,9 @@ AAF:
           source: RE 2026-08-05 cross-ECU agreement with VCU:2102 B18-100 (supersedes the 2026-07-22 MCU_TEMP_2 correlation)
           verified: false
           notes: >-
-            Powertrain coolant-loop temperature, B22-40. EVIDENCE REPLACED 2026-08-05: the original
-            basis (r=+0.958 vs MCU:2102 MCU_TEMP_2 over 61 driving points) is VOID — that byte (2102
-            B21) was demoted as not a temperature at all (near-ambient in every state,
-            load-tracking). New, stronger basis: this value is independently reported by VCU:2102
-            B18-100, matching with a constant offset of exactly 100 in 77% of 1729 co-polled rows
-            (rest +/-1..2 poll skew) — two ECUs agreeing on the same physical quantity, which also
-            confirms the -40 offset here. Behaviour over the 3h AC charge: 29->44 C, rising as the
-            OBC/LDC dump heat into the EPCU coolant loop; 34-37 C while driving; 44-47 C soaking
-            after. Distinct from the heat-sink temp (B20) and from the LDC temp (B19, 37-70 C).
-            NAMING CAVEAT: the 'MOTOR' attribution is unconfirmed — the 28 kWh Ioniq has one
-            powertrain coolant loop serving motor/EPCU/OBC/LDC, so which branch this sensor sits on
-            needs a scan tool; VCU's copy is therefore named VCU_COOLANT_TEMP. verified:false for
-            that reason only.
+            Equals VCU:2102:VCU_COOLANT_TEMP - 100 exactly in 77 % of 1729 co-polled rows. Rose 29
+            to 44 °C over a 3 h AC charge; 34-37 °C while driving. The loop also serves the EPCU,
+            OBC and LDC; which branch the sensor sits on is unknown.
         AAF_LDC_TEMP:
           expression: B19-100
           unit: °C
@@ -171,17 +143,8 @@ AAF:
           source: RE 2026-08-05 cross-ECU offset-mirror vs verified OBC LDC_TEMP
           verified: true
           notes: >-
-            LDC (DC-DC converter) temperature, mirrored into the AAF thermal ECU's page. VERIFIED
-            2026-08-05 as the same signal as the VERIFIED OBC:2101 LDC_TEMP: AAF B19 minus OBC
-            LDC_TEMP is exactly 100 in 94.9% of 1729 co-polled rows (remainder +/-1 = round-robin
-            poll skew on a drifting temp). Both ECUs carry it at byte B19 with the same -100 offset,
-            i.e. the identical raw value — a gateway-distributed signal the AAF echoes. Ran 37->70 C
-            over the 3h AC charge (the LDC is the hottest thing in the loop while charging).
-            Redundant with the shipped OBC LDC_TEMP, so enabled:false — kept as a decoded-layout
-            record and an integrity cross-check (cf. VCU_DCLINK_VOLTAGE_COARSE). NOTE: canair
-            correlate --find-mirrors does NOT surface this because it requires exact equality in ALL
-            rows, which poll skew breaks; constant-offset mirrors need the absolute-difference test
-            used here.
+            Same raw value as OBC:2101:LDC_TEMP (equal in 94.9 % of 1729 co-polled rows; the rest
+            differ by 1). Disabled as a duplicate of the OBC signal.
           enabled: false
         AMBIENT_TEMP:
           expression: (B18-80)/2
@@ -191,17 +154,10 @@ AAF:
           source: RE 2026-08-05 cross-ECU offset-mirror vs verified AAF 2180 AMBIENT_TEMP
           verified: true
           notes: >-
-            Ambient (outside air) temperature — the same byte and formula as the VERIFIED AAF:2180
-            AMBIENT_TEMP. VERIFIED 2026-08-05: AAF 2181 B18 equals AAF 2180 B18 exactly in 98.1% of
-            839 co-polled rows (remainder +/-1 = poll skew), and B18 - (2*AMBIENT_TEMP+80) = 0 on
-            the same 98.1%, confirming the (B18-80)/2 scale transfers unchanged. Closes the B18
-            coverage gap on 2181. Redundant with the shipped 2180 copy (2181 is a draft page), so
-            enabled:false. CAUTION: 2180 and 2181 are NOT wholesale duplicates — they share
-            B9/B17/B18/B20/B21/B25 but DIFFER at B19/B22 (2181 carries the LDC temp at B19 and the
-            coolant temp at B22; 2180's same offsets do not match), so each byte must be tested
-            individually rather than assumed to transfer.
+            Equals AAF:2180 B18 in 98.1 % of 839 co-polled rows. Disabled as a duplicate of
+            AAF:2180:AMBIENT_TEMP. 2180 and 2181 differ at B19 and B22.
           enabled: false
-        AAF_CHARGE_ACTIVE:
+        AAF_2181_B27:
           expression: B27
           type: enum
           values:
@@ -209,14 +165,10 @@ AAF:
           source: 2026-08-08 DCFC byte-diff + full-corpus state check
           verified: false
           notes: >-
-            CORRECTED: NOT DC-specific. raw=7 constant across ALL plugged+charging states in the
-            whole corpus (1525 historical AC-charge captures AND the 2026-08-08 16:31:44-16:43:54
-            DCFC session alike) - a general charge-active flag, any charge type. Other values
-            (0,2,5,6; seen across various non-charging READY/PARKED/driving combos, e.g. 2/5/6 in
-            [READY,PARKED] n=309, 0/6 in [READY,ACC2,PARKED] n=108) are unmapped - likely an
-            unrelated flap-duty/thermal mode component, not decoded here.
+            Reads 7 in every charging capture, AC and DC. Otherwise 0, 2, 5 or 6 (4319 captures: 0
+            x1916, 2 x93, 5 x30, 6 x667, 7 x1613).
           enabled: true
-        AAF_OPERATING_MODE:
+        AAF_2181_B15:
           expression: B15
           type: enum
           values:
@@ -226,30 +178,17 @@ AAF:
           source: 2026-08-08 DCFC byte-diff + full-corpus state check
           verified: false
           notes: >-
-            CORRECTED: not a clean charge/drive/park tri-state. raw=0 during EVERY charging state
-            (AC or DC, 1525+ historical + 2026-08-08 DCFC alike) but ALSO 0 in 224/309 plain
-            [READY,PARKED] samples with no charging - so 0 is not charge-specific. raw=52 only seen
-            in narrow states (pure 'ready', or READY+ACC2+PARKED, 8/108 samples) - possibly
-            ignition-on-stationary-briefly. raw=67 seen in states involving DRIVING or
-            driving-adjacent PARKED/READY combos (85/309 and 32/108 samples) - possibly a
-            moving/recently-moved flap duty level. Net: likely a flap-position/duty enum driven by
-            speed+thermal need that happens to read 0 during charging (stationary, low airflow need)
-            rather than a dedicated charge detector. Needs the raw byte re-tested against
-            AAF_VEHICLE_SPEED_KMH/duration-parked, not charge state.
+            Values 0 (2613), 52 (1423), 67 (262), 82 (21) across 4319 captures. 0 in every charging
+            capture, but also in most READY parked ones.
           enabled: true
         AAF_COOLANT_TEMP_2:
           expression: B23-40
-          unit: degC
+          unit: °C
           source: 2026-08-08 DCFC session byte-diff
           verified: false
           notes: >-
-            r=+0.976 vs VCU:2102:VCU_COOLANT_TEMP (same powertrain loop - the pack is air-cooled per
-            BMS notes, so this is NOT battery coolant). Reads a few degC different from AAF's own
-            existing MOTOR_COOLANT_TEMP (B22) in the same PID - candidate second sensor on the same
-            loop (e.g. radiator-side vs motor-side), consistent with AAF needing both supply and
-            return readings to drive the flap. Climbed 36->43C over the 2026-08-08 16:25-16:46
-            DCFC-2 window (heat soak from fast-charge power electronics). Physical sensor location
-            unconfirmed.
+            r=+0.976 vs VCU:2102:VCU_COOLANT_TEMP; reads a few °C off MOTOR_COOLANT_TEMP. Rose 36 to
+            43 °C during the 2026-08-08 DC charge.
           enabled: true
 
   research:
