@@ -919,6 +919,24 @@ class TestLeadingZeroPidKeys:
         text = (pids_dir / "test.yaml").read_text()
         assert "    2104:" in text and '"2104":' not in text
 
+    def test_exponent_shaped_key_quoted(self, pids_dir):
+        # 220E01 is a hex DID PyYAML keeps as a string, but the round-trip reader
+        # (YAML 1.1 mode) parses it as the float 2200.0 — so it must be quoted.
+        from canlib.yaml_rt import round_trip_yaml
+
+        upsert_parameter("TESTECU", "220E01", "ODOMETER", "[B4:B6]", pids_dir=pids_dir)
+        text = (pids_dir / "test.yaml").read_text()
+        assert '"220E01":' in text
+        rt_keys = round_trip_yaml().load(text)["TESTECU"]["pids"]
+        assert "220E01" in [str(k) for k in rt_keys]
+        assert _params(pids_dir, "220E01")["ODOMETER"]["expression"] == "[B4:B6]"
+
+    def test_hex_key_with_letter_e_tail_not_quoted(self, pids_dir):
+        # 220E2E has no numeric exponent, so neither reader mistakes it.
+        add_pid("TESTECU", "220E2E", status="active", pids_dir=pids_dir)
+        text = (pids_dir / "test.yaml").read_text()
+        assert "    220E2E:" in text and '"220E2E":' not in text
+
 
 class TestUpsertSendTo:
     def test_sets_send_to_on_a_new_signal(self, pids_dir):

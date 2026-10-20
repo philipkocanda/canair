@@ -283,14 +283,32 @@ def _needs_key_quoting(key: str) -> bool:
     trip and the edit reverts — unless it's quoted. Keys that already round-trip
     via ``str()`` (``2101`` -> ``2101``) or are non-numeric (``22B004``, ``010C``)
     are left unquoted, so existing profiles don't churn.
+
+    Both readers are consulted because they disagree on exponent-shaped hex codes:
+    PyYAML keeps ``220E01`` a string, but the round-trip reader (YAML 1.1 mode,
+    :func:`canlib.yaml_rt.round_trip_yaml`) reads it as the float ``2200.0`` and
+    warns on every load.
     """
+    import warnings
+
     import yaml
+    from ruamel.yaml.error import YAMLError as RuamelYAMLError
+
+    from ..yaml_rt import round_trip_yaml
 
     try:
         v = yaml.safe_load(key)
     except yaml.YAMLError:
         return True
-    return str(v) != key
+    if str(v) != key:
+        return True
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            rt = round_trip_yaml().load(f"{key}: x\n")
+    except RuamelYAMLError:
+        return True
+    return [str(k) for k in rt] != [key]
 
 
 def _key_token(key: str) -> str:
