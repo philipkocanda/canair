@@ -664,6 +664,13 @@ it is ignored. Resolvers: `canlib/config.py::wican_devices` (authoritative map +
 
 WebSocket terminal: `ws://<ip>/ws` (send `{"ws_mode": "terminal", "terminal_type": "elm327"}`).
 
+**Firmware generation** — everything above is WiCAN firmware **4.x**; the v6 rewrite drops `/ws`,
+the protocol mode and the legacy HTTP routes (plan `plans/2026-10-20-wican-fw-v6-compatibility.md`).
+`canlib/wican_firmware.py` probes the generation (GET-only, memoised per host, honours
+`transport.firmware_check`) and owns the one policy table, `compatibility(info, surface)`, used by
+live connect, `sniff`, `wican mode`/`autopid`, `--reboot` and `canair status`. Gate any new 4.x-only
+call through it, never an ad-hoc version check; the suite stubs its `_fetch` (`tests/conftest.py`).
+
 **Auto-fallback** — when the selected device is unreachable at connect time, canair tries the other
 configured devices (`transport.fallback`, default true; `--no-fallback` per command).
 `transport.connect_timeout` (default 5.0s) is the per-device liveness probe and

@@ -159,6 +159,17 @@ async def async_main(args):
 
     is_elm_tcp = transport.type == "elm327-tcp"
     transport_label = "ELM327/TCP" if is_elm_tcp else "WebSocket"
+
+    # Firmware v6 has no /ws terminal: refuse wican-ws with the working
+    # alternative rather than letting the upgrade fail with a bare 404. On
+    # elm327-tcp the probe is best-effort and only ever adds a note.
+    from canlib.wican_firmware import check, print_verdict
+
+    verdict = check(host, transport.type)
+    print_verdict(verdict)
+    if verdict.refused:
+        return 2
+
     try:
         if is_elm_tcp:
             from canlib.transport import DEFAULT_ELM327_TCP_PORT

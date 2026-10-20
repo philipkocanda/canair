@@ -130,7 +130,8 @@ examples:
     parser.add_argument(
         "--listen-only",
         action="store_true",
-        help="Open the bus silently (no ACK/TX) — pure passive sniff",
+        help="Open the bus silently (no ACK/TX) — pure passive sniff. Refused on WiCAN "
+        "firmware v6, which ignores the SLCAN listen-only command",
     )
     parser.add_argument(
         "--filter",
@@ -177,7 +178,7 @@ def run(args) -> int:
     from canlib.lock_watchdog import LockWatchdog
     from canlib.stop_signals import graceful_stop
     from canlib.transport import resolve_transport
-    from canlib.wican_mode import ModeError, require_protocol
+    from canlib.wican_mode import ModeError, require_protocol, require_slcan_reachable
 
     t = resolve_transport(args)
     host = t.host
@@ -197,9 +198,30 @@ def run(args) -> int:
     port, bitrate = t.resolve_device_defaults(_profile_can_bitrate())
     print(f"  Raw CAN via SLCAN — {host}:{port} @ {bitrate} bps")
 
+    # Firmware v6 ignores SLCAN's listen-only command, so --listen-only cannot be
+    # honoured there; and it has no protocol mode to check, only a setup warning.
+    from canlib.wican_firmware import compatibility, detect, print_verdict
+
+    firmware = detect(host)
+    if args.listen_only:
+        verdict = compatibility(firmware, "sniff-listen-only")
+        if verdict.refused:
+            print_verdict(verdict)
+            return 2
+    print_verdict(compatibility(firmware, "slcan-tcp"))
+
     # No auto-switch: the device must already be in slcan mode.
+    if firmware.generation != "v6":
+        try:
+            require_protocol(host, "slcan", transport_name="slcan-tcp")
+        except ModeError as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 2
+
+    # Same fail-fast data-port check as the other raw commands: a closed or wedged
+    # SLCAN socket otherwise surfaces as a bare connect timeout from the bus.
     try:
-        require_protocol(host, "slcan", transport_name="slcan-tcp")
+        require_slcan_reachable(host, port, firmware=firmware)
     except ModeError as e:
         print(f"error: {e}", file=sys.stderr)
         return 2

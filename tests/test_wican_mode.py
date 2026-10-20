@@ -103,6 +103,7 @@ class TestRequireWsReachable:
         assert "10.0.2.86" in msg
         assert "canair status" in msg
         assert "wican mode set" in msg
+        assert "elm327-tcp" in msg  # the v6 route, since a closed port hides the firmware
         # ...and reports what actually happened (the real OS-level reason).
         assert "refused" in msg
 
@@ -159,6 +160,19 @@ class TestRequireSlcanReachable:
         monkeypatch.setattr(wican_mode, "_tcp_open", fake_open)
         require_slcan_reachable("10.0.2.86", 35000)
         assert seen["port"] == 35000
+
+    def test_v6_hints_name_its_settings_not_the_4x_mode(self, monkeypatch):
+        from canlib.wican_firmware import FirmwareInfo
+
+        monkeypatch.setattr(wican_mode, "_tcp_open", lambda host, port, timeout: port == 80)
+        monkeypatch.setattr(wican_mode, "_tcp_probe", lambda host, port, timeout: TimeoutError())
+        with pytest.raises(ModeError) as exc:
+            require_slcan_reachable("10.0.2.86", 3333, firmware=FirmwareInfo("v6"))
+        msg = str(exc.value)
+        assert "slcan0" in msg and "can_manager" in msg
+        assert "--transport elm327-tcp" in msg
+        assert "wican mode set" not in msg
+        assert "wican-ws" not in msg
 
 
 class TestConnectErrorDetail:

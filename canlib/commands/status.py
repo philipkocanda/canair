@@ -6,7 +6,9 @@ reachable/usable?" at a glance, with actionable hints and Unix-style exit codes.
 Also reports the running canair version — which, when canair is running from a
 git checkout rather than an installed release, names that checkout's branch and
 short commit (``1.15.0+main.343b244``) — and, when the WiCAN HTTP API answers,
-the device's firmware/hardware version.
+the device's firmware generation, version and hardware version. On WiCAN
+firmware v6 it also says which canair transports work there, and exits 2 when
+the selected one cannot.
 
 It reports the device a live command would actually use: like ``read``/
 ``monitor`` it resolves the whole candidate list and runs the same connect-time
@@ -163,13 +165,30 @@ def _gather(args) -> dict:
         info["exit"] = _MISCONFIGURED
         return info
 
-    # WiCAN HTTP config API — queryable only for WiCAN-backed transports
-    # (slcan-tcp / wican-ws). A direct ELM327 adapter (elm327-tcp) has no such
-    # API, so skip the probe entirely and report device: None.
-    if t.is_wican_http:
-        cfg = _load_device_config(host, probe_timeout)
-    else:
-        cfg = None
+    # Firmware generation. A WiCAN transport is always probed here (status is the
+    # diagnostic); elm327-tcp only when the check is on, since it is usually a
+    # clone with no HTTP server. The verdict is enforced only when the check is
+    # on, matching what a live command would do.
+    from ..config import firmware_check
+    from ..wican_firmware import OK, UNKNOWN, compatibility, probe
+
+    check_on = firmware_check()
+    fw = probe(host, timeout=probe_timeout) if t.is_wican_http or check_on else UNKNOWN
+    verdict = compatibility(fw, t.type) if check_on else OK
+    info["firmware"] = {
+        **fw.as_dict(),
+        "label": fw.label(),
+        "verdict": verdict.level,
+        "message": verdict.message or None,
+        "checked": check_on,
+    }
+    v6 = fw.generation == "v6"
+
+    # WiCAN 4.x HTTP config API — queryable only for WiCAN-backed transports
+    # (slcan-tcp / wican-ws) on 4.x. A direct ELM327 adapter (elm327-tcp) has no
+    # such API, and v6 removed these routes, so skip the probe and report
+    # device: None.
+    cfg = _load_device_config(host, probe_timeout) if t.is_wican_http and not v6 else None
     st = _device_status(host, probe_timeout) if cfg is not None else None
     device_protocol = str(cfg.get("protocol")) if cfg else None
     dev_port = None
@@ -192,12 +211,21 @@ def _gather(args) -> dict:
             "hw_version": (st or {}).get("hw_version") if st else None,
             "git_version": (st or {}).get("git_version") if st else None,
         }
-        if t.is_wican_http
+        if t.is_wican_http and not v6
         else None
     )
 
+    if verdict.level == "warn":
+        info["warnings"].append(verdict.message)
+    elif verdict.level == "note":
+        notes.append(verdict.message)
+
     # Transport usability check.
-    if t.is_wican_http and t.is_elm:
+    if verdict.refused:
+        info["errors"].append(verdict.message)
+        info["exit"] = _MISCONFIGURED
+        info["transport"]["usable"] = False
+    elif t.is_wican_http and t.is_elm:
         # The /ws ELM327 terminal lives on the HTTP port and works in any mode.
         if cfg is None:
             info["errors"].append(f"WiCAN HTTP not reachable at {host} (is it online / on VPN?)")
@@ -233,9 +261,12 @@ def _gather(args) -> dict:
             )
             info["exit"] = _MISCONFIGURED
         if not raw_ok:
-            hint = (
-                "" if device_protocol == "slcan" else " (likely because it's not in 'slcan' mode)"
-            )
+            if v6:
+                hint = " (firmware v6 serves SLCAN only once set up — see the warning above)"
+            elif device_protocol == "slcan":
+                hint = ""
+            else:
+                hint = " (likely because it's not in 'slcan' mode)"
             info["errors"].append(f"SLCAN port {host}:{raw_port} not reachable{hint}")
             if info["exit"] == _OK:
                 info["exit"] = _UNREACHABLE
@@ -289,6 +320,26 @@ def _gather(args) -> dict:
     return info
 
 
+def _firmware_line(fw: dict) -> str:
+    """One rendered line for the probed firmware (device strings markup-escaped)."""
+    from rich.markup import escape
+
+    parts = [escape(str(fw["hw_version"]))] if fw.get("hw_version") else []
+    parts.append(escape(str(fw["label"])))
+    extra = []
+    if fw.get("generation") == "v6":
+        if fw.get("build"):
+            extra.append(f"build {escape(str(fw['build']))}")
+        if fw.get("api_level") is not None:
+            extra.append(f"api_level {fw['api_level']}")
+    if not fw.get("checked"):
+        extra.append("firmware check off")
+    line = "  ".join(parts)
+    if extra:
+        line += f"  [dim]({', '.join(extra)})[/dim]"
+    return line
+
+
 def _render(info: dict) -> None:
     from rich.console import Console
 
@@ -322,20 +373,26 @@ def _render(info: dict) -> None:
         c.print(f"  [bold]Profile[/bold]    {p['name']}  [dim]{p['root']}[/dim]")
 
     d = info.get("device")
+    fw = info.get("firmware") or {}
+    fw_known = fw.get("generation") in ("v4", "v6")
+    if fw_known or (d and d["http_reachable"]):
+        c.print("\n  [bold]WiCAN[/bold]")
+        if fw_known:
+            c.print(f"    firmware   {_firmware_line(fw)}")
     if d:
         if d["http_reachable"]:
-            c.print("\n  [bold]WiCAN[/bold]")
             c.print(
-                f"    protocol   [cyan]{d['protocol']}[/cyan]  [dim](socket port {d['socket_port']})[/dim]"
+                f"    protocol   [cyan]{d['protocol']}[/cyan]  "
+                f"[dim](socket port {d['socket_port']})[/dim]"
             )
-            fw = d.get("fw_version")
+            fw_version = d.get("fw_version")
             hw = d.get("hw_version")
-            if fw or hw:
+            if not fw_known and (fw_version or hw):
                 parts = []
                 if hw:
                     parts.append(str(hw))
-                if fw:
-                    parts.append(f"fw {fw}")
+                if fw_version:
+                    parts.append(f"fw {fw_version}")
                 git = d.get("git_version")
                 line = "  ".join(parts)
                 if git:
@@ -348,6 +405,8 @@ def _render(info: dict) -> None:
                 c.print(f"    battery    {d['battery']}")
             if d.get("ip"):
                 c.print(f"    ip         {d['ip']}")
+        elif fw_known:
+            c.print("    config     [yellow]HTTP config API not reachable[/yellow]")
         else:
             c.print(
                 "\n  [bold]WiCAN[/bold]   [yellow]HTTP config API not reachable[/yellow] "

@@ -17,7 +17,12 @@ from canlib.transport.protocol import Terminal
 
 
 def _print_sleep_banner(host: str, timeout: int = 5) -> None:
-    """Fetch WiCAN sleep status and battery voltage, print a status line."""
+    """Fetch WiCAN sleep status and battery voltage, print a status line.
+
+    Purely informational and printed into an already-connected session, so any
+    failure (an HTTP error, a timeout, a v6 device without these routes) skips
+    the banner rather than ending the session.
+    """
     try:
         from canlib.wican_api import get_config, get_status
 
@@ -25,7 +30,9 @@ def _print_sleep_banner(host: str, timeout: int = 5) -> None:
         status = get_status(base_url, timeout)
         config = get_config(base_url, timeout)
     except Exception:
-        return  # silently skip if REST API unreachable
+        return
+    if not isinstance(status, dict) or not isinstance(config, dict):
+        return
 
     batt = status.get("batt_voltage", "?")
     sleep_on = config.get("sleep_status", "disable") == "enable"

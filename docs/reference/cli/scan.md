@@ -102,6 +102,8 @@ options:
   --timings             Print per-ECU/PID round-trip timing stats on exit (to
                         stderr)
   --reboot              Reboot WiCAN after session to restore AutoPID mode
+                        (skipped on firmware v6, which resumes AutoPID by
+                        itself)
   --unsafe              Bypass dangerous command blocklist (requires explicit
                         per-command consent)
   --force               Ask a session already holding the connection to
@@ -195,6 +197,8 @@ options:
   --timings             Print per-ECU/PID round-trip timing stats on exit (to
                         stderr)
   --reboot              Reboot WiCAN after session to restore AutoPID mode
+                        (skipped on firmware v6, which resumes AutoPID by
+                        itself)
   --unsafe              Bypass dangerous command blocklist (requires explicit
                         per-command consent)
   --force               Ask a session already holding the connection to
@@ -268,6 +272,8 @@ options:
   --timings             Print per-ECU/PID round-trip timing stats on exit (to
                         stderr)
   --reboot              Reboot WiCAN after session to restore AutoPID mode
+                        (skipped on firmware v6, which resumes AutoPID by
+                        itself)
   --unsafe              Bypass dangerous command blocklist (requires explicit
                         per-command consent)
   --force               Ask a session already holding the connection to
@@ -336,6 +342,8 @@ options:
   --timings             Print per-ECU/PID round-trip timing stats on exit (to
                         stderr)
   --reboot              Reboot WiCAN after session to restore AutoPID mode
+                        (skipped on firmware v6, which resumes AutoPID by
+                        itself)
   --unsafe              Bypass dangerous command blocklist (requires explicit
                         per-command consent)
   --force               Ask a session already holding the connection to

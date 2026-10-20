@@ -247,6 +247,14 @@ class TestTransportConfigProps:
         # No host -> never wican-http.
         assert not TransportConfig("wican-ws", host=None).is_wican_http
 
+    def test_unregistered_type_raises_instead_of_guessing_a_family(self):
+        from canlib.transport.config import TransportConfig, TransportError
+
+        t = TransportConfig("not-a-transport", "1.2.3.4")  # type: ignore[arg-type]
+        for prop in ("is_raw", "is_elm", "summary", "is_wican_http"):
+            with pytest.raises(TransportError, match="Unknown transport"):
+                getattr(t, prop)
+
     def test_elm327_tcp_probe_port_default(self):
         from canlib.transport.config import DEFAULT_ELM327_TCP_PORT, TransportConfig
         from canlib.transport.fallback import _probe_port
@@ -316,6 +324,25 @@ class TestTransportConfigProps:
         )
         t = TransportConfig("slcan-tcp", "1.2.3.4")
         assert t.resolve_device_defaults(250000) == (3333, 250000)
+
+    @pytest.mark.parametrize(("status", "noisy"), [(404, False), (500, True)])
+    def test_missing_config_route_is_silent(self, monkeypatch, capsys, status, noisy):
+        import requests
+
+        from canlib.transport.config import TransportConfig
+
+        # WiCAN firmware v6 (or a non-WiCAN host) has no /load_config: that is
+        # not a failure worth reporting, unlike a device that errors on it.
+        resp = requests.Response()
+        resp.status_code = status
+
+        def boom(base_url, timeout=10.0):
+            raise requests.HTTPError(f"{status} Error", response=resp)
+
+        monkeypatch.setattr("canlib.wican_mode.load_config", boom)
+        t = TransportConfig("slcan-tcp", "1.2.3.4")
+        assert t.resolve_device_defaults() == (3333, 500000)
+        assert ("could not read device config" in capsys.readouterr().err) is noisy
 
 
 class TestTransportTypeVocabulary:
