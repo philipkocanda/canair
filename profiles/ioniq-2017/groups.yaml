@@ -5,7 +5,7 @@
 # compose it with ad-hoc selectors:
 #
 #   canair monitor @charging                 # BMS:2101 BMS:2105 OBC VCU MCU
-#   canair monitor @driving CLU:220B         # a group plus an extra selector
+#   canair monitor @driving HVAC:2201A0      # a group plus an extra selector
 #   canair read @powertrain --save --label "…" --state "READY, DRIVING"
 #
 # Members are plain selectors (ECU or ECU:PID) — not full mini-language steps.
@@ -24,8 +24,8 @@ groups:
     description: Powertrain + chassis while driving (odometer on CLU)
     members: [IGPM, BMS:2101, BMS:2105, VCU:2101, VCU:2102, MCU, EPS, ESC, CLU, AAF:2180, AAF:2181]
 
-  # HV drive-core essentials — the most-co-polled trio for drive analysis
-  # (pack power, vehicle state, motor torque).
+  # HV drive-core essentials for drive analysis (pack power, vehicle state,
+  # motor torque, cooling).
   powertrain:
     description: HV drive-core essentials (pack power, vehicle state, motor torque, cooling system)
     members: [BMS:2101, VCU:2101, MCU:2101, MCU:2102, AAF:2180, AAF:2181]

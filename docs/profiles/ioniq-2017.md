@@ -50,14 +50,14 @@ scan logs), which is exactly the shape you're building toward for your own car.
 
 - **Battery (BMS)** — state of charge, pack voltage/current/power, **all 96
   individual cell voltages**, module temperatures, and state of health.
-- **Motor & drive (MCU / VCU)** — gear, motor torque and RPM, inverter/motor
-  temperatures, and vehicle speed.
-- **Chassis (ESC / EPS)** — vehicle speed and **individual wheel speeds**
-  (FL/FR/RL/RR from the ESC), plus a strong-but-unverified steering-angle
-  candidate on the EPS.
-- **Charging (OBC / CCM)** — AC and DC (CCS) charging state, charge-port lock;
-  the CCM (Charge Control Module, PLC for DC fast-charging) is identified on the
-  bus.
+- **Motor & drive (MCU / VCU)** — gear, motor RPM and torque, HV and 12 V
+  voltages, coolant temperature, and vehicle speed.
+- **Chassis (ESC / EPS)** — vehicle speed, **individual wheel speeds**
+  (FL/FR/RL/RR from the ESC), and the steering angle, read independently on
+  both the ESC and the EPS.
+- **Charging (BMS / OBC / IGPM)** — AC and DC (CCS) charging state, AC input
+  and pilot values, and the charge-port lock. The CCM (Charge Control Module,
+  PLC for DC fast-charging) is identified on the bus but exposes no live data.
 - **Climate & body (HVAC / BCM / IGPM)** — HVAC/climate state, tyre
   pressures/temperatures (TPMS), and body controls (locks, trunk, lights,
   indicators).
@@ -65,9 +65,10 @@ scan logs), which is exactly the shape you're building toward for your own car.
 ## IOControl actuators
 
 The profile defines **107 IOControl DIDs** (UDS `0x2F`) for hardware you can
-safely toggle from the CLI — lights, horn, locks, charge-cable lock, mirrors,
-wipers — all of which auto-release when the diagnostic session ends. The IGPM
-actuators work from deep sleep with `--wake`.
+toggle from the CLI — lights, horn, locks, charge-cable lock, mirrors, wipers,
+seat motors. The IGPM actuators release when the diagnostic session ends and
+work from deep sleep with `--wake`; others differ (the power-seat motors run
+until told to stop), so read an actuator's notes before driving it.
 
 ```bash
 canair io IGPM          # interactive actuator TUI

@@ -17,7 +17,7 @@ can_buses:
     description: The gateway (IGPM) bridges every segment; the OBD-II port connects here.
   B-CAN:
     name: Body CAN
-    description: Comfort/body electronics (doors, seats, BCM, smart key, HVAC).
+    description: Comfort/body electronics (doors, seats, BCM, smart key).
     bitrate: 100000
   P-CAN:
     name: Powertrain CAN

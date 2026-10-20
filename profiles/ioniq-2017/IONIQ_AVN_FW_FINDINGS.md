@@ -1,11 +1,10 @@
 # Findings from Ioniq AVN head-unit firmware RE (for canair to triage)
 
-This is a **handoff document**, not an applied change. It collects everything learned from
-reverse-engineering the 2017 Hyundai Ioniq (AE) **head-unit / telematics firmware** in the sibling
-project `ioniq-avn-fw` that is relevant to this canair profile (`profiles/ioniq-2017/`). Decide per
-item what — if anything — to fold into the profile, using canair's own tooling (`canair ecu add`,
-`canair pids`, `canair signals`, `canair discover`/`scan`/`sniff`/`import`). Nothing here has been
-written into the profile YAML.
+This document collects what reverse-engineering the 2017 Hyundai Ioniq (AE) **head-unit /
+telematics firmware** in the sibling project `ioniq-avn-fw` found that is relevant to this canair
+profile (`profiles/ioniq-2017/`). Items are folded into the profile one at a time, with canair's own
+tooling, once confirmed on the car; so far the EPB at `0x7D5` came from §2, and the TPMS address in
+§2 was tried and found not to apply.
 
 ## Provenance and how much to trust it
 
@@ -65,9 +64,12 @@ Caveats before trusting any single row:
 - This is a **multi-platform library** (many Hyundai/Kia models share it), so some rows may be
   variant aliases rather than this exact AE EV's bus config. `VCU`/`HCU` share `0x7E2` and
   `BMS`/`OBC` share `0x7E4` as powertrain-variant folds.
-- **Actionable:** the ~15 ECUs canair does not yet list (ABS, ECS, EMS, TCU, TPMS, EPB, LKAS, MDPS,
-  SCC, ACU, MCU, LDC, BMS, AAF, BCM) are worth seeding with `canair ecu add TX <id>` and confirming
-  live with `canair discover` / `canair scan`.
+- **Already in the profile**, some under other names: ABS is ESC (`0x7D1`), MDPS is EPS
+  (`0x7D4`), LKAS is MFC (`0x7C4`); SCC, MCU, VCU, BMS, AAF, BCM, FATC (HVAC) and EPB are
+  registered.
+- **Not in the profile:** LDC (`0x7C5`) and ACU (`0x59A`; the profile's airbag module SRS answers at
+  `0x7D2`) are worth probing with `canair discover` / `canair scan`. EMS, TCU and ECS are combustion
+  or suspension units this car does not have.
 - **TPMS `0x7D6` does not apply to this car:** nothing answers there, and this car reads tire
   pressures from the BCM (`0x7A0`, DID `22C00B`).
 
@@ -89,9 +91,8 @@ expected to come back empty**; the real observation path is a **passive broadcas
 `0x57A`/`0x57B`/`0x1C0`/`0x1AA` on MM-CAN and/or P-CAN, then a before/after diff around a single UI
 schedule change.
 
-Note this does **not** contradict canair's finding that **VCU `21F2` holds the charge windows** —
-that is the storage endpoint. The flow is: AVN broadcasts `0x57A`/`0x57B` → central gateway → VCU
-stores the window in its own config, which is what canair reads back over UDS.
+Where the VCU or any other ECU stores the windows after receiving them is not established: the
+settings recorded for the earlier VCU `21F2` before/after are known to be invalid.
 
 ## 4. Charge-power-reduction axis (station vs portable) semantics
 
@@ -141,23 +142,19 @@ The two head-unit vendors use `0x57B` in **opposite directions**: EU LG firmware
 status, bus → head-unit). On a real capture, confirm which direction `0x57B` (and `0x57A`) actually
 carries on this car before committing a `signals/` definition.
 
-## 8. Discrepancy to settle: OBC address
+## 8. OBC address: settled on the car
 
-canair has **OBC = `0x7E5`** (part `36400-0E150`). The US telematics diag table never references
-`0x7E5` — it folds OBC onto **`0x7E4`** with BMS. Flag, don't "correct": probe both `0x7E4` and
-`0x7E5` to see which answers as the OBC on this vehicle.
+The US telematics diag table never references `0x7E5` and folds OBC onto **`0x7E4`** with BMS. On
+this car the OBC (part `36400-0E150`) answers at **`0x7E5`**, with thousands of captured OBC
+responses there, and `0x7E4` answers as the BMS. The table's fold is a multi-platform alias.
 
 ## Suggested next actions (canair agent to decide)
 
-1. Seed the missing ECUs from §2 with `canair ecu add TX <id>`, then `canair discover` / `canair
-   scan <ECU>` to confirm which answer and register real hits.
+1. Probe LDC (`0x7C5`) and ACU (`0x59A`) from §2 with `canair discover` / `canair scan`, and
+   register them with `canair ecu add` only if they answer.
 2. Redirect the preconditioning hunt: mark the AVN/HVAC `21F2` sweeps "expected empty" and add a
    **broadcast-capture** research entry — `canair sniff` (or `canair import can`) of
    `0x57A`/`0x57B`/`0x1C0`/`0x1AA`, diffed around a single UI schedule change (§3).
 3. On a broadcast capture, define `0x57A`/`0x57B`/`0x1C0`/`0x1AA`/`0x587` in `signals/<bus>.yaml`
    with the firmware-derived layouts in §4/§6, then verify each field by before/after diff.
-4. Resolve the OBC `0x7E4` vs `0x7E5` discrepancy (§8) and the `0x57B` direction (§7) by capture.
-
-Note: earlier in this session two in-place edits to `profiles/ioniq-2017/ecus/avn.yaml` and
-`hvac.yaml` were drafted and then **reverted**, so those files are untouched — this document
-supersedes them so the integration decision stays with the canair agent.
+4. Resolve the `0x57B` direction (§7) by capture.
