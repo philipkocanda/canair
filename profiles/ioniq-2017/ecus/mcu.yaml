@@ -37,10 +37,10 @@ MCU:
   vehicle_states: [READY, CHARGING]
   pids:
     2101:
+      status: active
       response_frames: 5
-      status: draft
       period: 5000
-      vehicle_states: [CHARGING]
+      vehicle_states: [READY, CHARGING]
       notes: >-
         30 bytes; a 34-byte variant adds four trailing 00 bytes. Words are little-endian, unlike BMS
         2101. B23 and B26 are constant 0x02 and 0x04.
