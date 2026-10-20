@@ -103,7 +103,7 @@ class TestRequireWsReachable:
         assert "10.0.2.86" in msg
         assert "canair status" in msg
         assert "wican mode set" in msg
-        assert "elm327-tcp" in msg  # the v6 route, since a closed port hides the firmware
+        assert "elm327-tcp" in msg  # v6's TCP socket, since a closed port hides the firmware
         # ...and reports what actually happened (the real OS-level reason).
         assert "refused" in msg
 

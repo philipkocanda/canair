@@ -27,7 +27,7 @@ import websockets
 
 from canlib import config as canair_config
 from canlib.transport import channel
-from canlib.transport.channel import WebSocketChannel
+from canlib.transport.channel import ObdWebSocketChannel, WebSocketChannel
 
 
 class FakeWS:
@@ -260,3 +260,57 @@ class TestDrainAndClose:
         ch = _channel()
         await ch.close()
         await ch.close()  # must not raise on the second call
+
+
+class TestObdChannel:
+    """Firmware v6's ``/ws/obd``: a raw byte pipe to the OBD chip, binary frames out."""
+
+    @pytest.mark.asyncio
+    async def test_connects_to_ws_obd_without_a_handshake(self, monkeypatch):
+        fake = FakeWS()
+
+        async def fake_connect(url, **kwargs):
+            fake.url = url
+            fake.kwargs = kwargs
+            return fake
+
+        monkeypatch.setattr(channel.websockets, "connect", fake_connect)
+        monkeypatch.setattr(channel, "SETTLE_SECONDS", 0)
+        monkeypatch.setattr(canair_config, "ws_ping_interval", lambda: 20.0)
+        await ObdWebSocketChannel("10.0.2.86").connect()
+
+        assert fake.url == "ws://10.0.2.86/ws/obd"
+        # Anything sent before the first command would reach the chip as its prefix.
+        assert fake.sent == []
+        assert fake.kwargs["ping_interval"] == 20.0
+        assert fake.kwargs["open_timeout"] == channel.CONNECT_TIMEOUT
+
+    @pytest.mark.asyncio
+    async def test_binary_frames_are_terminal_text(self):
+        ch = ObdWebSocketChannel("h")
+        ch.ws = FakeWS([b"62F190", b"4142\r\r>"])  # type: ignore[assignment]
+        assert await ch.recv(timeout=1.0) == "62F190"
+        assert await ch.recv(timeout=1.0) == "4142\r\r>"
+
+    @pytest.mark.asyncio
+    async def test_text_frames_pass_through_unwrapped(self):
+        # A channel switched to text mode; even JSON-looking text is chip output.
+        ch = ObdWebSocketChannel("h")
+        ch.ws = FakeWS(['{"type": "term_out", "data": "x"}'])  # type: ignore[assignment]
+        assert await ch.recv(timeout=1.0) == '{"type": "term_out", "data": "x"}'
+
+    @pytest.mark.asyncio
+    async def test_a_closed_socket_raises_connection_error(self):
+        ch = ObdWebSocketChannel("h")
+        ch.ws = FakeWS(closed_after=0)  # type: ignore[assignment]
+        with pytest.raises(ConnectionError):
+            await ch.recv(timeout=1.0)
+
+    def test_labels_the_same_transport(self):
+        assert ObdWebSocketChannel("h").transport_name == "wican-ws"
+
+    def test_wican_terminal_selects_the_channel(self):
+        from canlib.terminal import WiCANTerminal
+
+        assert WiCANTerminal("h").url == "ws://h/ws"
+        assert WiCANTerminal("h", obd_channel=True).url == "ws://h/ws/obd"

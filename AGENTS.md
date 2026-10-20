@@ -664,12 +664,19 @@ it is ignored. Resolvers: `canlib/config.py::wican_devices` (authoritative map +
 
 WebSocket terminal: `ws://<ip>/ws` (send `{"ws_mode": "terminal", "terminal_type": "elm327"}`).
 
-**Firmware generation** — everything above is WiCAN firmware **4.x**; the v6 rewrite drops `/ws`,
-the protocol mode and the legacy HTTP routes (plan `plans/2026-10-20-wican-fw-v6-compatibility.md`).
+**Firmware generation** — everything above is WiCAN firmware **4.x**; the v6 rewrite moves the
+ELM327 terminal to a raw `ws://<ip>/ws/obd` channel (no handshake, binary frames —
+`transport/channel.py::ObdWebSocketChannel`, chosen in `connect_elm_terminal`) and drops the
+protocol mode and the legacy HTTP routes (plan `plans/2026-10-20-wican-fw-v6-compatibility.md`).
 `canlib/wican_firmware.py` probes the generation (GET-only, memoised per host, honours
-`transport.firmware_check`) and owns the one policy table, `compatibility(info, surface)`, used by
-live connect, `sniff`, `wican mode`/`autopid`, `--reboot` and `canair status`. Gate any new 4.x-only
-call through it, never an ad-hoc version check; the suite stubs its `_fetch` (`tests/conftest.py`).
+`transport.firmware_check`) and owns the one static policy table, `compatibility(info, surface)`.
+On an ungated v6 device `canlib/wican_v6.py::assess` refines that verdict from the device's own
+settings (`/api/ws`, `/api/sockets`, `/api/bridges`, `/api/can`) — v6 can leave a port open with
+nothing bridged behind it, which silently discards everything — and also reads its power/OBD-chip
+state and SLCAN port/bitrate. Live connect, `sniff` and `canair status` call `assess`;
+`wican mode`/`autopid` and `--reboot` use the static table. Gate any new firmware-specific call
+through these, never an ad-hoc version check; both share the probe's `_fetch` seam, which the suite
+stubs (`tests/conftest.py`).
 
 **Auto-fallback** — when the selected device is unreachable at connect time, canair tries the other
 configured devices (`transport.fallback`, default true; `--no-fallback` per command).

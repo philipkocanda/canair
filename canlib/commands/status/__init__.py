@@ -7,8 +7,9 @@ Also reports the running canair version — which, when canair is running from a
 git checkout rather than an installed release, names that checkout's branch and
 short commit (``1.15.0+main.343b244``) — and, when the WiCAN HTTP API answers,
 the device's firmware generation, version and hardware version. On WiCAN
-firmware v6 it also says which canair transports work there, and exits 2 when
-the selected one cannot.
+firmware v6 it also reports battery, sleep and OBD-chip state, checks the
+selected transport's path through the device's settings, and exits 2 when that
+transport cannot work there.
 
 It reports the device a live command would actually use: like ``read``/
 ``monitor`` it resolves the whole candidate list and runs the same connect-time
@@ -20,7 +21,10 @@ selected device).
 from __future__ import annotations
 
 import argparse
+import contextlib
 import socket
+
+from .render import _render
 
 NAME = "status"
 ALIASES = ["st"]
@@ -38,7 +42,7 @@ _PROBE_TIMEOUT = 4.0
 
 
 def _valid_transports():
-    from ..transport.config import VALID_TRANSPORTS
+    from ...transport.config import VALID_TRANSPORTS
 
     return VALID_TRANSPORTS
 
@@ -91,7 +95,7 @@ def _tcp_open(host: str, port: int, timeout: float) -> bool:
 def _load_device_config(host: str, timeout: float) -> dict | None:
     """Best-effort GET /load_config; None if the WiCAN HTTP API isn't reachable."""
     try:
-        from ..wican_mode import load_config
+        from ...wican_mode import load_config
 
         return load_config(f"http://{host}", timeout=timeout)
     except Exception:
@@ -111,9 +115,9 @@ def _device_status(host: str, timeout: float) -> dict | None:
 
 def _gather(args) -> dict:
     """Collect everything status reports into a plain dict (also used for --json)."""
-    from ..build_info import full_version
-    from ..config import fallback_settings
-    from ..transport import (
+    from ...build_info import full_version
+    from ...config import fallback_settings
+    from ...transport import (
         TransportError,
         resolve_transport_candidates,
         select_reachable_transport,
@@ -150,11 +154,16 @@ def _gather(args) -> dict:
     }
 
     # Active vehicle profile.
+    profile_bitrate: int | None = None
     try:
-        from ..profile import active
+        from ...profile import active
 
         prof = active()
         info["profile"] = {"name": prof.name, "root": str(prof.root)}
+        with contextlib.suppress(TypeError, ValueError):
+            profile_bitrate = (
+                int(prof.meta["can_bitrate"]) if prof.meta.get("can_bitrate") else None
+            )
     except Exception as e:
         info["profile"] = None
         info["warnings"].append(f"no active profile: {e}")
@@ -168,13 +177,24 @@ def _gather(args) -> dict:
     # Firmware generation. A WiCAN transport is always probed here (status is the
     # diagnostic); elm327-tcp only when the check is on, since it is usually a
     # clone with no HTTP server. The verdict is enforced only when the check is
-    # on, matching what a live command would do.
-    from ..config import firmware_check
-    from ..wican_firmware import OK, UNKNOWN, compatibility, probe
+    # on, matching what a live command would do — including, on v6, reading the
+    # device's settings to confirm the selected transport's data path.
+    from ...config import firmware_check
+    from ...wican_firmware import OK, UNKNOWN, probe
+    from ...wican_v6 import assess, device_status
 
     check_on = firmware_check()
     fw = probe(host, timeout=probe_timeout) if t.is_wican_http or check_on else UNKNOWN
-    verdict = compatibility(fw, t.type) if check_on else OK
+    v6 = fw.generation == "v6"
+    # v6 has no /load_config: the SLCAN port and bitrate come from its settings.
+    v6_port, v6_bitrate = (
+        t.resolve_device_defaults(profile_bitrate) if v6 and t.is_raw else (None, None)
+    )
+    verdict = (
+        assess(fw, t.type, host, port=v6_port, bitrate=v6_bitrate, timeout=probe_timeout)
+        if check_on
+        else OK
+    )
     info["firmware"] = {
         **fw.as_dict(),
         "label": fw.label(),
@@ -182,7 +202,6 @@ def _gather(args) -> dict:
         "message": verdict.message or None,
         "checked": check_on,
     }
-    v6 = fw.generation == "v6"
 
     # WiCAN 4.x HTTP config API — queryable only for WiCAN-backed transports
     # (slcan-tcp / wican-ws) on 4.x. A direct ELM327 adapter (elm327-tcp) has no
@@ -214,6 +233,11 @@ def _gather(args) -> dict:
         if t.is_wican_http and not v6
         else None
     )
+    # v6 reports power and OBD-chip state on its own routes (none behind a gate).
+    if v6 and fw.gated is None:
+        info["device_v6"] = device_status(host, timeout=probe_timeout).as_dict()
+        if v6_port is not None:
+            dev_port = v6_port
 
     if verdict.level == "warn":
         info["warnings"].append(verdict.message)
@@ -226,15 +250,18 @@ def _gather(args) -> dict:
         info["exit"] = _MISCONFIGURED
         info["transport"]["usable"] = False
     elif t.is_wican_http and t.is_elm:
-        # The /ws ELM327 terminal lives on the HTTP port and works in any mode.
-        if cfg is None:
+        # The ELM327 WebSocket terminal lives on the HTTP port and, on 4.x, works
+        # in any mode. A v6 answer to the firmware probe proves that port is up,
+        # and assess() has already checked its /ws/obd channel.
+        http_ok = cfg is not None or v6
+        if not http_ok:
             info["errors"].append(f"WiCAN HTTP not reachable at {host} (is it online / on VPN?)")
             info["exit"] = _UNREACHABLE
-        info["transport"]["usable"] = cfg is not None
+        info["transport"]["usable"] = http_ok
     elif t.is_elm:
         # Direct ELM327 adapter (elm327-tcp): no HTTP API — usability is just
         # whether the ELM socket accepts a TCP connection.
-        from ..transport.config import DEFAULT_ELM327_TCP_PORT
+        from ...transport.config import DEFAULT_ELM327_TCP_PORT
 
         elm_port = t.port or DEFAULT_ELM327_TCP_PORT
         info["transport"]["port"] = elm_port
@@ -262,7 +289,7 @@ def _gather(args) -> dict:
             info["exit"] = _MISCONFIGURED
         if not raw_ok:
             if v6:
-                hint = " (firmware v6 serves SLCAN only once set up — see the warning above)"
+                hint = " (firmware v6 serves SLCAN only once set up — see above)"
             elif device_protocol == "slcan":
                 hint = ""
             else:
@@ -281,7 +308,7 @@ def _gather(args) -> dict:
     # Connection mutex (local-only): who, if anyone, currently owns the device
     # connection. Read-only — it never takes or clears the lock.
     try:
-        from ..lock import lock_state
+        from ...lock import lock_state
 
         info["lock"] = lock_state().as_dict()
     except Exception:
@@ -289,7 +316,7 @@ def _gather(args) -> dict:
 
     # Cached update notice (local-only; no network on the status hot path).
     try:
-        from ..update_check import pending_notice
+        from ...update_check import pending_notice
 
         info["update_notice"] = pending_notice()
     except Exception:
@@ -298,8 +325,8 @@ def _gather(args) -> dict:
     # Install context (local-only): warn when a bare `canair` would run a
     # different version than `uv run canair` in the source clone.
     try:
-        from ..install_context import describe as describe_install
-        from ..install_context import source_clone
+        from ...install_context import describe as describe_install
+        from ...install_context import source_clone
 
         install = describe_install(source_clone())
         info["install"] = install
@@ -318,129 +345,6 @@ def _gather(args) -> dict:
         info["install"] = None
 
     return info
-
-
-def _firmware_line(fw: dict) -> str:
-    """One rendered line for the probed firmware (device strings markup-escaped)."""
-    from rich.markup import escape
-
-    parts = [escape(str(fw["hw_version"]))] if fw.get("hw_version") else []
-    parts.append(escape(str(fw["label"])))
-    extra = []
-    if fw.get("generation") == "v6":
-        if fw.get("build"):
-            extra.append(f"build {escape(str(fw['build']))}")
-        if fw.get("api_level") is not None:
-            extra.append(f"api_level {fw['api_level']}")
-    if not fw.get("checked"):
-        extra.append("firmware check off")
-    line = "  ".join(parts)
-    if extra:
-        line += f"  [dim]({', '.join(extra)})[/dim]"
-    return line
-
-
-def _render(info: dict) -> None:
-    from rich.console import Console
-
-    c = Console()
-    ver = info.get("canair_version")
-    if ver:
-        c.print(f"\n  [bold]canair[/bold]     {ver}")
-    t = info.get("transport")
-    if t:
-        loc = t.get("host") or "?"
-        if t.get("port"):
-            loc = f"{loc}:{t['port']}"
-        usable = t.get("usable")
-        mark = "[green]✓[/green]" if usable else "[red]✗[/red]"
-        c.print(f"\n  [bold]Transport[/bold]  {t['type']}  [dim]({loc})[/dim]  {mark}")
-        summary = t.get("summary")
-        if summary:
-            c.print(f"             [dim]{summary}[/dim]")
-        if t.get("bitrate"):
-            c.print(f"             [dim]bitrate:[/dim]  {t['bitrate']}")
-        if t.get("fell_back"):
-            c.print(
-                f"             [yellow]fell back from {t['selected']}[/yellow] "
-                "[dim](a live command would use this device too)[/dim]"
-            )
-        for note in info.get("notes", []):
-            c.print(f"             [dim]{note}[/dim]")
-
-    p = info.get("profile")
-    if p:
-        c.print(f"  [bold]Profile[/bold]    {p['name']}  [dim]{p['root']}[/dim]")
-
-    d = info.get("device")
-    fw = info.get("firmware") or {}
-    fw_known = fw.get("generation") in ("v4", "v6")
-    if fw_known or (d and d["http_reachable"]):
-        c.print("\n  [bold]WiCAN[/bold]")
-        if fw_known:
-            c.print(f"    firmware   {_firmware_line(fw)}")
-    if d:
-        if d["http_reachable"]:
-            c.print(
-                f"    protocol   [cyan]{d['protocol']}[/cyan]  "
-                f"[dim](socket port {d['socket_port']})[/dim]"
-            )
-            fw_version = d.get("fw_version")
-            hw = d.get("hw_version")
-            if not fw_known and (fw_version or hw):
-                parts = []
-                if hw:
-                    parts.append(str(hw))
-                if fw_version:
-                    parts.append(f"fw {fw_version}")
-                git = d.get("git_version")
-                line = "  ".join(parts)
-                if git:
-                    line += f"  [dim]({git})[/dim]"
-                c.print(f"    version    {line}")
-            slp = d.get("sleep")
-            if slp is not None:
-                c.print(f"    sleep      {slp}  [dim](threshold {d.get('sleep_volt')}V)[/dim]")
-            if d.get("battery") is not None:
-                c.print(f"    battery    {d['battery']}")
-            if d.get("ip"):
-                c.print(f"    ip         {d['ip']}")
-        elif fw_known:
-            c.print("    config     [yellow]HTTP config API not reachable[/yellow]")
-        else:
-            c.print(
-                "\n  [bold]WiCAN[/bold]   [yellow]HTTP config API not reachable[/yellow] "
-                "[dim](non-WiCAN gateway, offline, or wrong host)[/dim]"
-            )
-
-    lock = info.get("lock")
-    if lock:
-        if lock.get("held"):
-            who = lock.get("summary") or "another session"
-            if lock.get("ours"):
-                who += " — this process"
-            c.print(f"\n  [bold]Lock[/bold]       [yellow]held[/yellow] by {who}")
-            c.print("             [dim]one session at a time — `canair lock` for detail[/dim]")
-            if lock.get("steal_pending"):
-                c.print(
-                    f"             [dim]release requested by PID "
-                    f"{lock['steal_pending']['by']}[/dim]"
-                )
-        else:
-            c.print("\n  [bold]Lock[/bold]       [green]free[/green]")
-        if lock.get("error"):
-            c.print(f"             [yellow]{lock['error']}[/yellow]")
-
-    for w in info.get("warnings", []):
-        c.print(f"  [yellow]⚠ {w}[/yellow]")
-    for e in info.get("errors", []):
-        c.print(f"  [red]✖ {e}[/red]")
-    if not info.get("warnings") and not info.get("errors") and t and t.get("usable"):
-        c.print("\n  [green]Ready.[/green]")
-    notice = info.get("update_notice")
-    if notice:
-        c.print(f"\n  [dim yellow]↑ {notice}[/dim yellow]")
-    c.print()
 
 
 def run(args) -> int:

@@ -23,7 +23,7 @@ be type-checked. Keep it that way — it must stay free of side effects.
 from __future__ import annotations
 
 from ..terminal import WiCANTerminal
-from .channel import Channel, TcpChannel, WebSocketChannel
+from .channel import Channel, ObdWebSocketChannel, TcpChannel, WebSocketChannel
 from .elm327_tcp import Elm327TcpTerminal
 from .elm327_terminal import Elm327Terminal
 from .protocol import Terminal
@@ -36,6 +36,7 @@ def _static_conformance(
     elm_engine: Elm327Terminal,
     elm_tcp: Elm327TcpTerminal,
     ws_channel: WebSocketChannel,
+    obd_ws_channel: ObdWebSocketChannel,
     tcp_channel: TcpChannel,
 ) -> None:
     """Never called. Each binding asserts one backend satisfies its protocol."""
@@ -43,7 +44,7 @@ def _static_conformance(
     _terminals: list[Terminal] = [wican_ws, raw, elm_engine, elm_tcp]
 
     # Every byte-stream channel the shared ELM327 engine can be driven by.
-    _channels: list[Channel] = [ws_channel, tcp_channel]
+    _channels: list[Channel] = [ws_channel, obd_ws_channel, tcp_channel]
 
     # Both ELM terminals must remain interchangeable with the shared engine, so
     # features gated on `isinstance(terminal, Elm327Terminal)` (the REPL,

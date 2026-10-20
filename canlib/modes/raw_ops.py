@@ -27,19 +27,24 @@ async def run_raw(args, transport, pids_data) -> int:
         return 2
 
     # Explicit-mode policy: the device must already be serving SLCAN. Firmware
-    # v6 has no protocol mode to check, so it gets a setup warning instead.
-    from ..wican_firmware import compatibility, detect, print_verdict
+    # v6 has no protocol mode to check; instead its settings are read to confirm
+    # the port is really bridged to the CAN bus (an unbridged one silently
+    # discards everything).
+    from ..wican_firmware import detect, print_verdict
+    from ..wican_v6 import assess
 
     firmware = detect(host)
-    print_verdict(compatibility(firmware, "slcan-tcp"))
+    port, bitrate = transport.resolve_device_defaults(pids_data.get("can_bitrate"))
+    verdict = assess(firmware, "slcan-tcp", host, port=port, bitrate=bitrate)
+    print_verdict(verdict)
+    if verdict.refused:
+        return 2
     if firmware.generation != "v6":
         try:
             require_protocol(host, "slcan", transport_name="slcan-tcp")
         except ModeError as e:
             print(f"error: {e}", file=sys.stderr)
             return 2
-
-    port, bitrate = transport.resolve_device_defaults(pids_data.get("can_bitrate"))
 
     # Pre-flight reachability check for the SLCAN *data* port (distinct from the
     # HTTP config API require_protocol just probed). A wedged/silent socket would

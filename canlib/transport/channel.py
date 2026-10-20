@@ -76,7 +76,7 @@ class Channel(Protocol):
 
 
 class WebSocketChannel:
-    """ELM327 channel over a WiCAN's ``ws://host/ws`` terminal.
+    """ELM327 channel over a WiCAN 4.x ``ws://host/ws`` terminal.
 
     Owns the WebSocket connect + ``{"ws_mode": "terminal"}`` handshake and the
     ``{"type": "term_out", "data": …}`` JSON unwrap, so the engine sees only the
@@ -85,10 +85,11 @@ class WebSocketChannel:
 
     # Labels the transport in the engine's per-exchange diagnostics tally.
     transport_name = "wican-ws"
+    path = "/ws"
 
     def __init__(self, host: str, verbose: bool = False):
         self.host = host
-        self.url = f"ws://{host}/ws"
+        self.url = f"ws://{host}{self.path}"
         self.verbose = verbose
         self.ws: ClientConnection | None = None
 
@@ -109,12 +110,16 @@ class WebSocketChannel:
             ping_timeout=ping,
             open_timeout=CONNECT_TIMEOUT,
         )
+        await self._handshake()
+        await asyncio.sleep(SETTLE_SECONDS)
+        await self.drain()
+
+    async def _handshake(self) -> None:
+        assert self.ws is not None  # connected before use
         mode_msg = json.dumps({"ws_mode": "terminal", "terminal_type": "elm327"})
         await self.ws.send(mode_msg)
         if self.verbose:
             print(f"  [ws] Sent: {mode_msg}", file=sys.stderr)
-        await asyncio.sleep(SETTLE_SECONDS)
-        await self.drain()
 
     async def send(self, text: str) -> None:
         assert self.ws is not None  # connected before use
@@ -130,7 +135,9 @@ class WebSocketChannel:
             return None
         except websockets.exceptions.ConnectionClosed as e:
             raise ConnectionError("WebSocket connection closed") from e
+        return self._decode(msg)
 
+    def _decode(self, msg: str | bytes) -> str:
         if not isinstance(msg, str):
             # A binary frame: not terminal text — treat as a no-op control message.
             return ""
@@ -182,6 +189,29 @@ class WebSocketChannel:
             except Exception:
                 pass
             self.ws = None
+
+
+class ObdWebSocketChannel(WebSocketChannel):
+    """ELM327 channel over a WiCAN firmware v6 ``ws://host/ws/obd`` channel.
+
+    v6 bridges this channel raw to the OBD chip: no handshake, no envelope, and
+    the chip's output arrives in BINARY frames (a TEXT frame is accepted too, for
+    a channel switched to text mode). Frames are arbitrary chunks of the byte
+    stream, exactly like a TCP read, so the engine's ``>``-prompt accumulation
+    reassembles replies unchanged.
+    """
+
+    path = "/ws/obd"
+
+    async def _handshake(self) -> None:
+        # Anything sent here would reach the chip as the prefix of the first command.
+        return None
+
+    def _decode(self, msg: str | bytes) -> str:
+        text = msg if isinstance(msg, str) else bytes(msg).decode("ascii", errors="ignore")
+        if self.verbose:
+            print(f"  [ws] Recv: {text!r}", file=sys.stderr)
+        return text
 
 
 class TcpChannel:

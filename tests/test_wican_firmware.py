@@ -209,7 +209,6 @@ class TestPolicyTable:
     @pytest.mark.parametrize(
         ("surface", "level"),
         [
-            ("wican-ws", "refuse"),
             ("slcan-tcp", "warn"),
             ("elm327-tcp", "note"),
             ("sniff-listen-only", "refuse"),
@@ -221,6 +220,22 @@ class TestPolicyTable:
     @pytest.mark.parametrize("info", [V6, V6_GATED], ids=["v6", "v6-gated"])
     def test_v6(self, info, surface, level):
         assert compatibility(info, surface).level == level
+
+    def test_wican_ws_on_v6_uses_the_obd_channel(self):
+        verdict = compatibility(V6, "wican-ws")
+        assert verdict.level == "note"
+        assert "/ws/obd" in verdict.message and "shared" in verdict.message
+
+    @pytest.mark.parametrize(
+        ("info", "word"),
+        [(V6_GATED, "admin password"), (FirmwareInfo("v6", gated="untrusted"), "Wi-Fi")],
+        ids=["auth", "untrusted"],
+    )
+    def test_wican_ws_refused_behind_a_v6_gate(self, info, word):
+        verdict = compatibility(info, "wican-ws")
+        assert verdict.refused
+        assert word in verdict.message
+        assert "--transport elm327-tcp" in verdict.message and "35000" in verdict.message
 
     @pytest.mark.parametrize(
         "surface",
@@ -237,10 +252,6 @@ class TestPolicyTable:
     @pytest.mark.parametrize("info", [V4, wf.UNKNOWN], ids=["v4", "unknown"])
     def test_v4_and_unknown_are_untouched(self, info, surface):
         assert compatibility(info, surface).level == "ok"
-
-    def test_wican_ws_refusal_points_at_elm327_tcp(self):
-        msg = compatibility(V6, "wican-ws").message
-        assert "--transport elm327-tcp" in msg and "35000" in msg
 
     def test_slcan_warning_names_the_three_settings_and_the_trap(self):
         msg = compatibility(V6, "slcan-tcp").message
@@ -353,7 +364,7 @@ class TestRebootRegression:
 
 
 class TestLiveSurfaces:
-    def test_wican_ws_connect_refused_on_v6(self, monkeypatch, capsys):
+    def test_wican_ws_connect_refused_on_a_gated_v6(self, monkeypatch, capsys):
         from canlib.commands._live import CANAIR_DEFAULTS, runtime
         from canlib.transport.config import TransportConfig
 
@@ -365,13 +376,13 @@ class TestLiveSurfaces:
             "canlib.wican_mode.require_ws_reachable",
             lambda *a, **k: pytest.fail("refusal must come before the reachability check"),
         )
-        _v6(monkeypatch)
+        _v6(monkeypatch, V6_GATED)
 
         args = argparse.Namespace(**CANAIR_DEFAULTS)
         rc = asyncio.run(runtime.async_main(args))
         assert rc == 2
         err = capsys.readouterr().err
-        assert "no /ws ELM327 terminal" in err and "elm327-tcp" in err
+        assert "admin password" in err and "elm327-tcp" in err
 
     def _raw(self, monkeypatch):
         from canlib import wican_mode
@@ -516,15 +527,23 @@ class TestStatusSurface:
 
         return run
 
-    def test_wican_ws_on_v6_is_misconfigured(self, gather):
-        info = gather("wican-ws", V6)
+    def test_wican_ws_on_a_gated_v6_is_misconfigured(self, gather):
+        info = gather("wican-ws", V6_GATED)
         assert info["exit"] == 2
         assert info["transport"]["usable"] is False
         assert info["firmware"]["generation"] == "v6"
-        assert info["firmware"]["api_level"] == 6
         assert info["firmware"]["verdict"] == "refuse"
         assert info["device"] is None
         assert any("elm327-tcp" in e for e in info["errors"])
+
+    def test_wican_ws_on_v6_is_usable(self, gather):
+        info = gather("wican-ws", V6)
+        assert info["exit"] == 0
+        assert info["transport"]["usable"] is True
+        assert info["firmware"]["api_level"] == 6
+        assert info["firmware"]["verdict"] == "note"
+        assert info["device"] is None  # the 4.x block; v6 reports under device_v6
+        assert any("/ws/obd" in n for n in info["notes"])
 
     def test_slcan_on_v6_warns(self, gather):
         info = gather("slcan-tcp", V6)

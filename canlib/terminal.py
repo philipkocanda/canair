@@ -1,8 +1,10 @@
 """WiCAN WebSocket ELM327 terminal + device reboot.
 
 :class:`WiCANTerminal` is the ELM327 engine (:class:`Elm327Terminal`) wired to a
-:class:`~canlib.transport.channel.WebSocketChannel` — i.e. the WiCAN Pro's
-``ws://host/ws`` ELM327 terminal, where the dongle performs ISO-TP. All the
+WebSocket channel — the WiCAN Pro's ELM327 terminal, where the dongle performs
+ISO-TP: ``ws://host/ws`` on firmware 4.x
+(:class:`~canlib.transport.channel.WebSocketChannel`) or ``ws://host/ws/obd`` on
+firmware v6 (:class:`~canlib.transport.channel.ObdWebSocketChannel`). All the
 ELM327 protocol logic lives in the transport-agnostic engine; only the WebSocket
 channel and the HTTP :func:`reboot_wican` are WiCAN-specific here.
 """
@@ -12,13 +14,17 @@ from typing import cast
 
 import requests
 
-from .transport.channel import WebSocketChannel
+from .transport.channel import ObdWebSocketChannel, WebSocketChannel
 from .transport.elm327_frame_count import CountKey
 from .transport.elm327_terminal import Elm327Terminal
 
 
 class WiCANTerminal(Elm327Terminal):
-    """ELM327 engine over a WiCAN WebSocket terminal (``ws://host/ws``)."""
+    """ELM327 engine over a WiCAN WebSocket terminal.
+
+    ``obd_channel`` selects firmware v6's raw ``/ws/obd`` channel instead of
+    4.x's ``/ws`` terminal; the caller decides from the probed firmware.
+    """
 
     def __init__(
         self,
@@ -29,8 +35,10 @@ class WiCANTerminal(Elm327Terminal):
         hk_f1xx_offset: bool = False,
         expected_responses: bool = True,
         response_frames: dict[CountKey, int] | None = None,
+        obd_channel: bool = False,
     ):
-        channel = WebSocketChannel(host, verbose=verbose)
+        channel_type = ObdWebSocketChannel if obd_channel else WebSocketChannel
+        channel = channel_type(host, verbose=verbose)
         super().__init__(
             channel,
             timeout=timeout,

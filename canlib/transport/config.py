@@ -184,18 +184,27 @@ class TransportConfig:
         return port or 3333, bitrate or 500000
 
     def _wican_device_config(self) -> dict:
-        """Best-effort read of a WiCAN's live ``/load_config`` (empty on failure)."""
+        """Best-effort read of a WiCAN's live SLCAN port/bitrate config (empty on failure).
+
+        4.x's ``/load_config``, or on firmware v6 the same two keys derived from
+        its socket, bridge and CAN settings.
+        """
         import sys
 
         from ..wican_api import resolve_wican_url
+        from ..wican_firmware import detect
         from ..wican_mode import load_config
 
         assert self.host is not None  # only called when is_wican_http (host set)
+        if detect(self.host).generation == "v6":
+            from ..wican_v6 import device_defaults
+
+            return device_defaults(self.host)
         try:
             return load_config(resolve_wican_url(self.host)) or {}
         except Exception as e:  # best-effort — fall back to conventional defaults
-            # No such route (WiCAN firmware v6, or not a WiCAN at all) is not worth
-            # a message: there is simply no device config to read.
+            # No such route (a v6 device behind a disabled firmware check, or not
+            # a WiCAN at all) is not worth a message: there is no config to read.
             if getattr(getattr(e, "response", None), "status_code", None) != 404:
                 print(f"  (could not read device config for defaults: {e})", file=sys.stderr)
             return {}

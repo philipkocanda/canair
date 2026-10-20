@@ -34,7 +34,7 @@ Level = Literal["ok", "note", "warn", "refuse", "skip"]
 # names double as surfaces, so a resolved ``TransportConfig.type`` can be passed
 # straight in.
 Surface = Literal[
-    "wican-ws",  # live connect over the /ws ELM327 terminal
+    "wican-ws",  # live connect over the ELM327 WebSocket (4.x /ws, v6 /ws/obd)
     "slcan-tcp",  # live connect or sniff over the SLCAN socket
     "elm327-tcp",  # live connect over a plain ELM327 socket
     "sniff-listen-only",  # `canair sniff --listen-only`
@@ -121,6 +121,9 @@ OK = Verdict("ok")
 
 _COMPAT_DOC = "docs/getting-started/connect-device.md#firmware-compatibility"
 
+# v6's ELM327 WebSocket channel (4.x's was /ws with a JSON handshake).
+OBD_WS_PATH = "/ws/obd"
+
 _V6_SLCAN_SETUP = (
     "  A stock v6 device serves no SLCAN. In its settings, enable all three, then submit "
     "(the device reboots):\n"
@@ -141,11 +144,25 @@ _ELM327_TCP_HINT = (
 def _v6_policy(info: FirmwareInfo, surface: Surface) -> Verdict:
     name = f"WiCAN firmware {info.label()}"
     if surface == "wican-ws":
+        if info.gated is not None:
+            why = (
+                "requires an admin password for its WebSocket channels, which canair cannot "
+                "send yet"
+                if info.gated == "auth"
+                else "refuses HTTP and WebSocket connections on this Wi-Fi network"
+            )
+            return Verdict(
+                "refuse",
+                f"WiCAN firmware v6 {why}, so the 'wican-ws' transport cannot connect.\n"
+                f"  • its plain TCP sockets are not gated: {_ELM327_TCP_HINT}\n"
+                f"  • see {_COMPAT_DOC}",
+            )
         return Verdict(
-            "refuse",
-            f"{name} has no /ws ELM327 terminal, so the 'wican-ws' transport cannot work.\n"
-            f"  • use its plain ELM327 socket instead: {_ELM327_TCP_HINT}\n"
-            f"  • see {_COMPAT_DOC}",
+            "note",
+            f"{name}: using its {OBD_WS_PATH} ELM327 terminal, a raw pass-through to a shared "
+            "OBD chip. Other clients' replies (the web UI's terminal, TCP 35000) can reach this "
+            "session, and AutoPID (if enabled) reclaims the chip after 10 s without a command, "
+            "resetting the adapter's settings.",
         )
     if surface == "slcan-tcp":
         return Verdict(
@@ -239,6 +256,19 @@ def _base_url(host: str) -> str:
 def _fetch(url: str, timeout: float) -> requests.Response:
     # One seam for the HTTP call, so tests can stand in for the device.
     return requests.get(url, timeout=timeout)
+
+
+def get_object(host: str, path: str, *, timeout: float) -> dict | None:
+    """``GET`` ``path`` as a JSON object; None on any failure or non-200 reply.
+
+    The read primitive for the v6 API (:mod:`canlib.wican_v6`), on the same
+    seam as the probe.
+    """
+    try:
+        resp = _fetch(f"{_base_url(host)}{path}", timeout)
+    except requests.RequestException:
+        return None
+    return _json(resp) if resp.status_code == 200 else None
 
 
 def _json(resp: requests.Response) -> dict | None:
