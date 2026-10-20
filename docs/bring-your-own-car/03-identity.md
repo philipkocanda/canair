@@ -17,6 +17,11 @@ canair identity BMS --protocol kwp   # force KWP2000 for a powertrain ECU
 `ecus/`. To capture identity for every ECU as part of the discovery sweep, use
 `canair discover --identify` (see [step 2](02-discover-ecus.md)).
 
+Already captured an identity DID and want to know where a part number landed?
+`canair search 95400G7470` finds it across every ECU and PID, and `canair search`
+with no pattern lists every plausible string in your captures — see
+[6. Analyze](06-analyze.md#finding-text-part-numbers-versions-vins).
+
 ## Why it's worth doing early
 
 Identity tells you *what each ECU actually is*, which lets you rename the

@@ -1,7 +1,21 @@
 # Captured strings are unfindable without already knowing the ECU and PID
 
-Status: **PROPOSED** (2026-08-07) — found while asking "is the VIN / a model code
+Status: **IMPLEMENTED** (2026-10-20) — found while asking "is the VIN / a model code
 anywhere in my captures?" and discovering there is no command that can answer it.
+Build stages 0-6 are done; differences from the design below:
+
+- **No `can` kind is registered yet.** `_GROUP_DEFAULTS["search"]` is `({"uds"}, "uds")`, not
+  `({"uds", "can"}, "uds")`. A kind with no implementation would be a dead end, and while `can`
+  is unclaimed `canair search can` correctly searches for the text "can". Add it with the
+  feature.
+- **Golden files were not added.** Coverage is `tests/test_search.py` and `tests/test_textscan.py`
+  (real parser, captures in `tmp_path`), including the expression round-trip. The bundled
+  `ioniq-2017` corpus now holds a VIN-shaped KWP record (see below), so any golden would have
+  to use a fixture profile.
+- **Measured numbers moved with the corpus** (116k captures, up from 74k): the plausible
+  inventory is 20 locations / 132 hits after the overlap collapse.
+- The module layout grew two files beyond the sketch: `needle.py` (flag rules → matchers) and
+  `haystack.py` / `findings.py` (rows and grouping), each kept under 500 lines.
 
 **Scope of this change:** a new `canair search` command, string-only, over
 diagnostic (domain-A) captures. A `--hex` byte-pattern needle and a `--vin`
@@ -378,7 +392,7 @@ improves: it is the user's own data, `canair contribute` already gates what leav
 the machine, and stage 2 means `search --vin` and the contribute pre-flight share
 one definition of "looks like a VIN" instead of two that can drift.
 
-Measured today: **no VIN in the bundled corpus** — `F190` has zero captures and a
-`KMHC` needle returns zero hits — so golden tests can pin real output from
-`ioniq-2017` without a PII risk (subject to the fixture-profile rule for any view
-that renders free text).
+Measured when this was written: no VIN in the bundled corpus. **That has since changed:**
+`canair search --vin` finds a VIN-shaped string in `ioniq-2017` (`VCU` KWP record `1A90`,
+captured 2026-08-09 onward), and the `contribute` PII pre-flight flags the same captures. Whether
+it is a real VIN needs a human decision before this ships further.

@@ -26,9 +26,11 @@ Every capability is a `canair <subcommand>`. These pages are generated from each
 
 - [`canair captures`](captures.md) — Query captured data. Choose a kind:
 - [`canair decode`](decode.md) — Decode captured UDS payloads using PID parameter definitions.
+- [`canair align`](align.md) — Emit a time-aligned, wide table of several ECU:PID:PARAM signals — one row per reference sample, one column per signal, nearest-joined within a tolerance. The first selector sets the row cadence; the rest join onto it.
 - [`canair correlate`](correlate.md) — Find every strong cross-signal relationship across a drive/session.
 - [`canair hunt`](hunt.md) — Answer 'which byte carries a signal I already know?' Choose a domain kind:
 - [`canair investigate`](investigate.md) — Point this at an unknown signal and get one ranked table telling you
+- [`canair search`](search.md) — Find a string, VIN or byte pattern anywhere in the captures — without already
 - [`canair coverage`](coverage.md) — Audit PID definitions for decoding gaps.
 - [`canair research`](research.md) — Report open reverse-engineering work from ecus/ research: sections.
 
@@ -57,7 +59,6 @@ Every capability is a `canair <subcommand>`. These pages are generated from each
 
 ### Other
 
-- [`canair align`](align.md) — Emit a time-aligned, wide table of several ECU:PID:PARAM signals — one row per reference sample, one column per signal, nearest-joined within a tolerance. The first selector sets the row cadence; the rest join onto it.
 - [`canair contribute`](contribute.md) — Open a pull request contributing the active profile upstream.
 - [`canair bix`](bix.md) — Convert byte indices between WiCAN, ISO-TP, Torque, and OBDb notations.
 - [`canair logs`](logs.md) — ``canair logs`` — view the central rotating diagnostics event log.

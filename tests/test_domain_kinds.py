@@ -25,6 +25,8 @@ class TestGroupDefaults:
         )
         assert _GROUP_DEFAULTS["correlate"] == ({"uds", "can"}, "uds")
         assert _GROUP_DEFAULTS["hunt"] == ({"uds", "can"}, "uds")
+        # `search` ships only the uds kind; `can` joins when raw-frame search does.
+        assert _GROUP_DEFAULTS["search"] == ({"uds"}, "uds")
 
     def test_states_group_default(self):
         # A bare token after `states` routes through the `list` kind (reverse lookup).

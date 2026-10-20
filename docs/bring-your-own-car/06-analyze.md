@@ -142,6 +142,25 @@ the **unmapped** and partially-decoded bytes:
 
 ![canair coverage BMS — undecoded payload bytes](../screenshots/coverage.svg)
 
+### Finding text: part numbers, versions, VINs
+
+Everything above starts from "which ECU, which PID". When the thing you want is
+*text* — a part number, a software version, an ECU name — you often don't know where
+it lives. `canair search` asks the whole capture store:
+
+```bash
+canair search 95400G7470          # which ECU/PID holds this part number?
+canair search                     # list every plausible string in the captures
+canair search --hex 'DE AD BE EF' # a byte pattern instead of text
+```
+
+Findings are grouped by **location**, not by capture, with a hit count and the dates
+first and last seen. Each payload hit carries a ready-to-run
+`canair pids upsert-param … --type ascii` command (fill in the signal name), so a
+string you found is one step from being a defined signal. The inventory is filtered
+to identifier-looking strings — numeric telemetry is often printable ASCII, so an
+unfiltered sweep is mostly noise (`--all-runs` shows you what that looks like).
+
 ## Step 2 — Reason: what could this byte be?
 
 Before guessing offsets, ask *what would this ECU need to report?* An ECU's job
