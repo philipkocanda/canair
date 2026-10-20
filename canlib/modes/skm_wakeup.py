@@ -111,8 +111,7 @@ async def wake_and_read(terminal: Elm327Terminal, tx_id: str, pid: str) -> dict:
         response: str - raw response string (if ok)
         error: str - error description (if not ok)
     """
-    await terminal.send_command(f"ATSH{tx_id}")
-    await terminal.send_command(f"ATFCSH{tx_id}")
+    await terminal.set_header(int(tx_id, 16))
 
     # Wake from deep sleep
     await terminal.send_command("1001", timeout=3.0)
@@ -159,8 +158,7 @@ async def mode_skm_wakeup(terminal: Elm327Terminal, level: str, verbose: bool):
     # SKM wakes on the 2nd frame but has a ~2s sleep timer — needs fast CAN
     # traffic (64ms timeout) to stay awake. Direct to 0x7A5, no broadcast needed.
     print("  [1/4] Waking SKM (rapid-fire 1001 at 64ms timeout)...")
-    await terminal.send_command("ATSH7A5")
-    await terminal.send_command("ATFCSH7A5")
+    await terminal.set_header(0x7A5)
 
     # Save current timeout and switch to fast mode
     await terminal.send_command("ATST10")  # 64ms timeout

@@ -542,6 +542,8 @@ Most of the original open questions are now **answered** and kept here for the r
   the classic emulation's `0x7E8`–`0x7EF` restriction (`wican-fw/main/elm327.c:619-652` on main)
   never applies — which explains why captures on `0x7BB`/`0x778`/`0x7CE` exist at all. A narrower
   `ATCRA` might still cut chip-side work on a busy bus; unmeasured.
+  **Superseded for non-`+0x08` ECUs:** canair now sets `ATCRA` (and flow-control mode 1) for
+  every ECU off the ISO convention — `plans/2026-10-20-elm327-ecu-addressing.md`.
 - ~~Would `STPX` obsolete the `_cur_header` cache?~~ Moot — `STPX` is not being adopted, so the
   `transaction()`-held `set_header` + `send_uds` invariant stays exactly as it is.
 - ~~Where should the learned frame count live?~~ **In memory, per connection**

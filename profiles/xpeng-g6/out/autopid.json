@@ -1,9 +1,9 @@
 {
-  "car_model": "Xpeng: P5/P7/G6/G9/X9",
-  "init": "ATSP6;ATS0;ATAL;",
+  "car_model": "Xpeng G6 (87.5 kWh)",
+  "init": "ATSP6;ATS0;ATAL;ATSTFF;ATFCSH704;ATFCSD300000;ATFCSM1;",
   "pids": [
     {
-      "pid_init": "ATSH704;ATFCSH704;",
+      "pid_init": "ATSH704;ATFCSH704;ATCRA784;",
       "pid": "221109",
       "enabled": true,
       "period": "5000",
@@ -12,7 +12,7 @@
       }
     },
     {
-      "pid_init": "ATSH704;ATFCSH704;",
+      "pid_init": "ATSH704;ATFCSH704;ATCRA784;",
       "pid": "220101",
       "enabled": true,
       "period": "5000",
@@ -21,7 +21,7 @@
       }
     },
     {
-      "pid_init": "ATSH704;ATFCSH704;",
+      "pid_init": "ATSH704;ATFCSH704;ATCRA784;",
       "pid": "22011A",
       "enabled": true,
       "period": "5000",
@@ -30,7 +30,7 @@
       }
     },
     {
-      "pid_init": "ATSH704;ATFCSH704;",
+      "pid_init": "ATSH704;ATFCSH704;ATCRA784;",
       "pid": "221103",
       "enabled": true,
       "period": "5000",
@@ -39,7 +39,7 @@
       }
     },
     {
-      "pid_init": "ATSH704;ATFCSH704;",
+      "pid_init": "ATSH704;ATFCSH704;ATCRA784;",
       "pid": "221101",
       "enabled": true,
       "period": "5000",
@@ -48,7 +48,7 @@
       }
     },
     {
-      "pid_init": "ATSH704;ATFCSH704;",
+      "pid_init": "ATSH704;ATFCSH704;ATCRA784;",
       "pid": "221107",
       "enabled": true,
       "period": "5000",
@@ -57,7 +57,7 @@
       }
     },
     {
-      "pid_init": "ATSH704;ATFCSH704;",
+      "pid_init": "ATSH704;ATFCSH704;ATCRA784;",
       "pid": "221108",
       "enabled": true,
       "period": "5000",
@@ -66,7 +66,7 @@
       }
     },
     {
-      "pid_init": "ATSH704;ATFCSH704;",
+      "pid_init": "ATSH704;ATFCSH704;ATCRA784;",
       "pid": "221105",
       "enabled": true,
       "period": "5000",
@@ -75,7 +75,7 @@
       }
     },
     {
-      "pid_init": "ATSH704;ATFCSH704;",
+      "pid_init": "ATSH704;ATFCSH704;ATCRA784;",
       "pid": "221106",
       "enabled": true,
       "period": "5000",
@@ -84,7 +84,7 @@
       }
     },
     {
-      "pid_init": "ATSH704;ATFCSH704;",
+      "pid_init": "ATSH704;ATFCSH704;ATCRA784;",
       "pid": "221122",
       "enabled": true,
       "period": "5000",
@@ -242,7 +242,7 @@
       }
     },
     {
-      "pid_init": "ATSH704;ATFCSH704;",
+      "pid_init": "ATSH704;ATFCSH704;ATCRA784;",
       "pid": "221123",
       "enabled": true,
       "period": "5000",

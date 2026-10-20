@@ -79,18 +79,18 @@ MQTT publish) not finishing inside the hardcoded **1000 ms** poll read.
 
 ### Profile mitigations (applied; UNVERIFIED without a device)
 
-`profile.yaml` `init` now carries, in addition to the neutral protocol bits:
-
-```
-ATSTFF;ATFCSM1;ATFCSD300000;
-```
-
-- `ATSTFF` — widen the per-frame timeout from ~614 ms to the ~1044 ms max, so a
-  slow/jittery frame doesn't end the read early (the timer resets each frame).
-- `ATFCSM1;ATFCSD300000` — supply flow control explicitly: FS=0 (clear-to-send),
-  **BS=0** (ECU sends all frames without pausing), **STmin=0** (no inter-frame
-  gap), so all 33 frames burst as fast as the bus allows and are more likely to
-  land inside the 1000 ms poll window. (The firmware default is BS=0 / STmin=10 ms.)
+- `ATSTFF` in `profile.yaml` `init` — widen the per-frame timeout from ~614 ms to
+  the ~1044 ms max, so a slow/jittery frame doesn't end the read early (the timer
+  resets each frame).
+- Explicit flow control, FS=0 (clear-to-send), **BS=0** (ECU sends all frames
+  without pausing), **STmin=0** (no inter-frame gap), so all 33 frames burst as
+  fast as the bus allows and are more likely to land inside the 1000 ms poll
+  window. (The firmware default is BS=0 / STmin=10 ms.) This is not in `init`:
+  the BMS answers at `tx + 0x80`, so canair enables flow-control mode 1 for it
+  (`ATFCSH704`, `ATFCSD300000`, `ATFCSM1`, in the order the adapter requires)
+  together with the `ATCRA784` receive filter, both on its ELM327 transports and
+  in the generated AutoPID profile. The data comes from the profile's
+  `isotp.blocksize`/`stmin` (defaults 0/0).
 
 Also keep the request hex **even-length** (`221122` is): an odd-length PID string
 makes the firmware treat the last nibble as an expected-frame count and stop

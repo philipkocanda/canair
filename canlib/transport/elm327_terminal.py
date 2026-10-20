@@ -2,15 +2,15 @@
 
 canair reaches an ELM327-style adapter (a WiCAN Pro's WebSocket terminal, a
 direct WiFi ELM327 clone over TCP, or — future — a serial dongle) through this
-one engine. It owns the ELM327 *conversation*: ELM init, ``ATSH``/``ATFCSH``
-header caching, command serialisation and transactions, the timing loop that
+one engine. It owns the ELM327 *conversation*: ELM init, addressing (header, flow
+control, receive filter), command serialisation and transactions, the timing loop that
 collects a reply, pipe realignment, and ``send_uds`` request/retry orchestration.
 Bytes move only through an injected
 :class:`~canlib.transport.channel.Channel`. Swapping the channel is the whole of
 "support a new ELM327 wire" (the "keep the WiCAN replaceable" rule): the delicate
 timing loop lives here exactly once, never duplicated per transport.
 
-Three concerns deliberately live in sibling modules, each testable without a
+Four concerns deliberately live in sibling modules, each testable without a
 channel, a clock, or an event loop:
 
 - :mod:`~canlib.transport.elm327_pipe` — the ``>``-prompt ledger that decides
@@ -18,6 +18,8 @@ channel, a clock, or an event loop:
 - :mod:`~canlib.transport.elm327_session` — DiagnosticSessionControl and the
   TesterPresent keepalive.
 - :mod:`~canlib.transport.elm327_frame_count` — expected-response-count policy.
+- :mod:`~canlib.transport.elm327_addressing` — which header, receive filter and
+  flow control each ECU needs, and the cached adapter state.
 
 Wire bindings are separate too: :class:`canlib.transport.elm327_tcp.Elm327TcpTerminal`
 and :class:`canlib.terminal.WiCANTerminal`.
@@ -35,13 +37,15 @@ import sys
 import time
 from collections.abc import AsyncIterator
 
+from ..addressing import AddressBook
 from ..link_latency import LinkLatency
-from ..log import log_command, log_response
+from ..log import log_command, log_event, log_response
 from ..safety import enforce_command_safety
 from ..timing import TimingRecorder
 from ..transport_stats import TransportStats
 from ..uds_parse import CAT_DECODE, CAT_STALE, UdsResponse, parse_uds_response
 from .channel import Channel
+from .elm327_addressing import DEFAULT_FC_DATA, AdapterState, target_for
 from .elm327_frame_count import CountKey, FrameCountCache
 from .elm327_pipe import ResponsePipe, compact
 from .elm327_session import enter_extended_session
@@ -81,7 +85,7 @@ _LINK_LATENCY_MARGIN = 0.5
 # switch), so this samples often enough to track a link that changes while
 # driving. Matched as prefixes, since the header writes carry an argument
 # (`ATSH7E4`); none of them is a prefix of a command that does more work.
-_LINK_PROBE_CMDS = ("ATI", "ATSH", "ATFCSH")
+_LINK_PROBE_CMDS = ("ATI", "ATSH", "ATFCSH", "ATFCSD", "ATFCSM", "ATCRA")
 
 # Ceiling on one resync: enough for several quiet windows, short enough that a
 # wedged adapter escalates to a reconnect instead of stalling the poll loop.
@@ -173,18 +177,28 @@ class Elm327Terminal:
         # Optional per-ECU response budget {tx_id: seconds}. When a read passes no
         # explicit timeout, the current header's budget (else self.timeout) applies.
         self.ecu_timeouts: dict[int, float] = {}
-        # Cached ELM header state so repeated set_header() for the same ECU is a
-        # no-op (headers only change on ECU switch). Kept coherent for any caller
-        # by inspecting commands in _send_command_locked (ATSH/ATFCSH set it,
-        # ATZ/ATD/ATWS reset it).
-        self._cur_header: int | None = None
-        self._cur_fc_header: int | None = None
+        # Every registered ECU's resolved addressing (plus the profile defaults for
+        # any other id), from which `set_header` derives the receive filter and flow
+        # control as well as the header. Empty = every id resolves as tx + 0x08.
+        self.addresses = AddressBook({})
+        # ATFCSD data for an ECU that needs explicit flow control (profile `isotp:`).
+        self.flow_control_data = DEFAULT_FC_DATA
+        # Cached adapter addressing state (header, flow control, receive filter), so
+        # re-selecting the same ECU costs no round trips. Kept coherent for any
+        # caller by observing every command in _send_command_locked.
+        self._address = AdapterState()
+        self._warned_rejected: set[str] = set()
+
+    @property
+    def _cur_header(self) -> int | None:
+        return self._address.header
 
     async def connect(self):
         """Open the underlying channel and reset ELM/session state."""
         await self._channel.connect()
-        self._cur_header = None
-        self._cur_fc_header = None
+        # A new connection may reach an adapter another tool or session configured.
+        # `init_elm`'s ATZ normally resets it at once; until then nothing is assumed.
+        self._address.forget()
         self._pipe.reset()
         self._resyncing = False
         # A learned frame count measures one link. A reconnect may have re-homed
@@ -365,7 +379,6 @@ class Elm327Terminal:
     async def _send_command_locked(self, cmd: str, timeout: float) -> str:
         """Send command while holding the lock (internal)."""
         log_command(cmd)
-        self._track_header(cmd)
 
         # A dirty pipe is normally resolved by prompt accounting: the abandoned
         # command's prompt is still owed, so this command waits for *its* prompt
@@ -409,6 +422,7 @@ class Elm327Terminal:
 
         result = raw.strip()
         log_response(cmd, result)
+        self._address.observe(cmd, result)
         elapsed = time.monotonic() - _t0
         self.cmd_time += elapsed
         cu = cmd.replace(" ", "").upper()
@@ -435,48 +449,45 @@ class Elm327Terminal:
             resp = await self.send_command(cmd)
             if self.verbose:
                 print(f"  [init] {cmd} -> {resp!r}", file=sys.stderr)
+            self._report_rejected(cmd, resp, "profile init")
+        # Whatever filter the init left (auto, or its own ATCRA) is what a
+        # conventional ECU keeps, exactly as before addressing was managed per ECU.
+        self._address.mark_baseline()
 
-    def _track_header(self, cmd: str) -> None:
-        """Keep the cached ELM header state coherent with a command being sent.
+    def _report_rejected(self, cmd: str, resp: str, context: str) -> None:
+        """Record, once per command, that the adapter answered ``?`` (it did not apply it).
 
-        ATSH/ATFCSH set the (flow-control) header; ATZ/ATWS/ATD reset ELM
-        defaults (clearing the header). A malformed header sets the cache to
-        None so the next set_header() re-sends. This runs for *every* command,
-        so direct sends (e.g. skm_wakeup) can't desync the cache.
+        Silence here is how a misordered init used to fail without a trace: the
+        command looks sent, and the adapter just keeps its previous setting. It goes
+        to the diagnostics log (``canair logs``), and to stderr only with
+        ``--verbose``, since this can run while the monitor TUI owns the screen.
         """
-        cu = cmd.upper().replace(" ", "")
-
-        def _hx(s: str) -> int | None:
-            try:
-                return int(s, 16)
-            except ValueError:
-                return None
-
-        if cu.startswith("ATFCSH"):
-            self._cur_fc_header = _hx(cu[6:])
-        elif cu.startswith("ATSH"):
-            self._cur_header = _hx(cu[4:])
-        elif cu in ("ATZ", "ATWS", "ATD"):
-            self._cur_header = None
-            self._cur_fc_header = None
+        if "?" not in resp or cmd in self._warned_rejected:
+            return
+        self._warned_rejected.add(cmd)
+        message = f"adapter rejected {cmd} ({context}) with '?'; its previous setting stays"
+        if self.verbose:
+            print(f"  ! {message}", file=sys.stderr)
+        log_event("config", message, transport=self.diag.transport)
 
     async def set_header(self, tx_id: int):
-        """Set the ELM327 header (target ECU TX ID).
+        """Address the adapter at ``tx_id``: header, flow control and receive filter.
 
-        Cached: the ATSH/ATFCSH pair is skipped when the header is already set
-        to ``tx_id``, so polling many PIDs on one ECU (or re-selecting the same
-        ECU across cycles) costs zero header round-trips after the first.
+        Cached: only what differs from the adapter's current state is sent, so
+        polling many PIDs on one ECU (or re-selecting the same ECU across cycles)
+        costs zero round trips after the first. A conventional ECU (ISO 15765-4
+        ``tx + 0x08``) gets exactly the ATSH/ATFCSH pair it always did; see
+        :mod:`canlib.transport.elm327_addressing` for the others.
         """
-        hex_id = f"{tx_id:03X}"
-        if self._cur_header != tx_id:
-            resp = await self.send_command(f"ATSH{hex_id}")
+        # A registered ECU uses its resolved address; any other id resolves from the
+        # profile defaults (a discovery sweep), and a broadcast with no fc_id lets
+        # every responder through.
+        target = target_for(self.addresses.resolve(tx_id))
+        for cmd in self._address.plan(target, self.flow_control_data):
+            resp = await self.send_command(cmd)
             if self.verbose:
-                print(f"  [header] ATSH{hex_id} -> {resp!r}", file=sys.stderr)
-
-        if self._cur_fc_header != tx_id:
-            resp = await self.send_command(f"ATFCSH{hex_id}")
-            if self.verbose:
-                print(f"  [header] ATFCSH{hex_id} -> {resp!r}", file=sys.stderr)
+                print(f"  [header] {cmd} -> {resp!r}", file=sys.stderr)
+            self._report_rejected(cmd, resp, f"addressing 0x{tx_id:03X}")
 
     async def send_uds(
         self,
@@ -517,7 +528,7 @@ class Elm327Terminal:
         attempt = 0
         # The header cannot move under us here: `transaction()` locks out the
         # keepalive, `send_uds` never re-points it, and `_resync` probes with a
-        # command `_track_header` does not treat as a reset.
+        # command that leaves the addressing state alone.
         counting = self._frame_counts.attempt((self._cur_header, service_pid))
         # One transaction for the whole retry sequence: a keepalive slipping in
         # between attempts would re-point the header and invalidate the retry.

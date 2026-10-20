@@ -540,12 +540,27 @@ five probes — bare `STPX` → `NO DATA`, after `ATFCSH` → `NO DATA`, after `
 therefore saves **one** command per ECU switch, not two. Multi-frame reassembly worked with no
 `ATFCSH`, so the STN answers flow control from the received first frame's address.
 
+**canair sets the receive filter and flow control itself, per ECU**
+(`canlib/transport/elm327_addressing.py`, applied by `Elm327Terminal.set_header`). The datasheet
+facts it rests on: `ATFCSH` is honoured **only in flow-control mode 1** (`ATFCSM1`), and the adapter
+rejects `ATFCSM1` with `?` until both `ATFCSH` and `ATFCSD` are set. In the default mode 0 the
+adapter derives the flow-control id from the First Frame by the ISO convention, so the `ATFCSH`
+canair sends on every switch is ignored there. A *conventional* ECU (11-bit `tx + 0x08`, or the
+fixed-29-bit byte swap) keeps the filter the profile `init` left (normally auto) and whatever
+flow-control mode is in force, so an all-conventional session sends exactly what it did before. Any
+other ECU (a `+0x20` Leaf, the `+0x80` XPeng, a functional-request Renault) gets `ATCRA<rx>` plus
+mode 1 with `ATFCSH<fc_id or tx>`/`ATFCSD`, because mode 0 would derive the wrong flow-control id
+(`0x7BB` → `0x7B3`, not `0x79B`). Mode 1 then stays on for the session. Any `?` reply is logged
+to `canair logs` (stderr with `--verbose`) and that command is not re-sent until a reset. Plan:
+`plans/2026-10-20-elm327-ecu-addressing.md`.
+
 > **Housekeeping rule, learned the hard way.** `ATCRA` and `ATAT` are **not in any profile init
 > string** (the Ioniq's is `ATSP6;ATS0;ATAL;ATST96;`, `profiles/ioniq-2017/profile.yaml:46`), so
-> they
-> **persist across sessions** and silently corrupt later recordings — a stale `ATCRA` pins the
-> receive filter to one ECU. Reset with `ATZ` when done, and remember `ATZ` also clears
-> `ATSP6`/`ATS0`, so the next request may `NO DATA` during protocol re-detection.
+> they **persist across sessions** and silently corrupt later recordings — a stale `ATCRA` pins the
+> receive filter to one ECU. canair's own sessions start with `ATZ` (`init_elm`) and pin the filter
+> only for non-conventional ECUs, so this bites manual experiments (`canair repl`, other tools).
+> Reset with `ATZ` when done, and remember `ATZ` also clears `ATSP6`/`ATS0`, so the next request
+> may `NO DATA` during protocol re-detection.
 >
 > **Verify a reset by interleaving two ECUs on their own rx addresses.** A single-ECU check is
 > worthless: `0x770` replies on `0x778`, which is exactly the filter you may have left set.
