@@ -1493,13 +1493,17 @@ def delete_research_entry(
         others = [span for span in _research_item_spans(text, research_block) if span[0] != s]
         if not others:
             # Last item — drop the whole research: block, else an empty
-            # ``research:`` key parses to None and fails the schema.
-            block = text[r_start:r_body_end]
-            trailing = block[len(block.rstrip("\n")) :]
-            return text[:r_start] + trailing + text[r_body_end:]
+            # ``research:`` key parses to None and fails the schema. The blank
+            # lines separating it from the previous key go with it, unless a
+            # sibling follows that still needs that separation.
+            head, tail = text[:r_start], text[r_body_end:]
+            kept = head.rstrip("\n") + "\n"
+            return kept + (head[len(kept) :] + tail if tail else "")
+        # The item's span ends with its own line break; only blank lines beyond
+        # it separate the list from a following key, so keep just those.
         block = text[s:e]
-        trailing = block[len(block.rstrip("\n")) :]
-        return text[:s] + trailing + text[e:]
+        separation = block[len(block.rstrip("\n")) + 1 :]
+        return text[:s] + separation + text[e:]
 
     def checker(ecu_def: dict) -> None:
         research = ecu_def.get("research") or []

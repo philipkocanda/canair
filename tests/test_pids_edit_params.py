@@ -502,6 +502,36 @@ class TestDeleteResearchEntry:
         delete_research_entry("TESTECU", "2102", type="decode", pids_dir=pids_dir)
         assert _load(pids_dir)["TESTECU"].get("research") is None
 
+    @pytest.mark.parametrize("victim", ["R1", "R2", "R3"])
+    @pytest.mark.parametrize("followed", [False, True])
+    def test_delete_leaves_no_stray_blank_lines(self, tmp_path, victim, followed):
+        """Regression: removing an item (or the section) used to leave a blank line behind."""
+        text = (
+            "X:\n  tx_id: 0x700\n  pids:\n    '2101':\n      status: draft\n\n  research:\n"
+            + "".join(
+                f"    - type: scan\n      target: {t}\n      status: pending\n"
+                for t in "R1 R2 R3".split()
+            )
+            + ("\n  iocontrol_scan_ranges: [F000-F0FF]\n" if followed else "")
+        )
+        (tmp_path / "x.yaml").write_text(text)
+        delete_research_entry("X", victim, pids_dir=tmp_path)
+        after = (tmp_path / "x.yaml").read_text()
+        assert "\n\n\n" not in after and not after.endswith("\n\n")
+        assert after.count("\n\n") == (2 if followed else 1)
+
+    @pytest.mark.parametrize("followed", [False, True])
+    def test_delete_whole_section_leaves_no_stray_blank_lines(self, tmp_path, followed):
+        tail = "\n  iocontrol_scan_ranges: [F000-F0FF]\n" if followed else ""
+        text = (
+            "X:\n  tx_id: 0x700\n  pids:\n    '2101':\n      status: draft\n\n  research:\n"
+            "    - type: scan\n      target: R1\n      status: pending\n" + tail
+        )
+        (tmp_path / "x.yaml").write_text(text)
+        delete_research_entry("X", "R1", pids_dir=tmp_path)
+        expected = "X:\n  tx_id: 0x700\n  pids:\n    '2101':\n      status: draft\n" + tail
+        assert (tmp_path / "x.yaml").read_text() == expected
+
     def test_delete_not_found(self, pids_dir):
         with pytest.raises(PidsEditError):
             delete_research_entry("TESTECU", "9999", pids_dir=pids_dir)
