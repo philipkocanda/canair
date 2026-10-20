@@ -1,10 +1,4 @@
 # ─── Unknown-746 ─────────────────────────────────────────────────────
-# Unknown ECU at 0x746. KWP2000 protocol.
-# Previously labelled OBC-746 speculatively (address proximity to 0x744).
-# No evidence of OBC function.
-# ECU ID 1.10, SW ID Z311 (from 1A identity scan).
-# Most identity fields returned FFFFFFFF.
-#
 # Service discovery (2026-04-19):
 #   Supported: 1A (identity), 20 (stopDiagSession), 21 (live data — only F2),
 #              27 (security — conditionsNotCorrect), 28 (commControl — conditionsNotCorrect),
@@ -32,13 +26,12 @@ Unknown-746:
     21F2:
       status: active
       period: 10000
-      vehicle_states: [READY, CHARGING]
+      vehicle_states: [CHARGING]
       notes: >-
         6-byte response 61F200000007 during AC charging (2026-04-18); the capture notes the same
         response with the car off. NO DATA at READY (2026-07-22). The only service-21 PID that
         responds (sweeps 2026-04-18 and 2026-07-22).
       parameters: {}
-
   research:
     - type: scan
       target: 21F2
