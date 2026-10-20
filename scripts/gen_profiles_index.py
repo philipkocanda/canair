@@ -3,7 +3,7 @@
 
 The repo ships one or more vehicle profiles under ``profiles/``. Rather than
 hand-maintaining a list that drifts as profiles are added or grow, this scans
-the bundled profiles, computes their headline counts (ECUs / PIDs / parameters /
+the bundled profiles, computes their headline counts (ECUs / PIDs / signals /
 verified), and renders a Markdown table — each row linking to the profile's
 folder on GitHub.
 
@@ -116,6 +116,31 @@ def _maturity(counts: dict[str, int]) -> str:
     return "early"
 
 
+_MATURITY_SENTENCE = {
+    "mature": "A mature profile",
+    "seed / stub": "A seed / stub profile",
+    "early": "An early profile",
+}
+
+
+def _plural(n: int, word: str) -> str:
+    return f"{n} {word}" + ("" if n == 1 else "s")
+
+
+def profile_summary(counts: dict[str, int], source: str) -> str:
+    """One-sentence description of a profile without a dedicated tour page.
+
+    The maturity word is used once, with the article it needs, and only the
+    profiles that are not yet mature are called a starting point.
+    """
+    maturity = _maturity(counts)
+    stats = f"({_plural(counts['params'], 'signal')}, {counts['verified']} verified)"
+    lead = f"{_MATURITY_SENTENCE[maturity]} {stats}"
+    if maturity != "mature":
+        lead += " — a starting point that needs contributions"
+    return f"{lead}. Browse {source}."
+
+
 def render_stats_block(counts: dict[str, int]) -> str:
     """The managed "At a glance" rows for a dedicated profile page.
 
@@ -135,7 +160,7 @@ def render_stats_block(counts: dict[str, int]) -> str:
     rows = [
         f"| ECUs mapped | **{counts['ecus']}** (all registered with identity) |",
         f"| PIDs | **{counts['pids']}** active/draft |",
-        f"| Parameters | **{counts['params']}** decoded "
+        f"| Signals | **{counts['params']}** decoded "
         f"(**{counts['verified']} verified**, {unverified} unverified/candidate) |",
         f"| IOControl DIDs | **{counts['iocontrol']}** actuators (UDS `0x2F`) |",
         f"| Research backlog | **{counts['research']}** open reverse-engineering leads |",
@@ -192,7 +217,7 @@ def generate() -> str:
         "> These counts are generated from each profile's `ecus/` files by "
         "`scripts/gen_profiles_index.py`, so they stay in sync with the data.",
         "",
-        "| Profile | Vehicle | ECUs | PIDs | Params | Verified | Maturity | Source |",
+        "| Profile | Vehicle | ECUs | PIDs | Signals | Verified | Maturity | Source |",
         "|---|---|---:|---:|---:|---:|---|---|",
     ]
 
@@ -221,17 +246,11 @@ def generate() -> str:
             lines.append(
                 f"- **[{name}]({page})** — {model}. "
                 f"A mature, worked reference profile ({counts['verified']} verified "
-                f"parameters across {counts['ecus']} ECUs). See the full tour, or "
+                f"signals across {counts['ecus']} ECUs). See the full tour, or "
                 f"browse {source}."
             )
         else:
-            n = counts["params"]
-            params_str = f"{n} parameter" + ("" if n == 1 else "s")
-            lines.append(
-                f"- **`{name}`** — {model}. An early {_maturity(counts)} profile "
-                f"({params_str}, {counts['verified']} verified) — a "
-                f"starting point that needs contributions. Browse {source}."
-            )
+            lines.append(f"- **`{name}`** — {model}. {profile_summary(counts, source)}")
     lines.append("")
 
     return "\n".join(lines)
