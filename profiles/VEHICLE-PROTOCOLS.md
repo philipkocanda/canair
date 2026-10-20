@@ -199,7 +199,9 @@ Smart EQ, VW MEB).
 - **Nissan Ariya.** Normal-fixed **29-bit**: request `0x18DADBF1` → response
   `0x18DAF1DB`. Service `0x22`.
 - **Nissan Leaf (ZE1).** 11-bit, request `0x79B` → response `0x7BB` (**+0x20**).
-  Service `0x21` (`21018`, the battery controller).
+  Service `0x21` (`21018`, the battery controller) on the LBC; service `0x22` on
+  the VCM (`0x797` → `0x79A`, +3), meter (`0x743` → `0x763`), ABS (`0x740` →
+  `0x760`) and inverter (`0x784` → `0x78C`, +8).
 - **Nissan Patrol / Armada Y62.** 11-bit, request `0x7E0`. Service `0x22`.
 - **Renault Megane E-Tech family** (Scénic EV, R5, R4, Master EV; label also
   lists Ariya). **29-bit functional**: request `0x18DB33F1` → response

@@ -6,14 +6,12 @@ VCM:
     notes: >-
       Seeded device-free from the charge-counter PIDs listed (but not shipped) in
       meatpiHQ/wican-fw#750: request 0x797 / response 0x79A (rx = tx + 3, an explicit rx_id override
-      of the profile's +0x20). The PR does not name the module; VCM is the conventional Leaf name
-      for this address.
-
-
-      Source: https://github.com/meatpiHQ/wican-fw/pull/750
+      of the profile's +0x20). VCM is the name dalathegreat and OBDb use for this address; OVMS
+      calls it CHARGER_TXID. Source: https://github.com/meatpiHQ/wican-fw/pull/750
     identity_confidence: tentative
   pids:
     221203:
+      status: active
       parameters:
         QC_COUNT:
           expression: "[B4:B5]"
@@ -22,12 +20,13 @@ VCM:
             - https://github.com/meatpiHQ/wican-fw/pull/750
           verified: false
           notes: Quick (DC) charge count, 16-bit at WiCAN [B4:B5].
-      status: draft
       vehicle_states: [READY]
       notes: >-
-        Quick-charge counter DID. Listed in the PR body (upstream key 2212031), not in its profile
-        JSON.
+        Quick-charge counter DID. Listed in the PR body (upstream key 2212031) and decoded
+        identically by OBDb, dalathegreat and OVMS; default 5 s period is far faster than needed,
+        the count only changes on a quick charge.
     221205:
+      status: active
       parameters:
         L2_COUNT:
           expression: "[B4:B5]"
@@ -36,8 +35,466 @@ VCM:
             - https://github.com/meatpiHQ/wican-fw/pull/750
           verified: false
           notes: L1/L2 (AC) charge count, 16-bit at WiCAN [B4:B5].
+      vehicle_states: [READY]
+      notes: >-
+        L1/L2 charge counter DID. Listed in the PR body (upstream key 2212051) and decoded
+        identically by OBDb, dalathegreat and OVMS; the count only changes when an AC charge starts.
+    221102:
+      parameters:
+        VCM_SPEED:
+          expression: B4
+          unit: km/h
+          min: "0"
+          max: "255"
+          source: OBDb
+          source_links:
+            - https://github.com/OBDb/Nissan-Leaf
+          verified: false
+          notes: Vehicle speed seen by the VCM, one byte, 1 km/h per bit.
+      status: active
+      period: 2000
+      vehicle_states: [READY]
+      notes: Vehicle speed (VCM).
+    221103:
+      parameters:
+        VPWR_12V:
+          expression: B4*0.08
+          unit: V
+          min: "0"
+          max: "20"
+          source: OBDb, dalathegreat, py-nissan-leaf-obd-ble
+          source_links:
+            - https://github.com/OBDb/Nissan-Leaf
+            - https://github.com/dalathegreat/leaf_can_bus_messages
+            - https://github.com/pbutterworth/nissan-leaf-obd-ble
+          verified: false
+          notes: 12 V battery voltage as read by the VCM, 0.08 V per bit (OBDb divides by 12.5).
+      status: active
+      period: 10000
+      vehicle_states: [READY]
+      notes: 12 V battery voltage.
+    221106:
+      parameters:
+        AC_ON:
+          expression: B4
+          type: enum
+          values:
+            0: "OFF"
+            1: "ON"
+          source: OBDb, dalathegreat, py-nissan-leaf-obd-ble
+          source_links:
+            - https://github.com/OBDb/Nissan-Leaf
+            - https://github.com/dalathegreat/leaf_can_bus_messages
+            - https://github.com/pbutterworth/nissan-leaf-obd-ble
+          verified: false
+          notes: >-
+            A/C compressor request, 0/1. Reproduces 30 OBDb ZE1 vectors (37 across all model years).
+      status: active
+      period: 5000
+      vehicle_states: [READY]
+      notes: A/C state.
+    22110F:
+      parameters:
+        REAR_HEATER:
+          expression: B4
+          type: enum
+          values:
+            162: "ON"
+          source: OBDb, dalathegreat, py-nissan-leaf-obd-ble
+          source_links:
+            - https://github.com/OBDb/Nissan-Leaf
+            - https://github.com/dalathegreat/leaf_can_bus_messages
+            - https://github.com/pbutterworth/nissan-leaf-obd-ble
+          verified: false
+          notes: Rear heater; 0xA2 (162) = on, other values not seen.
+      status: active
+      period: 30000
+      vehicle_states: [READY]
+      notes: Rear heater state.
+    221128:
+      parameters:
+        MOTOR_TQ_NOMINAL:
+          expression: "[S4:S5]/64"
+          unit: Nm
+          min: "-512"
+          max: "512"
+          source: OBDb
+          source_links:
+            - https://github.com/OBDb/Nissan-Leaf
+          verified: false
+          notes: Nominal (requested) motor torque, signed 16-bit /64 Nm.
+      status: active
+      period: 2000
+      vehicle_states: [READY]
+      notes: Nominal motor torque.
+    221146:
+      parameters:
+        MOTOR_PWR:
+          expression: "[B4:B5]*40"
+          unit: W
+          min: "0"
+          max: "2621400"
+          source: OBDb, dalathegreat, py-nissan-leaf-obd-ble
+          source_links:
+            - https://github.com/OBDb/Nissan-Leaf
+            - https://github.com/dalathegreat/leaf_can_bus_messages
+            - https://github.com/pbutterworth/nissan-leaf-obd-ble
+          verified: false
+          notes: >-
+            Traction motor power, 16-bit x40 W. OBDb and dalathegreat read it unsigned;
+            py-nissan-leaf-obd-ble reads it signed. No OBDb vector exceeds 0x8000, so regen sign
+            handling is unconfirmed.
+      status: active
+      period: 2000
+      vehicle_states: [READY]
+      notes: Traction motor power.
+    22114E:
+      parameters:
+        CHARGE_MODE:
+          expression: B4
+          type: enum
+          values:
+            0: NOT_CHARGING
+            1: L1
+            2: L2
+            3: QUICK_CHARGE
+          source: OBDb, dalathegreat, py-nissan-leaf-obd-ble
+          source_links:
+            - https://github.com/OBDb/Nissan-Leaf
+            - https://github.com/dalathegreat/leaf_can_bus_messages
+            - https://github.com/pbutterworth/nissan-leaf-obd-ble
+          verified: false
+          notes: "Charging mode: 0 none, 1 L1, 2 L2, 3 quick charge."
+      status: active
+      period: 5000
+      vehicle_states: [READY]
+      notes: Charging mode.
+    221151:
+      parameters:
+        AC_PWR:
+          expression: B4*250
+          unit: W
+          min: "0"
+          max: "63750"
+          source: OBDb, dalathegreat, py-nissan-leaf-obd-ble
+          source_links:
+            - https://github.com/OBDb/Nissan-Leaf
+            - https://github.com/dalathegreat/leaf_can_bus_messages
+            - https://github.com/pbutterworth/nissan-leaf-obd-ble
+          verified: false
+          notes: Climate power incl. the cabin PTC heater, 250 W per bit.
+      status: active
+      period: 5000
+      vehicle_states: [READY]
+      notes: A/C system power incl. PTC.
+    221152:
+      parameters:
+        AUX_PWR:
+          expression: B4*100
+          unit: W
+          min: "0"
+          max: "25500"
+          source: OBDb, dalathegreat, py-nissan-leaf-obd-ble
+          source_links:
+            - https://github.com/OBDb/Nissan-Leaf
+            - https://github.com/dalathegreat/leaf_can_bus_messages
+            - https://github.com/pbutterworth/nissan-leaf-obd-ble
+          verified: false
+          notes: >-
+            Auxiliary equipment power (lights, radio, navigation, rear defroster), 100 W per bit.
+      status: active
+      period: 5000
+      vehicle_states: [READY]
+      notes: Auxiliary equipment power.
+    221156:
+      parameters:
+        GEAR:
+          expression: B4
+          type: enum
+          values:
+            1: PARK
+            2: REVERSE
+            3: NEUTRAL
+            4: DRIVE
+            7: ECO
+          source: OBDb, dalathegreat, py-nissan-leaf-obd-ble
+          source_links:
+            - https://github.com/OBDb/Nissan-Leaf
+            - https://github.com/dalathegreat/leaf_can_bus_messages
+            - https://github.com/pbutterworth/nissan-leaf-obd-ble
+          verified: false
+          notes: >-
+            Gear: 1 P, 2 R, 3 N, 4 D, 7 Eco (OBDb, dalathegreat). py-nissan-leaf-obd-ble maps Eco to
+            5; no source shows it.
+      status: active
+      period: 2000
+      vehicle_states: [READY]
+      notes: Gear position.
+    22115D:
+      parameters:
+        AMBIENT_T:
+          expression: B4/2-40.5
+          unit: °C
+          min: "-40"
+          max: "80"
+          source: dalathegreat, OBDb, py-nissan-leaf-obd-ble
+          source_links:
+            - https://github.com/dalathegreat/leaf_can_bus_messages
+            - https://github.com/OBDb/Nissan-Leaf
+            - https://github.com/pbutterworth/nissan-leaf-obd-ble
+          verified: false
+          notes: >-
+            Ambient temperature, x/2 - 40.5 °C. dalathegreat and OBDb use 0.9*x - 40.9 degF, which
+            is exactly this; py-nissan-leaf-obd-ble uses x/2 - 40 (0.5 °C higher). dalathegreat's
+            example 0x81 = 24 °C fits -40.5. Max 80 drops raw 0xFF (87 °C), which OBDb vectors show
+            as an invalid reading.
+      status: active
+      period: 30000
+      vehicle_states: [READY]
+      notes: Ambient temperature.
+    221183:
+      parameters:
+        VPWR_12V_CURRENT:
+          expression: "[S4:S5]/256"
+          unit: A
+          min: "-128"
+          max: "128"
+          source: OBDb, dalathegreat, OVMS, py-nissan-leaf-obd-ble
+          source_links:
+            - https://github.com/OBDb/Nissan-Leaf
+            - https://github.com/dalathegreat/leaf_can_bus_messages
+            - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
+            - https://github.com/pbutterworth/nissan-leaf-obd-ble
+          verified: false
+          notes: 12 V battery current, signed 16-bit /256 A. Negative = drain, positive = charging.
+      status: active
+      period: 5000
+      vehicle_states: [READY]
+      notes: 12 V battery current.
+    22121A:
+      parameters:
+        VEHICLE_SPEED:
+          expression: "[B4:B5]/10"
+          unit: km/h
+          min: "0"
+          max: "250"
+          source: OBDb, dalathegreat, py-nissan-leaf-obd-ble
+          source_links:
+            - https://github.com/OBDb/Nissan-Leaf
+            - https://github.com/dalathegreat/leaf_can_bus_messages
+            - https://github.com/pbutterworth/nissan-leaf-obd-ble
+          verified: false
+          notes: Vehicle speed, 16-bit /10 km/h.
+      status: active
+      period: 2000
+      vehicle_states: [READY]
+      notes: Vehicle speed.
+    221234:
+      parameters:
+        PLUG_STATE:
+          expression: B4
+          type: enum
+          values:
+            0: UNPLUGGED
+            1: PARTIAL
+            2: PLUGGED
+          source: OBDb, dalathegreat, py-nissan-leaf-obd-ble
+          source_links:
+            - https://github.com/OBDb/Nissan-Leaf
+            - https://github.com/dalathegreat/leaf_can_bus_messages
+            - https://github.com/pbutterworth/nissan-leaf-obd-ble
+          verified: false
+          notes: "J1772/Type 2 charge port plug state: 0 unplugged, 1 partially plugged, 2 plugged."
+      status: active
+      period: 5000
+      vehicle_states: [READY]
+      notes: Charge-port plug state.
+    221236:
+      parameters:
+        OBC_OUT_PWR:
+          expression: "[B4:B5]*100"
+          unit: W
+          min: "0"
+          max: "7000"
+          source: OBDb, dalathegreat, py-nissan-leaf-obd-ble
+          source_links:
+            - https://github.com/OBDb/Nissan-Leaf
+            - https://github.com/dalathegreat/leaf_can_bus_messages
+            - https://github.com/pbutterworth/nissan-leaf-obd-ble
+          verified: false
+          notes: On-board charger output power into the HV battery, 100 W per bit.
+      status: active
+      period: 5000
+      vehicle_states: [READY]
+      notes: On-board charger output power.
+    221248:
+      parameters:
+        HV_CURRENT_VCM:
+          expression: "[S4:S5]/2"
+          unit: A
+          min: "-600"
+          max: "600"
+          source: OBDb
+          source_links:
+            - https://github.com/OBDb/Nissan-Leaf
+          verified: false
+          notes: >-
+            HV battery current as the VCM sees it, signed 16-bit /2 A. Only a handful of OBDb
+            vectors, so the sign convention is unconfirmed; cross-check against LBC:2101
+            HV_CURRENT_1 (negative = discharge).
+      status: active
+      period: 2000
+      vehicle_states: [READY]
+      notes: HV battery current (VCM view).
+    221254:
+      parameters:
+        MOTOR_TQ:
+          expression: "[S4:S5]/64"
+          unit: Nm
+          min: "-512"
+          max: "512"
+          source: OBDb
+          source_links:
+            - https://github.com/OBDb/Nissan-Leaf
+          verified: false
+          notes: Actual motor torque, signed 16-bit /64 Nm.
+      status: active
+      period: 2000
+      vehicle_states: [READY]
+      notes: Actual motor torque.
+    221255:
+      parameters:
+        MOTOR_RPM:
+          expression: "[S4:S5]"
+          unit: rpm
+          min: "-12000"
+          max: "12000"
+          source: OBDb, dalathegreat, py-nissan-leaf-obd-ble
+          source_links:
+            - https://github.com/OBDb/Nissan-Leaf
+            - https://github.com/dalathegreat/leaf_can_bus_messages
+            - https://github.com/pbutterworth/nissan-leaf-obd-ble
+          verified: false
+          notes: >-
+            Motor speed, signed 16-bit rpm. OBDb vectors include 0x3FFF (16383), apparently an
+            invalid-reading value; the +/-12000 filter drops it.
+      status: active
+      period: 2000
+      vehicle_states: [READY]
+      notes: Motor speed.
+    221261:
+      parameters:
+        AC_PWR_EST:
+          expression: B4*50
+          unit: W
+          min: "0"
+          max: "12750"
+          source: OBDb, dalathegreat, py-nissan-leaf-obd-ble
+          source_links:
+            - https://github.com/OBDb/Nissan-Leaf
+            - https://github.com/dalathegreat/leaf_can_bus_messages
+            - https://github.com/pbutterworth/nissan-leaf-obd-ble
+          verified: false
+          notes: Estimated A/C compressor power, 50 W per bit.
+      status: active
+      period: 5000
+      vehicle_states: [READY]
+      notes: Estimated A/C power.
+    221262:
+      parameters:
+        PTC_PWR_EST:
+          expression: B4*250
+          unit: W
+          min: "0"
+          max: "63750"
+          source: OBDb, dalathegreat, py-nissan-leaf-obd-ble
+          source_links:
+            - https://github.com/OBDb/Nissan-Leaf
+            - https://github.com/dalathegreat/leaf_can_bus_messages
+            - https://github.com/pbutterworth/nissan-leaf-obd-ble
+          verified: false
+          notes: Estimated cabin PTC heater power, 250 W per bit.
+      status: active
+      period: 5000
+      vehicle_states: [READY]
+      notes: Estimated PTC heater power.
+    221304:
+      parameters:
+        POWER_SWITCH:
+          expression: B4:7
+          type: enum
+          values:
+            0: "OFF"
+            1: "ON"
+          source: dalathegreat, py-nissan-leaf-obd-ble
+          source_links:
+            - https://github.com/dalathegreat/leaf_can_bus_messages
+            - https://github.com/pbutterworth/nissan-leaf-obd-ble
+          verified: false
+          notes: "Power switch, bit 7 of the first data byte (dalathegreat: 0x80 = car on)."
+      status: active
+      period: 5000
+      vehicle_states: [READY]
+      notes: Power switch.
+    221318:
+      parameters:
+        ECO_MODE:
+          expression: B4
+          type: enum
+          values:
+            0: "OFF"
+            16: "ON"
+            17: "ON"
+          source: OBDb, dalathegreat, py-nissan-leaf-obd-ble
+          source_links:
+            - https://github.com/OBDb/Nissan-Leaf
+            - https://github.com/dalathegreat/leaf_can_bus_messages
+            - https://github.com/pbutterworth/nissan-leaf-obd-ble
+          verified: false
+          notes: >-
+            ECO mode: 0 off, 0x10 and 0x11 on (two values, meaning of the difference unknown).
+      status: active
+      period: 10000
+      vehicle_states: [READY]
+      notes: ECO mode.
+    22131A:
+      parameters:
+        EPEDAL_MODE:
+          expression: B4
+          type: enum
+          values:
+            0: "OFF"
+            4: "ON"
+          source: OBDb, dalathegreat, py-nissan-leaf-obd-ble
+          source_links:
+            - https://github.com/OBDb/Nissan-Leaf
+            - https://github.com/dalathegreat/leaf_can_bus_messages
+            - https://github.com/pbutterworth/nissan-leaf-obd-ble
+          verified: false
+          notes: "e-Pedal mode: 0 off, 4 on."
+      status: active
+      period: 10000
+      vehicle_states: [READY]
+      notes: e-Pedal mode.
+    2181:
       status: draft
       vehicle_states: [READY]
       notes: >-
-        L1/L2 charge counter DID. Listed in the PR body (upstream key 2212051), not in its profile
-        JSON.
+        VCM group 81 (service 0x21): the vehicle identification number as ASCII (dalathegreat,
+        OVMS). Contains the VIN, so never commit a capture of it.
+
+  research:
+    - type: verify
+      target: "221146"
+      status: pending
+      priority: P3
+      vehicle_states: [READY]
+      created: "2026-10-20"
+      updated: "2026-10-20"
+      notes: >-
+        MOTOR_PWR is read unsigned x40 W (OBDb, dalathegreat); py-nissan-leaf-obd-ble reads it
+        signed. No public vector exceeds 0x8000, so regen sign handling is unknown.
+      sources:
+        - OBDb, dalathegreat, py-nissan-leaf-obd-ble
+      what_to_test:
+        - Capture VCM:221146 with VCM:221248 and VCM:221254 during hard regen; see whether 221146 wraps above 0x8000.

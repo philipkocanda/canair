@@ -1,0 +1,9 @@
+TCU:
+  tx_id: 0x746
+  rx_id: 0x783
+  identity:
+    description: Telematics control unit
+    notes: >-
+      Address from the dalathegreat/leaf_can_bus_messages ECU table (generation-wide, not
+      ZE1-specific). No DIDs known; presence on the ZE1 is unconfirmed.
+    identity_confidence: tentative

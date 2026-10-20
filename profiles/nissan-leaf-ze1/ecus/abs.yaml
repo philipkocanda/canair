@@ -1,0 +1,62 @@
+ABS:
+  tx_id: 0x740
+  identity:
+    description: ABS / vehicle dynamics control (also reports pedal and steering inputs)
+    notes: >-
+      Address from the dalathegreat/leaf_can_bus_messages ECU table (generation-wide, not
+      ZE1-specific). Signals from OBDb Nissan-Leaf and dalathegreat.
+    identity_confidence: tentative
+  pids:
+    221115:
+      parameters:
+        ACCEL_PEDAL:
+          expression: B4/2
+          unit: "%"
+          min: "0"
+          max: "100"
+          source: OBDb, dalathegreat
+          source_links:
+            - https://github.com/OBDb/Nissan-Leaf
+            - https://github.com/dalathegreat/leaf_can_bus_messages
+          verified: false
+          notes: Accelerator pedal position, 0.5 % per bit (0-200 raw).
+      status: active
+      period: 2000
+      vehicle_states: [READY]
+      notes: Accelerator pedal position.
+    221208:
+      parameters:
+        STEERING_ANGLE:
+          expression: "[S4:S5]/10"
+          unit: °
+          min: "-720"
+          max: "720"
+          source: dalathegreat
+          source_links:
+            - https://github.com/dalathegreat/leaf_can_bus_messages
+          verified: false
+          notes: >-
+            Steering wheel angle, signed 16-bit /10 degrees (dalathegreat: -720..+720, negative =
+            left). No OBDb vector.
+      status: active
+      period: 2000
+      vehicle_states: [READY]
+      notes: Steering wheel angle.
+    221209:
+      parameters:
+        BRAKE_MC_PRESSURE_RAW:
+          expression: "[B4:B5]"
+          min: "0"
+          max: "65535"
+          source: OBDb, dalathegreat
+          source_links:
+            - https://github.com/OBDb/Nissan-Leaf
+            - https://github.com/dalathegreat/leaf_can_bus_messages
+          verified: false
+          notes: >-
+            Brake master-cylinder pressure, raw unsigned 16-bit (0-369 per dalathegreat). OBDb
+            divides by 1.536 with unit unknown, so the raw value is kept.
+      status: active
+      period: 2000
+      vehicle_states: [READY]
+      notes: Brake master-cylinder pressure.

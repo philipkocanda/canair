@@ -1,0 +1,35 @@
+BCM:
+  tx_id: 0x745
+  identity:
+    description: Body control module
+    notes: >-
+      Address from the dalathegreat/leaf_can_bus_messages README ECU table (generation-wide, not
+      ZE1-specific); his 2018 poll-list PDF calls 0x745 the meter instead. Lever status DID 2109 is
+      registered as a draft; presence on the ZE1 is unconfirmed.
+    identity_confidence: tentative
+  pids:
+    2109:
+      status: draft
+      vehicle_states: [READY]
+      notes: >-
+        Lever/stalk status (service 0x21, 16-byte payload; dalathegreat lists it under 'Meter' at
+        0x745): data bytes 0-2 encode wiper, indicator and light switch positions as a lookup of raw
+        values (see dalathegreat 2018 poll list). Not decoded here.
+
+  research:
+    - type: decode
+      target: "2109"
+      status: pending
+      priority: P3
+      vehicle_states: [READY]
+      created: "2026-10-20"
+      updated: "2026-10-20"
+      notes: >-
+        Lever status (wipers, indicators, lights) as raw lookup values in the first three data
+        bytes, from dalathegreat's 2018 poll-list PDF, which files it under 'Meter' at 0x745. His
+        README table names 0x745 the BCM and 0x743 the meter, so the two dalathegreat sources
+        disagree on which module this is.
+      sources:
+        - dalathegreat
+      what_to_test:
+        - Read 0x745 2109 and confirm which module answers and the wiper and indicator values.

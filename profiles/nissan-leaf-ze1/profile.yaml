@@ -1,4 +1,4 @@
-# Nissan Leaf ZE1 40 kWh (2018-2022) — vehicle profile settings
+# Nissan Leaf ZE1 (2018-2024, 40 kWh and 62 kWh e+) — vehicle profile settings
 # (created by `canair profile create`).
 # Per-ECU definitions live in ecus/. Populate with `canair discover --register`
 # (add --identify to read identity DIDs), then `canair pids ...`. Validate with
@@ -7,12 +7,28 @@
 # Seeded device-free from the WiCAN community profile in meatpiHQ/wican-fw#750
 # (https://github.com/meatpiHQ/wican-fw/pull/750, closed unmerged), which fixes
 # the upstream vehicle_profiles/nissan/leaf-ze1.json SOH and adds capacity,
-# temperature, odometer and range signals. The SOH and capacity scalings use the
-# 40 kWh pack's 115.44 Ah reference; the 62 kWh e+ needs its own profile.
+# temperature, odometer and range signals, verified on a 2018 40 kWh car.
+#
+# The profile covers both packs: LBC:2161 SOH is reported by the battery
+# controller itself, so it suits either. LBC:2101 SOH_40KWH uses the 40 kWh
+# pack's 115.44 Ah reference and is wrong on an e+ (new pack about 176 Ah).
 #
 # Per the PR, the ZE1's CAN gateway isolates the OBD-II port while the car is
 # off: every PID answers only with the ignition on (READY).
-car_model: "Nissan Leaf ZE1 40 kWh (2018-2022)"
+#
+# Further signals were added device-free from public sources, all unverified
+# (no ZE1 capture in this profile yet) and each cited in its signal's
+# source_links:
+#   - OBDb Nissan-Leaf (https://github.com/OBDb/Nissan-Leaf, CC BY-SA 4.0): the
+#     per-model-year signal set and its real 2018-2024 ZE1 test responses
+#     (40 kWh and e+ cars), used to check every offset it covers.
+#   - dalathegreat/leaf_can_bus_messages: the "Nissan Leaf 2018" poll list
+#     (ECU table, LBC groups 1/2/4/6/61/84, VCM, ABS, inverter, HVAC).
+#   - OVMS v3 vehicle_nissanleaf and pbutterworth/nissan-leaf-obd-ble:
+#     cross-checks for the LBC and VCM decodes.
+# ECU addresses without a known DID (BCM, EPS, TCU, ...) come from the
+# dalathegreat table, which spans Leaf generations, so they are marked tentative.
+car_model: "Nissan Leaf ZE1 (2018-2024, 40 kWh and 62 kWh e+)"
 # The upstream ELM327 init is ATSP6;ATFCSH79B;ATST96;ATFCSD300000;ATFCSM1;
 # with per-PID ATSH<tx>;ATFCSH<tx>;ATCRA<rx>. canair sets the header, receive
 # filter and flow control per ECU itself (from addressing: and rx_id below), so
@@ -26,8 +42,9 @@ can_bitrate: 500000
 
 # CAN diagnostic addressing. The LBC (0x79B -> 0x7BB) and the meter
 # (0x743 -> 0x763) answer at tx_id + 0x20, from the upstream ATSH/ATCRA pairs,
-# NOT the +0x08 default. The VCM (0x797 -> 0x79A, +3) overrides this with its
-# own rx_id.
+# NOT the +0x08 default. Modules that do not follow +0x20 carry their own rx_id:
+# VCM 0x797 -> 0x79A (+3), inverter 0x784 -> 0x78C (+8), charger 0x792 -> 0x793,
+# brake 0x70E -> 0x70F, VSP 0x73F -> 0x761 and TCU 0x746 -> 0x783.
 addressing:
   rx_offset: 0x20
 
@@ -48,8 +65,8 @@ addressing:
 # built-in (hv_pack, rail_12v) replaces its [low, high], any other name adds a
 # custom band. Grid bands (mains_rms/mains_peak/line_freq) normally come from
 # the user's `grid_region` config, not here. The built-in hv_pack is a ~400 V
-# EV (300-450), which misses the 40 kWh Leaf's low-SOC range: the pack is 96S
-# (~355 V nominal), so 96 x 2.5 V (empty) to 96 x 4.2 V (full) ~= 240-405 V.
+# EV (300-450), which misses the Leaf's low-SOC range: both the 40 kWh and the
+# e+ pack are 96S (~355 V nominal), so 96 x 2.5 V (empty) to 96 x 4.2 V (full) ~= 240-405 V.
 physical_bands:
   hv_pack: [240, 410]   # HV traction pack V (96S, ~355 V nominal)
 

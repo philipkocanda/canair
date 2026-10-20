@@ -4,11 +4,10 @@ METER:
     description: Combination meter (instrument cluster), request 0x743
     notes: >-
       Seeded device-free from meatpiHQ/wican-fw#750, which reads odometer and range here at request
-      0x743 / response 0x763 (rx = tx + 0x20). The PR does not name the module; METER is inferred
-      from the odometer/range DIDs.
-
-
-      Source: https://github.com/meatpiHQ/wican-fw/pull/750
+      0x743 / response 0x763 (rx = tx + 0x20). The PR does not name the module. dalathegreat's
+      README table calls 0x743 the meter and 0x745 the BCM, but his 2018 poll-list PDF swaps them
+      and files odometer, tyre pressures and range under BCM 0x743; METER follows the README and
+      OBDb. Source: https://github.com/meatpiHQ/wican-fw/pull/750
     identity_confidence: tentative
   pids:
     "220E01":
@@ -36,17 +35,110 @@ METER:
           unit: km
           min: "1"
           max: "400"
-          source: meatpiHQ/wican-fw#750 (TyzzyT)
+          source: meatpiHQ/wican-fw#750 (TyzzyT), OBDb, dalathegreat
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/750
+            - https://github.com/OBDb/Nissan-Leaf
+            - https://github.com/dalathegreat/leaf_can_bus_messages
           verified: false
           notes: >-
-            Estimated range, 16-bit at WiCAN [B4:B5]. Reads 0 at startup and 2047 (an 11-bit
-            sentinel) once the car is switched off, so the min/max filter drops both. Not in the
-            PR's LeafSpy comparison.
+            Estimated range, 16-bit at WiCAN [B4:B5], 1 km per bit (OBDb; its vectors read 8-256
+            km). dalathegreat divides by 10 and calls it km to turtle; the vectors do not support
+            that. Reads 0 at startup and 2047 once the car is switched off (OBDb's null values), so
+            the min/max filter drops both.
       status: active
       period: 10000
       vehicle_states: [READY]
       notes: >-
         Estimated-range DID, only meaningful in READY. Upstream request key 220E2E1 (trailing
         frame-count digit dropped).
+    "220E25":
+      parameters:
+        TP_FR:
+          expression: B4*1.7236894
+          unit: kPa
+          min: "0"
+          max: "440"
+          source: OBDb, dalathegreat, py-nissan-leaf-obd-ble
+          source_links:
+            - https://github.com/OBDb/Nissan-Leaf
+            - https://github.com/dalathegreat/leaf_can_bus_messages
+            - https://github.com/pbutterworth/nissan-leaf-obd-ble
+          verified: false
+          notes: Front right tyre pressure, 0.25 psi per bit (x1.7236894 kPa).
+      status: active
+      period: 30000
+      vehicle_states: [READY]
+      notes: Front right tyre pressure.
+    "220E26":
+      parameters:
+        TP_FL:
+          expression: B4*1.7236894
+          unit: kPa
+          min: "0"
+          max: "440"
+          source: OBDb, dalathegreat, py-nissan-leaf-obd-ble
+          source_links:
+            - https://github.com/OBDb/Nissan-Leaf
+            - https://github.com/dalathegreat/leaf_can_bus_messages
+            - https://github.com/pbutterworth/nissan-leaf-obd-ble
+          verified: false
+          notes: Front left tyre pressure, 0.25 psi per bit (x1.7236894 kPa).
+      status: active
+      period: 30000
+      vehicle_states: [READY]
+      notes: Front left tyre pressure.
+    "220E27":
+      parameters:
+        TP_RR:
+          expression: B4*1.7236894
+          unit: kPa
+          min: "0"
+          max: "440"
+          source: OBDb, dalathegreat, py-nissan-leaf-obd-ble
+          source_links:
+            - https://github.com/OBDb/Nissan-Leaf
+            - https://github.com/dalathegreat/leaf_can_bus_messages
+            - https://github.com/pbutterworth/nissan-leaf-obd-ble
+          verified: false
+          notes: Rear right tyre pressure, 0.25 psi per bit (x1.7236894 kPa).
+      status: active
+      period: 30000
+      vehicle_states: [READY]
+      notes: Rear right tyre pressure.
+    "220E28":
+      parameters:
+        TP_RL:
+          expression: B4*1.7236894
+          unit: kPa
+          min: "0"
+          max: "440"
+          source: OBDb, dalathegreat, py-nissan-leaf-obd-ble
+          source_links:
+            - https://github.com/OBDb/Nissan-Leaf
+            - https://github.com/dalathegreat/leaf_can_bus_messages
+            - https://github.com/pbutterworth/nissan-leaf-obd-ble
+          verified: false
+          notes: Rear left tyre pressure, 0.25 psi per bit (x1.7236894 kPa).
+      status: active
+      period: 30000
+      vehicle_states: [READY]
+      notes: Rear left tyre pressure.
+    220E2D:
+      parameters:
+        SOC_DASH:
+          expression: B21
+          unit: "%"
+          min: "0"
+          max: "100"
+          source: OBDb
+          source_links:
+            - https://github.com/OBDb/Nissan-Leaf
+          verified: false
+          notes: >-
+            State of charge as shown on the dashboard, one byte at data byte 14 of the 22-byte
+            reply. Reproduces 16 OBDb vectors. The exact value behind LBC SOC_D's linear estimate.
+      status: active
+      period: 30000
+      vehicle_states: [READY]
+      notes: Dashboard state of charge (22-byte reply, 4 frames).

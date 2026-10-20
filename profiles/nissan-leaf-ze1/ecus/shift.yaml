@@ -1,0 +1,9 @@
+SHIFT:
+  tx_id: 0x79D
+  identity:
+    description: Electronic shifter
+    notes: >-
+      Address from the dalathegreat/leaf_can_bus_messages ECU table (generation-wide, not
+      ZE1-specific). The same README says only the ZE0 has a Shift module, so it is probably absent
+      on the ZE1. No DIDs known.
+    identity_confidence: tentative
