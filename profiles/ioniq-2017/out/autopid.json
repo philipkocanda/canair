@@ -400,7 +400,7 @@
       "parameters": {
         "MCU_MOTOR_RPM": "[S10:S11]",
         "MCU_MOTOR_TORQUE": "[S12:S13]/100",
-        "MCU_ROTOR_ANGLE": "B9",
+        "MCU_2102_B9": "B9",
         "MCU_CURRENT_RELATED": "B21"
       }
     },

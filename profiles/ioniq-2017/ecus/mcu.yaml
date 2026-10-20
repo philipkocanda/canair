@@ -42,44 +42,23 @@ MCU:
       period: 5000
       vehicle_states: [CHARGING]
       notes: >-
-        30-byte KWP2000 live-data block (a 34-byte variant exists = same payload + four trailing 00
-        pad bytes, so all offsets hold for both). 2026-08-08: THREE-PHASE MOTOR CURRENTS LOCATED at
-        payload idx 24-29 as three SIGNED LITTLE-ENDIAN 16-bit words (note the LE convention here,
-        opposite to BMS 2101's big-endian): MCU_PHASE_CURRENT_1=(S30<<8)|B29,
-        MCU_PHASE_CURRENT_2=(S33<<8)|B31 (CROSSES THE PCI BYTE AT B32 - [S31:S33] would swallow it),
-        MCU_PHASE_CURRENT_3=(S35<<8)|B34. Proof: the three sum to zero (mean -0.13, stdev 21.51 vs
-        +/-20678 full scale, n=5181) so the ECU measures two phases and derives the third;
-        sum-of-squares is 462x higher driving than at DCFC standstill; SQ vs RPM r=-0.039 rules out
-        phase VOLTAGES (back-EMF would track RPM); SQ ~ 1.2*torque^2 with field-weakening outliers
-        at high RPM. Absolute scale (A/LSB) still unknown. Also here: MCU_HV_VOLTAGE=B13*2.56
-        (verified; the finer LE-16 refinement was tested and REJECTED - B12 carries no voltage
-        information). B22 and B25 are NOT temperatures (see their notes); B23/B26 are constants
-        0x02/0x04.
+        30 bytes; a 34-byte variant adds four trailing 00 bytes. Words are little-endian, unlike BMS
+        2101. B23 and B26 are constant 0x02 and 0x04.
       parameters:
         MCU_2101_B22:
           expression: B22
-          unit: °C
+          unit: ""
           min: "0"
-          max: "150"
+          max: "255"
           source: canair analysis 2026-08-08 (long drive + 50 kW DCFC), gap-verified against CLU ODOMETER
           verified: false
           notes: >-
-            NOT A TEMPERATURE - was mis-mapped as MCU_INVERTER_TEMP, demoted 2026-08-08. Raw range
-            21-136; B23 is constant 0x02 so this byte is standalone, not a word's low half. (1) NO
-            THERMAL INERTIA, verified on continuously-polled rows: 59 at 16:31:12 -> 22 at 16:31:34
-            (-37 in 22.4 s, at DC charge start) -> 48 at 16:32:20 (+26 in 46 s); then 30 at 16:43:42
-            -> 75 at 16:44:32 (+45 in 49.7 s, as driving resumes). Superimposed +/-3-6 unit jitter
-            on an 8-20 s cadence throughout. Timing is trustworthy: the day's only recording outage
-            was 11:40-15:33 (42 km driven unrecorded per CLU ODOMETER 73322->73364) and it contains
-            none of these excursions; polling is dense on both sides of each. (2) Reads 22-31
-            through the DCFC while AAF:2181 MOTOR_COOLANT_TEMP is 39-43 C - no junction or heatsink
-            sits 15 C below its own coolant. (3) r=+0.012 vs AAF coolant and heatsink over the day,
-            only +0.335 in DRIVING with a 7.60 C residual (measured-only n=1326). Steps DOWN when
-            propulsion stops and UP when it resumes, so it tracks load/mode: candidates are a
-            duty-cycle/modulation index, a current limit, or a derating factor. Supersedes the
-            2026-08-05 'smooth 80->21 C decay over 3 h' reading, which came from a single unloaded
-            AC charge where many unrelated quantities also decay monotonically.
+            Range 6-136 across 8598 captures. Not a temperature: on 2026-08-08 it fell 37 in 22 s
+            and rose 45 in 50 s, and read 22-31 during a DC charge with the coolant at 39-43 °C.
+            r=+0.012 vs AAF coolant and heat-sink temperatures. Steps down when propulsion stops and
+            up when it resumes.
           enabled: false
+          ha_class: ""
         MCU_HV_VOLTAGE:
           expression: B13*2.56
           unit: V
@@ -88,81 +67,48 @@ MCU:
           source: canair investigate/hunt 2026-07-22 drive; VERIFIED vs BMS pack voltage over 3h charge 2026-08-05
           verified: true
           notes: >-
-            HV DC-link voltage at the motor inverter, coarse 8-bit (~2.56 V/LSB). VERIFIED
-            2026-08-05 against the verified BMS BATTERY_VOLTAGE over a 3h AC charge whose SOC-driven
-            pack-voltage sweep (360-399 V) gave a wide anchor: B13*2.56 tracks BMS pack voltage 1:1
-            — slope 0.991, r=0.981, residual 2.30 V (=1 LSB), mean offset -1.4 V, across 2016
-            co-timed CHARGING samples. Confirms both the byte (B13) and the 2.56 scale. The pack
-            voltage is also carried fine-resolution on BMS BATTERY_VOLTAGE and the verified VCU
-            INVERTER_INPUT_VOLTAGE (B17*2); this is the MCU-side coarse copy, useful as an integrity
-            cross-check.
-        MCU_TEMP_B25:
+            Coarse HV DC-link voltage, about 2.56 V per LSB. Slope 0.991, r=0.981 vs BMS
+            BATTERY_VOLTAGE over 2016 samples of a 3 h AC charge (360-399 V).
+        MCU_2101_B25:
           expression: B25
-          unit: °C
+          unit: ""
           min: "0"
-          max: "150"
+          max: "255"
           source: canair analysis 2026-08-08 long drive + DCFC
           verified: false
           notes: >-
-            Smooth, slow-moving quantity with real physical inertia (unlike B22), but NOT the
-            powertrain cooling loop: r=-0.720 vs AAF:2181:MOTOR_COOLANT_TEMP and -0.720 vs
-            AAF:2181:HEATSINK_TEMP (n=1488) - strong but INVERSELY signed, so the 2026-08-05 'likely
-            motor stator' claim is unsupported. Also r=-0.936 vs MCU:2102:MCU_TEMP_3, itself already
-            demoted as not-a-temperature. Adjacent B26 is constant 0x04, so this is a standalone
-            byte. Raw range today 43-98. Identity unresolved - see research lead.
+            Range 38-99 across 8598 captures, slow-moving. r=-0.720 vs AAF:2181:MOTOR_COOLANT_TEMP
+            and HEATSINK_TEMP (n=1488). B26 is constant 0x04.
           enabled: false
+          ha_class: ""
         MCU_PHASE_CURRENT_1:
           expression: (S30 << 8) | B29
           source: canair analysis 2026-08-08 long drive + DCFC
           verified: false
           notes: >-
-            Signed 16-bit LITTLE-endian at WiCAN B29(low):B30(high) (ISO-TP 0x18:0x19). One of a
-            three-phase set with MCU_PHASE_CURRENT_2/_3; the three sum to zero (n=1562, mean 0.82,
-            stdev 30.9 against a +/-10600 full scale) = Kirchhoff, so the ECU likely measures two
-            phases and computes the third. Range -9545..10473 raw. Identity proven, ABSOLUTE SCALE
-            UNKNOWN so no unit is claimed: value is raw counts, not amperes.
+            Signed 16-bit little-endian, low byte B29, high byte B30. The three MCU_PHASE_CURRENT
+            signals sum to zero (n=5181, stdev 21.5 against a full scale of 20678). Scale unknown,
+            so raw counts.
         MCU_PHASE_CURRENT_2:
           expression: (S33 << 8) | B31
           source: canair analysis 2026-08-08 long drive + DCFC
           verified: false
           notes: >-
-            Signed 16-bit LITTLE-endian, low byte WiCAN B31, high byte WiCAN B33 (ISO-TP 0x1A:0x1B).
-            CROSSES THE ISO-TP PCI BYTE AT B32, so it must be built with an explicit shift;
-            [S31:S33] would swallow the PCI byte. Second of the three-phase set. Range -9130..10571
-            raw over 2026-08-08. Identity proven via the Kirchhoff sum, absolute scale unknown so no
-            unit is claimed.
+            Signed 16-bit little-endian, low byte B31, high byte B33 (B32 is a PCI byte). See
+            MCU_PHASE_CURRENT_1.
         MCU_PHASE_CURRENT_3:
           expression: (S35 << 8) | B34
           source: canair analysis 2026-08-08 long drive + DCFC
           verified: false
-          notes: >-
-            Signed 16-bit LITTLE-endian at WiCAN B34(low):B35(high) (ISO-TP 0x1C:0x1D). Third of the
-            three-phase set. Range -10644..9448 raw over 2026-08-08. Identity proven via the
-            Kirchhoff sum, absolute scale unknown so no unit is claimed.
+          notes: Signed 16-bit little-endian, low byte B34, high byte B35. See MCU_PHASE_CURRENT_1.
     2102:
       response_frames: 9
       status: active
       period: 5000
       vehicle_states: [CHARGING]
-      notes: >
-        62 bytes. Layout (WiCAN B / ISO-TP): B10:B11 RPM (verified), B12:B13 & B14:B15 the two
-        signed-16 torque fields (command/estimated), B17:B18 phase-current RMS candidate. B18/B20
-        read near-ambient and are NOT motor/inverter temps (see 2026-08-05 correction below). Static
-        calibration block ~B27-B33 (raw 7D D6 CD AB C2 CD …): per-unit resolver
-        + U/V phase current-sensor offsets (Soul VMCU: Int16 "Resolver Offset" / "U/V Phase Current
-        Sensor Offset"). Constant across captures; same bytes recur in 21F2 by the "EHEL-MS2" cal ID
-        → calibration data, not mapped as parameters. Tail B54+ is zero padding.
-        2026-07-23 load-vs-temperature analysis (574 captures, 477 driving): the B18-B21 cluster splits.
-        Slow, load-decoupled bytes — B20 (MCU_TEMP_1) and B18 (MCU_TEMP_3): r≈0 vs |torque|,
-        autocorrelation >0.93, step ~0.1/sample. CORRECTION 2026-08-05: these are NOT motor/inverter
-        temps — they sit in a compressed near-ambient band in every state (B20 10-25, B18 5-24 °C,
-        B18 often sub-ambient) incl. driving 13-16/12-20 °C, while the genuine inverter temp (2101 B22)
-        ran 80→21 °C over the same 3h charge; both demoted enabled:false. Load-tracking
-        — B21 (was MCU_TEMP_2) and B19 (was MCU_INVERTER_TEMP): step with instantaneous torque
-        (r(Δbyte,Δ|torque|)=0.90, 0.79), not temps. B21 = inverter-load/current scalar (r=0.875 vs |torque|,
-        0.859 vs phase current); B19 = IGBT junction-temp estimate or current (ambiguous). Both demoted
-        enabled:false. B22-B51 static/near-static (incl. B22:B23=0xF7FF/0xF8FF); B52 dynamic (233 distinct,
-        no signal correlation) = alive-counter/checksum.
+      notes: >-
+        62 bytes. B27-B33 hold constant calibration bytes that also appear in 21F2. B52 is a counter
+        or checksum that correlates with no signal. B54 onward is zero padding.
       parameters:
         MCU_MOTOR_RPM:
           expression: "[S10:S11]"
@@ -173,12 +119,10 @@ MCU:
           source: "Kia Soul EV VMCU CSV (Motor Actual Speed RPM) + physical validation"
           source_links: []
           verified: true
-          notes: >
-            Signed 16-bit big-endian at B10:B11 (ISO-TP 0x07:0x08). 2026-07-20: verified against
-            VCU vehicle speed across 179 driving samples — rpm/speed ratio = 62.8 (median), matching the
-            physical single-speed reduction (gear 7.412 × 205/55R16 tyre ≈ 61.8 rpm per km/h). Reads 0 at
-            park (live READY capture) and peaks ~6650 at 107 km/h; slightly negative during regen/rock-back.
-            Old expr ((S7<<8)|B6) read B6/B7 (0xFF 0xFF) = -1 — wrong bytes.
+          notes: >-
+            Signed 16-bit big-endian. Median 62.8 RPM per km/h vs VCU speed over 179 driving
+            samples, against 61.8 expected from the 7.412 reduction and 205/55R16 tyres. Range -510
+            to 7672.
 
         MCU_MOTOR_TORQUE:
           expression: "[S12:S13]/100"
@@ -190,17 +134,9 @@ MCU:
           source_links: []
           verified: false
           notes: >-
-            Motor torque, signed 16-bit big-endian at B12:B13 (ISO-TP 0x09:0x0A), right after
-            MCU_MOTOR_RPM. STRONG NULL TEST 2026-08-05: reads EXACTLY 0 in all 2687 captures of the
-            3h AC charge, where the motor is provably stationary and unenergised (MCU_MOTOR_RPM=0
-            throughout). A genuine torque field must be exactly zero under those conditions, and it
-            is — with no idle bias at all, unlike its neighbour [S14:S15] which holds a persistent
-            ~+30 raw offset (see MCU_MOTOR_TORQUE_2). That asymmetry makes [S12:S13] the better
-            candidate for the true torque field. Earlier evidence: r=+0.600 vs d(MCU_MOTOR_RPM)/dt
-            over 477 driving captures (tau ~= J*dw/dt), reads -10.0..+18.1 Nm over a gentle drive.
-            Still verified:false — the null test confirms it IS a torque field but does not pin the
-            /100 scale or resolve command-vs-estimated; that needs a pedal-synced drive with hard
-            accel and strong regen.
+            Signed 16-bit big-endian. Exactly 0 in all 2687 captures of a 3 h AC charge with the
+            motor stopped. r=+0.600 vs the rate of change of MCU_MOTOR_RPM over 477 driving
+            captures. The /100 scale is not confirmed.
         MCU_2102_S14S15:
           expression: "[S14:S15]"
           unit: ""
@@ -212,20 +148,8 @@ MCU:
           source_links: []
           verified: false
           notes: >-
-            Torque-RELATED signed-16 at B14:B15 (ISO-TP 0x0B:0x0C), quantity UNCONFIRMED. Renamed
-            from MCU_MOTOR_TORQUE_2 on 2026-08-05: that name (and the Nm unit / -300..300 range)
-            overclaimed — it is NOT a clean torque field. It IS a valid 16-bit field (low byte B15
-            sweeps 0..255, high byte B14 0..255 while driving, so not a broken pair like the
-            ex-[B17:B18]) and it tracks the real torque field [S12:S13] at r=+0.969 while driving
-            (raw -954..+1885). BUT it FAILS the standstill null test: across all 2687 captures of
-            the 3h AC charge (motor provably unenergised, RPM=0) it holds +27..54 raw (~+30, would
-            be 0.29 Nm at the old /100 scale) instead of ZERO, while the genuine torque [S12:S13] is
-            EXACTLY 0 over the same captures. A torque command/estimate must read 0 with the motor
-            off, so this is not torque — candidates: a biased/filtered torque, a mechanical-power or
-            q-axis-current term, or another load-tracking quantity with a deliberate zero-offset.
-            Expression left RAW ([S14:S15]); the /100 Nm scale was only meaningful under the
-            (now-rejected) torque assumption. enabled:false, verified:false — resolving it needs a
-            pedal-synced drive with hard accel + regen.
+            Signed 16-bit. r=+0.969 vs MCU_MOTOR_TORQUE while driving, but holds +27 to +54 with the
+            motor stopped (2687 charge captures), where MCU_MOTOR_TORQUE reads 0.
         MCU_LOAD_B17:
           expression: B17
           unit: ""
@@ -237,103 +161,53 @@ MCU:
           source_links: []
           verified: false
           notes: >-
-            Coarse motor-load / current-related byte at B17 (ISO-TP 0x0D). Was MCU_PHASE_CURRENT_RMS
-            = [B17:B18]/10 (from the Soul VMCU 'Motor Phase Current RMS' Int16). THAT PARSE IS
-            DISPROVEN 2026-08-05: across all 3632 MCU 2102 captures the supposed LOW byte B18 only
-            ever takes 19 values in 5..24 — a true low byte of a continuously-varying 16-bit word
-            must sweep the full 0..255 as the value crosses multiples of 256. So B17 and B18 are two
-            SEPARATE fields, and the apparent '0..2069 rising with acceleration' was B17*256 plus
-            B18's small residue, i.e. all the signal content is in B17 (which would make the /10
-            scale ~25.6 A per LSB — implausibly coarse for a phase-current RMS). What B17 genuinely
-            is: load/current-related and correctly zero-referenced — constant 0 across all 2687
-            charge captures (motor stationary), rising to 0..8 while driving. Scale and exact
-            quantity unknown, so it is left as a raw byte; the real phase-current field, if
-            broadcast, is elsewhere. B18 remains a separate unidentified slow small-range signal
-            (see MCU_TEMP_3, demoted as not-a-temperature). enabled:false.
-        MCU_TEMP_1:
-          expression: S20
-          unit: °C
-          ha_class: temperature
-          min: "-40"
-          max: "150"
-          source: RE 2026-07-23; DEMOTED 2026-08-05 (implausible vs 2101 B22 + all-state band)
-          verified: false
-          notes: >-
-            DEMOTED 2026-08-05 — not a credible motor/inverter temperature. B20 reads a compressed
-            near-ambient band (10-25 °C) in EVERY state, incl. DRIVING (13-16 °C) where a real
-            motor/inverter/power-stage temp reaches 40-90 °C (cf. 2101 B22 hits 120 driving). During
-            the 3h charge it sat 14->22 °C while the genuine inverter temp (2101 B22) started at 80
-            °C and cooled — B20 drifted the opposite way. Cannot be a propulsion-component temp at
-            raw=°C. Likely an ambient/intake-air or cold-side sensor at the MCU, or a
-            differently-scaled quantity. NOT cached: RPM=0 and values vary => the MCU serves live
-            data during charge, the reading is just not this temperature. The trustworthy MCU
-            component temps are on 2101 (MCU_INVERTER_TEMP B22, MCU_TEMP_B25 B25). enabled:false
-            (was shipping a misleading temp).
-          enabled: false
-        MCU_TEMP_2:
-          expression: "B21"
+            0 in all 2687 charge captures with the motor stopped; 0-8 while driving. B18 is a
+            separate signal, so B17:B18 is not one word.
+        MCU_2102_B20:
+          expression: B20
           unit: ""
           ha_class: ""
           min: "0"
           max: "255"
-          enabled: false
-          source: "RE 2026-07-23 load-vs-temp classification (driving captures)"
+          source: RE 2026-07-23; DEMOTED 2026-08-05 (implausible vs 2101 B22 + all-state band)
           verified: false
-          notes: >
-            Reclassified 2026-07-23 — not a temperature. Raw byte B21 (ISO-TP 0x11). Over 477
-            driving samples it tracks load: r=+0.875 vs |torque|, r=+0.859 vs phase current
-            ([B17:B18]), r(Δbyte,Δ|torque|)=+0.90 — steps within one 5s sample (phaseI 786→19 A
-            drops B21 22→17 next frame). Autocorrelation 0.49 → fast, not thermal. Likely inverter
-            load/current scalar (2nd phase-current or modulation-depth/power); small cold-park
-            baseline ~12.6. Kept enabled:false pending scale + quantity.
-        MCU_INVERTER_TEMP:
+          notes: >-
+            Range 6-25 across 8231 captures, slow-moving and unrelated to torque. Reads 13-16 while
+            driving, so it is not a motor or inverter temperature at 1 °C per LSB.
+          enabled: false
+
+        MCU_2102_B19:
           expression: B19
-          unit: °C
-          min: "-40"
-          max: "150"
+          unit: ""
+          min: "0"
+          max: "255"
           enabled: false
           source: RE 2026-07-22 MT->KW drive analysis; revised 2026-07-23 (full driving corpus)
           verified: false
-          notes: >
-            Ambiguous (revised 2026-07-23). Raw byte B19 (ISO-TP 0x0F), between
-            MCU_PHASE_CURRENT_RMS ([B17:B18]) and MCU_TEMP_1 (B20). The 2026-07-22 single-drive
-            read called it a slow inverter temp, but the 477-sample corpus shows it also tracks
-            load: r=+0.456 vs |torque|, r(Δbyte,Δ|torque|)=+0.79 (mean |Δ|=1.87/sample), unlike
-            the genuine temps B18/B20 (r(Δ,Δload)≈0, |Δ|≈0.1). Keeps a temp-like baseline:
-            parked 8.7, charging 20.1, driving 21.2. Either an IGBT junction-temp estimate (low
-            die thermal mass) or a current-derived quantity. enabled:false pending scan-tool
-            cross-check. Slow temps are B20 and B18 (MCU_TEMP_3).
-        MCU_ROTOR_ANGLE:
+          notes: >-
+            Range 4-36 across 8231 captures. Moves with load: r=+0.456 vs |MCU_MOTOR_TORQUE|, and
+            its changes r=+0.79 vs torque changes over 477 driving captures.
+          ha_class: ""
+        MCU_2102_B9:
           expression: B9
           unit: ""
           min: "0"
           max: "255"
           source: RE 2026-07-22 MT->KW drive analysis
           verified: false
-          notes: >
-            Candidate, unverified — raw byte B9 (ISO-TP 0x06), before MCU_MOTOR_RPM (B10:B11).
-            Likely motor rotor/resolver electrical angle (0-255 = 0-360°, B9*360/255) or the
-            fractional low byte of motor speed. B9==0 at all 18 standstill (RPM=0) samples,
-            spreads ~uniformly 26-253 (mean 127) when |RPM|>500 — aliased fast-rotating quantity
-            at 2s intervals. Kept raw until a high-rate capture at fixed low RPM shows linear ramp
-            (angle) vs uniform (speed fraction). |RPM| corr 0.42 is the shared zero-anchor.
-        MCU_TEMP_3:
-          expression: S18
-          unit: °C
-          min: "-40"
-          max: "150"
+          notes: 0 in all 18 standstill samples; spread over 26-253 when |MCU_MOTOR_RPM| > 500.
+        MCU_2102_B18:
+          expression: B18
+          unit: ""
+          min: "0"
+          max: "255"
           source: RE 2026-07-23; DEMOTED 2026-08-05 (sub-ambient, implausible vs 2101 B22)
           verified: false
           notes: >-
-            DEMOTED 2026-08-05 — not a credible motor/inverter temperature. B18 reads 5-24 °C in
-            EVERY state, frequently BELOW ambient (5-8 °C parked/charging when ambient ~20-26 °C)
-            and only 12-20 °C DRIVING — physically impossible for a passive propulsion-component
-            temp. During the 3h charge it sat 11->17 °C while the genuine inverter temp (2101 B22)
-            cooled from 80 °C. Already flagged 2026-08-02 ('stuck 7-9 °C, ~11 °C below ambient, do
-            not cite as °C'); confirmed here across all states. NOT cached (RPM=0 live, values vary)
-            — just not this temperature (ambient/cold-side sensor or mis-scaled). Real MCU component
-            temps are on 2101 (B22, B25). enabled:false.
+            Range 5-33 across 8231 captures, slow-moving and unrelated to torque. Often below
+            ambient, so it is not a component temperature at 1 °C per LSB.
           enabled: false
+          ha_class: ""
         MCU_CURRENT_RELATED:
           expression: B21
           unit: ""
@@ -341,18 +215,16 @@ MCU:
           max: "255"
           source: canair hunt vs MCU_PHASE_CURRENT_RMS, 2026-07-22 drive
           verified: false
-          notes: >
-            Load/current-related signal. B21 (distinct=16, range 13-34, median 16) tracks MCU_PHASE_CURRENT_RMS at r=+0.859 over 477 driving pts (resid 1.1) — genuinely dynamic, not a low-variance artifact. Likely a scaled/filtered current or a DC-bus current proxy (slope 0.065, offset ~15). Exact quantity/scale TBD; verify against a high-load capture.
+          notes: >-
+            Range 6-34 across 8231 captures. r=+0.875 vs |MCU_MOTOR_TORQUE| over 477 driving
+            captures, changing within one 5 s sample.
 
     2103:
       response_frames: 4
       status: draft
       period: 0
       vehicle_states: [CHARGING]
-      notes: >
-        27 bytes, all zeros during AC charging.
-        Raw payload: 610300000000000000000000000000000000000000000000000000
-        May contain data during driving. Discovered 2026-04-18.
+      notes: 27 bytes, all zeros during AC charging (2026-04-18).
       parameters: {}
 
     21F2:
@@ -360,11 +232,7 @@ MCU:
       status: active
       period: 0
       vehicle_states: [CHARGING]
-      notes: >
-        69 bytes. Discovered during charging PID scan (2026-04-18).
-        Raw payload: 61F2FFFFFF3FF6FFF8FF7DD60900000000000000000003050000EE04CDABC2CD4C00F0F32B002A041D002900000012000F001100C1CD967393222D4548454C2D4D53320000
-        Undecoded — needs analysis.
-        2026-07-19: Contains a part of the ECU sw_id string ("-EHEL-MS2"), so likely to be static.
+      notes: 69 bytes, containing the software ID string "-EHEL-MS2". Undecoded.
       parameters: {}
   research:
     - type: decode
