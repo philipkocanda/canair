@@ -826,6 +826,134 @@ class TestDeletePid:
         doc = yaml.safe_load((tmp_path / "solo.yaml").read_text())["SOLO"]
         assert "pids" not in doc
         assert doc["identity"]["description"] == "Solo ECU"
+        # Nothing of the section is left behind — no trailing blank line at EOF.
+        assert (tmp_path / "solo.yaml").read_text().endswith("description: Solo ECU\n")
+
+
+class TestRemovalLeavesNoGap:
+    """Removing a block must not leave a stray blank line where it was."""
+
+    @staticmethod
+    def _write(tmp_path, body: str):
+        (tmp_path / "_meta.yaml").write_text('car_model: "T"\ninit: "ATSP6;"\n')
+        (tmp_path / "e.yaml").write_text(textwrap.dedent(body))
+        return tmp_path / "e.yaml"
+
+    def test_first_of_adjacent_pids(self, tmp_path):
+        from canlib.pids_edit import delete_pid
+
+        f = self._write(
+            tmp_path,
+            """\
+            E:
+              tx_id: 0x7E0
+              pids:
+                "220E01":
+                  status: active
+                220E2E:
+                  status: active
+            """,
+        )
+        delete_pid("E", "220E01", pids_dir=tmp_path)
+        assert f.read_text() == "E:\n  tx_id: 0x7E0\n  pids:\n    220E2E:\n      status: active\n"
+
+    def test_first_of_blank_separated_pids(self, tmp_path):
+        from canlib.pids_edit import delete_pid
+
+        f = self._write(
+            tmp_path,
+            """\
+            E:
+              pids:
+                2101:
+                  status: active
+
+                2102:
+                  status: active
+
+                2103:
+                  status: active
+            """,
+        )
+        delete_pid("E", "2101", pids_dir=tmp_path)
+        assert f.read_text().startswith("E:\n  pids:\n    2102:\n")
+
+    def test_middle_of_blank_separated_pids(self, tmp_path):
+        from canlib.pids_edit import delete_pid
+
+        f = self._write(
+            tmp_path,
+            """\
+            E:
+              pids:
+                2101:
+                  status: active
+
+                2102:
+                  status: active
+
+                2103:
+                  status: active
+            """,
+        )
+        delete_pid("E", "2102", pids_dir=tmp_path)
+        assert "status: active\n\n    2103:" in f.read_text()
+
+    def test_last_pid_keeps_separator_before_next_section(self, tmp_path):
+        from canlib.pids_edit import delete_pid
+
+        f = self._write(
+            tmp_path,
+            """\
+            E:
+              pids:
+                2101:
+                  status: active
+                2102:
+                  status: active
+
+              research: []
+            """,
+        )
+        delete_pid("E", "2102", pids_dir=tmp_path)
+        assert "      status: active\n\n  research: []\n" in f.read_text()
+
+    def test_last_pid_at_end_of_file(self, tmp_path):
+        from canlib.pids_edit import delete_pid
+
+        f = self._write(
+            tmp_path,
+            """\
+            E:
+              pids:
+                2101:
+                  status: active
+
+                2102:
+                  status: active
+            """,
+        )
+        delete_pid("E", "2102", pids_dir=tmp_path)
+        assert f.read_text().endswith("    2101:\n      status: active\n")
+
+    def test_only_param_of_a_pid(self, tmp_path):
+        from canlib.pids_edit import delete_parameter
+
+        f = self._write(
+            tmp_path,
+            """\
+            E:
+              pids:
+                2101:
+                  status: draft
+                  parameters:
+                    X:
+                      expression: B4
+                  period: 1000
+            """,
+        )
+        delete_parameter("E", "2101", "X", pids_dir=tmp_path)
+        assert "      status: draft\n      period: 1000\n" in f.read_text()
 
 
 class TestUpsertTypedParameter:

@@ -19,6 +19,7 @@ import yaml
 
 from ._text import (
     PidsEditError,
+    _cut_block,
     _find_ecu_block,
     _format_block_scalar,
     _format_inline_list_field,
@@ -489,17 +490,8 @@ def delete_parameter(
             if not (existing[0] <= m.start() < existing[3])
         ]
         if not others:
-            p_start, p_end = params[0], params[3]
-            block = text[p_start:p_end]
-            trailing = block[len(block.rstrip("\n")) :]
-            return text[:p_start] + trailing + text[p_end:]
-        start, end = existing[0], existing[3]
-        # _keyed_block's body_end absorbs trailing blank lines that visually
-        # separate this param from the next sibling. Keep them so removing a
-        # param doesn't silently collapse the spacing around neighbours.
-        block = text[start:end]
-        trailing = block[len(block.rstrip("\n")) :]
-        return text[:start] + trailing + text[end:]
+            return _cut_block(text, params[0], params[3])
+        return _cut_block(text, existing[0], existing[3])
 
     def checker(ecu_def: dict) -> None:
         pids_map = ecu_def.get("pids", {})
@@ -909,11 +901,7 @@ def delete_pid(ecu_name: str, pid: str, *, pids_dir: Path | None = None) -> Path
             start, end = pids[0], pids[3]
         else:
             start, end = existing[0], existing[3]
-        # body_end absorbs trailing blank lines separating this block from the
-        # next sibling; keep them so removal doesn't collapse spacing.
-        block = text[start:end]
-        trailing = block[len(block.rstrip("\n")) :]
-        return text[:start] + trailing + text[end:]
+        return _cut_block(text, start, end)
 
     def checker(ecu_def: dict) -> None:
         if any(str(k).upper() == pid_u for k in (ecu_def.get("pids") or {})):
@@ -1101,9 +1089,7 @@ def remove_identity_field(
             if not (existing[0] <= m.start() < existing[3])
         ]
         if not others:
-            block = text[id_start:id_body_end]
-            trailing = block[len(block.rstrip("\n")) :]
-            return text[:id_start] + trailing + text[id_body_end:]
+            return _cut_block(text, id_start, id_body_end)
         block = text[id_body_start:id_body_end]
         new_block = _replace_field_in_block_at(block, field, [], indent=4)
         return text[:id_body_start] + new_block + text[id_body_end:]

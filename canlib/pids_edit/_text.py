@@ -317,6 +317,30 @@ def _key_token(key: str) -> str:
     return f'"{key}"' if _needs_key_quoting(key) else key
 
 
+_TRAILING_BLANK_LINES = re.compile(r"\n(?:[ \t]*\n)+\Z")
+
+
+def _cut_block(text: str, start: int, end: int) -> str:
+    """Remove the keyed block ``text[start:end]`` without leaving a gap behind.
+
+    A :func:`_keyed_block` body runs up to the next same-or-shallower line, so it
+    absorbs the blank lines separating this block from whatever follows. Ahead of
+    a sibling those go with the block. Ahead of a *shallower* line (the next PID
+    after a PID's last field, the next section) they are the parent's separator,
+    so they replace whatever blank lines separated the block from the sibling
+    before it; at the end of the file nothing is left behind at all.
+    """
+    block = text[start:end]
+    head, tail = text[:start], text[end:]
+    indent = len(block) - len(block.lstrip(" "))
+    tail_indent = len(tail) - len(tail.lstrip(" "))
+    if tail.strip() and tail_indent >= indent:
+        return head + tail
+    terminator = block.find("\n", len(block.rstrip(" \t\n")))
+    separator = block[terminator + 1 :] if terminator != -1 and tail.strip() else ""
+    return _TRAILING_BLANK_LINES.sub("\n", head) + separator + tail
+
+
 def _format_scalar_field(indent: str, key: str, value) -> str:
     """Render one ``key: value`` scalar line with schema-appropriate quoting."""
     if isinstance(value, bool):
