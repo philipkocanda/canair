@@ -1,0 +1,124 @@
+HVAC:
+  tx_id: 0x744
+  identity:
+    description: Heating, ventilation and air conditioning
+    notes: >-
+      Address from the dalathegreat/leaf_can_bus_messages ECU table (generation-wide, not
+      ZE1-specific). Signals from OBDb Nissan-Leaf and dalathegreat.
+    identity_confidence: tentative
+  pids:
+    2110:
+      parameters:
+        HVAC_AMBIENT_T:
+          expression: B4-40
+          unit: °C
+          min: "-40"
+          max: "87"
+          source: OBDb, dalathegreat
+          source_links:
+            - https://github.com/OBDb/Nissan-Leaf
+            - https://github.com/dalathegreat/leaf_can_bus_messages
+          verified: false
+          notes: >-
+            Ambient air temperature at the HVAC, data byte 0 minus 40 °C. Layout from OBDb; the
+            dalathegreat 2018 sample reply gives 8 °C with this layout.
+        HVAC_CABIN_T:
+          expression: B5-40
+          unit: °C
+          min: "-40"
+          max: "87"
+          source: OBDb, dalathegreat
+          source_links:
+            - https://github.com/OBDb/Nissan-Leaf
+            - https://github.com/dalathegreat/leaf_can_bus_messages
+          verified: false
+          notes: Cabin temperature, data byte 1 minus 40 °C. dalathegreat sample reply gives 19 °C.
+        HVAC_EVAP_T:
+          expression: B6-40
+          unit: °C
+          min: "-40"
+          max: "87"
+          source: OBDb, dalathegreat
+          source_links:
+            - https://github.com/OBDb/Nissan-Leaf
+            - https://github.com/dalathegreat/leaf_can_bus_messages
+          verified: false
+          notes: >-
+            Evaporator temperature, data byte 2 minus 40 °C. dalathegreat sample reply gives 11 °C.
+        HVAC_SUNLOAD:
+          expression: B7
+          min: "0"
+          max: "255"
+          source: OBDb
+          source_links:
+            - https://github.com/OBDb/Nissan-Leaf
+          verified: false
+          notes: Sun load sensor, data byte 3, unscaled.
+        HVAC_AC_ON:
+          expression: B15:7
+          type: enum
+          values:
+            0: "OFF"
+            1: "ON"
+          source: OBDb
+          source_links:
+            - https://github.com/OBDb/Nissan-Leaf
+          verified: false
+          notes: A/C on, bit 7 of data byte 10.
+        HVAC_FAN_ON:
+          expression: B17:7
+          type: enum
+          values:
+            0: "OFF"
+            1: "ON"
+          source: OBDb
+          source_links:
+            - https://github.com/OBDb/Nissan-Leaf
+          verified: false
+          notes: Blower on, bit 7 of data byte 11.
+        HVAC_BLOWER_V:
+          expression: B17-128*B17:7
+          unit: V
+          min: "0"
+          max: "127"
+          source: OBDb
+          source_links:
+            - https://github.com/OBDb/Nissan-Leaf
+          verified: false
+          notes: >-
+            Blower drive voltage, low 7 bits of data byte 11 (written as byte minus bit 7 so
+            coverage sees the byte). dalathegreat derives a 0-8 fan level as that byte minus 131.
+        HVAC_COMPRESSOR_RPM:
+          expression: "[B28:B29]"
+          unit: rpm
+          min: "0"
+          max: "65535"
+          source: OBDb
+          source_links:
+            - https://github.com/OBDb/Nissan-Leaf
+          verified: false
+          notes: A/C compressor speed, 16-bit at data bytes 21-22.
+      status: active
+      period: 10000
+      vehicle_states: [READY]
+      notes: >-
+        HVAC data group 10 (service 0x21, 54-byte payload): temperatures, A/C, blower and compressor
+        speed. OBDb marks the group debug-only and its own 2018 test car did not answer it; the
+        dalathegreat 2018 sample reply decodes sensibly with this layout.
+
+  research:
+    - type: verify
+      target: "2110"
+      status: pending
+      priority: P2
+      vehicle_states: [READY]
+      created: "2026-10-20"
+      updated: "2026-10-20"
+      notes: >-
+        Layout is OBDb's debug-only 0x744 2110 map. OBDb's own 2018 test car did not answer it;
+        dalathegreat's 2018 sample reply decodes plausibly (8, 19 and 11 °C ambient, cabin,
+        evaporator).
+      sources:
+        - OBDb, dalathegreat
+      what_to_test:
+        - Read HVAC:2110 on a ZE1; confirm the three temperatures against the dashboard and the A/C and blower bits against the climate panel.

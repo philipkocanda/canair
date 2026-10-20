@@ -1,4 +1,4 @@
-# Nissan Leaf ZE1 40 kWh (2018-2022) — physical CAN bus segment vocabulary
+# Nissan Leaf ZE1 (2018-2024, 40 kWh and 62 kWh e+) — physical CAN bus segment vocabulary
 #
 # Codes accepted by each ECU's `can_bus:` field (in ecus/). Each bare code maps
 # to a human name + description (and an optional `bitrate` in bit/s). Naming is

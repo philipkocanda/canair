@@ -1,4 +1,4 @@
-# Nissan Leaf ZE1 40 kWh (2018-2022) — vehicle operating states
+# Nissan Leaf ZE1 (2018-2024, 40 kWh and 62 kWh e+) — vehicle operating states
 #
 # Canonical, ordered operating states for capture sessions (`vehicle_states`
 # field). State names are UPPERCASE (a controlled vocabulary, like the CAN-bus

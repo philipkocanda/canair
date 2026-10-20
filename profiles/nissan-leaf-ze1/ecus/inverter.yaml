@@ -1,0 +1,42 @@
+INVERTER:
+  tx_id: 0x784
+  rx_id: 0x78C
+  identity:
+    description: Traction motor inverter
+    notes: >-
+      Address from the dalathegreat/leaf_can_bus_messages ECU table (generation-wide, not
+      ZE1-specific). Signals from OBDb Nissan-Leaf and dalathegreat.
+    identity_confidence: tentative
+  pids:
+    221225:
+      parameters:
+        INV_TORQUE:
+          expression: "[S4:S5]/64"
+          unit: Nm
+          min: "-512"
+          max: "512"
+          source: dalathegreat
+          source_links:
+            - https://github.com/dalathegreat/leaf_can_bus_messages
+          verified: false
+          notes: Inverter motor torque, signed 16-bit /64 Nm (0.25 Nm steps per dalathegreat).
+      status: active
+      period: 2000
+      vehicle_states: [READY]
+      notes: Inverter motor torque.
+    221121:
+      parameters:
+        MOTOR_T:
+          expression: B4-40
+          unit: °C
+          min: "-40"
+          max: "215"
+          source: dalathegreat
+          source_links:
+            - https://github.com/dalathegreat/leaf_can_bus_messages
+          verified: false
+          notes: Drive motor temperature, one byte minus 40 °C.
+      status: active
+      period: 10000
+      vehicle_states: [READY]
+      notes: Drive motor temperature.

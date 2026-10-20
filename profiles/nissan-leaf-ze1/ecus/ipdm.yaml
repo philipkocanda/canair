@@ -1,0 +1,8 @@
+IPDM:
+  tx_id: 0x74D
+  identity:
+    description: Intelligent power distribution module (IPDM E/R)
+    notes: >-
+      Address from the dalathegreat/leaf_can_bus_messages ECU table (generation-wide, not
+      ZE1-specific). No DIDs known; presence on the ZE1 is unconfirmed.
+    identity_confidence: tentative
