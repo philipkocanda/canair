@@ -1,9 +1,15 @@
 CHARGER:
   tx_id: 0x792
+  can_bus: [EV-CAN]
   rx_id: 0x793
   identity:
-    description: On-board charger
+    description: On-board charger (part of the PDM)
     notes: >-
       Address from the dalathegreat/leaf_can_bus_messages ECU table (generation-wide, not
-      ZE1-specific). No DIDs known; presence on the ZE1 is unconfirmed.
+      ZE1-specific). On the ZE1 the on-board charger is integrated into the PDM (Power Delivery
+      Module) together with the HV-to-12 V DC/DC converter and the HV junction box, so this is most
+      likely the PDM's diagnostic address; that mapping is inferred, not confirmed. The PDM is on
+      EV-CAN per the service-manual block diagrams
+      (https://blog.jingo.uk/notes-on-integrating-a-nissan-leaf-ze1-and-home-assistant/). No DIDs
+      known; presence on the ZE1 is unconfirmed.
     identity_confidence: tentative
