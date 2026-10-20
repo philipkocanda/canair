@@ -70,10 +70,12 @@ async def connect_elm_terminal(transport, pids_data: dict, args) -> Terminal:
     terminal first); the caller classifies it.
     """
     from canlib import config
+    from canlib.addressing import AddressBook
     from canlib.quirks import HK_F1XX_MINUS_ONE, has_quirk
     from canlib.response_frames import seed_counts
     from canlib.timeouts import cli_timeout, ecu_timeouts_by_tx
-    from canlib.transport import DEFAULT_ELM327_TCP_PORT, Elm327TcpTerminal
+    from canlib.transport import DEFAULT_ELM327_TCP_PORT, Elm327TcpTerminal, Elm327Terminal
+    from canlib.transport.elm327_addressing import flow_control_data
 
     init_string = pids_data.get("init")
     assert init_string, "profile init string must be validated by the caller"
@@ -88,7 +90,7 @@ async def connect_elm_terminal(transport, pids_data: dict, args) -> Terminal:
     # Counts previous sessions proved, so the first read of each PID is already
     # fast instead of paying the adapter's full ATST wait to re-learn it.
     seeds = seed_counts(pids_data) if counts else {}
-    terminal: Terminal
+    terminal: Elm327Terminal
     if transport.type == "elm327-tcp":
         port = transport.port or DEFAULT_ELM327_TCP_PORT
         terminal = Elm327TcpTerminal(
@@ -116,6 +118,10 @@ async def connect_elm_terminal(transport, pids_data: dict, args) -> Terminal:
     # Per-ECU response budgets apply only when the user didn't force --timeout.
     if _cli_timeout is None:
         terminal.ecu_timeouts = ecu_timeouts_by_tx(pids_data)
+    # Each ECU's resolved addressing, so a non-+0x08 or functional-request ECU gets
+    # its receive filter and flow-control id set along with its header.
+    terminal.addresses = AddressBook.from_profile(pids_data)
+    terminal.flow_control_data = flow_control_data(pids_data.get("isotp"))
 
     try:
         print(connecting)

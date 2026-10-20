@@ -535,9 +535,9 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   `can_bus:` (flow list of `can_buses.yaml` codes), optional `wake:` (a per-ECU **wake ritual** for
   a fast-sleeping ECU — resolver `canlib/wake.py`), `scan_log:`, `dtcs:`, `pids:`, `iocontrol:`,
   optional `iocontrol_scan_ranges:`, `routines:`, `research:`. Identity-only modules (AMP/SRS) have
-  no `pids:`. A PID may also carry **`response_frames:`** — how many CAN frames its response occupies,
-  written back automatically once a session proves it (never hand-set; mutually exclusive with
-  `variable_length:`). Edit via `canair pids`/`ecu`; validate with `canair validate pids`.
+  no `pids:`. A PID may also carry **`response_frames:`** — how many CAN frames its response
+  occupies, written back automatically once a session proves it (never hand-set; mutually exclusive
+  with `variable_length:`). Edit via `canair pids`/`ecu`; validate with `canair validate pids`.
 - **`profiles/<car>/captures/`** — Recorded UDS payloads, one **JSON** file per date
   (`captures/YYYY-MM-DD.json`; JSON parses ~60× faster than YAML, the dominant cost of every
   history-consuming command). The read/write seam is `canlib/capture_io.py`; there is **no YAML
@@ -609,8 +609,9 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
     byte in the payload — BMW `0x6F1`/PSA), `extended_29bit`. `rx_offset` sets the 11-bit response
     (`tx_id + rx_offset`, default `0x08`; may be **negative** — PSA `-0x20`). Resolver
     `canlib/addressing.py`
-    (`resolve_mode`/`resolve_rx`/`resolve_ecu_address`/`build_isotp_address`), with the flow-control
-    address override in `canlib/transport/isotp_stack.py`.
+    (`resolve_mode`/`resolve_rx`/`resolve_ecu_address`/`AddressBook`/`build_isotp_address`), with
+    the flow-control address override in `canlib/transport/isotp_stack.py` (raw path) and the
+    ELM327 receive filter/flow control in `canlib/transport/elm327_addressing.py`.
   - **`isotp:`** — client-side ISO-TP tuning for `slcan-tcp` (padding, blocksize, stmin, timeouts,
     CAN-FD); defaults in `canlib/transport/isotp_params.py`. The padding byte also drives multi-DID
     split/strip (`resolve_tx_padding`).
@@ -700,10 +701,11 @@ smoother (`srtt + 4*rttvar`) shared by both domains; a plain mean underestimates
 every underestimate orphans a reply. `seed()` takes a one-shot unambiguous measurement (the TCP
 handshake, timed in `SlcanTcpBus.__init__` — available *before* any protocol traffic, which is when
 the ISO-TP budgets must be chosen); `observe()` needs `_MIN_SAMPLES` and is fed **only** by
-adapter-only AT commands (`_LINK_PROBE_CMDS = ("ATI", "ATSH", "ATFCSH")`) — never a UDS read, which
-mixes link and ECU and cannot be decomposed. `allowance(floor)` keeps the caller's default as a
-floor. Consumers **add** it to the configured value (the config is the *car's* share, the
-measurement the *network's*; the delays are sequential): `build_isotp_params(config, link_budget)`
+adapter-only AT commands (`_LINK_PROBE_CMDS`: `ATI` and the addressing commands) — never a UDS
+read, which mixes link and ECU and cannot be decomposed. `allowance(floor)` keeps the caller's
+default as a floor. Consumers **add** it to the configured value (the config is the *car's* share,
+the measurement the *network's*; the delays are sequential):
+`build_isotp_params(config, link_budget)`
 scales `rx_flowcontrol_timeout`/`rx_consecutive_frame_timeout`, `RawUdsClient._budget` the
 per-request deadline (a caller-forced `--timeout` is an instruction, not a budget, so it is
 untouched), and `Elm327Terminal._resync` the quiet window. Two once-per-session INFO hints are
@@ -810,7 +812,7 @@ default `slcan-tcp`. Registry-driven — each is a `TransportSpec` in
 (`canlib/transport/channel.py`: `WebSocketChannel` for the WiCAN, `TcpChannel` for a clone).
 `WiCANTerminal` (`canlib/terminal.py`) and `Elm327TcpTerminal` (`canlib/transport/elm327_tcp.py`)
 are thin subclasses wiring their channel — a new ELM327 wire (e.g. serial) is a new `Channel`, not a
-duplicated engine. **The engine keeps the I/O; three sibling modules own the stateful policies it
+duplicated engine. **The engine keeps the I/O; four sibling modules own the stateful policies it
 used to inline**, each exercisable with no channel at all — so put new protocol policy in a sibling,
 not in the terminal:
 - **`canlib/transport/elm327_pipe.py::ResponsePipe`** — the `>`-prompt ledger (owed prompts,
@@ -820,6 +822,18 @@ not in the terminal:
   `FrameCountCache` (learn/opt-out) plus `CountAttempt`/`CountVerdict`, the per-request decision
   procedure. See the frame-count paragraph under WiCAN Access for the four rules a change here must
   not break.
+- **`canlib/transport/elm327_addressing.py`** — what `set_header` sends: `AdapterState` caches the
+  adapter's header, flow-control and receive-filter state (observing *every* command, so a mode's
+  direct `ATSH` cannot desync it) and plans the commands to reach an ECU's `ElmTarget`. A
+  *conventional* ECU (11-bit `tx + 0x08`, fixed-29-bit swap) keeps the filter the profile `init`
+  left (the *baseline*, normally auto) and sends the `ATSH`/`ATFCSH` pair it always did; any
+  other gets `ATCRA<rx>` plus flow-control mode 1 to `fc_id`/`tx`, and mode 1 then stays on for
+  the session (still right for conventional ECUs, since `ATFCSH` follows the header). An
+  unregistered or `fc_id`-less broadcast id gets the auto filter and mode 0; extended-addressing
+  modes and out-of-range reply ids are left alone. `ATFCSH` alone does nothing: the adapter
+  honours it only in mode 1, which it rejects until `ATFCSH` and `ATFCSD` are set. A rejected
+  (`?`) command is logged once and not re-sent until a reset. AutoPID generation uses the same
+  policy. Plan `plans/2026-10-20-elm327-ecu-addressing.md`.
 - **`canlib/transport/elm327_session.py::enter_extended_session`** — session open, the wake ritual,
   the TesterPresent keepalive loop. **`canlib/transport/raw_terminal.py` has its own, divergent
   copy** (shorter timeout, no retry, an unvalidated + exception-swallowed keepalive); unifying them

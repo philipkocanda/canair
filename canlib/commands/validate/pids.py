@@ -1336,6 +1336,7 @@ def _run_pids(files: list[str] | None, stats: bool) -> int:
         # (the device turns each into a distinct signal). Caught here, not just
         # at `wican autopid write`.
         all_errors.extend(_duplicate_param_errors(file_paths))
+        all_warnings.extend(_addressing_warnings(prof.ecus_dir))
 
     # Print results
     if all_warnings:
@@ -1387,6 +1388,20 @@ def _run_pids(files: list[str] | None, stats: bool) -> int:
         print(f"  Sessions:   {total_stats['sessions']}")
 
     return 0
+
+
+def _addressing_warnings(ecus_dir: Path) -> list[str]:
+    """ELM327/AutoPID addressing warnings (see :mod:`.addressing`); [] if unloadable."""
+    from canlib.pids import load_pids
+
+    from .addressing import addressing_warnings
+
+    try:
+        pids_data = load_pids(ecus_dir)
+    except Exception:
+        # A broken file is already reported as an error by the per-file checks.
+        return []
+    return addressing_warnings(pids_data)
 
 
 def _duplicate_name_errors(file_paths: list[Path]) -> list[str]:

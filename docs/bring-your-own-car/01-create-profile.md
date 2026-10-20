@@ -93,7 +93,10 @@ that request on a functional broadcast id but answer physically (some
 Renault/Mitsubishi) use `normal_29bit` with an explicit `rx_id` and an
 `addressing: {fc_id: …}` flow-control override. Non-`0x18` 29-bit priorities
 (GM `0x14…`, VW `0x17…`, Volvo `0x1D…`) are handled by `normal_29bit` with
-explicit `tx_id`/`rx_id`.)
+explicit `tx_id`/`rx_id`.) That addressing is all canair needs: when porting a
+WiCAN community profile, leave its `ATSH`/`ATCRA`/`ATFCSH`/`ATFCSM` commands out of
+`init`, because canair derives the header, receive filter and flow control per ECU
+(`canair validate` warns about the header and flow-control ones).
 `vehicle_states.yaml` starts with a generic power-state vocabulary you'll refine
 later — see [Captures & states](../concepts/captures-and-states.md).
 

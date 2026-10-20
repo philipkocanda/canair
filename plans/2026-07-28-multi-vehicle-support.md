@@ -400,6 +400,9 @@ the physical-band subset is handled in
   physical address. Needs a **per-ECU FC-address override** on the raw path (same
   knob already flagged open for the XPeng G6). Recurs alliance-wide, so worth
   doing properly.
+  The ELM327 transports and AutoPID are covered by
+  `plans/2026-10-20-elm327-ecu-addressing.md` (receive filter + `fc_id` flow
+  control).
 
 - **G-K · Non-`0x18` 29-bit priority + non-derivable RX. [code gap (nicety) /
   authoring]** Several makes use a 29-bit priority prefix other than `0x18` and an

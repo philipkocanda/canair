@@ -54,8 +54,7 @@ async def run_raw(args, transport, pids_data) -> int:
         return await run_raw_monitor(args, host, port, bitrate, pids_data)
 
     # All other commands: reuse the shared dispatch over a RawTerminal adapter.
-    from ..addressing import EcuAddress, resolve_mode, resolve_rx_offset
-    from ..pids import build_ecu_index
+    from ..addressing import AddressBook
     from ..quirks import HK_F1XX_MINUS_ONE, has_quirk
     from ..timeouts import cli_timeout, ecu_timeouts_by_tx
     from ..transport import RawTerminal
@@ -66,10 +65,7 @@ async def run_raw(args, transport, pids_data) -> int:
     # Resolved tx->EcuAddress map (per-ECU mode/rx_id/extended/FC bytes) so
     # RawTerminal builds each ISO-TP stack from the full addressing; unknown TX
     # ids (a discovery sweep) fall back to the profile's rx_offset/mode.
-    ecu_index = build_ecu_index(pids_data)
-    addr_map: dict[int, EcuAddress] = {
-        info["tx_id"]: info["address"] for info in ecu_index.values()
-    }
+    addresses = AddressBook.from_profile(pids_data)
     try:
         terminal = RawTerminal(
             host,
@@ -79,9 +75,9 @@ async def run_raw(args, transport, pids_data) -> int:
             unsafe=getattr(args, "unsafe", False),
             timeout=(cli if cli is not None else 2.0),
             isotp_config=pids_data.get("isotp"),
-            addr_map=addr_map,
-            rx_offset=resolve_rx_offset(pids_data),
-            mode=resolve_mode(pids_data),
+            addr_map=dict(addresses.by_tx),
+            rx_offset=addresses.rx_offset,
+            mode=addresses.mode,
             hk_f1xx_offset=has_quirk(pids_data, HK_F1XX_MINUS_ONE),
         )
     except OSError as e:

@@ -313,6 +313,39 @@ def resolve_ecu_address(
     )
 
 
+@dataclass(frozen=True)
+class AddressBook:
+    """Every registered ECU's :class:`EcuAddress`, plus the fallback for any other id.
+
+    What a transport needs to address an arbitrary TX id: a registered ECU gets its
+    fully-resolved address, and an unregistered one (a discovery sweep, a manual
+    ``raw`` request) is resolved from the profile defaults alone.
+    """
+
+    by_tx: Mapping[int, EcuAddress]
+    rx_offset: int = DEFAULT_RX_OFFSET
+    mode: AddressingMode = DEFAULT_MODE
+
+    @classmethod
+    def from_profile(cls, pids_data: Mapping[str, Any]) -> AddressBook:
+        """Build the book from loaded PID data (``profile.yaml`` merged with ``ecus/``)."""
+        ecus = pids_data.get("ecus") or {}
+        by_tx = {}
+        for ecu_def in ecus.values():
+            if isinstance(ecu_def, Mapping) and "tx_id" in ecu_def:
+                addr = resolve_ecu_address(pids_data, ecu_def)
+                by_tx[addr.tx_id] = addr
+        return cls(by_tx, resolve_rx_offset(pids_data), resolve_mode(pids_data))
+
+    def resolve(self, tx_id: int) -> EcuAddress:
+        """The address for ``tx_id``: its registered one, else the profile defaults."""
+        addr = self.by_tx.get(tx_id)
+        if addr is not None:
+            return addr
+        rx_id = resolve_rx(tx_id, rx_offset=self.rx_offset, mode=self.mode)
+        return EcuAddress(tx_id, rx_id, self.mode)
+
+
 def build_isotp_address(addr: EcuAddress) -> isotp.Address:
     """Build the ``isotp.Address`` for one ECU from its resolved :class:`EcuAddress`.
 

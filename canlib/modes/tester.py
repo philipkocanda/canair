@@ -3,6 +3,7 @@
 import asyncio
 from datetime import datetime
 
+from ..transport.elm327_addressing import FUNCTIONAL_11BIT_ID
 from ..transport.elm327_terminal import Elm327Terminal
 
 
@@ -13,16 +14,15 @@ async def mode_tester_present(
 
     Runs until interrupted with Ctrl+C.
     """
+    # Through set_header, so a receive filter pinned for an earlier ECU cannot hide
+    # the replies: a broadcast restores the adapter's own filter for every responder.
     if target:
         tx_id = target.upper()
         print(f"\n  TesterPresent -- targeting 0x{tx_id} every {interval:.1f}s")
-        await terminal.send_command(f"ATSH{tx_id}")
-        await terminal.send_command(f"ATFCSH{tx_id}")
+        await terminal.set_header(int(tx_id, 16))
     else:
-        tx_id = "7DF"
         print(f"\n  TesterPresent -- broadcast (0x7DF) every {interval:.1f}s")
-        await terminal.send_command("ATSH7DF")
-        await terminal.send_command("ATFCSH7DF")
+        await terminal.set_header(FUNCTIONAL_11BIT_ID)
 
     print("  Press Ctrl+C to stop.\n")
 

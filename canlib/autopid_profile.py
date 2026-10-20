@@ -17,9 +17,17 @@ from __future__ import annotations
 
 from collections import OrderedDict
 
+from canlib.addressing import EcuAddress, resolve_ecu_address
 from canlib.autopid_send_to import DEFAULT_TYPE, MQTT_TOPIC_TYPE, topic_problem
 from canlib.pids import pid_status
 from canlib.response_frames import stored_count
+from canlib.transport.elm327_addressing import (
+    AUTO,
+    elm_id,
+    flow_control_data,
+    pinned_target,
+    target_for,
+)
 from canlib.transport.elm327_frame_count import annotate_request, requestable
 
 
@@ -44,20 +52,45 @@ class InvalidSendToError(ProfileGenerationError):
     """
 
 
-def make_pid_init(tx_id: int, session: bool = False) -> str:
-    """Generate AT header init string from TX ID.
+def make_pid_init(
+    tx_id: int,
+    session: bool = False,
+    *,
+    fc_header: int | None = None,
+    rx_filter: int | str | None = None,
+    extended: bool | None = None,
+) -> str:
+    """Generate a PID's AT init string: header, flow-control header, receive filter.
 
-    If session=True, prepend a UDS extended diagnostic session request (10 03)
-    before setting headers. This is only needed by ECUs that reject 22xx DID
-    reads in the default session; on the Ioniq 2017, SKM is the known example.
-    (IGPM was previously flagged here but its service-22 reads work fine in the
-    default session — verified 2026-07-21.)
+    ``fc_header`` defaults to ``tx_id``; ``rx_filter`` adds an ``ATCRA`` for an id, or
+    a bare ``ATCRA`` (the adapter's own filter) for :data:`AUTO` (see
+    :func:`generate_profile` for when). The addressing comes before an optional UDS
+    extended diagnostic session request (``1003``), whose reply must pass the
+    filter too. The session is only needed by ECUs that reject 22xx DID reads in
+    the default session; on the Ioniq 2017, SKM is the known example. (IGPM was
+    previously flagged here but its service-22 reads work fine in the default
+    session — verified 2026-07-21.)
     """
-    hex_id = f"{tx_id:03X}"
-    init = f"ATSH{hex_id};ATFCSH{hex_id};"
+    fc_id = tx_id if fc_header is None else fc_header
+    init = f"ATSH{elm_id(tx_id, extended)};ATFCSH{elm_id(fc_id, extended)};"
+    if rx_filter == AUTO:
+        init += "ATCRA;"
+    elif isinstance(rx_filter, int):
+        init += f"ATCRA{elm_id(rx_filter, extended)};"
     if session:
         init += "1003;"
     return init
+
+
+def with_flow_control(init: str, fc_header: int, fc_data: str, extended: bool = False) -> str:
+    """``init`` plus the prerequisites of flow-control mode 1, in the order it needs.
+
+    The adapter rejects ``ATFCSM1`` until a flow-control header and data are set,
+    and the firmware sends the top-level init only when the PID type changes, so
+    the mode is switched on once here and each PID's init then re-points ``ATFCSH``.
+    """
+    base = init if not init or init.endswith(";") else init + ";"
+    return f"{base}ATFCSH{elm_id(fc_header, extended)};ATFCSD{fc_data};ATFCSM1;"
 
 
 def request_with_count(pid_code: object, pid_def: dict) -> str:
@@ -118,10 +151,13 @@ def generate_profile(
     topic_origin: dict[str, str] = {}
     topic_errors: list[str] = []
 
+    # Each shipped entry with its ECU's address, so the pid_init can be chosen once
+    # every shipped ECU is known (see `_address_entries`).
+    addressed: list[tuple[dict, EcuAddress, bool]] = []
+
     for ecu_name, ecu in data["ecus"].items():
-        tx_id = ecu["tx_id"]
+        address = resolve_ecu_address(data, ecu)
         session = ecu.get("session", False)
-        pid_init = make_pid_init(tx_id, session=session)
 
         for pid_code, pid_data in (ecu.get("pids") or {}).items():
             # Only `active` PIDs ship to the device. draft (unshipped placeholder),
@@ -164,7 +200,7 @@ def generate_profile(
                 continue
 
             entry = {
-                "pid_init": pid_init,
+                "pid_init": "",  # set by _address_entries
                 "pid": (
                     request_with_count(pid_code, pid_data) if expected_responses else str(pid_code)
                 ),
@@ -175,6 +211,9 @@ def generate_profile(
             if send_to:
                 entry["send_to"] = send_to
             profile["pids"].append(entry)
+            addressed.append((entry, address, session))
+
+    _address_entries(profile, addressed, flow_control_data(data.get("isotp")))
 
     if collisions:
         lines = [
@@ -193,6 +232,36 @@ def generate_profile(
         )
 
     return profile
+
+
+def _address_entries(
+    profile: dict, addressed: list[tuple[dict, EcuAddress, bool]], fc_data: str
+) -> None:
+    """Set every entry's ``pid_init``, and the flow-control setup when it is needed.
+
+    A profile of only conventional ECUs (ISO 15765-4 ``tx + 0x08``) keeps the
+    header pair it always had, so its device diff is unchanged. If any shipped ECU
+    needs its receive filter or flow-control id pinned, every entry pins its own:
+    the firmware runs each PID's init verbatim and never resets the filter between
+    PIDs, so a PID that left it alone would inherit the previous ECU's. A broadcast
+    ECU then restores the auto filter instead (known limit: its multi-frame replies
+    would get mode-1 flow control to the broadcast id).
+    """
+    pin = any(target_for(address).explicit for _, address, _ in addressed)
+    for entry, address, session in addressed:
+        target = pinned_target(address) if pin else target_for(address)
+        entry["pid_init"] = make_pid_init(
+            target.header,
+            session=session,
+            fc_header=target.fc_header,
+            rx_filter=target.rx_filter if pin else None,
+            extended=target.extended,
+        )
+    if pin:
+        first = next(target_for(a) for _, a, _ in addressed if target_for(a).explicit)
+        profile["init"] = with_flow_control(
+            profile["init"], first.fc_header, fc_data, first.extended
+        )
 
 
 def to_device_format(profile: dict, data: dict | None = None) -> dict:

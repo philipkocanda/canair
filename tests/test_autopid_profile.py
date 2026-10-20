@@ -53,6 +53,94 @@ class TestMakePidInit:
     def test_with_session(self):
         assert make_pid_init(0x7E4, session=True) == "ATSH7E4;ATFCSH7E4;1003;"
 
+    def test_receive_filter_precedes_the_session_request(self):
+        init = make_pid_init(0x79B, session=True, rx_filter=0x7BB)
+        assert init == "ATSH79B;ATFCSH79B;ATCRA7BB;1003;"
+
+    def test_29bit_flow_control_header(self):
+        init = make_pid_init(0x18DB33F1, fc_header=0x18DADBF1, rx_filter=0x18DAF1DB)
+        assert init == "ATSH18DB33F1;ATFCSH18DADBF1;ATCRA18DAF1DB;"
+
+
+def _ecu(tx_id: int, signal: str, **extra) -> dict:
+    return {
+        "tx_id": tx_id,
+        **extra,
+        "pids": {
+            "2101": {
+                "status": "active",
+                "parameters": {signal: {"expression": "B09", "verified": True}},
+            }
+        },
+    }
+
+
+class TestAddressing:
+    """Receive filter and flow control in the generated profile."""
+
+    def _profile(self, *ecus: tuple[str, dict], **meta) -> dict:
+        return generate_profile({"car_model": "Car", "init": "ATSP6;", "ecus": dict(ecus), **meta})
+
+    def test_conventional_profile_is_unchanged(self):
+        prof = self._profile(("BMS", _ecu(0x7E4, "SOC")), ("VCU", _ecu(0x7E2, "GEAR")))
+        assert prof["init"] == "ATSP6;"
+        assert [p["pid_init"] for p in prof["pids"]] == ["ATSH7E4;ATFCSH7E4;", "ATSH7E2;ATFCSH7E2;"]
+
+    def test_one_offset_ecu_pins_every_entry(self):
+        prof = self._profile(
+            ("LBC", _ecu(0x79B, "SOH")),
+            ("VCM", _ecu(0x797, "GEAR", rx_id=0x79A)),
+            ("BMS", _ecu(0x7E4, "SOC", rx_id=0x7EC)),
+            addressing={"rx_offset": 0x20},
+            isotp={"stmin": 5},
+        )
+        assert [p["pid_init"] for p in prof["pids"]] == [
+            "ATSH79B;ATFCSH79B;ATCRA7BB;",
+            "ATSH797;ATFCSH797;ATCRA79A;",
+            "ATSH7E4;ATFCSH7E4;ATCRA7EC;",
+        ]
+        assert prof["init"] == "ATSP6;ATFCSH79B;ATFCSD300005;ATFCSM1;"
+
+    def test_functional_request_ecu_uses_its_flow_control_id(self):
+        renault = _ecu(
+            0x18DB33F1,
+            "SOC",
+            rx_id=0x18DAF1DB,
+            addressing={"mode": "normal_29bit", "fc_id": 0x18DADBF1},
+        )
+        prof = generate_profile({"car_model": "Car", "init": "ATSP7", "ecus": {"EVC": renault}})
+        assert prof["pids"][0]["pid_init"] == "ATSH18DB33F1;ATFCSH18DADBF1;ATCRA18DAF1DB;"
+        assert prof["init"] == "ATSP7;ATFCSH18DADBF1;ATFCSD300000;ATFCSM1;"
+
+    def test_a_broadcast_ecu_in_a_pinned_profile_restores_the_auto_filter(self):
+        prof = self._profile(
+            ("LBC", _ecu(0x79B, "SOH")),
+            ("OBD", _ecu(0x7DF, "SPEED")),
+            addressing={"rx_offset": 0x20},
+        )
+        assert prof["pids"][1]["pid_init"] == "ATSH7DF;ATFCSH7DF;ATCRA;"
+
+    def test_a_broadcast_ecu_alone_does_not_pin(self):
+        prof = self._profile(("OBD", _ecu(0x7DF, "SPEED")), ("BMS", _ecu(0x7E4, "SOC")))
+        assert prof["init"] == "ATSP6;"
+        assert prof["pids"][0]["pid_init"] == "ATSH7DF;ATFCSH7DF;"
+
+    def test_extended_11bit_ecus_are_left_alone(self):
+        ecu = _ecu(0x6F1, "SOC", rx_id=0x607, addressing={"mode": "normal_extended_11bit"})
+        prof = self._profile(("BMS", ecu))
+        assert (prof["init"], prof["pids"][0]["pid_init"]) == ("ATSP6;", "ATSH6F1;ATFCSH6F1;")
+
+    def test_an_unshipped_offset_ecu_does_not_pin_the_rest(self):
+        draft = _ecu(0x79B, "SOH")
+        draft["pids"]["2101"]["status"] = "draft"
+        prof = self._profile(
+            ("LBC", draft),
+            ("BMS", _ecu(0x7E4, "SOC", rx_id=0x7EC)),
+            addressing={"rx_offset": 0x20},
+        )
+        assert [p["pid_init"] for p in prof["pids"]] == ["ATSH7E4;ATFCSH7E4;"]
+        assert prof["init"] == "ATSP6;"
+
 
 class TestGenerateAndDeviceFormat:
     def test_generate_grouped_shape(self):

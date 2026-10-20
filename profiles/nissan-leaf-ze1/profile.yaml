@@ -14,13 +14,12 @@
 # off: every PID answers only with the ignition on (READY).
 car_model: "Nissan Leaf ZE1 40 kWh (2018-2022)"
 # The upstream ELM327 init is ATSP6;ATFCSH79B;ATST96;ATFCSD300000;ATFCSM1;
-# with per-PID ATSH<tx>;ATFCSH<tx>;ATCRA<rx>. The header and flow-control header
-# are per-request and set by canair itself, so only the protocol/timing/FC bits
-# are kept here (wican-ws transport only; the slcan-tcp raw path ignores init):
+# with per-PID ATSH<tx>;ATFCSH<tx>;ATCRA<rx>. canair sets the header, receive
+# filter and flow control per ECU itself (from addressing: and rx_id below), so
+# only the protocol/timing bits are kept here (wican-ws transport only; the
+# slcan-tcp raw path ignores init):
 #   ATST96        ECU response timeout 0x96 x 4.096 ms ~= 614 ms
-#   ATFCSM1       use the flow control below instead of the adapter default
-#   ATFCSD300000  FS=0 (clear-to-send), BS=0 (all frames), STmin=0 (no gap)
-init: "ATSP6;ATS0;ATAL;ATST96;ATFCSM1;ATFCSD300000;"
+init: "ATSP6;ATS0;ATAL;ATST96;"
 
 # The Leaf is ISO 15765-4 11-bit / 500 kbit (ATSP6).
 can_bitrate: 500000
