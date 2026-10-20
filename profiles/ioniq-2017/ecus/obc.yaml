@@ -58,12 +58,9 @@ OBC:
           source: "Live READY vs charging + BMS cross-check (2026-07-20)"
           source_links: []
           verified: true
-          notes: >
-            HV battery (pack) voltage at the LDC — the always-present DC-link. 2026-07-20: reads 385.7V in
-            READY and 386.9V charging, matching BMS BATTERY_VOLTAGE (385.6V) — present in BOTH states, unlike
-            the OBC charge-side senses ([B10:B11], [B12:B13]) which idle to ~0-6V in READY. (Earlier guesses
-            [B12:B13]/100 and B23*2 were wrong: [B12:B13] is OBC-only; B23*2≈372-378V doesn't track pack.)
-            ISO-TP bytes 0x26-0x27 — only in the full 48-byte response. Cross-check at one SOC (~85%) only.
+          notes: >-
+            HV pack voltage at the LDC, present at READY and while charging. r=0.998 vs
+            VCU:2102:VCU_INVERTER_INPUT_VOLTAGE (n=5689). Only in the full 48-byte response.
 
         LDC_OUTPUT_V:
           expression: "[B25:B26]/100"
@@ -74,7 +71,9 @@ OBC:
           source: "Decoded from live captures (2026-04-14)"
           source_links: []
           verified: true
-          notes: "LDC 12V system output voltage. 14.52V charging / 14.31V READY — correct for 12V system. ISO-TP bytes 20-21. Load-test confirmed 2026-07-22: sagged 14.5→13.6→14.5V as a rear-defroster (~15-20A) load was switched ON→OFF, i.e. the real 12V rail."
+          notes: >-
+            12 V rail: 14.52 V charging, 14.31 V at READY. Sagged 14.5 to 13.6 V and recovered as a
+            rear defroster load switched on and off (2026-07-22).
 
         LDC_TEMP:
           expression: "B19-100"
@@ -85,10 +84,8 @@ OBC:
           source: "Kia Soul EV LDC CSV (LDC Temp = i-100) + charging session trend (2026-07-19)"
           source_links: []
           verified: true
-          notes: >
-            LDC/converter temperature. 2026-07-20: corrected from B21-40 (which varies too much → not a temp).
-            B19-100 = 21°C at READY (≈18°C ambient) and rises smoothly 28→65°C over a 3h AC charge (10:45→13:50)
-            — textbook thermal behaviour; live 10A-AC charge read 27°C. Matches Soul LDC "-100" offset. ISO-TP byte 0x0f.
+          notes: >-
+            Rose smoothly 28 to 65 °C over a 3 h AC charge; 21 °C at READY with about 18 °C ambient.
 
         OBC_CHARGE_V:
           expression: "[B10:B11]/100"
@@ -99,7 +96,7 @@ OBC:
           source: "Decoded from live captures (2026-04-14)"
           source_links: []
           verified: true
-          notes: "OBC charge voltage into battery. ~370V during AC charging, ~6V idle (READY). ISO-TP bytes 7-8."
+          notes: About 370 V during AC charging, about 6 V when the OBC is idle.
 
         OBC_OUTPUT_V:
           expression: "[B12:B13]/100"
@@ -110,10 +107,7 @@ OBC:
           source: "Decoded from live captures (2026-04-14); reclassified 2026-07-20"
           source_links: []
           verified: true
-          notes: >
-            OBC DC output voltage (charge-side). ~353-384V during AC charging, but only ~3.8V in READY (OBC idle)
-            — which is why it is NOT the LDC HV input (see LDC_HV_INPUT_V = B23*2). Was previously mislabelled
-            LDC_HV_INPUT_V. ISO-TP bytes 9-10.
+          notes: 353-384 V during AC charging, about 3.8 V when the OBC is idle.
 
 
 
@@ -126,7 +120,7 @@ OBC:
           source: "Decoded from live captures (2026-04-14)"
           source_links: []
           verified: true
-          notes: "OBC DC output current during charging. ~2.85A (close to BMS charging current ~2.6A), 0A idle. ISO-TP bytes 13-14."
+          notes: OBC DC output current while charging; 0 when idle.
 
         OBC_PILOT_DUTY:
           expression: "[B35:B36]/10"
@@ -138,8 +132,9 @@ OBC:
           source_links:
             - https://docs.google.com/spreadsheets/d/1R2dW_4-ANg04TQdkHH52-8wdYItBkWDfppcsqOc-m1M
           verified: true
-          notes: >
-            J1772 control-pilot duty %. Verified 2026-07-27 EVSE step: 16.5/21.5/26.5% at 10/13/16A pilot (J1772 amps/0.6 = 16.7/21.7/26.7%). REPLACES the old B47/3, which was a noisy instantaneous pilot ADC sample (read ~28-40% regardless of the real duty). [B35:B36] is the clean filtered value; ISO-TP 0x1D-0x1E.
+          notes: >-
+            J1772 control-pilot duty. Read 16.5, 21.5 and 26.5 % at 10, 13 and 16 A pilot
+            (2026-07-27). 100 % when plugged in with no current offered.
         OBC_PILOT_AMPS:
           expression: "[B35:B36]*0.06"
           unit: A
@@ -149,8 +144,9 @@ OBC:
           source: Live EVSE current step 10/13/16A (2026-07-27); J1772 duty x 0.6
           source_links: []
           verified: true
-          notes: >
-            EVSE-advertised max AC current (the negotiated pilot setpoint) = pilot-duty x 0.6. Verified 2026-07-27 EVSE step: 9.9/12.9/15.9A at 10/13/16A pilot. The car's ACTUAL draw is AC_INPUT_A (~0.6A less). REPLACES the old B47/5 (noisy instantaneous). Same source bytes as OBC_PILOT_DUTY (ISO-TP 0x1D-0x1E).
+          notes: >-
+            Pilot duty x 0.6. Read 9.9, 12.9 and 15.9 A at 10, 13 and 16 A pilot (2026-07-27); reads
+            60 at 100 % duty, when no current is offered.
         # OBC heatsink/inside/water temps (Soul OBC: Signed(S)/(T)/(U)) are NOT exposed on the Ioniq LDC 2101.
         # Previous S15/S16/S17 guesses were bogus: S15/S17 read current bytes (B15/B17), S16 reads the ISO-TP
         # PCI byte 0x22 (=34) — the "static 34°C" was the frame header, not a temperature.
@@ -167,8 +163,9 @@ OBC:
           max: "10"
           source: Derived OBC_CHARGE_V*OBC_DC_A; validated vs wattmeter 2026-07-26
           verified: true
-          notes: >
-            OBC DC output power to the HV bus = OBC_CHARGE_V * OBC_DC_A ([B10:B11]/100 * [B17:B18]/100 / 1000). Steady 3.30-3.36 kW across the 2026-07-26 16A AC charge, 0 when idle. Energy balance: OBC DC out 3.33kW = BMS BATTERY_POWER 3.10kW (into pack) + ~0.15kW LDC 12V load (14.5V*~10A); AC input measured 3.44-3.56kW => ~95% AC/DC charger efficiency. Both input params verified, product matches the external wattmeter.
+          notes: >-
+            OBC_CHARGE_V x OBC_DC_A. Steady 3.30-3.36 kW over the 2026-07-26 16 A AC charge, 0 when
+            idle; matched an external wattmeter.
         AC_INPUT_V:
           expression: "[B14:B15]/100"
           unit: V
@@ -177,10 +174,7 @@ OBC:
           max: "300"
           source: Live 16A AC charge 2026-07-26; checked and confirmed accurate
           verified: true
-          notes: >-
-            AC mains input (RMS) at the OBC inlet. ~222V during charging (218-228V across all
-            charging history), idles ~8.5V in READY with EVSE disconnected (B14=3), like the other
-            OBC senses.
+          notes: 218-228 V while charging, about 8.5 V with no EVSE connected.
         AC_INPUT_A:
           expression: "[B33:B34]/100"
           unit: A
@@ -189,8 +183,9 @@ OBC:
           max: "40"
           source: Live EVSE current step 10/13/16A (2026-07-27) + AC power balance
           verified: true
-          notes: >
-            Measured AC input current (actual grid draw). Verified 2026-07-27 EVSE pilot step 10/13/16A -> 9.3/12.4/15.4A: tracks the pilot ~0.6A below the advertised limit and matches the power balance V_dc*I_dc/eff/V_ac. Low byte B34 is the ex-'constant 250 (0xFA)' from the steady 16A charge — it only varied once the current stepped. ISO-TP 0x1B-0x1C.
+          notes: >-
+            Measured AC input current. Read 9.3, 12.4 and 15.4 A at 10, 13 and 16 A pilot
+            (2026-07-27), about 0.6 A below OBC_PILOT_AMPS.
         OBC_CHARGE_STATE:
           expression: B20
           type: enum
@@ -201,21 +196,9 @@ OBC:
           source: RE 2026-08-02 AC charge transitions, live ACC2 confirmed; DCFC transitions confirmed 2026-08-08
           verified: true
           notes: >-
-            Charge-session state at B20. Raw byte takes EXACTLY 3 values across the whole corpus
-            (0/2/3, confirmed via raw-byte stats bypassing the enum - no undiscovered 4th value
-            exists). 0->3->2 with the control-pilot: 0 = not connected (pilot 0%, this is also the
-            value seen the entire time while driving/unplugged - relabelled from 'connected, EVSE
-            idle' which was misleading), 3 = connected-standby (pilot 100%, not charging), 2 =
-            active charge session (pilot 26.5% typical on AC, OBC_DC_A>0). Verified via
-            pilot+current match on the 2026-08-02 AC charge, and a steady live 3 in ACC2 (plugged,
-            1h+ post-charge, not charging). 2026-08-08: BOTH of today's CCS DC-fast-charge sessions
-            show the IDENTICAL 0->3->2 transition (DCFC-1 11:41:43->11:41:56; DCFC-2
-            16:31:45->16:32:01) even though OBC_DC_A/OBC_DC_POWER stay flat at 0 throughout (OBC's
-            own AC path is bypassed during DC fast-charge, confirmed separately). So state=2 does
-            NOT mean 'OBC's own AC relay is carrying current' in the DC case - it reflects a
-            vehicle-level/CCS-session-active status that OBC also reports, not exclusively its own
-            hardware state. Label kept generic ('active charge session') rather than OBC-specific to
-            reflect this.
+            Only 0, 2 and 3 across 11441 captures. 0 not connected (also while driving), 3 connected
+            without charging (pilot 100 %), 2 charge session active. Goes 0, 3, 2 at the start of
+            both AC and CCS DC charges, even though OBC_DC_A stays 0 during DC charging.
         OBC_EFFICIENCY:
           expression: 100*[B10:B11]*[B17:B18]/([B14:B15]*[B33:B34])
           unit: "%"
@@ -224,29 +207,17 @@ OBC:
           source: "Derived: 100 * OBC_DC_POWER*1000 / (AC_INPUT_V*AC_INPUT_A), reduced to raw bytes (2026-08-06)"
           verified: false
           notes: >-
-            AC→DC charger conversion efficiency = OBC DC output power ÷ AC input power, as a
-            percentage. Algebraically 100*OBC_CHARGE_V*OBC_DC_A / (AC_INPUT_V*AC_INPUT_A), reduced
-            to raw bytes so it needs no cross-parameter lookup:
-            100*[B10:B11]*[B17:B18]/([B14:B15]*[B33:B34]). Both AC_INPUT_V and AC_INPUT_A are
-            verified. AC_INPUT_V*AC_INPUT_A is apparent (V*A) power, not measured real power, so
-            this tracks true efficiency only if the OBC's PFC front-end holds power factor ≈1. Reads
-            NULL/decode-error when AC_INPUT_A=0 (not charging — division by zero by construction,
-            matches the other AC-charge-only params in this PID idling to non-physical values). On
-            the 2026-08-05 charging session: mean ~98.1% at steady ~4.3-4.5kW AC input (n=1317); an
-            earlier wattmeter cross-check on 2026-07-26 at a lower 16A/~3.5kW charge measured ~95%
-            (see OBC_DC_POWER notes) — still unreconciled.
+            OBC DC output power over AC apparent power (AC_INPUT_V x AC_INPUT_A). No value when
+            AC_INPUT_A is 0. Mean 98.1 % at about 4.4 kW AC input (2026-08-05, n=1317), against 95 %
+            from the wattmeter check at about 3.5 kW (2026-07-26).
     2102:
       status: static
       period: 5000
       vehicle_states: [CHARGING, ACC2]
-      notes: >
-        34 bytes. Also responds in ACC2 (not just charging). Returns NRC when car is fully off.
-        Discovered during charging PID scan (2026-04-18).
-        Raw payload: 6102FFFC0000684F792A694A79286E847927650F791B7499791F7293792B...
-        STATIC 2026-07-30: constant calibration block — byte-identical across 2316 captures spanning
-        every state (driving 372, ready 663, charging 1421, acc, sleep); 1 distinct payload. Structure
-        is a 6-byte header + 7×[XX YY 79 ZZ] groups (3rd byte always 0x79) = a cal/lookup table.
-        Marked status: static (skipped in bare-ECU sweeps, not shipped). No live signal to decode.
+      notes: >-
+        34 bytes. Byte-identical across 2316 captures in every state: a calibration table (6-byte
+        header and 7 groups of 4 bytes whose third byte is always 0x79). Answers while charging and
+        in ACC2; NRC with the car fully off.
       parameters: {}
 
   research:
@@ -381,7 +352,32 @@ OBC:
         derived current is cross-ECU (VCU power / OBC voltage) so not a single WiCAN expression, and
         VCU_AUX_POWER is still unverified (climate/electronics/total unresolved) so the derived current
         inherits that uncertainty.
-      notes: "LDC 12V output CURRENT is NOT broadcast in OBC 2101. RE-CONFIRMED 2026-07-28 (three independent methods): (1) 2026-07-22 rear-defroster load step re-analysed via the exact byte matrix — an ~18A load (LDC_OUTPUT_V rail sagged 14.50->13.60V, B26 170->80) moved ONLY the voltage low byte; every other byte stayed within baseline jitter (B15 +2, B13 +3, all others flat). (2) decode --discriminate state --bytes: every current-like byte (B12/B17/B18/B28/B33/B34/B39/B51) reads exactly 0 in ready/driving = all CHARGE-side currents; an LDC output current must be non-zero whenever the car is awake, and no such byte exists. (3) investigate OBC 2101: every byte resolves to a charge/port-lock/EV-ready flag, temp, or checksum; every physical-band hit is a VOLTAGE, never a current. Soul standalone LDC 0x7C5 has DC_Current_Out (letter g) but its f/g/h/i block does NOT map contiguously onto the Ioniq OBC 2101 (only Temp survives at B19) — same redistribution that dropped the OBC internal temps. VCU 2101=drive-path only; VCU 2102=inverter/aux voltage + charge-time + fast phase-current bytes (no LDC current); VCU 21F2=MIXED block, NOT static — many live analog bytes plus a charge-schedule config region (WiCAN B38/B39/B41/B42/B43 packed + B75 = weekend-end hour), confirmed by a 2026-07-28 before/after when the AVN/IVI charge timer was reprogrammed (see VCU 21F2 research entry). Exhaustive 21 00-FF sweeps on OBC+VCU found no hidden page; 22xxxx all NRC. (4) 2ND PASS 2026-07-28 Ohm's-law droop test: `hunt OBC 2101 --against LDC_OUTPUT_V` finds NO independent byte anti-correlated with the 12V rail — only S26 (r=-0.58), which is the voltage word's own low byte. A real output current would droop the rail (V=V0-I*R) and surface here; nothing does. (5) 2ND PASS 2026-07-28 examined VCU 21F2 live analog bytes (the newly-opened mixed block): B29-B34 are drive/charge HV-side data (=0 when idle-parked, so NOT the always-on LDC 12V output); B10/B14/B19/B20 are fast-aliased/counter bytes (B19~=B20 mirror); B11=103/104 slow counter. None fits an LDC output current (must be nonzero whenever awake + load-tracking). Only 4 unique 21F2 payloads currently (keep-unique; NO charging capture in the set), too sparse to fully rule in/out. MCU 2102 currents are motor phase-current; Unknown-746=4 static bytes; no broadcast-CAN (domain B) logs exist."
+      notes: >-
+        LDC 12V output CURRENT is NOT broadcast in OBC 2101. RE-CONFIRMED 2026-07-28 (three
+        independent methods): (1) 2026-07-22 rear-defroster load step re-analysed via the exact byte
+        matrix — an ~18A load (LDC_OUTPUT_V rail sagged 14.50->13.60V, B26 170->80) moved ONLY the
+        voltage low byte; every other byte stayed within baseline jitter (B15 +2, B13 +3, all others
+        flat). (2) decode --discriminate state --bytes: every current-like byte
+        (B12/B17/B18/B28/B33/B34/B39/B51) reads exactly 0 in ready/driving = all CHARGE-side
+        currents; an LDC output current must be non-zero whenever the car is awake, and no such byte
+        exists. (3) investigate OBC 2101: every byte resolves to a charge/port-lock/EV-ready flag,
+        temp, or checksum; every physical-band hit is a VOLTAGE, never a current. Soul standalone
+        LDC 0x7C5 has DC_Current_Out (letter g) but its f/g/h/i block does NOT map contiguously onto
+        the Ioniq OBC 2101 (only Temp survives at B19) — same redistribution that dropped the OBC
+        internal temps. VCU 2101=drive-path only; VCU 2102=inverter/aux voltage, aux power and fast
+        load-tracking bytes (no LDC current); VCU 21F2=mixed block of live bytes and
+        session-constant bytes. Exhaustive 21 00-FF sweeps on OBC+VCU found no hidden page; 22xxxx
+        all NRC. (4) 2ND PASS 2026-07-28 Ohm's-law droop test: `hunt OBC 2101 --against
+        LDC_OUTPUT_V` finds NO independent byte anti-correlated with the 12V rail — only S26
+        (r=-0.58), which is the voltage word's own low byte. A real output current would droop the
+        rail (V=V0-I*R) and surface here; nothing does. (5) 2ND PASS 2026-07-28 examined VCU 21F2
+        live analog bytes (the newly-opened mixed block): B29-B34 are drive/charge HV-side data (=0
+        when idle-parked, so NOT the always-on LDC 12V output); B10/B14/B19/B20 are
+        fast-aliased/counter bytes (B19~=B20 mirror); B11=103/104 slow counter. None fits an LDC
+        output current (must be nonzero whenever awake + load-tracking). Only 4 unique 21F2 payloads
+        currently (keep-unique; NO charging capture in the set), too sparse to fully rule in/out.
+        MCU 2102 currents are motor phase-current; Unknown-746=4 static bytes; no broadcast-CAN
+        (domain B) logs exist.
       what_to_test:
         - "PURE-12V step still wanted: the 2026-07-30 READY step used HVAC (blower 12V + AC compressor HV together), confounding pack-current. Repeat with a 12V-ONLY load (rear defroster + high beams + blower, AC OFF) co-polling OBC:2101 + VCU:2102 + VCU:21F2 + BMS:2101 --keep-all — then pack BATTERY_CURRENT should equal the LDC HV-input current alone, giving an efficiency cross-check on VCU_AUX_POWER/LDC_OUTPUT_V."
         - "Re-capture VCU 21F2 with --keep-all during a CHARGING session (LDC ~10A steady, energy-balance known) — the current set has no charging 21F2, so its analog bytes can't be contrasted charging-vs-ready yet."
