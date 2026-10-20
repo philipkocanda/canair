@@ -406,12 +406,9 @@ VCU:
       period: 0
       vehicle_states: [CHARGING, READY]
       notes: >-
-        About 86 bytes, mixing live bytes (B10, B12-B15, B19-B21, B29-B37, B45, B47, B57 vary hour
-        to hour) with charge-timer configuration. B38, B39 and B41-B43 changed from E1 21 CB 65 F3
-        to A0 27 D3 D3 F4 when the charge timer was reprogrammed on 2026-07-28, and did not change
-        when only preconditioning was reprogrammed on 2026-07-30. The packing is not plain
-        hour/minute or BCD. Reference for the A0 27 D3 D3 F4 state: charge timer weekends
-        17:40-20:50, weekdays 01:20-03:40.
+        About 86 bytes. Live bytes (B10, B12-B15, B19-B21, B29-B37, B45, B47, B57 vary hour to hour)
+        next to bytes that only change between sessions: B38, B39 and B41-B43 read E1 21 CB 65 F3 on
+        2026-07-22 and A0 27 D3 D3 F4 from 2026-07-28 to 2026-07-30. What they hold is unknown.
     1A90:
       response_frames: 3
       parameters:
@@ -592,34 +589,15 @@ VCU:
       notes: "State-discrimination 2026-07-27 surfaced: (1) B22:3 = charge-active indicator — set 98% during AC charging, 0% ready-parked, but ~34% during driving; hypothesis = 'battery charge current flowing' (EVSE + regen), UNCONFIRMED (driveway drive had negligible regen; vs BMS current join n/a, vs MCU torque r~0.01). Retest on a highway drive with strong regen + co-polled BMS:2101 BATTERY_CURRENT. (2) B23 = drive-path-enable bitmask = 52 (bits 2/4/5) ready/drive, 0 charging; B23:2 is VCU_INVERTER_ENABLED, B23:4/B23:5 undecoded companions (same pattern, no ready-vs-drive distinction). (3) VCU_POWER_STATE now enum 4/6/7."
     - type: decode
       target: 21F2 charge-schedule
-      status: captured
+      status: done
       priority: P2
       vehicle_states: [CHARGING]
       created: "2026-07-28"
-      updated: "2026-07-30"
-      notes: "Crack the packed charge/precondition-SCHEDULE encoding in VCU 21F2 (WiCAN indexing, incl. ISO-TP PCI: B00/B01=FF PCI, B08/B16/...=CF PCI, SID 0x61 at B02). Config bytes = constant across three 2026-07-22 reads yet changed on 2026-07-28 when BOTH the charge timer AND the two preconditioning schedules were reprogrammed via the AVN/IVI: contiguous B38/B39 + B41/B42/B43 (ISO-TP 0x20-0x24: E1 21 CB 65 F3 -> A0 27 D3 D3 F4) + B75 (ISO-TP 0x40: 0x10 -> 0x14) + a small B11 tick (0x67->0x68, likely counter/checksum). KNOWN 07-28 settings (ground truth, see PID notes): charge timer weekends 17:40-20:50 / weekdays 01:20-03:40; preconditioning ALWAYS exactly TWO: (1) 15 C Thu 15:30, (2) 15 C Thu 16:00. B75 (0x10->0x14) is NOT part of the schedule: it is a monotonic counter (16->31 by 2026-08-15, now VCU_21F2_B75_COUNTER) that happened to tick between the two reads. UNSOLVED: the B38-B43 block does NOT decode to any schedule value as plain bytes/BCD, and the raw preconditioning numbers 15/16/30 do not appear as any byte in the 07-28 payload -> bit-packed. It likely carries BOTH charge windows and both precondition schedules, so the single 07-28 before/after (where everything changed at once) cannot separate the fields. Live analog bytes to IGNORE: B10,B12,B13,B14,B15,B19,B20,B21,B29-B37,B45,B47,B57."
-      what_to_test:
-        - Capture 21F2 after changing ONLY ONE schedule field at a time (e.g. move only the weekday-start minute, or only precondition schedule 1's minute), diffing each read against the recorded reference state, to attribute individual bits to charge-timer vs preconditioning fields, then map the packing of B38-B43.
-        - Identify what VCU_21F2_B75_COUNTER counts: read 21F2 before/after a single wake, ignition cycle, drive and charge session and see which one increments it.
-        - Note preconditioning is always exactly 2 schedules — a change from 15:30/16:00 to a distinct pair should move a specific sub-region; use that to locate the precondition block within B38-B43.
-      result: >
-        2026-07-28 VCU-wide search (07-22 vs 07-28 static-then-changed byte diff across every
-        ECU:PID with captures on both days): the ONLY VCU PID carrying schedule config is 21F2
-        (B11/B38/B39/B41/B42/B43/B75). VCU 2101 and 2102 have NO cleanly-static-then-changed
-        bytes — they are pure live telemetry, no schedule. VCU has only 3 PIDs (21 00-FF sweep
-        confirmed no hidden pages), so on the VCU the schedule config is confined to 21F2. The
-        CHARGE-timer windows are confirmed here (B75 = weekend-end hour). Also checked other
-        ECUs that HAVE 07-22/07-28 captures: BMS:21F2 (32-byte cal/counter block, unrelated),
-        MCU:21F2/OBC:2101 (1-byte counter ticks), and the HVAC DIDs (2201A0-A6) + AAF
-        (2180/2181) show many changed bytes but those are dominated by genuine climate-STATE
-        differences between the two days, not schedule config — the 15 C precondition target
-        does not appear as a clean set-temp byte (only HVAC:2201A2 B44=30 coincidentally).
-        CAVEAT: PRECONDITIONING (a climate function) may NOT actually live in VCU 21F2 — HVAC
-        (0x7B3) has NEVER been probed for a service-21 page, and an HVAC 21F2 config page is a
-        strong candidate for the precondition schedules (VCU 21F2 may only carry the charge
-        windows). See HVAC research entry "scan 21 00-FF". Whether the B38-B43 change on 07-28
-        was charge-timer-only or also preconditioning is unresolved until single-variable A/B
-        (and the HVAC 21F2 probe) are done. Charge-timer bytes are bit-packed in B38-B43 + B75.
+      updated: "2026-10-20"
+      notes: Looked for charge-timer and preconditioning schedule bytes in VCU 21F2.
+      result: >-
+        Closed 2026-10-20: the schedule settings recorded for this hunt are known to be invalid, so
+        the B38-B43 change between 2026-07-22 and 2026-07-28 is not attributed to the charge timer.
     - type: verify
       target: 2101 power-state LED
       status: pending
@@ -748,6 +726,13 @@ VCU:
       created: "2026-08-07"
       updated: "2026-08-07"
       notes: "Verify VCU_ODOMETER (ISO-TP i11-i14 LE / 256 = km, 1/256 km resolution). Co-poll VCU 21F2 with CLU 22B002 across a drive: confirm the i11 fraction advances smoothly (not in whole-km jumps) and the +4.4..+4.7 km offset vs the verified CLU ODOMETER stays constant. Currently only 5 co-polled points, all parked."
+    - type: decode
+      target: 21F2 B75
+      status: pending
+      priority: P3
+      created: "2026-10-20"
+      updated: "2026-10-20"
+      notes: "Identify what VCU_21F2_B75_COUNTER counts: read 21F2 before and after a single wake, ignition cycle, drive and charge session and see which one increments it."
   sessions:
     "81":
       name: "standardDiagnosticSession"
