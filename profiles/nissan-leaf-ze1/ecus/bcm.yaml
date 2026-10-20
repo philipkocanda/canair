@@ -28,9 +28,7 @@ BCM:
       verified: false
       on: "30070001"
       off: "30070000"
-      notes: >-
-        0x01 = lock, 0x02 = unlock. The 'on' command locks; to unlock send "30070002" manually.
-        https://i.blackhat.com/Asia-25/Asia-25-Evdokimov-Remote-Exploitation-of-Nissan-Leaf.pdf
+      notes: 0x01 = lock, 0x02 = unlock. The 'on' command locks; to unlock send "30070002" manually.
       session: true
       hold: false
     6900:
@@ -41,7 +39,6 @@ BCM:
       notes: >-
         0x01 = fold (close), 0x02 = unfold (open). The 'on' command folds; to unfold send
         "30690002" manually.
-        https://i.blackhat.com/Asia-25/Asia-25-Evdokimov-Remote-Exploitation-of-Nissan-Leaf.pdf
       session: true
       hold: false
     2200:
@@ -49,9 +46,7 @@ BCM:
       verified: false
       on: "30220001"
       off: "30220000"
-      notes: >-
-        0x01 = horn on; 0x00 = release.
-        https://i.blackhat.com/Asia-25/Asia-25-Evdokimov-Remote-Exploitation-of-Nissan-Leaf.pdf
+      notes: 0x01 = horn on; 0x00 = release.
       session: true
       hold: true
     4520:
@@ -59,9 +54,7 @@ BCM:
       verified: false
       on: "30452003"
       off: "30452000"
-      notes: >-
-        0x03 = wiper actuate.
-        https://i.blackhat.com/Asia-25/Asia-25-Evdokimov-Remote-Exploitation-of-Nissan-Leaf.pdf
+      notes: 0x03 = wiper actuate.
       session: true
       hold: false
     3B20:
@@ -69,9 +62,7 @@ BCM:
       verified: false
       on: "303b2002"
       off: "303b2000"
-      notes: >-
-        0x02 = lights on.
-        https://i.blackhat.com/Asia-25/Asia-25-Evdokimov-Remote-Exploitation-of-Nissan-Leaf.pdf
+      notes: 0x02 = lights on.
       session: true
       hold: false
 
