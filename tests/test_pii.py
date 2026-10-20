@@ -361,10 +361,10 @@ class TestVinTokenRequiresALetter:
         assert pii.scan_profile(prof) == []
 
     def test_helper_directly(self):
-        assert pii._has_vin_token("KMHC851HFHU012435")
-        assert pii._has_vin_token("1HGCM82633A004352")
-        assert not pii._has_vin_token("31114851712211429")  # all digits -> serial
-        assert not pii._has_vin_token("too short")
+        assert pii.has_vin_token("KMHC851HFHU012435")
+        assert pii.has_vin_token("1HGCM82633A004352")
+        assert not pii.has_vin_token("31114851712211429")  # all digits -> serial
+        assert not pii.has_vin_token("too short")
 
 
 class TestScanContribution:

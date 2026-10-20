@@ -52,6 +52,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from .profile import Profile
+from .textscan import has_vin_token, looks_redacted
 
 # ---------------------------------------------------------------------------
 # Sensitive identity identifiers
@@ -76,35 +77,7 @@ _SENSITIVE_KWP_RECORDS = {"90"}  # VIN
 _IDENTITY_VIN_FIELD = "vin"
 _IDENTITY_FREE_TEXT_FIELDS = ("notes", "description", "alias", "supplier")
 
-# A VIN is 17 chars, upper alphanumeric excluding I/O/Q (ISO 3779).
-_VIN_RE = re.compile(r"\b[A-HJ-NPR-Z0-9]{17}\b")
 _EMAIL_RE = re.compile(r"\b[\w.+-]+@[\w-]+\.[\w.-]+\b")
-# 4+ identical mask characters in a row — the signature of a redacted value.
-_MASK_RUN_RE = re.compile(r"([Xx*#?])\1{3,}")
-
-
-def _has_vin_token(text: str) -> bool:
-    """True when ``text`` contains a token that could be a VIN.
-
-    Shape alone is not enough. A VIN's charset is a *superset* of digits, so a
-    17-digit ECU serial — the exact format the BSD modules report — matches
-    ``_VIN_RE`` and used to be reported as a VIN. Requiring at least one letter
-    separates the two: every real-world WMI carries letters, while an all-numeric
-    17-char run is a serial, which this scanner deliberately does not flag.
-    """
-    return any(any(c.isalpha() for c in m.group()) for m in _VIN_RE.finditer(text))
-
-
-def looks_redacted(value: str) -> bool:
-    """True when ``value`` carries a run of 4+ identical mask characters.
-
-    An already-scrubbed value (``KMHCXXXXXXXXXXXXX``) is not PII, and re-flagging
-    it on every run trains the reviewer to skip the report — the failure mode that
-    makes a security check useless. Four identical ``X``/``*``/``#``/``?`` in a row
-    does not occur in a real VIN or serial, so this is specific without having to
-    know which redaction convention was used.
-    """
-    return bool(_MASK_RUN_RE.search(value))
 
 
 @dataclass(frozen=True)
@@ -159,7 +132,7 @@ def _scan_free_text(text: str, location: str) -> list[Finding]:
         return findings
     if _EMAIL_RE.search(text):
         findings.append(Finding(location, "email", "contains an email address"))
-    if _has_vin_token(text) and not looks_redacted(text):
+    if has_vin_token(text) and not looks_redacted(text):
         findings.append(Finding(location, "vin-text", "contains a VIN-shaped token"))
     return findings
 
@@ -178,7 +151,7 @@ def _scan_capture(cap: object, loc: str) -> list[Finding]:
         # `payload` is response hex; `response` is a free-form summary that may
         # already hold *decoded* text (an identity read's ASCII), so test both the
         # hex-decoded bytes and the string as written.
-        if _has_vin_token(_payload_ascii(payload)) or _has_vin_token(payload):
+        if has_vin_token(_payload_ascii(payload)) or has_vin_token(payload):
             findings.append(Finding(f"{loc} ({pid})", "vin-payload", "payload decodes to a VIN"))
     for field in ("label", "notes"):
         findings += _scan_free_text(str(cap.get(field) or ""), f"{loc}.{field}")
