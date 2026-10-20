@@ -15,6 +15,14 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [1.22.0](https://github.com/philipkocanda/canair/compare/v1.21.0...v1.22.0) (2026-10-19)
+
+
+### Added
+
+* ioniq: add response frame lengths to more ECUs ([d8b3fb9](https://github.com/philipkocanda/canair/commit/d8b3fb9f6e1c967b73d5d815fec17e9005bb4ed7))
+* ioniq: captures and response lengths ([68d2e1e](https://github.com/philipkocanda/canair/commit/68d2e1e2110e92182c93fc358683a7b3ec447a4a))
+
 ## [1.21.0](https://github.com/philipkocanda/canair/compare/v1.20.0...v1.21.0) (2026-10-19)
 
 
