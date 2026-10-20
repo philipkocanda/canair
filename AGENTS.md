@@ -43,8 +43,8 @@ sockets, ad-hoc scripts, or hand-edited YAML.
 
 - **Read the device** with `read`/`monitor`/`scan`/`discover`/`io`/`routines` (`raw` only as a last
   resort). **Analyze history** with `captures`/`decode`/`align`/`correlate`/`hunt`/`investigate`/
-  `coverage`/`research`. **Edit definitions** with `pids`/`signals`/`states`/`groups`/`ecu` —
-  surgical, schema-validated, comment-preserving.
+  `search`/`coverage`/`research`. **Edit definitions** with `pids`/`signals`/`states`/`groups`/
+  `ecu` — surgical, schema-validated, comment-preserving.
 - **Always pass `--save`** (with `--label`, `--state`, `--notes`) when reading from the device, so
   every payload lands in `captures/`. Works with `read`/`monitor`/`scan`/`raw`/`discover`. Saves are
   **journaled** (write-ahead log in `captures/.journal/`) and reconciled on exit, so a
@@ -245,6 +245,16 @@ and **`g`/`G` address the view's primary axis**.
   the capture-model bridge is `canlib/commands/investigate/counters.py`, which aligns a **prefix**
   payload matrix — aligning on the *modal* length would silently discard every capture of a minority
   length. Plan: `plans/2026-08-07-monotonic-counter-detection.md`.
+- **`canair search`** — "Where in my captures is this string?" Searches every payload (and, by
+  default, labels/notes/text responses; `--defs` adds `ecus/` identity fields) for a literal,
+  `--regex`, `--hex` byte pattern or `--vin`, **without knowing the ECU or PID**; with no pattern it
+  inventories every plausible string. Findings are grouped by *location* (ECU, PID, offset), not by
+  capture, each with a paste-ready `pids upsert-param --type ascii` command. Two pitfalls: the
+  plausibility filter (`canlib/textscan.py::is_plausible_token`) **is** the inventory — numeric
+  telemetry is often printable, so `--all-runs` is mostly noise — and the VIN-shape test is shared
+  with the `contribute` PII gate (one definition, in `textscan`). Only the `uds` kind exists; the
+  leaf primitives are `canlib/textscan.py`, the command is `canlib/commands/search/`. Plan:
+  `plans/2026-08-07-search-all-captures.md`.
 - **`canair coverage`** (alias `cov`) — Audits definitions for decoding gaps: **UNMAPPED** data
   bytes, incomplete **BITS**, **NO CAPTURE** PIDs. Bit coverage counts both models (the
   `Bn:k`/`Sn:k` accessor and a `type: bitmask` param's `bits:` keys) and a whole-byte read does

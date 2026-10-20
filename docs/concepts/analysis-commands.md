@@ -36,6 +36,10 @@ are the "reason about it" tools; **`align`** reads *several* signals side by sid
 `decode --try` → `pids upsert-param` → `decode --stats`/`--corr` is the
 define→verify loop.
 
+**`search`** answers a different question — *where is this text?* — and so needs no
+target at all: it scans every payload for a part number, version string, VIN or byte
+pattern, or lists every plausible string when you give it none.
+
 Two tools sit outside the map because they need **no reference signal at all** —
 they judge a byte by its own shape instead of by what it tracks:
 `hunt --physical` (does its scaled value land in a named physical band?) and
@@ -57,6 +61,8 @@ has nothing co-polled to correlate against.
 | several PIDs' **raw captures** | to read them at the same instant, frame by frame | `captures "A:P1,P2" --step` |
 | raw bytes of one PID | the timestamp×byte matrix | `decode --dump-bytes` |
 | raw payloads | the hex / byte-diff / sessions index | `captures` |
+| a part number, version or VIN | which ECU/PID holds it | `search <TEXT>` |
+| nothing, just the captures | every part number / version string in them | `search` |
 | a finished-ish profile | what bytes are still undecoded | `coverage` |
 | a session's end | what to work on next | `research` |
 | a confounder to remove | correlation with a nuisance regressed out | `… --control REF` (hunt/correlate) |

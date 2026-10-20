@@ -85,6 +85,7 @@ All functionality is exposed as `canair <subcommand>`; run `canair <cmd> --help`
 | `canair correlate` | Rank the strongest cross-signal relationships across a drive; find mirrored signals (`uds` captures \| `can` frame log). |
 | `canair hunt` | "Which byte *is* this known signal?" — sweep, correlate, fit, unit-guess (`uds` PID \| `can` frame ID). |
 | `canair investigate` | One-shot per-byte report for an unknown PID, or a ranked summary sweep over an ECU / the whole profile; `--counters` hunts monotonic counters (odometer / hour meter / cycle count). |
+| `canair search` | Find a string, VIN or byte pattern anywhere in the captures without knowing the ECU or PID; with no pattern, list every plausible string (part numbers, versions) with a paste-ready `pids upsert-param` command. |
 | `canair coverage` | Audit PID definitions for decoding gaps (alias: `cov`). |
 | `canair research` | Report the open reverse-engineering backlog. |
 

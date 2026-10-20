@@ -117,6 +117,7 @@ nav:
           - canair correlate: reference/cli/correlate.md
           - canair hunt: reference/cli/hunt.md
           - canair investigate: reference/cli/investigate.md
+          - canair search: reference/cli/search.md
           - canair coverage: reference/cli/coverage.md
           - canair research: reference/cli/research.md
           - canair pids: reference/cli/pids.md

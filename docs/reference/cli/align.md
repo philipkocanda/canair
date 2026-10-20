@@ -10,7 +10,7 @@ usage: canair align [-h] [--csv | --json] [--join-tol SECONDS]
                     [--state STATE] [--label SUBSTR]
                     ECU:PID:PARAM [ECU:PID:PARAM ...]
 
-Emit a time-aligned, wide table of several ECU:PID:PARAM signals — one row per reference sample, one column per signal, nearest-joined within a tolerance. The first selector sets the row cadence; the rest join onto it.
+[UDS] Emit a time-aligned, wide table of several ECU:PID:PARAM signals — one row per reference sample, one column per signal, nearest-joined within a tolerance. The first selector sets the row cadence; the rest join onto it.
 
 positional arguments:
   ECU:PID:PARAM         Two or more signal selectors (ECU:PID:PARAM or

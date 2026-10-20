@@ -36,9 +36,11 @@ DOMAINS: dict[str, str] = {
     # offline analysis
     "captures": BOTH,
     "decode": UDS,
+    "align": UDS,
     "correlate": BOTH,
     "hunt": BOTH,
     "investigate": BOTH,
+    "search": UDS,
     "coverage": UDS,
     "research": UDS,
     # authoring / maintenance

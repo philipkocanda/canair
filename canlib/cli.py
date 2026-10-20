@@ -28,6 +28,8 @@ _GLOBAL_OPTS_WITH_VALUE = {"--profile", "--profiles-dir"}
 # argument, which is why tests/test_cli_group_defaults.py pins each set against
 # the real subparsers.
 _GROUP_DEFAULTS = {
+    # Only `uds` exists today; a `can` kind joins when raw-frame search is designed.
+    "search": ({"uds"}, "uds"),
     "scan": ({"range", "iocontrol", "routines", "sessions"}, "range"),
     "ecu": ({"show", "add", "rename"}, "show"),
     # A bare token after `states` (e.g. `canair states READY`) is a state name to

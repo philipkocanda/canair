@@ -1,7 +1,7 @@
 # Typing & test-coverage follow-ups for the extended-11-bit / functional-TX addressing work
 
-Status: **8 of 11 items DONE** — all four High-priority items and all three
-Medium ones landed. Verified 2026-08-04 against the tree:
+Status: **DONE** — all 11 items landed (the three Low-priority ones in `d0769fa`).
+Verified against the tree 2026-10-20: the affected tests pass and `ty check` is clean.
 
 - [x] **#1** `build_isotp_stack(params: dict[str, int | bool])` (`isotp_stack.py:58`)
 - [x] **#2** `_make_flow_control(...) -> isotp.protocol.CanMessage` (`isotp_stack.py:43`)
@@ -16,16 +16,15 @@ Medium ones landed. Verified 2026-08-04 against the tree:
 - [x] **#9** `build_isotp_address` `extended_29bit` derived-byte + explicit-override
       assertions (`tests/test_addressing.py:192-202`)
 
-**Remaining — all three Low priority:**
+The three Low-priority items:
 
-- [ ] **#3** `build_ecu_index(pids_data: dict) -> dict[str, EcuIndexEntry]` typing
-      (`canlib/pids.py:311` still takes a bare `dict`). Run `ty check` first; if it
-      cascades, scope it to its own change.
-- [ ] **#10** `set_addressing` no-op returns `False` test (the "already as
-      requested" path at `commands/pids.py:489` has no test asserting the return
-      value / unchanged file).
-- [ ] **#11** per-ECU `source_address` byte-range validation test (symmetric to the
-      existing `target_address` / `fc_id` cases).
+- [x] **#3** `build_ecu_index(...) -> dict[str, EcuIndexEntry]` (`canlib/pids.py:415`);
+      no cascade in `ty check`.
+- [x] **#10** `set_addressing` no-op returns `False` and leaves the file untouched
+      (`tests/test_ecus_edit.py`, `TestSetAddressing::`
+      `test_noop_returns_false_and_leaves_file_untouched`)
+- [x] **#11** per-ECU `source_address` out-of-range validation
+      (`tests/test_validate_pids.py::test_source_address_out_of_range`)
 
 The out-of-scope note still stands: a **bench run against real BMW/Renault
 hardware** remains the open confidence gap, tracked in
@@ -137,8 +136,10 @@ that re-broadened the default would silently corrupt 29-bit extended source
 addressing.
 
 - **Fix:** add assertions in `tests/test_addressing.py`:
-  - `resolve_source_address(None, {"tx_id": 0x18DA10F1}, AddressingMode.EXTENDED_29BIT) is None`
-  - `resolve_source_address(None, {"tx_id": 0x6F1}, AddressingMode.NORMAL_EXTENDED_11BIT) == DEFAULT_TESTER_ADDRESS`
+  - `resolve_source_address(None, {"tx_id": 0x18DA10F1}, AddressingMode.EXTENDED_29BIT)
+    is None`
+  - `resolve_source_address(None, {"tx_id": 0x6F1}, AddressingMode.NORMAL_EXTENDED_11BIT)
+    == DEFAULT_TESTER_ADDRESS`
     (already partially covered by `test_extended_11bit_defaults_tester`, but make
     the mode-narrowing explicit).
 

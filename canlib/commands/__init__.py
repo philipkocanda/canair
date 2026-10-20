@@ -39,6 +39,7 @@ COMMAND_NAMES: list[str] = [
     "correlate",
     "hunt",
     "investigate",
+    "search",
     "coverage",
     "research",
     # authoring / maintenance
