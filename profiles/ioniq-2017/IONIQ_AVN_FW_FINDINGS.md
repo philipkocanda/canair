@@ -68,6 +68,8 @@ Caveats before trusting any single row:
 - **Actionable:** the ~15 ECUs canair does not yet list (ABS, ECS, EMS, TCU, TPMS, EPB, LKAS, MDPS,
   SCC, ACU, MCU, LDC, BMS, AAF, BCM) are worth seeding with `canair ecu add TX <id>` and confirming
   live with `canair discover` / `canair scan`.
+- **TPMS `0x7D6` does not apply to this car:** nothing answers there, and this car reads tire
+  pressures from the BCM (`0x7A0`, DID `22C00B`).
 
 ## 3. Preconditioning and charge schedules are BROADCAST, not a UDS page
 
