@@ -48,7 +48,7 @@ BCM:
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
-          notes: "72.52 converts raw byte to bar. Alternative: B10/5 gives psi."
+          notes: Raw byte / 72.52 = bar (B10 / 5 = psi).
 
         TYRE_PRESSURE_FR:
           expression: "B14/72.52"
@@ -93,7 +93,7 @@ BCM:
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
-          notes: "From Niro EV, untested on Ioniq 2017"
+          notes: Kia Niro EV formula. Reads 10-38 °C on this car, with one -48 °C outlier.
 
         TYRE_TEMP_FR:
           expression: "B15-50"
@@ -154,7 +154,8 @@ BCM:
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
-          notes: "Bit flag — 1=open, 0=closed. Niro PR had B10:4 — wrong for Ioniq, actual bit is B10:5. BCM does NOT require extended diagnostic session. Verified 2026-04-15."
+          notes: >-
+            1 = open. Bit 5 on this car (bit 4 in the Niro EV source). Works in the default session.
 
     22B00F:
       status: ignored
@@ -182,8 +183,9 @@ BCM:
           source: "Fob lock/unlock test 2026-04-18"
           source_links: []
           verified: false
-          notes: >
-            Needs further testing to confirm
+          notes: >-
+            Bit 6 toggles 0x40 / 0x00 on fob lock and unlock, together with B005 and B006. 1 in 361
+            of 937 captures.
 
     22B005:
       response_frames: 2
@@ -203,16 +205,16 @@ BCM:
           source: Fob lock/unlock test 2026-04-18; byte offset corrected 2026-07-24
           source_links: []
           verified: false
-          notes: >
-            Unlock indicator bits. B10 = 0x00 locked -> 0x0C (bits 2,3) on fob unlock. Corrected 2026-07-24: expression was reading B12 (constant 0x08) but the byte that actually toggles on unlock is B10 (0x00<->0x0C), matching the DID note and reconfirmed by the 2026-07-24 fob-unlock event at 09:36:51. Possibly courtesy lamp / interior lighting trigger.
+          notes: >-
+            Reads 0xA0 in 259 of 306 captures; bits 2 and 3 set (0xAC) on fob unlock (2026-07-24
+            09:36:51). Also seen: 0x00, 0x08, 0x0C, 0xA8.
     22B006:
       response_frames: 2
       status: draft
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
-      notes: >
-        13 bytes. B12 changes 00↔04 during fob lock/unlock (bit 2).
-        Correlated with B004 lock state and B005 unlock bits.
-        B05=0x20, rest normally zeros.
+      notes: >-
+        13 bytes. B10 reads 0x04 (bit 2) on fob unlock, together with B004 and B005. B05=0x20, the
+        rest normally 0.
       parameters:
         BCM_B006_UNLOCK_BITS:
           expression: B10
@@ -223,26 +225,14 @@ BCM:
           source: Fob lock/unlock test 2026-04-18; byte offset corrected 2026-07-24
           source_links: []
           verified: false
-          notes: >
-            Unlock indicator bit. B10 = 0x00 locked -> 0x04 (bit 2) on fob unlock. Corrected 2026-07-24: expression was reading B12 (constant 0) but the byte that actually toggles is B10 (0x00<->0x04), matching the DID note and reconfirmed by the 2026-07-24 fob-unlock event at 09:36:52. Possibly turn-signal confirmation flash.
+          notes: >-
+            0x00, or 0x04 (bit 2) on fob unlock (2026-07-24 09:36:52). 0x04 in 6 of 301 captures.
     22B007:
       response_frames: 2
       status: draft
       period: 60000
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
-      parameters:
-        PREHEAT_DEPARTURE_TIME:
-          expression: (B07 << 8) | B09
-          unit: "min"
-          display: "f'{int(v)//60:02d}:{int(v)%60:02d}'"
-          ha_class: ""
-          min: "0"
-          max: "1439"
-          source: Unverified pattern-match (0x01E0=480=08:00); likely incorrect, value is constant across all captures
-          source_links: []
-          verified: false
-          notes: >
-            LIKELY INCORRECT / UNVERIFIED. Decodes to a constant 480 across all 25 captures (2026-04-15, spanning sleep/ACC/charging) and was never observed to change. 0x01E0=480=08:00 was pattern-matched, not confirmed by changing the departure time. The bytes that DO vary between captures (payload B08/B09 area) are not the ones this reads; 0x01E0 sits among static BCM config registers (cf. B008/B009), so it is probably a fixed config/format constant, not the live preheat time. Re-capture after actually changing the departure setting to see which bytes move.
+      notes: B07:B09 reads 0x01E0 (480) in all 284 captures, across sleep, ACC and charging.
     22B008:
       response_frames: 2
       status: draft
@@ -286,28 +276,14 @@ BCM:
       status: draft
       period: 60000
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
-      parameters:
-        PREHEAT_SCHEDULE_DAYS:
-          expression: B05
-          unit: ""
-          display: "f'{int(v):07b}'"
-          ha_class: ""
-          min: "0"
-          max: "127"
-          source: Unverified pattern-match (0x3F=6 days); likely incorrect, value is constant across all captures
-          source_links: []
-          verified: false
-          notes: >
-            LIKELY INCORRECT / UNVERIFIED. Constant 0x3F (=63) across all 23 captures and never observed to change. 0x3F=0b111111 was pattern-matched to '6 days set' but never confirmed by toggling days, and the bit mapping is unknown. Probably a static config/format byte, not the live schedule. Re-capture after changing schedule days to confirm which bytes move.
+      notes: B05 reads 0x3F in all 282 captures, across every state.
     22B001:
       response_frames: 3
       status: draft
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
-      notes: >
-        20 bytes. Mostly zeros with config-like flags. Returns NO DATA on first attempt
-        after wake, then responds on retry. B20 changes with power state: 0x02 (ACC, Apr 14)
-        → 0x01 (ACC2+charging, Apr 19). Possibly BCM power mode sub-state.
-        Sample (ACC2+charging): 62B00140C0000000010000000000000201000000.
+      notes: >-
+        20 bytes, mostly 0. Gives NO DATA on the first read after wake, then answers. B20 read 0x02
+        in ACC (2026-04-14) and 0x01 in ACC2 while charging (2026-04-19).
       parameters: {}
 
     22B002:
@@ -335,10 +311,8 @@ BCM:
           source: "Reverse engineered from monitor drift analysis"
           source_links: []
           verified: true
-          notes: >
-            12V battery voltage measured by BCM. Formula v*0.08 estimated: value 149 → 11.92V, cross-referenced
-            against WiCAN onboard voltage sensor reading 12.1V at same time (value ~149).
-            Approximate — needs multimeter reference to confirm exact scale.
+          notes: >-
+            Scale estimated from one reading: raw 149 = 11.92 V against the WiCAN's own 12.1 V.
         BCM_B003_B12:
           expression: B12
           unit: ""
@@ -349,13 +323,7 @@ BCM:
           source: RE 2026-08-02 state discrimination (READY/CHARGING/ACC2)
           source_links: []
           verified: false
-          notes: >-
-            Was mislabelled BCM_POWER_MODE. In every labelled power state
-            (SLEEP..ACC..READY..CHARGING) B12 reads only 245/246 and does NOT track the state (F=0.7
-            across READY/CHARGING/ACC2) — not a power-mode enum. It just toggles 245<->246 for an
-            unknown reason; a few unlabelled edge captures show other values (9-246, likely
-            transitional/partial reads). Real power-state discriminators on this PID are B10/B28 (12
-            V bus). Disabled pending identification.
+          notes: Range 9-246 across 3620 captures, median 245, and does not follow the power state.
     # ─── TPMS configuration DIDs (22C001-C014) ───────────────────────────
     # Static TPMS sensor registration, IDs, and configuration data.
     # C00B (above) has live tyre pressure/temp readings.
@@ -368,10 +336,8 @@ BCM:
           source: RE 2026-08-02 state discrimination
           verified: false
           notes: >-
-            Second 12 V-bus voltage at B28 (B10 is BCM_12V_BATTERY). Tracks B10 within ~0.16 V (B28
-            median 184 vs B10 182), and drops with it 14.5->12.4 V when HV/DC-DC stops after charge
-            (F=674 across states). Likely a different sense point (LDC output vs battery terminal).
-            Confirm which node.
+            0 in more than half of 3620 captures; when non-zero it reads close to BCM_12V_BATTERY,
+            and fell 14.5 to 12.4 V with it when the DC-DC converter stopped after a charge.
     22C001:
       status: ignored
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
@@ -499,20 +465,8 @@ BCM:
       status: draft
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
       notes: >-
-        13 bytes. NOT static — bytes 8-9 (ELM index) change rapidly every 2s. PARTLY DECODED
-        2026-08-05: the slowly-drifting "byte 8" (WiCAN B11, ~0xA2/0xA1) is NOT TPMS RSSI — it is
-        the 12V BUS VOLTAGE (B11/12.8, verified against the verified 22B003 BCM_12V_BATTERY; see
-        BCM_12V_BUS_C011). Its "slow drift" is just the bus moving between rest (~12.7 V) and
-        DC-DC-active (~14.5 V). Byte 9 (WiCAN B12) still jumps 20-100 counts per read (ADC-like
-        jitter) and remains unidentified — it is now the sole RSSI candidate here. Tail bytes 10-11
-        are NOT static (corrected 2026-08-07): they are a 16-bit BE monotonic event counter, 9835 ->
-        10092 over 112 days, 13 up-steps and 0 down — see BCM_EVENT_COUNTER_C011. They only looked
-        static because the counter steps ~2.3x/day and never moves *within* a recording session;
-        0x266E was simply an earlier, lower value. The single-read capture (0xA2D3266B) was
-        misleading for the same reason, and separately made byte 9 look static when it was one
-        snapshot. Test: compare B12 with C012-C014 and correlate with tyre proximity. Sample:
-        62C011E000000000A25F266EAA (byte 9 varies). Payload length varies 12/13 bytes (trailing 0xAA
-        is ISO-TP padding); byte offsets are unaffected.
+        12 or 13 bytes (a trailing 0xAA is padding). B11 is the 12 V bus (BCM_12V_BUS_C011). B12
+        jumps 20-100 counts between reads and is unidentified. B13:B14 is BCM_EVENT_COUNTER_C011.
       parameters:
         BCM_12V_BUS_C011:
           expression: B11/12.8
@@ -522,19 +476,8 @@ BCM:
           source: RE 2026-08-05 cross-PID mirror vs the verified BCM 22B003 BCM_12V_BATTERY
           verified: true
           notes: >-
-            12V bus voltage on the 22C011 page (B11, ISO-TP 0x08). VERIFIED 2026-08-05 against the
-            VERIFIED BCM_12V_BATTERY (22B003 B10*0.08): the ratio B11/BCM_12V_BATTERY is exactly
-            12.8 in 1781 of 1965 co-polled rows, i.e. B11 = 12.8 x the bus voltage, so B11/12.8
-            recovers it (equivalently B11 ~= 1.024 x 22B003 B10 — the same quantity read at a
-            slightly different node/scale, ~0.35 V apart at 14.5 V, which is why the finer 1/12.8
-            scale is used here rather than 22B003's 0.08). Absolute check: at rest B11=162 -> 12.66
-            V; during AC charge B11=186 -> 14.53 V. CORRECTS A STANDING HYPOTHESIS: this is the byte
-            the 22C011 header note described as 'byte 8 drifts slowly (~0xA2, occasionally 0xA1)'
-            and guessed to be TPMS RF signal strength (RSSI) — it is the 12V bus, and the 'slow
-            drift' is simply the bus moving between rest (~12.7 V) and DC-DC-active (~14.5 V). The
-            genuinely jumpy neighbour B12 (the note's 'byte 9', ADC-like 20-100 count jumps) is
-            still unidentified and remains the RSSI candidate. Redundant with the shipped 22B003
-            copy and 22C011 is a draft page, so enabled:false.
+            B11 is exactly 12.8 x BCM_12V_BATTERY in 1781 of 1965 co-polled rows. 12.66 V at rest,
+            14.53 V during AC charging. Disabled as a duplicate of the 22B003 signal.
           enabled: false
         BCM_EVENT_COUNTER_C011:
           expression: "[B13:B14]"
@@ -544,15 +487,8 @@ BCM:
           source: monotonic-counter sweep of all captures 2026-04-16..2026-08-05
           verified: false
           notes: >-
-            16-bit BE at B13:B14 (ISO-TP i10-i11). Monotonic across the whole corpus: 9835 -> 10092
-            over 112 days, 13 up-steps, 0 down (p = 2^-13). FLAT within all 20 recording sessions,
-            stepping only between them, so it is event-driven, not a timer. Rate ~2.3/day; 73048 km
-            / 10092 counts = 7.24 km per count over the vehicle's life, 11.7 km/count over the
-            observed span. CORRECTS this PID's header claim that the tail bytes are static: 0x266E
-            was simply an earlier, lower value of this counter. Most consistent with an
-            ignition/power-cycle or trip count; NOT hours of operation (that would imply an 11.7
-            km/h average). UNVERIFIED: to identify, read 22C011, cycle the ignition once without
-            driving, re-read. +1 => power/ignition cycles; unchanged => a distance-gated trip count.
+            16-bit big-endian. Only rises (9835 to 10113), flat within every recording session,
+            about 2.3 steps a day. Not a timer. What it counts is unknown.
 
     22C012:
       status: ignored
