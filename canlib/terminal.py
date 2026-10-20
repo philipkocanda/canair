@@ -8,27 +8,13 @@ channel and the HTTP :func:`reboot_wican` are WiCAN-specific here.
 """
 
 import sys
-from types import ModuleType
 from typing import cast
+
+import requests
 
 from .transport.channel import WebSocketChannel
 from .transport.elm327_frame_count import CountKey
 from .transport.elm327_terminal import Elm327Terminal
-
-
-# The import is isolated in a helper so the module name isn't rebound to None
-# (which would conflict with its module-typed import binding).
-def _try_import_requests() -> ModuleType | None:
-    try:
-        import requests
-
-        return requests
-    except ImportError:
-        return None
-
-
-_requests_mod: ModuleType | None = _try_import_requests()
-HAS_REQUESTS = _requests_mod is not None
 
 
 class WiCANTerminal(Elm327Terminal):
@@ -83,22 +69,10 @@ def reboot_wican(host: str) -> bool:
         print_verdict(verdict)
         return False
 
-    if not HAS_REQUESTS:
-        print(
-            "  Cannot reboot: 'requests' module not installed. Run: pip3 install requests",
-            file=sys.stderr,
-        )
-        print(
-            f"  Manual reboot: curl -X POST http://{host}/system_reboot -d reboot",
-            file=sys.stderr,
-        )
-        return False
-
-    assert _requests_mod is not None  # guaranteed by HAS_REQUESTS check above
     url = f"http://{host}/system_reboot"
     try:
-        resp = _requests_mod.post(url, data="reboot", timeout=5)
-    except _requests_mod.RequestException as e:
+        resp = requests.post(url, data="reboot", timeout=5)
+    except requests.RequestException as e:
         print(f"  FAILED to reboot: {e}", file=sys.stderr)
         return False
     if not resp.ok:

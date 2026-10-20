@@ -178,7 +178,7 @@ def run(args) -> int:
     from canlib.lock_watchdog import LockWatchdog
     from canlib.stop_signals import graceful_stop
     from canlib.transport import resolve_transport
-    from canlib.wican_mode import ModeError, require_protocol
+    from canlib.wican_mode import ModeError, require_protocol, require_slcan_reachable
 
     t = resolve_transport(args)
     host = t.host
@@ -217,6 +217,14 @@ def run(args) -> int:
         except ModeError as e:
             print(f"error: {e}", file=sys.stderr)
             return 2
+
+    # Same fail-fast data-port check as the other raw commands: a closed or wedged
+    # SLCAN socket otherwise surfaces as a bare connect timeout from the bus.
+    try:
+        require_slcan_reachable(host, port, firmware=firmware)
+    except ModeError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
 
     lock = WiCANLock()
     lock.acquire(force=args.force)

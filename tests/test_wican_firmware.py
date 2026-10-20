@@ -313,7 +313,7 @@ class TestRebootRegression:
         from canlib import terminal
 
         monkeypatch.setattr(
-            terminal._requests_mod, "post", lambda *a, **k: FakeResponse(405), raising=True
+            terminal.requests, "post", lambda *a, **k: FakeResponse(405), raising=True
         )
         assert terminal.reboot_wican("192.0.2.1") is False
         captured = capsys.readouterr()
@@ -323,7 +323,7 @@ class TestRebootRegression:
     def test_reboot_on_200_succeeds(self, monkeypatch, capsys):
         from canlib import terminal
 
-        monkeypatch.setattr(terminal._requests_mod, "post", lambda *a, **k: FakeResponse(200))
+        monkeypatch.setattr(terminal.requests, "post", lambda *a, **k: FakeResponse(200))
         assert terminal.reboot_wican("192.0.2.1") is True
         assert "Rebooting" in capsys.readouterr().out
 
@@ -332,7 +332,7 @@ class TestRebootRegression:
 
         _v6(monkeypatch)
         monkeypatch.setattr(
-            terminal._requests_mod, "post", lambda *a, **k: pytest.fail("must not POST on v6")
+            terminal.requests, "post", lambda *a, **k: pytest.fail("must not POST on v6")
         )
         assert terminal.reboot_wican("192.0.2.1") is False
         assert "skipping --reboot" in capsys.readouterr().err
@@ -431,6 +431,28 @@ class TestLiveSurfaces:
         )
         assert sniff.run(args) == 2
         assert "can_manager.silent" in capsys.readouterr().err
+
+    def test_sniff_fails_fast_when_the_slcan_port_is_closed(self, monkeypatch, capsys):
+        from canlib.commands import sniff
+        from canlib.wican_mode import ModeError
+
+        monkeypatch.setattr("canlib.transport.resolve_transport", lambda args: self._T())
+        monkeypatch.setattr("canlib.wican_mode.require_protocol", lambda *a, **k: None)
+
+        def _closed(host, port, **kw):
+            raise ModeError(f"can't reach the WiCAN's SLCAN data port at {host}:{port}")
+
+        monkeypatch.setattr("canlib.wican_mode.require_slcan_reachable", _closed)
+        monkeypatch.setattr(
+            "canlib.lock.WiCANLock.acquire",
+            lambda *a, **k: pytest.fail("must fail before taking the device"),
+        )
+        _v6(monkeypatch, V4)
+        args = argparse.Namespace(
+            wican=None, listen_only=False, filter=None, duration=None, save=None, force=False
+        )
+        assert sniff.run(args) == 2
+        assert "SLCAN data port" in capsys.readouterr().err
 
 
 class TestWicanCommandSurfaces:
