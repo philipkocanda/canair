@@ -102,6 +102,26 @@ def _no_firmware_probe(monkeypatch):
     wican_firmware.clear_cache()
 
 
+@pytest.fixture(autouse=True)
+def _no_real_http(monkeypatch):
+    """Fail any real HTTP request made through ``requests``.
+
+    Several commands make best-effort calls to the WiCAN's HTTP API (``status``,
+    the transport defaults, the sleep banner) and swallow the failure, so a test
+    that drives one of them without stubbing it would quietly send a request to
+    a real LAN host. Every ``requests.get``/``post``/``Session`` call funnels
+    through ``Session.request``, so failing there turns such a test into an
+    unreachable device. Tests that monkeypatch ``requests.get`` or a module-level
+    helper are unaffected, since they never reach this method.
+    """
+    import requests
+
+    def _blocked(self, method, url, *args, **kwargs):
+        raise requests.ConnectionError(f"network disabled in tests: {method} {url}")
+
+    monkeypatch.setattr(requests.Session, "request", _blocked)
+
+
 @pytest.fixture(scope="session", autouse=True)
 def _isolate_event_log(tmp_path_factory):
     """Redirect the central diagnostics event log to a temp file for the suite.

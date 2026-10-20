@@ -222,7 +222,7 @@ class TestStatusIntegration:
 
         proc = holder()
         monkeypatch.setattr(status, "_tcp_open", lambda *a, **k: False)
-        info = status._gather(argparse.Namespace(transport=None, wican="10.0.2.86", json=True))
+        info = status._gather(argparse.Namespace(transport=None, wican="192.0.2.1", json=True))
         assert info["lock"]["held"] is True
         assert info["lock"]["pid"] == proc.pid
 
@@ -236,7 +236,7 @@ class TestStatusIntegration:
         monkeypatch.setattr(lock_mod, "STEAL_FILE", steal_file)
         monkeypatch.setattr(status, "_tcp_open", lambda *a, **k: False)
 
-        status._gather(argparse.Namespace(transport=None, wican="10.0.2.86", json=True))
+        status._gather(argparse.Namespace(transport=None, wican="192.0.2.1", json=True))
 
         fresh = WiCANLock(lock_file=lock_file, steal_file=steal_file)
         assert fresh.try_acquire().ok
