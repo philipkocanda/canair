@@ -14,10 +14,7 @@ DDM:
     hw_version: "100"
     sw_version: "100"
     id_protocol: UDS  # F1xx (very chatty — 21 DIDs, echoes part# in many fields)
-    notes: >
-      Driver door module. No readable live-data DIDs discovered yet.
-      Previously misidentified as "SWRC-L" (steering-wheel remote, left) —
-      corrected to DDM 2026-07-27.
+    notes: Driver door module. No readable live-data DIDs found.
   vehicle_states: [PLUGGED, ACC, ACC2, READY, CHARGING]
   scan_log: # DDM (driver door module)
     - service: 0x22

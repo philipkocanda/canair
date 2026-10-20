@@ -36,12 +36,9 @@ AVN:
     serial: "00000076FE0085-003240"
     app_sw: "AE_EV EURSOP 12 017.1"
     id_protocol: UDS  # F1xx (limited — 3 DIDs)
-    notes: >
-      Firmware ID 'AE_EV EUR.SOP' matches Ioniq head unit firmware/map updates.
-      Previously misidentified as TCU, likely not present since
-      BlueLink is not on this car and wasnt sold in the NL (and possibly entire EU?) market at the time (2016-2018).
-      SoC confirmed as Telechips TCC8930 (TCC893x family, dual-core Cortex-A9 @1GHz
-      + Cortex-M3, Mali-400 MP, 1GB DDR3, eMMC boot) from the firmware.
+    notes: >-
+      Firmware ID 'AE_EV EUR.SOP'. SoC is a Telechips TCC8930 (dual-core Cortex-A9 at 1 GHz plus
+      Cortex-M3, Mali-400 MP, 1 GB DDR3, eMMC boot), per the firmware.
 
   vehicle_states: [PLUGGED, ACC, ACC2, READY, CHARGING]
   scan_log: # AVN (head unit)

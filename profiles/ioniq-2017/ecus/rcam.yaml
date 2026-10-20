@@ -22,5 +22,5 @@ RCAM:
       date: 2026-07-22
       hits: 0
       vehicle_states: [READY]
-      notes: "No live-data DIDs found. Camera likely exposes only identity/diagnostics via OBD."
+      notes: "No live-data DIDs found."
   pids: {}
