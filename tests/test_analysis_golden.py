@@ -84,8 +84,9 @@ VOLUME_INDEPENDENT_VERBS = frozenset({"coverage"})
 #   correlate-*       cross-signal labels, incl. the 4-field bit form
 #   hunt-*            the swept-byte hit labels + promoted expression form
 CASES: list[tuple[str, str, list[str]]] = [
-    # -- single-frame PID (ONE PCI byte): the layout that broke physical_scan --
-    ("coverage-single-frame", "ioniq-2017", ["coverage", "IGPM", "22BC02"]),
+    # -- single-frame PID (ONE PCI byte): the layout that broke physical_scan. The
+    # bundled 22BC02 defines no signals, so `coverage` has no gaps to label there;
+    # single-frame coverage labels are pinned by the synthetic sf-coverage-* cases.
     (
         "investigate-single-frame",
         "ioniq-2017",
@@ -172,9 +173,9 @@ CASES: list[tuple[str, str, list[str]]] = [
         ],
     ),
     # -- the same data rendered in every notation: proves the views stay in step --
-    ("notation-isotp", "ioniq-2017", ["coverage", "IGPM", "22BC02", "--notation", "isotp"]),
-    ("notation-torque", "ioniq-2017", ["coverage", "IGPM", "22BC02", "--notation", "torque"]),
-    ("notation-bix", "ioniq-2017", ["coverage", "IGPM", "22BC02", "--notation", "bix"]),
+    ("notation-isotp", "ioniq-2017", ["coverage", "IGPM", "22BC05", "--notation", "isotp"]),
+    ("notation-torque", "ioniq-2017", ["coverage", "IGPM", "22BC05", "--notation", "torque"]),
+    ("notation-bix", "ioniq-2017", ["coverage", "IGPM", "22BC05", "--notation", "bix"]),
     # -- SYNTHETIC single-frame profile: the one-PCI-byte layout, with variation.
     # These are the only cases that exercise a single-frame payload through the
     # analysis verbs in a non-WiCAN notation, which is where the off-by-one lived.

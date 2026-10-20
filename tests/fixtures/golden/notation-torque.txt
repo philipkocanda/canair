@@ -1,7 +1,8 @@
 
 PID coverage audit — 1 PID(s) with gaps, 0 without captures
 
-  IGPM 22BC02 (1p, 0 verified)  4 data bytes, 2026-04-14
-      UNMAPPED A,C,D
-      UNVERIFIED B
+  IGPM 22BC05 (2p, 0 verified)  10 data bytes, 2026-04-16
+      UNMAPPED A,B,C,D,G,H,I,J
+      UNVERIFIED E,F
+      BITS F have{3} missing{0,1,2,4,5,6,7}
 

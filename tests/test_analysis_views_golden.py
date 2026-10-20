@@ -72,14 +72,13 @@ CASES: list[tuple[str, str, list[str]]] = [
         ["decode", "ALPHA:22F001 BETA:22F002"],
     ),
     (
-        # IGPM 22BC02 on purpose: the bundled profile's stable all-constant
-        # single-frame PID, already the reference target of five goldens in
-        # test_analysis_golden. A PID with live undecoded bitfields (22BC03) would
-        # churn this golden every time someone works the bitfield backlog, for no
-        # extra coverage — `(constant)` and `scope:` are all this case is here for.
+        # BMS 2105 on purpose: fully decoded and verified, with several signals that
+        # are constant by nature (SOH, deterioration), so it renders `(constant)`
+        # without churning every time someone works an undecoded bitfield backlog.
+        # `(constant)` and `scope:` are all this case is here for.
         "decode-value-ranges-real",
         "ioniq-2017",
-        ["decode", "IGPM", "22BC02", "--until", FROZEN_UNTIL],
+        ["decode", "BMS", "2105", "--until", FROZEN_UNTIL],
     ),
     ("decode-compact", SINGLE_FRAME_PROFILE, ["decode", "ALPHA", "22F001", "--compact"]),
     ("decode-stats", SINGLE_FRAME_PROFILE, ["decode", "ALPHA", "22F001", "--stats"]),

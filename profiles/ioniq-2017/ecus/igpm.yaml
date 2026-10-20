@@ -13,9 +13,9 @@ IGPM:
     boot_sw: "20"
     app_sw: "160205"
     id_protocol: UDS  # F1xx
-    notes: >
-      IGPM is the CAN gateway. OBD port connects directly to the IGPM, so all diagnostic requests are routed through it.
-      It is also the main power distribution module, controlling ignition and accessory power to other ECUs.
+    notes: >-
+      CAN gateway and power distribution module. The OBD port connects to it directly, so all
+      diagnostic requests are routed through it.
   vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
   # WARM-UP: the first request to IGPM after it's been idle is slow and may
   # time out / return NO DATA on the first try; retry (or prime) and subsequent
@@ -49,15 +49,9 @@ IGPM:
       status: active
       response_frames: 2
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
-      notes: >
-        B12:
-          0x11 (power off + not charging)
-          0x18 (ACC2 + charge port unlocked)
-          0x19 (ACC2 + charge port locked)
-          0x10 (power off + charging)
-
-        Sample (ACC2+charging): 62BC070841FBCC00801800.
-
+      notes: >-
+        B12 values: 0x11 power off and not charging, 0x10 power off and charging, 0x18 ACC2 with the
+        charge port unlocked, 0x19 ACC2 with it locked.
       parameters:
         # TODO: All the other bytes on here!
         # Maybe window states?
@@ -65,51 +59,37 @@ IGPM:
           expression: "B11:7"
           ha_class: lock
           verified: true
-          notes: "1=locked, 0=unlocked. Verified 2026-07-18."
+          notes: 1 = locked. Verified 2026-07-18.
 
         CHARGE_PORT_LOCK_INV:
           expression: "B12:0"
           ha_class: lock
           verified: true
-          notes: >
-            0=locked, 1=unlocked. Verified 2026-07-18.
-            Safety feedback of charge port lock?
+          notes: "Complement of CHARGE_PORT_LOCK: 1 = unlocked. Verified 2026-07-18."
 
         ACC2_RELATED:
           expression: "B12:3"
           verified: false
-          notes: >
-            1=ACC2, 0=all other modes. Verified 2026-07-18.
-        IGPM_WAKE_LATCH_B12_2:
+          notes: 1 in ACC2, 0 in every other power state (2026-07-18).
+        IGPM_BC07_B12_2:
           expression: B12:2
           source: RE 2026-08-05 event-timeline analysis; revisited 2026-08-08 session
           verified: false
-          notes: >-
-            unverified
+          notes: 1 in 15 of 328 captures. Meaning unknown.
           enabled: false
 
     22BC03:
       status: active
       period: 2500
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
-      notes: >
-        B10 cross-state observations (all doors closed):
-          Deep sleep locked: 0x0A (00001010) — lock bits 1,3 set
-          ACC locked: 0x20 (00100000) — bit 5 set, lock bits CLEAR
-          ACC2+charging unlocked: 0x00 (00000000) — all clear
-        Bit 5 correlates with ACC power, NOT driver door open as previously
-        thought. Needs further investigation.
+      notes: >-
+        B09 reads 0x73 in all 384 captures. B05=0xFD, B06=0xEE, B07=0x3C and B13=0x00 are constant.
+        B10 bit 6 has never been set.
       parameters:
         # B10 = Doors and locks
         # B11 = Seatbelts
         # B12 = Lights
         # B13 =
-        UNKNOWN_B10_6:
-          expression: "B10:6"
-          verified: false
-          notes: >
-            Bit flag, meaning unknown.
-
         DOOR_DRV_OPEN:
           expression: B10:5
           ha_class: door
@@ -117,8 +97,7 @@ IGPM:
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
-          notes: >
-            Bit flag — 1=open
+          notes: 1 = open.
 
         DOOR_PAS_OPEN:
           expression: "B10:4"
@@ -163,7 +142,7 @@ IGPM:
           source: "Decoded from live captures (2026-04-15)"
           source_links: []
           verified: true
-          notes: "Daytime Running Lights. Bit flag — 1=on. On in all light modes (DRL, low beam, high beam). Verified 2026-04-15."
+          notes: 1 = on, in every light mode (DRL, low and high beam). Verified 2026-04-15.
 
         TAIL_LIGHTS:
           expression: "B12:3"
@@ -171,7 +150,7 @@ IGPM:
           source: "Decoded from live captures (2026-04-15)"
           source_links: []
           verified: true
-          notes: "Tail/position lights. Bit flag — 1=on. On in all light modes (DRL, low beam, high beam). Verified 2026-04-15."
+          notes: 1 = on, in every light mode (DRL, low and high beam). Verified 2026-04-15.
 
         HIGH_BEAM:
           expression: "B12:4"
@@ -179,7 +158,7 @@ IGPM:
           source: "Decoded from live captures (2026-04-15)"
           source_links: []
           verified: true
-          notes: "Bit flag — 1=on. Only set with high beams active. Niro PR had this on BC04 B13:4 — wrong for Ioniq. Verified 2026-04-15."
+          notes: 1 = on, only with high beams (B13:4 in the Niro EV source). Verified 2026-04-15.
 
         LOW_BEAM:
           expression: "B12:5"
@@ -187,7 +166,7 @@ IGPM:
           source: "Decoded from live captures (2026-04-15)"
           source_links: []
           verified: true
-          notes: "Low beam headlights. Bit flag — 1=on. Also set when high beams are on (both low+high active together). Verified 2026-04-15."
+          notes: 1 = on, also while the high beams are on. Verified 2026-04-15.
 
         ACC2_IGN_ON:
           expression: "B11:5"
@@ -196,30 +175,9 @@ IGPM:
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
-          notes: >
-            Renamed from IGNITION_ON — misleading because the ignition is NOT
-            physically on. Activates at ACC2/IGN1 power state. Cannot distinguish
-            ACC2 from Ready — both show bit=1. OFF and ACC1 both show bit=0.
-            Fob-unlock does NOT set this bit (confirmed 2026-04-18 — B11 stays
-            0x00 on fob unlock, the 0x2C seen was B12 lights). Also reads 1
-            during ACC2+AC charging (2026-04-19). Verified 2026-04-15.
-
-        IGPM_CONFIG_BYTE:
-          expression: "B09"
-          display: "f'0x{int(v):02X} {int(v):08b}'"
-          ha_class: ""
-          min: "0"
-          max: "255"
-          source: "Reverse engineered from cross-state comparison"
-          source_links: []
-          verified: true
-          notes: >
-            Static configuration/capability byte (IGPM BC03 WiCAN B09). Always 0x73
-            (01110011) across all tested states: deep sleep, ACC, ready, locked,
-            unlocked, key in, key out (16 captures 2026-04-14 to 2026-04-18).
-            Originally misidentified as "POWER_MODE" — the changing byte was actually
-            B10 (door lock bits). Likely a hardware revision or feature flag.
-            Verified static 2026-04-18.
+          notes: >-
+            1 in ACC2 and READY (not told apart), 0 when off and in ACC1. Also 1 in ACC2 while AC
+            charging. Fob unlock does not set it.
 
         SEATBELT_FL:
           expression: "B11:1"
@@ -228,7 +186,7 @@ IGPM:
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
-          notes: "Driver seatbelt. 1=buckled, 0=unbuckled. Verified 2026-04-15."
+          notes: 1 = driver belt buckled. Verified 2026-04-15.
 
         SEATBELT_FR:
           expression: "B11:2"
@@ -237,7 +195,7 @@ IGPM:
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: false
-          notes: "Passenger seatbelt. Not tested (no passenger available during verification session)."
+          notes: 1 in 22 of 384 captures. Not checked against a buckled passenger belt.
 
         DOOR_LOCK_RL:
           expression: "B10:1"
@@ -246,7 +204,8 @@ IGPM:
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
-          notes: "1=locked, 0=unlocked. Niro PR used inverted 1-B10:1 but Ioniq raw bit already has correct polarity. Verified 2026-04-15."
+          notes: >-
+            1 = locked; no inversion needed (the Niro EV source inverts it). Verified 2026-04-15.
 
         DOOR_LOCK_RR:
           expression: "B10:3"
@@ -255,18 +214,17 @@ IGPM:
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
-          notes: "1=locked, 0=unlocked. Niro PR used inverted 1-B10:3 but Ioniq raw bit already has correct polarity. Verified 2026-04-15."
+          notes: >-
+            1 = locked; no inversion needed (the Niro EV source inverts it). Verified 2026-04-15.
         IGN_STATUS_MIRROR:
           expression: B11:6
           min: "0"
           max: "1"
           source: RE 2026-07-23 bit analysis (40 captures)
           verified: false
-          notes: >
-            B11 bit6 == ACC2_IGN_ON (B11:5) exactly across all 40 captures.
-            Redundant; no new info. Documents B11:6. B11 bits 0,2,3,4,7 and B12
-            bits 0,1,6,7 constant-0 across captures. SEATBELT_FR (B11:2) constant-0
-            (pax belt never buckled). B5=FD B6=EE B7=3C constant; B13=0x00 constant.
+          notes: >-
+            Equals ACC2_IGN_ON (B11:5) in every capture. Disabled so it does not ship a duplicate;
+            defined so bit 6 is accounted for.
           enabled: false
         HOOD_OPEN:
           expression: B11:0
@@ -274,21 +232,15 @@ IGPM:
           max: "1"
           source: Timed event capture 2026-07-24
           verified: true
-          notes: >
-            Hood/bonnet ajar sensor. 1=open. Discovered 2026-07-24.
+          notes: 1 = open. Found 2026-07-24.
         UNKNOWN_B13_1:
           expression: B13:1
           source: canair bitfield analysis 2026-08-06 (2026-07-30 defroster/DC-load session)
           verified: false
           notes: >-
-            Bit flag, meaning unknown. Only unlabelled toggling bit on 22BC03: 2 episodes / 4
-            transitions, median-on 234s, all inside the 2026-07-30 10:17-10:25 rear-defroster +
-            DC-load window. r=+0.604 (n=18) vs VCU:2102:VCU_AUX_POWER, so it tracks a 12V load — but
-            HVAC blower bits reach r=0.883 against that same reference, and one edge contradicts its
-            own note (cleared 10:20:41 while the note records the defroster still on). NOT confirmed
-            as the rear defogger despite IGPM's 'Rear defogger relay' IOControl. Enabled unverified
-            for live monitoring; see the 22BC03 B13:1 verify research entry for the A/B/A test that
-            would settle it.
+            1 in 3 of 384 captures, all in the 2026-07-30 10:17-10:25 rear-defroster and 12 V load
+            window; r=+0.604 vs VCU:2102:VCU_AUX_POWER (n=18). It cleared once while the defroster
+            was still on.
 
 
     22BC04:
@@ -320,10 +272,7 @@ IGPM:
           max: "1"
           source: RE 2026-07-23 bit analysis
           verified: false
-          notes: >
-            Toggling bit at B10 bit0 (door locks are bits 2,3). n=29, distinct=2.
-            Unidentified body signal. B12:5 (0x20) and B13:6 also toggle. B5=B5
-            B6=3F B7=F4 B9=EA constant. Verify: correlate with body actions.
+          notes: 1 in 58 of 327 captures. Meaning unknown.
           enabled: true
 
     22BC06:
@@ -340,26 +289,16 @@ IGPM:
           source_links: []
           verified: true
           notes: >-
-            Brake-pressed state code, NOT a boolean despite the name. Across 290 captures B10 reads
-            0x00 off (n=267) and 0x2D pressed (n=23), plus one-off 0x01 and 0x02 — previously
-            misattributed as turn-signal bits, but the real turn signal was found on B11 2026-08-09,
-            so these are unrelated noise. 0x2D sets bits 0,2,3,5 together, so the brake press drives
-            four bits at once — bit2 is the cleanest brake candidate (BRAKE_PEDAL_BITS); bits 3 and
-            5 are undecoded and never move independently of it, so they are co-driven rather than
-            separate signals. Position verified 2026-04-15 (Ioniq 5 OBDb had this at B4, wrong for
-            the 2017). Deliberately left as a raw byte with no type: enum, so coverage --bitfields
-            keeps reporting the undecoded bits 3 and 5.
+            Not a boolean: B10 reads 0x00 released and 0x2D pressed (73 of 504 captures), plus 0x2C
+            (3), 0x01 (1) and 0x02 (1). 0x2D sets bits 0, 2, 3 and 5 together. Byte position
+            verified 2026-04-15.
         LEFT_TURN_SIGNAL:
           expression: B11:0
           ha_class: ""
           source: "Corrected 2026-08-09: moved from B10 to B11 (user-confirmed 1=left, 2=right); B10 bit0 was the brake pattern, not the turn signal"
           source_links: []
           verified: true
-          notes: >-
-            Left turn signal stalk, bit0 of B11. 500-sample dump-bytes check: B11=0 n=423, 1 n=35
-            (left), 2 n=42 (right), never 3 (no hazard co-activation observed). Supersedes the
-            disabled B10:0 param, which was disproven 2026-08-06 as an artifact of the brake pattern
-            (0x2D).
+          notes: B11 reads 0 (no signal), 1 (left) or 2 (right), never 3, across a 500-sample check.
           enabled: true
         RIGHT_TURN_SIGNAL:
           expression: B11:1
@@ -367,10 +306,7 @@ IGPM:
           source: "Corrected 2026-08-09: moved from B10 to B11 (user-confirmed 1=left, 2=right); B10 bit1 had only n=1 support and was unrelated noise"
           source_links: []
           verified: true
-          notes: >-
-            Right turn signal stalk, bit1 of B11. 500-sample dump-bytes check: B11=0 n=423, 1 n=35
-            (left), 2 n=42 (right), never 3 (no hazard co-activation observed). Supersedes the
-            downgraded B10:1 param, which had only n=1 support on the wrong byte.
+          notes: B11 reads 0 (no signal), 1 (left) or 2 (right), never 3, across a 500-sample check.
           enabled: true
         BRAKE_PEDAL_BITS:
           expression: B10:2
@@ -378,81 +314,41 @@ IGPM:
           max: "1"
           source: RE 2026-07-23 bit analysis
           verified: false
-          notes: >-
-            Refines BRAKE_LIGHT (whole-byte B10). Brake-pressed B10=0x2D sets bits 0,2,3,5. Bit0 was
-            previously thought to be a turn-signal bit but the real turn signal is on B11 (corrected
-            2026-08-09); bit2 = brake candidate; bits 3,5 co-occur (redundancy or
-            brake-light-relay). Verify: press brake with turn signals off to isolate the clean brake
-            bit.
+          notes: Bit 2 of BRAKE_LIGHT. Bits 3 and 5 never change without it.
           enabled: true
 
     22BC01:
       response_frames: 2
       status: draft
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
-      notes: >
-        9 bytes. B03=0x40 (bit 6 set), B08=0x02 (bit 1 set), rest zeros. Static across
-        deep sleep and ACC captures. Possibly immobilizer or key-related configuration flags.
-        Sample: 62BC01400000000002.
-      parameters:
-        IGPM_BC01_STATIC:
-          expression: B5
-          source: RE 2026-07-23 multi-state analysis
-          verified: false
-          notes: >
-            Constant across all 6 power states and captures: data = 40 00 00 00 00
-            02 (B5=0x40). Static config/version register, no live signal.
-          enabled: false
+      notes: "9 bytes: 40 00 00 00 00 02 in every one of 302 captures, across all power states."
     22BC02:
       status: draft
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
-      notes: >
-        4 data bytes, all zeros in every capture (deep sleep and ACC). May only populate
-        during driving (speed pulse, wiper state?). Sample: 62BC0200000000.
-      parameters:
-        IGPM_BC02_STATIC:
-          expression: B5
-          source: RE 2026-07-23 multi-state analysis
-          verified: false
-          notes: >
-            Constant all-zero (62 BC 02 00 00 00 00) across every state/capture.
-            No data.
-          enabled: false
+      notes: 4 data bytes, all 0 in every one of 297 captures.
     22BC05:
       status: draft
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
-      notes: >
-        8 data bytes. B05=0x7F, B06=0x11, B07=0x20 are static (config/version).
-        The trailing bytes are NOT static: during the 2026-07-24 event sequence
-        B09 went 0x00->0xF0 at fob unlock (09:36:50) and B10 went 0x00->0x08 at
-        trunk open (09:37:08). Earlier "static across all power states" conclusion
-        was drawn from steady-state-only captures with no live door/lock events.
-        Sample (idle): 62BC057F112000000000.
+      notes: >-
+        8 data bytes. B05=0x7F, B06=0x11 and B07=0x20 in all 421 captures. B10 holds the
+        unlock-flash bits and B11 bit 3 the trunk indicator.
       parameters:
-        IGPM_BC05_STATIC:
-          expression: B5
-          source: RE 2026-07-23 multi-state analysis
-          verified: false
-          notes: >
-            Constant across all states/captures: data = 7F 11 20 00 00 00 00 00
-            (B5=0x7F). Static config/version register, no live signal.
-          enabled: false
         UNLOCK_FLASH_BITS:
           expression: B10
           min: "0"
           max: "255"
           source: Timed event capture 2026-07-24; byte offset corrected via bix --annotate overlay 2026-07-24
           verified: false
-          notes: >
-            Unlock/hazard-flash indicator bits. B10 = 0x00 -> 0xF0 (top 4 bits) at fob unlock (09:36:50), back to 0x00 at first door/trunk event.
+          notes: >-
+            0x00, 0x50, 0xA0 or 0xF0 across 421 captures. Went 0x00 to 0xF0 at fob unlock
+            (2026-07-24 09:36:50) and back at the first door or trunk event.
         TRUNK_INDICATOR:
           expression: B11:3
           min: "0"
           max: "1"
           source: canair correlate --find-mirrors + investigate --events 2026-07-24
           verified: false
-          notes: >
-            Trunk/tailgate indicator bit. Could be trunk light output state.
+          notes: Set at trunk open (2026-07-24 09:37:08); 1 in 3 of 421 captures.
     22BC08:
       status: ignored
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
