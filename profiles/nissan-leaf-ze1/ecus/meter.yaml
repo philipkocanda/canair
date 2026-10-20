@@ -1,0 +1,52 @@
+METER:
+  tx_id: 0x743
+  identity:
+    description: Combination meter (instrument cluster), request 0x743
+    notes: >-
+      Seeded device-free from meatpiHQ/wican-fw#750, which reads odometer and range here at request
+      0x743 / response 0x763 (rx = tx + 0x20). The PR does not name the module; METER is inferred
+      from the odometer/range DIDs.
+
+
+      Source: https://github.com/meatpiHQ/wican-fw/pull/750
+    identity_confidence: tentative
+  pids:
+    "220E01":
+      parameters:
+        ODOMETER:
+          expression: (B4*65536)+(B5*256)+B6
+          unit: km
+          min: "0"
+          max: "999999"
+          source: meatpiHQ/wican-fw#750 (TyzzyT)
+          source_links:
+            - https://github.com/meatpiHQ/wican-fw/pull/750
+          verified: true
+          notes: 24-bit odometer at WiCAN B4:B6. Matched LeafSpy Pro.
+      status: active
+      period: 30000
+      vehicle_states: [READY]
+      notes: >-
+        Odometer DID. Upstream request key 220E011 (trailing frame-count digit dropped). Polled
+        slowly: it changes rarely.
+    220E2E:
+      parameters:
+        RANGE:
+          expression: "[B4:B5]"
+          unit: km
+          min: "1"
+          max: "400"
+          source: meatpiHQ/wican-fw#750 (TyzzyT)
+          source_links:
+            - https://github.com/meatpiHQ/wican-fw/pull/750
+          verified: false
+          notes: >-
+            Estimated range, 16-bit at WiCAN [B4:B5]. Reads 0 at startup and 2047 (an 11-bit
+            sentinel) once the car is switched off, so the min/max filter drops both. Not in the
+            PR's LeafSpy comparison.
+      status: active
+      period: 10000
+      vehicle_states: [READY]
+      notes: >-
+        Estimated-range DID, only meaningful in READY. Upstream request key 220E2E1 (trailing
+        frame-count digit dropped).

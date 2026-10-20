@@ -1,0 +1,148 @@
+LBC:
+  tx_id: 0x79B
+  identity:
+    description: Li-ion Battery Controller (HV battery management), request 0x79B
+    notes: >-
+      Seeded device-free from the WiCAN community profile in meatpiHQ/wican-fw#750 (closed
+      unmerged), which fixes and extends the upstream vehicle_profiles/nissan/leaf-ze1.json. Request
+      0x79B / response 0x7BB (rx = tx + 0x20, set profile-wide via addressing.rx_offset). The PR
+      author verified the 2101 signals against LeafSpy Pro on a 2018 40 kWh ZE1.
+
+
+      Source: https://github.com/meatpiHQ/wican-fw/pull/750
+  pids:
+    2101:
+      parameters:
+        SOC:
+          expression: ((B39*65536)+[B41:B42])/10000
+          unit: "%"
+          min: "0"
+          max: "100"
+          source: meatpiHQ/wican-fw#750 (TyzzyT)
+          source_links:
+            - https://github.com/meatpiHQ/wican-fw/pull/750
+          verified: true
+          notes: >-
+            Raw (true) LBC state of charge including Nissan's top/bottom buffers; 24-bit across
+            WiCAN B39 and [B41:B42] (B40 is a consecutive-frame PCI byte), /10000. Matched LeafSpy
+            Pro (86.9 %).
+        SOC_D:
+          expression: ((((B39*65536)+[B41:B42])/10000)-12)/0.85
+          unit: "%"
+          min: "0"
+          max: "100"
+          source: meatpiHQ/wican-fw#750 (TyzzyT)
+          source_links:
+            - https://github.com/meatpiHQ/wican-fw/pull/750
+          verified: true
+          notes: >-
+            Dashboard SOC, a linear approximation (SOC - 12) / 0.85 of the cluster reading. Nissan
+            uses a non-linear table internally, so expect +/-1 % (88.0 % vs LeafSpy 89 %).
+        SOH:
+          expression: ((B44*65536)+[B45:B46])/11544
+          unit: "%"
+          min: "1"
+          max: "100"
+          source: meatpiHQ/wican-fw#750 (TyzzyT)
+          source_links:
+            - https://github.com/meatpiHQ/wican-fw/pull/750
+          verified: true
+          notes: >-
+            State of health from the 24-bit AHr capacity at WiCAN B44:B46 against the 115.44 Ah
+            reference of the 40 kWh ZE1 pack (the 62 kWh e+ needs a different reference). Matched
+            LeafSpy Pro (85.2 vs 85.23 %). Min 1 drops a 0 % startup glitch.
+        HV_CAPACITY:
+          expression: ((B44*65536)+[B45:B46])/10000
+          unit: Ah
+          min: "0"
+          max: "120"
+          source: meatpiHQ/wican-fw#750 (TyzzyT)
+          source_links:
+            - https://github.com/meatpiHQ/wican-fw/pull/750
+          verified: true
+          notes: >-
+            Battery capacity (AHr), 24-bit at WiCAN B44:B46, /10000. Matched LeafSpy Pro (98.39 Ah).
+        HV_CAPACITY_KWH:
+          expression: ((B44*65536)+[B45:B46])/29600
+          unit: kWh
+          min: "0"
+          max: "40"
+          source: meatpiHQ/wican-fw#750 (TyzzyT)
+          source_links:
+            - https://github.com/meatpiHQ/wican-fw/pull/750
+          verified: false
+          notes: >-
+            Usable capacity derived from AHr (/29600, a 40 kWh-pack scaling). Not in the PR's
+            LeafSpy comparison.
+        HV_CAPACITY_R:
+          expression: ((B39*65536)+[B41:B42])/10000*((B44*65536)+[B45:B46])/29600/100
+          unit: kWh
+          min: "0"
+          max: "40"
+          source: meatpiHQ/wican-fw#750 (TyzzyT)
+          source_links:
+            - https://github.com/meatpiHQ/wican-fw/pull/750
+          verified: false
+          notes: >-
+            Energy currently stored: SOC x HV_CAPACITY_KWH. Not in the PR's LeafSpy comparison.
+        HX:
+          expression: "[B36:B37]/102.4"
+          unit: "%"
+          min: "0"
+          max: "100"
+          source: meatpiHQ/wican-fw#750 (TyzzyT)
+          source_links:
+            - https://github.com/meatpiHQ/wican-fw/pull/750
+          verified: false
+          notes: >-
+            Hx, the LBC's internal-resistance health index (16-bit at WiCAN [B36:B37], /102.4). The
+            upstream main profile ships this expression as SOH, which the PR shows is wrong (65.3 %
+            Hx on an 85 % SOH car).
+      status: active
+      period: 10000
+      vehicle_states: [READY]
+      notes: >-
+        LBC data group 01 (service 0x21 read-by-local-identifier, ~8 frames): SOC, capacity (AHr)
+        and Hx. The upstream request key 21018 is 2101 plus a trailing ELM327
+        expected-response-frame-count digit, dropped here: canair learns response_frames itself.
+    2104:
+      parameters:
+        HV_T_1:
+          expression: B6
+          unit: °C
+          source: meatpiHQ/wican-fw#750 (TyzzyT)
+          source_links:
+            - https://github.com/meatpiHQ/wican-fw/pull/750
+          verified: true
+          notes: >-
+            Battery temperature sensor 1, raw byte at WiCAN B6. Matched LeafSpy Pro within 1 °C
+            (around 10-11 °C), so sub-zero encoding is untested. The PR suggests a -10..40 °C filter
+            for startup spikes; not applied, since a pack can exceed 40 °C when rapid charging.
+        HV_T_2:
+          expression: B10
+          unit: °C
+          source: meatpiHQ/wican-fw#750 (TyzzyT)
+          source_links:
+            - https://github.com/meatpiHQ/wican-fw/pull/750
+          verified: true
+          notes: >-
+            Battery temperature sensor 2, raw byte at WiCAN B10. Matched LeafSpy Pro within 1 °C
+            (around 10-11 °C), so sub-zero encoding is untested. The PR suggests a -10..40 °C filter
+            for startup spikes; not applied, since a pack can exceed 40 °C when rapid charging.
+        HV_T_3:
+          expression: B17
+          unit: °C
+          source: meatpiHQ/wican-fw#750 (TyzzyT)
+          source_links:
+            - https://github.com/meatpiHQ/wican-fw/pull/750
+          verified: true
+          notes: >-
+            Battery temperature sensor 3, raw byte at WiCAN B17. Matched LeafSpy Pro within 1 °C
+            (around 10-11 °C), so sub-zero encoding is untested. The PR suggests a -10..40 °C filter
+            for startup spikes; not applied, since a pack can exceed 40 °C when rapid charging.
+      status: active
+      period: 10000
+      vehicle_states: [READY]
+      notes: >-
+        LBC data group 04 (service 0x21, ~5 frames): battery temperature sensors. Upstream request
+        key 21045 (trailing frame-count digit dropped).

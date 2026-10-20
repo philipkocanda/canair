@@ -1,0 +1,56 @@
+# Nissan Leaf ZE1 40 kWh (2018-2022) — vehicle profile settings
+# (created by `canair profile create`).
+# Per-ECU definitions live in ecus/. Populate with `canair discover --register`
+# (add --identify to read identity DIDs), then `canair pids ...`. Validate with
+# `canair validate`.
+#
+# Seeded device-free from the WiCAN community profile in meatpiHQ/wican-fw#750
+# (https://github.com/meatpiHQ/wican-fw/pull/750, closed unmerged), which fixes
+# the upstream vehicle_profiles/nissan/leaf-ze1.json SOH and adds capacity,
+# temperature, odometer and range signals. The SOH and capacity scalings use the
+# 40 kWh pack's 115.44 Ah reference; the 62 kWh e+ needs its own profile.
+#
+# Per the PR, the ZE1's CAN gateway isolates the OBD-II port while the car is
+# off: every PID answers only with the ignition on (READY).
+car_model: "Nissan Leaf ZE1 40 kWh (2018-2022)"
+# The upstream ELM327 init is ATSP6;ATFCSH79B;ATST96;ATFCSD300000;ATFCSM1;
+# with per-PID ATSH<tx>;ATFCSH<tx>;ATCRA<rx>. The header and flow-control header
+# are per-request and set by canair itself, so only the protocol/timing/FC bits
+# are kept here (wican-ws transport only; the slcan-tcp raw path ignores init):
+#   ATST96        ECU response timeout 0x96 x 4.096 ms ~= 614 ms
+#   ATFCSM1       use the flow control below instead of the adapter default
+#   ATFCSD300000  FS=0 (clear-to-send), BS=0 (all frames), STmin=0 (no gap)
+init: "ATSP6;ATS0;ATAL;ATST96;ATFCSM1;ATFCSD300000;"
+
+# The Leaf is ISO 15765-4 11-bit / 500 kbit (ATSP6).
+can_bitrate: 500000
+
+# CAN diagnostic addressing. The LBC (0x79B -> 0x7BB) and the meter
+# (0x743 -> 0x763) answer at tx_id + 0x20, from the upstream ATSH/ATCRA pairs,
+# NOT the +0x08 default. The VCM (0x797 -> 0x79A, +3) overrides this with its
+# own rx_id.
+addressing:
+  rx_offset: 0x20
+
+# ELM327 response timeout in ms, applied as ATSTxx (--elm-timeout overrides).
+# Raise it for slow-responding ECUs; lower it to speed up cycles / NO-DATA
+# detection. Left unset, the ELM327 default applies.
+# response_timeout_ms: 500
+
+# Client-side ISO-TP tuning for the slcan-tcp transport. Defaults suit most
+# 11-bit/classic-CAN vehicles; override per this car's needs. See
+# canlib/transport/isotp_params.py for every field + default.
+# isotp:
+#   tx_padding: 0xAA   # ISO-TP fill byte (0x00/0xCC on some makes)
+#   can_fd: false      # true for CAN-FD ECUs
+
+# Physical-value bands for the reference-free scan (`canair hunt --physical` /
+# `canair investigate`). Override the vehicle-axis bands here; a name matching a
+# built-in (hv_pack, rail_12v) replaces its [low, high], any other name adds a
+# custom band. Grid bands (mains_rms/mains_peak/line_freq) normally come from
+# the user's `grid_region` config, not here. The built-in hv_pack is a ~400 V
+# EV (300-450), which misses the 40 kWh Leaf's low-SOC range: the pack is 96S
+# (~355 V nominal), so 96 x 2.5 V (empty) to 96 x 4.2 V (full) ~= 240-405 V.
+physical_bands:
+  hv_pack: [240, 410]   # HV traction pack V (96S, ~355 V nominal)
+
