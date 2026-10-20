@@ -2,20 +2,60 @@
 #
 # Codes accepted by each ECU's `can_bus:` field (in ecus/). Each bare code maps
 # to a human name + description (and an optional `bitrate` in bit/s). Naming is
-# vendor-specific: Hyundai/Kia use B-CAN/P-CAN/C-CAN/MM-CAN/H-CAN (Body,
-# Powertrain, Chassis, Multimedia, Hybrid); Ford uses HS/MS; BMW PT-CAN/K-CAN.
+# vendor-specific: Nissan names segments by function (EV-CAN, CAR-CAN, ITS-CAN, ...);
+# Hyundai/Kia use B-CAN/P-CAN/C-CAN/MM-CAN/H-CAN; Ford uses HS/MS; BMW PT-CAN/K-CAN.
 # See canlib/schema/can_buses_schema.yaml and `canair validate can-buses`. Set an
 # ECU's segment(s) with `canair pids set-can-bus ECU CODE [CODE ...]`.
+#
+# Source: block wiring diagrams in the service manual, as compiled in
+# https://blog.jingo.uk/notes-on-integrating-a-nissan-leaf-ze1-and-home-assistant/
+# The ZE1 disables the OBD port when the car is off, so the CAN gateway harness behind
+# the instrument cluster is the only way to see these buses with the car asleep. No
+# `bitrate` is recorded: the source does not state one per segment (it only runs its
+# tap at 500 kbit/s on the EV and CAR buses).
 
 can_buses:
   ALL:
     name: All segments
     description: Convention for the gateway that bridges every segment.
-  # B-CAN:
-  #   name: Body CAN
-  #   description: Comfort/body electronics.
-  #   bitrate: 100000
-  # P-CAN:
-  #   name: Powertrain CAN
-  #   description: Engine/drivetrain control.
-  #   bitrate: 500000
+  EV-CAN:
+    name: EV CAN
+    description: >-
+      Battery and other high-voltage parts (VCM, Li-ion battery controller, traction motor
+      inverter, PDM, A/C auto amp, steering angle sensor, EPS). Only active while the car is
+      switched on or charging.
+  CAR-CAN:
+    name: Vehicle CAN
+    description: >-
+      Higher-level small vehicle components (VCM, airbag diagnostic sensor, TPMS, vehicle
+      approaching sound unit, BCM, IPDM E/R, combination meter). Also called "CAR CAN".
+  CHASSIS-CAN:
+    name: Chassis CAN
+    description: >-
+      Low-level chassis components (electrically driven brake, parking brake, ABS, chassis
+      control module, steering angle sensor, EPS control unit).
+  ITS-CAN:
+    name: ITS CAN
+    description: >-
+      Intelligent Transport Systems, the component parts of ADAS (around view monitor control
+      unit, side radars, distance sensor, lane camera, ADAS control unit).
+  ADAS-CAN:
+    name: ADAS CAN
+    description: Advanced Driver Assistance System (ADAS control unit, chassis control module).
+  IT-CAN:
+    name: IT CAN
+    description: >-
+      Presumably Information Technology: AV control unit and TCU. On the ZE1 it appears to be
+      used for diagnosis only, not active control.
+  IC-CAN:
+    name: IC CAN
+    description: >-
+      Possibly inter-chassis: links the ADAS control unit and the chassis control module.
+  M-CAN:
+    name: M CAN
+    description: >-
+      Communication between the audio system and the instrument panel (combination meter,
+      TCU, audio system).
+  DIAG-CAN:
+    name: Diagnostic CAN
+    description: Diagnostic bus wired to the OBD-II data link connector (M105).

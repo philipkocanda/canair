@@ -1,5 +1,6 @@
 HVAC:
   tx_id: 0x744
+  can_bus: [EV-CAN]
   identity:
     description: Heating, ventilation and air conditioning
     notes: >-

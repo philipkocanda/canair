@@ -1,5 +1,6 @@
 MULTI_AV:
   tx_id: 0x747
+  can_bus: [IT-CAN]
   identity:
     description: Multi AV (infotainment head unit)
     notes: >-

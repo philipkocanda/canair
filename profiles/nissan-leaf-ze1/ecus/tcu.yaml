@@ -1,5 +1,6 @@
 TCU:
   tx_id: 0x746
+  can_bus: [IT-CAN, M-CAN]
   rx_id: 0x783
   identity:
     description: Telematics control unit

@@ -1,5 +1,6 @@
 ABS:
   tx_id: 0x740
+  can_bus: [CHASSIS-CAN]
   identity:
     description: ABS / vehicle dynamics control (also reports pedal and steering inputs)
     notes: >-

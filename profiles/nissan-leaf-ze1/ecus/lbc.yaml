@@ -1,5 +1,6 @@
 LBC:
   tx_id: 0x79B
+  can_bus: [EV-CAN]
   identity:
     description: Li-ion Battery Controller (HV battery management), request 0x79B
     notes: >-

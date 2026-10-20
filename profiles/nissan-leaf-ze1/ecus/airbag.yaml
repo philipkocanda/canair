@@ -1,5 +1,6 @@
 AIRBAG:
   tx_id: 0x752
+  can_bus: [CAR-CAN]
   identity:
     description: Airbag / SRS control unit
     notes: >-

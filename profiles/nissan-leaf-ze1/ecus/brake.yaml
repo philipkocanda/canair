@@ -1,5 +1,6 @@
 BRAKE:
   tx_id: 0x70E
+  can_bus: [CHASSIS-CAN]
   rx_id: 0x70F
   identity:
     description: Brake control (intelligent brake unit)

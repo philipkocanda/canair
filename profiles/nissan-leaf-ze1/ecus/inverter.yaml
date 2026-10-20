@@ -1,5 +1,6 @@
 INVERTER:
   tx_id: 0x784
+  can_bus: [EV-CAN]
   rx_id: 0x78C
   identity:
     description: Traction motor inverter

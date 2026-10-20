@@ -1,5 +1,6 @@
 VCM:
   tx_id: 0x797
+  can_bus: [EV-CAN, CAR-CAN]
   rx_id: 0x79A
   identity:
     description: Vehicle Control Module, request 0x797

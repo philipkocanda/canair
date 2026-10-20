@@ -1,5 +1,6 @@
 METER:
   tx_id: 0x743
+  can_bus: [CAR-CAN, M-CAN]
   identity:
     description: Combination meter (instrument cluster), request 0x743
     notes: >-

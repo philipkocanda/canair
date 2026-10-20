@@ -1,5 +1,6 @@
 EPS:
   tx_id: 0x742
+  can_bus: [EV-CAN, CHASSIS-CAN]
   identity:
     description: Electric power steering
     notes: >-

@@ -1,5 +1,6 @@
 IPDM:
   tx_id: 0x74D
+  can_bus: [CAR-CAN]
   identity:
     description: Intelligent power distribution module (IPDM E/R)
     notes: >-

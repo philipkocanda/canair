@@ -1,5 +1,6 @@
 VSP:
   tx_id: 0x73F
+  can_bus: [CAR-CAN]
   rx_id: 0x761
   identity:
     description: Vehicle sound for pedestrians
