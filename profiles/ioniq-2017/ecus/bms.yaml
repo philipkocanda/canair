@@ -101,7 +101,7 @@ BMS:
           source: "ITStromer community sheet (j:0 = BMS Relay) + captures"
           source_links: []
           verified: true
-          notes: "BMS main (HV) relay closed. 2026-07-20: set (1) in all responsive captures — READY, AC & DC charging."
+          notes: HV main relay closed. 0 in 96 of 10708 captures, all with B14 = 0x20, 0x40 or 0x00.
 
         AC_CHARGER_CONNECTED:
           expression: B14:5
@@ -360,6 +360,14 @@ BMS:
           notes: >-
             Range 0-244. r=+0.998 vs BMS:2102:CELL_02_VOLTAGE over the 2026-07-30 AC charge
             (y=93.4x-246), where both rise with SOC.
+        BMS_MAIN_RELAY_MIRROR_B14_1:
+          expression: B14:1
+          source: canair analysis 2026-08-08 DCFC
+          verified: true
+          notes: >-
+            Equals BMS_MAIN_RELAY (B14:0) in every capture, including a DC fast charge. Disabled so
+            it does not ship a duplicate signal; defined so bit 1 is accounted for.
+          enabled: false
 
 
     2105:
