@@ -101,7 +101,7 @@ def require_ws_reachable(host: str, *, port: int = 80, timeout: float = 4.0) -> 
     A no-op when the port answers (the ``/ws`` terminal works in any device
     mode, so an open port is good enough — we don't gate on the protocol here).
     A closed HTTP port also hides the firmware generation, so the hints cover
-    both 4.x and v6 (which has no ``/ws`` terminal at all).
+    both 4.x and v6 (whose terminal is ``/ws/obd``).
     """
     if _tcp_open(host, port, timeout):
         return
@@ -110,7 +110,7 @@ def require_ws_reachable(host: str, *, port: int = 80, timeout: float = 4.0) -> 
     err = _tcp_probe(host, port, timeout)
     detail = connect_error_detail(err) if err is not None else f"no response within {timeout:.0f}s"
     raise ModeError(
-        f"can't reach the WiCAN's ELM327 WebSocket terminal at ws://{host}/ws — {detail}.\n"
+        f"can't reach the WiCAN's ELM327 WebSocket terminal on {host}:{port} — {detail}.\n"
         f"The 'wican-ws' transport needs the device's HTTP/WebSocket server. "
         f"Likely causes:\n"
         f"  • the device is powered off, asleep, or still booting\n"
@@ -118,8 +118,8 @@ def require_ws_reachable(host: str, *, port: int = 80, timeout: float = 4.0) -> 
         f"  • you're not on the same network as the device (VPN down? wrong Wi-Fi?)\n"
         f"  • on firmware 4.x: the device is in a mode that isn't serving the WebSocket "
         f"(e.g. raw 'slcan') — switch with:  canair wican mode set elm327\n"
-        f"  • on firmware v6: there is no /ws terminal — use --transport elm327-tcp "
-        f"(port 35000)\n"
+        f"  • on firmware v6, its plain ELM327 socket may still answer: "
+        f"--transport elm327-tcp (port 35000)\n"
         f"  • diagnose:      canair status --wican {host}"
     )
 
@@ -144,7 +144,7 @@ def require_slcan_reachable(
     (a reboot usually clears it) — a much more specific hint than a generic
     "unreachable", which would suggest a wrong host / VPN / power problem.
     ``firmware`` (when the caller probed it) swaps the 4.x mode hints for v6's
-    settings, since v6 has neither a protocol mode nor a ``/ws`` terminal.
+    settings, since v6 has no protocol mode to switch.
     """
     if _tcp_open(host, port, timeout):
         return

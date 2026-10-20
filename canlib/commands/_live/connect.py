@@ -16,27 +16,47 @@ from canlib import (
 from canlib.transport.protocol import Terminal
 
 
+def _sleep_readings(host: str, timeout: float) -> tuple[str, bool, str | float] | None:
+    """``(battery, sleep enabled, sleep threshold)`` from either firmware, or None."""
+    from canlib.wican_firmware import detect
+
+    if detect(host).generation == "v6":
+        from canlib.wican_v6 import sleep_status
+
+        st = sleep_status(host, timeout=timeout)
+        if st.sleep_enabled is None:
+            return None
+        batt = f"{st.battery_v:.2f}V" if st.battery_v is not None else "?"
+        return batt, st.sleep_enabled, st.sleep_v if st.sleep_v is not None else "?"
+
+    from canlib.wican_api import get_config, get_status
+
+    base_url = f"http://{host}"
+    status = get_status(base_url, timeout)
+    config = get_config(base_url, timeout)
+    if not isinstance(status, dict) or not isinstance(config, dict):
+        return None
+    return (
+        status.get("batt_voltage", "?"),
+        config.get("sleep_status", "disable") == "enable",
+        config.get("sleep_volt", "?"),
+    )
+
+
 def _print_sleep_banner(host: str, timeout: int = 5) -> None:
     """Fetch WiCAN sleep status and battery voltage, print a status line.
 
     Purely informational and printed into an already-connected session, so any
-    failure (an HTTP error, a timeout, a v6 device without these routes) skips
-    the banner rather than ending the session.
+    failure (an HTTP error, a timeout, a device without these routes) skips the
+    banner rather than ending the session.
     """
     try:
-        from canlib.wican_api import get_config, get_status
-
-        base_url = f"http://{host}"
-        status = get_status(base_url, timeout)
-        config = get_config(base_url, timeout)
+        readings = _sleep_readings(host, timeout)
     except Exception:
         return
-    if not isinstance(status, dict) or not isinstance(config, dict):
+    if readings is None:
         return
-
-    batt = status.get("batt_voltage", "?")
-    sleep_on = config.get("sleep_status", "disable") == "enable"
-    sleep_volt = config.get("sleep_volt", "?")
+    batt, sleep_on, sleep_volt = readings
 
     try:
         batt_f = float(str(batt).rstrip("V"))
@@ -112,6 +132,11 @@ async def connect_elm_terminal(transport, pids_data: dict, args) -> Terminal:
         )
         connecting = f"Connecting to ELM327 adapter at {host}:{port}..."
     else:
+        # Memoised: the pre-flight check already probed this host. Firmware v6
+        # moved the ELM327 terminal to a raw /ws/obd channel.
+        from canlib.wican_firmware import detect
+
+        v6 = detect(host).generation == "v6"
         terminal = WiCANTerminal(
             host=host,
             timeout=_ws_timeout,
@@ -120,8 +145,9 @@ async def connect_elm_terminal(transport, pids_data: dict, args) -> Terminal:
             hk_f1xx_offset=hk,
             expected_responses=counts,
             response_frames=seeds,
+            obd_channel=v6,
         )
-        connecting = f"Connecting to WiCAN at {host}..."
+        connecting = f"Connecting to WiCAN at {host}{' (firmware v6, /ws/obd)' if v6 else ''}..."
     # Per-ECU response budgets apply only when the user didn't force --timeout.
     if _cli_timeout is None:
         terminal.ecu_timeouts = ecu_timeouts_by_tx(pids_data)

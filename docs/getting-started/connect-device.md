@@ -62,21 +62,29 @@ canair is built and tested against **WiCAN firmware 4.x**, specifically
 still works, with a one-line warning.
 
 **WiCAN Pro firmware v6** (6.0.0, in beta) is a rewrite rather than an update.
-Before using a 4.x-only interface, canair sends the device one short, read-only
-`GET` to learn which generation it runs, then refuses or warns with the fix
-instead of failing obscurely:
+Before using a firmware-specific interface, canair sends the device a short,
+read-only `GET` to learn which generation it runs. On v6 it also reads the
+device's own description of the path the selected transport needs (its
+WebSocket channels, socket servers, bridges and CAN bus settings), so a port
+that is open but leads nowhere is refused with the fix instead of making every
+ECU look dead:
 
 | On firmware v6 | What canair does |
 |---|---|
 | `elm327-tcp` transport | **Works.** v6 serves a plain ELM327 socket on port 35000, on by default. canair prints a note: the socket is shared, and AutoPID (if enabled) takes the chip back after 10 s without a command |
-| `wican-ws` transport | **Refused.** v6 has no `/ws` terminal; use `elm327-tcp` |
-| `slcan-tcp` transport (the default) | **Warns, then tries.** A stock v6 device serves no SLCAN until you enable three settings (below) |
-| `sniff --listen-only` | **Refused.** v6 ignores SLCAN's listen-only command; set `can_manager.silent` on the device instead |
+| `wican-ws` transport | **Works**, over v6's `/ws/obd` channel (on by default), with the same shared-chip note. Refused when that channel is disabled or not bridged to the OBD chip, and when the device has an admin password or the Wi-Fi network is marked untrusted (canair can't pass either gate yet; `elm327-tcp` isn't gated) |
+| `slcan-tcp` transport (the default) | **Checked, then tries.** A stock v6 device serves no SLCAN until you enable three settings (below); canair refuses until they are in place, and warns when the device's fixed CAN bitrate differs from the car's |
+| `sniff --listen-only` | **Refused**, unless the device's `can_manager.silent` is on. v6 ignores SLCAN's listen-only command |
 | `wican mode show`/`set` | **Refused.** v6 has no protocol mode |
 | `wican autopid upload`/`download`/`diff` | **Refused.** v6 changed the AutoPID format, and sending it the 4.x one would wipe its table. `autopid write` still works |
 | `--reboot` | **Skipped.** v6 resumes AutoPID by itself |
 
-So on v6, point canair at the ELM327 socket:
+If v6's settings can't be read (a password or an untrusted network), canair
+falls back to a generic warning for `slcan-tcp` and lets the connection try.
+
+A device already configured for `wican-ws` keeps working after the upgrade. A
+device on the default `slcan-tcp` needs either the SLCAN setup below or a switch
+to the ELM327 socket, which is the simplest:
 
 ```bash
 canair config set devices.home.transport elm327-tcp
@@ -93,10 +101,17 @@ settings, then submit them (the device reboots):
 
 Without the bridge (or with `can_manager` off), the SLCAN port accepts the
 connection and then silently discards everything, so every ECU looks dead.
+canair reads the SLCAN port and a fixed CAN bitrate from these settings, so
+neither needs repeating in canair's config. v6 ignores SLCAN's own bitrate
+command, so set `can_manager.baud` to the car's bitrate (or `auto`) on the
+device.
 
-`canair status` shows the generation, version and build it found, and exits `2`
-when the selected transport can't work on that firmware. If you know what you're
-running, `canair config set transport.firmware_check false` turns the check off.
+`canair status` shows the generation, version and build it found and, on v6, the
+battery voltage, sleep state and OBD chip state. It exits `2` when the selected
+transport can't work on that device. If you know what you're running,
+`canair config set transport.firmware_check false` turns the check off — but
+then canair can't tell v6 apart, and `wican-ws` connects to 4.x's `/ws`, which
+v6 doesn't serve.
 
 !!! warning "Before upgrading a WiCAN to v6"
     Upgrading from 4.x **erases the device's saved configuration**, stored files

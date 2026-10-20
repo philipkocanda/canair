@@ -9,7 +9,7 @@ dongle does ISO-TP. Transports are described once in
 another backend.
 """
 
-from .channel import Channel, TcpChannel, WebSocketChannel
+from .channel import Channel, ObdWebSocketChannel, TcpChannel, WebSocketChannel
 from .config import (
     DEFAULT_ELM327_TCP_PORT,
     DEFAULT_TRANSPORT,
@@ -44,6 +44,7 @@ __all__ = [
     "Channel",
     "Elm327TcpTerminal",
     "Elm327Terminal",
+    "ObdWebSocketChannel",
     "RawTerminal",
     "RawUdsClient",
     "SlcanTcpBus",

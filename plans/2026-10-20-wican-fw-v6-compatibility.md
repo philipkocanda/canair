@@ -1,10 +1,12 @@
 # WiCAN firmware v6: compatibility audit and a firmware-generation guard
 
-Status: **PHASE 1 IMPLEMENTED** (2026-10-20), **not yet verified on a device**. Phase 1 (detect
-and warn, §1a–§1e) is in `canlib/wican_firmware.py` and the surfaces in §1b; it has been tested
-only against stubbed HTTP replies, never against a real v4.52 or v6 device. Phase 2 (real v6
-support) still needs the open questions below answered on a v6 device first. Every finding still
-comes from reading the source.
+Status: **PHASE 1 IMPLEMENTED, PHASE 2 PARTLY IMPLEMENTED** (2026-10-20), **not yet verified on a
+device**. Phase 1 (detect and warn, §1a–§1e) is in `canlib/wican_firmware.py` and the surfaces in
+§1b. Phase 2's read-only items — `wican-ws` over `/ws/obd` (2.1), detecting an unusable SLCAN path
+(the read half of 2.2) and `canair status` on v6 (2.5) — are in `canlib/wican_v6.py`; see
+"Phase 2 progress" below. Everything has been tested only against stubbed HTTP replies, never
+against a real v4.52 or v6 device, and the rest of Phase 2 still needs the open questions answered
+on a v6 device first. Every finding still comes from reading the source.
 
 WiCAN Pro firmware **6.0.0-beta.1** (tag `v6.0.0p-beta.1`, 2026-10-20) is a **ground-up
 rewrite, not an incremental release**. Almost every device interface canair depends on has
@@ -507,6 +509,36 @@ Sketch only. Each item needs its own plan once Q1–Q5 are answered.
    outside a diagnostic session, or document disabling AutoPID polling.
 5. **`canair status` on v6:** read `/api/battery`, `/api/sleep` and `/api/obd_chip` instead of
    the v4 fields.
+
+### Phase 2 progress
+
+Implemented against meatpi-components `2ef6d0f`, all read-only (no settings are ever written):
+
+- **2.1, `wican-ws` on v6.** `transport/channel.py::ObdWebSocketChannel` connects to `/ws/obd`
+  with no handshake and decodes BINARY (or TEXT) frames as raw chip output.
+  `connect_elm_terminal` selects it when the memoised probe says v6. The static verdict became a
+  shared-chip **note**; it stays a **refusal** behind the password or untrusted-network gate,
+  because canair cannot authenticate a WebSocket handshake yet.
+- **Data-path checks** (`canlib/wican_v6.py::assess`, called by live connect, `sniff` and
+  `status`). On an ungated v6 device, the static verdict is refined from the device's settings:
+  - `wican-ws` is refused when `/ws/obd` is missing, disabled, not running, unbridged, or bridged
+    anywhere other than raw to `obd` (`/api/ws`, `/api/bridges`). A full channel warns.
+  - `slcan-tcp` is refused when nothing serves the port, the server is disabled or not running,
+    nothing is bridged to it (the silent-discard trap), the bridge's translator isn't `slcan`
+    (port 35000 is named as the ELM327 server), or `can_manager` is off. It warns when a fixed
+    `can_manager.baud` differs from the bitrate canair resolved (`/api/sockets`, `/api/can`).
+  - `sniff --listen-only` is allowed, with a note, when `can_manager.silent` is on.
+  - An unreadable route leaves the static verdict standing.
+- **SLCAN defaults (read half of 2.2).** `TransportConfig.resolve_device_defaults` reads the port
+  of the server bridged through the `slcan` translator and a fixed CAN bitrate, in place of v4's
+  `/load_config`.
+- **2.5, status and the sleep banner.** `canair status` reports battery, sleep and OBD-chip state
+  (`device_v6` in `--json`). The live sleep banner reads `/api/sleep`.
+
+Still open: the settings-writing half of 2.2 (a `canair wican` subcommand to set up SLCAN), 2.3
+(AutoPID), 2.4 (adapter-state robustness on the shared chip), and the device verification behind
+Q1–Q6. `/ws/obd` shares the chip's output fan-out and the 10 s AutoPID reclaim with `elm327-tcp`
+(§4), so 2.4 and Q2 apply to it as well.
 
 ## Open questions (need a v6 device)
 

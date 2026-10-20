@@ -198,17 +198,22 @@ def run(args) -> int:
     port, bitrate = t.resolve_device_defaults(_profile_can_bitrate())
     print(f"  Raw CAN via SLCAN — {host}:{port} @ {bitrate} bps")
 
-    # Firmware v6 ignores SLCAN's listen-only command, so --listen-only cannot be
-    # honoured there; and it has no protocol mode to check, only a setup warning.
-    from canlib.wican_firmware import compatibility, detect, print_verdict
+    # Firmware v6 ignores SLCAN's listen-only command, so --listen-only is honoured
+    # there only when the device itself is silent; and it has no protocol mode to
+    # check, so its settings are read instead to confirm the port reaches the bus.
+    from canlib.wican_firmware import detect, print_verdict
+    from canlib.wican_v6 import assess
 
     firmware = detect(host)
     if args.listen_only:
-        verdict = compatibility(firmware, "sniff-listen-only")
+        verdict = assess(firmware, "sniff-listen-only", host)
+        print_verdict(verdict)
         if verdict.refused:
-            print_verdict(verdict)
             return 2
-    print_verdict(compatibility(firmware, "slcan-tcp"))
+    verdict = assess(firmware, "slcan-tcp", host, port=port, bitrate=bitrate)
+    print_verdict(verdict)
+    if verdict.refused:
+        return 2
 
     # No auto-switch: the device must already be in slcan mode.
     if firmware.generation != "v6":

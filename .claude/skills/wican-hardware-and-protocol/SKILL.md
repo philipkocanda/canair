@@ -111,10 +111,11 @@ the citations hold for a `v4.50p` device. Do not assume it for the next tag.
 ### Trap 4: v6 is a different firmware, and the tag does not pin its code
 
 WiCAN Pro firmware **v6** (`v6.0.0p-beta.1`, 2026-10-20) is a ground-up rewrite branched from
-`1067262` (`v4.51p_beta-01`). **Nothing in this file describes it.** No `/ws` terminal, no
-`protocol` mode, no `/check_status`/`/load_config`/`/system_reboot`, a pure-codec SLCAN, a new
-AutoPID schema, and the bundled chip firmware pinned back to `V2.3.22` (so a chip 4.52 moved to
-`V2.3.24` is downgraded on the first v6 boot).
+`1067262` (`v4.51p_beta-01`). **Nothing else in this file describes it.** No `/ws` terminal (the
+ELM327 terminal is a raw `/ws/obd` channel: no handshake, BINARY frames, output fanned out to every
+subscriber of the chip), no `protocol` mode, no `/check_status`/`/load_config`/`/system_reboot`, a
+pure-codec SLCAN, a new AutoPID schema, and the bundled chip firmware pinned back to `V2.3.22` (so a
+chip 4.52 moved to `V2.3.24` is downgraded on the first v6 boot).
 
 - **Its code is not in `wican-fw`.** The v6 tag's `components/` holds only `HTTP_API.md` and `main/`
   is a thin composition layer; everything else is in
@@ -125,9 +126,13 @@ AutoPID schema, and the bundled chip firmware pinned back to `V2.3.22` (so a chi
   meatpi-components citation as "at commit X", never "in v6".
 - Identify it the way canair does (`canlib/wican_firmware.py`): `GET /api/info` answers v6 with an
   integer `api_level` (or a 401/403 gate) and answers 4.x with 404.
+- **On v6 an open port proves nothing.** A socket server or WebSocket channel with no bridge row
+  accepts the client and discards its bytes. Ask the device instead — `/api/sockets` and `/api/ws`
+  carry a `bridge` field (null = the trap), `/api/bridges` the translator, `/api/can` whether the
+  bus is enabled, silent and at which bitrate. `canlib/wican_v6.py` does exactly this.
 
-The audit, what still works (`elm327-tcp`), and the follow-up work:
-`plans/2026-10-20-wican-fw-v6-compatibility.md`.
+The audit, what works today (`elm327-tcp`, `wican-ws` over `/ws/obd`, a set-up `slcan-tcp`), and
+the follow-up work: `plans/2026-10-20-wican-fw-v6-compatibility.md`.
 
 ## The hardware
 
@@ -606,9 +611,10 @@ link.
 ## Checklist before changing transport code
 
 - [ ] `wican-fw` on `wican-pro`, and the tag diffed against the device's `git_version`.
-- [ ] Device firmware generation known (`canair status`); anything that uses a 4.x-only interface
-      (`/ws`, the protocol mode, the legacy HTTP routes, AutoPID sync) is gated through
-      `canlib/wican_firmware.py`'s policy table, not an ad-hoc version check.
+- [ ] Device firmware generation known (`canair status`); anything firmware-specific (`/ws` vs
+      `/ws/obd`, the protocol mode, the legacy HTTP routes, AutoPID sync) is gated through
+      `canlib/wican_firmware.py`'s policy table (refined live by `canlib/wican_v6.py::assess`),
+      not an ad-hoc version check.
 - [ ] Not reading the `!= WICAN_PRO` emulator block, or `wican-fw/main/ws_router.c`.
 - [ ] Clear on which chip the change affects — MIC3624 (`wican-ws`, `elm327-tcp`) or ESP32 TWAI
       (`slcan-tcp`) — and whether it must work on both.
