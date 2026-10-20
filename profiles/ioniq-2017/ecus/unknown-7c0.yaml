@@ -1,14 +1,12 @@
 Unknown-7C0:
   tx_id: 0x7C0
   identity:
-    description: Maybe TCU? (BlueLink) (responds to 1001 session control)
+    description: Unknown ECU at 0x7C0
     id_protocol: unknown
-    notes: >
-      No identity DIDs responded.
-      Car has no BlueLink (was never available in Netherlands).
-      Module may still exist as dormant platform hardware (UNCONFIRMED).
-      Other candidates: head unit sub-module, DAB tuner.
-      Dead during AC charging (2026-04-19): 1001, 1003, 3E00, 1A8C all NO DATA.
+    notes: >-
+      Answered the 2026-04-17 address sweep (READY). No identity DID has responded. NO DATA during
+      AC charging (2026-04-19: 1001, 1003, 3E00, 1A8C) and at READY (2026-07-21: 22 B001-B005;
+      2026-07-22: 22 0100-010F).
   scan_log: # Unknown-7C0
     - service: 0x22
       range: "0100-010F"
