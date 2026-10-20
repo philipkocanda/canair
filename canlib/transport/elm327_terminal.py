@@ -98,8 +98,8 @@ _RESYNC_QUIET_MAX = 8.0
 
 # State-free ELM327 command used as the post-drain alignment probe. Any AT command
 # would do — what matters is that *a* prompt-terminated reply comes back, not what
-# it says (the WiCAN answers ATI with "OBDLink MX", a real ELM327 with
-# "ELM327 v1.5"), so this never matches on reply text.
+# it says (the WiCAN Pro's OBD chip answers ATI with "ELM327 v2.3", a clone with
+# whatever it claims to be), so this never matches on reply text.
 _RESYNC_PROBE = "ATI"
 
 

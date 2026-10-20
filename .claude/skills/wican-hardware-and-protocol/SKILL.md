@@ -6,8 +6,9 @@ description: "Ground truth about the WiCAN device itself — the WiCAN Pro hardw
 # WiCAN hardware, firmware and protocol — ground truth
 
 Everything here was established by reading the **wican-fw C source** and by **measuring a live
-device**, on 2026-08-09. Each claim carries a `file:line` citation or is labelled as measured.
-Where the source does not settle a question, this file says so rather than guessing.
+device**, on 2026-08-09; citations were re-based onto `v4.52p` on 2026-10-20. Each claim carries a
+`file:line` citation or is labelled as measured. Where the source does not settle a question, this
+file says so rather than guessing.
 
 **Every line number and version below is relative to this exact basis. Re-check it before
 trusting a citation** — a moved line is silent, and a wrong-branch citation looks perfectly real
@@ -16,16 +17,19 @@ trusting a citation** — a moved line is silent, and a wrong-branch citation lo
 | Basis | Value |
 |---|---|
 | `wican-fw` branch | `wican-pro` |
-| `wican-fw` commit | `10672628cc662665e8ad0d993e6a71d7f1d8813f` (`1067262`, "idf v6.0.2") |
-| `wican-fw` tag | `v4.51p_beta-01` |
+| `wican-fw` commit | `fab54ad` |
+| `wican-fw` tag | `v4.52p` |
 | Schematic | `wican-fw/sch/wican_obd_pro_sch_v151.pdf` rev **V1.51**, **sheet 3 of 3 only** |
-| Device firmware | **`v4.50p`** (`WiCAN-OBD-PRO`) — one release *behind* the checkout |
-| ELM327 co-processor | `MIC3624 V2.3` board carrying `STN2120 v5.8.1` (`STDI` / `STI`) |
+| Device firmware | **`v4.50p`** (`WiCAN-OBD-PRO`) — two releases *behind* the checkout |
+| ELM327 co-processor | `MIC3624 V2.3` board carrying `STN2120 v5.8.1` (`STDI` / `STI`), chip firmware `V2.3.22` |
 | ELM327 identity | `ELM327 v2.3` (`ATI`) |
 
-The checkout being ahead of the device is tolerable here **only** because
-`wican-fw/main/elm327.c` and the WS router are byte-identical between `v4.50p` and
-`v4.51p_beta-01` (Trap 3). That is a fact about these two tags, not a standing guarantee.
+The checkout being ahead of the device is tolerable here **only** because, between `v4.50p` and
+`v4.52p`, the WS router and `wican-fw/main/config_server.c` are byte-identical, and
+`wican-fw/main/elm327.c` differs only in the bundled chip firmware (`V2.3.22` → `V2.3.24`, which
+shifts every `elm327.c` line from 1370 on by +3; the citations below are already shifted). That is
+a fact about these tags, not a standing guarantee (Trap 3). The device's measured chip firmware is
+`V2.3.22`; `V2.3.24` is unmeasured.
 
 Companion analysis with the full throughput argument and the reclaimable-win ranking:
 `plans/2026-08-09-wican-ws-throughput-ceiling.md`.
@@ -35,7 +39,7 @@ Companion analysis with the full throughput argument and the reclaimable-win ran
 
 ## Rule 0 — read the right source, or every conclusion is wrong
 
-This cost a whole audit round. **Three separate traps, all of which produce plausible-looking but
+This cost a whole audit round. **Four separate traps, all of which produce plausible-looking but
 wrong citations.**
 
 ### Trap 1: the branch
@@ -45,8 +49,10 @@ describe the Pro.** Confirm before reading anything:
 
 ```
 git -C wican-fw rev-parse --abbrev-ref HEAD    # want: wican-pro
-git -C wican-fw describe --tags                # want: v4.51p_beta-01 or later
+git -C wican-fw describe --tags                # want: v4.52p (the basis) or a later v4 tag
 ```
+
+A `v6.*` tag here means you are reading the other firmware generation — see Trap 4.
 
 | | `main` | `wican-pro` |
 |---|---|---|
@@ -70,8 +76,8 @@ The Pro tree still carries the classic software emulation, and it is **compiled 
 - `wican-fw/main/elm327.c:65` opens `#if HARDWARE_VER != WICAN_PRO` — the emulator, including
   `wican-fw/main/elm327.c:70-71` (`device_description = "ELM327 v1.3a"`, `identify = "OBDLink MX"`)
   and `elm327_process_cmd` at `wican-fw/main/elm327.c:1025`. **Not on the `wican-ws` path.**
-- The live path is `elm327_run_command` at `wican-fw/main/elm327.c:2534`.
-- The signature itself splits at `wican-fw/main/elm327.h:42-48` — the non-Pro variant takes a
+- The live path is `elm327_run_command` at `wican-fw/main/elm327.c:2537`.
+- The signature itself splits at `wican-fw/main/elm327.h:44-50` — the non-Pro variant takes a
   `twai_message_t*`, the Pro variant a response callback. **If the function you are reading takes a
   TWAI frame, you are in the emulator.**
 
@@ -87,15 +93,41 @@ rtk grep -rn ws_router wican-fw/main/CMakeLists.txt      # must return nothing
 
 ### Trap 3: the checked-out tag is not necessarily the running firmware
 
-Get the device's own version from `canair status` (or `/check_status`, field `fw_version`), then
-diff the files you care about across tags before trusting a line number:
+Get the device's own version from `canair status`, which names the tag. On 4.x, `/check_status`
+reports it twice: **`fw_version` is only `"4.50"`** (`sscanf(version, "v%ld.%ld")` printed as
+`"%ld.%02ld"`, so the `p` suffix and any beta/dirty marker are dropped, and an unparseable version
+reads `"0.00"`; `wican-fw/main/config_server.c:1751-1756`), while **`git_version` carries the real
+`git describe`**, e.g. `v4.50p`. Diff by the `git_version` tag, then diff the files you care about
+across tags before trusting a line number:
 
 ```
-git -C wican-fw diff --stat v4.50p v4.51p_beta-01 -- main/elm327.c
+git -C wican-fw diff --stat v4.50p v4.52p -- main/elm327.c components/ws_server main/config_server.c
 ```
 
-For the 2026-08-09 audit that returned empty for both `wican-fw/main/elm327.c` and the router, so
-the citations held. Do not assume it.
+For the 2026-10-20 re-base that showed only the chip-firmware swap in `wican-fw/main/elm327.c` (a
++3 line shift from 1370 on, already applied below) and nothing in the router or the HTTP server, so
+the citations hold for a `v4.50p` device. Do not assume it for the next tag.
+
+### Trap 4: v6 is a different firmware, and the tag does not pin its code
+
+WiCAN Pro firmware **v6** (`v6.0.0p-beta.1`, 2026-10-20) is a ground-up rewrite branched from
+`1067262` (`v4.51p_beta-01`). **Nothing in this file describes it.** No `/ws` terminal, no
+`protocol` mode, no `/check_status`/`/load_config`/`/system_reboot`, a pure-codec SLCAN, a new
+AutoPID schema, and the bundled chip firmware pinned back to `V2.3.22` (so a chip 4.52 moved to
+`V2.3.24` is downgraded on the first v6 boot).
+
+- **Its code is not in `wican-fw`.** The v6 tag's `components/` holds only `HTTP_API.md` and `main/`
+  is a thin composition layer; everything else is in
+  [meatpi-components](https://github.com/meatpiHQ/meatpi-components), which the top-level
+  `CMakeLists.txt` clones on first configure.
+- **The release tag does not pin a components commit**, so no checkout proves what a given v6
+  build contains. Read `fw_build` from `GET /api/info` on the device, and treat every
+  meatpi-components citation as "at commit X", never "in v6".
+- Identify it the way canair does (`canlib/wican_firmware.py`): `GET /api/info` answers v6 with an
+  integer `api_level` (or a 401/403 gate) and answers 4.x with 404.
+
+The audit, what still works (`elm327-tcp`), and the follow-up work:
+`plans/2026-10-20-wican-fw-v6-compatibility.md`.
 
 ## The hardware
 
@@ -141,11 +173,11 @@ Pro also has SDMMC 4-bit (SD card) and an ICM-42670 IMU. Schematic:
 `MIC3624` is the **module** identity the firmware matches on; `STN2120` is the silicon underneath,
 so the **full ST command set is available**. The strings `STN2120` and `STDI` appear **nowhere in
 the firmware source** — they come from the chip. Firmware matches `VTVERS`'s reply prefix at
-`wican-fw/main/elm327.c:2996-2999`, setting `device_type = 0x3624`.
+`wican-fw/main/elm327.c:2999-3002`, setting `device_type = 0x3624`.
 
-> **DEFECT in canair:** `canlib/transport/elm327_terminal.py:88-92` claims the WiCAN answers `ATI`
-> with `OBDLink MX`. It answers `ELM327 v2.3`. `OBDLink MX` is the *emulator's* string
-> (`wican-fw/main/elm327.c:71`), which is not compiled on Pro.
+> `OBDLink MX` is the *emulator's* `ATI` string (`wican-fw/main/elm327.c:71`), which is not
+> compiled on Pro — never expect it from a WiCAN Pro. (canair's resync comment once claimed
+> otherwise; fixed in `canlib/transport/elm327_terminal.py`.)
 
 ## The two paths to the vehicle bus — the fact that matters most
 
@@ -307,37 +339,39 @@ Three UARTs, all build-time gated:
 | `UART_NUM_2` | Pro | 2 000 000 | 17/18 | a **wired ELM327 port onto the same chip** |
 | `UART_NUM_0` | USB variant | 4 000 000 | default | host serial |
 
-UART1 setup: `wican-fw/main/elm327.c:3446-3464`, buffer `UART_BUF_SIZE = (18*1024)`
+UART1 setup: `wican-fw/main/elm327.c:3449-3467`, buffer `UART_BUF_SIZE = (18*1024)`
 (`wican-fw/main/obd.h:21`). UART2 feeds the *same* `elm327_process_cmd`
 (`wican-fw/main/wc_uart.c:181`) — it is not a second bus path.
 
-**Baud negotiation** (`elm327_set_baudrate`, `wican-fw/main/elm327.c:2008-2091`): probe with
+**Baud negotiation** (`elm327_set_baudrate`, `wican-fw/main/elm327.c:2011-2094`): probe with
 `VTVERS\r` at 2 Mbaud; if silent, drop to 115 200 and re-probe; then `STSBR 2000000\r` expecting
 `OK`, switch the local port, and `STWBR\r` to **persist it in the chip**. Constants at
 `wican-fw/main/elm327.c:1318-1329` (`UART_TIMEOUT_MS 1200`, `DESIRED_BAUD_RATE 2000000`,
 `DEFAULT_BAUD_RATE 115200`, `ELM327_CMD_MUTEX_TIMOUT 10000`).
 
 **The ESP32 owns the chip's firmware.** Expected versions `OBD_FW_VER_V18 "V2.3.18"` /
-`OBD_FW_VER_V22 "V2.3.22"` (`wican-fw/main/elm327.h:27-28`); the image is **embedded in the ESP32
-binary** (`wican-fw/main/CMakeLists.txt:113` `EMBED_FILES "obd_fw/V2.3.22.txt"`, symbols at
-`wican-fw/main/elm327.c:1370-1371`). On any boot where `VTVERS` does not report the expected version
-it **silently reflashes** the MIC3624 (`elm327_update_obd`, `wican-fw/main/elm327.c:3056`, entering
-the bootloader with `VTDLMIC3422\r` at `:3083`); it also runs when the chip is stuck out of normal
-state, so it doubles as recovery. Forceable over HTTP with
-`{"command":"force_update_obd"}` (`wican-fw/main/config_server.c:1383-1386`).
+`OBD_FW_VER_V22 "V2.3.22"` / `OBD_FW_VER_V24 "V2.3.24"` (`wican-fw/main/elm327.h:27-29`); the
+image is **embedded in the ESP32 binary** — `v4.52p` embeds `V2.3.24`
+(`wican-fw/main/CMakeLists.txt:114`, symbols at `wican-fw/main/elm327.c:1373-1374`) and accepts
+either `V2.3.22` or `V2.3.24` as current (`wican-fw/main/elm327.c:1583`, `:3003`). On any boot
+where `VTVERS` reports neither it **silently reflashes** the MIC3624 (`elm327_update_obd`,
+`wican-fw/main/elm327.c:3059`, entering the bootloader with `VTDLMIC3422\r` at `:3086`); it also
+runs when the chip is stuck out of normal state, so it doubles as recovery. Forceable over HTTP
+with `{"command":"force_update_obd"}` (`wican-fw/main/config_server.c:1383-1386`). Firmware v6
+pins `V2.3.22` again and downgrades a `V2.3.24` chip on its first boot (Trap 4).
 
 **Implication:** the ST command surface canair sees is pinned by the *ESP32* firmware version,
 not by what the chip shipped with. A capability probe should key on the chip reply, not on the WiCAN
 version.
 
-Boot sequence: `wican-fw/main/elm327.c:3466-3492` — hard reset → `elm327_update_obd(false)` →
+Boot sequence: `wican-fw/main/elm327.c:3469-3495` — hard reset → `elm327_update_obd(false)` →
 `elm327_powerpin_commands()` → poll `elm327_chip_get_status()` up to 10 × 200 ms → `uart_flush` →
 `obd_init()`.
 
-UART1 access is serialised by `xuart1_semaphore` (`wican-fw/main/elm327.c:3441`,
-`elm327_lock()` at `:2093-2096`, taken in `elm327_run_command` at `:2536`) — **one mutex around the
+UART1 access is serialised by `xuart1_semaphore` (`wican-fw/main/elm327.c:3444`,
+`elm327_lock()` at `:2096-2099`, taken in `elm327_run_command` at `:2539`) — **one mutex around the
 whole command+response cycle**, and every command begins with
-`uart_flush_input(UART_NUM_1); xQueueReset(uart1_queue);` (`wican-fw/main/elm327.c:2597-2598`).
+`uart_flush_input(UART_NUM_1); xQueueReset(uart1_queue);` (`wican-fw/main/elm327.c:2600-2601`).
 Those two facts are why **pipelining is impossible on this path** regardless of client behaviour: a
 second in-flight request's reply is destroyed by the next command's flush. Full argument in the plan
 doc.
@@ -415,7 +449,7 @@ and a CR is appended only if absent (`:239-243`).
 Two behaviours worth knowing before designing a batching or pipelining scheme:
 
 - `elm327_run_command` returns on the **first** prompt
-  (`wican-fw/main/elm327.c:2656-2658`, `:2703-2705`, `:2769-2771`), so **multiple CR-separated
+  (`wican-fw/main/elm327.c:2659-2661`, `:2706-2708`, `:2772-2774`), so **multiple CR-separated
   commands in one frame do not work** — replies after the first are destroyed by the next command's
   `uart_flush_input`.
 - On mutex contention the router replies the literal text `"Terminal busy\n"` and returns `ESP_OK`
@@ -490,7 +524,7 @@ Wake on Pro: voltage ≥ `sleep_volt + 0.1` held 1 s → restart; or `periodic_w
 (`wican-fw/main/obd.c:362-387`, reading `STSLCS\r`, reprogramming at `:293-317`):
 `STSLVLW >13.50, 1` (wake), `STSLVLS <13.20, N` (sleep), `STSLVl off,off`, `STSLU off, off`,
 `STSLUIT 1200`, `ATZ`. Voltage is read with `ATRV` (`wican-fw/main/obd.c:342-360`).
-`STSLEEP0\r` at `wican-fw/main/elm327.c:2329` sleeps it on demand. Note the local variable names at
+`STSLEEP0\r` at `wican-fw/main/elm327.c:2332` sleeps it on demand. Note the local variable names at
 `wican-fw/main/obd.c:293-317` are **swapped** relative to the commands they build — harmless,
 confusing.
 
@@ -571,7 +605,10 @@ link.
 
 ## Checklist before changing transport code
 
-- [ ] `wican-fw` on `wican-pro`, and the tag diffed against the device's `fw_version`.
+- [ ] `wican-fw` on `wican-pro`, and the tag diffed against the device's `git_version`.
+- [ ] Device firmware generation known (`canair status`); anything that uses a 4.x-only interface
+      (`/ws`, the protocol mode, the legacy HTTP routes, AutoPID sync) is gated through
+      `canlib/wican_firmware.py`'s policy table, not an ad-hoc version check.
 - [ ] Not reading the `!= WICAN_PRO` emulator block, or `wican-fw/main/ws_router.c`.
 - [ ] Clear on which chip the change affects — MIC3624 (`wican-ws`, `elm327-tcp`) or ESP32 TWAI
       (`slcan-tcp`) — and whether it must work on both.
