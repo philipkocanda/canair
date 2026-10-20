@@ -17,6 +17,7 @@ from ruamel.yaml.scalarstring import FoldedScalarString
 from canlib.pids_edit._text import _format_block_scalar
 from canlib.yaml_rt import (
     NOTE_WRAP_WIDTH,
+    dump,
     folded,
     note_should_inline,
     round_trip_yaml,
@@ -55,7 +56,10 @@ class TestWrapNoteLines:
 
     def test_preserves_paragraph_breaks(self):
         lines = wrap_note_lines("para one\n\npara two", width=40)
-        assert "" in lines  # blank line kept as a paragraph break
+        assert lines == ["para one", "", "", "para two"]  # one blank line per newline
+
+    def test_preserves_single_line_breaks(self):
+        assert wrap_note_lines("line one\nline two", width=40) == ["line one", "", "line two"]
 
     def test_long_token_not_broken(self):
         url = "https://example.com/" + "a" * 120
@@ -111,3 +115,19 @@ class TestFormatBlockScalarTextPath:
         # A short note with ": " must be quoted when rendered inline.
         lines = _format_block_scalar("    ", "notes", "see this: a note")
         assert yaml.safe_load("\n".join(lines))["notes"] == "see this: a note"
+
+    def test_line_breaks_round_trip(self):
+        # Each newline in the value is one blank line in the folded block, so a
+        # single break and a paragraph break both survive a parse.
+        for sep in ("\n", "\n\n"):
+            val = LONG + sep + "Source: https://example.com/profile.json"
+            doc = yaml.safe_load("\n".join(_format_block_scalar("    ", "notes", val)))
+            assert doc["notes"] == val
+
+    def test_matches_the_ruamel_rendering(self):
+        val = LONG + "\n\nSource: https://example.com/profile.json"
+        m = CommentedMap()
+        m["notes"] = folded(val, key_indent=0)
+        buf = io.StringIO()
+        dump(m, buf)
+        assert _format_block_scalar("", "notes", val) == buf.getvalue().splitlines()

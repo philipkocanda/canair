@@ -64,8 +64,13 @@ def test_adds_missing_field(pids_dir):
 
 def test_multiline_notes_roundtrip(pids_dir):
     set_identity_field("TESTECU", "notes", "line one\nline two", pids_dir=pids_dir)
-    # Folded block scalar collapses the newline to a space.
-    assert _identity(pids_dir)["notes"].strip() == "line one line two"
+    # Each newline is rendered as a blank line in the folded block, so it survives.
+    assert _identity(pids_dir)["notes"] == "line one\nline two"
+
+
+def test_paragraph_break_in_notes_roundtrips(pids_dir):
+    set_identity_field("TESTECU", "notes", "para one\n\npara two", pids_dir=pids_dir)
+    assert _identity(pids_dir)["notes"] == "para one\n\npara two"
 
 
 def test_rejects_empty_value(pids_dir):

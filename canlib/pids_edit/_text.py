@@ -355,7 +355,7 @@ def _format_block_scalar(indent: str, key: str, value: str) -> list[str]:
 
     A short single-line value stays an inline scalar (``key: value``); a longer
     or multi-line value becomes a folded ``key: >-`` block, word-wrapped at
-    ~``NOTE_WRAP_WIDTH`` columns (blank lines preserved as paragraph breaks).
+    ~``NOTE_WRAP_WIDTH`` columns (line breaks preserved, one blank line per newline).
     Folding is value-preserving, so the note round-trips to the original text.
     """
     from ..yaml_rt import NOTE_WRAP_WIDTH, note_should_inline, wrap_note_lines

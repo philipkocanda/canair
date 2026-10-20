@@ -46,23 +46,25 @@ def note_should_inline(value: str, prefix_len: int) -> bool:
 
 
 def wrap_note_lines(value: str, width: int) -> list[str]:
-    """Word-wrap a note body to ``width``, preserving blank-line paragraph breaks.
+    """Word-wrap a note body to ``width``, preserving its line breaks.
 
     Long unbreakable tokens (URLs, hex) are left intact (they may overflow onto
     their own line). The result is folded-scalar-safe: consecutive non-blank
-    lines fold back to spaces, so it round-trips to the original text.
+    lines fold back to spaces, and each newline in ``value`` becomes one blank
+    line (a folded scalar reads *n* blank lines as *n* newlines), so it
+    round-trips to the original text — the same rendering ruamel gives
+    :func:`folded`.
     """
     out: list[str] = []
-    for ln in value.strip("\n").splitlines() or [""]:
+    for i, ln in enumerate(value.strip("\n").split("\n")):
+        if i:
+            out.append("")
         stripped = ln.rstrip()
-        if not stripped:
-            out.append("")  # paragraph break (folded scalar → newline)
-            continue
-        out.extend(
-            textwrap.wrap(stripped, width=width, break_long_words=False, break_on_hyphens=False)
-            or [""]
-        )
-    return out
+        if stripped:
+            out.extend(
+                textwrap.wrap(stripped, width=width, break_long_words=False, break_on_hyphens=False)
+            )
+    return out or [""]
 
 
 def _fold_positions(value: str, width: int) -> list[int]:
