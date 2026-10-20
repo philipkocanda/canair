@@ -8,7 +8,7 @@ The repo ships these vehicle profiles under [`profiles/`](https://github.com/phi
 
 | Profile | Vehicle | ECUs | PIDs | Params | Verified | Maturity | Source |
 |---|---|---:|---:|---:|---:|---|---|
-| [ioniq-2017](ioniq-2017.md) | Hyundai Ioniq 2017 | 30 | 99 | 370 | 232 | mature | [`profiles/ioniq-2017/`](https://github.com/philipkocanda/canair/tree/main/profiles/ioniq-2017) |
+| [ioniq-2017](ioniq-2017.md) | Hyundai Ioniq 2017 | 30 | 99 | 369 | 232 | mature | [`profiles/ioniq-2017/`](https://github.com/philipkocanda/canair/tree/main/profiles/ioniq-2017) |
 | `ioniq-5-2022` | Hyundai Ioniq 5 2022 | 1 | 1 | 1 | 1 | seed / stub | [`profiles/ioniq-5-2022/`](https://github.com/philipkocanda/canair/tree/main/profiles/ioniq-5-2022) |
 | `nissan-leaf-ze1` | Nissan Leaf ZE1 40 kWh (2018-2022) | 3 | 6 | 14 | 8 | early | [`profiles/nissan-leaf-ze1/`](https://github.com/philipkocanda/canair/tree/main/profiles/nissan-leaf-ze1) |
 | `xpeng-g6` | Xpeng G6 (87.5 kWh) | 1 | 11 | 194 | 194 | mature | [`profiles/xpeng-g6/`](https://github.com/philipkocanda/canair/tree/main/profiles/xpeng-g6) |

@@ -316,7 +316,6 @@
         "HVAC_SET_TEMP_DRIVER": "B44",
         "HVAC_SET_TEMP_PASSENGER": "B45",
         "HVAC_ON_FLAG": "B23",
-        "HVAC_STARTUP_FLAG": "B22",
         "HVAC_COOLING_MODE_B25": "B25",
         "HVAC_HEAT_MODE": "B06",
         "HVAC_DEFROST_FLAGS": "(B58 << 8) | B59",
