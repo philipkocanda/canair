@@ -12,7 +12,10 @@ lands on disk. Builds on the shared primitives in
 from __future__ import annotations
 
 import re
+import textwrap
 from pathlib import Path
+
+import yaml
 
 from ._text import (
     PidsEditError,
@@ -286,8 +289,13 @@ def upsert_parameter(
             block_text = text[e_start:e_end]
             for key in cleared:
                 block_text = _remove_field_line(block_text, key, indent=10)
+            current = (yaml.safe_load(textwrap.dedent(block_text)) or {}).get(param_name) or {}
             for key in PARAM_FIELD_ORDER:
                 if key not in fields:
+                    continue
+                if key == "expression" and current.get("expression") == fields[key]:
+                    # Re-rendering an unchanged expression would re-normalize its quoting
+                    # and churn the diff of an edit that only touches other fields.
                     continue
                 if key == "notes":
                     repl = _format_block_scalar(" " * 10, "notes", str(fields[key]))

@@ -943,3 +943,15 @@ class TestUpsertSendTo:
     def test_an_empty_value_on_a_new_signal_writes_nothing(self, pids_dir):
         upsert_parameter("TESTECU", "2101", "POWER", "B4", send_to="", pids_dir=pids_dir)
         assert "send_to" not in _params(pids_dir, "2101")["POWER"]
+
+
+class TestUpsertKeepsUnchangedExpression:
+    def test_a_notes_edit_leaves_the_quoted_expression_untouched(self, pids_dir):
+        assert 'expression: "B3"' in (pids_dir / "test.yaml").read_text()
+        upsert_parameter("TESTECU", "2101", "EXISTING", "B3", notes="new note", pids_dir=pids_dir)
+        assert 'expression: "B3"' in (pids_dir / "test.yaml").read_text()
+        assert "new note" in _params(pids_dir, "2101")["EXISTING"]["notes"]
+
+    def test_a_changed_expression_is_still_written(self, pids_dir):
+        upsert_parameter("TESTECU", "2101", "EXISTING", "B4", pids_dir=pids_dir)
+        assert _params(pids_dir, "2101")["EXISTING"]["expression"] == "B4"
