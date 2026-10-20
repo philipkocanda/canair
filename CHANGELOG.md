@@ -15,6 +15,20 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [1.24.0](https://github.com/philipkocanda/canair/compare/v1.23.0...v1.24.0) (2026-10-20)
+
+
+### Added
+
+* **transport:** set the ELM327 receive filter and flow control per ECU ([88c7522](https://github.com/philipkocanda/canair/commit/88c752273f1feeeccf6777991141b38e00bf90b0))
+* **transport:** set the ELM327 receive filter and flow control per ECU ([86edd67](https://github.com/philipkocanda/canair/commit/86edd675f9cd90858c133e1112d60822e971e2bc))
+
+
+### Fixed
+
+* **pids:** keep line breaks in notes written by the text editors ([216b814](https://github.com/philipkocanda/canair/commit/216b81458525ca589f08a37a1dfa718231f1d1af))
+* **pids:** stop rm-pid, rm-param and rm-identity leaving a blank line ([1dd5728](https://github.com/philipkocanda/canair/commit/1dd57280adc0872d725e0790ae3cd04c2ae53535))
+
 ## [1.23.0](https://github.com/philipkocanda/canair/compare/v1.22.0...v1.23.0) (2026-10-20)
 
 
