@@ -245,6 +245,19 @@ mode: switching to `slcan` sets `slcan-tcp`, switching to `elm327` sets
 `wican-ws` (it prints the `old -> new` change, or says it's already aligned).
 Pass `--no-transport` to switch the device mode without touching the config.
 
+### Firmware generation check
+
+Before a live command uses a WiCAN interface that only firmware 4.x has, canair
+sends the device one short, side-effect-free `GET` to learn its firmware
+generation, and refuses or warns on firmware v6 (see
+[Firmware compatibility](../getting-started/connect-device.md#firmware-compatibility)).
+Turn the probe off if you know what you're running:
+
+```yaml
+transport:
+  firmware_check: true   # default true; false skips the probe
+```
+
 ## Example
 
 ```yaml

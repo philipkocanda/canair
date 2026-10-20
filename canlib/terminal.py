@@ -70,8 +70,19 @@ class WiCANTerminal(Elm327Terminal):
         return cast(WebSocketChannel, self._channel).url
 
 
-def reboot_wican(host: str):
-    """Reboot WiCAN device via HTTP POST to restore AutoPID mode."""
+def reboot_wican(host: str) -> bool:
+    """Reboot a WiCAN 4.x device via HTTP POST to restore AutoPID mode.
+
+    Returns True only when the device accepted the request. Skipped with a note
+    on firmware v6, which has no ``/system_reboot`` and resumes AutoPID itself.
+    """
+    from .wican_firmware import check, print_verdict
+
+    verdict = check(host, "reboot")
+    if verdict.level == "skip":
+        print_verdict(verdict)
+        return False
+
     if not HAS_REQUESTS:
         print(
             "  Cannot reboot: 'requests' module not installed. Run: pip3 install requests",
@@ -87,8 +98,11 @@ def reboot_wican(host: str):
     url = f"http://{host}/system_reboot"
     try:
         resp = _requests_mod.post(url, data="reboot", timeout=5)
-        print(f"Rebooting WiCAN... ({resp.status_code})")
-        return True
     except _requests_mod.RequestException as e:
         print(f"  FAILED to reboot: {e}", file=sys.stderr)
         return False
+    if not resp.ok:
+        print(f"  FAILED to reboot: HTTP {resp.status_code} from {url}", file=sys.stderr)
+        return False
+    print(f"Rebooting WiCAN... ({resp.status_code})")
+    return True

@@ -50,6 +50,7 @@ from canlib.autopid_profile import (
 from canlib.commands._group import group_help
 from canlib.response_frames import stored_count
 from canlib.transport.config import TransportType
+from canlib.wican_firmware import Surface
 
 
 # Declared optional so the ImportError fallback to None is type-legal. The
@@ -93,6 +94,21 @@ def _require_pro(operation: str) -> int | None:
         file=sys.stderr,
     )
     return 2
+
+
+def _require_v4_api(base_url: str, surface: Surface) -> int | None:
+    """Return an error code if the device's firmware can't serve this command.
+
+    These commands drive WiCAN 4.x HTTP routes that firmware v6 removed (and for
+    AutoPID, a v6 write in the 4.x format would silently wipe the device's
+    table), so refuse them on v6 before any request is sent. A 4.x version
+    outside the tested range only warns.
+    """
+    from canlib.wican_firmware import check, print_verdict
+
+    verdict = check(base_url, surface)
+    print_verdict(verdict)
+    return 2 if verdict.refused else None
 
 
 def _profile_out() -> Path:
@@ -285,9 +301,13 @@ def upload_profile(base_url: str, device_payload: dict, reboot: bool = False) ->
         url = f"{base_url}/system_reboot"
         try:
             resp = req.post(url, data="reboot", timeout=WICAN_TIMEOUT)
-            print(f"  Rebooting WiCAN... ({resp.status_code})")
         except req.RequestException as e:
             print(f"  FAILED to reboot: {e}", file=sys.stderr)
+            return
+        if resp.ok:
+            print(f"  Rebooting WiCAN... ({resp.status_code})")
+        else:
+            print(f"  FAILED to reboot: HTTP {resp.status_code} from {url}", file=sys.stderr)
 
 
 def print_stats(data: dict) -> None:
@@ -451,7 +471,7 @@ def _add_autopid_parser(groups) -> argparse.ArgumentParser:
         "upload",
         help="Generate + upload the AutoPID profile to the device (Pro)",
         description="Generate the AutoPID profile and upload it to the WiCAN "
-        "device (POST /store_car_data). WiCAN Pro only.",
+        "device (POST /store_car_data). WiCAN Pro on firmware 4.x only.",
     )
     upload.add_argument("--reboot", action="store_true", help="Reboot the device after upload")
     _add_generate_args(upload)
@@ -462,7 +482,8 @@ def _add_autopid_parser(groups) -> argparse.ArgumentParser:
         "download",
         help="Download the device's current AutoPID profile (Pro)",
         description="Download the WiCAN device's current AutoPID profile "
-        "(GET /load_auto_pid_car_data) and print it, normalized. WiCAN Pro only.",
+        "(GET /load_auto_pid_car_data) and print it, normalized. "
+        "WiCAN Pro on firmware 4.x only.",
     )
     _add_wican_arg(download)
     download.set_defaults(_wican_func=_cmd_autopid_download)
@@ -471,7 +492,8 @@ def _add_autopid_parser(groups) -> argparse.ArgumentParser:
         "diff",
         help="Download + diff the device profile against the generated one (Pro)",
         description="Download the device's current AutoPID profile and show a "
-        "parameter-level diff against the freshly generated one. WiCAN Pro only.",
+        "parameter-level diff against the freshly generated one. "
+        "WiCAN Pro on firmware 4.x only.",
     )
     _add_generate_args(diff)
     _add_wican_arg(diff)
@@ -499,7 +521,7 @@ def _add_mode_parser(groups) -> argparse.ArgumentParser:
         help="Show or set the WiCAN device protocol/mode",
         description="Inspect or switch the WiCAN device's operating protocol "
         "(elm327/slcan/auto_pid/…). This is the device's own mode, distinct "
-        "from the AutoPID profile.",
+        "from the AutoPID profile. Firmware 4.x only: v6 has no protocol mode.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     sub = parser.add_subparsers(dest="mode_command", metavar="<action>")
@@ -518,7 +540,7 @@ def _add_mode_parser(groups) -> argparse.ArgumentParser:
         description=(
             "Switch the WiCAN device to MODE and reboot it, then align canair's "
             "transport to match (slcan -> slcan-tcp, elm327 -> wican-ws). "
-            "WiCAN Pro only.\n\n"
+            "WiCAN Pro on firmware 4.x only.\n\n"
             "Valid modes:\n"
             "  slcan        raw CAN — canair drives ISO-TP client-side; enables sniff\n"
             "  elm327       ELM327 terminal — the dongle runs ISO-TP\n"
@@ -602,8 +624,12 @@ def _cmd_autopid_upload(args) -> int:
     if guard is not None:
         return guard
 
-    data, profile = _generate(args)
     base_url = get_wican_url(args.wican)
+    guard = _require_v4_api(base_url, "autopid-sync")
+    if guard is not None:
+        return guard
+
+    data, profile = _generate(args)
 
     print("\nConverting to device format...")
     device_payload = to_device_format(profile, data)
@@ -623,6 +649,9 @@ def _cmd_autopid_download(args) -> int:
         return guard
 
     base_url = get_wican_url(args.wican)
+    guard = _require_v4_api(base_url, "autopid-sync")
+    if guard is not None:
+        return guard
     print(f"Downloading current AutoPID profile from {base_url}...")
     current_raw = download_profile(base_url)
     if current_raw:
@@ -638,8 +667,12 @@ def _cmd_autopid_diff(args) -> int:
     if guard is not None:
         return guard
 
-    _data, profile = _generate(args)
     base_url = get_wican_url(args.wican)
+    guard = _require_v4_api(base_url, "autopid-sync")
+    if guard is not None:
+        return guard
+
+    _data, profile = _generate(args)
     print(f"\nDownloading current AutoPID profile from {base_url}...")
     current_raw = download_profile(base_url)
     show_diff(current_raw, profile)
@@ -656,6 +689,9 @@ def _cmd_mode_show(args) -> int:
     from canlib.wican_mode import current_protocol
 
     base_url = get_wican_url(args.wican)
+    guard = _require_v4_api(base_url, "wican-mode")
+    if guard is not None:
+        return guard
     try:
         proto = current_protocol(base_url)
     except Exception as e:
@@ -705,6 +741,9 @@ def _cmd_mode_set(args) -> int:
         return guard
 
     base_url = get_wican_url(args.wican)
+    guard = _require_v4_api(base_url, "wican-mode")
+    if guard is not None:
+        return guard
     target = args.protocol
     try:
         cur = current_protocol(base_url)

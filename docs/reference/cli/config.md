@@ -122,6 +122,7 @@ known keys:
   transport.ws_ping_interval
   transport.stale_cycles_before_reconnect
   transport.expected_responses
+  transport.firmware_check
 
 Every key is documented in `canair config example` (config.example.yaml) and https://philipkocanda.github.io/canair/reference/config/
 

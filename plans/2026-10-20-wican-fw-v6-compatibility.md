@@ -1,8 +1,10 @@
 # WiCAN firmware v6: compatibility audit and a firmware-generation guard
 
-Status: **PROPOSED** (2026-10-20). Phase 1 (detect and warn) is ready to implement. Phase 2
-(real v6 support) needs the open questions below answered on a v6 device first. Nothing here has
-been run against v6 yet: every finding comes from reading the source.
+Status: **PHASE 1 IMPLEMENTED** (2026-10-20), **not yet verified on a device**. Phase 1 (detect
+and warn, §1a–§1e) is in `canlib/wican_firmware.py` and the surfaces in §1b; it has been tested
+only against stubbed HTTP replies, never against a real v4.52 or v6 device. Phase 2 (real v6
+support) still needs the open questions below answered on a v6 device first. Every finding still
+comes from reading the source.
 
 WiCAN Pro firmware **6.0.0-beta.1** (tag `v6.0.0p-beta.1`, 2026-10-20) is a **ground-up
 rewrite, not an incremental release**. Almost every device interface canair depends on has

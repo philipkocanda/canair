@@ -16,7 +16,9 @@ reachable/usable?" at a glance, with actionable hints and Unix-style exit codes.
 Also reports the running canair version — which, when canair is running from a
 git checkout rather than an installed release, names that checkout's branch and
 short commit (``1.15.0+main.343b244``) — and, when the WiCAN HTTP API answers,
-the device's firmware/hardware version.
+the device's firmware generation, version and hardware version. On WiCAN
+firmware v6 it also says which canair transports work there, and exits 2 when
+the selected one cannot.
 
 It reports the device a live command would actually use: like ``read``/
 ``monitor`` it resolves the whole candidate list and runs the same connect-time

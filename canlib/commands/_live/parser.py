@@ -83,7 +83,10 @@ def add_connection_args(parser: argparse.ArgumentParser) -> None:
         help="Print per-ECU/PID round-trip timing stats on exit (to stderr)",
     )
     parser.add_argument(
-        "--reboot", action="store_true", help="Reboot WiCAN after session to restore AutoPID mode"
+        "--reboot",
+        action="store_true",
+        help="Reboot WiCAN after session to restore AutoPID mode (skipped on firmware v6, "
+        "which resumes AutoPID by itself)",
     )
     parser.add_argument(
         "--unsafe",

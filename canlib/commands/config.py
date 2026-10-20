@@ -61,6 +61,7 @@ _KNOWN_KEYS = (
     "transport.ws_ping_interval",
     "transport.stale_cycles_before_reconnect",
     "transport.expected_responses",
+    "transport.firmware_check",
 )
 
 

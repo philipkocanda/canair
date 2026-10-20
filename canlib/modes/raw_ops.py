@@ -26,12 +26,18 @@ async def run_raw(args, transport, pids_data) -> int:
         print("error: transport has no host configured.", file=sys.stderr)
         return 2
 
-    # Explicit-mode policy: the device must already be serving SLCAN.
-    try:
-        require_protocol(host, "slcan", transport_name="slcan-tcp")
-    except ModeError as e:
-        print(f"error: {e}", file=sys.stderr)
-        return 2
+    # Explicit-mode policy: the device must already be serving SLCAN. Firmware
+    # v6 has no protocol mode to check, so it gets a setup warning instead.
+    from ..wican_firmware import compatibility, detect, print_verdict
+
+    firmware = detect(host)
+    print_verdict(compatibility(firmware, "slcan-tcp"))
+    if firmware.generation != "v6":
+        try:
+            require_protocol(host, "slcan", transport_name="slcan-tcp")
+        except ModeError as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 2
 
     port, bitrate = transport.resolve_device_defaults(pids_data.get("can_bitrate"))
 
@@ -42,7 +48,7 @@ async def run_raw(args, transport, pids_data) -> int:
     from ..wican_mode import require_slcan_reachable
 
     try:
-        require_slcan_reachable(host, port)
+        require_slcan_reachable(host, port, firmware=firmware)
     except ModeError as e:
         print(f"error: {e}", file=sys.stderr)
         return 2

@@ -143,3 +143,10 @@ default_wican: home
 #                              # and a mismatch realigns, retries plain, and
 #                              # gives up on that request for the session. Set
 #                              # false only to rule it out while debugging.
+#
+#   # WiCAN firmware generation check. Before using a 4.x-only interface (the
+#   # /ws terminal, the SLCAN mode, AutoPID sync, reboot), live commands send the
+#   # WiCAN one short GET to learn its firmware. Firmware v6 dropped most of
+#   # those interfaces, so canair then refuses or warns with the fix instead of
+#   # failing obscurely. See docs/getting-started/connect-device.md.
+#   firmware_check: true       # default true; false skips the probe entirely

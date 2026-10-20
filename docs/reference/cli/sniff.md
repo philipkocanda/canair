@@ -21,7 +21,9 @@ options:
   -h, --help           show this help message and exit
   --wican WICAN        WiCAN address: ap or IP (default: config transport.host
                        / default_wican=ap)
-  --listen-only        Open the bus silently (no ACK/TX) — pure passive sniff
+  --listen-only        Open the bus silently (no ACK/TX) — pure passive sniff.
+                       Refused on WiCAN firmware v6, which ignores the SLCAN
+                       listen-only command
   --filter IDS         Comma-separated hex CAN IDs to capture (default: all)
   --duration DURATION  Stop after N seconds
   --save FILE          Log all frames to FILE (.asc/.blf/.csv)

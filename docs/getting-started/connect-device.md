@@ -54,6 +54,55 @@ canair config set wican_model classic
 reverse-engineering — query, scan, discover, decode, DTCs, sniff, and generating
 AutoPID JSON — works on **both** over the default raw-SLCAN transport.
 
+## Firmware compatibility
+
+canair is built and tested against **WiCAN firmware 4.x**, specifically
+**4.50 to 4.52**. (4.52 only changes the OBD chip firmware it bundles, to
+`V2.3.24`, which hasn't been measured yet.) A 4.x version outside that range
+still works, with a one-line warning.
+
+**WiCAN Pro firmware v6** (6.0.0, in beta) is a rewrite rather than an update.
+Before using a 4.x-only interface, canair sends the device one short, read-only
+`GET` to learn which generation it runs, then refuses or warns with the fix
+instead of failing obscurely:
+
+| On firmware v6 | What canair does |
+|---|---|
+| `elm327-tcp` transport | **Works.** v6 serves a plain ELM327 socket on port 35000, on by default. canair prints a note: the socket is shared, and AutoPID (if enabled) takes the chip back after 10 s without a command |
+| `wican-ws` transport | **Refused.** v6 has no `/ws` terminal; use `elm327-tcp` |
+| `slcan-tcp` transport (the default) | **Warns, then tries.** A stock v6 device serves no SLCAN until you enable three settings (below) |
+| `sniff --listen-only` | **Refused.** v6 ignores SLCAN's listen-only command; set `can_manager.silent` on the device instead |
+| `wican mode show`/`set` | **Refused.** v6 has no protocol mode |
+| `wican autopid upload`/`download`/`diff` | **Refused.** v6 changed the AutoPID format, and sending it the 4.x one would wipe its table. `autopid write` still works |
+| `--reboot` | **Skipped.** v6 resumes AutoPID by itself |
+
+So on v6, point canair at the ELM327 socket:
+
+```bash
+canair config set devices.home.transport elm327-tcp
+canair config set devices.home.port 35000
+canair status                                        # confirm it's usable
+```
+
+To use `slcan-tcp` on v6 anyway, enable all three of these in the device's
+settings, then submit them (the device reboots):
+
+1. **`socket_manager`**: the `slcan0` server (TCP 3333).
+2. **`bridge_manager`**: a bridge from `can` to `slcan0` with translator `slcan`.
+3. **`can_manager`**: enabled.
+
+Without the bridge (or with `can_manager` off), the SLCAN port accepts the
+connection and then silently discards everything, so every ECU looks dead.
+
+`canair status` shows the generation, version and build it found, and exits `2`
+when the selected transport can't work on that firmware. If you know what you're
+running, `canair config set transport.firmware_check false` turns the check off.
+
+!!! warning "Before upgrading a WiCAN to v6"
+    Upgrading from 4.x **erases the device's saved configuration**, stored files
+    and logs. Going back means uploading the 4.x image by hand, after which the
+    device starts with factory defaults.
+
 ## Using a generic ELM327 clone (no WiCAN)
 
 Don't have a WiCAN? A generic **WiFi ELM327 adapter** (Kiwi, vLinker, OBDLink, or
@@ -72,7 +121,8 @@ Join the dongle's WiFi network first (many clones host their own access point).
 The ELM327 protocol engine is shared with `wican-ws`, so every canair command
 works the same — the dongle performs ISO-TP. There's no HTTP config API on a
 generic clone, so `canair status` reports transport reachability by probing the
-ELM socket directly (no device/firmware block).
+ELM socket directly (it shows a firmware block only for a WiCAN running
+[firmware v6](#firmware-compatibility)).
 
 !!! warning "Third-party dongles are best-effort"
     The **WiCAN is the recommended and best-tested adapter** for this project.

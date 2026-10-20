@@ -74,6 +74,10 @@ _DEFAULT_STALE_CYCLES = 3
 # the plain request form. Only the ELM327 transports read it — the raw path runs
 # its own ISO-TP and has no adapter to instruct.
 _DEFAULT_EXPECTED_RESPONSES = True
+# Whether live commands ask a WiCAN which firmware generation it runs before using
+# a 4.x-only interface (`transport.firmware_check`; canlib/wican_firmware.py). Off
+# skips the probe entirely, for users who know what they're running.
+_DEFAULT_FIRMWARE_CHECK = True
 
 # WiCAN hardware model. AutoPID vehicle profiles and the wican-ws ELM327
 # terminal are Pro-only; the classic (non-Pro) WiCAN only supports raw SLCAN.
@@ -506,6 +510,23 @@ def expected_responses() -> bool:
     block = raw_block if isinstance(raw_block, dict) else {}
     value = block.get("expected_responses", _DEFAULT_EXPECTED_RESPONSES)
     return _DEFAULT_EXPECTED_RESPONSES if value is None else bool(value)
+
+
+def firmware_check() -> bool:
+    """Whether to probe a WiCAN's firmware generation before using its interfaces.
+
+    Read from ``transport.firmware_check`` (default True). The probe is a short,
+    side-effect-free ``GET`` that lets canair refuse or warn on WiCAN firmware v6,
+    which dropped most of the 4.x interfaces. Set it false to skip the probe.
+    """
+    raw_block = load_config().get("transport")
+    block = raw_block if isinstance(raw_block, dict) else {}
+    value = block.get("firmware_check", _DEFAULT_FIRMWARE_CHECK)
+    if value is None:
+        return _DEFAULT_FIRMWARE_CHECK
+    if isinstance(value, str):
+        return value.strip().lower() not in ("false", "no", "off", "0")
+    return bool(value)
 
 
 def wican_model() -> str:

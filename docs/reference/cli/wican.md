@@ -78,7 +78,7 @@ options:
 ```
 usage: canair wican mode [-h] <action> ...
 
-Inspect or switch the WiCAN device's operating protocol (elm327/slcan/auto_pid/…). This is the device's own mode, distinct from the AutoPID profile.
+Inspect or switch the WiCAN device's operating protocol (elm327/slcan/auto_pid/…). This is the device's own mode, distinct from the AutoPID profile. Firmware 4.x only: v6 has no protocol mode.
 
 positional arguments:
   <action>

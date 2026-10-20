@@ -317,6 +317,25 @@ class TestTransportConfigProps:
         t = TransportConfig("slcan-tcp", "1.2.3.4")
         assert t.resolve_device_defaults(250000) == (3333, 250000)
 
+    @pytest.mark.parametrize(("status", "noisy"), [(404, False), (500, True)])
+    def test_missing_config_route_is_silent(self, monkeypatch, capsys, status, noisy):
+        import requests
+
+        from canlib.transport.config import TransportConfig
+
+        # WiCAN firmware v6 (or a non-WiCAN host) has no /load_config: that is
+        # not a failure worth reporting, unlike a device that errors on it.
+        resp = requests.Response()
+        resp.status_code = status
+
+        def boom(base_url, timeout=10.0):
+            raise requests.HTTPError(f"{status} Error", response=resp)
+
+        monkeypatch.setattr("canlib.wican_mode.load_config", boom)
+        t = TransportConfig("slcan-tcp", "1.2.3.4")
+        assert t.resolve_device_defaults() == (3333, 500000)
+        assert ("could not read device config" in capsys.readouterr().err) is noisy
+
 
 class TestTransportTypeVocabulary:
     """`TransportType` is the single source of truth for the backend vocabulary.

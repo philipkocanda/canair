@@ -16,6 +16,9 @@ Everything ships as a single installable CLI, **`canair`**. Vehicle data lives i
 
 **Both the WiCAN Pro and the classic (non-Pro) WiCAN are supported** over the default raw-SLCAN transport. A few features are Pro-only (AutoPID device sync, `wican mode set`, the `wican-ws` transport); set `wican_model: classic` and canair cleanly refuses them. See [connecting your dongle](https://philipkocanda.github.io/canair/getting-started/connect-device/).
 
+**WiCAN firmware 4.x is supported; on the v6 rewrite only `elm327-tcp` works today** — see
+[firmware compatibility](https://philipkocanda.github.io/canair/getting-started/connect-device/#firmware-compatibility).
+
 > **📖 Documentation:** **[philipkocanda.github.io/canair](https://philipkocanda.github.io/canair/)** —
 > [Getting started](https://philipkocanda.github.io/canair/getting-started/install/) · [**Bring your own car**](https://philipkocanda.github.io/canair/bring-your-own-car/overview/) (the full new-vehicle walkthrough) · [Concepts](https://philipkocanda.github.io/canair/concepts/architecture/) · [Reference](https://philipkocanda.github.io/canair/reference/config/). (Source in [`docs/`](docs/index.md).)
 

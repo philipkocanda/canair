@@ -78,6 +78,30 @@ def _reset_active_profile():
     clear_cache()
 
 
+@pytest.fixture(autouse=True)
+def _no_firmware_probe(monkeypatch):
+    """Keep the WiCAN firmware probe off the network.
+
+    Every live connect and ``canair status`` now asks the device which firmware
+    it runs. Left alone, a test that drives one of those paths would send a real
+    HTTP request to whatever host it resolved (and wait out its timeout). The
+    stub fails like an unreachable host, so the probe reports ``unknown`` and
+    behaviour is exactly as before; tests of the probe itself install their own
+    ``_fetch``. The memo is cleared so one test's device never leaks into another.
+    """
+    import requests
+
+    import canlib.wican_firmware as wican_firmware
+
+    def _unreachable(url, timeout):
+        raise requests.ConnectionError(f"network disabled in tests: {url}")
+
+    wican_firmware.clear_cache()
+    monkeypatch.setattr(wican_firmware, "_fetch", _unreachable)
+    yield
+    wican_firmware.clear_cache()
+
+
 @pytest.fixture(scope="session", autouse=True)
 def _isolate_event_log(tmp_path_factory):
     """Redirect the central diagnostics event log to a temp file for the suite.

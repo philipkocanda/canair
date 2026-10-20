@@ -189,7 +189,10 @@ class TransportConfig:
         try:
             return load_config(resolve_wican_url(self.host)) or {}
         except Exception as e:  # best-effort — fall back to conventional defaults
-            print(f"  (could not read device config for defaults: {e})", file=sys.stderr)
+            # No such route (WiCAN firmware v6, or not a WiCAN at all) is not worth
+            # a message: there is simply no device config to read.
+            if getattr(getattr(e, "response", None), "status_code", None) != 404:
+                print(f"  (could not read device config for defaults: {e})", file=sys.stderr)
             return {}
 
 
