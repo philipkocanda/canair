@@ -16,10 +16,8 @@ BMS:
     calibration: "4604"  # KWP2000 1A8D
     id_protocol: KWP2000  # 1Axx
     notes: >-
-      1A80 firmware build date 2008-07-09 (likely platform date, not unit manufacture). Air-cooled
-      battery pack — all Ioniq 28 kWh variants use air cooling, no liquid thermal management like on the 38 kWh facelift.
-      When the cells get hot after DCFC, cabin air is forced through the pack by a fan in the trunk which is controlled by the BMS.
-      The air inlet is under the middle rear seat, the outlet is in the right rear wheel well.
+      1A80 firmware build date reads 2008-07-09. Air-cooled pack: a BMS-controlled fan in the trunk
+      draws cabin air in under the middle rear seat and out through the right rear wheel well.
   vehicle_states: [READY, CHARGING]
   pids:
     2101:
@@ -35,9 +33,7 @@ BMS:
           min: "0"
           max: "100"
           verified: true
-          notes: 
-            BMS state of charge (raw, not display-adjusted)
-            Ranges between 5-95%
+          notes: Raw BMS state of charge (not display-adjusted; see SOC_DISP).
 
         BATTERY_POWER:
           expression: "(([B18:B19]/10) * (((S15 << 8) | B17)/10)) / 1000"
@@ -66,11 +62,8 @@ BMS:
           max: "300"
           verified: true
           notes: >-
-            Signed 16-bit, negative = charging. High byte B15 (signed), PCI at B16, low byte B17 (unsigned).
-            Fixed 2026-10-19: the low byte was previously decoded as signed (S17), which shifted every value
-            whose low byte is >= 0x80 by -25.6 A (e.g. +15.0 A read as -10.6 A). Only -25.6..0 A (AC charging)
-            decoded correctly; HA history had zero positive samples with a low byte >= 0x80 out of 618.
-            Bounds widened to +/-300 A: with the fixed decode, captures reach +276.7 A (95.9 kW at 346.5 V) under hard acceleration.
+            Signed 16-bit: high byte B15 signed, low byte B17 unsigned (B16 is a PCI byte). Negative
+            = charging. Captures reach -174 A (DC charging) and +276.7 A (hard acceleration).
 
         MAX_CELL_VOLTAGE:
           expression: "B30*0.02"
@@ -118,17 +111,9 @@ BMS:
           max: ""
           verified: true
           notes: >-
-            AC / EVSE-PLUG PRESENCE ONLY - narrowed 2026-08-08 from two complementary observations.
-            (1) DC: b5 stays 0 through the entire 16:31:47-16:44:28 CCS fast charge (n=50,
-            distinct=1) even at -173 A / 64 kW with the connector physically latched, so it is not a
-            general 'a charger is connected' flag. (2) AC cable, no energy: 17:53-18:30 the car sat
-            on a home EVSE that only supplies power on a schedule; b5=1 while CHARGING (b7)=0 and
-            BMS_MAIN_RELAY (b0)=0 (n=31, byte 0x20), with OBC_PILOT_DUTY 100% (pilot high, no PWM
-            current offer) and contactors open. So b5 tracks AC cable/pilot PRESENCE, not energy
-            flow - it is set whether or not the EVSE is delivering. Do not use it to detect charging
-            of either kind: use CHARGING (b7) for AC energy flow and CHARGING_DC (b6) for DC. Set in
-            0x20 (AC plugged, contactors open) and 0xA3 (AC charging). Backs the PLUGGED state
-            predicate.
+            Set while an AC cable is plugged in, whether or not the EVSE delivers energy
+            (2026-08-08: 1 with CHARGING 0, contactors open and pilot duty 100 %). Clear throughout
+            a CCS fast charge (2026-08-08, n=50). Backs the PLUGGED state predicate.
           source: canair analysis 2026-08-08 (CCS DCFC + scheduled home-EVSE wait)
         CHARGING_DC:
           expression: B14:6
@@ -138,12 +123,8 @@ BMS:
           max: ""
           verified: true
           notes: >-
-            CONFIRMED 2026-08-08 on this vehicle - previously community lineage only, never observed
-            set. During the 16:31-16:43 50 kW DC fast charge (sustained -172 A, SOC 39->77%) b6
-            reads 1; across 1576 pre-2026-08-08 AC-charging captures b6 reads 0 in every single one
-            while b7 (CHARGING) reads 1. So b6 is set ONLY on DC charging and is genuinely distinct
-            from b7, not a duplicate of it. New byte value 0xC3 = b0+b1+b6+b7 = DC charging, versus
-            0xA3 = b0+b1+b5+b7 = AC charging. Note b5 (CHARGER_CONNECTED) stays CLEAR on CCS.
+            Set during DC fast charging (2026-08-08 CCS session, n=54). Clear in all 1576
+            AC-charging captures, where CHARGING (B14:7) is set.
           source: canair analysis 2026-08-08 50 kW DCFC session (first real rapid charge on this car)
         CHARGING:
           expression: "B14:7"
@@ -269,7 +250,7 @@ BMS:
           min: "0"
           max: ""
           verified: true
-          notes: "Lifetime cumulative. ECU reports in 0.1 kWh units, /10 gives kWh. Verified ~12274 kWh lifetime on 2017 Ioniq 28kWh."
+          notes: Lifetime total, 0.1 kWh per LSB.
 
         CUMULATIVE_ENERGY_DISCHARGED:
           expression: "((B52<<24)|(B53<<16)|(B54<<8)|B55)/10"
@@ -289,11 +270,7 @@ BMS:
           source: "ImHex pattern (u32 @ ISO-TP 0x20) — PCI-corrected"
           source_links: []
           verified: true
-          notes: >
-            32-bit at ISO-TP 0x20 = WiCAN B38,B39,B41,B42 (skips PCI byte B40). 2026-07-20 fix:
-            the old ((B32<<24)|...) conflated ImHex/ISO-TP offset 0x20 with WiCAN B32 — but B32 is a
-            PCI frame byte, giving ~61,700,000 Ah of garbage. Corrected bytes read ~34,000 Ah, consistent
-            with CUMULATIVE_ENERGY_CHARGED (÷ pack voltage ≈ same Ah). Sits just before the energy u32s.
+          notes: 32-bit at WiCAN B38, B39, B41, B42 (B40 is a PCI byte).
 
         CUMULATIVE_CURRENT_DISCHARGED:
           expression: "((B43<<24)|(B44<<16)|(B45<<8)|B46)/10"
@@ -304,10 +281,7 @@ BMS:
           source: "ImHex pattern (u32 @ ISO-TP 0x24) — PCI-corrected"
           source_links: []
           verified: true
-          notes: >
-            32-bit at ISO-TP 0x24 = WiCAN B43,B44,B45,B46. 2026-07-20 fix: old ((B36<<24)|...) used the
-            wrong (PCI-unaware) indices, giving ~917,000 Ah. Corrected reads ~34,000 Ah, consistent with
-            CUMULATIVE_ENERGY_DISCHARGED.
+          notes: 32-bit at WiCAN B43-B46.
 
         OPERATING_TIME:
           expression: "[B57:B60]/3600"
@@ -319,25 +293,18 @@ BMS:
           source_links:
             - "CSS Electronics/ev-data-pack-v10/electric_cars/dbc_files/can1-hyundai-kia-uds-v2.4.dbc"
           verified: true
-          notes: "32-bit unsigned, ISO-TP bytes 48-51 (WiCAN B57-B60). Raw value is seconds, /3600 converts to hours. Live-verified 2026-04-14: 5902h. Was B57 (single byte = MSB of u32, always 0x01 = 1)."
+          notes: 32-bit unsigned seconds at WiCAN B57-B60.
 
-        INVERTER_CAPACITOR_VOLTAGE:
-          expression: B62*0.1
-          unit: V
-          ha_class: voltage
+        BMS_2101_B62:
+          expression: B62
+          unit: ""
+          ha_class: ""
           min: ""
           max: ""
           source: demoted 2026-07-23 historical audit
           source_links: []
           verified: false
-          notes: >
-            Disproven + disabled 2026-07-23: B62 is constant 1 across all 69 BMS
-            2101 captures, so B62*0.1 = 0.10 V always. A single byte maxes at
-            25.5 V, but the DC-link cap should sit near pack voltage (~380 V) with
-            the main relay closed. Byte/scale wrong; correct byte unknown. All 69
-            captures have BMS_MAIN_RELAY=1 (closed), so history has no relay-open
-            (0 V) vs closed contrast to locate the real 16-bit field. Needs a
-            key-off→READY capture. Kept for research trail.
+          notes: Reads 1 in 10617 of 10708 captures and 0 in 91; BMS_MAIN_RELAY reads 0 in 96.
           enabled: false
         DRIVE_MOTOR_SPEED:
           expression: "[S65:S66]"
@@ -347,16 +314,8 @@ BMS:
           max: "8000"
           verified: true
           notes: >-
-            CORRECTED 2026-08-08. Was expression B65, which read only the HIGH byte as UNSIGNED: it
-            saturated 0-255 and scored just r=+0.391 vs real motor RPM. Correct field is signed
-            16-bit BIG-endian at WiCAN B65:B66 (payload idx 55:56, same ISO-TP frame as B65 so no
-            PCI crossing; BE matches the rest of the BMS 2101 payload convention). Verified r=+0.997
-            vs MCU:2102:MCU_MOTOR_RPM on n=1149 MEASURED rows (--fill none, no forward-fill), fit
-            slope 0.986 so the raw value is RPM directly; observed -200..7400 RPM vs the reference's
-            -208..7649 including negative regen. Null test: median 0 through the 16:31-16:43 50 kW
-            DCFC, the single 500 RPM sample being the coast-down at the drive/park boundary. Note
-            B67 duplicates B65, so a mirrored or filtered copy of this signal likely follows at
-            B67:B68.
+            Signed 16-bit big-endian, RPM directly. r=+0.997 vs MCU:2102:MCU_MOTOR_RPM (n=1149
+            measured rows, slope 0.986). B67 repeats B65.
           source: canair analysis 2026-08-08 long drive + DCFC (cross-ECU vs MCU 2102)
 
         ISOLATION_RESISTANCE:
@@ -378,18 +337,10 @@ BMS:
           source_links: []
           verified: false
           notes: >-
-            BMS charging/relay state bitfield. DC BITS RESOLVED 2026-08-08 by the first real DC fast
-            charge on this car (50 kW CCS, 16:31-16:43, SOC 39->77%), which supplied the DC state
-            the AC-only 5997-capture corpus lacked. Byte values now: 0x03 ready/not charging, 0x20
-            plugged contactors open, 0x23 plugged + ready, 0xA3 AC charging, 0xC3 DC CHARGING (new
-            2026-08-08). Bits: b0=HV main relay closed (BMS_MAIN_RELAY); b1=exact mirror of b0,
-            (b1-b0)=0 in all 7179 captures INCLUDING the DCFC, so not a second contactor;
-            b2,b3,b4=still clear through a real rapid charge, so no longer merely
-            unexercised-by-state, which kills the withdrawn 0x45 reading's bit2 rapid-charge
-            candidate (other unobserved states such as V2L or a battery-heater/fault condition could
-            still set them); b5=AC/EVSE plug presence ONLY, clear throughout the CCS session
-            (CHARGER_CONNECTED); b6=DC charging, set on CCS and clear in all 1576 AC-charging
-            captures (CHARGING_DC); b7=charging active (CHARGING).
+            Whole B14 byte. Observed values: 0x03 READY, 0x20 AC plugged with contactors open, 0x23
+            plugged and READY, 0xA3 AC charging, 0xC3 DC charging. Bits: b0 BMS_MAIN_RELAY, b1
+            always equals b0, b5 AC_CHARGER_CONNECTED, b6 CHARGING_DC, b7 CHARGING. b2-b4 have never
+            been set, including during a DC fast charge.
 
         BMS_2101_B10:
           expression: B10
@@ -398,12 +349,8 @@ BMS:
           source: canair charging-capture analysis 2026-07-30
           verified: false
           notes: >-
-            Unmapped B10 (ISO-TP 0x07). Range 28-38 over the 2026-07-30 AC charge; r=+0.998 vs
-            BMS:2105:AVAIL_CHARGE_POWER (fit ~0.4 kW/LSB, y=0.40*x-1.27). Hypothesis:
-            available-charge-power / charge-limit field mirrored from 2105. CAVEAT: SOC-monotone
-            during a steady charge, so limit-vs-other-SOC-function is unresolved. Needs a
-            plug/unplug cycle or drive (independent variation) to confirm. [B10:B11] is a probable
-            16-bit word (score 0.93).
+            Range 22-38. r=+0.998 vs BMS:2105:AVAIL_CHARGE_POWER over the 2026-07-30 AC charge
+            (y=0.40x-1.27), where both rise with SOC.
         BMS_2101_B63:
           expression: B63
           min: "0"
@@ -411,24 +358,10 @@ BMS:
           source: canair charging-capture analysis 2026-07-30
           verified: false
           notes: >-
-            Unmapped B63 (ISO-TP 0x36, frame 7). Range 2-142 over the 2026-07-30 AC charge (min ~2
-            in the ~19 charge-off samples); r=+0.998 vs BMS:2102:CELL_02_VOLTAGE (fit y=93.4*x-246).
-            Rises monotonically with pack/cell voltage during charge. CAVEAT: pure
-            charge-progression (SOC-monotone) confound — can't be distinguished from any other
-            rising quantity in this steady charge. Low confidence; needs a dynamic capture
-            (drive/charge-cycle) to characterize.
+            Range 0-244. r=+0.998 vs BMS:2102:CELL_02_VOLTAGE over the 2026-07-30 AC charge
+            (y=93.4x-246), where both rise with SOC.
 
-        BMS_MAIN_RELAY_MIRROR_B14_1:
-          expression: B14:1
-          source: canair analysis 2026-08-08 DCFC
-          verified: true
-          notes: >-
-            EXACT MIRROR of BMS_MAIN_RELAY (B14:0) - 'second contactor' hypothesis now DEFINITIVELY
-            DEAD. (B14:1)-(B14:0) is exactly 0 across all 7179 captures (5997 historical + 1182 on
-            2026-08-08), distinct=1, and that now INCLUDES a real 50 kW DC fast charge, which was
-            the one state expected to split a second DC contactor from the main one. Stays disabled
-            so it does not ship a duplicate signal; kept defined as the research record.
-          enabled: false
+
     2105:
       response_frames: 7
       status: active
@@ -607,16 +540,8 @@ BMS:
           source_links: []
           verified: false
           notes: >-
-            CORRECTED 2026-08-08: NOT a bitfield. During the 2026-08-08 16:32-16:43 DCFC session it
-            free-runs as an 8-bit wrapping counter (~0.52/s, one tick every ~1.9s) for the entire
-            CHARGING_DC=1 span, then holds flat at 0x29=41 the instant CHARGING_DC drops back to 0.
-            CONFIRMED DC-specific: flat at 41 (occasional 49 blips) across ALL 2379 historical
-            AC-charge captures ([CHARGING,PLUGGED,PARKED/ACC2,...] states) - only the one mixed
-            [CHARGING,READY,PLUGGED,ACC2,PARKED,DRIVING] state (136 captures, today's DCFC-2 only)
-            shows it moving (7,24,96,179). B41 (sibling byte) steps 0->13/14 at the same instant.
-            Meaning of the tick is still unconfirmed (elapsed time vs cycle count) - only one DCFC
-            session tested. Old bitfield hypothesis (b0..b7 relay/fault/charge-port flags) is
-            refuted: the byte visits far more than 8 states.
+            8-bit wrapping counter, about 0.52 per second, while CHARGING_DC is set (2026-08-08).
+            Holds at 41 (occasionally 49) otherwise, including all 2379 AC-charge captures.
     # Cell voltage PIDs — 96 cells across 3 PIDs (32 each)
     # Format: B(6+n)*0.02 where n=cell index within PID (0-31)
     # Cells 1-32 in 2102, 33-64 in 2103, 65-96 in 2104
@@ -627,14 +552,8 @@ BMS:
           source: 2026-08-08 DCFC session byte-diff
           verified: false
           notes: >-
-            Steps 0->13 at DCFC onset (2026-08-08 16:32:18), then 13->14 after ~30s, 14->15 after
-            ~9min, staying in a narrow 13-15 band for the rest of the session. CONFIRMED
-            DC-specific: constant 0 across ALL 2379 historical AC-charge captures - only moves in
-            the mixed [CHARGING,READY,PLUGGED,ACC2,PARKED,DRIVING] state (today's DCFC-2, 136
-            captures: 132x0, 2x13, 2x14). Weakly tracks SOC_DISP rise (40->77.5% over the session)
-            but far too coarse to be SOC directly (3 distinct values over 37 SOC points) - more
-            likely a coarse DC-charge phase/stage counter. Needs a second DCFC session (ideally full
-            0-100%) to separate 'SOC-quantised' from 'phase-counter' hypotheses.
+            0 except during DC fast charging: on 2026-08-08 it stepped to 13 at onset, 14 after
+            about 30 s and 15 after about 9 min. 0 in all 2379 AC-charge captures.
           enabled: true
     2102:
       response_frames: 6
@@ -1437,33 +1356,13 @@ BMS:
           notes: "Last cell. Total: 96 cells across PIDs 2102/2103/2104."
 
     21F2:
+      status: static
       response_frames: 18
-      status: active
       period: 0
       vehicle_states: [READY]
-      notes: |
-        BMS identity / calibration block — 121 data bytes (123 incl. 61 F2 header), STATIC.
-        Discovered via the 21 00-FF hidden-page sweep (2026-07-22); the only BMS service-21
-        page outside 2101-2105. Confirmed static: 4 reads at ignition-on 2026-07-22 were
-        byte-identical (no counters/timestamps/live signals) -> identity/calibration data,
-        NOT live telemetry, so enabled:false (do not poll — wastes bus time).
-
-        Field map (WiCAN Bnn; PCI bytes at B00/08/16/24/... are excluded by the notation):
-          B09:B12   = 34 30 36 34  "4064" ASCII — software/calibration identifier.
-                      CONFIRMED: same digits as KWP2000 identity 1A8D "4604" (34 36 30 34),
-                      with the middle byte-pair swapped. Cross-referenced via `canair identity BMS`.
-          B121:B124 = 4E 37 49 5A  "N7IZ" ASCII — hardware/lot code; absent from the 1Axx
-                      identity set, so exposed only on this page.
-          FF-separators (typical Hyundai/Kia identity padding): B04:B07, B59:B62, B127:B131.
-          Candidate 16-bit BE constants (PCI-safe, UNVALIDATED — most likely static cal limits):
-            B36:B37   = 0x0BB8 (3000)   # == 2101 ISOLATION_RESISTANCE nominal 3000 kOhm
-            B43:B44   = 0x0174 (372)    B45:B46 = 0x0162 (354)   # pair; /100 = 3.72 / 3.54 V (cell-V cal points?)
-            B68:B69   = 0x07DC (2012)
-            B107:B108 = 0x02E6 (742)    B109:B110 = 0x02B5 (693)  # pair
-            B132:B133 = 0x06E8 (1768)   B134:B135 = 0x018D (397)  # pair
-        No parameters registered yet: the numeric fields need multi-state (sleep/charging/
-        driving) contrast to classify constant-vs-dynamic before any are committed. See the
-        21F2 decode research entry.
+      notes: >-
+        121 data bytes. Identical across 4 reads at READY on 2026-07-22; holds identity/calibration
+        data, not live signals. Found by the 21 00-FF sweep on 2026-07-22.
       parameters: {}
   research:
     - type: iocontrol_scan
