@@ -247,6 +247,14 @@ class TestTransportConfigProps:
         # No host -> never wican-http.
         assert not TransportConfig("wican-ws", host=None).is_wican_http
 
+    def test_unregistered_type_raises_instead_of_guessing_a_family(self):
+        from canlib.transport.config import TransportConfig, TransportError
+
+        t = TransportConfig("not-a-transport", "1.2.3.4")  # type: ignore[arg-type]
+        for prop in ("is_raw", "is_elm", "summary", "is_wican_http"):
+            with pytest.raises(TransportError, match="Unknown transport"):
+                getattr(t, prop)
+
     def test_elm327_tcp_probe_port_default(self):
         from canlib.transport.config import DEFAULT_ELM327_TCP_PORT, TransportConfig
         from canlib.transport.fallback import _probe_port

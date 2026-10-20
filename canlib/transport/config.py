@@ -107,27 +107,34 @@ class TransportConfig:
     bitrate: int | None = None
 
     @property
-    def spec(self) -> TransportSpec | None:
-        """The registered :class:`TransportSpec`, or None for an unknown type."""
-        return TRANSPORTS.get(self.type)
+    def spec(self) -> TransportSpec:
+        """The registered :class:`TransportSpec` for this type.
+
+        ``type`` is a :data:`TransportType` and every construction path validates
+        it (:func:`_checked_type`), so a miss means a caller bypassed that check:
+        raise rather than guess which family an unknown backend belongs to.
+        """
+        try:
+            return TRANSPORTS[self.type]
+        except KeyError:
+            raise TransportError(
+                f"Unknown transport '{self.type}'. Valid: {', '.join(VALID_TRANSPORTS)}."
+            ) from None
 
     @property
     def is_raw(self) -> bool:
         """True for raw-CAN transports (python-can bus + client-side ISO-TP)."""
-        spec = self.spec
-        # Unknown types default to raw (the ELM terminal is the sole exception).
-        return spec.raw if spec is not None else self.type != "wican-ws"
+        return self.spec.raw
 
     @property
     def is_elm(self) -> bool:
-        """True for the ELM327-terminal transport (WiCAN Pro WebSocket)."""
+        """True for the ELM327-terminal transports (``wican-ws``, ``elm327-tcp``)."""
         return not self.is_raw
 
     @property
-    def summary(self) -> str | None:
+    def summary(self) -> str:
         """Human one-liner describing the transport (from the registry)."""
-        spec = self.spec
-        return spec.summary if spec is not None else None
+        return self.spec.summary
 
     @property
     def is_wican_http(self) -> bool:
@@ -137,13 +144,11 @@ class TransportConfig:
         resolved host): the WiCAN transports (``slcan-tcp`` / ``wican-ws``) can
         query ``/load_config`` / ``/check_status`` for mode/port/bitrate and
         liveness, whereas a generic ELM327 adapter (``elm327-tcp``) has no such
-        API. An unknown transport type is assumed WiCAN-HTTP-capable (permissive,
-        matching the pre-registry behaviour) when it has a host.
+        API.
         """
         if self.host is None:
             return False
-        spec = self.spec
-        return spec.wican_http if spec is not None else True
+        return self.spec.wican_http
 
     def describe(self) -> str:
         loc = self.host or "?"
