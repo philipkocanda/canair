@@ -68,6 +68,9 @@ asyncio_mode = "auto"
 # output ordered and un-interleaved):
 #     uv run pytest -n0 tests/test_foo.py
 addopts = "-n auto --dist loadscope"
+# Only our suite: a bare `pytest` otherwise also collects the test suites of fetched
+# third-party checkouts under the gitignored references/ (e.g. opendbc's).
+testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 100

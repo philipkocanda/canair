@@ -59,6 +59,15 @@ uv run pytest -n0 tests/test_foo.py -k some_case
 No car and no dongle? You can still exercise the full transport stack — see
 [Offline testing with ELM327-Emulator](offline-testing.md).
 
+Touched `import dbc`, `export dbc` or the `signals/` model? Run the opt-in
+real-world DBC round-trip, which fetches
+[commaai/opendbc](https://github.com/commaai/opendbc) into the gitignored
+`references/can/` and expects `problems: 0`:
+
+```bash
+uv run python scripts/check_dbc_corpus.py --fetch
+```
+
 ## Keep the docs current
 
 If your change adds, removes, or alters a user-facing capability, update the docs
