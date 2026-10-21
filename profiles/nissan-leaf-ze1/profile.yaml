@@ -8,6 +8,11 @@
 # (https://github.com/meatpiHQ/wican-fw/pull/750, closed unmerged), which fixes
 # the upstream vehicle_profiles/nissan/leaf-ze1.json SOH and adds capacity,
 # temperature, odometer and range signals, verified on a 2018 40 kWh car.
+# Upstream later shipped those fixes as a separate profile,
+# vehicle_profiles/nissan/leaf-ze1-2018-.json (2026-10-21; leaf-ze1.json is
+# unchanged). Every request signal it defines matches this profile except its
+# LBC:2101 12 V voltage, added here as LBC_12V; its three broadcast filters
+# (0x284, 0x1DA, 0x5C5) are in signals/.
 #
 # The profile covers both packs: LBC:2161 SOH is reported by the battery
 # controller itself, so it suits either. LBC:2101 SOH_40KWH uses the 40 kWh

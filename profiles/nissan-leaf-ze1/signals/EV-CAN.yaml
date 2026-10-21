@@ -1,0 +1,28 @@
+messages:
+  '0x284':
+    tx_ecu: VCM
+    signals:
+      VEHICLE_SPEED:
+        start_bit: 39
+        length: 16
+        byte_order: big
+        scale: 0.0102041
+        unit: km/h
+        verified: false
+        source: WiCAN leaf-ze1-2018-.json filter (https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/nissan/leaf-ze1-2018-.json); OVMS vehicle_nissanleaf.cpp
+        notes: "Vehicle speed, 16-bit big-endian at data bytes 4-5, /98 (scale 1/98). OVMS moved from /92 to /98 to match OBD-II and GPS speed. dalathegreat's ZE1 EV-CAN DBC names the field AverageRearSpeedSensor (pulses, sent by the VCM); its AZE0 CAR-CAN DBC has the frame from the ABS. Not seen on this car yet: the ZE1's gateway sits between the OBD port and the vehicle buses, so whether the port carries it is unconfirmed. Redundant with VCM:22121A VEHICLE_SPEED."
+  '0x1DA':
+    tx_ecu: INVERTER
+    signals:
+      MOTOR_RPM:
+        start_bit: 39
+        length: 16
+        byte_order: big
+        signed: true
+        scale: 0.5
+        min: -12000.0
+        max: 12000.0
+        unit: rpm
+        verified: false
+        source: WiCAN leaf-ze1-2018-.json filter (https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/nissan/leaf-ze1-2018-.json); OVMS vehicle_nissanleaf.cpp
+        notes: Traction motor speed, signed 16-bit big-endian at data bytes 4-5, /2; negative in reverse. OVMS instead takes the sign from bit 6 of byte 4 (a 15-bit field), which differs only above about 8190 rpm. The inverter sends 0x7FFF/0x7FFE while the car powers up, which decodes as a spurious ~16383 rpm. Not seen on this car yet (OBD-port gateway, see 0x284). Redundant with VCM:221255 MOTOR_RPM.

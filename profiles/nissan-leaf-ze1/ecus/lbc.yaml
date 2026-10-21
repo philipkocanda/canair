@@ -7,10 +7,13 @@ LBC:
       Seeded device-free from the WiCAN community profile in meatpiHQ/wican-fw#750 (closed
       unmerged), which fixes and extends the upstream vehicle_profiles/nissan/leaf-ze1.json. Request
       0x79B / response 0x7BB (rx = tx + 0x20, set profile-wide via addressing.rx_offset). The PR
-      author verified the 2101 signals against LeafSpy Pro on a 2018 40 kWh ZE1.
+      author verified the 2101 signals against LeafSpy Pro on a 2018 40 kWh ZE1. Upstream later
+      shipped those fixes as vehicle_profiles/nissan/leaf-ze1-2018-.json, whose LBC signals all
+      match this file (its LV_V is LBC_12V here).
 
 
-      Source: https://github.com/meatpiHQ/wican-fw/pull/750
+      Sources: https://github.com/meatpiHQ/wican-fw/pull/750,
+      https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/nissan/leaf-ze1-2018-.json
   pids:
     2101:
       parameters:
@@ -104,9 +107,10 @@ LBC:
           verified: false
           notes: >-
             Hx, the LBC's internal-resistance health index (16-bit at WiCAN [B36:B37], /102.4). It
-            can exceed 100 on a healthy pack: OBDb e+ vectors read up to 107 %. The upstream main
-            profile ships this expression as SOH, which the PR shows is wrong (65.3 % Hx on an 85 %
-            SOH car).
+            can exceed 100 on a healthy pack: OBDb e+ vectors read up to 107 %. The original
+            upstream leaf-ze1.json still ships this expression as SOH, which the PR shows is wrong
+            (65.3 % Hx on an 85 % SOH car); the newer leaf-ze1-2018-.json drops it and takes SOH
+            from LBC:2161.
         HV_PACK_V:
           expression: "[B25:B26]/100"
           unit: V
@@ -177,6 +181,23 @@ LBC:
             Derived: SOC/100 x AHr x 4.425 (dalathegreat). One 'gid' is about 80 Wh by Nissan's
             convention; temperature dependent, overstates charge when cold. OBDb vectors give 41-456
             on 40 kWh cars and 485-592 on e+ cars; a full new e+ pack reaches about 760.
+        LBC_12V:
+          expression: "[B27:B28]/1000"
+          unit: V
+          min: "0"
+          max: "20"
+          source: meatpiHQ/wican-fw leaf-ze1-2018-.json, OBDb
+          source_links:
+            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/nissan/leaf-ze1-2018-.json
+            - https://github.com/OBDb/Nissan-Leaf
+          verified: false
+          notes: >-
+            12 V auxiliary battery voltage as seen by the LBC, 16-bit /1000 V at data bytes 20-21
+            (after 61 01); upstream WiCAN calls it LV_V. Not an OBDb signal, but its 131 ZE1 2101
+            vectors (2018-2024, 40 kWh and e+) all read 11.8-14.7 V: median 12.8 V in the 21 with
+            zero pack current and never below 12.95 V in the 110 with current flowing, i.e. resting
+            battery vs DC/DC converter charging. Same quantity as VCM:221103 VPWR_12V at 1 mV
+            instead of 80 mV resolution.
       status: active
       period: 10000
       vehicle_states: [READY]
