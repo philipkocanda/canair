@@ -44,7 +44,7 @@ GENERATED_NOTE = (
 )
 
 # Profiles that have their own dedicated tour page under docs/profiles/.
-DEDICATED_PAGES = {"ioniq-2017": "ioniq-2017.md"}
+DEDICATED_PAGES = {"ioniq-2017": "ioniq-2017.md", "nissan-leaf-ze1": "nissan-leaf-ze1.md"}
 
 
 def _profile_stats(ecus_dir: Path) -> dict[str, int]:
@@ -162,7 +162,7 @@ def render_stats_block(counts: dict[str, int]) -> str:
         f"| PIDs | **{counts['pids']}** active/draft |",
         f"| Signals | **{counts['params']}** decoded "
         f"(**{counts['verified']} verified**, {unverified} unverified/candidate) |",
-        f"| IOControl DIDs | **{counts['iocontrol']}** actuators (UDS `0x2F`) |",
+        f"| IOControl DIDs | **{counts['iocontrol']}** actuators (UDS `0x2F` / KWP2000 `0x30`) |",
         f"| Research backlog | **{counts['research']}** open reverse-engineering leads |",
     ]
     body = "\n".join([*rows[:-1], f"{rows[-1]} {STATS_END}"])
@@ -242,12 +242,17 @@ def generate() -> str:
         model = _car_model(root)
         page = DEDICATED_PAGES.get(name)
         source = f"[`profiles/{name}/`]({GITHUB_TREE}/{name})"
-        if page:
+        if page and _maturity(counts) == "mature":
             lines.append(
                 f"- **[{name}]({page})** — {model}. "
                 f"A mature, worked reference profile ({counts['verified']} verified "
                 f"signals across {counts['ecus']} ECUs). See the full tour, or "
                 f"browse {source}."
+            )
+        elif page:
+            lines.append(
+                f"- **[{name}]({page})** — {model}. {profile_summary(counts, source)} "
+                "See its page for what it decodes."
             )
         else:
             lines.append(f"- **`{name}`** — {model}. {profile_summary(counts, source)}")

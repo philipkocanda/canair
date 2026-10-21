@@ -140,6 +140,7 @@ nav:
   - Bundled profiles:
       - Overview: profiles/index.md
       - Ioniq 2017: profiles/ioniq-2017.md
+      - Nissan Leaf ZE1: profiles/nissan-leaf-ze1.md
   - Development:
       - Overview: development/index.md
       - Commit messages: development/commit-messages.md

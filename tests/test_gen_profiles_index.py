@@ -41,3 +41,15 @@ def test_profile_summary_names_maturity_once(mod, counts, expected):
 
 def test_mature_profile_is_not_called_a_starting_point(mod):
     assert "starting point" not in mod.profile_summary(_counts(1, 194, 194), "SRC")
+
+
+def test_index_links_every_dedicated_page_and_keeps_early_wording(mod):
+    index = mod.generate()
+    for name, page in mod.DEDICATED_PAGES.items():
+        assert f"[{name}]({page})" in index
+        assert (mod.OUT_PATH.parent / page).exists()
+    assert "[nissan-leaf-ze1](nissan-leaf-ze1.md)** — " in index
+    assert (
+        "mature, worked reference profile"
+        not in index.split("nissan-leaf-ze1.md)**")[1].split("\n")[0]
+    )
