@@ -50,4 +50,11 @@ def run(args) -> int:
         print("Specify an ECU, e.g. `canair io IGPM`.\n")
         print(ecu_hint())
         return 2
+    if args.json and not args.did:
+        # Listing reads only the profile, so it must not need (or lock) the device.
+        from canlib import load_pids
+        from canlib.modes.iocontrol import mode_iocontrol_list
+
+        mode_iocontrol_list(load_pids(), args.iocontrol, as_json=True)
+        return 0
     return run_live(args)

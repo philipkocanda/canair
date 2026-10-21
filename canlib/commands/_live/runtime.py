@@ -24,8 +24,6 @@ from canlib.keepmode import wants_save
 from canlib.lock import WiCANLock
 from canlib.lock_watchdog import LockWatchdog
 from canlib.modes.dispatch import run_session_guarded
-from canlib.modes.iocontrol import mode_iocontrol_list
-from canlib.modes.routines import mode_routines_list
 from canlib.stop_signals import graceful_stop
 from canlib.transport.protocol import Terminal
 
@@ -110,14 +108,6 @@ async def async_main(args):
                 )
             print("!! To resume, re-run with the same ECU and range starting at the last probe.")
             print()
-
-    # List-only mode: no CAN connection needed (--json or explicit list)
-    if args.iocontrol and not args.did and args.json:
-        mode_iocontrol_list(pids_data, args.iocontrol, as_json=True)
-        return
-    if args.routines and not args.rid and args.json:
-        mode_routines_list(pids_data, args.routines, as_json=True)
-        return
 
     # ELM327 init string from the active profile. Required (validate enforces
     # it); a profile missing it fails loud rather than silently using a stale

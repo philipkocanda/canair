@@ -47,4 +47,11 @@ def run(args) -> int:
         print("Specify an ECU, e.g. `canair routines BCM`.\n")
         print(ecu_hint())
         return 2
+    if args.json and not args.rid:
+        # Listing reads only the profile, so it must not need (or lock) the device.
+        from canlib import load_pids
+        from canlib.modes.routines import mode_routines_list
+
+        mode_routines_list(load_pids(), args.routines, as_json=True)
+        return 0
     return run_live(args)
