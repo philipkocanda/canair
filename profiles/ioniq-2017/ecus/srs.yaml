@@ -9,3 +9,19 @@ SRS:
       Identified via Kia e-Niro CAN spreadsheet (exact address match 7D2/7DA).
       Security-locked — no diagnostic identity exposed.
       Dead during AC charging (2026-04-19): 1001, 1003, 3E00, 1A8C all NO DATA.
+
+  research:
+    - type: scan
+      target: 21 00-FF + sessions (ACU11 lead)
+      status: pending
+      priority: P3
+      vehicle_states: [READY]
+      created: "2026-10-21"
+      updated: "2026-10-21"
+      notes: SRS answers NRC 0x11 (service not supported) to UDS 22 F1xx and KWP2000 1Axx, so 0x22 reads are probably unavailable. opendbc ACU11 (0x5A0, sender ACU) shows the module tracks driver and passenger buckle status, buckle faults, a fault count and an active DTC. The frame is on the uhi22 Ioniq 28 logs (both buckle bits set, 0 faults). Try KWP2000 readDataByLocalIdentifier (0x21) and a session scan before writing off live data from this ECU. SRS did not answer during AC charging (2026-04-19), so test in READY.
+      sources:
+        - opendbc hyundai_2015_ccan.dbc (commaai, MIT), cross-checked against uhi22 Ioniq28Investigations P-CAN logs (scripts/fetch_can_corpus.py)
+      what_to_test:
+        - "canair scan sessions SRS: which diagnostic sessions it accepts"
+        - canair scan SRS over 21 00-FF in READY
+        - On any hit, buckle and unbuckle the driver and passenger belts and diff the payloads

@@ -677,6 +677,24 @@ IGPM:
       capture_protocol: >-
         During any narrated IGPM body capture: open and close the rear-right door, and separately
         buckle/unbuckle the front passenger seatbelt, noting each with 's'.
+    - type: decode
+      target: 22BC03-07 body bits (CGW1/CGW2/CGW4 candidates)
+      status: pending
+      priority: P3
+      vehicle_states: [READY]
+      created: "2026-10-21"
+      updated: "2026-10-21"
+      notes: "opendbc CGW1 (0x541), CGW2 (0x553) and CGW4 (0x559) list the body signals the gateway publishes. CGW1 is on the uhi22 Ioniq 28 logs and its driver-door bit toggles when the driver leaves the car. Signals there that 22BC03-07 do not map yet: light switch position (2-bit), auto-light status, front and rear fog, hazard switch, turn-signal stalk, wiper stages (int/low/high/auto/mist) and intermittent time, rain sensor state, park brake switch, passive-access lock/unlock, RKE (key fob) command, window states and heated steering wheel (CGW4), rear seatbelt indicators, steering-lock warnings (CGW2). Use this as the actuation checklist for the existing 22BC03/BC04/BC06 bit-gap entries. The DBC bit positions do not carry over to the DIDs."
+      sources:
+        - opendbc hyundai_2015_ccan.dbc (commaai, MIT), cross-checked against uhi22 Ioniq28Investigations P-CAN logs (scripts/fetch_can_corpus.py)
+      what_to_test:
+        - "Light switch: step OFF/AUTO/position/low beam and look for a 2-bit field"
+        - "Wiper stalk: mist, intermittent (each delay step), low, high, auto"
+        - Hazard switch, fog lights, park brake switch, heated steering wheel, each window down/up
+        - Rear seatbelts buckled/unbuckled; key fob lock/unlock and passive (handle) lock/unlock
+      capture_protocol: >-
+        canair monitor @body --save --keep-changes --label 'IGPM body sweep' --state READY. One
+        actuation at a time, pressing 's' to note each, holding each state ~3 s.
 
   iocontrol_discoveries:
     BC01:

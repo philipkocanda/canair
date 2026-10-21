@@ -733,6 +733,20 @@ VCU:
       created: "2026-10-20"
       updated: "2026-10-20"
       notes: "Identify what VCU_21F2_B75_COUNTER counts: read 21F2 before and after a single wake, ignition cycle, drive and charge session and see which one increments it."
+    - type: decode
+      target: 12V battery sensor SOC/SOH/temp/current
+      status: pending
+      priority: P2
+      vehicle_states: [READY]
+      created: "2026-10-21"
+      updated: "2026-10-21"
+      notes: The Ioniq P-CAN carries the 12V battery sensor frame 0x549 (opendbc BAT11, sender EMS). On the uhi22 Ioniq 28 logs it decodes as BAT_SNSR_V 14.78-14.82 V, BAT_SOC 65-68 %, BAT_SOH 89 %, BAT_SNSR_Temp 2 C, BAT_SNSR_I 1-5 A. The profile has no 12V state-of-charge or state-of-health signal. The VCU is the most likely diagnostic owner because it takes the EMS role on this EV; unconfirmed. Broadcast scalings (SOC and SOH 1 %/bit, voltage 0.001 V/bit + 6 V, temp 0.5 C/bit - 40 C, current 0.01 A/bit - 327 A) may not carry over to a DID.
+      sources:
+        - opendbc hyundai_2015_ccan.dbc (commaai, MIT), cross-checked against uhi22 Ioniq28Investigations P-CAN logs (scripts/fetch_can_corpus.py)
+      what_to_test:
+        - A VCU 2101/2102/21F2 byte in 0-100 that falls slowly at ACC2 with the LDC off and rises in READY (12V SOC)
+        - A near-constant byte matching the 12V battery's health percentage (SOH)
+        - If no VCU byte fits, look on the OBC (LDC side) and BMS
   sessions:
     "81":
       name: "standardDiagnosticSession"

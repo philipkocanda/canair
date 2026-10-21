@@ -177,3 +177,20 @@ ESC:
       notes: "Ioniq 5 uses 0x730 for ESC with 22F010: 4 wheel speeds (16-bit/32), steering angle (/10), lateral/longitudinal accel, yaw rate. Try on both 0x7D1 and 0x730."
       sources:
         - "OBDb Ioniq 5"
+    - type: decode
+      target: 22C101 lateral accel + yaw rate (ESP12 lead)
+      status: pending
+      priority: P2
+      vehicle_states: [DRIVING]
+      created: "2026-10-21"
+      updated: "2026-10-21"
+      notes: "opendbc ESP12 (0x220, sender ESC) carries LAT_ACCEL, LONG_ACCEL, YAW_RATE and CYL_PRES (brake pressure) in one frame. It decodes plausibly on the uhi22 Ioniq 28 logs: longitudinal accel -1.8..+1.8 m/s2, brake pressure 0-65 bar, small yaw and lateral values. 22C101 already has LONG_ACCEL_RAW (B23) and BRAKE_PRESSURE (B44), so the ESC probably exposes lateral accel and yaw rate in this DID too. First candidates: the undecoded B37:B38 and (B39<<8)|B41 words, both ~2048 at rest (see the 22C101 decode entry). Broadcast scalings: accel 11-bit, 0.01 m/s2/bit, offset -10.23; yaw 13-bit, 0.01/bit, offset -40.95 (unit not given). The DID encoding may differ."
+      sources:
+        - opendbc hyundai_2015_ccan.dbc (commaai, MIT), cross-checked against uhi22 Ioniq28Investigations P-CAN logs (scripts/fetch_can_corpus.py)
+      what_to_test:
+        - "Lateral accel: candidate swings in opposite directions on left vs right turns and is ~0 driving straight"
+        - "Yaw rate: candidate sign follows STEERING_ANGLE sign in turns and scales with REAL_SPEED_KMH"
+        - "Brake pressure scale: compare BRAKE_PRESSURE (B44) range in normal stops against ESP12's 0-65 bar"
+      capture_protocol: >-
+        canair monitor ESC:22C101 --save --keep-all --label 'ESC turns' --state DRIVING. In an empty
+        car park, drive slow left and right circles and a few firm stops, pressing 's' to note each.
