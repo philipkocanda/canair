@@ -45,7 +45,8 @@ Note the difference between *discovering* a capability and *using* it:
   don't trigger anything. Which variant is safe depends on the make: on Nissan
   ECUs the usual KWP2000 IOControl probe would begin a one-shot command, so a
   profile with the `nissan_c0_session` quirk sends Nissan's "is this value
-  supported?" query instead.
+  supported?" query instead. Nothing documents what Nissan does with the
+  KWP2000 routine-results service, so `scan routines` warns on such a profile.
 - Actually actuating (`canair io`) or starting a routine is a separate,
   confirm-first action.
 

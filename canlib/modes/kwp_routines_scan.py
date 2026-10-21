@@ -24,6 +24,7 @@ from __future__ import annotations
 import sys
 from typing import NamedTuple
 
+from ..quirks import NISSAN_C0_SESSION, has_quirk
 from ..transport.protocol import Terminal
 from ..uds_parse import UdsResponse
 from .discovery_scan import DiscoveryProbe, mode_discovery_scan
@@ -143,6 +144,15 @@ async def mode_kwp_routines_scan(
     Thin wrapper over :func:`discovery_scan.mode_discovery_scan`. Default LID range
     is the full single-byte space ``00–FF``. Never starts a routine (0x31).
     """
+    if has_quirk(pids_data, NISSAN_C0_SESSION):
+        # Nissan reshapes KWP2000 services (its 0x30 layout makes the ISO
+        # "release" probe an actuation), and nothing documents its 0x33.
+        print(
+            "  WARNING: this profile's KWP2000 ECUs use Nissan's own service layouts, and "
+            "what service 0x33 does there is undocumented — this scan is not proven to "
+            "be side-effect-free.",
+            file=sys.stderr,
+        )
     return await mode_discovery_scan(
         terminal,
         KWP_ROUTINES_PROBE,

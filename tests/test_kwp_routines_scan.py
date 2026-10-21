@@ -96,3 +96,33 @@ def test_split_unknown_ecu_defaults_to_uds():
     uds, kwp = split_ecus_by_protocol(["NOPE_NOT_AN_ECU"])
     assert uds == ["NOPE_NOT_AN_ECU"]
     assert kwp == []
+
+
+@pytest.mark.asyncio
+async def test_a_nissan_profile_warns_that_0x33_is_unproven(capsys):
+    from canlib.modes.kwp_routines_scan import mode_kwp_routines_scan
+    from tests._fakes import nrc
+
+    pids = {"quirks": ["nissan_c0_session"], "ecus": {"VCM": {"tx_id": 0x797}}}
+    term = FakeTerminal(default=nrc(0x31))
+    await mode_kwp_routines_scan(
+        term, pids, ["VCM"], lid_range=(0x01, 0x01), throttle_ms=0, write_yaml=False
+    )
+    assert "not proven to be side-effect-free" in capsys.readouterr().err
+
+
+@pytest.mark.asyncio
+async def test_other_profiles_scan_without_the_warning(capsys):
+    from canlib.modes.kwp_routines_scan import mode_kwp_routines_scan
+    from tests._fakes import nrc
+
+    term = FakeTerminal(default=nrc(0x31))
+    await mode_kwp_routines_scan(
+        term,
+        {"ecus": {"BMS": {"tx_id": 0x7E4}}},
+        ["BMS"],
+        lid_range=(0x01, 0x01),
+        throttle_ms=0,
+        write_yaml=False,
+    )
+    assert "WARNING" not in capsys.readouterr().err
