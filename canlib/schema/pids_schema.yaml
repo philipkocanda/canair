@@ -421,8 +421,9 @@ required_meta_fields:
   - car_model
   - init
 
-# IOControl section (service 0x2F) — per-ECU actuator commands.
-# Lives under ECU_NAME.iocontrol alongside ECU_NAME.pids.
+# IOControl section — per-ECU actuator commands: UDS InputOutputControlByIdentifier
+# (0x2F), or KWP2000 InputOutputControlByLocalIdentifier (0x30) on ECUs that speak
+# it. Lives under ECU_NAME.iocontrol alongside ECU_NAME.pids.
 # Format:
 #   iocontrol:
 #     DID_HEX:                         # e.g. BC01, B05B
@@ -431,12 +432,16 @@ required_meta_fields:
 #       on: str                        # Full hex command for ON (e.g. "2FBC0103")
 #       off: str                       # Full hex command for OFF (e.g. "2FBC0100")
 #       notes: str                     # Additional context (use > for multiline)
-#       session: bool                  # Requires extended session (default: true)
+#       session: bool                  # Open a diagnostic session first (default: true)
+#       session_mode: str              # Its sub-function, quoted hex (default: "03"; Nissan
+#                                      #   "C0", which needs the nissan_c0_session quirk)
 #       hold: bool                     # Needs --hold to keep active (default: true)
 #
-# Control type suffixes (appended to 2F<DID>):
+# UDS control type suffixes (appended to 2F<DID>):
 #   03 = shortTermAdjustment (ON)
 #   00 = returnControl (OFF / release)
+# KWP2000 0x30 layouts are OEM-specific; the key is then a free-form label for
+# the command (e.g. the LID plus its function byte).
 #
 # Usage with canair:
 #   canair io <ECU> --did <DID>
@@ -448,6 +453,7 @@ iocontrol_fields:
   - "off"
   - notes
   - session
+  - session_mode
   - hold
   - status_param   # optional: param name from pids section to query as status indicator
 

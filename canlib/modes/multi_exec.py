@@ -446,9 +446,13 @@ async def _exec_iocontrol(
         print(f"  ERROR: No {action} command defined for {ecu_key} {did_key} ({label})")
         return
 
-    # Ensure session is active on this ECU if needed
-    if cmd_def["session"] and tx_id not in sm.active_sessions:
-        await sm.open_session(tx_id)
+    # Ensure a session of the actuator's mode is open on this ECU if needed
+    if cmd_def["session"]:
+        mode = cmd_def["session_mode"]
+        if tx_id not in sm.active_sessions:
+            await sm.open_session(tx_id, mode=mode)
+        elif sm.session_mode(tx_id) != mode:
+            await sm.open_session(tx_id, mode=mode, force=True)
 
     await sm.keepalive_stale()
     await sm.terminal.set_header(tx_id)

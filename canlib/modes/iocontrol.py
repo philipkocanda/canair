@@ -55,6 +55,7 @@ def mode_iocontrol_list(pids_data: dict, ecu_name: str, as_json: bool = False):
                     "on": c["on"],
                     "off": c["off"],
                     "session": c["session"],
+                    "session_mode": c["session_mode"],
                     "hold": c["hold"],
                     "verified": c["verified"],
                     "status_param": c.get("status_param"),
@@ -149,9 +150,10 @@ async def mode_iocontrol_execute(
 
     tester_task = None
     if needs_session:
+        mode = cmd_def["session_mode"]
         if verbose:
-            print("  Entering extended diagnostic session (10 03)...")
-        _, tester_task = await terminal.enter_extended_session()
+            print(f"  Entering diagnostic session (10 {mode})...")
+        _, tester_task = await terminal.enter_extended_session(mode=mode)
 
     # Query the mapped readback PID before executing. This is a best-effort hint
     # only: IOControl overrides may drive an output without changing the ECU
@@ -303,6 +305,9 @@ class _IOControlTUI:
         self._status_polling = False  # True while background poll loop is running
 
         self._session_active = False
+        # Sub-function of the open session, so an actuator that needs a different
+        # one (a Nissan 10 C0 next to a UDS 10 03) re-enters instead of reusing it.
+        self._session_mode: str | None = None
         self._tester_task: asyncio.Task | None = None
         self._quit = False
         self._busy = False  # prevent concurrent CAN commands

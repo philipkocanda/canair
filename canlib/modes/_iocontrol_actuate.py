@@ -19,6 +19,7 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING, Literal, get_args
 
+from ..pids import DEFAULT_IOCONTROL_SESSION_MODE
 from ..uds_parse import UdsResponse, nrc_abbrev
 
 if TYPE_CHECKING:
@@ -50,16 +51,36 @@ class IOControlActuator:
     def __init__(self, tui: _IOControlTUI) -> None:
         self.t = tui
 
-    async def ensure_session(self) -> None:
-        """Open extended session + TesterPresent if not already active."""
+    async def ensure_session(self, mode: str | None = None) -> None:
+        """Open a diagnostic session + TesterPresent unless a suitable one is open.
+
+        ``mode`` is the sub-function the actuator needs; ``None`` accepts whatever
+        session is open (opening the default ``03`` if none is). A different mode
+        than the open one re-enters, since the ECU only honours one at a time.
+        """
         t = self.t
-        if t._session_active:
+        if t._session_active and (mode is None or mode == t._session_mode):
             return
-        _tui_logger.info("Opening extended session (10 03) on 0x%03X", t.tx_id)
+        wanted = mode or DEFAULT_IOCONTROL_SESSION_MODE
+        # Stop the previous keepalive first, so a retry or a mode switch never
+        # leaves an orphaned TesterPresent loop running.
+        await self._stop_keepalive()
+        _tui_logger.info("Opening diagnostic session (10 %s) on 0x%03X", wanted, t.tx_id)
         await t.terminal.set_header(t.tx_id)
-        ok, t._tester_task = await t.terminal.enter_extended_session()
+        ok, t._tester_task = await t.terminal.enter_extended_session(mode=wanted)
         t._session_active = ok
+        t._session_mode = wanted
         _tui_logger.info("Session established: %s", ok)
+
+    async def _stop_keepalive(self) -> None:
+        task, self.t._tester_task = self.t._tester_task, None
+        if task is None:
+            return
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
 
     def extract_status_bytes(self, did: str, resp: UdsResponse) -> None:
         """Extract the controlStatusRecord tail from a 0x2F response and store it.
@@ -97,7 +118,7 @@ class IOControlActuator:
         _tui_logger.info("ON  %s %s cmd=%s", did, cmd["label"], hex_cmd)
         try:
             if cmd["session"]:
-                await self.ensure_session()
+                await self.ensure_session(cmd["session_mode"])
             resp = await t.terminal.send_uds(hex_cmd, timeout=3.0)
             _tui_logger.info("ON  %s resp: %s", did, resp)
             self.extract_status_bytes(did, resp)
@@ -186,9 +207,9 @@ class IOControlActuator:
         t._status = f"Adjust: {did} → {hex_cmd}"
         _tui_logger.info("ADJ %s cmd=%s", did, hex_cmd)
         try:
-            cmd = t.cmds.get(did, {})
-            if cmd.get("session", True):
-                await self.ensure_session()
+            cmd = t.cmds.get(did)
+            if cmd is None or cmd["session"]:
+                await self.ensure_session(cmd["session_mode"] if cmd else None)
             resp = await t.terminal.send_uds(hex_cmd, timeout=3.0)
             _tui_logger.info("ADJ %s resp: %s", did, resp)
             self.extract_status_bytes(did, resp)
@@ -289,9 +310,4 @@ class IOControlActuator:
     async def cleanup(self) -> None:
         """Release actuators and close session."""
         await self.release_all()
-        if self.t._tester_task:
-            self.t._tester_task.cancel()
-            try:
-                await self.t._tester_task
-            except asyncio.CancelledError:
-                pass
+        await self._stop_keepalive()

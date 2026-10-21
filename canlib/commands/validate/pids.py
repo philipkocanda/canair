@@ -651,6 +651,19 @@ def _validate_parameters(
             stats["unverified"] += 1
 
 
+def _validate_session_mode(value, label: str, errors: list) -> None:
+    """Validate an actuator's optional ``session_mode`` (one quoted hex byte)."""
+    if value is None:
+        return
+    if not isinstance(value, str) or re.fullmatch(r"[0-9A-Fa-f]{2}", value) is None:
+        errors.append(
+            f'{label}: session_mode must be one quoted hex byte (e.g. "03" or "C0"), got {value!r}'
+        )
+        return
+    if int(value, 16) in (0x02, 0x85):
+        errors.append(f"{label}: session_mode {value} is a programming session — never allowed")
+
+
 def _validate_iocontrol(
     ecu_def, path, ecu_name, allowed_states_set, errors, warnings, stats
 ) -> None:
@@ -669,6 +682,7 @@ def _validate_iocontrol(
         "off",
         "notes",
         "session",
+        "session_mode",
         "hold",
         "vehicle_states",
         "status_param",
@@ -677,6 +691,11 @@ def _validate_iocontrol(
     }
     for did, did_def in iocontrol.items():
         did_label = f"{path.name}/{ecu_name}/iocontrol/{did}"
+        if isinstance(did, int) and len(str(did)) != 4:
+            warnings.append(
+                f"{did_label}: key parsed as the integer {did} — quote it; YAML reads a "
+                'leading-zero key such as 0700 as octal (write "0700":)'
+            )
         if not isinstance(did_def, dict):
             errors.append(f"{did_label}: must be a dict")
             continue
@@ -690,6 +709,7 @@ def _validate_iocontrol(
         for field in did_def:
             if field not in valid_fields:
                 warnings.append(f"{did_label}: unknown field '{field}'")
+        _validate_session_mode(did_def.get("session_mode"), did_label, errors)
         _validate_state_list(
             did_def.get("vehicle_states"), did_label, "vehicle_states", errors, allowed_states_set
         )

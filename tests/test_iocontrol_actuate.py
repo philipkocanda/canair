@@ -32,6 +32,7 @@ class FakeTerminal:
     def __init__(self, *, fail_on: set[str] | None = None):
         self.sent: list[str] = []
         self.headers: list[int] = []
+        self.sessions: list[str] = []
         self.fail_on = fail_on or set()
 
     async def set_header(self, tx_id: int) -> None:
@@ -43,7 +44,8 @@ class FakeTerminal:
             raise ConnectionError("bus dropped")
         return {"ok": True, "hex": "6F" + cmd[2:]}
 
-    async def enter_extended_session(self):
+    async def enter_extended_session(self, mode: str = "03"):
+        self.sessions.append(mode)
         return True, None
 
 
@@ -55,7 +57,13 @@ class FakeTui:
         self.tx_id = 0x770
         self.terminal = terminal or FakeTerminal()
         self.cmds = {
-            d: {"on": ON_CMD, "off": OFF_CMD, "label": f"actuator {d}", "session": False}
+            d: {
+                "on": ON_CMD,
+                "off": OFF_CMD,
+                "label": f"actuator {d}",
+                "session": False,
+                "session_mode": "03",
+            }
             for d in dids
         }
         self.state = dict.fromkeys(dids, "off")
@@ -63,6 +71,7 @@ class FakeTui:
         self.status_bytes: dict[str, str] = {}
         self.last_value: dict[str, str] = {}
         self._session_active = True
+        self._session_mode: str | None = "03"
         self._tester_task = None
         self._busy = False
         self._status = ""
@@ -210,6 +219,34 @@ class TestEnsureSession:
         asyncio.run(act.ensure_session())
         assert tui.terminal.headers == []
 
+    def test_opens_the_session_mode_the_actuator_declares(self):
+        act, tui = _actuator()
+        tui._session_active, tui._session_mode = False, None
+        tui.cmds["BC01"].update(session=True, session_mode="C0")
+        asyncio.run(act.send_on("BC01"))
+        assert tui.terminal.sessions == ["C0"]
+        assert tui._session_mode == "C0"
+        assert tui.terminal.sent == [ON_CMD]
+
+    def test_reuses_an_open_session_of_the_same_mode(self):
+        act, tui = _actuator()
+        asyncio.run(act.ensure_session("03"))
+        assert tui.terminal.sessions == []
+
+    def test_switches_session_and_stops_the_old_keepalive(self):
+        act, tui = _actuator()
+
+        async def run():
+            old = asyncio.create_task(asyncio.sleep(3600))
+            tui._tester_task = old
+            await act.ensure_session("C0")
+            return old
+
+        old = asyncio.run(run())
+        assert old.cancelled()
+        assert tui.terminal.sessions == ["C0"]
+        assert tui._session_mode == "C0"
+
 
 class TestExtractStatusBytes:
     @pytest.mark.parametrize(
@@ -227,3 +264,31 @@ class TestExtractStatusBytes:
         act, tui = _actuator()
         act.extract_status_bytes("BC01", resp)
         assert tui.status_bytes["BC01"] == expected
+
+
+class TestSingleCommand:
+    """`canair io ECU --did X` opens the session mode the entry declares."""
+
+    def test_execute_opens_the_declared_session_mode(self, capsys):
+        from canlib.modes.iocontrol import mode_iocontrol_execute
+
+        pids_data = {
+            "ecus": {
+                "BCM": {
+                    "tx_id": 0x745,
+                    "iocontrol": {
+                        "6900": {
+                            "label": "Mirrors",
+                            "on": "30690001",
+                            "off": "30690000",
+                            "session_mode": "C0",
+                            "hold": False,
+                        }
+                    },
+                }
+            }
+        }
+        term = FakeTerminal()
+        asyncio.run(mode_iocontrol_execute(term, pids_data, "BCM", "6900"))  # type: ignore[arg-type]
+        assert term.sessions == ["C0"]
+        assert term.sent == ["30690001"]

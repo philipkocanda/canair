@@ -97,11 +97,15 @@ class EcuIndexEntry(TypedDict):
 class IoControlCommand(TypedDict):
     """One actuator command in a :func:`build_iocontrol_index` result.
 
-    ``on``/``off`` are the full UDS ``0x2F`` request hex strings; either may be
+    ``on``/``off`` are the full request hex strings (UDS ``0x2F``, or KWP2000
+    ``0x30`` on ECUs that speak it); either may be
     ``""`` when this DID has no simple command for that direction (common for
     ShortTermAdjustment actuators needing value bytes, and for every
     scanner-discovered entry). Callers must treat an empty string as "refuse",
     never as a reason to fall through to the other direction.
+
+    ``session_mode`` is the DiagnosticSessionControl sub-function (two upper-case
+    hex digits) opened when ``session`` is true.
 
     ``discovery`` marks an entry merged in from ``iocontrol_discoveries:``
     (probed, not curated) rather than the hand-verified ``iocontrol:`` section.
@@ -111,6 +115,7 @@ class IoControlCommand(TypedDict):
     on: str
     off: str
     session: bool
+    session_mode: str
     hold: bool
     verified: bool
     notes: str
@@ -292,10 +297,20 @@ def build_param_index(pids_data: dict) -> dict:
     return index
 
 
+# UDS extendedDiagnosticSession — what an actuator opens unless it says otherwise.
+DEFAULT_IOCONTROL_SESSION_MODE = "03"
+
+
+def normalize_session_mode(value: object) -> str:
+    """A declared ``session_mode`` as two upper-case hex digits (default ``03``)."""
+    text = str(value).strip().upper().removeprefix("0X") if value is not None else ""
+    return text.zfill(2) if text else DEFAULT_IOCONTROL_SESSION_MODE
+
+
 def build_iocontrol_index(
     pids_data: dict, include_discoveries: bool = False
 ) -> dict[str, IoControlIndexEntry]:
-    """Build lookup: ECU_NAME -> {tx_id, cmds: {DID: {label, on, off, session, hold, verified, notes, discovery}}}.
+    """Build lookup: ECU_NAME -> {tx_id, cmds: {DID: IoControlCommand}}.
 
     When ``include_discoveries=True``, entries from the ``iocontrol_discoveries:``
     section are merged in with ``discovery=True``. Curated ``iocontrol:`` entries
@@ -319,6 +334,7 @@ def build_iocontrol_index(
                 "on": str(on_cmd),
                 "off": str(off_cmd),
                 "session": cdef.get("session", True),
+                "session_mode": normalize_session_mode(cdef.get("session_mode")),
                 "hold": cdef.get("hold", True),
                 "verified": cdef.get("verified", False),
                 "notes": cdef.get("notes", ""),
@@ -336,6 +352,7 @@ def build_iocontrol_index(
                 "on": "",
                 "off": "",
                 "session": (ddef.get("session", "extended") == "extended"),
+                "session_mode": DEFAULT_IOCONTROL_SESSION_MODE,
                 "hold": True,
                 "verified": False,
                 "notes": ddef.get("notes", ""),

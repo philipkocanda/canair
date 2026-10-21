@@ -399,6 +399,7 @@ class TestExecIocontrolSession:
                         "on": "2FBC0103",
                         "off": "2FBC0100",
                         "session": True,
+                        "session_mode": "03",
                         "hold": False,
                         "verified": True,
                         "notes": "",
@@ -418,7 +419,7 @@ class TestExecIocontrolSession:
         sm.terminal.send_uds = AsyncMock(return_value={"ok": True, "hex": "6FBC0103"})
 
         asyncio.run(_exec_iocontrol(sm, "IGPM", "BC01", False, {}, {}, False))
-        sm.open_session.assert_awaited_once_with(0x770)
+        sm.open_session.assert_awaited_once_with(0x770, mode="03")
         sm.terminal.send_uds.assert_awaited_once()
 
 
@@ -439,6 +440,7 @@ class TestExecIocontrolPolarity:
     def _sm(self):
         sm = MagicMock()
         sm.active_sessions = [0x770]  # already open: isolate the actuation step
+        sm.session_mode = MagicMock(return_value="03")
         sm.open_session = AsyncMock(return_value=True)
         sm.keepalive_stale = AsyncMock()
         sm.terminal = MagicMock()
@@ -452,6 +454,7 @@ class TestExecIocontrolPolarity:
             "on": self.ON_CMD,
             "off": self.OFF_CMD,
             "session": True,
+            "session_mode": "03",
             "hold": False,
             "verified": True,
             "notes": "",
@@ -487,6 +490,15 @@ class TestExecIocontrolPolarity:
         # A DID with no OFF defined must refuse, not silently fall through to ON.
         sm = self._run(monkeypatch, off=True, cmd_overrides={"off": ""})
         sm.terminal.send_uds.assert_not_awaited()
+
+    def test_an_open_session_of_another_mode_is_switched(self, monkeypatch):
+        # A Nissan actuator needs 10 C0; reusing the tracked 10 03 would NRC.
+        sm = self._run(monkeypatch, off=False, cmd_overrides={"session_mode": "C0"})
+        sm.open_session.assert_awaited_once_with(0x770, mode="C0", force=True)
+
+    def test_an_open_session_of_the_same_mode_is_reused(self, monkeypatch):
+        sm = self._run(monkeypatch, off=False)
+        sm.open_session.assert_not_awaited()
 
 
 class TestBuildQueryPlanStatic:

@@ -35,7 +35,12 @@ def render_iocontrol(tui: _IOControlTUI) -> str:
     """Build the IOControl TUI display as a plain string with ANSI codes."""
     lines = []
     lines.append(f"\033[1;36m  IOControl TUI — {tui.ecu_key} (0x{tui.tx_id:03X})\033[0m")
-    sess = "\033[32mactive\033[0m" if tui._session_active else "\033[2mnot started\033[0m"
+    if tui._session_active:
+        sess = f"\033[32mactive (10 {tui._session_mode})\033[0m"
+    elif tui._session_mode:
+        sess = f"\033[33munconfirmed (10 {tui._session_mode})\033[0m"
+    else:
+        sess = "\033[2mnot started\033[0m"
     poll = "  \033[2m[polling]\033[0m" if tui._status_polling else ""
     # View-mode indicator: curated / all / discoveries, colour-coded.
     curated_n = sum(1 for c in tui.all_cmds.values() if not c.get("discovery"))

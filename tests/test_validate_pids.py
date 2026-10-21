@@ -202,6 +202,38 @@ class TestWakeValidation:
         assert any("interval_ms" in e for e in errs)
 
 
+class TestIoControlValidation:
+    """Actuator entries: the session_mode byte and keys YAML misreads as octal."""
+
+    def _validate(self, tmp_path, entry: str, key: str = "BC01"):
+        p = tmp_path / "e.yaml"
+        p.write_text(f"ECU:\n  tx_id: 0x745\n  iocontrol:\n    {key}:\n      label: x\n{entry}")
+        errors, warnings, _stats = validate_pids.validate_ecu_file(p, validate_pids.load_schema())
+        return errors, warnings
+
+    def test_quoted_session_mode_is_valid(self, tmp_path):
+        errs, warns = self._validate(tmp_path, '      session_mode: "C0"\n')
+        assert errs == [] and warns == []
+
+    @pytest.mark.parametrize("value", ["3", "C", "1003", "zz", '"0x03"'])
+    def test_session_mode_must_be_one_hex_byte(self, tmp_path, value):
+        errs, _ = self._validate(tmp_path, f"      session_mode: {value}\n")
+        assert any("session_mode" in e for e in errs)
+
+    @pytest.mark.parametrize("value", ['"02"', '"85"'])
+    def test_programming_session_is_an_error(self, tmp_path, value):
+        errs, _ = self._validate(tmp_path, f"      session_mode: {value}\n")
+        assert any("programming" in e for e in errs)
+
+    def test_octal_key_is_flagged(self, tmp_path):
+        _, warns = self._validate(tmp_path, "", key="0700")
+        assert any("octal" in w for w in warns)
+
+    def test_quoted_leading_zero_key_is_fine(self, tmp_path):
+        _, warns = self._validate(tmp_path, "", key='"0700"')
+        assert warns == []
+
+
 class TestAddressingModeValidation:
     """29-bit addressing widens the accepted tx_id/rx_id range; per-ECU mode is validated."""
 
