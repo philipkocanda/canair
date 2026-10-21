@@ -8,8 +8,11 @@ VCM:
       Seeded device-free from the charge-counter PIDs listed (but not shipped) in
       meatpiHQ/wican-fw#750: request 0x797 / response 0x79A (rx = tx + 3, an explicit rx_id override
       of the profile's +0x20). VCM is the name dalathegreat and OBDb use for this address; OVMS
-      calls it CHARGER_TXID. Source: https://github.com/meatpiHQ/wican-fw/pull/750
+      calls it CHARGER_TXID. Speaks KWP2000: dalathegreat's ZE1 poll list shows a positive 61 81
+      reply to the service 0x21 read 2181, alongside its 0x22 reads. Source:
+      https://github.com/meatpiHQ/wican-fw/pull/750
     identity_confidence: tentative
+    id_protocol: KWP2000
   pids:
     221203:
       status: active

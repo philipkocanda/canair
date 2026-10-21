@@ -9,11 +9,14 @@ LBC:
       0x79B / response 0x7BB (rx = tx + 0x20, set profile-wide via addressing.rx_offset). The PR
       author verified the 2101 signals against LeafSpy Pro on a 2018 40 kWh ZE1. Upstream later
       shipped those fixes as vehicle_profiles/nissan/leaf-ze1-2018-.json, whose LBC signals all
-      match this file (its LV_V is LBC_12V here).
+      match this file (its LV_V is LBC_12V here). Speaks KWP2000: ZE1 cars answer its service 0x21
+      reads with positive 0x61 replies (2101/2161 in OBDb's 2018-2024 test cases;
+      2101/2102/2104/2106/2161/2184 in dalathegreat's ZE1 poll list).
 
 
       Sources: https://github.com/meatpiHQ/wican-fw/pull/750,
       https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/nissan/leaf-ze1-2018-.json
+    id_protocol: KWP2000
   pids:
     2101:
       parameters:

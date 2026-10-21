@@ -5,8 +5,11 @@ HVAC:
     description: Heating, ventilation and air conditioning
     notes: >-
       Address from the dalathegreat/leaf_can_bus_messages ECU table (generation-wide, not
-      ZE1-specific). Signals from OBDb Nissan-Leaf and dalathegreat.
+      ZE1-specific). Signals from OBDb Nissan-Leaf and dalathegreat. Speaks KWP2000: dalathegreat's
+      ZE1 poll list shows a positive 61 10 reply to the service 0x21 read 2110 (OBDb's 2018 and 2024
+      test cars did not answer it).
     identity_confidence: tentative
+    id_protocol: KWP2000
   pids:
     2110:
       parameters:
