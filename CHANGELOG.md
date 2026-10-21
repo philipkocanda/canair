@@ -15,6 +15,31 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [1.26.0](https://github.com/philipkocanda/canair/compare/v1.25.0...v1.26.0) (2026-10-20)
+
+
+### Added
+
+* **nissan-leaf-ze1:** add BCM IOControl actuators from Black Hat Asia 2025 ([9d78780](https://github.com/philipkocanda/canair/commit/9d78780befd5594533a76f604641332995b8b303))
+* **nissan-leaf-ze1:** add the CAN bus segments and assign ECUs to them ([ae14707](https://github.com/philipkocanda/canair/commit/ae14707dbe4cba5a3fa01e2517a39b268d608e88))
+* **nissan-leaf-ze1:** put CHARGER on EV-CAN and note it is the PDM ([ed72d4b](https://github.com/philipkocanda/canair/commit/ed72d4b565b48459ac8cf31a18c03a052411d8ff))
+* **wican:** detect WiCAN firmware v6 and refuse or warn instead of failing obscurely ([fe33ecc](https://github.com/philipkocanda/canair/commit/fe33ecc79dc3d6b71132b06da66377087556727c))
+* **wican:** detect WiCAN firmware v6 and refuse or warn instead of failing obscurely ([ff9dc56](https://github.com/philipkocanda/canair/commit/ff9dc56acc3c6f57d53c2b68e8cce67c5069b0e5))
+
+
+### Fixed
+
+* **sniff:** fail fast when the SLCAN data port is closed ([b22b538](https://github.com/philipkocanda/canair/commit/b22b53870350e31dcc40599a192f5ffce2bbfefb))
+* **transport:** raise on an unregistered transport type instead of guessing ([b72fc27](https://github.com/philipkocanda/canair/commit/b72fc274d8b8d0b1ac4167319998d4bb4460d1a5))
+* **wican:** keep the sleep banner from ending a live session on an HTTP error ([b45f690](https://github.com/philipkocanda/canair/commit/b45f690dc05c7f33f500e14540d116da693cc6f7))
+
+
+### Documentation
+
+* **nissan-leaf-ze1:** add source URL to BCM IOControl actuator notes ([3667fb2](https://github.com/philipkocanda/canair/commit/3667fb21f64374055b913095a579a569f1278581))
+* **nissan-leaf-ze1:** remove duplicated source URLs from BCM IOControl notes ([79abff2](https://github.com/philipkocanda/canair/commit/79abff22d26ff7eafbf08bf214739208542f3390))
+* **skills:** re-base the WiCAN hardware skill on v4.52p and add the v6 trap ([a58eb4c](https://github.com/philipkocanda/canair/commit/a58eb4c6e8eb89af1983aed4c3f017cf796590d5))
+
 ## [1.25.0](https://github.com/philipkocanda/canair/compare/v1.24.0...v1.25.0) (2026-10-20)
 
 
