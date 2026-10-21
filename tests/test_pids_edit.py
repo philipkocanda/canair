@@ -242,6 +242,10 @@ class TestUpdateCommandFields:
 
 
 class TestPromoteDiscovery:
+    def test_a_kwp_local_identifier_is_refused_with_the_reason(self, tmp_pids_dir: Path):
+        with pytest.raises(PidsEditError, match="KWP2000 local identifier"):
+            promote_discovery("TEST", "0A", "Fan", pids_dir=tmp_pids_dir)
+
     def test_promotes_with_inferred_single_byte_state(self, tmp_pids_dir: Path):
         """BB01 response 6FBB010100 → tail=0100 → on=2FBB01030100 (replay state)."""
         promote_discovery("TEST", "BB01", "Fan speed", pids_dir=tmp_pids_dir)

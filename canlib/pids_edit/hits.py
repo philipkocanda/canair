@@ -532,6 +532,11 @@ def promote_discovery(
     already exists under curated ``iocontrol:``.
     """
     did_u = did.strip().upper()
+    if re.fullmatch(r"[0-9A-F]{2}", did_u):
+        raise PidsEditError(
+            f"{did_u} is a KWP2000 local identifier; promotion only infers UDS 0x2F "
+            "commands, and KWP2000 actuator layouts are make-specific"
+        )
     if not re.fullmatch(r"[0-9A-F]{4}", did_u):
         raise PidsEditError(f"DID must be 4 hex digits, got {did!r}")
     label = label.strip()
