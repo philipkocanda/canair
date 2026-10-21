@@ -1364,14 +1364,70 @@ BMS:
           notes: "Last cell. Total: 96 cells across PIDs 2102/2103/2104."
 
     21F2:
-      status: static
+      status: draft
       response_frames: 18
       period: 0
       vehicle_states: [READY]
       notes: >-
-        121 data bytes. Identical across 4 reads at READY on 2026-07-22; holds identity/calibration
-        data, not live signals. Found by the 21 00-FF sweep on 2026-07-22.
-      parameters: {}
+        121 data bytes, 13 distinct payloads over 29 captures. Not static: a previous-cycle record
+        that changes only between drive or charge cycles (min/max cell and pack voltage decoded),
+        plus the constant ASCII tag '4064' at B9-B12. Found by the 21 00-FF sweep on 2026-07-22.
+      parameters:
+        LAST_CYCLE_MIN_CELL_VOLTAGE:
+          expression: B37/50
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "5"
+          source: canair align vs BMS:2101 2026-10-21
+          verified: false
+          notes: >-
+            Lowest cell voltage of the previous drive or charge cycle (same 1/50 V scale as 2101).
+            Frozen while the car is on: 4.12 V through the whole 2026-08-08 10:02-11:08 drive while
+            the live minimum fell to 3.68 V, then 3.52 V from 11:41 after the drive ended.
+        LAST_CYCLE_MAX_CELL_VOLTAGE:
+          expression: B38/50
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "5"
+          source: canair align vs BMS:2101 2026-10-21
+          verified: false
+          notes: >-
+            Highest cell voltage of the previous drive or charge cycle. 4.14 V after the 2026-08-08
+            drive that started at a 4.14 V live maximum; 4.16 V during the 2026-07-30 AC charge to
+            95 %.
+        LAST_CYCLE_MAX_PACK_VOLTAGE:
+          expression: "[B43:B44]"
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "450"
+          source: canair align vs BMS:2101 2026-10-21
+          verified: false
+          notes: >-
+            Highest pack voltage of the previous cycle, 1 V/bit. 398 V through the 2026-08-08
+            10:02-11:08 drive (live 397 to 354 V), 397 V from 11:41.
+        LAST_CYCLE_MIN_PACK_VOLTAGE:
+          expression: "[B45:B46]"
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "450"
+          source: canair align vs BMS:2101 2026-10-21
+          verified: false
+          notes: >-
+            Lowest pack voltage of the previous cycle, 1 V/bit. 397 V through the 2026-08-08 drive,
+            then 340 V from 11:41, below the 346 V read live at the end of the drive (load sag).
+        BMS_21F2_TAG:
+          expression: "[B9:B12]"
+          type: ascii
+          source: canair search 2026-10-21
+          verified: false
+          notes: >-
+            Constant ASCII '4064' in all 29 captures. Not the 1A8D calibration ('4604') or any other
+            identity field.
+          enabled: false
   research:
     - type: iocontrol_scan
       target: "30 00-FF"

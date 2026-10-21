@@ -70,14 +70,19 @@ AAF:
           notes: >-
             Community sheet. About ambient with the A/C off; range 12-66 °C across 3428 captures.
 
-        AAF_AUX_BATTERY_VOLTAGE:
-          expression: B25/10
-          unit: V
-          min: "0"
-          max: "16"
-          source: canair correlate 2026-07-22 drive
+        AAF_COOLANT_TEMP_B25:
+          expression: B25-100
+          unit: °C
+          min: "-40"
+          max: "150"
+          source: canair correlate --find-mirrors --allow-offset 2026-10-21
           verified: false
-          notes: 12 V rail. r=+0.995 vs VCU:2102:VCU_AUX_BATTERY_VOLTAGE (n=61).
+          notes: >-
+            Not a 12 V voltage (was AAF_AUX_BATTERY_VOLTAGE, B25/10): r=-0.04 vs
+            VCU:2102:VCU_AUX_BATTERY_VOLTAGE_FINE. B25 equals VCU:2102 B18 (VCU_COOLANT_TEMP + 100)
+            in 4321 of 4469 aligned rows, r=+0.999. The old r=0.995 voltage match was against VCU
+            B18/10, itself later disproven.
+          ha_class: temperature
     2181:
       response_frames: 4
       status: draft
@@ -108,14 +113,18 @@ AAF:
           verified: false
           notes: Slope 0.6244 vs ESC:22C101:REAL_SPEED_KMH (0.6214 expected for mph), r=0.997.
           enabled: true
-        AAF_AUX_BATTERY_VOLTAGE:
-          expression: B25/10
-          unit: V
-          min: "0"
-          max: "16"
-          source: canair correlate 2026-07-22 drive
+        AAF_COOLANT_TEMP_B25:
+          expression: B25-100
+          unit: °C
+          min: "-40"
+          max: "150"
+          source: canair correlate --find-mirrors --allow-offset 2026-10-21
           verified: false
-          notes: Same byte and scale as AAF:2180:AAF_AUX_BATTERY_VOLTAGE.
+          notes: >-
+            Same byte as AAF:2180:AAF_COOLANT_TEMP_B25 (equal in 3754 of 3826 rows) and VCU:2102 B18
+            (VCU_COOLANT_TEMP + 100). Disabled as a duplicate.
+          ha_class: temperature
+          enabled: false
         HEATSINK_TEMP:
           expression: B20-40
           unit: °C
@@ -207,6 +216,9 @@ AAF:
       vehicle_states: [READY]
       created: "2026-07-23"
       updated: "2026-07-30"
+      result: >-
+        2026-10-21: B25 is not the 12 V voltage: B25-100 equals VCU_COOLANT_TEMP (renamed
+        AAF_COOLANT_TEMP_B25).
       notes: >
         Speed bytes decoded (2181 B12=MPH, B13=km/h; r=0.997 vs ESC). Identity docs
         list ambient/heater-element/heat-sink/compressor temps on 2180/2181; temp
@@ -248,3 +260,17 @@ AAF:
         - "AAF_CHARGE_ACTIVE: what do raw 0/2/5/6 correspond to (speed? time-since-stop?)"
         - "AAF_OPERATING_MODE: correlate raw value directly against AAF_VEHICLE_SPEED_KMH and time-parked instead of charge state"
         - "AAF_COOLANT_TEMP_2: confirm sensor location vs existing MOTOR_COOLANT_TEMP (B22) - inlet/outlet pair?"
+    - type: decode
+      target: 2181 flap position/status (AAF11 lead)
+      status: pending
+      priority: P3
+      vehicle_states: [READY]
+      created: "2026-10-21"
+      updated: "2026-10-21"
+      notes: "opendbc AAF11 (0x584, sender AAF) broadcasts the flap's own state: CF_Aaf_ActFlapStatus (2-bit), CF_Aaf_ModeStatus (3-bit), CF_Aaf_ErrStatus (10-bit), CF_Aaf_PStatus (position, 0-100 %) and CF_Aaf_SolFlapStatus. On the uhi22 Ioniq 28 logs: ActFlapStatus 1, PStatus 41 %, constant. 2180/2181 decode temperatures, speed and voltage but no flap position. AAF_2181_B15 (raw 0/52/67, tied to motion and charging; see the 2181 AAF_OPERATING_MODE entry) is a candidate flap position percentage."
+      sources:
+        - opendbc hyundai_2015_ccan.dbc (commaai, MIT), cross-checked against uhi22 Ioniq28Investigations P-CAN logs (scripts/fetch_can_corpus.py)
+      what_to_test:
+        - B15 stays within 0-100 in every capture
+        - B15 rises when motor/coolant temps rise (flap opening for cooling) or changes with speed
+        - A 2-bit flap status and an error word that stays 0 in normal operation

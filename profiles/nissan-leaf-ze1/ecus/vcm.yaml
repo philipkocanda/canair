@@ -481,11 +481,13 @@ VCM:
       vehicle_states: [READY]
       notes: e-Pedal mode.
     2181:
-      status: draft
+      status: static
       vehicle_states: [READY]
       notes: >-
-        VCM group 81 (service 0x21): the vehicle identification number as ASCII (dalathegreat,
-        OVMS). Contains the VIN, so never commit a capture of it.
+        VCM group 81 (service 0x21): the vehicle identification number as ASCII at B4:B22
+        (dalathegreat, OVMS), confirmed on a 2018 40 kWh car. Contains the VIN, so never commit a
+        capture of it; marked static so a bare-ECU sweep skips it by default rather than relying on
+        that warning. Query it deliberately with VCM:2181 or --include-static.
 
   research:
     - type: verify

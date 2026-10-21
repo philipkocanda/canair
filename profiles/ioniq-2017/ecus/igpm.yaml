@@ -77,6 +77,16 @@ IGPM:
           verified: false
           notes: 1 in 15 of 328 captures. Meaning unknown.
           enabled: false
+        TRUNK_OPEN_BC07:
+          expression: B10:4
+          min: "0"
+          max: "1"
+          source: canair correlate --find-mirrors --bits 2026-10-21
+          verified: false
+          notes: >-
+            Equals 22BC03 TRUNK_OPEN (B10:7) in all 349 aligned rows, and 22BC05 TRUNK_INDICATOR.
+            Disabled as a duplicate.
+          enabled: false
 
     22BC03:
       status: active
@@ -235,12 +245,14 @@ IGPM:
           notes: 1 = open. Found 2026-07-24.
         UNKNOWN_B13_1:
           expression: B13:1
-          source: canair bitfield analysis 2026-08-06 (2026-07-30 defroster/DC-load session)
+          source: bitfield analysis 2026-08-06; align vs VCU_AUX_POWER 2026-10-21
           verified: false
           notes: >-
-            1 in 3 of 384 captures, all in the 2026-07-30 10:17-10:25 rear-defroster and 12 V load
-            window; r=+0.604 vs VCU:2102:VCU_AUX_POWER (n=18). It cleared once while the defroster
-            was still on.
+            Set only in the 2026-07-30 10:17-10:25 defroster and 12 V load window (3 of 384
+            captures). Each edge moves VCU_AUX_POWER by a 127-172 W step with the blower unchanged:
+            on 10:17:01 (203->368 W), off 10:20:41 (570->443 W), on 10:21:24 (470->642 W). Fits a
+            rear-window heater relay, but the narration says the defroster was still on when it
+            cleared at 10:20:41.
 
 
     22BC04:
@@ -330,18 +342,10 @@ IGPM:
       status: draft
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
       notes: >-
-        8 data bytes. B05=0x7F, B06=0x11 and B07=0x20 in all 421 captures. B10 holds the
-        unlock-flash bits and B11 bit 3 the trunk indicator.
+        8 data bytes. B05=0x7F, B06=0x11 and B07=0x20 in all 421 captures. B10 holds the turn-lamp
+        outputs (0x50 left, 0xA0 right, 0xF0 both at the fob-unlock flash), B11:3 the trunk
+        indicator and B11:7 passenger seat occupancy.
       parameters:
-        UNLOCK_FLASH_BITS:
-          expression: B10
-          min: "0"
-          max: "255"
-          source: Timed event capture 2026-07-24; byte offset corrected via bix --annotate overlay 2026-07-24
-          verified: false
-          notes: >-
-            0x00, 0x50, 0xA0 or 0xF0 across 421 captures. Went 0x00 to 0xF0 at fob unlock
-            (2026-07-24 09:36:50) and back at the first door or trunk event.
         TRUNK_INDICATOR:
           expression: B11:3
           min: "0"
@@ -349,6 +353,69 @@ IGPM:
           source: canair correlate --find-mirrors + investigate --events 2026-07-24
           verified: false
           notes: Set at trunk open (2026-07-24 09:37:08); 1 in 3 of 421 captures.
+        TURN_LAMP_LEFT:
+          expression: B10:4
+          min: "0"
+          max: "1"
+          source: canair align cross-tab + investigate --events 2026-10-21
+          verified: false
+          notes: >-
+            Left turn-lamp output (flashes, so a poll can catch it off). Cross-tab vs 22BC06
+            LEFT/RIGHT_TURN_SIGNAL over 380 aligned rows: set in 18 of 23 left rows, 0 of 23 right
+            rows, 0 of 334 with neither. Both sides set (B10=0xF0) only at the fob-unlock flash.
+            B10:6 never differs from it.
+        TURN_LAMP_RIGHT:
+          expression: B10:5
+          min: "0"
+          max: "1"
+          source: canair align cross-tab + investigate --events 2026-10-21
+          verified: false
+          notes: >-
+            Right turn-lamp output (flashes, so a poll can catch it off). Cross-tab vs 22BC06
+            LEFT/RIGHT_TURN_SIGNAL over 380 aligned rows: set in 20 of 23 right rows, 0 of 23 left
+            rows, 0 of 334 with neither. Both sides set (B10=0xF0) only at the fob-unlock flash.
+            B10:7 never differs from it.
+        TURN_LAMP_LEFT_2:
+          expression: B10:6
+          min: "0"
+          max: "1"
+          source: canair decode --dump-bytes 2026-10-21
+          verified: false
+          notes: >-
+            Equals TURN_LAMP_LEFT (B10:4) in every capture (B10 is only ever 0x00, 0x50, 0xA0 or
+            0xF0). Probably the second left lamp circuit. Disabled as a duplicate.
+          enabled: false
+        TURN_LAMP_RIGHT_2:
+          expression: B10:7
+          min: "0"
+          max: "1"
+          source: canair decode --dump-bytes 2026-10-21
+          verified: false
+          notes: >-
+            Equals TURN_LAMP_RIGHT (B10:5) in every capture (B10 is only ever 0x00, 0x50, 0xA0 or
+            0xF0). Probably the second right lamp circuit. Disabled as a duplicate.
+          enabled: false
+        PASSENGER_SEAT_OCCUPIED:
+          expression: B11:7
+          min: "0"
+          max: "1"
+          source: canair correlate --find-mirrors --bits + investigate --events 2026-10-21
+          verified: false
+          notes: >-
+            Front passenger seat occupied. Superset of SEATBELT_FR over 314 aligned rows: set in all
+            11 buckled rows plus 4 unbuckled rows, never clear while buckled. 2026-08-08: set at
+            10:23:53 when the passenger door closed, belt buckled 22 s later; belt unbuckled
+            11:41:22, cleared 11:41:42, passenger door opened 11:42:22.
+        IGPM_BC05_B12_2:
+          expression: B12:2
+          min: "0"
+          max: "1"
+          source: canair align cross-tab 2026-10-21
+          verified: false
+          notes: >-
+            Set only when DRL, tail and low beam are on AND ACC2_IGN_ON=1 (23 rows). 0 in the 6 rows
+            with the lamps still on after ignition off, and 0 with the lamps off. Meaning unknown:
+            possibly a light-switch or auto-light request rather than the lamp outputs.
     22BC08:
       status: ignored
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
@@ -677,6 +744,30 @@ IGPM:
       capture_protocol: >-
         During any narrated IGPM body capture: open and close the rear-right door, and separately
         buckle/unbuckle the front passenger seatbelt, noting each with 's'.
+    - type: decode
+      target: 22BC03-07 body bits (CGW1/CGW2/CGW4 candidates)
+      status: pending
+      priority: P3
+      vehicle_states: [READY]
+      created: "2026-10-21"
+      updated: "2026-10-21"
+      result: >-
+        2026-10-21, from existing captures: 22BC05 B10:4/B10:5 = left/right turn-lamp outputs
+        (B10:6/B10:7 duplicates), B11:7 = passenger seat occupied, B12:2 = set only with lamps on
+        and ignition on (meaning open); 22BC07 B10:4 = TRUNK_OPEN duplicate; 22BC03 B13:1 = a ~150 W
+        12 V load step, probably the rear-window heater. The rest of the checklist needs a narrated
+        actuation capture.
+      notes: "opendbc CGW1 (0x541), CGW2 (0x553) and CGW4 (0x559) list the body signals the gateway publishes. CGW1 is on the uhi22 Ioniq 28 logs and its driver-door bit toggles when the driver leaves the car. Signals there that 22BC03-07 do not map yet: light switch position (2-bit), auto-light status, front and rear fog, hazard switch, turn-signal stalk, wiper stages (int/low/high/auto/mist) and intermittent time, rain sensor state, park brake switch, passive-access lock/unlock, RKE (key fob) command, window states and heated steering wheel (CGW4), rear seatbelt indicators, steering-lock warnings (CGW2). Use this as the actuation checklist for the existing 22BC03/BC04/BC06 bit-gap entries. The DBC bit positions do not carry over to the DIDs."
+      sources:
+        - opendbc hyundai_2015_ccan.dbc (commaai, MIT), cross-checked against uhi22 Ioniq28Investigations P-CAN logs (scripts/fetch_can_corpus.py)
+      what_to_test:
+        - "Light switch: step OFF/AUTO/position/low beam and look for a 2-bit field"
+        - "Wiper stalk: mist, intermittent (each delay step), low, high, auto"
+        - Hazard switch, fog lights, park brake switch, heated steering wheel, each window down/up
+        - Rear seatbelts buckled/unbuckled; key fob lock/unlock and passive (handle) lock/unlock
+      capture_protocol: >-
+        canair monitor @body --save --keep-changes --label 'IGPM body sweep' --state READY. One
+        actuation at a time, pressing 's' to note each, holding each state ~3 s.
 
   iocontrol_discoveries:
     BC01:

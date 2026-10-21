@@ -629,6 +629,13 @@ HVAC:
       status: captured
       priority: P2
       vehicle_states: [READY]
+      result: >-
+        2026-10-21, with the BMS pack current fixed: parked in READY, pack power minus
+        VCU_AUX_POWER/0.9 leaves a 0.02-0.08 kW baseline with climate off, and during heating it
+        equals HVAC_HEAT_POWER (median ratio 0.99, r=0.88, n=129 heating rows). So B42/10 is the
+        whole HV climate draw at 0.1 kW/bit. Heat-pump sessions run the compressor and B42 together,
+        and there is no cooling-only or PTC-only session with BMS and VCU co-polled, so the
+        compressor and PTC shares cannot be separated yet.
       notes: >-
         Console Drive/Climate/Electronics power split. RESOLVED (heating): the HEATING climate
         power is broadcast on HVAC 2201A2 B42 (HVAC_HEAT_POWER, ~0.1 kW/LSB) — r=0.956 vs pack
@@ -705,6 +712,23 @@ HVAC:
       what_to_test:
         - Sweep service-21 00-FF on HVAC 0x7B3 in READY; note which LIDs respond (expect 21F2 per the 21F2 convention on other ECUs).
         - If a page responds, capture it in a known precondition state, then change one precondition schedule field and re-read to locate the schedule bytes.
+    - type: decode
+      target: compressor vs PTC power split
+      status: pending
+      priority: P2
+      vehicle_states: [READY]
+      created: "2026-10-21"
+      updated: "2026-10-21"
+      notes: "HVAC_HEAT_POWER (2201A2 B42/10) matches the whole HV climate draw. Splitting it needs sessions where only one HV consumer runs. Candidates that rise with the compressor: 220100 HVAC_COMPRESSOR_DUTY (16 idle, 239 on), 2201A1 B34 (= B60, 0-37), 2201A3 B42/B43. All co-vary with heating in the existing data, so none is attributable yet."
+      sources:
+        - BMS:2101 BATTERY_POWER - VCU:2102 VCU_AUX_POWER residual, 2026-10-21
+      what_to_test:
+        - "A/C cooling only (no PTC): the pack residual should track one compressor candidate while 2201A2 B42 either follows it or stays 0"
+        - "Heater with A/C and heat pump off (PTC only): compressor candidates stay at idle while B42 rises"
+      capture_protocol: >-
+        canair monitor 'BMS:2101 VCU:2102 HVAC:220100,220102,2201A0,2201A1,2201A2,2201A3' --save
+        --keep-all --label 'HVAC power split' --state READY. Parked, 3 min per mode: climate off,
+        A/C cooling at fan 3, A/C off with heat at max, noting each change with 's'.
   dtcs:
     B1285:
       description: >

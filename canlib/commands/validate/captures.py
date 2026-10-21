@@ -169,6 +169,11 @@ def _run_captures(
 
     hk_f1xx_offset = has_quirk(prof.meta, HK_F1XX_MINUS_ONE)
 
+    # Cross-file: a reply saved under the wrong ECU only stands out against the whole corpus.
+    from .misfiled import misfile_warnings
+
+    misfiled = misfile_warnings(files)
+
     total_errors = 0
     total_warnings = 0
     total_time_gaps = 0
@@ -180,6 +185,7 @@ def _run_captures(
         warnings += _capture_echo_warnings(path, hk_f1xx_offset)
         warnings += _capture_nonhex_warnings(path)
         warnings += _capture_quality_warnings(path)
+        warnings += misfiled.get(path, [])
         # Missing-time on payload captures: an error under --strict (new-data
         # gate). Otherwise the grandfathered rows are a single tracked COUNT (the
         # footer + the --max-untimed ratchet), not a per-file warning stream — 284

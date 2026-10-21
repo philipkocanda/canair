@@ -358,9 +358,11 @@ reuse these instead of re-declaring a flag:
   duplicate *shipped* signal name across PIDs (each becomes a distinct device signal) and on an
   `identity:` field outside the schema's `identity_fields`, and warns when two *synonymous* identity
   fields hold the same value (dead mirrored data). **`validate captures`** soft-warns on
-  out-of-vocabulary states, SID/DID **echo mismatches** (a misfiled payload), non-hex payloads,
-  **untimed payload captures** (excluded from every time-aligned analysis) and **degraded-transport
-  sessions** (recorded drops/stale frames). **`--max-untimed N` is the CI ratchet**: fail when the
+  out-of-vocabulary states, SID/DID **echo mismatches** (a misfiled payload), **cross-ECU misfiles**
+  (a reply that looks like another ECU's answer to the same PID, which the echo check cannot see;
+  cross-file pass, detection in `canlib/misfiled.py`), non-hex payloads, **untimed payload
+  captures** (excluded from every time-aligned analysis) and **degraded-transport sessions**
+  (recorded drops/stale frames). **`--max-untimed N` is the CI ratchet**: fail when the
   count *grows*. The write path now enforces a timestamp so the count only falls — CI gates each
   profile at its baseline (`.github/workflows/ci.yml`), lowered opportunistically. `--strict`
   forbids any untimed row.
