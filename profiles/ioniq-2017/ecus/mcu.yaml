@@ -101,6 +101,30 @@ MCU:
           source: canair analysis 2026-08-08 long drive + DCFC
           verified: false
           notes: Signed 16-bit little-endian, low byte B34, high byte B35. See MCU_PHASE_CURRENT_1.
+        MCU_SUPPLY_VOLTAGE_1:
+          expression: ((B15<<8)|B14)/1000
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "16"
+          source: canair decode --corr / hunt 2026-10-21
+          verified: false
+          notes: >-
+            12 V supply voltage at the MCU, 1 mV/bit, 16-bit little-endian. r=+0.998 vs
+            VCU:2102:VCU_AUX_BATTERY_VOLTAGE_FINE (n=8469, slope 0.996). Reads 14.73-14.83 V while
+            the VCU battery and LDC readings are 14.75 and 14.89 V.
+        MCU_SUPPLY_VOLTAGE_2:
+          expression: ((B28<<8)|B27)/1000
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "16"
+          source: canair decode --corr / hunt 2026-10-21
+          verified: false
+          notes: >-
+            Second 12 V supply reading at the MCU, 1 mV/bit, 16-bit little-endian. r=+0.998 vs
+            VCU:2102:VCU_LDC_OUTPUT_VOLTAGE (n=8469); tracks MCU_SUPPLY_VOLTAGE_1 within a few tens
+            of mV.
     2102:
       response_frames: 9
       status: active
@@ -232,8 +256,21 @@ MCU:
       status: active
       period: 0
       vehicle_states: [CHARGING]
-      notes: 69 bytes, containing the software ID string "-EHEL-MS2". Undecoded.
-      parameters: {}
+      notes: >-
+        67 data bytes. The ASCII tag 'EHEL-MS2' (part of the 1A8D software ID) at B69-B77, after a
+        record whose values change between drive and charge cycles rather than live, like BMS 21F2.
+        Undecoded. A misfiled VCU 21F2 reply (2026-08-08 10:07:16) was deleted on 2026-10-21; see
+        plans/2026-10-21-cross-ecu-reply-misfile.md.
+      parameters:
+        MCU_21F2_TAG:
+          expression: "[B69:B77]"
+          type: ascii
+          source: canair search 2026-10-21
+          verified: false
+          notes: >-
+            Constant ASCII 'EHEL-MS2', the middle of the 1A8D software ID EAEEHEL-MS2-D000. The byte
+            before it varies, so it is not part of the string.
+          enabled: false
   research:
     - type: decode
       target: "2102"
@@ -474,11 +511,15 @@ MCU:
         - Identify B25 - slow with real inertia but inversely signed vs coolant; try inverter EFFICIENCY or a cooling-demand/fan-request signal, not a temperature
     - type: decode
       target: 2101 B14:B15 and B27:B28 mirrored words
-      status: captured
+      status: done
       priority: P2
       vehicle_states: [DRIVING]
       created: "2026-08-08"
-      updated: "2026-08-08"
+      updated: "2026-10-21"
+      result: >-
+        2026-10-21: both are 12 V supply voltages in mV (MCU_SUPPLY_VOLTAGE_1/2), r=+0.998 vs the
+        VCU 12 V words. The 2026-08-08 rejection used AAF_AUX_BATTERY_VOLTAGE as the reference,
+        which turned out to be a coolant temperature.
       notes: "Two unidentified LE-16 words that MIRROR EACH OTHER, range 12285-14983. Aux-12V hypothesis REJECTED: r=-0.38 and -0.43 vs AAF_AUX_BATTERY_VOLTAGE, i.e. wrong sign for a supply rail. Not temperatures either (r~-0.43 vs AAF coolant). The tight ~12300-15000 span on a 16-bit field suggests a scaled quantity with a large offset, or a resolver/angle-derived value."
       what_to_test:
         - Check whether the pair is a redundant safety-channel duplicate (identical by design) via correlate --find-mirrors --allow-offset

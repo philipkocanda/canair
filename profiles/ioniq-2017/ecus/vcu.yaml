@@ -67,14 +67,16 @@ VCU:
             B18 = 0 with the pedal released and 200 (100 %) with it floored (ITStromer community
             sheet). Captures: 0 % at rest, up to 56 % driving, up to 86 % pressed in Park.
 
-        ACCEL_PEDAL_RELATED:
-          expression: "B17"
-          unit: ""
+        ACCEL_PEDAL_DEPTH_FINE:
+          expression: ((B18<<8)|B17)/512
+          unit: "%"
           min: "0"
-          max: "255"
-          source: "ITStromer community PID sheet (Accel Pedal Related = l)"
+          max: "100"
+          source: canair decode --corr 2026-10-21
           verified: false
-          notes: Range 0-254; moves with the accelerator pedal.
+          notes: >-
+            Accelerator pedal position, 16-bit little-endian; B17 is the low byte of
+            ACCEL_PEDAL_DEPTH (B18/2). r=+1.000 vs ACCEL_PEDAL_DEPTH over 1607 DRIVING captures.
 
         GEAR:
           expression: B10
@@ -166,14 +168,18 @@ VCU:
             1 at READY (B11 = 0x5A) and 0 in accessory or off (B11 = 0x92, 0x91, 0x80) on the
             2026-07-30 power cycle. ACC1, ACC2 and off are not told apart.
 
-        VCU_2101_B12:
-          expression: B12
-          unit: ""
+        VCU_APS1_VOLTAGE:
+          expression: ((B13<<8)|B12)/2048
+          unit: V
           verified: false
           notes: >-
-            Not a flag byte: 253 distinct values across 10592 VCU 2101 captures with all 8 bits
-            varying independently.
-          source: canair bitfield analysis 2026-08-06; byte-value enumeration n=6365
+            Accelerator pedal sensor track 1, 16-bit little-endian; B12 is the low byte. r=+0.996 vs
+            ACCEL_PEDAL_DEPTH over 1607 DRIVING captures. Always 1.97x (1.91-2.37) VCU_APS2_VOLTAGE,
+            the usual two-track pedal sensor layout. Reads 0.80 V released and 3.55 V at 87.5 %
+            pedal. Scale 1/2048 V not proven.
+          source: canair decode/align 2026-10-21
+          min: "0"
+          max: "5"
         DEBUG_GEAR_STATE_FLAGS:
           expression: B26
           unit: ""
@@ -234,15 +240,19 @@ VCU:
             4: drive_ready
             6: transition
             7: charge_standby
-        VCU_2101_B21:
-          expression: B21
+        VCU_SUPPLY_VOLTAGE:
+          expression: ((B22<<8)|B21)/2072
           min: "0"
-          max: "255"
-          source: canair hunt/correlate 2026-08-02 (per-session, driving scope)
+          max: "16"
+          source: canair align fit 2026-10-21
           verified: false
           notes: >-
-            Continuous (lag-1 autocorrelation 0.92). About 203 at standstill and 111 at speed;
-            r=-0.66 vs speed, motor RPM and pack current over a drive.
+            12 V supply voltage at the VCU, 16-bit little-endian; B21 is the low byte. r=+0.995 vs
+            VCU_AUX_BATTERY_VOLTAGE_FINE (n=10357); the same ~2070 counts/V fit against the MCU and
+            ESC supply words. The empirical /2072 matches the other ECUs; /2048 would read about 1.2
+            % high. B21's old speed correlation was the bus voltage sagging under driving load.
+          unit: V
+          ha_class: voltage
         VCU_INVERTER_ARMED:
           expression: B23:4
           source: canair bitfield analysis 2026-08-06; same-payload cross-tab n=6367
@@ -274,6 +284,17 @@ VCU:
             Bit 1 of VCU_POWER_STATE: set exactly when it reads 6 or 7. Not a DC-charging flag.
             Disabled so it does not ship a duplicate; defined so the bit is accounted for.
           enabled: false
+        VCU_APS2_VOLTAGE:
+          expression: ((B15<<8)|B14)/2048
+          unit: V
+          min: "0"
+          max: "5"
+          source: canair decode/align 2026-10-21
+          verified: false
+          notes: >-
+            Accelerator pedal sensor track 2, 16-bit little-endian. About half of VCU_APS1_VOLTAGE
+            (ratio median 1.97). Reads 0.42 V released and 1.80 V at 87.5 % pedal. Scale 1/2048 V
+            not proven.
     2102:
       response_frames: 4
       status: active
@@ -327,11 +348,12 @@ VCU:
           source: 2026-07-30 dash anchor (130->650 W); low byte B21 per decode/align 2026-10-21
           verified: false
           notes: >-
-            12 V auxiliary load in watts, 16-bit little-endian. Matched the dash electronics bar
-            from 130 to 650 W (2026-07-30) and rose 195 to 601 W with the rear and side defrosters.
-            Low byte is B21, not B23: B23 is the low byte of VCU_DCLINK_VOLTAGE, and B21 tracks the
-            independent coarse field B15*10 more tightly (r=0.998 vs 0.970 charging, 0.992 vs 0.984
-            driving). Excludes HV climate power.
+            LDC output power in watts, 16-bit little-endian. 0 whenever VCU_HV_MAIN_RELAY_ON is 0,
+            so it is the converter's output (12 V loads plus battery charging), not a load
+            measurement. Matched the dash electronics bar from 130 to 650 W (2026-07-30) and rose
+            195 to 601 W with the rear and side defrosters. Low byte is B21, not B23: B23 is the low
+            byte of VCU_DCLINK_VOLTAGE, and B21 tracks the coarse field B15*10 more tightly (r=0.998
+            vs 0.970 charging). Excludes HV climate power.
         VCU_AUX_POWER_COARSE:
           expression: B15*10
           unit: W
@@ -426,6 +448,14 @@ VCU:
             32-bit little-endian at WiCAN B14, B15, B17, B18 (B16 is a PCI byte), 1/256 km per LSB.
             Only rises over the corpus (72986.45 to 75234.69 km). A constant +4.36 to +4.66 km above
             CLU:22B002:ODOMETER at 5 co-polled points, all parked.
+        VCU_21F2_TAG:
+          expression: "[B95:B99]"
+          type: ascii
+          source: canair search 2026-10-21
+          verified: false
+          notes: >-
+            Constant ASCII '6000' in all 158 captures. Not part of the 1A8C/1A8D identity strings.
+          enabled: false
 
 
       status: active
@@ -491,9 +521,14 @@ VCU:
         - "Obsidian: VCU.md"
     - type: decode
       target: "2102"
-      status: captured
+      status: done
       priority: P1
       vehicle_states: [READY, CHARGING]
+      result: >-
+        2026-10-21: every varying byte is now mapped. The 'max-entropy' B19/B21/B23/B26 are the low
+        bytes of little-endian words: [B19:B20] LDC output voltage and [B26:B27] 12 V battery
+        voltage (1 mV), [B21:B22] LDC output power (0.1 W), and (B25<<8)|B23 DC-link voltage (0.01
+        V). B4-B7, B9 and B11-B13 are constant.
       notes: >
         27 bytes. 2026-07-20 (Kia Soul EV VMCU cross-ref, 0x7E2): mapped INVERTER_INPUT_VOLTAGE=B17*2
         (verified vs BMS pack ~369V) and AUX_BATTERY_VOLTAGE=B18/10 (~12–13.6V). KEY FINDING: the Ioniq
@@ -525,6 +560,7 @@ VCU:
         - "Kia Soul EV VMCU CSV — 0x7E2 (Inverter f*2, Aux e/10, temps w/x/y-40, RPM/torque 16-bit)"
         - "Obsidian: VCU.md — 23 bytes captured 2025-08-07"
         - "38kWh profile — B20*3.97+2.3 speed formula"
+      updated: "2026-10-21"
 
     - type: scan
       target: "22 E001-E010"
@@ -725,10 +761,13 @@ VCU:
         held, repeat one cycle while NOT in Park to see whether B10:5 drops there too.
     - type: decode
       target: 2101 B12 (analog, misnamed VCU_STATE_FLAGS_RAW)
-      status: captured
+      status: done
       priority: P3
       created: "2026-08-06"
-      updated: "2026-08-06"
+      updated: "2026-10-21"
+      result: >-
+        2026-10-21: B12 is the low byte of accelerator pedal sensor track 1, (B13<<8)|B12
+        (VCU_APS1_VOLTAGE).
       notes: "VCU_STATE_FLAGS_RAW is not a flag byte: B12 takes 136 distinct values across 6365 captures with all 8 bits varying independently. Triage it as an analog value or counter, then rename. Do NOT decode it bit-by-bit."
       sources:
         - canair bitfield analysis 2026-08-06
@@ -737,10 +776,14 @@ VCU:
         - correlate/hunt against speed, pedal, motor RPM, pack current and the 12V rail
     - type: decode
       target: 2101 B13/B15 (same quantity, two resolutions)
-      status: captured
+      status: done
       priority: P3
       created: "2026-08-06"
-      updated: "2026-08-06"
+      updated: "2026-10-21"
+      result: >-
+        2026-10-21: two accelerator pedal sensor tracks, not two resolutions: (B13<<8)|B12 and
+        (B15<<8)|B14 with a fixed ~1.97 ratio (VCU_APS1_VOLTAGE, VCU_APS2_VOLTAGE). Also B17 is the
+        low byte of the pedal position (ACCEL_PEDAL_DEPTH_FINE) and B21 of the VCU supply voltage.
       notes: "B13 and B15 are both unmapped and hold one quantity at two resolutions: B15 == B13>>1 in 6351 of 6365 captures. B13 is mostly 0x06 (n=6204) and B15 mostly 0x03, so it is a small-range value, not a wide analog. Decoding either one decodes both; the 2x relationship is itself a strong hint (a half-step unit, or a raw-vs-rounded pair)."
       sources:
         - canair bitfield analysis 2026-08-06 (decode --find-mirrors --bits)
