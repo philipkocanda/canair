@@ -7,7 +7,7 @@ profile declares the quirks it needs under a top-level ``quirks:`` list in
 quirks (make-neutral); the bundled ``ioniq-2017`` profile opts into the ones its
 ECUs actually exhibit.
 
-Today there is one quirk:
+Today there are three quirks:
 
 - :data:`HK_F1XX_MINUS_ONE` — Hyundai/Kia identity DIDs answer one *less* than
   requested (request ``22F188`` → response ``62F187``). Expected HK behaviour,
@@ -19,6 +19,10 @@ Today there is one quirk:
   Ioniq-particular, so the ``skm-wake`` relay command is refused for profiles
   that don't declare this capability. (Merely *reading* a fast-sleeping ECU is
   the make-neutral per-ECU ``wake:`` block — :mod:`canlib.wake` — not this quirk.)
+- :data:`NISSAN_C0_SESSION` — Nissan ECUs gate their KWP2000 actuator tests
+  (``0x30``) and many ``0x21`` reads behind the OEM diagnostic session ``10 C0``.
+  The KWP2000 ``0x80``-``0xFF`` session band is OEM-defined, so the command
+  blocklist refuses ``10 C0`` on every other make; this quirk permits it.
 
 See ``plans/2026-07-28-multi-vehicle-support.md`` (Phase 4, gap F).
 """
@@ -39,8 +43,19 @@ HK_F1XX_MINUS_ONE: Final = "hk_f1xx_minus_one"
 # relay-actuation extension.
 SKM_WAKEUP: Final = "skm_wakeup"
 
+# The Nissan OEM diagnostic session (10 C0), which the shared blocklist refuses on
+# makes that never declared it (canlib.safety).
+NISSAN_C0_SESSION: Final = "nissan_c0_session"
+
 # Every recognized quirk token (the validation whitelist).
-KNOWN_QUIRKS: Final = frozenset({HK_F1XX_MINUS_ONE, SKM_WAKEUP})
+KNOWN_QUIRKS: Final = frozenset({HK_F1XX_MINUS_ONE, SKM_WAKEUP, NISSAN_C0_SESSION})
+
+# DiagnosticSessionControl sub-functions a quirk makes safe to enter. Only ever
+# widens the OEM band the blocklist guards; it cannot reach the programming
+# sessions, which canlib.safety refuses before consulting this.
+_QUIRK_SESSIONS: Final[dict[str, frozenset[int]]] = {
+    NISSAN_C0_SESSION: frozenset({0xC0}),
+}
 
 
 def resolve_quirks(meta: Mapping[str, Any] | None) -> frozenset[str]:
@@ -61,3 +76,11 @@ def resolve_quirks(meta: Mapping[str, Any] | None) -> frozenset[str]:
 def has_quirk(meta: Mapping[str, Any] | None, name: str) -> bool:
     """True when the profile ``meta`` declares quirk ``name``."""
     return name in resolve_quirks(meta)
+
+
+def allowed_session_modes(meta: Mapping[str, Any] | None) -> frozenset[int]:
+    """The OEM session sub-functions the profile's quirks make safe to enter."""
+    allowed: frozenset[int] = frozenset()
+    for quirk in resolve_quirks(meta):
+        allowed |= _QUIRK_SESSIONS.get(quirk, frozenset())
+    return allowed

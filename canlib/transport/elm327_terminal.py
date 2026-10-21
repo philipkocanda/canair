@@ -123,6 +123,9 @@ class Elm327Terminal:
         self.timeout = timeout
         self.verbose = verbose
         self.unsafe = unsafe
+        # OEM session sub-functions the profile's quirks permit (canlib.quirks);
+        # set by whoever builds the terminal from a profile.
+        self.allowed_sessions: frozenset[int] = frozenset()
         # Profile HK F1xx -1 identity-DID quirk (tolerate 62F187 for a 22F188
         # request); forwarded to parse_uds_response's echo validation.
         self.hk_f1xx_offset = hk_f1xx_offset
@@ -256,7 +259,7 @@ class Elm327Terminal:
         if timeout is None:
             timeout = self.timeout
 
-        await enforce_command_safety(cmd, self.unsafe)
+        await enforce_command_safety(cmd, self.unsafe, self.allowed_sessions)
 
         # Already inside a transaction on this task: the lock is held, and
         # asyncio.Lock is not reentrant, so acquiring again would deadlock.

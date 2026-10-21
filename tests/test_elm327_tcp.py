@@ -274,6 +274,17 @@ class TestEngineOverArbitraryChannel:
         assert resp["nrc"] == 0x12
 
     @pytest.mark.asyncio
+    async def test_oem_session_honours_the_profile_allowance(self):
+        ch = FakeChannel(["50C0\r>"])
+        term = Elm327Terminal(ch)
+        with pytest.raises(ValueError):
+            await term.send_uds("10C0")
+        assert ch.sent == []
+        term.allowed_sessions = frozenset({0xC0})
+        resp = await term.send_uds("10C0")
+        assert resp["ok"] is True
+
+    @pytest.mark.asyncio
     async def test_recv_frame_and_drain_go_through_channel(self):
         # Passive frame collection (used by skm_wakeup) goes through the channel
         # surface, not the raw socket — proving the WebSocket leak is closed.

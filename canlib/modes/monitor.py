@@ -560,6 +560,7 @@ class MonitorController:
         would otherwise silently no-op the switch. Returns a human status
         string for the TUI's flash message.
         """
+        from ..quirks import allowed_session_modes
         from ..safety import check_command_safety
         from ..uds_layout import SUBFUNCTION_NAMES
 
@@ -568,7 +569,7 @@ class MonitorController:
         if not info:
             return f"Unknown ECU {ecu_name}."
         mode = str(mode).upper().removeprefix("0X").zfill(2)
-        blocked = check_command_safety(f"10{mode}")
+        blocked = check_command_safety(f"10{mode}", allowed_session_modes(self.pids_data))
         if blocked:
             return blocked
         label = SUBFUNCTION_NAMES.get(0x10, {}).get(int(mode, 16), "")

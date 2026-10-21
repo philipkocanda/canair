@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import sys
+from collections.abc import Collection
 
 from .log import log_command
 
@@ -27,11 +28,15 @@ BLOCKED_UDS_SERVICES = {
 }
 
 
-def check_command_safety(cmd: str) -> str | None:
+def check_command_safety(cmd: str, allowed_sessions: Collection[int] = frozenset()) -> str | None:
     """Check if a command is potentially dangerous.
 
     Returns an error message if the command is blocked, or None if safe.
     Checks both raw UDS hex commands and AT commands.
+
+    ``allowed_sessions`` lists OEM-band session sub-functions the active profile
+    declared safe (:func:`canlib.quirks.allowed_session_modes`). It never unblocks
+    a programming session.
     """
     clean = cmd.strip().upper()
 
@@ -69,8 +74,9 @@ def check_command_safety(cmd: str) -> str | None:
         # the 0x8x range. Safe: 0x81 standardDiagnosticSession, 0x82 (Hyundai/Kia
         # periodic/EOL diagnostic session), 0x83 extendedDiagnosticSession — all
         # read-only diagnostic sessions used by scan tools. 0x85 (programming)
-        # stays blocked above.
-        if 0x80 <= sub <= 0xFF and sub not in (0x81, 0x82, 0x83):
+        # stays blocked above. A profile quirk may add its make's own diagnostic
+        # session (Nissan 0xC0) via allowed_sessions.
+        if 0x80 <= sub <= 0xFF and sub not in (0x81, 0x82, 0x83) and sub not in allowed_sessions:
             return (
                 f"BLOCKED: StartDiagnosticSession sub 0x{sub:02X} "
                 "(unrecognized KWP2000 session mode) -- may be a programming/development "
@@ -80,7 +86,9 @@ def check_command_safety(cmd: str) -> str | None:
     return None
 
 
-async def enforce_command_safety(cmd: str, unsafe: bool) -> None:
+async def enforce_command_safety(
+    cmd: str, unsafe: bool, allowed_sessions: Collection[int] = frozenset()
+) -> None:
     """Enforce the command blocklist before a command is sent.
 
     Raises :class:`ValueError` if ``cmd`` is blocked and not permitted. In
@@ -88,7 +96,7 @@ async def enforce_command_safety(cmd: str, unsafe: bool) -> None:
     ``unsafe=True`` the user is prompted for interactive confirmation and must
     type ``YES`` to proceed; anything else declines and raises.
     """
-    blocked = check_command_safety(cmd)
+    blocked = check_command_safety(cmd, allowed_sessions)
     if not blocked:
         return
 

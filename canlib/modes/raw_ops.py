@@ -61,7 +61,7 @@ async def run_raw(args, transport, pids_data) -> int:
 
     # All other commands: reuse the shared dispatch over a RawTerminal adapter.
     from ..addressing import AddressBook
-    from ..quirks import HK_F1XX_MINUS_ONE, has_quirk
+    from ..quirks import HK_F1XX_MINUS_ONE, allowed_session_modes, has_quirk
     from ..timeouts import cli_timeout, ecu_timeouts_by_tx
     from ..transport import RawTerminal
     from .dispatch import run_session_guarded
@@ -100,6 +100,7 @@ async def run_raw(args, transport, pids_data) -> int:
     # Per-ECU budgets apply only when the user didn't force --timeout.
     if cli is None:
         terminal.ecu_timeouts = ecu_timeouts_by_tx(pids_data)
+    terminal.allowed_sessions = allowed_session_modes(pids_data)
     try:
         return await run_session_guarded(args, terminal, pids_data, host, transport_label="SLCAN")
     finally:

@@ -27,6 +27,26 @@ def test_safe_sessions_allowed():
     assert check_command_safety("1083") is None  # KWP extended diagnostic
 
 
+def test_oem_session_blocked_unless_the_profile_allows_it():
+    assert check_command_safety("10C0") is not None
+    assert check_command_safety("10C0", allowed_sessions={0xC0}) is None
+    # The allowance is exact: it does not open the rest of the OEM band.
+    assert check_command_safety("10C1", allowed_sessions={0xC0}) is not None
+
+
+def test_programming_sessions_cannot_be_allowed():
+    assert check_command_safety("1002", allowed_sessions={0x02}) is not None
+    assert check_command_safety("1085", allowed_sessions={0x85}) is not None
+
+
+def test_nissan_quirk_allows_only_the_c0_session():
+    from canlib.quirks import NISSAN_C0_SESSION, allowed_session_modes
+
+    assert allowed_session_modes({"quirks": [NISSAN_C0_SESSION]}) == {0xC0}
+    assert allowed_session_modes({"quirks": ["hk_f1xx_minus_one"]}) == frozenset()
+    assert allowed_session_modes(None) == frozenset()
+
+
 class TestCheckCommandSafety:
     def test_at_commands_always_safe(self):
         assert check_command_safety("ATSP6") is None

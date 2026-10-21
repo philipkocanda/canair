@@ -289,6 +289,17 @@ class TestRawTerminalSafety:
             await t.send_uds("2E1234AA")
         await t.close()
 
+    @pytest.mark.asyncio
+    async def test_oem_session_honours_the_profile_allowance(self, make_terminal):
+        t = make_terminal({(0x745, bytes.fromhex("10C0")): bytes.fromhex("50C0")})
+        await t.set_header(0x745)
+        with pytest.raises(ValueError):
+            await t.send_uds("10C0")
+        t.allowed_sessions = frozenset({0xC0})
+        r = await t.send_uds("10C0")
+        assert r["ok"] is True
+        await t.close()
+
 
 class TestRawTerminalRxResolution:
     """The ISO-TP stack's rx address comes from addr_map (per-ECU rx_id / profile

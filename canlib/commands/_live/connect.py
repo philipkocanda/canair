@@ -78,7 +78,7 @@ async def connect_elm_terminal(transport, pids_data: dict, args) -> Terminal:
     """
     from canlib import config
     from canlib.addressing import AddressBook
-    from canlib.quirks import HK_F1XX_MINUS_ONE, has_quirk
+    from canlib.quirks import HK_F1XX_MINUS_ONE, allowed_session_modes, has_quirk
     from canlib.response_frames import seed_counts
     from canlib.timeouts import cli_timeout, ecu_timeouts_by_tx
     from canlib.transport import DEFAULT_ELM327_TCP_PORT, Elm327TcpTerminal, Elm327Terminal
@@ -129,6 +129,7 @@ async def connect_elm_terminal(transport, pids_data: dict, args) -> Terminal:
     # its receive filter and flow-control id set along with its header.
     terminal.addresses = AddressBook.from_profile(pids_data)
     terminal.flow_control_data = flow_control_data(pids_data.get("isotp"))
+    terminal.allowed_sessions = allowed_session_modes(pids_data)
 
     try:
         print(connecting)

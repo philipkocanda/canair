@@ -21,8 +21,16 @@ do.
 canair maintains a command blocklist that it enforces on **every** transport. It
 will not:
 
-- Open a UDS **programming session** (`10 02`).
+- Open a UDS **programming session** (`10 02`) or the KWP2000 one (`10 85`).
 - Perform firmware **write/upload** or flash services.
+
+It also refuses KWP2000 session types in the manufacturer-defined `0x80`–`0xFF`
+range, except the well-known diagnostic sessions `81`, `82` and `83`, because on
+an unknown car one of them may be a development or programming mode. A profile
+can permit its own make's diagnostic session through a quirk. The bundled Nissan
+Leaf profile declares `nissan_c0_session`, which permits exactly `10 C0`, the
+session Nissan ECUs require for actuator tests. No quirk can permit a
+programming session.
 
 These exist to make it very hard to brick a real car by accident. The block is
 enforced centrally, not per-command, so it can't be quietly bypassed by a
