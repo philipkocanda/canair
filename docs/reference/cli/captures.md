@@ -17,25 +17,27 @@ A bare `canair captures BMS 2102` (or any of the --summary/--sessions/… flags)
 
 positional arguments:
   <kind>
-    uds           Query captured diagnostic UDS payloads across all capture
-                  files
-    can           List imported raw broadcast-CAN frame logs
-                  (captures/can/index.yaml)
-    migrate       Convert legacy captures/*.yaml to JSON (captures/*.json)
-    migrate-rx    Rename the legacy capture `ecu` field to `rx`
-                  (captures/*.json)
-    merge-driver  Git merge driver: auto-union capture-file sessions (or
-                  --install it)
+    uds               Query captured diagnostic UDS payloads across all
+                      capture files
+    can               List imported raw broadcast-CAN frame logs
+                      (captures/can/index.yaml)
+    migrate           Convert legacy captures/*.yaml to JSON (captures/*.json)
+    migrate-rx        Rename the legacy capture `ecu` field to `rx`
+                      (captures/*.json)
+    migrate-discover  Repair legacy discover captures: record each responder's
+                      probed TX
+    merge-driver      Git merge driver: auto-union capture-file sessions (or
+                      --install it)
 
 options:
-  -h, --help      show this help message and exit
+  -h, --help          show this help message and exit
 ```
 
 ## `canair captures uds`
 
 ```
 usage: canair captures uds [-h] [--diff | --step]
-                           [--summary | --sessions | --latest | --recover | --delete | --backfill-states | --backfill-state-spans | --set-state STATES]
+                           [--summary | --sessions | --latest | --recover | --delete | --backfill-states | --backfill-state-spans | --set-state STATES | --set-notes TEXT | --set-transport NAME]
                            [--discard] [--overwrite] [--cycle-tol SECONDS]
                            [--dry-run] [--yes] [--all] [--limit N] [--rulers]
                            [--notation NAME]
@@ -89,6 +91,16 @@ options:
                         state ACC --label 'ACC only'). Requires a scope filter
                         (--label/--date/--since/…); previews with --dry-run,
                         confirms unless --yes.
+  --set-notes TEXT      Replace the session notes on the scope-selected
+                        sessions — to correct a note after recording (''
+                        clears it). Requires a scope filter
+                        (--label/--date/--since/…); previews with --dry-run,
+                        confirms unless --yes.
+  --set-transport NAME  Correct the recorded transport (slcan-tcp, wican-ws,
+                        elm327-tcp, import) on the scope-selected sessions —
+                        for a session saved with the wrong one ('' clears it).
+                        Requires a scope filter; previews with --dry-run,
+                        confirms unless --yes.
   --discard             With --recover: delete orphaned journals without
                         saving them
   --overwrite           With --backfill-states: also rewrite sessions whose
@@ -99,10 +111,11 @@ options:
   --cycle-tol SECONDS   With --backfill-states/--backfill-state-spans: max
                         timestamp gap grouping captures into one pseudo-cycle
                         for cross-ECU predicates (default 10s)
-  --dry-run             With --delete/--backfill-states/--backfill-state-
-                        spans/--set-state: preview the changes, write nothing
-  --yes, -y             With --delete/--backfill-states/--backfill-state-
-                        spans/--set-state: skip the confirmation prompt
+  --dry-run             With --delete/--backfill-states/--backfill-state-spans
+                        and the --set-* editors: preview the changes, write
+                        nothing
+  --yes, -y             With --delete/--backfill-states/--backfill-state-spans
+                        and the --set-* editors: skip the confirmation prompt
                         (scripting)
   --all, -a             For --diff/--step: use every payload instead of
                         unique-only
@@ -177,6 +190,9 @@ are aggregate modes that take no QUERY.
   --latest              Most recent payload per PID (all ECUs; no QUERY)
   QUERY --delete        Delete the captures matching QUERY (and scope filters);
                         --dry-run previews, confirms before deleting unless --yes
+  --set-state STATES    Set vehicle_states on the scope-selected sessions
+  --set-notes TEXT      Replace the notes on the scope-selected sessions ('' clears)
+  --set-transport NAME  Correct the recorded transport of the scope-selected sessions
   --summary             Overview: captures per ECU, per date, total payloads
   --sessions            Session table of contents: date/time-span/state/label/
                         notes/ECUs per session (no payloads); --json for machine
@@ -235,6 +251,7 @@ Examples (a bare `canair captures …` is shorthand for `canair captures uds …
   canair captures uds --latest              # Latest payload per PID (all ECUs)
   canair captures uds OBC 2101 --delete --dry-run  # Preview a delete
   canair captures uds OBC 2101 --delete --yes      # Delete (non-interactive)
+  canair captures uds --set-notes 'Car off.' --label sweep --dry-run  # Fix a note
   canair captures uds BMS 2102 --limit 200  # Widen the default 50-row cap
   canair captures uds BMS 2102 --limit 0    # Every matching capture (no cap)
   canair captures uds --summary --since 2026-04-19        # Stats since a date
@@ -283,6 +300,22 @@ The field holds the ECU CAN *response* address (RX = request TX + 8), not an ECU
 options:
   -h, --help  show this help message and exit
   --dry-run   Preview renames without writing
+  --json      Machine-readable JSON output
+  --dir DIR   Captures directory (default: active profile)
+```
+
+## `canair captures migrate-discover`
+
+```
+usage: canair captures migrate-discover [-h] [--dry-run] [--json] [--dir DIR]
+
+Give legacy discover captures each responder's probed `tx`, and the `rx` the profile's addressing gives it.
+
+Those captures stored only an `rx` per responder, and for an address not in the ECU registry it was computed as TX + 0x08 whatever the profile's addressing: block said. The TX is recoverable exactly: a registered responder was labelled `NAME (status)`, an unregistered one with the bare status. Idempotent; a responder whose ECU name no longer resolves is reported, not guessed (exit 1). The session transport cannot be recovered this way — use `captures uds --set-transport`. Performs the repair by default; pass --dry-run to preview.
+
+options:
+  -h, --help  show this help message and exit
+  --dry-run   Preview repairs without writing
   --json      Machine-readable JSON output
   --dir DIR   Captures directory (default: active profile)
 ```

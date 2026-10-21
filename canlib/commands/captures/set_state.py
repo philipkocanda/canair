@@ -41,8 +41,8 @@ def cmd_set_state(
 
     from canlib.captures import set_session_states
 
-    from . import layers
     from .query import group_sessions
+    from .session_gate import refuse_write
 
     states = parse_states(states_arg)
     if not states:
@@ -96,29 +96,15 @@ def cmd_set_state(
         print("  (--dry-run: nothing written)")
         return 0
 
-    if blocked := layers.refusal((Path(r["path"]) for r in to_write), "relabelled"):
-        print(blocked, file=sys.stderr)
-        return 1
-
-    if not assume_yes:
-        if not (sys.stdin.isatty() and sys.stdout.isatty()):
-            print(
-                "  error: refusing to set state without confirmation "
-                "(pass --yes for non-interactive use, or --dry-run to preview).",
-                file=sys.stderr,
-            )
-            return 2
-        resp = (
-            input(
-                f"  Set state to {join_states(states)!r} on these "
-                f"{len(to_write)} session(s)? [y/N] "
-            )
-            .strip()
-            .lower()
-        )
-        if resp not in ("y", "yes"):
-            print("  Cancelled — nothing written.")
-            return 1
+    stop = refuse_write(
+        (Path(r["path"]) for r in to_write),
+        verb="relabelled",
+        prompt=f"Set state to {join_states(states)!r} on these {len(to_write)} session(s)?",
+        what="set state",
+        assume_yes=assume_yes,
+    )
+    if stop is not None:
+        return stop
 
     written = 0
     for r in to_write:

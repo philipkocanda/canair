@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -34,18 +35,23 @@ from canlib.profile_create import overlay_profile
 CAPTURES_CMD = Path(__file__).resolve().parents[1] / "canlib" / "commands" / "captures"
 CANLIB_CMD = CAPTURES_CMD.parent
 
-# Anything calling one of these rewrites a capture file, so it owes the base-layer
-# check. Discovering the modules beats listing them: the list cannot go stale.
+# Anything referencing one of these rewrites a capture file, so it owes the
+# base-layer check. Discovering the modules beats listing them: the list cannot go
+# stale. Matched as a whole word, not as a call, so a module that passes a writer
+# around as a value (session_fields) is found too.
 _CAPTURE_WRITERS = (
     "delete_capture",
     "set_capture_note",
+    "set_session_keep_mode",
+    "set_session_note",
     "set_session_states",
     "set_session_state_spans",
+    "set_session_transport",
 )
 _MUTATING_CAPTURE_MODULES = {
     p.name
     for p in CAPTURES_CMD.glob("*.py")
-    if any(f"{w}(" in p.read_text() for w in _CAPTURE_WRITERS)
+    if any(re.search(rf"\b{w}\b", p.read_text()) for w in _CAPTURE_WRITERS)
 }
 
 
@@ -522,9 +528,16 @@ class TestBaseLayerMutationsAreRefused:
         it consults the policy.
         """
         src = (CAPTURES_CMD / module).read_text()
-        assert "layers.refusal(" in src or "layers.read_only_files(" in src, (
+        # session_gate.refuse_write wraps layers.refusal for the metadata editors.
+        policy_calls = ("layers.refusal(", "layers.read_only_files(", "refuse_write(")
+        assert any(call in src for call in policy_calls), (
             f"{module} writes to captures/ but does not check the base-layer policy"
         )
+
+    def test_the_shared_session_gate_consults_the_policy(self):
+        """``refuse_write`` stands in for the check above, so it must make it."""
+        src = (CAPTURES_CMD / "session_gate.py").read_text()
+        assert "layers.refusal(" in src
 
     def test_the_discovery_finds_every_known_mutation_path(self):
         """A canary: if the writer names change, the pin above must not go quiet."""
@@ -532,6 +545,7 @@ class TestBaseLayerMutationsAreRefused:
             "backfill.py",
             "backfill_spans.py",
             "delete.py",
+            "session_fields.py",
             "set_state.py",
             "step_tui.py",
         }

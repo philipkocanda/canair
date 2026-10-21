@@ -205,9 +205,9 @@ Two things are refused, both because the base is not yours to change:
   `ecu add` refuse against a layered profile and point you at
   `canair profile adopt <name>`, which gives you a writable copy of the
   definitions too.
-- **Mutating a base-layer capture.** `captures uds --delete`, `--set-state` and
-  `--backfill-states` refuse when a matched row belongs to the base, naming the
-  file. Previewing with `--dry-run` is always allowed, and rows in *your* layer
+- **Mutating a base-layer capture.** `captures uds --delete`, the `--set-*`
+  editors and `--backfill-states` refuse when a matched row belongs to the base,
+  naming the file. Previewing with `--dry-run` is always allowed, and rows in *your* layer
   are freely editable.
 
 `canair profile show <name>` prints both roots, and `canair profile list` marks a

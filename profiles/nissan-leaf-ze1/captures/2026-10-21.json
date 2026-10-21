@@ -7,7 +7,8 @@
       "vehicle_states": [
         "SLEEP"
       ],
-      "notes": "First device capture on this profile. Full 11-bit sweep (10 01) to confirm the device-free seeded ECU addresses from the dalathegreat table. Car off, 12V rail ~12.1V; LBC answered regardless, contrary to the profile's seeded note that every PID needs ignition on.",
+      "notes": "First device capture on this profile. Full 11-bit sweep (10 01) to confirm the device-free seeded ECU addresses from the dalathegreat table. Car off, 12V rail ~12.1V; only 0x758 answered (NRC 0x12), so this sweep does not show the LBC answering with the car off.",
+      "transport": "wican-ws",
       "captures": [
         {
           "rx": "broadcast",
@@ -15,7 +16,8 @@
           "scan_results": {
             "responding": [
               {
-                "rx": "0x760",
+                "tx": "0x758",
+                "rx": "0x778",
                 "response": "NRC 0x12",
                 "notes": "Raw: subFunctionNotSupported"
               }
@@ -23,8 +25,7 @@
             "rejected": "239 addresses silent"
           }
         }
-      ],
-      "transport": "slcan-tcp"
+      ]
     },
     {
       "date": "2026-10-21",
@@ -33,7 +34,7 @@
       "vehicle_states": [
         "SLEEP"
       ],
-      "notes": "Bare-ECU sweep of every defined PID with the car off, 12V rail ~12.0V. Companion to the 10 01 discovery sweep in this session, where only 0x758 answered: Nissan KWP2000 ECUs ignore UDS 10 01, so a read of a real PID is the only reliable liveness test on this car.",
+      "notes": "Bare-ECU sweep of every defined PID with the car off, 12V rail ~12.0V. Companion to the 10 01 discovery sweep in this session, where only 0x758 answered: with the car asleep the Nissan KWP2000 ECUs do not answer UDS 10 01 (in READY all 16 registered ECUs do), so a read of a real PID is the reliable liveness test with the car off.",
       "transport": "wican-ws",
       "quality": {
         "exchanges": 75,
@@ -548,6 +549,7 @@
         "READY"
       ],
       "notes": "Full 11-bit sweep (10 01) with the car powered, 12V rail 13.9V. Counterpart to the car-off sweep in this profile's first session, where only 0x758 answered. Confirms which of the device-free seeded addresses are real.",
+      "transport": "wican-ws",
       "captures": [
         {
           "rx": "broadcast",
@@ -555,111 +557,133 @@
           "scan_results": {
             "responding": [
               {
-                "rx": "0x70F",
+                "tx": "0x707",
+                "rx": "0x727",
                 "response": "NRC 0x12",
                 "notes": "Raw: subFunctionNotSupported"
               },
               {
+                "tx": "0x70E",
                 "rx": "0x70F",
                 "response": "BRAKE (NRC 0x12)",
                 "notes": "Raw: subFunctionNotSupported"
               },
               {
+                "tx": "0x73F",
                 "rx": "0x761",
                 "response": "VSP (NRC 0x12)",
                 "notes": "Raw: subFunctionNotSupported"
               },
               {
+                "tx": "0x740",
                 "rx": "0x760",
                 "response": "ABS (positive)",
                 "notes": "Raw: 5001003201F4"
               },
               {
+                "tx": "0x742",
                 "rx": "0x762",
                 "response": "EPS (NRC 0x12)",
                 "notes": "Raw: subFunctionNotSupported"
               },
               {
+                "tx": "0x743",
                 "rx": "0x763",
                 "response": "METER (positive)",
                 "notes": "Raw: 5001003201F4"
               },
               {
+                "tx": "0x744",
                 "rx": "0x764",
                 "response": "HVAC (NRC 0x12)",
                 "notes": "Raw: subFunctionNotSupported"
               },
               {
+                "tx": "0x745",
                 "rx": "0x765",
                 "response": "BCM (NRC 0x12)",
                 "notes": "Raw: subFunctionNotSupported"
               },
               {
+                "tx": "0x746",
                 "rx": "0x783",
                 "response": "TCU (NRC 0x12)",
                 "notes": "Raw: subFunctionNotSupported"
               },
               {
+                "tx": "0x747",
                 "rx": "0x767",
                 "response": "MULTI_AV (NRC 0x12)",
                 "notes": "Raw: subFunctionNotSupported"
               },
               {
+                "tx": "0x74D",
                 "rx": "0x76D",
                 "response": "IPDM (NRC 0x12)",
                 "notes": "Raw: subFunctionNotSupported"
               },
               {
-                "rx": "0x756",
+                "tx": "0x74E",
+                "rx": "0x76E",
                 "response": "positive",
                 "notes": "Raw: 5001003201F4"
               },
               {
+                "tx": "0x752",
                 "rx": "0x772",
                 "response": "AIRBAG (positive)",
                 "notes": "Raw: 5001003201F4"
               },
               {
-                "rx": "0x75D",
+                "tx": "0x755",
+                "rx": "0x775",
                 "response": "NRC 0x12",
                 "notes": "Raw: subFunctionNotSupported"
               },
               {
-                "rx": "0x760",
+                "tx": "0x758",
+                "rx": "0x778",
                 "response": "NRC 0x12",
                 "notes": "Raw: subFunctionNotSupported"
               },
               {
-                "rx": "0x765",
+                "tx": "0x75D",
+                "rx": "0x77D",
                 "response": "NRC 0x12",
                 "notes": "Raw: subFunctionNotSupported"
               },
               {
+                "tx": "0x784",
                 "rx": "0x78C",
                 "response": "INVERTER (NRC 0x12)",
                 "notes": "Raw: subFunctionNotSupported"
               },
               {
+                "tx": "0x792",
                 "rx": "0x793",
                 "response": "CHARGER (NRC 0x12)",
                 "notes": "Raw: subFunctionNotSupported"
               },
               {
-                "rx": "0x79E",
+                "tx": "0x796",
+                "rx": "0x7B6",
                 "response": "NRC 0x12",
                 "notes": "Raw: subFunctionNotSupported"
               },
               {
+                "tx": "0x797",
                 "rx": "0x79A",
                 "response": "VCM (NRC 0x12)",
                 "notes": "Raw: subFunctionNotSupported"
               },
               {
+                "tx": "0x79B",
                 "rx": "0x7BB",
                 "response": "LBC (NRC 0x12)",
                 "notes": "Raw: subFunctionNotSupported"
               },
               {
+                "tx": "0x79D",
                 "rx": "0x7BD",
                 "response": "SHIFT (NRC 0x12)",
                 "notes": "Raw: subFunctionNotSupported"
@@ -668,8 +692,7 @@
             "rejected": "218 addresses silent"
           }
         }
-      ],
-      "transport": "slcan-tcp"
+      ]
     },
     {
       "date": "2026-10-21",

@@ -218,8 +218,12 @@ and **`g`/`G` address the view's primary axis**.
   Mutating modes: `--delete` (refuses a bare `--delete`, previews with `--dry-run`, confirms unless
   `--yes`), `--backfill-states` (offline state inference, `canlib/state_infer.py`; fills unset
   states and *reports* contradicted ones unless `--overwrite`), `--set-state` (manual counterpart —
-  **requires** a scope filter so it can't blanket-relabel history), `--recover`, and the one-time
-  `migrate` (YAML→JSON) / `migrate-rx` (`ecu`→`rx`) / `merge-driver` (see Key Files).
+  **requires** a scope filter so it can't blanket-relabel history), `--set-notes`/`--set-transport`
+  (correct a session's notes or recorded transport, same scope rule; one editor in
+  `commands/captures/session_fields.py`, and all three `--set-*` share
+  `session_gate.py::refuse_write` for the base-layer refusal and confirmation), `--recover`, and
+  the one-time `migrate` (YAML→JSON) / `migrate-rx` (`ecu`→`rx`) / `migrate-discover` (gives legacy
+  discover responders their `tx`; `canlib/discover_migrate.py`) / `merge-driver` (see Key Files).
   **`captures can`** (domain B) lists imported raw frame logs from `captures/can/index.yaml`.
 - **`canair decode`** (alias `dec`) — Value-centric decoding of all historical captures; the default
   view is each signal's value range. `--try` tests a candidate expression **without editing YAML**
@@ -510,11 +514,11 @@ to `plans/2026-07-30-profile-variant-inheritance.md` — `extends:` is deliberat
   on `captures_dir` (= the overlay, which is exactly what `contribute` ships and the only layer a
   migration may rewrite).
 - **Base captures are read-only**, enforced by `canlib/commands/captures/layers.py::refusal` in
-  `--delete`/`--set-state`/`--backfill-states` and in the `captures uds --step` TUI. `--dry-run`
-  still previews. Tombstones and copy-on-write were rejected: a session has no id — **its identity
-  is its content**, which is what makes both the git merge driver and the contribution overlay
-  correct. `read_only_files` returns `[]` whenever fewer than two layers are resolved, so nothing
-  changes for an ordinary profile.
+  `--delete`/the `--set-*` editors/`--backfill-states` and in the `captures uds --step` TUI.
+  `--dry-run` still previews. Tombstones and copy-on-write were rejected: a session has no id —
+  **its identity is its content**, which is what makes both the git merge driver and the
+  contribution overlay correct. `read_only_files` returns `[]` whenever fewer than two layers are
+  resolved, so nothing changes for an ordinary profile.
 
 > **Pass `--profile NAME` explicitly on every mutative/authoring command** — `pids …`, `signals
 > upsert`, `import uds|can|dbc`, `discover --register`, `ecu add`, `wican autopid write`, and
@@ -564,7 +568,12 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   merge driver (`.gitattributes` rule + `canlib/captures_merge.py`) — but git never loads a driver
   from a tracked file, so each clone must run **`canair captures merge-driver --install`** once;
   until then merges just fall back to conflict markers. A capture's **`rx`** field is the ECU CAN
-  *response* address (request TX + 8) — **not** an ECU name; that is why it was renamed from `ecu`.
+  *response* address (its `rx_id`, else request TX + the profile `rx_offset`, resolved by
+  `canlib/ecus.py::rx_for_tx`) — **not** an ECU name; that is why it was renamed from `ecu`. A
+  discover capture's `rx` is `broadcast`, and each responder records its probed `tx` plus `rx`.
+  **Every `--save` path records `transport` from the live client**
+  (`canlib/transport_stats.py::client_transport`), never by re-resolving config — that ignored
+  `--transport`/`--wican` and fallback, and mislabelled real sessions.
   Read it via `capture_io.capture_rx` (tolerates the legacy key) and rename old files with `captures
   migrate-rx`. Optional **`elapsed_ms`** is the wall-clock UDS round-trip (transport + ECU, a
   *relative* speed signal), recorded **only for single per-DID reads** on the live `read` path and

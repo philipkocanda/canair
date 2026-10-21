@@ -37,6 +37,21 @@ def _resolve(*argv: str):
     return resolve_mode(args, build_query(args.query))
 
 
+# Value-carrying session editors, and a value each is selected with.
+_EDITOR_VALUES = {"set_state": "ACC", "set_notes": "corrected", "set_transport": "wican-ws"}
+
+
+def _selecting(mode: str) -> dict:
+    """Attribute overrides that select ``mode`` past its own guards.
+
+    A session editor is value-carrying and also needs a scope filter to get past
+    its scope guard; the rest are plain switches.
+    """
+    if mode in _EDITOR_VALUES:
+        return {mode: _EDITOR_VALUES[mode], "label": "x"}
+    return {mode: True}
+
+
 def _forced(argv: list[str], **overrides):
     """A namespace argparse would refuse, for the defensive guards."""
     args = _args(*argv)
@@ -78,6 +93,13 @@ class TestModeSelection:
     def test_set_state_with_a_scope_filter(self):
         assert _resolve("--set-state", "ACC", "--label", "ACC only") == "set_state"
 
+    def test_set_notes_with_a_scope_filter(self):
+        assert _resolve("--set-notes", "fixed", "--label", "sweep") == "set_notes"
+
+    def test_empty_set_notes_still_selects_the_mode(self):
+        # '' clears the notes, so an empty value must not read as "flag absent".
+        assert _resolve("--set-notes", "", "--label", "sweep") == "set_notes"
+
     def test_recover_wins_over_everything(self):
         # It reconciles journals without reading captures, so it is resolved before
         # any QUERY/scope rule can reject the invocation.
@@ -96,6 +118,21 @@ class TestRejections:
         assert isinstance(err, ModeError)
         assert "--set-state requires a scope filter" in err.message
 
+    def test_set_notes_without_a_scope_filter_is_refused(self):
+        err = _resolve("--set-notes", "fixed")
+        assert isinstance(err, ModeError)
+        assert "--set-notes requires a scope filter" in err.message
+
+    def test_set_transport_without_a_scope_filter_is_refused(self):
+        err = _resolve("--set-transport", "wican-ws")
+        assert isinstance(err, ModeError)
+        assert "--set-transport requires a scope filter" in err.message
+
+    def test_empty_set_notes_without_a_scope_filter_is_refused(self):
+        err = _resolve("--set-notes", "")
+        assert isinstance(err, ModeError)
+        assert "--set-notes requires a scope filter" in err.message
+
     @pytest.mark.parametrize(
         "scope", [["--label", "x"], ["--state", "x"], ["--date", "2026-04-15"], ["--today"]]
     )
@@ -109,26 +146,20 @@ class TestRejections:
 
     @pytest.mark.parametrize("mode", STANDALONE_MODES)
     def test_standalone_modes_reject_a_query(self, mode):
-        overrides = {"set_state": "ACC"} if mode == "set_state" else {mode: True}
-        # --set-state also needs a scope filter to get past its own guard.
-        if mode == "set_state":
-            overrides["label"] = "x"
-        err = _forced(["BMS:2102"], **overrides)
+        err = _forced(["BMS:2102"], **_selecting(mode))
         assert isinstance(err, ModeError)
         assert "do not take a QUERY argument" in err.message
 
     @pytest.mark.parametrize("mode", STANDALONE_MODES)
     def test_standalone_modes_reject_latest(self, mode):
-        overrides = {"set_state": "ACC", "label": "x"} if mode == "set_state" else {mode: True}
-        err = _forced([], latest=True, **overrides)
+        err = _forced([], latest=True, **_selecting(mode))
         assert isinstance(err, ModeError)
         assert "--latest cannot be combined with" in err.message
 
     @pytest.mark.parametrize("mode", STANDALONE_MODES)
     @pytest.mark.parametrize("view", VIEW_MODES)
     def test_standalone_modes_reject_the_views(self, mode, view):
-        overrides = {"set_state": "ACC", "label": "x"} if mode == "set_state" else {mode: True}
-        err = _forced([], **{view: True}, **overrides)
+        err = _forced([], **{view: True}, **_selecting(mode))
         assert isinstance(err, ModeError)
         assert "--diff/--step cannot be combined with" in err.message
 

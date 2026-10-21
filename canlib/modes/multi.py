@@ -42,6 +42,7 @@ from ..formatting import print_ecu_results
 from ..pids import build_ecu_index
 from ..session_manager import SessionManager
 from ..transport.protocol import Terminal
+from ..transport_stats import client_transport
 from .multi_batch import (
     BatchState,
     ResultEntry,
@@ -194,7 +195,7 @@ async def mode_multi(
             vehicle_states=vehicle_states,
             notes=notes,
             source="query",
-            transport=getattr(getattr(terminal, "diag", None), "transport", None),
+            transport=client_transport(terminal),
         )
 
     def _collect_query(ecu_label: str, pid_results: list[ResultEntry]) -> None:

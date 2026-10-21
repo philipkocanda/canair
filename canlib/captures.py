@@ -1,7 +1,7 @@
 """Shared capture file save logic.
 
 Provides functions for prompting session metadata and appending captures
-to per-date YAML files in captures/. Used by scan, raw, discover, and
+to per-date JSON files in captures/. Used by scan, raw, discover, and
 monitor modes.
 """
 
@@ -28,23 +28,9 @@ from .states import join_states as _join_states
 from .states import parse_states as _parse_states
 from .uds_parse import UdsResponse
 
-
-def active_transport_label() -> str | None:
-    """Best-effort label of the currently-configured transport (e.g. ``slcan-tcp``).
-
-    Provenance fallback for save paths that don't hold the live client (the
-    one-shot scan/raw/discover producers): a command resolves its transport once,
-    so the config-resolved type matches what was used. The streaming producers
-    (monitor/multi) pass the client's own ``diag.transport`` instead, which is
-    authoritative. Returns None if resolution fails.
-    """
-    try:
-        from .transport import resolve_transport
-
-        return resolve_transport(None).type
-    except Exception:
-        return None
-
+# The ``transport`` of a device-free session (``canair import uds``): its payloads
+# never came off a live bus here.
+IMPORT_TRANSPORT = "import"
 
 # ---------------------------------------------------------------------------
 # Metadata prompt
@@ -120,19 +106,27 @@ def _today() -> str:
     return datetime.now().strftime("%Y-%m-%d")
 
 
-def _session_meta(vehicle_states: Sequence[str] | None, notes: str | None) -> SessionMeta:
+def _session_meta(
+    vehicle_states: Sequence[str] | None,
+    notes: str | None,
+    transport: str | None = None,
+) -> SessionMeta:
     """The metadata every builder shares, omitting what wasn't supplied.
 
     Splat into the session literal (``{"date": …, "label": …, **meta, "captures":
     …}``) so the on-disk field order stays date → metadata → captures. See
     :class:`~canlib.capture_types.SessionMeta` for why the metadata is accumulated
     separately rather than written into the session after construction.
+    ``transport`` is the live client's label (:func:`~canlib.transport_stats.
+    client_transport`) — omitted when unknown rather than guessed.
     """
     meta: SessionMeta = {}
     if vehicle_states:
         meta["vehicle_states"] = list(vehicle_states)
     if notes:
         meta["notes"] = notes
+    if transport:
+        meta["transport"] = transport
     return meta
 
 
@@ -215,6 +209,7 @@ def build_scan_session(
     notes: str,
     append_bytes: str = "",
     session_flag: bool = False,
+    transport: str | None = None,
 ) -> CaptureSession:
     """Build a capture session dict from scan results."""
     start, end = pid_range
@@ -224,7 +219,7 @@ def build_scan_session(
     range_str = f"{start:{did_fmt}}-{end:{did_fmt}}"
     suffix = f" + suffix {append_bytes}" if append_bytes else ""
 
-    meta = _session_meta(vehicle_states, notes)
+    meta = _session_meta(vehicle_states, notes, transport)
 
     # Build scan_results capture
     scan_capture: CaptureRecord = {
@@ -269,6 +264,7 @@ def build_raw_session(
     vehicle_states: list,
     notes: str,
     pids_data: dict | None = None,
+    transport: str | None = None,
 ) -> CaptureSession:
     """Build a capture session dict from a raw UDS response.
 
@@ -276,7 +272,7 @@ def build_raw_session(
     data, regenerated on demand from the payload + PID definitions (see
     decode.py and query-captures.py).
     """
-    meta = _session_meta(vehicle_states, notes)
+    meta = _session_meta(vehicle_states, notes, transport)
 
     capture: CaptureRecord = {
         "rx": ecu_ref,
@@ -301,24 +297,28 @@ def build_raw_session(
 
 
 def build_discover_session(
-    alive: list[tuple[int, str, str]],
+    alive: list[tuple[int, int, str, str]],
     silent_count: int,
     error_count: int,
     addr_range: tuple[int, int],
     label: str,
     vehicle_states: list,
     notes: str,
+    transport: str | None = None,
 ) -> CaptureSession:
     """Build a capture session dict from discovery scan results.
 
-    The top-level ``rx`` is the ``broadcast`` sentinel (a discovery scan spans
-    many ECUs). Each responder's originating ECU is preserved as its CAN
-    response address (RX = TX + 8) in ``scan_results.responding[].rx``.
+    ``alive`` holds one ``(tx_id, rx_id, response, detail)`` per responder. The
+    top-level ``rx`` is the ``broadcast`` sentinel (a discovery scan spans many
+    ECUs), so each responder records both its own addresses: ``tx`` is the
+    request id that was probed — the fact the sweep observed — and ``rx`` the
+    response address under the profile's addressing (a registered ECU's
+    ``rx_id``, else the profile ``rx_offset``/mode), the same one the sweep
+    printed. The caller resolves ``rx_id`` once, so the printed, ``--json`` and
+    saved addresses cannot disagree.
     """
-    from .ecus import rx_addr_str
-
     start, end = addr_range
-    meta = _session_meta(vehicle_states, notes)
+    meta = _session_meta(vehicle_states, notes, transport)
 
     capture: CaptureRecord = {
         "rx": "broadcast",
@@ -328,10 +328,11 @@ def build_discover_session(
     scan_results: ScanResults = {}
     if alive:
         responding: list[RespondingEntry] = []
-        for tx_id, ecu_label, resp_hex in alive:
+        for tx_id, rx_id, response, resp_hex in alive:
             entry: RespondingEntry = {
-                "rx": rx_addr_str(tx_id),
-                "response": ecu_label,
+                "tx": f"0x{tx_id:03X}",
+                "rx": f"0x{rx_id:03X}",
+                "response": response,
                 "notes": f"Raw: {resp_hex}" if resp_hex else "",
             }
             responding.append(entry)
@@ -357,7 +358,7 @@ def build_manual_session(
     date: str | None = None,
     vehicle_states: list[str] | None = None,
     notes: str | None = None,
-    transport: str | None = "import",
+    transport: str | None = IMPORT_TRANSPORT,
 ) -> CaptureSession:
     """Assemble a session dict from manually-supplied captures (the import path).
 
@@ -369,9 +370,7 @@ def build_manual_session(
     Field order follows the schema (date, label, [vehicle_states], [notes],
     [transport], captures).
     """
-    meta = _session_meta(vehicle_states, notes)
-    if transport:
-        meta["transport"] = transport
+    meta = _session_meta(vehicle_states, notes, transport)
     return {"date": date or _today(), "label": label, **meta, "captures": list(captures)}
 
 
@@ -476,12 +475,14 @@ def save_session_journaled(
 
     Used by the one-shot producers (scan/raw/discover) so every save path shares
     the same recover-on-crash behaviour as streaming query/monitor. The session
-    is written to a journal, then reconciled into ``captures/YYYY-MM-DD.yaml`` and
+    is written to a journal, then reconciled into ``captures/YYYY-MM-DD.json`` and
     the journal removed. Returns the capture file path (or None if empty).
 
-    The session's own ``transport`` (when set by the caller from the active
-    client) is carried through the journal meta so recovered one-shot captures
-    keep their provenance.
+    The session's own ``transport`` (set by its builder from the live client) is
+    carried through the journal meta so recovered one-shot captures keep their
+    provenance. A session without one is saved without one: re-resolving the
+    configuration here would ignore ``--transport``/``--wican`` and any
+    connect-time fallback, and record a transport the session never used.
     """
     from .capture_journal import CaptureJournal
 
@@ -496,7 +497,7 @@ def save_session_journaled(
         vehicle_states=session.get("vehicle_states"),
         notes=session.get("notes"),
         source="oneshot",
-        transport=session.get("transport") or active_transport_label(),
+        transport=session.get("transport"),
     )
     journal.append_session(session)
     return journal.reconcile()
@@ -523,6 +524,38 @@ def set_capture_note(fpath: Path, session_idx: int, capture_idx: int, note: str)
     _write_captures_file(fpath, data)
 
 
+def _set_session_field(session: CaptureSession, key: str, value: object) -> None:
+    """Set ``key`` on a session (a falsy ``value`` removes it), keeping ``captures`` last.
+
+    A key added to a session that lacked it would otherwise land *after* the
+    (potentially huge) ``captures`` array, burying the metadata the on-disk field
+    order keeps at the top (see ``TestSessionFieldOrder``).
+    """
+    # Dynamic-key access: every caller passes a CaptureSession field name.
+    fields = cast(dict, session)
+    if value:
+        fields[key] = value
+    else:
+        fields.pop(key, None)
+    if "captures" in fields:
+        fields["captures"] = fields.pop("captures")
+
+
+def set_session_transport(fpath: Path, session_idx: int, transport: str) -> None:
+    """Set (or clear) the ``transport`` provenance on one session, by index.
+
+    For correcting a session recorded with the wrong label — before every save
+    path read it off the live client, the one-shot producers re-resolved the
+    configuration and so ignored ``--transport``/``--wican`` and fallback. An
+    empty ``transport`` removes the field. Raises IndexError if the index doesn't
+    resolve.
+    """
+    data = capture_io.load_capture_file(fpath)
+    session = data["sessions"][session_idx]
+    _set_session_field(session, "transport", transport.strip())
+    _write_captures_file(fpath, data)
+
+
 def set_session_note(fpath: Path, session_idx: int, note: str) -> None:
     """Set (or clear) the ``notes`` field on one session, addressed by index.
 
@@ -532,11 +565,7 @@ def set_session_note(fpath: Path, session_idx: int, note: str) -> None:
     """
     data = capture_io.load_capture_file(fpath)
     session = data["sessions"][session_idx]
-    note = note.strip()
-    if note:
-        session["notes"] = note
-    else:
-        session.pop("notes", None)
+    _set_session_field(session, "notes", note.strip())
     _write_captures_file(fpath, data)
 
 
@@ -550,11 +579,7 @@ def set_session_keep_mode(fpath: Path, session_idx: int, keep_mode: KeepMode | N
     """
     data = capture_io.load_capture_file(fpath)
     session = data["sessions"][session_idx]
-    persisted = persisted_keep_mode(keep_mode)
-    if persisted is not None:
-        session["keep_mode"] = persisted
-    else:
-        session.pop("keep_mode", None)
+    _set_session_field(session, "keep_mode", persisted_keep_mode(keep_mode))
     _write_captures_file(fpath, data)
 
 
@@ -570,11 +595,7 @@ def set_session_states(fpath: Path, session_idx: int, vehicle_states) -> None:
     """
     data = capture_io.load_capture_file(fpath)
     session = data["sessions"][session_idx]
-    states = _parse_states(vehicle_states)
-    if states:
-        session["vehicle_states"] = states
-    else:
-        session.pop("vehicle_states", None)
+    _set_session_field(session, "vehicle_states", _parse_states(vehicle_states))
     _write_captures_file(fpath, data)
 
 
@@ -596,13 +617,12 @@ def set_session_state_spans(
     """
     data = capture_io.load_capture_file(fpath)
     session = data["sessions"][session_idx]
+    block: StateSpans | None = None
     if spans:
-        block: StateSpans = {"source": cast("StateSpanSource", source), "spans": list(spans)}
+        block = {"source": cast("StateSpanSource", source), "spans": list(spans)}
         if version:
             block["version"] = version
-        session["state_spans"] = block
-    else:
-        session.pop("state_spans", None)
+    _set_session_field(session, "state_spans", block)
     _write_captures_file(fpath, data)
 
 
