@@ -541,6 +541,18 @@ MCU:
       what_to_test:
         - Check whether the pair is a redundant safety-channel duplicate (identical by design) via correlate --find-mirrors --allow-offset
         - Try against DC-link voltage, modulation index, and resolver angle from MCU 2102 (MCU_ROTOR_ANGLE)
+    - type: decode
+      target: 21F2 previous-cycle record and 2102 mirror
+      status: captured
+      priority: P3
+      created: "2026-10-21"
+      updated: "2026-10-21"
+      notes: "MCU 21F2 copies live MCU 2102 bytes: 21F2 (S10<<8)|B9 and (S12<<8)|B11 equal 2102 (S23<<8)|B22 and (S26<<8)|B25 (small signed words, -13 to -7, which change only while stopped: probably current-sensor zero offsets), and 21F2 B38-B46 equal 2102 B34-B42. Those 2102 bytes are latched, not live: they change only at power-up and again at the first motion of a drive (2026-08-08 10:13, 15:36, 17:00). The rest of 21F2 changes after a drive or charge, like BMS 21F2. B50 tracks the peak AAF HEATSINK_TEMP of the cycle (53/48, 61/60, 40/40, 67/64 on 2026-08-08) and B67/B68 the end and peak VCU_COOLANT_TEMP within 2 °C, so it is likely a thermal summary (end/peak pairs: B47/B50, B57/B59, B67/B68; B63-B66 unknown, 121-150). B27:B28 reads 1276-1311 after charges and 1383-1469 after drives."
+      sources:
+        - canair 21F2 cross-check vs live data 2026-10-21
+      what_to_test:
+        - Read MCU 21F2 straight after a drive co-polled with AAF 2181 at a fast rate, to pin B47/B50 and B57/B59 to the inverter and motor temperatures
+        - Identify the latched 2102 B34-B42 values (B34 67-129, signed (S37<<8)|B36 -4702 to 648, B38 36-49, (B42<<8)|B41 688-2779), learned at power-up and first motion
 
   sessions:
     "81":

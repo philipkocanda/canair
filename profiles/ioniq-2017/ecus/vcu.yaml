@@ -456,15 +456,41 @@ VCU:
           notes: >-
             Constant ASCII '6000' in all 158 captures. Not part of the 1A8C/1A8D identity strings.
           enabled: false
+        VCU_21F2_SOC:
+          expression: ((B13<<8)|B12)/256
+          unit: "%"
+          min: "0"
+          max: "100"
+          source: canair 21F2 cross-check 2026-10-21
+          verified: false
+          notes: >-
+            SOC at the end of the previous cycle, 8.8 fixed point (B12 the fraction). Equals
+            BMS:21F2 LAST_CYCLE_SOC_END in all 6 co-read records (40.5, 57.1, 66.3, 71.9, 64.0 and
+            95.2 vs 95.1 %).
+        VCU_21F2_B19:
+          expression: B19
+          source: canair 21F2 cross-check 2026-10-21
+          verified: false
+          notes: >-
+            Unconfirmed: possibly the range estimate (km) at the start of the previous cycle. 233
+            then B20 = 89 for the 2026-08-08 drive from 95.2 to 40.5 % SOC; 175/126 for a drive from
+            77.5 to 57.1 %; equal to B20 in charging and parked cycles.
+        VCU_21F2_B20:
+          expression: B20
+          source: canair 21F2 cross-check 2026-10-21
+          verified: false
+          notes: >-
+            Unconfirmed: possibly the range estimate (km) at the end of the previous cycle; see
+            VCU_21F2_B19. Scales with VCU_21F2_SOC (89 at 40.5 %, 208 at 95.1 %, 68 at 33.1 %).
 
 
       status: active
       period: 0
       vehicle_states: [CHARGING, READY]
       notes: >-
-        About 86 bytes. Live bytes (B10, B12-B15, B19-B21, B29-B37, B45, B47, B57 vary hour to hour)
-        next to bytes that only change between sessions: B38, B39 and B41-B43 read E1 21 CB 65 F3 on
-        2026-07-22 and A0 27 D3 D3 F4 from 2026-07-28 to 2026-07-30. What they hold is unknown.
+        About 86 bytes. A previous-cycle record like BMS 21F2: odometer, end SOC and other fields
+        that change after a drive or charge (B38-B44 after charging events), plus the ASCII tag
+        '6000' at B95-B99. See the 21F2 research entry.
     1A90:
       response_frames: 3
       parameters:
@@ -826,6 +852,18 @@ VCU:
         - A VCU 2101/2102/21F2 byte in 0-100 that falls slowly at ACC2 with the LDC off and rises in READY (12V SOC)
         - A near-constant byte matching the 12V battery's health percentage (SOH)
         - If no VCU byte fits, look on the OBC (LDC side) and BMS
+    - type: decode
+      target: 21F2 remaining previous-cycle fields
+      status: captured
+      priority: P3
+      created: "2026-10-21"
+      updated: "2026-10-21"
+      notes: "VCU 21F2 is also a previous-cycle record. Decoded: odometer, end SOC (VCU_21F2_SOC, equal to BMS 21F2 LAST_CYCLE_SOC_END), candidate range at start/end (B19/B20). B75 rises by one per AC charge that ended (27 to 28 across the 2026-08-09 AC charge, unchanged across two DC charges on 2026-08-08), so it may count completed AC charges. Unknown: (B11<<8)|B10 /256 (97-106), B21 (0-22), B29-B34, B36/B37, B38-B44 (a block that changes after charging events), and B45/B47/B54 (percentages summing to ~100: 0/100 after drives and charges, 79-99 in B45 after parked-READY cycles, 97 in B54 once)."
+      sources:
+        - canair 21F2 cross-check vs live data 2026-10-21
+      what_to_test:
+        - Compare B19/B20 with the cluster range at key-on and key-off
+        - Note every AC and DC charge for a week and compare with B75
   sessions:
     "81":
       name: "standardDiagnosticSession"

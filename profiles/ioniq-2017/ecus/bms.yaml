@@ -1369,9 +1369,10 @@ BMS:
       period: 0
       vehicle_states: [READY]
       notes: >-
-        121 data bytes, 13 distinct payloads over 29 captures. Not static: a previous-cycle record
-        that changes only between drive or charge cycles (min/max cell and pack voltage decoded),
-        plus the constant ASCII tag '4064' at B9-B12. Found by the 21 00-FF sweep on 2026-07-22.
+        121 data bytes, 13 distinct payloads over 29 captures. A record of the previous drive or
+        charge cycle (duration, SOC and temperature histograms, start/end SOC, cell and pack voltage
+        extremes, energy in/out, peak powers, average temperature), updated when a cycle ends, plus
+        the constant ASCII tag '4064' at B9-B12. Found by the 21 00-FF sweep on 2026-07-22.
       parameters:
         LAST_CYCLE_MIN_CELL_VOLTAGE:
           expression: B37/50
@@ -1428,6 +1429,279 @@ BMS:
             Constant ASCII '4064' in all 29 captures. Not the 1A8D calibration ('4604') or any other
             identity field.
           enabled: false
+        LAST_CYCLE_DURATION:
+          expression: B14
+          unit: min
+          min: "0"
+          max: "255"
+          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
+          verified: false
+          notes: >-
+            Length of the previous drive or charge cycle in minutes: the five temperature-band
+            seconds summed and divided by 60, rounded down, in all 13 records. The ten SOC bands sum
+            to within 3 min of it. 99 for the 2026-08-08 10:02-11:41 drive, 62 for the 2026-08-10
+            13:13-14:15 charge.
+        LAST_CYCLE_MINUTES_SOC_10_20:
+          expression: B17
+          unit: min
+          min: "0"
+          max: "255"
+          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
+          verified: false
+          notes: >-
+            Minutes of the previous cycle spent at 10-20 % SOC. The ten bands (B15-B26) sum to
+            within 3 min of LAST_CYCLE_DURATION. 2026-07-30 AC charge 66 to 95 %: 40, 56, 57 and 32
+            min in the 60-70 to 90-100 % bands.
+        LAST_CYCLE_MINUTES_SOC_20_30:
+          expression: B18
+          unit: min
+          min: "0"
+          max: "255"
+          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
+          verified: false
+          notes: >-
+            Minutes of the previous cycle spent at 20-30 % SOC. The ten bands (B15-B26) sum to
+            within 3 min of LAST_CYCLE_DURATION. 2026-07-30 AC charge 66 to 95 %: 40, 56, 57 and 32
+            min in the 60-70 to 90-100 % bands.
+        LAST_CYCLE_MINUTES_SOC_30_40:
+          expression: B19
+          unit: min
+          min: "0"
+          max: "255"
+          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
+          verified: false
+          notes: >-
+            Minutes of the previous cycle spent at 30-40 % SOC. The ten bands (B15-B26) sum to
+            within 3 min of LAST_CYCLE_DURATION. 2026-07-30 AC charge 66 to 95 %: 40, 56, 57 and 32
+            min in the 60-70 to 90-100 % bands.
+        LAST_CYCLE_MINUTES_SOC_40_50:
+          expression: B20
+          unit: min
+          min: "0"
+          max: "255"
+          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
+          verified: false
+          notes: >-
+            Minutes of the previous cycle spent at 40-50 % SOC. The ten bands (B15-B26) sum to
+            within 3 min of LAST_CYCLE_DURATION. 2026-07-30 AC charge 66 to 95 %: 40, 56, 57 and 32
+            min in the 60-70 to 90-100 % bands.
+        LAST_CYCLE_MINUTES_SOC_50_60:
+          expression: B21
+          unit: min
+          min: "0"
+          max: "255"
+          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
+          verified: false
+          notes: >-
+            Minutes of the previous cycle spent at 50-60 % SOC. The ten bands (B15-B26) sum to
+            within 3 min of LAST_CYCLE_DURATION. 2026-07-30 AC charge 66 to 95 %: 40, 56, 57 and 32
+            min in the 60-70 to 90-100 % bands.
+        LAST_CYCLE_MINUTES_SOC_60_70:
+          expression: B22
+          unit: min
+          min: "0"
+          max: "255"
+          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
+          verified: false
+          notes: >-
+            Minutes of the previous cycle spent at 60-70 % SOC. The ten bands (B15-B26) sum to
+            within 3 min of LAST_CYCLE_DURATION. 2026-07-30 AC charge 66 to 95 %: 40, 56, 57 and 32
+            min in the 60-70 to 90-100 % bands.
+        LAST_CYCLE_MINUTES_SOC_70_80:
+          expression: B23
+          unit: min
+          min: "0"
+          max: "255"
+          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
+          verified: false
+          notes: >-
+            Minutes of the previous cycle spent at 70-80 % SOC. The ten bands (B15-B26) sum to
+            within 3 min of LAST_CYCLE_DURATION. 2026-07-30 AC charge 66 to 95 %: 40, 56, 57 and 32
+            min in the 60-70 to 90-100 % bands.
+        LAST_CYCLE_MINUTES_SOC_80_90:
+          expression: B25
+          unit: min
+          min: "0"
+          max: "255"
+          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
+          verified: false
+          notes: >-
+            Minutes of the previous cycle spent at 80-90 % SOC. The ten bands (B15-B26) sum to
+            within 3 min of LAST_CYCLE_DURATION. 2026-07-30 AC charge 66 to 95 %: 40, 56, 57 and 32
+            min in the 60-70 to 90-100 % bands.
+        LAST_CYCLE_MINUTES_SOC_90_100:
+          expression: B26
+          unit: min
+          min: "0"
+          max: "255"
+          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
+          verified: false
+          notes: >-
+            Minutes of the previous cycle spent at 90-100 % SOC. The ten bands (B15-B26) sum to
+            within 3 min of LAST_CYCLE_DURATION. 2026-07-30 AC charge 66 to 95 %: 40, 56, 57 and 32
+            min in the 60-70 to 90-100 % bands.
+        LAST_CYCLE_SOC_START:
+          expression: "[B109:B110]/10"
+          unit: "%"
+          min: "0"
+          max: "100"
+          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
+          verified: false
+          notes: >-
+            SOC at the start of the previous cycle, 0.1 %/bit. 95.2 % for the 2026-08-08 drive that
+            left at 95 %.
+        LAST_CYCLE_SOC_END:
+          expression: ((B111<<8)|B113)/10
+          unit: "%"
+          min: "0"
+          max: "100"
+          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
+          verified: false
+          notes: >-
+            SOC at the end of the previous cycle, 0.1 %/bit (B112 is a PCI byte). 40.5 % after the
+            2026-08-08 drive, matching live SOC_BMS, and equal to VCU:21F2 VCU_21F2_SOC in every
+            co-read record.
+        LAST_CYCLE_ENERGY_DISCHARGED:
+          expression: "[B134:B135]"
+          unit: Wh
+          min: "0"
+          max: "65535"
+          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
+          verified: false
+          notes: >-
+            Energy taken from the pack during the previous cycle. 17258 Wh for the 2026-08-08 drive
+            (CUMULATIVE_ENERGY_DISCHARGED rose 17.2 kWh); 63 Wh for a plugged-in preconditioning
+            cycle.
+        LAST_CYCLE_ENERGY_CHARGED:
+          expression: "[B137:B138]"
+          unit: Wh
+          min: "0"
+          max: "65535"
+          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
+          verified: false
+          notes: >-
+            Energy put into the pack during the previous cycle (regen or charging). 740 Wh regen on
+            the 2026-08-08 drive (CUMULATIVE_ENERGY_CHARGED +0.6 kWh); 8990 Wh for the 2026-07-30 AC
+            charge 66 to 95 %; 1402 Wh for 71.9 to 76.9 %.
+        LAST_CYCLE_ENERGY_START:
+          expression: "[B123:B124]"
+          unit: Wh
+          min: "0"
+          max: "65535"
+          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
+          verified: false
+          notes: >-
+            Unconfirmed: probably the pack's energy content at the start of the previous cycle.
+            26555 at 95.2 % and 10402 at 40.5 % SOC (2026-08-08 drive); the 16153 Wh difference is
+            near the 16518 Wh net discharge. 0 in charging cycles.
+        LAST_CYCLE_ENERGY_END:
+          expression: "[B125:B126]"
+          unit: Wh
+          min: "0"
+          max: "65535"
+          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
+          verified: false
+          notes: >-
+            Unconfirmed: probably the pack's energy content at the end of the previous cycle; see
+            LAST_CYCLE_ENERGY_START.
+        LAST_CYCLE_MAX_DISCHARGE_POWER:
+          expression: B49
+          unit: kW
+          min: "0"
+          max: "255"
+          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
+          verified: false
+          notes: >-
+            Peak discharge power of the previous cycle. 57 kW for the 2026-08-08 drive (live
+            BATTERY_POWER peaked at 57.5 kW); 3 kW for a preconditioning cycle; 0 for charging.
+        LAST_CYCLE_MAX_CHARGE_POWER:
+          expression: B51
+          unit: kW
+          min: "0"
+          max: "255"
+          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
+          verified: false
+          notes: >-
+            Peak charge or regen power of the previous cycle. 45 kW regen on the 2026-08-08 drive
+            (live sampled peak -40.5 kW); 3 kW for a 3.3 kW AC charge.
+        LAST_CYCLE_AVG_BATTERY_TEMP:
+          expression: B100
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "100"
+          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
+          verified: false
+          notes: >-
+            Average battery temperature of the previous cycle. 18 for the 2026-08-08 drive (live
+            module temps 17-21, mean 18.7); 26 for the 2026-07-30 charge (25-27); 23 for 2026-08-10
+            (23-24).
+        LAST_CYCLE_SECONDS_TEMP_BAND_1:
+          expression: ((B63<<8)|B65)
+          unit: s
+          min: "0"
+          max: "65535"
+          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
+          verified: false
+          notes: >-
+            Seconds of the previous cycle in battery-temperature band 1 of 5; the five bands sum to
+            LAST_CYCLE_DURATION. Seen in use: band 3 with an average of 16-20 °C, band 4 at 22-24
+            °C, band 5 at 26-29 °C; bands 1-2 never set. Thresholds unknown.
+        LAST_CYCLE_SECONDS_TEMP_BAND_2:
+          expression: "[B66:B67]"
+          unit: s
+          min: "0"
+          max: "65535"
+          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
+          verified: false
+          notes: >-
+            Seconds of the previous cycle in battery-temperature band 2 of 5; the five bands sum to
+            LAST_CYCLE_DURATION. Seen in use: band 3 with an average of 16-20 °C, band 4 at 22-24
+            °C, band 5 at 26-29 °C; bands 1-2 never set. Thresholds unknown.
+        LAST_CYCLE_SECONDS_TEMP_BAND_3:
+          expression: "[B68:B69]"
+          unit: s
+          min: "0"
+          max: "65535"
+          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
+          verified: false
+          notes: >-
+            Seconds of the previous cycle in battery-temperature band 3 of 5; the five bands sum to
+            LAST_CYCLE_DURATION. Seen in use: band 3 with an average of 16-20 °C, band 4 at 22-24
+            °C, band 5 at 26-29 °C; bands 1-2 never set. Thresholds unknown.
+        LAST_CYCLE_SECONDS_TEMP_BAND_4:
+          expression: "[B70:B71]"
+          unit: s
+          min: "0"
+          max: "65535"
+          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
+          verified: false
+          notes: >-
+            Seconds of the previous cycle in battery-temperature band 4 of 5; the five bands sum to
+            LAST_CYCLE_DURATION. Seen in use: band 3 with an average of 16-20 °C, band 4 at 22-24
+            °C, band 5 at 26-29 °C; bands 1-2 never set. Thresholds unknown.
+        LAST_CYCLE_SECONDS_TEMP_BAND_5:
+          expression: "[B73:B74]"
+          unit: s
+          min: "0"
+          max: "65535"
+          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
+          verified: false
+          notes: >-
+            Seconds of the previous cycle in battery-temperature band 5 of 5; the five bands sum to
+            LAST_CYCLE_DURATION. Seen in use: band 3 with an average of 16-20 °C, band 4 at 22-24
+            °C, band 5 at 26-29 °C; bands 1-2 never set. Thresholds unknown.
+        LAST_CYCLE_MINUTES_SOC_00_10:
+          expression: B15
+          unit: min
+          min: "0"
+          max: "255"
+          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
+          verified: false
+          notes: >-
+            Minutes of the previous cycle spent at 0-10 % SOC. The ten bands (B15-B26) sum to within
+            3 min of LAST_CYCLE_DURATION. 2026-07-30 AC charge 66 to 95 %: 40, 56, 57 and 32 min in
+            the 60-70 to 90-100 % bands.
   research:
     - type: iocontrol_scan
       target: "30 00-FF"
@@ -1554,6 +1828,18 @@ BMS:
       what_to_test:
         - "BMS_DCFC_TICK_COUNTER: confirm tick rate/meaning on a 2nd DCFC session; check if it's elapsed time (would give a clean rate) or a cycle counter"
         - "BMS_2105_B41: capture a full 0-100% DCFC to see if it's SOC-quantised (would give many more distinct values) or a coarse phase counter (would stay in a small band)"
+    - type: decode
+      target: 21F2 remaining last-cycle fields
+      status: captured
+      priority: P3
+      created: "2026-10-21"
+      updated: "2026-10-21"
+      notes: "21F2 is a record of the previous drive or charge cycle: duration, minutes per 10 % SOC band, seconds per battery-temperature band, start/end SOC, discharged/charged Wh, peak powers and average temperature are decoded (LAST_CYCLE_*). Still unknown: B39 (0/1 flag), B42 (137 after the 2026-08-08 drive, 92 after 2026-08-02, 5 after an AC charge; not the sampled peak current), B53 (11-13), B108 (0/2), B117 (cycle type? 0x00 drives, 0x11 short or zero-length cycles, 0x40 charging cycles), B118:B119 (a count: 1-2 after drives, 3-22 after charges), B122 (4, 18, 46 after drives), B127/B129."
+      sources:
+        - canair 21F2 cross-check vs live data 2026-10-21
+      what_to_test:
+        - "Temperature-band thresholds: capture a cycle whose battery temperature crosses 20 and 25 °C and compare the band seconds"
+        - Read BMS 21F2 right after a short drive with a known distance and peak current to place B42 and B122
 
   sessions:
     "81":
