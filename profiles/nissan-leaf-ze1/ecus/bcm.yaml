@@ -6,8 +6,11 @@ BCM:
     notes: >-
       Address from the dalathegreat/leaf_can_bus_messages README ECU table (generation-wide, not
       ZE1-specific); his 2018 poll-list PDF calls 0x745 the meter instead. Lever status DID 2109 is
-      registered as a draft; presence on the ZE1 is unconfirmed.
+      registered as a draft; presence on the ZE1 is unconfirmed. Speaks KWP2000: Nissan CONSULT III
+      drives its actuators with the KWP2000-only service 0x30 on a 2020 ZE1 (Black Hat Asia 2025),
+      and dalathegreat's ZE1 poll list reads it with service 0x21.
     identity_confidence: tentative
+    id_protocol: KWP2000
   pids:
     2109:
       status: draft
@@ -20,51 +23,73 @@ BCM:
   iocontrol:
     # Actuator frames captured from Nissan CONSULT III USB traffic by PCAutomotive,
     # presented at Black Hat Asia 2025 (https://i.blackhat.com/Asia-25/Asia-25-Evdokimov-Remote-Exploitation-of-Nissan-Leaf.pdf).
-    # Service 0x30 = KWP2000 InputOutputControlByLocalIdentifier (not UDS 0x2F).
-    # IOCP 0x01/0x02 = shortTermAdjustment ON/ON-alt; 0x00 = returnControlToECU (OFF/release).
-    # All commands are unverified on the ZE1; test with caution.
-    0700:
+    # The slides list only the ON frames; every OFF frame here is inferred.
+    #
+    # Service 0x30 is KWP2000 InputOutputControlByLocalIdentifier (not UDS 0x2F),
+    # in Nissan's own layout rather than ISO 14230-3's: 30 {LID} {function} {value}.
+    # The function byte, per the Qashqai J10 BCM table at the same 0x745/0x765
+    # address (https://github.com/balrog-kun/nissan-qashqai-can-info):
+    #   00 = one-shot command (value 0 does nothing, so OFF is a no-op)
+    #   01 = ask whether {value} is supported (drives nothing; a safe first probe)
+    #   20 = temporary change that the BCM reverts after ~5 s (value 0 = off and
+    #        cancel an earlier request)
+    # The same source says the BCM refuses 0x30 outside the Nissan session 10 C0.
+    # Keys are the LID plus the function byte. All commands are unverified on the ZE1.
+    "0700":
       label: Doors lock / unlock
       verified: false
       on: "30070001"
       off: "30070000"
-      notes: 0x01 = lock, 0x02 = unlock. The 'on' command locks; to unlock send "30070002" manually.
+      notes: >-
+        Function 00 (one-shot): 1 = lock, 2 = unlock all doors, 3 = unlock driver door, 4 = unlock
+        passenger doors (values 3 and 4 from the Qashqai J10 table). The ON command locks; send
+        30070002 to unlock. OFF is a no-op.
       session: true
       hold: false
+      session_mode: "C0"
     6900:
       label: Mirrors fold / unfold
       verified: false
       on: "30690001"
       off: "30690000"
       notes: >-
-        0x01 = fold (close), 0x02 = unfold (open). The 'on' command folds; to unfold send
-        "30690002" manually.
+        Function 00 (one-shot): 1 = fold, 2 = unfold. The ON command folds; send 30690002 to unfold.
+        OFF is a no-op.
       session: true
       hold: false
+      session_mode: "C0"
     2200:
       label: Horn
       verified: false
       on: "30220001"
       off: "30220000"
-      notes: 0x01 = horn on; 0x00 = release.
+      notes: >-
+        Function 00 (one-shot): 1 = sound the horn, for a duration the ECU decides. OFF is a no-op.
       session: true
-      hold: true
+      hold: false
+      session_mode: "C0"
     4520:
       label: Wiper
       verified: false
       on: "30452003"
       off: "30452000"
-      notes: 0x03 = wiper actuate.
+      notes: >-
+        Function 20 (reverts after ~5 s): 3 = one wipe. Qashqai J10 values: 1 = fast, 2 = slow, 0 =
+        off for ~5 s, which OFF sends.
       session: true
       hold: false
+      session_mode: "C0"
     3B20:
-      label: Lights
+      label: Headlights low / high beam
       verified: false
       on: "303b2002"
       off: "303b2000"
-      notes: 0x02 = lights on.
+      notes: >-
+        Function 20 (reverts after ~5 s): 2 = high beam, as captured; 1 = low beam per the Qashqai
+        J10 table. 0 = off for ~5 s, which OFF sends.
       session: true
       hold: false
+      session_mode: "C0"
 
   research:
     - type: decode

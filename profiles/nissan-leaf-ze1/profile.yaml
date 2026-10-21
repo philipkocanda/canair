@@ -53,6 +53,11 @@ can_bitrate: 500000
 addressing:
   rx_offset: 0x20
 
+# Nissan ECUs gate actuator tests (KWP2000 0x30) behind the OEM diagnostic
+# session 10 C0, which canair's command blocklist refuses unless the profile
+# declares it.
+quirks: [nissan_c0_session]
+
 # ELM327 response timeout in ms, applied as ATSTxx (--elm-timeout overrides).
 # Raise it for slow-responding ECUs; lower it to speed up cycles / NO-DATA
 # detection. Left unset, the ELM327 default applies.
