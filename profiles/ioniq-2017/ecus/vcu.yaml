@@ -427,16 +427,24 @@ VCU:
     21F2:
       response_frames: 13
       parameters:
-        VCU_21F2_B75_COUNTER:
-          expression: B75
+        VCU_21F2_EVENT_COUNT:
+          expression: ((B76<<8)|B75)
           unit: ""
           min: "0"
-          max: "255"
-          source: canair before/after 2026-07-28 (originally misread as a charge-timer hour); monotonic sweep of all 21F2 captures 2026-07-22..08-15
+          max: "65535"
+          source: canair 21F2 vs BMS:2101 charge flags 2026-10-21
           verified: false
           notes: >-
-            Only ever rises across 158 captures (16 to 79), flat within a session, by +1 to +4 every
-            few days. Changed once with no charging. What it counts is unknown.
+            A count of some VCU event, read as a little-endian 16-bit value with B76 as the high
+            byte (B76 read 3 in all 158 captures, so 784 to 847 from 2026-07-22 to 10-19; that high
+            byte is assumed). Only ever rises, flat within a cycle. In the densely logged 2026-07-30
+            to 08-15 period each bracketed rise follows an ended AC charge (07-30, 08-02, 08-09,
+            08-10 twice, 08-15) or a plugged-in preconditioning run (08-08 08:08-08:42); two DC fast
+            charges, two drives and a 5-day mostly parked stretch (08-10 to 08-15) added nothing
+            else. But it rose 48 between 08-15 and 10-19 (0.74 a day), several times the owner's 1-2
+            charges a week, so it may also count 12V-battery top-ups, scheduled preconditioning or
+            scheduled-charge starts. 847 over 9 years (about 0.26 a day) fits a charge count better
+            than a top-up count.
         VCU_ODOMETER:
           expression: (B14 | (B15 << 8) | (B17 << 16) | (B18 << 24)) / 256
           unit: km
@@ -467,30 +475,43 @@ VCU:
             SOC at the end of the previous cycle, 8.8 fixed point (B12 the fraction). Equals
             BMS:21F2 LAST_CYCLE_SOC_END in all 6 co-read records (40.5, 57.1, 66.3, 71.9, 64.0 and
             95.2 vs 95.1 %).
-        VCU_21F2_B19:
+        VCU_21F2_RANGE_START:
           expression: B19
-          source: canair 21F2 cross-check 2026-10-21
+          source: canair 21F2 cross-check vs live data 2026-10-21
           verified: false
           notes: >-
-            Unconfirmed: possibly the range estimate (km) at the start of the previous cycle. 233
-            then B20 = 89 for the 2026-08-08 drive from 95.2 to 40.5 % SOC; 175/126 for a drive from
-            77.5 to 57.1 %; equal to B20 in charging and parked cycles.
-        VCU_21F2_B20:
+            Probably the range estimate at the start of the last READY cycle. Across the 22 distinct
+            records it continues the previous record's VCU_21F2_RANGE_END to within 2 km in all 9
+            cases with nothing in between (e.g. 207/207, 163/162, 176/175, 144/145), and resets
+            upward after every charge (68 to 168 across the 2026-08-09 AC charge). Exceptions: two
+            jumps across an unlogged drive (odometer moved), and 208 to 233 at the start of the
+            2026-08-08 drive, straight after a climate preconditioning cycle. Not compared with the
+            cluster display yet.
+          unit: km
+          min: "0"
+          max: "255"
+        VCU_21F2_RANGE_END:
           expression: B20
-          source: canair 21F2 cross-check 2026-10-21
+          source: canair 21F2 cross-check vs live data 2026-10-21
           verified: false
           notes: >-
-            Unconfirmed: possibly the range estimate (km) at the end of the previous cycle; see
-            VCU_21F2_B19. Scales with VCU_21F2_SOC (89 at 40.5 %, 208 at 95.1 %, 68 at 33.1 %).
+            Probably the range estimate at the end of the last READY cycle. Divided by VCU_21F2_SOC
+            it gives 2.17-2.27 km per % in 19 of the 22 distinct records (about 220 km at 100 %);
+            the others are 2.05 and 1.92 after highway driving on 2026-08-08/09, and 1.54 for a
+            charging cycle. Charging does not update it: the 2026-07-30 charge to 95.2 % kept the
+            147 km of the READY cycle before it.
+          unit: km
+          min: "0"
+          max: "255"
 
 
       status: active
       period: 0
       vehicle_states: [CHARGING, READY]
       notes: >-
-        About 86 bytes. A previous-cycle record like BMS 21F2: odometer, end SOC and other fields
-        that change after a drive or charge (B38-B44 after charging events), plus the ASCII tag
-        '6000' at B95-B99. See the 21F2 research entry.
+        About 86 bytes. A previous-cycle record like BMS 21F2: odometer, end SOC, range at
+        start/end, an event count and other fields that change after a drive or charge (B38-B44
+        after charging events), plus the ASCII tag '6000' at B95-B99. See the 21F2 research entries.
     1A90:
       response_frames: 3
       parameters:
@@ -826,11 +847,25 @@ VCU:
       notes: "Verify VCU_ODOMETER (ISO-TP i11-i14 LE / 256 = km, 1/256 km resolution). Co-poll VCU 21F2 with CLU 22B002 across a drive: confirm the i11 fraction advances smoothly (not in whole-km jumps) and the +4.4..+4.7 km offset vs the verified CLU ODOMETER stays constant. Currently only 5 co-polled points, all parked."
     - type: decode
       target: 21F2 B75
-      status: pending
+      status: captured
       priority: P3
       created: "2026-10-20"
-      updated: "2026-10-20"
-      notes: "Identify what VCU_21F2_B75_COUNTER counts: read 21F2 before and after a single wake, ignition cycle, drive and charge session and see which one increments it."
+      updated: "2026-10-21"
+      result: >-
+        2026-10-21: VCU_21F2_EVENT_COUNT, read as (B76<<8)|B75 (784 to 847). July-August rises line
+        up with ended AC charges and one plugged-in preconditioning run, DC charges did not move it,
+        but the 08-15 to 10-19 rate (0.74/day) is far above the owner's 1-2 charges a week.
+        Candidate events: AC charge sessions, 12V-battery top-ups (HV wake while parked), scheduled
+        preconditioning, scheduled-charge starts.
+      notes: >-
+        Find what VCU_21F2_EVENT_COUNT counts. Note it, then let the car sit unplugged and unused
+        for 2-3 cold days (12V top-ups only) and read it again; then do one AC charge (plug in,
+        charge, unplug) and one DC fast charge, reading it after each. Check the climate and charge
+        schedules in the head unit first: a preconditioning schedule set on 2026-07-30 (01:00
+        Sun/Tue/Wed/Thu/Sat) fits the 08-01 and 08-06/08-08 rises but not the quiet 08-02 to 08-05
+        and 08-10 to 08-15 stretches, so it may have been switched off. A 12V top-up should also
+        show in BMS 21F2 as a short cycle with a small discharge. B76 as the high byte is unproven
+        until B75 passes 255. B73:B74 next to it is a constant 91.
     - type: decode
       target: 12V battery sensor SOC/SOH/temp/current
       status: pending
@@ -858,12 +893,31 @@ VCU:
       priority: P3
       created: "2026-10-21"
       updated: "2026-10-21"
-      notes: "VCU 21F2 is also a previous-cycle record. Decoded: odometer, end SOC (VCU_21F2_SOC, equal to BMS 21F2 LAST_CYCLE_SOC_END), candidate range at start/end (B19/B20). B75 rises by one per AC charge that ended (27 to 28 across the 2026-08-09 AC charge, unchanged across two DC charges on 2026-08-08), so it may count completed AC charges. Unknown: (B11<<8)|B10 /256 (97-106), B21 (0-22), B29-B34, B36/B37, B38-B44 (a block that changes after charging events), and B45/B47/B54 (percentages summing to ~100: 0/100 after drives and charges, 79-99 in B45 after parked-READY cycles, 97 in B54 once)."
+      notes: >-
+        VCU 21F2 is a previous-cycle record. Decoded: odometer, end SOC (VCU_21F2_SOC, equal to BMS
+        21F2 LAST_CYCLE_SOC_END), range at start/end (VCU_21F2_RANGE_START/END) and an event count
+        (VCU_21F2_EVENT_COUNT, B75/B76). Unknown: (B11<<8)|B10 /256 (97-106), B21 (0-22), B29-B34,
+        B36/B37, B38-B44 (a block that changes after charging events), B45/B47/B54 (percentages
+        summing to ~100: 0/100 after drives and charges, 79-99 in B45 after parked-READY cycles, 97
+        in B54 once), and the constant B73:B74 (91).
       sources:
         - canair 21F2 cross-check vs live data 2026-10-21
       what_to_test:
         - Compare B19/B20 with the cluster range at key-on and key-off
         - Note every AC and DC charge for a week and compare with B75
+    - type: verify
+      target: 21F2 range start/end vs cluster
+      status: captured
+      priority: P2
+      vehicle_states: [READY]
+      created: "2026-10-21"
+      updated: "2026-10-21"
+      notes: "VCU_21F2_RANGE_START/END (B19/B20) behave like the range estimate: about 2.2 km per % SOC, continuous between cycles, reset after charging, untouched by a charge. Needs a live comparison with the cluster's displayed range."
+      sources:
+        - canair 21F2 cross-check 2026-10-21
+      what_to_test:
+        - Note the cluster range at key-on and key-off for one drive, then read VCU 21F2 after the next wake-up; B19 should equal the key-on value and B20 the key-off value
+        - "Repeat with climate on and off at key-on: the 2026-08-08 jump from 208 to 233 suggests the climate deduction is included"
   sessions:
     "81":
       name: "standardDiagnosticSession"
