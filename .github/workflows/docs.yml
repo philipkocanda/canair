@@ -7,6 +7,11 @@ on:
       - "docs/**"
       - "mkdocs.yml"
       - ".github/workflows/docs.yml"
+      # The bundled-profile pages render their counts from the profile data at
+      # build time (scripts/mkdocs_hooks/), so a profile change must redeploy.
+      - "scripts/mkdocs_hooks/**"
+      - "profiles/*/ecus/**"
+      - "profiles/*/profile.yaml"
   workflow_dispatch:
 
 permissions:

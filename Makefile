@@ -16,8 +16,8 @@ help:
 	@echo "Targets:"
 	@echo "  screenshots        Regenerate the doc screenshots + animations (needs freeze + vhs)"
 	@echo "  screenshots-check  Verify screenshots are current (no render; used by CI)"
-	@echo "  gen                Regenerate all generated docs (CLI reference, profiles index, screenshots)"
-	@echo "  gen-check          Verify all generated docs are current"
+	@echo "  gen                Regenerate all committed generated docs (CLI reference, screenshots)"
+	@echo "  gen-check          Verify all committed generated docs are current"
 	@echo "  docs               Build the docs site (mkdocs --strict)"
 	@echo "  docs-serve         Serve the docs locally with live reload"
 	@echo "  check              Lint, type-check, validate, and run tests"
@@ -35,12 +35,10 @@ screenshots-check:
 
 gen:
 	uv run python scripts/gen_cli_reference.py
-	uv run python scripts/gen_profiles_index.py
 	uv run python scripts/gen_screenshots.py
 
 gen-check:
 	uv run python scripts/gen_cli_reference.py --check
-	uv run python scripts/gen_profiles_index.py --check
 	uv run python scripts/gen_screenshots.py --check
 
 docs:

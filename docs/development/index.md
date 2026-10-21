@@ -43,9 +43,12 @@ uv run ty check                                     # type check (canlib/)
 uv run canair validate all                          # if you touched profile data
 uv run python scripts/validate_skills.py             # if you touched a skill's frontmatter
 uv run python scripts/gen_cli_reference.py --check   # if you changed a command's flags
-uv run python scripts/gen_profiles_index.py --check  # if a profile's headline counts changed
 uv run python scripts/gen_screenshots.py --check     # if you changed screenshotted command output
 ```
+
+The [bundled-profile](../profiles/index.md) counts need no regenerating: an MkDocs hook
+(`scripts/mkdocs_hooks/profiles_index.py`) computes them from `profiles/*/ecus/` each time
+the site is built.
 
 The suite runs in parallel by default (`-n auto --dist loadscope`, set in
 `pyproject.toml`). When iterating on a single file or debugging one failure, pass

@@ -52,13 +52,6 @@ repos:
         pass_filenames: false
         stages: [pre-push]
 
-      - id: profiles-index-current
-        name: bundled-profiles index is current
-        entry: uv run python scripts/gen_profiles_index.py --check
-        language: system
-        pass_filenames: false
-        stages: [pre-push]
-
       - id: screenshots-current
         name: doc screenshots are current
         entry: uv run python scripts/gen_screenshots.py --check

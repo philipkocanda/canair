@@ -60,6 +60,12 @@ markdown_extensions:
 plugins:
   - search
 
+# Build-time content: the bundled-profiles index and each profile tour's stats
+# block are rendered from profiles/*/ecus/ rather than committed, so they cannot
+# go stale.
+hooks:
+  - scripts/mkdocs_hooks/profiles_index.py
+
 nav:
   - Home: index.md
   - Getting started:
