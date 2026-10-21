@@ -11,6 +11,10 @@
         "exchanges": 122,
         "no_data": 1
       },
+      "vehicle_states": [
+        "PARKED",
+        "CONDITIONING"
+      ],
       "captures": [
         {
           "rx": "0x7EC",
@@ -181,7 +185,8 @@
       "label": "IGPM BCM SKM BMS:2101,2105 OBC VCU MCU",
       "version": "1.28.0",
       "vehicle_states": [
-        "PARKED"
+        "PARKED",
+        "CONDITIONING"
       ],
       "notes": "12v conditioning",
       "keep_mode": "unique",
@@ -191,6 +196,23 @@
         "no_data": 288,
         "drop": 4,
         "resyncs": 1
+      },
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {
+            "at": "21:03:05.257",
+            "states": []
+          },
+          {
+            "at": "21:03:24.711",
+            "states": [
+              "PARKED",
+              "CONDITIONING"
+            ]
+          }
+        ],
+        "version": "1.28.0+main.30e06a9.dirty"
       },
       "captures": [
         {
@@ -866,13 +888,37 @@
       "label": "IGPM BCM SKM BMS:2101,2105 OBC VCU MCU",
       "version": "1.28.0",
       "vehicle_states": [
-        "PARKED"
+        "PARKED",
+        "CONDITIONING"
       ],
       "notes": "12v conditioning",
       "transport": "wican-ws",
       "quality": {
         "exchanges": 2363,
         "no_data": 1324
+      },
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {
+            "at": "21:07:11.457",
+            "states": []
+          },
+          {
+            "at": "21:07:30.877",
+            "states": [
+              "PARKED",
+              "CONDITIONING"
+            ]
+          },
+          {
+            "at": "21:17:08.763",
+            "states": [
+              "PARKED"
+            ]
+          }
+        ],
+        "version": "1.28.0+main.30e06a9.dirty"
       },
       "captures": [
         {

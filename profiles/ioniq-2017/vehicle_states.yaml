@@ -77,3 +77,7 @@ states:
   # analogue of the ALL CAN-bus code). Documentary; no auto-suggest predicate.
   - name: ALL
     description: Applicable/readable in every vehicle state.
+  - name: CONDITIONING
+    description: Parked/locked, HV pack awake only to top up the 12V battery via the LDC (not READY, not charging).
+    excludes: [READY, CHARGING, DRIVING]
+    when: VCU.VCU_POWER_STATE == 1 and VCU.VEHICLE_STATE_LDC_ENABLED == 1

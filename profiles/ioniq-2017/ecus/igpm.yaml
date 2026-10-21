@@ -70,7 +70,11 @@ IGPM:
         ACC2_RELATED:
           expression: "B12:3"
           verified: false
-          notes: 1 in ACC2, 0 in every other power state (2026-07-18).
+          notes: >-
+            1 in ACC2 and mostly in READY, 0 in charging, plugged and key-off (2026-07-18). Also 1
+            with ACC2_IGN_ON = 0 for the whole 2026-10-21 parked 12 V conditioning run (26
+            captures); last read 1 at 21:16:47 and first read 0 at 21:17:21, when the VCU's HV relay
+            had opened (open by 21:17:08).
         IGPM_BC07_B12_2:
           expression: B12:2
           source: RE 2026-08-05 event-timeline analysis; revisited 2026-08-08 session
