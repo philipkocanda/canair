@@ -4,13 +4,13 @@
 
 ```
 usage: canair pids [-h]
-                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-pid-status,set-pid-variable-length,set-response-frames,set-pid-notes,set-identity,rm-identity,set-can-bus,set-iocontrol-ranges,set-wake,set-addressing}
+                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-pid-status,set-pid-variable-length,set-response-frames,set-pid-notes,set-identity,rm-identity,set-can-bus,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing}
                    ...
 
 [UDS] Safely edit ecus/ parameters and research entries (domain A — diagnostic UDS PIDs, freeform WiCAN expressions). The broadcast-frame (domain B) authoring counterpart is `canair signals` (linear signals/ maps).
 
 positional arguments:
-  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-pid-status,set-pid-variable-length,set-response-frames,set-pid-notes,set-identity,rm-identity,set-can-bus,set-iocontrol-ranges,set-wake,set-addressing}
+  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-pid-status,set-pid-variable-length,set-response-frames,set-pid-notes,set-identity,rm-identity,set-can-bus,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing}
     upsert-param        Add or update a signal
     rename-param        Rename a signal (key only; fields preserved)
     rm-param            Remove a signal
@@ -38,6 +38,7 @@ positional arguments:
     set-iocontrol-ranges
                         Set the IOControl (0x2F) scan DID ranges swept on this
                         ECU
+    set-iocontrol       Set fields of a curated IOControl actuator entry
     set-wake            Set how to rouse a fast-sleeping ECU before reads
                         (wake ritual)
     set-addressing      Set an ECU's CAN addressing override (mode / extension
@@ -498,6 +499,49 @@ options:
   -h, --help     show this help message and exit
   --dir DIR      ecus/ directory (default: active profile)
   --no-validate  Skip the post-edit schema validation gate
+```
+
+## `canair pids set-iocontrol`
+
+```
+usage: canair pids set-iocontrol [-h] [--label LABEL] [--notes NOTES]
+                                 [--verified | --no-verified] [--on HEX]
+                                 [--off HEX] [--session | --no-session]
+                                 [--session-mode XX] [--hold | --no-hold]
+                                 [--status-param NAME] [--dir DIR]
+                                 [--no-validate]
+                                 ecu DID
+
+Set fields of an existing iocontrol: entry (the actuators `canair io` drives). Writes only the fields given, adding any the entry lacks. Promote a scanner discovery first (the `canair io` TUI's P key).
+
+positional arguments:
+  ecu
+  DID                   The iocontrol: entry key (e.g. BC01)
+
+options:
+  -h, --help            show this help message and exit
+  --label LABEL
+  --notes NOTES         Free-text note (replaces the existing one)
+  --verified, --no-verified
+                        Mark as tested on this car (--no-verified to clear)
+  --on HEX              Full ON request (e.g. 2FBC0103)
+  --off HEX             Full OFF request (e.g. 2FBC0100)
+  --session, --no-session
+                        Open a diagnostic session before actuating
+  --session-mode XX     DiagnosticSessionControl sub-function to open (default
+                        03; an OEM session such as Nissan C0 also needs the
+                        profile quirk that permits it)
+  --hold, --no-hold     Keep the session alive after ON until Ctrl+C, then
+                        send OFF
+  --status-param NAME   Signal read before and after actuating, as a best-
+                        effort readback
+  --dir DIR             ecus/ directory (default: active profile)
+  --no-validate         Skip the post-edit schema validation gate
+
+examples:
+  canair pids set-iocontrol IGPM BC01 --verified --label 'Low beam'
+  canair pids set-iocontrol BCM 6900 --session-mode C0 --no-hold
+  canair pids set-iocontrol HVAC F010 --on 2FF01003FF --off 2FF01000
 ```
 
 ## `canair pids set-wake`

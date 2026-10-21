@@ -26,6 +26,20 @@ from ._text import (
 # IOControl fields editable from the TUI.
 EDITABLE_FIELDS = ("label", "verified", "notes")
 
+# Every curated iocontrol: field `canair pids set-iocontrol` can write.
+IOCONTROL_FIELDS = (
+    *EDITABLE_FIELDS,
+    "on",
+    "off",
+    "session",
+    "session_mode",
+    "hold",
+    "status_param",
+)
+_IOCONTROL_BOOL_FIELDS = frozenset({"verified", "session", "hold"})
+# Hex strings stay quoted: a bare `03` or `30070001` would re-parse as an int.
+_IOCONTROL_QUOTED_FIELDS = frozenset({"on", "off", "session_mode"})
+
 
 # ── Routines section appender ────────────────────────────────────────────────
 
@@ -368,28 +382,29 @@ def update_iocontrol_field(
 ) -> Path:
     """Update a single DID field in-place and return the file path edited.
 
-    Raises ``PidsEditError`` on any safety-relevant failure (ECU/DID not
-    found, unsupported field, etc.).
+    ``field`` is one of :data:`IOCONTROL_FIELDS`; the field is added when the
+    entry lacks it. Raises ``PidsEditError`` on any safety-relevant failure
+    (ECU/DID not found, unsupported field, etc.).
     """
-    if field not in EDITABLE_FIELDS:
-        raise PidsEditError(f"Field {field!r} not editable; allowed: {EDITABLE_FIELDS}")
+    if field not in IOCONTROL_FIELDS:
+        raise PidsEditError(f"Field {field!r} not editable; allowed: {IOCONTROL_FIELDS}")
 
     fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
     text = fpath.read_text()
     start, end = _find_did_block(text, did)
     block = text[start:end]
 
-    if field == "label":
-        new_line = f"      label: {_format_label(str(value))}"
-        new_block = _replace_field_in_block(block, "label", new_line)
-    elif field == "verified":
-        new_line = f"      verified: {_format_verified(bool(value))}"
-        new_block = _replace_field_in_block(block, "verified", new_line)
-    elif field == "notes":
+    if field == "notes":
         new_lines = _format_block_scalar("      ", "notes", str(value))
         new_block = _replace_field_in_block(block, "notes", new_lines)
-    else:  # pragma: no cover
-        raise PidsEditError(field)
+    else:
+        if field in _IOCONTROL_BOOL_FIELDS:
+            rendered = _format_verified(bool(value))
+        elif field in _IOCONTROL_QUOTED_FIELDS:
+            rendered = f'"{str(value).strip().upper()}"'
+        else:
+            rendered = _format_label(str(value))
+        new_block = _replace_field_in_block(block, field, f"      {field}: {rendered}")
 
     if new_block == block:
         return fpath  # no-op

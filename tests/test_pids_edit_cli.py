@@ -77,6 +77,52 @@ def test_set_addressing_bad_hex(pids_dir):
         cli.cmd_set_addressing(_Args(dir=pids_dir, fc_id="nothex"))
 
 
+@pytest.fixture
+def io_dir(tmp_path):
+    (tmp_path / "e.yaml").write_text(
+        "TESTECU:\n  tx_id: 0x745\n  iocontrol:\n    6900:\n      label: Mirrors\n"
+        '      on: "30690001"\n      off: "30690000"\n'
+    )
+    return tmp_path
+
+
+def _io_args(io_dir, **kw):
+    fields = dict.fromkeys(
+        ("label", "notes", "verified", "on", "off", "session", "session_mode", "hold")
+    )
+    fields["status_param"] = None
+    fields.update(kw)
+    return _Args(dir=io_dir, did="6900", **fields)
+
+
+def test_set_iocontrol_writes_only_the_given_fields(io_dir):
+    import canlib.yaml_io as yaml_io
+
+    rc = cli.cmd_set_iocontrol(_io_args(io_dir, session_mode="0xc0", hold=False))
+    assert rc == 0
+    entry = yaml_io.safe_load((io_dir / "e.yaml").read_text())["TESTECU"]["iocontrol"][6900]
+    assert entry["session_mode"] == "C0"
+    assert entry["hold"] is False
+    assert entry["label"] == "Mirrors"
+
+
+def test_set_iocontrol_rejects_a_non_hex_command(io_dir):
+    with pytest.raises(SystemExit, match="--on"):
+        cli.cmd_set_iocontrol(_io_args(io_dir, on="lock"))
+
+
+def test_set_iocontrol_rolls_back_a_programming_session(io_dir):
+    original = (io_dir / "e.yaml").read_text()
+    with pytest.raises(SystemExit, match="reverted"):
+        cli.cmd_set_iocontrol(_io_args(io_dir, session_mode="02"))
+    assert (io_dir / "e.yaml").read_text() == original
+
+
+def test_set_iocontrol_requires_a_field(io_dir):
+    with pytest.raises(SystemExit, match="nothing to set"):
+        cli.cmd_set_iocontrol(_io_args(io_dir))
+
+
 class _RangeArgs:
     def __init__(self, ranges, **kw):
         self.ecu = "TESTECU"

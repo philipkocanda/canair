@@ -14,6 +14,7 @@ The full public API is re-exported here so callers that
 from ._text import PidsEditError, find_ecu_file
 from .hits import (
     EDITABLE_FIELDS,
+    IOCONTROL_FIELDS,
     append_iocontrol_discoveries_block,
     append_routines_block,
     append_sessions_block,
@@ -47,6 +48,7 @@ from .params import (
 
 __all__ = [
     "EDITABLE_FIELDS",
+    "IOCONTROL_FIELDS",
     "PidsEditError",
     "add_pid",
     "add_research_entry",

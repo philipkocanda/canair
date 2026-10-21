@@ -25,6 +25,7 @@ Subcommands:
   rm-identity  ECU FIELD           Remove an identity field (e.g. a redundant duplicate)
   set-can-bus  ECU CODE [CODE ...] Set the physical CAN bus segment(s) (see can_buses.yaml)
   set-iocontrol-ranges ECU RANGE ... Set the 0x2F scan DID ranges (e.g. B000-BFFF)
+  set-iocontrol ECU DID ...        Set fields of a curated IOControl actuator entry
   set-wake     ECU --method ...     Set how to rouse a fast-sleeping ECU before reads
   set-addressing ECU ...           Set CAN addressing (mode / extension bytes / fc_id / rx_id)
 
@@ -74,6 +75,7 @@ from canlib.pids_edit import (
     set_research_status,
     set_response_frames,
     set_wake,
+    update_iocontrol_field,
     upsert_parameter,
 )
 from canlib.profile import require_writable_definitions
@@ -513,6 +515,48 @@ def cmd_set_iocontrol_ranges(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_set_iocontrol(args: argparse.Namespace) -> int:
+    import re
+
+    fields: dict[str, str | bool] = {
+        name: value
+        for name, value in (
+            ("label", args.label),
+            ("notes", args.notes),
+            ("verified", args.verified),
+            ("on", args.on),
+            ("off", args.off),
+            ("session", args.session),
+            ("session_mode", args.session_mode),
+            ("hold", args.hold),
+            ("status_param", args.status_param),
+        )
+        if value is not None
+    }
+    if not fields:
+        raise SystemExit(f"{ansi.RED}  Error: nothing to set — pass at least one field{ansi.RESET}")
+    if args.session_mode is not None:
+        from canlib.pids import normalize_session_mode
+
+        fields["session_mode"] = normalize_session_mode(args.session_mode)
+    for name in ("on", "off"):
+        value = fields.get(name)
+        if isinstance(value, str) and value and not re.fullmatch(r"(?:[0-9A-Fa-f]{2})+", value):
+            raise SystemExit(
+                f"{ansi.RED}  Error: --{name} expects a full hex request "
+                f"(e.g. 2FBC0103), got {value!r}{ansi.RESET}"
+            )
+
+    def do():
+        for name, value in fields.items():
+            update_iocontrol_field(args.ecu, args.did, name, value, pids_dir=args.dir)
+
+    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
+    detail = ", ".join(f"{k}={v}" for k, v in fields.items() if k != "notes")
+    echo_edit(f"{args.ecu} iocontrol {args.did.upper()} -> {{{detail}}}", fpath)
+    return 0
+
+
 def cmd_set_wake(args: argparse.Namespace) -> int:
     fields: dict = {"method": args.method}
     if args.prime_pid is not None:
@@ -943,6 +987,58 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     )
     _add_common(sir)
     sir.set_defaults(_pids_func=cmd_set_iocontrol_ranges)
+
+    sio = sub.add_parser(
+        "set-iocontrol",
+        help="Set fields of a curated IOControl actuator entry",
+        description="Set fields of an existing iocontrol: entry (the actuators "
+        "`canair io` drives). Writes only the fields given, adding any the entry "
+        "lacks. Promote a scanner discovery first (the `canair io` TUI's P key).",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="examples:\n"
+        "  canair pids set-iocontrol IGPM BC01 --verified --label 'Low beam'\n"
+        "  canair pids set-iocontrol BCM 6900 --session-mode C0 --no-hold\n"
+        "  canair pids set-iocontrol HVAC F010 --on 2FF01003FF --off 2FF01000\n",
+    )
+    sio.add_argument("ecu")
+    sio.add_argument("did", metavar="DID", help="The iocontrol: entry key (e.g. BC01)")
+    sio.add_argument("--label", default=None)
+    sio.add_argument("--notes", default=None, help="Free-text note (replaces the existing one)")
+    sio.add_argument(
+        "--verified",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Mark as tested on this car (--no-verified to clear)",
+    )
+    sio.add_argument("--on", default=None, metavar="HEX", help="Full ON request (e.g. 2FBC0103)")
+    sio.add_argument("--off", default=None, metavar="HEX", help="Full OFF request (e.g. 2FBC0100)")
+    sio.add_argument(
+        "--session",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Open a diagnostic session before actuating",
+    )
+    sio.add_argument(
+        "--session-mode",
+        default=None,
+        metavar="XX",
+        help="DiagnosticSessionControl sub-function to open (default 03; an OEM "
+        "session such as Nissan C0 also needs the profile quirk that permits it)",
+    )
+    sio.add_argument(
+        "--hold",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Keep the session alive after ON until Ctrl+C, then send OFF",
+    )
+    sio.add_argument(
+        "--status-param",
+        default=None,
+        metavar="NAME",
+        help="Signal read before and after actuating, as a best-effort readback",
+    )
+    _add_common(sio)
+    sio.set_defaults(_pids_func=cmd_set_iocontrol)
 
     sw = sub.add_parser(
         "set-wake",

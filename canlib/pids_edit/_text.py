@@ -63,27 +63,35 @@ def find_ecu_file(ecu_name: str, pids_dir: Path | None = None) -> Path:
 
 
 def _find_did_block(text: str, did: str) -> tuple[int, int]:
-    """Find the character range of a DID block in the file.
+    """Find the character range of a DID block inside the ``iocontrol:`` section.
 
     Returns (start, end) offsets spanning from the DID key line up to (but
-    not including) the next sibling line at the same or lower indent.
+    not including) the next sibling line at the same or lower indent. The search
+    is confined to ``iocontrol:``, so a PID that shares the key (``2200:`` under
+    ``pids:``) is never edited by mistake.
     """
     did_u = did.strip().upper()
+    sec_m = re.search(r"^ {2}iocontrol:\s*$", text, re.MULTILINE)
+    if not sec_m:
+        raise PidsEditError("No iocontrol: section found")
+    tail_m = re.compile(r"^ {0,2}[A-Za-z_]", re.MULTILINE).search(text, pos=sec_m.end() + 1)
+    sec_end = tail_m.start() if tail_m else len(text)
     # Match "    DID:" where the indent must be exactly 4 spaces (DID lives
-    # under ECU.iocontrol at depth 2 blocks in).
-    start_re = re.compile(rf"^( {{4}}){re.escape(did_u)}:\s*$", re.MULTILINE)
-    m = start_re.search(text)
+    # under ECU.iocontrol at depth 2 blocks in). The key may be quoted: a DID with
+    # a leading zero has to be, or YAML reads "0700" as the octal integer 448.
+    start_re = re.compile(rf"^( {{4}})([\"']?){re.escape(did_u)}\2:\s*$", re.MULTILINE)
+    m = start_re.search(text, pos=sec_m.end(), endpos=sec_end)
     if not m:
-        raise PidsEditError(f"DID {did_u!r} not found (expected 4-space indent)")
+        raise PidsEditError(f"DID {did_u!r} not found under iocontrol: (expected 4-space indent)")
 
     start = m.start()
     # Find end: next line that starts with <=4 spaces of content (sibling DID
     # at same depth, or a new parent key at shallower indent). Blank lines
     # don't count as boundaries.
     end_re = re.compile(r"^( {0,4})[^\s#]", re.MULTILINE)
-    for m2 in end_re.finditer(text, pos=m.end()):
+    for m2 in end_re.finditer(text, pos=m.end(), endpos=sec_end):
         return start, m2.start()
-    return start, len(text)
+    return start, sec_end
 
 
 # ── Field reads (for diffing / initial values) ───────────────────────────────

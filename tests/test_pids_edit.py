@@ -197,7 +197,7 @@ class TestUpdateNotes:
 class TestGuards:
     def test_unknown_field(self, tmp_pids_dir: Path):
         with pytest.raises(PidsEditError):
-            update_iocontrol_field("TEST", "AA01", "on", "2FAA0103", pids_dir=tmp_pids_dir)
+            update_iocontrol_field("TEST", "AA01", "bogus", "x", pids_dir=tmp_pids_dir)
 
     def test_unknown_did(self, tmp_pids_dir: Path):
         with pytest.raises(PidsEditError):
@@ -205,6 +205,40 @@ class TestGuards:
 
     def test_editable_fields_list(self):
         assert set(EDITABLE_FIELDS) == {"label", "verified", "notes"}
+
+    def test_a_pid_sharing_the_key_is_not_an_iocontrol_entry(self, tmp_pids_dir: Path):
+        # 2200 exists only under pids:, so it must not be found (and edited) as a DID.
+        with pytest.raises(PidsEditError, match="iocontrol"):
+            update_iocontrol_field("TEST", "2200", "label", "x", pids_dir=tmp_pids_dir)
+
+
+class TestUpdateCommandFields:
+    def test_command_fields_are_written_quoted(self, tmp_pids_dir: Path):
+        update_iocontrol_field("TEST", "AA01", "on", "2faa0103ff", pids_dir=tmp_pids_dir)
+        update_iocontrol_field("TEST", "AA01", "session_mode", "c0", pids_dir=tmp_pids_dir)
+        raw = (tmp_pids_dir / "test.yaml").read_text()
+        assert 'session_mode: "C0"' in raw
+        entry = _reload(tmp_pids_dir / "test.yaml")["TEST"]["iocontrol"]["AA01"]
+        assert entry[True] == "2FAA0103FF"
+        assert entry["session_mode"] == "C0"
+
+    def test_a_numeric_session_mode_stays_a_string(self, tmp_pids_dir: Path):
+        update_iocontrol_field("TEST", "AA01", "session_mode", "03", pids_dir=tmp_pids_dir)
+        entry = _reload(tmp_pids_dir / "test.yaml")["TEST"]["iocontrol"]["AA01"]
+        assert entry["session_mode"] == "03"
+
+    def test_bool_fields_are_added_when_absent(self, tmp_pids_dir: Path):
+        update_iocontrol_field("TEST", "AA03", "hold", False, pids_dir=tmp_pids_dir)
+        update_iocontrol_field("TEST", "AA03", "session", True, pids_dir=tmp_pids_dir)
+        entry = _reload(tmp_pids_dir / "test.yaml")["TEST"]["iocontrol"]["AA03"]
+        assert entry["hold"] is False
+        assert entry["session"] is True
+
+    def test_a_quoted_leading_zero_key_is_found(self, tmp_pids_dir: Path):
+        path = tmp_pids_dir / "test.yaml"
+        path.write_text(path.read_text().replace("    AA03:", '    "0700":'))
+        update_iocontrol_field("TEST", "0700", "label", "Doors", pids_dir=tmp_pids_dir)
+        assert _reload(path)["TEST"]["iocontrol"]["0700"]["label"] == "Doors"
 
 
 class TestPromoteDiscovery:
