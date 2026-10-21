@@ -7,7 +7,8 @@ Two domains behind one command, split by *kind*:
 * ``can``  — imported raw broadcast-CAN frame logs (domain B), listed from
   ``captures/can/index.yaml``.
 
-plus the store-maintenance kinds (``migrate``, ``migrate-rx``) and the git
+plus the store-maintenance kinds (``migrate``, ``migrate-rx``,
+``migrate-discover``) and the git
 ``merge-driver``. A bare ``canair captures BMS 2102`` is shorthand for the ``uds``
 kind, injected by ``cli.py``'s ``_GROUP_DEFAULTS``.
 
@@ -40,7 +41,11 @@ __all__ = [
 def add_parser(subparsers) -> argparse.ArgumentParser:
     from . import merge_driver
     from .can import _add_can_parser
-    from .maint import _add_migrate_parser, _add_migrate_rx_parser
+    from .maint import (
+        _add_migrate_discover_parser,
+        _add_migrate_parser,
+        _add_migrate_rx_parser,
+    )
     from .uds import _add_uds_parser
 
     parser = subparsers.add_parser(
@@ -61,6 +66,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     _add_can_parser(kinds)
     _add_migrate_parser(kinds)
     _add_migrate_rx_parser(kinds)
+    _add_migrate_discover_parser(kinds)
     merge_driver.add_parser(kinds)
     parser.set_defaults(func=group_help("_captures_group_parser"), _captures_group_parser=parser)
     return parser

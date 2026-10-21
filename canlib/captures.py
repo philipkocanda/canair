@@ -28,6 +28,10 @@ from .states import join_states as _join_states
 from .states import parse_states as _parse_states
 from .uds_parse import UdsResponse
 
+# The ``transport`` of a device-free session (``canair import uds``): its payloads
+# never came off a live bus here.
+IMPORT_TRANSPORT = "import"
+
 # ---------------------------------------------------------------------------
 # Metadata prompt
 # ---------------------------------------------------------------------------
@@ -354,7 +358,7 @@ def build_manual_session(
     date: str | None = None,
     vehicle_states: list[str] | None = None,
     notes: str | None = None,
-    transport: str | None = "import",
+    transport: str | None = IMPORT_TRANSPORT,
 ) -> CaptureSession:
     """Assemble a session dict from manually-supplied captures (the import path).
 
@@ -366,9 +370,7 @@ def build_manual_session(
     Field order follows the schema (date, label, [vehicle_states], [notes],
     [transport], captures).
     """
-    meta = _session_meta(vehicle_states, notes)
-    if transport:
-        meta["transport"] = transport
+    meta = _session_meta(vehicle_states, notes, transport)
     return {"date": date or _today(), "label": label, **meta, "captures": list(captures)}
 
 
@@ -522,6 +524,38 @@ def set_capture_note(fpath: Path, session_idx: int, capture_idx: int, note: str)
     _write_captures_file(fpath, data)
 
 
+def _set_session_field(session: CaptureSession, key: str, value: object) -> None:
+    """Set ``key`` on a session (a falsy ``value`` removes it), keeping ``captures`` last.
+
+    A key added to a session that lacked it would otherwise land *after* the
+    (potentially huge) ``captures`` array, burying the metadata the on-disk field
+    order keeps at the top (see ``TestSessionFieldOrder``).
+    """
+    # Dynamic-key access: every caller passes a CaptureSession field name.
+    fields = cast(dict, session)
+    if value:
+        fields[key] = value
+    else:
+        fields.pop(key, None)
+    if "captures" in fields:
+        fields["captures"] = fields.pop("captures")
+
+
+def set_session_transport(fpath: Path, session_idx: int, transport: str) -> None:
+    """Set (or clear) the ``transport`` provenance on one session, by index.
+
+    For correcting a session recorded with the wrong label — before every save
+    path read it off the live client, the one-shot producers re-resolved the
+    configuration and so ignored ``--transport``/``--wican`` and fallback. An
+    empty ``transport`` removes the field. Raises IndexError if the index doesn't
+    resolve.
+    """
+    data = capture_io.load_capture_file(fpath)
+    session = data["sessions"][session_idx]
+    _set_session_field(session, "transport", transport.strip())
+    _write_captures_file(fpath, data)
+
+
 def set_session_note(fpath: Path, session_idx: int, note: str) -> None:
     """Set (or clear) the ``notes`` field on one session, addressed by index.
 
@@ -531,11 +565,7 @@ def set_session_note(fpath: Path, session_idx: int, note: str) -> None:
     """
     data = capture_io.load_capture_file(fpath)
     session = data["sessions"][session_idx]
-    note = note.strip()
-    if note:
-        session["notes"] = note
-    else:
-        session.pop("notes", None)
+    _set_session_field(session, "notes", note.strip())
     _write_captures_file(fpath, data)
 
 
@@ -549,11 +579,7 @@ def set_session_keep_mode(fpath: Path, session_idx: int, keep_mode: KeepMode | N
     """
     data = capture_io.load_capture_file(fpath)
     session = data["sessions"][session_idx]
-    persisted = persisted_keep_mode(keep_mode)
-    if persisted is not None:
-        session["keep_mode"] = persisted
-    else:
-        session.pop("keep_mode", None)
+    _set_session_field(session, "keep_mode", persisted_keep_mode(keep_mode))
     _write_captures_file(fpath, data)
 
 
@@ -569,11 +595,7 @@ def set_session_states(fpath: Path, session_idx: int, vehicle_states) -> None:
     """
     data = capture_io.load_capture_file(fpath)
     session = data["sessions"][session_idx]
-    states = _parse_states(vehicle_states)
-    if states:
-        session["vehicle_states"] = states
-    else:
-        session.pop("vehicle_states", None)
+    _set_session_field(session, "vehicle_states", _parse_states(vehicle_states))
     _write_captures_file(fpath, data)
 
 
@@ -595,13 +617,12 @@ def set_session_state_spans(
     """
     data = capture_io.load_capture_file(fpath)
     session = data["sessions"][session_idx]
+    block: StateSpans | None = None
     if spans:
-        block: StateSpans = {"source": cast("StateSpanSource", source), "spans": list(spans)}
+        block = {"source": cast("StateSpanSource", source), "spans": list(spans)}
         if version:
             block["version"] = version
-        session["state_spans"] = block
-    else:
-        session.pop("state_spans", None)
+    _set_session_field(session, "state_spans", block)
     _write_captures_file(fpath, data)
 
 

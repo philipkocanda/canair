@@ -1,10 +1,10 @@
-"""Capture-store maintenance: ``--recover`` and the two ``migrate`` kinds.
+"""Capture-store maintenance: ``--recover`` and the ``migrate`` kinds.
 
 Whole-store file operations that take no QUERY — reconciling the journals a
-killed ``--save`` session left behind, and the two one-time on-disk format
-migrations (legacy YAML → JSON, and the capture field ``ecu`` → ``rx``). The
-QUERY-driven mutating modes live in :mod:`delete`, :mod:`backfill` and
-:mod:`set_state`.
+killed ``--save`` session left behind, and the one-time on-disk repairs (legacy
+YAML → JSON, the capture field ``ecu`` → ``rx``, and legacy discover responders'
+missing ``tx``). The QUERY-driven mutating modes live in :mod:`delete`,
+:mod:`backfill`, :mod:`set_state` and :mod:`session_fields`.
 """
 
 import argparse
@@ -134,6 +134,81 @@ def cmd_migrate_rx(
     return 0
 
 
+def _discover_addressing(captures_dir: Path | None):
+    """The registry and addressing rule of the profile that owns the captures."""
+    from canlib.addressing import resolve_mode, resolve_rx_offset
+    from canlib.discover_migrate import Addressing
+    from canlib.ecus import load_ecus
+    from canlib.pids import load_pids
+    from canlib.profile import active, profile_for_path
+
+    # A layered profile's captures sit in the overlay; its definitions in the root.
+    prof = active() if captures_dir is None else profile_for_path(captures_dir)
+    data = load_pids(prof.ecus_dir)
+    return Addressing(
+        ecus=load_ecus(prof.ecus_dir),
+        rx_offset=resolve_rx_offset(data),
+        mode=resolve_mode(data),
+    )
+
+
+def cmd_migrate_discover(
+    captures_dir: Path | None, *, dry_run: bool = False, as_json: bool = False
+) -> int:
+    """Give legacy discover responders their probed ``tx`` and the profile's ``rx``."""
+    import json as _json
+    from dataclasses import asdict
+
+    from canlib.discover_migrate import migrate_dir
+
+    cdir = resolve_captures_dir(captures_dir)
+    results = migrate_dir(cdir, _discover_addressing(captures_dir), dry_run=dry_run)
+    touched = [r for r in results if r.repairs or r.skipped]
+
+    if as_json:
+        _json.dump(
+            {
+                "dry_run": dry_run,
+                "captures_dir": str(cdir),
+                "files": [
+                    {
+                        "file": r.path.name,
+                        "repairs": [asdict(x) for x in r.repairs],
+                        "skipped": [asdict(x) for x in r.skipped],
+                    }
+                    for r in touched
+                ],
+            },
+            sys.stdout,
+            indent=2,
+        )
+        print()
+        return 1 if any(r.skipped for r in results) else 0
+
+    if not touched:
+        print(f"  No legacy discover responders to repair in {cdir}.")
+        return 0
+    verb = "Would repair" if dry_run else "Repaired"
+    for r in touched:
+        print(f"  {r.path.name}: {verb.lower()} {len(r.repairs)} responder(s)")
+        for x in r.repairs:
+            moved = "" if x.rx == x.old_rx else f"  {ansi.YELLOW}(was {x.old_rx}){ansi.RESET}"
+            print(
+                f"    [{x.session_idx}] {x.tx} → {x.rx}{moved}  {ansi.DIM}{x.response}{ansi.RESET}"
+            )
+        for x in r.skipped:
+            print(f"    ! [{x.session_idx}] {x.response}: {x.reason}")
+    total = sum(len(r.repairs) for r in results)
+    print(f"  {verb} {total} responder(s).")
+    print(
+        "  The transport these sessions recorded cannot be recovered from the data; "
+        "correct it with `canair captures uds --set-transport`."
+    )
+    if dry_run:
+        print("  Re-run without --dry-run to write.")
+    return 1 if any(r.skipped for r in results) else 0
+
+
 def orphan_notice(captures_dir: Path | None = None) -> None:
     """Print a one-line notice if orphaned journals exist (best-effort, silent on error)."""
     try:
@@ -201,5 +276,32 @@ def _add_migrate_rx_parser(kinds) -> argparse.ArgumentParser:
     )
     parser.set_defaults(
         func=lambda args: cmd_migrate_rx(args.dir, dry_run=args.dry_run, as_json=args.json)
+    )
+    return parser
+
+
+def _add_migrate_discover_parser(kinds) -> argparse.ArgumentParser:
+    parser = kinds.add_parser(
+        "migrate-discover",
+        help="Repair legacy discover captures: record each responder's probed TX",
+        description="Give legacy discover captures each responder's probed `tx`, and "
+        "the `rx` the profile's addressing gives it.\n\n"
+        "Those captures stored only an `rx` per responder, and for an address not "
+        "in the ECU registry it was computed as TX + 0x08 whatever the profile's "
+        "addressing: block said. The TX is recoverable exactly: a registered "
+        "responder was labelled `NAME (status)`, an unregistered one with the bare "
+        "status. Idempotent; a responder whose ECU name no longer resolves is "
+        "reported, not guessed (exit 1). The session transport cannot be recovered "
+        "this way — use `captures uds --set-transport`. Performs the repair by "
+        "default; pass --dry-run to preview.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument("--dry-run", action="store_true", help="Preview repairs without writing")
+    parser.add_argument("--json", action="store_true", help="Machine-readable JSON output")
+    parser.add_argument(
+        "--dir", type=Path, default=None, help="Captures directory (default: active profile)"
+    )
+    parser.set_defaults(
+        func=lambda args: cmd_migrate_discover(args.dir, dry_run=args.dry_run, as_json=args.json)
     )
     return parser

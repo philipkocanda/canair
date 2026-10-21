@@ -38,7 +38,7 @@ def _resolve(*argv: str):
 
 
 # Value-carrying session editors, and a value each is selected with.
-_EDITOR_VALUES = {"set_state": "ACC", "set_notes": "corrected"}
+_EDITOR_VALUES = {"set_state": "ACC", "set_notes": "corrected", "set_transport": "wican-ws"}
 
 
 def _selecting(mode: str) -> dict:
@@ -122,6 +122,11 @@ class TestRejections:
         err = _resolve("--set-notes", "fixed")
         assert isinstance(err, ModeError)
         assert "--set-notes requires a scope filter" in err.message
+
+    def test_set_transport_without_a_scope_filter_is_refused(self):
+        err = _resolve("--set-transport", "wican-ws")
+        assert isinstance(err, ModeError)
+        assert "--set-transport requires a scope filter" in err.message
 
     def test_empty_set_notes_without_a_scope_filter_is_refused(self):
         err = _resolve("--set-notes", "")

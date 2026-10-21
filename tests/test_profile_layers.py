@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -34,19 +35,23 @@ from canlib.profile_create import overlay_profile
 CAPTURES_CMD = Path(__file__).resolve().parents[1] / "canlib" / "commands" / "captures"
 CANLIB_CMD = CAPTURES_CMD.parent
 
-# Anything calling one of these rewrites a capture file, so it owes the base-layer
-# check. Discovering the modules beats listing them: the list cannot go stale.
+# Anything referencing one of these rewrites a capture file, so it owes the
+# base-layer check. Discovering the modules beats listing them: the list cannot go
+# stale. Matched as a whole word, not as a call, so a module that passes a writer
+# around as a value (session_fields) is found too.
 _CAPTURE_WRITERS = (
     "delete_capture",
     "set_capture_note",
+    "set_session_keep_mode",
     "set_session_note",
     "set_session_states",
     "set_session_state_spans",
+    "set_session_transport",
 )
 _MUTATING_CAPTURE_MODULES = {
     p.name
     for p in CAPTURES_CMD.glob("*.py")
-    if any(f"{w}(" in p.read_text() for w in _CAPTURE_WRITERS)
+    if any(re.search(rf"\b{w}\b", p.read_text()) for w in _CAPTURE_WRITERS)
 }
 
 
@@ -540,7 +545,7 @@ class TestBaseLayerMutationsAreRefused:
             "backfill.py",
             "backfill_spans.py",
             "delete.py",
-            "set_notes.py",
+            "session_fields.py",
             "set_state.py",
             "step_tui.py",
         }

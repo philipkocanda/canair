@@ -1,8 +1,8 @@
-"""The write gate shared by the session-metadata editors (``--set-state``/``--set-notes``).
+"""The write gate shared by the session-metadata editors (the ``--set-*`` modes).
 
-Both rewrite one field on every scope-selected session, so both must refuse a
+Each rewrites one field on every scope-selected session, so each must refuse a
 read-only base layer and confirm before writing — on a TTY by prompt, otherwise
-only with ``--yes``. Stated once here so the two cannot drift apart.
+only with ``--yes``. Stated once here so the editors cannot drift apart.
 """
 
 from __future__ import annotations

@@ -2,8 +2,8 @@
 
 ``captures uds`` exposes its modes as *flags* rather than sub-subcommands, so
 argparse can express only part of the exclusion rules (the ``standalone`` mutually
-exclusive group). The rest — "``--delete`` needs a QUERY", "``--set-state`` and
-``--set-notes`` need a scope filter", "an aggregate mode takes no QUERY" — were
+exclusive group). The rest — "``--delete`` needs a QUERY", "the ``--set-*``
+session editors need a scope filter", "an aggregate mode takes no QUERY" — were
 ~100 lines of hand-rolled ``if``/``print``/``return 2`` inline in ``run``,
 reachable only by invoking the whole CLI.
 
@@ -32,6 +32,7 @@ Mode = Literal[
     "backfill_state_spans",
     "set_state",
     "set_notes",
+    "set_transport",
     "delete",
     "latest",
     "diff",
@@ -47,16 +48,18 @@ STANDALONE_MODES: tuple[Mode, ...] = (
     "backfill_state_spans",
     "set_state",
     "set_notes",
+    "set_transport",
 )
 
 # How those modes are named back to the user in a rejection message.
 _STANDALONE_LABEL = (
-    "--summary/--sessions/--backfill-states/--backfill-state-spans/--set-state/--set-notes"
+    "--summary/--sessions/--backfill-states/--backfill-state-spans/"
+    "--set-state/--set-notes/--set-transport"
 )
 
 # Value-carrying modes: selected when their value was given at all, even an empty
 # one (``--set-notes ''`` clears the notes).
-_VALUE_MODES: tuple[Mode, ...] = ("set_state", "set_notes")
+_VALUE_MODES: tuple[Mode, ...] = ("set_state", "set_notes", "set_transport")
 
 # How each session-metadata editor is named in its scope-filter refusal: the flag,
 # then the rest of the sentence after "selecting which sessions to".
@@ -69,6 +72,11 @@ _SESSION_EDITORS: dict[Mode, tuple[str, str]] = {
         "--set-notes",
         "re-note (e.g. --label 'discovery sweep', --date 2026-04-15). "
         "Refusing to overwrite every session's notes.",
+    ),
+    "set_transport": (
+        "--set-transport",
+        "correct (e.g. --label 'discovery sweep', --date 2026-04-15). "
+        "Refusing to relabel every session's transport.",
     ),
 }
 

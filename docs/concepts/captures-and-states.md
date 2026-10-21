@@ -46,6 +46,8 @@ Each `captures/YYYY-MM-DD.json` holds one day, as sessions of captures:
   else request TX + the profile's `addressing.rx_offset` (`+0x08` by default) —
   or `"broadcast"` for multi-ECU discovery scans, whose `scan_results.responding`
   entries then carry each responder's own `tx` (the request id probed) and `rx`.
+  Discover captures saved before `tx` was recorded are repaired once with
+  `canair captures migrate-discover` (see below).
   Tools resolve it back to the short name via the profile's
   [`ecus/`](profiles.md) registry, so you still query by name. (This field was
   named `ecu` before it was renamed to `rx` to make clear it holds an address,
@@ -177,10 +179,10 @@ addresses captures through canair's own helpers, so the record stays consistent
 — never hand-edit files to remove data.
 
 On a [layered profile](profiles.md#layering-your-captures-over-someone-elses-definitions)
-the base layer's captures are **read-only**: `--delete`, `--set-state`,
-`--set-notes` and `--backfill-states` refuse when a matched row belongs to the
-base, naming the file.
-`--dry-run` still previews it, and rows in your own layer are freely editable.
+the base layer's captures are **read-only**: `--delete`, the `--set-*` editors
+and `--backfill-states` refuse when a matched row belongs to the base, naming the
+file. `--dry-run` still previews it, and rows in your own layer are freely
+editable.
 
 ## Journaling — you won't lose data
 
@@ -529,6 +531,30 @@ canair captures uds --set-notes "" --date 2026-04-18 --yes   # '' clears the not
 `--set-notes` replaces the notes on every scope-selected session, so it has the
 same scope requirement and `--dry-run`/`--json`/`--yes` behaviour as
 `--set-state`. The `--step` TUI's note editor does the same interactively.
+
+`--set-transport NAME` corrects a session's recorded **transport** the same way,
+accepting only a known transport label (or `''` to clear it). Older canair
+versions re-read the transport from your configuration when saving a
+`discover`/`scan`/`raw` session, so a run with `--transport`/`--wican`, or one
+that fell back to another device, could be recorded with the wrong one; every
+save path now records the transport the session actually used.
+
+### Repairing legacy discover captures
+
+Older discover captures stored only an `rx` per responder — and for an address
+not in the ECU registry, computed it as TX + 0x08 whatever the profile's
+`addressing:` said. One repair gives each responder its probed `tx` and the `rx`
+your profile's addressing gives it:
+
+```bash
+canair --profile my-car captures migrate-discover --dry-run   # preview
+canair --profile my-car captures migrate-discover
+```
+
+The TX is recovered exactly from how those captures were labelled (`NAME
+(status)` for a registered ECU, the bare status otherwise); a responder whose ECU
+no longer resolves is reported rather than guessed. It is idempotent, and it
+cannot recover the session's transport — use `--set-transport` for that.
 
 ## Reviewing captures
 

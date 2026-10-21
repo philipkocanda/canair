@@ -23,6 +23,7 @@ are aggregate modes that take no QUERY.
                         --dry-run previews, confirms before deleting unless --yes
   --set-state STATES    Set vehicle_states on the scope-selected sessions
   --set-notes TEXT      Replace the notes on the scope-selected sessions ('' clears)
+  --set-transport NAME  Correct the recorded transport of the scope-selected sessions
   --summary             Overview: captures per ECU, per date, total payloads
   --sessions            Session table of contents: date/time-span/state/label/
                         notes/ECUs per session (no payloads); --json for machine
@@ -116,8 +117,8 @@ from .listing import cmd_latest, cmd_list
 from .maint import cmd_recover
 from .mode_select import Mode, ModeError, resolve_mode
 from .query import _parse_query, build_query
+from .session_fields import cmd_set_notes, cmd_set_transport, known_transports
 from .sessions import cmd_sessions, cmd_summary
-from .set_notes import cmd_set_notes
 from .set_state import cmd_set_state
 from .step import cmd_step
 from .step_model import (
@@ -226,6 +227,16 @@ def _add_uds_parser(kinds) -> argparse.ArgumentParser:
         "note after recording ('' clears it). Requires a scope filter "
         "(--label/--date/--since/…); previews with --dry-run, confirms unless --yes.",
     )
+    standalone.add_argument(
+        "--set-transport",
+        metavar="NAME",
+        default=None,
+        dest="set_transport",
+        help=f"Correct the recorded transport ({', '.join(known_transports())}) "
+        "on the scope-selected sessions — for a session saved with the wrong one "
+        "('' clears it). Requires a scope filter; previews with --dry-run, confirms "
+        "unless --yes.",
+    )
 
     parser.add_argument(
         "--discard",
@@ -254,16 +265,16 @@ def _add_uds_parser(kinds) -> argparse.ArgumentParser:
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="With --delete/--backfill-states/--backfill-state-spans/--set-state/"
-        "--set-notes: preview the changes, write nothing",
+        help="With --delete/--backfill-states/--backfill-state-spans and the --set-* "
+        "editors: preview the changes, write nothing",
     )
 
     parser.add_argument(
         "--yes",
         "-y",
         action="store_true",
-        help="With --delete/--backfill-states/--backfill-state-spans/--set-state/"
-        "--set-notes: skip the confirmation prompt (scripting)",
+        help="With --delete/--backfill-states/--backfill-state-spans and the --set-* "
+        "editors: skip the confirmation prompt (scripting)",
     )
 
     parser.add_argument(
@@ -418,10 +429,11 @@ def _dispatch(mode: Mode, args, query: str, entries: list[CaptureEntry]) -> int:
             assume_yes=args.yes,
             as_json=args.json,
         )
-    elif mode == "set_notes":
-        return cmd_set_notes(
+    elif mode in ("set_notes", "set_transport"):
+        editor = cmd_set_notes if mode == "set_notes" else cmd_set_transport
+        return editor(
             entries,
-            args.set_notes,
+            getattr(args, mode),
             dry_run=args.dry_run,
             assume_yes=args.yes,
             as_json=args.json,
