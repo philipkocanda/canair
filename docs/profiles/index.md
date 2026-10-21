@@ -10,12 +10,12 @@ The repo ships these vehicle profiles under [`profiles/`](https://github.com/phi
 |---|---|---:|---:|---:|---:|---|---|
 | [ioniq-2017](ioniq-2017.md) | Hyundai Ioniq 2017 | 30 | 99 | 339 | 231 | mature | [`profiles/ioniq-2017/`](https://github.com/philipkocanda/canair/tree/main/profiles/ioniq-2017) |
 | `ioniq-5-2022` | Hyundai Ioniq 5 2022 | 1 | 1 | 1 | 1 | seed / stub | [`profiles/ioniq-5-2022/`](https://github.com/philipkocanda/canair/tree/main/profiles/ioniq-5-2022) |
-| `nissan-leaf-ze1` | Nissan Leaf ZE1 (2018-2024, 40 kWh and 62 kWh e+) | 16 | 48 | 163 | 8 | early | [`profiles/nissan-leaf-ze1/`](https://github.com/philipkocanda/canair/tree/main/profiles/nissan-leaf-ze1) |
+| `nissan-leaf-ze1` | Nissan Leaf ZE1 (2018-2024, 40 kWh and 62 kWh e+) | 16 | 48 | 164 | 8 | early | [`profiles/nissan-leaf-ze1/`](https://github.com/philipkocanda/canair/tree/main/profiles/nissan-leaf-ze1) |
 | `xpeng-g6` | Xpeng G6 (87.5 kWh) | 1 | 11 | 194 | 194 | mature | [`profiles/xpeng-g6/`](https://github.com/philipkocanda/canair/tree/main/profiles/xpeng-g6) |
 
 ## The profiles
 
 - **[ioniq-2017](ioniq-2017.md)** — Hyundai Ioniq 2017. A mature, worked reference profile (231 verified signals across 30 ECUs). See the full tour, or browse [`profiles/ioniq-2017/`](https://github.com/philipkocanda/canair/tree/main/profiles/ioniq-2017).
 - **`ioniq-5-2022`** — Hyundai Ioniq 5 2022. A seed / stub profile (1 signal, 1 verified) — a starting point that needs contributions. Browse [`profiles/ioniq-5-2022/`](https://github.com/philipkocanda/canair/tree/main/profiles/ioniq-5-2022).
-- **`nissan-leaf-ze1`** — Nissan Leaf ZE1 (2018-2024, 40 kWh and 62 kWh e+). An early profile (163 signals, 8 verified) — a starting point that needs contributions. Browse [`profiles/nissan-leaf-ze1/`](https://github.com/philipkocanda/canair/tree/main/profiles/nissan-leaf-ze1).
+- **`nissan-leaf-ze1`** — Nissan Leaf ZE1 (2018-2024, 40 kWh and 62 kWh e+). An early profile (164 signals, 8 verified) — a starting point that needs contributions. Browse [`profiles/nissan-leaf-ze1/`](https://github.com/philipkocanda/canair/tree/main/profiles/nissan-leaf-ze1).
 - **`xpeng-g6`** — Xpeng G6 (87.5 kWh). A mature profile (194 signals, 194 verified). Browse [`profiles/xpeng-g6/`](https://github.com/philipkocanda/canair/tree/main/profiles/xpeng-g6).
