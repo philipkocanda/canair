@@ -15,6 +15,37 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [1.28.0](https://github.com/philipkocanda/canair/compare/v1.27.0...v1.28.0) (2026-10-21)
+
+
+### Added
+
+* **captures:** add --set-notes to correct a recorded session's notes ([588f095](https://github.com/philipkocanda/canair/commit/588f095b230ab6503d0e66fc94809770fef739bb))
+* **captures:** repair legacy discover captures and a session's transport ([64f7e32](https://github.com/philipkocanda/canair/commit/64f7e322016d59d9c09d549929b6e2216a0fc33d))
+* **ioniq-2017:** add research leads from the opendbc Hyundai C-CAN DBC ([b1227b2](https://github.com/philipkocanda/canair/commit/b1227b2614e0f07ab634e4e74c74e2fbfb381a9d))
+* **ioniq-2017:** decode MCU motor torque, current and power; confirm HVAC climate power ([57eb43f](https://github.com/philipkocanda/canair/commit/57eb43f1d92547bbe1df14e1c2faa355d447cccf))
+* **ioniq-2017:** decode the BMS 21F2 previous-cycle record ([4422802](https://github.com/philipkocanda/canair/commit/4422802dbaa5aab3f5da9dd1603c43bd2b00be47))
+* **ioniq-2017:** decode VCU 12V words, ESC yaw/lateral accel and IGPM body bits ([cf13fea](https://github.com/philipkocanda/canair/commit/cf13fea1f5f67f37156e6b363634de1be0993865))
+* **ioniq-2017:** decode VCU pedal/supply words and BMS 21F2 last-cycle record ([f5b6801](https://github.com/philipkocanda/canair/commit/f5b6801c49f359af813cd22dfedab64f600d4532))
+* **ioniq-2017:** document the VCU 21F2 range and event-count signals ([18c1707](https://github.com/philipkocanda/canair/commit/18c170706fc29c2dad3c0e1f61c1b9d1fde8c6a0))
+* **nissan-leaf-ze1:** add first on-car captures, harden the VIN PID ([5d37360](https://github.com/philipkocanda/canair/commit/5d37360cf0ed0a3a242788643393fef487bc4e87))
+* **nissan-leaf-ze1:** add first on-car captures, harden the VIN PID ([8fa9a3d](https://github.com/philipkocanda/canair/commit/8fa9a3d1062959b25b8fd29404131f6deed6ab85))
+* **validate:** flag captures that hold another ECU's reply ([6f88bf7](https://github.com/philipkocanda/canair/commit/6f88bf7911f5aacb15c3cc247ed0ba542a0b5d5b))
+
+
+### Fixed
+
+* **captures:** correct one-shot save provenance and repair [#29](https://github.com/philipkocanda/canair/issues/29)'s captures ([fad7864](https://github.com/philipkocanda/canair/commit/fad7864425bb29a1721862cceb09c6871f087657))
+* **captures:** record the real transport and RX of discover/scan/raw saves ([49ae6f5](https://github.com/philipkocanda/canair/commit/49ae6f5de3572922b268dead25eeebc4b2b32218))
+* **nissan-leaf-ze1:** repair the first captures' discovery provenance ([42aaa1e](https://github.com/philipkocanda/canair/commit/42aaa1e5858c2607d13f3e36e76ea58e93ecac1f))
+
+
+### Documentation
+
+* **profiles:** add a Nissan Leaf ZE1 page under bundled profiles ([cd9b10a](https://github.com/philipkocanda/canair/commit/cd9b10a6d6b8e1fd4e3e1341b353605f9a74db16))
+* **profiles:** compute bundled-profile stats when the site is built ([e661b37](https://github.com/philipkocanda/canair/commit/e661b375850d8f8edf9fbc09fb44342d967d1786))
+* **profiles:** regenerate the bundled-profiles index ([e1daeb1](https://github.com/philipkocanda/canair/commit/e1daeb11b16c85d6cdcc9d269be0d0351f27f1d2))
+
 ## [1.27.0](https://github.com/philipkocanda/canair/compare/v1.26.0...v1.27.0) (2026-10-21)
 
 
