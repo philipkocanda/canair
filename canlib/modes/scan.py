@@ -196,6 +196,7 @@ async def mode_scan(
             suggest_scan_label,
         )
         from ..ecus import rx_addr_str
+        from ..transport_stats import client_transport
 
         suggested = suggest_scan_label(ecu, service, pid_range, append_bytes)
         n_pos = len(positive)
@@ -217,6 +218,7 @@ async def mode_scan(
                 notes=notes,
                 append_bytes=append_bytes,
                 session_flag=session,
+                transport=client_transport(terminal),
             )
             save_session_journaled(session_dict)
 

@@ -562,7 +562,12 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   merge driver (`.gitattributes` rule + `canlib/captures_merge.py`) — but git never loads a driver
   from a tracked file, so each clone must run **`canair captures merge-driver --install`** once;
   until then merges just fall back to conflict markers. A capture's **`rx`** field is the ECU CAN
-  *response* address (request TX + 8) — **not** an ECU name; that is why it was renamed from `ecu`.
+  *response* address (its `rx_id`, else request TX + the profile `rx_offset`, resolved by
+  `canlib/ecus.py::rx_for_tx`) — **not** an ECU name; that is why it was renamed from `ecu`. A
+  discover capture's `rx` is `broadcast`, and each responder records its probed `tx` plus `rx`.
+  **Every `--save` path records `transport` from the live client**
+  (`canlib/transport_stats.py::client_transport`), never by re-resolving config — that ignored
+  `--transport`/`--wican` and fallback, and mislabelled real sessions.
   Read it via `capture_io.capture_rx` (tolerates the legacy key) and rename old files with `captures
   migrate-rx`. Optional **`elapsed_ms`** is the wall-clock UDS round-trip (transport + ECU, a
   *relative* speed signal), recorded **only for single per-DID reads** on the live `read` path and

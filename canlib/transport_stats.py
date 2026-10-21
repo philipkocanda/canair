@@ -53,6 +53,17 @@ def classify_raw_value(value) -> str:
     return "ok"
 
 
+def client_transport(client: object) -> str | None:
+    """The transport label of a live client (its ``.diag.transport``), or None.
+
+    The provenance every ``--save`` path records: it names the transport the
+    session *actually* ran over, after ``--transport``/``--wican`` and any
+    connect-time fallback were applied — which re-resolving the configuration
+    cannot know. Tolerant of a client without ``.diag`` (test doubles).
+    """
+    return getattr(getattr(client, "diag", None), "transport", None)
+
+
 class TransportStats:
     """Counts per-exchange outcomes for one request client.
 

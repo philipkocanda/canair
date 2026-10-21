@@ -31,10 +31,12 @@ class RespondingEntry(TypedDict):
     Keyed by ``did`` (DID/service scans) or ``rx`` (broadcast/discover scans) —
     the schema requires at least one of the two, which TypedDict can't express,
     so both are optional here and the ``anyOf`` is enforced by the JSON schema.
+    A discover responder also carries ``tx``, the request id that was probed.
     """
 
     response: str
     did: NotRequired[str]
+    tx: NotRequired[str]  # request id probed (discover)
     rx: NotRequired[str]  # CAN response address of the originating ECU
     notes: NotRequired[str]
 

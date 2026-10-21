@@ -12,18 +12,6 @@ from ..transport.protocol import Terminal
 DEFAULT_TESTER_ADDRESS = 0xF1
 
 
-def _profile_rx_offset() -> int:
-    """The active profile's CAN response offset (addressing.rx_offset, default +8).
-
-    Used to display/compute the RX address of an *unregistered* responder seen
-    during a sweep — a known ECU resolves via its registry rx_id instead.
-    """
-    from ..addressing import resolve_rx_offset
-    from ..pids import load_pids
-
-    return resolve_rx_offset(load_pids())
-
-
 def fmt_id(can_id: int) -> str:
     """Format a CAN arbitration id: 3 hex digits for 11-bit, 8 for 29-bit."""
     return f"0x{can_id:08X}" if can_id > 0x7FF else f"0x{can_id:03X}"
@@ -151,19 +139,21 @@ async def mode_discover(
     print(f"  Silent: {total - len(alive) - len(errors)}")
     print(f"  Errors: {len(errors)}")
 
-    if alive:
-        known, new = _classify_alive(alive)
-        names = {tx: name for tx, _, _, name in known}
-        from ..ecus import load_ecus, rx_for_tx
+    # Each responder's RX is resolved exactly once, so the printed table, the
+    # --json document and the saved capture cannot disagree about it.
+    from ..ecus import load_ecus, rx_for_tx
 
-        ecus = load_ecus()
-        rx_offset = _profile_rx_offset()
+    ecus = load_ecus()
+    rx_of = {tx_id: rx_for_tx(tx_id, ecus, mode=mode) for tx_id, _, _ in alive}
+    names = {tx: name for tx, _, _, name in _classify_alive(alive)[0]}
+
+    if alive:
         print("\n  Responding addresses:")
         for tx_id, status, detail in alive:
-            rx_id = rx_for_tx(tx_id, ecus, rx_offset, mode)
             tag = names.get(tx_id) or "NEW"
-            print(f"    {fmt_id(tx_id)} (RX {fmt_id(rx_id)}) [{tag}] — {status}: {detail}")
-        print(f"\n  Cross-reference: {len(known)} known, {len(new)} new (not in ECU registry).")
+            print(f"    {fmt_id(tx_id)} (RX {fmt_id(rx_of[tx_id])}) [{tag}] — {status}: {detail}")
+        n_new = len(alive) - len(names)
+        print(f"\n  Cross-reference: {len(names)} known, {n_new} new (not in ECU registry).")
 
     if errors:
         print("\n  Errors:")
@@ -171,18 +161,13 @@ async def mode_discover(
             print(f"    {fmt_id(tx_id)}: {err}")
 
     if as_json:
-        from ..ecus import load_ecus, rx_for_tx
-
-        ecus = load_ecus()
-        rx_offset = _profile_rx_offset()
-        names = {tx: name for tx, _, _, name in _classify_alive(alive)[0]}
         out = {
             "range": f"{fmt_id(tx_ids[0])}-{fmt_id(tx_ids[-1])}",
             "mode": mode.value,
             "alive": [
                 {
                     "tx": fmt_id(t),
-                    "rx": fmt_id(rx_for_tx(t, ecus, rx_offset, mode)),
+                    "rx": fmt_id(rx_of[t]),
                     "status": s,
                     "detail": d,
                     "name": names.get(t),
@@ -202,15 +187,13 @@ async def mode_discover(
             save_session_journaled,
             suggest_discover_label,
         )
-
-        # Enrich alive list with ECU names from the registry
-        from ..ecus import ecu_name as _ecu_name
+        from ..transport_stats import client_transport
 
         enriched = []
         for tx_id_val, status, detail in alive:
-            name = _ecu_name(tx_id_val)
-            ecu_label = f"{name} ({status})" if name != f"0x{tx_id_val:03X}" else status
-            enriched.append((tx_id_val, ecu_label, detail))
+            name = names.get(tx_id_val)
+            ecu_label = f"{name} ({status})" if name else status
+            enriched.append((tx_id_val, rx_of[tx_id_val], ecu_label, detail))
 
         silent_count = total - len(alive) - len(errors)
         suggested = suggest_discover_label(addr_range)
@@ -225,6 +208,7 @@ async def mode_discover(
                 label=label,
                 vehicle_states=vehicle_states,
                 notes=notes,
+                transport=client_transport(terminal),
             )
             save_session_journaled(session_dict)
 

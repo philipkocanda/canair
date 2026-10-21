@@ -19,7 +19,9 @@ from .addressing import (
     AddressingMode,
     EcuAddress,
     resolve_ecu_address,
+    resolve_mode,
     resolve_rx,
+    resolve_rx_offset,
 )
 
 # Non-address ECU references allowed in capture files (multi-ECU / broadcast
@@ -209,33 +211,54 @@ def ecu_identity_confidence(info: EcuRegistryEntry) -> tuple[str, bool]:
 def rx_for_tx(
     tx_id: int,
     ecus: Mapping[int, EcuRegistryEntry] | None = None,
-    rx_offset: int = DEFAULT_RX_OFFSET,
-    mode: AddressingMode = DEFAULT_MODE,
+    rx_offset: int | None = None,
+    mode: AddressingMode | None = None,
 ) -> int:
     """Resolve a TX id to its CAN response (RX) address int.
 
     Uses the ECU registry's resolved ``rx_id`` (which already honors a per-ECU
     ``rx_id`` override or the profile's ``addressing.rx_offset``) when the ECU
-    is known; otherwise falls back to :func:`~canlib.addressing.resolve_rx` with
-    the given ``rx_offset``/``mode`` — the escape hatch for an address not (yet)
-    in the registry, e.g. an unregistered responder seen during discovery. Pass
-    the profile ``rx_offset``/``mode`` there so a non-standard-offset or 29-bit
-    profile still resolves unknown addresses correctly.
+    is known; otherwise falls back to :func:`~canlib.addressing.resolve_rx` — the
+    escape hatch for an address not (yet) in the registry, e.g. an unregistered
+    responder seen during discovery or a ``raw`` read. That fallback applies the
+    given ``rx_offset``/``mode``, or the active profile's ``addressing:`` block
+    for whichever is omitted, so an unknown address on a non-``+0x08`` or 29-bit
+    profile resolves the way a registered one would.
     """
     if ecus is None:
         ecus = load_ecus()
     info = ecus.get(tx_id)
     if info and info.get("rx_id") is not None:
         return int(info["rx_id"])
+    if rx_offset is None or mode is None:
+        default_offset, default_mode = _profile_addressing()
+        rx_offset = default_offset if rx_offset is None else rx_offset
+        mode = default_mode if mode is None else mode
     return resolve_rx(tx_id, rx_offset=rx_offset, mode=mode)
+
+
+def _profile_addressing() -> tuple[int, AddressingMode]:
+    """The active profile's default ``(rx_offset, mode)``, or the built-in defaults.
+
+    Falls back to ``TX + 0x08`` / 11-bit when no profile resolves, so a caller
+    that passed its own registry still gets an answer outside a profile.
+    """
+    from .pids import load_pids
+    from .profile import ProfileError
+
+    try:
+        data = load_pids()
+    except ProfileError:
+        return DEFAULT_RX_OFFSET, DEFAULT_MODE
+    return resolve_rx_offset(data), resolve_mode(data)
 
 
 def rx_addr_str(tx_id: int, ecus: Mapping[int, EcuRegistryEntry] | None = None) -> str:
     """Format the CAN response address for a TX id as a hex string.
 
-    Honors a per-ECU ``rx_id`` / the profile's ``addressing.rx_offset`` via the
-    registry (falling back to the conventional ``TX + 0x08`` for an unknown
-    address), e.g. ``rx_addr_str(0x7E4) == "0x7EC"``.
+    Resolved by :func:`rx_for_tx`: a registered ECU's ``rx_id``, else the active
+    profile's ``addressing:`` rule for an unknown address, e.g.
+    ``rx_addr_str(0x7E4) == "0x7EC"`` on a ``+0x08`` profile.
     """
     return f"0x{rx_for_tx(tx_id, ecus):03X}"
 

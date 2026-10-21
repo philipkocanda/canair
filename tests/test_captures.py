@@ -1361,19 +1361,47 @@ class TestBuildDiscoverSession:
     def test_alive_and_silent(self):
         from canlib.captures import build_discover_session
 
-        alive = [(0x7E0, "ECU-A", "50 03"), (0x7E2, "ECU-B", "")]
+        alive = [(0x7E0, 0x7E8, "ECU-A", "50 03"), (0x7E2, 0x7EA, "ECU-B", "")]
         s = build_discover_session(alive, 5, 2, (0x700, 0x7FF), "L", ["ready"], "n")
         cap = s["captures"][0]
         assert cap["rx"] == "broadcast"
         assert cap["pid"] == "discover 700-7FF"
         responding = cap["scan_results"]["responding"]
-        # Each responder's originating ECU is its CAN response address (TX + 8).
+        assert responding[0]["tx"] == "0x7E0"
         assert responding[0]["rx"] == "0x7E8"
         assert responding[0]["response"] == "ECU-A"
         assert responding[0]["notes"] == "Raw: 50 03"
         assert responding[1]["notes"] == ""
         # silent + error counts fold into one rejected line.
         assert cap["scan_results"]["rejected"] == "7 addresses silent"
+
+    def test_records_the_rx_it_is_given_not_tx_plus_8(self):
+        """The caller resolves RX under the profile's addressing; the builder must
+        not recompute it as TX + 8 (a +0x20 profile was saved with +8 addresses)."""
+        from canlib.captures import build_discover_session
+
+        alive = [(0x74E, 0x76E, "positive", "")]
+        s = build_discover_session(alive, 0, 0, (0x700, 0x7EF), "L", [], "")
+        entry = s["captures"][0]["scan_results"]["responding"][0]
+        assert (entry["tx"], entry["rx"]) == ("0x74E", "0x76E")
+
+    def test_transport_is_recorded_when_given(self):
+        from canlib.captures import build_discover_session
+
+        s = build_discover_session([], 1, 0, (0x700, 0x710), "L", [], "", transport="wican-ws")
+        assert s["transport"] == "wican-ws"
+        assert "transport" not in build_discover_session([], 1, 0, (0x700, 0x710), "L", [], "")
+
+    def test_schema_accepts_the_tx_field(self):
+        from jsonschema import Draft202012Validator
+
+        from canlib.captures import build_discover_session
+        from canlib.commands.validate._common import CAPTURES_SCHEMA_FILE
+
+        alive = [(0x74E, 0x76E, "positive", "")]
+        s = build_discover_session(alive, 0, 0, (0x700, 0x7EF), "L", [], "", transport="wican-ws")
+        schema = json.loads(CAPTURES_SCHEMA_FILE.read_text())
+        Draft202012Validator(schema).validate({"sessions": [s]})
 
     def test_no_responders(self):
         from canlib.captures import build_discover_session
@@ -1457,7 +1485,7 @@ class TestSessionFieldOrder:
             ),
             "discover": (
                 build_discover_session(
-                    [(0x7E0, "ECU-A", "")], 1, 0, (0x700, 0x7FF), "L", ["READY"], "n"
+                    [(0x7E0, 0x7E8, "ECU-A", "")], 1, 0, (0x700, 0x7FF), "L", ["READY"], "n"
                 ),
                 base,
             ),

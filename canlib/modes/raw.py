@@ -1,10 +1,12 @@
 """Send a raw UDS request."""
 
 import asyncio
+import functools
 import re
 
 from ..formatting import decode_uds_response, format_raw_with_bnn, print_hexdump, print_json_result
 from ..transport.protocol import Terminal
+from ..transport_stats import client_transport
 from ..uds_parse import UdsResponse
 
 
@@ -46,6 +48,17 @@ async def mode_raw(
 
     print(f"\n  TX: 0x{tx_id:03X}  Request: {service_pid}")
 
+    save_result = functools.partial(
+        _save_raw,
+        tx_id,
+        service_pid,
+        pids_data=pids_data,
+        label=label,
+        vehicle_states=vehicle_states,
+        notes=notes,
+        transport=client_transport(terminal),
+    )
+
     await terminal.set_header(tx_id)
 
     tester_task = None
@@ -59,7 +72,7 @@ async def mode_raw(
             print_json_result(response)
             if not hold:
                 if save:
-                    _save_raw(tx_id, service_pid, response, pids_data, label, vehicle_states, notes)
+                    save_result(response)
                 return
         elif not response["ok"]:
             error = response.get("error") or response.get("nrc_desc", "unknown error")
@@ -70,7 +83,7 @@ async def mode_raw(
                 print(f"  Error: {error}")
             if not hold:
                 if save:
-                    _save_raw(tx_id, service_pid, response, pids_data, label, vehicle_states, notes)
+                    save_result(response)
                 return
         else:
             decode = decode_uds_response(response["bytes"])
@@ -92,7 +105,7 @@ async def mode_raw(
             except (KeyboardInterrupt, asyncio.CancelledError):
                 print("\n  Releasing session...")
         elif save:
-            _save_raw(tx_id, service_pid, response, pids_data, label, vehicle_states, notes)
+            save_result(response)
     finally:
         if tester_task:
             tester_task.cancel()
@@ -110,6 +123,7 @@ def _save_raw(
     label: str | None = None,
     vehicle_states=None,
     notes: str | None = None,
+    transport: str | None = None,
 ) -> None:
     """Prompt (or use provided metadata) and save a raw request result to captures."""
     from ..captures import (
@@ -134,5 +148,6 @@ def _save_raw(
             vehicle_states=vehicle_states,
             notes=notes,
             pids_data=pids_data,
+            transport=transport,
         )
         save_session_journaled(session_dict)
