@@ -177,8 +177,9 @@ addresses captures through canair's own helpers, so the record stays consistent
 — never hand-edit files to remove data.
 
 On a [layered profile](profiles.md#layering-your-captures-over-someone-elses-definitions)
-the base layer's captures are **read-only**: `--delete`, `--set-state` and
-`--backfill-states` refuse when a matched row belongs to the base, naming the file.
+the base layer's captures are **read-only**: `--delete`, `--set-state`,
+`--set-notes` and `--backfill-states` refuse when a matched row belongs to the
+base, naming the file.
 `--dry-run` still previews it, and rows in your own layer are freely editable.
 
 ## Journaling — you won't lose data
@@ -515,6 +516,19 @@ bare invocation that would relabel the whole history. Like the other mutating
 modes it previews with `--dry-run`, emits `--json`, and confirms unless `--yes`.
 A genuinely ambiguous session (the data doesn't discriminate and the label
 carries no state) is best left unlabelled — a guessed state is worse than none.
+
+A session's **notes** can be corrected the same way, when one turns out wrong
+after recording — say, it claims an ECU answered that the session's own data
+shows was silent:
+
+```bash
+canair captures uds --set-notes "Car off; only 0x758 answered." --label "discovery" --dry-run
+canair captures uds --set-notes "" --date 2026-04-18 --yes   # '' clears the notes
+```
+
+`--set-notes` replaces the notes on every scope-selected session, so it has the
+same scope requirement and `--dry-run`/`--json`/`--yes` behaviour as
+`--set-state`. The `--step` TUI's note editor does the same interactively.
 
 ## Reviewing captures
 

@@ -2,10 +2,10 @@
 
 ``captures uds`` exposes its modes as *flags* rather than sub-subcommands, so
 argparse can express only part of the exclusion rules (the ``standalone`` mutually
-exclusive group). The rest — "``--delete`` needs a QUERY", "``--set-state`` needs
-a scope filter", "an aggregate mode takes no QUERY" — were ~100 lines of
-hand-rolled ``if``/``print``/``return 2`` inline in ``run``, reachable only by
-invoking the whole CLI.
+exclusive group). The rest — "``--delete`` needs a QUERY", "``--set-state`` and
+``--set-notes`` need a scope filter", "an aggregate mode takes no QUERY" — were
+~100 lines of hand-rolled ``if``/``print``/``return 2`` inline in ``run``,
+reachable only by invoking the whole CLI.
 
 This module holds that policy as data plus one pure function, so the rules are
 stated once and testable directly (see ``tests/test_captures_mode_select.py``).
@@ -31,6 +31,7 @@ Mode = Literal[
     "backfill_states",
     "backfill_state_spans",
     "set_state",
+    "set_notes",
     "delete",
     "latest",
     "diff",
@@ -45,10 +46,31 @@ STANDALONE_MODES: tuple[Mode, ...] = (
     "backfill_states",
     "backfill_state_spans",
     "set_state",
+    "set_notes",
 )
 
 # How those modes are named back to the user in a rejection message.
-_STANDALONE_LABEL = "--summary/--sessions/--backfill-states/--backfill-state-spans/--set-state"
+_STANDALONE_LABEL = (
+    "--summary/--sessions/--backfill-states/--backfill-state-spans/--set-state/--set-notes"
+)
+
+# Value-carrying modes: selected when their value was given at all, even an empty
+# one (``--set-notes ''`` clears the notes).
+_VALUE_MODES: tuple[Mode, ...] = ("set_state", "set_notes")
+
+# How each session-metadata editor is named in its scope-filter refusal: the flag,
+# then the rest of the sentence after "selecting which sessions to".
+_SESSION_EDITORS: dict[Mode, tuple[str, str]] = {
+    "set_state": (
+        "--set-state",
+        "tag (e.g. --label 'ACC only', --date 2026-04-15). Refusing to set state on every session.",
+    ),
+    "set_notes": (
+        "--set-notes",
+        "re-note (e.g. --label 'discovery sweep', --date 2026-04-15). "
+        "Refusing to overwrite every session's notes.",
+    ),
+}
 
 # View modifiers on top of a QUERY, in dispatch precedence order.
 VIEW_MODES: tuple[Mode, ...] = ("diff", "step")
@@ -77,9 +99,9 @@ class ModeError:
 
 
 def _selected(args, mode: Mode) -> bool:
-    """Whether ``mode``'s flag was given (``--set-state`` is value-carrying)."""
-    if mode == "set_state":
-        return args.set_state is not None
+    """Whether ``mode``'s flag was given (see :data:`_VALUE_MODES`)."""
+    if mode in _VALUE_MODES:
+        return getattr(args, mode, None) is not None
     return bool(getattr(args, mode))
 
 
@@ -107,15 +129,14 @@ def resolve_mode(args, query: str) -> Mode | ModeError:
             "everything. Narrow with the QUERY and/or scope flags (--since/--state/…)."
         )
 
-    # --set-state writes the same state to every scope-selected session, so it
-    # must be narrowed by a scope filter — refuse a bare invocation that would
-    # relabel the entire capture history.
-    if _selected(args, "set_state") and not has_scope_filter(args):
-        return ModeError(
-            "error: --set-state requires a scope filter selecting which sessions "
-            "to tag (e.g. --label 'ACC only', --date 2026-04-15). Refusing to set "
-            "state on every session."
-        )
+    # The session-metadata editors write the same value to every scope-selected
+    # session, so each must be narrowed by a scope filter — refuse a bare
+    # invocation that would rewrite the entire capture history.
+    for editor, (flag, example) in _SESSION_EDITORS.items():
+        if _selected(args, editor) and not has_scope_filter(args):
+            return ModeError(
+                f"error: {flag} requires a scope filter selecting which sessions to {example}"
+            )
 
     if args.limit < 0:
         return ModeError("error: --limit must be >= 0 (0 = no cap)")

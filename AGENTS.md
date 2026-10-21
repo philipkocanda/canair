@@ -218,7 +218,9 @@ and **`g`/`G` address the view's primary axis**.
   Mutating modes: `--delete` (refuses a bare `--delete`, previews with `--dry-run`, confirms unless
   `--yes`), `--backfill-states` (offline state inference, `canlib/state_infer.py`; fills unset
   states and *reports* contradicted ones unless `--overwrite`), `--set-state` (manual counterpart —
-  **requires** a scope filter so it can't blanket-relabel history), `--recover`, and the one-time
+  **requires** a scope filter so it can't blanket-relabel history), `--set-notes` (corrects session
+  notes, same scope rule; both share `commands/captures/session_gate.py::refuse_write` for the
+  base-layer refusal and confirmation), `--recover`, and the one-time
   `migrate` (YAML→JSON) / `migrate-rx` (`ecu`→`rx`) / `merge-driver` (see Key Files).
   **`captures can`** (domain B) lists imported raw frame logs from `captures/can/index.yaml`.
 - **`canair decode`** (alias `dec`) — Value-centric decoding of all historical captures; the default
@@ -508,11 +510,11 @@ to `plans/2026-07-30-profile-variant-inheritance.md` — `extends:` is deliberat
   on `captures_dir` (= the overlay, which is exactly what `contribute` ships and the only layer a
   migration may rewrite).
 - **Base captures are read-only**, enforced by `canlib/commands/captures/layers.py::refusal` in
-  `--delete`/`--set-state`/`--backfill-states` and in the `captures uds --step` TUI. `--dry-run`
-  still previews. Tombstones and copy-on-write were rejected: a session has no id — **its identity
-  is its content**, which is what makes both the git merge driver and the contribution overlay
-  correct. `read_only_files` returns `[]` whenever fewer than two layers are resolved, so nothing
-  changes for an ordinary profile.
+  `--delete`/`--set-state`/`--set-notes`/`--backfill-states` and in the `captures uds --step` TUI.
+  `--dry-run` still previews. Tombstones and copy-on-write were rejected: a session has no id —
+  **its identity is its content**, which is what makes both the git merge driver and the
+  contribution overlay correct. `read_only_files` returns `[]` whenever fewer than two layers are
+  resolved, so nothing changes for an ordinary profile.
 
 > **Pass `--profile NAME` explicitly on every mutative/authoring command** — `pids …`, `signals
 > upsert`, `import uds|can|dbc`, `discover --register`, `ecu add`, `wican autopid write`, and

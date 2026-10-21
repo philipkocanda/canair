@@ -39,6 +39,7 @@ CANLIB_CMD = CAPTURES_CMD.parent
 _CAPTURE_WRITERS = (
     "delete_capture",
     "set_capture_note",
+    "set_session_note",
     "set_session_states",
     "set_session_state_spans",
 )
@@ -522,9 +523,16 @@ class TestBaseLayerMutationsAreRefused:
         it consults the policy.
         """
         src = (CAPTURES_CMD / module).read_text()
-        assert "layers.refusal(" in src or "layers.read_only_files(" in src, (
+        # session_gate.refuse_write wraps layers.refusal for the metadata editors.
+        policy_calls = ("layers.refusal(", "layers.read_only_files(", "refuse_write(")
+        assert any(call in src for call in policy_calls), (
             f"{module} writes to captures/ but does not check the base-layer policy"
         )
+
+    def test_the_shared_session_gate_consults_the_policy(self):
+        """``refuse_write`` stands in for the check above, so it must make it."""
+        src = (CAPTURES_CMD / "session_gate.py").read_text()
+        assert "layers.refusal(" in src
 
     def test_the_discovery_finds_every_known_mutation_path(self):
         """A canary: if the writer names change, the pin above must not go quiet."""
@@ -532,6 +540,7 @@ class TestBaseLayerMutationsAreRefused:
             "backfill.py",
             "backfill_spans.py",
             "delete.py",
+            "set_notes.py",
             "set_state.py",
             "step_tui.py",
         }

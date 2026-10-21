@@ -35,7 +35,7 @@ options:
 
 ```
 usage: canair captures uds [-h] [--diff | --step]
-                           [--summary | --sessions | --latest | --recover | --delete | --backfill-states | --backfill-state-spans | --set-state STATES]
+                           [--summary | --sessions | --latest | --recover | --delete | --backfill-states | --backfill-state-spans | --set-state STATES | --set-notes TEXT]
                            [--discard] [--overwrite] [--cycle-tol SECONDS]
                            [--dry-run] [--yes] [--all] [--limit N] [--rulers]
                            [--notation NAME]
@@ -89,6 +89,11 @@ options:
                         state ACC --label 'ACC only'). Requires a scope filter
                         (--label/--date/--since/…); previews with --dry-run,
                         confirms unless --yes.
+  --set-notes TEXT      Replace the session notes on the scope-selected
+                        sessions — to correct a note after recording (''
+                        clears it). Requires a scope filter
+                        (--label/--date/--since/…); previews with --dry-run,
+                        confirms unless --yes.
   --discard             With --recover: delete orphaned journals without
                         saving them
   --overwrite           With --backfill-states: also rewrite sessions whose
@@ -100,10 +105,11 @@ options:
                         timestamp gap grouping captures into one pseudo-cycle
                         for cross-ECU predicates (default 10s)
   --dry-run             With --delete/--backfill-states/--backfill-state-
-                        spans/--set-state: preview the changes, write nothing
+                        spans/--set-state/--set-notes: preview the changes,
+                        write nothing
   --yes, -y             With --delete/--backfill-states/--backfill-state-
-                        spans/--set-state: skip the confirmation prompt
-                        (scripting)
+                        spans/--set-state/--set-notes: skip the confirmation
+                        prompt (scripting)
   --all, -a             For --diff/--step: use every payload instead of
                         unique-only
   --limit N, -L N       Default list view: show only the most recent N
@@ -177,6 +183,8 @@ are aggregate modes that take no QUERY.
   --latest              Most recent payload per PID (all ECUs; no QUERY)
   QUERY --delete        Delete the captures matching QUERY (and scope filters);
                         --dry-run previews, confirms before deleting unless --yes
+  --set-state STATES    Set vehicle_states on the scope-selected sessions
+  --set-notes TEXT      Replace the notes on the scope-selected sessions ('' clears)
   --summary             Overview: captures per ECU, per date, total payloads
   --sessions            Session table of contents: date/time-span/state/label/
                         notes/ECUs per session (no payloads); --json for machine
@@ -235,6 +243,7 @@ Examples (a bare `canair captures …` is shorthand for `canair captures uds …
   canair captures uds --latest              # Latest payload per PID (all ECUs)
   canair captures uds OBC 2101 --delete --dry-run  # Preview a delete
   canair captures uds OBC 2101 --delete --yes      # Delete (non-interactive)
+  canair captures uds --set-notes 'Car off.' --label sweep --dry-run  # Fix a note
   canair captures uds BMS 2102 --limit 200  # Widen the default 50-row cap
   canair captures uds BMS 2102 --limit 0    # Every matching capture (no cap)
   canair captures uds --summary --since 2026-04-19        # Stats since a date

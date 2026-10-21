@@ -21,6 +21,8 @@ are aggregate modes that take no QUERY.
   --latest              Most recent payload per PID (all ECUs; no QUERY)
   QUERY --delete        Delete the captures matching QUERY (and scope filters);
                         --dry-run previews, confirms before deleting unless --yes
+  --set-state STATES    Set vehicle_states on the scope-selected sessions
+  --set-notes TEXT      Replace the notes on the scope-selected sessions ('' clears)
   --summary             Overview: captures per ECU, per date, total payloads
   --sessions            Session table of contents: date/time-span/state/label/
                         notes/ECUs per session (no payloads); --json for machine
@@ -79,6 +81,7 @@ Examples (a bare `canair captures …` is shorthand for `canair captures uds …
   canair captures uds --latest              # Latest payload per PID (all ECUs)
   canair captures uds OBC 2101 --delete --dry-run  # Preview a delete
   canair captures uds OBC 2101 --delete --yes      # Delete (non-interactive)
+  canair captures uds --set-notes 'Car off.' --label sweep --dry-run  # Fix a note
   canair captures uds BMS 2102 --limit 200  # Widen the default 50-row cap
   canair captures uds BMS 2102 --limit 0    # Every matching capture (no cap)
   canair captures uds --summary --since 2026-04-19        # Stats since a date
@@ -114,6 +117,7 @@ from .maint import cmd_recover
 from .mode_select import Mode, ModeError, resolve_mode
 from .query import _parse_query, build_query
 from .sessions import cmd_sessions, cmd_summary
+from .set_notes import cmd_set_notes
 from .set_state import cmd_set_state
 from .step import cmd_step
 from .step_model import (
@@ -213,6 +217,15 @@ def _add_uds_parser(kinds) -> argparse.ArgumentParser:
         "data (e.g. --set-state ACC --label 'ACC only'). Requires a scope filter "
         "(--label/--date/--since/…); previews with --dry-run, confirms unless --yes.",
     )
+    standalone.add_argument(
+        "--set-notes",
+        metavar="TEXT",
+        default=None,
+        dest="set_notes",
+        help="Replace the session notes on the scope-selected sessions — to correct a "
+        "note after recording ('' clears it). Requires a scope filter "
+        "(--label/--date/--since/…); previews with --dry-run, confirms unless --yes.",
+    )
 
     parser.add_argument(
         "--discard",
@@ -241,16 +254,16 @@ def _add_uds_parser(kinds) -> argparse.ArgumentParser:
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="With --delete/--backfill-states/--backfill-state-spans/--set-state: "
-        "preview the changes, write nothing",
+        help="With --delete/--backfill-states/--backfill-state-spans/--set-state/"
+        "--set-notes: preview the changes, write nothing",
     )
 
     parser.add_argument(
         "--yes",
         "-y",
         action="store_true",
-        help="With --delete/--backfill-states/--backfill-state-spans/--set-state: "
-        "skip the confirmation prompt (scripting)",
+        help="With --delete/--backfill-states/--backfill-state-spans/--set-state/"
+        "--set-notes: skip the confirmation prompt (scripting)",
     )
 
     parser.add_argument(
@@ -401,6 +414,14 @@ def _dispatch(mode: Mode, args, query: str, entries: list[CaptureEntry]) -> int:
             entries,
             args.set_state,
             captures_dir=args.dir,
+            dry_run=args.dry_run,
+            assume_yes=args.yes,
+            as_json=args.json,
+        )
+    elif mode == "set_notes":
+        return cmd_set_notes(
+            entries,
+            args.set_notes,
             dry_run=args.dry_run,
             assume_yes=args.yes,
             as_json=args.json,
