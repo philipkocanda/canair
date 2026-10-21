@@ -33,6 +33,21 @@ def signals_dir(profile: Profile | None = None) -> Path:
     return (profile or active()).signals_dir
 
 
+def signal_byte_span(start_bit: int, length: int, byte_order: str = "little") -> int:
+    """How many data bytes a signal occupies, counted from byte 0.
+
+    ``start_bit`` uses DBC numbering: the LSB for little-endian, but the *MSB* for
+    big-endian, whose bits then run down each byte and on into the next one (bit 7 of
+    byte 0 is 7, so a 16-bit field in bytes 0-1 is ``7|16@0``). ``start_bit + length``
+    is therefore only the extent of a little-endian field.
+    """
+    if byte_order == "big":
+        last = (start_bit // 8) * 8 + (7 - start_bit % 8) + length - 1
+    else:
+        last = start_bit + length - 1
+    return last // 8 + 1
+
+
 def load_signals(bus: str | None = None, *, profile: Profile | None = None) -> list[SignalDoc]:
     """Every signal map in the profile, bus-sorted; one bus when ``bus`` is given.
 

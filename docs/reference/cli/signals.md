@@ -51,7 +51,7 @@ usage: canair signals upsert [-h] --start-bit START_BIT --length LENGTH
                              [--min MIN] [--max MAX] [--unit UNIT]
                              [--verified] [--unverified] [--source SOURCE]
                              [--notes NOTES] [--msg-name MSG_NAME]
-                             [--tx-ecu TX_ECU]
+                             [--tx-ecu TX_ECU] [--msg-length MSG_LENGTH]
                              bus arb_id name
 
 positional arguments:
@@ -77,6 +77,9 @@ options:
   --notes NOTES
   --msg-name MSG_NAME   Message name (DBC BO_ name)
   --tx-ecu TX_ECU       Transmitting ECU (annotation)
+  --msg-length MSG_LENGTH
+                        Message data length in bytes (DBC DLC; 8 on classic
+                        CAN, up to 64 on CAN FD)
 ```
 
 ## `canair signals rm`

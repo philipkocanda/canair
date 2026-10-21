@@ -29,6 +29,10 @@ SIGNAL_FIELDS = (
     "source",
     "notes",
 )
+MESSAGE_FIELDS = ("name", "tx_ecu", "length", "signals")
+# A message's declared data length in bytes (DBC BO_ DLC): 8 on classic CAN, up to
+# 64 on CAN FD.
+MAX_MESSAGE_LENGTH = 64
 BYTE_ORDERS = ("little", "big")
 SIGNAL_TYPES = ("numeric", "enum", "bitmask", "ascii", "date", "bcd")
 
@@ -57,8 +61,15 @@ def check_signals_doc(data: object) -> tuple[list[str], int]:
         if not isinstance(msg, dict):
             errors.append(f"message '{mid}': must be a mapping")
             continue
-        for extra in set(msg) - {"name", "tx_ecu", "signals"}:
+        for extra in set(msg) - set(MESSAGE_FIELDS):
             errors.append(f"message '{mid}': unknown field '{extra}'")
+        ln = msg.get("length")
+        if "length" in msg and (
+            isinstance(ln, bool) or not isinstance(ln, int) or not 0 <= ln <= MAX_MESSAGE_LENGTH
+        ):
+            errors.append(
+                f"message '{mid}': length must be 0-{MAX_MESSAGE_LENGTH} bytes (got {ln!r})"
+            )
         signals = msg.get("signals") or {}
         if not isinstance(signals, dict):
             errors.append(f"message '{mid}': 'signals' must be a mapping")

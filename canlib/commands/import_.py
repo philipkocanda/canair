@@ -151,7 +151,7 @@ def _run_can(args) -> int:
 def _dbc_to_signals(db, id_filter: set[int] | None, tx_ecu: str | None, source: str | None) -> dict:
     """Map a cantools Database to the linear signals/ import shape.
 
-    ``{mid: {"name", "tx_ecu", "signals": {sig: {start_bit, length, byte_order,
+    ``{mid: {"name", "tx_ecu", "length", "signals": {sig: {start_bit, length, byte_order,
     signed, scale, offset, min, max, unit, source}}}}``. cantools byte_order (little_endian/
     big_endian) → little/big. ``source`` records provenance on each imported signal.
     """
@@ -185,6 +185,7 @@ def _dbc_to_signals(db, id_filter: set[int] | None, tx_ecu: str | None, source: 
             imported[f"0x{msg.frame_id:X}"] = {
                 "name": msg.name,
                 "tx_ecu": tx_ecu,
+                "length": msg.length,
                 "signals": signals,
             }
     return imported

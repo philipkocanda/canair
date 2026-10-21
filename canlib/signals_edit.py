@@ -12,7 +12,13 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from .validation.signals import BYTE_ORDERS, SIGNAL_FIELDS, check_signals_doc
+from .validation.signals import (
+    BYTE_ORDERS,
+    MAX_MESSAGE_LENGTH,
+    MESSAGE_FIELDS,
+    SIGNAL_FIELDS,
+    check_signals_doc,
+)
 
 if TYPE_CHECKING:
     from .profile import Profile
@@ -42,6 +48,20 @@ def _ordered_signal(fields: dict) -> dict:
     return out
 
 
+def _set_message_field(msg, key: str, value) -> None:
+    """Set ``msg[key]``, inserting a new key at its canonical position.
+
+    A plain assignment appends, so a ``name`` or ``length`` added to a message that
+    already has ``signals`` would otherwise land after the whole signal block.
+    """
+    if key in msg:
+        msg[key] = value
+        return
+    rank = MESSAGE_FIELDS.index(key)
+    pos = sum(1 for k in msg if k in MESSAGE_FIELDS and MESSAGE_FIELDS.index(k) < rank)
+    msg.insert(pos, key, value)
+
+
 def upsert_signal(
     bus: str,
     arb_id: str | int,
@@ -61,6 +81,7 @@ def upsert_signal(
     notes: str | None = None,
     msg_name: str | None = None,
     tx_ecu: str | None = None,
+    msg_length: int | None = None,
     profile: Profile | None = None,
 ) -> Path:
     """Add or update one broadcast signal in ``signals/<bus>.yaml`` (validated).
@@ -79,6 +100,8 @@ def upsert_signal(
         raise SignalsEditError("length must be >= 1")
     if start_bit < 0:
         raise SignalsEditError("start_bit must be >= 0")
+    if msg_length is not None and not 0 <= msg_length <= MAX_MESSAGE_LENGTH:
+        raise SignalsEditError(f"message length must be 0-{MAX_MESSAGE_LENGTH} bytes")
 
     prof = profile or active()
     path = _bus_path(prof, bus)
@@ -91,9 +114,11 @@ def upsert_signal(
     messages = data.setdefault("messages", CommentedMap())
     msg = messages.setdefault(mid, CommentedMap())
     if msg_name and not msg.get("name"):
-        msg["name"] = msg_name
+        _set_message_field(msg, "name", msg_name)
     if tx_ecu and not msg.get("tx_ecu"):
-        msg["tx_ecu"] = tx_ecu
+        _set_message_field(msg, "tx_ecu", tx_ecu)
+    if msg_length is not None:
+        _set_message_field(msg, "length", msg_length)
     signals = msg.setdefault("signals", CommentedMap())
     signals[name] = _ordered_signal(
         {
@@ -124,7 +149,7 @@ def merge_bus(
 ) -> tuple[Path, int]:
     """Merge a batch of messages/signals into ``signals/<bus>.yaml`` in one write.
 
-    ``imported`` maps arbitration ID → ``{"name", "tx_ecu", "signals": {name:
+    ``imported`` maps arbitration ID → ``{"name", "tx_ecu", "length", "signals": {name:
     fields}}`` (as produced by DBC import). Existing entries are overwritten;
     others are preserved. One comment-preserving write + one validate + rollback.
     Returns ``(path, signal_count)``.
@@ -146,10 +171,11 @@ def merge_bus(
     for arb_id, spec in imported.items():
         mid = _normalize_id(arb_id)
         msg = messages.setdefault(mid, CommentedMap())
-        if spec.get("name"):
-            msg["name"] = spec["name"]
-        if spec.get("tx_ecu"):
-            msg["tx_ecu"] = spec["tx_ecu"]
+        for key in ("name", "tx_ecu"):
+            if spec.get(key):
+                _set_message_field(msg, key, spec[key])
+        if spec.get("length") is not None:
+            _set_message_field(msg, "length", spec["length"])
         sigs = msg.setdefault("signals", CommentedMap())
         for sname, fields in (spec.get("signals") or {}).items():
             sigs[sname] = _ordered_signal(fields)

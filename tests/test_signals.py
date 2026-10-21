@@ -15,6 +15,7 @@ import canlib.profile as profile
 from canlib import signals_edit
 from canlib.commands import validate
 from canlib.profile import Profile
+from canlib.signals import signal_byte_span
 from canlib.validation.signals import check_signals_doc
 
 
@@ -119,6 +120,30 @@ class TestSignalsEdit:
         assert sig["type"] == "enum" and sig["values"] == {1: "P", 2: "R"}
         assert validate._run_signals() == 0
 
+    def test_msg_length_lands_before_existing_signals(self, temp_profile):
+        signals_edit.upsert_signal("b", "0x284", "A", start_bit=0, length=8, profile=temp_profile)
+        p = signals_edit.upsert_signal(
+            "b",
+            "0x284",
+            "B",
+            start_bit=8,
+            length=8,
+            msg_name="X284",
+            msg_length=8,
+            profile=temp_profile,
+        )
+        import yaml
+
+        msg = yaml.safe_load(p.read_text())["messages"]["0x284"]
+        assert list(msg) == ["name", "length", "signals"] and msg["length"] == 8
+        assert validate._run_signals() == 0
+
+    def test_msg_length_out_of_range(self, temp_profile):
+        with pytest.raises(signals_edit.SignalsEditError, match="0-64 bytes"):
+            signals_edit.upsert_signal(
+                "b", "0x1", "X", start_bit=0, length=8, msg_length=65, profile=temp_profile
+            )
+
     def test_int_arb_id_normalized(self, temp_profile):
         signals_edit.upsert_signal("b", 0x220, "S", start_bit=0, length=8, profile=temp_profile)
         import yaml
@@ -202,6 +227,39 @@ class TestCheckSignalsDoc:
     def test_unknown_field_rejected(self):
         errors, _ = check_signals_doc(_doc(is_signed=True))
         assert errors == ["0x1/X: unknown field 'is_signed'"]
+
+    @pytest.mark.parametrize("length", [0, 8, 64])
+    def test_message_length_accepted(self, length):
+        doc = _doc()
+        doc["messages"]["0x1"]["length"] = length
+        assert check_signals_doc(doc) == ([], 1)
+
+    @pytest.mark.parametrize("length", [-1, 65, "8", True])
+    def test_message_length_rejected(self, length):
+        doc = _doc()
+        doc["messages"]["0x1"]["length"] = length
+        errors, _ = check_signals_doc(doc)
+        assert len(errors) == 1 and "length must be 0-64 bytes" in errors[0]
+
+
+class TestSignalByteSpan:
+    @pytest.mark.parametrize(
+        ("start_bit", "length", "byte_order", "span"),
+        [
+            (0, 8, "little", 1),
+            (0, 14, "little", 2),
+            (56, 8, "little", 8),
+            (7, 8, "big", 1),  # byte 0
+            (15, 8, "big", 2),  # byte 1
+            (7, 16, "big", 2),  # bytes 0-1
+            (39, 16, "big", 6),  # bytes 4-5
+            (15, 24, "big", 4),  # bytes 1-3
+            (4, 13, "big", 2),  # starts mid-byte, runs into byte 1
+            (0, 1, "big", 1),
+        ],
+    )
+    def test_span(self, start_bit, length, byte_order, span):
+        assert signal_byte_span(start_bit, length, byte_order) == span
 
 
 # ── canair signals command ────────────────────────────────────────────────
@@ -345,6 +403,53 @@ class TestDbcInterop:
         assert sig["length"] == 14 and sig["scale"] == 0.03125
         assert "signed" not in sig
         assert data["messages"]["0x1DA"]["signals"]["MOTOR_RPM"]["signed"] is True
+
+    def test_import_records_message_length(self, temp_profile, tmp_path):
+        dbc = _write_dbc(tmp_path)
+        assert self._import(["dbc", str(dbc), "--bus", "pt"]) == 0
+        import yaml
+
+        msgs = yaml.safe_load((temp_profile.signals_dir / "pt.yaml").read_text())["messages"]
+        assert msgs["0x386"]["length"] == 8 and msgs["0x1DA"]["length"] == 8
+
+    def test_export_keeps_declared_length(self, temp_profile, tmp_path):
+        # Regression: export derived the length from start_bit + length, which for a
+        # big-endian signal (start_bit = its MSB) gave 7 bytes here instead of 8.
+        import cantools
+
+        dbc = _write_dbc(tmp_path)
+        self._import(["dbc", str(dbc), "--bus", "pt"])
+        out = tmp_path / "exported.dbc"
+        assert self._export(["dbc", "--bus", "pt", "-o", str(out)]) == 0
+        db = cantools.database.load_file(str(out), strict=False)
+        assert db.get_message_by_frame_id(0x1DA).length == 8
+
+    def test_export_computes_big_endian_span(self, temp_profile, tmp_path):
+        import cantools
+
+        signals_edit.upsert_signal(
+            "pt", "0x300", "A", start_bit=7, length=8, byte_order="big", profile=temp_profile
+        )
+        signals_edit.upsert_signal(
+            "pt", "0x300", "B", start_bit=15, length=8, byte_order="big", profile=temp_profile
+        )
+        out = tmp_path / "exported.dbc"
+        assert self._export(["dbc", "--bus", "pt", "-o", str(out)]) == 0
+        msg = cantools.database.load_file(str(out), strict=False).get_message_by_frame_id(0x300)
+        assert msg.length == 2  # was 3: max(start_bit + length) = 23 bits
+        assert msg.decode(bytes([0x12, 0x34])) == {"A": 0x12, "B": 0x34}
+
+    def test_export_29bit_id_is_extended(self, temp_profile, tmp_path):
+        # Regression: export crashed on any ID above 0x7FF (never marked extended).
+        import cantools
+
+        signals_edit.upsert_signal(
+            "pt", "0x18DAF110", "X", start_bit=0, length=8, profile=temp_profile
+        )
+        out = tmp_path / "exported.dbc"
+        assert self._export(["dbc", "--bus", "pt", "-o", str(out)]) == 0
+        msg = cantools.database.load_file(str(out), strict=False).messages[0]
+        assert msg.frame_id == 0x18DAF110 and msg.is_extended_frame
 
     def test_export_writes_dbc_sign_marker(self, temp_profile, tmp_path):
         dbc = _write_dbc(tmp_path)

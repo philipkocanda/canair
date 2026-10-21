@@ -70,6 +70,12 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     p_up.add_argument("--notes")
     p_up.add_argument("--msg-name", dest="msg_name", help="Message name (DBC BO_ name)")
     p_up.add_argument("--tx-ecu", dest="tx_ecu", help="Transmitting ECU (annotation)")
+    p_up.add_argument(
+        "--msg-length",
+        type=int,
+        dest="msg_length",
+        help="Message data length in bytes (DBC DLC; 8 on classic CAN, up to 64 on CAN FD)",
+    )
     p_up.set_defaults(_signals_func=cmd_upsert)
 
     p_rm = sub.add_parser("rm", help="Remove a broadcast signal")
@@ -105,11 +111,14 @@ def cmd_list(args) -> int:
         nsig = sum(len((m or {}).get("signals") or {}) for m in messages.values())
         total += nsig
         print(
-            f"\n  {ansi.BOLD}{bus}{ansi.RESET} {ansi.DIM}({len(messages)} messages, {nsig} signals){ansi.RESET}"
+            f"\n  {ansi.BOLD}{bus}{ansi.RESET} "
+            f"{ansi.DIM}({len(messages)} messages, {nsig} signals){ansi.RESET}"
         )
         for mid, msg in messages.items():
             msg = msg or {}
             name = f" {msg['name']}" if msg.get("name") else ""
+            if msg.get("length") is not None:
+                name += f" {ansi.DIM}({msg['length']} B){ansi.RESET}"
             tx = f" {ansi.DIM}[{msg['tx_ecu']}]{ansi.RESET}" if msg.get("tx_ecu") else ""
             print(f"    {ansi.CYAN}{mid}{ansi.RESET}{name}{tx}")
             for sname, sig in (msg.get("signals") or {}).items():
@@ -151,6 +160,7 @@ def cmd_upsert(args) -> int:
             notes=args.notes,
             msg_name=args.msg_name,
             tx_ecu=args.tx_ecu,
+            msg_length=args.msg_length,
         )
     except SignalsEditError as e:
         print(f"signals upsert: {e}", file=sys.stderr)

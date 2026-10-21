@@ -55,7 +55,7 @@ def _run_dbc(args) -> int:
         print("export dbc: cantools is required (pip install cantools).", file=sys.stderr)
         return 1
 
-    from canlib.signals import load_signals, signals_dir
+    from canlib.signals import load_signals, signal_byte_span, signals_dir
 
     if not signals_dir().is_dir():
         print("export dbc: no signals/ to export.", file=sys.stderr)
@@ -70,14 +70,15 @@ def _run_dbc(args) -> int:
         for mid, msg in (data.get("messages") or {}).items():
             msg = msg or {}
             sigs = []
-            max_bit = 0
+            span = 0
             for sname, sig in (msg.get("signals") or {}).items():
                 sig = sig or {}
                 if args.verified_only and not sig.get("verified"):
                     continue
                 start = int(sig.get("start_bit", 0))
                 length = int(sig.get("length", 1))
-                max_bit = max(max_bit, start + length)
+                byte_order = sig.get("byte_order", "little")
+                span = max(span, signal_byte_span(start, length, byte_order))
                 conv = BaseConversion.factory(
                     scale=sig.get("scale", 1) or 1,
                     offset=sig.get("offset", 0) or 0,
@@ -88,9 +89,7 @@ def _run_dbc(args) -> int:
                         name=sname,
                         start=start,
                         length=length,
-                        byte_order="big_endian"
-                        if sig.get("byte_order") == "big"
-                        else "little_endian",
+                        byte_order="big_endian" if byte_order == "big" else "little_endian",
                         is_signed=bool(sig.get("signed")),
                         conversion=conv,
                         minimum=sig.get("min"),
@@ -100,11 +99,16 @@ def _run_dbc(args) -> int:
                 )
             if not sigs:
                 continue
+            frame_id = int(str(mid), 16)
+            declared = msg.get("length")
             messages.append(
                 Message(
-                    frame_id=int(str(mid), 16),
+                    frame_id=frame_id,
+                    is_extended_frame=frame_id > 0x7FF,
                     name=msg.get("name") or f"MSG_{str(mid).upper().replace('0X', '')}",
-                    length=max(1, (max_bit + 7) // 8),
+                    # A definition without a recorded DLC gets the smallest one that
+                    # holds its signals.
+                    length=declared if declared is not None else max(1, span),
                     signals=sigs,
                     strict=False,  # tolerate overlapping signals (real DBCs have them)
                 )

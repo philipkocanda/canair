@@ -108,8 +108,16 @@ canair import dbc car.dbc --bus powertrain             # DBC → signals/
 canair export dbc --bus powertrain -o mycar.dbc        # signals/ → DBC
 ```
 
-Real-world DBCs (with overlapping signals) load in non-strict mode; the linear
-model, including each signal's signedness, round-trips losslessly.
+Real-world DBCs (with overlapping signals) load in non-strict mode. The linear
+model round-trips each signal's layout, signedness, scale and offset, and each
+message's data length (`length`, the DBC DLC); an ID above `0x7FF` is written as
+an extended frame. Not carried: messages without signals, and multiplexing (a
+multiplexed message's signals import as plain, overlapping ones).
+
+`scripts/check_dbc_corpus.py --fetch` checks this against
+[commaai/opendbc](https://github.com/commaai/opendbc): it imports, validates,
+exports and re-decodes every DBC, comparing against cantools' own parse. It is
+opt-in and fetches into the gitignored `references/can/`.
 
 ## Storing raw-CAN logs (what's committed vs. fetched)
 
