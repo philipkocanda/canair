@@ -36,7 +36,6 @@ from .other import (
     _run_signals,
     _run_states,
     _state_reference_errors,
-    check_signals_doc,
 )
 from .pids import (
     _duplicate_param_errors,
@@ -71,7 +70,6 @@ __all__ = [
     "_validate_param_type",
     "add_parser",
     "check_pci_bytes",
-    "check_signals_doc",
     "collect_pids_validation",
     "load_schema",
     "load_valid_rx_addrs",

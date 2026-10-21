@@ -49,6 +49,16 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     p_up.add_argument(
         "--byte-order", choices=["little", "big"], default="little", dest="byte_order"
     )
+    p_up.add_argument(
+        "--signed",
+        dest="signed",
+        action="store_true",
+        default=None,
+        help="Two's-complement signed raw value (DBC @0-/@1-)",
+    )
+    p_up.add_argument(
+        "--unsigned", dest="signed", action="store_false", help="Unsigned raw value (default)"
+    )
     p_up.add_argument("--scale", type=float)
     p_up.add_argument("--offset", type=float)
     p_up.add_argument("--min", type=float)
@@ -108,9 +118,10 @@ def cmd_list(args) -> int:
                 unit = f" {sig['unit']}" if sig.get("unit") else ""
                 sc = sig.get("scale")
                 scale = f" ×{sc}" if sc not in (None, 1) else ""
+                signed = " signed" if sig.get("signed") else ""
                 print(
                     f"      {sname}{v}  {ansi.DIM}bit {sig.get('start_bit')}+{sig.get('length')} "
-                    f"{sig.get('byte_order', 'little')}{scale}{unit}{ansi.RESET}"
+                    f"{sig.get('byte_order', 'little')}{signed}{scale}{unit}{ansi.RESET}"
                 )
     print()
     return 0
@@ -129,6 +140,7 @@ def cmd_upsert(args) -> int:
             start_bit=args.start_bit,
             length=args.length,
             byte_order=args.byte_order,
+            signed=args.signed,
             scale=args.scale,
             offset=args.offset,
             min=args.min,

@@ -1,7 +1,6 @@
 """vehicle_states.yaml / signals/ / captures/can index validation."""
 
 import json
-import re
 
 from jsonschema import Draft202012Validator
 
@@ -261,9 +260,6 @@ def _run_groups() -> int:
     return 0
 
 
-_ARB_ID_RE = re.compile(r"^0x[0-9A-Fa-f]+$")
-
-
 def _run_can_buses() -> int:
     """Validate the profile's optional can_buses.yaml (CAN bus vocabulary)."""
     from canlib.profile import active
@@ -324,72 +320,6 @@ def _run_can_buses() -> int:
     return 0
 
 
-def check_signals_doc(data: object) -> tuple[list[str], int]:
-    """Structural check of one parsed signals/<bus>.yaml doc.
-
-    Returns ``(errors, signal_count)``. Shared by ``validate signals`` and the
-    ``signals`` editor's rollback guard so both enforce the same rules
-    (mirroring the ``signals_schema.yaml`` companion).
-    """
-    errors: list[str] = []
-    if not isinstance(data, dict):
-        return (["top level must be a mapping"], 0)
-    valid_byte_orders = {"little", "big"}
-    for extra in set(data) - {"bus", "bitrate", "messages"}:
-        errors.append(f"unknown top-level field '{extra}'")
-    if "bitrate" in data and not isinstance(data.get("bitrate"), int):
-        errors.append("'bitrate' must be an integer")
-    messages = data.get("messages") or {}
-    if not isinstance(messages, dict):
-        return ([*errors, "'messages' must be a mapping keyed by arbitration ID"], 0)
-    n_signals = 0
-    allowed = {
-        "start_bit",
-        "length",
-        "byte_order",
-        "scale",
-        "offset",
-        "min",
-        "max",
-        "unit",
-        "verified",
-        "source",
-        "notes",
-    }
-    for mid, msg in messages.items():
-        if not _ARB_ID_RE.match(str(mid)):
-            errors.append(f"message id '{mid}' is not a hex arbitration ID (e.g. 0x220)")
-        if not isinstance(msg, dict):
-            errors.append(f"message '{mid}': must be a mapping")
-            continue
-        for extra in set(msg) - {"name", "tx_ecu", "signals"}:
-            errors.append(f"message '{mid}': unknown field '{extra}'")
-        signals = msg.get("signals") or {}
-        if not isinstance(signals, dict):
-            errors.append(f"message '{mid}': 'signals' must be a mapping")
-            continue
-        for sname, sig in signals.items():
-            n_signals += 1
-            if not isinstance(sig, dict):
-                errors.append(f"{mid}/{sname}: must be a mapping")
-                continue
-            for extra in set(sig) - allowed:
-                errors.append(f"{mid}/{sname}: unknown field '{extra}'")
-            for req in ("start_bit", "length"):
-                if req not in sig:
-                    errors.append(f"{mid}/{sname}: missing required '{req}'")
-            sb = sig.get("start_bit")
-            if isinstance(sb, int) and sb < 0:
-                errors.append(f"{mid}/{sname}: start_bit must be >= 0")
-            ln = sig.get("length")
-            if isinstance(ln, int) and ln < 1:
-                errors.append(f"{mid}/{sname}: length must be >= 1")
-            bo = sig.get("byte_order")
-            if bo is not None and bo not in valid_byte_orders:
-                errors.append(f"{mid}/{sname}: byte_order must be little|big (got '{bo}')")
-    return (errors, n_signals)
-
-
 def _run_signals() -> int:
     """Validate the profile's optional signals/ broadcast signal-definition files.
 
@@ -398,6 +328,7 @@ def _run_signals() -> int:
     checks mirror the signals_schema.yaml companion.
     """
     from canlib.signals import load_signals, signals_dir
+    from canlib.validation.signals import check_signals_doc
 
     if not signals_dir().is_dir():
         print("No signals/ (optional) — skipping.")

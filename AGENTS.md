@@ -297,11 +297,14 @@ reuse these instead of re-declaring a flag:
   auto-format via `canlib/yaml_rt.py` (short inline, long folded `>-`) — pass plain strings, never
   hand-format block scalars.
 - **`canair signals`** — The domain-B analogue: view/edit the broadcast sidecar `signals/<bus>.yaml`
-  (arbitration ID → named **linear** signals: start bit/length/byte order/scale/offset/unit).
-  Surgical, validated (`canair validate signals`), auto-reverted (`canlib/signals_edit.py`). **Never
-  hand-edit `signals/`.** Distinct from `pids` (freeform WiCAN expressions over `Bnn`); this is the
-  DBC-compatible linear model. The schema also accepts the typed-decode fields, but CLI flags to
-  author them are a follow-up (typed broadcast signals are hand-written in YAML for now).
+  (arbitration ID → named **linear** signals: start bit/length/byte order/signedness/scale/offset/
+  unit). Surgical, validated (`canair validate signals`), auto-reverted (`canlib/signals_edit.py`).
+  **Never hand-edit `signals/`.** Distinct from `pids` (freeform WiCAN expressions over `Bnn`); this
+  is the DBC-compatible linear model, so `--start-bit` is DBC numbering (the MSB for big-endian).
+  The field list and structural check live once in `canlib/validation/signals.py`
+  (`SIGNAL_FIELDS`, `check_signals_doc`), shared by the editor and the validator. The schema also
+  accepts the typed-decode fields, but CLI flags to author them are a follow-up (typed broadcast
+  signals are hand-written in YAML for now).
 - **`canair ecu`** — Inspect the ECU registry and per-ECU stats (PIDs/signals/verified counts,
   protocol, addresses, CAN bus, `--states`). `ecu <ECU> pids` lists every PID with its **latest
   decoded state**. **`ecu add TX …`** registers an ECU offline (no device) — the counterpart to

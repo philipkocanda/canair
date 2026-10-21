@@ -46,11 +46,12 @@ options:
 
 ```
 usage: canair signals upsert [-h] --start-bit START_BIT --length LENGTH
-                             [--byte-order {little,big}] [--scale SCALE]
-                             [--offset OFFSET] [--min MIN] [--max MAX]
-                             [--unit UNIT] [--verified] [--unverified]
-                             [--source SOURCE] [--notes NOTES]
-                             [--msg-name MSG_NAME] [--tx-ecu TX_ECU]
+                             [--byte-order {little,big}] [--signed]
+                             [--unsigned] [--scale SCALE] [--offset OFFSET]
+                             [--min MIN] [--max MAX] [--unit UNIT]
+                             [--verified] [--unverified] [--source SOURCE]
+                             [--notes NOTES] [--msg-name MSG_NAME]
+                             [--tx-ecu TX_ECU]
                              bus arb_id name
 
 positional arguments:
@@ -63,6 +64,8 @@ options:
   --start-bit START_BIT
   --length LENGTH
   --byte-order {little,big}
+  --signed              Two's-complement signed raw value (DBC @0-/@1-)
+  --unsigned            Unsigned raw value (default)
   --scale SCALE
   --offset OFFSET
   --min MIN

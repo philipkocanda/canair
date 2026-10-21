@@ -12,23 +12,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from .validation.signals import BYTE_ORDERS, SIGNAL_FIELDS, check_signals_doc
+
 if TYPE_CHECKING:
     from .profile import Profile
-
-# Canonical field order for a rendered signal (matches signals_schema.yaml).
-_SIGNAL_FIELD_ORDER = (
-    "start_bit",
-    "length",
-    "byte_order",
-    "scale",
-    "offset",
-    "min",
-    "max",
-    "unit",
-    "verified",
-    "source",
-    "notes",
-)
 
 
 class SignalsEditError(Exception):
@@ -49,7 +36,7 @@ def _ordered_signal(fields: dict) -> dict:
     from ruamel.yaml.comments import CommentedMap
 
     out = CommentedMap()
-    for k in _SIGNAL_FIELD_ORDER:
+    for k in SIGNAL_FIELDS:
         if k in fields and fields[k] is not None:
             out[k] = fields[k]
     return out
@@ -63,6 +50,7 @@ def upsert_signal(
     start_bit: int,
     length: int,
     byte_order: str = "little",
+    signed: bool | None = None,
     scale: float | None = None,
     offset: float | None = None,
     min: float | None = None,
@@ -82,11 +70,10 @@ def upsert_signal(
     """
     from ruamel.yaml.comments import CommentedMap
 
-    from .commands.validate import check_signals_doc
     from .profile import active
     from .yaml_rt import round_trip_yaml as _yaml
 
-    if byte_order not in ("little", "big"):
+    if byte_order not in BYTE_ORDERS:
         raise SignalsEditError(f"byte_order must be little|big (got {byte_order!r})")
     if length < 1:
         raise SignalsEditError("length must be >= 1")
@@ -113,6 +100,7 @@ def upsert_signal(
             "start_bit": start_bit,
             "length": length,
             "byte_order": byte_order,
+            "signed": signed,
             "scale": scale,
             "offset": offset,
             "min": min,
@@ -143,7 +131,6 @@ def merge_bus(
     """
     from ruamel.yaml.comments import CommentedMap
 
-    from .commands.validate import check_signals_doc
     from .profile import active
     from .yaml_rt import round_trip_yaml as _yaml
 
@@ -176,7 +163,6 @@ def remove_signal(
     bus: str, arb_id: str | int, name: str, *, profile: Profile | None = None
 ) -> Path:
     """Remove a signal (and any now-empty message) from ``signals/<bus>.yaml``."""
-    from .commands.validate import check_signals_doc
     from .profile import active
     from .yaml_rt import round_trip_yaml as _yaml
 

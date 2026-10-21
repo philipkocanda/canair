@@ -91,6 +91,7 @@ def _run_dbc(args) -> int:
                         byte_order="big_endian"
                         if sig.get("byte_order") == "big"
                         else "little_endian",
+                        is_signed=bool(sig.get("signed")),
                         conversion=conv,
                         minimum=sig.get("min"),
                         maximum=sig.get("max"),

@@ -18,7 +18,7 @@ graph already treats them as library code*:
 
 | Consumer | Imports | Why |
 |---|---|---|
-| `canlib/signals_edit.py` (3×) | `check_signals_doc` | the editor's rollback guard |
+| ~~`canlib/signals_edit.py` (3×)~~ | ~~`check_signals_doc`~~ | **done** — moved to `canlib/validation/signals.py` |
 | `canlib/ecus_edit.py` | `load_schema`, `validate_pids_file` | allowed identity fields; post-write validation |
 | `canlib/commands/pids.py` | `validate_pids_file` | the `_guarded` edit wrapper |
 | `canlib/commands/_promote.py` | `check_pci_bytes` | expression sanity before writing a candidate |

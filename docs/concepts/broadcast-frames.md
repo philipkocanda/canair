@@ -86,6 +86,12 @@ canair validate signals                # structural check
 Edits are surgical, comment-preserving, validated, and auto-reverted on failure
 (via `canair signals` / `canlib/signals_edit.py`) — never hand-edit `signals/`.
 
+`--start-bit` follows DBC numbering, so for `--byte-order big` it names the field's
+*most significant* bit: a 16-bit big-endian field in data bytes 4-5 is
+`--start-bit 39 --length 16 --byte-order big`. A raw value is unsigned unless you
+pass `--signed` (two's complement, DBC `@0-`/`@1-`) — use it for anything that can
+go negative, such as a motor speed in reverse.
+
 Record **where the signal came from** in `--source` (a reproducible provenance
 string — the log used, a reference sheet, or `dbc:<file>` when it came from a DBC
 import); keep the supporting *evidence* (correlations, sample counts, reasoning)
@@ -103,7 +109,7 @@ canair export dbc --bus powertrain -o mycar.dbc        # signals/ → DBC
 ```
 
 Real-world DBCs (with overlapping signals) load in non-strict mode; the linear
-model round-trips losslessly.
+model, including each signal's signedness, round-trips losslessly.
 
 ## Storing raw-CAN logs (what's committed vs. fetched)
 

@@ -21,7 +21,11 @@
 #         GEAR:
 #           start_bit: int  # required — bit offset (0 = first bit of byte 0)
 #           length: int     # required — bit length (>= 1)
-#           byte_order: str # optional — little | big (DBC @1 / @0); default little
+#           byte_order: str # optional — little | big (DBC @1 / @0); default little.
+#                           # start_bit follows DBC: for big it is the field's MSB
+#                           # (bit 7 of byte 0 is 7; a 16-bit field in bytes 0-1 is 7|16@0)
+#           signed: bool    # optional — two's-complement raw value (DBC @0- / @1-);
+#                           # default false (unsigned, DBC @0+ / @1+)
 #           scale: number   # optional — physical = raw*scale + offset; default 1
 #           offset: number  # optional — default 0
 #           min: number     # optional
@@ -32,7 +36,8 @@
 #           notes: str       # optional
 #
 # Arbitration IDs match ^0x[0-9A-Fa-f]+$ (11-bit standard or 29-bit extended).
-# Validated structurally by `canair validate signals` (canlib/commands/validate.py).
+# Validated structurally by `canair validate signals` (canlib/validation/signals.py::check_signals_doc,
+# whose SIGNAL_FIELDS is the authoritative field list).
 
 message_id_pattern: "^0x[0-9A-Fa-f]+$"
 
@@ -52,6 +57,7 @@ required_signal_fields:
 
 optional_signal_fields:
   - byte_order
+  - signed
   - scale
   - offset
   - min
