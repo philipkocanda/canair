@@ -135,58 +135,66 @@ MCU:
         or checksum that correlates with no signal. B54 onward is zero padding.
       parameters:
         MCU_MOTOR_RPM:
-          expression: "[S10:S11]"
+          expression: (S10<<8)|B09
           unit: RPM
           ha_class: ""
           min: "-10500"
           max: "10500"
-          source: "Kia Soul EV VMCU CSV (Motor Actual Speed RPM) + physical validation"
+          source: Kia Soul EV VMCU CSV (Motor Actual Speed RPM) + physical validation; low byte corrected 2026-10-21
           source_links: []
           verified: true
           notes: >-
-            Signed 16-bit big-endian. Median 62.8 RPM per km/h vs VCU speed over 179 driving
-            samples, against 61.8 expected from the 7.412 reduction and 205/55R16 tyres. Range -510
-            to 7672.
+            Signed 16-bit little-endian; B09 is the low byte. B11 cannot be: B11:B12 is the torque
+            word, duplicated byte-for-byte at B13:B14 in all 8231 captures, and B09 is 0 at
+            standstill but spread over 26-253 above 500 RPM. Against EPS_VEHICLE_SPEED the
+            little-endian read fits better (r=0.999 vs 0.997 for [S10:S11]). Median 62.8 RPM per
+            km/h vs VCU speed, against 61.8 expected from the 7.412 reduction and 205/55R16 tyres.
 
         MCU_MOTOR_TORQUE:
-          expression: "[S12:S13]/100"
+          expression: ((S12<<8)|B11)/10
           unit: Nm
           ha_class: ""
           min: "-300"
           max: "300"
-          source: ITStromer community PID sheet; strong null-test corroboration 2026-08-05
+          source: energy balance vs BMS:2101 BATTERY_POWER and the cumulative energy counters, 2026-10-21
           source_links: []
           verified: false
           notes: >-
-            Signed 16-bit big-endian. Exactly 0 in all 2687 captures of a 3 h AC charge with the
-            motor stopped. r=+0.600 vs the rate of change of MCU_MOTOR_RPM over 477 driving
-            captures. The /100 scale is not confirmed.
-        MCU_2102_S14S15:
-          expression: "[S14:S15]"
-          unit: ""
+            Signed 16-bit little-endian, 0.1 Nm/bit; negative in regen. Torque x MCU_MOTOR_RPM
+            integrated over the 2026-08-08 drives gives 79-90 % of the BMS pack energy on the
+            sustained segments (10:30-11:41, 16:48-17:52), which is drivetrain efficiency with the
+            12 V and climate loads on top; low-speed segments fall to 21-63 % as those loads
+            dominate. The integrated pack power agrees with the BMS energy counters. Range -156 to
+            +181 Nm while driving. The old [S12:S13]/100 decoded the same value (B13 copies B11) at
+            a tenth of this scale.
+        MCU_MOTOR_TORQUE_2:
+          expression: ((S14<<8)|B13)/10
+          unit: Nm
           ha_class: ""
-          min: "-32768"
-          max: "32767"
+          min: "-300"
+          max: "300"
           enabled: false
-          source: RE 2026-08-05 standstill null test — renamed from MCU_MOTOR_TORQUE_2 (name overclaimed)
+          source: canair decode --find-mirrors 2026-10-21
           source_links: []
           verified: false
           notes: >-
-            Signed 16-bit. r=+0.969 vs MCU_MOTOR_TORQUE while driving, but holds +27 to +54 with the
-            motor stopped (2687 charge captures), where MCU_MOTOR_TORQUE reads 0.
-        MCU_LOAD_B17:
-          expression: B17
-          unit: ""
-          ha_class: ""
+            B13:B14 equals B11:B12 (MCU_MOTOR_TORQUE) byte-for-byte in all 8231 captures. Disabled
+            as a duplicate. The old [S14:S15] read straddled this word and the current word.
+        MCU_MOTOR_CURRENT:
+          expression: ((B17<<8)|B15)/10
+          unit: A
+          ha_class: current
           min: "0"
-          max: "255"
-          enabled: false
-          source: RE 2026-08-05 — disproves the [B17:B18] 16-bit parse; B17 is the load-carrying byte
+          max: "600"
+          enabled: true
+          source: canair align + within-PID fit 2026-10-21
           source_links: []
           verified: false
           notes: >-
-            0 in all 2687 charge captures with the motor stopped; 0-8 while driving. B18 is a
-            separate signal, so B17:B18 is not one word.
+            Motor phase-current magnitude, 16-bit little-endian split across the PCI byte B16; never
+            negative. 2.7-5.4 at standstill, up to 214 while driving (if 0.1 A/bit, which is not
+            proven). Tracks |MCU_MOTOR_TORQUE| at about 1.2 counts per 0.1 Nm below 5000 RPM, rising
+            to 1.6 above 6500 RPM, as field weakening would.
         MCU_2102_B20:
           expression: B20
           unit: ""
@@ -212,14 +220,6 @@ MCU:
             Range 4-36 across 8231 captures. Moves with load: r=+0.456 vs |MCU_MOTOR_TORQUE|, and
             its changes r=+0.79 vs torque changes over 477 driving captures.
           ha_class: ""
-        MCU_2102_B9:
-          expression: B9
-          unit: ""
-          min: "0"
-          max: "255"
-          source: RE 2026-07-22 MT->KW drive analysis
-          verified: false
-          notes: 0 in all 18 standstill samples; spread over 26-253 when |MCU_MOTOR_RPM| > 500.
         MCU_2102_B18:
           expression: B18
           unit: ""
@@ -242,6 +242,17 @@ MCU:
           notes: >-
             Range 6-34 across 8231 captures. r=+0.875 vs |MCU_MOTOR_TORQUE| over 477 driving
             captures, changing within one 5 s sample.
+        MCU_MOTOR_POWER:
+          expression: ((S12<<8)|B11)/10*((S10<<8)|B09)*0.00010472
+          unit: kW
+          ha_class: power
+          min: "-100"
+          max: "100"
+          source: derived from MCU_MOTOR_TORQUE x MCU_MOTOR_RPM, 2026-10-21
+          verified: false
+          notes: >-
+            Mechanical shaft power, torque x 2*pi*RPM/60/1000; negative in regen. Integrated, it is
+            79-90 % of the BMS pack energy over sustained 2026-08-08 driving.
 
     2103:
       response_frames: 4
@@ -493,6 +504,12 @@ MCU:
       vehicle_states: [DRIVING]
       created: "2026-08-08"
       updated: "2026-08-08"
+      result: >-
+        2026-10-21: MCU 2102 now has a current word, MCU_MOTOR_CURRENT ((B17<<8)|B15). The RMS of
+        the three phase currents, sqrt((i1^2+i2^2+i3^2)/3), is 49.7x MCU_MOTOR_CURRENT (median,
+        r=0.952, n=1553 DRIVING rows within 1.5 s). If MCU_MOTOR_CURRENT is 0.1 A/bit, the phase
+        currents are about 0.020 A per count (peak 11516 raw = about 230 A). Both scales are still
+        unproven.
       notes: MCU_PHASE_CURRENT_1/2/3 are located and proven to be currents (Kirchhoff sum-to-zero mean -0.13 stdev 21.51 over n=5181; sum-of-squares 462x higher driving than at DCFC standstill; SQ vs RPM r=-0.039 rules out phase voltages; SQ ~ 1.2*torque^2 with field-weakening at high RPM). Only the SCALE is unknown, so all three ship unverified with no unit. Observed peak |I| 11516 raw; apparent standstill quantum ~24.4 raw. A 2017 Ioniq 28 kWh draws ~400 A peak phase current at full torque, which would imply roughly 0.035 A/LSB, but that is arithmetic on an assumed peak, not a measurement.
       what_to_test:
         - Compare the SQ-derived peak against a scan tool reporting motor phase current during a hard launch
