@@ -320,16 +320,18 @@ VCU:
             About 2.56 V per LSB; r=+0.950 vs VCU_INVERTER_INPUT_VOLTAGE (n=1672), median residual
             about 1 V. Disabled as a lower-resolution duplicate.
         VCU_AUX_POWER:
-          expression: "[B22:B23]/10"
+          expression: ((B22<<8)|B21)/10
           unit: W
           min: "0"
           max: "6553"
-          source: "2026-07-30 dash anchor: climate/electronics power bar 130->650W == raw/10 137->651; rear+side defroster step ~28A@14.5V"
+          source: 2026-07-30 dash anchor (130->650 W); low byte B21 per decode/align 2026-10-21
           verified: false
           notes: >-
-            12 V auxiliary load in watts. Matched the dash electronics bar from 130 to 650 W
-            (2026-07-30), rose 195 to 601 W when the rear and side defrosters switched on, and does
-            not count down during a steady AC charge. Excludes HV climate power.
+            12 V auxiliary load in watts, 16-bit little-endian. Matched the dash electronics bar
+            from 130 to 650 W (2026-07-30) and rose 195 to 601 W with the rear and side defrosters.
+            Low byte is B21, not B23: B23 is the low byte of VCU_DCLINK_VOLTAGE, and B21 tracks the
+            independent coarse field B15*10 more tightly (r=0.998 vs 0.970 charging, 0.992 vs 0.984
+            driving). Excludes HV climate power.
         VCU_AUX_POWER_COARSE:
           expression: B15*10
           unit: W
@@ -338,22 +340,34 @@ VCU:
           source: "2026-07-30: B15*10 vs [B22:B23]/10 r2=0.994"
           verified: false
           notes: 10 W per LSB; r²=0.994 vs VCU_AUX_POWER.
-        VCU_2102_B19:
-          expression: B19
-          source: 2026-07-30 adjacent-field candidate
+        VCU_LDC_OUTPUT_VOLTAGE:
+          expression: ((B20<<8)|B19)/1000
+          source: canair hunt vs OBC:2101:LDC_OUTPUT_V 2026-10-21
           verified: false
-          notes: Range 0-255 across 12713 VCU 2102 captures; r²=0.77 vs VCU_AUX_POWER.
+          notes: >-
+            12 V bus voltage at the LDC side, 1 mV/bit, 16-bit little-endian. r=+0.997 vs
+            OBC:2101:LDC_OUTPUT_V (n=11057, slope 1.019). Reads 0.02-0.22 V above
+            VCU_AUX_BATTERY_VOLTAGE_FINE, and the gap tracks VCU_AUX_POWER (r=+0.86), as a cable
+            drop under load would. Which end of the cable each reading is taken at is inferred, not
+            proven.
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "16"
 
-        VCU_2102_B20:
-          expression: B20
-          source: 2026-07-30 adjacent-field candidate
+        VCU_AUX_BATTERY_VOLTAGE_FINE:
+          expression: ((B27<<8)|B26)/1000
+          source: canair hunt vs BMS:2101:AUX_BATTERY_VOLTAGE 2026-10-21; Kia e-Niro VMCU sheet
           verified: false
-          notes: Range 46-58 across 12713 VCU 2102 captures, 12 distinct values.
-        VCU_2102_B27:
-          expression: B27
-          source: 2026-07-30 adjacent-field candidate
-          verified: false
-          notes: Range 46-58 across 12713 VCU 2102 captures, 12 distinct values.
+          notes: >-
+            12 V battery voltage, 1 mV/bit, 16-bit little-endian. r=+0.996 vs
+            BMS:2101:AUX_BATTERY_VOLTAGE (n=10542, slope 0.998). The e-Niro sheet puts the same
+            field at the same offset. The e-Niro continues with 12 V battery current and SOC; the
+            Ioniq response ends at B27.
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "16"
         VCU_COOLANT_TEMP:
           expression: B18-100
           source: RE 2026-08-05 cross-ECU offset-mirror + within-PID state-divergence disambiguation
@@ -376,6 +390,18 @@ VCU:
           notes: >-
             1 while the HV contactors are closed, 0 when open: went 1 to 0 as LDC_HV_INPUT fell 206
             to 6.7 V, and read 0 in ACC2 with the bus at 6.3 V. Agrees with BMS_MAIN_RELAY.
+        VCU_DCLINK_VOLTAGE:
+          expression: ((B25<<8)|B23)/100
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "450"
+          source: canair decode/align 2026-10-21
+          verified: false
+          notes: >-
+            HV DC-link voltage, 0.01 V/bit, 16-bit little-endian split across the PCI byte B24. B25
+            alone is VCU_DCLINK_VOLTAGE_COARSE (r=1.000). Read within 0.1-0.6 V of
+            BMS:2101:BATTERY_VOLTAGE while driving on 2026-08-08.
     21F2:
       response_frames: 13
       parameters:
@@ -632,6 +658,9 @@ VCU:
       vehicle_states: [ACC2]
       created: "2026-08-02"
       updated: "2026-08-02"
+      result: >-
+        2026-10-21: the fine 12 V readings are 16-bit LE mV words: [B19:B20]
+        (VCU_LDC_OUTPUT_VOLTAGE) and [B26:B27] (VCU_AUX_BATTERY_VOLTAGE_FINE).
       notes: VCU_AUX_BATTERY_VOLTAGE (B18/10) disproven live 2026-08-02 (read 14.70V in ACC2 vs 12.2V 3-ECU consensus; B18 inversely tracks the bus). Find VCU's real 12V byte. Hunt was inconclusive here - 12V is bimodal (14.5 charge / 12.2 ACC2) so every charge-vs-ACC2 byte correlates ~1.0 (two-cluster trap). Needs keep-all data with continuous 12V variation (e.g. a drive, or READY idle as 12V floats), or accept VCU may not cleanly broadcast it.
     - type: decode
       target: "2102"
@@ -740,6 +769,13 @@ VCU:
       vehicle_states: [READY]
       created: "2026-10-21"
       updated: "2026-10-21"
+      result: >-
+        2026-10-21: voltage found, SOC/SOH/current not. VCU 2102 [B26:B27] LE /1000 = 12 V battery
+        voltage (VCU_AUX_BATTERY_VOLTAGE_FINE), the same offset as the e-Niro sheet's 'Aux Battery
+        Voltage'. The e-Niro 2102 continues with battery current and SOC; the Ioniq 2102 is 23 data
+        bytes and ends at B27, and the VCU answers only 21 01/02/F2. No byte in any PID polled
+        during the 2026-08-05 12:31-15:31 charge rose monotonically apart from the BMS accumulators.
+        Still open: other ECUs (BCM, IGPM) or a broadcast-only signal.
       notes: The Ioniq P-CAN carries the 12V battery sensor frame 0x549 (opendbc BAT11, sender EMS). On the uhi22 Ioniq 28 logs it decodes as BAT_SNSR_V 14.78-14.82 V, BAT_SOC 65-68 %, BAT_SOH 89 %, BAT_SNSR_Temp 2 C, BAT_SNSR_I 1-5 A. The profile has no 12V state-of-charge or state-of-health signal. The VCU is the most likely diagnostic owner because it takes the EMS role on this EV; unconfirmed. Broadcast scalings (SOC and SOH 1 %/bit, voltage 0.001 V/bit + 6 V, temp 0.5 C/bit - 40 C, current 0.01 A/bit - 327 A) may not carry over to a DID.
       sources:
         - opendbc hyundai_2015_ccan.dbc (commaai, MIT), cross-checked against uhi22 Ioniq28Investigations P-CAN logs (scripts/fetch_can_corpus.py)

@@ -115,6 +115,52 @@ ESC:
             Big-endian offset binary, zero at 0x8000, 0.1 ° per LSB. r=+1.000 vs EPS_STEERING_ANGLE
             over a ±90 ° sweep (2026-07-30). Holds its value while stationary. Rare frames read
             about 3276 ° (raw near 0xFFFF) and are invalid.
+        YAW_RATE_RAW:
+          expression: ((B39<<8)|B41)-2048
+          min: "-2048"
+          max: "2047"
+          source: canair align --csv + kinematic fit, 2026-10-21 (DRIVING captures)
+          verified: false
+          notes: >-
+            Yaw rate, 12-bit offset-binary centred 2048, split across the PCI byte B40. r=+0.992 vs
+            speed x STEERING_ANGLE (n=1544 moving samples), the kinematic yaw-rate reference; same
+            sign as STEERING_ANGLE. Reads -5 at rest. One ACC2 capture read 0xFFFF (not ready).
+            Scale not proven: two full-lock samples with a 5.0-5.3 m turning radius give about 0.06
+            deg/s per count (1/16 would be 0.0625).
+        LAT_ACCEL_RAW:
+          expression: "[B37:B38]-2048"
+          min: "-2048"
+          max: "2047"
+          source: canair align --csv + kinematic fit, 2026-10-21 (DRIVING captures)
+          verified: false
+          notes: >-
+            Lateral acceleration, 12-bit offset-binary centred 2048. r=+0.930 vs speed x
+            YAW_RATE_RAW and +0.910 vs speed^2 x STEERING_ANGLE (n=1544), but only +0.049 vs speed
+            and +0.07 vs LONG_ACCEL_RAW. Reads about +8 counts at rest. Scale not proven: with yaw
+            at 1/16 deg/s per count the fit gives about 0.017 m/s2 per count.
+        ESC_SUPPLY_VOLTAGE:
+          expression: B15/16
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "16"
+          source: canair investigate/hunt 2026-10-21
+          verified: false
+          notes: >-
+            12 V supply voltage at the ESC, 0.0625 V/bit. r=+0.997 vs OBC:2101:LDC_OUTPUT_V (n=1194)
+            and +0.995 vs BMS:2101:AUX_BATTERY_VOLTAGE (n=1608); read 13.81 V against
+            VCU_AUX_BATTERY_VOLTAGE_FINE 13.79 V on 2026-08-08.
+        BRAKE_PRESSURE_2:
+          expression: B45
+          min: "0"
+          max: "255"
+          source: canair decode --corr 2026-10-21
+          verified: false
+          notes: >-
+            Second brake-pressure reading. r=+1.000 vs BRAKE_PRESSURE (B44) over 1693 DRIVING
+            captures, 0-59, differing by one count at times, so likely a second sensor. Disabled as
+            a near-duplicate.
+          enabled: false
     22C102:
       status: draft
       period: 2500
@@ -128,6 +174,9 @@ ESC:
       status: captured
       priority: P2
       vehicle_states: [ACC]
+      result: >-
+        2026-10-21: B37:B38 and (B39<<8)|B41 are lateral accel and yaw rate (LAT_ACCEL_RAW,
+        YAW_RATE_RAW); see the ESP12 lead entry.
       notes: >
         REAL_SPEED_KMH (B12) and 4 wheel speeds (B18-B21, FL/FR/RL/RR interleaved,
         1 km/h/bit) decoded + verified from the 2026-07-22 drive (r=+1.000).
@@ -179,11 +228,17 @@ ESC:
         - "OBDb Ioniq 5"
     - type: decode
       target: 22C101 lateral accel + yaw rate (ESP12 lead)
-      status: pending
+      status: captured
       priority: P2
       vehicle_states: [DRIVING]
       created: "2026-10-21"
       updated: "2026-10-21"
+      result: >-
+        2026-10-21: both located. YAW_RATE_RAW = (B39<<8)|B41 - 2048, r=+0.992 vs speed x steering
+        angle; LAT_ACCEL_RAW = [B37:B38] - 2048, r=+0.930 vs speed x yaw. Scales unproven (~0.06
+        deg/s and ~0.017 m/s2 per count from turning-radius geometry). Also found ESC_SUPPLY_VOLTAGE
+        = B15/16 and BRAKE_PRESSURE_2 = B45. LONG_ACCEL_RAW (B23) only reaches r=+0.43 vs
+        d(speed)/dt at 1 km/h speed resolution, so still unproven.
       notes: "opendbc ESP12 (0x220, sender ESC) carries LAT_ACCEL, LONG_ACCEL, YAW_RATE and CYL_PRES (brake pressure) in one frame. It decodes plausibly on the uhi22 Ioniq 28 logs: longitudinal accel -1.8..+1.8 m/s2, brake pressure 0-65 bar, small yaw and lateral values. 22C101 already has LONG_ACCEL_RAW (B23) and BRAKE_PRESSURE (B44), so the ESC probably exposes lateral accel and yaw rate in this DID too. First candidates: the undecoded B37:B38 and (B39<<8)|B41 words, both ~2048 at rest (see the 22C101 decode entry). Broadcast scalings: accel 11-bit, 0.01 m/s2/bit, offset -10.23; yaw 13-bit, 0.01/bit, offset -40.95 (unit not given). The DID encoding may differ."
       sources:
         - opendbc hyundai_2015_ccan.dbc (commaai, MIT), cross-checked against uhi22 Ioniq28Investigations P-CAN logs (scripts/fetch_can_corpus.py)
