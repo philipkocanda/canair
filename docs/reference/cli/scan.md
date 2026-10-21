@@ -149,7 +149,7 @@ usage: canair scan iocontrol [-h] [--did-range START-END]
                              [--force]
                              ECU [ECU ...]
 
-Probe returnControlToECU across an id range on one or more ECUs. The service is auto-selected per ECU from its id_protocol: UDS ECUs use InputOutputControlByIdentifier (0x2F, 16-bit DID); KWP2000 ECUs (BMS, VCU, MCU, LDC, AAF) use InputOutputControlByLocalIdentifier (0x30, 8-bit LID). Only the side-effect-free sub-function is ever sent — the scanner never actuates. Hits are written to pids/<ecu>.yaml under an iocontrol_discoveries: section.
+Probe returnControlToECU across an id range on one or more ECUs. The service is auto-selected per ECU from its id_protocol: UDS ECUs use InputOutputControlByIdentifier (0x2F, 16-bit DID); KWP2000 ECUs (BMS, VCU, MCU, LDC, AAF) use InputOutputControlByLocalIdentifier (0x30, 8-bit LID). Only the side-effect-free sub-function is ever sent — the scanner never actuates. On a profile with the nissan_c0_session quirk, KWP2000 ECUs get Nissan's layout instead: 30 {LID} 01 00 (is value 00 supported?) inside the Nissan session 10 C0, because there 30 {LID} 00 begins a one-shot command. Hits are written to pids/<ecu>.yaml under an iocontrol_discoveries: section.
 
 positional arguments:
   ECU                   ECUs to scan (at least one required)
@@ -164,7 +164,9 @@ options:
   --session             Open a diagnostic session before scanning
   --wake                Wake ECU from deep sleep first
   --mode HEX            Session mode for --session (default 03 = UDS extended;
-                        81 = KWP2000 standard, e.g. BMS)
+                        81 = KWP2000 standard, e.g. BMS; a profile with the
+                        nissan_c0_session quirk always opens C0 for KWP2000
+                        ECUs)
   --wican WICAN         WiCAN address: ap or IP (default: config
                         transport.host / default_wican=ap)
   --transport {slcan-tcp,wican-ws,elm327-tcp}

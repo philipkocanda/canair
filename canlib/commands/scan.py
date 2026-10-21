@@ -170,7 +170,10 @@ def _add_iocontrol_parser(kinds) -> argparse.ArgumentParser:
         "InputOutputControlByIdentifier (0x2F, 16-bit DID); KWP2000 ECUs (BMS, VCU, "
         "MCU, LDC, AAF) use InputOutputControlByLocalIdentifier (0x30, 8-bit LID). "
         "Only the side-effect-free sub-function is ever sent — the scanner never "
-        "actuates. Hits are written to pids/<ecu>.yaml under an iocontrol_discoveries: "
+        "actuates. On a profile with the nissan_c0_session quirk, KWP2000 ECUs get "
+        "Nissan's layout instead: 30 {LID} 01 00 (is value 00 supported?) inside the "
+        "Nissan session 10 C0, because there 30 {LID} 00 begins a one-shot command. "
+        "Hits are written to pids/<ecu>.yaml under an iocontrol_discoveries: "
         "section.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="examples:\n"
@@ -199,8 +202,10 @@ def _add_iocontrol_parser(kinds) -> argparse.ArgumentParser:
         "--mode",
         dest="session_mode",
         metavar="HEX",
-        default="03",
-        help="Session mode for --session (default 03 = UDS extended; 81 = KWP2000 standard, e.g. BMS)",
+        default=None,
+        help="Session mode for --session (default 03 = UDS extended; 81 = KWP2000 standard, "
+        "e.g. BMS; a profile with the nissan_c0_session quirk always opens C0 for KWP2000 "
+        "ECUs)",
     )
     add_connection_args(parser)
     finalize_live_parser(parser)

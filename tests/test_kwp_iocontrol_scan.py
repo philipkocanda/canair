@@ -11,12 +11,15 @@ from canlib.modes.kwp_iocontrol_scan import (
     IOCP_RETURN_CONTROL,
     IOCP_SHORT_TERM_ADJ,
     KWP_IOCONTROL_PROBE,
+    NISSAN_IOCONTROL_PROBE,
     KwpIOControlHit,
     classify,
+    mode_kwp_iocontrol_scan,
     probe_kwp_iocontrol,
+    probe_nissan_iocontrol,
 )
 from canlib.pids_edit import append_iocontrol_discoveries_block
-from tests._fakes import FakeTerminal
+from tests._fakes import FakeTerminal, nrc
 from tests._fakes import ok as _ok
 
 # ── safety guard ─────────────────────────────────────────────────────────────
@@ -116,3 +119,74 @@ def test_writeback_two_digit_lid_keys(tmp_path):
     assert set(disc.keys()) == {"80", "0A"}
     assert disc["80"]["response"] == "708000"
     assert disc["0A"]["nrc"] == 0x22
+
+
+# ── Nissan: function 01 probe inside 10 C0 ───────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_nissan_probe_asks_whether_value_00_is_supported():
+    term = FakeTerminal({"30690100": _ok("70690100")})
+    resp = await probe_nissan_iocontrol(term, lid=0x69)
+    # Never 30 69 00 (the start of a one-shot command on a Nissan BCM).
+    assert term.sent == ["30690100"]
+    assert term.uds_kwargs[0]["expected_sid"] == 0x30
+    assert resp["ok"] is True
+
+
+def test_nissan_probe_config():
+    assert NISSAN_IOCONTROL_PROBE.service == 0x30
+    assert NISSAN_IOCONTROL_PROBE.request_display(0x07) == "30 07 01 00"
+
+
+def test_classify_kwp_wrong_session_is_not_a_hit():
+    # Nissan answers 0x80 outside 10 C0; as "exists" every LID would be a hit.
+    assert classify({"ok": False, "nrc": 0x80}) == ("wrong-session", 0x80)
+
+
+def _pids(quirks=None):
+    data = {"ecus": {"BCM": {"tx_id": 0x745}}}
+    if quirks:
+        data["quirks"] = quirks
+    return data
+
+
+@pytest.mark.asyncio
+async def test_nissan_profile_scans_with_the_nissan_probe_inside_c0():
+    term = FakeTerminal(default=nrc(0x31))
+    await mode_kwp_iocontrol_scan(
+        term,
+        _pids(["nissan_c0_session"]),
+        ["BCM"],
+        lid_range=(0x07, 0x08),
+        throttle_ms=0,
+        write_yaml=False,
+    )
+    assert term.sessions == [(False, "C0")]
+    assert term.sent == ["30070100", "30080100"]
+
+
+@pytest.mark.asyncio
+async def test_an_explicit_session_mode_still_wins_on_nissan():
+    term = FakeTerminal(default=nrc(0x31))
+    await mode_kwp_iocontrol_scan(
+        term,
+        _pids(["nissan_c0_session"]),
+        ["BCM"],
+        lid_range=(0x07, 0x07),
+        throttle_ms=0,
+        write_yaml=False,
+        session_mode="81",
+    )
+    assert term.sessions == [(False, "81")]
+    assert term.sent == ["30070100"]
+
+
+@pytest.mark.asyncio
+async def test_other_profiles_keep_the_iso_probe_and_lazy_session():
+    term = FakeTerminal(default=nrc(0x31))
+    await mode_kwp_iocontrol_scan(
+        term, _pids(), ["BCM"], lid_range=(0x07, 0x07), throttle_ms=0, write_yaml=False
+    )
+    assert term.sessions == []
+    assert term.sent == ["300700"]

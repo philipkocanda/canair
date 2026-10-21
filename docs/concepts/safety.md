@@ -42,7 +42,10 @@ Note the difference between *discovering* a capability and *using* it:
 
 - `canair scan iocontrol` / `scan routines` are **safe probes** — they ask
   *whether* an actuator or routine exists (using the read-only variants), they
-  don't trigger anything.
+  don't trigger anything. Which variant is safe depends on the make: on Nissan
+  ECUs the usual KWP2000 IOControl probe would begin a one-shot command, so a
+  profile with the `nissan_c0_session` quirk sends Nissan's "is this value
+  supported?" query instead.
 - Actually actuating (`canair io`) or starting a routine is a separate,
   confirm-first action.
 

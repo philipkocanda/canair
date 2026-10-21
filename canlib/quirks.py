@@ -22,7 +22,10 @@ Today there are three quirks:
 - :data:`NISSAN_C0_SESSION` — Nissan ECUs gate their KWP2000 actuator tests
   (``0x30``) and many ``0x21`` reads behind the OEM diagnostic session ``10 C0``.
   The KWP2000 ``0x80``-``0xFF`` session band is OEM-defined, so the command
-  blocklist refuses ``10 C0`` on every other make; this quirk permits it.
+  blocklist refuses ``10 C0`` on every other make; this quirk permits it. It also
+  switches the KWP2000 IOControl scan to Nissan's ``0x30`` layout
+  (:mod:`canlib.modes.kwp_iocontrol_scan`), where the ISO probe would begin a
+  one-shot command.
 
 See ``plans/2026-07-28-multi-vehicle-support.md`` (Phase 4, gap F).
 """

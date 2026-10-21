@@ -631,7 +631,8 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   - **`quirks:`** — make-specific behaviour the profile opts into. Known: `hk_f1xx_minus_one` (the
     Hyundai/Kia identity-DID `-1` offset, `22F188`→`62F187`), `skm_wakeup` (enables the Ioniq SKM
     relay-wake) and `nissan_c0_session` (permits the Nissan OEM session `10 C0`, which the
-    `canlib/safety.py` blocklist otherwise refuses). Resolver `canlib/quirks.py`; a quirk may only
+    `canlib/safety.py` blocklist otherwise refuses, and switches the KWP2000 IOControl scan to
+    Nissan's `30 {LID} 01 00` probe). Resolver `canlib/quirks.py`; a quirk may only
     *widen* the OEM session band (`allowed_session_modes`, set on each terminal as
     `allowed_sessions` at construction), never reach a programming session.
   - **`physical_bands:`** / **`unit_guess_candidates:`** — vehicle-axis overrides for

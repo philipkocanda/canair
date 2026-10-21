@@ -121,7 +121,8 @@ async def handle_iocontrol_scan(
 
     _session = getattr(args, "session", False)
     _wake = getattr(args, "wake", False)
-    _mode = getattr(args, "session_mode", "03")
+    # None = not given: the KWP2000 scanner then picks the profile's session.
+    _mode = getattr(args, "session_mode", None)
 
     if uds_ecus:
         await mode_iocontrol_scan(
@@ -134,7 +135,7 @@ async def handle_iocontrol_scan(
             write_yaml=True,
             session=_session,
             wake=_wake,
-            session_mode=_mode,
+            session_mode=_mode or "03",
         )
     if kwp_ecus:
         await mode_kwp_iocontrol_scan(
