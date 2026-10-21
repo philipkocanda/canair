@@ -25,9 +25,11 @@ Pick a target (default: all):
   all       everything above
 
 `validate captures` also emits soft warnings for out-of-vocabulary vehicle
-states, SID/PID/DID echo mismatches (misfiled frames), non-hex payloads
-(e.g. a stored 'NO DATA'), and untimed payload captures. Pass --strict to
-promote the untimed-payload warning to an error — the CI / new-data gate.
+states, SID/PID/DID echo mismatches (misfiled frames), replies that look
+like another ECU's answer to the same PID (by length or identical bytes),
+non-hex payloads (e.g. a stored 'NO DATA'), and untimed payload captures.
+Pass --strict to promote the untimed-payload warning to an error — the CI /
+new-data gate.
 
 `validate states` resolves every `when:` predicate's ECU.PARAM references
 against the ecus/ registry: a predicate naming a signal that does not exist

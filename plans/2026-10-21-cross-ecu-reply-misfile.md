@@ -1,6 +1,7 @@
 # Cross-ECU reply misfile: one ECU's answer saved under another ECU
 
-Status: **OPEN** (reported 2026-10-21). Not reproduced; the root cause is a hypothesis.
+Status: **OPEN** (reported 2026-10-21). Detection after the fact is implemented (fix 3); the
+transport fix is not. Not reproduced; the root cause is a hypothesis.
 
 A `monitor --save` session stored the VCU's `21F2` reply as an MCU `21F2` capture. The echo check
 cannot catch this, because both ECUs answer the same request with the same `61 F2` header. Any
@@ -47,9 +48,13 @@ echo or SID mismatch), which this reply never produced.
    parser.
 2. **Drain the pipe when switching to a different ECU** after a timed-out or dropped read. This
    is cheaper but only narrows the window; it cannot prove where a reply came from.
-3. **Catch it after the fact.** `validate captures` could flag a payload whose length departs
-   from the PID's usual length, or which matches another ECU's same-PID capture byte for byte.
-   That would find existing misfiles but not prevent new ones.
+3. **Catch it after the fact — IMPLEMENTED 2026-10-21.** `validate captures` warns when a
+   payload breaks its own ECU's established length for the PID but matches another ECU's, or is
+   byte-identical to another ECU's reply to the same PID that has it at least as often. Detection
+   is `canlib/misfiled.py`, the cross-file pass `canlib/commands/validate/misfiled.py`, tests
+   `tests/test_misfiled.py`. A length is "established" only at 5+ samples with a 90 % share,
+   identical replies must be 8+ bytes with 4+ distinct values, and negative responses are left
+   out. It finds misfiles but does not prevent them.
 
 The raw `slcan-tcp` path filters by arbitration id in software, so it should not be affected.
 
@@ -57,5 +62,6 @@ The raw `slcan-tcp` path filters by arbitration id in software, so it should not
 
 - An offline replay test: a queued complete `61 F2` reply from `0x7EA` is delivered to a request
   addressed to `0x7E3`. It must be rejected, not returned as the MCU's answer.
-- A sweep of existing captures for the same pattern: a PID polled on several ECUs whose payload
-  matches another ECU's capture of that PID.
+- ~~A sweep of existing captures for the same pattern.~~ Done 2026-10-21 by the new check: it
+  flags the deleted capture when run on the pre-deletion file, and nothing in any bundled or
+  fixture profile today.
