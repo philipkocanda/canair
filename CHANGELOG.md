@@ -15,6 +15,33 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [1.27.0](https://github.com/philipkocanda/canair/compare/v1.26.0...v1.27.0) (2026-10-21)
+
+
+### Added
+
+* **io:** let each IOControl actuator declare the session it needs ([013b325](https://github.com/philipkocanda/canair/commit/013b325366e1db46aa63fb50649b2eadff2e38d2))
+* **nissan-leaf-ze1:** mark the LBC, VCM and HVAC as KWP2000 ([d2de028](https://github.com/philipkocanda/canair/commit/d2de0289725474921bd362c5f4f4a9db88167298))
+* **nissan-leaf-ze1:** sync with upstream WiCAN's leaf-ze1-2018- profile ([bad66bb](https://github.com/philipkocanda/canair/commit/bad66bb9192f494ebf3f641d83a680818c866767))
+* **pids:** add set-iocontrol to edit curated actuator entries ([89039f1](https://github.com/philipkocanda/canair/commit/89039f1cd76bbde8dd15f7cc98f6d6935761b392))
+* **safety:** let a profile quirk permit its make's OEM diagnostic session ([c16553c](https://github.com/philipkocanda/canair/commit/c16553ce4b085fe939d250a5e76595a0094e53a2))
+* **scan:** warn that a Nissan routine scan is not proven side-effect-free ([5bb8ad7](https://github.com/philipkocanda/canair/commit/5bb8ad7ba7f7cf22ec291238ad5258b6a22cc732))
+* **signals:** support signed broadcast signals ([4bf3457](https://github.com/philipkocanda/canair/commit/4bf3457808a3f4ed341eafe4ae60f8a98eaba836))
+
+
+### Fixed
+
+* **io:** list actuators and routines with --json without a device ([6e5d888](https://github.com/philipkocanda/canair/commit/6e5d88858551b4aebba54b7bc37ecc7be77d58f4))
+* **io:** say why a KWP2000 discovery cannot be promoted ([b268d8a](https://github.com/philipkocanda/canair/commit/b268d8ae6c668232f947ef678cb04f0e36e4c6c2))
+* **nissan-leaf-ze1:** correct the BCM actuators' session, layout and hold ([709c279](https://github.com/philipkocanda/canair/commit/709c2792c31f00e314f486a94f76362cb1e042e8))
+* **scan:** never begin an actuation when scanning a Nissan ECU for IOControl ([0da7ba4](https://github.com/philipkocanda/canair/commit/0da7ba4ac041b19eeea19a1f31906b2a2de00684))
+* **signals:** keep DBC message lengths and 29-bit IDs through export dbc ([0cb727e](https://github.com/philipkocanda/canair/commit/0cb727ea8dee76563712e4ee14b1b73099724d9b))
+
+
+### Documentation
+
+* **nissan-leaf-ze1:** regenerate the bundled-profiles index for LBC_12V ([745e6ba](https://github.com/philipkocanda/canair/commit/745e6ba4d784a898d1c3a7e3dcdc26da6efd3cb1))
+
 ## [1.26.0](https://github.com/philipkocanda/canair/compare/v1.25.0...v1.26.0) (2026-10-20)
 
 
