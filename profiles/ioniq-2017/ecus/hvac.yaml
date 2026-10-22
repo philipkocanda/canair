@@ -30,6 +30,7 @@ HVAC:
   # unless a hit is listed. Powertrain 22-DID probes are logged in each ECU's research:.
   pids:
     220100:
+      response_frames: 6
       status: active
       period: 5000
       vehicle_states: [ACC, ACC2, READY]
@@ -150,6 +151,7 @@ HVAC:
           notes: Range 70-255 across 1766 captures, noisy. r=-0.80 vs blower fan feedback.
           enabled: true
     220102:
+      response_frames: 3
       status: active
       period: 5000
       vehicle_states: []
@@ -220,6 +222,7 @@ HVAC:
           min: "0"
           max: "1"
     2201A0:
+      response_frames: 9
       status: active
       period: 5000
       vehicle_states: [ACC, ACC2, READY]
@@ -391,6 +394,7 @@ HVAC:
             111: Fan 7
             121: Fan 8 (MAX)
     2201A1:
+      response_frames: 9
       status: draft
       vehicle_states: [ACC, ACC2, READY]
       notes: >-
@@ -400,6 +404,7 @@ HVAC:
       parameters: {}
 
     2201A2:
+      response_frames: 8
       status: draft
       notes: >-
         55 bytes of 16-bit big-endian words. B20 follows 2201A0 B07 (r=0.978). B18:B19 as a
@@ -447,6 +452,7 @@ HVAC:
             27-34 during A/C cooling, 0-47 during heating. r=-0.87 vs HVAC_HEAT_PUMP_TEMP. Which
             sensor, and the unit, are unconfirmed.
     2201A3:
+      response_frames: 8
       status: draft
       vehicle_states: [ACC, ACC2, READY]
       notes: >-
