@@ -103,12 +103,12 @@ def require_ws_reachable(host: str, *, port: int = 80, timeout: float = 4.0) -> 
     A closed HTTP port also hides the firmware generation, so the hints cover
     both 4.x and v6 (which has no ``/ws`` terminal at all).
     """
-    if _tcp_open(host, port, timeout):
+    err = _tcp_probe(host, port, timeout)
+    if err is None:
         return
     from .transport.errors import connect_error_detail
 
-    err = _tcp_probe(host, port, timeout)
-    detail = connect_error_detail(err) if err is not None else f"no response within {timeout:.0f}s"
+    detail = connect_error_detail(err)
     raise ModeError(
         f"can't reach the WiCAN's ELM327 WebSocket terminal at ws://{host}/ws — {detail}.\n"
         f"The 'wican-ws' transport needs the device's HTTP/WebSocket server. "
@@ -125,7 +125,12 @@ def require_ws_reachable(host: str, *, port: int = 80, timeout: float = 4.0) -> 
 
 
 def require_slcan_reachable(
-    host: str, port: int, *, timeout: float = 5.0, firmware: FirmwareInfo | None = None
+    host: str,
+    port: int,
+    *,
+    timeout: float = 5.0,
+    firmware: FirmwareInfo | None = None,
+    http_ok: bool | None = None,
 ) -> None:
     """Raise :class:`ModeError` if the WiCAN's SLCAN data port doesn't respond.
 
@@ -145,16 +150,18 @@ def require_slcan_reachable(
     "unreachable", which would suggest a wrong host / VPN / power problem.
     ``firmware`` (when the caller probed it) swaps the 4.x mode hints for v6's
     settings, since v6 has neither a protocol mode nor a ``/ws`` terminal.
+    ``http_ok`` passes on an HTTP-port check the caller already made.
     """
-    if _tcp_open(host, port, timeout):
+    err = _tcp_probe(host, port, timeout)
+    if err is None:
         return
     from .transport.errors import connect_error_detail
 
     v6 = firmware is not None and firmware.generation == "v6"
-    err = _tcp_probe(host, port, timeout)
-    detail = connect_error_detail(err) if err is not None else f"no response within {timeout:.0f}s"
+    detail = connect_error_detail(err)
     # Is the device otherwise reachable? A quick TCP check of its HTTP config port.
-    http_ok = _tcp_open(host, 80, timeout=2.0)
+    if http_ok is None:
+        http_ok = _tcp_open(host, 80, timeout=2.0)
     lines = [f"can't reach the WiCAN's SLCAN data port at {host}:{port} — {detail}."]
     if http_ok and v6:
         lines += [
@@ -198,12 +205,12 @@ def require_elm327_tcp_reachable(host: str, port: int, *, timeout: float = 5.0) 
     ``asyncio.open_connection`` hang out its connect timeout before failing with
     no guidance. A no-op when the port answers.
     """
-    if _tcp_open(host, port, timeout):
+    err = _tcp_probe(host, port, timeout)
+    if err is None:
         return
     from .transport.errors import connect_error_detail
 
-    err = _tcp_probe(host, port, timeout)
-    detail = connect_error_detail(err) if err is not None else f"no response within {timeout:.0f}s"
+    detail = connect_error_detail(err)
     raise ModeError(
         f"can't reach the ELM327 adapter at {host}:{port} — {detail}.\n"
         f"The 'elm327-tcp' transport talks to a direct ELM327 adapter over a plain "

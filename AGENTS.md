@@ -698,10 +698,15 @@ WebSocket terminal: `ws://<ip>/ws` (send `{"ws_mode": "terminal", "terminal_type
 
 **Firmware generation** — everything above is WiCAN firmware **4.x**; the v6 rewrite drops `/ws`,
 the protocol mode and the legacy HTTP routes (plan `plans/2026-10-20-wican-fw-v6-compatibility.md`).
-`canlib/wican_firmware.py` probes the generation (GET-only, memoised per host, honours
-`transport.firmware_check`) and owns the one policy table, `compatibility(info, surface)`, used by
-live connect, `sniff`, `wican mode`/`autopid`, `--reboot` and `canair status`. Gate any new 4.x-only
-call through it, never an ad-hoc version check; the suite stubs its `_fetch` (`tests/conftest.py`).
+`canlib/wican_firmware.py` probes the generation (GET-only — `/api/info`, then `/check_status`
+unless that was v6 — memoised per host) and owns the one policy table, `compatibility(info,
+surface)`, used by live connect, `sniff`, `wican mode`/`autopid`, `--reboot`, the monitor's
+reconnect and `canair status`. Whether a surface is probed is `probes(surface)` over
+`transport.firmware_check` (`false` off, default the WiCAN transports, `always` adds `elm327-tcp`);
+`status` always probes a WiCAN transport, being the diagnostic. Live paths run their cheap TCP
+reachability check *before* the probe. Gate any new 4.x-only call through it, never an ad-hoc
+version check; the suite stubs its `_fetch`, and `tests/conftest.py` fails any test that connects a
+socket off the loopback.
 
 **Auto-fallback** — when the selected device is unreachable at connect time, canair tries the other
 configured devices (`transport.fallback`, default true; `--no-fallback` per command).

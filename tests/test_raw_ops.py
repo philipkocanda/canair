@@ -10,14 +10,16 @@ from canlib.modes import raw_monitor, raw_ops
 from canlib.wican_mode import ModeError
 
 
-class T:
-    def __init__(self, host="1.2.3.4", port=35000, bitrate=500000):
-        self.host = host
-        self.port = port
-        self.bitrate = bitrate
+def T(host="1.2.3.4", port=35000, bitrate=500000):
+    from canlib.transport.config import TransportConfig
 
-    def resolve_device_defaults(self, profile_bitrate=None):
-        return self.port or 3333, self.bitrate or profile_bitrate or 500000
+    return TransportConfig(type="slcan-tcp", host=host, port=port, bitrate=bitrate)
+
+
+@pytest.fixture(autouse=True)
+def _http_port_open(monkeypatch):
+    """The pre-flight's HTTP-port check answers, so the 4.x mode check runs."""
+    monkeypatch.setattr(wican_mode, "_tcp_open", lambda host, port, timeout: True)
 
 
 class Args:

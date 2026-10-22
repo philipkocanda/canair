@@ -45,6 +45,7 @@ from canlib.autopid_profile import (
 from canlib.commands._group import group_help
 from canlib.response_frames import stored_count
 from canlib.transport.config import TransportType
+from canlib.wican_api import resolve_wican_url
 from canlib.wican_firmware import Surface
 
 NAME = "wican"
@@ -76,19 +77,33 @@ def _require_pro(operation: str) -> int | None:
     return 2
 
 
-def _require_v4_api(base_url: str, surface: Surface) -> int | None:
+def _require_v4_api(base_url: str, surface: Surface, *, writes: bool = False) -> int | None:
     """Return an error code if the device's firmware can't serve this command.
 
-    These commands drive WiCAN 4.x HTTP routes that firmware v6 removed (and for
-    AutoPID, a v6 write in the 4.x format would silently wipe the device's
-    table), so refuse them on v6 before any request is sent. A 4.x version
-    outside the tested range only warns.
+    These commands drive WiCAN 4.x HTTP routes that firmware v6 removed, so
+    refuse them on v6 before any request is sent. A 4.x version outside the
+    tested range only warns. A command that ``writes`` to the device also warns
+    when the generation could not be confirmed at all (the check is off, or the
+    device didn't identify itself) — a warning rather than a refusal, so an
+    unusual or offline-configured device is not locked out; v6 answers the 4.x
+    write routes with an error, so going ahead fails loudly, not silently.
     """
-    from canlib.wican_firmware import check, print_verdict
+    from canlib.wican_firmware import (
+        compatibility,
+        detect,
+        print_verdict,
+        probes,
+        unconfirmed,
+    )
 
-    verdict = check(base_url, surface)
+    firmware = detect(base_url, surface)
+    verdict = compatibility(firmware, surface)
     print_verdict(verdict)
-    return 2 if verdict.refused else None
+    if verdict.refused:
+        return 2
+    if writes and firmware.generation == "unknown":
+        print_verdict(unconfirmed(surface, "unidentified" if probes(surface) else "check-off"))
+    return None
 
 
 def _profile_out() -> Path:
@@ -112,19 +127,6 @@ def write_json(data: dict, path: Path) -> None:
         json.dump(data, f, indent=2)
         f.write("\n")
     print(f"  Written: {path} ({len(json.dumps(data))} bytes)")
-
-
-def get_wican_url(address: str) -> str:
-    """Resolve WiCAN address name to HTTP base URL."""
-    from canlib.config import default_wican, wican_addresses
-
-    if address.startswith("http"):
-        return address
-    addresses = wican_addresses()
-    addr = addresses.get(address, addresses.get(default_wican(), address))
-    if not addr.startswith("http"):
-        return f"http://{addr}"
-    return addr
 
 
 def download_profile(base_url: str) -> dict | None:
@@ -263,17 +265,10 @@ def upload_profile(base_url: str, device_payload: dict, reboot: bool = False) ->
         sys.exit(1)
 
     if reboot:
+        from canlib.wican_api import reboot_device
+
         time.sleep(0.3)
-        url = f"{base_url}/system_reboot"
-        try:
-            resp = requests.post(url, data="reboot", timeout=WICAN_TIMEOUT)
-        except requests.RequestException as e:
-            print(f"  FAILED to reboot: {e}", file=sys.stderr)
-            return
-        if resp.ok:
-            print(f"  Rebooting WiCAN... ({resp.status_code})")
-        else:
-            print(f"  FAILED to reboot: HTTP {resp.status_code} from {url}", file=sys.stderr)
+        reboot_device(base_url, timeout=WICAN_TIMEOUT)
 
 
 def print_stats(data: dict) -> None:
@@ -345,11 +340,13 @@ _MODE_TO_TRANSPORT: dict[str, TransportType] = {
 def _add_wican_arg(parser: argparse.ArgumentParser) -> None:
     from canlib.config import default_wican, wican_addresses
 
-    default = default_wican()
+    # Resolved exactly like the live commands' --wican (wican_api.resolve_wican_url):
+    # a device alias, else the value itself as the host — never another device.
     parser.add_argument(
         "--wican",
-        default=default,
-        help=f"WiCAN address: {', '.join(wican_addresses())} or URL (default: {default})",
+        default=None,
+        help=f"WiCAN address: {', '.join(wican_addresses())}, an IP/host, or a URL "
+        f"(default: config transport.host / default_wican={default_wican()})",
     )
 
 
@@ -590,8 +587,8 @@ def _cmd_autopid_upload(args) -> int:
     if guard is not None:
         return guard
 
-    base_url = get_wican_url(args.wican)
-    guard = _require_v4_api(base_url, "autopid-sync")
+    base_url = resolve_wican_url(args.wican)
+    guard = _require_v4_api(base_url, "autopid-sync", writes=True)
     if guard is not None:
         return guard
 
@@ -614,7 +611,7 @@ def _cmd_autopid_download(args) -> int:
     if guard is not None:
         return guard
 
-    base_url = get_wican_url(args.wican)
+    base_url = resolve_wican_url(args.wican)
     guard = _require_v4_api(base_url, "autopid-sync")
     if guard is not None:
         return guard
@@ -633,7 +630,7 @@ def _cmd_autopid_diff(args) -> int:
     if guard is not None:
         return guard
 
-    base_url = get_wican_url(args.wican)
+    base_url = resolve_wican_url(args.wican)
     guard = _require_v4_api(base_url, "autopid-sync")
     if guard is not None:
         return guard
@@ -654,7 +651,7 @@ def _cmd_autopid_stats(args) -> int:
 def _cmd_mode_show(args) -> int:
     from canlib.wican_mode import current_protocol
 
-    base_url = get_wican_url(args.wican)
+    base_url = resolve_wican_url(args.wican)
     guard = _require_v4_api(base_url, "wican-mode")
     if guard is not None:
         return guard
@@ -706,7 +703,7 @@ def _cmd_mode_set(args) -> int:
     if guard is not None:
         return guard
 
-    base_url = get_wican_url(args.wican)
+    base_url = resolve_wican_url(args.wican)
     guard = _require_v4_api(base_url, "wican-mode")
     if guard is not None:
         return guard

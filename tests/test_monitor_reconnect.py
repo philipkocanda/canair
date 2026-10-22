@@ -204,6 +204,39 @@ class TestMonitorReconnector:
         assert ok is False
         assert ctl.rebound == []
 
+    def test_skips_a_candidate_whose_firmware_refuses_the_transport(self, monkeypatch):
+        """A v6 wican-ws candidate used to be re-homed onto, then loop on WebSocket 404s."""
+        import canlib.wican_firmware as wf
+
+        monkeypatch.setattr("canlib.wican_mode._tcp_open", lambda *a: True)
+        firmware = {"v6dev": wf.FirmwareInfo("v6", version="6.0.0"), "v4dev": wf.UNKNOWN}
+        monkeypatch.setattr(wf, "detect", lambda host, surface, **k: firmware[host])
+        tried: list[str] = []
+
+        async def connect(cand):
+            tried.append(cand.host)
+            return f"client@{cand.host}"
+
+        notes: list[str] = []
+        ctl = FakeController()
+        r = _reconnector([_ws("v6dev"), _ws("v4dev")], connect)
+        assert asyncio.run(r(ctl, None, notice=notes.append)) is True
+        assert tried == ["v4dev"]
+        assert ctl.rebound == ["client@v4dev"]
+        assert any("not reconnecting to wican-ws (v6dev)" in n and "/ws" in n for n in notes)
+
+    def test_gives_up_when_every_candidate_is_refused(self, monkeypatch):
+        import canlib.wican_firmware as wf
+
+        monkeypatch.setattr("canlib.wican_mode._tcp_open", lambda *a: True)
+        monkeypatch.setattr(wf, "detect", lambda *a, **k: wf.FirmwareInfo("v6"))
+
+        async def connect(cand):
+            raise AssertionError("must not connect to a refused candidate")
+
+        r = _reconnector([_ws("a")], connect, forever=True)
+        assert _run_bounded(r, FakeController(), None) is False
+
     def test_no_candidates_gives_up(self):
         async def connect(cand):
             raise AssertionError

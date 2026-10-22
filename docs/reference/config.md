@@ -237,8 +237,9 @@ overrides `transport.type` for that device. See
 
 The **`elm327-tcp`** transport talks to a generic ELM327 adapter (WiFi clones, or
 the [ELM327-Emulator](../development/offline-testing.md)) over a plain TCP
-socket — no WiCAN, so its HTTP-only affordances (device mode/firmware, `wican`
-subcommands) don't apply; reachability is a direct probe of the ELM socket port.
+socket — no WiCAN, so its HTTP-only affordances (device mode, `wican`
+subcommands, `--reboot`) don't apply; reachability is a direct probe of the ELM
+socket port, and the firmware check is opt-in (`firmware_check: always`).
 
 `canair wican mode set MODE` keeps `transport.type` in step with the device's
 mode: switching to `slcan` sets `slcan-tcp`, switching to `elm327` sets
@@ -248,15 +249,27 @@ Pass `--no-transport` to switch the device mode without touching the config.
 ### Firmware generation check
 
 Before a live command uses a WiCAN interface that only firmware 4.x has, canair
-sends the device one short, side-effect-free `GET` to learn its firmware
-generation, and refuses or warns on firmware v6 (see
+asks the device which firmware generation it runs, and refuses or warns on
+firmware v6 (see
 [Firmware compatibility](../getting-started/connect-device.md#firmware-compatibility)).
-Turn the probe off if you know what you're running:
+The probe is side-effect-free: `GET /api/info`, then `GET /check_status` unless
+the first answer was v6, each bounded by `transport.connect_timeout`. It runs
+once per device per command, after the fast reachability check, so an offline
+device fails without waiting on it.
 
 ```yaml
 transport:
-  firmware_check: true   # default true; false skips the probe
+  firmware_check: true   # default; false skips the probe, always adds elm327-tcp
 ```
+
+| Value | Probed |
+|---|---|
+| `true` (default) | the WiCAN transports (`slcan-tcp`, `wican-ws`) and the `canair wican` device commands |
+| `always` | those, plus `elm327-tcp` hosts (usually clones with no HTTP server, so off by default) |
+| `false` | nothing; live commands neither refuse nor warn |
+
+`canair status` is the diagnostic, so it reports a WiCAN transport's firmware
+whatever this is set to, and notes when live commands would skip the check.
 
 ## Example
 

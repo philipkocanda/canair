@@ -18,7 +18,6 @@ from canlib import (
     init_logging,
     load_pids,
     log_command,
-    reboot_wican,
 )
 from canlib.keepmode import wants_save
 from canlib.lock import WiCANLock
@@ -26,6 +25,7 @@ from canlib.lock_watchdog import LockWatchdog
 from canlib.modes.dispatch import run_session_guarded
 from canlib.stop_signals import graceful_stop
 from canlib.transport.protocol import Terminal
+from canlib.wican_api import reboot_after_session
 
 from .connect import _print_sleep_banner, build_elm_reconnector, connect_elm_terminal
 
@@ -145,20 +145,12 @@ async def async_main(args):
     # instead of hanging out a connect timeout deep in the stack. For a WiCAN the
     # ELM327 WebSocket lives on the HTTP port (require_ws_reachable); a direct
     # ELM327 adapter (elm327-tcp) has no HTTP API, so we probe its data port.
+    # This cheap TCP check runs before the firmware probe, so an offline host
+    # fails after one connect timeout rather than after the probe's too.
     from canlib.wican_mode import ModeError, require_elm327_tcp_reachable, require_ws_reachable
 
     is_elm_tcp = transport.type == "elm327-tcp"
     transport_label = "ELM327/TCP" if is_elm_tcp else "WebSocket"
-
-    # Firmware v6 has no /ws terminal: refuse wican-ws with the working
-    # alternative rather than letting the upgrade fail with a bare 404. On
-    # elm327-tcp the probe is best-effort and only ever adds a note.
-    from canlib.wican_firmware import check, print_verdict
-
-    verdict = check(host, transport.type)
-    print_verdict(verdict)
-    if verdict.refused:
-        return 2
 
     try:
         if is_elm_tcp:
@@ -170,6 +162,17 @@ async def async_main(args):
     except ModeError as e:
         print(f"error: {e}", file=sys.stderr)
         sys.exit(1)
+
+    # Firmware v6 has no /ws terminal: refuse wican-ws with the working
+    # alternative rather than letting the upgrade fail with a bare 404. An
+    # elm327-tcp host is probed only with `firmware_check: always` (it is
+    # usually a clone with no HTTP server), and then only ever adds a note.
+    from canlib.wican_firmware import check, print_verdict
+
+    verdict = check(host, transport.type)
+    print_verdict(verdict)
+    if verdict.refused:
+        return 2
 
     from canlib.transport.errors import describe_transport_error, transport_error_types
 
@@ -208,9 +211,8 @@ async def async_main(args):
         if terminal is not None:
             await terminal.close()
         log_command("--- SESSION END ---")
-
-        if args.reboot and transport.is_wican_http:
-            reboot_wican(host)
+        if args.reboot:
+            reboot_after_session(transport)
     return rc
 
 

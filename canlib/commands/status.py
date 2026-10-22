@@ -165,23 +165,31 @@ def _gather(args) -> dict:
         info["exit"] = _MISCONFIGURED
         return info
 
-    # Firmware generation. A WiCAN transport is always probed here (status is the
-    # diagnostic); elm327-tcp only when the check is on, since it is usually a
-    # clone with no HTTP server. The verdict is enforced only when the check is
-    # on, matching what a live command would do.
-    from ..config import firmware_check
-    from ..wican_firmware import OK, UNKNOWN, compatibility, probe
+    # Firmware generation. Status is the diagnostic, so a WiCAN transport is
+    # probed here even with transport.firmware_check off, and the verdict is what
+    # that firmware really allows: a v6 device has no /ws however the check is
+    # set. elm327-tcp is probed under the same rule as a live connect (only with
+    # `firmware_check: always`), since it is usually a clone with no HTTP server.
+    from ..config import firmware_check_mode
+    from ..wican_firmware import UNKNOWN, compatibility, probe, probes
 
-    check_on = firmware_check()
-    fw = probe(host, timeout=probe_timeout) if t.is_wican_http or check_on else UNKNOWN
-    verdict = compatibility(fw, t.type) if check_on else OK
+    check_mode = firmware_check_mode()
+    probed = t.is_wican_http or (t.type == "elm327-tcp" and probes("elm327-tcp"))
+    fw = probe(host, timeout=probe_timeout) if probed else UNKNOWN
+    verdict = compatibility(fw, t.type)
     info["firmware"] = {
         **fw.as_dict(),
         "label": fw.label(),
         "verdict": verdict.level,
         "message": verdict.message or None,
-        "checked": check_on,
+        "checked": check_mode != "off",
+        "check": check_mode,
     }
+    if check_mode == "off" and verdict.level != "ok":
+        notes.append(
+            "transport.firmware_check is off, so live commands skip this check and "
+            "neither refuse nor warn"
+        )
     v6 = fw.generation == "v6"
 
     # WiCAN 4.x HTTP config API — queryable only for WiCAN-backed transports
@@ -228,7 +236,16 @@ def _gather(args) -> dict:
     elif t.is_wican_http and t.is_elm:
         # The /ws ELM327 terminal lives on the HTTP port and works in any mode.
         if cfg is None:
-            info["errors"].append(f"WiCAN HTTP not reachable at {host} (is it online / on VPN?)")
+            if fw.generation == "unknown":
+                info["errors"].append(
+                    f"WiCAN HTTP not reachable at {host} (is it online / on VPN?)"
+                )
+            else:
+                # The probe got an answer, so the device is online: only its config
+                # route failed.
+                info["errors"].append(
+                    f"WiCAN at {host} answered the firmware probe but not /load_config"
+                )
             info["exit"] = _UNREACHABLE
         info["transport"]["usable"] = cfg is not None
     elif t.is_elm:

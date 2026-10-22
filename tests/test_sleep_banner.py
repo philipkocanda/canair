@@ -62,3 +62,23 @@ class TestSleepBannerRegression:
         out = capsys.readouterr().out
         assert "12.6V" in out
         assert "hunter2" not in out
+
+    @pytest.mark.parametrize(
+        "bodies",
+        [
+            {"/check_status": ["not", "an", "object"], "/load_config": {"sleep_status": "x"}},
+            {"/check_status": {"batt_voltage": "12.6V"}, "/load_config": "enable"},
+        ],
+        ids=["status-list", "config-string"],
+    )
+    def test_non_object_json_skips_the_banner(self, monkeypatch, capsys, bodies):
+        """A JSON reply that isn't an object (some other HTTP server) must not crash `.get`."""
+        from canlib import wican_api
+        from canlib.commands._live.connect import _print_sleep_banner
+
+        def get(url, timeout):
+            return FakeResponse(200, next(b for p, b in bodies.items() if url.endswith(p)))
+
+        monkeypatch.setattr(wican_api.requests, "get", get)
+        _print_sleep_banner("192.0.2.1")
+        assert capsys.readouterr().out == ""

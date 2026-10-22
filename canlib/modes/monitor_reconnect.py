@@ -30,6 +30,8 @@ if TYPE_CHECKING:
 
 # A transport-specific "connect to this candidate, return the ready client".
 ConnectFn = Callable[["TransportConfig"], Awaitable[Any]]
+# Why a candidate must not be re-homed onto, or None to admit it. Blocking.
+AdmitFn = Callable[["TransportConfig"], "str | None"]
 NoticeFn = Callable[[str], None]
 StopFn = Callable[[], bool]
 
@@ -79,6 +81,21 @@ def reconnect_policy(args) -> ReconnectPolicy:
     )
 
 
+def firmware_admission(cand: TransportConfig) -> str | None:
+    """Refuse a candidate whose firmware cannot serve its transport (or None).
+
+    The same gate the initial connect applies (:mod:`canlib.wican_firmware`),
+    so a re-home never lands on, say, a v6 WiCAN configured for ``wican-ws`` —
+    which would otherwise loop on WebSocket 404s with no explanation.
+    """
+    from ..wican_firmware import check
+
+    if not cand.host:
+        return None
+    verdict = check(cand.host, cand.type)
+    return verdict.message if verdict.refused else None
+
+
 class MonitorReconnector:
     """Re-home a dropped monitor session to a reachable same-transport device.
 
@@ -86,6 +103,9 @@ class MonitorReconnector:
     answers, rebuilds the client via ``connect``, and rebinds it onto the
     controller, re-running session setup. The controller — its journal, history,
     and counters — is preserved, so a ``--save`` session continues seamlessly.
+    A reachable candidate is first put to ``admit`` (by default the firmware
+    gate, :func:`firmware_admission`); one it refuses is dropped for the rest of
+    the session with the reason reported.
     """
 
     def __init__(
@@ -93,10 +113,12 @@ class MonitorReconnector:
         candidates: list[TransportConfig],
         connect: ConnectFn,
         policy: ReconnectPolicy,
+        admit: AdmitFn = firmware_admission,
     ) -> None:
-        self._candidates = candidates
+        self._candidates = list(candidates)
         self._connect = connect
         self._policy = policy
+        self._admit = admit
 
     async def __call__(
         self,
@@ -133,6 +155,13 @@ class MonitorReconnector:
             )
             if cand is None:
                 return False  # deadline passed or user stopped
+            refusal = await asyncio.to_thread(self._admit, cand)
+            if refusal is not None:
+                say(f"not reconnecting to {cand.describe()}: {refusal.splitlines()[0]}")
+                self._candidates.remove(cand)
+                if not self._candidates:
+                    return False
+                continue
             try:
                 client = await self._connect(cand)
             except transport_error_types() as exc:

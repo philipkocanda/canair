@@ -122,6 +122,87 @@ def _no_real_http(monkeypatch):
     monkeypatch.setattr(requests.Session, "request", _blocked)
 
 
+class NetworkBlocked(ConnectionRefusedError):
+    """A test tried to open a connection to a non-loopback address."""
+
+
+def _is_local(host) -> bool:
+    import ipaddress
+
+    if not isinstance(host, str) or host in ("", "localhost"):
+        return True
+    try:
+        ip = ipaddress.ip_address(host.split("%", 1)[0])
+    except ValueError:
+        return False
+    return ip.is_loopback or ip.is_unspecified
+
+
+@pytest.fixture(autouse=True)
+def _no_real_sockets(monkeypatch):
+    """Fail any test that connects a socket (or resolves a name) off the loopback.
+
+    The ``requests`` guard above cannot see raw sockets: the liveness probes, the
+    SLCAN and ELM327 sockets, and the WebSocket all connect directly. Every one of
+    them ends in ``socket.socket.connect``/``connect_ex`` (``create_connection``
+    and asyncio's ``sock_connect`` included) after a ``getaddrinfo``, so guarding
+    those three seams covers the sync, asyncio and ``websockets`` paths alike.
+
+    The blocked call raises :class:`NetworkBlocked` (a ``ConnectionRefusedError``)
+    so it fails fast instead of waiting out a timeout, *and* the attempt is
+    recorded: most of these call sites swallow ``OSError`` as "unreachable", so
+    the test is failed at teardown rather than trusting the exception to surface.
+    Loopback stays open for the local test servers (the ELM327 emulator).
+    """
+    import socket
+
+    attempts: list[str] = []
+
+    def _check(address) -> None:
+        host = address[0] if isinstance(address, tuple) and address else None
+        if not _is_local(host):
+            attempts.append(repr(address))
+            raise NetworkBlocked(f"network disabled in tests: connect to {address!r}")
+
+    real_connect = socket.socket.connect
+    real_connect_ex = socket.socket.connect_ex
+    real_getaddrinfo = socket.getaddrinfo
+
+    def connect(self, address):
+        _check(address)
+        return real_connect(self, address)
+
+    def connect_ex(self, address):
+        _check(address)
+        return real_connect_ex(self, address)
+
+    def getaddrinfo(host, *args, **kwargs):
+        if isinstance(host, bytes):
+            host = host.decode()
+        if host is not None and not _is_local(host):
+            try:
+                import ipaddress
+
+                ipaddress.ip_address(host.split("%", 1)[0])
+            except ValueError:
+                # A name, not an address literal: resolving it is a DNS query.
+                attempts.append(f"getaddrinfo({host!r})")
+                raise socket.gaierror(
+                    socket.EAI_NONAME, f"network disabled in tests: {host}"
+                ) from None
+        return real_getaddrinfo(host, *args, **kwargs)
+
+    monkeypatch.setattr(socket.socket, "connect", connect)
+    monkeypatch.setattr(socket.socket, "connect_ex", connect_ex)
+    monkeypatch.setattr(socket, "getaddrinfo", getaddrinfo)
+    yield attempts
+    if attempts:
+        pytest.fail(
+            "test tried to reach the network (stub the probe instead): " + ", ".join(attempts),
+            pytrace=False,
+        )
+
+
 @pytest.fixture(scope="session", autouse=True)
 def _isolate_event_log(tmp_path_factory):
     """Redirect the central diagnostics event log to a temp file for the suite.

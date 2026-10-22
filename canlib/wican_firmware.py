@@ -8,10 +8,12 @@ generation it runs (:func:`probe`) and looks the answer up in one policy table
 (:func:`compatibility`). Audit and rationale:
 ``plans/2026-10-20-wican-fw-v6-compatibility.md``.
 
-The probe sends only ``GET`` requests, so it has no side effect on either
+The probe sends only ``GET`` requests (``/api/info``, then ``/check_status``
+unless the first answer was positively v6), so it has no side effect on either
 generation, and is memoised per host for the life of the process. A device that
 is neither generation (any other SLCAN gateway or ELM327 clone) is ``unknown``,
-which is never an error.
+which is never an error. Whether a surface is probed at all is
+:func:`probes` (``transport.firmware_check``).
 
 **Never key an ELM327 chip capability on this.** The ESP32 reflashes its OBD
 co-processor on its own schedule, so a chip feature must be gated on a chip probe.
@@ -43,8 +45,10 @@ Surface = Literal[
     "reboot",  # `--reboot` after a session
 ]
 
-# v4 reports "%ld.%02ld" of its tag (v4.52p -> "4.52", unparseable -> "0.00").
+# v4 reports "%ld.%02ld" of its tag (v4.52p -> "4.52"); a tag it cannot parse
+# reads "0.00", which names no version at all.
 _V4_VERSION = re.compile(r"^(\d+)\.(\d{2})$")
+_V4_UNPARSED = "0.00"
 _V6_UNTRUSTED = "configuration disabled on this network"
 
 
@@ -52,8 +56,10 @@ _V6_UNTRUSTED = "configuration disabled on this network"
 class FirmwareInfo:
     """What the probe learned. Holds no secrets: v4's status body is discarded."""
 
+    # "v4" is the legacy HTTP API family /check_status answers for: 4.x, and the
+    # older releases that share it (reported, and warned about, by version).
     generation: Generation
-    version: str | None = None  # "4.52" / "6.0.0-beta.1"
+    version: str | None = None  # "4.52" / "6.0.0-beta.1"; None when the device didn't say
     build: str | None = None  # v4 git_version / v6 fw_build
     hw_version: str | None = None  # "WiCAN-OBD-PRO" / "WiCAN-PRO"
     api_level: int | None = None  # v6 only
@@ -175,8 +181,8 @@ def _v6_policy(info: FirmwareInfo, surface: Surface) -> Verdict:
     if surface == "autopid-sync":
         return Verdict(
             "refuse",
-            f"{name} uses a new AutoPID format and API that canair cannot sync yet. Sending "
-            "it the 4.x format would make v6 save an empty table and silently wipe its PIDs.\n"
+            f"{name} uses a new AutoPID format and API that canair cannot sync yet: the 4.x "
+            "routes canair uses are gone, so the request would only fail.\n"
             "  • `canair wican autopid write` still generates the 4.x JSON locally",
         )
     if surface == "reboot":
@@ -254,7 +260,12 @@ def _text(value) -> str | None:
 
 
 def _from_api_info(resp: requests.Response) -> FirmwareInfo | None:
-    """Classify a ``GET /api/info`` reply; None means "not v6, try the 4.x route"."""
+    """Classify a ``GET /api/info`` reply; None means "not v6, try the 4.x route".
+
+    Only a positive v6 answer stops here. Anything else — v4's 404, but also a
+    200 without an integer ``api_level``, a foreign 401/403 or a 5xx — says
+    nothing about 4.x, so the 4.x route still gets its chance.
+    """
     if resp.status_code == 200:
         body = _json(resp) or {}
         level = body.get("api_level")
@@ -266,18 +277,13 @@ def _from_api_info(resp: requests.Response) -> FirmwareInfo | None:
                 hw_version=_text(body.get("hw_version")),
                 api_level=level,
             )
-        return UNKNOWN
-    if resp.status_code == 401:
-        realm = resp.headers.get("WWW-Authenticate", "")
-        return FirmwareInfo("v6", gated="auth") if 'realm="WiCAN"' in realm else UNKNOWN
-    if resp.status_code == 403:
-        body = _json(resp) or {}
-        return (
-            FirmwareInfo("v6", gated="untrusted") if body.get("error") == _V6_UNTRUSTED else UNKNOWN
-        )
-    if resp.status_code == 404:
-        return None
-    return UNKNOWN
+    elif resp.status_code == 401:
+        if 'realm="WiCAN"' in resp.headers.get("WWW-Authenticate", ""):
+            return FirmwareInfo("v6", gated="auth")
+    elif resp.status_code == 403:
+        if (_json(resp) or {}).get("error") == _V6_UNTRUSTED:
+            return FirmwareInfo("v6", gated="untrusted")
+    return None
 
 
 def _from_check_status(resp: requests.Response) -> FirmwareInfo:
@@ -297,6 +303,10 @@ def _from_check_status(resp: requests.Response) -> FirmwareInfo:
     del body
     if version is None or not _V4_VERSION.match(version):
         return UNKNOWN
+    if version == _V4_UNPARSED:
+        # A 4.x-family device whose build tag the firmware couldn't parse: no
+        # version to range-check, so no "older than tested" warning either.
+        version = None
     return FirmwareInfo("v4", version=version, build=build, hw_version=hw_version)
 
 
@@ -304,8 +314,10 @@ def probe(host: str, *, timeout: float) -> FirmwareInfo:
     """Identify the firmware generation at ``host`` (a host, ``host:port`` or URL).
 
     ``GET /api/info`` first (v6, including its password and untrusted-network
-    gates); on a 404, ``GET /check_status`` (4.x). Any other outcome, including
-    an unreachable host, is ``unknown``. Memoised per host.
+    gates); unless that was positively v6, ``GET /check_status`` (4.x). So the
+    worst case is two requests, each bounded by ``timeout`` to connect and again
+    to read. An unreachable host stops after the first; it and any other
+    outcome are ``unknown``. Memoised per host.
     """
     base = _base_url(host)
     cached = _cache.get(base)
@@ -322,20 +334,74 @@ def probe(host: str, *, timeout: float) -> FirmwareInfo:
     return info
 
 
-def detect(host: str, *, timeout: float | None = None) -> FirmwareInfo:
-    """:func:`probe`, honouring ``transport.firmware_check`` and ``connect_timeout``."""
-    from .config import fallback_settings, firmware_check
+def probes(surface: Surface) -> bool:
+    """Whether ``transport.firmware_check`` lets canair probe for ``surface``.
 
-    if not firmware_check():
+    ``elm327-tcp`` is usually a generic clone with no HTTP server, so it is
+    probed only when the check is ``always``; every other surface reaches a
+    WiCAN's HTTP API and is probed unless the check is off.
+    """
+    from .config import firmware_check_mode
+
+    mode = firmware_check_mode()
+    if mode == "off":
+        return False
+    return mode == "always" if surface == "elm327-tcp" else True
+
+
+def detect(host: str, surface: Surface, *, timeout: float | None = None) -> FirmwareInfo:
+    """:func:`probe` when :func:`probes` allows it for ``surface``, else ``unknown``.
+
+    ``timeout`` defaults to ``transport.connect_timeout``.
+    """
+    if not probes(surface):
         return UNKNOWN
     if timeout is None:
+        from .config import fallback_settings
+
         _, timeout, _ = fallback_settings()
     return probe(host, timeout=timeout)
 
 
 def check(host: str, surface: Surface, *, timeout: float | None = None) -> Verdict:
     """:func:`detect` then :func:`compatibility` — the one-call form for callers."""
-    return compatibility(detect(host, timeout=timeout), surface)
+    return compatibility(detect(host, surface, timeout=timeout), surface)
+
+
+# Why the generation stayed unknown, for :func:`unconfirmed`.
+Unconfirmed = Literal["check-off", "unidentified"]
+
+_UNCONFIRMED_WHY: dict[Unconfirmed, str] = {
+    "check-off": "transport.firmware_check is off",
+    "unidentified": "the device did not identify itself as WiCAN 4.x or v6",
+}
+
+
+def unconfirmed(surface: Surface, why: Unconfirmed) -> Verdict:
+    """The verdict when a WiCAN's generation could not be established.
+
+    ``unknown`` is ``ok`` in :func:`compatibility`, because a non-WiCAN gateway
+    is legitimate. A caller that has reason to think it *is* talking to a WiCAN
+    asks this instead, for the surfaces whose safety only 4.x guarantees. Both
+    only warn: refusing would lock out an offline-configured or unusual device,
+    and the user can see the risk spelled out.
+    """
+    reason = _UNCONFIRMED_WHY[why]
+    if surface == "sniff-listen-only":
+        return Verdict(
+            "warn",
+            f"--listen-only cannot be guaranteed: {reason}. WiCAN firmware v6 ignores the "
+            "SLCAN listen-only command and stays an acknowledging, transmit-capable node "
+            "on the bus.\n"
+            "  • if this is a v6 WiCAN, set can_manager.silent = true on the device",
+        )
+    if surface == "autopid-sync":
+        return Verdict(
+            "warn",
+            f"could not confirm this WiCAN runs firmware 4.x ({reason}). canair's AutoPID "
+            "sync speaks only the 4.x API, so on other firmware the upload fails.",
+        )
+    return OK
 
 
 _PREFIX: dict[Level, str] = {

@@ -15,43 +15,99 @@ in ``slcan`` mode — we verify and error clearly, never switch.
 from __future__ import annotations
 
 import sys
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..transport.config import TransportConfig
+    from ..wican_firmware import FirmwareInfo
+
+
+@dataclass(frozen=True)
+class SlcanTarget:
+    """Where a raw SLCAN session connects, once :func:`slcan_preflight` cleared it."""
+
+    host: str
+    port: int
+    bitrate: int
+    firmware: FirmwareInfo
+
+
+def slcan_preflight(
+    transport: TransportConfig, profile_bitrate: int | None, *, listen_only: bool = False
+) -> SlcanTarget:
+    """Check a ``slcan-tcp`` device is usable before any session opens on it.
+
+    Shared by the raw live commands and ``canair sniff``. Raises
+    :class:`~canlib.wican_mode.ModeError` with the message to print (a refusal
+    included). One TCP check of the HTTP port runs first and gates every HTTP
+    request after it — the firmware probe, the protocol check, the device-config
+    read — so an offline device costs one connect timeout before the fail-fast
+    SLCAN message rather than one per request.
+    """
+    from ..config import fallback_settings
+    from ..wican_firmware import (
+        UNKNOWN,
+        compatibility,
+        detect,
+        print_verdict,
+        probes,
+        unconfirmed,
+    )
+    from ..wican_mode import ModeError, _tcp_open, require_protocol, require_slcan_reachable
+
+    host = transport.host
+    if not host:
+        raise ModeError("transport has no host configured.")
+
+    _, connect_timeout, _ = fallback_settings()
+    http_up = transport.is_wican_http and _tcp_open(host, 80, connect_timeout)
+    firmware = detect(host, "slcan-tcp") if http_up else UNKNOWN
+    v6 = firmware.generation == "v6"
+
+    if listen_only:
+        verdict = compatibility(firmware, "sniff-listen-only")
+        if verdict.refused:
+            raise ModeError(verdict.message)
+        # An HTTP server that didn't identify itself may still be a v6 WiCAN.
+        if http_up and firmware.generation == "unknown":
+            why = "unidentified" if probes("sniff-listen-only") else "check-off"
+            print_verdict(unconfirmed("sniff-listen-only", why))
+    print_verdict(compatibility(firmware, "slcan-tcp"))
+
+    # Explicit-mode policy: a 4.x device must already be serving SLCAN. v6 has no
+    # protocol mode (nor /load_config) to check, so it got a setup warning above.
+    if http_up and not v6:
+        require_protocol(host, "slcan", transport_name="slcan-tcp")
+    port, bitrate = transport.resolve_device_defaults(
+        profile_bitrate, query_device=http_up and not v6
+    )
+    # The SLCAN *data* port is distinct from the HTTP API: a wedged or silent
+    # socket would otherwise surface as a bare connect timeout deep in the stack.
+    require_slcan_reachable(host, port, firmware=firmware, http_ok=http_up)
+    return SlcanTarget(host, port, bitrate, firmware)
 
 
 async def run_raw(args, transport, pids_data) -> int:
     """Entry point for a live command over a raw (slcan-tcp) transport."""
-    from ..wican_mode import ModeError, require_protocol
-
-    host = transport.host
-    if not host:
-        print("error: transport has no host configured.", file=sys.stderr)
-        return 2
-
-    # Explicit-mode policy: the device must already be serving SLCAN. Firmware
-    # v6 has no protocol mode to check, so it gets a setup warning instead.
-    from ..wican_firmware import compatibility, detect, print_verdict
-
-    firmware = detect(host)
-    print_verdict(compatibility(firmware, "slcan-tcp"))
-    if firmware.generation != "v6":
-        try:
-            require_protocol(host, "slcan", transport_name="slcan-tcp")
-        except ModeError as e:
-            print(f"error: {e}", file=sys.stderr)
-            return 2
-
-    port, bitrate = transport.resolve_device_defaults(pids_data.get("can_bitrate"))
-
-    # Pre-flight reachability check for the SLCAN *data* port (distinct from the
-    # HTTP config API require_protocol just probed). A wedged/silent socket would
-    # otherwise blow out socket.create_connection's connect timeout and raise a
-    # bare TimeoutError deep in the transport stack — fail fast with guidance.
-    from ..wican_mode import require_slcan_reachable
+    from ..wican_mode import ModeError
 
     try:
-        require_slcan_reachable(host, port, firmware=firmware)
+        target = slcan_preflight(transport, pids_data.get("can_bitrate"))
     except ModeError as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
+    try:
+        return await _run_session(args, target, pids_data)
+    finally:
+        if getattr(args, "reboot", False):
+            from ..wican_api import reboot_after_session
+
+            reboot_after_session(transport)
+
+
+async def _run_session(args, target: SlcanTarget, pids_data) -> int:
+    host, port, bitrate = target.host, target.port, target.bitrate
 
     # Monitor: optimized pipelined + batched backend.
     if args.multi and args.monitor:

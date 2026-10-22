@@ -221,8 +221,12 @@ class TestStatusIntegration:
         from canlib.commands import status
 
         proc = holder()
+        # --no-fallback: otherwise the default device joins the candidate list and the
+        # fallback liveness probe opens real sockets to it.
         monkeypatch.setattr(status, "_tcp_open", lambda *a, **k: False)
-        info = status._gather(argparse.Namespace(transport=None, wican="192.0.2.1", json=True))
+        info = status._gather(
+            argparse.Namespace(transport=None, wican="192.0.2.1", json=True, no_fallback=True)
+        )
         assert info["lock"]["held"] is True
         assert info["lock"]["pid"] == proc.pid
 
@@ -236,7 +240,9 @@ class TestStatusIntegration:
         monkeypatch.setattr(lock_mod, "STEAL_FILE", steal_file)
         monkeypatch.setattr(status, "_tcp_open", lambda *a, **k: False)
 
-        status._gather(argparse.Namespace(transport=None, wican="192.0.2.1", json=True))
+        status._gather(
+            argparse.Namespace(transport=None, wican="192.0.2.1", json=True, no_fallback=True)
+        )
 
         fresh = WiCANLock(lock_file=lock_file, steal_file=steal_file)
         assert fresh.try_acquire().ok

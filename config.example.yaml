@@ -145,8 +145,10 @@ default_wican: home
 #                              # false only to rule it out while debugging.
 #
 #   # WiCAN firmware generation check. Before using a 4.x-only interface (the
-#   # /ws terminal, the SLCAN mode, AutoPID sync, reboot), live commands send the
-#   # WiCAN one short GET to learn its firmware. Firmware v6 dropped most of
+#   # /ws terminal, the SLCAN mode, AutoPID sync, reboot), live commands ask the
+#   # WiCAN which firmware it runs: GET /api/info, then GET /check_status unless
+#   # that was v6, each bounded by connect_timeout. Firmware v6 dropped most of
 #   # those interfaces, so canair then refuses or warns with the fix instead of
-#   # failing obscurely. See docs/getting-started/connect-device.md.
-#   firmware_check: true       # default true; false skips the probe entirely
+#   # failing obscurely. See docs/reference/config.md#firmware-generation-check.
+#   firmware_check: true       # default true (the WiCAN transports); "always"
+#                              # also probes elm327-tcp hosts; false skips it

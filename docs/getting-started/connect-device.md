@@ -62,18 +62,19 @@ canair is built and tested against **WiCAN firmware 4.x**, specifically
 still works, with a one-line warning.
 
 **WiCAN Pro firmware v6** (6.0.0, in beta) is a rewrite rather than an update.
-Before using a 4.x-only interface, canair sends the device one short, read-only
-`GET` to learn which generation it runs, then refuses or warns with the fix
-instead of failing obscurely:
+Before using a 4.x-only interface, canair asks the device which generation it
+runs — read-only `GET`s, `/api/info` and then (unless that was v6)
+`/check_status` — and refuses or warns with the fix instead of failing
+obscurely:
 
 | On firmware v6 | What canair does |
 |---|---|
-| `elm327-tcp` transport | **Works.** v6 serves a plain ELM327 socket on port 35000, on by default. canair prints a note: the socket is shared, and AutoPID (if enabled) takes the chip back after 10 s without a command |
+| `elm327-tcp` transport | **Works.** v6 serves a plain ELM327 socket on port 35000, on by default. The socket is shared, and AutoPID (if enabled) takes the chip back after 10 s without a command; canair says so in a note when `transport.firmware_check` is `always` (an `elm327-tcp` host isn't probed by default, since it's usually a clone) |
 | `wican-ws` transport | **Refused.** v6 has no `/ws` terminal; use `elm327-tcp` |
 | `slcan-tcp` transport (the default) | **Warns, then tries.** A stock v6 device serves no SLCAN until you enable three settings (below) |
-| `sniff --listen-only` | **Refused.** v6 ignores SLCAN's listen-only command; set `can_manager.silent` on the device instead |
+| `sniff --listen-only` | **Refused.** v6 ignores SLCAN's listen-only command; set `can_manager.silent` on the device instead. When a device answers HTTP but its generation can't be confirmed (or the check is off), canair warns that listen-only can't be guaranteed |
 | `wican mode show`/`set` | **Refused.** v6 has no protocol mode |
-| `wican autopid upload`/`download`/`diff` | **Refused.** v6 changed the AutoPID format, and sending it the 4.x one would wipe its table. `autopid write` still works |
+| `wican autopid upload`/`download`/`diff` | **Refused.** v6 changed the AutoPID format and API, and canair can't sync it yet (its 4.x routes are gone, so a request would only fail). `autopid write` still works. An upload to a device whose generation can't be confirmed goes ahead with a warning |
 | `--reboot` | **Skipped.** v6 resumes AutoPID by itself |
 
 So on v6, point canair at the ELM327 socket:
@@ -96,7 +97,10 @@ connection and then silently discards everything, so every ECU looks dead.
 
 `canair status` shows the generation, version and build it found, and exits `2`
 when the selected transport can't work on that firmware. If you know what you're
-running, `canair config set transport.firmware_check false` turns the check off.
+running, `canair config set transport.firmware_check false` turns the check off
+for live commands (`status` still reports the firmware, since it's the
+diagnostic); `always` also checks `elm327-tcp` hosts. See
+[the reference](../reference/config.md#firmware-generation-check).
 
 !!! warning "Before upgrading a WiCAN to v6"
     Upgrading from 4.x **erases the device's saved configuration**, stored files
@@ -121,8 +125,9 @@ Join the dongle's WiFi network first (many clones host their own access point).
 The ELM327 protocol engine is shared with `wican-ws`, so every canair command
 works the same — the dongle performs ISO-TP. There's no HTTP config API on a
 generic clone, so `canair status` reports transport reachability by probing the
-ELM socket directly (it shows a firmware block only for a WiCAN running
-[firmware v6](#firmware-compatibility)).
+ELM socket directly. (Pointing `elm327-tcp` at a WiCAN running
+[firmware v6](#firmware-compatibility)? Set `transport.firmware_check` to `always`
+and `status` shows its firmware too.)
 
 !!! warning "Third-party dongles are best-effort"
     The **WiCAN is the recommended and best-tested adapter** for this project.

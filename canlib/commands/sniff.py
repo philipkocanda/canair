@@ -176,14 +176,12 @@ def run(args) -> int:
 
     from canlib.lock import WiCANLock
     from canlib.lock_watchdog import LockWatchdog
+    from canlib.modes.raw_ops import slcan_preflight
     from canlib.stop_signals import graceful_stop
     from canlib.transport import resolve_transport
-    from canlib.wican_mode import ModeError, require_protocol, require_slcan_reachable
+    from canlib.wican_mode import ModeError
 
     t = resolve_transport(args)
-    host = t.host
-    # The raw SLCAN sniffer always resolves a host to connect to.
-    assert host is not None
     try:
         filters = _parse_filters(args.filter)
     except ValueError:
@@ -192,39 +190,18 @@ def run(args) -> int:
         )
         return 2
 
-    # Port/bitrate come from the config transport block, then the active
-    # profile's can_bitrate (the vehicle's bus speed), falling back to the
-    # device's live config (WiCAN only) via the transport layer.
-    port, bitrate = t.resolve_device_defaults(_profile_can_bitrate())
-    print(f"  Raw CAN via SLCAN — {host}:{port} @ {bitrate} bps")
-
-    # Firmware v6 ignores SLCAN's listen-only command, so --listen-only cannot be
-    # honoured there; and it has no protocol mode to check, only a setup warning.
-    from canlib.wican_firmware import compatibility, detect, print_verdict
-
-    firmware = detect(host)
-    if args.listen_only:
-        verdict = compatibility(firmware, "sniff-listen-only")
-        if verdict.refused:
-            print_verdict(verdict)
-            return 2
-    print_verdict(compatibility(firmware, "slcan-tcp"))
-
-    # No auto-switch: the device must already be in slcan mode.
-    if firmware.generation != "v6":
-        try:
-            require_protocol(host, "slcan", transport_name="slcan-tcp")
-        except ModeError as e:
-            print(f"error: {e}", file=sys.stderr)
-            return 2
-
-    # Same fail-fast data-port check as the other raw commands: a closed or wedged
-    # SLCAN socket otherwise surfaces as a bare connect timeout from the bus.
+    # The same pre-flight as the raw live commands: firmware (v6 cannot honour
+    # --listen-only, and has no protocol mode), the device's slcan mode — never
+    # switched — and a fail-fast check of the SLCAN data port. Port/bitrate come
+    # from the config transport block, then the active profile's can_bitrate (the
+    # vehicle's bus speed), then the device's live config (WiCAN 4.x only).
     try:
-        require_slcan_reachable(host, port, firmware=firmware)
+        target = slcan_preflight(t, _profile_can_bitrate(), listen_only=args.listen_only)
     except ModeError as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
+    host, port, bitrate = target.host, target.port, target.bitrate
+    print(f"  Raw CAN via SLCAN — {host}:{port} @ {bitrate} bps")
 
     lock = WiCANLock()
     lock.acquire(force=args.force)

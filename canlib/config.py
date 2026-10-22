@@ -30,6 +30,7 @@ import os
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from . import yaml_io
 from .constants import CONFIG_FILE
@@ -76,7 +77,8 @@ _DEFAULT_STALE_CYCLES = 3
 _DEFAULT_EXPECTED_RESPONSES = True
 # Whether live commands ask a WiCAN which firmware generation it runs before using
 # a 4.x-only interface (`transport.firmware_check`; canlib/wican_firmware.py). Off
-# skips the probe entirely, for users who know what they're running.
+# skips the probe entirely, for users who know what they're running; "always" also
+# probes elm327-tcp hosts, which are usually clones with no HTTP server.
 _DEFAULT_FIRMWARE_CHECK = True
 
 # WiCAN hardware model. AutoPID vehicle profiles and the wican-ws ELM327
@@ -513,20 +515,36 @@ def expected_responses() -> bool:
 
 
 def firmware_check() -> bool:
-    """Whether to probe a WiCAN's firmware generation before using its interfaces.
+    """Whether the firmware probe is on at all (see :func:`firmware_check_mode`)."""
+    return firmware_check_mode() != "off"
 
-    Read from ``transport.firmware_check`` (default True). The probe is a short,
-    side-effect-free ``GET`` that lets canair refuse or warn on WiCAN firmware v6,
-    which dropped most of the 4.x interfaces. Set it false to skip the probe.
+
+FirmwareCheckMode = Literal["off", "on", "always"]
+
+
+def firmware_check_mode() -> FirmwareCheckMode:
+    """How eagerly live commands probe a device's WiCAN firmware generation.
+
+    Read from ``transport.firmware_check`` (default ``true``):
+
+    * ``true`` (``on``) — probe the WiCAN transports (``slcan-tcp``, ``wican-ws``)
+      and the ``canair wican`` device commands, so canair can refuse or warn on
+      WiCAN firmware v6, which dropped most of the 4.x interfaces;
+    * ``always`` — also probe ``elm327-tcp`` hosts, which are usually generic
+      clones with no HTTP server, for the v6 shared-chip note;
+    * ``false`` (``off``) — never probe.
     """
     raw_block = load_config().get("transport")
     block = raw_block if isinstance(raw_block, dict) else {}
     value = block.get("firmware_check", _DEFAULT_FIRMWARE_CHECK)
     if value is None:
-        return _DEFAULT_FIRMWARE_CHECK
+        value = _DEFAULT_FIRMWARE_CHECK
     if isinstance(value, str):
-        return value.strip().lower() not in ("false", "no", "off", "0")
-    return bool(value)
+        text = value.strip().lower()
+        if text == "always":
+            return "always"
+        return "off" if text in ("false", "no", "off", "0") else "on"
+    return "on" if value else "off"
 
 
 def wican_model() -> str:

@@ -7,10 +7,7 @@ ELM327 protocol logic lives in the transport-agnostic engine; only the WebSocket
 channel and the HTTP :func:`reboot_wican` are WiCAN-specific here.
 """
 
-import sys
 from typing import cast
-
-import requests
 
 from .transport.channel import WebSocketChannel
 from .transport.elm327_frame_count import CountKey
@@ -60,23 +57,9 @@ def reboot_wican(host: str) -> bool:
     """Reboot a WiCAN 4.x device via HTTP POST to restore AutoPID mode.
 
     Returns True only when the device accepted the request. Skipped with a note
-    on firmware v6, which has no ``/system_reboot`` and resumes AutoPID itself.
+    on firmware v6, which has no ``/system_reboot`` and resumes AutoPID itself;
+    :func:`canlib.wican_api.reboot_device` tells skipped and failed apart.
     """
-    from .wican_firmware import check, print_verdict
+    from .wican_api import reboot_device
 
-    verdict = check(host, "reboot")
-    if verdict.level == "skip":
-        print_verdict(verdict)
-        return False
-
-    url = f"http://{host}/system_reboot"
-    try:
-        resp = requests.post(url, data="reboot", timeout=5)
-    except requests.RequestException as e:
-        print(f"  FAILED to reboot: {e}", file=sys.stderr)
-        return False
-    if not resp.ok:
-        print(f"  FAILED to reboot: HTTP {resp.status_code} from {url}", file=sys.stderr)
-        return False
-    print(f"Rebooting WiCAN... ({resp.status_code})")
-    return True
+    return reboot_device(host) == "rebooted"

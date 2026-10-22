@@ -156,7 +156,9 @@ class TransportConfig:
             loc = f"{loc}:{self.port}"
         return f"{self.type} ({loc})"
 
-    def resolve_device_defaults(self, profile_bitrate: int | None = None) -> tuple[int, int]:
+    def resolve_device_defaults(
+        self, profile_bitrate: int | None = None, *, query_device: bool = True
+    ) -> tuple[int, int]:
         """Effective ``(port, bitrate)`` for a raw-CAN connection.
 
         Bitrate precedence (highest first): the explicit config ``transport:``
@@ -167,12 +169,14 @@ class TransportConfig:
         config → device → default (3333) chain. Keeping the vehicle bus speed in
         the profile means switching profiles switches bitrate, without editing
         the global config block. A non-WiCAN SLCAN gateway (e.g. socketcan/other)
-        has no HTTP endpoint, so it skips the probe entirely.
+        has no HTTP endpoint, so it skips the probe entirely; so does a caller
+        that already knows there is no 4.x config to read (``query_device``).
         """
         port, bitrate = self.port, self.bitrate
         if bitrate is None:
             bitrate = profile_bitrate
-        if (port is None or bitrate is None) and self.is_wican_http and self.host is not None:
+        wants = port is None or bitrate is None
+        if wants and query_device and self.is_wican_http and self.host is not None:
             cfg = self._wican_device_config()
             if port is None:
                 try:
