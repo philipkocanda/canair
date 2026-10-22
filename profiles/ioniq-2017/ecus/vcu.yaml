@@ -874,9 +874,12 @@ VCU:
         charge, unplug) and one DC fast charge, reading it after each. Check the climate and charge
         schedules in the head unit first: a preconditioning schedule set on 2026-07-30 (01:00
         Sun/Tue/Wed/Thu/Sat) fits the 08-01 and 08-06/08-08 rises but not the quiet 08-02 to 08-05
-        and 08-10 to 08-15 stretches, so it may have been switched off. A 12V top-up should also
-        show in BMS 21F2 as a short cycle with a small discharge. B76 as the high byte is unproven
-        until B75 passes 255. B73:B74 next to it is a constant 91.
+        and 08-10 to 08-15 stretches, so it may have been switched off. 2026-10-19 20:39 to 10-21
+        21:03 (two days at about 8 °C, a 1.5 km drive, no charge) left it at 847, which argues
+        against counting 12V top-ups unless none ran. The next VCU 21F2 read after the 10-21 21:00
+        conditioning session will show whether that session counted. A 12V top-up should also show
+        in BMS 21F2 as a short cycle with a small discharge. B76 as the high byte is unproven until
+        B75 passes 255. B73:B74 next to it is a constant 91.
     - type: decode
       target: 12V battery sensor SOC/SOH/temp/current
       status: pending
