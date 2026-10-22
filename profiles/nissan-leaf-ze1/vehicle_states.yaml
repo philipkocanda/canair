@@ -37,17 +37,22 @@ states:
   # --- Common extra states ---------------------------------------------------
   - name: PARKED
     description: Stationary, gear in Park.
+    when: VCM.GEAR == 1
   - name: DRIVING
     description: In motion.
     implies: [READY]
+    when: VCM.VEHICLE_SPEED > 0.5
 
   # --- EV states -------------------------------------------------------------
   - name: PLUGGED
     description: Charge cable connected, not necessarily charging.
+    when: VCM.PLUG_STATE == 2
   - name: CHARGING
     description: HV battery actively charging (implies plugged).
     implies: [PLUGGED]
+    when: VCM.CHARGE_MODE > 0 or VCM.OBC_OUT_PWR > 0
   - name: READY
     description: HV active, driveable (READY lamp lit).
+    when: VCM.POWER_SWITCH == 1
   - name: ALL
     description: Applicable/readable in every vehicle state.

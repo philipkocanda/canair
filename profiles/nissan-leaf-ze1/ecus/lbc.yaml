@@ -227,6 +227,8 @@ LBC:
             within 1 °C (around 10-11 °C); signed byte (OBDb's layout is signed 8-bit), so sub-zero
             readings decode negative. The PR suggests a -10..40 °C filter for startup spikes; not
             applied, since a pack can exceed 40 °C when rapid charging.
+          min: "-40"
+          max: "90"
         HV_T_2:
           expression: S10
           unit: °C
@@ -239,6 +241,8 @@ LBC:
             within 1 °C (around 10-11 °C); signed byte (OBDb's layout is signed 8-bit), so sub-zero
             readings decode negative. The PR suggests a -10..40 °C filter for startup spikes; not
             applied, since a pack can exceed 40 °C when rapid charging.
+          min: "-40"
+          max: "90"
         HV_T_3:
           expression: S17
           unit: °C
@@ -251,6 +255,8 @@ LBC:
             S17. Matched LeafSpy Pro within 1 °C (around 10-11 °C); signed byte (OBDb's layout is
             signed 8-bit), so sub-zero readings decode negative. The PR suggests a -10..40 °C filter
             for startup spikes; not applied, since a pack can exceed 40 °C when rapid charging.
+          min: "-40"
+          max: "90"
         HV_T_4:
           expression: S18
           unit: °C
@@ -1456,11 +1462,24 @@ LBC:
         '8421' order, in the first 12 bytes), not OVMS's (one nibble per byte over 24 bytes, bits
         inverted). Flag polarity unconfirmed, so not mapped.
     2184:
-      status: draft
+      status: static
+      parameters:
+        BATTERY_SERIAL:
+          expression: "[B4:B26]"
+          type: ascii
+          source: dalathegreat
+          source_links:
+            - https://github.com/dalathegreat/leaf_can_bus_messages
+          verified: false
+          notes: >-
+            HV battery serial number, 20 bytes of space-padded ASCII at data bytes 0-19
+            (dalathegreat). Read 230UK118A9001507 in READY and while charging (2026-10-21); not yet
+            checked against LeafSpy or the pack label.
       vehicle_states: [READY, CHARGING]
       notes: >-
-        LBC data group 84 (service 0x21, 22-byte payload): HV battery serial number as 20 bytes of
-        space-padded ASCII (dalathegreat). Captured in READY and while charging on 2026-10-21.
+        LBC data group 84 (service 0x21, 22-byte payload): HV battery serial number
+        (BATTERY_SERIAL). Static, so a bare-ECU sweep skips it and it is never shipped to the
+        device; query it with LBC:2184 or --include-static.
 
   research:
     - type: decode

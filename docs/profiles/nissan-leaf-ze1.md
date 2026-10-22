@@ -45,7 +45,8 @@ canair profile use nissan-leaf-ze1
   usable capacity, pack voltage and current, insulation, GIDs, the 12 V rail, **all 96 cell-pair
   voltages** with min/max, and four pack temperatures. Verified: SOC, SOC_D, SOH, SOH_40KWH,
   HV_CAPACITY, pack voltage, the first three pack temperatures, and the cell voltages with their
-  min/max (the 96 cells sum exactly to the reported pack voltage).
+  min/max (the 96 cells sum exactly to the reported pack voltage). The battery serial number
+  (`LBC:2184`) decodes as text; it is a static PID, read only on request.
 - **Drive (VCM / INVERTER / ABS)** — gear, vehicle speed, motor RPM, torque and power, motor
   temperature, accelerator pedal and steering angle, and the Eco and e-Pedal modes.
 - **Charging (VCM / LBC)** — plug state, charge mode, on-board charger output power, and the
@@ -129,10 +130,25 @@ Most ZE1 modules answer only while the car is on, and the first captures show th
 - **Charging (car off, AC):** LBC, VCM, METER, INVERTER and BCM answered every defined read; ABS
   and HVAC stayed silent.
 
-Each PID's `vehicle_states:` lists the states it answered in.
-
 Because of that, a read of a real PID is a better liveness test than a `10 01` discovery sweep:
-with the car asleep, the KWP2000 ECUs don't answer a UDS session request.
+with the car asleep, the KWP2000 ECUs don't answer a UDS session request. Each PID's
+`vehicle_states:` lists the states it answered in.
+
+## Vehicle states
+
+A recording made without `--state` gets its states suggested from VCM signals:
+
+| State | Rule |
+|-------|------|
+| `READY` | `VCM.POWER_SWITCH == 1` |
+| `PLUGGED` | `VCM.PLUG_STATE == 2` |
+| `CHARGING` | `VCM.CHARGE_MODE > 0 or VCM.OBC_OUT_PWR > 0` |
+| `PARKED` | `VCM.GEAR == 1` |
+| `DRIVING` | `VCM.VEHICLE_SPEED > 0.5` |
+
+`DRIVING` deliberately ignores motor RPM, which reads a placeholder 16383 with the car off. The
+`READY` rule has not yet been checked against accessory (ACC) mode. List the vocabulary with
+`canair states`.
 
 ## IOControl actuators
 
