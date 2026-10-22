@@ -319,13 +319,15 @@ BMS:
           source: canair analysis 2026-08-08 long drive + DCFC (cross-ECU vs MCU 2102)
 
         ISOLATION_RESISTANCE:
-          expression: "B69*1000"
+          expression: (B69<<8)|B70
           unit: "kΩ"
           ha_class: ""
           min: "300"
           max: "1000"
           verified: true
-          notes: ""
+          notes: >-
+            Big-endian 16-bit word B69:B70. 0x03E8 (1000 kΩ) in all 10764 captures, every state.
+          source: byte word corrected from B69*1000, canair decode --dump-bytes 2026-10-22
 
         DEBUG_BMS_STATE_FLAGS:
           expression: B14

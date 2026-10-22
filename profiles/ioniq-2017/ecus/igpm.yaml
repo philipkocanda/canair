@@ -72,9 +72,9 @@ IGPM:
           verified: false
           notes: >-
             1 in ACC2 and mostly in READY, 0 in charging, plugged and key-off (2026-07-18). Also 1
-            with ACC2_IGN_ON = 0 for the whole 2026-10-21 parked 12 V conditioning run (26
-            captures); last read 1 at 21:16:47 and first read 0 at 21:17:21, when the VCU's HV relay
-            had opened (open by 21:17:08).
+            with ACC2_IGN_ON = 0 for the whole 2026-10-21 parked 12 V top-up run (26 captures); last
+            read 1 at 21:16:47 and first read 0 at 21:17:21, when the VCU's HV relay had opened
+            (open by 21:17:08).
         IGPM_BC07_B12_2:
           expression: B12:2
           source: RE 2026-08-05 event-timeline analysis; revisited 2026-08-08 session
@@ -426,6 +426,32 @@ IGPM:
       notes: >
         NRC 0x31 (requestOutOfRange) — no response, ignored for now.
       parameters: {}
+
+    22BCFD:
+      status: draft
+      vehicle_states: [READY]
+      notes: >-
+        17 data bytes (20 B reassembled), found by the 2026-10-22 service-22 BC20-BCFF read sweep;
+        no other DID in BC08-BCFE answers. Reads FFFFFFFF at B05-B07/B09, then 0C 0E 16 2B 3F 26 36
+        at B10-B15/B17 and zeros to the end. Identical in 3 reads over 5 minutes, so not a live
+        clock. Meaning unknown.
+    22BCFF:
+      parameters:
+        IGPM_BCFF_TAG:
+          expression: "[B04:B07]"
+          type: ascii
+          source: canair scan 22 BC20-BCFF 2026-10-22
+          verified: false
+          notes: >-
+            ASCII '1090' across B04-B07 in every read so far (3). Only the leading 109 matches
+            identity sw_version; the meaning of the trailing 0 is unconfirmed.
+          enabled: false
+      status: draft
+      vehicle_states: [READY]
+      notes: >-
+        4 ASCII data bytes, found by the 2026-10-22 service-22 BC20-BCFF read sweep. Reads '1090' in
+        all reads. Probably a version or config record: IGPM identity sw_version is 109. Highest
+        answering DID in the BC family.
 
   # ─── IOControl (service 2F) ──────────────────────────────────────────
   # All require extended session (10 03). Actuators release on session drop.

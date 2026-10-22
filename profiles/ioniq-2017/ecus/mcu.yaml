@@ -43,7 +43,9 @@ MCU:
       vehicle_states: [READY, CHARGING]
       notes: >-
         30 bytes; a 34-byte variant adds four trailing 00 bytes. Words are little-endian, unlike BMS
-        2101. B23 and B26 are constant 0x02 and 0x04.
+        2101. B23 and B26 are constant 0x02 and 0x04. B9/B10/B11 read 8/56/1 in 5121 of 5776
+        CHARGING captures and in all 35 TOPUP captures; in READY B11 is 0 in all 2369 captures and
+        B9 is 140 or 12.
       parameters:
         MCU_2101_B22:
           expression: B22
@@ -77,7 +79,7 @@ MCU:
           source: canair analysis 2026-08-08 long drive + DCFC
           verified: false
           notes: >-
-            Range 38-99 across 8598 captures, slow-moving. r=-0.720 vs AAF:2181:MOTOR_COOLANT_TEMP
+            Range 38-105 across 8633 captures, slow-moving. r=-0.720 vs AAF:2181:MOTOR_COOLANT_TEMP
             and HEATSINK_TEMP (n=1488). B26 is constant 0x04.
           enabled: false
           ha_class: ""
@@ -86,9 +88,12 @@ MCU:
           source: canair analysis 2026-08-08 long drive + DCFC
           verified: false
           notes: >-
-            Signed 16-bit little-endian, low byte B29, high byte B30. The three MCU_PHASE_CURRENT
-            signals sum to zero (n=5181, stdev 21.5 against a full scale of 20678). Scale unknown,
-            so raw counts.
+            Signed 16-bit little-endian, low byte B29, high byte B30. Scale unknown, so raw counts.
+            The three MCU_PHASE_CURRENT signals sum to within ±1 count in 8564 of 8629 aligned
+            captures, driving included, so one is computed from the other two rather than measured.
+            With the motor stopped the readings are multiples of about 24.4 counts, sd 58, 55 and
+            106 for _1, _2 and _3, r=0.79 between _1 and _2 (CHARGING, n=5386); READY and TOPUP
+            standstill readings match.
         MCU_PHASE_CURRENT_2:
           expression: (S33 << 8) | B31
           source: canair analysis 2026-08-08 long drive + DCFC
@@ -100,7 +105,9 @@ MCU:
           expression: (S35 << 8) | B34
           source: canair analysis 2026-08-08 long drive + DCFC
           verified: false
-          notes: Signed 16-bit little-endian, low byte B34, high byte B35. See MCU_PHASE_CURRENT_1.
+          notes: >-
+            Signed 16-bit little-endian, low byte B34, high byte B35. About twice the standstill
+            spread of _1 and _2. See MCU_PHASE_CURRENT_1.
         MCU_SUPPLY_VOLTAGE_1:
           expression: ((B15<<8)|B14)/1000
           unit: V
@@ -192,56 +199,67 @@ MCU:
           verified: false
           notes: >-
             Motor phase-current magnitude, 16-bit little-endian split across the PCI byte B16; never
-            negative. 2.7-5.4 at standstill, up to 214 while driving (if 0.1 A/bit, which is not
-            proven). Tracks |MCU_MOTOR_TORQUE| at about 1.2 counts per 0.1 Nm below 5000 RPM, rising
-            to 1.6 above 6500 RPM, as field weakening would.
-        MCU_2102_B20:
-          expression: B20
-          unit: ""
-          ha_class: ""
-          min: "0"
-          max: "255"
-          source: RE 2026-07-23; DEMOTED 2026-08-05 (implausible vs 2101 B22 + all-state band)
+            negative. With the motor stopped (RPM and torque 0) it reads 2.7-6.0, median 3.0, in
+            CHARGING (n=5386), READY (n=636) and TOPUP (n=35) alike, so about 3.0 is its zero. Up to
+            214 while driving (if 0.1 A/bit, which is not proven). Tracks |MCU_MOTOR_TORQUE| at
+            about 1.2 counts per 0.1 Nm below 5000 RPM, rising to 1.6 above 6500 RPM, as field
+            weakening would.
+        MCU_COOLANT_TEMP:
+          expression: B20*2
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "150"
+          source: canair align/hunt vs AAF 2181 and VCU 2102 temperatures 2026-10-22
           verified: false
           notes: >-
-            Range 6-25 across 8231 captures, slow-moving and unrelated to torque. Reads 13-16 while
-            driving, so it is not a motor or inverter temperature at 1 °C per LSB.
-          enabled: false
+            Powertrain coolant temperature, 2 °C per count. Mirrors VCU:2102:VCU_COOLANT_TEMP:
+            r=+0.991 over 8332 rows, 1 °C below it (median). Slow: 36 to 42 °C over the 2026-08-08
+            15:33-16:31 drive.
+          enabled: true
 
-        MCU_2102_B19:
-          expression: B19
-          unit: ""
-          min: "0"
-          max: "255"
-          enabled: false
-          source: RE 2026-07-22 MT->KW drive analysis; revised 2026-07-23 (full driving corpus)
+        MCU_HEATSINK_TEMP:
+          expression: B19*2
+          unit: °C
+          min: "-40"
+          max: "150"
+          enabled: true
+          source: canair align/hunt vs AAF 2181 and VCU 2102 temperatures 2026-10-22
           verified: false
           notes: >-
-            Range 4-36 across 8231 captures. Moves with load: r=+0.456 vs |MCU_MOTOR_TORQUE|, and
-            its changes r=+0.79 vs torque changes over 477 driving captures.
-          ha_class: ""
-        MCU_2102_B18:
-          expression: B18
-          unit: ""
-          min: "0"
-          max: "255"
-          source: RE 2026-07-23; DEMOTED 2026-08-05 (sub-ambient, implausible vs 2101 B22)
+            Inverter heatsink temperature, 2 °C per count. Mirrors AAF:2181:HEATSINK_TEMP: r=+0.990
+            over 1973 co-polled rows, reading 1 °C below it (median; 10th-90th percentile 0 to 1
+            °C). The earlier 1 °C/count reading is what made it look implausible.
+          ha_class: temperature
+        MCU_TEMP_B18:
+          expression: B18*2
+          unit: °C
+          min: "-40"
+          max: "150"
+          source: canair align/hunt vs AAF 2181 and VCU 2102 temperatures 2026-10-22
           verified: false
           notes: >-
-            Range 5-33 across 8231 captures, slow-moving and unrelated to torque. Often below
-            ambient, so it is not a component temperature at 1 °C per LSB.
-          enabled: false
-          ha_class: ""
-        MCU_CURRENT_RELATED:
-          expression: B21
-          unit: ""
-          min: "0"
-          max: "255"
-          source: canair hunt vs MCU_PHASE_CURRENT_RMS, 2026-07-22 drive
+            A fourth temperature, 2 °C per count; which component is unknown. Heats most under load:
+            16 to 54 °C over the 2026-08-08 10:02-11:41 drive (cycle mean 43 °C, against 36 °C for
+            MCU_HEATSINK_TEMP), and cools while parked or DC charging. Possibly the motor stator or
+            the MCU board (the Kia Soul VMCU sheet lists motor, MCU and heatsink temperatures). The
+            earlier 'below ambient' reading came from assuming 1 °C per count.
+          enabled: true
+          ha_class: temperature
+        MCU_MOTOR_COOLANT_TEMP:
+          expression: B21*2
+          unit: °C
+          min: "-40"
+          max: "150"
+          source: canair align/hunt vs AAF 2181 and VCU 2102 temperatures 2026-10-22
           verified: false
           notes: >-
-            Range 6-34 across 8231 captures. r=+0.875 vs |MCU_MOTOR_TORQUE| over 477 driving
-            captures, changing within one 5 s sample.
+            2 °C per count. Mirrors AAF:2181:MOTOR_COOLANT_TEMP: r=+0.991 over 1973 rows, 1 °C below
+            it (median; 10th-90th percentile 0 to 1 °C), and r=+0.960 vs MCU_COOLANT_TEMP. Rises
+            faster under load than MCU_COOLANT_TEMP (36 to 58 °C over the 2026-08-08 15:33-16:31
+            drive), which is what produced the earlier torque correlation.
+          ha_class: temperature
+          enabled: true
         MCU_MOTOR_POWER:
           expression: ((S12<<8)|B11)/10*((S10<<8)|B09)*0.00010472
           unit: kW
@@ -253,13 +271,34 @@ MCU:
           notes: >-
             Mechanical shaft power, torque x 2*pi*RPM/60/1000; negative in regen. Integrated, it is
             79-90 % of the BMS pack energy over sustained 2026-08-08 driving.
+        MCU_CURRENT_SENSOR_OFFSET_1:
+          expression: (S23<<8)|B22
+          min: "-100"
+          max: "100"
+          source: canair 21F2 cross-check 2026-10-22
+          verified: false
+          notes: >-
+            Small signed word, -11 to -7. Changes only with the motor stopped (73 of 76 changes at 0
+            RPM), so probably a phase-current sensor zero offset, learned at standstill (the Kia
+            Soul VMCU sheet lists U and V phase current sensor offsets). Copied live into MCU:21F2.
+        MCU_CURRENT_SENSOR_OFFSET_2:
+          expression: (S26<<8)|B25
+          min: "-100"
+          max: "100"
+          source: canair 21F2 cross-check 2026-10-22
+          verified: false
+          notes: >-
+            Small signed word, -13 to -7; see MCU_CURRENT_SENSOR_OFFSET_1. Copied live into
+            MCU:21F2.
 
     2103:
       response_frames: 4
       status: draft
       period: 0
       vehicle_states: [CHARGING]
-      notes: 27 bytes, all zeros during AC charging (2026-04-18).
+      notes: >-
+        27 bytes, all zeros in every one of 697 captures across charging, READY, parked and driving
+        (checked 2026-10-22). Nothing to decode.
       parameters: {}
 
     21F2:
@@ -268,9 +307,12 @@ MCU:
       period: 0
       vehicle_states: [CHARGING]
       notes: >-
-        67 data bytes. The ASCII tag 'EHEL-MS2' (part of the 1A8D software ID) at B69-B77, after a
-        record whose values change between drive and charge cycles rather than live, like BMS 21F2.
-        Undecoded. A misfiled VCU 21F2 reply (2026-08-08 10:07:16) was deleted on 2026-10-21; see
+        67 data bytes. A summary of the previous drive or charge cycle, like BMS 21F2: average and
+        peak of three temperatures (heatsink, MCU_TEMP_B18, coolant) and the min, max and average 12
+        V supply, plus two unexplained words (B27:B28, B31:B33). Also carries live copies of the two
+        current-sensor offsets and of the latched MCU 2102 bytes B34-B42 (at B38-B46), and the ASCII
+        tag 'EHEL-MS2' (part of the 1A8D software ID) at B69-B77. A misfiled VCU 21F2 reply
+        (2026-08-08 10:07:16) was deleted on 2026-10-21; see
         plans/2026-10-21-cross-ecu-reply-misfile.md.
       parameters:
         MCU_21F2_TAG:
@@ -281,6 +323,158 @@ MCU:
           notes: >-
             Constant ASCII 'EHEL-MS2', the middle of the 1A8D software ID EAEEHEL-MS2-D000. The byte
             before it varies, so it is not part of the string.
+          enabled: false
+        MCU_21F2_HEATSINK_TEMP_AVG:
+          expression: B47
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "150"
+          source: canair 21F2 vs live MCU/VCU/AAF data over the five 2026-08-08 cycles, 2026-10-22
+          verified: false
+          notes: >-
+            Average inverter heatsink temperature over the previous cycle. Checked on the five fully
+            logged 2026-08-08 cycles (preconditioning, three drives, a DC charge): 19, 36, 42, 38,
+            38 against a time-weighted MCU_HEATSINK_TEMP mean of 18.4, 36.2, 41.4, 37.6, 37.4 °C.
+        MCU_21F2_HEATSINK_TEMP_MAX:
+          expression: B50
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "150"
+          source: canair 21F2 vs live MCU/VCU/AAF data over the five 2026-08-08 cycles, 2026-10-22
+          verified: false
+          notes: >-
+            Peak inverter heatsink temperature of the previous cycle. Checked on the five fully
+            logged 2026-08-08 cycles (preconditioning, three drives, a DC charge): 21, 53, 61, 40,
+            67, never below the sampled peak of AAF:2181:HEATSINK_TEMP (20, 48, 60, 40, 64), as a
+            peak the MCU sees between polls should be.
+        MCU_21F2_TEMP_B18_AVG:
+          expression: B57
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "150"
+          source: canair 21F2 vs live MCU/VCU/AAF data over the five 2026-08-08 cycles, 2026-10-22
+          verified: false
+          notes: >-
+            Average over the previous cycle of the sensor behind MCU:2102 MCU_TEMP_B18. Checked on
+            the five fully logged 2026-08-08 cycles (preconditioning, three drives, a DC charge):
+            16, 44, 51, 45, 50 against a time-weighted mean of 16.5, 43.0, 50.2, 44.4, 49.5 °C.
+        MCU_21F2_TEMP_B18_MAX:
+          expression: B59
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "150"
+          source: canair 21F2 vs live MCU/VCU/AAF data over the five 2026-08-08 cycles, 2026-10-22
+          verified: false
+          notes: >-
+            Peak over the previous cycle of the sensor behind MCU:2102 MCU_TEMP_B18. Checked on the
+            five fully logged 2026-08-08 cycles (preconditioning, three drives, a DC charge): 19,
+            54, 56, 49, 53 against a sampled peak of 18, 54, 54, 48, 52 °C.
+        MCU_21F2_COOLANT_TEMP_AVG:
+          expression: B67
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "150"
+          source: canair 21F2 vs live MCU/VCU/AAF data over the five 2026-08-08 cycles, 2026-10-22
+          verified: false
+          notes: >-
+            Average coolant temperature over the previous cycle. Checked on the five fully logged
+            2026-08-08 cycles (preconditioning, three drives, a DC charge): 22, 35, 40, 42, 37
+            against a time-weighted VCU:2102 VCU_COOLANT_TEMP mean of 22.6, 35.8, 40.2, 42.5, 37.0
+            °C.
+        MCU_21F2_COOLANT_TEMP_MAX:
+          expression: B68
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "150"
+          source: canair 21F2 vs live MCU/VCU/AAF data over the five 2026-08-08 cycles, 2026-10-22
+          verified: false
+          notes: >-
+            Peak coolant temperature of the previous cycle. Checked on the five fully logged
+            2026-08-08 cycles (preconditioning, three drives, a DC charge): 25, 41, 43, 44, 43
+            against a sampled VCU_COOLANT_TEMP peak of 25, 42, 44, 44, 44 °C.
+        MCU_21F2_SUPPLY_VOLTAGE_AVG:
+          expression: B66/10
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "16"
+          source: canair 21F2 vs live MCU/VCU/AAF data over the five 2026-08-08 cycles, 2026-10-22
+          verified: false
+          notes: >-
+            Average 12 V supply over the previous cycle, 0.1 V per count. Checked on the five fully
+            logged 2026-08-08 cycles (preconditioning, three drives, a DC charge): 14.2, 14.6, 13.7,
+            14.5, 13.7 against a MCU_SUPPLY_VOLTAGE_1 mean of 14.1, 14.7, 13.8, 14.6, 13.8 V.
+        MCU_21F2_SUPPLY_VOLTAGE_MAX:
+          expression: B63/10
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "16"
+          source: canair 21F2 vs live MCU/VCU/AAF data over the five 2026-08-08 cycles, 2026-10-22
+          verified: false
+          notes: >-
+            Peak 12 V supply of the previous cycle, 0.1 V per count. Checked on the five fully
+            logged 2026-08-08 cycles (preconditioning, three drives, a DC charge): 14.9, 14.9, 14.2,
+            15.0, 14.2 against a sampled peak of 15.0, 14.9, 13.9, 14.9, 13.8 V (the two 14.2 drives
+            ran the LDC at 13.8 V; a short higher stretch between polls is assumed). Short cycles
+            read 12.1-12.3 V with every temperature pair equal, which looks like a 12 V-only wake
+            with the LDC off.
+        MCU_21F2_SUPPLY_VOLTAGE_MIN:
+          expression: B65/10
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "16"
+          source: canair 21F2 vs live MCU/VCU/AAF data over the five 2026-08-08 cycles, 2026-10-22
+          verified: false
+          notes: >-
+            Lowest 12 V supply of the previous cycle, 0.1 V per count; 11.4-12.4 V. The DC-charge
+            cycle reads 12.3 V, the sampled minimum before the LDC started. Drive cycles read
+            11.4-11.9 V, below anything polled, so probably a dip at power-up.
+        MCU_21F2_W27:
+          expression: (B28<<8)|B27
+          min: "0"
+          max: "65535"
+          source: canair 21F2 vs live MCU/VCU/AAF data over the five 2026-08-08 cycles, 2026-10-22
+          verified: false
+          notes: >-
+            Unknown, 1275-1469. Near 1275-1325 after non-driving cycles and 1449-1469 after drives
+            (1469 twice); with MCU_21F2_W31 it looks like the peak and average of one quantity that
+            idles near 1275. No live MCU, VCU or BMS signal matches it.
+        MCU_21F2_W31:
+          expression: (B33<<8)|B31
+          min: "0"
+          max: "65535"
+          source: canair 21F2 vs live MCU/VCU/AAF data over the five 2026-08-08 cycles, 2026-10-22
+          verified: false
+          notes: >-
+            Unknown, 1258-1297: 1273-1276 after non-driving cycles and 1281-1285 after drives.
+            Possibly the average of the quantity whose peak is MCU_21F2_W27.
+        MCU_21F2_CURRENT_SENSOR_OFFSET_1:
+          expression: (S10<<8)|B9
+          min: "-100"
+          max: "100"
+          source: canair 21F2 vs live MCU/VCU/AAF data over the five 2026-08-08 cycles, 2026-10-22
+          verified: false
+          notes: >-
+            Live copy of MCU:2102 MCU_CURRENT_SENSOR_OFFSET_1: matched the latest MCU 2102 value at
+            every change checked (30-32 changes). Disabled as a duplicate.
+          enabled: false
+        MCU_21F2_CURRENT_SENSOR_OFFSET_2:
+          expression: (S12<<8)|B11
+          min: "-100"
+          max: "100"
+          source: canair 21F2 vs live MCU/VCU/AAF data over the five 2026-08-08 cycles, 2026-10-22
+          verified: false
+          notes: >-
+            Live copy of MCU:2102 MCU_CURRENT_SENSOR_OFFSET_2: matched the latest MCU 2102 value at
+            every change checked (30-32 changes). Disabled as a duplicate.
           enabled: false
   research:
     - type: decode
@@ -339,11 +533,18 @@ MCU:
       updated: "2026-08-08"
     - type: decode
       target: "2103"
-      status: captured
+      status: done
       priority: P2
       vehicle_states: [CHARGING]
       date: "2026-04-18"
-      notes: "27 bytes, all zeros during charging. May contain data while driving."
+      result: >-
+        Closed 2026-10-22: dead page. The same all-zero 27-byte payload in all 697 captures over 16
+        days, including about 470 taken in the drive sessions of 2026-07-19, 07-22 and 07-26, plus
+        READY, parked and charging.
+      notes: >-
+        27 bytes, all zeros. The 2026-04-18 charging scan suggested it might hold data while
+        driving; drive sessions show it does not.
+      updated: "2026-10-22"
     - type: decode
       target: "21F2"
       status: captured
@@ -395,11 +596,18 @@ MCU:
       notes: MCU 2102 B52/B53 tail bytes = message alive-counter / checksum, NOT a physical signal. B52 (ISO-TP 0x2E) is chaotic full-range 0-253 with ZERO correlation to RPM/torque/phase-current (r~0.01); B53 sits ~constant 0x31-0x33. Ruled out as a signal during 2026-07-22 drive analysis — do not chase. The remaining B27-B47 block is the known static calibration region (constant across the drive).
     - type: decode
       target: "2102"
-      status: captured
+      status: done
       priority: P2
       vehicle_states: [READY]
       created: "2026-07-23"
-      updated: "2026-07-23"
+      updated: "2026-10-22"
+      result: >-
+        2026-10-22: the scale was the problem. B18-B21 are temperatures at 2 °C per count: B19*2
+        mirrors AAF HEATSINK_TEMP (r=0.990), B20*2 VCU_COOLANT_TEMP (r=0.991) and B21*2 AAF
+        MOTOR_COOLANT_TEMP (r=0.991), each about 1 °C below the 1 °C reading; B18*2 is a fourth,
+        load-heated sensor (MCU_TEMP_B18). The near-ambient band and 'sub-ambient' readings were B/1
+        instead of B*2. Confirmed independently by MCU 21F2, whose cycle averages and peaks of these
+        sensors match in 1 °C.
       notes: "2026-07-23 (574 caps): B18-B21 cluster split. B20=MCU_TEMP_1, B18=MCU_TEMP_3 are slow temps (load-decoupled, autocorr>0.93); B20 hottest charging (inverter/power-stage), B18 warms with driving (motor/coolant). B21 (was MCU_TEMP_2) and B19 (was MCU_INVERTER_TEMP) are load-tracking (r(Δbyte,Δ|tq|)=0.90/0.79), not temps; both enabled:false. Open: (1) B19 junction-temp estimate vs current (needs scan-tool inverter/junction temp); (2) B21 scale + load quantity (2nd phase current / modulation depth / power); (3) verify B18/B20 vs scan-tool temps on a long warm drive; (4) B22:B23=0xF7FF/F8FF near-constant, likely status/cal. Method: sustained hard drive + hill climb to separate junction (fast) from heatsink (slow); cross-check scan tool."
     - type: verify
       target: "2102"
@@ -479,7 +687,10 @@ MCU:
       vehicle_states: [ALL]
       created: "2026-08-05"
       updated: "2026-08-05"
-      result: "MCU 2102 B18/B20/B21 are NOT the motor/inverter temperatures the old header note claimed. Across all states they sit in a compressed near-ambient band (B20 10-25, B18 5-24 C), including DRIVING (13-16 / 12-20 C) where a real propulsion-component temp reaches 40-90 C, and B18 goes sub-ambient. During the 2026-08-05 3h charge they read 11-22 C while the genuine inverter temp on 2101 B22 started at 80 C and cooled. CACHING HYPOTHESIS TESTED & DISPROVEN: MCU_MOTOR_RPM=0 (live, motor stationary — a stale drive snapshot would be nonzero) and the temp bytes vary, so the MCU serves live data during charge; the values are simply not motor/inverter temps (ambient/cold-side sensor or mis-scaled). MCU_TEMP_1 (B20) and MCU_TEMP_3 (B18) demoted enabled:false. The trustworthy MCU component temps live on 2101: MCU_INVERTER_TEMP (B22, 80->21 C charge cooldown) and MCU_TEMP_B25 (B25)."
+      result: >-
+        2026-08-05 conclusion withdrawn on 2026-10-22: B18-B21 are temperatures at 2 °C per count,
+        not 1, which removes every implausibility listed here. See MCU_HEATSINK_TEMP,
+        MCU_COOLANT_TEMP, MCU_MOTOR_COOLANT_TEMP and MCU_TEMP_B18.
       notes: Re-evaluate MCU 2102 B18/B20/B21 temp claims vs the live 2101 B22/B25 temps during the long charge; test whether low charge-time temps are cached (TPMS-style) or live.
       sources:
         - canair align/decode all-state + RPM live-check 2026-08-05
@@ -510,7 +721,14 @@ MCU:
         r=0.952, n=1553 DRIVING rows within 1.5 s). If MCU_MOTOR_CURRENT is 0.1 A/bit, the phase
         currents are about 0.020 A per count (peak 11516 raw = about 230 A). Both scales are still
         unproven.
-      notes: MCU_PHASE_CURRENT_1/2/3 are located and proven to be currents (Kirchhoff sum-to-zero mean -0.13 stdev 21.51 over n=5181; sum-of-squares 462x higher driving than at DCFC standstill; SQ vs RPM r=-0.039 rules out phase voltages; SQ ~ 1.2*torque^2 with field-weakening at high RPM). Only the SCALE is unknown, so all three ship unverified with no unit. Observed peak |I| 11516 raw; apparent standstill quantum ~24.4 raw. A 2017 Ioniq 28 kWh draws ~400 A peak phase current at full torque, which would imply roughly 0.035 A/LSB, but that is arithmetic on an assumed peak, not a measurement.
+      notes: >-
+        MCU_PHASE_CURRENT_1/2/3 are located and behave as currents: sum-of-squares 462x higher
+        driving than at DCFC standstill; SQ vs RPM r=-0.039 rules out phase voltages; SQ ~
+        1.2*torque^2 with field-weakening at high RPM. Their sum is zero by construction (one is
+        computed from the other two), so it is not evidence. Only the SCALE is unknown, so all three
+        ship unverified with no unit. Observed peak |I| 11516 raw; standstill quantum ~24.4 raw. A
+        2017 Ioniq 28 kWh draws ~400 A peak phase current at full torque, which would imply roughly
+        0.035 A/LSB, but that is arithmetic on an assumed peak, not a measurement.
       what_to_test:
         - Compare the SQ-derived peak against a scan tool reporting motor phase current during a hard launch
         - Or clamp-meter one phase lead (workshop only) at a known steady torque
@@ -547,7 +765,21 @@ MCU:
       priority: P3
       created: "2026-10-21"
       updated: "2026-10-21"
-      notes: "MCU 21F2 copies live MCU 2102 bytes: 21F2 (S10<<8)|B9 and (S12<<8)|B11 equal 2102 (S23<<8)|B22 and (S26<<8)|B25 (small signed words, -13 to -7, which change only while stopped: probably current-sensor zero offsets), and 21F2 B38-B46 equal 2102 B34-B42. Those 2102 bytes are latched, not live: they change only at power-up and again at the first motion of a drive (2026-08-08 10:13, 15:36, 17:00). The rest of 21F2 changes after a drive or charge, like BMS 21F2. B50 tracks the peak AAF HEATSINK_TEMP of the cycle (53/48, 61/60, 40/40, 67/64 on 2026-08-08) and B67/B68 the end and peak VCU_COOLANT_TEMP within 2 °C, so it is likely a thermal summary (end/peak pairs: B47/B50, B57/B59, B67/B68; B63-B66 unknown, 121-150). B27:B28 reads 1276-1311 after charges and 1383-1469 after drives."
+      result: >-
+        2026-10-22: decoded the cycle summary against the five fully logged 2026-08-08 cycles:
+        average/peak heatsink (B47/B50), MCU_TEMP_B18 (B57/B59) and coolant (B67/B68) temperatures
+        in 1 °C, and min/max/average 12 V supply in 0.1 V (B65/B63/B66), all within 1-3 of the live
+        values. That needed MCU 2102 B18-B21 read at 2 °C per count, which also turned them into
+        heatsink, coolant and motor-coolant temperatures. Open: B27:B28 and B31:B33 (peak and
+        average of something idling near 1275), the latched 2102 B34-B42 values copied to B38-B46,
+        and what MCU_TEMP_B18 measures.
+      notes: >-
+        Only cycles with nothing unlogged between the cycle and the next read can be matched:
+        2026-08-08 has five. Other records describe unlogged drives (the VCU odometer moved) or
+        short wakes (all temperature pairs equal and the 12 V peak at 12.1-12.3 V, so the LDC was
+        off). The latched MCU 2102 bytes B34-B42 (B34 67-146, signed (S37<<8)|B36 -4702 to 648, B38
+        36-51, (B42<<8)|B41 599-2779) change only at power-up and at the first motion of a drive,
+        and are copied into 21F2 B38-B46.
       sources:
         - canair 21F2 cross-check vs live data 2026-10-21
       what_to_test:

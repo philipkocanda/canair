@@ -2,6 +2,226 @@
   "sessions": [
     {
       "date": "2026-10-22",
+      "label": "BCM 22 B011-B0FF read sweep",
+      "version": "1.28.0+f949863",
+      "vehicle_states": [
+        "READY"
+      ],
+      "notes": "first service-22 read sweep above B010; IOControl map lists B019,B01A,B025,B028..B072 as existing",
+      "transport": "wican-ws",
+      "captures": [
+        {
+          "rx": "0x7A8",
+          "pid": "scan 22 B011-B0FF",
+          "scan_results": {
+            "rejected": "239 DIDs returned 239 NRC"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-10-22",
+      "label": "BCM 22 C015-C0FF read sweep",
+      "version": "1.28.0+f949863",
+      "vehicle_states": [
+        "READY"
+      ],
+      "notes": "parked READY; service-22 read sweep of previously unprobed range",
+      "transport": "wican-ws",
+      "captures": [
+        {
+          "rx": "0x7A8",
+          "pid": "scan 22 C015-C0FF",
+          "scan_results": {
+            "rejected": "235 DIDs returned 235 NRC"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-10-22",
+      "label": "HVAC 22 0103-01FF read sweep",
+      "version": "1.28.0+f949863",
+      "vehicle_states": [
+        "READY"
+      ],
+      "notes": "parked READY; service-22 read sweep of previously unprobed range",
+      "transport": "wican-ws",
+      "captures": [
+        {
+          "rx": "0x7BB",
+          "pid": "scan 22 0103-01FF",
+          "scan_results": {
+            "responding": [
+              {
+                "did": "01A0",
+                "response": "59 bytes",
+                "notes": "Raw: 6201A09E01C2AAAAAD276666676028898900000100004628152403040C00F40F000A00FFFF131300..."
+              },
+              {
+                "did": "01A1",
+                "response": "59 bytes",
+                "notes": "Raw: 6201A1000000000000010100780067002F01C2006901A1148A000000000EF402360000000000012C..."
+              },
+              {
+                "did": "01A2",
+                "response": "51 bytes",
+                "notes": "Raw: 6201A200000000000001011A24000001C200690159001400530008007300060003000A00000AFFD8..."
+              },
+              {
+                "did": "01A3",
+                "response": "53 bytes",
+                "notes": "Raw: 6201A300690069FFFFFFFF00000062006206000000000000000000EF10B7B70000BF240000000000..."
+              },
+              {
+                "did": "01A4",
+                "response": "53 bytes",
+                "notes": "Raw: 6201A400690069FFFFFFFF00000062006206000000000000000000EF10B7B70000BF240000000000..."
+              },
+              {
+                "did": "01A5",
+                "response": "53 bytes",
+                "notes": "Raw: 6201A500690069FFFFFFFF00000062006206000000000000000000EF10B7B70000BF240000000000..."
+              },
+              {
+                "did": "01A6",
+                "response": "53 bytes",
+                "notes": "Raw: 6201A600690069FFFFFFFF00000062006206000000000000000000EF10B7B70000BF240000000000..."
+              }
+            ],
+            "rejected": "246 DIDs returned 246 NRC"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-10-22",
+      "label": "HVAC 22 F000-F0FF read sweep",
+      "version": "1.28.0+f949863",
+      "vehicle_states": [
+        "READY"
+      ],
+      "notes": "parked READY; service-22 read sweep of previously unprobed range",
+      "transport": "wican-ws",
+      "captures": [
+        {
+          "rx": "0x7BB",
+          "pid": "scan 22 F000-F0FF",
+          "scan_results": {
+            "rejected": "256 DIDs returned 256 NRC"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-10-22",
+      "label": "IGPM 22 0100-01FF read sweep",
+      "version": "1.28.0+f949863",
+      "vehicle_states": [
+        "READY"
+      ],
+      "notes": "parked READY; service-22 read sweep of previously unprobed range",
+      "transport": "wican-ws",
+      "captures": [
+        {
+          "rx": "0x778",
+          "pid": "scan 22 0100-01FF",
+          "scan_results": {
+            "rejected": "256 DIDs returned 256 NRC"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-10-22",
+      "label": "IGPM 22 B000-B0FF read sweep",
+      "version": "1.28.0+f949863",
+      "vehicle_states": [
+        "READY"
+      ],
+      "notes": "parked READY; service-22 read sweep of previously unprobed range",
+      "transport": "wican-ws",
+      "captures": [
+        {
+          "rx": "0x778",
+          "pid": "scan 22 B000-B0FF",
+          "scan_results": {
+            "rejected": "256 DIDs returned 256 NRC"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-10-22",
+      "label": "IGPM 22 BC20-BCFF read sweep",
+      "version": "1.28.0+f949863",
+      "vehicle_states": [
+        "READY"
+      ],
+      "notes": "parked READY; service-22 read sweep of previously unprobed range",
+      "transport": "wican-ws",
+      "captures": [
+        {
+          "rx": "0x778",
+          "pid": "scan 22 BC20-BCFF",
+          "scan_results": {
+            "responding": [
+              {
+                "did": "BCFD",
+                "response": "20 bytes",
+                "notes": "Raw: 62BCFDFFFFFFFF0C0E162B3F2636000000000000"
+              },
+              {
+                "did": "BCFF",
+                "response": "7 bytes",
+                "notes": "Raw: 62BCFF31303930"
+              }
+            ],
+            "rejected": "222 DIDs returned 221 NRC + 1 errors"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-10-22",
+      "label": "IGPM 22 C000-C0FF read sweep",
+      "version": "1.28.0+f949863",
+      "vehicle_states": [
+        "READY"
+      ],
+      "notes": "parked READY; service-22 read sweep of previously unprobed range",
+      "transport": "wican-ws",
+      "captures": [
+        {
+          "rx": "0x778",
+          "pid": "scan 22 C000-C0FF",
+          "scan_results": {
+            "rejected": "256 DIDs returned 256 NRC"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-10-22",
+      "label": "IGPM 22 E000-E0FF read sweep",
+      "version": "1.28.0+f949863",
+      "vehicle_states": [
+        "READY"
+      ],
+      "notes": "parked READY; service-22 read sweep of previously unprobed range",
+      "transport": "wican-ws",
+      "captures": [
+        {
+          "rx": "0x778",
+          "pid": "scan 22 E000-E0FF",
+          "scan_results": {
+            "rejected": "256 DIDs returned 256 NRC"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-10-22",
       "label": "IGPM BMS:2101,2105 VCU:2101,2102 MCU EPS ESC CLU AAF:2180,2181 BCM SKM",
       "version": "1.28.0+main.a02dd84",
       "vehicle_states": [
@@ -10845,6 +11065,135 @@
           "pid": "21F2",
           "payload": "61F2FF000000083E60805B31E42501C7C6003100FCAC0900030232F363000306E318BA7FAA010000000000000000000000006400000000000000000000005B004F030000000000000000000000000000000036303030",
           "time": "10:01:25.261"
+        }
+      ]
+    },
+    {
+      "date": "2026-10-22",
+      "label": "BCM low-capture DID recheck",
+      "version": "1.28.0+f949863",
+      "vehicle_states": [
+        "READY"
+      ],
+      "notes": "parked READY; re-read of ignored BCM DIDs with <=2 prior captures",
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 10
+      },
+      "captures": [
+        {
+          "rx": "0x7A8",
+          "pid": "22C00C",
+          "payload": "62C00CFFFF030001C0F8117499434119180000000000FFFF0000000000000000FFFF000000",
+          "time": "10:38:43.794",
+          "elapsed_ms": 168
+        },
+        {
+          "rx": "0x7A8",
+          "pid": "22C00D",
+          "payload": "62C00DFFFF03000000000000FFFF0000000000000000FFFF0000000000000000FFFF000000",
+          "time": "10:38:43.976",
+          "elapsed_ms": 182
+        },
+        {
+          "rx": "0x7A8",
+          "pid": "22C00E",
+          "payload": "62C00EFFFF03000000000000FFFF0000000000000000FFFF0000000000000000FFFF000000",
+          "time": "10:38:44.116",
+          "elapsed_ms": 140
+        },
+        {
+          "rx": "0x7A8",
+          "pid": "22C00F",
+          "payload": "62C00FFFFF030001C0F8118801203B1E560000000000FFFF0000000000000000FFFF000000",
+          "time": "10:38:44.275",
+          "elapsed_ms": 159
+        },
+        {
+          "rx": "0x7A8",
+          "pid": "22C010",
+          "payload": "62C010FC00000000",
+          "time": "10:38:44.374",
+          "elapsed_ms": 99
+        },
+        {
+          "rx": "0x7A8",
+          "pid": "22C012",
+          "payload": "62C01280000000444F3031",
+          "time": "10:38:44.475",
+          "elapsed_ms": 101
+        },
+        {
+          "rx": "0x7A8",
+          "pid": "22C013",
+          "payload": "62C01380000000307830363230",
+          "time": "10:38:44.562",
+          "elapsed_ms": 87
+        },
+        {
+          "rx": "0x7A8",
+          "pid": "22C014",
+          "payload": "62C014F00000000C",
+          "time": "10:38:44.656",
+          "elapsed_ms": 94
+        }
+      ]
+    },
+    {
+      "date": "2026-10-22",
+      "label": "IGPM BCFD/BCFF first look",
+      "version": "1.28.0+f949863",
+      "vehicle_states": [
+        "READY"
+      ],
+      "notes": "new DIDs found by 22 BC20-BCFF sweep 2026-10-22",
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 2
+      },
+      "captures": [
+        {
+          "rx": "0x778",
+          "pid": "22BCFD",
+          "payload": "62BCFDFFFFFFFF0C0E162B3F2636000000000000",
+          "time": "10:42:42.874",
+          "elapsed_ms": 667
+        },
+        {
+          "rx": "0x778",
+          "pid": "22BCFF",
+          "payload": "62BCFF31303930",
+          "time": "10:42:43.529",
+          "elapsed_ms": 654
+        }
+      ]
+    },
+    {
+      "date": "2026-10-22",
+      "label": "IGPM BCFD/BCFF repeat",
+      "version": "1.28.0+81e37c7",
+      "vehicle_states": [
+        "READY"
+      ],
+      "notes": "repeat read 5 minutes after the first look; BCFD identical, so it does not track a clock",
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 2
+      },
+      "captures": [
+        {
+          "rx": "0x778",
+          "pid": "22BCFD",
+          "payload": "62BCFDFFFFFFFF0C0E162B3F2636000000000000",
+          "time": "10:47:50.816",
+          "elapsed_ms": 676
+        },
+        {
+          "rx": "0x778",
+          "pid": "22BCFF",
+          "payload": "62BCFF31303930",
+          "time": "10:47:51.477",
+          "elapsed_ms": 661
         }
       ]
     }

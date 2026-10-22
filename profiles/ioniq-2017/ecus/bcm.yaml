@@ -168,33 +168,33 @@ BCM:
       response_frames: 2
       status: draft
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
-      notes: >
-        13 bytes. B11:6 = door lock state (1=locked, 0=unlocked) — confirmed via
-        fob lock/unlock test (0x40↔0x00 transition correlates with B005/B006 changes).
-        B05=0x74, B06=0x02, B07=0x99, B09=0x0C.
+      notes: >-
+        13 bytes. B05=0x74, B06=0x02, B07=0x99, B09=0x0C. B11 bit 6 changed on fob lock and unlock
+        on 2026-04-18 but does not track the door-lock state (see BCM_B004_B11_6).
       parameters:
-        BCM_DOORS_LOCKED:
+        BCM_B004_B11_6:
           expression: "B11:6"
           unit: ""
           ha_class: ""
-          mqtt_topic: bcm_doors_locked
+          mqtt_topic: ""
           min: "0"
           max: "1"
           source: "Fob lock/unlock test 2026-04-18"
           source_links: []
           verified: false
           notes: >-
-            Bit 6 toggles 0x40 / 0x00 on fob lock and unlock, together with B005 and B006. 1 in 361
-            of 937 captures.
+            Changed on fob lock and unlock on 2026-04-18. Does not follow the IGPM door locks: reads
+            0 in 254 of 292 aligned captures where IGPM DOOR_LOCK_FL and DOOR_LOCK_FR read 1, and
+            changed 12 times between 21:03 and 21:27 on 2026-10-21 (runs of 21 s to 8 min) with all
+            doors locked throughout. 1 in 367 of 978 captures.
 
     22B005:
       response_frames: 2
       status: draft
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
-      notes: >
-        13 bytes. B10 changes A0↔AC during fob lock/unlock (bits 2,3 = 0x0C).
-        Correlated with B004 lock state and B006 indicator flash.
-        B05=0x20, B07=0x10, B12=0x08.
+      notes: >-
+        13 bytes. B10 changes A0↔AC during fob lock/unlock (bits 2,3 = 0x0C), together with B004 and
+        B006. B05=0x20, B07=0x10, B12=0x08.
       parameters:
         BCM_B005_UNLOCK_BITS:
           expression: B10
