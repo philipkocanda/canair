@@ -35,7 +35,7 @@ BCM:
     22C00B:
       response_frames: 4
       status: active
-      period: 15000
+      period: 60000
       vehicle_states: [ALL]
       parameters:
         TYRE_PRESSURE_FL:

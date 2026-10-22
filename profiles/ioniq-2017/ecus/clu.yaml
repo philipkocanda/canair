@@ -20,7 +20,7 @@ CLU:
     22B002:
       response_frames: 3
       status: active
-      period: 10000
+      period: 60000
       vehicle_states: [ACC, ACC2, READY]
       parameters:
         ODOMETER:

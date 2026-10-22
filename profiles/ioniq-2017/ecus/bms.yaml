@@ -375,7 +375,7 @@ BMS:
     2105:
       response_frames: 7
       status: active
-      period: 5000
+      period: 10000
       vehicle_states: [READY, CHARGING]
       parameters:
         AVAIL_CHARGE_POWER:
@@ -568,7 +568,7 @@ BMS:
     2102:
       response_frames: 6
       status: active
-      period: 10000
+      period: 60000
       vehicle_states: [READY, CHARGING]
       parameters:
         CELL_01_VOLTAGE:
@@ -838,7 +838,7 @@ BMS:
     2103:
       response_frames: 6
       status: active
-      period: 10000
+      period: 60000
       vehicle_states: [READY, CHARGING]
       parameters:
         CELL_33_VOLTAGE:
@@ -1103,7 +1103,7 @@ BMS:
     2104:
       response_frames: 6
       status: active
-      period: 10000
+      period: 60000
       vehicle_states: [READY, CHARGING]
       parameters:
         CELL_65_VOLTAGE:
@@ -1366,9 +1366,9 @@ BMS:
           notes: "Last cell. Total: 96 cells across PIDs 2102/2103/2104."
 
     21F2:
-      status: draft
+      status: slow
+      period: 300000
       response_frames: 18
-      period: 0
       vehicle_states: [READY]
       notes: >-
         121 data bytes, 13 distinct payloads over 29 captures. A record of the previous drive or

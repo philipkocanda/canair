@@ -33,7 +33,7 @@ sigil; it expands to its member selectors before the query is parsed, so it
 composes with other groups and with ad-hoc selectors:
 
 ```bash
-canair monitor @charging            # e.g. BMS:2101 BMS:2105 OBC VCU MCU
+canair monitor @charging            # e.g. BMS:2101 BMS:2105 OBC:2101 VCU:2101 …
 canair read @driving                # a whole group
 canair monitor @driving CLU:220B    # a group plus an extra selector
 canair monitor "@charging @powertrain"   # two groups in one step

@@ -304,7 +304,7 @@ VCU:
     2102:
       response_frames: 4
       status: active
-      period: 5000
+      period: 10000
       vehicle_states: [READY, CHARGING]
       notes: >-
         Froze after the 2026-10-21 12 V top-up run ended: five byte-identical payloads
@@ -436,6 +436,8 @@ VCU:
             alone is VCU_DCLINK_VOLTAGE_COARSE (r=1.000). Read within 0.1-0.6 V of
             BMS:2101:BATTERY_VOLTAGE while driving on 2026-08-08.
     21F2:
+      status: slow
+      period: 300000
       response_frames: 13
       parameters:
         VCU_21F2_EVENT_COUNT:
@@ -516,8 +518,6 @@ VCU:
           max: "255"
 
 
-      status: active
-      period: 0
       vehicle_states: [CHARGING, READY]
       notes: >-
         About 86 bytes. A previous-cycle record like BMS 21F2: odometer, end SOC, range at

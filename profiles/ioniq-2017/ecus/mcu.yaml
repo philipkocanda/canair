@@ -39,7 +39,7 @@ MCU:
     2101:
       status: active
       response_frames: 5
-      period: 5000
+      period: 10000
       vehicle_states: [READY, CHARGING]
       notes: >-
         30 bytes. Words are little-endian, unlike BMS 2101. B23 and B26 are constant 0x02 and 0x04.
@@ -134,7 +134,7 @@ MCU:
     2102:
       response_frames: 9
       status: active
-      period: 5000
+      period: 10000
       vehicle_states: [CHARGING]
       notes: >-
         56 bytes. B27-B33 hold constant calibration bytes that also appear in 21F2. B52 is a counter
@@ -294,7 +294,6 @@ MCU:
     2103:
       response_frames: 4
       status: draft
-      period: 0
       vehicle_states: [CHARGING]
       notes: >-
         27 bytes, all zeros in every one of 697 captures across charging, READY, parked and driving
@@ -302,9 +301,9 @@ MCU:
       parameters: {}
 
     21F2:
+      status: slow
+      period: 300000
       response_frames: 10
-      status: active
-      period: 0
       vehicle_states: [CHARGING]
       notes: >-
         67 data bytes. A summary of the previous drive or charge cycle, like BMS 21F2: average and

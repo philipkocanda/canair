@@ -79,7 +79,7 @@ HVAC:
     220100:
       response_frames: 6
       status: active
-      period: 5000
+      period: 30000
       vehicle_states: [ACC, ACC2, READY]
       notes: >-
         38-byte response (35 data bytes after the DID) of sensor and actuator status; set
@@ -203,7 +203,7 @@ HVAC:
     220102:
       response_frames: 3
       status: active
-      period: 5000
+      period: 10000
       vehicle_states: []
       notes: >-
         16-byte response (13 data bytes after the DID) of secondary temperatures and the heat-pump
@@ -276,7 +276,7 @@ HVAC:
     2201A0:
       response_frames: 9
       status: active
-      period: 5000
+      period: 10000
       vehicle_states: [ACC, ACC2, READY]
       notes: >-
         59-byte response (56 data bytes after the DID): set temperature, heating source, blower
@@ -584,7 +584,6 @@ HVAC:
       parameters: {}
     21F2:
       status: ignored
-      period: 0
       vehicle_states: [READY, CHARGING]
       notes: >-
         Answers 7F 21 11 (service not supported) at READY (2026-07-29 and 2026-10-22), as does

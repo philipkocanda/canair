@@ -46,6 +46,7 @@ IGPM:
         (requestRoutineResults). Sub-function 01 (startRoutine) untested (unsafe to scan blindly).
   pids:
     22BC07:
+      period: 5000
       status: active
       response_frames: 2
       vehicle_states: [ALL]
@@ -262,7 +263,7 @@ IGPM:
 
     22BC04:
       status: active
-      period: 2500
+      period: 5000
       vehicle_states: [ALL]
       notes: >-
         8 data bytes. B10 holds the front door locks and ignition, B13:6 UNLOCKED_OR_IGN_ON. B05-B07

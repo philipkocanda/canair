@@ -15,7 +15,7 @@ EPS:
     220101:
       response_frames: 3
       status: active
-      period: 2500
+      period: 10000
       vehicle_states: [READY]
       notes: >-
         18 bytes. Unmapped: B05, B06 (0x8A and 0x8E at rest), B07 (constant) and B11. B18:B19 is

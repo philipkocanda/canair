@@ -18,7 +18,7 @@ AAF:
     2180:
       response_frames: 4
       status: active
-      period: 10000
+      period: 60000
       vehicle_states: [READY, CHARGING]
       parameters:
         AMBIENT_TEMP:
@@ -86,7 +86,7 @@ AAF:
     2181:
       response_frames: 4
       status: draft
-      period: 0
+      period: 10000
       vehicle_states: [CHARGING]
       notes: >-
         25 bytes, same layout as 2180 with extra populated bytes (B19, B22, B23, B24); answers in

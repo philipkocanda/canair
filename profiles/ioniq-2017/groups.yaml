@@ -4,49 +4,69 @@
 # shared mini-language. Reference one on the command line with the `@` sigil, and
 # compose it with ad-hoc selectors:
 #
-#   canair monitor @charging                 # BMS:2101 BMS:2105 OBC VCU MCU
+#   canair monitor @charging                 # BMS:2101 BMS:2105 OBC:2101 VCU:2101 …
 #   canair monitor @driving HVAC:2201A0      # a group plus an extra selector
 #   canair read @powertrain --save --label "…" --state "READY, DRIVING"
 #
 # Members are plain selectors (ECU or ECU:PID) — not full mini-language steps.
+# Name PIDs explicitly: a bare ECU expands to every non-static, non-ignored PID, drafts
+# included, which lengthens the poll cycle with signals nobody has decoded. A group does
+# not carry a rate — monitor/read poll every member once per cycle — so its frame cost is
+# what sets the cycle time. The AutoPID `period` in ecus/ is a separate, device-side knob.
 # Inspect/edit with `canair groups` (never hand-edit — it re-validates on write).
 # Schema: canlib/schema/groups_schema.yaml   (canair validate groups)
 
 groups:
-  # SoC / charge power / OBC while plugged in. BMS:2101 = charge power + SOC_BMS,
-  # BMS:2105 = SOC_DISP (dash SoC); OBC/VCU/MCU round out the charge picture.
+  # SoC / charge power / OBC while plugged in, AC or DC. BMS:2101 = charge power +
+  # SOC_BMS, BMS:2105 = SOC_DISP (dash SoC); OBC:2101 is the AC side (idle on DC),
+  # AAF:2181 carries AAF_CHARGE_ACTIVE (any charge). CCM is deliberately absent: it has
+  # no PIDs yet and is expected to answer only during a DC charge, so it would cost a
+  # timeout every cycle on AC. See the charging-dc stub below.
   charging:
-    description: SoC, charge power and OBC while plugged in
-    members: [IGPM, BMS:2101, BMS:2105, OBC, VCU, MCU]
+    description: SoC, charge power, OBC and charge-state flags while plugged in (AC or DC)
+    members: [IGPM:22BC07, BMS:2101, BMS:2105, OBC:2101, VCU:2101, MCU:2101, AAF:2181]
 
-  # Powertrain + chassis while driving (odometer/distance changes on CLU).
+  # Powertrain + chassis while driving (odometer/distance changes on CLU). IGPM is limited
+  # to the ignition/lights page (22BC03) and the brake/turn-signal page (22BC06).
   driving:
     description: Powertrain + chassis while driving (odometer on CLU)
-    members: [IGPM, BMS:2101, BMS:2105, VCU:2101, VCU:2102, MCU, EPS, ESC, CLU, AAF:2180, AAF:2181]
+    members:
+      [IGPM:22BC03, IGPM:22BC06, BMS:2101, BMS:2105, VCU:2101, VCU:2102, MCU:2101, MCU:2102,
+       EPS:220101, ESC:22C101, CLU:22B002, AAF:2180, AAF:2181]
 
   # HV drive-core essentials for drive analysis (pack power, vehicle state,
   # motor torque, cooling).
   powertrain:
     description: HV drive-core essentials (pack power, vehicle state, motor torque, cooling system)
-    members: [BMS:2101, VCU:2101, MCU:2101, MCU:2102, AAF:2180, AAF:2181]
+    members: [BMS:2101, VCU:2101, VCU:2102, MCU:2101, MCU:2102, AAF:2180, AAF:2181]
 
   # Climate power / heat-pump / active air flap work.
   climate:
     description: Climate power / heat-pump / active air flap
-    members: [HVAC, VCU:2102, BMS:2101, AAF]
+    members: [HVAC:220100, HVAC:220102, HVAC:2201A0, HVAC:2201A2, VCU:2102, BMS:2101, AAF:2180, AAF:2181]
 
   # Body / gateway / smart-key comfort modules (door/lock/hood event decoding).
   body:
     description: Body / gateway / smart-key comfort modules
     members: [IGPM, BCM, SKM]
 
+  # Previous drive/charge cycle summaries. status: slow, so a bare-ECU sweep skips them and
+  # the device would poll them every 5 min; they are the heaviest reads in the profile (41
+  # frames) and change only when a cycle ends. Use as a one-shot after parking or
+  # unplugging: `canair read @last --save …`.
+  last:
+    description: Previous drive/charge cycle records (21F2); changes only when a cycle ends
+    members: [BMS:21F2, MCU:21F2, VCU:21F2]
+
+  # Cell-voltage / temperature deep-dive across every BMS page (34 frames per cycle).
+  battery:
+    description: 'All BMS pages: cell voltages, temperatures, SoC'
+    members: [BMS:2101, BMS:2102, BMS:2103, BMS:2104, BMS:2105]
+
   # --- More useful sets (uncomment to enable) --------------------------------
-  # charge-detail:              # deeper superset of `charging` incl. DC-fast-charge PLC
-  #   description: Full charge picture incl. DC fast-charge (CCM/PLC)
-  #   members: [BMS:2101, BMS:2105, OBC:2101, VCU:2102, CCM]
-  # battery:                    # cell-voltage / temperature deep-dive (all BMS pages)
-  #   description: All BMS pages — cell voltages, temperatures, SoC
-  #   members: [BMS:2101, BMS:2102, BMS:2103, BMS:2104, BMS:2105]
+  # charging-dc:                # create once CCM yields a PID (scan it during a DC charge)
+  #   description: DC fast-charge picture incl. CCM/PLC
+  #   members: [IGPM:22BC07, BMS:2101, BMS:2105, VCU:2101, MCU:2101, AAF:2181, CCM:<PID>]
   # 12v:                        # LDC / 12V-rail / aux-battery-voltage cross-refs
   #   description: LDC / 12V rail / aux-battery-voltage cross-references
   #   members: [OBC:2101, VCU:2102, AAF:2180]
