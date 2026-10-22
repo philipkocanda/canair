@@ -50,8 +50,9 @@ IGPM:
       response_frames: 2
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
       notes: >-
-        B12 values: 0x11 power off and not charging, 0x10 power off and charging, 0x18 ACC2 with the
-        charge port unlocked, 0x19 ACC2 with it locked.
+        8 data bytes. B12 values: 0x11 power off and not charging, 0x10 power off and charging, 0x18
+        ACC2 with the charge port unlocked, 0x19 ACC2 with it locked. B05-B07 and B09 (08 41 FB CC)
+        and B13 (0) are constant in all 411 captures.
       parameters:
         # TODO: All the other bytes on here!
         # Maybe window states?
@@ -263,6 +264,10 @@ IGPM:
       status: active
       period: 2500
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      notes: >-
+        8 data bytes. B10 holds the front door locks and ignition, B13:6 UNLOCKED_OR_IGN_ON. B05-B07
+        and B09 (B5 3F F4 EA), B11 (0) and B13:1 (1) are constant in all 410 captures, across every
+        power state. B12:5 set only in 8 captures (2026-07-21 READY).
       parameters:
         # TODO: All the other bytes on here
         DOOR_LOCK_FL:
@@ -282,19 +287,37 @@ IGPM:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
           notes: "1=locked, 0=unlocked. Verified 2026-04-15."
-        IGPM_BC04_B10_0:
+        ACC2_IGN_ON_BC04:
           expression: B10:0
           min: "0"
           max: "1"
-          source: RE 2026-07-23 bit analysis
+          source: RE 2026-07-23 bit analysis; ignition cross-tab 2026-10-22
           verified: false
-          notes: 1 in 58 of 327 captures. Meaning unknown.
-          enabled: true
+          notes: >-
+            Equals 22BC03 ACC2_IGN_ON in 430 of 431 aligned rows; the 1 miss is a lag (fell at
+            09:51:14 on 2026-07-30, 45 s after ACC2_IGN_ON). Disabled as a duplicate.
+          enabled: false
+        UNLOCKED_OR_IGN_ON:
+          expression: B13:6
+          min: "0"
+          max: "1"
+          source: Same-payload cross-tab + event timeline 2026-10-22
+          verified: false
+          notes: >-
+            1 = doors unlocked or ignition on. Equals (NOT DOOR_LOCK_FL) OR B10:0 in 406 of 410
+            captures. Rises with every unlock and ignition-on, falls with the lock (2026-07-30
+            12:20:48, 08-08 17:53:32, 08-15 10:06:07). The 4 exceptions all read 1 while locked: 3
+            at the last capture before a session ended right after locking, and an 18 s pulse at
+            10:11:03 on 08-15. Mirrored by BCM 22B005 B10:3 (35 of 35 rows) and VCU 2101
+            VCU_INVERTER_ARMED (kappa 0.98, n=358). Purpose (alarm, battery saver or wake) unknown.
 
     22BC06:
       status: active
       period: 2500
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      notes: >-
+        8 data bytes. B10 the brake lamps, B11 the turn signals. B05=0xB4, B06=0x80, B07, B09 and
+        B12 = 0 constant in all 587 captures.
       parameters:
         BRAKE_LIGHT:
           expression: B10
@@ -726,6 +749,10 @@ IGPM:
       vehicle_states: [READY]
       created: "2026-07-23"
       updated: "2026-07-23"
+      result: >-
+        2026-10-22: BC04 B10:0 = ignition on (ACC2_IGN_ON_BC04, disabled duplicate, 430/431). BC04
+        B13:6 = doors unlocked or ignition on (UNLOCKED_OR_IGN_ON, 406/410 same-payload). BC04 B12:5
+        still unknown: set only in 8 captures, 2026-07-21 12:51-12:53 READY with the brake held.
       notes: "Undecoded toggling bits in IGPM body DIDs (candidates registered, need physical correlation): BC04 B10:0 (distinct from door locks B10:2/3), BC04 B12:5, BC04 B13:6; BC06 brake composite B10=0x2D sets bits 2,3,5 (BRAKE_PEDAL_BITS=B10:2 candidate). Other BC03/BC04/BC06 unmapped bits constant-0. BC01/BC02/BC05 closed as static config. Verify: actuate each body function while capturing; press brake with turn signals off to isolate the brake bit."
     - type: decode
       target: 22BC07
@@ -768,7 +795,11 @@ IGPM:
       vehicle_states: [ACC2]
       created: "2026-08-06"
       updated: "2026-08-06"
-      notes: DOOR_RR_OPEN is verified:true from a 2026-04-15 live door test, but it reads constant 0 across all 315 retained captures while every sibling bit on B10 varies (DOOR_RL_OPEN, DOOR_LOCK_RL, DOOR_LOCK_RR, DOOR_PAS_OPEN, DOOR_DRV_OPEN, TRUNK_OPEN). The rear-right door was simply never opened in the retained data, so the verification is undocumented rather than wrong. Open that door once during the next narrated body capture to put the evidence back in the corpus. Same applies to SEATBELT_FR (B11:2, already unverified) — buckle the front passenger belt.
+      notes: >-
+        DOOR_RR_OPEN is verified:true from a 2026-04-15 live door test. The corpus now has one
+        episode: on 2026-08-15 B10 went 0x81 (trunk + RL open) at 10:00:48, 0x84 (trunk + RR open)
+        at 10:02:17, 0x04 at 10:02:54, 0x00 at 10:05:26, then locked at 10:06:07 (not narrated).
+        SEATBELT_FR (B11:2, unverified) still needs a buckled-belt test.
       sources:
         - canair bitfield analysis 2026-08-06
       capture_protocol: >-
