@@ -181,8 +181,8 @@ groups. The axis is either:
 - **a cross-signal `ECU:PID:PARAM`** — grouped by that signal's discretized value.
 
 ```bash
-# which byte separates the AC compressor being on from off?
-canair decode HVAC 2201A2 --discriminate HVAC:220102:HVAC_COMPRESSOR_ON --bytes
+# which byte separates heat-pump heating being on from off?
+canair decode HVAC 2201A2 --discriminate HVAC:220102:HVAC_HEAT_PUMP_ON --bytes
 ```
 
 The axis signal is nearest-joined onto each capture and discretized into

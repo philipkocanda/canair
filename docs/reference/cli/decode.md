@@ -55,7 +55,7 @@ options:
                         for typed params) — finds axis-dependent signals a
                         driving correlation misses. AXIS is 'state' (the
                         vehicle power state) or a cross-signal ECU:PID:PARAM
-                        to group by (e.g. HVAC:220102:HVAC_COMPRESSOR_ON —
+                        to group by (e.g. HVAC:220102:HVAC_HEAT_PUMP_ON —
                         which byte separates on from off)
   --find-mirrors        Report byte positions on this PID that mirror each
                         other — redundant status mirrors and unit-variants.

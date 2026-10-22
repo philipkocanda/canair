@@ -41,9 +41,9 @@ This never changes device output or the numeric path.
 Use `canair pids upsert-param` — never hand-edit `ecus/`:
 
 ```bash
-# An enum: fan level on HVAC 220100 byte B5
-canair pids upsert-param HVAC 220100 HVAC_FAN_LEVEL B5 \
-    --type enum --value 0x28=fan1 --value 0x2D=fanMAX --unverified
+# An enum: blower fan level on HVAC 2201A0 byte B18
+canair pids upsert-param HVAC 2201A0 HVAC_BLOWER_FAN_SPEED B18 \
+    --type enum --value 40="Fan 1" --value 121="Fan 8 (MAX)" --unverified
 
 # A bitmask: preheat schedule day-of-week
 canair pids upsert-param BCM 22B00C PREHEAT_DAYS B3 \

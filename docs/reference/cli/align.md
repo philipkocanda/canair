@@ -60,8 +60,8 @@ scoping:
                         SUBSTR (case-insensitive)
 
 Examples:
-  # eyeball the compressor state, heat power and pack power together
-  canair align "HVAC:220102:HVAC_COMPRESSOR_ON HVAC:2201A2:HVAC_HEAT_POWER BMS:2101:BATTERY_POWER" --state charging
+  # eyeball the heat-pump state, heat power and pack power together
+  canair align "HVAC:220102:HVAC_HEAT_PUMP_ON HVAC:2201A2:HVAC_HEAT_POWER BMS:2101:BATTERY_POWER" --state charging
 
   # export a drive slice to CSV for an external tool / --against-file
   canair align ESC:22C101:REAL_SPEED_KMH MCU:2102:[S10:S11] --state driving --csv > drive.csv

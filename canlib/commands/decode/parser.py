@@ -93,7 +93,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "(F = between/within variance; Cramér's V for typed params) — finds "
         "axis-dependent signals a driving correlation misses. AXIS is 'state' "
         "(the vehicle power state) or a cross-signal ECU:PID:PARAM to group by "
-        "(e.g. HVAC:220102:HVAC_COMPRESSOR_ON — which byte separates on from off)",
+        "(e.g. HVAC:220102:HVAC_HEAT_PUMP_ON — which byte separates on from off)",
     )
     parser.add_argument(
         "--find-mirrors",
