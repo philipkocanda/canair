@@ -11,7 +11,7 @@ from dataclasses import asdict
 from canlib import ansi
 from canlib.notation import ByteDisplay, ByteNotation
 
-from .findings import Finding
+from .findings import FIELD_PAYLOAD, Finding
 
 NAME_PLACEHOLDER = "SIGNAL_NAME"
 
@@ -42,14 +42,20 @@ def upsert_command(finding: Finding, profile: str) -> str | None:
 
 
 def _at(finding: Finding, notation: ByteNotation) -> str:
-    """Where the finding sits: a byte label for a payload hit, else the field it was in."""
+    """Where the finding sits: a byte label for a payload hit, else the field it was in.
+
+    A WiCAN index depends on the frame layout, so for a group that mixes single- and
+    multi-frame captures only the ISO-TP index names the byte correctly in all of them.
+    """
     if finding.offset is None:
         return finding.field
+    last = finding.offset + finding.length - 1
+    span = f"i{finding.offset}" if finding.length <= 1 else f"i{finding.offset}-{last}"
+    if finding.mixed_frames and notation is ByteNotation.WICAN:
+        return f"{span} (mixed SF/MF)"
     display = ByteDisplay(notation, finding.payload_len)
     label = display.ref(finding.offset)
     if notation is not ByteNotation.ISOTP:
-        last = finding.offset + finding.length - 1
-        span = f"i{finding.offset}" if finding.length == 1 else f"i{finding.offset}-{last}"
         label = f"{label} ({span})"
     return label
 
@@ -61,11 +67,16 @@ def _seen(finding: Finding) -> str:
 
 
 def _highlight(text: str, match: str | None) -> str:
-    """``text`` quoted, with the first occurrence of ``match`` in bold."""
+    """``text`` quoted, with the first occurrence of ``match`` in bold.
+
+    A free-text snippet has its whitespace collapsed, so the match is collapsed the
+    same way before it is looked for.
+    """
     if match:
-        at = text.lower().find(match.lower())
+        needle = " ".join(match.split()) or match
+        at = text.lower().find(needle.lower())
         if at != -1:
-            end = at + len(match)
+            end = at + len(needle)
             return f"'{text[:at]}{ansi.BOLD}{text[at:end]}{ansi.RESET}{text[end:]}'"
     return f"'{text}'"
 
@@ -74,6 +85,8 @@ def _notes(finding: Finding) -> str:
     extra = []
     if finding.variants > 1:
         extra.append(f"+{finding.variants - 1} variant{'s' if finding.variants > 2 else ''}")
+    if finding.source == "payload" and finding.field != FIELD_PAYLOAD:
+        extra.append(f"from {finding.field}")
     if finding.lossy:
         extra.append("lossy: raw hex truncated upstream")
     return f"  {ansi.DIM}({', '.join(extra)}){ansi.RESET}" if extra else ""

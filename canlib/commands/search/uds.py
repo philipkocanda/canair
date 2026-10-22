@@ -26,7 +26,15 @@ from .findings import (
     inventory_payloads,
 )
 from .haystack import identity_rows, payload_rows, text_rows
-from .needle import IN_ALL, IN_PAYLOAD, IN_TEXT, Needle, UsageError, build_needle
+from .needle import (
+    DEFAULT_MIN_LEN,
+    IN_ALL,
+    IN_PAYLOAD,
+    IN_TEXT,
+    Needle,
+    UsageError,
+    build_needle,
+)
 from .render import dump_json, finding_dict, print_table, print_truncation
 
 NAME = "search"
@@ -38,25 +46,37 @@ def _error(message: str) -> int:
 
 
 def _definition_findings(needle: Needle, ecus_filter: set[str] | None) -> list[Finding]:
+    import yaml
+
     from canlib.pids import load_pids
 
     if needle.text is None:
         return []
-    rows = identity_rows(load_pids().get("ecus") or {}, only=ecus_filter)
-    return find_in_definitions(rows, needle.text)
+    try:
+        ecus = load_pids().get("ecus") or {}
+    except (OSError, yaml.YAMLError) as e:
+        # The captures were searched already; one unreadable definition file should
+        # cost the --defs part of the answer, loudly, not the whole of it.
+        print(f"warning: --defs skipped, the ecus/ definitions did not load: {e}", file=sys.stderr)
+        return []
+    return find_in_definitions(identity_rows(ecus, only=ecus_filter), needle.text)
 
 
 def _scan(args, needle: Needle | None, entries: list, ecus_filter: set[str] | None):
     wants_payload = args.in_ in (IN_PAYLOAD, IN_ALL)
     wants_text = args.in_ in (IN_TEXT, IN_ALL)
     if needle is None:
+        min_len = DEFAULT_MIN_LEN if args.min_len is None else args.min_len
         return inventory_payloads(
-            payload_rows(entries), min_len=args.min_len, plausible_only=not args.all_runs
+            payload_rows(entries), min_len=min_len, plausible_only=not args.all_runs
         )
     findings: list[Finding] = []
     if wants_payload:
         findings += find_in_payloads(
-            payload_rows(entries), text_spans=needle.text, byte_spans=needle.data
+            payload_rows(entries),
+            text_spans=needle.payload_text,
+            byte_spans=needle.data,
+            match_key=needle.match_key,
         )
     if wants_text and needle.text is not None:
         findings += find_in_text(text_rows(entries), needle.text)

@@ -52,7 +52,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from .profile import Profile
-from .textscan import has_vin_token, looks_redacted
+from .textscan import has_data_vin, has_vin_token, looks_redacted
 
 # ---------------------------------------------------------------------------
 # Sensitive identity identifiers
@@ -150,8 +150,9 @@ def _scan_capture(cap: object, loc: str) -> list[Finding]:
     if isinstance(payload, str) and not looks_redacted(payload):
         # `payload` is response hex; `response` is a free-form summary that may
         # already hold *decoded* text (an identity read's ASCII), so test both the
-        # hex-decoded bytes and the string as written.
-        if has_vin_token(_payload_ascii(payload)) or has_vin_token(payload):
+        # hex-decoded bytes and the string as written. The bytes get the wider
+        # payload test, since a VIN's neighbours there can be VIN characters too.
+        if has_data_vin(_payload_ascii(payload)) or has_vin_token(payload):
             findings.append(Finding(f"{loc} ({pid})", "vin-payload", "payload decodes to a VIN"))
     for field in ("label", "notes"):
         findings += _scan_free_text(str(cap.get(field) or ""), f"{loc}.{field}")

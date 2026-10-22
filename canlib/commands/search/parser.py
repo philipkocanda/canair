@@ -8,7 +8,7 @@ from canlib.capture_dates import add_scope_args
 from canlib.commands._group import group_help
 from canlib.notation import add_notation_arg
 
-from .needle import IN_ALL, IN_CHOICES
+from .needle import DEFAULT_MIN_LEN, IN_ALL, IN_CHOICES
 from .uds import run
 
 NAME = "search"
@@ -33,6 +33,9 @@ examples:
   # include the decoded identity fields in ecus/, and emit machine-readable output
   canair search KMHC --defs --json
 
+  # a PATTERN that is also a kind name (or starts with '-') goes after `--`
+  canair search -- uds
+
 Each payload hit carries a paste-ready `pids upsert-param ... --type ascii` command, so
 a string you found can be defined as a signal in one step.
 """
@@ -50,7 +53,10 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
             "        (domain A). A bare `canair search …` is shorthand for this.\n\n"
             "With a PATTERN it finds that needle; with none it inventories every\n"
             "plausible string (part numbers, versions, ECU names). Read-only: searches\n"
-            "captures/ only, never talks to the device."
+            "captures/ (and, with --defs, the ecus/ identity fields), never talks to the\n"
+            "device.\n\n"
+            "A first word that names a kind is taken as the kind, so to search for the\n"
+            "text 'uds' itself, end the options first: `canair search -- uds`."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=_EPILOG,
@@ -103,9 +109,10 @@ def _add_uds_parser(kinds) -> argparse.ArgumentParser:
         dest="in_",
         choices=IN_CHOICES,
         default=IN_ALL,
-        help="Where to look: payload bytes, free text (labels, notes, text responses), "
-        "or all (default). Note that --label NARROWS to matching sessions, whereas a "
-        "PATTERN searches (labels included, by default)",
+        help="Where to look: payload bytes (including the raw responses scan notes "
+        "record), free text (labels, notes, text responses), or all (default). Note that "
+        "--label NARROWS to matching sessions, whereas a PATTERN searches (labels "
+        "included, by default)",
     )
     hay.add_argument(
         "--defs",
@@ -123,9 +130,9 @@ def _add_uds_parser(kinds) -> argparse.ArgumentParser:
     inv.add_argument(
         "--min-len",
         type=int,
-        default=6,
+        default=None,
         metavar="N",
-        help="Minimum printable run length (default 6)",
+        help=f"Minimum printable run length (default {DEFAULT_MIN_LEN})",
     )
     inv.add_argument(
         "--all-runs",

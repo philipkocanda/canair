@@ -138,12 +138,25 @@ class TestTextHaystack:
         env = json.loads(capsys.readouterr().out)
         assert {f["source"] for f in env["findings"]} == {"text"}
 
-    def test_scan_notes_with_raw_hex_are_flagged_lossy(self, tmp_path, monkeypatch, capsys):
+    def test_scan_note_raw_hex_is_searched_as_bytes(self, tmp_path, monkeypatch, capsys):
         scan = {"responding": [{"did": "F190", "response": "7E00", "notes": "Raw: 62F190AABB"}]}
-        _write(tmp_path, [{"rx": "0x7EA", "pid": "F190", "scan_results": scan}])
-        assert _run(tmp_path, monkeypatch, ["F190AA", "--json"]) == 0
+        _write(tmp_path, [{"rx": "0x7EA", "pid": "scan 22 F190-F190", "scan_results": scan}])
+        # The hex digits are not text: a literal that only occurs in them is no hit.
+        assert _run(tmp_path, monkeypatch, ["F190AA", "--json"]) == 1
+        capsys.readouterr()
+        assert _run(tmp_path, monkeypatch, ["--hex", "AABB", "--json"]) == 0
         (finding,) = json.loads(capsys.readouterr().out)["findings"]
-        assert finding["field"] == "scan notes"
+        assert (finding["field"], finding["pid"], finding["offset"]) == ("scan notes", "22F190", 3)
+        assert finding["lossy"] is False  # a complete Raw: note is not lossy
+        assert finding["command"] is None  # not a capture: re-read it to define it
+
+    def test_only_a_truncated_raw_note_is_lossy(self, tmp_path, monkeypatch, capsys):
+        note = "Raw: " + _payload("F100", b"95400G7470").upper() + "0..."
+        scan = {"responding": [{"did": "F100", "response": "13 bytes", "notes": note}]}
+        _write(tmp_path, [{"rx": "0x7EA", "pid": "scan 22 F100-F100", "scan_results": scan}])
+        assert _run(tmp_path, monkeypatch, ["95400G", "--json"]) == 0
+        (finding,) = json.loads(capsys.readouterr().out)["findings"]
+        assert finding["source"] == "payload" and finding["text"] == "95400G7470"
         assert finding["lossy"] is True
 
     def test_non_hex_payload_is_never_decoded(self, tmp_path, monkeypatch):
@@ -197,7 +210,7 @@ class TestExpressionRoundTrip:
             ("F100", b"AEE MFC  AT EUR LHD 1.00 1.00 95740-G2200 161014", 6),  # many CFs
             ("1A80", b"\x00\x01M3062000307 EAEAAFP201\xaa\xaa", 6),
             ("21F2", b"\x00" * 60 + b"EHEL-MS2\x00\x00\x00", 6),  # deep offset
-            ("F1", b"ABCDE", 3),  # single frame: one PCI byte, not two
+            ("F100", b"ABCD", 3),  # single frame: one PCI byte, not two
         ],
     )
     def test_decodes_back_to_the_found_string(self, did, body, min_len):

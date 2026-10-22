@@ -14,7 +14,11 @@ Choose a domain kind:
 
 With a PATTERN it finds that needle; with none it inventories every
 plausible string (part numbers, versions, ECU names). Read-only: searches
-captures/ only, never talks to the device.
+captures/ (and, with --defs, the ecus/ identity fields), never talks to the
+device.
+
+A first word that names a kind is taken as the kind, so to search for the
+text 'uds' itself, end the options first: `canair search -- uds`.
 
 positional arguments:
   <kind>
@@ -41,6 +45,9 @@ examples:
 
   # include the decoded identity fields in ecus/, and emit machine-readable output
   canair search KMHC --defs --json
+
+  # a PATTERN that is also a kind name (or starts with '-') goes after `--`
+  canair search -- uds
 
 Each payload hit carries a paste-ready `pids upsert-param ... --type ascii` command, so
 a string you found can be defined as a signal in one step.
@@ -80,7 +87,8 @@ match:
 
 haystack:
   --in {payload,text,all}
-                        Where to look: payload bytes, free text (labels,
+                        Where to look: payload bytes (including the raw
+                        responses scan notes record), free text (labels,
                         notes, text responses), or all (default). Note that
                         --label NARROWS to matching sessions, whereas a
                         PATTERN searches (labels included, by default)
@@ -142,6 +150,9 @@ examples:
 
   # include the decoded identity fields in ecus/, and emit machine-readable output
   canair search KMHC --defs --json
+
+  # a PATTERN that is also a kind name (or starts with '-') goes after `--`
+  canair search -- uds
 
 Each payload hit carries a paste-ready `pids upsert-param ... --type ascii` command, so
 a string you found can be defined as a signal in one step.

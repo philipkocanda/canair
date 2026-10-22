@@ -6,6 +6,9 @@ import pytest
 
 from canlib import textscan as ts
 
+# Synthetic: VIN-shaped (17 characters, no I/O/Q, has letters) but no real vehicle.
+SYNTH_VIN = "SYNTHVXN012345678"
+
 
 class TestFold:
     def test_keeps_printable_and_masks_the_rest(self):
@@ -19,10 +22,15 @@ class TestFold:
         assert ts.printable_runs(data, 5) == [(2, "HELLO"), (9, "WORLD!")]
         assert ts.printable_runs(data, 2)[-1] == (16, "ab")
 
-    def test_enclosing_run_widens_to_the_whole_run(self):
-        folded = ts.ascii_fold(b"\x00\x00ABCDEF\x00GH")
-        assert ts.enclosing_run(folded, 4, 6) == (2, 8)
-        assert ts.enclosing_run(folded, 9, 10) == (9, 11)
+    def test_a_header_mask_keeps_offsets_and_hides_the_header(self):
+        data = b"bZ1SW123"
+        assert ts.ascii_fold(data, 3) == "\x00\x00\x00SW123"
+        assert ts.printable_runs(data, 2, start=3) == [(3, "SW123")]
+        assert ts.ascii_fold(b"ab", 5) == "\x00\x00"  # a header longer than the data
+
+    def test_folded_runs_split_at_placeholders(self):
+        assert ts.folded_runs("\x00AB\x00\x00CDE\x00") == [(1, "AB"), (5, "CDE")]
+        assert ts.folded_runs("\x00AB\x00CDE", 3) == [(4, "CDE")]
 
 
 class TestPlausibility:
@@ -80,6 +88,41 @@ class TestVin:
         ((s, e),) = ts.vin_spans(ts.ascii_fold(data))
         assert data[s:e] == b"KMHC851HFHU012435"
 
+    def test_a_vin_glued_to_a_non_vin_word_character_is_found(self):
+        # ``\b`` treated these neighbours as part of the word and missed the VIN.
+        for text in (f"x{SYNTH_VIN}", f"{SYNTH_VIN}_2", f"vin:{SYNTH_VIN}i"):
+            ((s, e),) = ts.vin_spans(text)
+            assert text[s:e] == SYNTH_VIN
+
+    def test_a_longer_vin_character_run_is_not_a_text_vin(self):
+        # In free text and hex strings an 18+ character run is not a VIN token: a
+        # payload's hex is all VIN characters and would otherwise always match.
+        assert ts.vin_spans(SYNTH_VIN + "A") == []
+        assert not ts.has_vin_token("62F190" + "0123456789ABCDEF" * 2)
+
+    @pytest.mark.parametrize(
+        "data,expected",
+        [
+            (SYNTH_VIN, SYNTH_VIN),  # the plain case: the same as vin_spans
+            (SYNTH_VIN + "UUUU", SYNTH_VIN),  # 0x55 fill bytes after it
+            ("000" + SYNTH_VIN, SYNTH_VIN),  # ASCII-zero fill before it
+            ("Z1" + SYNTH_VIN, "Z1" + SYNTH_VIN),  # unknown neighbours: the whole run
+            ("1" + SYNTH_VIN, "1" + SYNTH_VIN),  # one byte is ambiguous: pad or header
+        ],
+    )
+    def test_data_vin_spans_finds_a_vin_beside_vin_character_bytes(self, data, expected):
+        ((s, e),) = ts.data_vin_spans(data)
+        assert data[s:e] == expected
+        assert ts.has_data_vin(data)
+
+    def test_data_vin_spans_is_a_superset_of_vin_spans(self):
+        texts = (SYNTH_VIN, f" {SYNTH_VIN} ", f"x{SYNTH_VIN}", "31114851712211429", "short")
+        for text in texts:
+            assert set(ts.vin_spans(text)) <= set(ts.data_vin_spans(text))
+
+    def test_data_vin_spans_still_needs_a_letter(self):
+        assert ts.data_vin_spans("1234567890123456789") == []
+
     def test_redaction_mask(self):
         assert ts.looks_redacted("KMHCXXXXXXXXXXXXX")
         assert ts.looks_redacted("WBA****1234")
@@ -121,13 +164,30 @@ class TestMatchers:
         with pytest.raises(re.error):
             ts.compile_regex("(")
 
-    @pytest.mark.parametrize("text", ["DE AD be ef", "0xDEADBEEF", "de:ad:be:ef", "DEAD_BEEF"])
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "DE AD be ef",
+            "0xDEADBEEF",
+            "de:ad:be:ef",
+            "DEAD_BEEF",
+            "0xDE 0xAD 0xBE 0xEF",
+            "0xDE0xAD0xBE0xEF",  # 0x starts a token even with no space before it
+            "0XDE,0XAD, BE-EF",
+        ],
+    )
     def test_hex_needle_spellings(self, text):
         assert ts.parse_hex_needle(text) == b"\xde\xad\xbe\xef"
 
-    @pytest.mark.parametrize("text", ["", "  ", "abc", "zz"])
+    @pytest.mark.parametrize("text", ["", "  ", "abc", "zz", "0x", "0xZZ"])
     def test_bad_hex_needle(self, text):
         with pytest.raises(ValueError):
+            ts.parse_hex_needle(text)
+
+    @pytest.mark.parametrize("text", ["0xA 0xB", "1 2 3 4", "DE A", "0xDE0xA"])
+    def test_a_one_digit_token_is_refused_not_glued_to_its_neighbour(self, text):
+        # Stripping separators first used to read '0xA 0xB' as the one byte AB.
+        with pytest.raises(ValueError, match="odd number of digits"):
             ts.parse_hex_needle(text)
 
     def test_find_hex(self):

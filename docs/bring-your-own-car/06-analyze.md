@@ -163,6 +163,12 @@ to identifier-looking strings — numeric telemetry is often printable ASCII, so
 unfiltered sweep is mostly noise (`--all-runs` shows you what that looks like).
 
 ## Step 2 — Reason: what could this byte be?
+A string never includes the response header (the service byte and the DID/LID echo,
+which is often printable), and the raw responses a scan records in its notes are
+searched as bytes too, marked `from scan notes` (and `lossy` where the note was cut
+short). To search for text that is also a kind name, put it after `--`:
+`canair search -- uds`.
+
 
 Before guessing offsets, ask *what would this ECU need to report?* An ECU's job
 constrains what its bytes can plausibly be:

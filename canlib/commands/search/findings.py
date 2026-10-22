@@ -17,14 +17,8 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
 from canlib.byteindex import elm_to_wican_idx
-from canlib.textscan import (
-    PLACEHOLDER,
-    Span,
-    ascii_fold,
-    enclosing_run,
-    is_plausible_token,
-    printable_runs,
-)
+from canlib.textscan import Span, ascii_fold, folded_runs, is_plausible_token
+from canlib.uds_layout import response_layout
 
 # A single-frame response (<= 7 bytes) carries one PCI byte, a multi-frame one two.
 # Both the WiCAN expression and the run's byte labels depend on which, so a group
@@ -36,10 +30,16 @@ SNIPPET_CONTEXT = 24
 KIND_TEXT = "text"
 KIND_BYTES = "bytes"
 
+FIELD_PAYLOAD = "payload"
+
 
 @dataclass(frozen=True)
 class PayloadRow:
-    """One distinct ``(ecu, pid, payload)`` and how often / when it was captured."""
+    """One distinct ``(ecu, pid, payload)`` and how often / when it was captured.
+
+    ``field`` names where the bytes came from: a capture's ``payload``, or bytes
+    recovered from a scan note's ``Raw:`` hex (``lossy`` when that hex was cut short).
+    """
 
     ecu: str
     pid: str
@@ -47,6 +47,8 @@ class PayloadRow:
     weight: int
     first: str
     last: str
+    field: str = FIELD_PAYLOAD
+    lossy: bool = False
 
 
 @dataclass(frozen=True)
@@ -60,7 +62,6 @@ class TextRow:
     weight: int
     first: str
     last: str
-    lossy: bool = False
 
 
 @dataclass(frozen=True)
@@ -70,6 +71,8 @@ class Finding:
     ``offset``/``length`` are an ISO-TP payload index and byte count (payload hits
     only); ``expression`` is the paste-ready WiCAN ``[Bn:Bm]`` range for that run, or
     ``None`` when no single expression is correct for every capture in the group.
+    ``mixed_frames`` marks a group whose captures are single- *and* multi-frame, so a
+    WiCAN byte label would be right for only some of them.
     """
 
     source: str  # "payload" | "text" | "defs"
@@ -87,23 +90,23 @@ class Finding:
     variants: int = 1
     expression: str | None = None
     lossy: bool = False
+    mixed_frames: bool = False
 
 
-@dataclass
+@dataclass(frozen=True)
 class _Run:
     """A printable (or matched) byte run found in one distinct payload."""
 
     start: int
     end: int
     text: str
-    weight: int
-    first: str
-    last: str
-    payload_len: int
+    row: PayloadRow
+    match: str = ""
 
 
 TextSpans = Callable[[str], list[Span]]
 ByteSpans = Callable[[bytes], list[Span]]
+MatchKey = Callable[[str], str]
 
 
 def wican_expression(offset: int, length: int, payload_len: int) -> str | None:
@@ -121,61 +124,75 @@ def wican_expression(offset: int, length: int, payload_len: int) -> str | None:
     return f"[B{first}:B{last}]"
 
 
-def _core(runs: list[_Run]) -> tuple[int, int, str, int]:
-    """The stable core of a cluster of overlapping runs: ``(start, end, text, variants)``.
+def data_start(data: bytes) -> int:
+    """Index of the first data byte: past the response SID and its identifier echo.
 
-    The leading and trailing bytes around a string often vary between captures while
-    the middle is stable, so the run boundary moves (``' #EHEL-MS2'`` vs ``'EHEL-MS2'``).
-    Reporting the intersection gives one row for one string instead of several
-    near-duplicates. The text is the most common reading of that region and
-    ``variants`` counts how many distinct readings there were.
+    The header is often printable (``0x62`` is ``b``, ``0x61`` is ``a``, a DID such
+    as ``5A31`` is ``Z1``), and left in it would join the string that follows,
+    giving a wrong offset, text and expression. An unknown service keeps every byte.
     """
-    lo = max(r.start for r in runs)
-    hi = min(r.end for r in runs)
-    if hi <= lo:  # disjoint chain: no common region, fall back to the commonest run
-        best = max(runs, key=lambda r: r.weight)
-        lo, hi = best.start, best.end
+    if not data:
+        return 0
+    layout = response_layout(data[0])
+    return 0 if layout is None else min(layout.header_bytes, len(data))
+
+
+def _data_runs(data: bytes, min_len: int = 1) -> list[tuple[int, str]]:
+    """Printable runs of a payload's data bytes (never its header), as ``(start, text)``."""
+    return folded_runs(ascii_fold(data, data_start(data)), min_len)
+
+
+def _readings(runs: list[_Run], lo: int, hi: int) -> Counter[str]:
+    """Weighted readings of ``[lo, hi)``; every run must cover that span."""
     texts: Counter[str] = Counter()
     for r in runs:
-        texts[r.text[lo - r.start : hi - r.start]] += r.weight
-    return lo, hi, texts.most_common(1)[0][0], len(texts)
+        texts[r.text[lo - r.start : hi - r.start]] += r.row.weight
+    return texts
 
 
-def _finalize(
-    ecu: str, pid: str, runs: list[_Run], *, match: str | None, kind: str = KIND_TEXT
-) -> Finding:
+def _finalize(runs: list[_Run], lo: int, hi: int, *, kind: str, needle: bool) -> Finding:
+    """One finding for the location ``[lo, hi)``, from every run that covers it.
+
+    Runs come from distinct payload rows (a row's runs are disjoint, so at most one
+    of them covers a span), which makes the summed weight a count of captures.
+    """
+    row = runs[0].row
     if kind == KIND_BYTES:
         # Every run in a byte-pattern group is the same matched bytes at the same
-        # offset by construction, so there is no boundary to reconcile.
-        first = runs[0]
-        lo, hi, text, variants = first.start, first.end, first.text, 1
+        # offset by construction (and its text is hex, not one character per byte).
+        texts = Counter({row.data[lo:hi].hex().upper(): sum(r.row.weight for r in runs)})
     else:
-        lo, hi, text, variants = _core(runs)
-    lens = {r.payload_len for r in runs}
+        texts = _readings(runs, lo, hi)
+    matches: Counter[str] = Counter()
+    for r in runs:
+        matches[r.match] += r.row.weight
+    lens = {len(r.row.data) for r in runs}
     longest = max(lens)
-    uniform = len({n <= _SINGLE_FRAME_MAX for n in lens}) == 1
-    expressible = kind == KIND_TEXT and uniform
-    expression = wican_expression(lo, hi - lo, longest) if expressible else None
+    mixed = len({n <= _SINGLE_FRAME_MAX for n in lens}) > 1
+    lossy = any(r.row.lossy for r in runs)
+    expressible = kind == KIND_TEXT and not mixed and row.field == FIELD_PAYLOAD and not lossy
     return Finding(
         source="payload",
-        field="payload",
-        ecu=ecu,
-        pid=pid,
-        text=text,
-        hits=sum(r.weight for r in runs),
-        first=min((r.first for r in runs if r.first), default=""),
-        last=max((r.last for r in runs if r.last), default=""),
-        match=match,
+        field=row.field,
+        ecu=row.ecu,
+        pid=row.pid,
+        text=texts.most_common(1)[0][0],
+        hits=sum(r.row.weight for r in runs),
+        first=min((r.row.first for r in runs if r.row.first), default=""),
+        last=max((r.row.last for r in runs if r.row.last), default=""),
+        match=matches.most_common(1)[0][0] if needle else None,
         offset=lo,
         length=hi - lo,
         payload_len=longest,
-        variants=variants,
-        expression=expression,
+        variants=len(texts),
+        expression=wican_expression(lo, hi - lo, longest) if expressible else None,
+        lossy=lossy,
+        mixed_frames=mixed,
     )
 
 
 def _sorted(findings: Iterable[Finding]) -> list[Finding]:
-    return sorted(findings, key=lambda f: (f.ecu, f.pid, f.offset or 0, f.text))
+    return sorted(findings, key=lambda f: (f.ecu, f.pid, f.field, f.offset or 0, f.text))
 
 
 def find_in_payloads(
@@ -183,34 +200,38 @@ def find_in_payloads(
     *,
     text_spans: TextSpans | None = None,
     byte_spans: ByteSpans | None = None,
+    match_key: MatchKey | None = None,
 ) -> list[Finding]:
     """Findings for a needle: every location one of the matchers hits.
 
-    ``text_spans`` runs over the payload's printable view and each hit is widened to
-    its enclosing printable run, so a search for ``EHEL`` reports ``EHEL-MS2``.
+    ``text_spans`` runs over each printable run of the payload's data bytes on its
+    own, so a match can never reach across a non-printable byte (a greedy regex would
+    otherwise run into one and be discarded), and each hit is reported with its
+    whole run, so a search for ``EHEL`` reports ``EHEL-MS2``. ``match_key`` decides
+    which matched readings are the same hit (``str.lower`` for a case-insensitive
+    search, so ``ehel`` and ``EHEL`` at one offset are one finding).
+
     ``byte_spans`` runs over the raw bytes and reports exactly the matched bytes,
     rendered as hex (which no ``ascii`` expression can read back, so it gets none).
     """
-    groups: dict[tuple[str, str, str, int, str], list[_Run]] = defaultdict(list)
+    groups: dict[tuple[str, str, str, str, int, str], list[_Run]] = defaultdict(list)
     for row in rows:
-        n = len(row.data)
+        where = (row.field, row.ecu, row.pid)
         if text_spans is not None:
-            folded = ascii_fold(row.data)
-            for s, e in text_spans(folded):
-                if PLACEHOLDER in folded[s:e]:
-                    continue  # a text match is printable by definition
-                rs, re_ = enclosing_run(folded, s, e)
-                run = _Run(rs, re_, folded[rs:re_], row.weight, row.first, row.last, n)
-                groups[(KIND_TEXT, row.ecu, row.pid, s, folded[s:e])].append(run)
+            for start, text in _data_runs(row.data):
+                for s, e in text_spans(text):
+                    run = _Run(start, start + len(text), text, row, text[s:e])
+                    key = match_key(run.match) if match_key else run.match
+                    groups[(KIND_TEXT, *where, start + s, key)].append(run)
         if byte_spans is not None:
             for s, e in byte_spans(row.data):
                 hexed = row.data[s:e].hex().upper()
-                run = _Run(s, e, hexed, row.weight, row.first, row.last, n)
-                groups[(KIND_BYTES, row.ecu, row.pid, s, hexed)].append(run)
-    return _sorted(
-        _finalize(ecu, pid, runs, match=match, kind=kind)
-        for (kind, ecu, pid, _start, match), runs in groups.items()
-    )
+                groups[(KIND_BYTES, *where, s, hexed)].append(_Run(s, e, hexed, row, hexed))
+    findings = []
+    for (kind, *_where), runs in groups.items():
+        lo, hi = max(r.start for r in runs), min(r.end for r in runs)
+        findings.append(_finalize(runs, lo, hi, kind=kind, needle=True))
+    return _sorted(findings)
 
 
 def inventory_payloads(
@@ -222,34 +243,44 @@ def inventory_payloads(
     telemetry that happens to be printable; the filter is what makes an inventory
     usable (see :func:`canlib.textscan.is_plausible_token`).
     """
-    per_pid: dict[tuple[str, str], list[_Run]] = defaultdict(list)
+    per_pid: dict[tuple[str, str, str], list[_Run]] = defaultdict(list)
     for row in rows:
-        n = len(row.data)
-        for start, text in printable_runs(row.data, min_len):
+        for start, text in _data_runs(row.data, min_len):
             if plausible_only and not is_plausible_token(text):
                 continue
-            per_pid[(row.ecu, row.pid)].append(
-                _Run(start, start + len(text), text, row.weight, row.first, row.last, n)
-            )
+            per_pid[(row.field, row.ecu, row.pid)].append(_Run(start, start + len(text), text, row))
     findings: list[Finding] = []
-    for (ecu, pid), runs in per_pid.items():
-        for cluster in _overlap_clusters(runs):
-            findings.append(_finalize(ecu, pid, cluster, match=None))
+    for runs in per_pid.values():
+        for lo, hi in string_locations(runs):
+            covering = [r for r in runs if r.start <= lo and r.end >= hi]
+            findings.append(_finalize(covering, lo, hi, kind=KIND_TEXT, needle=False))
     return _sorted(findings)
 
 
-def _overlap_clusters(runs: list[_Run]) -> list[list[_Run]]:
-    """Group runs whose byte ranges overlap — one cluster per string location."""
-    clusters: list[list[_Run]] = []
-    reach = -1
+def string_locations(runs: Iterable[_Run]) -> list[Span]:
+    """The distinct string locations of one PID's runs, as each location's stable core.
+
+    The leading and trailing bytes around a string often vary between captures while
+    the middle is stable, so the run boundary moves (``' #EHEL-MS2'`` vs
+    ``'EHEL-MS2'``); reporting the region every such run shares gives one row for one
+    string instead of several near-duplicates.
+
+    Runs join a location only while that shared region stays non-empty. Merging every
+    *overlapping* run instead lets one capture's printable byte bridge two strings
+    that are separate everywhere else; the merged region is then empty and one of the
+    strings vanishes from the report. Sorted by start, a run that misses the current
+    location's core starts at or after its end, so it cannot belong to any earlier
+    location either.
+    """
+    locations: list[Span] = []
     for run in sorted(runs, key=lambda r: (r.start, r.end)):
-        if clusters and run.start < reach:
-            clusters[-1].append(run)
-            reach = max(reach, run.end)
-        else:
-            clusters.append([run])
-            reach = run.end
-    return clusters
+        if locations:
+            lo, hi = locations[-1]
+            if run.start < hi and run.end > lo:
+                locations[-1] = (max(lo, run.start), min(hi, run.end))
+                continue
+        locations.append((run.start, run.end))
+    return locations
 
 
 def snippet(text: str, span: Span) -> str:
@@ -280,7 +311,6 @@ def find_in_text(rows: Iterable[TextRow], text_spans: TextSpans) -> list[Finding
                 first=row.first,
                 last=row.last,
                 match=row.text[s:e],
-                lossy=row.lossy,
             )
         )
     return sorted(out, key=lambda f: (f.field, f.ecu, f.pid, f.text))

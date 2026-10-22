@@ -111,6 +111,25 @@ class TestIdentityDids:
         kinds = {f.kind for f in pii.scan_profile(prof)}
         assert kinds == {"vin-payload"}
 
+    @pytest.mark.parametrize(
+        "body",
+        [
+            b"SYNTHVXN012345678UU",  # 0x55 fill bytes are VIN characters
+            b"\x01SYNTHVXN012345678\x00",  # the plain case, still caught
+            b"zSYNTHVXN012345678",  # a lower-case neighbour broke the old word boundary
+        ],
+    )
+    def test_vin_beside_vin_character_bytes_is_caught(self, tmp_path, body):
+        # Synthetic VIN-shaped value; DID 0x2101 so only the value check can fire.
+        prof = _write_profile(
+            tmp_path,
+            captures={
+                "label": "x",
+                "captures": [{"rx": "0x7EC", "pid": "222101", "payload": "622101" + body.hex()}],
+            },
+        )
+        assert {f.kind for f in pii.scan_profile(prof)} == {"vin-payload"}
+
 
 class TestFreeText:
     def test_flags_email_in_label(self, tmp_path):
