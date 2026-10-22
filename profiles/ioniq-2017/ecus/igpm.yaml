@@ -266,7 +266,7 @@ IGPM:
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
       notes: >-
         8 data bytes. B10 holds the front door locks and ignition, B13:6 UNLOCKED_OR_IGN_ON. B05-B07
-        and B09 (B5 3F F4 EA), B11 (0) and B13:1 (1) are constant in all 411 captures, across every
+        and B09 (B5 3F F4 EA), B11 (0) and B13:1 (1) are constant in all 410 captures, across every
         power state. B12:5 set only in 8 captures (2026-07-21 READY).
       parameters:
         # TODO: All the other bytes on here
@@ -294,7 +294,7 @@ IGPM:
           source: RE 2026-07-23 bit analysis; ignition cross-tab 2026-10-22
           verified: false
           notes: >-
-            Equals 22BC03 ACC2_IGN_ON in 432 of 433 aligned rows. Rises in the same poll; at
+            Equals 22BC03 ACC2_IGN_ON in 431 of 432 aligned rows. Rises in the same poll; at
             power-off it can fall later. The 1 miss: 2026-08-08 17:52:39, ACC2_IGN_ON 0 and VCU
             EV_READY falling by 17:52:49, this bit still 1 in the read 0.25 s later, 0 by the next
             stored row at 17:53:19. Same on 2026-07-30 (ACC2_IGN_ON off 09:50:29, this bit first
@@ -308,7 +308,7 @@ IGPM:
           source: Same-payload cross-tab + event timeline 2026-10-22
           verified: false
           notes: >-
-            1 = doors unlocked or ignition on. Equals (NOT DOOR_LOCK_FL) OR B10:0 in 407 of 411
+            1 = doors unlocked or ignition on. Equals (NOT DOOR_LOCK_FL) OR B10:0 in 406 of 410
             captures. Rises with every unlock and ignition-on; fell in the same poll as the lock on
             2026-07-30 12:20:48, 08-08 17:53:32 and 08-15 10:06:07. All 4 exceptions read 1 while
             locked with the ignition off. 3 are a lock that is the last 22BC04 row of its session:
@@ -324,7 +324,7 @@ IGPM:
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
       notes: >-
         8 data bytes. B10 the brake lamps, B11 the turn signals. B05=0xB4, B06=0x80, B07, B09 and
-        B12 = 0 constant in all 588 captures.
+        B12 = 0 constant in all 587 captures.
       parameters:
         BRAKE_LIGHT:
           expression: B10
