@@ -319,6 +319,35 @@
           }
         }
       ]
+    },
+    {
+      "date": "2026-10-22",
+      "label": "IGPM BCFD/BCFF repeat",
+      "version": "1.28.0+81e37c7",
+      "vehicle_states": [
+        "READY"
+      ],
+      "notes": "repeat read 5 minutes after the first look; BCFD identical, so it does not track a clock",
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 2
+      },
+      "captures": [
+        {
+          "rx": "0x778",
+          "pid": "22BCFD",
+          "payload": "62BCFDFFFFFFFF0C0E162B3F2636000000000000",
+          "time": "10:47:50.816",
+          "elapsed_ms": 676
+        },
+        {
+          "rx": "0x778",
+          "pid": "22BCFF",
+          "payload": "62BCFF31303930",
+          "time": "10:47:51.477",
+          "elapsed_ms": 661
+        }
+      ]
     }
   ]
 }

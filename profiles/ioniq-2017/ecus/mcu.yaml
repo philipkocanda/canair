@@ -296,7 +296,9 @@ MCU:
       status: draft
       period: 0
       vehicle_states: [CHARGING]
-      notes: 27 bytes, all zeros during AC charging (2026-04-18).
+      notes: >-
+        27 bytes, all zeros in every one of 697 captures across charging, READY, parked and driving
+        (checked 2026-10-22). Nothing to decode.
       parameters: {}
 
     21F2:
@@ -531,11 +533,18 @@ MCU:
       updated: "2026-08-08"
     - type: decode
       target: "2103"
-      status: captured
+      status: done
       priority: P2
       vehicle_states: [CHARGING]
       date: "2026-04-18"
-      notes: "27 bytes, all zeros during charging. May contain data while driving."
+      result: >-
+        Closed 2026-10-22: dead page. The same all-zero 27-byte payload in all 697 captures over 16
+        days, including about 470 taken in the drive sessions of 2026-07-19, 07-22 and 07-26, plus
+        READY, parked and charging.
+      notes: >-
+        27 bytes, all zeros. The 2026-04-18 charging scan suggested it might hold data while
+        driving; drive sessions show it does not.
+      updated: "2026-10-22"
     - type: decode
       target: "21F2"
       status: captured
