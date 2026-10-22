@@ -1,5 +1,5 @@
 
-PID coverage audit — 1 PID(s) with gaps, 0 without captures
+PID coverage audit — 1 PID(s) with gaps, 0 without captures in scope
 
   IGPM 22BC05 (7p, 0 verified)  8 data bytes, 2026-08-02
       UNMAPPED 0,8,16,24,56

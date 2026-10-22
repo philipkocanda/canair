@@ -30,7 +30,7 @@ This never changes device output or the numeric path.
 |-----------|-----------------|------------|
 | `numeric` | *(default)*     | the float value + unit (unchanged) |
 | `enum`    | `values:` `{raw: label}` | `drive (40)` |
-| `bitmask` | `bits:` `{bit_index: label}` (0=LSB) | `mon\|tue\|sat` |
+| `bitmask` | `bits:` `{bit_index: label}` (0=LSB) | `rear_left_locked\|rear_right_locked` |
 | `ascii`   | —               | the decoded text |
 | `date`    | —               | `2017-06-06` (BCD or binary) |
 | `bcd`     | —               | the decoded decimal |
@@ -46,14 +46,17 @@ canair pids upsert-param VCU 2101 GEAR B10 \
     --type enum --value 0x21=park --value 0x22=reverse \
     --value 0x24=neutral --value 0x28=drive --unverified
 
-# A bitmask: the door-status byte on IGPM 22BC03 (B10; bits 1, 3 and 6 are not decoded)
+# A bitmask: the door byte on IGPM 22BC03 (B10; bit 6 has never been set, so stays unlabelled)
 canair pids upsert-param IGPM 22BC03 DOOR_STATUS B10 \
-    --type bitmask --bit 0=rear_left --bit 2=rear_right \
-    --bit 4=passenger --bit 5=driver --bit 7=trunk --unverified
+    --type bitmask --bit 0=rear_left_open --bit 1=rear_left_locked \
+    --bit 2=rear_right_open --bit 3=rear_right_locked --bit 4=passenger_open \
+    --bit 5=driver_open --bit 7=trunk_open --unverified
 ```
 
-The bundled Ioniq profile already decodes both bytes (VCU `GEAR`, IGPM `DOOR_*_OPEN`), so
-these two commands show the syntax rather than a signal still to be found.
+The bundled Ioniq profile already decodes both bytes — VCU `GEAR`, and IGPM B10 bit by bit as
+`DOOR_*_OPEN`, `DOOR_LOCK_RL`/`DOOR_LOCK_RR` and `TRUNK_OPEN` — so these two commands show the
+syntax rather than a signal still to be found. With the rear doors locked and every door shut,
+`DOOR_STATUS` would render as `rear_left_locked|rear_right_locked`.
 
 `--value`/`--bit` are repeatable `KEY=LABEL` pairs (`KEY` may be decimal or
 `0x`-hex). Passing only `--value`/`--bit` infers `--type enum`/`bitmask`.

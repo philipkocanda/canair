@@ -127,7 +127,11 @@ class TestKeepFilter:
     def _run(self, tmp_path, monkeypatch, capsys, argv, payloads):
         import argparse
 
-        monkeypatch.setattr(coverage, "load_representative_payloads", lambda *a, **k: payloads)
+        monkeypatch.setattr(
+            coverage,
+            "load_coverage_captures",
+            lambda *a, **k: coverage.CoverageCaptures(payloads=payloads),
+        )
         monkeypatch.setattr(coverage, "load_pids", lambda *_: {})
         monkeypatch.setattr(
             coverage,

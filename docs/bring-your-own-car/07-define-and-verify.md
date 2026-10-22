@@ -72,6 +72,31 @@ canair coverage MyECU          # unmapped bytes, partial bitfields, no-capture P
 canair validate all           # schema + duplicate-name checks
 ```
 
+What it reports per PID:
+
+| Finding | Meaning |
+|---|---|
+| `UNMAPPED` | a data byte no expression reads |
+| `UNVERIFIED` | a data byte read only by unverified signals |
+| `BITS` | a byte read bit by bit with some bits still undecoded |
+| `PAST END` | a signal reading beyond the end of the payload — a short reply, or a wrong offset |
+| `NO CAPTURE` | no positive reply recorded (`in scope` when a scope flag such as `--until` is set) |
+| `NEGATIVE RESPONSE ONLY` | the ECU only ever answered with a negative response; its NRC is shown |
+
+Which reply sets the length:
+
+- The **newest session** that read the PID, ordered by date and then by its first
+  capture's time, and within it the most common length (the longer one on a tie).
+- Only replies that echo the PID count, so a misfiled reply (another PID's answer stored
+  under this one) or a negative response never sets the length.
+- A PID flagged `variable_length:` (`canair pids set-pid-variable-length`) has no single
+  length, so it is audited against its **longest** reply in scope instead.
+- `may include trailing frame padding` marks a length that could be padding. Captures
+  made before sessions recorded a canair `version`, and anything brought in with `canair
+  import uds`, may store the last CAN frame padded out to 8 bytes. The flag is raised
+  only when the length is a whole number of frames and every reply of that length ends
+  in the same fill byte (`00`, `55`, `AA`, `CC` or `FF`). Re-read the PID to settle it.
+
 Unmapped bytes are your next research leads — loop back to
 [capture](05-capture.md) and [analyze](06-analyze.md).
 

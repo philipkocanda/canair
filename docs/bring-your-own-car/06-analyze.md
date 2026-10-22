@@ -138,8 +138,9 @@ moments — write the note while you remember what you did, and the analysis bec
 
 To see what's still undecoded across a whole ECU (or PID), `canair coverage`
 audits every parameter expression against the payload length of the PID's newest
-session and lists the **unmapped** and partially-decoded bytes. The usual scope flags apply, so
-`--until DATE` audits against the history as it stood on that date:
+session and lists the **unmapped** and partially-decoded bytes (every finding, and how the
+length is chosen, is in [Audit for gaps](07-define-and-verify.md#audit-for-gaps)). The usual
+scope flags apply, so `--until DATE` audits against the history as it stood on that date:
 
 ![canair coverage BMS — undecoded payload bytes](../screenshots/coverage.svg)
 
@@ -162,13 +163,13 @@ string you found is one step from being a defined signal. The inventory is filte
 to identifier-looking strings — numeric telemetry is often printable ASCII, so an
 unfiltered sweep is mostly noise (`--all-runs` shows you what that looks like).
 
-## Step 2 — Reason: what could this byte be?
 A string never includes the response header (the service byte and the DID/LID echo,
 which is often printable), and the raw responses a scan records in its notes are
 searched as bytes too, marked `from scan notes` (and `lossy` where the note was cut
 short). To search for text that is also a kind name, put it after `--`:
 `canair search -- uds`.
 
+## Step 2 — Reason: what could this byte be?
 
 Before guessing offsets, ask *what would this ECU need to report?* An ECU's job
 constrains what its bytes can plausibly be:
