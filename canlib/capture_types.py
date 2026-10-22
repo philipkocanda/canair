@@ -76,7 +76,7 @@ class CaptureRecord(TypedDict):
     NotRequired here and the constraint is enforced by the JSON schema.
     """
 
-    rx: str  # CAN response address (RX = request TX + 8), e.g. "0x7EC"; or "broadcast"
+    rx: str  # CAN response address (the ECU's rx_id), e.g. "0x7EC"; or "broadcast"
     pid: str | int
     payload: NotRequired[str]
     response: NotRequired[str]

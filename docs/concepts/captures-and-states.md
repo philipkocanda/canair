@@ -75,8 +75,9 @@ cutover is converted once with `canair captures migrate`.
 
 ## Sharing captures across machines (the merge driver)
 
-Capture files are **append-only session logs** — a session, once written, is
-never rewritten; new sessions are appended to the tail. So when two machines
+Capture files are **append-only session logs** — new sessions are appended to
+the tail, and a session is only ever rewritten in place by the editors and
+repairs below, which never change what identifies the recording. So when two machines
 both record on the same day, they each append a *different* session to the same
 `captures/YYYY-MM-DD.json`. Git's line-based merge can't reconcile that (every
 session ends with the same `}`/`]`/`}`, so the diff misaligns and splits the
@@ -85,7 +86,9 @@ mergeable list.
 
 canair ships a git **merge driver** that resolves this automatically by unioning
 the two sides' session lists (shared history collapses; disjoint appends are
-kept; a genuine divergent edit falls back to normal conflict markers). It's
+kept; an edit on one side wins over the untouched other, and both sides making the
+*same* edit merges cleanly; a genuine divergent edit falls back to normal conflict
+markers). It's
 wired for `profiles/*/captures/*.json` via `.gitattributes`, but git will not
 run a driver command it finds in a tracked file (a security measure), so **each
 clone must register it once**:
@@ -98,6 +101,16 @@ Until a clone runs this, merges simply fall back to conflict markers — nothing
 breaks, you just don't get the auto-union. (The driver itself is
 `canair captures merge-driver %O %A %B %P`, invoked by git; you never call that
 form by hand.)
+
+**How a session is recognised.** A session has no id. Two copies are the same
+when their content is identical, and the same *recording, edited* when they share
+its date, label and recording version and its first capture's time, `rx` and PID —
+the fields no editor or repair rewrites. That second rule is what lets an edited
+session replace its original (in a merge, in `canair contribute`, and when a
+layered profile's base and your layer both hold it) instead of being counted twice.
+Deleting a session's first capture does change it, so the trimmed session then
+reads as a different recording. Legacy untimed sessions that share all of those
+fields are never paired; they fall back to content alone.
 
 ## Provenance: transport & data quality
 
@@ -530,7 +543,8 @@ canair captures uds --set-notes "" --date 2026-04-18 --yes   # '' clears the not
 
 `--set-notes` replaces the notes on every scope-selected session, so it has the
 same scope requirement and `--dry-run`/`--json`/`--yes` behaviour as
-`--set-state`. The `--step` TUI's note editor does the same interactively.
+`--set-state`. With `--json`, stdout carries only the JSON rows; the human report
+goes to stderr. The `--step` TUI's note editor does the same interactively.
 
 `--set-transport NAME` corrects a session's recorded **transport** the same way,
 accepting only a known transport label (or `''` to clear it). Older canair
@@ -553,8 +567,11 @@ canair --profile my-car captures migrate-discover
 
 The TX is recovered exactly from how those captures were labelled (`NAME
 (status)` for a registered ECU, the bare status otherwise); a responder whose ECU
-no longer resolves is reported rather than guessed. It is idempotent, and it
-cannot recover the session's transport — use `--set-transport` for that.
+no longer resolves, resolves ambiguously, or whose label is not a single ECU name
+is reported rather than guessed. It is idempotent, and it cannot recover the
+session's transport — use `--set-transport` for that. In a layered profile it
+resolves names against the base's definitions and repairs only your layer; a
+`--dir` naming the read-only base is refused (a `--dry-run` still previews it).
 
 ### Splitting multi-DID replies stored under one DID
 

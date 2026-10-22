@@ -123,7 +123,11 @@ fork/clone/branch/push, and it works regardless of where the profile is stored
    copy destination, so there is nothing to contribute — re-run from your own
    checkout). Captures are append-only and are overlaid onto upstream, so a
    behind source never proposes deleting upstream sessions, and a capture log
-   your contribution adds nothing to is left untouched.
+   your contribution adds nothing to is left untouched. A session you edited
+   (`--set-*`, a back-fill, `migrate-discover`, `split-batched`) replaces
+   upstream's copy of the same recording; each replacement is listed and needs
+   confirmation (a stale source looks the same), and unsplit multi-DID replies in
+   sessions you add are flagged with the `captures split-batched` remedy.
 4. Copies the profile into a managed fork checkout, commits, pushes to your fork,
    and opens the PR via the **GitHub CLI (`gh`)**. When `gh` is missing or
    unauthenticated it prints install + `gh auth login` steps (and the manual

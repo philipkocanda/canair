@@ -65,6 +65,26 @@ def rollback_json(rollback: list[tuple[str, int]]) -> list[dict[str, Any]]:
     return [{"path": path, "removed_lines": n} for path, n in rollback]
 
 
+def replaced_json(replaced: list[Any]) -> list[dict[str, Any]]:
+    """The ``replaced_sessions`` payload shape (:class:`canlib.contribute.CaptureReplacement`)."""
+    return [
+        {
+            "file": r.file,
+            "session": r.session.index,
+            "date": r.session.date,
+            "time": r.session.time,
+            "label": r.session.label,
+            "fields": list(r.session.fields),
+        }
+        for r in replaced
+    ]
+
+
+def unsplit_json(unsplit: list[Any]) -> list[dict[str, Any]]:
+    """The ``unsplit_batches`` payload shape: ``(file, location, pids)`` per finding."""
+    return [{"file": f, "location": loc, "split_into": list(pids)} for f, loc, pids in unsplit]
+
+
 def findings_json(findings: list[Any]) -> list[dict[str, str]]:
     """The ``findings`` payload shape (see :mod:`canlib.pii`)."""
     return [{"location": f.location, "kind": f.kind, "detail": f.detail} for f in findings]
@@ -163,4 +183,33 @@ class Reporter:
             "\n  If this is a deliberate cleanup, proceed. Otherwise sync your source "
             "first\n  (e.g. [cyan]git pull[/cyan], and run [cyan]uv run canair[/cyan] "
             "from your checkout).\n"
+        )
+
+    def replacement_warning(self, replaced: list[Any]) -> None:
+        """Explain that the contribution replaces upstream capture sessions in place.
+
+        An edited session (``--set-notes``, ``migrate-discover``, ``split-batched`` …)
+        is the same recording as upstream's copy, so it replaces that copy rather
+        than sitting next to it. A *stale* source looks identical — upstream edited
+        the session later — so every replacement is listed for review. Shown by
+        ``--diff`` and by the replacement gate, like :meth:`rollback_warning`.
+        """
+        self.console.print(
+            f"\n[yellow]⚠ This contribution replaces {len(replaced)} upstream capture "
+            "session(s)[/yellow] with your copies of the same recordings:\n"
+        )
+        from rich.markup import escape
+
+        for r in replaced:
+            s = r.session
+            when = f"{s.date} {s.time}".strip()
+            changed = ", ".join(s.fields) or "content"
+            self.console.print(
+                f"  [yellow]•[/yellow] {escape(r.file)} [{s.index}] {when}  {escape(s.label)}  "
+                f"[dim](changes: {changed})[/dim]"
+            )
+        self.console.print(
+            "\n  That is expected for sessions you edited or repaired. If you did not, "
+            "your\n  source is probably behind upstream and this would revert upstream's "
+            "edit —\n  sync first (e.g. [cyan]git pull[/cyan]).\n"
         )

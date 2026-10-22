@@ -39,6 +39,7 @@ from dataclasses import dataclass, field
 from fnmatch import fnmatch
 from pathlib import Path
 
+from .captures_merge import SessionReplacement
 from .constants import GITHUB_REPO as UPSTREAM_REPO
 from .profile import member_names, members_by_role
 
@@ -445,6 +446,7 @@ def copy_profile(
     *,
     include_captures: bool,
     warn: Callable[[str], None] | None = None,
+    replaced: Callable[[CaptureReplacement], None] | None = None,
 ) -> Path:
     """Copy the resolved profile bundle into ``workspace/profiles/<name>/``.
 
@@ -460,10 +462,15 @@ def copy_profile(
     upstream capture session a merely-behind source lacks), each dated capture
     log gets the source's **new sessions appended** to the upstream copy already
     in the workspace — captures are append-only evidence, so the contribution
-    only ever *adds* sessions. See :func:`_overlay_captures`.
+    only ever *adds* sessions, or *replaces* one with the source's edited copy of
+    the same recording. See :func:`_overlay_captures`. The source is the
+    profile's own capture store (:attr:`Profile.captures_dir` — the user's layer
+    of a layered profile, not the read-only base it extends).
 
     ``warn`` receives a human-readable message for anything skipped that the user
-    should know about. Returns the destination directory.
+    should know about, and ``replaced`` each upstream session the contribution
+    replaces (the caller must surface those — see
+    :func:`canlib.captures_merge.overlay`). Returns the destination directory.
     """
     dest = workspace / "profiles" / profile.name
     dest.mkdir(parents=True, exist_ok=True)  # overlay — do NOT wipe the whole dir
@@ -486,7 +493,9 @@ def copy_profile(
             shutil.copy2(src, target)
 
     if include_captures:
-        _overlay_captures(profile.root / _CAPTURE_MEMBER, dest / _CAPTURE_MEMBER, warn=warn)
+        _overlay_captures(
+            profile.captures_dir, dest / _CAPTURE_MEMBER, warn=warn, replaced=replaced
+        )
     return dest
 
 
@@ -503,16 +512,23 @@ def _is_transient(rel: Path) -> bool:
     return any(fnmatch(part, pattern) for part in rel.parts for pattern in _SKIP_PATTERNS)
 
 
-def _overlay_captures(src: Path, dst: Path, *, warn: Callable[[str], None] | None = None) -> None:
+def _overlay_captures(
+    src: Path,
+    dst: Path,
+    *,
+    warn: Callable[[str], None] | None = None,
+    replaced: Callable[[CaptureReplacement], None] | None = None,
+) -> None:
     """Overlay ``src`` captures onto ``dst`` without ever deleting upstream data.
 
     Dated capture logs (top-level ``*.json``) that exist on both sides get the
-    source's new sessions **appended** so a source that is behind upstream never
-    proposes dropping sessions, and a log the source adds nothing to is left
-    byte-identical. Everything else under captures/ (e.g. ``can/`` raw-frame logs
-    and their index) is copied as an overlay: files present in the source replace
-    their counterpart, files only upstream are left in place. Transient members
-    (:data:`_SKIP_PATTERNS`) are skipped.
+    source's new sessions **appended** (and its edited copies of upstream
+    sessions put in their place, each reported to ``replaced``) so a source that
+    is behind upstream never proposes dropping sessions, and a log the source
+    changes nothing in is left byte-identical. Everything else under captures/
+    (e.g. ``can/`` raw-frame logs and their index) is copied as an overlay: files
+    present in the source replace their counterpart, files only upstream are left
+    in place. Transient members (:data:`_SKIP_PATTERNS`) are skipped.
     """
     if not src.exists() or _same_path(src, dst):
         return
@@ -527,17 +543,30 @@ def _overlay_captures(src: Path, dst: Path, *, warn: Callable[[str], None] | Non
         target.parent.mkdir(parents=True, exist_ok=True)
         # A dated capture log present on both sides → append the new sessions.
         if rel.parent == Path(".") and path.suffix == ".json" and target.exists():
-            problem = _overlay_capture_file(upstream=target, source=path)
+            problem = _overlay_capture_file(upstream=target, source=path, replaced=replaced)
             if problem and warn:
                 warn(problem)
         else:
             shutil.copy2(path, target)
 
 
-def _overlay_capture_file(*, upstream: Path, source: Path) -> str | None:
-    """Append ``source``'s new sessions to ``upstream``. Returns a warning, or None.
+@dataclass(frozen=True)
+class CaptureReplacement:
+    """An upstream capture session the contribution replaces with the source's copy."""
 
-    Leaves the file **untouched** when the source adds no session, so a
+    file: str  # e.g. "captures/2026-07-28.json"
+    session: SessionReplacement
+
+
+def _overlay_capture_file(
+    *,
+    upstream: Path,
+    source: Path,
+    replaced: Callable[[CaptureReplacement], None] | None = None,
+) -> str | None:
+    """Overlay ``source``'s sessions onto ``upstream``. Returns a warning, or None.
+
+    Leaves the file **untouched** when the source changes no session, so a
     contribution never rewrites — and never reorders — a capture log it doesn't
     actually add to.
 
@@ -549,16 +578,19 @@ def _overlay_capture_file(*, upstream: Path, source: Path) -> str | None:
     import json
 
     from .capture_io import dump_capture_file, load_capture_file
-    from .captures_merge import overlay_documents
+    from .captures_merge import overlay
 
     try:
         up = load_capture_file(upstream)
         ours = load_capture_file(source)
     except (OSError, json.JSONDecodeError) as e:
         return f"{_CAPTURE_MEMBER}/{source.name}: not contributed (unreadable capture file: {e})"
-    merged = overlay_documents(up, ours)
-    if merged is not None:
-        dump_capture_file(upstream, merged)
+    result = overlay(up, ours)
+    if result.doc is not None:
+        dump_capture_file(upstream, result.doc)
+    if replaced is not None:
+        for r in result.replaced:
+            replaced(CaptureReplacement(f"{_CAPTURE_MEMBER}/{upstream.name}", r))
     return None
 
 

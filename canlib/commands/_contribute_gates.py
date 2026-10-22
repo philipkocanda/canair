@@ -19,13 +19,23 @@ from __future__ import annotations
 import argparse
 import contextlib
 import io
+import json
 from pathlib import Path
 from typing import Any
 
 from .. import contribute as C
 from .. import pii
 from ..install_context import installed_snapshot_kind
-from ._contribute_report import CANNOT, Reporter, Stop, confirm, findings_json, rollback_json
+from ._contribute_report import (
+    CANNOT,
+    Reporter,
+    Stop,
+    confirm,
+    findings_json,
+    replaced_json,
+    rollback_json,
+    unsplit_json,
+)
 
 # Warn before contributing a captures/ dir larger than this (bytes).
 CAPTURES_WARN_BYTES = 25 * 1024 * 1024
@@ -271,6 +281,124 @@ def privacy(
             rollback=rollback_json(rollback),
         )
     return findings
+
+
+def captures(
+    rep: Reporter,
+    profile,
+    pre: C.Preflight,
+    ws: Path,
+    *,
+    include_captures: bool,
+    replaced: list[C.CaptureReplacement],
+) -> None:
+    """The capture-integrity consent gates: replaced sessions, then unsplit replies.
+
+    Both are judged on what *this* contribution changes. A replacement is how an
+    edited session reaches upstream, but it is also exactly what a stale source
+    reverting upstream's edit looks like — so each is listed and needs consent.
+    An unsplit multi-DID reply (a pre-repair session) would re-enter upstream the
+    bytes ``captures split-batched`` exists to correct; the detector is a corpus
+    heuristic, so it warns and asks rather than refusing outright.
+    """
+    if not include_captures:
+        return
+    if replaced:
+        rep.gate(
+            error=f"this contribution replaces {len(replaced)} upstream capture session(s) "
+            "with your copies (expected for sessions you edited; a stale source looks the same)",
+            prompt="Replace those upstream sessions?",
+            human=lambda: rep.replacement_warning(replaced),
+            replaced_sessions=replaced_json(replaced),
+        )
+    unsplit = unsplit_in_contribution(profile, pre, ws)
+    if unsplit:
+
+        def explain() -> None:
+            rep.console.print(
+                f"\n[yellow]⚠ {len(unsplit)} capture(s) in this contribution hold a whole "
+                "multi-DID reply stored under one DID[/yellow] — every analysis reads that "
+                "DID past its real end:\n"
+            )
+            for file, location, pids in unsplit:
+                rep.console.print(
+                    f"  [yellow]•[/yellow] {file} {location}  [dim]({' + '.join(pids)})[/dim]"
+                )
+            rep.console.print(
+                "\n  Repair them first with [cyan]canair captures split-batched[/cyan], "
+                "then re-run.\n"
+            )
+
+        rep.gate(
+            error=f"{len(unsplit)} unsplit multi-DID reply capture(s) in the contribution; "
+            "repair them with `canair captures split-batched`",
+            prompt="Contribute them unrepaired anyway?",
+            human=explain,
+            unsplit_batches=unsplit_json(unsplit),
+        )
+
+
+def unsplit_in_contribution(
+    profile, pre: C.Preflight, ws: Path
+) -> list[tuple[str, str, list[str]]]:
+    """``(file, location, split_into)`` for each unsplit multi-DID reply the contribution adds.
+
+    Detection runs over the prepared contribution's whole capture store (upstream
+    plus overlay — the corpus the established DID lengths come from); findings in
+    sessions byte-identical to the upstream base are not this contribution's doing
+    and are left to the repair on upstream's side.
+    """
+    from .. import capture_io
+    from ..captures_merge import session_key
+    from ..payload_corpus import load_payload_corpus
+    from ..unsplit_batches import find_unsplit_batches
+
+    cdir = ws / "profiles" / profile.name / "captures"
+    if not cdir.is_dir():
+        return []
+    corpus = load_payload_corpus(capture_io.iter_capture_files(cdir))
+    found = find_unsplit_batches(corpus.samples)
+    if not found:
+        return []
+
+    read_base = C.base_reader(pre, ws)
+    upstream: dict[Path, set[str]] = {}
+    sessions: dict[Path, list] = {}
+
+    def is_upstream(path: Path, idx: int) -> bool:
+        if path not in upstream:
+            text = read_base(f"profiles/{profile.name}/captures/{path.name}")
+            try:
+                base = json.loads(text) if text else {}
+            except ValueError:
+                base = {}
+            upstream[path] = {
+                session_key(s)
+                for s in (base or {}).get("sessions", []) or []
+                if isinstance(s, dict)
+            }
+            sessions[path] = capture_io.load_capture_file(path).get("sessions", [])
+        return session_key(sessions[path][idx]) in upstream[path]
+
+    names = _rx_names(profile)
+    out: list[tuple[str, str, list[str]]] = []
+    for u in found:
+        at = corpus.where[u.sample.handle]
+        if is_upstream(at.path, at.session):
+            continue
+        ecu = names.get(u.sample.rx, hex(u.sample.rx))
+        out.append((f"captures/{at.path.name}", at.describe(ecu, u.sample.pid), u.pids))
+    return out
+
+
+def _rx_names(profile) -> dict[int, str]:
+    """RX → ECU name from the contributed profile's own registry (empty if unreadable)."""
+    from ..ecus import build_rx_index, load_ecus
+
+    try:
+        return build_rx_index(load_ecus(profile.ecus_dir))
+    except Exception:
+        return {}
 
 
 def _validate(profile) -> tuple[bool, str]:

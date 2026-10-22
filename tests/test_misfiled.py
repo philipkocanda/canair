@@ -62,7 +62,7 @@ def test_identical_same_length_reply_is_flagged():
 
 def test_owner_with_more_copies_is_not_flagged():
     shared = _reply(40, seed=3)
-    samples = _samples((VCU, shared, 4), (MCU, shared, 1))
+    samples = _samples((VCU, shared, 4), (MCU, _reply(40), 3), (MCU, shared, 1))
     assert [m.sample.rx for m in find_misfiled(samples)] == [MCU]
 
 
@@ -157,3 +157,50 @@ def test_validate_captures_reports_it_as_a_warning(tmp_path, capsys, _restore_ac
     assert _run_captures() == 0
     out = capsys.readouterr().out
     assert "probably VCU's reply misfiled under MCU" in out
+
+
+def test_a_tie_flags_neither_ecu():
+    """Equal copies on both sides is no evidence either way — not grounds to flag both."""
+    shared = _reply(40, seed=3)
+    samples = _samples(
+        (MCU, _reply(40), 5), (VCU, _reply(40, seed=9), 5), (MCU, shared, 2), (VCU, shared, 2)
+    )
+    assert find_misfiled(samples) == []
+
+
+def test_a_genuinely_shared_answer_is_not_a_misfile():
+    """Every ECU returns the same VIN from 22F190, however unevenly it was polled."""
+    vin = bytes.fromhex("62F190") + b"KMHC851CGLU000000"
+    samples = [PayloadSample(i, BMS, "22F190", vin) for i in range(6)]
+    samples += [PayloadSample(6 + i, MCU, "22F190", vin) for i in range(2)]
+    assert find_misfiled(samples) == []
+
+
+def test_the_response_header_does_not_count_as_substance():
+    """``62 D0 01`` + a page of FF has four distinct bytes, all but one in the echo."""
+    page = bytes.fromhex("62D001") + b"\xff" * 30
+    samples = [PayloadSample(i, MCU, "22D001", page) for i in range(3)]
+    samples.append(PayloadSample(3, VCU, "22D001", page))
+    samples.append(PayloadSample(4, VCU, "22D001", bytes.fromhex("62D001") + bytes(range(30))))
+    assert find_misfiled(samples) == []
+
+
+def test_one_ecus_history_under_two_rx_values_is_not_compared_with_itself():
+    """Legacy ``TX + 0x08`` saves on a profile whose ECU answers elsewhere."""
+    legacy, current = 0x7EC, 0x804  # BMS at TX 0x7E4 on a +0x20 profile
+    own = _reply(40, seed=3)
+    samples = _samples((current, own, 4), (current, _reply(40), 4), (legacy, own, 1))
+    assert [m.sample.rx for m in find_misfiled(samples)] == [legacy]  # unfolded: a false hit
+    assert find_misfiled(samples, {legacy: current}) == []
+
+
+def test_legacy_aliases_fold_only_addresses_no_other_ecu_owns():
+    from canlib.commands.validate.misfiled import legacy_rx_aliases
+
+    ecus = {
+        0x7E4: {"name": "BMS", "rx_id": 0x804},  # legacy 0x7EC is free → folded
+        0x7E2: {"name": "VCU", "rx_id": 0x802},  # legacy 0x7EA is MCU's real rx → kept
+        0x7E3: {"name": "MCU", "rx_id": 0x7EA},
+        0x7A0: {"name": "BCM", "rx_id": 0x7A8},  # conventional → nothing to fold
+    }
+    assert legacy_rx_aliases(ecus) == {0x7EC: 0x804, 0x7EB: 0x7EA}

@@ -9,23 +9,31 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TextIO
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
 
 def refuse_write(
-    paths: Iterable[Path], *, verb: str, prompt: str, what: str, assume_yes: bool
+    paths: Iterable[Path],
+    *,
+    verb: str,
+    prompt: str,
+    what: str,
+    assume_yes: bool,
+    out: TextIO | None = None,
 ) -> int | None:
     """Return an exit code when the write must not happen, else None to proceed.
 
     ``verb`` names the change in the layer refusal (``"relabelled"``), ``prompt``
     is the confirmation question, and ``what`` completes the non-interactive
-    refusal (``"set state"``).
+    refusal (``"set state"``). ``out`` receives the prompt and the cancellation
+    note — stderr under ``--json``, so stdout carries nothing but the JSON.
     """
     from . import layers
 
+    out = out or sys.stdout
     if blocked := layers.refusal(paths, verb):
         print(blocked, file=sys.stderr)
         return 1
@@ -39,7 +47,8 @@ def refuse_write(
             file=sys.stderr,
         )
         return 2
-    if input(f"  {prompt} [y/N] ").strip().lower() not in ("y", "yes"):
-        print("  Cancelled — nothing written.")
+    print(f"  {prompt} [y/N] ", end="", file=out, flush=True)
+    if input().strip().lower() not in ("y", "yes"):
+        print("  Cancelled — nothing written.", file=out)
         return 1
     return None

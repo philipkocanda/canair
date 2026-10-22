@@ -428,9 +428,11 @@ def _session_starts(
     entries = filter_by_date_range(entries, since, until)
     entries = filter_by_text(entries, state=state, label=label)
 
+    # Keyed by full path: a layered profile's base and overlay share date file
+    # names, and a bare name would fold their sessions together.
     starts: dict[tuple[str, int], datetime] = {}
     for e in entries:
-        key = (e.get("file", ""), e.get("_session_idx", 0))
+        key = (e.get("_path") or e.get("file", ""), e.get("_session_idx", 0))
         dt = entry_datetime(e)
         if dt is None:
             d = entry_date(e)

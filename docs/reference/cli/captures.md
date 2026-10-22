@@ -297,7 +297,7 @@ usage: canair captures migrate-rx [-h] [--dry-run] [--json] [--dir DIR]
 
 Rename the persisted capture field `ecu` → `rx` in the active profile's capture files.
 
-The field holds the ECU CAN *response* address (RX = request TX + 8), not an ECU name, so it was renamed to `rx` to stop it being confused with the resolved short name. Renames at the capture level and inside scan_results.responding[]; idempotent (a file already on `rx` is left untouched). Readers tolerate the legacy `ecu` key, so this migration is safe to defer. Performs the rename by default; pass --dry-run to preview.
+The field holds the ECU CAN *response* address (the ECU's rx_id, else request TX + the profile's rx_offset), not an ECU name, so it was renamed to `rx` to stop it being confused with the resolved short name. Renames at the capture level and inside scan_results.responding[]; idempotent (a file already on `rx` is left untouched). Readers tolerate the legacy `ecu` key, so this migration is safe to defer. Performs the rename by default; pass --dry-run to preview.
 
 options:
   -h, --help  show this help message and exit
@@ -313,7 +313,7 @@ usage: canair captures migrate-discover [-h] [--dry-run] [--json] [--dir DIR]
 
 Give legacy discover captures each responder's probed `tx`, and the `rx` the profile's addressing gives it.
 
-Those captures stored only an `rx` per responder, and for an address not in the ECU registry it was computed as TX + 0x08 whatever the profile's addressing: block said. The TX is recoverable exactly: a registered responder was labelled `NAME (status)`, an unregistered one with the bare status. Idempotent; a responder whose ECU name no longer resolves is reported, not guessed (exit 1). The session transport cannot be recovered this way — use `captures uds --set-transport`. Performs the repair by default; pass --dry-run to preview.
+Those captures stored only an `rx` per responder, and for an address not in the ECU registry it was computed as TX + 0x08 whatever the profile's addressing: block said. The TX is recoverable exactly: a registered responder was labelled `NAME (status)`, an unregistered one with the bare status. Idempotent; a responder whose ECU name no longer resolves (or is ambiguous) is reported, not guessed (exit 1), and a layered profile's read-only base is refused (exit 1). The session transport cannot be recovered this way — use `captures uds --set-transport`. Performs the repair by default; pass --dry-run to preview.
 
 options:
   -h, --help  show this help message and exit

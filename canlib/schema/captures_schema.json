@@ -57,9 +57,9 @@
       "description": "Exactly one payload field (payload, response, or scan_results) must be present.",
       "properties": {
         "rx": {
-          "description": "ECU CAN response address (RX = request TX + 8), e.g. 0x7EC; or the 'broadcast' sentinel for multi-ECU scans.",
+          "description": "ECU CAN response address under the profile's addressing (the ECU's rx_id, else request TX + addressing.rx_offset, or the byte-swapped id for normal_fixed_29bit): 3 hex digits for an 11-bit id (e.g. 0x7EC), up to 8 for a 29-bit one (e.g. 0x18DAF110); or the 'broadcast' sentinel for multi-ECU scans.",
           "type": "string",
-          "pattern": "^(0x[0-9A-Fa-f]{3}|broadcast)$"
+          "pattern": "^(0x[0-9A-Fa-f]{3,8}|broadcast)$"
         },
         "pid": {
           "description": "PID/DID string, e.g. 2101, 22BC03. Bare-integer values are tolerated.",

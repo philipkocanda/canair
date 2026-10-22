@@ -61,6 +61,8 @@ def _entry(**kw) -> dict:
         "_capture_idx": 0,
     }
     base.update(kw)
+    # load_all_captures always locates a row; a bare name keeps these assertions short.
+    base.setdefault("_path", base["file"])
     return base
 
 
@@ -1099,6 +1101,31 @@ class TestJumpBlocking:
         m = _jump_model(keys=[("HVAC", "220100"), ("HVAC", "2201A0")], view=VIEW_INTERLEAVED)
         jl = m.jump_targets()
         assert jl.hidden_sessions == 0 and jl.hidden_notes == 0
+
+    def test_same_named_files_in_two_layers_are_two_sessions(self):
+        """A base and an overlay both hold ``2026-08-01.json`` session 0."""
+        entries = [
+            _entry(
+                file="2026-08-01.json",
+                _path=f"/{layer}/captures/2026-08-01.json",
+                date="2026-08-01",
+                time=t,
+                payload=p,
+                session_label=layer,
+            )
+            for layer, t, p in (
+                ("base", "09:00:00", "6201005A6414"),
+                ("overlay", "15:00:00", "6201005B6414"),
+            )
+        ]
+        keys = [("HVAC", "220100")]
+        m = StepModel.from_entries(entries, keys, {keys[0]: (PARAMS, 0x7B3)}, captures_dir=None)
+        sessions = [t.session for t in m.jump_targets().rows if not t.is_note]
+        assert len(sessions) == 2 and len(set(sessions)) == 2
+        m.seek_session(("/base/captures/2026-08-01.json", 0))
+        assert m.frame_time().strftime("%H:%M") == "09:00"
+        m.seek_session(("/overlay/captures/2026-08-01.json", 0))
+        assert m.frame_time().strftime("%H:%M") == "15:00"
 
     def test_note_on_an_unselected_pid_is_not_blocked(self):
         """It is reachable — seek_capture adds the PID rather than refusing."""

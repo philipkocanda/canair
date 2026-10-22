@@ -173,3 +173,46 @@ class TestMigrateDir:
         got = [(e["tx"], e["rx"]) for e in _responding(json.loads(path.read_text()))]
         assert got == [("0x740", "0x760"), ("0x758", "0x778"), ("0x74E", "0x76E")]
         assert "--set-transport" in capsys.readouterr().out
+
+
+class TestRepairEdgeCases:
+    def test_an_ambiguous_registry_names_the_real_reason(self):
+        """Two ECUs claiming one alias must not read as "no longer in the registry"."""
+        ecus = {**ECUS, 0x7E4: {"name": "BMS", "alias": "ABS", "rx_id": 0x7EC}}
+        doc = _doc(LEGACY)
+        repairs, skipped = repair_doc(doc, Addressing(ecus, 0x20, DEFAULT_MODE))
+        assert {s.reason for s in skipped} == {"ambiguous ECU name/alias in the registry"}
+        assert [s.response for s in skipped] == ["BRAKE (NRC 0x12)", "ABS (positive)"]
+        # Unregistered responders need no name, so they are still repaired.
+        assert [r.response for r in repairs] == ["NRC 0x12", "positive"]
+
+    @pytest.mark.parametrize("label", ["Front Camera (positive)", "ABS front (NRC 0x12)"])
+    def test_a_status_suffix_without_a_single_name_is_skipped_not_guessed(self, label):
+        """Falling through to the ``rx - 8`` inverse would write a wrong TX."""
+        doc = _doc([{"rx": "0x760", "response": label}])
+        repairs, [skip] = repair_doc(doc, ADDRESSING)
+        assert repairs == []
+        assert "does not name a single ECU" in skip.reason
+        assert "tx" not in _responding(doc)[0]
+
+    def test_a_legacy_29bit_responder(self):
+        from canlib.addressing import AddressingMode
+
+        doc = _doc([{"rx": "0x18DA10F9", "response": "positive"}])
+        fixed = Addressing({}, 0x08, AddressingMode.NORMAL_FIXED_29BIT)
+        [repair], skipped = repair_doc(doc, fixed)
+        assert skipped == []
+        assert (repair.tx, repair.rx) == ("0x18DA10F1", "0x18DAF110")
+        assert _responding(doc)[0] == {
+            "tx": "0x18DA10F1",
+            "rx": "0x18DAF110",
+            "response": "positive",
+        }
+
+    @pytest.mark.parametrize("pid", ["scan 22 0100-01FF", "discovery 700-7EF", "sessions"])
+    def test_other_broadcast_captures_are_left_alone(self, pid):
+        doc = _doc(LEGACY)
+        doc["sessions"][0]["captures"][0]["pid"] = pid
+        before = json.dumps(doc)
+        assert repair_doc(doc, ADDRESSING) == ([], [])
+        assert json.dumps(doc) == before

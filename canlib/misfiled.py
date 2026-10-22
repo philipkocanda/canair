@@ -11,17 +11,22 @@ capture is suspect when:
 - **its length** breaks its own ECU's established length for that PID but matches another ECU's
   established length for the same PID, or
 - **its bytes** are identical to a reply recorded under another ECU for the same PID, which has
-  that payload at least as often.
+  that payload strictly more often — unless every ECU answering that PID gives the same set of
+  replies (a genuinely shared answer such as the VIN).
 
-Negative responses (``7F …``) are left out: two ECUs refusing a request look alike by design.
+Negative responses (``7F …``) are left out: two ECUs refusing a request look alike by design,
+and the identical-bytes rule only weighs the data after the response header, which every ECU
+answering the same request echoes alike.
 Pure and device-free, so ``validate captures`` and any future capture tool can share it.
 """
 
 from __future__ import annotations
 
 from collections import Counter, defaultdict
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
+
+from .uds_layout import response_layout
 
 # A length is an ECU's "own" for a PID only once it is seen often and almost exclusively, so
 # variable-length PIDs and thinly sampled ones never produce a length finding.
@@ -80,14 +85,56 @@ def _signatures(samples: list[PayloadSample]) -> dict[tuple[int, str], tuple[int
     return out
 
 
+def _data(payload: bytes) -> bytes:
+    """The bytes after the response header (SID plus its DID/LID/sub-function echo).
+
+    The header is the same for every ECU answering the same request, so counting it
+    would let ``62 D0 01`` + a page of ``FF`` pass as a substantial, distinctive reply.
+    An unknown service keeps everything but the SID.
+    """
+    layout = response_layout(payload[0])
+    return payload[layout.header_bytes if layout is not None else 1 :]
+
+
 def _substantial(payload: bytes) -> bool:
-    return len(payload) >= MIN_IDENTICAL_BYTES and len(set(payload)) >= MIN_IDENTICAL_DISTINCT
+    data = _data(payload)
+    return len(data) >= MIN_IDENTICAL_BYTES and len(set(data)) >= MIN_IDENTICAL_DISTINCT
 
 
-def find_misfiled(samples: Iterable[PayloadSample]) -> list[Misfile]:
-    """Return every sample that looks like another ECU's reply, in input order."""
+def _shared_pids(pool: list[PayloadSample]) -> set[str]:
+    """PIDs every responding ECU answers with exactly the same set of payloads.
+
+    A genuinely shared answer — the VIN from ``22F190``, a common part number or
+    configuration DID — looks like this, and no ECU's copy is evidence against
+    another's. A misfile breaks the symmetry: the reply lands among the victim
+    ECU's *own* distinct payloads.
+    """
+    sets: dict[str, dict[int, set[bytes]]] = defaultdict(lambda: defaultdict(set))
+    for s in pool:
+        sets[s.pid][s.rx].add(s.payload)
+    shared: set[str] = set()
+    for pid, by_rx in sets.items():
+        groups = list(by_rx.values())
+        if len(groups) > 1 and all(g == groups[0] for g in groups[1:]):
+            shared.add(pid)
+    return shared
+
+
+def find_misfiled(
+    samples: Iterable[PayloadSample], same_ecu: Mapping[int, int] | None = None
+) -> list[Misfile]:
+    """Return every sample that looks like another ECU's reply, in input order.
+
+    ``same_ecu`` folds an RX address into the one it is another name for (one ECU's
+    history recorded under two addresses, e.g. legacy ``TX + 0x08`` saves on a
+    profile whose ECU answers elsewhere), so an ECU is never compared against
+    itself. Returned samples carry the folded RX.
+    """
+    fold = same_ecu or {}
     pool = [
-        PayloadSample(s.handle, s.rx, s.pid.upper(), s.payload) for s in samples if _is_candidate(s)
+        PayloadSample(s.handle, fold.get(s.rx, s.rx), s.pid.upper(), s.payload)
+        for s in samples
+        if _is_candidate(s)
     ]
     signatures = _signatures(pool)
     by_pid: dict[str, dict[int, tuple[int, int]]] = defaultdict(dict)
@@ -96,6 +143,7 @@ def find_misfiled(samples: Iterable[PayloadSample]) -> list[Misfile]:
     copies: dict[tuple[str, bytes], Counter[int]] = defaultdict(Counter)
     for s in pool:
         copies[(s.pid, s.payload)][s.rx] += 1
+    shared = _shared_pids(pool)
 
     findings: list[Misfile] = []
     for s in pool:
@@ -108,9 +156,10 @@ def find_misfiled(samples: Iterable[PayloadSample]) -> list[Misfile]:
                 if rx != s.rx and sig[0] == len(s.payload)
             }
         identical: dict[int, int] = {}
-        if _substantial(s.payload):
+        if s.pid not in shared and _substantial(s.payload):
             seen = copies[(s.pid, s.payload)]
-            identical = {rx: n for rx, n in seen.items() if rx != s.rx and n >= seen[s.rx]}
+            # A strict majority: on a tie neither ECU's copy outweighs the other's.
+            identical = {rx: n for rx, n in seen.items() if rx != s.rx and n > seen[s.rx]}
         if not by_length and not identical:
             continue
         likely = _pick_likely(by_length, identical)

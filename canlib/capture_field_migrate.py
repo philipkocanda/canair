@@ -1,7 +1,7 @@
 """Capture-store field migration: rename the ``ecu`` field to ``rx``.
 
 The persisted capture record's ``ecu`` field actually holds the ECU's CAN
-*response* address (RX = request TX + 8, e.g. ``"0x7EC"``), not an ECU name — so
+*response* address (the ECU's ``rx_id``, e.g. ``"0x7EC"``), not an ECU name — so
 it was renamed ``ecu`` → ``rx`` to stop it being confused with the in-memory
 resolved short name (which keeps the ``ecu`` key). See
 the ``rx`` field rename (``canair captures migrate-rx``).

@@ -149,13 +149,15 @@ def unresolved_state_summary(entries: Sequence[CaptureEntry]) -> tuple[int, int]
     prints, in the spirit of :mod:`canlib.fill`'s reported forward fills: a
     span-less multi-state session degrades *loudly*.
     """
+    # Keyed by the file's full path: both layers of a layered profile hold the
+    # same ``<date>.json`` names, so a bare name would merge unrelated sessions.
     sessions: set[tuple[str, int]] = set()
     n = 0
     for e in entries:
         if e.get("states_resolved", True):
             continue
         n += 1
-        sessions.add((e.get("file", ""), e.get("_session_idx", 0)))
+        sessions.add((e.get("_path") or e.get("file", ""), e.get("_session_idx", 0)))
     return n, len(sessions)
 
 
@@ -285,14 +287,17 @@ def load_all_captures(captures_dir: Path | None = None) -> list[CaptureEntry]:
     flattened from the file it actually lives in, so the locators stay true to disk
     and a mutation reopens the right file. A session present in both layers (a
     ``git pull`` bringing home what you already had) is kept once, keyed by content
-    via :func:`captures_merge.session_key`.
+    via :func:`captures_merge.session_key`, and the base copy wins. A session the
+    user *edited* in their layer (same :func:`captures_merge.session_anchor`,
+    different content) supersedes the base's original instead: the overlay is the
+    only layer an edit can reach, so its copy is the current one. Either way every
+    recording is counted once.
     """
     rx_index = _rx_index()
     layers = capture_io.resolve_capture_layers(captures_dir)
 
-    entries: list[CaptureEntry] = []
-    seen: set[str] = set()
-    for layer in layers:
+    stored: list[tuple[int, Path, int, Mapping[str, Any]]] = []
+    for li, layer in enumerate(layers):
         if not layer.is_dir():
             continue
         capture_io.ensure_migrated(layer)
@@ -301,16 +306,53 @@ def load_all_captures(captures_dir: Path | None = None) -> list[CaptureEntry]:
             if not data or "sessions" not in data:
                 continue
             for s_idx, session in enumerate(data["sessions"]):
-                key = captures_merge.session_key(session)
-                if key in seen:
-                    continue
-                seen.add(key)
-                entries.extend(flatten_session(fpath, s_idx, session, rx_index))
+                stored.append((li, fpath, s_idx, session))
+    superseded = _superseded_by_a_later_layer(stored) if len(layers) > 1 else set()
+
+    entries: list[CaptureEntry] = []
+    seen: set[str] = set()
+    for n, (_li, fpath, s_idx, session) in enumerate(stored):
+        if n in superseded:
+            continue
+        key = captures_merge.session_key(session)
+        if key in seen:
+            continue
+        seen.add(key)
+        entries.extend(flatten_session(fpath, s_idx, session, rx_index))
     if len(layers) > 1:
         # Within one store, file order already is chronological; across layers it
         # is not, and a stable sort leaves the single-layer result untouched.
         entries.sort(key=lambda e: (e.get("date") or "", e.get("time") or ""))
     return entries
+
+
+def _superseded_by_a_later_layer(stored: Sequence[tuple[int, Path, int, Any]]) -> set[int]:
+    """Positions in ``stored`` whose session a more specific layer holds an edited copy of.
+
+    Anchors are compared only where they are unique within their own layer, so an
+    ambiguous legacy anchor never hides a session.
+    """
+    by_layer: dict[int, list[int]] = {}
+    for n, (li, _f, _s, _session) in enumerate(stored):
+        by_layer.setdefault(li, []).append(n)
+    anchors: dict[int, dict[str, str]] = {}  # layer -> unique anchor -> content key
+    for li, positions in by_layer.items():
+        sessions = [stored[n][3] for n in positions]
+        anchors[li] = {
+            a: captures_merge.session_key(sessions[i])
+            for a, i in captures_merge.unique_anchors(sessions).items()
+        }
+    out: set[int] = set()
+    for li, positions in by_layer.items():
+        later = [anchors[lj] for lj in anchors if lj > li]
+        for n in positions:
+            anchor = captures_merge.session_anchor(stored[n][3])
+            if anchor is None or anchor not in anchors[li]:
+                continue
+            key = anchors[li][anchor]
+            if any(anchor in a and a[anchor] != key for a in later):
+                out.add(n)
+    return out
 
 
 def load_pid_captures(ecu: str, pid: str) -> list[dict]:
@@ -344,6 +386,7 @@ def load_pid_captures(ecu: str, pid: str) -> list[dict]:
                 "notes": e.get("notes", ""),
                 "time": e.get("time", ""),
                 "keep_mode": e.get("keep_mode", ""),
+                "_path": e.get("_path", ""),
                 "_session_idx": e.get("_session_idx", 0),
             }
         )

@@ -41,6 +41,7 @@ CANLIB_CMD = CAPTURES_CMD.parent
 # around as a value (session_fields) is found too.
 _CAPTURE_WRITERS = (
     "delete_capture",
+    "discover_migrate",  # migrate-discover's in-place repair (migrate_dir / migrate_file)
     "set_capture_note",
     "set_session_keep_mode",
     "set_session_note",
@@ -545,6 +546,7 @@ class TestBaseLayerMutationsAreRefused:
             "backfill.py",
             "backfill_spans.py",
             "delete.py",
+            "maint.py",
             "session_fields.py",
             "set_state.py",
             "step_tui.py",

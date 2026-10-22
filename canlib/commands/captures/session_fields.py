@@ -23,7 +23,7 @@ import sys
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TextIO
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -115,7 +115,9 @@ def cmd_set_field(
         print(json.dumps(rows, indent=2))
         return 0
 
-    _print_report(rows, field.key, value)
+    # Under --json stdout carries only the JSON; the human report goes to stderr.
+    out = sys.stderr if as_json else sys.stdout
+    _print_report(rows, field.key, value, out)
 
     if not to_write:
         if as_json:
@@ -123,7 +125,7 @@ def cmd_set_field(
         return 0
 
     if dry_run:
-        print("  (--dry-run: nothing written)")
+        print("  (--dry-run: nothing written)", file=out)
         return 0
 
     action = f"Set {field.key} on" if value else f"Clear the {field.key} of"
@@ -133,6 +135,7 @@ def cmd_set_field(
         prompt=f"{action} these {len(to_write)} session(s)?",
         what=f"set {field.key}",
         assume_yes=assume_yes,
+        out=out,
     )
     if stop is not None:
         return stop
@@ -142,11 +145,13 @@ def cmd_set_field(
         try:
             field.write(Path(r["path"]), r["session_idx"], value)
             written += 1
-            print(f"    \u2192 {r['file']} [{r['session_idx']}] {r['date']}  {r['label']}")
+            print(
+                f"    \u2192 {r['file']} [{r['session_idx']}] {r['date']}  {r['label']}", file=out
+            )
         except Exception as ex:  # keep going; report the failure
-            print(f"    ! {r['file']} [{r['session_idx']}]: {ex}")
+            print(f"    ! {r['file']} [{r['session_idx']}]: {ex}", file=out)
 
-    print(f"  {'Set' if value else 'Cleared'} {field.key} on {written} session(s).")
+    print(f"  {'Set' if value else 'Cleared'} {field.key} on {written} session(s).", file=out)
     if as_json:
         print(json.dumps(rows, indent=2))
     return 0 if written == len(to_write) else 1
@@ -157,16 +162,16 @@ def _clip(text: str) -> str:
     return text if len(text) <= _PREVIEW_WIDTH else text[: _PREVIEW_WIDTH - 1] + "\u2026"
 
 
-def _print_report(rows: list[dict], key: str, value: str) -> None:
+def _print_report(rows: list[dict], key: str, value: str, out: TextIO) -> None:
     n_write = sum(1 for r in rows if r["will_write"])
     target = f"{key} = {_clip(value)!r}" if value else f"cleared {key}"
-    print(f"  Setting {target} on {n_write} of {len(rows)} matched session(s):\n")
+    print(f"  Setting {target} on {n_write} of {len(rows)} matched session(s):\n", file=out)
     for r in rows:
         mark = "*" if r["will_write"] else " "
         span = r["times"][0][:8] if r["times"] else "--:--:--"
         label = (r["label"] or "")[:40]
         note = "" if r["will_write"] else "  (already)"
-        print(f"  {mark} {r['date']} {span}  {label}{note}")
+        print(f"  {mark} {r['date']} {span}  {label}{note}", file=out)
         if r["will_write"]:
-            print(f"      was: {_clip(r['recorded']) or '(none)'}")
-    print()
+            print(f"      was: {_clip(r['recorded']) or '(none)'}", file=out)
+    print(file=out)

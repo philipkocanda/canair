@@ -452,13 +452,16 @@ reuse these instead of re-declaring a flag:
   `is_managed_workspace`. **A re-run updates the open PR** rather than failing: the branch name is
   date-based, so `find_open_pr` looks it up (`gh pr list --head <plain branch>`) after the push and
   reports `updated PR #N` as success instead of letting `gh pr create` error.
-  Captures are **overlaid** (append-only, `canlib/captures_merge.py::overlay_documents`), so a
+  Captures are **overlaid** (append-only, `canlib/captures_merge.py::overlay`), so a
   source behind upstream never proposes deleting upstream sessions, and a capture log it adds
-  nothing to stays byte-identical. `--diff` previews, `--dry-run` stops before pushing, `--yes`
-  skips prompts, `--no-captures` ships definitions only. Layering: `canlib/contribute.py` = git/gh
-  orchestration; `commands/contribute.py` = CLI + pipeline; `_contribute_gates.py` = the pre-flight
-  policy; `_contribute_report.py` = the human/`--json` reporting duality. Read the
-  **contributing-profiles** skill before using it.
+  nothing to stays byte-identical. A source session sharing an upstream one's **anchor** (see
+  Layered profiles) but not its content *replaces* it in place — every replacement is listed by
+  `--diff` and gated (`_contribute_gates.py::captures`, which also warns on unsplit multi-DID
+  replies the contribution adds), since a stale source looks identical. `--diff` previews,
+  `--dry-run` stops before pushing, `--yes` skips prompts, `--no-captures` ships definitions only.
+  Layering: `canlib/contribute.py` = git/gh orchestration; `commands/contribute.py` = CLI +
+  pipeline; `_contribute_gates.py` = the pre-flight policy; `_contribute_report.py` = the
+  human/`--json` reporting duality. Read the **contributing-profiles** skill before using it.
 - **`canair update`** — Updates the CLI from its git-clone install: reports current vs latest
   **released** version, then **checks out that release tag** and reinstalls
   (`uv tool install --reinstall`). Checking out the tag — not fast-forwarding a branch — guarantees
@@ -513,19 +516,23 @@ to `plans/2026-07-30-profile-variant-inheritance.md` — `extends:` is deliberat
   `canlib/cli.py` already turns into `error: …` + exit 2, so no command handles it.
 - **Reads span layers, writes do not.** `canlib/capture_io.py::resolve_capture_layers` is the read
   seam; `capture_store.load_all_captures` iterates it, dedupes sessions across layers by
-  `captures_merge.session_key` (base wins, so a contributed-then-pulled session stays read-only) and
-  sorts chronologically **only when layered**, so single-layer results stay byte-identical. A reader
-  that bypasses `load_all_captures` needs deciding per call site:
-  `commands/validate/captures.py` and `commands/coverage.py` walk **both** layers (a schema break or
-  a payload in the base still matters); `canlib/pii.py` and `capture_migrate.py` intentionally stay
-  on `captures_dir` (= the overlay, which is exactly what `contribute` ships and the only layer a
-  migration may rewrite).
+  `captures_merge.session_key` (base wins, so a contributed-then-pulled session stays read-only),
+  lets an overlay copy sharing a base session's `session_anchor` but not its content supersede it
+  (an edited copy — never counted twice), and sorts chronologically **only when layered**, so
+  single-layer results stay byte-identical. A reader that bypasses `load_all_captures` needs
+  deciding per call site: `commands/validate/captures.py` and `commands/coverage/` walk **both**
+  layers (a schema break or a payload in the base still matters); `canlib/pii.py` and
+  `capture_migrate.py` intentionally stay on `captures_dir` (= the overlay, which is exactly what
+  `contribute` ships and the only layer a migration may rewrite).
 - **Base captures are read-only**, enforced by `canlib/commands/captures/layers.py::refusal` in
   `--delete`/the `--set-*` editors/`--backfill-states` and in the `captures uds --step` TUI.
   `--dry-run` still previews. Tombstones and copy-on-write were rejected: a session has no id —
-  **its identity is its content**, which is what makes both the git merge driver and the
-  contribution overlay correct. `read_only_files` returns `[]` whenever fewer than two layers are
-  resolved, so nothing changes for an ordinary profile.
+  **its identity is its content**, plus an **anchor** (`captures_merge.session_anchor`: date,
+  label, version, first capture's time/rx/pid — the fields no editor or repair rewrites) that
+  pairs an edited copy with its original in the merge driver, the contribute overlay and the
+  layered read. A new editor must keep the anchor fields intact. `read_only_files` returns `[]`
+  whenever fewer than two layers are resolved, so nothing changes for an ordinary profile; an
+  explicit `--dir` is judged by `layers.py::owning_profile` (as `migrate-discover` does).
 
 > **Pass `--profile NAME` explicitly on every mutative/authoring command** — `pids …`, `signals
 > upsert`, `import uds|can|dbc`, `discover --register`, `ecu add`, `wican autopid write`, and

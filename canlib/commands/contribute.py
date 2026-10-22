@@ -34,7 +34,14 @@ from typing import Any
 from .. import contribute as C
 from ..profile import ProfileError, active
 from . import _contribute_gates as gates
-from ._contribute_report import Reporter, Stop, confirm, findings_json, rollback_json
+from ._contribute_report import (
+    Reporter,
+    Stop,
+    confirm,
+    findings_json,
+    replaced_json,
+    rollback_json,
+)
 
 NAME = "contribute"
 
@@ -131,6 +138,7 @@ class _Contribution:
     workspace: Path
     mode: str = ""
     rollback: list[tuple[str, int]] = field(default_factory=list)
+    replaced: list[C.CaptureReplacement] = field(default_factory=list)
     findings: list[Any] = field(default_factory=list)
 
     @property
@@ -185,6 +193,14 @@ def _contribute(args, rep: Reporter) -> int:
         workspace,
         include_captures=include_captures,
         rollback=run_.rollback,
+    )
+    gates.captures(
+        rep,
+        profile,
+        pre,
+        workspace,
+        include_captures=include_captures,
+        replaced=run_.replaced,
     )
     return _submit(run_)
 
@@ -251,7 +267,13 @@ def _stage_contribution(run_: _Contribution) -> int | None:
 
     _make_hermetic(run_)
 
-    C.copy_profile(run_.profile, workspace, include_captures=run_.include_captures, warn=rep.warn)
+    C.copy_profile(
+        run_.profile,
+        workspace,
+        include_captures=run_.include_captures,
+        warn=rep.warn,
+        replaced=run_.replaced.append,
+    )
 
     if not C.has_changes(pre, workspace, run_.profile.name):
         msg = "No changes to contribute — the upstream profile already matches yours."
@@ -310,10 +332,18 @@ def _report_diff(run_: _Contribution) -> int:
             rep.console.print("  [dim](no textual diff)[/dim]")
         if run_.rollback:
             rep.rollback_warning(run_.rollback)
+        if run_.replaced:
+            rep.replacement_warning(run_.replaced)
         rep.console.print("\n  [dim](diff only — nothing committed, pushed, or opened)[/dim]")
         rep.console.print("  Re-run without [cyan]--diff[/cyan] to contribute it.")
 
-    return rep.done(show, diff=diff, rollback=rollback_json(run_.rollback), pr_url=None)
+    return rep.done(
+        show,
+        diff=diff,
+        rollback=rollback_json(run_.rollback),
+        replaced_sessions=replaced_json(run_.replaced),
+        pr_url=None,
+    )
 
 
 def _submit(run_: _Contribution) -> int:

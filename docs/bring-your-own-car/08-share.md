@@ -116,14 +116,25 @@ shared it:
   snapshot (a bare `canair` reads the frozen `site-packages` copy, not your
   checkout) or if the contribution would *remove* lines already merged upstream
   (curated definitions normally only grow, so a rollback usually means your
-  source is behind) — and asks you to confirm before continuing, and
+  source is behind) — and asks you to confirm before continuing,
+- **lists every upstream capture session it would replace** with your edited copy
+  (see below) and asks you to confirm, and **warns about multi-DID replies stored
+  whole under one DID** in the sessions you add, so you can repair them first with
+  `canair captures split-batched`, and
 - **asks you to confirm before pushing** and opening the PR (nothing leaves your
   machine until you say yes; `--yes` skips the prompt for scripts/agents).
 
-Captures are append-only evidence, so a contribution only ever *adds* capture
+Captures are append-only evidence, so a contribution only *adds* capture
 sessions — even a source that's behind upstream on captures won't propose
 deleting the sessions it lacks, and a capture log your contribution adds nothing
 to is left exactly as it is upstream (so the PR diff stays small and reviewable).
+The one exception is a session you **edited** after recording (`--set-notes`,
+`--set-transport`, `--set-state`, a state back-fill, `migrate-discover`,
+`split-batched`): it is still the same recording, so your copy *replaces*
+upstream's in place instead of being added next to it. A stale source looks the
+same — upstream edited the session after you pulled — so `--diff` and the
+confirmation list each replacement (file, session, and the fields that differ);
+if you did not edit it, sync first.
 
 Re-running is the normal way to revise a contribution: the default branch name is
 per-day, so a second run on the same day pushes to the branch your pull request

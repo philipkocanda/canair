@@ -30,7 +30,13 @@ from typing import Any
 from rich.text import Text
 
 from canlib.capture_dates import entry_datetime
-from canlib.capture_store import PidDefs, load_all_captures, load_ecu_index, resolve_pid_defs
+from canlib.capture_store import (
+    PidDefs,
+    entry_path,
+    load_all_captures,
+    load_ecu_index,
+    resolve_pid_defs,
+)
 from canlib.capture_types import CaptureEntry
 from canlib.notation import ByteNotation
 from canlib.states import join_states as _join_states
@@ -89,19 +95,22 @@ DEFAULT_STEP_JOIN_TOL_S = 10.0
 # Frames skipped by a "page" jump.
 PAGE_JUMP = 100
 
-#: A capture's immutable identity: ``(file, session_idx, capture_idx)``. Indices
+#: A capture's immutable identity: ``(path, session_idx, capture_idx)``. Indices
 #: into :attr:`StepModel.captures` are invalidated by every rebuild, so anything
 #: that outlives a rebuild (a jump target) addresses captures by this instead.
+#: The full path, not the display name: a layered profile's base and overlay hold
+#: same-named date files, so ``(file, idx)`` would conflate two sessions.
 CaptureRef = tuple[str, int, int]
 
 
+def session_id(entry: Mapping[str, Any]) -> tuple[str, int]:
+    """The ``(path, session_idx)`` identity of the session a capture belongs to."""
+    return (str(entry_path(entry)), int(entry.get("_session_idx", 0)))
+
+
 def capture_ref(entry: Mapping[str, Any]) -> CaptureRef:
-    """The ``(file, session_idx, capture_idx)`` locator of a capture entry."""
-    return (
-        str(entry.get("file", "")),
-        int(entry.get("_session_idx", 0)),
-        int(entry.get("_capture_idx", 0)),
-    )
+    """The ``(path, session_idx, capture_idx)`` locator of a capture entry."""
+    return (*session_id(entry), int(entry.get("_capture_idx", 0)))
 
 
 # Why a jump target can't be shown, or "" when it can. Kept short: they are
@@ -372,7 +381,7 @@ class StepModel:
         hidden = 0
         hidden_notes = 0
         for g in reversed(group_sessions(self.entries)):
-            sid = (g["file"], g["session_idx"])
+            sid = (g["path"], g["session_idx"])
             reachable = self._session_frame(sid) is not None
             noted = [e for e in g["noted"] if self._note_placeable(e)]
             hidden_notes += len(g["noted"]) - len(noted)
@@ -451,7 +460,7 @@ class StepModel:
         """The earliest frame showing a capture from that session, if any."""
         best: int | None = None
         for i, e in enumerate(self.captures):
-            if (e.get("file", ""), e.get("_session_idx", 0)) != sid:
+            if session_id(e) != sid:
                 continue
             n = self._frame_of.get(i)
             if n is not None and (best is None or n < best):
@@ -461,10 +470,11 @@ class StepModel:
     def seek_session(self, sid: tuple[str, int]) -> str:
         """Jump to a session's first frame. Returns a status message."""
         n = self._session_frame(sid)
+        where = f"{Path(sid[0]).name}#{sid[1]}"
         if n is None:
-            return f"No frame for session {sid[0]}#{sid[1]} in this selection"
+            return f"No frame for session {where} in this selection"
         self.frame_idx = n
-        return f"Jumped to {sid[0]}#{sid[1]}"
+        return f"Jumped to {where}"
 
     def seek_capture(self, ref: CaptureRef, key: tuple[str, str] | None = None) -> str:
         """Jump to a specific capture, adjusting the view to make it visible.

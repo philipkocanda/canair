@@ -57,7 +57,7 @@ def _print_grouped(warnings: list[CaptureWarning], marker: str) -> None:
 
 
 def load_valid_rx_addrs() -> set[int]:
-    """Set of valid ECU CAN response addresses (RX = request TX + 8)."""
+    """Set of valid ECU CAN response addresses (each ECU's resolved ``rx_id``)."""
     from canlib.ecus import build_rx_index
 
     return set(build_rx_index())
@@ -117,7 +117,7 @@ def validate_captures_file(path: Path, validator: Validator, rx_addrs: set[int])
                     if rx is not None and rx not in rx_addrs:
                         errors.append(
                             f"sessions[{si}].captures[{ci}].rx: response address "
-                            f"'{ecu}' is not a known ECU response address (RX = TX + 8)"
+                            f"'{ecu}' is not a known ECU response address"
                         )
 
     return errors

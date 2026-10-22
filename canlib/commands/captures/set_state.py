@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TextIO
 
 from canlib.states import allowed_states, join_states, parse_states
 
@@ -85,7 +85,9 @@ def cmd_set_state(
         print(_json.dumps(rows, indent=2))
         return 0
 
-    _print_report(rows, states)
+    # Under --json stdout carries only the JSON; the human report goes to stderr.
+    out = sys.stderr if as_json else sys.stdout
+    _print_report(rows, states, out)
 
     if not to_write:
         if as_json:
@@ -93,7 +95,7 @@ def cmd_set_state(
         return 0
 
     if dry_run:
-        print("  (--dry-run: nothing written)")
+        print("  (--dry-run: nothing written)", file=out)
         return 0
 
     stop = refuse_write(
@@ -102,6 +104,7 @@ def cmd_set_state(
         prompt=f"Set state to {join_states(states)!r} on these {len(to_write)} session(s)?",
         what="set state",
         assume_yes=assume_yes,
+        out=out,
     )
     if stop is not None:
         return stop
@@ -112,22 +115,24 @@ def cmd_set_state(
             set_session_states(Path(r["path"]), r["session_idx"], states)
             written += 1
             print(
-                f"    \u2192 {r['file']} [{r['session_idx']}] {r['date']} = {join_states(states)}"
+                f"    \u2192 {r['file']} [{r['session_idx']}] {r['date']} = {join_states(states)}",
+                file=out,
             )
         except Exception as ex:  # keep going; report the failure
-            print(f"    ! {r['file']} [{r['session_idx']}]: {ex}")
+            print(f"    ! {r['file']} [{r['session_idx']}]: {ex}", file=out)
 
-    print(f"  Set state on {written} session(s).")
+    print(f"  Set state on {written} session(s).", file=out)
     if as_json:
         print(_json.dumps(rows, indent=2))
     return 0 if written == len(to_write) else 1
 
 
-def _print_report(rows: list[dict], states: list[str]) -> None:
+def _print_report(rows: list[dict], states: list[str], out: TextIO) -> None:
     print(
         f"  Setting state = {join_states(states)} on "
         f"{sum(1 for r in rows if r['will_write'])} of {len(rows)} "
-        f"matched session(s):\n"
+        f"matched session(s):\n",
+        file=out,
     )
     for r in rows:
         mark = "*" if r["will_write"] else " "
@@ -135,5 +140,8 @@ def _print_report(rows: list[dict], states: list[str]) -> None:
         recorded = join_states(r["recorded"]) or "(none)"
         label = (r["label"] or "")[:40]
         note = "" if r["will_write"] else "  (already)"
-        print(f"  {mark} {r['date']} {span}  {recorded:24} → {join_states(states)}  {label}{note}")
-    print()
+        print(
+            f"  {mark} {r['date']} {span}  {recorded:24} → {join_states(states)}  {label}{note}",
+            file=out,
+        )
+    print(file=out)

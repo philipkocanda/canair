@@ -16,7 +16,8 @@ addressing), with fields in the builder's order.
 
 Idempotent: an entry that already has ``tx`` is left alone, and a file with
 nothing to repair is not rewritten. A responder whose label names an ECU that no
-longer resolves is reported and skipped, never guessed. The session's
+longer resolves — or resolves ambiguously, or is not a single name at all — is
+reported and skipped, never guessed. The session's
 ``transport`` cannot be recovered from the data — correct it with
 ``captures uds --set-transport``.
 """
@@ -79,13 +80,23 @@ class DiscoverMigrationResult:
 
 
 def _hex(can_id: int) -> str:
+    """Format an id exactly as the discover capture builder records it."""
     return f"0x{can_id:03X}"
 
 
-def infer_tx(entry: Mapping[str, Any], names: Mapping[str, int]) -> int | str:
+# A ``(status)`` suffix in the shape the old writer gave a registered responder, whatever
+# precedes it — so a label that has the suffix but no single-token name is recognised as
+# *named* and never mistaken for an unregistered one.
+_STATUS_SUFFIX = re.compile(r"^(?P<head>.+) \((?P<status>.+)\)$")
+
+AMBIGUOUS_NAMES = "ambiguous ECU name/alias in the registry"
+
+
+def infer_tx(entry: Mapping[str, Any], names: Mapping[str, int] | None) -> int | str:
     """The TX a legacy responder entry was probed at, or the reason it is unknown.
 
-    ``names`` maps upper-cased ECU name/alias to TX id.
+    ``names`` maps upper-cased ECU name/alias to TX id, or is ``None`` when the
+    registry's names are ambiguous (so no label can be trusted to name one ECU).
     """
     rx_text = entry.get("rx")
     if not isinstance(rx_text, str):
@@ -95,10 +106,15 @@ def infer_tx(entry: Mapping[str, Any], names: Mapping[str, int]) -> int | str:
     except ValueError:
         return f"rx {rx_text!r} is not a hex address"
 
-    match = _NAMED_LABEL.match(str(entry.get("response", "")))
-    if match is None:
+    response = str(entry.get("response", ""))
+    if _STATUS_SUFFIX.match(response) is None:
         # Unregistered when recorded: the old writer used TX + 0x08.
         return old_rx - LEGACY_FALLBACK_OFFSET
+    match = _NAMED_LABEL.match(response)
+    if match is None:
+        return f"label {response!r} does not name a single ECU"
+    if names is None:
+        return AMBIGUOUS_NAMES
     name = match.group("name")
     tx = names.get(name.upper())
     if tx is None:
@@ -126,10 +142,11 @@ def _is_discover(capture: Any) -> bool:
 def repair_doc(data: Any, addressing: Addressing) -> tuple[list[Repair], list[Skip]]:
     """Repair every legacy discover responder in a parsed capture doc, in place."""
     try:
-        names = build_name_tx_index(addressing.ecus)
+        names: dict[str, int] | None = build_name_tx_index(addressing.ecus)
     except EcuNameCollision:
-        # An ambiguous name could map a label to the wrong TX; refuse them all.
-        names = {}
+        # An ambiguous name could map a label to the wrong TX; refuse every named
+        # responder (with that reason), but still repair the unregistered ones.
+        names = None
     repairs: list[Repair] = []
     skipped: list[Skip] = []
     sessions = data.get("sessions", []) if isinstance(data, dict) else []

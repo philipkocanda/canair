@@ -354,24 +354,22 @@ def build_session_from_records(
     # One-shot producer stored a complete session; merge its captures in. These
     # carry their own session date, so they are not day-split here.
     if session_records:
+        from .captures import _set_session_field
+
         # Only the first session dict carries the base; append others' captures.
         # Narrowed at the *entry* boundary (the journal is untyped JSONL) so every
         # field write below is checked, rather than casting the finished dict.
+        # Fields go through _set_session_field so one added here (the
+        # ``[recovered]`` note, say) lands above ``captures``, not after it.
         base = cast(CaptureSession, dict(session_records[0]))
         base["label"] = label
-        if vehicle_states:
-            base["vehicle_states"] = vehicle_states
-        elif "vehicle_states" in base:
-            del base["vehicle_states"]
-        if notes:
-            base["notes"] = notes
-        elif "notes" in base:
-            del base["notes"]
+        _set_session_field(base, "vehicle_states", vehicle_states)
+        _set_session_field(base, "notes", notes)
         # Provenance from meta wins (set at open); keep any already on the session.
         if transport and not base.get("transport"):
-            base["transport"] = transport
+            _set_session_field(base, "transport", transport)
         if quality and not base.get("quality"):
-            base["quality"] = quality
+            _set_session_field(base, "quality", quality)
         for extra in session_records[1:]:
             base.setdefault("captures", []).extend(extra.get("captures", []))
         return [base]

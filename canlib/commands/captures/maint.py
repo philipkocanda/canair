@@ -135,16 +135,26 @@ def cmd_migrate_rx(
     return 0
 
 
-def _discover_addressing(captures_dir: Path | None):
-    """The registry and addressing rule of the profile that owns the captures."""
+def _discover_addressing(prof):
+    """The registry and addressing rule of ``prof``, the profile that owns the captures.
+
+    Raises :class:`~canlib.profile.ProfileError` when it has no ``ecus/`` to resolve
+    names against (a ``--dir`` outside any profile), which the CLI reports as an
+    error rather than a traceback.
+    """
     from canlib.addressing import resolve_mode, resolve_rx_offset
     from canlib.discover_migrate import Addressing
     from canlib.ecus import load_ecus
     from canlib.pids import load_pids
-    from canlib.profile import active, profile_for_path
+    from canlib.profile import ProfileError
 
+    if not prof.ecus_dir.is_dir():
+        raise ProfileError(
+            f"no ECU registry at {prof.ecus_dir}: migrate-discover resolves responder "
+            "names against the profile that owns the captures, so point --dir at a "
+            "profile's captures/ directory (or drop it to use the active profile)."
+        )
     # A layered profile's captures sit in the overlay; its definitions in the root.
-    prof = active() if captures_dir is None else profile_for_path(captures_dir)
     data = load_pids(prof.ecus_dir)
     return Addressing(
         ecus=load_ecus(prof.ecus_dir),
@@ -160,10 +170,26 @@ def cmd_migrate_discover(
     import json as _json
     from dataclasses import asdict
 
-    from canlib.discover_migrate import migrate_dir
+    from canlib import discover_migrate
+
+    from . import layers
 
     cdir = resolve_captures_dir(captures_dir)
-    results = migrate_dir(cdir, _discover_addressing(captures_dir), dry_run=dry_run)
+    prof = layers.owning_profile(captures_dir)
+    addressing = _discover_addressing(prof)
+    # Plan first, then write: a layered profile's base is read-only, so the files
+    # a repair would rewrite are checked before any of them is touched.
+    results = discover_migrate.migrate_dir(cdir, addressing, dry_run=True)
+    if not dry_run:
+        to_write = [r.path for r in results if r.repairs]
+        if blocked := layers.refusal(to_write, "repaired", profile=prof):
+            if as_json:
+                _json.dump({"error": blocked}, sys.stdout)
+                print()
+            else:
+                print(blocked, file=sys.stderr)
+            return 1
+        results = discover_migrate.migrate_dir(cdir, addressing)
     touched = [r for r in results if r.repairs or r.skipped]
 
     if as_json:
@@ -320,7 +346,8 @@ def _add_migrate_rx_parser(kinds) -> argparse.ArgumentParser:
         help="Rename the legacy capture `ecu` field to `rx` (captures/*.json)",
         description="Rename the persisted capture field `ecu` \u2192 `rx` in the active "
         "profile's capture files.\n\n"
-        "The field holds the ECU CAN *response* address (RX = request TX + 8), not "
+        "The field holds the ECU CAN *response* address (the ECU's rx_id, else request "
+        "TX + the profile's rx_offset), not "
         "an ECU name, so it was renamed to `rx` to stop it being confused with the "
         "resolved short name. Renames at the capture level and inside "
         "scan_results.responding[]; idempotent (a file already on `rx` is left "
@@ -349,8 +376,9 @@ def _add_migrate_discover_parser(kinds) -> argparse.ArgumentParser:
         "in the ECU registry it was computed as TX + 0x08 whatever the profile's "
         "addressing: block said. The TX is recoverable exactly: a registered "
         "responder was labelled `NAME (status)`, an unregistered one with the bare "
-        "status. Idempotent; a responder whose ECU name no longer resolves is "
-        "reported, not guessed (exit 1). The session transport cannot be recovered "
+        "status. Idempotent; a responder whose ECU name no longer resolves (or is "
+        "ambiguous) is reported, not guessed (exit 1), and a layered profile's "
+        "read-only base is refused (exit 1). The session transport cannot be recovered "
         "this way — use `captures uds --set-transport`. Performs the repair by "
         "default; pass --dry-run to preview.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
