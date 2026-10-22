@@ -138,7 +138,8 @@ moments — write the note while you remember what you did, and the analysis bec
 
 To see what's still undecoded across a whole ECU (or PID), `canair coverage`
 audits every parameter expression against the payload length of the PID's newest
-session and lists the **unmapped** and partially-decoded bytes:
+session and lists the **unmapped** and partially-decoded bytes. The usual scope flags apply, so
+`--until DATE` audits against the history as it stood on that date:
 
 ![canair coverage BMS — undecoded payload bytes](../screenshots/coverage.svg)
 

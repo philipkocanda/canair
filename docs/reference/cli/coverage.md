@@ -7,28 +7,55 @@
 ```
 usage: canair coverage [-h] [--all] [--unmapped] [--unverified] [--bitfields]
                        [--no-capture] [--json] [--notation NAME]
+                       [--since WHEN] [--until WHEN] [--date YYYY-MM-DD]
+                       [--today] [--last-sessions [N]] [--last-session]
+                       [--state STATE] [--label SUBSTR]
                        [ecu] [pid]
 
 [UDS] Audit PID definitions for decoding gaps.
 
 positional arguments:
-  ecu              Filter to one ECU (e.g. IGPM)
-  pid              Filter to one PID (e.g. 22BC03)
+  ecu                  Filter to one ECU (e.g. IGPM)
+  pid                  Filter to one PID (e.g. 22BC03)
 
 options:
-  -h, --help       show this help message and exit
-  --all            Include fully-mapped PIDs (no gaps)
-  --unmapped       Only report unmapped-byte findings
-  --unverified     Only report bytes mapped by an unverified signal (needs
-                   confirming)
-  --bitfields      Only report bytes with undecoded bits (partial bitfields).
-                   A byte some signal also reads whole is still reported,
-                   flagged '(also read whole)'
-  --no-capture     Only report PIDs with params but no capture
-  --json           Output as JSON
-  --notation NAME  byte-index notation for output labels: wican (default),
-                   isotp, torque, bix. Overrides the display.byte_notation
-                   config key.
+  -h, --help           show this help message and exit
+  --all                Include fully-mapped PIDs (no gaps)
+  --unmapped           Only report unmapped-byte findings
+  --unverified         Only report bytes mapped by an unverified signal (needs
+                       confirming)
+  --bitfields          Only report bytes with undecoded bits (partial
+                       bitfields). A byte some signal also reads whole is
+                       still reported, flagged '(also read whole)'
+  --no-capture         Only report PIDs with params but no capture
+  --json               Output as JSON
+  --notation NAME      byte-index notation for output labels: wican (default),
+                       isotp, torque, bix. Overrides the display.byte_notation
+                       config key.
+
+scoping:
+  Restrict to captures within a date/time range (inclusive) and/or by session state (token-matched) or label substring. --since/--until accept a date (YYYY-MM-DD) or a timestamp (YYYY-MM-DD HH:MM[:SS[.ffffff]])
+
+  --since WHEN         Only captures on or after this date/time (YYYY-MM-DD[
+                       HH:MM:SS])
+  --until WHEN         Only captures on or before this date/time (YYYY-MM-DD[
+                       HH:MM:SS])
+  --date YYYY-MM-DD    Only captures on this exact date (shorthand for --since
+                       X --until X)
+  --today              Only captures recorded today (shorthand for --date
+                       <today>)
+  --last-sessions [N]  Only the most recent N recorded sessions in scope (N
+                       defaults to 1)
+  --last-session       Only the most recent recorded session in scope (alias
+                       for --last-sessions 1)
+  --state STATE        Only captures recorded in STATE, matched by token and
+                       widened by the profile's implies: hierarchy (--state
+                       ready also matches DRIVING). Comma-separate
+                       alternatives (--state ready,driving); repeat the flag
+                       to require several at once (--state charging --state
+                       parked)
+  --label SUBSTR       Only captures whose session/capture label contains
+                       SUBSTR (case-insensitive)
 
   canair coverage                 # audit every ECU/PID
   canair coverage IGPM            # only the IGPM ECU
@@ -39,4 +66,5 @@ options:
   canair coverage --no-capture    # only PIDs missing captures
   canair coverage --all           # include fully-mapped PIDs too
   canair coverage --json          # machine-readable output
+  canair coverage --until 2026-08-01  # lengths as of that date
 ```

@@ -25,6 +25,7 @@ Examples:
   canair coverage --no-capture    # only PIDs missing captures
   canair coverage --all           # include fully-mapped PIDs too
   canair coverage --json          # machine-readable output
+  canair coverage --until 2026-08-01  # lengths as of that date
 """
 
 import argparse
@@ -32,11 +33,13 @@ import json
 import re
 import sys
 from collections import Counter
+from collections.abc import Iterable, Mapping
 from typing import NotRequired, TypedDict
 
-from canlib import ansi, capture_io
+from canlib import ansi
 from canlib.byteindex import extract_bit_indices, extract_byte_indices, mapped_offsets
 from canlib.byteindex import mappable_data_indices as _mappable_data_indices
+from canlib.capture_dates import add_scope_args, resolve_scope_bounds
 from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.commands._hints import pid_completer as _pid_completer
 from canlib.notation import (
@@ -109,68 +112,65 @@ def session_length(lengths: Counter) -> int:
     return max(lengths, key=lambda n: (lengths[n], n))
 
 
-def load_representative_payloads() -> dict[tuple[str, str], dict]:
+def representative_payloads(entries: Iterable[Mapping]) -> dict[tuple[str, str], dict]:
     """Return {(ECU_UPPER, PID_UPPER): {payload, date, label, file, ...}} for the
     payload that sets each PID's length.
 
-    The length comes from the PID's **newest session** (most common length within
-    it). The longest-ever payload is the wrong choice: before 2026-07-28 the final CAN
-    frame of a multi-frame response was stored padded to 8 bytes, and that padding is
-    invisible in the stored hex (the ISO-TP length is gone), so the padded length always
-    won and its filler was reported as undecoded data. Taking the newest session also
-    ignores one-off strays from an older session.
+    ``entries`` are flattened capture rows (:func:`canlib.capture_store.load_all_captures`)
+    in chronological order. The length comes from the PID's **newest session** (most
+    common length within it). The longest-ever payload is the wrong choice: before
+    2026-07-28 the final CAN frame of a multi-frame response was stored padded to 8
+    bytes, and that padding is invisible in the stored hex (the ISO-TP length is gone),
+    so the padded length always won and its filler was reported as undecoded data.
+    Taking the newest session also ignores one-off strays from an older session.
 
     ``may_include_padding`` is set when the length is frame-aligned and the session
     predates recording ``version`` metadata, i.e. the length may still be padded
     because no newer session has read the PID.
-
-    Capture ``ecu`` fields store the ECU CAN response address (e.g. ``0x7EC``)
-    and are resolved to the canonical short name for the ``(ECU, PID)`` key.
     """
-    from canlib.ecus import build_rx_index, ecu_name_from_ref
-    from canlib.profile import active
-
-    layers = active().capture_layers
-
-    try:
-        rx_index = build_rx_index()
-    except Exception:
-        rx_index = {}
+    sessions: dict[tuple, dict[tuple[str, str], Counter]] = {}
+    meta: dict[tuple, Mapping] = {}
+    sample: dict[tuple, dict[int, str]] = {}
+    for e in entries:
+        payload = (e.get("payload") or "").replace(" ", "")
+        # An NRC (7F…) carries no data bytes to audit.
+        if not payload or payload.upper().startswith("7F"):
+            continue
+        skey = (e.get("_path") or e.get("file"), e.get("_session_idx"))
+        pkey = (str(e.get("ecu", "")).upper(), str(e.get("pid", "")).upper())
+        n = len(payload) // 2
+        sessions.setdefault(skey, {}).setdefault(pkey, Counter())[n] += 1
+        meta.setdefault(skey, e)
+        sample.setdefault((skey, pkey), {}).setdefault(n, payload)
 
     best: dict[tuple[str, str], dict] = {}
-    for layer in layers:
-        if not layer.is_dir():
-            continue
-        capture_io.ensure_migrated(layer)
-        for fpath in capture_io.iter_capture_files(layer):
-            data = capture_io.load_capture_file(fpath) or {}
-            for session in data.get("sessions", []):
-                lengths: dict[tuple[str, str], Counter] = {}
-                sample: dict[tuple[str, str], dict[int, str]] = {}
-                for cap in session.get("captures", []):
-                    payload = (cap.get("payload") or "").replace(" ", "")
-                    # An NRC (7F…) carries no data bytes to audit.
-                    if not payload or payload.upper().startswith("7F"):
-                        continue
-                    ecu_name = ecu_name_from_ref(capture_io.capture_rx(cap), rx_index)
-                    key = (ecu_name.upper(), str(cap.get("pid", "")).upper())
-                    n = len(payload) // 2
-                    lengths.setdefault(key, Counter())[n] += 1
-                    sample.setdefault(key, {}).setdefault(n, payload)
-                date = str(session.get("date", ""))
-                for key, counts in lengths.items():
-                    prev = best.get(key)
-                    if prev is not None and date < prev["date"]:
-                        continue
-                    n = session_length(counts)
-                    best[key] = {
-                        "payload": sample[key][n],
-                        "date": date,
-                        "label": session.get("label", ""),
-                        "file": fpath.name,
-                        "may_include_padding": is_frame_aligned(n) and not session.get("version"),
-                    }
+    for skey, pids in sessions.items():
+        m = meta[skey]
+        date = str(m.get("date") or "")
+        for pkey, counts in pids.items():
+            prev = best.get(pkey)
+            if prev is not None and date < prev["date"]:
+                continue
+            n = session_length(counts)
+            best[pkey] = {
+                "payload": sample[(skey, pkey)][n],
+                "date": date,
+                "label": m.get("session_label", ""),
+                "file": m.get("file", ""),
+                "may_include_padding": is_frame_aligned(n) and not m.get("session_version"),
+            }
     return best
+
+
+def load_representative_payloads(
+    since=None, until=None, state=None, label=None
+) -> dict[tuple[str, str], dict]:
+    """:func:`representative_payloads` over the active profile's captures, in scope."""
+    from canlib.capture_dates import filter_by_date_range, filter_by_text
+    from canlib.capture_store import load_all_captures
+
+    entries = filter_by_date_range(load_all_captures(), since, until)
+    return representative_payloads(filter_by_text(entries, state=state, label=label))
 
 
 def subfunction_bytes(pid_code: str) -> int:
@@ -301,13 +301,20 @@ def add_parser(subparsers):
     )
     parser.add_argument("--json", action="store_true", help="Output as JSON")
     add_notation_arg(parser)
+    add_scope_args(parser)
     parser.set_defaults(func=run)
     return parser
 
 
 def run(args) -> int:
+    since, until, err = resolve_scope_bounds(args)
+    if err:
+        print(f"error: {err}", file=sys.stderr)
+        return 2
     ecu_index = build_ecu_index(load_pids())
-    payloads = load_representative_payloads()
+    payloads = load_representative_payloads(
+        since, until, state=getattr(args, "state", None), label=getattr(args, "label", None)
+    )
 
     # Accept an ECU-registry alias (e.g. LDC for OBC) or any case, matching
     # `canair captures`/`decode`. Canonicalises to the ecus/ key before filtering.

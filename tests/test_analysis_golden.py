@@ -14,18 +14,14 @@ full stdout of each label-emitting command against a committed golden file.
 
 **Stability.** ``captures/`` is an append-only log that grows with every ``--save``,
 so any golden pinned to an *unscoped* query drifts the moment new data lands — and
-gets slower forever. Every case here is therefore stable by one of three means,
+gets slower forever. Every case here is therefore stable by one of two means,
 enforced by :meth:`TestGoldenHarnessItself.test_cases_cannot_drift_as_captures_grow`:
 
-* **date-scoped** (``--until``/``--date``/``--since``) to :data:`FROZEN_UNTIL`, for the
-  verbs whose output depends on capture *volume* (``investigate``/``decode``/
-  ``correlate``/``hunt`` report counts, ``n=``, and correlation coefficients);
+* **date-scoped** (``--until``/``--date``/``--since``) to :data:`FROZEN_UNTIL`. Every
+  verb needs it: ``investigate``/``decode``/``correlate``/``hunt`` report counts, ``n=``
+  and correlation coefficients, and ``coverage`` reports each PID's newest session;
 * **a frozen fixture profile** (:data:`SINGLE_FRAME_PROFILE`) — committed test data
-  that no recording session appends to;
-* **a volume-independent verb** — ``coverage`` reports only the payload *length* of each
-  PID's newest session (``load_representative_payloads``), so appending captures cannot
-  change its output unless a newer session answers with a different length, which is a
-  real finding.
+  that no recording session appends to.
 
 **ANSI is stripped** so the goldens stay reviewable in a diff (a colour change is
 out of scope here and is covered by the screenshot check). Labels are what matter.
@@ -67,11 +63,6 @@ SINGLE_FRAME_PROFILE = str(FIXTURE_PROFILES_DIR / "single-frame")
 # regen and a read of the diff — to widen what these cases cover.
 FROZEN_UNTIL = "2026-08-02"
 
-# Verbs whose output is a pure function of the PID definitions plus the newest session's
-# payload length, not of capture volume — see the module docstring. These need no
-# date scope (and `coverage` has no scope flags to give it one).
-VOLUME_INDEPENDENT_VERBS = frozenset({"coverage"})
-
 # (name, argv). Every case must emit byte labels (Bnn / Bnn:k) or byte-derived
 # columns, and must be scoped to frozen dates so the output can't drift.
 #
@@ -93,8 +84,12 @@ CASES: list[tuple[str, str, list[str]]] = [
         ["investigate", "uds", "IGPM", "22BC02", "--until", FROZEN_UNTIL],
     ),
     # -- multi-frame PID (two FF PCI bytes + a CF PCI byte every 8) --
-    ("coverage-multi-frame", "ioniq-2017", ["coverage", "BMS", "2101"]),
-    ("coverage-bitfields", "ioniq-2017", ["coverage", "IGPM", "--bitfields"]),
+    ("coverage-multi-frame", "ioniq-2017", ["coverage", "BMS", "2101", "--until", FROZEN_UNTIL]),
+    (
+        "coverage-bitfields",
+        "ioniq-2017",
+        ["coverage", "IGPM", "--bitfields", "--until", FROZEN_UNTIL],
+    ),
     (
         "investigate-bits",
         "ioniq-2017",
@@ -173,9 +168,21 @@ CASES: list[tuple[str, str, list[str]]] = [
         ],
     ),
     # -- the same data rendered in every notation: proves the views stay in step --
-    ("notation-isotp", "ioniq-2017", ["coverage", "IGPM", "22BC05", "--notation", "isotp"]),
-    ("notation-torque", "ioniq-2017", ["coverage", "IGPM", "22BC05", "--notation", "torque"]),
-    ("notation-bix", "ioniq-2017", ["coverage", "IGPM", "22BC05", "--notation", "bix"]),
+    (
+        "notation-isotp",
+        "ioniq-2017",
+        ["coverage", "IGPM", "22BC05", "--notation", "isotp", "--until", FROZEN_UNTIL],
+    ),
+    (
+        "notation-torque",
+        "ioniq-2017",
+        ["coverage", "IGPM", "22BC05", "--notation", "torque", "--until", FROZEN_UNTIL],
+    ),
+    (
+        "notation-bix",
+        "ioniq-2017",
+        ["coverage", "IGPM", "22BC05", "--notation", "bix", "--until", FROZEN_UNTIL],
+    ),
     # -- SYNTHETIC single-frame profile: the one-PCI-byte layout, with variation.
     # These are the only cases that exercise a single-frame payload through the
     # analysis verbs in a non-WiCAN notation, which is where the off-by-one lived.
@@ -261,19 +268,14 @@ class TestGoldenHarnessItself:
         hypothetical — ``investigate-bits`` used to pin a literal
         ``(292 timed captures, …)`` with no date scope.)
 
-        A case is safe if it is date-scoped, runs against a frozen fixture
-        profile, or invokes a volume-independent verb. See the module docstring.
+        A case is safe if it is date-scoped or runs against a frozen fixture
+        profile. See the module docstring.
         """
         fixture_profiles = str(FIXTURE_PROFILES_DIR)
         drifting = [
             name
             for name, profile, argv in CASES
-            if not (
-                profile.startswith(fixture_profiles)
-                or (set(argv) & SCOPE_FLAGS)
-                # argv[0] is the verb; `investigate uds` etc. keep it at index 0.
-                or argv[0] in VOLUME_INDEPENDENT_VERBS
-            )
+            if not (profile.startswith(fixture_profiles) or (set(argv) & SCOPE_FLAGS))
         ]
         assert not drifting, (
             "these golden cases will drift when new captures are recorded — add "

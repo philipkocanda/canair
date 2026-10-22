@@ -1,5 +1,7 @@
 """Tests for the `canair coverage` audit — verified-aware byte mapping."""
 
+from datetime import date
+
 import pytest
 
 from canlib.commands import coverage
@@ -125,7 +127,7 @@ class TestKeepFilter:
     def _run(self, tmp_path, monkeypatch, capsys, argv, payloads):
         import argparse
 
-        monkeypatch.setattr(coverage, "load_representative_payloads", lambda: payloads)
+        monkeypatch.setattr(coverage, "load_representative_payloads", lambda *a, **k: payloads)
         monkeypatch.setattr(coverage, "load_pids", lambda *_: {})
         monkeypatch.setattr(
             coverage,
@@ -180,20 +182,27 @@ class TestRepresentativePayload:
 
     @staticmethod
     def _session(date, payloads, **extra):
-        caps = [{"rx": "0x7BB", "pid": "220102", "payload": p} for p in payloads]
-        return {"date": date, "label": "x", "captures": caps, **extra}
+        return {"date": date, "payloads": payloads, **extra}
 
     def _load(self, tmp_path, monkeypatch, files):
-        import json
-        import types
-
+        """Flatten ``{file: [session, …]}`` into capture-store rows, in date order."""
+        entries = []
         for name, sessions in files.items():
-            (tmp_path / f"{name}.json").write_text(json.dumps({"sessions": sessions}))
-        monkeypatch.setattr(
-            "canlib.profile.active", lambda: types.SimpleNamespace(capture_layers=[tmp_path])
-        )
-        monkeypatch.setattr("canlib.ecus.build_rx_index", lambda: {})
-        return coverage.load_representative_payloads()[("0X7BB", "220102")]
+            for idx, sess in enumerate(sessions):
+                for p in sess["payloads"]:
+                    entries.append(
+                        {
+                            "file": f"{name}.json",
+                            "_session_idx": idx,
+                            "date": sess["date"],
+                            "session_label": "x",
+                            "session_version": sess.get("version"),
+                            "ecu": "HVAC",
+                            "pid": "220102",
+                            "payload": p,
+                        }
+                    )
+        return coverage.representative_payloads(entries)[("HVAC", "220102")]
 
     def test_newer_clean_session_beats_older_padded_one(self, tmp_path, monkeypatch):
         got = self._load(
@@ -261,3 +270,14 @@ class TestRepresentativePayload:
     )
     def test_is_frame_aligned(self, length, aligned):
         assert coverage.is_frame_aligned(length) is aligned
+
+    def test_scope_flags_restrict_which_sessions_count(self, monkeypatch):
+        """`coverage --until` reports the length as of that date, ignoring later sessions."""
+        rows = [
+            {"file": f"{d}.json", "_session_idx": 0, "date": d, "ecu": "HVAC", "pid": "220102"}
+            | {"payload": p}
+            for d, p in (("2026-04-17", self.PADDED), ("2026-08-09", self.CLEAN))
+        ]
+        monkeypatch.setattr("canlib.capture_store.load_all_captures", lambda: rows)
+        got = coverage.load_representative_payloads(until=date(2026, 7, 27))
+        assert len(got[("HVAC", "220102")]["payload"]) // 2 == 20
