@@ -306,6 +306,11 @@ VCU:
       status: active
       period: 5000
       vehicle_states: [READY, CHARGING]
+      notes: >-
+        Froze after the 2026-10-21 12 V conditioning run ended: five byte-identical payloads
+        21:17:11-21:20:12 (VCU_AUX_POWER 0, VCU_LDC_OUTPUT_VOLTAGE 13.551 V) while VCU 2101 kept
+        changing and BCM_12V_BATTERY fell from 12.96 to 12.56 V. Readings taken after the LDC
+        stopped were not live.
       parameters:
         VCU_INVERTER_INPUT_VOLTAGE:
           expression: "B17*2"

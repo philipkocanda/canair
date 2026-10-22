@@ -19,10 +19,10 @@
 # parameter abstains rather than reading false. See canlib/states.py.
 #
 # `implies:` names the broader states a state specializes: DRIVING implies READY,
-# CHARGING implies PLUGGED, READY implies ACC2, ACC2 implies ACC. Both readings
-# stay true (a recorded session keeps every state it was in), but a view that
-# must name ONE — the monitor status bar — names the most specific, so driving
-# reads DRIVING rather than READY.
+# CHARGING implies PLUGGED, READY implies ACC2, ACC2 implies ACC, CONDITIONING
+# implies PARKED. Both readings stay true (a recorded session keeps every state it
+# was in), but a view that must name ONE — the monitor status bar — names the most
+# specific, so driving reads DRIVING rather than READY.
 #
 # Schema: canlib/schema/states_schema.yaml   (canair validate states)
 
@@ -73,11 +73,18 @@ states:
     excludes: [PARKED]
     when: ESC.REAL_SPEED_KMH > 0.5 or VCU.VCU_VEHICLE_SPEED > 0.5 or VCU.VCU_VEHICLE_SPEED < -0.5 or EPS.EPS_VEHICLE_SPEED > 0.5 or MCU.MCU_MOTOR_RPM > 100
 
+  # Parked 12 V top-up: car off and locked, HV relay closed, LDC on. Seen in one
+  # run (2026-10-21, 35 VCU 2101 captures). Only the VCU tells it apart: BMS 2101
+  # B14 reads 0x03 as in READY, MCU 2101 matches charging, and VCU_POWER_STATE ==
+  # 1 alone also matches the 2026-07-30 ACC window (LDC off). Implies PARKED so the
+  # monitor names CONDITIONING rather than PARKED.
+  - name: CONDITIONING
+    description: Parked and off, HV relay closed so the LDC can top up the 12V battery.
+    implies: [PARKED]
+    excludes: [READY, CHARGING, DRIVING]
+    when: VCU.VCU_POWER_STATE == 1 and VCU.VEHICLE_STATE_LDC_ENABLED == 1
+
   # The gateway/meta token — applicable in every vehicle state (the state
   # analogue of the ALL CAN-bus code). Documentary; no auto-suggest predicate.
   - name: ALL
     description: Applicable/readable in every vehicle state.
-  - name: CONDITIONING
-    description: Parked/locked, HV pack awake only to top up the 12V battery via the LDC (not READY, not charging).
-    excludes: [READY, CHARGING, DRIVING]
-    when: VCU.VCU_POWER_STATE == 1 and VCU.VEHICLE_STATE_LDC_ENABLED == 1

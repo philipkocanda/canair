@@ -43,7 +43,9 @@ MCU:
       vehicle_states: [READY, CHARGING]
       notes: >-
         30 bytes; a 34-byte variant adds four trailing 00 bytes. Words are little-endian, unlike BMS
-        2101. B23 and B26 are constant 0x02 and 0x04.
+        2101. B23 and B26 are constant 0x02 and 0x04. B9/B10/B11 read 8/56/1 in 5121 of 5776
+        CHARGING captures and in all 35 CONDITIONING captures; in READY B11 is 0 in all 2369
+        captures and B9 is 140 or 12.
       parameters:
         MCU_2101_B22:
           expression: B22
@@ -77,7 +79,7 @@ MCU:
           source: canair analysis 2026-08-08 long drive + DCFC
           verified: false
           notes: >-
-            Range 38-99 across 8598 captures, slow-moving. r=-0.720 vs AAF:2181:MOTOR_COOLANT_TEMP
+            Range 38-105 across 8633 captures, slow-moving. r=-0.720 vs AAF:2181:MOTOR_COOLANT_TEMP
             and HEATSINK_TEMP (n=1488). B26 is constant 0x04.
           enabled: false
           ha_class: ""
@@ -86,9 +88,12 @@ MCU:
           source: canair analysis 2026-08-08 long drive + DCFC
           verified: false
           notes: >-
-            Signed 16-bit little-endian, low byte B29, high byte B30. The three MCU_PHASE_CURRENT
-            signals sum to zero (n=5181, stdev 21.5 against a full scale of 20678). Scale unknown,
-            so raw counts.
+            Signed 16-bit little-endian, low byte B29, high byte B30. Scale unknown, so raw counts.
+            The three MCU_PHASE_CURRENT signals sum to within ±1 count in 8564 of 8629 aligned
+            captures, driving included, so one is computed from the other two rather than measured.
+            With the motor stopped the readings are multiples of about 24.4 counts, sd 58, 55 and
+            106 for _1, _2 and _3, r=0.79 between _1 and _2 (CHARGING, n=5386); READY and
+            CONDITIONING standstill readings match.
         MCU_PHASE_CURRENT_2:
           expression: (S33 << 8) | B31
           source: canair analysis 2026-08-08 long drive + DCFC
@@ -100,7 +105,9 @@ MCU:
           expression: (S35 << 8) | B34
           source: canair analysis 2026-08-08 long drive + DCFC
           verified: false
-          notes: Signed 16-bit little-endian, low byte B34, high byte B35. See MCU_PHASE_CURRENT_1.
+          notes: >-
+            Signed 16-bit little-endian, low byte B34, high byte B35. About twice the standstill
+            spread of _1 and _2. See MCU_PHASE_CURRENT_1.
         MCU_SUPPLY_VOLTAGE_1:
           expression: ((B15<<8)|B14)/1000
           unit: V
@@ -192,9 +199,11 @@ MCU:
           verified: false
           notes: >-
             Motor phase-current magnitude, 16-bit little-endian split across the PCI byte B16; never
-            negative. 2.7-5.4 at standstill, up to 214 while driving (if 0.1 A/bit, which is not
-            proven). Tracks |MCU_MOTOR_TORQUE| at about 1.2 counts per 0.1 Nm below 5000 RPM, rising
-            to 1.6 above 6500 RPM, as field weakening would.
+            negative. With the motor stopped (RPM and torque 0) it reads 2.7-6.0, median 3.0, in
+            CHARGING (n=5386), READY (n=636) and CONDITIONING (n=35) alike, so about 3.0 is its
+            zero. Up to 214 while driving (if 0.1 A/bit, which is not proven). Tracks
+            |MCU_MOTOR_TORQUE| at about 1.2 counts per 0.1 Nm below 5000 RPM, rising to 1.6 above
+            6500 RPM, as field weakening would.
         MCU_2102_B20:
           expression: B20
           unit: ""
@@ -510,7 +519,14 @@ MCU:
         r=0.952, n=1553 DRIVING rows within 1.5 s). If MCU_MOTOR_CURRENT is 0.1 A/bit, the phase
         currents are about 0.020 A per count (peak 11516 raw = about 230 A). Both scales are still
         unproven.
-      notes: MCU_PHASE_CURRENT_1/2/3 are located and proven to be currents (Kirchhoff sum-to-zero mean -0.13 stdev 21.51 over n=5181; sum-of-squares 462x higher driving than at DCFC standstill; SQ vs RPM r=-0.039 rules out phase voltages; SQ ~ 1.2*torque^2 with field-weakening at high RPM). Only the SCALE is unknown, so all three ship unverified with no unit. Observed peak |I| 11516 raw; apparent standstill quantum ~24.4 raw. A 2017 Ioniq 28 kWh draws ~400 A peak phase current at full torque, which would imply roughly 0.035 A/LSB, but that is arithmetic on an assumed peak, not a measurement.
+      notes: >-
+        MCU_PHASE_CURRENT_1/2/3 are located and behave as currents: sum-of-squares 462x higher
+        driving than at DCFC standstill; SQ vs RPM r=-0.039 rules out phase voltages; SQ ~
+        1.2*torque^2 with field-weakening at high RPM. Their sum is zero by construction (one is
+        computed from the other two), so it is not evidence. Only the SCALE is unknown, so all three
+        ship unverified with no unit. Observed peak |I| 11516 raw; standstill quantum ~24.4 raw. A
+        2017 Ioniq 28 kWh draws ~400 A peak phase current at full torque, which would imply roughly
+        0.035 A/LSB, but that is arithmetic on an assumed peak, not a measurement.
       what_to_test:
         - Compare the SQ-derived peak against a scan tool reporting motor phase current during a hard launch
         - Or clamp-meter one phase lead (workshop only) at a known steady torque
