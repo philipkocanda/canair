@@ -1,7 +1,7 @@
 ## PID coverage gaps (audit 2026-07-20)
 
 Systematic pass over all ECU PIDs in `pids/`, cross-referenced against the
-longest captured payload per PID. Byte indices are WiCAN Bnn (PCI + SID + DID
+newest session's payload length per PID. Byte indices are WiCAN Bnn (PCI + SID + DID
 echo excluded). **Regenerate the authoritative, up-to-date list any time with
 `canair coverage`** (`--bitfields`, `--unmapped`, `--no-capture`,
 `--json`). The curated notes below add priority/context; the tool output is the

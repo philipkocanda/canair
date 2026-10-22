@@ -64,8 +64,8 @@ not a reason to hand-edit.
 
 ## Audit for gaps
 
-`canair coverage` cross-references your parameter expressions against the longest
-captured payload and flags what's still undecoded:
+`canair coverage` cross-references your parameter expressions against the payload
+length from each PID's newest session and flags what's still undecoded:
 
 ```bash
 canair coverage MyECU          # unmapped bytes, partial bitfields, no-capture PIDs

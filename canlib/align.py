@@ -387,8 +387,10 @@ def longest_payload_len(captures) -> int | None:
     per consecutive frame — so render layers pass this to
     :func:`canlib.notation.relabel_signal` / :meth:`canlib.notation.ByteRef.from_wican`.
 
-    The *longest* payload is used, matching ``coverage``: it is the most complete
-    response seen, so it defines the widest valid byte range. Deliberately
+    The *longest* payload is used: it defines the widest valid byte range. Frame padding
+    in old captures can inflate it, which is harmless here because it never changes
+    whether the layout is single- or multi-frame (``coverage`` counts bytes, so it
+    picks the newest session's length instead). Deliberately
     tolerant of odd entries (non-mappings, missing/blank payloads) — this only
     decides a display label and must never break a render.
     """
@@ -408,8 +410,7 @@ def payload_lengths(loaded: dict[tuple[str, str], LoadedPid]) -> dict[tuple[str,
     consecutive frame for a multi-frame response). Render layers pass this to
     :func:`canlib.notation.relabel_signal` so a label names the right byte.
 
-    The *longest* payload is used, matching ``coverage``: it is the most complete
-    response seen, so it defines the widest valid byte range.
+    The *longest* payload is used, as in :func:`longest_payload_len`.
     """
     out: dict[tuple[str, str], int] = {}
     for key, lp in loaded.items():

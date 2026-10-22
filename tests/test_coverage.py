@@ -1,5 +1,7 @@
 """Tests for the `canair coverage` audit — verified-aware byte mapping."""
 
+import pytest
+
 from canlib.commands import coverage
 
 
@@ -123,7 +125,7 @@ class TestKeepFilter:
     def _run(self, tmp_path, monkeypatch, capsys, argv, payloads):
         import argparse
 
-        monkeypatch.setattr(coverage, "load_longest_payloads", lambda: payloads)
+        monkeypatch.setattr(coverage, "load_representative_payloads", lambda: payloads)
         monkeypatch.setattr(coverage, "load_pids", lambda *_: {})
         monkeypatch.setattr(
             coverage,
@@ -163,3 +165,99 @@ class TestKeepFilter:
         )
         assert rc == 0
         assert "UNVERIFIED" in out
+
+
+class TestRepresentativePayload:
+    """The payload that sets a PID's length comes from its newest session.
+
+    Captures before 2026-07-28 store a multi-frame response padded to a whole CAN frame,
+    and the padding is invisible in the hex. Taking the longest payload reported that
+    filler as undecoded data (HVAC 2201A0 B69-B71).
+    """
+
+    CLEAN = "62" + "0102" + "11" * 13  # 16 bytes
+    PADDED = CLEAN + "00" * 4  # 20 bytes: padded out to a whole 3-frame response
+
+    @staticmethod
+    def _session(date, payloads, **extra):
+        caps = [{"rx": "0x7BB", "pid": "220102", "payload": p} for p in payloads]
+        return {"date": date, "label": "x", "captures": caps, **extra}
+
+    def _load(self, tmp_path, monkeypatch, files):
+        import json
+        import types
+
+        for name, sessions in files.items():
+            (tmp_path / f"{name}.json").write_text(json.dumps({"sessions": sessions}))
+        monkeypatch.setattr(
+            "canlib.profile.active", lambda: types.SimpleNamespace(capture_layers=[tmp_path])
+        )
+        monkeypatch.setattr("canlib.ecus.build_rx_index", lambda: {})
+        return coverage.load_representative_payloads()[("0X7BB", "220102")]
+
+    def test_newer_clean_session_beats_older_padded_one(self, tmp_path, monkeypatch):
+        got = self._load(
+            tmp_path,
+            monkeypatch,
+            {
+                "2026-04-17": [self._session("2026-04-17", [self.PADDED] * 5)],
+                "2026-08-09": [self._session("2026-08-09", [self.CLEAN], version="1.18.0")],
+            },
+        )
+        assert len(got["payload"]) // 2 == 16
+        assert got["date"] == "2026-08-09"
+        assert got["may_include_padding"] is False
+
+    def test_stray_inside_an_older_session_is_ignored(self, tmp_path, monkeypatch):
+        got = self._load(
+            tmp_path,
+            monkeypatch,
+            {
+                "2026-08-08": [self._session("2026-08-08", [self.CLEAN, "62" + "00" * 54])],
+                "2026-08-09": [self._session("2026-08-09", [self.CLEAN] * 3)],
+            },
+        )
+        assert len(got["payload"]) // 2 == 16
+
+    def test_most_common_length_within_the_session_wins(self, tmp_path, monkeypatch):
+        got = self._load(
+            tmp_path,
+            monkeypatch,
+            {"2026-08-09": [self._session("2026-08-09", [self.CLEAN] * 3 + [self.PADDED])]},
+        )
+        assert len(got["payload"]) // 2 == 16
+
+    def test_negative_response_is_not_a_length(self, tmp_path, monkeypatch):
+        got = self._load(
+            tmp_path,
+            monkeypatch,
+            {
+                "2026-08-08": [self._session("2026-08-08", [self.CLEAN])],
+                "2026-08-09": [self._session("2026-08-09", ["7F2231"])],
+            },
+        )
+        assert got["date"] == "2026-08-08"
+
+    def test_old_frame_aligned_session_is_flagged_as_possibly_padded(self, tmp_path, monkeypatch):
+        got = self._load(
+            tmp_path,
+            monkeypatch,
+            {"2026-04-17": [self._session("2026-04-17", [self.PADDED])]},
+        )
+        assert len(got["payload"]) // 2 == 20
+        assert got["may_include_padding"] is True
+
+    def test_frame_aligned_length_with_version_metadata_is_trusted(self, tmp_path, monkeypatch):
+        got = self._load(
+            tmp_path,
+            monkeypatch,
+            {"2026-08-09": [self._session("2026-08-09", [self.PADDED], version="1.18.0")]},
+        )
+        assert got["may_include_padding"] is False
+
+    @pytest.mark.parametrize(
+        ("length", "aligned"),
+        [(20, True), (62, True), (13, True), (16, False), (59, False), (7, False)],
+    )
+    def test_is_frame_aligned(self, length, aligned):
+        assert coverage.is_frame_aligned(length) is aligned

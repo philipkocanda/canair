@@ -137,8 +137,8 @@ moments — write the note while you remember what you did, and the analysis bec
 `canair captures --sessions`, so it is a durable record rather than a UI bookmark.
 
 To see what's still undecoded across a whole ECU (or PID), `canair coverage`
-audits every parameter expression against the longest captured payload and lists
-the **unmapped** and partially-decoded bytes:
+audits every parameter expression against the payload length of the PID's newest
+session and lists the **unmapped** and partially-decoded bytes:
 
 ![canair coverage BMS — undecoded payload bytes](../screenshots/coverage.svg)
 

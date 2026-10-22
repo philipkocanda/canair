@@ -22,10 +22,10 @@ enforced by :meth:`TestGoldenHarnessItself.test_cases_cannot_drift_as_captures_g
   ``correlate``/``hunt`` report counts, ``n=``, and correlation coefficients);
 * **a frozen fixture profile** (:data:`SINGLE_FRAME_PROFILE`) — committed test data
   that no recording session appends to;
-* **a volume-independent verb** — ``coverage`` reports only the *longest* captured
-  payload per PID (``load_longest_payloads`` keeps the first strictly-longest, and
-  files are read in date order), so appending captures cannot change its output
-  unless an ECU answers with more bytes than ever before, which is a real finding.
+* **a volume-independent verb** — ``coverage`` reports only the payload *length* of each
+  PID's newest session (``load_representative_payloads``), so appending captures cannot
+  change its output unless a newer session answers with a different length, which is a
+  real finding.
 
 **ANSI is stripped** so the goldens stay reviewable in a diff (a colour change is
 out of scope here and is covered by the screenshot check). Labels are what matter.
@@ -67,8 +67,8 @@ SINGLE_FRAME_PROFILE = str(FIXTURE_PROFILES_DIR / "single-frame")
 # regen and a read of the diff — to widen what these cases cover.
 FROZEN_UNTIL = "2026-08-02"
 
-# Verbs whose output is a pure function of the PID definitions plus the *longest*
-# captured payload, not of capture volume — see the module docstring. These need no
+# Verbs whose output is a pure function of the PID definitions plus the newest session's
+# payload length, not of capture volume — see the module docstring. These need no
 # date scope (and `coverage` has no scope flags to give it one).
 VOLUME_INDEPENDENT_VERBS = frozenset({"coverage"})
 

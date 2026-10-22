@@ -1,7 +1,7 @@
 """Audit PID definitions for decoding gaps (unmapped bytes, partial bitfields).
 
 For every ECU/PID in ecus/, this cross-references the signal expressions
-against the *longest* captured payload for that PID and reports:
+against the payload length of that PID's newest captured session and reports:
 
   - UNMAPPED  data bytes present in the payload that no expression reads
   - UNVERIFIED data bytes mapped only by an unverified signal (needs confirming)
@@ -31,6 +31,7 @@ import argparse
 import json
 import re
 import sys
+from collections import Counter
 from typing import NotRequired, TypedDict
 
 from canlib import ansi, capture_io
@@ -86,7 +87,7 @@ class CoverageEntry(TypedDict):
     params: int
     verified: int
     no_capture: NotRequired[bool]
-    capture: NotRequired[dict[str, str]]
+    capture: NotRequired[dict[str, str | bool]]
     data_bytes: NotRequired[int]
     payload_len: NotRequired[int]
     unmapped: NotRequired[list[int]]
@@ -94,10 +95,34 @@ class CoverageEntry(TypedDict):
     incomplete_bitfields: NotRequired[list[BitfieldGap]]
 
 
-# ANSI colors
-def load_longest_payloads() -> dict[tuple[str, str], dict]:
-    """Return {(ECU_UPPER, PID_UPPER): {payload, date, label, file}} for the
-    longest captured payload seen per PID (most complete response).
+def is_frame_aligned(length: int) -> bool:
+    """True if ``length`` is exactly a whole number of CAN frames (``6 + 7k`` bytes).
+
+    A multi-frame payload of this length is indistinguishable from a shorter one whose
+    final frame was padded out to 8 bytes.
+    """
+    return length > 7 and (length - 6) % 7 == 0
+
+
+def session_length(lengths: Counter) -> int:
+    """The payload length one session reports: its most common, longer on a tie."""
+    return max(lengths, key=lambda n: (lengths[n], n))
+
+
+def load_representative_payloads() -> dict[tuple[str, str], dict]:
+    """Return {(ECU_UPPER, PID_UPPER): {payload, date, label, file, ...}} for the
+    payload that sets each PID's length.
+
+    The length comes from the PID's **newest session** (most common length within
+    it). The longest-ever payload is the wrong choice: before 2026-07-28 the final CAN
+    frame of a multi-frame response was stored padded to 8 bytes, and that padding is
+    invisible in the stored hex (the ISO-TP length is gone), so the padded length always
+    won and its filler was reported as undecoded data. Taking the newest session also
+    ignores one-off strays from an older session.
+
+    ``may_include_padding`` is set when the length is frame-aligned and the session
+    predates recording ``version`` metadata, i.e. the length may still be padded
+    because no newer session has read the PID.
 
     Capture ``ecu`` fields store the ECU CAN response address (e.g. ``0x7EC``)
     and are resolved to the canonical short name for the ``(ECU, PID)`` key.
@@ -120,21 +145,31 @@ def load_longest_payloads() -> dict[tuple[str, str], dict]:
         for fpath in capture_io.iter_capture_files(layer):
             data = capture_io.load_capture_file(fpath) or {}
             for session in data.get("sessions", []):
+                lengths: dict[tuple[str, str], Counter] = {}
+                sample: dict[tuple[str, str], dict[int, str]] = {}
                 for cap in session.get("captures", []):
-                    payload = cap.get("payload")
-                    if not payload:
+                    payload = (cap.get("payload") or "").replace(" ", "")
+                    # An NRC (7F…) carries no data bytes to audit.
+                    if not payload or payload.upper().startswith("7F"):
                         continue
-                    payload = payload.replace(" ", "")
                     ecu_name = ecu_name_from_ref(capture_io.capture_rx(cap), rx_index)
                     key = (ecu_name.upper(), str(cap.get("pid", "")).upper())
+                    n = len(payload) // 2
+                    lengths.setdefault(key, Counter())[n] += 1
+                    sample.setdefault(key, {}).setdefault(n, payload)
+                date = str(session.get("date", ""))
+                for key, counts in lengths.items():
                     prev = best.get(key)
-                    if prev is None or len(payload) > len(prev["payload"]):
-                        best[key] = {
-                            "payload": payload,
-                            "date": str(session.get("date", "")),
-                            "label": session.get("label", ""),
-                            "file": fpath.name,
-                        }
+                    if prev is not None and date < prev["date"]:
+                        continue
+                    n = session_length(counts)
+                    best[key] = {
+                        "payload": sample[key][n],
+                        "date": date,
+                        "label": session.get("label", ""),
+                        "file": fpath.name,
+                        "may_include_padding": is_frame_aligned(n) and not session.get("version"),
+                    }
     return best
 
 
@@ -272,7 +307,7 @@ def add_parser(subparsers):
 
 def run(args) -> int:
     ecu_index = build_ecu_index(load_pids())
-    payloads = load_longest_payloads()
+    payloads = load_representative_payloads()
 
     # Accept an ECU-registry alias (e.g. LDC for OBC) or any case, matching
     # `canair captures`/`decode`. Canonicalises to the ecus/ key before filtering.
@@ -301,7 +336,11 @@ def run(args) -> int:
             if cap is None:
                 entry["no_capture"] = True
             else:
-                entry["capture"] = {"date": cap["date"], "file": cap["file"]}
+                entry["capture"] = {
+                    "date": cap["date"],
+                    "file": cap["file"],
+                    "may_include_padding": cap.get("may_include_padding", False),
+                }
                 entry.update(analyze_pid(parameters, cap["payload"], subfunction_bytes(pid)))
             results.append(entry)
 
@@ -356,8 +395,12 @@ def run(args) -> int:
         if e.get("no_capture"):
             print(f"{header}  {ansi.YELLOW}NO CAPTURE{ansi.RESET}")
             continue
+        padding = (
+            ", may include trailing frame padding" if e["capture"]["may_include_padding"] else ""
+        )
         print(
-            f"{header}  {ansi.DIM}{e['data_bytes']} data bytes, {e['capture']['date']}{ansi.RESET}"
+            f"{header}  {ansi.DIM}{e['data_bytes']} data bytes, "
+            f"{e['capture']['date']}{padding}{ansi.RESET}"
         )
         if e["unmapped"]:
             byts = ",".join(

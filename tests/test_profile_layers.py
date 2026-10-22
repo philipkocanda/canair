@@ -558,11 +558,11 @@ class TestLayerAwareReaders:
         _bundled(env)
         _overlay(env)
         from canlib import profile as profile_mod
-        from canlib.commands.coverage import load_longest_payloads
+        from canlib.commands.coverage import load_representative_payloads
 
         profile_mod._active = resolve_profile("ev6")
         # Without the layer walk a layered profile reports false "NO CAPTURE".
-        assert ("BMS", "2101") in load_longest_payloads()
+        assert ("BMS", "2101") in load_representative_payloads()
 
     def test_validate_captures_reads_every_layer(self):
         """A schema break in the base still breaks analysis, so it must be reported."""
