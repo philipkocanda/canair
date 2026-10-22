@@ -15,6 +15,19 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [1.31.0](https://github.com/philipkocanda/canair/compare/v1.30.0...v1.31.0) (2026-10-22)
+
+
+### Added
+
+* ioniq-2017 more captures (3) ([bb17c57](https://github.com/philipkocanda/canair/commit/bb17c579131c4a723359acc0004bcfdc66a1eefa))
+* **ioniq-2017:** tag IGPM and BCM as readable in ALL states ([ad66115](https://github.com/philipkocanda/canair/commit/ad661151b1a4844d8d056190f89b14c84d952ce6))
+
+
+### Fixed
+
+* **update:** stop flagging upstream drift as snapshot data loss ([2b9e65b](https://github.com/philipkocanda/canair/commit/2b9e65bf60016e44c258f113d6d250d75a7f9b59))
+
 ## [1.30.0](https://github.com/philipkocanda/canair/compare/v1.29.0...v1.30.0) (2026-10-22)
 
 
