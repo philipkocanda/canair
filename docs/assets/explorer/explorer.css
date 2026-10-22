@@ -156,3 +156,17 @@
   .cx-sessions { position: static; }
   .cx-sesslist { max-height: 14rem; }
 }
+
+/* Homepage showcase (docs/index.md) */
+.cx-hero { margin: 1rem 0 2rem; padding: 1rem 1.2rem; border: 1px solid var(--md-default-fg-color--lightest);
+  border-left: 4px solid var(--md-accent-fg-color); border-radius: 0.2rem; background: var(--md-code-bg-color); }
+.cx-hero > p:first-child { margin-top: 0; }
+.cx-hero-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.8rem; margin-top: 1rem; }
+@media (max-width: 700px) { .cx-hero-cards { grid-template-columns: minmax(0, 1fr); } }
+.cx-hero-cards a { display: flex; flex-direction: column; gap: 0.3rem; color: var(--md-default-fg-color); text-decoration: none;
+  padding: 0.5rem; border: 1px solid var(--md-default-fg-color--lightest); border-radius: 0.2rem; background: var(--md-default-bg-color); }
+.cx-hero-cards a:hover { border-color: var(--md-accent-fg-color); box-shadow: 0 0 0 1px var(--md-accent-fg-color); }
+.cx-hero-cards img { width: 100%; height: 6rem; object-fit: cover; object-position: top left; border-radius: 0.15rem; }
+.cx-hero-cards strong { font-size: 0.85rem; }
+.cx-hero-cards span { font-size: 0.75rem; color: var(--md-default-fg-color--light); }
+.cx-hero .cx-muted { display: block; margin-top: 0.5rem; }

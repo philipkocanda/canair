@@ -20,7 +20,7 @@ Everything ships as a single installable CLI, **`canair`**. Vehicle data lives i
 [firmware compatibility](https://philipkocanda.github.io/canair/getting-started/connect-device/#firmware-compatibility).
 
 > **📖 Documentation:** **[philipkocanda.github.io/canair](https://philipkocanda.github.io/canair/)** —
-> [Getting started](https://philipkocanda.github.io/canair/getting-started/install/) · [**Bring your own car**](https://philipkocanda.github.io/canair/bring-your-own-car/overview/) (the full new-vehicle walkthrough) · [Concepts](https://philipkocanda.github.io/canair/concepts/architecture/) · [Reference](https://philipkocanda.github.io/canair/reference/config/). (Source in [`docs/`](docs/index.md).)
+> [Getting started](https://philipkocanda.github.io/canair/getting-started/install/) · [**Bring your own car**](https://philipkocanda.github.io/canair/bring-your-own-car/overview/) (the full new-vehicle walkthrough) · [**Profile explorer**](https://philipkocanda.github.io/canair/profiles/explorer/) (browse and plot real Ioniq data in your browser) · [Concepts](https://philipkocanda.github.io/canair/concepts/architecture/) · [Reference](https://philipkocanda.github.io/canair/reference/config/). (Source in [`docs/`](docs/index.md).)
 
 | | |
 |---|---|
