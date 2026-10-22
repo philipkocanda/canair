@@ -19,7 +19,7 @@ from collections import OrderedDict
 
 from canlib.addressing import EcuAddress, resolve_ecu_address
 from canlib.autopid_send_to import DEFAULT_TYPE, MQTT_TOPIC_TYPE, topic_problem
-from canlib.pids import pid_status
+from canlib.pids import is_shipped, pid_status
 from canlib.response_frames import stored_count
 from canlib.transport.elm327_addressing import (
     AUTO,
@@ -160,10 +160,10 @@ def generate_profile(
         session = ecu.get("session", False)
 
         for pid_code, pid_data in (ecu.get("pids") or {}).items():
-            # Only `active` PIDs ship to the device. draft (unshipped placeholder),
-            # static (unchanging identity/cal) and ignored (dead) are all excluded
-            # — this is the single gate, replacing the old enabled/static/ignored mix.
-            if pid_status(pid_data) != "active":
+            # Only `active` and `slow` PIDs ship to the device. draft (unshipped
+            # placeholder), static (unchanging identity/cal) and ignored (dead) are all
+            # excluded — this is the single gate, replacing the old enabled/static/ignored mix.
+            if not is_shipped(pid_status(pid_data)):
                 continue
 
             parameters = {}

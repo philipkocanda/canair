@@ -4,13 +4,13 @@
 
 ```
 usage: canair pids [-h]
-                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-pid-status,set-pid-variable-length,set-response-frames,set-pid-notes,set-identity,rm-identity,set-can-bus,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing}
+                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-pid-status,set-pid-variable-length,set-pid-period,set-response-frames,set-pid-notes,set-identity,rm-identity,set-can-bus,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing}
                    ...
 
 [UDS] Safely edit ecus/ parameters and research entries (domain A — diagnostic UDS PIDs, freeform WiCAN expressions). The broadcast-frame (domain B) authoring counterpart is `canair signals` (linear signals/ maps).
 
 positional arguments:
-  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-pid-status,set-pid-variable-length,set-response-frames,set-pid-notes,set-identity,rm-identity,set-can-bus,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing}
+  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-pid-status,set-pid-variable-length,set-pid-period,set-response-frames,set-pid-notes,set-identity,rm-identity,set-can-bus,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing}
     upsert-param        Add or update a signal
     rename-param        Rename a signal (key only; fields preserved)
     rm-param            Remove a signal
@@ -28,6 +28,7 @@ positional arguments:
     set-pid-variable-length
                         Flag a PID as returning legitimately variable-length
                         responses
+    set-pid-period      Set how often the WiCAN AutoPID re-polls a PID (ms)
     set-response-frames
                         Set how many CAN frames a PID's response occupies
                         (skips the adapter's wait)
@@ -184,7 +185,7 @@ options:
 ## `canair pids add-pid`
 
 ```
-usage: canair pids add-pid [-h] [--status {active,draft,static,ignored}]
+usage: canair pids add-pid [-h] [--status {active,draft,static,slow,ignored}]
                            [--prereq PREREQ] [--period PERIOD] [--notes NOTES]
                            [--dir DIR] [--no-validate]
                            ecu pid
@@ -195,7 +196,7 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
-  --status {active,draft,static,ignored}
+  --status {active,draft,static,slow,ignored}
                         PID lifecycle (default: draft — swept/queryable but
                         not shipped)
   --prereq PREREQ, --vehicle-states PREREQ
@@ -357,12 +358,12 @@ options:
 
 ```
 usage: canair pids set-pid-status [-h] [--dir DIR] [--no-validate]
-                                  ecu pid {active,draft,static,ignored}
+                                  ecu pid {active,draft,static,slow,ignored}
 
 positional arguments:
   ecu
   pid
-  {active,draft,static,ignored}
+  {active,draft,static,slow,ignored}
 
 options:
   -h, --help            show this help message and exit
@@ -381,6 +382,29 @@ positional arguments:
   pid
   {true,false}   true = variable-length (a short payload is not truncation);
                  false = clear the flag (fixed-length, the default)
+
+options:
+  -h, --help     show this help message and exit
+  --dir DIR      ecus/ directory (default: active profile)
+  --no-validate  Skip the post-edit schema validation gate
+```
+
+## `canair pids set-pid-period`
+
+```
+usage: canair pids set-pid-period [-h] [--dir DIR] [--no-validate]
+                                  ecu pid MS|clear
+
+Set the PID's AutoPID polling interval in milliseconds. It applies only to the
+profile shipped to the device (`wican autopid write`); `monitor` and `read`
+poll every selector once per cycle regardless. 0 is refused because the
+firmware treats it as unset and substitutes a default.
+
+positional arguments:
+  ecu
+  pid
+  MS|clear       interval in milliseconds (int >= 1), or 'clear' to remove it
+                 (device default 5000)
 
 options:
   -h, --help     show this help message and exit

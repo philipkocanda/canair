@@ -171,7 +171,9 @@ Every PID carries a **required, explicit** lifecycle **`status:`** — the singl
 field that replaced the old `ignored`/`static`/`enabled` booleans:
 `active` (indexed, swept, queryable, shipped) · `draft` (tracked/queryable but
 not shipped — RE placeholders/speculative) · `static` (unchanging cal/identity;
-skipped in bare-ECU sweeps and not shipped) · `ignored` (dead DID, excluded
+skipped in bare-ECU sweeps and not shipped) · `slow` (live but too slow-changing
+to poll every cycle, e.g. the 21F2 last-cycle records; shipped at its own required
+`period`, skipped in bare-ECU sweeps) · `ignored` (dead DID, excluded
 everywhere). `validate` errors if a PID omits it; set it with
 `canair pids set-pid-status ECU PID STATUS` (and `canair pids upsert-param`
 seeds `status: active` on a newly-created PID). Power

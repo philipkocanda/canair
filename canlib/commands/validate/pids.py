@@ -12,7 +12,7 @@ import yaml
 from canlib import yaml_io
 from canlib.byteindex import wican_to_isotp
 from canlib.decode_value import BYTE_RUN_TYPES as _BYTE_RUN_TYPES
-from canlib.pids import PID_STATUSES
+from canlib.pids import PID_STATUSES, pid_status
 
 from ._common import EXPR_TOKEN_RE, SCHEMA_FILE
 from .send_to import send_to_findings
@@ -575,6 +575,12 @@ def _validate_one_pid(
     period = pid_def.get("period")
     if period is not None and (not isinstance(period, int) or period < 0):
         errors.append(f"{label}: period must be positive int")
+    elif period == 0:
+        warnings.append(
+            f"{label}: period 0 is not 'never poll' — the firmware reads it as unset and "
+            "substitutes a default; give it an explicit interval "
+            "(canair pids set-pid-period)"
+        )
 
     variable_length = pid_def.get("variable_length")
     if variable_length is not None and not isinstance(variable_length, bool):
@@ -591,6 +597,13 @@ def _validate_one_pid(
                 f"{label}: response_frames cannot be set with variable_length: true "
                 "(a variable-length response has no fixed frame count)"
             )
+
+    if pid_status(pid_def) == "slow" and "period" not in pid_def:
+        errors.append(
+            f"{label}: status 'slow' needs an explicit period — without one the device "
+            "polls it every 5 s, which is what 'slow' exists to avoid "
+            "(canair pids set-pid-period)"
+        )
 
     status = pid_def.get("status")
     if status is not None and status not in fields.valid_pid_status:
@@ -1499,7 +1512,7 @@ def _duplicate_param_errors(file_paths: list[Path]) -> list[str]:
     must be globally unique. Catching it here means CI/`validate` fails before
     `wican autopid write` does. See ``canlib.autopid_profile.generate_profile``.
     """
-    from canlib.pids import pid_status
+    from canlib.pids import is_shipped
 
     errors: list[str] = []
     origin: dict[str, str] = {}
@@ -1517,7 +1530,7 @@ def _duplicate_param_errors(file_paths: list[Path]) -> list[str]:
             if not isinstance(ecu_def, dict):
                 continue
             for pid_code, pid_def in (ecu_def.get("pids") or {}).items():
-                if not isinstance(pid_def, dict) or pid_status(pid_def) != "active":
+                if not isinstance(pid_def, dict) or not is_shipped(pid_status(pid_def)):
                     continue
                 for pname, param in (pid_def.get("parameters") or {}).items():
                     if not isinstance(param, dict) or not param.get("enabled", True):

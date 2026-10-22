@@ -526,6 +526,19 @@ class TestBuildQueryPlanStatic:
         assert "21F2" not in self._codes(plan)
         assert {"2101", "2102"} == set(self._codes(plan))
 
+    def test_bare_ecu_omits_slow_but_include_static_keeps_it(self):
+        from canlib.modes.multi import build_query_plan
+
+        info = self._ecu_info()
+        info["pids"]["21F3"] = {
+            "parameters": {},
+            "period": 300000,
+            "status": "slow",
+            "swept": False,
+        }
+        assert "21F3" not in self._codes(build_query_plan(info, []))
+        assert "21F3" in self._codes(build_query_plan(info, [], include_static=True))
+
     def test_include_static_keeps_it(self):
         from canlib.modes.multi import build_query_plan
 

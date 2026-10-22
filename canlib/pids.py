@@ -28,6 +28,10 @@ from canlib.addressing import AddressingMode, EcuAddress
 #   static             — unchanging identity/calibration block: indexed &
 #                        queryable & analysed, but skipped in a bare-ECU sweep
 #                        (needs --include-static) and NOT shipped.
+#   slow               — real & live but changes too rarely to poll every cycle
+#                        (the 21F2 last-cycle summaries): indexed, queryable and
+#                        shipped at its own long `period` (required), but skipped in
+#                        a bare-ECU sweep (needs --include-static).
 #   ignored            — dead/useless DID (NRC, no decodable data): a documented
 #                        tombstone excluded from ALL tooling.
 #
@@ -38,9 +42,24 @@ from canlib.addressing import AddressingMode, EcuAddress
 # truth for the argparse `choices=` and the editor guards). The schema keeps its
 # own `valid_pid_status:` list — `canlib/schema/` must validate data without
 # importing Python — and a drift test asserts the two agree.
-PidStatus = Literal["active", "draft", "static", "ignored"]
+PidStatus = Literal["active", "draft", "static", "slow", "ignored"]
 PID_STATUSES: tuple[PidStatus, ...] = get_args(PidStatus)
 DEFAULT_PID_STATUS: PidStatus = "active"
+
+# The two visibility questions a status answers. Consumers ask these helpers instead of
+# comparing against "active"/"static", so a new status is one edit here.
+_SHIPPED: frozenset[PidStatus] = frozenset({"active", "slow"})
+_UNSWEPT: frozenset[PidStatus] = frozenset({"static", "slow", "ignored"})
+
+
+def is_shipped(status: PidStatus) -> bool:
+    """Whether a PID with this status goes into the generated WiCAN device profile."""
+    return status in _SHIPPED
+
+
+def is_swept(status: PidStatus) -> bool:
+    """Whether a bare-ECU selector (``canair monitor ECU``) includes the PID."""
+    return status not in _UNSWEPT
 
 
 def pid_status(pid_def: dict) -> PidStatus:
@@ -66,8 +85,8 @@ class PidIndexEntry(TypedDict):
     parameters: dict[str, Any]
     period: int
     status: PidStatus
-    shipped: bool  # include in the generated WiCAN device profile (status == active)
-    swept: bool  # include in a bare-ECU sweep (status != static)
+    shipped: bool  # include in the generated WiCAN device profile (see is_shipped)
+    swept: bool  # include in a bare-ECU sweep (see is_swept)
 
 
 class EcuIndexEntry(TypedDict):
@@ -496,7 +515,7 @@ def build_ecu_index(pids_data: dict) -> dict[str, EcuIndexEntry]:
                 "status": status,
                 # Derived visibility flags (single source: `status`) so callers
                 # never re-implement the lifecycle rules:
-                "shipped": status == "active",  # include in generated WiCAN profile
-                "swept": status != "static",  # include in a bare-ECU sweep
+                "shipped": is_shipped(status),
+                "swept": is_swept(status),
             }
     return index

@@ -31,9 +31,10 @@ options:
   --label TEXT          Session label for --save
   --state TEXT          Session state for --save
   --notes TEXT          Session notes for --save
-  --include-static      Include static config/identity PIDs (e.g. 21F2) in a
-                        bare-ECU sweep. By default `canair read ECU` omits
-                        PIDs flagged static:true; naming one explicitly
+  --include-static      Include static and slow PIDs (identity/calibration
+                        blocks and per-cycle records such as 21F2) in a bare-
+                        ECU sweep. By default `canair read ECU` omits PIDs
+                        with status: static or slow; naming one explicitly
                         (ECU:21F2) always queries it.
   --wican WICAN         WiCAN address: ap or IP (default: config
                         transport.host / default_wican=ap)

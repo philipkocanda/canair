@@ -12,7 +12,7 @@ import yaml
 
 from canlib import yaml_io
 from canlib.autopid_send_to import topic_problem
-from canlib.pids import pid_status
+from canlib.pids import is_shipped, pid_status
 
 
 def _load(fpath: Path) -> dict:
@@ -27,7 +27,7 @@ def _load(fpath: Path) -> dict:
 def _never_ships(pid_def: dict, param: dict) -> str | None:
     """Why this signal is excluded from every AutoPID build, or ``None``."""
     status = pid_status(pid_def)
-    if status != "active":
+    if not is_shipped(status):
         return f"its PID is '{status}'"
     if not param.get("enabled", True):
         return "the signal is disabled"

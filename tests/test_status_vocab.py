@@ -81,6 +81,11 @@ class TestGenerateProfileShipping:
                             "status": "static",
                             "parameters": {"C": {"expression": "B2", "verified": True}},
                         },
+                        "21F3": {
+                            "status": "slow",
+                            "period": 300000,
+                            "parameters": {"E": {"expression": "B5", "verified": True}},
+                        },
                         "22DEAD": {
                             "status": "ignored",
                             "parameters": {"D": {"expression": "B3", "verified": True}},
@@ -90,16 +95,21 @@ class TestGenerateProfileShipping:
             },
         }
 
-    def test_only_active_pids_shipped(self):
+    def test_only_active_and_slow_pids_shipped(self):
         prof = generate_profile(self._data())
         shipped = {p["pid"].upper() for p in prof["pids"]}
-        assert shipped == {"2101"}  # draft/static/ignored all excluded
+        assert shipped == {"2101", "21F3"}  # draft/static/ignored all excluded
+
+    def test_slow_ships_at_its_own_period(self):
+        prof = generate_profile(self._data())
+        slow = next(p for p in prof["pids"] if p["pid"].upper() == "21F3")
+        assert slow["period"] == "300000"
 
     def test_no_leak_even_with_parameters(self):
         # draft/static/ignored carry decodable params but must NOT reach the device.
         prof = generate_profile(self._data())
         names = {n for p in prof["pids"] for n in p["parameters"]}
-        assert names == {"A"}
+        assert names == {"A", "E"}
 
 
 # ── generate_profile rejects duplicate parameter names ─────────────────────

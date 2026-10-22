@@ -698,6 +698,72 @@ def set_pid_variable_length(
     return fpath
 
 
+def set_pid_period(
+    ecu_name: str, pid: str, value: int | None, *, pids_dir: Path | None = None
+) -> Path:
+    """Set (or clear) a PID's AutoPID ``period:`` in milliseconds.
+
+    The interval at which the WiCAN device re-polls the PID. ``canair monitor`` and
+    ``canair read`` ignore it. Zero is refused: the firmware reads ``0`` as "unset"
+    and substitutes its own default (5 s, 10 s or the global cycle by config path),
+    never "do not poll". Passing ``None`` removes the field, which ships at 5000.
+    An existing field is rewritten in place, a new one goes after the PID header;
+    verified by a YAML re-parse, restored on failure.
+    """
+    if value is not None:
+        value = int(value)
+        if value < 1:
+            raise PidsEditError(
+                f"period must be >= 1 ms, got {value} (0 does not disable polling: "
+                "the firmware substitutes a default)"
+            )
+
+    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
+    original = fpath.read_text()
+    ecu_key = ecu_name.strip().upper()
+    pid_u = str(pid).strip().upper()
+
+    def transform(text: str) -> str:
+        ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
+        pids = _keyed_block(text, "pids", 2, ecu_start, ecu_end)
+        if not pids:
+            raise PidsEditError(f"ECU {ecu_name!r} has no pids: section")
+        _, _, pids_body_start, pids_body_end, _ = pids
+        pidb = _keyed_block(text, pid_u, 4, pids_body_start, pids_body_end)
+        if not pidb:
+            raise PidsEditError(f"PID {pid_u!r} not found under {ecu_name!r}")
+        p_hdr, _p_line_end, _p_body_start, p_body_end, _inline = pidb
+        block_text = text[p_hdr:p_body_end]
+        if value is None:
+            block_text = _remove_field_line(block_text, "period", indent=6)
+        else:
+            # Keep an existing field where it is so a re-tune diffs as one line.
+            block_text, replaced = re.subn(
+                r"^( {6}period:)[ \t]*\S.*$",
+                rf"\g<1> {value}",
+                block_text,
+                count=1,
+                flags=re.MULTILINE,
+            )
+            if not replaced:
+                lines = block_text.splitlines(keepends=True)
+                block_text = lines[0] + f"      period: {value}\n" + "".join(lines[1:])
+        return text[:p_hdr] + block_text + text[p_body_end:]
+
+    def checker(ecu_def: dict) -> None:
+        pids_map = ecu_def.get("pids", {}) or {}
+        pdef = next((v for k, v in pids_map.items() if str(k).upper() == pid_u), None)
+        if pdef is None:
+            raise PidsEditError(f"PID {pid_u!r} missing after edit")
+        got = (pdef or {}).get("period")
+        if got != value:
+            raise PidsEditError(f"period mismatch after edit: {got!r} != {value!r}")
+
+    new_text = transform(original)
+    _safe_write(fpath, original, new_text, ecu_key, checker)
+    return fpath
+
+
 def set_response_frames(
     ecu_name: str, pid: str, value: int | None, *, pids_dir: Path | None = None
 ) -> Path:

@@ -17,6 +17,7 @@ from canlib.pids_edit import (
     find_ecu_file,
     promote_discovery,
     set_pid_notes,
+    set_pid_period,
     set_pid_variable_length,
     set_response_frames,
     update_iocontrol_field,
@@ -305,6 +306,48 @@ class TestPromoteDiscovery:
     def test_unknown_ecu(self, tmp_pids_dir: Path):
         with pytest.raises(PidsEditError):
             promote_discovery("NOPE", "BB01", "x", pids_dir=tmp_pids_dir)
+
+
+class TestSetPidPeriod:
+    """The AutoPID polling interval, edited through the validated path."""
+
+    def test_sets_an_interval(self, tmp_pids_dir: Path):
+        p = set_pid_period("TEST", "2200", 60000, pids_dir=tmp_pids_dir)
+        pid = _reload(p)["TEST"]["pids"][2200]
+        assert pid["period"] == 60000
+        assert pid["parameters"]["DUMMY"]["expression"] == "B:0"
+
+    def test_overwrites_rather_than_duplicating(self, tmp_pids_dir: Path):
+        set_pid_period("TEST", "2200", 1000, pids_dir=tmp_pids_dir)
+        p = set_pid_period("TEST", "2200", 10000, pids_dir=tmp_pids_dir)
+        assert p.read_text().count("      period:") == 1
+        assert _reload(p)["TEST"]["pids"][2200]["period"] == 10000
+
+    def test_rewrites_in_place_keeping_field_order(self, tmp_pids_dir: Path):
+        set_pid_period("TEST", "2200", 1000, pids_dir=tmp_pids_dir)
+        set_response_frames("TEST", "2200", 4, pids_dir=tmp_pids_dir)
+        before = (tmp_pids_dir / "test.yaml").read_text().splitlines()
+        p = set_pid_period("TEST", "2200", 5000, pids_dir=tmp_pids_dir)
+        after = p.read_text().splitlines()
+        changed = [i for i, (a, b) in enumerate(zip(before, after, strict=False)) if a != b]
+        assert len(before) == len(after) and len(changed) == 1
+        assert after[changed[0]].strip() == "period: 5000"
+
+    def test_clears_when_none(self, tmp_pids_dir: Path):
+        set_pid_period("TEST", "2200", 1000, pids_dir=tmp_pids_dir)
+        p = set_pid_period("TEST", "2200", None, pids_dir=tmp_pids_dir)
+        assert "period" not in _reload(p)["TEST"]["pids"][2200]
+
+    @pytest.mark.parametrize("bad", [0, -5])
+    def test_refuses_a_non_positive_interval(self, tmp_pids_dir: Path, bad: int):
+        # 0 reads as "unset" to the firmware, which substitutes a default — it
+        # never means "do not poll", so the editor will not write it.
+        with pytest.raises(PidsEditError, match="period"):
+            set_pid_period("TEST", "2200", bad, pids_dir=tmp_pids_dir)
+
+    def test_unknown_pid(self, tmp_pids_dir: Path):
+        with pytest.raises(PidsEditError):
+            set_pid_period("TEST", "ZZZZ", 1000, pids_dir=tmp_pids_dir)
 
 
 class TestSetResponseFrames:

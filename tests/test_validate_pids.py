@@ -202,6 +202,45 @@ class TestWakeValidation:
         assert any("interval_ms" in e for e in errs)
 
 
+class TestPeriodValidation:
+    """`period: 0` reads as a deliberate "never", but the firmware substitutes a default."""
+
+    def _warnings(self, tmp_path, period: int):
+        p = tmp_path / "e.yaml"
+        p.write_text(
+            f"ECU:\n  tx_id: 0x745\n  pids:\n    2101:\n      status: draft\n"
+            f"      period: {period}\n"
+        )
+        errors, warnings, _ = validate_pids.validate_ecu_file(p, validate_pids.load_schema())
+        return errors, warnings
+
+    def test_zero_warns(self, tmp_path):
+        errs, warns = self._warnings(tmp_path, 0)
+        assert errs == []
+        assert any("period 0" in w for w in warns)
+
+    def test_an_explicit_interval_is_clean(self, tmp_path):
+        errs, warns = self._warnings(tmp_path, 60000)
+        assert errs == []
+        assert not any("period" in w for w in warns)
+
+
+class TestSlowStatusNeedsAPeriod:
+    """`slow` exists to ship at a long interval; without one the device polls at 5 s."""
+
+    def _errors(self, tmp_path, period_line: str):
+        p = tmp_path / "e.yaml"
+        p.write_text(f"ECU:\n  tx_id: 0x745\n  pids:\n    21F2:\n      status: slow\n{period_line}")
+        errors, _warnings, _ = validate_pids.validate_ecu_file(p, validate_pids.load_schema())
+        return errors
+
+    def test_missing_period_is_an_error(self, tmp_path):
+        assert any("'slow' needs an explicit period" in e for e in self._errors(tmp_path, ""))
+
+    def test_explicit_period_is_clean(self, tmp_path):
+        assert not any("slow" in e for e in self._errors(tmp_path, "      period: 300000\n"))
+
+
 class TestIoControlValidation:
     """Actuator entries: the session_mode byte and keys YAML misreads as octal."""
 

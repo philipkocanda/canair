@@ -208,8 +208,8 @@ def build_query_plan(
     requests (``01``->``2101``, ``B001``->``22B001``, ``22BC03`` verbatim).
 
     A bare ECU selector (empty ``pid_filter`` = "all PIDs") omits PIDs flagged
-    ``static: true`` (calibration/identity blocks like 21F2 that never change),
-    unless ``include_static`` is set. Explicitly named PIDs are always queried,
+    ``status: static`` (identity/calibration blocks) or ``status: slow`` (per-cycle
+    records such as 21F2 that change only when a drive or charge ends), unless ``include_static`` is set. Explicitly named PIDs are always queried,
     static or not — an explicit request wins.
     """
     pids_to_query = ecu_info["pids"]
@@ -246,8 +246,9 @@ def build_query_plan(
         if not pids_to_query and not raw_pids:
             return None
     elif not include_static:
-        # Bare ECU selector = all PIDs. Skip static config/identity PIDs (21F2 &c.)
-        # — they never change, so polling them in a sweep is wasted bus time.
+        # Bare ECU selector = all PIDs. Skip static (identity/calibration) and slow
+        # (per-cycle records like 21F2) PIDs — they change too rarely for polling
+        # them every sweep to be worth the bus time.
         # `swept` is derived from the PID's status in build_ecu_index.
         pids_to_query = {k: v for k, v in pids_to_query.items() if v.get("swept", True)}
 

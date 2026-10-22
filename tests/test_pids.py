@@ -163,6 +163,7 @@ class TestStatusVisibility:
                         "2101": {"status": "active", "parameters": {"A": {"expression": "B0"}}},
                         "2102": {"status": "draft", "parameters": {"B": {"expression": "B1"}}},
                         "21F2": {"status": "static", "parameters": {"C": {"expression": "B2"}}},
+                        "21F3": {"status": "slow", "parameters": {"E": {"expression": "B4"}}},
                         "22DEAD": {"status": "ignored", "parameters": {"D": {"expression": "B3"}}},
                     },
                 }
@@ -172,15 +173,16 @@ class TestStatusVisibility:
     def test_ignored_excluded_from_ecu_index(self):
         idx = build_ecu_index(self._data())
         pids = idx["TEST"]["pids"]
-        assert set(pids) == {"2101", "2102", "21F2"}  # ignored dropped
+        assert set(pids) == {"2101", "2102", "21F2", "21F3"}  # ignored dropped
 
     def test_ignored_excluded_from_param_index(self):
         idx = build_param_index(self._data())
         assert "D" not in idx  # param of an ignored PID
-        assert {"A", "B", "C"} <= set(idx)
+        assert {"A", "B", "C", "E"} <= set(idx)
 
     def test_derived_flags(self):
         pids = build_ecu_index(self._data())["TEST"]["pids"]
         assert pids["2101"]["shipped"] and pids["2101"]["swept"]
         assert not pids["2102"]["shipped"] and pids["2102"]["swept"]  # draft: swept, unshipped
         assert not pids["21F2"]["shipped"] and not pids["21F2"]["swept"]  # static: neither
+        assert pids["21F3"]["shipped"] and not pids["21F3"]["swept"]  # slow: shipped, not swept

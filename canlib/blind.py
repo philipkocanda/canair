@@ -206,7 +206,7 @@ def _strip_ecu_doc(body: dict, report: StripReport) -> None:
                 report.notes_removed += 1
             # A parameter-less PID must stay queryable but is, by definition, not
             # yet decoded → draft (also drops it from any generated device profile).
-            if pid_def.get("status") in ("active", "static"):
+            if pid_def.get("status") in ("active", "slow", "static"):
                 pid_def["status"] = "draft"
 
 

@@ -19,7 +19,8 @@ Subcommands:
                                     (--type/--index disambiguate)
   set-research-result ECU TARGET [TEXT] Set (or clear) a research item's result summary
                                     (--type/--index disambiguate)
-  set-pid-status ECU PID STATUS    Set a PID's lifecycle (active|draft|static|ignored)
+  set-pid-status ECU PID STATUS    Set a PID's lifecycle (active|draft|static|slow|ignored)
+  set-pid-period ECU PID MS|clear  Set the WiCAN AutoPID polling interval (ms)
   set-pid-notes ECU PID [TEXT]     Set (or clear) a PID's free-text notes
   set-identity ECU FIELD VALUE     Set a curated identity field (e.g. notes)
   rm-identity  ECU FIELD           Remove an identity field (e.g. a redundant duplicate)
@@ -68,6 +69,7 @@ from canlib.pids_edit import (
     set_identity_field,
     set_iocontrol_scan_ranges,
     set_pid_notes,
+    set_pid_period,
     set_pid_status,
     set_pid_variable_length,
     set_research_notes,
@@ -435,6 +437,18 @@ def cmd_set_pid_variable_length(args: argparse.Namespace) -> int:
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
     state = "true" if value else "false (cleared)"
     echo_edit(f"{args.ecu} {args.pid} variable_length -> {state}", fpath)
+    return 0
+
+
+def cmd_set_pid_period(args: argparse.Namespace) -> int:
+    value = None if args.value.lower() == "clear" else int(args.value)
+
+    def do():
+        set_pid_period(args.ecu, args.pid, value, pids_dir=args.dir)
+
+    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
+    state = "cleared (device default 5000)" if value is None else f"{value} ms"
+    echo_edit(f"{args.ecu} {args.pid} period -> {state}", fpath)
     return 0
 
 
@@ -908,6 +922,26 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     )
     _add_common(spv)
     spv.set_defaults(_pids_func=cmd_set_pid_variable_length)
+
+    spp = sub.add_parser(
+        "set-pid-period",
+        help="Set how often the WiCAN AutoPID re-polls a PID (ms)",
+        description=(
+            "Set the PID's AutoPID polling interval in milliseconds. It applies only to "
+            "the profile shipped to the device (`wican autopid write`); `monitor` and "
+            "`read` poll every selector once per cycle regardless. 0 is refused because "
+            "the firmware treats it as unset and substitutes a default."
+        ),
+    )
+    spp.add_argument("ecu")
+    spp.add_argument("pid")
+    spp.add_argument(
+        "value",
+        metavar="MS|clear",
+        help="interval in milliseconds (int >= 1), or 'clear' to remove it (device default 5000)",
+    )
+    _add_common(spp)
+    spp.set_defaults(_pids_func=cmd_set_pid_period)
 
     srf = sub.add_parser(
         "set-response-frames",

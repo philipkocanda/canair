@@ -70,9 +70,10 @@ examples:
     parser.add_argument(
         "--include-static",
         action="store_true",
-        help="Include static config/identity PIDs (e.g. 21F2) in a bare-ECU sweep. "
-        "By default `canair read ECU` omits PIDs flagged static:true; naming one "
-        "explicitly (ECU:21F2) always queries it.",
+        help="Include static and slow PIDs (identity/calibration blocks and per-cycle "
+        "records such as 21F2) in a bare-ECU sweep. By default `canair read ECU` omits "
+        "PIDs with status: static or slow; naming one explicitly (ECU:21F2) always "
+        "queries it.",
     )
     add_connection_args(parser)
     finalize_live_parser(parser)

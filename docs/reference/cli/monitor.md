@@ -45,9 +45,10 @@ options:
   --notation NAME       byte-index notation for output labels: wican
                         (default), isotp, torque, bix. Overrides the
                         display.byte_notation config key.
-  --include-static      Include static config/identity PIDs (e.g. 21F2) in a
-                        bare-ECU sweep. By default `canair monitor ECU` omits
-                        PIDs flagged static:true; naming one explicitly
+  --include-static      Include static and slow PIDs (identity/calibration
+                        blocks and per-cycle records such as 21F2) in a bare-
+                        ECU sweep. By default `canair monitor ECU` omits PIDs
+                        with status: static or slow; naming one explicitly
                         (ECU:21F2) always polls it.
   --wican WICAN         WiCAN address: ap or IP (default: config
                         transport.host / default_wican=ap)

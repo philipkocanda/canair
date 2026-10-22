@@ -111,9 +111,10 @@ For a single one-shot read (no live refresh) use `canair read` instead.
     parser.add_argument(
         "--include-static",
         action="store_true",
-        help="Include static config/identity PIDs (e.g. 21F2) in a bare-ECU sweep. "
-        "By default `canair monitor ECU` omits PIDs flagged static:true; naming one "
-        "explicitly (ECU:21F2) always polls it.",
+        help="Include static and slow PIDs (identity/calibration blocks and per-cycle "
+        "records such as 21F2) in a bare-ECU sweep. By default `canair monitor ECU` omits "
+        "PIDs with status: static or slow; naming one explicitly (ECU:21F2) always "
+        "polls it.",
     )
     add_connection_args(parser)
     finalize_live_parser(parser)

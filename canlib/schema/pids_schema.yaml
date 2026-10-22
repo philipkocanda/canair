@@ -60,6 +60,10 @@
 #                          #   static  — unchanging identity/calibration block: queryable
 #                          #             and analysed, but skipped in a bare-ECU sweep
 #                          #             (needs --include-static) and NOT shipped.
+#                          #   slow    — real & live but changes too rarely to poll every
+#                          #             cycle (e.g. a last-cycle summary): queryable and
+#                          #             shipped at its own long `period` (REQUIRED), but
+#                          #             skipped in a bare-ECU sweep (needs --include-static).
 #                          #   ignored — dead/useless DID (NRC, no decodable data): a
 #                          #             documented tombstone excluded from ALL tooling.
 #                          # Confidence (`verified:`) is a SEPARATE, per-parameter axis.
@@ -320,6 +324,10 @@ required_pid_fields:
                      #   static  — unchanging identity/calibration block: queryable &
                      #             analysed, skipped in a bare-ECU sweep (unless
                      #             --include-static) and NOT shipped.
+                     #   slow    — real & live but too slow-changing to poll every cycle
+                     #             (e.g. a last-cycle summary): shipped at its own long
+                     #             `period` (required), skipped in a bare-ECU sweep
+                     #             (unless --include-static).
                      #   ignored — dead/useless DID: documented tombstone, excluded
                      #             from ALL tooling (index/query/coverage/profile).
 
@@ -366,6 +374,7 @@ valid_pid_status:
   - active
   - draft
   - static
+  - slow
   - ignored
 
 required_param_fields:
