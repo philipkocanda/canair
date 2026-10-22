@@ -5,5 +5,6 @@ AIRBAG:
     description: Airbag / SRS control unit
     notes: >-
       Address from the dalathegreat/leaf_can_bus_messages ECU table (generation-wide, not
-      ZE1-specific). No DIDs known; presence on the ZE1 is unconfirmed.
+      ZE1-specific). No DIDs known. Answered the UDS 10 01 probe positively at 0x772 in the
+      2026-10-21 READY discovery sweep.
     identity_confidence: tentative

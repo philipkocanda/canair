@@ -86,13 +86,11 @@ def test_dedicated_page_links_resolve_from_the_index(mod):
     assert mod._page_link("profiles/ioniq-2017.md") == "ioniq-2017.md"
 
 
-def test_index_links_every_dedicated_page_and_keeps_early_wording(mod):
+def test_index_links_every_dedicated_page(mod):
     index = mod.render_index(mod.discover_bundled())
     for name, page_uri in mod.DEDICATED_PAGES.items():
         assert f"[{name}]({mod._page_link(page_uri)})" in index
         assert (REPO_ROOT / "docs" / page_uri).exists()
-    leaf_line = index.split("[nissan-leaf-ze1](nissan-leaf-ze1.md)** — ")[1].split("\n")[0]
-    assert "mature, worked reference profile" not in leaf_line
 
 
 def test_stats_block_replaces_the_placeholder(mod):

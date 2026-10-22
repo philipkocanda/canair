@@ -20,10 +20,12 @@ INVERTER:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
           verified: false
-          notes: Inverter motor torque, signed 16-bit /64 Nm (0.25 Nm steps per dalathegreat).
+          notes: >-
+            Inverter motor torque, signed 16-bit /64 Nm (dalathegreat). dalathegreat also quotes
+            0.25 Nm steps, which /64 (1/64 Nm per bit) does not give; unresolved.
       status: active
       period: 2000
-      vehicle_states: [READY]
+      vehicle_states: [READY, CHARGING]
       notes: Inverter motor torque.
     221121:
       parameters:
@@ -39,5 +41,5 @@ INVERTER:
           notes: Drive motor temperature, one byte minus 40 °C.
       status: active
       period: 10000
-      vehicle_states: [READY]
+      vehicle_states: [READY, CHARGING]
       notes: Drive motor temperature.

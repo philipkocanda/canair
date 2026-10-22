@@ -5,20 +5,22 @@ BCM:
     description: Body control module
     notes: >-
       Address from the dalathegreat/leaf_can_bus_messages README ECU table (generation-wide, not
-      ZE1-specific); his 2018 poll-list PDF calls 0x745 the meter instead. Lever status DID 2109 is
-      registered as a draft; presence on the ZE1 is unconfirmed. Speaks KWP2000: Nissan CONSULT III
-      drives its actuators with the KWP2000-only service 0x30 on a 2020 ZE1 (Black Hat Asia 2025),
-      and dalathegreat's ZE1 poll list reads it with service 0x21.
+      ZE1-specific); his 2018 poll-list PDF calls 0x745 the meter instead. Answers at 0x765: NRC
+      0x12 to 10 01 in the 2026-10-21 READY discovery sweep, and the draft lever-status read 2109 in
+      READY and while charging. Speaks KWP2000: Nissan CONSULT III drives its actuators with the
+      KWP2000-only service 0x30 on a 2020 ZE1 (Black Hat Asia 2025), and dalathegreat's ZE1 poll
+      list reads it with service 0x21.
     identity_confidence: tentative
     id_protocol: KWP2000
   pids:
     2109:
       status: draft
-      vehicle_states: [READY]
+      vehicle_states: [READY, CHARGING]
       notes: >-
         Lever/stalk status (service 0x21, 16-byte payload; dalathegreat lists it under 'Meter' at
         0x745): data bytes 0-2 encode wiper, indicator and light switch positions as a lookup of raw
-        values (see dalathegreat 2018 poll list). Not decoded here.
+        values (see dalathegreat 2018 poll list). Answered at 0x765 in READY and while charging;
+        both 2026-10-21 captures read 1D 01 10 then zeros. Not decoded here.
 
   iocontrol:
     # Actuator frames captured from Nissan CONSULT III USB traffic by PCAutomotive,
@@ -94,16 +96,17 @@ BCM:
   research:
     - type: decode
       target: "2109"
-      status: pending
+      status: captured
       priority: P3
       vehicle_states: [READY]
       created: "2026-10-20"
-      updated: "2026-10-20"
+      updated: "2026-10-22"
       notes: >-
         Lever status (wipers, indicators, lights) as raw lookup values in the first three data
         bytes, from dalathegreat's 2018 poll-list PDF, which files it under 'Meter' at 0x745. His
         README table names 0x745 the BCM and 0x743 the meter, so the two dalathegreat sources
-        disagree on which module this is.
+        disagree on which module this is. 0x745 answers 2109 at 0x765 (2026-10-21, READY and AC
+        charging), reading 1D 01 10 then zeros both times with the stalks at rest.
       sources:
         - dalathegreat
       what_to_test:

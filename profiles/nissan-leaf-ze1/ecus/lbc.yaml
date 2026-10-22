@@ -43,11 +43,12 @@ LBC:
             - https://github.com/meatpiHQ/wican-fw/pull/750
           verified: true
           notes: >-
-            Dashboard SOC, a linear approximation (SOC - 12) / 0.85 of the cluster reading. Nissan
-            uses a non-linear table internally, so expect +/-1 % (88.0 % vs LeafSpy 89 %). Near
+            Dashboard SOC, a linear approximation (SOC - 12) / 0.85 of the cluster reading; Nissan
+            uses a non-linear table internally. Read 88.0 % vs LeafSpy 89 % in the PR, and 84.84 vs
+            87 % and 84.57 vs 86 % against METER:220E2D SOC_DASH on this car (2026-10-21). Near
             empty and full the estimate leaves 0-100 % and is dropped by the min/max filter, not
-            clamped. OBDb fits the same raw value as raw/0.819 - 17 (24-bit /8190 - 17); the exact
-            reading is METER:220E2D SOC_DASH.
+            clamped. OBDb fits the same raw value as raw/0.819 - 17 (24-bit /8190 - 17), which reads
+            85.7 and 85.4 % on those captures; the exact reading is METER:220E2D SOC_DASH.
         SOH_40KWH:
           expression: ((B44*65536)+[B45:B46])/11544
           unit: "%"
@@ -124,11 +125,12 @@ LBC:
             - https://github.com/OBDb/Nissan-Leaf
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/pbutterworth/nissan-leaf-obd-ble
-          verified: false
+          verified: true
           notes: >-
             Pack voltage, 16-bit /100 at data bytes 18-19 (after 61 01). Reproduces the pack voltage
             of 130 of 131 OBDb ZE1 2101 vectors (2018-2024, 40 kWh and e+); the odd one out is a
-            test case holding two concatenated replies. Observed 317-403 V.
+            test case holding two concatenated replies. Observed 317-403 V. On this car within 0.1 V
+            of the LBC:2102 cell sum (387.68 vs 387.59 V, 389.73 vs 389.75 V, 2026-10-21).
         HV_CURRENT_1:
           expression: "[S4:S7]/1024"
           unit: A
@@ -140,11 +142,12 @@ LBC:
             - https://github.com/pbutterworth/nissan-leaf-obd-ble
           verified: false
           notes: >-
-            Signed 32-bit /1024 A at data bytes 0-3. Negative = discharge, positive = charge or
-            regen: across the OBDb vectors pack voltage rises about 0.09 V per A at a given SOC
-            (-311 A sags the pack to 317 V at 40 % SOC). dalathegreat states the opposite sign. A
-            second current sits at data bytes 6-9 (HV_CURRENT_2); why there are two is undocumented.
-            OBDb vectors span -348..+99 A; limits leave room for e+ peak current.
+            Signed 32-bit /1024 A at data bytes 0-3. Positive = into the pack: -1.95 A in READY and
+            +12.70 A while AC charging (2026-10-21); dalathegreat states the opposite sign. While
+            charging it exceeds the charger output (4100 W / 389.7 V = 10.5 A), where HV_CURRENT_2
+            reads 10.13 A, and the ratio between the two differs between captures (1.15, 1.25), so
+            they are distinct quantities. OBDb vectors span -348..+99 A; limits leave room for e+
+            peak current.
         HV_CURRENT_2:
           expression: "[S11:S14]/1024"
           unit: A
@@ -156,9 +159,10 @@ LBC:
             - https://github.com/pbutterworth/nissan-leaf-obd-ble
           verified: false
           notes: >-
-            Signed 32-bit /1024 A at data bytes 6-9, a second battery current beside HV_CURRENT_1,
-            with the same sign (negative = discharge). Which one is the filtered/shunt value is
-            undocumented. OBDb vectors span -296..+82 A.
+            Signed 32-bit /1024 A at data bytes 6-9, a second battery current beside HV_CURRENT_1
+            with the same sign: -1.70 A in READY and +10.13 A while AC charging (2026-10-21), the
+            latter within 4 % of the charger output current (OBC_OUT_PWR / HV_PACK_V). OBDb vectors
+            span -296..+82 A.
         INSULATION_RAW:
           expression: "[B29:B30]"
           min: "0"
@@ -203,11 +207,12 @@ LBC:
             instead of 80 mV resolution.
       status: active
       period: 10000
-      vehicle_states: [READY]
+      vehicle_states: [READY, CHARGING]
       notes: >-
-        LBC data group 01 (service 0x21 read-by-local-identifier, ~8 frames): SOC, capacity (AHr)
-        and Hx. The upstream request key 21018 is 2101 plus a trailing ELM327
-        expected-response-frame-count digit, dropped here: canair learns response_frames itself.
+        LBC data group 01 (service 0x21 read-by-local-identifier, 53-byte payload, 8 frames): pack
+        current, pack voltage, 12 V, insulation, Hx, SOC and capacity (AHr). The upstream request
+        key 21018 is 2101 plus a trailing ELM327 expected-response-frame-count digit, dropped here:
+        canair learns response_frames itself.
     2104:
       parameters:
         HV_T_1:
@@ -261,7 +266,7 @@ LBC:
             (FF) on the ZE1, so HV_T_3 is pack 4. Not in the original LeafSpy comparison.
       status: active
       period: 10000
-      vehicle_states: [READY]
+      vehicle_states: [READY, CHARGING]
       notes: >-
         LBC data group 04 (service 0x21, ~5 frames): battery temperature sensors. Upstream request
         key 21045 (trailing frame-count digit dropped). OBDb's 2018 and 2024 test cars list 2104 as
@@ -277,7 +282,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 1 of 96, 16-bit big-endian mV (data bytes 0-1 after 61 02).
         HV_CELL_02_V:
           expression: "[B6:B7]/1000"
@@ -288,7 +293,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 2 of 96, 16-bit big-endian mV (data bytes 2-3 after 61 02).
         HV_CELL_03_V:
           expression: "[B9:B10]/1000"
@@ -299,7 +304,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 3 of 96, 16-bit big-endian mV (data bytes 4-5 after 61 02).
         HV_CELL_04_V:
           expression: "[B11:B12]/1000"
@@ -310,7 +315,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 4 of 96, 16-bit big-endian mV (data bytes 6-7 after 61 02).
         HV_CELL_05_V:
           expression: "[B13:B14]/1000"
@@ -321,7 +326,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 5 of 96, 16-bit big-endian mV (data bytes 8-9 after 61 02).
         HV_CELL_06_V:
           expression: ((B15*256)+B17)/1000
@@ -332,7 +337,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 6 of 96, 16-bit big-endian mV (data bytes 10-11 after 61 02).
         HV_CELL_07_V:
           expression: "[B18:B19]/1000"
@@ -343,7 +348,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 7 of 96, 16-bit big-endian mV (data bytes 12-13 after 61 02).
         HV_CELL_08_V:
           expression: "[B20:B21]/1000"
@@ -354,7 +359,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 8 of 96, 16-bit big-endian mV (data bytes 14-15 after 61 02).
         HV_CELL_09_V:
           expression: "[B22:B23]/1000"
@@ -365,7 +370,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 9 of 96, 16-bit big-endian mV (data bytes 16-17 after 61 02).
         HV_CELL_10_V:
           expression: "[B25:B26]/1000"
@@ -376,7 +381,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 10 of 96, 16-bit big-endian mV (data bytes 18-19 after 61 02).
         HV_CELL_11_V:
           expression: "[B27:B28]/1000"
@@ -387,7 +392,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 11 of 96, 16-bit big-endian mV (data bytes 20-21 after 61 02).
         HV_CELL_12_V:
           expression: "[B29:B30]/1000"
@@ -398,7 +403,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 12 of 96, 16-bit big-endian mV (data bytes 22-23 after 61 02).
         HV_CELL_13_V:
           expression: ((B31*256)+B33)/1000
@@ -409,7 +414,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 13 of 96, 16-bit big-endian mV (data bytes 24-25 after 61 02).
         HV_CELL_14_V:
           expression: "[B34:B35]/1000"
@@ -420,7 +425,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 14 of 96, 16-bit big-endian mV (data bytes 26-27 after 61 02).
         HV_CELL_15_V:
           expression: "[B36:B37]/1000"
@@ -431,7 +436,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 15 of 96, 16-bit big-endian mV (data bytes 28-29 after 61 02).
         HV_CELL_16_V:
           expression: "[B38:B39]/1000"
@@ -442,7 +447,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 16 of 96, 16-bit big-endian mV (data bytes 30-31 after 61 02).
         HV_CELL_17_V:
           expression: "[B41:B42]/1000"
@@ -453,7 +458,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 17 of 96, 16-bit big-endian mV (data bytes 32-33 after 61 02).
         HV_CELL_18_V:
           expression: "[B43:B44]/1000"
@@ -464,7 +469,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 18 of 96, 16-bit big-endian mV (data bytes 34-35 after 61 02).
         HV_CELL_19_V:
           expression: "[B45:B46]/1000"
@@ -475,7 +480,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 19 of 96, 16-bit big-endian mV (data bytes 36-37 after 61 02).
         HV_CELL_20_V:
           expression: ((B47*256)+B49)/1000
@@ -486,7 +491,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 20 of 96, 16-bit big-endian mV (data bytes 38-39 after 61 02).
         HV_CELL_21_V:
           expression: "[B50:B51]/1000"
@@ -497,7 +502,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 21 of 96, 16-bit big-endian mV (data bytes 40-41 after 61 02).
         HV_CELL_22_V:
           expression: "[B52:B53]/1000"
@@ -508,7 +513,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 22 of 96, 16-bit big-endian mV (data bytes 42-43 after 61 02).
         HV_CELL_23_V:
           expression: "[B54:B55]/1000"
@@ -519,7 +524,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 23 of 96, 16-bit big-endian mV (data bytes 44-45 after 61 02).
         HV_CELL_24_V:
           expression: "[B57:B58]/1000"
@@ -530,7 +535,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 24 of 96, 16-bit big-endian mV (data bytes 46-47 after 61 02).
         HV_CELL_25_V:
           expression: "[B59:B60]/1000"
@@ -541,7 +546,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 25 of 96, 16-bit big-endian mV (data bytes 48-49 after 61 02).
         HV_CELL_26_V:
           expression: "[B61:B62]/1000"
@@ -552,7 +557,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 26 of 96, 16-bit big-endian mV (data bytes 50-51 after 61 02).
         HV_CELL_27_V:
           expression: ((B63*256)+B65)/1000
@@ -563,7 +568,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 27 of 96, 16-bit big-endian mV (data bytes 52-53 after 61 02).
         HV_CELL_28_V:
           expression: "[B66:B67]/1000"
@@ -574,7 +579,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 28 of 96, 16-bit big-endian mV (data bytes 54-55 after 61 02).
         HV_CELL_29_V:
           expression: "[B68:B69]/1000"
@@ -585,7 +590,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 29 of 96, 16-bit big-endian mV (data bytes 56-57 after 61 02).
         HV_CELL_30_V:
           expression: "[B70:B71]/1000"
@@ -596,7 +601,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 30 of 96, 16-bit big-endian mV (data bytes 58-59 after 61 02).
         HV_CELL_31_V:
           expression: "[B73:B74]/1000"
@@ -607,7 +612,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 31 of 96, 16-bit big-endian mV (data bytes 60-61 after 61 02).
         HV_CELL_32_V:
           expression: "[B75:B76]/1000"
@@ -618,7 +623,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 32 of 96, 16-bit big-endian mV (data bytes 62-63 after 61 02).
         HV_CELL_33_V:
           expression: "[B77:B78]/1000"
@@ -629,7 +634,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 33 of 96, 16-bit big-endian mV (data bytes 64-65 after 61 02).
         HV_CELL_34_V:
           expression: ((B79*256)+B81)/1000
@@ -640,7 +645,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 34 of 96, 16-bit big-endian mV (data bytes 66-67 after 61 02).
         HV_CELL_35_V:
           expression: "[B82:B83]/1000"
@@ -651,7 +656,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 35 of 96, 16-bit big-endian mV (data bytes 68-69 after 61 02).
         HV_CELL_36_V:
           expression: "[B84:B85]/1000"
@@ -662,7 +667,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 36 of 96, 16-bit big-endian mV (data bytes 70-71 after 61 02).
         HV_CELL_37_V:
           expression: "[B86:B87]/1000"
@@ -673,7 +678,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 37 of 96, 16-bit big-endian mV (data bytes 72-73 after 61 02).
         HV_CELL_38_V:
           expression: "[B89:B90]/1000"
@@ -684,7 +689,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 38 of 96, 16-bit big-endian mV (data bytes 74-75 after 61 02).
         HV_CELL_39_V:
           expression: "[B91:B92]/1000"
@@ -695,7 +700,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 39 of 96, 16-bit big-endian mV (data bytes 76-77 after 61 02).
         HV_CELL_40_V:
           expression: "[B93:B94]/1000"
@@ -706,7 +711,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 40 of 96, 16-bit big-endian mV (data bytes 78-79 after 61 02).
         HV_CELL_41_V:
           expression: ((B95*256)+B97)/1000
@@ -717,7 +722,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 41 of 96, 16-bit big-endian mV (data bytes 80-81 after 61 02).
         HV_CELL_42_V:
           expression: "[B98:B99]/1000"
@@ -728,7 +733,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 42 of 96, 16-bit big-endian mV (data bytes 82-83 after 61 02).
         HV_CELL_43_V:
           expression: "[B100:B101]/1000"
@@ -739,7 +744,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 43 of 96, 16-bit big-endian mV (data bytes 84-85 after 61 02).
         HV_CELL_44_V:
           expression: "[B102:B103]/1000"
@@ -750,7 +755,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 44 of 96, 16-bit big-endian mV (data bytes 86-87 after 61 02).
         HV_CELL_45_V:
           expression: "[B105:B106]/1000"
@@ -761,7 +766,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 45 of 96, 16-bit big-endian mV (data bytes 88-89 after 61 02).
         HV_CELL_46_V:
           expression: "[B107:B108]/1000"
@@ -772,7 +777,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 46 of 96, 16-bit big-endian mV (data bytes 90-91 after 61 02).
         HV_CELL_47_V:
           expression: "[B109:B110]/1000"
@@ -783,7 +788,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 47 of 96, 16-bit big-endian mV (data bytes 92-93 after 61 02).
         HV_CELL_48_V:
           expression: ((B111*256)+B113)/1000
@@ -794,7 +799,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 48 of 96, 16-bit big-endian mV (data bytes 94-95 after 61 02).
         HV_CELL_49_V:
           expression: "[B114:B115]/1000"
@@ -805,7 +810,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 49 of 96, 16-bit big-endian mV (data bytes 96-97 after 61 02).
         HV_CELL_50_V:
           expression: "[B116:B117]/1000"
@@ -816,7 +821,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 50 of 96, 16-bit big-endian mV (data bytes 98-99 after 61 02).
         HV_CELL_51_V:
           expression: "[B118:B119]/1000"
@@ -827,7 +832,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 51 of 96, 16-bit big-endian mV (data bytes 100-101 after 61 02).
         HV_CELL_52_V:
           expression: "[B121:B122]/1000"
@@ -838,7 +843,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 52 of 96, 16-bit big-endian mV (data bytes 102-103 after 61 02).
         HV_CELL_53_V:
           expression: "[B123:B124]/1000"
@@ -849,7 +854,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 53 of 96, 16-bit big-endian mV (data bytes 104-105 after 61 02).
         HV_CELL_54_V:
           expression: "[B125:B126]/1000"
@@ -860,7 +865,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 54 of 96, 16-bit big-endian mV (data bytes 106-107 after 61 02).
         HV_CELL_55_V:
           expression: ((B127*256)+B129)/1000
@@ -871,7 +876,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 55 of 96, 16-bit big-endian mV (data bytes 108-109 after 61 02).
         HV_CELL_56_V:
           expression: "[B130:B131]/1000"
@@ -882,7 +887,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 56 of 96, 16-bit big-endian mV (data bytes 110-111 after 61 02).
         HV_CELL_57_V:
           expression: "[B132:B133]/1000"
@@ -893,7 +898,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 57 of 96, 16-bit big-endian mV (data bytes 112-113 after 61 02).
         HV_CELL_58_V:
           expression: "[B134:B135]/1000"
@@ -904,7 +909,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 58 of 96, 16-bit big-endian mV (data bytes 114-115 after 61 02).
         HV_CELL_59_V:
           expression: "[B137:B138]/1000"
@@ -915,7 +920,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 59 of 96, 16-bit big-endian mV (data bytes 116-117 after 61 02).
         HV_CELL_60_V:
           expression: "[B139:B140]/1000"
@@ -926,7 +931,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 60 of 96, 16-bit big-endian mV (data bytes 118-119 after 61 02).
         HV_CELL_61_V:
           expression: "[B141:B142]/1000"
@@ -937,7 +942,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 61 of 96, 16-bit big-endian mV (data bytes 120-121 after 61 02).
         HV_CELL_62_V:
           expression: ((B143*256)+B145)/1000
@@ -948,7 +953,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 62 of 96, 16-bit big-endian mV (data bytes 122-123 after 61 02).
         HV_CELL_63_V:
           expression: "[B146:B147]/1000"
@@ -959,7 +964,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 63 of 96, 16-bit big-endian mV (data bytes 124-125 after 61 02).
         HV_CELL_64_V:
           expression: "[B148:B149]/1000"
@@ -970,7 +975,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 64 of 96, 16-bit big-endian mV (data bytes 126-127 after 61 02).
         HV_CELL_65_V:
           expression: "[B150:B151]/1000"
@@ -981,7 +986,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 65 of 96, 16-bit big-endian mV (data bytes 128-129 after 61 02).
         HV_CELL_66_V:
           expression: "[B153:B154]/1000"
@@ -992,7 +997,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 66 of 96, 16-bit big-endian mV (data bytes 130-131 after 61 02).
         HV_CELL_67_V:
           expression: "[B155:B156]/1000"
@@ -1003,7 +1008,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 67 of 96, 16-bit big-endian mV (data bytes 132-133 after 61 02).
         HV_CELL_68_V:
           expression: "[B157:B158]/1000"
@@ -1014,7 +1019,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 68 of 96, 16-bit big-endian mV (data bytes 134-135 after 61 02).
         HV_CELL_69_V:
           expression: ((B159*256)+B161)/1000
@@ -1025,7 +1030,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 69 of 96, 16-bit big-endian mV (data bytes 136-137 after 61 02).
         HV_CELL_70_V:
           expression: "[B162:B163]/1000"
@@ -1036,7 +1041,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 70 of 96, 16-bit big-endian mV (data bytes 138-139 after 61 02).
         HV_CELL_71_V:
           expression: "[B164:B165]/1000"
@@ -1047,7 +1052,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 71 of 96, 16-bit big-endian mV (data bytes 140-141 after 61 02).
         HV_CELL_72_V:
           expression: "[B166:B167]/1000"
@@ -1058,7 +1063,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 72 of 96, 16-bit big-endian mV (data bytes 142-143 after 61 02).
         HV_CELL_73_V:
           expression: "[B169:B170]/1000"
@@ -1069,7 +1074,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 73 of 96, 16-bit big-endian mV (data bytes 144-145 after 61 02).
         HV_CELL_74_V:
           expression: "[B171:B172]/1000"
@@ -1080,7 +1085,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 74 of 96, 16-bit big-endian mV (data bytes 146-147 after 61 02).
         HV_CELL_75_V:
           expression: "[B173:B174]/1000"
@@ -1091,7 +1096,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 75 of 96, 16-bit big-endian mV (data bytes 148-149 after 61 02).
         HV_CELL_76_V:
           expression: ((B175*256)+B177)/1000
@@ -1102,7 +1107,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 76 of 96, 16-bit big-endian mV (data bytes 150-151 after 61 02).
         HV_CELL_77_V:
           expression: "[B178:B179]/1000"
@@ -1113,7 +1118,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 77 of 96, 16-bit big-endian mV (data bytes 152-153 after 61 02).
         HV_CELL_78_V:
           expression: "[B180:B181]/1000"
@@ -1124,7 +1129,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 78 of 96, 16-bit big-endian mV (data bytes 154-155 after 61 02).
         HV_CELL_79_V:
           expression: "[B182:B183]/1000"
@@ -1135,7 +1140,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 79 of 96, 16-bit big-endian mV (data bytes 156-157 after 61 02).
         HV_CELL_80_V:
           expression: "[B185:B186]/1000"
@@ -1146,7 +1151,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 80 of 96, 16-bit big-endian mV (data bytes 158-159 after 61 02).
         HV_CELL_81_V:
           expression: "[B187:B188]/1000"
@@ -1157,7 +1162,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 81 of 96, 16-bit big-endian mV (data bytes 160-161 after 61 02).
         HV_CELL_82_V:
           expression: "[B189:B190]/1000"
@@ -1168,7 +1173,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 82 of 96, 16-bit big-endian mV (data bytes 162-163 after 61 02).
         HV_CELL_83_V:
           expression: ((B191*256)+B193)/1000
@@ -1179,7 +1184,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 83 of 96, 16-bit big-endian mV (data bytes 164-165 after 61 02).
         HV_CELL_84_V:
           expression: "[B194:B195]/1000"
@@ -1190,7 +1195,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 84 of 96, 16-bit big-endian mV (data bytes 166-167 after 61 02).
         HV_CELL_85_V:
           expression: "[B196:B197]/1000"
@@ -1201,7 +1206,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 85 of 96, 16-bit big-endian mV (data bytes 168-169 after 61 02).
         HV_CELL_86_V:
           expression: "[B198:B199]/1000"
@@ -1212,7 +1217,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 86 of 96, 16-bit big-endian mV (data bytes 170-171 after 61 02).
         HV_CELL_87_V:
           expression: "[B201:B202]/1000"
@@ -1223,7 +1228,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 87 of 96, 16-bit big-endian mV (data bytes 172-173 after 61 02).
         HV_CELL_88_V:
           expression: "[B203:B204]/1000"
@@ -1234,7 +1239,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 88 of 96, 16-bit big-endian mV (data bytes 174-175 after 61 02).
         HV_CELL_89_V:
           expression: "[B205:B206]/1000"
@@ -1245,7 +1250,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 89 of 96, 16-bit big-endian mV (data bytes 176-177 after 61 02).
         HV_CELL_90_V:
           expression: ((B207*256)+B209)/1000
@@ -1256,7 +1261,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 90 of 96, 16-bit big-endian mV (data bytes 178-179 after 61 02).
         HV_CELL_91_V:
           expression: "[B210:B211]/1000"
@@ -1267,7 +1272,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 91 of 96, 16-bit big-endian mV (data bytes 180-181 after 61 02).
         HV_CELL_92_V:
           expression: "[B212:B213]/1000"
@@ -1278,7 +1283,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 92 of 96, 16-bit big-endian mV (data bytes 182-183 after 61 02).
         HV_CELL_93_V:
           expression: "[B214:B215]/1000"
@@ -1289,7 +1294,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 93 of 96, 16-bit big-endian mV (data bytes 184-185 after 61 02).
         HV_CELL_94_V:
           expression: "[B217:B218]/1000"
@@ -1300,7 +1305,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 94 of 96, 16-bit big-endian mV (data bytes 186-187 after 61 02).
         HV_CELL_95_V:
           expression: "[B219:B220]/1000"
@@ -1311,7 +1316,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 95 of 96, 16-bit big-endian mV (data bytes 188-189 after 61 02).
         HV_CELL_96_V:
           expression: "[B221:B222]/1000"
@@ -1322,7 +1327,7 @@ LBC:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: Cell pair 96 of 96, 16-bit big-endian mV (data bytes 190-191 after 61 02).
         HV_PACK_V_2102:
           expression: ((B223*256)+B225)/100
@@ -1333,10 +1338,10 @@ LBC:
           source_links:
             - https://github.com/OBDb/Nissan-Leaf
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: >-
-            Pack voltage /100 V, data bytes 192-193 of the 2102 reply, after the 96 cell words.
-            Duplicate of 2101 HV_PACK_V.
+            Pack voltage /100 V, data bytes 192-193 of the 2102 reply, after the 96 cell words;
+            equals their sum in both 2026-10-21 captures. Duplicate of 2101 HV_PACK_V.
         HV_BUS_V:
           expression: "[B226:B227]/100"
           unit: V
@@ -1346,18 +1351,20 @@ LBC:
           source_links:
             - https://github.com/OBDb/Nissan-Leaf
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: >-
             HV bus voltage /100 V, data bytes 194-195 of the 2102 reply (after the pack voltage).
+            Raw 38800 and 39000 on 2026-10-21 (whole volts), within 0.5 V of the pack voltage.
       status: active
       period: 30000
-      vehicle_states: [READY]
+      vehicle_states: [READY, CHARGING]
       notes: >-
         LBC data group 02 (service 0x21): the 96 cell-pair voltages in mV, 2 bytes each, then pack
-        and bus voltage. 198-byte payload, about 29 CAN frames; cell words that straddle a
-        consecutive-frame PCI byte use the (Bx*256)+By form. OVMS polls group 02 on the ZE1, but
-        OBDb's 2018 and 2024 test cars list it as unsupported (OBDb's request for it lacks the
-        flow-control flag its other LBC requests carry, which may explain it).
+        and bus voltage. 198-byte payload, 29 CAN frames; cell words that straddle a
+        consecutive-frame PCI byte use the (Bx*256)+By form. On 2026-10-21 (READY, AC charging) the
+        96 cell words sum exactly to HV_PACK_V_2102 (387595 mV = 387.59 V; 389750 mV = 389.75 V),
+        within 0.1 V of 2101 HV_PACK_V, and their max/min match 2103 within 1 mV. OBDb's 2018 and
+        2024 test cars list it as unsupported.
     2103:
       parameters:
         HV_CELL_MAX_V:
@@ -1368,10 +1375,11 @@ LBC:
           source: OBDb
           source_links:
             - https://github.com/OBDb/Nissan-Leaf
-          verified: false
+          verified: true
           notes: >-
             Highest cell-pair voltage, 16-bit mV at data bytes 10-11. Reproduces all 40 OBDb 2103
-            vectors (2018 and 2024 cars); observed 3.42-4.21 V. The word straddles a
+            vectors (2018 and 2024 cars); observed 3.42-4.21 V. On this car within 1 mV of the 2102
+            cell maximum (4.045 vs 4.046 V, 4.068 vs 4.069 V, 2026-10-21). The word straddles a
             consecutive-frame PCI byte, hence the (Bx*256)+By form.
         HV_CELL_MIN_V:
           expression: "[B18:B19]/1000"
@@ -1381,13 +1389,14 @@ LBC:
           source: OBDb
           source_links:
             - https://github.com/OBDb/Nissan-Leaf
-          verified: false
+          verified: true
           notes: >-
             Lowest cell-pair voltage, 16-bit mV at data bytes 12-13. Reproduces all 40 OBDb ZE1 2103
-            test vectors; max-min spread in those vectors is at most 37 mV.
+            test vectors; max-min spread in those vectors is at most 37 mV. On this car within 1 mV
+            of the 2102 cell minimum (4.030 vs 4.029 V, 4.053 vs 4.053 V, 2026-10-21).
       status: active
       period: 10000
-      vehicle_states: [READY]
+      vehicle_states: [READY, CHARGING]
       notes: >-
         LBC data group 03 (service 0x21, 28-byte payload): min/max cell voltage. Remaining bytes
         undecoded (dalathegreat: 'group 3 unknown').
@@ -1407,7 +1416,7 @@ LBC:
             unconfirmed.
       status: active
       period: 600000
-      vehicle_states: [READY]
+      vehicle_states: [READY, CHARGING]
       notes: >-
         LBC data group 0C (service 0x21, single frame): a 32-bit counter OBDb calls the battery
         controller distance counter.
@@ -1423,33 +1432,35 @@ LBC:
             - https://github.com/OBDb/Nissan-Leaf
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
-          verified: false
+          verified: true
           notes: >-
             State of health reported by the LBC itself, 16-bit /100 % at data bytes 2-3 of the
             331-byte group 61 reply; valid for both the 40 kWh and the 62 kWh e+ pack. Reproduces
             all 81 OBDb ZE1 2161 vectors (80-96 %, 40 kWh and e+ cars). AHr divided by this SOH
-            gives a new-pack capacity of about 115.4 Ah (40 kWh) and 176.4 Ah (e+). Compare
-            SOH_40KWH, derived from AHr.
+            gives a new-pack capacity of about 115.4 Ah (40 kWh) and 176.4 Ah (e+). On this car
+            83.08 % in READY and while charging (2026-10-21), equal to the LeafSpy-verified
+            SOH_40KWH (95.91 Ah / 115.44 Ah).
       status: active
       period: 300000
-      vehicle_states: [READY]
+      vehicle_states: [READY, CHARGING]
       notes: >-
         LBC data group 61 (service 0x21, 331-byte payload, about 48 frames): SOH at data bytes 2-3.
         The rest looks like a second per-cell voltage table and is undecoded.
     2106:
       status: draft
-      vehicle_states: [READY]
+      vehicle_states: [READY, CHARGING]
       notes: >-
-        LBC data group 06 (service 0x21, 26-byte payload): per-cell balancing (shunt) flags, 4 cells
-        per nibble in '8421' order; the first 12 bytes carry the 96 flags and the rest reads FF on
-        the ZE1 (dalathegreat). OVMS reads 24 bytes with one nibble each, which disagrees;
-        undecided, so not mapped. Only active while charging per OVMS.
+        LBC data group 06 (service 0x21, 26-byte payload): per-cell balancing (shunt) flags. In both
+        2026-10-21 captures (READY, AC charging) data bytes 12-23 read FF and both nibbles of bytes
+        0-11 change between captures. That fits dalathegreat's layout (96 flags, 4 per nibble in
+        '8421' order, in the first 12 bytes), not OVMS's (one nibble per byte over 24 bytes, bits
+        inverted). Flag polarity unconfirmed, so not mapped.
     2184:
       status: draft
-      vehicle_states: [READY]
+      vehicle_states: [READY, CHARGING]
       notes: >-
-        LBC data group 84 (service 0x21): HV battery serial number as ASCII (dalathegreat). Per-unit
-        identifier, so no capture is stored.
+        LBC data group 84 (service 0x21, 22-byte payload): HV battery serial number as 20 bytes of
+        space-padded ASCII (dalathegreat). Captured in READY and while charging on 2026-10-21.
 
   research:
     - type: decode
@@ -1462,19 +1473,22 @@ LBC:
       notes: >-
         Undecoded 2101 bytes. Across 131 OBDb ZE1 vectors (2018-2024, 40 kWh and e+) data bytes 4,
         24, 30, 34 and 49 never change (0x02, 0x00, 0x00, 0x00, 0x01); every other byte outside the
-        mapped fields still varies. Why HV_CURRENT_1 and HV_CURRENT_2 differ is undocumented, and
-        their sign (negative = discharge) comes from a voltage-vs-current fit, not a drive capture.
+        mapped fields still varies.
       sources:
         - OBDb
       what_to_test:
         - Run canair investigate LBC 2101 --counters and --physical on a drive + charge capture.
     - type: verify
       target: "2102"
-      status: pending
+      status: done
       priority: P1
       vehicle_states: [READY]
       created: "2026-10-20"
-      updated: "2026-10-20"
+      updated: "2026-10-22"
+      result: >-
+        2026-10-21 READY and AC charging: the 96 cell words sum exactly to HV_PACK_V_2102 (387.59 V,
+        389.75 V), which matches 2101 HV_PACK_V within 0.1 V; cells 4.029-4.046 V and 4.053-4.069 V;
+        max/min match 2103 within 1 mV. All 2102 signals marked verified.
       notes: >-
         96 cell-pair voltages plus pack and bus voltage, decoded from public sources; this profile
         has no ZE1 capture of it yet, and OBDb's 2018 and 2024 test cars list 2102 as unsupported.
@@ -1486,15 +1500,18 @@ LBC:
         - Check HV_PACK_V_2102 equals 2101 HV_PACK_V and no cell reads 0 or 65.535 (a swallowed PCI byte).
     - type: decode
       target: "2106"
-      status: pending
+      status: captured
       priority: P2
       vehicle_states: [READY]
       created: "2026-10-20"
-      updated: "2026-10-20"
+      updated: "2026-10-22"
+      result: "Layout: 12 bytes, two nibbles per byte (dalathegreat); polarity unknown."
       notes: >-
         Cell balancing (shunt) flags. dalathegreat: 96 flags as 24 nibbles in the first 12 bytes,
-        '8421' bit order, remaining bytes FF. OVMS: one nibble per byte over 24 bytes, polled only
-        while charging. The two layouts disagree.
+        '8421' bit order, remaining bytes FF. OVMS: one nibble per byte over 24 bytes, bits
+        inverted, polled only while charging. Both 2026-10-21 captures (READY, AC charging) read FF
+        in data bytes 12-23, and both nibbles of bytes 0-11 change between them, which supports
+        dalathegreat's layout. The flag polarity (1 = shunting or 1 = idle) is still open.
       sources:
         - dalathegreat, OVMS
       what_to_test:
@@ -1514,3 +1531,15 @@ LBC:
         - OBDb, dalathegreat
       what_to_test:
         - Capture LBC:2161 at two SOC levels and compare the repeated 0x0Dxx words against 2102 cell voltages.
+    - type: verify
+      target: "2101"
+      status: captured
+      priority: P2
+      vehicle_states: [CHARGING, READY]
+      created: "2026-10-22"
+      updated: "2026-10-22"
+      notes: HV_CURRENT_1 and HV_CURRENT_2 are distinct quantities. While AC charging at 4100 W OBC_OUT_PWR and 389.7 V (10.5 A), HV_CURRENT_1 read +12.70 A, more than the charger delivers, and HV_CURRENT_2 +10.13 A (VCM HV_CURRENT_VCM +10 A). In READY they read -1.95 and -1.70 A. Their ratio differs between the two captures (1.15, 1.25), so it is not a scale difference.
+      sources:
+        - 2026-10-21 captures
+      what_to_test:
+        - Record LBC:2101 with VCM:221236 and VCM:221248 through a steady AC charge and a steady drive; compare both currents with OBC_OUT_PWR / HV_PACK_V and look for an offset or a filtered copy.

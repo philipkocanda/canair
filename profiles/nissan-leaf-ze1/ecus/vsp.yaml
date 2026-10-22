@@ -6,5 +6,6 @@ VSP:
     description: Vehicle sound for pedestrians
     notes: >-
       Address from the dalathegreat/leaf_can_bus_messages ECU table (generation-wide, not
-      ZE1-specific). No DIDs known; presence on the ZE1 is unconfirmed.
+      ZE1-specific). No DIDs known. Answered 10 01 with NRC 0x12 at 0x761 in the 2026-10-21 READY
+      discovery sweep.
     identity_confidence: tentative

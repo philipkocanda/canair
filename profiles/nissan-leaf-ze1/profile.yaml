@@ -20,16 +20,20 @@
 #
 # Per the PR, the ZE1's CAN gateway isolates the OBD-II port while the car is
 # off: every PID answers only with the ignition on (READY). The 2026-10-21
-# captures bear that out only in part. With the car off, VCM (0x797) and METER
-# (0x743) answered every defined 22xxxx read, while ABS, INVERTER, HVAC and BCM
-# stayed silent; the LBC (0x79B) answered for a few minutes after the car was
-# last active, then went silent too (`read --wake` does not revive it). In READY
-# all 16 registered ECUs answered. So the gate is per-module, not port-wide, and
-# the LBC in particular is a fast-sleeping ECU.
+# captures bear that out only in part. With the car off, VCM (0x797) answered 16
+# of its 25 defined 22xxxx reads and METER (0x743) 6 of 7 (not the odometer),
+# while ABS, INVERTER, HVAC and BCM stayed silent; the LBC (0x79B) answered for a
+# few minutes after the car was last active, then went silent too (`read --wake`
+# does not revive it). In READY all 16 registered ECUs answered. While AC
+# charging with the car off, LBC, VCM, METER, INVERTER and BCM answered every
+# defined read and ABS and HVAC stayed silent. So the gate is per-module, not
+# port-wide, and the LBC in particular is a fast-sleeping ECU. Each PID's
+# vehicle_states: records the states it answered in.
 #
 # Further signals were added device-free from public sources, each cited in its
-# signal's source_links:. They stay marked unverified until the 2026-10-21
-# captures are actually analysed against them:
+# signal's source_links:. Each stays unverified until a capture of this car
+# confirms it; those the 2026-10-21 captures confirmed are marked verified, with
+# the evidence in their notes:
 #   - OBDb Nissan-Leaf (https://github.com/OBDb/Nissan-Leaf, CC BY-SA 4.0): the
 #     per-model-year signal set and its real 2018-2024 ZE1 test responses
 #     (40 kWh and e+ cars), used to check every offset it covers.

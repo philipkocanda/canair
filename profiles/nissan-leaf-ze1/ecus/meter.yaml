@@ -25,7 +25,7 @@ METER:
           notes: 24-bit odometer at WiCAN B4:B6. Matched LeafSpy Pro.
       status: active
       period: 30000
-      vehicle_states: [READY]
+      vehicle_states: [READY, CHARGING]
       notes: >-
         Odometer DID. Upstream request key 220E011 (trailing frame-count digit dropped). Polled
         slowly: it changes rarely.
@@ -49,7 +49,7 @@ METER:
             the min/max filter drops both.
       status: active
       period: 10000
-      vehicle_states: [READY]
+      vehicle_states: [SLEEP, READY, CHARGING]
       notes: >-
         Estimated-range DID, only meaningful in READY. Upstream request key 220E2E1 (trailing
         frame-count digit dropped).
@@ -69,7 +69,7 @@ METER:
           notes: Front right tyre pressure, 0.25 psi per bit (x1.7236894 kPa).
       status: active
       period: 30000
-      vehicle_states: [READY]
+      vehicle_states: [SLEEP, READY, CHARGING]
       notes: Front right tyre pressure.
     "220E26":
       parameters:
@@ -87,7 +87,7 @@ METER:
           notes: Front left tyre pressure, 0.25 psi per bit (x1.7236894 kPa).
       status: active
       period: 30000
-      vehicle_states: [READY]
+      vehicle_states: [SLEEP, READY, CHARGING]
       notes: Front left tyre pressure.
     "220E27":
       parameters:
@@ -105,7 +105,7 @@ METER:
           notes: Rear right tyre pressure, 0.25 psi per bit (x1.7236894 kPa).
       status: active
       period: 30000
-      vehicle_states: [READY]
+      vehicle_states: [SLEEP, READY, CHARGING]
       notes: Rear right tyre pressure.
     "220E28":
       parameters:
@@ -123,7 +123,7 @@ METER:
           notes: Rear left tyre pressure, 0.25 psi per bit (x1.7236894 kPa).
       status: active
       period: 30000
-      vehicle_states: [READY]
+      vehicle_states: [SLEEP, READY, CHARGING]
       notes: Rear left tyre pressure.
     220E2D:
       parameters:
@@ -139,7 +139,9 @@ METER:
           notes: >-
             State of charge as shown on the dashboard, one byte at data byte 14 of the 22-byte
             reply. Reproduces 16 OBDb vectors. The exact value behind LBC SOC_D's linear estimate.
+            Read 87 in READY and 86 while charging, but 100 with the car off (2026-10-21), a
+            placeholder the 0-100 filter does not drop.
       status: active
       period: 30000
-      vehicle_states: [READY]
+      vehicle_states: [SLEEP, READY, CHARGING]
       notes: Dashboard state of charge (22-byte reply, 4 frames).

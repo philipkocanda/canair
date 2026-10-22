@@ -1,10 +1,11 @@
 # The bundled Nissan Leaf ZE1 profile
 
 `nissan-leaf-ze1` is canair's profile for the **second-generation Nissan Leaf (`ZE1`,
-2018–2024, 40 kWh and 62 kWh e+)**. It is an **early** profile: a broad set of battery, drive,
-charging and climate signals seeded from public sources, with the first on-car captures just
-starting to verify them. See [Bundled profiles](index.md) for the full list of what ships, and
-[the Ioniq 2017 page](ioniq-2017.md) for what a mature profile looks like.
+2018–2024, 40 kWh and 62 kWh e+)**. It covers battery, drive, charging and climate signals
+seeded from public sources. On-car captures of a 2018 40 kWh car have verified most battery and
+charging signals; the drive and climate signals still await a drive capture. See
+[Bundled profiles](index.md) for the full list of what ships, and
+[the Ioniq 2017 page](ioniq-2017.md) for a profile verified across every subsystem.
 
 Browse it on GitHub:
 [`profiles/nissan-leaf-ze1/`](https://github.com/philipkocanda/canair/tree/main/profiles/nissan-leaf-ze1).
@@ -16,12 +17,13 @@ Set it as your default profile once, and every `canair` command below works with
 canair profile use nissan-leaf-ze1
 ```
 
-!!! warning "Mostly unverified — check before you trust a value"
-    Only a handful of signals are **verified** against the car. The rest were decoded from public
-    sources (see [Sources & attribution](#sources-attribution)) and are marked unverified until a
-    capture confirms them. Offsets also differ between **model years, packs and markets**, so
-    re-check a value against your own captures before relying on it (see
-    [Define & verify](../bring-your-own-car/07-define-and-verify.md)).
+!!! warning "Partly verified — check before you trust a value"
+    The verified signals are the ones confirmed against captures of a 2018 40 kWh car: most of
+    the battery signals (including all 96 cell voltages), the odometer and the charging signals.
+    The rest were decoded from public sources (see [Sources & attribution](#sources-attribution))
+    and are marked unverified until a capture confirms them. Offsets also differ between **model
+    years, packs and markets**, so re-check a value against your own captures before relying on
+    it (see [Define & verify](../bring-your-own-car/07-define-and-verify.md)).
 
     Two pack-specific traps: `LBC:2101` `SOH_40KWH` uses the 40 kWh pack's 115.44 Ah reference
     and is **wrong on a 62 kWh e+**. Prefer `LBC:2161` `SOH`, which the battery controller reports
@@ -41,12 +43,14 @@ canair profile use nissan-leaf-ze1
 
 - **Battery (LBC)** — state of charge (both the true and the dashboard value), state of health,
   usable capacity, pack voltage and current, insulation, GIDs, the 12 V rail, **all 96 cell-pair
-  voltages** with min/max, and four pack temperatures. The verified signals live here: SOC,
-  SOC_D, SOH_40KWH, HV_CAPACITY and the first three pack temperatures.
+  voltages** with min/max, and four pack temperatures. Verified: SOC, SOC_D, SOH, SOH_40KWH,
+  HV_CAPACITY, pack voltage, the first three pack temperatures, and the cell voltages with their
+  min/max (the 96 cells sum exactly to the reported pack voltage).
 - **Drive (VCM / INVERTER / ABS)** — gear, vehicle speed, motor RPM, torque and power, motor
   temperature, accelerator pedal and steering angle, and the Eco and e-Pedal modes.
 - **Charging (VCM / LBC)** — plug state, charge mode, on-board charger output power, and the
-  quick- and AC-charge counters.
+  quick- and AC-charge counters. All but the quick-charge counter are verified against an AC
+  charge.
 - **Climate (VCM / HVAC)** — A/C and PTC heater power, ambient, cabin and evaporator
   temperatures, blower voltage and compressor speed.
 - **Dashboard (METER)** — odometer (verified), the four tyre pressures, dashboard SOC and
@@ -117,11 +121,15 @@ The LBC, VCM, HVAC and BCM speak **KWP2000**, so the battery PIDs are service `0
 Most ZE1 modules answer only while the car is on, and the first captures show the gate is
 **per module, not port-wide**:
 
-- **Car off:** VCM and METER answered every defined read. ABS, INVERTER, HVAC and BCM stayed
-  silent. The LBC answered for a few minutes after the car was last active, then went quiet,
-  and `read --wake` did not revive it — it is a fast-sleeping ECU.
+- **Car off:** VCM answered 16 of its 25 defined reads and METER 6 of 7 (not the odometer), but
+  some of those return placeholders (dashboard SOC 100 %, range 2047, motor RPM 16383). ABS,
+  INVERTER, HVAC and BCM stayed silent. The LBC answered for a few minutes after the car was
+  last active, then went quiet, and `read --wake` did not revive it — it is a fast-sleeping ECU.
 - **READY:** all 16 registered ECUs answered.
-- **Charging (car off, AC):** LBC, VCM, METER and INVERTER answered.
+- **Charging (car off, AC):** LBC, VCM, METER, INVERTER and BCM answered every defined read; ABS
+  and HVAC stayed silent.
+
+Each PID's `vehicle_states:` lists the states it answered in.
 
 Because of that, a read of a real PID is a better liveness test than a `10 01` discovery sweep:
 with the car asleep, the KWP2000 ECUs don't answer a UDS session request.

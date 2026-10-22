@@ -16,6 +16,7 @@ VCM:
   pids:
     221203:
       status: active
+      period: 600000
       parameters:
         QC_COUNT:
           expression: "[B4:B5]"
@@ -24,25 +25,29 @@ VCM:
             - https://github.com/meatpiHQ/wican-fw/pull/750
           verified: false
           notes: Quick (DC) charge count, 16-bit at WiCAN [B4:B5].
-      vehicle_states: [READY]
+      vehicle_states: [SLEEP, READY, CHARGING]
       notes: >-
         Quick-charge counter DID. Listed in the PR body (upstream key 2212031) and decoded
-        identically by OBDb, dalathegreat and OVMS; default 5 s period is far faster than needed,
-        the count only changes on a quick charge.
+        identically by OBDb, dalathegreat and OVMS. Changes only on a quick charge, hence the
+        10-minute poll; read 71 in all three 2026-10-21 sessions.
     221205:
       status: active
+      period: 600000
       parameters:
         L2_COUNT:
           expression: "[B4:B5]"
           source: meatpiHQ/wican-fw#750 (TyzzyT)
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/750
-          verified: false
-          notes: L1/L2 (AC) charge count, 16-bit at WiCAN [B4:B5].
-      vehicle_states: [READY]
+          verified: true
+          notes: >-
+            L1/L2 (AC) charge count, 16-bit at WiCAN [B4:B5]. Went 2800 to 2801 across the start of
+            an AC charge (2026-10-21).
+      vehicle_states: [READY, CHARGING]
       notes: >-
         L1/L2 charge counter DID. Listed in the PR body (upstream key 2212051) and decoded
-        identically by OBDb, dalathegreat and OVMS; the count only changes when an AC charge starts.
+        identically by OBDb, dalathegreat and OVMS. Changes only when an AC charge starts, hence the
+        10-minute poll.
     221102:
       parameters:
         VCM_SPEED:
@@ -57,7 +62,7 @@ VCM:
           notes: Vehicle speed seen by the VCM, one byte, 1 km/h per bit.
       status: active
       period: 2000
-      vehicle_states: [READY]
+      vehicle_states: [SLEEP, READY, CHARGING]
       notes: Vehicle speed (VCM).
     221103:
       parameters:
@@ -75,7 +80,7 @@ VCM:
           notes: 12 V battery voltage as read by the VCM, 0.08 V per bit (OBDb divides by 12.5).
       status: active
       period: 10000
-      vehicle_states: [READY]
+      vehicle_states: [SLEEP, READY, CHARGING]
       notes: 12 V battery voltage.
     221106:
       parameters:
@@ -95,7 +100,7 @@ VCM:
             A/C compressor request, 0/1. Reproduces 30 OBDb ZE1 vectors (37 across all model years).
       status: active
       period: 5000
-      vehicle_states: [READY]
+      vehicle_states: [READY, CHARGING]
       notes: A/C state.
     22110F:
       parameters:
@@ -110,10 +115,13 @@ VCM:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/pbutterworth/nissan-leaf-obd-ble
           verified: false
-          notes: Rear heater; 0xA2 (162) = on, other values not seen.
+          notes: >-
+            Rear heater per OBDb, whose only vectors read 0xA2 (162), mapped to on. On this car it
+            read 0 with the car off, 0xB9 (185) in READY and 0xB5 (181) while charging (2026-10-21),
+            values the map does not cover.
       status: active
       period: 30000
-      vehicle_states: [READY]
+      vehicle_states: [SLEEP, READY, CHARGING]
       notes: Rear heater state.
     221128:
       parameters:
@@ -129,7 +137,7 @@ VCM:
           notes: Nominal (requested) motor torque, signed 16-bit /64 Nm.
       status: active
       period: 2000
-      vehicle_states: [READY]
+      vehicle_states: [READY, CHARGING]
       notes: Nominal motor torque.
     221146:
       parameters:
@@ -150,7 +158,7 @@ VCM:
             handling is unconfirmed.
       status: active
       period: 2000
-      vehicle_states: [READY]
+      vehicle_states: [SLEEP, READY, CHARGING]
       notes: Traction motor power.
     22114E:
       parameters:
@@ -167,11 +175,13 @@ VCM:
             - https://github.com/OBDb/Nissan-Leaf
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/pbutterworth/nissan-leaf-obd-ble
-          verified: false
-          notes: "Charging mode: 0 none, 1 L1, 2 L2, 3 quick charge."
+          verified: true
+          notes: >-
+            Charging mode: 0 none, 1 L1, 2 L2, 3 quick charge. Read 0 in READY and 2 while AC
+            charging (2026-10-21).
       status: active
       period: 5000
-      vehicle_states: [READY]
+      vehicle_states: [READY, CHARGING]
       notes: Charging mode.
     221151:
       parameters:
@@ -189,7 +199,7 @@ VCM:
           notes: Climate power incl. the cabin PTC heater, 250 W per bit.
       status: active
       period: 5000
-      vehicle_states: [READY]
+      vehicle_states: [SLEEP, READY, CHARGING]
       notes: A/C system power incl. PTC.
     221152:
       parameters:
@@ -208,7 +218,7 @@ VCM:
             Auxiliary equipment power (lights, radio, navigation, rear defroster), 100 W per bit.
       status: active
       period: 5000
-      vehicle_states: [READY]
+      vehicle_states: [READY, CHARGING]
       notes: Auxiliary equipment power.
     221156:
       parameters:
@@ -232,7 +242,7 @@ VCM:
             5; no source shows it.
       status: active
       period: 2000
-      vehicle_states: [READY]
+      vehicle_states: [SLEEP, READY, CHARGING]
       notes: Gear position.
     22115D:
       parameters:
@@ -254,7 +264,7 @@ VCM:
             as an invalid reading.
       status: active
       period: 30000
-      vehicle_states: [READY]
+      vehicle_states: [READY, CHARGING]
       notes: Ambient temperature.
     221183:
       parameters:
@@ -270,10 +280,12 @@ VCM:
             - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_nissanleaf/src/vehicle_nissanleaf.cpp
             - https://github.com/pbutterworth/nissan-leaf-obd-ble
           verified: false
-          notes: 12 V battery current, signed 16-bit /256 A. Negative = drain, positive = charging.
+          notes: >-
+            12 V battery current, signed 16-bit /256 A. Negative = drain, positive = charging: -1.68
+            A with the car off, +6.31 A in READY and +1.77 A while AC charging (2026-10-21).
       status: active
       period: 5000
-      vehicle_states: [READY]
+      vehicle_states: [SLEEP, READY, CHARGING]
       notes: 12 V battery current.
     22121A:
       parameters:
@@ -291,7 +303,7 @@ VCM:
           notes: Vehicle speed, 16-bit /10 km/h.
       status: active
       period: 2000
-      vehicle_states: [READY]
+      vehicle_states: [SLEEP, READY, CHARGING]
       notes: Vehicle speed.
     221234:
       parameters:
@@ -307,11 +319,13 @@ VCM:
             - https://github.com/OBDb/Nissan-Leaf
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/pbutterworth/nissan-leaf-obd-ble
-          verified: false
-          notes: "J1772/Type 2 charge port plug state: 0 unplugged, 1 partially plugged, 2 plugged."
+          verified: true
+          notes: >-
+            J1772/Type 2 charge port plug state: 0 unplugged, 1 partially plugged, 2 plugged. Read 0
+            in READY unplugged and 2 while AC charging (2026-10-21).
       status: active
       period: 5000
-      vehicle_states: [READY]
+      vehicle_states: [READY, CHARGING]
       notes: Charge-port plug state.
     221236:
       parameters:
@@ -325,11 +339,14 @@ VCM:
             - https://github.com/OBDb/Nissan-Leaf
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/pbutterworth/nissan-leaf-obd-ble
-          verified: false
-          notes: On-board charger output power into the HV battery, 100 W per bit.
+          verified: true
+          notes: >-
+            On-board charger output power into the HV battery, 100 W per bit. Read 4100 W while AC
+            charging and 0 otherwise (2026-10-21); 4100 W / 389.7 V = 10.5 A, against 10.13 A (LBC
+            HV_CURRENT_2) and 10 A (HV_CURRENT_VCM) into the pack.
       status: active
       period: 5000
-      vehicle_states: [READY]
+      vehicle_states: [SLEEP, READY, CHARGING]
       notes: On-board charger output power.
     221248:
       parameters:
@@ -343,12 +360,12 @@ VCM:
             - https://github.com/OBDb/Nissan-Leaf
           verified: false
           notes: >-
-            HV battery current as the VCM sees it, signed 16-bit /2 A. Only a handful of OBDb
-            vectors, so the sign convention is unconfirmed; cross-check against LBC:2101
-            HV_CURRENT_1 (negative = discharge).
+            HV battery current as the VCM sees it, signed 16-bit /2 A. Positive = into the pack:
+            -2.5 A in READY and +10 A while AC charging at 4100 W OBC_OUT_PWR (2026-10-21), matching
+            LBC:2101 HV_CURRENT_2.
       status: active
       period: 2000
-      vehicle_states: [READY]
+      vehicle_states: [SLEEP, READY, CHARGING]
       notes: HV battery current (VCM view).
     221254:
       parameters:
@@ -364,7 +381,7 @@ VCM:
           notes: Actual motor torque, signed 16-bit /64 Nm.
       status: active
       period: 2000
-      vehicle_states: [READY]
+      vehicle_states: [READY, CHARGING]
       notes: Actual motor torque.
     221255:
       parameters:
@@ -384,7 +401,7 @@ VCM:
             invalid-reading value; the +/-12000 filter drops it.
       status: active
       period: 2000
-      vehicle_states: [READY]
+      vehicle_states: [SLEEP, READY, CHARGING]
       notes: Motor speed.
     221261:
       parameters:
@@ -402,7 +419,7 @@ VCM:
           notes: Estimated A/C compressor power, 50 W per bit.
       status: active
       period: 5000
-      vehicle_states: [READY]
+      vehicle_states: [SLEEP, READY, CHARGING]
       notes: Estimated A/C power.
     221262:
       parameters:
@@ -420,7 +437,7 @@ VCM:
           notes: Estimated cabin PTC heater power, 250 W per bit.
       status: active
       period: 5000
-      vehicle_states: [READY]
+      vehicle_states: [SLEEP, READY, CHARGING]
       notes: Estimated PTC heater power.
     221304:
       parameters:
@@ -434,11 +451,13 @@ VCM:
           source_links:
             - https://github.com/dalathegreat/leaf_can_bus_messages
             - https://github.com/pbutterworth/nissan-leaf-obd-ble
-          verified: false
-          notes: "Power switch, bit 7 of the first data byte (dalathegreat: 0x80 = car on)."
+          verified: true
+          notes: >-
+            Power switch, bit 7 of the first data byte (dalathegreat: 0x80 = car on). Read 0x80 in
+            READY and 0 with the car off while charging (2026-10-21).
       status: active
       period: 5000
-      vehicle_states: [READY]
+      vehicle_states: [READY, CHARGING]
       notes: Power switch.
     221318:
       parameters:
@@ -456,10 +475,12 @@ VCM:
             - https://github.com/pbutterworth/nissan-leaf-obd-ble
           verified: false
           notes: >-
-            ECO mode: 0 off, 0x10 and 0x11 on (two values, meaning of the difference unknown).
+            ECO mode: 0 off, 0x10 and 0x11 on (OBDb; meaning of the difference unknown). On this car
+            it read 0x08 in READY and 0 with the car off and while charging (2026-10-21), a value
+            outside the map.
       status: active
       period: 10000
-      vehicle_states: [READY]
+      vehicle_states: [SLEEP, READY, CHARGING]
       notes: ECO mode.
     22131A:
       parameters:
@@ -478,7 +499,7 @@ VCM:
           notes: "e-Pedal mode: 0 off, 4 on."
       status: active
       period: 10000
-      vehicle_states: [READY]
+      vehicle_states: [SLEEP, READY, CHARGING]
       notes: e-Pedal mode.
     2181:
       status: static
@@ -504,3 +525,51 @@ VCM:
         - OBDb, dalathegreat, py-nissan-leaf-obd-ble
       what_to_test:
         - Capture VCM:221146 with VCM:221248 and VCM:221254 during hard regen; see whether 221146 wraps above 0x8000.
+    - type: decode
+      target: 22110F
+      status: captured
+      priority: P3
+      vehicle_states: [READY]
+      created: "2026-10-22"
+      updated: "2026-10-22"
+      notes: REAR_HEATER maps only 0xA2 = on (OBDb's only vectors). This car read 0 with the car off, 0xB9 in READY and 0xB5 while charging, so the byte is not a plain on/off flag.
+      sources:
+        - 2026-10-21 captures, OBDb
+      what_to_test:
+        - In READY, toggle the rear defroster on and off and run canair investigate VCM 22110F --bits to find which bit follows it.
+    - type: decode
+      target: "221318"
+      status: captured
+      priority: P3
+      vehicle_states: [READY]
+      created: "2026-10-22"
+      updated: "2026-10-22"
+      notes: ECO_MODE maps 0 off and 0x10/0x11 on (OBDb). This car read 0x08 in READY and 0 off and while charging, a value outside the map, which suggests a bitfield rather than an enum.
+      sources:
+        - 2026-10-21 captures, OBDb
+      what_to_test:
+        - In READY, toggle ECO on and off and run canair investigate VCM 221318 --bits; check whether bit 4 is ECO and bit 3 follows READY.
+    - type: decode
+      target: "221106"
+      status: pending
+      priority: P3
+      vehicle_states: [READY]
+      created: "2026-10-22"
+      updated: "2026-10-22"
+      notes: AC_ON reads only B4 (0/1); B5 is unmapped and never constant (0xDA/0xDB here). In OBDb's vectors every 'off' reply reads [B4:B5] 0x00D9-0x00DE (plus 0x0000, 0x0033) and every 'on' reply 0x0173-0x01F4, so B4 may be the high byte of a 16-bit quantity rather than a flag.
+      sources:
+        - OBDb test vectors, 2026-10-21 captures
+      what_to_test:
+        - Record VCM:221106 with HVAC:2110 while switching the A/C on and off in READY; see whether [B4:B5] tracks a continuous quantity (compressor demand, refrigerant pressure) or B4 is a pure flag.
+    - type: verify
+      target: "221261"
+      status: captured
+      priority: P2
+      vehicle_states: [READY]
+      created: "2026-10-22"
+      updated: "2026-10-22"
+      notes: In READY (2026-10-21) AC_PWR read 500 W and AC_PWR_EST ('estimated A/C compressor power') 450 W, while HVAC_COMPRESSOR_RPM read 0 and both AC_ON (VCM) and HVAC_AC_ON read off, with the blower at its lowest step. Either AC_PWR_EST is not compressor power or the HVAC:2110 compressor-speed offset is wrong.
+      sources:
+        - 2026-10-21 captures
+      what_to_test:
+        - Record VCM:221151, VCM:221261 and HVAC:2110 with the climate off, fan only, A/C on and heating; check which follows compressor operation.
