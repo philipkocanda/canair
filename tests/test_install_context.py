@@ -300,6 +300,59 @@ class TestSnapshotProfileRisks:
         monkeypatch.setattr("canlib.profile.BUNDLED_PROFILES_DIR", bundled)
         assert ic.snapshot_profile_risks(clone) == []
 
+    @staticmethod
+    def _write_record(bundled):
+        """Record every current snapshot file as installed, like a wheel's RECORD."""
+        import base64
+        import hashlib
+
+        sp = bundled.parent
+        dist = sp / "canair-1.0.0.dist-info"
+        dist.mkdir()
+        lines = []
+        for p in sorted(bundled.rglob("*")):
+            if p.is_file():
+                digest = hashlib.sha256(p.read_bytes()).digest()
+                b64 = base64.urlsafe_b64encode(digest).rstrip(b"=").decode()
+                lines.append(f"{p.relative_to(sp).as_posix()},sha256={b64},{p.stat().st_size}")
+        (dist / "RECORD").write_text("\n".join(lines) + "\n")
+
+    def test_upstream_drift_since_install_is_not_a_loss(self, tmp_path, monkeypatch):
+        """The clone moved on after the install; the snapshot was never touched."""
+        bundled, root = self._snapshot(tmp_path)
+        clone = self._clone_copy(tmp_path, root)
+        self._write_record(bundled)
+        (clone / "profiles" / root.name / "ecus" / "bms.yaml").write_text("BMS:\n  tx_id: 0x7E5\n")
+        (clone / "profiles" / root.name / "profile.yaml").unlink()  # renamed upstream
+        monkeypatch.setattr("canlib.profile.BUNDLED_PROFILES_DIR", bundled)
+
+        assert ic.snapshot_profile_risks(clone) == []
+
+    def test_record_still_catches_post_install_writes(self, tmp_path, monkeypatch):
+        bundled, root = self._snapshot(tmp_path)
+        clone = self._clone_copy(tmp_path, root)
+        self._write_record(bundled)
+        (root / "ecus" / "bms.yaml").write_text("BMS:\n  tx_id: 0x7E4\n  # edited\n")
+        (root / "captures" / "2026-08-05.json").write_text('{"sessions": []}')
+        monkeypatch.setattr("canlib.profile.BUNDLED_PROFILES_DIR", bundled)
+
+        (risk,) = ic.snapshot_profile_risks(clone)
+
+        assert risk.differing == [Path("ecus/bms.yaml")]
+        assert risk.missing == [Path("captures/2026-08-05.json")]
+
+    def test_profiles_outside_the_snapshot_are_not_reported(self, tmp_path, monkeypatch):
+        """A user profile in ~/.config/canair/profiles survives any reinstall."""
+        bundled, root = self._snapshot(tmp_path)
+        clone = self._clone_copy(tmp_path, root)
+        user = tmp_path / "user-profiles" / "mycar"
+        (user / "ecus").mkdir(parents=True)
+        (user / "profile.yaml").write_text('car_model: "U"\ninit: "x"\n')
+        monkeypatch.setenv("CANAIR_PROFILES_DIR", str(user.parent))
+        monkeypatch.setattr("canlib.profile.BUNDLED_PROFILES_DIR", bundled)
+
+        assert ic.snapshot_profile_risks(clone) == []
+
 
 class TestSourceClone:
     def test_prefers_the_uv_receipt_directory(self, tmp_path, monkeypatch):

@@ -31,6 +31,9 @@ build provenance (:mod:`canlib.build_info`), and computes whether the tool copy 
 
 from __future__ import annotations
 
+import base64
+import csv
+import hashlib
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -297,37 +300,75 @@ class SnapshotRisk:
 def snapshot_profile_risks(clone: Path | None) -> list[SnapshotRisk]:
     """Profile data that would be lost by reinstalling over the bundled snapshot.
 
-    A reinstall replaces the whole package directory, so anything written into a
-    snapshot profile is gone. The wheel is built from the clone, which makes the
-    clone's ``profiles/`` the right reference for "would this file come back?" —
-    a snapshot file absent there (or differing from it) is unrecoverable.
+    A reinstall replaces the whole package directory, so anything *written into*
+    a snapshot profile after install is gone. The baseline is the wheel's own
+    ``RECORD`` (the hash of every file as installed): a file still matching it
+    was never touched, so it is no loss however far the clone has moved on since.
+    Comparing against the clone alone flagged every profile file changed upstream
+    since the install — after any ``git pull`` that is nearly all of them — and
+    copying those "rescued" files into the clone would revert upstream work.
+    A file byte-identical to the clone's copy is not at risk either.
 
     Returns an empty list when the bundled profiles are not a snapshot (a dev
     checkout, where the profiles *are* the clone) or when there is no clone to
     compare against — the caller cannot make a claim it can't substantiate.
+    Without a readable ``RECORD`` every file differing from the clone is reported,
+    since nothing then distinguishes an edit from upstream drift.
     """
-    from .profile import BUNDLE_MEMBERS, BUNDLED_PROFILES_DIR, discover_profiles
+    from .profile import BUNDLE_MEMBERS, BUNDLED_PROFILES_DIR, looks_like_profile
 
     if clone is None or not installed_snapshot_kind(BUNDLED_PROFILES_DIR):
         return []
+    if not BUNDLED_PROFILES_DIR.is_dir():
+        return []
 
+    site_packages = BUNDLED_PROFILES_DIR.parent
+    installed = _installed_hashes(site_packages)
     reference = clone / "profiles"
     tracked = [m for m in BUNDLE_MEMBERS if m.role != "generated"]
     risks: list[SnapshotRisk] = []
-    for name, root in sorted(discover_profiles(BUNDLED_PROFILES_DIR).items()):
+    # Only the snapshot's own profiles: discover_profiles() would also walk the
+    # user and configured roots, which a reinstall never touches.
+    for root in sorted(p for p in BUNDLED_PROFILES_DIR.iterdir() if looks_like_profile(p)):
         missing: list[Path] = []
         differing: list[Path] = []
         for member in tracked:
             for path in _member_files(root, member):
                 rel = path.relative_to(root)
-                other = reference / name / rel
-                if not other.is_file():
-                    missing.append(rel)
-                elif not _same_bytes(path, other):
-                    differing.append(rel)
+                other = reference / root.name / rel
+                if other.is_file() and _same_bytes(path, other):
+                    continue
+                if installed is not None and _matches_record(
+                    path, installed.get(path.relative_to(site_packages).as_posix())
+                ):
+                    continue
+                (differing if other.is_file() else missing).append(rel)
         if missing or differing:
-            risks.append(SnapshotRisk(name, root, sorted(missing), sorted(differing)))
+            risks.append(SnapshotRisk(root.name, root, sorted(missing), sorted(differing)))
     return risks
+
+
+def _installed_hashes(site_packages: Path) -> dict[str, str] | None:
+    """The canair wheel's install ``RECORD``: site-packages-relative path → hash."""
+    for record in sorted(site_packages.glob("canair-*.dist-info/RECORD")):
+        try:
+            rows = list(csv.reader(record.read_text().splitlines()))
+        except (OSError, csv.Error):
+            continue
+        return {row[0]: row[1] for row in rows if len(row) >= 2 and row[1]}
+    return None
+
+
+def _matches_record(path: Path, digest: str | None) -> bool:
+    """True when ``path`` still hashes to its ``RECORD`` entry (``sha256=<b64>``)."""
+    if not digest:
+        return False
+    algo, _, expected = digest.partition("=")
+    try:
+        actual = hashlib.new(algo, path.read_bytes()).digest()
+    except (OSError, ValueError):
+        return False
+    return base64.urlsafe_b64encode(actual).rstrip(b"=").decode() == expected
 
 
 def _member_files(root: Path, member: BundleMember) -> list[Path]:

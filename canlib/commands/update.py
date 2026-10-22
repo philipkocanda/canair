@@ -215,7 +215,7 @@ def _warn_about_snapshot_data(c, clone: Path | None) -> None:
         c.print(f"    [bold]{risk.name}[/bold]  [dim]{risk.root}[/dim]")
         shown = risk.files[:5]
         for rel in shown:
-            state = "differs" if rel in risk.differing else "only here"
+            state = "edited after install" if rel in risk.differing else "only here"
             c.print(f"      {rel}  [dim]({state})[/dim]")
         if len(risk.files) > len(shown):
             c.print(f"      [dim]… and {len(risk.files) - len(shown)} more[/dim]")
