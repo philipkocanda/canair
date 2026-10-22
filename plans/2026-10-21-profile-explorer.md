@@ -26,7 +26,8 @@ Non-goals:
 - Talking to a device. The page is static and read-only; it shows the `canair io` command to
   run instead of running anything.
 - Live or captured values. Captures hold real readings (odometer, VIN-bearing identity
-  responses) and are large. Definitions only in this plan; value ranges are a possible follow-up.
+  responses) and are large. Definitions only in this plan; plotting decoded captured values is
+  proposed in `plans/2026-10-22-explorer-capture-plots.md`.
 - Editing a profile. Authoring stays in `canair pids`/`ecu`.
 
 ## Design

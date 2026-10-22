@@ -252,7 +252,7 @@
     if (!ecu.research.length) return el("p", { class: "cx-muted" }, "No research items for this ECU.");
     return el("div", {}, ecu.research.map(function (r) {
       return el("div", { class: "cx-research" },
-        el("div", {}, badge(r.status || "open", r.status === "done" ? "ok" : "warn"), " ", r.priority ? badge(r.priority, "plain") + " " : "",
+        el("div", {}, badge(r.status || "open", r.status === "done" ? "ok" : "warn"), " ", r.priority ? [badge(r.priority, "plain"), " "] : null,
           el("strong", {}, r.type || ""), " ", el("code", {}, r.target || ""), " ", srcLink(data, r.src)),
         notes(r.notes), r.what_to_test ? notes("To test: " + r.what_to_test) : null, r.result ? notes("Result: " + r.result) : null);
     }));
