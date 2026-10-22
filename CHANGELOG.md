@@ -15,6 +15,40 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [1.29.0](https://github.com/philipkocanda/canair/compare/v1.28.0...v1.29.0) (2026-10-22)
+
+
+### Added
+
+* add ioniq 12v conditioning captures ([30e06a9](https://github.com/philipkocanda/canair/commit/30e06a95d938dc0f3ccc8ec4014544d65f36e54a))
+* **coverage:** accept the shared scope flags and freeze its goldens ([641174b](https://github.com/philipkocanda/canair/commit/641174b174055f68322b33db92a60844f9eabfc6))
+* ioniq-2017 captures ([2b4ed86](https://github.com/philipkocanda/canair/commit/2b4ed86e24c17c22ff42c8a20b12ced924e59343))
+* ioniq-2017 more captures ([79cf914](https://github.com/philipkocanda/canair/commit/79cf914d3a6fab22199d9b51de077f27d92a82fc))
+* ioniq-2017 more captures (2) ([8a4265e](https://github.com/philipkocanda/canair/commit/8a4265e8dd23223fbe589599f9126da4cd384bda))
+* **ioniq-2017:** add CONDITIONING state for the parked 12V top-up ([a02dd84](https://github.com/philipkocanda/canair/commit/a02dd84607f0eb1352cdb526c97e83a3ce4b01f4))
+* **ioniq-2017:** decode the BCM light stalk and light sensor, add two temperatures ([926e82f](https://github.com/philipkocanda/canair/commit/926e82fbf7d5f5ad9e8fb04bea6f83c01e2868fc))
+* **ioniq-2017:** decode the MCU 21F2 cycle summary and MCU 2102 temperatures ([f949863](https://github.com/philipkocanda/canair/commit/f94986321292ff4b870aa6185bf5bcf1345f5488))
+* **ioniq-2017:** define IGPM 22BCFD/22BCFF, close MCU 2103 research ([136c140](https://github.com/philipkocanda/canair/commit/136c140c81b5531d564383e83ce0487f009b32f9))
+* **ioniq-2017:** service-22 read sweeps and BCM C0xx re-read ([81e37c7](https://github.com/philipkocanda/canair/commit/81e37c7329520c95eb009b78f7e003266e07d9ab))
+
+
+### Fixed
+
+* **coverage:** take PID length from the newest session, not the longest payload ([0e510cf](https://github.com/philipkocanda/canair/commit/0e510cff08b183d9b96782c09d487c998429d775))
+* **ioniq-2017:** correct HVAC signal definitions against the capture set ([a295964](https://github.com/philipkocanda/canair/commit/a2959640397d630b7c602b45737955bf97852d02))
+* **ioniq-2017:** correct isolation resistance and tidy CONDITIONING findings ([4011bc2](https://github.com/philipkocanda/canair/commit/4011bc2105b4db8127ff42b3cee97538e68498fa))
+* **nissan-leaf-ze1:** reconcile definitions with the 2026-10-21 captures ([26466b6](https://github.com/philipkocanda/canair/commit/26466b6e7701a524d610d1bf60ea9f893c1a5a3a))
+
+
+### Changed
+
+* **ioniq-2017:** rename the CONDITIONING state to TOPUP ([aee4ea8](https://github.com/philipkocanda/canair/commit/aee4ea8448686a2cffe5aad2ee410ba9e78625c0))
+
+
+### Documentation
+
+* replace typed-signal examples built on discredited or unverified decodings ([3363674](https://github.com/philipkocanda/canair/commit/33636741785825586ea1454a6c51568c67ba5f98))
+
 ## [1.28.0](https://github.com/philipkocanda/canair/compare/v1.27.0...v1.28.0) (2026-10-21)
 
 
