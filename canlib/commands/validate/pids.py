@@ -1454,7 +1454,7 @@ def _addressing_warnings(ecus_dir: Path) -> list[str]:
 
     try:
         pids_data = load_pids(ecus_dir)
-    except Exception:
+    except (OSError, yaml.YAMLError):
         # A broken file is already reported as an error by the per-file checks.
         return []
     return addressing_warnings(pids_data)

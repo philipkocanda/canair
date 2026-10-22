@@ -26,6 +26,7 @@ from canlib.transport.elm327_addressing import (
     is_conventional,
     pinned_target,
     target_for,
+    target_in,
 )
 from canlib.transport.elm327_terminal import Elm327Terminal
 
@@ -102,9 +103,13 @@ class TestPolicy:
         assert (elm_id(0x7BB), elm_id(0x18DAF1DB)) == ("7BB", "18DAF1DB")
         assert elm_id(0x7E0, extended=True) == "000007E0"
 
-    def test_flow_control_data_follows_isotp(self):
+    def test_flow_control_data_follows_isotp_stmin_only(self):
         assert flow_control_data(None) == DEFAULT_FC_DATA == "300000"
-        assert flow_control_data({"blocksize": 8, "stmin": 10}) == "30080A"
+        # The block size stays 0: in mode 1 the adapter sends flow control only in
+        # answer to a First Frame, so a non-zero one would stall after one block.
+        assert flow_control_data({"blocksize": 8, "stmin": 10}) == "30000A"
+        assert flow_control_data({"blocksize": 8}) == "300000"
+        assert flow_control_data({"stmin": 0x1FF}) == "3000FF"
 
 
 class TestAdapterState:
@@ -232,7 +237,9 @@ class ScriptedChannel:
 def _terminal(replies=None, **addresses) -> tuple[Elm327Terminal, ScriptedChannel]:
     ch = ScriptedChannel(replies)
     term = Elm327Terminal(ch)
-    term.addresses = AddressBook({a.tx_id: a for a in addresses.values()}, rx_offset=0x20)
+    term.addresses = AddressBook(
+        {a.tx_id: a for a in addresses.values()}, {"addressing": {"rx_offset": 0x20}}
+    )
     return term, ch
 
 
@@ -347,3 +354,76 @@ class TestAddressBook:
         assert book.resolve(0x797).rx_id == 0x79A
         assert book.resolve(0x79B).rx_id == 0x7BB
         assert book.resolve(0x743).rx_id == 0x763  # unregistered: profile default
+
+    def test_unregistered_id_honours_the_profile_fc_id(self):
+        # The same resolution a registered ECU gets (resolve_ecu_address).
+        book = AddressBook.from_profile({"addressing": {"fc_id": 0x7E0}, "ecus": {}})
+        assert book.resolve(0x7E4) == EcuAddress(0x7E4, 0x7EC, fc_id=0x7E0)
+
+    def test_unregistered_id_under_normal_fixed_29bit(self):
+        book = AddressBook.from_profile({"addressing": {"mode": "normal_fixed_29bit"}})
+        assert book.resolve(0x18DA10F1) == FIXED_29
+        assert book.mode == AddressingMode.NORMAL_FIXED_29BIT
+
+    @pytest.mark.parametrize("mode", ["normal_extended_11bit", "extended_29bit"])
+    def test_unregistered_id_under_the_extended_modes(self, mode):
+        book = AddressBook.from_profile({"addressing": {"mode": mode, "target_address": 0x12}})
+        addr = book.resolve(0x6F1)
+        assert (addr.mode, addr.target_address) == (AddressingMode(mode), 0x12)
+        assert not target_for(addr).explicit
+
+    def test_ecus_sharing_a_request_id_are_flagged(self):
+        book = AddressBook.from_profile(
+            {
+                "ecus": {
+                    "EVC": {"tx_id": 0x18DB33F1, "rx_id": 0x18DAF1DB},
+                    "BMS": {"tx_id": 0x18DB33F1, "rx_id": 0x18DAF1DA},
+                    "TWIN": {"tx_id": 0x7E4},
+                    "ALIAS": {"tx_id": 0x7E4},  # same address twice: not ambiguous
+                },
+            }
+        )
+        assert book.shared == frozenset({0x18DB33F1})
+        assert not book.is_shared(0x7E4)
+
+
+class TestTargetIn:
+    def _book(self, **profile) -> AddressBook:
+        return AddressBook.from_profile(profile)
+
+    def test_shared_request_id_falls_back_to_the_adapter_defaults(self):
+        book = self._book(
+            ecus={
+                "EVC": {"tx_id": 0x18DB33F1, "rx_id": 0x18DAF1DB, "addressing": {"fc_id": 1}},
+                "BMS": {"tx_id": 0x18DB33F1, "rx_id": 0x18DAF1DA, "addressing": {"fc_id": 2}},
+            }
+        )
+        assert target_in(book, 0x18DB33F1) == functional_target(0x18DB33F1)
+
+    def test_unregistered_broadcast_ignores_a_profile_fc_id(self):
+        # The 0x7DF TesterPresent must let every responder through.
+        book = self._book(addressing={"fc_id": 0x7E0})
+        assert target_in(book, 0x7DF) == functional_target(0x7DF)
+
+    def test_registered_ecu_resolves_normally(self):
+        book = self._book(addressing={"rx_offset": 0x20}, ecus={"LBC": {"tx_id": 0x79B}})
+        assert target_in(book, 0x79B) == target_for(LBC)
+
+
+class TestPinnedParity:
+    """An AutoPID entry in a pinned profile must leave the adapter where the live path does."""
+
+    @pytest.mark.parametrize(
+        "addr",
+        [
+            EcuAddress(0x6F1, 0x607, AddressingMode.NORMAL_EXTENDED_11BIT),
+            EcuAddress(0x7F0, 0x810),  # a reply id 11-bit cannot carry
+        ],
+    )
+    def test_unaddressable_ecu_restores_the_auto_filter(self, addr):
+        assert pinned_target(addr).rx_filter == AUTO
+        # Live: after an explicit ECU, the same ECU gets the (auto) baseline back.
+        state = AdapterState()
+        for cmd in state.plan(target_for(LBC)):
+            state.observe(cmd, "OK")
+        assert "ATCRA" in state.plan(target_for(addr))

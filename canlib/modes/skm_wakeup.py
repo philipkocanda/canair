@@ -111,18 +111,20 @@ async def wake_and_read(terminal: Elm327Terminal, tx_id: str, pid: str) -> dict:
         response: str - raw response string (if ok)
         error: str - error description (if not ok)
     """
-    await terminal.set_header(int(tx_id, 16))
+    # One transaction, so nothing can re-point the header between the requests.
+    async with terminal.transaction():
+        await terminal.set_header(int(tx_id, 16))
 
-    # Wake from deep sleep
-    await terminal.send_command("1001", timeout=3.0)
+        # Wake from deep sleep
+        await terminal.send_command("1001", timeout=3.0)
 
-    # Extended session
-    resp = await terminal.send_command("1003", timeout=3.0)
-    if "5003" not in resp.replace(" ", "") and "50 03" not in resp:
-        return {"ok": False, "error": "Could not enter extended session."}
+        # Extended session
+        resp = await terminal.send_command("1003", timeout=3.0)
+        if "5003" not in resp.replace(" ", "") and "50 03" not in resp:
+            return {"ok": False, "error": "Could not enter extended session."}
 
-    # Read PID
-    resp = await terminal.send_command(pid, timeout=5.0)
+        # Read PID
+        resp = await terminal.send_command(pid, timeout=5.0)
     return {"ok": True, "response": resp}
 
 

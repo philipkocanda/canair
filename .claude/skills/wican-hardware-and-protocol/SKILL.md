@@ -585,8 +585,16 @@ flow-control mode is in force, so an all-conventional session sends exactly what
 other ECU (a `+0x20` Leaf, the `+0x80` XPeng, a functional-request Renault) gets `ATCRA<rx>` plus
 mode 1 with `ATFCSH<fc_id or tx>`/`ATFCSD`, because mode 0 would derive the wrong flow-control id
 (`0x7BB` → `0x7B3`, not `0x79B`). Mode 1 then stays on for the session. Any `?` reply is logged
-to `canair logs` (stderr with `--verbose`) and that command is not re-sent until a reset. Plan:
-`plans/2026-10-20-elm327-ecu-addressing.md`.
+to `canair logs` (stderr with `--verbose`). A rejected command is normally not re-sent until a
+reset, with two exceptions: a rejected `ATSH` (or an `ATFCSH` while mode 1 is in force) fails the
+request with `AdapterRefusedError`, because the adapter keeps the *previous* header and the reply
+of the previously addressed ECU would pass the echo check; and `ATFCSM1` rejected before its
+prerequisites (an upstream-style init) is retried. A command whose reply never came, a resync, a
+start-up banner in a reply slot (a late connect banner, or the adapter resetting itself) and an
+idle gap of `IDLE_FORGET_SECONDS` (a WiCAN's own AutoPID resumes after 10 s and re-points
+everything) all make the cached addressing unknown, so the next `set_header` restates it.
+The `ATFCSD` block size is always 0 (stmin from `isotp:`): the datasheet has mode 1 send the user's
+flow control only in answer to a First Frame. Plan: `plans/2026-10-20-elm327-ecu-addressing.md`.
 
 > **Housekeeping rule, learned the hard way.** `ATCRA` and `ATAT` are **not in any profile init
 > string** (the Ioniq's is `ATSP6;ATS0;ATAL;ATST96;`, `profiles/ioniq-2017/profile.yaml:46`), so

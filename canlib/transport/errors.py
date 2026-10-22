@@ -26,6 +26,16 @@ _DROP_ERRNOS = frozenset({errno.ECONNRESET, errno.EPIPE, errno.ECONNABORTED})
 _cached_types: tuple[type[BaseException], ...] | None = None
 
 
+class AdapterRefusedError(ConnectionError):
+    """The adapter is reachable but refused a command a request cannot go without.
+
+    An ELM327 that answers ``?`` to a header keeps the previous one, so sending the
+    request anyway would reach the wrong ECU. A :class:`ConnectionError` so every
+    live path already stops (or re-homes) cleanly on it; the message names the
+    command and why it matters, since the link itself is fine.
+    """
+
+
 def _errno_of(err: BaseException) -> int | None:
     return getattr(err, "errno", None)
 
@@ -114,13 +124,17 @@ def describe_transport_error(
     journal, not lost.
     """
     where = f" to {host}" if host else ""
-    lines = [
-        f"{transport_label} transport error{where} — {_reason(exc)}.",
-        "  • the device likely dropped off — asleep, rebooted, out of range, "
-        "moved network, or the bus was disconnected",
-        "  • a device that's been up a long time can wedge its socket; a reboot "
-        "(power-cycle) often clears it",
-    ]
+    if isinstance(exc, AdapterRefusedError):
+        # The link works; the remedy is the adapter or the profile, not the network.
+        lines = [f"{transport_label} adapter{where} refused a command — {exc}."]
+    else:
+        lines = [
+            f"{transport_label} transport error{where} — {_reason(exc)}.",
+            "  • the device likely dropped off — asleep, rebooted, out of range, "
+            "moved network, or the bus was disconnected",
+            "  • a device that's been up a long time can wedge its socket; a reboot "
+            "(power-cycle) often clears it",
+        ]
     if host:
         lines.append(f"  • diagnose:  canair status --wican {host}")
     if saving:

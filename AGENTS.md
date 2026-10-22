@@ -878,11 +878,16 @@ not in the terminal:
   left (the *baseline*, normally auto) and sends the `ATSH`/`ATFCSH` pair it always did; any
   other gets `ATCRA<rx>` plus flow-control mode 1 to `fc_id`/`tx`, and mode 1 then stays on for
   the session (still right for conventional ECUs, since `ATFCSH` follows the header). An
-  unregistered or `fc_id`-less broadcast id gets the auto filter and mode 0; extended-addressing
-  modes and out-of-range reply ids are left alone. `ATFCSH` alone does nothing: the adapter
-  honours it only in mode 1, which it rejects until `ATFCSH` and `ATFCSD` are set. A rejected
-  (`?`) command is logged once and not re-sent until a reset. AutoPID generation uses the same
-  policy. Plan `plans/2026-10-20-elm327-ecu-addressing.md`.
+  unregistered or `fc_id`-less broadcast id, and an id several ECUs share with different
+  addressing (`AddressBook.shared`), get the auto filter and mode 0; extended-addressing modes and
+  out-of-range reply ids are left alone. `ATFCSH` alone does nothing: the adapter honours it only
+  in mode 1, which it rejects until `ATFCSH` and `ATFCSD` are set. A rejected (`?`) command is
+  logged once and normally not re-sent until a reset — **but a rejected `ATSH` is never skipped**:
+  `set_header` raises `AdapterRefusedError` (a `ConnectionError`), since the adapter would still
+  address the previous ECU and its reply would pass the echo check. A reply that never came, a
+  resync, a reset banner and an idle gap (a WiCAN's AutoPID resumes after 10 s) all make the cache
+  restate. AutoPID generation uses the same policy.
+  Plan `plans/2026-10-20-elm327-ecu-addressing.md`.
 - **`canlib/transport/elm327_session.py::enter_extended_session`** — session open, the wake ritual,
   the TesterPresent keepalive loop. **`canlib/transport/raw_terminal.py` has its own, divergent
   copy** (shorter timeout, no retry, an unvalidated + exception-swallowed keepalive); unifying them

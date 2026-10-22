@@ -1,7 +1,7 @@
 """Dispatch for the two paths that need ELM327 text semantics.
 
-The SKM relay-wake (raw ``ATSH`` sends and frame collection) and the interactive
-REPL (an ELM327 command prompt) both depend on behaviour the raw SLCAN terminal
+The SKM relay-wake (raw ELM327 text commands such as ``ATST`` and frame collection) and the
+interactive REPL (an ELM327 command prompt) both depend on behaviour the raw SLCAN terminal
 does not provide — it uses ``set_header()``, not ``ATSH`` parsing — so each guards
 on the shared :class:`~canlib.transport.elm327_terminal.Elm327Terminal` engine and
 reports a clear error on ``slcan-tcp`` rather than half-working.
@@ -29,7 +29,7 @@ async def handle_skm_wake(args, terminal: Terminal, pids_data, host, *, reconnec
             file=sys.stderr,
         )
         sys.exit(1)
-    # skm-wake relies on ELM327 text semantics (raw ATSH/frame collection)
+    # skm-wake relies on ELM327 text semantics (raw AT commands/frame collection)
     # provided by the shared Elm327Terminal engine — not the raw slcan-tcp
     # RawTerminal. Guard on the engine type so raw reports a clear error.
     if not isinstance(terminal, Elm327Terminal):

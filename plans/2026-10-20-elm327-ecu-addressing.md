@@ -154,10 +154,11 @@ Always pinning would add a round trip to each ECU switch on exactly the cars tha
 (about one link RTT per AT command: ~60 ms each on the VPN link measured in the throughput
 plan). Doing it only where needed changes nothing for them.
 
-**Flow-control data** is `30 {blocksize} {stmin}` from the profile's `isotp.blocksize`/`stmin`
+**Flow-control data** is `30 00 {stmin}`, with `stmin` from the profile's `isotp.stmin`
 (`canlib/transport/isotp_params.py`). The defaults give `300000`, which is what the upstream
-corpus uses, and it keeps one tuning knob for both transports instead of a second hardcoded
-constant.
+corpus uses. The block size is always 0, whatever `isotp.blocksize` says: the datasheet has mode 1
+send the user's FlowControl frame "in response to a First Frame", and nothing documents a further
+one after each block, which a non-zero block size makes the ECU wait for.
 
 ### 1. Live ELM path (`canlib/transport/elm327_terminal.py`)
 
@@ -193,7 +194,21 @@ constant.
   - `ATZ`, `ATWS` and `ATD` reset everything to adapter defaults;
   - a malformed argument, or a `?` reply (the adapter rejected the command), sets *unknown*,
     and that exact command is not planned again until a reset, so a clone that lacks one costs a
-    single round trip rather than one per read.
+    single round trip rather than one per read. Two exceptions: a rejected `ATSH` is never
+    skipped, and `set_header` raises `AdapterRefusedError` instead of letting the request reach
+    the previously addressed ECU (likewise `ATFCSH` while mode 1 is in force); and `ATFCSM1` is
+    only skipped when it was rejected with `ATFCSH` and `ATFCSD` already set, since before that
+    the rejection is by design (an upstream-ordered init);
+  - a command whose reply never arrived sets *unknown* without being skipped;
+  - commands canair never plans still invalidate what they touch: `ATCP`/`ATSP`/`ATTP` the
+    header, `ATTA` the header and filter, `ATCF`/`ATCM`/`ATSR`/`ATCEA` and the STN `STF…`
+    filters the receive filter, and the STN flow-control filters/address pairs the flow control.
+
+  A resync, a start-up banner in a reply slot (a late connect banner, or the adapter resetting
+  itself mid-session) and an idle gap longer than
+  `IDLE_FORGET_SECONDS` (a WiCAN in `auto_pid` resumes its own AutoPID 10 s after the last ELM327
+  request, and its `pid_init`s re-point everything) also make the whole state unknown; a
+  `send_uds` retry after a resync re-addresses first.
 
   `connect()` sets everything to *unknown*, so the first `set_header` after a (re)connect states
   it explicitly (a fresh, never-connected terminal starts as after a reset). That also clears
@@ -216,6 +231,13 @@ constant.
   each address to `tx + 0x20` with flow control to `tx`. That matches what the raw path does
   today. ECUs on a different offset than the profile default are found by neither path, and this
   plan does not change that.
+- **Shared request ids.** `set_header` gets only a request id, so when several registered ECUs
+  claim one with different addressing (two functional-request ECUs on `0x18DB33F1`, answering on
+  `…DB` and `…DA`), it cannot know which is meant. `AddressBook.shared` marks such ids and
+  `target_in` addresses them as a broadcast (auto filter, mode 0, logged once), rather than
+  pinning whichever ECU was loaded last. `validate pids` warns about it (except for the
+  extended-addressing modes, which share an id by design). AutoPID is not affected: each entry
+  knows its ECU and pins that ECU's own ids.
 
 ### 2. AutoPID generation (`canlib/autopid_profile.py`)
 
@@ -267,7 +289,7 @@ constant.
   - `normal_fixed_29bit` byte-swap → conventional;
   - functional `0x18DB33F1` / `rx_id 0x18DAF1DB` / `fc_id 0x18DADBF1` → explicit, filter
     `18DAF1DB`, flow control `18DADBF1` (8-digit forms);
-  - the flow-control data follows `isotp.blocksize`/`stmin`.
+  - the flow-control data follows `isotp.stmin`, with the block size always 0.
 - `Elm327Terminal` over the fake channel (`tests/test_elm327_tcp.py` style, which already asserts
   `["ATSH7E4", "ATFCSH7E4", "2101"]`):
   - a `+0x08` ECU sends nothing new, so the existing assertion stays green unchanged;
@@ -300,7 +322,7 @@ constant.
 - `docs/concepts/profiles.md`, addressing section: the ELM327 transports and AutoPID derive the
   receive filter and flow-control id from `rx_offset`/`rx_id`/`fc_id`, so neither a
   non-`+0x08` car nor a functional-request ECU needs extra configuration. Addressing commands
-  stay out of `init:`. `isotp.blocksize`/`stmin` now also shape ELM flow control.
+  stay out of `init:`. `isotp.stmin` now also shapes ELM flow control.
 - `config.example.yaml` needs nothing (no new user-config key).
 - `plans/2026-07-28-multi-vehicle-support.md`, gap G-J: note that the ELM path is covered here.
 

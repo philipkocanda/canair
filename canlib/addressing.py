@@ -38,7 +38,7 @@ See ``plans/2026-07-28-multi-vehicle-support.md`` (Phases 2–3).
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any, Final, assert_never
 
@@ -313,18 +313,46 @@ def resolve_ecu_address(
     )
 
 
+def shared_tx_ids(pids_data: Mapping[str, Any]) -> dict[int, list[str]]:
+    """``{tx_id: [ecu_name, ...]}`` for request ids that several ECUs resolve differently.
+
+    Sharing one request id is legal: a functional-request car's ECUs all send to
+    ``0x18DB33F1`` and answer on their own physical ids, and the extended-addressing
+    modes tell ECUs apart by a payload byte. But a transport addressed by request id
+    alone cannot know which of them is meant. ECUs that resolve to the *same* address
+    are not ambiguous and are not reported.
+    """
+    seen: dict[int, list[tuple[str, EcuAddress]]] = {}
+    for name, ecu_def in (pids_data.get("ecus") or {}).items():
+        if isinstance(ecu_def, Mapping) and "tx_id" in ecu_def:
+            addr = resolve_ecu_address(pids_data, ecu_def)
+            seen.setdefault(addr.tx_id, []).append((str(name), addr))
+    return {
+        tx: [name for name, _ in owners]
+        for tx, owners in seen.items()
+        if len({addr for _, addr in owners}) > 1
+    }
+
+
 @dataclass(frozen=True)
 class AddressBook:
     """Every registered ECU's :class:`EcuAddress`, plus the fallback for any other id.
 
     What a transport needs to address an arbitrary TX id: a registered ECU gets its
     fully-resolved address, and an unregistered one (a discovery sweep, a manual
-    ``raw`` request) is resolved from the profile defaults alone.
+    ``raw`` request) is resolved from the profile-wide ``addressing:`` block alone,
+    through the same :func:`resolve_ecu_address` a registered ECU goes through.
+
+    ``shared`` holds the request ids several registered ECUs resolve differently
+    (:func:`shared_tx_ids`). ``by_tx`` still maps each to the last such ECU, which is
+    what the raw path has always used; a transport that can fall back to the
+    adapter's own addressing should check :meth:`is_shared` first.
     """
 
     by_tx: Mapping[int, EcuAddress]
-    rx_offset: int = DEFAULT_RX_OFFSET
-    mode: AddressingMode = DEFAULT_MODE
+    # Profile-wide settings (only the `addressing:` block is read).
+    profile: Mapping[str, Any] = field(default_factory=dict)
+    shared: frozenset[int] = frozenset()
 
     @classmethod
     def from_profile(cls, pids_data: Mapping[str, Any]) -> AddressBook:
@@ -335,15 +363,30 @@ class AddressBook:
             if isinstance(ecu_def, Mapping) and "tx_id" in ecu_def:
                 addr = resolve_ecu_address(pids_data, ecu_def)
                 by_tx[addr.tx_id] = addr
-        return cls(by_tx, resolve_rx_offset(pids_data), resolve_mode(pids_data))
+        block = pids_data.get("addressing")
+        profile = {"addressing": block} if isinstance(block, Mapping) else {}
+        return cls(by_tx, profile, frozenset(shared_tx_ids(pids_data)))
+
+    @property
+    def rx_offset(self) -> int:
+        """The profile default response offset, for an unregistered 11-bit id."""
+        return resolve_rx_offset(self.profile)
+
+    @property
+    def mode(self) -> AddressingMode:
+        """The profile default addressing mode, for an unregistered id."""
+        return resolve_mode(self.profile)
+
+    def is_shared(self, tx_id: int) -> bool:
+        """Whether several registered ECUs claim ``tx_id`` with different addressing."""
+        return tx_id in self.shared
 
     def resolve(self, tx_id: int) -> EcuAddress:
         """The address for ``tx_id``: its registered one, else the profile defaults."""
         addr = self.by_tx.get(tx_id)
         if addr is not None:
             return addr
-        rx_id = resolve_rx(tx_id, rx_offset=self.rx_offset, mode=self.mode)
-        return EcuAddress(tx_id, rx_id, self.mode)
+        return resolve_ecu_address(self.profile, {"tx_id": tx_id})
 
 
 def build_isotp_address(addr: EcuAddress) -> isotp.Address:

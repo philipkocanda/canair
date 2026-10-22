@@ -243,9 +243,17 @@ def _address_entries(
     header pair it always had, so its device diff is unchanged. If any shipped ECU
     needs its receive filter or flow-control id pinned, every entry pins its own:
     the firmware runs each PID's init verbatim and never resets the filter between
-    PIDs, so a PID that left it alone would inherit the previous ECU's. A broadcast
-    ECU then restores the auto filter instead (known limit: its multi-frame replies
-    would get mode-1 flow control to the broadcast id).
+    PIDs, so a PID that left it alone would inherit the previous ECU's. A broadcast,
+    unaddressable or out-of-range ECU then restores the auto filter instead, as the
+    live path does (known limit: a broadcast's multi-frame replies would get mode-1
+    flow control to the broadcast id).
+
+    Each entry is addressed from its own ECU, even when several ECUs share a request
+    id (two functional-request ECUs on ``0x18DB33F1``). The live path cannot do that
+    — ``set_header`` gets only the request id, so it addresses a shared id as a
+    broadcast (``elm327_addressing.target_in``) — but an AutoPID entry knows which
+    ECU it reads, and its pid_init runs before every request, so pinning that ECU's
+    own reply id is both possible and right.
     """
     pin = any(target_for(address).explicit for _, address, _ in addressed)
     for entry, address, session in addressed:

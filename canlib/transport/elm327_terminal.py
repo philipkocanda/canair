@@ -45,10 +45,17 @@ from ..timing import TimingRecorder
 from ..transport_stats import TransportStats
 from ..uds_parse import CAT_DECODE, CAT_STALE, UdsResponse, parse_uds_response
 from .channel import Channel
-from .elm327_addressing import DEFAULT_FC_DATA, AdapterState, target_for
+from .elm327_addressing import (
+    DEFAULT_FC_DATA,
+    IDLE_FORGET_SECONDS,
+    AdapterState,
+    elm_id,
+    target_in,
+)
 from .elm327_frame_count import CountKey, FrameCountCache
 from .elm327_pipe import ResponsePipe, compact
 from .elm327_session import enter_extended_session
+from .errors import AdapterRefusedError
 
 # Response classes that prove the pipe is carrying something other than this
 # request's answer, and so warrant realigning it. See the call site in `send_uds`
@@ -101,6 +108,17 @@ _RESYNC_QUIET_MAX = 8.0
 # it says (the WiCAN Pro's OBD chip answers ATI with "ELM327 v2.3", a clone with
 # whatever it claims to be), so this never matches on reply text.
 _RESYNC_PROBE = "ATI"
+
+# The start-up banner an ELM327 (or an STN in ELM mode) prints after any reset. As
+# the answer to a command that does not reset or identify the adapter, it is either
+# a late connect banner or the adapter resetting itself mid-session, which takes the
+# addressing back to defaults (see `_check_for_reset`).
+_RESET_BANNER_RE = re.compile(r"ELM327\s+v\d", re.IGNORECASE)
+_BANNER_COMMANDS = ("ATZ", "ATWS", "ATI", "AT@")
+
+# Rounds `set_header` may take to settle the addressing: a resync that forgets the
+# state mid-way, or a command whose reply never arrived, costs one more round.
+_ADDRESSING_ROUNDS = 3
 
 
 class Elm327Terminal:
@@ -192,6 +210,12 @@ class Elm327Terminal:
         # caller by observing every command in _send_command_locked.
         self._address = AdapterState()
         self._warned_rejected: set[str] = set()
+        self._warned_shared: set[int] = set()
+        # When the last command went out (`_clock`, injectable for tests), so a gap
+        # long enough for another client to re-point the adapter (IDLE_FORGET_SECONDS)
+        # makes the next `set_header` restate everything.
+        self._clock = time.monotonic
+        self._last_command_at: float | None = None
 
     @property
     def _cur_header(self) -> int | None:
@@ -368,6 +392,10 @@ class Elm327Terminal:
             # ledger must be zeroed with it — otherwise the probe below would wait
             # for prompts that were just thrown away.
             self._pipe.clear_backlog()
+            # Replies were misattributed or thrown away, so what the cache recorded
+            # from them is suspect, and an offset pipe is also what an adapter that
+            # reset itself looks like. Restate the addressing rather than trust it.
+            self._address.forget()
             reply = await self._send_command_locked(_RESYNC_PROBE, quiet)
             if self._pipe.dirty or not reply.strip():
                 raise ConnectionError(
@@ -394,6 +422,7 @@ class Elm327Terminal:
 
         self.cmd_count += 1
         _t0 = time.monotonic()
+        self._last_command_at = self._clock()
         await self._channel.send(cmd + "\r")
 
         deadline = time.monotonic() + timeout
@@ -426,10 +455,14 @@ class Elm327Terminal:
 
         result = raw.strip()
         log_response(cmd, result)
-        self._address.observe(cmd, result)
+        cu = cmd.replace(" ", "").upper()
+        if not self._resyncing and not cu.startswith(_BANNER_COMMANDS):
+            self._check_for_reset(cmd, result)
+        # A command whose reply never arrived may or may not have been applied, so
+        # what it sets is recorded as unknown rather than as done.
+        self._address.observe(cmd, result, answered=read.clean)
         elapsed = time.monotonic() - _t0
         self.cmd_time += elapsed
-        cu = cmd.replace(" ", "").upper()
         # Feed the link estimate only from commands the adapter answers by itself,
         # and only when a reply actually arrived — a timed-out command's elapsed is
         # the deadline, which says nothing about the link.
@@ -474,6 +507,29 @@ class Elm327Terminal:
             print(f"  ! {message}", file=sys.stderr)
         log_event("config", message, transport=self.diag.transport)
 
+    def _check_for_reset(self, cmd: str, result: str) -> None:
+        """Forget the addressing when ``cmd`` was answered by the adapter's start-up banner.
+
+        The banner carries its own prompt, so prompt accounting takes it for the
+        command's answer and the real one arrives later as a stale block. It is
+        either a connect banner that outlived the connect drain or the adapter
+        resetting itself mid-session (a voltage dip while cranking); in the second
+        case the header, filter and flow control are back to defaults, so neither
+        is trusted. Not raised: a UDS reply that is a banner already fails to parse
+        and resyncs, and both ``set_header`` (which replans when the state is
+        forgotten mid-way) and a ``send_uds`` retry then restate the addressing.
+        """
+        if not _RESET_BANNER_RE.search(result):
+            return
+        self._address.forget()
+        log_event(
+            "bus",
+            f"adapter answered {cmd} with its start-up banner {compact(result)[:24]!r}; "
+            "if it reset itself its settings are back to defaults, so the addressing is "
+            "restated",
+            transport=self.diag.transport,
+        )
+
     async def set_header(self, tx_id: int):
         """Address the adapter at ``tx_id``: header, flow control and receive filter.
 
@@ -482,16 +538,62 @@ class Elm327Terminal:
         costs zero round trips after the first. A conventional ECU (ISO 15765-4
         ``tx + 0x08``) gets exactly the ATSH/ATFCSH pair it always did; see
         :mod:`canlib.transport.elm327_addressing` for the others.
+
+        Raises:
+            AdapterRefusedError: the adapter rejected a command the request cannot
+                go without (see :meth:`AdapterState.required`). Nothing is sent to
+                the ECU, since the adapter would still be addressing the previous one.
+            ConnectionError: the header was never confirmed, even after replanning.
         """
-        # A registered ECU uses its resolved address; any other id resolves from the
-        # profile defaults (a discovery sweep), and a broadcast with no fc_id lets
-        # every responder through.
-        target = target_for(self.addresses.resolve(tx_id))
-        for cmd in self._address.plan(target, self.flow_control_data):
-            resp = await self.send_command(cmd)
-            if self.verbose:
-                print(f"  [header] {cmd} -> {resp!r}", file=sys.stderr)
-            self._report_rejected(cmd, resp, f"addressing 0x{tx_id:03X}")
+        if (
+            self._last_command_at is not None
+            and self._clock() - self._last_command_at > IDLE_FORGET_SECONDS
+        ):
+            self._address.forget()
+        if self.addresses.is_shared(tx_id):
+            self._report_shared(tx_id)
+        target = target_in(self.addresses, tx_id)
+        for _ in range(_ADDRESSING_ROUNDS):
+            epoch = self._address.epoch
+            for cmd in self._address.plan(target, self.flow_control_data):
+                resp = await self.send_command(cmd)
+                if self.verbose:
+                    print(f"  [header] {cmd} -> {resp!r}", file=sys.stderr)
+                self._report_rejected(cmd, resp, f"addressing 0x{tx_id:03X}")
+                if "?" in resp and self._address.required(cmd, target):
+                    raise AdapterRefusedError(self._refusal(cmd, tx_id))
+            # A resync forgot the state part-way through (the epoch moved), or the
+            # header's reply never arrived: plan again from what is known now.
+            if self._address.epoch == epoch and self._address.header == target.header:
+                return
+        raise ConnectionError(
+            f"could not address 0x{tx_id:03X}: the adapter never confirmed "
+            f"ATSH{elm_id(target.header, target.extended)}"
+        )
+
+    @staticmethod
+    def _refusal(cmd: str, tx_id: int) -> str:
+        message = (
+            f"it answered {cmd} with '?' while addressing 0x{tx_id:03X}, so a request would "
+            "reach the previously addressed ECU instead"
+        )
+        if cmd.startswith("ATSH") and len(cmd) > len("ATSH") + 3:
+            message += "; an 8-digit (29-bit) header needs an ELM327 v2.x or STN adapter"
+        return message
+
+    def _report_shared(self, tx_id: int) -> None:
+        """Note once that ``tx_id`` is addressed as a broadcast because ECUs share it."""
+        if tx_id in self._warned_shared:
+            return
+        self._warned_shared.add(tx_id)
+        message = (
+            f"0x{tx_id:03X} is the request id of several ECUs with different addressing; "
+            "it is addressed as a broadcast (the adapter's own receive filter and flow "
+            "control), so any of them may answer"
+        )
+        if self.verbose:
+            print(f"  ! {message}", file=sys.stderr)
+        log_event("config", message, transport=self.diag.transport)
 
     async def send_uds(
         self,
@@ -531,13 +633,17 @@ class Elm327Terminal:
             timeout = self.ecu_timeouts.get(self._cur_header, self.timeout)
         attempt = 0
         # The header cannot move under us here: `transaction()` locks out the
-        # keepalive, `send_uds` never re-points it, and `_resync` probes with a
-        # command that leaves the addressing state alone.
-        counting = self._frame_counts.attempt((self._cur_header, service_pid))
+        # keepalive and `send_uds` never re-points it. A resync does forget the
+        # addressing (it can no longer be trusted), so a retry after one first puts
+        # the header back.
+        header = self._cur_header
+        counting = self._frame_counts.attempt((header, service_pid))
         # One transaction for the whole retry sequence: a keepalive slipping in
         # between attempts would re-point the header and invalidate the retry.
         async with self.transaction():
             while True:
+                if header is not None and self._cur_header != header:
+                    await self.set_header(header)
                 command = counting.command(service_pid)
                 raw = await self.send_command(command, timeout=timeout)
                 resp = parse_uds_response(
@@ -549,7 +655,7 @@ class Elm327Terminal:
                 )
                 self.diag.record_response(
                     resp,
-                    ecu=(f"0x{self._cur_header:03X}" if self._cur_header is not None else None),
+                    ecu=(f"0x{header:03X}" if header is not None else None),
                     pid=service_pid,
                 )
 

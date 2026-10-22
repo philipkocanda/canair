@@ -7,15 +7,18 @@ conversion and the device→grouped normalization round-trip.
 
 import pytest
 
+from canlib.addressing import AddressBook
 from canlib.autopid_profile import (
     InvalidSendToError,
     generate_profile,
     make_pid_init,
     normalize_device_profile,
     to_device_format,
+    with_flow_control,
 )
 from canlib.autopid_send_to import topic_problem
 from canlib.commands.wican import show_diff
+from canlib.transport.elm327_addressing import AdapterState, target_in
 
 
 def _data():
@@ -140,6 +143,85 @@ class TestAddressing:
         )
         assert [p["pid_init"] for p in prof["pids"]] == ["ATSH7E4;ATFCSH7E4;"]
         assert prof["init"] == "ATSP6;"
+
+    def test_mixed_profile_leaves_the_adapter_where_the_live_path_does(self):
+        """Each entry's ATCRA matches the filter the live plan settles on, in order.
+
+        An unaddressable (extended 0x6F1) or out-of-range-reply (0x7F0 -> 0x810)
+        ECU used to emit no ATCRA, inheriting the previous PID's ATCRA7BB, while the
+        live path restored the auto baseline.
+        """
+        ecus = {
+            "LBC": _ecu(0x79B, "SOH"),
+            "BMW": _ecu(0x6F1, "X", rx_id=0x607, addressing={"mode": "normal_extended_11bit"}),
+            "BMS": _ecu(0x7E4, "SOC", rx_id=0x7EC),
+            "FAR": _ecu(0x7F0, "Y"),
+        }
+        data = {
+            "car_model": "Car",
+            "init": "ATSP6;",
+            "ecus": ecus,
+            "addressing": {"rx_offset": 0x20},
+        }
+        prof = generate_profile(data)
+        assert [p["pid_init"] for p in prof["pids"]] == [
+            "ATSH79B;ATFCSH79B;ATCRA7BB;",
+            "ATSH6F1;ATFCSH6F1;ATCRA;",
+            "ATSH7E4;ATFCSH7E4;ATCRA7EC;",
+            "ATSH7F0;ATFCSH7F0;ATCRA;",
+        ]
+        book = AddressBook.from_profile(data)
+        state = AdapterState()
+        for entry, tx_id in zip(prof["pids"], (0x79B, 0x6F1, 0x7E4, 0x7F0), strict=True):
+            for cmd in state.plan(target_in(book, tx_id)):
+                state.observe(cmd, "OK")
+            atcra = [c for c in entry["pid_init"].split(";") if c.startswith("ATCRA")]
+            pinned = None if atcra == ["ATCRA"] else int(atcra[0][5:], 16)
+            # Where the live path pins a filter, AutoPID pins the same one; where
+            # AutoPID restores auto, so does the live path. (A conventional ECU may
+            # stay on auto live while AutoPID pins its own reply id: equivalent.)
+            live = state.rx_filter
+            if (isinstance(live, int) and live != pinned) or (pinned is None and live != "auto"):
+                pytest.fail(f"0x{tx_id:X}: live {live!r}, AutoPID {atcra}")
+
+    def test_29bit_ecu_with_a_small_id_uses_8_digit_ids(self):
+        ecu = _ecu(0x7E0, "SOC", rx_id=0x7E8, addressing={"mode": "normal_29bit"})
+        prof = generate_profile({"car_model": "Car", "init": "ATSP7", "ecus": {"E": ecu}})
+        assert prof["pids"][0]["pid_init"] == "ATSH000007E0;ATFCSH000007E0;ATCRA000007E8;"
+        assert prof["init"] == "ATSP7;ATFCSH000007E0;ATFCSD300000;ATFCSM1;"
+
+    def test_shared_request_id_entries_each_pin_their_own_ecu(self):
+        evc = _ecu(0x18DB33F1, "A", rx_id=0x18DAF1DB, addressing={"fc_id": 0x18DADBF1})
+        bms = _ecu(0x18DB33F1, "B", rx_id=0x18DAF1DA, addressing={"fc_id": 0x18DADAF1})
+        prof = generate_profile(
+            {
+                "car_model": "Car",
+                "init": "ATSP7;",
+                "addressing": {"mode": "normal_29bit"},
+                "ecus": {"EVC": evc, "BMS": bms},
+            }
+        )
+        assert [p["pid_init"] for p in prof["pids"]] == [
+            "ATSH18DB33F1;ATFCSH18DADBF1;ATCRA18DAF1DB;",
+            "ATSH18DB33F1;ATFCSH18DADAF1;ATCRA18DAF1DA;",
+        ]
+
+
+class TestWithFlowControl:
+    def test_appends_after_an_init_with_a_trailing_separator(self):
+        assert with_flow_control("ATSP6;", 0x79B, "300000") == (
+            "ATSP6;ATFCSH79B;ATFCSD300000;ATFCSM1;"
+        )
+
+    def test_adds_the_missing_separator(self):
+        assert (
+            with_flow_control("ATSP6", 0x79B, "300000") == "ATSP6;ATFCSH79B;ATFCSD300000;ATFCSM1;"
+        )
+
+    def test_empty_init(self):
+        assert with_flow_control("", 0x18DADBF1, "300000", extended=True) == (
+            "ATFCSH18DADBF1;ATFCSD300000;ATFCSM1;"
+        )
 
 
 class TestGenerateAndDeviceFormat:
