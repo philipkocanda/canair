@@ -25,6 +25,7 @@ accidentally editing similarly-named keys elsewhere in the file.
 from __future__ import annotations
 
 import datetime
+import functools
 import re
 from collections.abc import Sequence
 from pathlib import Path
@@ -66,32 +67,30 @@ def _find_did_block(text: str, did: str) -> tuple[int, int]:
     """Find the character range of a DID block inside the ``iocontrol:`` section.
 
     Returns (start, end) offsets spanning from the DID key line up to (but
-    not including) the next sibling line at the same or lower indent. The search
-    is confined to ``iocontrol:``, so a PID that shares the key (``2200:`` under
-    ``pids:``) is never edited by mistake.
+    not including) the next sibling line at the same or lower indent, or the
+    comments heading it. The search is confined to ``iocontrol:``, so a PID that
+    shares the key (``2200:`` under ``pids:``) is never edited by mistake.
     """
-    did_u = did.strip().upper()
-    sec_m = re.search(r"^ {2}iocontrol:\s*$", text, re.MULTILINE)
-    if not sec_m:
-        raise PidsEditError("No iocontrol: section found")
-    tail_m = re.compile(r"^ {0,2}[A-Za-z_]", re.MULTILINE).search(text, pos=sec_m.end() + 1)
-    sec_end = tail_m.start() if tail_m else len(text)
-    # Match "    DID:" where the indent must be exactly 4 spaces (DID lives
-    # under ECU.iocontrol at depth 2 blocks in). The key may be quoted: a DID with
-    # a leading zero has to be, or YAML reads "0700" as the octal integer 448.
-    start_re = re.compile(rf"^( {{4}})([\"']?){re.escape(did_u)}\2:\s*$", re.MULTILINE)
-    m = start_re.search(text, pos=sec_m.end(), endpos=sec_end)
-    if not m:
-        raise PidsEditError(f"DID {did_u!r} not found under iocontrol: (expected 4-space indent)")
+    return _find_section_entry(text, "iocontrol", did, noun="DID")
 
-    start = m.start()
-    # Find end: next line that starts with <=4 spaces of content (sibling DID
-    # at same depth, or a new parent key at shallower indent). Blank lines
-    # don't count as boundaries.
-    end_re = re.compile(r"^( {0,4})[^\s#]", re.MULTILINE)
-    for m2 in end_re.finditer(text, pos=m.end(), endpos=sec_end):
-        return start, m2.start()
-    return start, sec_end
+
+def _find_section_entry(text: str, section: str, key: str, *, noun: str) -> tuple[int, int]:
+    """(start, end) of the 4-space ``key:`` entry under the 2-space ``section:``.
+
+    The key may be quoted: a DID with a leading zero has to be, or YAML reads
+    ``"0700"`` as the octal integer 448. Raises ``PidsEditError`` when either is
+    missing.
+    """
+    key_u = key.strip().upper()
+    sec = _keyed_block(text, section, 2, 0, len(text))
+    if not sec:
+        raise PidsEditError(f"No {section}: section found")
+    entry = _keyed_block(text, key_u, 4, sec[2], sec[3])
+    if not entry:
+        raise PidsEditError(
+            f"{noun} {key_u!r} not found under {section}: (expected 4-space indent)"
+        )
+    return entry[0], entry[3]
 
 
 # ── Field reads (for diffing / initial values) ───────────────────────────────
@@ -113,41 +112,86 @@ def _field_line_re(field: str) -> re.Pattern:
 # ── Value formatting ─────────────────────────────────────────────────────────
 
 
+@functools.lru_cache(maxsize=4096)
+def _plain_reads_back(token: str, *, as_key: bool) -> bool:
+    """True if both YAML readers read the bare ``token`` back as itself.
+
+    The one "is it safe unquoted?" check behind key *and* value quoting. The
+    project reads ECU files with two parsers — PyYAML (every runtime reader) and
+    ruamel's round-trip reader in YAML 1.1 mode (:func:`canlib.yaml_rt.round_trip_yaml`,
+    used by ``canlib.ecus_edit``) — and they disagree on exponent-shaped hex:
+    PyYAML keeps ``220E01`` a string, ruamel reads it as the float ``2200.0`` and
+    warns on every load. A token is bare-safe only when *both* agree.
+
+    ``as_key`` checks it in key position, where the editors compare keys via
+    ``str(k)``, so a key that stringifies back (``2101`` -> int ``2101``) is safe.
+    In value position the scalar must load as exactly this ``str``.
+    """
+    import warnings
+
+    import yaml
+    from ruamel.yaml.error import YAMLError as RuamelYAMLError
+
+    from ..yaml_rt import round_trip_yaml
+
+    doc = f"{token}: x\n" if as_key else f"k: {token}\n"
+    try:
+        loaded = [yaml.safe_load(doc)]
+    except yaml.YAMLError:
+        return False
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            loaded.append(round_trip_yaml().load(doc))
+    except RuamelYAMLError:
+        return False
+    for data in loaded:
+        if not isinstance(data, dict) or len(data) != 1:
+            return False
+        ((k, v),) = data.items()
+        if as_key:
+            if str(k) != token:
+                return False
+        elif k != "k" or not isinstance(v, str) or v != token:
+            return False
+    return True
+
+
 def _yaml_reinterprets(value: str) -> bool:
-    """True if YAML would parse the bare scalar as a non-string.
+    """True if a bare ``value`` would not read back as this exact string.
 
     Bare scalars like ``220101`` (int), ``1.5`` (float), ``true`` (bool),
-    ``null`` or ``2026-04-15`` (date) round-trip to a non-``str`` type, which
-    breaks downstream string comparisons (e.g. a numeric research ``target``).
-    Such values must be quoted to stay strings.
+    ``null``, ``2026-04-15`` (date) or ``220E01`` (a float to the round-trip
+    reader) round-trip to a non-``str`` type, which breaks downstream string
+    comparisons (e.g. a numeric research ``target``); others (``a #b``) lose
+    content. Such values must be quoted to stay what was written.
     """
-    import yaml
-
-    try:
-        return not isinstance(yaml.safe_load(value), str)
-    except yaml.YAMLError:
-        return True
+    return not _plain_reads_back(value, as_key=False)
 
 
-def _format_label(value: str) -> str:
-    """Render a label value as a YAML scalar line body."""
-    value = value.strip()
+def _format_label(value: str, *, flow: bool = False) -> str:
+    """Render a scalar value as a YAML line body that reads back as exactly ``value``.
+
+    Bare when safe, else double-quoted with escapes (:func:`canlib.yaml_rt.double_quoted`)
+    — leading/trailing whitespace, line breaks and control characters included.
+    ``flow`` is for an item inside a flow list (``[a, b]``), where ``,``/brackets
+    end a bare item.
+    """
+    from ..yaml_rt import double_quoted
+
     if not value:
         return '""'
-    # Quote if it contains characters that are special at the start of a
-    # YAML scalar, or a ': ' sequence, or leading/trailing whitespace, or if a
-    # bare scalar would be re-parsed as a non-string (int/float/bool/null/date).
+    # Characters special at the start of a YAML scalar, a ': '/' #' sequence, or a
+    # bare scalar that would re-parse as something else (int/float/bool/null/date).
     needs_quote = (
-        not value
-        or value[0] in "!&*[]{}|>%@`\"'#,"
+        value[0] in "!&*[]{}|>%@`\"'#,"
         or ": " in value
         or " #" in value
         or value != value.strip()
+        or (flow and any(c in value for c in ",[]{}"))
         or _yaml_reinterprets(value)
     )
-    if needs_quote:
-        return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
-    return value
+    return double_quoted(value) if needs_quote else value
 
 
 def _format_verified(value: bool) -> str:
@@ -158,66 +202,30 @@ def _format_verified(value: bool) -> str:
 
 
 def _replace_field_in_block(block: str, field: str, new_line_or_lines: str | list[str]) -> str:
-    """Return ``block`` with ``field:`` replaced, or the field added if missing.
+    """Return ``block`` with the 6-space ``field:`` replaced, or added if missing.
 
     ``new_line_or_lines`` is either a complete replacement line (no trailing
-    newline) or a list of full lines for multi-line values (notes).
+    newline) or a list of full lines for multi-line values (notes). The 6-space
+    form of :func:`_replace_field_in_block_at`, for iocontrol/routine entries.
     """
-    if isinstance(new_line_or_lines, str):
-        replacement = new_line_or_lines
-        replacement_lines = [replacement]
-    else:
-        replacement_lines = new_line_or_lines
-        replacement = "\n".join(replacement_lines)
+    return _replace_field_in_block_at(block, field, new_line_or_lines, indent=6)
 
-    lines = block.splitlines()
-    out: list[str] = []
-    i = 0
-    replaced = False
-    while i < len(lines):
-        line = lines[i]
-        m = re.match(rf"^( {{6}}){re.escape(field)}:(.*)$", line)
-        if m and not replaced:
-            # Skip this line + any continuation lines (for block scalars the
-            # continuation is indented deeper than 6 spaces).
-            rest = m.group(2)
-            is_block = rest.strip() in (">", "|", ">-", "|-", ">+", "|+")
-            i += 1
-            if is_block:
-                while i < len(lines) and (lines[i] == "" or lines[i].startswith("       ")):
-                    # Stop when we hit a sibling field at 6-space indent.
-                    if re.match(r"^ {6}[A-Za-z_]", lines[i]):
-                        break
-                    i += 1
-            out.extend(replacement_lines)
-            replaced = True
-            continue
-        out.append(line)
+
+def _nested_body_end(lines: Sequence[str], i: int, indent: int) -> int:
+    """Index just past the field body that starts at ``lines[i]``.
+
+    The body is the run of lines indented deeper than the field's ``indent``
+    (a block scalar's text, a nested list/map), with any blank or whitespace-only
+    lines inside it. Blank lines *after* its last line are not part of it — they
+    separate the field from what follows — so they are left in place.
+    """
+    deeper = " " * (indent + 1)
+    end = i
+    while i < len(lines) and (not lines[i].strip() or lines[i].startswith(deeper)):
         i += 1
-
-    if not replaced:
-        # Append before the trailing blank lines of the block, if any.
-        # Find position just after the DID header line (first line).
-        # Simplest: append at end (strip trailing blanks), then re-add one.
-        while out and out[-1].strip() == "":
-            out.pop()
-        out.extend(replacement_lines)
-
-    # Preserve exact trailing whitespace (splitlines() + "\n".join drops the
-    # final newline/blank-line structure otherwise).
-    trailing = ""
-    i = len(block)
-    while i > 0 and block[i - 1] == "\n":
-        trailing += "\n"
-        i -= 1
-    result = "\n".join(out)
-    if not result.endswith("\n") and trailing:
-        result += trailing
-    elif trailing and not result.endswith(trailing):
-        # Top up to match original trailing newlines.
-        stripped = result.rstrip("\n")
-        result = stripped + trailing
-    return result
+        if lines[i - 1].strip():
+            end = i
+    return end
 
 
 def _find_ecu_block(text: str, ecu_name: str) -> tuple[int, int]:
@@ -251,6 +259,38 @@ def _find_ecu_block(text: str, ecu_name: str) -> tuple[int, int]:
     return ecu_start, len(text)
 
 
+def _attached_comments_start(text: str, body_start: int, body_end: int, indent: int) -> int:
+    """Where the comments heading whatever follows a block begin (else ``body_end``).
+
+    A block's body runs up to the next same-or-shallower *content* line, which
+    sweeps in the comment lines written above that next key — a section banner,
+    a note about the next PID. Those belong to the next key, not to this block:
+    an edit that removes or appends to the block must leave them where they are.
+
+    Ownership rule, applied to the run of blank and comment lines after the body's
+    last content line: the first comment indented at or left of the block's key
+    (``indent``) and everything after it belongs to what follows; blank lines
+    before it are the block's own trailing separation, and comments before it —
+    indented deeper than the key, like a commented-out field — stay with the
+    block. A comment followed by more body content is part of the body, whatever
+    its indent.
+    """
+    start = None
+    pos = body_start
+    while pos < body_end:
+        nl = text.find("\n", pos, body_end)
+        line_end = body_end if nl == -1 else nl + 1
+        stripped = text[pos:line_end].strip()
+        if stripped.startswith("#"):
+            line_indent = len(text[pos:line_end]) - len(text[pos:line_end].lstrip(" "))
+            if start is None and line_indent <= indent:
+                start = pos
+        elif stripped:
+            start = None
+        pos = line_end
+    return body_end if start is None else start
+
+
 def _keyed_block(text: str, name: str, indent: int, win_start: int, win_end: int):
     """Locate ``<indent spaces><name>:`` within ``[win_start, win_end)``.
 
@@ -263,7 +303,9 @@ def _keyed_block(text: str, name: str, indent: int, win_start: int, win_end: int
       - ``hdr_start``  offset of the key line
       - ``line_end``   offset of the newline ending the key line
       - ``body_start`` offset of the first child line
-      - ``body_end``   offset just before the next same-or-shallower sibling
+      - ``body_end``   offset just past the block's own lines (and its trailing
+        blank lines) — before the next same-or-shallower key and any comments
+        heading it (:func:`_attached_comments_start`)
       - ``inline``     any text after ``name:`` on the header line (e.g. ``{}``)
     """
     q = re.escape(name)
@@ -278,6 +320,7 @@ def _keyed_block(text: str, name: str, indent: int, win_start: int, win_end: int
     body_start = min(line_end + 1, win_end)
     tail = re.compile(rf"^ {{0,{indent}}}[^\s#]", re.MULTILINE).search(text, body_start, win_end)
     body_end = tail.start() if tail else win_end
+    body_end = _attached_comments_start(text, body_start, body_end, indent)
     return (m.start(), line_end, body_start, body_end, inline)
 
 
@@ -290,33 +333,10 @@ def _needs_key_quoting(key: str) -> bool:
     editors compare keys via ``str(k)``, so such a key silently fails to round-
     trip and the edit reverts — unless it's quoted. Keys that already round-trip
     via ``str()`` (``2101`` -> ``2101``) or are non-numeric (``22B004``, ``010C``)
-    are left unquoted, so existing profiles don't churn.
-
-    Both readers are consulted because they disagree on exponent-shaped hex codes:
-    PyYAML keeps ``220E01`` a string, but the round-trip reader (YAML 1.1 mode,
-    :func:`canlib.yaml_rt.round_trip_yaml`) reads it as the float ``2200.0`` and
-    warns on every load.
+    are left unquoted, so existing profiles don't churn. Both readers must agree
+    (:func:`_plain_reads_back`): ruamel reads ``220E01`` as the float ``2200.0``.
     """
-    import warnings
-
-    import yaml
-    from ruamel.yaml.error import YAMLError as RuamelYAMLError
-
-    from ..yaml_rt import round_trip_yaml
-
-    try:
-        v = yaml.safe_load(key)
-    except yaml.YAMLError:
-        return True
-    if str(v) != key:
-        return True
-    try:
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            rt = round_trip_yaml().load(f"{key}: x\n")
-    except RuamelYAMLError:
-        return True
-    return [str(k) for k in rt] != [key]
+    return not _plain_reads_back(key, as_key=True)
 
 
 def _key_token(key: str) -> str:
@@ -328,21 +348,30 @@ def _key_token(key: str) -> str:
 _TRAILING_BLANK_LINES = re.compile(r"\n(?:[ \t]*\n)+\Z")
 
 
+def _next_content_indent(text: str) -> int | None:
+    """Indent of the first non-blank, non-comment line of ``text`` (None if none)."""
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped and not stripped.startswith("#"):
+            return len(line) - len(line.lstrip(" "))
+    return None
+
+
 def _cut_block(text: str, start: int, end: int) -> str:
     """Remove the keyed block ``text[start:end]`` without leaving a gap behind.
 
-    A :func:`_keyed_block` body runs up to the next same-or-shallower line, so it
-    absorbs the blank lines separating this block from whatever follows. Ahead of
-    a sibling those go with the block. Ahead of a *shallower* line (the next PID
-    after a PID's last field, the next section) they are the parent's separator,
-    so they replace whatever blank lines separated the block from the sibling
-    before it; at the end of the file nothing is left behind at all.
+    A :func:`_keyed_block` body ends after the block's own trailing blank lines,
+    before whatever follows — including the comments heading it, which stay. Ahead
+    of a sibling those blank lines go with the block. Ahead of a *shallower* line
+    (the next PID after a PID's last field, the next section) they are the
+    parent's separator, so they replace whatever blank lines separated the block
+    from the sibling before it; at the end of the file nothing is left behind.
     """
     block = text[start:end]
     head, tail = text[:start], text[end:]
     indent = len(block) - len(block.lstrip(" "))
-    tail_indent = len(tail) - len(tail.lstrip(" "))
-    if tail.strip() and tail_indent >= indent:
+    tail_indent = _next_content_indent(tail)
+    if tail_indent is not None and tail_indent >= indent:
         return head + tail
     terminator = block.find("\n", len(block.rstrip(" \t\n")))
     separator = block[terminator + 1 :] if terminator != -1 and tail.strip() else ""
@@ -351,10 +380,12 @@ def _cut_block(text: str, start: int, end: int) -> str:
 
 def _format_scalar_field(indent: str, key: str, value) -> str:
     """Render one ``key: value`` scalar line with schema-appropriate quoting."""
+    from ..yaml_rt import double_quoted
+
     if isinstance(value, bool):
         return f"{indent}{key}: {'true' if value else 'false'}"
     if key in ("min", "max"):
-        return f'{indent}{key}: "{value}"'  # schema convention: quoted strings
+        return f"{indent}{key}: {double_quoted(str(value))}"  # schema convention: strings
     return f"{indent}{key}: {_format_label(str(value))}"
 
 
@@ -363,19 +394,33 @@ def _format_block_scalar(indent: str, key: str, value: str) -> list[str]:
 
     A short single-line value stays an inline scalar (``key: value``); a longer
     or multi-line value becomes a folded ``key: >-`` block, word-wrapped at
-    ~``NOTE_WRAP_WIDTH`` columns (line breaks preserved, one blank line per newline).
-    Folding is value-preserving, so the note round-trips to the original text.
+    ~``NOTE_WRAP_WIDTH`` columns with its line breaks kept
+    (:func:`canlib.yaml_rt.wrap_note_lines`). A value folding can't represent
+    exactly (:func:`canlib.yaml_rt.note_foldable` — e.g. trailing whitespace or a
+    first line that starts indented) is written as a wrapped double-quoted scalar
+    instead. Either way the field reads back as exactly ``value``.
     """
-    from ..yaml_rt import NOTE_WRAP_WIDTH, note_should_inline, wrap_note_lines
+    from ..yaml_rt import (
+        NOTE_WRAP_WIDTH,
+        double_quoted_lines,
+        note_foldable,
+        note_should_inline,
+        wrap_note_lines,
+    )
 
     value = str(value)
-    if note_should_inline(value, len(indent) + len(key) + len(": ")):
+    prefix = f"{indent}{key}: "
+    if note_should_inline(value, len(prefix)):
         inline = _format_scalar_field(indent, key, value)
         # _format_scalar_field may add quotes; keep inline only if it still fits.
         if len(inline) <= NOTE_WRAP_WIDTH:
             return [inline]
     body_indent = indent + "  "
     width = max(20, NOTE_WRAP_WIDTH - len(body_indent))
+    if not note_foldable(value):
+        first_width = max(20, NOTE_WRAP_WIDTH - len(prefix))
+        first, *rest = double_quoted_lines(value, first_width, width)
+        return [prefix + first, *(body_indent + ln for ln in rest)]
     out = [f"{indent}{key}: >-"]
     out.extend(f"{body_indent}{piece}" if piece else "" for piece in wrap_note_lines(value, width))
     return out
@@ -400,7 +445,7 @@ def _format_inline_list_field(indent: str, key: str, values: Sequence[object]) -
     """
     if not values:
         return [f"{indent}{key}: []"]
-    items = ", ".join(_format_label(str(v)) for v in values)
+    items = ", ".join(_format_label(str(v), flow=True) for v in values)
     return [f"{indent}{key}: [{items}]"]
 
 
@@ -438,13 +483,35 @@ def _reparse_or_raise(fpath: Path) -> dict:
     return data
 
 
+def _file_newline(fpath: Path) -> str:
+    """The line ending ``fpath`` uses on disk (``"\\r\\n"`` or ``"\\n"``).
+
+    Every editor reads with universal newlines, so its text is always LF; this is
+    how a CRLF file keeps its line endings when written back.
+    """
+    try:
+        with fpath.open("rb") as f:
+            head = f.read(65536)
+    except OSError:
+        return "\n"
+    nl = head.find(b"\n")
+    return "\r\n" if nl > 0 and head[nl - 1 : nl] == b"\r" else "\n"
+
+
+def _write_text(fpath: Path, text: str) -> None:
+    """Write an edited (LF) ``text`` over ``fpath`` in the file's own line endings."""
+    fpath.write_text(text, newline=_file_newline(fpath))
+
+
 def _safe_write(fpath: Path, original: str, new_text: str, ecu: str, checker) -> None:
     """Write ``new_text``, re-parse, and run ``checker(data[ecu])``.
 
     Restores ``original`` and raises ``PidsEditError`` if the result is invalid
-    YAML or ``checker`` fails — so a broken surgical edit never persists.
+    YAML or ``checker`` fails — so a broken surgical edit never persists. The
+    file's line endings are kept (:func:`_write_text`).
     """
-    fpath.write_text(new_text)
+    newline = _file_newline(fpath)
+    fpath.write_text(new_text, newline=newline)
     _invalidate()
     try:
         data = _reparse_or_raise(fpath)
@@ -457,11 +524,11 @@ def _safe_write(fpath: Path, original: str, new_text: str, ecu: str, checker) ->
             raise PidsEditError(f"ECU {ecu!r} missing after edit")
         checker(ecu_def)
     except PidsEditError:
-        fpath.write_text(original)
+        fpath.write_text(original, newline=newline)
         _invalidate()
         raise
     except Exception as e:  # pragma: no cover - defensive
-        fpath.write_text(original)
+        fpath.write_text(original, newline=newline)
         _invalidate()
         raise PidsEditError(f"edit failed post-check, reverted: {e}") from e
 
@@ -478,25 +545,17 @@ def _remove_field_line(block: str, field: str, indent: int) -> str:
     if ``field`` is absent the block is returned unchanged.
     """
     header_re = re.compile(rf"^ {{{indent}}}{re.escape(field)}:(.*)$")
-    deeper = " " * (indent + 1)
     lines = block.splitlines(keepends=True)
     out: list[str] = []
     i = 0
     removed = False
     while i < len(lines):
         line = lines[i]
-        m = header_re.match(line)
-        if m and not removed:
-            rest = m.group(1).strip()
-            i += 1
-            # A block scalar (``>``/``|`` + variants), or a header with no inline
-            # value followed by a deeper-indented body (a nested list/map), owns
-            # the following deeper-indented lines — drop them too, else orphaned.
-            is_block = rest in (">", "|", ">-", "|-", ">+", "|+")
-            has_nested_body = rest == "" and i < len(lines) and lines[i].startswith(deeper)
-            if is_block or has_nested_body:
-                while i < len(lines) and (lines[i].strip() == "" or lines[i].startswith(deeper)):
-                    i += 1
+        if not removed and header_re.match(line):
+            # Everything indented deeper than the field is its value — a block
+            # scalar's text, a nested list/map, or a multi-line quoted scalar's
+            # continuation — so it goes too, else it would be orphaned.
+            i = _nested_body_end(lines, i + 1, indent)
             removed = True
             continue
         out.append(line)
@@ -514,6 +573,8 @@ def _insert_lines(text: str, region_start: int, region_end: int, lines: list[str
     while ins > region_start and text[ins - 1] == "\n" and (ins < 2 or text[ins - 2] == "\n"):
         ins -= 1
     payload = "".join(ln + "\n" for ln in lines)
+    if ins and text[ins - 1] != "\n":
+        payload = "\n" + payload  # the region's last line has no line break (EOF)
     return text[:ins] + payload + text[ins:]
 
 
@@ -533,33 +594,13 @@ def _replace_field_in_block_at(block: str, field: str, new_line_or_lines, indent
     field_re = re.compile(rf"^ {{{indent}}}{re.escape(field)}:(.*)$")
     while i < len(lines):
         line = lines[i]
-        m = field_re.match(line)
-        if m and not replaced:
-            rest = m.group(1).strip()
-            i += 1
-            if rest in (">", "|", ">-", "|-", ">+", "|+"):
-                # Skip block-scalar continuation (indented deeper than field).
-                while i < len(lines) and (
-                    lines[i] == "" or lines[i].startswith(" " * (indent + 1))
-                ):
-                    if re.match(rf"^ {{{indent}}}[A-Za-z_]", lines[i]):
-                        break
-                    i += 1
-            elif (
-                rest == ""
-                and i < len(lines)
-                and (lines[i] == "" or lines[i].startswith(" " * (indent + 1)))
-            ):
-                # The OLD field is a nested block (list/map, e.g. values:/bits:
-                # or a block-style can_bus:) with an empty header rest — skip its
-                # deeper-indented body so the whole old block is replaced, not
-                # just the header line. Keyed on the old body's shape (not the
-                # replacement's) so a block field can be replaced by an inline
-                # one (e.g. block can_bus: -> can_bus: [B-CAN, P-CAN]).
-                while i < len(lines) and (
-                    lines[i] == "" or lines[i].startswith(" " * (indent + 1))
-                ):
-                    i += 1
+        if not replaced and field_re.match(line):
+            # The OLD value's deeper-indented body (block scalar text, a nested
+            # list/map such as values:/bits: or a block-style can_bus:, a multi-
+            # line quoted scalar) is replaced with the header. Keyed on the old
+            # body's shape, not the replacement's, so a block field can become an
+            # inline one (block can_bus: -> can_bus: [B-CAN, P-CAN]).
+            i = _nested_body_end(lines, i + 1, indent)
             out.extend(replacement_lines)
             replaced = True
             continue

@@ -19,6 +19,7 @@ import yaml
 
 from ._text import (
     PidsEditError,
+    _attached_comments_start,
     _cut_block,
     _find_ecu_block,
     _format_block_scalar,
@@ -150,6 +151,22 @@ def _format_research_item(fields: dict, indent: int = 4) -> list[str]:
             line = _format_scalar_field(fld, key, val)
             lines.append(prefix + line[len(fld) :])
     return lines
+
+
+def _parsed_param(block_text: str, param_name: str) -> dict:
+    """The param's fields parsed from its own block, or ``{}`` when it can't be.
+
+    Only used to spot an unchanged field, so a block that doesn't parse in
+    isolation (an alias to an anchor elsewhere in the file) or isn't a mapping
+    just means "treat every field as changed"; the whole-file re-parse in
+    :func:`_safe_write` is what judges the edit.
+    """
+    try:
+        doc = yaml.safe_load(textwrap.dedent(block_text))
+    except yaml.YAMLError:
+        return {}
+    param = doc.get(param_name) if isinstance(doc, dict) else None
+    return param if isinstance(param, dict) else {}
 
 
 def upsert_parameter(
@@ -290,7 +307,7 @@ def upsert_parameter(
             block_text = text[e_start:e_end]
             for key in cleared:
                 block_text = _remove_field_line(block_text, key, indent=10)
-            current = (yaml.safe_load(textwrap.dedent(block_text)) or {}).get(param_name) or {}
+            current = _parsed_param(block_text, param_name)
             for key in PARAM_FIELD_ORDER:
                 if key not in fields:
                     continue
@@ -1327,11 +1344,16 @@ def _find_research_block(text: str, ecu_name: str):
 
 
 def _research_item_spans(text: str, research_block) -> list[tuple[int, int]]:
-    """Return ``[(start, end), ...]`` spans of every item in a ``research:`` list."""
+    """Return ``[(start, end), ...]`` spans of every item in a ``research:`` list.
+
+    An item ends before the comments heading the next one
+    (:func:`~canlib.pids_edit._text._attached_comments_start`).
+    """
     _, _, r_body_start, r_body_end, _ = research_block
     item_re = re.compile(r"^ {4}- ", re.MULTILINE)
     starts = [r_body_start + m.start() for m in item_re.finditer(text[r_body_start:r_body_end])]
-    return [(s, starts[i + 1] if i + 1 < len(starts) else r_body_end) for i, s in enumerate(starts)]
+    ends = [*starts[1:], r_body_end]
+    return [(s, _attached_comments_start(text, s, e, 4)) for s, e in zip(starts, ends, strict=True)]
 
 
 def _match_research_items(
@@ -1493,17 +1515,11 @@ def delete_research_entry(
         others = [span for span in _research_item_spans(text, research_block) if span[0] != s]
         if not others:
             # Last item — drop the whole research: block, else an empty
-            # ``research:`` key parses to None and fails the schema. The blank
-            # lines separating it from the previous key go with it, unless a
-            # sibling follows that still needs that separation.
-            head, tail = text[:r_start], text[r_body_end:]
-            kept = head.rstrip("\n") + "\n"
-            return kept + (head[len(kept) :] + tail if tail else "")
-        # The item's span ends with its own line break; only blank lines beyond
-        # it separate the list from a following key, so keep just those.
-        block = text[s:e]
-        separation = block[len(block.rstrip("\n")) + 1 :]
-        return text[:s] + separation + text[e:]
+            # ``research:`` key parses to None and fails the schema.
+            return _cut_block(text, r_start, r_body_end)
+        # Same gap rules as any keyed block: the comments heading what follows
+        # stay, and the first item takes no list-leading blank line with it.
+        return _cut_block(text, s, e)
 
     def checker(ecu_def: dict) -> None:
         research = ecu_def.get("research") or []

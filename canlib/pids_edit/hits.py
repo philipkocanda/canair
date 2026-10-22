@@ -13,13 +13,19 @@ from pathlib import Path
 
 from ._text import (
     PidsEditError,
+    _cut_block,
     _find_did_block,
     _find_ecu_block,
+    _find_section_entry,
     _format_block_scalar,
     _format_label,
     _format_verified,
+    _insert_lines,
     _invalidate,
+    _key_token,
+    _keyed_block,
     _replace_field_in_block,
+    _write_text,
     find_ecu_file,
 )
 
@@ -145,23 +151,19 @@ def append_sessions_block(ecu_name: str, hits, pids_dir: Path | None = None) -> 
     # Parse any pre-existing ``  sessions:`` section within the ECU block, keeping
     # each entry's raw lines so hand-edited notes/name/state survive a re-scan.
     existing_entries: dict[str, list[str]] = {}
-    existing_re = re.compile(r"^ {2}sessions:\s*$", re.MULTILINE)
-    m = existing_re.search(ecu_block)
-    if m:
-        tail_re = re.compile(r"^ {0,2}[A-Za-z_]", re.MULTILINE)
-        tail = tail_re.search(ecu_block, pos=m.end())
-        sec_end = tail.start() if tail else len(ecu_block)
-        section_body = ecu_block[m.end() : sec_end]
-        entry_re = re.compile(r'^ {4}"?([0-9A-Fa-f]{1,2})"?:\s*$', re.MULTILINE)
+    sec = _keyed_block(ecu_block, "sessions", 2, 0, len(ecu_block))
+    if sec:
+        section_body = ecu_block[sec[2] : sec[3]]
+        entry_re = re.compile(r'^ {4}(["\']?)([0-9A-Fa-f]{1,2})\1:\s*$', re.MULTILINE)
         matches = list(entry_re.finditer(section_body))
         for i, em in enumerate(matches):
-            key = em.group(1).upper().zfill(2)
+            key = em.group(2).upper().zfill(2)
             start = em.start()
             end = matches[i + 1].start() if i + 1 < len(matches) else len(section_body)
             block = section_body[start:end].rstrip("\n")
             existing_entries[key] = block.split("\n")
         # Strip the old section; a merged one is reappended below.
-        ecu_block = ecu_block[: m.start()] + ecu_block[sec_end:]
+        ecu_block = _cut_block(ecu_block, sec[0], sec[3])
 
     merged: dict[str, list[str]] = dict(existing_entries)
     for hit in hits:
@@ -176,19 +178,22 @@ def append_sessions_block(ecu_name: str, hits, pids_dir: Path | None = None) -> 
     new_ecu_block = body + "\n\n" + new_section
 
     new_text = text[:ecu_start] + new_ecu_block + text[ecu_end:]
-    fpath.write_text(new_text)
+    _write_text(fpath, new_text)
     _invalidate()
     return fpath
 
 
 def _format_hit_entry(hit, key_attr: str, key_width: int = 4) -> list[str]:
     """Render a single hit entry (4-space indent for key, 6 for fields).
-    Narrow (KWP 2-digit) keys are quoted so all-digit local identifiers like
-    ``30``/``80`` are not parsed as YAML integers/octal.
+
+    Narrow (KWP 2-digit) keys are always quoted so all-digit local identifiers
+    like ``30``/``80`` read as the hex strings they are. A 4-digit key is quoted
+    when a bare one wouldn't read back as itself (:func:`_key_token`): ``0203``
+    is the octal int 131, ``0700`` int 448, ``1E00`` the float 1.0.
     """
     key_val = getattr(hit, key_attr)
     key_hex = f"{key_val:0{key_width}X}"
-    key_token = f'"{key_hex}"' if key_width < 4 else key_hex
+    key_token = f'"{key_hex}"' if key_width < 4 else _key_token(key_hex)
     lines = [f"    {key_token}:"]
     if hit.nrc is None:
         resp = hit.response_hex or ""
@@ -227,10 +232,12 @@ def _parse_existing_entries(section_body: str, key_width: int = 4) -> dict[str, 
     """
     entries: dict[str, list[str]] = {}
     # Each entry starts with "    <HEX>:\n" at 4-space indent (key optionally quoted)
-    entry_re = re.compile(r'^ {4}"?([0-9A-Fa-f]{' + str(key_width) + r'})"?:\s*$', re.MULTILINE)
+    entry_re = re.compile(
+        r'^ {4}(["\']?)([0-9A-Fa-f]{' + str(key_width) + r"})\1:\s*$", re.MULTILINE
+    )
     matches = list(entry_re.finditer(section_body))
     for i, m in enumerate(matches):
-        key = m.group(1).upper()
+        key = m.group(2).upper()
         start = m.start()
         end = matches[i + 1].start() if i + 1 < len(matches) else len(section_body)
         block = section_body[start:end].rstrip("\n")
@@ -263,16 +270,12 @@ def _append_hit_block(
 
     # Parse any pre-existing ``  <section_name>:`` section within the ECU block
     existing_entries: dict[str, list[str]] = {}
-    existing_re = re.compile(r"^ {2}" + re.escape(section_name) + r":\s*$", re.MULTILINE)
-    m = existing_re.search(ecu_block)
-    if m:
-        tail_re = re.compile(r"^ {0,2}[A-Za-z_]", re.MULTILINE)
-        tail = tail_re.search(ecu_block, pos=m.end())
-        sec_end = tail.start() if tail else len(ecu_block)
-        section_body = ecu_block[m.end() : sec_end]
+    sec = _keyed_block(ecu_block, section_name, 2, 0, len(ecu_block))
+    if sec:
+        section_body = ecu_block[sec[2] : sec[3]]
         existing_entries = _parse_existing_entries(section_body, key_width=key_width)
         # Strip the old section out; we'll reappend a merged one.
-        ecu_block = ecu_block[: m.start()] + ecu_block[sec_end:]
+        ecu_block = _cut_block(ecu_block, sec[0], sec[3])
 
     # Upsert new hits into the entry map (new overrides old)
     merged: dict[str, list[str]] = dict(existing_entries)
@@ -290,7 +293,7 @@ def _append_hit_block(
     new_ecu_block = body + "\n\n" + new_section
 
     new_text = text[:ecu_start] + new_ecu_block + text[ecu_end:]
-    fpath.write_text(new_text)
+    _write_text(fpath, new_text)
     _invalidate()
     return fpath
 
@@ -301,32 +304,11 @@ def _append_hit_block(
 def _find_routine_block(text: str, rid: str) -> tuple[int, int]:
     """Find the character range of a RID block inside ``routines:``.
 
-    Returns (start, end) spanning from the RID key line up to (but not
-    including) the next sibling / dedent. Raises ``PidsEditError`` if the
-    RID isn't found under ``routines:``.
+    Returns (start, end) spanning from the RID key line (bare or quoted) up to
+    (but not including) the next sibling / dedent, or the comments heading it.
+    Raises ``PidsEditError`` if the RID isn't found under ``routines:``.
     """
-    rid_u = rid.strip().upper()
-    sec_re = re.compile(r"^ {2}routines:\s*$", re.MULTILINE)
-    sec_m = sec_re.search(text)
-    if not sec_m:
-        raise PidsEditError("No routines: section found")
-
-    # Section body ends at the next line at 2-or-less spaces of content.
-    tail_re = re.compile(r"^ {0,2}[A-Za-z_]", re.MULTILINE)
-    tail_m = tail_re.search(text, pos=sec_m.end() + 1)
-    sec_end = tail_m.start() if tail_m else len(text)
-
-    # Find "    RID:" within the section.
-    rid_re = re.compile(rf"^( {{4}}){re.escape(rid_u)}:\s*$", re.MULTILINE)
-    rm = rid_re.search(text, pos=sec_m.end(), endpos=sec_end)
-    if not rm:
-        raise PidsEditError(f"RID {rid_u!r} not found under routines:")
-
-    start = rm.start()
-    next_re = re.compile(r"^ {4}[A-Za-z0-9]", re.MULTILINE)
-    nm = next_re.search(text, pos=rm.end(), endpos=sec_end)
-    end = nm.start() if nm else sec_end
-    return start, end
+    return _find_section_entry(text, "routines", rid, noun="RID")
 
 
 def update_routines_field(
@@ -350,7 +332,7 @@ def update_routines_field(
     block = text[start:end]
 
     if field == "label":
-        new_line = f"      label: {_format_label(str(value))}"
+        new_line = f"      label: {_format_label(str(value).strip())}"
         new_block = _replace_field_in_block(block, "label", new_line)
     elif field == "verified":
         new_line = f"      verified: {_format_verified(bool(value))}"
@@ -365,7 +347,7 @@ def update_routines_field(
         return fpath  # no-op
 
     new_text = text[:start] + new_block + text[end:]
-    fpath.write_text(new_text)
+    _write_text(fpath, new_text)
     _invalidate()
     return fpath
 
@@ -403,14 +385,14 @@ def update_iocontrol_field(
         elif field in _IOCONTROL_QUOTED_FIELDS:
             rendered = f'"{str(value).strip().upper()}"'
         else:
-            rendered = _format_label(str(value))
+            rendered = _format_label(str(value).strip())
         new_block = _replace_field_in_block(block, field, f"      {field}: {rendered}")
 
     if new_block == block:
         return fpath  # no-op
 
     new_text = text[:start] + new_block + text[end:]
-    fpath.write_text(new_text)
+    _write_text(fpath, new_text)
     _invalidate()
     return fpath
 
@@ -421,65 +403,25 @@ def update_iocontrol_field(
 def _find_discovery_block(text: str, did: str) -> tuple[int, int]:
     """Find the character range of a DID entry inside ``iocontrol_discoveries:``.
 
-    Returns (start, end) spanning from the DID key line up to (but not
-    including) the next sibling / dedent. Raises ``PidsEditError`` if the
-    DID isn't found under ``iocontrol_discoveries:``.
+    Returns (start, end) spanning from the DID key line (bare or quoted) up to
+    (but not including) the next sibling / dedent, or the comments heading it.
+    Raises ``PidsEditError`` if the DID isn't found under ``iocontrol_discoveries:``.
     """
-    did_u = did.strip().upper()
-    # The discoveries section opens with "  iocontrol_discoveries:" (2-space
-    # indent); its DID children are at 4-space indent.
-    sec_re = re.compile(r"^ {2}iocontrol_discoveries:\s*$", re.MULTILINE)
-    sec_m = sec_re.search(text)
-    if not sec_m:
-        raise PidsEditError("No iocontrol_discoveries: section found")
-
-    # Section body ends at the next line at 2-or-less spaces of content (a
-    # sibling key under the ECU) or at EOF.
-    tail_re = re.compile(r"^ {0,2}[A-Za-z_]", re.MULTILINE)
-    tail_m = tail_re.search(text, pos=sec_m.end() + 1)
-    sec_end = tail_m.start() if tail_m else len(text)
-
-    # Now find "    DID:" within [sec_m.end(), sec_end).
-    did_re = re.compile(rf"^( {{4}}){re.escape(did_u)}:\s*$", re.MULTILINE)
-    dm = did_re.search(text, pos=sec_m.end(), endpos=sec_end)
-    if not dm:
-        raise PidsEditError(f"DID {did_u!r} not found under iocontrol_discoveries:")
-
-    start = dm.start()
-    # End: next 4-space-indented DID key, or end of section.
-    next_re = re.compile(r"^ {4}[A-Za-z0-9]", re.MULTILINE)
-    nm = next_re.search(text, pos=dm.end(), endpos=sec_end)
-    end = nm.start() if nm else sec_end
-    return start, end
+    return _find_section_entry(text, "iocontrol_discoveries", did, noun="DID")
 
 
 def _count_discovery_entries(text: str) -> int:
     """Count DID entries remaining in the iocontrol_discoveries section."""
-    sec_re = re.compile(r"^ {2}iocontrol_discoveries:\s*$", re.MULTILINE)
-    sec_m = sec_re.search(text)
-    if not sec_m:
+    sec = _keyed_block(text, "iocontrol_discoveries", 2, 0, len(text))
+    if not sec:
         return 0
-    tail_re = re.compile(r"^ {0,2}[A-Za-z_]", re.MULTILINE)
-    tail_m = tail_re.search(text, pos=sec_m.end() + 1)
-    sec_end = tail_m.start() if tail_m else len(text)
-    did_re = re.compile(r"^ {4}[A-Za-z0-9]+:\s*$", re.MULTILINE)
-    return len(did_re.findall(text[sec_m.end() : sec_end]))
+    return len(re.findall(r"^ {4}[^\s#]", text[sec[2] : sec[3]], re.MULTILINE))
 
 
 def _remove_discovery_section(text: str) -> str:
     """Drop the entire ``iocontrol_discoveries:`` block (header + body)."""
-    sec_re = re.compile(r"^ {2}iocontrol_discoveries:\s*$", re.MULTILINE)
-    sec_m = sec_re.search(text)
-    if not sec_m:
-        return text
-    tail_re = re.compile(r"^ {0,2}[A-Za-z_]", re.MULTILINE)
-    tail_m = tail_re.search(text, pos=sec_m.end() + 1)
-    sec_end = tail_m.start() if tail_m else len(text)
-    # Eat trailing blank lines before the section so we don't leave a gap.
-    start = sec_m.start()
-    while start > 0 and text[start - 1] == "\n" and (start < 2 or text[start - 2] == "\n"):
-        start -= 1
-    return text[:start] + text[sec_end:]
+    sec = _keyed_block(text, "iocontrol_discoveries", 2, 0, len(text))
+    return _cut_block(text, sec[0], sec[3]) if sec else text
 
 
 def _infer_on_payload(discovery_block: str) -> str:
@@ -548,65 +490,39 @@ def promote_discovery(
     ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
     ecu_block = text[ecu_start:ecu_end]
 
-    # Guard against clobbering an existing curated entry.
-    curated_re = re.compile(r"^ {2}iocontrol:\s*$", re.MULTILINE)
-    cm = curated_re.search(ecu_block)
-    if cm:
-        # Search for DID only within the iocontrol: section (up to next
-        # 2-space-indent sibling).
-        tail_re = re.compile(r"^ {0,2}[A-Za-z_]", re.MULTILINE)
-        tm = tail_re.search(ecu_block, pos=cm.end() + 1)
-        c_end = tm.start() if tm else len(ecu_block)
-        dup_re = re.compile(rf"^ {{4}}{re.escape(did_u)}:\s*$", re.MULTILINE)
-        if dup_re.search(ecu_block, pos=cm.end(), endpos=c_end):
-            raise PidsEditError(
-                f"DID {did_u} already exists under curated iocontrol: — cannot promote"
-            )
+    # Guard against clobbering an existing curated entry (bare or quoted key).
+    curated = _keyed_block(ecu_block, "iocontrol", 2, 0, len(ecu_block))
+    if curated and _keyed_block(ecu_block, did_u, 4, curated[2], curated[3]):
+        raise PidsEditError(f"DID {did_u} already exists under curated iocontrol: — cannot promote")
 
     # Find the discovery block and infer state-byte length from its response.
-    rel_text = ecu_block
-    d_start, d_end = _find_discovery_block(rel_text, did_u)
-    discovery_block = rel_text[d_start:d_end]
-    on_payload = _infer_on_payload(discovery_block)
-    without_disc = rel_text[:d_start] + rel_text[d_end:]
+    d_start, d_end = _find_discovery_block(ecu_block, did_u)
+    on_payload = _infer_on_payload(ecu_block[d_start:d_end])
+    without_disc = _cut_block(ecu_block, d_start, d_end)
 
     # If the discoveries section is now empty, remove it entirely.
     if _count_discovery_entries(without_disc) == 0:
         without_disc = _remove_discovery_section(without_disc)
 
     # Build the new curated entry (4-space indent inside "  iocontrol:").
-    new_entry = (
-        f"    {did_u}:\n"
-        f"      label: {_format_label(label)}\n"
-        f"      verified: false\n"
-        f'      on: "2F{did_u}03{on_payload}"\n'
-        f'      off: "2F{did_u}00"\n'
-    )
+    new_entry = [
+        f"    {_key_token(did_u)}:",
+        f"      label: {_format_label(label)}",
+        "      verified: false",
+        f'      on: "2F{did_u}03{on_payload}"',
+        f'      off: "2F{did_u}00"',
+    ]
 
-    # Insert the new entry into the iocontrol: section. If missing, create it
-    # just before iocontrol_discoveries: / research: / end-of-ECU.
-    if cm:
-        # Append at end of iocontrol: section.
-        tail_re = re.compile(r"^ {0,2}[A-Za-z_]", re.MULTILINE)
-        tm = tail_re.search(without_disc, pos=cm.end() + 1)
-        c_end = tm.start() if tm else len(without_disc)
-        # Insert before c_end, preserving any trailing blank line.
-        insertion_point = c_end
-        # Back up over trailing blank lines so entry sits adjacent to siblings.
-        while (
-            insertion_point > cm.end()
-            and without_disc[insertion_point - 1] == "\n"
-            and insertion_point >= 2
-            and without_disc[insertion_point - 2] == "\n"
-        ):
-            insertion_point -= 1
-        new_block = without_disc[:insertion_point] + new_entry + without_disc[insertion_point:]
+    # Append the entry to the iocontrol: section — located afresh, since removing
+    # the discovery shifted every offset after it — or create the section.
+    curated = _keyed_block(without_disc, "iocontrol", 2, 0, len(without_disc))
+    if curated:
+        new_block = _insert_lines(without_disc, curated[2], curated[3], new_entry)
     else:
-        # No iocontrol: section — create one at end of ECU block.
         body = without_disc.rstrip("\n")
-        new_block = body + "\n\n  iocontrol:\n" + new_entry
+        new_block = body + "\n\n  iocontrol:\n" + "".join(ln + "\n" for ln in new_entry)
 
     new_text = text[:ecu_start] + new_block + text[ecu_end:]
-    fpath.write_text(new_text)
+    _write_text(fpath, new_text)
     _invalidate()
     return fpath

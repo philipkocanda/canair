@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import io
 
+import pytest
 import yaml
 from ruamel.yaml.comments import CommentedMap
 from ruamel.yaml.scalarstring import FoldedScalarString
@@ -19,6 +20,7 @@ from canlib.yaml_rt import (
     NOTE_WRAP_WIDTH,
     dump,
     folded,
+    note_foldable,
     note_should_inline,
     round_trip_yaml,
     wrap_note_lines,
@@ -131,3 +133,126 @@ class TestFormatBlockScalarTextPath:
         buf = io.StringIO()
         dump(m, buf)
         assert _format_block_scalar("", "notes", val) == buf.getvalue().splitlines()
+
+
+def _read_both(doc: str):
+    """``doc`` loaded by PyYAML and by the round-trip reader (warnings are failures)."""
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        return yaml.safe_load(doc), round_trip_yaml().load(doc)
+
+
+def _text_path_reads_back(value, indent="    "):
+    lines = _format_block_scalar(indent, "notes", value)
+    doc = ("k:\n" if indent else "") + "\n".join(lines) + "\n"
+    py, rt = _read_both(doc)
+    if indent:
+        py, rt = py["k"], rt["k"]
+    assert py["notes"] == value
+    assert str(rt["notes"]) == value
+    assert all(len(ln) <= NOTE_WRAP_WIDTH for ln in lines), lines
+    return lines
+
+
+def _ruamel_path_reads_back(value):
+    m = CommentedMap()
+    m["notes"] = folded(value, key_indent=0)
+    buf = io.StringIO()
+    dump(m, buf)
+    py, rt = _read_both(buf.getvalue())
+    assert py["notes"] == value
+    assert str(rt["notes"]) == value
+    return buf.getvalue().splitlines()
+
+
+BULLETS = "Intro line that explains the list:\n  - item a\n  - item b"
+
+
+class TestMoreIndentedLines:
+    """A break next to a more-indented line is literal in a folded scalar."""
+
+    def test_bullets_get_no_spurious_blank_lines(self):
+        assert wrap_note_lines(BULLETS, width=80) == [
+            "Intro line that explains the list:",
+            "  - item a",
+            "  - item b",
+        ]
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            BULLETS,
+            BULLETS + "\nback to a normal line",
+            BULLETS + "\n\nnormal paragraph after a blank line",
+            "normal\n\n\n  indented after two blank lines\nnormal again",
+            "start\n    deeper continuation\n  less deep\nend",
+            LONG + "\n  - " + LONG,  # a long more-indented line is never wrapped
+        ],
+    )
+    def test_round_trip_and_parity_with_ruamel(self, value):
+        lines = _format_block_scalar("", "notes", value)
+        assert _ruamel_path_reads_back(value) == lines
+        doc = "\n".join(lines) + "\n"
+        py, rt = _read_both(doc)
+        assert py["notes"] == value and str(rt["notes"]) == value
+
+
+class TestValuesFoldingCannotRepresent:
+    """Fall back to an exact double-quoted scalar instead of losing content."""
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "trailing space on the first line \nsecond line",
+            "\nleading newline then text",
+            "text then a trailing newline\n",
+            "  first line starts indented\nsecond line",
+            "multi-line with a line separator\u2028inside\nand another line",
+            "tab-led line follows\n\tlike this",
+            "a whitespace-only line\n   \nfollows",
+            "control \x07 char\nsecond line",
+            LONG + "  " + LONG + " \n" + LONG,
+        ],
+    )
+    def test_text_path_is_exact_and_wrapped(self, value):
+        assert not note_foldable(value)
+        _text_path_reads_back(value)
+        _text_path_reads_back(value, indent="")
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "  first line starts indented\nsecond line",
+            "\nleading newline",
+            "u2028\u2028inline",
+            "trailing spaces   ",
+        ],
+    )
+    def test_ruamel_path_is_exact(self, value):
+        _ruamel_path_reads_back(value)
+
+    @pytest.mark.parametrize("value", ["  padded both sides  ", "inline\u2028separator", "\x07"])
+    def test_inline_values_keep_their_content(self, value):
+        lines = _text_path_reads_back(value)
+        assert len(lines) == 1
+
+    def test_double_space_at_a_wrap_point_survives(self):
+        # Every sentence ends in a double space; wrapping there would collapse it.
+        value = "  ".join(["This sentence is about forty characters."] * 6)
+        assert note_foldable(value)
+        lines = _text_path_reads_back(value)
+        assert lines[0].endswith(">-")
+        assert _ruamel_path_reads_back(value) == _format_block_scalar("", "notes", value)
+
+    def test_double_quoted_continuation_never_starts_with_a_bare_space(self):
+        value = ("x" * 50 + "   ") * 6 + "\n"  # runs of spaces at every chunk edge
+        lines = _text_path_reads_back(value)
+        assert all(not ln[len("      ") :].startswith(" ") for ln in lines[1:])
+
+
+class TestDocstringsMatchBehaviour:
+    def test_note_foldable_accepts_ordinary_multiline_text(self):
+        assert note_foldable(LONG + "\n\n" + BULLETS)
+        assert not note_foldable("")

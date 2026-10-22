@@ -168,8 +168,9 @@ data itself is **`contributing-profiles`**.
   (`canlib/pids_edit/`, `canlib/ecus_edit.py`). **Keep editor coverage complete** — a field
   reachable only by hand is a bug to close, not a reason to normalize hand-editing.
 - **Free-text fields render themselves** via one shared policy (`canlib/yaml_rt.py`): short notes
-  inline, longer ones a wrapped folded `>-` block, never reflowing the rest of the file. A new
-  ruamel-written free-text field just needs adding to `ecus_edit.FREE_TEXT_FIELDS`.
+  inline, longer ones a wrapped folded `>-` block (double-quoted when folding can't carry the text
+  exactly), never reflowing the rest of the file. A new ruamel-written free-text field just needs
+  adding to `ecus_edit.FREE_TEXT_FIELDS`.
 - `profiles/*/captures/*.json` are written by the `--save` path, never by hand, and are
   **append-only** logs unioned by canair's git merge driver. If you touch the on-disk format, keep
   `canlib/captures_merge.py` aligned with `canlib/capture_io.py`.
