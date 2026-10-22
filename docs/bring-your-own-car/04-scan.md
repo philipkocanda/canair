@@ -34,9 +34,13 @@ canair scan routines MyECU    # discover diagnostic routines (safe: requestRouti
 canair scan sessions MyECU    # discover which diagnostic session types it supports
 ```
 
-These are read-only probes — they ask *whether* a capability exists, they don't
-actuate anything. Actually *triggering* an actuator or routine is a separate,
-confirm-first action (see [Safety](../concepts/safety.md)).
+These are non-actuating probes — they ask *whether* a capability exists, they
+don't actuate anything. One caveat for a new car: KWP2000's IOControl service
+leaves its control-option byte to the manufacturer, so `scan iocontrol` on a
+KWP2000 ECU relies on the common convention that `00` means "release" and warns
+when your profile declares no make known to follow it. Actually *triggering* an
+actuator or routine is a separate, confirm-first action (see
+[Safety](../concepts/safety.md)).
 
 ## Turning hits into a plan
 

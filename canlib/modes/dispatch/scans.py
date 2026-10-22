@@ -62,7 +62,11 @@ async def handle_scan(args, terminal: Terminal, pids_data, host, *, reconnect=No
 async def handle_routines_scan(
     args, terminal: Terminal, pids_data, host, *, reconnect=None
 ) -> None:
-    from canlib.modes.kwp_routines_scan import mode_kwp_routines_scan
+    from canlib.modes.kwp_routines_scan import (
+        UNPROVEN_WARNING,
+        mode_kwp_routines_scan,
+        needs_confirmation,
+    )
 
     rid_range = parse_range(args.rid_range)
 
@@ -75,6 +79,22 @@ async def handle_routines_scan(
     _session = getattr(args, "session", False)
     _wake = getattr(args, "wake", False)
     _mode = getattr(args, "session_mode", "03")
+
+    # Asked before anything is sent, like a DTC clear. A closed/non-interactive
+    # stdin reads as "no", so a script must pass --yes explicitly.
+    confirmed = bool(getattr(args, "yes", False))
+    if kwp_ecus and needs_confirmation(pids_data) and not confirmed:
+        print(f"!! WARNING: {UNPROVEN_WARNING}", file=sys.stderr)
+        print(
+            f"!! Sweep {', '.join(kwp_ecus)} with 0x33 anyway? [y/N] ",
+            end="",
+            flush=True,
+            file=sys.stderr,
+        )
+        if sys.stdin.readline().strip().lower() not in ("y", "yes"):
+            print("Aborted.", file=sys.stderr)
+            return
+        confirmed = True
 
     if uds_ecus:
         await mode_routines_scan(
@@ -104,6 +124,7 @@ async def handle_routines_scan(
             session=_session,
             wake=_wake,
             session_mode=_mode,
+            confirmed=confirmed,
         )
 
 

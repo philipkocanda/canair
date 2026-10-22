@@ -63,8 +63,12 @@ class IOControlActuator:
             return
         wanted = mode or DEFAULT_IOCONTROL_SESSION_MODE
         # Stop the previous keepalive first, so a retry or a mode switch never
-        # leaves an orphaned TesterPresent loop running.
+        # leaves an orphaned TesterPresent loop running — and forget the old
+        # session with it, so a failed re-entry below can't leave the header
+        # claiming a session that no longer has a keepalive.
         await self._stop_keepalive()
+        t._session_active = False
+        t._session_mode = None
         _tui_logger.info("Opening diagnostic session (10 %s) on 0x%03X", wanted, t.tx_id)
         await t.terminal.set_header(t.tx_id)
         ok, t._tester_task = await t.terminal.enter_extended_session(mode=wanted)
@@ -153,6 +157,11 @@ class IOControlActuator:
         t._status = f"Sending OFF: {did} ({cmd['label']})..."
         _tui_logger.info("OFF %s %s cmd=%s", did, cmd["label"], hex_cmd)
         try:
+            # The OFF belongs to the actuator's own session: after a switch to
+            # another actuator's mode (or a dropped session), sending it in the
+            # wrong one would be refused and leave the output energised.
+            if cmd["session"]:
+                await self.ensure_session(cmd["session_mode"])
             resp = await t.terminal.send_uds(hex_cmd, timeout=3.0)
             _tui_logger.info("OFF %s resp: %s", did, resp)
             self.extract_status_bytes(did, resp)
@@ -192,14 +201,49 @@ class IOControlActuator:
             # No simple ON — open the hex value prompt. Seed with the last
             # value sent this session (if any) so +/- stepping still works
             # naturally afterwards.
+            refusal = self.adjust_unsupported(did)
+            if refusal:
+                t._status = refusal
+                return
             seed = t.last_value[did].hex().upper() if did in t.last_value else "00"
             t._hex_input = seed
             return
         await self.send_on(did)
 
+    def adjust_unsupported(self, did: str) -> str | None:
+        """Why the value keys (``v``/``+``/``-``) can't drive ``did``, or None.
+
+        They build UDS ShortTermAdjustment (``2F {DID} 03 {value}``); a KWP2000
+        actuator (service ``0x30``) has no such request, and its control-option
+        byte is manufacturer-defined, so guessing one could actuate something.
+        """
+        if self.is_kwp(did):
+            return (
+                f"{did}: value adjust (2F…03) is UDS-only — this is a KWP2000 0x30 "
+                "actuator; use its own on/off commands"
+            )
+        return None
+
+    def is_kwp(self, did: str | None = None) -> bool:
+        """True for a KWP2000 ECU, or a ``did`` whose commands use service 0x30."""
+        if self.t.kwp:
+            return True
+        if did is None:
+            return False
+        cmd = self.t.cmds.get(did)
+        if cmd is None:
+            return False
+        commands = (cmd.get("on"), cmd.get("off"))
+        return any(str(c or "").upper().startswith("30") for c in commands)
+
     async def send_adjust(self, did: str, value_bytes: bytes) -> None:
         """Send ShortTermAdjustment (2F{DID}03{value}) for a DID."""
         t = self.t
+        refusal = self.adjust_unsupported(did)
+        if refusal:
+            t._status = refusal
+            _tui_logger.warning("ADJ %s refused: %s", did, refusal)
+            return
         did_hex = did.upper()
         hex_cmd = f"2F{did_hex}03{value_bytes.hex().upper()}"
 
@@ -250,25 +294,30 @@ class IOControlActuator:
         Bails early if the TUI is busy (mid-ON/OFF/ADJUST) or quitting; the
         scheduling loop in ``status_poll_loop`` retries on the next tick.
 
-        Most 0x2F DIDs require an extended diagnostic session, so we open
-        one (same mechanism as the ON/OFF paths) before the first poll.
+        Each DID is polled inside the session its entry declares (the same
+        :meth:`ensure_session` the ON/OFF paths use), since 0x2F typically returns
+        NRC 0x7F without one. UDS-only: on a KWP2000 ECU nothing is sent, because
+        service 0x30's control-option byte is manufacturer-defined and ``00`` is
+        not guaranteed to be a release there (on Nissan it is a one-shot command).
         """
         t = self.t
-        # Ensure extended session — 0x2F typically returns NRC 7F without it.
-        if not t._session_active:
-            if t._quit or t._busy:
-                return
-            await self.ensure_session()
-            if not t._session_active:
-                _tui_logger.warning("poll: could not establish extended session")
-                return
-
-        # Make sure we're talking to the right ECU header.
-        await t.terminal.set_header(t.tx_id)
+        if self.is_kwp():
+            _tui_logger.warning("poll: refused — KWP2000 ECU, 2F{DID}00 is UDS-only")
+            return
 
         for did in t.dids:
             if t._quit or t._busy:
                 return
+            cmd = t.cmds[did]
+            if self.is_kwp(did):
+                continue
+            if cmd["session"]:
+                await self.ensure_session(cmd["session_mode"])
+                if not t._session_active:
+                    _tui_logger.warning("poll: could not establish a session for %s", did)
+                    return
+            # Make sure we're talking to the right ECU header.
+            await t.terminal.set_header(t.tx_id)
             did_hex = did.upper()
             req = f"2F{did_hex}00"
             try:

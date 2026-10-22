@@ -15,6 +15,7 @@ from pathlib import Path
 
 from ..pids import IoControlCommand, IoControlIndexEntry, build_iocontrol_index, load_pids
 from ..pids_edit import PidsEditError, promote_discovery, update_iocontrol_field
+from ..safety import KWP, UNKNOWN, SessionProtocol, session_protocol
 from ..transport.protocol import Terminal
 from ..tui import terminal_columns as _terminal_columns
 from ..tui import terminal_lines as _terminal_lines
@@ -28,19 +29,37 @@ _LOG_FILE = _LOGS_DIR / "iocontrol-tui.log"
 _tui_logger = logging.getLogger("iocontrol-tui")
 
 
-def mode_iocontrol_list(pids_data: dict, ecu_name: str, as_json: bool = False):
-    """List all IOControl DIDs for an ECU (no CAN connection needed)."""
+def ecu_session_protocol(pids_data: dict, ecu_key: str) -> SessionProtocol:
+    """The session protocol of ``ecu_key`` (case-insensitive) from its ``id_protocol``."""
+    for name, ecu_def in (pids_data.get("ecus") or {}).items():
+        if str(name).upper() == ecu_key.upper() and isinstance(ecu_def, dict):
+            identity = ecu_def.get("identity")
+            return session_protocol(
+                identity.get("id_protocol") if isinstance(identity, dict) else None
+            )
+    return UNKNOWN
+
+
+def mode_iocontrol_list(pids_data: dict, ecu_name: str, as_json: bool = False) -> bool:
+    """List all IOControl DIDs for an ECU (no CAN connection needed).
+
+    Returns False when the ECU has no IOControl entries; with ``as_json`` that
+    outcome is a JSON ``{"error": …}`` object rather than prose.
+    """
     ioctrl_index = build_iocontrol_index(pids_data)
     ecu_key = ecu_name.upper()
 
     if ecu_key not in ioctrl_index:
         available = sorted(ioctrl_index.keys())
-        if available:
+        if as_json:
+            error = {"error": f"no IOControl DIDs for ECU: {ecu_name}", "available": available}
+            print(json.dumps(error, indent=2))
+        elif available:
             print(f"  No IOControl DIDs for ECU: {ecu_name}")
             print(f"  ECUs with IOControl: {', '.join(available)}")
         else:
             print("  No IOControl DIDs defined in any ECU file.")
-        return
+        return False
 
     ecu_info = ioctrl_index[ecu_key]
     cmds = ecu_info["cmds"]
@@ -64,7 +83,7 @@ def mode_iocontrol_list(pids_data: dict, ecu_name: str, as_json: bool = False):
             },
         }
         print(json.dumps(out, indent=2))
-        return
+        return True
 
     print(f"\n  {ecu_key} -- TX 0x{ecu_info['tx_id']:03X} -- {len(cmds)} IOControl DIDs\n")
 
@@ -95,6 +114,7 @@ def mode_iocontrol_list(pids_data: dict, ecu_name: str, as_json: bool = False):
             f"{_truncate_text(sp, sp_w):<{sp_w}}     {v}        {h}"
         )
     print()
+    return True
 
 
 async def mode_iocontrol_execute(
@@ -265,7 +285,7 @@ class _IOControlTUI:
         pids_data: dict,
         verbose: bool = False,
         poll: bool = False,
-    ):
+    ) -> None:
         self.terminal = terminal
         self.ecu_key = ecu_key
         self.tx_id = ecu_info["tx_id"]
@@ -273,11 +293,14 @@ class _IOControlTUI:
         self.all_cmds: dict[str, IoControlCommand] = ecu_info["cmds"]
         self.pids_data = pids_data
         self.verbose = verbose
+        # A KWP2000 ECU's actuators are service 0x30, whose control-option byte is
+        # manufacturer-defined; the UDS-shaped poll and value keys are refused.
+        self.kwp: bool = ecu_session_protocol(pids_data, ecu_key) == KWP
         # Background status polling is OPT-IN. When enabled, the poll loop sends
         # 2F{DID}00 (returnControlToECU) to every DID — which can actuate
         # relay/solenoid-backed DIDs (audible click). Off by default so merely
         # launching the TUI sends no CAN traffic until the user acts.
-        self._poll_enabled = poll
+        self._poll_enabled: bool = poll
 
         # View mode cycles through:
         #   "curated"     — only hand-authored iocontrol: entries
@@ -285,10 +308,10 @@ class _IOControlTUI:
         #   "discoveries" — only unpromoted discoveries (for triage)
         # Starts on "curated" so existing muscle memory is unchanged; user
         # presses 'd' to cycle to review newly scanned DIDs.
-        self.view_mode = "curated"
+        self.view_mode: str = "curated"
         self._apply_view_filter()
 
-        self.cursor = 0
+        self.cursor: int = 0
 
         # Per-DID state: None=idle, else one of ActuatorState ("on"/"off"/"error").
         # Typed so a drifted sentinel can't silently disable release_all's
@@ -302,16 +325,16 @@ class _IOControlTUI:
         # background poll loop (2F {DID} 00 returnControlToECU) and by every
         # ON/OFF/ADJUST send. None = never seen a response yet.
         self.status_bytes: dict[str, str | None] = dict.fromkeys(self.dids)
-        self._status_polling = False  # True while background poll loop is running
+        self._status_polling: bool = False  # True while background poll loop is running
 
-        self._session_active = False
+        self._session_active: bool = False
         # Sub-function of the open session, so an actuator that needs a different
         # one (a Nissan 10 C0 next to a UDS 10 03) re-enters instead of reusing it.
         self._session_mode: str | None = None
         self._tester_task: asyncio.Task | None = None
-        self._quit = False
-        self._busy = False  # prevent concurrent CAN commands
-        self._status = ""  # bottom status line
+        self._quit: bool = False
+        self._busy: bool = False  # prevent concurrent CAN commands
+        self._status: str = ""  # bottom status line
         self._hex_input: str | None = None  # None = not in input mode, "" = editing
         # Metadata-edit input state. Tuple of (field, buffer) where field is
         # one of "label" / "notes"; None = not in edit mode. verified is
@@ -320,14 +343,14 @@ class _IOControlTUI:
 
         # Scroll viewport: index of the first DID rendered on screen. Auto-
         # adjusted in ``_clamp_viewport()`` so the cursor is always visible.
-        self._scroll_top = 0
+        self._scroll_top: int = 0
 
         # CAN-facing session/actuation behaviour lives in the actuator
         # collaborator; it reads/updates this TUI's state via a back-reference,
         # keeping the class focused on view state, input, rendering, and edits.
-        self.actuator = IOControlActuator(self)
+        self.actuator: IOControlActuator = IOControlActuator(self)
 
-    def _apply_view_filter(self):
+    def _apply_view_filter(self) -> None:
         """Populate ``self.cmds`` / ``self.dids`` from ``self.all_cmds`` per view mode.
 
         Preserves insertion order from ``all_cmds`` (which in turn reflects
@@ -341,9 +364,9 @@ class _IOControlTUI:
         else:  # "all"
             filtered = dict(self.all_cmds)
         self.cmds: dict[str, IoControlCommand] = filtered
-        self.dids = list(filtered.keys())
+        self.dids: list[str] = list(filtered.keys())
 
-    def _cycle_view(self):
+    def _cycle_view(self) -> None:
         """Advance ``view_mode`` and re-apply the filter. Resets cursor/scroll."""
         order = ("curated", "all", "discoveries")
         try:
@@ -457,7 +480,7 @@ class _IOControlTUI:
         )
         _tui_logger.info("promote %s label=%r -> %s", did, label, fpath)
 
-    def _draw(self):
+    def _draw(self) -> None:
         """Clear screen and draw the full frame."""
         # Move to top-left and clear screen
         sys.stdout.write("\033[2J\033[H")
@@ -465,7 +488,7 @@ class _IOControlTUI:
         sys.stdout.write("\n")
         sys.stdout.flush()
 
-    async def run(self):
+    async def run(self) -> None:
         """Main TUI event loop."""
         if not self.dids:
             print("  No IOControl DIDs available.")
@@ -488,7 +511,7 @@ class _IOControlTUI:
         # Key input queue — filled by stdin reader
         key_queue: asyncio.Queue[str] = asyncio.Queue()
 
-        def _on_stdin_ready():
+        def _on_stdin_ready() -> None:
             """Read keypress from raw stdin, enqueue it."""
             try:
                 ch = os.read(fd, 16).decode("utf-8", errors="ignore")
@@ -604,9 +627,15 @@ class _IOControlTUI:
                 elif key in ("v", "V"):  # Enter hex value input mode
                     if not self._busy:
                         did = self.dids[self.cursor]
-                        # Seed with last value if available, otherwise blank
-                        seed = self.last_value[did].hex().upper() if did in self.last_value else ""
-                        self._hex_input = seed
+                        refusal = self.actuator.adjust_unsupported(did)
+                        if refusal:
+                            self._status = refusal
+                        else:
+                            # Seed with last value if available, otherwise blank
+                            seed = (
+                                self.last_value[did].hex().upper() if did in self.last_value else ""
+                            )
+                            self._hex_input = seed
                 elif key == "+" and not self._busy:  # Increment last value
                     did = self.dids[self.cursor]
                     if did in self.last_value:
@@ -685,6 +714,17 @@ async def mode_iocontrol_tui(
         if available:
             print(f"  ECUs with IOControl: {', '.join(available)}")
         return
+
+    if poll and ecu_session_protocol(pids_data, ecu_key) == KWP:
+        # The poll sends UDS 2F{DID}00. Service 0x30's control-option byte is
+        # manufacturer-defined, so there is no equivalent guaranteed release to
+        # send instead (Nissan's 00 is a one-shot command).
+        print(
+            f"error: --poll is UDS-only (it sends 2F{{DID}}00) and {ecu_key} speaks "
+            "KWP2000; run without --poll",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
 
     tui = _IOControlTUI(
         terminal, ecu_key, ioctrl_index[ecu_key], pids_data=pids_data, verbose=verbose, poll=poll

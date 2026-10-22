@@ -52,6 +52,5 @@ def run(args) -> int:
         from canlib import load_pids
         from canlib.modes.routines import mode_routines_list
 
-        mode_routines_list(load_pids(), args.routines, as_json=True)
-        return 0
+        return 0 if mode_routines_list(load_pids(), args.routines, as_json=True) else 1
     return run_live(args)

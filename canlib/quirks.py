@@ -22,7 +22,9 @@ Today there are three quirks:
 - :data:`NISSAN_C0_SESSION` — Nissan ECUs gate their KWP2000 actuator tests
   (``0x30``) and many ``0x21`` reads behind the OEM diagnostic session ``10 C0``.
   The KWP2000 ``0x80``-``0xFF`` session band is OEM-defined, so the command
-  blocklist refuses ``10 C0`` on every other make; this quirk permits it. It also
+  blocklist refuses ``10 C0`` on every other make; this quirk permits it on the
+  profile's KWP2000 ECUs only (on a UDS ECU the same byte is an OEM session with
+  the suppress-response bit). It also
   switches the KWP2000 IOControl scan to Nissan's ``0x30`` layout
   (:mod:`canlib.modes.kwp_iocontrol_scan`), where the ISO probe would begin a
   one-shot command.
@@ -53,11 +55,14 @@ NISSAN_C0_SESSION: Final = "nissan_c0_session"
 # Every recognized quirk token (the validation whitelist).
 KNOWN_QUIRKS: Final = frozenset({HK_F1XX_MINUS_ONE, SKM_WAKEUP, NISSAN_C0_SESSION})
 
-# DiagnosticSessionControl sub-functions a quirk makes safe to enter. Only ever
-# widens the OEM band the blocklist guards; it cannot reach the programming
-# sessions, which canlib.safety refuses before consulting this.
-_QUIRK_SESSIONS: Final[dict[str, frozenset[int]]] = {
-    NISSAN_C0_SESSION: frozenset({0xC0}),
+# DiagnosticSessionControl sub-functions a quirk makes safe to enter, keyed by the
+# protocol whose ECUs it applies to. Only ever widens the OEM band the blocklist
+# guards; it cannot reach the programming or safety-system sessions, which
+# canlib.safety refuses regardless. Nissan's C0 is a KWP2000 session: on a UDS ECU
+# the same byte is OEM session 0x40 with the suppress-response bit, so the
+# allowance is scoped to KWP2000 ECUs.
+_QUIRK_SESSIONS: Final[dict[str, dict[str, frozenset[int]]]] = {
+    NISSAN_C0_SESSION: {"kwp": frozenset({0xC0})},
 }
 
 
@@ -81,9 +86,13 @@ def has_quirk(meta: Mapping[str, Any] | None, name: str) -> bool:
     return name in resolve_quirks(meta)
 
 
-def allowed_session_modes(meta: Mapping[str, Any] | None) -> frozenset[int]:
-    """The OEM session sub-functions the profile's quirks make safe to enter."""
+def allowed_session_modes(meta: Mapping[str, Any] | None, protocol: str) -> frozenset[int]:
+    """The OEM session sub-functions the profile's quirks make safe on ``protocol`` ECUs.
+
+    ``protocol`` is a :data:`canlib.safety.SessionProtocol` (``"uds"``/``"kwp"``/
+    ``"unknown"``). An ECU of unknown protocol gets no allowance.
+    """
     allowed: frozenset[int] = frozenset()
     for quirk in resolve_quirks(meta):
-        allowed |= _QUIRK_SESSIONS.get(quirk, frozenset())
+        allowed |= _QUIRK_SESSIONS.get(quirk, {}).get(protocol, frozenset())
     return allowed

@@ -23,7 +23,8 @@ import isotp
 
 from ..addressing import DEFAULT_RX_OFFSET, EcuAddress, build_isotp_address
 from ..link_latency import LinkLatency
-from ..log import log_event
+from ..log import log_command, log_event
+from ..safety import SafetyBlocked, SessionPolicy, check_command_safety
 from ..timing import TimingRecorder
 from ..transport_stats import TransportStats
 from ..uds_parse import CAT_STALE, payload_echo_mismatch
@@ -103,6 +104,7 @@ class RawUdsClient:
         isotp_config: dict | None = None,
         ecu_timeouts: dict[str, float] | None = None,
         hk_f1xx_offset: bool = False,
+        session_policy: SessionPolicy | None = None,
     ):
         """``addresses``: name -> resolved :class:`EcuAddress`. ``timeout``: per-request seconds.
 
@@ -114,6 +116,10 @@ class RawUdsClient:
         ``hk_f1xx_offset``: profile opts into the Hyundai/Kia F1xx identity-DID -1
         quirk, so echo validation tolerates that off-by-one (see
         :func:`canlib.uds_parse.payload_echo_mismatch`).
+        ``session_policy``: the profile's per-ECU session context for the command
+        blocklist (:mod:`canlib.safety`). Every request is checked against it, so
+        this client can never send what the terminals would refuse; there is no
+        ``--unsafe`` prompt on this pipelined path, so a blocked request raises.
         """
         from .isotp_params import build_isotp_params
 
@@ -121,6 +127,8 @@ class RawUdsClient:
         self.timeout = timeout
         self.ecu_timeouts = ecu_timeouts or {}
         self.hk_f1xx_offset = hk_f1xx_offset
+        self.session_policy = session_policy or SessionPolicy()
+        self._tx_ids = {name: address.tx_id for name, address in addresses.items()}
         # Per-(ECU, PID) round-trip timing (surfaced by `canair read --timings`).
         self.timings = TimingRecorder()
         # Per-exchange outcome tally (drops/errors/decode), same as the terminals.
@@ -237,8 +245,16 @@ class RawUdsClient:
             return forced
         return self.ecu_timeouts.get(ecu, self.timeout) + (self.link.budget or 0.0)
 
+    def _check_safety(self, ecu: str, request: bytes) -> None:
+        """Refuse ``request`` if the shared command blocklist would."""
+        blocked = check_command_safety(request.hex(), self.session_policy, self._tx_ids.get(ecu))
+        if blocked:
+            log_command(f"{ecu} {request.hex().upper()}  !! {blocked}")
+            raise SafetyBlocked(blocked)
+
     def read(self, ecu: str, request: bytes, timeout: float | None = None) -> bytes:
         """Send one UDS request to ``ecu`` and return the reassembled response."""
+        self._check_safety(ecu, request)
         stack = self._stacks[ecu]
         self._drain(ecu)
         pid = request.hex().upper()
@@ -328,6 +344,9 @@ class RawUdsClient:
 
         queues: dict[str, deque] = defaultdict(deque)
         for ecu, req in requests:
+            # Checked up front, before anything is sent: a refused request is a
+            # caller bug, not a per-request outcome to render alongside the rest.
+            self._check_safety(ecu, req)
             queues[ecu].append(req)
 
         out: dict[tuple[str, bytes], bytes | Exception] = {}

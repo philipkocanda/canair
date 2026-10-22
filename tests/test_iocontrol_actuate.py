@@ -77,6 +77,7 @@ class FakeTui:
         self._status = ""
         self._quit = False
         self._status_polling = False
+        self.kwp = False
 
 
 def _actuator(dids=("BC01", "BC02", "BC03"), **kw):
@@ -292,3 +293,168 @@ class TestSingleCommand:
         asyncio.run(mode_iocontrol_execute(term, pids_data, "BCM", "6900"))  # type: ignore[arg-type]
         assert term.sessions == ["C0"]
         assert term.sent == ["30690001"]
+
+
+class FailingSessionTerminal(FakeTerminal):
+    async def enter_extended_session(self, mode: str = "03"):
+        self.sessions.append(mode)
+        raise ValueError("BLOCKED: refused")
+
+
+class TestEnsureSessionFailure:
+    """Regression: a failed re-entry left the header claiming the old session."""
+
+    def test_a_raising_session_open_forgets_the_old_session(self):
+        act, tui = _actuator(terminal=FailingSessionTerminal())
+
+        async def run():
+            tui._tester_task = asyncio.create_task(asyncio.sleep(3600))
+            with pytest.raises(ValueError):
+                await act.ensure_session("C0")
+
+        asyncio.run(run())
+        assert tui._session_active is False
+        assert tui._session_mode is None
+        assert tui._tester_task is None
+
+    def test_a_refused_session_is_unconfirmed_not_active(self):
+        act, tui = _actuator(terminal=FakeTerminal())
+        tui.terminal.enter_extended_session = _refusing  # type: ignore[method-assign]
+        tui._session_active = False
+        asyncio.run(act.ensure_session("C0"))
+        assert tui._session_active is False
+        assert tui._session_mode == "C0"
+
+
+async def _refusing(mode: str = "03"):
+    return False, None
+
+
+class TestSessionHeader:
+    def _header(self, active, mode):
+        from canlib.modes._iocontrol_render import render_iocontrol
+
+        _, tui = _actuator()
+        tui._session_active, tui._session_mode = active, mode
+        tui.ecu_key, tui.cursor, tui._scroll_top = "IGPM", 0, 0
+        tui.all_cmds, tui.view_mode = tui.cmds, "curated"
+        tui._hex_input = tui._edit_input = None
+        tui.status_bytes = dict.fromkeys(tui.dids)
+        for c in tui.cmds.values():
+            c["verified"] = False
+        return render_iocontrol(tui).splitlines()[1]  # type: ignore[arg-type]
+
+    def test_active(self):
+        assert "active (10 C0)" in self._header(True, "C0")
+
+    def test_unconfirmed(self):
+        assert "unconfirmed (10 03)" in self._header(False, "03")
+
+    def test_not_started(self):
+        assert "not started" in self._header(False, None)
+
+
+class TestKwpActuators:
+    """The poll and value keys build UDS 0x2F requests; never send them to KWP2000."""
+
+    def test_adjust_is_refused_for_a_kwp_ecu(self):
+        act, tui = _actuator()
+        tui.kwp = True
+        asyncio.run(act.send_adjust("BC01", b"\x01"))
+        assert tui.terminal.sent == []
+        assert "UDS-only" in tui._status
+
+    def test_adjust_is_refused_for_a_0x30_entry(self):
+        act, tui = _actuator()
+        tui.cmds["BC01"].update(on="30070001", off="30070000")
+        asyncio.run(act.send_adjust("BC01", b"\x01"))
+        assert tui.terminal.sent == []
+
+    def test_toggle_without_on_does_not_open_the_value_prompt_on_kwp(self):
+        act, tui = _actuator()
+        tui.kwp = True
+        tui._hex_input = None
+        tui.cmds["BC01"]["on"] = ""
+        tui.state["BC01"] = None
+        asyncio.run(act.toggle("BC01"))
+        assert tui._hex_input is None
+        assert "UDS-only" in tui._status
+
+    def test_poll_sends_nothing_to_a_kwp_ecu(self):
+        act, tui = _actuator()
+        tui.kwp = True
+        tui._session_active = False
+        asyncio.run(act.poll_status_once())
+        assert tui.terminal.sent == []
+        assert tui.terminal.sessions == []
+
+    def test_poll_uses_each_actuators_session_mode(self):
+        act, tui = _actuator(dids=("BC01",))
+        tui._session_active, tui._session_mode = False, None
+        tui.cmds["BC01"].update(session=True, session_mode="83")
+        asyncio.run(act.poll_status_once())
+        assert tui.terminal.sessions == ["83"]
+        assert tui.terminal.sent == ["2FBC0100"]
+
+    def test_poll_stops_when_no_session_can_be_opened(self):
+        act, tui = _actuator(dids=("BC01", "BC02"))
+        tui.terminal.enter_extended_session = _refusing  # type: ignore[method-assign]
+        tui._session_active, tui._session_mode = False, None
+        for c in tui.cmds.values():
+            c["session"] = True
+        asyncio.run(act.poll_status_once())
+        assert tui.terminal.sent == []
+
+    def test_release_reenters_the_actuators_own_session(self):
+        # After another actuator moved the ECU to 10 03, the C0 actuator's OFF
+        # must go out in C0 again.
+        act, tui = _actuator(dids=("BC01",))
+        tui.cmds["BC01"].update(session=True, session_mode="C0")
+        tui.state["BC01"] = "on"
+        tui._session_active, tui._session_mode = True, "03"
+        asyncio.run(act.release_all())
+        assert tui.terminal.sessions == ["C0"]
+        assert tui.terminal.sent == [OFF_CMD]
+        assert tui.state["BC01"] == "off"
+
+
+KWP_DATA = {
+    "ecus": {
+        "BCM": {
+            "tx_id": 0x745,
+            "identity": {"id_protocol": "KWP2000"},
+            "iocontrol": {"6900": {"label": "Mirrors", "on": "30690001", "off": "30690000"}},
+        }
+    }
+}
+
+
+class TestTuiProtocol:
+    KWP_DATA = KWP_DATA
+
+    def test_poll_is_refused_for_a_kwp_ecu(self, capsys):
+        from canlib.modes.iocontrol import mode_iocontrol_tui
+
+        with pytest.raises(SystemExit) as exc:
+            asyncio.run(mode_iocontrol_tui(FakeTerminal(), self.KWP_DATA, "BCM", poll=True))  # type: ignore[arg-type]
+        assert exc.value.code == 2
+        assert "--poll is UDS-only" in capsys.readouterr().err
+
+    def test_the_tui_knows_its_ecu_is_kwp(self):
+        from canlib.modes.iocontrol import _IOControlTUI
+        from canlib.pids import build_iocontrol_index
+
+        entry = build_iocontrol_index(self.KWP_DATA, include_discoveries=True)["BCM"]
+        tui = _IOControlTUI(FakeTerminal(), "BCM", entry, self.KWP_DATA)  # type: ignore[arg-type]
+        assert tui.kwp is True
+
+
+class TestListJson:
+    def test_unknown_ecu_is_a_json_error(self, capsys):
+        import json
+
+        from canlib.modes.iocontrol import mode_iocontrol_list
+
+        assert mode_iocontrol_list(TestTuiProtocol.KWP_DATA, "NOPE", as_json=True) is False
+        out = json.loads(capsys.readouterr().out)
+        assert out == {"error": "no IOControl DIDs for ECU: NOPE", "available": ["BCM"]}

@@ -524,16 +524,32 @@ class MonitorController:
                 out[ecu_name] = mode
         return out
 
+    def _session_check(self, ecu_name: str, mode: str) -> str | None:
+        """The command blocklist's verdict on ``10 <mode>`` for one ECU (None = safe).
+
+        Through the same :class:`~canlib.safety.SessionPolicy` the terminals use,
+        so the picker, a live switch and the raw-backend setup can never disagree
+        with what the transport itself would refuse.
+        """
+        from ..safety import SessionPolicy
+
+        if len(mode) != 2 or any(c not in "0123456789ABCDEFabcdef" for c in mode):
+            return f"Invalid session mode {mode!r} (expected one hex byte, e.g. 03)."
+        info = (self._ecu_index or {}).get(ecu_name.upper())
+        tx_id = info["tx_id"] if info else None
+        return SessionPolicy.from_profile(self.pids_data).check(int(mode, 16), tx_id)
+
     def known_session_types(self, ecu_name: str) -> list[tuple[str, str, bool | None]]:
         """(mode_hex, label, supported) options for the session-type picker.
 
         Prefers the ECU's own recorded ``sessions:`` scan history (written by
         ``canair scan sessions`` — see ..pids.build_sessions_index) so the
         picker shows what's *actually confirmed* on this ECU (``supported``
-        True/False); falls back to the fixed safe list (01/03/81/82/83, all
-        cleared by canlib.safety) with ``supported=None`` (untested) when the
-        ECU has no scan history yet. Never offers 0x02/0x85 (programming
-        sessions) — canlib.safety blocks them outright.
+        True/False); falls back to a fixed candidate list with
+        ``supported=None`` (untested) when the ECU has no scan history yet.
+        Either way only modes canlib.safety permits for *this* ECU's protocol
+        are offered — never a programming session, and never ``0x82`` on an ECU
+        that is not known to speak KWP2000 (on UDS it is programmingSession).
         """
         from ..uds_layout import SUBFUNCTION_NAMES
 
@@ -546,11 +562,17 @@ class MonitorController:
         if entry and entry.get("sessions"):
             out = []
             for mode, sdef in sorted(entry["sessions"].items()):
+                if self._session_check(ecu_name, mode):
+                    continue
                 label = sdef.get("name") or names.get(int(mode, 16), "")
                 out.append((mode, label, sdef.get("supported")))
             return out
         fallback = ("01", "03", "81", "82", "83")
-        return [(m, names.get(int(m, 16), ""), None) for m in fallback]
+        return [
+            (m, names.get(int(m, 16), ""), None)
+            for m in fallback
+            if self._session_check(ecu_name, m) is None
+        ]
 
     async def switch_session(self, ecu_name: str, mode: str) -> str:
         """Force-switch one ECU to a new diagnostic session type, live.
@@ -560,8 +582,6 @@ class MonitorController:
         would otherwise silently no-op the switch. Returns a human status
         string for the TUI's flash message.
         """
-        from ..quirks import allowed_session_modes
-        from ..safety import check_command_safety
         from ..uds_layout import SUBFUNCTION_NAMES
 
         ecu = ecu_name.upper()
@@ -569,7 +589,7 @@ class MonitorController:
         if not info:
             return f"Unknown ECU {ecu_name}."
         mode = str(mode).upper().removeprefix("0X").zfill(2)
-        blocked = check_command_safety(f"10{mode}", allowed_session_modes(self.pids_data))
+        blocked = self._session_check(ecu, mode)
         if blocked:
             return blocked
         label = SUBFUNCTION_NAMES.get(0x10, {}).get(int(mode, 16), "")
@@ -596,7 +616,10 @@ class MonitorController:
 
         if self.raw:
             # Raw backend: no ELM sessions/keepalive. Sessions (10 03) for ECUs
-            # that need them are opened best-effort before polling.
+            # that need them are opened best-effort before polling — but a mode
+            # the safety policy refuses aborts setup rather than being swallowed
+            # with the transport errors (the ELM path raises the same way).
+            from ..safety import SafetyBlocked
             from .multi import build_query_plan
 
             assert self.raw_client is not None  # self.raw is True ⟺ raw_client was provided
@@ -605,6 +628,9 @@ class MonitorController:
                     tgt = step["target"].upper()
                     if tgt in self._ecu_index:
                         mode = str(step.get("mode", "03")).upper().removeprefix("0X").zfill(2)
+                        blocked = self._session_check(tgt, mode)
+                        if blocked:
+                            raise SafetyBlocked(f"session {tgt} --mode {mode}: {blocked}")
                         with contextlib.suppress(Exception):
                             self.raw_client.read(tgt, bytes.fromhex(f"10{mode}"), timeout=1.0)
                         self._raw_session_modes[tgt] = mode

@@ -302,9 +302,28 @@ DEFAULT_IOCONTROL_SESSION_MODE = "03"
 
 
 def normalize_session_mode(value: object) -> str:
-    """A declared ``session_mode`` as two upper-case hex digits (default ``03``)."""
-    text = str(value).strip().upper().removeprefix("0X") if value is not None else ""
-    return text.zfill(2) if text else DEFAULT_IOCONTROL_SESSION_MODE
+    """A declared ``session_mode`` as two upper-case hex digits (default ``03``).
+
+    Accepts only one hex byte as a *string* (an optional ``0x`` prefix is
+    tolerated). Anything else raises :class:`ValueError` — notably an unquoted
+    YAML ``session_mode: 0xC0``, which loads as the integer 192 and would
+    otherwise be sent as the nonsense request ``10192``.
+    """
+    if value is None:
+        return DEFAULT_IOCONTROL_SESSION_MODE
+    if isinstance(value, bool) or not isinstance(value, str):
+        hint = " — quote it so YAML does not read it as a number" if isinstance(value, int) else ""
+        raise ValueError(
+            f'session_mode must be one quoted hex byte (e.g. "03" or "C0"), got {value!r}{hint}'
+        )
+    text = value.strip().upper().removeprefix("0X")
+    if not text:
+        return DEFAULT_IOCONTROL_SESSION_MODE
+    if len(text) != 2 or any(c not in "0123456789ABCDEF" for c in text):
+        raise ValueError(
+            f'session_mode must be one hex byte (two digits, e.g. "03" or "C0"), got {value!r}'
+        )
+    return text
 
 
 def build_iocontrol_index(
@@ -326,6 +345,12 @@ def build_iocontrol_index(
         cmds: dict[str, IoControlCommand] = {}
         for did, cdef in ioctrl.items():
             did_str = str(did).upper()
+            try:
+                session_mode = normalize_session_mode(cdef.get("session_mode"))
+            except ValueError as exc:
+                from .profile import ProfileError
+
+                raise ProfileError(f"{ecu_name}/iocontrol/{did_str}: {exc}") from None
             # YAML parses bare on/off as True/False booleans
             on_cmd = cdef.get("on") or cdef.get(True, "")
             off_cmd = cdef.get("off") or cdef.get(False, "")
@@ -334,7 +359,7 @@ def build_iocontrol_index(
                 "on": str(on_cmd),
                 "off": str(off_cmd),
                 "session": cdef.get("session", True),
-                "session_mode": normalize_session_mode(cdef.get("session_mode")),
+                "session_mode": session_mode,
                 "hold": cdef.get("hold", True),
                 "verified": cdef.get("verified", False),
                 "notes": cdef.get("notes", ""),

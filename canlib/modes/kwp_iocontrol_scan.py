@@ -14,14 +14,22 @@ identifiers accept IOControl (e.g. the air-cooled 28 kWh pack's battery fan).
 
 Safety
 ------
-The InputOutputControlParameter (IOCP) byte immediately follows the LID. Value
-``0x00`` = ``returnControlToECU`` is side-effect-free: it hands control back to
-the ECU and drives nothing (the KWP2000 analogue of UDS SF 0x00, and matching
-HKMC's own ``…00`` = release / ``…03`` = actuate convention). In this layout the
-scanner sends ONLY ``30 {LID} 00`` and hard-refuses any other IOCP.
+ISO 14230-3 itself (§9.1) defines the request as ``30 {LID} {controlOption…}``
+and leaves the control-option bytes entirely manufacturer-defined, so byte 3 has
+no guaranteed meaning on an arbitrary KWP2000 ECU. The InputOutputControlParameter
+(IOCP) table — ``0x00`` returnControlToECU, ``0x07`` shortTermAdjustment, and so
+on — comes from SSF 14230-3 Issue 2 (the Swedish implementation standard, Table
+9.1.3.2), which also warns that the service "may result in permanent changes"
+(``0x08`` longTermAdjustment writes non-volatile memory). Hyundai/Kia follow a
+compatible manufacturer-specific convention (``…00`` = release, ``…03`` =
+actuate), which the free-form ISO byte allows.
 
-NEVER scan the ISO layout with a non-zero IOCP — e.g. ``0x03
-shortTermAdjustment`` actually drives the actuator.
+In this layout the scanner sends ONLY ``30 {LID} 00`` and hard-refuses any other
+IOCP. That probe is **non-actuating under the SSF 14230 / HKMC convention**, not
+side-effect-free by standard: on a make that follows neither, byte 3 means
+whatever its manufacturer decided, so the scan warns on such a profile. Never
+scan with another IOCP — even the SSF "report" values (01-03), since these ECUs
+are not guaranteed to be SSF-conformant.
 
 Positive response is ``0x70``. Classification mirrors the UDS 0x2F scanner.
 The generic scan loop lives in :mod:`canlib.modes.discovery_scan`.
@@ -43,16 +51,25 @@ import dataclasses
 import sys
 from typing import NamedTuple
 
-from ..quirks import NISSAN_C0_SESSION, has_quirk
+from ..quirks import HK_F1XX_MINUS_ONE, NISSAN_C0_SESSION, has_quirk
 from ..transport.protocol import Terminal
 from ..uds_parse import UdsResponse
 from .discovery_scan import DiscoveryProbe, mode_discovery_scan
 
-# InputOutputControlParameter (IOCP) — byte after the LID. 0x00 is the ONLY safe one.
-IOCP_RETURN_CONTROL = 0x00  # returnControlToECU — safe
-IOCP_RESET_TO_DEFAULT = 0x01  # DO NOT USE
-IOCP_FREEZE = 0x02  # DO NOT USE
-IOCP_SHORT_TERM_ADJ = 0x03  # DO NOT USE (actuates!)
+# InputOutputControlParameter (IOCP) — the byte after the LID, per SSF 14230-3
+# Issue 2 Table 9.1.3.2 (ISO 14230-3 leaves it manufacturer-defined). Only 0x00 is
+# ever sent; the rest are named so the refusal below can say what it refused.
+IOCP_RETURN_CONTROL = 0x00  # returnControlToECU — the only value the scan sends
+IOCP_REPORT_CURRENT_STATE = 0x01
+IOCP_REPORT_IO_CONDITIONS = 0x02
+IOCP_REPORT_IO_SCALING = 0x03
+IOCP_RESET_TO_DEFAULT = 0x04  # actuates
+IOCP_FREEZE_CURRENT_STATE = 0x05  # actuates
+IOCP_EXECUTE_CONTROL_STATE = 0x06  # actuates
+IOCP_SHORT_TERM_ADJ = 0x07  # actuates
+IOCP_LONG_TERM_ADJ = 0x08  # actuates and writes non-volatile memory
+IOCP_REPORT_CALIBRATION = 0x09
+# 0x0A-0xF9 vehicleManufacturerSpecific, 0xFA-0xFE systemSupplierSpecific.
 
 # Nissan layout (30 {LID} {function} {value}): 0x01 asks whether {value} is
 # supported. 0x00 (one-shot command) and 0x20 (timed change) both actuate.
@@ -100,12 +117,13 @@ async def probe_kwp_iocontrol(
     """Send ``30 {LID} 00`` (returnControlToECU) and return the parsed response.
 
     Validates the ``0x70`` response SID echo. Refuses any IOCP other than
-    ``0x00`` — the scanner must never actuate.
+    ``0x00`` — the scanner must never actuate, and ``0x00`` is the release under
+    the SSF 14230 / HKMC convention (see the module docstring for its limits).
     """
     if iocp != IOCP_RETURN_CONTROL:
         raise ValueError(
-            f"Refusing to probe with IOCP 0x{iocp:02X}; "
-            f"only 0x00 returnControlToECU is safe for scanning."
+            f"Refusing to probe with IOCP 0x{iocp:02X}; the scanner only sends 0x00 "
+            "(returnControlToECU under the SSF 14230 / HKMC convention)."
         )
     return await _send_probe(terminal, lid, f"{iocp:02X}")
 
@@ -211,12 +229,22 @@ async def mode_kwp_iocontrol_scan(
     Thin wrapper over :func:`discovery_scan.mode_discovery_scan`. Default LID
     range is the full single-byte space ``00–FF``. A Nissan profile gets the
     Nissan probe inside ``10 C0`` (``session_mode`` still overrides the session).
+    A profile with neither a Nissan nor a Hyundai/Kia quirk gets the SSF probe
+    with a warning, since nothing says its ECUs follow that convention.
     """
     probe = KWP_IOCONTROL_PROBE
     if has_quirk(pids_data, NISSAN_C0_SESSION):
         probe = NISSAN_IOCONTROL_PROBE
         session = True
         session_mode = session_mode or NISSAN_SESSION_MODE
+    elif not has_quirk(pids_data, HK_F1XX_MINUS_ONE):
+        print(
+            "  WARNING: ISO 14230-3 leaves the 0x30 control-option byte manufacturer-"
+            "defined. This scan sends 30 {LID} 00, which is returnControlToECU under "
+            "the SSF 14230 / Hyundai-Kia convention, but this profile declares neither "
+            "make, so the probe is not known to be non-actuating on its ECUs.",
+            file=sys.stderr,
+        )
     return await mode_discovery_scan(
         terminal,
         probe,

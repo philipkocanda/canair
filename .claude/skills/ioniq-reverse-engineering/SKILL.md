@@ -240,7 +240,7 @@ Full reference: **AGENTS.md** + `canair <cmd> --help`. Key project behaviors:
 - **`canair io --poll` can actuate hardware.** The IOControl TUI's background
   status poll (`--poll`, opt-in) sends `2F{DID}00` (returnControlToECU) to every
   DID every 3s; on relay/solenoid DIDs this can re-assert defaults and cause an
-  audible click. Off by default.
+  audible click. Off by default, and refused for KWP2000 ECUs.
 - **`--verbose`** debugs canair itself; not useful for normal reads.
 - **`canair raw`** is a last resort (hex only, no decoding) — use decoded
   `query`/`--param` when a PID definition exists.

@@ -40,7 +40,7 @@ from collections.abc import AsyncIterator
 from ..addressing import AddressBook
 from ..link_latency import LinkLatency
 from ..log import log_command, log_event, log_response
-from ..safety import enforce_command_safety
+from ..safety import SessionPolicy, enforce_command_safety
 from ..timing import TimingRecorder
 from ..transport_stats import TransportStats
 from ..uds_parse import CAT_DECODE, CAT_STALE, UdsResponse, parse_uds_response
@@ -123,9 +123,10 @@ class Elm327Terminal:
         self.timeout = timeout
         self.verbose = verbose
         self.unsafe = unsafe
-        # OEM session sub-functions the profile's quirks permit (canlib.quirks);
-        # set by whoever builds the terminal from a profile.
-        self.allowed_sessions: frozenset[int] = frozenset()
+        # Each ECU's session protocol + the profile's quirk allowances
+        # (canlib.safety.SessionPolicy); set by whoever builds the terminal from a
+        # profile. The default knows no ECU, so the stricter reading applies.
+        self.session_policy = SessionPolicy()
         # Profile HK F1xx -1 identity-DID quirk (tolerate 62F187 for a 22F188
         # request); forwarded to parse_uds_response's echo validation.
         self.hk_f1xx_offset = hk_f1xx_offset
@@ -259,7 +260,7 @@ class Elm327Terminal:
         if timeout is None:
             timeout = self.timeout
 
-        await enforce_command_safety(cmd, self.unsafe, self.allowed_sessions)
+        await enforce_command_safety(cmd, self.unsafe, self.session_policy, self._cur_header)
 
         # Already inside a transaction on this task: the lock is held, and
         # asyncio.Lock is not reentrant, so acquiring again would deadlock.

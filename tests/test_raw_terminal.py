@@ -291,11 +291,18 @@ class TestRawTerminalSafety:
 
     @pytest.mark.asyncio
     async def test_oem_session_honours_the_profile_allowance(self, make_terminal):
+        from canlib.safety import KWP, UDS, SessionPolicy
+
         t = make_terminal({(0x745, bytes.fromhex("10C0")): bytes.fromhex("50C0")})
         await t.set_header(0x745)
         with pytest.raises(ValueError):
             await t.send_uds("10C0")
-        t.allowed_sessions = frozenset({0xC0})
+        # A KWP2000-only allowance does nothing for a UDS ECU at the same id...
+        t.session_policy = SessionPolicy({0x745: UDS}, {KWP: frozenset({0xC0})})
+        with pytest.raises(ValueError):
+            await t.send_uds("10C0")
+        # ...and lets the KWP2000 ECU's session through.
+        t.session_policy = SessionPolicy({0x745: KWP}, {KWP: frozenset({0xC0})})
         r = await t.send_uds("10C0")
         assert r["ok"] is True
         await t.close()

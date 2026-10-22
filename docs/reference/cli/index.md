@@ -15,7 +15,7 @@ Every capability is a `canair <subcommand>`. These pages are generated from each
 - [`canair discover`](discover.md) — Sweep a range of TX addresses (sends 10 01 to each) to find ECUs.
 - [`canair raw`](raw.md) — Send a raw UDS request (hex in, hex out).
 - [`canair sniff`](sniff.md) — ``canair sniff`` — passive CAN bus sniffer (raw SLCAN-over-TCP backend).
-- [`canair io`](io.md) — IOControl (0x2F): interactive TUI, or single actuator command with --did.
+- [`canair io`](io.md) — IOControl (UDS 0x2F, or an entry's own KWP2000 0x30 commands): interactive TUI, or single actuator command with --did. The TUI's value keys (v/+/-) and --poll build UDS 0x2F requests, so they are refused for a KWP2000 ECU.
 - [`canair routines`](routines.md) — RoutineControl (0x31): interactive TUI, or single command with --rid.
 - [`canair identity`](identity.md) — Query ECU identity data and decode it. Supports UDS (22 F1xx) and KWP2000 (1A 8x/9x) ECUs; the protocol is auto-selected from the profile registry or an on-device probe (override with --protocol).
 - [`canair dtc`](dtc.md) — Read stored Diagnostic Trouble Codes with UDS 0x19 (reportDTCByStatusMask), or clear them with UDS 0x14. Clearing mutates ECU fault memory and prompts for confirmation unless --yes is given.

@@ -205,15 +205,51 @@ class TestWakeValidation:
 class TestIoControlValidation:
     """Actuator entries: the session_mode byte and keys YAML misreads as octal."""
 
-    def _validate(self, tmp_path, entry: str, key: str = "BC01"):
+    def _validate(self, tmp_path, entry: str, key: str = "BC01", head: str = ""):
         p = tmp_path / "e.yaml"
-        p.write_text(f"ECU:\n  tx_id: 0x745\n  iocontrol:\n    {key}:\n      label: x\n{entry}")
+        p.write_text(
+            f"ECU:\n  tx_id: 0x745\n{head}  iocontrol:\n    {key}:\n      label: x\n{entry}"
+        )
         errors, warnings, _stats = validate_pids.validate_ecu_file(p, validate_pids.load_schema())
         return errors, warnings
 
     def test_quoted_session_mode_is_valid(self, tmp_path):
-        errs, warns = self._validate(tmp_path, '      session_mode: "C0"\n')
+        errs, warns = self._validate(tmp_path, '      session_mode: "81"\n')
         assert errs == [] and warns == []
+
+    def test_oem_session_without_the_enabling_quirk_warns(self, tmp_path):
+        # C0 is Nissan's KWP2000 session; without nissan_c0_session the runtime
+        # guard refuses it, so the actuator is unreachable — say so.
+        kwp = "  identity:\n    id_protocol: KWP2000\n"
+        errs, warns = self._validate(tmp_path, '      session_mode: "C0"\n', head=kwp)
+        assert errs == []
+        assert any("session_mode C0 is refused at runtime" in w for w in warns)
+
+    def test_oem_session_with_the_enabling_quirk_is_clean(self, tmp_path):
+        (tmp_path / "profile.yaml").write_text(
+            'car_model: "Test"\ninit: "ATZ"\nquirks: [nissan_c0_session]\n'
+        )
+        (tmp_path / "ecus").mkdir()
+        p = tmp_path / "ecus" / "e.yaml"
+        p.write_text(
+            "ECU:\n  tx_id: 0x745\n  identity:\n    id_protocol: KWP2000\n  iocontrol:\n"
+            '    BC01:\n      label: x\n      session_mode: "C0"\n'
+        )
+        errors, warnings, _ = validate_pids.validate_ecu_file(p, validate_pids.load_schema())
+        assert errors == []
+        assert not any("session_mode" in w for w in warnings)
+
+    def test_82_on_a_uds_ecu_is_a_programming_session(self, tmp_path):
+        uds = "  identity:\n    id_protocol: UDS\n"
+        errs, _ = self._validate(tmp_path, '      session_mode: "82"\n', head=uds)
+        assert any("programmingSession" in e for e in errs)
+        kwp = "  identity:\n    id_protocol: KWP2000\n"
+        errs, warns = self._validate(tmp_path, '      session_mode: "82"\n', head=kwp)
+        assert errs == [] and not any("session_mode" in w for w in warns)
+
+    def test_an_unquoted_hex_session_mode_says_to_quote_it(self, tmp_path):
+        errs, _ = self._validate(tmp_path, "      session_mode: 0xC0\n")
+        assert any("quote it" in e for e in errs)
 
     @pytest.mark.parametrize("value", ["3", "C", "1003", "zz", '"0x03"'])
     def test_session_mode_must_be_one_hex_byte(self, tmp_path, value):

@@ -310,6 +310,7 @@ def main(argv: list[str] | None = None) -> int:
 
     from canlib.capture_io import LegacyCaptureError
     from canlib.profile import ProfileError, set_active
+    from canlib.safety import SafetyBlocked
 
     # Resolve the active vehicle profile before dispatching.
     if (
@@ -337,7 +338,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         result = func(args)
-    except (ProfileError, LegacyCaptureError) as e:
+    except (ProfileError, LegacyCaptureError, SafetyBlocked) as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
     if check_updates:

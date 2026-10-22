@@ -510,7 +510,9 @@ def _validate_ecu_entry(
     ):
         return
 
-    _validate_iocontrol(ecu_def, path, ecu_name, allowed_states_set, errors, warnings, stats)
+    _validate_iocontrol(
+        ecu_def, path, ecu_name, allowed_states_set, errors, warnings, stats, profile_meta
+    )
     _validate_research(ecu_def, path, ecu_name, allowed_states_set, errors, warnings, stats)
 
     # routines (RoutineControl 0x31) + iocontrol_discoveries (0x2F/0x30 scan
@@ -651,29 +653,61 @@ def _validate_parameters(
             stats["unverified"] += 1
 
 
-def _validate_session_mode(value, label: str, errors: list) -> None:
-    """Validate an actuator's optional ``session_mode`` (one quoted hex byte)."""
+def _validate_session_mode(
+    value, label: str, errors: list, warnings: list, protocol="unknown", profile_meta=None
+) -> None:
+    """Validate an actuator's optional ``session_mode`` (one quoted hex byte).
+
+    The byte is judged by the same rule the runtime guard applies
+    (:func:`canlib.safety.session_mode_block`) for the ECU's protocol: a hard
+    block (programming / safety-system session) is an error; a mode the guard
+    would refuse without a profile allowance is a warning, because the actuator
+    could only ever be reached with ``--unsafe``.
+    """
+    from canlib.quirks import allowed_session_modes
+    from canlib.safety import session_mode_block
+
     if value is None:
         return
     if not isinstance(value, str) or re.fullmatch(r"[0-9A-Fa-f]{2}", value) is None:
+        hint = (
+            " — quote it, or YAML reads it as a number"
+            if isinstance(value, int) and not isinstance(value, bool)
+            else ""
+        )
         errors.append(
-            f'{label}: session_mode must be one quoted hex byte (e.g. "03" or "C0"), got {value!r}'
+            f'{label}: session_mode must be one quoted hex byte (e.g. "03" or "C0"), '
+            f"got {value!r}{hint}"
         )
         return
-    if int(value, 16) in (0x02, 0x85):
-        errors.append(f"{label}: session_mode {value} is a programming session — never allowed")
+    block = session_mode_block(
+        int(value, 16), protocol, allowed_session_modes(profile_meta, protocol)
+    )
+    if block is None:
+        return
+    if block.hard:
+        errors.append(f"{label}: session_mode {value} is refused — never allowed: {block.reason}")
+    else:
+        warnings.append(
+            f"{label}: session_mode {value} is refused at runtime ({block.reason}) unless the "
+            "profile declares a quirk that permits it for this ECU's protocol"
+        )
 
 
 def _validate_iocontrol(
-    ecu_def, path, ecu_name, allowed_states_set, errors, warnings, stats
+    ecu_def, path, ecu_name, allowed_states_set, errors, warnings, stats, profile_meta=None
 ) -> None:
     """Validate an ECU's ``iocontrol:`` block."""
+    from canlib.safety import session_protocol
+
     iocontrol = ecu_def.get("iocontrol")
     if iocontrol is None:
         return
     if not isinstance(iocontrol, dict):
         errors.append(f"{path.name}/{ecu_name}: 'iocontrol' must be a dict")
         return
+    identity = ecu_def.get("identity")
+    protocol = session_protocol(identity.get("id_protocol") if isinstance(identity, dict) else None)
 
     valid_fields = {
         "label",
@@ -709,7 +743,9 @@ def _validate_iocontrol(
         for field in did_def:
             if field not in valid_fields:
                 warnings.append(f"{did_label}: unknown field '{field}'")
-        _validate_session_mode(did_def.get("session_mode"), did_label, errors)
+        _validate_session_mode(
+            did_def.get("session_mode"), did_label, errors, warnings, protocol, profile_meta
+        )
         _validate_state_list(
             did_def.get("vehicle_states"), did_label, "vehicle_states", errors, allowed_states_set
         )

@@ -538,7 +538,10 @@ def cmd_set_iocontrol(args: argparse.Namespace) -> int:
     if args.session_mode is not None:
         from canlib.pids import normalize_session_mode
 
-        fields["session_mode"] = normalize_session_mode(args.session_mode)
+        try:
+            fields["session_mode"] = normalize_session_mode(args.session_mode)
+        except ValueError as exc:
+            raise SystemExit(f"{ansi.RED}  Error: --session-mode: {exc}{ansi.RESET}") from None
     for name in ("on", "off"):
         value = fields.get(name)
         if isinstance(value, str) and value and not re.fullmatch(r"(?:[0-9A-Fa-f]{2})+", value):

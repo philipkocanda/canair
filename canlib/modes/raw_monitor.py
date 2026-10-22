@@ -52,6 +52,7 @@ def build_raw_client(
     Raises ``OSError`` if the SLCAN socket can't be opened.
     """
     from ..quirks import HK_F1XX_MINUS_ONE, has_quirk
+    from ..safety import SessionPolicy
     from ..timeouts import cli_timeout, ecu_timeouts_by_name
     from ..transport import RawUdsClient, SlcanTcpBus
 
@@ -64,6 +65,7 @@ def build_raw_client(
         ecu_timeouts=(None if cli is not None else ecu_timeouts_by_name(pids_data)),
         isotp_config=pids_data.get("isotp"),
         hk_f1xx_offset=has_quirk(pids_data, HK_F1XX_MINUS_ONE),
+        session_policy=SessionPolicy.from_profile(pids_data),
     )
 
 

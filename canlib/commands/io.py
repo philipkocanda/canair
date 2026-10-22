@@ -14,7 +14,9 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         NAME,
         aliases=["iocontrol"],
         help="IOControl actuators: interactive TUI or single --did command",
-        description="IOControl (0x2F): interactive TUI, or single actuator command with --did.",
+        description="IOControl (UDS 0x2F, or an entry's own KWP2000 0x30 commands): interactive "
+        "TUI, or single actuator command with --did. The TUI's value keys (v/+/-) and --poll "
+        "build UDS 0x2F requests, so they are refused for a KWP2000 ECU.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
 examples:
@@ -34,8 +36,10 @@ examples:
         "--poll",
         action="store_true",
         help="Enable background status polling in the TUI: sends 2F{DID}00 "
-        "(returnControlToECU) to every DID every 3s. This can actuate "
-        "relay/solenoid-backed DIDs (audible click) — off by default.",
+        "(returnControlToECU) to every DID every 3s, inside each entry's own session. "
+        "This can actuate relay/solenoid-backed DIDs (audible click) — off by default. "
+        "UDS only: refused for a KWP2000 ECU, whose 0x30 option byte has no standard "
+        "release.",
     )
     add_connection_args(parser)
     finalize_live_parser(parser)
@@ -55,6 +59,5 @@ def run(args) -> int:
         from canlib import load_pids
         from canlib.modes.iocontrol import mode_iocontrol_list
 
-        mode_iocontrol_list(load_pids(), args.iocontrol, as_json=True)
-        return 0
+        return 0 if mode_iocontrol_list(load_pids(), args.iocontrol, as_json=True) else 1
     return run_live(args)

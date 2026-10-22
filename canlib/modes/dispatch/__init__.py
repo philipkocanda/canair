@@ -76,13 +76,15 @@ async def run_session_guarded(
     entry points so a dropped/failed bus is always a clean, classified message
     (never a traceback), with a ``--recover`` hint when a ``--save`` session was
     in flight (its data is safe in the write-ahead journal). Returns a process
-    exit code: 0 on success, 1 on a transport failure.
+    exit code: 0 on success, 1 on a transport failure, 2 when the command
+    blocklist (:mod:`canlib.safety`) refused a request.
 
     The caller owns the terminal lifecycle (construct/close) and any
     transport-specific ``finally`` (session-end logging, reboot). ``KeyboardInterrupt``
     is intentionally *not* caught here — the mode handlers reconcile their journals
     on interrupt, and ``run_live`` reports the interrupt.
     """
+    from canlib.safety import SafetyBlocked
     from canlib.transport.errors import describe_transport_error, transport_error_types
 
     try:
@@ -92,6 +94,11 @@ async def run_session_guarded(
 
             print_timings(terminal.timings, as_json=getattr(args, "json", False))
         return 0
+    except SafetyBlocked as e:
+        # The command blocklist refused something this mode was about to send
+        # (e.g. a programming session): a policy outcome, not a crash.
+        print(f"error: {e}", file=sys.stderr)
+        return 2
     except transport_error_types() as e:
         print(
             "error: "

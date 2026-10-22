@@ -37,7 +37,7 @@ from ..addressing import (
 )
 from ..frame_counts import FrameCountLedger, frames_for_payload
 from ..log import log_response
-from ..safety import enforce_command_safety
+from ..safety import SessionPolicy, enforce_command_safety
 from ..timing import TimingRecorder
 from ..transport_stats import TransportStats
 from ..uds_parse import UdsResponse, parse_uds_response
@@ -75,9 +75,10 @@ class RawTerminal:
         self.host = host
         self.verbose = verbose
         self.unsafe = unsafe
-        # OEM session sub-functions the profile's quirks permit (canlib.quirks);
-        # set by whoever builds the terminal from a profile.
-        self.allowed_sessions: frozenset[int] = frozenset()
+        # Each ECU's session protocol + the profile's quirk allowances
+        # (canlib.safety.SessionPolicy); set by whoever builds the terminal from a
+        # profile. The default knows no ECU, so the stricter reading applies.
+        self.session_policy = SessionPolicy()
         self.timeout = timeout
         # Full per-ECU addressing (from the registry: mode + RX + any extended
         # target/source bytes + flow-control override). An unknown TX id (e.g. a
@@ -152,7 +153,7 @@ class RawTerminal:
         expected_echo: bytes | None = None,
         retries: int = 0,
     ) -> UdsResponse:
-        await enforce_command_safety(service_pid, self.unsafe, self.allowed_sessions)
+        await enforce_command_safety(service_pid, self.unsafe, self.session_policy, self._cur)
         try:
             req = bytes.fromhex(service_pid.replace(" ", ""))
         except ValueError:
@@ -189,7 +190,7 @@ class RawTerminal:
 
     async def send_command(self, cmd: str, timeout: float | None = None) -> str:
         """AT commands are a no-op ('OK'); UDS hex is sent and returned as hex."""
-        await enforce_command_safety(cmd, self.unsafe, self.allowed_sessions)
+        await enforce_command_safety(cmd, self.unsafe, self.session_policy, self._cur)
         c = cmd.strip()
         if c.upper().startswith("AT"):
             return "OK"

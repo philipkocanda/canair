@@ -6,7 +6,9 @@ import pytest
 import yaml
 
 from canlib.modes.kwp_iocontrol_scan import (
-    IOCP_FREEZE,
+    IOCP_FREEZE_CURRENT_STATE,
+    IOCP_LONG_TERM_ADJ,
+    IOCP_REPORT_CURRENT_STATE,
     IOCP_RESET_TO_DEFAULT,
     IOCP_RETURN_CONTROL,
     IOCP_SHORT_TERM_ADJ,
@@ -25,18 +27,32 @@ from tests._fakes import ok as _ok
 # ── safety guard ─────────────────────────────────────────────────────────────
 
 
-def test_iocp_constants():
+def test_iocp_constants_follow_the_kwp2000_table_not_uds():
+    # SSF 14230-3 Issue 2, Table 9.1.3.2 — not the UDS 0x2F values (01 reset /
+    # 02 freeze / 03 shortTermAdjustment), which the module once used.
     assert IOCP_RETURN_CONTROL == 0x00
-    assert IOCP_RESET_TO_DEFAULT == 0x01
-    assert IOCP_FREEZE == 0x02
-    assert IOCP_SHORT_TERM_ADJ == 0x03
+    assert IOCP_REPORT_CURRENT_STATE == 0x01
+    assert IOCP_RESET_TO_DEFAULT == 0x04
+    assert IOCP_FREEZE_CURRENT_STATE == 0x05
+    assert IOCP_SHORT_TERM_ADJ == 0x07
+    assert IOCP_LONG_TERM_ADJ == 0x08
 
 
 @pytest.mark.asyncio
-async def test_probe_refuses_unsafe_iocp():
-    for unsafe in (IOCP_RESET_TO_DEFAULT, IOCP_FREEZE, IOCP_SHORT_TERM_ADJ, 0x04, 0xFF):
-        with pytest.raises(ValueError, match="safe"):
-            await probe_kwp_iocontrol(terminal=None, lid=0x0A, iocp=unsafe)
+async def test_probe_refuses_every_iocp_but_return_control():
+    # Even the SSF "report" values: these ECUs are not guaranteed SSF-conformant.
+    for refused in (
+        IOCP_REPORT_CURRENT_STATE,
+        0x02,
+        0x03,
+        IOCP_RESET_TO_DEFAULT,
+        IOCP_FREEZE_CURRENT_STATE,
+        IOCP_SHORT_TERM_ADJ,
+        IOCP_LONG_TERM_ADJ,
+        0xFF,
+    ):
+        with pytest.raises(ValueError, match="only sends 0x00"):
+            await probe_kwp_iocontrol(terminal=None, lid=0x0A, iocp=refused)
 
 
 @pytest.mark.asyncio

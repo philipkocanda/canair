@@ -275,14 +275,34 @@ class TestEngineOverArbitraryChannel:
 
     @pytest.mark.asyncio
     async def test_oem_session_honours_the_profile_allowance(self):
-        ch = FakeChannel(["50C0\r>"])
+        from canlib.safety import KWP, SessionPolicy
+
+        ch = FakeChannel(["OK\r>", "OK\r>", "50C0\r>"])
         term = Elm327Terminal(ch)
+        await term.set_header(0x745)
+        addressing = list(ch.sent)
         with pytest.raises(ValueError):
             await term.send_uds("10C0")
-        assert ch.sent == []
-        term.allowed_sessions = frozenset({0xC0})
+        assert ch.sent == addressing
+        # The allowance applies to the header's ECU, and only on KWP2000.
+        term.session_policy = SessionPolicy({0x745: KWP}, {KWP: frozenset({0xC0})})
         resp = await term.send_uds("10C0")
         assert resp["ok"] is True
+
+    @pytest.mark.asyncio
+    async def test_session_rule_follows_the_addressed_ecus_protocol(self):
+        # 10 82 is a KWP2000 diagnostic session but UDS programmingSession with the
+        # suppress bit: the terminal judges it by the ECU its header points at.
+        from canlib.safety import KWP, UDS, SessionPolicy
+
+        ch = FakeChannel(["OK\r>", "OK\r>", "5082\r>", "OK\r>", "OK\r>"])
+        term = Elm327Terminal(ch)
+        term.session_policy = SessionPolicy({0x7E4: KWP, 0x770: UDS})
+        await term.set_header(0x7E4)
+        assert (await term.send_uds("1082"))["ok"] is True
+        await term.set_header(0x770)
+        with pytest.raises(ValueError, match="programmingSession"):
+            await term.send_uds("1082")
 
     @pytest.mark.asyncio
     async def test_recv_frame_and_drain_go_through_channel(self):

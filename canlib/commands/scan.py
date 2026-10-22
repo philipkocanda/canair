@@ -6,7 +6,7 @@ Three kinds of scan live under one command:
     general-purpose scan, with friendly ``--service`` presets + a wizard).
   * ``canair scan iocontrol <ECU>``  — SAFE IOControl discovery. Auto-selects
     UDS ``0x2F`` or KWP2000 ``0x30`` from the ECU's ``id_protocol`` and only ever
-    sends the side-effect-free returnControlToECU sub-function (never actuates).
+    sends the non-actuating returnControlToECU probe (never an actuating option).
   * ``canair scan routines <ECU>``   — SAFE RoutineControl (``0x31``) discovery
     (probes requestRoutineResults only).
 
@@ -169,8 +169,11 @@ def _add_iocontrol_parser(kinds) -> argparse.ArgumentParser:
         "The service is auto-selected per ECU from its id_protocol: UDS ECUs use "
         "InputOutputControlByIdentifier (0x2F, 16-bit DID); KWP2000 ECUs (BMS, VCU, "
         "MCU, LDC, AAF) use InputOutputControlByLocalIdentifier (0x30, 8-bit LID). "
-        "Only the side-effect-free sub-function is ever sent — the scanner never "
-        "actuates. On a profile with the nissan_c0_session quirk, KWP2000 ECUs get "
+        "Only returnControlToECU (00) is ever sent, never an actuating option. On UDS "
+        "that is the standard release; ISO 14230-3 leaves the 0x30 option byte "
+        "manufacturer-defined, so on KWP2000 it is a release under the SSF 14230 / "
+        "Hyundai-Kia convention, and the scan warns on a profile that declares neither "
+        "make. On a profile with the nissan_c0_session quirk, KWP2000 ECUs get "
         "Nissan's layout instead: 30 {LID} 01 00 (is value 00 supported?) inside the "
         "Nissan session 10 C0, because there 30 {LID} 00 begins a one-shot command. "
         "Hits are written to pids/<ecu>.yaml under an iocontrol_discoveries: "
@@ -204,8 +207,8 @@ def _add_iocontrol_parser(kinds) -> argparse.ArgumentParser:
         metavar="HEX",
         default=None,
         help="Session mode for --session (default 03 = UDS extended; 81 = KWP2000 standard, "
-        "e.g. BMS; a profile with the nissan_c0_session quirk always opens C0 for KWP2000 "
-        "ECUs)",
+        "e.g. BMS; on a profile with the nissan_c0_session quirk KWP2000 ECUs default to C0 "
+        "and always open a session)",
     )
     add_connection_args(parser)
     finalize_live_parser(parser)
@@ -255,7 +258,15 @@ def _add_routines_parser(kinds) -> argparse.ArgumentParser:
         dest="session_mode",
         metavar="HEX",
         default="03",
-        help="Session mode for --session (default 03 = UDS extended; 81 = KWP2000 standard, e.g. BMS)",
+        help="Session mode for --session (default 03 = UDS extended; 81 = KWP2000 standard, "
+        "e.g. BMS)",
+    )
+    parser.add_argument(
+        "--yes",
+        "-y",
+        action="store_true",
+        help="Skip the confirmation a KWP2000 sweep asks for where 0x33 is not known to be "
+        "side-effect-free (a nissan_c0_session profile)",
     )
     add_connection_args(parser)
     finalize_live_parser(parser)
@@ -274,8 +285,11 @@ def _add_sessions_parser(kinds) -> argparse.ArgumentParser:
         description="Probe which DiagnosticSessionControl (service 0x10) session types an "
         "ECU supports. The session-mode set is auto-selected per ECU from its id_protocol: "
         "UDS ECUs are probed with 01 (default) + 03 (extended); KWP2000 ECUs (BMS, VCU, MCU, "
-        "LDC, AAF) with 81 (standard) + 82 + 83 (extended). Only these SAFE read-only modes "
-        "are ever sent — the programming sessions (UDS 0x02, KWP2000 0x85) are NEVER probed. "
+        "LDC, AAF) with 81 (standard) + 82 + 83 (extended), plus any OEM session a profile "
+        "quirk permits on KWP2000 (C0 with nissan_c0_session). Every mode is checked against "
+        "the safety policy for the ECU's protocol first and a refused one is skipped — the "
+        "programming sessions (UDS 0x02, also 0x82 on a UDS ECU; KWP2000 0x85) are NEVER "
+        "probed. "
         "Results are written to ecus/<ecu>.yaml under a sessions: section.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="examples:\n"
@@ -292,7 +306,8 @@ def _add_sessions_parser(kinds) -> argparse.ArgumentParser:
         metavar="HEX[,HEX...]",
         default=None,
         help="Comma-separated 0x10 sub-functions to probe, overriding the per-ECU "
-        "protocol default (e.g. 01,03 or 81,82,83). Programming modes 02/85 are refused.",
+        "protocol default (e.g. 01,03 or 81,82,83). Modes the safety policy refuses for "
+        "the ECU's protocol (02/85, 82 on UDS, the OEM band) are skipped.",
     )
     parser.add_argument(
         "--throttle-ms", type=int, default=200, help="Delay in ms between probes (default 200)"

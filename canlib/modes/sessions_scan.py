@@ -10,8 +10,9 @@ Probes which diagnostic *session types* an ECU supports by sending
 
 This is a read-only probe: entering a diagnostic session has no side effects and
 the ECU auto-reverts to the default session once TesterPresent stops. Only the
-SAFE session modes are probed — the programming sessions (UDS ``0x02`` and
-KWP2000 ``0x85``) are NEVER sent, matching the guard in :mod:`canlib.safety`.
+SAFE session modes are probed — the programming sessions (UDS ``0x02``, also as
+``0x82`` with the suppress bit, and KWP2000 ``0x85``) are NEVER sent: every mode is
+checked against :mod:`canlib.safety` for the ECU's protocol before the sweep.
 
 Results are written to each ``ecus/<ecu>.yaml`` under a structured ``sessions:``
 section (see the schema's ``sessions_fields``), replacing the free-text session
@@ -27,6 +28,8 @@ import asyncio
 import sys
 from typing import NamedTuple
 
+from ..quirks import allowed_session_modes
+from ..safety import KWP, SessionPolicy, session_protocol
 from ..transport.protocol import Terminal
 from ..uds_layout import SUBFUNCTION_NAMES
 from ..uds_parse import UdsResponse
@@ -100,10 +103,15 @@ def _write_hit(ecu_name: str, hits: list[SessionHit]) -> None:
         print(f"  [{ecu_name}] ERROR writing YAML: {exc}", file=sys.stderr)
 
 
-def _modes_for_protocol(proto: str | None) -> tuple[int, ...]:
-    """Pick the safe session-mode set for an ECU's ``id_protocol``."""
-    if str(proto or "").upper().startswith("KWP"):
-        return KWP_SESSION_MODES
+def _modes_for_protocol(proto: str | None, pids_data: dict | None = None) -> tuple[int, ...]:
+    """Pick the safe session-mode set for an ECU's ``id_protocol``.
+
+    A KWP2000 ECU also gets the OEM sessions the profile's quirks permit on
+    KWP2000 (e.g. Nissan's ``C0``), so the scan can confirm them.
+    """
+    if session_protocol(proto) == KWP:
+        extra = sorted(allowed_session_modes(pids_data, KWP) - set(KWP_SESSION_MODES))
+        return KWP_SESSION_MODES + tuple(extra)
     return UDS_SESSION_MODES
 
 
@@ -183,9 +191,11 @@ async def mode_sessions_scan(
     """Probe the supported diagnostic session types on one or more ECUs.
 
     For each ECU the session-mode set is auto-selected from its ``id_protocol``
-    (UDS → 01/03; KWP2000 → 81/82/83) unless an explicit ``modes`` tuple is
-    given. Only safe read-only session modes are ever sent. Hits are written to
-    each ``ecus/<ecu>.yaml`` under a ``sessions:`` section.
+    (UDS → 01/03; KWP2000 → 81/82/83 plus any OEM session a profile quirk permits
+    on KWP2000, e.g. Nissan's C0) unless an explicit ``modes`` tuple is given.
+    Every mode is checked against :mod:`canlib.safety` for that ECU first; a
+    refused one is skipped with its reason. Hits are written to each
+    ``ecus/<ecu>.yaml`` under a ``sessions:`` section.
 
     Returns mapping of ECU name (upper-case) → list of :class:`SessionHit`.
     """
@@ -193,6 +203,7 @@ async def mode_sessions_scan(
     for fname, fdata in pids_data.get("ecus", {}).items():
         if isinstance(fdata, dict):
             ecu_defs[fname.upper()] = fdata
+    policy = SessionPolicy.from_profile(pids_data)
 
     results: dict[str, list[SessionHit]] = {}
     for ecu in ecus:
@@ -209,13 +220,22 @@ async def mode_sessions_scan(
             ecu_modes = modes
         else:
             proto = (ecu_defs[key].get("identity") or {}).get("id_protocol")
-            ecu_modes = _modes_for_protocol(proto)
+            ecu_modes = _modes_for_protocol(proto, pids_data)
+        # Refused modes are skipped up front with the reason, rather than aborting
+        # the whole scan when the terminal's guard refuses one mid-sweep.
+        allowed_modes: list[int] = []
+        for mode in ecu_modes:
+            blocked = policy.check(mode, tx_id)
+            if blocked:
+                print(f"  [{key}] skipping 10 {mode:02X}: {blocked}", file=sys.stderr)
+            else:
+                allowed_modes.append(mode)
 
         results[key] = await scan_ecu_sessions(
             terminal,
             ecu_name=key,
             tx_id=tx_id,
-            modes=ecu_modes,
+            modes=tuple(allowed_modes),
             throttle_ms=throttle_ms,
             verbose=verbose,
             write_yaml=write_yaml,

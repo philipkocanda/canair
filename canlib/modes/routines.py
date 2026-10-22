@@ -66,19 +66,26 @@ def _sf_label(sf: int) -> str:
 # ── Offline list ──────────────────────────────────────────────────────────────
 
 
-def mode_routines_list(pids_data: dict, ecu_name: str, as_json: bool = False):
-    """List all routine RIDs for an ECU (no CAN connection needed)."""
+def mode_routines_list(pids_data: dict, ecu_name: str, as_json: bool = False) -> bool:
+    """List all routine RIDs for an ECU (no CAN connection needed).
+
+    Returns False when the ECU has no routines; with ``as_json`` that outcome is
+    a JSON ``{"error": …}`` object rather than prose.
+    """
     rindex = build_routines_index(pids_data)
     ecu_key = ecu_name.upper()
 
     if ecu_key not in rindex:
         available = sorted(rindex.keys())
-        if available:
+        if as_json:
+            error = {"error": f"no routines defined for ECU: {ecu_name}", "available": available}
+            print(json.dumps(error, indent=2))
+        elif available:
             print(f"  No routines defined for ECU: {ecu_name}")
             print(f"  ECUs with routines: {', '.join(available)}")
         else:
             print("  No routines defined in any ECU file.")
-        return
+        return False
 
     ecu_info = rindex[ecu_key]
     routines = ecu_info["routines"]
@@ -100,7 +107,7 @@ def mode_routines_list(pids_data: dict, ecu_name: str, as_json: bool = False):
             },
         }
         print(json.dumps(out, indent=2))
-        return
+        return True
 
     print(f"\n  {ecu_key} -- TX 0x{ecu_info['tx_id']:03X} -- {len(routines)} routine RIDs\n")
 
@@ -132,6 +139,7 @@ def mode_routines_list(pids_data: dict, ecu_name: str, as_json: bool = False):
             f"{_truncate_text(scan_result, scan_w):<{scan_w}}     {v}"
         )
     print()
+    return True
 
 
 # ── Single-command execute ────────────────────────────────────────────────────

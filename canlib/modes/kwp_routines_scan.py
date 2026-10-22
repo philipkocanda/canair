@@ -127,6 +127,23 @@ KWP_ROUTINES_PROBE = DiscoveryProbe(
 )
 
 
+def needs_confirmation(pids_data: dict) -> bool:
+    """True when this profile's 0x33 sweep is not known to be side-effect-free.
+
+    Nissan reshapes KWP2000 services (its 0x30 layout makes the ISO "release"
+    probe an actuation), and nothing documents what its 0x33 does, so the sweep
+    is confirm-first there like any other operation that may change ECU state.
+    """
+    return has_quirk(pids_data, NISSAN_C0_SESSION)
+
+
+UNPROVEN_WARNING = (
+    "this profile's KWP2000 ECUs use Nissan's own service layouts, and what service "
+    "0x33 does there is undocumented — this 256-LID sweep is not proven to be "
+    "side-effect-free."
+)
+
+
 async def mode_kwp_routines_scan(
     terminal: Terminal,
     pids_data: dict,
@@ -138,21 +155,22 @@ async def mode_kwp_routines_scan(
     session: bool = False,
     wake: bool = False,
     session_mode: str = "03",
+    confirmed: bool = False,
 ) -> dict[str, list[KwpRoutineHit]]:
     """Scan KWP2000 routine local identifiers via the safe 0x33 results read.
 
     Thin wrapper over :func:`discovery_scan.mode_discovery_scan`. Default LID range
-    is the full single-byte space ``00–FF``. Never starts a routine (0x31).
+    is the full single-byte space ``00–FF``. Never starts a routine (0x31). Where
+    :func:`needs_confirmation` holds, nothing is sent unless ``confirmed`` (the
+    caller's prompt or ``--yes``).
     """
-    if has_quirk(pids_data, NISSAN_C0_SESSION):
-        # Nissan reshapes KWP2000 services (its 0x30 layout makes the ISO
-        # "release" probe an actuation), and nothing documents its 0x33.
+    if needs_confirmation(pids_data) and not confirmed:
         print(
-            "  WARNING: this profile's KWP2000 ECUs use Nissan's own service layouts, and "
-            "what service 0x33 does there is undocumented — this scan is not proven to "
-            "be side-effect-free.",
+            f"  Refusing the KWP2000 routine scan: {UNPROVEN_WARNING} Re-run with --yes "
+            "to accept that.",
             file=sys.stderr,
         )
+        return {}
     return await mode_discovery_scan(
         terminal,
         KWP_ROUTINES_PROBE,

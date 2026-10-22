@@ -150,7 +150,9 @@ and **`g`/`G` address the view's primary axis**.
   makes a mid-session drop reconnect forever (see Mid-session reconnect).
 - **`canair scan`** — Kinds: `range` (bare `canair scan <ECU>` is this), `sessions`, `routines`
   (UDS `0x31` SF03 / KWP `0x33`, auto-selected by `id_protocol` so it never blind-sends
-  StartRoutine), `iocontrol` (returnControlToECU: UDS `0x2F` / KWP `0x30`). All are **safe probes**;
+  StartRoutine), `iocontrol` (returnControlToECU: UDS `0x2F` / KWP `0x30` — on KWP a release
+  only under the SSF 14230 / HKMC convention, since ISO 14230-3 leaves that byte to the
+  manufacturer). All are **safe probes**;
   hits are written to the ECU's `routines:`/`iocontrol_discoveries:`.
 - **`canair discover`** (alias `disc`) — Which ECUs answer right now; `--register` writes a new ECU
   into `ecus/`.
@@ -646,11 +648,18 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
     split/strip (`resolve_tx_padding`).
   - **`quirks:`** — make-specific behaviour the profile opts into. Known: `hk_f1xx_minus_one` (the
     Hyundai/Kia identity-DID `-1` offset, `22F188`→`62F187`), `skm_wakeup` (enables the Ioniq SKM
-    relay-wake) and `nissan_c0_session` (permits the Nissan OEM session `10 C0`, which the
-    `canlib/safety.py` blocklist otherwise refuses, and switches the KWP2000 IOControl scan to
-    Nissan's `30 {LID} 01 00` probe). Resolver `canlib/quirks.py`; a quirk may only
-    *widen* the OEM session band (`allowed_session_modes`, set on each terminal as
-    `allowed_sessions` at construction), never reach a programming session.
+    relay-wake) and `nissan_c0_session` (permits the Nissan OEM session `10 C0` on KWP2000 ECUs,
+    which the `canlib/safety.py` blocklist otherwise refuses, and switches the KWP2000 IOControl
+    scan to Nissan's `30 {LID} 01 00` probe). Resolver `canlib/quirks.py`; a quirk may only
+    *widen* the OEM session band for one protocol (`allowed_session_modes(meta, protocol)`),
+    never reach a programming or safety-system session.
+    **The session rule is protocol-aware and lives once:** `safety.py::session_mode_block` (UDS
+    judges `sub & 0x7F`, so `10 82` is programming there; an unknown protocol gets the stricter
+    reading). Runtime applies it through a `SessionPolicy` (`SessionPolicy.from_profile`: each
+    ECU's `id_protocol` + the quirk allowances) set on every terminal as `session_policy` and
+    passed to `RawUdsClient`, keyed by the current target; `validate pids` uses the same function
+    for `session_mode`. A refusal raises `SafetyBlocked` (a `ValueError`), which
+    `run_session_guarded` and `cli.py` report as `error: …` + exit 2.
   - **`physical_bands:`** / **`unit_guess_candidates:`** — vehicle-axis overrides for
     `hunt --physical` and make-specific scalings for the slope→unit sniffer. Resolvers
     `canlib/physical_bands.py`, `canlib/unit_guess.py`. (The grid-axis bands come from the

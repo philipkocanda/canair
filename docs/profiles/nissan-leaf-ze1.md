@@ -156,7 +156,9 @@ The BCM defines **5 actuators**: door lock/unlock, mirror fold/unfold, horn, wip
 headlights. They use KWP2000 `InputOutputControlByLocalIdentifier` (service `0x30`) in Nissan's
 own `30 {LID} {function} {value}` layout, behind Nissan's OEM diagnostic session `10 C0`. The
 profile opts into that session with the `nissan_c0_session` quirk, which canair's command
-blocklist would otherwise refuse.
+blocklist would otherwise refuse (and permits on this profile's KWP2000 ECUs only). The TUI's
+`--poll` and value keys build UDS `0x2F` requests, so they are refused here; use each
+actuator's own on/off commands.
 
 ```bash
 canair io BCM            # interactive actuator TUI

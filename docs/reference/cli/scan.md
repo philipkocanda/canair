@@ -149,7 +149,7 @@ usage: canair scan iocontrol [-h] [--did-range START-END]
                              [--force]
                              ECU [ECU ...]
 
-Probe returnControlToECU across an id range on one or more ECUs. The service is auto-selected per ECU from its id_protocol: UDS ECUs use InputOutputControlByIdentifier (0x2F, 16-bit DID); KWP2000 ECUs (BMS, VCU, MCU, LDC, AAF) use InputOutputControlByLocalIdentifier (0x30, 8-bit LID). Only the side-effect-free sub-function is ever sent — the scanner never actuates. On a profile with the nissan_c0_session quirk, KWP2000 ECUs get Nissan's layout instead: 30 {LID} 01 00 (is value 00 supported?) inside the Nissan session 10 C0, because there 30 {LID} 00 begins a one-shot command. Hits are written to pids/<ecu>.yaml under an iocontrol_discoveries: section.
+Probe returnControlToECU across an id range on one or more ECUs. The service is auto-selected per ECU from its id_protocol: UDS ECUs use InputOutputControlByIdentifier (0x2F, 16-bit DID); KWP2000 ECUs (BMS, VCU, MCU, LDC, AAF) use InputOutputControlByLocalIdentifier (0x30, 8-bit LID). Only returnControlToECU (00) is ever sent, never an actuating option. On UDS that is the standard release; ISO 14230-3 leaves the 0x30 option byte manufacturer-defined, so on KWP2000 it is a release under the SSF 14230 / Hyundai-Kia convention, and the scan warns on a profile that declares neither make. On a profile with the nissan_c0_session quirk, KWP2000 ECUs get Nissan's layout instead: 30 {LID} 01 00 (is value 00 supported?) inside the Nissan session 10 C0, because there 30 {LID} 00 begins a one-shot command. Hits are written to pids/<ecu>.yaml under an iocontrol_discoveries: section.
 
 positional arguments:
   ECU                   ECUs to scan (at least one required)
@@ -164,9 +164,9 @@ options:
   --session             Open a diagnostic session before scanning
   --wake                Wake ECU from deep sleep first
   --mode HEX            Session mode for --session (default 03 = UDS extended;
-                        81 = KWP2000 standard, e.g. BMS; a profile with the
-                        nissan_c0_session quirk always opens C0 for KWP2000
-                        ECUs)
+                        81 = KWP2000 standard, e.g. BMS; on a profile with the
+                        nissan_c0_session quirk KWP2000 ECUs default to C0 and
+                        always open a session)
   --wican WICAN         WiCAN address: ap or IP (default: config
                         transport.host / default_wican=ap)
   --transport {slcan-tcp,wican-ws,elm327-tcp}
@@ -218,7 +218,7 @@ examples:
 ```
 usage: canair scan routines [-h] [--rid-range START-END]
                             [--throttle-ms THROTTLE_MS] [--session] [--wake]
-                            [--mode HEX] [--wican WICAN]
+                            [--mode HEX] [--yes] [--wican WICAN]
                             [--transport {slcan-tcp,wican-ws,elm327-tcp}]
                             [--no-fallback] [--wait] [--elm-timeout MS]
                             [--timeout SECONDS] [--no-learn-frames] [--json]
@@ -242,6 +242,9 @@ options:
   --wake                Wake ECU from deep sleep first
   --mode HEX            Session mode for --session (default 03 = UDS extended;
                         81 = KWP2000 standard, e.g. BMS)
+  --yes, -y             Skip the confirmation a KWP2000 sweep asks for where
+                        0x33 is not known to be side-effect-free (a
+                        nissan_c0_session profile)
   --wican WICAN         WiCAN address: ap or IP (default: config
                         transport.host / default_wican=ap)
   --transport {slcan-tcp,wican-ws,elm327-tcp}
@@ -300,7 +303,7 @@ usage: canair scan sessions [-h] [--modes HEX[,HEX...]]
                             [--force]
                             ECU [ECU ...]
 
-Probe which DiagnosticSessionControl (service 0x10) session types an ECU supports. The session-mode set is auto-selected per ECU from its id_protocol: UDS ECUs are probed with 01 (default) + 03 (extended); KWP2000 ECUs (BMS, VCU, MCU, LDC, AAF) with 81 (standard) + 82 + 83 (extended). Only these SAFE read-only modes are ever sent — the programming sessions (UDS 0x02, KWP2000 0x85) are NEVER probed. Results are written to ecus/<ecu>.yaml under a sessions: section.
+Probe which DiagnosticSessionControl (service 0x10) session types an ECU supports. The session-mode set is auto-selected per ECU from its id_protocol: UDS ECUs are probed with 01 (default) + 03 (extended); KWP2000 ECUs (BMS, VCU, MCU, LDC, AAF) with 81 (standard) + 82 + 83 (extended), plus any OEM session a profile quirk permits on KWP2000 (C0 with nissan_c0_session). Every mode is checked against the safety policy for the ECU's protocol first and a refused one is skipped — the programming sessions (UDS 0x02, also 0x82 on a UDS ECU; KWP2000 0x85) are NEVER probed. Results are written to ecus/<ecu>.yaml under a sessions: section.
 
 positional arguments:
   ECU                   ECUs to scan (at least one required)
@@ -309,7 +312,9 @@ options:
   -h, --help            show this help message and exit
   --modes HEX[,HEX...]  Comma-separated 0x10 sub-functions to probe,
                         overriding the per-ECU protocol default (e.g. 01,03 or
-                        81,82,83). Programming modes 02/85 are refused.
+                        81,82,83). Modes the safety policy refuses for the
+                        ECU's protocol (02/85, 82 on UDS, the OEM band) are
+                        skipped.
   --throttle-ms THROTTLE_MS
                         Delay in ms between probes (default 200)
   --wican WICAN         WiCAN address: ap or IP (default: config
