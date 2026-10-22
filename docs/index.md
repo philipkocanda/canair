@@ -21,17 +21,20 @@ document that data — turning it into a shareable
   <span class="cx-muted">Try it on the 2017 Ioniq: 30 ECUs, 435 signals, 98 recorded drives and charges.</span></p>
   <div class="cx-hero-cards">
     <a href="profiles/explorer/#ioniq-2017/BMS">
-      <img src="assets/explorer/explorer-bus.png" alt="CAN bus map of the Ioniq's ECUs, coloured by how much of each is decoded" loading="lazy">
+      <img src="assets/explorer/explorer-bus.png#only-light" alt="CAN bus map of the Ioniq's ECUs, coloured by how much of each is decoded" loading="lazy">
+      <img src="assets/explorer/explorer-bus-dark.png#only-dark" alt="CAN bus map of the Ioniq's ECUs, coloured by how much of each is decoded" loading="lazy">
       <strong>Browse the buses</strong>
       <span>See which ECU sits on which CAN segment, then open any ECU for its PIDs, signals, actuators and research leads, each linked to its YAML.</span>
     </a>
     <a href="profiles/explorer/#ioniq-2017/plot/2026-08-08-10?s=BMS:2101:BATTERY_POWER,ESC:22C101:REAL_SPEED_KMH,BMS:2101:SOC_BMS">
-      <img src="assets/explorer/explorer-plot.png" alt="Battery power, speed and state of charge plotted together over a drive, a fast charge and another drive" loading="lazy">
+      <img src="assets/explorer/explorer-plot.png#only-light" alt="Battery power, speed and state of charge plotted together over a drive, a fast charge and another drive" loading="lazy">
+      <img src="assets/explorer/explorer-plot-dark.png#only-dark" alt="Battery power, speed and state of charge plotted together over a drive, a fast charge and another drive" loading="lazy">
       <strong>Plot signals from any ECU together</strong>
       <span>A drive, a 60 kW fast charge and another drive in one picture: battery power, speed and state of charge, with the vehicle states above.</span>
     </a>
     <a href="profiles/explorer/#ioniq-2017/plot/2026-08-08-10?s=BMS:2101:BATTERY_POWER">
-      <img src="assets/explorer/explorer-overview.png" alt="Heat-strip overview of every signal that changed during a session, similar signals grouped" loading="lazy">
+      <img src="assets/explorer/explorer-overview.png#only-light" alt="Heat-strip overview of every signal that changed during a session, similar signals grouped" loading="lazy">
+      <img src="assets/explorer/explorer-overview-dark.png#only-dark" alt="Heat-strip overview of every signal that changed during a session, similar signals grouped" loading="lazy">
       <strong>Find what hides in the data</strong>
       <span>One strip shows every signal that moved in a session, similar ones side by side. Select a signal to see what follows it, or zoom to a moment to see what reacted.</span>
     </a>
