@@ -1,0 +1,98 @@
+/* Profile explorer. Colours come from Material's theme variables so dark mode just works. */
+
+.cx-explorer { margin: 1em 0; }
+.cx-muted { color: var(--md-default-fg-color--light); font-size: 0.9em; }
+
+.cx-toolbar { display: flex; flex-wrap: wrap; gap: 0.6rem 1rem; align-items: center; margin-bottom: 0.8rem; }
+.cx-select, .cx-input {
+  font: inherit; padding: 0.3rem 0.5rem; border-radius: 0.2rem;
+  color: var(--md-default-fg-color); background: var(--md-default-bg-color);
+  border: 1px solid var(--md-default-fg-color--lighter);
+}
+.cx-input { min-width: 14rem; }
+.cx-check { white-space: nowrap; }
+
+.cx-results {
+  display: flex; flex-direction: column; max-height: 16rem; overflow-y: auto; margin-bottom: 0.8rem;
+  border: 1px solid var(--md-default-fg-color--lighter); border-radius: 0.2rem;
+}
+.cx-results[hidden] { display: none; }
+.cx-hit, .cx-ecu, .cx-tab {
+  font: inherit; text-align: left; cursor: pointer; color: var(--md-default-fg-color);
+  background: none; border: 0; padding: 0.3rem 0.6rem;
+}
+.cx-hit:hover, .cx-ecu:hover, .cx-tab:hover { background: var(--md-accent-fg-color--transparent); }
+
+/* Bus diagram */
+.cx-diagram-wrap { overflow-x: auto; border: 1px solid var(--md-default-fg-color--lightest); border-radius: 0.2rem; }
+.cx-diagram { display: block; max-width: none; }
+.md-grid:has(.cx-explorer) { max-width: 90rem; }
+.cx-lane { stroke: var(--md-default-fg-color--light); stroke-width: 2; }
+.cx-lane-unplaced { stroke-dasharray: 4 4; stroke-opacity: 0.6; }
+.cx-lane-label { fill: var(--md-default-fg-color); font-size: 12px; font-weight: 700; }
+.cx-lane-rate { fill: var(--md-default-fg-color--light); font-size: 10px; }
+.cx-bridge { stroke: var(--md-primary-fg-color); stroke-width: 2; }
+.cx-tick { fill: var(--md-primary-fg-color); }
+.cx-node { cursor: pointer; outline: none; }
+.cx-box-bg { fill: var(--md-default-bg-color); }
+.cx-box { stroke: var(--md-default-fg-color--light); stroke-width: 1; }
+.cx-box-label { fill: var(--md-default-fg-color); font-size: 10.5px; pointer-events: none; }
+.cx-node:hover .cx-box, .cx-node:focus .cx-box-bg { fill: var(--md-default-bg-color); }
+.cx-box { stroke: var(--md-accent-fg-color); stroke-width: 2; }
+.cx-selected .cx-box-bg { fill: var(--md-default-bg-color); }
+.cx-box { stroke: var(--md-accent-fg-color); stroke-width: 3; }
+.cx-k-gateway .cx-box, .cx-k-obd .cx-box { stroke-dasharray: 3 2; }
+.cx-k-obd, .cx-k-obd .cx-box { cursor: default; }
+.cx-m-none { fill: var(--md-default-bg-color); background: var(--md-default-bg-color); }
+.cx-m-signals { fill: #ffd54f55; background: #ffd54f99; }
+.cx-m-verified { fill: #66bb6a66; background: #66bb6aaa; }
+.cx-legend { font-size: 0.8rem; margin: 0.4rem 0 1rem; }
+.cx-swatch { display: inline-block; width: 0.8em; height: 0.8em; margin-right: 0.3em; border-radius: 2px;
+  border: 1px solid var(--md-default-fg-color--light); vertical-align: -0.1em; }
+.cx-swatch-item { margin-right: 1em; white-space: nowrap; }
+
+/* Browser */
+.cx-body { display: grid; grid-template-columns: 13rem minmax(0, 1fr); gap: 1rem; align-items: start; }
+.cx-rail { position: sticky; top: 3.5rem; }
+.cx-rail .cx-input { min-width: 0; width: 100%; box-sizing: border-box; margin-bottom: 0.4rem; }
+.cx-ecu-list { display: flex; flex-direction: column; max-height: 70vh; overflow-y: auto; }
+.cx-ecu { display: block; width: 100%; box-sizing: border-box; border-radius: 0.2rem; }
+.cx-ecu.cx-active, .cx-tab.cx-active { background: var(--md-accent-fg-color--transparent); font-weight: 700; }
+.cx-tabs { display: flex; flex-wrap: wrap; border-bottom: 1px solid var(--md-default-fg-color--lighter); margin-bottom: 0.8rem; }
+.cx-tab { border-bottom: 2px solid transparent; }
+.cx-tab.cx-active { border-bottom-color: var(--md-accent-fg-color); }
+.cx-detail h3 { margin-top: 0; }
+
+.cx-facts { border-collapse: collapse; }
+.cx-facts th { text-align: left; padding: 0.2rem 1rem 0.2rem 0; color: var(--md-default-fg-color--light); font-weight: 400; white-space: nowrap; vertical-align: top; }
+.cx-facts td { padding: 0.2rem 0; }
+
+.cx-pid { border: 1px solid var(--md-default-fg-color--lightest); border-radius: 0.2rem; margin-bottom: 0.4rem; }
+.cx-pid > summary { cursor: pointer; padding: 0.4rem 0.6rem; }
+.cx-pid-body { padding: 0.2rem 0.6rem 0.6rem; overflow-x: auto; }
+.cx-table { font-size: 0.8rem; width: 100%; display: table; }
+.cx-table th, .cx-table td { vertical-align: top; padding: 0.3em 0.5em; }
+.cx-table code { overflow-wrap: anywhere; }
+.cx-pid-body .cx-table td:nth-child(2) { min-width: 12rem; }
+.cx-pid-body .cx-table td:nth-child(6) { min-width: 18rem; }
+.cx-flash { animation: cx-flash 2.5s ease-out; }
+@keyframes cx-flash { from { background: var(--md-accent-fg-color--transparent); } to { background: transparent; } }
+
+.cx-notes { white-space: pre-wrap; font-size: 0.85em; margin: 0.3rem 0; }
+.cx-cmd { display: flex; align-items: center; gap: 0.5rem; margin: 0.3rem 0; font-size: 0.8rem; }
+.cx-copy { font: inherit; font-size: 0.7rem; cursor: pointer; color: var(--md-default-fg-color); background: none;
+  border: 1px solid var(--md-default-fg-color--lighter); border-radius: 0.2rem; }
+.cx-src { font-size: 0.75rem; white-space: nowrap; }
+.cx-research { border-left: 3px solid var(--md-default-fg-color--lighter); padding: 0.2rem 0.8rem; margin-bottom: 0.8rem; }
+.cx-list { margin-top: 0.2rem; }
+
+.cx-badge { font-size: 0.7rem; padding: 0.05em 0.5em; border-radius: 1em; white-space: nowrap; }
+.cx-ok { background: #66bb6a44; }
+.cx-warn { background: #ffb74d55; }
+.cx-plain { background: var(--md-default-fg-color--lightest); }
+
+@media (max-width: 700px) {
+  .cx-body { grid-template-columns: minmax(0, 1fr); }
+  .cx-rail { position: static; }
+  .cx-ecu-list { max-height: 12rem; }
+}

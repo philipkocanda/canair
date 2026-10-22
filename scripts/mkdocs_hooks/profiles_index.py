@@ -106,11 +106,9 @@ def discover_bundled(profiles_dir: Path = PROFILES_DIR) -> list[tuple[str, Path]
 
 def _maturity(counts: dict[str, int]) -> str:
     """A one-word maturity hint from the counts."""
-    if counts["verified"] >= 20:
-        return "mature"
-    if counts["params"] <= 2 and counts["ecus"] <= 2:
-        return "seed / stub"
-    return "early"
+    from canlib.explorer_export import profile_maturity
+
+    return profile_maturity(counts)
 
 
 _MATURITY_SENTENCE = {
@@ -191,6 +189,9 @@ def render_index(profiles: list[tuple[str, Path]]) -> str:
         "`--profile NAME`. Build one for *your* car with the "
         "[bring-your-own-car](../bring-your-own-car/overview.md) journey — and "
         "please [contribute it back](../bring-your-own-car/08-share.md#contribute-your-profile-back).",
+        "",
+        "To see how a profile's ECUs sit on the CAN buses and to browse their PIDs, signals "
+        "and IO controls, open the [profile explorer](explorer.md).",
         "",
         "> These counts are computed from each profile's `ecus/` files whenever "
         "this site is built, so they always match the data.",

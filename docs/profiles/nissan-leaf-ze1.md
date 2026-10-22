@@ -7,7 +7,8 @@ charging signals; the drive and climate signals still await a drive capture. See
 [Bundled profiles](index.md) for the full list of what ships, and
 [the Ioniq 2017 page](ioniq-2017.md) for a profile verified across every subsystem.
 
-Browse it on GitHub:
+Explore its ECUs, PIDs and signals in the [profile explorer](explorer.md), or browse it
+on GitHub:
 [`profiles/nissan-leaf-ze1/`](https://github.com/philipkocanda/canair/tree/main/profiles/nissan-leaf-ze1).
 
 Set it as your default profile once, and every `canair` command below works without repeating

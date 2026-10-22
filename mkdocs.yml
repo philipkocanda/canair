@@ -60,11 +60,17 @@ markdown_extensions:
 plugins:
   - search
 
-# Build-time content: the bundled-profiles index and each profile tour's stats
-# block are rendered from profiles/*/ecus/ rather than committed, so they cannot
-# go stale.
+# Build-time content: the bundled-profiles index, each profile tour's stats
+# block and the profile explorer's data are rendered from profiles/ rather than
+# committed, so they cannot go stale.
 hooks:
   - scripts/mkdocs_hooks/profiles_index.py
+  - scripts/mkdocs_hooks/explorer.py
+
+extra_css:
+  - assets/explorer/explorer.css
+extra_javascript:
+  - assets/explorer/explorer.js
 
 nav:
   - Home: index.md
@@ -145,6 +151,7 @@ nav:
           - canair completion: reference/cli/completion.md
   - Bundled profiles:
       - Overview: profiles/index.md
+      - Explorer: profiles/explorer.md
       - Ioniq 2017: profiles/ioniq-2017.md
       - Nissan Leaf ZE1: profiles/nissan-leaf-ze1.md
   - Development:

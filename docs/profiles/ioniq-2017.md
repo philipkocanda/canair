@@ -7,7 +7,8 @@ turns canair into a ready-to-use diagnostics toolkit for the
 **2017 Hyundai Ioniq Electric (28 kWh, `AE` platform)** — read live battery,
 motor, charging, climate, and body data over WiFi with no dealer tools.
 
-Browse it on GitHub:
+Explore its ECUs, PIDs and signals in the [profile explorer](explorer.md), or browse it
+on GitHub:
 [`profiles/ioniq-2017/`](https://github.com/philipkocanda/canair/tree/main/profiles/ioniq-2017).
 
 Set it as your default profile once, and every `canair` command below just

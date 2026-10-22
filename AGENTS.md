@@ -671,6 +671,13 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
     `hunt --physical` and make-specific scalings for the slope→unit sniffer. Resolvers
     `canlib/physical_bands.py`, `canlib/unit_guess.py`. (The grid-axis bands come from the
     user-config `grid_region` instead — an 800 V pack or a non-EU grid otherwise gets no hit.)
+- **`canlib/explorer_export.py` / `explorer_layout.py`** — The docs-site profile explorer
+  (`docs/profiles/explorer.md`). The export turns a profile into an **allow-listed** JSON-able dict
+  (never `identity:` values, captures or `scan_log`), with a `src: {file, line}` on every record read
+  via ruamel; the layout places ECUs on bus lanes. `scripts/mkdocs_hooks/explorer.py` writes it as
+  virtual files at docs build time and `docs/assets/explorer/explorer.{js,css}` only render it, so
+  content rules belong in the exporter (unit-tested in `tests/test_explorer_export.py`). Plan:
+  `plans/2026-10-21-profile-explorer.md`.
 - **`templates/`** (repo root) — Scaffolds for `profile create`. Placeholders use `string.Template`
   (`$car_model`), so literal braces in YAML/comments need no escaping. **Shipped in the wheel** via
   `pyproject.toml`'s `force-include`, so installed copies can still scaffold. Change the scaffold

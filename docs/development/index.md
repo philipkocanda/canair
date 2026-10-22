@@ -48,7 +48,11 @@ uv run python scripts/gen_screenshots.py --check     # if you changed screenshot
 
 The [bundled-profile](../profiles/index.md) counts need no regenerating: an MkDocs hook
 (`scripts/mkdocs_hooks/profiles_index.py`) computes them from `profiles/*/ecus/` each time
-the site is built.
+the site is built. The same goes for the [profile explorer](../profiles/explorer.md): its data is
+exported at build time (`canlib/explorer_export.py`, written out by
+`scripts/mkdocs_hooks/explorer.py`), and `docs/assets/explorer/explorer.{js,css}` only render it.
+Change what the explorer shows in the exporter, which is unit-tested; the JavaScript is
+checked by hand in a browser.
 
 The suite runs in parallel by default (`-n auto --dist loadscope`, set in
 `pyproject.toml`). When iterating on a single file or debugging one failure, pass

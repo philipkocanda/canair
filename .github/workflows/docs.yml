@@ -10,8 +10,11 @@ on:
       # The bundled-profile pages render their counts from the profile data at
       # build time (scripts/mkdocs_hooks/), so a profile change must redeploy.
       - "scripts/mkdocs_hooks/**"
+      - "canlib/explorer_*.py"
       - "profiles/*/ecus/**"
       - "profiles/*/profile.yaml"
+      - "profiles/*/can_buses.yaml"
+      - "profiles/*/signals/**"
   workflow_dispatch:
 
 permissions:

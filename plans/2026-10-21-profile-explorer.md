@@ -1,6 +1,7 @@
 # Profile explorer: browse a profile's ECUs, PIDs and IO controls in the docs
 
-Status: **OPEN** (proposed 2026-10-21). Nothing is built yet.
+Status: **PROTOTYPE BUILT** (2026-10-22). Phases 1-3 exist in a first, quick form; see
+"Prototype status" at the end for what is and isn't done.
 
 The bundled-profile pages (`docs/profiles/`) describe a profile in prose and a few counts. To
 see what the Ioniq's BMS actually exposes, a reader has to open `ecus/bms.yaml` on GitHub and
@@ -148,3 +149,24 @@ profile is selected. If it gets too slow, split per ECU. Do not do that up front
 - A profile-level toggle for tentative identities (the Leaf marks most ECUs tentative) may be
   worth a badge in the diagram rather than the list only.
 - Whether `src` links should target the commit or `main` once release tags exist.
+
+## Prototype status
+
+Built (2026-10-22): `canlib/explorer_export.py`, `canlib/explorer_layout.py`,
+`scripts/mkdocs_hooks/explorer.py`, `docs/profiles/explorer.md`,
+`docs/assets/explorer/explorer.{js,css}` and `tests/test_explorer_export.py`, plus the
+`mkdocs.yml`, workflow and docs links. `mkdocs build --strict` passes and the page was
+exercised in headless Chrome (load, ECU select, PID expand, search deep link, IO tab, profile
+switch, broadcast view, instant navigation).
+
+Covered: all of phases 1 and 2, and most of phase 3 (search, hash deep links, IO control and
+research tabs, plus a broadcast frames view and a verified-only filter).
+
+Not done yet:
+
+- Phase 4 (`canair profile explore`, a self-contained HTML file).
+- The Leaf's tentative-identity badge in the diagram (the list shows it on the Overview tab only).
+- The exporter's headline counts duplicate `profiles_index.profile_stats`; a test pins them equal,
+  but one of the two should call the other.
+- Reserving the lanes a bridge crosses (so no node is drawn on its connector) makes the Ioniq
+  diagram wider than the page on a phone; it scrolls sideways.
