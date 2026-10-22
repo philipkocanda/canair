@@ -223,7 +223,9 @@ and **`g`/`G` address the view's primary axis**.
   `commands/captures/session_fields.py`, and all three `--set-*` share
   `session_gate.py::refuse_write` for the base-layer refusal and confirmation), `--recover`, and
   the one-time `migrate` (YAML→JSON) / `migrate-rx` (`ecu`→`rx`) / `migrate-discover` (gives legacy
-  discover responders their `tx`; `canlib/discover_migrate.py`) / `merge-driver` (see Key Files).
+  discover responders their `tx`; `canlib/discover_migrate.py`) / `split-batched` (splits a
+  multi-DID reply stored whole under its first DID into per-DID rows;
+  `canlib/unsplit_batches.py`) / `merge-driver` (see Key Files).
   **`captures can`** (domain B) lists imported raw frame logs from `captures/can/index.yaml`.
 - **`canair decode`** (alias `dec`) — Value-centric decoding of all historical captures; the default
   view is each signal's value range. `--try` tests a candidate expression **without editing YAML**
@@ -362,12 +364,15 @@ reuse these instead of re-declaring a flag:
   fields hold the same value (dead mirrored data). **`validate captures`** soft-warns on
   out-of-vocabulary states, SID/DID **echo mismatches** (a misfiled payload), **cross-ECU misfiles**
   (a reply that looks like another ECU's answer to the same PID, which the echo check cannot see;
-  cross-file pass, detection in `canlib/misfiled.py`), non-hex payloads, **untimed payload
-  captures** (excluded from every time-aligned analysis) and **degraded-transport sessions**
-  (recorded drops/stale frames). **`--max-untimed N` is the CI ratchet**: fail when the
-  count *grows*. The write path now enforces a timestamp so the count only falls — CI gates each
-  profile at its baseline (`.github/workflows/ci.yml`), lowered opportunistically. `--strict`
-  forbids any untimed row.
+  cross-file pass, detection in `canlib/misfiled.py`), **unsplit multi-DID replies** (a batch
+  reply starts `62 D1`, so it passes `D1`'s echo check; same corpus load via
+  `canlib/payload_corpus.py`, detection in `canlib/unsplit_batches.py`, reply walk in
+  `canlib/multi_did.py`, which the live batched read paths also use to discard one), non-hex
+  payloads, **untimed payload captures** (excluded from every time-aligned analysis) and
+  **degraded-transport sessions** (recorded drops/stale frames). **`--max-untimed N` is the CI
+  ratchet**: fail when the count *grows*. The write path now enforces a timestamp so the count
+  only falls — CI gates each profile at its baseline (`.github/workflows/ci.yml`), lowered
+  opportunistically. `--strict` forbids any untimed row.
 - **`canair wican`** — Build/sync the device's AutoPID profile from the active bundle's `ecus/`. A
   bare `canair wican` prints help (writes nothing). `autopid write` generates JSON into `out/`
   — **verified-only by default**, `--include-unverified` also emits in-progress candidates;

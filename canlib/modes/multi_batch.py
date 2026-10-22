@@ -10,12 +10,14 @@ rather than each other.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from datetime import datetime
 from typing import NotRequired, TypedDict
 
 from ..decoding import ParamRow, decode_param_rows
 from ..formatting import decode_uds_response
 from ..log import log_event
+from ..multi_did import split_chain
 from ..uds_parse import UdsResponse
 
 
@@ -213,6 +215,25 @@ def split_multi_did(
 def _is_did22(pid_code: str) -> bool:
     """True for a full 6-char service-22 DID request like ``22BC03``."""
     return len(pid_code) == 6 and pid_code[:2] == "22"
+
+
+def is_leaked_batch_reply(resp_hex: str, data_len: Callable[[str], int | None]) -> bool:
+    """Is this answer to a single-DID read really a whole multi-DID batch reply?
+
+    A batch reply starts ``62 D1``, so when a batch request times out and its reply lands in
+    the per-DID fallback read of ``D1``, the echo check passes it. Stored, it became ``D1``'s
+    payload with every other DID's data appended, and learned, it poisoned ``D1``'s length for
+    every later batch. ``data_len`` gives the session's learned length per DID
+    (see :func:`canlib.multi_did.split_chain`).
+    """
+    try:
+        payload = bytes.fromhex(resp_hex)
+    except ValueError:
+        return False
+    return split_chain(payload, data_len) is not None
+
+
+LEAKED_BATCH_ERROR = "multi-DID batch reply received for a single-DID read (discarded)"
 
 
 def _capture_stamp(acquired_at: float | None) -> tuple[str, str]:

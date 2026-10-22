@@ -1,46 +1,17 @@
 """captures/ validation — replies saved under the wrong ECU (cross-file pass).
 
 The per-file lints in ``captures.py`` can't see this: a misfile only shows against the rest of
-the corpus. Detection lives in ``canlib.misfiled``; this module walks the files and words it.
+the corpus. Detection lives in ``canlib.misfiled``; this module words it.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from canlib import capture_io
-from canlib.misfiled import Misfile, PayloadSample, find_misfiled
+from canlib.misfiled import Misfile, find_misfiled
+from canlib.payload_corpus import PayloadCorpus, load_payload_corpus
 
 from .captures import CaptureWarning
-
-
-def _samples(files: list[Path]) -> tuple[list[PayloadSample], list[tuple[Path, int, int, str]]]:
-    """Every hex payload capture, plus a ``(path, session, capture, time)`` locator per sample."""
-    from canlib.ecus import parse_ecu_ref
-
-    out: list[PayloadSample] = []
-    where: list[tuple[Path, int, int, str]] = []
-    for path in files:
-        data = capture_io.load_capture_file(path)
-        if not isinstance(data, dict):
-            continue
-        for si, session in enumerate(data.get("sessions", []) or []):
-            if not isinstance(session, dict):
-                continue
-            for ci, cap in enumerate(session.get("captures", []) or []):
-                if not isinstance(cap, dict):
-                    continue
-                rx = parse_ecu_ref(capture_io.capture_rx(cap) or None)
-                pid, payload = cap.get("pid"), cap.get("payload")
-                if rx is None or not pid or not payload:
-                    continue
-                try:
-                    raw = bytes.fromhex(str(payload))
-                except ValueError:
-                    continue  # the non-hex lint reports it
-                out.append(PayloadSample(len(out), rx, str(pid), raw))
-                where.append((path, si, ci, str(cap.get("time", "?"))))
-    return out, where
 
 
 def _message(m: Misfile, names: dict[int, str]) -> str:
@@ -64,22 +35,26 @@ def _message(m: Misfile, names: dict[int, str]) -> str:
 
 
 def misfile_warnings(
-    files: list[Path], names: dict[int, str] | None = None
+    files: list[Path],
+    names: dict[int, str] | None = None,
+    corpus: PayloadCorpus | None = None,
 ) -> dict[Path, list[CaptureWarning]]:
     """Per-file warnings for captures that look like another ECU's reply.
 
     ``names`` maps an RX address to an ECU name for the message; it defaults to the active
-    profile's registry.
+    profile's registry. ``corpus`` is the already-loaded payloads of ``files``, when the caller
+    shares one load across several cross-file checks.
     """
     if names is None:
         from canlib.ecus import build_rx_index
 
         names = build_rx_index()
+    if corpus is None:
+        corpus = load_payload_corpus(files)
     out: dict[Path, list[CaptureWarning]] = {}
-    samples, where = _samples(files)
-    for m in find_misfiled(samples):
-        path, si, ci, time = where[m.sample.handle]
+    for m in find_misfiled(corpus.samples):
+        at = corpus.where[m.sample.handle]
         own = names.get(m.sample.rx, hex(m.sample.rx))
-        location = f"sessions[{si}].captures[{ci}] ({own} {m.sample.pid} @ {time})"
-        out.setdefault(path, []).append(CaptureWarning(location, _message(m, names)))
+        location = at.describe(own, m.sample.pid)
+        out.setdefault(at.path, []).append(CaptureWarning(location, _message(m, names)))
     return out

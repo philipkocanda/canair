@@ -419,3 +419,55 @@ class TestReadSingleEchoValidation:
         result = asyncio.run(_read_single(sm, 0x7E2, "2102", {"parameters": {}}, [], None))
         assert "error" in result
         assert "raw_hex" not in result  # not recorded as a valid payload
+
+
+class TestLeakedBatchReply:
+    """A batch that timed out can answer the per-DID fallback read of its first DID.
+
+    The batch reply starts ``62 BC03``, so the single read's echo check passes it. Taken, it
+    was saved as BC03's payload with BC06's data appended (seen in real 2026-08-08 captures),
+    and learned, it made BC03's length the whole batch's, so every later batch failed to split.
+    """
+
+    def _state(self) -> BatchState:
+        bs = BatchState()
+        for d in ("BC03", "BC06"):
+            bs.lengths[(0x770, d)] = 8
+        return bs
+
+    def test_single_read_answered_by_the_batch_is_an_error_not_a_payload(self):
+        term = FakeTerminal({"22BC03": _ok(MULTI)})
+        bs = self._state()
+        sm = _mk_sm(term.send_uds)
+        result = asyncio.run(_read_single(sm, 0x770, "22BC03", {"parameters": {}}, False, bs))
+        assert "raw_hex" not in result
+        assert "multi-DID batch reply" in result["error"]
+        assert bs.lengths[(0x770, "BC03")] == 8  # not re-learned as the batch's length
+
+    def test_timed_out_batch_whose_reply_lands_in_the_fallback_is_not_stored(self):
+        term = FakeTerminal({"22BC03": _ok(MULTI), "22BC06": _ok(BC06_SINGLE)})  # batch: NO DATA
+        sm = _mk_sm(term.send_uds)
+        _l, results = asyncio.run(
+            _exec_query(
+                sm,
+                "IGPM",
+                [],
+                _igpm_index(multi_did=True),
+                {},
+                False,
+                return_results=True,
+                batch_state=self._state(),
+            )
+        )
+        assert term.sent == ["22BC03BC06", "22BC03", "22BC06"]
+        by_pid = {r["pid"]: r for r in results}
+        assert "raw_hex" not in by_pid["22BC03"]
+        assert by_pid["22BC06"]["raw_hex"] == BC06_SINGLE
+
+    def test_without_learned_lengths_a_single_reply_is_taken_as_is(self):
+        term = FakeTerminal({"22BC03": _ok(BC03_SINGLE)})
+        sm = _mk_sm(term.send_uds)
+        result = asyncio.run(
+            _read_single(sm, 0x770, "22BC03", {"parameters": {}}, False, BatchState())
+        )
+        assert result["raw_hex"] == BC03_SINGLE

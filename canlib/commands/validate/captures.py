@@ -169,10 +169,16 @@ def _run_captures(
 
     hk_f1xx_offset = has_quirk(prof.meta, HK_F1XX_MINUS_ONE)
 
-    # Cross-file: a reply saved under the wrong ECU only stands out against the whole corpus.
-    from .misfiled import misfile_warnings
+    # Cross-file: a reply saved under the wrong ECU, or a multi-DID reply saved whole under one
+    # DID, only stands out against the whole corpus. Load it once for both checks.
+    from canlib.payload_corpus import load_payload_corpus
 
-    misfiled = misfile_warnings(files)
+    from .misfiled import misfile_warnings
+    from .unsplit import unsplit_batch_warnings
+
+    corpus = load_payload_corpus(files)
+    misfiled = misfile_warnings(files, corpus=corpus)
+    unsplit = unsplit_batch_warnings(files, corpus=corpus)
 
     total_errors = 0
     total_warnings = 0
@@ -186,6 +192,7 @@ def _run_captures(
         warnings += _capture_nonhex_warnings(path)
         warnings += _capture_quality_warnings(path)
         warnings += misfiled.get(path, [])
+        warnings += unsplit.get(path, [])
         # Missing-time on payload captures: an error under --strict (new-data
         # gate). Otherwise the grandfathered rows are a single tracked COUNT (the
         # footer + the --max-untimed ratchet), not a per-file warning stream — 284

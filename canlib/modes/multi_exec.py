@@ -23,10 +23,12 @@ from ..session_manager import SessionManager
 from ..transport.elm327_terminal import Elm327Terminal
 from ..uds_parse import request_echo
 from .multi_batch import (
+    LEAKED_BATCH_ERROR,
     BatchState,
     _decode_pid_result,
     _error_result,
     _is_did22,
+    is_leaked_batch_reply,
     split_multi_did,
     transport_did_cap,
 )
@@ -106,6 +108,24 @@ async def _read_single(sm, tx_id, pid_code, pid_info, unmapped, batch_state):
         sm.mark_active(tx_id)  # a real answer resets S3 — no redundant 3E00 needed
     if not resp.get("ok"):
         return _error_result(pid_code, unmapped, resp, acquired_at)
+    if (
+        batch_state is not None
+        and _is_did22(pid_code)
+        and is_leaked_batch_reply(
+            resp.get("hex", ""), lambda d: batch_state.lengths.get((tx_id, d))
+        )
+    ):
+        # Checked before learn(): taking it would store the batch as this DID's payload and
+        # set this DID's length to the whole batch's, so every later batch fails to split.
+        log_event(
+            "stale", LEAKED_BATCH_ERROR, level=logging.INFO, ecu=f"0x{tx_id:03X}", pid=pid_code
+        )
+        return {
+            "pid": pid_code,
+            "error": LEAKED_BATCH_ERROR,
+            "unmapped": unmapped,
+            "acquired_at": acquired_at,
+        }
     if batch_state is not None and _is_did22(pid_code) and resp.get("hex"):
         batch_state.learn(tx_id, pid_code[2:], resp["hex"])
     return _decode_pid_result(

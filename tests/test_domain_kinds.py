@@ -18,10 +18,18 @@ class TestGroupDefaults:
         # The spine groups default to uds; scan/ecu keep their own defaults.
         # `captures` also carries a `migrate` kind (YAML→JSON store migration),
         # `migrate-rx` (the ecu→rx field rename), `migrate-discover` (the legacy
-        # discover-responder repair), and `merge-driver` (the git session-union
-        # merge driver).
+        # discover-responder repair), `split-batched` (the unsplit multi-DID reply
+        # repair), and `merge-driver` (the git session-union merge driver).
         assert _GROUP_DEFAULTS["captures"] == (
-            {"uds", "can", "migrate", "migrate-rx", "migrate-discover", "merge-driver"},
+            {
+                "uds",
+                "can",
+                "migrate",
+                "migrate-rx",
+                "migrate-discover",
+                "split-batched",
+                "merge-driver",
+            },
             "uds",
         )
         assert _GROUP_DEFAULTS["correlate"] == ({"uds", "can"}, "uds")
@@ -83,6 +91,7 @@ class TestInjectDefaultSubcommand:
             (["captures", "migrate", "--dry-run"], ["captures", "migrate", "--dry-run"]),
             (["captures", "migrate-rx"], ["captures", "migrate-rx"]),
             (["captures", "migrate-discover"], ["captures", "migrate-discover"]),
+            (["captures", "split-batched"], ["captures", "split-batched"]),
             (["captures", "merge-driver", "--install"], ["captures", "merge-driver", "--install"]),
             (["correlate", "can", "drive.log"], ["correlate", "can", "drive.log"]),
             (["hunt", "can", "drive.log"], ["hunt", "can", "drive.log"]),

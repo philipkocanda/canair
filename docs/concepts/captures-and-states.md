@@ -556,6 +556,26 @@ The TX is recovered exactly from how those captures were labelled (`NAME
 no longer resolves is reported rather than guessed. It is idempotent, and it
 cannot recover the session's transport — use `--set-transport` for that.
 
+### Splitting multi-DID replies stored under one DID
+
+An ECU that supports batching answers `22 D1 D2 …` with `62 D1 <data> D2 <data> …`,
+which starts exactly like a single reply to `D1`. Older canair versions could take
+a batch reply that arrived late as the answer to the next per-DID read of `D1`, and
+saved it whole as `D1`'s payload, with every other DID's data appended. Current
+versions discard such a reply, and `canair validate captures` warns about the
+rows already stored. One repair replaces each with one capture per DID at the
+same time, so the readings it carried are kept:
+
+```bash
+canair --profile my-car captures split-batched --dry-run   # preview
+canair --profile my-car captures split-batched
+```
+
+A row is split only when it walks exactly through DIDs of the same ECU at each
+DID's established length, so a padded or merely long reply is left alone. It is
+idempotent, and in a layered profile it reports rows in the read-only base
+instead of rewriting them.
+
 ## Reviewing captures
 
 ```bash

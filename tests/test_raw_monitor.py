@@ -363,3 +363,40 @@ class TestLayoutStability:
         keys = [(lbl, r["pid"]) for lbl, res in c.last_queries for r in res]
         assert len(keys) == len(set(keys))
         assert [lbl for lbl, _res in c.last_queries] == ["IGPM (0x770)", "BMS (0x7E4)"]
+
+
+class TestRawBatchRepliesNeverLandUnderOneDid:
+    """A multi-DID reply is either split per DID or recorded under none of them."""
+
+    BC03 = "62BC03FDEE3C730A000000"
+    BC06 = "62BC06B480000000000000"
+    BATCH = "62BC03FDEE3C730A000000BC06B480000000000000"
+
+    def _ctrl(self, table):
+        steps = [{"ecu": "IGPM", "pids": ["BC03", "BC06"]}]
+        lengths = {("IGPM", "BC03"): 8, ("IGPM", "BC06"): 8}
+        return _mk_ctrl(steps, _IGPM_BMS_INDEX, lengths=lengths, table=table)
+
+    def _results(self, c):
+        asyncio.run(c._poll_raw())
+        return {r["pid"]: r for _lbl, res in c.last_queries for r in res}
+
+    def test_an_unsplittable_batch_is_an_error_for_every_member(self):
+        # Positive, but BC06's data is one byte short of its learned length.
+        c = self._ctrl({("IGPM", bytes.fromhex("22BC03BC06")): bytes.fromhex(self.BATCH[:-2])})
+        got = self._results(c)
+        assert "IGPM" in c._raw_nobatch
+        assert all("raw_hex" not in got[p] and "error" in got[p] for p in ("22BC03", "22BC06"))
+
+    def test_a_single_read_answered_by_a_batch_is_discarded(self):
+        c = self._ctrl(
+            {
+                ("IGPM", bytes.fromhex("22BC03")): bytes.fromhex(self.BATCH),
+                ("IGPM", bytes.fromhex("22BC06")): bytes.fromhex(self.BC06),
+            }
+        )
+        c._raw_nobatch.add("IGPM")  # single reads only
+        got = self._results(c)
+        assert "raw_hex" not in got["22BC03"]
+        assert got["22BC06"]["raw_hex"] == self.BC06
+        assert c._raw_lengths[("IGPM", "BC03")] == 8  # not re-learned as the batch's length

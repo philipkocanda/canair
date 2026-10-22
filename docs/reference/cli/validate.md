@@ -27,7 +27,9 @@ Pick a target (default: all):
 `validate captures` also emits soft warnings for out-of-vocabulary vehicle
 states, SID/PID/DID echo mismatches (misfiled frames), replies that look
 like another ECU's answer to the same PID (by length or identical bytes),
-non-hex payloads (e.g. a stored 'NO DATA'), and untimed payload captures.
+multi-DID replies stored whole under their first DID (repair with
+`captures split-batched`), non-hex payloads (e.g. a stored 'NO DATA'), and
+untimed payload captures.
 Pass --strict to promote the untimed-payload warning to an error — the CI /
 new-data gate.
 

@@ -8,9 +8,9 @@ Two domains behind one command, split by *kind*:
   ``captures/can/index.yaml``.
 
 plus the store-maintenance kinds (``migrate``, ``migrate-rx``,
-``migrate-discover``) and the git
-``merge-driver``. A bare ``canair captures BMS 2102`` is shorthand for the ``uds``
-kind, injected by ``cli.py``'s ``_GROUP_DEFAULTS``.
+``migrate-discover``, ``split-batched``) and the git ``merge-driver``. A bare
+``canair captures BMS 2102`` is shorthand for the ``uds`` kind, injected by
+``cli.py``'s ``_GROUP_DEFAULTS``.
 
 This module is only the group: it wires the kinds together and re-exports the
 handful of names other commands consume. Each kind and view lives in its own
@@ -45,6 +45,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         _add_migrate_discover_parser,
         _add_migrate_parser,
         _add_migrate_rx_parser,
+        _add_split_batched_parser,
     )
     from .uds import _add_uds_parser
 
@@ -67,6 +68,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     _add_migrate_parser(kinds)
     _add_migrate_rx_parser(kinds)
     _add_migrate_discover_parser(kinds)
+    _add_split_batched_parser(kinds)
     merge_driver.add_parser(kinds)
     parser.set_defaults(func=group_help("_captures_group_parser"), _captures_group_parser=parser)
     return parser

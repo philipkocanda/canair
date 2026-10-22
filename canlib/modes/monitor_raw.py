@@ -236,7 +236,13 @@ class MonitorRawPoller:
     ) -> None:
         """Fold one completed submission's response into ``by_pid`` (split batches,
         learn 22-DID lengths, track ECUs that can't batch)."""
-        from .multi_batch import _did_data_len, _is_did22, split_multi_did
+        from .multi_batch import (
+            LEAKED_BATCH_ERROR,
+            _did_data_len,
+            _is_did22,
+            is_leaked_batch_reply,
+            split_multi_did,
+        )
 
         ecu = s["ecu"]
         resp = bytes(val) if isinstance(val, (bytes, bytearray)) else None
@@ -248,12 +254,13 @@ class MonitorRawPoller:
             elif resp and resp[0] == 0x7F and (resp[2] if len(resp) >= 3 else 0) in (0x13, 0x31):
                 self.nobatch.add(ecu)  # ECU can't batch — fall back next cycle
             if split is None:
+                outcome = val if resp is None else resp
                 if resp and resp[0] != 0x7F:
                     self.nobatch.add(ecu)  # positive but unsplittable
+                    # It answers no single member, so none of them may take it as its payload.
+                    outcome = ValueError("multi-DID reply did not split into the requested DIDs")
                 for code, pi, un in s["members"]:
-                    by_pid[(ecu, code)] = _raw_pid_result(
-                        code, pi, un, val if resp is None else resp, acquired
-                    )
+                    by_pid[(ecu, code)] = _raw_pid_result(code, pi, un, outcome, acquired)
             else:
                 for code, pi, un in s["members"]:
                     sub = bytes.fromhex(split[code[2:]])
@@ -261,6 +268,13 @@ class MonitorRawPoller:
             return
 
         code, pi, un = s["members"][0]
+        if (
+            _is_did22(code)
+            and resp
+            and is_leaked_batch_reply(resp.hex(), lambda d: self.lengths.get((ecu, d)))
+        ):
+            val = ValueError(LEAKED_BATCH_ERROR)  # neither stored nor learned as this DID's
+            resp = None
         by_pid[(ecu, code)] = _raw_pid_result(code, pi, un, val, acquired)
         if _is_did22(code) and resp and resp[0] != 0x7F:  # learn length for batching
             dlen = _did_data_len(resp.hex().upper(), code[2:], self.pad)

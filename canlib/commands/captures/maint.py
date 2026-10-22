@@ -1,10 +1,11 @@
-"""Capture-store maintenance: ``--recover`` and the ``migrate`` kinds.
+"""Capture-store maintenance: ``--recover`` and the repair kinds.
 
 Whole-store file operations that take no QUERY — reconciling the journals a
-killed ``--save`` session left behind, and the one-time on-disk repairs (legacy
-YAML → JSON, the capture field ``ecu`` → ``rx``, and legacy discover responders'
-missing ``tx``). The QUERY-driven mutating modes live in :mod:`delete`,
-:mod:`backfill`, :mod:`set_state` and :mod:`session_fields`.
+killed ``--save`` session left behind, and the on-disk repairs (legacy YAML →
+JSON, the capture field ``ecu`` → ``rx``, legacy discover responders' missing
+``tx``, and multi-DID replies stored whole under one DID). The QUERY-driven
+mutating modes live in :mod:`delete`, :mod:`backfill`, :mod:`set_state` and
+:mod:`session_fields`.
 """
 
 import argparse
@@ -209,6 +210,64 @@ def cmd_migrate_discover(
     return 1 if any(r.skipped for r in results) else 0
 
 
+def cmd_split_batched(
+    captures_dir: Path | None, *, dry_run: bool = False, as_json: bool = False
+) -> int:
+    """Split multi-DID replies stored whole under one DID into one capture per DID."""
+    import json as _json
+
+    from canlib.capture_io import resolve_capture_layers
+    from canlib.ecus import build_rx_index
+    from canlib.unsplit_batches import split_unsplit_batches
+
+    cdir = resolve_captures_dir(captures_dir)
+    report = split_unsplit_batches(resolve_capture_layers(captures_dir), cdir, dry_run=dry_run)
+    names = build_rx_index()
+
+    def _row(s) -> dict:
+        return {
+            "file": s.where.path.name,
+            "session": s.where.session,
+            "capture": s.where.capture,
+            "time": s.where.time,
+            "ecu": names.get(s.rx, hex(s.rx)),
+            "pid": s.pid,
+            "split_into": list(s.pids),
+        }
+
+    if as_json:
+        _json.dump(
+            {
+                "dry_run": dry_run,
+                "captures_dir": str(cdir),
+                "split": [_row(s) for s in report.split],
+                "read_only": [_row(s) for s in report.read_only],
+            },
+            sys.stdout,
+            indent=2,
+        )
+        print()
+        return 1 if report.read_only else 0
+
+    if not report.split and not report.read_only:
+        print(f"  No multi-DID replies stored under a single DID in {cdir}.")
+        return 0
+    verb = "Would split" if dry_run else "Split"
+    for s in report.split:
+        row = _row(s)
+        print(
+            f"  {verb.lower()} {row['file']} [{s.where.session}].{s.where.capture} "
+            f"{row['ecu']} {s.pid} @ {s.where.time} → {' + '.join(s.pids)}"
+        )
+    for s in report.read_only:
+        row = _row(s)
+        print(f"  ! {s.where.path} {row['ecu']} {s.pid} @ {s.where.time}: read-only base layer")
+    print(f"  {verb} {len(report.split)} capture(s).")
+    if dry_run:
+        print("  Re-run without --dry-run to write.")
+    return 1 if report.read_only else 0
+
+
 def orphan_notice(captures_dir: Path | None = None) -> None:
     """Print a one-line notice if orphaned journals exist (best-effort, silent on error)."""
     try:
@@ -303,5 +362,33 @@ def _add_migrate_discover_parser(kinds) -> argparse.ArgumentParser:
     )
     parser.set_defaults(
         func=lambda args: cmd_migrate_discover(args.dir, dry_run=args.dry_run, as_json=args.json)
+    )
+    return parser
+
+
+def _add_split_batched_parser(kinds) -> argparse.ArgumentParser:
+    parser = kinds.add_parser(
+        "split-batched",
+        help="Split multi-DID replies stored whole under one DID into per-DID captures",
+        description="Find service-22 captures whose payload is a whole multi-DID reply "
+        "(62 D1 <data> D2 <data> …) stored under its first DID, and replace each with "
+        "one capture per DID at the same time.\n\n"
+        "A batched reply starts like a single reply to its first DID, so a batch reply "
+        "that leaked into a per-DID read passed the echo check and was saved whole; "
+        "`validate captures` reports these. A row is split only when it walks exactly "
+        "through DIDs of the same ECU at each DID's established length, so a padded "
+        "or merely long reply is left alone. The split rows drop `elapsed_ms` (one "
+        "round trip answered them all). Idempotent; a layered profile's read-only base "
+        "is reported, not rewritten (exit 1). Performs the split by default; pass "
+        "--dry-run to preview.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument("--dry-run", action="store_true", help="Preview splits without writing")
+    parser.add_argument("--json", action="store_true", help="Machine-readable JSON output")
+    parser.add_argument(
+        "--dir", type=Path, default=None, help="Captures directory (default: active profile)"
+    )
+    parser.set_defaults(
+        func=lambda args: cmd_split_batched(args.dir, dry_run=args.dry_run, as_json=args.json)
     )
     return parser
