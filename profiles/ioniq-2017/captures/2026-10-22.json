@@ -348,6 +348,333 @@
           "elapsed_ms": 661
         }
       ]
+    },
+    {
+      "date": "2026-10-22",
+      "label": "HVAC baseline: precondition timer armed, AVN fuse pulled",
+      "version": "1.28.0+79cf914.dirty",
+      "vehicle_states": [
+        "READY"
+      ],
+      "notes": "Climate display shows the preconditioning-timer icon. AVN unpowered (fuse pulled). Car READY, parked.",
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 6
+      },
+      "captures": [
+        {
+          "rx": "0x7BB",
+          "pid": "220100",
+          "payload": "6201007E5007C8FF63606004EEB7FFFFB7FF10FFFFFFFFFFFFFFFFFF4EBF616000FFFF00FFFF",
+          "time": "10:07:20.609",
+          "elapsed_ms": 79
+        },
+        {
+          "rx": "0x7BB",
+          "pid": "220102",
+          "payload": "620102FF800000616000000000000010",
+          "time": "10:07:20.667",
+          "elapsed_ms": 57
+        },
+        {
+          "rx": "0x7BB",
+          "pid": "2201A0",
+          "payload": "6201A09F01C9ABABAE276363616028898900000100004628155407090C00F40F000A00FFFF13130054017501C90A00000000000000000000000000",
+          "time": "10:07:20.790",
+          "elapsed_ms": 122
+        },
+        {
+          "rx": "0x7BB",
+          "pid": "2201A1",
+          "payload": "6201A1000000000000010100780050002F01C9005401A1148A000000000EFA02350000000000012C000A0AD5085B085B000000000EFA0020000005",
+          "time": "10:07:20.896",
+          "elapsed_ms": 106
+        },
+        {
+          "rx": "0x7BB",
+          "pid": "2201A2",
+          "payload": "6201A200000000000001011A24000001C900540175001400400008007300060003000A000008FFD8000003B600000C00000000",
+          "time": "10:07:21.007",
+          "elapsed_ms": 110
+        },
+        {
+          "rx": "0x7BB",
+          "pid": "2201A3",
+          "payload": "6201A300550054FFFFFFFF00000057005306000000000000000000EE10B7B70000BF4E000000000000B50280029E00010000000000",
+          "time": "10:07:21.119",
+          "elapsed_ms": 112
+        }
+      ]
+    },
+    {
+      "date": "2026-10-22",
+      "label": "HVAC 22 0000-00FF scan",
+      "version": "1.28.0+79cf914.dirty",
+      "vehicle_states": [
+        "READY"
+      ],
+      "transport": "wican-ws",
+      "captures": [
+        {
+          "rx": "0x7BB",
+          "pid": "scan 22 0000-00FF",
+          "scan_results": {
+            "rejected": "256 DIDs returned 256 NRC"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-10-22",
+      "label": "HVAC 22 0100-01FF scan --session",
+      "version": "1.28.0+79cf914.dirty",
+      "vehicle_states": [
+        "READY"
+      ],
+      "transport": "wican-ws",
+      "captures": [
+        {
+          "rx": "0x7BB",
+          "pid": "scan 22 0100-01FF",
+          "scan_results": {
+            "responding": [
+              {
+                "did": "0100",
+                "response": "38 bytes",
+                "notes": "Raw: 6201007E5007C8FF63606005EEB7FFFFB7FF10FFFFFFFFFFFFFFFFFF4EBF616100FFFF00FFFF"
+              },
+              {
+                "did": "0102",
+                "response": "16 bytes",
+                "notes": "Raw: 620102FF800000616000000000000010"
+              },
+              {
+                "did": "01A0",
+                "response": "59 bytes",
+                "notes": "Raw: 6201A09E01C2AAAAAD2763636260288989000001000046281560080B0C00F40F000A00FFFF131300..."
+              },
+              {
+                "did": "01A1",
+                "response": "59 bytes",
+                "notes": "Raw: 6201A1000000000000010100780051002F01C2005501A1148A000000000EF602350000000000012C..."
+              },
+              {
+                "did": "01A2",
+                "response": "51 bytes",
+                "notes": "Raw: 6201A200000000000001011A24000001C20055016D001400400008007300060003000A000008FFD8..."
+              },
+              {
+                "did": "01A3",
+                "response": "53 bytes",
+                "notes": "Raw: 6201A300550055FFFFFFFF00000058005406000000000000000000EE10B7B70000BF4E0000000000..."
+              },
+              {
+                "did": "01A4",
+                "response": "53 bytes",
+                "notes": "Raw: 6201A400550055FFFFFFFF00000058005406000000000000000000EE10B7B70000BF4E0000000000..."
+              },
+              {
+                "did": "01A5",
+                "response": "2 bytes",
+                "notes": "Raw: 6201"
+              },
+              {
+                "did": "01A6",
+                "response": "2 bytes",
+                "notes": "Raw: 6201"
+              }
+            ],
+            "rejected": "247 DIDs returned 247 NRC"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-10-22",
+      "label": "HVAC 22 B000-B1FF scan ",
+      "version": "1.28.0+79cf914.dirty",
+      "vehicle_states": [
+        "READY"
+      ],
+      "transport": "wican-ws",
+      "captures": [
+        {
+          "rx": "0x7BB",
+          "pid": "scan 22 B000-B1FF",
+          "scan_results": {
+            "rejected": "512 DIDs returned 512 NRC"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-10-22",
+      "label": "HVAC 22 C000-C1FF scan ",
+      "version": "1.28.0+79cf914.dirty",
+      "vehicle_states": [
+        "READY"
+      ],
+      "transport": "wican-ws",
+      "captures": [
+        {
+          "rx": "0x7BB",
+          "pid": "scan 22 C000-C1FF",
+          "scan_results": {
+            "rejected": "512 DIDs returned 512 NRC"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-10-22",
+      "label": "HVAC 22 D000-D0FF scan ",
+      "version": "1.28.0+79cf914.dirty",
+      "vehicle_states": [
+        "READY"
+      ],
+      "transport": "wican-ws",
+      "captures": [
+        {
+          "rx": "0x7BB",
+          "pid": "scan 22 D000-D0FF",
+          "scan_results": {
+            "rejected": "256 DIDs returned 256 NRC"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-10-22",
+      "label": "HVAC 22 E000-E1FF scan ",
+      "version": "1.28.0+79cf914.dirty",
+      "vehicle_states": [
+        "READY"
+      ],
+      "transport": "wican-ws",
+      "captures": [
+        {
+          "rx": "0x7BB",
+          "pid": "scan 22 E000-E1FF",
+          "scan_results": {
+            "rejected": "512 DIDs returned 512 NRC"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-10-22",
+      "label": "HVAC 22 F000-F0FF scan ",
+      "version": "1.28.0+79cf914.dirty",
+      "vehicle_states": [
+        "READY"
+      ],
+      "transport": "wican-ws",
+      "captures": [
+        {
+          "rx": "0x7BB",
+          "pid": "scan 22 F000-F0FF",
+          "scan_results": {
+            "rejected": "256 DIDs returned 256 NRC"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-10-22",
+      "label": "HVAC 22 F200-F2FF scan ",
+      "version": "1.28.0+79cf914.dirty",
+      "vehicle_states": [
+        "READY"
+      ],
+      "transport": "wican-ws",
+      "captures": [
+        {
+          "rx": "0x7BB",
+          "pid": "scan 22 F200-F2FF",
+          "scan_results": {
+            "rejected": "256 DIDs returned 256 NRC"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-10-22",
+      "label": "HVAC 22 0200-02FF scan ",
+      "version": "1.28.0+79cf914.dirty",
+      "vehicle_states": [
+        "READY"
+      ],
+      "transport": "wican-ws",
+      "captures": [
+        {
+          "rx": "0x7BB",
+          "pid": "scan 22 0200-02FF",
+          "scan_results": {
+            "rejected": "256 DIDs returned 256 NRC"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-10-22",
+      "label": "HVAC 22 1000-10FF scan ",
+      "version": "1.28.0+79cf914.dirty",
+      "vehicle_states": [
+        "READY"
+      ],
+      "transport": "wican-ws",
+      "captures": [
+        {
+          "rx": "0x7BB",
+          "pid": "scan 22 1000-10FF",
+          "scan_results": {
+            "rejected": "256 DIDs returned 256 NRC"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-10-22",
+      "label": "HVAC re-read: precondition timer armed, AVN fuse pulled",
+      "version": "1.28.0+79cf914.dirty",
+      "vehicle_states": [
+        "READY"
+      ],
+      "notes": "Re-read ~7 min after baseline to see which bytes count.",
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 4
+      },
+      "captures": [
+        {
+          "rx": "0x7BB",
+          "pid": "2201A0",
+          "payload": "6201A09F01C9ABABAE276464626028898900000100004628154806090C00F40F000A00FFFF13130057017201C90A00000000000000000000130000",
+          "time": "10:14:40.390",
+          "elapsed_ms": 121
+        },
+        {
+          "rx": "0x7BB",
+          "pid": "2201A1",
+          "payload": "6201A1000000000000010100780054002F01C9005701A1148A000000000EF502350000000000012C000A0AD5085B085B000000000EF50021000005",
+          "time": "10:14:40.500",
+          "elapsed_ms": 110
+        },
+        {
+          "rx": "0x7BB",
+          "pid": "2201A2",
+          "payload": "6201A200000001000001011A24000001C900580171001400430008007300060003000A000008FFD8000003B600000C00000000",
+          "time": "10:14:40.627",
+          "elapsed_ms": 127
+        },
+        {
+          "rx": "0x7BB",
+          "pid": "2201A3",
+          "payload": "6201A300590057FFFFFFFF00000059005606000000000000000000EE10B7B70000BE4C0000000000009C0280029E00010000000000",
+          "time": "10:14:40.754",
+          "elapsed_ms": 126
+        }
+      ]
     }
   ]
 }

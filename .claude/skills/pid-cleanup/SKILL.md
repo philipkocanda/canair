@@ -83,17 +83,21 @@ PID is fine. This rule is about individual params.
 
 The param name is a claim. Keep it honest:
 
-- **Known meaning** → name it (`HVAC_HEAT_POWER`, `HVAC_COMPRESSOR_ON`).
+- **Known meaning** → name it (`HVAC_HEAT_POWER`, `HVAC_HEAT_PUMP_ON`).
+- **Meaning verified in one regime only** → name only what the test covered.
+  `HVAC_COMPRESSOR_ON` was verified against heat-pump heating, then read 0 under
+  A/C with the compressor running; it is now `HVAC_HEAT_PUMP_ON`.
 - **Known byte, unknown meaning** → say so explicitly with the byte in the
   name, e.g. `HVAC_B19_UNKN` (or match the ECU's existing convention —
-  `HVAC_UNKNOWN_B17` is also in use; be consistent within a file). The name
-  must not imply a meaning you can't back.
+  `HVAC_UNKNOWN_B17` is also in use; be consistent within a file, and add the
+  page, e.g. `HVAC_A0_UNKNOWN_B23`, where the same byte number recurs across
+  PIDs). The name must not imply a meaning you can't back.
 - **A guessed meaning that later proves wrong** → rename
   (`canair pids rename-param ECU PID OLD NEW`) and **fix every cross-reference**
   to the old name (grep the profile: expressions, notes, research targets).
   A rename that leaves dangling references is a defect.
 - Disambiguate same-signal mirrors / byte variants with a `_B<n>` suffix
-  (`HVAC_COOLING_MODE_B25`, `HVAC_COMPRESSOR_ON_MIRROR_B18`) so it's clear which
+  (`HVAC_AAT_MIRROR_B17`, `HVAC_HEAT_PUMP_ON_MIRROR_B18`) so it's clear which
   byte a name is about.
 
 When you demote a name from a guess to `_UNKN`, also strip the now-unsupported
@@ -108,7 +112,12 @@ guess from the note (rule 2).
    into one PID with `canair investigate <ECU> <PID>`.
 2. **Gather evidence** — `canair decode ECU:PID --stats --group-by state`,
    `canair captures uds --sessions` for state coverage, and `git log --follow`
-   for the provenance/date of each existing claim (rule 1).
+   for the provenance/date of each existing claim (rule 1). Before trusting a
+   range or correlation, check payload lengths per PID: a legacy capture with
+   a dropped or duplicated ISO-TP frame shifts every later byte, and such rows
+   produced fake "0x00/0xFF fault" readings in the HVAC notes. Also re-derive
+   any byte number a note cites with `canair bix -a` — older notes mix WiCAN
+   and ISO-TP numbering.
 3. **Decide per param** — remove (proven static, rule 3), rename (dishonest or
    superseded name, rule 4), and/or rewrite the note to bare facts (rule 2).
    Move any speculation worth keeping into a `research:` lead.

@@ -52,8 +52,8 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Examples:\n"
-            "  # eyeball the compressor state, heat power and pack power together\n"
-            '  canair align "HVAC:220102:HVAC_COMPRESSOR_ON HVAC:2201A2:HVAC_HEAT_POWER '
+            "  # eyeball the heat-pump state, heat power and pack power together\n"
+            '  canair align "HVAC:220102:HVAC_HEAT_PUMP_ON HVAC:2201A2:HVAC_HEAT_POWER '
             'BMS:2101:BATTERY_POWER" --state charging\n\n'
             "  # export a drive slice to CSV for an external tool / --against-file\n"
             "  canair align ESC:22C101:REAL_SPEED_KMH MCU:2102:[S10:S11] --state driving --csv > drive.csv\n\n"

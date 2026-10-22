@@ -97,7 +97,7 @@ canair stack the PIDs into one time-joined frame:
 
 ```bash
 canair captures uds "MyECU:2101,2102" --step              # two PIDs, stacked
-canair captures uds "HVAC:220100,2201A0,2201A2" --step    # duct temps vs compressor
+canair captures uds "HVAC:220100,2201A0,2201A2" --step    # duct temps vs heat mode
 canair captures uds "VCU:2101 BMS:2101" --step            # across two ECUs
 ```
 
@@ -367,14 +367,14 @@ canair models these as **typed** parameters (`enum`/`bitmask`/`ascii`/`date`/
 
 ```bash
 # "Which byte is the fan setting?" — rank by nominal association, not linear r
-canair correlate uds HVAC --against HVAC:220100:HVAC_FAN_LEVEL --method cramers_v
+canair correlate uds HVAC --against HVAC:2201A0:HVAC_BLOWER_FAN_SPEED --method cramers_v
 
 # "Which byte separates the power states?" — Cramér's V for typed params
 canair decode HVAC 220100 --discriminate state
 
 # Once defined as an enum, see the transitions as labels over time
-canair investigate HVAC 220100 --events --field HVAC_FAN_LEVEL
-# → 10:05:00  fanMAX (45) → fan1 (40)
+canair investigate HVAC 2201A0 --events --field HVAC_BLOWER_FAN_SPEED
+# → 10:05:00  Fan 8 (MAX) (121) → Fan 1 (40)
 ```
 
 `--method cramers_v` / `--method mutual_info` treat each distinct value as a

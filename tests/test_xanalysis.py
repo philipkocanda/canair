@@ -313,8 +313,8 @@ class TestCorrelateGate:
         from canlib.commands.correlate.calc import _parse_gate
 
         assert (
-            _parse_gate("[HVAC:220102:HVAC_COMPRESSOR_ON] > 0")[0]
-            == (_parse_gate("HVAC:220102:HVAC_COMPRESSOR_ON > 0")[0])
+            _parse_gate("[HVAC:220102:HVAC_HEAT_PUMP_ON] > 0")[0]
+            == (_parse_gate("HVAC:220102:HVAC_HEAT_PUMP_ON > 0")[0])
         )
 
     def test_parse_gate_invalid(self):
