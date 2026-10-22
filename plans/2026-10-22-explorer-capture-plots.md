@@ -254,6 +254,13 @@ Differences from the proposal:
 - No per-series eye toggle yet; remove a signal from the tray instead.
 - "What changed here?" works on the current zoom range, so zooming is the single gesture.
 
+Review fixes (2026-10-23): the overview strip drew only part of its rows on high-density screens
+and hover named the wrong signal; it now shows the value under the cursor and shares the plot's
+time axis. Session ids became `<date>-<hash of the session anchor>`, so a merge that inserts a
+session into the same day no longer re-points shared links. In-page navigation uses
+`history.pushState`: setting `location.hash` let Material's instant navigation refetch the page
+and remount the explorer, which lost the last-viewed session.
+
 Not done (phase 3): scatter view, comparing sessions, series for unmapped bytes, enum signals.
 
 Known limits worth knowing when reading results: a single large event, such as charging ending,

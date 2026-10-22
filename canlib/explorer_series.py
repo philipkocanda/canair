@@ -13,6 +13,8 @@ Plan: ``plans/2026-10-22-explorer-capture-plots.md``.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 from collections import defaultdict
 from collections.abc import Mapping
@@ -21,20 +23,30 @@ from pathlib import Path
 from typing import Any
 
 from . import capture_io
+from .captures_merge import session_anchor
 from .decoding import decode_param_rows
 from .pids import load_pids, pid_status
 from .state_spans import parse_time_key
 
 # Sessions with fewer numeric samples than this are not worth a plot and are left out.
 MIN_SAMPLES = 10
-SIGNIFICANT_DIGITS = 6
+# Enough for an odometer or a cumulative kWh counter to keep its last step.
+SIGNIFICANT_DIGITS = 9
 _DAY_MS = 86_400_000
 _HALF_DAY_MS = _DAY_MS // 2
 
 
 def rx_by_address(exported: Mapping[str, Any]) -> dict[int, str]:
-    """Response address -> ECU name, from an ``export_profile`` result."""
-    return {int(e["rx_id"], 16): e["name"] for e in exported["ecus"] if e.get("rx_id")}
+    """Response address -> ECU name, from an ``export_profile`` result.
+
+    An address several ECUs answer on (extended addressing tells them apart by a payload byte the
+    capture does not keep) is left out rather than guessed.
+    """
+    seen: dict[int, list[str]] = {}
+    for ecu in exported["ecus"]:
+        if ecu.get("rx_id"):
+            seen.setdefault(int(ecu["rx_id"], 16), []).append(ecu["name"])
+    return {rx: names[0] for rx, names in seen.items() if len(names) == 1}
 
 
 def _number(value: Any) -> float | int | None:
@@ -46,25 +58,26 @@ def _number(value: Any) -> float | int | None:
 
 
 class _Clock:
-    """Absolute milliseconds for ``HH:MM:SS`` times, carried across a midnight rollover.
+    """Absolute milliseconds for ``HH:MM:SS`` times in one session, across a midnight rollover.
 
     A session's captures are not always in chronological order (batched reads are stored per
-    PID), so the origin is the earliest time seen, decided once all of them have been read.
+    PID), so a time is placed relative to the first one seen rather than to the previous one:
+    anything more than 12 hours earlier than that reference belongs to the next day. The origin
+    is the earliest time, decided once every capture has been read.
     """
 
     def __init__(self) -> None:
-        self._last_ms = 0.0
-        self._days = 0
+        self._ref_ms: float | None = None
 
     def __call__(self, raw: Any) -> float | None:
         seconds = parse_time_key(raw)
         if seconds is None:
             return None
-        ms = seconds * 1000.0 + self._days * _DAY_MS
-        if ms < self._last_ms - _HALF_DAY_MS:
-            self._days += 1
+        ms = seconds * 1000.0
+        if self._ref_ms is None:
+            self._ref_ms = ms
+        elif ms < self._ref_ms - _HALF_DAY_MS:
             ms += _DAY_MS
-        self._last_ms = max(self._last_ms, ms)
         return ms
 
 
@@ -92,7 +105,7 @@ def _spans(session: Mapping[str, Any], clock: _Clock, origin_ms: float) -> list[
 
 def _parameters(ecu_def: Mapping, pid: str) -> dict | None:
     for key, pid_def in (ecu_def.get("pids") or {}).items():
-        if str(key) == pid and isinstance(pid_def, Mapping):
+        if str(key).upper() == pid.upper() and isinstance(pid_def, Mapping):
             if pid_status(dict(pid_def)) == "ignored" or not pid_def.get("parameters"):
                 return None
             return dict(pid_def["parameters"])
@@ -177,8 +190,9 @@ def export_sessions(
 ) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:
     """``(index, documents)`` for every plottable session of the profile at ``root``.
 
-    ``documents`` maps a session id (``<date>-<n>``, ``n`` being the session's position among
-    that day's sessions, so it is stable while capture files are append-only) to its document.
+    ``documents`` maps a session id to its document. The id is ``<date>-<hash>``, the hash taken
+    from the session's anchor (the fields no editor or merge rewrites), so a shared link keeps
+    pointing at the same recording when another machine's session is merged into the same day.
     """
     captures_dir = root / "captures"
     if not captures_dir.is_dir() or not (root / "ecus").is_dir():
@@ -187,12 +201,14 @@ def export_sessions(
 
     index: list[dict[str, Any]] = []
     documents: dict[str, dict[str, Any]] = {}
-    position: defaultdict[str, int] = defaultdict(int)
+    taken: defaultdict[str, int] = defaultdict(int)
     for path in capture_io.iter_capture_files(captures_dir):
         for session in (capture_io.load_capture_file(path) or {}).get("sessions") or []:
             date = str(session.get("date") or path.stem)
-            session_id = f"{date}-{position[date]:02d}"
-            position[date] += 1
+            anchor = session_anchor(session) or json.dumps(session.get("label") or "")
+            base = f"{date}-{hashlib.sha1(anchor.encode()).hexdigest()[:6]}"
+            taken[base] += 1
+            session_id = base if taken[base] == 1 else f"{base}-{taken[base]}"
             if built := _session(session, ecus, rx_names):
                 index.append({"id": session_id, **built[0]})
                 documents[session_id] = built[1]

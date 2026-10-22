@@ -132,10 +132,18 @@
 .cx-session h3, .cx-session h4 { margin-top: 0.4rem; margin-bottom: 0.3rem; }
 .cx-note { font-size: 0.8rem; margin: 0.2rem 0; padding-left: 0.5rem; border-left: 3px solid var(--md-default-fg-color--lighter); }
 .cx-empty { padding: 1.5rem 1rem; border: 1px dashed var(--md-default-fg-color--lighter); border-radius: 0.2rem; }
-.cx-heatwrap { position: relative; border: 1px solid var(--md-default-fg-color--lightest); line-height: 0; }
+.cx-heatwrap { position: relative; line-height: 0; }
 .cx-heatcanvas { width: 100%; cursor: crosshair; }
 .cx-brush { position: absolute; top: 0; bottom: 0; border: 2px solid var(--md-accent-fg-color); background: var(--md-accent-fg-color--transparent); pointer-events: none; box-sizing: border-box; }
-.cx-heattip { min-height: 1.3em; margin: 0.2rem 0; }
+.cx-heatrow { position: absolute; pointer-events: none; outline: 1px solid var(--md-default-fg-color); }
+.cx-heattip { position: absolute; z-index: 2; pointer-events: none; line-height: 1.35; font-size: 0.72rem; white-space: nowrap;
+  padding: 0.3rem 0.5rem; border-radius: 0.2rem; background: var(--md-default-bg-color); color: var(--md-default-fg-color);
+  border: 1px solid var(--md-default-fg-color--lighter); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25); }
+.cx-heattip[hidden], .cx-heatrow[hidden], .cx-brush[hidden] { display: none; }
+.cx-heataxis { position: relative; height: 1.1rem; font-size: 0.65rem; color: var(--md-default-fg-color--light); }
+.cx-heataxis span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.cx-heataxis span:first-child { transform: none; }
+.cx-heathelp { margin: 0 0 0.4rem; font-size: 0.72rem; }
 .cx-controls { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin: 0.6rem 0 0.2rem; }
 .cx-seg { display: inline-flex; gap: 0; }
 .cx-seg .cx-segbtn:first-child { border-radius: 0.2rem 0 0 0.2rem; }
@@ -175,3 +183,4 @@
 .cx-widebtn { margin-left: auto; }
 body.cx-wide:has(.cx-explorer) .md-sidebar--primary { display: none; }
 body.cx-wide .md-grid:has(.cx-explorer) { max-width: none; }
+.cx-hero-cards img[src*="explorer-overview"] { object-position: top right; }

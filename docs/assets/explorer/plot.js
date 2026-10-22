@@ -10,7 +10,7 @@
   var X = window.canairExplorer;
   var A = window.CanairAnalysis;
   if (!X || !A || !window.uPlot) return;
-  var el = X.el, tray = X.tray;
+  var el = X.el, fill = X.fill, tray = X.tray;
 
   var PALETTE = ["#4e79a7", "#f28e2b", "#e15759", "#59a14f", "#b07aa1", "#76b7b2", "#edc948", "#ff9da7", "#9c755f", "#86bcb6"];
   var LANE_H = 170, OVERLAY_H = 340, RIBBON_ROW = 11, MAX_PER_LANE = 6, AXIS_W = 64, GRID_POINTS = 40000;
@@ -28,15 +28,15 @@
       return r.json();
     });
   }
-  function loadSessions(name) {
-    if (!cache.sessions[name]) cache.sessions[name] = fetchJson(new URL(name + "/sessions.json", X.DATA_URL));
-    return cache.sessions[name];
+  /** Fetch once and share the promise; a failure is forgotten so the next attempt retries. */
+  function cached(store, key, url) {
+    if (!store[key]) {
+      store[key] = fetchJson(url).catch(function (err) { delete store[key]; throw err; });
+    }
+    return store[key];
   }
-  function loadDoc(name, id) {
-    var k = name + "/" + id;
-    if (!cache.docs[k]) cache.docs[k] = fetchJson(new URL(name + "/s/" + id + ".json", X.DATA_URL));
-    return cache.docs[k];
-  }
+  function loadSessions(name) { return cached(cache.sessions, name, new URL(name + "/sessions.json", X.DATA_URL)); }
+  function loadDoc(name, id) { return cached(cache.docs, name + "/" + id, new URL(name + "/s/" + id + ".json", X.DATA_URL)); }
 
   /** "ECU:PID:NAME" -> {unit, verified} from the definitions export. */
   function definitionIndex(data) {
@@ -51,7 +51,9 @@
 
   /** Turn a session document into typed arrays, one record per signal. */
   function prepare(entry, doc, defs) {
-    var runLength = entry.keep_mode === "changes";
+    // Deduplicated recordings store a row only when the payload changed, so a gap between rows
+    // is a held value rather than missing data.
+    var runLength = entry.keep_mode === "changes" || entry.keep_mode === "unique";
     var signals = {};
     doc.streams.forEach(function (st) {
       var t = new Float64Array(st.t.length), acc = 0;
@@ -82,10 +84,13 @@
 
   /** One shared time axis (seconds) for the chosen signals, each held to every instant. */
   function align(S, keys) {
-    var all = [];
-    keys.forEach(function (k) { all.push.apply(all, Array.prototype.slice.call(S.signals[k].t)); });
-    all.sort(function (a, b) { return a - b; });
-    var ts = all.filter(function (v, i) { return i === 0 || v !== all[i - 1]; });
+    var total = 0;
+    keys.forEach(function (k) { total += S.signals[k].t.length; });
+    var all = new Float64Array(total), at = 0;
+    keys.forEach(function (k) { all.set(S.signals[k].t, at); at += S.signals[k].t.length; });
+    all.sort();
+    var ts = [];
+    for (var u = 0; u < all.length; u++) if (u === 0 || all[u] !== all[u - 1]) ts.push(all[u]);
     var ys = {};
     keys.forEach(function (k) {
       var sig = S.signals[k], out = new Array(ts.length), j = -1;
@@ -129,6 +134,7 @@
   /* ------------------------------------------------------------- the view */
 
   function mountView(host, data, ui) {
+    if (V && V.observer) V.observer.disconnect();
     V = {
       host: host, data: data, name: data.profile.name, ui: ui, defs: definitionIndex(data), sessions: null,
       id: "", S: null, token: 0, layout: "stack", range: null, pins: [], focus: "", plots: [], cells: {},
@@ -136,26 +142,36 @@
       list: el("div", { class: "cx-sessions" }), main: el("div", { class: "cx-session" }),
       renderList: renderList, renderMain: renderMain, draw: draw, writeHash: writeHash,
     };
-    host.replaceChildren(el("div", { class: "cx-databody" }, V.list, V.main));
-    ui.onTray = function () { if (V && V.ui === ui) { V.writeHash(); V.renderList(); V.draw(); } };
-    var lastWidth = host.clientWidth, timer = 0;
-    new ResizeObserver(function () {
+    fill(host, el("div", { class: "cx-databody" }, V.list, V.main));
+    ui.onTray = function () {
+      var route = X.parseHash();
+      // The tray also changes on the Definitions side; only the visible plot may rewrite the URL.
+      if (!V || V.ui !== ui || route.mode !== "plot" || route.profile !== V.name || !V.sessions) return;
+      V.writeHash(); V.renderList(); V.draw();
+    };
+    var timer = 0;
+    V.observer = new ResizeObserver(function () {
       if (!V || V.host !== host || !host.clientWidth) return;
       V.plots.forEach(function (u) { u.setSize({ width: laneWidth(), height: u.height }); });
       // The overview strip is a fixed-size canvas, so redraw it once the width settles.
       clearTimeout(timer);
       timer = setTimeout(function () {
-        if (V && V.host === host && V.S && Math.abs(host.clientWidth - lastWidth) > 20 && window.canairDiscover) {
-          lastWidth = host.clientWidth;
-          window.canairDiscover.heat(V);
-        }
+        if (V && V.host === host && V.S && window.canairDiscover) window.canairDiscover.realign(V);
       }, 200);
-    }).observe(host);
+    });
+    V.observer.observe(host);
   }
   function laneWidth() { return Math.max(300, V.main.clientWidth - 2); }
 
   function render(host, data, route, ui) {
-    if (!V || V.host !== host || V.name !== data.profile.name) mountView(host, data, ui);
+    if (!data.profile.sessions) {
+      if (V && V.observer) V.observer.disconnect();
+      V = null;
+      fill(host, el("div", { class: "cx-empty" }, el("p", {}, data.profile.name + " has no recorded sessions to plot yet."),
+        el("p", { class: "cx-muted" }, "Sessions come from captures recorded with canair monitor --save; see the Definitions side for what is decoded.")));
+      return;
+    }
+    if (!V || V.host !== host || V.name !== data.profile.name || !V.list.isConnected) mountView(host, data, ui);
     var view = V;
     view.layout = route.params.m === "overlay" ? "overlay" : "stack";
     view.pendingRange = route.params.x ? route.params.x.split("-").map(Number) : null;
@@ -168,23 +184,30 @@
         if (best && best[0]) id = best[2];
       }
       var same = id === view.id && view.S;
-      if (!same) { view.pins = []; view.range = null; }
+      if (!same) { view.pins = []; view.range = null; view.S = null; }
       view.id = id;
+      if (id) ui.lastSession = id;
       view.renderList();
       if (!id) { view.S = null; view.renderMain(); return; }
       if (same) { applyPendingRange(view); view.draw(); return; }
       var token = ++view.token;
-      view.main.replaceChildren(el("p", { class: "cx-muted" }, "Loading session…"));
+      fill(view.main, el("p", { class: "cx-muted" }, "Loading session…"));
       var entry = sessions.filter(function (s) { return s.id === id; })[0];
-      if (!entry) { view.main.replaceChildren(el("p", { class: "cx-muted" }, "No session " + id + " in this profile.")); return; }
+      if (!entry) { fill(view.main, el("p", { class: "cx-muted" }, "No session " + id + " in this profile. Pick one on the left.")); return; }
       loadDoc(view.name, id).then(function (doc) {
         if (V !== view || token !== view.token) return;
         view.S = prepare(entry, doc, view.defs);
         applyPendingRange(view);
         view.renderMain();
         view.writeHash();
-      }, function (err) { view.main.replaceChildren(el("p", { class: "cx-muted" }, "Could not load the session: " + err.message)); });
-    }, function (err) { host.replaceChildren(el("p", { class: "cx-muted" }, "Could not load sessions: " + err.message)); });
+      }, function (err) {
+        if (V !== view || token !== view.token) return;
+        fill(view.main, el("p", { class: "cx-muted" }, "Could not load the session: " + err.message + ". Pick it again to retry."));
+      });
+    }, function (err) {
+      if (V !== view) return;
+      fill(view.main, el("p", { class: "cx-muted" }, "Could not load the session list: " + err.message + ". Reload the page to retry."));
+    });
   }
   function applyPendingRange(view) {
     var r = view.pendingRange;
@@ -206,7 +229,7 @@
     if (!V || !V.id) return;
     var s = tray.ids.join(",");
     V.ui.writtenS = s;
-    var params = { s: s, m: V.layout === "overlay" ? "overlay" : "", x: V.range ? Math.round(V.range[0]) + "-" + Math.round(V.range[1]) : "" };
+    var params = { s: s, m: V.layout === "overlay" ? "overlay" : "", x: V.range ? +V.range[0].toFixed(1) + "-" + +V.range[1].toFixed(1) : "" };
     history.replaceState(null, "", X.hashFor({ profile: V.name, mode: "plot", session: V.id, params: params }));
   }
   function open(id) {
@@ -216,6 +239,16 @@
   /* ---------------------------------------------------------- session list */
 
   function renderList() {
+    if (!V.listHead) {
+      var input = el("input", { type: "search", class: "cx-input", placeholder: "Filter sessions…", "aria-label": "Filter sessions",
+        oninput: function () { V.filter = input.value; renderList(); } });
+      input.value = V.filter;
+      V.listChips = el("div", { class: "cx-statefilter", role: "group", "aria-label": "Only sessions in these states" });
+      V.listCount = el("div", { class: "cx-muted" });
+      V.listRows = el("div", { class: "cx-sesslist" });
+      V.listHead = input;
+      fill(V.list, input, V.listChips, V.listCount, V.listRows);
+    }
     var states = {};
     V.sessions.forEach(function (s) { s.states.forEach(function (st) { states[st] = (states[st] || 0) + 1; }); });
     var active = Object.keys(V.states).filter(function (k) { return V.states[k]; });
@@ -224,22 +257,21 @@
       return (!q || (s.label + " " + s.date + " " + (s.notes || "")).toLowerCase().indexOf(q) >= 0) &&
         active.every(function (st) { return s.states.indexOf(st) >= 0; });
     }).slice().reverse();
-    var input = el("input", { type: "search", class: "cx-input", placeholder: "Filter sessions…", value: V.filter, "aria-label": "Filter sessions",
-      oninput: function () { V.filter = input.value; V.renderList(); input.focus(); } });
-    V.list.replaceChildren(
-      input,
-      el("div", { class: "cx-statefilter" }, Object.keys(states).sort().map(function (st) {
-        return el("button", { type: "button", class: "cx-chipbtn" + (V.states[st] ? " cx-active" : ""), onclick: function () { V.states[st] = !V.states[st]; V.renderList(); } }, st);
-      })),
-      el("div", { class: "cx-muted" }, rows.length + " of " + V.sessions.length + " sessions"),
-      el("div", { class: "cx-sesslist" }, rows.map(function (s) {
-        var p = presence(s), dim = p.total && !p.count;
-        return el("button", { type: "button", class: "cx-sess" + (s.id === V.id ? " cx-active" : "") + (dim ? " cx-dim" : ""), onclick: function () { open(s.id); } },
-          el("div", {}, el("strong", {}, s.date + " " + s.start.slice(0, 5)), " ", el("span", { class: "cx-muted" }, duration(s.dur)),
-            p.total ? el("span", { class: "cx-badge " + (p.count === p.total ? "cx-ok" : p.count ? "cx-warn" : "cx-plain") }, p.count + "/" + p.total) : null),
-          el("div", { class: "cx-sesslabel" }, s.label || "(no label)"),
-          el("div", { class: "cx-muted" }, s.states.join(" · ")));
-      })));
+    fill(V.listChips, Object.keys(states).sort().map(function (st) {
+      return el("button", { type: "button", class: "cx-chipbtn" + (V.states[st] ? " cx-active" : ""), "aria-pressed": V.states[st] ? "true" : "false",
+        title: states[st] + " sessions", onclick: function () { V.states[st] = !V.states[st]; renderList(); } }, st);
+    }));
+    V.listCount.textContent = rows.length + " of " + V.sessions.length + " sessions";
+    fill(V.listRows, rows.map(function (s) {
+      var p = presence(s), dim = p.total && !p.count;
+      return el("button", { type: "button", class: "cx-sess" + (s.id === V.id ? " cx-active" : "") + (dim ? " cx-dim" : ""),
+        "aria-current": s.id === V.id ? "true" : null, onclick: function () { open(s.id); } },
+        el("div", {}, el("strong", {}, s.date + " " + s.start.slice(0, 5)), " ", el("span", { class: "cx-muted" }, duration(s.dur)),
+          p.total ? el("span", { class: "cx-badge " + (p.count === p.total ? "cx-ok" : p.count ? "cx-warn" : "cx-plain"),
+            title: p.count + " of the " + p.total + " signals in your tray were recorded" }, p.count + "/" + p.total) : null),
+        el("div", { class: "cx-sesslabel" }, s.label || "(no label)"),
+        el("div", { class: "cx-muted" }, s.states.join(" · ")));
+    }));
   }
 
   /* ---------------------------------------------------------- session view */
@@ -247,7 +279,7 @@
   function renderMain() {
     var S = V.S;
     if (!S) {
-      V.main.replaceChildren(el("div", { class: "cx-empty" }, el("h3", {}, "Pick a session"),
+      fill(V.main, el("div", { class: "cx-empty" }, el("h3", {}, "Pick a session"),
         el("p", {}, "Each session is one recording: a drive, a charge, a parked check. Choose one on the left. " +
           "Put signals in the tray first (＋ on the Definitions side) and the list shows which sessions recorded them.")));
       return;
@@ -258,7 +290,9 @@
       el("h3", {}, e.label || e.date),
       el("div", { class: "cx-muted" }, e.date + " " + e.start + " · " + duration(S.dur) + " · " + e.samples + " samples · " + varying + " signals vary · " +
         e.states.join(", ") + (e.transport ? " · " + e.transport : "")),
-      e.keep_mode === "changes" ? el("div", { class: "cx-note" }, "Recorded on change only: a flat stretch is a held value, so lines are drawn as steps.") : null,
+      e.keep_mode === "changes" ? el("div", { class: "cx-note" }, "Recorded on change only: a flat stretch is a held value, not missing data.") : null,
+      e.keep_mode === "unique" ? el("div", { class: "cx-note" }, "Recorded with the older keep-unique mode: a value that went back to one seen earlier " +
+        "was not stored, so a line can stay flat after the signal actually changed back. Treat timings and the analysis below with care.") : null,
       e.quality && (e.quality.drop || e.quality.stale) ? el("div", { class: "cx-note" }, "Link quality: " + (e.quality.drop || 0) + " dropped and " + (e.quality.stale || 0) + " stale frames during this recording.") : null,
       e.notes ? el("details", {}, el("summary", {}, "Notes"), X.notes(e.notes)) : null);
     V.heat = el("div", { class: "cx-heat" });
@@ -266,7 +300,7 @@
     V.lanes = el("div", { class: "cx-lanes" });
     V.readout = el("div", { class: "cx-readout" });
     V.discover = el("div", { class: "cx-discover" });
-    V.main.replaceChildren(V.head, V.heat, V.controls, V.lanes, V.readout, V.discover, V.cli = el("div", {}));
+    fill(V.main, V.head, V.heat, V.controls, V.lanes, V.readout, V.discover, V.cli = el("div", {}));
     if (window.canairDiscover) window.canairDiscover.heat(V);
     V.draw();
   }
@@ -291,17 +325,17 @@
     V.plots = []; V.cells = {};
     var S = V.S, keys = tray.ids.filter(function (k) { return S.signals[k]; });
     var missing = tray.ids.filter(function (k) { return !S.signals[k]; });
-    V.controls.replaceChildren(
+    fill(V.controls, 
       el("div", { class: "cx-seg" },
         ["stack", "overlay"].map(function (m) {
-          return el("button", { type: "button", class: "cx-segbtn" + (V.layout === m ? " cx-active" : ""), title: m === "stack" ? "One lane per unit" : "All signals on one axis, each scaled to its own min and max",
+          return el("button", { type: "button", class: "cx-segbtn" + (V.layout === m ? " cx-active" : ""), "aria-pressed": V.layout === m ? "true" : "false", title: m === "stack" ? "One lane per unit" : "All signals on one axis, each scaled to its own min and max",
             onclick: function () { V.layout = m; writeHash(); draw(); } }, m === "stack" ? "Stacked" : "Overlay (normalized)");
         })),
       el("button", { type: "button", class: "cx-button", onclick: function () { setRange(0, S.dur / 1000); } }, "reset zoom"),
       el("button", { type: "button", class: "cx-button", onclick: function () { if (navigator.clipboard) navigator.clipboard.writeText(location.href); } }, "copy link"),
-      el("span", { class: "cx-muted" }, "Drag to zoom · click to pin a point, click again for a second to see the difference"));
+      el("span", { class: "cx-muted" }, "Drag to zoom, double-click to reset · click to pin point A, again for B; a third click clears both"));
     if (!keys.length) {
-      V.lanes.replaceChildren(el("div", { class: "cx-empty" },
+      fill(V.lanes, el("div", { class: "cx-empty" },
         el("p", {}, tray.ids.length ? "None of the tray's signals were recorded in this session." : "Nothing to plot yet."),
         el("p", { class: "cx-muted" }, "Click a row in the overview above to add that signal, or add signals with ＋ under Definitions. " +
           "Sessions in the list show how many of your tray's signals they recorded.")));
@@ -321,8 +355,9 @@
     });
     renderReadout(keys);
     renderCli(keys);
-    if (V.range) V.plots.forEach(function (u) { u.setScale("x", { min: V.range[0], max: V.range[1] }); });
-    if (window.canairDiscover) window.canairDiscover.panels(V);
+    var dur = S.dur / 1000;
+    V.plots.forEach(function (u) { u.setScale("x", V.range ? { min: V.range[0], max: V.range[1] } : { min: 0, max: dur }); });
+    if (window.canairDiscover) { window.canairDiscover.panels(V); window.canairDiscover.realign(V); }
   }
 
   function groupByUnit(keys) {
@@ -401,6 +436,8 @@
     var plot = new window.uPlot(opts, data, holder);
     plot.height = height;
     plot.over.addEventListener("mousedown", function (e) { plot._down = e.clientX; });
+    // uPlot's own double-click fits the plotted data; the session can be longer than that.
+    plot.over.addEventListener("dblclick", function () { setTimeout(function () { setRange(0, S.dur / 1000); }, 0); });
     plot.over.addEventListener("mouseup", function (e) {
       if (plot._down === undefined || Math.abs(e.clientX - plot._down) > 3) return;
       var t = plot.posToVal(e.clientX - plot.over.getBoundingClientRect().left, "x");
@@ -422,7 +459,7 @@
         if (x1 > x0) ctx.fillRect(x0, y, x1 - x0, (RIBBON_ROW - 3) * dpr);
       });
     });
-    if (ribbon.length && u === V.plots[0]) {
+    if (ribbon.length) {
       ctx.fillStyle = textColor; ctx.font = (9 * dpr) + "px sans-serif"; ctx.textAlign = "right";
       ribbon.forEach(function (row, i) { ctx.fillText(row.state, b.left - 6 * dpr, b.top - ribbonH * dpr + (i * RIBBON_ROW + RIBBON_ROW - 1) * dpr); });
     }
@@ -449,7 +486,7 @@
         el("td", { class: "cx-muted" }, sg.unit), c.cur, c.a, c.b, c.d, c.r,
         el("td", {}, el("button", { type: "button", class: "cx-x", "aria-label": "Remove " + sg.name, onclick: function () { tray.remove(k); } }, "×")));
     });
-    V.readout.replaceChildren(el("table", { class: "cx-table cx-readout-table" },
+    fill(V.readout, el("table", { class: "cx-table cx-readout-table" },
       el("thead", {}, el("tr", {}, ["", "Signal", "Unit", "At cursor", "Pin A", "Pin B", "B − A", "per min", ""].map(function (t) { return el("th", {}, t); }))),
       el("tbody", {}, rows)));
     V.keys = keys;
@@ -472,20 +509,20 @@
       c.d.textContent = p.length > 1 ? fmt(b - a) : "";
       c.r.textContent = p.length > 1 && p[1] > p[0] ? fmt((b - a) / ((p[1] - p[0]) / 60)) : "";
     });
-    if (p.length) {
-      V.readout.querySelector("thead th:nth-child(5)").textContent = "A @ " + clock(V.S.entry.start, p[0]);
-      V.readout.querySelector("thead th:nth-child(6)").textContent = p.length > 1 ? "B @ " + clock(V.S.entry.start, p[1]) : "Pin B";
-    }
+    var ha = V.readout.querySelector("thead th:nth-child(5)"), hb = V.readout.querySelector("thead th:nth-child(6)");
+    if (ha) ha.textContent = p.length ? "A @ " + clock(V.S.entry.start, p[0]) : "Pin A";
+    if (hb) hb.textContent = p.length > 1 ? "B @ " + clock(V.S.entry.start, p[1]) : "Pin B";
   }
 
   function renderCli(keys) {
-    var e = V.S.entry, scope = ' --date ' + e.date + (e.label ? ' --label "' + e.label.replace(/"/g, "") + '"' : "");
+    var e = V.S.entry, scope = ' --date ' + e.date + (e.label ? ' --label "' + e.label.replace(/["\\$`]/g, "") + '"' : "");
+    var q = function (k) { return /^[\w:.\-]+$/.test(k) ? k : "'" + k.replace(/'/g, "") + "'"; };
     var cmds = [];
-    if (keys.length > 1) cmds.push("canair --profile " + V.name + " align " + keys.join(" ") + scope);
-    if (V.focus && V.S.signals[V.focus]) cmds.push("canair --profile " + V.name + " correlate uds --against " + V.focus + scope);
-    V.cli.replaceChildren(cmds.length ? el("div", {}, el("h4", {}, "Continue in the terminal"), cmds.map(X.command)) : null);
+    if (keys.length > 1) cmds.push("canair --profile " + V.name + " align " + keys.map(q).join(" ") + scope);
+    if (V.focus && V.S.signals[V.focus]) cmds.push("canair --profile " + V.name + " correlate uds --against " + q(V.focus) + scope);
+    fill(V.cli, cmds.length ? el("div", {}, el("h4", {}, "Continue in the terminal"), cmds.map(X.command)) : null);
   }
 
-  api.valueAt = valueAt; api.fmt = fmt; api.setRange = setRange; api.colorOf = colorOf; api.duration = duration;
+  api.valueAt = valueAt; api.fmt = fmt; api.setRange = setRange; api.colorOf = colorOf; api.duration = duration; api.clock = clock;
   X.dataView = { render: render };
 })();

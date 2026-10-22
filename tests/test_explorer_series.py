@@ -143,6 +143,32 @@ def test_clock_survives_midnight():
     assert clock("junk") is None
 
 
+def test_clock_handles_out_of_order_times_around_midnight():
+    clock = _Clock()
+    assert clock("23:59:58") == 86_398_000
+    assert clock("00:00:01") == 86_401_000
+    # A batched read stored later, but taken before midnight, stays on the first day.
+    assert clock("23:59:59") == 86_399_000
+
+
+def test_session_ids_are_unique_and_stable(exported):
+    root, data, index, _docs = exported
+    again, _ = export_sessions(root, rx_by_address(data))
+    assert [e["id"] for e in index] == [e["id"] for e in again]
+    assert all(e["id"].startswith(e["date"] + "-") for e in index)
+
+
+def test_shared_response_address_is_not_guessed():
+    exported = {
+        "ecus": [
+            {"name": "A", "rx_id": "0x6F1"},
+            {"name": "B", "rx_id": "0x6F1"},
+            {"name": "C", "rx_id": "0x7E8"},
+        ]
+    }
+    assert rx_by_address(exported) == {0x7E8: "C"}
+
+
 def test_clock_label_wraps_a_day():
     assert _clock_label(86_401_000) == "00:00:01"
     assert _clock_label(37_321_480) == "10:22:01"
@@ -158,7 +184,9 @@ def test_constant_signal_is_stored_once_and_gaps_stay_null():
 
 
 def test_numbers_are_rounded_and_non_numbers_dropped():
-    assert _number(3.14159265) == 3.14159
+    assert _number(3.14159265358) == 3.14159265
+    assert _number(123456.7) == 123456.7
+    assert _number(37.300000000000004) == 37.3
     assert _number(12.0) == 12
     assert _number(True) is None
     assert _number(float("nan")) is None

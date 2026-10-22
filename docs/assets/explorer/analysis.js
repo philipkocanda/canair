@@ -106,7 +106,8 @@
       if (best.r !== best.r) return;
       results.push({
         key: key, r0: r0.r, r: best.r, lag: best.lag, n: best.n,
-        mirror: !delta && Math.abs(r0.r) >= MIRROR_R,
+        // An exact rescaled copy matches at lag 0 in either mode.
+        mirror: Math.abs(r0.r) >= MIRROR_R,
       });
     });
     results.sort(function (a, b) { return Math.abs(b.r) - Math.abs(a.r); });

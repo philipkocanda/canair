@@ -22,6 +22,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+from .addressing import resolve_mode, resolve_rx, resolve_rx_offset
 from .ecu_files import iter_ecu_files
 from .explorer_layout import layout_buses
 from .pids import pid_status
@@ -118,21 +119,22 @@ def _load(path: Path) -> Any:
 
 
 def _rx_id(ecu_def: Mapping, meta: Mapping) -> int | None:
-    """The ECU's response address, when the profile uses plain 11-bit addressing."""
-    if isinstance(ecu_def.get("rx_id"), int):
-        return int(ecu_def["rx_id"])
-    addressing = _mapping(meta.get("addressing"))
-    mode = str(_mapping(ecu_def.get("addressing")).get("mode") or addressing.get("mode") or "")
+    """The ECU's CAN response address, resolved the way the transports resolve it."""
     tx = ecu_def.get("tx_id")
-    if mode not in ("", "normal_11bit") or not isinstance(tx, int):
+    if not isinstance(tx, int) or isinstance(tx, bool):
         return None
-    offset = addressing.get("rx_offset", 0x08)
-    return int(tx) + int(offset) if isinstance(offset, int) else None
+    rx = ecu_def.get("rx_id")
+    rx = int(rx) if isinstance(rx, int) and not isinstance(rx, bool) else None
+    return resolve_rx(int(tx), rx, resolve_rx_offset(meta), resolve_mode(meta, ecu_def))
+
+
+def _is_web_url(url: str) -> bool:
+    return url.lower().startswith(("https://", "http://"))
 
 
 def _signal_record(name: str, sig: Mapping, node: Any, file: str) -> dict[str, Any]:
     rec = {"name": name, **_pick(sig, SIGNAL_FIELDS), "src": _src(file, node, name)}
-    links = [str(u) for u in sig.get("source_links") or [] if isinstance(u, str)]
+    links = [str(u) for u in sig.get("source_links") or [] if isinstance(u, str) and _is_web_url(u)]
     if links:
         rec["source_links"] = links
     rec.setdefault("verified", False)

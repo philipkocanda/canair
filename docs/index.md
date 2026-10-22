@@ -26,13 +26,13 @@ document that data — turning it into a shareable
       <strong>Browse the buses</strong>
       <span>See which ECU sits on which CAN segment, then open any ECU for its PIDs, signals, actuators and research leads, each linked to its YAML.</span>
     </a>
-    <a href="profiles/explorer/#ioniq-2017/plot/2026-08-08-10?s=BMS:2101:BATTERY_POWER,ESC:22C101:REAL_SPEED_KMH,BMS:2101:SOC_BMS">
+    <a href="profiles/explorer/#ioniq-2017/plot/2026-08-08-e84a15?s=BMS:2101:BATTERY_POWER,ESC:22C101:REAL_SPEED_KMH,BMS:2101:SOC_BMS">
       <img src="assets/explorer/explorer-plot.png#only-light" alt="Battery power, speed and state of charge plotted together over a drive, a fast charge and another drive" loading="lazy">
       <img src="assets/explorer/explorer-plot-dark.png#only-dark" alt="Battery power, speed and state of charge plotted together over a drive, a fast charge and another drive" loading="lazy">
       <strong>Plot signals from any ECU together</strong>
       <span>A drive, a 60 kW fast charge and another drive in one picture: battery power, speed and state of charge, with the vehicle states above.</span>
     </a>
-    <a href="profiles/explorer/#ioniq-2017/plot/2026-08-08-10?s=BMS:2101:BATTERY_POWER">
+    <a href="profiles/explorer/#ioniq-2017/plot/2026-08-08-e84a15?s=BMS:2101:BATTERY_POWER">
       <img src="assets/explorer/explorer-overview.png#only-light" alt="Heat-strip overview of every signal that changed during a session, similar signals grouped" loading="lazy">
       <img src="assets/explorer/explorer-overview-dark.png#only-dark" alt="Heat-strip overview of every signal that changed during a session, similar signals grouped" loading="lazy">
       <strong>Find what hides in the data</strong>

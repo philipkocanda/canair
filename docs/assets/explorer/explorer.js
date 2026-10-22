@@ -35,6 +35,11 @@
   function svg(tag, attrs) {
     return build(document.createElementNS(SVG_NS, tag), attrs, Array.prototype.slice.call(arguments, 2));
   }
+  /** replaceChildren that skips null/false and flattens arrays, like el(). */
+  function fill(node) {
+    node.replaceChildren();
+    return build(node, {}, Array.prototype.slice.call(arguments, 1));
+  }
   function build(node, attrs, kids) {
     Object.keys(attrs || {}).forEach(function (k) {
       var v = attrs[k];
@@ -67,11 +72,16 @@
   function parseHash() {
     var raw = location.hash.replace(/^#/, "");
     var q = raw.indexOf("?");
-    var parts = decodeURIComponent(q >= 0 ? raw.slice(0, q) : raw).split("/");
+    // Split before decoding so an encoded "/" stays inside its part; a malformed escape is kept raw.
+    var parts = (q >= 0 ? raw.slice(0, q) : raw).split("/").map(function (p) {
+      try { return decodeURIComponent(p); } catch (e) { return p; }
+    });
     var r = { profile: parts[0] || "", mode: "defs", ecu: parts[1] || "", tab: "overview", pid: "", signal: "", session: "", params: {} };
     if (parts[1] === "plot") {
       r.mode = "plot"; r.ecu = ""; r.session = parts[2] || "";
-      new URLSearchParams(q >= 0 ? raw.slice(q + 1) : "").forEach(function (v, k) { r.params[k] = v; });
+      try {
+        new URLSearchParams(q >= 0 ? raw.slice(q + 1) : "").forEach(function (v, k) { r.params[k] = v; });
+      } catch (e) { /* unreadable query: plot with defaults */ }
       return r;
     }
     if (parts[2]) {
@@ -96,7 +106,15 @@
     }
     return "#" + parts.map(encodeURIComponent).join("/").replace(/\/+$/, "") + (query ? "?" + query : "");
   }
-  function go(r) { location.hash = hashFor(r); }
+  // pushState, not location.hash: Material's instant navigation treats the first hash change
+  // after a page load as a navigation, refetches the page and remounts the explorer, losing its
+  // in-memory state. Back/forward still fire hashchange, which re-renders.
+  function go(r) {
+    var target = hashFor(r);
+    if (target === location.hash) return;
+    history.pushState(null, "", target);
+    if (app && app.show) app.show();
+  }
 
   /* --------------------------------------------------------------- the tray */
 
@@ -122,12 +140,14 @@
   function plusButton(ecu, pid, name) {
     var id = trayId(ecu, pid, name);
     return el("button", { type: "button", class: "cx-plus", "data-id": id, title: "Add to the plot tray",
+      "aria-label": "Plot " + name, "aria-pressed": tray.has(id) ? "true" : "false",
       onclick: function () { tray.toggle(id); } }, tray.has(id) ? "✓" : "＋");
   }
   function refreshPlusButtons() {
     document.querySelectorAll(".cx-plus").forEach(function (b) {
       var on = tray.has(b.getAttribute("data-id"));
       b.textContent = on ? "✓" : "＋";
+      b.setAttribute("aria-pressed", on ? "true" : "false");
       b.classList.toggle("cx-on", on);
     });
   }
@@ -242,8 +262,10 @@
         }))) : null);
   }
 
+  function present(v) { return v !== undefined && v !== null && v !== ""; }
+  function safeUrl(u) { return /^https?:\/\//i.test(u) ? u : null; }
   function signalRow(data, ecu, pid, sig, route) {
-    var range = sig.min !== undefined || sig.max !== undefined ? (sig.min || "…") + " … " + (sig.max || "…") : "";
+    var range = sig.min !== undefined || sig.max !== undefined ? (present(sig.min) ? sig.min : "…") + " … " + (present(sig.max) ? sig.max : "…") : "";
     return el("tr", { "data-signal": sig.name, class: route.signal === sig.name ? "cx-flash" : null },
       el("td", {}, plottable(sig) ? plusButton(ecu.name, pid.id, sig.name) : null),
       el("td", {}, el("strong", {}, sig.name), sig.type ? el("div", { class: "cx-muted" }, "type: " + sig.type) : null),
@@ -252,7 +274,9 @@
       el("td", { class: "cx-muted" }, range),
       el("td", {}, verifiedBadge(sig.verified)),
       el("td", {}, notes(sig.notes), sig.source ? el("div", { class: "cx-muted" }, "source: " + sig.source) : null,
-        (sig.source_links || []).map(function (u) { return el("div", {}, el("a", { href: u, target: "_blank", rel: "noopener" }, u)); })),
+        (sig.source_links || []).map(function (u) {
+          return el("div", {}, safeUrl(u) ? el("a", { href: u, target: "_blank", rel: "noopener" }, u) : u);
+        })),
       el("td", {}, srcLink(data, sig.src, "↗")));
   }
 
@@ -451,14 +475,14 @@
             el("h3", {}, ecu.name, " ", el("span", { class: "cx-muted" }, ecu.description || "")),
             el("div", { class: "cx-tabs" }, TABS.map(function (t) {
               var count = { pids: ecu.pids.length, io: ecu.iocontrol.length, research: ecu.research.length }[t[0]];
-              return el("button", { type: "button", class: "cx-tab" + (t[0] === route.tab ? " cx-active" : ""), onclick: function () {
+              return el("button", { type: "button", class: "cx-tab" + (t[0] === route.tab ? " cx-active" : ""), role: "tab", "aria-selected": t[0] === route.tab ? "true" : "false", onclick: function () {
                 go({ profile: data.profile.name, ecu: ecu.name, tab: t[0] });
               } }, t[1], count ? el("span", { class: "cx-muted" }, " " + count) : null);
             })),
             views[route.tab]());
         }
       }
-      ui.detail.replaceChildren(body);
+      fill(ui.detail, body);
       var flash = ui.detail.querySelector(".cx-flash");
       if (flash) flash.scrollIntoView({ block: "center" });
     }
@@ -467,7 +491,7 @@
       var name = ui.data ? ui.data.profile.name : route.profile;
       var hasData = ui.data && ui.data.profile.sessions > 0;
       var plot = route.mode === "plot";
-      ui.mode.replaceChildren(
+      fill(ui.mode, 
         el("button", { type: "button", class: "cx-mode" + (plot ? "" : " cx-active"), onclick: function () { go({ profile: name }); } }, "Definitions"),
         hasData ? el("button", { type: "button", class: "cx-mode" + (plot ? " cx-active" : ""), onclick: function () {
           go({ profile: name, mode: "plot", session: ui.lastSession || "", params: tray.ids.length ? { s: tray.ids.join(",") } : {} });
@@ -489,6 +513,7 @@
       ]).filter(Boolean));
       refreshPlusButtons();
     }
+    tray.listeners = []; // one mounted explorer at a time; drop the previous page's handler
     tray.onchange(function () { if (app === ui) { renderTray(); if (ui.onTray) ui.onTray(); } });
 
     function show() {
@@ -498,15 +523,16 @@
       if (!name) return;
       if (!route.profile) { location.replace(hashFor({ profile: name })); return; }
       loadProfile(name).then(function (data) {
-        if (app !== ui) return;
+        // A slower load for a profile the user already left must not overwrite the current one.
+        if (app !== ui || parseHash().profile !== name) return;
         var changed = ui.data !== data;
         ui.data = data;
         ui.select.value = name;
         if (tray.profile !== name) tray.set([], name);
-        if (route.mode === "plot" && route.params.s !== undefined && route.params.s !== ui.writtenS) {
-          tray.set(route.params.s.split(",").filter(Boolean));
-        }
-        ui.writtenS = route.mode === "plot" ? route.params.s : ui.writtenS;
+        // In plot mode the URL owns the tray (no s= means an empty tray), unless we wrote it ourselves.
+        var wanted = route.params.s || "";
+        if (route.mode === "plot" && wanted !== ui.writtenS) tray.set(wanted.split(",").filter(Boolean));
+        if (route.mode === "plot") ui.writtenS = wanted;
         if (changed) {
           var s = data.profile.stats;
           ui.stats.textContent = data.profile.car_model + " · " + data.profile.maturity + " · " + s.ecus + " ECUs, " + s.pids + " PIDs, " +
@@ -523,16 +549,16 @@
           window.canairExplorer.dataView.render(ui.dataHost, data, route, ui);
           return;
         }
-        ui.diagram.replaceChildren(renderDiagram(data, route.ecu));
+        fill(ui.diagram, renderDiagram(data, route.ecu));
         renderRail();
         renderDetail();
       }, function (err) {
-        ui.detail.replaceChildren(el("p", { class: "cx-muted" }, "Could not load profile data: " + err.message));
+        fill(ui.detail, el("p", { class: "cx-muted" }, "Could not load profile data: " + err.message));
       });
     }
 
     ui.show = show;
-    root.replaceChildren(
+    fill(root, 
       el("div", { class: "cx-toolbar" }, ui.select, ui.search, el("label", { class: "cx-check" }, ui.verified, " verified only"), ui.stats, ui.wide),
       ui.results, ui.mode, ui.tray, ui.diagram, ui.defsBody, ui.dataHost);
 
@@ -541,13 +567,13 @@
       ui.select.replaceChildren.apply(ui.select, index.map(function (p) { return el("option", { value: p.name }, p.name); }));
       show();
     }, function (err) {
-      root.replaceChildren(el("p", {}, "Could not load the explorer data: " + err.message));
+      fill(root, el("p", {}, "Could not load the explorer data: " + err.message));
     });
   }
 
   // What the data view (plot.js) builds on.
   window.canairExplorer = {
-    el: el, svg: svg, badge: badge, verifiedBadge: verifiedBadge, notes: notes, command: command,
+    el: el, svg: svg, fill: fill, badge: badge, verifiedBadge: verifiedBadge, notes: notes, command: command,
     srcLink: srcLink, parseHash: parseHash, hashFor: hashFor, go: go, tray: tray, trayId: trayId,
     loadProfile: loadProfile, ecuByName: ecuByName, DATA_URL: DATA_URL, SCRIPT_URL: SCRIPT_URL,
     current: function () { return app; }, dataView: null,

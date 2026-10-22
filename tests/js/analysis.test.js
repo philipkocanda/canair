@@ -38,6 +38,7 @@ test("an exact linear copy is flagged as a mirror, not a discovery", () => {
   const x = series(200, () => rnd());
   const y = series(200, (i) => 2 * x[i] + 1);
   assert.equal(A.rankRelated(x, { y }, { mode: "level", maxLag: 0 })[0].mirror, true);
+  assert.equal(A.rankRelated(x, { y }, { mode: "delta", maxLag: 0 })[0].mirror, true);
 });
 
 test("constant signals and too-short overlaps are skipped", () => {
