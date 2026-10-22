@@ -16,6 +16,7 @@ from typing import NotRequired, TypedDict
 
 from ..decoding import ParamRow, decode_param_rows
 from ..formatting import decode_uds_response
+from ..frame_counts import frames_for_payload
 from ..log import log_event
 from ..multi_did import split_chain
 from ..uds_parse import UdsResponse
@@ -60,6 +61,10 @@ EcuFrame = tuple[str, list[ResultEntry]]
 # per-ECU with the same key); resolved by :func:`resolve_multi_did_max`.
 MULTI_DID_MAX_DEFAULT = 3
 
+# Consecutive unanswered batches (each with a successful per-DID fallback) before an
+# ECU is read singly for the rest of the session; see BatchState.batch_unanswered.
+BATCH_UNANSWERED_BEFORE_DISABLE = 3
+
 
 def transport_did_cap(max_request_bytes: int) -> int:
     """How many 2-byte DIDs fit in one ``22 D1 D2 …`` request on this transport.
@@ -100,7 +105,9 @@ class BatchState:
     ``62 D1 <data> D2 <data>``; others reject it with NRC 0x13). We learn each
     DID's data length from its first single read, batch once all target DIDs
     have known lengths, and permanently disable batching for an ECU that ever
-    rejects it (or whose response fails to split) for the rest of the session.
+    rejects it (or whose response fails to split, or arrives too late to be
+    taken as the batch's answer, or keeps going unanswered while single reads
+    succeed) for the rest of the session.
     """
 
     def __init__(self, pad: int = 0xAA, max_dids: int = MULTI_DID_MAX_DEFAULT):
@@ -109,6 +116,7 @@ class BatchState:
         self.pad = pad  # ISO-TP padding byte (profile isotp.tx_padding)
         self.max_dids = max_dids  # max DIDs combined per multi-DID request
         self._clamped: set[tuple[int, int]] = set()  # (tx_id, cap) already warned about
+        self._unanswered: dict[int, int] = {}  # tx_id -> batches unanswered in a row
 
     def note_clamp(self, tx_id: int, cap: int) -> bool:
         """Register a transport clamp for ``tx_id``; True the first time only.
@@ -143,23 +151,40 @@ class BatchState:
     def learn(self, tx_id: int, did4: str, resp_hex: str) -> None:
         """Record a DID's data length from a single-DID ``62 DID <data>`` response."""
         dlen = _did_data_len(resp_hex, did4, self.pad)
-        if dlen is not None:
+        if dlen is not None and dlen >= 1:
             self.lengths[(tx_id, did4.upper())] = dlen
 
+    def batch_answered(self, tx_id: int) -> None:
+        """A batch for ``tx_id`` came back split cleanly: its unanswered streak is over."""
+        self._unanswered.pop(tx_id, None)
 
-def _strip_trailing_padding(data: bytes, pad: int = 0xAA) -> bytes:
-    """Drop trailing ISO-TP padding bytes (profile ``isotp.tx_padding``, default 0xAA)."""
-    i = len(data)
-    while i > 0 and data[i - 1] == pad:
-        i -= 1
-    return data[:i]
+    def batch_unanswered(self, tx_id: int) -> None:
+        """A batch went unanswered although single reads of its DIDs succeeded.
+
+        One such miss is ordinary bus noise, but a run of them means the ECU answers batches
+        too slowly for the request budget. Each costs a whole group's worse-than-single round
+        trip, and a reply that arrives late can land in the fallback read's slot, so after
+        :data:`BATCH_UNANSWERED_BEFORE_DISABLE` in a row the ECU is read singly.
+        """
+        n = self._unanswered.get(tx_id, 0) + 1
+        self._unanswered[tx_id] = n
+        if n >= BATCH_UNANSWERED_BEFORE_DISABLE:
+            self.disable(tx_id, f"{n} multi-DID requests in a row went unanswered")
 
 
 def _did_data_len(resp_hex: str, did4: str, pad: int = 0xAA) -> int | None:
-    """Length (bytes) of a single-DID response's data, padding stripped.
+    """Length (bytes) of a single-DID response's data, without its ISO-TP padding.
 
     ``resp_hex`` is a ``62 <DID> <data> [pad…]`` positive response. Returns the
     number of data bytes after the 2-byte DID, or None if it doesn't parse.
+
+    Both transports hand back a response at its ISO-TP length, but older paths
+    (and replies recorded from them) kept the final frame's padding. Padding fills
+    a frame to its end, so only a response that fills its last classic-CAN frame
+    exactly can carry any, and only within that frame: ``pad`` bytes are stripped
+    there and nowhere else, and never past the first data byte (a DID's data
+    record is never empty). A frame-filling response whose data really ends in
+    ``pad`` is indistinguishable from a padded one and is still read short.
     """
     try:
         b = bytes.fromhex(resp_hex)
@@ -168,7 +193,13 @@ def _did_data_len(resp_hex: str, did4: str, pad: int = 0xAA) -> int | None:
         return None
     if len(b) < 3 or b[0] != 0x62 or b[1:3] != did:
         return None
-    return len(_strip_trailing_padding(b[3:], pad))
+    frames = frames_for_payload(len(b))
+    if frames_for_payload(len(b) + 1) == frames:
+        return len(b) - 3  # the last frame has room left, so nothing in it is padding
+    end = len(b)
+    while end > 4 and b[end - 1] == pad and frames_for_payload(end - 1) == frames:
+        end -= 1
+    return end - 3
 
 
 def split_multi_did(
@@ -217,6 +248,16 @@ def _is_did22(pid_code: str) -> bool:
     return len(pid_code) == 6 and pid_code[:2] == "22"
 
 
+def _did4(pid_code: str) -> str:
+    """The DID of a service-22 request code, upper-cased (``22bc03`` → ``BC03``).
+
+    Learned lengths are keyed by it, and :func:`canlib.multi_did.split_chain` looks
+    DIDs up upper-case, so a PID key written in lower case in ``ecus/`` must not
+    file its length where the leak check cannot find it.
+    """
+    return pid_code[2:].upper()
+
+
 def is_leaked_batch_reply(resp_hex: str, data_len: Callable[[str], int | None]) -> bool:
     """Is this answer to a single-DID read really a whole multi-DID batch reply?
 
@@ -234,6 +275,10 @@ def is_leaked_batch_reply(resp_hex: str, data_len: Callable[[str], int | None]) 
 
 
 LEAKED_BATCH_ERROR = "multi-DID batch reply received for a single-DID read (discarded)"
+
+# Why batching stops once a leaked reply is seen: the batch it answered had already
+# been given up on, so batches on this ECU outlast the request budget.
+LEAKED_BATCH_REASON = "a multi-DID reply arrived after its request timed out"
 
 
 def _capture_stamp(acquired_at: float | None) -> tuple[str, str]:

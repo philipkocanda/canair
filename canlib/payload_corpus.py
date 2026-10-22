@@ -45,7 +45,10 @@ def load_payload_corpus(files: list[Path]) -> PayloadCorpus:
     samples: list[PayloadSample] = []
     where: list[Locator] = []
     for path in files:
-        data = capture_io.load_capture_file(path)
+        try:
+            data = capture_io.load_capture_file(path)
+        except (OSError, ValueError):
+            continue  # unreadable or not JSON: the per-file schema check reports it
         if not isinstance(data, dict):
             continue
         for si, session in enumerate(data.get("sessions", []) or []):

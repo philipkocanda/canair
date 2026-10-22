@@ -11,6 +11,7 @@ import asyncio
 import logging
 import re
 import time
+from typing import Literal
 
 from ..formatting import (
     decode_uds_response,
@@ -24,8 +25,10 @@ from ..transport.elm327_terminal import Elm327Terminal
 from ..uds_parse import request_echo
 from .multi_batch import (
     LEAKED_BATCH_ERROR,
+    LEAKED_BATCH_REASON,
     BatchState,
     _decode_pid_result,
+    _did4,
     _error_result,
     _is_did22,
     is_leaked_batch_reply,
@@ -117,9 +120,14 @@ async def _read_single(sm, tx_id, pid_code, pid_info, unmapped, batch_state):
     ):
         # Checked before learn(): taking it would store the batch as this DID's payload and
         # set this DID's length to the whole batch's, so every later batch fails to split.
+        # The batch it answers had already been given up on, so batching this ECU would only
+        # do that again every cycle. This read's own reply may still be on its way: the next
+        # read's echo check then catches it as stale (the ELM327 engine realigns its pipe
+        # before retrying; the raw path flushes its receive queue before every request).
         log_event(
             "stale", LEAKED_BATCH_ERROR, level=logging.INFO, ecu=f"0x{tx_id:03X}", pid=pid_code
         )
+        batch_state.disable(tx_id, LEAKED_BATCH_REASON)
         return {
             "pid": pid_code,
             "error": LEAKED_BATCH_ERROR,
@@ -127,22 +135,26 @@ async def _read_single(sm, tx_id, pid_code, pid_info, unmapped, batch_state):
             "acquired_at": acquired_at,
         }
     if batch_state is not None and _is_did22(pid_code) and resp.get("hex"):
-        batch_state.learn(tx_id, pid_code[2:], resp["hex"])
+        batch_state.learn(tx_id, _did4(pid_code), resp["hex"])
     return _decode_pid_result(
         pid_code, pid_info, unmapped, resp["hex"], resp["bytes"], acquired_at, elapsed_ms
     )
 
 
-async def _read_batch(sm, tx_id, group, out, batch_state) -> bool:
+BatchOutcome = Literal["ok", "failed", "unanswered"]
+
+
+async def _read_batch(sm, tx_id, group, out, batch_state) -> BatchOutcome:
     """Attempt one multi-DID request for ``group``; append results on success.
 
-    Returns True if the batch succeeded and split cleanly. On NRC 0x13/0x31
+    Returns ``"ok"`` if the batch succeeded and split cleanly. On NRC 0x13/0x31
     (format/range not supported) or an unsplittable response, permanently
-    disables batching for the ECU and returns False so the caller falls back to
-    per-DID reads. Transient failures (e.g. NO DATA) return False without
-    disabling.
+    disables batching for the ECU and returns ``"failed"`` so the caller falls
+    back to per-DID reads. A non-answer (e.g. NO DATA) returns ``"unanswered"``
+    without disabling; the caller decides, from the fallback, whether it counts
+    against the ECU.
     """
-    dids = [e[0][2:] for e in group]
+    dids = [_did4(e[0]) for e in group]
     await sm.keepalive_stale()
     # Validated like the single-PID path: a 62 response repeats the first
     # requested DID, so expected_sid/expected_echo classify a leaked reply as
@@ -162,7 +174,7 @@ async def _read_batch(sm, tx_id, group, out, batch_state) -> bool:
     if not resp.get("ok"):
         if resp.get("nrc") in (0x13, 0x31):
             batch_state.disable(tx_id, f"rejected a {len(dids)}-DID request with NRC 0x13/0x31")
-        return False
+        return "failed" if resp.get("nrc") is not None else "unanswered"
     split = split_multi_did(
         resp.get("hex", ""),
         [(d, batch_state.lengths[(tx_id, d)]) for d in dids],
@@ -170,15 +182,16 @@ async def _read_batch(sm, tx_id, group, out, batch_state) -> bool:
     )
     if split is None:
         batch_state.disable(tx_id, "multi-DID response did not split into the requested DIDs")
-        return False
+        return "failed"
+    batch_state.batch_answered(tx_id)
     for pid_code, pid_info, unmapped in group:
-        sub_hex = split[pid_code[2:]]
+        sub_hex = split[_did4(pid_code)]
         out.append(
             _decode_pid_result(
                 pid_code, pid_info, unmapped, sub_hex, bytes.fromhex(sub_hex), acquired_at
             )
         )
-    return True
+    return "ok"
 
 
 def build_query_plan(
@@ -275,7 +288,9 @@ async def _run_query_plan(sm, tx_id, query_plan, out, batch_state, max_dids=None
     ECU that opted into ``multi_did``), runs of consecutive 22-DIDs whose lengths
     are already known are read in one ``22 D1 D2 …`` request (up to ``max_dids``,
     defaulting to the batch state's cap); everything else is read singly. A batch
-    that fails falls back to per-DID reads for that group.
+    that fails falls back to per-DID reads for that group, and a batch that keeps
+    going unanswered while those fallbacks succeed stops batching for the ECU
+    (:meth:`~canlib.modes.multi_batch.BatchState.batch_unanswered`).
 
     The requested cap is clamped to what the *transport* can put on the wire
     (:func:`~canlib.modes.multi_batch.transport_did_cap`). A profile may legally
@@ -291,7 +306,7 @@ async def _run_query_plan(sm, tx_id, query_plan, out, batch_state, max_dids=None
             batch_state is not None
             and tx_id not in batch_state.disabled
             and _is_did22(code)
-            and (tx_id, code[2:]) in batch_state.lengths
+            and (tx_id, _did4(code)) in batch_state.lengths
         )
         if can_batch:
             group = []
@@ -299,15 +314,20 @@ async def _run_query_plan(sm, tx_id, query_plan, out, batch_state, max_dids=None
                 i < n
                 and len(group) < cap
                 and _is_did22(query_plan[i][0])
-                and (tx_id, query_plan[i][0][2:]) in batch_state.lengths
+                and (tx_id, _did4(query_plan[i][0])) in batch_state.lengths
             ):
                 group.append(query_plan[i])
                 i += 1
-            if len(group) > 1 and await _read_batch(sm, tx_id, group, out, batch_state):
+            outcome = (
+                await _read_batch(sm, tx_id, group, out, batch_state) if len(group) > 1 else None
+            )
+            if outcome == "ok":
                 continue
             # Single DID, or batch failed → per-DID.
-            for e in group:
-                out.append(await _read_single(sm, tx_id, e[0], e[1], e[2], batch_state))
+            singles = [await _read_single(sm, tx_id, e[0], e[1], e[2], batch_state) for e in group]
+            out.extend(singles)
+            if outcome == "unanswered" and any("raw_hex" in r for r in singles):
+                batch_state.batch_unanswered(tx_id)  # the ECU is awake; its batches are not
             continue
         e = query_plan[i]
         out.append(await _read_single(sm, tx_id, e[0], e[1], e[2], batch_state))

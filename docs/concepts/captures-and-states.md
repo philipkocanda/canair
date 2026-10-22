@@ -579,9 +579,11 @@ An ECU that supports batching answers `22 D1 D2 …` with `62 D1 <data> D2 <data
 which starts exactly like a single reply to `D1`. Older canair versions could take
 a batch reply that arrived late as the answer to the next per-DID read of `D1`, and
 saved it whole as `D1`'s payload, with every other DID's data appended. Current
-versions discard such a reply, and `canair validate captures` warns about the
-rows already stored. One repair replaces each with one capture per DID at the
-same time, so the readings it carried are kept:
+versions discard such a reply and stop batching that ECU for the rest of the
+session (as they also do when its batches keep going unanswered while single
+reads succeed), and `canair validate captures` warns about the rows already
+stored. One repair replaces each with one capture per DID at the same time, so
+the readings it carried are kept:
 
 ```bash
 canair --profile my-car captures split-batched --dry-run   # preview
@@ -589,9 +591,15 @@ canair --profile my-car captures split-batched
 ```
 
 A row is split only when it walks exactly through DIDs of the same ECU at each
-DID's established length, so a padded or merely long reply is left alone. It is
-idempotent, and in a layered profile it reports rows in the read-only base
-instead of rewriting them.
+DID's established length, so a padded or merely long reply is left alone. A
+DID's length is established from its own replies (unpadded and padded alike),
+and the leaked batch rows themselves count towards it rather than against it,
+so they cannot hide by outvoting it. In a session recorded with `--keep-changes`
+or `--keep-unique`, a part whose value the session would not have stored again
+is left out, so every stored row is still a change. It is idempotent, and in a
+layered profile it reports rows in the read-only base instead of rewriting them,
+as well as overlay sessions that the base holds identically (splitting only the
+overlay copy would turn one session into two).
 
 ## Reviewing captures
 

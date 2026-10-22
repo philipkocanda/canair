@@ -8,6 +8,7 @@ BCM rejects multi-DID with 7F2213 (NRC 0x13).
 """
 
 import asyncio
+import logging
 from unittest.mock import AsyncMock, MagicMock
 
 from canlib.modes.multi import (
@@ -15,8 +16,11 @@ from canlib.modes.multi import (
     _read_single,
 )
 from canlib.modes.multi_batch import (
+    BATCH_UNANSWERED_BEFORE_DISABLE,
+    LEAKED_BATCH_ERROR,
     BatchState,
     _did_data_len,
+    is_leaked_batch_reply,
     resolve_multi_did_max,
     split_multi_did,
     transport_did_cap,
@@ -471,3 +475,145 @@ class TestLeakedBatchReply:
             _read_single(sm, 0x770, "22BC03", {"parameters": {}}, False, BatchState())
         )
         assert result["raw_hex"] == BC03_SINGLE
+
+    def test_a_leak_stops_batching_so_the_next_cycle_reads_both_dids(self, monkeypatch):
+        """Two cycles: the leak costs one reading once, not D1 and D2 every cycle."""
+        events: list[tuple] = []
+        monkeypatch.setattr(
+            "canlib.modes.multi_exec.log_event",
+            lambda cat, detail="", **kw: events.append((cat, detail, kw)),
+        )
+        replies = {"22BC03": [_ok(MULTI), _ok(BC03_SINGLE)], "22BC06": [_ok(BC06_SINGLE)] * 2}
+
+        async def send_uds(req, *a, **k):
+            sent.append(req)
+            queue = replies.get(req)
+            return dict(queue.pop(0)) if queue else {"ok": False, "error": "NO DATA"}
+
+        sent: list[str] = []
+        sm = _mk_sm(send_uds)
+        bs = self._state()
+        idx = _igpm_index(multi_did=True)
+        run = lambda: asyncio.run(  # noqa: E731
+            _exec_query(sm, "IGPM", [], idx, {}, False, return_results=True, batch_state=bs)
+        )
+
+        run()
+        assert sent == ["22BC03BC06", "22BC03", "22BC06"]
+        assert 0x770 in bs.disabled
+        assert ("stale", LEAKED_BATCH_ERROR) in [(c, d) for c, d, _kw in events]
+
+        sent.clear()
+        _l, second = run()
+        assert sent == ["22BC03", "22BC06"]  # no batch to time out and leak again
+        assert {r["pid"]: r["raw_hex"] for r in second} == {
+            "22BC03": BC03_SINGLE,
+            "22BC06": BC06_SINGLE,
+        }
+
+    def test_the_leak_is_logged_as_a_stale_event(self, monkeypatch):
+        events: list[tuple] = []
+        monkeypatch.setattr(
+            "canlib.modes.multi_exec.log_event",
+            lambda cat, detail="", **kw: events.append((cat, detail, kw)),
+        )
+        sm = _mk_sm(FakeTerminal({"22BC03": _ok(MULTI)}).send_uds)
+        asyncio.run(_read_single(sm, 0x770, "22BC03", {"parameters": {}}, False, self._state()))
+        assert events == [
+            ("stale", LEAKED_BATCH_ERROR, {"level": logging.INFO, "ecu": "0x770", "pid": "22BC03"})
+        ]
+
+    def test_non_hex_is_never_a_leaked_batch(self):
+        assert is_leaked_batch_reply("62BC03ZZ", {"BC03": 8}.get) is False
+
+    def test_a_lower_case_pid_key_still_batches_and_still_catches_a_leak(self):
+        idx = {
+            "IGPM": {
+                "tx_id": 0x770,
+                "multi_did": True,
+                "pids": {"22bc03": {"parameters": {}}, "22bc06": {"parameters": {}}},
+            }
+        }
+        term = FakeTerminal({"22bc03": _ok(BC03_SINGLE), "22bc06": _ok(BC06_SINGLE)})
+        sm = _mk_sm(term.send_uds)
+        bs = BatchState()
+        for _ in range(2):
+            asyncio.run(
+                _exec_query(sm, "IGPM", [], idx, {}, False, return_results=True, batch_state=bs)
+            )
+        assert bs.lengths == {(0x770, "BC03"): 8, (0x770, "BC06"): 8}
+        assert term.sent[2] == "22BC03BC06"  # learned under the upper-case DID, then batched
+
+        term = FakeTerminal({"22bc03": _ok(MULTI)})
+        result = asyncio.run(
+            _read_single(_mk_sm(term.send_uds), 0x770, "22bc03", {"parameters": {}}, False, bs)
+        )
+        assert result["error"] == LEAKED_BATCH_ERROR
+
+
+class TestUnansweredBatches:
+    """A batch that keeps timing out while its DIDs answer singly stops being sent."""
+
+    def _run(self, bs, term, cycles):
+        sm = _mk_sm(term.send_uds)
+        idx = _igpm_index(multi_did=True)
+        for _ in range(cycles):
+            asyncio.run(
+                _exec_query(sm, "IGPM", [], idx, {}, False, return_results=True, batch_state=bs)
+            )
+
+    def _state(self) -> BatchState:
+        bs = BatchState()
+        for d in ("BC03", "BC06"):
+            bs.lengths[(0x770, d)] = 8
+        return bs
+
+    def test_disabled_after_a_run_of_unanswered_batches(self):
+        bs = self._state()
+        term = FakeTerminal(_SINGLES)  # the batch gets NO DATA
+        self._run(bs, term, BATCH_UNANSWERED_BEFORE_DISABLE - 1)
+        assert 0x770 not in bs.disabled
+        self._run(bs, term, 1)
+        assert 0x770 in bs.disabled
+        term.sent.clear()
+        self._run(bs, term, 1)
+        assert term.sent == ["22BC03", "22BC06"]
+
+    def test_an_ecu_that_answers_nothing_keeps_batching(self):
+        # Asleep, not slow: the singles fail too, so the batch is not to blame.
+        bs = self._state()
+        self._run(bs, FakeTerminal(), BATCH_UNANSWERED_BEFORE_DISABLE + 1)
+        assert 0x770 not in bs.disabled
+
+    def test_an_answered_batch_resets_the_run(self):
+        bs = self._state()
+        self._run(bs, FakeTerminal(_SINGLES), BATCH_UNANSWERED_BEFORE_DISABLE - 1)
+        self._run(bs, FakeTerminal({**_SINGLES, "22BC03BC06": _ok(MULTI)}), 1)
+        self._run(bs, FakeTerminal(_SINGLES), BATCH_UNANSWERED_BEFORE_DISABLE - 1)
+        assert 0x770 not in bs.disabled
+
+    def test_an_nrc_is_not_unanswered(self):
+        bs = self._state()
+        term = FakeTerminal({**_SINGLES, "22BC03BC06": _nrc(0x22, "conditionsNotCorrect")})
+        self._run(bs, term, BATCH_UNANSWERED_BEFORE_DISABLE + 1)
+        assert 0x770 not in bs.disabled
+
+
+class TestLearnedLengthPadding:
+    """Only a response that fills its last CAN frame can carry padding, and only in that frame."""
+
+    def test_a_response_with_room_in_its_last_frame_is_taken_at_its_length(self):
+        # 11 bytes: the second frame has room to spare, so its trailing AA is data.
+        assert _did_data_len("62BC03FDEE3C730A00AAAA", "BC03") == 8
+        assert _did_data_len("62BC030102AA", "BC03") == 3  # single frame, 6 of 7 bytes
+
+    def test_padding_is_stripped_only_within_the_final_frame(self):
+        # 20 bytes fill three frames; the third holds at least one real byte, so 14 remain.
+        resp = "62BC03" + "11" * 10 + "AA" * 7
+        assert _did_data_len(resp, "BC03") == 11
+
+    def test_a_did_is_never_learned_with_no_data(self):
+        assert _did_data_len("62BC03AAAAAAAA", "BC03") == 1
+        bs = BatchState()
+        bs.learn(0x770, "BC03", "62BC03")
+        assert bs.lengths == {}

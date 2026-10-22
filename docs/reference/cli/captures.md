@@ -329,7 +329,7 @@ usage: canair captures split-batched [-h] [--dry-run] [--json] [--dir DIR]
 
 Find service-22 captures whose payload is a whole multi-DID reply (62 D1 <data> D2 <data> …) stored under its first DID, and replace each with one capture per DID at the same time.
 
-A batched reply starts like a single reply to its first DID, so a batch reply that leaked into a per-DID read passed the echo check and was saved whole; `validate captures` reports these. A row is split only when it walks exactly through DIDs of the same ECU at each DID's established length, so a padded or merely long reply is left alone. The split rows drop `elapsed_ms` (one round trip answered them all). Idempotent; a layered profile's read-only base is reported, not rewritten (exit 1). Performs the split by default; pass --dry-run to preview.
+A batched reply starts like a single reply to its first DID, so a batch reply that leaked into a per-DID read passed the echo check and was saved whole; `validate captures` reports these. A row is split only when it walks exactly through DIDs of the same ECU at each DID's established length, so a padded or merely long reply is left alone. The split rows drop `elapsed_ms` (one round trip answered them all). In a session recorded with a dedup keep mode (`--keep-changes`/`--keep-unique`), a part the session would not have stored (an unchanged value) is left out and reported as unchanged. Idempotent; a layered profile's read-only base is reported, not rewritten, and so is an overlay session the base holds identically (exit 1). A missing --dir is an error (exit 2). Performs the split by default; pass --dry-run to preview.
 
 options:
   -h, --help  show this help message and exit

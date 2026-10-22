@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -72,8 +73,9 @@ class MonitorRawPoller:
 
     def __init__(self, controller: MonitorController):
         self.c = controller
-        # Learned per-DID data lengths (ecu, did4) -> len, and ECUs that rejected
-        # batching (NRC 0x13/0x31 or an unsplittable positive) this session.
+        # Learned per-DID data lengths (ecu, DID4 upper-case) -> len, and ECUs that
+        # rejected batching (NRC 0x13/0x31, an unsplittable positive, or a batch reply
+        # that arrived late in a single read's slot) this session.
         self.lengths: dict[tuple[str, str], int] = {}
         self.nobatch: set[str] = set()
         # ISO-TP padding byte (profile isotp.tx_padding) for stripping/splitting.
@@ -92,7 +94,7 @@ class MonitorRawPoller:
         3); everything else is a single request (and 22-DID lengths are learned
         from single reads).
         """
-        from .multi_batch import _is_did22
+        from .multi_batch import _did4, _is_did22
         from .multi_exec import build_query_plan
 
         c = self.c
@@ -117,18 +119,18 @@ class MonitorRawPoller:
             i, n = 0, len(plan)
             while i < n:
                 code = plan[i][0]
-                if batchable and _is_did22(code) and (ecu, code[2:]) in self.lengths:
+                if batchable and _is_did22(code) and (ecu, _did4(code)) in self.lengths:
                     group = []
                     while (
                         i < n
                         and len(group) < cap
                         and _is_did22(plan[i][0])
-                        and (ecu, plan[i][0][2:]) in self.lengths
+                        and (ecu, _did4(plan[i][0])) in self.lengths
                     ):
                         group.append(plan[i])
                         i += 1
                     if len(group) > 1:
-                        dids = [g[0][2:] for g in group]
+                        dids = [_did4(g[0]) for g in group]
                         submissions.append(
                             {
                                 "ecu": ecu,
@@ -154,8 +156,9 @@ class MonitorRawPoller:
 
         Multi-DID ECUs are batched (one ISO-TP request per group); results are
         split back per-DID. Per-ECU 22-DID lengths are learned from single reads,
-        and an ECU that rejects batching (NRC 0x13/0x31) or returns an
-        unsplittable response is dropped to single reads for the session.
+        and an ECU that rejects batching (NRC 0x13/0x31), returns an unsplittable
+        response, or answers a single read with a late batch reply is dropped to
+        single reads for the session.
 
         Results are consumed **incrementally**: the client fires a callback as
         each request resolves, so fast PIDs render immediately and a slow/timing-
@@ -236,8 +239,11 @@ class MonitorRawPoller:
     ) -> None:
         """Fold one completed submission's response into ``by_pid`` (split batches,
         learn 22-DID lengths, track ECUs that can't batch)."""
+        from ..log import log_event
         from .multi_batch import (
             LEAKED_BATCH_ERROR,
+            LEAKED_BATCH_REASON,
+            _did4,
             _did_data_len,
             _is_did22,
             is_leaked_batch_reply,
@@ -263,7 +269,7 @@ class MonitorRawPoller:
                     by_pid[(ecu, code)] = _raw_pid_result(code, pi, un, outcome, acquired)
             else:
                 for code, pi, un in s["members"]:
-                    sub = bytes.fromhex(split[code[2:]])
+                    sub = bytes.fromhex(split[_did4(code)])
                     by_pid[(ecu, code)] = _raw_pid_result(code, pi, un, sub, acquired)
             return
 
@@ -273,13 +279,32 @@ class MonitorRawPoller:
             and resp
             and is_leaked_batch_reply(resp.hex(), lambda d: self.lengths.get((ecu, d)))
         ):
-            val = ValueError(LEAKED_BATCH_ERROR)  # neither stored nor learned as this DID's
+            # Neither stored nor learned as this DID's; and as on the ELM path, a batch that
+            # outlives its request would do this again every cycle, so stop batching the ECU.
+            ref = self._ecu_ref(ecu)
+            log_event("stale", LEAKED_BATCH_ERROR, level=logging.INFO, ecu=ref, pid=code)
+            if ecu not in self.nobatch:
+                self.nobatch.add(ecu)
+                log_event(
+                    "config",
+                    f"multi-DID batching disabled for {ref} for this session: "
+                    f"{LEAKED_BATCH_REASON}",
+                    level=logging.INFO,
+                    ecu=ref,
+                )
+            val = ValueError(LEAKED_BATCH_ERROR)
             resp = None
         by_pid[(ecu, code)] = _raw_pid_result(code, pi, un, val, acquired)
         if _is_did22(code) and resp and resp[0] != 0x7F:  # learn length for batching
-            dlen = _did_data_len(resp.hex().upper(), code[2:], self.pad)
-            if dlen is not None:
-                self.lengths[(ecu, code[2:])] = dlen
+            dlen = _did_data_len(resp.hex().upper(), _did4(code), self.pad)
+            if dlen is not None and dlen >= 1:
+                self.lengths[(ecu, _did4(code))] = dlen
+
+    def _ecu_ref(self, ecu: str) -> str:
+        """``ecu``'s request id as the diagnostics log names ECUs (``0x770``), else its name."""
+        info = (self.c._ecu_index or {}).get(ecu)
+        tx = info.get("tx_id") if info else None
+        return f"0x{tx:03X}" if isinstance(tx, int) else ecu
 
     def build_queries(
         self, plan_by_ecu, by_pid: dict[tuple[str, str], ResultEntry]

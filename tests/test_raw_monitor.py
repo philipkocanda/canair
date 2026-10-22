@@ -400,3 +400,67 @@ class TestRawBatchRepliesNeverLandUnderOneDid:
         assert "raw_hex" not in got["22BC03"]
         assert got["22BC06"]["raw_hex"] == self.BC06
         assert c._raw_lengths[("IGPM", "BC03")] == 8  # not re-learned as the batch's length
+
+    def test_a_leak_stops_batching_the_ecu_and_is_logged(self, monkeypatch):
+        events: list[tuple] = []
+        monkeypatch.setattr(
+            "canlib.log.log_event", lambda cat, detail="", **kw: events.append((cat, detail, kw))
+        )
+        c = self._ctrl(
+            {
+                ("IGPM", bytes.fromhex("22BC03")): bytes.fromhex(self.BATCH),
+                ("IGPM", bytes.fromhex("22BC06")): bytes.fromhex(self.BC06),
+            }
+        )
+        # Planned while batching was on, answered by a late batch reply on the single read.
+        c.raw_poller.apply_submission(
+            {
+                "ecu": "IGPM",
+                "req": bytes.fromhex("22BC03"),
+                "members": [("22BC03", {"parameters": {}}, False)],
+                "lengths": None,
+            },
+            bytes.fromhex(self.BATCH),
+            0.0,
+            {},
+        )
+        assert "IGPM" in c._raw_nobatch
+        assert [(cat, kw.get("ecu"), kw.get("pid")) for cat, _d, kw in events] == [
+            ("stale", "0x770", "22BC03"),
+            ("config", "0x770", None),
+        ]
+        assert "multi-DID batch reply" in events[0][1]
+        assert "batching disabled" in events[1][1]
+
+    def test_a_lower_case_pid_key_learns_batches_and_catches_leaks(self):
+        index = {
+            "IGPM": {
+                "tx_id": 0x770,
+                "multi_did": True,
+                "pids": {"22bc03": {"parameters": {}}, "22bc06": {"parameters": {}}},
+            }
+        }
+        table = {
+            ("IGPM", bytes.fromhex("22BC03")): bytes.fromhex(self.BC03),
+            ("IGPM", bytes.fromhex("22BC06")): bytes.fromhex(self.BC06),
+            ("IGPM", bytes.fromhex("22BC03BC06")): bytes.fromhex(self.BATCH),
+        }
+        c = _mk_ctrl([{"ecu": "IGPM", "pids": ["BC03", "BC06"]}], index, table=table)
+        asyncio.run(c._poll_raw())
+        assert c._raw_lengths == {("IGPM", "BC03"): 8, ("IGPM", "BC06"): 8}
+        subs, _ = c._build_raw_submissions()
+        assert [s["req"] for s in subs] == [bytes.fromhex("22BC03BC06")]
+        asyncio.run(c._poll_raw())
+        got = {r["pid"]: r.get("raw_hex") for _lbl, res in c.last_queries for r in res}
+        assert got == {"22bc03": self.BC03, "22bc06": self.BC06}
+
+        by_pid: dict = {}
+        sub = {
+            "ecu": "IGPM",
+            "req": bytes.fromhex("22bc03"),
+            "members": [("22bc03", {"parameters": {}}, False)],
+            "lengths": None,
+        }
+        c.raw_poller.apply_submission(sub, bytes.fromhex(self.BATCH), 0.0, by_pid)
+        assert "raw_hex" not in by_pid[("IGPM", "22bc03")]
+        assert c._raw_lengths[("IGPM", "BC03")] == 8

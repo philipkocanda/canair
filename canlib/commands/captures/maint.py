@@ -247,20 +247,29 @@ def cmd_split_batched(
     from canlib.unsplit_batches import split_unsplit_batches
 
     cdir = resolve_captures_dir(captures_dir)
+    if captures_dir is not None and not cdir.is_dir():
+        if as_json:
+            _json.dump({"error": f"no such captures directory: {cdir}"}, sys.stdout)
+            print()
+        else:
+            print(f"error: no such captures directory: {cdir}", file=sys.stderr)
+        return 2
     report = split_unsplit_batches(resolve_capture_layers(captures_dir), cdir, dry_run=dry_run)
     names = build_rx_index()
 
     def _row(s) -> dict:
         return {
-            "file": s.where.path.name,
+            "file": str(s.where.path),
             "session": s.where.session,
             "capture": s.where.capture,
             "time": s.where.time,
             "ecu": names.get(s.rx, hex(s.rx)),
             "pid": s.pid,
             "split_into": list(s.pids),
+            "unchanged": list(s.unchanged),
         }
 
+    blocked = bool(report.read_only or report.shadowed)
     if as_json:
         _json.dump(
             {
@@ -268,30 +277,42 @@ def cmd_split_batched(
                 "captures_dir": str(cdir),
                 "split": [_row(s) for s in report.split],
                 "read_only": [_row(s) for s in report.read_only],
+                "shadowed": [_row(s) for s in report.shadowed],
             },
             sys.stdout,
             indent=2,
         )
         print()
-        return 1 if report.read_only else 0
+        return 1 if blocked else 0
 
-    if not report.split and not report.read_only:
+    if not report.split and not blocked:
         print(f"  No multi-DID replies stored under a single DID in {cdir}.")
         return 0
     verb = "Would split" if dry_run else "Split"
     for s in report.split:
         row = _row(s)
+        unchanged = (
+            f"  {ansi.DIM}({', '.join(s.unchanged)} unchanged, not stored){ansi.RESET}"
+            if s.unchanged
+            else ""
+        )
         print(
-            f"  {verb.lower()} {row['file']} [{s.where.session}].{s.where.capture} "
-            f"{row['ecu']} {s.pid} @ {s.where.time} → {' + '.join(s.pids)}"
+            f"  {verb.lower()} {s.where.path.name} [{s.where.session}].{s.where.capture} "
+            f"{row['ecu']} {s.pid} @ {s.where.time} → {' + '.join(s.pids)}{unchanged}"
         )
     for s in report.read_only:
         row = _row(s)
         print(f"  ! {s.where.path} {row['ecu']} {s.pid} @ {s.where.time}: read-only base layer")
+    for s in report.shadowed:
+        row = _row(s)
+        print(
+            f"  ! {s.where.path} {row['ecu']} {s.pid} @ {s.where.time}: the read-only base "
+            "layer holds this session too; left as is so the two copies stay one session"
+        )
     print(f"  {verb} {len(report.split)} capture(s).")
     if dry_run:
         print("  Re-run without --dry-run to write.")
-    return 1 if report.read_only else 0
+    return 1 if blocked else 0
 
 
 def orphan_notice(captures_dir: Path | None = None) -> None:
@@ -406,9 +427,12 @@ def _add_split_batched_parser(kinds) -> argparse.ArgumentParser:
         "`validate captures` reports these. A row is split only when it walks exactly "
         "through DIDs of the same ECU at each DID's established length, so a padded "
         "or merely long reply is left alone. The split rows drop `elapsed_ms` (one "
-        "round trip answered them all). Idempotent; a layered profile's read-only base "
-        "is reported, not rewritten (exit 1). Performs the split by default; pass "
-        "--dry-run to preview.",
+        "round trip answered them all). In a session recorded with a dedup keep mode "
+        "(`--keep-changes`/`--keep-unique`), a part the session would not have stored "
+        "(an unchanged value) is left out and reported as unchanged. Idempotent; a "
+        "layered profile's read-only base is reported, not rewritten, and so is an "
+        "overlay session the base holds identically (exit 1). A missing --dir is an "
+        "error (exit 2). Performs the split by default; pass --dry-run to preview.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--dry-run", action="store_true", help="Preview splits without writing")
