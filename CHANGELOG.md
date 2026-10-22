@@ -15,6 +15,32 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [1.30.0](https://github.com/philipkocanda/canair/compare/v1.29.0...v1.30.0) (2026-10-22)
+
+
+### Added
+
+* **ioniq-2017:** decode BCM/IGPM ignition, unlock, brake and TPMS status bits ([8fd98cf](https://github.com/philipkocanda/canair/commit/8fd98cfb07975d67efa96052767943f767294809))
+* **nissan-leaf-ze1:** add the generated WiCAN AutoPID profile ([27a7280](https://github.com/philipkocanda/canair/commit/27a7280f6296675363c05a39c45e10ac2af6a6b9))
+* **nissan-leaf-ze1:** decode the battery serial, add state rules ([73b5d7f](https://github.com/philipkocanda/canair/commit/73b5d7f1751594b739f0b7b13cdf2316b021ada0))
+
+
+### Fixed
+
+* **captures:** establish multi-DID lengths that leaked batches cannot outvote ([60abf94](https://github.com/philipkocanda/canair/commit/60abf94d68d979ea9f8a4680d7ec4d867d74b8fc))
+* **captures:** pair edited sessions with their originals instead of duplicating them ([f70e800](https://github.com/philipkocanda/canair/commit/f70e80014d5721e6bb2f9a28635e62dc8c0fb530))
+* **captures:** stop storing multi-DID replies under one DID, and repair those already stored ([a549037](https://github.com/philipkocanda/canair/commit/a54903753877bb1d3b8d20011e8ddfcc5a738fb0))
+* **coverage:** choose the newest session by time and report reads past the end ([17fe5d6](https://github.com/philipkocanda/canair/commit/17fe5d625f216d4280580e905b78e5219e728fb6))
+* **ioniq-2017:** drop the redundant rows the 2026-08-08 multi-DID split added ([ab61fa8](https://github.com/philipkocanda/canair/commit/ab61fa85687cb24e97bcbdfbb361c34598737629))
+* **ioniq-2017:** restate IGPM 22BC04 evidence after the multi-DID repair ([7fe4838](https://github.com/philipkocanda/canair/commit/7fe48381c92b91515db235b953447a3d4716c4fb))
+* **ioniq-2017:** split the 2026-08-08 multi-DID replies stored under one DID ([e33d63a](https://github.com/philipkocanda/canair/commit/e33d63a374750a5e3605b7119d3bd6ac7e6b2959))
+* **pids:** keep the next section's comments when removing a block ([3082193](https://github.com/philipkocanda/canair/commit/3082193cd65653353b5e29311a6c201aa66c6720))
+* **safety:** judge diagnostic sessions by the ECU's protocol on every path ([f7d4d51](https://github.com/philipkocanda/canair/commit/f7d4d51a88e45b986e34f1953aa913440998c6a1))
+* **search:** report every string location and keep headers out of matches ([a9d8aee](https://github.com/philipkocanda/canair/commit/a9d8aee22b43e0ae16ec499684e115b8dca212e3))
+* **signals:** keep frame format, float signals and value tables through DBC round trips ([adee950](https://github.com/philipkocanda/canair/commit/adee950600418aaa438ce320bf74c0a4d6f5b8ad))
+* **transport:** never let a refused ELM327 header address the previous ECU ([768b512](https://github.com/philipkocanda/canair/commit/768b5121bd78d1c973d547a4c70c3eaa97a60bf5))
+* **wican:** resolve --wican like live commands and probe firmware only where needed ([2fcb3b9](https://github.com/philipkocanda/canair/commit/2fcb3b98b1cf4e624f163897b68062c1033ceb24))
+
 ## [1.29.0](https://github.com/philipkocanda/canair/compare/v1.28.0...v1.29.0) (2026-10-22)
 
 
