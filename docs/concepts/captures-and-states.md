@@ -302,7 +302,9 @@ number them, e.g. Hyundai IGN0-3), plus any states a profile declares in its
 `vehicle_states.yaml` (EV profiles add `PLUGGED`/`READY`/`CHARGING`; the bundled
 Ioniq does), any composites, and the meta-token **`ALL`** ("applicable in every
 state"). Input is normalized to uppercase, so any casing you type is accepted.
-Inspect and edit the vocabulary with `canair states`:
+Tag an ECU or PID `vehicle_states: [ALL]` when it answers in every state — the bundled
+Ioniq's IGPM and BCM, which never sleep — instead of enumerating each state. `canair states
+<STATE>` then lists it under every state. Inspect and edit the vocabulary with `canair states`:
 
 ```bash
 canair states                          # list the vocabulary + usage counts

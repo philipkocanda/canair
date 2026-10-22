@@ -13,7 +13,7 @@ BCM:
     notes: >
       Body Control Module. Shares TX ID 0x7A0 with TPMS (same physical ECU,
       part 95400G7470); TPMS data is read via DID 22C00B on the BCM.
-  vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+  vehicle_states: [ALL]
   scan_log: # BCM
     - service: 0x31
       range: "0000-FFFF"
@@ -36,7 +36,7 @@ BCM:
       response_frames: 4
       status: active
       period: 15000
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       parameters:
         TYRE_PRESSURE_FL:
           expression: "B10/72.52"
@@ -189,7 +189,7 @@ BCM:
     22B00D:
       response_frames: 2
       status: draft
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: >-
         11 bytes. B10 is the light-stalk position (BCM_LIGHT_SW_POSITION); B11 bit 4 the 22B003 B18
         input, bits 3 and 5 pulses while it is set. B05-B07 = FC FC E0 constant.
@@ -243,7 +243,7 @@ BCM:
       response_frames: 2
       status: active
       period: 5000
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       parameters:
         CHARGE_PORT_OPEN:
           expression: "B10:5"
@@ -269,7 +269,7 @@ BCM:
     22B004:
       response_frames: 2
       status: draft
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: >-
         11 bytes. B10 ignition state (BCM_IGN_STATE_B004); B11:6 short pulses with the ignition off;
         B12:3 light stalk AUTO; B12:5 the digital reading of the 22B003 B18 input; B12:7 constant 1.
@@ -333,7 +333,7 @@ BCM:
     22B005:
       response_frames: 2
       status: draft
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: >-
         11 bytes. B10 bits 2,3 (0x0C) set on fob unlock, together with B004 and B006; bits 5-7 are
         the light-stalk position (BCM_LIGHT_SW_*). B05=0x20, B07=0x10, B12=0x08.
@@ -392,7 +392,7 @@ BCM:
     22B006:
       response_frames: 2
       status: draft
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: >-
         11 bytes. B10 reads 0x04 (bit 2) on fob unlock, together with B004 and B005. B05=0x20, the
         rest normally 0.
@@ -424,12 +424,12 @@ BCM:
       response_frames: 2
       status: draft
       period: 60000
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: B07:B09 reads 0x01E0 (480) in all 284 captures, across sleep, ACC and charging.
     22B008:
       response_frames: 2
       status: draft
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: >-
         11 bytes. B12:4 follows the brake (BCM_BRAKE_SWITCH), B13:2 the ignition (BCM_IGN_ON_B008).
         B13:1 set in 3 captures, 2 with the passenger door open. B05=0x00, B06=0x51, B07=0x0C,
@@ -461,7 +461,7 @@ BCM:
     22B009:
       response_frames: 2
       status: draft
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: >-
         11 bytes. Repeating 0xFEEE pattern (B03-B06) — possibly sensor addresses or calibration
         references. Rest zeros, except B10 and B12, which read 0x08 in 30 of 82 captures. Sample:
@@ -490,7 +490,7 @@ BCM:
     22B00A:
       response_frames: 2
       status: draft
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: >-
         11 bytes. B11:3 the 22B003 B18 input, B12 bits 6-7 the ignition (BCM_IGN_ON_B00A). B10:2 is
         1 in 240 of 344 captures, 238 of them in the 2026-07-27 charging session (also 1 capture
@@ -534,12 +534,12 @@ BCM:
       response_frames: 2
       status: draft
       period: 60000
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: B05 reads 0x3F in all 282 captures, across every state.
     22B001:
       response_frames: 3
       status: draft
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: >-
         20 bytes, mostly 0. Gives NO DATA on the first read after wake, then answers. B20 read 0x02
         in ACC (2026-04-14) and 0x01 in ACC2 while charging (2026-04-19).
@@ -548,7 +548,7 @@ BCM:
     22B002:
       response_frames: 2
       status: draft
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: "9 bytes. Sparse data. Purpose unknown. Sample: 62B002C00000000300."
       parameters: {}
 
@@ -556,7 +556,7 @@ BCM:
       response_frames: 4
       status: draft
       period: 10000
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: >-
         24 bytes. Analog inputs at about 0.08 V per count: B10 the 12 V battery, B23/B26/B27/B28
         ignition-switched supplies, B12/B13/B14/B18 sensor and switch inputs. B11 and B19 read 61-62
@@ -678,7 +678,7 @@ BCM:
     # C00B (above) has live tyre pressure/temp readings.
     22C001:
       status: ignored
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: >
         34 bytes. Contains 4× C0F8-prefixed TPMS receiver addresses — one per wheel.
         Static configuration. Sample: 62C001FFFF000001C0F80410C0F80BD2C0F81174C0F81188AAAA.
@@ -686,7 +686,7 @@ BCM:
 
     22C002:
       status: ignored
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: >-
         27 bytes as stored, probably 23 plus four 0xAA of frame padding (only old, padded reads
         exist). Same C0F8 addresses as C001 but in different order — wheel-to-receiver mapping
@@ -695,7 +695,7 @@ BCM:
 
     22C003:
       status: ignored
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: >-
         34 bytes as stored, probably 33 plus one 0xAA of frame padding (only old, padded reads
         exist). TPMS sensor registration for wheel 1. ASCII 'DO01' at offset 7. Contains pressure
@@ -705,7 +705,7 @@ BCM:
 
     22C004:
       status: ignored
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: >-
         34 bytes as stored, probably 33 plus one 0xAA of frame padding (only old, padded reads
         exist). TPMS sensor registration for wheel 2. ASCII 'NA01'. Sample:
@@ -714,7 +714,7 @@ BCM:
 
     22C005:
       status: ignored
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: >-
         34 bytes as stored, probably 33 plus one 0xAA of frame padding (only old, padded reads
         exist). Spare/reference TPMS sensor. ASCII 'NTPM'. Sample:
@@ -723,7 +723,7 @@ BCM:
 
     22C006:
       status: ignored
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: >-
         34 bytes as stored, probably 33 plus one 0xAA of frame padding (only old, padded reads
         exist). TPMS sensor registration for wheel 3. ASCII 'DO02'. Sample:
@@ -732,7 +732,7 @@ BCM:
 
     22C007:
       status: ignored
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: >-
         34 bytes as stored, probably 33 plus one 0xAA of frame padding (only old, padded reads
         exist). TPMS sensor registration for wheel 4. ASCII 'NA02'. Sample:
@@ -741,7 +741,7 @@ BCM:
 
     22C008:
       status: ignored
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: >-
         34 bytes as stored, probably 33 plus one 0xAA of frame padding (only old, padded reads
         exist). Empty TPMS slot (all FF after ASCII '0005'). Sample:
@@ -750,7 +750,7 @@ BCM:
 
     22C009:
       status: ignored
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: >-
         34 bytes as stored, probably 33 plus one 0xAA of frame padding (only old, padded reads
         exist). Empty TPMS slot (ASCII '0006'). Sample:
@@ -759,7 +759,7 @@ BCM:
 
     22C00A:
       status: ignored
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: >-
         34 bytes as stored, probably 33 plus one 0xAA of frame padding (only old, padded reads
         exist). Empty TPMS slot (ASCII '0007'). Sample:
@@ -768,7 +768,7 @@ BCM:
 
     22C00C:
       status: ignored
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: >-
         37 bytes. Extended TPMS data — wheel 1 has live data with C0F8 address, other slots empty
         (FFFF). May contain per-wheel signal quality or sensor history. Sample:
@@ -777,7 +777,7 @@ BCM:
 
     22C00D:
       status: ignored
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: >-
         37 bytes. Extended TPMS data — all slots empty (FFFF/zeros). Sample:
         62C00DFFFF03000000000000FFFF0000000000000000FFFF000000...
@@ -785,7 +785,7 @@ BCM:
 
     22C00E:
       status: ignored
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: >-
         37 bytes. Extended TPMS data — all slots empty. Sample:
         62C00EFFFF03000000000000FFFF0000000000000000FFFF000000...
@@ -793,7 +793,7 @@ BCM:
 
     22C00F:
       status: ignored
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: >-
         37 bytes. Extended TPMS data — one active entry with C0F8 address (C0F81188). Sample:
         62C00FFFFF030001C0F8118801203B1E560000000000FFFF000000...
@@ -801,14 +801,14 @@ BCM:
 
     22C010:
       status: ignored
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: "8 bytes. Mostly zeros. B03=0xFC. Purpose unknown. Sample: 62C010FC00000000."
       parameters: {}
 
     22C011:
       response_frames: 2
       status: draft
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: >-
         12 bytes. B10:0 the ignition (BCM_IGN_ON_C011), B11 the 12 V bus (BCM_12V_BUS_C011), B13:B14
         BCM_EVENT_COUNTER_C011. B12 takes all 256 values, with no relation between reads 3 s apart:
@@ -849,7 +849,7 @@ BCM:
 
     22C012:
       status: ignored
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: >-
         11 bytes. ASCII 'DO01' at B07-B10 — references wheel 1 sensor ID. Sample:
         62C01280000000444F3031.
@@ -857,7 +857,7 @@ BCM:
 
     22C013:
       status: ignored
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: >
         13 bytes. ASCII '0x0620' — possibly TPMS firmware version or config revision.
         Sample: 62C01380000000307830363230.
@@ -865,7 +865,7 @@ BCM:
 
     22C014:
       status: ignored
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: >-
         8 bytes. B10=0x0C. Purpose unknown — last responding DID in C0xx range. Sample:
         62C014F00000000C.
@@ -1047,7 +1047,7 @@ BCM:
         Sleep (locked): NRC 0x22: conditionsNotCorrect
 
     B05B:
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       label: Mirror fold
       verified: true
       true: "2FB05B03"
@@ -1057,7 +1057,7 @@ BCM:
         Must be turned off again for the mirror unfold command (B05C) to work!
 
     B05C:
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       label: Mirror unfold
       verified: true
       true: "2FB05C03"
@@ -1075,14 +1075,14 @@ BCM:
         NRC 0x31: requestoutotRange (Tested with and without ACC power)
 
     B071:
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       label: Unknown
       verified: false
       true: "2FB07103"
       false: "2FB07100"
 
     B072:
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       label: Unknown
       verified: false
       true: "2FB07203"

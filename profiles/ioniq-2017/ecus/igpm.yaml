@@ -16,7 +16,7 @@ IGPM:
     notes: >-
       CAN gateway and power distribution module. The OBD port connects to it directly, so all
       diagnostic requests are routed through it.
-  vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+  vehicle_states: [ALL]
   # WARM-UP: the first request to IGPM after it's been idle is slow and may
   # time out / return NO DATA on the first try; retry (or prime) and subsequent
   # reads are fast. This is the ECU waking, not a bad PID. See profile.yaml
@@ -48,7 +48,7 @@ IGPM:
     22BC07:
       status: active
       response_frames: 2
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: >-
         8 data bytes. B12 values: 0x11 power off and not charging, 0x10 power off and charging, 0x18
         ACC2 with the charge port unlocked, 0x19 ACC2 with it locked. B05-B07 and B09 (08 41 FB CC)
@@ -96,7 +96,7 @@ IGPM:
     22BC03:
       status: active
       period: 2500
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: >-
         B09 reads 0x73 in all 384 captures. B05=0xFD, B06=0xEE, B07=0x3C and B13=0x00 are constant.
         B10 bit 6 has never been set.
@@ -263,7 +263,7 @@ IGPM:
     22BC04:
       status: active
       period: 2500
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: >-
         8 data bytes. B10 holds the front door locks and ignition, B13:6 UNLOCKED_OR_IGN_ON. B05-B07
         and B09 (B5 3F F4 EA), B11 (0) and B13:1 (1) are constant in all 410 captures, across every
@@ -321,7 +321,7 @@ IGPM:
     22BC06:
       status: active
       period: 2500
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: >-
         8 data bytes. B10 the brake lamps, B11 the turn signals. B05=0xB4, B06=0x80, B07, B09 and
         B12 = 0 constant in all 587 captures.
@@ -366,17 +366,17 @@ IGPM:
     22BC01:
       response_frames: 2
       status: draft
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: >-
         9 bytes: 40 00 00 00 00 02 in all 385 captures, across all power states (24 older ones carry
         0xAA frame padding).
     22BC02:
       status: draft
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: 4 data bytes, all 0 in every one of 297 captures.
     22BC05:
       status: draft
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: >-
         8 data bytes. B05=0x7F, B06=0x11 and B07=0x20 in all 421 captures. B10 holds the turn-lamp
         outputs (0x50 left, 0xA0 right, 0xF0 both at the fob-unlock flash), B11:3 the trunk
@@ -454,7 +454,7 @@ IGPM:
             possibly a light-switch or auto-light request rather than the lamp outputs.
     22BC08:
       status: ignored
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       notes: >
         NRC 0x31 (requestOutOfRange) — no response, ignored for now.
       parameters: {}
@@ -491,7 +491,7 @@ IGPM:
   # Usage: canair io IGPM --did <DID>
   iocontrol:
     BC01:
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       label: Low beam
       verified: true
       true: "2FBC0103"
@@ -501,7 +501,7 @@ IGPM:
         Headlights on.
 
     BC02:
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       label: High beam
       verified: true
       true: "2FBC0203"
@@ -509,7 +509,7 @@ IGPM:
       status_param: HIGH_BEAM
 
     BC03:
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       label: Front fog light
       verified: true
       true: "2FBC0303"
@@ -518,7 +518,7 @@ IGPM:
         No visible effect — Ioniq 2017 base trim has no fog light bulbs installed.
 
     BC04:
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       label: Tail / rear light
       verified: true
       true: "2FBC0403"
@@ -526,7 +526,7 @@ IGPM:
       status_param: TAIL_LIGHTS
 
     BC05:
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       label: Blue instrument LEDs
       verified: true
       true: "2FBC0503"
@@ -535,7 +535,7 @@ IGPM:
         Also turns on green indicator on dash.
 
     BC07:
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       label: Horn
       verified: true
       true: "2FBC0703"
@@ -545,14 +545,14 @@ IGPM:
         confirmed on Ioniq.
 
     BC08:
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       label: Rear fog light
       verified: true
       true: "2FBC0803"
       false: "2FBC0800"
 
     BC09:
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       label: Trunk unlock
       verified: true
       true: "2FBC0903"
@@ -562,7 +562,7 @@ IGPM:
         Triggers alarm if car is locked! Releases latch only (no lift motor).
 
     BC0A:
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       label: Welcome / approach light
       verified: false
       true: "2FBC0A03"
@@ -572,7 +572,7 @@ IGPM:
         ACC: Tested, no visible result.
 
     BC0C:
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       label: Rear defogger relay
       verified: true
       true: "2FBC0C03"
@@ -582,7 +582,7 @@ IGPM:
         ACC: Confirmed (loud click). Also lights button on HVAC controls.
 
     BC10:
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       label: Door LOCK all
       verified: true
       true: "2FBC1003"
@@ -592,7 +592,7 @@ IGPM:
         Does NOT arm alarm — only locks doors.
 
     BC11:
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       label: Door UNLOCK all
       verified: true
       true: "2FBC1103"
@@ -602,7 +602,7 @@ IGPM:
         Does NOT disarm alarm — opening door will trigger horn!
 
     BC12:
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       label: Heated mirror?
       verified: false
       true: "2FBC1203"
@@ -612,7 +612,7 @@ IGPM:
         Acc: clicking relay (click-clack). Heated mirror?
 
     BC13:
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       label: Unknown (conditional)
       verified: false
       true: "2FBC1303"
@@ -621,7 +621,7 @@ IGPM:
         Acc: same clicking relay sound as BC12 (click-clack). Works when car is asleep (though did not listen for relay).
 
     BC14:
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       label: Unknown (conditional)
       verified: false
       true: "2FBC1403"
@@ -630,7 +630,7 @@ IGPM:
         ConditionsNotCorrect in ACC. Only works in sleep!
 
     BC15:
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       label: Left turn indicator
       verified: true
       true: "2FBC1503"
@@ -638,7 +638,7 @@ IGPM:
       status_param: LEFT_TURN_SIGNAL
 
     BC16:
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       label: Right turn indicator
       verified: true
       true: "2FBC1603"
@@ -646,7 +646,7 @@ IGPM:
       status_param: RIGHT_TURN_SIGNAL
 
     BC18:
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       label: DRL lights
       verified: true
       true: "2FBC1803"
@@ -654,7 +654,7 @@ IGPM:
       status_param: DRL
 
     BC1B:
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       label: Unknown
       verified: false
       true: "2FBC1B03"
@@ -665,14 +665,14 @@ IGPM:
         when the car is in reverse gear?).
 
     BC1C:
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       label: Luggage lamp
       verified: true
       true: "2FBC1C03"
       false: "2FBC1C00"
 
     BC25:
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       label: Unknown
       verified: false
       true: "2FBC2503"
@@ -681,7 +681,7 @@ IGPM:
         Accepted but no visible/audible effect. Tested 2026-04-15 (Ready mode).
 
     BC2B:
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       label: Rear left brake light
       verified: true
       true: "2FBC2B03"
@@ -689,7 +689,7 @@ IGPM:
       status_param: BRAKE_LIGHT
 
     BC2C:
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       label: Rear right brake light
       verified: true
       true: "2FBC2C03"
@@ -697,7 +697,7 @@ IGPM:
       status_param: BRAKE_LIGHT
 
     BC2D:
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       label: CHMSL (center brake light)
       verified: true
       true: "2FBC2D03"
@@ -707,14 +707,14 @@ IGPM:
         Center high-mount stop lamp. Confirmed 2026-04-15.
 
     BC3F:
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       label: Charge cable LOCK
       verified: true
       true: "2FBC3F03"
       false: "2FBC3F00"
 
     BC41:
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       label: Charge cable UNLOCK
       verified: true
       true: "2FBC4103"
@@ -724,7 +724,7 @@ IGPM:
         May not stop active charge session — test with caution!
 
     BC42:
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       label: Unknown
       verified: false
       true: "2FBC4203"
@@ -733,7 +733,7 @@ IGPM:
         Accepted but no visible/audible effect. Tested 2026-04-15 (Ready mode).
 
     BC43:
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       label: Unknown
       verified: false
       true: "2FBC4303"
@@ -742,7 +742,7 @@ IGPM:
         Accepted but no visible/audible effect. Tested 2026-04-15 (Ready mode).
 
     BC44:
-      vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ALL]
       label: Unknown
       verified: false
       true: "2FBC4403"
