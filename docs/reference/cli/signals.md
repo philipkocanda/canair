@@ -17,6 +17,7 @@ sidecar. See ``plans/2026-07-24-raw-can-analysis.md``.
   canair signals list [BUS]          # list (optionally one bus)
   canair signals upsert BUS 0x386 WHL_SPD_FL --start-bit 0 --length 14 \
       --byte-order little --scale 0.03125 --unit km/h
+  canair signals upsert BUS 0x386 WHL_SPD_FL --verified   # change one field
   canair signals rm BUS 0x386 WHL_SPD_FL
 
 positional arguments:
@@ -45,14 +46,22 @@ options:
 ## `canair signals upsert`
 
 ```
-usage: canair signals upsert [-h] --start-bit START_BIT --length LENGTH
-                             [--byte-order {little,big}] [--signed]
-                             [--unsigned] [--scale SCALE] [--offset OFFSET]
-                             [--min MIN] [--max MAX] [--unit UNIT]
-                             [--verified] [--unverified] [--source SOURCE]
-                             [--notes NOTES] [--msg-name MSG_NAME]
-                             [--tx-ecu TX_ECU] [--msg-length MSG_LENGTH]
+usage: canair signals upsert [-h] [--start-bit START_BIT] [--length LENGTH]
+                             [--byte-order {little,big}]
+                             [--signed | --unsigned] [--float | --integer]
+                             [--scale SCALE] [--offset OFFSET] [--min MIN]
+                             [--max MAX] [--unit UNIT]
+                             [--verified | --unverified] [--source SOURCE]
+                             [--notes NOTES] [--clear FIELD]
+                             [--msg-name MSG_NAME] [--tx-ecu TX_ECU]
+                             [--msg-length MSG_LENGTH]
+                             [--extended | --standard] [--fd | --classic]
                              bus arb_id name
+
+Add a broadcast signal, or change one. A new signal needs --start-bit and
+--length; on an existing one, only the options you pass change and the rest
+keep their stored values. An empty --unit/--source/--notes, or --clear FIELD,
+removes that field.
 
 positional arguments:
   bus                   Bus name (signals/<bus>.yaml)
@@ -62,12 +71,19 @@ positional arguments:
 options:
   -h, --help            show this help message and exit
   --start-bit START_BIT
-  --length LENGTH
+                        First bit, DBC numbering: the LSB for little-endian,
+                        the MSB for big-endian (required for a new signal)
+  --length LENGTH       Length in bits (required for a new signal)
   --byte-order {little,big}
+                        Byte order (DBC @1 / @0; a new signal defaults to
+                        little)
   --signed              Two's-complement signed raw value (DBC @0-/@1-)
   --unsigned            Unsigned raw value (default)
-  --scale SCALE
-  --offset OFFSET
+  --float               IEEE 754 float raw value, 32 or 64 bits (DBC
+                        SIG_VALTYPE_)
+  --integer             Integer raw value (default)
+  --scale SCALE         physical = raw * scale + offset (default 1)
+  --offset OFFSET       Default 0
   --min MIN
   --max MAX
   --unit UNIT
@@ -75,11 +91,20 @@ options:
   --unverified
   --source SOURCE       Provenance (DBC, log file, or RE evidence)
   --notes NOTES
+  --clear FIELD         Remove a field (repeatable): scale, offset, min, max,
+                        unit, source, notes
   --msg-name MSG_NAME   Message name (DBC BO_ name)
   --tx-ecu TX_ECU       Transmitting ECU (annotation)
   --msg-length MSG_LENGTH
-                        Message data length in bytes (DBC DLC; 8 on classic
-                        CAN, up to 64 on CAN FD)
+                        Message data length in bytes (DBC DLC): 0-8, or a CAN
+                        FD size (12, 16, 20, 24, 32, 48, 64)
+  --extended            Extended (29-bit) frame; only needed for an ID at or
+                        below 0x7FF
+  --standard            Standard (11-bit) frame (the default for an ID at or
+                        below 0x7FF)
+  --fd                  CAN FD frame; only needed for a frame of 8 bytes or
+                        fewer
+  --classic             Classic CAN frame (the default up to 8 bytes)
 ```
 
 ## `canair signals rm`

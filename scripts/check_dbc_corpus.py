@@ -4,17 +4,21 @@
 An opt-in, device-free check of the broadcast-signal model against DBCs canair did
 not write. Ground truth is cantools' own parse of each source DBC. For every DBC:
 
-  1. `import dbc` into a throwaway profile, then compare each signal's start bit,
-     length, byte order, signedness, scale and offset, and each message's length
+  1. `import dbc` into a throwaway profile (one bus per DBC), then compare each
+     signal's start bit, length, byte order, signedness, float type, scale, offset,
+     min/max, unit and value table, and each message's length and frame format
+     (standard/extended, classic/CAN FD)
   2. `validate signals`
   3. `export dbc`, reload the result, and compare the same fields again
   4. decode random frames with the source and the round-tripped database and
      compare every value
 
-Outside the linear model, so reported as counts rather than failures: messages
-without signals (not stored in signals/), multiplexed messages (flattened on
-import; not decoded), and messages cantools cannot decode from the source DBC
-either. A DBC cantools cannot parse at all is listed and skipped.
+Outside the model, so reported as counts rather than failures: messages without
+signals (not stored in signals/), messages canair refuses to store (e.g. a signal
+overrunning its frame), value tables on scaled or float signals (not carried),
+multiplexed messages (flattened on import; not decoded), and messages cantools
+cannot decode from the source DBC either. A DBC cantools cannot parse at all, or
+whose standard and extended frames share a number, is listed and skipped.
 
 The default corpus is commaai/opendbc (MIT), fetched on demand into the gitignored
 references/can/ like scripts/fetch_can_corpus.py. Its DBCs that pull in shared
@@ -32,6 +36,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import io
+import math
 import os
 import random
 import subprocess
@@ -75,14 +80,27 @@ def opendbc_corpus(generated: bool) -> list[Path]:
     return paths
 
 
+def _carries_choices(sig) -> bool:
+    """canair keeps a value table only on an unscaled integer signal (see import dbc)."""
+    return not sig.is_float and sig.scale == 1 and not sig.offset
+
+
 def _fields(sig) -> dict:
+    choices = None
+    if sig.choices and _carries_choices(sig):
+        choices = {int(k): str(getattr(v, "name", v)) for k, v in sig.choices.items()}
     return {
         "start_bit": sig.start,
         "length": sig.length,
         "byte_order": "big" if sig.byte_order == "big_endian" else "little",
         "signed": bool(sig.is_signed),
+        "float": bool(sig.is_float),
         "scale": sig.scale,
         "offset": sig.offset,
+        "min": sig.minimum,
+        "max": sig.maximum,
+        "unit": sig.unit or None,
+        "choices": choices,
     }
 
 
@@ -92,13 +110,47 @@ def _stored(sig: dict) -> dict:
         "length": sig["length"],
         "byte_order": sig.get("byte_order", "little"),
         "signed": bool(sig.get("signed", False)),
+        "float": bool(sig.get("float", False)),
         "scale": sig.get("scale", 1),
         "offset": sig.get("offset", 0),
+        "min": sig.get("min"),
+        "max": sig.get("max"),
+        "unit": sig.get("unit"),
+        "choices": sig.get("values") if sig.get("type") == "enum" else None,
     }
+
+
+def _frame(m) -> dict:
+    """A message's frame layout as cantools sees it; FD is implied above 8 bytes."""
+    return {
+        "length": m.length,
+        "extended": bool(m.is_extended_frame),
+        "fd": bool(m.is_fd) or m.length > 8,
+    }
+
+
+def _key(m) -> tuple[int, bool]:
+    return (m.frame_id, bool(m.is_extended_frame))
+
+
+def _label(m) -> str:
+    small_extended = m.is_extended_frame and m.frame_id <= 0x7FF
+    return f"0x{m.frame_id:X}" + (" (extended)" if small_extended else "")
 
 
 def _diff(want: dict, have: dict) -> dict:
     return {k: (want[k], have[k]) for k in want if want[k] != have[k]}
+
+
+def _same_value(want, got) -> bool:
+    """Equal decoded values; a float NaN (a random float frame's bits) equals itself."""
+    try:
+        w, g = float(want), float(got)
+    except (TypeError, ValueError):
+        return False
+    if math.isnan(w) or math.isnan(g):
+        return math.isnan(w) and math.isnan(g)
+    return abs(w - g) <= 1e-6 * max(1, abs(w))
 
 
 def _multiplexed(msg) -> bool:
@@ -130,24 +182,39 @@ class Checker:
         self.totals: Counter = Counter()
         self.problems: dict[str, list[str]] = defaultdict(list)
         self.skipped: list[str] = []
+        self.n_buses = 0
 
     def check(self, path: Path) -> None:
         import cantools
+
+        from canlib.commands.import_ import DbcImportError, _dbc_to_signals
 
         try:
             src = cantools.database.load_file(str(path), strict=False)
         except Exception as e:
             self.skipped.append(f"{path.name}: cantools cannot parse it ({e})")
             return
+        try:
+            expected = _dbc_to_signals(src, None, None, None)
+        except DbcImportError as e:
+            self.skipped.append(f"{path.name}: {e}")
+            return
         self.totals["dbcs"] += 1
-        bus = path.stem
-        problems = self.problems[path.name]
+        self.totals["messages canair cannot store (skipped on import)"] += len(expected.skipped)
+        self.totals["value tables on scaled/float signals (not carried)"] += len(
+            expected.value_tables_dropped
+        )
+        # One bus per DBC: two corpus files with the same stem must not merge.
+        self.n_buses += 1
+        bus = f"{self.n_buses:04d}-{path.stem}"
+        problems = self.problems[str(path)]
+        stored_ids = set(expected.messages)
 
         rc, out = _canair([*self.profile_args, "import", "dbc", str(path), "--bus", bus])
         if rc:
             problems.append(f"import failed: {out[-200:]}")
             return
-        self._check_import(src, bus, problems)
+        self._check_import(src, bus, stored_ids, problems)
 
         rc, out = _canair([*self.profile_args, "validate", "signals"])
         if rc:
@@ -164,11 +231,14 @@ class Checker:
         except Exception as e:
             problems.append(f"exported DBC does not reload: {e}")
             return
-        self._check_export(src, rt, problems)
-        self._check_decode(src, rt, problems)
+        kept = [m for m in src.messages if m.signals and f"0x{m.frame_id:X}" in stored_ids]
+        self._check_export(kept, rt, problems)
+        self._check_decode(kept, rt, problems)
 
-    def _check_import(self, src, bus: str, problems: list[str]) -> None:
+    def _check_import(self, src, bus: str, stored_ids: set[str], problems: list[str]) -> None:
         import yaml
+
+        from canlib.validation.signals import message_is_extended, message_is_fd
 
         doc = yaml.safe_load((self.signals_dir / f"{bus}.yaml").read_text())
         messages = doc.get("messages") or {}
@@ -177,50 +247,52 @@ class Checker:
             if not m.signals:
                 self.totals["signal-less messages (not stored)"] += 1
                 continue
+            if mid not in stored_ids:
+                continue
             stored = messages.get(mid) or {}
-            if stored.get("length") != m.length:
-                problems.append(f"import {mid}: length {m.length} stored as {stored.get('length')}")
+            ln = stored.get("length")
+            have = {
+                "length": ln,
+                "extended": message_is_extended(m.frame_id, stored),
+                "fd": isinstance(ln, int) and message_is_fd(stored, ln),
+            }
+            if diff := _diff(_frame(m), have):
+                problems.append(f"import {_label(m)}: {diff}")
             for s in m.signals:
                 self.totals["signals"] += 1
                 self.totals["signed signals"] += s.is_signed
+                self.totals["float signals"] += s.is_float
                 got = (stored.get("signals") or {}).get(s.name)
                 if got is None:
-                    problems.append(f"import {mid}/{s.name}: missing")
+                    problems.append(f"import {_label(m)}/{s.name}: missing")
                 elif diff := _diff(_fields(s), _stored(got)):
-                    problems.append(f"import {mid}/{s.name}: {diff}")
+                    problems.append(f"import {_label(m)}/{s.name}: {diff}")
 
-    def _check_export(self, src, rt, problems: list[str]) -> None:
-        by_id = {m.frame_id: m for m in rt.messages}
-        for m in src.messages:
-            if not m.signals:
-                continue
-            mid = f"0x{m.frame_id:X}"
-            r = by_id.get(m.frame_id)
+    def _check_export(self, kept: list, rt, problems: list[str]) -> None:
+        by_key = {_key(m): m for m in rt.messages}
+        for m in kept:
+            r = by_key.get(_key(m))
             if r is None:
-                problems.append(f"export {mid}: missing")
+                problems.append(f"export {_label(m)}: missing")
                 continue
-            if (r.length, r.is_extended_frame) != (m.length, m.is_extended_frame):
-                problems.append(
-                    f"export {mid}: length/extended {m.length}/{m.is_extended_frame}"
-                    f" -> {r.length}/{r.is_extended_frame}"
-                )
+            if diff := _diff(_frame(m), _frame(r)):
+                problems.append(f"export {_label(m)}: {diff}")
             rsigs = {s.name: s for s in r.signals}
             for s in m.signals:
                 if s.name not in rsigs:
-                    problems.append(f"export {mid}/{s.name}: missing")
+                    problems.append(f"export {_label(m)}/{s.name}: missing")
                 elif diff := _diff(_fields(s), _fields(rsigs[s.name])):
-                    problems.append(f"export {mid}/{s.name}: {diff}")
+                    problems.append(f"export {_label(m)}/{s.name}: {diff}")
 
-    def _check_decode(self, src, rt, problems: list[str]) -> None:
-        by_id = {m.frame_id: m for m in rt.messages}
-        for m in src.messages:
-            r = by_id.get(m.frame_id)
-            if r is None or not m.signals:
+    def _check_decode(self, kept: list, rt, problems: list[str]) -> None:
+        by_key = {_key(m): m for m in rt.messages}
+        for m in kept:
+            r = by_key.get(_key(m))
+            if r is None:
                 continue
             if _multiplexed(m):
                 self.totals["multiplexed messages (not decoded)"] += 1
                 continue
-            mid = f"0x{m.frame_id:X}"
             for _ in range(FRAMES_PER_MESSAGE):
                 data = bytes(random.getrandbits(8) for _ in range(m.length))
                 try:
@@ -231,17 +303,13 @@ class Checker:
                 try:
                     got = r.decode(data, decode_choices=False, allow_truncated=True)
                 except Exception as e:
-                    problems.append(f"decode {mid}: round trip fails ({e})")
+                    problems.append(f"decode {_label(m)}: round trip fails ({e})")
                     break
-                bad = [
-                    k
-                    for k, v in want.items()
-                    if abs(float(v) - float(got.get(k, float("nan")))) > 1e-6 * max(1, abs(v))
-                ]
+                bad = [k for k, v in want.items() if not _same_value(v, got.get(k))]
                 if bad:
                     k = bad[0]
                     problems.append(
-                        f"decode {mid}/{k}: {want[k]} vs {got.get(k)} (data {data.hex()})"
+                        f"decode {_label(m)}/{k}: {want[k]} vs {got.get(k)} (data {data.hex()})"
                     )
                     break
                 self.totals["frames decoded"] += 1
@@ -261,7 +329,7 @@ class Checker:
         print()
         for key, value in self.totals.items():
             print(f"{key:>50}: {value}")
-        print(f"{'DBCs cantools cannot parse (skipped)':>50}: {len(self.skipped)}")
+        print(f"{'DBCs skipped (unparseable, or IDs clash)':>50}: {len(self.skipped)}")
         n = sum(len(v) for v in failing.values())
         print(f"{'problems':>50}: {n} in {len(failing)} DBC(s)")
         return 1 if failing else 0
@@ -285,6 +353,8 @@ def main(argv: list[str] | None = None) -> int:
     random.seed(args.seed)
     os.environ.setdefault("CANAIR_NO_UPDATE_CHECK", "1")
     paths: list[Path] = args.dbc
+    if paths and args.fetch:
+        print("--fetch ignored: it fetches opendbc, and explicit DBCs were given.", file=sys.stderr)
     if not paths:
         if args.fetch:
             fetch_opendbc()

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from canlib.commands.import_uds import add_uds_parser
@@ -148,47 +149,114 @@ def _run_can(args) -> int:
     return 0
 
 
-def _dbc_to_signals(db, id_filter: set[int] | None, tx_ecu: str | None, source: str | None) -> dict:
+class DbcImportError(Exception):
+    """A DBC cannot be mapped onto one ``signals/<bus>.yaml``."""
+
+
+@dataclass
+class DbcImport:
+    """What ``import dbc`` makes of a DBC: the messages to merge, and what it leaves out."""
+
+    messages: dict = field(default_factory=dict)
+    # mid -> the validator's errors for a message canair can't store (e.g. a signal that
+    # overruns its frame, a scale of 0)
+    skipped: dict[str, list[str]] = field(default_factory=dict)
+    # "mid/signal" for a value table on a scaled or float signal (see _signal_fields)
+    value_tables_dropped: list[str] = field(default_factory=list)
+
+
+def _signal_fields(s, source: str | None) -> tuple[dict, bool]:
+    """One cantools signal as ``signals/`` fields, plus whether a value table was dropped.
+
+    A DBC value table (VAL_) becomes ``type: enum`` + ``values`` only on an unscaled
+    integer signal: its keys are raw values, while canair's enum keys are the decoded
+    value, and the two agree only there.
+    """
+    fields: dict = {
+        "start_bit": int(s.start),
+        "length": int(s.length),
+        "byte_order": "big" if s.byte_order == "big_endian" else "little",
+    }
+    if s.is_signed:
+        fields["signed"] = True
+    if s.is_float:
+        fields["float"] = True
+    if s.scale is not None and s.scale != 1:
+        fields["scale"] = s.scale
+    if s.offset:
+        fields["offset"] = s.offset
+    if s.minimum is not None:
+        fields["min"] = s.minimum
+    if s.maximum is not None:
+        fields["max"] = s.maximum
+    if s.unit:
+        fields["unit"] = s.unit
+    dropped = False
+    if s.choices:
+        if not s.is_float and s.scale in (None, 1) and not s.offset:
+            fields["type"] = "enum"
+            fields["values"] = {int(k): str(getattr(v, "name", v)) for k, v in s.choices.items()}
+        else:
+            dropped = True
+    if source:
+        fields["source"] = source
+    return fields, dropped
+
+
+def _dbc_to_signals(
+    db, id_filter: set[int] | None, tx_ecu: str | None, source: str | None
+) -> DbcImport:
     """Map a cantools Database to the linear signals/ import shape.
 
-    ``{mid: {"name", "tx_ecu", "length", "signals": {sig: {start_bit, length, byte_order,
-    signed, scale, offset, min, max, unit, source}}}}``. cantools byte_order (little_endian/
-    big_endian) → little/big. ``source`` records provenance on each imported signal.
+    ``messages`` is ``{mid: {"name", "tx_ecu"?, "length", "extended"?, "fd"?, "signals":
+    {sig: fields}}}``; cantools byte_order (little_endian/big_endian) → little/big and
+    ``source`` records provenance on each imported signal. A frame-format flag is
+    written only where the ID and length don't already imply it (an extended frame
+    numbered at or below 0x7FF; a CAN FD frame of at most 8 bytes). Messages the
+    validator would reject are left out, with its reasons, so one malformed message
+    doesn't sink a whole real-world DBC.
+
+    Raises :class:`DbcImportError` when the DBC has a standard and an extended frame
+    with the same number: ``signals/`` keys messages by number alone, so both cannot
+    live on one bus.
     """
-    imported: dict = {}
-    for msg in db.messages:
-        if id_filter is not None and msg.frame_id not in id_filter:
-            continue
+    from canlib.validation.signals import check_signals_doc, default_extended
+
+    result = DbcImport()
+    chosen = [
+        m for m in db.messages if m.signals and (id_filter is None or m.frame_id in id_filter)
+    ]
+    formats: dict[int, set[bool]] = {}
+    for m in chosen:
+        formats.setdefault(m.frame_id, set()).add(bool(m.is_extended_frame))
+    clashes = sorted(fid for fid, kinds in formats.items() if len(kinds) > 1)
+    if clashes:
+        ids = ", ".join(f"0x{fid:X}" for fid in clashes)
+        raise DbcImportError(
+            f"{ids}: a standard and an extended frame share this number, and "
+            "signals/<bus>.yaml keys messages by number alone; split the DBC by frame "
+            "format and import each part with its own --bus"
+        )
+    for msg in chosen:
         signals: dict = {}
         for s in msg.signals:
-            fields = {
-                "start_bit": int(s.start),
-                "length": int(s.length),
-                "byte_order": "big" if s.byte_order == "big_endian" else "little",
-            }
-            if s.is_signed:
-                fields["signed"] = True
-            if s.scale is not None and s.scale != 1:
-                fields["scale"] = s.scale
-            if s.offset:
-                fields["offset"] = s.offset
-            if s.minimum is not None:
-                fields["min"] = s.minimum
-            if s.maximum is not None:
-                fields["max"] = s.maximum
-            if s.unit:
-                fields["unit"] = s.unit
-            if source:
-                fields["source"] = source
-            signals[s.name] = fields
-        if signals:
-            imported[f"0x{msg.frame_id:X}"] = {
-                "name": msg.name,
-                "tx_ecu": tx_ecu,
-                "length": msg.length,
-                "signals": signals,
-            }
-    return imported
+            signals[s.name], dropped = _signal_fields(s, source)
+            if dropped:
+                result.value_tables_dropped.append(f"0x{msg.frame_id:X}/{s.name}")
+        mid = f"0x{msg.frame_id:X}"
+        spec: dict = {"name": msg.name, "length": msg.length, "signals": signals}
+        if tx_ecu:
+            spec["tx_ecu"] = tx_ecu
+        if bool(msg.is_extended_frame) != default_extended(msg.frame_id):
+            spec["extended"] = bool(msg.is_extended_frame)
+        if msg.is_fd and msg.length <= 8:
+            spec["fd"] = True
+        errors, _ = check_signals_doc({"messages": {mid: spec}})
+        if errors:
+            result.skipped[mid] = errors
+        else:
+            result.messages[mid] = spec
+    return result
 
 
 def _run_dbc(args) -> int:
@@ -212,8 +280,19 @@ def _run_dbc(args) -> int:
 
     id_filter = None
     if args.ids:
-        id_filter = {int(t.strip(), 16) for t in args.ids.split(",") if t.strip()}
-    imported = _dbc_to_signals(db, id_filter, args.tx_ecu, f"dbc:{path.name}")
+        try:
+            id_filter = {int(t.strip(), 16) for t in args.ids.split(",") if t.strip()}
+        except ValueError:
+            print(f"import dbc: --ids must be hex IDs (got {args.ids!r})", file=sys.stderr)
+            return 1
+    try:
+        result = _dbc_to_signals(db, id_filter, args.tx_ecu, f"dbc:{path.name}")
+    except DbcImportError as e:
+        print(f"import dbc: {e}", file=sys.stderr)
+        return 1
+    imported = result.messages
+    if not args.json:
+        _report_left_out(result)
     if not imported:
         print(
             f"import dbc: no messages to import from {path.name}"
@@ -224,10 +303,14 @@ def _run_dbc(args) -> int:
 
     bus = args.bus or path.stem
     n_sig = sum(len(m["signals"]) for m in imported.values())
+    left_out = {
+        "skipped": result.skipped,
+        "value_tables_dropped": result.value_tables_dropped,
+    }
 
     if args.dry_run:
         if args.json:
-            json.dump({"bus": bus, "messages": imported}, sys.stdout, indent=2)
+            json.dump({"bus": bus, "messages": imported, **left_out}, sys.stdout, indent=2)
             print()
             return 0
         print(
@@ -253,7 +336,13 @@ def _run_dbc(args) -> int:
         return 1
     if args.json:
         json.dump(
-            {"bus": bus, "file": str(out), "messages": len(imported), "signals": written},
+            {
+                "bus": bus,
+                "file": str(out),
+                "messages": len(imported),
+                "signals": written,
+                **left_out,
+            },
             sys.stdout,
             indent=2,
         )
@@ -262,3 +351,24 @@ def _run_dbc(args) -> int:
     print(f"Imported {len(imported)} messages ({written} signals) → {out}")
     print("Review/verify with `canair signals list` and `canair validate signals`.")
     return 0
+
+
+def _report_left_out(result: DbcImport) -> None:
+    """Tell the user what the import leaves out (on stderr, so a dry run's diff stays clean)."""
+    if result.skipped:
+        print(
+            f"import dbc: skipping {len(result.skipped)} message(s) canair cannot store:",
+            file=sys.stderr,
+        )
+        for mid, errors in list(result.skipped.items())[:10]:
+            print(f"  {mid}: {errors[0]}", file=sys.stderr)
+        if len(result.skipped) > 10:
+            print(f"  … +{len(result.skipped) - 10} more", file=sys.stderr)
+    if result.value_tables_dropped:
+        names = ", ".join(result.value_tables_dropped[:5])
+        more = len(result.value_tables_dropped) - 5
+        print(
+            f"import dbc: value tables not carried on {len(result.value_tables_dropped)} "
+            f"scaled or float signal(s): {names}" + (f", +{more} more" if more > 0 else ""),
+            file=sys.stderr,
+        )

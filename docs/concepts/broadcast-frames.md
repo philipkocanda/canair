@@ -88,9 +88,24 @@ Edits are surgical, comment-preserving, validated, and auto-reverted on failure
 
 `--start-bit` follows DBC numbering, so for `--byte-order big` it names the field's
 *most significant* bit: a 16-bit big-endian field in data bytes 4-5 is
-`--start-bit 39 --length 16 --byte-order big`. A raw value is unsigned unless you
-pass `--signed` (two's complement, DBC `@0-`/`@1-`) — use it for anything that can
-go negative, such as a motor speed in reverse.
+`--start-bit 39 --length 16 --byte-order big`. A raw value is an unsigned integer
+unless you pass `--signed` (two's complement, DBC `@0-`/`@1-`) — use it for anything
+that can go negative, such as a motor speed in reverse — or `--float` (an IEEE 754
+value, 32 or 64 bits long; DBC `SIG_VALTYPE_`).
+
+Upserting a signal that already exists **changes only what you pass**: the rest of
+the signal (its byte order, provenance, notes, verification, typed decoding) keeps
+its stored value, so `canair signals upsert powertrain 0x386 WHL_SPD_FL --verified`
+just marks it verified. `--unsigned` and `--integer` undo `--signed` and `--float`,
+an empty `--unit ""` / `--source ""` / `--notes ""` removes that field, and
+`--clear FIELD` (repeatable) removes `scale`, `offset`, `min` or `max` too.
+
+Message options ride along on any upsert: `--msg-name`, `--tx-ecu`, `--msg-length`
+(the DBC DLC: 0-8 bytes, or a CAN FD size 12/16/20/24/32/48/64, and long enough for
+every signal) and the frame format. An ID above `0x7FF` is an extended (29-bit)
+frame and a frame longer than 8 bytes is CAN FD without saying so; `--extended`
+marks an extended frame numbered at or below `0x7FF`, and `--fd` a CAN FD frame of 8
+bytes or fewer. Arbitration IDs end at `0x1FFFFFFF`.
 
 Record **where the signal came from** in `--source` (a reproducible provenance
 string — the log used, a reference sheet, or `dbc:<file>` when it came from a DBC
@@ -108,11 +123,25 @@ canair import dbc car.dbc --bus powertrain             # DBC → signals/
 canair export dbc --bus powertrain -o mycar.dbc        # signals/ → DBC
 ```
 
-Real-world DBCs (with overlapping signals) load in non-strict mode. The linear
-model round-trips each signal's layout, signedness, scale and offset, and each
-message's data length (`length`, the DBC DLC); an ID above `0x7FF` is written as
-an extended frame. Not carried: messages without signals, and multiplexing (a
-multiplexed message's signals import as plain, overlapping ones).
+Real-world DBCs (with overlapping signals) load in non-strict mode. A round trip
+carries:
+
+- **each signal's** layout (start bit, length, byte order), signedness, integer or
+  float type, scale, offset, min/max and unit, and its value table (DBC `VAL_`) when
+  the signal is an unscaled integer — imported as `type: enum` with `values`;
+- **each message's** name, data length (`length`, the DBC DLC) and frame format:
+  standard or extended, classic or CAN FD (written with the DBC `VFrameFormat`
+  attribute).
+
+Not carried: messages without signals; multiplexing (a multiplexed message's
+signals import as plain, overlapping ones); value tables on scaled or float signals
+(a DBC table is keyed by the raw value, canair's `values` by the decoded one — the
+import lists the signals affected); comments, senders/receivers, attributes such as
+cycle times, and signal groups. A message `canair validate signals` would reject —
+a signal overrunning its frame, a scale of 0 — is skipped and listed rather than
+failing the whole import. One `signals/<bus>.yaml` keys messages by number, so a
+DBC with a standard and an extended frame of the same number is refused; import its
+two halves into separate buses.
 
 `scripts/check_dbc_corpus.py --fetch` checks this against
 [commaai/opendbc](https://github.com/commaai/opendbc): it imports, validates,

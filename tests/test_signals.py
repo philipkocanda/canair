@@ -139,7 +139,7 @@ class TestSignalsEdit:
         assert validate._run_signals() == 0
 
     def test_msg_length_out_of_range(self, temp_profile):
-        with pytest.raises(signals_edit.SignalsEditError, match="0-64 bytes"):
+        with pytest.raises(signals_edit.SignalsEditError, match="CAN FD size"):
             signals_edit.upsert_signal(
                 "b", "0x1", "X", start_bit=0, length=8, msg_length=65, profile=temp_profile
             )
@@ -228,18 +228,18 @@ class TestCheckSignalsDoc:
         errors, _ = check_signals_doc(_doc(is_signed=True))
         assert errors == ["0x1/X: unknown field 'is_signed'"]
 
-    @pytest.mark.parametrize("length", [0, 8, 64])
+    @pytest.mark.parametrize("length", [1, 8, 12, 64])
     def test_message_length_accepted(self, length):
         doc = _doc()
         doc["messages"]["0x1"]["length"] = length
         assert check_signals_doc(doc) == ([], 1)
 
-    @pytest.mark.parametrize("length", [-1, 65, "8", True])
+    @pytest.mark.parametrize("length", [-1, 9, 11, 13, 65, "8", True])
     def test_message_length_rejected(self, length):
         doc = _doc()
         doc["messages"]["0x1"]["length"] = length
         errors, _ = check_signals_doc(doc)
-        assert len(errors) == 1 and "length must be 0-64 bytes" in errors[0]
+        assert len(errors) == 1 and "length must be 0-8 bytes, or a CAN FD size" in errors[0]
 
 
 class TestSignalByteSpan:

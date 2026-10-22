@@ -99,7 +99,9 @@ canair validate signals                # structural check
 
 Keep new signals **`--unverified`** until confirmed against reality (same
 discipline as [step 7](07-define-and-verify.md)); record where the data came from
-in `--source` and the supporting evidence in `--notes`.
+in `--source` and the supporting evidence in `--notes`. Once confirmed,
+`canair signals upsert powertrain 0x386 WHL_SPD_FL --verified` flips just that flag:
+an upsert of an existing signal changes only the options you pass.
 
 ## 4. Interop — import / export DBC
 
