@@ -75,28 +75,16 @@ my-car/
 ```
 
 `profile.yaml` holds `car_model` and an `init` string (the ELM327 initialization
-sent to the dongle; the default `ATSP6;ATS0;ATAL;` suits most cars — ISO 15765-4
-11-bit/500 kbit). If your car's diagnostic bus runs at a different speed, its
-ECUs answer at a non-standard response address, uses 29-bit diagnostic addressing
-(`0x18DA{target}{tester}`, common on Ford/VAG/etc. — set
-`addressing: {mode: normal_fixed_29bit}`), or they need different ISO-TP tuning,
-set `can_bitrate:` / `addressing:` / `isotp:` in `profile.yaml` — see
-[Profiles → `profile.yaml` settings](../concepts/profiles.md#profileyaml-settings).
-(For example, XPeng answers at `TX + 0x80`, so its profile sets
-`addressing: {rx_offset: 0x80}` — this offset may also be negative (PSA/Stellantis
-use `-0x20`); a single irregular ECU instead gets an `rx_id` or per-ECU
-`addressing: {mode: …}` in its `ecus/*.yaml`, set via
-`canair pids set-addressing`. Makes that carry a per-module target-address byte
-inside the ISO-TP payload (BMW `0x6F1` / PSA) use
-`addressing: {mode: normal_extended_11bit}` + a per-ECU `target_address`; makes
-that request on a functional broadcast id but answer physically (some
-Renault/Mitsubishi) use `normal_29bit` with an explicit `rx_id` and an
-`addressing: {fc_id: …}` flow-control override. Non-`0x18` 29-bit priorities
-(GM `0x14…`, VW `0x17…`, Volvo `0x1D…`) are handled by `normal_29bit` with
-explicit `tx_id`/`rx_id`.) That addressing is all canair needs: when porting a
-WiCAN community profile, leave its `ATSH`/`ATCRA`/`ATFCSH`/`ATFCSM` commands out of
-`init`, because canair derives the header, receive filter and flow control per ECU
-(`canair validate` warns about the header and flow-control ones).
+sent to the dongle). The default `ATSP6;ATS0;ATAL;` suits most cars (ISO 15765-4,
+11-bit, 500 kbit), so you can usually leave it alone.
+
+If your car uses a different bitrate, non-standard response addresses, 29-bit
+addressing, or needs ISO-TP tuning, set `can_bitrate:` / `addressing:` / `isotp:`
+— see [Profiles → `profile.yaml` settings](../concepts/profiles.md#profileyaml-settings).
+canair derives the header, receive filter and flow control per ECU from
+`addressing`, so when porting a WiCAN community profile leave its
+`ATSH`/`ATCRA`/`ATFCSH`/`ATFCSM` commands out of `init`.
+
 `vehicle_states.yaml` starts with a generic power-state vocabulary you'll refine
 later — see [Captures & states](../concepts/captures-and-states.md).
 
