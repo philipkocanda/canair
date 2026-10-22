@@ -22,6 +22,7 @@ SCC:
       notes: "Re-confirmed the 01xx block (already registered). 0106-0120 and B0xx all NRC."
   pids:
     220100:
+      response_frames: 1
       status: draft
       period: 2500
       vehicle_states: [READY]

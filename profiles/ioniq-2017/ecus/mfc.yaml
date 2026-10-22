@@ -24,6 +24,7 @@ MFC:
       notes: "Re-confirmed 0100/0101/0102 (already registered). Higher 01xx and B0xx all NRC."
   pids:
     220100:
+      response_frames: 2
       status: draft
       period: 2500
       vehicle_states: [READY]

@@ -42,6 +42,7 @@ EPB:
       notes: "FIRST live-data DID found — C101 (27 B), same DID as ESC. Registered in this file's pids:. All other ranges NRC."
   pids:
     22C101:
+      response_frames: 4
       status: draft
       period: 2500
       vehicle_states: [READY]

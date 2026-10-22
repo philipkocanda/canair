@@ -21,6 +21,7 @@ GSA:
       notes: "Also service 21 01-0F: all NRC. No live-data DIDs exposed via OBD — gear state is available via VCU 2101 GEAR instead."
   pids:
     220100:
+      response_frames: 4
       status: draft
       period: 5000
       vehicle_states: [ACC, ACC2, READY]
