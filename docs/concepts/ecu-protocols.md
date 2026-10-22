@@ -17,14 +17,11 @@ differently:
 | **UDS** (ISO 14229, newer) | `0x22` — *ReadDataByIdentifier* | **2 bytes** | `22` + DID → `22B002`, `22BC07` |
 
 !!! note "What canair calls a PID"
-    Strictly, in OBD-II a *PID* is a **Parameter ID** — a 1-byte code read under
-    service `0x01`. canair uses the word more broadly: **"PID" is an umbrella for
-    any read identifier** — a standard OBD-II PID, a KWP2000 **LID**, or a UDS
-    **DID**. So don't be surprised that `22B002` (a DID) is called a "PID". This
-    isn't canair being sloppy — it's WiCAN's convention: profiles ultimately
-    compile to the WiCAN AutoPID format (see [`canair wican`](../reference/cli/wican.md)),
-    whose profile schema keys **every** parameter group under `pid` regardless of
-    the underlying diagnostic service.
+    Strictly, an OBD-II *PID* is a 1-byte code read under service `0x01`. canair uses "PID" as
+    an umbrella for any read identifier: an OBD-II PID, a KWP2000 **LID** or a UDS **DID**, so
+    `22B002` (a DID) is called a "PID" too. This follows WiCAN's convention: profiles compile to
+    the WiCAN AutoPID format (see [`canair wican`](../reference/cli/wican.md)), which keys
+    **every** parameter group under `pid` regardless of the diagnostic service.
 
 So the prefix **is** the service ID (SID) — the literal first byte of the
 request:
@@ -62,15 +59,12 @@ ECU's protocol.
 
 ## The `-1` / `-2` in byte tooling
 
-The service byte also shifts where the *data* starts in the response, which is why
-`canair bix` has `-1` (1-byte subfunction, service `21`) and `-2` (2-byte
-subfunction, service `22`) modes. A `21 01` response starts `61 01 <data…>`
-(1 echo byte); a `22 B0 02` response starts `62 B0 02 <data…>` (2 echo bytes).
-`canair bix --annotate` doesn't need the flag at all — it reads the service from
-the response SID and labels the identifier for what it is (`LID` for KWP2000
-`0x21`, `DID` for UDS `0x22`, `PID` for an OBD-II mode), so `-1`/`-2` are only an
-override. See [Byte indexing](byte-indexing.md) for how that feeds into `Bnn`
-offsets.
+The service byte also shifts where the *data* starts in the response, which is why `canair bix`
+has `-1` (1-byte subfunction, service `21`) and `-2` (2-byte subfunction, service `22`) modes. A
+`21 01` response starts `61 01 <data…>`; a `22 B0 02` response starts `62 B0 02 <data…>`.
+`canair bix --annotate` reads the service from the response SID and labels the identifier
+itself (`LID` for KWP2000 `0x21`, `DID` for UDS `0x22`, `PID` for OBD-II), so `-1`/`-2` are only
+an override. See [Byte indexing](byte-indexing.md) for how this feeds into `Bnn` offsets.
 
 ## See it in a profile
 

@@ -197,21 +197,19 @@ All of these share the scope flags (`--since`/`--until`/`--date`, `--state`,
 `--state` (e.g. `--state charging`) or a single session.
 
 !!! note "keep-mode caveats"
-    The monitor deduplicates recorded payloads per PID. The default,
-    `canair monitor --keep-changes`, is **run-length**: it stores every genuine
-    value-transition (so `A→B→A` is preserved and dwell durations are recoverable
-    from the timestamps), collapsing only immediate repeats. The legacy
-    `--keep-unique` is **global** dedup: it keeps only globally-distinct values,
-    so return-to-previous transitions and durations are absent.
-    `align`/`decode`/`correlate`/`investigate` print a banner when
-    `keep:changes` sessions are in scope, because a **stored-row count then
-    measures volatility, not sampling** — an ECU polled every cycle that rarely
-    changes looks "barely polled". `keep:unique` gets **no blanket banner** — most
-    historical captures were recorded that way, so it was noise on nearly every
-    report; it is called out only where it actually changes a reading (the
-    `investigate --events` dwell classes, the `--transform`/`--lag-scan`
-    time-gap warnings, and a forced `--fill hold`). Rate/`delta` analysis is
-    unreliable on either; use `--keep-all` when you need real sampling cadence.
+    The monitor deduplicates recorded payloads per PID. The default, `--keep-changes`, is
+    **run-length**: it stores every genuine value transition (so `A→B→A` survives and dwell
+    durations are recoverable from timestamps) and collapses only immediate repeats. The legacy
+    `--keep-unique` is **global** dedup, so return-to-previous transitions and durations are
+    absent.
+
+    `align`/`decode`/`correlate`/`investigate` print a banner when `keep:changes` sessions are in
+    scope, because a **stored-row count then measures volatility, not sampling** — an ECU polled
+    every cycle that rarely changes looks "barely polled". `keep:unique` gets no blanket banner
+    (most historical captures use it); it is flagged only where it changes a reading: the
+    `investigate --events` dwell classes, the `--transform`/`--lag-scan` time-gap warnings and a
+    forced `--fill hold`. Rate/`delta` analysis is unreliable on either; use `--keep-all` when you
+    need real sampling cadence.
 
 ## Forward fill: a run-length row is a segment, not a sample
 

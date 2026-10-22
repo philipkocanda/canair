@@ -204,24 +204,21 @@ Everything the rest of this document claims is visible in one screen:
 - **`SOC_BMS = B09/2`** reads the state-of-charge byte at **B09** — the very first
   byte *after* the Frame 1 PCI byte at B08. Here `B09 = 0x80 = 128`, so
   `128 / 2 = 64 %`.
-- That same physical byte is **ISO-TP `0x06`** (with `--torque`: **Torque `E`**;
-  with `--obdb`: **bix `32`**). If you had copied a "byte 6" offset from a
-  SavvyCAN/ISO-TP view and written `B06`, you would instead read `0xFF` — one of
-  the `FF FF FF FF` bytes at B04–B07 — giving `127.5 %`. A silent, plausible-looking
-  bug. **That off-by-PCI shift is the entire trap this document is about**, and the
-  overlay makes it obvious.
+- That same physical byte is **ISO-TP `0x06`** (with `--torque`: **Torque `E`**; with `--obdb`:
+  **bix `32`**). Copying a "byte 6" offset from a SavvyCAN/ISO-TP view and writing `B06` would
+  read `0xFF` (one of the `FF FF FF FF` bytes at B04–B07) and give a plausible-looking `127.5 %`.
+  **That off-by-PCI shift is the entire trap this document is about**, and the overlay makes it
+  obvious.
 - Bit-level params can share one byte (`B14`: four flags at bits 0/5/6/7 via
   `B14:k`), and a multi-byte value can span several (`BATTERY_POWER` over B15–B19).
   `unmapped` flags data bytes still open for reverse-engineering.
 
-For a `22xxxx` DID the two subfunction bytes are labelled `DID` (B03–B04) and the
-first real data byte is **B05**, not B04 (also where `Torque A` lands under
-`--torque`). You don't have to tell `bix` which it is: the response SID identifies
-the service, so `62 …` is labelled `DID`, `61 …` `LID`, an OBD-II `41 …` `PID`, a
-routine `71 …` `SF` + `RID`, and a refused `7F …` `REJ SID` + `NRC` (spelled out by
-name). `-1`/`-2` exist to override an unrecognised service, and a flag that
-contradicts the payload is warned about. The roles used are defined in a list under
-the table — `--no-legend` to omit it.
+For a `22xxxx` DID the two identifier bytes are labelled `DID` (B03–B04) and the first data byte
+is **B05**, not B04 (also where `Torque A` lands under `--torque`). `bix` identifies the service
+from the response SID, so `62 …` is labelled `DID`, `61 …` `LID`, an OBD-II `41 …` `PID`, a
+routine `71 …` `SF` + `RID`, and a refused `7F …` `REJ SID` + `NRC` (spelled out by name).
+`-1`/`-2` override an unrecognised service, and a flag that contradicts the payload is warned
+about. A legend of the roles follows the table; `--no-legend` omits it.
 
 ## Multi-byte and bit forms (same buffer, same rule)
 

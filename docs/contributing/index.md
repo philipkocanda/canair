@@ -20,15 +20,13 @@ This is the highest-value contribution and needs no changes to canair's code.
      it matches theirs.
    - Include a representative subset of `captures/` as evidence (they can be
      large — you don't have to ship everything).
-3. **Share it with `canair contribute`** — one command opens the pull request
-   for you (no manual fork/clone/branch), no matter where your profile is stored.
-   It runs `canair validate all`, scans your captures *and* `ecus/` identity
-   blocks for a VIN/PII, then opens the PR via
-   the [GitHub CLI](https://github.com/cli/cli#installation) (`gh` — install it
-   and run `gh auth login` once; `canair contribute` prints these steps if it's
-   missing). Use `--no-captures` for a smaller, definitions-only PR, or
-   `--dry-run` to preview. Prefer git yourself? A standard PR putting your
-   profile under `profiles/<your-car>/` works just as well.
+3. **Share it with `canair contribute`** — one command opens the pull request for you, wherever
+   your profile is stored. It validates, scans your captures *and* `ecus/` identity blocks for
+   a VIN or other PII, then opens the PR via the
+   [GitHub CLI](https://github.com/cli/cli#installation) (install `gh` and run `gh auth login`
+   once; `canair contribute` prints these steps if it's missing). Use `--no-captures` for a
+   smaller, definitions-only PR, or `--dry-run` to preview. Prefer git yourself? A standard PR
+   putting your profile under `profiles/<your-car>/` works just as well.
 
 **Partial is welcome.** A handful of verified signals, a corrected byte offset,
 or a new `research:` lead all help — you don't need a "finished" profile.

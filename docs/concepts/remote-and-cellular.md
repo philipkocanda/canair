@@ -150,38 +150,26 @@ copying the log afterwards.
 
 ### Why canair doesn't filter this on the device (yet)
 
-The WiCAN's SLCAN interface *does* expose the hardware acceptance filter, so in principle canair
-could ask the dongle to send only the ECU response addresses the profile cares about and cut the
-idle cost to near zero. It does not do this today, deliberately. The firmware reading is worth
-recording so the next attempt starts from facts rather than repeating it:
+The WiCAN's SLCAN interface exposes the hardware acceptance filter, so canair could ask the
+dongle to send only the ECU response addresses the profile uses and cut the idle cost to near
+zero. It deliberately doesn't yet. What the firmware reading established:
 
 - **The filter must be set while the channel is closed.** `can_set_filter` and `can_set_mask`
-  (`wican-fw/main/can.c`) return immediately when the bus state is `ON_BUS`; they only stash
-  into a config struct that is copied into the driver at install time. So `M`/`m` have to be
-  sent between the bitrate command and `O`, and after `O` they are silently ignored.
-- **A mask bit of `1` means *don't care*.** The firmware's idle default is
-  `mask = 0xFFFFFFFF, filter = 0`, i.e. accept everything. Acceptance is
-  `(id ^ code) & ~mask == 0`.
-- **Wire format** is eight ASCII hex digits, most significant first, for each of `M`
-  (acceptance code) and `m` (mask).
-- **The peripheral offers a single code+mask pair**, so a set of disjoint response addresses can
-  only be covered by a *superset*. For a typical Hyundai/Kia diagnostic set that superset is
-  `0x7C0`–`0x7FF` — 64 IDs, and still a very large win, because the broadcast traffic that
-  dominates the byte count lives well below `0x7C0`.
+  (`wican-fw/main/can.c`) do nothing once the bus is `ON_BUS`, so `M`/`m` must be sent between the
+  bitrate command and `O`.
+- **A mask bit of `1` means *don't care*.** The idle default is `mask = 0xFFFFFFFF, filter = 0`
+  (accept everything), and a frame is accepted when `(id ^ code) & ~mask == 0`. Both `M` and `m`
+  take eight ASCII hex digits, most significant first.
+- **There is a single code+mask pair**, so disjoint response addresses can only be covered by a
+  superset. For a typical Hyundai/Kia diagnostic set that is `0x7C0`–`0x7FF` (64 IDs) — still a
+  large win, since the broadcast traffic that dominates the byte count lives well below it.
 
-What is **not** established is where an 11-bit identifier sits inside that 32-bit acceptance
-word. Single-filter mode uses the SJA1000-derived layout, in which the ID is not right-aligned —
-RTR and the leading data bytes share the word below it — and that is an ESP32 peripheral detail,
-not something the WiCAN sources state.
-
-That matters because of the failure mode. Get the bit position wrong and *no frame matches*: the
-bus goes completely silent, which is indistinguishable from a dead bus or an asleep car, and
-canair would spend the drive reconnecting. A wrong filter is worse than no filter, and it cannot
-be caught by a unit test — what is in doubt is the hardware's behaviour, not the arithmetic. So
-it waits on a bench check against a real device. Tracked in
-`plans/2026-08-08-high-latency-link-hardening.md` (item 9), which also sketches a self-healing
-variant: apply the filter, and reopen unfiltered if the first few exchanges return nothing, so
-the worst case is "slow" rather than "silent".
+What is **not** established is where an 11-bit ID sits inside the 32-bit acceptance word
+(a hardware detail the WiCAN sources don't state). Get it wrong and *no frame matches*: the bus
+goes silent, indistinguishable from a dead bus or a sleeping car. A wrong filter is worse than
+none, and a unit test can't catch it, so this waits on a bench check against a real device.
+Tracked in `plans/2026-08-08-high-latency-link-hardening.md` (item 9), which also sketches a
+self-healing variant that reopens unfiltered if the first exchanges return nothing.
 
 ## Settings that matter here
 
@@ -212,11 +200,10 @@ on every read is `expected_responses` above: once canair has learned how many fr
 answers with, the adapter returns as soon as the reply is whole instead of sitting out the budget
 to be sure no further frame is coming.
 
-Those learned counts are **saved to your profile** as each PID's `response_frames:`, so the speedup
-survives the session that measured it — a fresh connection is fast from its first read instead of
-paying one slow read per PID to re-learn. Nothing to configure: any session that confirms a count
-writes it back, and `--no-learn-frames` opts out. A count is only recorded once the wire proved it,
-and a response whose length turns out to vary has its count withdrawn rather than guessed at.
+Learned counts are **saved to your profile** as each PID's `response_frames:`, so a fresh
+connection is fast from its first read. There is nothing to configure: any session that confirms
+a count writes it back (`--no-learn-frames` opts out), and a count is withdrawn if the response
+length turns out to vary.
 
 You can see which PIDs have earned one, and how much of the profile is covered, with:
 
@@ -224,10 +211,9 @@ You can see which PIDs have earned one, and how much of the profile is covered, 
 uv run canair wican autopid stats     # a Frames column, plus an N/M coverage line
 ```
 
-On a slow link this is the difference between a first poll cycle at ~600 ms per PID and one at
-roughly the network round trip. It applies to the ELM327 transports (`wican-ws`, `elm327-tcp`); the
-raw `slcan-tcp` path measures the same counts as a by-product, since canair runs ISO-TP itself there
-and already knows when a response is complete.
+On a slow link this is the difference between ~600 ms per PID and roughly the network round trip.
+It applies to the ELM327 transports (`wican-ws`, `elm327-tcp`); on raw `slcan-tcp` canair runs
+ISO-TP itself and already knows when a response is complete.
 
 ## Diagnosing a bad session
 

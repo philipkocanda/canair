@@ -91,16 +91,14 @@ copies of canair on the machine:
 - `uv run canair` runs the **repo working tree** — whatever you've currently
   checked out or edited.
 
-Edit the repo (or pull new commits that bump the version) and the two drift: a
-bare `canair` keeps reporting the old version while `uv run canair` reports the
-new one. `canair update` detects this — it reports **which copy is running** and
-warns when the installed snapshot's version differs from the source clone's
-`pyproject.toml` (the same warning also shows up in `canair status`). When there
-is no newer release to check out but the two have drifted, `canair update` offers
-a **reinstall-only resync** — it runs `uv tool install <clone> --reinstall` (no
-network, no tag checkout) to bring the bare `canair` back in line with the clone.
-`canair update --json` includes the full `install` block (`running_origin`,
-`running_build`, `tool_version`, `clone_version`, `out_of_sync`) for scripts.
+If you edit the repo or pull commits that bump the version, the two drift: a bare `canair`
+keeps reporting the old version while `uv run canair` reports the new one. `canair update`
+reports **which copy is running** and warns when the installed snapshot's version differs from
+the clone's `pyproject.toml` (`canair status` shows the same warning). When there's no newer
+release but the two have drifted, it offers a **reinstall-only resync**
+(`uv tool install <clone> --reinstall`, no network or tag checkout). `canair update --json`
+includes the full `install` block (`running_origin`, `running_build`, `tool_version`,
+`clone_version`, `out_of_sync`).
 
 ### The version tells you which build you're running
 

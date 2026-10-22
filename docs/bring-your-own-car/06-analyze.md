@@ -116,25 +116,21 @@ top/bottom), **`p`** adds/removes signals from the comparison,
 shows only parameters whose value actually moved), **`tab`** picks a block so
 **`e`** can annotate that capture, and **`?`** lists every key.
 
-**Moving between frames keeps your scroll position.** A stacked frame is usually
-taller than the terminal, so scroll down to the byte you care about — three PIDs
-down, halfway through the hex — and then step with `←`/`→`: the view stays put and
-the numbers underneath change. That is what makes the stepper a comparator rather
-than a pager. The frame's timestamp is repeated in the status bar so you still
-know *when* you are while the frame header is scrolled out of sight, and `Home`
-takes you back to it.
+**Moving between frames keeps your scroll position.** A stacked frame is usually taller than the
+terminal, so scroll to the byte you care about and step with `←`/`→`: the view stays put and the
+numbers underneath change, which makes the stepper a comparator rather than a pager. The status
+bar repeats the frame's timestamp while the header is scrolled out of sight, and `Home` takes you
+back to it.
 
 This is the fastest way to watch an event-driven signal: put the *known* signal
 (a compressor flag, a door state) in the same frame as the *candidate* byte, then
 walk the frames across the moment it switched.
 
-**Leave yourself landmarks.** Press **`e`** on any frame to annotate that capture
-("Heating started", "pressed the lock button"), then **`s`** to jump straight back
-to it later: the jump list shows every session in scope, newest first, with its
-noted captures nested underneath. That turns a long recording into a set of named
-moments — write the note while you remember what you did, and the analysis becomes
-"jump to the event, then step outward". A note also survives into
-`canair captures --sessions`, so it is a durable record rather than a UI bookmark.
+**Leave yourself landmarks.** Press **`e`** on any frame to annotate that capture ("Heating
+started", "pressed the lock button"), then **`s`** to jump back to it later. The jump list shows
+every session in scope, newest first, with its noted captures nested underneath. Write the note
+while you remember what you did, and analysis becomes "jump to the event, then step outward".
+Notes are stored with the capture and show up in `canair captures --sessions`.
 
 To see what's still undecoded across a whole ECU (or PID), `canair coverage`
 audits every parameter expression against the payload length of the PID's newest

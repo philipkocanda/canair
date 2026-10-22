@@ -77,18 +77,15 @@ canair pids upsert-param VCU 1A90 VIN "[B04:B22]" --type ascii --unverified
 Two consequences worth knowing:
 
 - **The range may cross a CAN frame boundary.** Byte indices are in
-  [WiCAN notation](byte-indexing.md), which *includes* the ISO-TP framing (PCI)
-  bytes at `B00`/`B01`, then `B08`, `B16`, … The run decoder drops those, so
-  `[B04:B22]` yields 17 consecutive *data* bytes even though `B08` and `B16` sit
-  inside it. A 17-char VIN cannot fit in one 8-byte CAN frame, so this is the only
-  way to express it. `canair validate pids`' "range spans a PCI byte" warning is
-  therefore **not** raised for `ascii`/`date` — for every numeric type it still
-  is, because there the range really is read as consecutive raw bytes.
-- **Omitting a range is allowed but imprecise.** With no `[Bn:Bm]` expression the
-  decoder falls back to "the whole payload minus its UDS header", looking the
-  header width up from the response's own service (`0x5A` → `SID + record` = 2
-  bytes; `0x62` → `SID + DID` = 3). Prefer an explicit range — the fallback can
-  only guess where the *data* you want begins within the payload.
+  [WiCAN notation](byte-indexing.md), which *includes* the ISO-TP PCI bytes at `B00`/`B01`, then
+  `B08`, `B16`, … The run decoder drops those, so `[B04:B22]` yields 17 consecutive *data* bytes
+  even though `B08` and `B16` sit inside it — the only way to express a 17-character VIN. The
+  "range spans a PCI byte" warning from `canair validate pids` is therefore not raised for
+  `ascii`/`date`, but still is for numeric types, which read consecutive raw bytes.
+- **Omitting a range is allowed but imprecise.** With no `[Bn:Bm]` expression the decoder uses
+  the whole payload minus its UDS header, with the header width taken from the response's service
+  (`0x5A` → 2 bytes; `0x62` → 3). Prefer an explicit range; the fallback can only guess where
+  your data begins.
 
 Trailing `AA`/`00`/`FF` padding is stripped, and a run that decodes to mostly
 non-printable bytes renders as hex rather than mojibake — so a wrong offset shows
