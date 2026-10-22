@@ -97,44 +97,34 @@ canair contribute --dry-run       # prepare it locally, but don't push/open the 
 ```
 
 It copies your profile into a fork of the repo and opens the PR against
-`philipkocanda/canair` — and it doesn't matter **where** your profile lives (the
-repo, `~/.config/canair/profiles/`, or a `--path` bundle). It prints where it
-**reads your profile from** and the **workspace** it stages/pushes from, so
-there's no guessing which copy is being shared. Before anything is
-shared it:
+`philipkocanda/canair`, wherever your profile lives (the repo, `~/.config/canair/profiles/`, or
+a `--path` bundle). It prints where it **reads your profile from** and the **workspace** it
+pushes from, so you know which copy is being shared. Before anything is shared it:
 
-- runs `canair validate all` (and refuses if it fails),
-- scans for anything that could **identify you** — a VIN, or an email address in
-  a label/note — and asks you to confirm. It looks at both your `captures/` and
-  the `identity:` blocks in `ecus/` (where `canair identity` records a live VIN
-  read), so a definitions-only `--no-captures` PR is checked too. A value you have
-  already masked (`KMHCXXXXXXXXXXXXX`) is recognised as redacted and not
-  re-flagged. Per-unit **ECU serials** are deliberately left alone wherever they
-  appear — a capture of the serial DID *and* `identity.serial` — because they name
-  a module, not you,
-- **warns if your profile looks stale** — if it was read from an installed
-  snapshot (a bare `canair` reads the frozen `site-packages` copy, not your
-  checkout) or if the contribution would *remove* lines already merged upstream
-  (curated definitions normally only grow, so a rollback usually means your
-  source is behind) — and asks you to confirm before continuing,
-- **lists every upstream capture session it would replace** with your edited copy
-  (see below) and asks you to confirm, and **warns about multi-DID replies stored
-  whole under one DID** in the sessions you add, so you can repair them first with
-  `canair captures split-batched`, and
-- **asks you to confirm before pushing** and opening the PR (nothing leaves your
-  machine until you say yes; `--yes` skips the prompt for scripts/agents).
+- runs `canair validate all` (and refuses if it fails);
+- scans for anything that could **identify you** — a VIN, or an email address in a label or
+  note — and asks you to confirm. It checks `captures/` and the `identity:` blocks in `ecus/`
+  (where `canair identity` records a live VIN), so a `--no-captures` PR is checked too. A
+  masked VIN (`KMHCXXXXXXXXXXXXX`) isn't re-flagged, and per-unit **ECU serials** are left alone
+  because they name a module, not you;
+- **warns if your profile looks stale** — it was read from an installed snapshot (a bare
+  `canair` reads the frozen `site-packages` copy, not your checkout), or the contribution would
+  *remove* lines already merged upstream — and asks you to confirm;
+- **lists every upstream capture session it would replace** with your edited copy (see below),
+  and **warns about multi-DID replies stored whole under one DID**, which you can repair first
+  with `canair captures split-batched`;
+- **asks before pushing** and opening the PR. Nothing leaves your machine until you say yes
+  (`--yes` skips the prompt for scripts).
 
-Captures are append-only evidence, so a contribution only *adds* capture
-sessions — even a source that's behind upstream on captures won't propose
-deleting the sessions it lacks, and a capture log your contribution adds nothing
-to is left exactly as it is upstream (so the PR diff stays small and reviewable).
-The one exception is a session you **edited** after recording (`--set-notes`,
-`--set-transport`, `--set-state`, a state back-fill, `migrate-discover`,
-`split-batched`): it is still the same recording, so your copy *replaces*
-upstream's in place instead of being added next to it. A stale source looks the
-same — upstream edited the session after you pulled — so `--diff` and the
-confirmation list each replacement (file, session, and the fields that differ);
-if you did not edit it, sync first.
+Captures are append-only evidence, so a contribution only *adds* capture sessions. A source
+that's behind upstream won't propose deleting the sessions it lacks, and a capture log you add
+nothing to stays exactly as upstream, keeping the PR diff small.
+
+The one exception is a session you **edited** after recording (`--set-notes`, `--set-transport`,
+`--set-state`, a state back-fill, `migrate-discover`, `split-batched`): it's still the same
+recording, so your copy *replaces* upstream's in place. A stale source looks the same (upstream
+edited the session after you pulled), so `--diff` and the confirmation list each replacement
+with the fields that differ. If you didn't edit it, sync first.
 
 Re-running is the normal way to revise a contribution: the default branch name is
 per-day, so a second run on the same day pushes to the branch your pull request
@@ -143,18 +133,15 @@ a second one for it.
 
 !!! tip "Run it from your own checkout"
 
-    The **workspace** canair prints is a throwaway clone it manages for you
-    (under `~/.config/canair/`) — it is a full canair checkout, profiles and all.
-    Don't `cd` into it and run canair from there: the profile it would resolve is
-    that clone's own copy, which is exactly where this command *writes*. canair
-    refuses that case with an explanation, but the fix is always the same — run
+    The **workspace** canair prints is a throwaway clone under `~/.config/canair/`. Don't `cd`
+    into it and run canair from there: the profile it would resolve is the clone's own copy,
+    which is exactly where this command *writes*. canair refuses that case; the fix is to run
     `canair contribute` from your own checkout (or wherever your profile lives).
 
-    That clone is rebuilt from upstream on every run, so a leftover from an
-    earlier `--diff` can never ride along in a later PR. Your own checkout is
-    never reset: if you point `--repo-dir` at one that has uncommitted changes
-    under `profiles/<your-car>/`, canair lists them and asks first, because
-    everything in that directory is committed as part of the contribution.
+    The clone is rebuilt from upstream on every run, so a leftover from an earlier `--diff`
+    can't ride along in a later PR. Your own checkout is never reset: if you point `--repo-dir`
+    at one with uncommitted changes under `profiles/<your-car>/`, canair lists them and asks
+    first, since everything in that directory is committed.
 
 Not sure what you're about to send? Run `canair contribute --diff` first — it
 prepares everything and prints the full diff of `profiles/<your-car>/` vs

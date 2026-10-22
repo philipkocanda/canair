@@ -42,28 +42,21 @@ Each `captures/YYYY-MM-DD.json` holds one day, as sessions of captures:
 }
 ```
 
-- **`rx`** is the CAN **response** address as a hex string — the ECU's `rx_id`,
-  else request TX + the profile's `addressing.rx_offset` (`+0x08` by default) —
-  or `"broadcast"` for multi-ECU discovery scans, whose `scan_results.responding`
-  entries then carry each responder's own `tx` (the request id probed) and `rx`.
-  Discover captures saved before `tx` was recorded are repaired once with
-  `canair captures migrate-discover` (see below).
-  Tools resolve it back to the short name via the profile's
-  [`ecus/`](profiles.md) registry, so you still query by name. (This field was
-  named `ecu` before it was renamed to `rx` to make clear it holds an address,
-  not an ECU name; readers still accept the old key, and
-  `canair captures migrate-rx` renames it in existing files.)
+- **`rx`** is the CAN **response** address as a hex string — the ECU's `rx_id`, else request
+  TX + the profile's `addressing.rx_offset` (`+0x08` by default). Tools map it back to the
+  ECU's short name via the profile's [`ecus/`](profiles.md) registry, so you still query by
+  name. Multi-ECU discovery scans use `"broadcast"`, and each entry in `scan_results.responding`
+  carries its own `tx` and `rx`. (Older files used the key `ecu`; readers still accept it, and
+  `canair captures migrate-rx` renames it.)
 - **`pid`** / **`payload`** are the request DID and the reassembled UDS response
   (SID-first, ISO-TP framing stripped). Decoded *values* are **not** stored —
   they're regenerated on demand from `payload` + the PID definitions, so a
   refined expression re-decodes old captures for free.
-- **`elapsed_ms`** (optional) is the wall-clock UDS round-trip in milliseconds —
-  a *relative* speed signal for the ECU/PID, not pure ECU processing time (it
-  includes transport, WiCAN, and any ISO-TP/`responsePending` round-trips). It's
-  recorded only for **single per-DID reads** on the live `query` path; batched
-  multi-DID reads (one round-trip answers several PIDs), `monitor --save`, scans,
-  and imports omit it. Because transports have very different fixed overhead, an
-  `elapsed_ms` is comparable only **within the same session `transport`**.
+- **`elapsed_ms`** (optional) is the wall-clock UDS round-trip in milliseconds, including
+  transport, WiCAN and any `responsePending` waits. Treat it as a *relative* speed signal,
+  comparable only within the same session `transport`. It is recorded only for single per-DID
+  reads on the live `read` path — not for batched multi-DID reads, `monitor --save`, scans or
+  imports.
 - Stored as JSON because it parses ~60× faster than YAML — the dominant cost of
   every history-consuming command (`ecu`, `coverage`, `decode`, `correlate`,
   `hunt`, `investigate`).
@@ -75,42 +68,33 @@ cutover is converted once with `canair captures migrate`.
 
 ## Sharing captures across machines (the merge driver)
 
-Capture files are **append-only session logs** — new sessions are appended to
-the tail, and a session is only ever rewritten in place by the editors and
-repairs below, which never change what identifies the recording. So when two machines
-both record on the same day, they each append a *different* session to the same
-`captures/YYYY-MM-DD.json`. Git's line-based merge can't reconcile that (every
-session ends with the same `}`/`]`/`}`, so the diff misaligns and splits the
-conflict *inside* individual records) — even though the data is a trivially
-mergeable list.
+Capture files are **append-only session logs**: new sessions go on the end, and a session is
+only rewritten in place by the editors and repairs below, which never change what identifies
+it. So when two machines record on the same day, each appends a *different* session to the
+same `captures/YYYY-MM-DD.json`. Git's line-based merge can't reconcile that — every session
+ends with the same `}`/`]`/`}`, so the conflict lands *inside* records — even though the data
+is a trivially mergeable list.
 
-canair ships a git **merge driver** that resolves this automatically by unioning
-the two sides' session lists (shared history collapses; disjoint appends are
-kept; an edit on one side wins over the untouched other, and both sides making the
-*same* edit merges cleanly; a genuine divergent edit falls back to normal conflict
-markers). It's
-wired for `profiles/*/captures/*.json` via `.gitattributes`, but git will not
-run a driver command it finds in a tracked file (a security measure), so **each
-clone must register it once**:
+canair ships a git **merge driver** that unions the two sides' session lists: shared history
+collapses, disjoint appends are kept, an edit on one side beats the untouched other, and a
+genuinely divergent edit falls back to normal conflict markers. `.gitattributes` wires it up
+for `profiles/*/captures/*.json`, but git won't run a driver command from a tracked file, so
+**each clone must register it once**:
 
 ```bash
 canair captures merge-driver --install
 ```
 
-Until a clone runs this, merges simply fall back to conflict markers — nothing
-breaks, you just don't get the auto-union. (The driver itself is
-`canair captures merge-driver %O %A %B %P`, invoked by git; you never call that
-form by hand.)
+Until then, merges fall back to conflict markers — nothing breaks, you just lose the
+auto-union.
 
-**How a session is recognised.** A session has no id. Two copies are the same
-when their content is identical, and the same *recording, edited* when they share
-its date, label and recording version and its first capture's time, `rx` and PID —
-the fields no editor or repair rewrites. That second rule is what lets an edited
-session replace its original (in a merge, in `canair contribute`, and when a
-layered profile's base and your layer both hold it) instead of being counted twice.
-Deleting a session's first capture does change it, so the trimmed session then
-reads as a different recording. Legacy untimed sessions that share all of those
-fields are never paired; they fall back to content alone.
+**How a session is recognised.** A session has no id. Two copies are the same when their
+content is identical, or the same *recording, edited* when they share its date, label,
+recording version and first capture's time, `rx` and PID — fields no editor or repair
+rewrites. That second rule lets an edited session replace its original (in a merge, in
+`canair contribute`, and across a layered profile's base and your layer) instead of being
+counted twice. Deleting a session's first capture changes those fields, so the trimmed
+session reads as a different recording.
 
 ## Provenance: transport & data quality
 
@@ -131,25 +115,19 @@ became suspect; see the note below):
 }
 ```
 
-- **`version`** — the canair version that recorded the session, stamped at save
-  time. Provenance for debugging a capture issue traced to a specific release.
-  Recorded from a git checkout (`uv run canair` in a clone) rather than an
-  installed release, it also carries that checkout's branch and short commit —
-  `1.15.0+main.343b244`, with `.dirty` appended when tracked files had uncommitted
-  edits — so a suspect reading points at the exact code that produced it, not just
-  the release it happened to sit near. Sessions recorded before version stamping
-  was added simply omit the field.
+- **`version`** — the canair version that recorded the session, for tracing a capture issue to
+  a release. Recorded from a git checkout, it also carries the branch and short commit
+  (`1.15.0+main.343b244`, plus `.dirty` for uncommitted edits). Older sessions omit it.
 - **`transport`** — how the payloads were acquired: the transport label
   (`slcan-tcp` / `wican-ws`) for a device-recorded session, or `import` for a
   device-free `canair import uds`.
 - **`quality`** — the transport's exchange/error tally for the session:
   `exchanges` (total UDS round-trips) plus any **non-zero** error categories
   (`drop`/`stale` = dropped/mis-assembled ISO-TP frames, `no_data` = timeouts,
-  `bus`, `decode`). A clean session records just `exchanges`; NRCs are
-  legitimate ECU answers and are **not** counted. `resyncs` rides along in the
-  same block when non-zero: it counts the times the transport had to realign a
-  desynchronised ELM327 pipe — a *recovery* rather than a lost payload, but
-  several of them mark a marginal link.
+  `bus`, `decode`). A clean session records just `exchanges`; NRCs are legitimate ECU
+  answers and are **not** counted. A non-zero `resyncs` counts times the transport had to
+  realign a desynchronised ELM327 pipe — a recovery, not a lost payload, but several mark a
+  marginal link.
 
 `canair captures uds --sessions` shows all three per session (flagging any
 drops), and every error is also written to the central log — inspect it with
@@ -215,61 +193,41 @@ journaled as it arrives and written to a capture file automatically when you
 quit. The scrollable live view shows a blinking `● REC` whenever a `--save`
 recording is active, and two keys control the session:
 
-- **`s` (label recording)** — set or edit the label / state / notes for the
-  **current** recording. Because every payload is already journaled and saved on
-  exit, this only *labels* the session — it doesn't write a separate file (the
-  modal and confirmation say so). The state field is **free text**
-  (comma-separated) pre-filled with the auto-suggested state; leaving it blank is
-  fine — the modal says so (`no state set — will auto-detect from data on save`),
-  and the state is filled in on save. (Without `--save`, `s` instead performs a
-  one-off write of the payloads captured so far to a new capture file.)
-- **`n` (finish & start new)** — write the current session to its own capture
-  file **now**, then start a **fresh** recording, labelled via the same modal.
-  One monitor run can thus produce several independently-labelled sessions —
-  press `n` at each phase change (e.g. parked → driving → charging) rather than
-  stopping and restarting. (`n` requires `--save`; without it there's no
-  recording to finish.)
-- **`i` (session info)** — open a read-only overlay summarising the run: the
-  current segment's label / state / notes and start time, the run-level counters
-  (frames captured / unique, cycles, retain mode, poll interval, transport, run
-  start / elapsed), where captures and the **write-ahead journal** are being
-  written (the exact `.journal/*.jsonl` path `--recover` would read), and the
-  history of the `--save` segments already finished this run (each with its label,
-  states, time span, frame count, and the file it was written to). The current
-  segment name also shows in the header bar at all times; use `s` to
-  rename/relabel it.
-- **`V` (view mode)** — cycle how much of each signal the live view shows:
-  `ecus` (just the responding ECUs and a PID/signal count), `ranges` (each
-  signal's captured value *span* — numeric min–max or distinct labels, the way
-  `canair investigate`/`decode` report a range), `signals` (the decoded values
-  only), and `full` (signals plus the raw byte payloads — the default).
+- **`s` (label recording)** — set or edit the label / state / notes of the **current**
+  recording. Everything is already journaled, so this only *labels* the session; it doesn't
+  write a separate file. The state field is free text (comma-separated), pre-filled with the
+  auto-suggested state; if you leave it blank, the state is filled in from the data on save.
+  (Without `--save`, `s` instead writes the payloads captured so far to a new capture file.)
+- **`n` (finish & start new)** — write the current session to its own capture file **now**
+  and start a **fresh** recording, labelled via the same modal. Press it at each phase change
+  (parked → driving → charging) to get several independently-labelled sessions from one run.
+  Requires `--save`.
+- **`i` (session info)** — a read-only overlay with the current segment's label / state /
+  notes, the run-level counters (frames, cycles, poll interval, transport, elapsed time), the
+  exact `.journal/*.jsonl` path `--recover` would read, and the `--save` segments already
+  finished this run. The current segment name is always shown in the header bar.
+- **`V` (view mode)** — cycle how much the live view shows: `ecus` (responding ECUs and a
+  PID/signal count), `ranges` (each signal's captured min–max or distinct labels), `signals`
+  (decoded values only), or `full` (signals plus raw payload bytes — the default).
 - **`r` (byte ruler)** — number the payload's byte columns above the hex, and
   show each signal's byte reference next to its value, both in your preferred
   notation (see [Byte indexing](byte-indexing.md)).
 
-Signals are always listed in **payload order** — sorted by the byte each one
-reads first — so a value reads directly above the hex byte it came from. The view
-never follows the tail: a repaint leaves your scroll position exactly where it
-was, so you can read a byte while data keeps arriving (`G`/`End` jumps to the
-newest output when you want it).
+Signals are listed in **payload order** (by the first byte each reads), so a value sits
+directly above the hex byte it came from. The view never follows the tail — a repaint leaves
+your scroll position alone, and `G`/`End` jumps to the newest output.
 
-When a `--save` segment ends without an explicit state, canair back-fills it with
-the **union of every state auto-suggested across that segment's whole span** — not
-just the state active at the instant it closed. So a segment that charged and then
-went idle still reconciles as `charging`, rather than losing the label because the
-car happened to stop charging just before you stopped recording. If the car changed
-state *during* the segment, the saved session also carries a
-[`state_spans` timeline](#simultaneous-vs-sequential-overlap-state_spans) so each
-capture still answers for the state it was actually recorded in.
+When a `--save` segment ends without an explicit state, canair back-fills it with the
+**union of every state auto-suggested across the whole segment**, not just the one active
+when it closed — so a segment that charged and then went idle still reconciles as
+`charging`. If the car changed state *during* the segment, the session also carries a
+[`state_spans` timeline](#simultaneous-vs-sequential-overlap-state_spans) so each capture
+still answers for the state it was recorded in.
 
-The **status bar** answers the opposite question — what the car is doing *now* —
-so its inputs expire: a decoded value stops feeding the state predicates a few
-poll cycles after it was last read, which returns that signal to "unknown"
-instead of leaving it asserted forever. Without that, a parked car kept reading
-`DRIVING` from the last speed sample of the drive. Expiry is counted in **poll
-cycles, not seconds**, so it scales with the sweep: polling a dozen ECUs takes far
-longer per cycle than polling two, and a fixed wall-clock window would expire the
-wide sweep's values before it could refresh them.
+The **status bar** shows what the car is doing *now*, so its inputs expire: a decoded value
+stops feeding the state predicates a few poll cycles after it was last read, and the signal
+returns to "unknown". Otherwise a parked car kept reading `DRIVING` from the last speed
+sample. Expiry counts **poll cycles, not seconds**, so it scales with how many ECUs you poll.
 
 ## Vehicle states
 
@@ -294,17 +252,13 @@ than reading false. So `BMS.BATTERY_CURRENT < -1 or OBC.OBC_DC_A > 0.5` still
 resolves to `CHARGING` from an OBC-only read where the BMS wasn't queried.
 
 
-State names are an **UPPERCASE** controlled vocabulary (like the CAN-bus segment
-codes) — the make-neutral base is the ignition-switch ladder `SLEEP/ACC/RUN/CRANK`
-(the universal OFF/ACC/ON/START positions; `RUN`/`SLEEP` because `ON`/`OFF` are
-YAML booleans, and `RUN` avoids the "which IGN level?" ambiguity of vendors that
-number them, e.g. Hyundai IGN0-3), plus any states a profile declares in its
-`vehicle_states.yaml` (EV profiles add `PLUGGED`/`READY`/`CHARGING`; the bundled
-Ioniq does), any composites, and the meta-token **`ALL`** ("applicable in every
-state"). Input is normalized to uppercase, so any casing you type is accepted.
-Tag an ECU or PID `vehicle_states: [ALL]` when it answers in every state — the bundled
-Ioniq's IGPM and BCM, which never sleep — instead of enumerating each state. `canair states
-<STATE>` then lists it under every state. Inspect and edit the vocabulary with `canair states`:
+State names are an **UPPERCASE** controlled vocabulary. The make-neutral base is the
+ignition ladder `SLEEP/ACC/RUN/CRANK` (`RUN`/`SLEEP` rather than `ON`/`OFF`, which YAML reads as
+booleans), plus whatever states the profile declares in `vehicle_states.yaml` (EV profiles add
+`PLUGGED`/`READY`/`CHARGING`) and the meta-token **`ALL`**, meaning "applicable in every state".
+Any casing you type is normalized. Tag an ECU or PID `vehicle_states: [ALL]` when it answers in
+every state (the Ioniq's IGPM and BCM never sleep) instead of listing each one. Inspect and edit
+the vocabulary with `canair states`:
 
 ```bash
 canair states                          # list the vocabulary + usage counts
@@ -347,10 +301,8 @@ Where it applies:
   not hold: `--state driving` never returns a merely-`READY` capture.
 - **Analysis groups by the reduced set.** `decode --group-by state` and
   `investigate`'s discriminability ranking bucket `READY, ACC2, PARKED` as
-  `READY, PARKED` — one bucket, not two near-duplicates. Before this, a nine-state
-  vocabulary produced **39** distinct buckets from the same data, splitting each
-  population thin enough to distort the F ranking (and, where a split bucket held
-  two identical samples, to manufacture a bogus perfect separation).
+  `READY, PARKED` — one bucket, not two near-duplicates. Without it, a nine-state vocabulary
+  split the same data into 39 buckets, thin enough to distort the F ranking.
 
 Edit it with `canair states` (never hand-edit the file):
 
@@ -377,10 +329,8 @@ those two facts fight each other. Two very different things look identical on di
   The session is `READY, DRIVING, PARKED, PLUGGED, CHARGING`, but no single instant
   was all of those.
 
-Left alone, the second case corrupts filtering: `--state charging` returns the
-whole session, driving captures included. On the bundled Ioniq's own history that
-was **17.7% of everything `--state CHARGING` returned**, including 9,162 captures
-recorded at speed.
+Left alone, the second case corrupts filtering: `--state charging` returns the whole session,
+driving captures included (17.7% of what `--state CHARGING` returned on the Ioniq's history).
 
 So a session whose payloads show the car changing state carries a **timeline**
 alongside the union:
@@ -397,21 +347,14 @@ alongside the union:
 }
 ```
 
-A span records a *change*, not an interval — one timestamp and the states that
-held from it until the next span. Half-open intervals would need arbitration for
-the gap left by a poll cycle that decoded nothing; a change point simply has no
-gaps. The timeline is derived from the session's own stored payloads, so it costs
-one write and no new measurement (52 spans for a 6,872-capture drive: 2.4 KB in a
-4.2 MB file).
+A span records a *change*: one timestamp and the states that held from it until the next
+span, so there are no gaps to arbitrate. The timeline is derived from the session's own stored
+payloads and is tiny (52 spans for a 6,872-capture drive).
 
-Filtering and analysis then read the state **at each capture's own timestamp**,
-with the union as a fallback when there is no timeline. `--state charging` on that
-session returns only the charging captures. Corpus-wide, the provably-wrong share
-of filtered rows fell from ~18–21% to **0.01%**.
-
-Nothing about the session-level union is lost — `captures uds --sessions` still
-reports what the whole recording covered, because "what did this session span?"
-and "what was the car doing when *this* byte was read?" are different questions.
+Filtering and analysis then read the state **at each capture's own timestamp**, falling back to
+the union when there is no timeline. `--state charging` on that session returns only the
+charging captures. The session-level union is kept too: `captures uds --sessions` still reports
+what the whole recording covered.
 
 **Declare what cannot co-occur (`excludes:`).** canair cannot tell simultaneous
 from sequential on its own — `READY, PARKED` is fine, `DRIVING, PARKED` is not, and
@@ -422,12 +365,9 @@ the complement of `implies:`:
 canair states set-excludes DRIVING PARKED,CHARGING   # symmetric — either side suffices
 ```
 
-`canair validate captures` then warns on a session tagged with an exclusive pair
-but *no* timeline — the one shape that is provably wrong — and points at the fix.
-Declaring the pairs is what keeps that warning specific instead of firing on every
-multi-state session until you learn to ignore it. `validate states` rejects a pair
-declared both exclusive and implied, since `implies:` says the two always hold
-together and `excludes:` says they never can.
+`canair validate captures` then warns on a session tagged with an exclusive pair but *no*
+timeline — the one provably wrong shape — and points at the fix. `validate states` rejects a
+pair declared both exclusive and implied.
 
 **Back-filling old recordings.** Sessions recorded before this existed have no
 timeline. Derive one from their stored payloads:
@@ -444,40 +384,30 @@ and **live** (spans observed during recording, left alone unless `--overwrite`).
 A capture that ends up with no timeline and more than one state is reported as
 unresolved rather than silently trusted.
 
-One limit worth knowing: a state canair cannot *place* in time — one with no
-`when:` predicate, like `SLEEP`, or one that never matched the stored payloads —
-is carried into **every** span rather than dropped. Losing it would make captures
-stop matching a state they used to match, trading a precision problem for a data-loss
-one.
+One limit: a state canair cannot *place* in time (no `when:` predicate, like `SLEEP`, or never
+matched in the payloads) is carried into **every** span rather than dropped, so captures never
+stop matching a state they used to match.
 
 ### Predicates are cross-checked against the signal registry
 
-Kleene logic has one sharp edge: a predicate that reads a signal which *does not
-exist* abstains exactly like one whose signal merely wasn't polled. Both are
-UNKNOWN, so a typo'd or renamed signal name leaves the state permanently
-un-suggestable with nothing to see — no error, no warning, no failed decode.
-
-So the reference is resolved statically instead. `canair validate states` errors
-when a `when:` predicate names a signal the profile's `ecus/` doesn't define,
-reporting the specific reason:
+Kleene logic has a sharp edge: a predicate that reads a signal which *does not exist*
+abstains exactly like one whose signal merely wasn't polled. A typo'd or renamed signal
+therefore leaves the state permanently un-suggestable, with no error. So `canair validate
+states` errors when a `when:` predicate names a signal the profile's `ecus/` doesn't define,
+and says why:
 
 ```
 vehicle_states.yaml: 1 errors
   - state 'PARKED': when: references VCU.GEAR_PARK — VCU defines no signal 'GEAR_PARK'
 ```
 
-A reference must match how the decoded value map is actually keyed at evaluation
-time, so each way of missing is reported distinctly: an unknown ECU, an ECU
-**alias** instead of its canonical short name, a lower-case ECU (the map is keyed
-UPPERCASE), a case-mismatched signal name (matched case-sensitively, with the real
-name suggested), a signal defined on a *different* ECU, a signal under a
-`status: ignored` PID (never polled), and a signal that doesn't decode to a
-number — `ascii`/`date`/`struct` render as text, and only numeric values reach a
-predicate. The `__no_response__` / `__responded__` sentinels are not signals and
-are never checked.
+The reasons reported are: an unknown ECU, an ECU **alias** instead of its canonical short
+name, a lower-case ECU, a case-mismatched signal name (the real name is suggested), a signal
+defined on a *different* ECU, a signal under a `status: ignored` PID (never polled), and a
+signal that isn't numeric (`ascii`/`date`/`struct` values never reach a predicate). The
+`__no_response__` / `__responded__` sentinels are not signals and are never checked.
 
-The same check runs at the moments a reference can break, as a non-blocking
-warning (authoring a predicate before its signal exists stays allowed):
+The same check runs as a non-blocking warning where a reference can break:
 
 - `canair states add --when …` / `canair states set-predicate …` — warns if the
   new predicate can't resolve.
@@ -499,109 +429,88 @@ canair captures uds --backfill-states             # fill sessions that have no s
 canair captures uds --backfill-states --overwrite # also correct recorded states that conflict
 ```
 
-By default it only **fills** sessions that have no recorded state; a session
-whose recorded state is *provably contradicted* by the decoded evidence (a
-`conflict`) is reported but left untouched unless you pass `--overwrite`. It
-honors the usual scope filters (`--since`/`--state`/`--label`/`--last-session`),
-previews with `--dry-run`, emits `--json`, and confirms before writing unless
-`--yes`. Cross-ECU predicates need co-polled signals seen at roughly one instant,
-so timed captures are grouped into pseudo-cycles within `--cycle-tol` seconds
-(default 10s); untimed legacy sessions collapse to one whole-session cycle.
+By default it only **fills** sessions with no recorded state; one whose state is *provably
+contradicted* by the decoded evidence (a `conflict`) is reported but left alone unless you pass
+`--overwrite`. It honors the usual scope filters, previews with `--dry-run`, emits `--json`, and
+confirms before writing unless `--yes`. Cross-ECU predicates need signals seen at roughly one
+instant, so timed captures are grouped into pseudo-cycles within `--cycle-tol` seconds (default
+10); untimed legacy sessions count as one cycle.
 
 `--backfill-states` answers "*which* states was this session in?"; its companion
 [`--backfill-state-spans`](#simultaneous-vs-sequential-overlap-state_spans) answers
 "*when* was it in each of them?". Run the former first — spans can only place states
 the session is tagged with.
 
-Offline, a capture existing *is* a response, so the `__no_response__` /
-`__responded__` sentinels can't be evaluated (a predicate using them abstains) —
-which is why `SLEEP` has no offline predicate.
+Offline, the `__no_response__` / `__responded__` sentinels can't be evaluated (a stored capture
+*is* a response), which is why `SLEEP` has no offline predicate.
 
-Some sessions can't be inferred at all — a body/low-power ECU read taken while
-the powertrain state signals were asleep, or a scan with no decodable payloads.
-When you *know* the state from the session's label or context (e.g. an "ACC only"
-bench read), set it manually:
+Some sessions can't be inferred at all — say a body ECU read while the powertrain signals were
+asleep, or a scan with no decodable payloads. When you *know* the state from the label or
+context, set it manually:
 
 ```bash
 canair captures uds --set-state ACC --label "ACC only" --dry-run   # preview
 canair captures uds --set-state "CHARGING, PLUGGED" --date 2026-04-18
 ```
 
-`--set-state` writes the given states to every **scope-selected** session
-(`--label`/`--date`/`--since`/…), so it *requires* a scope filter — it refuses a
-bare invocation that would relabel the whole history. Like the other mutating
-modes it previews with `--dry-run`, emits `--json`, and confirms unless `--yes`.
-A genuinely ambiguous session (the data doesn't discriminate and the label
-carries no state) is best left unlabelled — a guessed state is worse than none.
+`--set-state` writes the given states to every **scope-selected** session, so it *requires* a
+scope filter (`--label`/`--date`/`--since`/…) and refuses to relabel the whole history. Like the
+other mutating modes it supports `--dry-run`, `--json` and `--yes`. If a session is genuinely
+ambiguous, leave it unlabelled — a guessed state is worse than none.
 
-A session's **notes** can be corrected the same way, when one turns out wrong
-after recording — say, it claims an ECU answered that the session's own data
-shows was silent:
+A session's **notes** can be corrected the same way, e.g. when they claim an ECU answered that
+the session's own data shows was silent:
 
 ```bash
 canair captures uds --set-notes "Car off; only 0x758 answered." --label "discovery" --dry-run
 canair captures uds --set-notes "" --date 2026-04-18 --yes   # '' clears the notes
 ```
 
-`--set-notes` replaces the notes on every scope-selected session, so it has the
-same scope requirement and `--dry-run`/`--json`/`--yes` behaviour as
-`--set-state`. With `--json`, stdout carries only the JSON rows; the human report
-goes to stderr. The `--step` TUI's note editor does the same interactively.
+`--set-notes` has the same scope requirement and flags as `--set-state`; with `--json`, stdout
+carries only the JSON rows and the human report goes to stderr. The `--step` TUI's note editor
+does the same interactively.
 
-`--set-transport NAME` corrects a session's recorded **transport** the same way,
-accepting only a known transport label (or `''` to clear it). Older canair
-versions re-read the transport from your configuration when saving a
-`discover`/`scan`/`raw` session, so a run with `--transport`/`--wican`, or one
-that fell back to another device, could be recorded with the wrong one; every
-save path now records the transport the session actually used.
+`--set-transport NAME` corrects a session's recorded **transport** the same way, accepting only
+a known transport label (or `''` to clear it). Older versions could record the wrong transport
+for `discover`/`scan`/`raw` sessions; current ones record the transport actually used.
 
 ### Repairing legacy discover captures
 
-Older discover captures stored only an `rx` per responder — and for an address
-not in the ECU registry, computed it as TX + 0x08 whatever the profile's
-`addressing:` said. One repair gives each responder its probed `tx` and the `rx`
-your profile's addressing gives it:
+Older discover captures stored only an `rx` per responder, computed as TX + 0x08 for any
+address not in the ECU registry, whatever the profile's `addressing:` said. This repair gives
+each responder its probed `tx` and the `rx` your profile's addressing gives it:
 
 ```bash
 canair --profile my-car captures migrate-discover --dry-run   # preview
 canair --profile my-car captures migrate-discover
 ```
 
-The TX is recovered exactly from how those captures were labelled (`NAME
-(status)` for a registered ECU, the bare status otherwise); a responder whose ECU
-no longer resolves, resolves ambiguously, or whose label is not a single ECU name
-is reported rather than guessed. It is idempotent, and it cannot recover the
-session's transport — use `--set-transport` for that. In a layered profile it
-resolves names against the base's definitions and repairs only your layer; a
-`--dir` naming the read-only base is refused (a `--dry-run` still previews it).
+The TX is recovered from how those captures were labelled; a responder whose ECU no longer
+resolves, is ambiguous, or has a label that isn't a single ECU name is reported rather than
+guessed. The repair is idempotent and can't recover the session's transport (use
+`--set-transport`). In a layered profile it resolves names against the base's definitions and
+repairs only your layer.
 
 ### Splitting multi-DID replies stored under one DID
 
-An ECU that supports batching answers `22 D1 D2 …` with `62 D1 <data> D2 <data> …`,
-which starts exactly like a single reply to `D1`. Older canair versions could take
-a batch reply that arrived late as the answer to the next per-DID read of `D1`, and
-saved it whole as `D1`'s payload, with every other DID's data appended. Current
-versions discard such a reply and stop batching that ECU for the rest of the
-session (as they also do when its batches keep going unanswered while single
-reads succeed), and `canair validate captures` warns about the rows already
-stored. One repair replaces each with one capture per DID at the same time, so
-the readings it carried are kept:
+An ECU that supports batching answers `22 D1 D2 …` with `62 D1 <data> D2 <data> …`, which starts
+exactly like a single reply to `D1`. Older versions could mistake a late batch reply for the
+answer to the next per-DID read of `D1` and save it whole under `D1`. Current versions discard
+such a reply and stop batching that ECU for the session, and `canair validate captures` warns
+about rows already stored. This repair replaces each with one capture per DID at the same
+time, keeping the readings:
 
 ```bash
 canair --profile my-car captures split-batched --dry-run   # preview
 canair --profile my-car captures split-batched
 ```
 
-A row is split only when it walks exactly through DIDs of the same ECU at each
-DID's established length, so a padded or merely long reply is left alone. A
-DID's length is established from its own replies (unpadded and padded alike),
-and the leaked batch rows themselves count towards it rather than against it,
-so they cannot hide by outvoting it. In a session recorded with `--keep-changes`
-or `--keep-unique`, a part whose value the session would not have stored again
-is left out, so every stored row is still a change. It is idempotent, and in a
-layered profile it reports rows in the read-only base instead of rewriting them,
-as well as overlay sessions that the base holds identically (splitting only the
-overlay copy would turn one session into two).
+A row is split only when it walks exactly through DIDs of the same ECU at each DID's
+established length (taken from its own replies), so a padded or merely long reply is left
+alone. In a `--keep-changes` or `--keep-unique` session, a part the session wouldn't have
+stored again is left out. The repair is idempotent. In a layered profile it reports rows in the
+read-only base instead of rewriting them, and also overlay sessions the base holds identically
+(splitting only the overlay copy would turn one session into two).
 
 ## Reviewing captures
 

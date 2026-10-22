@@ -56,18 +56,17 @@ different code path.
 
 Note the difference between *discovering* a capability and *using* it:
 
-- `canair scan iocontrol` / `scan routines` are **safe probes** — they ask
-  *whether* an actuator or routine exists (using the non-actuating variants),
-  they don't trigger anything. Which variant is non-actuating depends on the
-  make. The UDS IOControl probe is the standard `returnControlToECU`. KWP2000's
-  IOControl service (`0x30`) has no standard control-option byte: ISO 14230-3
-  leaves it to the manufacturer, and `30 {LID} 00` is a release only under the
-  SSF 14230 / Hyundai-Kia convention. So the scan warns on a profile that declares
-  neither make, and a profile with the `nissan_c0_session` quirk — where that
-  probe would begin a one-shot command — sends Nissan's "is this value
-  supported?" query instead. Nothing documents what Nissan does with the
-  KWP2000 routine-results service, so `scan routines` asks for confirmation on
-  such a profile (`--yes` to skip; it refuses non-interactively without it).
+- `canair scan iocontrol` / `scan routines` are **safe probes** — they ask *whether* an
+  actuator or routine exists, using non-actuating variants, and trigger nothing. Which variant
+  is non-actuating depends on the make:
+    - UDS IOControl uses the standard `returnControlToECU`.
+    - KWP2000 IOControl (`0x30`) has no standard control-option byte (ISO 14230-3 leaves it to
+      the manufacturer); `30 {LID} 00` is a release only under the SSF 14230 / Hyundai-Kia
+      convention. The scan therefore warns on a profile that declares neither make.
+    - On a profile with the `nissan_c0_session` quirk that probe would begin a one-shot command,
+      so canair sends Nissan's "is this value supported?" query instead. Nissan's behaviour for
+      the KWP2000 routine-results service is undocumented, so `scan routines` asks for
+      confirmation there (`--yes` to skip; it refuses non-interactively without it).
 - Actually actuating (`canair io`) or starting a routine is a separate,
   confirm-first action. The `canair io` TUI's status poll (`--poll`) and value
   keys build UDS `0x2F` requests, so they are refused for a KWP2000 ECU.

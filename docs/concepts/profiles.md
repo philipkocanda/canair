@@ -45,16 +45,43 @@ and `init` are required; everything else is optional with a sensible default.
 | Field | Type | Meaning |
 |---|---|---|
 | `car_model` | str | Human description (required). |
-| `init` | str | ELM327 AT init string, `;`-separated (required). Applies to the `wican-ws` (ELM327) transport only; the `slcan-tcp` transport ignores it and drives ISO-TP directly. A fresh profile scaffolds `ATSP6;ATS0;ATAL;` (ISO 15765-4 11-bit/500 kbit). Leave out the header and flow-control commands (`ATSH`, `ATFCSH`/`ATFCSD`/`ATFCSM`): canair sets those per ECU from `addressing`, and `canair validate` warns about them. A receive filter (`ATCRA`) set here stays in force for conventional (`tx + 0x08`) ECUs, so an init can still filter to one ECU; canair replaces it for any ECU that needs its own. |
+| `init` | str | ELM327 AT init string, `;`-separated (required). Used by the `wican-ws` (ELM327) transport only; `slcan-tcp` ignores it. A fresh profile scaffolds `ATSP6;ATS0;ATAL;` (ISO 15765-4, 11-bit, 500 kbit). Leave out `ATSH`/`ATFCSH`/`ATFCSD`/`ATFCSM` — canair sets those per ECU from `addressing`, and `canair validate` warns about them. An `ATCRA` filter set here stays in force for conventional (`tx + 0x08`) ECUs. |
 | `can_bitrate` | int | Vehicle bus speed in bit/s. Set it when the diagnostic bus isn't 500 kbit/s (e.g. `250000`). Precedence: config `transport.bitrate` > this > device config > `500000`. |
-| `addressing` | map | CAN diagnostic addressing rule. `mode` selects how the arbitration IDs are formed — `normal_11bit` (default), `normal_29bit` (arbitrary explicit `tx_id`/`rx_id`), `normal_fixed_29bit` (the ISO `0x18DA{target}{tester}` convention used by Ford/VAG/etc.), `normal_extended_11bit` (ISO-TP extended/mixed 11-bit: an 11-bit header plus a per-ECU target-address extension byte in the payload — BMW `0x6F1` / PSA), or `extended_29bit`. `rx_offset` sets the 11-bit response address as `tx_id + rx_offset` (default `0x08`, the Hyundai/Kia convention; `0x80` for XPeng `0x704`→`0x784`; **may be negative**, e.g. PSA `-0x20`). For `normal_fixed_29bit` the response ID is derived by swapping the address bytes, so `rx_offset` doesn't apply. `target_address`/`source_address` are profile-default ISO-TP extension bytes for the extended modes (`source_address` is the tester address, default `0xF1`). A single irregular ECU overrides the mode with a per-ECU `addressing.mode`, the response address with its own `rx_id`, or the flow-control address with `addressing.fc_id` (see ECU fields). On the ELM327 transports and in the generated AutoPID profile, canair derives each ECU's receive filter (`ATCRA`) and flow-control id from these too, so a non-`+0x08` ECU (Nissan Leaf `0x79B`→`0x7BB`) or a functional-request ECU (`fc_id`) needs no init commands. Two ECUs that share one `tx_id` but answer on different ids can't be told apart by the live ELM327 path, which addresses that id as a broadcast (the adapter's own receive filter and flow control); `canair validate` warns about it, and AutoPID still addresses each PID from its own ECU. |
+| `addressing` | map | How arbitration IDs are formed: `mode`, `rx_offset`, and the extended-mode address bytes. See [Addressing](#addressing) below. |
 | `response_timeout_ms` | int | ELM327 response timeout (applied as `ATSTxx`; `--elm-timeout` overrides). Raise it for slow ECUs (the Ioniq needs `614`), lower it to speed up cycles. |
 | `multi_did_batching` | bool | Profile default for per-ECU service-22 multi-DID batching. |
 | `multi_did_max` | int | Profile default cap on how many service-22 DIDs are combined into one multi-DID request (default `3`). A per-ECU `multi_did_max` overrides it. |
 | `failure_types` | map | DTC failure-type byte meanings, profile-wide (`{0xNN: "meaning"}`). |
-| `quirks` | list | Make-specific behavior toggles the profile opts into (make-neutral profiles omit). Known: `hk_f1xx_minus_one` — Hyundai/Kia identity DIDs answer one less than requested (`22F188` → `62F187`); echo validation tolerates it for F1xx only when this quirk is set. `skm_wakeup` — enables the Ioniq Smart Key Module relay wake. `nissan_c0_session` — permits the Nissan diagnostic session `10 C0` on the profile's KWP2000 ECUs, which the command blocklist otherwise refuses (see [Safety](safety.md)), makes `canair scan iocontrol` use Nissan's non-actuating `0x30` probe there, `canair scan sessions` probe `C0`, and `canair scan routines` confirm before sweeping. |
-| `isotp` | map | Client-side ISO-TP tuning for the `slcan-tcp` transport (see below). `stmin` also sets the ELM327 flow-control data (`ATFCSD 30 00 {stmin}`) for an ECU that needs explicit flow control; the block size there is always `0`, because the adapter sends flow control only in answer to a First Frame. |
+| `quirks` | list | Make-specific behaviour toggles; make-neutral profiles omit it. `hk_f1xx_minus_one`: Hyundai/Kia identity DIDs answer one less than requested (`22F188` → `62F187`). `skm_wakeup`: enables the Ioniq Smart Key Module relay wake. `nissan_c0_session`: permits the Nissan session `10 C0` on KWP2000 ECUs (otherwise blocked, see [Safety](safety.md)) and adapts the `scan iocontrol`, `scan sessions` and `scan routines` probes to it. |
+| `isotp` | map | Client-side ISO-TP tuning for `slcan-tcp` (see below). `stmin` also sets the ELM327 flow-control data (`ATFCSD 30 00 {stmin}`); the block size there is always `0`. |
 | `physical_bands` | map | Vehicle-axis overrides for the reference-free physical-value scan (see below). |
+
+### Addressing
+
+`addressing:` tells canair how to build each ECU's request and response IDs.
+
+- **`mode`** — `normal_11bit` (default), `normal_29bit` (explicit `tx_id`/`rx_id` per ECU),
+  `normal_fixed_29bit` (the ISO `0x18DA{target}{tester}` convention, common on Ford/VAG; the
+  response ID is the byte-swapped request, so `rx_offset` doesn't apply), `normal_extended_11bit`
+  (an 11-bit header plus a per-ECU target-address byte in the payload — BMW `0x6F1`, PSA) or
+  `extended_29bit`.
+- **`rx_offset`** — the 11-bit response is `tx_id + rx_offset`. Default `0x08` (Hyundai/Kia);
+  XPeng uses `0x80` (`0x704`→`0x784`); it may be negative (PSA: `-0x20`).
+- **`target_address` / `source_address`** — profile-default extension bytes for the extended
+  modes. `source_address` is the tester address, default `0xF1`.
+
+A single irregular ECU can override these in its own file: `addressing.mode`, its own `rx_id`, or
+`addressing.fc_id` for the flow-control address (see ECU fields).
+
+On the ELM327 transports and in the generated AutoPID profile, canair derives each ECU's receive
+filter (`ATCRA`) and flow-control ID from this, so an ECU off the `+0x08` rule (Nissan Leaf
+`0x79B`→`0x7BB`) or one with a functional-request `fc_id` needs no `init` commands.
+
+Two ECUs sharing one `tx_id` but answering on different IDs can't be told apart by the live ELM327
+path, which treats that ID as a broadcast. `canair validate` warns about it; AutoPID still
+addresses each PID from its own ECU.
+
+### ISO-TP tuning
 
 The `isotp:` block overrides the client-side ISO-TP flow-control / padding /
 CAN-FD parameters. The defaults suit most 11-bit / classic-CAN vehicles; override
@@ -64,6 +91,8 @@ or a CAN-FD bus). The accepted keys — `tx_padding`, `blocksize`, `stmin`,
 `tx_data_length` — and their defaults are defined in
 [`canlib/transport/isotp_params.py`](https://github.com/philipkocanda/canair/blob/main/canlib/transport/isotp_params.py).
 `canair validate` type-checks every field and rejects an unknown `isotp:` key.
+
+### Physical bands
 
 The `physical_bands:` block tunes the **vehicle axis** of the reference-free
 physical-value scan (`canair hunt --physical` / `canair investigate`), which
