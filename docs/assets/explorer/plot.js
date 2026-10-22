@@ -138,7 +138,19 @@
     };
     host.replaceChildren(el("div", { class: "cx-databody" }, V.list, V.main));
     ui.onTray = function () { if (V && V.ui === ui) { V.writeHash(); V.renderList(); V.draw(); } };
-    new ResizeObserver(function () { if (V && V.host === host && host.clientWidth) V.plots.forEach(function (u) { u.setSize({ width: laneWidth(), height: u.height }); }); }).observe(host);
+    var lastWidth = host.clientWidth, timer = 0;
+    new ResizeObserver(function () {
+      if (!V || V.host !== host || !host.clientWidth) return;
+      V.plots.forEach(function (u) { u.setSize({ width: laneWidth(), height: u.height }); });
+      // The overview strip is a fixed-size canvas, so redraw it once the width settles.
+      clearTimeout(timer);
+      timer = setTimeout(function () {
+        if (V && V.host === host && V.S && Math.abs(host.clientWidth - lastWidth) > 20 && window.canairDiscover) {
+          lastWidth = host.clientWidth;
+          window.canairDiscover.heat(V);
+        }
+      }, 200);
+    }).observe(host);
   }
   function laneWidth() { return Math.max(300, V.main.clientWidth - 2); }
 

@@ -22,6 +22,10 @@
   var BROADCAST = "@broadcast";
   var SVG_NS = "http://www.w3.org/2000/svg";
 
+  var WIDE_KEY = "canair-explorer-wide";
+  function storedWide() { try { return localStorage.getItem(WIDE_KEY) === "1"; } catch (e) { return false; } }
+  function storeWide(on) { try { localStorage.setItem(WIDE_KEY, on ? "1" : "0"); } catch (e) { /* not remembered */ } }
+
   var cache = {};
   var app = null; // the mounted explorer, replaced on every (instant) page load
 
@@ -366,6 +370,7 @@
       verified: el("input", { type: "checkbox", onchange: function () { ui.verifiedOnly = ui.verified.checked; renderRail(); renderDetail(); } }),
       results: el("div", { class: "cx-results", hidden: true }),
       stats: el("span", { class: "cx-muted" }),
+      wide: el("button", { type: "button", class: "cx-button cx-widebtn", "aria-pressed": "false" }),
       diagram: el("div", {}),
       filterInput: el("input", { type: "search", class: "cx-input", placeholder: "Filter ECUs…", "aria-label": "Filter ECUs",
         oninput: function () { ui.filter = ui.filterInput.value.toLowerCase(); renderRail(); } }),
@@ -377,6 +382,19 @@
     };
     ui.defsBody = el("div", { class: "cx-body" }, el("div", { class: "cx-rail" }, ui.filterInput, ui.list), ui.detail);
     app = ui;
+
+    // Hide Material's left navigation (and let the page use the full window width) for wide plots.
+    function setWide(on) {
+      document.body.classList.toggle("cx-wide", on);
+      ui.wide.setAttribute("aria-pressed", on ? "true" : "false");
+      ui.wide.textContent = on ? "⇥ Show menu" : "⇤ Hide menu";
+      ui.wide.title = on ? "Bring back the site navigation" : "Hide the site navigation for more room";
+    }
+    ui.wide.addEventListener("click", function () {
+      var on = !document.body.classList.contains("cx-wide");
+      storeWide(on); setWide(on);
+    });
+    setWide(storedWide());
 
     function renderSearch() {
       var hits = ui.data ? search(ui.data, ui.search.value) : [];
@@ -515,7 +533,7 @@
 
     ui.show = show;
     root.replaceChildren(
-      el("div", { class: "cx-toolbar" }, ui.select, ui.search, el("label", { class: "cx-check" }, ui.verified, " verified only"), ui.stats),
+      el("div", { class: "cx-toolbar" }, ui.select, ui.search, el("label", { class: "cx-check" }, ui.verified, " verified only"), ui.stats, ui.wide),
       ui.results, ui.mode, ui.tray, ui.diagram, ui.defsBody, ui.dataHost);
 
     fetch(new URL("index.json", DATA_URL)).then(function (r) { return r.json(); }).then(function (index) {

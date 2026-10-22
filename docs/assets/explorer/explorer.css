@@ -170,3 +170,8 @@
 .cx-hero-cards strong { font-size: 0.85rem; }
 .cx-hero-cards span { font-size: 0.75rem; color: var(--md-default-fg-color--light); }
 .cx-hero .cx-muted { display: block; margin-top: 0.5rem; }
+
+/* Wide mode: hide the site navigation and use the whole window for the explorer. */
+.cx-widebtn { margin-left: auto; }
+body.cx-wide:has(.cx-explorer) .md-sidebar--primary { display: none; }
+body.cx-wide .md-grid:has(.cx-explorer) { max-width: none; }

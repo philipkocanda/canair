@@ -17,6 +17,9 @@ timeline. The overview strip shows every signal that moved, grouped by how alike
 what reacted inside the window you zoom to. The values are the decoded readings from the
 profile's own recorded sessions; payloads, identity responses and scans are never published.
 
+Short on room? **⇤ Hide menu** (top right of the explorer) drops the site navigation so plots use
+the whole window width; the choice is remembered.
+
 Nothing here talks to a device. To try a PID or an actuator yourself, copy the `canair` command
 shown beside it, and the terminal commands at the bottom of a plot reproduce it with the CLI.
 
