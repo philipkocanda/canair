@@ -187,14 +187,25 @@ BCM:
             0 in 254 of 292 aligned captures where IGPM DOOR_LOCK_FL and DOOR_LOCK_FR read 1, and
             changed 12 times between 21:03 and 21:27 on 2026-10-21 (runs of 21 s to 8 min) with all
             doors locked throughout. 1 in 367 of 978 captures.
+        BCM_LIGHT_SW_AUTO_B004:
+          expression: B12:3
+          min: "0"
+          max: "1"
+          source: "RE 2026-10-22: 22B004/22B005 co-polled sessions 2026-04-17..2026-10-22"
+          verified: false
+          notes: >-
+            Equal to 22B005 BCM_LIGHT_SW_AUTO in every co-polled capture: 1 only on 2026-10-22
+            (stalk at AUTO). Disabled as a duplicate. B12:7 is constant 1; B12:5 varies
+            independently of the stalk.
+          enabled: false
 
     22B005:
       response_frames: 2
       status: draft
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
       notes: >-
-        11 bytes. B10 changes A0↔AC during fob lock/unlock (bits 2,3 = 0x0C), together with B004 and
-        B006. B05=0x20, B07=0x10, B12=0x08.
+        11 bytes. B10 bits 2,3 (0x0C) set on fob unlock, together with B004 and B006; bits 5-7 are
+        the light-stalk position (BCM_LIGHT_SW_*). B05=0x20, B07=0x10, B12=0x08.
       parameters:
         BCM_B005_UNLOCK_BITS:
           expression: B10
@@ -206,8 +217,39 @@ BCM:
           source_links: []
           verified: false
           notes: >-
-            Reads 0xA0 in 259 of 306 captures; bits 2 and 3 set (0xAC) on fob unlock (2026-07-24
-            09:36:51). Also seen: 0x00, 0x08, 0x0C, 0xA8.
+            Whole byte. Bits 2 and 3 set (0x0C) on fob unlock (2026-07-24 09:36:51). Bits 5-7 are
+            the light-stalk position (BCM_LIGHT_SW_*): the common 0xA0 is the stalk in a lamps-on
+            position, 0x00/0x08/0x0C with it OFF, 0x48 at AUTO.
+        BCM_LIGHT_SW_AUTO:
+          expression: B10:6
+          min: "0"
+          max: "1"
+          source: "RE 2026-10-22: all 22B003/22B005 co-polled sessions 2026-04-17..2026-10-22"
+          verified: false
+          notes: >-
+            1 only on 2026-10-22 (21 captures), when the light stalk was confirmed set to AUTO; 0 in
+            every other session. Bits 5 and 7 clear while set. Duplicated by 22B004 B12:3.
+        BCM_LIGHT_SW_ON_B5:
+          expression: B10:5
+          min: "0"
+          max: "1"
+          source: "RE 2026-10-22: all 22B003/22B005 co-polled sessions 2026-04-17..2026-10-22"
+          verified: false
+          notes: >-
+            Set together with B10:7 whenever 22B003 B14 reads ~211, including the 2026-07-30 and
+            2026-08-02 READY captures with IGPM LOW_BEAM and TAIL_LIGHTS on; clear at ~249 (lamps
+            never on at READY). Cleared with B10:7 between 10:20:52 and 10:25:27 on 2026-07-30 as
+            LOW_BEAM went 1->0. Parking-light vs headlamp contact not separated: parking position
+            never captured (prediction: B10:5 alone).
+        BCM_LIGHT_SW_ON_B7:
+          expression: B10:7
+          min: "0"
+          max: "1"
+          source: "RE 2026-10-22: all 22B003/22B005 co-polled sessions 2026-04-17..2026-10-22"
+          verified: false
+          notes: >-
+            Always equal to B10:5 so far (see BCM_LIGHT_SW_ON_B5). Set with the stalk in a lamps-on
+            position, clear at OFF and AUTO.
     22B006:
       response_frames: 2
       status: draft
@@ -311,17 +353,21 @@ BCM:
           verified: true
           notes: >-
             Scale estimated from one reading: raw 149 = 11.92 V against the WiCAN's own 12.1 V.
-        BCM_B003_B12:
+        BCM_AMBIENT_LIGHT:
           expression: B12
           unit: ""
           display: ""
           ha_class: ""
           min: "0"
           max: "255"
-          source: RE 2026-08-02 state discrimination (READY/CHARGING/ACC2)
+          source: "RE 2026-10-22: B12 by hour of day across 2026-04-15..2026-10-22"
           source_links: []
           verified: false
-          notes: Range 9-246 across 3620 captures, median 245, and does not follow the power state.
+          notes: >-
+            Raw count, higher = brighter. 9-55 in every session after 20:00 and at 08:28 on
+            2026-08-05; 245-246 (ceiling) in daylight; 51-246 while parked charging 12:31-15:30 on
+            2026-08-05. Ceiling in daylight fits an auto-headlight sensor. No HVAC byte tracks it
+            (|r| <= 0.32). Auto-on threshold not captured (no AUTO-in-dark data).
     # ─── TPMS configuration DIDs (22C001-C014) ───────────────────────────
     # Static TPMS sensor registration, IDs, and configuration data.
     # C00B (above) has live tyre pressure/temp readings.
@@ -336,6 +382,28 @@ BCM:
           notes: >-
             0 in more than half of 3620 captures; when non-zero it reads close to BCM_12V_BATTERY,
             and fell 14.5 to 12.4 V with it when the DC-DC converter stopped after a charge.
+        BCM_LIGHT_SW_ADC:
+          expression: B14
+          min: "0"
+          max: "255"
+          source: "RE 2026-10-22: B14 levels vs 22B005 B10 bits 5-7 and IGPM 22BC03 lamp outputs"
+          verified: false
+          notes: >-
+            Discrete levels with +-1 LSB flicker, read as a resistor-ladder light-stalk input: ~249
+            OFF, ~211 lamps on, 101 AUTO (2026-10-22, stalk confirmed AUTO). Same partition as
+            BCM_LIGHT_SW_* on 22B005 in every co-polled session. Parking-light level not captured.
+        BCM_TEMP_RAW_B13:
+          expression: B13
+          min: "0"
+          max: "255"
+          source: "RE 2026-10-22: B13 vs HVAC_INTERIOR_TEMP, 2026-04-15..2026-10-22"
+          verified: false
+          notes: >-
+            Raw count, falls as temperature rises (NTC-like). Against HVAC_INTERIOR_TEMP, excluding
+            dropouts: B13 ~ 224.2 - 2.26 x cabin degC, r=-0.955, n=830, cabin 9-38.5 degC. 112-203
+            overall; 201-203 at 9 degC on 2026-10-22, 169 -> 136 as the cabin went 26 -> 38.5 degC
+            on 2026-08-02. Isolated single-sample drops to 62 (22 of 3676), read as an invalid-value
+            marker. Sensor location unknown: lags cabin air, may be BCM board temperature.
     22C001:
       status: ignored
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
@@ -862,6 +930,23 @@ BCM:
       created: "2026-08-07"
       updated: "2026-08-07"
       notes: "Identify BCM_EVENT_COUNTER_C011 (B13:B14, monotonic 9835->10092 over 112 days, ~2.3/day, 7.24 km per count lifetime). Controlled test: read 22C011, cycle the ignition ONCE without moving the car, re-read. +1 => ignition/power-cycle count; unchanged => distance-gated trip count. Repeat with a short drive to separate the two."
+    - type: verify
+      target: 22B005 B10:5-7 / 22B003 B12,B14 light stalk + auto-light
+      status: captured
+      priority: P2
+      vehicle_states: [READY]
+      created: "2026-10-22"
+      updated: "2026-10-22"
+      notes: >-
+        Stalk OFF/lamps-on/AUTO decoded from 2026-04-17..2026-10-22 captures (BCM_LIGHT_SW_*,
+        BCM_LIGHT_SW_ADC); BCM_AMBIENT_LIGHT is a candidate auto-headlight sensor. Parking-light
+        position and the AUTO on/off threshold are uncaptured.
+      what_to_test:
+        - Stalk OFF, AUTO, parking, low beam (~3 s each); parking = B10:5 alone?
+        - "AUTO, cover dash sensor: BCM_AMBIENT_LIGHT at LOW_BEAM on and off"
+      capture_protocol: >-
+        canair monitor BCM:22B003,22B004,22B005 IGPM:22BC03 --save --keep-changes --state READY
+        --label 'light stalk + auto-light sweep'; press 's' to note each step.
   iocontrol_discoveries:
     B003:
       response: "6FB00300"

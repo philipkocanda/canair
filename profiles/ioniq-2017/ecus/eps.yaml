@@ -19,7 +19,7 @@ EPS:
       vehicle_states: [READY]
       notes: >-
         18 bytes. Unmapped: B05, B06 (0x8A and 0x8E at rest), B07 (constant) and B11. B18:B19 is
-        constant 0x1010.
+        constant 0x1010; B21 constant 0x01.
       parameters:
         EPS_VEHICLE_SPEED:
           expression: B14
@@ -86,6 +86,20 @@ EPS:
           notes: >-
             Signed 16-bit big-endian (high S9, low B10), negated to match the ESC sign. r=+1.000 vs
             ESC:22C101:STEERING_ANGLE (n=29, residual 1.35 °) over a ±90 ° sweep on 2026-07-30.
+        EPS_TEMP:
+          expression: B20
+          unit: °C
+          ha_class: temperature
+          min: "0"
+          max: "255"
+          source: "RE 2026-10-22: B20 vs HVAC_INTERIOR_TEMP/AAF AMBIENT_TEMP, 2026-07-22..10-22"
+          verified: false
+          notes: >-
+            Read as degC with no offset: 10 at the 2026-10-22 cold-soak start (ambient 8, cabin 8-9
+            degC), rising to 20 over 35 min parked at READY; 31-46 in summer. B20 ~ 1.15 x cabin +
+            6.6, r=0.975, n=153; vs AAF AMBIENT_TEMP r=0.883, n=1322. Unit is on the steering
+            column, so it tracks the cabin plus self-heating. One 0 at 2026-08-08 16:44:14. B21
+            constant 0x01.
     220102:
       status: static
       period: 2500
