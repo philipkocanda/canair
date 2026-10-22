@@ -84,10 +84,9 @@ HVAC:
       notes: >-
         38-byte response (35 data bytes after the DID) of sensor and actuator status; set
         temperature, fan level, mode and recirculation do not appear here. Constant in all 1758
-        captures: B5=0x7E, B6=0x50, B7=0x07, B9=0xC8, B45-B47=0x00, and 0xFF at B10, B18, B19, B21,
-        B23, B25-B31, B33, B39, B41, B43 and B44. B20 is 16-240 (r=+0.49 vs blower). B38 is 0 in
-        1681 captures; B42 reads 0 or 1. 2201A3 B33-B36 and B41 carry copies of B15, B22, B17, B20
-        and B34.
+        captures: B5=0x7E, B6=0x50, B7=0x07, B9=0xC8, and 0xFF at B10, B18, B19, B21, B23, B25-B31,
+        B33, B39, B41, B43 and B44. B20 is 16-240 (r=+0.49 vs blower). B38 is 0 in 1681 captures;
+        B42 reads 0 or 1. 2201A3 B33-B36 and B41 carry copies of B15, B22, B17, B20 and B34.
       parameters:
         HVAC_INTERIOR_TEMP:
           expression: (B11/2)-40
@@ -208,8 +207,7 @@ HVAC:
       vehicle_states: []
       notes: >-
         16-byte response (13 data bytes after the DID) of secondary temperatures and the heat-pump
-        flag. Constant in all 950 captures: B5=0xFF, B6=0x80, and 0x00 at B7, B9, B14 and
-        B20-B23.
+        flag. Constant in all 950 captures: B5=0xFF, B6=0x80, and 0x00 at B7, B9, and B14.
       parameters:
         HVAC_HEAT_EXCHANGER_TEMP:
           expression: (B10/2)-40
@@ -285,8 +283,8 @@ HVAC:
         feedback, air-door positions and temperature copies. Copies of other bytes: B10 = B9, B20 =
         B19, B45 = B44, B51 = B6 and B52 = B7 in every capture; B14 = 220100 B11 and B17 = 220100
         B12 in over 98 % of time-joined rows. Constant in all 2256 captures: B28=0x28, B39=0x0A,
-        B42-B43=0xFF, and 0x00 at B22, B54, B57, B58, B61-B63, B65 and B69-B71. B21 reads 0, 90 or
-        96, and B23 is 0 exactly when B21 is non-zero (one exception).
+        B42-B43=0xFF, and 0x00 at B22, B54, B57, B58, B61-B63, and B65. B21 reads 0, 90 or 96, and
+        B23 is 0 exactly when B21 is non-zero (one exception).
       parameters:
         HVAC_SET_TEMP_DRIVER:
           expression: "B44"
@@ -499,9 +497,9 @@ HVAC:
       status: draft
       notes: >-
         51-byte response (48 data bytes after the DID), mostly 16-bit words. B19 equals 2201A0 B6
-        (heat mode) in 1419 of 1420 time-joined rows and B20 follows 2201A0 B7 (r=+0.999).
-        Constant in all 1499 captures: B45=0xFF, B46=0xD8, and 0x00 at B10, B30, B35, B37, B39,
-        B43, B55 and B60-B63.
+        (heat mode) in 1419 of 1420 time-joined rows and B20 follows 2201A0 B7 (r=+0.999). Constant
+        in all 1499 captures: B45=0xFF, B46=0xD8, and 0x00 at B10, B30, B35, B37, B39, B43, B55, B58
+        and B59.
       vehicle_states: [ACC, ACC2, READY]
       parameters:
         HVAC_HEAT_POWER:
@@ -553,12 +551,12 @@ HVAC:
       status: draft
       vehicle_states: [ACC, ACC2, READY]
       notes: >-
-        53-byte response (50 data bytes after the DID). B33, B34, B35, B36 and B41 carry 220100
-        B15, B22, B17, B20 and B34 (equal in 91-98 % of time-joined rows). B15 is non-zero (48-58)
-        in heat-pump mode and 0 otherwise (two exceptions in 2011 time-joined rows). B50:B51 and
-        B52:B53 are big-endian words 30 apart, constant within a session (700/730 in most,
-        640/670 on 2026-10-22). Constant in all 2015 captures: 0xFF at B10-B13, 0x00 at B14, B26,
-        B37, B38, B47, B54 and B60-B63.
+        53-byte response (50 data bytes after the DID). B33, B34, B35, B36 and B41 carry 220100 B15,
+        B22, B17, B20 and B34 (equal in 91-98 % of time-joined rows). B15 is non-zero (48-58) in
+        heat-pump mode and 0 otherwise (two exceptions in 2011 time-joined rows). B50:B51 and
+        B52:B53 are big-endian words 30 apart, constant within a session (700/730 in most, 640/670
+        on 2026-10-22). Constant in all 2015 captures: 0xFF at B10-B13, 0x00 at B14, B26, B37, B38,
+        B47, B54, B60 and B61.
       parameters: {}
 
     2201A4:

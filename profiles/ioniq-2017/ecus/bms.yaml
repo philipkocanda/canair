@@ -1789,7 +1789,15 @@ BMS:
       vehicle_states: [CHARGING]
       created: "2026-08-01"
       updated: "2026-08-01"
-      notes: "2026-07-30 AC-charge analysis. Registered 2 unverified candidates: BMS_2101_B10 (=B10, r=+0.998 vs BMS:2105:AVAIL_CHARGE_POWER, ~0.4 kW/LSB — likely charge-power-limit mirror) and BMS_2101_B63 (=B63, r=+0.998 vs cell voltage, charge-monotone, low confidence). Both are SOC-monotone in a steady charge so confounded. NEGATIVE RESULT: over the whole 2.7h charge the other unmapped 2101 bytes B4-B7, B12, B13, B28, B66-B73 stayed CONSTANT = cal/reserved/counter, not live charge signals. NEXT: co-poll BMS:2101+BMS:2105+VCU:2102 with --keep-all across a plug/unplug charge cycle AND a drive to give B10/B63 independent variation; then hunt --against AVAIL_CHARGE_POWER / cell voltage to confirm scaling."
+      notes: >-
+        2026-07-30 AC-charge analysis. Registered 2 unverified candidates: BMS_2101_B10 (=B10,
+        r=+0.998 vs BMS:2105:AVAIL_CHARGE_POWER, ~0.4 kW/LSB — likely charge-power-limit mirror) and
+        BMS_2101_B63 (=B63, r=+0.998 vs cell voltage, charge-monotone, low confidence). Both are
+        SOC-monotone in a steady charge so confounded. NEGATIVE RESULT: over the whole 2.7h charge
+        the other unmapped 2101 bytes B4-B7, B12, B13, B28, B66-B70 stayed CONSTANT =
+        cal/reserved/counter, not live charge signals. NEXT: co-poll BMS:2101+BMS:2105+VCU:2102 with
+        --keep-all across a plug/unplug charge cycle AND a drive to give B10/B63 independent
+        variation; then hunt --against AVAIL_CHARGE_POWER / cell voltage to confirm scaling.
     - type: verify
       target: 2101 B14 bits 1,2,3,4,6 — needs a DC fast charge
       status: done

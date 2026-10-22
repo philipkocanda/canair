@@ -587,27 +587,28 @@ VCU:
         bytes of little-endian words: [B19:B20] LDC output voltage and [B26:B27] 12 V battery
         voltage (1 mV), [B21:B22] LDC output power (0.1 W), and (B25<<8)|B23 DC-link voltage (0.01
         V). B4-B7, B9 and B11-B13 are constant.
-      notes: >
-        27 bytes. 2026-07-20 (Kia Soul EV VMCU cross-ref, 0x7E2): mapped INVERTER_INPUT_VOLTAGE=B17*2
-        (verified vs BMS pack ~369V) and AUX_BATTERY_VOLTAGE=B18/10 (~12–13.6V). KEY FINDING: the Ioniq
-        redistributes the Soul VMCU payload — motor RPM/torque/heat-sink & MCU temp/phase currents are NOT
-        in VCU 2102 (candidate temp bytes are constant across cold/hot sessions; no byte tracks speed like RPM).
-        Those live in the separate MCU ECU (0x7E3). Soul letter positions also don't transfer 1:1
-        (Soul e/f = our B18/B17, transposed). Disabled the old bogus params (MOTOR_RPM/HEAT_SINK/MCU_TEMP).
-        2026-07-23 (canair historical byte analysis, 1674 captures): (1) DATA-INTEGRITY BUG — 22 captures at
-        16:13–16:14 on 2026-07-19 filed under 2102 are actually VCU 2101 responses (begin 61 01). They are the
-        SOLE source of the VCU_TORQUE_REQUEST "±31k while driving" signal, which is now DISPROVEN — in real 6102
-        frames B12=B13=0x00 always (even at speed). Purge/relabel those frames. (2) B25 is a coarse 8-bit copy
-        of the HV DC-link voltage (B25*2.56 ≈ B17*2, r=+0.950) → added disabled VCU_DCLINK_VOLTAGE_COARSE.
-        (3) Constants in ready/drive: B4/B5=0xF8, B6/B7=0, B9=1, B10=1, B11=0, B14~149, B20~58, B27~57, B22 low,
-        B28-B31=0 (their "other" values only appear in the mislabeled 2101 frames). (4) Still-unmapped fast
-        signals B19/B21/B23/B26 are max-entropy (all 256 values) — likely motor phase currents / resolver offset
-        / angle per the Soul VMCU sheet (Int16 phase-current & resolver fields), aliasing at the 5s poll.
-        2026-07-23 (re-audit): 0 misfiled 6101-under-2102 frames remain (all 1652 VCU
-        0x7EA + 1015 sibling 2102 payloads begin 6102). VCU_TORQUE_REQUEST [S12:S13]
-        constant 0 across all 1652 genuine frames (kept disabled as the disproof). Only
-        car-access work remains (fast bytes need a synced high-rate MCU drive; temps need
-        a cold/hot contrast).
+      notes: >-
+        23 bytes. 2026-07-20 (Kia Soul EV VMCU cross-ref, 0x7E2): mapped
+        INVERTER_INPUT_VOLTAGE=B17*2 (verified vs BMS pack ~369V) and AUX_BATTERY_VOLTAGE=B18/10
+        (~12–13.6V). KEY FINDING: the Ioniq redistributes the Soul VMCU payload — motor
+        RPM/torque/heat-sink & MCU temp/phase currents are NOT in VCU 2102 (candidate temp bytes are
+        constant across cold/hot sessions; no byte tracks speed like RPM). Those live in the
+        separate MCU ECU (0x7E3). Soul letter positions also don't transfer 1:1 (Soul e/f = our
+        B18/B17, transposed). Disabled the old bogus params (MOTOR_RPM/HEAT_SINK/MCU_TEMP).
+        2026-07-23 (canair historical byte analysis, 1674 captures): (1) DATA-INTEGRITY BUG — 22
+        captures at 16:13–16:14 on 2026-07-19 filed under 2102 are actually VCU 2101 responses
+        (begin 61 01). They are the SOLE source of the VCU_TORQUE_REQUEST "±31k while driving"
+        signal, which is now DISPROVEN — in real 6102 frames B12=B13=0x00 always (even at speed).
+        Purge/relabel those frames. (2) B25 is a coarse 8-bit copy of the HV DC-link voltage
+        (B25*2.56 ≈ B17*2, r=+0.950) → added disabled VCU_DCLINK_VOLTAGE_COARSE. (3) Constants in
+        ready/drive: B4/B5=0xF8, B6/B7=0, B9=1, B10=1, B11=0, B14~149, B20~58, B27~57, B22 low. (4)
+        Still-unmapped fast signals B19/B21/B23/B26 are max-entropy (all 256 values) — likely motor
+        phase currents / resolver offset / angle per the Soul VMCU sheet (Int16 phase-current &
+        resolver fields), aliasing at the 5s poll. 2026-07-23 (re-audit): 0 misfiled 6101-under-2102
+        frames remain (all 1652 VCU 0x7EA + 1015 sibling 2102 payloads begin 6102).
+        VCU_TORQUE_REQUEST [S12:S13] constant 0 across all 1652 genuine frames (kept disabled as the
+        disproof). Only car-access work remains (fast bytes need a synced high-rate MCU drive; temps
+        need a cold/hot contrast).
       what_to_test:
         - "Re-map motor RPM/torque/temps under MCU 0x7E3 2101/2102 using the Soul VMCU scalings as a guide"
         - "Confirm B17 HV voltage with a same-instant BMS read while driving"

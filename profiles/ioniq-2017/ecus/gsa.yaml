@@ -26,8 +26,7 @@ GSA:
       period: 5000
       vehicle_states: [ACC, ACC2, READY]
       notes: >-
-        27 bytes; the only DID GSA answers (service 21 and 22 0101-0130 all NRC, 2026-07-20). In
+        21 bytes; the only DID GSA answers (service 21 and 22 0101-0130 all NRC, 2026-07-20). In
         Park on 2026-04-17 and 2026-07-20, B19, B21 and B22 changed from 0x93, 0x91, 0x94 to 0x77,
-        0x76, 0x78; B20 is constant 0x01. Payloads:
-        620100FF00000080AA010000000000930191940001000000000000 and
-        620100FF00000080AA010000000000770176780001000000000000.
+        0x76, 0x78; B20 is constant 0x01. Payloads: 620100FF00000080AA010000000000930191940001 and
+        620100FF00000080AA010000000000770176780001.

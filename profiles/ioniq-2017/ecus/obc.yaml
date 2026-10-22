@@ -60,7 +60,7 @@ OBC:
           verified: true
           notes: >-
             HV pack voltage at the LDC, present at READY and while charging. r=0.998 vs
-            VCU:2102:VCU_INVERTER_INPUT_VOLTAGE (n=5689). Only in the full 48-byte response.
+            VCU:2102:VCU_INVERTER_INPUT_VOLTAGE (n=5689).
 
         LDC_OUTPUT_V:
           expression: "[B25:B26]/100"
@@ -150,7 +150,7 @@ OBC:
         # OBC heatsink/inside/water temps (Soul OBC: Signed(S)/(T)/(U)) are NOT exposed on the Ioniq LDC 2101.
         # Previous S15/S16/S17 guesses were bogus: S15/S17 read current bytes (B15/B17), S16 reads the ISO-TP
         # PCI byte 0x22 (=34) — the "static 34°C" was the frame header, not a temperature.
-        # 2026-07-20 full 48-byte charging capture (10A AC): the only clean temp is LDC_TEMP (B19-100).
+        # 2026-07-20 full 44-byte charging capture (10A AC): the only clean temp is LDC_TEMP (B19-100).
         # Candidate OBC-temp bytes are dead constants during charging (B28=16, B29=32 across all 262 caps of a
         # 3h charge → fixed values/status, not sensors); B21-40 drifts 31→38°C charging but reads implausibly
         # (10°C READY, 14°C after a hot drive) → not a reliable sensor. OBC internal temps likely just aren't
@@ -226,14 +226,16 @@ OBC:
       status: captured
       priority: P1
       vehicle_states: [READY, CHARGING]
-      notes: >
-        2026-07-20 (Kia Soul LDC/OBC CSV + live READY vs 10A-AC charging + BMS cross-check): LDC_HV_INPUT_V
-        = [B45:B46]/100 (385.7V READY / 386.9V charging = BMS pack 385.6V), LDC_TEMP=B19-100 (21→65°C over 3h,
-        live 27°C), reclassified [B12:B13]→OBC_OUTPUT_V (≈pack when charging, idle in READY), OBC_CHARGE_V
-        [B10:B11]=397V (charge > pack), OBC_DC_A=5.2A (≈BMS charge current), LDC_OUTPUT_V=14.15V (=BMS aux 14.2V),
-        pilot 10% at 10A AC. Removed bogus OBC temps (S15/S17=current, S16=PCI 0x22) + OBC_AC_INPUT_V(=B15 current).
-        CONCLUSION: OBC internal temps are NOT broadcast — the full 48-byte charging response has no heatsink/
-        inside/water temp (candidate bytes B28=16/B29=32 are dead constants; B21 unreliable). Only LDC_TEMP exists.
+      notes: >-
+        2026-07-20 (Kia Soul LDC/OBC CSV + live READY vs 10A-AC charging + BMS cross-check):
+        LDC_HV_INPUT_V = [B45:B46]/100 (385.7V READY / 386.9V charging = BMS pack 385.6V),
+        LDC_TEMP=B19-100 (21→65°C over 3h, live 27°C), reclassified [B12:B13]→OBC_OUTPUT_V (≈pack
+        when charging, idle in READY), OBC_CHARGE_V [B10:B11]=397V (charge > pack), OBC_DC_A=5.2A
+        (≈BMS charge current), LDC_OUTPUT_V=14.15V (=BMS aux 14.2V), pilot 10% at 10A AC. Removed
+        bogus OBC temps (S15/S17=current, S16=PCI 0x22) + OBC_AC_INPUT_V(=B15 current). CONCLUSION:
+        OBC internal temps are NOT broadcast — the full 44-byte charging response has no heatsink/
+        inside/water temp (candidate bytes B28=16/B29=32 are dead constants; B21 unreliable). Only
+        LDC_TEMP exists.
       what_to_test:
         - "CONFIRMED 2026-07-30: LDC_HV_INPUT_V tracks BMS pack r=+1.000 (n=775) across SOC 71→95% (373→399V) in the long AC-charge session — wider-SOC cross-check done."
         - "Confirm OBC_OUTPUT_V ([B12:B13]) vs OBC_CHARGE_V ([B10:B11]) semantics against a DC meter"

@@ -12,7 +12,7 @@
 # are both part of the Electronic Powertrain Control Unit (EPCU) physical housing.
 #
 # Full service 21 scan (01-FF) during AC charging (2026-04-18):
-#   0x01 (34 bytes), 0x02 (62 bytes), 0x03 (27 bytes, all zeros), 0xF2 (69 bytes).
+#   0x01 (30 bytes), 0x02 (56 bytes), 0x03 (27 bytes, all zeros), 0xF2 (67 bytes).
 #
 # KWP2000 diagnostic sessions (service 0x10) — probed 2026-07-22, car in READY:
 # see the structured `sessions:` field at the end of this ECU block.
@@ -42,10 +42,9 @@ MCU:
       period: 5000
       vehicle_states: [READY, CHARGING]
       notes: >-
-        30 bytes; a 34-byte variant adds four trailing 00 bytes. Words are little-endian, unlike BMS
-        2101. B23 and B26 are constant 0x02 and 0x04. B9/B10/B11 read 8/56/1 in 5121 of 5776
-        CHARGING captures and in all 35 TOPUP captures; in READY B11 is 0 in all 2369 captures and
-        B9 is 140 or 12.
+        30 bytes. Words are little-endian, unlike BMS 2101. B23 and B26 are constant 0x02 and 0x04.
+        B9/B10/B11 read 8/56/1 in 5121 of 5776 CHARGING captures and in all 35 TOPUP captures; in
+        READY B11 is 0 in all 2369 captures and B9 is 140 or 12.
       parameters:
         MCU_2101_B22:
           expression: B22
@@ -138,8 +137,9 @@ MCU:
       period: 5000
       vehicle_states: [CHARGING]
       notes: >-
-        62 bytes. B27-B33 hold constant calibration bytes that also appear in 21F2. B52 is a counter
-        or checksum that correlates with no signal. B54 onward is zero padding.
+        56 bytes. B27-B33 hold constant calibration bytes that also appear in 21F2. B52 is a counter
+        or checksum that correlates with no signal. The data bytes from B54 to the end (B65) read 0
+        in all 7757 captures.
       parameters:
         MCU_MOTOR_RPM:
           expression: (S10<<8)|B09
@@ -482,14 +482,15 @@ MCU:
       status: captured
       priority: P1
       vehicle_states: [CHARGING]
-      notes: >
-        62 bytes. 2026-07-20 (Phase 1): MOTOR_RPM verified at [S10:S11]. Added UNVERIFIED candidates from
-        variance + park/drive + dRPM-correlation over 332 captures: MCU_MOTOR_TORQUE_2 [S14:S15]/100 (second
-        signed-16 torque, ≈0 at park), MCU_PHASE_CURRENT_RMS [B17:B18]/10 (always ≥0, r=+0.44 vs dRPM). Temps
-        B20/B21 still barely-warmed candidates. Calibration block B27–B33 documented as static (resolver +
-        U/V phase offsets). STILL OPEN (Phase 2): confirm which torque is command vs estimated, phase-current
-        scale, disambiguate the 3rd temperature (B22/B25 track RPM, 52..248 raw — offset/scale unclear), and
-        identify the highly-dynamic B52 (card=180). Needs a warm, dense, synced VCU+MCU drive capture.
+      notes: >-
+        56 bytes. 2026-07-20 (Phase 1): MOTOR_RPM verified at [S10:S11]. Added UNVERIFIED candidates
+        from variance + park/drive + dRPM-correlation over 332 captures: MCU_MOTOR_TORQUE_2
+        [S14:S15]/100 (second signed-16 torque, ≈0 at park), MCU_PHASE_CURRENT_RMS [B17:B18]/10
+        (always ≥0, r=+0.44 vs dRPM). Temps B20/B21 still barely-warmed candidates. Calibration
+        block B27–B33 documented as static (resolver + U/V phase offsets). STILL OPEN (Phase 2):
+        confirm which torque is command vs estimated, phase-current scale, disambiguate the 3rd
+        temperature (B22/B25 track RPM, 52..248 raw — offset/scale unclear), and identify the
+        highly-dynamic B52 (card=180). Needs a warm, dense, synced VCU+MCU drive capture.
       what_to_test:
         - "Torque: MCU_MOTOR_TORQUE [S12:S13] vs MCU_MOTOR_TORQUE_2 [S14:S15] — which is command vs estimated? Both ≈0 at park; correlate against pedal + dRPM incl. regen/braking (signed must go negative)."
         - "Phase current: [B17:B18] scale — /10→A guess; confirm 0 at park, rises with |torque|, peak vs motor spec."
@@ -551,7 +552,7 @@ MCU:
       priority: P2
       vehicle_states: [CHARGING]
       date: "2026-04-18"
-      notes: "69 bytes. Discovered during charging scan. Undecoded."
+      notes: 67 bytes. Discovered during charging scan. Undecoded.
     - type: scan
       target: "22 E001-E010"
       status: done
@@ -624,7 +625,12 @@ MCU:
       vehicle_states: [CHARGING, ACC2]
       created: "2026-08-02"
       updated: "2026-08-02"
-      notes: "69 bytes. Discovered during charging scan. 93 captures as of 2026-08-02 (READY/charge/ACC2). CAUTION: investigate/correlate on this scope is unreliable - keep:unique + the bimodal charge-vs-ACC2 regime makes many bytes hit r~0.999 vs unrelated HVAC signals (two-cluster artifact, see plans/2026-08-02-align-and-analysis-issues.md #3). Needs a keep-all drive with continuous variation to decode. Same shape as VCU 21F2 (140 caps)."
+      notes: >-
+        67 bytes. Discovered during charging scan. 93 captures as of 2026-08-02 (READY/charge/ACC2).
+        CAUTION: investigate/correlate on this scope is unreliable - keep:unique + the bimodal
+        charge-vs-ACC2 regime makes many bytes hit r~0.999 vs unrelated HVAC signals (two-cluster
+        artifact, see plans/2026-08-02-align-and-analysis-issues.md #3). Needs a keep-all drive with
+        continuous variation to decode. Same shape as VCU 21F2 (140 caps).
     - type: decode
       target: 21F2
       status: captured

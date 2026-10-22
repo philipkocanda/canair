@@ -166,7 +166,7 @@ ESC:
       period: 2500
       vehicle_states: []
       notes: >-
-        26-27 bytes. 2026-04-17: 62C1023FE00000FFFFFFFFFFFF01010000A9AA000000C0C0D4D400. 2026-07-22
+        26 bytes. 2026-04-17: 62C1023FE00000FFFFFFFFFFFF01010000A9AA000000C0C0D4D4. 2026-07-22
         (READY, parked): the word after 01010000 read 9C9C instead of A9AA; the rest was unchanged.
   research:
     - type: decode

@@ -107,6 +107,21 @@ def is_frame_aligned(length: int) -> bool:
     return length > 7 and (length - 6) % 7 == 0
 
 
+# Bytes ECUs commonly pad an ISO-TP frame with. Old captures kept that filler, so a
+# payload ending in anything else cannot have a padded tail.
+_FILL_BYTES = frozenset({"00", "55", "AA", "CC", "FF"})
+
+
+def may_be_padded(payload_hex: str, recorded_version: str | None) -> bool:
+    """True if ``payload_hex``'s length may include trailing frame padding.
+
+    Only captures from before sessions recorded a ``version`` stored the final frame
+    padded, and only a frame-aligned length ending in a fill byte can hide padding.
+    """
+    n = len(payload_hex) // 2
+    return not recorded_version and is_frame_aligned(n) and payload_hex[-2:].upper() in _FILL_BYTES
+
+
 def session_length(lengths: Counter) -> int:
     """The payload length one session reports: its most common, longer on a tie."""
     return max(lengths, key=lambda n: (lengths[n], n))
@@ -124,9 +139,8 @@ def representative_payloads(entries: Iterable[Mapping]) -> dict[tuple[str, str],
     so the padded length always won and its filler was reported as undecoded data.
     Taking the newest session also ignores one-off strays from an older session.
 
-    ``may_include_padding`` is set when the length is frame-aligned and the session
-    predates recording ``version`` metadata, i.e. the length may still be padded
-    because no newer session has read the PID.
+    ``may_include_padding`` (see :func:`may_be_padded`) flags a length that may still be
+    padded because no newer session has read the PID.
     """
     sessions: dict[tuple, dict[tuple[str, str], Counter]] = {}
     meta: dict[tuple, Mapping] = {}
@@ -157,7 +171,9 @@ def representative_payloads(entries: Iterable[Mapping]) -> dict[tuple[str, str],
                 "date": date,
                 "label": m.get("session_label", ""),
                 "file": m.get("file", ""),
-                "may_include_padding": is_frame_aligned(n) and not m.get("session_version"),
+                "may_include_padding": may_be_padded(
+                    sample[(skey, pkey)][n], m.get("session_version")
+                ),
             }
     return best
 

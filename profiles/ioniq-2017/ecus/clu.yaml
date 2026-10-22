@@ -47,13 +47,13 @@ CLU:
       status: draft
       period: 10000
       vehicle_states: []
-      notes: "13 bytes, all 0 when stationary: 62B00100000000000000000000."
+      notes: "8 bytes, all 0 in all 57 captures: 62B0010000000000."
     22B003:
       response_frames: 2
       status: draft
       period: 10000
       vehicle_states: []
-      notes: "13 bytes: 62B00388000000010000000000."
+      notes: "8 bytes: 62B0038800000001."
   research:
     - type: verify
       target: "22B002"

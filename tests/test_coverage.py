@@ -264,6 +264,15 @@ class TestRepresentativePayload:
         )
         assert got["may_include_padding"] is False
 
+    def test_old_frame_aligned_length_not_ending_in_filler_is_trusted(self, tmp_path, monkeypatch):
+        """Padding is the ECU's fill byte, so a payload ending in data cannot be padded."""
+        exact = self.CLEAN + "11" * 3 + "42"
+        got = self._load(
+            tmp_path, monkeypatch, {"2026-04-17": [self._session("2026-04-17", [exact])]}
+        )
+        assert len(got["payload"]) // 2 == 20
+        assert got["may_include_padding"] is False
+
     @pytest.mark.parametrize(
         ("length", "aligned"),
         [(20, True), (62, True), (13, True), (16, False), (59, False), (7, False)],

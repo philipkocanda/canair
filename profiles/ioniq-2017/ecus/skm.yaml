@@ -59,13 +59,13 @@ SKM:
       status: draft
       period: 10000
       vehicle_states: [SLEEP]
-      notes: "27 bytes: 62B003000000003412900300000000C6A21261000000000F00AAAA."
+      notes: "25 bytes: 62B003000000003412900300000000C6A21261000000000F00."
     22B005:
       response_frames: 2
       status: draft
       period: 10000
       vehicle_states: [SLEEP]
-      notes: "13 bytes: 62B005FA60900000040000AAAA."
+      notes: "11 bytes: 62B005FA60900000040000."
     22B006:
       response_frames: 4
       status: draft
@@ -100,25 +100,25 @@ SKM:
       status: draft
       period: 10000
       vehicle_states: [SLEEP]
-      notes: "20 bytes, all 0: 62B0080000000000000000000000000000AAAAAA."
+      notes: "17 bytes, mostly 0: 62B0080000000000000009000000000000."
     22B009:
       response_frames: 5
       status: draft
       period: 10000
       vehicle_states: [SLEEP]
-      notes: 34 bytes, mostly 0.
+      notes: 33 bytes, all 0 in all 17 captures.
     22B00A:
       response_frames: 3
       status: draft
       period: 10000
       vehicle_states: [SLEEP]
-      notes: "20 bytes: 62B00A0100F038000501080600000040010000AA."
+      notes: "19 bytes: 62B00A0100F038000501080600000040010000."
     22B00B:
       response_frames: 8
       status: draft
       period: 10000
       vehicle_states: [SLEEP]
-      notes: 55 bytes, beginning 62B00B800000000200000000000000000000000400005319420000000002.
+      notes: 52 bytes, beginning 62B00B800000000200000000000000000000000400005319420000000002.
   iocontrol:
     B108:
       vehicle_states: []

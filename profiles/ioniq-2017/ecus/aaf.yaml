@@ -89,7 +89,7 @@ AAF:
       period: 0
       vehicle_states: [CHARGING]
       notes: >-
-        27 bytes, same layout as 2180 with extra populated bytes (B19, B22, B23, B24); answers in
+        25 bytes, same layout as 2180 with extra populated bytes (B19, B22, B23, B24); answers in
         ACC2.
       parameters:
 
