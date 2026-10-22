@@ -104,10 +104,10 @@ options:
                         Typed decoding: enum/bitmask/ascii/date/bcd (default
                         numeric). See --value / --bit for the enum/bitmask
                         maps.
-  --value RAW=LABEL     Enum mapping (repeatable), e.g. --value 40=fan1
-                        --value 45=fanMAX
-  --bit INDEX=LABEL     Bitmask mapping (repeatable, 0=LSB), e.g. --bit 0=mon
-                        --bit 5=sat
+  --value RAW=LABEL     Enum mapping (repeatable), e.g. --value 33=park
+                        --value 40=drive
+  --bit INDEX=LABEL     Bitmask mapping (repeatable, 0=LSB), e.g. --bit
+                        5=driver --bit 7=trunk
   --verified
   --unverified
   --enabled

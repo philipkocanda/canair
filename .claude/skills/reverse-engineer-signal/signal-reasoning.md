@@ -50,7 +50,7 @@ A byte that is a *mode/flag/schedule/date*, not a number on a line, gets a param
 Analyse them **categorically**, not with Pearson: `decode --discriminate state`
 (Cramér's V), `correlate --method cramers_v` ("which byte is this mode?"),
 `investigate --events --field NAME` (one transition per decoded-value change, e.g.
-`fanMAX (45) → fan1 (40)`). For a setting the *head unit writes* (schedule/clock), use
+`park (33) → drive (40)`). For a setting the *head unit writes* (schedule/clock), use
 toggle → re-read → `captures uds --diff` on the storing DID. See
 `docs/concepts/typed-signals.md`.
 

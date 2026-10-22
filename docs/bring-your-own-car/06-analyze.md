@@ -366,15 +366,15 @@ canair models these as **typed** parameters (`enum`/`bitmask`/`ascii`/`date`/
 [Typed signals](../concepts/typed-signals.md) for the model. The analysis levers:
 
 ```bash
-# "Which byte is the fan setting?" — rank by nominal association, not linear r
-canair correlate uds HVAC --against HVAC:2201A0:HVAC_BLOWER_FAN_SPEED --method cramers_v
+# "Which byte is the gear?" — rank by nominal association, not linear r
+canair correlate uds VCU --against VCU:2101:GEAR --method cramers_v
 
 # "Which byte separates the power states?" — Cramér's V for typed params
-canair decode HVAC 220100 --discriminate state
+canair decode VCU 2101 --discriminate state
 
 # Once defined as an enum, see the transitions as labels over time
-canair investigate HVAC 2201A0 --events --field HVAC_BLOWER_FAN_SPEED
-# → 10:05:00  Fan 8 (MAX) (121) → Fan 1 (40)
+canair investigate VCU 2101 --events --field GEAR
+# → 10:05:00  park (33) → drive (40)
 ```
 
 `--method cramers_v` / `--method mutual_info` treat each distinct value as a
@@ -396,23 +396,27 @@ things make these harder:
 The reliable device-only workflow is **toggle → re-read → diff**:
 
 ```bash
-# 1. Read the DID that stores the setting, before the change
-canair read BCM:22B00C --save --label "schedule: before" --state ready
+# 1. Read the DID that you expect to store the setting, before the change
+canair read <ECU>:<DID> --save --label "schedule: before" --state ready
 
 # 2. Change the setting on the car (set preheat to a different day/time)
 
 # 3. Re-read the same DID, after
-canair read BCM:22B00C --save --label "schedule: after" --state ready
+canair read <ECU>:<DID> --save --label "schedule: after" --state ready
 
 # 4. Diff the two payloads to see exactly which bytes moved
-canair captures uds BCM:22B00C --diff
+canair captures uds <ECU>:<DID> --diff
 
-# 5. Model the changed bytes as a typed field and test it
-canair pids upsert-param BCM 22B00C PREHEAT_DAYS B3 \
+# 5. Model the bytes that moved as a typed field and test it
+canair pids upsert-param <ECU> <DID> SCHEDULE_DAYS B<nn> \
     --type bitmask --bit 0=mon --bit 1=tue --bit 2=wed --bit 3=thu \
     --bit 4=fri --bit 5=sat --bit 6=sun --unverified
-canair decode BCM 22B00C
+canair decode <ECU> <DID>
 ```
+
+Only step 5 is worth doing for bytes that actually moved in step 4. If nothing changes, the
+setting lives in another DID (or is written by a command you can't see), so go back to step 1
+with a different candidate instead of modelling a byte that never moves.
 
 For a whole schedule record, define a `struct` param whose ordered `fields:`
 cover the day-mask, hour, and minute — `investigate --events --field` then reads

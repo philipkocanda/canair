@@ -29,7 +29,7 @@ This never changes device output or the numeric path.
 | `type:`   | Companion field | Renders as |
 |-----------|-----------------|------------|
 | `numeric` | *(default)*     | the float value + unit (unchanged) |
-| `enum`    | `values:` `{raw: label}` | `fanMAX (45)` |
+| `enum`    | `values:` `{raw: label}` | `drive (40)` |
 | `bitmask` | `bits:` `{bit_index: label}` (0=LSB) | `mon\|tue\|sat` |
 | `ascii`   | —               | the decoded text |
 | `date`    | —               | `2017-06-06` (BCD or binary) |
@@ -41,15 +41,19 @@ This never changes device output or the numeric path.
 Use `canair pids upsert-param` — never hand-edit `ecus/`:
 
 ```bash
-# An enum: blower fan level on HVAC 2201A0 byte B18
-canair pids upsert-param HVAC 2201A0 HVAC_BLOWER_FAN_SPEED B18 \
-    --type enum --value 40="Fan 1" --value 121="Fan 8 (MAX)" --unverified
+# An enum: the gear byte on VCU 2101 (B10 reads 0x21 in Park, 0x28 in Drive)
+canair pids upsert-param VCU 2101 GEAR B10 \
+    --type enum --value 0x21=park --value 0x22=reverse \
+    --value 0x24=neutral --value 0x28=drive --unverified
 
-# A bitmask: preheat schedule day-of-week
-canair pids upsert-param BCM 22B00C PREHEAT_DAYS B3 \
-    --type bitmask --bit 0=mon --bit 1=tue --bit 2=wed \
-    --bit 3=thu --bit 4=fri --bit 5=sat --bit 6=sun
+# A bitmask: the door-status byte on IGPM 22BC03 (B10; bits 1, 3 and 6 are not decoded)
+canair pids upsert-param IGPM 22BC03 DOOR_STATUS B10 \
+    --type bitmask --bit 0=rear_left --bit 2=rear_right \
+    --bit 4=passenger --bit 5=driver --bit 7=trunk --unverified
 ```
+
+The bundled Ioniq profile already decodes both bytes (VCU `GEAR`, IGPM `DOOR_*_OPEN`), so
+these two commands show the syntax rather than a signal still to be found.
 
 `--value`/`--bit` are repeatable `KEY=LABEL` pairs (`KEY` may be decimal or
 `0x`-hex). Passing only `--value`/`--bit` infers `--type enum`/`bitmask`.
@@ -99,7 +103,7 @@ up as obvious garbage instead of silently plausible text.
   mode?" — the question Pearson can't answer for a fan/mode/flag byte.
 - **`canair investigate ECU PID --events --field NAME`** collapses a typed
   field into **one logical signal** and prints one transition per decoded-value
-  change (`fanMAX (45) → fan1 (40)` at a timestamp), instead of scattered
+  change (`park (33) → drive (40)` at a timestamp), instead of scattered
   per-byte edges — ideal for schedule/mode/date fields.
 
 See the [analyze journey](../bring-your-own-car/06-analyze.md) for a worked

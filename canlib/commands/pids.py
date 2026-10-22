@@ -682,14 +682,14 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         dest="values",
         action="append",
         metavar="RAW=LABEL",
-        help="Enum mapping (repeatable), e.g. --value 40=fan1 --value 45=fanMAX",
+        help="Enum mapping (repeatable), e.g. --value 33=park --value 40=drive",
     )
     up.add_argument(
         "--bit",
         dest="bits",
         action="append",
         metavar="INDEX=LABEL",
-        help="Bitmask mapping (repeatable, 0=LSB), e.g. --bit 0=mon --bit 5=sat",
+        help="Bitmask mapping (repeatable, 0=LSB), e.g. --bit 5=driver --bit 7=trunk",
     )
     ver = up.add_mutually_exclusive_group()
     ver.add_argument("--verified", dest="verified", action="store_true", default=None)

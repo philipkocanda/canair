@@ -410,8 +410,8 @@ def _format_map_field(indent: str, key: str, mapping: dict) -> list[str]:
     Keys are emitted as integers (sorted numerically) and labels quoted, e.g.::
 
         values:
-          40: "fan1"
-          45: "fanMAX"
+          33: "park"
+          40: "drive"
     """
     if not mapping:
         return [f"{indent}{key}: {{}}"]
