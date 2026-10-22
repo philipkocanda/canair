@@ -44,8 +44,8 @@ MCU:
       notes: >-
         30 bytes; a 34-byte variant adds four trailing 00 bytes. Words are little-endian, unlike BMS
         2101. B23 and B26 are constant 0x02 and 0x04. B9/B10/B11 read 8/56/1 in 5121 of 5776
-        CHARGING captures and in all 35 CONDITIONING captures; in READY B11 is 0 in all 2369
-        captures and B9 is 140 or 12.
+        CHARGING captures and in all 35 TOPUP captures; in READY B11 is 0 in all 2369 captures and
+        B9 is 140 or 12.
       parameters:
         MCU_2101_B22:
           expression: B22
@@ -92,8 +92,8 @@ MCU:
             The three MCU_PHASE_CURRENT signals sum to within ±1 count in 8564 of 8629 aligned
             captures, driving included, so one is computed from the other two rather than measured.
             With the motor stopped the readings are multiples of about 24.4 counts, sd 58, 55 and
-            106 for _1, _2 and _3, r=0.79 between _1 and _2 (CHARGING, n=5386); READY and
-            CONDITIONING standstill readings match.
+            106 for _1, _2 and _3, r=0.79 between _1 and _2 (CHARGING, n=5386); READY and TOPUP
+            standstill readings match.
         MCU_PHASE_CURRENT_2:
           expression: (S33 << 8) | B31
           source: canair analysis 2026-08-08 long drive + DCFC
@@ -200,10 +200,10 @@ MCU:
           notes: >-
             Motor phase-current magnitude, 16-bit little-endian split across the PCI byte B16; never
             negative. With the motor stopped (RPM and torque 0) it reads 2.7-6.0, median 3.0, in
-            CHARGING (n=5386), READY (n=636) and CONDITIONING (n=35) alike, so about 3.0 is its
-            zero. Up to 214 while driving (if 0.1 A/bit, which is not proven). Tracks
-            |MCU_MOTOR_TORQUE| at about 1.2 counts per 0.1 Nm below 5000 RPM, rising to 1.6 above
-            6500 RPM, as field weakening would.
+            CHARGING (n=5386), READY (n=636) and TOPUP (n=35) alike, so about 3.0 is its zero. Up to
+            214 while driving (if 0.1 A/bit, which is not proven). Tracks |MCU_MOTOR_TORQUE| at
+            about 1.2 counts per 0.1 Nm below 5000 RPM, rising to 1.6 above 6500 RPM, as field
+            weakening would.
         MCU_COOLANT_TEMP:
           expression: B20*2
           unit: °C

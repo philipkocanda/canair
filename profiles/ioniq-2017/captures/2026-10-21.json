@@ -4,7 +4,7 @@
       "date": "2026-10-21",
       "label": "BMS",
       "version": "1.28.0",
-      "notes": "12V conditioning",
+      "notes": "12V top-up",
       "keep_mode": "changes",
       "transport": "wican-ws",
       "quality": {
@@ -13,7 +13,7 @@
       },
       "vehicle_states": [
         "PARKED",
-        "CONDITIONING"
+        "TOPUP"
       ],
       "captures": [
         {
@@ -186,9 +186,9 @@
       "version": "1.28.0",
       "vehicle_states": [
         "PARKED",
-        "CONDITIONING"
+        "TOPUP"
       ],
-      "notes": "12v conditioning",
+      "notes": "12V top-up",
       "keep_mode": "unique",
       "transport": "wican-ws",
       "quality": {
@@ -208,11 +208,11 @@
             "at": "21:03:24.711",
             "states": [
               "PARKED",
-              "CONDITIONING"
+              "TOPUP"
             ]
           }
         ],
-        "version": "1.28.0+main.30e06a9.dirty"
+        "version": "1.28.0+main.136c140.dirty"
       },
       "captures": [
         {
@@ -889,9 +889,9 @@
       "version": "1.28.0",
       "vehicle_states": [
         "PARKED",
-        "CONDITIONING"
+        "TOPUP"
       ],
-      "notes": "12v conditioning",
+      "notes": "12V top-up",
       "transport": "wican-ws",
       "quality": {
         "exchanges": 2363,
@@ -908,7 +908,7 @@
             "at": "21:07:30.877",
             "states": [
               "PARKED",
-              "CONDITIONING"
+              "TOPUP"
             ]
           },
           {
@@ -918,7 +918,7 @@
             ]
           }
         ],
-        "version": "1.28.0+main.30e06a9.dirty"
+        "version": "1.28.0+main.136c140.dirty"
       },
       "captures": [
         {

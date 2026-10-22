@@ -167,10 +167,10 @@ VCU:
           notes: >-
             1 at READY (B11 = 0x5A) and while charging (0x10); 0 in accessory or off (B11 = 0x92,
             0x91, 0x80) on the 2026-07-30 power cycle. Also 1 (B11 = 0x10) for the whole 2026-10-21
-            parked 12 V conditioning run (35 captures, VCU_AUX_POWER 80-154 W, OBC LDC_HV_INPUT_V
-            390 V), dropping to 0 (B11 = 0x80) when the run ended at 21:17:08. With VCU_POWER_STATE
-            == 1 it is the CONDITIONING state predicate: exact on all 35 captures, no false positive
-            in the corpus. ACC1, ACC2 and off are not told apart.
+            parked 12 V top-up run (35 captures, VCU_AUX_POWER 80-154 W, OBC LDC_HV_INPUT_V 390 V),
+            dropping to 0 (B11 = 0x80) when the run ended at 21:17:08. With VCU_POWER_STATE == 1 it
+            is the TOPUP state predicate: exact on all 35 captures, no false positive in the corpus.
+            ACC1, ACC2 and off are not told apart.
 
         VCU_APS1_VOLTAGE:
           expression: ((B13<<8)|B12)/2048
@@ -238,8 +238,8 @@ VCU:
             Values across 10632 VCU 2101 captures: 4 drive-ready (3111), 7 drive path down, during
             AC charging or key-off standby (7149), 6 at charge termination (311), 1 in the
             2026-07-30 ACC power-cycle window (21, B11 = 0x91/0x92, LDC off) and during the
-            2026-10-21 parked 12 V conditioning run (35, B11 = 0x10, HV relay closed, LDC on), also
-            5 captures after it ended (B11 = 0x80). Not seen while charging or READY.
+            2026-10-21 parked 12 V top-up run (35, B11 = 0x10, HV relay closed, LDC on), also 5
+            captures after it ended (B11 = 0x80). Not seen while charging or READY.
           type: enum
           values:
             1: unknown_1
@@ -307,7 +307,7 @@ VCU:
       period: 5000
       vehicle_states: [READY, CHARGING]
       notes: >-
-        Froze after the 2026-10-21 12 V conditioning run ended: five byte-identical payloads
+        Froze after the 2026-10-21 12 V top-up run ended: five byte-identical payloads
         21:17:11-21:20:12 (VCU_AUX_POWER 0, VCU_LDC_OUTPUT_VOLTAGE 13.551 V) while VCU 2101 kept
         changing and BCM_12V_BATTERY fell from 12.96 to 12.56 V. Readings taken after the LDC
         stopped were not live.
@@ -877,9 +877,9 @@ VCU:
         and 08-10 to 08-15 stretches, so it may have been switched off. 2026-10-19 20:39 to 10-21
         21:03 (two days at about 8 °C, a 1.5 km drive, no charge) left it at 847, which argues
         against counting 12V top-ups unless none ran. The next VCU 21F2 read after the 10-21 21:00
-        conditioning session will show whether that session counted. A 12V top-up should also show
-        in BMS 21F2 as a short cycle with a small discharge. B76 as the high byte is unproven until
-        B75 passes 255. B73:B74 next to it is a constant 91.
+        top-up session will show whether that session counted. A 12V top-up should also show in BMS
+        21F2 as a short cycle with a small discharge. B76 as the high byte is unproven until B75
+        passes 255. B73:B74 next to it is a constant 91.
     - type: decode
       target: 12V battery sensor SOC/SOH/temp/current
       status: pending
