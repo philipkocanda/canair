@@ -1,4 +1,4 @@
-// Run with: node --test tests/js/   (no dependencies)
+// Run with: node --test tests/js/analysis.test.js   (no dependencies)
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const A = require("../../docs/assets/explorer/analysis.js");

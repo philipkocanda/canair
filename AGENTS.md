@@ -681,7 +681,8 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   signals) decodes captures at build time with the shared evaluator in
   `canlib/explorer_series.py` (decoded numbers only, never payloads; size-budgeted in
   `tests/test_explorer_series.py`); `docs/assets/explorer/{plot,discover}.js` draw it and the pure
-  maths is `analysis.js`, tested with `node --test tests/js/` (a CI step). uPlot is vendored under
+  maths is `analysis.js`, tested with `node --test tests/js/analysis.test.js` (a CI step; name the
+  file, as older Node treats a directory argument as a module). uPlot is vendored under
   `docs/assets/explorer/vendor/` (MIT). Plan: `plans/2026-10-22-explorer-capture-plots.md`.
 - **`templates/`** (repo root) — Scaffolds for `profile create`. Placeholders use `string.Template`
   (`$car_model`), so literal braces in YAML/comments need no escaping. **Shipped in the wheel** via
