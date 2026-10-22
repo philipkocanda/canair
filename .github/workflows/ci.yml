@@ -92,3 +92,8 @@ jobs:
         # visible in CI instead of only felt locally. Parallelism comes from the
         # -n auto default in pyproject.toml's addopts.
         run: uv run pytest -q --durations=15
+
+      - name: Explorer JavaScript kernels
+        # The explorer's analysis maths (docs/assets/explorer/analysis.js) is pure and
+        # dependency-free, so Node's built-in runner covers it; Node ships on the runner.
+        run: node --test tests/js/

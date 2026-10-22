@@ -15,6 +15,7 @@ on:
       - "profiles/*/profile.yaml"
       - "profiles/*/can_buses.yaml"
       - "profiles/*/signals/**"
+      - "profiles/*/captures/**"
   workflow_dispatch:
 
 permissions:

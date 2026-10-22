@@ -1,8 +1,8 @@
 # Explorer data view: plot captured signals and find what is hiding in them
 
-Status: **PROPOSED** (2026-10-22). Nothing is built yet. Builds on
+Status: **PHASES 1 AND 2 BUILT** (2026-10-22); phase 3 open. Builds on
 `plans/2026-10-21-profile-explorer.md`, whose non-goals ruled out captured values; this plan
-reverses that for decoded numeric signals only, pending the privacy decision below.
+reverses that for decoded numeric signals only, with the privacy decision below settled.
 
 The explorer shows what a profile *defines*. The Ioniq profile also holds 119,770 timestamped
 readings across 121 drive, charge and idle sessions, and that is where the interesting things
@@ -235,12 +235,38 @@ listed but not plottable. `captures/` is plain JSON, so nothing needs Git LFS.
 
 Each phase deploys on its own.
 
+## Build notes (2026-10-22)
+
+Phases 1 and 2 exist in `canlib/explorer_series.py`, `scripts/mkdocs_hooks/explorer.py`,
+`docs/assets/explorer/{plot,discover,analysis,worker}.js`, the vendored uPlot 1.6.32 and the
+tests named above. Measured on the Ioniq: 98 plottable sessions, about 0.85 MB gzipped in total,
+the largest session 73 KB gzipped, 5 s to export. Checked in headless Chrome: deep links,
+zoom, pins, overlay, session switching, heat-strip brush and click, both discovery panels, and
+dark mode.
+
+Differences from the proposal:
+
+- Sessions with fewer than 10 numeric samples are left out of the index rather than listed as
+  not plottable.
+- The session overview doubles as the minimap and the brush; there is no separate minimap strip.
+- Every series is drawn as a step (hold until the next sample), not only run-length sessions.
+  One rule is easier to explain and never invents a value between two samples.
+- No per-series eye toggle yet; remove a signal from the tray instead.
+- "What changed here?" works on the current zoom range, so zooming is the single gesture.
+
+Not done (phase 3): scatter view, comparing sessions, series for unmapped bytes, enum signals.
+
+Known limits worth knowing when reading results: a single large event, such as charging ending,
+makes dozens of unrelated flags correlate at once in Related signals; the 1 s analysis grid
+cannot resolve anything faster than a second; and the Leaf profile has only three short sessions.
+
+## Decisions
+
+- **Privacy:** publish all timed decoded telemetry as is, with session labels and notes (decided
+  2026-10-22). The captures are already public in the repository.
+
 ## Open questions
 
-- **Privacy.** The bundled captures are already public in the repository, but the page makes
-  them far easier to browse: dated charging habits, drive times, an odometer that increases.
-  Options: publish all timed telemetry as is; drop session and capture `notes` and round start
-  times to the day; or add an opt-in per session. Decide before phase 1 ships.
 - Whether the Leaf profile's 32 KB of captures is worth a picker at all, or the Data mode is
   hidden for profiles with fewer than a few sessions.
 - Cross-ECU skew handling for the lag search: nearest-sample join, or the bounded forward fill

@@ -68,9 +68,14 @@ hooks:
   - scripts/mkdocs_hooks/explorer.py
 
 extra_css:
+  - assets/explorer/vendor/uPlot.min.css
   - assets/explorer/explorer.css
 extra_javascript:
+  - assets/explorer/vendor/uPlot.iife.min.js
+  - assets/explorer/analysis.js
   - assets/explorer/explorer.js
+  - assets/explorer/plot.js
+  - assets/explorer/discover.js
 
 nav:
   - Home: index.md

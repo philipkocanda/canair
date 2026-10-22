@@ -96,3 +96,63 @@
   .cx-rail { position: static; }
   .cx-ecu-list { max-height: 12rem; }
 }
+
+/* Mode switch and plot tray */
+.cx-modes { display: flex; gap: 0.3rem; margin-bottom: 0.6rem; }
+.cx-mode, .cx-segbtn, .cx-chipbtn, .cx-button {
+  font: inherit; font-size: 0.8rem; cursor: pointer; color: var(--md-default-fg-color); background: none;
+  border: 1px solid var(--md-default-fg-color--lighter); border-radius: 0.2rem; padding: 0.2rem 0.7rem;
+}
+.cx-mode.cx-active, .cx-segbtn.cx-active, .cx-chipbtn.cx-active { background: var(--md-accent-fg-color--transparent); font-weight: 700; border-color: var(--md-accent-fg-color); }
+.cx-button.cx-primary { background: var(--md-primary-fg-color); color: var(--md-primary-bg-color); border-color: transparent; }
+.cx-tray { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; margin-bottom: 0.8rem; padding: 0.4rem 0.6rem;
+  border: 1px dashed var(--md-default-fg-color--lighter); border-radius: 0.2rem; }
+.cx-tray[hidden], .cx-data[hidden], .cx-body[hidden], .cx-diagram-wrap[hidden] { display: none; }
+.cx-chip { font-size: 0.75rem; padding: 0.1rem 0.2rem 0.1rem 0.6rem; border-radius: 1em; background: var(--md-default-fg-color--lightest); }
+.cx-x { font: inherit; cursor: pointer; border: 0; background: none; color: var(--md-default-fg-color--light); padding: 0 0.4rem; }
+.cx-plus { font: inherit; cursor: pointer; width: 1.7rem; border-radius: 0.2rem; color: var(--md-default-fg-color);
+  background: none; border: 1px solid var(--md-default-fg-color--lighter); }
+.cx-plus.cx-on { background: var(--md-accent-fg-color--transparent); }
+.cx-link { font: inherit; cursor: pointer; border: 0; background: none; color: var(--md-typeset-a-color); padding: 0; }
+
+/* Data view */
+.cx-databody { display: grid; grid-template-columns: 17rem minmax(0, 1fr); gap: 1rem; align-items: start; }
+.cx-sessions { position: sticky; top: 3.5rem; }
+.cx-sessions .cx-input { min-width: 0; width: 100%; box-sizing: border-box; margin-bottom: 0.4rem; }
+.cx-statefilter { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-bottom: 0.4rem; }
+.cx-chipbtn { font-size: 0.65rem; padding: 0.05rem 0.45rem; }
+.cx-sesslist { display: flex; flex-direction: column; max-height: 75vh; overflow-y: auto; margin-top: 0.3rem; }
+.cx-sess { text-align: left; font: inherit; font-size: 0.75rem; cursor: pointer; color: var(--md-default-fg-color); background: none;
+  border: 0; border-bottom: 1px solid var(--md-default-fg-color--lightest); padding: 0.4rem 0.4rem; }
+.cx-sess:hover { background: var(--md-accent-fg-color--transparent); }
+.cx-sess.cx-active { background: var(--md-accent-fg-color--transparent); box-shadow: inset 3px 0 var(--md-accent-fg-color); }
+.cx-sess.cx-dim { opacity: 0.45; }
+.cx-sesslabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cx-session { min-width: 0; }
+.cx-session h3, .cx-session h4 { margin-top: 0.4rem; margin-bottom: 0.3rem; }
+.cx-note { font-size: 0.8rem; margin: 0.2rem 0; padding-left: 0.5rem; border-left: 3px solid var(--md-default-fg-color--lighter); }
+.cx-empty { padding: 1.5rem 1rem; border: 1px dashed var(--md-default-fg-color--lighter); border-radius: 0.2rem; }
+.cx-heatwrap { position: relative; border: 1px solid var(--md-default-fg-color--lightest); line-height: 0; }
+.cx-heatcanvas { width: 100%; cursor: crosshair; }
+.cx-brush { position: absolute; top: 0; bottom: 0; border: 2px solid var(--md-accent-fg-color); background: var(--md-accent-fg-color--transparent); pointer-events: none; box-sizing: border-box; }
+.cx-heattip { min-height: 1.3em; margin: 0.2rem 0; }
+.cx-controls { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin: 0.6rem 0 0.2rem; }
+.cx-seg { display: inline-flex; gap: 0; }
+.cx-seg .cx-segbtn:first-child { border-radius: 0.2rem 0 0 0.2rem; }
+.cx-seg .cx-segbtn:last-child { border-radius: 0 0.2rem 0.2rem 0; margin-left: -1px; }
+.cx-lanes .u-wrap { margin: 0; }
+.cx-lane { margin: 0; }
+.cx-readout-table td, .cx-readout-table th { padding: 0.2em 0.5em; white-space: nowrap; }
+.cx-num { text-align: right; font-variant-numeric: tabular-nums; }
+.cx-readout { overflow-x: auto; }
+.cx-focused { background: var(--md-accent-fg-color--transparent); }
+.cx-discover { margin-top: 1rem; }
+.cx-discover-body { min-height: 5rem; }
+.cx-spark { width: 90px; height: 22px; vertical-align: middle; }
+.cx-session code { white-space: pre-wrap; }
+
+@media (max-width: 800px) {
+  .cx-databody { grid-template-columns: minmax(0, 1fr); }
+  .cx-sessions { position: static; }
+  .cx-sesslist { max-height: 14rem; }
+}

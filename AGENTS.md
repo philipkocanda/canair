@@ -677,7 +677,12 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   via ruamel; the layout places ECUs on bus lanes. `scripts/mkdocs_hooks/explorer.py` writes it as
   virtual files at docs build time and `docs/assets/explorer/explorer.{js,css}` only render it, so
   content rules belong in the exporter (unit-tested in `tests/test_explorer_export.py`). Plan:
-  `plans/2026-10-21-profile-explorer.md`.
+  `plans/2026-10-21-profile-explorer.md`. Its **data view** (plot captured signals, find related
+  signals) decodes captures at build time with the shared evaluator in
+  `canlib/explorer_series.py` (decoded numbers only, never payloads; size-budgeted in
+  `tests/test_explorer_series.py`); `docs/assets/explorer/{plot,discover}.js` draw it and the pure
+  maths is `analysis.js`, tested with `node --test tests/js/` (a CI step). uPlot is vendored under
+  `docs/assets/explorer/vendor/` (MIT). Plan: `plans/2026-10-22-explorer-capture-plots.md`.
 - **`templates/`** (repo root) — Scaffolds for `profile create`. Placeholders use `string.Template`
   (`$car_model`), so literal braces in YAML/comments need no escaping. **Shipped in the wheel** via
   `pyproject.toml`'s `force-include`, so installed copies can still scaffold. Change the scaffold
