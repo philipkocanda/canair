@@ -131,29 +131,22 @@ transport:
 
 ### Mid-session reconnect & `--wait`
 
-`canair monitor` also re-homes a session that drops **mid-run**, rather than
-giving up: on a disconnect it re-probes the reachable **same-transport** devices,
-reconnects, re-opens any sessions, and resumes — a `--save` recording simply
-continues (the gap shows in the timestamps). By default this is bounded to
-`transport.reconnect_max_wait` seconds (default `60.0`); `--wait` makes it retry
-**forever** (Ctrl-C to stop).
+`canair monitor` re-homes a session that drops **mid-run**: it re-probes the reachable
+**same-transport** devices (raw↔raw, ws↔ws), reconnects, re-opens sessions and resumes. A
+`--save` recording simply continues, with the gap visible in the timestamps. This is bounded by
+`transport.reconnect_max_wait` seconds (default `60.0`); `--wait` retries **forever**
+(Ctrl-C to stop).
 
-`--wait` also governs the *initial* connect for every live command: it blocks,
-retrying indefinitely, and starts as soon as the device comes online — so
-`canair monitor @driving --save --wait` waits for the WiCAN, then records the
-moment it appears.
-
-Mid-session re-home stays on the connected transport (raw↔raw / ws↔ws); the
-initial connect can still cross transports via `fallback_order`.
+`--wait` also governs the *initial* connect of every live command: it blocks until the device
+comes online, so `canair monitor @driving --save --wait` starts recording the moment the WiCAN
+appears. Only the initial connect can cross transports, via `fallback_order`.
 
 ### Link-health watchdogs
 
-Reconnecting only on a raised error is not enough: a session can stop being
-usable while nothing raises at all. A half-open socket (mobile NAT eviction, VPN
-re-key) keeps accepting writes forever, and a desynchronised ELM327 pipe keeps
-returning perfectly well-formed replies — to the *previous* request. Both look
-identical to "the car isn't answering", so the monitor would show every signal as
-`stale` indefinitely until restarted by hand.
+A session can stop being usable while nothing raises. A half-open socket (mobile NAT eviction,
+VPN re-key) keeps accepting writes, and a desynchronised ELM327 pipe keeps returning
+well-formed replies — to the *previous* request. Both look like "the car isn't answering", so
+without a watchdog the monitor would show every signal as `stale` until restarted by hand.
 
 ```yaml
 transport:
@@ -161,59 +154,47 @@ transport:
   stale_cycles_before_reconnect: 3  # all-stale poll cycles before reconnecting (0 = off)
 ```
 
-- **`ws_ping_interval`** turns a silently dead `wican-ws` link into a real
-  `ConnectionError`, which the mid-session reconnect above already handles. The
-  WiCAN's firmware does not claim WebSocket control frames, so its HTTP server
-  answers the ping itself — no firmware support needed. Lower it on a flaky
-  mobile link, set `0` to disable.
-- **`stale_cycles_before_reconnect`** is the correctness backstop: after this
-  many consecutive poll cycles in which *nothing* answered coherently, the
-  monitor reconnects even though no error was raised. A negative response (NRC)
-  counts as answering — it proves the request reached the ECU and its reply came
-  back in the right slot. It is a *cycle* count, not a duration, so it scales
+- **`ws_ping_interval`** turns a silently dead `wican-ws` link into a real `ConnectionError`,
+  which the mid-session reconnect handles. The WiCAN's HTTP server answers the ping itself, so
+  no firmware support is needed. Lower it on a flaky mobile link; `0` disables.
+- **`stale_cycles_before_reconnect`** is the backstop: after this many consecutive poll cycles
+  in which *nothing* answered coherently, the monitor reconnects even though nothing raised. A
+  negative response (NRC) counts as answering. It's a cycle count, not a duration, so it scales
   with the poll rate.
 
-On the ELM327 transports canair also realigns the pipe by itself before
-escalating: a reply that fails its echo check triggers a drain-and-probe resync,
-tallied as `resync` on the monitor's health line. A rising `stale`/`resync` count
-is how a marginal link looks while it is still coping.
+On the ELM327 transports canair also realigns the pipe itself before escalating: a reply that
+fails its echo check triggers a drain-and-probe resync, tallied as `resync` on the monitor's
+health line. A rising `stale`/`resync` count is how a marginal link looks while it is still coping.
 
-canair also **measures** the link (the TCP handshake on `slcan-tcp`, adapter-only
-AT commands on `wican-ws`) and adds that allowance to its ISO-TP and per-request
-budgets, so these are the only latency-related keys you should need to touch. See
-[Remote & cellular links](../concepts/remote-and-cellular.md) for the whole
-picture, including which transport to pick and what `slcan-tcp` costs in data.
+canair also **measures** the link and adds that allowance to its ISO-TP and per-request budgets,
+so these are the only latency-related keys you should need to touch. See
+[Remote & cellular links](../concepts/remote-and-cellular.md) for which transport to pick and
+what `slcan-tcp` costs in data.
 
 ### Expected response counts (ELM327 transports)
 
-An ELM327 adapter has no way to know a multi-frame reply has ended, so by default
-it waits out its whole `ATST` ECU-response budget after the last frame just to be
-sure another is not coming. That wait, not the car and not the network, is the
-dominant per-request cost on `wican-ws` and `elm327-tcp`.
+An ELM327 adapter can't tell that a multi-frame reply has ended, so by default it waits out its
+whole `ATST` budget after the last frame. That wait is the dominant per-request cost on
+`wican-ws` and `elm327-tcp`.
 
-The protocol has an escape hatch: a data request with an *odd* hex length has its
-final nibble read as the number of response frames to expect, letting the adapter
-return the moment the reply is whole. Measured on a WiCAN Pro, this is about **4x
-faster per read** (~206 ms → ~53 ms), and it also collapses the variance.
+The escape hatch: a request with an *odd* hex length has its final nibble read as the number of
+response frames to expect, so the adapter returns the moment the reply is whole. On a WiCAN Pro
+this is about **4x faster per read** (~206 ms → ~53 ms) and far less variable.
 
 ```yaml
 transport:
   expected_responses: true   # default true
 ```
 
-canair **never guesses the count.** The first read of a request goes out in the
-plain form and the count is learned from a reply that already passed its echo and
-ISO-TP length checks. Asking for too few frames is the one genuinely unsafe move —
-the frames the adapter did not wait for stay queued and would come back as the
-*next* request's answer — so a reply that does not match what was asked for makes
-canair realign the pipe, retry in the plain form, and stop optimizing that request
-for the rest of the session. The retry is not charged to the caller's retry
-budget: a wrong count can cost latency, never a reading.
+canair **never guesses the count.** The first read of a request goes out in plain form, and the
+count is learned from a reply that already passed its echo and ISO-TP length checks. Asking for
+too few frames is the unsafe move (the unread frames stay queued and come back as the *next*
+request's answer), so a reply that doesn't match makes canair realign the pipe, retry in plain
+form and stop optimizing that request for the session. The retry isn't charged to the caller's
+retry budget: a wrong count can cost latency, never a reading.
 
-Leave it on. Set it `false` to rule it out while debugging a misbehaving adapter,
-or if a clone rejects the extra nibble in a way canair has not learned to detect.
-It has no effect on `slcan-tcp`, where canair runs ISO-TP itself and already knows
-when a response is complete.
+Leave it on. Set it `false` to rule it out while debugging an adapter, or if a clone rejects the
+extra nibble. It has no effect on `slcan-tcp`.
 
 
 ## The `transport` block

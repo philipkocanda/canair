@@ -29,15 +29,13 @@ canair config set devices.home.host 192.168.1.100
 canair config set default_wican home
 ```
 
-Any command takes `--wican home|vpn|<ip>` to pick which device to use. Each
-device can carry its own transport (`canair config set devices.vpn.transport
-wican-ws`), and when the chosen device is unreachable canair auto-falls-back to
-the others (disable per-command with `--no-fallback`) — including `canair
-status`, which therefore reports the device a live command would really use.
-Add `--wait` to any live command to block until the device comes online and then
-start — handy for `canair monitor @driving --save --wait`, which also keeps
-reconnecting if the link drops mid-session. `config.example.yaml` in the repo
-documents every key; see also the [config reference](../reference/config.md).
+Any command takes `--wican home|vpn|<ip>` to pick a device. Each device can carry its own
+transport (`canair config set devices.vpn.transport wican-ws`), and if the chosen device is
+unreachable canair falls back to the others (`--no-fallback` disables this per command).
+`canair status` follows the same fallback, so it reports the device a live command would really
+use. Add `--wait` to any live command to block until the device comes online; with
+`canair monitor @driving --save --wait` it also keeps reconnecting if the link drops. Every key
+is documented in the [config reference](../reference/config.md).
 
 ## 4. Pro vs. classic
 
@@ -69,12 +67,12 @@ obscurely:
 
 | On firmware v6 | What canair does |
 |---|---|
-| `elm327-tcp` transport | **Works.** v6 serves a plain ELM327 socket on port 35000, on by default. The socket is shared, and AutoPID (if enabled) takes the chip back after 10 s without a command; canair says so in a note when `transport.firmware_check` is `always` (an `elm327-tcp` host isn't probed by default, since it's usually a clone) |
+| `elm327-tcp` transport | **Works.** v6 serves a plain ELM327 socket on port 35000 by default. The socket is shared: AutoPID (if enabled) takes the chip back after 10 s without a command. canair notes this when `transport.firmware_check` is `always` (`elm327-tcp` hosts aren't probed by default, since they're usually clones) |
 | `wican-ws` transport | **Refused.** v6 has no `/ws` terminal; use `elm327-tcp` |
 | `slcan-tcp` transport (the default) | **Warns, then tries.** A stock v6 device serves no SLCAN until you enable three settings (below) |
-| `sniff --listen-only` | **Refused.** v6 ignores SLCAN's listen-only command; set `can_manager.silent` on the device instead. When a device answers HTTP but its generation can't be confirmed (or the check is off), canair warns that listen-only can't be guaranteed |
+| `sniff --listen-only` | **Refused.** v6 ignores SLCAN's listen-only command; set `can_manager.silent` on the device instead. If the generation can't be confirmed, canair warns that listen-only isn't guaranteed |
 | `wican mode show`/`set` | **Refused.** v6 has no protocol mode |
-| `wican autopid upload`/`download`/`diff` | **Refused.** v6 changed the AutoPID format and API, and canair can't sync it yet (its 4.x routes are gone, so a request would only fail). `autopid write` still works. An upload to a device whose generation can't be confirmed goes ahead with a warning |
+| `wican autopid upload`/`download`/`diff` | **Refused.** v6 changed the AutoPID format and API, which canair can't sync yet. `autopid write` still works. If the generation can't be confirmed, an upload goes ahead with a warning |
 | `--reboot` | **Skipped.** v6 resumes AutoPID by itself |
 
 So on v6, point canair at the ELM327 socket:
@@ -95,12 +93,10 @@ settings, then submit them (the device reboots):
 Without the bridge (or with `can_manager` off), the SLCAN port accepts the
 connection and then silently discards everything, so every ECU looks dead.
 
-`canair status` shows the generation, version and build it found, and exits `2`
-when the selected transport can't work on that firmware. If you know what you're
-running, `canair config set transport.firmware_check false` turns the check off
-for live commands (`status` still reports the firmware, since it's the
-diagnostic); `always` also checks `elm327-tcp` hosts. See
-[the reference](../reference/config.md#firmware-generation-check).
+`canair status` shows the generation, version and build it found, and exits `2` when the
+selected transport can't work on that firmware. `canair config set transport.firmware_check
+false` turns the check off for live commands (`status` still reports it); `always` also checks
+`elm327-tcp` hosts. See [the reference](../reference/config.md#firmware-generation-check).
 
 !!! warning "Before upgrading a WiCAN to v6"
     Upgrading from 4.x **erases the device's saved configuration**, stored files
@@ -130,13 +126,11 @@ ELM socket directly. (Pointing `elm327-tcp` at a WiCAN running
 and `status` shows its firmware too.)
 
 !!! warning "Third-party dongles are best-effort"
-    The **WiCAN is the recommended and best-tested adapter** for this project.
-    Generic ELM327 clones vary wildly in firmware quality and their reliability
-    **cannot be guaranteed** — cheap clones are especially likely to struggle
-    with **newer vehicles**, which lean heavily on long multi-frame ISO-TP
-    responses and **extended (29-bit) addressing** that many clones handle poorly
-    or not at all. If reads are flaky, truncated, or a clone can't reach an ECU,
-    that's usually the adapter, not canair — try a WiCAN before filing a bug.
+    The **WiCAN is the recommended and best-tested adapter**. Generic ELM327 clones vary
+    widely in firmware quality, and cheap ones often struggle with **newer vehicles**, which
+    rely on long multi-frame ISO-TP responses and **extended (29-bit) addressing**. If reads are
+    flaky or truncated, or a clone can't reach an ECU, that's usually the adapter, not canair —
+    try a WiCAN before filing a bug.
 
 Want to try canair with **no hardware at all**? See
 [Offline testing with ELM327-Emulator](../development/offline-testing.md).

@@ -23,13 +23,12 @@ It's also the best thing to *study*: it shows what a mature profile looks like
 scan logs), which is exactly the shape you're building toward for your own car.
 
 !!! warning "Your car may differ"
-    This profile was built and verified against **one specific vehicle** (a 2017
-    28 kWh Ioniq Electric, NL market). PIDs, byte layouts, and available signals
-    can differ across **model years and markets** — and even between two cars of
-    the *same* year running **different ECU firmware/part numbers**. Treat this
-    profile as a strong starting point, not a guarantee: if a value looks wrong
-    on your car, re-verify it against your own captures rather than trusting the
-    label (see [Define & verify](../bring-your-own-car/07-define-and-verify.md)).
+    This profile was built and verified against **one vehicle** (a 2017 28 kWh Ioniq Electric,
+    NL market). PIDs, byte layouts and available signals can differ across **model years and
+    markets**, and even between two cars of the same year running different ECU firmware. Treat
+    it as a strong starting point, not a guarantee: if a value looks wrong on your car,
+    re-verify it against your own captures (see
+    [Define & verify](../bring-your-own-car/07-define-and-verify.md)).
     Check an ECU's part/firmware with `canair identity <ECU>`.
 
 ## At a glance
@@ -128,11 +127,10 @@ sniff passively. These are captured in `profiles/ioniq-2017/profile.yaml`.
 
 ## Sources & attribution
 
-This profile stands on the shoulders of the wider Hyundai/Kia EV
-reverse-engineering community. Many parameters were seeded, cross-checked, or
-corrected against the following public sources — thank you to their authors.
-(Cross-vehicle sheets often differ by a byte or two, so everything here was
-re-validated against the actual car — see [Define & verify](../bring-your-own-car/07-define-and-verify.md).)
+This profile builds on the wider Hyundai/Kia EV reverse-engineering community. Many signals were
+seeded, cross-checked or corrected against the public sources below — thank you to their
+authors. Cross-vehicle sheets often differ by a byte or two, so everything was re-validated
+against the actual car (see [Define & verify](../bring-your-own-car/07-define-and-verify.md)).
 
 - [uhi22/Ioniq28Investigations](https://github.com/uhi22/Ioniq28Investigations)
   — detailed investigations of the same 28 kWh Ioniq Electric.

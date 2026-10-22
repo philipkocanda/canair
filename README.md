@@ -10,11 +10,11 @@
 
 canair interfaces with a [WiCAN](https://www.meatpi.com/products/wican-pro) OBD-II WiFi dongle to work with a vehicle's data across **two domains**: request/response **diagnostics** (querying ECUs over UDS and KWP2000) and the **raw broadcast CAN** the car emits on its own (passively sniffed, or imported from external logs and DBCs). On top of both it gives you a full **analysis suite** — capture, decode, statistically correlate, and hunt down which byte carries which signal — then turns the results into a [WiCAN vehicle profile](https://meatpihq.github.io/wican-fw/config/automate/new_vehicle_profiles) or shareable documentation.
 
-Everything ships as a single installable CLI, **`canair`**. Vehicle data lives in a *profile* bundle; the repo ships profiles under [`profiles/`](profiles/) (the mature `profiles/ioniq-2017/`, a 2017 Hyundai Ioniq Electric, is the reference example). The tooling is vehicle-agnostic — build one for your car (see [Bring your own car](https://philipkocanda.github.io/canair/bring-your-own-car/overview/)).
+Everything ships as a single installable CLI, **`canair`**. Vehicle data lives in a *profile* bundle; the repo ships several under [`profiles/`](profiles/), with the 2017 Hyundai Ioniq Electric as the mature reference. The tooling is vehicle-agnostic — [build one for your car](https://philipkocanda.github.io/canair/bring-your-own-car/overview/).
 
-**Built for both human *and* agentic use.** Every capability is a composable, scriptable subcommand with structured (`--json`) output, so it works equally well driven by a person at a terminal or by an AI coding agent (e.g. Claude). The reverse-engineering workflows are captured as agent skills in `.claude/skills/`.
+**Built for humans *and* agents.** Every capability is a scriptable subcommand with structured (`--json`) output, so a person or an AI coding agent can drive it equally well. The reverse-engineering workflows are captured as agent skills in `.claude/skills/`.
 
-**Both the WiCAN Pro and the classic (non-Pro) WiCAN are supported** over the default raw-SLCAN transport. A few features are Pro-only (AutoPID device sync, `wican mode set`, the `wican-ws` transport); set `wican_model: classic` and canair cleanly refuses them. See [connecting your dongle](https://philipkocanda.github.io/canair/getting-started/connect-device/).
+**Both the WiCAN Pro and the classic WiCAN are supported** over the default raw-SLCAN transport. A few features are Pro-only (AutoPID device sync, `wican mode set`, the `wican-ws` transport); set `wican_model: classic` and canair refuses them cleanly. See [connecting your dongle](https://philipkocanda.github.io/canair/getting-started/connect-device/).
 
 **WiCAN firmware 4.x is supported; on the v6 rewrite only `elm327-tcp` works today** — see
 [firmware compatibility](https://philipkocanda.github.io/canair/getting-started/connect-device/#firmware-compatibility).
@@ -29,7 +29,13 @@ Everything ships as a single installable CLI, **`canair`**. Vehicle data lives i
 
 ## How it connects
 
-`canair` never talks CAN directly — it reaches the bus through an adapter via one of three explicitly-selected transports: **`slcan-tcp`** (default; raw SLCAN over TCP, any WiCAN, canair does ISO-TP+UDS), **`wican-ws`** (Pro only; ELM327 over WebSocket, the dongle does ISO-TP), or **`elm327-tcp`** (a generic ELM327 clone — Kiwi/vLinker/OBDLink, or the [ELM327-Emulator](https://philipkocanda.github.io/canair/development/offline-testing/) — over a plain TCP socket, no WiCAN needed). The **WiCAN is recommended and best-tested**; generic clones are best-effort and less likely to work on newer vehicles (long multi-frame ISO-TP, extended addressing).
+`canair` reaches the bus through an adapter, using one of three transports you select explicitly:
+
+- **`slcan-tcp`** (default) — raw SLCAN over TCP on any WiCAN; canair does ISO-TP and UDS.
+- **`wican-ws`** (Pro only) — ELM327 over WebSocket; the dongle does ISO-TP.
+- **`elm327-tcp`** — a generic ELM327 clone (Kiwi, vLinker, OBDLink) or the [ELM327-Emulator](https://philipkocanda.github.io/canair/development/offline-testing/) over a plain TCP socket; no WiCAN needed.
+
+The **WiCAN is recommended and best-tested**. Generic clones are best-effort and less likely to work on newer vehicles (long multi-frame ISO-TP, extended addressing).
 
 ```mermaid
 flowchart LR
@@ -143,7 +149,7 @@ canair monitor @charging                # monitor a saved selector group (see `c
 
 Full setup — installing, connecting the dongle (Pro vs classic, AP vs LAN), tab-completion, and your first read — is in [Getting started](https://philipkocanda.github.io/canair/getting-started/install/).
 
-canair checks once a day for a newer release (offline-safe, never blocking) and points you at the changelog; upgrade in place with `canair update` (checks out the latest release tag + reinstall). See [staying up to date](https://philipkocanda.github.io/canair/getting-started/install/#staying-up-to-date).
+canair checks once a day for a newer release (offline-safe, never blocking); upgrade with `canair update`. See [staying up to date](https://philipkocanda.github.io/canair/getting-started/install/#staying-up-to-date).
 
 > **You don't need to be a CAN expert to start.** Reading is safe and free — canair only *reads* unless you explicitly actuate something, and every state-changing action confirms first. Interacting with a vehicle bus still carries real risk: see the [Warning](#warning).
 
@@ -167,7 +173,7 @@ Each step has a dedicated page under [**Bring your own car**](https://philipkoca
 
 ## Profiles
 
-A *profile* bundles one vehicle's data — `ecus/` (one file per ECU, the source of truth), `profile.yaml`, `captures/`, `references/`, and generated `out/`. The repo ships one or more profiles under [`profiles/`](profiles/) (the mature `profiles/ioniq-2017/` is the reference example). Manage them with `canair profile list` / `create` / `use`, and select with `--profile` / `CANAIR_PROFILE` / `default_profile`. See [Bundled profiles](https://philipkocanda.github.io/canair/profiles/) for the full list and [Profiles](https://philipkocanda.github.io/canair/concepts/profiles/) for the layout, precedence, and discovery order.
+A *profile* bundles one vehicle's data: `ecus/` (one file per ECU, the source of truth), `profile.yaml`, `captures/`, `references/` and a generated `out/`. Manage profiles with `canair profile list` / `create` / `use`, and select one with `--profile`, `CANAIR_PROFILE` or `default_profile`. See [Bundled profiles](https://philipkocanda.github.io/canair/profiles/) for what ships and [Profiles](https://philipkocanda.github.io/canair/concepts/profiles/) for layout, precedence and discovery order.
 
 ## The bundled Ioniq profile
 

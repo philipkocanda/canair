@@ -214,10 +214,10 @@ Details are in `profiles/nissan-leaf-ze1/profile.yaml`.
 
 ## Sources & attribution
 
-This profile was built device-free from the Leaf community's public work, and each signal's
-`source_links` names where it came from. Thank you to their authors. (Cross-vehicle and
-cross-generation sources often differ by a byte or two, so everything is re-validated against
-the actual car — see [Define & verify](../bring-your-own-car/07-define-and-verify.md).)
+This profile was built device-free from the Leaf community's public work; each signal's
+`source_links` names its origin. Thank you to their authors. Sources often differ by a byte or
+two across vehicles and generations, so everything is re-validated against the actual car (see
+[Define & verify](../bring-your-own-car/07-define-and-verify.md)).
 
 - [meatpiHQ/wican-fw#750](https://github.com/meatpiHQ/wican-fw/pull/750) — the community WiCAN
   profile this one was seeded from, fixing the SOH and adding capacity, temperature, odometer

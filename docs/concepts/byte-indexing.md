@@ -90,14 +90,12 @@ distinct notations, each opt-in on its own flag, for cross-referencing third-par
 PID sheets. Torque notation is what the Torque app, Car Scanner, and similar OBD
 apps use; OBDb `bix` is a separate bit-index scheme.
 
-`--annotate` expects the **reassembled UDS response payload** — SID-first, with
-the ISO-TP PCI bytes already stripped (what the transport and captures hand back);
-it reconstructs the framing to show the WiCAN indices. If instead you have a **raw
-CAN frame** straight off the bus (PCI bytes still present), pass `--raw` and it
-indexes the bytes as-is. `bix` reliably warns when the input's first byte
-contradicts the chosen mode — a UDS response SID (`0x40`–`0x7F`) and an ISO-TP PCI
-first byte (`0x00`–`0x3F`) occupy disjoint ranges — so a raw frame fed without
-`--raw` (or vice versa) is caught rather than silently mislabelled.
+`--annotate` expects the **reassembled UDS response payload** — SID-first, PCI bytes already
+stripped (what the transport and captures hand back) — and reconstructs the framing to show the
+WiCAN indices. For a **raw CAN frame** straight off the bus (PCI bytes present), pass `--raw` and
+it indexes the bytes as-is. A UDS response SID (`0x40`–`0x7F`) and an ISO-TP PCI first byte
+(`0x00`–`0x3F`) occupy disjoint ranges, so `bix` warns when the first byte contradicts the chosen
+mode instead of silently mislabelling it.
 
 `--table` groups its rows by 8-byte CAN frame with `── Frame N ──` dividers and a
 `Role` column that marks the ISO-TP framing (`FF PCI` / `CF PCI`) and UDS header
