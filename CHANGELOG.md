@@ -15,6 +15,14 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [1.32.0](https://github.com/philipkocanda/canair/compare/v1.31.0...v1.32.0) (2026-10-22)
+
+
+### Added
+
+* **ioniq-2017:** lean charging/driving groups, [@last](https://github.com/last) and [@battery](https://github.com/battery), retuned polling periods ([0880010](https://github.com/philipkocanda/canair/commit/088001021dd10315501a83ca2e79c65e0ec1f4de))
+* **pids:** add slow status and set-pid-period ([094b10c](https://github.com/philipkocanda/canair/commit/094b10c9600830839a47dc94b714f9662f533c1d))
+
 ## [1.31.0](https://github.com/philipkocanda/canair/compare/v1.30.0...v1.31.0) (2026-10-22)
 
 
