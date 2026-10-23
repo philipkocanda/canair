@@ -497,7 +497,8 @@ HVAC:
 
     2201A2:
       response_frames: 8
-      status: draft
+      status: active
+      period: 10000
       notes: >-
         51-byte response (48 data bytes after the DID), mostly 16-bit words. B19 equals 2201A0 B6
         (heat mode) in 1419 of 1420 time-joined rows and B20 follows 2201A0 B7 (r=+0.999). Constant
