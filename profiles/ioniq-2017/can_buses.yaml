@@ -14,7 +14,9 @@
 can_buses:
   ALL:
     name: All segments
-    description: The gateway (IGPM) bridges every segment; the OBD-II port connects here.
+    description: >-
+      The gateway (IGPM) bridges every segment except the private ones (CLIMATE-CAN); the OBD-II
+      port connects to it over D-CAN.
   B-CAN:
     name: Body CAN
     description: Comfort/body electronics (doors, seats, BCM, smart key).
@@ -46,8 +48,9 @@ can_buses:
     bitrate: 500000
   CLIMATE-CAN:
     name: Climate CAN
+    private: true
     description: >-
       Private link between the A/C control module (DATC), the electric A/C compressor and the PTC
-      heater, on separate DATC pins from its P-CAN connection. No gateway connection is drawn, so
-      the compressor and heater are not expected to answer on the OBD-II port. Bit rate unknown.
-      From US-market wiring; unconfirmed on the EU car.
+      heater, on separate DATC pins from its P-CAN connection. Neither the gateway (IGPM) nor the
+      OBD-II port is on it, so the compressor and heater are not expected to answer on the OBD-II
+      port. Bit rate unknown. From US-market wiring; unconfirmed on the EU car.

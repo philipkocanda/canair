@@ -259,7 +259,11 @@ def _bus_records(root: Path) -> list[dict[str, Any]]:
         return []
     buses = _mapping(_mapping(_load(path)).get("can_buses"))
     return [
-        {"code": str(code), **_pick(_mapping(b), ("name", "description", "bitrate"))}
+        {
+            "code": str(code),
+            **_pick(_mapping(b), ("name", "description", "bitrate")),
+            "private": _mapping(b).get("private") is True,
+        }
         for code, b in buses.items()
     ]
 

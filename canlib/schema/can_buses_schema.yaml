@@ -19,6 +19,9 @@
 #       name: Body CAN
 #       description: Comfort/body electronics.
 #       bitrate: 100000     # optional — segment bus speed in bit/s (int)
+#     CLIMATE-CAN:
+#       private: true       # optional — a link the gateway does not bridge; the ALL code and
+#                           #   the OBD-II port do not reach it (default false)
 #
 # The legacy list form (`can_buses: [All, B-CAN]`) is still accepted; those codes
 # just carry no name/description/bitrate.
@@ -30,3 +33,4 @@ optional_bus_fields:
   - name
   - description
   - bitrate  # segment bus speed in bit/s (positive integer)
+  - private  # true when the gateway (ALL) and the OBD-II port do not reach the segment

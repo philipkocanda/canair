@@ -88,6 +88,22 @@ def test_expand_all_covers_every_declared_bus():
     assert expand_bus_membership(["ALL"], DECLARED) == {"ALL", "B-CAN", "P-CAN", "D-CAN"}
 
 
+def test_expand_all_skips_private_buses():
+    # A private segment (no gateway connection) is not reached by ALL, but an ECU
+    # can still name it explicitly.
+    declared = [*DECLARED, "CLIMATE-CAN"]
+    assert expand_bus_membership(["ALL"], declared, ["CLIMATE-CAN"]) == set(DECLARED)
+    assert expand_bus_membership(["P-CAN", "CLIMATE-CAN"], declared, ["CLIMATE-CAN"]) == {
+        "P-CAN",
+        "CLIMATE-CAN",
+    }
+
+
+def test_private_flag_loads(tmp_path):
+    prof = _profile(tmp_path, "can_buses:\n  B-CAN: {}\n  C-CAN:\n    private: true\n")
+    assert [b.private for b in load_can_buses(prof)] == [False, True]
+
+
 def test_expand_all_is_case_insensitive():
     assert expand_bus_membership(["All"], DECLARED) == set(DECLARED)
     assert ALL_CODE == "ALL"
@@ -99,3 +115,12 @@ def test_expand_plain_codes_pass_through():
 
 def test_expand_ignores_blanks():
     assert expand_bus_membership([" ", ""], DECLARED) == set()
+
+
+def test_validate_rejects_non_boolean_private(tmp_path, monkeypatch, capsys):
+    from canlib.commands.validate.other import _run_can_buses
+
+    prof = _profile(tmp_path, "can_buses:\n  B-CAN:\n    private: maybe\n")
+    monkeypatch.setattr("canlib.profile.active", lambda: prof)
+    assert _run_can_buses() == 1
+    assert "private must be true or false" in capsys.readouterr().out

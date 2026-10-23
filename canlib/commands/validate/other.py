@@ -295,9 +295,11 @@ def _run_can_buses() -> int:
                     f"can_buses['{code}']: must be a mapping (name/description) or omitted"
                 )
             elif isinstance(meta, dict):
-                for extra in set(meta) - {"name", "description", "bitrate"}:
+                for extra in set(meta) - {"name", "description", "bitrate", "private"}:
                     errors.append(f"can_buses['{code}']: unknown field '{extra}'")
                 rate = meta.get("bitrate")
+                if not isinstance(meta.get("private", False), bool):
+                    errors.append(f"can_buses['{code}']: private must be true or false")
                 if rate is not None and (
                     not isinstance(rate, int) or isinstance(rate, bool) or rate <= 0
                 ):

@@ -102,6 +102,26 @@ def test_gateway_all_counted_on_every_segment(monkeypatch, capsys):
     assert data["gateway_ecus"] == 1
 
 
+def test_gateway_all_skips_private_segment(monkeypatch, capsys):
+    buses = [
+        BusDef("ALL", "All segments", "Gateway."),
+        BusDef("P-CAN", "Powertrain CAN", "Drivetrain."),
+        BusDef("CLIMATE-CAN", "Climate CAN", "Private.", private=True),
+    ]
+    ecus = {
+        0x770: {"name": "IGPM", "can_bus": ["ALL"]},
+        0x7B3: {"name": "HVAC", "can_bus": ["P-CAN", "CLIMATE-CAN"]},
+    }
+    monkeypatch.setenv("NO_COLOR", "1")
+    monkeypatch.setattr("canlib.can_buses.load_can_buses", lambda prof=None: buses)
+    monkeypatch.setattr("canlib.ecus.load_ecus", lambda path=None: ecus)
+    monkeypatch.setattr("canlib.profile.active", lambda: _FakeProfile())
+
+    assert _run(json=True) == 0
+    counts = {b["code"]: b["ecus"] for b in json.loads(capsys.readouterr().out)["buses"]}
+    assert counts == {"ALL": 1, "P-CAN": 2, "CLIMATE-CAN": 1}
+
+
 def test_no_color_when_piped(_patched, capsys):
     _run()
     out = capsys.readouterr().out

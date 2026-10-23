@@ -118,7 +118,8 @@ def test_layout_places_every_ecu_on_exactly_its_lanes(exported):
         if not ecu["buses"]:
             assert placed == {"unplaced"}
         elif any(b.upper() == "ALL" for b in ecu["buses"]):
-            assert placed == {c for c in codes if c != "unplaced"}
+            private = {b["code"] for b in data["buses"] if b["private"]}
+            assert placed == {c for c in codes if c != "unplaced" and c not in private}
         else:
             assert placed == set(ecu["buses"])
 
@@ -142,6 +143,24 @@ def test_layout_never_overlaps_two_nodes():
     assert len(cells) == len(set(cells))
     assert [lane["code"] for lane in layout["lanes"]] == ["A", "B", "Z", "unplaced"]
     assert {n["name"]: n["kind"] for n in layout["nodes"]}["OBD-II"] == "obd"
+
+
+def test_layout_keeps_private_lanes_out_of_gateway_and_obd_spans():
+    layout = layout_buses(
+        [
+            {"code": "ALL", "description": "the OBD-II port"},
+            {"code": "PRIV", "private": True},
+            {"code": "A"},
+            {"code": "B"},
+        ],
+        [{"name": "GW", "buses": ["ALL"]}, {"name": "HVAC", "buses": ["A", "PRIV"]}],
+    )
+    codes = [lane["code"] for lane in layout["lanes"]]
+    assert codes == ["A", "B", "PRIV"]
+    nodes = {n["name"]: n for n in layout["nodes"]}
+    for name in ("GW", "OBD-II"):
+        assert {codes[i] for i in nodes[name]["lanes"]} == {"A", "B"}
+    assert {codes[i] for i in nodes["HVAC"]["lanes"]} == {"A", "PRIV"}
 
 
 def test_layout_without_any_bus_data_puts_everything_in_unplaced():

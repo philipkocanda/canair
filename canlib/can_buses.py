@@ -18,6 +18,9 @@ optional ``bitrate`` (the segment's bus speed in bit/s)::
         name: Body CAN
         description: Comfort/body electronics.
         bitrate: 100000
+      CLIMATE-CAN:
+        name: Climate CAN
+        private: true      # a private link: the gateway and the OBD-II port do not reach it
 
 The older list form (``can_buses: [ALL, B-CAN]``) is still accepted for
 back-compatibility — those codes simply carry no name/description/bitrate.
@@ -48,12 +51,17 @@ class BusDef:
     ``bitrate`` is the segment's bus speed in bit/s (e.g. ``500000`` for a
     500 kbit/s high-speed CAN, ``100000`` for a 100 kbit/s low-speed body CAN);
     ``None`` when the profile hasn't recorded it.
+
+    ``private`` marks a segment the gateway does not bridge (a link between a few
+    modules, such as a climate-control bus): the gateway code ``ALL`` and the
+    OBD-II port do not reach it.
     """
 
     code: str
     name: str = ""
     description: str = ""
     bitrate: int | None = None
+    private: bool = False
 
     @property
     def label(self) -> str:
@@ -81,7 +89,13 @@ def load_can_buses(profile: Profile | None = None) -> list[BusDef]:
     out: list[BusDef] = []
     seen: set[str] = set()
 
-    def _add(code: str, name: str = "", description: str = "", bitrate: object = None) -> None:
+    def _add(
+        code: str,
+        name: str = "",
+        description: str = "",
+        bitrate: object = None,
+        private: object = False,
+    ) -> None:
         code = str(code).strip()
         if code and code not in seen:
             seen.add(code)
@@ -97,6 +111,7 @@ def load_can_buses(profile: Profile | None = None) -> list[BusDef]:
                     name=str(name or "").strip(),
                     description=str(description or "").strip(),
                     bitrate=rate,
+                    private=private is True,
                 )
             )
 
@@ -108,6 +123,7 @@ def load_can_buses(profile: Profile | None = None) -> list[BusDef]:
                     meta.get("name", ""),
                     meta.get("description", ""),
                     meta.get("bitrate"),
+                    meta.get("private", False),
                 )
             elif isinstance(meta, str):
                 _add(code, meta)
@@ -135,28 +151,33 @@ def bus_names(profile: Profile | None = None) -> dict[str, str]:
 
 
 # The conventional code for a gateway that bridges every segment. An ECU tagged
-# with it is a member of every declared bus (see ``expand_bus_membership``).
+# with it is a member of every declared bus except the private ones (see
+# ``expand_bus_membership``).
 ALL_CODE = "ALL"
 
 
-def expand_bus_membership(codes: Iterable[str], declared: Iterable[str]) -> set[str]:
+def expand_bus_membership(
+    codes: Iterable[str], declared: Iterable[str], private: Iterable[str] = ()
+) -> set[str]:
     """Resolve an ECU's ``can_bus`` codes to concrete segment membership.
 
     The conventional gateway code (``ALL``, case-insensitive) means the ECU sits
-    on / bridges *every* declared segment, so it expands to the full declared
-    vocabulary; all other codes pass through unchanged. Used by ``canair bus`` so
-    an ``ALL``-tagged gateway is counted on each segment (including the diagnostic
-    bus) rather than only on a standalone ``ALL`` row.
+    on / bridges every declared segment the gateway reaches, so it expands to the
+    declared vocabulary minus the ``private`` segments; all other codes pass
+    through unchanged (an ECU can still name a private segment explicitly). Used
+    by ``canair bus`` so an ``ALL``-tagged gateway is counted on each segment
+    (including the diagnostic bus) rather than only on a standalone ``ALL`` row.
     """
-    declared_list = list(declared)
+    private_set = set(private)
+    declared_list = [c for c in declared if c not in private_set]
     out: set[str] = set()
     for code in codes:
         code = str(code).strip()
         if not code:
             continue
         if code.upper() == ALL_CODE:
-            # Gateway: member of every declared segment (the canonical ALL code
-            # is itself in the vocabulary, so it's included when declared).
+            # Gateway: member of every non-private declared segment (the canonical
+            # ALL code is itself in the vocabulary, so it's included when declared).
             out.update(declared_list)
         else:
             out.add(code)

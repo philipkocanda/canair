@@ -416,7 +416,7 @@ module with no row below either does not answer at a 0x7xx address or was not aw
 
 | Factory module | Profile ECU | Confidence | Basis |
 |---|---|---|---|
-| IGPM (gateway, power switches) | IGPM | certain | self-identifies; on every bus |
+| IGPM (gateway, power switches) | IGPM | certain | self-identifies; bridges every bus except the private CLIMATE-CAN |
 | SMK, DATC, ACU, AAF, CCM, VESS, AMP, AVN (MM-CAN only on the EU car), WPC, DDM, ADM, BSD LH/RH, rear camera | SKM, HVAC, SRS, AAF, CCM, VESS, AMP, AVN, WPC, DDM, ADM, BSD-L/R, RCAM | certain | same name or alias, same bus |
 | EPCU (VCU + MCU + LDC) | VCU, MCU | certain | VCU identifies as "VCU with the LDC integrated" |
 | IBAU (integrated brake unit) | ESC | probable | ESC's alias is AHB (active hydraulic boost); the IBAU sits on C-CAN and P-CAN |
@@ -429,7 +429,8 @@ module with no row below either does not answer at a 0x7xx address or was not aw
 | EWP, ODS, DBL, charge lamp, compressor, PTC heater, the other of SBW switch / SCU | none | no responder found | not in the sweep |
 
 `Unknown-746` (KWP2000) and `Unknown-7C0` match no factory module yet. The HVAC unit also has a
-private link to the compressor and PTC heater (`CLIMATE-CAN` in `can_buses.yaml`).
+private link to the compressor and PTC heater (`CLIMATE-CAN` in `can_buses.yaml`, marked
+`private: true`): neither the IGPM nor the OBD-II port is on it.
 
 ## UDS notes
 

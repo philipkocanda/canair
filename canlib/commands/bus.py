@@ -5,7 +5,7 @@ Prints each physical CAN bus segment declared in the active profile's
 the number of ECUs sitting on it (an ECU spanning two segments counts on each).
 An ECU tagged with the gateway code ``ALL`` bridges every segment, so it is
 counted on each declared bus (including the diagnostic bus), not just a lone
-``ALL`` row. The bus vocabulary is vendor-specific (Hyundai/Kia B-CAN/P-CAN/
+``ALL`` row; a segment marked ``private`` (a link the gateway does not bridge) is skipped. The bus vocabulary is vendor-specific (Hyundai/Kia B-CAN/P-CAN/
 C-CAN/MM-CAN/H-CAN, Ford HS/MS, BMW PT-CAN/K-CAN, …), so it lives per profile —
 this is the read-only view of it.
 
@@ -80,10 +80,11 @@ def run(args) -> int:
     buses = load_can_buses(prof)
     ecus = load_ecus()
     declared_codes = [b.code for b in buses]
+    private_codes = [b.code for b in buses if b.private]
 
     # Count ECUs per bus code. An ECU tagged with the gateway code (ALL) bridges
-    # every declared segment, so it is counted on each of them (not just a lone
-    # ALL row) — see expand_bus_membership.
+    # every declared non-private segment, so it is counted on each of them (not
+    # just a lone ALL row) — see expand_bus_membership.
     per_bus: Counter = Counter()
     n_unbussed = 0
     n_gateway = 0
@@ -96,7 +97,7 @@ def run(args) -> int:
             continue
         if any(c.upper() == ALL_CODE for c in codes):
             n_gateway += 1
-        for code in expand_bus_membership(codes, declared_codes):
+        for code in expand_bus_membership(codes, declared_codes, private_codes):
             per_bus[code] += 1
 
     # Codes referenced by an ECU but not declared in the vocabulary (surfaced so
@@ -142,10 +143,11 @@ def run(args) -> int:
     print(
         f"\n  {ansi.c('CAN buses', ansi.BOLD)} — {len(buses)} segment(s) in {ansi.c(prof.name, ansi.CYAN)}\n"
     )
-    header = f"{'CODE':<6} {'ECUS':>4}  {'NAME':<16} {'SPEED':<10} DESCRIPTION"
+    w = max([4, *(len(r["code"]) for r in records)])
+    header = f"{'CODE':<{w}} {'ECUS':>4}  {'NAME':<16} {'SPEED':<10} DESCRIPTION"
     print(f"  {ansi.c(header, ansi.DIM)}")
     for r in records:
-        code = ansi.c(f"{r['code']:<6}", ansi.CYAN)
+        code = ansi.c(f"{r['code']:<{w}}", ansi.CYAN)
         n = r["ecus"]
         n_str = f"{n:>4}" if n else ansi.c(f"{0:>4}", ansi.YELLOW)
         name = str(r["name"] or "—")[:16]
@@ -167,7 +169,7 @@ def run(args) -> int:
     if n_gateway:
         plural = "s" if n_gateway != 1 else ""
         print(
-            f"\n  {ansi.c(f'{n_gateway} gateway ECU{plural} on `{ALL_CODE}` counted on every segment.', ansi.DIM)}"
+            f"\n  {ansi.c(f'{n_gateway} gateway ECU{plural} on `{ALL_CODE}` counted on every segment it bridges.', ansi.DIM)}"
         )
 
     print(f"\n  {ansi.c(f'source: {prof.can_buses_file}', ansi.DIM)}\n")
