@@ -21,6 +21,7 @@
 #   01xx, B0xx, C001-C010, D0xx and service 21 all NRC — only C101 responds.
 EPB:
   tx_id: 0x7D5
+  can_bus: [C-CAN]
   identity:
     description: EPB (Electronic Parking Brake) — chassis/brake module adjacent to ESC/EPS
     app_sw: "G7"

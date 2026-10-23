@@ -1,6 +1,6 @@
 SRS:
   tx_id: 0x7D2
-  can_bus: [C-CAN]
+  can_bus: [C-CAN, P-CAN]
   identity:
     alias: ACU # Airbag control unit
     description: Airbag / Supplemental Restraint System

@@ -64,3 +64,16 @@ AVN:
         Never swept for service 21. The driver sets the charge timer and preconditioning schedules
         on this unit. Sweep 21 00-FF (especially 21F2); if a page answers, capture it, change one
         schedule field and diff.
+    - type: verify
+      target: "IG3 relay #2 control output"
+      status: pending
+      priority: P3
+      vehicle_states: [PLUGGED, CHARGING]
+      created: "2026-10-23"
+      updated: "2026-10-23"
+      notes: "The AVN (and the audio unit on cars without navigation) has an 'IG3 relay control' pin wired to the IG3 #2 relay coil. The relay's job is AC-charging power, yet its coil is sunk by the head unit. Hypothesis: the head unit closes it to stay powered while plugged in or when a scheduled event starts. Unproven."
+      what_to_test:
+        - Record IGPM 22BC07, OBC 2101 and BMS 2101 with --keep-all at 1 s across an AC plug-in and across a scheduled charge or pre-conditioning start, with the head unit awake and asleep, and see whether UNKNOWN_B12_3 or the OBC state moves with the head unit.
+      capture_protocol: >-
+        canair monitor IGPM:22BC07 OBC:2101 BMS:2101 --save --keep-all --interval 1 --label 'IG3 #2
+        hand-over' --state PLUGGED; press s at plug-in and at any scheduled start.

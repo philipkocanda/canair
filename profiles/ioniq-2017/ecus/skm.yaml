@@ -127,11 +127,13 @@ SKM:
       true: "2FB108030A0A05"
       false: "2FB10800"
       hold: false
-      notes: >
-        Requires fob proximity — UDS positive response without fob is misleading
-        (relay doesn't physically close). Verify via IGPM BC03 ignition byte.
-        ACC ON: dash lights, infotainment, doors unlock. NRC 0x22 if ACC already on.
-        freezeCurrentState (02) returns status bytes 6255.
+      notes: >-
+        Requires fob proximity — UDS positive response without fob is misleading (relay doesn't
+        physically close). Verify via IGPM BC03 ignition byte. ACC ON: dash lights, infotainment,
+        doors unlock. NRC 0x22 if ACC already on. freezeCurrentState (02) returns status bytes 6255.
+        Drives the Button Start #1 (ACC) relay E48 (SMK connector B pin 12). Its output is the 'hot
+        in ACC or ON' group (IGPM MODULE2 fuse): audio, navigation, USB and wireless charger, BCM,
+        SMK, SBW switch.
 
     B109:
       vehicle_states: []
@@ -140,8 +142,11 @@ SKM:
       true: "2FB109030A0A05"
       false: "2FB10900"
       hold: false
-      notes: >
-        Ignition 1 — wakes all ECUs including HV system?
+      notes: >-
+        Drives the Button Start #2 (IG1) relay E43 (SMK connector B pin 2). Its output is the 'hot
+        in ON or START' group: cluster, SRS airbag module, MDPS, door modules, stop-lamp switch and
+        the EPCU ON/START input (pin 46). It does not carry the start request to the EPCU (see
+        B10B). Not tested on this car.
     B10A:
       vehicle_states: []
       label: IGN2 relay
@@ -149,18 +154,24 @@ SKM:
       true: "2FB10A030A0A05"
       false: "2FB10A00"
       hold: false
-      notes: >
-        Ignition 2 — purpose unclear on Ioniq EV. From Kia Soul EV.
+      notes: >-
+        Drives the Button Start #3 (IG2) relay E46 (SMK connector B pin 1). Its output is the 'hot
+        in ON' group: front wipers, washer, A/C control module, seat warmers and ventilation, heated
+        steering, BCM and SMK MODULE6 supply. IGN2 drops out during the START phase. Not tested on
+        this car.
 
     B10B:
       vehicle_states: []
-      label: Start relay
+      label: Start output
       verified: false
       true: "2FB10B030A0A05"
       false: "2FB10B00"
       hold: false
-      notes: >
-        Start relay from Kia Soul EV.
+      notes: >-
+        SMK Start Relay Output (connector C pin 10). On this EV it does not switch a starter: the
+        line feeds the IGPM START fuse ('hot in START'), which supplies the EPCU 'Start Switch'
+        input (pin 42) and the front-wiper FRT2 fuse, and returns to the SMK as Start Relay Feedback
+        (pin 16). Asserting it presents the EPCU's start request. Not tested on this car.
 
     B101:
       vehicle_states: []
@@ -340,3 +351,17 @@ SKM:
       created: "2026-07-30"
       updated: "2026-07-30"
       notes: B006 B10/B21 = redundant slow-drift analog pair (0x9A-0xA2, drifts ~1/reading, tracked within +-1). Registered as unverified candidates. Identify unit via a controlled reference (12V rail or temperature). B007 B11 = small enum (0x00/0x06) — correlate with a physical event.
+    - type: decode
+      target: 22B002/22B003/22B005/22B006/22B008/22B00A terminal-feedback bits
+      status: pending
+      priority: P2
+      vehicle_states: [ACC, ACC2]
+      created: "2026-10-23"
+      updated: "2026-10-23"
+      notes: "No signal tells ACC1 apart from OFF yet. The SKM reads back three terminal lines after the relays: ON input (IGN2), ACC/ON input (ACC) and ON/START input (IGN1) (SKM connector C pins 8, 18 and 9), and drives separate ACC and IGN LEDs on the start button. The ACC/ON input is the one that separates ACC from OFF. Whether any of these is exposed in a B0xx page is not known."
+      what_to_test:
+        - "Press the start button without the brake: OFF to ACC to ON to OFF, holding each state about 10 s, recording the SKM B0xx pages with --keep-changes and pressing s at every press. Look for bits that change at each step."
+      capture_protocol: >-
+        canair monitor SKM --save --keep-changes --interval 1 --label 'SKM terminal steps
+        OFF-ACC-ON-OFF' --state ACC; fob inside the car, brake not pressed, press s at every button
+        press.

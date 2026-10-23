@@ -24,6 +24,10 @@
 # but a view that must name ONE — the monitor status bar — names the most specific,
 # so driving reads DRIVING rather than READY.
 #
+# Names versus the car's terminals: ACC is the ACC relay alone; ACC2 is IGN (ACC + IGN1 + IGN2
+# energised). READY adds the HV system, which runs on the separate EV-only IG3 supply. The
+# ignition-lines table in the ioniq-reverse-engineering skill has the relays, fuses and consumers.
+#
 # Schema: canlib/schema/states_schema.yaml   (canair validate states)
 
 states:
@@ -59,9 +63,9 @@ states:
     description: Charge cable connected (AC or DC), not necessarily charging.
     when: BMS.AC_CHARGER_CONNECTED == 1 or BMS.CHARGING_DC == 1 or IGPM.CHARGE_PORT_LOCK == 1
   - name: ACC
-    description: ACC1 — one start-button press, accessory power.
+    description: 'ACC relay only: one press without the brake, amber button LED.'
   - name: ACC2
-    description: ACC2/IGN — full ignition, no HV.
+    description: "IGN: ACC, IGN1 and IGN2 on after a second press (blue LED); HV may be off."
     implies: [ACC]
     when: IGPM.ACC2_IGN_ON == 1
   - name: PARKED

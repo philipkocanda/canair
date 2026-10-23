@@ -73,6 +73,40 @@ Backlog: `canair research --summary` (per-ECU `research:` sections).
   `response_timeout_ms: 614` (ECUs respond slowly; the first request after idle
   can time out — retry once; see the RECON GOTCHA banner in `profile.yaml`).
 
+## Ignition lines (what "ACC", "IGN1", "IGN2", "IG3" mean on this car)
+
+The start button (SSB) is driven by the Smart Key Module (SKM, which self-identifies as "SMK"),
+which switches three relays; IG3 is a separate EV-only supply. Connector pins below are on the
+SKM unless noted.
+
+| Line | Relay in the E/R junction block (fed by) | Hot in | SKM output / feedback input | Feeds |
+|---|---|---|---|---|
+| ACC | Button Start #1 (ACC), E48 (IG1 40 A) | ACC or ON | B12 / C18 "ACC/ON input" | Audio, navigation, USB and wireless charger, BCM, SKM, SBW switch (IGPM MODULE2) |
+| IGN1 | Button Start #2 (IG1), E43 (IG1 40 A) | ON or START | B2 / C9 "ON/START input" | Cluster, SRS, MDPS, door modules, stop-lamp switch, EPCU pin 46 "ON/START input" (IGPM PDM3, CLUSTER, MODULE3-5, IG1 25 A) |
+| IGN2 | Button Start #3 (IG2), E46 (IG2 40 A) | ON only | B1 / C8 "ON input" | Wipers, washer, A/C control module, seat warmers and ventilation, heated steering, BCM and SKM (IGPM MODULE6, MODULE7) |
+| START | none (IGPM START 7.5 A fuse) | START only | C10 "Start relay output" / C16 feedback | EPCU pin 42 "Start Switch" and the front-wiper FRT2 fuse. Not a starter on an EV |
+| IG3 | PCB-block Main relay, ICM-box IG3 #1/#2 relays, a quick-charge relay | HV system awake or charging | not the SKM | EPCU pin 47, OBC, BMS, LDC, cooling fans, blower, e-compressor signal, cluster, AVN, CCM |
+
+Factory labels are inconsistent: E46 is called both "#3 (IG2)" and "#2 (IG2)". The E-numbers and
+the SKM wiring above are consistent.
+
+**Driver-visible states:** OFF (locked or unlocked, no terminal), ACC (ACC), IGN (ACC + IGN1 +
+IGN2), START (IGN1 + START, momentary), IGN with the system running (ACC + IGN1 + IGN2). Without
+the brake each press steps OFF, ACC, IGN, OFF; with the brake in P or N one press goes to start.
+The button LED is amber in ACC and blue in IGN (some factory text says green; the car shows blue).
+ACC and IGN2 drop out during START; only IGN1 stays on.
+
+**IG3:** IG3 #1 is closed while the HV controller operates, except during charging, and its coil is
+driven by the OBC. IG3 #2 is meant for AC charging and another relay for DC, but the #2 coil line
+runs to the head unit's "IG3 relay control" pins, so who closes it is unresolved. The PCB-block Main
+relay is commanded by the IGPM's IPS control module. "IGN3" in pin tables means IG3.
+
+**Mapping to canair names.** The `ACC` state is the ACC relay alone; `ACC2` (IGPM `ACC2_IGN_ON`) is
+IGN (ACC + IGN1 + IGN2); `READY` also needs IG3. IGPM 22BC07 `UNKNOWN_B12_3` tracks IG3 #1 in the
+stored captures (a hypothesis; see the IGPM research entry). Nothing decoded separates ACC from OFF
+yet; the SKM's `ACC/ON input` is the candidate (SKM research entry). SKM IOControl B108 to B10B are
+the ACC, IGN1, IGN2 and START outputs.
+
 ## Profiles
 
 Vehicle data lives in a *profile* bundle: `ecus/` (one file per ECU — the

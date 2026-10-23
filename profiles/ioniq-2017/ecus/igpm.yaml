@@ -52,8 +52,9 @@ IGPM:
       vehicle_states: [ALL]
       notes: >-
         8 data bytes. B12 values: 0x11 power off and not charging, 0x10 power off and charging, 0x18
-        ACC2 with the charge port unlocked, 0x19 ACC2 with it locked. B05-B07 and B09 (08 41 FB CC)
-        and B13 (0) are constant in all 411 captures.
+        ACC2 with the charge port locked, 0x19 ACC2 with it unlocked (B12:0 is the unlock flag, the
+        complement of B11:7). B05-B07 and B09 (08 41 FB CC) and B13 (0) are constant in all 411
+        captures.
       parameters:
         # TODO: All the other bytes on here!
         # Maybe window states?
@@ -69,14 +70,17 @@ IGPM:
           verified: true
           notes: "Complement of CHARGE_PORT_LOCK: 1 = unlocked. Verified 2026-07-18."
 
-        ACC2_RELATED:
+        UNKNOWN_B12_3:
           expression: "B12:3"
           verified: false
           notes: >-
-            1 in ACC2 and mostly in READY, 0 in charging, plugged and key-off (2026-07-18). Also 1
-            with ACC2_IGN_ON = 0 for the whole 2026-10-21 parked 12 V top-up run (26 captures); last
-            read 1 at 21:16:47 and first read 0 at 21:17:21, when the VCU's HV relay had opened
-            (open by 21:17:08).
+            Aligned with VCU 2101 (3 s join, no fill): 1 in 60 of 61 READY rows and in 19 of 19 rows
+            of the parked 12 V top-up (2026-10-21, ACC2_IGN_ON 0). Aligned with BMS 2101: 0 in 239
+            of 242 charging rows; the 3 exceptions are 2026-08-02, a session with the ignition on. 0
+            in 13 of 14 other VCU rows (HV off or drive path down). In the top-up run it last read 1
+            at 21:16:47 and first read 0 at 21:17:21; the VCU's HV relay was open by 21:17:08. One
+            READY row (2026-08-08) reads 0.
+          source: align vs VCU 2101 and BMS 2101 over stored captures, 2026-10-23
         IGPM_BC07_B12_2:
           expression: B12:2
           source: RE 2026-08-05 event-timeline analysis; revisited 2026-08-08 session
@@ -193,7 +197,9 @@ IGPM:
           verified: true
           notes: >-
             1 in ACC2 and READY (not told apart), 0 when off and in ACC1. Also 1 in ACC2 while AC
-            charging. Fob unlock does not set it.
+            charging. Fob unlock does not set it. It rises with the ACC to ON press, where IGN1 and
+            IGN2 are energised together, so it cannot be attributed to one of them from the button
+            sequence.
 
         SEATBELT_FL:
           expression: "B11:1"
@@ -852,6 +858,29 @@ IGPM:
       capture_protocol: >-
         canair monitor IGPM:22BC03,22BC04 --save --keep-changes --interval 1 --label 'IGPM
         lock/power-off timing'; press 's' at power-off and at lock.
+    - type: verify
+      target: "22BC07 B12:3 UNKNOWN_B12_3 vs IG3 #1 relay"
+      status: pending
+      priority: P2
+      vehicle_states: [READY, CHARGING, PLUGGED]
+      created: "2026-10-23"
+      updated: "2026-10-23"
+      notes: >-
+        The EV-only IG3 supply is closed by the IG3 #1 relay while the HV controller operates,
+        except during charging; the IG3 #2 relay is for AC charging and a third relay for DC. The
+        IG3 #1 coil is driven by the OBC. The IG3 #2 coil line runs to the AVN and audio head unit's
+        'IG3 relay control' pins, so who closes #2 in practice is not known. UNKNOWN_B12_3 follows
+        the #1 pattern in the stored captures (1 in READY and the parked 12 V top-up, 0 while
+        charging, 1 in a charging session with the ignition on). Unproven: the bit may instead be
+        the IGPM's own request for the Main relay it controls, or another IG3 path.
+      sources:
+        - align over stored captures 2026-10-23
+      what_to_test:
+        - "Record IGPM 22BC07 and OBC/VCU 2101 with --keep-all at 1 s while plugging an AC cable into the parked car: B12:3 should fall as charging starts. Repeat at charge end and, if available, on a DC session."
+        - Compare the fall time of B12:3 with VEHICLE_STATE_LDC_ENABLED and BMS CHARGING on the same recording to see which leads.
+      capture_protocol: >-
+        canair monitor IGPM:22BC07 VCU:2101 BMS:2101 OBC:2101 --save --keep-all --interval 1 --label
+        'IG3 hand-over at plug-in' --state PLUGGED; press s at plug-in and at charge start.
 
   iocontrol_discoveries:
     BC01:

@@ -4,7 +4,7 @@ HVAC:
   can_bus: [P-CAN]
   iocontrol_scan_ranges: [F000-FFFF]
   identity:
-    alias: DATC  # Digital Automatic Temperature Control
+    alias: DATC  # Dual Automatic Temperature Control
     description: Climate Control
     part_number: "97250-G7060"
     mfg_date: "2017-05-30"
@@ -13,8 +13,10 @@ HVAC:
     id_protocol: UDS  # F1xx
     serial: "1705304705"
     notes: >-
-      Climate control unit (DATC — Digital Automatic Temperature Control). Live data is only on
-      service 22 DIDs 0100, 0102 and 01A0-01A6; service 21 is not supported (NRC 0x11).
+      Climate control unit (DATC — Dual Automatic Temperature Control). Live data is only on service
+      22 DIDs 0100, 0102 and 01A0-01A6; service 21 is not supported (NRC 0x11). Supplied by battery,
+      the ON line (IGN2) and IG3; there is no ACC feed. The electric compressor and PTC heater sit
+      on a small separate CAN bus with the DATC, not on the P-CAN.
   vehicle_states: [ACC, ACC2, READY]
   scan_log: # HVAC
     - service: 0x31
@@ -835,6 +837,19 @@ HVAC:
         canair monitor 'BMS:2101 VCU:2102 HVAC:220100,220102,2201A0,2201A1,2201A2,2201A3' --save
         --keep-all --label 'HVAC power split' --state READY. Parked, 3 min per mode: climate off,
         A/C cooling at fan 3, A/C off with heat at max, noting each change with 's'.
+    - type: decode
+      target: "220100 HVAC_HEAT_PUMP_TEMP and duct temperatures: which sensors"
+      status: pending
+      priority: P3
+      vehicle_states: [READY]
+      created: "2026-10-23"
+      updated: "2026-10-23"
+      notes: The DATC reads an in-car sensor, an ambient sensor, an evaporator sensor, two duct sensors (vent and floor), and, with the heat pump fitted, two refrigerant temperature sensors. HVAC_HEAT_PUMP_TEMP (B13) fell to 6 degC on A/C start and may be the evaporator sensor; HVAC_DUCT_TEMP_1/2 (B36/B37) may be the two duct sensors. None is confirmed.
+      what_to_test:
+        - "A/C on at a fixed blower speed for 10 minutes: check whether B13 cycles with the compressor. Then switch between face and floor modes and see which of B36/B37 follows the mode door."
+      capture_protocol: >-
+        canair monitor HVAC:220100 --save --keep-changes --interval 2 --label 'A/C cycling and mode
+        change' --state READY; press s at A/C on and at each mode change.
   dtcs:
     B1285:
       description: >
