@@ -16,7 +16,7 @@ usage: canair monitor [-h] [--interval SECONDS] [--session] [--wake]
                       [--verbose] [--timings] [--reboot] [--unsafe] [--force]
                       [STEP ...]
 
-[UDS] Monitor ECUs/signals live in a scrollable, refreshing view. Positional STEPs use the multi mini-language (same as `canair read`).
+[UDS] Monitor ECUs/signals live in a scrollable, refreshing view. Positional STEPs use the multi mini-language (same as `canair read`). With no STEP on a terminal, an interactive picker offers saved groups and ECUs, then PIDs.
 
 positional arguments:
   STEP                  Query selector(s), @group(s), or multi mini-language
@@ -90,6 +90,7 @@ options:
                         release it, then wait for it
 
 examples:
+  canair monitor                            Pick ECUs, then PIDs, interactively (TTY only)
   canair monitor BMS:2101                   Monitor BMS PID 2101 (default 5s interval)
   canair monitor BMS:2101 --interval 2      Refresh every 2s
   canair monitor "VCU:2101 BMS:2101"        Cross-ECU monitor

@@ -70,6 +70,35 @@ class TestMonitorRunWiring:
         args = _parse(["monitor"])
         assert monitor.run(args) == 2
 
+    def test_bare_monitor_on_a_tty_uses_the_picker(self, monkeypatch):
+        from canlib.commands import monitor
+
+        captured = {}
+
+        def fake_run_live(args):
+            captured["multi"] = args.multi
+            return 0
+
+        monkeypatch.setattr(monitor, "run_live", fake_run_live)
+        monkeypatch.setattr(monitor, "_pick_steps", lambda args: ["BMS", "VCU:2101"])
+        monkeypatch.setattr("sys.stdin.isatty", lambda: True, raising=False)
+        monkeypatch.setattr("sys.stdout.isatty", lambda: True, raising=False)
+        monkeypatch.setattr("canlib.modes.monitor.query_ecu_error", lambda steps, pids: None)
+        monkeypatch.setattr("canlib.commands._live.load_pids", lambda: {})
+
+        assert monitor.run(_parse(["monitor"])) == 0
+        assert captured["multi"] == ["query BMS", "query VCU:2101"]
+
+    def test_cancelled_picker_exits_cleanly_without_connecting(self, monkeypatch):
+        from canlib.commands import monitor
+
+        monkeypatch.setattr(monitor, "run_live", lambda args: pytest.fail("must not connect"))
+        monkeypatch.setattr(monitor, "_pick_steps", lambda args: None)
+        monkeypatch.setattr("sys.stdin.isatty", lambda: True, raising=False)
+        monkeypatch.setattr("sys.stdout.isatty", lambda: True, raising=False)
+
+        assert monitor.run(_parse(["monitor"])) == 0
+
 
 class TestQueryNoLongerMonitors:
     def test_query_rejects_monitor_flag(self):

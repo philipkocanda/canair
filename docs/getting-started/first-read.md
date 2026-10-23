@@ -48,6 +48,15 @@ It monitors several ECUs at once, too. This cross-ECU view watches the
 
 ![canair monitor — live cross-ECU drivetrain view in READY mode](../screenshots/monitor-drivetrain.gif)
 
+Not sure what to type? Run `canair monitor` with no arguments on a terminal and
+pick from the profile instead: first tick saved groups (the `@` rows, see
+`canair groups`) and/or individual ECUs (`space` toggles, `/` filters, `ctrl+a`
+selects all or none of the visible ECUs, `ctrl+s` continues), then untick any
+PIDs you don't want. A group ticks its member ECUs and pre-selects the PIDs it
+names; an ECU ticked on its own starts from its default sweep. The equivalent
+command is printed before the monitor starts so you can reuse it. It only reads
+the profile, so it works before the device is reachable.
+
 ## On a different car
 
 `discover` will list *your* car's ECUs, but `BMS:2101` and the other named reads

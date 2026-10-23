@@ -146,8 +146,13 @@ and **`g`/`G` address the view's primary axis**.
 - **`canair monitor`** (alias `mon`) — Live refreshing view; same query steps as `read`. Recording
   (`--save`/`--label`/`--state`/`--notes`) and the keep-modes live **here, not on `read`**. On a TTY
   it opens the scrollable Textual monitor (press `?` for keys); piped it polls silently until
-  Ctrl+C. **`read` never had a `--monitor` flag.** `--wait` blocks until the device is online and
-  makes a mid-session drop reconnect forever (see Mid-session reconnect).
+  Ctrl+C; **a bare `canair monitor` on a TTY opens a group/ECU → PID checklist first**
+  (`canlib/modes/monitor_select.py` = pure choice/selector logic,
+  `_monitor_select_tui.py` = the screen; it needs only the profile, never the device, and prints
+  the equivalent command; saved `@groups` are listed above the ECUs and expand to their ECUs and
+  PIDs). Non-TTY with no STEP is still an error. **`read` never had a
+  `--monitor` flag.** `--wait` blocks until the device is online and makes a mid-session drop
+  reconnect forever (see Mid-session reconnect).
 - **`canair scan`** — Kinds: `range` (bare `canair scan <ECU>` is this), `sessions`, `routines`
   (UDS `0x31` SF03 / KWP `0x33`, auto-selected by `id_protocol` so it never blind-sends
   StartRoutine), `iocontrol` (returnControlToECU: UDS `0x2F` / KWP `0x30` — on KWP a release

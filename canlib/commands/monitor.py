@@ -4,7 +4,9 @@ Promoted from the former ``canair query --monitor`` flag into its own top-level
 command. Positional STEPs use the same multi mini-language as ``canair read``;
 a bare selector (no leading verb) is treated as a ``query`` step, so
 ``canair monitor BMS:2101`` and
-``canair monitor "session IGPM --wake" "query IGPM"`` both work.
+``canair monitor "session IGPM --wake" "query IGPM"`` both work. With no STEP at
+all, a terminal gets an interactive picker (groups/ECUs, then PIDs —
+:mod:`canlib.modes.monitor_select`) whose result becomes the STEPs.
 
 On a terminal this opens the scrollable Textual monitor (the polling / decoding /
 capture-saving logic lives in :mod:`canlib.modes.monitor`); piped/non-interactive
@@ -15,6 +17,7 @@ apply here, not to the one-shot ``canair read``.
 from __future__ import annotations
 
 import argparse
+import shlex
 import sys
 
 from canlib.commands._live import (
@@ -38,10 +41,13 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         aliases=ALIASES,
         help="Live, continuously-refreshing view of ECU signals (scrollable TUI)",
         description="Monitor ECUs/signals live in a scrollable, refreshing view. "
-        "Positional STEPs use the multi mini-language (same as `canair read`).",
+        "Positional STEPs use the multi mini-language (same as `canair read`). "
+        "With no STEP on a terminal, an interactive picker offers saved groups and ECUs, "
+        "then PIDs.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
 examples:
+  canair monitor                            Pick ECUs, then PIDs, interactively (TTY only)
   canair monitor BMS:2101                   Monitor BMS PID 2101 (default 5s interval)
   canair monitor BMS:2101 --interval 2      Refresh every 2s
   canair monitor "VCU:2101 BMS:2101"        Cross-ECU monitor
@@ -122,13 +128,37 @@ For a single one-shot read (no live refresh) use `canair read` instead.
     return parser
 
 
+def _pick_steps(args) -> list[str] | None:
+    """Bare ``canair monitor`` on a terminal: let the user pick ECUs, then PIDs.
+
+    Returns the chosen selectors, or ``None`` when the picker was cancelled.
+    Raises ``ValueError`` if there is nothing in the active profile to pick from.
+    """
+    from canlib.commands._live import load_pids
+    from canlib.modes.monitor_select import pick_selectors
+
+    return pick_selectors(load_pids(), include_static=args.include_static)
+
+
 def run(args) -> int:
     if not args.steps:
-        print(
-            "Error: monitor needs at least one query step, e.g. `canair monitor BMS:2101`",
-            file=sys.stderr,
-        )
-        return 2
+        if not (sys.stdin.isatty() and sys.stdout.isatty()):
+            print(
+                "Error: monitor needs at least one query step, e.g. `canair monitor BMS:2101` "
+                "(run it on a terminal without steps for an interactive picker)",
+                file=sys.stderr,
+            )
+            return 2
+        try:
+            picked = _pick_steps(args)
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            return 2
+        if not picked:
+            print("Cancelled — nothing selected.")
+            return 0
+        args.steps = picked
+        print(f"Monitoring: canair monitor {shlex.join(picked)}")
 
     # Expand any @group references into their member selectors before the
     # mini-language parser sees them (composes with ad-hoc selectors).

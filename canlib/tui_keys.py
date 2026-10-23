@@ -86,6 +86,7 @@ ROLES: dict[str, KeyRole] = {
         # -- choosing what is shown ----------------------------------------
         _r("pick", "p a", "add/remove signals", "switch PID"),
         _r("filter", "slash", "filter"),
+        _r("select_all", "ctrl+a", "select all/none"),
         _r("filter_cycle", "F", "cycle filter"),
         _r("view", "V", "view mode"),
         _r("rulers", "r", "rulers", "byte ruler"),
