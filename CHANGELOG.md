@@ -15,6 +15,31 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [1.33.0](https://github.com/philipkocanda/canair/compare/v1.32.0...v1.33.0) (2026-10-22)
+
+
+### Added
+
+* **docs:** add a profile explorer page for browsing ECUs, PIDs and signals ([c22afa2](https://github.com/philipkocanda/canair/commit/c22afa23a71fef225514badfe41f8f515776d5e2))
+* **docs:** let the explorer hide the site navigation for wider plots ([5c90fc3](https://github.com/philipkocanda/canair/commit/5c90fc3f1a2eabba64e18f782dbb18337a8ecad6))
+* **docs:** plot captured signals in the profile explorer and surface related signals ([d9dba69](https://github.com/philipkocanda/canair/commit/d9dba6924dddab7ae643b413205ddbc4f5df4440))
+
+
+### Fixed
+
+* **docs:** make the explorer overview strip readable and fix review findings ([74c5461](https://github.com/philipkocanda/canair/commit/74c5461f7741e698cf97d7a74e92987b331b378d))
+* **docs:** show the research priority badge in the explorer instead of [object HTMLSpanElement] ([45b0f1b](https://github.com/philipkocanda/canair/commit/45b0f1beea46bcc363449b16a0e9d8f12b8cf597))
+
+
+### Documentation
+
+* feature the profile explorer on the homepage and README ([bd4e3c0](https://github.com/philipkocanda/canair/commit/bd4e3c066abf4684d77decd2013458191455ed1a))
+* second readability pass over concept and guide pages ([3d200dc](https://github.com/philipkocanda/canair/commit/3d200dc7473a9df293469da5443fc68727caa070))
+* show dark screenshots of the explorer on the homepage in dark mode ([849fc4b](https://github.com/philipkocanda/canair/commit/849fc4b6b3ea3798dfdd2cfa0794940ffc6264d3))
+* third readability pass over README, config and setup pages ([2cc1e39](https://github.com/philipkocanda/canair/commit/2cc1e396d95cece995e42f2c8da367d15e597945))
+* tighten verbose passages for readability ([be0c88a](https://github.com/philipkocanda/canair/commit/be0c88acaee1b129b7ad162ce5dc0a31f5b1e869))
+* trim verbose profile.yaml paragraph in create-profile page ([4fdd1fb](https://github.com/philipkocanda/canair/commit/4fdd1fb2c4e6bfdeadfc09deb11d13c1dae693c0))
+
 ## [1.32.0](https://github.com/philipkocanda/canair/compare/v1.31.0...v1.32.0) (2026-10-22)
 
 
