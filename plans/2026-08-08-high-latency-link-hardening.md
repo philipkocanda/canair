@@ -1,7 +1,7 @@
 # High-latency link hardening: request/response correlation and cellular tolerance
 
 Status: **IN PROGRESS** (2026-08-08). Everything is done except item 9 (device-side SLCAN
-acceptance filters), which needs hardware verification before it can ship — see its entry.
+acceptance filters), which is blocked: the firmware ignores the filter — see its entry.
 Items 7 and 15 were dropped with reasons recorded below. Shipped in `ba9fb09`, `bc45bd1`,
 `ef1b3c7`, `eb9662a`, `85b0ba4`, `cb070c3`. Follow-up to
 `plans/2026-08-08-elm327-pipe-desync-recovery.md`, which fixed the reported symptom on
@@ -63,10 +63,10 @@ sustained, ~200 MB/hour**, before WireGuard overhead, to answer perhaps 10 reque
 hotspot uplink that either saturates or induces bufferbloat — and once queue delay grows,
 every timeout below fires. It is also a real data-cost problem.
 
-The WiCAN implements **hardware** acceptance filtering, so this is fixable on the device
+The SLCAN protocol has acceptance-filter commands, which would make this fixable on the device
 side, before the link: `M` → `can_set_filter()` (`wican-fw/main/slcan.c:479`) and `m` →
 `can_set_mask()` (`wican-fw/main/slcan.c:496`), each taking 8 ASCII hex digits, parsed at
-`wican-fw/main/slcan.c:399-410`.
+`wican-fw/main/slcan.c:399-410`. **But the firmware discards the result** — see item 9.
 
 ### 3. `slcan-tcp` puts ISO-TP flow control in the latency path
 
@@ -330,12 +330,20 @@ the ELM327 emulator, but **not on `wican-ws`** — it cannot carry the primary d
 
 ### Phase B — make `slcan-tcp` latency-proof
 
-9. **Device-side acceptance filters.** *(blocked on hardware verification — the only item
-   not shipped.)* Emit `M`/`m` between the bitrate command and `O` in `SlcanTcpBus.__init__`
-   (`canlib/transport/slcan_tcp.py`), computed from the profile's ECU response addresses.
-   `sniff` must opt out and stay unfiltered.
+9. **Device-side acceptance filters.** *(blocked: the firmware ignores the filter — the only
+   item not shipped.)* The idea was to emit `M`/`m` between the bitrate command and `O` in
+   `SlcanTcpBus.__init__` (`canlib/transport/slcan_tcp.py`), computed from the profile's ECU
+   response addresses, with `sniff` opting out and staying unfiltered.
 
-   Firmware reading (`wican-fw/`) settled three of the four unknowns:
+   **Blocker (firmware v2.3.24, `wican-fw` at `fab54ad`):** `can_enable()`
+   (`wican-fw/main/can.c:124-133`) hardcodes `acceptance_code = 0` and
+   `acceptance_mask = 0xFFFFFFFF` (accept everything); the lines that would use
+   `can_cfg.filter`/`can_cfg.mask` are commented out. `M`/`m` are parsed and stored but never
+   reach the CAN controller, so no bench check can succeed. Revisit only if a firmware release
+   re-enables the filter (firmware v6 was not checked).
+
+   The rest of this entry is the design as it would apply then. The firmware reading settled
+   three of the four unknowns:
 
    - **Ordering is mandatory, not merely preferable.** `can_set_filter`
      (`wican-fw/main/can.c:197`) and `can_set_mask` (`wican-fw/main/can.c:207`) both
@@ -475,8 +483,9 @@ Still outstanding (needs a device or a drive):
   `canair captures uds --sessions` to confirm the `quality` line shows resyncs/stale
   recovered rather than a dead session, and a tunnel drop to confirm the 60 s reconnect budget
   brings the recording back.
-- **Item 9's bench check** — set an acceptance filter on a real WiCAN and confirm the expected
-  response IDs still arrive while others stop. This is the gate on shipping item 9 at all.
+- **Item 9's bench check** — only meaningful once a firmware applies the filter (v2.3.24 does
+  not). Set an acceptance filter on a real WiCAN and confirm the expected response IDs still
+  arrive while others stop. This is the gate on shipping item 9 at all.
 
 ## Open questions
 
