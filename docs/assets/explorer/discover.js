@@ -116,7 +116,9 @@
       var axis = el("div", { class: "cx-heataxis" });
       var wrap = el("div", { class: "cx-heatwrap" }, canvas, rowMark, brush, tip);
       fill(V.heat, title(), wrap, axis,
-        el("p", { class: "cx-muted cx-heathelp" }, "Hover for a signal's value; click a row to plot it (again to remove); drag across time to zoom; double-click to reset."));
+        el("p", { class: "cx-muted cx-heathelp" }, P.touch
+          ? "Tap a row to see the signal and plot it (again to remove); drag sideways to zoom, reset zoom below to undo."
+          : "Hover for a signal's value; click a row to plot it (again to remove); drag across time to zoom; double-click to reset."));
 
       var g = heatGeometry(V, wrap), dpr = devicePixelRatio || 1, height = n * rh;
       canvas.width = Math.round(g.width * dpr); canvas.height = Math.round(height * dpr);
@@ -147,22 +149,26 @@
         var i = Math.floor(y / rh);
         return i >= 0 && i < n ? i : -1;
       }
-      var down = null;
+      var down = null, tipTimer = 0;
       canvas.addEventListener("pointerdown", function (ev) {
         down = { x: ev.clientX, t: timeAt(ev) };
         window.addEventListener("pointerup", up, { once: true });
+        if (ev.pointerType !== "mouse") hover(ev);
       });
-      canvas.addEventListener("pointermove", function (ev) {
+      canvas.addEventListener("pointermove", hover);
+      function hover(ev) {
+        clearTimeout(tipTimer);
         var i = rowAt(ev), k = h.order[i], s = k && S.signals[k], t = timeAt(ev);
         if (s) {
           var v = P.valueAt(s, t * 1000);
-          fill(tip, el("div", {}, el("strong", {}, s.name), " ", el("span", { class: "cx-muted" }, s.ecu + ":" + s.pid),
+          // Not fill(): this runs per pointer move, and the tooltip floats, so it cannot move the page.
+          tip.replaceChildren(el("div", {}, el("strong", {}, s.name), " ", el("span", { class: "cx-muted" }, s.ecu + ":" + s.pid),
             el("br", {}), P.fmt(v) + (s.unit && v === v ? " " + s.unit : ""), el("span", { class: "cx-muted" }, " at " + P.clock(S.entry.start, t)),
             s.verified ? null : el("div", { class: "cx-muted" }, "unverified signal"),
-            el("div", { class: "cx-muted" }, tray.has(k) ? "in the plot · click to remove" : "click to plot")));
+            el("div", { class: "cx-muted" }, (tray.has(k) ? "in the plot · " + (P.touch ? "tap" : "click") + " to remove" : (P.touch ? "tap" : "click") + " to plot"))));
           var r = wrap.getBoundingClientRect(), x = ev.clientX - r.left, y = ev.clientY - r.top;
           tip.hidden = false;
-          tip.style.left = Math.min(x + 14, r.width - tip.offsetWidth - 4) + "px";
+          tip.style.left = Math.max(0, Math.min(x + 14, r.width - tip.offsetWidth - 4)) + "px";
           tip.style.top = (y + 14 + tip.offsetHeight > r.height + 40 ? y - tip.offsetHeight - 8 : y + 14) + "px";
           rowMark.hidden = false;
           rowMark.style.top = i * rh + "px"; rowMark.style.height = rh + "px";
@@ -174,8 +180,12 @@
           brush.style.left = g.x0 + a / dur * g.plotW + "px";
           brush.style.width = (b - a) / dur * g.plotW + "px";
         }
+      }
+      canvas.addEventListener("pointerleave", function (ev) {
+        // A finger "leaves" as it lifts, so keep a tapped row's tooltip up long enough to read.
+        clearTimeout(tipTimer);
+        tipTimer = setTimeout(function () { tip.hidden = true; rowMark.hidden = true; }, ev.pointerType === "mouse" ? 0 : 2500);
       });
-      canvas.addEventListener("pointerleave", function () { tip.hidden = true; rowMark.hidden = true; });
       function up(ev) {
         if (!down) return;
         var d = down; down = null;
@@ -277,13 +287,13 @@
       heatData(S);
       var rows = res.slice(0, TOP_N);
       fill(body, body.children[0], body.children[1],
-        rows.length ? el("table", { class: "cx-table" }, el("tbody", {}, rows.map(function (r) {
-          return el("tr", {}, el("td", {}, addButton(r.key)), el("td", {}, signalCell(S, r.key)),
-            el("td", { class: "cx-num" }, (r.r > 0 ? "+" : "") + r.r.toFixed(2)),
-            el("td", { class: "cx-muted" }, lagText(S, r.lag)), el("td", { class: "cx-muted" }, "n=" + r.n),
+        rows.length ? el("div", { class: "cx-scroll" }, el("table", { class: "cx-table cx-cardtable cx-reltable" }, el("tbody", {}, rows.map(function (r) {
+          return el("tr", {}, el("td", { class: "cx-c-plus" }, addButton(r.key)), el("td", { class: "cx-c-sig" }, signalCell(S, r.key)),
+            el("td", { class: "cx-num cx-c-score" }, (r.r > 0 ? "+" : "") + r.r.toFixed(2)),
+            el("td", { class: "cx-muted cx-c-lag" }, lagText(S, r.lag)), el("td", { class: "cx-muted cx-c-n" }, "n=" + r.n),
             el("td", {}, r.mirror ? el("span", { class: "cx-badge cx-plain", title: "Matches at almost exactly 1.0: probably the same value, rescaled" }, "mirror") : null),
-            el("td", {}, sparkline(S, r.key)));
-        }))) : el("p", { class: "cx-muted" }, "Nothing else in this session moved enough to compare."),
+            el("td", { class: "cx-c-spark" }, sparkline(S, r.key)));
+        })))) : el("p", { class: "cx-muted" }, "Nothing else in this session moved enough to compare."),
         el("p", { class: "cx-muted" }, "A strong match is a lead, not an explanation: check that it makes physical sense, then look at the raw bytes."));
     }, function (err) { fill(body, el("p", { class: "cx-muted" }, "Analysis failed: " + err.message)); });
   }
@@ -307,12 +317,12 @@
       if (V.chgKey !== key || V.S !== S) return;
       var rows = res.slice(0, TOP_N);
       fill(body, body.children[0],
-        rows.length ? el("table", { class: "cx-table" }, el("tbody", {}, rows.map(function (r) {
-          return el("tr", {}, el("td", {}, addButton(r.key)), el("td", {}, signalCell(S, r.key)),
+        rows.length ? el("div", { class: "cx-scroll" }, el("table", { class: "cx-table cx-cardtable" }, el("tbody", {}, rows.map(function (r) {
+          return el("tr", {}, el("td", { class: "cx-c-plus" }, addButton(r.key)), el("td", { class: "cx-c-sig" }, signalCell(S, r.key)),
             el("td", {}, el("span", { class: "cx-badge " + (r.kind === "flip" ? "cx-ok" : "cx-plain") }, r.kind === "flip" ? "flag flipped" : r.kind === "level" ? "level shift" : "more active")),
             el("td", { class: "cx-muted" }, "inside " + P.fmt(r.inside) + " · outside " + P.fmt(r.outside)),
-            el("td", { class: "cx-num" }, r.score.toFixed(1) + " σ"));
-        }))) : el("p", { class: "cx-muted" }, "No signal stands out in this window."),
+            el("td", { class: "cx-num cx-c-score" }, r.score.toFixed(1) + " σ"));
+        })))) : el("p", { class: "cx-muted" }, "No signal stands out in this window."),
         el("p", { class: "cx-muted" }, "Scores are in units of each signal's own spread over the session. A window with few samples exaggerates them."));
     }, function (err) { fill(body, el("p", { class: "cx-muted" }, "Analysis failed: " + err.message)); });
   }

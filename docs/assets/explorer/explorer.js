@@ -35,10 +35,28 @@
   function svg(tag, attrs) {
     return build(document.createElementNS(SVG_NS, tag), attrs, Array.prototype.slice.call(arguments, 2));
   }
+  /** Run a re-render without letting the page shrink while it is half-built.
+   *  Safari has no scroll anchoring, and WebKit can lay the page out mid-swap (it does when the
+   *  tapped, :hover/:active button is among the removed nodes, and whenever we measure). A page
+   *  measured half-replaced is shorter, so the scroll position is clamped and the page jumps;
+   *  holding its height until the new content has been laid out prevents that. */
+  var holding = false;
+  function keepingHeight(fn) {
+    if (holding) return fn();
+    var body = document.body;
+    holding = true;
+    body.style.minHeight = document.documentElement.scrollHeight + "px";
+    try { return fn(); } finally {
+      void body.offsetHeight;
+      body.style.minHeight = "";
+      holding = false;
+    }
+  }
   /** replaceChildren that skips null/false and flattens arrays, like el(). */
   function fill(node) {
-    node.replaceChildren();
-    return build(node, {}, Array.prototype.slice.call(arguments, 1));
+    var next = build(document.createDocumentFragment(), {}, Array.prototype.slice.call(arguments, 1));
+    if (!node.isConnected || !node.firstChild) { node.replaceChildren(next); return node; }
+    return keepingHeight(function () { node.replaceChildren(next); return node; });
   }
   function build(node, attrs, kids) {
     Object.keys(attrs || {}).forEach(function (k) {
@@ -164,6 +182,23 @@
   function badge(text, kind) { return el("span", { class: "cx-badge cx-" + kind }, text); }
   function verifiedBadge(ok) { return ok ? badge("verified", "ok") : badge("unverified", "warn"); }
   function notes(text) { return text ? el("div", { class: "cx-notes" }, text) : null; }
+  // Long notes are cut to a few lines where the table becomes cards (narrow screens), with a toggle.
+  var CLAMP_CHARS = 160;
+  function longNotes(text) {
+    if (!text || text.length <= CLAMP_CHARS) return notes(text);
+    var box = el("div", { class: "cx-notes cx-clamp" }, text);
+    var more = el("button", { type: "button", class: "cx-more", "aria-expanded": "false", onclick: function () {
+      var open = box.classList.toggle("cx-open");
+      more.textContent = open ? "show less" : "show more";
+      more.setAttribute("aria-expanded", open ? "true" : "false");
+    } }, "show more");
+    return [box, more];
+  }
+  /** Scroll a freshly rendered panel into view when the user picked it but it starts off-screen. */
+  function reveal(node) {
+    var top = node.getBoundingClientRect().top;
+    if (top < 0 || top > window.innerHeight * 0.6) node.scrollIntoView({ block: "start" });
+  }
   function command(cmd) {
     var btn = el("button", { type: "button", class: "cx-copy", title: "Copy command", onclick: function () {
       if (navigator.clipboard) navigator.clipboard.writeText(cmd);
@@ -192,7 +227,7 @@
     var laneY = function (i) { return D.top + i * D.laneH + D.laneH / 2; };
     var colX = function (c) { return D.labelW + c * D.colW + D.colW / 2; };
     var root = svg("svg", { class: "cx-diagram", width: width, height: height, viewBox: "0 0 " + width + " " + height, role: "img",
-      "aria-label": "CAN bus diagram" });
+      "aria-label": "CAN bus diagram", style: "--cx-w:" + width + "px" });
 
     layout.lanes.forEach(function (lane, i) {
       var rate = lane.bitrate ? " · " + lane.bitrate / 1000 + " kbit/s" : "";
@@ -210,11 +245,12 @@
       var title = ecu
         ? node.name + (ecu.tx_id ? " · tx " + ecu.tx_id : "") + (ecu.rx_id ? " · rx " + ecu.rx_id : "") + " · " + ecu.buses.join(", ")
         : node.name;
+      var pick = function () { if (app) app.reveal = true; go({ profile: data.profile.name, ecu: node.name, tab: "overview" }); };
       var g = svg("g", {
         class: "cx-node cx-k-" + node.kind + " cx-m-" + maturity + (node.name === selected ? " cx-selected" : ""),
         tabindex: ecu ? 0 : null, role: ecu ? "button" : null,
-        onclick: ecu ? function () { go({ profile: data.profile.name, ecu: node.name, tab: "overview" }); } : null,
-        onkeydown: ecu ? function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go({ profile: data.profile.name, ecu: node.name, tab: "overview" }); } } : null,
+        onclick: ecu ? pick : null,
+        onkeydown: ecu ? function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } } : null,
       }, svg("title", {}, title));
       if (last > first) g.appendChild(svg("line", { class: "cx-bridge", x1: x, x2: x, y1: first + D.nodeH / 2, y2: last }));
       node.lanes.slice(1).forEach(function (l) { g.appendChild(svg("circle", { class: "cx-tick", cx: x, cy: laneY(l), r: 4 })); });
@@ -264,20 +300,27 @@
 
   function present(v) { return v !== undefined && v !== null && v !== ""; }
   function safeUrl(u) { return /^https?:\/\//i.test(u) ? u : null; }
+  /** A SIGNAL_NAME that may wrap after its underscores rather than mid-word. */
+  function breakable(name) {
+    var parts = name.split("_");
+    return parts.map(function (part, i) {
+      return [i ? el("wbr", {}) : null, part + (i < parts.length - 1 ? "_" : "")];
+    });
+  }
   function signalRow(data, ecu, pid, sig, route) {
     var range = sig.min !== undefined || sig.max !== undefined ? (present(sig.min) ? sig.min : "…") + " … " + (present(sig.max) ? sig.max : "…") : "";
     return el("tr", { "data-signal": sig.name, class: route.signal === sig.name ? "cx-flash" : null },
-      el("td", {}, plottable(sig) ? plusButton(ecu.name, pid.id, sig.name) : null),
-      el("td", {}, el("strong", {}, sig.name), sig.type ? el("div", { class: "cx-muted" }, "type: " + sig.type) : null),
-      el("td", {}, el("code", {}, sig.expression || "")),
-      el("td", {}, sig.unit || ""),
-      el("td", { class: "cx-muted" }, range),
-      el("td", {}, verifiedBadge(sig.verified)),
-      el("td", {}, notes(sig.notes), sig.source ? el("div", { class: "cx-muted" }, "source: " + sig.source) : null,
+      el("td", { class: "cx-c-plus" }, plottable(sig) ? plusButton(ecu.name, pid.id, sig.name) : null),
+      el("td", { class: "cx-c-name" }, el("strong", {}, breakable(sig.name)), sig.type ? el("div", { class: "cx-muted" }, "type: " + sig.type) : null),
+      el("td", { class: "cx-c-expr" }, sig.expression ? el("code", {}, sig.expression) : null),
+      el("td", { class: "cx-c-unit" }, sig.unit || ""),
+      el("td", { class: "cx-c-range cx-muted" }, range),
+      el("td", { class: "cx-c-ok" }, verifiedBadge(sig.verified)),
+      el("td", { class: "cx-c-notes" }, longNotes(sig.notes), sig.source ? el("div", { class: "cx-muted" }, "source: " + sig.source) : null,
         (sig.source_links || []).map(function (u) {
-          return el("div", {}, safeUrl(u) ? el("a", { href: u, target: "_blank", rel: "noopener" }, u) : u);
+          return el("div", { class: "cx-link-line" }, safeUrl(u) ? el("a", { href: u, target: "_blank", rel: "noopener" }, u) : u);
         })),
-      el("td", {}, srcLink(data, sig.src, "↗")));
+      el("td", { class: "cx-c-src" }, srcLink(data, sig.src, "↗")));
   }
 
   function viewPids(data, ecu, route, verifiedOnly) {
@@ -298,9 +341,9 @@
             (pid.period ? " · every " + pid.period + " ms" : "") + (pid.response_frames ? " · " + pid.response_frames + " frames" : ""))),
         el("div", { class: "cx-pid-body" },
           command("canair --profile " + data.profile.name + " read " + ecu.name + ":" + pid.id),
-          notes(pid.notes), " ", srcLink(data, pid.src, "PID in yaml ↗"),
+          notes(pid.notes), srcLink(data, pid.src, "PID in yaml ↗"),
           plotAllButton(ecu, pid, sigs),
-          sigs.length ? el("table", { class: "cx-table" },
+          sigs.length ? el("table", { class: "cx-table cx-sigtable" },
             el("thead", {}, el("tr", {}, ["", "Signal", "Expression", "Unit", "Range", "", "Notes", ""].map(function (t) { return el("th", {}, t); }))),
             el("tbody", {}, sigs.map(function (s) { return signalRow(data, ecu, pid, s, route); }))) : el("p", { class: "cx-muted" }, "No signals decoded yet.")));
       return details;
@@ -324,17 +367,17 @@
         el("p", { class: "admonition-title" }, "These drive real hardware"),
         el("p", {}, "IO controls actuate relays, motors and lamps on a real car. canair releases them when its session ends, " +
           "but read the ", el("a", { href: SAFETY_URL }, "Safety page"), " first. Unverified frames are guesses.")),
-      rows.length ? el("table", { class: "cx-table" },
+      rows.length ? el("table", { class: "cx-table cx-iotable" },
         el("thead", {}, el("tr", {}, ["DID", "Label", "On", "Off", "Status", "Notes", ""].map(function (t) { return el("th", {}, t); }))),
         el("tbody", {}, rows.map(function (c) {
           return el("tr", {},
-            el("td", {}, el("code", {}, c.did)),
-            el("td", {}, c.label || "", c.hold === false ? el("div", { class: "cx-muted" }, "no hold") : null),
-            el("td", {}, c.on ? el("code", {}, c.on) : el("span", { class: "cx-muted" }, "—")),
-            el("td", {}, c.off ? el("code", {}, c.off) : el("span", { class: "cx-muted" }, "—")),
-            el("td", {}, verifiedBadge(c.verified)),
-            el("td", {}, notes(c.notes), command("canair --profile " + data.profile.name + " io " + ecu.name + " --did " + c.did)),
-            el("td", {}, srcLink(data, c.src, "↗")));
+            el("td", { class: "cx-c-did" }, el("code", {}, c.did)),
+            el("td", { class: "cx-c-label" }, c.label || "", c.hold === false ? el("div", { class: "cx-muted" }, "no hold") : null),
+            el("td", { class: "cx-c-on" }, c.on ? el("code", {}, c.on) : el("span", { class: "cx-muted" }, "—")),
+            el("td", { class: "cx-c-off" }, c.off ? el("code", {}, c.off) : el("span", { class: "cx-muted" }, "—")),
+            el("td", { class: "cx-c-ok" }, verifiedBadge(c.verified)),
+            el("td", { class: "cx-c-notes" }, longNotes(c.notes), command("canair --profile " + data.profile.name + " io " + ecu.name + " --did " + c.did)),
+            el("td", { class: "cx-c-src" }, srcLink(data, c.src, "↗")));
         }))) : el("p", { class: "cx-muted" }, verifiedOnly ? "No verified IO controls." : "No IO controls defined for this ECU."));
   }
 
@@ -355,13 +398,15 @@
         return el("details", { class: "cx-pid" },
           el("summary", {}, el("code", {}, m.id), " ", el("strong", {}, m.name || ""), " ",
             el("span", { class: "cx-muted" }, (m.tx_ecu ? "from " + m.tx_ecu + " · " : "") + m.bus + " · " + m.signals.length + " signals"), " ", srcLink(data, m.src)),
-          el("table", { class: "cx-table" },
+          el("div", { class: "cx-pid-body" }, el("table", { class: "cx-table cx-bctable" },
             el("thead", {}, el("tr", {}, ["Signal", "Start bit", "Length", "Order", "Scale", "Offset", "Unit", "", "Notes"].map(function (t) { return el("th", {}, t); }))),
             el("tbody", {}, m.signals.map(function (s) {
-              return el("tr", {}, el("td", {}, el("strong", {}, s.name)), el("td", {}, s.start_bit), el("td", {}, s.length), el("td", {}, s.byte_order),
-                el("td", {}, s.scale), el("td", {}, s.offset), el("td", {}, s.unit), el("td", {}, verifiedBadge(s.verified)),
-                el("td", {}, notes(s.notes), srcLink(data, s.src, "↗")));
-            }))));
+              return el("tr", {}, el("td", { class: "cx-c-name" }, el("strong", {}, breakable(s.name))), el("td", { class: "cx-c-start" }, s.start_bit),
+                el("td", { class: "cx-c-len" }, s.length), el("td", { class: "cx-c-order" }, s.byte_order),
+                el("td", { class: "cx-c-scale" }, s.scale), el("td", { class: "cx-c-offset" }, s.offset), el("td", { class: "cx-c-unit" }, s.unit),
+                el("td", { class: "cx-c-ok" }, verifiedBadge(s.verified)),
+                el("td", { class: "cx-c-notes" }, longNotes(s.notes), " ", srcLink(data, s.src, "↗")));
+            })))));
       }));
   }
 
@@ -423,7 +468,7 @@
     function renderSearch() {
       var hits = ui.data ? search(ui.data, ui.search.value) : [];
       ui.results.hidden = !ui.search.value.trim();
-      ui.results.replaceChildren.apply(ui.results, hits.length
+      fill(ui.results, hits.length
         ? hits.map(function (h) {
           return el("button", { type: "button", class: "cx-hit", onclick: function () {
             ui.search.value = ""; renderSearch();
@@ -441,15 +486,17 @@
           (!ui.verifiedOnly || e.counts.verified > 0);
       }).map(function (e) {
         return el("button", { type: "button", class: "cx-ecu" + (e.name === route.ecu ? " cx-active" : ""), onclick: function () {
+          ui.reveal = true;
           go({ profile: data.profile.name, ecu: e.name, tab: "overview" });
         } }, el("i", { class: "cx-swatch cx-m-" + e.maturity }), el("strong", {}, e.name), el("span", { class: "cx-muted" }, " " + e.counts.signals));
       });
       if (data.broadcast.length) {
         items.push(el("button", { type: "button", class: "cx-ecu" + (route.ecu === BROADCAST ? " cx-active" : ""), onclick: function () {
+          ui.reveal = true;
           go({ profile: data.profile.name, ecu: BROADCAST });
         } }, el("strong", {}, "Broadcast frames"), el("span", { class: "cx-muted" }, " " + data.broadcast.length)));
       }
-      ui.list.replaceChildren.apply(ui.list, items.length ? items : [el("span", { class: "cx-muted" }, "No ECUs match.")]);
+      fill(ui.list, items.length ? items : [el("span", { class: "cx-muted" }, "No ECUs match.")]);
     }
 
     function renderDetail() {
@@ -485,6 +532,8 @@
       fill(ui.detail, body);
       var flash = ui.detail.querySelector(".cx-flash");
       if (flash) flash.scrollIntoView({ block: "center" });
+      else if (ui.reveal) reveal(ui.detail);
+      ui.reveal = false;
     }
 
     function renderModes(route) {
@@ -495,13 +544,13 @@
         el("button", { type: "button", class: "cx-mode" + (plot ? "" : " cx-active"), onclick: function () { go({ profile: name }); } }, "Definitions"),
         hasData ? el("button", { type: "button", class: "cx-mode" + (plot ? " cx-active" : ""), onclick: function () {
           go({ profile: name, mode: "plot", session: ui.lastSession || "", params: tray.ids.length ? { s: tray.ids.join(",") } : {} });
-        } }, "Data " + ui.data.profile.sessions + " sessions") : null);
+        } }, "Data", el("span", { class: "cx-muted" }, " " + ui.data.profile.sessions + " sessions")) : null);
     }
 
     function renderTray() {
       var route = parseHash();
       ui.tray.hidden = !tray.ids.length;
-      ui.tray.replaceChildren.apply(ui.tray, [el("span", { class: "cx-muted" }, "Plot tray:")].concat(tray.ids.map(function (id) {
+      fill(ui.tray, [el("span", { class: "cx-muted" }, "Plot tray:")].concat(tray.ids.map(function (id) {
         var p = id.split(":");
         return el("span", { class: "cx-chip", title: id }, p[2], el("span", { class: "cx-muted" }, " " + p[0] + ":" + p[1]),
           el("button", { type: "button", class: "cx-x", "aria-label": "Remove " + id, onclick: function () { tray.remove(id); } }, "×"));
@@ -540,18 +589,20 @@
           renderSearch();
         }
         var plot = route.mode === "plot" && window.canairExplorer.dataView;
-        renderModes(route);
-        renderTray();
-        ui.diagram.hidden = ui.defsBody.hidden = !!plot;
-        ui.dataHost.hidden = !plot;
-        if (plot) {
-          if (route.session) ui.lastSession = route.session;
-          window.canairExplorer.dataView.render(ui.dataHost, data, route, ui);
-          return;
-        }
-        fill(ui.diagram, renderDiagram(data, route.ecu));
-        renderRail();
-        renderDetail();
+        keepingHeight(function () {
+          renderModes(route);
+          renderTray();
+          ui.diagram.hidden = ui.defsBody.hidden = !!plot;
+          ui.dataHost.hidden = !plot;
+          if (plot) {
+            if (route.session) ui.lastSession = route.session;
+            window.canairExplorer.dataView.render(ui.dataHost, data, route, ui);
+            return;
+          }
+          fill(ui.diagram, renderDiagram(data, route.ecu));
+          renderRail();
+          renderDetail();
+        });
       }, function (err) {
         fill(ui.detail, el("p", { class: "cx-muted" }, "Could not load profile data: " + err.message));
       });
@@ -573,7 +624,8 @@
 
   // What the data view (plot.js) builds on.
   window.canairExplorer = {
-    el: el, svg: svg, fill: fill, badge: badge, verifiedBadge: verifiedBadge, notes: notes, command: command,
+    el: el, svg: svg, fill: fill, keepingHeight: keepingHeight, badge: badge, verifiedBadge: verifiedBadge, notes: notes, command: command,
+    reveal: reveal,
     srcLink: srcLink, parseHash: parseHash, hashFor: hashFor, go: go, tray: tray, trayId: trayId,
     loadProfile: loadProfile, ecuByName: ecuByName, DATA_URL: DATA_URL, SCRIPT_URL: SCRIPT_URL,
     current: function () { return app; }, dataView: null,

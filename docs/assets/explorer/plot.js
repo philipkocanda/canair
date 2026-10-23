@@ -15,6 +15,8 @@
   var PALETTE = ["#4e79a7", "#f28e2b", "#e15759", "#59a14f", "#b07aa1", "#76b7b2", "#edc948", "#ff9da7", "#9c755f", "#86bcb6"];
   var LANE_H = 170, OVERLAY_H = 340, RIBBON_ROW = 11, MAX_PER_LANE = 6, AXIS_W = 64, GRID_POINTS = 40000;
   var TIME_INCRS = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 14400, 21600, 43200, 86400];
+  // uPlot's drag-to-zoom is mouse-only; on a touchscreen the overview strip is the zoom control.
+  var TOUCH = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
 
   var cache = { sessions: {}, docs: {} };
   var api = window.canairPlot = {};
@@ -161,7 +163,7 @@
     });
     V.observer.observe(host);
   }
-  function laneWidth() { return Math.max(300, V.main.clientWidth - 2); }
+  function laneWidth() { return Math.max(200, V.main.clientWidth - 2); }
 
   function render(host, data, route, ui) {
     if (!data.profile.sessions) {
@@ -189,7 +191,7 @@
       if (id) ui.lastSession = id;
       view.renderList();
       if (!id) { view.S = null; view.renderMain(); return; }
-      if (same) { applyPendingRange(view); view.draw(); return; }
+      if (same) { view.reveal = false; applyPendingRange(view); view.draw(); return; }
       var token = ++view.token;
       fill(view.main, el("p", { class: "cx-muted" }, "Loading session…"));
       var entry = sessions.filter(function (s) { return s.id === id; })[0];
@@ -200,6 +202,8 @@
         applyPendingRange(view);
         view.renderMain();
         view.writeHash();
+        if (view.reveal) X.reveal(view.main);
+        view.reveal = false;
       }, function (err) {
         if (V !== view || token !== view.token) return;
         fill(view.main, el("p", { class: "cx-muted" }, "Could not load the session: " + err.message + ". Pick it again to retry."));
@@ -233,6 +237,7 @@
     history.replaceState(null, "", X.hashFor({ profile: V.name, mode: "plot", session: V.id, params: params }));
   }
   function open(id) {
+    V.reveal = id !== V.id;
     X.go({ profile: V.name, mode: "plot", session: id, params: { s: tray.ids.join(","), m: V.layout === "overlay" ? "overlay" : "" } });
   }
 
@@ -319,7 +324,8 @@
     }, 150);
   }
 
-  function draw() {
+  function draw() { X.keepingHeight(drawNow); }
+  function drawNow() {
     if (!V.S || !V.lanes) return;
     V.plots.forEach(function (u) { u.destroy(); });
     V.plots = []; V.cells = {};
@@ -333,7 +339,9 @@
         })),
       el("button", { type: "button", class: "cx-button", onclick: function () { setRange(0, S.dur / 1000); } }, "reset zoom"),
       el("button", { type: "button", class: "cx-button", onclick: function () { if (navigator.clipboard) navigator.clipboard.writeText(location.href); } }, "copy link"),
-      el("span", { class: "cx-muted" }, "Drag to zoom, double-click to reset · click to pin point A, again for B; a third click clears both"));
+      el("span", { class: "cx-muted" }, TOUCH
+        ? "Drag across the overview above to zoom · tap the plot to pin point A, again for B; a third tap clears both"
+        : "Drag to zoom, double-click to reset · click to pin point A, again for B; a third click clears both"));
     if (!keys.length) {
       fill(V.lanes, el("div", { class: "cx-empty" },
         el("p", {}, tray.ids.length ? "None of the tray's signals were recorded in this session." : "Nothing to plot yet."),
@@ -348,7 +356,7 @@
     V.lanes.replaceChildren();
     var width = laneWidth();
     groups.forEach(function (g, gi) {
-      var holder = el("div", { class: "cx-lane" });
+      var holder = el("div", { class: "cx-plotlane" });
       var ribbon = gi === 0 ? ribbonRows() : [];
       V.lanes.appendChild(holder);
       V.plots.push(makePlot(holder, g, al, width, gi === groups.length - 1, ribbon));
@@ -411,7 +419,7 @@
       width: width, height: height, padding: [ribbonH + 6, 12, 0, 0], legend: { show: false },
       scales: { x: { time: false, range: function (u, min, max) { return [min, max]; } }, y: g.normalized ? { range: [-0.03, 1.03] } : {} },
       axes: [
-        { size: isLast ? 28 : 0, show: isLast, stroke: fg, grid: { stroke: grid, width: 1 }, ticks: { stroke: grid }, incrs: TIME_INCRS,
+        { size: isLast ? 28 : 0, show: isLast, stroke: fg, grid: { stroke: grid, width: 1 }, ticks: { stroke: grid }, incrs: TIME_INCRS, space: 72,
           values: function (u, splits) { return splits.map(function (v) { return clock(S.entry.start, v); }); } },
         { size: AXIS_W, stroke: fg, grid: { stroke: grid, width: 1 }, ticks: { stroke: grid },
           label: g.normalized ? "normalized (own min–max)" : g.unit, labelSize: 14, labelFont: "11px sans-serif",
@@ -509,6 +517,8 @@
       c.d.textContent = p.length > 1 ? fmt(b - a) : "";
       c.r.textContent = p.length > 1 && p[1] > p[0] ? fmt((b - a) / ((p[1] - p[0]) / 60)) : "";
     });
+    var table = V.readout.querySelector("table");
+    if (table) { table.classList.toggle("cx-pins0", !p.length); table.classList.toggle("cx-pins1", p.length === 1); }
     var ha = V.readout.querySelector("thead th:nth-child(5)"), hb = V.readout.querySelector("thead th:nth-child(6)");
     if (ha) ha.textContent = p.length ? "A @ " + clock(V.S.entry.start, p[0]) : "Pin A";
     if (hb) hb.textContent = p.length > 1 ? "B @ " + clock(V.S.entry.start, p[1]) : "Pin B";
@@ -524,5 +534,6 @@
   }
 
   api.valueAt = valueAt; api.fmt = fmt; api.setRange = setRange; api.colorOf = colorOf; api.duration = duration; api.clock = clock;
+  api.touch = TOUCH;
   X.dataView = { render: render };
 })();
