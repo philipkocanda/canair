@@ -133,7 +133,7 @@ SKM:
         doors unlock. NRC 0x22 if ACC already on. freezeCurrentState (02) returns status bytes 6255.
         Drives the Button Start #1 (ACC) relay E48 (SMK connector B pin 12). Its output is the 'hot
         in ACC or ON' group (IGPM MODULE2 fuse): audio, navigation, USB and wireless charger, BCM,
-        SMK, SBW switch.
+        SMK, SBW switch. Taken from US-market wiring; unconfirmed on the EU car.
 
     B109:
       vehicle_states: []
@@ -146,7 +146,7 @@ SKM:
         Drives the Button Start #2 (IG1) relay E43 (SMK connector B pin 2). Its output is the 'hot
         in ON or START' group: cluster, SRS airbag module, MDPS, door modules, stop-lamp switch and
         the EPCU ON/START input (pin 46). It does not carry the start request to the EPCU (see
-        B10B). Not tested on this car.
+        B10B). Not tested on this car. Taken from US-market wiring; unconfirmed on the EU car.
     B10A:
       vehicle_states: []
       label: IGN2 relay
@@ -158,7 +158,7 @@ SKM:
         Drives the Button Start #3 (IG2) relay E46 (SMK connector B pin 1). Its output is the 'hot
         in ON' group: front wipers, washer, A/C control module, seat warmers and ventilation, heated
         steering, BCM and SMK MODULE6 supply. IGN2 drops out during the START phase. Not tested on
-        this car.
+        this car. Taken from US-market wiring; unconfirmed on the EU car.
 
     B10B:
       vehicle_states: []
@@ -171,7 +171,8 @@ SKM:
         SMK Start Relay Output (connector C pin 10). On this EV it does not switch a starter: the
         line feeds the IGPM START fuse ('hot in START'), which supplies the EPCU 'Start Switch'
         input (pin 42) and the front-wiper FRT2 fuse, and returns to the SMK as Start Relay Feedback
-        (pin 16). Asserting it presents the EPCU's start request. Not tested on this car.
+        (pin 16). Asserting it presents the EPCU's start request. Not tested on this car. Taken from
+        US-market wiring; unconfirmed on the EU car.
 
     B101:
       vehicle_states: []
@@ -358,7 +359,12 @@ SKM:
       vehicle_states: [ACC, ACC2]
       created: "2026-10-23"
       updated: "2026-10-23"
-      notes: "No signal tells ACC1 apart from OFF yet. The SKM reads back three terminal lines after the relays: ON input (IGN2), ACC/ON input (ACC) and ON/START input (IGN1) (SKM connector C pins 8, 18 and 9), and drives separate ACC and IGN LEDs on the start button. The ACC/ON input is the one that separates ACC from OFF. Whether any of these is exposed in a B0xx page is not known."
+      notes: >-
+        No signal tells ACC1 apart from OFF yet. The SKM reads back three terminal lines after the
+        relays: ON input (IGN2), ACC/ON input (ACC) and ON/START input (IGN1) (SKM connector C pins
+        8, 18 and 9), and drives separate ACC and IGN LEDs on the start button. The ACC/ON input is
+        the one that separates ACC from OFF. Whether any of these is exposed in a B0xx page is not
+        known. Taken from US-market wiring; unconfirmed on the EU car.
       what_to_test:
         - "Press the start button without the brake: OFF to ACC to ON to OFF, holding each state about 10 s, recording the SKM B0xx pages with --keep-changes and pressing s at every press. Look for bits that change at each step."
       capture_protocol: >-

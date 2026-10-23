@@ -41,3 +41,17 @@ Unknown-746:
       created: "2026-10-20"
       updated: "2026-10-20"
       notes: "Pin down when 21F2 answers: it did during AC charging but not at READY. Re-read with the car fully off."
+    - type: verify
+      target: identify the responder at 0x746 against factory modules with no ECU file
+      status: pending
+      priority: P3
+      vehicle_states: [CHARGING]
+      created: "2026-10-23"
+      updated: "2026-10-23"
+      notes: "The 0x700-0x7EF sweep (2026-04-17, ignition on) found 30 responders and every one has an ecus/ file, so modules the car is known to have but the profile lacks (electric water pump, occupant detection sensor, shift control unit, dynamic bending light on cars fitted with it) either do not answer at a 0x7xx address or were not awake. 0x746 speaks KWP2000, answered during AC charging and returned NO DATA at READY on 2026-07-22. Candidates by behaviour only: the electric water pump or the shift control unit. Unproven."
+      what_to_test:
+        - Sweep 0x700-0x7EF again with canair discover while AC charging and again with the car off and locked, and compare the responder lists with the READY sweep.
+        - Read 0x746 21F2 at the start and end of a charge and when the coolant pump is audibly running.
+      capture_protocol: >-
+        canair discover --save --label 'address sweep while charging' --state CHARGING; repeat with
+        --state SLEEP.

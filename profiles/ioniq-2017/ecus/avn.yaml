@@ -27,9 +27,11 @@
 # Links/sources:
 # - Connector pinouts: https://gitlab.com/g4933/wideopen/-/wikis/Unit/Pinouts
 #
+# can_bus: the EU head unit sits on MM-CAN only (it reaches the powertrain through the gateway). The
+# pinout wiki above also lists B-CAN and P-CAN, which fits the US unit.
 AVN:
   tx_id: 0x780
-  can_bus: [MM-CAN, B-CAN, P-CAN] # Source: connector pinouts
+  can_bus: [MM-CAN]
   identity:
     alias: IVI # In-Vehicle Infotainment
     description: Audio/Video/Navigation head unit
@@ -71,7 +73,17 @@ AVN:
       vehicle_states: [PLUGGED, CHARGING]
       created: "2026-10-23"
       updated: "2026-10-23"
-      notes: "The AVN (and the audio unit on cars without navigation) has an 'IG3 relay control' pin wired to the IG3 #2 relay coil. The relay's job is AC-charging power, yet its coil is sunk by the head unit. Hypothesis: the head unit closes it to stay powered while plugged in or when a scheduled event starts. Unproven."
+      notes: >-
+        The AVN (and the audio unit on cars without navigation) has an 'IG3 relay control' pin wired
+        to the IG3 #2 relay coil in US-market wiring. The relay's job is AC-charging power, yet its
+        coil is sunk by the head unit. The firmware notes in IONIQ_AVN_FW_FINDINGS.md fit a
+        head-unit role: the US telematics sends an IG3 relay request (CF_TMU_IG3RLY in frame 0x587)
+        and the VCU reports an IG3 relay mode (CF_Vcu_IG3RlyMd in 0x57B). Against it: on the EU car,
+        with the AVN's always-on MULTIMEDIA fuse (F18, 10 A) pulled, a pre-conditioning schedule set
+        earlier still ran, and the car pre-conditioned while on a charger. So a scheduled
+        pre-conditioning start does not need the head unit, and the schedule is stored in another
+        module. The AVN's ACC and IG3 feeds were still in place. Whether the head unit closes IG3 #2
+        in other cases is unknown.
       what_to_test:
         - Record IGPM 22BC07, OBC 2101 and BMS 2101 with --keep-all at 1 s across an AC plug-in and across a scheduled charge or pre-conditioning start, with the head unit awake and asleep, and see whether UNKNOWN_B12_3 or the OBC state moves with the head unit.
       capture_protocol: >-

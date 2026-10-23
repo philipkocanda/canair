@@ -75,6 +75,11 @@ Backlog: `canair research --summary` (per-ECU `research:` sections).
 
 ## Ignition lines (what "ACC", "IGN1", "IGN2", "IG3" mean on this car)
 
+These lines come from US-market factory wiring. The profile's car is an EU model (Premium, full
+options), and the two differ in places (the EU head unit is on MM-CAN only, for example), so treat
+fuse names, connector pins and bus membership here as hypotheses until seen on the EU car; the
+captures in the profile are the evidence.
+
 The start button (SSB) is driven by the Smart Key Module (SKM, which self-identifies as "SMK"),
 which switches three relays; IG3 is a separate EV-only supply. Connector pins below are on the
 SKM unless noted.
@@ -401,6 +406,30 @@ Decode findings are recorded in each `ecus/<ecu>.yaml` `notes:`. Highlights:
 | HVAC | 0x7B3 | 🔶 | `220100` IAT/AAT/evaporator (partially mapped). `220101`/`220102` unexplored. |
 | SKM | 0x7A5 | 🔶 | ACC relay IOControl accepted, but **relay only physically closes with the fob nearby**. `skm-wake` verifies via IGPM BC03. Powertrain stays dead without fob. |
 | ESC/EPS/PSM/VESS | 0x7D1/0x7D4/0x7A3/0x736 | 🔶 | Research: ESC/EPS partly decoded; PSM (power seat) + VESS (exterior sound) IOControl known from e-Niro, untested here. |
+
+### Factory module names and the profile's ECUs
+
+Factory wiring (US-market; see the caveat in the ignition-lines section) names the car's modules
+differently from the profile. A 0x700-0x7EF address sweep
+(2026-04-17, ignition on) found 30 responders, and every one has an `ecus/` file, so a factory
+module with no row below either does not answer at a 0x7xx address or was not awake.
+
+| Factory module | Profile ECU | Confidence | Basis |
+|---|---|---|---|
+| IGPM (gateway, power switches) | IGPM | certain | self-identifies; on every bus |
+| SMK, DATC, ACU, AAF, CCM, VESS, AMP, AVN (MM-CAN only on the EU car), WPC, DDM, ADM, BSD LH/RH, rear camera | SKM, HVAC, SRS, AAF, CCM, VESS, AMP, AVN, WPC, DDM, ADM, BSD-L/R, RCAM | certain | same name or alias, same bus |
+| EPCU (VCU + MCU + LDC) | VCU, MCU | certain | VCU identifies as "VCU with the LDC integrated" |
+| IBAU (integrated brake unit) | ESC | probable | ESC's alias is AHB (active hydraulic boost); the IBAU sits on C-CAN and P-CAN |
+| MDPS, EPB unit | EPS, EPB | certain | same name, C-CAN |
+| Lane keeping assist unit | MFC | probable | the camera; C-CAN; only the LKAS unit is a camera |
+| AEB radar / smart cruise unit | SCC | probable | the one front radar; C-CAN |
+| Driver IMS (memory seat) module | PSM | probable | the car's only power-seat module; B-CAN; address next to the door modules |
+| Shift button module or SCU (parking actuator control) | GSA | unresolved | both are on P-CAN; GSA is a Kostal shift assembly; which one answers is unknown |
+| Cluster, BCM | CLU, BCM | certain | name, buses |
+| EWP, ODS, DBL, charge lamp, compressor, PTC heater, the other of SBW switch / SCU | none | no responder found | not in the sweep |
+
+`Unknown-746` (KWP2000) and `Unknown-7C0` match no factory module yet. The HVAC unit also has a
+private link to the compressor and PTC heater (`CLIMATE-CAN` in `can_buses.yaml`).
 
 ## UDS notes
 

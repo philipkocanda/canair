@@ -869,10 +869,12 @@ IGPM:
         The EV-only IG3 supply is closed by the IG3 #1 relay while the HV controller operates,
         except during charging; the IG3 #2 relay is for AC charging and a third relay for DC. The
         IG3 #1 coil is driven by the OBC. The IG3 #2 coil line runs to the AVN and audio head unit's
-        'IG3 relay control' pins, so who closes #2 in practice is not known. UNKNOWN_B12_3 follows
-        the #1 pattern in the stored captures (1 in READY and the parked 12 V top-up, 0 while
-        charging, 1 in a charging session with the ignition on). Unproven: the bit may instead be
-        the IGPM's own request for the Main relay it controls, or another IG3 path.
+        'IG3 relay control' pins (see the AVN research entry: the head unit is expected to request
+        IG3 for scheduled or remote actions), so who closes #2 in practice is not known.
+        UNKNOWN_B12_3 follows the #1 pattern in the stored captures (1 in READY and the parked 12 V
+        top-up, 0 while charging, 1 in a charging session with the ignition on). Unproven: the bit
+        may instead be the IGPM's own request for the Main relay it controls, or another IG3 path.
+        The wiring is from a US-market diagram; the stored captures are from the EU car.
       sources:
         - align over stored captures 2026-10-23
       what_to_test:
@@ -881,6 +883,20 @@ IGPM:
       capture_protocol: >-
         canair monitor IGPM:22BC07 VCU:2101 BMS:2101 OBC:2101 --save --keep-all --interval 1 --label
         'IG3 hand-over at plug-in' --state PLUGGED; press s at plug-in and at charge start.
+    - type: verify
+      target: IOControl BC12/BC13/BC14 (and BC1B) against the IG3 main relay
+      status: pending
+      priority: P2
+      vehicle_states: [SLEEP, ACC]
+      created: "2026-10-23"
+      updated: "2026-10-23"
+      notes: "The IGPM's power-switch controller drives a Main relay in the engine-bay PCB block that feeds the IG3 rail (EPCU, OBC, BMS, A/C control module, PTC heater, blower relay), and an electronics-off 'leak current autocut' relay. In US-market wiring these are IPS outputs. The stored IOControl results include several relays that click: BC12 and BC13 ('click-clack'), BC14 (accepted only when the car is asleep, NRC 0x22 in ACC) and BC1B (single click, dome light goes off, which fits the autocut relay). Any of BC12-BC14 could be the Main relay; none has been tied to a load. Unproven."
+      what_to_test:
+        - With the car asleep, unplugged and stationary, fob inside, open an IGPM session and switch BC14 on (then BC13, BC12, one at a time) with a second person at the engine-bay PCB block listening for the click. While it is on, read BMS 2101, VCU 2101 and HVAC 220100 and note whether any starts to answer without ACC. Release each DID before the next.
+      capture_protocol: >-
+        canair read 'session IGPM --wake' 'iocontrol IGPM BC14' 'sleep 3' 'query BMS:2101' 'query
+        VCU:2101' 'query HVAC:220100' 'iocontrol IGPM BC14 --off' --save --label 'IGPM BC14 IG3
+        test' --state SLEEP; only after confirming the car is parked and safe.
 
   iocontrol_discoveries:
     BC01:

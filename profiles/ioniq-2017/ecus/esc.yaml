@@ -1,7 +1,7 @@
 # ─── ESC (Electronic Stability Control) ──────────────────────────────
 ESC:
   tx_id: 0x7D1
-  can_bus: [C-CAN]
+  can_bus: [C-CAN, P-CAN]  # P-CAN from US wiring; unconfirmed on the EU car
   identity:
     alias: AHB
     description: Electronic Stability Control

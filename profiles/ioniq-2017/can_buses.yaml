@@ -44,3 +44,10 @@ can_buses:
     name: Diagnostic CAN
     description: Diagnostic bus (D-CAN) exposed on the OBD-II port for UDS/KWP2000 requests.
     bitrate: 500000
+  CLIMATE-CAN:
+    name: Climate CAN
+    description: >-
+      Private link between the A/C control module (DATC), the electric A/C compressor and the PTC
+      heater, on separate DATC pins from its P-CAN connection. No gateway connection is drawn, so
+      the compressor and heater are not expected to answer on the OBD-II port. Bit rate unknown.
+      From US-market wiring; unconfirmed on the EU car.
