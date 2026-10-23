@@ -116,7 +116,7 @@ def request_with_count(pid_code: object, pid_def: dict) -> str:
 
 
 def generate_profile(
-    data: dict, verified_only: bool = False, expected_responses: bool = False
+    data: dict, verified_only: bool = False, expected_responses: bool = True
 ) -> dict:
     """Generate Vehicle Profile format JSON (grouped parameters per PID).
 
@@ -128,8 +128,8 @@ def generate_profile(
     The firmware does NOT accept this format directly — use to_device_format()
     to convert before uploading.
 
-    ``expected_responses`` opts each eligible PID's request into the trailing
-    frame-count digit — see :func:`request_with_count` for why it is opt-in.
+    ``expected_responses`` (default on) appends the trailing frame-count digit to
+    each eligible PID's request — see :func:`request_with_count` for the guards.
 
     A PID entry whose shipped signals stream to their own MQTT topic carries a
     ``send_to`` map of ``{"SIGNAL_NAME": "topic"}`` alongside ``parameters`` (see
