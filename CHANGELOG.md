@@ -15,6 +15,24 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [1.35.0](https://github.com/philipkocanda/canair/compare/v1.34.0...v1.35.0) (2026-10-23)
+
+
+### Added
+
+* **wican:** emit expected-response counts in AutoPID exports by default ([5dc0ebe](https://github.com/philipkocanda/canair/commit/5dc0ebee78dabcf078a01ff95d460526e8d588aa))
+
+
+### Fixed
+
+* **ioniq-2017:** ship HVAC 2201A2 to the device ([01bf3ab](https://github.com/philipkocanda/canair/commit/01bf3ab708e81a367d802b9b2a424736488e4758))
+
+
+### Documentation
+
+* WiCAN firmware ignores the SLCAN acceptance filter ([4209e68](https://github.com/philipkocanda/canair/commit/4209e6831ca7c48aa0e45aa7c5a8e105a994ffb9))
+* WiCAN firmware ignores the SLCAN acceptance filter ([df146c3](https://github.com/philipkocanda/canair/commit/df146c37f312a6dc0f51c5e68aa4fd213ab0d4f3))
+
 ## [1.34.0](https://github.com/philipkocanda/canair/compare/v1.33.0...v1.34.0) (2026-10-23)
 
 
