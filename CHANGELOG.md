@@ -15,6 +15,27 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [1.34.0](https://github.com/philipkocanda/canair/compare/v1.33.0...v1.34.0) (2026-10-23)
+
+
+### Added
+
+* **ioniq-2017:** decode IG3 rail, ignition and OBC charge-session signals ([241ee9b](https://github.com/philipkocanda/canair/commit/241ee9b8820817e01d36bb70c84a76ed07d9ca4f))
+* **ioniq-2017:** document ignition lines, fix CAN buses, add research leads ([4b581a5](https://github.com/philipkocanda/canair/commit/4b581a51ab6fd2adf7763a0aa593a5ddeeab92e3))
+* **ioniq-2017:** factory module map, EU/US bus caveats, more research leads ([e486487](https://github.com/philipkocanda/canair/commit/e486487c1009c2b97a416b2e40435405e8411600))
+* **monitor:** interactive group/ECU/PID picker for a bare `canair monitor` ([01ee6c2](https://github.com/philipkocanda/canair/commit/01ee6c2804955339b1a8ab1b0ac0724bbca289a9))
+
+
+### Fixed
+
+* **docs:** make the profile explorer usable on phones and stop Safari page jumps ([7aba2b8](https://github.com/philipkocanda/canair/commit/7aba2b876471b7fcd9dbf0ed0a7a378d054a4b34))
+* **ioniq-2017:** keep the gateway and OBD-II port off private CAN buses ([dfb944b](https://github.com/philipkocanda/canair/commit/dfb944b255cfac6240c517ce49aabb01d0c1ef49))
+
+
+### Documentation
+
+* **explorer:** trim the page intro to two sentences ([871b8bf](https://github.com/philipkocanda/canair/commit/871b8bf091afb0a8b79185a89b4cecb37509e4bc))
+
 ## [1.33.0](https://github.com/philipkocanda/canair/compare/v1.32.0...v1.33.0) (2026-10-22)
 
 
