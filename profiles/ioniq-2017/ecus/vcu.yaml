@@ -144,11 +144,23 @@ VCU:
           verified: true
           notes: ""
 
-        VEHICLE_STATE_VCU_READY:
+        VCU_IG3_ON:
           expression: "B11:4"
           unit: ""
           verified: true
-          notes: ""
+          notes: >-
+            1 while the IG3 rail is powered. In the 9 stored stretches where it stays 0 (B11 =
+            0x80), every OBC, BMS, MCU, AAF and HVAC page being polled stops at the fall and records
+            nothing more, while the VCU, IGPM and BCM keep answering and VCU 2102 stops updating;
+            1.7-3 min later the VCU stops answering too or the recording ends. Three of those
+            sessions stored every reply, so there the silence is a missing reply; the other six
+            stored only changes, but those pages had changed on every poll up to the fall. The other
+            8 zero readings are single samples at a wake or at a change from READY to DC charging,
+            and the IG3-fed ECUs answered again 1-40 s later. Equals BMS 2101 B61:3 in 9245 of 9249
+            aligned rows. 1 in READY, AC and DC charging, the 12 V top-up and ignition-on standby,
+            so it is the rail, not one of the IG3 #1/#2/quick-charge relays. Formerly
+            VEHICLE_STATE_VCU_READY.
+          source: canair cross-ECU response-presence analysis 2026-10-23 (stored captures + JejuSoul US Ioniq logs)
 
 
         VEHICLE_STATE_EV_READY_MIRROR_B11_6:
@@ -156,8 +168,10 @@ VCU:
           unit: ""
           verified: true
           notes: >-
-            Equals VEHICLE_STATE_EV_READY (B11:3) in every capture. Disabled so it does not ship a
-            duplicate; defined so bit 6 is accounted for.
+            Equals VEHICLE_STATE_EV_READY (B11:3) in all 10675 captures on this car. In the JejuSoul
+            US Ioniq logs it reads 1 with B11:3 at 0 at power-off (B11 = 0xD0 after a drive, 0xD2
+            after an AC charge), so it is a separate signal that only coincides with B11:3 here.
+            Disabled so it does not ship a duplicate; defined so bit 6 is accounted for.
           source: canair bitfield analysis 2026-08-06; decode --find-mirrors --bits, n=6365 unanimous
           enabled: false
         VEHICLE_STATE_LDC_ENABLED:
@@ -232,20 +246,25 @@ VCU:
           unit: ""
           min: "0"
           max: "7"
-          source: canair historical analysis 2026-07-23; enum + value 6 confirmed 2026-07-27 charge-stop; value 1 added 2026-08-06
+          source: canair historical analysis 2026-07-23; values 1, 2 and 6 re-read 2026-10-23 against stored captures and the JejuSoul US Ioniq logs
           verified: true
           notes: >-
-            Values across 10632 VCU 2101 captures: 4 drive-ready (3111), 7 drive path down, during
-            AC charging or key-off standby (7149), 6 at charge termination (311), 1 in the
-            2026-07-30 ACC power-cycle window (21, B11 = 0x91/0x92, LDC off) and during the
-            2026-10-21 parked 12 V top-up run (35, B11 = 0x10, HV relay closed, LDC on), also 5
-            captures after it ended (B11 = 0x80). Not seen while charging or READY.
+            VCU operating mode. Values across 10675 VCU 2101 captures: 4 drive-ready (3154), 7
+            charging (7149: AC, DC and plugged-in pre-conditioning), 6 at entry to and exit from a
+            charge or plug-in (311), 1 standby with no drive or charge (61: ignition on but not
+            READY on 2026-07-30, the 2026-10-21 parked 12 V top-up, and 5 samples after the top-up
+            with VCU_IG3_ON 0). The JejuSoul US Ioniq logs show the same values plus 2 at power-off
+            (B11 = 0xD0, then 0x80, at the end of the drive log; B11 = 0xD2 as the last reading of
+            both AC-charge logs), never seen on this car. A candidate diagnostic view of the VCU's
+            IG3 relay mode (CF_Vcu_IG3RlyMd in broadcast 0x57B, observed 2 and 10 on a US car); the
+            encodings are not known to match.
           type: enum
           values:
-            1: unknown_1
+            1: standby
+            2: shutdown
             4: drive_ready
-            6: transition
-            7: charge_standby
+            6: charge_transition
+            7: charging
         VCU_SUPPLY_VOLTAGE:
           expression: ((B22<<8)|B21)/2072
           min: "0"
@@ -301,16 +320,30 @@ VCU:
             Accelerator pedal sensor track 2, 16-bit little-endian. About half of VCU_APS1_VOLTAGE
             (ratio median 1.97). Reads 0.42 V released and 1.80 V at 87.5 % pedal. Scale 1/2048 V
             not proven.
+        VCU_IGN_ON:
+          expression: B11:0|B11:1
+          min: "0"
+          max: "1"
+          source: canair cross-tab vs IGPM 22BC03 ACC2_IGN_ON 2026-10-23
+          verified: false
+          notes: >-
+            Ignition on, from the two brake-switch contacts (VEHICLE_STATE_BRAKE_LAMP,
+            VEHICLE_STATE_NOT_BRAKING): one of them reads 1 with the ignition on and both read 0
+            with it off. Equals IGPM ACC2_IGN_ON in all 360 aligned rows (3 s join), including
+            charging and post-charge with the ignition on. Fits the stop-lamp switch being fed from
+            IGN1; ACC is not told apart from off.
     2102:
       response_frames: 4
       status: active
       period: 10000
       vehicle_states: [READY, CHARGING]
       notes: >-
-        Froze after the 2026-10-21 12 V top-up run ended: five byte-identical payloads
-        21:17:11-21:20:12 (VCU_AUX_POWER 0, VCU_LDC_OUTPUT_VOLTAGE 13.551 V) while VCU 2101 kept
-        changing and BCM_12V_BATTERY fell from 12.96 to 12.56 V. Readings taken after the LDC
-        stopped were not live.
+        Stops updating while VCU_IG3_ON (2101 B11:4) is 0: in each stored window the first read
+        after the fall differs from the last live one, and every later read repeats it byte for byte
+        (29 repeats across the 2026-07-26, 07-27 and 10-21 windows). After the 2026-10-21 12 V
+        top-up it held VCU_AUX_POWER 0 and VCU_LDC_OUTPUT_VOLTAGE 13.551 V from 21:17:11 to 21:20:12
+        while BCM_12V_BATTERY fell from 12.96 to 12.56 V. Readings taken with the IG3 rail off are
+        not live.
       parameters:
         VCU_INVERTER_INPUT_VOLTAGE:
           expression: "B17*2"
@@ -947,6 +980,47 @@ VCU:
         canair monitor VCU HVAC:220100 BMS:2101 OBC:2101 --save --keep-changes --interval 5 --label
         'scheduled pre-conditioning, AVN off' --state PLUGGED; start about 10 minutes before the
         schedule, press s at the start.
+    - type: verify
+      target: 2101 B11:4 VCU_IG3_ON + B25 power-off value 2
+      status: pending
+      priority: P2
+      vehicle_states: [READY, SLEEP]
+      created: "2026-10-23"
+      updated: "2026-10-23"
+      notes: >-
+        VCU_IG3_ON (B11:4) falls exactly when the IG3-fed ECUs (OBC, BMS, MCU, AAF, HVAC) stop
+        answering in every stored stretch, but none of them is a power-off straight from READY
+        recorded with --keep-all, so the order of the fall and the other ECUs going quiet is known
+        only to the poll interval (5-27 s). The US logs show B11 = 0xD0 and VCU_POWER_STATE 2 at
+        power-off, then 0x80; neither value 2 nor B11:6 without B11:3 has been seen on this car.
+      sources:
+        - canair response-presence analysis 2026-10-23; JejuSoul US Ioniq logs
+      what_to_test:
+        - B11:4 falls in the same second the OBC and BMS stop answering at a power-off after a drive
+        - VCU_POWER_STATE reads 2 and B11 0xD0 between READY and 0x80
+        - B11:4 rises at a power button press before READY, before the OBC first answers
+      capture_protocol: >-
+        canair monitor VCU:2101 OBC:2101 BMS:2101 IGPM:22BC03 --save --keep-all --interval 1 --label
+        'IG3 power-off timing' --state READY. From READY press the button to OFF and keep recording
+        for 4 min; then press it once (no brake) and again with the brake to READY. Press s at each
+        press.
+    - type: decode
+      target: 2101 B25 VCU_POWER_STATE vs broadcast CF_Vcu_IG3RlyMd (0x57B)
+      status: pending
+      priority: P3
+      vehicle_states: [READY, CHARGING]
+      created: "2026-10-23"
+      updated: "2026-10-23"
+      notes: >-
+        The US head-unit firmware reads an IG3 relay mode from the VCU in frame 0x57B
+        (CF_Vcu_IG3RlyMd, byte 2 bits 7-4, values 2 and 10 seen). VCU_POWER_STATE is the closest
+        diagnostic field (1 standby, 2 shutdown in the US logs, 4 drive, 6 charge transition, 7
+        charging), but the two encodings have not been compared. The OBD port is behind the gateway,
+        so 0x57B needs a P-CAN or MM-CAN tap.
+      sources:
+        - IONIQ_AVN_FW_FINDINGS.md section 6
+      what_to_test:
+        - Record 0x57B with canair sniff on a tapped bus while polling VCU 2101 across READY, an AC charge and a 12 V top-up, and tabulate the 0x57B byte-2 high nibble against VCU_POWER_STATE
   sessions:
     "81":
       name: "standardDiagnosticSession"

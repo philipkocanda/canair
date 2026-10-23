@@ -79,7 +79,9 @@ IGPM:
             of 242 charging rows; the 3 exceptions are 2026-08-02, a session with the ignition on. 0
             in 13 of 14 other VCU rows (HV off or drive path down). In the top-up run it last read 1
             at 21:16:47 and first read 0 at 21:17:21; the VCU's HV relay was open by 21:17:08. One
-            READY row (2026-08-08) reads 0.
+            READY row (2026-08-08) reads 0. On 2026-08-08 it read 0 from the first sample of both DC
+            fast charges (11:41:23, 16:31:23) and returned with READY at 16:44:22, while
+            OBC_AC_NOT_CONNECTED read 1 throughout, so the two are different signals.
           source: align vs VCU 2101 and BMS 2101 over stored captures, 2026-10-23
         IGPM_BC07_B12_2:
           expression: B12:2
@@ -897,6 +899,30 @@ IGPM:
         canair read 'session IGPM --wake' 'iocontrol IGPM BC14' 'sleep 3' 'query BMS:2101' 'query
         VCU:2101' 'query HVAC:220100' 'iocontrol IGPM BC14 --off' --save --label 'IGPM BC14 IG3
         test' --state SLEEP; only after confirming the car is parked and safe.
+    - type: verify
+      target: "IG3 #1 / #2 / quick-charge relay: IGPM 22BC07 B12:3 vs OBC_AC_NOT_CONNECTED"
+      status: pending
+      priority: P2
+      vehicle_states: [PLUGGED, CHARGING, READY]
+      created: "2026-10-23"
+      updated: "2026-10-23"
+      notes: >-
+        Two candidates for the IG3 relays disagree only where the stored data is thin. IGPM
+        UNKNOWN_B12_3 is 1 in READY, the 12 V top-up and AC charging with the ignition on, 0 in AC
+        and DC charging with it off. OBC_AC_NOT_CONNECTED (B22:0) is 0 whenever an AC cable is
+        connected, ignition or not, and 1 during DC charging. The factory text has IG3 #1 open
+        during charging and driven by the OBC, IG3 #2 for AC charging and another relay for DC. The
+        IG3 rail itself is VCU_IG3_ON.
+      sources:
+        - canair cross-tab 2026-10-23
+      what_to_test:
+        - "AC plug-in with the car in READY, then power off while still plugged: which of the two moves at each step"
+        - A relay click at the ICM relay box at the same instant as either bit
+      capture_protocol: >-
+        canair monitor IGPM:22BC07 OBC:2101 VCU:2101 BMS:2101 --save --keep-all --interval 1 --label
+        'IG3 relay hand-over' --state READY. In READY plug in an AC cable, wait for charging, power
+        off, wait 1 min, power on (no brake), unplug. A second person at the engine-bay relay box
+        notes clicks; press s at each step.
 
   iocontrol_discoveries:
     BC01:

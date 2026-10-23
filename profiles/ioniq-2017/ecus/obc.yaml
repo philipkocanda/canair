@@ -210,6 +210,72 @@ OBC:
             OBC DC output power over AC apparent power (AC_INPUT_V x AC_INPUT_A). No value when
             AC_INPUT_A is 0. Mean 98.1 % at about 4.4 kW AC input (2026-08-05, n=1317), against 95 %
             from the wattmeter check at about 3.5 kW (2026-07-26).
+        OBC_AC_NOT_CONNECTED:
+          expression: B22:0
+          min: "0"
+          max: "1"
+          source: canair cross-tab vs BMS 2101 B14 and VCU 2101, 2026-10-23; JejuSoul US Ioniq logs
+          verified: false
+          notes: >-
+            0 while an AC charge cable is connected, 1 otherwise, including DC fast charging. The
+            complement of BMS 2101 AC_CHARGER_CONNECTED in all 10304 aligned rows (3 s join),
+            whether charging or not and with or without the ignition. In the US AC-charge logs it
+            fell at plug-in before charging began and rose at the end of the log, with
+            VCU_POWER_STATE 2; the test plan ends with removing the cable, and which of unplugging
+            or power-off raised it is not recorded. The factory wiring has the OBC driving the IG3
+            #1 relay coil, which is open during charging, so this may be that output; not shown.
+        OBC_MODE:
+          expression: B23
+          type: enum
+          values:
+            115: dc_charging
+            186: ac_charging
+            187: ac_charging
+            188: idle
+            189: idle
+          source: canair cross-tab vs BMS 2101 B14 and VCU 2101, 2026-10-23; JejuSoul US Ioniq logs
+          verified: false
+          notes: >-
+            Values across 11474 captures: 0xBC/0xBD idle (READY, 12 V top-up, plugged but not
+            charging), 0xBA/0xBB AC charging, 0x73 in every row of both recorded DC fast charges
+            (2026-08-08, 5 and 49 rows, from before the BMS closed its contactors). Bit 0 alternates
+            between reads in the idle and AC states. The US logs add 0xB8 at power-up and 0x70,
+            0x74, 0x75 and 0x80 around AC plug-in and charge end.
+        OBC_DC_CHARGE_MODE:
+          expression: B23:6
+          min: "0"
+          max: "1"
+          source: canair cross-tab vs BMS 2101 B14 and VCU 2101, 2026-10-23; JejuSoul US Ioniq logs
+          verified: false
+          notes: >-
+            1 only during DC fast charging: all 54 OBC rows aligned with BMS 2101 B14 = 0x40/0xC3 on
+            2026-08-08, and the CCS log in the US data; 0 in every other state.
+        OBC_SESSION_FLAGS:
+          expression: B37
+          type: enum
+          values:
+            96: unplugged
+            114: plugged_not_charging
+            118: charging
+            122: post_charge_122
+            126: post_charge_126
+          source: canair cross-tab vs BMS 2101 B14 and VCU 2101, 2026-10-23; JejuSoul US Ioniq logs
+          verified: false
+          notes: >-
+            0x60 in all 2248 rows aligned with an unplugged BMS (B14 = 0x03); 0x72, 0x76, 0x7A or
+            0x7E whenever a cable is connected, AC or DC. 0x76 in 7942 of 7971 rows with the BMS
+            charging, 0x72 mostly connected without charging, 0x7A and 0x7E in a few rows after a
+            charge ended. The US logs add 0x62 (just after an AC plug-in) and 0x68.
+        OBC_CABLE_SESSION:
+          expression: B37:4
+          min: "0"
+          max: "1"
+          source: canair cross-tab vs BMS 2101 B14 and VCU 2101, 2026-10-23; JejuSoul US Ioniq logs
+          verified: false
+          notes: >-
+            1 whenever a charge cable is connected, AC or DC, and 0 unplugged, in every row aligned
+            with BMS 2101 (see OBC_SESSION_FLAGS). In the US logs it read 0 for one sample just
+            after an AC plug-in (0x62).
     2102:
       status: static
       period: 5000
@@ -391,7 +457,12 @@ OBC:
       vehicle_states: [CHARGING]
       created: "2026-08-02"
       updated: "2026-08-02"
-      notes: "OBC 2101 has a cluster of charge-phase flag/enum bytes beyond OBC_CHARGE_STATE (B20). Observed 2026-08-02 AC charge: B17=3 only while current flows; B22=1 only when plugged pre-handshake; B35=0/3/1 (idle/handshake/charging); B36=0/232/9-34 (232 at handshake+stop). Decode each vs control-pilot + OBC_DC_A. Needs a DC fast-charge session to see additional states."
+      notes: >-
+        OBC 2101 has a cluster of charge-phase flag/enum bytes beyond OBC_CHARGE_STATE (B20).
+        Observed 2026-08-02 AC charge: B17=3 only while current flows; B35=0/3/1
+        (idle/handshake/charging); B36=0/232/9-34 (232 at handshake+stop). Decode each vs
+        control-pilot + OBC_DC_A. 2026-10-23: B22 is not a pre-handshake flag; B22:0 reads 0 for as
+        long as an AC cable is connected (OBC_AC_NOT_CONNECTED).
     - type: decode
       target: 2101 charge state machine B17/B22/B35/B36
       status: captured
@@ -403,16 +474,38 @@ OBC:
         OBC 2101 charge-phase byte cluster (2026-08-02 AC charge triage). ENUM/STATE:
         B20=OBC_CHARGE_STATE (defined, 0/3/2). FLAGS/CONSTANTS while charging (r=1.0 vs
         BMS.CHARGING, fixed values, not analog): B28=16, B29=32, B31=200, B27=65/67 (charge-active).
-        B17=3 only while current flows; B22=1 only pre-handshake; B35=0/3/1. CHECKSUM: B47,B49. B21
-        tracks LDC-enabled but INVERSE (73 charging / 131 off) - not the 12V current. Probable
-        mirrors of mapped signals: [B25:B26]/100~=LDC_OUTPUT_V, [B33:B34]/100~=AC_INPUT_A. Remaining
-        to decode: B37/B38 (r=0.97 vs VCU_POWER_STATE), multi-byte [B33:B34]. DC FAST-CHARGE TESTED
-        2026-08-08 (DCFC-2, 16:32-16:43): NEGATIVE RESULT - B21/B23/B36 all sit flat at their
-        AC-idle baseline (B21=51, B23=189, B36=142) throughout the DCFC session;
-        OBC_DC_POWER/OBC_DC_A/OBC_EFFICIENCY read constant 0. Confirms OBC is fully bypassed/idle
-        during CCS DC fast-charging as expected - no new DCFC signal lives on OBC 2101. NOTE:
-        charger delivers ~3.41 kW to HV bus but only ~3.05 kW into pack while READY - ~360 W (25 A @
-        14.5 V) LDC/accessory overhead; 12V-rail current not found broadcast on OBC.
+        B17=3 only while current flows; B35=0/3/1. CHECKSUM: B47,B49. Probable mirrors of mapped
+        signals: [B25:B26]/100~=LDC_OUTPUT_V, [B33:B34]/100~=AC_INPUT_A. Remaining to decode: B38.
+        2026-10-23: B22, B23 and B37 are now OBC_AC_NOT_CONNECTED, OBC_MODE/OBC_DC_CHARGE_MODE and
+        OBC_SESSION_FLAGS/OBC_CABLE_SESSION, and B20/B21 may be one 16-bit value (see the [B20:B21]
+        entry). The earlier reading that B21/B23/B36 sit at their idle values (51/189/142) during
+        the 2026-08-08 DC fast charges was wrong: in all 54 OBC rows of the two DC sessions B23
+        reads 0x73, B21 72-75, B36 49 (51 once), B20 2 (3 at the start) and B37 0x76.
+        OBC_DC_POWER/OBC_DC_A/OBC_EFFICIENCY do read 0 during DC charging. Charger delivers ~3.41 kW
+        to the HV bus but only ~3.05 kW into the pack while READY - ~360 W (25 A @ 14.5 V)
+        LDC/accessory overhead; 12V-rail current not found broadcast on OBC.
+    - type: verify
+      target: 2101 [B20:B21] 16-bit value vs OBC_CHARGE_STATE enum
+      status: pending
+      priority: P2
+      vehicle_states: [PLUGGED, CHARGING]
+      created: "2026-10-23"
+      updated: "2026-10-23"
+      notes: >-
+        B20 (OBC_CHARGE_STATE, 0/2/3) and B21 may be one big-endian 16-bit value. Here B21 stays in
+        a band per B20 value (as (B20<<8)|B21: 50-53 with 0, 582-591 with 2, 890-900 with 3). In the
+        US logs it ramps smoothly across B20 boundaries (0x3E8, 0x401, 0x400, 0x378, 0x374, with B20
+        = 4 and 1 appearing), and after a charge stops B21 decays 0xE3, 0x7C, 0x4B, 0x3E, 0x37 to
+        0x34 with B20 = 0. That fits an analog reading, possibly a control-pilot level, whose high
+        byte only looks like an enum; the scale is unknown.
+      sources:
+        - JejuSoul US Ioniq logs, canair 2026-10-23
+      what_to_test:
+        - Plot (B20<<8)|B21 at 1 s across plug-in, charge start, charge stop and unplug; check whether it moves within a B20 value and whether B20 = 1 or 4 ever appears
+      capture_protocol: >-
+        canair monitor OBC:2101 BMS:2101 --save --keep-all --interval 1 --label 'OBC B20:B21 pilot'
+        --state PLUGGED; plug in, let it charge 2 min, stop from the EVSE, unplug. Press s at each
+        step.
 
   sessions:
     "81":

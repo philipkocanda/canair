@@ -107,10 +107,13 @@ runs to the head unit's "IG3 relay control" pins, so who closes it is unresolved
 relay is commanded by the IGPM's IPS control module. "IGN3" in pin tables means IG3.
 
 **Mapping to canair names.** The `ACC` state is the ACC relay alone; `ACC2` (IGPM `ACC2_IGN_ON`) is
-IGN (ACC + IGN1 + IGN2); `READY` also needs IG3. IGPM 22BC07 `UNKNOWN_B12_3` tracks IG3 #1 in the
-stored captures (a hypothesis; see the IGPM research entry). Nothing decoded separates ACC from OFF
-yet; the SKM's `ACC/ON input` is the candidate (SKM research entry). SKM IOControl B108 to B10B are
-the ACC, IGN1, IGN2 and START outputs.
+IGN (ACC + IGN1 + IGN2); `READY` also needs IG3. VCU 2101 `VCU_IG3_ON` (B11:4) is the IG3 rail: the
+IG3-fed ECUs (OBC, BMS, MCU, AAF, HVAC) answer only while it is 1. `VCU_IGN_ON` (B11:0|B11:1) is the
+ignition as the VCU sees it, and `VCU_POWER_STATE` (B25) the VCU's operating mode. Which of IG3
+#1/#2/quick-charge is closed is not decoded: IGPM 22BC07 `UNKNOWN_B12_3` and OBC 2101
+`OBC_AC_NOT_CONNECTED` are the candidates (hypotheses; see the IGPM research entry). Nothing decoded
+separates ACC from OFF yet; the SKM's `ACC/ON input` is the candidate (SKM research entry). SKM
+IOControl B108 to B10B are the ACC, IGN1, IGN2 and START outputs.
 
 ## Profiles
 
