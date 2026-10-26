@@ -383,16 +383,17 @@ reuse these instead of re-declaring a flag:
 - **`canair wican`** — Build/sync the device's AutoPID profile from the active bundle's `ecus/`. A
   bare `canair wican` prints help (writes nothing). `autopid write` generates JSON into `out/`
   — **verified-only by default**, `--include-unverified` also emits in-progress candidates;
-  `upload`/`download`/`diff` sync the device (Pro-only, same verified-only default). **Opt in with
-  `--expected-responses`** (on `write`/`upload`/`diff`) to append each PID's persisted
-  `response_frames` count to its request string, so the device's ELM327 co-processor answers as soon
-  as that many frames arrive instead of waiting out its `ATST96` ~614 ms budget. Opt-in because the
-  **firmware has no desync recovery** — it accumulates into one static buffer cleared only *after* a
-  parse, so an undercount's queued tail would silently prefix the next PID's response; the emit path
-  therefore goes through `elm327_frame_count.requestable()` and skips anything unproven,
-  `variable_length`, over the 9-frame ceiling, or on an odd-length request. `autopid stats` shows a
-  `Frames` column so you can see which PIDs have earned one. **A signal with `send_to: TOPIC`
-  streams to that MQTT topic on every poll** (emitted as `type: MQTT_Topic`; rule in
+  `upload`/`download`/`diff` sync the device (Pro-only, same verified-only default). **Each
+  PID's persisted `response_frames` count is appended to its request string by default**
+  (`--no-expected-responses` on `write`/`upload`/`diff` opts out), so the device's ELM327
+  co-processor answers as soon as that many frames arrive instead of waiting out its `ATST96`
+  ~614 ms budget. Safe by default only because the **firmware has no desync recovery** — it
+  accumulates into one static buffer cleared only *after* a parse, so an undercount's queued tail
+  would silently prefix the next PID's response — so the emit path goes through
+  `elm327_frame_count.requestable()` and skips anything unproven, `variable_length`, over the
+  9-frame ceiling, or on an odd-length request. `autopid stats` shows a `Frames` column so you can
+  see which PIDs have earned one. **A signal with `send_to: TOPIC` streams to that MQTT topic on
+  every poll** (emitted as `type: MQTT_Topic`; rule in
   `canlib/autopid_send_to.py`), because the batch snapshot's `cycle` (10 s default) is **device
   config canair does not manage** — a faster `period` alone never reaches the broker faster.
   `mode set MODE` switches the device protocol and **auto-aligns the config `transport.type`**

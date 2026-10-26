@@ -148,28 +148,27 @@ magnitude reduction. If you *do* need the whole bus — `canair sniff`, or impor
 log — you need `slcan-tcp` and you need the bandwidth; consider running canair in the car and
 copying the log afterwards.
 
-### Why canair doesn't filter this on the device (yet)
+### Why canair can't filter this on the device
 
-The WiCAN's SLCAN interface exposes the hardware acceptance filter, so canair could ask the
-dongle to send only the ECU response addresses the profile uses and cut the idle cost to near
-zero. It deliberately doesn't yet. What the firmware reading established:
+In principle the dongle could send only the ECU response addresses the profile uses, which would
+cut the idle cost to near zero. The WiCAN firmware (v2.3.24, the version we read) does not allow
+it:
 
-- **The filter must be set while the channel is closed.** `can_set_filter` and `can_set_mask`
-  (`wican-fw/main/can.c`) do nothing once the bus is `ON_BUS`, so `M`/`m` must be sent between the
-  bitrate command and `O`.
-- **A mask bit of `1` means *don't care*.** The idle default is `mask = 0xFFFFFFFF, filter = 0`
-  (accept everything), and a frame is accepted when `(id ^ code) & ~mask == 0`. Both `M` and `m`
-  take eight ASCII hex digits, most significant first.
-- **There is a single code+mask pair**, so disjoint response addresses can only be covered by a
-  superset. For a typical Hyundai/Kia diagnostic set that is `0x7C0`–`0x7FF` (64 IDs) — still a
-  large win, since the broadcast traffic that dominates the byte count lives well below it.
+- **The SLCAN `M` (acceptance code) and `m` (acceptance mask) commands are accepted but have no
+  effect.** They store a filter and mask (`can_set_filter`/`can_set_mask` in
+  `wican-fw/main/can.c`), but `can_enable()` ignores the stored values and installs the CAN
+  controller with `acceptance_code = 0` and `acceptance_mask = 0xFFFFFFFF`, which accepts every
+  frame. The lines that would apply the configured filter are commented out.
+- **So `slcan-tcp` always relays every frame on the segment**, and canair has no way to narrow
+  that on the device. Sending `M`/`m` would only make the dongle look filtered when it is not.
 
-What is **not** established is where an 11-bit ID sits inside the 32-bit acceptance word
-(a hardware detail the WiCAN sources don't state). Get it wrong and *no frame matches*: the bus
-goes silent, indistinguishable from a dead bus or a sleeping car. A wrong filter is worse than
-none, and a unit test can't catch it, so this waits on a bench check against a real device.
-Tracked in `plans/2026-08-08-high-latency-link-hardening.md` (item 9), which also sketches a
-self-healing variant that reopens unfiltered if the first exchanges return nothing.
+To avoid the bus-wide stream on a metered link, use `wican-ws`, where the dongle runs ISO-TP and
+sends only the replies to your requests.
+
+This could change if a firmware release re-enables the filter. Firmware v6 was not checked. If it
+does, the earlier design notes (set the filter while the channel is closed; a mask bit of `1`
+means "don't care"; one code+mask pair, so a superset of the response addresses) are in
+`plans/2026-08-08-high-latency-link-hardening.md`, item 9.
 
 ## Settings that matter here
 

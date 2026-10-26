@@ -22,7 +22,7 @@ Subcommands:
 Examples:
   canair wican autopid write                       # verified-only out/autopid.json
   canair wican autopid write --include-unverified  # also include unverified params
-  canair wican autopid write --expected-responses  # faster reads where counts are known
+  canair wican autopid write --no-expected-responses  # omit the response-frame counts
   canair wican autopid upload --reboot             # upload + reboot to apply
   canair wican autopid diff --wican home           # compare device vs generated
   canair wican mode set slcan                 # raw CAN + set transport slcan-tcp
@@ -363,11 +363,19 @@ def _add_generate_args(parser: argparse.ArgumentParser) -> None:
         help=argparse.SUPPRESS,  # deprecated no-op: verified-only is the default
     )
     parser.add_argument(
+        "--no-expected-responses",
+        dest="expected_responses",
+        action="store_false",
+        default=True,
+        help="Do not append each PID's recorded response_frames count to its request "
+        "(by default the count is appended, so the adapter answers as soon as that "
+        "many frames arrive instead of waiting out its ~614ms budget)",
+    )
+    parser.add_argument(
         "--expected-responses",
+        dest="expected_responses",
         action="store_true",
-        help="Append each PID's recorded response_frames count to its request, so "
-        "the adapter answers as soon as that many frames arrive instead of waiting "
-        "out its ~614ms budget (opt-in: the firmware cannot recover from a wrong count)",
+        help=argparse.SUPPRESS,  # deprecated no-op: expected responses are the default
     )
 
 
@@ -552,7 +560,7 @@ def _generate(args) -> tuple[dict, dict]:
 
     verified_only = _verified_only(args)
     label = "" if getattr(args, "include_unverified", False) else " (verified only)"
-    counts = getattr(args, "expected_responses", False)
+    counts = getattr(args, "expected_responses", True)
     print(f"\nGenerating AutoPID profile{label}...")
     try:
         profile = generate_profile(data, verified_only, expected_responses=counts)

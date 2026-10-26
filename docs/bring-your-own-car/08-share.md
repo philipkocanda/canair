@@ -30,21 +30,23 @@ canair wican autopid upload    # push the profile to the dongle
 By default the WiCAN's ELM327 co-processor waits out its full ~614 ms ECU budget on
 every PID, to be sure no further response frame is coming. If canair has recorded
 how many frames a PID answers with — it learns this automatically while you read
-the car, and stores it as `response_frames:` in `ecus/` — you can have that count
-appended to each request so the adapter returns the moment the reply is whole:
+the car, and stores it as `response_frames:` in `ecus/` — canair appends that count
+to each request by default, so the adapter returns the moment the reply is whole:
 
 ```bash
-canair wican autopid stats                       # which PIDs have a count (Frames column)
-canair wican autopid write --expected-responses   # emit it into the profile
+canair wican autopid stats                           # which PIDs have a count (Frames column)
+canair wican autopid write                           # counts are emitted into the profile
+canair wican autopid write --no-expected-responses   # leave them out
 ```
 
-This is **opt-in**, because the firmware cannot recover from a count that is too
-low: it would hand back a truncated response and leave the remainder queued, where
-it shows up as the *next* PID's answer. canair therefore only emits a count that
-the wire confirmed, and never one for a variable-length response, a request that
-cannot carry the digit, or a response longer than 9 frames. PIDs without a
-confirmed count are simply left as they were, so the flag is safe to pass even on
-a partly-decoded profile — read the car some more and re-run to widen coverage.
+This is only safe because canair is strict about which counts it emits: the firmware
+cannot recover from a count that is too low, since it would hand back a truncated
+response and leave the remainder queued, where it shows up as the *next* PID's
+answer. canair therefore only emits a count that the wire confirmed, and never one
+for a variable-length response, a request that cannot carry the digit, or a response
+longer than 9 frames. PIDs without a confirmed count are simply left as they were,
+so this is fine on a partly-decoded profile — read the car some more and re-run to
+widen coverage.
 
 ### Streaming a signal at its poll rate
 

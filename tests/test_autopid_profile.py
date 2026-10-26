@@ -306,10 +306,11 @@ class TestExpectedResponseDigit:
     def _pid(self, data, **kw) -> str:
         return generate_profile(data, **kw)["pids"][0]["pid"]
 
-    def test_off_by_default(self):
-        # Opt-in: a user who has not asked for it keeps the firmware's own
-        # behaviour, whatever the profile records.
-        assert self._pid(self._with(response_frames=4)) == "2101"
+    def test_on_by_default(self):
+        assert self._pid(self._with(response_frames=4)) == "21014"
+
+    def test_the_digit_can_be_opted_out(self):
+        assert self._pid(self._with(response_frames=4), expected_responses=False) == "2101"
 
     def test_the_digit_is_appended_when_requested(self):
         assert self._pid(self._with(response_frames=4), expected_responses=True) == "21014"
