@@ -132,10 +132,12 @@ HVAC:
           source: canair investigate/correlate 2026-08-02; HVAC audit 2026-10-22
           verified: false
           notes: >-
-            16-239 across 1758 captures. 235-239 with the compressor off: fan only at 12 °C
-            ambient (2026-04-19), resistive-heater preconditioning (2026-08-08), 2026-10-22. Fell
-            from 113 to 44 in the first minute of A/C cooling (2026-07-21). r=+0.42 vs
-            HVAC_HEAT_PUMP_ON, -0.74 vs HVAC_AAT (n=1420).
+            16-239 across 1758 captures. 235-239 with the compressor off: fan only at 12 °C ambient
+            (2026-04-19), resistive-heater preconditioning (2026-08-08), 2026-10-22. Fell from 113
+            to 44 in the first minute of A/C cooling (2026-07-21). On 2026-10-25 it read 238 with
+            the A/C idle, fell 132 to 16 between 12:27:54 and 12:29:37, held 16 until the A/C went
+            off at 12:34:54, then 199 and 238. Inverse of cooling demand, saturating at 16, so it
+            carries no power scale. r=+0.42 vs HVAC_HEAT_PUMP_ON, -0.74 vs HVAC_AAT (n=1420).
         HVAC_UNKNOWN_B17:
           expression: B17
           unit: ""
@@ -528,9 +530,11 @@ HVAC:
           source: 2026-07-21 AC-cooling + 2026-07-26 heating (align time-series)
           verified: false
           notes: >-
-            10-60 across 1499 captures. About 20 at idle and in heat-pump heating, 10-15 in
-            resistive heating. 50-60 during A/C cooling (2026-07-21), back to 20 within 5 s of the
-            A/C switching off at 12:22:46.
+            10-60 across 1499 captures. 20 at idle. Stayed 20 in all 17 reads during A/C cooling on
+            2026-10-25 (12:23:31-12:34:36, HVAC_UNKNOWN_B15 down to 16), so it is not a cooling
+            power byte; the 50-60 under A/C on 2026-07-21 did not reproduce. 10 or 20 during
+            heating, not tied to HVAC_HEAT_MODE (10 in heat pump 07:01, 20 in PTC from 07:04, both
+            in PTC 12:34-12:37).
         HVAC_HEAT_LOAD_B17:
           expression: B17
           unit: A
@@ -748,9 +752,13 @@ HVAC:
       notes: >-
         Console Drive/Climate/Electronics power split. Heating: 2201A2 B42 (HVAC_HEAT_POWER).
         Electronics: VCU_AUX_POWER (12 V, r=-0.09 vs BATTERY_POWER, independent of the HV climate
-        load). Cooling: no power byte known; 2201A2 B41 (HVAC_COOL_LOAD_B41) reads 50-60 under A/C
-        against about 20 otherwise, scale unknown. Open: a hot-cabin A/C low-to-high sweep
-        co-polling HVAC:2201A2 and BMS:2101 to hunt B41 (and 220100 B15) against BATTERY_POWER.
+        load). Cooling: no power byte known. 2201A2 B41 (HVAC_COOL_LOAD_B41) stayed 20 under A/C on
+        2026-10-25, so the 50-60 reading of 2026-07-21 did not reproduce. 2026-10-25 drive, A/C
+        12:23-12:34, one read cycle per 30-45 s: the pack residual (BATTERY_POWER - MCU_MOTOR_POWER
+        - VCU_AUX_POWER/0.9) is 1.2 kW (SD 0.2, n=4) with the A/C idle and median 1.9 kW (SD 9.8,
+        n=10) with HVAC_UNKNOWN_B15 at 16. Motor transients between non-simultaneous reads swamp a
+        1-3 kW compressor draw. Open: a parked A/C-only step (see 'compressor vs PTC power split')
+        so the pack power is steady.
       updated: "2026-10-22"
     - type: decode
       target: 2201A0 actuator doors
@@ -822,10 +830,11 @@ HVAC:
         HVAC_HEAT_POWER (2201A2 B42/10) is the whole HV heating draw and reads 0 under A/C.
         Splitting heating between heat pump and PTC, and finding the cooling draw, needs sessions
         where only one HV consumer runs. 220102 HVAC_HEAT_PUMP_ON is 0 under A/C, so no
-        compressor-on flag is known. Candidates: 220100 HVAC_UNKNOWN_B15 (fell 113 to 44 when the
-        A/C started on 2026-07-21, but reads 235-239 in heating and fan-only sessions with the
-        compressor off), 2201A2 HVAC_COOL_LOAD_B41 (50-60 under A/C), 2201A1 B34 (= B60, 0-37),
-        2201A3 B42/B43.
+        compressor-on flag is known. Candidates: 220100 HVAC_UNKNOWN_B15 (2026-10-25: 238 with the
+        A/C idle, 16 and saturated with it running, so cooling demand but no power scale; 235-239 in
+        heating and fan-only sessions), 2201A1 B34 (= B60, 0-37), 2201A3 B42/B43. Ruled out: 2201A2
+        HVAC_COOL_LOAD_B41, which stayed 20 under A/C on 2026-10-25. A drive does not work for this
+        split: see the pack residual noise in 'climate power (console split)'.
       sources:
         - BMS:2101 BATTERY_POWER - VCU:2102 VCU_AUX_POWER residual, 2026-10-21
       what_to_test:
