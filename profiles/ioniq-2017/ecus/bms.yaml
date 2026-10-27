@@ -10,6 +10,7 @@ BMS:
   can_bus: [P-CAN, H-CAN]
   identity:
     description: Battery Management System
+    part_number: "37501-G7250" # Battery Assembly Part no.
     ecu_id: "AEEV__ BMS"  # KWP2000 1A90
     fw_version: "VER.2.3"  # KWP2000 1A91
     sw_id: CGBMSE305AE1000A  # KWP2000 1A8C
