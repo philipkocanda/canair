@@ -15,6 +15,34 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [1.35.0](https://github.com/philipkocanda/canair/compare/v1.34.0...v1.35.0) (2026-10-27)
+
+
+### Added
+
+* **ioniq-2017:** decode BMS 2101 B61 power bits, document B14 state byte ([256e30e](https://github.com/philipkocanda/canair/commit/256e30e251f6c1ed6e69b32324dd143a21d07b9c))
+* **ioniq-2017:** decode the HVAC A/C compressor power, current and speed ([c1f14d7](https://github.com/philipkocanda/canair/commit/c1f14d74f0da1c1db2c547629ad4296e5cc7e32a))
+* **ioniq-2017:** fold in findings from the OBDb Ioniq Electric signalset ([129eae2](https://github.com/philipkocanda/canair/commit/129eae2b8b260631731926eb2e31550289b33b6b))
+* **ioniq-2017:** poll HVAC 2201A1 in [@driving](https://github.com/driving) and [@climate](https://github.com/climate) ([3a857c0](https://github.com/philipkocanda/canair/commit/3a857c01e001b3d58ca20239323b302b5b41d765))
+* **monitor:** poll each PID at its own profile period by default ([39d4cad](https://github.com/philipkocanda/canair/commit/39d4cad8709f58f078786e7c50367063ade2fd1a))
+* more ioniq captures ([fd4f170](https://github.com/philipkocanda/canair/commit/fd4f1700749eff3c684da2c3bf285357331140c3))
+* **wican:** emit expected-response counts in AutoPID exports by default ([5dc0ebe](https://github.com/philipkocanda/canair/commit/5dc0ebee78dabcf078a01ff95d460526e8d588aa))
+
+
+### Fixed
+
+* **ioniq-2017:** ship HVAC 2201A2 to the device ([01bf3ab](https://github.com/philipkocanda/canair/commit/01bf3ab708e81a367d802b9b2a424736488e4758))
+* **monitor:** clear ty diagnostics in the bare-monitor picker ([042805e](https://github.com/philipkocanda/canair/commit/042805e7529afe5165b0ec99222944ea59920831))
+
+
+### Documentation
+
+* **ioniq-2017:** correct HVAC cooling-power notes after 2026-10-25 drive ([9b80c20](https://github.com/philipkocanda/canair/commit/9b80c20643458f12e67c5a268a1cc4a881b87f20))
+* **ioniq-2017:** cross-reference BMS CHARGING_DC with OBDb, refresh research entry ([5afef0a](https://github.com/philipkocanda/canair/commit/5afef0af76242486395776888159cedb8eca1add))
+* **ioniq-2017:** record 12 V battery SoC/SoH search results ([763a63d](https://github.com/philipkocanda/canair/commit/763a63d00e0c34e8974b31e347658e58013029e6))
+* WiCAN firmware ignores the SLCAN acceptance filter ([4209e68](https://github.com/philipkocanda/canair/commit/4209e6831ca7c48aa0e45aa7c5a8e105a994ffb9))
+* WiCAN firmware ignores the SLCAN acceptance filter ([df146c3](https://github.com/philipkocanda/canair/commit/df146c37f312a6dc0f51c5e68aa4fd213ab0d4f3))
+
 ## [1.34.0](https://github.com/philipkocanda/canair/compare/v1.33.0...v1.34.0) (2026-10-23)
 
 
