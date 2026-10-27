@@ -14,7 +14,7 @@ import signal
 
 import pytest
 
-from canlib.modes import monitor as monitor_mod
+from canlib.modes import _monitor_run as run_mod
 from canlib.stop_signals import STOP_SIGNALS
 
 
@@ -48,7 +48,7 @@ class TestNoninteractiveLoop:
     @pytest.mark.parametrize("sig", STOP_SIGNALS)
     def test_stops_on_each_stop_signal(self, sig):
         controller = _FakeController(raise_on_poll=sig)
-        asyncio.run(asyncio.wait_for(monitor_mod._monitor_noninteractive(controller), timeout=5.0))
+        asyncio.run(asyncio.wait_for(run_mod._monitor_noninteractive(controller), timeout=5.0))
         assert controller.polls == 1
         # The in-flight poll is aborted too, so a raw session doesn't wait out
         # its per-ECU timeouts before exiting.
@@ -57,20 +57,20 @@ class TestNoninteractiveLoop:
     def test_restores_previous_handlers(self):
         before = {sig: signal.getsignal(sig) for sig in (*STOP_SIGNALS, signal.SIGINT)}
         controller = _FakeController(raise_on_poll=signal.SIGHUP)
-        asyncio.run(monitor_mod._monitor_noninteractive(controller))
+        asyncio.run(run_mod._monitor_noninteractive(controller))
         for sig, prev in before.items():
             assert signal.getsignal(sig) == prev
 
     def test_notices_survive_a_dead_terminal(self, monkeypatch):
         """Rendering to a hung-up tty must not crash the shutdown path."""
         monkeypatch.setattr(
-            monitor_mod._console,
+            run_mod._console,
             "print",
             lambda *a, **kw: (_ for _ in ()).throw(OSError(5, "I/O error")),
         )
         controller = _FakeController(raise_on_poll=signal.SIGTERM)
         controller.disconnected = False
-        asyncio.run(monitor_mod._monitor_noninteractive(controller))
+        asyncio.run(run_mod._monitor_noninteractive(controller))
 
 
 class _FakeJournal:
@@ -145,8 +145,8 @@ class TestTeardown:
             controller_box["c"] = _TeardownController()
             return controller_box["c"]
 
-        monkeypatch.setattr(monitor_mod, "MonitorController", _make_controller)
-        monkeypatch.setattr(monitor_mod, "_open_journal", lambda *a, **k: journal)
+        monkeypatch.setattr(run_mod, "MonitorController", _make_controller)
+        monkeypatch.setattr(run_mod, "_open_journal", lambda *a, **k: journal)
         monkeypatch.setattr(
             canlib.profile, "active", lambda: type("P", (), {"captures_dir": tmp_path})()
         )
@@ -156,19 +156,19 @@ class TestTeardown:
             # The terminal goes away mid-session: every write fails from here on.
             monkeypatch.setattr(builtins, "print", _broken_print)
             monkeypatch.setattr(
-                monitor_mod._console,
+                run_mod._console,
                 "print",
                 lambda *a, **kw: (_ for _ in ()).throw(OSError(5, "I/O error")),
             )
 
-        monkeypatch.setattr(monitor_mod, "_monitor_noninteractive", _noop)
-        monkeypatch.setattr(monitor_mod.sys.stdout, "isatty", lambda: False)
+        monkeypatch.setattr(run_mod, "_monitor_noninteractive", _noop)
+        monkeypatch.setattr(run_mod.sys.stdout, "isatty", lambda: False)
 
         def _broken_print(*args, **kwargs):
             raise OSError(5, "Input/output error")
 
         asyncio.run(
-            monitor_mod.mode_monitor(
+            run_mod.mode_monitor(
                 object(),
                 [{"type": "query", "ecu": "BMS", "pids": ["2101"]}],
                 {"ecus": {}},
