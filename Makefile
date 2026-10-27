@@ -10,10 +10,11 @@
 # Rationale: plans/2026-07-24-documentation-strategy.md.
 export NO_MKDOCS_2_WARNING := 1
 
-.PHONY: help docs docs-serve screenshots screenshots-check gen gen-check check
+.PHONY: help setup docs docs-serve screenshots screenshots-check gen gen-check check
 
 help:
 	@echo "Targets:"
+	@echo "  setup              Install deps and the git hooks (run once per clone)"
 	@echo "  screenshots        Regenerate the doc screenshots + animations (needs freeze + vhs)"
 	@echo "  screenshots-check  Verify screenshots are current (no render; used by CI)"
 	@echo "  gen                Regenerate all committed generated docs (CLI reference, screenshots)"
@@ -21,6 +22,14 @@ help:
 	@echo "  docs               Build the docs site (mkdocs --strict)"
 	@echo "  docs-serve         Serve the docs locally with live reload"
 	@echo "  check              Lint, type-check, validate, and run tests"
+
+# One-time per-clone bootstrap: sync the pinned toolchain and install the git
+# hooks that mirror the CI gates (ruff/ty on commit, Conventional Commits on the
+# message, generated-artifact currency on push). Skipping the hooks is how a
+# locally-avoidable failure reaches CI, so this bundles them into one command.
+setup:
+	uv sync
+	uv run pre-commit install --install-hooks
 
 screenshots:
 	uv run python scripts/gen_screenshots.py

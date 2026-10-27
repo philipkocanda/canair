@@ -27,7 +27,9 @@ validation on each commit, the [Conventional Commits](commit-messages.md) check 
 message, and the generated-artifact currency checks on each push:
 
 ```bash
-uv run pre-commit install --install-hooks   # installs all three hook stages
+make setup                                   # installs all three hook stages (+ uv sync)
+# or, without make:
+uv run pre-commit install --install-hooks
 ```
 
 A clean local run means a green CI; CI stays the hard gate.

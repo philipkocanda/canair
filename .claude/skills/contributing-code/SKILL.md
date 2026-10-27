@@ -373,7 +373,8 @@ uv run canair <yourcmd> --help   # parser sane
 uv run canair validate all       # if you touched ecus/captures/schema
 ```
 
-Enable the mirrored local gates once per clone (`uv run pre-commit install --install-hooks`) so
+Enable the mirrored local gates once per clone (`make setup`, or
+`uv run pre-commit install --install-hooks`) so
 ruff/`ty`, the Conventional Commits check, and the `gen_*.py --check` currency checks run before CI
 does — CI stays the hard gate. Then confirm the docs and README reflect any user-facing change and
 that internal links still resolve.
