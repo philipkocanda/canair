@@ -124,8 +124,13 @@ BMS:
           verified: true
           notes: >-
             Set during DC fast charging (2026-08-08 CCS session, n=54). Clear in all 1576
-            AC-charging captures, where CHARGING (B14:7) is set.
-          source: canair analysis 2026-08-08 50 kW DCFC session (first real rapid charge on this car)
+            AC-charging captures, where CHARGING (B14:7) is set. Layout matches the OBDb signalsets
+            for the Ioniq Electric, Soul EV and Niro EV (RAPID_CHG_PORT, bix 73 = bit 6 of this
+            byte, alongside HV_CHG bit 7, NORMAL_CHG_PORT bit 5 and BAT_MANAGEMENT_MAIN bit 0), and
+            the Ioniq 5, Ioniq 6 and EV6 place their rapid-port flag at the same bit. Definitions
+            only: OBDb has no frame with the bit set, and its label likely shares the community
+            lineage we use.
+          source: canair analysis 2026-08-08 50 kW DCFC session (first real rapid charge on this car); OBDb cross-reference 2026-10-27
         CHARGING:
           expression: "B14:7"
           unit: ""
@@ -1837,7 +1842,15 @@ BMS:
       vehicle_states: [CHARGING, PLUGGED]
       created: "2026-08-06"
       updated: "2026-08-08"
-      notes: "The corpus (5997 captures) contains NO DC/CCS charge session, so five bits of the BMS state byte are unexercised rather than unused: bits 2,3,4,6 are never set, and bit1 is indistinguishable from bit0 (BMS_MAIN_RELAY) in 5997/5997 captures. All prior DC evidence came from the single B14=0x45 reading in the hand-transcribed August-2025 captures, withdrawn in commit 52f1eb3 because that session's provenance was untrustworthy — so CHARGING_DC (bit6) is currently community lineage only, and the 'second contactor' reading of bit1 has no support. One real rapid charge resolves all of it."
+      result: >-
+        bit 6 = CHARGING_DC, verified on the 2026-08-08 CCS session; bits 1-4 still unexercised
+      notes: >-
+        Partly resolved by the 2026-08-08 CCS session (n=54 DC rows): bit 6 is CHARGING_DC, set only
+        during DC charging (0xC3), and bit 7 CHARGING is set in AC and DC alike. The OBDb signalsets
+        agree on bits 7, 6, 5 and 0 (Hv_charging, rapid port, normal port, main relay). Still open:
+        bit 1 is indistinguishable from bit 0 (BMS_MAIN_RELAY), and bits 2-4 have never been set,
+        including during the DC charge. The earlier claim that the corpus holds no DC session and
+        that CHARGING_DC is community lineage only is obsolete.
       sources:
         - canair bitfield analysis 2026-08-06 (plans/2026-08-06-bitfield-audit-and-gear-state.md)
       what_to_test:
