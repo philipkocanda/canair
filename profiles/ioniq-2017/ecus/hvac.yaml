@@ -512,7 +512,37 @@ HVAC:
         (r=+0.998). B12 and B13 read 1 except in 26 (all 2026-04-17) and 71 of 1657 captures.
         B14 is 0 in every capture; B15 reads 120 in 1500 of 1657. B68 reads 5 at fan 1-2 and
         mostly 10 at fan 3-8.
-      parameters: {}
+      parameters:
+        HVAC_COMPRESSOR_POWER:
+          expression: "[B57:B58]/1000"
+          unit: kW
+          ha_class: power
+          min: "0"
+          max: "6"
+          source: "RE 2026-10-27: parked pack residual vs 2201A1, 2026-07-30 and 2026-08-09"
+          verified: true
+          notes: >-
+            Electric A/C compressor input power, 16-bit big-endian in watts (shown as kW). 0-1.33 kW
+            across 1692 captures. Parked in READY with the PTC off, BMS BATTERY_POWER minus
+            VCU_AUX_POWER/0.9 = 1.09 x this + 0.08 kW (r=0.957, n=71) and steps on and off with it
+            (2026-07-30 10:17:37 on, 10:23:26 off); the baseline with it at 0 is 0.06 kW (n=401).
+            Equals HVAC_COMPRESSOR_CURRENT x about 358 V. In heat-pump mode it runs 0.53-0.63 kW and
+            the pack residual equals HVAC_HEAT_POWER, so HEAT_POWER already includes it there.
+            Mirrored at [B30:B31] in 82 % of captures.
+        HVAC_COMPRESSOR_CURRENT:
+          expression: "[B33:B34]/10"
+          unit: A
+          ha_class: current
+          min: "0"
+          max: "20"
+          source: "RE 2026-10-27: ratio to HVAC_COMPRESSOR_POWER"
+          verified: false
+          notes: >-
+            16-bit big-endian, 0-3.7 A across 1692 captures (B33 always 0). HVAC_COMPRESSOR_POWER /
+            this is 35.3-39.1 V per 0.1 A (median 358 V, pack 365 V), so 0.1 A/bit matches a DC
+            input current; no independent current reference. Mirrored at [B59:B60]. Reads 0 in 21
+            captures where the power word is non-zero (separate reads in the same response, ramp
+            edges).
 
     2201A2:
       response_frames: 8
@@ -582,7 +612,33 @@ HVAC:
         B52:B53 are big-endian words 30 apart, constant within a session (700/730 in most, 640/670
         on 2026-10-22). Constant in all 2015 captures: 0xFF at B10-B13, 0x00 at B14, B26, B37, B38,
         B47, B54, B60 and B61.
-      parameters: {}
+      parameters:
+        HVAC_COMPRESSOR_POWER_COARSE:
+          expression: B28/10
+          unit: kW
+          ha_class: power
+          min: "0"
+          max: "6"
+          source: "RE 2026-10-27: hunt vs parked pack residual"
+          verified: false
+          notes: >-
+            0-1.2 kW at 0.1 kW/bit across 2050 captures. Pack residual = 1.15 x this (r=0.947,
+            n=71); B28 vs 2201A1 B34 r=0.71 (reads seconds apart while the compressor ramps). Reads
+            0.4 kW in heat-pump mode against 0.53-0.63 kW on HVAC_COMPRESSOR_POWER. B27 is not its
+            high byte: B27 and B25 are 1 only in heat-pump mode (2026-07-22, 2026-07-26).
+        HVAC_COMPRESSOR_SPEED:
+          expression: "[B42:B43]"
+          unit: RPM
+          min: "0"
+          max: "9000"
+          source: "RE 2026-10-27: 2201A3 vs HVAC_COMPRESSOR_POWER"
+          verified: false
+          notes: >-
+            16-bit big-endian. Only 0, 1350, 1500, 2490, 2500 and 3300 across 2050 captures, so
+            likely the commanded speed. 0 exactly when HVAC_COMPRESSOR_POWER is 0. 3300 at 0.86-0.96
+            kW median (2026-07-30, 2026-08-09), 1500 at 0.59 kW (2026-08-08), 1350 at 0.43 kW
+            (2026-04-17). The OBDb Ioniq Electric (2020) signalset carries compressor speed on BMS
+            220106 instead.
 
     2201A4:
       status: ignored
@@ -757,26 +813,21 @@ HVAC:
         0100, 0102 and 01A0-01A6 (see scan_log).
     - type: decode
       target: "climate power (console split)"
-      status: captured
+      status: done
       priority: P2
       vehicle_states: [READY]
       result: >-
-        2026-10-21, with the BMS pack current fixed: parked in READY, pack power minus
-        VCU_AUX_POWER/0.9 leaves a 0.02-0.08 kW baseline with climate off, and during heating it
-        equals HVAC_HEAT_POWER (median ratio 0.99, r=0.88, n=129 heating rows). So B42/10 is the
-        whole HV heating draw at 0.1 kW/bit. It reads 0 under A/C cooling, so the cooling draw is
-        not on B42.
+        Heating: 2201A2 HVAC_HEAT_POWER (B42/10), the whole HV heating draw including the compressor
+        in heat-pump mode (2026-10-21, 2026-10-27). Cooling: 2201A1 HVAC_COMPRESSOR_POWER, since
+        HEAT_POWER reads 0 under A/C (2026-10-27, r=0.957 vs the parked pack residual). Electronics:
+        VCU_AUX_POWER.
       notes: >-
-        Console Drive/Climate/Electronics power split. Heating: 2201A2 B42 (HVAC_HEAT_POWER).
-        Electronics: VCU_AUX_POWER (12 V, r=-0.09 vs BATTERY_POWER, independent of the HV climate
-        load). Cooling: no power byte known. 2201A2 B41 (HVAC_COOL_LOAD_B41) stayed 20 under A/C on
-        2026-10-25, so the 50-60 reading of 2026-07-21 did not reproduce. 2026-10-25 drive, A/C
-        12:23-12:34, one read cycle per 30-45 s: the pack residual (BATTERY_POWER - MCU_MOTOR_POWER
-        - VCU_AUX_POWER/0.9) is 1.2 kW (SD 0.2, n=4) with the A/C idle and median 1.9 kW (SD 9.8,
-        n=10) with HVAC_UNKNOWN_B15 at 16. Motor transients between non-simultaneous reads swamp a
-        1-3 kW compressor draw. Open: a parked A/C-only step (see 'compressor vs PTC power split')
-        so the pack power is steady.
-      updated: "2026-10-22"
+        The 2026-10-25 drive cannot resolve the cooling draw: its pack residual (BATTERY_POWER -
+        MCU_MOTOR_POWER - VCU_AUX_POWER/0.9) swings 5-40 kW between reads 1.4-2.7 s apart, and
+        2201A1 was not polled. A model of HVAC_COMPRESSOR_POWER from the polled HVAC temperatures
+        (validated by holding out each day, error 130-300 W) puts that A/C run (12:26:30-12:34:50,
+        12.5 °C outside) at about 0.3-0.65 kW. 2201A1 is now in @driving and @climate.
+      updated: "2026-10-27"
     - type: decode
       target: 2201A0 actuator doors
       status: captured
@@ -823,9 +874,11 @@ HVAC:
       notes: >-
         A1, A2 and A3 carry copies of known bytes (heat mode at A1 B21 and A2 B19, mode door at A1
         B22 and A2 B20, 220100 bytes at A3 B33-B41) plus several 16-bit words that co-move with
-        temperatures under heating. A1 B68 steps with the fan (5 at fan 1-2, 10 at fan 3-8). Open:
-        vary one temperature or actuator at a time, hold, note, then hunt each word against the
-        isolated reference.
+        temperatures under heating. A1 B68 steps with the fan (5 at fan 1-2, 10 at fan 3-8).
+        Compressor signals decoded 2026-10-27: A1 [B57:B58] power (mirror [B30:B31]) and [B33:B34]
+        current (mirror [B59:B60]), A3 B28 coarse power and [B42:B43] speed; A3 B25 and B27 are 1
+        only in heat-pump mode. Open: vary one temperature or actuator at a time, hold, note, then
+        hunt each remaining word against the isolated reference.
     - type: scan
       target: 21 00-FF
       status: nrc
@@ -838,20 +891,23 @@ HVAC:
         did 2101-210B on 2026-04-19. HVAC does not support service 21.
     - type: decode
       target: compressor vs PTC power split
-      status: pending
+      status: done
       priority: P2
       vehicle_states: [READY]
       created: "2026-10-21"
-      updated: "2026-10-22"
+      updated: "2026-10-27"
+      result: >-
+        2026-10-27, parked pack residual against every HVAC byte: 2201A1 [B57:B58] is the compressor
+        input power in W (HVAC_COMPRESSOR_POWER; residual = 1.09 x it + 0.08 kW, r=0.957, n=71,
+        2026-07-30 and 2026-08-09). In heat-pump mode it runs 0.53-0.63 kW while the residual equals
+        HVAC_HEAT_POWER (ratio 0.93-1.15, n=120), so HEAT_POWER already includes the compressor
+        there and PTC = HVAC_HEAT_POWER - HVAC_COMPRESSOR_POWER. Under A/C cooling HEAT_POWER is 0
+        and the compressor word is the whole draw.
       notes: >-
-        HVAC_HEAT_POWER (2201A2 B42/10) is the whole HV heating draw and reads 0 under A/C.
-        Splitting heating between heat pump and PTC, and finding the cooling draw, needs sessions
-        where only one HV consumer runs. 220102 HVAC_HEAT_PUMP_ON is 0 under A/C, so no
-        compressor-on flag is known. Candidates: 220100 HVAC_UNKNOWN_B15 (2026-10-25: 238 with the
-        A/C idle, 16 and saturated with it running, so cooling demand but no power scale; 235-239 in
-        heating and fan-only sessions), 2201A1 B34 (= B60, 0-37), 2201A3 B42/B43. Ruled out: 2201A2
-        HVAC_COOL_LOAD_B41, which stayed 20 under A/C on 2026-10-25. A drive does not work for this
-        split: see the pack residual noise in 'climate power (console split)'.
+        Companions on the same compressor: 2201A1 [B33:B34] current (0.1 A), 2201A3 B28 coarse power
+        (0.1 kW) and [B42:B43] speed (0/1350/1500/2490/2500/3300 RPM). Not yet seen: a PTC-only
+        session with the heat pump off, which would confirm HVAC_HEAT_POWER minus the compressor
+        equals the PTC share.
       sources:
         - BMS:2101 BATTERY_POWER - VCU:2102 VCU_AUX_POWER residual, 2026-10-21
       what_to_test:
