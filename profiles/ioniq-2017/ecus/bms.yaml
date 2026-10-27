@@ -101,7 +101,9 @@ BMS:
           source: "ITStromer community sheet (j:0 = BMS Relay) + captures"
           source_links: []
           verified: true
-          notes: HV main relay closed. 0 in 96 of 10708 captures, all with B14 = 0x20, 0x40 or 0x00.
+          notes: >-
+            HV main relay closed. 0 in 111 of 12079 captures, all with B14 = 0x20, 0x40 or 0x00.
+            Also 1 during a parked 12 V top-up (TOPUP).
 
         AC_CHARGER_CONNECTED:
           expression: B14:5
@@ -333,10 +335,13 @@ BMS:
           source_links: []
           verified: false
           notes: >-
-            Whole B14 byte. Observed values: 0x03 READY, 0x20 AC plugged with contactors open, 0x23
-            plugged and READY, 0xA3 AC charging, 0xC3 DC charging. Bits: b0 BMS_MAIN_RELAY, b1
-            always equals b0, b5 AC_CHARGER_CONNECTED, b6 CHARGING_DC, b7 CHARGING. b2-b4 have never
-            been set, including during a DC fast charge.
+            Whole B14 byte. Observed values: 0x00 ignition off, unplugged (n=1); 0x03 READY or 12 V
+            top-up; 0x20 AC plugged with contactors open; 0x23 AC plugged with contactors closed,
+            not charging (VCU EV_READY 0); 0x40 CCS plugged before the contactors close (~30 s, both
+            DC sessions); 0xA3 AC charging; 0xC3 DC charging. Bits: b0 BMS_MAIN_RELAY, b1 always
+            equals b0, b5 AC_CHARGER_CONNECTED, b6 CHARGING_DC, b7 CHARGING. b2-b4 never set in
+            12079 captures, including two DC fast charges. Kia Soul EV GDS sheet names the same byte
+            b1 BMS Controllable State, b2 BMS Warning, b3 BMS Fault, b4 BMS Weld Flag.
 
         AVAIL_CHARGE_POWER_MIRROR:
           expression: "[B10:B11]/100"
@@ -396,16 +401,31 @@ BMS:
             Signed 16-bit big-endian. Identical to DRIVE_MOTOR_SPEED [S65:S66] in 12069 of 12069
             rows.
           enabled: false
-        BMS_IGN_ON:
+        BMS_2101_B61_2:
           expression: B61:2
-          source: OBDb Hyundai-IONIQ-Electric (7E4 21 01 bix 405, BAT_MANAGEMENT_IGN) + canair decode --group-by state 2026-10-27
+          source: OBDb Hyundai-IONIQ-Electric (7E4 21 01 bix 405, BAT_MANAGEMENT_IGN); canair B61 cross-tab vs VCU/IGPM 2026-10-27
           verified: false
           notes: >-
-            Bit 2 of B61 (LSB=0). Reads 1 in READY, DRIVING and CHARGING+ACC2, 0 in plain AC/DC
-            charging and plugged-in-only, so it follows ignition rather than the main relay. Not yet
-            cross-checked against an independent ignition signal. Bits 0 and 3 of B61 are also set
-            in most rows and are unmapped.
+            1 in all 2538 aligned READY rows (VCU EV_READY 1) and throughout the 2026-08-02 AC
+            charge begun with the car READY (521 rows, EV_READY 0). 0 in every charge begun with the
+            car off (AC and DC), in the 2026-10-21 12 V top-up, and on 2026-08-02 after that charge
+            ended: it fell at 11:18:39 when the HV contactors opened, while IGPM ACC2_IGN_ON still
+            read 1 (11:19:27) and the car was still in ACC2 at 12:49. OBDb names this bit BMS
+            ignition; the 2026-08-02 window shows it is not the plain ignition input.
           enabled: true
+          min: "0"
+          max: "1"
+        BMS_IG3_ON:
+          expression: B61:3
+          min: "0"
+          max: "1"
+          source: canair B61 cross-tab vs VCU 2101 VCU_IG3_ON 2026-10-27
+          verified: true
+          notes: >-
+            Equals VCU_IG3_ON in 10845 of 10846 aligned rows; the exception is the last row of the
+            2026-10-21 12 V top-up (BMS 1, VCU 0). 0 in 7 BMS captures (B61 = 0x01), each after a
+            charge ended or the car was switched off. Disabled as a duplicate of VCU_IG3_ON.
+          enabled: false
 
 
     2105:
@@ -1953,6 +1973,60 @@ BMS:
       sources:
         - OBDb Hyundai-IONIQ-Electric signalset and its tests/test_cases (2017/2018 command_support), compared 2026-10-27
       capture_protocol: canair read BMS:015B BMS:0101 BMS:0121 BMS:0130 BMS:0131 --save in READY
+    - type: verify
+      target: 2101 B14 bits 1-4 — dealer-tool (GDS) names
+      status: pending
+      priority: P3
+      vehicle_states: [READY, CHARGING]
+      created: "2026-10-27"
+      updated: "2026-10-27"
+      notes: >-
+        The Kia Soul EV GDS sheet (references/kia-soul-ev-can-messages.xlsx, 21 01 -> 21 6.x, the
+        same byte as Ioniq B14) names b1 BMS Controllable State, b2 BMS Warning, b3 BMS Fault, b4
+        BMS Weld Flag, marking b2-b4 as error flags that should always be 0. Across 12079 captures
+        (READY, 12 V top-up, AC charging, two DC fast charges) b1 equals b0 (BMS_MAIN_RELAY) in
+        every capture and b2-b4 are never set. B14 values seen: 0x00, 0x03, 0x20, 0x23, 0x40, 0xA3,
+        0xC3. OBDb (github.com/OBDb, checked 2026-10-27): every Hyundai/Kia/Genesis signalset
+        defines only b0, b5, b6 and b7 of this byte (data byte 9 of 2101/220101, bix 72-79); none
+        defines b1-b4. OBDb test-case responses (2919 from 17 vehicle repos) never set b2-b4. b1 is
+        set without b0 (value 0x02) in two hybrid responses (Hyundai Elantra 2023, Kia Niro 2020,
+        pack ~240-255 V, current 0), so b1 is a separate flag, not a copy of b0. E-GMP models (IONIQ
+        5/6/9, EV3/EV6/EV9, GV60) read 0x00 in all 1624 of their responses, so they carry no
+        evidence for this byte.
+      sources:
+        - Kia Soul EV GDS sheet (kia-soul-ev-can-messages.xlsx, BMC rows 19-23)
+        - ioniq-ev-bms-2101-2105.xls (same bit list, names marked '?')
+        - canair B14 value enumeration 2026-10-27 (decode BMS 2101 --dump-bytes)
+        - OBDb Hyundai/Kia/Genesis signalsets and tests/test_cases (data byte 9 of 2101/220101), checked 2026-10-27
+      what_to_test:
+        - "b1: does it lag or lead b0 during contactor close (switch-on, AC or DC charge start) or clear while b0 stays set (power derate, fault)?"
+        - "b2/b3: do they set alongside a BMS DTC (canair dtc BMS) or a dashboard battery warning?"
+        - "b4: only expected after a contactor-weld diagnosis; check whenever a BMS DTC is logged"
+      capture_protocol: >-
+        canair monitor 'BMS:2101 VCU:2101' --save --keep-all --label 'B14 b1 contactor transitions'
+        across ignition off -> READY -> off, and across AC and CCS plug-in to charge start, so
+        sub-second b0/b1 transitions are not run-length collapsed. For b2-b4, capture BMS:2101
+        whenever canair dtc BMS reports a new code.
+    - type: decode
+      target: 2101 B61 bits 0 and 2 — BMS power/wake byte
+      status: pending
+      priority: P3
+      vehicle_states: [ACC, READY]
+      created: "2026-10-27"
+      updated: "2026-10-27"
+      notes: "B61 reads 0x0D (READY, or charging begun while READY), 0x09 (charging from off, 12 V top-up, plugged idle) and 0x01 (after a charge ends or at power-off) in 12079 captures. b3 is BMS_IG3_ON. b0 is 1 in every capture. b2 (BMS_2101_B61_2) follows READY rather than the ignition input: on 2026-08-02 it fell when the HV contactors opened at the end of a charge while IGPM ACC2_IGN_ON stayed 1. OBDb calls b2 BMS ignition; Kona Electric and Niro EV responses there use the same values (0x00, 0x01, 0x09, 0x0D)."
+      sources:
+        - canair B61 cross-tab 2026-10-27 (align BMS:2101:B61:2 vs VCU/IGPM)
+        - OBDb Hyundai/Kia signalsets and test cases (data byte 50 of 2101/220101)
+      what_to_test:
+        - "b2 with ignition ON but not READY from cold (press the button twice, no brake): 1 = ignition input, 0 = drive/HV request"
+        - b2 at ACC only, and its timing against VCU EV_READY at a READY -> OFF press
+        - "b0: does it ever read 0 while the BMS answers (e.g. during the IG3 power-off tail)?"
+      capture_protocol: >-
+        canair monitor 'BMS:2101 VCU:2101 IGPM:22BC03' --save --keep-all --interval 1 --label 'B61
+        ignition vs READY' --state ACC. From off press the button once (ACC), again (ON, no brake),
+        wait 30 s, then brake + button to READY, wait, then button to OFF and keep recording 3 min.
+        Press s at each press.
 
   sessions:
     "81":

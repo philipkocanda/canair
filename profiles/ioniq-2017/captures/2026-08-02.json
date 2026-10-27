@@ -51509,7 +51509,6 @@
       "label": "READY mode — battery (live monitor, docs)",
       "version": "1.10.1",
       "vehicle_states": [
-        "READY",
         "PLUGGED"
       ],
       "keep_mode": "changes",
@@ -51517,6 +51516,7 @@
       "quality": {
         "exchanges": 10
       },
+      "notes": "Labelled READY, but the car was not READY: VCU 2101 read EV_READY 0 and VCU_POWER_STATE 6 at 11:50:50, and BMS B61:2 is 0. AC cable plugged in, HV contactors closed (B14 = 0x23), not charging.",
       "captures": [
         {
           "rx": "0x7EC",

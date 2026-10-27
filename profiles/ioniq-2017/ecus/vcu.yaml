@@ -156,10 +156,10 @@ VCU:
             sessions stored every reply, so there the silence is a missing reply; the other six
             stored only changes, but those pages had changed on every poll up to the fall. The other
             8 zero readings are single samples at a wake or at a change from READY to DC charging,
-            and the IG3-fed ECUs answered again 1-40 s later. Equals BMS 2101 B61:3 in 9245 of 9249
-            aligned rows. 1 in READY, AC and DC charging, the 12 V top-up and ignition-on standby,
-            so it is the rail, not one of the IG3 #1/#2/quick-charge relays. Formerly
-            VEHICLE_STATE_VCU_READY.
+            and the IG3-fed ECUs answered again 1-40 s later. Equals BMS 2101 BMS_IG3_ON (B61:3) in
+            10845 of 10846 aligned rows. 1 in READY, AC and DC charging, the 12 V top-up and
+            ignition-on standby, so it is the rail, not one of the IG3 #1/#2/quick-charge relays.
+            Formerly VEHICLE_STATE_VCU_READY.
           source: canair cross-ECU response-presence analysis 2026-10-23 (stored captures + JejuSoul US Ioniq logs)
 
 
