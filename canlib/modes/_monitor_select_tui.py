@@ -8,7 +8,7 @@ it only needs the profile — and exits with ``{ecu: [pid, ...]}`` or ``None``.
 
 from __future__ import annotations
 
-from typing import ClassVar
+from typing import ClassVar, cast
 
 from rich.text import Text
 from textual.app import App, ComposeResult
@@ -181,7 +181,7 @@ class MonitorSelectApp(HelpMixin, App["dict[str, list[str]] | None"]):
                 self._ecus.discard(name)
                 self._excluded.add(name)
         else:
-            name, pid = value  # type: ignore[misc]
+            name, pid = cast("tuple[str, str]", value)
             (self._pids[name].add if picked else self._pids[name].discard)(pid)
         self._update_header()
 
@@ -219,7 +219,7 @@ class MonitorSelectApp(HelpMixin, App["dict[str, list[str]] | None"]):
     def action_focus_filter(self) -> None:
         self.query_one("#filter", Input).focus()
 
-    def action_back(self) -> None:
+    async def action_back(self) -> None:
         if isinstance(self.focused, Input):
             self.query_one("#choices", SelectionList).focus()
         elif self._step == 2:
