@@ -1,7 +1,9 @@
 # AutoPID stale-buffer speed spikes in Home Assistant
 
 Status: **OPEN** (2026-10-27). Mechanism identified from the firmware source; the trigger that
-shortens the replies is not yet observed on a live device.
+shortens the replies is not yet observed on a live device. WiCAN v6 (`6.0.0-beta.3` and later)
+no longer has the stale-byte path, but canair cannot target v6 yet, so the v4 device stays
+affected.
 
 Home Assistant's `sensor.ioniq_real_speed` (ESC `22C101` `REAL_SPEED_KMH`, expression `B12`)
 shows isolated spikes of 130-250 km/h while the car is doing about 100. The stored canair
@@ -70,7 +72,50 @@ as `REAL_SPEED_KMH`; one with fewer than 19 bytes returns its byte 18 as `WHEEL_
 Values of 200-250 are then whatever the preceding reply held at that position.
 
 This is consistent with the Home Assistant data but has not been seen directly. The firmware
-version running on the device is also unverified: the source read is `v4.52p`.
+version running on the device is also unverified: the source read is `v4.52p`. `v4.52p` is the
+head of the `wican-pro` branch, so no later 4.x release changes this path.
+
+## Does WiCAN v6 fix it?
+
+Largely yes, for this mechanism. Read from `meatpi-components` at `dc649d7` (2026-10-27), the
+tree `wican-fw` `v6.0.0p-beta.5` builds; the release tag does not pin a components commit, so
+this is the best available match, not a proven one. Nothing was run on a device.
+
+- **No stale bytes.** The evaluator is bounds-checked: `expression_parser_eval` takes a payload
+  length and a `B<n>` at or past it fails with `ESP_ERR_INVALID_SIZE`
+  (`expression_parser/expression_parser.c:111`; the file header lists "references past the
+  payload" as a hard error). `autopid_publish.c:80` skips that parameter when the evaluation
+  fails, so no value is published. Each request also gets a fresh length: the runner hands
+  `ap_runner_publish` the byte count of the reply it just parsed (`autopid_runner.c:507`).
+- **Response Pending is dropped.** The line tokenizer discards `7F xx 78` lines
+  (`autopid_resp.c:61-65`), so it can no longer be counted into the bytes, one of the candidate
+  triggers in the open questions below. The 4.x code counts it (`autopid.c:2114`).
+- **Wrong-PID replies are rejected.** `ap_payload_matches_cmd` (`autopid_runner.c:488`) compares
+  the reply's service and DID echo with the request and drops a mismatch.
+- **Byte indexing matches canair's profiles only from beta.3.** `506e267` (2026-10-24, issue
+  #1014) makes expressions index the frames as the chip prints them, PCI bytes included, like
+  4.x. `6.0.0-beta.1` and `beta.2` stripped the PCI bytes and shifted every `B<n>` beyond the
+  first frame, so `B12` would have read a different byte on those.
+
+What v6 does not guarantee:
+
+- **A reply with a missing middle frame is still accepted.** `ap_resp_frames` concatenates the
+  lowest responder's lines in arrival order (`autopid_resp.c:455-470`) with no check of the
+  consecutive-frame sequence numbers or of the First Frame's declared length. If a frame drops
+  but the reply is still long enough, later bytes shift and `B12` reads the wrong byte
+  without an error. This only bites if open question 1 turns out to be lost Consecutive Frames
+  rather than a short reply.
+- **The range filter is no defence.** A custom row only drops readings outside its `min`/`max`
+  (`autopid_bounds.c`); the profile's `max: 250` for `REAL_SPEED_KMH` would pass every observed
+  spike.
+- **canair cannot use v6 yet.** `wican-ws` and the 4.x AutoPID upload are gone and the AutoPID
+  config format changed; `canair wican autopid upload|download|diff` refuse on v6 until Phase 2
+  of `plans/2026-10-20-wican-fw-v6-compatibility.md`. Note that plan's §6 says the v6 docs and
+  importer shift every index by -1; that was the `beta.1`/`beta.2` behaviour and was reverted in
+  `beta.3` (release notes for `6.0.0-beta.3`, #1014).
+
+So v6 is a plausible fix, not a verified one, and not something to move the car's device to
+just for this.
 
 ## Open questions
 
@@ -92,9 +137,11 @@ version running on the device is also unverified: the source read is `v4.52p`.
    engine (device debug log, or the ELM327 text via the WiCAN terminal) until a short reply is
    caught. Record its frame count and which frames are missing.
 2. **Turn on `pid_validation_en`** if it is off. It is weak (see mechanism step 4) but free.
-3. **Report upstream** to `meatpiHQ/wican-fw` once step 1 confirms the trigger: clear
-   `response->data` before each parse and bounds-check `B<n>`/`S<n>` against `length`, so a
-   short reply fails instead of returning another PID's bytes.
+3. **Report upstream** to `meatpiHQ/wican-fw` once step 1 confirms the trigger, and ask for a
+   4.x backport of what v6 already does: clear `response->data` before each parse and
+   bounds-check `B<n>`/`S<n>` against `length`, so a short reply fails instead of returning
+   another PID's bytes. If step 1 shows lost Consecutive Frames instead, also ask v6 to check
+   the sequence numbers and the First Frame's declared length in `ap_resp_frames`.
 4. **canair side, only if step 1 shows a profile lever.** For example a PID whose reply needs
    more than the device can reliably collect could be left out of the generated AutoPID
    profile; `canair wican autopid stats` already lists the frame count per PID.
