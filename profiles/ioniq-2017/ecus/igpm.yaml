@@ -455,12 +455,14 @@ IGPM:
           expression: B12:2
           min: "0"
           max: "1"
-          source: canair align cross-tab 2026-10-21
+          source: canair align cross-tab 2026-10-21; OBDb label added 2026-10-27
           verified: false
           notes: >-
             Set only when DRL, tail and low beam are on AND ACC2_IGN_ON=1 (23 rows). 0 in the 6 rows
-            with the lamps still on after ignition off, and 0 with the lamps off. Meaning unknown:
-            possibly a light-switch or auto-light request rather than the lamp outputs.
+            with the lamps still on after ignition off, and 0 with the lamps off. The OBDb
+            Hyundai-IONIQ-Electric signalset reads this byte as HL_SW, 'Headlight switch' (0 or 4,
+            equal to this bit in every capture). Their label is unverified here; the
+            lamps-off-after-ignition-off rows fit a switch position.
     22BC08:
       status: ignored
       vehicle_states: [ALL]
@@ -923,6 +925,24 @@ IGPM:
         'IG3 relay hand-over' --state READY. In READY plug in an AC cable, wait for charging, power
         off, wait 1 min, power on (no brake), unplug. A second person at the engine-bay relay box
         notes clicks; press s at each step.
+    - type: decode
+      target: 22BC04/05/07 and BCM 22B00C body bits (OBDb names)
+      status: pending
+      priority: P3
+      vehicle_states: [READY]
+      created: "2026-10-27"
+      updated: "2026-10-27"
+      notes: "The OBDb Hyundai-IONIQ-Electric signalset names bits our captures never exercise (all constant here, so unverified there too): BC04 B12:3/B12:2/B12:1 rear middle/left/right seatbelt latched, BC04 B10:4 reverse gear, BC05 B10 hazard switch (whole byte; 0xF0 here only at the fob-unlock flash), BC07 B11:0 defog light, BCM 22B00C B10:5 heated steering wheel. BC04 B10:4 is already contradicted: it stayed 0 in all 17 aligned rows where VCU GEAR_R=1. BC07 B11:0 may be the rear defogger the 22BC03 B13:1 150 W load step suggested."
+      sources:
+        - OBDb Hyundai-IONIQ-Electric signalset and its tests/test_cases (2017/2018 command_support), compared 2026-10-27
+      what_to_test:
+        - Buckle each rear belt and watch BC04 B12:1-3
+        - Press the hazard switch with the engine off and in READY, compare BC05 B10 against the fob-unlock flash
+        - Rear defogger on and off against BC07 B11:0 and the BC03 B13:1 load step
+        - Heated steering wheel on and off against BCM 22B00C B10:5
+      capture_protocol: >-
+        Fold into the planned 'IGPM body sweep': canair monitor @body BCM:22B00C --save
+        --keep-changes --state READY, one actuation at a time, noting each with 's'.
 
   iocontrol_discoveries:
     BC01:

@@ -295,17 +295,6 @@ BMS:
           verified: true
           notes: 32-bit unsigned seconds at WiCAN B57-B60.
 
-        BMS_2101_B62:
-          expression: B62
-          unit: ""
-          ha_class: ""
-          min: ""
-          max: ""
-          source: demoted 2026-07-23 historical audit
-          source_links: []
-          verified: false
-          notes: Reads 1 in 10617 of 10708 captures and 0 in 91; BMS_MAIN_RELAY reads 0 in 96.
-          enabled: false
         DRIVE_MOTOR_SPEED:
           expression: "[S65:S66]"
           unit: RPM
@@ -344,24 +333,33 @@ BMS:
             always equals b0, b5 AC_CHARGER_CONNECTED, b6 CHARGING_DC, b7 CHARGING. b2-b4 have never
             been set, including during a DC fast charge.
 
-        BMS_2101_B10:
-          expression: B10
+        AVAIL_CHARGE_POWER_MIRROR:
+          expression: "[B10:B11]/100"
           min: "0"
-          max: "255"
-          source: canair charging-capture analysis 2026-07-30
+          max: "655"
+          source: OBDb Hyundai-IONIQ-Electric (7E4 21 01 bix 40) + canair align 2026-10-27
           verified: false
           notes: >-
-            Range 22-38. r=+0.998 vs BMS:2105:AVAIL_CHARGE_POWER over the 2026-07-30 AC charge
-            (y=0.40x-1.27), where both rise with SOC.
-        BMS_2101_B63:
-          expression: B63
+            Exact mirror of 2105 AVAIL_CHARGE_POWER: 5448 of 5467 aligned rows equal, r=1.000.
+            Replaces the old single-byte B10 candidate, which was this word's high byte (22-38 =
+            57-98 kW).
+          unit: kW
+          ha_class: power
+          enabled: false
+        BMS_INVERTER_CAPACITOR_VOLTAGE:
+          expression: "[B62:B63]"
           min: "0"
-          max: "255"
-          source: canair charging-capture analysis 2026-07-30
+          max: "450"
+          source: OBDb Hyundai-IONIQ-Electric (7E4 21 01 bix 408) + canair align 2026-10-27
           verified: false
           notes: >-
-            Range 0-244. r=+0.998 vs BMS:2102:CELL_02_VOLTAGE over the 2026-07-30 AC charge
-            (y=93.4x-246), where both rise with SOC.
+            Unsigned 16-bit big-endian, volts. r=0.986 vs VCU:2102:VCU_DCLINK_VOLTAGE, slope 1.00.
+            Reads 0 to a few volts with the main relay open, hence r=0.37 vs pack voltage over all
+            rows. B62 is the old disabled BMS_2101_B62 (1 once the bus is above 256 V); the old
+            BMS_2101_B63 candidate was the low byte.
+          unit: V
+          ha_class: voltage
+          enabled: true
         BMS_MAIN_RELAY_MIRROR_B14_1:
           expression: B14:1
           source: canair analysis 2026-08-08 DCFC
@@ -370,6 +368,39 @@ BMS:
             Equals BMS_MAIN_RELAY (B14:0) in every capture, including a DC fast charge. Disabled so
             it does not ship a duplicate signal; defined so bit 1 is accounted for.
           enabled: false
+        AVAIL_DISCHARGE_POWER_MIRROR:
+          expression: "[B12:B13]/100"
+          unit: kW
+          ha_class: power
+          min: "0"
+          max: "655"
+          source: OBDb Hyundai-IONIQ-Electric (7E4 21 01 bix 56) + canair align 2026-10-27
+          verified: false
+          notes: >-
+            Exact mirror of 2105 AVAIL_DISCHARGE_POWER: 5467 of 5467 aligned rows equal. Pinned at
+            98 kW most of the time (91.66-98 kW).
+          enabled: false
+        DRIVE_MOTOR_SPEED_MIRROR:
+          expression: "[S67:S68]"
+          unit: RPM
+          min: "-500"
+          max: "8000"
+          source: OBDb Hyundai-IONIQ-Electric (7E4 21 01 bix 440, DRIVE_MOTOR_SPD_2) + canair align 2026-10-27
+          verified: false
+          notes: >-
+            Signed 16-bit big-endian. Identical to DRIVE_MOTOR_SPEED [S65:S66] in 12069 of 12069
+            rows.
+          enabled: false
+        BMS_IGN_ON:
+          expression: B61:2
+          source: OBDb Hyundai-IONIQ-Electric (7E4 21 01 bix 405, BAT_MANAGEMENT_IGN) + canair decode --group-by state 2026-10-27
+          verified: false
+          notes: >-
+            Bit 2 of B61 (LSB=0). Reads 1 in READY, DRIVING and CHARGING+ACC2, 0 in plain AC/DC
+            charging and plugged-in-only, so it follows ignition rather than the main relay. Not yet
+            cross-checked against an independent ignition signal. Bits 0 and 3 of B61 are also set
+            in most rows and are unmapped.
+          enabled: true
 
 
     2105:
@@ -1784,20 +1815,21 @@ BMS:
       notes: Hidden-page hunt. Only genuine new page found in the whole session.
     - type: decode
       target: 2101 B10/B63 charge-tracking bytes
-      status: captured
+      status: done
       priority: P2
       vehicle_states: [CHARGING]
       created: "2026-08-01"
-      updated: "2026-08-01"
+      updated: "2026-10-27"
+      result: >-
+        B10 = charge power word high byte (mirror of 2105); B62:B63 = inverter capacitor voltage
       notes: >-
-        2026-07-30 AC-charge analysis. Registered 2 unverified candidates: BMS_2101_B10 (=B10,
-        r=+0.998 vs BMS:2105:AVAIL_CHARGE_POWER, ~0.4 kW/LSB — likely charge-power-limit mirror) and
-        BMS_2101_B63 (=B63, r=+0.998 vs cell voltage, charge-monotone, low confidence). Both are
-        SOC-monotone in a steady charge so confounded. NEGATIVE RESULT: over the whole 2.7h charge
-        the other unmapped 2101 bytes B4-B7, B12, B13, B28, B66-B70 stayed CONSTANT =
-        cal/reserved/counter, not live charge signals. NEXT: co-poll BMS:2101+BMS:2105+VCU:2102 with
-        --keep-all across a plug/unplug charge cycle AND a drive to give B10/B63 independent
-        variation; then hunt --against AVAIL_CHARGE_POWER / cell voltage to confirm scaling.
+        Resolved 2026-10-27 using the OBDb Hyundai-IONIQ-Electric signalset. B10 was the high byte
+        of a 16-bit available-charge-power word: [B10:B11]/100 kW equals 2105 AVAIL_CHARGE_POWER
+        (5448 of 5467 aligned rows, r=1.000), now the disabled AVAIL_CHARGE_POWER_MIRROR.
+        [B12:B13]/100 is the matching discharge-power mirror (5467 of 5467 equal). B62:B63 is one
+        16-bit inverter capacitor voltage in volts, r=0.986 vs VCU_DCLINK_VOLTAGE, now
+        BMS_INVERTER_CAPACITOR_VOLTAGE. The earlier SOC-monotone correlations were these two words
+        tracking SOC. Old BMS_2101_B62 removed.
     - type: verify
       target: 2101 B14 bits 1,2,3,4,6 — needs a DC fast charge
       status: done
@@ -1819,12 +1851,15 @@ BMS:
         keep it running through plug-in, handshake, ramp-up, and unplug, noting each phase with 's'.
     - type: decode
       target: 2101 B67:B68 drive-motor-speed mirror
-      status: captured
+      status: done
       priority: P3
       vehicle_states: [DRIVING]
       created: "2026-08-08"
-      updated: "2026-08-08"
-      notes: DRIVE_MOTOR_SPEED was corrected 2026-08-08 to [S65:S66] (signed 16-bit BE, r=+0.997 n=1149 measured-only vs MCU:2102:MCU_MOTOR_RPM). B67 duplicates B65, so a second mirrored or filtered copy of motor speed likely sits at B67:B68.
+      updated: "2026-10-27"
+      notes: >-
+        Resolved 2026-10-27: [S67:S68] is an exact copy of DRIVE_MOTOR_SPEED [S65:S66], 12069 of
+        12069 rows equal (OBDb DRIVE_MOTOR_SPD_2). Recorded as the disabled
+        DRIVE_MOTOR_SPEED_MIRROR.
       what_to_test:
         - Decode [S67:S68] and compare against [S65:S66] - identical, lagged/filtered, or a different shaft
     - type: verify
@@ -1850,6 +1885,61 @@ BMS:
       what_to_test:
         - "Temperature-band thresholds: capture a cycle whose battery temperature crosses 20 and 25 °C and compare the band seconds"
         - Read BMS 21F2 right after a short drive with a known distance and peak current to place B42 and B122
+    - type: scan
+      target: 22 0101-0114, E001, E002, E00A
+      status: pending
+      priority: P3
+      vehicle_states: [READY]
+      created: "2026-10-27"
+      updated: "2026-10-27"
+      notes: >-
+        Never probed on this car. OBDb defines 7E4 service-22 DIDs 0101-0106, 010A-010C, 0111 and
+        0114 (cell voltages, temperatures, BMS state, fan duty). Pelican marks them not supported
+        for 2017-2018 and the OBDb 2017/2018 command_support lists 220101-220105 and 22010A-22010C
+        as unsupported, so NRC is expected. That list is weak evidence: it also calls VCU 2101
+        unsupported, which answers on this car. E003-E005 are already NRC. One read-only sweep
+        closes it.
+      sources:
+        - OBDb Hyundai-IONIQ-Electric signalset (pelican.clutch.engineering ioniq-electric parameters), compared 2026-10-27
+      what_to_test:
+        - Do any 22 01xx DIDs answer? If yes, register with add-pid and compare against the 21xx pages
+      capture_protocol: >-
+        canair scan BMS --service 22 --range 0100-0114 --save, then E001-E002 and E00A, in READY
+    - type: decode
+      target: 2105 B29 airbag hard-wire duty
+      status: captured
+      priority: P3
+      vehicle_states: [READY]
+      created: "2026-10-27"
+      updated: "2026-10-27"
+      notes: OBDb IONIQEV_AIRBAG_DUTY (7E4 21 05 bix 176). B29 takes only 75, 80, 85 and 100 across 5478 captures, 100 in some sessions and 75-85 in others. No physical anchor found, so no param is registered.
+      sources:
+        - OBDb Hyundai-IONIQ-Electric signalset (pelican.clutch.engineering ioniq-electric parameters), compared 2026-10-27
+      what_to_test:
+        - What separates the 100 sessions from the 75-85 sessions (date, state, temperature)?
+    - type: verify
+      target: 2105 BATTERY_VOLTAGE_DEVIATION scale
+      status: captured
+      priority: P3
+      vehicle_states: [CHARGING]
+      created: "2026-10-27"
+      updated: "2026-10-27"
+      notes: Ours is B27*0.1 V, OBDb uses raw/50 (0.02 V per count). Raw B27 is only ever 0 or 1 in our captures, so the scale is undetermined. Needs a capture with a larger cell imbalance, for example a long DC fast charge.
+      sources:
+        - OBDb Hyundai-IONIQ-Electric signalset (pelican.clutch.engineering ioniq-electric parameters), compared 2026-10-27
+      what_to_test:
+        - Find a capture with raw B27 above 1 and compare against max minus min cell voltage from 2102-2104
+    - type: scan
+      target: 01 01, 01 21, 01 30, 01 31, 01 5B
+      status: pending
+      priority: P3
+      vehicle_states: [READY]
+      created: "2026-10-27"
+      updated: "2026-10-27"
+      notes: OBDb command_support for 2017 and 2018 lists standard Mode 01 PIDs answering from 0x7E4 (monitor status, MIL distance, warm-ups, distance since clear) and 2018 adds 01 5B, hybrid battery pack remaining life (BAT_SOC). We have no Mode 01 captures at all. 01 5B would be a third SOC source next to SOC_BMS and SOC_DISP.
+      sources:
+        - OBDb Hyundai-IONIQ-Electric signalset and its tests/test_cases (2017/2018 command_support), compared 2026-10-27
+      capture_protocol: canair read BMS:015B BMS:0101 BMS:0121 BMS:0130 BMS:0131 --save in READY
 
   sessions:
     "81":

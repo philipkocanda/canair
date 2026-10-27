@@ -88,8 +88,9 @@ HVAC:
         38-byte response (35 data bytes after the DID) of sensor and actuator status; set
         temperature, fan level, mode and recirculation do not appear here. Constant in all 1758
         captures: B5=0x7E, B6=0x50, B7=0x07, B9=0xC8, and 0xFF at B10, B18, B19, B21, B23, B25-B31,
-        B33, B39, B41, B43 and B44. B20 is 16-240 (r=+0.49 vs blower). B38 is 0 in 1681 captures;
-        B42 reads 0 or 1. 2201A3 B33-B36 and B41 carry copies of B15, B22, B17, B20 and B34.
+        B33, B39, B41, B43 and B44. B20 is 16-240 (r=+0.49 vs blower). B38 is vehicle speed in km/h
+        (HVAC_VEHICLE_SPEED): 0 whenever stationary, so it only moves in the driving captures. B42
+        reads 0 or 1. 2201A3 B33-B36 and B41 carry copies of B15, B22, B17, B20 and B34.
       parameters:
         HVAC_INTERIOR_TEMP:
           expression: (B11/2)-40
@@ -205,6 +206,19 @@ HVAC:
           verified: false
           notes: 70-246 across 1758 captures. r=-0.54 vs blower fan feedback (n=1420).
           enabled: true
+        HVAC_VEHICLE_SPEED:
+          expression: B38
+          unit: km/h
+          ha_class: speed
+          min: "0"
+          max: "255"
+          source: OBDb Hyundai-IONIQ-Electric (7B3 22 0100 bix 232, VSS_7B3) + canair align 2026-10-27
+          verified: false
+          notes: >-
+            Unsigned byte, whole km/h. Non-zero only in the driving captures (about 100 rows,
+            0-107). r=0.97 vs VCU:2101:VCU_VEHICLE_SPEED (1135 of 1213 rows equal) and r=0.985 vs
+            ESC wheel speeds.
+          enabled: true
     220102:
       response_frames: 3
       status: active
@@ -259,15 +273,18 @@ HVAC:
 
         HVAC_HOTSIDE_TEMP:
           expression: B19
-          unit: "°C"
+          unit: °C
           ha_class: temperature
           min: "0"
           max: "127"
-          source: "Monitor session 2026-04-17; reclassified 2026-07-20"
+          source: Monitor session 2026-04-17; reclassified 2026-07-20; OBDb label added 2026-10-27
           verified: false
           notes: >-
-            Raw byte in °C, 16-82 across 950 captures. r=+0.80 vs HVAC_HEAT_EXCHANGER_TEMP, -0.46
-            vs HVAC_HEAT_PUMP_TEMP (n=1420). Which sensor is unknown.
+            Raw byte in °C, 16-82 across 950 captures. r=+0.80 vs HVAC_HEAT_EXCHANGER_TEMP, -0.46 vs
+            HVAC_HEAT_PUMP_TEMP (n=1420). The OBDb Hyundai-IONIQ-Electric signalset labels this byte
+            'Inverter temperature' (7B3 22 0102 bix 96) but scales it raw/2-40, which would read -32
+            to 1 degC here and does not fit. As plain degC it tracks MCU_HEATSINK_TEMP at r=+0.87
+            (n=435, slope 0.82), so the inverter label looks right and the scale does not.
         HVAC_HEAT_PUMP_ON_MIRROR_B12:
           expression: B12
           source: coverage analysis 2026-07-23

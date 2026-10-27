@@ -1281,6 +1281,26 @@ BCM:
       capture_protocol: >-
         canair monitor BCM:22B003 --save --keep-all --interval 0.5 --label 'BCM ignition channels
         across start' --state ACC; start with the brake pressed and press s at button press.
+    - type: verify
+      target: 22C00B rear tyre order (RL/RR)
+      status: pending
+      priority: P2
+      vehicle_states: [ALL]
+      created: "2026-10-27"
+      updated: "2026-10-27"
+      notes: >-
+        Our TYRE_PRESSURE_RL is B19 and TYRE_PRESSURE_RR is B23 (original WiCAN config, never
+        checked against a single tyre). OBDb Hyundai-IONIQ-Electric and Kia-Niro (older layout) read
+        the same bytes as rear right then rear left. OBDb Kona-Electric, Niro-EV and Soul-EV read
+        them as rear left then rear right, so the community is split. Both rear pressures sit in the
+        same 35-41 psi band, so no existing capture decides it.
+      sources:
+        - OBDb Hyundai-IONIQ-Electric signalset and its tests/test_cases (2017/2018 command_support), compared 2026-10-27
+      what_to_test:
+        - Let about 5 psi out of the rear left tyre only, read 22C00B, and see whether B19 or B23 drops
+      capture_protocol: >-
+        canair read BCM:22C00B --save --label 'rear-left tyre -5 psi' before and after, noting which
+        tyre was changed.
   iocontrol_discoveries:
     B003:
       response: "6FB00300"

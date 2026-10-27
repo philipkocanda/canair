@@ -189,3 +189,18 @@ EPS:
       created: "2026-07-23"
       updated: "2026-07-23"
       notes: "Verify EPS_SPEED_BAND (B15). 2026-07-23: discrete 0-3 band, r=+0.953 vs speed, steps 0->1 at ~26-27 km/h with hysteresis. Confirm thresholds with a sustained-speed sweep (hold 15/25/35/50/70/90 km/h) and check whether steering assist/effort changes at each band edge."
+    - type: scan
+      target: 21 01
+      status: pending
+      priority: P3
+      vehicle_states: [READY]
+      created: "2026-10-27"
+      updated: "2026-10-27"
+      notes: >-
+        OBDb defines 7D4 21 01 with a steering wheel angle (bix 72, signed, /10 degrees) and lists
+        it as unsupported for 2017 and 2018. Only service 22 was ever probed on EPS. The OBDb 22
+        0101 angle field did not hold up against our captures, so a KWP page would be the likely
+        source of a real angle.
+      sources:
+        - OBDb Hyundai-IONIQ-Electric signalset (pelican.clutch.engineering ioniq-electric parameters), compared 2026-10-27
+      capture_protocol: canair read EPS:2101 --save while steering lock to lock, parked in READY

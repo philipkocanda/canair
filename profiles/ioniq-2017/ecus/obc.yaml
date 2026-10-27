@@ -506,6 +506,17 @@ OBC:
         canair monitor OBC:2101 BMS:2101 --save --keep-all --interval 1 --label 'OBC B20:B21 pilot'
         --state PLUGGED; plug in, let it charge 2 min, stop from the EVSE, unplug. Press s at each
         step.
+    - type: scan
+      target: 22 E101
+      status: pending
+      priority: P3
+      vehicle_states: [READY, CHARGING]
+      created: "2026-10-27"
+      updated: "2026-10-27"
+      notes: OBDb defines 7E5 22 E101 (aux battery voltage, current, SOC, temperature) for newer model years. E001-E011 are already NRC on this car; E101 was outside that sweep.
+      sources:
+        - OBDb Hyundai-IONIQ-Electric signalset (pelican.clutch.engineering ioniq-electric parameters), compared 2026-10-27
+      capture_protocol: canair scan OBC --service 22 --range E100-E10F --save
 
   sessions:
     "81":

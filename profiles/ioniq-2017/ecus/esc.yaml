@@ -249,3 +249,19 @@ ESC:
       capture_protocol: >-
         canair monitor ESC:22C101 --save --keep-all --label 'ESC turns' --state DRIVING. In an empty
         car park, drive slow left and right circles and a few firm stops, pressing 's' to note each.
+    - type: scan
+      target: 22 4000, 21 01
+      status: pending
+      priority: P3
+      vehicle_states: [READY]
+      created: "2026-10-27"
+      updated: "2026-10-27"
+      notes: >-
+        OBDb defines 7D1 21 01, 22 0104 and 22 4000 (four signals each). 22 0101-010F are already
+        NRC; 22 4000 and 21 01 were never tried. OBDb 2017/2018 command_support lists all three as
+        unsupported, but see the BMS 22 01xx item for why that list is weak evidence.
+      sources:
+        - OBDb Hyundai-IONIQ-Electric signalset (pelican.clutch.engineering ioniq-electric parameters), compared 2026-10-27
+      capture_protocol: >-
+        canair read ESC:224000 ESC:2101 --save in READY, then widen to 22 4000-400F if either
+        answers

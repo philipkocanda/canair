@@ -790,6 +790,17 @@ MCU:
       what_to_test:
         - Read MCU 21F2 straight after a drive co-polled with AAF 2181 at a fast rate, to pin B47/B50 and B57/B59 to the inverter and motor temperatures
         - Identify the latched 2102 B34-B42 values (B34 67-129, signed (S37<<8)|B36 -4702 to 648, B38 36-49, (B42<<8)|B41 688-2779), learned at power-up and first motion
+    - type: scan
+      target: 01 01, 01 21, 01 30, 01 31
+      status: pending
+      priority: P3
+      vehicle_states: [READY]
+      created: "2026-10-27"
+      updated: "2026-10-27"
+      notes: OBDb command_support for 2017 and 2018 lists the same four Mode 01 PIDs answering from 0x7E3. No Mode 01 captures exist for any ECU here.
+      sources:
+        - OBDb Hyundai-IONIQ-Electric signalset and its tests/test_cases (2017/2018 command_support), compared 2026-10-27
+      capture_protocol: canair read MCU:0101 MCU:0121 MCU:0130 MCU:0131 --save in READY
 
   sessions:
     "81":
