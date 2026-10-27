@@ -17,8 +17,8 @@ BMS:
     calibration: "4604" # matches "BMS ROM ID" printed on the pack (KWP2000 1A8D)
     # BMS ROM IDs by production year:
     # 4604 = verified 2017-04 until 2017-11
-    # 4804 = verified 2018-04
-    # 4824 = verified 2018-11 and newer (incl. 2019 models)
+    # 4804 = verified 2018-04 until 2018-07
+    # 4824 = verified 2018-11 until 2019-06
     id_protocol: KWP2000  # 1Axx
     notes: >-
       1A80 firmware build date reads 2008-07-09. Air-cooled pack: a BMS-controlled fan in the trunk
