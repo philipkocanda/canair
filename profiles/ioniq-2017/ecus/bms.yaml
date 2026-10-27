@@ -13,7 +13,7 @@ BMS:
     ecu_id: "AEEV__ BMS"  # KWP2000 1A90
     fw_version: "VER.2.3"  # KWP2000 1A91
     sw_id: CGBMSE305AE1000A  # KWP2000 1A8C
-    calibration: "4604"  # KWP2000 1A8D
+    calibration: "4604" # matches "BMS ROM ID" printed on the pack (KWP2000 1A8D)
     id_protocol: KWP2000  # 1Axx
     notes: >-
       1A80 firmware build date reads 2008-07-09. Air-cooled pack: a BMS-controlled fan in the trunk
