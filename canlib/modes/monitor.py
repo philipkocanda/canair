@@ -53,6 +53,9 @@ from ._monitor_render import (
     RenderCache,
     _render_results,
 )
+from ._monitor_selectors import MonitorSelectors
+from ._monitor_sessions import MonitorSessions
+from ._monitor_state import STATE_INPUT_STALE_CYCLES, MonitorStateSuggester
 from ._monitor_stats import ParamStats
 from .monitor_raw import MonitorRawPoller, _raw_pid_result
 from .multi_batch import EcuFrame, ResultEntry
@@ -60,24 +63,14 @@ from .multi_batch import EcuFrame, ResultEntry
 if TYPE_CHECKING:
     from .monitor_reconnect import Reconnector
 
-# How many polls a decoded value stays eligible for state auto-suggestion.
-# The live suggestion answers "what state is the car in NOW", so its inputs must
-# expire — an unbounded map keeps matching DRIVING off a speed read before the car
-# parked. Counted in polls of the signal's own PID rather than seconds so it adapts
-# to the poll rate: a round-robin sweep over a dozen ECUs takes far longer per cycle
-# than a two-PID one, and under the per-PID schedule a 10 s PID is read a tenth as
-# often as a 1 s one — a window counted in wall-clock time or in ticks would expire
-# the slower one's values before they were ever refreshed. Three (the same tolerance
-# as `transport.stale_cycles_before_reconnect`) rides out a transient dropped frame
-# without keeping a genuinely gone signal alive.
-STATE_INPUT_STALE_CYCLES = 3
-
 # _HIGHLIGHT_STYLE, _bytes_to_ascii and _render_hex_line moved to canlib.formatting;
 # _render_results/_RENDER_MAX_ROWS/RenderCache to _monitor_render; _raw_pid_result to
 # monitor_raw; _merge_history/_write_merged/_open_journal + the recording/journaling
-# logic to _monitor_record. All re-exported here for backward-compatible imports
+# logic to _monitor_record; STATE_INPUT_STALE_CYCLES + the state-suggestion logic to
+# _monitor_state. All re-exported here for backward-compatible imports
 # (e.g. tests/test_monitor.py).
 __all__ = [
+    "STATE_INPUT_STALE_CYCLES",
     "_HIGHLIGHT_STYLE",
     "_RENDER_MAX_ROWS",
     "MonitorController",
@@ -178,16 +171,15 @@ class MonitorController:
         self.view_mode = "full"
 
         self.sm = SessionManager(terminal, verbose=verbose) if not self.raw else None
-        # Raw backend has no SessionManager (sessions/keepalives aren't tracked
-        # there at all), so its opened-session mode is tracked separately here:
-        # ECU name (upper) -> last-opened "10 xx" sub-function (2-hex-digit str).
-        self._raw_session_modes: dict[str, str] = {}
         self._ecu_index: dict | None = None
-        # ECU_NAME -> {tx_id, sessions: {mode_hex: {name, supported, ...}}},
-        # lazily built from the profile's recorded `sessions:` scan history (see
-        # ..pids.build_sessions_index). Backs the TUI's session-type picker's
-        # "known-good" suggestions; rebuilt alongside the PID index on reload.
-        self._sessions_index: dict | None = None
+        # Diagnostic session-type concern (active modes, the safety check, the
+        # picker's known-good suggestions, live switching) lives in the
+        # MonitorSessions collaborator; it also holds the raw backend's
+        # opened-session modes (which has no SessionManager to track them).
+        self.sessions = MonitorSessions(self)
+        # Live PID-selector management (the TUI 'p' picker: enumerate ECUs/PIDs,
+        # report/toggle selectors) lives in the MonitorSelectors collaborator.
+        self.selectors = MonitorSelectors(self)
         self._batch_state = None  # multi.BatchState, created in setup()
         # Raw-backend poll cycle + multi-DID batching state lives in the poller.
         self.raw_poller = MonitorRawPoller(self)
@@ -284,17 +276,11 @@ class MonitorController:
         # since it initialises its history maps from them.
         self.recorder = MonitorRecorder(self)
         self._name_index: dict | None = None
-        # Auto-suggest state: latest decoded {ECU.PARAM: value} + responded ECUs,
-        # evaluated against the profile's vehicle_states.yaml rules (lazy-loaded).
-        # Both EXPIRE after STATE_INPUT_STALE_CYCLES polls without a refresh (see
-        # _expire_state_inputs): the live suggestion must answer "what is true now",
-        # not "what was ever true this run". Each is stamped with its own clock —
-        # the poll count of the PID / ECU it came from (see _state_clock).
-        self.decoded_values: dict[str, float] = {}
-        self.responded: set[str] = set()
-        self._value_cycle: dict[str, tuple[str, str | None, int]] = {}
-        self._responded_cycle: dict[str, tuple[str, int]] = {}
-        self._state_rules: list | None = None
+        # Vehicle-state auto-suggestion (decoded-value accumulation, per-signal
+        # clocks + expiry, vehicle_states.yaml evaluation) lives in the
+        # MonitorStateSuggester collaborator; the controller exposes its tested
+        # surface via the delegating properties/methods below.
+        self.state = MonitorStateSuggester(self)
         # In-place editing / filtering of PID definitions from the TUI. The
         # editor owns the selection cursor + display filter and writes edits
         # through canlib.pids_edit; this controller reloads on its request.
@@ -386,6 +372,36 @@ class MonitorController:
         """True when there's at least one payload available to save."""
         return self.recorder.has_captures()
 
+    # --- State auto-suggestion: delegated to the MonitorStateSuggester
+    # (_monitor_state.py). These facades keep the tested public surface
+    # (decoded_values/responded/suggested_state) and the TUI reads stable.
+
+    @property
+    def decoded_values(self) -> dict[str, float]:
+        return self.state.decoded_values
+
+    @property
+    def responded(self) -> set[str]:
+        return self.state.responded
+
+    def suggested_state(self) -> str | None:
+        """Auto-suggest the single, most *specific* vehicle state.
+
+        See :meth:`MonitorStateSuggester.suggested_state`.
+        """
+        return self.state.suggested_state()
+
+    def suggested_states(self) -> list[str]:
+        """Auto-suggest the vehicle state(s) from the latest decoded values.
+
+        See :meth:`MonitorStateSuggester.suggested_states`.
+        """
+        return self.state.suggested_states()
+
+    def state_options(self) -> list[tuple[str, str]]:
+        """The profile's ordered ``(state, description)`` vocabulary for the save dialog."""
+        return self.state.state_options()
+
     # --- Poll scheduling: delegated to the PollScheduler (poll_schedule.py).
 
     @property
@@ -450,210 +466,82 @@ class MonitorController:
 
         self.pids_data = load_pids(self.pids_dir)
         self._ecu_index = build_ecu_index(self.pids_data)
-        self._sessions_index = None  # rebuilt lazily on next access
+        self.sessions.invalidate_index()  # rebuilt lazily on next access
 
-    # --- Live PID selection (TUI 'p' picker): mutating self.query_steps is safe
-    # mid-poll — _poll_elm/_poll_raw both iterate a fresh `for step in
-    # self.query_steps` each cycle, so an add/remove takes effect on the very
-    # next cycle with no separate "apply". See _monitor_tui.PidPickerScreen.
+    # --- Live PID selection: delegated to the MonitorSelectors collaborator
+    # (_monitor_selectors.py). Mutating self.query_steps mid-poll is safe —
+    # _poll_elm/_poll_raw iterate a fresh `for step in self.query_steps` each
+    # cycle, so an add/remove takes effect on the very next cycle. These facades
+    # keep the TUI 'p' picker's surface stable.
 
     def available_ecus(self) -> list[str]:
         """Every ECU known in the active profile, for the PID-picker."""
-        return sorted(self._ecu_index.keys()) if self._ecu_index else []
+        return self.selectors.available_ecus()
 
     def available_pids(self, ecu_name: str) -> list[tuple[str, str]]:
         """(pid_code, description) pairs for one ECU's defined PIDs.
 
-        The description is a comma-joined list of the PID's decoded parameter
-        names (empty for an undecoded/placeholder PID) — enough for the picker
-        to show what a selector actually reads without opening the YAML.
+        See :meth:`MonitorSelectors.available_pids`.
         """
-        info = (self._ecu_index or {}).get(ecu_name.upper())
-        if not info:
-            return []
-        out: list[tuple[str, str]] = []
-        for code, pdef in sorted(info["pids"].items()):
-            params = pdef.get("parameters") or {}
-            out.append((code, ", ".join(params.keys())))
-        return out
+        return self.selectors.available_pids(ecu_name)
 
     def active_selectors(self) -> set[tuple[str, str]]:
         """(ECU, PID) pairs currently polled with an explicit PID filter."""
-        out: set[tuple[str, str]] = set()
-        for step in self.query_steps:
-            ecu = step["ecu"].upper()
-            for pid in step.get("pids") or []:
-                out.add((ecu, pid.upper()))
-        return out
+        return self.selectors.active_selectors()
 
     def swept_ecus(self) -> set[str]:
         """ECUs currently polled with NO PID filter (a bare whole-ECU sweep).
 
-        A PID under a swept ECU is already covered by that sweep — the picker
-        marks it distinctly and can't "remove" it individually (only removing
-        the whole-ECU step would narrow the sweep, which isn't what a single
-        PID toggle means).
+        See :meth:`MonitorSelectors.swept_ecus`.
         """
-        return {step["ecu"].upper() for step in self.query_steps if not step.get("pids")}
+        return self.selectors.swept_ecus()
 
     def add_pid_selector(self, ecu_name: str, pid_code: str) -> None:
         """Start polling one PID on ``ecu_name`` (TUI PID-picker toggle-on).
 
-        No-ops if the ECU is already swept whole (nothing to add) or the PID is
-        already an explicit selector. Appends a new query step if the ECU isn't
-        polled at all yet.
+        See :meth:`MonitorSelectors.add`.
         """
-        ecu = ecu_name.upper()
-        pid = pid_code.upper()
-        if ecu in self.swept_ecus():
-            return
-        self.schedule.wake()
-        for step in self.query_steps:
-            if step["ecu"].upper() == ecu:
-                pids = step.setdefault("pids", [])
-                if pid not in [p.upper() for p in pids]:
-                    pids.append(pid)
-                return
-        self.query_steps.append({"type": "query", "ecu": ecu, "pids": [pid]})
+        self.selectors.add(ecu_name, pid_code)
 
     def remove_pid_selector(self, ecu_name: str, pid_code: str) -> None:
         """Stop polling one PID on ``ecu_name`` (TUI PID-picker toggle-off).
 
-        Drops the whole query step once its PID list empties, and purges the
-        removed key from the last-good/last-shown caches so a re-added PID
-        starts fresh instead of instantly reusing a now-stale cached value.
+        See :meth:`MonitorSelectors.remove`.
         """
-        ecu = ecu_name.upper()
-        pid = pid_code.upper()
-        for step in list(self.query_steps):
-            if step["ecu"].upper() != ecu:
-                continue
-            pids = step.get("pids") or []
-            if pid not in [p.upper() for p in pids]:
-                continue
-            step["pids"] = [p for p in pids if p.upper() != pid]
-            if not step["pids"]:
-                self.query_steps.remove(step)
-            for cache in (self._last_good, self._last_shown):
-                for key in [k for k in cache if k[1] == pid and _label_ecu(k[0]) == ecu]:
-                    del cache[key]
-            self.schedule.forget(ecu, pid)
-            # Its signals stop being read, so their clock stops too; drop them now
-            # rather than letting them vouch for a state forever.
-            for name, (v_ecu, v_pid, _seen) in list(self._value_cycle.items()):
-                if v_ecu == ecu and v_pid == pid:
-                    del self._value_cycle[name]
-                    self.decoded_values.pop(name, None)
-            return
+        self.selectors.remove(ecu_name, pid_code)
 
-    # --- Diagnostic session type: status + live switching (TUI 't' picker).
-    # Session *opening* on setup() already forwards a mini-language `--mode`
-    # (see setup() above); these cover showing what's active now and changing
-    # it live, mid-run, from the TUI.
+    # --- Diagnostic session type: delegated to the MonitorSessions collaborator
+    # (_monitor_sessions.py). Session *opening* on setup() forwards a
+    # mini-language `--mode` (see setup()); these facades keep the TUI 't' picker's
+    # surface (active modes, the safety check, known types, a live switch) stable.
 
     def active_session_modes(self) -> dict[str, str]:
         """ECU_NAME -> currently-open "10 xx" sub-function (2-hex-digit str).
 
-        Sourced from SessionManager on the ELM backend or ``_raw_session_modes``
-        on the raw backend (which has no SessionManager at all). Omits any ECU
-        with no tracked session — e.g. one polled without a preceding `session`
-        step never sent `10 xx` and has nothing to show.
+        See :meth:`MonitorSessions.active_modes`.
         """
-        if not self._ecu_index:
-            return {}
-        out: dict[str, str] = {}
-        for ecu_name, info in self._ecu_index.items():
-            if self.raw:
-                mode = self._raw_session_modes.get(ecu_name)
-            else:
-                mode = self.sm.session_mode(info["tx_id"]) if self.sm else None
-            if mode:
-                out[ecu_name] = mode
-        return out
+        return self.sessions.active_modes()
 
     def _session_check(self, ecu_name: str, mode: str) -> str | None:
         """The command blocklist's verdict on ``10 <mode>`` for one ECU (None = safe).
 
-        Through the same :class:`~canlib.safety.SessionPolicy` the terminals use,
-        so the picker, a live switch and the raw-backend setup can never disagree
-        with what the transport itself would refuse.
+        See :meth:`MonitorSessions.check`.
         """
-        from ..safety import SessionPolicy
-
-        if len(mode) != 2 or any(c not in "0123456789ABCDEFabcdef" for c in mode):
-            return f"Invalid session mode {mode!r} (expected one hex byte, e.g. 03)."
-        info = (self._ecu_index or {}).get(ecu_name.upper())
-        tx_id = info["tx_id"] if info else None
-        return SessionPolicy.from_profile(self.pids_data).check(int(mode, 16), tx_id)
+        return self.sessions.check(ecu_name, mode)
 
     def known_session_types(self, ecu_name: str) -> list[tuple[str, str, bool | None]]:
         """(mode_hex, label, supported) options for the session-type picker.
 
-        Prefers the ECU's own recorded ``sessions:`` scan history (written by
-        ``canair scan sessions`` — see ..pids.build_sessions_index) so the
-        picker shows what's *actually confirmed* on this ECU (``supported``
-        True/False); falls back to a fixed candidate list with
-        ``supported=None`` (untested) when the ECU has no scan history yet.
-        Either way only modes canlib.safety permits for *this* ECU's protocol
-        are offered — never a programming session, and never ``0x82`` on an ECU
-        that is not known to speak KWP2000 (on UDS it is programmingSession).
+        See :meth:`MonitorSessions.known_types`.
         """
-        from ..uds_layout import SUBFUNCTION_NAMES
-
-        names = SUBFUNCTION_NAMES.get(0x10, {})
-        if self._sessions_index is None:
-            from ..pids import build_sessions_index
-
-            self._sessions_index = build_sessions_index(self.pids_data)
-        entry = self._sessions_index.get(ecu_name.upper())
-        if entry and entry.get("sessions"):
-            out = []
-            for mode, sdef in sorted(entry["sessions"].items()):
-                if self._session_check(ecu_name, mode):
-                    continue
-                label = sdef.get("name") or names.get(int(mode, 16), "")
-                out.append((mode, label, sdef.get("supported")))
-            return out
-        fallback = ("01", "03", "81", "82", "83")
-        return [
-            (m, names.get(int(m, 16), ""), None)
-            for m in fallback
-            if self._session_check(ecu_name, m) is None
-        ]
+        return self.sessions.known_types(ecu_name)
 
     async def switch_session(self, ecu_name: str, mode: str) -> str:
         """Force-switch one ECU to a new diagnostic session type, live.
 
-        Sends ``10 <mode>`` even if a session of a *different* type is already
-        tracked open — SessionManager.open_session's default refresh-only path
-        would otherwise silently no-op the switch. Returns a human status
-        string for the TUI's flash message.
+        See :meth:`MonitorSessions.switch`.
         """
-        from ..uds_layout import SUBFUNCTION_NAMES
-
-        ecu = ecu_name.upper()
-        info = (self._ecu_index or {}).get(ecu)
-        if not info:
-            return f"Unknown ECU {ecu_name}."
-        mode = str(mode).upper().removeprefix("0X").zfill(2)
-        blocked = self._session_check(ecu, mode)
-        if blocked:
-            return blocked
-        label = SUBFUNCTION_NAMES.get(0x10, {}).get(int(mode, 16), "")
-        suffix = f" ({label})" if label else ""
-        tx_id = info["tx_id"]
-        if self.raw:
-            assert self.raw_client is not None  # self.raw ⟺ raw_client was provided
-            try:
-                self.raw_client.read(ecu, bytes.fromhex(f"10{mode}"), timeout=2.0)
-            except Exception as exc:
-                return f"{ecu}: session switch failed ({exc})"
-            self._raw_session_modes[ecu] = mode
-            return f"{ecu}: switched to session 0x10{mode}{suffix}."
-        assert self.sm is not None  # not self.raw ⟺ sm was constructed
-        ok = await self.sm.open_session(tx_id, mode=mode, force=True)
-        verb = "switched to" if ok else "attempted"
-        return f"{ecu}: {verb} session 0x10{mode}{suffix}."
+        return await self.sessions.switch(ecu_name, mode)
 
     async def setup(self, session_steps: list[dict] | None) -> None:
         """Build the ECU index, run one-shot session setup, start keepalives."""
@@ -680,7 +568,7 @@ class MonitorController:
                             raise SafetyBlocked(f"session {tgt} --mode {mode}: {blocked}")
                         with contextlib.suppress(Exception):
                             self.raw_client.read(tgt, bytes.fromhex(f"10{mode}"), timeout=1.0)
-                        self._raw_session_modes[tgt] = mode
+                        self.sessions.record_opened(tgt, mode)
             # Warm each ECU up: the first diagnostic request after idle is slow
             # (the ECU/gateway has to wake). Prime with one throwaway read per ECU
             # on a longer timeout so the first *monitored* cycle is already warm.
@@ -741,54 +629,10 @@ class MonitorController:
                     await self.sm.terminal.set_header(info["tx_id"])
                     await self.sm.terminal.send_uds(plan[0][0], retries=1)
 
-    def _state_clock(self, ecu: str, pid: str | None = None) -> int:
-        """The clock a state input is aged by: polls of its own PID (or ECU).
-
-        Falls back to the global cycle count for anything the scheduler has never
-        polled (inputs recorded directly, as the tests do).
-        """
-        n = self.schedule.ecu_ticks(ecu) if pid is None else self.schedule.due_count(ecu, pid)
-        return self.cycle if n is None else n
-
-    def _expire_state_inputs(self) -> None:
-        """Drop state-suggestion inputs not refreshed in their last few polls.
-
-        ``decoded_values``/``responded`` accumulate across the run, so without
-        this they answer "was this ever true", not "is it true now": after a
-        drive ends, the last non-zero speed would keep DRIVING matching forever,
-        and an ECU that stopped answering would keep vouching for its state.
-        Expiring restores the three-valued contract — a signal we no longer read
-        goes back to UNKNOWN (abstain) instead of lingering as a stale fact.
-        """
-        for key, (ecu, pid, seen) in list(self._value_cycle.items()):
-            if self._state_clock(ecu, pid) - seen > STATE_INPUT_STALE_CYCLES:
-                del self._value_cycle[key]
-                self.decoded_values.pop(key, None)
-        for short, (ecu, seen) in list(self._responded_cycle.items()):
-            if self._state_clock(ecu) - seen > STATE_INPUT_STALE_CYCLES:
-                del self._responded_cycle[short]
-                self.responded.discard(short)
-
     def _record(self, new_queries: list[EcuFrame]) -> None:
         """Record freshly-polled payloads into prev_hex / display / save history."""
         # Refresh the decoded-value snapshot used for state auto-suggestion.
-        from ..states import collect_values
-
-        for ecu_label, pid_results in new_queries:
-            ecu = _label_ecu(ecu_label)
-            for entry in pid_results:
-                values, _ = collect_values([(ecu_label, [entry])])
-                self.decoded_values.update(values)
-                clock = self._state_clock(ecu, entry["pid"])
-                for key in values:
-                    self._value_cycle[key] = (ecu, entry["pid"], clock)
-            # `responded` is keyed by collect_values' short name; age it by the
-            # ECU the row label actually names.
-            _values, responded = collect_values([(ecu_label, pid_results)])
-            self.responded |= responded
-            for short in responded:
-                self._responded_cycle[short] = (ecu, self._state_clock(ecu))
-        self._expire_state_inputs()
+        self.state.observe(new_queries)
         # Snapshot the prior cycle's payloads before the recorder overwrites them,
         # so the renderer can diff current-vs-previous (prev_hex is about to become
         # the current values).
@@ -1132,53 +976,6 @@ class MonitorController:
     def segment_history(self) -> list[dict]:
         """Summaries of the --save segments already closed this run (oldest first)."""
         return list(self.recorder.segments)
-
-    def suggested_state(self) -> str | None:
-        """Auto-suggest the single, most *specific* vehicle state.
-
-        Several states are true at once by design — driving is genuinely both
-        READY and DRIVING — so a one-slot display must not just take the first
-        match: it applies the profile's ``implies:`` hierarchy and drops every
-        state another match specializes (:func:`canlib.states.most_specific_states`).
-        Among states unrelated in that hierarchy, file order still decides.
-        """
-        from ..states import most_specific_states
-
-        matched = self.suggested_states()
-        if not matched:
-            return None
-        specific = most_specific_states(self._state_rules or [], matched)
-        return specific[0] if specific else matched[0]
-
-    def suggested_states(self) -> list[str]:
-        """Auto-suggest the vehicle state(s) from the latest decoded values.
-
-        Evaluates the active profile's vehicle_states.yaml rules against the
-        accumulated ``decoded_values``/``responded`` snapshot. Returns every
-        matching state (a session is naturally composite, e.g.
-        ``[READY, PARKED]``), or ``[]`` when no rule matches / the profile
-        declares no states.
-        """
-        from ..states import StatePredicateError, load_states, suggest_states
-
-        if self._state_rules is None:
-            try:
-                self._state_rules = load_states()
-            except StatePredicateError:
-                self._state_rules = []
-        if not self._state_rules:
-            return []
-        matched, _false = suggest_states(self._state_rules, self.decoded_values, self.responded)
-        return matched
-
-    def state_options(self) -> list[tuple[str, str]]:
-        """The profile's ordered ``(state, description)`` vocabulary for the save dialog."""
-        from ..states import state_options
-
-        try:
-            return state_options()
-        except Exception:
-            return []
 
     def interrupt(self) -> None:
         """Abort an in-flight raw poll ASAP so Ctrl-C / SIGTERM exit is prompt.
