@@ -442,7 +442,7 @@ class TestStaleEscalation:
         """One poll cycle whose only PID resolved to ``entry``."""
         c._cycle_answered = False
         c._displayify(("BMS", "2101"), entry)
-        c._check_liveness()
+        c._check_liveness({"BMS"}, {"BMS"})
 
     def test_all_stale_cycles_escalate_at_the_threshold(self, monkeypatch):
         from canlib import config
@@ -503,7 +503,7 @@ class TestStaleEscalation:
         c = self._controller()
         c.last_queries = []
         c._cycle_answered = False
-        c._check_liveness()
+        c._check_liveness(set(), set())
         assert c.dead_cycles == 0
         assert c.disconnected is False
 

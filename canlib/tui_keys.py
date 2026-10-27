@@ -93,7 +93,7 @@ ROLES: dict[str, KeyRole] = {
         _r("info", "i", "info", "session info", "captures in view"),
         _r("unique", "u", "unique/all"),
         _r("overlay", "o", "overlay ref"),
-        _r("mode", "m", "bytes/param mode"),
+        _r("mode", "m", "bytes/param mode", "poll schedule"),
         _r("transform", "f", "transform"),
         _r("byte_order", "b", "byte order"),
         _r("value_type", "t", "type", "session type"),

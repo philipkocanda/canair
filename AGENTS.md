@@ -152,7 +152,15 @@ and **`g`/`G` address the view's primary axis**.
   the equivalent command; saved `@groups` are listed above the ECUs and expand to their ECUs and
   PIDs). Non-TTY with no STEP is still an error. **`read` never had a
   `--monitor` flag.** `--wait` blocks until the device is online and makes a mid-session drop
-  reconnect forever (see Mid-session reconnect).
+  reconnect forever (see Mid-session reconnect). **Polling is per-PID by default**
+  (`--schedule dynamic`): each PID is read at its own profile `period:`, a PID without one every
+  `--interval` (`--schedule fixed` reads every PID every cycle). The scheduler is a dependency-free
+  leaf, `canlib/poll_schedule.py::PollScheduler` (the parser imports its vocabulary at CLI start-up,
+  so it must not reach into `canlib/modes`); it drives which PIDs each tick reads and, since a slow
+  PID is now polled far less often than a fast one, also supplies the per-signal *clock* the
+  state-suggestion staleness is counted on (polls of that PID, not ticks of a faster neighbour).
+  The monitor records only the PIDs actually read on a tick (`MonitorController.fresh_queries`),
+  while the display keeps every selector's last value.
 - **`canair scan`** — Kinds: `range` (bare `canair scan <ECU>` is this), `sessions`, `routines`
   (UDS `0x31` SF03 / KWP `0x33`, auto-selected by `id_protocol` so it never blind-sends
   StartRoutine), `iocontrol` (returnControlToECU: UDS `0x2F` / KWP `0x30` — on KWP a release

@@ -11,6 +11,7 @@ import asyncio
 import logging
 import re
 import time
+from collections.abc import Callable
 from typing import Literal
 
 from ..formatting import (
@@ -209,7 +210,8 @@ def build_query_plan(
 
     A bare ECU selector (empty ``pid_filter`` = "all PIDs") omits PIDs flagged
     ``status: static`` (identity/calibration blocks) or ``status: slow`` (per-cycle
-    records such as 21F2 that change only when a drive or charge ends), unless ``include_static`` is set. Explicitly named PIDs are always queried,
+    records such as 21F2 that change only when a drive or charge ends), unless
+    ``include_static`` is set. Explicitly named PIDs are always queried,
     static or not — an explicit request wins.
     """
     pids_to_query = ecu_info["pids"]
@@ -346,6 +348,7 @@ async def _exec_query(
     quiet: bool = False,
     batch_state: BatchState | None = None,
     include_static: bool = False,
+    plan_filter: Callable[[str, list], list] | None = None,
 ):
     """Execute query sub-command — query ECU parameters.
 
@@ -355,6 +358,10 @@ async def _exec_query(
         batch_state: If provided and the ECU opts into ``multi_did``, batch UDS
             service-22 DIDs (learning per-DID lengths, auto-falling back per-DID
             on rejection). Used by the live monitor.
+        plan_filter: Called with the canonical ECU name and the full query plan;
+            returns the entries to actually read. The live monitor's per-PID
+            scheduler uses it to read only the PIDs due this tick. An empty
+            selection reads nothing and touches no device state.
     """
     upper = ecu_name_str.upper()
     if upper not in ecu_index:
@@ -367,16 +374,21 @@ async def _exec_query(
 
     ecu_info = ecu_index[upper]
     tx_id = ecu_info["tx_id"]
-
-    # Refresh stale sessions before switching
-    await sm.keepalive_stale()
-    await sm.terminal.set_header(tx_id)
+    ecu_label = f"{upper} (0x{tx_id:03X})"
 
     query_plan = build_query_plan(ecu_info, pid_filter, quiet=quiet, include_static=include_static)
     if query_plan is None:
         print(f"  No matching PIDs for filter: {pid_filter}")
         print(f"  Available: {', '.join(sorted(ecu_info['pids'].keys()))}")
         return
+    if plan_filter is not None:
+        query_plan = plan_filter(upper, query_plan)
+        if not query_plan:
+            return (ecu_label, []) if return_results else None
+
+    # Refresh stale sessions before switching
+    await sm.keepalive_stale()
+    await sm.terminal.set_header(tx_id)
 
     all_pid_results = []
 
@@ -390,7 +402,6 @@ async def _exec_query(
         max_dids=ecu_info.get("multi_did_max"),
     )
 
-    ecu_label = f"{upper} (0x{tx_id:03X})"
     if return_results:
         return ecu_label, all_pid_results
 

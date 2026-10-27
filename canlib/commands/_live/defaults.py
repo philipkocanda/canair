@@ -8,6 +8,8 @@ matter which subcommand built it.
 
 from __future__ import annotations
 
+from canlib.poll_schedule import DEFAULT_SCHEDULE
+
 CANAIR_DEFAULTS: dict = {
     # mode selectors
     "param": None,
@@ -41,6 +43,7 @@ CANAIR_DEFAULTS: dict = {
     "repl": False,
     "protocol": "auto",
     "monitor": None,
+    "schedule": DEFAULT_SCHEDULE,
     "keep_changes": False,
     "keep_unique": False,
     "keep_all": False,

@@ -607,6 +607,8 @@ class SessionInfoModal(ModalScreen[None]):
         row("retain mode", _keep_mode_label(s.get("keep_mode"), s.get("keep_n")))
         row("view mode", str(s.get("view_mode", "full")))
         row("poll interval", f"{float(s.get('interval', 0.0)):.1f}s")
+        if s.get("schedule"):
+            row("poll schedule", str(s["schedule"]))
         row("cycles", str(s.get("cycle", 0)))
         row(
             "captured",
@@ -966,6 +968,7 @@ class MonitorApp(HelpMixin, App):
         *bind("pause", "toggle_pause"),
         *bind("increase", "faster", desc="poll faster"),
         *bind("decrease", "slower", desc="poll slower"),
+        *bind("mode", "toggle_schedule", desc="poll schedule"),
         # Down/up and j/k are the same movement: the signal cursor, which falls
         # back to plain scrolling when nothing is selectable. priority beats the
         # focused scroll container's own arrow handling.
@@ -1025,43 +1028,43 @@ class MonitorApp(HelpMixin, App):
 
     async def _poll_loop(self) -> None:
         while True:
-            if not self.paused:
-                t0 = time.monotonic()
-                try:
-                    await self.controller.poll_once()
-                except transport_error_types() as e:
-                    # The link died mid-cycle. Same handling as a poll that set
-                    # `disconnected` itself: re-home rather than abandon the run.
-                    log_event(
-                        "bus",
-                        f"poll cycle failed: {type(e).__name__}: {e}",
-                        transport=self.controller.transport_type,
-                    )
-                    self.controller.disconnected = True
-                except Exception as e:
-                    # Not the transport — a genuine internal fault. Reconnecting
-                    # would not fix it and would hide it, so stop cleanly rather
-                    # than leaving a silently-frozen UI.
-                    log_exception("unexpected monitor poll failure", e)
-                    self.controller.disconnected = True
+            # Chunked wait, re-asking the schedule each time, so pause/quit stay
+            # responsive and a live rate change or a just-added PID takes effect at
+            # once rather than after a sleep chosen before it.
+            if self.paused or self.controller.seconds_until_due() > 0:
+                await asyncio.sleep(0.05)
+                continue
+            try:
+                await self.controller.poll_once()
+            except transport_error_types() as e:
+                # The link died mid-cycle. Same handling as a poll that set
+                # `disconnected` itself: re-home rather than abandon the run.
+                log_event(
+                    "bus",
+                    f"poll cycle failed: {type(e).__name__}: {e}",
+                    transport=self.controller.transport_type,
+                )
+                self.controller.disconnected = True
+            except Exception as e:
+                # Not the transport — a genuine internal fault. Reconnecting
+                # would not fix it and would hide it, so stop cleanly rather
+                # than leaving a silently-frozen UI.
+                log_exception("unexpected monitor poll failure", e)
+                self.controller.disconnected = True
+                self.exit()
+                return
+            if self.controller.disconnected:
+                # Try to re-home the dropped session (auto-failover / --wait)
+                # in place, keeping the --save journal recording across the gap.
+                if not await self._attempt_reconnect():
                     self.exit()
                     return
-                if self.controller.disconnected:
-                    # Try to re-home the dropped session (auto-failover / --wait)
-                    # in place, keeping the --save journal recording across the gap.
-                    if not await self._attempt_reconnect():
-                        self.exit()
-                        return
-                    self._refresh_body()
-                    continue
                 self._refresh_body()
-                remaining = self.controller.interval - (time.monotonic() - t0)
-            else:
-                remaining = 0.1
-            # Chunked sleep so pause/quit stay responsive.
-            deadline = time.monotonic() + max(remaining, 0.05)
-            while time.monotonic() < deadline:
-                await asyncio.sleep(0.05)
+                continue
+            self._refresh_body()
+            # Yield even when the next tick is already due (a cycle that overran
+            # its period), so back-to-back polls never starve the UI.
+            await asyncio.sleep(0.05)
 
     async def _attempt_reconnect(self) -> bool:
         """Re-home a dropped session; True to resume, False to exit the app.
@@ -1127,7 +1130,7 @@ class MonitorApp(HelpMixin, App):
         if self.paused:
             items.append(StatusItem("[reverse] PAUSED [/]", P_ESSENTIAL))
         items.append(StatusItem(f"[dim]cycle[/] {c.cycle}", P_NORMAL))
-        items.append(StatusItem(f"{c.interval:.1f}[dim]s[/]", P_NORMAL))
+        items.append(StatusItem(f"{c.schedule.describe()}", P_NORMAL))
         items.append(StatusItem(f"{c.elapsed:.1f}[dim]s[/]", P_LOW))
         # ELM path reports commands + time spent in the ELM327; the raw path
         # reports UDS requests (no ELM involved).
@@ -1316,20 +1319,19 @@ class MonitorApp(HelpMixin, App):
         self.paused = not self.paused
         self._update_status()
 
-    # Live poll-rate control. The poll loop reads controller.interval each cycle,
-    # so mutating it takes effect on the next sleep. Clamped to a sane range.
-    _MIN_INTERVAL = 0.1
-    _MAX_INTERVAL = 300.0
-
+    # Live poll-rate control, delegated to the controller's PollScheduler: the
+    # interval on the fixed schedule, a multiplier on every PID's period on the
+    # per-PID one. The poll loop re-asks the schedule while it waits, so a change
+    # takes effect at once. Clamped by the scheduler.
     def action_faster(self) -> None:
-        self._set_interval(max(self._MIN_INTERVAL, round(self.controller.interval / 1.5, 1)))
+        self._flash(f"Poll rate: {self.controller.schedule.faster()}", secs=2.0)
 
     def action_slower(self) -> None:
-        self._set_interval(min(self._MAX_INTERVAL, round(self.controller.interval * 1.5, 1)))
+        self._flash(f"Poll rate: {self.controller.schedule.slower()}", secs=2.0)
 
-    def _set_interval(self, value: float) -> None:
-        self.controller.interval = value
-        self._flash(f"Poll interval: {value:.1f}s", secs=2.0)
+    def action_toggle_schedule(self) -> None:
+        self._flash(f"Poll schedule: {self.controller.schedule.toggle()}", secs=2.0)
+        self._update_status()
 
     def action_toggle_rulers(self) -> None:
         """Toggle the byte-index ruler + the per-signal byte-reference column."""

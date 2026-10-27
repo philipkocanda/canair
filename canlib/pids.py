@@ -83,7 +83,7 @@ class PidIndexEntry(TypedDict):
     """
 
     parameters: dict[str, Any]
-    period: int
+    period: int | None  # the PID's declared poll period (ms); None when it declares none
     status: PidStatus
     shipped: bool  # include in the generated WiCAN device profile (see is_shipped)
     swept: bool  # include in a bare-ECU sweep (see is_swept)
@@ -511,7 +511,7 @@ def build_ecu_index(pids_data: dict) -> dict[str, EcuIndexEntry]:
                 continue
             entry["pids"][str(pid_code).upper()] = {
                 "parameters": pid_def.get("parameters", {}),
-                "period": pid_def.get("period", 5000),
+                "period": pid_def.get("period"),
                 "status": status,
                 # Derived visibility flags (single source: `status`) so callers
                 # never re-implement the lifecycle rules:

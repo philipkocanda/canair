@@ -141,7 +141,10 @@ hotspot, an hour's drive is a couple of hundred megabytes.
 
 **`wican-ws` sends only what you asked for.** The dongle runs ISO-TP and answers requests, so
 throughput is proportional to your poll rate: a few hundred bytes per request/response pair,
-typically well under a megabyte per hour.
+typically well under a megabyte per hour. `canair monitor`'s default per-PID schedule helps
+here: a signal with a long `period:` is re-read only as often as it can change, rather than on
+every cycle, so a mixed monitor set costs far less on a metered link than polling everything at
+the fastest signal's rate.
 
 If you are on a metered link and do not need the whole bus, `wican-ws` is a three-orders-of-
 magnitude reduction. If you *do* need the whole bus — `canair sniff`, or importing a broadcast

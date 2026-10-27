@@ -37,6 +37,9 @@ class _FakeController:
             # Stand in for the signal arriving mid-cycle.
             signal.raise_signal(self._raise_on_poll)
 
+    def seconds_until_due(self) -> float:
+        return 0.0
+
     def interrupt(self):
         self.interrupted += 1
 

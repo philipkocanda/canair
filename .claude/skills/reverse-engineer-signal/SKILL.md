@@ -153,7 +153,7 @@ Expect the analogous mismatch on your own car.
 ```bash
 canair read MCU:2102 --save --label "MCU 2102 driving" \
     --state "READY, DRIVING" --notes "hard launches + regen"  # bind PID with a colon
-canair monitor MCU:2102 --interval 1 --keep-all --save        # values that move reveal meaning
+canair monitor MCU:2102 --schedule fixed --interval 1 --keep-all --save  # even time-series
 ```
 
 Capture the SAME PID in DIFFERENT states (park vs drive, cold vs warm, charging vs

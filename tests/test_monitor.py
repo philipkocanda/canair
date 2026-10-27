@@ -1027,6 +1027,84 @@ class TestControllerSuggestedState:
         assert c.suggested_state() == "SLEEP"
 
 
+class TestDynamicSchedulePerPidClock:
+    """Under the per-PID schedule a slow PID's value must stay eligible across the
+    many ticks a fast neighbour is read in — its clock is its own poll count, not
+    the tick count. Drives the real scheduler + _record together."""
+
+    def _controller(self, monkeypatch):
+        from canlib import states
+        from canlib.states import StateRule, compile_predicate
+
+        rules = [
+            StateRule("READY", predicate=compile_predicate("VCU.EV_READY == 1")),
+            StateRule(
+                "DRIVING", predicate=compile_predicate("ESC.SPEED > 0.5"), implies=("READY",)
+            ),
+        ]
+        monkeypatch.setattr(states, "load_states", lambda profile=None: rules)
+        steps = [
+            {"type": "query", "ecu": "VCU", "pids": ["2101"]},
+            {"type": "query", "ecu": "ESC", "pids": ["22C101"]},
+        ]
+        return MonitorController(None, steps, {}, verbose=False, schedule="dynamic")
+
+    def _tick(self, c, t, *, speed=None):
+        c.schedule.begin_tick(t)
+        fresh = []
+        vcu = c.schedule.take_due("VCU", [("2101", {"period": 1000}, False)])
+        if vcu:
+            fresh.append(
+                (
+                    "VCU (0x7E2)",
+                    [
+                        {
+                            "pid": "2101",
+                            "raw_hex": "61",
+                            "params": [("EV_READY", 1.0, "", "", None, True, "")],
+                        }
+                    ],
+                )
+            )
+        esc = c.schedule.take_due("ESC", [("22C101", {"period": 10000}, False)])
+        if esc and speed is not None:
+            fresh.append(
+                (
+                    "ESC (0x7D1)",
+                    [
+                        {
+                            "pid": "22C101",
+                            "raw_hex": "62",
+                            "params": [("SPEED", speed, "km/h", "", None, True, "")],
+                        }
+                    ],
+                )
+            )
+        c.schedule.end_tick()
+        c._record(fresh)
+
+    def test_slow_speed_survives_fast_ready_ticks(self, monkeypatch):
+        c = self._controller(monkeypatch)
+        self._tick(c, 0.0, speed=42.0)  # both read; DRIVING
+        assert c.suggested_state() == "DRIVING"
+        # ESC (10 s) is not due again for ten 1 s VCU ticks. A tick-counted clock
+        # would expire SPEED after three; its own poll count must not advance.
+        for i in range(1, 10):
+            self._tick(c, float(i))
+        assert c.decoded_values.get("ESC.SPEED") == 42.0
+        assert c.suggested_state() == "DRIVING"
+
+    def test_speed_expires_after_its_own_polls_stop_refreshing(self, monkeypatch):
+        c = self._controller(monkeypatch)
+        self._tick(c, 0.0, speed=42.0)
+        # ESC keeps being polled (due at 10/20/30/40 s) but now reads nothing: after
+        # STATE_INPUT_STALE_CYCLES of its own polls, SPEED expires.
+        for t in (10.0, 20.0, 30.0, 40.0):
+            self._tick(c, t, speed=None)
+        assert "ESC.SPEED" not in c.decoded_values
+        assert c.suggested_state() == "READY"
+
+
 class TestQueryLabel:
     def _controller(self, steps):
         return MonitorController(terminal=None, query_steps=steps, pids_data={}, verbose=False)

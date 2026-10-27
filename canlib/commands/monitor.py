@@ -30,6 +30,7 @@ from canlib.commands._live import (
     to_step,
 )
 from canlib.notation import add_notation_arg
+from canlib.poll_schedule import DEFAULT_SCHEDULE, SCHEDULES
 
 NAME = "monitor"
 ALIASES = ["mon"]
@@ -48,20 +49,27 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         epilog="""\
 examples:
   canair monitor                            Pick ECUs, then PIDs, interactively (TTY only)
-  canair monitor BMS:2101                   Monitor BMS PID 2101 (default 5s interval)
-  canair monitor BMS:2101 --interval 2      Refresh every 2s
+  canair monitor BMS:2101                   Monitor BMS PID 2101 at its profile period
+  canair monitor BMS:2101 --interval 2      PIDs without a profile period refresh every 2s
+  canair monitor BMS:2101 --schedule fixed --interval 1   Every PID every 1s
   canair monitor "VCU:2101 BMS:2101"        Cross-ECU monitor
   canair monitor @charging                  Monitor a saved group (see `canair groups`)
   canair monitor @driving CLU:220B          A group plus an extra selector
   canair monitor "skm-wake acc" "query IGPM:BC03,BC06"
   canair monitor BMS:2101 --save --label "…" --state "READY, PARKED"  Record while monitoring
 
+Polling: by default each PID is read at its own `period:` from the profile (the same
+milliseconds the WiCAN AutoPID profile uses; set one with `canair pids set-pid-period`),
+and a PID without one every --interval seconds. --schedule fixed reads every PID on every
+cycle, --interval apart.
+
 In the TUI: mouse wheel / scrollbar / arrows-jk / PgUp-PgDn / g-G scroll,
-space pauses, =/- change the poll interval live,
-r toggles the byte-index ruler, l opens the errors/diagnostics log,
+space pauses, =/- poll faster/slower (the interval on the fixed schedule, a
+multiplier on every PID's period on the per-PID one), m switches schedule,
+r toggles the byte-index ruler, E opens the errors/diagnostics log,
 V cycles the view mode (ecus / ranges / signals / full),
 i opens the session-info overlay (segment history + summary),
-↑/↓ select a signal (esc deselects), e/v/d/F edit/verify/en-disable/filter,
+↑/↓ select a signal (esc deselects), e/v/x/F edit/verify/en-disable/filter,
 s labels the recording (or saves now when not using --save),
 n finishes the current --save session and starts a fresh one,
 ? shows all shortcuts, q quits.
@@ -80,7 +88,15 @@ For a single one-shot read (no live refresh) use `canair read` instead.
         type=float,
         default=5.0,
         metavar="SECONDS",
-        help="Poll interval in seconds (default 5.0; change it live in the TUI with =/-)",
+        help="Poll interval in seconds for PIDs with no profile `period:` — or for every "
+        "PID with --schedule fixed (default 5.0; scale it live in the TUI with =/-)",
+    )
+    parser.add_argument(
+        "--schedule",
+        choices=SCHEDULES,
+        default=DEFAULT_SCHEDULE,
+        help="dynamic (default): poll each PID at its own profile `period:`, falling back "
+        "to --interval; fixed: poll every PID every cycle, --interval apart",
     )
     parser.add_argument("--session", action="store_true", help="Enter extended session (10 03)")
     parser.add_argument("--wake", action="store_true", help="Wake ECUs from deep sleep (10 01)")

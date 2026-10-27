@@ -313,7 +313,7 @@ def _render_results(
     verbose: bool,
     cycle: int,
     elapsed: float,
-    interval: float,
+    interval: float | str,
     prev_hex: dict[tuple[str, str], str] | None = None,
     prev_params: dict[tuple[str, str], dict[str, object]] | None = None,
     hex_history: dict[tuple[str, str], list[tuple[str, str]]] | None = None,
@@ -327,6 +327,9 @@ def _render_results(
     notation: ByteNotation = ByteNotation.WICAN,
 ) -> Text:
     """Render all ECU query results as a Rich Text object for display.
+
+    ``interval`` is the poll cadence for the header: seconds, or a ready-made
+    label such as the per-PID schedule's ``per-PID``.
 
     ``footer`` appends the "Press Ctrl+C to stop" hint (kept for callers that
     render a single static block). The scrolling monitor passes ``footer=False``
@@ -361,9 +364,9 @@ def _render_results(
     text = Text()
 
     view_note = "" if view_mode == "full" else f"  ·  view: {view_mode}"
+    rate = interval if isinstance(interval, str) else f"{interval:.1f}s"
     text.append(
-        f"  Monitor — cycle {cycle}  (last: {elapsed:.1f}s, interval: {interval:.1f}s)"
-        f"{view_note}\n",
+        f"  Monitor — cycle {cycle}  (last: {elapsed:.1f}s, interval: {rate}){view_note}\n",
         style="dim",
     )
 

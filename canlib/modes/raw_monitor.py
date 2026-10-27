@@ -134,6 +134,7 @@ async def run_raw_monitor(args, host: str, port: int, bitrate: int, pids_data: d
     # the raw monitor bypasses dispatch_mode for its pipelined client, so guard here.)
     from ..keepmode import wants_save
     from ..notation import resolve_notation
+    from ..poll_schedule import DEFAULT_SCHEDULE
     from ..transport.errors import describe_transport_error, transport_error_types
 
     try:
@@ -155,6 +156,7 @@ async def run_raw_monitor(args, host: str, port: int, bitrate: int, pids_data: d
             raw_client=client,
             include_static=getattr(args, "include_static", False),
             reconnect=build_raw_reconnector(args, ecus, pids_data),
+            schedule=getattr(args, "schedule", DEFAULT_SCHEDULE),
         )
     except transport_error_types() as e:
         print(

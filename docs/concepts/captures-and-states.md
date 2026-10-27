@@ -203,7 +203,8 @@ recording is active, and two keys control the session:
   (parked → driving → charging) to get several independently-labelled sessions from one run.
   Requires `--save`.
 - **`i` (session info)** — a read-only overlay with the current segment's label / state /
-  notes, the run-level counters (frames, cycles, poll interval, transport, elapsed time), the
+  notes, the run-level counters (frames, cycles, poll interval and schedule, transport,
+  elapsed time), the
   exact `.journal/*.jsonl` path `--recover` would read, and the `--save` segments already
   finished this run. The current segment name is always shown in the header bar.
 - **`V` (view mode)** — cycle how much the live view shows: `ecus` (responding ECUs and a

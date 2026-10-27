@@ -30,7 +30,9 @@ class FakeController:
     ):
         self.cycle = 0
         self.elapsed = 0.0
-        self.interval = 0.05
+        from canlib.poll_schedule import PollScheduler
+
+        self.schedule = PollScheduler("fixed", 0.05)
         self.last_cmds = 0
         self.last_elm_time = 0.0
         self.total_frames = 0
@@ -56,6 +58,19 @@ class FakeController:
         self.session_states = []
         self.session_notes = ""
 
+    @property
+    def interval(self) -> float:
+        return self.schedule.interval
+
+    @interval.setter
+    def interval(self, v: float) -> None:
+        self.schedule.interval = v
+
+    def seconds_until_due(self) -> float:
+        import time
+
+        return self.schedule.seconds_until_due(time.monotonic())
+
     def segment_title(self) -> str:
         return self.session_label or self._query_label or "Monitor"
 
@@ -79,6 +94,7 @@ class FakeController:
             "keep_n": self.keep_n,
             "view_mode": self.view_mode,
             "interval": self.interval,
+            "schedule": self.schedule.describe(),
             "cycle": self.cycle,
             "total_frames": self.total_frames,
             "unique_frames": self.unique_frames,

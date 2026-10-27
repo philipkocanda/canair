@@ -84,13 +84,15 @@ class MonitorRawPoller:
         self.pad = resolve_tx_padding(getattr(controller, "pids_data", None))
 
     def build_submissions(self):
-        """Plan this cycle's raw requests, batching multi-DID ECUs.
+        """Plan this tick's raw requests, batching multi-DID ECUs.
 
-        Returns ``(submissions, plan_by_ecu)``. Each submission is a dict with
-        ``ecu``, ``req`` (bytes to send), ``members`` [(pid_code, pid_info,
-        unmapped)], and ``lengths`` ([(did4, data_len)] for a batch, else None).
-        Consecutive service-22 DIDs on a ``multi_did`` ECU whose lengths are
-        already learned are combined (up to the ECU's ``multi_did_max``, default
+        Returns ``(submissions, plan_by_ecu)``. ``plan_by_ecu`` holds every ECU's
+        *full* plan (it lays out the display); the submissions cover only the
+        entries the controller's scheduler says are due this tick. Each submission
+        is a dict with ``ecu``, ``req`` (bytes to send), ``members`` [(pid_code,
+        pid_info, unmapped)], and ``lengths`` ([(did4, data_len)] for a batch, else
+        None). Consecutive due service-22 DIDs on a ``multi_did`` ECU whose lengths
+        are already learned are combined (up to the ECU's ``multi_did_max``, default
         3); everything else is a single request (and 22-DID lengths are learned
         from single reads).
         """
@@ -114,6 +116,7 @@ class MonitorRawPoller:
                 or []
             )
             plan_by_ecu.append((ecu, info["tx_id"], plan))
+            plan = c.schedule.take_due(ecu, plan)
             batchable = info.get("multi_did", False) and ecu not in self.nobatch
             cap = info.get("multi_did_max", 3)
             i, n = 0, len(plan)
@@ -173,6 +176,12 @@ class MonitorRawPoller:
         submissions, plan_by_ecu = self.build_submissions()
         requests = [(s["ecu"], s["req"]) for s in submissions]
         sub_by_req = {(s["ecu"], s["req"]): s for s in submissions}
+        by_pid: dict[tuple[str, str], ResultEntry] = {}
+        if not requests:
+            c.last_queries = self.build_queries(plan_by_ecu, by_pid)
+            c.last_cmds = 0
+            c.last_elm_time = 0.0
+            return
 
         loop = asyncio.get_event_loop()
         q: asyncio.Queue = asyncio.Queue()
@@ -189,7 +198,6 @@ class MonitorRawPoller:
 
         fut = loop.run_in_executor(None, _run)
 
-        by_pid: dict[tuple[str, str], ResultEntry] = {}
         applied: set = set()
         last_render = 0.0
         try:
@@ -220,6 +228,7 @@ class MonitorRawPoller:
         try:
             result_dict = await fut  # surface a bus-level failure (connection dropped)
         except Exception:
+            c.fresh_queries = self.fresh_queries(plan_by_ecu, by_pid)
             c.disconnected = True
             return
 
@@ -231,6 +240,7 @@ class MonitorRawPoller:
                 self.apply_submission(s, result_dict[key], _t.time(), by_pid)
 
         c.last_queries = self.build_queries(plan_by_ecu, by_pid)
+        c.fresh_queries = self.fresh_queries(plan_by_ecu, by_pid)
         c.last_cmds = len(requests)
         c.last_elm_time = 0.0
 
@@ -329,3 +339,20 @@ class MonitorRawPoller:
                 pid_results.append(c._displayify((label, cd), entry))
             new_queries.append((label, pid_results))
         return new_queries
+
+    def fresh_queries(
+        self, plan_by_ecu, by_pid: dict[tuple[str, str], ResultEntry]
+    ) -> list[EcuFrame]:
+        """Only the PIDs actually read this tick, as displayed — what gets recorded.
+
+        Must run after :meth:`build_queries`, which settles each resolved entry's
+        display form (a timeout becomes the stale last-good) in ``_last_shown``.
+        """
+        c = self.c
+        fresh: list[EcuFrame] = []
+        for ecu, tx_id, plan in plan_by_ecu:
+            label = f"{ecu} (0x{tx_id:03X})"
+            rows = [c._last_shown[(label, cd)] for cd, _pi, _un in plan if (ecu, cd) in by_pid]
+            if rows:
+                fresh.append((label, rows))
+        return fresh

@@ -315,14 +315,18 @@ list/edit; e.g. `@charging`, `@driving`) and composes with ad-hoc selectors.
 ### `canair monitor`
 
 Live-refreshing poll (its own top-level command; positional query steps like
-`canair read`, plus `--interval SECONDS`, default 5.0). Non-query steps run once
+`canair read`). By default each PID refreshes at its own profile `period:` and a
+PID without one every `--interval` seconds (5.0); `--schedule fixed` polls every
+PID every cycle, `--interval` apart. Non-query steps run once
 as setup, `query` steps poll in a
 background worker with TesterPresent keepalives. On a TTY it's a scrollable
 Textual TUI (`↑↓/j/k`/wheel scroll — the view **never** follows the tail, a
 repaint leaves the scroll position put; `space` pause, `=`/`-` poll
-faster/slower live, `r` toggle the byte ruler + per-signal byte-reference column
-(in `display.byte_notation`/`--notation`), `l` open the errors/diagnostics
-log overlay, `↑`/`↓` select a signal (`esc` deselects), `e`/`v`/`d`/`F`
+faster/slower live (the interval on `--schedule fixed`, a multiplier on every
+PID's period otherwise), `m` switch schedule,
+`r` toggle the byte ruler + per-signal byte-reference column
+(in `display.byte_notation`/`--notation`), `E` open the errors/diagnostics
+log overlay, `↑`/`↓` select a signal (`esc` deselects), `e`/`v`/`x`/`F`
 edit/verify/en-disable/filter, `s` save payloads with a metadata modal, `i` the
 session-info overlay (incl. the `--save` journal path), `?` a
 keybinding help modal, `q` quit); piped, it polls silently until

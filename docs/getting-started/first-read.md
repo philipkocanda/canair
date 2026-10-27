@@ -48,6 +48,15 @@ It monitors several ECUs at once, too. This cross-ECU view watches the
 
 ![canair monitor — live cross-ECU drivetrain view in READY mode](../screenshots/monitor-drivetrain.gif)
 
+By default each PID refreshes at its own cadence — the `period:` the profile ships
+for it (what the WiCAN AutoPID profile uses) — so a fast-moving signal updates
+briskly while a slow per-cycle record is read only as often as it changes, and the
+bus isn't flooded re-reading values that never move. A PID with no declared period
+falls back to `--interval` (default 5 s). Press `=`/`-` to speed up or slow down the
+whole poll live, and `m` to switch to `--schedule fixed`, which reads *every* PID on
+every cycle `--interval` apart — handy when you want an even time-series of one
+signal for analysis.
+
 Not sure what to type? Run `canair monitor` with no arguments on a terminal and
 pick from the profile instead: first tick saved groups (the `@` rows, see
 `canair groups`) and/or individual ECUs (`space` toggles, `/` filters, `ctrl+a`

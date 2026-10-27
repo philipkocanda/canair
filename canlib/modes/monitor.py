@@ -12,7 +12,9 @@ Usage (via canair monitor):
     canair monitor "query BMS:2101" --interval 2.0
     canair monitor "session IGPM --wake" "query IGPM:BC03,BC06"
 
-Every 'query' step in the pipeline is repeated each poll cycle.
+Every 'query' step in the pipeline is polled repeatedly: by default each PID at its
+own profile ``period:`` (:mod:`canlib.poll_schedule`), or every PID on
+every cycle with ``--schedule fixed``.
 
 The polling / decoding / capture-saving logic lives in :class:`MonitorController`
 (reused by both the TUI and the non-interactive path); only the presentation
@@ -40,6 +42,7 @@ from ..formatting import (
 from ..keepmode import KEEP_ALL, KEEP_LAST, KeepMode
 from ..log import log_event
 from ..notation import ByteNotation
+from ..poll_schedule import DEFAULT_SCHEDULE, PollScheduler, Schedule
 from ..session_manager import SessionManager
 from ..stop_signals import graceful_stop
 from ._monitor_record import MonitorRecorder, _merge_history, _open_journal, _write_merged
@@ -57,14 +60,15 @@ from .multi_batch import EcuFrame, ResultEntry
 if TYPE_CHECKING:
     from .monitor_reconnect import Reconnector
 
-# How many poll cycles a decoded value stays eligible for state auto-suggestion.
+# How many polls a decoded value stays eligible for state auto-suggestion.
 # The live suggestion answers "what state is the car in NOW", so its inputs must
 # expire — an unbounded map keeps matching DRIVING off a speed read before the car
-# parked. Counted in cycles rather than seconds so it adapts to the poll rate: a
-# round-robin sweep over a dozen ECUs takes far longer per cycle than a two-PID
-# one, and a wall-clock window short enough for the latter would expire the
-# former's values before they were ever refreshed. Three (the same tolerance as
-# `transport.stale_cycles_before_reconnect`) rides out a transient dropped frame
+# parked. Counted in polls of the signal's own PID rather than seconds so it adapts
+# to the poll rate: a round-robin sweep over a dozen ECUs takes far longer per cycle
+# than a two-PID one, and under the per-PID schedule a 10 s PID is read a tenth as
+# often as a 1 s one — a window counted in wall-clock time or in ticks would expire
+# the slower one's values before they were ever refreshed. Three (the same tolerance
+# as `transport.stale_cycles_before_reconnect`) rides out a transient dropped frame
 # without keeping a genuinely gone signal alive.
 STATE_INPUT_STALE_CYCLES = 3
 
@@ -91,6 +95,11 @@ __all__ = [
 ]
 
 _console = Console(highlight=False)
+
+
+def _label_ecu(label: str) -> str:
+    """The ECU name a monitor row label carries (``"BMS (0x7E4)"`` -> ``"BMS"``)."""
+    return label.rsplit(" (", 1)[0].upper()
 
 
 def query_ecu_error(query_steps: list[dict], pids_data: dict) -> str | None:
@@ -122,12 +131,13 @@ def query_ecu_error(query_steps: list[dict], pids_data: dict) -> str | None:
 
 
 class MonitorController:
-    """Polls a set of ECU PIDs on an interval and renders/records the results.
+    """Polls a set of ECU PIDs on a schedule and renders/records the results.
 
     Holds all monitor state and the CAN-facing logic (session setup, polling,
     history bookkeeping, capture saving). The presentation layer — the Textual
-    TUI or the non-interactive fallback — drives it via :meth:`poll_once` and
-    :meth:`render`, so the two share identical behaviour.
+    TUI or the non-interactive fallback — drives it via :meth:`poll_once`,
+    :meth:`seconds_until_due` and :meth:`render`, so the two share identical
+    behaviour. Which PIDs a tick reads is the :class:`PollScheduler`'s call.
     """
 
     def __init__(
@@ -144,6 +154,7 @@ class MonitorController:
         notation: ByteNotation = ByteNotation.WICAN,
         raw_client=None,
         include_static: bool = False,
+        schedule: Schedule = DEFAULT_SCHEDULE,
     ):
         self.terminal = terminal
         self.raw_client = raw_client  # transport.RawUdsClient when using the raw backend
@@ -151,7 +162,7 @@ class MonitorController:
         self.query_steps = query_steps
         self.pids_data = pids_data
         self.verbose = verbose
-        self.interval = interval
+        self.schedule = PollScheduler(schedule, interval)
         self.keep_mode = keep_mode
         self.keep_n = keep_n
         self.save = save
@@ -214,6 +225,10 @@ class MonitorController:
         # saved-capture provenance. Set by mode_monitor.
         self.transport_type: str | None = None
         self.last_queries: list[EcuFrame] = []
+        # The PIDs actually read on the last tick (as displayed). Under the per-PID
+        # schedule a tick reads only what is due, while last_queries keeps showing
+        # every PID — so this, not last_queries, is what gets recorded.
+        self.fresh_queries: list[EcuFrame] = []
         self.prev_hex: dict[tuple[str, str], str] = {}
         # Payloads as of the *previous* poll cycle, snapshotted before prev_hex is
         # overwritten each cycle. Rendering diffs against this so byte-level change
@@ -234,15 +249,22 @@ class MonitorController:
         # Set by mode_monitor; resolved lazily if left None.
         self.captures_dir: Path | None = None
         self.disconnected = False
-        # Consecutive poll cycles in which not one PID answered coherently (no
-        # payload and no negative response — every row carried forward as stale).
-        # A desynced-but-open pipe raises nothing, so this count is the only thing
+        # Poll cycles in which not one PID answered coherently (no payload and no
+        # negative response — every row carried forward as stale). A
+        # desynced-but-open pipe raises nothing, so this count is the only thing
         # that can tell a live-but-useless link from a healthy one; at
         # `config.stale_cycles_before_reconnect()` it sets `disconnected` and lets
         # the reconnector rebuild the client. An NRC counts as answered: a negative
         # response proves the request reached the ECU and its reply came back in the
         # right slot, which is a healthy pipe refusing, not a broken one.
+        #
+        # Counted per ECU (`_unanswered`: polls of that ECU since anything last
+        # answered) and reported as the minimum over the polled ECUs, so a fast PID
+        # on a sleeping ECU cannot escalate on its own while a slower ECU is still
+        # answering between its ticks. On the fixed schedule every ECU is polled
+        # every cycle, so this is simply consecutive dead cycles.
         self.dead_cycles = 0
+        self._unanswered: dict[str, int] = {}
         self._cycle_answered = False
         # Mid-session reconnect / auto-failover (set by mode_monitor). When a
         # reconnector is present the poll loop re-homes a dropped session instead
@@ -264,13 +286,14 @@ class MonitorController:
         self._name_index: dict | None = None
         # Auto-suggest state: latest decoded {ECU.PARAM: value} + responded ECUs,
         # evaluated against the profile's vehicle_states.yaml rules (lazy-loaded).
-        # Both EXPIRE after STATE_INPUT_STALE_CYCLES (see _expire_state_inputs):
-        # the live suggestion must answer "what is true now", not "what was ever
-        # true this run".
+        # Both EXPIRE after STATE_INPUT_STALE_CYCLES polls without a refresh (see
+        # _expire_state_inputs): the live suggestion must answer "what is true now",
+        # not "what was ever true this run". Each is stamped with its own clock —
+        # the poll count of the PID / ECU it came from (see _state_clock).
         self.decoded_values: dict[str, float] = {}
         self.responded: set[str] = set()
-        self._value_cycle: dict[str, int] = {}
-        self._responded_cycle: dict[str, int] = {}
+        self._value_cycle: dict[str, tuple[str, str | None, int]] = {}
+        self._responded_cycle: dict[str, tuple[str, int]] = {}
         self._state_rules: list | None = None
         # In-place editing / filtering of PID definitions from the TUI. The
         # editor owns the selection cursor + display filter and writes edits
@@ -362,6 +385,21 @@ class MonitorController:
     def has_captures(self) -> bool:
         """True when there's at least one payload available to save."""
         return self.recorder.has_captures()
+
+    # --- Poll scheduling: delegated to the PollScheduler (poll_schedule.py).
+
+    @property
+    def interval(self) -> float:
+        """The fixed schedule's period, and the per-PID schedule's fallback (s)."""
+        return self.schedule.interval
+
+    @interval.setter
+    def interval(self, v: float) -> None:
+        self.schedule.interval = v
+
+    def seconds_until_due(self) -> float:
+        """How long the poll loop may sleep before the next tick (0 = poll now)."""
+        return self.schedule.seconds_until_due(time.monotonic())
 
     def _set_segment_meta(
         self, label: str | None, states: list[str] | None, notes: str | None
@@ -469,6 +507,7 @@ class MonitorController:
         pid = pid_code.upper()
         if ecu in self.swept_ecus():
             return
+        self.schedule.wake()
         for step in self.query_steps:
             if step["ecu"].upper() == ecu:
                 pids = step.setdefault("pids", [])
@@ -495,8 +534,16 @@ class MonitorController:
             step["pids"] = [p for p in pids if p.upper() != pid]
             if not step["pids"]:
                 self.query_steps.remove(step)
-            self._last_good.pop((ecu, pid), None)
-            self._last_shown.pop((ecu, pid), None)
+            for cache in (self._last_good, self._last_shown):
+                for key in [k for k in cache if k[1] == pid and _label_ecu(k[0]) == ecu]:
+                    del cache[key]
+            self.schedule.forget(ecu, pid)
+            # Its signals stop being read, so their clock stops too; drop them now
+            # rather than letting them vouch for a state forever.
+            for name, (v_ecu, v_pid, _seen) in list(self._value_cycle.items()):
+                if v_ecu == ecu and v_pid == pid:
+                    del self._value_cycle[name]
+                    self.decoded_values.pop(name, None)
             return
 
     # --- Diagnostic session type: status + live switching (TUI 't' picker).
@@ -694,8 +741,17 @@ class MonitorController:
                     await self.sm.terminal.set_header(info["tx_id"])
                     await self.sm.terminal.send_uds(plan[0][0], retries=1)
 
+    def _state_clock(self, ecu: str, pid: str | None = None) -> int:
+        """The clock a state input is aged by: polls of its own PID (or ECU).
+
+        Falls back to the global cycle count for anything the scheduler has never
+        polled (inputs recorded directly, as the tests do).
+        """
+        n = self.schedule.ecu_ticks(ecu) if pid is None else self.schedule.due_count(ecu, pid)
+        return self.cycle if n is None else n
+
     def _expire_state_inputs(self) -> None:
-        """Drop state-suggestion inputs not refreshed in the last few cycles.
+        """Drop state-suggestion inputs not refreshed in their last few polls.
 
         ``decoded_values``/``responded`` accumulate across the run, so without
         this they answer "was this ever true", not "is it true now": after a
@@ -704,30 +760,34 @@ class MonitorController:
         Expiring restores the three-valued contract — a signal we no longer read
         goes back to UNKNOWN (abstain) instead of lingering as a stale fact.
         """
-        cutoff = self.cycle - STATE_INPUT_STALE_CYCLES
-        if cutoff < 0:
-            return
-        for key, seen in list(self._value_cycle.items()):
-            if seen < cutoff:
+        for key, (ecu, pid, seen) in list(self._value_cycle.items()):
+            if self._state_clock(ecu, pid) - seen > STATE_INPUT_STALE_CYCLES:
                 del self._value_cycle[key]
                 self.decoded_values.pop(key, None)
-        for ecu, seen in list(self._responded_cycle.items()):
-            if seen < cutoff:
-                del self._responded_cycle[ecu]
-                self.responded.discard(ecu)
+        for short, (ecu, seen) in list(self._responded_cycle.items()):
+            if self._state_clock(ecu) - seen > STATE_INPUT_STALE_CYCLES:
+                del self._responded_cycle[short]
+                self.responded.discard(short)
 
     def _record(self, new_queries: list[EcuFrame]) -> None:
         """Record freshly-polled payloads into prev_hex / display / save history."""
         # Refresh the decoded-value snapshot used for state auto-suggestion.
         from ..states import collect_values
 
-        values, responded = collect_values(new_queries)
-        self.decoded_values.update(values)
-        self.responded |= responded
-        for key in values:
-            self._value_cycle[key] = self.cycle
-        for ecu in responded:
-            self._responded_cycle[ecu] = self.cycle
+        for ecu_label, pid_results in new_queries:
+            ecu = _label_ecu(ecu_label)
+            for entry in pid_results:
+                values, _ = collect_values([(ecu_label, [entry])])
+                self.decoded_values.update(values)
+                clock = self._state_clock(ecu, entry["pid"])
+                for key in values:
+                    self._value_cycle[key] = (ecu, entry["pid"], clock)
+            # `responded` is keyed by collect_values' short name; age it by the
+            # ECU the row label actually names.
+            _values, responded = collect_values([(ecu_label, pid_results)])
+            self.responded |= responded
+            for short in responded:
+                self._responded_cycle[short] = (ecu, self._state_clock(ecu))
         self._expire_state_inputs()
         # Snapshot the prior cycle's payloads before the recorder overwrites them,
         # so the renderer can diff current-vs-previous (prev_hex is about to become
@@ -752,40 +812,61 @@ class MonitorController:
         self.recorder.observe(new_queries)
 
     async def poll_once(self) -> None:
-        """Run every query step once, updating live state. Sets ``disconnected``."""
+        """Run one tick: read every PID that is due, updating live state.
+
+        On the fixed schedule that is every PID; on the per-PID schedule only the
+        ones whose period has elapsed (the rest keep showing their last value).
+        Sets ``disconnected``.
+        """
         self.cycle += 1
         diag = self.diag_recorder()
         base = diag.snapshot() if diag is not None else None
         self._cycle_answered = False
+        self.fresh_queries = []
         t0 = time.monotonic()
-        if self.raw:
-            await self._poll_raw()
-        else:
-            await self._poll_elm()
+        self.schedule.begin_tick(t0)
+        try:
+            if self.raw:
+                await self._poll_raw()
+            else:
+                await self._poll_elm()
+        finally:
+            self.schedule.end_tick()
         self.elapsed = time.monotonic() - t0
         if diag is not None and base is not None:
             delta = diag.diff(base)
             self.last_drops = delta.drops
             self.last_errors = delta.errors
             self.last_stale = delta.stale
-        self._record(self.last_queries)
-        self._check_liveness()
+        self._record(self.fresh_queries)
+        self._check_liveness(
+            {_label_ecu(label) for label, rows in self.fresh_queries if rows},
+            {_label_ecu(label) for label, _rows in self.last_queries},
+        )
 
-    def _check_liveness(self) -> None:
+    def _check_liveness(self, polled: set[str], live: set[str]) -> None:
         """Escalate an all-stale run to a reconnect.
 
         A transport error raises and is caught by the poll loop, but a pipe that
         is *open and useless* — every reply landing one slot behind its request —
         raises nothing, so ``disconnected`` would never be set and the session
         would sit there showing carried-forward values forever. That is the bug
-        this guards: count cycles where nothing answered, and hand the session to
+        this guards: count polls where nothing answered, and hand the session to
         the reconnector once it is clearly not recovering on its own.
+
+        ``polled`` are the ECUs read this tick, ``live`` every ECU on screen. It
+        escalates once *every* live ECU has gone unanswered for the threshold, so
+        a tick that only reached a sleeping ECU is not held against a slower one
+        that is still answering between its own ticks.
         """
-        if self._cycle_answered or not self.last_queries:
+        if self._cycle_answered or not polled:
+            self._unanswered.clear()
             self.dead_cycles = 0
             return
+        for ecu in polled:
+            self._unanswered[ecu] = self._unanswered.get(ecu, 0) + 1
+        self.dead_cycles = min(self._unanswered.get(ecu, 0) for ecu in live | polled)
         limit = config.stale_cycles_before_reconnect()
-        self.dead_cycles += 1
         if limit <= 0 or self.dead_cycles < limit:
             return
         log_event(
@@ -793,6 +874,7 @@ class MonitorController:
             f"no coherent response for {self.dead_cycles} poll cycles - reconnecting",
             transport=self.transport_type,
         )
+        self._unanswered.clear()
         self.dead_cycles = 0
         self.disconnected = True
 
@@ -823,9 +905,15 @@ class MonitorController:
         # their values (no flicker); overwrite each as it completes this cycle.
         frame = dict(self.last_queries)
         order = [label for label, _ in self.last_queries]
-        new_queries: list[EcuFrame] = []
+        polled: list[str] = []
         last_render = 0.0
         for step in self.query_steps:
+            full_codes: list[str] = []
+
+            def _take_due(ecu: str, plan: list, codes: list[str] = full_codes) -> list:
+                codes.extend(entry[0] for entry in plan)
+                return self.schedule.take_due(ecu, plan)
+
             try:
                 result = await _exec_query(
                     self.sm,
@@ -838,6 +926,7 @@ class MonitorController:
                     quiet=True,
                     batch_state=self._batch_state,
                     include_static=self.include_static,
+                    plan_filter=_take_due,
                 )
             except ConnectionError:
                 self.disconnected = True
@@ -847,18 +936,26 @@ class MonitorController:
                 # Keep a timed-out PID's last-good values (stale/dimmed) instead
                 # of collapsing to an error line and jolting the layout.
                 pids = [self._displayify((label, e["pid"]), e) for e in pids]
-                result = (label, pids)
-                new_queries.append(result)
+                if pids:
+                    self.fresh_queries.append((label, pids))
                 if label not in frame:
                     order.append(label)
-                frame[label] = pids
+                if label not in polled:
+                    polled.append(label)
+                # Every PID of the plan, in plan order: the ones read this tick
+                # with their new result, the rest as they were last shown.
+                frame[label] = [
+                    self._last_shown[(label, code)]
+                    for code in full_codes
+                    if (label, code) in self._last_shown
+                ]
                 self.last_queries = [(lb, frame[lb]) for lb in order if lb in frame]
                 now = _t.monotonic()
                 if self._on_partial is not None and (now - last_render) >= 0.12:
                     last_render = now
                     with contextlib.suppress(Exception):
                         self._on_partial()
-        self.last_queries = new_queries
+        self.last_queries = [(lb, frame[lb]) for lb in polled]
         self.last_cmds = self.terminal.cmd_count - cmds0
         self.last_elm_time = self.terminal.cmd_time - elm0
 
@@ -929,7 +1026,7 @@ class MonitorController:
             self.verbose,
             self.cycle,
             self.elapsed,
-            self.interval,
+            self.schedule.describe(),
             self.prev_snapshot,
             hex_history=self.hex_history,
             show_rulers=self.show_rulers,
@@ -1019,6 +1116,7 @@ class MonitorController:
             "keep_n": self.keep_n,
             "view_mode": self.view_mode,
             "interval": self.interval,
+            "schedule": self.schedule.describe(),
             "cycle": self.cycle,
             "total_frames": self.total_frames,
             "unique_frames": self.unique_frames,
@@ -1167,7 +1265,6 @@ async def _monitor_noninteractive(controller: MonitorController) -> None:
     with graceful_stop(_handle_stop):
         try:
             while not stop_flag["v"] and not controller.disconnected:
-                t0 = time.monotonic()
                 await controller.poll_once()
                 if controller.disconnected:
                     # Try to re-home the dropped session (auto-failover / --wait)
@@ -1176,10 +1273,10 @@ async def _monitor_noninteractive(controller: MonitorController) -> None:
                     if not await _attempt_reconnect(controller, stop_flag, _notice):
                         return
                     continue
-                remaining = controller.interval - (time.monotonic() - t0)
+                remaining = controller.seconds_until_due()
                 while remaining > 0 and not stop_flag["v"] and not controller.disconnected:
                     await asyncio.sleep(min(remaining, 0.1))
-                    remaining = controller.interval - (time.monotonic() - t0)
+                    remaining = controller.seconds_until_due()
         finally:
             signal.signal(signal.SIGINT, old_int)
 
@@ -1232,6 +1329,7 @@ async def mode_monitor(
     include_static: bool = False,
     transport_type: str | None = None,
     reconnect: "Reconnector | None" = None,
+    schedule: Schedule = DEFAULT_SCHEDULE,
 ):
     """Live-refresh ECU parameter monitor.
 
@@ -1245,7 +1343,11 @@ async def mode_monitor(
         query_steps:    list of {'type': 'query', 'ecu': ..., 'pids': [...]} dicts.
         pids_data:      Loaded PID definitions.
         verbose:        Show expressions.
-        interval:       Seconds between poll cycles (default: 5.0).
+        interval:       Seconds between poll cycles on the fixed schedule, and the
+                        period of any PID without a ``period:`` on the per-PID
+                        one (default: 5.0).
+        schedule:       ``"dynamic"`` (default) polls each PID at its own profile
+                        ``period:``; ``"fixed"`` polls every PID every cycle.
         session_steps:  Optional list of session/skm-wake steps to run once before
                         the first poll cycle.
         keep_mode:      None = no history, "unique" = deduped unique payloads,
@@ -1261,16 +1363,9 @@ async def mode_monitor(
         notation:       Byte-index notation for the ruler + the per-signal
                         byte-reference column (default WiCAN ``Bnn``).
 
-    TUI keys: ↑/↓ move the signal-selection cursor, j/k scroll, PgUp/PgDn
-    page, g/Home top, G/End bottom, space pause/resume polling, e edit the
-    selected signal, v toggle its verified flag, d toggle enabled/disabled,
-    F cycle the display filter (all/verified/unverified/enabled/disabled),
-    V cycle the display view mode (ecus/ranges/signals/full), r toggle the
-    byte-index ruler, i open the session-info overlay, l open the diagnostics
-    log, s save/label the current session, n close the current --save segment
-    and start a new one, p open the PID picker (add/remove signals live), t
-    open the diagnostic session-type switcher, q or Ctrl+C stop. A blinking
-    ``● REC`` in the status line marks an active --save recording; a ``sess``
+    TUI keys come from the shared role registry (:mod:`canlib.tui_keys`); press
+    ``?`` in the app for the live cheat-sheet rather than trusting a copy here. A
+    blinking ``● REC`` in the status line marks an active --save recording; a ``sess``
     status item shows each ECU's currently-open diagnostic session type; each
     signal row shows a small circle (green when fresh, grey when stale).
     """
@@ -1292,6 +1387,7 @@ async def mode_monitor(
         notation=notation,
         raw_client=raw_client,
         include_static=include_static,
+        schedule=schedule,
     )
     controller.captures_dir = captures_dir
     # Seed the header's segment metadata from the initial --label/--state/--notes.

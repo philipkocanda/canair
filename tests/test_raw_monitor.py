@@ -112,7 +112,9 @@ class FakeRawClient:
 
 
 def _mk_ctrl(steps, ecu_index, lengths=None, nobatch=None, table=None):
-    c = MonitorController(None, steps, {}, verbose=False, raw_client=FakeRawClient(table or {}))
+    c = MonitorController(
+        None, steps, {}, verbose=False, raw_client=FakeRawClient(table or {}), schedule="fixed"
+    )
     c._ecu_index = ecu_index
     if lengths:
         c._raw_lengths.update(lengths)
