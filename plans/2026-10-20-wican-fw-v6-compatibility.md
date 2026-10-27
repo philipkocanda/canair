@@ -38,6 +38,7 @@ as the wican-hardware-and-protocol skill's Rule 0 warns.
 | `wican-fw` (v4) | `v4.52p` = `fab54ad` | `wican-pro` branch; current stable |
 | `wican-fw` (v6 app) | `v6.0.0p-beta.1` = `e35b1d8` | branched from `1067262` (`v4.51p_beta-01`) |
 | `meatpi-components` | `2ef6d0f` (2026-10-19) | **where v6's code actually lives** |
+| `meatpi-components` | `dc649d7` (2026-10-27) | read for the `beta.3`+ byte-indexing correction in §6; `v6.0.0p-beta.5` is the latest tag |
 
 **v6 moved almost all of its code out of `wican-fw`.** The `v6` tag's `components/` holds only
 `HTTP_API.md`. Its `main/` is a thin composition layer. Everything else is in
@@ -321,16 +322,24 @@ check it after the write, not trust the status code.
   `data_destinations` (a cyclic snapshot, `period_s` ≥ 1) and `event_manager` rules. This
   affects `plans/2026-10-18-per-signal-mqtt-streaming.md`.
 
-**Byte indexing changed, and v6's own migration rule is wrong for multi-frame replies:**
+**Byte indexing: `6.0.0-beta.1`/`beta.2` differ from v4, `beta.3` and later match it:**
 
 - v4 concatenates each frame's data **including its PCI byte**
   (`wican-fw/components/autopid/autopid.c:2114-2290`).
-- v6 reassembles ISO-TP with the PCI bytes stripped, so `B0` is the service echo
-  (`mpc/autopid/autopid_resp.c:28-31`, `:150-215`).
-- The docs and importer shift every index by −1 (`mpc/autopid/README.md:848-851`), which is
-  only right for single-frame replies.
-- **v6's index is exactly canair's ISO-TP space** (`canlib/notation.py::ByteRef`). A v6
-  generator should emit ISO-TP offsets directly, not shifted WiCAN ones.
+- `beta.1` and `beta.2` reassembled ISO-TP with the PCI bytes stripped, so `B0` was the service
+  echo. The docs and importer shifted every index by −1, which is only right for single-frame
+  replies.
+- `beta.3` and later (issue #1014; `meatpi-components` `506e267`, 2026-10-24, in the
+  `6.0.0-beta.3` release notes) read the chip with headers on again. Expressions index the
+  frames as the chip prints them, PCI bytes included, `B0` being the first byte after the CAN
+  id (`mpc/autopid/autopid_resp.c:34-41`, `mpc/autopid/README.md:577-594`). Published 4.x
+  profiles "go in verbatim" and the importer no longer shifts. A custom PID written on a v6
+  alfa or beta against a single-frame reply reads one byte too far and needs each `B` index
+  moved up by one.
+- So on `beta.3`+ canair's canonical WiCAN `Bnn` expression (`canlib/notation.py`) is already
+  the right index; a v6 generator needs no translation. It must refuse or warn on `beta.1`/
+  `beta.2`, where it would be off by one beyond the first frame. `canlib/wican_firmware.py`
+  currently treats v6 as one generation and does not distinguish the betas.
 
 **The expected-response digit:**
 
@@ -497,7 +506,8 @@ Sketch only. Each item needs its own plan once Q1–Q5 are answered.
    - bitrate and listen-only set through `can_manager` instead of SLCAN commands;
    - detecting the "accepted but no bridge" state via `/api/sockets` (`bridge: null`).
 3. **AutoPID on v6:**
-   - a generator emitting the `groups/pids/filters` schema with ISO-TP byte offsets;
+   - a generator emitting the `groups/pids/filters` schema with the same `Bnn` expressions as
+     v4 (valid from `6.0.0-beta.3`; refuse the earlier betas, see §6);
    - an upload path that verifies by reading back after the PUT;
    - `/api/autopid/test` as a pre-flight decode check;
    - mapping `send_to` onto `data_destinations` or event rules, or dropping it on v6.

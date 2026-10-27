@@ -110,9 +110,8 @@ What v6 does not guarantee:
   spike.
 - **canair cannot use v6 yet.** `wican-ws` and the 4.x AutoPID upload are gone and the AutoPID
   config format changed; `canair wican autopid upload|download|diff` refuse on v6 until Phase 2
-  of `plans/2026-10-20-wican-fw-v6-compatibility.md`. Note that plan's §6 says the v6 docs and
-  importer shift every index by -1; that was the `beta.1`/`beta.2` behaviour and was reverted in
-  `beta.3` (release notes for `6.0.0-beta.3`, #1014).
+  of `plans/2026-10-20-wican-fw-v6-compatibility.md`. That plan's §6 records the `beta.1`/`beta.2`
+  index shift and its reversal in `beta.3` (#1014).
 
 So v6 is a plausible fix, not a verified one, and not something to move the car's device to
 just for this.
