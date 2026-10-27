@@ -513,7 +513,12 @@ OBC:
       vehicle_states: [READY, CHARGING]
       created: "2026-10-27"
       updated: "2026-10-27"
-      notes: OBDb defines 7E5 22 E101 (aux battery voltage, current, SOC, temperature) for newer model years. E001-E011 are already NRC on this car; E101 was outside that sweep.
+      notes: >-
+        OBDb defines 7E5 22 E101 and 22 E011 as the 12 V battery sensor values: current (bix 144,
+        raw/100-327), SoC (bix 160), voltage (bix 168, raw/1000+6), temperature (bix 184, raw/2-40).
+        These match the BAT11 frame on P-CAN (0x549), so a hit here would give 12 V SoC and current.
+        E001-E011 were already refused on this car (so E011 is closed); E101 was outside that sweep
+        and is the only unprobed 12 V page.
       sources:
         - OBDb Hyundai-IONIQ-Electric signalset (pelican.clutch.engineering ioniq-electric parameters), compared 2026-10-27
       capture_protocol: canair scan OBC --service 22 --range E100-E10F --save

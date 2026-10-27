@@ -922,13 +922,22 @@ VCU:
       created: "2026-10-21"
       updated: "2026-10-21"
       result: >-
-        2026-10-21: voltage found, SOC/SOH/current not. VCU 2102 [B26:B27] LE /1000 = 12 V battery
-        voltage (VCU_AUX_BATTERY_VOLTAGE_FINE), the same offset as the e-Niro sheet's 'Aux Battery
-        Voltage'. The e-Niro 2102 continues with battery current and SOC; the Ioniq 2102 is 23 data
-        bytes and ends at B27, and the VCU answers only 21 01/02/F2. No byte in any PID polled
-        during the 2026-08-05 12:31-15:31 charge rose monotonically apart from the BMS accumulators.
-        Still open: other ECUs (BCM, IGPM) or a broadcast-only signal.
-      notes: The Ioniq P-CAN carries the 12V battery sensor frame 0x549 (opendbc BAT11, sender EMS). On the uhi22 Ioniq 28 logs it decodes as BAT_SNSR_V 14.78-14.82 V, BAT_SOC 65-68 %, BAT_SOH 89 %, BAT_SNSR_Temp 2 C, BAT_SNSR_I 1-5 A. The profile has no 12V state-of-charge or state-of-health signal. The VCU is the most likely diagnostic owner because it takes the EMS role on this EV; unconfirmed. Broadcast scalings (SOC and SOH 1 %/bit, voltage 0.001 V/bit + 6 V, temp 0.5 C/bit - 40 C, current 0.01 A/bit - 327 A) may not carry over to a DID.
+        Voltage found (VCU 2102 [B26:B27]); SoC, SoH, current and temperature are not in any
+        captured PID. Source frame is P-CAN 0x549 (BAT11).
+      notes: >-
+        The Ioniq P-CAN carries the 12 V battery sensor frame 0x549 (opendbc BAT11: current, SoC,
+        voltage, temperature, SoH, state of function). In the uhi22 28 kWh logs it decodes as 14.8
+        V, SoC 65-68 %, SoH 89 %, 1-2 degC, about one frame per 7 s. OBDb exposes the same
+        quantities with the same scales (current raw/100-327, voltage raw/1000+6, temperature
+        raw/2-40) over diagnostics at 7E5 22 E011 and 22 E101, so those pages look like BAT11
+        re-served on newer cars. 2026-10-27 negative results on this car: (1) a scan of all 84
+        captured ECU/PID combinations for slow 0-100 bytes and for near-constant 60-100 bytes found
+        only temperatures, enums and known constants; (2) correlating every raw byte against
+        VCU_AUX_BATTERY_VOLTAGE_FINE finds only copies of the voltage; (3) the 27-byte variant of
+        VCU 2102 (3320 older captures) has constant zeros where the e-Niro layout puts current and
+        SoC, and the current 23-byte reply stops after the voltage; (4) VCU 22 E001-E010 and OBC 22
+        E001-E011 are refused, and the 7E0 ECM that OBDb uses for 22 E004 is not on this car. Still
+        open: OBC 22 E101, and whether the OBD port can see 0x549 at all.
       sources:
         - opendbc hyundai_2015_ccan.dbc (commaai, MIT), cross-checked against uhi22 Ioniq28Investigations P-CAN logs (scripts/fetch_can_corpus.py)
       what_to_test:
@@ -1021,6 +1030,22 @@ VCU:
         - IONIQ_AVN_FW_FINDINGS.md section 6
       what_to_test:
         - Record 0x57B with canair sniff on a tapped bus while polling VCU 2101 across READY, an AC charge and a 12 V top-up, and tabulate the 0x57B byte-2 high nibble against VCU_POWER_STATE
+    - type: scan
+      target: sniff 0x549 (BAT11 12V battery sensor) on the OBD port
+      status: pending
+      priority: P2
+      vehicle_states: [READY]
+      created: "2026-10-27"
+      updated: "2026-10-27"
+      notes: Check whether the OBD port exposes the broadcast 12 V battery sensor frame 0x549 (opendbc BAT11). It would give 12 V SoC, SoH, current and temperature, none of which is in any diagnostic page captured so far. The uhi22 logs show it about every 7 s with SoC 65-68 % and SoH 89 %. No raw broadcast capture exists for this car yet (captures/can is empty).
+      sources:
+        - opendbc hyundai_2015_ccan.dbc BAT11; uhi22 Ioniq28Investigations P-CAN logs; canair 12 V SoC/SoH search 2026-10-27
+      what_to_test:
+        - Does 0x549 appear in a 60 s canair sniff with the car in READY? Also try with the car in ACC and while AC charging
+        - "If it appears: import the log, decode with BAT11's layout and compare BAT_SNSR_V against VCU_AUX_BATTERY_VOLTAGE_FINE"
+      capture_protocol: >-
+        canair sniff --save for 60 s in READY (slcan-tcp only), then canair import can on the saved
+        log
   sessions:
     "81":
       name: "standardDiagnosticSession"
