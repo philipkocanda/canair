@@ -32,7 +32,7 @@ groups:
     description: Powertrain + chassis while driving (odometer on CLU)
     members:
       [IGPM:22BC03, IGPM:22BC06, BMS:2101, BMS:2105, VCU:2101, VCU:2102, MCU:2101, MCU:2102,
-       EPS:220101, ESC:22C101, CLU:22B002, AAF:2180, AAF:2181]
+       EPS:220101, ESC:22C101, CLU:22B002, AAF:2180, AAF:2181, HVAC:2201A1]
 
   # HV drive-core essentials for drive analysis (pack power, vehicle state,
   # motor torque, cooling).
@@ -43,7 +43,7 @@ groups:
   # Climate power / heat-pump / active air flap work.
   climate:
     description: Climate power / heat-pump / active air flap
-    members: [HVAC:220100, HVAC:220102, HVAC:2201A0, HVAC:2201A2, VCU:2102, BMS:2101, AAF:2180, AAF:2181]
+    members: [HVAC:220100, HVAC:220102, HVAC:2201A0, HVAC:2201A1, HVAC:2201A2, VCU:2102, BMS:2101, AAF:2180, AAF:2181]
 
   # Body / gateway / smart-key comfort modules (door/lock/hood event decoding).
   body:
