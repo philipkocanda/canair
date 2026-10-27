@@ -18,7 +18,7 @@ BMS:
     # BMS ROM IDs by production year:
     # 4604 = 2017-11
     # 4804 = 2018-04 (could be earlier)
-    # 4824 = 2019-03 (could be earlier)
+    # 4824 = 2018-11 and newer (incl. 2019 models)
     id_protocol: KWP2000  # 1Axx
     notes: >-
       1A80 firmware build date reads 2008-07-09. Air-cooled pack: a BMS-controlled fan in the trunk
