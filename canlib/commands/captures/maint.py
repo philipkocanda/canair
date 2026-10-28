@@ -52,7 +52,7 @@ def cmd_migrate(captures_dir: Path | None, *, dry_run: bool = False, as_json: bo
     """Convert legacy captures/*.yaml → *.json for the active profile (or --dir)."""
     import json as _json
 
-    from canlib.capture_migrate import MigrationError, migrate_dir
+    from canlib.migrations.captures import MigrationError, migrate_dir
 
     cdir = resolve_captures_dir(captures_dir)
     try:
@@ -102,7 +102,7 @@ def cmd_migrate_rx(
     """Rename the capture ``ecu`` field → ``rx`` for the active profile (or --dir)."""
     import json as _json
 
-    from canlib.capture_field_migrate import migrate_dir
+    from canlib.migrations.capture_fields import migrate_dir
 
     cdir = resolve_captures_dir(captures_dir)
     results = migrate_dir(cdir, dry_run=dry_run)
@@ -143,8 +143,8 @@ def _discover_addressing(prof):
     error rather than a traceback.
     """
     from canlib.addressing import resolve_mode, resolve_rx_offset
-    from canlib.discover_migrate import Addressing
     from canlib.ecus import load_ecus
+    from canlib.migrations.discover import Addressing
     from canlib.pids import load_pids
     from canlib.profile import ProfileError
 
@@ -170,7 +170,7 @@ def cmd_migrate_discover(
     import json as _json
     from dataclasses import asdict
 
-    from canlib import discover_migrate
+    from canlib.migrations import discover as discover_migrate
 
     from . import layers
 

@@ -8,7 +8,7 @@ import pytest
 import yaml
 
 from canlib import capture_io
-from canlib.capture_migrate import MigrationError, migrate_dir, migrate_file
+from canlib.migrations.captures import MigrationError, migrate_dir, migrate_file
 
 _DOC = {
     "sessions": [

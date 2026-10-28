@@ -238,7 +238,7 @@ and **`g`/`G` address the view's primary axis**.
   `commands/captures/session_fields.py`, and all three `--set-*` share
   `session_gate.py::refuse_write` for the base-layer refusal and confirmation), `--recover`, and
   the one-time `migrate` (YAML→JSON) / `migrate-rx` (`ecu`→`rx`) / `migrate-discover` (gives legacy
-  discover responders their `tx`; `canlib/discover_migrate.py`) / `split-batched` (splits a
+  discover responders their `tx`; `canlib/migrations/discover.py`) / `split-batched` (splits a
   multi-DID reply stored whole under its first DID into per-DID rows;
   `canlib/uds/unsplit_batches.py`) / `merge-driver` (see Key Files).
   **`captures can`** (domain B) lists imported raw frame logs from `captures/can/index.yaml`.
@@ -724,7 +724,7 @@ Each device carries a `host` plus optional `transport`/`port`/`bitrate` (precede
 `--transport`/`--wican` CLI > device entry > global `transport:` block > default). Select with
 `--wican home|vpn|<ip>`; with no config it falls back to `192.168.80.1` (WiCAN AP mode). The legacy
 flat `wican_addresses: {alias: host}` form still works when no `devices:` block exists and is
-**auto-migrated into `devices:` on first run** (`canlib/devices_migrate.py`); once `devices:` exists
+**auto-migrated into `devices:` on first run** (`canlib/migrations/devices.py`); once `devices:` exists
 it is ignored. Resolvers: `canlib/config.py::wican_devices` (authoritative map + `DeviceEntry`) and
 `fallback_settings`; `wican_settings` is a back-compat shim.
 

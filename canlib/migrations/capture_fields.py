@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from . import capture_io
+from canlib import capture_io
 
 
 @dataclass

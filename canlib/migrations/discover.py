@@ -30,9 +30,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from . import capture_io
-from .addressing import AddressingMode
-from .ecus import EcuNameCollision, EcuRegistryEntry, build_name_tx_index, rx_for_tx
+from canlib import capture_io
+from canlib.addressing import AddressingMode
+from canlib.ecus import EcuNameCollision, EcuRegistryEntry, build_name_tx_index, rx_for_tx
 
 # The offset the old writer applied to an unregistered TX, whatever the profile.
 LEGACY_FALLBACK_OFFSET = 0x08

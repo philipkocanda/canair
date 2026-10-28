@@ -14,7 +14,7 @@ import pytest
 
 from canlib.addressing import DEFAULT_MODE
 from canlib.captures import save_session
-from canlib.discover_migrate import Addressing, infer_tx, migrate_dir, repair_doc
+from canlib.migrations.discover import Addressing, infer_tx, migrate_dir, repair_doc
 
 # A +0x20 profile, as on the Nissan Leaf ZE1, with two registered ECUs.
 ECUS = {

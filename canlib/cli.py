@@ -297,7 +297,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # One-time, best-effort migration of a legacy wican_addresses block to the
     # richer devices: form (never blocks; runtime precedence handles the rest).
-    from canlib.devices_migrate import maybe_auto_migrate
+    from canlib.migrations.devices import maybe_auto_migrate
 
     maybe_auto_migrate()
 

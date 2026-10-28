@@ -20,7 +20,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from .config import load_config, user_config_file
+from canlib.config import load_config, user_config_file
 
 
 @dataclass(frozen=True)
@@ -50,7 +50,7 @@ def migrate_config(*, dry_run: bool = False) -> MigrationResult:
     """
     from ruamel.yaml.comments import CommentedMap
 
-    from .yaml_rt import dump, round_trip_yaml
+    from canlib.yaml_rt import dump, round_trip_yaml
 
     path = user_config_file()
     if not path.exists():

@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import yaml
 
-from canlib import config, devices_migrate
+from canlib import config
+from canlib.migrations import devices as devices_migrate
 
 
 def _reset():

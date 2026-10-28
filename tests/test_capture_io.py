@@ -120,8 +120,8 @@ def test_migrate_then_load_all_captures_roundtrip(tmp_path):
     # production bulk loader (the Stage-2 reader path).
     import yaml
 
-    from canlib.capture_migrate import migrate_dir
     from canlib.capture_store import load_all_captures
+    from canlib.migrations.captures import migrate_dir
 
     doc = {
         "sessions": [
