@@ -24,7 +24,8 @@ from datetime import date, datetime
 from functools import cached_property
 from pathlib import Path
 
-from .byteindex import payload_to_wican_bytes as _payload_to_wican_bytes
+from canlib.uds.byteindex import payload_to_wican_bytes as _payload_to_wican_bytes
+
 from .capture_dates import entry_datetime, filter_by_date_range, filter_by_text
 from .capture_store import load_all_captures
 from .capture_types import CaptureEntry
@@ -385,7 +386,7 @@ def longest_payload_len(captures) -> int | None:
     The WiCAN<->ISO-TP mapping depends on the frame layout — a single-frame
     (<=7-byte) response carries one PCI byte, a multi-frame response two plus one
     per consecutive frame — so render layers pass this to
-    :func:`canlib.notation.relabel_signal` / :meth:`canlib.notation.ByteRef.from_wican`.
+    :func:`canlib.uds.notation.relabel_signal` / :meth:`canlib.uds.notation.ByteRef.from_wican`.
 
     The *longest* payload is used: it defines the widest valid byte range. Frame padding
     in old captures can inflate it, which is harmless here because it never changes
@@ -408,7 +409,7 @@ def payload_lengths(loaded: dict[tuple[str, str], LoadedPid]) -> dict[tuple[str,
     The frame layout — and therefore the WiCAN↔ISO-TP mapping — depends on the
     payload's length (one PCI byte for a single frame, two plus one per
     consecutive frame for a multi-frame response). Render layers pass this to
-    :func:`canlib.notation.relabel_signal` so a label names the right byte.
+    :func:`canlib.uds.notation.relabel_signal` so a label names the right byte.
 
     The *longest* payload is used, as in :func:`longest_payload_len`.
     """

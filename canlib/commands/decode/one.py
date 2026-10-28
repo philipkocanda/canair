@@ -24,14 +24,14 @@ import sys
 
 from canlib import ansi
 from canlib.align import join_nearest
-from canlib.byteindex import payload_to_wican_bytes
 from canlib.capture_store import load_pid_captures
 from canlib.commands._join import fill_policy_from_args
-from canlib.decoding import decode_payload, ordered_signal_names
+from canlib.expression.decoding import decode_payload, ordered_signal_names
 from canlib.keepmode import CHANGES_BANNER, scope_is_keep_changes, scope_is_keep_unique
-from canlib.notation import resolve_notation, subfunction_bytes_for_pid
 from canlib.stats import compute_stats
 from canlib.stats import correlation as _correlation
+from canlib.uds.byteindex import payload_to_wican_bytes
+from canlib.uds.notation import resolve_notation, subfunction_bytes_for_pid
 
 from .analysis import print_correlations, print_discriminate, print_mirrors
 from .calc import _local_series, _paired, _series, axis_group_keys, load_cross_ref_series

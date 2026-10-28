@@ -13,11 +13,11 @@ from typing import TYPE_CHECKING
 
 from canlib import ansi
 from canlib.align import longest_payload_len
-from canlib.inspect_bytes import apply_transform
 from canlib.mirrors import DEFAULT_MIRROR_MATCH
-from canlib.notation import ByteNotation, relabel_signal
 from canlib.states import load_states, state_bucket_key
 from canlib.stats import correlation as _correlation
+from canlib.uds.inspect_bytes import apply_transform
+from canlib.uds.notation import ByteNotation, relabel_signal
 from canlib.xanalysis import byte_state_buckets as _byte_state_buckets
 from canlib.xanalysis import discriminability as _discriminability
 

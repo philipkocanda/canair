@@ -20,7 +20,7 @@ from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Button, Input, Label
 
-from .tui_keys import bind
+from canlib.tui.keys import bind
 
 
 class TextPromptModal(ModalScreen["str | None"]):

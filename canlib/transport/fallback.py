@@ -44,7 +44,7 @@ def _first_reachable(
     candidates: list[TransportConfig], connect_timeout: float
 ) -> TransportConfig | None:
     """First candidate (in order) that answers a liveness probe, else ``None``."""
-    from ..wican_mode import _tcp_open
+    from canlib.wican.mode import _tcp_open
 
     for cand in candidates:
         if cand.host and _tcp_open(cand.host, _probe_port(cand), connect_timeout):
@@ -77,7 +77,7 @@ def select_reachable_transport(
     if len(candidates) <= 1:
         return candidates[0]
 
-    from ..wican_mode import _tcp_open
+    from canlib.wican.mode import _tcp_open
 
     for i, cand in enumerate(candidates):
         if not cand.host:

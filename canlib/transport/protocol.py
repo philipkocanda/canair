@@ -22,10 +22,11 @@ import asyncio
 from contextlib import AbstractAsyncContextManager
 from typing import Protocol, runtime_checkable
 
+from canlib.uds.parse import UdsResponse
+
 from ..frame_counts import FrameCountLedger
 from ..timing import TimingRecorder
 from ..transport_stats import TransportStats
-from ..uds_parse import UdsResponse
 
 
 @runtime_checkable

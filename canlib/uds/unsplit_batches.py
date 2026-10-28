@@ -9,7 +9,7 @@ reply was taken as the answer to the per-DID fallback read.
 Nothing in the stored row says how it was requested, so this works across the corpus, like
 :mod:`canlib.misfiled`: a ``22`` capture is flagged when it is longer than its DID's
 established length and the remainder walks, DID by DID, through other DIDs of the same ECU at
-their own established lengths to the end of the payload (:func:`canlib.multi_did.split_chain`).
+their own established lengths to the end of the payload (:func:`canlib.uds.multi_did.split_chain`).
 
 The repair, :func:`split_unsplit_batches`, replaces each such row with one row per DID at the
 same instant, so the readings it carried are kept rather than deleted. Detection is pure; only
@@ -23,12 +23,12 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import capture_io, captures_merge
-from .capture_types import CaptureRecord, CaptureSession
-from .keepmode import KEEP_CHANGES, KEEP_UNIQUE
-from .misfiled import PayloadSample
-from .multi_did import POSITIVE_READ_SID, is_fill, is_padding, split_chain
-from .payload_corpus import Locator, load_payload_corpus
+from canlib import capture_io, captures_merge
+from canlib.capture_types import CaptureRecord, CaptureSession
+from canlib.keepmode import KEEP_CHANGES, KEEP_UNIQUE
+from canlib.misfiled import PayloadSample
+from canlib.payload_corpus import Locator, load_payload_corpus
+from canlib.uds.multi_did import POSITIVE_READ_SID, is_fill, is_padding, split_chain
 
 # A DID's data length is "established" only once it is seen often and almost exclusively, so
 # a thinly sampled or variable-length DID never anchors a finding.
@@ -84,7 +84,7 @@ def _estimate(group: list[bytes], chains: Callable[[bytes, int], bool]) -> int |
 
     The shortest observed length wins once at least :data:`MIN_LENGTH_SHARE` of the replies
     are explained by it: a reply of exactly that length, or that length stored with its ISO-TP
-    padding (:func:`~canlib.multi_did.is_padding`: fill out to the end of the final frame,
+    padding (:func:`~canlib.uds.multi_did.is_padding`: fill out to the end of the final frame,
     never further), or one that ``chains(reply, data_len)`` shows to be a whole batch.
     Padded replies count towards their length, so a padded majority does not outvote the
     unpadded replies it agrees with; and batch rows count as explained, not against, so the
@@ -201,7 +201,7 @@ def _per_did_rows(cap: CaptureRecord, parts: tuple[tuple[str, bytes], ...]) -> l
 
 def _dedup_key(cap: CaptureRecord) -> tuple[int, str, str] | None:
     """``(rx, PID, payload)`` as the recording dedup compares rows, or ``None`` for no payload."""
-    from .ecus import parse_ecu_ref
+    from canlib.ecus import parse_ecu_ref
 
     rx = parse_ecu_ref(capture_io.capture_rx(cap) or None)
     pid, payload = cap.get("pid"), cap.get("payload")

@@ -22,7 +22,7 @@ measured, so a report that fills must say which signals it filled and how far â€
 from one spelling, so the phrasing and units can't diverge across five commands.
 
 Mirrors :func:`canlib.capture_dates.add_scope_args` and
-:func:`canlib.notation.add_notation_arg`: one helper owning one group of flags
+:func:`canlib.uds.notation.add_notation_arg`: one helper owning one group of flags
 shared across the analysis verbs.
 
 ``captures uds --step`` deliberately keeps its own ``--join-tol``: it is a

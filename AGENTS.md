@@ -126,7 +126,7 @@ lists are in `canair <cmd> --help` and `docs/reference/cli/<cmd>.md`** — the e
 command's purpose plus the agent-facing rules and code pointers that `--help` does not carry.
 
 **TUI keys are not in `--help`.** Every Textual view's keymap is assembled from the shared role
-registry **`canlib/tui_keys.py`** (`ROLES` + `bind(role, action)`), so one key means one thing in
+registry **`canlib/tui/keys.py`** (`ROLES` + `bind(role, action)`), so one key means one thing in
 every view; press `?` in any TUI for its live cheat-sheet. Never hardcode a `Binding` key in a TUI —
 add or reuse a role, or `tests/test_tui_keymap.py` fails (it pins that every declared key resolves
 to a role, that its description matches the role's accepted wording, and that `escape` never quits).
@@ -209,7 +209,7 @@ and **`g`/`G` address the view's primary axis**.
   with `captures uds --recover`.
 - **`canair logs`** — The central diagnostics event log (`~/.config/canair/logs/canair.log`,
   size-rotated so it never grows unbounded): dropped/stale ISO-TP frames, timeouts, bus errors,
-  decode failures (classified by `canlib/uds_parse.py::classify_response` into
+  decode failures (classified by `canlib/uds/parse.py::classify_response` into
   `drop`/`stale`/`no_data`/`bus`/`decode`) plus unexpected internal exceptions. Written by the
   per-exchange recorder `canlib/transport_stats.py::TransportStats` (attached as `.diag` on both
   terminals and the raw client) — the same tally behind the monitor's live `drops` indicator and a
@@ -240,7 +240,7 @@ and **`g`/`G` address the view's primary axis**.
   the one-time `migrate` (YAML→JSON) / `migrate-rx` (`ecu`→`rx`) / `migrate-discover` (gives legacy
   discover responders their `tx`; `canlib/discover_migrate.py`) / `split-batched` (splits a
   multi-DID reply stored whole under its first DID into per-DID rows;
-  `canlib/unsplit_batches.py`) / `merge-driver` (see Key Files).
+  `canlib/uds/unsplit_batches.py`) / `merge-driver` (see Key Files).
   **`captures can`** (domain B) lists imported raw frame logs from `captures/can/index.yaml`.
 - **`canair decode`** (alias `dec`) — Value-centric decoding of all historical captures; the default
   view is each signal's value range. `--try` tests a candidate expression **without editing YAML**
@@ -295,7 +295,7 @@ reuse these instead of re-declaring a flag:
 - `--find-mirrors` / `--mirror-match` / `--allow-offset` — one matcher, `canlib/mirrors.py`, behind
   three sweeps (`decode` intra-PID, `correlate` cross-ECU, `correlate can` cross-ID).
 - `--notation {wican,isotp,torque,bix}` — **display only**; `--json`/`--promote` always emit the
-  canonical WiCAN expression. A byte is modelled in ISO-TP space (`canlib/notation.py::ByteRef`,
+  canonical WiCAN expression. A byte is modelled in ISO-TP space (`canlib/uds/notation.py::ByteRef`,
   rendered via `ByteDisplay`); WiCAN/Torque/bix are derived views. Persist a default with
   `config set display.byte_notation`.
 - Scope flags (`--since`/`--until`/`--date`/`--today`/`--state`/`--label`/`--last-session`/
@@ -314,7 +314,7 @@ reuse these instead of re-declaring a flag:
   a successful `upsert-param` **echoes the new expression's decoded value range** across existing
   captures — a `constant` where you expected variation usually means the offset landed on a PCI
   byte. Typed decoding (`--type` + `--value`/`--bit`) is a *parallel* decoding in
-  `canlib/decode_value.py`; the WiCAN `expression` stays the pure float. Free-text `notes`
+  `canlib/expression/decode_value.py`; the WiCAN `expression` stays the pure float. Free-text `notes`
   auto-format via `canlib/yaml_rt.py` (short inline, long folded `>-`) — pass plain strings, never
   hand-format block scalars.
 - **`canair signals`** — The domain-B analogue: view/edit the broadcast sidecar `signals/<bus>.yaml`
@@ -381,8 +381,8 @@ reuse these instead of re-declaring a flag:
   (a reply that looks like another ECU's answer to the same PID, which the echo check cannot see;
   cross-file pass, detection in `canlib/misfiled.py`), **unsplit multi-DID replies** (a batch
   reply starts `62 D1`, so it passes `D1`'s echo check; same corpus load via
-  `canlib/payload_corpus.py`, detection in `canlib/unsplit_batches.py`, reply walk in
-  `canlib/multi_did.py`, which the live batched read paths also use to discard one), non-hex
+  `canlib/payload_corpus.py`, detection in `canlib/uds/unsplit_batches.py`, reply walk in
+  `canlib/uds/multi_did.py`, which the live batched read paths also use to discard one), non-hex
   payloads, **untimed payload captures** (excluded from every time-aligned analysis) and
   **degraded-transport sessions** (recorded drops/stale frames). **`--max-untimed N` is the CI
   ratchet**: fail when the count *grows*. The write path now enforces a timestamp so the count
@@ -402,7 +402,7 @@ reuse these instead of re-declaring a flag:
   9-frame ceiling, or on an odd-length request. `autopid stats` shows a `Frames` column so you can
   see which PIDs have earned one. **A signal with `send_to: TOPIC` streams to that MQTT topic on
   every poll** (emitted as `type: MQTT_Topic`; rule in
-  `canlib/autopid_send_to.py`), because the batch snapshot's `cycle` (10 s default) is **device
+  `canlib/wican/autopid_send_to.py`), because the batch snapshot's `cycle` (10 s default) is **device
   config canair does not manage** — a faster `period` alone never reaches the broker faster.
   `mode set MODE` switches the device protocol and **auto-aligns the config `transport.type`**
   (`slcan`→`slcan-tcp`, `elm327`→`wican-ws`; `--no-transport` opts out).
@@ -412,8 +412,8 @@ reuse these instead of re-declaring a flag:
   overlays which signal maps each byte and flags `unmapped` ones). **Never convert a byte index by
   hand** — the mapping depends on the response's *length* (one vs two PCI bytes) and its *service*
   (header width and field order), which `bix` reads off the payload; the skill's byte-index
-  reference explains the trap. Code map: roles come from **`canlib/uds_layout.py`** (a `response_SID
-  → [(role, width)]` table over the `canlib/uds_services.py` registry), which also owns
+  reference explains the trap. Code map: roles come from **`canlib/uds/layout.py`** (a `response_SID
+  → [(role, width)]` table over the `canlib/uds/services.py` registry), which also owns
   **`SUBFUNCTION_NAMES`**, the single home for per-SID sub-function enums —
   `canlib/formatting.py::decode_uds_response` and `modes/sessions_scan.py` both read it, and a test
   cross-checks the two layout models.
@@ -685,7 +685,7 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
     `hunt --physical` and make-specific scalings for the slope→unit sniffer. Resolvers
     `canlib/physical_bands.py`, `canlib/unit_guess.py`. (The grid-axis bands come from the
     user-config `grid_region` instead — an 800 V pack or a non-EU grid otherwise gets no hit.)
-- **`canlib/explorer_export.py` / `explorer_layout.py`** — The docs-site profile explorer
+- **`canlib/explorer/export.py` / `explorer/layout.py`** — The docs-site profile explorer
   (`docs/profiles/explorer.md`). The export turns a profile into an **allow-listed** JSON-able dict
   (never `identity:` values, captures or `scan_log`), with a `src: {file, line}` on every record read
   via ruamel; the layout places ECUs on bus lanes. `scripts/mkdocs_hooks/explorer.py` writes it as
@@ -693,7 +693,7 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   content rules belong in the exporter (unit-tested in `tests/test_explorer_export.py`). Plan:
   `plans/2026-10-21-profile-explorer.md`. Its **data view** (plot captured signals, find related
   signals) decodes captures at build time with the shared evaluator in
-  `canlib/explorer_series.py` (decoded numbers only, never payloads; size-budgeted in
+  `canlib/explorer/series.py` (decoded numbers only, never payloads; size-budgeted in
   `tests/test_explorer_series.py`); `docs/assets/explorer/{plot,discover}.js` draw it and the pure
   maths is `analysis.js`, tested with `node --test tests/js/analysis.test.js` (a CI step; name the
   file, as older Node treats a directory argument as a module). uPlot is vendored under
@@ -732,7 +732,7 @@ WebSocket terminal: `ws://<ip>/ws` (send `{"ws_mode": "terminal", "terminal_type
 
 **Firmware generation** — everything above is WiCAN firmware **4.x**; the v6 rewrite drops `/ws`,
 the protocol mode and the legacy HTTP routes (plan `plans/2026-10-20-wican-fw-v6-compatibility.md`).
-`canlib/wican_firmware.py` probes the generation (GET-only — `/api/info`, then `/check_status`
+`canlib/wican/firmware.py` probes the generation (GET-only — `/api/info`, then `/check_status`
 unless that was v6 — memoised per host) and owns the one policy table, `compatibility(info,
 surface)`, used by live connect, `sniff`, `wican mode`/`autopid`, `--reboot`, the monitor's
 reconnect and `canair status`. Whether a surface is probed is `probes(surface)` over
@@ -770,7 +770,7 @@ pipe keeps returning well-formed replies — to the *previous* request, forever.
 sit under the reconnect above, and a new request path must not bypass them:
 
 - **Every request slot is echo-validated**, so a one-slot offset is detectable at all. Pass
-  `expected_sid` *and* `expected_echo` (`canlib/uds_parse.py::request_echo`) on any new
+  `expected_sid` *and* `expected_echo` (`canlib/uds/parse.py::request_echo`) on any new
   `send_uds` call — an unvalidated request laughs off a desync and returns the wrong PID's bytes as
   the right PID's value. Keepalives are validated too (`3E00` with `expected_sid=0x3E`): an
   unvalidated one *consumes* the orphaned reply and clears the dirty-pipe flag, which is precisely

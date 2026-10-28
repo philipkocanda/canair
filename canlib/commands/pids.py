@@ -147,9 +147,9 @@ def _echo_capture_range(ecu: str, pid: str, name: str, param: dict) -> None:
     captures is swallowed (the edit already succeeded and was validated).
     """
     try:
-        from canlib.byteindex import payload_to_wican_bytes
         from canlib.capture_store import load_pid_captures
-        from canlib.decoding import decode_payload
+        from canlib.expression.decoding import decode_payload
+        from canlib.uds.byteindex import payload_to_wican_bytes
 
         caps = load_pid_captures(ecu, pid)
         if not caps:

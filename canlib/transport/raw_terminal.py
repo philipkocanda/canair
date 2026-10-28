@@ -27,6 +27,8 @@ from collections.abc import AsyncIterator
 import can
 import isotp
 
+from canlib.uds.parse import UdsResponse, parse_uds_response
+
 from ..addressing import (
     DEFAULT_MODE,
     DEFAULT_RX_OFFSET,
@@ -40,7 +42,6 @@ from ..log import log_response
 from ..safety import SessionPolicy, enforce_command_safety
 from ..timing import TimingRecorder
 from ..transport_stats import TransportStats
-from ..uds_parse import UdsResponse, parse_uds_response
 from .isotp_stack import build_isotp_stack
 from .uds_raw import (
     PENDING_RECV_TIMEOUT,

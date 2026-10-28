@@ -166,7 +166,7 @@ def _profile_dtc_defs() -> dict:
     profile-wide ``profile.yaml``.
     """
     try:
-        from .pids import load_pids
+        from canlib.pids import load_pids
 
         data = load_pids()
     except Exception:

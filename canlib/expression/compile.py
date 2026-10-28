@@ -3,7 +3,7 @@
 A faithful shunting-yard port of the scan loop in
 wican-fw/main/expression_parser.c, differing from it in one way: instead of
 evaluating operands and applying operators as it scans, it *emits* the closure
-nodes of :mod:`canlib.expression_nodes`. The control flow — token recognition,
+nodes of :mod:`canlib.expression.nodes`. The control flow — token recognition,
 precedence, associativity, the tolerance of malformed input — is otherwise
 unchanged, which is what makes the compiled tree decode identically to the
 firmware.
@@ -14,8 +14,8 @@ Everything here happens once per distinct expression string;
 
 import re
 
-from . import expression_nodes as nodes
-from .expression_nodes import CompiledExpression
+from canlib.expression import nodes as nodes
+from canlib.expression.nodes import CompiledExpression
 
 _RANGE_UNSIGNED_RE = re.compile(r"\[B(\d+):B(\d+)\]")
 _RANGE_SIGNED_RE = re.compile(r"\[S(\d+):S(\d+)\]")

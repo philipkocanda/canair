@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING, Any
 
 from canlib.capture_dates import entry_datetime
 from canlib.capture_store import resolve_pid_defs
-from canlib.decoding import decode_param_rows
+from canlib.expression.decoding import decode_param_rows
 from canlib.state_spans import build_spans, span_state_union
 from canlib.states import (
     StatePredicateError,

@@ -9,7 +9,6 @@ from __future__ import annotations
 import pytest
 
 from canlib import ansi
-from canlib.byteindex import payload_to_wican_bytes
 from canlib.commands.search import render
 from canlib.commands.search.findings import (
     PayloadRow,
@@ -18,9 +17,10 @@ from canlib.commands.search.findings import (
     inventory_payloads,
     snippet,
 )
-from canlib.decode_value import decode_typed
-from canlib.notation import ByteNotation
+from canlib.expression.decode_value import decode_typed
 from canlib.textscan import compile_regex, find_hex, find_literal, find_regex
+from canlib.uds.byteindex import payload_to_wican_bytes
+from canlib.uds.notation import ByteNotation
 
 # 62 F1 00: a ReadDataByIdentifier response for a DID whose bytes are not printable,
 # so only the body under test can form a printable run.

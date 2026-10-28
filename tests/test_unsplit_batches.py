@@ -1,4 +1,4 @@
-"""Tests for multi-DID replies stored whole under one DID (``canlib.unsplit_batches``).
+"""Tests for multi-DID replies stored whole under one DID (``canlib.uds.unsplit_batches``).
 
 A batch reply starts ``62 D1`` like a single reply to ``D1``, so one that leaked into a per-DID
 read was saved as ``D1``'s payload with every other DID's data appended.
@@ -16,7 +16,7 @@ from canlib.commands.validate import _run_captures
 from canlib.commands.validate.unsplit import unsplit_batch_warnings
 from canlib.misfiled import PayloadSample
 from canlib.pids import clear_cache
-from canlib.unsplit_batches import find_unsplit_batches, split_unsplit_batches
+from canlib.uds.unsplit_batches import find_unsplit_batches, split_unsplit_batches
 
 IGPM, BCM = 0x778, 0x7A8
 BC01 = "62BC01400000000002"

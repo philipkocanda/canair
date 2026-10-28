@@ -30,6 +30,8 @@ from typing import TYPE_CHECKING
 
 from rich.text import Text
 
+from canlib.uds.notation import ByteNotation
+
 from .. import config
 from ..formatting import (
     _HIGHLIGHT_STYLE,
@@ -38,7 +40,6 @@ from ..formatting import (
 )
 from ..keepmode import KEEP_ALL, KEEP_LAST, KeepMode
 from ..log import log_event
-from ..notation import ByteNotation
 from ..poll_schedule import DEFAULT_SCHEDULE, PollScheduler, Schedule
 from ..session_manager import SessionManager
 from ._monitor_record import MonitorRecorder, _merge_history, _open_journal, _write_merged

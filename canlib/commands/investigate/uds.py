@@ -15,7 +15,6 @@ from canlib.align import (
     load_signal_captures,
     prepare_series,
 )
-from canlib.byteindex import mapped_bits, mapped_offsets
 from canlib.capture_dates import resolve_scope_bounds
 from canlib.commands._join import (
     fill_policy_from_args,
@@ -25,6 +24,7 @@ from canlib.commands._join import (
 from canlib.fill import forced_hold_warning
 from canlib.keepmode import scope_is_keep_changes, scope_is_keep_unique
 from canlib.triage import detect_words, triage_byte
+from canlib.uds.byteindex import mapped_bits, mapped_offsets
 from canlib.xanalysis import (
     build_bit_series,
     build_byte_series,

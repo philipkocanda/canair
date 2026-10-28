@@ -1,7 +1,7 @@
 """Every stored hex payload at once, for the checks that only work across the corpus.
 
 A misfiled reply (:mod:`canlib.misfiled`) or an unsplit multi-DID reply
-(:mod:`canlib.unsplit_batches`) only shows against the rest of the corpus, so those checks need
+(:mod:`canlib.uds.unsplit_batches`) only shows against the rest of the corpus, so those checks need
 every payload together. Loading it is the expensive part, so ``validate captures`` loads it once
 here and hands the same corpus to each check; the repair that fixes unsplit replies loads it the
 same way.

@@ -14,9 +14,9 @@ from collections.abc import Mapping
 from functools import lru_cache
 from typing import Any
 
-from .autopid_layout import uds_hex_to_wican_bytes
-from .byteindex import extract_bit_indices, extract_byte_indices
-from .expression import evaluate_expression
+from canlib.expression import evaluate_expression
+from canlib.uds.byteindex import extract_bit_indices, extract_byte_indices
+from canlib.wican.autopid_layout import uds_hex_to_wican_bytes
 
 # A decoded signal row, as consumed by ``formatting.render_param_table`` and
 # ``formatting._build_byte_colors`` / ``_render_hex_line``:
@@ -40,7 +40,7 @@ def decodes_to_number(param_def: Mapping[str, Any] | None) -> bool:
     Lives here beside :data:`ParamRow` because this is the invariant the decoders
     below implement; callers that check it themselves drift from it silently.
     """
-    from .decode_value import ASCII, DATE, NUMERIC, STRUCT
+    from canlib.expression.decode_value import ASCII, DATE, NUMERIC, STRUCT
 
     pdef = param_def or {}
     if str(pdef.get("type") or NUMERIC).lower() in (ASCII, DATE, STRUCT):
@@ -120,7 +120,15 @@ def _decode_typed_rows(payload_hex: str, ordered: list[tuple[str, Any]]) -> list
     slot — rendering as ``{raw} ({label})``, consistent with the ``display:``
     based flags already shown in these views. Numeric params behave as before.
     """
-    from .decode_value import BCD, BITMASK, DATE, ENUM, NUMERIC, decode_typed, render
+    from canlib.expression.decode_value import (
+        BCD,
+        BITMASK,
+        DATE,
+        ENUM,
+        NUMERIC,
+        decode_typed,
+        render,
+    )
 
     try:
         wican_bytes = uds_hex_to_wican_bytes(payload_hex)
@@ -222,7 +230,7 @@ def decode_payload(wican_bytes: bytes, parameters: dict) -> dict[str, dict]:
     nominal key for categorical stats). ``value`` stays the raw float so every
     numeric consumer (min/max/corr/stats) is unaffected.
     """
-    from .decode_value import decode_typed, render
+    from canlib.expression.decode_value import decode_typed, render
 
     results: dict[str, dict] = {}
     for name, param in parameters.items():

@@ -7,17 +7,17 @@ or the Textual app — they call *down* into this, never the reverse, which is w
 keeps the chart testable without a terminal.
 
 The byte-interpretation primitives themselves (INSPECT_TYPES, interpret_bytes,
-wican_expr, ...) live one level further down in :mod:`canlib.inspect_bytes`.
+wican_expr, ...) live one level further down in :mod:`canlib.uds.inspect_bytes`.
 """
 
 from __future__ import annotations
 
 from canlib import ansi
-from canlib.byteindex import extract_byte_indices, payload_to_wican_frame
-from canlib.inspect_bytes import norm01
 from canlib.states import join_states as _join_states
 from canlib.stats import fmt_num as _fmt_num
 from canlib.stats import mean as _mean
+from canlib.uds.byteindex import extract_byte_indices, payload_to_wican_frame
+from canlib.uds.inspect_bytes import norm01
 
 # Terminal colors — mirror decode's palette (see decode.format for the shared set;
 # these stay local because this module is a leaf the renderers must not depend on).

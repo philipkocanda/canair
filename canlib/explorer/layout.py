@@ -19,7 +19,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from .can_buses import ALL_CODE
+from canlib.can_buses import ALL_CODE
 
 UNPLACED = "unplaced"
 

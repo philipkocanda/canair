@@ -5,7 +5,7 @@ without pulling in the full CLI logic. The fetches raise on failure rather than
 exiting, so a caller deep inside a live session (the sleep banner) can treat a
 missing or unreachable API as "no data" instead of having the session killed;
 :func:`reboot_device` returns its outcome instead. Firmware v6 serves none of
-these routes (see :mod:`canlib.wican_firmware`).
+these routes (see :mod:`canlib.wican.firmware`).
 """
 
 from __future__ import annotations
@@ -97,7 +97,7 @@ def reboot_device(host: str, *, timeout: float = 5) -> RebootOutcome:
     policy note is printed), ``failed`` when the request errored or the device
     refused it, ``rebooted`` only when the device accepted it.
     """
-    from .wican_firmware import check, print_verdict
+    from canlib.wican.firmware import check, print_verdict
 
     base = host.rstrip("/") if host.startswith(("http://", "https://")) else f"http://{host}"
     verdict = check(base, "reboot")

@@ -13,9 +13,9 @@ the returned float **or** the exception type — including for the evaluator's
 inherited quirks, which are out of scope to fix.
 
 ``TestModuleLayering`` additionally pins the subsystem's shape: the evaluator is
-split across ``expression`` (entry point) / ``expression_compile`` (grammar) /
-``expression_nodes`` (semantics), and stays a ``canlib`` leaf so every consumer
-can import it without a cycle.
+split across ``canlib.expression`` (entry point) / ``canlib.expression.compile``
+(grammar) / ``canlib.expression.nodes`` (semantics), and stays a ``canlib`` leaf so
+every consumer can import it without a cycle.
 """
 
 from __future__ import annotations
@@ -621,40 +621,47 @@ class TestCompileAndCache:
 # --------------------------------------------------------------------------
 
 _CANLIB = Path(__file__).resolve().parent.parent / "canlib"
-_SUBSYSTEM = ("expression", "expression_compile", "expression_nodes")
+# The evaluator subsystem is the `canlib.expression` package. Its public entry
+# point is the package __init__; `compile` and `nodes` are the private halves.
+_SUBSYSTEM = {
+    "expression": _CANLIB / "expression" / "__init__.py",
+    "expression.compile": _CANLIB / "expression" / "compile.py",
+    "expression.nodes": _CANLIB / "expression" / "nodes.py",
+}
 
 
-def _canlib_imports(module: str) -> set[str]:
-    """Top-level ``canlib`` module names imported by ``canlib/<module>.py``."""
+def _canlib_imports(path: Path) -> set[str]:
+    """Top-level ``canlib`` subpackage names imported by the file at ``path``."""
     found: set[str] = set()
-    for node in ast.walk(ast.parse((_CANLIB / f"{module}.py").read_text())):
+    for node in ast.walk(ast.parse(path.read_text())):
         if isinstance(node, ast.ImportFrom):
             if not node.level:  # absolute
                 if (node.module or "").split(".")[0] != "canlib":
                     continue
                 parts = (node.module or "").split(".")
-                found.update(parts[1:2] or {a.name for a in node.names})
+                # record the subpackage path under canlib (e.g. "expression.compile")
+                found.add(".".join(parts[1:3]) if len(parts) > 2 else parts[1])
                 continue
             if node.module:  # from .sibling import name
-                found.add(node.module.split(".")[0])
+                found.add(f"expression.{node.module.split('.')[0]}")
             else:  # from . import sibling
-                found.update(a.name.split(".")[0] for a in node.names)
+                found.update(f"expression.{a.name.split('.')[0]}" for a in node.names)
         elif isinstance(node, ast.Import):
             for alias in node.names:
                 if alias.name.split(".")[0] == "canlib":
                     parts = alias.name.split(".")
-                    found.update(parts[1:2])
+                    found.add(".".join(parts[1:3]) if len(parts) > 2 else parts[1])
     return found
 
 
 class TestModuleLayering:
     """The evaluator subsystem stays a `canlib` leaf, so anything can import it."""
 
-    @pytest.mark.parametrize("module", _SUBSYSTEM)
+    @pytest.mark.parametrize("module", list(_SUBSYSTEM))
     def test_imports_nothing_outside_the_subsystem(self, module: str):
         # decode_value's docstring (and every consumer that imports it without a
         # cycle) depends on this holding.
-        assert _canlib_imports(module) <= set(_SUBSYSTEM)
+        assert _canlib_imports(_SUBSYSTEM[module]) <= set(_SUBSYSTEM)
 
     def test_public_surface_is_re_exported(self):
         # Consumers and docstrings reference `canlib.expression.<name>`; the split

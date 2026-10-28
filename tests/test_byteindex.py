@@ -1,8 +1,8 @@
-"""Tests for canlib.byteindex — byte index conversion between notations."""
+"""Tests for canlib.uds.byteindex — byte index conversion between notations."""
 
 import pytest
 
-from canlib.byteindex import (
+from canlib.uds.byteindex import (
     NotAFrameError,
     bix_to_torque,
     conversion_table,

@@ -4,7 +4,7 @@ import argparse
 import json
 
 from canlib.commands import hunt
-from canlib.inspect_bytes import NO_EXPR
+from canlib.uds.inspect_bytes import NO_EXPR
 
 
 def _write_ramp(tmp_path):
@@ -286,7 +286,7 @@ class TestNoExprConstant:
         ints once printed ``<no-expr>`` though they are expressible as arithmetic
         shift forms, which made a top-ranked hit un-promotable for no reason.
         """
-        from canlib.inspect_bytes import INSPECT_TYPES, wican_expr
+        from canlib.uds.inspect_bytes import INSPECT_TYPES, wican_expr
 
         for spec in INSPECT_TYPES:
             for little in (False, True):
@@ -297,7 +297,7 @@ class TestNoExprConstant:
                     assert expr, f"{spec.name} (little={little}) must be expressible"
 
     def test_le_signed_uses_arithmetic_form(self):
-        from canlib.inspect_bytes import INSPECT_TYPES, wican_expr
+        from canlib.uds.inspect_bytes import INSPECT_TYPES, wican_expr
 
         i16 = next(s for s in INSPECT_TYPES if s.name == "i16")
         assert wican_expr(9, i16, little=True) == "B9 + S10*256"

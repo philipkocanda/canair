@@ -6,14 +6,15 @@ from typing import TYPE_CHECKING, Literal
 from rich.console import Console
 from rich.text import Text
 
-from .byteindex import extract_byte_indices, wican_to_elm_idx
-from .decoding import ParamRow
-from .uds_layout import subfunction_name
-from .uds_parse import UdsResponse
+from canlib.expression.decoding import ParamRow
+from canlib.uds.byteindex import extract_byte_indices, wican_to_elm_idx
+from canlib.uds.layout import subfunction_name
+from canlib.uds.parse import UdsResponse
 
 if TYPE_CHECKING:
+    from canlib.uds.notation import ByteDisplay
+
     from .modes.multi_batch import ResultEntry
-    from .notation import ByteDisplay
 
 # Which byte space a raw buffer is in. Both are plain ``bytes`` and they differ by
 # the ISO-TP PCI framing bytes, so the distinction has to be carried explicitly —
@@ -277,7 +278,7 @@ def render_param_table(
     Layout: ``{indent}{name}  {value}  ✓|?`` with columns aligned; ``verbose``
     appends the dimmed expression. Error rows show ``ERROR: <msg>`` in red.
 
-    When ``display`` (a :class:`~canlib.notation.ByteDisplay`) is given, a dimmed
+    When ``display`` (a :class:`~canlib.uds.notation.ByteDisplay`) is given, a dimmed
     byte-reference column is appended after the mark, naming which payload
     byte(s) each signal reads in the *same* notation as the ruler drawn above the
     hex (e.g. ``B18-B19``). Returns an empty ``Text`` when there are no signals.
@@ -414,7 +415,7 @@ def render_byte_rulers(
     ``display.byte_notation``, WiCAN by default) and labelled with it — showing
     two rows in two different spaces made the columns ambiguous rather than
     clearer, and the signal byte-reference column beside each value is rendered
-    from the same :class:`~canlib.notation.ByteDisplay`, so the two always agree.
+    from the same :class:`~canlib.uds.notation.ByteDisplay`, so the two always agree.
 
     Numbers are coverage-coloured (green=verified, yellow=unverified,
     grey=uncovered) to match the hex view, on a dark background bar, and aligned
@@ -533,17 +534,17 @@ def print_hexdump(data: bytes, prefix: str = "  ", *, layout: ByteLayout = "isot
 
     - ``"isotp"`` (default) — a reassembled UDS payload, PCI already stripped
       (what every transport returns). Labels are derived with
-      :func:`~canlib.byteindex.isotp_to_wican`, which re-inserts the framing
+      :func:`~canlib.uds.byteindex.isotp_to_wican`, which re-inserts the framing
       offsets: PCI occupies WiCAN 0-1 (first frame) and 8, 16, 24, … (each
       consecutive frame).
     - ``"wican"`` — a buffer already in the WiCAN AutoPID layout (PCI present,
-      e.g. from :func:`~canlib.autopid_layout.uds_hex_to_wican_bytes`). Its index
+      e.g. from :func:`~canlib.wican.autopid_layout.uds_hex_to_wican_bytes`). Its index
       *is* the WiCAN index, so labels are the identity.
 
     Passing a WiCAN-layout buffer without ``layout="wican"`` shifts every label
     by the framing offset — silently, since both are ``bytes``.
     """
-    from .byteindex import isotp_to_wican
+    from canlib.uds.byteindex import isotp_to_wican
 
     def label(j: int) -> int:
         return j if layout == "wican" else isotp_to_wican(j)
@@ -563,7 +564,7 @@ def format_raw_with_bnn(data: bytes) -> str:
     Returns a string like: B02=62 B03=BC B04=03 B05=FD ...
     Helps avoid byte offset confusion when reading raw output.
     """
-    from .byteindex import isotp_to_wican
+    from canlib.uds.byteindex import isotp_to_wican
 
     parts = []
     for i, b in enumerate(data):

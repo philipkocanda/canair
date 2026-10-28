@@ -14,8 +14,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from canlib.inspect_bytes import apply_transform
 from canlib.mirrors import DEFAULT_MIRROR_MATCH
+from canlib.uds.inspect_bytes import apply_transform
 
 if TYPE_CHECKING:
     from canlib.align import TimePoint
@@ -197,8 +197,8 @@ def find_mirrors(
     from the same captures), so no timestamp join is involved — the intra-PID
     counterpart of ``correlate --find-mirrors``.
     """
-    from canlib.byteindex import payload_to_wican_bytes
     from canlib.mirrors import byte_owns_bit, find_column_mirrors, frame_columns
+    from canlib.uds.byteindex import payload_to_wican_bytes
 
     frames: list[bytes] = []
     for r in all_results:

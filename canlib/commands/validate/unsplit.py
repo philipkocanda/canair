@@ -1,6 +1,6 @@
 """captures/ validation — multi-DID replies stored whole under one DID (cross-file pass).
 
-Detection lives in ``canlib.unsplit_batches``; this module words it and names the repair,
+Detection lives in ``canlib.uds.unsplit_batches``; this module words it and names the repair,
 ``canair captures split-batched``, which keeps the readings the row carried.
 """
 
@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from canlib.payload_corpus import PayloadCorpus, load_payload_corpus
-from canlib.unsplit_batches import UnsplitBatch, find_unsplit_batches
+from canlib.uds.unsplit_batches import UnsplitBatch, find_unsplit_batches
 
 from .captures import CaptureWarning
 

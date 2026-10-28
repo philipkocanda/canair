@@ -5,7 +5,7 @@ Every request client (:class:`~canlib.terminal.WiCANTerminal`,
 :class:`~canlib.transport.uds_raw.RawUdsClient`) already keeps a
 :class:`~canlib.timing.TimingRecorder` (``.timings``); this is the sibling that
 counts *outcomes* rather than *latency*. Each completed UDS exchange is
-classified (:func:`canlib.uds_parse.classify_response`) into an outcome bucket
+classified (:func:`canlib.uds.parse.classify_response`) into an outcome bucket
 and tallied, so:
 
 - the live monitor can surface **dropped frames** and error rates in its status
@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import logging
 
-from .uds_parse import (
+from canlib.uds.parse import (
     ERROR_CATEGORIES,
     RESPONSE_CATEGORIES,
     UdsResponse,

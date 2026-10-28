@@ -8,7 +8,7 @@ from jsonschema import Draft202012Validator
 
 from canlib.commands.validate._common import CAPTURES_SCHEMA_FILE
 from canlib.transport_stats import TransportStats, classify_raw_value
-from canlib.uds_parse import (
+from canlib.uds.parse import (
     ERROR_CATEGORIES,
     RESPONSE_CATEGORIES,
     classify_error,

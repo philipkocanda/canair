@@ -58,8 +58,8 @@ def reboot_wican(host: str) -> bool:
 
     Returns True only when the device accepted the request. Skipped with a note
     on firmware v6, which has no ``/system_reboot`` and resumes AutoPID itself;
-    :func:`canlib.wican_api.reboot_device` tells skipped and failed apart.
+    :func:`canlib.wican.api.reboot_device` tells skipped and failed apart.
     """
-    from .wican_api import reboot_device
+    from canlib.wican.api import reboot_device
 
     return reboot_device(host) == "rebooted"

@@ -23,7 +23,7 @@ from textual.containers import Vertical, VerticalScroll
 from textual.screen import ModalScreen
 from textual.widgets import Label, Static
 
-from .tui_keys import DISMISS_DESCRIPTION, bind
+from canlib.tui.keys import DISMISS_DESCRIPTION, bind
 
 # Keys the focused scroll container handles for free, so there is no ``Binding``
 # to derive a cheat-sheet row from — but they are real, working keys in every

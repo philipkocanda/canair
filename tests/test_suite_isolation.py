@@ -109,7 +109,7 @@ class TestNoEagerConfigReadAtImportTime:
 
         # Re-import the modules that previously resolved a config-backed default
         # at module scope.
-        for mod in ("canlib.wican_api", "canlib.commands.wican", "canlib.commands._live"):
+        for mod in ("canlib.wican.api", "canlib.commands.wican", "canlib.commands._live"):
             importlib.reload(importlib.import_module(mod))
 
         assert called == [], (

@@ -26,7 +26,7 @@ from collections import Counter, defaultdict
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 
-from .uds_layout import response_layout
+from canlib.uds.layout import response_layout
 
 # A length is an ECU's "own" for a PID only once it is seen often and almost exclusively, so
 # variable-length PIDs and thinly sampled ones never produce a length finding.

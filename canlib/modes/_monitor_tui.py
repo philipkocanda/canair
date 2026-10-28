@@ -41,7 +41,7 @@ assumed. Each signal row also shows a small circle before its code: green when
 the value was refreshed this cycle, grey when it's stale (cached from an earlier
 successful read).
 
-The bottom bar is built from :mod:`canlib.tui_status`, so it fits itself to the
+The bottom bar is built from :mod:`canlib.tui.status`, so it fits itself to the
 terminal width instead of clipping its tail on a narrow screen; ``?`` remains
 the authoritative key list.
 """
@@ -59,10 +59,10 @@ from textual.screen import ModalScreen
 from textual.widgets import Button, Checkbox, Input, Label, OptionList, Static
 from textual.widgets.option_list import Option
 
-from canlib.tui_help import HelpMixin
-from canlib.tui_keys import DISMISS_DESCRIPTION, bind
-from canlib.tui_scroll import reveal_marker
-from canlib.tui_status import P_ESSENTIAL, P_HIGH, P_LOW, P_NORMAL, StatusBar, StatusItem
+from canlib.tui.help import HelpMixin
+from canlib.tui.keys import DISMISS_DESCRIPTION, bind
+from canlib.tui.scroll import reveal_marker
+from canlib.tui.status import P_ESSENTIAL, P_HIGH, P_LOW, P_NORMAL, StatusBar, StatusItem
 
 if TYPE_CHECKING:
     from .monitor import MonitorController
@@ -386,7 +386,7 @@ class EditParamDialog(ModalScreen[dict | None]):
 # Central-log categories mapped to a display colour. Data-integrity faults
 # (frames dropped/corrupted, bus errors, internal exceptions) are the loud red
 # class; the softer non-answers (stale/no-data/decode) are yellow; anything else
-# is dim. Categories are produced by canlib.uds_parse.classify_response +
+# is dim. Categories are produced by canlib.uds.parse.classify_response +
 # canlib.log.log_exception ("internal").
 _EVENT_CATEGORY_STYLE = {
     "drop": "red",

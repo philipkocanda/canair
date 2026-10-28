@@ -24,7 +24,7 @@ from canlib.align import (
     series_time_ranges_disjoint,
 )
 from canlib.capture_dates import entry_datetime
-from canlib.notation import ByteNotation, relabel_signal
+from canlib.uds.notation import ByteNotation, relabel_signal
 from canlib.xanalysis import build_bit_series, build_byte_series, build_param_series
 
 

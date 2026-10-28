@@ -3,7 +3,8 @@
 import asyncio
 import json
 
-from ..decoding import decode_param_rows
+from canlib.expression.decoding import decode_param_rows
+
 from ..formatting import print_decoded_params
 from ..pids import build_param_index
 from ..transport.protocol import Terminal

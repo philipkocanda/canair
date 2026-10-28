@@ -26,7 +26,7 @@ from dataclasses import dataclass, field
 from typing import TypedDict
 
 from canlib.captures import IMPORT_TRANSPORT
-from canlib.uds_parse import NRC_CODES, payload_echo_mismatch, request_echo
+from canlib.uds.parse import NRC_CODES, payload_echo_mismatch, request_echo
 
 PidKey = tuple[str, str]
 

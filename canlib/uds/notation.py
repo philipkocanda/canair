@@ -21,7 +21,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from enum import StrEnum
 
-from .byteindex import (
+from canlib.expression import signed_range_is_exact
+from canlib.uds.byteindex import (
     elm_to_wican_idx,
     isotp_to_torque,
     isotp_to_wican,
@@ -30,7 +31,6 @@ from .byteindex import (
     wican_to_elm_idx,
     wican_to_isotp,
 )
-from .expression import signed_range_is_exact
 
 
 class ByteSpace(StrEnum):
@@ -421,7 +421,7 @@ def resolve_notation(value: str | None) -> ByteNotation:
     """Effective notation: explicit ``--notation`` > ``display.byte_notation`` > wican."""
     if value:
         return ByteNotation(value)
-    from .config import get_config_key
+    from canlib.config import get_config_key
 
     configured = get_config_key("display.byte_notation")
     if configured:

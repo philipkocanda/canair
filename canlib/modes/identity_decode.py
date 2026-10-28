@@ -5,14 +5,15 @@ into decoded strings and protocol decisions, so they are trivially unit-tested.
 The async device orchestration lives in ``identity.py``.
 
 The date/BCD/ASCII primitives are the shared typed-decode home in
-``canlib.decode_value`` (so identity DIDs and the analysis suite decode the same
+``canlib.expression.decode_value`` (so identity DIDs and the analysis suite decode the same
 way); this module re-exports ``decode_date`` and layers the identity-specific
 ``fmt`` selection on top.
 """
 
-from ..decode_value import bytes_to_ascii, decode_date
+from canlib.expression.decode_value import bytes_to_ascii, decode_date
+from canlib.uds.parse import UdsResponse
+
 from ..ecus import ecu_id_protocol
-from ..uds_parse import UdsResponse
 
 __all__ = [
     "decode_date",

@@ -12,7 +12,7 @@ parameter can be overlaid with a live Pearson r.
 
 The byte-interpretation primitives (INSPECT_TYPES, interpret_bytes, wican_expr,
 apply_transform, POST_TRANSFORMS, norm01) live in the neutral library leaf
-``canlib.inspect_bytes``; this module imports them down and uses them here.
+``canlib.uds.inspect_bytes``; this module imports them down and uses them here.
 """
 
 from __future__ import annotations
@@ -22,19 +22,19 @@ import shutil
 import sys
 
 from canlib import ansi
-from canlib.byteindex import payload_to_wican_bytes
 from canlib.capture_dates import resolve_scope_bounds
 from canlib.capture_store import load_pid_captures
-from canlib.decoding import decode_payload, ordered_signal_names
-from canlib.inspect_bytes import (
+from canlib.expression.decoding import decode_payload, ordered_signal_names
+from canlib.pids import build_ecu_index, load_pids
+from canlib.stats import pearson as _pearson
+from canlib.uds.byteindex import payload_to_wican_bytes
+from canlib.uds.inspect_bytes import (
     INSPECT_TYPES,
     POST_TRANSFORMS,
     apply_transform,
     interpret_bytes,
     wican_expr,
 )
-from canlib.pids import build_ecu_index, load_pids
-from canlib.stats import pearson as _pearson
 
 from .plot_draw import (
     _cycle_overlay,

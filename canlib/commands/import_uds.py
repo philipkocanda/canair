@@ -55,7 +55,7 @@ def _parse_spec(spec: str) -> tuple[str, str, str]:
 def _build_capture(spec: str, name_index: dict[str, int]) -> tuple[CaptureRecord, list[str]]:
     """Resolve/validate one spec into a capture dict. Returns (capture, warnings)."""
     from canlib.ecus import resolve_tx, rx_addr_str
-    from canlib.uds_parse import payload_echo_mismatch, payload_not_hex
+    from canlib.uds.parse import payload_echo_mismatch, payload_not_hex
 
     ecu, pid, payload = _parse_spec(spec)
 

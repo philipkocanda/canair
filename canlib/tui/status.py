@@ -10,7 +10,7 @@ including the ``? help`` pointer to the authoritative cheat-sheet — disappears
 So a status line is modelled here as an ordered list of :class:`StatusItem`,
 each ranked by how essential it is, and rendered against the terminal's
 *current* width: the least essential items drop out first and ``? help`` is the
-last thing to go. The ``?`` modal (:mod:`canlib.tui_help`) is the complete key
+last thing to go. The ``?`` modal (:mod:`canlib.tui.help`) is the complete key
 list, so the bar only has to stay *honest*, never complete.
 
 Use :class:`StatusBar` in place of the hand-rolled docked ``Static``; it

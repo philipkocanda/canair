@@ -38,8 +38,8 @@ from canlib.capture_store import (
     resolve_pid_defs,
 )
 from canlib.capture_types import CaptureEntry
-from canlib.notation import ByteNotation
 from canlib.states import join_states as _join_states
+from canlib.uds.notation import ByteNotation
 
 from .join import JoinFrame, build_join_frames
 from .query import (

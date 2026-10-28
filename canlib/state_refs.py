@@ -30,7 +30,8 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from .decoding import decodes_to_number
+from canlib.expression.decoding import decodes_to_number
+
 from .states import PREDICATE_SENTINELS, StatePredicateError, predicate_references
 
 # Why a reference cannot resolve. All are hard failures (the predicate can never

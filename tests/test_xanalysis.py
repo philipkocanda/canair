@@ -362,7 +362,7 @@ class TestBuildByteSeries:
         assert max(offsets) >= raw_len
 
     def test_skips_pci_offsets(self):
-        from canlib.byteindex import payload_to_wican_bytes, wican_to_isotp
+        from canlib.uds.byteindex import payload_to_wican_bytes, wican_to_isotp
 
         # Vary EVERY byte so nothing is filtered by min_distinct; then assert no
         # PCI offset (wican_to_isotp is None) appears in the output.
@@ -443,7 +443,7 @@ class TestHuntByte:
         from datetime import date, datetime, time
 
         from canlib.align import LoadedPid
-        from canlib.byteindex import wican_to_isotp
+        from canlib.uds.byteindex import wican_to_isotp
 
         lp = LoadedPid("AAF", "2181")
         ref: list[TimePoint] = []
@@ -540,7 +540,7 @@ class TestCommandParsers:
         import argparse
 
         from canlib.commands import hunt
-        from canlib.notation import ByteNotation
+        from canlib.uds.notation import ByteNotation
         from canlib.xanalysis import HuntHit
 
         p = hunt.add_parser(argparse.ArgumentParser().add_subparsers())

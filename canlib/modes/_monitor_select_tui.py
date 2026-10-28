@@ -16,8 +16,8 @@ from textual.binding import Binding
 from textual.widgets import Footer, Input, Label, SelectionList
 from textual.widgets.selection_list import Selection
 
-from canlib.tui_help import HelpMixin
-from canlib.tui_keys import bind
+from canlib.tui.help import HelpMixin
+from canlib.tui.keys import bind
 
 from .monitor_select import EcuChoice, GroupChoice
 

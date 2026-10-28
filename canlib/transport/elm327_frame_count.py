@@ -29,8 +29,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from canlib.uds.parse import CAT_DECODE, CAT_DROP, CAT_STALE, UdsResponse
+
 from ..frame_counts import CountKey, FrameCountLedger
-from ..uds_parse import CAT_DECODE, CAT_DROP, CAT_STALE, UdsResponse
 
 # Highest count we are willing to emit. The digit is a single hex nibble, so the
 # wire format allows 1..15, but only 1..9 is verified on the STN2120 in the WiCAN

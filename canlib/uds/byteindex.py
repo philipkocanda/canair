@@ -351,7 +351,7 @@ def mappable_data_indices(payload_hex: str, sfb: int) -> list[int]:
 
     Excludes ISO-TP framing (PCI) bytes and the UDS header (payload index 0 =
     SID, ``1..sfb`` = subfunction / DID echo). ``sfb`` is
-    :func:`canlib.notation.subfunction_bytes_for_pid` for the PID in question.
+    :func:`canlib.uds.notation.subfunction_bytes_for_pid` for the PID in question.
 
     **Use this rather than filtering with** :func:`wican_to_isotp` /
     :func:`isotp_to_wican`: those two hardcode the multi-frame layout (two
@@ -445,7 +445,7 @@ def declared_payload_len(framed_bytes: bytes) -> int | None:
 
     The point is telling **payload from padding**: a WiCAN buffer pads its final
     CAN frame out to 8 bytes (see
-    :func:`canlib.autopid_layout.uds_hex_to_wican_bytes`), so a byte with a valid
+    :func:`canlib.wican.autopid_layout.uds_hex_to_wican_bytes`), so a byte with a valid
     ISO-TP index is not necessarily a payload byte. Compare an index against this
     to drop the tail.
     """

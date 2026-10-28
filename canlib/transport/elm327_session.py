@@ -20,7 +20,7 @@ import asyncio
 import sys
 from typing import TYPE_CHECKING
 
-from ..uds_parse import UdsResponse
+from canlib.uds.parse import UdsResponse
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from .elm327_terminal import Elm327Terminal

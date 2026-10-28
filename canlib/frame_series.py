@@ -8,7 +8,7 @@ diagnostic captures, with no re-implementation of the analyzer.
 
 Frames have **no ISO-TP framing and no PCI**, so a byte is referenced directly by
 its offset in the frame data — rendered ``0xID:rN`` (raw-CAN space, see
-:class:`canlib.notation.ByteRef`), distinct from the WiCAN ``Bn`` used for
+:class:`canlib.uds.notation.ByteRef`), distinct from the WiCAN ``Bn`` used for
 diagnostic PIDs. WiCAN expressions and the diagnostic path are untouched.
 """
 
@@ -16,9 +16,10 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from canlib.uds.inspect_bytes import INSPECT_TYPES, NO_EXPR, float_series_is_noise, interpret_bytes
+
 from .align import TimePoint
 from .can_logs import detect_format, iter_frames
-from .inspect_bytes import INSPECT_TYPES, NO_EXPR, float_series_is_noise, interpret_bytes
 
 # Frame-signal label: "0xID:rN" (byte) / "0xID:rN.k" (bit). The single ":" keeps
 # arbitration-ID grouping working in xanalysis._same_pid (which rsplits on ":").

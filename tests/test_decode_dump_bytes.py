@@ -5,7 +5,7 @@ import json
 from contextlib import redirect_stdout
 
 from canlib.commands.decode import dump
-from canlib.notation import ByteNotation
+from canlib.uds.notation import ByteNotation
 
 
 def _result(payload: str, date: str = "2026-07-22", time: str = "09:00:00.000") -> dict:

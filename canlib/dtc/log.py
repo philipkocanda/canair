@@ -38,14 +38,14 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
-from . import ansi
+from canlib import ansi
 
 
 def log_path(path: Path | None = None) -> Path:
     """Path to the active profile's dtc_log.yaml (or the override ``path``)."""
     if path is not None:
         return path
-    from .profile import active
+    from canlib.profile import active
 
     return active().dtc_log_file
 
@@ -117,8 +117,8 @@ def _append(section: str, entry: dict, path: Path | None = None) -> Path:
     """Append ``entry`` to the named top-level list, preserving comments."""
     from ruamel.yaml.comments import CommentedMap
 
-    from .yaml_rt import dump as _dump
-    from .yaml_rt import round_trip_yaml as _yaml
+    from canlib.yaml_rt import dump as _dump
+    from canlib.yaml_rt import round_trip_yaml as _yaml
 
     p = log_path(path)
     data = None
@@ -198,7 +198,7 @@ def render_scan(entry: dict, previous: dict | None = None) -> list[str]:
     Shows the scan's timestamp/scope/label/state, every ECU's codes with their
     decoded meaning, and — when a ``previous`` same-scope scan is given — the
     change since it. This is what ``canair dtc --history`` prints."""
-    from .dtc_describe import describe_dtc
+    from canlib.dtc.describe import describe_dtc
 
     lines = [f"\n  DTC history: {entry.get('scope', '?')}"]
     lines.append(f"  Scanned:     {entry.get('timestamp', '?')}")

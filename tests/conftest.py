@@ -91,7 +91,7 @@ def _no_firmware_probe(monkeypatch):
     """
     import requests
 
-    import canlib.wican_firmware as wican_firmware
+    import canlib.wican.firmware as wican_firmware
 
     def _unreachable(url, timeout):
         raise requests.ConnectionError(f"network disabled in tests: {url}")

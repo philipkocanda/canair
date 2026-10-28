@@ -21,8 +21,8 @@ from rich.text import Text
 
 from canlib.capture_store import PidDefs
 from canlib.capture_types import CaptureEntry
-from canlib.notation import ByteNotation
 from canlib.states import join_states as _join_states
+from canlib.uds.notation import ByteNotation
 
 from .query import _capture_key
 
@@ -76,14 +76,14 @@ def capture_block_text(
     ``notation`` is the byte-index notation the ruler and each signal's
     byte-reference column are drawn in.
     """
-    from canlib.decoding import decode_param_rows
+    from canlib.expression.decoding import decode_param_rows
     from canlib.formatting import (
         _render_hex_line,
         changed_param_highlights,
         render_byte_rulers,
         render_param_table,
     )
-    from canlib.notation import ByteDisplay, subfunction_bytes_for_pid
+    from canlib.uds.notation import ByteDisplay, subfunction_bytes_for_pid
 
     e = captures[i]
     key = _capture_key(e)

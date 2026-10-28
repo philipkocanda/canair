@@ -17,7 +17,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from canlib.decoding import decode_param_rows
+from canlib.expression.decoding import decode_param_rows
 from canlib.transport import channel
 from canlib.transport.channel import Channel, TcpChannel
 from canlib.transport.elm327_tcp import Elm327TcpTerminal

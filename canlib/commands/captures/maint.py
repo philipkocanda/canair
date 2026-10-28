@@ -244,7 +244,7 @@ def cmd_split_batched(
 
     from canlib.capture_io import resolve_capture_layers
     from canlib.ecus import build_rx_index
-    from canlib.unsplit_batches import split_unsplit_batches
+    from canlib.uds.unsplit_batches import split_unsplit_batches
 
     cdir = resolve_captures_dir(captures_dir)
     if captures_dir is not None and not cdir.is_dir():

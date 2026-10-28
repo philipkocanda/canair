@@ -151,7 +151,7 @@ class TestFormatKwpDtc:
 class TestScanLog:
     @pytest.mark.asyncio
     async def test_read_logs_baseline_then_cleared(self, monkeypatch, tmp_path, capsys):
-        from canlib import dtc_log
+        from canlib.dtc import log as dtc_log
 
         logp = tmp_path / "dtc_log.yaml"
         monkeypatch.setattr(dtc_log, "log_path", lambda path=None: logp if path is None else path)
@@ -179,7 +179,7 @@ class TestScanLog:
 
     @pytest.mark.asyncio
     async def test_manual_clear_logs_event_and_clean_baseline(self, monkeypatch, tmp_path, capsys):
-        from canlib import dtc_log
+        from canlib.dtc import log as dtc_log
 
         logp = tmp_path / "dtc_log.yaml"
         monkeypatch.setattr(dtc_log, "log_path", lambda path=None: logp if path is None else path)
@@ -291,8 +291,8 @@ class TestScanAll:
     async def test_scan_all_dispatch_logs_by_default(self, monkeypatch, tmp_path, capsys):
         # No --log flag in the args: dispatch must log by default (dtc_log unset
         # -> getattr default True).
-        from canlib import dtc_log
         from canlib.commands._live import CANAIR_DEFAULTS
+        from canlib.dtc import log as dtc_log
         from canlib.modes.dispatch import dispatch_mode
 
         logp = tmp_path / "dtc_log.yaml"
@@ -384,15 +384,15 @@ class TestHistoryOffline:
         return argparse.Namespace(**{**base, **kw})
 
     def _seed(self, monkeypatch, tmp_path):
-        from canlib import dtc_log
+        from canlib.dtc import log as dtc_log
 
         logp = tmp_path / "dtc_log.yaml"
         monkeypatch.setattr(dtc_log, "log_path", lambda path=None: logp if path is None else path)
         return logp
 
     def test_history_all_shows_latest_and_diff(self, monkeypatch, tmp_path, capsys):
-        from canlib import dtc_log
         from canlib.commands import dtc as dtc_cmd
+        from canlib.dtc import log as dtc_log
 
         self._seed(monkeypatch, tmp_path)
         dtc_log.append_scan(
@@ -425,8 +425,8 @@ class TestHistoryOffline:
         assert "B2916-00" in out
 
     def test_history_single_ecu_scope(self, monkeypatch, tmp_path, capsys):
-        from canlib import dtc_log
         from canlib.commands import dtc as dtc_cmd
+        from canlib.dtc import log as dtc_log
         from canlib.ecus import ecu_display, resolve_tx
 
         self._seed(monkeypatch, tmp_path)

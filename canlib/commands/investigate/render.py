@@ -23,7 +23,7 @@ from canlib.keepmode import (
     scope_is_keep_changes,
     scope_is_keep_unique,
 )
-from canlib.notation import relabel_signal, resolve_notation, subfunction_bytes_for_pid
+from canlib.uds.notation import relabel_signal, resolve_notation, subfunction_bytes_for_pid
 
 
 # ANSI colors — kept local (not imported from investigate) so this module has no
@@ -138,8 +138,8 @@ def iter_edges(lp, mapped, mapped_bit, *, bits: bool):
     Walks each varying byte (and, with ``bits``, each toggling bit) in time order
     and emits one row per transition — the raw material for the event timeline.
     """
-    from canlib.byteindex import payload_to_wican_bytes, wican_to_isotp
     from canlib.capture_dates import entry_datetime
+    from canlib.uds.byteindex import payload_to_wican_bytes, wican_to_isotp
 
     frames = []
     max_len = 0
@@ -224,9 +224,9 @@ def iter_field_edges(lp, param: dict):
     so a schedule/mode change reads as ``{Mon 08:00}->{Tue 07:30}`` rather than
     scattered per-byte edges.
     """
-    from canlib.byteindex import payload_to_wican_bytes
     from canlib.capture_dates import entry_datetime
-    from canlib.decode_value import decode_typed, render
+    from canlib.expression.decode_value import decode_typed, render
+    from canlib.uds.byteindex import payload_to_wican_bytes
 
     frames = []
     for cap in lp.captures:

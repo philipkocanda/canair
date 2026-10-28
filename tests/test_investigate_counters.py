@@ -247,7 +247,7 @@ class TestCountersCli:
 
     def test_notation_torque_relabels_the_label(self, tmp_path, monkeypatch, capsys):
         """--notation re-renders the ISO-TP label; the expression stays WiCAN."""
-        from canlib.notation import ByteNotation, ByteRef, subfunction_bytes_for_pid
+        from canlib.uds.notation import ByteNotation, ByteRef, subfunction_bytes_for_pid
 
         _write_odometer(tmp_path, days=_DAYS)
         rc = _run(

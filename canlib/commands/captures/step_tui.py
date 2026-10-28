@@ -12,7 +12,7 @@ owns all state and renders the frame. The app contributes only interaction:
 - **live editing of the comparison**: ``p`` adds/removes PIDs, ``J``/``,``/``.``
   change the join tolerance, ``V`` cycles the view — no restart needed.
 
-Keys come from the shared keymap (:mod:`canlib.tui_keys`), never from a literal
+Keys come from the shared keymap (:mod:`canlib.tui.keys`), never from a literal
 key string, so the stepper cannot drift from the monitor and plot explorer.
 """
 
@@ -31,11 +31,11 @@ from textual.widgets import Button, Input, Label, OptionList, SelectionList, Sta
 from textual.widgets.option_list import Option
 
 from canlib.capture_types import CaptureEntry
-from canlib.tui_help import HelpMixin
-from canlib.tui_keys import bind
-from canlib.tui_modals import ConfirmModal, TextPromptModal
-from canlib.tui_scroll import reveal_marker
-from canlib.tui_status import P_ESSENTIAL, P_HIGH, P_LOW, P_NORMAL, StatusBar, StatusItem
+from canlib.tui.help import HelpMixin
+from canlib.tui.keys import bind
+from canlib.tui.modals import ConfirmModal, TextPromptModal
+from canlib.tui.scroll import reveal_marker
+from canlib.tui.status import P_ESSENTIAL, P_HIGH, P_LOW, P_NORMAL, StatusBar, StatusItem
 
 from .step_render import key_label
 

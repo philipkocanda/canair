@@ -34,8 +34,9 @@ from __future__ import annotations
 import sys
 from typing import NamedTuple
 
+from canlib.uds.parse import UdsResponse
+
 from ..transport.protocol import Terminal
-from ..uds_parse import UdsResponse
 from .discovery_scan import DiscoveryProbe, mode_discovery_scan
 
 # Routine sub-functions

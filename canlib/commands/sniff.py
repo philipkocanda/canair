@@ -179,7 +179,7 @@ def run(args) -> int:
     from canlib.modes.raw_ops import slcan_preflight
     from canlib.stop_signals import graceful_stop
     from canlib.transport import resolve_transport
-    from canlib.wican_mode import ModeError
+    from canlib.wican.mode import ModeError
 
     t = resolve_transport(args)
     try:

@@ -6,7 +6,7 @@ import argparse
 
 from canlib.capture_dates import add_scope_args
 from canlib.commands._group import group_help
-from canlib.notation import add_notation_arg
+from canlib.uds.notation import add_notation_arg
 
 from .needle import DEFAULT_MIN_LEN, IN_ALL, IN_CHOICES
 from .uds import run

@@ -24,9 +24,10 @@ from __future__ import annotations
 import sys
 from typing import NamedTuple
 
+from canlib.uds.parse import UdsResponse
+
 from ..quirks import NISSAN_C0_SESSION, has_quirk
 from ..transport.protocol import Terminal
-from ..uds_parse import UdsResponse
 from .discovery_scan import DiscoveryProbe, mode_discovery_scan
 
 # NRCs that still indicate "routine local identifier exists"

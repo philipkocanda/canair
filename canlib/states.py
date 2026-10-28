@@ -910,7 +910,7 @@ def collect_values(new_queries: list[EcuFrame]) -> tuple[dict[str, float], set[s
 
     ``new_queries`` is a list of ``(ecu_label, pid_results)`` where each result
     carries a ``params`` list of ``(name, value, unit, expr, error, verified,
-    display)`` rows (as produced by :func:`canlib.decoding.decode_param_rows`).
+    display)`` rows (as produced by :func:`canlib.expression.decoding.decode_param_rows`).
     An ECU is "responded" when it returned any result; rows whose value is None
     (decode error) are skipped.
     """

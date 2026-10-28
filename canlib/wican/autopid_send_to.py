@@ -7,7 +7,7 @@ destination, whose ``cycle`` is device config canair does not manage. A signal w
 only ever seen in the batch snapshot. Design and firmware citations:
 ``plans/2026-10-18-per-signal-mqtt-streaming.md``.
 
-This module owns the topic rule shared by profile generation (``canlib.autopid_profile``) and
+This module owns the topic rule shared by profile generation (``canlib.wican.autopid_profile``) and
 ``canair validate pids``, so the two cannot disagree on what is shippable.
 """
 

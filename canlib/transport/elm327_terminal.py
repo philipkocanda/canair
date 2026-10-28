@@ -37,13 +37,14 @@ import sys
 import time
 from collections.abc import AsyncIterator
 
+from canlib.uds.parse import CAT_DECODE, CAT_STALE, UdsResponse, parse_uds_response
+
 from ..addressing import AddressBook
 from ..link_latency import LinkLatency
 from ..log import log_command, log_event, log_response
 from ..safety import SessionPolicy, enforce_command_safety
 from ..timing import TimingRecorder
 from ..transport_stats import TransportStats
-from ..uds_parse import CAT_DECODE, CAT_STALE, UdsResponse, parse_uds_response
 from .channel import Channel
 from .elm327_addressing import (
     DEFAULT_FC_DATA,

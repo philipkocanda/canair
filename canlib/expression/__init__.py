@@ -7,8 +7,8 @@ indexes the ``data`` argument literally (``data[idx]``) with no PCI-awareness.
 The WiCAN indexing convention (``B0=PCI``, ``B9=first consecutive-frame data
 byte``, …) is therefore imposed entirely by the *caller*, which must pass bytes
 in the WiCAN AutoPID layout (PCI re-inserted) — see
-:func:`canlib.byteindex.payload_to_wican_bytes` /
-:func:`canlib.autopid_layout.uds_hex_to_wican_bytes`. Feeding a raw ISO-TP payload
+:func:`canlib.uds.byteindex.payload_to_wican_bytes` /
+:func:`canlib.wican.autopid_layout.uds_hex_to_wican_bytes`. Feeding a raw ISO-TP payload
 (PCI stripped) would silently misalign every index past the first PCI byte.
 
 **Parsing is separate from evaluation.** An expression is constant across a whole
@@ -19,17 +19,17 @@ that evaluate one expression against many payloads may call
 
 The implementation is split by concern, both halves re-exported here:
 
-- :mod:`canlib.expression_nodes` — the runtime semantics: closure factories for
+- :mod:`canlib.expression.nodes` — the runtime semantics: closure factories for
   byte/bit/range loads and the arithmetic operators, plus the ``[Sn:Sm]``
   sign-extension container ladder and its :func:`signed_range_is_exact` guard.
-- :mod:`canlib.expression_compile` — the grammar: the shunting-yard scan that
+- :mod:`canlib.expression.compile` — the grammar: the shunting-yard scan that
   assembles those nodes into a tree.
 """
 
 from functools import lru_cache
 
-from .expression_compile import compile_expression
-from .expression_nodes import (
+from canlib.expression.compile import compile_expression
+from canlib.expression.nodes import (
     SIGNED_RANGE_WIDTHS,
     CompiledExpression,
     signed_range_is_exact,

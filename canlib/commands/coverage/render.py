@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from canlib import ansi
-from canlib.notation import relabel_signal, resolve_notation, subfunction_bytes_for_pid
+from canlib.uds.notation import relabel_signal, resolve_notation, subfunction_bytes_for_pid
 
 if TYPE_CHECKING:
     from . import CoverageEntry

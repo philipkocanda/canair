@@ -8,14 +8,14 @@ response (``0x7F``) carries the rejected service's SID plus a response code. Thi
 module is the one table that says so, so a byte can be *named* (``DID`` / ``LID`` /
 ``RID`` / ``NRC`` / …) instead of guessed at from a 1-vs-2-byte width flag.
 
-It builds on :mod:`canlib.uds_services` (the SID registry) and reuses
-:data:`canlib.uds_parse.NRC_CODES` for response-code names; the roles use the same
+It builds on :mod:`canlib.uds.services` (the SID registry) and reuses
+:data:`canlib.uds.parse.NRC_CODES` for response-code names; the roles use the same
 ``DID``/``LID``/``RID`` vocabulary as :class:`canlib.modes.discovery_scan.DiscoveryProbe`.
 Data-only plus small resolvers: no I/O, no formatting decisions (a caller renders
 the labels and picks which definitions to show).
 
 The layouts are grounded in this repo's existing per-service knowledge — chiefly
-:func:`canlib.formatting.decode_uds_response`, :func:`canlib.uds_parse.request_echo`,
+:func:`canlib.formatting.decode_uds_response`, :func:`canlib.uds.parse.request_echo`,
 and the scanner docstrings in :mod:`canlib.modes.kwp_routines_scan` /
 :mod:`canlib.modes.kwp_iocontrol_scan` — and a service is deliberately **omitted**
 rather than guessed when its layout isn't established, so callers fall back to
@@ -27,8 +27,8 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass
 
-from .uds_parse import NRC_CODES
-from .uds_services import NEGATIVE_RESPONSE_SID, RESPONSE_SID_OFFSET, service_info
+from canlib.uds.parse import NRC_CODES
+from canlib.uds.services import NEGATIVE_RESPONSE_SID, RESPONSE_SID_OFFSET, service_info
 
 # ── role vocabulary ────────────────────────────────────────────────────────
 # Short labels for a Role column. PCI is produced by the ISO-TP frame walker
@@ -264,7 +264,7 @@ def response_layout(resp_sid: int) -> ResponseLayout | None:
 
     ``0x7F`` resolves to the service-independent negative-response layout. For a
     positive response the explicit table wins; failing that, a service the
-    :mod:`canlib.uds_services` registry gives an ``id_width`` for resolves to a
+    :mod:`canlib.uds.services` registry gives an ``id_width`` for resolves to a
     single identifier field (2 bytes → ``DID``, 1 byte → ``LID``), so a plain
     identifier read is covered without being listed twice.
     """

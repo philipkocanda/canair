@@ -25,7 +25,7 @@ from canlib.commands._join import (
 from canlib.corrmatrix import CLUSTER_THRESHOLD
 from canlib.fill import FILL_HOLD, FORCED_HOLD_WARNING
 from canlib.keepmode import CHANGES_BANNER
-from canlib.notation import relabel_signal, resolve_notation
+from canlib.uds.notation import relabel_signal, resolve_notation
 from canlib.xanalysis import (
     colinear_clusters,
     correlate_matrix,

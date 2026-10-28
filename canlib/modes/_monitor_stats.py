@@ -8,7 +8,7 @@ each signal the way ``canair investigate``/``decode`` report a value range,
 without needing the on-screen keep-history (which the default keep-mode trims).
 
 Pure in-memory accumulation over the decoded parameter rows the poller already
-produces (:data:`canlib.decoding.ParamRow`); no I/O, no CAN access — a
+produces (:data:`canlib.expression.decoding.ParamRow`); no I/O, no CAN access — a
 self-contained, independently testable collaborator (mirroring
 :class:`canlib.modes._monitor_record.MonitorRecorder`).
 """
@@ -18,7 +18,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, TypedDict
 
 if TYPE_CHECKING:
-    from ..decoding import ParamRow
+    from canlib.expression.decoding import ParamRow
 
 # Cap on distinct non-numeric values remembered per parameter, so a noisy text
 # signal can't grow the accumulator without bound. Beyond this the range view

@@ -119,7 +119,7 @@ async def mode_scan(
                         svc_note = ""
                         nrc_svc = response.get("nrc_service")
                         if nrc_svc is not None and nrc_svc != service:
-                            from ..uds_services import service_name
+                            from canlib.uds.services import service_name
 
                             named = service_name(nrc_svc)
                             svc_note = (

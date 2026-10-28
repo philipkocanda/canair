@@ -138,7 +138,7 @@ def run(args) -> int:
 
 def _run_history(args) -> int:
     """Offline: print the most recent logged scan for the requested scope."""
-    from canlib.dtc_log import latest_matching, prior_matching, render_scan
+    from canlib.dtc.log import latest_matching, prior_matching, render_scan
 
     if args.dtc:
         from canlib.ecus import ecu_display, resolve_tx

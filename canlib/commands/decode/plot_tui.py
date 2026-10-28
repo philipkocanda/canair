@@ -9,7 +9,7 @@ Beyond the byte/param sweep the model provides, the app adds:
 - ``e`` — annotate the current param/byte (writes through ``canair pids``) (B4).
 - ``N`` — rename the current PID (``pids rename-pid``) (B4).
 
-Keys come from the shared keymap (:mod:`canlib.tui_keys`), never from a literal
+Keys come from the shared keymap (:mod:`canlib.tui.keys`), never from a literal
 key string, so the explorer cannot drift from the monitor and the stepper.
 """
 
@@ -27,10 +27,10 @@ from textual.screen import ModalScreen
 from textual.widgets import Input, Label, OptionList, Static
 from textual.widgets.option_list import Option
 
-from canlib.tui_help import HelpMixin
-from canlib.tui_keys import bind
-from canlib.tui_modals import TextPromptModal
-from canlib.tui_status import P_ESSENTIAL, P_LOW, P_NORMAL, StatusBar, StatusItem
+from canlib.tui.help import HelpMixin
+from canlib.tui.keys import bind
+from canlib.tui.modals import TextPromptModal
+from canlib.tui.status import P_ESSENTIAL, P_LOW, P_NORMAL, StatusBar, StatusItem
 
 if TYPE_CHECKING:
     from .plot import PlotModel

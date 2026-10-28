@@ -9,6 +9,8 @@ the polling/recording controller) so the ~150-line renderer is its own concern.
 
 from rich.text import Text
 
+from canlib.uds.notation import ByteDisplay, ByteNotation, subfunction_bytes_for_pid
+
 from ..formatting import (
     _render_hex_line,
     changed_param_highlights,
@@ -16,7 +18,6 @@ from ..formatting import (
     render_param_ranges,
     render_param_table,
 )
-from ..notation import ByteDisplay, ByteNotation, subfunction_bytes_for_pid
 from .multi_batch import EcuFrame, ResultEntry
 
 # Ordered display view modes cycled by the TUI 'V' key. Increasing detail:
@@ -352,7 +353,7 @@ def _render_results(
     expression re-parsing for static PIDs. ``None`` renders everything fresh.
 
     ``notation`` selects the byte-index notation used by the rulers and the
-    per-signal byte-reference column (see :class:`~canlib.notation.ByteDisplay`).
+    per-signal byte-reference column (see :class:`~canlib.uds.notation.ByteDisplay`).
 
     ``view_mode`` (see :data:`VIEW_MODES`) selects the presentation: ``"ecus"``
     lists only the responding ECUs (+ a PID/signal count); ``"ranges"`` shows

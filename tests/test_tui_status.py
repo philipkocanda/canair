@@ -1,4 +1,4 @@
-"""Tests for canlib.tui_status — the width-aware TUI status/hint bar.
+"""Tests for canlib.tui.status — the width-aware TUI status/hint bar.
 
 The bar exists because every canair TUI docks a long ``… · ? help · q quit`` line
 at a fixed height: on a narrow terminal (a phone SSH client at ~45 columns) Rich
@@ -13,7 +13,7 @@ import pytest
 from rich.text import Text
 from textual.app import App, ComposeResult
 
-from canlib.tui_status import (
+from canlib.tui.status import (
     P_ESSENTIAL,
     P_HIGH,
     P_LOW,

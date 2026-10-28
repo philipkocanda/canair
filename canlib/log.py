@@ -179,7 +179,7 @@ def log_event(
 
     Best-effort: filesystem errors are swallowed so logging never breaks a
     command. ``category`` is a transport outcome bucket (see
-    :data:`canlib.uds_parse.ERROR_CATEGORIES`); the ``transport``/``ecu``/``pid``
+    :data:`canlib.uds.parse.ERROR_CATEGORIES`); the ``transport``/``ecu``/``pid``
     context is recorded as ``key=value`` fields, and ``detail`` is free text.
     """
     logger = _get_event_logger()

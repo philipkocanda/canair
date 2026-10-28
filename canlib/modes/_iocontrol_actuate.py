@@ -19,8 +19,9 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING, Literal, get_args
 
+from canlib.uds.parse import UdsResponse, nrc_abbrev
+
 from ..pids import DEFAULT_IOCONTROL_SESSION_MODE
-from ..uds_parse import UdsResponse, nrc_abbrev
 
 if TYPE_CHECKING:
     from .iocontrol import _IOControlTUI

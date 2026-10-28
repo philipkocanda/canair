@@ -9,7 +9,7 @@ grouped form for diffing (``normalize_device_profile``).
 These are pure ``dict`` → ``dict`` transforms — the command module
 (``commands/wican.py``) owns the HTTP upload/download, diff rendering, and
 argparse; this module owns the shape math so it can be unit-tested and reused
-without a device. Companion to :mod:`canlib.autopid_layout` (byte-layout
+without a device. Companion to :mod:`canlib.wican.autopid_layout` (byte-layout
 reconstruction).
 """
 
@@ -18,7 +18,6 @@ from __future__ import annotations
 from collections import OrderedDict
 
 from canlib.addressing import EcuAddress, resolve_ecu_address
-from canlib.autopid_send_to import DEFAULT_TYPE, MQTT_TOPIC_TYPE, topic_problem
 from canlib.pids import is_shipped, pid_status
 from canlib.response_frames import stored_count
 from canlib.transport.elm327_addressing import (
@@ -29,6 +28,7 @@ from canlib.transport.elm327_addressing import (
     target_for,
 )
 from canlib.transport.elm327_frame_count import annotate_request, requestable
+from canlib.wican.autopid_send_to import DEFAULT_TYPE, MQTT_TOPIC_TYPE, topic_problem
 
 
 class ProfileGenerationError(Exception):
@@ -133,7 +133,7 @@ def generate_profile(
 
     A PID entry whose shipped signals stream to their own MQTT topic carries a
     ``send_to`` map of ``{"SIGNAL_NAME": "topic"}`` alongside ``parameters`` (see
-    :mod:`canlib.autopid_send_to`); the key is omitted when no signal has one, so a
+    :mod:`canlib.wican.autopid_send_to`); the key is omitted when no signal has one, so a
     profile without streams is unchanged.
     """
     profile = {

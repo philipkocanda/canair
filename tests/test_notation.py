@@ -1,9 +1,9 @@
-"""Tests for canlib.notation — the typed ByteRef model + display notation."""
+"""Tests for canlib.uds.notation — the typed ByteRef model + display notation."""
 
 import pytest
 
-from canlib.byteindex import wican_to_isotp
-from canlib.notation import (
+from canlib.uds.byteindex import wican_to_isotp
+from canlib.uds.notation import (
     ByteNotation,
     ByteRef,
     ByteSpace,
@@ -118,7 +118,7 @@ class TestToWicanExpression:
 
     def test_matches_decode_plot_wican_expr_for_common_cases(self):
         # Parity with the shared inspector expression generator.
-        from canlib.inspect_bytes import INSPECT_TYPES, wican_expr
+        from canlib.uds.inspect_bytes import INSPECT_TYPES, wican_expr
 
         by_name = {spec[0]: spec for spec in INSPECT_TYPES}
         for name, width, signed, little in [
@@ -201,13 +201,13 @@ class TestRelabelSignal:
 
 class TestResolveNotation:
     def test_explicit_value_wins(self):
-        from canlib.notation import resolve_notation
+        from canlib.uds.notation import resolve_notation
 
         assert resolve_notation("isotp") is ByteNotation.ISOTP
         assert resolve_notation("torque") is ByteNotation.TORQUE
 
     def test_defaults_to_wican(self, monkeypatch):
-        from canlib import notation
+        from canlib.uds import notation as notation
 
         monkeypatch.setattr(notation, "get_config_key", lambda k: None, raising=False)
         # No flag, no config -> wican.
@@ -222,7 +222,7 @@ class TestResolveNotation:
         monkeypatch.setattr(
             cfg, "get_config_key", lambda k: "isotp" if k == "display.byte_notation" else None
         )
-        from canlib.notation import resolve_notation
+        from canlib.uds.notation import resolve_notation
 
         assert resolve_notation(None) is ByteNotation.ISOTP
 
@@ -230,7 +230,7 @@ class TestResolveNotation:
         import canlib.config as cfg
 
         monkeypatch.setattr(cfg, "get_config_key", lambda k: "bogus")
-        from canlib.notation import resolve_notation
+        from canlib.uds.notation import resolve_notation
 
         assert resolve_notation(None) is ByteNotation.WICAN
 
@@ -341,7 +341,7 @@ class TestLengthAwareLabels:
             assert render(wican) == render(wican, payload_len=15), f"B{wican} shifted"
 
     def test_relabel_signal_threads_the_payload_length(self):
-        from canlib.notation import relabel_signal
+        from canlib.uds.notation import relabel_signal
 
         assert (
             relabel_signal("IGPM:22BC02:B4", ByteNotation.TORQUE, payload_len=7) == "IGPM:22BC02:A"
@@ -351,7 +351,7 @@ class TestLengthAwareLabels:
 
     def test_wican_notation_never_depends_on_the_length(self):
         """WiCAN is the identity view, so it must be immune to the layout."""
-        from canlib.notation import relabel_signal
+        from canlib.uds.notation import relabel_signal
 
         for length in (None, 7, 15, 64):
             kw = {} if length is None else {"payload_len": length}

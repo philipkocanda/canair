@@ -361,7 +361,7 @@ def _capture_echo_warnings(path: Path, hk_f1xx_offset: bool = False) -> list[Cap
 
     ``hk_f1xx_offset``: tolerate the HK F1xx -1 identity-DID quirk (profile opt-in).
     """
-    from canlib.uds_parse import payload_echo_mismatch
+    from canlib.uds.parse import payload_echo_mismatch
 
     warnings: list[CaptureWarning] = []
     data = capture_io.load_capture_file(path)
@@ -397,7 +397,7 @@ def _capture_nonhex_warnings(path: Path) -> list[CaptureWarning]:
     hex+ASCII transcription) signals a mis-recorded capture — see
     ``uds_parse.payload_not_hex``. Reported as a warning, never an error.
     """
-    from canlib.uds_parse import payload_not_hex
+    from canlib.uds.parse import payload_not_hex
 
     warnings: list[CaptureWarning] = []
     data = capture_io.load_capture_file(path)

@@ -166,7 +166,7 @@ class TestRenderResults:
         assert "idx" not in with_r
 
     def test_ruler_notation_follows_request(self):
-        from canlib.notation import ByteNotation
+        from canlib.uds.notation import ByteNotation
 
         params = [("VOLT", 12.3, "V", "B02", None, True)]
         entry = self._make_pid_result(pid="2101", params=params, raw_hex="6101AB")

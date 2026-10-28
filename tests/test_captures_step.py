@@ -544,7 +544,7 @@ def _marker_visible(app) -> bool:
     """Whether the ``▶`` block cursor lies inside the scroll viewport."""
     from textual.widgets import Static
 
-    from canlib.tui_scroll import marker_line
+    from canlib.tui.scroll import marker_line
 
     scroll = app.query_one("#scroll", VerticalScroll)
     line = marker_line(app.query_one("#body", Static))
@@ -830,7 +830,7 @@ class TestCapturesStepApp:
 
     @pytest.mark.asyncio
     async def test_help_modal_lists_bindings(self):
-        from canlib.tui_help import bindings_help_rows
+        from canlib.tui.help import bindings_help_rows
 
         app = self._app()
         async with app.run_test(size=(120, 30)) as pilot:
@@ -1403,7 +1403,7 @@ class TestJumpModal:
 
     @pytest.mark.asyncio
     async def test_jump_is_advertised_in_the_help(self):
-        from canlib.tui_help import bindings_help_rows
+        from canlib.tui.help import bindings_help_rows
 
         app = self._open()
         async with app.run_test(size=(130, 40)) as pilot:

@@ -4,7 +4,7 @@ Each factory here returns a :data:`CompiledExpression`: a closure taking
 ``(data, V)`` and returning a float. Operand factories bind a byte index (and, for
 a range, its sign-extension container) at build time; operator factories combine
 two operand closures. Nothing in this module parses text — that is
-:mod:`canlib.expression_compile`, which assembles these nodes into a tree.
+:mod:`canlib.expression.compile`, which assembles these nodes into a tree.
 
 Splitting them this way keeps the *semantics* (byte loads, sign extension,
 arithmetic — the part that must match wican-fw/main/expression_parser.c exactly)
@@ -46,7 +46,7 @@ def signed_range_is_exact(width: int) -> bool:
     """True if ``[Sn:Sm]`` spanning ``width`` bytes sign-extends correctly.
 
     See :data:`SIGNED_RANGE_WIDTHS`. Callers that build expressions (the byte
-    sweeps in :mod:`canlib.inspect_bytes` and :class:`canlib.notation.ByteRef`)
+    sweeps in :mod:`canlib.uds.inspect_bytes` and :class:`canlib.uds.notation.ByteRef`)
     must fall back to an arithmetic composition when this is False, or they emit
     an expression that decodes to a different value than they measured.
     """

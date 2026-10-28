@@ -33,7 +33,7 @@ from canlib.transport.elm327_frame_count import (
     requestable,
 )
 from canlib.transport.elm327_terminal import Elm327Terminal
-from canlib.uds_parse import CAT_BUS, CAT_DROP, CAT_NO_DATA
+from canlib.uds.parse import CAT_BUS, CAT_DROP, CAT_NO_DATA
 
 from ._fakes import QueuedChannel
 

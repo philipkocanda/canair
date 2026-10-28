@@ -16,9 +16,9 @@ from collections import Counter, defaultdict
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
-from canlib.byteindex import elm_to_wican_idx
 from canlib.textscan import Span, ascii_fold, folded_runs, is_plausible_token
-from canlib.uds_layout import response_layout
+from canlib.uds.byteindex import elm_to_wican_idx
+from canlib.uds.layout import response_layout
 
 # A single-frame response (<= 7 bytes) carries one PCI byte, a multi-frame one two.
 # Both the WiCAN expression and the run's byte labels depend on which, so a group

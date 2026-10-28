@@ -21,7 +21,7 @@ import pytest
 from canlib import profile
 from canlib.commands import validate as validate_cmd
 from canlib.constants import BUNDLED_PROFILES_DIR
-from canlib.decoding import decodes_to_number
+from canlib.expression.decoding import decodes_to_number
 from canlib.pids import clear_cache
 from canlib.state_refs import (
     IGNORED_PID,
@@ -99,7 +99,7 @@ class TestPredicateReferences:
 
 
 class TestDecodesToNumber:
-    """canlib.decoding.decodes_to_number — only numerics reach a predicate."""
+    """canlib.expression.decoding.decodes_to_number — only numerics reach a predicate."""
 
     @pytest.mark.parametrize("ptype", [None, "numeric", "enum", "bitmask", "bcd"])
     def test_numeric_yielding_types(self, ptype):

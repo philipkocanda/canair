@@ -341,7 +341,7 @@ def probes(surface: Surface) -> bool:
     probed only when the check is ``always``; every other surface reaches a
     WiCAN's HTTP API and is probed unless the check is off.
     """
-    from .config import firmware_check_mode
+    from canlib.config import firmware_check_mode
 
     mode = firmware_check_mode()
     if mode == "off":
@@ -357,7 +357,7 @@ def detect(host: str, surface: Surface, *, timeout: float | None = None) -> Firm
     if not probes(surface):
         return UNKNOWN
     if timeout is None:
-        from .config import fallback_settings
+        from canlib.config import fallback_settings
 
         _, timeout, _ = fallback_settings()
     return probe(host, timeout=timeout)

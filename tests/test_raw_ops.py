@@ -5,9 +5,9 @@ from typing import ClassVar
 
 import pytest
 
-from canlib import wican_mode
 from canlib.modes import raw_monitor, raw_ops
-from canlib.wican_mode import ModeError
+from canlib.wican import mode as wican_mode
+from canlib.wican.mode import ModeError
 
 
 def T(host="1.2.3.4", port=35000, bitrate=500000):

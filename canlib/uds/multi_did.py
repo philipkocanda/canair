@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from .frame_counts import frames_for_payload
+from canlib.frame_counts import frames_for_payload
 
 POSITIVE_READ_SID = 0x62
 

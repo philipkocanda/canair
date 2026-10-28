@@ -19,7 +19,7 @@ a scriptable per-request response map, and a uniform set of recorders. Per-test
 *scripting* stays local — pass a ``responses`` map, tweak ``default``/
 ``flaky_recover``/``session_result``, or subclass and override ``send_uds``.
 
-Response dicts mirror :func:`canlib.uds_parse.parse_uds_response`: positives are
+Response dicts mirror :func:`canlib.uds.parse.parse_uds_response`: positives are
 ``{"ok": True, "hex", "bytes", "raw"}`` (build with :func:`ok`); negatives are
 ``{"ok": False, "nrc", "nrc_desc", ...}`` or ``{"ok": False, "error"}``.
 """
@@ -33,7 +33,7 @@ from canlib.frame_counts import FrameCountLedger
 from canlib.timing import TimingRecorder
 from canlib.transport.isotp_params import ISOTP_MAX_REQUEST_BYTES
 from canlib.transport_stats import TransportStats
-from canlib.uds_parse import UdsResponse
+from canlib.uds.parse import UdsResponse
 
 NO_DATA: UdsResponse = {"ok": False, "error": "NO DATA", "raw": "NO DATA"}
 

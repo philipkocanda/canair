@@ -21,7 +21,7 @@ from __future__ import annotations
 import struct
 from typing import NamedTuple
 
-from .expression import signed_range_is_exact
+from canlib.expression import signed_range_is_exact
 
 
 class InspectType(NamedTuple):

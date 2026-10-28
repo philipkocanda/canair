@@ -35,8 +35,8 @@ class TestSleepBannerRegression:
     )
     def test_http_failure_never_ends_the_session(self, monkeypatch, capsys, error):
         """The banner used to sys.exit(1) from inside a connected session."""
-        from canlib import wican_api
         from canlib.commands._live.connect import _print_sleep_banner
+        from canlib.wican import api as wican_api
 
         def boom(*a, **k):
             raise error
@@ -46,8 +46,8 @@ class TestSleepBannerRegression:
         assert capsys.readouterr().out == ""
 
     def test_prints_when_the_api_answers(self, monkeypatch, capsys):
-        from canlib import wican_api
         from canlib.commands._live.connect import _print_sleep_banner
+        from canlib.wican import api as wican_api
 
         bodies = {
             "/check_status": {"batt_voltage": "12.6V", "sta_pass": "hunter2"},
@@ -73,8 +73,8 @@ class TestSleepBannerRegression:
     )
     def test_non_object_json_skips_the_banner(self, monkeypatch, capsys, bodies):
         """A JSON reply that isn't an object (some other HTTP server) must not crash `.get`."""
-        from canlib import wican_api
         from canlib.commands._live.connect import _print_sleep_banner
+        from canlib.wican import api as wican_api
 
         def get(url, timeout):
             return FakeResponse(200, next(b for p, b in bodies.items() if url.endswith(p)))

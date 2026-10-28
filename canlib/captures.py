@@ -10,6 +10,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import cast
 
+from canlib.uds.parse import UdsResponse
+
 from . import capture_io
 from .capture_types import (
     CaptureFile,
@@ -26,7 +28,6 @@ from .keepmode import KeepMode, persisted_keep_mode
 from .state_spans import StateSpan
 from .states import join_states as _join_states
 from .states import parse_states as _parse_states
-from .uds_parse import UdsResponse
 
 # The ``transport`` of a device-free session (``canair import uds``): its payloads
 # never came off a live bus here.
@@ -715,8 +716,9 @@ def _decode_payload(
     regenerate them on demand for display (see query-captures.py). Pass a
     prebuilt ``ecu_index`` to avoid rebuilding it on every call.
     """
-    from .autopid_layout import uds_hex_to_wican_bytes
-    from .decode_value import NUMERIC, decode_typed, render
+    from canlib.expression.decode_value import NUMERIC, decode_typed, render
+    from canlib.wican.autopid_layout import uds_hex_to_wican_bytes
+
     from .expression import evaluate_expression
     from .pids import build_ecu_index
 

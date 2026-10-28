@@ -37,8 +37,8 @@ def _dump(data: dict | list) -> str:
 
 
 def on_files(files: Files, config) -> Files:
-    from canlib.explorer_export import export_profile
-    from canlib.explorer_series import export_sessions, rx_by_address
+    from canlib.explorer.export import export_profile
+    from canlib.explorer.series import export_sessions, rx_by_address
     from canlib.profile import looks_like_profile
 
     roots = [p for p in sorted(PROFILES_DIR.iterdir()) if looks_like_profile(p)]

@@ -10,9 +10,9 @@ from typing import Any
 import yaml
 
 from canlib import yaml_io
-from canlib.byteindex import wican_to_isotp
-from canlib.decode_value import BYTE_RUN_TYPES as _BYTE_RUN_TYPES
+from canlib.expression.decode_value import BYTE_RUN_TYPES as _BYTE_RUN_TYPES
 from canlib.pids import PID_STATUSES, pid_status
+from canlib.uds.byteindex import wican_to_isotp
 
 from ._common import EXPR_TOKEN_RE, SCHEMA_FILE
 from .send_to import send_to_findings
@@ -138,7 +138,7 @@ def check_pci_bytes(
     ``param_type`` exempts the range form for the **byte-run** types
     (``ascii``/``date``): there the range delimits a run of text/date bytes rather
     than a scalar, and the decoder drops the framing bytes it spans (see
-    :func:`canlib.decode_value._data_run`). A 17-char VIN necessarily crosses a
+    :func:`canlib.expression.decode_value._data_run`). A 17-char VIN necessarily crosses a
     frame boundary, so flagging it would be flagging the only correct spelling.
     """
     warnings = []
@@ -1510,7 +1510,7 @@ def _duplicate_param_errors(file_paths: list[Path]) -> list[str]:
     Mirrors the wican profile-generation gate (``active`` PID + ``enabled``
     param): those params become distinct signals on the device and their names
     must be globally unique. Catching it here means CI/`validate` fails before
-    `wican autopid write` does. See ``canlib.autopid_profile.generate_profile``.
+    `wican autopid write` does. See ``canlib.wican.autopid_profile.generate_profile``.
     """
     from canlib.pids import is_shipped
 

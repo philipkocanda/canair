@@ -32,8 +32,8 @@ from canlib.commands._join import (
     fill_summary_line,
 )
 from canlib.fill import forced_hold_warning
-from canlib.inspect_bytes import NO_EXPR
-from canlib.notation import (
+from canlib.uds.inspect_bytes import NO_EXPR
+from canlib.uds.notation import (
     ByteNotation,
     ByteRef,
     add_notation_arg,

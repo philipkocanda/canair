@@ -24,7 +24,7 @@ def _print_sleep_banner(host: str, timeout: int = 5) -> None:
     the banner rather than ending the session.
     """
     try:
-        from canlib.wican_api import get_config, get_status
+        from canlib.wican.api import get_config, get_status
 
         base_url = f"http://{host}"
         status = get_status(base_url, timeout)

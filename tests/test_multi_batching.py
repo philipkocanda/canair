@@ -411,7 +411,7 @@ class TestReadSingleEchoValidation:
         # Response depends on the passed echo/SID (the parser rejecting a 6101
         # response to a 2102 request), so this stays a local computed closure.
         async def send_uds(req, *a, **k):
-            from canlib.uds_parse import parse_uds_response
+            from canlib.uds.parse import parse_uds_response
 
             return parse_uds_response(
                 "6101FFE0",

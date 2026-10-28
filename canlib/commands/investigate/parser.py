@@ -10,7 +10,7 @@ from canlib.commands._join import (
     add_join_args,
 )
 from canlib.counters import DEFAULT_MAX_WIDTH, DEFAULT_MIN_BITS
-from canlib.notation import (
+from canlib.uds.notation import (
     add_notation_arg,
 )
 

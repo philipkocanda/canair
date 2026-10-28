@@ -15,6 +15,17 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 
+from canlib.uds.inspect_bytes import (
+    INSPECT_TYPES,
+    NO_EXPR,
+    apply_transform,
+    float_series_is_noise,
+    interpret_bytes,
+    read_indices,
+    wican_expr,
+    wican_expr_indices,
+)
+
 from .align import (
     DEFAULT_JOIN_TOL_S,
     DEFAULT_SESSION_GAP_S,
@@ -33,16 +44,6 @@ from .corrmatrix import (
     signal_group_key,
 )
 from .fill import FillPolicy
-from .inspect_bytes import (
-    INSPECT_TYPES,
-    NO_EXPR,
-    apply_transform,
-    float_series_is_noise,
-    interpret_bytes,
-    read_indices,
-    wican_expr,
-    wican_expr_indices,
-)
 from .physical_bands import DEFAULT_PHYSICAL_BANDS
 from .stats import correlation, linear_fit, pearson
 from .unit_guess import DEFAULT_UNIT_CANDIDATES as _UNIT_CANDIDATES
@@ -284,7 +285,7 @@ def build_byte_series(
     (which handles the first-frame 2-byte PCI and every consecutive-frame PCI).
     """
 
-    from .byteindex import wican_to_isotp
+    from canlib.uds.byteindex import wican_to_isotp
 
     skip_offsets = set(skip_offsets or set())
     # Each capture's WiCAN frame + timestamp is decoded ONCE by LoadedPid.decoded
@@ -321,7 +322,7 @@ def build_bit_series(
     bytes are skipped by default.
     """
 
-    from .byteindex import wican_to_isotp
+    from canlib.uds.byteindex import wican_to_isotp
 
     rows = list(zip(loaded.timed_frames(), loaded.timed_holds(fill), strict=True))
     max_len = max((len(fr) for (_dt, fr), _h in rows), default=0)
@@ -406,7 +407,8 @@ def byte_state_buckets(
     the vehicle state); when it returns ``None`` for a capture, that capture is
     skipped. Defaults to the session vehicle-state key.
     """
-    from .byteindex import payload_to_wican_bytes, wican_to_isotp
+    from canlib.uds.byteindex import payload_to_wican_bytes, wican_to_isotp
+
     from .states import load_states, state_bucket_key
 
     rules = load_states() if group_of is None else []
@@ -575,7 +577,7 @@ def hunt_byte(
     """Sweep every byte offset × interpretation, rank by |r| vs ``ref``.
 
     Uses the shared byte-interpretation primitives (``INSPECT_TYPES``,
-    ``interpret_bytes``, ``wican_expr`` from ``canlib.inspect_bytes``) so hunt and
+    ``interpret_bytes``, ``wican_expr`` from ``canlib.uds.inspect_bytes``) so hunt and
     plot agree on how bytes are
     read and expressed. PCI-crossing multi-byte reads are skipped. Ranking uses
     ``method`` (pearson/spearman); the reported linear fit is always least-squares
@@ -587,8 +589,9 @@ def hunt_byte(
     appears once the dominant driver is regressed out (and demoting bytes that
     merely track the control). The linear fit stays on the raw (ref, cand) pairs.
     """
+    from canlib.uds.byteindex import wican_to_isotp
+
     from .align import join_nearest_triple
-    from .byteindex import wican_to_isotp
     from .stats import partial_correlation
 
     # (datetime, frame) per timed capture, decoded once by LoadedPid.decoded. A
@@ -867,8 +870,8 @@ def physical_scan(
     :func:`canlib.physical_bands.resolve_physical_bands`); ``None`` falls back to
     the built-in :data:`PHYSICAL_BANDS` defaults.
     """
-    from .byteindex import mappable_data_indices
-    from .notation import subfunction_bytes_for_pid
+    from canlib.uds.byteindex import mappable_data_indices
+    from canlib.uds.notation import subfunction_bytes_for_pid
 
     if bands is None:
         bands = PHYSICAL_BANDS

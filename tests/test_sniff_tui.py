@@ -15,7 +15,7 @@ def _plain(renderable) -> str:
 class TestSniffApp:
     @pytest.mark.asyncio
     async def test_help_modal_opens_with_question_mark(self):
-        from canlib.tui_help import HelpModal
+        from canlib.tui.help import HelpModal
 
         app = SniffApp(SniffStats(), host="10.0.0.1")
         async with app.run_test(size=(100, 30)) as pilot:

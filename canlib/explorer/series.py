@@ -22,11 +22,11 @@ from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
-from . import capture_io
-from .captures_merge import session_anchor
-from .decoding import decode_param_rows
-from .pids import load_pids, pid_status
-from .state_spans import parse_time_key
+from canlib import capture_io
+from canlib.captures_merge import session_anchor
+from canlib.expression.decoding import decode_param_rows
+from canlib.pids import load_pids, pid_status
+from canlib.state_spans import parse_time_key
 
 # Sessions with fewer numeric samples than this are not worth a plot and are left out.
 MIN_SAMPLES = 10

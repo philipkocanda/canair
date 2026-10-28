@@ -199,7 +199,7 @@ def _data_run(wican_bytes: bytes, lo: int, hi: int) -> bytes:
     frame) buffers are both exact — no length guessing. Trailing CAN-frame padding
     is dropped by comparing against the PCI's declared payload length.
     """
-    from .byteindex import NotAFrameError, declared_payload_len, framed_to_wican_frame
+    from canlib.uds.byteindex import NotAFrameError, declared_payload_len, framed_to_wican_frame
 
     try:
         frame = framed_to_wican_frame(list(wican_bytes))
@@ -228,7 +228,7 @@ def _payload_slice_for_type(wican_bytes: bytes, param: dict) -> bytes:
     the decoded text.
 
     The fallback's header width is **looked up, not guessed**: the payload's own
-    response SID resolves through :func:`canlib.uds_layout.response_layout`, so a
+    response SID resolves through :func:`canlib.uds.layout.response_layout`, so a
     ``0x5A`` KWP2000 record read drops ``SID + REC`` (2 bytes) while a ``0x62`` DID
     read drops ``SID + DID`` (3). An unregistered service drops only the SID —
     the one byte every positive response certainly has — since eating a
@@ -243,7 +243,7 @@ def _payload_slice_for_type(wican_bytes: bytes, param: dict) -> bytes:
         if 0 <= lo <= hi < len(wican_bytes):
             return _data_run(wican_bytes, lo, hi)
 
-    from .uds_layout import response_layout
+    from canlib.uds.layout import response_layout
 
     data = _data_run(wican_bytes, 0, len(wican_bytes) - 1)
     if not data:
