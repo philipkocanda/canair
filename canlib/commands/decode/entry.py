@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import sys
 
-from canlib.capture_dates import resolve_scope_bounds
+from canlib.captures.dates import resolve_scope_bounds
 from canlib.pids import build_ecu_index, load_pids
 
 from .one import decode_one

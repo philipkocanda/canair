@@ -19,7 +19,7 @@ from datetime import date, datetime, time
 from pathlib import Path
 from typing import Any
 
-from .capture_store import load_all_captures
+from canlib.captures.store import load_all_captures
 
 # NOTE on the scope filters below: they are deliberately shape-agnostic. Each
 # reads only a handful of keys (date/time/vehicle_states/label) and is applied
@@ -268,7 +268,7 @@ def filter_by_text[Row: Mapping[str, Any]](
     ``decode``) and any per-capture ``label``. Both filters are ANDed; ``None``
     means "don't filter on this field".
     """
-    from .states import state_matcher
+    from canlib.states import state_matcher
 
     if not state and not label:
         return entries
@@ -468,7 +468,7 @@ def resolve_scope_bounds(
         return since, until, err
     state = getattr(args, "state", None)
     if state:
-        from .states import allowed_states, unknown_state_tokens
+        from canlib.states import allowed_states, unknown_state_tokens
 
         unknown = unknown_state_tokens(state)
         if unknown:

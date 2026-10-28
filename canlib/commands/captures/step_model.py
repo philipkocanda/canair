@@ -29,15 +29,15 @@ from typing import Any
 
 from rich.text import Text
 
-from canlib.capture_dates import entry_datetime
-from canlib.capture_store import (
+from canlib.captures.dates import entry_datetime
+from canlib.captures.store import (
     PidDefs,
     entry_path,
     load_all_captures,
     load_ecu_index,
     resolve_pid_defs,
 )
-from canlib.capture_types import CaptureEntry
+from canlib.captures.types import CaptureEntry
 from canlib.states import join_states as _join_states
 from canlib.uds.notation import ByteNotation
 

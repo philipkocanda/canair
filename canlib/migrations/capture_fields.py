@@ -10,7 +10,7 @@ This module rewrites existing capture files in place, swapping the key at both
 the capture level and inside ``scan_results.responding[]``, preserving field
 order (the key is renamed in place, not moved to the end). It is idempotent — a
 file already on ``rx`` is left untouched — and each rewrite goes through
-:func:`canlib.capture_io.dump_capture_file` (atomic). Backs the user-facing
+:func:`canlib.captures.io.dump_capture_file` (atomic). Backs the user-facing
 ``canair captures migrate-rx`` subcommand. Distinct from ``capture_migrate.py``
 (the YAML→JSON store cutover), which is structure-opaque and won't rename fields.
 """
@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from canlib import capture_io
+from canlib.captures import io as capture_io
 
 
 @dataclass

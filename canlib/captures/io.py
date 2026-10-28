@@ -22,7 +22,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-from .capture_types import CaptureFile
+from canlib.captures.types import CaptureFile
 
 # On-disk capture-file extension. Legacy profiles used ``.yaml`` (pre-migration);
 # see :func:`find_legacy_yaml` and ``canair captures migrate``.
@@ -57,7 +57,7 @@ def resolve_captures_dir(explicit: Path | None = None) -> Path:
     """
     if explicit is not None:
         return explicit
-    from .profile import active
+    from canlib.profile import active
 
     return active().captures_dir
 
@@ -72,7 +72,7 @@ def resolve_capture_layers(explicit: Path | None = None) -> list[Path]:
     """
     if explicit is not None:
         return [explicit]
-    from .profile import active
+    from canlib.profile import active
 
     return active().capture_layers
 

@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from canlib import capture_io
+from canlib.captures import io as capture_io
 from canlib.explorer.export import export_profile
 from canlib.explorer.series import (
     MIN_SAMPLES,

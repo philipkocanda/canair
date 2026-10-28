@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from canlib.payload_corpus import PayloadCorpus, load_payload_corpus
+from canlib.captures.payload_corpus import PayloadCorpus, load_payload_corpus
 from canlib.uds.unsplit_batches import UnsplitBatch, find_unsplit_batches
 
 from .captures import CaptureWarning

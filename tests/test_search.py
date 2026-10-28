@@ -7,7 +7,7 @@ import json
 
 import pytest
 
-import canlib.capture_store as capture_store
+import canlib.captures.store as capture_store
 from canlib.cli import _inject_default_subcommand
 from canlib.commands import search
 from canlib.commands.search.findings import PayloadRow, inventory_payloads

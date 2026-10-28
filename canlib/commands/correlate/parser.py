@@ -8,7 +8,7 @@ from canlib.analysis.align import (
     DEFAULT_SESSION_GAP_S,
 )
 from canlib.analysis.stats import METHOD_CHEAT_SHEET as _METHOD_CHEAT_SHEET
-from canlib.capture_dates import add_scope_args
+from canlib.captures.dates import add_scope_args
 from canlib.commands._can_args import add_can_log_source_args
 from canlib.commands._group import group_help
 from canlib.commands._join import (

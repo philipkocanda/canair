@@ -19,7 +19,7 @@ from canlib.uds.notation import ByteNotation
 
 def _entry_dt(cap: dict):
     """Real datetime for a capture (session date + per-capture time), or None."""
-    from canlib.capture_dates import entry_datetime
+    from canlib.captures.dates import entry_datetime
 
     return entry_datetime(cap)
 

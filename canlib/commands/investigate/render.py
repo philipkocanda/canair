@@ -138,7 +138,7 @@ def iter_edges(lp, mapped, mapped_bit, *, bits: bool):
     Walks each varying byte (and, with ``bits``, each toggling bit) in time order
     and emits one row per transition — the raw material for the event timeline.
     """
-    from canlib.capture_dates import entry_datetime
+    from canlib.captures.dates import entry_datetime
     from canlib.uds.byteindex import payload_to_wican_bytes, wican_to_isotp
 
     frames = []
@@ -224,7 +224,7 @@ def iter_field_edges(lp, param: dict):
     so a schedule/mode change reads as ``{Mon 08:00}->{Tue 07:30}`` rather than
     scattered per-byte edges.
     """
-    from canlib.capture_dates import entry_datetime
+    from canlib.captures.dates import entry_datetime
     from canlib.expression.decode_value import decode_typed, render
     from canlib.uds.byteindex import payload_to_wican_bytes
 
@@ -374,7 +374,7 @@ def _poll_interval_s(lp) -> float | None:
     """Median gap (s) between consecutive timed captures — the sampling cadence."""
     from itertools import pairwise
 
-    from canlib.capture_dates import entry_datetime
+    from canlib.captures.dates import entry_datetime
 
     dts = sorted(dt for cap in lp.captures if (dt := entry_datetime(cap)) is not None)
     gaps = [(b - a).total_seconds() for a, b in pairwise(dts)]

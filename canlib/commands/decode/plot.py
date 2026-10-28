@@ -23,8 +23,8 @@ import sys
 
 from canlib import ansi
 from canlib.analysis.stats import pearson as _pearson
-from canlib.capture_dates import resolve_scope_bounds
-from canlib.capture_store import load_pid_captures
+from canlib.captures.dates import resolve_scope_bounds
+from canlib.captures.store import load_pid_captures
 from canlib.expression.decoding import decode_payload, ordered_signal_names
 from canlib.pids import build_ecu_index, load_pids
 from canlib.uds.byteindex import payload_to_wican_bytes
@@ -394,7 +394,7 @@ class PlotModel:
 
 def plot_pid_options() -> list[tuple[str, str]]:
     """Distinct ``(ECU, PID)`` pairs that have payload captures, for the --plot switcher."""
-    from canlib.capture_store import load_all_captures
+    from canlib.captures.store import load_all_captures
 
     seen: dict[tuple[str, str], None] = {}
     try:

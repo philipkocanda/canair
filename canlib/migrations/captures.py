@@ -19,7 +19,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from canlib import capture_io, yaml_io
+from canlib import yaml_io
+from canlib.captures import io as capture_io
 
 
 class MigrationError(Exception):

@@ -48,7 +48,7 @@ from pathlib import Path
 from typing import Any
 
 from canlib import ansi
-from canlib.capture_types import CaptureEntry
+from canlib.captures.types import CaptureEntry
 from canlib.commands._group import group_help
 from canlib.commands._hexarg import HexArgError, parse_hex_arg
 from canlib.commands._hints import ecu_completer as _ecu_completer
@@ -122,7 +122,7 @@ def _pid_stats(ecu_def: dict) -> dict:
 def _captures_by_pid(ecu_name: str) -> tuple[Counter, int]:
     """Return (per-PID capture counts, total captures) for an ECU name."""
     try:
-        from canlib.capture_store import load_all_captures
+        from canlib.captures.store import load_all_captures
 
         caps = load_all_captures()
     except Exception:
@@ -142,7 +142,7 @@ def _captures_by_pid(ecu_name: str) -> tuple[Counter, int]:
 def _all_captures_by_ecu() -> Counter:
     """Total capture counts keyed by canonical ECU short name (upper-cased)."""
     try:
-        from canlib.capture_store import load_all_captures
+        from canlib.captures.store import load_all_captures
 
         caps = load_all_captures()
     except Exception:
@@ -469,7 +469,7 @@ def _latest_capture_by_pid(ecu_name: str) -> dict[str, CaptureEntry]:
     Returns an empty dict when captures can't be loaded.
     """
     try:
-        from canlib.capture_store import load_all_captures
+        from canlib.captures.store import load_all_captures
 
         caps = load_all_captures()
     except Exception:
@@ -491,7 +491,7 @@ def _pids_latest_records(ecu_def: dict | None, ecu_name: str) -> list[dict]:
     most recent capture of that PID — never raw hex. PIDs with no capture, or no
     parameters defined, are still listed (so the view shows *all* available PIDs).
     """
-    from canlib.capture_store import decoded_preview
+    from canlib.captures.store import decoded_preview
 
     latest = _latest_capture_by_pid(ecu_name)
     out: list[dict] = []

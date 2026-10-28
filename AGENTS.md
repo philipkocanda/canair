@@ -300,7 +300,7 @@ reuse these instead of re-declaring a flag:
   rendered via `ByteDisplay`); WiCAN/Torque/bix are derived views. Persist a default with
   `config set display.byte_notation`.
 - Scope flags (`--since`/`--until`/`--date`/`--today`/`--state`/`--label`/`--last-session`/
-  `--first`/`--last`) — `canlib/capture_dates.py::add_scope_args`, shared by `captures` and every
+  `--first`/`--last`) — `canlib/captures/dates.py::add_scope_args`, shared by `captures` and every
   analysis command.
 
 ### Authoring (writes into a profile — pass `--profile`)
@@ -383,7 +383,7 @@ reuse these instead of re-declaring a flag:
   (a reply that looks like another ECU's answer to the same PID, which the echo check cannot see;
   cross-file pass, detection in `canlib/analysis/misfiled.py`), **unsplit multi-DID replies** (a
   batch reply starts `62 D1`, so it passes `D1`'s echo check; same corpus load via
-  `canlib/payload_corpus.py`, detection in `canlib/uds/unsplit_batches.py`, reply walk in
+  `canlib/captures/payload_corpus.py`, detection in `canlib/uds/unsplit_batches.py`, reply walk in
   `canlib/uds/multi_did.py`, which the live batched read paths also use to discard one), non-hex
   payloads, **untimed payload captures** (excluded from every time-aligned analysis) and
   **degraded-transport sessions** (recorded drops/stale frames). **`--max-untimed N` is the CI
@@ -468,7 +468,7 @@ reuse these instead of re-declaring a flag:
   `is_managed_workspace`. **A re-run updates the open PR** rather than failing: the branch name is
   date-based, so `find_open_pr` looks it up (`gh pr list --head <plain branch>`) after the push and
   reports `updated PR #N` as success instead of letting `gh pr create` error.
-  Captures are **overlaid** (append-only, `canlib/captures_merge.py::overlay`), so a
+  Captures are **overlaid** (append-only, `canlib/captures/merge.py::overlay`), so a
   source behind upstream never proposes deleting upstream sessions, and a capture log it adds
   nothing to stays byte-identical. A source session sharing an upstream one's **anchor** (see
   Layered profiles) but not its content *replaces* it in place — every replacement is listed by
@@ -530,7 +530,7 @@ to `plans/2026-07-30-profile-variant-inheritance.md` — `extends:` is deliberat
   refused by `canlib/profile.py::require_writable_definitions()`, called from the single edit funnel
   in each of `pids`/`states`/`groups`/`signals`/`ecu add`. It raises `ProfileError`, which
   `canlib/cli.py` already turns into `error: …` + exit 2, so no command handles it.
-- **Reads span layers, writes do not.** `canlib/capture_io.py::resolve_capture_layers` is the read
+- **Reads span layers, writes do not.** `canlib/captures/io.py::resolve_capture_layers` is the read
   seam; `capture_store.load_all_captures` iterates it, dedupes sessions across layers by
   `captures_merge.session_key` (base wins, so a contributed-then-pulled session stays read-only),
   lets an overlay copy sharing a base session's `session_anchor` but not its content supersede it
@@ -589,13 +589,13 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   with `variable_length:`). Edit via `canair pids`/`ecu`; validate with `canair validate pids`.
 - **`profiles/<car>/captures/`** — Recorded UDS payloads, one **JSON** file per date
   (`captures/YYYY-MM-DD.json`; JSON parses ~60× faster than YAML, the dominant cost of every
-  history-consuming command). The read/write seam is `canlib/capture_io.py`; there is **no YAML
+  history-consuming command). The read/write seam is `canlib/captures/io.py`; there is **no YAML
   fallback** — an older profile fails fast and is converted once with `canair captures migrate`.
   Schema `canlib/schema/captures_schema.json` (format-agnostic, validates the parsed structure) with
-  matching `TypedDict`s in `canlib/capture_types.py` that the builders/IO are typed against
+  matching `TypedDict`s in `canlib/captures/types.py` that the builders/IO are typed against
   (enforced by `ty`). Human companion: `docs/concepts/captures-and-states.md`. **These are
   append-only session logs**, so same-day recordings from two machines union-merge via canair's git
-  merge driver (`.gitattributes` rule + `canlib/captures_merge.py`) — but git never loads a driver
+  merge driver (`.gitattributes` rule + `canlib/captures/merge.py`) — but git never loads a driver
   from a tracked file, so each clone must run **`canair captures merge-driver --install`** once;
   until then merges just fall back to conflict markers. A capture's **`rx`** field is the ECU CAN
   *response* address (its `rx_id`, else request TX + the profile `rx_offset`, resolved by

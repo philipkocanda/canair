@@ -24,14 +24,14 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from canlib.capture_store import entry_path
+from canlib.captures.store import entry_path
 from canlib.states import parse_states
 from canlib.states.infer import DEFAULT_CYCLE_TOL_S, session_state_spans
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from canlib.capture_types import CaptureEntry
+    from canlib.captures.types import CaptureEntry
 
 # Verdict for a session after attempting to reconstruct its timeline.
 _SPANS = "spans"  # a real timeline (states change mid-session) → write
@@ -53,7 +53,7 @@ def _existing_span_sources(paths: set[str]) -> dict[tuple[str, int], str]:
     carries its *resolved* states, not the provenance of the block they came from,
     and only this command needs that provenance.
     """
-    from canlib import capture_io
+    from canlib.captures import io as capture_io
 
     sources: dict[tuple[str, int], str] = {}
     for path in sorted(paths):

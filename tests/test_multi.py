@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from canlib.capture_journal import CaptureJournal
+from canlib.captures.journal import CaptureJournal
 from canlib.modes.multi import (
     _exec_iocontrol,
     _exec_query,

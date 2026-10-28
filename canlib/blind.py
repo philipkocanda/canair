@@ -35,12 +35,13 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from canlib import yaml_rt
 from canlib.analysis.stats import cramers_v, pearson, spearman
 from canlib.analysis.xanalysis import linear_fit
+from canlib.captures import io as capture_io
 from canlib.expression.decode_value import decode_typed
 from canlib.uds.byteindex import payload_to_wican_bytes
 
-from . import capture_io, yaml_rt
 from . import pids as pids_mod
 from .expression import evaluate_expression
 from .profile import BUNDLE_MEMBERS, Profile, profile_for_path

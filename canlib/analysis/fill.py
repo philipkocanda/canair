@@ -35,8 +35,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Literal, get_args
 
-from canlib.capture_dates import entry_datetime
-from canlib.capture_types import CaptureEntry
+from canlib.captures.dates import entry_datetime
+from canlib.captures.types import CaptureEntry
 from canlib.keepmode import KEEP_CHANGES, KEEP_UNIQUE, scope_is_keep_unique
 
 __all__ = [

@@ -12,8 +12,8 @@ from __future__ import annotations
 import sys
 
 from canlib import ansi
-from canlib.capture_dates import filter_by_date_range, filter_by_text, resolve_scope_bounds
-from canlib.capture_store import load_all_captures
+from canlib.captures.dates import filter_by_date_range, filter_by_text, resolve_scope_bounds
+from canlib.captures.store import load_all_captures
 from canlib.profile import active
 from canlib.query import QueryError
 from canlib.uds.notation import resolve_notation

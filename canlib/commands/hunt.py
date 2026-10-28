@@ -31,7 +31,7 @@ from canlib.analysis.xanalysis import (
     reference_is_bimodal,
     transform_ref,
 )
-from canlib.capture_dates import add_scope_args, resolve_scope_bounds
+from canlib.captures.dates import add_scope_args, resolve_scope_bounds
 from canlib.commands._can_args import add_can_log_source_args
 from canlib.commands._group import group_help
 from canlib.commands._join import (

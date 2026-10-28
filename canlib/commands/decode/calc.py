@@ -55,7 +55,7 @@ def _paired_timed(all_results: list[dict], ref: str, name: str) -> tuple[list[fl
     """
     from datetime import datetime
 
-    from canlib.capture_dates import entry_datetime
+    from canlib.captures.dates import entry_datetime
 
     triples: list[tuple[datetime, float, float]] = []
     for r in all_results:
@@ -76,7 +76,7 @@ def _local_series(all_results: list[dict], name: str) -> list:
     different ECU/PID. Captures with no usable ``datetime`` are dropped.
     """
     from canlib.analysis.align import TimePoint
-    from canlib.capture_dates import entry_datetime
+    from canlib.captures.dates import entry_datetime
 
     out = []
     for r in all_results:
@@ -148,7 +148,7 @@ def axis_group_keys(
     enum/flag/mode axis, not a continuous analog).
     """
     from canlib.analysis.align import join_indices, prepare_series
-    from canlib.capture_dates import entry_datetime
+    from canlib.captures.dates import entry_datetime
 
     series, label = load_cross_ref_series(axis_spec, scope=scope, tol_s=tol_s, fill=fill)
     axis = prepare_series(series)

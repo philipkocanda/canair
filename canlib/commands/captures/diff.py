@@ -8,8 +8,8 @@ information one time-joined frame at a time.
 
 from collections.abc import Sequence
 
-from canlib.capture_store import decoded_preview
-from canlib.capture_types import CaptureEntry
+from canlib.captures.store import decoded_preview
+from canlib.captures.types import CaptureEntry
 from canlib.uds.notation import ByteNotation
 
 from .query import (

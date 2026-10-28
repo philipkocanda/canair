@@ -13,13 +13,13 @@ import sys
 from pathlib import Path
 
 from canlib import ansi
-from canlib.capture_io import resolve_captures_dir
+from canlib.captures.io import resolve_captures_dir
 
 
 def cmd_recover(captures_dir: Path | None, discard: bool = False) -> int:
     """Reconcile (or discard) orphaned capture journals left by a killed session."""
-    from canlib.capture_journal import list_orphans
-    from canlib.capture_journal import recover as _recover
+    from canlib.captures.journal import list_orphans
+    from canlib.captures.journal import recover as _recover
 
     cdir = resolve_captures_dir(captures_dir)
     orphans = list_orphans(cdir)
@@ -242,7 +242,7 @@ def cmd_split_batched(
     """Split multi-DID replies stored whole under one DID into one capture per DID."""
     import json as _json
 
-    from canlib.capture_io import resolve_capture_layers
+    from canlib.captures.io import resolve_capture_layers
     from canlib.ecus import build_rx_index
     from canlib.uds.unsplit_batches import split_unsplit_batches
 
@@ -318,7 +318,7 @@ def cmd_split_batched(
 def orphan_notice(captures_dir: Path | None = None) -> None:
     """Print a one-line notice if orphaned journals exist (best-effort, silent on error)."""
     try:
-        from canlib.capture_journal import list_orphans
+        from canlib.captures.journal import list_orphans
 
         cdir = resolve_captures_dir(captures_dir)
         orphans = list_orphans(cdir)

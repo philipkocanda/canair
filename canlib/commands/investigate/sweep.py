@@ -66,7 +66,7 @@ def run_sweep(specs: list[tuple[str, str]], args, since, until, fill) -> int:
 
 
 def _sweep_counters(specs, loaded, args, params_of) -> int:
-    from canlib.capture_dates import active_scope_flags
+    from canlib.captures.dates import active_scope_flags
 
     scope_flags = active_scope_flags(args)
     if scope_flags:

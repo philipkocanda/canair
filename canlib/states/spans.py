@@ -20,14 +20,14 @@ Two deliberate shape choices:
   express an overlap either, so the representation is total by construction.
 * **Times are ``HH:MM:SS[.fff]`` strings** on the session's own day, exactly as a
   capture's ``time`` field is stored (the date lives on the session, so a span needs
-  none). Like :func:`canlib.capture_dates.entry_datetime`, a session that crosses
+  none). Like :func:`canlib.captures.dates.entry_datetime`, a session that crosses
   midnight is out of scope.
 
 This module is a **pure leaf**: no capture-model, profile or numpy imports, so the
 raw-CAN broadcast domain can reuse it unchanged (same discipline as
 :mod:`canlib.analysis.counters`). Building spans from stored captures is
 :mod:`canlib.states.infer`'s job; resolving a capture *through* them is
-:mod:`canlib.capture_store`'s.
+:mod:`canlib.captures.store`'s.
 """
 
 from __future__ import annotations

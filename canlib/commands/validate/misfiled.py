@@ -10,7 +10,7 @@ from collections.abc import Mapping
 from pathlib import Path
 
 from canlib.analysis.misfiled import Misfile, find_misfiled
-from canlib.payload_corpus import PayloadCorpus, load_payload_corpus
+from canlib.captures.payload_corpus import PayloadCorpus, load_payload_corpus
 
 from .captures import CaptureWarning
 

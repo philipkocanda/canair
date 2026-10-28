@@ -21,7 +21,7 @@ It also owns the *reporting* half: a filled row is reconstructed rather than
 measured, so a report that fills must say which signals it filled and how far —
 from one spelling, so the phrasing and units can't diverge across five commands.
 
-Mirrors :func:`canlib.capture_dates.add_scope_args` and
+Mirrors :func:`canlib.captures.dates.add_scope_args` and
 :func:`canlib.uds.notation.add_notation_arg`: one helper owning one group of flags
 shared across the analysis verbs.
 

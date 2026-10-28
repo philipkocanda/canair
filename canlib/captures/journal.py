@@ -39,8 +39,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import cast
 
-from .capture_types import CaptureSession, Quality
-from .keepmode import KEEP_CHANGES, KEEP_UNIQUE, KeepMode, PersistedKeepMode, parse_keep_mode
+from canlib.captures.types import CaptureSession, Quality
+from canlib.keepmode import KEEP_CHANGES, KEEP_UNIQUE, KeepMode, PersistedKeepMode, parse_keep_mode
 
 JOURNAL_VERSION = 1
 JOURNAL_DIRNAME = ".journal"
@@ -303,7 +303,7 @@ def build_session_from_records(
     on save); rows missing a date fall back to the ``meta`` date. Returns an
     empty list when the journal has no capture/session payloads.
     """
-    from .captures import build_query_session
+    from canlib.captures import build_query_session
 
     meta = {"label": "", "vehicle_states": [], "notes": "", "keep_mode": None, "date": ""}
     session_records: list[dict] = []
@@ -354,7 +354,7 @@ def build_session_from_records(
     # One-shot producer stored a complete session; merge its captures in. These
     # carry their own session date, so they are not day-split here.
     if session_records:
-        from .captures import _set_session_field
+        from canlib.captures import _set_session_field
 
         # Only the first session dict carries the base; append others' captures.
         # Narrowed at the *entry* boundary (the journal is untyped JSONL) so every
@@ -412,7 +412,7 @@ def reconcile_file(
     each saved to its own ``YYYY-MM-DD.yaml``. Returns the last capture file
     path written (they land in per-day files), or None if empty.
     """
-    from .captures import save_session
+    from canlib.captures import save_session
 
     if not path.exists():
         return None

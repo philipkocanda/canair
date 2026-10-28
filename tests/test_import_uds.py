@@ -138,7 +138,7 @@ class TestRun:
         cap = data["sessions"][0]["captures"][0]
         assert cap.get("time"), "import uds without --time must still stamp one"
         # ...and it must be a time the validator can actually parse.
-        from canlib.capture_dates import entry_datetime
+        from canlib.captures.dates import entry_datetime
 
         assert entry_datetime({"date": "2026-07-25", "time": cap["time"]}) is not None
 

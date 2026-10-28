@@ -5,7 +5,7 @@ that two machines routinely both append to on the same day; git's line-based
 3-way merge then conflicts (and misaligns *inside* records) even though the data
 model — disjoint additions to a list — is trivially mergeable. This subcommand
 is the git ``merge`` driver that resolves that class automatically by unioning
-the session lists (:mod:`canlib.captures_merge`).
+the session lists (:mod:`canlib.captures.merge`).
 
 Two uses:
 
@@ -28,7 +28,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-from canlib import capture_io, captures_merge
+from canlib.captures import io as capture_io
+from canlib.captures import merge as captures_merge
 
 # The driver name referenced by .gitattributes (`merge=canair-captures`) and the
 # .git/config `[merge "canair-captures"]` stanza. Keep the three in sync.

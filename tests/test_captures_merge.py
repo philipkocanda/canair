@@ -1,4 +1,4 @@
-"""Tests for the capture-file merge driver (canlib.captures_merge + the
+"""Tests for the capture-file merge driver (canlib.captures.merge + the
 ``canair captures merge-driver`` command).
 
 Covers the pure 3-way union (disjoint appends, shared history, deletions, the
@@ -16,7 +16,8 @@ from pathlib import Path
 
 import pytest
 
-from canlib import capture_io, captures_merge
+from canlib.captures import io as capture_io
+from canlib.captures import merge as captures_merge
 from canlib.commands.captures import merge_driver
 
 

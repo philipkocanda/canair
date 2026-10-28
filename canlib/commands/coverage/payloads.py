@@ -144,7 +144,7 @@ def select_captures(
 ) -> CoverageCaptures:
     """Choose each PID's representative reply from flattened capture rows.
 
-    ``entries`` are :func:`canlib.capture_store.load_all_captures` rows, in any order.
+    ``entries`` are :func:`canlib.captures.store.load_all_captures` rows, in any order.
     ``variable_length`` names the ``(ECU, PID)`` keys flagged ``variable_length:``;
     ``hk_f1xx_offset`` tolerates the Hyundai/Kia identity-DID echo quirk.
     """
@@ -224,8 +224,8 @@ def load_coverage_captures(
     hk_f1xx_offset: bool = False,
 ) -> CoverageCaptures:
     """:func:`select_captures` over the active profile's captures, in scope."""
-    from canlib.capture_dates import filter_by_date_range, filter_by_text
-    from canlib.capture_store import load_all_captures
+    from canlib.captures.dates import filter_by_date_range, filter_by_text
+    from canlib.captures.store import load_all_captures
 
     entries = filter_by_date_range(load_all_captures(), since, until)
     return select_captures(

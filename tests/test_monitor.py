@@ -805,7 +805,7 @@ class TestControllerJournal:
         return c
 
     def test_record_appends_to_journal(self, tmp_path):
-        from canlib.capture_journal import CaptureJournal
+        from canlib.captures.journal import CaptureJournal
 
         c = self._controller()
         c.captures_dir = tmp_path
@@ -821,7 +821,7 @@ class TestControllerJournal:
         assert s["captures"][0]["payload"] == "6101AA"
 
     def test_journaling_skips_dead_save_history(self, tmp_path):
-        from canlib.capture_journal import CaptureJournal
+        from canlib.captures.journal import CaptureJournal
 
         c = self._controller()
         c.captures_dir = tmp_path
@@ -836,7 +836,7 @@ class TestControllerJournal:
         assert ("BMS (0x7E4)", "2101") in c.save_history
 
     def test_save_now_updates_journal_meta_not_a_second_session(self, tmp_path):
-        from canlib.capture_journal import CaptureJournal
+        from canlib.captures.journal import CaptureJournal
 
         c = self._controller()
         c.captures_dir = tmp_path
@@ -854,7 +854,7 @@ class TestControllerJournal:
 
     def test_new_segment_rotates_journal(self, tmp_path):
         """'n' reconciles the current segment and opens a fresh, newly-labelled one."""
-        from canlib.capture_journal import CaptureJournal
+        from canlib.captures.journal import CaptureJournal
 
         c = self._controller()
         c.captures_dir = tmp_path
@@ -883,7 +883,7 @@ class TestControllerJournal:
 
     def test_new_segment_defers_destination_banner(self, tmp_path, capsys):
         """Rotating a segment writes a file — its full path is queued, not lost."""
-        from canlib.capture_journal import CaptureJournal
+        from canlib.captures.journal import CaptureJournal
 
         c = self._controller()
         c.captures_dir = tmp_path

@@ -30,8 +30,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from canlib import capture_io
 from canlib.addressing import AddressingMode
+from canlib.captures import io as capture_io
 from canlib.ecus import EcuNameCollision, EcuRegistryEntry, build_name_tx_index, rx_for_tx
 
 # The offset the old writer applied to an unregistered TX, whatever the profile.

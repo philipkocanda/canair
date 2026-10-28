@@ -10,11 +10,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import cast
 
-from canlib.states.spans import StateSpan
-from canlib.uds.parse import UdsResponse
-
-from . import capture_io
-from .capture_types import (
+from canlib.captures import io as capture_io
+from canlib.captures.types import (
     CaptureFile,
     CaptureRecord,
     CaptureSession,
@@ -25,9 +22,11 @@ from .capture_types import (
     StateSpans,
     StateSpanSource,
 )
-from .keepmode import KeepMode, persisted_keep_mode
-from .states import join_states as _join_states
-from .states import parse_states as _parse_states
+from canlib.keepmode import KeepMode, persisted_keep_mode
+from canlib.states import join_states as _join_states
+from canlib.states import parse_states as _parse_states
+from canlib.states.spans import StateSpan
+from canlib.uds.parse import UdsResponse
 
 # The ``transport`` of a device-free session (``canair import uds``): its payloads
 # never came off a live bus here.
@@ -116,7 +115,7 @@ def _session_meta(
 
     Splat into the session literal (``{"date": …, "label": …, **meta, "captures":
     …}``) so the on-disk field order stays date → metadata → captures. See
-    :class:`~canlib.capture_types.SessionMeta` for why the metadata is accumulated
+    :class:`~canlib.captures.types.SessionMeta` for why the metadata is accumulated
     separately rather than written into the session after construction.
     ``transport`` is the live client's label (:func:`~canlib.transport_stats.
     client_transport`) — omitted when unknown rather than guessed.
@@ -390,7 +389,7 @@ def _stamp_version(session: CaptureSession) -> CaptureSession:
     """
     if session.get("version"):
         return session
-    from .build_info import full_version
+    from canlib.build_info import full_version
 
     version = full_version()
 
@@ -422,7 +421,7 @@ def saved_banner(capture_file: Path, n_captures: int) -> str:
     reinstall — the loudest place to say so is next to the path itself.
     """
     banner = f"  \u2192 Saved {n_captures} capture(s) to {capture_file}"
-    from .install_context import snapshot_write_note
+    from canlib.install_context import snapshot_write_note
 
     note = snapshot_write_note(capture_file)
     return f"{banner}\n{note}" if note else banner
@@ -443,7 +442,7 @@ def save_session(session: CaptureSession, captures_dir: Path | None = None) -> P
     """
     session = _stamp_version(session)
     if captures_dir is None:
-        from .profile import active
+        from canlib.profile import active
 
         captures_dir = active().captures_dir
     # Use the session's own date (leading YYYY-MM-DD, tolerating a same-day
@@ -485,10 +484,10 @@ def save_session_journaled(
     configuration here would ignore ``--transport``/``--wican`` and any
     connect-time fallback, and record a transport the session never used.
     """
-    from .capture_journal import CaptureJournal
+    from canlib.captures.journal import CaptureJournal
 
     if captures_dir is None:
-        from .profile import active
+        from canlib.profile import active
 
         captures_dir = active().captures_dir
 
@@ -648,11 +647,10 @@ def annotate_session_spans(
     just saved, so the session simply keeps its state union.
     """
     try:
+        from canlib.captures.store import flatten_session
+        from canlib.pids import build_ecu_index, load_pids
+        from canlib.states import load_states
         from canlib.states.infer import DEFAULT_CYCLE_TOL_S, session_state_spans
-
-        from .capture_store import flatten_session
-        from .pids import build_ecu_index, load_pids
-        from .states import load_states
 
         data = capture_io.load_capture_file(fpath)
         sessions = data.get("sessions") or []
@@ -677,7 +675,7 @@ def annotate_session_spans(
         )
         if not result.is_timeline:
             return None
-        from .build_info import full_version
+        from canlib.build_info import full_version
 
         set_session_state_spans(fpath, idx, result.spans, source="record", version=full_version())
         return list(result.spans)
@@ -717,11 +715,10 @@ def _decode_payload(
     regenerate them on demand for display (see query-captures.py). Pass a
     prebuilt ``ecu_index`` to avoid rebuilding it on every call.
     """
+    from canlib.expression import evaluate_expression
     from canlib.expression.decode_value import NUMERIC, decode_typed, render
+    from canlib.pids import build_ecu_index
     from canlib.wican.autopid_layout import uds_hex_to_wican_bytes
-
-    from .expression import evaluate_expression
-    from .pids import build_ecu_index
 
     if ecu_index is None:
         ecu_index = build_ecu_index(pids_data)

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 
-from canlib.capture_dates import add_scope_args
+from canlib.captures.dates import add_scope_args
 from canlib.commands._group import group_help
 from canlib.uds.notation import add_notation_arg
 

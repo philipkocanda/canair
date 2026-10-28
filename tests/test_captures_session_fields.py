@@ -32,7 +32,7 @@ def _field(cdir, key: str) -> dict[str, str | None]:
 
 
 def _run(cdir, editor: str, value: str, **kw) -> int:
-    from canlib.capture_store import load_all_captures
+    from canlib.captures.store import load_all_captures
     from canlib.commands.captures import session_fields
 
     return getattr(session_fields, editor)(load_all_captures(cdir), value, **kw)

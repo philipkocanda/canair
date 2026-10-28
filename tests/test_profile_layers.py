@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from canlib.capture_store import load_all_captures
+from canlib.captures.store import load_all_captures
 from canlib.commands.captures import layers as capture_layers
 from canlib.commands.profile import _cmd_list, _cmd_overlay, _cmd_show
 from canlib.profile import (

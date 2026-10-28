@@ -2,7 +2,7 @@
 
 import json
 
-from canlib.capture_journal import (
+from canlib.captures.journal import (
     CaptureJournal,
     build_session_from_records,
     list_orphans,
@@ -34,7 +34,7 @@ class TestJournalBasics:
     def test_append_is_buffered_and_flush_syncs_once(self, tmp_path, monkeypatch):
         # append() is buffered (no per-row fsync); flush() syncs the whole batch
         # once — the per-cycle durability model for the monitor.
-        import canlib.capture_journal as cj
+        import canlib.captures.journal as cj
 
         calls = {"n": 0}
         monkeypatch.setattr(cj.os, "fsync", lambda _fd: calls.__setitem__("n", calls["n"] + 1))

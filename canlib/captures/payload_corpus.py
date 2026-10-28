@@ -12,8 +12,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from canlib import capture_io
 from canlib.analysis.misfiled import PayloadSample
+from canlib.captures import io as capture_io
 
 
 @dataclass(frozen=True)

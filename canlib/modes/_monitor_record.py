@@ -23,7 +23,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
-from ..capture_types import Quality
+from canlib.captures.types import Quality
+
 from ..keepmode import (
     KEEP_ALL,
     KEEP_LAST,
@@ -111,7 +112,7 @@ def _open_journal(controller, label: str | None, vehicle_states, notes: str | No
     modes journal every row.
     The transport label (for saved-capture provenance) comes from the controller.
     """
-    from ..capture_journal import CaptureJournal
+    from canlib.captures.journal import CaptureJournal
 
     journal_label = label or controller.query_label() or "Monitor session"
     keep = persisted_keep_mode(controller.keep_mode)

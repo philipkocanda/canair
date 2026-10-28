@@ -16,7 +16,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from canlib import ansi
-from canlib.capture_types import CaptureEntry
+from canlib.captures.types import CaptureEntry
 from canlib.uds.notation import ByteNotation
 
 from .query import _capture_key, _dump_json, _gather_query

@@ -174,7 +174,7 @@ def _scan_session(session: object, loc: str) -> list[Finding]:
 
 
 def _scan_captures(profile: Profile) -> list[Finding]:
-    from . import capture_io
+    from canlib.captures import io as capture_io
 
     findings: list[Finding] = []
     if not profile.captures_dir.is_dir():
@@ -307,7 +307,7 @@ def scan_contribution(
     re-flags already-shared captures. ``car_model`` and the ``ecus/`` identity
     blocks are always scanned (cheap, and the VIN ships with the definitions).
     """
-    from . import capture_io
+    from canlib.captures import io as capture_io
 
     findings: list[Finding] = []
     findings += _scan_free_text(str(profile.meta.get("car_model") or ""), "profile.yaml car_model")

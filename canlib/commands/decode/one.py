@@ -26,7 +26,7 @@ from canlib import ansi
 from canlib.analysis.align import join_nearest
 from canlib.analysis.stats import compute_stats
 from canlib.analysis.stats import correlation as _correlation
-from canlib.capture_store import load_pid_captures
+from canlib.captures.store import load_pid_captures
 from canlib.commands._join import fill_policy_from_args
 from canlib.expression.decoding import decode_payload, ordered_signal_names
 from canlib.keepmode import CHANGES_BANNER, scope_is_keep_changes, scope_is_keep_unique

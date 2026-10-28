@@ -131,7 +131,7 @@ def _session(label: str, time: str = "10:00:00") -> dict:
 
 
 def _entries():
-    from canlib.capture_store import load_all_captures
+    from canlib.captures.store import load_all_captures
 
     return load_all_captures()
 
@@ -167,7 +167,7 @@ class TestSessionEditorsBehaviour:
         return cdir
 
     def test_a_partial_write_failure_exits_1(self, tmp_path, monkeypatch, capsys):
-        from canlib.capture_store import load_all_captures
+        from canlib.captures.store import load_all_captures
         from canlib.commands.captures import session_fields
 
         cdir = self._store(tmp_path)
@@ -192,7 +192,7 @@ class TestSessionEditorsBehaviour:
 
     @pytest.mark.parametrize("answer,rc,written", [("y", 0, True), ("n", 1, False)])
     def test_the_confirmation_prompt(self, tmp_path, monkeypatch, capsys, answer, rc, written):
-        from canlib.capture_store import load_all_captures
+        from canlib.captures.store import load_all_captures
         from canlib.commands.captures import session_fields
 
         cdir = self._store(tmp_path)
@@ -211,7 +211,7 @@ class TestSessionEditorsBehaviour:
         [("notes", "corrected"), ("transport", "wican-ws"), ("state", "ACC")],
     )
     def test_json_without_dry_run_keeps_stdout_pure(self, tmp_path, capsys, editor, value):
-        from canlib.capture_store import load_all_captures
+        from canlib.captures.store import load_all_captures
         from canlib.commands.captures import session_fields
         from canlib.commands.captures.set_state import cmd_set_state
 

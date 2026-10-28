@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from canlib.capture_store import entry_path
+from canlib.captures.store import entry_path
 from canlib.states import parse_states
 from canlib.states.infer import (
     DEFAULT_CYCLE_TOL_S,
@@ -28,7 +28,7 @@ from canlib.states.infer import (
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from canlib.capture_types import CaptureEntry
+    from canlib.captures.types import CaptureEntry
 
 # Verdict for a session after comparing inferred vs recorded states.
 _FILL = "fill"  # recorded empty, inference available → write

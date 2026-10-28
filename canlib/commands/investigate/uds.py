@@ -22,7 +22,7 @@ from canlib.analysis.xanalysis import (
     build_byte_series,
     build_param_series,
 )
-from canlib.capture_dates import resolve_scope_bounds
+from canlib.captures.dates import resolve_scope_bounds
 from canlib.commands._join import (
     fill_policy_from_args,
     fill_summaries,

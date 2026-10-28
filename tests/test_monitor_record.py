@@ -6,7 +6,7 @@ charged then went idle still reconciles as ``charging`` — a point-in-time
 snapshot at reconcile time alone would miss it (the 2026-07-27 bug).
 
 Drives the recorder with a lightweight fake controller (no CAN, no TTY) and a
-real :class:`canlib.capture_journal.CaptureJournal` so reconciliation is
+real :class:`canlib.captures.journal.CaptureJournal` so reconciliation is
 exercised end-to-end into an on-disk capture file.
 """
 

@@ -30,7 +30,7 @@ from textual.screen import ModalScreen
 from textual.widgets import Button, Input, Label, OptionList, SelectionList, Static
 from textual.widgets.option_list import Option
 
-from canlib.capture_types import CaptureEntry
+from canlib.captures.types import CaptureEntry
 from canlib.tui.help import HelpMixin
 from canlib.tui.keys import bind
 from canlib.tui.modals import ConfirmModal, TextPromptModal
@@ -646,7 +646,7 @@ class CapturesStepApp(HelpMixin, App):
         Goes through the row's own locator: joining ``file`` onto the captures dir
         picks the wrong directory as soon as reads span two layers.
         """
-        from canlib.capture_store import entry_path
+        from canlib.captures.store import entry_path
 
         from . import layers
 

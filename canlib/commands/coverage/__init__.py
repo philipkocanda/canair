@@ -38,7 +38,7 @@ import json
 import sys
 from typing import NotRequired, TypedDict
 
-from canlib.capture_dates import active_scope_flags, add_scope_args, resolve_scope_bounds
+from canlib.captures.dates import active_scope_flags, add_scope_args, resolve_scope_bounds
 from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.commands._hints import pid_completer as _pid_completer
 from canlib.pids import build_ecu_index, load_pids

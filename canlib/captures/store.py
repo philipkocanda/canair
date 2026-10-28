@@ -2,7 +2,7 @@
 
 The data layer under every capture-consuming surface. It lives in the library, not
 beside the ``captures`` command, because non-command modules need it too:
-:mod:`canlib.analysis.align` and :mod:`canlib.capture_dates` load entries, and
+:mod:`canlib.analysis.align` and :mod:`canlib.captures.dates` load entries, and
 :mod:`canlib.states.infer` resolves PID definitions. Those previously imported *up*
 into ``commands/captures/`` — a layering inversion the lazy in-function imports
 were working around.
@@ -27,8 +27,9 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-from canlib import capture_io, captures_merge
-from canlib.capture_types import CaptureEntry
+from canlib.captures import io as capture_io
+from canlib.captures import merge as captures_merge
+from canlib.captures.types import CaptureEntry
 from canlib.states.spans import span_keys, states_at
 
 # ---------------------------------------------------------------------------

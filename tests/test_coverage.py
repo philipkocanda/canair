@@ -291,6 +291,6 @@ class TestRepresentativePayload:
             | {"payload": p}
             for d, p in (("2026-04-17", self.PADDED), ("2026-08-09", self.CLEAN))
         ]
-        monkeypatch.setattr("canlib.capture_store.load_all_captures", lambda: rows)
+        monkeypatch.setattr("canlib.captures.store.load_all_captures", lambda: rows)
         got = coverage.load_representative_payloads(until=date(2026, 7, 27))
         assert len(got[("HVAC", "220102")]["payload"]) // 2 == 20

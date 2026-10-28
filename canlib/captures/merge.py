@@ -58,7 +58,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 from typing import Any
 
-from .capture_io import capture_rx
+from canlib.captures.io import capture_rx
 
 
 class MergeConflict(Exception):

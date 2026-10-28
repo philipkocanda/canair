@@ -19,8 +19,8 @@ from typing import Any
 
 from rich.text import Text
 
-from canlib.capture_store import PidDefs
-from canlib.capture_types import CaptureEntry
+from canlib.captures.store import PidDefs
+from canlib.captures.types import CaptureEntry
 from canlib.states import join_states as _join_states
 from canlib.uds.notation import ByteNotation
 

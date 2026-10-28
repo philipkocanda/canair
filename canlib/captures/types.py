@@ -18,9 +18,8 @@ from __future__ import annotations
 
 from typing import Literal, NotRequired, TypedDict
 
+from canlib.keepmode import EntryKeepMode, PersistedKeepMode
 from canlib.states.spans import StateSpan
-
-from .keepmode import EntryKeepMode, PersistedKeepMode
 
 StateSpanSource = Literal["record", "live", "backfill"]
 """How a session's ``state_spans`` were produced (see :class:`StateSpans`)."""
@@ -168,7 +167,7 @@ class CaptureEntry(TypedDict):
 
     **States are resolved per row, not copied from the session.** ``vehicle_states``
     is what held at *this capture's* timestamp, resolved through the session's
-    ``state_spans`` by :func:`canlib.capture_store.resolve_capture_states`;
+    ``state_spans`` by :func:`canlib.captures.store.resolve_capture_states`;
     ``session_states`` keeps the session-level union (what a session view wants);
     and ``states_resolved`` is False when the row had to fall back to that union,
     so the imprecision can be reported rather than assumed away.

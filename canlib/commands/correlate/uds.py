@@ -30,7 +30,7 @@ from canlib.analysis.xanalysis import (
     reference_is_bimodal,
     transform_ref,
 )
-from canlib.capture_dates import resolve_scope_bounds
+from canlib.captures.dates import resolve_scope_bounds
 from canlib.commands._join import (
     fill_policy_from_args,
     fill_summary_line,

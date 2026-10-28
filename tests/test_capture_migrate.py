@@ -7,7 +7,7 @@ import json
 import pytest
 import yaml
 
-from canlib import capture_io
+from canlib.captures import io as capture_io
 from canlib.migrations.captures import MigrationError, migrate_dir, migrate_file
 
 _DOC = {

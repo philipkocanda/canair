@@ -205,9 +205,9 @@ def run_coverage(monkeypatch, capsys):
 
     def _run(argv, rows, parameters=None):
         params = parameters or {"SIG": {"expression": "B4", "verified": True}}
-        monkeypatch.setattr("canlib.capture_store.load_all_captures", lambda *a, **k: rows)
+        monkeypatch.setattr("canlib.captures.store.load_all_captures", lambda *a, **k: rows)
         # `--last-session` resolves its cutoff from the same rows.
-        monkeypatch.setattr("canlib.capture_dates.load_all_captures", lambda *a, **k: rows)
+        monkeypatch.setattr("canlib.captures.dates.load_all_captures", lambda *a, **k: rows)
         monkeypatch.setattr(coverage, "load_pids", lambda *_: {})
         monkeypatch.setattr(
             coverage, "build_ecu_index", lambda *_: {ECU: {"pids": {PID: {"parameters": params}}}}

@@ -10,8 +10,8 @@ import sys
 from collections.abc import Sequence
 
 from canlib import ansi
-from canlib.capture_store import decoded_preview
-from canlib.capture_types import CaptureEntry
+from canlib.captures.store import decoded_preview
+from canlib.captures.types import CaptureEntry
 from canlib.states import join_states as _join_states
 
 from .query import _dump_json, _entry_to_dict, _parse_query
