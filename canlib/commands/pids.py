@@ -600,7 +600,7 @@ def cmd_set_wake(args: argparse.Namespace) -> int:
 
 def cmd_set_addressing(args: argparse.Namespace) -> int:
     from canlib import yaml_io
-    from canlib.ecus_edit import EcusEditError, set_addressing, tx_key
+    from canlib.ecus.edit import EcusEditError, set_addressing, tx_key
     from canlib.pids_edit import find_ecu_file
 
     if not any(

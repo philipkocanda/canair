@@ -313,7 +313,7 @@ def _register_discovered(alive: list[tuple[int, str, str]], dry_run: bool = Fals
         print("  (dry-run — nothing written)")
         return
 
-    from ..ecus_edit import EcusEditError, register_ecu
+    from canlib.ecus.edit import EcusEditError, register_ecu
 
     today = date.today().isoformat()
     added = 0

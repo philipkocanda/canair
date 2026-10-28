@@ -20,17 +20,17 @@ from typing import TYPE_CHECKING
 
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
-from . import yaml_io
-from .ecu_groups import normalize_group_name
-from .query import QueryError, parse_selector
-from .yaml_rt import detect_sequence_indent as _detect_seq
-from .yaml_rt import dump as _dump
-from .yaml_rt import round_trip_yaml as _yaml
+from canlib import yaml_io
+from canlib.ecus.ecu_groups import normalize_group_name
+from canlib.query import QueryError, parse_selector
+from canlib.yaml_rt import detect_sequence_indent as _detect_seq
+from canlib.yaml_rt import dump as _dump
+from canlib.yaml_rt import round_trip_yaml as _yaml
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from .profile import Profile
+    from canlib.profile import Profile
 
 # A group name: a lower-cased word of letters/digits, optionally with internal
 # hyphens/underscores (e.g. ``charging``, ``charge-detail``, ``12v``). No spaces
@@ -43,7 +43,7 @@ class GroupsEditError(Exception):
 
 
 def _groups_path(profile: Profile | None = None) -> Path:
-    from .profile import active
+    from canlib.profile import active
 
     return (profile or active()).groups_file
 

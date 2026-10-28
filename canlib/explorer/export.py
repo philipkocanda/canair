@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any
 
 from canlib.addressing import resolve_mode, resolve_rx, resolve_rx_offset
-from canlib.ecu_files import iter_ecu_files
+from canlib.ecus.files import iter_ecu_files
 from canlib.explorer.layout import layout_buses
 from canlib.pids import pid_status
 from canlib.yaml_rt import round_trip_yaml

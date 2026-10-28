@@ -13,7 +13,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, TypedDict, cast
 
-from .addressing import (
+from canlib.addressing import (
     DEFAULT_MODE,
     DEFAULT_RX_OFFSET,
     AddressingMode,
@@ -86,7 +86,7 @@ def load_ecus(path: Path | None = None) -> dict[int, EcuRegistryEntry]:
     ``path`` is None, the active vehicle profile's ``ecus/`` directory is used;
     otherwise ``path`` is a directory of per-ECU YAML files.
     """
-    from .pids import load_pids
+    from canlib.pids import load_pids
 
     data = load_pids(path)
     result: dict[int, EcuRegistryEntry] = {}
@@ -243,8 +243,8 @@ def _profile_addressing() -> tuple[int, AddressingMode]:
     Falls back to ``TX + 0x08`` / 11-bit when no profile resolves, so a caller
     that passed its own registry still gets an answer outside a profile.
     """
-    from .pids import load_pids
-    from .profile import ProfileError
+    from canlib.pids import load_pids
+    from canlib.profile import ProfileError
 
     try:
         data = load_pids()

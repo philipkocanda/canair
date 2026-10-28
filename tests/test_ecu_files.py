@@ -1,8 +1,8 @@
-"""Locating a profile's per-ECU definition files (canlib.ecu_files)."""
+"""Locating a profile's per-ECU definition files (canlib.ecus.files)."""
 
 import pytest
 
-from canlib import ecu_files
+from canlib.ecus import files as ecu_files
 from canlib.profile import Profile
 
 AAF = """\

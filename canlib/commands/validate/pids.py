@@ -1379,7 +1379,7 @@ def validate_pids_file(fpath: Path, profile=None) -> tuple[bool, str]:
 
 
 def _run_pids(files: list[str] | None, stats: bool) -> int:
-    from canlib.ecu_files import iter_ecu_files
+    from canlib.ecus.files import iter_ecu_files
     from canlib.profile import active
 
     prof = active()

@@ -24,10 +24,10 @@ from pathlib import Path
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.scalarint import HexCapsInt
 
-from .yaml_rt import detect_sequence_indent as _detect_seq
-from .yaml_rt import dump as _dump
-from .yaml_rt import folded as _folded
-from .yaml_rt import round_trip_yaml as _yaml
+from canlib.yaml_rt import detect_sequence_indent as _detect_seq
+from canlib.yaml_rt import dump as _dump
+from canlib.yaml_rt import folded as _folded
+from canlib.yaml_rt import round_trip_yaml as _yaml
 
 # Free-text ECU fields rendered per the shared note policy (canlib.yaml_rt):
 # inline when short, else a wrapped folded block scalar. Kept in one place so a
@@ -71,7 +71,7 @@ def _flow_states(vehicle_states) -> CommentedSeq | None:
     per-ECU files, matching how the ``pids``/``research`` editors write the field.
     Returns ``None`` for an empty/absent value so the caller omits the key.
     """
-    from .states import parse_states
+    from canlib.states import parse_states
 
     toks = parse_states(vehicle_states)
     if not toks:
@@ -101,7 +101,7 @@ def _hex_tx(tx_id: int) -> HexCapsInt:
 
 
 def _resolve_dir(ecus_dir: Path | None) -> Path:
-    from .ecu_files import ecus_dir as resolve
+    from canlib.ecus.files import ecus_dir as resolve
 
     return resolve(ecus_dir)
 
@@ -111,7 +111,7 @@ def _slug(name: str) -> str:
 
 
 def _allowed_identity_fields() -> set[str]:
-    from .commands.validate import load_schema
+    from canlib.commands.validate import load_schema
 
     schema = load_schema()
     ident = schema.get("identity_fields", {}) or {}
@@ -129,7 +129,7 @@ def _check_fields(fields: dict) -> None:
 
 def _find_file_by_tx(tx_id: int, ecus_dir: Path) -> tuple[Path | None, str | None]:
     """Locate the ``ecus/<name>.yaml`` file whose ECU has ``tx_id``."""
-    from .ecu_files import find_by_tx
+    from canlib.ecus.files import find_by_tx
 
     return find_by_tx(tx_id, ecus_dir)
 
@@ -202,7 +202,7 @@ def _safe_write(path: Path, original: str | None, data) -> None:
         _dump(data, f, sequence=seq_off[0], offset=seq_off[1])
     _invalidate()
     try:
-        from .commands.validate import validate_pids_file
+        from canlib.commands.validate import validate_pids_file
 
         # validate_pids_file derives the profile from the file's own path (so a
         # write to a non-active profile validates without a resolvable active
@@ -227,7 +227,7 @@ def _restore(path: Path, original: str | None) -> None:
 
 
 def _invalidate() -> None:
-    from .pids import clear_cache
+    from canlib.pids import clear_cache
 
     clear_cache()
 
@@ -423,7 +423,7 @@ def _normalize_addressing_args(
 
     Raises :class:`EcusEditError` on an unknown mode or out-of-range byte/id.
     """
-    from .addressing import AddressingMode
+    from canlib.addressing import AddressingMode
 
     if mode is not None:
         try:

@@ -64,7 +64,7 @@ def step_completer(prefix, parsed_args=None, **kwargs):
     """Complete a query STEP: ``@group`` refs when it starts with ``@``, else ECUs."""
     if prefix.startswith("@"):
         try:
-            from canlib.ecu_groups import GROUP_SIGIL, load_groups
+            from canlib.ecus.ecu_groups import GROUP_SIGIL, load_groups
 
             names = [f"{GROUP_SIGIL}{g}" for g in load_groups()]
         except Exception:

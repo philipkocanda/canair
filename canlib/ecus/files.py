@@ -19,7 +19,7 @@ import re
 from collections.abc import Iterator
 from pathlib import Path
 
-from .profile import Profile
+from canlib.profile import Profile
 
 # A file whose name starts with "_" is scratch/disabled, never an ECU definition.
 _SKIP_PREFIX = "_"
@@ -34,7 +34,7 @@ def ecus_dir(dir_or_none: Path | str | None = None, *, profile: Profile | None =
         return Path(dir_or_none)
     if profile is not None:
         return profile.ecus_dir
-    from .profile import active
+    from canlib.profile import active
 
     return active().ecus_dir
 
@@ -81,7 +81,7 @@ def find_by_tx(
     Requires parsing (``tx_id`` is a value, not a key), so an unparseable file is
     skipped rather than aborting the search.
     """
-    from .yaml_rt import round_trip_yaml
+    from canlib.yaml_rt import round_trip_yaml
 
     yaml = round_trip_yaml()
     for path in iter_ecu_files(dir_or_none, profile=profile):

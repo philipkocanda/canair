@@ -1,7 +1,7 @@
 """Tests for the shared free-text (notes) rendering policy (canlib.yaml_rt).
 
 Both writer subsystems — the text-based per-field editor (canlib.pids_edit._text)
-and the ruamel round-trip writer (canlib.ecus_edit via canlib.yaml_rt.folded) —
+and the ruamel round-trip writer (canlib.ecus.edit via canlib.yaml_rt.folded) —
 render notes the same way: inline when short, else a wrapped folded ``>-`` block
 that round-trips to the original text. These tests pin that policy at the seam.
 """

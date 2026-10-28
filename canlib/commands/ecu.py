@@ -661,7 +661,7 @@ def cmd_edit(info: Mapping[str, Any], tx_id: int) -> int:
     import shutil
     import subprocess
 
-    from canlib.ecus_edit import find_ecu_file_by_tx
+    from canlib.ecus.edit import find_ecu_file_by_tx
 
     name = info.get("name") or f"0x{tx_id:03X}"
 
@@ -841,7 +841,7 @@ def _add_add_parser(kinds) -> argparse.ArgumentParser:
 
 
 def cmd_add(args) -> int:
-    from canlib.ecus_edit import EcusEditError, find_ecu_file_by_tx, register_ecu, tx_key
+    from canlib.ecus.edit import EcusEditError, find_ecu_file_by_tx, register_ecu, tx_key
 
     try:
         tx_id = int(str(args.tx), 16)
@@ -928,7 +928,7 @@ def _add_rename_parser(kinds) -> argparse.ArgumentParser:
 
 
 def cmd_rename(args) -> int:
-    from canlib.ecus_edit import EcusEditError, rename_ecu, tx_key
+    from canlib.ecus.edit import EcusEditError, rename_ecu, tx_key
 
     tx_id = resolve_tx(args.ecu)
     if tx_id is None:

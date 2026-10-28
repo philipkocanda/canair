@@ -348,8 +348,9 @@ reuse these instead of re-declaring a flag:
   would leave dangling (and a dangling target fails the next validate).
 - **`canair groups`** — List/edit `groups.yaml`, the named selector groups recalled with the `@`
   sigil. Expansion is **textual, before the query parser**
-  (`canlib/ecu_groups.py::expand_group_refs`), so a group composes with other groups and with ad-hoc
-  selectors. Members are plain selectors (never other groups, never full pipeline steps) and carry
+  (`canlib/ecus/ecu_groups.py::expand_group_refs`), so a group composes with other groups and with
+  ad-hoc selectors. Members are plain selectors (never other groups, never full pipeline steps) and
+  carry
   no PID suffix. `@group` works in `read`/`monitor` today; analysis commands don't expand groups
   yet. **Because a group routinely overlaps a hand-typed selector, `parse_sub_commands` ends by
   coalescing every contiguous run of `query` steps to one step per canonical ECU**
@@ -638,7 +639,7 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   it lives per profile, not in a global enum. Loader `canlib/can_buses.py`; `pids set-can-bus`
   accepts only declared codes and `validate pids` errors on an out-of-vocabulary value.
 - **`profiles/<car>/groups.yaml`** — Named selector groups (`@name`) — see `canair groups`. Loader
-  `canlib/ecu_groups.py`. The bundled Ioniq ships
+  `canlib/ecus/ecu_groups.py`. The bundled Ioniq ships
   `@charging`/`@driving`/`@powertrain`/`@climate`/`@body`.
 - **`profiles/<car>/signals/` + `captures/can/`** — The raw-CAN broadcast domain (in progress,
   `plans/2026-07-24-raw-can-analysis.md`), both optional. `signals/<bus>.yaml` holds DBC-compatible

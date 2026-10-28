@@ -178,7 +178,7 @@ def run(args) -> int:
 
     # Expand any @group references into their member selectors before the
     # mini-language parser sees them (composes with ad-hoc selectors).
-    from canlib.ecu_groups import GroupError
+    from canlib.ecus.ecu_groups import GroupError
 
     try:
         args.steps = expand_step_groups(args.steps)

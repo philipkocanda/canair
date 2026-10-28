@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from canlib.ecu_groups import Group
+    from canlib.ecus.ecu_groups import Group
 
 
 @dataclass(frozen=True)
@@ -160,7 +160,8 @@ def pick_selectors(pids_data: dict, *, include_static: bool = False) -> list[str
     Raises ``ValueError`` when the active profile defines nothing to monitor.
     The caller is responsible for only calling this on an interactive terminal.
     """
-    from ..ecu_groups import load_groups
+    from canlib.ecus.ecu_groups import load_groups
+
     from ..pids import build_ecu_index
 
     choices = build_choices(build_ecu_index(pids_data))
