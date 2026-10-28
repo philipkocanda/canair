@@ -340,7 +340,7 @@ class TestEngineOverArbitraryChannel:
     def test_host_derived_from_channel(self):
         # Single source of truth: the engine reads host off its channel.
         assert Elm327TcpTerminal("1.2.3.4", 35000).host == "1.2.3.4"
-        from canlib.terminal import WiCANTerminal
+        from canlib.transport.wican_terminal import WiCANTerminal
 
         assert WiCANTerminal(host="10.0.2.86").host == "10.0.2.86"
 
@@ -352,7 +352,7 @@ class TestElmEngineGate:
 
     def test_elm_tcp_is_elm_engine(self):
         assert issubclass(Elm327TcpTerminal, Elm327Terminal)
-        from canlib.terminal import WiCANTerminal
+        from canlib.transport.wican_terminal import WiCANTerminal
 
         assert issubclass(WiCANTerminal, Elm327Terminal)
 

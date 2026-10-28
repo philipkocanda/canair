@@ -1,6 +1,6 @@
 """Transport diagnostics — per-exchange outcome counting (drops/errors/decode).
 
-Every request client (:class:`~canlib.terminal.WiCANTerminal`,
+Every request client (:class:`~canlib.transport.wican_terminal.WiCANTerminal`,
 :class:`~canlib.transport.raw_terminal.RawTerminal`,
 :class:`~canlib.transport.uds_raw.RawUdsClient`) already keeps a
 :class:`~canlib.timing.TimingRecorder` (``.timings``); this is the sibling that
@@ -96,7 +96,7 @@ class TransportStats:
             category = "other"
         self.counts[category] += 1
         if category in ERROR_CATEGORIES:
-            from .log import log_event
+            from canlib.log import log_event
 
             log_event(
                 category,
@@ -129,7 +129,7 @@ class TransportStats:
         it again would double-report one incident.
         """
         self.resyncs += 1
-        from .log import log_event
+        from canlib.log import log_event
 
         log_event(
             "resync",

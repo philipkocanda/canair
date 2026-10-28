@@ -189,6 +189,8 @@ async def mode_scan(
 
     # Auto-save to captures
     if save:
+        from canlib.transport.stats import client_transport
+
         from ..captures import (
             build_scan_session,
             resolve_metadata,
@@ -196,7 +198,6 @@ async def mode_scan(
             suggest_scan_label,
         )
         from ..ecus import rx_addr_str
-        from ..transport_stats import client_transport
 
         suggested = suggest_scan_label(ecu, service, pid_range, append_bytes)
         n_pos = len(positive)

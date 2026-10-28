@@ -22,7 +22,8 @@ be type-checked. Keep it that way — it must stay free of side effects.
 
 from __future__ import annotations
 
-from ..terminal import WiCANTerminal
+from canlib.transport.wican_terminal import WiCANTerminal
+
 from .channel import Channel, TcpChannel, WebSocketChannel
 from .elm327_tcp import Elm327TcpTerminal
 from .elm327_terminal import Elm327Terminal

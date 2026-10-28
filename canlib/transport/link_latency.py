@@ -5,7 +5,7 @@ quiet before a reply is provably not coming?* Two very different delays add up t
 that answer:
 
 - the **ECU's** think time, which the profile states (``response_timeout_ms`` →
-  ``ATST``, see :mod:`canlib.timeouts`), and
+  ``ATST``, see :mod:`canlib.transport.timeouts`), and
 - the **link's** round trip, which nobody can state up front. It is 0.3 ms on a
   LAN and 2 s on a phone hotspot behind a VPN, it changes while driving, and a
   user cannot reasonably be asked to configure it.

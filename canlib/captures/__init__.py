@@ -117,7 +117,7 @@ def _session_meta(
     …}``) so the on-disk field order stays date → metadata → captures. See
     :class:`~canlib.captures.types.SessionMeta` for why the metadata is accumulated
     separately rather than written into the session after construction.
-    ``transport`` is the live client's label (:func:`~canlib.transport_stats.
+    ``transport`` is the live client's label (:func:`~canlib.transport.stats.
     client_transport`) — omitted when unknown rather than guessed.
     """
     meta: SessionMeta = {}

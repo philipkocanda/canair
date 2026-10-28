@@ -1,10 +1,10 @@
-"""Tests for canlib.timeouts — response-budget resolution."""
+"""Tests for canlib.transport.timeouts — response-budget resolution."""
 
 from __future__ import annotations
 
 import argparse
 
-from canlib.timeouts import cli_timeout, ecu_timeouts_by_name, ecu_timeouts_by_tx
+from canlib.transport.timeouts import cli_timeout, ecu_timeouts_by_name, ecu_timeouts_by_tx
 
 
 def _args(**kw):

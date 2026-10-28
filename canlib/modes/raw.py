@@ -4,11 +4,11 @@ import asyncio
 import functools
 import re
 
+from canlib.transport.stats import client_transport
 from canlib.uds.parse import UdsResponse
 
 from ..formatting import decode_uds_response, format_raw_with_bnn, print_hexdump, print_json_result
 from ..transport.protocol import Terminal
-from ..transport_stats import client_transport
 
 
 async def mode_raw(

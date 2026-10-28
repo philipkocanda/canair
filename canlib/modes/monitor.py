@@ -429,7 +429,7 @@ class MonitorController:
         return self.recorder.new_segment(label, vehicle_states, notes)
 
     def diag(self):
-        """The active transport's :class:`~canlib.transport_stats.TransportStats`.
+        """The active transport's :class:`~canlib.transport.stats.TransportStats`.
 
         Reads it off the raw pipelined client (raw backend) or the ELM terminal —
         whichever is driving this run — so the TUI status line and capture
@@ -440,7 +440,7 @@ class MonitorController:
         return getattr(src, "diag", None)
 
     def link(self):
-        """The active transport's :class:`~canlib.link_latency.LinkLatency`, or None.
+        """The active transport's :class:`~canlib.transport.link_latency.LinkLatency`, or None.
 
         Surfaced so the TUI can show the measured round trip: on a remote link it
         is the difference between "the car is not answering" and "the network is
@@ -721,7 +721,7 @@ class MonitorController:
 
         The monitor talks through the raw pipelined client (``raw_client``) on
         the ``slcan-tcp`` path and the ELM terminal otherwise; both carry a
-        :class:`~canlib.transport_stats.TransportStats` as ``.diag``. Returns
+        :class:`~canlib.transport.stats.TransportStats` as ``.diag``. Returns
         None for a fake/older client without one (the status line then omits the
         drops indicator).
         """

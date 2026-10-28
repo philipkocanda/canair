@@ -12,10 +12,10 @@ seam). The fake's conformance is what would have caught the divergent
 
 import pytest
 
-from canlib.link_latency import LinkLatency
-from canlib.terminal import WiCANTerminal
 from canlib.transport import Terminal, raw_terminal
 from canlib.transport import slcan_tcp as slcan_mod
+from canlib.transport.link_latency import LinkLatency
+from canlib.transport.wican_terminal import WiCANTerminal
 from tests._fakes import FakeTerminal
 
 

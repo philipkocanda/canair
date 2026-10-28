@@ -32,7 +32,7 @@ import contextlib
 from canlib.frame_counts import FrameCountLedger
 from canlib.timing import TimingRecorder
 from canlib.transport.isotp_params import ISOTP_MAX_REQUEST_BYTES
-from canlib.transport_stats import TransportStats
+from canlib.transport.stats import TransportStats
 from canlib.uds.parse import UdsResponse
 
 NO_DATA: UdsResponse = {"ok": False, "error": "NO DATA", "raw": "NO DATA"}

@@ -211,7 +211,7 @@ and **`g`/`G` address the view's primary axis**.
   size-rotated so it never grows unbounded): dropped/stale ISO-TP frames, timeouts, bus errors,
   decode failures (classified by `canlib/uds/parse.py::classify_response` into
   `drop`/`stale`/`no_data`/`bus`/`decode`) plus unexpected internal exceptions. Written by the
-  per-exchange recorder `canlib/transport_stats.py::TransportStats` (attached as `.diag` on both
+  per-exchange recorder `canlib/transport/stats.py::TransportStats` (attached as `.diag` on both
   terminals and the raw client) — the same tally behind the monitor's live `drops` indicator and a
   recorded session's `quality` provenance.
 
@@ -602,7 +602,7 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   `canlib/ecus.py::rx_for_tx`) — **not** an ECU name; that is why it was renamed from `ecu`. A
   discover capture's `rx` is `broadcast`, and each responder records its probed `tx` plus `rx`.
   **Every `--save` path records `transport` from the live client**
-  (`canlib/transport_stats.py::client_transport`), never by re-resolving config — that ignored
+  (`canlib/transport/stats.py::client_transport`), never by re-resolving config — that ignored
   `--transport`/`--wican` and fallback, and mislabelled real sessions.
   Read it via `capture_io.capture_rx` (tolerates the legacy key) and rename old files with `captures
   migrate-rx`. Optional **`elapsed_ms`** is the wall-clock UDS round-trip (transport + ECU, a
@@ -786,11 +786,12 @@ sit under the reconnect above, and a new request path must not bypass them:
   so without it a concurrent keepalive can retarget `ATSH` between a read's header and its request.
   It is re-entrant per task; `RawTerminal`'s is a no-op (raw addresses every frame explicitly).
 
-**The link is measured, not configured.** `canlib/link_latency.py::LinkLatency` is an RFC-6298
-smoother (`srtt + 4*rttvar`) shared by both domains; a plain mean underestimates half the time and
-every underestimate orphans a reply. `seed()` takes a one-shot unambiguous measurement (the TCP
-handshake, timed in `SlcanTcpBus.__init__` — available *before* any protocol traffic, which is when
-the ISO-TP budgets must be chosen); `observe()` needs `_MIN_SAMPLES` and is fed **only** by
+**The link is measured, not configured.** `canlib/transport/link_latency.py::LinkLatency` is an
+RFC-6298 smoother (`srtt + 4*rttvar`) shared by both domains; a plain mean underestimates half the
+time and every underestimate orphans a reply. `seed()` takes a one-shot unambiguous measurement
+(the TCP handshake, timed in `SlcanTcpBus.__init__` — available *before* any protocol traffic,
+which is when the ISO-TP budgets must be chosen); `observe()` needs `_MIN_SAMPLES` and is fed
+**only** by
 adapter-only AT commands (`_LINK_PROBE_CMDS`: `ATI` and the addressing commands) — never a UDS
 read, which mixes link and ECU and cannot be decomposed. `allowance(floor)` keeps the caller's
 default as a floor. Consumers **add** it to the configured value (the config is the *car's* share,
@@ -892,7 +893,7 @@ default `slcan-tcp`. Registry-driven — each is a `TransportSpec` in
   (pipelined). Works on any WiCAN (Pro *and* classic) or gateway; also powers `canair sniff`.
   Backend `RawTerminal` (`canlib/transport/raw_terminal.py`) over `SlcanTcpBus`.
 - **`wican-ws`** (Pro-only, `raw=False`) — ELM327 terminal over the WiCAN's `ws://host/ws`; the
-  dongle does ISO-TP. Backend `WiCANTerminal` (`canlib/terminal.py`).
+  dongle does ISO-TP. Backend `WiCANTerminal` (`canlib/transport/wican_terminal.py`).
 - **`elm327-tcp`** (`raw=False`, `wican_http=False`) — a **generic ELM327 adapter over a plain TCP
   socket**: WiFi clones (Kiwi, vLinker, OBDLink) and the ELM327-Emulator's `-n` mode. No WiCAN, no
   HTTP config API. Backend `Elm327TcpTerminal` over a `TcpChannel`; default port 35000.
@@ -900,8 +901,9 @@ default `slcan-tcp`. Registry-driven — each is a `TransportSpec` in
 **Shared ELM327 engine.** The protocol logic lives once in `Elm327Terminal`
 (`canlib/transport/elm327_terminal.py`), driven by a swappable async byte `Channel`
 (`canlib/transport/channel.py`: `WebSocketChannel` for the WiCAN, `TcpChannel` for a clone).
-`WiCANTerminal` (`canlib/terminal.py`) and `Elm327TcpTerminal` (`canlib/transport/elm327_tcp.py`)
-are thin subclasses wiring their channel — a new ELM327 wire (e.g. serial) is a new `Channel`, not a
+`WiCANTerminal` (`canlib/transport/wican_terminal.py`) and `Elm327TcpTerminal`
+(`canlib/transport/elm327_tcp.py`) are thin subclasses wiring their channel — a new ELM327 wire
+(e.g. serial) is a new `Channel`, not a
 duplicated engine. **The engine keeps the I/O; four sibling modules own the stateful policies it
 used to inline**, each exercisable with no channel at all — so put new protocol policy in a sibling,
 not in the terminal:

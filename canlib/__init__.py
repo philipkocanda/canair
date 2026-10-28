@@ -9,6 +9,7 @@ except PackageNotFoundError:  # not installed (e.g. running from a bare source t
     __version__ = "0+unknown"
 
 from canlib.expression.decoding import decode_param_rows
+from canlib.transport.wican_terminal import WiCANTerminal, reboot_wican
 from canlib.uds.parse import NRC_ABBREV, NRC_CODES, nrc_abbrev, parse_uds_response
 from canlib.wican.autopid_layout import uds_hex_to_wican_bytes
 
@@ -38,7 +39,6 @@ from .formatting import (
 from .log import init_logging, log_command, log_response
 from .pids import build_ecu_index, build_param_index, load_pids
 from .safety import BLOCKED_UDS_SERVICES, check_command_safety
-from .terminal import WiCANTerminal, reboot_wican
 
 __all__ = [
     "BLOCKED_UDS_SERVICES",

@@ -181,13 +181,14 @@ async def mode_discover(
 
     # Auto-save to captures
     if save and alive:
+        from canlib.transport.stats import client_transport
+
         from ..captures import (
             build_discover_session,
             resolve_metadata,
             save_session_journaled,
             suggest_discover_label,
         )
-        from ..transport_stats import client_transport
 
         enriched = []
         for tx_id_val, status, detail in alive:

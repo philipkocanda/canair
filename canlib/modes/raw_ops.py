@@ -118,10 +118,11 @@ async def _run_session(args, target: SlcanTarget, pids_data) -> int:
         return await run_raw_monitor(args, host, port, bitrate, pids_data)
 
     # All other commands: reuse the shared dispatch over a RawTerminal adapter.
+    from canlib.transport.timeouts import cli_timeout, ecu_timeouts_by_tx
+
     from ..addressing import AddressBook
     from ..quirks import HK_F1XX_MINUS_ONE, has_quirk
     from ..safety import SessionPolicy
-    from ..timeouts import cli_timeout, ecu_timeouts_by_tx
     from ..transport import RawTerminal
     from .dispatch import run_session_guarded
 

@@ -405,7 +405,7 @@ def _v6(monkeypatch, info: FirmwareInfo = V6):
 
 class TestRebootRegression:
     def test_reboot_on_405_reports_failure(self, monkeypatch, capsys):
-        from canlib import terminal
+        from canlib.transport import wican_terminal as terminal
         from canlib.wican import api as wican_api
 
         monkeypatch.setattr(wican_api.requests, "post", lambda *a, **k: FakeResponse(405))
@@ -415,7 +415,7 @@ class TestRebootRegression:
         assert "Rebooting" not in captured.out
 
     def test_reboot_on_200_succeeds(self, monkeypatch, capsys):
-        from canlib import terminal
+        from canlib.transport import wican_terminal as terminal
         from canlib.wican import api as wican_api
 
         monkeypatch.setattr(wican_api.requests, "post", lambda *a, **k: FakeResponse(200))
@@ -423,7 +423,7 @@ class TestRebootRegression:
         assert "Rebooting" in capsys.readouterr().out
 
     def test_reboot_skipped_on_v6(self, monkeypatch, capsys):
-        from canlib import terminal
+        from canlib.transport import wican_terminal as terminal
         from canlib.wican import api as wican_api
 
         _v6(monkeypatch)

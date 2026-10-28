@@ -2,7 +2,7 @@
 
 The transport ``elm327-tcp``: a generic WiFi ELM327 adapter (Kiwi, vLinker,
 OBDLink) or the ELM327-Emulator's ``-n`` network mode. The counterpart to
-:class:`canlib.terminal.WiCANTerminal`, which binds the same engine to the WiCAN's
+:class:`canlib.transport.wican_terminal.WiCANTerminal`, which binds the same engine to the WiCAN's
 WebSocket — a wire binding is deliberately a separate module from the engine, so
 "support a new ELM327 wire" stays a new :class:`~canlib.transport.channel.Channel`
 plus a few lines here, never a second copy of the protocol logic.

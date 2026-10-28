@@ -3,12 +3,12 @@
 import re
 
 from canlib.expression.decoding import decode_param_rows
+from canlib.transport.wican_terminal import WiCANTerminal, reboot_wican
 from canlib.uds.parse import parse_uds_response
 from canlib.wican.autopid_layout import uds_hex_to_wican_bytes
 
 from ..formatting import print_decoded_params, print_hexdump
 from ..pids import build_ecu_index
-from ..terminal import WiCANTerminal, reboot_wican
 from ..transport.elm327_terminal import Elm327Terminal
 
 

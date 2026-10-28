@@ -64,7 +64,7 @@ def build_isotp_params(
     (validation flags unknown keys — this stays lenient at runtime).
 
     ``link_budget`` is the measured network round-trip allowance in *seconds*
-    (see :class:`~canlib.link_latency.LinkLatency`). When given, it is added to
+    (see :class:`~canlib.transport.link_latency.LinkLatency`). When given, it is added to
     the two flow-control budgets. Without it a LAN-tuned 1 s wait is spent on the
     network alone on a hotspot-behind-a-VPN link, the stack gives up on a
     multi-frame response mid-reassembly, and the largest PIDs are the first to

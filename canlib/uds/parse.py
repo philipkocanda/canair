@@ -15,7 +15,7 @@ from typing import NotRequired, TypedDict
 # Exchange-outcome taxonomy. Every parsed response falls into exactly one
 # category; on a failure the same value is also stamped onto the response as
 # ``error_kind`` (set at the error site, so classification never has to re-parse
-# an error *string*). `canlib.transport_stats.TransportStats` tallies these per
+# an error *string*). `canlib.transport.stats.TransportStats` tallies these per
 # transport, the monitor surfaces them, and recorded captures carry the counts.
 CAT_OK = "ok"  # positive, echo-matching response
 CAT_NRC = "nrc"  # legitimate negative response (7F …) — an answer, not a fault
@@ -52,7 +52,7 @@ ERROR_CATEGORIES: tuple[str, ...] = (
 class UdsResponse(TypedDict):
     """Structured result of :func:`parse_uds_response` — the shape every transport returns.
 
-    Both the ``wican-ws`` (:class:`canlib.terminal.WiCANTerminal`) and
+    Both the ``wican-ws`` (:class:`canlib.transport.wican_terminal.WiCANTerminal`) and
     ``slcan-tcp`` (:class:`canlib.transport.raw_terminal.RawTerminal`) paths
     funnel their raw response through :func:`parse_uds_response`, so downstream
     code sees this identical shape regardless of transport. ``raw``/``ok`` are

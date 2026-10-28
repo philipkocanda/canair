@@ -9,9 +9,9 @@ channel and the HTTP :func:`reboot_wican` are WiCAN-specific here.
 
 from typing import cast
 
-from .transport.channel import WebSocketChannel
-from .transport.elm327_frame_count import CountKey
-from .transport.elm327_terminal import Elm327Terminal
+from canlib.transport.channel import WebSocketChannel
+from canlib.transport.elm327_frame_count import CountKey
+from canlib.transport.elm327_terminal import Elm327Terminal
 
 
 class WiCANTerminal(Elm327Terminal):

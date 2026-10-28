@@ -3,7 +3,7 @@
 The default live path is the raw SLCAN-over-TCP backend
 (:class:`canlib.transport.slcan_tcp.SlcanTcpBus`, transport ``slcan-tcp``),
 which drives the bus with client-side ISO-TP. The ELM327 WebSocket terminal
-(:mod:`canlib.terminal`, transport ``wican-ws``) is the alternative where the
+(:mod:`canlib.transport.wican_terminal`, transport ``wican-ws``) is the alternative where the
 dongle does ISO-TP. Transports are described once in
 :data:`canlib.transport.config.TRANSPORTS`; register a new spec there to add
 another backend.

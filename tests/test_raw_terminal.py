@@ -2,9 +2,9 @@
 
 import pytest
 
-from canlib.link_latency import LinkLatency
 from canlib.transport import raw_terminal
 from canlib.transport import slcan_tcp as slcan_mod
+from canlib.transport.link_latency import LinkLatency
 
 
 class FakeBus:
