@@ -2,7 +2,7 @@
 
 The loader, PID-definition resolution and decode preview used to live beside the
 ``captures`` command, which forced :mod:`canlib.analysis.align`, :mod:`canlib.capture_dates`
-and :mod:`canlib.state_infer` to import *up* into ``canlib.commands`` (with lazy
+and :mod:`canlib.states.infer` to import *up* into ``canlib.commands`` (with lazy
 in-function imports to dodge the resulting cycle). They are library concerns; these
 tests cover them directly, and :class:`TestLayering` keeps the inversion from
 coming back.
@@ -24,7 +24,7 @@ from canlib.capture_store import (
     resolve_pid_defs,
     unresolved_state_summary,
 )
-from canlib.state_spans import span_keys
+from canlib.states.spans import span_keys
 
 CANLIB = Path(__file__).resolve().parents[1] / "canlib"
 

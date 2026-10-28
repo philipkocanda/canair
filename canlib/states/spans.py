@@ -26,7 +26,7 @@ Two deliberate shape choices:
 This module is a **pure leaf**: no capture-model, profile or numpy imports, so the
 raw-CAN broadcast domain can reuse it unchanged (same discipline as
 :mod:`canlib.analysis.counters`). Building spans from stored captures is
-:mod:`canlib.state_infer`'s job; resolving a capture *through* them is
+:mod:`canlib.states.infer`'s job; resolving a capture *through* them is
 :mod:`canlib.capture_store`'s.
 """
 
@@ -76,7 +76,7 @@ def build_spans(observations: Iterable[tuple[Any, Sequence[str]]]) -> list[State
     """Coalesce timed state observations into spans, in chronological order.
 
     ``observations`` are ``(time, states)`` pairs — typically one per pseudo-cycle
-    from :func:`canlib.state_infer.state_observations`, or one per poll cycle from a
+    from :func:`canlib.states.infer.state_observations`, or one per poll cycle from a
     live recording. Consecutive observations carrying the *same* state set collapse
     into a single span, which is what makes the representation compact. Observations
     with an unparseable time are dropped (they cannot be placed on the timeline).

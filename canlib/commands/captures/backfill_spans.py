@@ -2,7 +2,7 @@
 
 ``--backfill-states`` answers *which* states a session was in; this answers
 *when*. It re-decodes each session's captures per pseudo-cycle (see
-:func:`canlib.state_infer.infer_state_spans`) and writes the resulting
+:func:`canlib.states.infer.infer_state_spans`) and writes the resulting
 ``state_spans`` block, so every analysis command can resolve a capture's state at
 its own timestamp instead of inheriting the session-wide union.
 
@@ -25,8 +25,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from canlib.capture_store import entry_path
-from canlib.state_infer import DEFAULT_CYCLE_TOL_S, session_state_spans
 from canlib.states import parse_states
+from canlib.states.infer import DEFAULT_CYCLE_TOL_S, session_state_spans
 
 if TYPE_CHECKING:
     from collections.abc import Sequence

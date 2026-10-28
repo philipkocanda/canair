@@ -18,8 +18,9 @@ from __future__ import annotations
 
 from typing import Literal, NotRequired, TypedDict
 
+from canlib.states.spans import StateSpan
+
 from .keepmode import EntryKeepMode, PersistedKeepMode
-from .state_spans import StateSpan
 
 StateSpanSource = Literal["record", "live", "backfill"]
 """How a session's ``state_spans`` were produced (see :class:`StateSpans`)."""

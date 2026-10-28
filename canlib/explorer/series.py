@@ -26,7 +26,7 @@ from canlib import capture_io
 from canlib.captures_merge import session_anchor
 from canlib.expression.decoding import decode_param_rows
 from canlib.pids import load_pids, pid_status
-from canlib.state_spans import parse_time_key
+from canlib.states.spans import parse_time_key
 
 # Sessions with fewer numeric samples than this are not worth a plot and are left out.
 MIN_SAMPLES = 10

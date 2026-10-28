@@ -17,7 +17,7 @@ It answers two questions:
   rename-param`` / ``rm-param``).
 
 Resolution mirrors how the decoded value map is actually keyed at evaluation time
-(``canlib.state_infer._decode_cycle`` and ``canlib.states.collect_values``):
+(``canlib.states.infer._decode_cycle`` and ``canlib.states.collect_values``):
 ``ECU`` is the **canonical** ECU short name, upper-cased; ``PARAM`` is the
 ``parameters:`` key **verbatim**; and only *numeric* values are ever stored. A
 reference that deviates on any of those axes silently never resolves, so each is
@@ -31,8 +31,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from canlib.expression.decoding import decodes_to_number
-
-from .states import PREDICATE_SENTINELS, StatePredicateError, predicate_references
+from canlib.states import PREDICATE_SENTINELS, StatePredicateError, predicate_references
 
 # Why a reference cannot resolve. All are hard failures (the predicate can never
 # fire); the kind exists so callers can group/filter, not to grade severity.
@@ -72,7 +71,7 @@ def _signal_map(pids_data: Mapping[str, Any]) -> dict[str, dict[str, _Signal]]:
     ``ignored``, flagged as such: a predicate pointing at one resolves to nothing
     at runtime, and saying so beats reporting the signal as undefined.
     """
-    from .pids import pid_status
+    from canlib.pids import pid_status
 
     out: dict[str, dict[str, _Signal]] = {}
     for ecu_name, ecu_def in (pids_data.get("ecus") or {}).items():
@@ -198,7 +197,7 @@ def profile_predicates(profile=None) -> list[tuple[str, str]]:
     :func:`canlib.states.state_names` — a caller warning about references should
     never be the thing that fails on a syntax error elsewhere in the file.
     """
-    from .states import load_states
+    from canlib.states import load_states
 
     try:
         rules = load_states(profile)

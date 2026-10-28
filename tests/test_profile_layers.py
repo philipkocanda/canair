@@ -142,7 +142,7 @@ def _force_a_timeline(monkeypatch) -> None:
     covered elsewhere. What needs pinning here is which file the command opens and
     whether it consults the base-layer policy.
     """
-    from canlib import state_infer
+    from canlib.states import infer as state_infer
 
     spans = [
         {"at": "09:00:00", "states": ["ACC"]},

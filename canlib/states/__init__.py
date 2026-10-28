@@ -220,7 +220,7 @@ def predicate_references(expr: str) -> list[str]:
 
     What remains after dropping :data:`PREDICATE_SENTINELS` is what the predicate
     expects to find in the decoded ``{ECU.PARAM: value}`` map, so a caller can
-    resolve it against the signal registry (see :mod:`canlib.state_refs`).
+    resolve it against the signal registry (see :mod:`canlib.states.refs`).
 
     A *malformed* reference (a bare word, a triple-dotted name) is returned as-is
     rather than rejected: it parses fine and merely fails to resolve, which is
@@ -258,7 +258,7 @@ def compile_predicate(expr: str) -> Callable[[dict, set | None], Tristate]:
     that a *well-formed reference to a signal that does not exist* is not a
     syntax error and cannot be caught here — it is indistinguishable from a
     not-polled signal at evaluation time, so it is checked separately against the
-    registry by :mod:`canlib.state_refs` (``canair validate states``).
+    registry by :mod:`canlib.states.refs` (``canair validate states``).
     """
     tree = _parse_predicate(expr)
 
@@ -286,7 +286,7 @@ def _lookup(name: str, values: dict, responded: set | None):
     val = values.get(name, _MISSING)
     if val is _MISSING:
         # Indistinguishable here from a typo'd/renamed signal name — see
-        # :mod:`canlib.state_refs`, which resolves references against the registry.
+        # :mod:`canlib.states.refs`, which resolves references against the registry.
         return UNKNOWN
     return val
 
@@ -374,7 +374,7 @@ def _compare(op: ast.AST, left, right) -> Tristate:
 
 
 def _states_path(profile=None) -> Path:
-    from .profile import active
+    from canlib.profile import active
 
     prof = profile or active()
     return prof.states_file

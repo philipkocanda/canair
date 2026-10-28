@@ -7,7 +7,7 @@ session) — so a renamed signal silently disables its state. That happened: the
 ``PARKED`` predicate referenced ``VCU.GEAR_PARK`` after the signal was renamed,
 ``canair validate all`` stayed green, and only the backfill-states tests noticed.
 
-These tests cover the machinery that closes the hole (``canlib.state_refs``), the
+These tests cover the machinery that closes the hole (``canlib.states.refs``), the
 ``canair validate states`` gate that reports it, and a guard that every predicate
 in every bundled profile still resolves.
 """
@@ -23,7 +23,8 @@ from canlib.commands import validate as validate_cmd
 from canlib.constants import BUNDLED_PROFILES_DIR
 from canlib.expression.decoding import decodes_to_number
 from canlib.pids import clear_cache
-from canlib.state_refs import (
+from canlib.states import StatePredicateError, predicate_references
+from canlib.states.refs import (
     IGNORED_PID,
     MALFORMED,
     NOT_NUMERIC,
@@ -32,7 +33,6 @@ from canlib.state_refs import (
     check_references,
     states_referencing,
 )
-from canlib.states import StatePredicateError, predicate_references
 
 
 @pytest.fixture(autouse=True)
@@ -115,7 +115,7 @@ class TestDecodesToNumber:
 
 
 class TestCheckReferences:
-    """canlib.state_refs.check_references — why a reference cannot resolve."""
+    """canlib.states.refs.check_references — why a reference cannot resolve."""
 
     def _kinds(self, expr):
         return [i.kind for i in check_references([("S", expr)], PIDS_DATA)]
@@ -325,7 +325,7 @@ class TestBundledProfiles:
     )
     def test_predicates_resolve(self, name):
         from canlib.pids import load_pids
-        from canlib.state_refs import profile_predicates
+        from canlib.states.refs import profile_predicates
 
         prof = profile.set_active(name)
         issues = check_references(profile_predicates(prof), load_pids())
@@ -333,7 +333,7 @@ class TestBundledProfiles:
 
     def test_the_reference_profile_actually_has_predicates(self):
         """Keeps the guard above from passing vacuously if predicate loading breaks."""
-        from canlib.state_refs import profile_predicates
+        from canlib.states.refs import profile_predicates
 
         prof = profile.set_active("ioniq-2017")
         predicates = profile_predicates(prof)

@@ -260,11 +260,11 @@ def _warn_state_predicates(ecu: str, param: str, consequence: str, hint: str) ->
     A predicate references a signal by name, so renaming or removing that signal
     silently stops the state from ever matching — a missing signal is
     indistinguishable from a not-polled one at evaluation time (see
-    :mod:`canlib.state_refs`). ``canair validate states`` is the gate; this is the
+    :mod:`canlib.states.refs`). ``canair validate states`` is the gate; this is the
     nudge at the moment the breakage is introduced.
     """
     try:
-        from canlib.state_refs import states_referencing
+        from canlib.states.refs import states_referencing
 
         states = states_referencing(ecu, param)
     except Exception:

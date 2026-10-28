@@ -1,6 +1,6 @@
-"""Tests for canlib.state_spans — the temporal vehicle-state timeline primitive."""
+"""Tests for canlib.states.spans — the temporal vehicle-state timeline primitive."""
 
-from canlib.state_spans import (
+from canlib.states.spans import (
     build_spans,
     parse_time_key,
     span_keys,

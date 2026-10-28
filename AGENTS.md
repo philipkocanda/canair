@@ -231,7 +231,7 @@ and **`g`/`G` address the view's primary axis**.
   **The default list view is capped at `--limit N` (default 50) with a loud footer** for hidden
   history, so a bare query can't blow the context window; widen with `--limit 0` or scope tighter.
   Mutating modes: `--delete` (refuses a bare `--delete`, previews with `--dry-run`, confirms unless
-  `--yes`), `--backfill-states` (offline state inference, `canlib/state_infer.py`; fills unset
+  `--yes`), `--backfill-states` (offline state inference, `canlib/states/infer.py`; fills unset
   states and *reports* contradicted ones unless `--overwrite`), `--set-state` (manual counterpart —
   **requires** a scope filter so it can't blanket-relabel history), `--set-notes`/`--set-transport`
   (correct a session's notes or recorded transport, same scope rule; one editor in
@@ -343,7 +343,7 @@ reuse these instead of re-declaring a flag:
   predicate can't hide behind a healthy ●. `set-implies NAME [STATES]` (and `add --implies`)
   declares the **specificity hierarchy** — see `vehicle_states.yaml` under Key Files; the list view
   shows it as a dim `specializes:` line and `canair states <STATE>` also reports the reverse edges
-  (`specialized by:`). **Never hand-edit `vehicle_states.yaml`** (`canlib/states_edit.py`) — its
+  (`specialized by:`). **Never hand-edit `vehicle_states.yaml`** (`canlib/states/edit.py`) — its
   editors also retarget/drop sibling `implies:` references on `rename`/`remove`, which a hand-edit
   would leave dangling (and a dangling target fails the next validate).
 - **`canair groups`** — List/edit `groups.yaml`, the named selector groups recalled with the `@`
@@ -374,7 +374,7 @@ reuse these instead of re-declaring a flag:
   how a rename disabled a state with `validate all` green). Each way of missing is reported
   distinctly (unknown ECU, an alias instead of the canonical name, wrong case, a signal on another
   ECU, one under an `ignored` PID, one that doesn't decode to a number). Resolver
-  `canlib/state_refs.py`. The same check runs as a **non-blocking warning** from `states add
+  `canlib/states/refs.py`. The same check runs as a **non-blocking warning** from `states add
   --when`/`set-predicate` and `pids rename-param`/`rm-param`. **`validate pids`** also errors on a
   duplicate *shipped* signal name across PIDs (each becomes a distinct device signal) and on an
   `identity:` field outside the schema's `identity_fields`, and warns when two *synonymous* identity
@@ -632,7 +632,7 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   (`PLUGGED`/`READY`/`CHARGING`) and finer vendor rungs are **declared per profile**, and
   `allowed_states()` returns base ∪ `ALL` ∪ the profile's own, so `--state`/`--prereq` validate
   without a static choice list. Input is normalized to uppercase. Edit via `canair states` (never
-  hand-edit; `canlib/states_edit.py`); references in `ecus/` are written as inline flow lists.
+  hand-edit; `canlib/states/edit.py`); references in `ecus/` are written as inline flow lists.
 - **`profiles/<car>/can_buses.yaml`** — The profile's CAN bus segment vocabulary: code → human
   `name` + `description` + optional `bitrate`. Bus naming is **vendor-specific** (Hyundai/Kia
   `B-CAN`/`P-CAN`/`C-CAN`/`MM-CAN`/`H-CAN`/`D-CAN`/`ALL`; Ford `HS`/`MS`; BMW `PT-CAN`/`K-CAN`), so

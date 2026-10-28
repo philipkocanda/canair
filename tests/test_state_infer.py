@@ -1,11 +1,11 @@
-"""Tests for canlib.state_infer — offline session-state inference."""
+"""Tests for canlib.states.infer — offline session-state inference."""
 
-from canlib.state_infer import (
+from canlib.states import StateRule, compile_predicate
+from canlib.states.infer import (
     _bucket_cycles,
     infer_session_states,
     infer_state_spans,
 )
-from canlib.states import StateRule, compile_predicate
 
 
 def _cap(ecu, pid, payload, *, date="2026-04-14", time=None):

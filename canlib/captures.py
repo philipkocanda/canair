@@ -10,6 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import cast
 
+from canlib.states.spans import StateSpan
 from canlib.uds.parse import UdsResponse
 
 from . import capture_io
@@ -25,7 +26,6 @@ from .capture_types import (
     StateSpanSource,
 )
 from .keepmode import KeepMode, persisted_keep_mode
-from .state_spans import StateSpan
 from .states import join_states as _join_states
 from .states import parse_states as _parse_states
 
@@ -637,7 +637,7 @@ def annotate_session_spans(
 
     Called right after a session lands on disk, so a recording is queryable at
     per-capture state resolution without a manual back-fill. It reconstructs the
-    timeline from the *saved payloads* (:func:`canlib.state_infer.session_state_spans`)
+    timeline from the *saved payloads* (:func:`canlib.states.infer.session_state_spans`)
     rather than from what the monitor happened to suggest per cycle — the same
     single model ``--backfill-state-spans`` uses, on strictly better evidence
     (every decoded signal, not just the ones the live suggester had fresh).
@@ -648,9 +648,10 @@ def annotate_session_spans(
     just saved, so the session simply keeps its state union.
     """
     try:
+        from canlib.states.infer import DEFAULT_CYCLE_TOL_S, session_state_spans
+
         from .capture_store import flatten_session
         from .pids import build_ecu_index, load_pids
-        from .state_infer import DEFAULT_CYCLE_TOL_S, session_state_spans
         from .states import load_states
 
         data = capture_io.load_capture_file(fpath)

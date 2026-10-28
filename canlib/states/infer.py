@@ -29,7 +29,6 @@ from typing import TYPE_CHECKING, Any
 from canlib.capture_dates import entry_datetime
 from canlib.capture_store import resolve_pid_defs
 from canlib.expression.decoding import decode_param_rows
-from canlib.state_spans import build_spans, span_state_union
 from canlib.states import (
     StatePredicateError,
     StateRule,
@@ -37,11 +36,12 @@ from canlib.states import (
     predicate_references,
     suggest_states,
 )
+from canlib.states.spans import build_spans, span_state_union
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
-    from canlib.state_spans import StateSpan
+    from canlib.states.spans import StateSpan
 
 # Default pseudo-cycle window (seconds). Wider than align's 5.0s join tolerance:
 # a full round-robin monitor cycle over several ECUs spans ~8-10s, so a cross-ECU
@@ -222,7 +222,7 @@ def infer_state_spans(
 
     The temporal counterpart of :func:`infer_session_states`: instead of unioning
     every cycle's match into one set, each cycle contributes a timestamped
-    observation, and :func:`canlib.state_spans.build_spans` coalesces consecutive
+    observation, and :func:`canlib.states.spans.build_spans` coalesces consecutive
     equal observations into spans.
 
     **A matched state latches until a cycle carries fresh evidence against it.** A
