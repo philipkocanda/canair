@@ -15,6 +15,30 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [1.35.1](https://github.com/philipkocanda/canair/compare/v1.35.0...v1.35.1) (2026-10-28)
+
+
+### Fixed
+
+* **tui:** distinguish checkbox state by shape, not colour ([18e08de](https://github.com/philipkocanda/canair/commit/18e08de0b9267cd507a008b43e37bbdb4e79c0c0))
+
+
+### Changed
+
+* **canlib:** group capture modules into canlib/captures/ package ([99873d5](https://github.com/philipkocanda/canair/commit/99873d51c1aa05cb051b334568050f98737696b3))
+* **canlib:** group ECU-registry modules into canlib/ecus/ package ([4771780](https://github.com/philipkocanda/canair/commit/4771780b2108a85e90e09d0d98687b0838aee2d1))
+* **canlib:** group migration shims into canlib/migrations/ package ([8ed45cd](https://github.com/philipkocanda/canair/commit/8ed45cdb533126a4b7d0fc93b7423527813c79fd))
+* **canlib:** group offline analysis modules into canlib/analysis/ package ([e2cdb2a](https://github.com/philipkocanda/canair/commit/e2cdb2abbe96f16cdf7484806c418ad21e5f872a))
+* **canlib:** group related flat modules into subpackages ([981454a](https://github.com/philipkocanda/canair/commit/981454a6abdbe4baa18e7ecad1b9f12e18b7a14c))
+* **canlib:** group related flat modules into subpackages ([26d7394](https://github.com/philipkocanda/canair/commit/26d7394825958f22d5f3ff9d4a75c5c0fb7fe5fc))
+* **canlib:** group vehicle-state modules into canlib/states/ package ([3bdabd3](https://github.com/philipkocanda/canair/commit/3bdabd34318ce4aabb91558e75c740469868a4c2))
+* **canlib:** move transport-layer modules into canlib/transport/ ([105b948](https://github.com/philipkocanda/canair/commit/105b948e7ea8999e248adeb0d9873a13980bc3d7))
+
+
+### Documentation
+
+* **dev:** add `make setup` to install deps + git hooks in one command ([4bc7164](https://github.com/philipkocanda/canair/commit/4bc71648b849799b6627f8d90344619c6b0c91d7))
+
 ## [1.35.0](https://github.com/philipkocanda/canair/compare/v1.34.0...v1.35.0) (2026-10-27)
 
 
