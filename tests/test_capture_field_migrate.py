@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import json
 
-from canlib import capture_io
-from canlib.capture_field_migrate import migrate_dir, migrate_file
+from canlib.captures import io as capture_io
+from canlib.migrations.capture_fields import migrate_dir, migrate_file
 
 
 def _write(dirp, name, doc):

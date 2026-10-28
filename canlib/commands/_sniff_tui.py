@@ -14,9 +14,9 @@ from textual.binding import Binding
 from textual.containers import VerticalScroll
 from textual.widgets import Static
 
-from canlib.tui_help import HelpMixin
-from canlib.tui_keys import bind
-from canlib.tui_status import P_ESSENTIAL, P_HIGH, P_LOW, P_NORMAL, StatusBar, StatusItem
+from canlib.tui.help import HelpMixin
+from canlib.tui.keys import bind
+from canlib.tui.status import P_ESSENTIAL, P_HIGH, P_LOW, P_NORMAL, StatusBar, StatusItem
 
 if TYPE_CHECKING:
     from canlib.commands.sniff import SniffStats

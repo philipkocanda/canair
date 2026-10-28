@@ -1,0 +1,275 @@
+"""WiCAN 4.x protocol-mode switching (ELM327 ⇄ raw SLCAN, etc.).
+
+The WiCAN runs one ``protocol`` at a time, chosen at boot from its config. To
+use a raw-CAN backend we must rewrite the device config and reboot, then restore
+the previous protocol (usually ``elm327``) when done. Switching costs a reboot
+(~2-5 s) and, while in a raw mode, the device stops serving ELM327/AutoPID (so
+Home Assistant goes quiet) — hence the consent prompt and the guaranteed
+restore-on-exit guard.
+
+Mode changes go through the HTTP config API:
+    GET  /load_config   -> current config dict
+    POST /store_config  -> write full config verbatim; device reboots ~2s later
+"""
+
+from __future__ import annotations
+
+import socket
+import time
+
+from canlib.wican.api import get_config, resolve_wican_url, store_config
+from canlib.wican.firmware import FirmwareInfo
+
+
+class ModeError(RuntimeError):
+    """Raised when a protocol switch cannot be completed."""
+
+
+def load_config(base_url: str, timeout: float = 10.0) -> dict:
+    """GET /load_config as a dict (raises on failure; does not sys.exit)."""
+    return get_config(base_url, timeout=timeout)
+
+
+def current_protocol(base_url: str, timeout: float = 10.0) -> str:
+    """Return the device's active ``protocol`` string."""
+    return str(load_config(base_url, timeout=timeout).get("protocol", "")).lower()
+
+
+def require_protocol(
+    wican: str, expected: str, *, transport_name: str | None = None, timeout: float = 6.0
+) -> None:
+    """Raise :class:`ModeError` if the WiCAN is reachable but not in ``expected``.
+
+    No-op when the HTTP config API isn't reachable (a non-WiCAN gateway, or a
+    device that's offline) — in that case the transport connect itself will
+    surface the problem. This never switches the mode (explicit-only policy).
+    A 4.x concept: firmware v6 has no ``protocol`` setting, so callers skip this
+    there (:mod:`canlib.wican.firmware`) and its hints can assume 4.x.
+    """
+    base_url = resolve_wican_url(wican)
+    try:
+        proto = current_protocol(base_url, timeout=timeout)
+    except Exception:
+        return
+    if proto and proto != expected:
+        tname = transport_name or f"the '{expected}'"
+        msg = (
+            f"canair is configured for the {tname} transport, so the WiCAN also "
+            f"needs to be in '{expected}' mode — but it's currently in '{proto}'.\n"
+            f"  • put the device in '{expected}':  canair wican mode set {expected}\n"
+            f"    (restore afterwards with:         canair wican mode set {proto})"
+        )
+        if expected == "slcan":
+            msg += (
+                "\n  • or keep the device as-is and use the ELM327 terminal, which works "
+                "in any device mode:\n"
+                "    pass --transport wican-ws, or set transport.type: wican-ws in your config"
+            )
+        raise ModeError(msg)
+
+
+def _tcp_probe(host: str, port: int, timeout: float) -> OSError | None:
+    """Try to open ``host:port``; return the ``OSError`` on failure, ``None`` on success.
+
+    Callers that want the *reason* a connection failed (to show the user what
+    actually happened — timed out vs refused vs no route vs bad name) inspect the
+    returned exception; :func:`_tcp_open` is the bool-only convenience wrapper.
+    """
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return None
+    except OSError as e:
+        return e
+
+
+def _tcp_open(host: str, port: int, timeout: float) -> bool:
+    """Return True if a TCP connection to ``host:port`` succeeds within ``timeout``."""
+    return _tcp_probe(host, port, timeout) is None
+
+
+def require_ws_reachable(host: str, *, port: int = 80, timeout: float = 4.0) -> None:
+    """Raise :class:`ModeError` if the WiCAN's WebSocket/HTTP port doesn't respond.
+
+    The ``wican-ws`` transport reaches the ELM327 terminal over ``ws://host/ws``,
+    which lives on the device's HTTP port. When that port is closed or the host
+    is silent (wrong IP, VPN down, device asleep, or a protocol that isn't
+    serving the WebSocket), ``websockets.connect()`` either fails deep in the
+    stack or hangs out its full open-timeout before raising a bare
+    ``TimeoutError`` — neither tells the user what's actually wrong. This fast
+    TCP pre-check fails up front with an actionable alert instead.
+
+    A no-op when the port answers (the ``/ws`` terminal works in any device
+    mode, so an open port is good enough — we don't gate on the protocol here).
+    A closed HTTP port also hides the firmware generation, so the hints cover
+    both 4.x and v6 (which has no ``/ws`` terminal at all).
+    """
+    err = _tcp_probe(host, port, timeout)
+    if err is None:
+        return
+    from canlib.transport.errors import connect_error_detail
+
+    detail = connect_error_detail(err)
+    raise ModeError(
+        f"can't reach the WiCAN's ELM327 WebSocket terminal at ws://{host}/ws — {detail}.\n"
+        f"The 'wican-ws' transport needs the device's HTTP/WebSocket server. "
+        f"Likely causes:\n"
+        f"  • the device is powered off, asleep, or still booting\n"
+        f"  • the host is wrong — trying '{host}' (check --wican / transport.host in config)\n"
+        f"  • you're not on the same network as the device (VPN down? wrong Wi-Fi?)\n"
+        f"  • on firmware 4.x: the device is in a mode that isn't serving the WebSocket "
+        f"(e.g. raw 'slcan') — switch with:  canair wican mode set elm327\n"
+        f"  • on firmware v6: there is no /ws terminal — use --transport elm327-tcp "
+        f"(port 35000)\n"
+        f"  • diagnose:      canair status --wican {host}"
+    )
+
+
+def require_slcan_reachable(
+    host: str,
+    port: int,
+    *,
+    timeout: float = 5.0,
+    firmware: FirmwareInfo | None = None,
+    http_ok: bool | None = None,
+) -> None:
+    """Raise :class:`ModeError` if the WiCAN's SLCAN data port doesn't respond.
+
+    The ``slcan-tcp`` transport moves CAN frames over a raw TCP socket on the
+    device's SLCAN port (distinct from its HTTP config API on port 80). The
+    config API can be perfectly reachable — so ``require_protocol`` passes — while
+    the SLCAN port is hung or silent (a device that hasn't been rebooted in a
+    long time, still booting, or in a mode that isn't serving SLCAN). Without
+    this pre-check ``socket.create_connection`` blows out its connect timeout and
+    raises a bare ``TimeoutError`` deep in the stack with no guidance. Fail fast
+    with an actionable alert instead.
+
+    We also probe the device's HTTP config API (port 80) so the alert can say
+    *whether the device is otherwise online*: if HTTP answers but the SLCAN port
+    doesn't, the device is on the network and the SLCAN socket itself is wedged
+    (a reboot usually clears it) — a much more specific hint than a generic
+    "unreachable", which would suggest a wrong host / VPN / power problem.
+    ``firmware`` (when the caller probed it) swaps the 4.x mode hints for v6's
+    settings, since v6 has neither a protocol mode nor a ``/ws`` terminal.
+    ``http_ok`` passes on an HTTP-port check the caller already made.
+    """
+    err = _tcp_probe(host, port, timeout)
+    if err is None:
+        return
+    from canlib.transport.errors import connect_error_detail
+
+    v6 = firmware is not None and firmware.generation == "v6"
+    detail = connect_error_detail(err)
+    # Is the device otherwise reachable? A quick TCP check of its HTTP config port.
+    if http_ok is None:
+        http_ok = _tcp_open(host, 80, timeout=2.0)
+    lines = [f"can't reach the WiCAN's SLCAN data port at {host}:{port} — {detail}."]
+    if http_ok and v6:
+        lines += [
+            "The device IS online — its HTTP API (port 80) responded — and runs firmware v6, "
+            "which serves SLCAN only once it is set up:",
+            "  • enable the slcan0 server (TCP 3333), a 'can' to 'slcan0' bridge with "
+            "translator 'slcan', and can_manager in the device's settings, then submit",
+        ]
+    elif http_ok:
+        lines += [
+            "The device IS online — its HTTP config API (port 80) responded — but its "
+            "SLCAN data port didn't answer.",
+            "That points at the SLCAN socket itself, not the network/host:",
+            "  • the device has been up a long time and its SLCAN socket is wedged "
+            "— a reboot (power-cycle) usually clears it",
+            "  • or the device isn't in 'slcan' mode — the raw transport needs it "
+            "(switch:  canair wican mode set slcan)",
+        ]
+    else:
+        lines += [
+            "The device's HTTP config API (port 80) didn't respond either, so the "
+            "device looks offline/unreachable. Likely causes:",
+            "  • the device is powered off, asleep, or still booting",
+            f"  • the host is wrong — trying '{host}' (check --wican / transport.host in config)",
+            "  • you're not on the same network as the device (VPN down? wrong Wi-Fi?)",
+        ]
+    lines.append(f"  • diagnose:      canair status --wican {host}")
+    if v6:
+        lines.append("  • or use the ELM327 socket (on by default on v6): --transport elm327-tcp")
+    else:
+        lines.append("  • or use the ELM327 terminal (works in any mode): --transport wican-ws")
+    raise ModeError("\n".join(lines))
+
+
+def require_elm327_tcp_reachable(host: str, port: int, *, timeout: float = 5.0) -> None:
+    """Raise :class:`ModeError` if a direct ELM327 adapter's TCP port is silent.
+
+    The ``elm327-tcp`` transport reaches a generic WiFi ELM327 clone (or the
+    ELM327-Emulator) over a plain TCP socket — there is no HTTP config API to
+    fall back on (unlike the WiCAN). Without this pre-check a silent host makes
+    ``asyncio.open_connection`` hang out its connect timeout before failing with
+    no guidance. A no-op when the port answers.
+    """
+    err = _tcp_probe(host, port, timeout)
+    if err is None:
+        return
+    from canlib.transport.errors import connect_error_detail
+
+    detail = connect_error_detail(err)
+    raise ModeError(
+        f"can't reach the ELM327 adapter at {host}:{port} — {detail}.\n"
+        f"The 'elm327-tcp' transport talks to a direct ELM327 adapter over a plain "
+        f"TCP socket. Likely causes:\n"
+        f"  • the adapter is powered off, not paired to Wi-Fi, or still booting\n"
+        f"  • the host/port is wrong — trying '{host}:{port}' (most WiFi clones use "
+        f"port 35000; check --wican / transport.host / transport.port in config)\n"
+        f"  • you're not on the adapter's Wi-Fi network (many clones host their own AP)\n"
+        f"  • for offline testing, start the emulator first:  elm -n {port}\n"
+        f"  • diagnose:  canair status --transport elm327-tcp --wican {host}"
+    )
+
+
+def wait_until_ready(host: str, port: int = 80, timeout: float = 45.0) -> bool:
+    """Block until ``host:port`` accepts a TCP connection (device back up).
+
+    Returns True once reachable, False on timeout. Used to wait out the reboot
+    that follows /store_config.
+    """
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if _tcp_open(host, port, timeout=2.0):
+            return True
+        time.sleep(1.0)
+    return False
+
+
+def _host_of(base_url: str) -> str:
+    """Extract the bare host from an http(s)://host[:port] base URL."""
+    return base_url.split("://", 1)[-1].split("/", 1)[0].split(":", 1)[0]
+
+
+def set_protocol(
+    base_url: str,
+    protocol: str,
+    *,
+    extra: dict | None = None,
+    wait: bool = True,
+    reboot_grace: float = 2.5,
+) -> str:
+    """Switch the device to ``protocol`` (+ optional extra config keys).
+
+    Loads the full current config, mutates it, POSTs it back (device reboots),
+    then optionally waits for the device to come back up. Returns the *previous*
+    protocol so callers can restore it. No-op (returns current) if already set.
+    """
+    cfg = load_config(base_url)
+    previous = str(cfg.get("protocol", "")).lower()
+    if previous == protocol and not extra:
+        return previous
+
+    cfg["protocol"] = protocol
+    if extra:
+        cfg.update(extra)
+    store_config(base_url, cfg)
+
+    if wait:
+        host = _host_of(base_url)
+        time.sleep(reboot_grace)  # let it actually drop before we poll
+        if not wait_until_ready(host):
+            raise ModeError(f"WiCAN did not come back online after switching to '{protocol}'.")
+    return previous

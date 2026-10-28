@@ -2,10 +2,10 @@
 
 import math
 
+from canlib.analysis.stats import fmt_num
 from canlib.commands.decode import plot as dp
 from canlib.commands.decode import plot_draw
-from canlib.inspect_bytes import InspectType
-from canlib.stats import fmt_num
+from canlib.uds.inspect_bytes import InspectType
 
 U16 = InspectType("u16", 2, "int", False)
 
@@ -39,7 +39,7 @@ _VIEW_CAPS = [
 class TestInterpretBytes:
     def test_endianness(self):
         # Spot-check that the plot module still exposes the shared primitive
-        # (imported from canlib.inspect_bytes); exhaustive coverage lives in
+        # (imported from canlib.uds.inspect_bytes); exhaustive coverage lives in
         # tests/test_inspect_bytes.py.
         assert dp.interpret_bytes(FRAME, 3, U16) == 0xABCD
 
@@ -290,7 +290,7 @@ class TestPlotApp:
     @pytest.mark.asyncio
     async def test_help_modal(self):
         from canlib.commands.decode.plot_tui import PlotApp
-        from canlib.tui_help import HelpModal
+        from canlib.tui.help import HelpModal
 
         app = PlotApp(_plot_model())
         async with app.run_test(size=(110, 30)) as pilot:

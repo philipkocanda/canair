@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from canlib.capture_store import load_all_captures
+from canlib.captures.store import load_all_captures
 from canlib.commands.captures import layers as capture_layers
 from canlib.commands.profile import _cmd_list, _cmd_overlay, _cmd_show
 from canlib.profile import (
@@ -142,7 +142,7 @@ def _force_a_timeline(monkeypatch) -> None:
     covered elsewhere. What needs pinning here is which file the command opens and
     whether it consults the base-layer policy.
     """
-    from canlib import state_infer
+    from canlib.states import infer as state_infer
 
     spans = [
         {"at": "09:00:00", "states": ["ACC"]},

@@ -15,7 +15,7 @@ import json as _json
 import sys
 
 from canlib import ansi
-from canlib.align import (
+from canlib.analysis.align import (
     TimePoint,
     join_prepared,
     load_signal_captures,
@@ -23,9 +23,9 @@ from canlib.align import (
     prepare_series,
     series_time_ranges_disjoint,
 )
-from canlib.capture_dates import entry_datetime
-from canlib.notation import ByteNotation, relabel_signal
-from canlib.xanalysis import build_bit_series, build_byte_series, build_param_series
+from canlib.analysis.xanalysis import build_bit_series, build_byte_series, build_param_series
+from canlib.captures.dates import entry_datetime
+from canlib.uds.notation import ByteNotation, relabel_signal
 
 
 def _color_r(r: float) -> str:
@@ -146,8 +146,8 @@ def _print_cross_mirrors(specs, since, until, args, notation=ByteNotation.WICAN)
     ``--allow-offset`` the same physical quantity at a different offset/scale.
     Same-PID pairs are excluded (that's decode's job).
     """
+    from canlib.analysis.mirrors import find_series_mirrors
     from canlib.commands._join import fill_policy_from_args
-    from canlib.mirrors import find_series_mirrors
     from canlib.pids import build_ecu_index, load_pids
 
     fill = fill_policy_from_args(args)
@@ -225,7 +225,7 @@ def _print_can_mirrors(series: dict, path, args) -> int:
     series that agree wherever they align. Same-ID pairs are skipped (intra-frame
     equality is not a mirror across messages).
     """
-    from canlib.mirrors import find_series_mirrors
+    from canlib.analysis.mirrors import find_series_mirrors
 
     def same_id(a: str, b: str) -> bool:
         return a.split(":", 1)[0] == b.split(":", 1)[0]

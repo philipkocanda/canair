@@ -14,12 +14,13 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import NotRequired, TypedDict
 
-from ..decoding import ParamRow, decode_param_rows
+from canlib.expression.decoding import ParamRow, decode_param_rows
+from canlib.uds.multi_did import split_chain
+from canlib.uds.parse import UdsResponse
+
 from ..formatting import decode_uds_response
 from ..frame_counts import frames_for_payload
 from ..log import log_event
-from ..multi_did import split_chain
-from ..uds_parse import UdsResponse
 
 
 class ResultEntry(TypedDict):
@@ -251,7 +252,7 @@ def _is_did22(pid_code: str) -> bool:
 def _did4(pid_code: str) -> str:
     """The DID of a service-22 request code, upper-cased (``22bc03`` → ``BC03``).
 
-    Learned lengths are keyed by it, and :func:`canlib.multi_did.split_chain` looks
+    Learned lengths are keyed by it, and :func:`canlib.uds.multi_did.split_chain` looks
     DIDs up upper-case, so a PID key written in lower case in ``ecus/`` must not
     file its length where the leak check cannot find it.
     """
@@ -265,7 +266,7 @@ def is_leaked_batch_reply(resp_hex: str, data_len: Callable[[str], int | None]) 
     the per-DID fallback read of ``D1``, the echo check passes it. Stored, it became ``D1``'s
     payload with every other DID's data appended, and learned, it poisoned ``D1``'s length for
     every later batch. ``data_len`` gives the session's learned length per DID
-    (see :func:`canlib.multi_did.split_chain`).
+    (see :func:`canlib.uds.multi_did.split_chain`).
     """
     try:
         payload = bytes.fromhex(resp_hex)

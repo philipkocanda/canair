@@ -15,7 +15,7 @@ from canlib.commands.investigate import counters as inv_counters
 
 
 def _run(tmp_path, monkeypatch, argv, specs=()):
-    import canlib.align as align
+    import canlib.analysis.align as align
 
     orig = align.load_signal_captures
     monkeypatch.setattr(
@@ -247,7 +247,7 @@ class TestCountersCli:
 
     def test_notation_torque_relabels_the_label(self, tmp_path, monkeypatch, capsys):
         """--notation re-renders the ISO-TP label; the expression stays WiCAN."""
-        from canlib.notation import ByteNotation, ByteRef, subfunction_bytes_for_pid
+        from canlib.uds.notation import ByteNotation, ByteRef, subfunction_bytes_for_pid
 
         _write_odometer(tmp_path, days=_DAYS)
         rc = _run(
@@ -333,7 +333,7 @@ class TestCountersCli:
 
 class TestPayloadMatrix:
     def _lp(self, payloads):
-        from canlib.align import LoadedPid
+        from canlib.analysis.align import LoadedPid
 
         lp = LoadedPid("CLU", "22B002")
         for i, p in enumerate(payloads):
@@ -383,7 +383,7 @@ class TestPayloadMatrix:
 
 class TestExpressionRendering:
     def _cand(self, offsets, little=False):
-        from canlib.counters import CounterCandidate
+        from canlib.analysis.counters import CounterCandidate
 
         return CounterCandidate(
             keys=tuple(offsets),

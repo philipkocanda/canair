@@ -25,7 +25,7 @@ from canlib.lock_watchdog import LockWatchdog
 from canlib.modes.dispatch import run_session_guarded
 from canlib.stop_signals import graceful_stop
 from canlib.transport.protocol import Terminal
-from canlib.wican_api import reboot_after_session
+from canlib.wican.api import reboot_after_session
 
 from .connect import _print_sleep_banner, build_elm_reconnector, connect_elm_terminal
 
@@ -147,7 +147,7 @@ async def async_main(args):
     # ELM327 adapter (elm327-tcp) has no HTTP API, so we probe its data port.
     # This cheap TCP check runs before the firmware probe, so an offline host
     # fails after one connect timeout rather than after the probe's too.
-    from canlib.wican_mode import ModeError, require_elm327_tcp_reachable, require_ws_reachable
+    from canlib.wican.mode import ModeError, require_elm327_tcp_reachable, require_ws_reachable
 
     is_elm_tcp = transport.type == "elm327-tcp"
     transport_label = "ELM327/TCP" if is_elm_tcp else "WebSocket"
@@ -167,7 +167,7 @@ async def async_main(args):
     # alternative rather than letting the upgrade fail with a bare 404. An
     # elm327-tcp host is probed only with `firmware_check: always` (it is
     # usually a clone with no HTTP server), and then only ever adds a note.
-    from canlib.wican_firmware import check, print_verdict
+    from canlib.wican.firmware import check, print_verdict
 
     verdict = check(host, transport.type)
     print_verdict(verdict)

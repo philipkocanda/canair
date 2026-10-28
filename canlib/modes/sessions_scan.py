@@ -28,14 +28,15 @@ import asyncio
 import sys
 from typing import NamedTuple
 
+from canlib.uds.layout import SUBFUNCTION_NAMES
+from canlib.uds.parse import UdsResponse
+
 from ..quirks import allowed_session_modes
 from ..safety import KWP, SessionPolicy, session_protocol
 from ..transport.protocol import Terminal
-from ..uds_layout import SUBFUNCTION_NAMES
-from ..uds_parse import UdsResponse
 
 # Human labels for the session sub-functions, from the shared table in
-# canlib.uds_layout — the single home for these enums. Keeping a private copy here
+# canlib.uds.layout — the single home for these enums. Keeping a private copy here
 # is what let it drift out of step with formatting.py's (which was missing the
 # whole KWP2000 0x8x range).
 SESSION_NAMES = SUBFUNCTION_NAMES[0x10]

@@ -38,7 +38,7 @@ def _write(tmp_path, keep_mode="unique"):
 
 
 def _run(tmp_path, monkeypatch, argv):
-    import canlib.align as align
+    import canlib.analysis.align as align
 
     orig = align.load_signal_captures
 
@@ -49,7 +49,7 @@ def _run(tmp_path, monkeypatch, argv):
 
     # Every module that imports the loader must be redirected. `from ... import
     # load_signal_captures` binds the name in the importer, so patching
-    # canlib.align (its definition) would not reach any of them. Two modules
+    # canlib.analysis.align (its definition) would not reach any of them. Two modules
     # import it: `series` builds the ranked series, and `render` re-loads for the
     # mirror/overlap views. Missing one leaves those views reading the *active
     # profile's* whole capture corpus — slow, and the assertions then pass on real
@@ -196,7 +196,7 @@ class TestControl:
         return x, zc
 
     def _run_obc(self, tmp_path, monkeypatch, argv):
-        import canlib.align as align
+        import canlib.analysis.align as align
 
         orig = align.load_signal_captures
         scoped = lambda s, **kw: orig(  # noqa: E731

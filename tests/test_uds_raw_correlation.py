@@ -27,8 +27,8 @@ from types import SimpleNamespace
 import pytest
 
 from canlib.addressing import EcuAddress
-from canlib.link_latency import LinkLatency
 from canlib.transport import uds_raw
+from canlib.transport.link_latency import LinkLatency
 from canlib.transport.uds_raw import _MAX_OWED_RESPONSES, RawUdsClient
 
 

@@ -1,4 +1,4 @@
-"""Tests for canlib.terminal.WiCANTerminal — header caching + instrumentation.
+"""Tests for canlib.transport.wican_terminal.WiCANTerminal — header caching + instrumentation.
 
 A fake WebSocket drives the *real* set_header/_send_command_locked logic so the
 caching decisions under test are the production ones.
@@ -9,8 +9,8 @@ import contextlib
 
 import pytest
 
-from canlib.terminal import WiCANTerminal
 from canlib.transport.elm327_terminal import _RESYNC_QUIET_MAX
+from canlib.transport.wican_terminal import WiCANTerminal
 
 
 class FakeWS:

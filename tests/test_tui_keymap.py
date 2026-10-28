@@ -3,7 +3,7 @@
 canair's four Textual apps and their modals grew independently and drifted: ``a``
 added PIDs in the stepper while the monitor used ``p``, ``escape`` quit one app
 and cleared a selection in another, ``l`` was both vim-right and "open the event
-log". :mod:`canlib.tui_keys` is now the single home for what a key means; these
+log". :mod:`canlib.tui.keys` is now the single home for what a key means; these
 tests walk every ``App``/``ModalScreen`` in ``canlib`` and fail when a binding
 escapes it, so the drift cannot come back one commit at a time.
 
@@ -25,7 +25,7 @@ from textual.binding import Binding
 from textual.screen import ModalScreen
 
 import canlib
-from canlib.tui_keys import DISMISS_DESCRIPTION, KEY_ROLES, ROLES, bind
+from canlib.tui.keys import DISMISS_DESCRIPTION, KEY_ROLES, ROLES, bind
 
 # `n` is "new" in an app and "no" in a yes/no dialog. The second is near-universal
 # terminal convention and confined to ConfirmModal, so it is the one sanctioned
@@ -75,7 +75,7 @@ def test_every_declared_key_is_in_the_keymap():
     """A binding may not invent a key: it must resolve to a :mod:`tui_keys` role."""
     unknown = [(cls.__name__, b.key, b.action) for cls, b in _declared() if b.key not in KEY_ROLES]
     assert not unknown, (
-        "keys not in canlib.tui_keys.ROLES — add a role there (or reuse one) "
+        "keys not in canlib.tui.keys.ROLES — add a role there (or reuse one) "
         f"instead of hardcoding: {unknown}"
     )
 

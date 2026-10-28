@@ -27,6 +27,9 @@ from collections.abc import AsyncIterator
 import can
 import isotp
 
+from canlib.transport.stats import TransportStats
+from canlib.uds.parse import UdsResponse, parse_uds_response
+
 from ..addressing import (
     DEFAULT_MODE,
     DEFAULT_RX_OFFSET,
@@ -39,8 +42,6 @@ from ..frame_counts import FrameCountLedger, frames_for_payload
 from ..log import log_response
 from ..safety import SessionPolicy, enforce_command_safety
 from ..timing import TimingRecorder
-from ..transport_stats import TransportStats
-from ..uds_parse import UdsResponse, parse_uds_response
 from .isotp_stack import build_isotp_stack
 from .uds_raw import (
     PENDING_RECV_TIMEOUT,
@@ -101,7 +102,7 @@ class RawTerminal:
         # Per-exchange outcome tally (drops/errors/decode), same as WiCANTerminal
         # and RawUdsClient — read by the monitor + stamped into capture provenance.
         self.diag = TransportStats(transport="slcan-tcp")
-        # Optional per-ECU response budget {tx_id: seconds} (see canlib.timeouts).
+        # Optional per-ECU response budget {tx_id: seconds} (see canlib.transport.timeouts).
         self.ecu_timeouts: dict[int, float] = {}
 
         self.bus = SlcanTcpBus(host, port=port, bitrate=bitrate)

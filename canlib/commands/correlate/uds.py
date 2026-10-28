@@ -11,22 +11,15 @@ import json as _json
 import sys
 
 from canlib import ansi
-from canlib.align import (
+from canlib.analysis.align import (
     detrend_by_session,
     discover_signal_specs,
     join_prepared,
     prepare_series,
 )
-from canlib.capture_dates import resolve_scope_bounds
-from canlib.commands._join import (
-    fill_policy_from_args,
-    fill_summary_line,
-)
-from canlib.corrmatrix import CLUSTER_THRESHOLD
-from canlib.fill import FILL_HOLD, FORCED_HOLD_WARNING
-from canlib.keepmode import CHANGES_BANNER
-from canlib.notation import relabel_signal, resolve_notation
-from canlib.xanalysis import (
+from canlib.analysis.corrmatrix import CLUSTER_THRESHOLD
+from canlib.analysis.fill import FILL_HOLD, FORCED_HOLD_WARNING
+from canlib.analysis.xanalysis import (
     colinear_clusters,
     correlate_matrix,
     correlation,
@@ -37,6 +30,13 @@ from canlib.xanalysis import (
     reference_is_bimodal,
     transform_ref,
 )
+from canlib.captures.dates import resolve_scope_bounds
+from canlib.commands._join import (
+    fill_policy_from_args,
+    fill_summary_line,
+)
+from canlib.keepmode import CHANGES_BANNER
+from canlib.uds.notation import relabel_signal, resolve_notation
 
 from .calc import _apply_gate
 from .promote import _promote_top_byte, _warn_thin_reference_join
@@ -135,7 +135,7 @@ def run(args) -> int:
     if args.against or args.against_file:
         try:
             if args.against_file:
-                from canlib.align import load_reference_file
+                from canlib.analysis.align import load_reference_file
 
                 ref_series, ref_label = load_reference_file(args.against_file)
             else:
@@ -177,7 +177,7 @@ def run(args) -> int:
                 return 1
 
         if reference_is_bimodal([tp.value for tp in ref_series]):
-            from canlib.stats import categorical_method_nudge
+            from canlib.analysis.stats import categorical_method_nudge
 
             print(
                 f"correlate: warning: reference {ref_label!r} collapses into ~2 clusters "
@@ -215,7 +215,7 @@ def run(args) -> int:
                 return 2
             try:
                 if args.control_file:
-                    from canlib.align import load_reference_file
+                    from canlib.analysis.align import load_reference_file
 
                     control_series, control_label = load_reference_file(args.control_file)
                 else:
@@ -265,8 +265,8 @@ def run(args) -> int:
                     continue
                 rows.append((name, hit.r, hit.n, hit.lag_seconds))
             elif control_series is not None:
-                from canlib.align import join_nearest_triple
-                from canlib.stats import partial_correlation
+                from canlib.analysis.align import join_nearest_triple
+                from canlib.analysis.stats import partial_correlation
 
                 xs, ys, zs, n = join_nearest_triple(
                     ref_series, s, control_series, tol_s=args.join_tol

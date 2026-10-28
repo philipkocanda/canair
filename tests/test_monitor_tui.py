@@ -521,7 +521,7 @@ class TestMonitorApp:
 
     @pytest.mark.asyncio
     async def test_help_modal_opens_with_question_mark(self):
-        from canlib.tui_help import HelpModal
+        from canlib.tui.help import HelpModal
 
         ctrl = FakeController()
         app = MonitorApp(ctrl)

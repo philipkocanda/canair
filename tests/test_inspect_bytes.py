@@ -1,16 +1,16 @@
-"""Tests for canlib.inspect_bytes: byte interpretation, WiCAN expression
+"""Tests for canlib.uds.inspect_bytes: byte interpretation, WiCAN expression
 synthesis, series transforms, and float-noise filtering.
 
 These primitives were extracted from ``commands/decode/plot`` into the neutral
-library leaf ``canlib.inspect_bytes`` so the analysis engine (``xanalysis`` /
+library leaf ``canlib.uds.inspect_bytes`` so the analysis engine (``xanalysis`` /
 ``frame_series``) imports *down* rather than up from a command helper.
 """
 
 import math
 import struct
 
-from canlib import inspect_bytes as ib
-from canlib.inspect_bytes import InspectType
+from canlib.uds import inspect_bytes as ib
+from canlib.uds.inspect_bytes import InspectType
 
 U8 = InspectType("u8", 1, "int", False)
 I8 = InspectType("i8", 1, "int", True)

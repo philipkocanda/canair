@@ -1,4 +1,4 @@
-"""Tests for canlib.ecus_edit (per-ECU file writer) and identity validation.
+"""Tests for canlib.ecus.edit (per-ECU file writer) and identity validation.
 
 All writes are directed at a tmp_path-backed ``ecus/`` directory via the
 ``ecus_dir=`` kwarg so the real profile is never touched.
@@ -12,7 +12,7 @@ import pytest
 import yaml
 
 from canlib.commands.validate import collect_pids_validation
-from canlib.ecus_edit import (
+from canlib.ecus.edit import (
     EcusEditError,
     append_scan_log,
     register_ecu,

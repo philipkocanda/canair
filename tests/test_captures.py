@@ -729,7 +729,7 @@ class TestTimeEnforcement:
         assert "time" not in cap
 
     def test_journal_append_stamps_time(self, tmp_path):
-        from canlib.capture_journal import CaptureJournal
+        from canlib.captures.journal import CaptureJournal
 
         j = CaptureJournal.open(tmp_path, label="L")
         j.append("0x7EC", "2101", "6101AA")  # no explicit time
@@ -766,7 +766,7 @@ class TestTimeEnforcement:
 
 
 class TestNearestWithin:
-    """The join's nearest-within-tolerance rule must match canlib.align's."""
+    """The join's nearest-within-tolerance rule must match canlib.analysis.align's."""
 
     def test_picks_nearest_and_respects_tolerance(self):
         ts = [0.0, 10.0, 20.0]
@@ -780,10 +780,10 @@ class TestNearestWithin:
         assert _nearest_within([0.0, 10.0], 5.0, 10.0) == 0
 
     def test_parity_with_align_join_prepared(self):
-        """Same inputs, same pairing decisions as canlib.align."""
+        """Same inputs, same pairing decisions as canlib.analysis.align."""
         from datetime import datetime, timedelta
 
-        from canlib.align import TimePoint, join_prepared, prepare_series
+        from canlib.analysis.align import TimePoint, join_prepared, prepare_series
 
         t0 = datetime(2026, 7, 22, 12, 0, 0)
         ref_offsets = [0.0, 3.0, 9.0, 30.0]
@@ -1026,7 +1026,7 @@ class TestCmdDelete:
         save_session(s, cdir)
 
     def test_dry_run_deletes_nothing(self, tmp_path, capsys):
-        from canlib.capture_store import load_all_captures
+        from canlib.captures.store import load_all_captures
         from canlib.commands.captures.delete import cmd_delete
 
         self._seed(tmp_path)
@@ -1039,7 +1039,7 @@ class TestCmdDelete:
         assert len(load_all_captures(tmp_path)) == 3
 
     def test_deletes_matching_only(self, tmp_path):
-        from canlib.capture_store import load_all_captures
+        from canlib.captures.store import load_all_captures
         from canlib.commands.captures.delete import cmd_delete
 
         self._seed(tmp_path)
@@ -1051,7 +1051,7 @@ class TestCmdDelete:
         assert [(e["ecu"], str(e["pid"])) for e in remaining] == [("MCU", "2101")]
 
     def test_no_match_returns_1(self, tmp_path, capsys):
-        from canlib.capture_store import load_all_captures
+        from canlib.captures.store import load_all_captures
         from canlib.commands.captures.delete import cmd_delete
 
         self._seed(tmp_path)
@@ -1062,7 +1062,7 @@ class TestCmdDelete:
         assert len(load_all_captures(tmp_path)) == 3
 
     def test_json_dry_run_emits_rows(self, tmp_path, capsys):
-        from canlib.capture_store import load_all_captures
+        from canlib.captures.store import load_all_captures
         from canlib.commands.captures.delete import cmd_delete
 
         self._seed(tmp_path)
@@ -1082,7 +1082,7 @@ class TestCmdDelete:
         store — the bug this locator closes, and the reason a layered profile can
         be read from two directories at once.
         """
-        from canlib.capture_store import load_all_captures
+        from canlib.captures.store import load_all_captures
         from canlib.commands.captures.delete import cmd_delete
 
         mine, theirs = tmp_path / "mine", tmp_path / "theirs"
@@ -1120,7 +1120,7 @@ class TestCmdBackfillStates:
         return json.loads(files[0].read_text())["sessions"][0].get("vehicle_states")
 
     def _run(self, cdir, **kw):
-        from canlib.capture_store import load_all_captures
+        from canlib.captures.store import load_all_captures
         from canlib.commands.captures.backfill import cmd_backfill_states
 
         return cmd_backfill_states(load_all_captures(cdir), captures_dir=cdir, **kw)
@@ -1188,7 +1188,7 @@ class TestCmdSetState:
         return json.loads(files[0].read_text())["sessions"][0].get("vehicle_states")
 
     def _run(self, cdir, states_arg, **kw):
-        from canlib.capture_store import load_all_captures
+        from canlib.captures.store import load_all_captures
         from canlib.commands.captures.set_state import cmd_set_state
 
         return cmd_set_state(load_all_captures(cdir), states_arg, captures_dir=cdir, **kw)
@@ -1734,7 +1734,7 @@ class TestCmdBackfillStateSpans:
         return json.loads(files[0].read_text())["sessions"][0]
 
     def _run(self, cdir, **kw):
-        from canlib.capture_store import load_all_captures
+        from canlib.captures.store import load_all_captures
         from canlib.commands.captures.backfill_spans import cmd_backfill_state_spans
 
         return cmd_backfill_state_spans(load_all_captures(cdir), captures_dir=cdir, **kw)
@@ -1749,8 +1749,8 @@ class TestCmdBackfillStateSpans:
 
     def test_each_capture_then_resolves_to_its_own_states(self, tmp_path):
         """The reported defect: --state READY must not return the parked capture."""
-        from canlib.capture_dates import filter_by_text
-        from canlib.capture_store import load_all_captures
+        from canlib.captures.dates import filter_by_text
+        from canlib.captures.store import load_all_captures
 
         self._seed(tmp_path, ["READY", "PARKED"])
         self._run(tmp_path, assume_yes=True)
@@ -1769,8 +1769,8 @@ class TestCmdBackfillStateSpans:
 
     def test_an_unplaceable_recorded_state_is_carried_into_every_span(self, tmp_path):
         """SLEEP has no `when:` predicate, so back-fill may not un-tag it."""
-        from canlib.capture_dates import filter_by_text
-        from canlib.capture_store import load_all_captures
+        from canlib.captures.dates import filter_by_text
+        from canlib.captures.store import load_all_captures
 
         self._seed(tmp_path, ["READY", "PARKED", "SLEEP"])
         assert self._run(tmp_path, assume_yes=True) == 0
@@ -1861,8 +1861,8 @@ class TestSaveSessionAnnotatesSpans:
                 ("0x7EA", "2101", self._PARK_ONLY, "10:30:00"),
             ],
         )
-        from canlib.capture_dates import filter_by_text
-        from canlib.capture_store import load_all_captures
+        from canlib.captures.dates import filter_by_text
+        from canlib.captures.store import load_all_captures
 
         entries = load_all_captures(tmp_path)
         assert [e["time"] for e in filter_by_text(entries, state="READY")] == ["10:00:00"]

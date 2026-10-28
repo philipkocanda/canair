@@ -1,7 +1,7 @@
 """The ``Terminal`` protocol — the async surface every transport exposes.
 
 canair reaches the CAN bus through one of two transports
-(:class:`canlib.terminal.WiCANTerminal` over the WebSocket ELM327 terminal,
+(:class:`canlib.transport.wican_terminal.WiCANTerminal` over the WebSocket ELM327 terminal,
 :class:`canlib.transport.raw_terminal.RawTerminal` over raw SLCAN + client-side
 ISO-TP), and every live command is dispatched through the shared
 :func:`canlib.modes.dispatch.dispatch_mode` against *this surface only*. Typing
@@ -22,10 +22,11 @@ import asyncio
 from contextlib import AbstractAsyncContextManager
 from typing import Protocol, runtime_checkable
 
+from canlib.transport.stats import TransportStats
+from canlib.uds.parse import UdsResponse
+
 from ..frame_counts import FrameCountLedger
 from ..timing import TimingRecorder
-from ..transport_stats import TransportStats
-from ..uds_parse import UdsResponse
 
 
 @runtime_checkable

@@ -4,13 +4,13 @@ date/bcd/struct), categorical statistics, and the event field-transition view.
 
 from datetime import date
 
-from canlib import decode_value as dv
-from canlib import stats
-from canlib.autopid_layout import uds_hex_to_wican_bytes
+from canlib.analysis import stats as stats
+from canlib.expression import decode_value as dv
+from canlib.wican.autopid_layout import uds_hex_to_wican_bytes
 
 
 class TestTypedDecode:
-    """canlib.decode_value.decode_typed — the parallel typed decoder."""
+    """canlib.expression.decode_value.decode_typed — the parallel typed decoder."""
 
     def test_numeric_default_is_unchanged(self):
         d = dv.decode_typed({"expression": "B3"}, bytes([0, 0, 0, 42]))

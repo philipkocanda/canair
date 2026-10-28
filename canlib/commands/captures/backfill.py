@@ -1,7 +1,7 @@
 """``canair captures uds --backfill-states`` — offline state inference back-fill.
 
 Infers each session's ``vehicle_states`` from its decoded captures (see
-:mod:`canlib.state_infer`) and writes them back into ``captures/`` via the
+:mod:`canlib.states.infer`) and writes them back into ``captures/`` via the
 session-level state writer. By default it only *fills* sessions that have no
 recorded state; a session whose recorded state contradicts the decoded evidence
 is reported but left untouched unless ``--overwrite`` is given.
@@ -17,18 +17,18 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from canlib.capture_store import entry_path
-from canlib.state_infer import (
+from canlib.captures.store import entry_path
+from canlib.states import parse_states
+from canlib.states.infer import (
     DEFAULT_CYCLE_TOL_S,
     SessionInference,
     infer_session_states,
 )
-from canlib.states import parse_states
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from canlib.capture_types import CaptureEntry
+    from canlib.captures.types import CaptureEntry
 
 # Verdict for a session after comparing inferred vs recorded states.
 _FILL = "fill"  # recorded empty, inference available → write

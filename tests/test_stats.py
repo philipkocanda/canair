@@ -1,10 +1,10 @@
-"""Tests for the consolidated correlation statistics (canlib.stats)."""
+"""Tests for the consolidated correlation statistics (canlib.analysis.stats)."""
 
 import math
 
 import pytest
 
-from canlib.stats import correlation, pearson, rank, spearman
+from canlib.analysis.stats import correlation, pearson, rank, spearman
 
 
 class TestPearson:
@@ -67,7 +67,7 @@ class TestCorrelationDispatch:
 
 class TestDescriptiveStats:
     def test_mean_median_stdev(self):
-        from canlib.stats import mean, median, stdev
+        from canlib.analysis.stats import mean, median, stdev
 
         assert mean([1, 2, 3, 4]) == 2.5
         assert mean([]) == 0.0  # empty guard
@@ -78,7 +78,7 @@ class TestDescriptiveStats:
         assert round(stdev([1, 2, 3, 4, 5]), 4) == 1.5811
 
     def test_compute_stats(self):
-        from canlib.stats import compute_stats
+        from canlib.analysis.stats import compute_stats
 
         s = compute_stats([1, 1, 2, 3])
         assert s["n"] == 4 and s["distinct"] == 3
@@ -86,7 +86,7 @@ class TestDescriptiveStats:
         assert s["values"] == [1, 2, 3]
 
     def test_fmt_num(self):
-        from canlib.stats import fmt_num
+        from canlib.analysis.stats import fmt_num
 
         assert fmt_num(3.0) == "3"
         assert fmt_num(3.5) == "3.50"
@@ -97,7 +97,7 @@ class TestDescriptiveStats:
 
 class TestPartialCorrelation:
     def test_matches_closed_form(self):
-        from canlib.stats import partial_correlation, pearson
+        from canlib.analysis.stats import partial_correlation, pearson
 
         # Verify the implementation equals the textbook closed form computed from
         # the three pairwise Pearson coefficients.
@@ -109,7 +109,7 @@ class TestPartialCorrelation:
         assert partial_correlation(x, y, z) == pytest.approx(expected)
 
     def test_removes_a_pure_confounder(self):
-        from canlib.stats import partial_correlation, pearson
+        from canlib.analysis.stats import partial_correlation, pearson
 
         # z drives both x and y; the residuals are orthogonal to z and to each
         # other, so the apparent x-y link is entirely spurious; partial approx 0.
@@ -126,7 +126,7 @@ class TestPartialCorrelation:
         assert abs(r) < 0.25  # partial well below the apparent link
 
     def test_preserves_independent_link(self):
-        from canlib.stats import partial_correlation
+        from canlib.analysis.stats import partial_correlation
 
         # x tracks y directly; z is unrelated noise → partial ≈ full correlation.
         x = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
@@ -137,7 +137,7 @@ class TestPartialCorrelation:
         assert r > 0.9
 
     def test_collinear_control_returns_none(self):
-        from canlib.stats import partial_correlation
+        from canlib.analysis.stats import partial_correlation
 
         x = [1.0, 2.0, 3.0, 4.0]
         y = [2.0, 4.0, 6.0, 8.0]
@@ -145,7 +145,7 @@ class TestPartialCorrelation:
         assert partial_correlation(x, y, z) is None
 
     def test_categorical_method_raises(self):
-        from canlib.stats import partial_correlation
+        from canlib.analysis.stats import partial_correlation
 
         with pytest.raises(ValueError):
             partial_correlation([1, 2], [1, 2], [1, 2], method="cramers_v")
@@ -153,7 +153,7 @@ class TestPartialCorrelation:
 
 class TestCategoricalMethodNudge:
     def test_nudges_numeric_methods(self):
-        from canlib.stats import categorical_method_nudge
+        from canlib.analysis.stats import categorical_method_nudge
 
         for m in ("pearson", "spearman"):
             nudge = categorical_method_nudge(m)
@@ -161,7 +161,7 @@ class TestCategoricalMethodNudge:
             assert nudge.startswith(" ")
 
     def test_silent_for_categorical_methods(self):
-        from canlib.stats import categorical_method_nudge
+        from canlib.analysis.stats import categorical_method_nudge
 
         assert categorical_method_nudge("cramers_v") == ""
         assert categorical_method_nudge("mutual_info") == ""

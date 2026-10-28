@@ -22,8 +22,9 @@ from typing import TYPE_CHECKING
 
 from rich.console import Console
 
+from canlib.uds.notation import ByteNotation
+
 from ..keepmode import KeepMode
-from ..notation import ByteNotation
 from ..poll_schedule import DEFAULT_SCHEDULE, Schedule
 from ..stop_signals import graceful_stop
 from ._monitor_record import _open_journal
@@ -154,7 +155,7 @@ async def mode_monitor(
         notation:       Byte-index notation for the ruler + the per-signal
                         byte-reference column (default WiCAN ``Bnn``).
 
-    TUI keys come from the shared role registry (:mod:`canlib.tui_keys`); press
+    TUI keys come from the shared role registry (:mod:`canlib.tui.keys`); press
     ``?`` in the app for the live cheat-sheet rather than trusting a copy here. A
     blinking ``● REC`` in the status line marks an active --save recording; a ``sess``
     status item shows each ECU's currently-open diagnostic session type; each

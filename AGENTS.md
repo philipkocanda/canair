@@ -126,7 +126,7 @@ lists are in `canair <cmd> --help` and `docs/reference/cli/<cmd>.md`** — the e
 command's purpose plus the agent-facing rules and code pointers that `--help` does not carry.
 
 **TUI keys are not in `--help`.** Every Textual view's keymap is assembled from the shared role
-registry **`canlib/tui_keys.py`** (`ROLES` + `bind(role, action)`), so one key means one thing in
+registry **`canlib/tui/keys.py`** (`ROLES` + `bind(role, action)`), so one key means one thing in
 every view; press `?` in any TUI for its live cheat-sheet. Never hardcode a `Binding` key in a TUI —
 add or reuse a role, or `tests/test_tui_keymap.py` fails (it pins that every declared key resolves
 to a role, that its description matches the role's accepted wording, and that `escape` never quits).
@@ -209,9 +209,9 @@ and **`g`/`G` address the view's primary axis**.
   with `captures uds --recover`.
 - **`canair logs`** — The central diagnostics event log (`~/.config/canair/logs/canair.log`,
   size-rotated so it never grows unbounded): dropped/stale ISO-TP frames, timeouts, bus errors,
-  decode failures (classified by `canlib/uds_parse.py::classify_response` into
+  decode failures (classified by `canlib/uds/parse.py::classify_response` into
   `drop`/`stale`/`no_data`/`bus`/`decode`) plus unexpected internal exceptions. Written by the
-  per-exchange recorder `canlib/transport_stats.py::TransportStats` (attached as `.diag` on both
+  per-exchange recorder `canlib/transport/stats.py::TransportStats` (attached as `.diag` on both
   terminals and the raw client) — the same tally behind the monitor's live `drops` indicator and a
   recorded session's `quality` provenance.
 
@@ -231,16 +231,16 @@ and **`g`/`G` address the view's primary axis**.
   **The default list view is capped at `--limit N` (default 50) with a loud footer** for hidden
   history, so a bare query can't blow the context window; widen with `--limit 0` or scope tighter.
   Mutating modes: `--delete` (refuses a bare `--delete`, previews with `--dry-run`, confirms unless
-  `--yes`), `--backfill-states` (offline state inference, `canlib/state_infer.py`; fills unset
+  `--yes`), `--backfill-states` (offline state inference, `canlib/states/infer.py`; fills unset
   states and *reports* contradicted ones unless `--overwrite`), `--set-state` (manual counterpart —
   **requires** a scope filter so it can't blanket-relabel history), `--set-notes`/`--set-transport`
   (correct a session's notes or recorded transport, same scope rule; one editor in
   `commands/captures/session_fields.py`, and all three `--set-*` share
   `session_gate.py::refuse_write` for the base-layer refusal and confirmation), `--recover`, and
   the one-time `migrate` (YAML→JSON) / `migrate-rx` (`ecu`→`rx`) / `migrate-discover` (gives legacy
-  discover responders their `tx`; `canlib/discover_migrate.py`) / `split-batched` (splits a
+  discover responders their `tx`; `canlib/migrations/discover.py`) / `split-batched` (splits a
   multi-DID reply stored whole under its first DID into per-DID rows;
-  `canlib/unsplit_batches.py`) / `merge-driver` (see Key Files).
+  `canlib/uds/unsplit_batches.py`) / `merge-driver` (see Key Files).
   **`captures can`** (domain B) lists imported raw frame logs from `captures/can/index.yaml`.
 - **`canair decode`** (alias `dec`) — Value-centric decoding of all historical captures; the default
   view is each signal's value range. `--try` tests a candidate expression **without editing YAML**
@@ -258,14 +258,14 @@ and **`g`/`G` address the view's primary axis**.
   the winner into `ecus/` with the evidence in `notes`; `--physical` needs no reference at all.
   **Domain B: `hunt can`** (`--promote` unsupported there — frames are defined in `signals/`).
 - **`canair investigate`** — One-shot per-byte verdict for a PID (mapped?, state-separation F, best
-  co-polled anchor, triage class from `canlib/triage.py`, physical band, probable multi-byte words).
-  **ECU and PID are both optional** — omit one or both to sweep an ECU or the whole profile
-  (`canlib/commands/investigate/sweep.py`). `--events`/`--dwell`/`--bits` are the narrated and
-  bit-level views. **`--counters`** finds monotonic counters (odometer, hour meter, cycle count):
-  detection is the leaf `canlib/counters.py` (numpy-free, so the raw-CAN domain can reuse it) and
-  the capture-model bridge is `canlib/commands/investigate/counters.py`, which aligns a **prefix**
-  payload matrix — aligning on the *modal* length would silently discard every capture of a minority
-  length. Plan: `plans/2026-08-07-monotonic-counter-detection.md`.
+  co-polled anchor, triage class from `canlib/analysis/triage.py`, physical band, probable
+  multi-byte words). **ECU and PID are both optional** — omit one or both to sweep an ECU or the
+  whole profile (`canlib/commands/investigate/sweep.py`). `--events`/`--dwell`/`--bits` are the
+  narrated and bit-level views. **`--counters`** finds monotonic counters (odometer, hour meter,
+  cycle count): detection is the leaf `canlib/analysis/counters.py` (numpy-free, so the raw-CAN
+  domain can reuse it) and the capture-model bridge is `canlib/commands/investigate/counters.py`,
+  which aligns a **prefix** payload matrix — aligning on the *modal* length would silently discard
+  every capture of a minority length. Plan: `plans/2026-08-07-monotonic-counter-detection.md`.
 - **`canair search`** — "Where in my captures is this string?" Searches every payload (and, by
   default, labels/notes/text responses; `--defs` adds `ecus/` identity fields) for a literal,
   `--regex`, `--hex` byte pattern or `--vin`, **without knowing the ECU or PID**; with no pattern it
@@ -289,17 +289,18 @@ reuse these instead of re-declaring a flag:
 
 - `--join-tol` / `--fill` / `--max-hold` — `canlib/commands/_join.py::add_join_args`, used by
   `align`/`correlate`/`hunt`/`investigate`/`decode` (`captures uds --step` deliberately keeps its
-  own wider *viewer* tolerance). Fill policy is `canlib/fill.py`, resolved at series-build time so
-  the join primitives never learn what a keep mode is; a value is never carried across a session
-  boundary, and every fill is reported. Plan: `plans/2026-08-05-run-length-forward-fill-joins.md`.
-- `--find-mirrors` / `--mirror-match` / `--allow-offset` — one matcher, `canlib/mirrors.py`, behind
-  three sweeps (`decode` intra-PID, `correlate` cross-ECU, `correlate can` cross-ID).
+  own wider *viewer* tolerance). Fill policy is `canlib/analysis/fill.py`, resolved at series-build
+  time so the join primitives never learn what a keep mode is; a value is never carried across a
+  session boundary, and every fill is reported. Plan:
+  `plans/2026-08-05-run-length-forward-fill-joins.md`.
+- `--find-mirrors` / `--mirror-match` / `--allow-offset` — one matcher, `canlib/analysis/mirrors.py`,
+  behind three sweeps (`decode` intra-PID, `correlate` cross-ECU, `correlate can` cross-ID).
 - `--notation {wican,isotp,torque,bix}` — **display only**; `--json`/`--promote` always emit the
-  canonical WiCAN expression. A byte is modelled in ISO-TP space (`canlib/notation.py::ByteRef`,
+  canonical WiCAN expression. A byte is modelled in ISO-TP space (`canlib/uds/notation.py::ByteRef`,
   rendered via `ByteDisplay`); WiCAN/Torque/bix are derived views. Persist a default with
   `config set display.byte_notation`.
 - Scope flags (`--since`/`--until`/`--date`/`--today`/`--state`/`--label`/`--last-session`/
-  `--first`/`--last`) — `canlib/capture_dates.py::add_scope_args`, shared by `captures` and every
+  `--first`/`--last`) — `canlib/captures/dates.py::add_scope_args`, shared by `captures` and every
   analysis command.
 
 ### Authoring (writes into a profile — pass `--profile`)
@@ -314,7 +315,7 @@ reuse these instead of re-declaring a flag:
   a successful `upsert-param` **echoes the new expression's decoded value range** across existing
   captures — a `constant` where you expected variation usually means the offset landed on a PCI
   byte. Typed decoding (`--type` + `--value`/`--bit`) is a *parallel* decoding in
-  `canlib/decode_value.py`; the WiCAN `expression` stays the pure float. Free-text `notes`
+  `canlib/expression/decode_value.py`; the WiCAN `expression` stays the pure float. Free-text `notes`
   auto-format via `canlib/yaml_rt.py` (short inline, long folded `>-`) — pass plain strings, never
   hand-format block scalars.
 - **`canair signals`** — The domain-B analogue: view/edit the broadcast sidecar `signals/<bus>.yaml`
@@ -342,13 +343,14 @@ reuse these instead of re-declaring a flag:
   predicate can't hide behind a healthy ●. `set-implies NAME [STATES]` (and `add --implies`)
   declares the **specificity hierarchy** — see `vehicle_states.yaml` under Key Files; the list view
   shows it as a dim `specializes:` line and `canair states <STATE>` also reports the reverse edges
-  (`specialized by:`). **Never hand-edit `vehicle_states.yaml`** (`canlib/states_edit.py`) — its
+  (`specialized by:`). **Never hand-edit `vehicle_states.yaml`** (`canlib/states/edit.py`) — its
   editors also retarget/drop sibling `implies:` references on `rename`/`remove`, which a hand-edit
   would leave dangling (and a dangling target fails the next validate).
 - **`canair groups`** — List/edit `groups.yaml`, the named selector groups recalled with the `@`
   sigil. Expansion is **textual, before the query parser**
-  (`canlib/ecu_groups.py::expand_group_refs`), so a group composes with other groups and with ad-hoc
-  selectors. Members are plain selectors (never other groups, never full pipeline steps) and carry
+  (`canlib/ecus/ecu_groups.py::expand_group_refs`), so a group composes with other groups and with
+  ad-hoc selectors. Members are plain selectors (never other groups, never full pipeline steps) and
+  carry
   no PID suffix. `@group` works in `read`/`monitor` today; analysis commands don't expand groups
   yet. **Because a group routinely overlaps a hand-typed selector, `parse_sub_commands` ends by
   coalescing every contiguous run of `query` steps to one step per canonical ECU**
@@ -372,17 +374,17 @@ reuse these instead of re-declaring a flag:
   how a rename disabled a state with `validate all` green). Each way of missing is reported
   distinctly (unknown ECU, an alias instead of the canonical name, wrong case, a signal on another
   ECU, one under an `ignored` PID, one that doesn't decode to a number). Resolver
-  `canlib/state_refs.py`. The same check runs as a **non-blocking warning** from `states add
+  `canlib/states/refs.py`. The same check runs as a **non-blocking warning** from `states add
   --when`/`set-predicate` and `pids rename-param`/`rm-param`. **`validate pids`** also errors on a
   duplicate *shipped* signal name across PIDs (each becomes a distinct device signal) and on an
   `identity:` field outside the schema's `identity_fields`, and warns when two *synonymous* identity
   fields hold the same value (dead mirrored data). **`validate captures`** soft-warns on
   out-of-vocabulary states, SID/DID **echo mismatches** (a misfiled payload), **cross-ECU misfiles**
   (a reply that looks like another ECU's answer to the same PID, which the echo check cannot see;
-  cross-file pass, detection in `canlib/misfiled.py`), **unsplit multi-DID replies** (a batch
-  reply starts `62 D1`, so it passes `D1`'s echo check; same corpus load via
-  `canlib/payload_corpus.py`, detection in `canlib/unsplit_batches.py`, reply walk in
-  `canlib/multi_did.py`, which the live batched read paths also use to discard one), non-hex
+  cross-file pass, detection in `canlib/analysis/misfiled.py`), **unsplit multi-DID replies** (a
+  batch reply starts `62 D1`, so it passes `D1`'s echo check; same corpus load via
+  `canlib/captures/payload_corpus.py`, detection in `canlib/uds/unsplit_batches.py`, reply walk in
+  `canlib/uds/multi_did.py`, which the live batched read paths also use to discard one), non-hex
   payloads, **untimed payload captures** (excluded from every time-aligned analysis) and
   **degraded-transport sessions** (recorded drops/stale frames). **`--max-untimed N` is the CI
   ratchet**: fail when the count *grows*. The write path now enforces a timestamp so the count
@@ -402,7 +404,7 @@ reuse these instead of re-declaring a flag:
   9-frame ceiling, or on an odd-length request. `autopid stats` shows a `Frames` column so you can
   see which PIDs have earned one. **A signal with `send_to: TOPIC` streams to that MQTT topic on
   every poll** (emitted as `type: MQTT_Topic`; rule in
-  `canlib/autopid_send_to.py`), because the batch snapshot's `cycle` (10 s default) is **device
+  `canlib/wican/autopid_send_to.py`), because the batch snapshot's `cycle` (10 s default) is **device
   config canair does not manage** — a faster `period` alone never reaches the broker faster.
   `mode set MODE` switches the device protocol and **auto-aligns the config `transport.type`**
   (`slcan`→`slcan-tcp`, `elm327`→`wican-ws`; `--no-transport` opts out).
@@ -412,8 +414,8 @@ reuse these instead of re-declaring a flag:
   overlays which signal maps each byte and flags `unmapped` ones). **Never convert a byte index by
   hand** — the mapping depends on the response's *length* (one vs two PCI bytes) and its *service*
   (header width and field order), which `bix` reads off the payload; the skill's byte-index
-  reference explains the trap. Code map: roles come from **`canlib/uds_layout.py`** (a `response_SID
-  → [(role, width)]` table over the `canlib/uds_services.py` registry), which also owns
+  reference explains the trap. Code map: roles come from **`canlib/uds/layout.py`** (a `response_SID
+  → [(role, width)]` table over the `canlib/uds/services.py` registry), which also owns
   **`SUBFUNCTION_NAMES`**, the single home for per-SID sub-function enums —
   `canlib/formatting.py::decode_uds_response` and `modes/sessions_scan.py` both read it, and a test
   cross-checks the two layout models.
@@ -466,7 +468,7 @@ reuse these instead of re-declaring a flag:
   `is_managed_workspace`. **A re-run updates the open PR** rather than failing: the branch name is
   date-based, so `find_open_pr` looks it up (`gh pr list --head <plain branch>`) after the push and
   reports `updated PR #N` as success instead of letting `gh pr create` error.
-  Captures are **overlaid** (append-only, `canlib/captures_merge.py::overlay`), so a
+  Captures are **overlaid** (append-only, `canlib/captures/merge.py::overlay`), so a
   source behind upstream never proposes deleting upstream sessions, and a capture log it adds
   nothing to stays byte-identical. A source session sharing an upstream one's **anchor** (see
   Layered profiles) but not its content *replaces* it in place — every replacement is listed by
@@ -528,7 +530,7 @@ to `plans/2026-07-30-profile-variant-inheritance.md` — `extends:` is deliberat
   refused by `canlib/profile.py::require_writable_definitions()`, called from the single edit funnel
   in each of `pids`/`states`/`groups`/`signals`/`ecu add`. It raises `ProfileError`, which
   `canlib/cli.py` already turns into `error: …` + exit 2, so no command handles it.
-- **Reads span layers, writes do not.** `canlib/capture_io.py::resolve_capture_layers` is the read
+- **Reads span layers, writes do not.** `canlib/captures/io.py::resolve_capture_layers` is the read
   seam; `capture_store.load_all_captures` iterates it, dedupes sessions across layers by
   `captures_merge.session_key` (base wins, so a contributed-then-pulled session stays read-only),
   lets an overlay copy sharing a base session's `session_anchor` but not its content supersede it
@@ -587,20 +589,20 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   with `variable_length:`). Edit via `canair pids`/`ecu`; validate with `canair validate pids`.
 - **`profiles/<car>/captures/`** — Recorded UDS payloads, one **JSON** file per date
   (`captures/YYYY-MM-DD.json`; JSON parses ~60× faster than YAML, the dominant cost of every
-  history-consuming command). The read/write seam is `canlib/capture_io.py`; there is **no YAML
+  history-consuming command). The read/write seam is `canlib/captures/io.py`; there is **no YAML
   fallback** — an older profile fails fast and is converted once with `canair captures migrate`.
   Schema `canlib/schema/captures_schema.json` (format-agnostic, validates the parsed structure) with
-  matching `TypedDict`s in `canlib/capture_types.py` that the builders/IO are typed against
+  matching `TypedDict`s in `canlib/captures/types.py` that the builders/IO are typed against
   (enforced by `ty`). Human companion: `docs/concepts/captures-and-states.md`. **These are
   append-only session logs**, so same-day recordings from two machines union-merge via canair's git
-  merge driver (`.gitattributes` rule + `canlib/captures_merge.py`) — but git never loads a driver
+  merge driver (`.gitattributes` rule + `canlib/captures/merge.py`) — but git never loads a driver
   from a tracked file, so each clone must run **`canair captures merge-driver --install`** once;
   until then merges just fall back to conflict markers. A capture's **`rx`** field is the ECU CAN
   *response* address (its `rx_id`, else request TX + the profile `rx_offset`, resolved by
   `canlib/ecus.py::rx_for_tx`) — **not** an ECU name; that is why it was renamed from `ecu`. A
   discover capture's `rx` is `broadcast`, and each responder records its probed `tx` plus `rx`.
   **Every `--save` path records `transport` from the live client**
-  (`canlib/transport_stats.py::client_transport`), never by re-resolving config — that ignored
+  (`canlib/transport/stats.py::client_transport`), never by re-resolving config — that ignored
   `--transport`/`--wican` and fallback, and mislabelled real sessions.
   Read it via `capture_io.capture_rx` (tolerates the legacy key) and rename old files with `captures
   migrate-rx`. Optional **`elapsed_ms`** is the wall-clock UDS round-trip (transport + ECU, a
@@ -630,14 +632,14 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   (`PLUGGED`/`READY`/`CHARGING`) and finer vendor rungs are **declared per profile**, and
   `allowed_states()` returns base ∪ `ALL` ∪ the profile's own, so `--state`/`--prereq` validate
   without a static choice list. Input is normalized to uppercase. Edit via `canair states` (never
-  hand-edit; `canlib/states_edit.py`); references in `ecus/` are written as inline flow lists.
+  hand-edit; `canlib/states/edit.py`); references in `ecus/` are written as inline flow lists.
 - **`profiles/<car>/can_buses.yaml`** — The profile's CAN bus segment vocabulary: code → human
   `name` + `description` + optional `bitrate`. Bus naming is **vendor-specific** (Hyundai/Kia
   `B-CAN`/`P-CAN`/`C-CAN`/`MM-CAN`/`H-CAN`/`D-CAN`/`ALL`; Ford `HS`/`MS`; BMW `PT-CAN`/`K-CAN`), so
   it lives per profile, not in a global enum. Loader `canlib/can_buses.py`; `pids set-can-bus`
   accepts only declared codes and `validate pids` errors on an out-of-vocabulary value.
 - **`profiles/<car>/groups.yaml`** — Named selector groups (`@name`) — see `canair groups`. Loader
-  `canlib/ecu_groups.py`. The bundled Ioniq ships
+  `canlib/ecus/ecu_groups.py`. The bundled Ioniq ships
   `@charging`/`@driving`/`@powertrain`/`@climate`/`@body`.
 - **`profiles/<car>/signals/` + `captures/can/`** — The raw-CAN broadcast domain (in progress,
   `plans/2026-07-24-raw-can-analysis.md`), both optional. `signals/<bus>.yaml` holds DBC-compatible
@@ -685,7 +687,7 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
     `hunt --physical` and make-specific scalings for the slope→unit sniffer. Resolvers
     `canlib/physical_bands.py`, `canlib/unit_guess.py`. (The grid-axis bands come from the
     user-config `grid_region` instead — an 800 V pack or a non-EU grid otherwise gets no hit.)
-- **`canlib/explorer_export.py` / `explorer_layout.py`** — The docs-site profile explorer
+- **`canlib/explorer/export.py` / `explorer/layout.py`** — The docs-site profile explorer
   (`docs/profiles/explorer.md`). The export turns a profile into an **allow-listed** JSON-able dict
   (never `identity:` values, captures or `scan_log`), with a `src: {file, line}` on every record read
   via ruamel; the layout places ECUs on bus lanes. `scripts/mkdocs_hooks/explorer.py` writes it as
@@ -693,7 +695,7 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   content rules belong in the exporter (unit-tested in `tests/test_explorer_export.py`). Plan:
   `plans/2026-10-21-profile-explorer.md`. Its **data view** (plot captured signals, find related
   signals) decodes captures at build time with the shared evaluator in
-  `canlib/explorer_series.py` (decoded numbers only, never payloads; size-budgeted in
+  `canlib/explorer/series.py` (decoded numbers only, never payloads; size-budgeted in
   `tests/test_explorer_series.py`); `docs/assets/explorer/{plot,discover}.js` draw it and the pure
   maths is `analysis.js`, tested with `node --test tests/js/analysis.test.js` (a CI step; name the
   file, as older Node treats a directory argument as a module). uPlot is vendored under
@@ -724,7 +726,7 @@ Each device carries a `host` plus optional `transport`/`port`/`bitrate` (precede
 `--transport`/`--wican` CLI > device entry > global `transport:` block > default). Select with
 `--wican home|vpn|<ip>`; with no config it falls back to `192.168.80.1` (WiCAN AP mode). The legacy
 flat `wican_addresses: {alias: host}` form still works when no `devices:` block exists and is
-**auto-migrated into `devices:` on first run** (`canlib/devices_migrate.py`); once `devices:` exists
+**auto-migrated into `devices:` on first run** (`canlib/migrations/devices.py`); once `devices:` exists
 it is ignored. Resolvers: `canlib/config.py::wican_devices` (authoritative map + `DeviceEntry`) and
 `fallback_settings`; `wican_settings` is a back-compat shim.
 
@@ -732,7 +734,7 @@ WebSocket terminal: `ws://<ip>/ws` (send `{"ws_mode": "terminal", "terminal_type
 
 **Firmware generation** — everything above is WiCAN firmware **4.x**; the v6 rewrite drops `/ws`,
 the protocol mode and the legacy HTTP routes (plan `plans/2026-10-20-wican-fw-v6-compatibility.md`).
-`canlib/wican_firmware.py` probes the generation (GET-only — `/api/info`, then `/check_status`
+`canlib/wican/firmware.py` probes the generation (GET-only — `/api/info`, then `/check_status`
 unless that was v6 — memoised per host) and owns the one policy table, `compatibility(info,
 surface)`, used by live connect, `sniff`, `wican mode`/`autopid`, `--reboot`, the monitor's
 reconnect and `canair status`. Whether a surface is probed is `probes(surface)` over
@@ -770,7 +772,7 @@ pipe keeps returning well-formed replies — to the *previous* request, forever.
 sit under the reconnect above, and a new request path must not bypass them:
 
 - **Every request slot is echo-validated**, so a one-slot offset is detectable at all. Pass
-  `expected_sid` *and* `expected_echo` (`canlib/uds_parse.py::request_echo`) on any new
+  `expected_sid` *and* `expected_echo` (`canlib/uds/parse.py::request_echo`) on any new
   `send_uds` call — an unvalidated request laughs off a desync and returns the wrong PID's bytes as
   the right PID's value. Keepalives are validated too (`3E00` with `expected_sid=0x3E`): an
   unvalidated one *consumes* the orphaned reply and clears the dirty-pipe flag, which is precisely
@@ -784,11 +786,12 @@ sit under the reconnect above, and a new request path must not bypass them:
   so without it a concurrent keepalive can retarget `ATSH` between a read's header and its request.
   It is re-entrant per task; `RawTerminal`'s is a no-op (raw addresses every frame explicitly).
 
-**The link is measured, not configured.** `canlib/link_latency.py::LinkLatency` is an RFC-6298
-smoother (`srtt + 4*rttvar`) shared by both domains; a plain mean underestimates half the time and
-every underestimate orphans a reply. `seed()` takes a one-shot unambiguous measurement (the TCP
-handshake, timed in `SlcanTcpBus.__init__` — available *before* any protocol traffic, which is when
-the ISO-TP budgets must be chosen); `observe()` needs `_MIN_SAMPLES` and is fed **only** by
+**The link is measured, not configured.** `canlib/transport/link_latency.py::LinkLatency` is an
+RFC-6298 smoother (`srtt + 4*rttvar`) shared by both domains; a plain mean underestimates half the
+time and every underestimate orphans a reply. `seed()` takes a one-shot unambiguous measurement
+(the TCP handshake, timed in `SlcanTcpBus.__init__` — available *before* any protocol traffic,
+which is when the ISO-TP budgets must be chosen); `observe()` needs `_MIN_SAMPLES` and is fed
+**only** by
 adapter-only AT commands (`_LINK_PROBE_CMDS`: `ATI` and the addressing commands) — never a UDS
 read, which mixes link and ECU and cannot be decomposed. `allowance(floor)` keeps the caller's
 default as a floor. Consumers **add** it to the configured value (the config is the *car's* share,
@@ -890,7 +893,7 @@ default `slcan-tcp`. Registry-driven — each is a `TransportSpec` in
   (pipelined). Works on any WiCAN (Pro *and* classic) or gateway; also powers `canair sniff`.
   Backend `RawTerminal` (`canlib/transport/raw_terminal.py`) over `SlcanTcpBus`.
 - **`wican-ws`** (Pro-only, `raw=False`) — ELM327 terminal over the WiCAN's `ws://host/ws`; the
-  dongle does ISO-TP. Backend `WiCANTerminal` (`canlib/terminal.py`).
+  dongle does ISO-TP. Backend `WiCANTerminal` (`canlib/transport/wican_terminal.py`).
 - **`elm327-tcp`** (`raw=False`, `wican_http=False`) — a **generic ELM327 adapter over a plain TCP
   socket**: WiFi clones (Kiwi, vLinker, OBDLink) and the ELM327-Emulator's `-n` mode. No WiCAN, no
   HTTP config API. Backend `Elm327TcpTerminal` over a `TcpChannel`; default port 35000.
@@ -898,8 +901,9 @@ default `slcan-tcp`. Registry-driven — each is a `TransportSpec` in
 **Shared ELM327 engine.** The protocol logic lives once in `Elm327Terminal`
 (`canlib/transport/elm327_terminal.py`), driven by a swappable async byte `Channel`
 (`canlib/transport/channel.py`: `WebSocketChannel` for the WiCAN, `TcpChannel` for a clone).
-`WiCANTerminal` (`canlib/terminal.py`) and `Elm327TcpTerminal` (`canlib/transport/elm327_tcp.py`)
-are thin subclasses wiring their channel — a new ELM327 wire (e.g. serial) is a new `Channel`, not a
+`WiCANTerminal` (`canlib/transport/wican_terminal.py`) and `Elm327TcpTerminal`
+(`canlib/transport/elm327_tcp.py`) are thin subclasses wiring their channel — a new ELM327 wire
+(e.g. serial) is a new `Channel`, not a
 duplicated engine. **The engine keeps the I/O; four sibling modules own the stateful policies it
 used to inline**, each exercisable with no channel at all — so put new protocol policy in a sibling,
 not in the terminal:

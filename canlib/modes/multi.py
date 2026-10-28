@@ -37,12 +37,13 @@ The names that layers below use are re-exported here so existing callers
 
 import asyncio
 
-from ..capture_types import Quality
+from canlib.captures.types import Quality
+from canlib.transport.stats import client_transport
+
 from ..formatting import print_ecu_results
 from ..pids import build_ecu_index
 from ..session_manager import SessionManager
 from ..transport.protocol import Terminal
-from ..transport_stats import client_transport
 from .multi_batch import (
     BatchState,
     ResultEntry,
@@ -112,7 +113,7 @@ def _finalize_journal(
 ) -> None:
     """Resolve metadata (optionally prompting) and reconcile the write-ahead journal.
 
-    ``journal`` is a :class:`~canlib.capture_journal.CaptureJournal` (or None).
+    ``journal`` is a :class:`~canlib.captures.journal.CaptureJournal` (or None).
     On a cancelled interactive prompt the journal is discarded. When ``prompt``
     is False (e.g. an interrupted pipeline) the journal is reconciled with the
     metadata already on it — no stdin interaction. ``suggested_state`` pre-fills
@@ -186,7 +187,8 @@ async def mode_multi(
     # the end. An exception mid-pipeline leaves it on disk for `--recover`.
     journal = None
     if save:
-        from ..capture_journal import CaptureJournal
+        from canlib.captures.journal import CaptureJournal
+
         from ..profile import active
 
         journal = CaptureJournal.open(

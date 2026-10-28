@@ -106,7 +106,7 @@ def discover_bundled(profiles_dir: Path = PROFILES_DIR) -> list[tuple[str, Path]
 
 def _maturity(counts: dict[str, int]) -> str:
     """A one-word maturity hint from the counts."""
-    from canlib.explorer_export import profile_maturity
+    from canlib.explorer.export import profile_maturity
 
     return profile_maturity(counts)
 

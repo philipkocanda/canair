@@ -348,10 +348,10 @@ def unsplit_in_contribution(
     sessions byte-identical to the upstream base are not this contribution's doing
     and are left to the repair on upstream's side.
     """
-    from .. import capture_io
-    from ..captures_merge import session_key
-    from ..payload_corpus import load_payload_corpus
-    from ..unsplit_batches import find_unsplit_batches
+    from canlib.captures import io as capture_io
+    from canlib.captures.merge import session_key
+    from canlib.captures.payload_corpus import load_payload_corpus
+    from canlib.uds.unsplit_batches import find_unsplit_batches
 
     cdir = ws / "profiles" / profile.name / "captures"
     if not cdir.is_dir():

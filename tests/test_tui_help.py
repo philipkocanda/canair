@@ -1,4 +1,4 @@
-"""Tests for the shared Textual help modal (canlib.tui_help).
+"""Tests for the shared Textual help modal (canlib.tui.help).
 
 Unit-covers the BINDINGS->rows derivation (including key-label rendering for
 every shipped TUI) and drives the ``?`` help modal headlessly.
@@ -13,7 +13,7 @@ import pytest
 from textual.app import App
 from textual.binding import Binding
 
-from canlib.tui_help import HelpMixin, HelpModal, bindings_help_rows
+from canlib.tui.help import HelpMixin, HelpModal, bindings_help_rows
 
 
 class TestBindingsHelpRows:

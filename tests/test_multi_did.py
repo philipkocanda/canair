@@ -1,10 +1,10 @@
-"""Tests for the multi-DID reply walk (``canlib.multi_did``)."""
+"""Tests for the multi-DID reply walk (``canlib.uds.multi_did``)."""
 
 from __future__ import annotations
 
 import pytest
 
-from canlib.multi_did import is_fill, is_padding, split_chain
+from canlib.uds.multi_did import is_fill, is_padding, split_chain
 
 BC03 = "62BC03FDEE3C730A000000"
 BC06 = "62BC06B480000000000000"

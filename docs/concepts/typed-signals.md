@@ -22,7 +22,7 @@ with an optional parameter **`type:`** and a small companion map.
 
 The WiCAN `expression` **stays a pure float** — it is what the WiCAN device ships
 and what numeric analysis consumes. `type:` attaches a **parallel typed
-decoding** on top (`canlib/decode_value.py`): the expression yields the raw
+decoding** on top (`canlib/expression/decode_value.py`): the expression yields the raw
 integer, and the typed layer interprets it for display and categorical analysis.
 This never changes device output or the numeric path.
 

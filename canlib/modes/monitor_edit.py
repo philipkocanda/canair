@@ -21,7 +21,8 @@ import re
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..decoding import ParamRow
+    from canlib.expression.decoding import ParamRow
+
     from .monitor import MonitorController
     from .multi_batch import EcuFrame, ResultEntry
 

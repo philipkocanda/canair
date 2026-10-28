@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 import canlib.commands.groups as groups_cmd
-from canlib.ecu_groups import Group
+from canlib.ecus.ecu_groups import Group
 
 
 class _FakeProfile:
@@ -24,7 +24,7 @@ def _patched(monkeypatch):
         "driving": Group("driving", "", ("BMS", "VCU", "MCU")),
     }
     monkeypatch.setenv("NO_COLOR", "1")
-    monkeypatch.setattr("canlib.ecu_groups.load_groups", lambda profile=None: groups)
+    monkeypatch.setattr("canlib.ecus.ecu_groups.load_groups", lambda profile=None: groups)
     monkeypatch.setattr("canlib.profile.active", lambda: _FakeProfile())
 
 
@@ -60,7 +60,7 @@ def test_no_color_when_piped(_patched, capsys):
 
 def test_empty_profile_message(monkeypatch, capsys):
     monkeypatch.setenv("NO_COLOR", "1")
-    monkeypatch.setattr("canlib.ecu_groups.load_groups", lambda profile=None: {})
+    monkeypatch.setattr("canlib.ecus.ecu_groups.load_groups", lambda profile=None: {})
     monkeypatch.setattr("canlib.profile.active", lambda: _FakeProfile())
     rc = _run()
     out = capsys.readouterr().out

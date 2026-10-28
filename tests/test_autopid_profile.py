@@ -8,7 +8,9 @@ conversion and the device→grouped normalization round-trip.
 import pytest
 
 from canlib.addressing import AddressBook
-from canlib.autopid_profile import (
+from canlib.commands.wican import show_diff
+from canlib.transport.elm327_addressing import AdapterState, target_in
+from canlib.wican.autopid_profile import (
     InvalidSendToError,
     generate_profile,
     make_pid_init,
@@ -16,9 +18,7 @@ from canlib.autopid_profile import (
     to_device_format,
     with_flow_control,
 )
-from canlib.autopid_send_to import topic_problem
-from canlib.commands.wican import show_diff
-from canlib.transport.elm327_addressing import AdapterState, target_in
+from canlib.wican.autopid_send_to import topic_problem
 
 
 def _data():

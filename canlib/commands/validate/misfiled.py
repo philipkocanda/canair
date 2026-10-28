@@ -1,7 +1,7 @@
 """captures/ validation — replies saved under the wrong ECU (cross-file pass).
 
 The per-file lints in ``captures.py`` can't see this: a misfile only shows against the rest of
-the corpus. Detection lives in ``canlib.misfiled``; this module words it.
+the corpus. Detection lives in ``canlib.analysis.misfiled``; this module words it.
 """
 
 from __future__ import annotations
@@ -9,8 +9,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from pathlib import Path
 
-from canlib.misfiled import Misfile, find_misfiled
-from canlib.payload_corpus import PayloadCorpus, load_payload_corpus
+from canlib.analysis.misfiled import Misfile, find_misfiled
+from canlib.captures.payload_corpus import PayloadCorpus, load_payload_corpus
 
 from .captures import CaptureWarning
 

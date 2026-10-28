@@ -8,20 +8,20 @@ forward-filled ones.
 
 from __future__ import annotations
 
-from canlib.align import (
+from canlib.analysis.align import (
     load_signal_captures,
     payload_lengths,
 )
-from canlib.commands._join import (
-    fill_summaries,
-)
-from canlib.fill import FillPolicy
-from canlib.keepmode import scope_is_keep_changes, scope_is_keep_unique
-from canlib.xanalysis import (
+from canlib.analysis.fill import FillPolicy
+from canlib.analysis.xanalysis import (
     build_bit_series,
     build_byte_series,
     build_param_series,
 )
+from canlib.commands._join import (
+    fill_summaries,
+)
+from canlib.keepmode import scope_is_keep_changes, scope_is_keep_unique
 
 NAME = "correlate"
 

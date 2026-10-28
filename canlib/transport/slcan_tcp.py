@@ -24,7 +24,7 @@ from collections import deque
 
 import can
 
-from ..link_latency import LinkLatency
+from canlib.transport.link_latency import LinkLatency
 
 # SLCAN bitrate command table (Lawicel S0..S8).
 _BITRATE_CMD = {

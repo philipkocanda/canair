@@ -98,7 +98,7 @@ class MonitorSessions:
         are offered — never a programming session, and never ``0x82`` on an ECU
         that is not known to speak KWP2000 (on UDS it is programmingSession).
         """
-        from ..uds_layout import SUBFUNCTION_NAMES
+        from canlib.uds.layout import SUBFUNCTION_NAMES
 
         names = SUBFUNCTION_NAMES.get(0x10, {})
         if self._index is None:
@@ -129,7 +129,7 @@ class MonitorSessions:
         would otherwise silently no-op the switch. Returns a human status
         string for the TUI's flash message.
         """
-        from ..uds_layout import SUBFUNCTION_NAMES
+        from canlib.uds.layout import SUBFUNCTION_NAMES
 
         c = self.c
         ecu = ecu_name.upper()

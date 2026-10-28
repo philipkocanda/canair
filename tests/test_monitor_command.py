@@ -111,7 +111,7 @@ class TestMonitorGroupExpansion:
 
     def _stub(self, monkeypatch, captured):
         from canlib.commands import monitor
-        from canlib.ecu_groups import Group
+        from canlib.ecus.ecu_groups import Group
 
         def fake_run_live(args):
             captured["multi"] = args.multi
@@ -121,7 +121,7 @@ class TestMonitorGroupExpansion:
         monkeypatch.setattr("canlib.modes.monitor.query_ecu_error", lambda steps, pids: None)
         monkeypatch.setattr("canlib.commands._live.load_pids", lambda: {})
         monkeypatch.setattr(
-            "canlib.ecu_groups.load_groups",
+            "canlib.ecus.ecu_groups.load_groups",
             lambda profile=None: {
                 "charging": Group("charging", "", ("BMS:2101", "OBC", "VCU")),
             },

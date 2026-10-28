@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from canlib.explorer_export import export_profile, profile_maturity
-from canlib.explorer_layout import layout_buses
+from canlib.explorer.export import export_profile, profile_maturity
+from canlib.explorer.layout import layout_buses
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PROFILES = sorted(

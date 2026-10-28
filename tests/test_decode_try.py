@@ -2,9 +2,9 @@
 
 import pytest
 
+from canlib.analysis.stats import compute_stats
+from canlib.analysis.xanalysis import discriminability as _discriminability
 from canlib.commands.decode import analysis, calc, query, views
-from canlib.stats import compute_stats
-from canlib.xanalysis import discriminability as _discriminability
 
 parse_try_expr = query.parse_try_expr
 build_try_params = query.build_try_params
@@ -46,8 +46,8 @@ class TestBuildTryParams:
         # End-to-end: a candidate expression evaluates through the real decode path.
         # payload_to_wican_bytes inserts the ISO-TP PCI byte, so 6101ABCD becomes
         # frame 04 61 01 AB CD -> B0=PCI, B1=SID, B2=PID echo, B3=first data byte.
-        from canlib.byteindex import payload_to_wican_bytes
-        from canlib.decoding import decode_payload
+        from canlib.expression.decoding import decode_payload
+        from canlib.uds.byteindex import payload_to_wican_bytes
 
         params = build_try_params(["FIRST=B3"])
         wican = payload_to_wican_bytes("6101ABCD")
@@ -97,7 +97,7 @@ class TestValueRanges:
 
 class TestStatistics:
     def test_mean_median_stdev(self):
-        from canlib.stats import mean, median, stdev
+        from canlib.analysis.stats import mean, median, stdev
 
         assert mean([1, 2, 3, 4]) == 2.5
         assert median([1, 2, 3, 4]) == 2.5
@@ -107,13 +107,13 @@ class TestStatistics:
         assert round(stdev([1, 2, 3, 4, 5]), 4) == 1.5811
 
     def test_pearson_perfect_positive_and_negative(self):
-        from canlib.stats import pearson
+        from canlib.analysis.stats import pearson
 
         assert round(pearson([1, 2, 3], [2, 4, 6]), 6) == 1.0
         assert round(pearson([1, 2, 3], [6, 4, 2]), 6) == -1.0
 
     def test_pearson_undefined_cases(self):
-        from canlib.stats import pearson
+        from canlib.analysis.stats import pearson
 
         assert pearson([1], [1]) is None  # too few points
         assert pearson([2, 2, 2], [1, 2, 3]) is None  # zero variance
@@ -208,7 +208,7 @@ class TestCrossSignalCorrelation:
     def test_print_cross_correlation(self, capsys):
         from datetime import datetime
 
-        from canlib.align import TimePoint
+        from canlib.analysis.align import TimePoint
 
         ref = [
             TimePoint(datetime(2026, 7, 22, 9, 0, 0, 300000), 10.0),
@@ -340,7 +340,7 @@ class TestCorrTransform:
     def test_transform_series_delta(self):
         from datetime import datetime
 
-        from canlib.align import TimePoint
+        from canlib.analysis.align import TimePoint
 
         s = [TimePoint(datetime(2026, 7, 22, 9, 0, i), float(i * i)) for i in range(4)]
         out = calc._transform_series(s, "delta")

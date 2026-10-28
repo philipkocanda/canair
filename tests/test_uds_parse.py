@@ -1,6 +1,6 @@
-"""Tests for canlib.uds_parse — UDS response parsing and NRC handling."""
+"""Tests for canlib.uds.parse — UDS response parsing and NRC handling."""
 
-from canlib.uds_parse import (
+from canlib.uds.parse import (
     parse_uds_response,
     payload_echo_mismatch,
     payload_not_hex,

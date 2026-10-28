@@ -1,6 +1,6 @@
-"""Tests for canlib.uds_services — the diagnostic service (SID) registry."""
+"""Tests for canlib.uds.services — the diagnostic service (SID) registry."""
 
-from canlib.uds_services import (
+from canlib.uds.services import (
     RESPONSE_SID_OFFSET,
     SERVICES,
     service_info,

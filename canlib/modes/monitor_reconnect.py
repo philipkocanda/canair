@@ -84,11 +84,11 @@ def reconnect_policy(args) -> ReconnectPolicy:
 def firmware_admission(cand: TransportConfig) -> str | None:
     """Refuse a candidate whose firmware cannot serve its transport (or None).
 
-    The same gate the initial connect applies (:mod:`canlib.wican_firmware`),
+    The same gate the initial connect applies (:mod:`canlib.wican.firmware`),
     so a re-home never lands on, say, a v6 WiCAN configured for ``wican-ws`` —
     which would otherwise loop on WebSocket 404s with no explanation.
     """
-    from ..wican_firmware import check
+    from canlib.wican.firmware import check
 
     if not cand.host:
         return None

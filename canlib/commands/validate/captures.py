@@ -9,7 +9,7 @@ from pathlib import Path
 from jsonschema import Draft202012Validator
 from jsonschema.protocols import Validator
 
-from canlib import capture_io
+from canlib.captures import io as capture_io
 from canlib.states import StateRule, contradictory_states
 
 from ._common import CAPTURES_SCHEMA_FILE, DEPRECATED_FIELDS
@@ -171,7 +171,7 @@ def _run_captures(
 
     # Cross-file: a reply saved under the wrong ECU, or a multi-DID reply saved whole under one
     # DID, only stands out against the whole corpus. Load it once for both checks.
-    from canlib.payload_corpus import load_payload_corpus
+    from canlib.captures.payload_corpus import load_payload_corpus
 
     from .misfiled import misfile_warnings
     from .unsplit import unsplit_batch_warnings
@@ -361,7 +361,7 @@ def _capture_echo_warnings(path: Path, hk_f1xx_offset: bool = False) -> list[Cap
 
     ``hk_f1xx_offset``: tolerate the HK F1xx -1 identity-DID quirk (profile opt-in).
     """
-    from canlib.uds_parse import payload_echo_mismatch
+    from canlib.uds.parse import payload_echo_mismatch
 
     warnings: list[CaptureWarning] = []
     data = capture_io.load_capture_file(path)
@@ -397,7 +397,7 @@ def _capture_nonhex_warnings(path: Path) -> list[CaptureWarning]:
     hex+ASCII transcription) signals a mis-recorded capture — see
     ``uds_parse.payload_not_hex``. Reported as a warning, never an error.
     """
-    from canlib.uds_parse import payload_not_hex
+    from canlib.uds.parse import payload_not_hex
 
     warnings: list[CaptureWarning] = []
     data = capture_io.load_capture_file(path)
@@ -434,7 +434,7 @@ def _capture_missing_time_warnings(path: Path) -> list[CaptureWarning]:
     meaningful there. Existing untimed payload rows are grandfathered (warning,
     not error, unless ``validate captures --strict``). See Tranche 2.6.
     """
-    from canlib.capture_dates import entry_datetime
+    from canlib.captures.dates import entry_datetime
 
     warnings: list[CaptureWarning] = []
     data = capture_io.load_capture_file(path)

@@ -1,7 +1,7 @@
 """Tests for canlib.formatting.decode_uds_response — the one-line response decode.
 
 The function is a hand-rolled ``if sid == …`` chain that duplicates the service
-names in :mod:`canlib.uds_services`, and it had no tests at all — which is how two
+names in :mod:`canlib.uds.services`, and it had no tests at all — which is how two
 crossed SIDs survived: ``0x68`` (CommunicationControl's response) was labelled
 ControlDTCSetting, ``0x6C`` (DynamicallyDefineDataIdentifier's) carried
 CommunicationControl's sub-function names, and ``0xC5`` — the *real* ControlDTCSetting
@@ -17,7 +17,7 @@ import re
 import pytest
 
 from canlib.formatting import decode_uds_response
-from canlib.uds_layout import (
+from canlib.uds.layout import (
     ROLE_CTRL,
     ROLE_DID,
     ROLE_LID,
@@ -27,7 +27,7 @@ from canlib.uds_layout import (
     response_layout,
     subfunction_name,
 )
-from canlib.uds_services import RESPONSE_SID_OFFSET, SERVICES, service_name
+from canlib.uds.services import RESPONSE_SID_OFFSET, SERVICES, service_name
 
 
 def _decode(hex_: str) -> str | None:

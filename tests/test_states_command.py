@@ -102,7 +102,7 @@ class TestEditDispatch:
             )
             return tmp_path / "vehicle_states.yaml"
 
-        monkeypatch.setattr("canlib.states_edit.add_state", _add)
+        monkeypatch.setattr("canlib.states.edit.add_state", _add)
         monkeypatch.setenv("NO_COLOR", "1")
         args = argparse.Namespace(
             name="precondition",
@@ -124,12 +124,12 @@ class TestEditDispatch:
         assert "added state PRECONDITION" in capsys.readouterr().out
 
     def test_add_error_is_clean(self, monkeypatch):
-        from canlib.states_edit import StatesEditError
+        from canlib.states.edit import StatesEditError
 
         def _add(*a, **k):
             raise StatesEditError("already exists")
 
-        monkeypatch.setattr("canlib.states_edit.add_state", _add)
+        monkeypatch.setattr("canlib.states.edit.add_state", _add)
         monkeypatch.setenv("NO_COLOR", "1")
         args = argparse.Namespace(
             name="READY",

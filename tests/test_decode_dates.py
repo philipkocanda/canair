@@ -5,7 +5,7 @@ from datetime import date, datetime
 
 import pytest
 
-from canlib.capture_dates import (
+from canlib.captures.dates import (
     entry_date,
     entry_datetime,
     filter_by_date_range,
@@ -261,7 +261,7 @@ class TestResolveScopeBounds:
             {"file": "b.yaml", "_session_idx": 0, "date": "2026-07-22", "time": "14:00:00"},
             {"file": "b.yaml", "_session_idx": 0, "date": "2026-07-22", "time": "14:10:00"},
         ]
-        monkeypatch.setattr("canlib.capture_dates.load_all_captures", lambda *a, **k: entries)
+        monkeypatch.setattr("canlib.captures.dates.load_all_captures", lambda *a, **k: entries)
         since, _until, err = resolve_scope_bounds(self._args(last_sessions=1))
         assert err is None
         assert since == datetime(2026, 7, 22, 14, 0, 0)
@@ -273,7 +273,7 @@ class TestResolveScopeBounds:
         entries = [
             {"file": "a.yaml", "_session_idx": 0, "date": "2026-07-20", "time": "08:00:00"},
         ]
-        monkeypatch.setattr("canlib.capture_dates.load_all_captures", lambda *a, **k: entries)
+        monkeypatch.setattr("canlib.captures.dates.load_all_captures", lambda *a, **k: entries)
         since, _, err = resolve_scope_bounds(self._args(last_sessions=5))
         assert err is None
         assert since == datetime(2026, 7, 20, 8, 0, 0)
@@ -512,7 +512,7 @@ class TestSharedScopingWiring:
     def test_captures_uses_shared_helpers(self):
         # captures must import the shared module (not redefine local date helpers),
         # so both commands stay in lockstep and expose --state/--label.
-        from canlib import capture_dates
+        from canlib.captures import dates as capture_dates
         from canlib.commands.captures import uds as cap
 
         assert cap.filter_by_date_range is capture_dates.filter_by_date_range

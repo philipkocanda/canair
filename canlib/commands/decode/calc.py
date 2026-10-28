@@ -4,8 +4,8 @@
 These helpers operate on decode's ``all_results`` shape — a list of
 ``{capture, decoded, error}`` dicts — turning decoded parameter values into the
 plain/time-stamped series the correlation, mirror, and stats views consume. They
-are the decode-shaped glue over the generic primitives in ``canlib.align`` /
-``canlib.stats`` / ``canlib.xanalysis``; keeping them here leaves decode.py as
+are the decode-shaped glue over the generic primitives in ``canlib.analysis.align`` /
+``canlib.analysis.stats`` / ``canlib.analysis.xanalysis``; keeping them here leaves decode.py as
 argparse + orchestration and lets the renderers (``decode.render``) stay pure
 presentation.
 """
@@ -14,12 +14,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from canlib.inspect_bytes import apply_transform
-from canlib.mirrors import DEFAULT_MIRROR_MATCH
+from canlib.analysis.mirrors import DEFAULT_MIRROR_MATCH
+from canlib.uds.inspect_bytes import apply_transform
 
 if TYPE_CHECKING:
-    from canlib.align import TimePoint
-    from canlib.fill import FillPolicy
+    from canlib.analysis.align import TimePoint
+    from canlib.analysis.fill import FillPolicy
 
 
 def _series(all_results: list[dict], name: str) -> list[float]:
@@ -55,7 +55,7 @@ def _paired_timed(all_results: list[dict], ref: str, name: str) -> tuple[list[fl
     """
     from datetime import datetime
 
-    from canlib.capture_dates import entry_datetime
+    from canlib.captures.dates import entry_datetime
 
     triples: list[tuple[datetime, float, float]] = []
     for r in all_results:
@@ -75,8 +75,8 @@ def _local_series(all_results: list[dict], name: str) -> list:
     Used to time-align local params against a cross-signal reference on a
     different ECU/PID. Captures with no usable ``datetime`` are dropped.
     """
-    from canlib.align import TimePoint
-    from canlib.capture_dates import entry_datetime
+    from canlib.analysis.align import TimePoint
+    from canlib.captures.dates import entry_datetime
 
     out = []
     for r in all_results:
@@ -98,7 +98,7 @@ def load_cross_ref_series(ref: str, *, scope: dict, tol_s: float, fill: FillPoli
     reference is drawn from the same drive/window, and the same ``fill`` policy so a
     run-length reference can be carried onto the local captures' instants.
     """
-    from canlib.align import SignalRef, extract_series, load_signal_captures
+    from canlib.analysis.align import SignalRef, extract_series, load_signal_captures
     from canlib.pids import build_ecu_index, load_pids
 
     sref = SignalRef.parse(ref)
@@ -147,8 +147,8 @@ def axis_group_keys(
     too high-cardinality to be a sensible grouping (``--discriminate`` wants an
     enum/flag/mode axis, not a continuous analog).
     """
-    from canlib.align import join_indices, prepare_series
-    from canlib.capture_dates import entry_datetime
+    from canlib.analysis.align import join_indices, prepare_series
+    from canlib.captures.dates import entry_datetime
 
     series, label = load_cross_ref_series(axis_spec, scope=scope, tol_s=tol_s, fill=fill)
     axis = prepare_series(series)
@@ -193,12 +193,12 @@ def find_mirrors(
 
     Extracts each capture's reconstructed WiCAN frame from decode's
     ``all_results`` and delegates to the generic matcher in
-    :mod:`canlib.mirrors`. Rows are aligned by capture index (all the frames come
+    :mod:`canlib.analysis.mirrors`. Rows are aligned by capture index (all the frames come
     from the same captures), so no timestamp join is involved — the intra-PID
     counterpart of ``correlate --find-mirrors``.
     """
-    from canlib.byteindex import payload_to_wican_bytes
-    from canlib.mirrors import byte_owns_bit, find_column_mirrors, frame_columns
+    from canlib.analysis.mirrors import byte_owns_bit, find_column_mirrors, frame_columns
+    from canlib.uds.byteindex import payload_to_wican_bytes
 
     frames: list[bytes] = []
     for r in all_results:
@@ -217,7 +217,7 @@ def find_mirrors(
 
 def _transform_series(series: list[TimePoint], mode: str) -> list[TimePoint]:
     """Apply a POST_TRANSFORMS mode to a TimePoint series (preserving times)."""
-    from canlib.align import TimePoint
+    from canlib.analysis.align import TimePoint
 
     vals = apply_transform([tp.value for tp in series], mode)
     return [TimePoint(tp.dt, v) for tp, v in zip(series, vals, strict=True)]

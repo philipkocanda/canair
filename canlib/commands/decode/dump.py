@@ -13,13 +13,13 @@ import csv
 import json
 import sys
 
-from canlib.byteindex import wican_to_isotp
-from canlib.notation import ByteNotation
+from canlib.uds.byteindex import wican_to_isotp
+from canlib.uds.notation import ByteNotation
 
 
 def _entry_dt(cap: dict):
     """Real datetime for a capture (session date + per-capture time), or None."""
-    from canlib.capture_dates import entry_datetime
+    from canlib.captures.dates import entry_datetime
 
     return entry_datetime(cap)
 
@@ -28,7 +28,7 @@ def _dump_column_label(
     off: int, include_pci: bool, notation: ByteNotation, sub_bytes: int, *, signed: bool = False
 ) -> str:
     """Column label for WiCAN offset ``off`` in the byte-matrix export."""
-    from canlib.notation import ByteRef
+    from canlib.uds.notation import ByteRef
 
     if wican_to_isotp(off) is None:
         return f"B{off}"  # PCI framing byte — no ISO-TP position, WiCAN label only
@@ -77,7 +77,7 @@ def _dump_bytes(
     signed quantity (a ``0xFF`` near-zero baseline) reads as a small negative
     value and correlates cleanly, instead of the unsigned ``255`` foot-gun.
     """
-    from canlib.byteindex import payload_to_wican_bytes
+    from canlib.uds.byteindex import payload_to_wican_bytes
 
     rows: list[tuple[dict, bytes]] = []
     max_len = 0

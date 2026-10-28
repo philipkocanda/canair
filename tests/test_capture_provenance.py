@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from canlib import capture_io
-from canlib.capture_journal import CaptureJournal, build_session_from_records
 from canlib.captures import build_manual_session, build_query_session, save_session
+from canlib.captures import io as capture_io
+from canlib.captures.journal import CaptureJournal, build_session_from_records
 
 
 class TestSessionBuilders:

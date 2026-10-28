@@ -383,7 +383,7 @@ class TestCopyProfileCapturesUnion:
 
     def _capture_pair(self, tmp_path, *, upstream_doc, source_doc):
         """A src profile + workspace dest, each with one dated capture file."""
-        from canlib import capture_io
+        from canlib.captures import io as capture_io
 
         src = tmp_path / "src"
         (src / "ecus").mkdir(parents=True)

@@ -25,12 +25,12 @@ def expand_step_groups(steps: list[str]) -> list[str]:
     """Expand ``@group`` references in positional STEPs into their selectors.
 
     Loads the active profile's ``groups.yaml`` and rewrites each step textually
-    (see :func:`canlib.ecu_groups.expand_group_refs`) *before* the mini-language
+    (see :func:`canlib.ecus.ecu_groups.expand_group_refs`) *before* the mini-language
     parser sees it, so a group composes with ad-hoc selectors and other groups.
     Raises ``GroupError`` (a ``ValueError``) on a bad/unknown reference — callers
     already guard step parsing with a ``ValueError`` handler.
     """
-    from canlib.ecu_groups import expand_group_refs, load_groups
+    from canlib.ecus.ecu_groups import expand_group_refs, load_groups
 
     return expand_group_refs(steps, load_groups())
 

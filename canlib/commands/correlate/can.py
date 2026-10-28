@@ -11,11 +11,11 @@ import json as _json
 import sys
 
 from canlib import ansi
-from canlib.align import (
+from canlib.analysis.align import (
     join_prepared,
     prepare_series,
 )
-from canlib.xanalysis import (
+from canlib.analysis.xanalysis import (
     colinear_clusters,
     correlate_matrix,
     correlation,
@@ -42,7 +42,7 @@ def _run_can_log(args) -> int:
     """
     from pathlib import Path
 
-    from canlib import frame_series
+    from canlib.analysis import frame_series as frame_series
     from canlib.can_logs import CanLogError
 
     path = Path(args.file)

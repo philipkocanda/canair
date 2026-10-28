@@ -10,26 +10,26 @@ from __future__ import annotations
 import json as _json
 import sys
 
-from canlib.align import (
+from canlib.analysis.align import (
     discover_signal_specs,
     load_signal_captures,
     prepare_series,
 )
-from canlib.byteindex import mapped_bits, mapped_offsets
-from canlib.capture_dates import resolve_scope_bounds
+from canlib.analysis.fill import forced_hold_warning
+from canlib.analysis.triage import detect_words, triage_byte
+from canlib.analysis.xanalysis import (
+    build_bit_series,
+    build_byte_series,
+    build_param_series,
+)
+from canlib.captures.dates import resolve_scope_bounds
 from canlib.commands._join import (
     fill_policy_from_args,
     fill_summaries,
     fill_summary_line,
 )
-from canlib.fill import forced_hold_warning
 from canlib.keepmode import scope_is_keep_changes, scope_is_keep_unique
-from canlib.triage import detect_words, triage_byte
-from canlib.xanalysis import (
-    build_bit_series,
-    build_byte_series,
-    build_param_series,
-)
+from canlib.uds.byteindex import mapped_bits, mapped_offsets
 
 from .counters import run_counters
 from .render import print_dwell, print_events, print_report
@@ -98,8 +98,8 @@ def _resolve_targets(args, since, until) -> tuple[list[tuple[str, str]], tuple[s
 
 
 def _run_single(ecu: str, pid: str, args, since, until, fill) -> int:
+    from canlib.analysis.xanalysis import byte_state_buckets as _byte_state_buckets
     from canlib.pids import build_ecu_index, load_pids
-    from canlib.xanalysis import byte_state_buckets as _byte_state_buckets
 
     loaded = load_signal_captures(
         [(ecu, pid)], since=since, until=until, state=args.state, label=args.label
@@ -148,10 +148,10 @@ def _run_single(ecu: str, pid: str, args, since, until, fill) -> int:
 
     # Physical-band hits per starting offset (plausibility, needs no reference).
     # Computed after the --events short-circuit so it isn't wasted there.
+    from canlib.analysis.xanalysis import physical_scan
     from canlib.grid_prompt import resolve_grid_region
     from canlib.physical_bands import resolve_physical_bands
     from canlib.profile import active
-    from canlib.xanalysis import physical_scan
 
     bands = resolve_physical_bands(active().meta, grid_region=resolve_grid_region())
     physical_by_off = {
@@ -168,11 +168,11 @@ def _run_single(ecu: str, pid: str, args, since, until, fill) -> int:
         )
         return 2
     if args.independent_of or args.independent_of_file:
-        from canlib.xanalysis import load_ref
+        from canlib.analysis.xanalysis import load_ref
 
         try:
             if args.independent_of_file:
-                from canlib.align import load_reference_file
+                from canlib.analysis.align import load_reference_file
 
                 driver_series, driver_label = load_reference_file(args.independent_of_file)
             else:

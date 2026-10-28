@@ -1,6 +1,6 @@
-"""Tests for canlib.decoding — decode_param_rows."""
+"""Tests for canlib.expression.decoding — decode_param_rows."""
 
-from canlib.decoding import decode_param_rows
+from canlib.expression.decoding import decode_param_rows
 
 
 class TestDecodeParamRows:
@@ -111,7 +111,7 @@ class TestTypedParams:
 
 class TestDecodeMemoization:
     def test_repeat_payload_served_from_cache(self, monkeypatch):
-        import canlib.decoding as dec
+        import canlib.expression.decoding as dec
 
         dec._decode_cached.cache_clear()
         calls = {"n": 0}
@@ -130,7 +130,7 @@ class TestDecodeMemoization:
         assert calls["n"] == 1  # evaluate_expression only ran on the first decode
 
     def test_changed_payload_recomputes(self, monkeypatch):
-        import canlib.decoding as dec
+        import canlib.expression.decoding as dec
 
         dec._decode_cached.cache_clear()
         calls = {"n": 0}

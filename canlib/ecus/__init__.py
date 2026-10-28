@@ -1,0 +1,504 @@
+"""ECU address lookup and name/response-address resolution.
+
+The registry is derived from the profile's per-ECU files under ``ecus/`` (each
+keyed by the ECU short name, carrying a ``tx_id`` and an ``identity:`` block).
+The CAN *response* address is resolved per ECU (explicit ``rx_id`` → the
+profile's ``addressing.rx_offset`` → the conventional ``TX + 0x08``) by
+:mod:`canlib.addressing` and stored as ``rx_id`` on each registry entry. Capture
+files reference the **response** address as a hex string (e.g. ``"0x7EC"``); the
+helpers here convert between that reference and the canonical ECU short name.
+"""
+
+from collections.abc import Mapping
+from pathlib import Path
+from typing import Any, TypedDict, cast
+
+from canlib.addressing import (
+    DEFAULT_MODE,
+    DEFAULT_RX_OFFSET,
+    AddressingMode,
+    EcuAddress,
+    resolve_ecu_address,
+    resolve_mode,
+    resolve_rx,
+    resolve_rx_offset,
+)
+
+# Non-address ECU references allowed in capture files (multi-ECU / broadcast
+# captures that don't map to a single physical responder).
+SENTINELS = frozenset({"broadcast"})
+
+
+class _EcuIdentity(TypedDict, total=False):
+    """Optional identity fields flattened onto a registry entry.
+
+    Mirrors ``identity_fields.optional`` in ``canlib/schema/pids_schema.yaml`` —
+    the ECU's self-reported identity block, plus the top-level ``can_bus`` list.
+    All optional (an identity-only or barely-probed ECU may carry none).
+    """
+
+    alias: str
+    description: str
+    part_number: str
+    mfg_date: str
+    hw_version: str
+    sw_version: str
+    hw_sw: str
+    boot_sw: str
+    app_sw: str
+    fw_version: str
+    firmware: str
+    serial: str
+    ecu_id: str
+    sw_id: str
+    calibration: str
+    supplier: str
+    diag_address: str
+    vin: str
+    id_protocol: str
+    identity_confidence: str
+    notes: str
+    can_bus: list[str]
+
+
+class EcuRegistryEntry(_EcuIdentity):
+    """One ECU's entry in a :func:`load_ecus` result (keyed by TX id).
+
+    ``name`` (the canonical short name — the ECU file's top key), the resolved
+    CAN response address ``rx_id``, the resolved addressing ``mode``, and the full
+    resolved ``address`` (:class:`~canlib.addressing.EcuAddress`) are always
+    present; the identity fields from :class:`_EcuIdentity` are optional. The
+    registry is keyed by TX id, so ``tx_id`` itself is the dict key rather than a
+    field here.
+    """
+
+    name: str
+    rx_id: int
+    mode: AddressingMode
+    address: EcuAddress
+
+
+def load_ecus(path: Path | None = None) -> dict[int, EcuRegistryEntry]:
+    """Load the ECU registry, keyed by TX id (int) -> {name, identity fields...}.
+
+    Derived from the profile's per-ECU ``ecus/`` files: each ECU's short name
+    (the file's top-level key) plus its flattened ``identity:`` block. When
+    ``path`` is None, the active vehicle profile's ``ecus/`` directory is used;
+    otherwise ``path`` is a directory of per-ECU YAML files.
+    """
+    from canlib.pids import load_pids
+
+    data = load_pids(path)
+    result: dict[int, EcuRegistryEntry] = {}
+    for name, ecu_def in (data.get("ecus") or {}).items():
+        if not isinstance(ecu_def, dict):
+            continue
+        tx_id = ecu_def.get("tx_id")
+        if tx_id is None:
+            continue
+        tx_id = int(tx_id)
+        # The identity block is flattened onto the entry (arbitrary self-reported
+        # fields), so it's built as a dynamic dict and cast to the documented
+        # shape at the boundary — mirrors capture_io's parsed-JSON → TypedDict seam.
+        info: dict[str, Any] = {"name": name}
+        identity = ecu_def.get("identity")
+        if isinstance(identity, dict):
+            info.update(identity)
+        # can_bus is a top-level ECU field (sibling of identity); surface it too.
+        can_bus = ecu_def.get("can_bus")
+        if can_bus is not None:
+            info["can_bus"] = can_bus
+        # Resolve the full CAN addressing once (mode + RX + any extended/flow
+        # -control bytes) so every consumer reads it rather than recomputing +8.
+        # The resolved RX and mode are also surfaced flat for the many callers
+        # that only need those two; the transport reads the whole EcuAddress.
+        address = resolve_ecu_address(data, ecu_def)
+        info["address"] = address
+        info["rx_id"] = address.rx_id
+        info["mode"] = address.mode
+        result[tx_id] = cast(EcuRegistryEntry, info)
+    return result
+
+
+def ecu_name(tx_id: int, ecus: Mapping[int, EcuRegistryEntry] | None = None) -> str:
+    """Get ECU name for a TX ID, or '0x{tx_id:03X}' if unknown."""
+    if ecus is None:
+        ecus = load_ecus()
+    info = ecus.get(tx_id)
+    return info["name"] if info else f"0x{tx_id:03X}"
+
+
+def ecu_id_protocol(tx_id: int, ecus: Mapping[int, EcuRegistryEntry] | None = None) -> str | None:
+    """Return the identity protocol hint for a TX ID from the registry.
+
+    One of ``"UDS"``, ``"KWP2000"``, ``"none"``, ``"unknown"``, or ``None`` when
+    the ECU is not in the registry or has no ``id_protocol`` recorded. Used by
+    ``canair identity`` to pick the right identity service without probing.
+    """
+    if ecus is None:
+        ecus = load_ecus()
+    info = ecus.get(tx_id)
+    if not info:
+        return None
+    return info.get("id_protocol")
+
+
+# Evidence markers in a note that indicate the identity rests on weak, external
+# grounds (cross-vehicle reference) rather than this car's own data.
+_WEAK_IDENTITY_MARKERS = (
+    "speculative",
+    "address match",
+    "address proximity",
+    "spreadsheet",
+    "cross-platform reference",
+    "cross-vehicle",
+    "no evidence",
+)
+
+# Self-reported identity fields — presence means the ECU answered an identity
+# request with real data (grounds the identity in the module itself).
+_IDENTITY_EVIDENCE_FIELDS = (
+    "part_number",
+    "serial",
+    "sw_id",
+    "ecu_id",
+    "app_sw",
+    "calibration",
+    "hw_sw",
+    "fw_version",
+    "firmware",
+    "sw_version",
+    "hw_version",
+)
+
+
+def derive_identity_confidence(info: EcuRegistryEntry) -> str:
+    """Heuristically rate how well-established an ECU's identity is.
+
+    Returns one of ``confirmed`` / ``probable`` / ``tentative`` / ``speculative``
+    (see ``valid_identity_confidence`` in pids_schema.yaml). Used when an entry
+    has no explicit ``identity_confidence``.
+    """
+    name = str(info.get("name") or "")
+    notes = str(info.get("notes") or "").lower()
+    proto = str(info.get("id_protocol") or "").lower()
+    has_part_number = bool(info.get("part_number"))
+    has_identity = any(info.get(k) for k in _IDENTITY_EVIDENCE_FIELDS)
+
+    if name.lower().startswith("unknown"):
+        return "speculative"
+    if any(marker in notes for marker in _WEAK_IDENTITY_MARKERS):
+        return "tentative"
+    if has_part_number:
+        return "confirmed"
+    if has_identity and proto in ("uds", "kwp2000"):
+        return "probable"
+    return "tentative"
+
+
+def ecu_identity_confidence(info: EcuRegistryEntry) -> tuple[str, bool]:
+    """Return ``(confidence, explicit)`` for an ECU registry entry.
+
+    ``explicit`` is True when the value is set in the registry, False when it was
+    derived by :func:`derive_identity_confidence`.
+    """
+    explicit = info.get("identity_confidence")
+    if explicit:
+        return explicit, True
+    return derive_identity_confidence(info), False
+
+
+def rx_for_tx(
+    tx_id: int,
+    ecus: Mapping[int, EcuRegistryEntry] | None = None,
+    rx_offset: int | None = None,
+    mode: AddressingMode | None = None,
+) -> int:
+    """Resolve a TX id to its CAN response (RX) address int.
+
+    Uses the ECU registry's resolved ``rx_id`` (which already honors a per-ECU
+    ``rx_id`` override or the profile's ``addressing.rx_offset``) when the ECU
+    is known; otherwise falls back to :func:`~canlib.addressing.resolve_rx` — the
+    escape hatch for an address not (yet) in the registry, e.g. an unregistered
+    responder seen during discovery or a ``raw`` read. That fallback applies the
+    given ``rx_offset``/``mode``, or the active profile's ``addressing:`` block
+    for whichever is omitted, so an unknown address on a non-``+0x08`` or 29-bit
+    profile resolves the way a registered one would.
+    """
+    if ecus is None:
+        ecus = load_ecus()
+    info = ecus.get(tx_id)
+    if info and info.get("rx_id") is not None:
+        return int(info["rx_id"])
+    if rx_offset is None or mode is None:
+        default_offset, default_mode = _profile_addressing()
+        rx_offset = default_offset if rx_offset is None else rx_offset
+        mode = default_mode if mode is None else mode
+    return resolve_rx(tx_id, rx_offset=rx_offset, mode=mode)
+
+
+def _profile_addressing() -> tuple[int, AddressingMode]:
+    """The active profile's default ``(rx_offset, mode)``, or the built-in defaults.
+
+    Falls back to ``TX + 0x08`` / 11-bit when no profile resolves, so a caller
+    that passed its own registry still gets an answer outside a profile.
+    """
+    from canlib.pids import load_pids
+    from canlib.profile import ProfileError
+
+    try:
+        data = load_pids()
+    except ProfileError:
+        return DEFAULT_RX_OFFSET, DEFAULT_MODE
+    return resolve_rx_offset(data), resolve_mode(data)
+
+
+def rx_addr_str(tx_id: int, ecus: Mapping[int, EcuRegistryEntry] | None = None) -> str:
+    """Format the CAN response address for a TX id as a hex string.
+
+    Resolved by :func:`rx_for_tx`: a registered ECU's ``rx_id``, else the active
+    profile's ``addressing:`` rule for an unknown address, e.g.
+    ``rx_addr_str(0x7E4) == "0x7EC"`` on a ``+0x08`` profile.
+    """
+    return f"0x{rx_for_tx(tx_id, ecus):03X}"
+
+
+def parse_ecu_ref(value) -> int | None:
+    """Parse a capture ``ecu`` reference into an RX address int, or None.
+
+    Accepts hex strings (``"0x7EC"``, ``"7EC"``) and ints. Returns ``None`` for
+    sentinels (e.g. ``"broadcast"``) and anything unparseable.
+    """
+    if value is None:
+        return None
+    if isinstance(value, int):
+        return value
+    s = str(value).strip()
+    if not s or s.lower() in SENTINELS:
+        return None
+    try:
+        return int(s, 16)
+    except ValueError:
+        return None
+
+
+def build_rx_index(ecus: Mapping[int, EcuRegistryEntry] | None = None) -> dict[int, str]:
+    """Build lookup: RX address (int) -> canonical ECU short name.
+
+    Derived from the ECU registry (the superset of all known addresses, including
+    non-decodable modules like AMP/SRS), so any responder resolves for display.
+    Uses each ECU's resolved ``rx_id`` (per-ECU override / profile offset).
+    """
+    if ecus is None:
+        ecus = load_ecus()
+    return {rx_for_tx(tx_id, ecus): info["name"] for tx_id, info in ecus.items()}
+
+
+def build_rx_tx_index(ecus: Mapping[int, EcuRegistryEntry] | None = None) -> dict[int, int]:
+    """Build lookup: RX address (int) -> TX id, using each ECU's resolved rx_id."""
+    if ecus is None:
+        ecus = load_ecus()
+    return {rx_for_tx(tx_id, ecus): tx_id for tx_id in ecus}
+
+
+def ecu_name_from_ref(value, rx_index: dict[int, str] | None = None) -> str:
+    """Resolve a capture ``ecu`` reference (RX address) to a canonical name.
+
+    Sentinels and unresolvable references are returned unchanged (stringified),
+    so callers always get a printable label.
+    """
+    if rx_index is None:
+        rx_index = build_rx_index()
+    rx = parse_ecu_ref(value)
+    if rx is not None and rx in rx_index:
+        return rx_index[rx]
+    return str(value)
+
+
+class EcuNameCollision(ValueError):
+    """Raised when an ECU name or alias resolves ambiguously to >1 ECU.
+
+    Guards the name/alias lookup so an ambiguous registry (two ECUs sharing an
+    alias, or an alias equal to a different ECU's name) fails loudly instead of
+    silently resolving to the wrong module.
+    """
+
+
+def build_name_tx_index(ecus: Mapping[int, EcuRegistryEntry] | None = None) -> dict[str, int]:
+    """Build lookup: upper-cased ECU name (and alias) -> TX id.
+
+    Primary ``name`` keys are assigned first (authoritative), then ``alias``
+    keys. Raises :class:`EcuNameCollision` if any name/alias is claimed by more
+    than one ECU, so aliases can be trusted for lookups without silently masking
+    the wrong ECU.
+    """
+    if ecus is None:
+        ecus = load_ecus()
+    index: dict[str, int] = {}
+    # Two passes so a primary name always wins its key and an alias clashing
+    # with a *different* ECU's name/alias is detected regardless of iteration
+    # order.
+    for field in ("name", "alias"):
+        for tx_id, info in ecus.items():
+            value = info.get(field)
+            if not value:
+                continue
+            key = str(value).upper()
+            prev = index.get(key)
+            if prev is not None and prev != tx_id:
+                raise EcuNameCollision(
+                    f"ECU {field} {value!r} is claimed by both "
+                    f"{ecu_name(prev, ecus)} (0x{prev:03X}) and "
+                    f"{ecu_name(tx_id, ecus)} (0x{tx_id:03X})"
+                )
+            index[key] = tx_id
+    return index
+
+
+def build_canonical_name_index(
+    ecus: Mapping[int, EcuRegistryEntry] | None = None,
+) -> dict[str, str]:
+    """Build lookup: upper-cased ECU name/alias -> canonical short name.
+
+    Both the primary ``name`` and any ``alias`` resolve to the canonical
+    ``name``. Reuses :func:`build_name_tx_index`, so it inherits the same
+    collision safety (raises :class:`EcuNameCollision` on ambiguity).
+    """
+    if ecus is None:
+        ecus = load_ecus()
+    return {key: ecu_name(tx_id, ecus) for key, tx_id in build_name_tx_index(ecus).items()}
+
+
+def build_alias_index(ecus: Mapping[int, EcuRegistryEntry] | None = None) -> dict[str, str]:
+    """Map canonical ECU short name -> its declared alias (only ECUs that have one).
+
+    Used for display (e.g. the captures stepper shows ``SKM (alias SMK)``) so the
+    secondary name an ECU self-identifies as is visible alongside the canonical
+    short name.
+    """
+    if ecus is None:
+        ecus = load_ecus()
+    out: dict[str, str] = {}
+    for info in ecus.values():
+        name = info.get("name")
+        alias = info.get("alias")
+        if name and alias:
+            out[name] = alias
+    return out
+
+
+def canonical_ecu_name(
+    name,
+    name_index: dict[str, str] | None = None,
+    ecus: Mapping[int, EcuRegistryEntry] | None = None,
+) -> str:
+    """Resolve an ECU name/alias to its canonical short name.
+
+    Accepts a name or alias (case-insensitive). Unknown values are returned
+    upper-cased and unchanged, so callers can still match/report them. Raises
+    :class:`EcuNameCollision` (via the index) if the registry is ambiguous.
+    """
+    if name is None:
+        return ""
+    if name_index is None:
+        name_index = build_canonical_name_index(ecus)
+    key = str(name).strip().upper()
+    return name_index.get(key, key)
+
+
+def canonical_ecu_name_safe(
+    name,
+    name_index: dict[str, str] | None = None,
+    ecus: Mapping[int, EcuRegistryEntry] | None = None,
+) -> str:
+    """:func:`canonical_ecu_name` that tolerates a missing ECU registry.
+
+    Resolves a name/alias to its canonical short name (case-insensitive),
+    falling back to the upper-cased input when the ECU registry is absent (a
+    profile may ship ``ecus/`` without full identity blocks). An ambiguous registry
+    (:class:`EcuNameCollision`) still propagates, matching the ``captures``
+    selector behaviour.
+    """
+    try:
+        return canonical_ecu_name(name, name_index=name_index, ecus=ecus)
+    except FileNotFoundError:
+        return "" if name is None else str(name).strip().upper()
+
+
+def rx_from_name(name: str, name_index: dict[str, int] | None = None) -> str | None:
+    """Resolve an ECU name/alias to its RX response-address string, or None."""
+    if name_index is None:
+        name_index = build_name_tx_index()
+    tx_id = name_index.get(str(name).strip().upper())
+    return rx_addr_str(tx_id) if tx_id is not None else None
+
+
+def resolve_tx(
+    value,
+    name_index: dict[str, int] | None = None,
+    ecus: Mapping[int, EcuRegistryEntry] | None = None,
+) -> int | None:
+    """Resolve an ECU name/alias or hex TX/RX ID to a TX id int, or None.
+
+    Accepts an ECU name/alias ('BMS', 'igpm'), a hex TX id ('7E4', '0x770'),
+    or a hex RX id ('0x7EA' resolves to VCU's TX 0x7E2, via the resolved
+    response-address map). A known TX id always wins over an RX interpretation
+    of the same value.
+    """
+    if value is None:
+        return None
+    if isinstance(value, int):
+        return value
+    s = str(value).strip()
+    if not s:
+        return None
+    if name_index is None:
+        name_index = build_name_tx_index()
+    tx_id = name_index.get(s.upper())
+    if tx_id is not None:
+        return tx_id
+    try:
+        parsed = int(s.removeprefix("0x").removeprefix("0X"), 16)
+    except ValueError:
+        return None
+    if ecus is None:
+        ecus = load_ecus()
+    # A hex value is a TX id if it's a registered ECU; otherwise fall back to
+    # interpreting it as an RX (response) address and resolving to its TX id.
+    if parsed not in ecus:
+        rx_tx = build_rx_tx_index(ecus)
+        if parsed in rx_tx:
+            return rx_tx[parsed]
+    return parsed
+
+
+def ecu_display(tx_id: int, ecus: Mapping[int, EcuRegistryEntry] | None = None) -> str:
+    """Human-friendly label for a TX id, e.g. 'BMS (0x7E4)' or '0x7E4'."""
+    name = ecu_name(tx_id, ecus)
+    return f"0x{tx_id:03X}" if name.startswith("0x") else f"{name} (0x{tx_id:03X})"
+
+
+def split_ecus_by_protocol(names: list[str]) -> tuple[list[str], list[str]]:
+    """Partition ECU names into (uds, kwp) by their registry ``id_protocol``.
+
+    KWP2000 ECUs (BMS/VCU/MCU/LDC/AAF) need the KWP variants of the discovery
+    scanners: InputOutputControlByLocalIdentifier (0x30) instead of UDS 0x2F, and
+    RequestRoutineResultsByLocalIdentifier (0x33) instead of UDS RoutineControl
+    (0x31) — sending 0x31 to a KWP2000 ECU means StartRoutine and can actuate, so
+    this split is a safety boundary, not just a convenience. ECUs whose protocol
+    can't be resolved fall in the UDS bucket (the historical default).
+
+    Lives in the registry module, not the CLI: it is a pure ``id_protocol``
+    lookup, and being a *safety* boundary it should not sit in a command helper
+    where a caller might reimplement it.
+    """
+    uds: list[str] = []
+    kwp: list[str] = []
+    for name in names:
+        tx_id = resolve_tx(name)
+        proto = ecu_id_protocol(tx_id) if tx_id is not None else None
+        if str(proto or "").upper().startswith("KWP"):
+            kwp.append(name)
+        else:
+            uds.append(name)
+    return uds, kwp

@@ -22,7 +22,7 @@ def _state_reference_errors(predicates: list[tuple[str, str]]) -> tuple[list[str
     broken ``ecus/`` already fails ``validate pids`` loudly.
     """
     from canlib.pids import load_pids
-    from canlib.state_refs import check_references
+    from canlib.states.refs import check_references
 
     if not predicates:
         return ([], None)

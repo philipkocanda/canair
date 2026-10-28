@@ -50,7 +50,7 @@ def _raw_pid_result(
             "acquired_at": acquired_at,
         }
     if resp[0] == 0x7F:  # negative response: 7F <sid> <nrc>
-        from ..uds_parse import nrc_abbrev
+        from canlib.uds.parse import nrc_abbrev
 
         nrc = resp[2] if len(resp) >= 3 else 0
         return {

@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from textual.widgets import Input, SelectionList
 
-from canlib.ecu_groups import Group
+from canlib.ecus.ecu_groups import Group
 from canlib.modes._monitor_select_tui import MonitorSelectApp
 from canlib.modes.monitor_select import (
     build_choices,

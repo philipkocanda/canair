@@ -12,7 +12,7 @@ import argparse
 
 import pytest
 
-from canlib.wican_api import resolve_wican_url
+from canlib.wican.api import resolve_wican_url
 
 _CONFIG = {
     "devices": {"home": {"host": "10.0.0.5"}, "vpn": {"host": "10.8.0.2", "port": 3333}},
@@ -73,9 +73,9 @@ class TestWicanCommands:
     )
     def test_mode_set_targets_the_named_device(self, config, monkeypatch, value, url):
         import canlib.config as cfg
-        import canlib.wican_firmware as wf
-        from canlib import wican_mode
+        import canlib.wican.firmware as wf
         from canlib.commands import wican
+        from canlib.wican import mode as wican_mode
 
         monkeypatch.setattr(cfg, "wican_model", lambda: "pro")
         monkeypatch.setattr(wf, "detect", lambda *a, **k: wf.FirmwareInfo("v4", version="4.52"))

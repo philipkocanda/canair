@@ -1,4 +1,4 @@
-"""Tests for `canlib.counters` — monotonic counter detection.
+"""Tests for `canlib.analysis.counters` — monotonic counter detection.
 
 Covers the evidence score, the three fingerprints (accumulator / cycle / timer),
 and — most importantly — the rejection rules, since a brute-force width x
@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import math
 
-from canlib.counters import (
+from canlib.analysis.counters import (
     MAX_MSB_JUMP,
     cluster_counters,
     find_counters,
@@ -316,8 +316,8 @@ class TestBoundaryGradient:
     """The bit-flip boundary-gradient tie-break (Part F)."""
 
     def test_high_for_an_aligned_big_endian_counter(self):
-        from canlib.counters import boundary_gradient
-        from canlib.triage import bit_flip_rates
+        from canlib.analysis.counters import boundary_gradient
+        from canlib.analysis.triage import bit_flip_rates
 
         values = list(range(0, 600))  # a 2-byte rising counter
         cols = _columns(values, 2)  # big-endian: key0=MSB, key1=LSB
@@ -327,8 +327,8 @@ class TestBoundaryGradient:
         assert score is not None and score >= 0.9
 
     def test_lower_when_the_endianness_is_wrong(self):
-        from canlib.counters import boundary_gradient
-        from canlib.triage import bit_flip_rates
+        from canlib.analysis.counters import boundary_gradient
+        from canlib.analysis.triage import bit_flip_rates
 
         values = list(range(0, 600))
         cols = _columns(values, 2)  # laid out big-endian
@@ -339,7 +339,7 @@ class TestBoundaryGradient:
         assert good is not None and bad is not None and good > bad
 
     def test_none_for_single_byte_or_missing_rates(self):
-        from canlib.counters import boundary_gradient
+        from canlib.analysis.counters import boundary_gradient
 
         assert boundary_gradient((0,), little=False, bit_flip={0: [0.0] * 8}) is None
         assert boundary_gradient((0, 1), little=False, bit_flip={0: [0.0] * 8}) is None
@@ -347,8 +347,8 @@ class TestBoundaryGradient:
     def test_tie_break_prefers_the_aligned_endianness(self):
         """Given two same-width/-evidence windows over the same bytes, the gradient
         picks the correctly-aligned endianness as the representative."""
-        from canlib.counters import CounterCandidate, cluster_counters
-        from canlib.triage import bit_flip_rates
+        from canlib.analysis.counters import CounterCandidate, cluster_counters
+        from canlib.analysis.triage import bit_flip_rates
 
         values = list(range(0, 600))
         cols = _columns(values, 2)  # big-endian layout

@@ -1,4 +1,4 @@
-"""Tests for multi-DID replies stored whole under one DID (``canlib.unsplit_batches``).
+"""Tests for multi-DID replies stored whole under one DID (``canlib.uds.unsplit_batches``).
 
 A batch reply starts ``62 D1`` like a single reply to ``D1``, so one that leaked into a per-DID
 read was saved as ``D1``'s payload with every other DID's data appended.
@@ -10,13 +10,14 @@ import json
 
 import pytest
 
-from canlib import capture_io, profile
+from canlib import profile
+from canlib.analysis.misfiled import PayloadSample
+from canlib.captures import io as capture_io
 from canlib.commands.captures.maint import cmd_split_batched
 from canlib.commands.validate import _run_captures
 from canlib.commands.validate.unsplit import unsplit_batch_warnings
-from canlib.misfiled import PayloadSample
 from canlib.pids import clear_cache
-from canlib.unsplit_batches import find_unsplit_batches, split_unsplit_batches
+from canlib.uds.unsplit_batches import find_unsplit_batches, split_unsplit_batches
 
 IGPM, BCM = 0x778, 0x7A8
 BC01 = "62BC01400000000002"
@@ -439,7 +440,7 @@ class TestSplitBatchedCommand:
         base_file = _write(base, _caps(dict(BLOB)))
         overlay.mkdir()
         monkeypatch.setattr(
-            "canlib.capture_io.resolve_capture_layers", lambda d=None: [base, overlay]
+            "canlib.captures.io.resolve_capture_layers", lambda d=None: [base, overlay]
         )
         monkeypatch.setattr("canlib.ecus.build_rx_index", lambda: {IGPM: "IGPM"})
         import io
@@ -456,7 +457,7 @@ def test_validate_loads_the_corpus_once_for_both_cross_file_checks(
     _temp_profile, capsys, monkeypatch
 ):
     """One row can be both misfiled and an unsplit batch; both warn, from one corpus load."""
-    from canlib import payload_corpus
+    from canlib.captures import payload_corpus as payload_corpus
     from canlib.commands.validate import misfiled, unsplit
 
     # BCM answers 22BC01 with 25 bytes, which is exactly the IGPM batch's length: the batch
@@ -496,7 +497,7 @@ def test_validate_loads_the_corpus_once_for_both_cross_file_checks(
 
 
 def test_a_capture_file_that_does_not_parse_is_left_to_the_schema_check(tmp_path):
-    from canlib.payload_corpus import load_payload_corpus
+    from canlib.captures.payload_corpus import load_payload_corpus
 
     good = _write(tmp_path, _caps(dict(BLOB)))
     bad = tmp_path / "2026-08-09.json"

@@ -52,7 +52,7 @@ def find_ecu_file(ecu_name: str, pids_dir: Path | None = None) -> Path:
     the one that will be rewritten. Raises when no file claims the ECU (an edit
     must never invent a definition file — that is `canair ecu add`'s job).
     """
-    from ..ecu_files import find_by_name
+    from canlib.ecus.files import find_by_name
 
     fpath = find_by_name(ecu_name, pids_dir)
     if fpath is None:
@@ -119,7 +119,7 @@ def _plain_reads_back(token: str, *, as_key: bool) -> bool:
     The one "is it safe unquoted?" check behind key *and* value quoting. The
     project reads ECU files with two parsers — PyYAML (every runtime reader) and
     ruamel's round-trip reader in YAML 1.1 mode (:func:`canlib.yaml_rt.round_trip_yaml`,
-    used by ``canlib.ecus_edit``) — and they disagree on exponent-shaped hex:
+    used by ``canlib.ecus.edit``) — and they disagree on exponent-shaped hex:
     PyYAML keeps ``220E01`` a string, ruamel reads it as the float ``2200.0`` and
     warns on every load. A token is bare-safe only when *both* agree.
 

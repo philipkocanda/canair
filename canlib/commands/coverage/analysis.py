@@ -7,13 +7,13 @@ rendering — so every finding category is unit-testable on a literal payload.
 import re
 from typing import TypedDict
 
-from canlib.byteindex import (
+from canlib.uds.byteindex import (
     extract_bit_indices,
     extract_byte_indices,
     mapped_offsets,
     payload_to_wican_frame,
 )
-from canlib.byteindex import mappable_data_indices as _mappable_data_indices
+from canlib.uds.byteindex import mappable_data_indices as _mappable_data_indices
 
 
 class BitfieldGap(TypedDict):
@@ -63,10 +63,10 @@ def subfunction_bytes(pid_code: str) -> int:
 
 
 def mappable_data_indices(payload_hex: str, sfb: int) -> list[int]:
-    """Deprecated alias — the primitive now lives in :mod:`canlib.byteindex`.
+    """Deprecated alias — the primitive now lives in :mod:`canlib.uds.byteindex`.
 
     Kept so existing importers of this name keep working; new code should import
-    it from ``canlib.byteindex`` directly.
+    it from ``canlib.uds.byteindex`` directly.
     """
     return _mappable_data_indices(payload_hex, sfb)
 

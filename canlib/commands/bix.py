@@ -7,7 +7,7 @@ import re
 import sys
 
 from canlib import ansi
-from canlib.byteindex import (
+from canlib.uds.byteindex import (
     bix_to_wican,
     conversion_table,
     isotp_to_torque,
@@ -21,8 +21,7 @@ from canlib.byteindex import (
     wican_to_isotp,
     wican_to_torque,
 )
-from canlib.notation import subfunction_bytes_for_pid
-from canlib.uds_layout import (
+from canlib.uds.layout import (
     ROLE_DID,
     ROLE_PCI,
     ROLE_PID,
@@ -32,7 +31,8 @@ from canlib.uds_layout import (
     response_layout,
     role_definitions,
 )
-from canlib.uds_services import service_response_name
+from canlib.uds.notation import subfunction_bytes_for_pid
+from canlib.uds.services import service_response_name
 
 NAME = "bix"
 
@@ -510,7 +510,7 @@ def _warn_payload_kind_mismatch(first_byte: int, raw_frame: bool):
 def _pid_sub_bytes(pid: str) -> int | None:
     """The subfunction width ``pid`` *conclusively* implies, or ``None``.
 
-    :func:`canlib.notation.subfunction_bytes_for_pid` answers "2 for ``22xxxx``,
+    :func:`canlib.uds.notation.subfunction_bytes_for_pid` answers "2 for ``22xxxx``,
     else 1" — a **default**, not a determination. Its "else" branch swallows forms
     that say nothing about the service: the short DID form profiles also accept
     (``B004`` for ``22B004``) and standard OBD-II PIDs (``010C``) both read as
@@ -534,7 +534,7 @@ def _resolve_sub_bytes(args) -> tuple[int, bool]:
     implies (:func:`_pid_sub_bytes`) > 1 (the ``21xx`` default). A ``--pid`` names
     the request whose echo is in the payload, so its service fixes the width — the
     derivation every other command does via
-    :func:`canlib.notation.subfunction_bytes_for_pid`. Without it, ``--pid 22BC03``
+    :func:`canlib.uds.notation.subfunction_bytes_for_pid`. Without it, ``--pid 22BC03``
     silently kept the 1-byte default and mislabelled the second DID echo byte as
     an unmapped data byte.
     """
@@ -711,7 +711,7 @@ def _annotate_payload(
     ISO-TP are the notations canair expressions use.
 
     **Roles come from the payload's own service.** The response SID is looked up in
-    :mod:`canlib.uds_layout`, so each header byte is named for what it actually is
+    :mod:`canlib.uds.layout`, so each header byte is named for what it actually is
     (``DID`` / ``LID`` / ``RID`` / ``SF`` / ``CTRL``, or a negative response's
     rejected SID + ``NRC``) instead of being guessed from a 1-vs-2-byte width.
     ``explicit_sub_bytes`` (``-1``/``-2``) overrides that and ``pid`` is the weaker
@@ -725,7 +725,12 @@ def _annotate_payload(
     param reads as ``unmapped`` — the overlay that makes a wrong byte offset
     obvious at a glance.
     """
-    from canlib.byteindex import NotAFrameError, framed_to_wican_frame, mapped_bits, mapped_offsets
+    from canlib.uds.byteindex import (
+        NotAFrameError,
+        framed_to_wican_frame,
+        mapped_bits,
+        mapped_offsets,
+    )
 
     payload_bytes = _parse_hex_payload(payload_hex)
     if payload_bytes:

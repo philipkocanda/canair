@@ -132,7 +132,7 @@ This is what most tooling and the project's own raw `slcan-tcp` transport give y
 the ISO-TP payload with all PCI bytes removed. The WiCAN index includes exactly
 those removed bytes, so the mapping is **not** a fixed offset — it starts at +2 and
 gains another +1 at each frame boundary (each consecutive frame injects one more
-PCI byte). From `canlib/byteindex.py:27` (`wican_to_isotp`):
+PCI byte). From `canlib/uds/byteindex.py:27` (`wican_to_isotp`):
 
 - Frame 0: WiCAN `pos 2..7` → ISO-TP `0..5` (`pos 0,1` are PCI → no ISO-TP index)
 - Frame N>0: WiCAN `pos 1..7` → ISO-TP `6 + (N-1)*7 + (pos-1)` (`pos 0` is PCI)
@@ -152,7 +152,7 @@ line up 1:1. Two nuances only:
 - It is a **single running index** across frames, not a `(frame, 0..7)` pair; the
   PCI bytes sit at 0/1, 8, 16, 24, … exactly as they do on the wire.
 - canair **reconstructs** this buffer offline from the PCI-less payload
-  (`canlib/autopid_layout.py`, `uds_hex_to_wican_bytes`) and **zero-pads** the
+  (`canlib/wican/autopid_layout.py`, `uds_hex_to_wican_bytes`) and **zero-pads** the
   trailing consecutive frame, whereas a real bus pads with whatever the ECU emits
   (often `0xAA` / `0x00` / `0x55`). So trailing *padding byte values* can differ —
   never the index. Don't reference padding bytes in expressions anyway.
@@ -289,12 +289,12 @@ canair's transports hand back the **PCI-stripped** payload, so before evaluating
 any `Bnn` expression it **re-inserts** the PCI bytes to reconstruct the exact
 buffer the firmware sees:
 
-- `canlib/autopid_layout.py` — `uds_hex_to_wican_bytes()` (the reconstruction).
-- `canlib/byteindex.py` — all four notations and their conversions
+- `canlib/wican/autopid_layout.py` — `uds_hex_to_wican_bytes()` (the reconstruction).
+- `canlib/uds/byteindex.py` — all four notations and their conversions
   (`wican_to_isotp`, `wican_to_torque`, `torque_*`, `conversion_table`).
-- `canlib/uds_layout.py` — which response bytes are header, and what each one is
+- `canlib/uds/layout.py` — which response bytes are header, and what each one is
   (`DID`/`LID`/`PID`/`RID`/`SF`/`CTRL`/`REJ SID`/`NRC`), built on the
-  `canlib/uds_services.py` SID registry.
+  `canlib/uds/services.py` SID registry.
 
 Use the tooling instead of converting by hand:
 

@@ -51,9 +51,10 @@ import dataclasses
 import sys
 from typing import NamedTuple
 
+from canlib.uds.parse import UdsResponse
+
 from ..quirks import HK_F1XX_MINUS_ONE, NISSAN_C0_SESSION, has_quirk
 from ..transport.protocol import Terminal
-from ..uds_parse import UdsResponse
 from .discovery_scan import DiscoveryProbe, mode_discovery_scan
 
 # InputOutputControlParameter (IOCP) — the byte after the LID, per SSF 14230-3

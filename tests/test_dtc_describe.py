@@ -2,7 +2,7 @@
 
 from typing import ClassVar
 
-from canlib.dtc_describe import describe_dtc, dtc_kind
+from canlib.dtc.describe import describe_dtc, dtc_kind
 
 
 class TestDtcKind:

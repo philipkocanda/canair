@@ -12,7 +12,7 @@ from collections import defaultdict
 from collections.abc import Sequence
 
 from canlib import ansi
-from canlib.capture_types import CaptureEntry, Quality
+from canlib.captures.types import CaptureEntry, Quality
 from canlib.states import join_states as _join_states
 
 from .query import _dump_json, group_sessions

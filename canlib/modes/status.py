@@ -5,7 +5,8 @@ returns its current evaluated value. Used by the IOControl TUI and execute mode
 to show a live status column alongside each actuator.
 """
 
-from ..autopid_layout import uds_hex_to_wican_bytes
+from canlib.wican.autopid_layout import uds_hex_to_wican_bytes
+
 from ..expression import evaluate_expression
 from ..pids import build_param_index
 from ..transport.protocol import Terminal
@@ -60,7 +61,7 @@ async def query_param_status(
         if ptype != "numeric":
             # Typed status param (enum/bitmask/…): render its label alongside the
             # raw value so the IOControl status column shows e.g. "off" not "0".
-            from ..decode_value import decode_typed, render
+            from canlib.expression.decode_value import decode_typed, render
 
             pdef = {
                 "expression": expression,

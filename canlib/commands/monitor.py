@@ -29,8 +29,8 @@ from canlib.commands._live import (
     step_completer,
     to_step,
 )
-from canlib.notation import add_notation_arg
 from canlib.poll_schedule import DEFAULT_SCHEDULE, SCHEDULES
+from canlib.uds.notation import add_notation_arg
 
 NAME = "monitor"
 ALIASES = ["mon"]
@@ -178,7 +178,7 @@ def run(args) -> int:
 
     # Expand any @group references into their member selectors before the
     # mini-language parser sees them (composes with ad-hoc selectors).
-    from canlib.ecu_groups import GroupError
+    from canlib.ecus.ecu_groups import GroupError
 
     try:
         args.steps = expand_step_groups(args.steps)

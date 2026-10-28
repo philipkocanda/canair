@@ -22,7 +22,7 @@ channel, a clock, or an event loop:
   flow control each ECU needs, and the cached adapter state.
 
 Wire bindings are separate too: :class:`canlib.transport.elm327_tcp.Elm327TcpTerminal`
-and :class:`canlib.terminal.WiCANTerminal`.
+and :class:`canlib.transport.wican_terminal.WiCANTerminal`.
 
 It structurally satisfies :class:`canlib.transport.protocol.Terminal`, so every
 live mode drives it through the shared ``dispatch_mode`` unchanged.
@@ -37,13 +37,14 @@ import sys
 import time
 from collections.abc import AsyncIterator
 
+from canlib.transport.link_latency import LinkLatency
+from canlib.transport.stats import TransportStats
+from canlib.uds.parse import CAT_DECODE, CAT_STALE, UdsResponse, parse_uds_response
+
 from ..addressing import AddressBook
-from ..link_latency import LinkLatency
 from ..log import log_command, log_event, log_response
 from ..safety import SessionPolicy, enforce_command_safety
 from ..timing import TimingRecorder
-from ..transport_stats import TransportStats
-from ..uds_parse import CAT_DECODE, CAT_STALE, UdsResponse, parse_uds_response
 from .channel import Channel
 from .elm327_addressing import (
     DEFAULT_FC_DATA,
@@ -358,7 +359,7 @@ class Elm327Terminal:
         Soundness comes from the adapter's own contract rather than a tuned
         constant: a reply is due within ``ATST`` (:meth:`_elm_response_budget`), so
         silence for longer than that plus link latency means nothing is in flight.
-        The link term is *measured* (:class:`~canlib.link_latency.LinkLatency`),
+        The link term is *measured* (:class:`~canlib.transport.link_latency.LinkLatency`),
         with ``_LINK_LATENCY_MARGIN`` only as a floor — guessing it is what made
         this recovery fail on the hotspot/VPN path it was written for.
         A single state-free probe then confirms alignment — we require only that

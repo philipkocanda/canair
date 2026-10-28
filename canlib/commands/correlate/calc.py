@@ -50,8 +50,8 @@ def _apply_gate(ref_series, gate_expr, tol, *, since, until, state, label):
     ``ECU:PID:PARAM`` signal is loaded and aligned onto the reference by nearest
     timestamp. Returns the filtered (time-sorted) reference series.
     """
-    from canlib.align import align_many
-    from canlib.xanalysis import load_ref
+    from canlib.analysis.align import align_many
+    from canlib.analysis.xanalysis import load_ref
 
     signal, op_fn, value, _lbl = _parse_gate(gate_expr)
     if signal is None:

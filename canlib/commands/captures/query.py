@@ -19,14 +19,14 @@ from collections.abc import Mapping, Sequence
 from typing import Any, TypedDict
 
 from canlib import ansi
-from canlib.capture_store import (
+from canlib.captures.store import (
     PidDefs,
     decoded_preview,
     entry_path,
     load_ecu_index,
     resolve_pid_defs,
 )
-from canlib.capture_types import CaptureEntry, Quality
+from canlib.captures.types import CaptureEntry, Quality
 from canlib.keepmode import EntryKeepMode
 
 

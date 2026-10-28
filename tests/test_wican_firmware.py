@@ -12,8 +12,8 @@ import asyncio
 import pytest
 import requests
 
-import canlib.wican_firmware as wf
-from canlib.wican_firmware import FirmwareInfo, compatibility, probe
+import canlib.wican.firmware as wf
+from canlib.wican.firmware import FirmwareInfo, compatibility, probe
 
 # A v4 /check_status body is full of secrets; these must never survive the probe.
 _V4_SECRETS = {
@@ -405,7 +405,8 @@ def _v6(monkeypatch, info: FirmwareInfo = V6):
 
 class TestRebootRegression:
     def test_reboot_on_405_reports_failure(self, monkeypatch, capsys):
-        from canlib import terminal, wican_api
+        from canlib.transport import wican_terminal as terminal
+        from canlib.wican import api as wican_api
 
         monkeypatch.setattr(wican_api.requests, "post", lambda *a, **k: FakeResponse(405))
         assert terminal.reboot_wican("192.0.2.1") is False
@@ -414,14 +415,16 @@ class TestRebootRegression:
         assert "Rebooting" not in captured.out
 
     def test_reboot_on_200_succeeds(self, monkeypatch, capsys):
-        from canlib import terminal, wican_api
+        from canlib.transport import wican_terminal as terminal
+        from canlib.wican import api as wican_api
 
         monkeypatch.setattr(wican_api.requests, "post", lambda *a, **k: FakeResponse(200))
         assert terminal.reboot_wican("192.0.2.1") is True
         assert "Rebooting" in capsys.readouterr().out
 
     def test_reboot_skipped_on_v6(self, monkeypatch, capsys):
-        from canlib import terminal, wican_api
+        from canlib.transport import wican_terminal as terminal
+        from canlib.wican import api as wican_api
 
         _v6(monkeypatch)
         monkeypatch.setattr(
@@ -442,7 +445,7 @@ class TestRebootRegression:
         ids=["v6", "v4-ok", "unknown-ok", "v4-405", "unreachable"],
     )
     def test_reboot_device_tells_skipped_from_failed(self, monkeypatch, info, post, outcome):
-        from canlib import wican_api
+        from canlib.wican import api as wican_api
 
         _v6(monkeypatch, info)
 
@@ -481,10 +484,10 @@ def _elm_session(monkeypatch, ttype: str, *, calls: list):
     monkeypatch.setattr("canlib.transport.select_reachable_transport", lambda c, **k: c[0])
     monkeypatch.setattr(runtime, "load_pids", lambda: {"init": "ATZ;"})
     monkeypatch.setattr(
-        "canlib.wican_mode.require_ws_reachable", lambda *a, **k: calls.append("reach")
+        "canlib.wican.mode.require_ws_reachable", lambda *a, **k: calls.append("reach")
     )
     monkeypatch.setattr(
-        "canlib.wican_mode.require_elm327_tcp_reachable", lambda *a, **k: calls.append("reach")
+        "canlib.wican.mode.require_elm327_tcp_reachable", lambda *a, **k: calls.append("reach")
     )
 
     class _Term:
@@ -535,7 +538,7 @@ class TestLiveSurfaces:
 
     def test_an_unreachable_host_fails_fast_without_the_probe(self, monkeypatch, capsys):
         from canlib.commands._live import runtime
-        from canlib.wican_mode import ModeError
+        from canlib.wican.mode import ModeError
 
         calls: list = []
         _elm_session(monkeypatch, "wican-ws", calls=calls)
@@ -544,7 +547,7 @@ class TestLiveSurfaces:
         def _down(*a, **k):
             raise ModeError("can't reach the WiCAN")
 
-        monkeypatch.setattr("canlib.wican_mode.require_ws_reachable", _down)
+        monkeypatch.setattr("canlib.wican.mode.require_ws_reachable", _down)
         with pytest.raises(SystemExit):
             asyncio.run(runtime.async_main(_live_args()))
         assert calls == []
@@ -591,8 +594,8 @@ class TestLiveSurfaces:
         ids=["v6-skips", "unknown-reboots"],
     )
     def test_reboot_after_an_elm_session(self, monkeypatch, capsys, info, posted, text):
-        from canlib import wican_api
         from canlib.commands._live import runtime
+        from canlib.wican import api as wican_api
 
         calls: list = []
         _elm_session(monkeypatch, "wican-ws", calls=calls)
@@ -610,8 +613,8 @@ class TestLiveSurfaces:
         assert text in captured.out + captured.err
 
     def test_reboot_on_elm327_tcp_is_reported_not_dropped(self, monkeypatch, capsys):
-        from canlib import wican_api
         from canlib.commands._live import runtime
+        from canlib.wican import api as wican_api
 
         calls: list = []
         _elm_session(monkeypatch, "elm327-tcp", calls=calls)
@@ -622,8 +625,8 @@ class TestLiveSurfaces:
     # --- slcan-tcp ---------------------------------------------------------------
 
     def _raw(self, monkeypatch, *, http_up: bool = True):
-        from canlib import wican_mode
         from canlib.modes import raw_monitor
+        from canlib.wican import mode as wican_mode
 
         calls: list = []
         monkeypatch.setattr(wican_mode, "_tcp_open", lambda host, port, timeout: http_up)
@@ -704,8 +707,8 @@ class TestLiveSurfaces:
     )
     def test_reboot_works_after_a_raw_session(self, monkeypatch, capsys, info, posted):
         """--reboot used to be ignored on slcan-tcp: run_raw returned before the reboot."""
-        from canlib import wican_api
         from canlib.modes import raw_ops
+        from canlib.wican import api as wican_api
 
         self._raw(monkeypatch)
         _v6(monkeypatch, info)
@@ -718,8 +721,9 @@ class TestLiveSurfaces:
         assert bool(posts) is posted
 
     def test_no_reboot_when_the_raw_preflight_fails(self, monkeypatch):
-        from canlib import wican_api, wican_mode
         from canlib.modes import raw_ops
+        from canlib.wican import api as wican_api
+        from canlib.wican import mode as wican_mode
 
         self._raw(monkeypatch)
         _v6(monkeypatch, V4)
@@ -735,8 +739,8 @@ class TestLiveSurfaces:
     # --- sniff -------------------------------------------------------------------
 
     def _sniff(self, monkeypatch, *, http_up: bool = True):
-        from canlib import wican_mode
         from canlib.commands import sniff
+        from canlib.wican import mode as wican_mode
 
         ran: list = []
         monkeypatch.setattr("canlib.transport.resolve_transport", lambda args: self._cand())
@@ -813,14 +817,14 @@ class TestLiveSurfaces:
 
     def test_sniff_fails_fast_when_the_slcan_port_is_closed(self, monkeypatch, capsys):
         from canlib.commands import sniff
-        from canlib.wican_mode import ModeError
+        from canlib.wican.mode import ModeError
 
         self._sniff(monkeypatch)
 
         def _closed(host, port, **kw):
             raise ModeError(f"can't reach the WiCAN's SLCAN data port at {host}:{port}")
 
-        monkeypatch.setattr("canlib.wican_mode.require_slcan_reachable", _closed)
+        monkeypatch.setattr("canlib.wican.mode.require_slcan_reachable", _closed)
         monkeypatch.setattr(
             "canlib.lock.WiCANLock.acquire",
             lambda *a, **k: pytest.fail("must fail before taking the device"),
@@ -840,7 +844,7 @@ class TestWicanCommandSurfaces:
 
         monkeypatch.setattr(cfg, "wican_model", lambda: "pro")
         monkeypatch.setattr(
-            "canlib.wican_mode.current_protocol",
+            "canlib.wican.mode.current_protocol",
             lambda *a, **k: pytest.fail("must not talk to the 4.x API on v6"),
         )
         monkeypatch.setattr(

@@ -1,9 +1,9 @@
-"""send_to validation — the per-signal MQTT stream topic (see ``canlib.autopid_send_to``).
+"""send_to validation — the per-signal MQTT stream topic (see ``canlib.wican.autopid_send_to``).
 
 Checks every signal that sets ``send_to`` across the given ecus/ files: the topic must be
 well-formed (an error), unique across shipped signals (an error, since two signals on one topic
 interleave on a single stream), and set only where it would actually ship (a warning otherwise).
-Mirrors the shipping gate of ``canlib.autopid_profile.generate_profile``.
+Mirrors the shipping gate of ``canlib.wican.autopid_profile.generate_profile``.
 """
 
 from pathlib import Path
@@ -11,8 +11,8 @@ from pathlib import Path
 import yaml
 
 from canlib import yaml_io
-from canlib.autopid_send_to import topic_problem
 from canlib.pids import is_shipped, pid_status
+from canlib.wican.autopid_send_to import topic_problem
 
 
 def _load(fpath: Path) -> dict:

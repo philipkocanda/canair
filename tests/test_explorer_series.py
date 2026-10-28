@@ -8,10 +8,9 @@ from pathlib import Path
 
 import pytest
 
-from canlib import capture_io
-from canlib.decoding import decode_param_rows
-from canlib.explorer_export import export_profile
-from canlib.explorer_series import (
+from canlib.captures import io as capture_io
+from canlib.explorer.export import export_profile
+from canlib.explorer.series import (
     MIN_SAMPLES,
     _Clock,
     _clock_label,
@@ -20,6 +19,7 @@ from canlib.explorer_series import (
     export_sessions,
     rx_by_address,
 )
+from canlib.expression.decoding import decode_param_rows
 from canlib.pids import load_pids
 
 REPO_ROOT = Path(__file__).resolve().parent.parent

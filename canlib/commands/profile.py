@@ -272,7 +272,7 @@ def _detail_states(prof) -> str:
 
 
 def _detail_groups(prof) -> str:
-    from canlib.ecu_groups import GroupError, load_groups
+    from canlib.ecus.ecu_groups import GroupError, load_groups
 
     try:
         groups = load_groups(prof)

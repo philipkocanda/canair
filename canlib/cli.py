@@ -297,7 +297,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # One-time, best-effort migration of a legacy wican_addresses block to the
     # richer devices: form (never blocks; runtime precedence handles the rest).
-    from canlib.devices_migrate import maybe_auto_migrate
+    from canlib.migrations.devices import maybe_auto_migrate
 
     maybe_auto_migrate()
 
@@ -308,7 +308,7 @@ def main(argv: list[str] | None = None) -> int:
     if should_offer(args, seeded=seeded):
         run_first_run_setup(args)
 
-    from canlib.capture_io import LegacyCaptureError
+    from canlib.captures.io import LegacyCaptureError
     from canlib.profile import ProfileError, set_active
     from canlib.safety import SafetyBlocked
 

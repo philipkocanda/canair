@@ -27,12 +27,13 @@ import termios
 import tty
 from pathlib import Path
 
+from canlib.uds.parse import nrc_abbrev
+
 from ..pids import RoutineIndexEntry, build_routines_index, load_pids
 from ..pids_edit import PidsEditError, update_routines_field
 from ..transport.protocol import Terminal
 from ..tui import terminal_columns as _terminal_columns
 from ..tui import terminal_lines as _terminal_lines
-from ..uds_parse import nrc_abbrev
 
 # TUI debug log — cleared each session
 _LOGS_DIR = Path(__file__).parent.parent.parent / "logs"

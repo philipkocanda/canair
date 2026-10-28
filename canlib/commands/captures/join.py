@@ -6,7 +6,7 @@ holding one slot per selected (ECU, PID) key. Pure data — the rendering lives 
 :mod:`step_render`, the state in :mod:`step_model`.
 
 The nearest-within-tolerance rule deliberately mirrors
-:func:`canlib.align.join_prepared`, so the stepper pairs captures exactly as
+:func:`canlib.analysis.align.join_prepared`, so the stepper pairs captures exactly as
 ``align``/``correlate``/``hunt`` do (``tests/test_captures.py`` asserts the
 parity).
 """
@@ -18,8 +18,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
-from canlib.capture_dates import entry_datetime
-from canlib.capture_types import CaptureEntry
+from canlib.captures.dates import entry_datetime
+from canlib.captures.types import CaptureEntry
 
 from .query import _capture_key
 
@@ -40,7 +40,7 @@ def _nearest_within(ts: list[float], t: float, tol_s: float) -> int | None:
     """Position in the sorted ``ts`` nearest to ``t``, or None if none within ``tol_s``.
 
     Mirrors the nearest-within-tolerance rule of
-    :func:`canlib.align.join_prepared`: the smaller absolute delta wins, and an
+    :func:`canlib.analysis.align.join_prepared`: the smaller absolute delta wins, and an
     exact tie resolves to the *earlier* sample.
     """
     if not ts:
@@ -78,7 +78,7 @@ def build_join_frames(
     ``keys`` fixes the slot order of :attr:`JoinFrame.indices` (the on-screen
     block order); a key with no captures contributes an always-``None`` slot.
     Returns ``(frames, n_no_time)``, the latter counting captures excluded for
-    lacking a usable timestamp (as in :mod:`canlib.align`).
+    lacking a usable timestamp (as in :mod:`canlib.analysis.align`).
     """
     per_key: dict[tuple[str, str], list[int]] = {k: [] for k in keys}
     dts: dict[int, datetime] = {}

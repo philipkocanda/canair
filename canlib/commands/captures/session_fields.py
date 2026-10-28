@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING, TextIO
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from canlib.capture_types import CaptureEntry
+    from canlib.captures.types import CaptureEntry
 
 _PREVIEW_WIDTH = 60
 

@@ -9,7 +9,7 @@ testable on its own.
 
 from __future__ import annotations
 
-from canlib.capture_dates import filter_by_date_range, filter_by_text
+from canlib.captures.dates import filter_by_date_range, filter_by_text
 
 # Analysis modes that are inherently single-PID (they bind to one PID's byte
 # layout / build one signal). A multi-PID query is rejected for these.

@@ -126,7 +126,7 @@ class TestLinkLatencySegment:
 
     @staticmethod
     def _controller(rtt):
-        from canlib.link_latency import LinkLatency
+        from canlib.transport.link_latency import LinkLatency
 
         link = LinkLatency()
         if rtt is not None:
@@ -164,7 +164,7 @@ class TestLinkLatencySegment:
 
     def test_the_segment_lands_on_the_health_line(self):
         from canlib.modes._monitor_tui import MonitorApp
-        from canlib.transport_stats import TransportStats
+        from canlib.transport.stats import TransportStats
 
         controller = self._controller(0.8)
         controller.diag = lambda: TransportStats(transport="wican-ws")

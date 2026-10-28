@@ -369,7 +369,7 @@ def test_unconclusive_pid_keeps_the_plain_default(capsys):
 def test_derived_width_never_disagrees_with_shared_helper():
     # The value comes from the shared derivation, so a conclusive PID can't be
     # labelled one way here and another by decode/hunt/coverage.
-    from canlib.notation import subfunction_bytes_for_pid
+    from canlib.uds.notation import subfunction_bytes_for_pid
 
     for pid in ("2101", "2102", "22BC03", "22C101", "22B002"):
         assert bix._pid_sub_bytes(pid) == subfunction_bytes_for_pid(pid)
@@ -729,7 +729,7 @@ def test_torque1_vs_torque2_first_data_byte_offset(capsys):
 
 def test_isotp_to_torque_respects_subfunction_width():
     # Unit-level guard for the offset the annotate columns rely on.
-    from canlib.byteindex import isotp_to_torque
+    from canlib.uds.byteindex import isotp_to_torque
 
     # 1-byte subfunction: header = SID + PID = ISO-TP 0,1 → data starts at 2.
     assert isotp_to_torque(1, 1) is None  # PID byte, not data

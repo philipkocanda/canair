@@ -12,8 +12,8 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from canlib import ansi
-from canlib.capture_store import entry_path
-from canlib.capture_types import CaptureEntry
+from canlib.captures.store import entry_path
+from canlib.captures.types import CaptureEntry
 
 from .query import _parse_query
 

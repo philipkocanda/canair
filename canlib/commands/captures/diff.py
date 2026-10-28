@@ -8,9 +8,9 @@ information one time-joined frame at a time.
 
 from collections.abc import Sequence
 
-from canlib.capture_store import decoded_preview
-from canlib.capture_types import CaptureEntry
-from canlib.notation import ByteNotation
+from canlib.captures.store import decoded_preview
+from canlib.captures.types import CaptureEntry
+from canlib.uds.notation import ByteNotation
 
 from .query import (
     _dedupe_payloads,
@@ -32,9 +32,9 @@ def _render_diff_group(
     """Render one ECU+PID block: header, decoded signals, optional ruler, byte-diff hex."""
     from rich.markup import escape
 
-    from canlib.decoding import decode_param_rows
+    from canlib.expression.decoding import decode_param_rows
     from canlib.formatting import _render_hex_line, render_byte_rulers, render_param_table
-    from canlib.notation import ByteDisplay, subfunction_bytes_for_pid
+    from canlib.uds.notation import ByteDisplay, subfunction_bytes_for_pid
 
     # Decode the most recent payload into param rows (drives the table + colours).
     rows = decode_param_rows(payloads[-1]["payload"], parameters)

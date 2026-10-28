@@ -19,8 +19,9 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from canlib.wican.firmware import FirmwareInfo
+
     from ..transport.config import TransportConfig
-    from ..wican_firmware import FirmwareInfo
 
 
 @dataclass(frozen=True)
@@ -39,14 +40,13 @@ def slcan_preflight(
     """Check a ``slcan-tcp`` device is usable before any session opens on it.
 
     Shared by the raw live commands and ``canair sniff``. Raises
-    :class:`~canlib.wican_mode.ModeError` with the message to print (a refusal
+    :class:`~canlib.wican.mode.ModeError` with the message to print (a refusal
     included). One TCP check of the HTTP port runs first and gates every HTTP
     request after it — the firmware probe, the protocol check, the device-config
     read — so an offline device costs one connect timeout before the fail-fast
     SLCAN message rather than one per request.
     """
-    from ..config import fallback_settings
-    from ..wican_firmware import (
+    from canlib.wican.firmware import (
         UNKNOWN,
         compatibility,
         detect,
@@ -54,7 +54,9 @@ def slcan_preflight(
         probes,
         unconfirmed,
     )
-    from ..wican_mode import ModeError, _tcp_open, require_protocol, require_slcan_reachable
+    from canlib.wican.mode import ModeError, _tcp_open, require_protocol, require_slcan_reachable
+
+    from ..config import fallback_settings
 
     host = transport.host
     if not host:
@@ -90,7 +92,7 @@ def slcan_preflight(
 
 async def run_raw(args, transport, pids_data) -> int:
     """Entry point for a live command over a raw (slcan-tcp) transport."""
-    from ..wican_mode import ModeError
+    from canlib.wican.mode import ModeError
 
     try:
         target = slcan_preflight(transport, pids_data.get("can_bitrate"))
@@ -101,7 +103,7 @@ async def run_raw(args, transport, pids_data) -> int:
         return await _run_session(args, target, pids_data)
     finally:
         if getattr(args, "reboot", False):
-            from ..wican_api import reboot_after_session
+            from canlib.wican.api import reboot_after_session
 
             reboot_after_session(transport)
 
@@ -116,10 +118,11 @@ async def _run_session(args, target: SlcanTarget, pids_data) -> int:
         return await run_raw_monitor(args, host, port, bitrate, pids_data)
 
     # All other commands: reuse the shared dispatch over a RawTerminal adapter.
+    from canlib.transport.timeouts import cli_timeout, ecu_timeouts_by_tx
+
     from ..addressing import AddressBook
     from ..quirks import HK_F1XX_MINUS_ONE, has_quirk
     from ..safety import SessionPolicy
-    from ..timeouts import cli_timeout, ecu_timeouts_by_tx
     from ..transport import RawTerminal
     from .dispatch import run_session_guarded
 

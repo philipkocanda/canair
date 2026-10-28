@@ -203,7 +203,7 @@ def _log_scan(scope: str, results: list[dict], label: str | None, vehicle_states
 
     Codes that disappeared since the last same-scope scan (car self-cleared or
     aged out) are also recorded as a first-class ``detected`` clear event."""
-    from ..dtc_log import (
+    from canlib.dtc.log import (
         append_clear,
         append_scan,
         build_clear,
@@ -233,7 +233,7 @@ def _log_scan(scope: str, results: list[dict], label: str | None, vehicle_states
 
 
 def _print_log_result(path, previous, diff) -> None:
-    from ..dtc_log import format_diff
+    from canlib.dtc.log import format_diff
 
     if previous:
         for line in format_diff(diff, previous):
@@ -322,7 +322,7 @@ async def _read_kwp(terminal: Terminal, tx_id: int, timeout: float = 3.0) -> dic
 def _jsonable(records: list[dict]) -> list[dict]:
     """Render internal records (int status) into the JSON/print-friendly shape,
     annotated with a structural interpretation of each code."""
-    from ..dtc_describe import describe_dtc
+    from canlib.dtc.describe import describe_dtc
 
     return [
         {
@@ -342,7 +342,7 @@ def _scan_status(res: dict) -> str:
         n = res["count"]
         return f"{n} DTC(s)" if n else "clean"
     if "nrc" in res:
-        from ..uds_parse import nrc_abbrev
+        from canlib.uds.parse import nrc_abbrev
 
         return f"NRC {res['nrc']} {nrc_abbrev(int(res['nrc'], 16))}"
     err = res.get("error", "error")
@@ -610,7 +610,7 @@ async def mode_dtc_clear(
 
 def _log_manual_clear(tx_id, proto, group, pre_codes, label):
     """Record a manual clear event + a post-clear clean scan baseline."""
-    from ..dtc_log import append_clear, append_scan, build_clear, build_scan
+    from canlib.dtc.log import append_clear, append_scan, build_clear, build_scan
 
     ecu = ecu_display(tx_id)
     append_clear(

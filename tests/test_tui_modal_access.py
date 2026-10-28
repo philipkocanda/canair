@@ -20,7 +20,7 @@ from canlib.modes._monitor_tui import (
     SessionInfoModal,
     SessionPickerScreen,
 )
-from canlib.tui_help import HelpModal
+from canlib.tui.help import HelpModal
 
 from .test_captures_step import _model
 from .test_monitor_tui import FakeController, FakeEditor
@@ -103,7 +103,7 @@ class TestScrollableModalsFocusTheirScroll:
 
     def test_help_modal_binds_scroll_keys(self):
         """A focused container is useless if no key is bound to move it."""
-        from canlib.tui_keys import keys_for
+        from canlib.tui.keys import keys_for
 
         bound = {k for b in HelpModal.BINDINGS for k in (b.key,)}
         for role in ("move_down", "move_up", "axis_start", "axis_end"):

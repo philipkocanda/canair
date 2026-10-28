@@ -4,18 +4,18 @@ from __future__ import annotations
 
 import argparse
 
-from canlib.align import (
+from canlib.analysis.align import (
     DEFAULT_SESSION_GAP_S,
 )
-from canlib.capture_dates import add_scope_args
+from canlib.analysis.stats import METHOD_CHEAT_SHEET as _METHOD_CHEAT_SHEET
+from canlib.captures.dates import add_scope_args
 from canlib.commands._can_args import add_can_log_source_args
 from canlib.commands._group import group_help
 from canlib.commands._join import (
     add_join_args,
     add_mirror_args,
 )
-from canlib.notation import add_notation_arg
-from canlib.stats import METHOD_CHEAT_SHEET as _METHOD_CHEAT_SHEET
+from canlib.uds.notation import add_notation_arg
 
 from .can import _run_can_log
 from .uds import run

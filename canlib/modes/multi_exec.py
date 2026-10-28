@@ -14,6 +14,8 @@ import time
 from collections.abc import Callable
 from typing import Literal
 
+from canlib.uds.parse import request_echo
+
 from ..formatting import (
     decode_uds_response,
     print_ecu_results,
@@ -23,7 +25,6 @@ from ..log import log_event
 from ..pids import EcuIndexEntry, PidIndexEntry, build_iocontrol_index
 from ..session_manager import SessionManager
 from ..transport.elm327_terminal import Elm327Terminal
-from ..uds_parse import request_echo
 from .multi_batch import (
     LEAKED_BATCH_ERROR,
     LEAKED_BATCH_REASON,

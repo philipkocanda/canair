@@ -24,7 +24,7 @@ from canlib.states import allowed_states, join_states, parse_states
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from canlib.capture_types import CaptureEntry
+    from canlib.captures.types import CaptureEntry
 
 
 def cmd_set_state(

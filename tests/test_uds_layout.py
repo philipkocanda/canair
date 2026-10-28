@@ -1,8 +1,8 @@
-"""Tests for canlib.uds_layout — per-service response byte-role layouts."""
+"""Tests for canlib.uds.layout — per-service response byte-role layouts."""
 
 import pytest
 
-from canlib.uds_layout import (
+from canlib.uds.layout import (
     ROLE_CTRL,
     ROLE_DID,
     ROLE_HELP,
@@ -17,7 +17,7 @@ from canlib.uds_layout import (
     response_layout,
     role_definitions,
 )
-from canlib.uds_services import SERVICES, service_info
+from canlib.uds.services import SERVICES, service_info
 
 
 class TestResponseLayout:

@@ -32,7 +32,7 @@ def _write(tmp_path):
 
 
 def _run(tmp_path, monkeypatch, argv):
-    import canlib.align as align_lib
+    import canlib.analysis.align as align_lib
 
     orig = align_lib.load_signal_captures
     monkeypatch.setattr(

@@ -149,7 +149,7 @@ def service_label(service: int, preset_name: str | None = None) -> str:
     """Human label for a service, e.g. ``read-did (0x22)``.
 
     Prefers the friendly scan-preset name; otherwise falls back to the canonical
-    service name from the :mod:`canlib.uds_services` registry (so any SID gets a
+    service name from the :mod:`canlib.uds.services` registry (so any SID gets a
     name, e.g. ``InputOutputControlByLocalIdentifier (0x30)``); finally bare hex.
     """
     if preset_name is None:
@@ -157,7 +157,7 @@ def service_label(service: int, preset_name: str | None = None) -> str:
         preset_name = p.name if p else None
     if preset_name:
         return f"{preset_name} (0x{service:02X})"
-    from .uds_services import service_name
+    from canlib.uds.services import service_name
 
     canonical = service_name(service)
     if canonical:

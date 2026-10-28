@@ -1,6 +1,6 @@
-"""Tests for the byte-triage leaf (canlib.triage)."""
+"""Tests for the byte-triage leaf (canlib.analysis.triage)."""
 
-from canlib import triage
+from canlib.analysis import triage as triage
 
 
 class TestByteEntropy:

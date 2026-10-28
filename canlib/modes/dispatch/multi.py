@@ -10,9 +10,9 @@ import sys
 
 from canlib.keepmode import keep_mode_from_args
 from canlib.modes import mode_monitor, mode_multi
-from canlib.notation import resolve_notation
 from canlib.poll_schedule import DEFAULT_SCHEDULE
 from canlib.transport.protocol import Terminal
+from canlib.uds.notation import resolve_notation
 
 
 async def handle_monitor(args, terminal: Terminal, pids_data, host, *, reconnect=None) -> None:

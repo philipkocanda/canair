@@ -40,7 +40,7 @@ How many bytes sit between the SID and the first *data* byte is a property of th
 Note `0x31` puts its sub-function **before** the routine id while `0x2F` puts its
 control parameter **after** the DID — a 1-vs-2-byte "subfunction width" cannot
 express either, which is why `canair bix --annotate` labels each header field from
-the service instead (see below). The table lives in `canlib/uds_layout.py`.
+the service instead (see below). The table lives in `canlib/uds/layout.py`.
 
 !!! warning "The WiCAN↔ISO-TP offset depends on the response's length"
 

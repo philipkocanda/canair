@@ -1,6 +1,6 @@
 """``investigate --counters`` — monotonic counter detection over one PID.
 
-Bridges the pure sweep in :mod:`canlib.counters` to the diagnostic capture model:
+Bridges the pure sweep in :mod:`canlib.analysis.counters` to the diagnostic capture model:
 builds a **row-aligned ISO-TP payload matrix**, runs the sweep, then maps each
 winning window back to a WiCAN expression and overlays which parameter (if any)
 already decodes it.
@@ -9,7 +9,7 @@ Why ISO-TP space: a multi-byte counter's bytes must be genuinely *contiguous*, a
 in WiCAN space they are not — ISO-TP PCI framing bytes interleave every 7 data
 bytes (a 4-byte counter can straddle one). ISO-TP payload indices are contiguous
 by construction, so windows are formed there and rendered to WiCAN via
-:class:`~canlib.notation.ByteRef`, which emits the correct shift-composition for a
+:class:`~canlib.uds.notation.ByteRef`, which emits the correct shift-composition for a
 PCI-straddling read.
 """
 
@@ -21,18 +21,18 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from canlib import ansi
-from canlib.align import DEFAULT_SESSION_GAP_S, LoadedPid
-from canlib.byteindex import mapped_offsets, wican_to_isotp
-from canlib.capture_dates import active_scope_flags
-from canlib.counters import (
+from canlib.analysis.align import DEFAULT_SESSION_GAP_S, LoadedPid
+from canlib.analysis.counters import (
     SCAN_FLOOR_BITS,
     CounterCandidate,
     cluster_counters,
     find_counters,
 )
+from canlib.analysis.triage import bit_flip_rates
+from canlib.captures.dates import active_scope_flags
 from canlib.keepmode import scope_is_keep_changes, scope_is_keep_unique
-from canlib.notation import ByteNotation, ByteRef, resolve_notation, subfunction_bytes_for_pid
-from canlib.triage import bit_flip_rates
+from canlib.uds.byteindex import mapped_offsets, wican_to_isotp
+from canlib.uds.notation import ByteNotation, ByteRef, resolve_notation, subfunction_bytes_for_pid
 
 from .render import print_keep_banner
 

@@ -39,7 +39,8 @@ from dataclasses import dataclass, field
 from fnmatch import fnmatch
 from pathlib import Path
 
-from .captures_merge import SessionReplacement
+from canlib.captures.merge import SessionReplacement
+
 from .constants import GITHUB_REPO as UPSTREAM_REPO
 from .profile import member_names, members_by_role
 
@@ -470,7 +471,7 @@ def copy_profile(
     ``warn`` receives a human-readable message for anything skipped that the user
     should know about, and ``replaced`` each upstream session the contribution
     replaces (the caller must surface those — see
-    :func:`canlib.captures_merge.overlay`). Returns the destination directory.
+    :func:`canlib.captures.merge.overlay`). Returns the destination directory.
     """
     dest = workspace / "profiles" / profile.name
     dest.mkdir(parents=True, exist_ok=True)  # overlay — do NOT wipe the whole dir
@@ -577,8 +578,8 @@ def _overlay_capture_file(
     """
     import json
 
-    from .capture_io import dump_capture_file, load_capture_file
-    from .captures_merge import overlay
+    from canlib.captures.io import dump_capture_file, load_capture_file
+    from canlib.captures.merge import overlay
 
     try:
         up = load_capture_file(upstream)

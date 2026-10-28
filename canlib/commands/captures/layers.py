@@ -24,7 +24,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from canlib import capture_io
+from canlib.captures import io as capture_io
 
 if TYPE_CHECKING:
     from canlib.profile import Profile

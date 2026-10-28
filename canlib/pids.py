@@ -169,7 +169,7 @@ def _yaml_load(fh) -> dict:
 
 # ── per-process memoization ───────────────────────────────────────────────
 # The active profile's ECU dir is parsed once per process and reused. Writers
-# (canlib.pids_edit / canlib.ecus_edit) call clear_cache() after mutating a
+# (canlib.pids_edit / canlib.ecus.edit) call clear_cache() after mutating a
 # file so a later read in the same process never sees stale data.
 _cache: dict[str, dict] = {}
 
@@ -278,7 +278,7 @@ def merge_ecu_documents(docs: Iterable[tuple[Path, dict]]) -> dict[str, Any]:
 
 def _load_dir(path: Path, meta: dict) -> dict:
     """Merge profile-wide meta with every per-ECU file under ``path``."""
-    from .ecu_files import iter_ecu_files
+    from canlib.ecus.files import iter_ecu_files
 
     def _docs():
         for fpath in iter_ecu_files(path):

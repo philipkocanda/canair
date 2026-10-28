@@ -230,7 +230,7 @@ def _load_broken_refs(rules) -> dict[str, list[dict[str, str]]]:
     healthy ``●``. Best-effort: an unloadable registry simply reports nothing.
     """
     from canlib.pids import load_pids
-    from canlib.state_refs import check_references
+    from canlib.states.refs import check_references
 
     try:
         pids_data = load_pids()
@@ -365,7 +365,7 @@ def cmd_list(args) -> int:
 def _run_edit(args, action) -> int:
     from canlib.profile import require_writable_definitions
     from canlib.states import StatePredicateError
-    from canlib.states_edit import StatesEditError
+    from canlib.states.edit import StatesEditError
 
     require_writable_definitions()
     try:
@@ -382,14 +382,14 @@ def _warn_unresolved_refs(state: str, expr: str | None) -> None:
     Authoring a predicate before its signal is defined is legitimate, so this
     never blocks the write — but an unresolvable reference makes the state
     permanently un-suggestable and the evaluator can't report it (see
-    :mod:`canlib.state_refs`), so it must not pass silently either.
+    :mod:`canlib.states.refs`), so it must not pass silently either.
     ``canair validate states`` is the hard gate.
     """
     if not expr:
         return
     try:
         from canlib.pids import load_pids
-        from canlib.state_refs import check_references
+        from canlib.states.refs import check_references
 
         issues = check_references([(state, expr)], load_pids())
     except Exception:
@@ -403,7 +403,7 @@ def _warn_unresolved_refs(state: str, expr: str | None) -> None:
 
 
 def cmd_add(args) -> int:
-    from canlib.states_edit import add_state
+    from canlib.states.edit import add_state
 
     args._states_msg = f"added state {args.name.upper()}"
     rc = _run_edit(
@@ -421,14 +421,14 @@ def cmd_add(args) -> int:
 
 
 def cmd_rm(args) -> int:
-    from canlib.states_edit import remove_state
+    from canlib.states.edit import remove_state
 
     args._states_msg = f"removed state {args.name.upper()}"
     return _run_edit(args, lambda: remove_state(args.name))
 
 
 def cmd_rename(args) -> int:
-    from canlib.states_edit import rename_state
+    from canlib.states.edit import rename_state
 
     args._states_msg = f"renamed {args.old.upper()} → {args.new.upper()}"
     rc = _run_edit(args, lambda: rename_state(args.old, args.new))
@@ -440,14 +440,14 @@ def cmd_rename(args) -> int:
 
 
 def cmd_set_description(args) -> int:
-    from canlib.states_edit import set_state_field
+    from canlib.states.edit import set_state_field
 
     args._states_msg = f"set description on {args.name.upper()}"
     return _run_edit(args, lambda: set_state_field(args.name, "description", args.value))
 
 
 def cmd_set_predicate(args) -> int:
-    from canlib.states_edit import set_state_field
+    from canlib.states.edit import set_state_field
 
     verb = "cleared" if not args.value else "set"
     args._states_msg = f"{verb} when: predicate on {args.name.upper()}"
@@ -457,7 +457,7 @@ def cmd_set_predicate(args) -> int:
 
 
 def cmd_set_implies(args) -> int:
-    from canlib.states_edit import set_state_field
+    from canlib.states.edit import set_state_field
 
     verb = "cleared" if not args.value else "set"
     args._states_msg = f"{verb} implies: on {args.name.upper()}"
@@ -465,7 +465,7 @@ def cmd_set_implies(args) -> int:
 
 
 def cmd_set_excludes(args) -> int:
-    from canlib.states_edit import set_state_field
+    from canlib.states.edit import set_state_field
 
     verb = "cleared" if not args.value else "set"
     args._states_msg = f"{verb} excludes: on {args.name.upper()}"

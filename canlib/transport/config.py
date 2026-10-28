@@ -191,8 +191,8 @@ class TransportConfig:
         """Best-effort read of a WiCAN's live ``/load_config`` (empty on failure)."""
         import sys
 
-        from ..wican_api import resolve_wican_url
-        from ..wican_mode import load_config
+        from canlib.wican.api import resolve_wican_url
+        from canlib.wican.mode import load_config
 
         assert self.host is not None  # only called when is_wican_http (host set)
         try:

@@ -177,8 +177,8 @@ class TestSelectReachable:
         assert chosen.host == "10.0.0.9"
 
     def test_primary_reachable(self, monkeypatch):
-        from canlib import wican_mode
         from canlib.transport.fallback import select_reachable_transport
+        from canlib.wican import mode as wican_mode
 
         monkeypatch.setattr(wican_mode, "_tcp_open", lambda h, p, t: True)
         chosen = select_reachable_transport(
@@ -187,8 +187,8 @@ class TestSelectReachable:
         assert chosen.host == "10.0.0.9"
 
     def test_falls_back_to_second(self, monkeypatch):
-        from canlib import wican_mode
         from canlib.transport.fallback import select_reachable_transport
+        from canlib.wican import mode as wican_mode
 
         monkeypatch.setattr(wican_mode, "_tcp_open", lambda h, p, t: h == "1.2.3.4")
         msgs: list[str] = []
@@ -197,8 +197,8 @@ class TestSelectReachable:
         assert any("falling back" in m for m in msgs)
 
     def test_all_down_returns_primary(self, monkeypatch):
-        from canlib import wican_mode
         from canlib.transport.fallback import select_reachable_transport
+        from canlib.wican import mode as wican_mode
 
         monkeypatch.setattr(wican_mode, "_tcp_open", lambda h, p, t: False)
         chosen = select_reachable_transport(
@@ -207,8 +207,8 @@ class TestSelectReachable:
         assert chosen.host == "10.0.0.9"  # primary, so the normal error path fires
 
     def test_probes_port_80_for_wican(self, monkeypatch):
-        from canlib import wican_mode
         from canlib.transport.fallback import select_reachable_transport
+        from canlib.wican import mode as wican_mode
 
         seen: list[tuple] = []
 
@@ -339,7 +339,7 @@ class TestTransportConfigProps:
         def boom(base_url, timeout=10.0):
             raise requests.HTTPError(f"{status} Error", response=resp)
 
-        monkeypatch.setattr("canlib.wican_mode.load_config", boom)
+        monkeypatch.setattr("canlib.wican.mode.load_config", boom)
         t = TransportConfig("slcan-tcp", "1.2.3.4")
         assert t.resolve_device_defaults() == (3333, 500000)
         assert ("could not read device config" in capsys.readouterr().err) is noisy
@@ -443,8 +443,8 @@ class TestStatusFallback:
 
     @pytest.fixture
     def patch_status(self, monkeypatch, env):
-        from canlib import wican_mode
         from canlib.commands import status
+        from canlib.wican import mode as wican_mode
 
         # Two candidates (vpn primary, home fallback), fallback enabled.
         monkeypatch.setattr(tc, "_fallback_settings", lambda: (True, 2.0, None))
@@ -499,8 +499,8 @@ class TestStatusFallback:
 
     def test_probe_timeout_honours_a_raised_connect_timeout(self, monkeypatch, env):
         """A user who raised `transport.connect_timeout` must not be second-guessed."""
-        from canlib import wican_mode
         from canlib.commands import status
+        from canlib.wican import mode as wican_mode
 
         monkeypatch.setattr(tc, "_fallback_settings", lambda: (True, 30.0, None))
         monkeypatch.setattr("canlib.config.fallback_settings", lambda: (True, 30.0, None))

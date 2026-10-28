@@ -173,7 +173,7 @@ class TestJoinToleranceDefault:
         """The stepper is a viewer (every block shows its Δt), so it can afford a
         looser join than the statistics tools, where a loose pairing would
         silently move a correlation coefficient."""
-        from canlib.align import DEFAULT_JOIN_TOL_S
+        from canlib.analysis.align import DEFAULT_JOIN_TOL_S
 
         assert DEFAULT_STEP_JOIN_TOL_S > DEFAULT_JOIN_TOL_S
 
@@ -469,8 +469,8 @@ class TestStepModelJson:
 
 def _write_captures(tmp_path) -> list[dict]:
     """Save two real capture files and return the loaded entries."""
-    from canlib.capture_store import load_all_captures
     from canlib.captures import build_query_session, save_session
+    from canlib.captures.store import load_all_captures
 
     save_session(
         build_query_session(
@@ -544,7 +544,7 @@ def _marker_visible(app) -> bool:
     """Whether the ``▶`` block cursor lies inside the scroll viewport."""
     from textual.widgets import Static
 
-    from canlib.tui_scroll import marker_line
+    from canlib.tui.scroll import marker_line
 
     scroll = app.query_one("#scroll", VerticalScroll)
     line = marker_line(app.query_one("#body", Static))
@@ -830,7 +830,7 @@ class TestCapturesStepApp:
 
     @pytest.mark.asyncio
     async def test_help_modal_lists_bindings(self):
-        from canlib.tui_help import bindings_help_rows
+        from canlib.tui.help import bindings_help_rows
 
         app = self._app()
         async with app.run_test(size=(120, 30)) as pilot:
@@ -1403,7 +1403,7 @@ class TestJumpModal:
 
     @pytest.mark.asyncio
     async def test_jump_is_advertised_in_the_help(self):
-        from canlib.tui_help import bindings_help_rows
+        from canlib.tui.help import bindings_help_rows
 
         app = self._open()
         async with app.run_test(size=(130, 40)) as pilot:

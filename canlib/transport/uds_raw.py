@@ -21,13 +21,14 @@ from collections import defaultdict, deque
 import can
 import isotp
 
+from canlib.transport.link_latency import LinkLatency
+from canlib.transport.stats import TransportStats
+from canlib.uds.parse import CAT_STALE, payload_echo_mismatch
+
 from ..addressing import DEFAULT_RX_OFFSET, EcuAddress, build_isotp_address
-from ..link_latency import LinkLatency
 from ..log import log_command, log_event
 from ..safety import SafetyBlocked, SessionPolicy, check_command_safety
 from ..timing import TimingRecorder
-from ..transport_stats import TransportStats
-from ..uds_parse import CAT_STALE, payload_echo_mismatch
 from .isotp_stack import build_isotp_stack
 
 # Quiet can-isotp's transient recovered-timeout warnings (e.g. a cold ECU's first
@@ -109,13 +110,13 @@ class RawUdsClient:
         """``addresses``: name -> resolved :class:`EcuAddress`. ``timeout``: per-request seconds.
 
         ``ecu_timeouts``: optional ``{ECU_NAME(upper): seconds}`` per-ECU budget
-        overriding ``timeout`` for that ECU (see :mod:`canlib.timeouts`).
+        overriding ``timeout`` for that ECU (see :mod:`canlib.transport.timeouts`).
         ``isotp_config``: optional profile ``isotp:`` block (flow-control/padding/
         CAN-FD). Each ECU's :class:`EcuAddress` shapes its ISO-TP stack (11-bit vs
         29-bit normal/fixed/extended, plus any flow-control-address override).
         ``hk_f1xx_offset``: profile opts into the Hyundai/Kia F1xx identity-DID -1
         quirk, so echo validation tolerates that off-by-one (see
-        :func:`canlib.uds_parse.payload_echo_mismatch`).
+        :func:`canlib.uds.parse.payload_echo_mismatch`).
         ``session_policy``: the profile's per-ECU session context for the command
         blocklist (:mod:`canlib.safety`). Every request is checked against it, so
         this client can never send what the terminals would refuse; there is no
