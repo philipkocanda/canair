@@ -836,6 +836,11 @@ class TestMonitorEditing:
             await pilot.pause(0.1)
             assert isinstance(app.screen, EditParamDialog)
             assert app.paused is True  # polling auto-paused during edit
+            # The checkbox state reads by shape, not colour (see tui.widgets).
+            from canlib.tui.widgets import CheckBox
+
+            assert "[ ]" in app.screen.query_one("#e-verified", CheckBox).render().plain
+            assert "[✔]" in app.screen.query_one("#e-enabled", CheckBox).render().plain
             # Change the expression and save.
             expr = app.screen.query_one("#e-expr")
             expr.value = "B4/4"

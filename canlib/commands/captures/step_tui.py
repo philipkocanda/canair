@@ -36,6 +36,7 @@ from canlib.tui.keys import bind
 from canlib.tui.modals import ConfirmModal, TextPromptModal
 from canlib.tui.scroll import reveal_marker
 from canlib.tui.status import P_ESSENTIAL, P_HIGH, P_LOW, P_NORMAL, StatusBar, StatusItem
+from canlib.tui.widgets import CheckSelectionList
 
 from .step_render import key_label
 
@@ -86,7 +87,7 @@ class PidSelectModal(ModalScreen["list[Key] | None"]):
                 id="pid-hint",
             )
             yield Input(placeholder="filter (e.g. hvac or 2201)", id="pid-filter")
-            yield SelectionList[Key](id="pid-list")
+            yield CheckSelectionList(id="pid-list")
             with Horizontal(id="pid-buttons"):
                 yield Button("Apply", variant="primary", id="ok")
                 yield Button("Cancel", id="cancel")

@@ -18,6 +18,7 @@ from textual.widgets.selection_list import Selection
 
 from canlib.tui.help import HelpMixin
 from canlib.tui.keys import bind
+from canlib.tui.widgets import CheckSelectionList
 
 from .monitor_select import EcuChoice, GroupChoice
 
@@ -78,7 +79,7 @@ class MonitorSelectApp(HelpMixin, App["dict[str, list[str]] | None"]):
         yield Label("", id="title")
         yield Label("", id="hint")
         yield Input(placeholder="/ to filter…", id="filter")
-        yield SelectionList[object](id="choices")
+        yield CheckSelectionList(id="choices")
         yield Footer()
 
     def on_mount(self) -> None:

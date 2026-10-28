@@ -56,13 +56,14 @@ from textual.binding import Binding
 from textual.containers import Horizontal, VerticalScroll
 from textual.css.query import NoMatches
 from textual.screen import ModalScreen
-from textual.widgets import Button, Checkbox, Input, Label, OptionList, Static
+from textual.widgets import Button, Input, Label, OptionList, Static
 from textual.widgets.option_list import Option
 
 from canlib.tui.help import HelpMixin
 from canlib.tui.keys import DISMISS_DESCRIPTION, bind
 from canlib.tui.scroll import reveal_marker
 from canlib.tui.status import P_ESSENTIAL, P_HIGH, P_LOW, P_NORMAL, StatusBar, StatusItem
+from canlib.tui.widgets import CheckBox
 
 if TYPE_CHECKING:
     from .monitor import MonitorController
@@ -344,8 +345,8 @@ class EditParamDialog(ModalScreen[dict | None]):
                 yield Input(value=t.get("max", ""), placeholder="max", id="e-max")
                 yield Label("notes", classes="edit-label")
                 yield Input(value=t.get("notes", ""), placeholder="notes", id="e-notes")
-                yield Checkbox("verified", value=bool(t.get("verified")), id="e-verified")
-                yield Checkbox("enabled", value=bool(t.get("enabled", True)), id="e-enabled")
+                yield CheckBox("verified", value=bool(t.get("verified")), id="e-verified")
+                yield CheckBox("enabled", value=bool(t.get("enabled", True)), id="e-enabled")
             with Horizontal(id="edit-buttons"):
                 yield Button("Save", variant="primary", id="edit-save")
                 yield Button("Cancel", id="edit-cancel")
@@ -371,8 +372,8 @@ class EditParamDialog(ModalScreen[dict | None]):
                 "min": self.query_one("#e-min", Input).value.strip(),
                 "max": self.query_one("#e-max", Input).value.strip(),
                 "notes": self.query_one("#e-notes", Input).value.strip(),
-                "verified": self.query_one("#e-verified", Checkbox).value,
-                "enabled": self.query_one("#e-enabled", Checkbox).value,
+                "verified": self.query_one("#e-verified", CheckBox).value,
+                "enabled": self.query_one("#e-enabled", CheckBox).value,
             }
         )
 
