@@ -1,4 +1,4 @@
-"""Tests for the cross-signal analysis engine (canlib.xanalysis) and the
+"""Tests for the cross-signal analysis engine (canlib.analysis.xanalysis) and the
 correlate/hunt commands."""
 
 import json
@@ -7,8 +7,8 @@ from datetime import datetime, timedelta
 import pytest
 import yaml
 
-from canlib import xanalysis
-from canlib.align import TimePoint
+from canlib.analysis import xanalysis as xanalysis
+from canlib.analysis.align import TimePoint
 
 
 def _tp(sec, val):
@@ -338,7 +338,7 @@ class TestCorrelateGate:
 # ---------------------------------------------------------------------------
 class TestBuildByteSeries:
     def _loaded(self, payloads):
-        from canlib.align import LoadedPid
+        from canlib.analysis.align import LoadedPid
 
         lp = LoadedPid("BMS", "2101")
         lp.captures = [
@@ -385,7 +385,7 @@ class TestBuildByteSeries:
 
 
 # ---------------------------------------------------------------------------
-# correlate_matrix / signal_group_key live in canlib.corrmatrix — see
+# correlate_matrix / signal_group_key live in canlib.analysis.corrmatrix — see
 # tests/test_corrmatrix.py (this module keeps the series-building + hunt engine).
 # ---------------------------------------------------------------------------
 
@@ -417,7 +417,7 @@ def _write_hunt_fixture(tmp_path):
 
 class TestHuntByte:
     def test_finds_matching_byte(self, tmp_path):
-        from canlib.align import extract_series, load_signal_captures
+        from canlib.analysis.align import extract_series, load_signal_captures
 
         _write_hunt_fixture(tmp_path)
         loaded = load_signal_captures([("AAF", "2181"), ("ESC", "22C101")], captures_dir=tmp_path)
@@ -442,7 +442,7 @@ class TestHuntByte:
         """
         from datetime import date, datetime, time
 
-        from canlib.align import LoadedPid
+        from canlib.analysis.align import LoadedPid
         from canlib.uds.byteindex import wican_to_isotp
 
         lp = LoadedPid("AAF", "2181")
@@ -470,7 +470,7 @@ class TestHuntByte:
         """
         from datetime import date, datetime, time
 
-        from canlib.align import LoadedPid
+        from canlib.analysis.align import LoadedPid
 
         lp = LoadedPid("BMS", "2101")
         ref: list[TimePoint] = []
@@ -494,7 +494,7 @@ class TestHuntByte:
     def test_per_session_flag_accepted(self):
         from datetime import date, datetime, time
 
-        from canlib.align import LoadedPid
+        from canlib.analysis.align import LoadedPid
 
         lp = LoadedPid("AAF", "2181")
         ref: list[TimePoint] = []
@@ -539,9 +539,9 @@ class TestCommandParsers:
     def test_hunt_notation_flag_and_label_rendering(self):
         import argparse
 
+        from canlib.analysis.xanalysis import HuntHit
         from canlib.commands import hunt
         from canlib.uds.notation import ByteNotation
-        from canlib.xanalysis import HuntHit
 
         p = hunt.add_parser(argparse.ArgumentParser().add_subparsers())
         # Flag parses; default is None (resolved to wican downstream).
@@ -581,7 +581,7 @@ class TestOutputHygiene:
     tests/test_corrmatrix.py, alongside the engine that produces the hits)."""
 
     def test_hunt_collapses_to_one_per_offset(self, tmp_path):
-        from canlib.align import load_signal_captures
+        from canlib.analysis.align import load_signal_captures
 
         # target byte B4 ramps; hunt should not emit u8+u16+u24 all at offset 4
         caps, refs = [], []
@@ -596,7 +596,7 @@ class TestOutputHygiene:
         }
         (tmp_path / "2026-07-22.json").write_text(json.dumps(doc))
         loaded = load_signal_captures([("AAF", "2181"), ("ESC", "22C101")], captures_dir=tmp_path)
-        from canlib.align import extract_series
+        from canlib.analysis.align import extract_series
 
         ref = extract_series(loaded[("ESC", "22C101")], "B5")
         collapsed = xanalysis.hunt_byte(loaded[("AAF", "2181")], ref, tol_s=1.0, min_n=10)
@@ -612,7 +612,7 @@ class TestOverlap:
     """T3.1 — co-poll overlap matrix."""
 
     def test_reports_overlapping_pairs(self, capsys, monkeypatch):
-        from canlib.align import LoadedPid
+        from canlib.analysis.align import LoadedPid
         from canlib.commands.correlate import render as correlate_render
 
         def lp(ecu, pid, secs):
@@ -644,7 +644,7 @@ class TestHuntPromote:
     """Tranche 2.5 — promoting a hunt hit to a candidate param."""
 
     def _hit(self, expr="B12", no_expr=False):
-        from canlib.xanalysis import HuntHit
+        from canlib.analysis.xanalysis import HuntHit
 
         return HuntHit(
             expr="<no-expr>" if no_expr else expr,
@@ -753,7 +753,7 @@ class TestCorrelatePromote:
 # ---------------------------------------------------------------------------
 class TestPhysicalScan:
     def _loaded(self, payloads):
-        from canlib.align import LoadedPid
+        from canlib.analysis.align import LoadedPid
 
         lp = LoadedPid("OBC", "2101")
         lp.captures = [

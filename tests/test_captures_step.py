@@ -173,7 +173,7 @@ class TestJoinToleranceDefault:
         """The stepper is a viewer (every block shows its Δt), so it can afford a
         looser join than the statistics tools, where a loose pairing would
         silently move a correlation coefficient."""
-        from canlib.align import DEFAULT_JOIN_TOL_S
+        from canlib.analysis.align import DEFAULT_JOIN_TOL_S
 
         assert DEFAULT_STEP_JOIN_TOL_S > DEFAULT_JOIN_TOL_S
 

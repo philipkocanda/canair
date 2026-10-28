@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import sys
 
-from canlib.align import (
+from canlib.analysis.align import (
     join_nearest,
 )
 
@@ -18,7 +18,7 @@ NAME = "correlate"
 
 def _warn_thin_reference_join(command: str, ref_label: str, best_n: int, n_ref: int, args) -> None:
     """Print the shared thin/zero-join warning for an ``--against`` sweep."""
-    from canlib.align import thin_join_warning
+    from canlib.analysis.align import thin_join_warning
 
     msg = thin_join_warning(
         command=command,
@@ -41,9 +41,9 @@ def _promote_top_byte(name, rows, series, ref_series, ref_label, tol, *, ref_uni
     """
     import re
 
+    from canlib.analysis.xanalysis import linear_fit, sniff_unit
     from canlib.commands._promote import print_promoted, write_candidate
     from canlib.pids_edit import PidsEditError
-    from canlib.xanalysis import linear_fit, sniff_unit
 
     byte_hit = None
     for sig, r, n in rows:

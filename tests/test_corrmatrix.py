@@ -1,4 +1,4 @@
-"""Tests for the pairwise correlation ranking engine (canlib.corrmatrix).
+"""Tests for the pairwise correlation ranking engine (canlib.analysis.corrmatrix).
 
 The engine buckets signals by timestamp vector, joins once per bucket pair, and
 hoists per-signal statistics out of the pair loop
@@ -19,20 +19,20 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from canlib.align import (
+from canlib.analysis.align import (
     TimePoint,
     join_prepared,
     prepare_series,
     series_time_ranges_disjoint,
 )
-from canlib.corrmatrix import (
+from canlib.analysis.corrmatrix import (
     CorrHit,
     _same_pid,
     colinear_clusters,
     correlate_matrix,
     signal_group_key,
 )
-from canlib.stats import correlation
+from canlib.analysis.stats import correlation
 
 
 def _tp(sec: float, val: float) -> TimePoint:
@@ -372,7 +372,7 @@ class TestSignalGroupKey:
     def test_reexported_from_xanalysis(self):
         # correlate/investigate and a lot of muscle memory reach for these through
         # xanalysis; the module split must not break that.
-        from canlib import xanalysis
+        from canlib.analysis import xanalysis as xanalysis
 
         assert xanalysis.signal_group_key is signal_group_key
         assert xanalysis.correlate_matrix is correlate_matrix
@@ -409,6 +409,6 @@ class TestColinearClusters:
         assert clusters[0] == {"A", "B", "C"}
 
     def test_threshold_is_the_rendered_one(self):
-        from canlib.corrmatrix import CLUSTER_THRESHOLD
+        from canlib.analysis.corrmatrix import CLUSTER_THRESHOLD
 
         assert CLUSTER_THRESHOLD == 0.995

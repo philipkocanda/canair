@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import argparse
 
+from canlib.analysis.counters import DEFAULT_MAX_WIDTH, DEFAULT_MIN_BITS
 from canlib.capture_dates import add_scope_args
 from canlib.commands._group import group_help
 from canlib.commands._join import (
     add_join_args,
 )
-from canlib.counters import DEFAULT_MAX_WIDTH, DEFAULT_MIN_BITS
 from canlib.uds.notation import (
     add_notation_arg,
 )

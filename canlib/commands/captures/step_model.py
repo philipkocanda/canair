@@ -79,7 +79,7 @@ AUTO_STACK_MAX_KEYS = 6
 TOL_LADDER = (0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0, 300.0)
 
 #: Default join window for the stepper — deliberately wider than the shared
-#: :data:`canlib.align.DEFAULT_JOIN_TOL_S` (5s) used by
+#: :data:`canlib.analysis.align.DEFAULT_JOIN_TOL_S` (5s) used by
 #: ``align``/``correlate``/``hunt``.
 #:
 #: A full round-robin ``monitor`` cycle over several ECUs routinely spans ~8-10s,

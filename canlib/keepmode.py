@@ -91,7 +91,7 @@ def persisted_keep_mode(mode: str | None) -> PersistedKeepMode | None:
 # Deliberately *not* phrased as "this data is degraded". A run-length row is a
 # value-transition, which is strictly more informative than a sample: the value is
 # known to hold until the next row, which is what lets the time-aligned joins carry
-# it forward (see :mod:`canlib.fill` and ``--fill``). The banner exists to name what
+# it forward (see :mod:`canlib.analysis.fill` and ``--fill``). The banner exists to name what
 # genuinely is *not* recorded, so a reader doesn't mistake stored-row counts for a
 # sampling rate — the misreading that once produced a wrong "barely polled"
 # conclusion about an ECU that was polled every cycle and simply rarely changed.

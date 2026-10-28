@@ -45,7 +45,12 @@ import math
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
-from .align import DEFAULT_JOIN_TOL_S, PreparedSeries, join_indices, timestamps_disjoint
+from canlib.analysis.align import (
+    DEFAULT_JOIN_TOL_S,
+    PreparedSeries,
+    join_indices,
+    timestamps_disjoint,
+)
 
 __all__ = [
     "DEFAULT_MIRROR_MATCH",
@@ -307,7 +312,7 @@ def find_series_mirrors(
     here would bury the cross-source finds that are the point.
 
     Signals are bucketed by their join clock and the join computed **once per
-    bucket pair**, reusing :func:`canlib.align.join_indices`' index mapping across
+    bucket pair**, reusing :func:`canlib.analysis.align.join_indices`' index mapping across
     every signal pair that shares it. Nearly every signal decoded from one PID
     shares one clock, so this turns tens of thousands of joins into a few hundred —
     without it the sweep spends nearly all its time re-deriving the same alignment.

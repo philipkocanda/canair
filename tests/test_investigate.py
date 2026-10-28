@@ -27,7 +27,7 @@ class TestInvestigate:
     def test_best_anchor_picks_strongest(self):
         from datetime import datetime, timedelta
 
-        from canlib.align import TimePoint, prepare_series
+        from canlib.analysis.align import TimePoint, prepare_series
 
         def s(vals):
             base = datetime(2026, 7, 22, 9, 0, 0)
@@ -47,7 +47,7 @@ class TestInvestigate:
         import argparse
 
         _write(tmp_path)
-        import canlib.align as align
+        import canlib.analysis.align as align
 
         orig = align.load_signal_captures
         monkeypatch.setattr(
@@ -143,7 +143,7 @@ def _write_events(tmp_path, keep_mode="unique"):
 def _run(tmp_path, monkeypatch, argv, specs):
     import argparse
 
-    import canlib.align as align
+    import canlib.analysis.align as align
 
     orig = align.load_signal_captures
     monkeypatch.setattr(
@@ -370,7 +370,7 @@ class TestIndependentOf:
         self._write(tmp_path)
         csv = tmp_path / "driver.csv"
         csv.write_text("".join(f"2026-07-24 09:00:0{i},{10 + i * 10}\n" for i in range(6)))
-        import canlib.align as align
+        import canlib.analysis.align as align
 
         orig = align.load_signal_captures
         monkeypatch.setattr(
@@ -423,7 +423,7 @@ class TestTriageIntegration:
         import argparse
 
         self._write(tmp_path)
-        import canlib.align as align
+        import canlib.analysis.align as align
 
         orig = align.load_signal_captures
         monkeypatch.setattr(
@@ -465,7 +465,7 @@ class TestTriageIntegration:
         }
         (tmp_path / "2026-07-24.json").write_text(json.dumps(doc))
 
-        import canlib.align as align
+        import canlib.analysis.align as align
 
         orig = align.load_signal_captures
         monkeypatch.setattr(
@@ -492,7 +492,7 @@ class TestDwellSummary:
     """Per-signal on-duration classification (momentary door vs sustained hood)."""
 
     def _lp(self):
-        from canlib.align import LoadedPid
+        from canlib.analysis.align import LoadedPid
 
         # B10 (payload idx 7) carries two bits: bit0 pulses ON for one 5s sample
         # (a door flicked open→closed); bit1 stays ON for 20s (a hood left up).
@@ -522,7 +522,7 @@ class TestDwellSummary:
         assert rows[0]["class"] == "sustained"  # held signals surface above flickers
 
     def test_still_on_at_end_is_unknown(self):
-        from canlib.align import LoadedPid
+        from canlib.analysis.align import LoadedPid
 
         lp = LoadedPid("IGPM", "22BC03")
         for s, v in [(0, 0x00), (5, 0x01), (10, 0x01)]:  # rises, never falls in scope

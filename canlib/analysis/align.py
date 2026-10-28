@@ -24,13 +24,12 @@ from datetime import date, datetime
 from functools import cached_property
 from pathlib import Path
 
+from canlib.analysis.fill import FillPolicy, SessionKey, hold_until_vector, session_end_times
+from canlib.capture_dates import entry_datetime, filter_by_date_range, filter_by_text
+from canlib.capture_store import load_all_captures
+from canlib.capture_types import CaptureEntry
+from canlib.expression import evaluate_expression
 from canlib.uds.byteindex import payload_to_wican_bytes as _payload_to_wican_bytes
-
-from .capture_dates import entry_datetime, filter_by_date_range, filter_by_text
-from .capture_store import load_all_captures
-from .capture_types import CaptureEntry
-from .expression import evaluate_expression
-from .fill import FillPolicy, SessionKey, hold_until_vector, session_end_times
 
 __all__ = [
     "DEFAULT_JOIN_TOL_S",
@@ -112,7 +111,7 @@ class TimePoint:
     """One decoded sample: a timestamp, a numeric value, and how long it holds.
 
     ``hold_until`` is the instant the value stops being known — set only for a
-    run-length (``keep:changes``) sample, by :func:`canlib.fill.hold_until_vector`.
+    run-length (``keep:changes``) sample, by :func:`canlib.analysis.fill.hold_until_vector`.
     ``None`` means "point sample": the value is known at ``dt`` and nowhere else,
     which is how every non-run-length series behaves and what the joins did
     unconditionally before filling existed.
@@ -196,7 +195,7 @@ class DecodedCapture:
         The ISO-TP-space counterpart to ``frame``. Contiguous by construction —
         unlike ``frame``, where PCI framing bytes interleave every 7 data bytes —
         so it is the right space for a multi-byte window that must be genuinely
-        adjacent (see :mod:`canlib.counters`). Safe to parse unconditionally:
+        adjacent (see :mod:`canlib.analysis.counters`). Safe to parse unconditionally:
         ``decoded`` already dropped any capture whose payload isn't valid hex.
         """
         return bytes.fromhex(self.payload.replace(" ", ""))
@@ -212,7 +211,7 @@ class LoadedPid:
     n_no_time: int = 0  # payload captures dropped for lacking a usable time
     # Every session in the *whole* load's scope → its last capture timestamp, so a
     # PID's final run can be closed at the point its recording stopped. Deliberately
-    # scope-wide rather than per-PID (see :func:`canlib.fill.session_end_times`), so
+    # scope-wide rather than per-PID (see :func:`canlib.analysis.fill.session_end_times`), so
     # the loader computes it once and shares the one dict with every ``LoadedPid``
     # it returns.
     session_ends: dict[SessionKey, datetime] = field(default_factory=dict, repr=False)
@@ -314,7 +313,7 @@ def discover_signal_specs(
 
     q = None
     if query:
-        from .query import parse_query
+        from canlib.query import parse_query
 
         q = parse_query(query)
 
@@ -435,7 +434,7 @@ def extract_series(
     raw WiCAN expression. Captures where the expression errors or yields a
     non-numeric value are skipped.
 
-    ``fill`` stamps each sample with its validity window (see :mod:`canlib.fill`),
+    ``fill`` stamps each sample with its validity window (see :mod:`canlib.analysis.fill`),
     so a run-length signal can be carried forward by a later join. Note the window
     is derived from the *capture* timeline, not this series: a capture that fails to
     decode still closes the previous run, because a stored row means the payload
@@ -633,7 +632,7 @@ def timestamps_disjoint(a_ts: Sequence[float], b_ts: Sequence[float], tol_s: flo
 
     The timestamp-only core of :func:`series_time_ranges_disjoint` — a join
     depends solely on the two clocks, so the pruning guard does too, and the
-    bucketed sweep in :func:`canlib.xanalysis.correlate_matrix` prunes on bare
+    bucketed sweep in :func:`canlib.analysis.xanalysis.correlate_matrix` prunes on bare
     timestamp vectors (its bucket key) without materialising a series.
     """
     if not a_ts or not b_ts:
@@ -666,7 +665,7 @@ def join_indices(
 
     A join depends only on the two *clocks*, never on the values — so the mapping
     is reusable across every signal sharing a timestamp vector. That is what lets
-    :func:`canlib.xanalysis.correlate_matrix` join once per timestamp-vector pair
+    :func:`canlib.analysis.xanalysis.correlate_matrix` join once per timestamp-vector pair
     instead of once per signal pair (nearly every signal decoded from one
     ``(ECU, PID)`` shares one vector). :func:`join_prepared` is a thin wrapper over
     this, so the tie-breaking rule — smaller absolute delta wins, the earlier
@@ -678,7 +677,7 @@ def join_indices(
     is still valid there. That is the whole run-length fix, and it is deliberately a
     *fallback*: a real nearby sample always wins, so passing no hold vector is
     bit-identical to the strict join. Whether a sample may be held at all was
-    decided upstream by :mod:`canlib.fill` — this function only reads the answer.
+    decided upstream by :mod:`canlib.analysis.fill` — this function only reads the answer.
     """
     if not ref_ts or not cand_ts:
         return [], []

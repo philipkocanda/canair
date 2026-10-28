@@ -2,7 +2,7 @@
 
 The data layer under every capture-consuming surface. It lives in the library, not
 beside the ``captures`` command, because non-command modules need it too:
-:mod:`canlib.align` and :mod:`canlib.capture_dates` load entries, and
+:mod:`canlib.analysis.align` and :mod:`canlib.capture_dates` load entries, and
 :mod:`canlib.state_infer` resolves PID definitions. Those previously imported *up*
 into ``commands/captures/`` — a layering inversion the lazy in-function imports
 were working around.
@@ -146,7 +146,7 @@ def unresolved_state_summary(entries: Sequence[CaptureEntry]) -> tuple[int, int]
     """``(captures, sessions)`` whose states could not be resolved to an instant.
 
     Feeds the one-line provenance note a state-grouping or state-filtering view
-    prints, in the spirit of :mod:`canlib.fill`'s reported forward fills: a
+    prints, in the spirit of :mod:`canlib.analysis.fill`'s reported forward fills: a
     span-less multi-state session degrades *loudly*.
     """
     # Keyed by the file's full path: both layers of a layered profile hold the

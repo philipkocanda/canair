@@ -17,7 +17,7 @@ import json as _json
 import sys
 
 from canlib import ansi
-from canlib.align import longest_payload_len
+from canlib.analysis.align import longest_payload_len
 from canlib.keepmode import (
     CHANGES_BANNER,
     scope_is_keep_changes,

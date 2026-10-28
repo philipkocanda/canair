@@ -3,7 +3,7 @@
 
 Shared core for ``canair correlate`` (rank every relationship in a drive) and
 ``canair hunt`` (which byte on ECU X *is* known signal Y?). Both reduce to:
-build time-stamped series, time-align them (``canlib.align``), Pearson-correlate,
+build time-stamped series, time-align them (``canlib.analysis.align``), Pearson-correlate,
 and for hunt additionally fit a line + sniff a physical unit.
 
 Pure analysis over ``captures/`` — no device, no numpy.
@@ -15,18 +15,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 
-from canlib.uds.inspect_bytes import (
-    INSPECT_TYPES,
-    NO_EXPR,
-    apply_transform,
-    float_series_is_noise,
-    interpret_bytes,
-    read_indices,
-    wican_expr,
-    wican_expr_indices,
-)
-
-from .align import (
+from canlib.analysis.align import (
     DEFAULT_JOIN_TOL_S,
     DEFAULT_SESSION_GAP_S,
     LoadedPid,
@@ -37,16 +26,26 @@ from .align import (
     join_nearest,
     load_signal_captures,
 )
-from .corrmatrix import (
+from canlib.analysis.corrmatrix import (
     CorrHit,
     colinear_clusters,
     correlate_matrix,
     signal_group_key,
 )
-from .fill import FillPolicy
-from .physical_bands import DEFAULT_PHYSICAL_BANDS
-from .stats import correlation, linear_fit, pearson
-from .unit_guess import DEFAULT_UNIT_CANDIDATES as _UNIT_CANDIDATES
+from canlib.analysis.fill import FillPolicy
+from canlib.analysis.stats import correlation, linear_fit, pearson
+from canlib.physical_bands import DEFAULT_PHYSICAL_BANDS
+from canlib.uds.inspect_bytes import (
+    INSPECT_TYPES,
+    NO_EXPR,
+    apply_transform,
+    float_series_is_noise,
+    interpret_bytes,
+    read_indices,
+    wican_expr,
+    wican_expr_indices,
+)
+from canlib.unit_guess import DEFAULT_UNIT_CANDIDATES as _UNIT_CANDIDATES
 
 __all__ = [
     "PHYSICAL_BANDS",
@@ -147,7 +146,7 @@ def reference_is_absolute_level(
 
 
 # ---------------------------------------------------------------------------
-# Stats: unit sniffing (pearson/spearman/linear_fit live in canlib.stats)
+# Stats: unit sniffing (pearson/spearman/linear_fit live in canlib.analysis.stats)
 # ---------------------------------------------------------------------------
 # Common physical scalings for the unit sniffer. The candidate table + resolver
 # live in canlib.unit_guess (make-neutral built-ins + profile extension); this
@@ -407,9 +406,8 @@ def byte_state_buckets(
     the vehicle state); when it returns ``None`` for a capture, that capture is
     skipped. Defaults to the session vehicle-state key.
     """
+    from canlib.states import load_states, state_bucket_key
     from canlib.uds.byteindex import payload_to_wican_bytes, wican_to_isotp
-
-    from .states import load_states, state_bucket_key
 
     rules = load_states() if group_of is None else []
     key_cache: dict[tuple[str, ...], str] = {}
@@ -536,7 +534,7 @@ def lag_scan(
 # ---------------------------------------------------------------------------
 # Correlation matrix
 # ---------------------------------------------------------------------------
-# The pairwise ranking engine lives in canlib.corrmatrix (bucketed join + hoisted
+# The pairwise ranking engine lives in canlib.analysis.corrmatrix (bucketed join + hoisted
 # per-signal statistics); re-exported here because `correlate`/`investigate` and
 # the tests have always reached for it through xanalysis.
 
@@ -589,10 +587,9 @@ def hunt_byte(
     appears once the dominant driver is regressed out (and demoting bytes that
     merely track the control). The linear fit stays on the raw (ref, cand) pairs.
     """
+    from canlib.analysis.align import join_nearest_triple
+    from canlib.analysis.stats import partial_correlation
     from canlib.uds.byteindex import wican_to_isotp
-
-    from .align import join_nearest_triple
-    from .stats import partial_correlation
 
     # (datetime, frame) per timed capture, decoded once by LoadedPid.decoded. A
     # non-hex payload (a stored "NO DATA", a mis-transcribed capture) is dropped
@@ -746,7 +743,7 @@ def load_ref(
     ``fill`` stamps the samples with their validity windows, so a run-length
     reference can still be joined onto instants it has no sample at.
     """
-    from .pids import build_ecu_index, load_pids
+    from canlib.pids import build_ecu_index, load_pids
 
     sref = SignalRef.parse(ref_spec)
     loaded = load_signal_captures(
@@ -779,7 +776,7 @@ def ref_unit_for(ref_spec: str) -> str | None:
     Returns None for an expression reference (no named param) or when anything
     can't be resolved — the sniffer treats None as "don't gate".
     """
-    from .pids import build_ecu_index, load_pids
+    from canlib.pids import build_ecu_index, load_pids
 
     try:
         sref = SignalRef.parse(ref_spec)

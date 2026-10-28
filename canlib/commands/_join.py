@@ -37,9 +37,9 @@ import argparse
 from collections.abc import Iterable
 from dataclasses import dataclass
 
-from canlib.align import DEFAULT_JOIN_TOL_S, LoadedPid
-from canlib.fill import FILL_MODES, FillPolicy, format_hold_duration, parse_fill_mode
-from canlib.mirrors import DEFAULT_MIRROR_MATCH
+from canlib.analysis.align import DEFAULT_JOIN_TOL_S, LoadedPid
+from canlib.analysis.fill import FILL_MODES, FillPolicy, format_hold_duration, parse_fill_mode
+from canlib.analysis.mirrors import DEFAULT_MIRROR_MATCH
 
 __all__ = [
     "FillSummary",
@@ -113,7 +113,7 @@ def add_mirror_args(parser: argparse.ArgumentParser) -> argparse._ArgumentGroup:
 
 
 def fill_policy_from_args(args) -> FillPolicy:
-    """Build the :class:`~canlib.fill.FillPolicy` from parsed ``--fill``/``--max-hold``.
+    """Build the :class:`~canlib.analysis.fill.FillPolicy` from parsed ``--fill``/``--max-hold``.
 
     Tolerant of a namespace that predates the flags (a command not yet wired
     through :func:`add_join_args`), which then gets the default policy.

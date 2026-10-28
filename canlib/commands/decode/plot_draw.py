@@ -13,9 +13,9 @@ wican_expr, ...) live one level further down in :mod:`canlib.uds.inspect_bytes`.
 from __future__ import annotations
 
 from canlib import ansi
+from canlib.analysis.stats import fmt_num as _fmt_num
+from canlib.analysis.stats import mean as _mean
 from canlib.states import join_states as _join_states
-from canlib.stats import fmt_num as _fmt_num
-from canlib.stats import mean as _mean
 from canlib.uds.byteindex import extract_byte_indices, payload_to_wican_frame
 from canlib.uds.inspect_bytes import norm01
 

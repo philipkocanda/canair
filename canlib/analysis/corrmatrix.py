@@ -2,7 +2,7 @@
 """Pairwise correlation ranking over time-aligned signals.
 
 The ranking core behind ``canair correlate``'s default report ("show me every
-strong relationship in this scope") — extracted from :mod:`canlib.xanalysis`,
+strong relationship in this scope") — extracted from :mod:`canlib.analysis.xanalysis`,
 which re-exports it.
 
 **Why it is bucketed.** Ranking N signals means N²/2 pairs, and each pair needs a
@@ -19,7 +19,7 @@ Two consequences shape the code below:
    a byte offset absent from a short frame yields a *shorter* vector for the same
    PID, and keying on the PID would silently mis-join it), and the join is
    computed once per bucket pair as a reusable index mapping
-   (:func:`canlib.align.join_indices`).
+   (:func:`canlib.analysis.align.join_indices`).
 2. Given a bucket pair, each signal's joined sub-vector is fixed — so its mean
    deviations, sum of squares, and **finiteness** are hoisted out of the pair loop
    (O(signals) instead of O(signals²)), leaving a single covariance pass per pair.
@@ -35,14 +35,14 @@ import math
 from dataclasses import dataclass
 from typing import NamedTuple
 
-from .align import (
+from canlib.analysis.align import (
     DEFAULT_JOIN_TOL_S,
     TimePoint,
     join_indices,
     prepare_series,
     timestamps_disjoint,
 )
-from .stats import CATEGORICAL_METHODS, correlation, rank
+from canlib.analysis.stats import CATEGORICAL_METHODS, correlation, rank
 
 __all__ = [
     "CLUSTER_THRESHOLD",
@@ -60,7 +60,7 @@ class CorrHit:
     r: float
     n: int
     # How many of ``n`` rows came from carrying a run-length value forward rather
-    # than from a sample of ``b`` near the reference instant (see canlib.fill).
+    # than from a sample of ``b`` near the reference instant (see canlib.analysis.fill).
     # Clock-only, so it is the same for every pair sharing a bucket pair.
     n_filled: int = 0
 
@@ -99,7 +99,7 @@ def signal_group_key(label: str) -> str:
     Domain A always has at least an ECU and a PID, so a 3-or-more-field label
     keys on its first two fields; a domain-B frame label is a single
     arbitration ID plus one byte/bit field (the bit uses a ``.``, deliberately,
-    see :mod:`canlib.frame_series`), so it keys on its first field.
+    see :mod:`canlib.analysis.frame_series`), so it keys on its first field.
 
     A plain ``rsplit(":", 1)[0]`` — which this replaced — silently broke on the
     4-field *bit* form: it keyed ``IGPM:22BC03:B12:3`` on ``IGPM:22BC03:B12``, so
@@ -127,7 +127,7 @@ def _sub_stats(values: list[float], idx: list[int], *, ranked: bool) -> _SubStat
     """Reduce one signal's joined sub-vector to ``(deviations, sum-of-squares)``.
 
     ``None`` when the sub-vector cannot yield a defined coefficient — the same
-    three rejections :func:`canlib.stats.pearson` makes: a non-finite value, an
+    three rejections :func:`canlib.analysis.stats.pearson` makes: a non-finite value, an
     overflowing sum of squared deviations, or zero variance.
 
     **Finiteness is deliberately tested here, on the joined sub-vector — not on
@@ -139,7 +139,7 @@ def _sub_stats(values: list[float], idx: list[int], *, ranked: bool) -> _SubStat
 
     With ``ranked`` the sub-vector is rank-transformed first, which is what makes
     Spearman (Pearson of ranks) fall out of the same hoist — and, as in
-    :func:`canlib.stats.spearman`, means finiteness is judged on the *ranks*.
+    :func:`canlib.analysis.stats.spearman`, means finiteness is judged on the *ranks*.
     """
     sub = [values[k] for k in idx]
     if ranked:

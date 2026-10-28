@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Monotonic counter detection — "which bytes here only ever go up?".
 
-The complement to :mod:`canlib.triage`, whose ``counter`` class is
+The complement to :mod:`canlib.analysis.triage`, whose ``counter`` class is
 *direction-blind* (it scores entropy + flip rate + ``mean_abs_step``, all of
 which treat a rise and a fall alike) and single-byte. That finds a fast rolling
 "alive" counter's low byte; it cannot find an **odometer**, an operating-hours
@@ -27,7 +27,7 @@ lets a 4000-sample accumulator and a 6-sample odometer be ranked together instea
 of behind a hand-tuned minimum-step threshold — the sparse, long-horizon counters
 are precisely the ones a fixed threshold discards.
 
-Kept **leaf and numpy-free** like :mod:`canlib.triage` and :mod:`canlib.stats`:
+Kept **leaf and numpy-free** like :mod:`canlib.analysis.triage` and :mod:`canlib.analysis.stats`:
 it operates on plain value columns plus a parallel timestamp vector, and knows
 nothing about WiCAN framing, PCI, ISO-TP, or the capture model. Callers supply
 byte columns in **adjacency order** (consecutive entries are byte-adjacent) and
@@ -53,7 +53,7 @@ from dataclasses import dataclass, field
 from itertools import pairwise
 from typing import TypedDict
 
-from .stats import linear_fit, median, pearson
+from canlib.analysis.stats import linear_fit, median, pearson
 
 __all__ = [
     "DEFAULT_MAX_WIDTH",
@@ -563,7 +563,7 @@ def boundary_gradient(
     boundary to locate).
 
     ``bit_flip`` maps each column key to that byte's 8 per-bit flip rates (bit 0 =
-    that byte's LSB), as produced by :func:`canlib.triage.bit_flip_rates`. Keys are
+    that byte's LSB), as produced by :func:`canlib.analysis.triage.bit_flip_rates`. Keys are
     in adjacency order (ascending offset); for a big-endian window the LSB sits at
     the highest offset, so the byte order is reversed before concatenating.
     """

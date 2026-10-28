@@ -21,7 +21,7 @@ import json as _json
 import sys
 
 from canlib import ansi
-from canlib.align import LoadedPid, load_signal_captures
+from canlib.analysis.align import LoadedPid, load_signal_captures
 from canlib.uds.byteindex import mapped_offsets
 from canlib.uds.notation import ByteNotation, resolve_notation, subfunction_bytes_for_pid
 
@@ -157,11 +157,11 @@ def _sweep_counters(specs, loaded, args, params_of) -> int:
 
 def _pid_summary(lp: LoadedPid, params_def: dict, args, fill) -> dict | None:
     """Cheap, LOCAL per-PID facts for the sweep summary (no cross-PID joins)."""
+    from canlib.analysis.xanalysis import build_byte_series, byte_state_buckets, physical_scan
     from canlib.commands.investigate.report import _state_f
     from canlib.grid_prompt import resolve_grid_region
     from canlib.physical_bands import resolve_physical_bands
     from canlib.profile import active
-    from canlib.xanalysis import build_byte_series, byte_state_buckets, physical_scan
 
     target = build_byte_series(lp, min_distinct=2, fill=fill)
     if not target:

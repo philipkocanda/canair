@@ -9,10 +9,10 @@ raw byte matrix in :mod:`.dump`.
 from __future__ import annotations
 
 from canlib import ansi
+from canlib.analysis.stats import compute_stats
+from canlib.analysis.stats import fmt_num as _fmt_num
 from canlib.states import join_states as _join_states
 from canlib.states import load_states, state_bucket_key
-from canlib.stats import compute_stats
-from canlib.stats import fmt_num as _fmt_num
 
 from .calc import _series
 from .format import (

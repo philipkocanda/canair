@@ -12,20 +12,20 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from canlib import ansi
-from canlib.align import longest_payload_len
-from canlib.mirrors import DEFAULT_MIRROR_MATCH
+from canlib.analysis.align import longest_payload_len
+from canlib.analysis.mirrors import DEFAULT_MIRROR_MATCH
+from canlib.analysis.stats import correlation as _correlation
+from canlib.analysis.xanalysis import byte_state_buckets as _byte_state_buckets
+from canlib.analysis.xanalysis import discriminability as _discriminability
 from canlib.states import load_states, state_bucket_key
-from canlib.stats import correlation as _correlation
 from canlib.uds.inspect_bytes import apply_transform
 from canlib.uds.notation import ByteNotation, relabel_signal
-from canlib.xanalysis import byte_state_buckets as _byte_state_buckets
-from canlib.xanalysis import discriminability as _discriminability
 
 from .calc import _local_series, _paired, _paired_timed, _transform_series, find_mirrors
 from .format import _mark_for
 
 if TYPE_CHECKING:
-    from canlib.align import TimePoint
+    from canlib.analysis.align import TimePoint
 
 
 def print_discriminate(
@@ -129,7 +129,7 @@ def print_discriminate(
         # Categorical params: report Cramér's V vs state (nominal association)
         # instead of the interval-scale F, which doesn't apply to a mode/flag set.
         if name in cat_pairs:
-            from canlib.stats import cramers_v
+            from canlib.analysis.stats import cramers_v
 
             xs, ys = cat_pairs[name]
             v = cramers_v(xs, ys)
@@ -218,7 +218,7 @@ def print_correlations(
     the reference series first (e.g. ``delta`` to test level vs rate); ``method``
     selects pearson (linear) or spearman (monotone/rank).
     """
-    from canlib.align import DEFAULT_JOIN_TOL_S, join_nearest
+    from canlib.analysis.align import DEFAULT_JOIN_TOL_S, join_nearest
 
     cross = cross_ref_series is not None
     ref_label = cross_ref_label if cross else ref

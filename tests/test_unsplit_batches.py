@@ -11,10 +11,10 @@ import json
 import pytest
 
 from canlib import capture_io, profile
+from canlib.analysis.misfiled import PayloadSample
 from canlib.commands.captures.maint import cmd_split_batched
 from canlib.commands.validate import _run_captures
 from canlib.commands.validate.unsplit import unsplit_batch_warnings
-from canlib.misfiled import PayloadSample
 from canlib.pids import clear_cache
 from canlib.uds.unsplit_batches import find_unsplit_batches, split_unsplit_batches
 

@@ -17,10 +17,19 @@ import json as _json
 import sys
 
 from canlib import ansi
-from canlib.align import (
+from canlib.analysis.align import (
     DEFAULT_SESSION_GAP_S,
     load_signal_captures,
     longest_payload_len,
+)
+from canlib.analysis.fill import forced_hold_warning
+from canlib.analysis.xanalysis import (
+    hunt_byte,
+    load_ref,
+    ref_unit_for,
+    reference_is_absolute_level,
+    reference_is_bimodal,
+    transform_ref,
 )
 from canlib.capture_dates import add_scope_args, resolve_scope_bounds
 from canlib.commands._can_args import add_can_log_source_args
@@ -31,7 +40,6 @@ from canlib.commands._join import (
     fill_summaries,
     fill_summary_line,
 )
-from canlib.fill import forced_hold_warning
 from canlib.uds.inspect_bytes import NO_EXPR
 from canlib.uds.notation import (
     ByteNotation,
@@ -39,14 +47,6 @@ from canlib.uds.notation import (
     add_notation_arg,
     resolve_notation,
     subfunction_bytes_for_pid,
-)
-from canlib.xanalysis import (
-    hunt_byte,
-    load_ref,
-    ref_unit_for,
-    reference_is_absolute_level,
-    reference_is_bimodal,
-    transform_ref,
 )
 
 NAME = "hunt"
@@ -280,7 +280,7 @@ def _run_can_log(args) -> int:
     """
     from pathlib import Path
 
-    from canlib import frame_series
+    from canlib.analysis import frame_series as frame_series
     from canlib.can_logs import CanLogError
 
     path = Path(args.file)
@@ -424,7 +424,7 @@ def run(args) -> int:
     fill = fill_policy_from_args(args)
     try:
         if args.against_file:
-            from canlib.align import load_reference_file
+            from canlib.analysis.align import load_reference_file
 
             ref_series, ref_label = load_reference_file(args.against_file)
         else:
@@ -446,7 +446,7 @@ def run(args) -> int:
         ref_label = f"{args.transform}({ref_label})"
 
     if reference_is_bimodal([tp.value for tp in ref_series]):
-        from canlib.stats import categorical_method_nudge
+        from canlib.analysis.stats import categorical_method_nudge
 
         print(
             f"hunt: warning: reference {ref_label!r} collapses into ~2 clusters "
@@ -470,7 +470,7 @@ def run(args) -> int:
     if args.control or args.control_file:
         try:
             if args.control_file:
-                from canlib.align import load_reference_file
+                from canlib.analysis.align import load_reference_file
 
                 control_series, control_label = load_reference_file(args.control_file)
             else:
@@ -606,10 +606,10 @@ def run(args) -> int:
 
 def _run_physical(args, ecu: str, pid: str, since, until) -> int:
     """Reference-free physical-value band scan on one PID."""
+    from canlib.analysis.xanalysis import physical_scan
     from canlib.grid_prompt import resolve_grid_region
     from canlib.physical_bands import resolve_physical_bands
     from canlib.profile import active
-    from canlib.xanalysis import physical_scan
 
     loaded = load_signal_captures(
         [(ecu, pid)], since=since, until=until, state=args.state, label=args.label
@@ -687,7 +687,7 @@ def _warn_thin_reference_join(args, lp, ref_series, ref_label: str) -> None:
     that bound is 0 (or under ``--min-n``), the sweep can only come back empty —
     for a *scope/tolerance* reason, not because nothing correlates.
     """
-    from canlib.align import TimePoint, join_prepared, prepare_series, thin_join_warning
+    from canlib.analysis.align import TimePoint, join_prepared, prepare_series, thin_join_warning
 
     frames = lp.timed_frames()
     if not frames or not ref_series:

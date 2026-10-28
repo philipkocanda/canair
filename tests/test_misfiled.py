@@ -1,4 +1,4 @@
-"""Tests for spotting a reply saved under the wrong ECU (``canlib.misfiled``).
+"""Tests for spotting a reply saved under the wrong ECU (``canlib.analysis.misfiled``).
 
 Two ECUs that answer the same PID with the same header defeat the echo check: a queued reply
 from one lands in the next ECU's request slot and is stored under the wrong ``rx``. See
@@ -12,9 +12,9 @@ import json
 import pytest
 
 from canlib import profile
+from canlib.analysis.misfiled import PayloadSample, find_misfiled
 from canlib.commands.validate import _run_captures
 from canlib.commands.validate.misfiled import misfile_warnings
-from canlib.misfiled import PayloadSample, find_misfiled
 from canlib.pids import clear_cache
 
 MCU, VCU, BMS = 0x7EB, 0x7EA, 0x7EC

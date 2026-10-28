@@ -1,7 +1,7 @@
 """Tests for the capture-store data layer (:mod:`canlib.capture_store`).
 
 The loader, PID-definition resolution and decode preview used to live beside the
-``captures`` command, which forced :mod:`canlib.align`, :mod:`canlib.capture_dates`
+``captures`` command, which forced :mod:`canlib.analysis.align`, :mod:`canlib.capture_dates`
 and :mod:`canlib.state_infer` to import *up* into ``canlib.commands`` (with lazy
 in-function imports to dodge the resulting cycle). They are library concerns; these
 tests cover them directly, and :class:`TestLayering` keeps the inversion from

@@ -1,11 +1,11 @@
-"""Tests for the time-aligned cross-signal analysis primitives (canlib.align)."""
+"""Tests for the time-aligned cross-signal analysis primitives (canlib.analysis.align)."""
 
 import json
 from datetime import datetime, timedelta
 
 import pytest
 
-from canlib.align import (
+from canlib.analysis.align import (
     DEFAULT_JOIN_TOL_S,
     SignalRef,
     TimePoint,
@@ -24,7 +24,7 @@ from canlib.align import (
     series_time_ranges_disjoint,
     timestamps_disjoint,
 )
-from canlib.fill import FillPolicy
+from canlib.analysis.fill import FillPolicy
 
 
 # ---------------------------------------------------------------------------
@@ -541,7 +541,7 @@ class TestLoadReferenceFile:
 # ---------------------------------------------------------------------------
 class TestJoinNearestTriple:
     def test_keeps_only_full_triples(self):
-        from canlib.align import join_nearest_triple
+        from canlib.analysis.align import join_nearest_triple
 
         ref = [_tp(0.0, 1.0), _tp(1.0, 2.0), _tp(2.0, 3.0)]
         cand = [_tp(0.1, 10.0), _tp(1.1, 20.0)]  # no candidate near t=2
@@ -553,7 +553,7 @@ class TestJoinNearestTriple:
         assert zs == [100.0, 200.0]
 
     def test_empty_when_control_missing(self):
-        from canlib.align import join_nearest_triple
+        from canlib.analysis.align import join_nearest_triple
 
         ref = [_tp(0.0, 1.0)]
         cand = [_tp(0.1, 10.0)]
@@ -576,7 +576,7 @@ class TestDetrendBySession:
         assert vals[5:] == [-2.0, -1.0, 0.0, 1.0, 2.0]
 
     def test_makes_level_signal_correlate(self):
-        from canlib.stats import pearson
+        from canlib.analysis.stats import pearson
 
         base = datetime(2026, 7, 22, 9, 0, 0)
         # Reference ramps identically in both sessions; candidate tracks it but on
@@ -609,10 +609,10 @@ class TestDetrendBySession:
 
 
 class TestThinJoinWarning:
-    """The thin-reference-join diagnostic (canlib.align.thin_join_warning)."""
+    """The thin-reference-join diagnostic (canlib.analysis.align.thin_join_warning)."""
 
     def test_min_n_branch_names_a_concrete_min_n_to_lower_to(self):
-        from canlib.align import thin_join_warning
+        from canlib.analysis.align import thin_join_warning
 
         msg = thin_join_warning(
             command="hunt",
@@ -628,7 +628,7 @@ class TestThinJoinWarning:
         assert "lower --min-n to 5" in msg
 
     def test_healthy_join_returns_none(self):
-        from canlib.align import thin_join_warning
+        from canlib.analysis.align import thin_join_warning
 
         assert (
             thin_join_warning(

@@ -12,14 +12,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import NamedTuple
 
-from canlib.align import (
+from canlib.analysis.align import (
     PreparedSeries,
     TimePoint,
     join_prepared,
     prepare_series,
 )
-from canlib.triage import WordCandidate
-from canlib.xanalysis import (
+from canlib.analysis.triage import WordCandidate
+from canlib.analysis.xanalysis import (
     correlation,
     linear_fit,
     sniff_unit,
@@ -68,7 +68,7 @@ def _independence_score(state_f: float | None, driver_r: float | None) -> float 
 
 
 def _state_f(frames_by_state: dict[str, list[float]]):
-    from canlib.xanalysis import discriminability
+    from canlib.analysis.xanalysis import discriminability
 
     return discriminability(frames_by_state)
 

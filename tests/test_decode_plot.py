@@ -2,9 +2,9 @@
 
 import math
 
+from canlib.analysis.stats import fmt_num
 from canlib.commands.decode import plot as dp
 from canlib.commands.decode import plot_draw
-from canlib.stats import fmt_num
 from canlib.uds.inspect_bytes import InspectType
 
 U16 = InspectType("u16", 2, "int", False)

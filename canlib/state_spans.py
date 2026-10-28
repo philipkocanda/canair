@@ -25,7 +25,7 @@ Two deliberate shape choices:
 
 This module is a **pure leaf**: no capture-model, profile or numpy imports, so the
 raw-CAN broadcast domain can reuse it unchanged (same discipline as
-:mod:`canlib.counters`). Building spans from stored captures is
+:mod:`canlib.analysis.counters`). Building spans from stored captures is
 :mod:`canlib.state_infer`'s job; resolving a capture *through* them is
 :mod:`canlib.capture_store`'s.
 """

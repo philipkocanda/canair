@@ -7,7 +7,7 @@ its real end. Older ``wican-ws`` monitor sessions did this when a batch timed ou
 reply was taken as the answer to the per-DID fallback read.
 
 Nothing in the stored row says how it was requested, so this works across the corpus, like
-:mod:`canlib.misfiled`: a ``22`` capture is flagged when it is longer than its DID's
+:mod:`canlib.analysis.misfiled`: a ``22`` capture is flagged when it is longer than its DID's
 established length and the remainder walks, DID by DID, through other DIDs of the same ECU at
 their own established lengths to the end of the payload (:func:`canlib.uds.multi_did.split_chain`).
 
@@ -24,9 +24,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from canlib import capture_io, captures_merge
+from canlib.analysis.misfiled import PayloadSample
 from canlib.capture_types import CaptureRecord, CaptureSession
 from canlib.keepmode import KEEP_CHANGES, KEEP_UNIQUE
-from canlib.misfiled import PayloadSample
 from canlib.payload_corpus import Locator, load_payload_corpus
 from canlib.uds.multi_did import POSITIVE_READ_SID, is_fill, is_padding, split_chain
 

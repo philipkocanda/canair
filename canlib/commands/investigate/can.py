@@ -11,7 +11,7 @@ import json as _json
 import sys
 
 from canlib import ansi
-from canlib.align import (
+from canlib.analysis.align import (
     prepare_series,
 )
 
@@ -29,7 +29,7 @@ def _run_can(args) -> int:
     """
     from pathlib import Path
 
-    from canlib import frame_series
+    from canlib.analysis import frame_series as frame_series
     from canlib.can_logs import CanLogError
 
     path = Path(args.file)

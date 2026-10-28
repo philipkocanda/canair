@@ -766,7 +766,7 @@ class TestTimeEnforcement:
 
 
 class TestNearestWithin:
-    """The join's nearest-within-tolerance rule must match canlib.align's."""
+    """The join's nearest-within-tolerance rule must match canlib.analysis.align's."""
 
     def test_picks_nearest_and_respects_tolerance(self):
         ts = [0.0, 10.0, 20.0]
@@ -780,10 +780,10 @@ class TestNearestWithin:
         assert _nearest_within([0.0, 10.0], 5.0, 10.0) == 0
 
     def test_parity_with_align_join_prepared(self):
-        """Same inputs, same pairing decisions as canlib.align."""
+        """Same inputs, same pairing decisions as canlib.analysis.align."""
         from datetime import datetime, timedelta
 
-        from canlib.align import TimePoint, join_prepared, prepare_series
+        from canlib.analysis.align import TimePoint, join_prepared, prepare_series
 
         t0 = datetime(2026, 7, 22, 12, 0, 0)
         ref_offsets = [0.0, 3.0, 9.0, 30.0]

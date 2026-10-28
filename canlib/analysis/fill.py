@@ -21,7 +21,7 @@ turns capture rows into one derived quantity per row — **``hold_until``**, the
 instant a stored value stops being known — which the join primitives then consult
 as a fallback. Everything that needs provenance (the session's ``keep_mode``, the
 session identity, the session's end) is decided here, once, while the capture rows
-are still adjacent; :mod:`canlib.align` stays pure mechanism and never learns what
+are still adjacent; :mod:`canlib.analysis.align` stays pure mechanism and never learns what
 a keep mode is.
 
 Pure inspection over already-loaded capture entries: no I/O, and no canair imports
@@ -35,9 +35,9 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Literal, get_args
 
-from .capture_dates import entry_datetime
-from .capture_types import CaptureEntry
-from .keepmode import KEEP_CHANGES, KEEP_UNIQUE, scope_is_keep_unique
+from canlib.capture_dates import entry_datetime
+from canlib.capture_types import CaptureEntry
+from canlib.keepmode import KEEP_CHANGES, KEEP_UNIQUE, scope_is_keep_unique
 
 __all__ = [
     "FILL_AUTO",
@@ -92,7 +92,7 @@ def parse_fill_mode(value: object) -> FillMode:
 class FillPolicy:
     """Whether and how far a stored value may be carried forward.
 
-    Frozen (and therefore hashable) so a :class:`~canlib.align.LoadedPid` can
+    Frozen (and therefore hashable) so a :class:`~canlib.analysis.align.LoadedPid` can
     memoise its hold vector per policy — ``investigate --bits`` builds hundreds of
     series over one PID and must not recompute it per series.
     """

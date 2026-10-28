@@ -7,7 +7,7 @@ back-fill (:mod:`canlib.modes._monitor_record`), for sessions recorded before
 that existed or with a missing/incorrect state.
 
 Nothing here talks to the device; it is pure analysis over ``captures/`` (like
-:mod:`canlib.align`). A capture existing *is* a response, so ``responded`` is
+:mod:`canlib.analysis.align`). A capture existing *is* a response, so ``responded`` is
 ``None`` (unobservable) — a predicate using ``__no_response__`` / ``__responded__``
 cleanly abstains (evaluates to :data:`canlib.states.UNKNOWN`) rather than firing
 on absent evidence.
@@ -16,7 +16,7 @@ Cross-ECU predicates (e.g. ``BMS.X < -1 or OBC.Y > 0.5``) need both signals at
 roughly one instant, so timed captures are grouped into **pseudo-cycles** — all
 captures within ``cycle_tol`` seconds of the cycle's first. A round-robin monitor
 sweep over several ECUs spans ~8-10 s, so the default tolerance matches the
-stepper's join tolerance (10 s), not :data:`canlib.align.DEFAULT_JOIN_TOL_S`.
+stepper's join tolerance (10 s), not :data:`canlib.analysis.align.DEFAULT_JOIN_TOL_S`.
 Untimed captures (common in legacy sessions) collapse to a single whole-session
 cycle.
 """

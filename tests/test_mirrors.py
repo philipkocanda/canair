@@ -1,4 +1,4 @@
-"""Tests for mirror detection (canlib.mirrors).
+"""Tests for mirror detection (canlib.analysis.mirrors).
 
 Two limits of the exact-equality detector this replaced are what these tests pin:
 poll skew breaking unanimity, and real mirrors sitting at an offset or scale. Both
@@ -10,8 +10,8 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from canlib.align import TimePoint, prepare_series
-from canlib.mirrors import (
+from canlib.analysis.align import TimePoint, prepare_series
+from canlib.analysis.mirrors import (
     DEFAULT_MIRROR_MATCH,
     byte_owns_bit,
     find_column_mirrors,

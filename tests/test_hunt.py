@@ -19,7 +19,7 @@ def _write_ramp(tmp_path):
 
 
 def _run(tmp_path, monkeypatch, argv):
-    import canlib.align as align
+    import canlib.analysis.align as align
 
     orig = align.load_signal_captures
     monkeypatch.setattr(

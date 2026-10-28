@@ -1,6 +1,6 @@
 """Time-series extraction from raw broadcast-CAN frame logs (domain B).
 
-The frame-domain analogue of :func:`canlib.xanalysis.build_byte_series`: turn a
+The frame-domain analogue of :func:`canlib.analysis.xanalysis.build_byte_series`: turn a
 native CAN frame log (``captures/can/``) into per-byte (and per-bit) time series
 keyed by ``arbitration-ID:byte``, so broadcast data flows into the *same*
 ``TimePoint``-based analysis core (``align``/``xanalysis`` — correlate/hunt) as
@@ -16,10 +16,9 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from canlib.analysis.align import TimePoint
+from canlib.can_logs import detect_format, iter_frames
 from canlib.uds.inspect_bytes import INSPECT_TYPES, NO_EXPR, float_series_is_noise, interpret_bytes
-
-from .align import TimePoint
-from .can_logs import detect_format, iter_frames
 
 # Frame-signal label: "0xID:rN" (byte) / "0xID:rN.k" (bit). The single ":" keeps
 # arbitration-ID grouping working in xanalysis._same_pid (which rsplits on ":").
@@ -152,17 +151,23 @@ def hunt_frame(
 ):
     """ "Which byte/interpretation of frame ``target_id`` *is* ``ref``?"
 
-    The frame-domain analogue of :func:`canlib.xanalysis.hunt_byte`: sweeps every
+    The frame-domain analogue of :func:`canlib.analysis.xanalysis.hunt_byte`: sweeps every
     byte offset × interpretation (u8/i16/f32/… × endianness) of one arbitration
     ID's frames, time-aligns each against ``ref``, and ranks by |r| — reusing the
     shared ``INSPECT_TYPES``/``interpret_bytes`` primitives and the shared
     ranking/collapse. No PCI to skip (frames are contiguous). Returns
-    :class:`~canlib.xanalysis.HuntHit` with raw-CAN ``rN`` labels.
+    :class:`~canlib.analysis.xanalysis.HuntHit` with raw-CAN ``rN`` labels.
     """
     from pathlib import Path
 
-    from .align import join_nearest
-    from .xanalysis import HuntHit, _rank_and_collapse, correlation, linear_fit, sniff_unit
+    from canlib.analysis.align import join_nearest
+    from canlib.analysis.xanalysis import (
+        HuntHit,
+        _rank_and_collapse,
+        correlation,
+        linear_fit,
+        sniff_unit,
+    )
 
     p = Path(path)
     resolved = detect_format(p, fmt)

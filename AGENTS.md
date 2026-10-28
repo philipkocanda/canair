@@ -258,14 +258,14 @@ and **`g`/`G` address the view's primary axis**.
   the winner into `ecus/` with the evidence in `notes`; `--physical` needs no reference at all.
   **Domain B: `hunt can`** (`--promote` unsupported there — frames are defined in `signals/`).
 - **`canair investigate`** — One-shot per-byte verdict for a PID (mapped?, state-separation F, best
-  co-polled anchor, triage class from `canlib/triage.py`, physical band, probable multi-byte words).
-  **ECU and PID are both optional** — omit one or both to sweep an ECU or the whole profile
-  (`canlib/commands/investigate/sweep.py`). `--events`/`--dwell`/`--bits` are the narrated and
-  bit-level views. **`--counters`** finds monotonic counters (odometer, hour meter, cycle count):
-  detection is the leaf `canlib/counters.py` (numpy-free, so the raw-CAN domain can reuse it) and
-  the capture-model bridge is `canlib/commands/investigate/counters.py`, which aligns a **prefix**
-  payload matrix — aligning on the *modal* length would silently discard every capture of a minority
-  length. Plan: `plans/2026-08-07-monotonic-counter-detection.md`.
+  co-polled anchor, triage class from `canlib/analysis/triage.py`, physical band, probable
+  multi-byte words). **ECU and PID are both optional** — omit one or both to sweep an ECU or the
+  whole profile (`canlib/commands/investigate/sweep.py`). `--events`/`--dwell`/`--bits` are the
+  narrated and bit-level views. **`--counters`** finds monotonic counters (odometer, hour meter,
+  cycle count): detection is the leaf `canlib/analysis/counters.py` (numpy-free, so the raw-CAN
+  domain can reuse it) and the capture-model bridge is `canlib/commands/investigate/counters.py`,
+  which aligns a **prefix** payload matrix — aligning on the *modal* length would silently discard
+  every capture of a minority length. Plan: `plans/2026-08-07-monotonic-counter-detection.md`.
 - **`canair search`** — "Where in my captures is this string?" Searches every payload (and, by
   default, labels/notes/text responses; `--defs` adds `ecus/` identity fields) for a literal,
   `--regex`, `--hex` byte pattern or `--vin`, **without knowing the ECU or PID**; with no pattern it
@@ -289,11 +289,12 @@ reuse these instead of re-declaring a flag:
 
 - `--join-tol` / `--fill` / `--max-hold` — `canlib/commands/_join.py::add_join_args`, used by
   `align`/`correlate`/`hunt`/`investigate`/`decode` (`captures uds --step` deliberately keeps its
-  own wider *viewer* tolerance). Fill policy is `canlib/fill.py`, resolved at series-build time so
-  the join primitives never learn what a keep mode is; a value is never carried across a session
-  boundary, and every fill is reported. Plan: `plans/2026-08-05-run-length-forward-fill-joins.md`.
-- `--find-mirrors` / `--mirror-match` / `--allow-offset` — one matcher, `canlib/mirrors.py`, behind
-  three sweeps (`decode` intra-PID, `correlate` cross-ECU, `correlate can` cross-ID).
+  own wider *viewer* tolerance). Fill policy is `canlib/analysis/fill.py`, resolved at series-build
+  time so the join primitives never learn what a keep mode is; a value is never carried across a
+  session boundary, and every fill is reported. Plan:
+  `plans/2026-08-05-run-length-forward-fill-joins.md`.
+- `--find-mirrors` / `--mirror-match` / `--allow-offset` — one matcher, `canlib/analysis/mirrors.py`,
+  behind three sweeps (`decode` intra-PID, `correlate` cross-ECU, `correlate can` cross-ID).
 - `--notation {wican,isotp,torque,bix}` — **display only**; `--json`/`--promote` always emit the
   canonical WiCAN expression. A byte is modelled in ISO-TP space (`canlib/uds/notation.py::ByteRef`,
   rendered via `ByteDisplay`); WiCAN/Torque/bix are derived views. Persist a default with
@@ -379,8 +380,8 @@ reuse these instead of re-declaring a flag:
   fields hold the same value (dead mirrored data). **`validate captures`** soft-warns on
   out-of-vocabulary states, SID/DID **echo mismatches** (a misfiled payload), **cross-ECU misfiles**
   (a reply that looks like another ECU's answer to the same PID, which the echo check cannot see;
-  cross-file pass, detection in `canlib/misfiled.py`), **unsplit multi-DID replies** (a batch
-  reply starts `62 D1`, so it passes `D1`'s echo check; same corpus load via
+  cross-file pass, detection in `canlib/analysis/misfiled.py`), **unsplit multi-DID replies** (a
+  batch reply starts `62 D1`, so it passes `D1`'s echo check; same corpus load via
   `canlib/payload_corpus.py`, detection in `canlib/uds/unsplit_batches.py`, reply walk in
   `canlib/uds/multi_did.py`, which the live batched read paths also use to discard one), non-hex
   payloads, **untimed payload captures** (excluded from every time-aligned analysis) and
