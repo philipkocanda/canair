@@ -154,7 +154,7 @@ messages:
         length: 1
         byte_order: little
         source: projectgus Kona bench_kona.py; uhi22 BMS bench capture (BMS_BatteryManagementSystem/Ioniq28-cellvoltages-read-with-CarScanner.txt), BMS 2102-2104 replies in the same 0.8 s; uhi22 Ioniq28 P-CAN drive and leave-car logs
-        notes: Byte 0 reads 0x4F (bit 6 set) in READY in both car logs and 0x0F (bit 6 clear) on the bench, where the BMS ran without closing its contactors. Matches the Kona bench reading of the same bit.
+        notes: Byte 0 reads 0x4F (bit 6 set) in READY in both car logs and 0x0F (bit 6 clear) on the bench, where the BMS ran without closing its contactors. Matches the Kona bench reading of the same bit. The CCM waits for this bit to clear before ending a CCS session.
       CCS_EV_ENERGY_REQUEST:
         start_bit: 8
         length: 16
@@ -162,6 +162,14 @@ messages:
         unit: Wh
         source: uhi22 vehiclesim.py and DIN 70121 logs
         notes: "Energy to full: the simulation's 18480 = 28000 Wh x 66 % at its 34 % SOC, and uhi22's charger logs show EVEnergyRequest = 28000 x (100 - SOC) % (20160 Wh at 28 %). Reads 0 in READY. Without 0x5A3 the CCM stops after ContractAuthentication."
+      CCS_ENERGY_TRANSFER_TYPE:
+        start_bit: 0
+        length: 4
+        byte_order: little
+        min: 0.0
+        max: 15.0
+        source: CCM firmware DIN 70121 message builders and session state machine (uhi22 code-flash dump, Ghidra); uhi22 vehiclesim.py
+        notes: Sent as EVRequestedEnergyTransferType. The CCM waits for 3 (DC_extended, the CCS Combo 2 mode) before ChargeParameterDiscovery. Reads 3 in uhi22's car trace (byte 0 = 0x63) and 0xF on his bench BMS.
   '0x542':
     name: BMS_542
     tx_ecu: BMS
@@ -427,6 +435,24 @@ messages:
         byte_order: little
         source: CCM application firmware (uhi22 code-flash dump), Com receive table and DIN 70121 message builder decompiled in Ghidra
         notes: 1 stops the CCS session (with 0x57F byte 0 bit 3, or CCS_EV_NO_ERROR = 0). A session only starts while it reads 0.
+      CCS_READY_TO_CHARGE:
+        start_bit: 12
+        length: 1
+        byte_order: little
+        source: CCM firmware DIN 70121 message builders and session state machine (uhi22 code-flash dump, Ghidra)
+        notes: Sent as ReadyToChargeState in PowerDeliveryReq (forced to 0 in the stop request).
+      CCS_RELAYS_CLOSED:
+        start_bit: 57
+        length: 1
+        byte_order: little
+        source: CCM firmware DIN 70121 message builders and session state machine (uhi22 code-flash dump, Ghidra); uhi22 vehiclesim.py
+        notes: The CCM waits for this bit before starting CurrentDemand. Set when the vehicle has closed its DC charging path (0x599 byte 7 goes 01 -> 03 at PowerDelivery in uhi22's simulation).
+      CCS_WELDING_DETECTION_REQ:
+        start_bit: 58
+        length: 1
+        byte_order: little
+        source: CCM firmware DIN 70121 message builders and session state machine (uhi22 code-flash dump, Ghidra)
+        notes: After the session stop, once CCS_EV_READY is 0, the CCM sends WeldingDetectionReq when this bit is 1; after 1 s without it, it skips to SessionStop.
   '0x59C':
     name: BMS_59C
     tx_ecu: BMS
@@ -446,7 +472,34 @@ messages:
         scale: 0.1
         unit: A
         source: uhi22 CCM readme (bench session with vehiclesim.py and pyPLC as charger) and vehiclesim.py; the BMS transmits it (uhi22 BMS readme)
-        notes: Forwarded 1:1 as EVTargetCurrent with no ramp or rate limit of its own, and no counter or checksum in the frame. This is the field uhi22's ioniq-chargepower-reducer rewrites to limit DC charging current.
+        notes: Forwarded 1:1 as EVTargetCurrent with no ramp or rate limit of its own, and no counter or checksum in the frame. The firmware sends 0 instead while any of its fault latches is set. During PreCharge the CCM waits until it reads 0.1-2.0 A. This is the field uhi22's ioniq-chargepower-reducer rewrites to limit DC charging current.
+      CCS_FULL_SOC:
+        start_bit: 0
+        length: 8
+        byte_order: little
+        scale: 0.5
+        min: 0.0
+        max: 100.0
+        unit: '%'
+        source: CCM firmware DIN 70121 message builders and session state machine (uhi22 code-flash dump, Ghidra); uhi22 vehiclesim.py
+        notes: Sent to the charger as FullSOC in ChargeParameterDiscoveryReq. 0xBC = 94 % in uhi22's car trace, exactly the FullSOC in his charger logs.
+      CCS_BULK_SOC:
+        start_bit: 8
+        length: 8
+        byte_order: little
+        scale: 0.5
+        min: 0.0
+        max: 100.0
+        unit: '%'
+        source: CCM firmware DIN 70121 message builders and session state machine (uhi22 code-flash dump, Ghidra); uhi22 vehiclesim.py
+        notes: Sent to the charger as BulkSOC in ChargeParameterDiscoveryReq. 0xA6 = 83 % in uhi22's car trace, exactly the BulkSOC in his charger logs.
+      CCS_EV_ENERGY_CAPACITY:
+        start_bit: 48
+        length: 16
+        byte_order: little
+        unit: Wh
+        source: CCM firmware DIN 70121 message builders and session state machine (uhi22 code-flash dump, Ghidra); uhi22 vehiclesim.py
+        notes: Sent to the charger as EVEnergyCapacity. 0x6D60 = 28000 Wh in uhi22's car trace, the 28 kWh pack, matching his charger logs.
   '0x59E':
     name: BMS_59E
     tx_ecu: BMS
@@ -715,7 +768,7 @@ messages:
         length: 1
         byte_order: little
         source: CCM application firmware (uhi22 code-flash dump), Com receive table and DIN 70121 message builder decompiled in Ghidra; uhi22 vehiclesim.py
-        notes: Meaning unknown. The only reader found in the CCM firmware copies it into a status record. 1 in uhi22's DC charging trace.
+        notes: "Meaning unknown; required before CableCheck: the CCM sends CableCheckReq only once this bit and CCS_EV_READY are both 1. Possibly the charge-connector lock confirmation. 1 in uhi22's DC charging trace."
       OBC_EVSE_FAULT:
         start_bit: 44
         length: 1
@@ -762,4 +815,4 @@ messages:
         length: 1
         byte_order: little
         source: CCM application firmware (uhi22 code-flash dump), Com receive table and DIN 70121 message builder decompiled in Ghidra; uhi22 BMS readme (0x5D5 power relay temperature frame)
-        notes: The only 0x5D5 bit the CCM receives. The only reader found in its firmware copies it into a status record. Meaning unknown; uhi22's bench sessions run without 0x5D5.
+        notes: "After each WeldingDetectionRes, the CCM ends the session when this bit is 1 and repeats WeldingDetection otherwise: probably 'contactors confirmed open, not welded'. The only 0x5D5 bit the CCM receives. uhi22's bench sessions run without 0x5D5 (so the CCM keeps repeating WeldingDetection until the charger ends it)."
