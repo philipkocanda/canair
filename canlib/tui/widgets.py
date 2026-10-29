@@ -5,7 +5,7 @@ distinguishes checked from unchecked by **colour alone**. Textual draws the
 same ``▐X▌`` button in either state and only recolours the inner character, so
 checked and unchecked are told apart by colour — non-standard, invisible to
 colour-blind users, and easily washed out by a theme. These subclasses vary the
-*glyph* (``[✔]`` vs ``[ ]``) so the shape carries the state, the universally
+*glyph* (``[x]`` vs ``[ ]``) so the shape carries the state, the universally
 understood checkbox convention; the component/visual style is untouched, so a
 theme still gets to colour it.
 
@@ -25,10 +25,12 @@ from textual.widgets._option_list import OptionDoesNotExist
 
 __all__ = ["CheckBox", "CheckSelectionList"]
 
-#: Checkbox glyphs. The three characters match the width of the gutter Textual
-#: reserves for its ``▐X▌`` button (see ``_get_left_gutter_width``), so the
-#: option text still lines up and the gutter width need not be overridden.
-_CHECKED = "[✔]"
+#: Checkbox glyphs. Both are exactly three ASCII cells wide, so the selected row
+#: cannot shift: a non-ASCII tick (e.g. ``✔`` U+2714) is Unicode "ambiguous
+#: width" and many terminals draw it two cells wide — wider than Rich accounts
+#: for — nudging the row text when a row is ticked. ``[x]``/``[ ]`` is also the
+#: most conventional checkbox rendering.
+_CHECKED = "[x]"
 _UNCHECKED = "[ ]"
 
 
@@ -78,7 +80,7 @@ class CheckSelectionList(SelectionList):
 class CheckBox(Checkbox):
     """A ``Checkbox`` whose on/off state is carried by shape, not colour.
 
-    Replaces the stock ``▐X▌`` button (identical in both states) with ``[✔]``
+    Replaces the stock ``▐X▌`` button (identical in both states) with ``[x]``
     when on and ``[ ]`` when off. The button keeps the parent's visual style, so
     a theme still colours it — the state no longer depends on that colour.
     """
