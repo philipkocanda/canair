@@ -546,6 +546,36 @@ OBC:
         - uhi22 EPCU readme (teardown photos of the DC-DC boards inside the EPCU), 2026-10-29
       what_to_test:
         - With a P-CAN tap, compare OBC 2101 LDC_TEMP against 0x523 byte 2 during a long READY idle with a heavy 12 V load (rear heater, blower, lights).
+    - type: verify
+      target: "AC charge-current setting (station and portable): encoding and amps"
+      status: pending
+      priority: P2
+      vehicle_states: [PLUGGED, CHARGING]
+      created: "2026-10-30"
+      updated: "2026-10-30"
+      result: >-
+        Encoding found in the head-unit firmware (not yet seen on a bus). The EV menu's 'Charge
+        Current' has two pages, one for a charging station (internally lowChargeStand) and one for
+        the portable cable (chargeConnectCable), each with three radio buttons: Maximum, Reduced,
+        Minimum (NL: Maximum, Verlaagd, Minimum). The selected button's index is sent unchanged: 0
+        Maximum, 1 Reduced, 2 Minimum. It goes out in the head unit's EV-settings frame HU_EV_PE_00
+        (MM-CAN 0x1AA) byte 3: bits 3-2 station, bits 1-0 portable. 3 means 'keep': a charge-current
+        change sends bytes 0-2 as 0xFF (drive-mode settings unchanged), and a drive-mode change
+        sends byte 3 as 0x0F. The MICOM copies each field to the bus as is. The menu then shows the
+        mode the OBC reports back (most likely GW_EV_P_02, MM-CAN 0x55C byte 5 bits 3-2 / 1-0, where
+        3 = invalid), so the OBC stores the setting. P-CAN copy not identified: 0x5DF or 0x5B3 (see
+        the AVN research entry); both read 0 (Maximum) in byte 3 on uhi22's car. Details:
+        ioniq-avn-fw micom-can-findings.md §6.1.
+      notes: "Owner car: every stored AC charge (12 days, 7.9-23.9 A pilot) drew 92-97 % of the pilot current, the same ratio at 8 A as at 16-20 A, so all were at Maximum and none shows how much Reduced or Minimum takes off. No OBC 2101 byte differs between the 8 A sessions and the others (OBC_MODE and OBC_SESSION_FLAGS read the same), so how the OBC tells the portable cable from a station is not visible there. Other Hyundai/Kia models are reported at 100/90/60 % or similar, but the Ioniq AE's steps are unmeasured."
+      sources:
+        - "ioniq-avn-fw EU firmware: GreenCar ChargeElectricSettingActivity and layouts, IviServer GreenCarMessageSetting, com.lge.ivi HuEvPe00/GwEvP02, MICOM 0x1AA setters 0x85E6C/0x85EC2; canair OBC 2101 captures; 2026-10-30"
+      what_to_test:
+        - "Plugged in at the home wallbox, ignition on (the page needs the OBC awake): set the station current to Reduced, wait 2 minutes, then Minimum, then back to Maximum, pressing 's' at each change. AC_INPUT_A / OBC_PILOT_AMPS gives the real steps, and any OBC 2101/2102 byte that changes in step is the OBC's stored copy."
+        - "Repeat on the portable cable with the portable setting, and once more changing only the setting for the cable that is not plugged in: the current should not move."
+      capture_protocol: >-
+        canair monitor OBC:2101,2102 BMS:2101 --save --keep-all --interval 2 --label 'AC
+        charge-current setting steps' --state CHARGING; press s at each menu change and name the
+        setting.
 
   sessions:
     "81":

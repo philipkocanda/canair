@@ -16,8 +16,8 @@
 # This unit is what is used to set:
 # - The two cabin preconditioning schedules
 # - The two AC charging schedules
-# - Station AC charging power (normal/reduced/minimum)
-# - Portable ("granny charger") AC charging power (normal/reduced/minimum)
+# - Station AC charging current (Maximum/Reduced/Minimum)
+# - Portable ("granny charger") AC charging current (Maximum/Reduced/Minimum)
 # - Default/Eco/Sport profiles (regen level and climate ECO setting)
 #
 # TODO:
