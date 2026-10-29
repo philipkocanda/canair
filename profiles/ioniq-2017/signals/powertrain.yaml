@@ -49,3 +49,123 @@ messages:
         verified: false
         source: 'uhi22 Ioniq28Investigations: IONIQ_PCAN_drive_fwd_neutral_drive_reverse_neutral.csv (fetch: scripts/fetch_can_corpus.py)'
         notes: ESC/TCS wheel-speed echo (byte 2-3, 14-bit LE). r=1.00 vs 0x386 WHL_SPD_FL over 1678 samples; 0-9.3 km/h. Not in the upstream DBC. Unverified pending owner-car confirmation.
+  '0x524':
+    name: EPCU_524
+    tx_ecu: MCU
+    signals:
+      EPCU_DC_VOLTAGE:
+        start_bit: 0
+        length: 9
+        byte_order: little
+        min: 0.0
+        max: 511.0
+        unit: V
+        source: uhi22 Ioniq28 DBC uwe524_EPCU_voltage; uhi22 EPCU readme (0x524 sent by the MCU's transceiver U9002); uhi22 P-CAN drive log
+        notes: EPCU DC voltage, 1 V/bit. Reads 370-373 V in the drive log against 373.5-373.9 V pack voltage on 0x595. The Kona bench reads the same bytes as inverter voltage. Unverified on the owner car.
+      VEHICLE_SPEED:
+        start_bit: 23
+        length: 16
+        byte_order: big
+        scale: 0.00390625
+        min: 0.0
+        max: 255.0
+        unit: km/h
+        source: uhi22 Ioniq28 P-CAN tap, drive log (scripts/fetch_can_corpus.py); uhi22 script_VESS_play.js
+        notes: Vehicle speed, bytes 2-3 big-endian, 1/256 km/h, unsigned (positive in reverse too, per the VESS script). r = 0.997 against 0x386 WHL_SPD_FL over 3327 frames of the drive log, top 9.25 vs 9.31 km/h. The VESS takes its speed from this frame. Unverified on the owner car.
+  '0x595':
+    name: BMS_595
+    tx_ecu: BMS
+    signals:
+      BMS_PACK_VOLTAGE:
+        start_bit: 48
+        length: 16
+        byte_order: little
+        scale: 0.1
+        min: 0.0
+        max: 500.0
+        unit: V
+        source: uhi22 DBC uwe595_UBatt; uhi22 BMS bench capture (BMS_BatteryManagementSystem/Ioniq28-cellvoltages-read-with-CarScanner.txt), BMS 2102-2104 replies in the same 0.8 s; uhi22 Ioniq28 P-CAN drive and leave-car logs
+        notes: 'Bench: 332.7 V against 331.84 V summed from the 96 cells read at the same moment (20 mV cell resolution). Car logs: 372.5-373.9 V, 3.88-3.89 V per cell.'
+      BMS_PACK_CURRENT:
+        start_bit: 32
+        length: 16
+        byte_order: little
+        signed: true
+        scale: 0.1
+        min: -1000.0
+        max: 1000.0
+        unit: A
+        source: uhi22 DBC uwe595_IBatt; uhi22 Ioniq28 P-CAN drive and leave-car logs
+        notes: 'Positive = discharge: 0.9 to 21.8 A, median 1.6 A while creeping at up to 9 km/h. Regen sign not observed.'
+      BMS_MIN_CELL_VOLTAGE:
+        start_bit: 16
+        length: 8
+        byte_order: little
+        scale: 0.02
+        min: 0.0
+        max: 5.1
+        unit: V
+        source: uhi22 BMS bench capture (BMS_BatteryManagementSystem/Ioniq28-cellvoltages-read-with-CarScanner.txt), BMS 2102-2104 replies in the same 0.8 s; uhi22 Ioniq28 P-CAN drive and leave-car logs
+        notes: 'Bench: 0xAA = 3.40 V, exactly the lowest of the 96 cells read at the same moment. Car logs: 3.86-3.88 V. Not in the uhi22 DBC.'
+      BMS_MAX_CELL_VOLTAGE:
+        start_bit: 24
+        length: 8
+        byte_order: little
+        scale: 0.02
+        min: 0.0
+        max: 5.1
+        unit: V
+        source: uhi22 BMS bench capture (BMS_BatteryManagementSystem/Ioniq28-cellvoltages-read-with-CarScanner.txt), BMS 2102-2104 replies in the same 0.8 s; uhi22 Ioniq28 P-CAN drive and leave-car logs
+        notes: 'Bench: 0xAD = 3.46 V, exactly the highest of the 96 cells read at the same moment. Car logs: 3.88-3.90 V. Not in the uhi22 DBC.'
+  '0x596':
+    name: BMS_596
+    tx_ecu: BMS
+    signals:
+      BMS_AUX_BATTERY_VOLTAGE:
+        start_bit: 8
+        length: 8
+        byte_order: little
+        scale: 0.1
+        min: 0.0
+        max: 25.5
+        unit: V
+        source: uhi22 DBC uwe596_1_UKl30; uhi22 BMS bench capture (BMS_BatteryManagementSystem/Ioniq28-cellvoltages-read-with-CarScanner.txt), BMS 2102-2104 replies in the same 0.8 s; uhi22 Ioniq28 P-CAN drive and leave-car logs
+        notes: 12 V supply as the BMS sees it. Bench 11.9 V; car logs 14.5-14.6 V in READY (LDC charging).
+      BMS_MIN_MODULE_TEMP:
+        start_bit: 48
+        length: 8
+        byte_order: little
+        unit: degC
+        source: uhi22 DBC uwe596_6_TAkkuL; uhi22 BMS bench capture (BMS_BatteryManagementSystem/Ioniq28-cellvoltages-read-with-CarScanner.txt), BMS 2102-2104 replies in the same 0.8 s; uhi22 Ioniq28 P-CAN drive and leave-car logs
+        notes: Bench 22 degC, car logs 2 degC (winter). Read as unsigned per the uhi22 DBC; whether it goes signed below 0 degC is not observed.
+      BMS_MAX_MODULE_TEMP:
+        start_bit: 56
+        length: 8
+        byte_order: little
+        unit: degC
+        source: uhi22 DBC uwe596_7_TAkkuH; uhi22 BMS bench capture (BMS_BatteryManagementSystem/Ioniq28-cellvoltages-read-with-CarScanner.txt), BMS 2102-2104 replies in the same 0.8 s; uhi22 Ioniq28 P-CAN drive and leave-car logs
+        notes: Bench 23 degC, car logs 3 degC.
+  '0x5A3':
+    name: BMS_5A3
+    tx_ecu: BMS
+    signals:
+      BMS_MAIN_CONTACTOR_CLOSED:
+        start_bit: 6
+        length: 1
+        byte_order: little
+        source: projectgus Kona bench_kona.py; uhi22 BMS bench capture (BMS_BatteryManagementSystem/Ioniq28-cellvoltages-read-with-CarScanner.txt), BMS 2102-2104 replies in the same 0.8 s; uhi22 Ioniq28 P-CAN drive and leave-car logs
+        notes: Byte 0 reads 0x4F (bit 6 set) in READY in both car logs and 0x0F (bit 6 clear) on the bench, where the BMS ran without closing its contactors. Matches the Kona bench reading of the same bit.
+  '0x542':
+    name: BMS_542
+    tx_ecu: BMS
+    signals:
+      BMS_SOC_DISPLAY:
+        start_bit: 0
+        length: 8
+        byte_order: little
+        scale: 0.5
+        min: 0.0
+        max: 100.0
+        unit: '%'
+        source: uhi22 DBC uwe542_0_SocDisp; uhi22 BMS bench capture (BMS_BatteryManagementSystem/Ioniq28-cellvoltages-read-with-CarScanner.txt), BMS 2102-2104 replies in the same 0.8 s; uhi22 Ioniq28 P-CAN drive and leave-car logs
+        notes: Car logs 83 %. Bench 9 %, with cells at 3.40-3.46 V.

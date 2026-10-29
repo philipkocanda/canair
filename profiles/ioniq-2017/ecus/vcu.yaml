@@ -52,7 +52,11 @@ VCU:
           verified: true
           notes: >-
             16-bit MPH (high byte B20 signed, low byte B19 unsigned) converted to km/h. r=0.999 vs
-            ESC:22C101:REAL_SPEED_KMH (n=124, 2026-07-22 drive, 0-105.7 km/h).
+            ESC:22C101:REAL_SPEED_KMH (n=124, 2026-07-22 drive, 0-105.7 km/h). Reads about 3.6 %
+            above true speed, so it is probably the speed the cluster shows: over all stored drives
+            above 30 km/h, MCU_MOTOR_RPM is 61.8 rpm per km/h of this signal (n=1372, IQR 61.6-62.1)
+            against 64.07 expected from the 7.412 reduction ratio and 1928 mm tyre circumference
+            (uhi22) and 63.96 measured against ESC REAL_SPEED_KMH.
           source: VCU 2101 speed lead (MPH formula) + cross-ECU verification vs ESC, 2026-07-23
           enabled: true
         ACCEL_PEDAL_DEPTH:
@@ -159,7 +163,9 @@ VCU:
             and the IG3-fed ECUs answered again 1-40 s later. Equals BMS 2101 BMS_IG3_ON (B61:3) in
             10845 of 10846 aligned rows. 1 in READY, AC and DC charging, the 12 V top-up and
             ignition-on standby, so it is the rail, not one of the IG3 #1/#2/quick-charge relays.
-            Formerly VEHICLE_STATE_VCU_READY.
+            Also 1 in all 250 replies of the uhi22 EPCU bench log, where the EPCU was powered on its
+            12 V and wake-line pins only, while VCU_IGN_ON reads 0: it follows the EPCU's own wake
+            input, not the ignition. Formerly VEHICLE_STATE_VCU_READY.
           source: canair cross-ECU response-presence analysis 2026-10-23 (stored captures + JejuSoul US Ioniq logs)
 
 
@@ -194,8 +200,12 @@ VCU:
             Accelerator pedal sensor track 1, 16-bit little-endian; B12 is the low byte. r=+0.996 vs
             ACCEL_PEDAL_DEPTH over 1607 DRIVING captures. Always 1.97x (1.91-2.37) VCU_APS2_VOLTAGE,
             the usual two-track pedal sensor layout. Reads 0.80 V released and 3.55 V at 87.5 %
-            pedal. Scale 1/2048 V not proven.
-          source: canair decode/align 2026-10-21
+            pedal. Scale check: in the uhi22 EPCU bench log (CAN/EPCU_torquePro.csv): the EPCU alone
+            on a desk, woken by its wake line, no other ECU on the bus, 250 VCU 2101 replies the
+            pedal inputs were potentiometers set to full (broadcast 0x200 byte 4 = 254,
+            ACCEL_PEDAL_DEPTH 100 %); this reads 3.93 V where uhi22's multimeter table gives 3.97 V
+            at 254, so 1/2048 V is within about 1 %.
+          source: canair decode/align 2026-10-21; uhi22 EPCU bench 2026-10-29
           min: "0"
           max: "5"
         DEBUG_GEAR_STATE_FLAGS:
@@ -218,8 +228,11 @@ VCU:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
           notes: >-
-            Set in Reverse, Neutral and Drive; the exact complement of GEAR_P. Disabled so it does
-            not ship a duplicate; defined so bit 3 is accounted for.
+            Set in Reverse, Neutral and Drive; the exact complement of GEAR_P in every car capture.
+            Reads 0 in the uhi22 EPCU bench log (CAN/EPCU_torquePro.csv): the EPCU alone on a desk,
+            woken by its wake line, no other ECU on the bus, 250 VCU 2101 replies, where GEAR_P is 1
+            and no shifter is connected, so, like B26:5, it may come from the shift module rather
+            than the VCU. Disabled so it does not ship a duplicate.
           enabled: false
         GEAR_P_MIRROR_B26_5:
           expression: B26:5
@@ -229,8 +242,12 @@ VCU:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
           notes: >-
-            Equals GEAR_P (B10:0) in every capture. Disabled so it does not ship a duplicate;
-            defined so bit 5 is accounted for.
+            Equals GEAR_P (B10:0) in every car capture. Not a plain mirror: in the uhi22 EPCU bench
+            log (CAN/EPCU_torquePro.csv): the EPCU alone on a desk, woken by its wake line, no other
+            ECU on the bus, 250 VCU 2101 replies, GEAR_P reads 1 and this bit 0 in all 250 replies,
+            with no shifter connected. So B26 probably carries the gear as reported by another
+            module (the shift-by-wire or parking-actuator unit), and B10 the VCU's own state.
+            Disabled so it does not ship a duplicate.
           enabled: false
 
         VCU_INVERTER_ENABLED:
@@ -245,7 +262,7 @@ VCU:
           expression: B25
           unit: ""
           min: "0"
-          max: "7"
+          max: "8"
           source: canair historical analysis 2026-07-23; values 1, 2 and 6 re-read 2026-10-23 against stored captures and the JejuSoul US Ioniq logs
           verified: true
           notes: >-
@@ -255,9 +272,13 @@ VCU:
             READY on 2026-07-30, the 2026-10-21 parked 12 V top-up, and 5 samples after the top-up
             with VCU_IG3_ON 0). The JejuSoul US Ioniq logs show the same values plus 2 at power-off
             (B11 = 0xD0, then 0x80, at the end of the drive log; B11 = 0xD2 as the last reading of
-            both AC-charge logs), never seen on this car. A candidate diagnostic view of the VCU's
-            IG3 relay mode (CF_Vcu_IG3RlyMd in broadcast 0x57B, observed 2 and 10 on a US car); the
-            encodings are not known to match.
+            both AC-charge logs), never seen on this car. The uhi22 EPCU bench log
+            (CAN/EPCU_torquePro.csv): the EPCU alone on a desk, woken by its wake line, no other ECU
+            on the bus, 250 VCU 2101 replies reads 8 in all 250 replies, a value never seen in a
+            car; the VCU there stores no-communication DTCs for the BMS, the gateway and the HVAC
+            unit (U0111, U0146, U0164). A candidate diagnostic view of the VCU's IG3 relay mode
+            (CF_Vcu_IG3RlyMd in broadcast 0x57B, observed 2 and 10 on a US car); the encodings are
+            not known to match.
           type: enum
           values:
             1: standby
@@ -314,12 +335,14 @@ VCU:
           unit: V
           min: "0"
           max: "5"
-          source: canair decode/align 2026-10-21
+          source: canair decode/align 2026-10-21; uhi22 EPCU bench 2026-10-29
           verified: false
           notes: >-
             Accelerator pedal sensor track 2, 16-bit little-endian. About half of VCU_APS1_VOLTAGE
-            (ratio median 1.97). Reads 0.42 V released and 1.80 V at 87.5 % pedal. Scale 1/2048 V
-            not proven.
+            (ratio median 1.97). Reads 0.42 V released and 1.80 V at 87.5 % pedal. Scale check: 2.06
+            V in the uhi22 EPCU bench log (CAN/EPCU_torquePro.csv): the EPCU alone on a desk, woken
+            by its wake line, no other ECU on the bus, 250 VCU 2101 replies at full pedal, where
+            uhi22's multimeter table gives 2.00 V, so 1/2048 V is within about 3 %.
         VCU_IGN_ON:
           expression: B11:0|B11:1
           min: "0"
@@ -577,6 +600,35 @@ VCU:
         VIN to the device AutoPID, and the ascii range expression is not a device float expression.
         Re-capture with 'canair read VCU:1A90' to confirm the length — see the PRIVACY note on the
         VIN signal before saving.
+
+  # From a KWP2000 18 00 FF 00 read of an EPCU running alone on a bench (uhi22
+  # CAN/EPCU_torquePro_reading_error_memory_18DTCs_found.csv), status 0x44 each. Descriptions are
+  # the SAE J2012 generic meanings; the U1xxx codes are manufacturer-specific.
+  dtcs:
+    U0111:
+      description: "Lost communication with battery energy control module A (BMS)"
+      source: "SAE J2012; uhi22 EPCU bench DTC read (no BMS connected)"
+      verified: false
+    U0146:
+      description: "Lost communication with gateway A"
+      source: "SAE J2012; uhi22 EPCU bench DTC read (no gateway connected)"
+      verified: false
+    U0164:
+      description: "Lost communication with HVAC control module"
+      source: "SAE J2012; uhi22 EPCU bench DTC read (no HVAC unit connected)"
+      verified: false
+    U1310:
+      description: "Manufacturer-specific network fault; meaning unknown"
+      source: "uhi22 EPCU bench DTC read"
+      verified: false
+    U1112:
+      description: "Manufacturer-specific network fault; meaning unknown"
+      source: "uhi22 EPCU bench DTC read"
+      verified: false
+    U1017:
+      description: "Manufacturer-specific network fault; meaning unknown"
+      source: "uhi22 EPCU bench DTC read"
+      verified: false
 
   research:
     - type: verify
@@ -936,8 +988,13 @@ VCU:
         VCU_AUX_BATTERY_VOLTAGE_FINE finds only copies of the voltage; (3) the 27-byte variant of
         VCU 2102 (3320 older captures) has constant zeros where the e-Niro layout puts current and
         SoC, and the current 23-byte reply stops after the voltage; (4) VCU 22 E001-E010 and OBC 22
-        E001-E011 are refused, and the 7E0 ECM that OBDb uses for 22 E004 is not on this car. Still
-        open: OBC 22 E101, and whether the OBD port can see 0x549 at all.
+        E001-E011 are refused, and the 7E0 ECM that OBDb uses for 22 E004 is not on this car.
+        2026-10-29: the VCU itself transmits 0x549. uhi22 found this by watching each EPCU CAN
+        transceiver (0x549 leaves on the VCU's), and in the uhi22 EPCU bench log, with no battery
+        sensor connected, the VCU sends BAT11 at its defaults with BAT_SNSR_Error = 1. So the VCU
+        reads the sensor and holds all of these values; any diagnostic copy is most likely on the
+        VCU. Still open: OBC 22 E101, a KWP2000 service-21 or 22 page on the VCU not yet read, and
+        whether the OBD port can see 0x549 at all.
       sources:
         - opendbc hyundai_2015_ccan.dbc (commaai, MIT), cross-checked against uhi22 Ioniq28Investigations P-CAN logs (scripts/fetch_can_corpus.py)
       what_to_test:
@@ -1046,6 +1103,21 @@ VCU:
       capture_protocol: >-
         canair sniff --save for 60 s in READY (slcan-tcp only), then canair import can on the saved
         log
+    - type: decode
+      target: regen paddle switch inputs
+      status: pending
+      priority: P2
+      vehicle_states: [READY]
+      created: "2026-10-29"
+      updated: "2026-10-29"
+      notes: "The steering-wheel regen paddles are wired straight into the EPCU harness connector: CN1000 3H is the right paddle (decrease regen), 3J the left (increase), each a switch to ground (about 202 ohm pressed). So the regen level is held in the VCU, and the momentary switch states are VCU inputs. The 2026-07-21 drive-mode session found no regen field in VCU 2101/2102, but it stored only changes on a 2.5 s poll, which can miss a press shorter than one poll. Same readme: the accelerator pedal is also a direct EPCU input (CN1000 3C/3F), reflected in broadcast 0x200 byte 4 (0-254, 255 invalid)."
+      sources:
+        - uhi22 EPCU readme (CN1000 pin-out), 2026-10-29
+      what_to_test:
+        - "READY, parked in D with the brake held: hold each paddle for 3 s, then step regen 0-1-2-3 and back, one press at a time. A bit that follows the held paddle is the switch input; a small enum that steps with each press is the regen level."
+      capture_protocol: >-
+        canair monitor VCU:2101,2102,21F2 --save --keep-all --interval 0.5 --label 'regen paddles'
+        --state READY; press 's' at each paddle press.
   sessions:
     "81":
       name: "standardDiagnosticSession"

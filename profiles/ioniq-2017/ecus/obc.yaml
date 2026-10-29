@@ -534,6 +534,18 @@ OBC:
         - projectgus car_hacking, bench_kona/bench_kona.py (Kona OS EV)
       what_to_test:
         - Tapped P-CAN sniff while changing the AC charge-current setting and the target SoC in the car menu; look for 0x562 (or a neighbour) with byte1/byte4 changing in step.
+    - type: verify
+      target: which module hosts the LDC (OBC 0x7E5 vs the EPCU)
+      status: pending
+      priority: P3
+      vehicle_states: [READY]
+      created: "2026-10-29"
+      updated: "2026-10-29"
+      notes: "uhi22's teardown shows the 12 V DC-DC converter (LDC) inside the EPCU housing with the inverter, and the VCU's KWP2000 ecu_id is VLDC (VCU with the LDC integrated). This profile reads LDC values (LDC_HV_INPUT_V, LDC_TEMP and others) from OBC 2101 at 0x7E5. Either the OBC reports the LDC's values or those signals are named after the wrong module. The EPCU broadcasts its DC-DC temperature on 0x523 bytes 2-3 (uhi22: sensor R147 on the DC-DC board)."
+      sources:
+        - uhi22 EPCU readme (teardown photos of the DC-DC boards inside the EPCU), 2026-10-29
+      what_to_test:
+        - With a P-CAN tap, compare OBC 2101 LDC_TEMP against 0x523 byte 2 during a long READY idle with a heavy 12 V load (rear heater, blower, lights).
 
   sessions:
     "81":

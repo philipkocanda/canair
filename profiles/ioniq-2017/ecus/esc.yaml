@@ -36,7 +36,10 @@ ESC:
           notes: >-
             1 km/h per LSB. r=+1.000 vs the four wheel speeds; 0 at standstill. Unsigned: positive
             when reversing (2026-07-26); direction comes from GEAR_SELECTOR. B10, B11 and B13 are
-            constant 0xFF.
+            constant 0xFF. True road speed: MCU_MOTOR_RPM is 63.96 rpm per km/h of this signal over
+            all stored drives above 30 km/h (n=1223), against 64.07 expected from the 7.412
+            reduction ratio and 1928 mm tyre circumference (uhi22). VCU_VEHICLE_SPEED reads about
+            3.6 % higher.
         WHEEL_SPEED_FL:
           expression: B18
           unit: km/h
