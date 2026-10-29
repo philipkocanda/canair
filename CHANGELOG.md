@@ -15,6 +15,14 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [1.35.2](https://github.com/philipkocanda/canair/compare/v1.35.1...v1.35.2) (2026-10-29)
+
+
+### Fixed
+
+* **tui:** make the monitor picker consistent with canair's other TUIs ([53c8192](https://github.com/philipkocanda/canair/commit/53c8192d3da08149414094860e319175d6e6cc5b))
+* **tui:** use ASCII checkbox glyph so a ticked row cannot shift ([37ada63](https://github.com/philipkocanda/canair/commit/37ada639f59e6438ab985cf203116642e9a41e5c))
+
 ## [1.35.1](https://github.com/philipkocanda/canair/compare/v1.35.0...v1.35.1) (2026-10-28)
 
 
