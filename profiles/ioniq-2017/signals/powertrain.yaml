@@ -155,6 +155,13 @@ messages:
         byte_order: little
         source: projectgus Kona bench_kona.py; uhi22 BMS bench capture (BMS_BatteryManagementSystem/Ioniq28-cellvoltages-read-with-CarScanner.txt), BMS 2102-2104 replies in the same 0.8 s; uhi22 Ioniq28 P-CAN drive and leave-car logs
         notes: Byte 0 reads 0x4F (bit 6 set) in READY in both car logs and 0x0F (bit 6 clear) on the bench, where the BMS ran without closing its contactors. Matches the Kona bench reading of the same bit.
+      CCS_EV_ENERGY_REQUEST:
+        start_bit: 8
+        length: 16
+        byte_order: little
+        unit: Wh
+        source: uhi22 vehiclesim.py and DIN 70121 logs
+        notes: "Energy to full: the simulation's 18480 = 28000 Wh x 66 % at its 34 % SOC, and uhi22's charger logs show EVEnergyRequest = 28000 x (100 - SOC) % (20160 Wh at 28 %). Reads 0 in READY. Without 0x5A3 the CCM stops after ContractAuthentication."
   '0x542':
     name: BMS_542
     tx_ecu: BMS
@@ -169,3 +176,203 @@ messages:
         unit: '%'
         source: uhi22 DBC uwe542_0_SocDisp; uhi22 BMS bench capture (BMS_BatteryManagementSystem/Ioniq28-cellvoltages-read-with-CarScanner.txt), BMS 2102-2104 replies in the same 0.8 s; uhi22 Ioniq28 P-CAN drive and leave-car logs
         notes: Car logs 83 %. Bench 9 %, with cells at 3.40-3.46 V.
+  '0x5E9':
+    name: CCM_5E9
+    tx_ecu: CCM
+    signals:
+      CCM_ALIVE:
+        start_bit: 0
+        length: 1
+        byte_order: little
+        source: uhi22 CCM readme (bench session with vehiclesim.py and pyPLC as charger) and vehiclesim.py; CCM transmits it
+        notes: Toggles every frame (00/01 in READY in the uhi22 drive log).
+      CCM_CHARGE_PROGRESS:
+        start_bit: 1
+        length: 7
+        byte_order: little
+        min: 0.0
+        max: 127.0
+        source: uhi22 CCM readme (bench session with vehiclesim.py and pyPLC as charger) and vehiclesim.py; CCM transmits it
+        notes: 'CCS session stage: 0 idle, 1 charge parameters known, 3 CableCheck, 7 PreCharge, 15 PowerDelivery, 31 CurrentDemand, 63 PowerDeliveryStop, 127 WeldingDetection. After an abort, bit 6 (raw 0x40 in the byte) is set on top of the last stage.'
+  '0x5E5':
+    name: CCM_5E5
+    tx_ecu: CCM
+    signals:
+      EVSE_MAX_VOLTAGE:
+        start_bit: 0
+        length: 16
+        byte_order: little
+        scale: 0.1
+        unit: V
+        source: uhi22 CCM readme (bench session with vehiclesim.py and pyPLC as charger) and vehiclesim.py; CCM transmits it
+        notes: Charger maximum voltage from ChargeParameterDiscovery.
+      EVSE_MAX_CURRENT:
+        start_bit: 16
+        length: 16
+        byte_order: little
+        scale: 0.1
+        unit: A
+        source: uhi22 CCM readme (bench session with vehiclesim.py and pyPLC as charger) and vehiclesim.py; CCM transmits it
+        notes: Charger maximum current.
+      EVSE_PRESENT_VOLTAGE:
+        start_bit: 32
+        length: 16
+        byte_order: little
+        scale: 0.1
+        unit: V
+        source: uhi22 CCM readme (bench session with vehiclesim.py and pyPLC as charger) and vehiclesim.py; CCM transmits it
+        notes: Charger output voltage as reported by the charger; the vehicle simulation waits for it to reach battery voltage before ending PreCharge.
+      EVSE_PRESENT_CURRENT:
+        start_bit: 48
+        length: 16
+        byte_order: little
+        scale: 0.1
+        unit: A
+        source: uhi22 CCM readme (bench session with vehiclesim.py and pyPLC as charger) and vehiclesim.py; CCM transmits it
+        notes: Charger output current as reported by the charger.
+  '0x5E6':
+    name: CCM_5E6
+    tx_ecu: CCM
+    signals:
+      CCM_CABLE_CHECK_RUNNING:
+        start_bit: 3
+        length: 1
+        byte_order: little
+        source: uhi22 CCM readme (bench session with vehiclesim.py and pyPLC as charger) and vehiclesim.py; CCM transmits it
+        notes: Byte 0 bit 3.
+      CCM_CABLE_CHECK_DONE:
+        start_bit: 10
+        length: 1
+        byte_order: little
+        source: uhi22 CCM readme (bench session with vehiclesim.py and pyPLC as charger) and vehiclesim.py; CCM transmits it
+        notes: Byte 1 bit 2. The vehicle then requests 1 A at battery voltage on 0x59C to start PreCharge.
+      CCM_CURRENT_DEMAND_RUNNING:
+        start_bit: 7
+        length: 1
+        byte_order: little
+        source: uhi22 CCM readme (bench session with vehiclesim.py and pyPLC as charger) and vehiclesim.py; CCM transmits it
+        notes: Byte 0 bit 7.
+      EVSE_MAX_POWER:
+        start_bit: 48
+        length: 16
+        byte_order: little
+        scale: 0.01
+        unit: kW
+        source: uhi22 CCM readme (bench session with vehiclesim.py and pyPLC as charger) and vehiclesim.py; CCM transmits it
+        notes: 10 W per bit. Two data points only (pyPLC 10 kW, a car trace 82.6 kW).
+  '0x5E8':
+    name: CCM_5E8
+    tx_ecu: CCM
+    signals:
+      EVSE_STATUS_CODE:
+        start_bit: 48
+        length: 8
+        byte_order: little
+        source: uhi22 CCM readme (bench session with vehiclesim.py and pyPLC as charger) and vehiclesim.py; CCM transmits it
+        notes: 'DIN 70121 EVSEStatusCode from the charger: 0 EVSE_NotReady, 1 EVSE_Ready, 4 EVSE_IsolationMonitoringActive; 0xD0/0xD1 seen just before an abort.'
+      EVSE_MIN_CURRENT:
+        start_bit: 16
+        length: 16
+        byte_order: little
+        scale: 0.1
+        unit: A
+        source: uhi22 CCM readme (bench session with vehiclesim.py and pyPLC as charger) and vehiclesim.py; CCM transmits it
+        notes: Two data points only (pyPLC 1 A, a car trace 0).
+      EVSE_MIN_VOLTAGE:
+        start_bit: 32
+        length: 16
+        byte_order: little
+        scale: 0.1
+        unit: V
+        source: uhi22 CCM readme (bench session with vehiclesim.py and pyPLC as charger) and vehiclesim.py; CCM transmits it
+        notes: Two data points only (pyPLC 200 V, a car trace 150 V).
+  '0x599':
+    name: BMS_599
+    tx_ecu: BMS
+    signals:
+      CCS_SOC:
+        start_bit: 16
+        length: 8
+        byte_order: little
+        scale: 0.5
+        min: 0.0
+        max: 100.0
+        unit: '%'
+        source: uhi22 CCM readme (bench session with vehiclesim.py and pyPLC as charger) and vehiclesim.py; the BMS transmits it (uhi22 BMS readme)
+        notes: The CCM sends it to the charger as EVRESSSOC (whole %). Reads 0 in READY in the uhi22 drive log, so it is only filled while a CCS session is wanted.
+      CCS_TRIGGER:
+        start_bit: 56
+        length: 1
+        byte_order: little
+        source: uhi22 CCM readme (bench session with vehiclesim.py and pyPLC as charger) and vehiclesim.py; the BMS transmits it (uhi22 BMS readme)
+        notes: 'Byte 7 bit 0: starts SLAC. With 0x57F, 0x597, 0x5A3 and 0x59C it is all the CCM needs to run a full session.'
+      CCS_EV_MAX_CURRENT:
+        start_bit: 24
+        length: 16
+        byte_order: little
+        scale: 0.1
+        unit: A
+        source: uhi22 vehiclesim.py (car trace values) and DIN 70121 logs
+        notes: Candidate. The simulation sends 0x07D0 = 200.0 A here, and the CCM sent EVMaximumCurrentLimit 200 A in every session in uhi22's charger logs; uhi22 suspected this field but did not test it.
+      CCS_EV_MAX_VOLTAGE:
+        start_bit: 40
+        length: 16
+        byte_order: little
+        scale: 0.1
+        unit: V
+        source: uhi22 vehiclesim.py (car trace values) and DIN 70121 logs
+        notes: Candidate. The simulation sends 0x1020 = 412.8 V here, exactly the EVMaximumVoltageLimit in uhi22's charger logs. Not tested.
+  '0x59C':
+    name: BMS_59C
+    tx_ecu: BMS
+    signals:
+      CCS_TARGET_VOLTAGE:
+        start_bit: 16
+        length: 16
+        byte_order: little
+        scale: 0.1
+        unit: V
+        source: uhi22 CCM readme (bench session with vehiclesim.py and pyPLC as charger) and vehiclesim.py; the BMS transmits it (uhi22 BMS readme)
+        notes: Forwarded 1:1 as EVTargetVoltage. Battery voltage during PreCharge, the maximum (412.8 V in the simulation) during CurrentDemand.
+      CCS_TARGET_CURRENT:
+        start_bit: 32
+        length: 16
+        byte_order: little
+        scale: 0.1
+        unit: A
+        source: uhi22 CCM readme (bench session with vehiclesim.py and pyPLC as charger) and vehiclesim.py; the BMS transmits it (uhi22 BMS readme)
+        notes: Forwarded 1:1 as EVTargetCurrent with no ramp or rate limit of its own, and no counter or checksum in the frame. This is the field uhi22's ioniq-chargepower-reducer rewrites to limit DC charging current.
+  '0x59E':
+    name: BMS_59E
+    tx_ecu: BMS
+    signals:
+      CCS_REMAINING_TIME_FULL:
+        start_bit: 0
+        length: 16
+        byte_order: little
+        unit: s
+        source: uhi22 CCM readme (bench session with vehiclesim.py and pyPLC as charger) and vehiclesim.py; the BMS transmits it (uhi22 BMS readme)
+        notes: Forwarded as RemainingTimeToFullSoC.
+      CCS_REMAINING_TIME_BULK:
+        start_bit: 16
+        length: 16
+        byte_order: little
+        unit: s
+        source: uhi22 CCM readme (bench session with vehiclesim.py and pyPLC as charger) and vehiclesim.py; the BMS transmits it (uhi22 BMS readme)
+        notes: Forwarded as RemainingTimeToBulkSoC; mirrored in 0x5D7 bytes 4-5.
+      BMS_PACK_VOLTAGE_59E:
+        start_bit: 32
+        length: 16
+        byte_order: little
+        scale: 0.1
+        unit: V
+        source: uhi22 vehiclesim.py and P-CAN drive log
+        notes: Not in uhi22's table. The drive log reads 373.7-373.9 V here, matching 0x595 pack voltage; the vehicle simulation sends 346.5 V, its battery voltage.
+      CCS_EV_MAX_POWER:
+        start_bit: 48
+        length: 16
+        byte_order: little
+        scale: 0.01
+        unit: kW
+        source: uhi22 CCM readme (bench session with vehiclesim.py and pyPLC as charger) and vehiclesim.py; the BMS transmits it (uhi22 BMS readme)
+        notes: Forwarded as EVMaximumPowerLimit (0 kW if the frame is missing). 98 kW in uhi22's car trace and DIN logs; the owner car's BMS 2101 AVAIL_CHARGE_POWER_MIRROR also reads 98.0 kW throughout both 2026-08-08 DC charges.

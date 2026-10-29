@@ -446,7 +446,10 @@ BMS:
           min: ""
           max: ""
           verified: true
-          notes: ""
+          notes: >-
+            Reads 98.0 kW throughout both 2026-08-08 DC fast charges (via the 2101 mirror), the same
+            98 kW the car sends a charger as EVMaximumPowerLimit (broadcast 0x59E bytes 6-7,
+            forwarded by the CCM into DIN 70121 ChargeParameterDiscovery; uhi22 charger logs).
 
         AVAIL_DISCHARGE_POWER:
           expression: "[B25:B26]/100"

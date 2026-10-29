@@ -1,7 +1,8 @@
 # ─── CCM (Charge Control Module) ──────────────────────────────────
 # Power Line Communication (PLC) for DC CCS fast-charging at 0x733. Part: 91950G7200
-# No live data DIDs discovered. Likely only active during DC fast charging.
-# Service 22 scan returned no results (2026-04-17, car not charging).
+# Its firmware serves 11 read DIDs (see pids: and the research entry), all identification or
+# stored records; none is live charging data. Live charging values are on the broadcast frames
+# 0x5E5-0x5E9 (signals/powertrain.yaml). The 2026-04-17 service 22 scan did not cover them.
 #
 # Confirmed physical location: under front left seat!
 
@@ -32,12 +33,107 @@ CCM:
       hits: 0
       vehicle_states: [READY, IGNITION ON]
       notes: "All NRC, 0 timeouts: no live-data DIDs at ignition-on."
-  pids: {}
+  pids:
+    22F101:
+      status: static
+      vehicle_states: [ACC2, READY]
+      notes: >-
+        In the firmware's DID table, 4 bytes. On uhi22's unit the stored block holds ASCII '1104'
+        here, the application software version this profile already lists as identity app_sw.
+        Source: CCM application firmware (uhi22 code-flash dump
+        readout_codeflash_CCM_ioniq_00_33_79.s19, read over the unprotected debug port) and its
+        data-flash dump.
+    22F102:
+      status: static
+      vehicle_states: [ACC2, READY]
+      notes: >-
+        In the firmware's DID table, 6 bytes: the CCM's PLC MAC address, which it sends to the
+        charger as the EVCCID (uhi22's unit: the stored MAC equals the EVCCID in all 8 of his DC
+        sessions). Chargers that offer Autocharge use the EVCCID to identify and bill the car, so
+        treat the value like the VIN: never contribute it, and redact it from captures. Source: CCM
+        application firmware (uhi22 code-flash dump readout_codeflash_CCM_ioniq_00_33_79.s19, read
+        over the unprotected debug port) and its data-flash dump.
+    22F103:
+      status: static
+      vehicle_states: [ACC2, READY]
+      notes: >-
+        In the firmware's DID table, 2 bytes, stored next to F101. 0x0058 on uhi22's unit; meaning
+        unknown. Source: CCM application firmware (uhi22 code-flash dump
+        readout_codeflash_CCM_ioniq_00_33_79.s19, read over the unprotected debug port) and its
+        data-flash dump.
+    22BCFF:
+      status: draft
+      vehicle_states: [ACC2, READY]
+      notes: >-
+        In the firmware's DID table, 4 bytes; content unknown. The IGPM also answers 22BCFF with a
+        4-byte ASCII version tag ('1090'), so this is probably the same Hyundai convention. Source:
+        CCM application firmware (uhi22 code-flash dump readout_codeflash_CCM_ioniq_00_33_79.s19,
+        read over the unprotected debug port).
+    22C350:
+      status: draft
+      vehicle_states: [ACC2, READY]
+      notes: >-
+        In the firmware's DID table, 276 bytes, the largest record the CCM serves; content unknown.
+        Not in the stored identification block, so possibly a configuration or session record.
+        Source: CCM application firmware (uhi22 code-flash dump
+        readout_codeflash_CCM_ioniq_00_33_79.s19, read over the unprotected debug port).
+    2212A0:
+      status: draft
+      vehicle_states: [ACC2, READY]
+      notes: >-
+        In the firmware's DID table, 25 bytes; content unknown. Source: CCM application firmware
+        (uhi22 code-flash dump readout_codeflash_CCM_ioniq_00_33_79.s19, read over the unprotected
+        debug port).
+    22CC01:
+      status: draft
+      vehicle_states: [ACC2, READY]
+      notes: >-
+        In the firmware's DID table, 8 bytes; content unknown. Source: CCM application firmware
+        (uhi22 code-flash dump readout_codeflash_CCM_ioniq_00_33_79.s19, read over the unprotected
+        debug port).
   dtcs:
     C182C:
       description: "DC fast-charge (CCS) charging / PLC communication failure"
       source: >
         canair RE — stored on the CCM (Charge Control Module, Power Line
         Communication) charge controller; correlated with an owner-observed DC
-        fast-charge (DCFC) abort.
+        fast-charge (DCFC) abort. Also in the CCM firmware's DTC table (uhi22 code-flash dump).
       verified: false
+    # The rest of the CCM firmware's DTC table (uhi22 code-flash dump, entries 0x582B00 ...
+    # 0x586500, failure type 00). Meanings are not in the firmware.
+    C182B:
+      description: "Meaning unknown"
+      source: "CCM firmware DTC table (uhi22 code-flash dump)"
+      verified: false
+    C1829:
+      description: "Meaning unknown"
+      source: "CCM firmware DTC table (uhi22 code-flash dump)"
+      verified: false
+    C1865:
+      description: "Meaning unknown"
+      source: "CCM firmware DTC table (uhi22 code-flash dump)"
+      verified: false
+    C160E:
+      description: "Meaning unknown"
+      source: "CCM firmware DTC table (uhi22 code-flash dump)"
+      verified: false
+    B2211:
+      description: "Meaning unknown"
+      source: "CCM firmware DTC table (uhi22 code-flash dump)"
+      verified: false
+
+  research:
+    - type: scan
+      target: read the 11 firmware DIDs (F101-F103, BCFF, C350, 12A0, CC01)
+      status: pending
+      priority: P2
+      vehicle_states: [ACC2, READY]
+      created: "2026-10-29"
+      updated: "2026-10-29"
+      result: "The CCM firmware's diagnostic tables, read from uhi22's code-flash dump: read DIDs F187 (10 bytes), F102 (6), F18B (4), F103 (2), F101 (4), BCFF (4), C350 (276), F193 (3), F195 (3), 12A0 (25), CC01 (8). Services 10, 11, 14, 19, 20, 22, 27, 28, 29, 2E, 31, 3E, 85; no 21, 23 or 2F, so there is no IOControl and no KWP-style data page. This is exactly the list projectgus's Kona scan found at 0x733, so the Kona CCM runs the same software family. Session sub-functions in the table: 01, 02, 03, 04, 05, 10, 81, 85, 90. Only V2G namespace in the image: urn:din:70121:2012, so the CCM speaks DIN SPEC 70121 only, not ISO 15118 (no Plug and Charge)."
+      notes: "The 2026-04-17 and 2026-07-22 service 22 scans covered 0100-010F and B001-B010, none of these DIDs, which is why they found nothing. All 11 are identification or stored records: F187, F18B, F102 (the EVCCID/MAC), F101 ('1104') and F103 sit together in one data-flash block; C350, 12A0, CC01 and BCFF are unknown. SAFETY: only read (service 22). Do not open sessions other than 01/03: 02 and 85 are the usual programming sessions and 04, 05, 10 and 90 are unidentified. The routine table looks like the standard reprogramming set (FF00, FF01), so there is no point running canair scan routines here. The EV limits this car sends a charger, from uhi22's DIN 70121 logs: max 200 A, 412.8 V, 98 kW; capacity 28000 Wh; FullSOC 94, BulkSOC 83; energy request = capacity x (100 - SOC) %."
+      sources:
+        - uhi22 CCM code-flash and data-flash dumps; uhi22 CCM readme and vehiclesim.py; projectgus kona_service_ids.txt; 2026-10-29
+      what_to_test:
+        - "Ignition on: canair read CCM:22F101,22F103,22BCFF,22C350,2212A0,22CC01 --save --label 'CCM firmware DIDs'"
+        - "Read CCM:22F102 separately without --save: it is the car's EVCCID (Autocharge identity), so keep it out of captures."
