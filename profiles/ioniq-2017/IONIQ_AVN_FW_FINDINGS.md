@@ -170,7 +170,10 @@ uhi22's test of which EPCU transceiver sends each frame. None of this is the own
 
 Who sends what on P-CAN was settled by timing: frames from one controller leave in a fixed order a
 fraction of a millisecond apart each cycle. Every frame below follows the gateway's `CGW1` (`0x541`)
-by 0.3-4 ms in every cycle of both logs, and none is on the VCU's transceiver.
+by 0.3-4 ms in every cycle of both logs, and none is on the VCU's transceiver. The tool that does
+this, and the one that read the layouts out of the head unit's `parse()` code, are in
+`ioniq-avn-fw` (`.opencode/skills/ioniq-avn-fw-reversing/scripts/can_sender_timing.py` and
+`parse_layouts.py`); that repo's `micom-can-findings.md` §7 carries the same correction.
 
 | Head-unit command (MM-CAN) | P-CAN frame | Evidence |
 | --- | --- | --- |
