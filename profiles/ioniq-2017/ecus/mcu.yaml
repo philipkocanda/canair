@@ -801,6 +801,18 @@ MCU:
       sources:
         - OBDb Hyundai-IONIQ-Electric signalset and its tests/test_cases (2017/2018 command_support), compared 2026-10-27
       capture_protocol: canair read MCU:0101 MCU:0121 MCU:0130 MCU:0131 --save in READY
+    - type: decode
+      target: broadcast 0x524 (inverter DC-link voltage)
+      status: pending
+      priority: P3
+      vehicle_states: [READY]
+      created: "2026-10-29"
+      updated: "2026-10-29"
+      notes: Kona bench READS inverter voltage from 0x524 bytes0-1, little-endian (raw volts). You read DC-link today via VCU 2102 (B17*2) and MCU DIDs. Broadcast variant. OBD-unobservable here (gateway-isolated); Kona-sourced hypothesis.
+      sources:
+        - projectgus car_hacking, bench_kona/bench_kona.py (Kona OS EV)
+      what_to_test:
+        - Tapped P-CAN sniff in READY; correlate 0x524 [b0:b1] LE against VCU 2102 DC-link to confirm scale/offset on the Ioniq.
 
   sessions:
     "81":

@@ -838,7 +838,25 @@ IGPM:
         and ignition on (meaning open); 22BC07 B10:4 = TRUNK_OPEN duplicate; 22BC03 B13:1 = a ~150 W
         12 V load step, probably the rear-window heater. The rest of the checklist needs a narrated
         actuation capture.
-      notes: "opendbc CGW1 (0x541), CGW2 (0x553) and CGW4 (0x559) list the body signals the gateway publishes. CGW1 is on the uhi22 Ioniq 28 logs and its driver-door bit toggles when the driver leaves the car. Signals there that 22BC03-07 do not map yet: light switch position (2-bit), auto-light status, front and rear fog, hazard switch, turn-signal stalk, wiper stages (int/low/high/auto/mist) and intermittent time, rain sensor state, park brake switch, passive-access lock/unlock, RKE (key fob) command, window states and heated steering wheel (CGW4), rear seatbelt indicators, steering-lock warnings (CGW2). Use this as the actuation checklist for the existing 22BC03/BC04/BC06 bit-gap entries. The DBC bit positions do not carry over to the DIDs."
+      notes: >-
+        opendbc CGW1 (0x541), CGW2 (0x553) and CGW4 (0x559) list the body signals the gateway
+        publishes. CGW1 is on the uhi22 Ioniq 28 logs and its driver-door bit toggles when the
+        driver leaves the car. Signals there that 22BC03-07 do not map yet: light switch position
+        (2-bit), auto-light status, front and rear fog, hazard switch, turn-signal stalk, wiper
+        stages (int/low/high/auto/mist) and intermittent time, rain sensor state, park brake switch,
+        passive-access lock/unlock, RKE (key fob) command, window states and heated steering wheel
+        (CGW4), rear seatbelt indicators, steering-lock warnings (CGW2). Use this as the actuation
+        checklist for the existing 22BC03/BC04/BC06 bit-gap entries. The DBC bit positions do not
+        carry over to the DIDs. projectgus bench_kona (Kona OS EV) decodes concrete 0x541 frame-byte
+        offsets to cross-check the DIDs against: byte0 = ignition switch (0x03 on), byte2 bits =
+        driver door closed + driver seatbelt (0x44), byte5 = drive-type option (0x08), byte7 =
+        IGN1+IGN2 (0x0C) plus the park-brake switch. These are 0x541 frame offsets (not DID offsets)
+        and from a Kona, so treat as hypotheses. Cross-checked 2026-10-29 against the real Ioniq
+        0x541 on the uhi22 P-CAN tap, decoded with opendbc CGW1: IGNSw = 3 (byte0 = 0x03 confirmed),
+        DriveTypeOption at byte5 bit3 confirmed, byte7 = 0x0C present but undocumented in opendbc.
+        The Kona 'byte2 = door + seatbelt' is a mislabel: opendbc places driver door/seatbelt in
+        byte1. The 0x541 IGNSw/DriveTypeOption/HeadLampLow/LightSwState fields are now defined in
+        signals/body.yaml (CGW1).
       sources:
         - opendbc hyundai_2015_ccan.dbc (commaai, MIT), cross-checked against uhi22 Ioniq28Investigations P-CAN logs (scripts/fetch_can_corpus.py)
       what_to_test:
@@ -943,6 +961,33 @@ IGPM:
       capture_protocol: >-
         Fold into the planned 'IGPM body sweep': canair monitor @body BCM:22B00C --save
         --keep-changes --state READY, one actuation at a time, noting each with 's'.
+    - type: decode
+      target: broadcast 0x5EC (charge-port lock status)
+      status: pending
+      priority: P3
+      vehicle_states: [PLUGGED, CHARGING]
+      created: "2026-10-29"
+      updated: "2026-10-29"
+      notes: "Kona bench CGW_5EC, sent by the IGPM/gateway: byte0 = charge-port locked (1/0). Complements the IGPM charge-cable-lock IOControl (BCxx). OBD-unobservable here (gateway-isolated); Kona-sourced hypothesis."
+      sources:
+        - projectgus car_hacking, bench_kona/igpm.py CGW_5EC (Kona OS EV)
+      what_to_test:
+        - Tapped P-CAN sniff while locking/unlocking the charge port; look for 0x5EC byte0 toggling.
+    - type: decode
+      target: broadcast 0x567 (gateway real-time clock)
+      status: done
+      priority: P3
+      vehicle_states: [ALL]
+      created: "2026-10-29"
+      updated: "2026-10-29"
+      result: >-
+        Confirmed on the uhi22 Ioniq28 P-CAN tap (seconds byte ticks once per second) and promoted
+        to signals/body.yaml CGW_CLOCK (hour/minute/second/valid).
+      notes: "Kona bench CGW_Clock, sent by the IGPM/gateway: byte0=0x02, byte1=hour, byte2=minute, byte3=second, byte4=valid flag. Identifies the time source, relevant to the charge-schedule research (which module holds and executes schedules). OBD-unobservable here (gateway-isolated); Kona-sourced hypothesis."
+      sources:
+        - projectgus car_hacking, bench_kona/igpm.py CGW_Clock (Kona OS EV)
+      what_to_test:
+        - Tapped P-CAN sniff; confirm 0x567 bytes 1-3 track wall-clock time and that the IGPM is the sender.
 
   iocontrol_discoveries:
     BC01:

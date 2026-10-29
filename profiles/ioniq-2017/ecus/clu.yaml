@@ -107,3 +107,18 @@ CLU:
       notes: "2026-08-08 whole-day scan: B11 (byte just before the [B12:B14] ODOMETER field, confirmed real data via canair bix) decodes to a sensible 40-47 degC range on the raw/2-40 EV-temp formula, slowly rising through the day. Too warm for outside ambient - candidate CLU/cluster internal electronics temp. --unverified, no cross-ECU ambient match attempted."
       what_to_test:
         - Correlate against AAF:2181:AMBIENT_TEMP (should NOT match if this is an internal temp) and against cabin/sun-load proxies
+    - type: decode
+      target: broadcast 0x5D0 (odometer)
+      status: done
+      priority: P3
+      vehicle_states: [ALL]
+      created: "2026-10-29"
+      updated: "2026-10-29"
+      result: >-
+        Confirmed on the uhi22 Ioniq28 P-CAN tap (24-bit LE x0.1 km = 123,385 km) and promoted to
+        signals/body.yaml CGW_ODO ODOMETER.
+      notes: Kona bench 0x5D0 carries only the odometer; sample '9D 13 04' = little-endian UINT24 0x04139D. You already read the odometer via CLU 22B002 (UDS, UINT24 big-endian). Broadcast variant is LE. OBD-unobservable here (gateway-isolated); Kona-sourced hypothesis.
+      sources:
+        - projectgus car_hacking, bench_kona/igpm.py (Kona OS EV)
+      what_to_test:
+        - Tapped P-CAN sniff; confirm 0x5D0 [b0:b2] LE equals the dash odometer and matches CLU 22B002.

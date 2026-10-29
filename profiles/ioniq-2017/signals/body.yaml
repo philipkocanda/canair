@@ -1,0 +1,86 @@
+messages:
+  '0x567':
+    name: CGW_CLOCK
+    tx_ecu: IGPM
+    signals:
+      clock_hour:
+        start_bit: 8
+        length: 8
+        byte_order: little
+        min: 0.0
+        max: 23.0
+        unit: h
+        source: uhi22 Ioniq28 DBC CLOCK; observed on the uhi22 P-CAN tap (scripts/fetch_can_corpus.py)
+        notes: Gateway real-time clock. Observed 0x10=16 h. Seconds byte (start-bit 24) ticks once per second across the log, proving the frame is a live clock; confirms the Kona bench 0x567 map. verified:false pending owner-car confirmation.
+      clock_minute:
+        start_bit: 16
+        length: 8
+        byte_order: little
+        min: 0.0
+        max: 59.0
+        unit: min
+        source: uhi22 Ioniq28 DBC CLOCK; observed on the uhi22 P-CAN tap
+        notes: Observed 0x29=41 min.
+      clock_second:
+        start_bit: 24
+        length: 8
+        byte_order: little
+        min: 0.0
+        max: 59.0
+        unit: s
+        source: uhi22 Ioniq28 DBC CLOCK; observed on the uhi22 P-CAN tap
+        notes: Increments by 1 every ~1 s across the log — the direct proof this frame is the clock.
+      clock_valid:
+        start_bit: 32
+        length: 8
+        byte_order: little
+        min: 0.0
+        max: 1.0
+        source: uhi22 Ioniq28 DBC CLOCK; observed on the uhi22 P-CAN tap
+        notes: Observed = 1 (valid).
+  '0x5D0':
+    name: CGW_ODO
+    tx_ecu: IGPM
+    signals:
+      ODOMETER:
+        start_bit: 0
+        length: 24
+        byte_order: little
+        scale: 0.1
+        min: 0.0
+        max: 800000.0
+        unit: km
+        source: uhi22 Ioniq28 DBC uwe5D0_ODO; observed on the uhi22 P-CAN tap (scripts/fetch_can_corpus.py)
+        notes: 24-bit LE x0.1 km. Observed BA D3 12 = 123,385 km (stable over the short log). Matches the Kona bench '0x5D0 = only the odometer'. verified:false pending owner-car confirmation.
+  '0x541':
+    name: CGW1
+    tx_ecu: IGPM
+    signals:
+      CF_Gway_IGNSw:
+        start_bit: 0
+        length: 3
+        byte_order: little
+        min: 0.0
+        max: 7.0
+        source: opendbc hyundai_2015_ccan.dbc CGW1 (commaai, MIT); observed on the uhi22 Ioniq28 P-CAN tap (scripts/fetch_can_corpus.py)
+        notes: Ignition switch, 3-bit. Observed = 3 (ON) throughout the uhi22 drive and ready logs; confirms the Kona bench 0x541 byte0=0x03. verified:false pending owner-car confirmation.
+      CF_Gway_DriveTypeOption:
+        start_bit: 43
+        length: 1
+        byte_order: little
+        source: opendbc hyundai_2015_ccan.dbc CGW1 (commaai, MIT); observed on the uhi22 Ioniq28 P-CAN tap (scripts/fetch_can_corpus.py)
+        notes: Drive-type option bit (byte5 bit3). Observed = 0 on the uhi22 car; opendbc places it exactly where the Kona bench guessed byte5=0x08, confirming the map (value is a trim option).
+      CF_Gway_HeadLampLow:
+        start_bit: 31
+        length: 1
+        byte_order: little
+        source: opendbc hyundai_2015_ccan.dbc CGW1 (commaai, MIT); observed on the uhi22 Ioniq28 P-CAN tap (scripts/fetch_can_corpus.py)
+        notes: Low-beam on. Observed toggling 0<->1 during the uhi22 drive log — a live, exercised signal.
+      CF_Gway_LightSwState:
+        start_bit: 38
+        length: 2
+        byte_order: little
+        min: 0.0
+        max: 3.0
+        source: opendbc hyundai_2015_ccan.dbc CGW1 (commaai, MIT); observed on the uhi22 Ioniq28 P-CAN tap (scripts/fetch_can_corpus.py)
+        notes: Light-switch position (0-3). Observed = 3 during the uhi22 drive log.

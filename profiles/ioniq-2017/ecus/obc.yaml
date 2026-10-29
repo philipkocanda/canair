@@ -522,6 +522,18 @@ OBC:
       sources:
         - OBDb Hyundai-IONIQ-Electric signalset (pelican.clutch.engineering ioniq-electric parameters), compared 2026-10-27
       capture_protocol: canair scan OBC --service 22 --range E100-E10F --save
+    - type: decode
+      target: broadcast 0x562 (OBC AC charge current / charge-limit command)
+      status: pending
+      priority: P2
+      vehicle_states: [CHARGING, PLUGGED]
+      created: "2026-10-29"
+      updated: "2026-10-29"
+      notes: "Kona bench COMMANDS the OBC on broadcast 0x562: byte1 = AC charge-current level (0x08 max / 0x0C reduced / 0x04 min), byte4 = AC charge-termination target as percent*2. A short burst of 3 frames applies the change. Directly relevant to goal #2 (remote charge control) and the charge-schedule research. OBD-unobservable here (gateway-isolated) — needs a tapped P-CAN sniff + import can. Arbitration ID and byte layout may differ on the Ioniq AE; treat as a hypothesis."
+      sources:
+        - projectgus car_hacking, bench_kona/bench_kona.py (Kona OS EV)
+      what_to_test:
+        - Tapped P-CAN sniff while changing the AC charge-current setting and the target SoC in the car menu; look for 0x562 (or a neighbour) with byte1/byte4 changing in step.
 
   sessions:
     "81":

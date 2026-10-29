@@ -2032,6 +2032,18 @@ BMS:
         ignition vs READY' --state ACC. From off press the button once (ACC), again (ON, no brake),
         wait 30 s, then brake + button to READY, wait, then button to OFF and keep recording 3 min.
         Press s at each press.
+    - type: decode
+      target: broadcast 0x5A3 (HV main-contactor status)
+      status: pending
+      priority: P3
+      vehicle_states: [READY, CHARGING]
+      created: "2026-10-29"
+      updated: "2026-10-29"
+      notes: "Kona bench READS 0x5A3: byte0 bit6 = HV main contactor closed. The main contactor is BMS-controlled. You have contactor/relay state only indirectly today. OBD-unobservable here (gateway-isolated); Kona-sourced hypothesis."
+      sources:
+        - projectgus car_hacking, bench_kona/bench_kona.py (Kona OS EV)
+      what_to_test:
+        - Tapped P-CAN sniff across contactor close/open (plug in / go READY / unplug); check 0x5A3 byte0 bit6.
 
   sessions:
     "81":
