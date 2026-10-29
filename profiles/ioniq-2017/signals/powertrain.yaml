@@ -266,10 +266,11 @@ messages:
     signals:
       EVSE_STATUS_CODE:
         start_bit: 48
-        length: 8
+        length: 3
         byte_order: little
-        source: uhi22 CCM readme (bench session with vehiclesim.py and pyPLC as charger) and vehiclesim.py; CCM transmits it
-        notes: 'DIN 70121 EVSEStatusCode from the charger: 0 EVSE_NotReady, 1 EVSE_Ready, 4 EVSE_IsolationMonitoringActive; 0xD0/0xD1 seen just before an abort.'
+        max: 7.0
+        source: uhi22 CCM readme; CCM firmware Com TX signal table (uhi22 code-flash dump, Ghidra)
+        notes: 'Bits 0-2 of byte 6: the charger''s DIN 70121 EVSEStatusCode (0 NotReady, 1 Ready, 2 Shutdown, 4 IsolationMonitoringActive, 5 EmergencyShutdown, 6 Malfunction). The firmware stops the session on 5 or 6 (stop reason 12) and treats 2 as a charger-requested shutdown. The 0xD0/0xD1 uhi22 saw before an abort are this field (0 or 1) plus CCM_STOP_REASON 10 and CCM_SESSION_STOPPED.'
       EVSE_MIN_CURRENT:
         start_bit: 16
         length: 16
@@ -286,6 +287,20 @@ messages:
         unit: V
         source: uhi22 CCM readme (bench session with vehiclesim.py and pyPLC as charger) and vehiclesim.py; CCM transmits it
         notes: Two data points only (pyPLC 200 V, a car trace 150 V).
+      CCM_STOP_REASON:
+        start_bit: 51
+        length: 4
+        byte_order: little
+        min: 0.0
+        max: 15.0
+        source: CCM firmware Com TX signal table (uhi22 code-flash dump, Ghidra); state machine decompiled in Ghidra
+        notes: "The CCM's internal reason for ending a CCS session, recorded only when the vehicle did not ask for the stop (0x599 CCS_STOP_REQUEST and 0x57F byte 0 bit 3 both 0). From the firmware: 2 or 3 at the normal end of the session; 5-9 session timers (5 when no specific timer fired); 10 a CCM-side timeout, such as the CCS trigger (0x599 byte 7 bit 0) not set within 4 s; 11 the charger answered a request with a failure ResponseCode; 12 the charger reported EVSE_EmergencyShutdown or EVSE_Malfunction. Also in DID 22CC01 byte 5 and the 22C350 session logs."
+      CCM_SESSION_STOPPED:
+        start_bit: 55
+        length: 1
+        byte_order: little
+        source: CCM firmware Com TX signal table (uhi22 code-flash dump, Ghidra)
+        notes: Latched when the CCM handles a session stop; byte 7 bit 0 is a second latch set the same way.
   '0x599':
     name: BMS_599
     tx_ecu: BMS
