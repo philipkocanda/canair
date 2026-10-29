@@ -1,0 +1,386 @@
+BMS:
+  tx_id: 0x7E4
+  identity:
+    description: Battery Management System (64 kWh LG, 98S)
+    notes: Seeded device-free from OBDb + wican-fw Niro/Soul/Kona; unverified on a real car.
+  pids:
+    220101:
+      status: active
+      parameters:
+        SOC_BMS:
+          expression: B10/2
+          unit: "%"
+          ha_class: battery
+          min: "0"
+          max: "100"
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix) + wican-fw Niro/Soul/Kona
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
+          verified: false
+          notes: Raw BMS state of charge (not display-adjusted; see SOC_DISPLAY on 220105).
+        BATTERY_CURRENT:
+          expression: "[S17:B18]/10"
+          unit: A
+          ha_class: current
+          min: "-400"
+          max: "400"
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix) + wican-fw Niro/Soul/Kona
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
+          verified: false
+          notes: Signed 16-bit BE. Negative = charging.
+        BATTERY_VOLTAGE:
+          expression: "[B19:B20]/10"
+          unit: V
+          ha_class: voltage
+          min: "240"
+          max: "450"
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix) + wican-fw Niro/Soul/Kona
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
+          verified: false
+          notes: HV pack DC voltage.
+        BATTERY_POWER:
+          expression: (([B19:B20]/10)*([S17:B18]/10))/1000
+          unit: kW
+          ha_class: power
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix) + wican-fw Niro/Soul/Kona
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
+          verified: false
+          notes: Computed voltage x current. Negative = charging.
+        AVAILABLE_CHARGE_POWER:
+          expression: "[B11:B12]/100"
+          unit: kW
+          ha_class: power
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix) + wican-fw Niro/Soul/Kona
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
+          verified: false
+          notes: BMS-permitted charge power limit.
+        AVAILABLE_DISCHARGE_POWER:
+          expression: "[B13:B14]/100"
+          unit: kW
+          ha_class: power
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix) + wican-fw Niro/Soul/Kona
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
+          verified: false
+          notes: BMS-permitted discharge power limit.
+        CHARGING:
+          expression: B15:0
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix) + wican-fw Niro/Soul/Kona
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
+          verified: false
+          notes: Energy flowing into the pack (AC or DC).
+        RAPID_CHARGE_PORT:
+          expression: B15:1
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix) + wican-fw Niro/Soul/Kona
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
+          verified: false
+          notes: DC rapid-charge port active.
+        NORMAL_CHARGE_PORT:
+          expression: B15:2
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix) + wican-fw Niro/Soul/Kona
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
+          verified: false
+          notes: AC normal-charge port active.
+        BMS_MAIN_RELAY:
+          expression: B15:7
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix) + wican-fw Niro/Soul/Kona
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
+          verified: false
+          notes: HV main relay closed.
+        BATTERY_MAX_TEMP:
+          expression: S21
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "80"
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix) + wican-fw Niro/Soul/Kona
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
+          verified: false
+        BATTERY_MIN_TEMP:
+          expression: S22
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "80"
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix) + wican-fw Niro/Soul/Kona
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
+          verified: false
+        BATTERY_MODULE_TEMP_1:
+          expression: S23
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "80"
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix) + wican-fw Niro/Soul/Kona
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
+          verified: false
+        BATTERY_MODULE_TEMP_2:
+          expression: S25
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "80"
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix) + wican-fw Niro/Soul/Kona
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
+          verified: false
+        BATTERY_MODULE_TEMP_3:
+          expression: S26
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "80"
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix) + wican-fw Niro/Soul/Kona
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
+          verified: false
+        BATTERY_MODULE_TEMP_4:
+          expression: S27
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "80"
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix) + wican-fw Niro/Soul/Kona
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
+          verified: false
+        BATTERY_INLET_TEMP:
+          expression: S30
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "80"
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix) + wican-fw Niro/Soul/Kona
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
+          verified: false
+          notes: Battery inlet air temperature.
+        MAX_CELL_VOLTAGE:
+          expression: B31/50
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "5"
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix) + wican-fw Niro/Soul/Kona
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
+          verified: false
+        MAX_CELL_VOLTAGE_NO:
+          expression: B33
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix) + wican-fw Niro/Soul/Kona
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
+          verified: false
+          notes: Index of the highest-voltage cell.
+        MIN_CELL_VOLTAGE:
+          expression: B34/50
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "5"
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix) + wican-fw Niro/Soul/Kona
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
+          verified: false
+        MIN_CELL_VOLTAGE_NO:
+          expression: B35
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix) + wican-fw Niro/Soul/Kona
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
+          verified: false
+          notes: Index of the lowest-voltage cell.
+        FAN_STATUS:
+          expression: B36
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix) + wican-fw Niro/Soul/Kona
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
+          verified: false
+          notes: HV battery cooling fan step.
+        FAN_FEEDBACK:
+          expression: B37
+          unit: Hz
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix) + wican-fw Niro/Soul/Kona
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
+          verified: false
+          notes: HV battery fan speed feedback.
+        AUX_BATTERY_VOLTAGE:
+          expression: B38/10
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "16"
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix) + wican-fw Niro/Soul/Kona
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
+          verified: false
+          notes: 12V auxiliary battery.
+    220105:
+      status: active
+      parameters:
+        SOH:
+          expression: "[B34:B35]/10"
+          unit: "%"
+          ha_class: battery
+          min: "0"
+          max: "100"
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix) + wican-fw Niro/Soul/Kona
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
+          verified: false
+          notes: Battery state of health.
+        SOC_DISPLAY:
+          expression: B41/2
+          unit: "%"
+          ha_class: battery
+          min: "0"
+          max: "100"
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix) + wican-fw Niro/Soul/Kona
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
+          verified: false
+          notes: Dashboard (display) SOC; differs from raw SOC_BMS.
+        MIN_DETERIORATION:
+          expression: "[B37:B38]/10"
+          unit: "%"
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix) + wican-fw Niro/Soul/Kona
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
+          verified: false
+          notes: Minimum cell deterioration.
+        CELL_VOLTAGE_DEVIATION:
+          expression: B28/50
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "5"
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix)
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+          verified: false
+          notes: Max-min cell voltage spread.
+        HEATER_TEMP:
+          expression: S31
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "120"
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix)
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+          verified: false
+          notes: Battery heater 1 temperature.
+        MAX_DETERIORATION_CELL_NO:
+          expression: B36
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix)
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+          verified: false
+          notes: Index of the most-deteriorated cell.
+        MIN_DETERIORATION_CELL_NO:
+          expression: B39
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix)
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+          verified: false
+          notes: Index of the least-deteriorated cell.
+
+  research:
+    - type: decode
+      target: "220102"
+      status: pending
+      priority: P2
+      vehicle_states: [READY, CHARGING]
+      created: "2026-10-29"
+      updated: "2026-10-29"
+      notes: Cell voltages 1-32 (B05.. , x/50 V). OBDb KONAEV_HVBAT_CMU001-032. Port en masse after a capture confirms the layout.
+      sources:
+        - OBDb Hyundai-Kona-Electric
+    - type: decode
+      target: "220103"
+      status: pending
+      priority: P2
+      vehicle_states: [READY, CHARGING]
+      created: "2026-10-29"
+      updated: "2026-10-29"
+      notes: Cell voltages 33-64 (OBDb KONAEV_HVBAT_CMU033-064).
+      sources:
+        - OBDb Hyundai-Kona-Electric
+    - type: decode
+      target: "220104"
+      status: pending
+      priority: P2
+      vehicle_states: [READY, CHARGING]
+      created: "2026-10-29"
+      updated: "2026-10-29"
+      notes: Cell voltages 65-96 (OBDb KONAEV_HVBAT_CMU065-096).
+      sources:
+        - OBDb Hyundai-Kona-Electric
+    - type: decode
+      target: "220101"
+      status: pending
+      priority: P3
+      vehicle_states: [CHARGING]
+      created: "2026-10-29"
+      updated: "2026-10-29"
+      notes: Cumulative counters on the 220101 tail (total charge/discharge Ah & kWh, drive time, isolation resistance; OBDb bix240-456). These 32-bit values straddle ISO-TP frame boundaries, so they need (Bn<<24)|(Bm<<16)|... expressions, not [Bn:Bm].
+      sources:
+        - OBDb Hyundai-Kona-Electric
+    - type: decode
+      target: "220106"
+      status: pending
+      priority: P3
+      vehicle_states: [READY]
+      created: "2026-10-29"
+      updated: "2026-10-29"
+      notes: BMS state, battery fan duty, PRA temperature, A/C compressor rpm (OBDb 220106).
+      sources:
+        - OBDb Hyundai-Kona-Electric
+    - type: decode
+      target: "220111"
+      status: pending
+      priority: P3
+      vehicle_states: [CHARGING]
+      created: "2026-10-29"
+      updated: "2026-10-29"
+      notes: Normal/quick charge counts and cumulative charge energy (OBDb 220111).
+      sources:
+        - OBDb Hyundai-Kona-Electric

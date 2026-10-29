@@ -1,0 +1,57 @@
+OBC:
+  tx_id: 0x7E5
+  identity:
+    description: On-Board Charger + LDC (EPCU)
+  pids:
+    2101:
+      status: active
+      parameters:
+        CHARGER_AC_INPUT_VOLTAGE:
+          expression: B14*2.56
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "300"
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix)
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+          verified: false
+          notes: >-
+            Charger AC input voltage RMS (raw*64/25). OBDb confirmed 2021; 2019 outside its tested
+            range.
+        CHARGER_AC_INPUT_CURRENT:
+          expression: B33*2.56
+          unit: A
+          ha_class: current
+          min: "0"
+          max: "100"
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix)
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+          verified: false
+          notes: >-
+            Charger AC input current RMS (raw*64/25). OBDb confirmed 2021; 2019 outside its tested
+            range.
+        CHARGER_TEMP:
+          expression: B19-100
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "155"
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix)
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+          verified: false
+          notes: Charger temperature (raw-100). OBDb confirmed 2021; 2019 outside its tested range.
+
+  research:
+    - type: decode
+      target: "2101"
+      status: pending
+      priority: P3
+      vehicle_states: [CHARGING]
+      created: "2026-10-29"
+      updated: "2026-10-29"
+      notes: Remaining charger/LDC detail (instant AC voltage, charger temp b) at OBDb bix304-336.
+      sources:
+        - OBDb Hyundai-Kona-Electric

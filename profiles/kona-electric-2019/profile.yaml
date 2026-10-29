@@ -1,0 +1,53 @@
+# Hyundai Kona Electric 2019 (64 kWh) — vehicle profile settings
+#
+# DEVICE-FREE SEED. This profile was built without a car on the bench: every
+# signal below is transcribed from public community sources and is marked
+# `verified: false` until a capture from a real 2019 Kona Electric confirms it.
+# Record one with `canair read/monitor … --profile kona-electric-2019 --save`.
+#
+# The Kona Electric (body code OS EV, 2018-2023 pre-facelift) is a pre-e-GMP
+# 400 V Hyundai/Kia EV on the same diagnostic generation as the Kia Niro EV (DE)
+# and Soul EV (2nd gen) — and a close cousin of the 2017 Ioniq Electric (AE). It
+# uses standard Hyundai/Kia 11-bit addressing (ISO 15765-4, 500 kbit/s) with the
+# +0x08 response offset, so the default addressing needs no override block.
+#
+# Unlike the 28 kWh Ioniq AE (which reads its battery over KWP2000 service 21,
+# e.g. 2101), the Kona/Niro/Soul BMS answers UDS service 22 DIDs (220101…), so
+# byte offsets differ from the Ioniq by the extra DID byte. Offsets here were
+# ported from the OBDb bit-index (bix) notation through `canair bix`, never by
+# hand (WiCAN Bnn includes the ISO-TP PCI bytes — a hand-conversion lands on the
+# wrong byte).
+#
+# SOURCES (each signal also cites its own in `source`/`source_links`):
+#   - wican-fw community profile "Kia/Hyundai: Niro/Soul/Kona"
+#     (vehicle_profiles/kia/nirosoulkona-ev.json) — the BMS 220101/220105 and
+#     VMCU 2101 anchors, already in WiCAN notation and proven on these cars.
+#   - OBDb Hyundai-Kona-Electric (https://github.com/OBDb/Hyundai-Kona-Electric,
+#     CC BY-SA 4.0) — the richer per-signal map. Cited per signal in source_links
+#     rather than copied in (its CC BY-SA licence is not compatible with this
+#     repo's public domain). OBDb's test corpus confirms most signals on
+#     2020-2024 cars; the 2019 is the first OS EV year and is essentially
+#     identical, but that is why these stay unverified here until a 2019 capture
+#     lands.
+car_model: "Hyundai Kona Electric 2019 (64 kWh)"
+
+# Hyundai ECUs respond slowly and the first request after idle can time out —
+# keep the ELM327 response timeout high (ATST96 ~= 614 ms), as on the Ioniq.
+init: "ATSP6;ATS0;ATAL;ATST96;"
+
+# ISO 15765-4 11-bit / 500 kbit/s (ATSP6).
+can_bitrate: 500000
+
+# Make-specific quirk shared across Hyundai/Kia: identity DIDs answer one less
+# than requested (request 22F188 -> response 62F187); echo validation tolerates
+# it for F1xx. (The Ioniq's skm_wakeup quirk is NOT included — its relay-wake
+# DIDs/magic are specific to the Ioniq AE Smart Key Module.)
+quirks:
+  - hk_f1xx_minus_one
+
+# Physical-value band for the reference-free scan (`canair hunt --physical` /
+# `canair investigate`). The 64 kWh Kona pack is 98S (LG, ~356 V nominal):
+# 98 x 2.5 V (empty) to 98 x 4.2 V (full) ~= 245-412 V. rail_12v + grid bands
+# keep their defaults.
+physical_bands:
+  hv_pack: [240, 410]   # HV traction pack V (98S, ~356 V nominal)

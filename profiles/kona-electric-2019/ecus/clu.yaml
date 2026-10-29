@@ -1,0 +1,21 @@
+CLU:
+  tx_id: 0x7C6
+  identity:
+    description: Cluster (instrument panel)
+  pids:
+    22B002:
+      status: active
+      parameters:
+        ODOMETER:
+          expression: "[B12:B14]"
+          unit: km
+          ha_class: distance
+          min: "0"
+          max: "16777215"
+          source: OBDb Hyundai-Kona-Electric + shared Hyundai/Kia CLU layout (offsets via canair bix)
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+          verified: false
+          notes: >-
+            24-bit odometer. Same 0x7C6 22B002 [B12:B14] layout as the Ioniq/Soul CLU (verified
+            there by timwelchnz on an Ioniq 5).

@@ -1,0 +1,16 @@
+HVAC:
+  tx_id: 0x7B3
+  identity:
+    description: Automatic climate control (DATC)
+
+  research:
+    - type: decode
+      target: "220100"
+      status: pending
+      priority: P2
+      vehicle_states: [ACC]
+      created: "2026-10-29"
+      updated: "2026-10-29"
+      notes: Interior/exterior temperature and vehicle speed (OBDb KONAEV_TEMP_INT/TEMP_EXT/VSS_7B3).
+      sources:
+        - OBDb Hyundai-Kona-Electric

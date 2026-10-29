@@ -1,0 +1,16 @@
+ABS:
+  tx_id: 0x7D1
+  identity:
+    description: ABS / ESC (wheel speeds)
+
+  research:
+    - type: decode
+      target: "220104"
+      status: pending
+      priority: P2
+      vehicle_states: [DRIVING]
+      created: "2026-10-29"
+      updated: "2026-10-29"
+      notes: Four individual wheel speeds (OBDb KONAEV_WHEEL_*_VSS).
+      sources:
+        - OBDb Hyundai-Kona-Electric

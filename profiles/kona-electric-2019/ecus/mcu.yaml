@@ -1,0 +1,42 @@
+MCU:
+  tx_id: 0x7E3
+  identity:
+    description: Motor Control Unit / inverter (EPCU)
+  pids:
+    220102:
+      status: active
+      parameters:
+        MOTOR_TEMP:
+          expression: S18
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "200"
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix; OBDb debug command)
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+          verified: false
+          notes: Drive motor temperature. OBDb marks 220102 debug/unconfirmed.
+        INVERTER_TEMP:
+          expression: S19
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "200"
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix; OBDb debug command)
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+          verified: false
+          notes: Inverter temperature. OBDb marks 220102 debug/unconfirmed.
+
+  research:
+    - type: decode
+      target: "22E001"
+      status: pending
+      priority: P2
+      vehicle_states: [DRIVING]
+      created: "2026-10-29"
+      updated: "2026-10-29"
+      notes: Motor RPM, nominal/actual torque, phase current, motor/inverter/heat-sink temps (OBDb 22E001). OBDb confirms only on 2024 cars with a newer UDS layout; verify the 2019 uses 21xx instead.
+      sources:
+        - OBDb Hyundai-Kona-Electric

@@ -1,0 +1,26 @@
+IGPM:
+  tx_id: 0x770
+  identity:
+    description: Integrated Gateway & Power Module (body/lights/doors)
+
+  research:
+    - type: decode
+      target: 22BC04
+      status: pending
+      priority: P2
+      vehicle_states: [ACC]
+      created: "2026-10-29"
+      updated: "2026-10-29"
+      notes: Reverse gear, front door locks, rear seatbelts (OBDb KONAEV_GEAR_R / LOCK_* / BELT_*).
+      sources:
+        - OBDb Hyundai-Kona-Electric
+    - type: decode
+      target: 22BC03
+      status: pending
+      priority: P3
+      vehicle_states: [ACC]
+      created: "2026-10-29"
+      updated: "2026-10-29"
+      notes: "Exterior lights: low beam, hazards, turn signals, brake light, beams (OBDb 22BC03/05/06/08/09)."
+      sources:
+        - OBDb Hyundai-Kona-Electric

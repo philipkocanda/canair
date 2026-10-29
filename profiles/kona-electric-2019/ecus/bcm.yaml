@@ -1,0 +1,26 @@
+BCM:
+  tx_id: 0x7A0
+  identity:
+    description: Body Control Module (TPMS, body state)
+
+  research:
+    - type: decode
+      target: 22C00B
+      status: pending
+      priority: P2
+      vehicle_states: [ALL]
+      created: "2026-10-29"
+      updated: "2026-10-29"
+      notes: TPMS per-wheel pressure & temperature (OBDb KONAEV_TP_*/TT_*; OBDb confirms this one on 2019).
+      sources:
+        - OBDb Hyundai-Kona-Electric
+    - type: decode
+      target: 22B00C
+      status: pending
+      priority: P3
+      vehicle_states: [ACC]
+      created: "2026-10-29"
+      updated: "2026-10-29"
+      notes: Heated steering wheel (OBDb KONAEV_HEATED_WHEEL).
+      sources:
+        - OBDb Hyundai-Kona-Electric

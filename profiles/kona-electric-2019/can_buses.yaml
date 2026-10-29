@@ -1,0 +1,36 @@
+# Hyundai Kona Electric 2019 (64 kWh) — physical CAN bus segment vocabulary
+#
+# Codes accepted by each ECU's `can_bus:` field (in ecus/). Hyundai/Kia split
+# the vehicle bus into functional segments bridged by the gateway. The same
+# vocabulary as the Ioniq AE; which segment each Kona ECU actually sits on is
+# unconfirmed here (device-free seed), so ECUs are left without a can_bus: until
+# a bus map for this car is established. See canlib/schema/can_buses_schema.yaml
+# and `canair validate can-buses`. Set an ECU's segment(s) with
+# `canair pids set-can-bus ECU CODE [CODE ...]`.
+
+can_buses:
+  ALL:
+    name: All segments
+    description: >-
+      Convention for the gateway that bridges every segment except any private ones; the OBD-II
+      port connects to it.
+  B-CAN:
+    name: Body CAN
+    description: Comfort/body electronics (doors, seats, BCM, smart key).
+    bitrate: 100000
+  P-CAN:
+    name: Powertrain CAN
+    description: High-voltage/drivetrain control (BMS, VMCU/MCU).
+    bitrate: 500000
+  C-CAN:
+    name: Chassis CAN
+    description: Chassis/ADAS (cluster, cameras, cruise/braking assist).
+    bitrate: 500000
+  MM-CAN:
+    name: Multimedia CAN
+    description: Infotainment/audio (head unit, amplifier).
+    bitrate: 100000
+  D-CAN:
+    name: Diagnostic CAN
+    description: Diagnostic bus exposed on the OBD-II port for UDS requests.
+    bitrate: 500000
