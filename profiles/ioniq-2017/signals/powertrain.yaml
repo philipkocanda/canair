@@ -726,7 +726,7 @@ messages:
         byte_order: little
         max: 3.0
         source: AVN firmware layout (GwEvP06); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
-        notes: 'Charge scheduling mode: 0 manual, 1 scheduled (not off-peak), 2 scheduled off-peak, 3 off-peak only. Not a charge-power setting.'
+        notes: 'The VCU''s stored copy of the charge scheduling mode: 0 = Charge Now (charge as soon as plugged in), 1 = Charge on Schedule with no off-peak window (the menu''s default and reset value), 2 = Charge on Schedule with off-peak time enabled, 3 = the same with ''Charge ONLY during the time shown below'' ticked. Mapping read from the head unit''s menu code (GreenCar DepartureClimateActivity radio buttons; EconomyReservationSettingActivity OK button sends 3 if that box is ticked, else 2). Not a charge-power setting. Matches the gateway''s 0x588 in both uhi22 recordings (3 in July 2022, 0 in Feb 2025); bits 2 and 6 of the same byte read 1 in every recording (raw 0x44/0x47), meaning unknown.'
   '0x57F':
     name: OBC1
     tx_ecu: OBC

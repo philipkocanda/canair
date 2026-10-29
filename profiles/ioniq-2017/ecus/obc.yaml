@@ -265,7 +265,11 @@ OBC:
             0x60 in all 2248 rows aligned with an unplugged BMS (B14 = 0x03); 0x72, 0x76, 0x7A or
             0x7E whenever a cable is connected, AC or DC. 0x76 in 7942 of 7971 rows with the BMS
             charging, 0x72 mostly connected without charging, 0x7A and 0x7E in a few rows after a
-            charge ended. The US logs add 0x62 (just after an AC plug-in) and 0x68.
+            charge ended. The US logs add 0x62 (just after an AC plug-in) and 0x68. Bit 2 follows
+            the charger's pilot PWM: set in 9797 of 9849 rows with a 5-95 % duty and in none of the
+            99 rows at 100 % duty (charger not offering), so 0x76 -> 0x72 is the charger ending the
+            session, while a stop by the car keeps bit 2 (0x76 -> 0x7E on 2026-08-05 at 95 % SOC
+            with the pilot still at 20 A).
         OBC_CABLE_SESSION:
           expression: B37:4
           min: "0"

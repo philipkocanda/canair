@@ -45,7 +45,7 @@ messages:
         min: 0.0
         max: 127.0
         source: AVN firmware HU_GW_P_05 (com.lge.ivi HuGwP05 compose/parse; ioniq-avn-fw docs/micom/micom-avn-can-signals.tsv); observed on the uhi22 Ioniq28 P-CAN tap
-        notes: 'Day-of-week bitmask, one bit set: bit 0 of this field Monday ... bit 6 Sunday (byte 0 bits 1-7). Both uhi22 logs read 0x40 (Saturday), and they were recorded on Saturday 2025-02-01 (16:09 and 16:41; committed 2025-02-02 00:20).'
+        notes: 'Day-of-week bitmask, one bit set: bit 0 of this field Monday ... bit 6 Sunday (byte 0 bits 1-7). Confirmed twice against uhi22''s recording dates: 0x40 (Saturday) in both 2025-02-01 logs, 0x20 (Friday) in the trace started Friday 2022-07-22. In that trace the gateway sends its own clock at ignition-on (valid flag 0) and the head unit''s time takes over about 10 s later (seconds jump, valid flag 1 at 13 s).'
   '0x5D0':
     name: CGW_ODO
     tx_ecu: IGPM
@@ -304,4 +304,4 @@ messages:
         byte_order: little
         max: 3.0
         source: AVN firmware HU_EV_P_01 (MM-CAN 0x57A); observed on the uhi22 Ioniq28 P-CAN tap, gateway-timed
-        notes: 'Charge scheduling mode: 0 manual, 1 scheduled (not off-peak), 2 scheduled off-peak, 3 off-peak only. Not a charge-power setting.'
+        notes: 'Charge scheduling mode as set in the head unit, forwarded by the gateway: 0 = Charge Now (charge as soon as plugged in), 1 = Charge on Schedule with no off-peak window (the menu''s default and reset value), 2 = Charge on Schedule with off-peak time enabled, 3 = the same with ''Charge ONLY during the time shown below'' ticked. Mapping read from the head unit''s menu code (GreenCar DepartureClimateActivity radio buttons; EconomyReservationSettingActivity OK button sends 3 if that box is ticked, else 2). Not a charge-power setting. uhi22''s car: 3 in a July 2022 P-CAN trace (window unset), 0 in the Feb 2025 logs.'

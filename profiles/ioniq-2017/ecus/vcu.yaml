@@ -1129,6 +1129,23 @@ VCU:
       capture_protocol: >-
         canair monitor VCU:2101,2102,21F2 --save --keep-all --interval 0.5 --label 'regen paddles'
         --state READY; press 's' at each paddle press.
+    - type: verify
+      target: how the head unit starts and stops AC charging
+      status: pending
+      priority: P1
+      vehicle_states: [PLUGGED, CHARGING]
+      created: "2026-10-30"
+      updated: "2026-10-30"
+      result: "The EU head unit has no start or stop command. Its only charge on/off control is the scheduling mode on the 'Charging and Climate Settings' page: 'Charge Now' sends mode 0, 'Charge on Schedule' resends the mode last saved on the off-peak page (1 = no off-peak window, 2 = off-peak enabled, 3 = 'Charge ONLY during the time shown below'). It goes out at once as HU_EV_P_01 (MM-CAN 0x57A, byte 4 bits 1-0, with the weekday and weekend off-peak windows in bytes 0-3); the gateway forwards it to P-CAN as 0x588 unchanged; the VCU stores it and re-broadcasts it on 0x579, which the gateway turns into GW_EV_P_06 (MM-CAN 0x56B) for the head unit's display. The VCU then starts or stops the charge itself, using the window and the gateway clock 0x567 (weekday and time). The head unit's dedicated start/stop frame HU_GW_P_00 (CfTmuChargeCtr / CfTmuCharCancel) is never built by any app and is dropped by the MICOM; its US counterpart is the telematics frame TMU1 (0x587), which does not exist on the EU car. On P-CAN the mode reads 3 in uhi22's 2022 trace and 0 in his 2025 logs, so the frames are live."
+      notes: "What a stop looks like in our diagnostics: OBC_SESSION_FLAGS bit 2 tracks the charger's pilot PWM. All seven charge ends we recorded at 0x76 -> 0x72 had the pilot go to 100 % duty, i.e. the charger ended the session. A car-side stop keeps the PWM: 2026-08-05 15:28 (95 % SOC, pilot still 20 A) went 0x76 -> 0x7E with VCU_POWER_STATE 7 -> 6. A stop by the scheduling mode should look like that second case."
+      sources:
+        - ioniq-avn-fw EU firmware (GreenCar DepartureClimateActivity/EconomyReservationSettingActivity, IviServer GreenCarMessageSetting, MICOM tables); uhi22 IoniqMotorCAN P-CAN trace 2022-07-22 and Ioniq28Investigations logs; canair OBC 2101 captures; 2026-10-30
+      what_to_test:
+        - "Plugged in at home and charging: in 'Charging and Climate Settings' switch to 'Charge on Schedule' with an off-peak window that excludes now and 'Charge ONLY during the time shown below' ticked, then back to 'Charge Now'. Expect AC_INPUT_A to fall to 0 with the pilot still offered (OBC_SESSION_FLAGS 0x76 -> 0x7E, VCU_POWER_STATE 7 -> 6), then resume."
+        - Repeat with off-peak enabled but the box unticked (mode 2) and with off-peak disabled (mode 1), to learn which modes stop an ongoing charge.
+      capture_protocol: >-
+        canair monitor OBC:2101 VCU:2101 BMS:2101 --save --keep-all --interval 2 --label 'head-unit
+        charge mode start/stop' --state CHARGING; press s at each menu change and name the mode.
   sessions:
     "81":
       name: "standardDiagnosticSession"
