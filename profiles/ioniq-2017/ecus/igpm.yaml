@@ -257,16 +257,19 @@ IGPM:
           source: Timed event capture 2026-07-24
           verified: true
           notes: 1 = open. Found 2026-07-24.
-        UNKNOWN_B13_1:
+        REAR_DEFOGGER_RELAY:
           expression: B13:1
-          source: bitfield analysis 2026-08-06; align vs VCU_AUX_POWER 2026-10-21
+          source: bitfield analysis 2026-08-06; align vs VCU_AUX_POWER 2026-10-21; DBC cross-check 2026-10-29
           verified: false
           notes: >-
-            Set only in the 2026-07-30 10:17-10:25 defroster and 12 V load window (3 of 384
-            captures). Each edge moves VCU_AUX_POWER by a 127-172 W step with the blower unchanged:
-            on 10:17:01 (203->368 W), off 10:20:41 (570->443 W), on 10:21:24 (470->642 W). Fits a
-            rear-window heater relay, but the narration says the defroster was still on when it
-            cleared at 10:20:41.
+            Candidate rear-window heater relay. Set only in the 2026-07-30 10:17-10:25 window
+            (narrated 'defroster on', then the separate 'front' button): on 10:17:01, off 10:20:41,
+            on 10:21:24, off by 10:25:30. Each edge moves VCU_AUX_POWER by a 127-172 W step with the
+            blower unchanged. HVAC 2201A0 HVAC_DEFROST_FLAGS stays 0 throughout, and BC07 B11
+            (OBDb's 'defog light') stays 0, so neither is the same signal. The gateway publishes a
+            rear defogger relay state on broadcast 0x541 (opendbc CF_Gway_DefoggerRly), so the IGPM
+            carries one. Unproven: the 10:20:41 off edge is not narrated. Test: toggle only the
+            rear-window button in READY and watch this bit.
 
 
     22BC04:
@@ -326,6 +329,62 @@ IGPM:
             it fell later is unrecorded. The 4th is an 18 s pulse at 08-15 10:11:03, 5 min after
             locking, with nothing else on 22BC03/04/07 changing. Mirrored by BCM 22B005 B10:3 (35 of
             35 rows) and VCU 2101 VCU_INVERTER_ARMED (kappa 0.98, n=358). Purpose unknown.
+        VEHICLE_NOT_IN_P_WARNING:
+          expression: B12:5
+          min: "0"
+          max: "1"
+          source: byte-value sweep + align 2026-10-29
+          verified: false
+          notes: >-
+            Candidate 'vehicle not in P' warning. Set in all 8 captures of the 2026-07-21
+            12:51-12:53 drive-mode session, each with VCU GEAR_D=1, brake pressed, driver door open
+            (DOOR_DRV_OPEN) and driver belt unbuckled, ignition on. 0 in the 34 rows in D with the
+            door closed and belt buckled, the 1 row in D with brake pressed, belt buckled and door
+            closed, and the 14 rows in P with brake pressed. Drive-mode and regen changes in that
+            session did not move it. The gateway publishes CF_Gway_VehicleNotPWarn on broadcast
+            0x553 (opendbc CGW2). Door and belt changed together here, so which one sets it is
+            unknown. Test: READY, in D, brake held: open the driver door with the belt buckled, then
+            unbuckle with the door closed; repeat in P.
+          enabled: false
+        SEATBELT_RR:
+          expression: B12:1
+          min: "0"
+          max: "1"
+          source: OBDb Hyundai-IONIQ-Electric 22BC04 bix 54; IGPM support bitmap; opendbc CGW4 rear belt indicators (2026-10-29)
+          verified: false
+          notes: >-
+            Candidate rear-right seatbelt latched. Three sources agree: OBDb labels this bit (bix
+            54) as the rear-right belt; the 22BC04 support bitmap (B07=0xF4) marks this bit as a
+            real signal; and the gateway publishes rear belt states on broadcast 0x559 (opendbc CGW4
+            RL/RR/RC SeatBeltInd). 0 in all 1753 captures, so never exercised. Test: buckle each
+            rear belt in ACC2.
+          enabled: false
+        SEATBELT_RL:
+          expression: B12:2
+          min: "0"
+          max: "1"
+          source: OBDb Hyundai-IONIQ-Electric 22BC04 bix 53; IGPM support bitmap; opendbc CGW4 rear belt indicators (2026-10-29)
+          verified: false
+          notes: >-
+            Candidate rear-left seatbelt latched. Three sources agree: OBDb labels this bit (bix 53)
+            as the rear-left belt; the 22BC04 support bitmap (B07=0xF4) marks this bit as a real
+            signal; and the gateway publishes rear belt states on broadcast 0x559 (opendbc CGW4
+            RL/RR/RC SeatBeltInd). 0 in all 1753 captures, so never exercised. Test: buckle each
+            rear belt in ACC2.
+          enabled: false
+        SEATBELT_RM:
+          expression: B12:3
+          min: "0"
+          max: "1"
+          source: OBDb Hyundai-IONIQ-Electric 22BC04 bix 52; IGPM support bitmap; opendbc CGW4 rear belt indicators (2026-10-29)
+          verified: false
+          notes: >-
+            Candidate rear-middle seatbelt latched. Three sources agree: OBDb labels this bit (bix
+            52) as the rear-middle belt; the 22BC04 support bitmap (B07=0xF4) marks this bit as a
+            real signal; and the gateway publishes rear belt states on broadcast 0x559 (opendbc CGW4
+            RL/RR/RC SeatBeltInd). 0 in all 1753 captures, so never exercised. Test: buckle each
+            rear belt in ACC2.
+          enabled: false
 
     22BC06:
       status: active
@@ -968,7 +1027,14 @@ IGPM:
       vehicle_states: [PLUGGED, CHARGING]
       created: "2026-10-29"
       updated: "2026-10-29"
-      notes: "Kona bench CGW_5EC, sent by the IGPM/gateway: byte0 = charge-port locked (1/0). Complements the IGPM charge-cable-lock IOControl (BCxx). OBD-unobservable here (gateway-isolated); Kona-sourced hypothesis."
+      notes: >-
+        Kona bench CGW_5EC, sent by the IGPM/gateway: byte0 = charge-port locked (1/0). Complements
+        the IGPM charge-cable-lock IOControl (BCxx). OBD-unobservable here (gateway-isolated);
+        Kona-sourced hypothesis. DID TWIN CONFIRMED 2026-10-29: this is the same physical signal as
+        the already-decoded IGPM 22BC07 B11:7 CHARGE_PORT_LOCK (and its inverse B12:0), which are
+        100% anti-correlated over 1761 captures (lock=1/inv=0 x1475, lock=0/inv=1 x286). So 0x5EC is
+        the broadcast counterpart of the DID bit — the gateway re-encodes the same lock state in
+        both domains.
       sources:
         - projectgus car_hacking, bench_kona/igpm.py CGW_5EC (Kona OS EV)
       what_to_test:
@@ -983,11 +1049,32 @@ IGPM:
       result: >-
         Confirmed on the uhi22 Ioniq28 P-CAN tap (seconds byte ticks once per second) and promoted
         to signals/body.yaml CGW_CLOCK (hour/minute/second/valid).
-      notes: "Kona bench CGW_Clock, sent by the IGPM/gateway: byte0=0x02, byte1=hour, byte2=minute, byte3=second, byte4=valid flag. Identifies the time source, relevant to the charge-schedule research (which module holds and executes schedules). OBD-unobservable here (gateway-isolated); Kona-sourced hypothesis."
+      notes: >-
+        Kona bench CGW_Clock, sent by the IGPM/gateway: byte0=0x02, byte1=hour, byte2=minute,
+        byte3=second, byte4=valid flag. Identifies the time source, relevant to the charge-schedule
+        research (which module holds and executes schedules). CONFIRMED 2026-10-29 on the uhi22
+        Ioniq P-CAN tap: D2=hour (16), D3=minute (41), D4=seconds incrementing once per second,
+        D5=valid (1) — now defined in signals/body.yaml CGW_CLOCK. NEGATIVE DID cross-check same
+        date: swept every byte of IGPM 22BC01-07, BCM 22B00E/22C00B and CLU 22B002 against each
+        capture's wall-clock (plain and BCD; hour/minute/second); no byte matched above 0.25. So the
+        gateway broadcasts its RTC on 0x567 but does NOT expose it in any captured status DID.
       sources:
         - projectgus car_hacking, bench_kona/igpm.py CGW_Clock (Kona OS EV)
       what_to_test:
         - Tapped P-CAN sniff; confirm 0x567 bytes 1-3 track wall-clock time and that the IGPM is the sender.
+    - type: decode
+      target: 22BC03-07 support bitmap (B05-B07, B09)
+      status: pending
+      priority: P2
+      vehicle_states: [ACC2, READY]
+      created: "2026-10-29"
+      updated: "2026-10-29"
+      result: "The four constant bytes before the data (B05, B06, B07, B09) are a per-DID bitmap of which data bits are real signals: B05 covers B10, B06 B11, B07 B12, B09 B13, MSB first (mask bit 7 = data bit 0). Over ~1750 captures per DID, every bit ever set in 22BC03, BC04, BC05 and BC07 lies inside its mask. The plain (LSB-first) reading fails on every one. In 22BC06 the mask marks a field's start bit: B11 has only bit 0, so the turn signal is one 2-bit field (0 off, 1 left, 2 right), which matches 'never 3'."
+      notes: "Consequence: canair coverage's BITS 'missing' lists overstate the gaps. A bit outside the mask is not a signal. The real undecoded signals (in the mask, never set in any capture, so never exercised) are: 22BC03 B11:4, B13:2, B13:3, B13:6, B13:7; 22BC04 B10:5, B10:7, B11:2-B11:7 (all six), B12:0, B13:0, B13:2, B13:4, plus B13:1 which is always 1 (B12:1-3 now SEATBELT_RR/RL/RM candidates); 22BC05 B10:1-B10:3; 22BC07 B11:1, B12:1, B12:6, B12:7, B13:0, B13:1, B13:4, B13:5, plus B12:4 which is always 1. 22BC06 B10:0, B10:3 and B10:5 are separate signals that set together with BRAKE_PEDAL_BITS (0x2D). OBDb Hyundai-IONIQ-Electric labels that fall outside the mask do not apply to this IGPM: 22BC04 B10:4 'reverse gear' (read 0 with VCU GEAR_R=1) and 22BC07 B11:0 'defog light' (0 during the 2026-07-30 defogger window). OBDb also lists 22BC08/22BC09, which return NRC 0x31 here, so its IGPM is a different variant. Its labels that fall inside the mask (22BC04 locks, 22BC05 B12 headlight switch, the rear belts) are worth testing. Candidates for the open slots, from the signals the gateway broadcasts (opendbc CGW1/CGW2/CGW4) that no DID maps yet: park brake switch, hazard switch, front and rear fog, wiper switches (int/low/high/auto/mist), rain sensor, passive-access lock and unlock, RKE command, four window states, heated steering wheel, sunroof, brake-fluid switch, ESCL warnings, key-out lamp."
+      sources:
+        - byte sweep over all stored 22BC03-07 captures, 2026-10-29
+      what_to_test:
+        - "Narrated canair monitor IGPM --save --keep-changes in ACC2/READY: one actuation at a time from the candidate list (park brake, hazard, fog, each wiper stage, each window, heated wheel, rear belts, fob lock/unlock, handle lock/unlock), pressing 's' for each. Every bit that moves should be inside the mask; one outside it means the mask reading is wrong."
 
   iocontrol_discoveries:
     BC01:

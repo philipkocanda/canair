@@ -2039,7 +2039,11 @@ BMS:
       vehicle_states: [READY, CHARGING]
       created: "2026-10-29"
       updated: "2026-10-29"
-      notes: "Kona bench READS 0x5A3: byte0 bit6 = HV main contactor closed. The main contactor is BMS-controlled. You have contactor/relay state only indirectly today. OBD-unobservable here (gateway-isolated); Kona-sourced hypothesis."
+      notes: >-
+        Kona bench READS 0x5A3: byte0 bit6 = HV main contactor closed. On the uhi22 Ioniq P-CAN
+        drive log 0x5A3 reads 4F 00 00 00 00 00 00 00 throughout, so bit6 = 1 while driving with the
+        contactor closed. Consistent, but never seen open, so unproven. Needs a log across contactor
+        open/close.
       sources:
         - projectgus car_hacking, bench_kona/bench_kona.py (Kona OS EV)
       what_to_test:

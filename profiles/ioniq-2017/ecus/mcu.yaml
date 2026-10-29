@@ -808,7 +808,13 @@ MCU:
       vehicle_states: [READY]
       created: "2026-10-29"
       updated: "2026-10-29"
-      notes: Kona bench READS inverter voltage from 0x524 bytes0-1, little-endian (raw volts). You read DC-link today via VCU 2102 (B17*2) and MCU DIDs. Broadcast variant. OBD-unobservable here (gateway-isolated); Kona-sourced hypothesis.
+      notes: >-
+        Kona bench READS inverter voltage from 0x524 bytes0-1, little-endian (raw volts). CONFIRMED
+        2026-10-29 on the uhi22 Ioniq P-CAN tap: 0x524 reads 75 01 = 373 V (uhi22 DBC
+        uwe524_EPCU_voltage, 9 bits), against 373.5-373.9 V pack voltage on 0x595 (uwe595_UBatt) in
+        the same log. opendbc names 0x524 GW_HU_E_00, but that DBC is for 2015 combustion cars and
+        does not apply here. Diagnostic equivalent: VCU 2102 DC-link (B17*2). Still to do: define it
+        in signals/ and compare against VCU 2102 on this car.
       sources:
         - projectgus car_hacking, bench_kona/bench_kona.py (Kona OS EV)
       what_to_test:

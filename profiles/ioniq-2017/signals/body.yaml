@@ -69,7 +69,7 @@ messages:
         length: 1
         byte_order: little
         source: opendbc hyundai_2015_ccan.dbc CGW1 (commaai, MIT); observed on the uhi22 Ioniq28 P-CAN tap (scripts/fetch_can_corpus.py)
-        notes: Drive-type option bit (byte5 bit3). Observed = 0 on the uhi22 car; opendbc places it exactly where the Kona bench guessed byte5=0x08, confirming the map (value is a trim option).
+        notes: 'Meaning unknown: opendbc gives no value table. Leading guess: left- vs right-hand drive. Evidence: opendbc receivers are CLU, IBOX and LDWS_LKAS (no powertrain or brake modules, which argues against 2WD/4WD); the projectgus Kona bench (Australian, right-hand drive) sets it to 1, the uhi22 Ioniq (German, left-hand drive) reads 0 and never changes. Two cars only, so unproven. Test: a right-hand-drive Ioniq log should read 1.'
       CF_Gway_HeadLampLow:
         start_bit: 31
         length: 1
@@ -84,3 +84,23 @@ messages:
         max: 3.0
         source: opendbc hyundai_2015_ccan.dbc CGW1 (commaai, MIT); observed on the uhi22 Ioniq28 P-CAN tap (scripts/fetch_can_corpus.py)
         notes: Light-switch position (0-3). Observed = 3 during the uhi22 drive log.
+      CF_Gway_DrvDrSw:
+        start_bit: 8
+        length: 2
+        byte_order: little
+        min: 0.0
+        max: 3.0
+        source: opendbc hyundai_2015_ccan.dbc CGW1 (commaai, MIT); observed on the uhi22 Ioniq28 P-CAN tap (scripts/fetch_can_corpus.py)
+        notes: "Driver door switch (1 = open). Toggles 0-1-0-1-0 in the uhi22 'leave car while drive ready beep' log as the driver gets out. DID twin: IGPM 22BC03 DOOR_DRV_OPEN."
+      CF_Gway_Ign1:
+        start_bit: 58
+        length: 1
+        byte_order: little
+        source: opendbc hyundai_2015_ccan.dbc CGW1 (commaai, MIT); observed on the uhi22 Ioniq28 P-CAN tap (scripts/fetch_can_corpus.py)
+        notes: IGN1 rail. Reads 1 throughout both uhi22 logs (ignition on). With CF_Gway_Ign2 this is the byte-7 0x0C the Kona bench labelled IGN1+IGN2.
+      CF_Gway_Ign2:
+        start_bit: 59
+        length: 1
+        byte_order: little
+        source: opendbc hyundai_2015_ccan.dbc CGW1 (commaai, MIT); observed on the uhi22 Ioniq28 P-CAN tap (scripts/fetch_can_corpus.py)
+        notes: IGN2 rail. Reads 1 throughout both uhi22 logs (ignition on).
