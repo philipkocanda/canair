@@ -329,6 +329,22 @@ BCM:
             1 exactly when BCM_B003_B18 is in its 109-136 band, 0 when it is 158-159 or open (959 of
             959 aligned rows), i.e. the digital reading of that input. Mirrored by 22B00A B11:3 and
             22B00D B11:4. Meaning unknown.
+        BCM_B004_B12_7:
+          expression: B12:7
+          source: support-bitmap sweep 2026-10-29
+          verified: false
+          notes: >-
+            Marked by the 22B004 map. 1 in 2342 of 2349 captures; 0 on 2026-04-17 (x2) and
+            2026-10-25 (x5). Meaning unknown.
+          enabled: false
+        BCM_B004_B13_4:
+          expression: B13:4
+          source: support-bitmap sweep 2026-10-29
+          verified: false
+          notes: >-
+            Marked by the 22B004 map. 1 in 6 of 2349 captures (2026-07-22 x1, 2026-10-25 x5).
+            Meaning unknown.
+          enabled: false
 
     22B005:
       response_frames: 2
@@ -519,6 +535,38 @@ BCM:
             Equals BCM_B004_B12_5 (the 22B003 B18 input) in all 342 aligned rows. Disabled as a
             duplicate.
           enabled: false
+        BCM_B00A_B10_2:
+          expression: B10:2
+          source: support-bitmap sweep 2026-10-29
+          verified: false
+          notes: >-
+            Marked by the 22B00A map. 1 in 250 of 1694 captures, 238 of them during the 2026-07-27
+            AC charge (10-16 A EVSE pilot steps). Meaning unknown.
+          enabled: false
+        BCM_B00A_B11_5:
+          expression: B11:5
+          source: support-bitmap sweep 2026-10-29
+          verified: false
+          notes: >-
+            Marked by the 22B00A map. 1 in 3 of 1694 captures (2026-08-15 x1, 2026-10-25 x2).
+            Meaning unknown.
+          enabled: false
+        BCM_B00A_B11_6:
+          expression: B11:6
+          source: support-bitmap sweep 2026-10-29
+          verified: false
+          notes: >-
+            Marked by the 22B00A map. 1 in 1689 of 1694 captures; 0 only in 5 rows on 2026-10-25.
+            Meaning unknown.
+          enabled: false
+        BCM_B00A_B12_7:
+          expression: B12:7
+          source: support-bitmap sweep 2026-10-29
+          verified: false
+          notes: >-
+            Marked by the 22B00A map. 1 in 82 of 1694 captures spread over 8 dates (2026-07-21 x19,
+            2026-10-22 x21, 2026-10-25 x32). Meaning unknown.
+          enabled: false
 
     22B00B:
       status: ignored
@@ -531,6 +579,15 @@ BCM:
       parameters: {}
 
     22B00C:
+      parameters:
+        BCM_B00C_B10_2:
+          expression: B10:2
+          source: support-bitmap sweep 2026-10-29
+          verified: false
+          notes: >-
+            Marked by the 22B00C map (only signal there besides never-set B10:3-7). 1 in 2 of 1693
+            captures, both 2026-10-25. Meaning unknown.
+          enabled: false
       response_frames: 2
       status: draft
       period: 60000
@@ -1301,6 +1358,19 @@ BCM:
       capture_protocol: >-
         canair read BCM:22C00B --save --label 'rear-left tyre -5 psi' before and after, noting which
         tyre was changed.
+    - type: decode
+      target: 22B004-22B00E support bitmap (B05-B07, B09); 22B003 byte map
+      status: pending
+      priority: P2
+      vehicle_states: [READY, CHARGING]
+      created: "2026-10-29"
+      updated: "2026-10-29"
+      result: "Same layout as IGPM 22BC03-07 (see that research entry), with exceptions. In 22B004-22B00E the four constant bytes B05, B06, B07, B09 map the data bits of B10, B11, B12, B13, MSB first: 34 of the 41 bits ever set lie inside the map, against 12-20 for a random pairing (99th percentile 20). 22B003 uses a per-byte version: map BF 8B 80 00 marks B10, B12-B15, B17-B19, B23 and B26-B28 as signals; 11 of its 12 varying bytes are inside (B20, an unconnected input, is not). B11, the constant ~4.9 V reading, is outside; B15, B17 and B19 are inside but undefined."
+      notes: "EXCEPTION: in 22B005 (map 20 00 10 00) only B10:2 and B12:3 are marked, yet BCM_LIGHT_SW_AUTO (B10:6), BCM_LIGHT_SW_ON_B5/B7 (B10:5, B10:7) and BCM_UNLOCKED_OR_IGN_ON (B10:3) all move and are backed by the 2026-10-22 AUTO test, so the map is not authoritative on the BCM. Also outside a map: BCM_B004_B12_5 (22B004 map byte 0x99 marks B12:0, 3, 4, 7), possibly the second bit of a field that starts at bit 4. Marked bits with no definition, MOVING (now candidate signals): 22B004 B12:7 (0 in 7 of 2349: 2026-04-17 x2, 2026-10-25 x5), B13:4 (6: 2026-07-22, 2026-10-25); 22B00A B10:2 (250 of 1694, 238 of them in the 2026-07-27 AC charge), B11:5 (3), B11:6 (0 in 5, all 2026-10-25), B12:7 (82, spread over 8 dates); 22B00C B10:2 (2, 2026-10-25). 22B007 B12:7 and B13:0-2 are set in one row only (2026-10-25 12:23:32, a session with many transport errors), so probably a bad read. ALWAYS 1: 22B005 B12:3, 22B008 B11:3 and B11:7, 22B00A B12:0 and B12:2. NEVER SET: 22B004 B12:0, B12:4, B13:5; 22B008 B11:1, B12:5; 22B009 24 of its 26 marked bits; 22B00A B10:0, B10:1, B10:6, B10:7, B11:0-2, B11:4, B12:1; 22B00C B10:3-B10:7; 22B00D B11:0-2, B12:0-2; 22B00E B10:4."
+      sources:
+        - byte sweep over all stored BCM captures, 2026-10-29
+      what_to_test:
+        - "Same narrated body sweep as the IGPM entry, with BCM 22B004-22B00E co-polled: every new moving bit should be inside its map, and 22B005 shows whether the BCM uses multi-bit fields where the map marks only a start bit."
   iocontrol_discoveries:
     B003:
       response: "6FB00300"

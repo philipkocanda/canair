@@ -219,6 +219,20 @@ HVAC:
             0-107). r=0.97 vs VCU:2101:VCU_VEHICLE_SPEED (1135 of 1213 rows equal) and r=0.985 vs
             ESC wheel speeds.
           enabled: true
+        HVAC_UNKNOWN_B20:
+          expression: B20
+          source: support-bitmap sweep 2026-10-29
+          verified: false
+          notes: >-
+            Marked by the 220100 map. 24 values, 16-241 (129, 16, 240 and 73 most common); r=+0.49
+            vs blower (PID notes). Meaning unknown.
+          enabled: false
+        HVAC_UNKNOWN_B42:
+          expression: B42
+          source: support-bitmap sweep 2026-10-29
+          verified: false
+          notes: Marked by the 220100 map. 0 or 1; 1 in 522 of 3051 captures. Meaning unknown.
+          enabled: false
     220102:
       response_frames: 3
       status: active
@@ -934,6 +948,19 @@ HVAC:
       capture_protocol: >-
         canair monitor HVAC:220100 --save --keep-changes --interval 2 --label 'A/C cycling and mode
         change' --state READY; press s at A/C on and at each mode change.
+    - type: decode
+      target: 220100 byte map (B05-B07, B09)
+      status: pending
+      priority: P3
+      vehicle_states: [READY]
+      created: "2026-10-29"
+      updated: "2026-10-29"
+      result: "220100's constant map 7E 50 07 C8 marks 14 data bytes as signals (one bit per data byte, MSB first): B11-B15, B17, B20, B22, B34-B38 and B42. All 13 bytes that vary are inside, and all 12 defined signals read bytes inside, so the map holds on this DID."
+      notes: The two marked bytes with no signal are B20 (24 values, 16-241, r=+0.49 vs blower per the PID notes) and B42 (0/1, 1 in 522 of 3051 captures). Both added as disabled candidates. The other HVAC pages (2201A0-A3) were not tested here.
+      sources:
+        - byte sweep over all stored HVAC captures, 2026-10-29
+      what_to_test:
+        - Capture HVAC 220100 with --keep-all across blower steps, modes and A/C on/off; time B20 and B42 against each change.
   dtcs:
     B1285:
       description: >
