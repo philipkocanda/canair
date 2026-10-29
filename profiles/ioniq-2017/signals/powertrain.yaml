@@ -466,6 +466,199 @@ messages:
         unit: kW
         source: uhi22 CCM readme (bench session with vehiclesim.py and pyPLC as charger) and vehiclesim.py; the BMS transmits it (uhi22 BMS readme)
         notes: Forwarded as EVMaximumPowerLimit (0 kW if the frame is missing). 98 kW in uhi22's car trace and DIN logs; the owner car's BMS 2101 AVAIL_CHARGE_POWER_MIRROR also reads 98.0 kW throughout both 2026-08-08 DC charges.
+  '0x57A':
+    name: VCU_DEPART_SCHEDULE
+    tx_ecu: VCU
+    signals:
+      VCU_DEPART_SET1_HOUR:
+        start_bit: 0
+        length: 5
+        byte_order: little
+        max: 23.0
+        unit: h
+        source: AVN firmware layout (GwEvP07); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        notes: Departure 1 hour. Layout from the AVN firmware (HuEvP02 compose = GwEvP07 parse).
+      VCU_DEPART_SET1_MIN:
+        start_bit: 5
+        length: 3
+        byte_order: little
+        scale: 10.0
+        max: 50.0
+        unit: min
+        source: AVN firmware layout (GwEvP07); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        notes: Departure 1 minute, 10-minute steps.
+      VCU_DEPART_SET1_DAYS:
+        start_bit: 8
+        length: 7
+        byte_order: little
+        max: 127.0
+        source: AVN firmware layout (GwEvP07); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        notes: 'Departure 1 weekday mask: bit 0 Monday ... bit 6 Sunday.'
+      VCU_DEPART_SET1_ENABLE:
+        start_bit: 15
+        length: 1
+        byte_order: little
+        source: AVN firmware layout (GwEvP07); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        notes: Departure 1 enabled.
+      VCU_DEPART_SET2_HOUR:
+        start_bit: 16
+        length: 5
+        byte_order: little
+        max: 23.0
+        unit: h
+        source: AVN firmware layout (GwEvP07); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        notes: Departure 2 hour.
+      VCU_DEPART_SET2_MIN:
+        start_bit: 21
+        length: 3
+        byte_order: little
+        scale: 10.0
+        max: 50.0
+        unit: min
+        source: AVN firmware layout (GwEvP07); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        notes: Departure 2 minute, 10-minute steps.
+      VCU_DEPART_SET2_DAYS:
+        start_bit: 24
+        length: 7
+        byte_order: little
+        max: 127.0
+        source: AVN firmware layout (GwEvP07); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        notes: 'Departure 2 weekday mask: bit 0 Monday ... bit 6 Sunday.'
+      VCU_DEPART_SET2_ENABLE:
+        start_bit: 31
+        length: 1
+        byte_order: little
+        source: AVN firmware layout (GwEvP07); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        notes: Departure 2 enabled.
+      VCU_DEPART_SET1_PRECOND:
+        start_bit: 32
+        length: 1
+        byte_order: little
+        source: AVN firmware layout (GwEvP07); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        notes: 'Departure 1: precondition the cabin.'
+      VCU_DEPART_SET1_TEMP:
+        start_bit: 33
+        length: 6
+        byte_order: little
+        max: 63.0
+        source: AVN firmware layout (GwEvP07); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        notes: Departure 1 cabin set temperature, raw. Encoding not known (the firmware only says 6 bits).
+      VCU_DEPART_SET1_TEMP_UNIT:
+        start_bit: 39
+        length: 1
+        byte_order: little
+        source: AVN firmware layout (GwEvP07); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        notes: Departure 1 temperature unit flag.
+      VCU_DEPART_SET1_DEFROST:
+        start_bit: 40
+        length: 1
+        byte_order: little
+        source: AVN firmware layout (GwEvP07); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        notes: 'Departure 1: defrost.'
+      VCU_DEPART_SET2_PRECOND:
+        start_bit: 41
+        length: 1
+        byte_order: little
+        source: AVN firmware layout (GwEvP07); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        notes: 'Departure 2: precondition the cabin.'
+      VCU_DEPART_SET2_TEMP:
+        start_bit: 42
+        length: 6
+        byte_order: little
+        max: 63.0
+        source: AVN firmware layout (GwEvP07); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        notes: Departure 2 cabin set temperature, raw; encoding not known.
+      VCU_DEPART_SET2_TEMP_UNIT:
+        start_bit: 48
+        length: 1
+        byte_order: little
+        source: AVN firmware layout (GwEvP07); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        notes: Departure 2 temperature unit flag.
+      VCU_DEPART_SET2_DEFROST:
+        start_bit: 49
+        length: 1
+        byte_order: little
+        source: AVN firmware layout (GwEvP07); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        notes: 'Departure 2: defrost.'
+  '0x579':
+    name: VCU_ECON_WINDOW
+    tx_ecu: VCU
+    signals:
+      VCU_ECON_WEEKDAY_START_HOUR:
+        start_bit: 0
+        length: 5
+        byte_order: little
+        max: 23.0
+        unit: h
+        source: AVN firmware layout (GwEvP06); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        notes: Off-peak (ECON) charge window, weekday start hour. Layout from the AVN firmware (HuEvP01 compose, GwEvP06 parse).
+      VCU_ECON_WEEKDAY_START_MIN:
+        start_bit: 5
+        length: 3
+        byte_order: little
+        scale: 10.0
+        max: 50.0
+        unit: min
+        source: AVN firmware layout (GwEvP06); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        notes: Weekday start minute, 10-minute steps.
+      VCU_ECON_WEEKDAY_END_HOUR:
+        start_bit: 8
+        length: 5
+        byte_order: little
+        max: 23.0
+        unit: h
+        source: AVN firmware layout (GwEvP06); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        notes: Weekday end hour.
+      VCU_ECON_WEEKDAY_END_MIN:
+        start_bit: 13
+        length: 3
+        byte_order: little
+        scale: 10.0
+        max: 50.0
+        unit: min
+        source: AVN firmware layout (GwEvP06); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        notes: Weekday end minute, 10-minute steps.
+      VCU_ECON_WEEKEND_START_HOUR:
+        start_bit: 16
+        length: 5
+        byte_order: little
+        max: 23.0
+        unit: h
+        source: AVN firmware layout (GwEvP06); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        notes: Weekend start hour.
+      VCU_ECON_WEEKEND_START_MIN:
+        start_bit: 21
+        length: 3
+        byte_order: little
+        scale: 10.0
+        max: 50.0
+        unit: min
+        source: AVN firmware layout (GwEvP06); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        notes: Weekend start minute, 10-minute steps.
+      VCU_ECON_WEEKEND_END_HOUR:
+        start_bit: 24
+        length: 5
+        byte_order: little
+        max: 23.0
+        unit: h
+        source: AVN firmware layout (GwEvP06); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        notes: Weekend end hour.
+      VCU_ECON_WEEKEND_END_MIN:
+        start_bit: 29
+        length: 3
+        byte_order: little
+        scale: 10.0
+        max: 50.0
+        unit: min
+        source: AVN firmware layout (GwEvP06); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        notes: Weekend end minute, 10-minute steps.
+      VCU_ECON_CHG_CTRL_MODE:
+        start_bit: 32
+        length: 2
+        byte_order: little
+        max: 3.0
+        source: AVN firmware layout (GwEvP06); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        notes: 'Charge scheduling mode: 0 manual, 1 scheduled (not off-peak), 2 scheduled off-peak, 3 off-peak only. Not a charge-power setting.'
   '0x57F':
     name: OBC1
     tx_ecu: OBC
