@@ -296,6 +296,9 @@ class CapturesStepApp(HelpMixin, App):
 
     HELP_TITLE = "canair captures --step — keyboard shortcuts"
 
+    # canair uses no command-palette commands; disable Textual's ctrl+p palette.
+    ENABLE_COMMAND_PALETTE = False
+
     # Handled by the focused scroll container itself, so there is no Binding to
     # derive these from — but they are the way back to a tall frame's header,
     # which matters now that a frame move keeps the scroll position.

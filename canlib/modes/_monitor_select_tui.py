@@ -13,11 +13,12 @@ from typing import ClassVar, cast
 from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.widgets import Footer, Input, Label, SelectionList
+from textual.widgets import Input, Label, SelectionList
 from textual.widgets.selection_list import Selection
 
 from canlib.tui.help import HelpMixin
 from canlib.tui.keys import bind
+from canlib.tui.status import P_ESSENTIAL, P_HIGH, P_LOW, P_NORMAL, StatusBar, StatusItem
 from canlib.tui.widgets import CheckSelectionList
 
 from .monitor_select import EcuChoice, GroupChoice
@@ -34,9 +35,13 @@ class MonitorSelectApp(HelpMixin, App["dict[str, list[str]] | None"]):
 
     HELP_TITLE = "Select what to monitor"
 
+    # canair registers no command-palette commands and pins the theme, so the
+    # built-in ctrl+p palette only adds an unstyled modal that overflows a narrow
+    # terminal. Disable it, matching every other canair TUI.
+    ENABLE_COMMAND_PALETTE = False
+
     CSS = """
     #title { text-style: bold; margin: 1 2 0 2; }
-    #hint { color: $text-muted; margin: 0 2; }
     #filter { margin: 1 2 0 2; }
     #choices { margin: 1 2; height: 1fr; }
     """
@@ -77,10 +82,9 @@ class MonitorSelectApp(HelpMixin, App["dict[str, list[str]] | None"]):
 
     def compose(self) -> ComposeResult:
         yield Label("", id="title")
-        yield Label("", id="hint")
         yield Input(placeholder="/ to filter…", id="filter")
         yield CheckSelectionList(id="choices")
-        yield Footer()
+        yield StatusBar(id="status")
 
     def on_mount(self) -> None:
         if "ansi-dark" in self.available_themes:
@@ -146,15 +150,32 @@ class MonitorSelectApp(HelpMixin, App["dict[str, list[str]] | None"]):
         if self._step == 1:
             picked = len(self._effective_ecus())
             title = f"Select ECUs to monitor — {picked} of {len(self._choices)} selected"
-            hint = "step 1/2 · space toggle · ctrl+s next: choose PIDs"
+            items = [
+                StatusItem("[dim]step 1/2[/]", P_LOW),
+                StatusItem("[dim]space toggle[/]", P_NORMAL),
+                StatusItem("[dim]/ filter[/]", P_NORMAL),
+                StatusItem("[dim]ctrl+a all/none[/]", P_LOW),
+                StatusItem("[dim]ctrl+s next[/]", P_HIGH),
+            ]
             if self._groups:
-                hint += " · @rows are saved groups"
+                items.append(StatusItem("[dim]@rows are saved groups[/]", P_LOW))
         else:
             total = sum(len(p) for p in self._pids.values())
             title = f"Select PIDs to monitor — {total} selected across {len(self._pids)} ECU(s)"
-            hint = "step 2/2 · space toggle · ctrl+s start monitoring · esc back to ECUs"
+            items = [
+                StatusItem("[dim]step 2/2[/]", P_LOW),
+                StatusItem("[dim]space toggle[/]", P_NORMAL),
+                StatusItem("[dim]/ filter[/]", P_NORMAL),
+                StatusItem("[dim]ctrl+a all/none[/]", P_LOW),
+                StatusItem("[dim]esc back[/]", P_NORMAL),
+                StatusItem("[dim]ctrl+s start[/]", P_HIGH),
+            ]
+        items += [
+            StatusItem("[dim]? help[/]", P_ESSENTIAL),
+            StatusItem("[dim]q quit[/]", P_ESSENTIAL),
+        ]
         self.query_one("#title", Label).update(title)
-        self.query_one("#hint", Label).update(hint)
+        self.query_one("#status", StatusBar).set_lines(items)
 
     # -- events ------------------------------------------------------------
     def on_input_changed(self, _event: Input.Changed) -> None:

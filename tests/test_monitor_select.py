@@ -207,3 +207,47 @@ class TestApp:
             assert len(app.query_one(SelectionList).selected) == 2
             await _press(pilot, "ctrl+a")
             assert app._ecus == set()
+
+
+def _plain(renderable) -> str:
+    from rich.text import Text
+
+    if isinstance(renderable, Text):
+        return renderable.plain
+    return Text.from_markup(str(renderable)).plain
+
+
+class TestPresentation:
+    """The picker must present keys like every other canair TUI."""
+
+    def test_command_palette_is_disabled(self):
+        # Textual's ctrl+p palette is an unstyled modal canair never populates.
+        assert MonitorSelectApp.ENABLE_COMMAND_PALETTE is False
+
+    @pytest.mark.asyncio
+    async def test_uses_the_shared_status_bar_not_a_footer(self):
+        from textual.widgets import Footer
+
+        from canlib.tui.status import StatusBar
+
+        app = MonitorSelectApp(build_choices(_index()))
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            assert list(app.query(Footer)) == []
+            assert app.query_one("#status", StatusBar)
+
+    @pytest.mark.asyncio
+    async def test_status_shows_step_and_escape_hatches(self):
+        app = MonitorSelectApp(build_choices(_index()))
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            status = _plain(app.query_one("#status").render())
+            assert "step 1/2" in status
+            assert "ctrl+s next" in status
+            assert "? help" in status
+            assert "q quit" in status
+            await _press(pilot, "space", "ctrl+s")  # tick BMS, advance to step 2
+            status = _plain(app.query_one("#status").render())
+            assert "step 2/2" in status
+            assert "ctrl+s start" in status
+            assert "esc back" in status

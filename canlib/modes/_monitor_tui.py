@@ -949,6 +949,9 @@ class MonitorApp(HelpMixin, App):
 
     HELP_TITLE = "canair monitor — keyboard shortcuts"
 
+    # canair uses no command-palette commands; disable Textual's ctrl+p palette.
+    ENABLE_COMMAND_PALETTE = False
+
     CSS = """
     Screen { layout: vertical; background: transparent; }
     #header { dock: top; height: auto; max-height: 3; padding: 0 1; background: transparent; }

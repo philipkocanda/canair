@@ -29,6 +29,9 @@ class SniffApp(HelpMixin, App):
 
     HELP_TITLE = "canair sniff — keyboard shortcuts"
 
+    # canair uses no command-palette commands; disable Textual's ctrl+p palette.
+    ENABLE_COMMAND_PALETTE = False
+
     CSS = """
     Screen { layout: vertical; background: transparent; }
     #scroll { height: 1fr; scrollbar-gutter: stable; scrollbar-size-vertical: 1; background: transparent; }
