@@ -5,13 +5,13 @@ messages:
     signals:
       clock_hour:
         start_bit: 8
-        length: 8
+        length: 5
         byte_order: little
         min: 0.0
         max: 23.0
         unit: h
-        source: uhi22 Ioniq28 DBC CLOCK; observed on the uhi22 P-CAN tap (scripts/fetch_can_corpus.py)
-        notes: Gateway real-time clock. Observed 0x10=16 h. Seconds byte (start-bit 24) ticks once per second across the log, proving the frame is a live clock; confirms the Kona bench 0x567 map. verified:false pending owner-car confirmation.
+        source: AVN firmware HU_GW_P_05 (com.lge.ivi HuGwP05 compose/parse; ioniq-avn-fw docs/micom/micom-avn-can-signals.tsv); uhi22 Ioniq28 DBC CLOCK; observed on the uhi22 Ioniq28 P-CAN tap
+        notes: Hour, 5 bits (byte 1 bits 0-4) per the AVN layout. Observed 16. The seconds byte ticks once per second, so the frame is a live clock.
       clock_minute:
         start_bit: 16
         length: 8
@@ -32,12 +32,20 @@ messages:
         notes: Increments by 1 every ~1 s across the log — the direct proof this frame is the clock.
       clock_valid:
         start_bit: 32
-        length: 8
+        length: 1
         byte_order: little
         min: 0.0
         max: 1.0
         source: uhi22 Ioniq28 DBC CLOCK; observed on the uhi22 P-CAN tap
-        notes: Observed = 1 (valid).
+        notes: Clock ready flag (AVN CfTmuRdy, byte 4 bit 0). Observed 1.
+      clock_weekday:
+        start_bit: 1
+        length: 7
+        byte_order: little
+        min: 0.0
+        max: 127.0
+        source: AVN firmware HU_GW_P_05 (com.lge.ivi HuGwP05 compose/parse; ioniq-avn-fw docs/micom/micom-avn-can-signals.tsv); observed on the uhi22 Ioniq28 P-CAN tap
+        notes: 'Day-of-week bitmask, one bit set: bit 0 of this field Monday ... bit 6 Sunday (byte 0 bits 1-7). Both uhi22 logs read 0x40 (Saturday), and they were recorded on Saturday 2025-02-01 (16:09 and 16:41; committed 2025-02-02 00:20).'
   '0x5D0':
     name: CGW_ODO
     tx_ecu: IGPM
@@ -104,3 +112,196 @@ messages:
         byte_order: little
         source: opendbc hyundai_2015_ccan.dbc CGW1 (commaai, MIT); observed on the uhi22 Ioniq28 P-CAN tap (scripts/fetch_can_corpus.py)
         notes: IGN2 rail. Reads 1 throughout both uhi22 logs (ignition on).
+  '0x55C':
+    name: GW_DEPART_SCHEDULE
+    tx_ecu: IGPM
+    signals:
+      GW_DEPART_SET1_HOUR:
+        start_bit: 0
+        length: 5
+        byte_order: little
+        max: 23.0
+        unit: h
+        source: AVN firmware HU_EV_P_02 (MM-CAN 0x57B); observed on the uhi22 Ioniq28 P-CAN tap, gateway-timed
+        notes: Departure 1 hour. Layout from the AVN firmware (HuEvP02 compose = GwEvP07 parse).
+      GW_DEPART_SET1_MIN:
+        start_bit: 5
+        length: 3
+        byte_order: little
+        scale: 10.0
+        max: 50.0
+        unit: min
+        source: AVN firmware HU_EV_P_02 (MM-CAN 0x57B); observed on the uhi22 Ioniq28 P-CAN tap, gateway-timed
+        notes: Departure 1 minute, 10-minute steps.
+      GW_DEPART_SET1_DAYS:
+        start_bit: 8
+        length: 7
+        byte_order: little
+        max: 127.0
+        source: AVN firmware HU_EV_P_02 (MM-CAN 0x57B); observed on the uhi22 Ioniq28 P-CAN tap, gateway-timed
+        notes: 'Departure 1 weekday mask: bit 0 Monday ... bit 6 Sunday.'
+      GW_DEPART_SET1_ENABLE:
+        start_bit: 15
+        length: 1
+        byte_order: little
+        source: AVN firmware HU_EV_P_02 (MM-CAN 0x57B); observed on the uhi22 Ioniq28 P-CAN tap, gateway-timed
+        notes: Departure 1 enabled.
+      GW_DEPART_SET2_HOUR:
+        start_bit: 16
+        length: 5
+        byte_order: little
+        max: 23.0
+        unit: h
+        source: AVN firmware HU_EV_P_02 (MM-CAN 0x57B); observed on the uhi22 Ioniq28 P-CAN tap, gateway-timed
+        notes: Departure 2 hour.
+      GW_DEPART_SET2_MIN:
+        start_bit: 21
+        length: 3
+        byte_order: little
+        scale: 10.0
+        max: 50.0
+        unit: min
+        source: AVN firmware HU_EV_P_02 (MM-CAN 0x57B); observed on the uhi22 Ioniq28 P-CAN tap, gateway-timed
+        notes: Departure 2 minute, 10-minute steps.
+      GW_DEPART_SET2_DAYS:
+        start_bit: 24
+        length: 7
+        byte_order: little
+        max: 127.0
+        source: AVN firmware HU_EV_P_02 (MM-CAN 0x57B); observed on the uhi22 Ioniq28 P-CAN tap, gateway-timed
+        notes: 'Departure 2 weekday mask: bit 0 Monday ... bit 6 Sunday.'
+      GW_DEPART_SET2_ENABLE:
+        start_bit: 31
+        length: 1
+        byte_order: little
+        source: AVN firmware HU_EV_P_02 (MM-CAN 0x57B); observed on the uhi22 Ioniq28 P-CAN tap, gateway-timed
+        notes: Departure 2 enabled.
+      GW_DEPART_SET1_PRECOND:
+        start_bit: 32
+        length: 1
+        byte_order: little
+        source: AVN firmware HU_EV_P_02 (MM-CAN 0x57B); observed on the uhi22 Ioniq28 P-CAN tap, gateway-timed
+        notes: 'Departure 1: precondition the cabin.'
+      GW_DEPART_SET1_TEMP:
+        start_bit: 33
+        length: 6
+        byte_order: little
+        max: 63.0
+        source: AVN firmware HU_EV_P_02 (MM-CAN 0x57B); observed on the uhi22 Ioniq28 P-CAN tap, gateway-timed
+        notes: Departure 1 cabin set temperature, raw. Encoding not known (the firmware only says 6 bits).
+      GW_DEPART_SET1_TEMP_UNIT:
+        start_bit: 39
+        length: 1
+        byte_order: little
+        source: AVN firmware HU_EV_P_02 (MM-CAN 0x57B); observed on the uhi22 Ioniq28 P-CAN tap, gateway-timed
+        notes: Departure 1 temperature unit flag.
+      GW_DEPART_SET1_DEFROST:
+        start_bit: 40
+        length: 1
+        byte_order: little
+        source: AVN firmware HU_EV_P_02 (MM-CAN 0x57B); observed on the uhi22 Ioniq28 P-CAN tap, gateway-timed
+        notes: 'Departure 1: defrost.'
+      GW_DEPART_SET2_PRECOND:
+        start_bit: 41
+        length: 1
+        byte_order: little
+        source: AVN firmware HU_EV_P_02 (MM-CAN 0x57B); observed on the uhi22 Ioniq28 P-CAN tap, gateway-timed
+        notes: 'Departure 2: precondition the cabin.'
+      GW_DEPART_SET2_TEMP:
+        start_bit: 42
+        length: 6
+        byte_order: little
+        max: 63.0
+        source: AVN firmware HU_EV_P_02 (MM-CAN 0x57B); observed on the uhi22 Ioniq28 P-CAN tap, gateway-timed
+        notes: Departure 2 cabin set temperature, raw; encoding not known.
+      GW_DEPART_SET2_TEMP_UNIT:
+        start_bit: 48
+        length: 1
+        byte_order: little
+        source: AVN firmware HU_EV_P_02 (MM-CAN 0x57B); observed on the uhi22 Ioniq28 P-CAN tap, gateway-timed
+        notes: Departure 2 temperature unit flag.
+      GW_DEPART_SET2_DEFROST:
+        start_bit: 49
+        length: 1
+        byte_order: little
+        source: AVN firmware HU_EV_P_02 (MM-CAN 0x57B); observed on the uhi22 Ioniq28 P-CAN tap, gateway-timed
+        notes: 'Departure 2: defrost.'
+  '0x588':
+    name: GW_ECON_WINDOW
+    tx_ecu: IGPM
+    signals:
+      GW_ECON_WEEKDAY_START_HOUR:
+        start_bit: 0
+        length: 5
+        byte_order: little
+        max: 23.0
+        unit: h
+        source: AVN firmware HU_EV_P_01 (MM-CAN 0x57A); observed on the uhi22 Ioniq28 P-CAN tap, gateway-timed
+        notes: Off-peak (ECON) charge window, weekday start hour. Layout from the AVN firmware (HuEvP01 compose, GwEvP06 parse).
+      GW_ECON_WEEKDAY_START_MIN:
+        start_bit: 5
+        length: 3
+        byte_order: little
+        scale: 10.0
+        max: 50.0
+        unit: min
+        source: AVN firmware HU_EV_P_01 (MM-CAN 0x57A); observed on the uhi22 Ioniq28 P-CAN tap, gateway-timed
+        notes: Weekday start minute, 10-minute steps.
+      GW_ECON_WEEKDAY_END_HOUR:
+        start_bit: 8
+        length: 5
+        byte_order: little
+        max: 23.0
+        unit: h
+        source: AVN firmware HU_EV_P_01 (MM-CAN 0x57A); observed on the uhi22 Ioniq28 P-CAN tap, gateway-timed
+        notes: Weekday end hour.
+      GW_ECON_WEEKDAY_END_MIN:
+        start_bit: 13
+        length: 3
+        byte_order: little
+        scale: 10.0
+        max: 50.0
+        unit: min
+        source: AVN firmware HU_EV_P_01 (MM-CAN 0x57A); observed on the uhi22 Ioniq28 P-CAN tap, gateway-timed
+        notes: Weekday end minute, 10-minute steps.
+      GW_ECON_WEEKEND_START_HOUR:
+        start_bit: 16
+        length: 5
+        byte_order: little
+        max: 23.0
+        unit: h
+        source: AVN firmware HU_EV_P_01 (MM-CAN 0x57A); observed on the uhi22 Ioniq28 P-CAN tap, gateway-timed
+        notes: Weekend start hour.
+      GW_ECON_WEEKEND_START_MIN:
+        start_bit: 21
+        length: 3
+        byte_order: little
+        scale: 10.0
+        max: 50.0
+        unit: min
+        source: AVN firmware HU_EV_P_01 (MM-CAN 0x57A); observed on the uhi22 Ioniq28 P-CAN tap, gateway-timed
+        notes: Weekend start minute, 10-minute steps.
+      GW_ECON_WEEKEND_END_HOUR:
+        start_bit: 24
+        length: 5
+        byte_order: little
+        max: 23.0
+        unit: h
+        source: AVN firmware HU_EV_P_01 (MM-CAN 0x57A); observed on the uhi22 Ioniq28 P-CAN tap, gateway-timed
+        notes: Weekend end hour.
+      GW_ECON_WEEKEND_END_MIN:
+        start_bit: 29
+        length: 3
+        byte_order: little
+        scale: 10.0
+        max: 50.0
+        unit: min
+        source: AVN firmware HU_EV_P_01 (MM-CAN 0x57A); observed on the uhi22 Ioniq28 P-CAN tap, gateway-timed
+        notes: Weekend end minute, 10-minute steps.
+      GW_ECON_CHG_CTRL_MODE:
+        start_bit: 32
+        length: 2
+        byte_order: little
+        max: 3.0
+        source: AVN firmware HU_EV_P_01 (MM-CAN 0x57A); observed on the uhi22 Ioniq28 P-CAN tap, gateway-timed
+        notes: 'Charge scheduling mode: 0 manual, 1 scheduled (not off-peak), 2 scheduled off-peak, 3 off-peak only. Not a charge-power setting.'

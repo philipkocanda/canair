@@ -1034,11 +1034,22 @@ VCU:
         - "Repeat with climate on and off at key-on: the 2026-08-08 jump from 208 to 233 suggests the climate deduction is included"
     - type: decode
       target: where the pre-conditioning and charge schedules are stored and run
-      status: pending
+      status: captured
       priority: P2
       vehicle_states: [CHARGING, PLUGGED]
       created: "2026-10-23"
-      updated: "2026-10-23"
+      updated: "2026-10-29"
+      result: >-
+        2026-10-29: the VCU stores them. On P-CAN the VCU broadcasts its stored departure schedule
+        on 0x57A and its off-peak charge window on 0x579 (uhi22's EPCU transceiver test puts both on
+        the VCU's own transceiver). Its EPCU, running alone on uhi22's bench with no head unit or
+        gateway present, still sent both, with its own stored content. In uhi22's car the gateway
+        sends the head unit's settings onto P-CAN as 0x55C (departure) and 0x588 (charge window),
+        and the VCU's 0x57A/0x579 carry the same bytes. So the VCU receives the schedule from the
+        gateway, keeps it, and re-broadcasts it, which explains why a schedule still runs with the
+        AVN fuse pulled. Decoded in signals/body.yaml (GW_DEPART_*, GW_ECON_*) and
+        signals/powertrain.yaml (VCU_DEPART_*, VCU_ECON_*). Still open: which VCU DID, if any,
+        exposes the stored schedule over diagnostics.
       notes: "The pre-conditioning and AC-charge schedules survive removal of the AVN: on the EU car, with the AVN fuse pulled, a schedule set earlier still ran and the car pre-conditioned on a charger. So a car module holds and executes them. The head-unit firmware notes say the schedules are sent as broadcast frames when edited (0x57A/0x57B) and that VCU 21F2 before/after, HVAC and AVN sweeps found nothing; the VCU 21F2 comparison there is recorded as invalid. Candidates: the VCU, the HVAC unit, the BMS or the OBC."
       what_to_test:
         - Record VCU 2101/2102/21F2, HVAC 220100, BMS 2101 and OBC 2101 with --keep-changes across a scheduled start with the AVN off and look for pages that change at the scheduled time without a driver action. Repeat with the car unplugged to see whether a schedule alone wakes the car.

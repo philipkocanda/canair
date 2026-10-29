@@ -89,3 +89,16 @@ AVN:
       capture_protocol: >-
         canair monitor IGPM:22BC07 OBC:2101 BMS:2101 --save --keep-all --interval 1 --label 'IG3 #2
         hand-over' --state PLUGGED; press s at plug-in and at any scheduled start.
+    - type: decode
+      target: head-unit broadcast commands and their P-CAN form
+      status: captured
+      priority: P2
+      vehicle_states: [ACC2, READY]
+      created: "2026-10-29"
+      updated: "2026-10-29"
+      result: "The EU head unit transmits seven commands on MM-CAN (ioniq-avn-fw). The gateway does not repeat them onto P-CAN under the same IDs: on P-CAN, 0x57A and 0x57B are sent by the VCU itself (uhi22 EPCU transceiver test; the EPCU alone on a bench still sends them). Matched on real P-CAN traffic by content and by timing (each frame below is sent within 0.3-4 ms after the gateway's CGW1 0x541, every cycle): MM 0x54F HU_GW_P_05 clock -> P 0x567, exact layout including the weekday bit, which reads Saturday on logs recorded on Saturday 2025-02-01. MM 0x57B HU_EV_P_02 departure schedule -> P 0x55C, echoed byte for byte by the VCU on P 0x57A (decodes as departure 1 Sunday 13:40, departure 2 Tuesday-Friday 16:40). MM 0x57A HU_EV_P_01 off-peak window and charge mode -> P 0x588, echoed by the VCU on P 0x579 (04:50-09:20, manual mode). The VCU's 0x57B is its status frame (US firmware: VCU10, IG3 relay mode and aircon feedback), which the gateway folds into GW_EV_P_02 for the head unit. Not resolved: HU_EV_PE_00 (MM 0x1AA: drive-mode climate limits, regen levels, max speed, and the station/portable charge-current modes) -> P 0x5DF or 0x5B3 (both gateway-timed, both decode plausibly); HU_GW_P_03/04 (MM 0x54D/0x54E nav road type and distance) -> P 0x55F/0x561 (gateway-timed, 100 ms, all zero with no route); HU_DATC_PE_00 (MM 0x1C0: air-quality sensor level/mode, rear-seat lock, blower noise control while on a call or voice command) -> P 0x5D3 (byte 0 low nibble 0xF matches the firmware's 'no change' default, other fields do not)."
+      notes: "HVAC is reached two ways: directly by HU_DATC_PE_00 (comfort settings only, no setpoint or on/off), and through the VCU for departure preconditioning (the VCU holds the schedule and starts the climate). The head unit does not send a cabin setpoint or climate start of its own; the immediate remote-climate command HU_GW_P_00 is dropped by the EU MICOM (ioniq-avn-fw §7B)."
+      sources:
+        - "ioniq-avn-fw (EU LG firmware: com.lge.ivi compose/parse, MICOM CAN tables); uhi22 Ioniq28 P-CAN logs and EPCU bench log; projectgus Kona bench; Kona EV P-CAN sheet; 2026-10-29"
+      what_to_test:
+        - "With a P-CAN tap: change one setting at a time in the head unit (charge current station/portable, each drive mode's regen level and climate limit, the off-peak window, each departure slot, an active navigation route) and see which P-CAN frame changes; this settles 0x5DF vs 0x5B3, 0x55F/0x561 and 0x5D3."

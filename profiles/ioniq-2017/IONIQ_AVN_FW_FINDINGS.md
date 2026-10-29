@@ -142,6 +142,9 @@ The two head-unit vendors use `0x57B` in **opposite directions**: EU LG firmware
 status, bus → head-unit). On a real capture, confirm which direction `0x57B` (and `0x57A`) actually
 carries on this car before committing a `signals/` definition.
 
+**Resolved for P-CAN, see §9:** on the powertrain bus `0x57A` and `0x57B` are transmitted by the
+VCU. The EU head unit's `0x57A`/`0x57B` exist only on MM-CAN.
+
 ## 8. OBC address: settled on the car
 
 The US telematics diag table never references `0x7E5` and folds OBC onto **`0x7E4`** with BMS. On
@@ -158,3 +161,38 @@ responses there, and `0x7E4` answers as the BMS. The table's fold is a multi-pla
 3. On a broadcast capture, define `0x57A`/`0x57B`/`0x1C0`/`0x1AA`/`0x587` in `signals/<bus>.yaml`
    with the firmware-derived layouts in §4/§6, then verify each field by before/after diff.
 4. Resolve the `0x57B` direction (§7) by capture.
+
+## 9. Checked against real P-CAN traffic (2026-10-29)
+
+Source: the uhi22 Ioniq28Investigations P-CAN logs (a 2018 EU Ioniq 28 kWh, recorded Saturday
+2025-02-01), its EPCU-on-a-bench log (the VCU and MCU running alone, nothing else on the bus) and
+uhi22's test of which EPCU transceiver sends each frame. None of this is the owner's car.
+
+Who sends what on P-CAN was settled by timing: frames from one controller leave in a fixed order a
+fraction of a millisecond apart each cycle. Every frame below follows the gateway's `CGW1` (`0x541`)
+by 0.3-4 ms in every cycle of both logs, and none is on the VCU's transceiver.
+
+| Head-unit command (MM-CAN) | P-CAN frame | Evidence |
+| --- | --- | --- |
+| `0x54F` `HU_GW_P_05` clock | gateway `0x567` | identical layout; weekday bit reads Saturday |
+| `0x57B` `HU_EV_P_02` departure schedule | gateway `0x55C` | decodes as two plausible slots; VCU echoes it |
+| `0x57A` `HU_EV_P_01` off-peak window | gateway `0x588` | first four bytes echoed by the VCU |
+| `0x1AA` `HU_EV_PE_00` EV settings | gateway `0x5DF` or `0x5B3` | both gateway-timed; not told apart |
+| `0x54D`/`0x54E` nav road type/distance | gateway `0x55F`/`0x561`? | gateway-timed; all zero, no route active |
+| `0x1C0` `HU_DATC_PE_00` climate comfort | gateway `0x5D3`? | only the AQS 'no change' nibble matches |
+
+The VCU keeps the schedules and re-broadcasts them: departure on `0x57A` (bytes 0-6 identical to
+`0x55C`, byte 7 bit 7 set) and the off-peak window on `0x579` (bytes 0-3 identical to `0x588`). The
+EPCU alone on the bench still sends both with its own stored content, which is why a schedule runs
+with the head unit unpowered. The VCU's `0x57B` is its `VCU10` status frame.
+
+Consequences for the claims above:
+
+- §3 and §7: the gateway does **not** repeat `0x57A`/`0x57B` onto P-CAN under the same IDs; on
+  P-CAN those IDs belong to the VCU. The Soul EV `C_CAN` sheet rows for `0x57A`/`0x57B` describe the
+  VCU's frames.
+- Gateway translations change the ID but keep the bytes, so the head unit's own layouts decode the
+  P-CAN copies. Definitions: `signals/body.yaml` (`CGW_CLOCK`, `GW_DEPART_*`, `GW_ECON_*`) and
+  `signals/powertrain.yaml` (`VCU_DEPART_*`, `VCU_ECON_*`).
+- The departure temperature field reads 63 and 7 in uhi22's car with preconditioning off, so its
+  encoding is still unknown.

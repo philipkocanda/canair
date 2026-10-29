@@ -304,8 +304,8 @@ messages:
         start_bit: 56
         length: 1
         byte_order: little
-        source: uhi22 CCM readme (bench session with vehiclesim.py and pyPLC as charger) and vehiclesim.py; the BMS transmits it (uhi22 BMS readme)
-        notes: 'Byte 7 bit 0: starts SLAC. With 0x57F, 0x597, 0x5A3 and 0x59C it is all the CCM needs to run a full session.'
+        source: uhi22 CCM readme and vehiclesim.py; CCM application firmware (uhi22 code-flash dump), Com receive table and DIN 70121 message builder decompiled in Ghidra
+        notes: 'Byte 7 bit 0: starts SLAC. In the firmware, once a session is armed the CCM waits up to 4 s for this bit and then aborts (internal stop reason 10). With 0x57F, 0x597, 0x5A3 and 0x59C it is all the CCM needs to run a full session.'
       CCS_EV_MAX_CURRENT:
         start_bit: 24
         length: 16
@@ -313,7 +313,7 @@ messages:
         scale: 0.1
         unit: A
         source: uhi22 vehiclesim.py (car trace values) and DIN 70121 logs
-        notes: Candidate. The simulation sends 0x07D0 = 200.0 A here, and the CCM sent EVMaximumCurrentLimit 200 A in every session in uhi22's charger logs; uhi22 suspected this field but did not test it.
+        notes: Read by the CCM as a 16-bit value (firmware Com table). The simulation sends 0x07D0 = 200.0 A here, and the CCM sent EVMaximumCurrentLimit 200 A in every session in uhi22's charger logs.
       CCS_EV_MAX_VOLTAGE:
         start_bit: 40
         length: 16
@@ -321,7 +321,97 @@ messages:
         scale: 0.1
         unit: V
         source: uhi22 vehiclesim.py (car trace values) and DIN 70121 logs
-        notes: Candidate. The simulation sends 0x1020 = 412.8 V here, exactly the EVMaximumVoltageLimit in uhi22's charger logs. Not tested.
+        notes: Read by the CCM as a 16-bit value (firmware Com table). The simulation sends 0x1020 = 412.8 V here, exactly the EVMaximumVoltageLimit in uhi22's charger logs.
+      CCS_EV_READY:
+        start_bit: 0
+        length: 1
+        byte_order: little
+        source: CCM application firmware (uhi22 code-flash dump), Com receive table and DIN 70121 message builder decompiled in Ghidra; uhi22 vehiclesim.py
+        notes: Copied into DC_EVStatus.EVReady. The vehicle simulation sets it (byte 0 08 -> 09) once the charge parameters are known.
+      CCS_EV_CABIN_CONDITIONING:
+        start_bit: 1
+        length: 1
+        byte_order: little
+        source: CCM application firmware (uhi22 code-flash dump), Com receive table and DIN 70121 message builder decompiled in Ghidra
+        notes: Copied into DC_EVStatus.EVCabinConditioning.
+      CCS_EV_RESS_CONDITIONING:
+        start_bit: 2
+        length: 1
+        byte_order: little
+        source: CCM application firmware (uhi22 code-flash dump), Com receive table and DIN 70121 message builder decompiled in Ghidra
+        notes: Copied into DC_EVStatus.EVRESSConditioning.
+      CCS_EV_NO_ERROR:
+        start_bit: 3
+        length: 1
+        byte_order: little
+        source: CCM application firmware (uhi22 code-flash dump), Com receive table and DIN 70121 message builder decompiled in Ghidra; uhi22 vehiclesim.py
+        notes: '1 = no EV fault: the CCM sends EVErrorCode NO_ERROR. At 0 the CCM takes the error code from the first set flag in bits 4-11 and stops the session. Set (byte 0 = 08) throughout the simulated session.'
+      CCS_ERR_RESS_TEMP_INHIBIT:
+        start_bit: 4
+        length: 1
+        byte_order: little
+        source: CCM application firmware (uhi22 code-flash dump), Com receive table and DIN 70121 message builder decompiled in Ghidra
+        notes: 'EV fault flag: with CCS_EV_NO_ERROR = 0 and no lower flag set, the CCM sends EVErrorCode 1 (FAILED_RESSTemperatureInhibit). Checked in bit order 4-11, so the lowest set flag wins.'
+      CCS_ERR_SHIFT_POSITION:
+        start_bit: 5
+        length: 1
+        byte_order: little
+        source: CCM application firmware (uhi22 code-flash dump), Com receive table and DIN 70121 message builder decompiled in Ghidra
+        notes: 'EV fault flag: with CCS_EV_NO_ERROR = 0 and no lower flag set, the CCM sends EVErrorCode 2 (FAILED_EVShiftPosition). Checked in bit order 4-11, so the lowest set flag wins.'
+      CCS_ERR_CONNECTOR_LOCK_FAULT:
+        start_bit: 6
+        length: 1
+        byte_order: little
+        source: CCM application firmware (uhi22 code-flash dump), Com receive table and DIN 70121 message builder decompiled in Ghidra
+        notes: 'EV fault flag: with CCS_EV_NO_ERROR = 0 and no lower flag set, the CCM sends EVErrorCode 3 (FAILED_ChargerConnectorLockFault). Checked in bit order 4-11, so the lowest set flag wins.'
+      CCS_ERR_RESS_MALFUNCTION:
+        start_bit: 7
+        length: 1
+        byte_order: little
+        source: CCM application firmware (uhi22 code-flash dump), Com receive table and DIN 70121 message builder decompiled in Ghidra
+        notes: 'EV fault flag: with CCS_EV_NO_ERROR = 0 and no lower flag set, the CCM sends EVErrorCode 4 (FAILED_EVRESSMalfunction). Checked in bit order 4-11, so the lowest set flag wins.'
+      CCS_ERR_CURRENT_DIFFERENTIAL:
+        start_bit: 8
+        length: 1
+        byte_order: little
+        source: CCM application firmware (uhi22 code-flash dump), Com receive table and DIN 70121 message builder decompiled in Ghidra
+        notes: 'EV fault flag: with CCS_EV_NO_ERROR = 0 and no lower flag set, the CCM sends EVErrorCode 5 (FAILED_ChargingCurrentdifferential). Checked in bit order 4-11, so the lowest set flag wins.'
+      CCS_ERR_VOLTAGE_OUT_OF_RANGE:
+        start_bit: 9
+        length: 1
+        byte_order: little
+        source: CCM application firmware (uhi22 code-flash dump), Com receive table and DIN 70121 message builder decompiled in Ghidra
+        notes: 'EV fault flag: with CCS_EV_NO_ERROR = 0 and no lower flag set, the CCM sends EVErrorCode 6 (FAILED_ChargingVoltageOutOfRange). Checked in bit order 4-11, so the lowest set flag wins.'
+      CCS_ERR_SYSTEM_INCOMPATIBLE:
+        start_bit: 10
+        length: 1
+        byte_order: little
+        source: CCM application firmware (uhi22 code-flash dump), Com receive table and DIN 70121 message builder decompiled in Ghidra
+        notes: 'EV fault flag: with CCS_EV_NO_ERROR = 0 and no lower flag set, the CCM sends EVErrorCode 10 (FAILED_ChargingSystemIncompatibility). Checked in bit order 4-11, so the lowest set flag wins.'
+      CCS_ERR_NO_DATA:
+        start_bit: 11
+        length: 1
+        byte_order: little
+        source: CCM application firmware (uhi22 code-flash dump), Com receive table and DIN 70121 message builder decompiled in Ghidra
+        notes: 'EV fault flag: with CCS_EV_NO_ERROR = 0 and no lower flag set, the CCM sends EVErrorCode 11 (NoData). Checked in bit order 4-11, so the lowest set flag wins.'
+      CCS_BULK_CHARGING_COMPLETE:
+        start_bit: 13
+        length: 1
+        byte_order: little
+        source: CCM application firmware (uhi22 code-flash dump), Com receive table and DIN 70121 message builder decompiled in Ghidra
+        notes: Copied into the DIN 70121 message right after DC_EVStatus, with an isUsed flag; by field order most likely BulkChargingComplete. uhi22's charger logs show BulkChargingComplete going 0 -> 1 in some sessions.
+      CCS_CHARGING_COMPLETE:
+        start_bit: 14
+        length: 1
+        byte_order: little
+        source: CCM application firmware (uhi22 code-flash dump), Com receive table and DIN 70121 message builder decompiled in Ghidra
+        notes: The field after CCS_BULK_CHARGING_COMPLETE; by field order most likely ChargingComplete.
+      CCS_STOP_REQUEST:
+        start_bit: 15
+        length: 1
+        byte_order: little
+        source: CCM application firmware (uhi22 code-flash dump), Com receive table and DIN 70121 message builder decompiled in Ghidra
+        notes: 1 stops the CCS session (with 0x57F byte 0 bit 3, or CCS_EV_NO_ERROR = 0). A session only starts while it reads 0.
   '0x59C':
     name: BMS_59C
     tx_ecu: BMS
@@ -376,3 +466,92 @@ messages:
         unit: kW
         source: uhi22 CCM readme (bench session with vehiclesim.py and pyPLC as charger) and vehiclesim.py; the BMS transmits it (uhi22 BMS readme)
         notes: Forwarded as EVMaximumPowerLimit (0 kW if the frame is missing). 98 kW in uhi22's car trace and DIN logs; the owner car's BMS 2101 AVAIL_CHARGE_POWER_MIRROR also reads 98.0 kW throughout both 2026-08-08 DC charges.
+  '0x57F':
+    name: OBC1
+    tx_ecu: OBC
+    signals:
+      OBC_PLUG_STATE:
+        start_bit: 1
+        length: 2
+        byte_order: little
+        min: 0.0
+        max: 3.0
+        source: ioniq-avn-fw OBC1 layout (USA head-unit firmware parser); CCM application firmware (uhi22 code-flash dump), Com receive table and DIN 70121 message builder decompiled in Ghidra; uhi22 vehiclesim.py
+        notes: CF_OBC_PD_Stat, charge-connector proximity state. Reads 2 in uhi22's DC charging trace, 0 in READY. The CCM starts a CCS session only while this is non-zero and OBC_DC_CHARGING is 1; after 60 s at 0 it stops running its session logic, and resumes 2 s after it goes non-zero again.
+      OBC_STATUS_B0_3:
+        start_bit: 3
+        length: 1
+        byte_order: little
+        source: CCM application firmware (uhi22 code-flash dump), Com receive table and DIN 70121 message builder decompiled in Ghidra
+        notes: Meaning unknown (not in the head-unit layout). The CCM stops a CCS session when it reads 1.
+      OBC_EVSE_READY:
+        start_bit: 4
+        length: 1
+        byte_order: little
+        source: ioniq-avn-fw OBC1 layout (USA head-unit firmware parser); uhi22 vehiclesim.py
+        notes: CR_OBC_EVSE_RDY_STATE. 1 in uhi22's DC charging trace.
+      OBC_FAULT:
+        start_bit: 6
+        length: 1
+        byte_order: little
+        source: ioniq-avn-fw OBC1 layout (USA head-unit firmware parser)
+        notes: CF_OBC_Flt.
+      OBC_B4_1:
+        start_bit: 33
+        length: 1
+        byte_order: little
+        source: CCM application firmware (uhi22 code-flash dump), Com receive table and DIN 70121 message builder decompiled in Ghidra; uhi22 vehiclesim.py
+        notes: "Meaning unknown. The CCM edge-detects it: a 0 -> 1 change re-arms its session logic, and at 0 it resets the session state. 1 in uhi22's DC charging trace."
+      OBC_B4_2:
+        start_bit: 34
+        length: 1
+        byte_order: little
+        source: CCM application firmware (uhi22 code-flash dump), Com receive table and DIN 70121 message builder decompiled in Ghidra; uhi22 vehiclesim.py
+        notes: Meaning unknown. The only reader found in the CCM firmware copies it into a status record. 1 in uhi22's DC charging trace.
+      OBC_EVSE_FAULT:
+        start_bit: 44
+        length: 1
+        byte_order: little
+        source: ioniq-avn-fw OBC1 layout (USA head-unit firmware parser); CCM application firmware (uhi22 code-flash dump), Com receive table and DIN 70121 message builder decompiled in Ghidra
+        notes: CF_EVSE_FAULT_FLAG. The only reader found in the CCM firmware copies it into a status record.
+      OBC_DC_CHARGING:
+        start_bit: 45
+        length: 1
+        byte_order: little
+        source: ioniq-avn-fw OBC1 layout (USA head-unit firmware parser); CCM application firmware (uhi22 code-flash dump), Com receive table and DIN 70121 message builder decompiled in Ghidra; uhi22 vehiclesim.py
+        notes: CF_OBC_DCChargingStat. 1 in uhi22's DC charging trace, 0 in READY. With OBC_PLUG_STATE non-zero it is the CCM's condition to start a CCS session.
+      OBC_AC_CHARGING:
+        start_bit: 46
+        length: 1
+        byte_order: little
+        source: ioniq-avn-fw OBC1 layout (USA head-unit firmware parser)
+        notes: CF_OBC_ACChargingStat.
+      OBC_CP_DUTY:
+        start_bit: 56
+        length: 8
+        byte_order: little
+        min: 0.0
+        max: 100.0
+        unit: '%'
+        source: ioniq-avn-fw OBC1 layout (USA head-unit firmware parser); uhi22 vehiclesim.py
+        notes: CR_OBC_CP_DUTY, control-pilot PWM duty. Reads 5 in uhi22's DC charging trace (5 % = digital communication, as CCS requires) and 0 in READY.
+  '0x597':
+    name: BMS_597
+    tx_ecu: BMS
+    signals:
+      BMS_ALIVE_597:
+        start_bit: 7
+        length: 1
+        byte_order: little
+        source: uhi22 vehiclesim.py; CCM application firmware (uhi22 code-flash dump), Com receive table and DIN 70121 message builder decompiled in Ghidra
+        notes: Toggles every frame. The CCM reads only this bit of 0x597; if it stops toggling for 60 s the CCM records a fault event and ends the session.
+  '0x5D5':
+    name: BMS_5D5
+    tx_ecu: BMS
+    signals:
+      BMS_5D5_B3_1:
+        start_bit: 25
+        length: 1
+        byte_order: little
+        source: CCM application firmware (uhi22 code-flash dump), Com receive table and DIN 70121 message builder decompiled in Ghidra; uhi22 BMS readme (0x5D5 power relay temperature frame)
+        notes: The only 0x5D5 bit the CCM receives. The only reader found in its firmware copies it into a status record. Meaning unknown; uhi22's bench sessions run without 0x5D5.
