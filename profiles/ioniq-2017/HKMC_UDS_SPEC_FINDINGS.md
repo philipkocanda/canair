@@ -41,9 +41,9 @@ The spec's service table (section 3.1) sets three rules that explain NRCs seen o
   engine-condition rule is left to each ECU.
 - **RoutineControl (`0x31`), ECUReset, WriteDataByIdentifier and the flash services need "engine
   stop, IGN on".** On an EV, engine stop means "not READY"; the reference signal is VCU READY
-  (`VCU_EvDrvRdySta` on the broadcast bus). In canair's vocabulary that is **ACC2**. An NRC 0x22
-  at READY, or no answer at SLEEP, is the expected refusal. The BCM's `0x31` sweep ran in SLEEP,
-  so it is worth repeating in ACC2 (BCM `research:`).
+  (`VCU_EvDrvRdySta` on the broadcast bus). In canair's vocabulary that is **ON** without READY.
+  An NRC 0x22 at READY, or no answer at SLEEP, is the expected refusal. The BCM's `0x31` sweep ran
+  in SLEEP, so it is worth repeating in ON (BCM `research:`).
 - CommunicationControl (`0x28`) needs engine stop. Hyundai/Kia's `28 01`/`28 02` stop normal and
   network-management traffic (unlike ISO), and the ECU resumes by itself within 500 ms of its 5 s
   session timeout.

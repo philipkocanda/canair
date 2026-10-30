@@ -415,7 +415,7 @@ BMS:
             charge begun with the car READY (521 rows, EV_READY 0). 0 in every charge begun with the
             car off (AC and DC), in the 2026-10-21 12 V top-up, and on 2026-08-02 after that charge
             ended: it fell at 11:18:39 when the HV contactors opened, while IGPM ACC2_IGN_ON still
-            read 1 (11:19:27) and the car was still in ACC2 at 12:49. OBDb names this bit BMS
+            read 1 (11:19:27) and the car was still in ON at 12:49. OBDb names this bit BMS
             ignition; the 2026-08-02 window shows it is not the plain ignition input.
           enabled: true
           min: "0"

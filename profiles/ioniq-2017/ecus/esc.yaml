@@ -127,7 +127,7 @@ ESC:
           notes: >-
             Yaw rate, 12-bit offset-binary centred 2048, split across the PCI byte B40. r=+0.992 vs
             speed x STEERING_ANGLE (n=1544 moving samples), the kinematic yaw-rate reference; same
-            sign as STEERING_ANGLE. Reads -5 at rest. One ACC2 capture read 0xFFFF (not ready).
+            sign as STEERING_ANGLE. Reads -5 at rest. One ON capture read 0xFFFF (not ready).
             Scale not proven: two full-lock samples with a 5.0-5.3 m turning radius give about 0.06
             deg/s per count (1/16 would be 0.0625).
         LAT_ACCEL_RAW:

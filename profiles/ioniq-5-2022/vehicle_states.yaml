@@ -23,9 +23,9 @@ states:
   - name: PLUGGED
     description: Charge cable connected, not necessarily charging.
   - name: ACC
-    description: Accessory power (ACC1).
-  - name: ACC2
-    description: Full ignition, no HV (ACC2/IGN).
+    description: 'Start/Stop button ACC position: accessory power.'
+  - name: "ON"
+    description: 'Start/Stop button ON position: full ignition, HV may be off.'
   - name: PARKED
     description: Stationary, gear in Park.
   - name: DRIVING

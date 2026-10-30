@@ -105,9 +105,10 @@ already capture. `canair ecu` shows which ECUs carry which kind of signal.
 Decide the power state the PID needs (`vehicle_states`: UPPERCASE tokens from the profile's
 vocabulary, on the Ioniq `SLEEP, PLUGGED, ACC, "ON", READY, CHARGING, IG3` + the `ALL` meta-token
 — the same field on PIDs/ECUs and in `research:`, written as an inline flow list `[READY]`, with a
-YAML-boolean word like ON quoted; see/edit the vocabulary with `canair states`) and whether the ECU needs waking or an extended session. Body ECUs
-(Ioniq IGPM 0x770, BCM 0x7A0) wake from CAN activity; powertrain ECUs (BMS/VCU/MCU)
-generally need ACC/ignition or charging. `canair discover` shows what answers now.
+YAML-boolean word like ON quoted; see/edit the vocabulary with `canair states`) and whether the
+ECU needs waking or an extended session. Body ECUs (Ioniq IGPM 0x770, BCM 0x7A0) wake from CAN
+activity; powertrain ECUs (BMS/VCU/MCU) generally need the ignition on or a charge. `canair
+discover` shows what answers now.
 
 ### 3. Discover — which DIDs respond
 

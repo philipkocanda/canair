@@ -83,7 +83,7 @@
 #   SLEEP, ACC, RUN, CRANK   (POWER_STATES in canlib/states.py)
 # Plus the meta-token ALL — "applicable/readable in every state" (documentary,
 # the state analogue of the ALL CAN-bus code). The bundled Ioniq profile, for
-# example, adds PLUGGED/ACC2/READY/CHARGING/PARKED/DRIVING.
+# example, adds PLUGGED/ON/READY/CHARGING/IG3/TOPUP/PARKED/DRIVING.
 
 required_state_fields:
   - name

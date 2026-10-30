@@ -3,7 +3,7 @@
 Sets the ``vehicle_states`` on the scope-selected sessions directly, for the
 sessions whose state is known to the operator but not inferable from the decoded
 data — e.g. a body/low-power ECU read whose label records the ignition position
-(``ACC`` / ``ACC2`` / ``SLEEP``) that no polled powertrain signal can prove. The
+(``ACC`` / ``SLEEP``) that no polled powertrain signal can prove. The
 manual counterpart to ``--backfill-states`` (which only infers).
 
 Mirrors the ``cmd_delete`` mutating-mode pattern: operate on the already

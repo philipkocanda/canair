@@ -53,7 +53,7 @@ IGPM:
       vehicle_states: [ALL]
       notes: >-
         8 data bytes. B12 values: 0x11 power off and not charging, 0x10 power off and charging, 0x18
-        ACC2 with the charge port locked, 0x19 ACC2 with it unlocked (B12:0 is the unlock flag, the
+        ON with the charge port locked, 0x19 ON with it unlocked (B12:0 is the unlock flag, the
         complement of B11:7). B05-B07 and B09 (08 41 FB CC) and B13 (0) are constant in all 411
         captures.
       parameters:
@@ -217,12 +217,12 @@ IGPM:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
           notes: >-
-            1 in ACC2 and READY (not told apart), 0 when off and in ACC1. Also 1 in ACC2 while AC
+            1 in ON and READY (not told apart), 0 when off and in ACC. Also 1 in ON while AC
             charging. Fob unlock does not set it. It rises with the ACC to ON press, where IGN1 and
             IGN2 are energised together, so it cannot be attributed to one of them from the button
             sequence. GDS names B11:5 'IGN1 Switch' and B11:6 'IGN2 Switch' (IGN2_SWITCH); the AE
             manual's current-data list runs brake fluid, IGN1, IGN2 in bit order. The name stays
-            because the ACC2 state predicate and other ECUs' notes use it. IGN2 should drop while
+            because the ON state predicate and other ECUs' notes use it. IGN2 should drop while
             START is held and IGN1 stay; not yet captured.
 
         SEATBELT_FL:
@@ -392,7 +392,7 @@ IGPM:
             C-CAN DBC carries rear belt indicators in CGW4 (0x559, RL/RR/RC SeatBeltInd), but 0x559
             is absent from all three uhi22 Ioniq P-CAN logs, so the gateway does not send it on
             P-CAN; whether it does on C-CAN is unknown. 0 in all 1753 captures, so never exercised.
-            Test: buckle each rear belt in ACC2.
+            Test: buckle each rear belt in ON.
           enabled: false
         SEATBELT_RL:
           expression: B12:2
@@ -406,7 +406,7 @@ IGPM:
             C-CAN DBC carries rear belt indicators in CGW4 (0x559, RL/RR/RC SeatBeltInd), but 0x559
             is absent from all three uhi22 Ioniq P-CAN logs, so the gateway does not send it on
             P-CAN; whether it does on C-CAN is unknown. 0 in all 1753 captures, so never exercised.
-            Test: buckle each rear belt in ACC2.
+            Test: buckle each rear belt in ON.
           enabled: false
         SEATBELT_RM:
           expression: B12:3
@@ -420,7 +420,7 @@ IGPM:
             C-CAN DBC carries rear belt indicators in CGW4 (0x559, RL/RR/RC SeatBeltInd), but 0x559
             is absent from all three uhi22 Ioniq P-CAN logs, so the gateway does not send it on
             P-CAN; whether it does on C-CAN is unknown. 0 in all 1753 captures, so never exercised.
-            Test: buckle each rear belt in ACC2.
+            Test: buckle each rear belt in ON.
           enabled: false
 
     22BC06:
@@ -967,7 +967,7 @@ IGPM:
       vehicle_states: ["ON"]
       created: "2026-08-06"
       updated: "2026-08-06"
-      notes: Declared bitfield gaps that are CONSTANT across all 297 timed captures — never exercised, so unknowable from current data rather than unused. B11 has bits 0,1,2,5,6 decoded (hood, seatbelts, ACC2/ign); B12 has 2,3,4,5 decoded (DRL, tail, high beam, low beam).
+      notes: Declared bitfield gaps that are CONSTANT across all 297 timed captures — never exercised, so unknowable from current data rather than unused. B11 has bits 0,1,2,5,6 decoded (hood, seatbelts, ignition); B12 has 2,3,4,5 decoded (DRL, tail, high beam, low beam).
       what_to_test:
         - "Narrated event capture exercising the untested body functions: fog lights, hazard/turn indicators, rear seatbelts, reverse lights, parking/position lamps, wiper and washer, horn. One actuation at a time with an 's' note per action, --keep-changes."
     - type: verify
@@ -1192,7 +1192,7 @@ IGPM:
       sources:
         - byte sweep over all stored 22BC03-07 captures, 2026-10-29
       what_to_test:
-        - "Narrated canair monitor IGPM --save --keep-changes in ACC2/READY: one actuation at a time from the candidate list (park brake, hazard, fog, each wiper stage, each window, heated wheel, rear belts, fob lock/unlock, handle lock/unlock), pressing 's' for each. Every bit that moves should be inside the mask; one outside it means the mask reading is wrong."
+        - "Narrated canair monitor IGPM --save --keep-changes in ON/READY: one actuation at a time from the candidate list (park brake, hazard, fog, each wiper stage, each window, heated wheel, rear belts, fob lock/unlock, handle lock/unlock), pressing 's' for each. Every bit that moves should be inside the mask; one outside it means the mask reading is wrong."
     - type: decode
       target: gateway frame forwarding between MM-CAN, P-CAN and C-CAN
       status: captured

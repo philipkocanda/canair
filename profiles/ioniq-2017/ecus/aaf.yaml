@@ -90,7 +90,7 @@ AAF:
       vehicle_states: [CHARGING]
       notes: >-
         25 bytes, same layout as 2180 with extra populated bytes (B19, B22, B23, B24); answers in
-        ACC2.
+        ON.
       parameters:
 
         AAF_VEHICLE_SPEED_KMH:

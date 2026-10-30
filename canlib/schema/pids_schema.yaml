@@ -365,14 +365,17 @@ optional_pid_fields:
                      #   --support-map`, written by `canair pids set-support-map`, read by
                      #   `canair coverage` (which then stops reporting bits that are not
                      #   signals). Per-PID by design: the layout is not make-wide.
-  - vehicle_states   # Power states in which this PID responds. Array of tokens:
-                     #   sleep    — deep sleep, 12V standby only (unplugged)
-                     #   plugged  — charge cable connected (AC or DC)
-                     #   acc      — ACC1, one start button press, accessory power
-                     #   acc2     — ACC2/IGN, two presses without brake, full ignition, no HV
-                     #   ready    — brake + start, HV active, driveable
-                     #   charging — actively charging (implies plugged)
-                     # These are independent properties — e.g. [sleep, plugged] means
+  - vehicle_states   # Power states in which this PID responds. Array of tokens from the
+                     # profile's vehicle_states.yaml; the bundled Ioniq's include:
+                     #   SLEEP    — deep sleep, 12V standby only (unplugged)
+                     #   PLUGGED  — charge cable connected (AC or DC)
+                     #   ACC      — one start button press, accessory power
+                     #   "ON"     — two presses without brake, full ignition, HV may be off
+                     #              (quoted: YAML reads a bare ON as true)
+                     #   READY    — brake + start, HV active, driveable
+                     #   CHARGING — actively charging (implies plugged)
+                     #   IG3      — the EV supply rail the battery-side ECUs run on
+                     # These are independent properties — e.g. [SLEEP, PLUGGED] means
                      # the ECU responds both during unplugged sleep AND when plugged in.
                      # A profile's vehicle_states.yaml may add composite tokens (parked/driving).
                      # Empty array [] means untested/unknown. Omitting is also valid.

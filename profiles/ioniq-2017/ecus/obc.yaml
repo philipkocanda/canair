@@ -193,7 +193,7 @@ OBC:
             0: not connected / EVSE idle (no pilot PWM)
             2: active charge session (current flowing)
             3: connected/standby (pilot PWM present, not charging)
-          source: RE 2026-08-02 AC charge transitions, live ACC2 confirmed; DCFC transitions confirmed 2026-08-08
+          source: RE 2026-08-02 AC charge transitions, live ON confirmed; DCFC transitions confirmed 2026-08-08
           verified: true
           notes: >-
             Only 0, 2 and 3 across 11441 captures. 0 not connected (also while driving), 3 connected
@@ -287,7 +287,7 @@ OBC:
       notes: >-
         34 bytes. Byte-identical across 2316 captures in every state: a calibration table (6-byte
         header and 7 groups of 4 bytes whose third byte is always 0x79). Answers while charging and
-        in ACC2; NRC with the car fully off.
+        in ON; NRC with the car fully off.
       parameters: {}
 
   research:

@@ -35,7 +35,7 @@ options:
   canair states set-implies DRIVING READY         # DRIVING is the specific reading
   canair states set-implies DRIVING               # clear the hierarchy
   canair states set-excludes DRIVING PARKED       # the two cannot co-occur
-  canair states set-description ACC "Accessory power (ACC1)"
+  canair states set-description ACC "Accessory power (key/button ACC)"
   canair states rename PRECONDITION PRECON --dry-run  # every file a rename rewrites
   canair states rename PRECONDITION PRECON        # vocabulary + ecus/ + captures
   canair states rm PRECONDITION

@@ -79,12 +79,12 @@ if TYPE_CHECKING:
 # name, e.g. ON); see YAML_BOOLEAN_WORDS for the quoting that then applies.
 #
 # Only the universal switch positions live here. Finer, vendor-specific rungs
-# (Hyundai's separate IGN1/IGN2 relays, the Ioniq's `ACC2`, its `IG3` rail) and powertrain modes
-# (EV `PLUGGED`/`READY`/`CHARGING`; the EV `READY` is that car's name for the
-# driveable state) are NOT baked in — a profile declares those in its
-# `vehicle_states.yaml`, so an ICE profile never inherits EV states and an EV
-# profile never inherits ICE-only ones. `allowed_states` returns the union
-# (base + ALL + the profile's own).
+# (Hyundai's separate IGN1/IGN2 relays, the Ioniq's quoted `"ON"`, its `IG3`
+# rail) and powertrain modes (EV `PLUGGED`/`READY`/`CHARGING`; the EV `READY` is
+# that car's name for the driveable state) are NOT baked in — a profile declares
+# those in its `vehicle_states.yaml`, so an ICE profile never inherits EV states
+# and an EV profile never inherits ICE-only ones. `allowed_states` returns the
+# union (base + ALL + the profile's own).
 #
 # State tokens are UPPERCASE (like the CAN-bus segment codes) — a visual cue
 # that they're a controlled vocabulary, not free prose. Input is normalized to

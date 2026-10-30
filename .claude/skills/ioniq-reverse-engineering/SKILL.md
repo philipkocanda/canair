@@ -286,7 +286,8 @@ Full reference: **AGENTS.md** + `canair <cmd> --help`. Key project behaviors:
   TesterPresent keepalive; required for IGPM `22BCxx`/`2FBCxx`. `--wake` sends
   `10 01` to rouse a deep-sleeping ECU (implies `--session`; first try may return
   NO DATA — allow a retry). **IGPM (0x770) and BCM (0x7A0) wake from CAN activity
-  alone; BMS/VCU/MCU need ACC/ignition or charging.**
+  alone; BMS/MCU answer only while the IG3 rail is on (ignition ON, charging, the 12 V
+  top-up), and the VCU a few minutes beyond, so ACC alone is not enough.**
 - **`canair io --poll` can actuate hardware.** The IOControl TUI's background
   status poll (`--poll`, opt-in) sends `2F{DID}00` (returnControlToECU) to every
   DID every 3s; on relay/solenoid DIDs this can re-assert defaults and cause an

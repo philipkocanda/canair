@@ -191,7 +191,7 @@ VCU:
             parked 12 V top-up run (35 captures, VCU_AUX_POWER 80-154 W, OBC LDC_HV_INPUT_V 390 V),
             dropping to 0 (B11 = 0x80) when the run ended at 21:17:08. With VCU_POWER_STATE == 1 it
             is the TOPUP state predicate: exact on all 35 captures, no false positive in the corpus.
-            ACC1, ACC2 and off are not told apart.
+            ACC, ON and off are not told apart.
 
         VCU_APS1_VOLTAGE:
           expression: ((B13<<8)|B12)/2048
@@ -389,7 +389,7 @@ VCU:
           min: "0"
           max: "16"
           enabled: true
-          source: RE 2026-08-02 absolute-value anchoring + live ACC2, vs OBC/BMS/BCM consensus
+          source: RE 2026-08-02 absolute-value anchoring + live ON, vs OBC/BMS/BCM consensus
           verified: true
           notes: >-
             12 V bus at the VCU. Empirical scale: within 0.032 V on average of the OBC, BMS and BCM
@@ -464,7 +464,7 @@ VCU:
           verified: false
           notes: >-
             Equals AAF:2181:MOTOR_COOLANT_TEMP + 100 exactly in 77 % of 1729 co-polled rows. Moves
-            opposite to the 12 V bus in ACC2, so it is not a voltage. Rose 29 to 44 °C over a 3 h AC
+            opposite to the 12 V bus in ON, so it is not a voltage. Rose 29 to 44 °C over a 3 h AC
             charge. Which branch of the coolant loop it sits on is unknown.
           unit: °C
           min: "-40"
@@ -475,11 +475,11 @@ VCU:
           unit: ""
           min: "0"
           max: "1"
-          source: RE 2026-08-02, live ACC2 confirmed
+          source: RE 2026-08-02, live ON confirmed
           verified: true
           notes: >-
             1 while the HV contactors are closed, 0 when open: went 1 to 0 as LDC_HV_INPUT fell 206
-            to 6.7 V, and read 0 in ACC2 with the bus at 6.3 V. Agrees with BMS_MAIN_RELAY.
+            to 6.7 V, and read 0 in ON with the bus at 6.3 V. Agrees with BMS_MAIN_RELAY.
         VCU_DCLINK_VOLTAGE:
           expression: ((B25<<8)|B23)/100
           unit: V
@@ -812,7 +812,7 @@ VCU:
       vehicle_states: [ACC]
       created: "2026-07-30"
       updated: "2026-07-30"
-      notes: "Resolve the 4 start-button power states individually (READY / true-OFF / ACC1 amber / ACC2 blue). 2026-07-30 keep-unique cycle proved VCU 2101 B11 is the power-state byte (values 0x5A READY, 0x92/0x91/0x80 accessory/off) and that EV_READY(B11:3)/POWER_ENABLE(B11:6)/LDC(1-B11:7) drop together leaving READY — but keep-unique collapsed the fast transitions so ACC1/ACC2/OFF were not separated. Re-capture with: canair monitor 'VCU:2101 IGPM:22BC03' --interval 1 --keep-all --save, cycling and dwelling ~10s in each LED state; then map each B11 value + IGPM ACC2_IGN_ON to the amber/blue/off LED."
+      notes: "Resolve the 4 start-button power states individually (READY / true-OFF / ACC amber / ON blue). 2026-07-30 keep-unique cycle proved VCU 2101 B11 is the power-state byte (values 0x5A READY, 0x92/0x91/0x80 accessory/off) and that EV_READY(B11:3)/POWER_ENABLE(B11:6)/LDC(1-B11:7) drop together leaving READY — but keep-unique collapsed the fast transitions so ACC/ON/OFF were not separated. Re-capture with: canair monitor 'VCU:2101 IGPM:22BC03' --interval 1 --keep-all --save, cycling and dwelling ~10s in each LED state; then map each B11 value + IGPM ACC2_IGN_ON to the amber/blue/off LED."
     - type: decode
       target: 2102 aux power siblings
       status: pending
@@ -842,7 +842,7 @@ VCU:
       result: >-
         2026-10-21: the fine 12 V readings are 16-bit LE mV words: [B19:B20]
         (VCU_LDC_OUTPUT_VOLTAGE) and [B26:B27] (VCU_AUX_BATTERY_VOLTAGE_FINE).
-      notes: VCU_AUX_BATTERY_VOLTAGE (B18/10) disproven live 2026-08-02 (read 14.70V in ACC2 vs 12.2V 3-ECU consensus; B18 inversely tracks the bus). Find VCU's real 12V byte. Hunt was inconclusive here - 12V is bimodal (14.5 charge / 12.2 ACC2) so every charge-vs-ACC2 byte correlates ~1.0 (two-cluster trap). Needs keep-all data with continuous 12V variation (e.g. a drive, or READY idle as 12V floats), or accept VCU may not cleanly broadcast it.
+      notes: VCU_AUX_BATTERY_VOLTAGE (B18/10) disproven live 2026-08-02 (read 14.70V in ON vs 12.2V 3-ECU consensus; B18 inversely tracks the bus). Find VCU's real 12V byte. Hunt was inconclusive here - 12V is bimodal (14.5 charge / 12.2 ON) so every charge-vs-ON byte correlates ~1.0 (two-cluster trap). Needs keep-all data with continuous 12V variation (e.g. a drive, or READY idle as 12V floats), or accept VCU may not cleanly broadcast it.
     - type: decode
       target: "2102"
       status: done
@@ -850,7 +850,7 @@ VCU:
       vehicle_states: [ALL]
       created: "2026-08-05"
       updated: "2026-08-05"
-      result: "B18 IDENTIFIED as the powertrain coolant-loop temperature (B18-100), renamed VCU_2102_B18 -> VCU_COOLANT_TEMP. Two proofs: (1) cross-ECU, B18-100 == AAF:2181 MOTOR_COOLANT_TEMP (B22-40) at a constant offset of exactly 100 in 77% of 1729 co-polled rows (rest +/-1..2 poll skew); (2) not a voltage — settled against this PID's own verified 12V (B14*0.0974): in ACC2 the real bus sags 14.42->12.08 V while B18/10 RISES 14.40->14.70, and while driving the bus is pinned 14.51 V while B18 keeps varying. Explains the old '14.70 V in ACC2' anomaly (it was 47 C coolant). NOTE the degeneracy trap: B18/10 = 12.0-15.0 V looks like a 12V bus and correlates r=0.998 with AAF_AUX_BATTERY_VOLTAGE during charge (thermal-soak coincidence) — range plausibility alone cannot separate the two readings."
+      result: "B18 IDENTIFIED as the powertrain coolant-loop temperature (B18-100), renamed VCU_2102_B18 -> VCU_COOLANT_TEMP. Two proofs: (1) cross-ECU, B18-100 == AAF:2181 MOTOR_COOLANT_TEMP (B22-40) at a constant offset of exactly 100 in 77% of 1729 co-polled rows (rest +/-1..2 poll skew); (2) not a voltage — settled against this PID's own verified 12V (B14*0.0974): in ON the real bus sags 14.42->12.08 V while B18/10 RISES 14.40->14.70, and while driving the bus is pinned 14.51 V while B18 keeps varying. Explains the old '14.70 V in ON' anomaly (it was 47 C coolant). NOTE the degeneracy trap: B18/10 = 12.0-15.0 V looks like a 12V bus and correlates r=0.998 with AAF_AUX_BATTERY_VOLTAGE during charge (thermal-soak coincidence) — range plausibility alone cannot separate the two readings."
       notes: Identify VCU 2102 B18 (placeholder 'check if voltage/temp-like').
       sources:
         - canair align cross-ECU offset-mirror + state-divergence 2026-08-05
@@ -901,7 +901,7 @@ VCU:
         - B11 values 0x80/0x90/0x91/0x92 vs the 4 LED states (feeds the existing 2101 power-state LED item)
       capture_protocol: >-
         canair monitor VCU:2101 --save --keep-all --interval 1 --label 'VCU power cycle keep-all'
-        --state ACC. From READY: press start to OFF, then ACC1 (amber), then ACC2 (blue), then back
+        --state ACC. From READY: press start to OFF, then ACC (amber), then ON (blue), then back
         to READY; press 's' to note each press. Repeat 3x. Then, if safe and stationary with brake
         held, repeat one cycle while NOT in Park to see whether B10:5 drops there too.
     - type: decode
@@ -999,7 +999,7 @@ VCU:
       sources:
         - opendbc hyundai_2015_ccan.dbc (commaai, MIT), cross-checked against uhi22 Ioniq28Investigations P-CAN logs (scripts/fetch_can_corpus.py)
       what_to_test:
-        - A VCU 2101/2102/21F2 byte in 0-100 that falls slowly at ACC2 with the LDC off and rises in READY (12V SOC)
+        - A VCU 2101/2102/21F2 byte in 0-100 that falls slowly in ON with the LDC off and rises in READY (12V SOC)
         - A near-constant byte matching the 12V battery's health percentage (SOH)
         - If no VCU byte fits, look on the OBC (LDC side) and BMS
     - type: decode

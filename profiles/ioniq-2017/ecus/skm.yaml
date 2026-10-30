@@ -392,7 +392,7 @@ SKM:
       created: "2026-10-23"
       updated: "2026-10-23"
       notes: >-
-        No signal tells ACC1 apart from OFF yet. The SKM reads back three terminal lines after the
+        No signal tells ACC apart from OFF yet. The SKM reads back three terminal lines after the
         relays: ON input (IGN2), ACC/ON input (ACC) and ON/START input (IGN1) (SKM connector C pins
         8, 18 and 9), and drives separate ACC and IGN LEDs on the start button. The ACC/ON input is
         the one that separates ACC from OFF. Whether any of these is exposed in a B0xx page is not
