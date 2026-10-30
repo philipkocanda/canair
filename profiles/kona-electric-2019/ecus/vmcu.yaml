@@ -12,6 +12,7 @@ VMCU:
       status: active
       source_links:
         - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
+      verified: false
       parameters:
         VEHICLE_SPEED:
           expression: ((S20 << 8) | B19)*1.609344/100
@@ -22,24 +23,20 @@ VMCU:
           source: OBDb Hyundai-Kona-Electric (KONAEV_VSS; offsets via canair bix)
           source_links:
             - https://github.com/OBDb/Hyundai-Kona-Electric
-          verified: false
           notes: >-
             Signed 16-bit little-endian, native mph x 1.609344. The verified Ioniq uses the
             identical byte order.
         EV_READY:
           expression: B26:3
           source: wican-fw Niro/Soul/Kona (Car_Ready)
-          verified: false
           notes: HV system ready / driveable.
         PARK_BRAKE:
           expression: B26:5
           source: wican-fw Niro/Soul/Kona (Car_ParkBreak)
-          verified: false
           notes: Electronic park brake engaged.
         GEAR_SELECTOR_RAW:
           expression: B10
           source: wican-fw Niro/Soul/Kona (GearSelector_Raw)
-          verified: false
           notes: Raw gear selector code (P/R/N/D mapping TBD).
     2102:
       status: active

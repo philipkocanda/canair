@@ -33,6 +33,7 @@ HVAC:
       status: active
       source_links:
         - https://github.com/OBDb/Hyundai-Kona-Electric
+      verified: false
       parameters:
         CABIN_TEMP:
           expression: B11/2-40
@@ -41,7 +42,6 @@ HVAC:
           min: "-40"
           max: "87"
           source: OBDb Hyundai-Kona-Electric (KONAEV_TEMP_INT; offset via canair bix)
-          verified: false
           notes: >-
             27.0-28.5 C in a January log: a plausible indoor reading, in 4 steps of 0.5 C. Not
             checked against a second thermometer.
@@ -52,7 +52,6 @@ HVAC:
           min: "-40"
           max: "87"
           source: OBDb Hyundai-Kona-Electric (KONAEV_TEMP_EXT; offset via canair bix)
-          verified: false
           notes: >-
             Constant 20.0 C in both logs (raw 120): too little variation to check the scaling.
         VEHICLE_SPEED_HVAC:
@@ -62,7 +61,6 @@ HVAC:
           min: "0"
           max: "255"
           source: OBDb Hyundai-Kona-Electric (KONAEV_VSS_7B3; offset via canair bix)
-          verified: false
           notes: >-
             Constant 0 while VMCU 2101 VEHICLE_SPEED reads 0 (stationary car); the moving case is
             untested.

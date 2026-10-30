@@ -38,45 +38,39 @@ BCM:
       period: 60000
       vehicle_states: [ALL]
       source: Kia Niro EV WiCAN PR#716
+      min: "0"
+      verified: true
       parameters:
         TYRE_PRESSURE_FL:
           expression: "B10/72.52"
           unit: bar
           ha_class: pressure
-          min: "0"
           max: "5"
           source: "Original WiCAN config + Ioniq forum"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
-          verified: true
           notes: Raw byte / 72.52 = bar (B10 / 5 = psi).
 
         TYRE_PRESSURE_FR:
           expression: "B14/72.52"
           unit: bar
           ha_class: pressure
-          min: "0"
           max: "5"
           source: "Original WiCAN config"
-          verified: true
 
         TYRE_PRESSURE_RL:
           expression: "B19/72.52"
           unit: bar
           ha_class: pressure
-          min: "0"
           max: "5"
           source: "Original WiCAN config"
-          verified: true
 
         TYRE_PRESSURE_RR:
           expression: "B23/72.52"
           unit: bar
           ha_class: pressure
-          min: "0"
           max: "5"
           source: "Original WiCAN config"
-          verified: true
 
         TYRE_TEMP_FL:
           expression: "B11-50"
@@ -86,7 +80,6 @@ BCM:
           max: "100"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
-          verified: true
           notes: Kia Niro EV formula. Reads 10-38 °C on this car, with one -48 °C outlier.
 
         TYRE_TEMP_FR:
@@ -97,7 +90,6 @@ BCM:
           max: "100"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
-          verified: true
 
         TYRE_TEMP_RL:
           expression: "B20-50"
@@ -107,7 +99,6 @@ BCM:
           max: "100"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
-          verified: true
 
         TYRE_TEMP_RR:
           expression: "B25-50"
@@ -117,14 +108,12 @@ BCM:
           max: "100"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
-          verified: true
         TYRE_SENSOR_STATE_FL:
           expression: B12
           type: enum
           values:
             1: stale
             2: fresh
-          min: "0"
           max: "2"
           source: TPMS timeline 2026-10-22
           verified: false
@@ -141,7 +130,6 @@ BCM:
           values:
             1: stale
             2: fresh
-          min: "0"
           max: "2"
           source: TPMS timeline 2026-10-22
           verified: false
@@ -154,7 +142,6 @@ BCM:
           values:
             1: stale
             2: fresh
-          min: "0"
           max: "2"
           source: TPMS timeline 2026-10-22
           verified: false
@@ -167,7 +154,6 @@ BCM:
           values:
             1: stale
             2: fresh
-          min: "0"
           max: "2"
           source: TPMS timeline 2026-10-22
           verified: false
@@ -181,6 +167,9 @@ BCM:
       notes: >-
         11 bytes. B10 is the light-stalk position (BCM_LIGHT_SW_POSITION); B11 bit 4 the 22B003 B18
         input, bits 3 and 5 pulses while it is set. B05-B07 = FC FC E0 constant.
+      min: "0"
+      max: "1"
+      verified: false
       parameters:
         BCM_LIGHT_SW_POSITION:
           expression: B10
@@ -189,10 +178,8 @@ BCM:
             0: "off"
             1: auto
             3: "on"
-          min: "0"
           max: "3"
           source: Cross-tab vs 22B005 B10 bits 5-7 and 22B003 B14, 2026-10-22
-          verified: false
           notes: >-
             Light-stalk position as one code. Agrees with BCM_LIGHT_SW_ADC levels in all 375 aligned
             rows (0 at ~249, 1 at 101, 3 at ~211) and with BCM_LIGHT_SW_ON_B5/_AUTO in all 344.
@@ -200,30 +187,21 @@ BCM:
             position not captured.
         BCM_B00D_B11_4:
           expression: B11:4
-          min: "0"
-          max: "1"
           source: Cross-tab vs 22B003 B18 2026-10-22
-          verified: false
           notes: >-
             Equals BCM_B004_B12_5 (the 22B003 B18 input) in 350 of 351 aligned rows. Disabled as a
             duplicate.
           enabled: false
         BCM_B00D_B11_3:
           expression: B11:3
-          min: "0"
-          max: "1"
           source: Event timeline 2026-10-22
-          verified: false
           notes: >-
             Set only while BCM_B00D_B11_4 is 1 (21 of 49 such captures, never otherwise), in runs of
             20 s to 82 min: 2026-08-02 09:54-11:21, 08-03 21:46, 08-05 12:54-14:05 (13 runs while
             charging), 08-08 09:44-09:45. No co-polled signal follows it. Meaning unknown.
         BCM_B00D_B11_5:
           expression: B11:5
-          min: "0"
-          max: "1"
           source: Same-payload cross-tab 2026-10-22
-          verified: false
           notes: Equals BCM_B00D_B11_3 in 376 of 377 captures. Disabled as a duplicate.
           enabled: false
 
@@ -261,6 +239,7 @@ BCM:
         B12:3 light stalk AUTO; B12:5 the digital reading of the 22B003 B18 input; B12:7 constant 1.
         B05=0x74, B06=0x02, B07=0x99 constant; B09=0x0C except 2 untimed captures.
       source: support-bitmap sweep 2026-10-29
+      verified: false
       parameters:
         BCM_B004_B11_6:
           expression: "B11:6"
@@ -268,7 +247,6 @@ BCM:
           min: "0"
           max: "1"
           source: Fob lock/unlock test 2026-04-18; ignition cross-tab 2026-10-22
-          verified: false
           notes: >-
             Changed on fob lock and unlock on 2026-04-18. Does not follow the IGPM door locks: reads
             0 in 254 of 292 aligned captures where IGPM DOOR_LOCK_FL and DOOR_LOCK_FR read 1, and
@@ -280,7 +258,6 @@ BCM:
           min: "0"
           max: "1"
           source: "RE 2026-10-22: 22B004/22B005 co-polled sessions 2026-04-17..2026-10-22"
-          verified: false
           notes: >-
             Equal to 22B005 BCM_LIGHT_SW_AUTO in every co-polled capture: 1 only on 2026-10-22
             (stalk at AUTO). Disabled as a duplicate. B12:7 is constant 1; B12:5 varies
@@ -296,7 +273,6 @@ BCM:
           min: "0"
           max: "255"
           source: Cross-tab vs IGPM IGN1_SWITCH and BCM_IGN_SUPPLY_V 2026-10-22
-          verified: false
           notes: >-
             Bits 1-3 only ever set together (14). 14 in all 51 rows where BCM_IGN_SUPPLY_V is on, 0
             in all 908 where it is off; equals IGN1_SWITCH in all 326 aligned rows, including
@@ -308,21 +284,18 @@ BCM:
           min: "0"
           max: "1"
           source: Cross-tab vs 22B003 B18 2026-10-22
-          verified: false
           notes: >-
             1 exactly when BCM_B003_B18 is in its 109-136 band, 0 when it is 158-159 or open (959 of
             959 aligned rows), i.e. the digital reading of that input. Mirrored by 22B00A B11:3 and
             22B00D B11:4. Meaning unknown.
         BCM_B004_B12_7:
           expression: B12:7
-          verified: false
           notes: >-
             Marked by the 22B004 map. 1 in 2342 of 2349 captures; 0 on 2026-04-17 (x2) and
             2026-10-25 (x5). Meaning unknown.
           enabled: false
         BCM_B004_B13_4:
           expression: B13:4
-          verified: false
           notes: >-
             Marked by the 22B004 map. 1 in 6 of 2349 captures (2026-07-22 x1, 2026-10-25 x5).
             Meaning unknown.
@@ -336,30 +309,25 @@ BCM:
         11 bytes. B10 bits 2,3 (0x0C) set on fob unlock, together with B004 and B006; bits 5-7 are
         the light-stalk position (BCM_LIGHT_SW_*). B05=0x20, B07=0x10, B12=0x08.
       source: "RE 2026-10-22: all 22B003/22B005 co-polled sessions 2026-04-17..2026-10-22"
+      min: "0"
+      max: "1"
+      verified: false
       parameters:
         BCM_B005_UNLOCK_BITS:
           expression: B10
-          min: "0"
           max: "255"
           source: Fob lock/unlock test 2026-04-18; byte offset corrected 2026-07-24
-          verified: false
           notes: >-
             Whole byte. Bits 2 and 3 set (0x0C) on fob unlock (2026-07-24 09:36:51). Bits 5-7 are
             the light-stalk position (BCM_LIGHT_SW_*): the common 0xA0 is the stalk in a lamps-on
             position, 0x00/0x08/0x0C with it OFF, 0x48 at AUTO.
         BCM_LIGHT_SW_AUTO:
           expression: B10:6
-          min: "0"
-          max: "1"
-          verified: false
           notes: >-
             1 only on 2026-10-22 (21 captures), when the light stalk was confirmed set to AUTO; 0 in
             every other session. Bits 5 and 7 clear while set. Duplicated by 22B004 B12:3.
         BCM_LIGHT_SW_ON_B5:
           expression: B10:5
-          min: "0"
-          max: "1"
-          verified: false
           notes: >-
             Set together with B10:7 whenever 22B003 B14 reads ~211, including the 2026-07-30 and
             2026-08-02 READY captures with IGPM LOW_BEAM and TAIL_LIGHTS on; clear at ~249 (lamps
@@ -368,18 +336,12 @@ BCM:
             never captured (prediction: B10:5 alone).
         BCM_LIGHT_SW_ON_B7:
           expression: B10:7
-          min: "0"
-          max: "1"
-          verified: false
           notes: >-
             Always equal to B10:5 so far (see BCM_LIGHT_SW_ON_B5). Set with the stalk in a lamps-on
             position, clear at OFF and AUTO.
         BCM_UNLOCKED_OR_IGN_ON:
           expression: B10:3
-          min: "0"
-          max: "1"
           source: Cross-tab vs IGPM 22BC04 B13:6 2026-10-22
-          verified: false
           notes: >-
             Equals IGPM INTERIOR_LAMP_AUTOCUT_RELAY in all 323 aligned rows. Disabled as a
             duplicate.
@@ -489,13 +451,13 @@ BCM:
         each on 07-22 and 08-15), 0 in the other charging sessions; meaning unknown. B11:5 set in 1
         capture. B05=0xE3, B06=0xFE, B07=0xE3 constant.
       source: support-bitmap sweep 2026-10-29
+      verified: false
       parameters:
         BCM_IGN_ON_B00A:
           expression: B12:6
           min: "0"
           max: "1"
           source: Ignition cross-tab 2026-10-22
-          verified: false
           notes: >-
             B12 is 0x05 off, 0xC5 on (bit 7 moves with it). 1 in 50 of 344 captures. Equals IGPM
             IGN1_SWITCH and BCM_IGN_SUPPLY_V in every aligned row (kappa 1.00), including
@@ -507,35 +469,30 @@ BCM:
           min: "0"
           max: "1"
           source: Cross-tab vs 22B003 B18 2026-10-22
-          verified: false
           notes: >-
             Equals BCM_B004_B12_5 (the 22B003 B18 input) in all 342 aligned rows. Disabled as a
             duplicate.
           enabled: false
         BCM_B00A_B10_2:
           expression: B10:2
-          verified: false
           notes: >-
             Marked by the 22B00A map. 1 in 250 of 1694 captures, 238 of them during the 2026-07-27
             AC charge (10-16 A EVSE pilot steps). Meaning unknown.
           enabled: false
         BCM_B00A_B11_5:
           expression: B11:5
-          verified: false
           notes: >-
             Marked by the 22B00A map. 1 in 3 of 1694 captures (2026-08-15 x1, 2026-10-25 x2).
             Meaning unknown.
           enabled: false
         BCM_B00A_B11_6:
           expression: B11:6
-          verified: false
           notes: >-
             Marked by the 22B00A map. 1 in 1689 of 1694 captures; 0 only in 5 rows on 2026-10-25.
             Meaning unknown.
           enabled: false
         BCM_B00A_B12_7:
           expression: B12:7
-          verified: false
           notes: >-
             Marked by the 22B00A map. 1 in 82 of 1694 captures spread over 8 dates (2026-07-21 x19,
             2026-10-22 x21, 2026-10-25 x32). Meaning unknown.
@@ -594,14 +551,15 @@ BCM:
         supply). B15, B17 and B20 sit at 246-249 in every capture, i.e. open inputs. B05-B07, B09,
         B21, B22 and B25 are constant.
       source: Same-payload cross-tab 2026-10-22
+      min: "0"
+      max: "20"
+      verified: false
       parameters:
         BCM_12V_BATTERY:
           expression: "B10*0.08"
           unit: "V"
           display: ""
           ha_class: voltage
-          min: "0"
-          max: "20"
           source: "Reverse engineered from monitor drift analysis"
           verified: true
           notes: >-
@@ -609,10 +567,8 @@ BCM:
         BCM_AMBIENT_LIGHT:
           expression: B12
           display: ""
-          min: "0"
           max: "255"
           source: "RE 2026-10-22: B12 by hour of day across 2026-04-15..2026-10-22"
-          verified: false
           notes: >-
             Raw count, higher = brighter. 9-55 in every session after 20:00 and at 08:28 on
             2026-08-05; 245-246 (ceiling) in daylight; 51-246 while parked charging 12:31-15:30 on
@@ -622,10 +578,7 @@ BCM:
         BCM_IGN_SUPPLY_V:
           expression: B28*0.08
           unit: V
-          min: "0"
-          max: "20"
           source: RE 2026-08-02 state discrimination; ignition cross-tab 2026-10-22
-          verified: false
           notes: >-
             Ignition-switched supply at the BCM. 0 in 2779 of 3688 captures; when on it reads 1-3
             counts above BCM_12V_BATTERY. Equals IGPM IGN1_SWITCH (on/off) in all 356 aligned rows,
@@ -636,20 +589,16 @@ BCM:
             which is not known. Taken from US-market wiring; unconfirmed on the EU car.
         BCM_LIGHT_SW_ADC:
           expression: B14
-          min: "0"
           max: "255"
           source: "RE 2026-10-22: B14 levels vs 22B005 B10 bits 5-7 and IGPM 22BC03 lamp outputs"
-          verified: false
           notes: >-
             Discrete levels with +-1 LSB flicker, read as a resistor-ladder light-stalk input: ~249
             OFF, ~211 lamps on, 101 AUTO (2026-10-22, stalk confirmed AUTO). Same partition as
             BCM_LIGHT_SW_* on 22B005 in every co-polled session. Parking-light level not captured.
         BCM_TEMP_RAW_B13:
           expression: B13
-          min: "0"
           max: "255"
           source: "RE 2026-10-22: B13 vs HVAC_INTERIOR_TEMP, 2026-04-15..2026-10-22"
-          verified: false
           notes: >-
             Raw count, falls as temperature rises (NTC-like). Against HVAC_INTERIOR_TEMP, excluding
             dropouts: B13 ~ 224.2 - 2.26 x cabin degC, r=-0.955, n=830, cabin 9-38.5 degC. 112-203
@@ -659,9 +608,6 @@ BCM:
         BCM_IGN_SUPPLY_V_B23:
           expression: B23*0.08
           unit: V
-          min: "0"
-          max: "20"
-          verified: false
           notes: >-
             0 in exactly the same 2779 of 3688 captures as BCM_IGN_SUPPLY_V (B28), within 1-3 counts
             of it otherwise. A second ignition-switched input; disabled as a duplicate.
@@ -669,9 +615,6 @@ BCM:
         BCM_IGN_SUPPLY_V_B26:
           expression: B26*0.08
           unit: V
-          min: "0"
-          max: "20"
-          verified: false
           notes: >-
             0 in exactly the same 2779 of 3688 captures as BCM_IGN_SUPPLY_V (B28), within 1-3 counts
             of it otherwise. A second ignition-switched input; disabled as a duplicate.
@@ -679,19 +622,14 @@ BCM:
         BCM_IGN_SUPPLY_V_B27:
           expression: B27*0.08
           unit: V
-          min: "0"
-          max: "20"
-          verified: false
           notes: >-
             0 in exactly the same 2779 of 3688 captures as BCM_IGN_SUPPLY_V (B28), within 1-3 counts
             of it otherwise. A second ignition-switched input; disabled as a duplicate.
           enabled: false
         BCM_B003_B18:
           expression: B18
-          min: "0"
           max: "255"
           source: "RE 2026-10-22: B18 by session, 2026-04-15..2026-10-22"
-          verified: false
           notes: >-
             Analog input that holds one of three bands for days: 246-248 (open circuit, like
             B15/B17/B20) on 2026-04-15..04-20, 07-21, 07-24..07-30 and 10-21..10-22; 109-136 with
@@ -839,11 +777,11 @@ BCM:
         12 bytes. B10:0 the ignition (BCM_IGN_ON_C011), B11 the 12 V bus (BCM_12V_BUS_C011), B13:B14
         BCM_EVENT_COUNTER_C011. B12 takes all 256 values, with no relation between reads 3 s apart:
         random, not a counter or a signal.
+      min: "0"
       parameters:
         BCM_12V_BUS_C011:
           expression: B11/12.8
           unit: V
-          min: "0"
           max: "20"
           source: RE 2026-08-05 cross-PID mirror vs the verified BCM 22B003 BCM_12V_BATTERY
           verified: true
@@ -853,7 +791,6 @@ BCM:
           enabled: false
         BCM_EVENT_COUNTER_C011:
           expression: "[B13:B14]"
-          min: "0"
           max: "65535"
           source: monotonic-counter sweep of all captures 2026-04-16..2026-08-05
           verified: false
@@ -862,7 +799,6 @@ BCM:
             about 2.3 steps a day. Not a timer. What it counts is unknown.
         BCM_IGN_ON_C011:
           expression: B10:0
-          min: "0"
           max: "1"
           source: Ignition cross-tab 2026-10-22
           verified: false

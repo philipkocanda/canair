@@ -72,42 +72,37 @@ SKM:
       period: 10000
       vehicle_states: [SLEEP]
       source: support-bitmap sweep 2026-10-29
+      verified: false
       parameters:
 
         SKM_B006_VAL_A:
           expression: B10
           source: state-contrast analysis 2026-07-29
-          verified: false
           notes: 0x9A-0xA2 across sessions, drifting about 1 per reading.
         SKM_B006_VAL_B:
           expression: B21
           source: state-contrast analysis 2026-07-29
-          verified: false
           notes: Within 1 of SKM_B006_VAL_A in every capture.
         SKM_B006_B12:
           expression: B12
-          verified: false
           notes: >-
             Marked by the 22B006 map. 0-92; non-zero only on 2026-10-25 (19 captures). Meaning
             unknown.
           enabled: false
         SKM_B006_B17:
           expression: B17
-          verified: false
           notes: >-
             Marked by the 22B006 map. 183-187 when non-zero (2026-10-22 x8, 2026-10-25 x24), else 0.
             Same range as SKM_B006_VAL_A/B: probably the same quantity on another channel.
           enabled: false
         SKM_B006_B18:
           expression: B18
-          verified: false
           notes: >-
             Marked by the 22B006 map. Non-zero in the same captures as SKM_B006_B17, 183-186. See
             SKM_B006_B17.
           enabled: false
         SKM_B006_B19:
           expression: B19
-          verified: false
           notes: >-
             Marked by the 22B006 map. Non-zero in the same captures as SKM_B006_B17, 183-186. See
             SKM_B006_B17.

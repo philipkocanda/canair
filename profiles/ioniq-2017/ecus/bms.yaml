@@ -30,6 +30,7 @@ BMS:
       status: active
       period: 1000
       vehicle_states: [IG3]
+      verified: true
       parameters:
         SOC_BMS:
           expression: "B09/2"
@@ -37,14 +38,12 @@ BMS:
           ha_class: battery
           min: "0"
           max: "100"
-          verified: true
           notes: Raw BMS state of charge (not display-adjusted; see SOC_DISP).
 
         BATTERY_POWER:
           expression: "(([B18:B19]/10) * (((S15 << 8) | B17)/10)) / 1000"
           unit: kW
           ha_class: power
-          verified: true
           notes: "Computed from voltage * current. Negative = charging."
           send_to: wican/ioniq/stream/battery_power
 
@@ -54,7 +53,6 @@ BMS:
           ha_class: voltage
           min: "200"
           max: "450"
-          verified: true
 
         BATTERY_CURRENT:
           expression: "((S15 << 8) | B17)/10"
@@ -62,7 +60,6 @@ BMS:
           ha_class: current
           min: "-300"
           max: "300"
-          verified: true
           notes: >-
             Signed 16-bit: high byte B15 signed, low byte B17 unsigned (B16 is a PCI byte). Negative
             = charging. Captures reach -174 A (DC charging) and +276.7 A (hard acceleration).
@@ -73,7 +70,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "10"
-          verified: true
 
         MIN_CELL_VOLTAGE:
           expression: "B33*0.02"
@@ -81,7 +77,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "10"
-          verified: true
 
         AUX_BATTERY_VOLTAGE:
           expression: "B37*0.1"
@@ -89,13 +84,11 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "128"
-          verified: true
           notes: "12V auxiliary battery"
 
         BMS_MAIN_RELAY:
           expression: "B14:0"
           source: "ITStromer community sheet (j:0 = BMS Relay) + captures"
-          verified: true
           notes: >-
             HV main relay closed. 0 in 111 of 12079 captures, all with B14 = 0x20, 0x40 or 0x00.
             Also 1 during a parked 12 V top-up (TOPUP).
@@ -103,7 +96,6 @@ BMS:
         AC_CHARGER_CONNECTED:
           expression: B14:5
           ha_class: plug
-          verified: true
           notes: >-
             Set while an AC cable is plugged in, whether or not the EVSE delivers energy
             (2026-08-08: 1 with CHARGING 0, contactors open and pilot duty 100 %). Clear throughout
@@ -112,7 +104,6 @@ BMS:
         CHARGING_DC:
           expression: B14:6
           ha_class: plug
-          verified: true
           notes: >-
             Set during DC fast charging (2026-08-08 CCS session, n=54). Clear in all 1576
             AC-charging captures, where CHARGING (B14:7) is set. Layout matches the OBDb signalsets
@@ -125,18 +116,15 @@ BMS:
         CHARGING:
           expression: "B14:7"
           ha_class: battery_charging
-          verified: true
 
         BATTERY_FAN_STATUS:
           expression: "B35"
           min: "0"
           max: "9"
-          verified: true
 
         BATTERY_FAN_FEEDBACK:
           expression: "B36"
           unit: "Hz"
-          verified: true
 
         BATTERY_INLET_TEMP:
           expression: "S29"
@@ -144,7 +132,6 @@ BMS:
           ha_class: temperature
           min: "-128"
           max: "128"
-          verified: true
 
         BATTERY_MAX_TEMP:
           expression: "S20"
@@ -152,7 +139,6 @@ BMS:
           ha_class: temperature
           min: "-128"
           max: "128"
-          verified: true
 
         BATTERY_MIN_TEMP:
           expression: "S21"
@@ -160,7 +146,6 @@ BMS:
           ha_class: temperature
           min: "-128"
           max: "128"
-          verified: true
 
         MODULE_1_TEMP:
           expression: "S22"
@@ -168,7 +153,6 @@ BMS:
           ha_class: temperature
           min: "-128"
           max: "128"
-          verified: true
 
         MODULE_2_TEMP:
           expression: "S23"
@@ -176,7 +160,6 @@ BMS:
           ha_class: temperature
           min: "-128"
           max: "128"
-          verified: true
 
         MODULE_3_TEMP:
           expression: "S25"
@@ -184,7 +167,6 @@ BMS:
           ha_class: temperature
           min: "-128"
           max: "128"
-          verified: true
 
         MODULE_4_TEMP:
           expression: "S26"
@@ -192,7 +174,6 @@ BMS:
           ha_class: temperature
           min: "-128"
           max: "128"
-          verified: true
 
         MODULE_5_TEMP:
           expression: "S27"
@@ -200,16 +181,13 @@ BMS:
           ha_class: temperature
           min: "-128"
           max: "128"
-          verified: true
 
         MAX_CELL_VOLTAGE_NO:
           expression: "B31"
-          verified: true
           notes: "Cell number with max voltage"
 
         MIN_CELL_VOLTAGE_NO:
           expression: "B34"
-          verified: true
           notes: "Cell number with min voltage"
 
         CUMULATIVE_ENERGY_CHARGED:
@@ -217,7 +195,6 @@ BMS:
           unit: kWh
           ha_class: energy
           min: "0"
-          verified: true
           notes: Lifetime total, 0.1 kWh per LSB.
 
         CUMULATIVE_ENERGY_DISCHARGED:
@@ -225,7 +202,6 @@ BMS:
           unit: kWh
           ha_class: energy
           min: "0"
-          verified: true
           notes: "Lifetime cumulative. ECU reports in 0.1 kWh units, /10 gives kWh."
 
         CUMULATIVE_CURRENT_CHARGED:
@@ -233,7 +209,6 @@ BMS:
           unit: Ah
           min: "0"
           source: "ImHex pattern (u32 @ ISO-TP 0x20) — PCI-corrected"
-          verified: true
           notes: 32-bit at WiCAN B38, B39, B41, B42 (B40 is a PCI byte).
 
         CUMULATIVE_CURRENT_DISCHARGED:
@@ -241,7 +216,6 @@ BMS:
           unit: Ah
           min: "0"
           source: "ImHex pattern (u32 @ ISO-TP 0x24) — PCI-corrected"
-          verified: true
           notes: 32-bit at WiCAN B43-B46.
 
         OPERATING_TIME:
@@ -253,7 +227,6 @@ BMS:
           source: "CSS Electronics DBC (OperatingTime m257 : 399|32@0+, scale 1/3600) + live verification"
           source_links:
             - "CSS Electronics/ev-data-pack-v10/electric_cars/dbc_files/can1-hyundai-kia-uds-v2.4.dbc"
-          verified: true
           notes: 32-bit unsigned seconds at WiCAN B57-B60.
 
         DRIVE_MOTOR_SPEED:
@@ -261,7 +234,6 @@ BMS:
           unit: RPM
           min: "-500"
           max: "8000"
-          verified: true
           notes: >-
             Signed 16-bit big-endian, RPM directly. r=+0.997 vs MCU:2102:MCU_MOTOR_RPM (n=1149
             measured rows, slope 0.986). B67 repeats B65.
@@ -272,7 +244,6 @@ BMS:
           unit: "kΩ"
           min: "300"
           max: "1000"
-          verified: true
           notes: >-
             Big-endian 16-bit word B69:B70. 0x03E8 (1000 kΩ) in all 10764 captures, every state.
           source: byte word corrected from B69*1000, canair decode --dump-bytes 2026-10-22
@@ -320,7 +291,6 @@ BMS:
         BMS_MAIN_RELAY_MIRROR_B14_1:
           expression: B14:1
           source: canair analysis 2026-08-08 DCFC
-          verified: true
           notes: >-
             Equals BMS_MAIN_RELAY (B14:0) in every capture, including a DC fast charge. Disabled so
             it does not ship a duplicate signal; defined so bit 1 is accounted for.
@@ -367,7 +337,6 @@ BMS:
           min: "0"
           max: "1"
           source: canair B61 cross-tab vs VCU 2101 VCU_IG3_ON 2026-10-27
-          verified: true
           notes: >-
             Equals VCU_IG3_ON in 10845 of 10846 aligned rows; the exception is the last row of the
             2026-10-21 12 V top-up (BMS 1, VCU 0). 0 in 7 BMS captures (B61 = 0x01), each after a
@@ -380,12 +349,12 @@ BMS:
       status: active
       period: 10000
       vehicle_states: [IG3]
+      verified: true
       parameters:
         AVAIL_CHARGE_POWER:
           expression: "[B22:B23]/100"
           unit: kW
           ha_class: power
-          verified: true
           notes: >-
             Reads 98.0 kW throughout both 2026-08-08 DC fast charges (via the 2101 mirror), the same
             98 kW the car sends a charger as EVMaximumPowerLimit (broadcast 0x59E bytes 6-7,
@@ -395,17 +364,14 @@ BMS:
           expression: "[B25:B26]/100"
           unit: kW
           ha_class: power
-          verified: true
 
         BATTERY_VOLTAGE_DEVIATION:
           expression: "B27*0.1"
           unit: V
           ha_class: voltage
-          verified: true
 
         QUICK_CHARGING_NORMAL_STATUS:
           expression: "B28"
-          verified: true
 
         MODULE_6_TEMP:
           expression: "S14"
@@ -413,7 +379,6 @@ BMS:
           ha_class: temperature
           min: "-128"
           max: "128"
-          verified: true
 
         MODULE_7_TEMP:
           expression: "S15"
@@ -421,7 +386,6 @@ BMS:
           ha_class: temperature
           min: "-128"
           max: "128"
-          verified: true
 
         MODULE_8_TEMP:
           expression: "S17"
@@ -429,7 +393,6 @@ BMS:
           ha_class: temperature
           min: "-128"
           max: "128"
-          verified: true
 
         MODULE_9_TEMP:
           expression: "S18"
@@ -437,7 +400,6 @@ BMS:
           ha_class: temperature
           min: "-128"
           max: "128"
-          verified: true
 
         MODULE_10_TEMP:
           expression: "S19"
@@ -445,7 +407,6 @@ BMS:
           ha_class: temperature
           min: "-128"
           max: "128"
-          verified: true
 
         MODULE_11_TEMP:
           expression: "S20"
@@ -453,7 +414,6 @@ BMS:
           ha_class: temperature
           min: "-128"
           max: "128"
-          verified: true
 
         MODULE_12_TEMP:
           expression: "S21"
@@ -461,7 +421,6 @@ BMS:
           ha_class: temperature
           min: "-128"
           max: "128"
-          verified: true
 
         BATTERY_HEATER_1_TEMP:
           expression: "S30"
@@ -469,7 +428,6 @@ BMS:
           ha_class: temperature
           min: "-128"
           max: "128"
-          verified: true
 
         BATTERY_HEATER_2_TEMP:
           expression: "S31"
@@ -477,28 +435,23 @@ BMS:
           ha_class: temperature
           min: "-128"
           max: "128"
-          verified: true
 
         SOH:
           expression: "[B33:B34]/10"
           unit: "%"
           min: "0"
           max: "105"
-          verified: true
           notes: "State of Health"
 
         MAX_DETERIORATION_CELL_NO:
           expression: "B35"
-          verified: true
 
         MIN_DETERIORATION:
           expression: "[B36:B37]/10"
           unit: "%"
-          verified: true
 
         MIN_DETERIORATION_CELL_NO:
           expression: "B38"
-          verified: true
 
         SOC_DISP:
           expression: "B39/2"
@@ -506,7 +459,6 @@ BMS:
           ha_class: battery
           min: "0"
           max: "100"
-          verified: true
           notes: "Display SOC (what the dashboard shows)"
 
         BMS_DCFC_TICK_COUNTER:
@@ -534,15 +486,15 @@ BMS:
       status: active
       period: 60000
       vehicle_states: [IG3]
+      unit: V
+      ha_class: voltage
+      min: "0"
+      max: "5"
+      verified: true
       parameters:
         CELL_01_VOLTAGE:
           expression: "B9*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
           source: "ImHex pattern + raw capture verified"
-          verified: true
           notes: >
             First cell. 2026-07-20 FIX: cells start at B9 (after the 4-byte 0xFFFFFFFF cell-present header at
             B4-B7) and skip PCI bytes (B8/16/24/32/40). The old linear B(5+n) mapping was wrong on two counts:
@@ -551,221 +503,66 @@ BMS:
             B25,26,27,28,29,30,31, B33,34,35,36,37,38,39, B41,42,43,44. Same layout for 2103 (33-64) and 2104 (65-96).
         CELL_02_VOLTAGE:
           expression: "B10*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_03_VOLTAGE:
           expression: "B11*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_04_VOLTAGE:
           expression: "B12*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_05_VOLTAGE:
           expression: "B13*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_06_VOLTAGE:
           expression: "B14*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_07_VOLTAGE:
           expression: "B15*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_08_VOLTAGE:
           expression: "B17*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_09_VOLTAGE:
           expression: "B18*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_10_VOLTAGE:
           expression: "B19*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_11_VOLTAGE:
           expression: "B20*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_12_VOLTAGE:
           expression: "B21*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_13_VOLTAGE:
           expression: "B22*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_14_VOLTAGE:
           expression: "B23*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_15_VOLTAGE:
           expression: "B25*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_16_VOLTAGE:
           expression: "B26*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_17_VOLTAGE:
           expression: "B27*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_18_VOLTAGE:
           expression: "B28*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_19_VOLTAGE:
           expression: "B29*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_20_VOLTAGE:
           expression: "B30*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_21_VOLTAGE:
           expression: "B31*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_22_VOLTAGE:
           expression: "B33*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_23_VOLTAGE:
           expression: "B34*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_24_VOLTAGE:
           expression: "B35*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_25_VOLTAGE:
           expression: "B36*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_26_VOLTAGE:
           expression: "B37*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_27_VOLTAGE:
           expression: "B38*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_28_VOLTAGE:
           expression: "B39*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_29_VOLTAGE:
           expression: "B41*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_30_VOLTAGE:
           expression: "B42*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_31_VOLTAGE:
           expression: "B43*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_32_VOLTAGE:
           expression: "B44*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
           notes: "Last cell in PID 2102."
 
     2103:
@@ -773,233 +570,78 @@ BMS:
       status: active
       period: 60000
       vehicle_states: [IG3]
+      unit: V
+      ha_class: voltage
+      min: "0"
+      max: "5"
+      verified: true
       parameters:
         CELL_33_VOLTAGE:
           expression: "B9*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
           source: "ImHex pattern + raw capture verified"
-          verified: true
           notes: "First cell in PID 2103. Same B6..B37 pattern as 2102."
         CELL_34_VOLTAGE:
           expression: "B10*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_35_VOLTAGE:
           expression: "B11*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_36_VOLTAGE:
           expression: "B12*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_37_VOLTAGE:
           expression: "B13*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_38_VOLTAGE:
           expression: "B14*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_39_VOLTAGE:
           expression: "B15*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_40_VOLTAGE:
           expression: "B17*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_41_VOLTAGE:
           expression: "B18*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_42_VOLTAGE:
           expression: "B19*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_43_VOLTAGE:
           expression: "B20*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_44_VOLTAGE:
           expression: "B21*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_45_VOLTAGE:
           expression: "B22*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_46_VOLTAGE:
           expression: "B23*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_47_VOLTAGE:
           expression: "B25*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_48_VOLTAGE:
           expression: "B26*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_49_VOLTAGE:
           expression: "B27*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_50_VOLTAGE:
           expression: "B28*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_51_VOLTAGE:
           expression: "B29*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_52_VOLTAGE:
           expression: "B30*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_53_VOLTAGE:
           expression: "B31*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_54_VOLTAGE:
           expression: "B33*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_55_VOLTAGE:
           expression: "B34*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_56_VOLTAGE:
           expression: "B35*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_57_VOLTAGE:
           expression: "B36*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_58_VOLTAGE:
           expression: "B37*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_59_VOLTAGE:
           expression: "B38*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_60_VOLTAGE:
           expression: "B39*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_61_VOLTAGE:
           expression: "B41*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_62_VOLTAGE:
           expression: "B42*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_63_VOLTAGE:
           expression: "B43*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_64_VOLTAGE:
           expression: "B44*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
           notes: "Last cell in PID 2103."
 
     2104:
@@ -1007,233 +649,78 @@ BMS:
       status: active
       period: 60000
       vehicle_states: [IG3]
+      unit: V
+      ha_class: voltage
+      min: "0"
+      max: "5"
+      verified: true
       parameters:
         CELL_65_VOLTAGE:
           expression: "B9*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
           source: "ImHex pattern + raw capture verified"
-          verified: true
           notes: "First cell in PID 2104. Same B6..B37 pattern."
         CELL_66_VOLTAGE:
           expression: "B10*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_67_VOLTAGE:
           expression: "B11*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_68_VOLTAGE:
           expression: "B12*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_69_VOLTAGE:
           expression: "B13*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_70_VOLTAGE:
           expression: "B14*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_71_VOLTAGE:
           expression: "B15*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_72_VOLTAGE:
           expression: "B17*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_73_VOLTAGE:
           expression: "B18*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_74_VOLTAGE:
           expression: "B19*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_75_VOLTAGE:
           expression: "B20*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_76_VOLTAGE:
           expression: "B21*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_77_VOLTAGE:
           expression: "B22*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_78_VOLTAGE:
           expression: "B23*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_79_VOLTAGE:
           expression: "B25*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_80_VOLTAGE:
           expression: "B26*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_81_VOLTAGE:
           expression: "B27*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_82_VOLTAGE:
           expression: "B28*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_83_VOLTAGE:
           expression: "B29*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_84_VOLTAGE:
           expression: "B30*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_85_VOLTAGE:
           expression: "B31*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_86_VOLTAGE:
           expression: "B33*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_87_VOLTAGE:
           expression: "B34*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_88_VOLTAGE:
           expression: "B35*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_89_VOLTAGE:
           expression: "B36*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_90_VOLTAGE:
           expression: "B37*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_91_VOLTAGE:
           expression: "B38*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_92_VOLTAGE:
           expression: "B39*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_93_VOLTAGE:
           expression: "B41*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_94_VOLTAGE:
           expression: "B42*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_95_VOLTAGE:
           expression: "B43*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
         CELL_96_VOLTAGE:
           expression: "B44*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          verified: true
           notes: "Last cell. Total: 96 cells across PIDs 2102/2103/2104."
 
     21F2:
@@ -1247,6 +734,7 @@ BMS:
         extremes, energy in/out, peak powers, average temperature), updated when a cycle ends, plus
         the constant ASCII tag '4064' at B9-B12. Found by the 21 00-FF sweep on 2026-07-22.
       source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
+      verified: false
       parameters:
         LAST_CYCLE_MIN_CELL_VOLTAGE:
           expression: B37/50
@@ -1255,7 +743,6 @@ BMS:
           min: "0"
           max: "5"
           source: canair align vs BMS:2101 2026-10-21
-          verified: false
           notes: >-
             Lowest cell voltage of the previous drive or charge cycle (same 1/50 V scale as 2101).
             Frozen while the car is on: 4.12 V through the whole 2026-08-08 10:02-11:08 drive while
@@ -1267,7 +754,6 @@ BMS:
           min: "0"
           max: "5"
           source: canair align vs BMS:2101 2026-10-21
-          verified: false
           notes: >-
             Highest cell voltage of the previous drive or charge cycle. 4.14 V after the 2026-08-08
             drive that started at a 4.14 V live maximum; 4.16 V during the 2026-07-30 AC charge to
@@ -1279,7 +765,6 @@ BMS:
           min: "0"
           max: "450"
           source: canair align vs BMS:2101 2026-10-21
-          verified: false
           notes: >-
             Highest pack voltage of the previous cycle, 1 V/bit. 398 V through the 2026-08-08
             10:02-11:08 drive (live 397 to 354 V), 397 V from 11:41.
@@ -1290,7 +775,6 @@ BMS:
           min: "0"
           max: "450"
           source: canair align vs BMS:2101 2026-10-21
-          verified: false
           notes: >-
             Lowest pack voltage of the previous cycle, 1 V/bit. 397 V through the 2026-08-08 drive,
             then 340 V from 11:41, below the 346 V read live at the end of the drive (load sag).
@@ -1298,7 +782,6 @@ BMS:
           expression: "[B9:B12]"
           type: ascii
           source: canair search 2026-10-21
-          verified: false
           notes: >-
             Constant ASCII '4064' in all 29 captures. Not the 1A8D calibration ('4604') or any other
             identity field.
@@ -1308,7 +791,6 @@ BMS:
           unit: min
           min: "0"
           max: "255"
-          verified: false
           notes: >-
             Length of the previous drive or charge cycle in minutes: the five temperature-band
             seconds summed and divided by 60, rounded down, in all 13 records. The ten SOC bands sum
@@ -1319,7 +801,6 @@ BMS:
           unit: min
           min: "0"
           max: "255"
-          verified: false
           notes: >-
             Minutes of the previous cycle spent at 10-20 % SOC. The ten bands (B15-B26) sum to
             within 3 min of LAST_CYCLE_DURATION. 2026-07-30 AC charge 66 to 95 %: 40, 56, 57 and 32
@@ -1329,7 +810,6 @@ BMS:
           unit: min
           min: "0"
           max: "255"
-          verified: false
           notes: >-
             Minutes of the previous cycle spent at 20-30 % SOC. The ten bands (B15-B26) sum to
             within 3 min of LAST_CYCLE_DURATION. 2026-07-30 AC charge 66 to 95 %: 40, 56, 57 and 32
@@ -1339,7 +819,6 @@ BMS:
           unit: min
           min: "0"
           max: "255"
-          verified: false
           notes: >-
             Minutes of the previous cycle spent at 30-40 % SOC. The ten bands (B15-B26) sum to
             within 3 min of LAST_CYCLE_DURATION. 2026-07-30 AC charge 66 to 95 %: 40, 56, 57 and 32
@@ -1349,7 +828,6 @@ BMS:
           unit: min
           min: "0"
           max: "255"
-          verified: false
           notes: >-
             Minutes of the previous cycle spent at 40-50 % SOC. The ten bands (B15-B26) sum to
             within 3 min of LAST_CYCLE_DURATION. 2026-07-30 AC charge 66 to 95 %: 40, 56, 57 and 32
@@ -1359,7 +837,6 @@ BMS:
           unit: min
           min: "0"
           max: "255"
-          verified: false
           notes: >-
             Minutes of the previous cycle spent at 50-60 % SOC. The ten bands (B15-B26) sum to
             within 3 min of LAST_CYCLE_DURATION. 2026-07-30 AC charge 66 to 95 %: 40, 56, 57 and 32
@@ -1369,7 +846,6 @@ BMS:
           unit: min
           min: "0"
           max: "255"
-          verified: false
           notes: >-
             Minutes of the previous cycle spent at 60-70 % SOC. The ten bands (B15-B26) sum to
             within 3 min of LAST_CYCLE_DURATION. 2026-07-30 AC charge 66 to 95 %: 40, 56, 57 and 32
@@ -1379,7 +855,6 @@ BMS:
           unit: min
           min: "0"
           max: "255"
-          verified: false
           notes: >-
             Minutes of the previous cycle spent at 70-80 % SOC. The ten bands (B15-B26) sum to
             within 3 min of LAST_CYCLE_DURATION. 2026-07-30 AC charge 66 to 95 %: 40, 56, 57 and 32
@@ -1389,7 +864,6 @@ BMS:
           unit: min
           min: "0"
           max: "255"
-          verified: false
           notes: >-
             Minutes of the previous cycle spent at 80-90 % SOC. The ten bands (B15-B26) sum to
             within 3 min of LAST_CYCLE_DURATION. 2026-07-30 AC charge 66 to 95 %: 40, 56, 57 and 32
@@ -1399,7 +873,6 @@ BMS:
           unit: min
           min: "0"
           max: "255"
-          verified: false
           notes: >-
             Minutes of the previous cycle spent at 90-100 % SOC. The ten bands (B15-B26) sum to
             within 3 min of LAST_CYCLE_DURATION. 2026-07-30 AC charge 66 to 95 %: 40, 56, 57 and 32
@@ -1409,7 +882,6 @@ BMS:
           unit: "%"
           min: "0"
           max: "100"
-          verified: false
           notes: >-
             SOC at the start of the previous cycle, 0.1 %/bit. 95.2 % for the 2026-08-08 drive that
             left at 95 %.
@@ -1418,7 +890,6 @@ BMS:
           unit: "%"
           min: "0"
           max: "100"
-          verified: false
           notes: >-
             SOC at the end of the previous cycle, 0.1 %/bit (B112 is a PCI byte). 40.5 % after the
             2026-08-08 drive, matching live SOC_BMS, and equal to VCU:21F2 VCU_21F2_SOC in every
@@ -1428,7 +899,6 @@ BMS:
           unit: Wh
           min: "0"
           max: "65535"
-          verified: false
           notes: >-
             Energy taken from the pack during the previous cycle. 17258 Wh for the 2026-08-08 drive
             (CUMULATIVE_ENERGY_DISCHARGED rose 17.2 kWh); 63 Wh for a plugged-in preconditioning
@@ -1438,7 +908,6 @@ BMS:
           unit: Wh
           min: "0"
           max: "65535"
-          verified: false
           notes: >-
             Energy put into the pack during the previous cycle (regen or charging). 740 Wh regen on
             the 2026-08-08 drive (CUMULATIVE_ENERGY_CHARGED +0.6 kWh); 8990 Wh for the 2026-07-30 AC
@@ -1448,7 +917,6 @@ BMS:
           unit: Wh
           min: "0"
           max: "65535"
-          verified: false
           notes: >-
             Unconfirmed: probably the pack's energy content at the start of the previous cycle.
             26555 at 95.2 % and 10402 at 40.5 % SOC (2026-08-08 drive); the 16153 Wh difference is
@@ -1458,7 +926,6 @@ BMS:
           unit: Wh
           min: "0"
           max: "65535"
-          verified: false
           notes: >-
             Unconfirmed: probably the pack's energy content at the end of the previous cycle; see
             LAST_CYCLE_ENERGY_START.
@@ -1467,7 +934,6 @@ BMS:
           unit: kW
           min: "0"
           max: "255"
-          verified: false
           notes: >-
             Peak discharge power of the previous cycle. 57 kW for the 2026-08-08 drive (live
             BATTERY_POWER peaked at 57.5 kW); 3 kW for a preconditioning cycle; 0 for charging.
@@ -1476,7 +942,6 @@ BMS:
           unit: kW
           min: "0"
           max: "255"
-          verified: false
           notes: >-
             Peak charge or regen power of the previous cycle. 45 kW regen on the 2026-08-08 drive
             (live sampled peak -40.5 kW); 3 kW for a 3.3 kW AC charge.
@@ -1486,7 +951,6 @@ BMS:
           ha_class: temperature
           min: "-40"
           max: "100"
-          verified: false
           notes: >-
             Average battery temperature of the previous cycle. 18 for the 2026-08-08 drive (live
             module temps 17-21, mean 18.7); 26 for the 2026-07-30 charge (25-27); 23 for 2026-08-10
@@ -1496,7 +960,6 @@ BMS:
           unit: s
           min: "0"
           max: "65535"
-          verified: false
           notes: >-
             Seconds of the previous cycle in battery-temperature band 1 of 5; the five bands sum to
             LAST_CYCLE_DURATION. Seen in use: band 3 with an average of 16-20 °C, band 4 at 22-24
@@ -1506,7 +969,6 @@ BMS:
           unit: s
           min: "0"
           max: "65535"
-          verified: false
           notes: >-
             Seconds of the previous cycle in battery-temperature band 2 of 5; the five bands sum to
             LAST_CYCLE_DURATION. Seen in use: band 3 with an average of 16-20 °C, band 4 at 22-24
@@ -1516,7 +978,6 @@ BMS:
           unit: s
           min: "0"
           max: "65535"
-          verified: false
           notes: >-
             Seconds of the previous cycle in battery-temperature band 3 of 5; the five bands sum to
             LAST_CYCLE_DURATION. Seen in use: band 3 with an average of 16-20 °C, band 4 at 22-24
@@ -1526,7 +987,6 @@ BMS:
           unit: s
           min: "0"
           max: "65535"
-          verified: false
           notes: >-
             Seconds of the previous cycle in battery-temperature band 4 of 5; the five bands sum to
             LAST_CYCLE_DURATION. Seen in use: band 3 with an average of 16-20 °C, band 4 at 22-24
@@ -1536,7 +996,6 @@ BMS:
           unit: s
           min: "0"
           max: "65535"
-          verified: false
           notes: >-
             Seconds of the previous cycle in battery-temperature band 5 of 5; the five bands sum to
             LAST_CYCLE_DURATION. Seen in use: band 3 with an average of 16-20 °C, band 4 at 22-24
@@ -1546,7 +1005,6 @@ BMS:
           unit: min
           min: "0"
           max: "255"
-          verified: false
           notes: >-
             Minutes of the previous cycle spent at 0-10 % SOC. The ten bands (B15-B26) sum to within
             3 min of LAST_CYCLE_DURATION. 2026-07-30 AC charge 66 to 95 %: 40, 56, 57 and 32 min in

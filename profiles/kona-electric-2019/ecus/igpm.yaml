@@ -32,18 +32,17 @@ IGPM:
   pids:
     22BC03:
       status: active
+      verified: false
       parameters:
         IGN1_SWITCH:
           expression: B11:5
           source: Layout shared with the Ioniq IGPM 22BC03 (same constant map bytes FD EE 3C 73); Ioniq signal verified there
-          verified: false
           notes: >-
             Reads 1 in all 13 captures, taken with the car powered. Ioniq: 1 in ON and READY, 0 when
             off and in ACC. This log never has the ignition off.
         IGN2_SWITCH:
           expression: B11:6
           source: Layout shared with the Ioniq IGPM 22BC03 (same constant map bytes FD EE 3C 73)
-          verified: false
           notes: >-
             Reads 1 alongside IGN1_SWITCH in all 13 captures. The Ioniq's equals IGN1_SWITCH in
             every capture too, so the two are not told apart.
@@ -52,7 +51,6 @@ IGPM:
           source: OBDb Hyundai-Kona-Electric (KONAEV_LOW_BEAMS; offset via canair bix)
           source_links:
             - https://github.com/OBDb/Hyundai-Kona-Electric
-          verified: false
           notes: >-
             Whole byte, as OBDb has it (the Ioniq splits it into lamp bits at B12:2-5). 0 in all 13
             captures, so every lamp is off; never exercised.

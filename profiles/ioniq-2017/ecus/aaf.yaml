@@ -20,12 +20,13 @@ AAF:
       status: active
       period: 60000
       vehicle_states: [IG3]
+      unit: °C
+      ha_class: temperature
+      min: "-40"
+      verified: false
       parameters:
         AMBIENT_TEMP:
           expression: "(B18-80)/2"
-          unit: "°C"
-          ha_class: temperature
-          min: "-40"
           max: "87"
           source: "Original WiCAN config"
           verified: true
@@ -35,50 +36,34 @@ AAF:
 
         HEATER_ELEMENT_TEMP:
           expression: "S17/2"
-          unit: "°C"
-          ha_class: temperature
-          min: "-40"
           max: "120"
           source: "ITStromer community PID sheet (heating element = signed(l)/2)"
-          verified: false
           notes: >-
             Community sheet: 8 °C with heat set to 15.5 °C, 27 °C with heat set to 30 °C, about
             ambient with heat off. Range 14.5-51 across 3428 captures.
 
         HEATSINK_TEMP:
           expression: "B20-40"
-          unit: "°C"
-          ha_class: temperature
-          min: "-40"
           max: "150"
           source: "ITStromer community PID sheet (VMCU heat sink = o-40)"
-          verified: false
           notes: Community sheet. Range 9-70 °C across 3428 captures.
 
         COMPRESSOR_TEMP:
           expression: "B21-40"
-          unit: "°C"
-          ha_class: temperature
-          min: "-40"
           max: "120"
           source: "ITStromer community PID sheet (compressor = p-40)"
-          verified: false
           notes: >-
             Community sheet. About ambient with the A/C off; range 12-66 °C across 3428 captures.
 
         AAF_COOLANT_TEMP_B25:
           expression: B25-100
-          unit: °C
-          min: "-40"
           max: "150"
           source: canair correlate --find-mirrors --allow-offset 2026-10-21
-          verified: false
           notes: >-
             Not a 12 V voltage (was AAF_AUX_BATTERY_VOLTAGE, B25/10): r=-0.04 vs
             VCU:2102:VCU_AUX_BATTERY_VOLTAGE_FINE. B25 equals VCU:2102 B18 (VCU_COOLANT_TEMP + 100)
             in 4321 of 4469 aligned rows, r=+0.999. The old r=0.995 voltage match was against VCU
             B18/10, itself later disproven.
-          ha_class: temperature
     2181:
       response_frames: 4
       status: draft
@@ -88,6 +73,7 @@ AAF:
         25 bytes, same layout as 2180 with extra populated bytes (B19, B22, B23, B24); answers in
         ON.
       source: cross-ECU correlation vs ESC REAL_SPEED_KMH, 2026-07-22 drive
+      verified: false
       parameters:
 
         AAF_VEHICLE_SPEED_KMH:
@@ -95,7 +81,6 @@ AAF:
           unit: km/h
           min: "0"
           max: "250"
-          verified: false
           notes: >-
             r=0.997 vs ESC:22C101:REAL_SPEED_KMH (n=66, 2026-07-22 drive, up to about 40 km/h).
             Range 0-121 across 4319 captures.
@@ -105,7 +90,6 @@ AAF:
           unit: mph
           min: "0"
           max: "160"
-          verified: false
           notes: Slope 0.6244 vs ESC:22C101:REAL_SPEED_KMH (0.6214 expected for mph), r=0.997.
           enabled: true
         AAF_COOLANT_TEMP_B25:
@@ -114,7 +98,6 @@ AAF:
           min: "-40"
           max: "150"
           source: canair correlate --find-mirrors --allow-offset 2026-10-21
-          verified: false
           notes: >-
             Same byte as AAF:2180:AAF_COOLANT_TEMP_B25 (equal in 3754 of 3826 rows) and VCU:2102 B18
             (VCU_COOLANT_TEMP + 100). Disabled as a duplicate.
@@ -126,7 +109,6 @@ AAF:
           min: "-40"
           max: "150"
           source: canair correlate 2026-07-22 drive
-          verified: false
           notes: Same byte and scale as AAF:2180:HEATSINK_TEMP.
         MOTOR_COOLANT_TEMP:
           expression: B22-40
@@ -134,7 +116,6 @@ AAF:
           min: "-40"
           max: "150"
           source: RE 2026-08-05 cross-ECU agreement with VCU:2102 B18-100 (supersedes the 2026-07-22 MCU_TEMP_2 correlation)
-          verified: false
           notes: >-
             Equals VCU:2102:VCU_COOLANT_TEMP - 100 exactly in 77 % of 1729 co-polled rows. Rose 29
             to 44 °C over a 3 h AC charge; 34-37 °C while driving. The loop also serves the EPCU,
@@ -167,7 +148,6 @@ AAF:
           values:
             7: charging
           source: 2026-08-08 DCFC byte-diff + full-corpus state check
-          verified: false
           notes: >-
             Reads 7 in every charging capture, AC and DC. Otherwise 0, 2, 5 or 6 (4319 captures: 0
             x1916, 2 x93, 5 x30, 6 x667, 7 x1613).
@@ -180,7 +160,6 @@ AAF:
             52: idle_parked
             67: driving
           source: 2026-08-08 DCFC byte-diff + full-corpus state check
-          verified: false
           notes: >-
             Values 0 (2613), 52 (1423), 67 (262), 82 (21) across 4319 captures. 0 in every charging
             capture, but also in most READY parked ones.
@@ -189,7 +168,6 @@ AAF:
           expression: B23-40
           unit: °C
           source: 2026-08-08 DCFC session byte-diff
-          verified: false
           notes: >-
             r=+0.976 vs VCU:2102:VCU_COOLANT_TEMP; reads a few °C off MOTOR_COOLANT_TEMP. Rose 36 to
             43 °C during the 2026-08-08 DC charge.

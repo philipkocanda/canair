@@ -23,17 +23,17 @@ ESC:
       period: 2500
       vehicle_states: []
       source: RE 2026-07-22 driving capture; r=+1.000 vs REAL_SPEED_KMH
+      min: "0"
+      verified: true
       parameters:
         REAL_SPEED_KMH:
           expression: B12
           unit: km/h
           ha_class: speed
-          min: "0"
           max: "250"
           source: Kia Niro EV WiCAN PR#660; verified RE 2026-07-22
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/660
-          verified: true
           notes: >-
             1 km/h per LSB. r=+1.000 vs the four wheel speeds; 0 at standstill. Unsigned: positive
             when reversing (2026-07-26); direction comes from GEAR_SELECTOR. B10, B11 and B13 are
@@ -44,9 +44,7 @@ ESC:
         WHEEL_SPEED_FL:
           expression: B18
           unit: km/h
-          min: "0"
           max: "250"
-          verified: true
           notes: >-
             1 km/h per LSB. B18 and B20 track together and diverge from B19 and B21 in turns, so
             they are the left pair; front versus rear follows the Ioniq 5 OBDb order and is not
@@ -54,30 +52,22 @@ ESC:
         WHEEL_SPEED_FR:
           expression: B19
           unit: km/h
-          min: "0"
           max: "250"
-          verified: true
           notes: 1 km/h per LSB. Right pair with B21; front versus rear not checked.
         WHEEL_SPEED_RL:
           expression: B20
           unit: km/h
-          min: "0"
           max: "250"
-          verified: true
           notes: 1 km/h per LSB. Left pair with B18; front versus rear not checked.
         WHEEL_SPEED_RR:
           expression: B21
           unit: km/h
-          min: "0"
           max: "250"
-          verified: true
           notes: 1 km/h per LSB. Right pair with B19; front versus rear not checked.
         GEAR_SELECTOR:
           expression: B14
-          min: "0"
           max: "8"
           source: canair investigate/hunt vs VCU:2101:GEAR_P, 2026-07-22 drive; Reverse confirmed 2026-07-26
-          verified: true
           notes: >-
             1 Park, 2 Reverse, 4 Drive, confirmed on the 2026-07-26 driveway manoeuvres (2 during
             both reversing segments, n=52). Neutral, expected as 3, has not been captured here.
@@ -94,7 +84,6 @@ ESC:
             unknown.
         BRAKE_PRESSURE:
           expression: B44
-          min: "0"
           max: "255"
           source: canair correlate/decode 2026-07-22 drive
           verified: false
@@ -107,7 +96,6 @@ ESC:
           min: "-600"
           max: "600"
           source: RE 2026-07-26 held-wheel + 2026-07-30 DRIVING steer-sweep; EPS 220101 cross-check
-          verified: true
           notes: >-
             Big-endian offset binary, zero at 0x8000, 0.1 ° per LSB. r=+1.000 vs EPS_STEERING_ANGLE
             over a ±90 ° sweep (2026-07-30). Holds its value while stationary. Rare frames read
@@ -139,7 +127,6 @@ ESC:
           expression: B15/16
           unit: V
           ha_class: voltage
-          min: "0"
           max: "16"
           source: canair investigate/hunt 2026-10-21
           verified: false
@@ -149,7 +136,6 @@ ESC:
             VCU_AUX_BATTERY_VOLTAGE_FINE 13.79 V on 2026-08-08.
         BRAKE_PRESSURE_2:
           expression: B45
-          min: "0"
           max: "255"
           source: canair decode --corr 2026-10-21
           verified: false

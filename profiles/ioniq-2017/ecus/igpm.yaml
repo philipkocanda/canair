@@ -56,6 +56,7 @@ IGPM:
         ON with the charge port locked, 0x19 ON with it unlocked (B12:0 is the unlock flag, the
         complement of B11:7). B05-B07 and B09 (08 41 FB CC) and B13 (0) are constant in all 411
         captures.
+      verified: false
       parameters:
         # TODO: All the other bytes on here!
         # Maybe window states?
@@ -73,7 +74,6 @@ IGPM:
 
         IG3_RELAY_OUTPUT:
           expression: "B12:3"
-          verified: false
           notes: >-
             ScanDoc 'Ignition 3 Relay' (22BC07 byte 2 bit 3; actuator BC44): the IGPM's own IG3
             relay output. The OBC's relay supplies IG3 while charging with the ignition off, which
@@ -90,7 +90,6 @@ IGPM:
         CHARGE_DOOR_LAMP_REAR:
           expression: B12:2
           source: RE 2026-08-05 event-timeline analysis; revisited 2026-08-08 session
-          verified: false
           notes: >-
             ScanDoc 'Rear Charge Door Lamp - Output' (22BC07 byte 2 bit 2; actuator BC43). 1 in 15
             of 328 captures. Set at every recorded plug-in with the ignition off, just before the
@@ -105,7 +104,6 @@ IGPM:
           min: "0"
           max: "1"
           source: canair correlate --find-mirrors --bits 2026-10-21
-          verified: false
           notes: >-
             Equals 22BC03 TRUNK_OPEN (B10:7) in all 349 aligned rows, and 22BC05
             LUGGAGE_LAMP_OUTPUT. Disabled as a duplicate.
@@ -120,6 +118,7 @@ IGPM:
         B09 reads 0x73 in all 384 captures. B05=0xFD, B06=0xEE, B07=0x3C and B13=0x00 are constant.
         B10 bit 6 has never been set.
       source: Kia Niro EV WiCAN PR#716
+      verified: true
       parameters:
         # B10 = Doors and locks
         # B11 = Seatbelts
@@ -131,7 +130,6 @@ IGPM:
           source: Kia Niro EV WiCAN PR#716; confirmed by timed event capture 2026-07-24
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
-          verified: true
           notes: 1 = open.
 
         DOOR_PAS_OPEN:
@@ -139,7 +137,6 @@ IGPM:
           ha_class: door
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
-          verified: true
           notes: "Bit flag — 1=open. Verified 2026-04-15."
 
         DOOR_RL_OPEN:
@@ -147,7 +144,6 @@ IGPM:
           ha_class: door
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
-          verified: true
           notes: "Bit flag — 1=open. Verified 2026-04-15."
 
         DOOR_RR_OPEN:
@@ -155,7 +151,6 @@ IGPM:
           ha_class: door
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
-          verified: true
           notes: >-
             Bit flag — 1=open. Verified 2026-04-15 (live door test).
 
@@ -164,14 +159,12 @@ IGPM:
           ha_class: door
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
-          verified: true
           notes: "Bit flag — 1=open. Verified 2026-04-15."
 
         TAIL_LAMP_INTERIOR:
           expression: "B12:2"
           ha_class: light
           source: Decoded from live captures (2026-04-15); GDS 'Tail Lamp Output (Interior)' name, align vs 22BC04 B12:5 2026-10-30
-          verified: true
           notes: >-
             1 = interior tail lamp output (GDS 'Tail Lamp Output (Interior)', ScanDoc 'AV tail'),
             the instrument illumination circuit; actuator twin BC05. Equals TAIL_LIGHTS (B12:3) in
@@ -183,7 +176,6 @@ IGPM:
           expression: "B12:3"
           ha_class: light
           source: "Decoded from live captures (2026-04-15)"
-          verified: true
           notes: >-
             1 = on, in every light mode (DRL, low and high beam). GDS 'Tail Lamp Output (Exterior)'
             (the tail lamp relay). Verified 2026-04-15.
@@ -192,14 +184,12 @@ IGPM:
           expression: "B12:4"
           ha_class: light
           source: "Decoded from live captures (2026-04-15)"
-          verified: true
           notes: 1 = on, only with high beams (B13:4 in the Niro EV source). Verified 2026-04-15.
 
         LOW_BEAM:
           expression: "B12:5"
           ha_class: light
           source: "Decoded from live captures (2026-04-15)"
-          verified: true
           notes: 1 = on, also while the high beams are on. Verified 2026-04-15.
 
         IGN1_SWITCH:
@@ -207,7 +197,6 @@ IGPM:
           ha_class: power
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
-          verified: true
           notes: >-
             1 in ON and READY (not told apart), 0 when off and in ACC. Also 1 in ON while AC
             charging. Fob unlock does not set it. It rises with the ACC to ON press, where IGN1 and
@@ -221,7 +210,6 @@ IGPM:
           expression: "B11:1"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
-          verified: true
           notes: 1 = driver belt buckled. Verified 2026-04-15.
 
         SEATBELT_FR:
@@ -236,7 +224,6 @@ IGPM:
           ha_class: lock
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
-          verified: true
           notes: >-
             1 = locked; no inversion needed (the Niro EV source inverts it). Verified 2026-04-15.
 
@@ -245,7 +232,6 @@ IGPM:
           ha_class: lock
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
-          verified: true
           notes: >-
             1 = locked; no inversion needed (the Niro EV source inverts it). Verified 2026-04-15.
         IGN2_SWITCH:
@@ -265,7 +251,6 @@ IGPM:
           min: "0"
           max: "1"
           source: Timed event capture 2026-07-24
-          verified: true
           notes: 1 = open. Found 2026-07-24.
         REAR_DEFOGGER_RELAY:
           expression: B13:1
@@ -293,6 +278,7 @@ IGPM:
         (1) are constant in all 410 captures, across every power state. B12:5 (DRL_DEDICATED_OUTPUT)
         set only in 8 captures (2026-07-21, in D with the lamps off).
       source: Kia Niro EV WiCAN PR#716
+      verified: false
       parameters:
         # TODO: All the other bytes on here
         DOOR_LOCK_FL:
@@ -315,7 +301,6 @@ IGPM:
           min: "0"
           max: "1"
           source: RE 2026-07-23 bit analysis; ignition cross-tab 2026-10-22
-          verified: false
           notes: >-
             GDS 'Power Window Enable Relay' (first item of the 22BC04 current-data list). Follows
             the ignition on the way up: equals 22BC03 IGN1_SWITCH in 431 of 432 aligned rows, with
@@ -333,7 +318,6 @@ IGPM:
           min: "0"
           max: "1"
           source: Same-payload cross-tab + event timeline 2026-10-22
-          verified: false
           notes: >-
             GDS 'Interior Lamp Autocut Relay' (ScanDoc; actuator BC1B 'Auto Cut Relay'): the
             leak-current autocut (LCAD) relay that feeds the interior lamp, memory and multimedia
@@ -353,7 +337,6 @@ IGPM:
           min: "0"
           max: "1"
           source: byte-value sweep + align 2026-10-29
-          verified: false
           notes: >-
             GDS 'Dedicated DRL Output (Option)' (22BC04 byte 2 bit 5; actuator BC18). 1 only with
             the ignition on, low beam off and the car not in Park: set in all 8 captures with the
@@ -370,7 +353,6 @@ IGPM:
           min: "0"
           max: "1"
           source: OBDb Hyundai-IONIQ-Electric 22BC04 bix 54; IGPM support bitmap; opendbc CGW4 rear belt indicators (2026-10-29)
-          verified: false
           notes: >-
             Candidate rear-right seatbelt latched. OBDb labels this bit (bix 54) as the rear-right
             belt, and the 22BC04 support bitmap (B07=0xF4) marks it as a real signal. opendbc's
@@ -384,7 +366,6 @@ IGPM:
           min: "0"
           max: "1"
           source: OBDb Hyundai-IONIQ-Electric 22BC04 bix 53; IGPM support bitmap; opendbc CGW4 rear belt indicators (2026-10-29)
-          verified: false
           notes: >-
             Candidate rear-left seatbelt latched. OBDb labels this bit (bix 53) as the rear-left
             belt, and the 22BC04 support bitmap (B07=0xF4) marks it as a real signal. opendbc's
@@ -398,7 +379,6 @@ IGPM:
           min: "0"
           max: "1"
           source: OBDb Hyundai-IONIQ-Electric 22BC04 bix 52; IGPM support bitmap; opendbc CGW4 rear belt indicators (2026-10-29)
-          verified: false
           notes: >-
             Candidate rear-middle seatbelt latched. OBDb labels this bit (bix 52) as the rear-middle
             belt, and the 22BC04 support bitmap (B07=0xF4) marks it as a real signal. opendbc's
@@ -416,13 +396,13 @@ IGPM:
       notes: >-
         8 data bytes. B10 the brake lamps, B11 the turn signals. B05=0xB4, B06=0x80, B07, B09 and
         B12 = 0 constant in all 587 captures.
+      verified: true
       parameters:
         BRAKE_LIGHT:
           expression: B10
           min: "0"
           max: "255"
           source: "Decoded from live captures (2026-04-15)"
-          verified: true
           notes: >-
             Not a boolean: B10 reads 0x00 released and 0x2D pressed (73 of 504 captures), plus 0x2C
             (3), 0x01 (1) and 0x02 (1). 0x2D sets bits 0, 2, 3 and 5 together. Byte position
@@ -431,13 +411,11 @@ IGPM:
         LEFT_TURN_SIGNAL:
           expression: B11:0
           source: "Corrected 2026-08-09: moved from B10 to B11 (user-confirmed 1=left, 2=right); B10 bit0 was the brake pattern, not the turn signal"
-          verified: true
           notes: B11 reads 0 (no signal), 1 (left) or 2 (right), never 3, across a 500-sample check.
           enabled: true
         RIGHT_TURN_SIGNAL:
           expression: B11:1
           source: "Corrected 2026-08-09: moved from B10 to B11 (user-confirmed 1=left, 2=right); B10 bit1 had only n=1 support and was unrelated noise"
-          verified: true
           notes: B11 reads 0 (no signal), 1 (left) or 2 (right), never 3, across a 500-sample check.
           enabled: true
         STOP_LAMP_LEFT:
@@ -485,22 +463,19 @@ IGPM:
         outputs (0x50 left, 0xA0 right, 0xF0 both at the fob-unlock flash), B11:3 the trunk
         indicator and B11:7 passenger seat occupancy.
       source: canair align cross-tab + investigate --events 2026-10-21
+      min: "0"
+      max: "1"
+      verified: false
       parameters:
         LUGGAGE_LAMP_OUTPUT:
           expression: B11:3
-          min: "0"
-          max: "1"
           source: canair correlate --find-mirrors + investigate --events 2026-07-24
-          verified: false
           notes: >-
             GDS/ScanDoc 'Luggage Compartment Lamp' (22BC05 byte 1 bit 3; actuator BC1C). Set at
             trunk open (2026-07-24 09:37:08); 1 in 3 of 421 captures. Named TRUNK_INDICATOR until
             2026-10-30.
         TURN_LAMP_LF:
           expression: B10:4
-          min: "0"
-          max: "1"
-          verified: false
           notes: >-
             Left front turn-lamp output (GDS 'LF turn signal output') (flashes, so a poll can catch
             it off). Cross-tab vs 22BC06 LEFT/RIGHT_TURN_SIGNAL over 380 aligned rows: set in 18 of
@@ -509,9 +484,6 @@ IGPM:
             TURN_LAMP_LEFT until 2026-10-30.
         TURN_LAMP_RF:
           expression: B10:5
-          min: "0"
-          max: "1"
-          verified: false
           notes: >-
             Right front turn-lamp output (GDS 'RF turn signal output') (flashes, so a poll can catch
             it off). Cross-tab vs 22BC06 LEFT/RIGHT_TURN_SIGNAL over 380 aligned rows: set in 20 of
@@ -520,10 +492,7 @@ IGPM:
             TURN_LAMP_RIGHT until 2026-10-30.
         TURN_LAMP_LR:
           expression: B10:6
-          min: "0"
-          max: "1"
           source: canair decode --dump-bytes 2026-10-21
-          verified: false
           notes: >-
             Left rear turn-lamp output (GDS 'LR turn signal output'): a separate output with its own
             fault detection, not a duplicate circuit. Equals TURN_LAMP_LF (B10:4) in every capture
@@ -532,10 +501,7 @@ IGPM:
           enabled: false
         TURN_LAMP_RR:
           expression: B10:7
-          min: "0"
-          max: "1"
           source: canair decode --dump-bytes 2026-10-21
-          verified: false
           notes: >-
             Right rear turn-lamp output (GDS 'RR turn signal output'): a separate output with its
             own fault detection, not a duplicate circuit. Equals TURN_LAMP_RF (B10:5) in every
@@ -544,10 +510,7 @@ IGPM:
           enabled: false
         PASSENGER_SEAT_OCCUPIED:
           expression: B11:7
-          min: "0"
-          max: "1"
           source: canair correlate --find-mirrors --bits + investigate --events 2026-10-21
-          verified: false
           notes: >-
             Front passenger seat occupied. Superset of SEATBELT_FR over 314 aligned rows: set in all
             11 buckled rows plus 4 unbuckled rows, never clear while buckled. 2026-08-08: set at
@@ -555,10 +518,7 @@ IGPM:
             11:41:22, cleared 11:41:42, passenger door opened 11:42:22.
         LOW_BEAM_SWITCH:
           expression: B12:2
-          min: "0"
-          max: "1"
           source: canair align cross-tab 2026-10-21; OBDb label added 2026-10-27
-          verified: false
           notes: >-
             Set only when the tail and low-beam outputs are on AND IGN1_SWITCH=1 (23 rows). 0 in the
             6 rows with the lamps still on after ignition off, and 0 with the lamps off. The OBDb

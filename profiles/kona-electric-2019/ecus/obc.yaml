@@ -13,6 +13,7 @@ OBC:
       source: OBDb Hyundai-Kona-Electric (offsets via canair bix)
       source_links:
         - https://github.com/OBDb/Hyundai-Kona-Electric
+      verified: false
       parameters:
         CHARGER_AC_INPUT_VOLTAGE:
           expression: B14*2.56
@@ -20,7 +21,6 @@ OBC:
           ha_class: voltage
           min: "0"
           max: "300"
-          verified: false
           notes: >-
             Charger AC input voltage RMS (raw*64/25). OBDb confirmed 2021; 2019 outside its tested
             range.
@@ -30,7 +30,6 @@ OBC:
           ha_class: current
           min: "0"
           max: "100"
-          verified: false
           notes: >-
             Charger AC input current RMS (raw*64/25). OBDb confirmed 2021; 2019 outside its tested
             range.
@@ -40,7 +39,6 @@ OBC:
           ha_class: temperature
           min: "-40"
           max: "155"
-          verified: false
           notes: Charger temperature (raw-100). OBDb confirmed 2021; 2019 outside its tested range.
 
   research:

@@ -93,6 +93,7 @@ HVAC:
         (HVAC_VEHICLE_SPEED): 0 whenever stationary, so it only moves in the driving captures. B42
         reads 0 or 1. 2201A3 B33-B36 and B41 carry copies of B15, B22, B17, B20 and B34.
       source: Original WiCAN config
+      verified: false
       parameters:
         HVAC_INTERIOR_TEMP:
           expression: (B11/2)-40
@@ -129,7 +130,6 @@ HVAC:
           min: "0"
           max: "255"
           source: canair investigate/correlate 2026-08-02; HVAC audit 2026-10-22
-          verified: false
           notes: >-
             16-239 across 1758 captures. 235-239 with the compressor off: fan only at 12 °C ambient
             (2026-04-19), resistive-heater preconditioning (2026-08-08), 2026-10-22. Fell from 113
@@ -142,14 +142,12 @@ HVAC:
           min: "0"
           max: "255"
           source: "Monitor session 2026-04-17"
-          verified: false
           notes: 16-240 across 1758 captures, 21 distinct values. Not a mirror of B15.
         HVAC_UNKNOWN_B22:
           expression: "B22"
           min: "0"
           max: "255"
           source: "Monitor session 2026-04-17; HVAC audit 2026-10-22"
-          verified: false
           notes: >-
             13-240 across 1758 captures, mostly 16 (873) and 239 (492). Stayed at 16-17 through
             A/C on and off on 2026-07-21.
@@ -161,7 +159,6 @@ HVAC:
           min: "-40"
           max: "87.5"
           source: "Monitor session 2026-04-17"
-          verified: false
           notes: >-
             Name is unconfirmed. 7.5-66 °C across 1758 captures; 63.5-66 °C during heat-pump
             heating at a 30 °C set point (2026-07-22), 13-27.5 °C under A/C (2026-07-21).
@@ -172,7 +169,6 @@ HVAC:
           min: "-40"
           max: "87.5"
           source: "Monitor session 2026-04-17"
-          verified: false
           notes: >-
             Name is unconfirmed. 8-61 °C across 1758 captures; 55-57.5 °C during heat-pump heating
             at a 30 °C set point (2026-07-22), 15.5-26.5 °C under A/C (2026-07-21).
@@ -181,7 +177,6 @@ HVAC:
           min: "0"
           max: "100"
           source: coverage analysis 2026-07-23; HVAC audit 2026-10-22
-          verified: false
           notes: >-
             0-78 across 1758 captures. r=-0.17 vs HVAC_AAT, -0.40 vs HVAC_INTERIOR_TEMP, +0.19 vs
             blower (n=1420).
@@ -191,7 +186,6 @@ HVAC:
           min: "0"
           max: "59"
           source: coverage analysis 2026-07-23
-          verified: false
           notes: 0-59 across 1758 captures. r=-0.70 vs 2201A0 B5 (n=1420).
           enabled: true
         HVAC_UNKNOWN_B35:
@@ -199,7 +193,6 @@ HVAC:
           min: "0"
           max: "255"
           source: coverage analysis 2026-07-23
-          verified: false
           notes: 70-246 across 1758 captures. r=-0.54 vs blower fan feedback (n=1420).
           enabled: true
         HVAC_VEHICLE_SPEED:
@@ -209,7 +202,6 @@ HVAC:
           min: "0"
           max: "255"
           source: OBDb Hyundai-IONIQ-Electric (7B3 22 0100 bix 232, VSS_7B3) + canair align 2026-10-27
-          verified: false
           notes: >-
             Unsigned byte, whole km/h. Non-zero only in the driving captures (about 100 rows,
             0-107). r=0.97 vs VCU:2101:VCU_VEHICLE_SPEED (1135 of 1213 rows equal) and r=0.985 vs
@@ -218,7 +210,6 @@ HVAC:
         HVAC_UNKNOWN_B20:
           expression: B20
           source: support-bitmap sweep 2026-10-29
-          verified: false
           notes: >-
             Marked by the 220100 map. 24 values, 16-241 (129, 16, 240 and 73 most common); r=+0.49
             vs blower (PID notes). Meaning unknown.
@@ -226,7 +217,6 @@ HVAC:
         HVAC_UNKNOWN_B42:
           expression: B42
           source: support-bitmap sweep 2026-10-29
-          verified: false
           notes: Marked by the 220100 map. 0 or 1; 1 in 522 of 3051 captures. Meaning unknown.
           enabled: false
     220102:
@@ -238,6 +228,8 @@ HVAC:
         16-byte response (13 data bytes after the DID) of secondary temperatures and the heat-pump
         flag. Constant in all 950 captures: B5=0xFF, B6=0x80, and 0x00 at B7, B9, and B14.
       source: Monitor session 2026-04-17
+      min: "0"
+      verified: false
       parameters:
         HVAC_HEAT_EXCHANGER_TEMP:
           expression: (B10/2)-40
@@ -245,7 +237,6 @@ HVAC:
           ha_class: temperature
           min: "-40"
           max: "87.5"
-          verified: false
           notes: >-
             Name is unconfirmed. 8.5-79 °C across 950 captures. Rose from 24 to 57 °C during A/C
             cooling (2026-07-21).
@@ -255,11 +246,9 @@ HVAC:
           ha_class: temperature
           min: "-40"
           max: "87.5"
-          verified: false
           notes: Name is unconfirmed. 8-45.5 °C across 950 captures.
         HVAC_HEAT_PUMP_ON:
           expression: "B17"
-          min: "0"
           max: "1"
           source: >-
             Monitor session 2026-04-17; heat-pump vs PTC 2026-07-22; A/C cooling 2026-07-21
@@ -271,9 +260,7 @@ HVAC:
 
         HVAC_HEAT_PUMP_ON_MIRROR_B18:
           expression: "B18"
-          min: "0"
           max: "1"
-          verified: false
           notes: >-
             0/1. Agrees with HVAC_HEAT_PUMP_ON in 915 of 950 captures; 1 in 152, against 127.
 
@@ -281,10 +268,8 @@ HVAC:
           expression: B19
           unit: °C
           ha_class: temperature
-          min: "0"
           max: "127"
           source: Monitor session 2026-04-17; reclassified 2026-07-20; OBDb label added 2026-10-27
-          verified: false
           notes: >-
             Raw byte in °C, 16-82 across 950 captures. r=+0.80 vs HVAC_HEAT_EXCHANGER_TEMP, -0.46 vs
             HVAC_HEAT_PUMP_TEMP (n=1420). The OBDb Hyundai-IONIQ-Electric signalset labels this byte
@@ -294,12 +279,10 @@ HVAC:
         HVAC_HEAT_PUMP_ON_MIRROR_B12:
           expression: B12
           source: coverage analysis 2026-07-23
-          verified: false
           notes: >-
             0/1, equal to B13 and B15 in every capture. Agrees with HVAC_HEAT_PUMP_ON in 945 of 950
             captures; 1 in 122, against 127.
           enabled: true
-          min: "0"
           max: "1"
     2201A0:
       response_frames: 9
@@ -314,6 +297,8 @@ HVAC:
         B42-B43=0xFF, and 0x00 at B22, B54, B57, B58, B61-B63, and B65. B21 reads 0, 90 or 96, and
         B23 is 0 exactly when B21 is non-zero (one exception).
       source: Monitor session 2026-04-17
+      min: "0"
+      verified: false
       parameters:
         HVAC_SET_TEMP_DRIVER:
           expression: "B44"
@@ -335,10 +320,8 @@ HVAC:
 
         HVAC_A0_UNKNOWN_B23:
           expression: "B23"
-          min: "0"
           max: "1"
           source: "Monitor session 2026-04-17; HVAC audit 2026-10-22"
-          verified: false
           notes: >-
             0/1. 0 exactly when B21 is non-zero (one exception in 2256 captures): throughout the
             2026-04-17 tests, including heat-pump heating at a 30 °C set point, and during the
@@ -346,20 +329,16 @@ HVAC:
 
         HVAC_A0_UNKNOWN_B25:
           expression: "B25"
-          min: "0"
           max: "1"
           source: "Monitor session 2026-04-17; HVAC audit 2026-10-22"
-          verified: false
           notes: >-
             0/1. 1 in 372 of 375 resistive-heating rows and in every heat-pump row; with no heating
             it reads 0 in 1534 rows and 1 in 217 (time-joined against HVAC_HEAT_MODE).
 
         HVAC_HEAT_MODE:
           expression: B06
-          min: "0"
           max: "2"
           source: 2026-07-26 heater-high session (regime split vs HVAC_HEAT_PUMP_ON)
-          verified: false
           notes: >-
             Heating source: 0 off, 1 resistive heater (PTC), 2 heat pump. 2 exactly when 220102
             HVAC_HEAT_PUMP_ON is 1. On 2026-07-26 it went 0, 1 (1.1-1.5 kW, compressor off), 2 (up
@@ -374,28 +353,22 @@ HVAC:
         HVAC_DEFROST_FLAGS:
           expression: (B58 << 8) | B59
           display: "f'0x{v:04X}'"
-          min: "0"
           max: "65535"
-          verified: false
           notes: >-
             Reads 0x0000, or 0x00FF in 40 of 2256 captures (the 2026-04-17 defogger test and
             2026-07-21). B58 is 0 in every capture. Bits not decoded.
         HVAC_ACTUATOR_TARGET_1:
           expression: B5
-          min: "0"
           max: "255"
           source: coverage analysis 2026-07-23; mode-cycle capture 2026-07-26
-          verified: false
           notes: >-
             Air-door position, 2-209 across 2256 captures. Moves with B9 and B11 (r >= 0.995,
             n=1420) at an offset that differs between sessions. r=+0.51 vs B7.
           enabled: true
         HVAC_ACTUATOR_TARGET_2:
           expression: B7
-          min: "0"
           max: "255"
           source: coverage analysis 2026-07-23; mode-cycle capture 2026-07-26
-          verified: false
           notes: >-
             Mode door position, by direction at 21 °C (2026-07-26): face about 122, face and legs
             137-157, floor about 230, floor and windshield about 237; repeats vary by about 20.
@@ -403,18 +376,14 @@ HVAC:
           enabled: true
         HVAC_ACTUATOR_TARGET_3:
           expression: B9
-          min: "0"
           max: "255"
           source: coverage analysis 2026-07-23
-          verified: false
           notes: 1-218 across 2256 captures. B10 equals B9 in every capture.
           enabled: true
         HVAC_ACTUATOR_TARGET_4:
           expression: B11
-          min: "0"
           max: "255"
           source: coverage analysis 2026-07-23
-          verified: false
           notes: 6-221 across 2256 captures.
           enabled: true
         HVAC_AAT_MIRROR_B17:
@@ -424,7 +393,6 @@ HVAC:
           min: "-40"
           max: "87.5"
           source: HVAC audit 2026-10-22 (time-joined against 220100)
-          verified: false
           notes: Equals 220100 HVAC_AAT in 1418 of 1420 time-joined rows.
           enabled: true
         HVAC_INTERIOR_TEMP_B13:
@@ -434,7 +402,6 @@ HVAC:
           min: "-40"
           max: "87.5"
           source: HVAC audit 2026-10-22 (time-joined against 220100)
-          verified: false
           notes: >-
             Within 1.5 °C of 220100 HVAC_INTERIOR_TEMP in 1329 of 1420 time-joined rows; r=+0.98.
             B14 equals HVAC_INTERIOR_TEMP in 1405.
@@ -446,34 +413,28 @@ HVAC:
           min: "-40"
           max: "87.5"
           source: HVAC audit 2026-10-22 (time-joined against 220100)
-          verified: false
           notes: >-
             0-4 °C above 220100 HVAC_AAT in 1190 of 1420 time-joined rows (range -0.5 to +9 °C);
             r=+0.89 vs HVAC_AAT.
           enabled: true
         HVAC_A0_UNKNOWN_B47:
           expression: B47
-          min: "0"
           max: "255"
           source: coverage analysis 2026-07-23; HVAC audit 2026-10-22
-          verified: false
           notes: >-
             227 distinct values (0-255) across 2256 captures; consecutive samples mostly differ by 0
             or a few counts. No correlation found.
           enabled: true
         HVAC_A0_UNKNOWN_B50:
           expression: B50
-          min: "0"
           max: "255"
           source: coverage analysis 2026-07-23; HVAC audit 2026-10-22
-          verified: false
           notes: >-
             250 distinct values (0-255) across 2256 captures; consecutive samples mostly differ by 0
             or a few counts. No correlation found.
           enabled: true
         HVAC_BLOWER_FAN_SPEED:
           expression: B18
-          min: "0"
           max: "121"
           source: HVAC fan-only + fan 1->MAX->1 sweep captures 2026-07-26
           verified: true
@@ -494,10 +455,8 @@ HVAC:
             121: Fan 8 (MAX)
         HVAC_PRECONDITIONING_ACTIVE:
           expression: B41
-          min: "0"
           max: "1"
           source: preconditioning session 2026-08-08 vs all other HVAC captures
-          verified: false
           notes: >-
             1 in all 368 captures of the 2026-08-08 preconditioning session, including after B23
             went to 1 at 08:30; 0 in every other capture, including 2026-10-22 with the
@@ -554,11 +513,13 @@ HVAC:
         in all 1499 captures: B45=0xFF, B46=0xD8, and 0x00 at B10, B30, B35, B37, B39, B43, B55, B58
         and B59.
       vehicle_states: ["ON", IG3]
+      min: "0"
+      max: "255"
+      verified: false
       parameters:
         HVAC_HEAT_POWER:
           expression: B42/10
           unit: kW
-          min: "0"
           max: "12"
           source: >-
             2026-07-26 heater-high + 2026-07-22 heat-pump sessions vs BMS BATTERY_POWER; pack minus
@@ -572,10 +533,7 @@ HVAC:
             A/C cooling (2026-07-21).
         HVAC_COOL_LOAD_B41:
           expression: B41
-          min: "0"
-          max: "255"
           source: 2026-07-21 AC-cooling + 2026-07-26 heating (align time-series)
-          verified: false
           notes: >-
             10-60 across 1499 captures. 20 at idle. Stayed 20 in all 17 reads during A/C cooling on
             2026-10-25 (12:23:31-12:34:36, HVAC_UNKNOWN_B15 down to 16), so it is not a cooling
@@ -585,19 +543,13 @@ HVAC:
         HVAC_HEAT_LOAD_B17:
           expression: B17
           unit: A
-          min: "0"
-          max: "255"
           source: 2026-07-26 heater-high vs 2026-07-21 cooling
-          verified: false
           notes: >-
             0-11 across 1499 captures; r=+0.97 vs HVAC_HEAT_POWER (n=1420), reading 9-11 at
             4.0-4.5 kW. 0 during A/C cooling. The ampere unit is not confirmed.
         HVAC_A2_UNKNOWN_B44:
           expression: B44
-          min: "0"
-          max: "255"
           source: 2026-07-21 cooling + 2026-07-26 heating; HVAC audit 2026-10-22
-          verified: false
           notes: >-
             8-49 across 1499 captures. r=+0.68 vs 220102 HVAC_HEAT_EXCHANGER_TEMP, -0.20 vs
             HVAC_HEAT_PUMP_TEMP (n=1420).

@@ -49,6 +49,7 @@ OBC:
       period: 5000
       vehicle_states: [IG3]
       source: canair cross-tab vs BMS 2101 B14 and VCU 2101, 2026-10-23; JejuSoul US Ioniq logs
+      verified: true
       parameters:
         LDC_HV_INPUT_V:
           expression: "[B45:B46]/100"
@@ -57,7 +58,6 @@ OBC:
           min: "0"
           max: "500"
           source: "Live READY vs charging + BMS cross-check (2026-07-20)"
-          verified: true
           notes: >-
             HV pack voltage at the LDC, present at READY and while charging. r=0.998 vs
             VCU:2102:VCU_INVERTER_INPUT_VOLTAGE (n=5689).
@@ -69,7 +69,6 @@ OBC:
           min: "0"
           max: "20"
           source: "Decoded from live captures (2026-04-14)"
-          verified: true
           notes: >-
             12 V rail: 14.52 V charging, 14.31 V at READY. Sagged 14.5 to 13.6 V and recovered as a
             rear defroster load switched on and off (2026-07-22).
@@ -81,7 +80,6 @@ OBC:
           min: "-40"
           max: "120"
           source: "Kia Soul EV LDC CSV (LDC Temp = i-100) + charging session trend (2026-07-19)"
-          verified: true
           notes: >-
             Rose smoothly 28 to 65 °C over a 3 h AC charge; 21 °C at READY with about 18 °C ambient.
 
@@ -92,7 +90,6 @@ OBC:
           min: "0"
           max: "500"
           source: "Decoded from live captures (2026-04-14)"
-          verified: true
           notes: About 370 V during AC charging, about 6 V when the OBC is idle.
 
         OBC_OUTPUT_V:
@@ -102,7 +99,6 @@ OBC:
           min: "0"
           max: "500"
           source: "Decoded from live captures (2026-04-14); reclassified 2026-07-20"
-          verified: true
           notes: 353-384 V during AC charging, about 3.8 V when the OBC is idle.
 
 
@@ -114,7 +110,6 @@ OBC:
           min: "0"
           max: "50"
           source: "Decoded from live captures (2026-04-14)"
-          verified: true
           notes: OBC DC output current while charging; 0 when idle.
 
         OBC_PILOT_DUTY:
@@ -125,7 +120,6 @@ OBC:
           source: Live EVSE current step 10/13/16A (2026-07-27)
           source_links:
             - https://docs.google.com/spreadsheets/d/1R2dW_4-ANg04TQdkHH52-8wdYItBkWDfppcsqOc-m1M
-          verified: true
           notes: >-
             J1772 control-pilot duty. Read 16.5, 21.5 and 26.5 % at 10, 13 and 16 A pilot
             (2026-07-27). 100 % when plugged in with no current offered.
@@ -136,7 +130,6 @@ OBC:
           min: "0"
           max: "80"
           source: Live EVSE current step 10/13/16A (2026-07-27); J1772 duty x 0.6
-          verified: true
           notes: >-
             Pilot duty x 0.6. Read 9.9, 12.9 and 15.9 A at 10, 13 and 16 A pilot (2026-07-27); reads
             60 at 100 % duty, when no current is offered.
@@ -155,7 +148,6 @@ OBC:
           min: "0"
           max: "10"
           source: Derived OBC_CHARGE_V*OBC_DC_A; validated vs wattmeter 2026-07-26
-          verified: true
           notes: >-
             OBC_CHARGE_V x OBC_DC_A. Steady 3.30-3.36 kW over the 2026-07-26 16 A AC charge, 0 when
             idle; matched an external wattmeter.
@@ -166,7 +158,6 @@ OBC:
           min: "0"
           max: "300"
           source: Live 16A AC charge 2026-07-26; checked and confirmed accurate
-          verified: true
           notes: 218-228 V while charging, about 8.5 V with no EVSE connected.
         AC_INPUT_A:
           expression: "[B33:B34]/100"
@@ -175,7 +166,6 @@ OBC:
           min: "0"
           max: "40"
           source: Live EVSE current step 10/13/16A (2026-07-27) + AC power balance
-          verified: true
           notes: >-
             Measured AC input current. Read 9.3, 12.4 and 15.4 A at 10, 13 and 16 A pilot
             (2026-07-27), about 0.6 A below OBC_PILOT_AMPS.
@@ -187,7 +177,6 @@ OBC:
             2: active charge session (current flowing)
             3: connected/standby (pilot PWM present, not charging)
           source: RE 2026-08-02 AC charge transitions, live ON confirmed; DCFC transitions confirmed 2026-08-08
-          verified: true
           notes: >-
             Only 0, 2 and 3 across 11441 captures. 0 not connected (also while driving), 3 connected
             without charging (pilot 100 %), 2 charge session active. Goes 0, 3, 2 at the start of

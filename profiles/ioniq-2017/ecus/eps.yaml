@@ -21,11 +21,12 @@ EPS:
         18 bytes. Unmapped: B05, B06 (0x8A and 0x8E at rest), B07 (constant) and B11. B18:B19 is
         constant 0x1010; B21 constant 0x01.
       source: RE 2026-07-23 analysis
+      min: "0"
+      verified: false
       parameters:
         EPS_VEHICLE_SPEED:
           expression: B14
           unit: km/h
-          min: "0"
           max: "250"
           source: RE 2026-07-22 driving capture
           verified: true
@@ -37,7 +38,6 @@ EPS:
           min: "-10000"
           max: "10000"
           source: RE 2026-07-23 analysis of 2026-07-22 MT->KW drive
-          verified: false
           notes: >-
             Name is unconfirmed. Signed 16-bit little-endian (low B12, high B13). Range -9258 to
             +9752, about 0 at standstill. r=-0.64 vs EPS_STEERING_ANGLE, -0.43 vs its rate of
@@ -45,9 +45,7 @@ EPS:
           enabled: true
         EPS_MDPS_ASSIST:
           expression: B17
-          min: "0"
           max: "255"
-          verified: false
           notes: >-
             Name is unconfirmed. 0 in all 16 standstill samples; 0-253 while moving, r=+0.53 vs
             EPS_VEHICLE_SPEED.
@@ -56,7 +54,6 @@ EPS:
           expression: S7
           min: "-40"
           max: "40"
-          verified: false
           notes: >-
             Name is unconfirmed. Signed, -36 to +37, -10 to -1 at rest. r=+0.34 vs
             EPS_STEERING_ANGLE.
@@ -64,10 +61,8 @@ EPS:
 
         EPS_SPEED_BAND:
           expression: B15
-          min: "0"
           max: "3"
           source: canair correlate/decode analysis of 2026-07-22 MT->KW drive
-          verified: false
           notes: >-
             Only 0-3 (219, 85, 23 and 33 samples), rising with speed: r=+0.953 vs EPS_VEHICLE_SPEED
             (n=360). Steps 0 to 1 at about 26-27 km/h and back below about 25 km/h.
@@ -85,10 +80,8 @@ EPS:
           expression: B20
           unit: °C
           ha_class: temperature
-          min: "0"
           max: "255"
           source: "RE 2026-10-22: B20 vs HVAC_INTERIOR_TEMP/AAF AMBIENT_TEMP, 2026-07-22..10-22"
-          verified: false
           notes: >-
             Read as degC with no offset: 10 at the 2026-10-22 cold-soak start (ambient 8, cabin 8-9
             degC), rising to 20 over 35 min parked at READY; 31-46 in summer. B20 ~ 1.15 x cabin +

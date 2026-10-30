@@ -43,6 +43,7 @@ VCU:
       status: active
       period: 2500
       vehicle_states: [IG3]
+      verified: true
       parameters:
         VCU_VEHICLE_SPEED:
           expression: ((S20*256)+B19)*1.609344/100
@@ -50,7 +51,6 @@ VCU:
           ha_class: speed
           min: "0"
           max: "250"
-          verified: true
           notes: >-
             16-bit MPH (high byte B20 signed, low byte B19 unsigned) converted to km/h. r=0.999 vs
             ESC:22C101:REAL_SPEED_KMH (n=124, 2026-07-22 drive, 0-105.7 km/h). Reads about 3.6 %
@@ -84,7 +84,6 @@ VCU:
 
         GEAR:
           expression: B10
-          verified: true
           notes: >-
             Values across 10592 VCU 2101 captures: 0x21 Park (8849), 0x28 Drive (1656), 0x22 Reverse
             (70), 0x24 Neutral (7), 0x01 Park with GEAR_SIGNAL_VALID clear (10, at power-mode
@@ -100,21 +99,17 @@ VCU:
           source: canair bitfield analysis 2026-08-06; same-payload enumeration n=6365
         GEAR_P:
           expression: B10:0
-          verified: true
           notes: Bit 0 of GEAR. Equals GEAR_P_MIRROR_B26_5 in every capture.
         GEAR_R:
           expression: B10:1
-          verified: true
           notes: Bit 1 of GEAR. Matches ESC GEAR_SELECTOR=2 over the 2026-07-26 reversing.
         GEAR_N:
           expression: B10:2
-          verified: true
           notes: >-
             Bit 2 of GEAR. Set in only 7 captures; ESC GEAR_SELECTOR was not polled at the same
             time.
         GEAR_D:
           expression: B10:3
-          verified: true
           notes: Bit 3 of GEAR.
         DEBUG_VEHICLE_STATE_FLAGS:
           expression: "B11"
@@ -123,11 +118,9 @@ VCU:
 
         VEHICLE_STATE_BRAKE_LAMP:
           expression: "B11:0"
-          verified: true
 
         VEHICLE_STATE_NOT_BRAKING:
           expression: B11:1
-          verified: true
           notes: >-
             Not the complement of VEHICLE_STATE_BRAKE_LAMP: across 10592 VCU 2101 captures both read
             0 in 6915 (mostly with the drive path down, VCU_POWER_STATE 7) and both read 1 in 6.
@@ -135,11 +128,9 @@ VCU:
 
         VEHICLE_STATE_EV_READY:
           expression: "B11:3"
-          verified: true
 
         VCU_IG3_ON:
           expression: "B11:4"
-          verified: true
           notes: >-
             1 while the IG3 rail is powered. In the 9 stored stretches where it stays 0 (B11 =
             0x80), every OBC, BMS, MCU, AAF and HVAC page being polled stops at the fall and records
@@ -159,7 +150,6 @@ VCU:
 
         VEHICLE_STATE_EV_READY_MIRROR_B11_6:
           expression: B11:6
-          verified: true
           notes: >-
             Equals VEHICLE_STATE_EV_READY (B11:3) in all 10675 captures on this car. In the JejuSoul
             US Ioniq logs it reads 1 with B11:3 at 0 at power-off (B11 = 0xD0 after a drive, 0xD2
@@ -196,7 +186,6 @@ VCU:
           max: "5"
         DEBUG_GEAR_STATE_FLAGS:
           expression: B26
-          verified: true
           source: canair bitfield analysis 2026-08-06; same-payload cross-tab vs GEAR (B10) n=6365
           notes: >-
             Reads 0x20 in Park and 0x08 in Reverse, Neutral or Drive across 10592 VCU 2101 captures;
@@ -210,7 +199,6 @@ VCU:
           source: canair bitfield analysis 2026-08-06; same-payload cross-tab vs GEAR (B10) n=6365
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
-          verified: true
           notes: >-
             Set in Reverse, Neutral and Drive; the exact complement of GEAR_P in every car capture.
             Reads 0 in the uhi22 EPCU bench log (CAN/EPCU_torquePro.csv): the EPCU alone on a desk,
@@ -223,7 +211,6 @@ VCU:
           source: canair bitfield analysis 2026-08-06; decode --find-mirrors --bits, n=6365 unanimous
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
-          verified: true
           notes: >-
             Equals GEAR_P (B10:0) in every car capture. Not a plain mirror: in the uhi22 EPCU bench
             log (CAN/EPCU_torquePro.csv): the EPCU alone on a desk, woken by its wake line, no other
@@ -236,7 +223,6 @@ VCU:
         VCU_INVERTER_ENABLED:
           expression: B23:2
           source: canair historical analysis 2026-07-23
-          verified: true
           notes: >-
             B23 reads 0 (6876), 48 (40) or 52 (3676) across 10592 VCU 2101 captures; bit 2 is set
             only at 52. Agrees with VEHICLE_STATE_EV_READY (r=+0.997, n=776).
@@ -245,7 +231,6 @@ VCU:
           min: "0"
           max: "8"
           source: canair historical analysis 2026-07-23; values 1, 2 and 6 re-read 2026-10-23 against stored captures and the JejuSoul US Ioniq logs
-          verified: true
           notes: >-
             VCU operating mode. Values across 10675 VCU 2101 captures: 4 drive-ready (3154), 7
             charging (7149: AC, DC and plugged-in pre-conditioning), 6 at entry to and exit from a
@@ -348,12 +333,13 @@ VCU:
         top-up it held VCU_AUX_POWER 0 and VCU_LDC_OUTPUT_VOLTAGE 13.551 V from 21:17:11 to 21:20:12
         while BCM_12V_BATTERY fell from 12.96 to 12.56 V. Readings taken with the IG3 rail off are
         not live.
+      min: "0"
+      verified: false
       parameters:
         VCU_INVERTER_INPUT_VOLTAGE:
           expression: "B17*2"
           unit: V
           ha_class: voltage
-          min: "0"
           max: "450"
           source: "Kia Soul EV VMCU CSV (Inverter Input Voltage = f*2)"
           verified: true
@@ -366,7 +352,6 @@ VCU:
           expression: B14*0.0974
           unit: V
           ha_class: voltage
-          min: "0"
           max: "16"
           enabled: true
           source: RE 2026-08-02 absolute-value anchoring + live ON, vs OBC/BMS/BCM consensus
@@ -380,21 +365,17 @@ VCU:
           expression: "B25*2.56"
           unit: V
           ha_class: voltage
-          min: "0"
           max: "450"
           enabled: false
           source: "canair historical analysis 2026-07-23"
-          verified: false
           notes: >-
             About 2.56 V per LSB; r=+0.950 vs VCU_INVERTER_INPUT_VOLTAGE (n=1672), median residual
             about 1 V. Disabled as a lower-resolution duplicate.
         VCU_AUX_POWER:
           expression: ((B22<<8)|B21)/10
           unit: W
-          min: "0"
           max: "6553"
           source: 2026-07-30 dash anchor (130->650 W); low byte B21 per decode/align 2026-10-21
-          verified: false
           notes: >-
             LDC output power in watts, 16-bit little-endian. 0 whenever VCU_HV_MAIN_RELAY_ON is 0,
             so it is the converter's output (12 V loads plus battery charging), not a load
@@ -405,15 +386,12 @@ VCU:
         VCU_AUX_POWER_COARSE:
           expression: B15*10
           unit: W
-          min: "0"
           max: "2550"
           source: "2026-07-30: B15*10 vs [B22:B23]/10 r2=0.994"
-          verified: false
           notes: 10 W per LSB; r²=0.994 vs VCU_AUX_POWER.
         VCU_LDC_OUTPUT_VOLTAGE:
           expression: ((B20<<8)|B19)/1000
           source: canair hunt vs OBC:2101:LDC_OUTPUT_V 2026-10-21
-          verified: false
           notes: >-
             12 V bus voltage at the LDC side, 1 mV/bit, 16-bit little-endian. r=+0.997 vs
             OBC:2101:LDC_OUTPUT_V (n=11057, slope 1.019). Reads 0.02-0.22 V above
@@ -422,13 +400,11 @@ VCU:
             proven.
           unit: V
           ha_class: voltage
-          min: "0"
           max: "16"
 
         VCU_AUX_BATTERY_VOLTAGE_FINE:
           expression: ((B27<<8)|B26)/1000
           source: canair hunt vs BMS:2101:AUX_BATTERY_VOLTAGE 2026-10-21; Kia e-Niro VMCU sheet
-          verified: false
           notes: >-
             12 V battery voltage, 1 mV/bit, 16-bit little-endian. r=+0.996 vs
             BMS:2101:AUX_BATTERY_VOLTAGE (n=10542, slope 0.998). The e-Niro sheet puts the same
@@ -436,12 +412,10 @@ VCU:
             Ioniq response ends at B27.
           unit: V
           ha_class: voltage
-          min: "0"
           max: "16"
         VCU_COOLANT_TEMP:
           expression: B18-100
           source: RE 2026-08-05 cross-ECU offset-mirror + within-PID state-divergence disambiguation
-          verified: false
           notes: >-
             Equals AAF:2181:MOTOR_COOLANT_TEMP + 100 exactly in 77 % of 1729 co-polled rows. Moves
             opposite to the 12 V bus in ON, so it is not a voltage. Rose 29 to 44 °C over a 3 h AC
@@ -452,7 +426,6 @@ VCU:
           enabled: true
         VCU_HV_MAIN_RELAY_ON:
           expression: B10
-          min: "0"
           max: "1"
           source: RE 2026-08-02, live ON confirmed
           verified: true
@@ -463,10 +436,8 @@ VCU:
           expression: ((B25<<8)|B23)/100
           unit: V
           ha_class: voltage
-          min: "0"
           max: "450"
           source: canair decode/align 2026-10-21
-          verified: false
           notes: >-
             HV DC-link voltage, 0.01 V/bit, 16-bit little-endian split across the PCI byte B24. B25
             alone is VCU_DCLINK_VOLTAGE_COARSE (r=1.000). Read within 0.1-0.6 V of
@@ -476,13 +447,13 @@ VCU:
       period: 300000
       response_frames: 13
       source: canair 21F2 cross-check vs live data 2026-10-21
+      verified: false
       parameters:
         VCU_21F2_EVENT_COUNT:
           expression: ((B76<<8)|B75)
           min: "0"
           max: "65535"
           source: canair 21F2 vs BMS:2101 charge flags 2026-10-21
-          verified: false
           notes: >-
             A count of some VCU event, read as a little-endian 16-bit value with B76 as the high
             byte (B76 read 3 in all 158 captures, so 784 to 847 from 2026-07-22 to 10-19; that high
@@ -500,7 +471,6 @@ VCU:
           min: "0"
           max: "1000000"
           source: monotonic-counter sweep of all captures 2026-07-22..08-05; cross-checked vs the verified CLU 22B002 ODOMETER
-          verified: false
           notes: >-
             32-bit little-endian at WiCAN B14, B15, B17, B18 (B16 is a PCI byte), 1/256 km per LSB.
             Only rises over the corpus (72986.45 to 75234.69 km). A constant +4.36 to +4.66 km above
@@ -509,7 +479,6 @@ VCU:
           expression: "[B95:B99]"
           type: ascii
           source: canair search 2026-10-21
-          verified: false
           notes: >-
             Constant ASCII '6000' in all 158 captures. Not part of the 1A8C/1A8D identity strings.
           enabled: false
@@ -519,14 +488,12 @@ VCU:
           min: "0"
           max: "100"
           source: canair 21F2 cross-check 2026-10-21
-          verified: false
           notes: >-
             SOC at the end of the previous cycle, 8.8 fixed point (B12 the fraction). Equals
             BMS:21F2 LAST_CYCLE_SOC_END in all 6 co-read records (40.5, 57.1, 66.3, 71.9, 64.0 and
             95.2 vs 95.1 %).
         VCU_21F2_RANGE_START:
           expression: B19
-          verified: false
           notes: >-
             Probably the range estimate at the start of the last READY cycle. Across the 22 distinct
             records it continues the previous record's VCU_21F2_RANGE_END to within 2 km in all 9
@@ -540,7 +507,6 @@ VCU:
           max: "255"
         VCU_21F2_RANGE_END:
           expression: B20
-          verified: false
           notes: >-
             Probably the range estimate at the end of the last READY cycle. Divided by VCU_21F2_SOC
             it gives 2.17-2.27 km per % in 19 of the 22 distinct records (about 220 km at 100 %);

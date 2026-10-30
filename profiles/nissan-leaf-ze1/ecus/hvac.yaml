@@ -15,6 +15,7 @@ HVAC:
       source: OBDb
       source_links:
         - https://github.com/OBDb/Nissan-Leaf
+      verified: false
       parameters:
         HVAC_AMBIENT_T:
           expression: B4-40
@@ -25,7 +26,6 @@ HVAC:
           source_links:
             - https://github.com/OBDb/Nissan-Leaf
             - https://github.com/dalathegreat/leaf_can_bus_messages
-          verified: false
           notes: >-
             Ambient air temperature at the HVAC, data byte 0 minus 40 °C. Layout from OBDb; the
             dalathegreat 2018 sample reply gives 8 °C with this layout.
@@ -38,7 +38,6 @@ HVAC:
           source_links:
             - https://github.com/OBDb/Nissan-Leaf
             - https://github.com/dalathegreat/leaf_can_bus_messages
-          verified: false
           notes: Cabin temperature, data byte 1 minus 40 °C. dalathegreat sample reply gives 19 °C.
         HVAC_EVAP_T:
           expression: B6-40
@@ -49,14 +48,12 @@ HVAC:
           source_links:
             - https://github.com/OBDb/Nissan-Leaf
             - https://github.com/dalathegreat/leaf_can_bus_messages
-          verified: false
           notes: >-
             Evaporator temperature, data byte 2 minus 40 °C. dalathegreat sample reply gives 11 °C.
         HVAC_SUNLOAD:
           expression: B7
           min: "0"
           max: "255"
-          verified: false
           notes: Sun load sensor, data byte 3, unscaled.
         HVAC_AC_ON:
           expression: B15:7
@@ -64,7 +61,6 @@ HVAC:
           values:
             0: "OFF"
             1: "ON"
-          verified: false
           notes: A/C on, bit 7 of data byte 10.
         HVAC_FAN_ON:
           expression: B17:7
@@ -72,14 +68,12 @@ HVAC:
           values:
             0: "OFF"
             1: "ON"
-          verified: false
           notes: Blower on, bit 7 of data byte 11.
         HVAC_BLOWER_V:
           expression: B17-128*B17:7
           unit: V
           min: "0"
           max: "127"
-          verified: false
           notes: >-
             Blower drive voltage, low 7 bits of data byte 11 (written as byte minus bit 7 so
             coverage sees the byte). dalathegreat derives a 0-8 fan level as that byte minus 131.
@@ -88,7 +82,6 @@ HVAC:
           unit: rpm
           min: "0"
           max: "65535"
-          verified: false
           notes: A/C compressor speed, 16-bit at data bytes 21-22.
       status: active
       period: 10000
