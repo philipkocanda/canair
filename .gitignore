@@ -37,7 +37,7 @@ archive/
 css-electronics/
 # Fetched third-party CAN corpora (fetch-on-demand; never committed — see
 # scripts/fetch_can_corpus.py and plans/2026-07-24-raw-can-analysis.md)
-/references/can/
+/references/
 
 # Secrets and local config
 .env
