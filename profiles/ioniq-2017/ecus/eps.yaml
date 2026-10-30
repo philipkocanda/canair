@@ -20,6 +20,7 @@ EPS:
       notes: >-
         18 bytes. Unmapped: B05, B06 (0x8A and 0x8E at rest), B07 (constant) and B11. B18:B19 is
         constant 0x1010; B21 constant 0x01.
+      source: RE 2026-07-23 analysis
       parameters:
         EPS_VEHICLE_SPEED:
           expression: B14
@@ -48,7 +49,6 @@ EPS:
           unit: ""
           min: "0"
           max: "255"
-          source: RE 2026-07-23 analysis
           verified: false
           notes: >-
             Name is unconfirmed. 0 in all 16 standstill samples; 0-253 while moving, r=+0.53 vs
@@ -59,7 +59,6 @@ EPS:
           unit: ""
           min: "-40"
           max: "40"
-          source: RE 2026-07-23 analysis
           verified: false
           notes: >-
             Name is unconfirmed. Signed, -36 to +37, -10 to -1 at rest. r=+0.34 vs

@@ -12,6 +12,9 @@ HVAC:
     id_protocol: KWP2000
   pids:
     2110:
+      source: OBDb
+      source_links:
+        - https://github.com/OBDb/Nissan-Leaf
       parameters:
         HVAC_AMBIENT_T:
           expression: B4-40
@@ -53,9 +56,6 @@ HVAC:
           expression: B7
           min: "0"
           max: "255"
-          source: OBDb
-          source_links:
-            - https://github.com/OBDb/Nissan-Leaf
           verified: false
           notes: Sun load sensor, data byte 3, unscaled.
         HVAC_AC_ON:
@@ -64,9 +64,6 @@ HVAC:
           values:
             0: "OFF"
             1: "ON"
-          source: OBDb
-          source_links:
-            - https://github.com/OBDb/Nissan-Leaf
           verified: false
           notes: A/C on, bit 7 of data byte 10.
         HVAC_FAN_ON:
@@ -75,9 +72,6 @@ HVAC:
           values:
             0: "OFF"
             1: "ON"
-          source: OBDb
-          source_links:
-            - https://github.com/OBDb/Nissan-Leaf
           verified: false
           notes: Blower on, bit 7 of data byte 11.
         HVAC_BLOWER_V:
@@ -85,9 +79,6 @@ HVAC:
           unit: V
           min: "0"
           max: "127"
-          source: OBDb
-          source_links:
-            - https://github.com/OBDb/Nissan-Leaf
           verified: false
           notes: >-
             Blower drive voltage, low 7 bits of data byte 11 (written as byte minus bit 7 so
@@ -97,9 +88,6 @@ HVAC:
           unit: rpm
           min: "0"
           max: "65535"
-          source: OBDb
-          source_links:
-            - https://github.com/OBDb/Nissan-Leaf
           verified: false
           notes: A/C compressor speed, 16-bit at data bytes 21-22.
       status: active

@@ -10,6 +10,9 @@ MCU:
   pids:
     220102:
       status: active
+      source: OBDb Hyundai-Kona-Electric (offsets via canair bix; OBDb debug command)
+      source_links:
+        - https://github.com/OBDb/Hyundai-Kona-Electric
       parameters:
         MOTOR_TEMP:
           expression: S18
@@ -17,9 +20,6 @@ MCU:
           ha_class: temperature
           min: "-40"
           max: "200"
-          source: OBDb Hyundai-Kona-Electric (offsets via canair bix; OBDb debug command)
-          source_links:
-            - https://github.com/OBDb/Hyundai-Kona-Electric
           verified: false
           notes: Drive motor temperature. OBDb marks 220102 debug/unconfirmed.
         INVERTER_TEMP:
@@ -28,9 +28,6 @@ MCU:
           ha_class: temperature
           min: "-40"
           max: "200"
-          source: OBDb Hyundai-Kona-Electric (offsets via canair bix; OBDb debug command)
-          source_links:
-            - https://github.com/OBDb/Hyundai-Kona-Electric
           verified: false
           notes: Inverter temperature. OBDb marks 220102 debug/unconfirmed.
 

@@ -25,6 +25,7 @@ WPC:
       status: draft
       period: 5000
       vehicle_states: [ACC, "ON", READY]
+      source: DID scan 2026-04-17
       parameters:
         WPC_0100_B03_B04:
           expression: "[S03:S04]"
@@ -32,7 +33,6 @@ WPC:
           ha_class: ""
           min: ""
           max: ""
-          source: "DID scan 2026-04-17"
           source_links: []
           verified: false
           notes: Signed 16-bit. Meaning unknown.
@@ -42,7 +42,6 @@ WPC:
           ha_class: ""
           min: ""
           max: ""
-          source: "DID scan 2026-04-17"
           source_links: []
           verified: false
           notes: Signed 16-bit. Meaning unknown.

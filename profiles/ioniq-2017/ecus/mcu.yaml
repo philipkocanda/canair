@@ -45,6 +45,7 @@ MCU:
         30 bytes. Words are little-endian, unlike BMS 2101. B23 and B26 are constant 0x02 and 0x04.
         B9/B10/B11 read 8/56/1 in 5121 of 5776 CHARGING captures and in all 35 TOPUP captures; in
         READY B11 is 0 in all 2369 captures and B9 is 140 or 12.
+      source: canair analysis 2026-08-08 long drive + DCFC
       parameters:
         MCU_2101_B22:
           expression: B22
@@ -75,7 +76,6 @@ MCU:
           unit: ""
           min: "0"
           max: "255"
-          source: canair analysis 2026-08-08 long drive + DCFC
           verified: false
           notes: >-
             Range 38-105 across 8633 captures, slow-moving. r=-0.720 vs AAF:2181:MOTOR_COOLANT_TEMP
@@ -84,7 +84,6 @@ MCU:
           ha_class: ""
         MCU_PHASE_CURRENT_1:
           expression: (S30 << 8) | B29
-          source: canair analysis 2026-08-08 long drive + DCFC
           verified: false
           notes: >-
             Signed 16-bit little-endian, low byte B29, high byte B30. Scale unknown, so raw counts.
@@ -95,14 +94,12 @@ MCU:
             standstill readings match.
         MCU_PHASE_CURRENT_2:
           expression: (S33 << 8) | B31
-          source: canair analysis 2026-08-08 long drive + DCFC
           verified: false
           notes: >-
             Signed 16-bit little-endian, low byte B31, high byte B33 (B32 is a PCI byte). See
             MCU_PHASE_CURRENT_1.
         MCU_PHASE_CURRENT_3:
           expression: (S35 << 8) | B34
-          source: canair analysis 2026-08-08 long drive + DCFC
           verified: false
           notes: >-
             Signed 16-bit little-endian, low byte B34, high byte B35. About twice the standstill
@@ -140,6 +137,7 @@ MCU:
         56 bytes. B27-B33 hold constant calibration bytes that also appear in 21F2. B52 is a counter
         or checksum that correlates with no signal. The data bytes from B54 to the end (B65) read 0
         in all 7757 captures.
+      source: canair align/hunt vs AAF 2181 and VCU 2102 temperatures 2026-10-22
       parameters:
         MCU_MOTOR_RPM:
           expression: (S10<<8)|B09
@@ -210,7 +208,6 @@ MCU:
           ha_class: temperature
           min: "-40"
           max: "150"
-          source: canair align/hunt vs AAF 2181 and VCU 2102 temperatures 2026-10-22
           verified: false
           notes: >-
             Powertrain coolant temperature, 2 °C per count. Mirrors VCU:2102:VCU_COOLANT_TEMP:
@@ -224,7 +221,6 @@ MCU:
           min: "-40"
           max: "150"
           enabled: true
-          source: canair align/hunt vs AAF 2181 and VCU 2102 temperatures 2026-10-22
           verified: false
           notes: >-
             Inverter heatsink temperature, 2 °C per count. Mirrors AAF:2181:HEATSINK_TEMP: r=+0.990
@@ -236,7 +232,6 @@ MCU:
           unit: °C
           min: "-40"
           max: "150"
-          source: canair align/hunt vs AAF 2181 and VCU 2102 temperatures 2026-10-22
           verified: false
           notes: >-
             A fourth temperature, 2 °C per count; which component is unknown. Heats most under load:
@@ -251,7 +246,6 @@ MCU:
           unit: °C
           min: "-40"
           max: "150"
-          source: canair align/hunt vs AAF 2181 and VCU 2102 temperatures 2026-10-22
           verified: false
           notes: >-
             2 °C per count. Mirrors AAF:2181:MOTOR_COOLANT_TEMP: r=+0.991 over 1973 rows, 1 °C below
@@ -313,6 +307,7 @@ MCU:
         tag 'EHEL-MS2' (part of the 1A8D software ID) at B69-B77. A misfiled VCU 21F2 reply
         (2026-08-08 10:07:16) was deleted on 2026-10-21; see
         plans/2026-10-21-cross-ecu-reply-misfile.md.
+      source: canair 21F2 vs live MCU/VCU/AAF data over the five 2026-08-08 cycles, 2026-10-22
       parameters:
         MCU_21F2_TAG:
           expression: "[B69:B77]"
@@ -329,7 +324,6 @@ MCU:
           ha_class: temperature
           min: "-40"
           max: "150"
-          source: canair 21F2 vs live MCU/VCU/AAF data over the five 2026-08-08 cycles, 2026-10-22
           verified: false
           notes: >-
             Average inverter heatsink temperature over the previous cycle. Checked on the five fully
@@ -341,7 +335,6 @@ MCU:
           ha_class: temperature
           min: "-40"
           max: "150"
-          source: canair 21F2 vs live MCU/VCU/AAF data over the five 2026-08-08 cycles, 2026-10-22
           verified: false
           notes: >-
             Peak inverter heatsink temperature of the previous cycle. Checked on the five fully
@@ -354,7 +347,6 @@ MCU:
           ha_class: temperature
           min: "-40"
           max: "150"
-          source: canair 21F2 vs live MCU/VCU/AAF data over the five 2026-08-08 cycles, 2026-10-22
           verified: false
           notes: >-
             Average over the previous cycle of the sensor behind MCU:2102 MCU_TEMP_B18. Checked on
@@ -366,7 +358,6 @@ MCU:
           ha_class: temperature
           min: "-40"
           max: "150"
-          source: canair 21F2 vs live MCU/VCU/AAF data over the five 2026-08-08 cycles, 2026-10-22
           verified: false
           notes: >-
             Peak over the previous cycle of the sensor behind MCU:2102 MCU_TEMP_B18. Checked on the
@@ -378,7 +369,6 @@ MCU:
           ha_class: temperature
           min: "-40"
           max: "150"
-          source: canair 21F2 vs live MCU/VCU/AAF data over the five 2026-08-08 cycles, 2026-10-22
           verified: false
           notes: >-
             Average coolant temperature over the previous cycle. Checked on the five fully logged
@@ -391,7 +381,6 @@ MCU:
           ha_class: temperature
           min: "-40"
           max: "150"
-          source: canair 21F2 vs live MCU/VCU/AAF data over the five 2026-08-08 cycles, 2026-10-22
           verified: false
           notes: >-
             Peak coolant temperature of the previous cycle. Checked on the five fully logged
@@ -403,7 +392,6 @@ MCU:
           ha_class: voltage
           min: "0"
           max: "16"
-          source: canair 21F2 vs live MCU/VCU/AAF data over the five 2026-08-08 cycles, 2026-10-22
           verified: false
           notes: >-
             Average 12 V supply over the previous cycle, 0.1 V per count. Checked on the five fully
@@ -415,7 +403,6 @@ MCU:
           ha_class: voltage
           min: "0"
           max: "16"
-          source: canair 21F2 vs live MCU/VCU/AAF data over the five 2026-08-08 cycles, 2026-10-22
           verified: false
           notes: >-
             Peak 12 V supply of the previous cycle, 0.1 V per count. Checked on the five fully
@@ -430,7 +417,6 @@ MCU:
           ha_class: voltage
           min: "0"
           max: "16"
-          source: canair 21F2 vs live MCU/VCU/AAF data over the five 2026-08-08 cycles, 2026-10-22
           verified: false
           notes: >-
             Lowest 12 V supply of the previous cycle, 0.1 V per count; 11.4-12.4 V. The DC-charge
@@ -440,7 +426,6 @@ MCU:
           expression: (B28<<8)|B27
           min: "0"
           max: "65535"
-          source: canair 21F2 vs live MCU/VCU/AAF data over the five 2026-08-08 cycles, 2026-10-22
           verified: false
           notes: >-
             Unknown, 1275-1469. Near 1275-1325 after non-driving cycles and 1449-1469 after drives
@@ -450,7 +435,6 @@ MCU:
           expression: (B33<<8)|B31
           min: "0"
           max: "65535"
-          source: canair 21F2 vs live MCU/VCU/AAF data over the five 2026-08-08 cycles, 2026-10-22
           verified: false
           notes: >-
             Unknown, 1258-1297: 1273-1276 after non-driving cycles and 1281-1285 after drives.
@@ -459,7 +443,6 @@ MCU:
           expression: (S10<<8)|B9
           min: "-100"
           max: "100"
-          source: canair 21F2 vs live MCU/VCU/AAF data over the five 2026-08-08 cycles, 2026-10-22
           verified: false
           notes: >-
             Live copy of MCU:2102 MCU_CURRENT_SENSOR_OFFSET_1: matched the latest MCU 2102 value at
@@ -469,7 +452,6 @@ MCU:
           expression: (S12<<8)|B11
           min: "-100"
           max: "100"
-          source: canair 21F2 vs live MCU/VCU/AAF data over the five 2026-08-08 cycles, 2026-10-22
           verified: false
           notes: >-
             Live copy of MCU:2102 MCU_CURRENT_SENSOR_OFFSET_2: matched the latest MCU 2102 value at

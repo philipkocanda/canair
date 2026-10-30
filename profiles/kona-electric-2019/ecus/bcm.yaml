@@ -31,6 +31,8 @@ BCM:
   pids:
     22C00B:
       status: active
+      source_links:
+        - https://github.com/OBDb/Hyundai-Kona-Electric
       parameters:
         TYRE_PRESSURE_FL:
           expression: B10/72.52
@@ -39,8 +41,6 @@ BCM:
           min: "0"
           max: "5"
           source: OBDb Hyundai-Kona-Electric (KONAEV_TP_FL, raw/5 psi; offset via canair bix); same byte as the Ioniq BCM
-          source_links:
-            - https://github.com/OBDb/Hyundai-Kona-Electric
           verified: false
           notes: >-
             The front left tyre. Raw byte / 5 = psi. Reads 0 in all 60 captures: the sensor was not
@@ -52,8 +52,6 @@ BCM:
           min: "-50"
           max: "205"
           source: OBDb Hyundai-Kona-Electric (KONAEV_TT_FL, raw-50; offset via canair bix); same byte as the Ioniq BCM
-          source_links:
-            - https://github.com/OBDb/Hyundai-Kona-Electric
           verified: false
           notes: >-
             The front left tyre. Reads -50 C (raw 0) in all 60 captures: the sensor was not
@@ -65,8 +63,6 @@ BCM:
           min: "0"
           max: "5"
           source: OBDb Hyundai-Kona-Electric (KONAEV_TP_FR, raw/5 psi; offset via canair bix); same byte as the Ioniq BCM
-          source_links:
-            - https://github.com/OBDb/Hyundai-Kona-Electric
           verified: false
           notes: >-
             The front right tyre. Raw byte / 5 = psi. Reads 0 in all 60 captures: the sensor was not
@@ -78,8 +74,6 @@ BCM:
           min: "-50"
           max: "205"
           source: OBDb Hyundai-Kona-Electric (KONAEV_TT_FR, raw-50; offset via canair bix); same byte as the Ioniq BCM
-          source_links:
-            - https://github.com/OBDb/Hyundai-Kona-Electric
           verified: false
           notes: >-
             The front right tyre. Reads -50 C (raw 0) in all 60 captures: the sensor was not
@@ -91,8 +85,6 @@ BCM:
           min: "0"
           max: "5"
           source: OBDb Hyundai-Kona-Electric (KONAEV_TP_RL, raw/5 psi; offset via canair bix); same byte as the Ioniq BCM
-          source_links:
-            - https://github.com/OBDb/Hyundai-Kona-Electric
           verified: false
           notes: >-
             The rear left tyre. Raw byte / 5 = psi. Reads 0 in all 60 captures: the sensor was not
@@ -104,8 +96,6 @@ BCM:
           min: "-50"
           max: "205"
           source: OBDb Hyundai-Kona-Electric (KONAEV_TT_RL, raw-50; offset via canair bix); same byte as the Ioniq BCM
-          source_links:
-            - https://github.com/OBDb/Hyundai-Kona-Electric
           verified: false
           notes: >-
             The rear left tyre. Reads -50 C (raw 0) in all 60 captures: the sensor was not
@@ -117,8 +107,6 @@ BCM:
           min: "0"
           max: "5"
           source: OBDb Hyundai-Kona-Electric (KONAEV_TP_RR, raw/5 psi; offset via canair bix); same byte as the Ioniq BCM
-          source_links:
-            - https://github.com/OBDb/Hyundai-Kona-Electric
           verified: false
           notes: >-
             The rear right tyre. Raw byte / 5 = psi. Reads 0 in all 60 captures: the sensor was not
@@ -130,8 +118,6 @@ BCM:
           min: "-50"
           max: "205"
           source: OBDb Hyundai-Kona-Electric (KONAEV_TT_RR, raw-50; offset via canair bix); same byte as the Ioniq BCM
-          source_links:
-            - https://github.com/OBDb/Hyundai-Kona-Electric
           verified: false
           notes: >-
             The rear right tyre. Reads -50 C (raw 0) in all 60 captures: the sensor was not

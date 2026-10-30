@@ -1439,6 +1439,7 @@ BMS:
         charge cycle (duration, SOC and temperature histograms, start/end SOC, cell and pack voltage
         extremes, energy in/out, peak powers, average temperature), updated when a cycle ends, plus
         the constant ASCII tag '4064' at B9-B12. Found by the 21 00-FF sweep on 2026-07-22.
+      source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
       parameters:
         LAST_CYCLE_MIN_CELL_VOLTAGE:
           expression: B37/50
@@ -1500,7 +1501,6 @@ BMS:
           unit: min
           min: "0"
           max: "255"
-          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
           verified: false
           notes: >-
             Length of the previous drive or charge cycle in minutes: the five temperature-band
@@ -1512,7 +1512,6 @@ BMS:
           unit: min
           min: "0"
           max: "255"
-          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
           verified: false
           notes: >-
             Minutes of the previous cycle spent at 10-20 % SOC. The ten bands (B15-B26) sum to
@@ -1523,7 +1522,6 @@ BMS:
           unit: min
           min: "0"
           max: "255"
-          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
           verified: false
           notes: >-
             Minutes of the previous cycle spent at 20-30 % SOC. The ten bands (B15-B26) sum to
@@ -1534,7 +1532,6 @@ BMS:
           unit: min
           min: "0"
           max: "255"
-          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
           verified: false
           notes: >-
             Minutes of the previous cycle spent at 30-40 % SOC. The ten bands (B15-B26) sum to
@@ -1545,7 +1542,6 @@ BMS:
           unit: min
           min: "0"
           max: "255"
-          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
           verified: false
           notes: >-
             Minutes of the previous cycle spent at 40-50 % SOC. The ten bands (B15-B26) sum to
@@ -1556,7 +1552,6 @@ BMS:
           unit: min
           min: "0"
           max: "255"
-          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
           verified: false
           notes: >-
             Minutes of the previous cycle spent at 50-60 % SOC. The ten bands (B15-B26) sum to
@@ -1567,7 +1562,6 @@ BMS:
           unit: min
           min: "0"
           max: "255"
-          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
           verified: false
           notes: >-
             Minutes of the previous cycle spent at 60-70 % SOC. The ten bands (B15-B26) sum to
@@ -1578,7 +1572,6 @@ BMS:
           unit: min
           min: "0"
           max: "255"
-          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
           verified: false
           notes: >-
             Minutes of the previous cycle spent at 70-80 % SOC. The ten bands (B15-B26) sum to
@@ -1589,7 +1582,6 @@ BMS:
           unit: min
           min: "0"
           max: "255"
-          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
           verified: false
           notes: >-
             Minutes of the previous cycle spent at 80-90 % SOC. The ten bands (B15-B26) sum to
@@ -1600,7 +1592,6 @@ BMS:
           unit: min
           min: "0"
           max: "255"
-          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
           verified: false
           notes: >-
             Minutes of the previous cycle spent at 90-100 % SOC. The ten bands (B15-B26) sum to
@@ -1611,7 +1602,6 @@ BMS:
           unit: "%"
           min: "0"
           max: "100"
-          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
           verified: false
           notes: >-
             SOC at the start of the previous cycle, 0.1 %/bit. 95.2 % for the 2026-08-08 drive that
@@ -1621,7 +1611,6 @@ BMS:
           unit: "%"
           min: "0"
           max: "100"
-          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
           verified: false
           notes: >-
             SOC at the end of the previous cycle, 0.1 %/bit (B112 is a PCI byte). 40.5 % after the
@@ -1632,7 +1621,6 @@ BMS:
           unit: Wh
           min: "0"
           max: "65535"
-          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
           verified: false
           notes: >-
             Energy taken from the pack during the previous cycle. 17258 Wh for the 2026-08-08 drive
@@ -1643,7 +1631,6 @@ BMS:
           unit: Wh
           min: "0"
           max: "65535"
-          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
           verified: false
           notes: >-
             Energy put into the pack during the previous cycle (regen or charging). 740 Wh regen on
@@ -1654,7 +1641,6 @@ BMS:
           unit: Wh
           min: "0"
           max: "65535"
-          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
           verified: false
           notes: >-
             Unconfirmed: probably the pack's energy content at the start of the previous cycle.
@@ -1665,7 +1651,6 @@ BMS:
           unit: Wh
           min: "0"
           max: "65535"
-          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
           verified: false
           notes: >-
             Unconfirmed: probably the pack's energy content at the end of the previous cycle; see
@@ -1675,7 +1660,6 @@ BMS:
           unit: kW
           min: "0"
           max: "255"
-          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
           verified: false
           notes: >-
             Peak discharge power of the previous cycle. 57 kW for the 2026-08-08 drive (live
@@ -1685,7 +1669,6 @@ BMS:
           unit: kW
           min: "0"
           max: "255"
-          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
           verified: false
           notes: >-
             Peak charge or regen power of the previous cycle. 45 kW regen on the 2026-08-08 drive
@@ -1696,7 +1679,6 @@ BMS:
           ha_class: temperature
           min: "-40"
           max: "100"
-          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
           verified: false
           notes: >-
             Average battery temperature of the previous cycle. 18 for the 2026-08-08 drive (live
@@ -1707,7 +1689,6 @@ BMS:
           unit: s
           min: "0"
           max: "65535"
-          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
           verified: false
           notes: >-
             Seconds of the previous cycle in battery-temperature band 1 of 5; the five bands sum to
@@ -1718,7 +1699,6 @@ BMS:
           unit: s
           min: "0"
           max: "65535"
-          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
           verified: false
           notes: >-
             Seconds of the previous cycle in battery-temperature band 2 of 5; the five bands sum to
@@ -1729,7 +1709,6 @@ BMS:
           unit: s
           min: "0"
           max: "65535"
-          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
           verified: false
           notes: >-
             Seconds of the previous cycle in battery-temperature band 3 of 5; the five bands sum to
@@ -1740,7 +1719,6 @@ BMS:
           unit: s
           min: "0"
           max: "65535"
-          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
           verified: false
           notes: >-
             Seconds of the previous cycle in battery-temperature band 4 of 5; the five bands sum to
@@ -1751,7 +1729,6 @@ BMS:
           unit: s
           min: "0"
           max: "65535"
-          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
           verified: false
           notes: >-
             Seconds of the previous cycle in battery-temperature band 5 of 5; the five bands sum to
@@ -1762,7 +1739,6 @@ BMS:
           unit: min
           min: "0"
           max: "255"
-          source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
           verified: false
           notes: >-
             Minutes of the previous cycle spent at 0-10 % SOC. The ten bands (B15-B26) sum to within

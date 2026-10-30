@@ -119,6 +119,7 @@ IGPM:
       notes: >-
         B09 reads 0x73 in all 384 captures. B05=0xFD, B06=0xEE, B07=0x3C and B13=0x00 are constant.
         B10 bit 6 has never been set.
+      source: Kia Niro EV WiCAN PR#716
       parameters:
         # B10 = Doors and locks
         # B11 = Seatbelts
@@ -136,7 +137,6 @@ IGPM:
         DOOR_PAS_OPEN:
           expression: "B10:4"
           ha_class: door
-          source: "Kia Niro EV WiCAN PR#716"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
@@ -145,7 +145,6 @@ IGPM:
         DOOR_RL_OPEN:
           expression: "B10:0"
           ha_class: door
-          source: "Kia Niro EV WiCAN PR#716"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
@@ -154,7 +153,6 @@ IGPM:
         DOOR_RR_OPEN:
           expression: B10:2
           ha_class: door
-          source: "Kia Niro EV WiCAN PR#716"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
@@ -164,7 +162,6 @@ IGPM:
         TRUNK_OPEN:
           expression: "B10:7"
           ha_class: door
-          source: "Kia Niro EV WiCAN PR#716"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
@@ -212,7 +209,6 @@ IGPM:
         IGN1_SWITCH:
           expression: "B11:5"
           ha_class: power
-          source: "Kia Niro EV WiCAN PR#716"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
@@ -228,7 +224,6 @@ IGPM:
         SEATBELT_FL:
           expression: "B11:1"
           ha_class: ""
-          source: "Kia Niro EV WiCAN PR#716"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
@@ -237,7 +232,6 @@ IGPM:
         SEATBELT_FR:
           expression: "B11:2"
           ha_class: ""
-          source: "Kia Niro EV WiCAN PR#716"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: false
@@ -246,7 +240,6 @@ IGPM:
         DOOR_LOCK_RL:
           expression: "B10:1"
           ha_class: lock
-          source: "Kia Niro EV WiCAN PR#716"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
@@ -256,7 +249,6 @@ IGPM:
         DOOR_LOCK_RR:
           expression: "B10:3"
           ha_class: lock
-          source: "Kia Niro EV WiCAN PR#716"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
@@ -306,12 +298,12 @@ IGPM:
         (B10:0), B13:6 INTERIOR_LAMP_AUTOCUT_RELAY. B05-B07 and B09 (B5 3F F4 EA), B11 (0) and B13:1
         (1) are constant in all 410 captures, across every power state. B12:5 (DRL_DEDICATED_OUTPUT)
         set only in 8 captures (2026-07-21, in D with the lamps off).
+      source: Kia Niro EV WiCAN PR#716
       parameters:
         # TODO: All the other bytes on here
         DOOR_LOCK_FL:
           expression: "B10:3"
           ha_class: lock
-          source: "Kia Niro EV WiCAN PR#716"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
@@ -320,7 +312,6 @@ IGPM:
         DOOR_LOCK_FR:
           expression: "B10:2"
           ha_class: lock
-          source: "Kia Niro EV WiCAN PR#716"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
@@ -505,6 +496,7 @@ IGPM:
         8 data bytes. B05=0x7F, B06=0x11 and B07=0x20 in all 421 captures. B10 holds the turn-lamp
         outputs (0x50 left, 0xA0 right, 0xF0 both at the fob-unlock flash), B11:3 the trunk
         indicator and B11:7 passenger seat occupancy.
+      source: canair align cross-tab + investigate --events 2026-10-21
       parameters:
         LUGGAGE_LAMP_OUTPUT:
           expression: B11:3
@@ -520,7 +512,6 @@ IGPM:
           expression: B10:4
           min: "0"
           max: "1"
-          source: canair align cross-tab + investigate --events 2026-10-21
           verified: false
           notes: >-
             Left front turn-lamp output (GDS 'LF turn signal output') (flashes, so a poll can catch
@@ -532,7 +523,6 @@ IGPM:
           expression: B10:5
           min: "0"
           max: "1"
-          source: canair align cross-tab + investigate --events 2026-10-21
           verified: false
           notes: >-
             Right front turn-lamp output (GDS 'RF turn signal output') (flashes, so a poll can catch

@@ -91,6 +91,7 @@ AAF:
       notes: >-
         25 bytes, same layout as 2180 with extra populated bytes (B19, B22, B23, B24); answers in
         ON.
+      source: cross-ECU correlation vs ESC REAL_SPEED_KMH, 2026-07-22 drive
       parameters:
 
         AAF_VEHICLE_SPEED_KMH:
@@ -98,7 +99,6 @@ AAF:
           unit: km/h
           min: "0"
           max: "250"
-          source: cross-ECU correlation vs ESC REAL_SPEED_KMH, 2026-07-22 drive
           verified: false
           notes: >-
             r=0.997 vs ESC:22C101:REAL_SPEED_KMH (n=66, 2026-07-22 drive, up to about 40 km/h).
@@ -109,7 +109,6 @@ AAF:
           unit: mph
           min: "0"
           max: "160"
-          source: cross-ECU correlation vs ESC REAL_SPEED_KMH, 2026-07-22 drive
           verified: false
           notes: Slope 0.6244 vs ESC:22C101:REAL_SPEED_KMH (0.6214 expected for mph), r=0.997.
           enabled: true

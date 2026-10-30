@@ -10,6 +10,8 @@ VMCU:
   pids:
     2101:
       status: active
+      source_links:
+        - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
       parameters:
         VEHICLE_SPEED:
           expression: ((S20 << 8) | B19)*1.609344/100
@@ -27,26 +29,22 @@ VMCU:
         EV_READY:
           expression: B26:3
           source: wican-fw Niro/Soul/Kona (Car_Ready)
-          source_links:
-            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
           verified: false
           notes: HV system ready / driveable.
         PARK_BRAKE:
           expression: B26:5
           source: wican-fw Niro/Soul/Kona (Car_ParkBreak)
-          source_links:
-            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
           verified: false
           notes: Electronic park brake engaged.
         GEAR_SELECTOR_RAW:
           expression: B10
           source: wican-fw Niro/Soul/Kona (GearSelector_Raw)
-          source_links:
-            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
           verified: false
           notes: Raw gear selector code (P/R/N/D mapping TBD).
     2102:
       status: active
+      source_links:
+        - https://github.com/OBDb/Hyundai-Kona-Electric
       parameters:
         LDC_OUTPUT_CURRENT:
           expression: "[B22:B23]/100"
@@ -55,8 +53,6 @@ VMCU:
           min: "0"
           max: "655"
           source: OBDb Hyundai-Kona-Electric (KONAEV_AUX_AMPS_LDC; offset via canair bix)
-          source_links:
-            - https://github.com/OBDb/Hyundai-Kona-Electric
           verified: false
           notes: >-
             Unsigned 16-bit big-endian. 31.2-34.0 A with the car READY and stationary; rises with
@@ -69,8 +65,6 @@ VMCU:
           min: "0"
           max: "20"
           source: OBDb Hyundai-Kona-Electric (KONAEV_AUX_V_7E2; offset via canair bix)
-          source_links:
-            - https://github.com/OBDb/Hyundai-Kona-Electric
           verified: false
           notes: >-
             Signed 16-bit little-endian (OBDb flags the pair byte-swapped), mV. 13.23-13.29 V; BMS

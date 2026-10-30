@@ -496,6 +496,7 @@ VCU:
       status: slow
       period: 300000
       response_frames: 13
+      source: canair 21F2 cross-check vs live data 2026-10-21
       parameters:
         VCU_21F2_EVENT_COUNT:
           expression: ((B76<<8)|B75)
@@ -547,7 +548,6 @@ VCU:
             95.2 vs 95.1 %).
         VCU_21F2_RANGE_START:
           expression: B19
-          source: canair 21F2 cross-check vs live data 2026-10-21
           verified: false
           notes: >-
             Probably the range estimate at the start of the last READY cycle. Across the 22 distinct
@@ -562,7 +562,6 @@ VCU:
           max: "255"
         VCU_21F2_RANGE_END:
           expression: B20
-          source: canair 21F2 cross-check vs live data 2026-10-21
           verified: false
           notes: >-
             Probably the range estimate at the end of the last READY cycle. Divided by VCU_21F2_SOC

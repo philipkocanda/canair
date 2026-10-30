@@ -48,6 +48,7 @@ OBC:
       status: active
       period: 5000
       vehicle_states: [IG3]
+      source: canair cross-tab vs BMS 2101 B14 and VCU 2101, 2026-10-23; JejuSoul US Ioniq logs
       parameters:
         LDC_HV_INPUT_V:
           expression: "[B45:B46]/100"
@@ -214,7 +215,6 @@ OBC:
           expression: B22:0
           min: "0"
           max: "1"
-          source: canair cross-tab vs BMS 2101 B14 and VCU 2101, 2026-10-23; JejuSoul US Ioniq logs
           verified: false
           notes: >-
             0 while an AC charge cable is connected, 1 otherwise, including DC fast charging. The
@@ -233,7 +233,6 @@ OBC:
             187: ac_charging
             188: idle
             189: idle
-          source: canair cross-tab vs BMS 2101 B14 and VCU 2101, 2026-10-23; JejuSoul US Ioniq logs
           verified: false
           notes: >-
             Values across 11474 captures: 0xBC/0xBD idle (READY, 12 V top-up, plugged but not
@@ -245,7 +244,6 @@ OBC:
           expression: B23:6
           min: "0"
           max: "1"
-          source: canair cross-tab vs BMS 2101 B14 and VCU 2101, 2026-10-23; JejuSoul US Ioniq logs
           verified: false
           notes: >-
             1 only during DC fast charging: all 54 OBC rows aligned with BMS 2101 B14 = 0x40/0xC3 on
@@ -259,7 +257,6 @@ OBC:
             118: charging
             122: post_charge_122
             126: post_charge_126
-          source: canair cross-tab vs BMS 2101 B14 and VCU 2101, 2026-10-23; JejuSoul US Ioniq logs
           verified: false
           notes: >-
             0x60 in all 2248 rows aligned with an unplugged BMS (B14 = 0x03); 0x72, 0x76, 0x7A or
@@ -274,7 +271,6 @@ OBC:
           expression: B37:4
           min: "0"
           max: "1"
-          source: canair cross-tab vs BMS 2101 B14 and VCU 2101, 2026-10-23; JejuSoul US Ioniq logs
           verified: false
           notes: >-
             1 whenever a charge cable is connected, AC or DC, and 0 unplugged, in every row aligned
