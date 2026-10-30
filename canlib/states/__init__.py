@@ -75,6 +75,8 @@ if TYPE_CHECKING:
 # are YAML 1.1 booleans that would parse as `True`/`False` in a bare
 # `vehicle_states:` list; `RUN` also reads unambiguously where a bare `IGN`
 # invites "which IGN level?" (vendors number them: Hyundai IGN1/IGN2, plus IG3).
+# A profile may still declare such a word as its own state (the manufacturer's
+# name, e.g. ON); see YAML_BOOLEAN_WORDS for the quoting that then applies.
 #
 # Only the universal switch positions live here. Finer, vendor-specific rungs
 # (Hyundai's separate IGN1/IGN2 relays, the Ioniq's `ACC2`, its `IG3` rail) and powertrain modes
@@ -88,6 +90,35 @@ if TYPE_CHECKING:
 # that they're a controlled vocabulary, not free prose. Input is normalized to
 # uppercase (:func:`parse_states`), so any casing typed on the CLI is accepted.
 POWER_STATES = ("SLEEP", "ACC", "RUN", "CRANK")
+
+# YAML 1.1, which canair's readers speak, reads these bare words as booleans: a
+# state named ON written as `[ON]` loads as `[True]`, and str() makes that the
+# state TRUE. Such a state is legal but must be quoted (`["ON"]`) wherever YAML
+# holds it; every canair writer quotes it, and the readers and validators below
+# refuse an unquoted one instead of letting it become TRUE. JSON (the capture
+# files) needs nothing.
+YAML_BOOLEAN_WORDS = frozenset({"Y", "N", "YES", "NO", "ON", "OFF", "TRUE", "FALSE"})
+
+
+def needs_yaml_quotes(token) -> bool:
+    """Whether a state token must be quoted to survive a YAML 1.1 round trip."""
+    return str(token).strip().strip("'\"").upper() in YAML_BOOLEAN_WORDS
+
+
+def unquoted_boolean_error(where: str, value) -> str | None:
+    """An error message when ``value`` (a token or token list) holds a YAML boolean.
+
+    ``None`` when every item is a string. A ``bool`` here can only be a state
+    word YAML read unquoted, so the message names the fix.
+    """
+    items = value if isinstance(value, list | tuple) else [value]
+    if not any(isinstance(item, bool) for item in items):
+        return None
+    return (
+        f"{where} holds an unquoted YAML boolean: a state named ON, OFF, YES or NO reads "
+        'as true/false unless quoted, e.g. ["ON"]'
+    )
+
 
 # The conventional token meaning "applicable/readable in every vehicle state"
 # — the state analogue of the ``ALL`` CAN-bus gateway code. It is documentary:
@@ -399,6 +430,9 @@ def load_states(profile=None) -> list[StateRule]:
     for entry in data.get("states", []) or []:
         if not isinstance(entry, dict) or "name" not in entry:
             raise StatePredicateError("each state needs a 'name'")
+        for key in ("name", "implies", "excludes"):
+            if msg := unquoted_boolean_error(f"state {key}", entry.get(key)):
+                raise StatePredicateError(msg)
         expr = entry.get("when") or ""
         pred = compile_predicate(expr) if expr else None
         rules.append(

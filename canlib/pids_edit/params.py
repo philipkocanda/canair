@@ -24,6 +24,7 @@ from ._text import (
     _find_ecu_block,
     _format_block_scalar,
     _format_inline_list_field,
+    _format_label,
     _format_list_field,
     _format_map_field,
     _format_scalar_field,
@@ -133,7 +134,7 @@ def _format_research_item(fields: dict, indent: int = 4) -> list[str]:
         val = fields[key]
         prefix = dash if not lines else fld  # first field sits on the dash line
         if key == "vehicle_states":
-            joined = ", ".join(_norm_states(val))
+            joined = ", ".join(_format_label(t, flow=True) for t in _norm_states(val))
             lines.append(f"{prefix}{key}: [{joined}]")
         elif key in ("notes", "result") and "\n" in str(val):
             block = _format_block_scalar(fld, key, str(val))

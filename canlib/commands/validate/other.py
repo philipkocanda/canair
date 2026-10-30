@@ -109,7 +109,7 @@ def _state_relation_errors(
 def _run_states() -> int:
     """Validate the profile's optional vehicle_states.yaml (structure + predicates)."""
     from canlib.profile import active
-    from canlib.states import StatePredicateError, compile_predicate
+    from canlib.states import StatePredicateError, compile_predicate, unquoted_boolean_error
 
     path = active().states_file
     if not path.exists():
@@ -137,6 +137,9 @@ def _run_states() -> int:
             continue
         for extra in set(entry) - {"name", "description", "when", "implies", "excludes"}:
             errors.append(f"states[{i}]: unknown field '{extra}'")
+        for key in ("name", "implies", "excludes"):
+            if msg := unquoted_boolean_error(f"states[{i}] {key}", entry.get(key)):
+                errors.append(msg)
         name = entry.get("name")
         if not name:
             errors.append(f"states[{i}]: missing 'name'")

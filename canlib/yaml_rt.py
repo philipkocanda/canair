@@ -19,7 +19,7 @@ from io import StringIO
 from typing import TextIO
 
 from ruamel.yaml import YAML
-from ruamel.yaml.scalarstring import FoldedScalarString
+from ruamel.yaml.scalarstring import DoubleQuotedScalarString, FoldedScalarString
 
 # ── Free-text (notes) rendering policy — shared by both writer subsystems ──────
 #
@@ -240,6 +240,18 @@ def folded(value: str, key_indent: int = 4, key: str = "notes"):
     # attribute, absent from its type stubs).
     fs.fold_pos = _fold_positions(value, max(20, NOTE_WRAP_WIDTH - key_indent - 2))  # ty: ignore[unresolved-attribute]
     return fs
+
+
+def state_token(token: str):
+    """A vehicle-state token as the round-trip dumper should write it.
+
+    A token YAML 1.1 reads as a boolean (``ON``, ``OFF``, ``YES``, ``NO``…) is
+    double-quoted; ruamel would otherwise pick single quotes, and the hand-written
+    files and the rename's line rewriter use double. Any other token stays plain.
+    """
+    from canlib.states import needs_yaml_quotes
+
+    return DoubleQuotedScalarString(token) if needs_yaml_quotes(token) else token
 
 
 def round_trip_yaml(sequence: int = 2, offset: int = 0) -> YAML:

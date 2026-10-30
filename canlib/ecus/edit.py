@@ -72,11 +72,12 @@ def _flow_states(vehicle_states) -> CommentedSeq | None:
     Returns ``None`` for an empty/absent value so the caller omits the key.
     """
     from canlib.states import parse_states
+    from canlib.yaml_rt import state_token
 
     toks = parse_states(vehicle_states)
     if not toks:
         return None
-    seq = CommentedSeq(toks)
+    seq = CommentedSeq([state_token(t) for t in toks])
     seq.fa.set_flow_style()
     return seq
 

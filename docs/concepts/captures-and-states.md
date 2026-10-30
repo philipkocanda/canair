@@ -262,6 +262,10 @@ State names are an **UPPERCASE** controlled vocabulary. The make-neutral base is
 ignition ladder `SLEEP/ACC/RUN/CRANK` (`RUN`/`SLEEP` rather than `ON`/`OFF`, which YAML reads as
 booleans), plus whatever states the profile declares in `vehicle_states.yaml` (EV profiles add
 `PLUGGED`/`READY`/`CHARGING`) and the meta-token **`ALL`**, meaning "applicable in every state".
+A profile can still use the manufacturer's word for a state, as the bundled Ioniq does with `ON`
+(the Start/Stop button's ON position), but in YAML it has to be quoted: `vehicle_states: ["ON"]`.
+A bare `ON` reads as `true`, so `canair validate` rejects it, and every `canair` editor writes
+the quotes for you.
 Any casing you type is normalized. Tag an ECU or PID `vehicle_states: [ALL]` when it answers in
 every state (the Ioniq's IGPM and BCM never sleep) instead of listing each one. Inspect and edit
 the vocabulary with `canair states`:

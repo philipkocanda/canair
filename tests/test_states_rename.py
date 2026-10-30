@@ -169,3 +169,68 @@ class TestApply:
         with pytest.raises(StateRenameError, match="invalid after the rename"):
             apply_state_rename(plan, profile=prof)
         assert {p: p.read_text() for p in prof.root.rglob("*") if p.is_file()} == before
+
+
+class TestBooleanWordStates:
+    """A state named ON is legal, but YAML 1.1 reads a bare ON as true."""
+
+    def test_rename_to_on_writes_it_quoted_everywhere(self, prof):
+        from canlib import yaml_io
+
+        apply_state_rename(plan_state_rename("ACC2", "ON", profile=prof), profile=prof)
+
+        states = prof.states_file.read_text()
+        assert '- name: "ON"' in states and 'implies: ["ON"]' in states
+        ecu = (prof.ecus_dir / "engine.yaml").read_text()
+        assert '  vehicle_states: [READY, "ON"]  # trailing comment\n' in ecu
+        # Every YAML store reads back the string, never the boolean.
+        assert yaml_io.safe_load(ecu)["ENGINE"]["vehicle_states"] == ["READY", "ON"]
+        assert yaml_io.safe_load(states)["states"][1]["name"] == "ON"
+        assert yaml_io.safe_load(prof.dtc_log_file.read_text())["scans"][0]["vehicle_states"] == [
+            "ON"
+        ]
+        # JSON needs no quoting.
+        sessions = json.loads((prof.captures_dir / "2026-01-01.json").read_text())["sessions"]
+        assert sessions[1]["vehicle_states"] == ["ON", "PARKED"]
+
+    def test_load_states_refuses_a_bare_boolean(self, prof):
+        from canlib.states import StatePredicateError, load_states
+
+        prof.states_file.write_text(_STATES.replace("name: ACC2", "name: ON"))
+        with pytest.raises(StatePredicateError, match="unquoted YAML boolean"):
+            load_states(prof)
+
+    def test_validate_pids_errors_on_a_bare_boolean(self, prof):
+        from canlib.commands.validate import validate_pids_file
+
+        path = prof.ecus_dir / "engine.yaml"
+        path.write_text(_ECU.replace("[READY, ACC2]", "[READY, ON]"))
+        ok, msg = validate_pids_file(path, prof)
+        assert not ok
+        assert "unquoted YAML boolean" in msg
+
+    def test_validate_states_errors_on_a_bare_boolean(self, prof, monkeypatch, capsys):
+        from canlib.commands.validate.other import _run_states
+
+        prof.states_file.write_text(_STATES.replace("implies: [ACC2]", "implies: [ON]"))
+        monkeypatch.setattr("canlib.profile.active", lambda: prof)
+        assert _run_states() == 1
+        assert "unquoted YAML boolean" in capsys.readouterr().out
+
+    def test_states_editor_quotes_a_new_boolean_word(self, prof):
+        from canlib import yaml_io
+        from canlib.states.edit import add_state, set_state_field
+
+        add_state("OFF", description="Button off", profile=prof)
+        set_state_field("READY", "excludes", "OFF", profile=prof)
+        text = prof.states_file.read_text()
+        assert '- name: "OFF"' in text and 'excludes: ["OFF"]' in text
+        names = [s["name"] for s in yaml_io.safe_load(text)["states"]]
+        assert "OFF" in names
+
+
+def test_research_writer_quotes_a_boolean_word():
+    from canlib.pids_edit.params import _format_research_item
+
+    lines = _format_research_item({"type": "decode", "vehicle_states": ["ON", "READY"]})
+    assert '  vehicle_states: ["ON", READY]' in "\n".join(lines)

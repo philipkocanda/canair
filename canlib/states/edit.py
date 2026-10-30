@@ -29,10 +29,12 @@ from canlib.states import (
     exclusion_conflicts,
     implication_cycle,
     parse_implies,
+    unquoted_boolean_error,
 )
 from canlib.yaml_rt import detect_sequence_indent as _detect_seq
 from canlib.yaml_rt import dump as _dump
 from canlib.yaml_rt import round_trip_yaml as _yaml
+from canlib.yaml_rt import state_token as _token
 
 if TYPE_CHECKING:
     from canlib.profile import Profile
@@ -109,7 +111,7 @@ def _flow_states(value) -> CommentedSeq | None:
     toks = parse_implies(value)
     if not toks:
         return None
-    seq = CommentedSeq(list(toks))
+    seq = CommentedSeq([_token(t) for t in toks])
     seq.fa.set_flow_style()
     return seq
 
@@ -145,7 +147,7 @@ def _new_entry(
     excludes=None,
 ) -> CommentedMap:
     entry = CommentedMap()
-    entry["name"] = name
+    entry["name"] = _token(name)
     if description:
         entry["description"] = description
     for field, value in (("implies", implies), ("excludes", excludes)):
@@ -222,6 +224,9 @@ def _reparse_validate(path: Path) -> None:
     for entry in states:
         if not isinstance(entry, dict) or "name" not in entry:
             raise StatesEditError("each state needs a 'name' after edit")
+        for key in ("name", *_RELATION_FIELDS):
+            if msg := unquoted_boolean_error(f"state {key}", entry.get(key)):
+                raise StatesEditError(msg)
         nm = str(entry["name"]).upper()
         if nm in seen:
             raise StatesEditError(f"duplicate state name {nm!r} after edit")
@@ -381,7 +386,7 @@ def rename_state(old: str, new: str, *, profile: Profile | None = None) -> Path:
         raise StatesEditError(f"state {old!r} not found")
     if old != new and _find(data["states"], new) != -1:
         raise StatesEditError(f"state {new!r} already exists")
-    data["states"][idx]["name"] = new
+    data["states"][idx]["name"] = _token(new)
     for entry in data["states"]:
         for field in _RELATION_FIELDS:
             targets = parse_implies(entry.get(field))

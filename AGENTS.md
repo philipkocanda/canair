@@ -648,7 +648,10 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   it was in. `implies:` must name declared states, may not self-reference or involve `ALL`, and must
   be acyclic — enforced by `validate states`, by `states_edit`'s post-write reparse, and by
   `load_states` itself. The make-neutral base is the ignition ladder `SLEEP/ACC/RUN/CRANK`
-  (`RUN`/`SLEEP` because `ON`/`OFF` are YAML booleans) plus the `ALL` meta-token; EV states
+  (`RUN`/`SLEEP` because `ON`/`OFF` are YAML booleans) plus the `ALL` meta-token. A profile *may*
+  declare such a word (the Ioniq's `ON`, the manual's name): it must then be quoted (`["ON"]`) in
+  YAML, which every writer does and every reader/validator enforces (a bare one reads as `true`;
+  `canlib/states/__init__.py::YAML_BOOLEAN_WORDS`). EV states
   (`PLUGGED`/`READY`/`CHARGING`) and finer vendor rungs are **declared per profile**, and
   `allowed_states()` returns base ∪ `ALL` ∪ the profile's own, so `--state`/`--prereq` validate
   without a static choice list. Input is normalized to uppercase. Edit via `canair states` (never

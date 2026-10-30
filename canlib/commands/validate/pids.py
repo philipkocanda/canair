@@ -204,6 +204,11 @@ def _validate_state_list(value, label: str, field: str, errors: list, allowed: s
     if not isinstance(value, list):
         errors.append(f"{label}: {field} must be a list")
         return
+    from canlib.states import unquoted_boolean_error
+
+    if msg := unquoted_boolean_error(f"{label}: {field}", value):
+        errors.append(msg)
+        value = [v for v in value if not isinstance(v, bool)]
     allowed_upper = {str(a).upper() for a in allowed}
     for v in value:
         if str(v).upper() not in allowed_upper:

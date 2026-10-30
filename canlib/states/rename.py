@@ -32,7 +32,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from canlib.states import ALL_STATE
+from canlib.states import ALL_STATE, needs_yaml_quotes
 
 if TYPE_CHECKING:
     from canlib.profile import Profile
@@ -100,14 +100,16 @@ def rewrite_flow_lists(text: str, old: str, new: str) -> tuple[str, int]:
     """Rewrite the inline ``vehicle_states`` lists in a YAML text.
 
     Returns ``(new_text, lists_changed)``. Untouched tokens keep their exact
-    spelling; only a list that held ``old`` is re-joined.
+    spelling; only a list that held ``old`` is re-joined. A ``new`` that YAML 1.1
+    reads as a boolean (``ON``) is written double-quoted.
     """
     count = 0
 
     def _sub(m: re.Match) -> str:
         nonlocal count
         tokens = [t.strip() for t in m.group("body").split(",") if t.strip()]
-        swapped = swap_token(tokens, old, new)
+        written = f'"{new}"' if needs_yaml_quotes(new) else new
+        swapped = swap_token(tokens, old, written)
         if swapped is None:
             return m.group(0)
         count += 1
@@ -118,11 +120,13 @@ def rewrite_flow_lists(text: str, old: str, new: str) -> tuple[str, int]:
 
 def _walk_state_lists(node: Any, old: str, new: str) -> int:
     """Swap ``old`` in place in every ``vehicle_states`` list under ``node``."""
+    from canlib.yaml_rt import state_token
+
     count = 0
     if isinstance(node, dict):
         for key, value in node.items():
             if key == "vehicle_states":
-                swapped = swap_token(value, old, new)
+                swapped = swap_token(value, old, state_token(new))
                 if swapped is not None:
                     value[:] = swapped
                     count += 1
