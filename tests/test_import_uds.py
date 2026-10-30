@@ -81,6 +81,8 @@ class TestBuildManualSession:
 def _args(**kw) -> argparse.Namespace:
     base = {
         "spec": [],
+        "from_log": None,
+        "dry_run": False,
         "label": "L",
         "state": None,
         "notes": None,

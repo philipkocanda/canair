@@ -33,8 +33,9 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         help="Import external CAN data (UDS payloads, raw frame logs, DBC) into the profile",
         description=(
             "Import external CAN data into the active profile. Choose a kind:\n\n"
-            "  uds   device-free UDS capture (ECU:PID=PAYLOAD, domain A)\n"
-            "        -> captures/*.yaml via the shared save machinery\n"
+            "  uds   device-free UDS capture (ECU:PID=PAYLOAD, domain A), or every reply\n"
+            "        in a diagnostic-bus frame log (--from-log)\n"
+            "        -> captures/*.json via the shared save machinery\n"
             "  can   raw broadcast-CAN frame log (.asc/.blf/.csv/candump .log/.trc)\n"
             "        -> captures/can/ native store + index.yaml (domain B)\n"
             "  dbc   DBC signal definitions -> the profile's signals/ model (domain B)\n\n"

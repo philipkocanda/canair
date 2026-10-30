@@ -7,8 +7,9 @@ usage: canair import [-h] {uds,can,dbc} ...
 
 [UDS+CAN] Import external CAN data into the active profile. Choose a kind:
 
-  uds   device-free UDS capture (ECU:PID=PAYLOAD, domain A)
-        -> captures/*.yaml via the shared save machinery
+  uds   device-free UDS capture (ECU:PID=PAYLOAD, domain A), or every reply
+        in a diagnostic-bus frame log (--from-log)
+        -> captures/*.json via the shared save machinery
   can   raw broadcast-CAN frame log (.asc/.blf/.csv/candump .log/.trc)
         -> captures/can/ native store + index.yaml (domain B)
   dbc   DBC signal definitions -> the profile's signals/ model (domain B)
@@ -36,14 +37,18 @@ options:
 usage: canair import uds [-h] --label LABEL [--state STATE] [--notes NOTES]
                          [--capture-note CAPTURE_NOTE] [--time HH:MM:SS]
                          [--date YYYY-MM-DD] [--json] [--dir DIR]
-                         ECU:PID=PAYLOAD [ECU:PID=PAYLOAD ...]
+                         [--from-log FILE]
+                         [--log-format {auto,asc,blf,csv,log,gvret,trc}]
+                         [--bus N] [--from-ts SEC] [--until-ts SEC]
+                         [--keep-nrc] [--dry-run]
+                         [ECU:PID=PAYLOAD ...]
 
 Record externally-provided UDS payloads into the active profile (device-free capture import).
 
 positional arguments:
   ECU:PID=PAYLOAD       One or more captures, e.g. CLU:22B002=62B002... (ECU
                         short name or hex TX id; PID/DID; reassembled UDS
-                        payload, SID-first)
+                        payload, SID-first). Omit with --from-log
 
 options:
   -h, --help            show this help message and exit
@@ -56,10 +61,28 @@ options:
   --time HH:MM:SS       Capture time (default: the import instant, like --date
                         defaults to today). A payload capture is always
                         timestamped so it can participate in time-aligned
-                        analysis
+                        analysis. With --from-log: the first reply's time
   --date YYYY-MM-DD     Capture date (default: today; sets the target file)
   --json                Machine-readable JSON output
   --dir DIR             Captures directory (default: active profile)
+
+frame-log extraction:
+  Record the data-read replies found in a CAN frame log instead of pasted payloads. --date and --time then stamp the FIRST reply (later ones follow the log's own clock); a log on the wall clock supplies both itself.
+
+  --from-log FILE       Frame log of the diagnostic bus (.csv GVRET/python-
+                        can, .asc, .blf, .log, .trc)
+  --log-format {auto,asc,blf,csv,log,gvret,trc}
+                        Log format (default: auto-detect by extension; .csv is
+                        sniffed for GVRET)
+  --bus N               Only frames from this log channel/bus number (default:
+                        all)
+  --from-ts SEC         Ignore frames before this log timestamp (seconds, as
+                        in the log)
+  --until-ts SEC        Ignore frames after this log timestamp (e.g. where the
+                        log turns intermittent)
+  --keep-nrc            Also record negative responses (7F ..) to single-
+                        identifier reads
+  --dry-run             Report what would be recorded without writing anything
 
   # One verified odometer reading with context
   canair import uds CLU:22B002=62B002E0000000FFB7008D08000000 \
@@ -68,6 +91,10 @@ options:
 
   # Several PIDs captured together into one session
   canair import uds BMS:2101=6101FFF8... BMS:2102=6102... --label "SOC snapshot"
+
+  # Every reply a dongle collected, from a GVRET/.asc/.blf log of the diagnostic bus
+  canair import uds --from-log tap.csv --bus 1 --label "Dongle polling, READY" \
+      --state ready --date 2023-01-12 --until-ts 2565 --dry-run
 ```
 
 ## `canair import can`

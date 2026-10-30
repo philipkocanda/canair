@@ -145,7 +145,9 @@ def _iter_gvret(path: Path):
 
     Columns: ``Time Stamp`` (microseconds), ``ID`` (hex), ``Extended``, ``Dir``,
     ``Bus``, ``LEN``, ``D1``..``D8`` (hex data bytes). Timestamps are microseconds
-    (converted to seconds); only the first ``LEN`` data columns are used.
+    (converted to seconds); only the first ``LEN`` data columns are used. ``Bus`` becomes
+    the message's ``channel`` (left unset when the column is absent or not a number), so
+    a log from several buses can be told apart.
     """
     import csv
 
@@ -163,6 +165,7 @@ def _iter_gvret(path: Path):
             key = {c.strip().lower(): c for c in reader.fieldnames}
             ts_k, id_k, ext_k, len_k = key["time stamp"], key["id"], key["extended"], key["len"]
             data_ks = [key[f"d{i}"] for i in range(1, 9) if f"d{i}" in key]
+            bus_k = key.get("bus")
             for row in reader:
                 try:
                     ts_us = int(row[ts_k])
@@ -172,12 +175,17 @@ def _iter_gvret(path: Path):
                 except (ValueError, TypeError, KeyError):
                     continue  # skip malformed rows
                 ext = str(row.get(ext_k, "")).strip().lower() in ("true", "1")
+                try:
+                    channel = int(row[bus_k]) if bus_k else None
+                except (ValueError, TypeError, KeyError):
+                    channel = None
                 yield can.Message(
                     arbitration_id=arb_id,
                     data=data,
                     dlc=dlc,
                     is_extended_id=ext,
                     timestamp=ts_us / 1_000_000.0,
+                    channel=channel,
                 )
     except CanLogError:
         raise

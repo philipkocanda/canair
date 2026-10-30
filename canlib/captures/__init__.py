@@ -359,6 +359,7 @@ def build_manual_session(
     vehicle_states: list[str] | None = None,
     notes: str | None = None,
     transport: str | None = IMPORT_TRANSPORT,
+    quality: Quality | None = None,
 ) -> CaptureSession:
     """Assemble a session dict from manually-supplied captures (the import path).
 
@@ -367,10 +368,13 @@ def build_manual_session(
     today; ``vehicle_states``/``notes`` are omitted when empty. ``transport``
     defaults to ``"import"`` (these payloads didn't come off a live bus here), so
     imported data is distinguishable from device-recorded data in provenance.
-    Field order follows the schema (date, label, [vehicle_states], [notes],
-    [transport], captures).
+    ``quality`` is the data-quality footprint of an import that can measure one (a
+    passively tapped log counts the frames it lost). Field order follows the schema
+    (date, label, [vehicle_states], [notes], [transport], [quality], captures).
     """
     meta = _session_meta(vehicle_states, notes, transport)
+    if quality:
+        meta["quality"] = quality.copy()
     return {"date": date or _today(), "label": label, **meta, "captures": list(captures)}
 
 

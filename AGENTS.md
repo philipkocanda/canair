@@ -463,6 +463,17 @@ reuse these instead of re-declaring a flag:
   timestamped — an untimed one is silently dropped by every time-aligned analysis). Resolves ECU→RX,
   rejects non-hex payloads, warns on SID/DID echo mismatch. **This is how community readings are
   onboarded — never hand-write `captures/`.**
+  **`import uds --from-log FILE`** is the bulk form: it extracts every data-read reply
+  (`62 DID` → `22DID`, `61 LID` → `21LID`) of a registered ECU from a frame log of a diagnostic bus
+  that some *other* tool was polling, each with its own timestamp (`--date`/`--time` stamp the first
+  reply; the log's own clock does the rest). Always `--dry-run` first. The pieces: the passive
+  ISO-TP state machine is the leaf `canlib/uds/isotp_passive.py` (a lost frame costs exactly one
+  message, counted once, never repaired), pairing and stamping are `canlib/captures/from_log.py`,
+  and the CLI is `commands/import_uds/log.py`. **Replies are filed by their own echo, never by the
+  last request** (a tool that pipelines requests or interleaves a scan mis-files them); the request
+  is tracked only to skip a *batched* `22 D1 D2 …` read, whose reply cannot be split safely, and to
+  file an opt-in (`--keep-nrc`) NRC. Lost frames land in the session's `quality.drop`. Normal
+  addressing only; `--until-ts` exists because public logs go intermittent part-way through.
 - **`canair import can <FILE>`** — Domain B: reads a raw broadcast frame log
   (`.asc`/`.blf`/python-can `.csv`/candump `.log`/`.trc`/SavvyCAN GVRET `.csv`; `--format auto` by
   extension, `.csv` header-sniffed) via python-can's readers, stores it **verbatim** in
@@ -471,7 +482,7 @@ reuse these instead of re-declaring a flag:
 - **`canair import dbc <FILE>`** — Imports a DBC's broadcast definitions into `signals/<bus>.yaml`
   (cantools with `strict=False`, to tolerate real-world overlapping-signal DBCs; `--dry-run`
   previews). Module note: `commands/import_.py` (`import` is a keyword) with `NAME="import"`; the
-  `uds` kind lives in `commands/import_uds.py`. Fetch the reference corpus with
+  `uds` kind lives in the `commands/import_uds/` package. Fetch the reference corpus with
   `scripts/fetch_can_corpus.py` (into gitignored `references/can/`).
 - **`canair export dbc`** — Writes `signals/` out as a DBC for SavvyCAN/cabana/Wireshark;
   round-trips with `import dbc`. (Domain-A decoded-value export is future work.)

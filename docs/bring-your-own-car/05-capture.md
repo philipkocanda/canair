@@ -41,6 +41,41 @@ canair resolves the ECU address, rejects non-hex payloads, and warns if the
 payload's SID/DID echo doesn't match the PID (a misfiled frame). This is how
 community-contributed readings get onboarded without a live bus.
 
+### Import a whole frame log
+
+Someone may have logged the diagnostic bus while *their* tool polled the car (a
+Bluetooth dongle running an app's custom PIDs, a workshop tester) and shared the
+log — the [Kona EV logs](https://github.com/projectgus/hyundai-kona-ev-can-logs)
+are one such public (CC0) corpus. Every reply in it is a capture
+`canair read --save` would have recorded, so extract them in one go:
+
+```bash
+canair import uds --from-log dongle-polling.csv --bus 1 \
+    --label "Dongle polling, READY" --state ready --date 2023-01-12 \
+    --until-ts 2565 --dry-run          # preview; drop --dry-run to write
+```
+
+The log is read with the same readers as `import can` (GVRET `.csv`, `.asc`,
+`.blf`, candump `.log`, `.trc`). Each positive reply to a data read (`22 DID`,
+or `21 LID` on KWP2000) from an ECU in the profile becomes one capture with its
+own timestamp, filed by what the *reply* says it answers. What is left out is
+counted and reported, never guessed:
+
+- multi-frame replies with a lost frame (also noted in the session's `quality`);
+- replies to batched requests (`22 D1 D2 …`), which cannot be split safely;
+- negative responses, unless you pass `--keep-nrc`;
+- replies from CAN ids not in the profile (the report names them — `canair ecu
+  add` them and re-run).
+
+A log has no absolute clock unless it was recorded on the wall clock, so `--date`
+and `--time` stamp the *first* reply and the rest follow the log's own timing.
+`--from-ts`/`--until-ts` (in the log's timestamps) cut away a stretch that is
+known to be bad, such as where a capture tool starts dropping messages. States are
+not guessed from the log: pass `--state`, or run
+`canair captures uds --backfill-states` afterwards. Importing the same log twice
+is refused. Only normal addressing is supported (not the extended-addressing
+profiles whose frames carry a target-address byte before the PCI byte).
+
 ## Capture *contrast*, not just data
 
 The single most useful thing you can do is capture the **same PID in different
