@@ -1,8 +1,10 @@
-"""Dispatch for the surfaces that can actuate hardware: IOControl and routines.
+"""Dispatch for the surfaces that can actuate hardware: IOControl, routines, actions.
 
-Both have a read-only listing/TUI path and an execute path. ``routines --sf start``
-sends startRoutine, which may move something, so it confirms first. The KWP2000
-split lives in the scan families, not here.
+IOControl and routines have a read-only listing/TUI path and an execute path.
+``routines --sf start`` sends startRoutine, which may move something, so it
+confirms first. A profile action is always guarded by a live condition check and
+a confirmation (:mod:`canlib.modes.action`). The KWP2000 split lives in the scan
+families, not here.
 """
 
 from __future__ import annotations
@@ -83,3 +85,23 @@ async def handle_routines(args, terminal: Terminal, pids_data, host, *, reconnec
             args.routines,
             verbose=args.verbose,
         )
+
+
+async def handle_action(args, terminal: Terminal, pids_data, host, *, reconnect=None) -> None:
+    """``canair action run NAME``: a guarded, profile-defined action (canlib.modes.action)."""
+    from canlib.actions import ActionError
+    from canlib.modes.action import mode_action
+
+    try:
+        await mode_action(
+            terminal,
+            pids_data,
+            args.action,
+            yes=getattr(args, "yes", False),
+            dry_run=getattr(args, "dry_run", False),
+            as_json=args.json,
+            verbose=args.verbose,
+        )
+    except ActionError as e:
+        print(f"error: {e}", file=sys.stderr)
+        sys.exit(2)

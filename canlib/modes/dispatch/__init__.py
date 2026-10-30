@@ -56,6 +56,7 @@ _DISPATCH: tuple[tuple[Handler, Selector], ...] = (
     (scans.handle_scan, lambda args: bool(args.scan)),
     (actuators.handle_iocontrol, lambda args: bool(args.iocontrol)),
     (actuators.handle_routines, lambda args: bool(args.routines)),
+    (actuators.handle_action, lambda args: bool(getattr(args, "action", None))),
     (scans.handle_routines_scan, lambda args: bool(args.routines_scan is not None)),
     (scans.handle_iocontrol_scan, lambda args: bool(args.iocontrol_scan is not None)),
     (

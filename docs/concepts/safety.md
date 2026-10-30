@@ -95,6 +95,37 @@ Note the difference between *discovering* a capability and *using* it:
   it skips a `0x30` entry without one, and its value keys build UDS `0x2F` requests,
   so they are refused for a KWP2000 ECU.
 
+## Profile actions: guarded, make-specific requests
+
+Some things a car can be told to do are specific to its make, so canair has no
+command for them. Putting a Hyundai/Kia to sleep is one: its diagnostic spec
+defines `10 D1`, "Sleep Mode Start Request", sent on the functional id so the
+gateway passes it to every network. A profile defines such a request as an
+*action* in `actions.yaml` (`canair action add`), and `canair action run NAME`
+sends it. A profile cannot use this to get around the rules above:
+
+- **Every request still goes through the blocklist.** `10 D1` is an OEM session,
+  so it is refused like any other. An action may send a refused request only when
+  a code-owned quirk grants exactly that request on that id (`hk_forced_sleep`
+  grants `10 D1` on `0x7DF` and nothing else), and only for the length of the
+  action's own send. The same quirk does not make `canair read "raw 7DF:10D1"`
+  work, and `--unsafe` has no effect on an action.
+- **Every action is guarded.** It must name PIDs to read (`reads:`) and a
+  condition on them (`require:`). canair reads them live, and only a TRUE result
+  passes: a signal that did not read leaves the condition UNKNOWN, which refuses
+  after one re-read. The condition may not use `or` or `not`, so adding a clause
+  can only make it stricter, and it may only test ECUs the action reads.
+- **It confirms, then checks again.** You type the action's name to send it
+  (`--yes` skips this; with no terminal to ask on, `--yes` is required). The
+  reads are then repeated, so a long pause at the prompt is never what the
+  request goes out on. `--dry-run` reads and checks without sending.
+
+The Ioniq profile's `sleep` action requires IGN1 and IGN2 off, the IGPM's IG3
+relay off (no 12 V top-up in progress) and the charge port unlocked (not
+charging). The request expects no reply, so canair can only report that it was
+sent. Anything that talks to the car afterwards wakes it again, including the
+WiCAN's own AutoPID polling.
+
 ## Be gentle
 
 ECUs vary in how quickly and reliably they respond — some are slow or finicky,

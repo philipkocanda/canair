@@ -43,6 +43,7 @@ MODE_SELECTORS = frozenset(
         "iocontrol_scan",
         "sessions_scan",
         "multi",
+        "action",
     }
 )
 
@@ -59,6 +60,7 @@ EXPECTED_ORDER = [
     "handle_scan",
     "handle_iocontrol",
     "handle_routines",
+    "handle_action",
     "handle_routines_scan",
     "handle_iocontrol_scan",
     "handle_sessions_scan",
@@ -132,6 +134,7 @@ class TestOrderingHazards:
             ("discover", "handle_discover"),
             ("iocontrol", "handle_iocontrol"),
             ("routines", "handle_routines"),
+            ("action", "handle_action"),
         ],
     )
     def test_single_selector_is_unambiguous(self, selector, handler):

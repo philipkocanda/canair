@@ -80,6 +80,7 @@ All functionality is exposed as `canair <subcommand>`; run `canair <cmd> --help`
 | `canair monitor` | Live, continuously-refreshing view of ECU signals (scrollable TUI; bare `canair monitor` opens a group/ECU → PID picker); records with `--save`, `--wait` to start when the device appears and auto-reconnect on drops (alias: `mon`). |
 | `canair scan` | Probe DID/routine/iocontrol/session ranges for responses. |
 | `canair dtc` | Read/clear Diagnostic Trouble Codes; report changes since the last scan. |
+| `canair action` | Run a profile-defined, make-specific action (e.g. put a Hyundai/Kia to sleep), guarded by a live check of the car; list/edit them in `actions.yaml`. |
 | `canair identity` | Decode ECU identity DIDs — part number, versions, serial, VIN (alias: `id`). |
 | `canair sniff` | Passive CAN-bus sniffer (raw SLCAN) with optional frame logging. |
 | `canair lock` | Show or clear the single-session device lock — the escape hatch for a stuck/orphaned session ([safety](https://philipkocanda.github.io/canair/concepts/safety/)). |

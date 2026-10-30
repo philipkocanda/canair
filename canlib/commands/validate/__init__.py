@@ -9,6 +9,7 @@ Validators merged into one subcommand:
   * ``validate can-buses`` — can_buses.yaml (per-profile CAN bus vocabulary)
   * ``validate signals`` — signals/ broadcast signal definitions (domain B)
   * ``validate groups`` — groups.yaml (named capture/monitor selector groups)
+  * ``validate actions`` — actions.yaml (guarded profile actions)
   * ``validate can`` — captures/can/index.yaml (raw-CAN log index)
   * ``validate all`` (default) — run all of them
 
@@ -30,6 +31,7 @@ from .captures import (
     validate_captures_file,
 )
 from .other import (
+    _run_actions,
     _run_can,
     _run_can_buses,
     _run_groups,
@@ -61,6 +63,7 @@ __all__ = [
     "_capture_quality_warnings",
     "_capture_state_warnings",
     "_duplicate_param_errors",
+    "_run_actions",
     "_run_can",
     "_run_can_buses",
     "_run_groups",
@@ -97,6 +100,7 @@ def add_parser(subparsers):
         "  can-buses can_buses.yaml (per-profile CAN bus segment vocabulary)\n"
         "  signals   signals/ broadcast signal-definition files (domain B)\n"
         "  groups    groups.yaml (named capture/monitor selector groups)\n"
+        "  actions   actions.yaml (guarded profile actions)\n"
         "  can       captures/can/index.yaml (raw-CAN log index)\n"
         "  all       everything above\n\n"
         "`validate captures` also emits soft warnings for out-of-vocabulary vehicle\n"
@@ -137,6 +141,7 @@ examples:
             "can-buses",
             "signals",
             "groups",
+            "actions",
             "can",
             "all",
         ],
@@ -192,6 +197,8 @@ def run(args) -> int:
         return _run_signals()
     if args.target == "groups":
         return _run_groups()
+    if args.target == "actions":
+        return _run_actions()
     if args.target == "can":
         return _run_can()
     # all: the ecus/ files are validated once via _run_pids (they are the registry).
@@ -207,5 +214,7 @@ def run(args) -> int:
     print()
     rc_grp = _run_groups()
     print()
+    rc_act = _run_actions()
+    print()
     rc_can = _run_can()
-    return rc_p or rc_c or rc_s or rc_cb or rc_sig or rc_grp or rc_can
+    return rc_p or rc_c or rc_s or rc_cb or rc_sig or rc_grp or rc_act or rc_can

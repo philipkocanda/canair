@@ -7,7 +7,7 @@ profile declares the quirks it needs under a top-level ``quirks:`` list in
 quirks (make-neutral); the bundled ``ioniq-2017`` profile opts into the ones its
 ECUs actually exhibit.
 
-Today there are four quirks:
+Today there are five quirks:
 
 - :data:`HK_F1XX_MINUS_ONE` — Hyundai/Kia identity DIDs answer one *less* than
   requested (request ``22F188`` → response ``62F187``). Expected HK behaviour,
@@ -33,6 +33,12 @@ Today there are four quirks:
   opens it before its ``0x30`` commands, and a Car Scanner sweep of a 2021 Kona EV opens it on every powertrain ECU it reads
   DTCs from (``profiles/kona-electric-2019/captures/can/``). It permits exactly
   ``10 90`` on the profile's KWP2000 ECUs.
+- :data:`HK_FORCED_SLEEP` — Hyundai/Kia's ES95486 (revisions 3-29) defines
+  DiagnosticSessionControl ``10 D1`` "Sleep Mode Start Request", sent on the
+  functional id so the gateway passes it to every network. Unlike the session
+  quirks it does **not** widen the session policy: it only lets a guarded profile
+  action (:mod:`canlib.actions`) send exactly that request, after the action's live
+  precondition check has passed. A ``read``/``raw`` step can never send it.
 
 See ``plans/2026-07-28-multi-vehicle-support.md`` (Phase 4, gap F).
 """
@@ -41,6 +47,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import Any, Final
+
+from canlib.addressing import FUNCTIONAL_11BIT_ID
 
 # The Hyundai/Kia identity-DID -1 offset (22F188 → 62F187).
 HK_F1XX_MINUS_ONE: Final = "hk_f1xx_minus_one"
@@ -60,8 +68,14 @@ NISSAN_C0_SESSION: Final = "nissan_c0_session"
 # The Hyundai/Kia KWP2000 OEM session (10 90) their actuator tests run in.
 HK_90_SESSION: Final = "hk_90_session"
 
+# The Hyundai/Kia forced-sleep request (functional 10 D1), sendable only by a
+# guarded profile action (canlib.actions).
+HK_FORCED_SLEEP: Final = "hk_forced_sleep"
+
 # Every recognized quirk token (the validation whitelist).
-KNOWN_QUIRKS: Final = frozenset({HK_F1XX_MINUS_ONE, SKM_WAKEUP, NISSAN_C0_SESSION, HK_90_SESSION})
+KNOWN_QUIRKS: Final = frozenset(
+    {HK_F1XX_MINUS_ONE, SKM_WAKEUP, NISSAN_C0_SESSION, HK_90_SESSION, HK_FORCED_SLEEP}
+)
 
 # DiagnosticSessionControl sub-functions a quirk makes safe to enter, keyed by the
 # protocol whose ECUs it applies to. Only ever widens the OEM band the blocklist
@@ -72,6 +86,15 @@ KNOWN_QUIRKS: Final = frozenset({HK_F1XX_MINUS_ONE, SKM_WAKEUP, NISSAN_C0_SESSIO
 _QUIRK_SESSIONS: Final[dict[str, dict[str, frozenset[int]]]] = {
     NISSAN_C0_SESSION: {"kwp": frozenset({0xC0})},
     HK_90_SESSION: {"kwp": frozenset({0x90})},
+}
+
+
+# Exact (request id, request hex) pairs a quirk lets a guarded profile action send
+# although the command blocklist refuses them. Only soft blocks can be lifted
+# (canlib.safety never lifts a programming or safety-system session), and the
+# exemption is never part of the profile's ordinary session policy.
+_QUIRK_ACTION_GRANTS: Final[dict[str, frozenset[tuple[int, str]]]] = {
+    HK_FORCED_SLEEP: frozenset({(FUNCTIONAL_11BIT_ID, "10D1")}),
 }
 
 
@@ -105,3 +128,11 @@ def allowed_session_modes(meta: Mapping[str, Any] | None, protocol: str) -> froz
     for quirk in resolve_quirks(meta):
         allowed |= _QUIRK_SESSIONS.get(quirk, {}).get(protocol, frozenset())
     return allowed
+
+
+def action_grants(meta: Mapping[str, Any] | None) -> frozenset[tuple[int, str]]:
+    """The ``(tx_id, request)`` pairs the profile's quirks let a guarded action send."""
+    grants: frozenset[tuple[int, str]] = frozenset()
+    for quirk in resolve_quirks(meta):
+        grants |= _QUIRK_ACTION_GRANTS.get(quirk, frozenset())
+    return grants

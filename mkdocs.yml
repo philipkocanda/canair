@@ -124,6 +124,7 @@ nav:
           - canair sniff: reference/cli/sniff.md
           - canair io: reference/cli/io.md
           - canair routines: reference/cli/routines.md
+          - canair action: reference/cli/action.md
           - canair identity: reference/cli/identity.md
           - canair dtc: reference/cli/dtc.md
           - canair repl: reference/cli/repl.md

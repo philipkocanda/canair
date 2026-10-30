@@ -59,6 +59,7 @@ Every capability is a `canair <subcommand>`. These pages are generated from each
 
 ### Other
 
+- [`canair action`](action.md) — Profile-defined actions: named requests for make-specific things such as putting the car to sleep. Each action declares live reads and a condition that must be TRUE before it is sent; its requests still pass the command blocklist, which only a code-owned profile quirk can relax for that exact request.
 - [`canair contribute`](contribute.md) — Open a pull request contributing the active profile upstream.
 - [`canair bix`](bix.md) — Convert byte indices between WiCAN, ISO-TP, Torque, and OBDb notations.
 - [`canair logs`](logs.md) — ``canair logs`` — view the central rotating diagnostics event log.

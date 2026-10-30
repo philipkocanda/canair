@@ -1,0 +1,12 @@
+actions:
+  sleep:
+    description: >-
+      Put every ECU to sleep with the Hyundai/Kia functional Sleep Mode Start Request (10 D1). Only
+      when the ignition is off, the IGPM's IG3 relay is off (no 12 V top-up) and the charge port is
+      unlocked (not charging).
+    reads: [IGPM:22BC03, IGPM:22BC07]
+    require: >-
+      IGPM.IGN1_SWITCH == 0 and IGPM.IGN2_SWITCH == 0 and IGPM.IG3_RELAY_OUTPUT == 0 and
+      IGPM.CHARGE_PORT_LOCK == 0 and IGPM.CHARGE_PORT_LOCK_INV == 1
+    requests:
+      - {to: functional, send: 10D1, response: none}

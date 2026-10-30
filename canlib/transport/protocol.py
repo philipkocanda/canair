@@ -26,6 +26,7 @@ from canlib.transport.stats import TransportStats
 from canlib.uds.parse import UdsResponse
 
 from ..frame_counts import FrameCountLedger
+from ..safety import SessionPolicy
 from ..timing import TimingRecorder
 
 
@@ -56,6 +57,12 @@ class Terminal(Protocol):
     # *build* a request whose size they control (multi-DID batching) must clamp
     # to this rather than discover the ceiling from a failure.
     max_request_bytes: int
+
+    # Each ECU's session protocol plus the profile's allowances, applied by the
+    # command blocklist on every outbound request (canlib.safety). Set from the
+    # profile when the terminal is built; a guarded profile action swaps in a
+    # policy with its exact grants for the length of its own send.
+    session_policy: SessionPolicy
 
     async def set_header(self, tx_id: int) -> None: ...
 

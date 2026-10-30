@@ -184,6 +184,16 @@ and **`g`/`G` address the view's primary axis**.
   read/release/actuate classifier the actuation interlock plan
   (`plans/2026-10-22-actuation-safety-interlock.md`) will build its funnel on. Never declare a
   release you have not seen hand the output back on the car.
+- **`canair action`** — List, run and edit the profile's guarded, make-specific actions
+  (`actions.yaml`; `action run NAME [--dry-run] [--yes]`). Model, rules and loader
+  `canlib/actions/`, editor `canlib/actions/edit.py`, live run `canlib/modes/action.py` (its
+  docstring fixes the plan → check → confirm → re-check → send order). Two rules a change must
+  keep: **every request still passes the blocklist** — a refused one goes out only when a quirk
+  grants exactly that `(tx_id, request)` (`canlib/quirks.py::action_grants`), applied through
+  `SessionPolicy.granting` for the action's own send and never by `from_profile`, so `read`/`raw`
+  steps still refuse it and `--unsafe` plays no part; and **every action is guarded** — mandatory
+  `reads`/`require`, only TRUE passes, no `or`/`not`, only read ECUs. The Ioniq's `sleep` sends
+  the functional `10 D1` (quirk `hk_forced_sleep`); untested on the car.
 - **`canair dtc`** — Read DTCs for one ECU or `--all` (UDS `0x19` / KWP `0x18` by `id_protocol`),
   log each scan to `dtc_log.yaml`, and report what **changed** since the last scan. DTC meanings
   live per-ECU in `ecus/<name>.yaml` `dtcs:`; profile-wide `failure_types:` in `profile.yaml`.
@@ -708,6 +718,9 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
 - **`profiles/<car>/groups.yaml`** — Named selector groups (`@name`) — see `canair groups`. Loader
   `canlib/ecus/ecu_groups.py`. The bundled Ioniq ships
   `@charging`/`@driving`/`@powertrain`/`@climate`/`@body`.
+- **`profiles/<car>/actions.yaml`** — Named, guarded make-specific actions — see `canair
+  action`. Edit with `canair action add/set/rm`, never by hand. Withheld by the blind strip, since
+  its conditions name decoded signals.
 - **`profiles/<car>/signals/` + `captures/can/`** — The raw-CAN broadcast domain (in progress,
   `plans/2026-07-24-raw-can-analysis.md`), both optional. `signals/<bus>.yaml` holds DBC-compatible
   **linear** maps keyed by arbitration ID; `captures/can/` holds imported logs natively, indexed by
@@ -740,10 +753,12 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
     Hyundai/Kia identity-DID `-1` offset, `22F188`→`62F187`), `skm_wakeup` (enables the Ioniq SKM
     relay-wake), `nissan_c0_session` (permits the Nissan OEM session `10 C0` on KWP2000 ECUs,
     which the `canlib/safety.py` blocklist otherwise refuses, and switches the KWP2000 IOControl
-    scan to Nissan's `30 {LID} 01 00` probe) and `hk_90_session` (permits the Hyundai/Kia
-    KWP2000 actuator-test session `10 90` on KWP2000 ECUs). Resolver `canlib/quirks.py`; a
-    quirk may only *widen* the OEM session band for one protocol
-    (`allowed_session_modes(meta, protocol)`), never reach a programming or safety-system session.
+    scan to Nissan's `30 {LID} 01 00` probe), `hk_90_session` (permits the Hyundai/Kia
+    KWP2000 actuator-test session `10 90` on KWP2000 ECUs) and `hk_forced_sleep` (lets a guarded
+    `canair action` send the functional `10 D1`; not a session allowance). Resolver
+    `canlib/quirks.py`; a quirk may only *widen* the OEM session band for one protocol
+    (`allowed_session_modes(meta, protocol)`) or grant an action one exact request
+    (`action_grants`), never reach a programming or safety-system session.
     **The session rule is protocol-aware and lives once:** `safety.py::session_mode_block` (UDS
     judges `sub & 0x7F`, so `10 82` is programming there; an unknown protocol gets the stricter
     reading). Runtime applies it through a `SessionPolicy` (`SessionPolicy.from_profile`: each

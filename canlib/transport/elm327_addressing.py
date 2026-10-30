@@ -34,6 +34,7 @@ from typing import Any, Final
 
 from ..addressing import (
     DEFAULT_RX_OFFSET,
+    FUNCTIONAL_11BIT_ID,
     FUNCTIONAL_29BIT_ID,
     AddressBook,
     AddressingMode,
@@ -41,9 +42,6 @@ from ..addressing import (
     fixed_29bit_rx,
     is_extended,
 )
-
-# 11-bit OBD-II functional (broadcast) request id. 29-bit: FUNCTIONAL_29BIT_ID.
-FUNCTIONAL_11BIT_ID: Final = 0x7DF
 
 # Flow-control modes (`ATFCSM`): 0 = the adapter derives id and data; 1 = the user's
 # `ATFCSH` + `ATFCSD`.

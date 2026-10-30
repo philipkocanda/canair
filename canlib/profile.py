@@ -9,6 +9,7 @@ A *profile* is a self-contained directory bundling one vehicle's data:
       vehicle_states.yaml  vehicle operating-state vocabulary
       can_buses.yaml       physical CAN bus segment vocabulary
       groups.yaml          named capture/monitor selector groups
+      actions.yaml         named, guarded make-specific actions (`canair action`)
       signals/             broadcast signal maps, one <bus>.yaml per CAN bus
       captures/            raw UDS capture files (per date) + can/ frame logs
       references/          external reference material (spreadsheets, other logs)
@@ -112,6 +113,9 @@ BUNDLE_MEMBERS: tuple[BundleMember, ...] = (
     ),
     BundleMember("can_buses.yaml", "file", "definition", attr="can_buses_file"),
     BundleMember("groups.yaml", "file", "definition", attr="groups_file"),
+    # An action's condition names decoded signals, so the blind strip withholds it
+    # along with them.
+    BundleMember("actions.yaml", "file", "definition", attr="actions_file", blind_strip=True),
     # A signal map names and scales broadcast fields — the answers a blind run
     # is meant to rediscover — so it ships upstream but never into the sandbox.
     BundleMember("signals", "dir", "definition", attr="signals_dir", blind_strip=True),
@@ -237,6 +241,11 @@ class Profile:
     def groups_file(self) -> Path:
         """Per-profile capture/monitor selector groups (named saved queries)."""
         return self.root / "groups.yaml"
+
+    @property
+    def actions_file(self) -> Path:
+        """Profile-defined, guarded actions (``canair action``)."""
+        return self.root / "actions.yaml"
 
     @property
     def out_dir(self) -> Path:

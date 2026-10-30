@@ -22,7 +22,7 @@ from __future__ import annotations
 import asyncio
 import sys
 from collections.abc import Collection, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Final, Literal
 
 from .log import log_command
@@ -232,10 +232,16 @@ class SessionPolicy:
     Keyed by request (TX) id. A TX id shared by ECUs of different protocols, or
     not registered at all (a discovery sweep), resolves to ``unknown``. The
     default instance knows nothing, so the stricter reading always applies.
+
+    ``grants`` are exact ``(tx_id, request hex)`` session requests whose *soft*
+    block is lifted. :meth:`from_profile` never sets them: only a guarded profile
+    action (:mod:`canlib.actions`) adds them, through :meth:`granting`, for the
+    duration of its own send.
     """
 
     protocols: Mapping[int, SessionProtocol] = field(default_factory=dict)
     allowed: Mapping[SessionProtocol, frozenset[int]] = field(default_factory=dict)
+    grants: frozenset[tuple[int, str]] = frozenset()
 
     @classmethod
     def from_profile(cls, pids_data: Mapping[str, Any] | None) -> SessionPolicy:
@@ -266,6 +272,15 @@ class SessionPolicy:
         """The session rule for ``10 {sub}`` sent to ``tx_id``."""
         protocol = self.protocol(tx_id)
         return check_session_mode(sub, protocol, self.allowed_for(protocol))
+
+    def granting(self, grants: Collection[tuple[int, str]]) -> SessionPolicy:
+        """This policy plus the exact session requests ``grants`` permits."""
+        normalized = frozenset((tx, req.replace(" ", "").upper()) for tx, req in grants)
+        return replace(self, grants=self.grants | normalized)
+
+    def is_granted(self, request: str, tx_id: int | None) -> bool:
+        """Whether ``request`` to ``tx_id`` is one of this policy's exact grants."""
+        return tx_id is not None and (tx_id, request) in self.grants
 
     def safe_modes(self, tx_id: int | None, candidates: Collection[str]) -> list[str]:
         """The 2-hex-digit ``candidates`` this policy permits on ``tx_id``."""
@@ -305,7 +320,13 @@ def check_command_safety(
         return f"BLOCKED: UDS service 0x{service_byte:02X} -- {desc}"
 
     if service_byte == 0x10 and len(hex_only) >= 4:
-        return (policy or _NO_POLICY).check(int(hex_only[2:4], 16), tx_id)
+        active = policy or _NO_POLICY
+        sub = int(hex_only[2:4], 16)
+        protocol = active.protocol(tx_id)
+        block = session_mode_block(sub, protocol, active.allowed_for(protocol))
+        if block is not None and not block.hard and active.is_granted(hex_only, tx_id):
+            return None
+        return active.check(sub, tx_id)
 
     if service_byte == 0x31 and len(hex_only) >= 8:
         # On KWP2000, 0x31 is StartRoutineByLocalIdentifier: byte 2 is a local id.

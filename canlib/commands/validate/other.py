@@ -263,6 +263,56 @@ def _run_groups() -> int:
     return 0
 
 
+def _run_actions() -> int:
+    """Validate the profile's optional actions.yaml (guarded profile actions).
+
+    Structure and the guard rules come from the loader itself
+    (:func:`canlib.actions.parse_actions_doc`), so a file that loads is a file
+    that validates. On top of that every target, read and condition signal must
+    resolve against the ECU registry, and a request the command blocklist refuses
+    must be granted by one of the profile's quirks, or the action could never run.
+    """
+    from canlib.actions import ActionError, parse_actions_doc, registry_issues
+    from canlib.modes.action import action_policy, plan_requests
+    from canlib.pids import load_pids
+    from canlib.profile import active
+    from canlib.safety import SafetyBlocked, SessionPolicy
+
+    path = active().actions_file
+    if not path.exists():
+        print("No actions.yaml (optional) — skipping.")
+        return 0
+    try:
+        actions = parse_actions_doc(yaml_io.safe_load(path.read_text()))
+    except ActionError as e:
+        print(f"actions.yaml: 1 error\n  - {e}")
+        return 1
+    errors: list[str] = []
+    try:
+        pids_data = load_pids()
+    except Exception as ex:
+        pids_data = None
+        print(f"actions.yaml: registry checks skipped — could not load ecus/ ({ex})")
+    if pids_data:
+        policy = SessionPolicy.from_profile(pids_data)
+        for action in actions.values():
+            issues = registry_issues(action, pids_data)
+            errors.extend(issues)
+            if issues:
+                continue
+            try:
+                action_policy(action, plan_requests(action, pids_data), policy, pids_data)
+            except (ActionError, SafetyBlocked) as e:
+                errors.append(str(e))
+    if errors:
+        print(f"actions.yaml: {len(errors)} errors")
+        for e in errors:
+            print(f"  - {e}")
+        return 1
+    print(f"actions.yaml: OK ({len(actions)} actions)")
+    return 0
+
+
 def _run_can_buses() -> int:
     """Validate the profile's optional can_buses.yaml (CAN bus vocabulary)."""
     from canlib.profile import active

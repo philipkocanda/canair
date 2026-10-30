@@ -282,6 +282,16 @@ def _detail_groups(prof) -> str:
     return f"{len(groups)} groups: {names}"
 
 
+def _detail_actions(prof) -> str:
+    from canlib.actions import ActionError, load_actions
+
+    try:
+        actions = load_actions(prof)
+    except ActionError as ex:
+        return f"INVALID: {ex}"
+    return f"{len(actions)} actions: {', '.join(actions) if actions else 'empty'}"
+
+
 def _detail_signals(prof) -> str:
     from canlib.signals import load_signals
 
@@ -300,6 +310,7 @@ _MEMBER_DETAIL = {
     "can_buses.yaml": _detail_can_buses,
     "vehicle_states.yaml": _detail_states,
     "groups.yaml": _detail_groups,
+    "actions.yaml": _detail_actions,
     "signals": _detail_signals,
     "references": _detail_references,
 }

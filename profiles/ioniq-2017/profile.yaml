@@ -41,10 +41,14 @@ init: "ATSP6;ATS0;ATAL;ATST96;"
 # hk_90_session: permit the Hyundai/Kia KWP2000 OEM session 10 90, which their
 #   KWP2000 actuator tests (0x30) run in (Kia Soul EV per OVMS; opened on every
 #   powertrain ECU by a Car Scanner sweep of a Kona EV). Not yet tried on this car.
+# hk_forced_sleep: let the guarded `sleep` action (actions.yaml) send the functional
+#   10 D1 "Sleep Mode Start Request" (ES95486 revisions 3-29). Not a session
+#   allowance: `read`/`raw` steps still refuse it. Not yet tried on this car.
 quirks:
   - hk_f1xx_minus_one
   - skm_wakeup
   - hk_90_session
+  - hk_forced_sleep
 
 # ELM327 response timeout in ms (applied as ATSTxx after init; --elm-timeout
 # overrides). The Ioniq 2017 responds slowly, so keep this high. ~614ms == ATST96.

@@ -30,6 +30,7 @@ import asyncio
 import contextlib
 
 from canlib.frame_counts import FrameCountLedger
+from canlib.safety import SessionPolicy
 from canlib.timing import TimingRecorder
 from canlib.transport.isotp_params import ISOTP_MAX_REQUEST_BYTES
 from canlib.transport.stats import TransportStats
@@ -109,6 +110,8 @@ class FakeTerminal:
         # A segmenting transport's ceiling, so batching tests aren't clamped
         # unless they opt in by lowering it.
         self.max_request_bytes = ISOTP_MAX_REQUEST_BYTES
+        # Recorded only; the fake does not enforce the blocklist.
+        self.session_policy = SessionPolicy()
 
     async def set_header(self, tx_id: int) -> None:
         self.header = tx_id

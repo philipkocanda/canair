@@ -49,6 +49,10 @@ if TYPE_CHECKING:
 # when a profile declares no addressing.rx_offset and an ECU has no rx_id.
 DEFAULT_RX_OFFSET: Final = 0x08
 
+# 11-bit OBD-II functional (broadcast) request id: a request on it is heard by
+# every ECU the gateway routes it to.
+FUNCTIONAL_11BIT_ID: Final = 0x7DF
+
 # 29-bit functional (broadcast) diagnostic request id (ISO 15765-4): a request
 # on this id is heard by every ECU. Physical requests use 0x18DA{target}{tester}.
 FUNCTIONAL_29BIT_ID: Final = 0x18DB33F1

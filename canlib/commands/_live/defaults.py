@@ -27,6 +27,7 @@ CANAIR_DEFAULTS: dict = {
     "iocontrol_scan": None,
     "sessions_scan": None,
     "multi": None,
+    "action": None,
     # options
     "pid": None,
     "did": None,

@@ -260,3 +260,41 @@ def test_routine_rule_skips_kwp_local_identifiers():
     # KWP2000 31 01 FF00 starts local routine 0x01 with option bytes FF 00.
     assert check_command_safety("3101FF00", POLICY, KWP_ECU) is None
     assert check_command_safety("3101FF00", POLICY, 0x7FF) is not None  # unknown: stricter
+
+
+class TestActionGrants:
+    """Exact grants: how a guarded profile action sends one request the blocklist refuses."""
+
+    FUNCTIONAL = 0x7DF
+
+    def test_the_sleep_request_is_refused_without_a_grant(self):
+        assert check_command_safety("10D1", SessionPolicy(), self.FUNCTIONAL) is not None
+
+    def test_a_grant_lifts_exactly_that_request_on_that_id(self):
+        policy = SessionPolicy().granting([(self.FUNCTIONAL, "10 d1")])
+        assert check_command_safety("10D1", policy, self.FUNCTIONAL) is None
+        assert check_command_safety("10 D1", policy, self.FUNCTIONAL) is None
+        # Another id, another sub-function, or another service stay refused.
+        assert check_command_safety("10D1", policy, 0x770) is not None
+        assert check_command_safety("10D0", policy, self.FUNCTIONAL) is not None
+        assert check_command_safety("10D1FF", policy, self.FUNCTIONAL) is not None
+
+    def test_a_grant_cannot_lift_a_hard_block_or_a_blocked_service(self):
+        policy = SessionPolicy().granting(
+            [(self.FUNCTIONAL, "1002"), (self.FUNCTIONAL, "1082"), (self.FUNCTIONAL, "1101")]
+        )
+        assert check_command_safety("1002", policy, self.FUNCTIONAL) is not None
+        assert check_command_safety("1082", policy, self.FUNCTIONAL) is not None
+        assert check_command_safety("1101", policy, self.FUNCTIONAL) is not None
+
+    def test_the_quirk_grants_nothing_to_the_ordinary_policy(self):
+        """hk_forced_sleep is not a session allowance: read/raw steps still refuse 10 D1."""
+        data = {"ecus": {}, "quirks": ["hk_forced_sleep"]}
+        assert check_command_safety("10D1", SessionPolicy.from_profile(data), self.FUNCTIONAL)
+
+    def test_the_quirk_declares_only_the_functional_sleep_request(self):
+        from canlib.quirks import action_grants
+
+        assert action_grants({"quirks": ["hk_forced_sleep"]}) == {(self.FUNCTIONAL, "10D1")}
+        assert action_grants({"quirks": ["hk_90_session"]}) == frozenset()
+        assert action_grants(None) == frozenset()
