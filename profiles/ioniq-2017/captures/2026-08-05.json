@@ -6726,30 +6726,9 @@
       "state_spans": {
         "source": "backfill",
         "spans": [
-          {
-            "at": "13:31:57.258",
-            "states": [
-              "CHARGING",
-              "PLUGGED",
-              "PARKED",
-              "IG3"
-            ]
-          },
-          {
-            "at": "15:27:59.410",
-            "states": [
-              "PLUGGED",
-              "PARKED",
-              "IG3"
-            ]
-          },
-          {
-            "at": "15:28:10.617",
-            "states": [
-              "PLUGGED",
-              "PARKED"
-            ]
-          }
+          {"at": "13:31:57.258", "states": ["CHARGING", "PLUGGED", "PARKED", "IG3"]},
+          {"at": "15:27:59.410", "states": ["PLUGGED", "PARKED", "IG3"]},
+          {"at": "15:28:10.617", "states": ["PLUGGED", "PARKED"]}
         ],
         "version": "1.35.2+main.4636a47.dirty"
       },

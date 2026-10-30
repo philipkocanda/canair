@@ -1651,22 +1651,8 @@
       "state_spans": {
         "source": "backfill",
         "spans": [
-          {
-            "at": "15:57:30",
-            "states": [
-              "READY",
-              "PARKED",
-              "IG3"
-            ]
-          },
-          {
-            "at": "15:58:38",
-            "states": [
-              "READY",
-              "DRIVING",
-              "IG3"
-            ]
-          }
+          {"at": "15:57:30", "states": ["READY", "PARKED", "IG3"]},
+          {"at": "15:58:38", "states": ["READY", "DRIVING", "IG3"]}
         ],
         "version": "1.35.2+main.4636a47.dirty"
       },
@@ -1755,21 +1741,8 @@
       "state_spans": {
         "source": "backfill",
         "spans": [
-          {
-            "at": "16:01:10",
-            "states": [
-              "READY",
-              "IG3"
-            ]
-          },
-          {
-            "at": "16:01:25",
-            "states": [
-              "READY",
-              "DRIVING",
-              "IG3"
-            ]
-          }
+          {"at": "16:01:10", "states": ["READY", "IG3"]},
+          {"at": "16:01:25", "states": ["READY", "DRIVING", "IG3"]}
         ],
         "version": "1.35.2+main.4636a47.dirty"
       },
@@ -2314,60 +2287,13 @@
       "state_spans": {
         "source": "backfill",
         "spans": [
-          {
-            "at": "17:31:05",
-            "states": [
-              "READY",
-              "PARKED",
-              "IG3"
-            ]
-          },
-          {
-            "at": "17:32:00",
-            "states": [
-              "READY",
-              "DRIVING",
-              "IG3"
-            ]
-          },
-          {
-            "at": "17:33:25",
-            "states": [
-              "READY",
-              "IG3"
-            ]
-          },
-          {
-            "at": "17:34:07",
-            "states": [
-              "READY",
-              "DRIVING",
-              "IG3"
-            ]
-          },
-          {
-            "at": "17:35:59",
-            "states": [
-              "READY",
-              "IG3"
-            ]
-          },
-          {
-            "at": "17:36:55",
-            "states": [
-              "READY",
-              "DRIVING",
-              "IG3"
-            ]
-          },
-          {
-            "at": "17:45:34",
-            "states": [
-              "READY",
-              "PARKED",
-              "IG3"
-            ]
-          }
+          {"at": "17:31:05", "states": ["READY", "PARKED", "IG3"]},
+          {"at": "17:32:00", "states": ["READY", "DRIVING", "IG3"]},
+          {"at": "17:33:25", "states": ["READY", "IG3"]},
+          {"at": "17:34:07", "states": ["READY", "DRIVING", "IG3"]},
+          {"at": "17:35:59", "states": ["READY", "IG3"]},
+          {"at": "17:36:55", "states": ["READY", "DRIVING", "IG3"]},
+          {"at": "17:45:34", "states": ["READY", "PARKED", "IG3"]}
         ],
         "version": "1.35.2+main.4636a47.dirty"
       },

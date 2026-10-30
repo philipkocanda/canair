@@ -19,52 +19,12 @@
       "state_spans": {
         "source": "backfill",
         "spans": [
-          {
-            "at": "22:56:26.511",
-            "states": [
-              "CHARGING",
-              "PLUGGED",
-              "PARKED",
-              "IG3"
-            ]
-          },
-          {
-            "at": "23:00:37.880",
-            "states": [
-              "PLUGGED",
-              "PARKED"
-            ]
-          },
-          {
-            "at": "23:01:31.756",
-            "states": [
-              "PARKED"
-            ]
-          },
-          {
-            "at": "23:18:25.910",
-            "states": [
-              "PLUGGED",
-              "PARKED"
-            ]
-          },
-          {
-            "at": "23:18:36.170",
-            "states": [
-              "PLUGGED",
-              "PARKED",
-              "IG3"
-            ]
-          },
-          {
-            "at": "23:18:53.225",
-            "states": [
-              "CHARGING",
-              "PLUGGED",
-              "PARKED",
-              "IG3"
-            ]
-          }
+          {"at": "22:56:26.511", "states": ["CHARGING", "PLUGGED", "PARKED", "IG3"]},
+          {"at": "23:00:37.880", "states": ["PLUGGED", "PARKED"]},
+          {"at": "23:01:31.756", "states": ["PARKED"]},
+          {"at": "23:18:25.910", "states": ["PLUGGED", "PARKED"]},
+          {"at": "23:18:36.170", "states": ["PLUGGED", "PARKED", "IG3"]},
+          {"at": "23:18:53.225", "states": ["CHARGING", "PLUGGED", "PARKED", "IG3"]}
         ],
         "version": "1.35.2+main.4636a47.dirty"
       },

@@ -539,21 +539,8 @@
       "state_spans": {
         "source": "backfill",
         "spans": [
-          {
-            "at": "12:51:27.403",
-            "states": [
-              "READY",
-              "IG3"
-            ]
-          },
-          {
-            "at": "12:51:38.166",
-            "states": [
-              "READY",
-              "ON",
-              "IG3"
-            ]
-          }
+          {"at": "12:51:27.403", "states": ["READY", "IG3"]},
+          {"at": "12:51:38.166", "states": ["READY", "ON", "IG3"]}
         ],
         "version": "1.35.2+main.4636a47.dirty"
       },

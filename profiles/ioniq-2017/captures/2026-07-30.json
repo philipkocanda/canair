@@ -21,44 +21,10 @@
       "state_spans": {
         "source": "backfill",
         "spans": [
-          {
-            "at": "09:41:56.303",
-            "states": [
-              "READY",
-              "SLEEP",
-              "ACC",
-              "ON",
-              "PARKED",
-              "IG3"
-            ]
-          },
-          {
-            "at": "09:50:29.365",
-            "states": [
-              "SLEEP",
-              "ACC",
-              "PARKED"
-            ]
-          },
-          {
-            "at": "09:51:53.919",
-            "states": [
-              "SLEEP",
-              "ACC",
-              "PARKED",
-              "IG3"
-            ]
-          },
-          {
-            "at": "09:53:49.457",
-            "states": [
-              "READY",
-              "SLEEP",
-              "ACC",
-              "PARKED",
-              "IG3"
-            ]
-          }
+          {"at": "09:41:56.303", "states": ["READY", "SLEEP", "ACC", "ON", "PARKED", "IG3"]},
+          {"at": "09:50:29.365", "states": ["SLEEP", "ACC", "PARKED"]},
+          {"at": "09:51:53.919", "states": ["SLEEP", "ACC", "PARKED", "IG3"]},
+          {"at": "09:53:49.457", "states": ["READY", "SLEEP", "ACC", "PARKED", "IG3"]}
         ],
         "version": "1.35.2+main.4636a47.dirty"
       },
@@ -3918,47 +3884,11 @@
       "state_spans": {
         "source": "backfill",
         "spans": [
-          {
-            "at": "12:20:45.815",
-            "states": [
-              "CHARGING",
-              "PLUGGED",
-              "PARKED",
-              "IG3"
-            ]
-          },
-          {
-            "at": "14:35:50.161",
-            "states": [
-              "CHARGING",
-              "PLUGGED",
-              "PARKED"
-            ]
-          },
-          {
-            "at": "14:43:20.818",
-            "states": [
-              "CHARGING",
-              "PLUGGED",
-              "PARKED",
-              "IG3"
-            ]
-          },
-          {
-            "at": "14:43:31.164",
-            "states": [
-              "PLUGGED",
-              "PARKED",
-              "IG3"
-            ]
-          },
-          {
-            "at": "14:46:34.505",
-            "states": [
-              "PLUGGED",
-              "PARKED"
-            ]
-          }
+          {"at": "12:20:45.815", "states": ["CHARGING", "PLUGGED", "PARKED", "IG3"]},
+          {"at": "14:35:50.161", "states": ["CHARGING", "PLUGGED", "PARKED"]},
+          {"at": "14:43:20.818", "states": ["CHARGING", "PLUGGED", "PARKED", "IG3"]},
+          {"at": "14:43:31.164", "states": ["PLUGGED", "PARKED", "IG3"]},
+          {"at": "14:46:34.505", "states": ["PLUGGED", "PARKED"]}
         ],
         "version": "1.35.2+main.4636a47.dirty"
       },

@@ -112,21 +112,8 @@
       "state_spans": {
         "source": "backfill",
         "spans": [
-          {
-            "at": "10:00:48.793",
-            "states": [
-              "PARKED"
-            ]
-          },
-          {
-            "at": "10:01:34.608",
-            "states": [
-              "CHARGING",
-              "PLUGGED",
-              "PARKED",
-              "IG3"
-            ]
-          }
+          {"at": "10:00:48.793", "states": ["PARKED"]},
+          {"at": "10:01:34.608", "states": ["CHARGING", "PLUGGED", "PARKED", "IG3"]}
         ],
         "version": "1.35.2+main.4636a47.dirty"
       },

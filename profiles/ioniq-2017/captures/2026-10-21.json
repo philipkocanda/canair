@@ -66,18 +66,8 @@
       "state_spans": {
         "source": "backfill",
         "spans": [
-          {
-            "at": "21:03:05.257",
-            "states": []
-          },
-          {
-            "at": "21:03:24.711",
-            "states": [
-              "PARKED",
-              "TOPUP",
-              "IG3"
-            ]
-          }
+          {"at": "21:03:05.257", "states": []},
+          {"at": "21:03:24.711", "states": ["PARKED", "TOPUP", "IG3"]}
         ],
         "version": "1.35.2+main.4636a47.dirty"
       },
@@ -213,24 +203,9 @@
       "state_spans": {
         "source": "backfill",
         "spans": [
-          {
-            "at": "21:07:11.457",
-            "states": []
-          },
-          {
-            "at": "21:07:30.877",
-            "states": [
-              "PARKED",
-              "TOPUP",
-              "IG3"
-            ]
-          },
-          {
-            "at": "21:17:08.763",
-            "states": [
-              "PARKED"
-            ]
-          }
+          {"at": "21:07:11.457", "states": []},
+          {"at": "21:07:30.877", "states": ["PARKED", "TOPUP", "IG3"]},
+          {"at": "21:17:08.763", "states": ["PARKED"]}
         ],
         "version": "1.35.2+main.4636a47.dirty"
       },
