@@ -22,6 +22,7 @@ from canlib.captures.types import (
     StateSpans,
     StateSpanSource,
 )
+from canlib.id_ranges import IdRange, as_id_ranges, format_id_ranges
 from canlib.keepmode import KeepMode, persisted_keep_mode
 from canlib.states import join_states as _join_states
 from canlib.states import parse_states as _parse_states
@@ -200,7 +201,7 @@ def build_scan_session(
     ecu_ref: str,
     tx_id: int,
     service: int,
-    pid_range: tuple[int, int],
+    pid_range: IdRange | Sequence[IdRange],
     positive: list[tuple[int, UdsResponse]],
     negative: list[tuple[int, int, str]],
     errors: list[tuple[int, str]],
@@ -211,12 +212,11 @@ def build_scan_session(
     session_flag: bool = False,
     transport: str | None = None,
 ) -> CaptureSession:
-    """Build a capture session dict from scan results."""
-    start, end = pid_range
+    """Build a capture session dict from scan results (one range or several)."""
     wide_did = service in (0x22, 0x2F, 0x31)
     did_fmt = "04X" if wide_did else "02X"
 
-    range_str = f"{start:{did_fmt}}-{end:{did_fmt}}"
+    range_str = format_id_ranges(as_id_ranges(pid_range), 4 if wide_did else 2)
     suffix = f" + suffix {append_bytes}" if append_bytes else ""
 
     meta = _session_meta(vehicle_states, notes, transport)
@@ -771,15 +771,14 @@ def _decode_payload(
 def suggest_scan_label(
     ecu_name: str,
     service: int,
-    pid_range: tuple[int, int],
+    pid_range: IdRange | Sequence[IdRange],
     append_bytes: str = "",
 ) -> str:
     """Generate a suggested label for a scan session."""
-    start, end = pid_range
     wide_did = service in (0x22, 0x2F, 0x31)
-    did_fmt = "04X" if wide_did else "02X"
+    ranges = format_id_ranges(as_id_ranges(pid_range), 4 if wide_did else 2)
     suffix = f" +{append_bytes}" if append_bytes else ""
-    return f"Scan {ecu_name} {service:02X} {start:{did_fmt}}-{end:{did_fmt}}{suffix}"
+    return f"Scan {ecu_name} {service:02X} {ranges}{suffix}"
 
 
 def suggest_raw_label(ecu_name: str, request: str) -> str:

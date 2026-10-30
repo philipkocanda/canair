@@ -27,7 +27,9 @@ from canlib.commands._live import (
     finalize_live_parser,
     run_live,
 )
+from canlib.id_ranges import format_id_ranges, parse_id_ranges
 from canlib.scan_presets import (
+    FAMILY_SIZE,
     SERVICE_PRESETS,
     ScanPlan,
     ServiceError,
@@ -88,13 +90,17 @@ def _add_range_parser(kinds) -> argparse.ArgumentParser:
     parser = kinds.add_parser(
         "range",
         help="Sweep a range of PIDs/DIDs on an ECU",
-        description="Scan a range of PIDs/DIDs on an ECU. One scan at a time only.",
+        description="Scan one or more ranges of PIDs/DIDs on an ECU. One scan at a time only. "
+        "Without --range, a UDS ECU's DID families are swept: every high byte the profile "
+        "shows it using (its 22/2F PIDs and its IOControl DIDs), the whole family by default "
+        "(--slots narrows it).",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
 getting started:
   canair scan range                 # interactive wizard — pick ECU/service/range
   canair scan BMS                   # smart defaults for that ECU (bare = range)
-  canair scan range IGPM            # UDS ECU → read-did over its known DID range
+  canair scan range IGPM            # UDS ECU → read-did over its known DID families
+  canair scan range PSM --slots 32  # first 32 DIDs of each family (xx00-xx1F)
 
 """
         + presets_help()
@@ -103,6 +109,7 @@ getting started:
 examples:
   canair scan range BMS --service live-data --range 01-FF
   canair scan range 7E4 --service read-did --range BC01-BC0B
+  canair scan range SKM --service read-did --range B000-B01F,B100-B11F
   canair scan range IGPM --service iocontrol --range E000-E0FF --append 03 --session
 
 tips:
@@ -138,9 +145,17 @@ tips:
     )
     parser.add_argument(
         "--range",
-        metavar="START-END",
+        metavar="START-END[,...]",
         default=None,
-        help="PID/DID range in hex (default: smart per-ECU)",
+        help="PID/DID range in hex, or a comma list of ranges (default: smart per-ECU)",
+    )
+    parser.add_argument(
+        "--slots",
+        metavar="N",
+        type=_slots,
+        default=None,
+        help="With the smart default: sweep only the first N DIDs of each DID family "
+        "(1-256, default 256 = the whole family). Can't be combined with --range.",
     )
     parser.add_argument("--append", metavar="HEX", help="Hex bytes to append after each DID")
     parser.add_argument("--session", action="store_true", help="Enter extended session (10 03)")
@@ -317,9 +332,18 @@ def _add_sessions_parser(kinds) -> argparse.ArgumentParser:
     return parser
 
 
-def _fmt_range(rng: tuple[int, int], wide: bool) -> str:
-    fmt = "04X" if wide else "02X"
-    return f"{rng[0]:{fmt}}-{rng[1]:{fmt}}"
+def _slots(value: str) -> int:
+    try:
+        n = int(value, 0)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"--slots must be a number, got {value!r}") from None
+    if not 1 <= n <= FAMILY_SIZE:
+        raise argparse.ArgumentTypeError(f"--slots must be 1-{FAMILY_SIZE}, got {n}")
+    return n
+
+
+def _fmt_ranges(ranges, wide: bool) -> str:
+    return format_id_ranges(ranges, 4 if wide else 2)
 
 
 def _resolve_plan(args) -> None:
@@ -330,10 +354,14 @@ def _resolve_plan(args) -> None:
     summary of the resolved plan so the user learns the underlying command.
     """
     auto = args.service is None and args.range is None
+    slots = getattr(args, "slots", None)
+    if slots is not None and args.range is not None:
+        print("Error: --slots shapes the smart default; drop it or drop --range.", file=sys.stderr)
+        sys.exit(2)
     plan: ScanPlan | None = None
     if args.service is None or args.range is None:
         try:
-            plan = plan_scan(args.tx)
+            plan = plan_scan(args.tx, slots=slots or FAMILY_SIZE)
         except Exception:
             plan = None
 
@@ -356,7 +384,7 @@ def _resolve_plan(args) -> None:
     # --- range ---
     if args.range is None:
         if plan is not None and plan.service == service_int:
-            args.range = _fmt_range(plan.pid_range, wide)
+            args.range = _fmt_ranges(plan.ranges, wide)
         else:
             preset = preset_by_service(service_int)
             args.range = preset.default_range if preset else ("0000-00FF" if wide else "01-FF")
@@ -367,6 +395,12 @@ def _resolve_plan(args) -> None:
             args.session = True
         if plan.wake and not args.wake:
             args.wake = True
+
+    try:
+        parse_id_ranges(args.range)
+    except ValueError as e:
+        print(f"Error: --range {args.range}: {e}", file=sys.stderr)
+        sys.exit(2)
 
     _print_plan_summary(args, service_int, preset_name, plan if auto else None)
 
@@ -492,11 +526,11 @@ def _run_wizard(args) -> bool:
 
         # 3. Range
         if plan is not None and plan.service == service_int:
-            default_range = _fmt_range(plan.pid_range, wide)
+            default_range = _fmt_ranges(plan.ranges, wide)
         else:
             preset = preset_by_service(service_int)
             default_range = preset.default_range if preset else ("0000-00FF" if wide else "01-FF")
-        args.range = _prompt("Range (START-END, hex)", default_range)
+        args.range = _prompt("Range (START-END[,...], hex)", default_range)
 
         # 4. Session / wake
         console.print()

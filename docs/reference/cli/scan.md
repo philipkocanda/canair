@@ -39,9 +39,9 @@ Run `canair scan <kind> --help` for the flags of each kind.
 ## `canair scan range`
 
 ```
-usage: canair scan range [-h] [-i] [--service SVC] [--range START-END]
-                         [--append HEX] [--session] [--wake] [--save]
-                         [--label TEXT] [--state TEXT] [--notes TEXT]
+usage: canair scan range [-h] [-i] [--service SVC] [--range START-END[,...]]
+                         [--slots N] [--append HEX] [--session] [--wake]
+                         [--save] [--label TEXT] [--state TEXT] [--notes TEXT]
                          [--wican WICAN]
                          [--transport {slcan-tcp,wican-ws,elm327-tcp}]
                          [--no-fallback] [--wait] [--elm-timeout MS]
@@ -50,7 +50,7 @@ usage: canair scan range [-h] [-i] [--service SVC] [--range START-END]
                          [--force]
                          [ECU]
 
-Scan a range of PIDs/DIDs on an ECU. One scan at a time only.
+Scan one or more ranges of PIDs/DIDs on an ECU. One scan at a time only. Without --range, a UDS ECU's DID families are swept: every high byte the profile shows it using (its 22/2F PIDs and its IOControl DIDs), the whole family by default (--slots narrows it).
 
 positional arguments:
   ECU                   ECU name or TX ID (e.g. BMS or 7E4). Omit for the
@@ -62,7 +62,12 @@ options:
   --service SVC         UDS service: a preset name (live-data, read-did,
                         iocontrol, routine) or a hex byte (default: smart per-
                         ECU)
-  --range START-END     PID/DID range in hex (default: smart per-ECU)
+  --range START-END[,...]
+                        PID/DID range in hex, or a comma list of ranges
+                        (default: smart per-ECU)
+  --slots N             With the smart default: sweep only the first N DIDs of
+                        each DID family (1-256, default 256 = the whole
+                        family). Can't be combined with --range.
   --append HEX          Hex bytes to append after each DID
   --session             Enter extended session (10 03)
   --wake                Wake ECUs from deep sleep (10 01)
@@ -112,7 +117,8 @@ options:
 getting started:
   canair scan range                 # interactive wizard — pick ECU/service/range
   canair scan BMS                   # smart defaults for that ECU (bare = range)
-  canair scan range IGPM            # UDS ECU → read-did over its known DID range
+  canair scan range IGPM            # UDS ECU → read-did over its known DID families
+  canair scan range PSM --slots 32  # first 32 DIDs of each family (xx00-xx1F)
 
 service presets (pass to --service, or use a raw hex byte):
   live-data  0x21  KWP2000 paged live data (powertrain ECUs: BMS, VCU, MCU, LDC)
@@ -127,6 +133,7 @@ service presets (pass to --service, or use a raw hex byte):
 examples:
   canair scan range BMS --service live-data --range 01-FF
   canair scan range 7E4 --service read-did --range BC01-BC0B
+  canair scan range SKM --service read-did --range B000-B01F,B100-B11F
   canair scan range IGPM --service iocontrol --range E000-E0FF --append 03 --session
 
 tips:

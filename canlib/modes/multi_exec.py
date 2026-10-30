@@ -543,11 +543,13 @@ async def _exec_scan(
     except ServiceError as e:
         print(f"  ERROR: {e}")
         return
-    match = re.match(r"^([0-9A-Fa-f]+)-([0-9A-Fa-f]+)$", range_str)
-    if not match:
-        print(f"  ERROR: Invalid range: {range_str}")
+    from ..id_ranges import parse_id_ranges
+
+    try:
+        pid_ranges = parse_id_ranges(range_str)
+    except ValueError as e:
+        print(f"  ERROR: Invalid range: {range_str} ({e})")
         return
-    pid_range = (int(match.group(1), 16), int(match.group(2), 16))
 
     await sm.keepalive_stale()
 
@@ -556,7 +558,7 @@ async def _exec_scan(
         sm.terminal,
         tx_id,
         service,
-        pid_range,
+        pid_ranges,
         verbose,
         as_json=False,
         append_bytes=append.upper(),

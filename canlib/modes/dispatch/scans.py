@@ -16,7 +16,7 @@ from canlib.modes.iocontrol_scan import mode_iocontrol_scan
 from canlib.modes.routines_scan import mode_routines_scan
 from canlib.transport.protocol import Terminal
 
-from .ranges import parse_range
+from .ranges import parse_range, parse_ranges
 
 
 async def handle_scan(args, terminal: Terminal, pids_data, host, *, reconnect=None) -> None:
@@ -31,7 +31,7 @@ async def handle_scan(args, terminal: Terminal, pids_data, host, *, reconnect=No
         )
         sys.exit(1)
     service = int(args.service, 16) if args.service else 0x21
-    pid_range = parse_range(args.range) if args.range else (0x01, 0xFF)
+    pid_ranges = parse_ranges(args.range) if args.range else ((0x01, 0xFF),)
     append_bytes = ""
     if args.append:
         cleaned = args.append.replace(" ", "").upper()
@@ -46,7 +46,7 @@ async def handle_scan(args, terminal: Terminal, pids_data, host, *, reconnect=No
         terminal,
         tx_id,
         service,
-        pid_range,
+        pid_ranges,
         args.verbose,
         args.json,
         append_bytes=append_bytes,

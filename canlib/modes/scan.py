@@ -1,9 +1,11 @@
-"""Scan a range of PIDs/DIDs."""
+"""Scan one or more ranges of PIDs/DIDs."""
 
 import asyncio
 import json
 import sys
+from collections.abc import Sequence
 
+from ..id_ranges import IdRange, as_id_ranges, count_ids, format_id_ranges, iter_ids
 from ..transport.protocol import Terminal
 
 
@@ -11,7 +13,7 @@ async def mode_scan(
     terminal: Terminal,
     tx_id: int,
     service: int,
-    pid_range: tuple[int, int],
+    pid_ranges: IdRange | Sequence[IdRange],
     verbose: bool,
     as_json: bool,
     append_bytes: str = "",
@@ -22,9 +24,10 @@ async def mode_scan(
     vehicle_states=None,
     notes: str | None = None,
 ):
-    """Scan a range of PIDs and show which respond positively.
+    """Scan PID/DID ranges and show which ids respond positively.
 
     Args:
+        pid_ranges: One ``(start, end)`` pair or several; an id covered twice is sent once.
         append_bytes: Hex string to append after each PID (e.g. "03" for
             IOControl ShortTermAdjustment).
         session: If True, enter extended diagnostic session (10 03) before
@@ -52,19 +55,20 @@ async def mode_scan(
 
     console = Console()
 
-    start, end = pid_range
-    total = end - start + 1
+    ranges = as_id_ranges(pid_ranges)
+    total = count_ids(ranges)
 
     wide_did = service in (0x22, 0x2F, 0x31)
     did_fmt = "04X" if wide_did else "02X"
     did_label = "DID" if wide_did else "PID"
+    ranges_text = format_id_ranges(ranges, 4 if wide_did else 2)
 
     suffix_label = f" + suffix {append_bytes}" if append_bytes else ""
 
     ecu = ecu_name(tx_id)
     console.print(
         f"\n  [bold]Scanning {ecu_display(tx_id)}[/bold] — {service_label(service)}, "
-        f"{did_label}s 0x{start:{did_fmt}}..0x{end:{did_fmt}} "
+        f"{did_label}s {ranges_text} "
         f"([cyan]{total}[/cyan] {did_label}s){suffix_label}"
     )
 
@@ -95,7 +99,7 @@ async def mode_scan(
     try:
         with progress:
             task = progress.add_task(f"Scanning {ecu}", total=total, hits=0)
-            for pid_val in range(start, end + 1):
+            for pid_val in iter_ids(ranges):
                 req = f"{service:02X}{pid_val:{did_fmt}}{append_bytes}"
 
                 response = await terminal.send_uds(req, timeout=2.0)
@@ -176,7 +180,7 @@ async def mode_scan(
             "ecu": ecu,
             "tx_id": f"0x{tx_id:03X}",
             "service": f"0x{service:02X}",
-            "range": f"0x{start:{did_fmt}}-0x{end:{did_fmt}}",
+            "range": ",".join(f"0x{a:{did_fmt}}-0x{b:{did_fmt}}" for a, b in ranges),
             "append": append_bytes if append_bytes else None,
             "session": session,
             "positive": [{"did": f"0x{p:{did_fmt}}", "bytes": r["hex"]} for p, r in positive],
@@ -199,7 +203,7 @@ async def mode_scan(
         )
         from ..ecus import rx_addr_str
 
-        suggested = suggest_scan_label(ecu, service, pid_range, append_bytes)
+        suggested = suggest_scan_label(ecu, service, ranges, append_bytes)
         n_pos = len(positive)
         n_neg = len(negative)
         console.print(f"\n  Save: {n_pos} positive, {n_neg} negative responses.")
@@ -210,7 +214,7 @@ async def mode_scan(
                 ecu_ref=rx_addr_str(tx_id),
                 tx_id=tx_id,
                 service=service,
-                pid_range=pid_range,
+                pid_range=ranges,
                 positive=positive,
                 negative=negative,
                 errors=errors,

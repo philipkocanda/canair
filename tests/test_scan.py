@@ -82,30 +82,47 @@ class TestServiceHelpers:
             assert name in text
 
 
-class TestInferFromPids:
+class TestDominantService:
     def test_narrow_service_21(self):
-        # BMS-style paged PIDs → service 0x21, full paged range.
-        svc, rng = sp._infer_from_pids(["2101", "2102", "2105"])
-        assert svc == 0x21
-        assert rng == (0x01, 0xFF)
+        assert sp._dominant_service(["2101", "2102", "2105"]) == 0x21
 
-    def test_wide_service_22_single_high_byte(self):
-        svc, rng = sp._infer_from_pids(["22BC03", "22BC06", "22BC07"])
-        assert svc == 0x22
-        assert rng == (0xBC00, 0xBCFF)
-
-    def test_wide_service_spans_high_bytes(self):
-        svc, rng = sp._infer_from_pids(["22B003", "22C00B"])
-        assert svc == 0x22
-        assert rng == (0xB000, 0xC0FF)
+    def test_wide_service_22(self):
+        assert sp._dominant_service(["22BC03", "22BC06", "22BC07"]) == 0x22
 
     def test_dominant_service_wins(self):
-        svc, _ = sp._infer_from_pids(["2101", "2102", "22F190"])
-        assert svc == 0x21
+        assert sp._dominant_service(["2101", "2102", "22F190"]) == 0x21
 
     def test_empty_returns_none(self):
-        assert sp._infer_from_pids([]) is None
-        assert sp._infer_from_pids(["zz", "1"]) is None
+        assert sp._dominant_service([]) is None
+        assert sp._dominant_service(["zz", "1"]) is None
+
+
+class TestDidFamilies:
+    def test_pids_and_iocontrol_are_both_evidence(self):
+        ecu = {
+            "pids": {"22B002": {}, "22B00B": {}, "2101": {}},
+            "iocontrol": {"B101": {}, "B130": {}},
+            "iocontrol_discoveries": {"B108": {}, "C001": {}},
+        }
+        assert sp.did_families(ecu) == {0xB0: "PIDs", 0xB1: "IOControl", 0xC0: "IOControl"}
+
+    def test_a_family_seen_in_both_names_both(self):
+        ecu = {"pids": {"22BC03": {}}, "iocontrol": {"BC01": {}}}
+        assert sp.did_families(ecu) == {0xBC: "PIDs+IOControl"}
+
+    def test_kwp_local_ids_never_form_a_family(self):
+        assert sp.did_families({"pids": {"2101": {}}, "iocontrol": {"01": {}}}) == {}
+
+    def test_iocontrol_can_be_excluded(self):
+        ecu = {"pids": {"22B002": {}}, "iocontrol": {"B401": {}}}
+        assert sp.did_families(ecu, include_iocontrol=False) == {0xB0: "PIDs"}
+
+    def test_family_ranges_whole_or_first_slots(self):
+        fam = {0xB0: "PIDs", 0xC0: "PIDs"}
+        assert sp.family_ranges(fam) == ((0xB000, 0xB0FF), (0xC000, 0xC0FF))
+        assert sp.family_ranges(fam, 0x20) == ((0xB000, 0xB01F), (0xC000, 0xC01F))
+        with pytest.raises(ValueError):
+            sp.family_ranges(fam, 0)
 
 
 class TestPlanScan:
@@ -114,6 +131,8 @@ class TestPlanScan:
             "ecus": {
                 "BMS": {"tx_id": 0x7E4, "pids": {"2101": {}, "2105": {}}},
                 "IGPM": {"tx_id": 0x770, "pids": {"22BC03": {}, "22BC06": {}}},
+                "BCM": {"tx_id": 0x7A0, "pids": {"22B003": {}, "22C00B": {}}},
+                "PSM": {"tx_id": 0x7A3, "pids": {}, "iocontrol": {"B401": {}, "B408": {}}},
                 "MYSTERY_UDS": {"tx_id": 0x7C0, "pids": {}},
             }
         }
@@ -122,6 +141,8 @@ class TestPlanScan:
         return {
             0x7E4: {"name": "BMS", "id_protocol": "KWP2000"},
             0x770: {"name": "IGPM", "id_protocol": "UDS"},
+            0x7A0: {"name": "BCM", "id_protocol": "UDS"},
+            0x7A3: {"name": "PSM", "id_protocol": "UDS"},
             0x7C0: {"name": "MYSTERY_UDS", "id_protocol": "UDS"},
             0x7B7: {"name": "NOPIDS_KWP", "id_protocol": "KWP2000"},
         }
@@ -130,24 +151,39 @@ class TestPlanScan:
         p = plan_scan("BMS", pids_data=self._pids(), ecus_data=self._ecus())
         assert p.service == 0x21
         assert p.service_name == "live-data"
-        assert p.pid_range == (0x01, 0xFF)
+        assert p.ranges == ((0x01, 0xFF),)
         assert "known PID" in p.reason
 
     def test_uds_ecu_from_pids(self):
         p = plan_scan("IGPM", pids_data=self._pids(), ecus_data=self._ecus())
         assert p.service == 0x22
-        assert p.pid_range == (0xBC00, 0xBCFF)
+        assert p.ranges == ((0xBC00, 0xBCFF),)
+
+    def test_separate_families_are_swept_not_the_span_between(self):
+        p = plan_scan("BCM", pids_data=self._pids(), ecus_data=self._ecus())
+        assert p.ranges == ((0xB000, 0xB0FF), (0xC000, 0xC0FF))
+
+    def test_an_ecu_known_only_by_its_actuators_reads_their_family(self):
+        p = plan_scan("PSM", pids_data=self._pids(), ecus_data=self._ecus())
+        assert p.service == 0x22
+        assert p.ranges == ((0xB400, 0xB4FF),)
+        assert "B4xx (IOControl)" in p.reason
+
+    def test_slots_narrow_each_family(self):
+        p = plan_scan("BCM", pids_data=self._pids(), ecus_data=self._ecus(), slots=0x20)
+        assert p.ranges == ((0xB000, 0xB01F), (0xC000, 0xC01F))
+        assert "first 32" in p.reason
 
     def test_uds_ecu_no_pids_falls_back_to_identity(self):
         p = plan_scan("MYSTERY_UDS", pids_data=self._pids(), ecus_data=self._ecus())
         assert p.service == 0x22
-        assert p.pid_range == (0xF100, 0xF1FF)
+        assert p.ranges == ((0xF100, 0xF1FF),)
         assert "identity" in p.reason.lower()
 
     def test_kwp_ecu_no_pids_falls_back_to_live_data(self):
         p = plan_scan("NOPIDS_KWP", pids_data=self._pids(), ecus_data=self._ecus())
         assert p.service == 0x21
-        assert p.pid_range == (0x01, 0xFF)
+        assert p.ranges == ((0x01, 0xFF),)
 
     def test_resolve_by_hex_tx(self):
         p = plan_scan("7E4", pids_data=self._pids(), ecus_data=self._ecus())
@@ -159,11 +195,43 @@ class TestPlanScan:
 
 
 class TestCommandHelpers:
-    def test_fmt_range(self):
-        from canlib.commands.scan import _fmt_range
+    def test_fmt_ranges(self):
+        from canlib.commands.scan import _fmt_ranges
 
-        assert _fmt_range((0x01, 0xFF), wide=False) == "01-FF"
-        assert _fmt_range((0xBC00, 0xBCFF), wide=True) == "BC00-BCFF"
+        assert _fmt_ranges(((0x01, 0xFF),), wide=False) == "01-FF"
+        assert _fmt_ranges(((0xB000, 0xB0FF), (0xC000, 0xC0FF)), wide=True) == "B000-B0FF,C000-C0FF"
+
+    def test_slots_needs_the_smart_default(self, capsys):
+        from canlib.commands.scan import _resolve_plan
+
+        args = SimpleNamespace(
+            tx="BCM",
+            service=None,
+            range="B000-B0FF",
+            slots=32,
+            append=None,
+            session=False,
+            wake=False,
+        )
+        with pytest.raises(SystemExit):
+            _resolve_plan(args)
+        assert "--slots" in capsys.readouterr().err
+
+    def test_a_malformed_range_list_is_refused_up_front(self, capsys):
+        from canlib.commands.scan import _resolve_plan
+
+        args = SimpleNamespace(
+            tx="7A0",
+            service="22",
+            range="B000-B0FF,nope",
+            slots=None,
+            append=None,
+            session=False,
+            wake=False,
+        )
+        with pytest.raises(SystemExit):
+            _resolve_plan(args)
+        assert "nope" in capsys.readouterr().err
 
     def test_equiv_command(self):
         from canlib.commands.scan import _equiv_command

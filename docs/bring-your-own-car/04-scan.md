@@ -12,8 +12,13 @@ canair scan range MyECU --range 2100-21FF --save
 
 - `range` is the general-purpose kind (a bare `canair scan MyECU` is shorthand
   for it).
-- `--range START-END` — the DID/PID range in hex. Omit it for a smart per-ECU
-  default.
+- `--range START-END` — the DID/PID range in hex, or a comma list of ranges
+  (`B000-B01F,B100-B11F`). Omit it for a smart per-ECU default: on a UDS ECU that is
+  every **DID family** (a high byte such as `B4xx`) the profile shows the ECU using,
+  from its `22`/`2F` PIDs and the actuators an IOControl scan found. ECUs often keep their
+  live-data DIDs in the same few families as their actuators, so an ECU known only
+  by its actuators still gets a useful read sweep. `--slots N` narrows each family to
+  its first N DIDs.
 - `--service SVC` — which UDS service to probe (e.g. `read-did` for `22`,
   `live-data` for `21`). Presets are listed in `canair scan range --help`.
 - `--save` — record responders to `captures/` so the hits are preserved.

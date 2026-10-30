@@ -11,7 +11,11 @@ imported cheaply by the CLI, the interactive wizard, and the test suite.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import Any
+
+from .id_ranges import IdRange
 
 
 @dataclass(frozen=True)
@@ -178,7 +182,7 @@ class ScanPlan:
     tx_id: int
     service: int
     service_name: str | None
-    pid_range: tuple[int, int]
+    ranges: tuple[IdRange, ...]
     session: bool
     wake: bool
     reason: str  # human-readable explanation of how this plan was derived
@@ -198,38 +202,78 @@ def _find_ecu_def(ecu_name: str, pids_data: dict) -> tuple[str, dict] | None:
     return None
 
 
-def _infer_from_pids(pid_keys: list[str]) -> tuple[int, tuple[int, int]] | None:
-    """Infer (service, range) from an ECU's defined PID/DID keys.
-
-    PID keys embed the service byte, e.g. ``2101`` (service 21, id 01) or
-    ``22BC07`` (service 22, DID BC07). The dominant service wins; the range
-    spans the observed id/DID high bytes.
-    """
+def _dominant_service(pid_keys: list[str]) -> int | None:
+    """The service byte most of an ECU's PID keys use (``2101`` -> 0x21, ``22BC07`` -> 0x22)."""
     from collections import Counter
 
-    parsed: list[tuple[int, int]] = []  # (service, did)
+    services: list[int] = []
     for key in pid_keys:
         k = str(key).upper().removeprefix("0X")
         if len(k) < 4 or len(k) % 2 != 0:
             continue
         try:
-            service = int(k[:2], 16)
-            did = int(k[2:], 16)
+            int(k[2:], 16)
+            services.append(int(k[:2], 16))
         except ValueError:
             continue
-        parsed.append((service, did))
-    if not parsed:
+    return Counter(services).most_common(1)[0][0] if services else None
+
+
+# Where an ECU's 16-bit DIDs are known from: its 22/2F PID keys, and the actuators an
+# IOControl scan or a curated entry has found.
+_FAMILY_SOURCES = (
+    ("pids", "PIDs"),
+    ("iocontrol", "IOControl"),
+    ("iocontrol_discoveries", "IOControl"),
+)
+
+FAMILY_SIZE = 0x100
+
+
+def did_families(ecu_def: Mapping[str, Any], *, include_iocontrol: bool = True) -> dict[int, str]:
+    """The DID high bytes an ECU is known to use, each with where it was seen.
+
+    An ECU keeps its DIDs in a few families that share a high byte (an IGPM's ``BCxx``, a
+    BCM's ``B0xx`` and ``C0xx``), and its IOControl DIDs usually sit in the same families as
+    its readable records. Returns ``{high_byte: "PIDs" | "IOControl" | "PIDs+IOControl"}``,
+    sorted by high byte. Only 4-hex-digit identifiers count, so KWP2000 local ids never form
+    a family.
+    """
+    seen: dict[int, list[str]] = {}
+    for field, label in _FAMILY_SOURCES:
+        if field != "pids" and not include_iocontrol:
+            continue
+        entries = ecu_def.get(field) or {}
+        if not isinstance(entries, Mapping):
+            continue
+        for key in entries:
+            did = _wide_did(str(key), from_pid=field == "pids")
+            if did is None:
+                continue
+            labels = seen.setdefault(did >> 8, [])
+            if label not in labels:
+                labels.append(label)
+    return {hi: "+".join(seen[hi]) for hi in sorted(seen)}
+
+
+def _wide_did(key: str, *, from_pid: bool) -> int | None:
+    """The 16-bit DID in a PID key (``22BC07``/``2FB015``) or a bare DID key (``BC01``)."""
+    k = key.upper().removeprefix("0X")
+    try:
+        if from_pid:
+            if len(k) != 6 or int(k[:2], 16) not in (0x22, 0x2F):
+                return None
+            return int(k[2:], 16)
+        return int(k, 16) if len(k) == 4 else None
+    except ValueError:
         return None
 
-    dominant = Counter(s for s, _ in parsed).most_common(1)[0][0]
-    dids = [d for s, d in parsed if s == dominant]
-    if is_wide_service(dominant):
-        his = [d >> 8 for d in dids]
-        lo = min(his) << 8
-        hi = (max(his) << 8) | 0xFF
-        return dominant, (lo, hi)
-    # Narrow service (e.g. 21): the paged id space is small; scan it fully.
-    return dominant, (0x01, 0xFF)
+
+def family_ranges(families: Mapping[int, str], slots: int = FAMILY_SIZE) -> tuple[IdRange, ...]:
+    """One range per family: its first ``slots`` DIDs (``xx00`` up), the whole family by default."""
+    if not 1 <= slots <= FAMILY_SIZE:
+        raise ValueError(f"slots must be 1-{FAMILY_SIZE}, got {slots}")
+    return tuple(((hi << 8), (hi << 8) + slots - 1) for hi in families)
 
 
 def infer_iocontrol_ranges(ecu_def: dict) -> list[tuple[int, int]] | None:
@@ -243,35 +287,30 @@ def infer_iocontrol_ranges(ecu_def: dict) -> list[tuple[int, int]] | None:
     or ``None`` when the ECU declares no such keys (caller then falls back to the
     generic full-DID space).
     """
-    pids = ecu_def.get("pids") or {}
-    highs: set[int] = set()
-    for key in pids:
-        k = str(key).upper().removeprefix("0X")
-        if len(k) < 4 or len(k) % 2 != 0:
-            continue
-        try:
-            service = int(k[:2], 16)
-            did = int(k[2:], 16)
-        except ValueError:
-            continue
-        if service in (0x2F, 0x22):
-            highs.add(did >> 8)
-    if not highs:
+    families = did_families(ecu_def, include_iocontrol=False)
+    if not families:
         return None
-    return [((h << 8), (h << 8) | 0xFF) for h in sorted(highs)]
+    return list(family_ranges(families))
 
 
 def plan_scan(
     ecu: str,
     pids_data: dict | None = None,
     ecus_data: dict | None = None,
+    *,
+    slots: int = FAMILY_SIZE,
 ) -> ScanPlan | None:
     """Suggest a sensible scan for ``ecu`` (name or hex TX id).
 
     Strategy:
-      1. If the profile defines PIDs for this ECU, infer service + range from
-         them (most useful — scans the space we already know about).
-      2. Otherwise fall back to the ECU's ``id_protocol`` (KWP2000 -> live-data,
+      1. A KWP2000 ECU whose profile PIDs are paged live data (``21xx``) gets
+         its paged id space.
+      2. Any other ECU with known DID families (from its 22/2F PIDs or its
+         IOControl hits, see :func:`did_families`) gets a ReadDataByIdentifier
+         sweep of each family: its first ``slots`` DIDs, the whole family by
+         default. Reading an ECU's IOControl families is what finds the record
+         DIDs of an ECU known only by its actuators.
+      3. Otherwise fall back to the ECU's ``id_protocol`` (KWP2000 -> live-data,
          UDS -> identity DIDs) from the ECU registry.
 
     Returns ``None`` if the ECU can't be resolved to a TX id.
@@ -299,37 +338,52 @@ def plan_scan(
         return None
 
     canonical_name = _ecu_name(tx_id, ecus_data)
-
-    # 1. Infer from known PIDs.
-    found = _find_ecu_def(canonical_name, pids_data) or _find_ecu_def(str(ecu), pids_data)
-    if found:
-        _name, defn = found
-        pid_keys = list((defn.get("pids") or {}).keys())
-        inferred = _infer_from_pids(pid_keys)
-        if inferred:
-            service, rng = inferred
-            preset = _BY_SERVICE.get(service)
-            return ScanPlan(
-                ecu=canonical_name,
-                tx_id=tx_id,
-                service=service,
-                service_name=preset.name if preset else None,
-                pid_range=rng,
-                session=bool(preset and preset.needs_session),
-                wake=False,
-                reason=f"derived from {len(pid_keys)} known PID(s) in the profile",
-            )
-
-    # 2. Fall back to id_protocol.
     info = ecus_data.get(tx_id, {}) if ecus_data else {}
     protocol = str(info.get("id_protocol", "")).upper()
+
+    found = _find_ecu_def(canonical_name, pids_data) or _find_ecu_def(str(ecu), pids_data)
+    defn = found[1] if found else {}
+    pid_keys = list((defn.get("pids") or {}).keys())
+    dominant = _dominant_service(pid_keys)
+
+    # 1. Paged KWP2000 live data: the id space is small, so scan all of it.
+    if dominant is not None and not is_wide_service(dominant):
+        preset = _BY_SERVICE.get(dominant)
+        return ScanPlan(
+            ecu=canonical_name,
+            tx_id=tx_id,
+            service=dominant,
+            service_name=preset.name if preset else None,
+            ranges=((0x01, 0xFF),),
+            session=bool(preset and preset.needs_session),
+            wake=False,
+            reason=f"derived from {len(pid_keys)} known PID(s) in the profile",
+        )
+
+    # 2. The ECU's DID families.
+    families = did_families(defn)
+    if families:
+        listed = ", ".join(f"{hi:02X}xx ({src})" for hi, src in families.items())
+        extent = "whole families" if slots == FAMILY_SIZE else f"first {slots} DIDs of each"
+        return ScanPlan(
+            ecu=canonical_name,
+            tx_id=tx_id,
+            service=0x22,
+            service_name="read-did",
+            ranges=family_ranges(families, slots),
+            session=False,
+            wake=False,
+            reason=f"DID families from the profile: {listed}; {extent}",
+        )
+
+    # 3. Fall back to id_protocol.
     if protocol.startswith("KWP"):
         return ScanPlan(
             ecu=canonical_name,
             tx_id=tx_id,
             service=0x21,
             service_name="live-data",
-            pid_range=(0x01, 0xFF),
+            ranges=((0x01, 0xFF),),
             session=False,
             wake=False,
             reason="KWP2000 ECU (no known PIDs yet) — scanning paged live data",
@@ -340,10 +394,10 @@ def plan_scan(
         tx_id=tx_id,
         service=0x22,
         service_name="read-did",
-        pid_range=(0xF100, 0xF1FF),
+        ranges=((0xF100, 0xF1FF),),
         session=False,
         wake=False,
-        reason="UDS ECU (no known PIDs yet) — scanning identity DIDs (F1xx)",
+        reason="UDS ECU (no known DIDs yet) — scanning identity DIDs (F1xx)",
     )
 
 

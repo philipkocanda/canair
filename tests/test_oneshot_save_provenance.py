@@ -139,3 +139,18 @@ class TestJournaledSaveNeverGuesses:
         session = build_raw_session("0x76E", 0x74E, "2101", ok("6101AA"), "L", [], "")
         save_session_journaled(session, prof / "captures")
         assert "transport" not in _saved_session(prof)
+
+    @pytest.mark.asyncio
+    async def test_scan_of_a_range_list_sends_each_id_once_and_records_the_list(self, prof):
+        from canlib.modes.scan import mode_scan
+
+        term = FakeTerminal({"22B401": ok("62B401AA")})
+        ranges = ((0xB400, 0xB401), (0xB100, 0xB100), (0xB401, 0xB401))
+        await mode_scan(term, 0x74E, 0x22, ranges, False, False, save=True, label="families")
+        assert [c.upper() for c in term.sent if c.startswith("22")] == [
+            "22B400",
+            "22B401",
+            "22B100",
+        ]
+        session = _saved_session(prof)
+        assert session["captures"][0]["pid"] == "scan 22 B400-B401,B100-B100,B401-B401"
