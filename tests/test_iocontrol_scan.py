@@ -164,7 +164,7 @@ def test_append_iocontrol_discoveries_adds_new_section(pids_dir):
     assert "B02A" in disc
 
     assert disc["B010"]["response"] == "6F B0 10 00"
-    assert disc["B010"]["notes"] == ""
+    assert "notes" not in disc["B010"]
 
     assert disc["B02A"]["nrc"] == 0x33
     assert disc["B02A"]["nrc_desc"] == "securityAccessDenied"

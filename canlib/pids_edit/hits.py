@@ -203,7 +203,6 @@ def _format_hit_entry(hit, key_attr: str, key_width: int = 4) -> list[str]:
         lines.append(f"      nrc: 0x{hit.nrc:02X}")
         desc = (hit.nrc_desc or "").replace('"', '\\"')
         lines.append(f'      nrc_desc: "{desc}"')
-    lines.append('      notes: ""')
     return lines
 
 

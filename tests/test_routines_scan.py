@@ -14,7 +14,7 @@ from canlib.modes.routines_scan import (
     RoutineHit,
     classify,
 )
-from canlib.pids_edit import PidsEditError, append_routines_block
+from canlib.pids_edit import PidsEditError, append_routines_block, update_routines_field
 
 # ── classify() ───────────────────────────────────────────────────────────────
 
@@ -137,10 +137,19 @@ def test_append_routines_block_adds_new_section(pids_dir):
     assert "F02A" in routines
 
     assert routines["F010"]["response"] == "71 03 F0 10 00"
-    assert routines["F010"]["notes"] == ""
+    assert "notes" not in routines["F010"]
 
     assert routines["F02A"]["nrc"] == 0x24
     assert routines["F02A"]["nrc_desc"] == "requestSequenceError"
+
+
+def test_a_note_can_be_added_to_a_scanned_routine_that_has_none(pids_dir):
+    hit = RoutineHit(rid=0xF010, session="default", response_hex="71 03", nrc=None, nrc_desc=None)
+    append_routines_block("TEST", [hit], pids_dir=pids_dir)
+    update_routines_field("TEST", "F010", "notes", "starts the pump", pids_dir=pids_dir)
+    data = yaml.safe_load((pids_dir / "test.yaml").read_text())
+    assert data["TEST"]["routines"]["F010"]["notes"] == "starts the pump"
+    assert data["TEST"]["routines"]["F010"]["response"] == "71 03"
 
 
 def test_append_routines_preserves_existing_sections(pids_dir):
