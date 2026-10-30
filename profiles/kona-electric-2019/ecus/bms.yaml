@@ -20,7 +20,7 @@ BMS:
           verified: false
           notes: Raw BMS state of charge (not display-adjusted; see SOC_DISPLAY on 220105).
         BATTERY_CURRENT:
-          expression: "[S17:B18]/10"
+          expression: "[S17:S18]/10"
           unit: A
           ha_class: current
           min: "-400"
@@ -30,7 +30,10 @@ BMS:
             - https://github.com/OBDb/Hyundai-Kona-Electric
             - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
           verified: false
-          notes: Signed 16-bit BE. Negative = charging.
+          notes: >-
+            Signed 16-bit BE; negative = charging. Seeded as [S17:B18], which does not parse. Reads
+            +0.5 to +10.1 A across the stationary 2019 dongle logs (positive = discharge); the
+            charging sign is not exercised there.
         BATTERY_VOLTAGE:
           expression: "[B19:B20]/10"
           unit: V
@@ -44,7 +47,7 @@ BMS:
           verified: false
           notes: HV pack DC voltage.
         BATTERY_POWER:
-          expression: (([B19:B20]/10)*([S17:B18]/10))/1000
+          expression: (([B19:B20]/10)*([S17:S18]/10))/1000
           unit: kW
           ha_class: power
           source: OBDb Hyundai-Kona-Electric (offsets via canair bix) + wican-fw Niro/Soul/Kona
@@ -52,7 +55,8 @@ BMS:
             - https://github.com/OBDb/Hyundai-Kona-Electric
             - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
           verified: false
-          notes: Computed voltage x current. Negative = charging.
+          notes: >-
+            Computed voltage x current; negative = charging. Seeded with the unparseable [S17:B18].
         AVAILABLE_CHARGE_POWER:
           expression: "[B11:B12]/100"
           unit: kW
@@ -74,37 +78,47 @@ BMS:
           verified: false
           notes: BMS-permitted discharge power limit.
         CHARGING:
-          expression: B15:0
-          source: OBDb Hyundai-Kona-Electric (offsets via canair bix) + wican-fw Niro/Soul/Kona
-          source_links:
-            - https://github.com/OBDb/Hyundai-Kona-Electric
-            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
-          verified: false
-          notes: Energy flowing into the pack (AC or DC).
-        RAPID_CHARGE_PORT:
-          expression: B15:1
-          source: OBDb Hyundai-Kona-Electric (offsets via canair bix) + wican-fw Niro/Soul/Kona
-          source_links:
-            - https://github.com/OBDb/Hyundai-Kona-Electric
-            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
-          verified: false
-          notes: DC rapid-charge port active.
-        NORMAL_CHARGE_PORT:
-          expression: B15:2
-          source: OBDb Hyundai-Kona-Electric (offsets via canair bix) + wican-fw Niro/Soul/Kona
-          source_links:
-            - https://github.com/OBDb/Hyundai-Kona-Electric
-            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
-          verified: false
-          notes: AC normal-charge port active.
-        BMS_MAIN_RELAY:
           expression: B15:7
           source: OBDb Hyundai-Kona-Electric (offsets via canair bix) + wican-fw Niro/Soul/Kona
           source_links:
             - https://github.com/OBDb/Hyundai-Kona-Electric
             - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
           verified: false
-          notes: HV main relay closed.
+          notes: >-
+            Energy flowing into the pack (AC or DC). Bit 7 of B15, as on the Ioniq BMS (OBDb bix 72,
+            numbered from the byte's MSB). Clear throughout the 2019 dongle logs (including a READY
+            car); never seen set.
+        RAPID_CHARGE_PORT:
+          expression: B15:6
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix) + wican-fw Niro/Soul/Kona
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
+          verified: false
+          notes: >-
+            DC rapid-charge port active. Bit 6 of B15 (OBDb bix 73, MSB-first). Clear throughout the
+            2019 dongle logs (including a READY car); never seen set.
+        NORMAL_CHARGE_PORT:
+          expression: B15:5
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix) + wican-fw Niro/Soul/Kona
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
+          verified: false
+          notes: >-
+            AC normal-charge port active. Bit 5 of B15 (OBDb bix 74, MSB-first). Clear throughout
+            the 2019 dongle logs (including a READY car); never seen set.
+        BMS_MAIN_RELAY:
+          expression: B15:0
+          source: OBDb Hyundai-Kona-Electric (offsets via canair bix) + wican-fw Niro/Soul/Kona
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
+          verified: false
+          notes: >-
+            HV main relay closed. Bit 0 of B15 (OBDb bix 79, MSB-first). Set (B15 = 0x03) throughout
+            the 2019 logs, where upstream says the car was READY (221207-1); a READY Ioniq reads the
+            same 0x03. Bit 1 equals bit 0 here and is unmapped.
         BATTERY_MAX_TEMP:
           expression: S21
           unit: °C
