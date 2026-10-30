@@ -139,7 +139,7 @@ def cmd_show_state(args) -> int:
         return 1
 
     rule = next((r for r in rules if r.name.upper() == target), None)
-    matches = ecus_in_state(target, load_pids(), prof)
+    matches = ecus_in_state(target, load_pids(), prof, rules)
     implies = list(rule.implies) if rule else []
     specialized_by = [r.name for r in rules if target in r.implies]
     # excludes: is symmetric, so a pair declared on either side is reported here.
@@ -169,6 +169,7 @@ def cmd_show_state(args) -> int:
                         "tx": f"0x{m['tx_id']:03X}" if m.get("tx_id") else None,
                         "bus": m["bus"],
                         "source": m["source"],
+                        "via": m.get("via"),
                     }
                     for m in matches
                 ],
@@ -214,6 +215,8 @@ def cmd_show_state(args) -> int:
         tx = f"0x{m['tx_id']:03X}" if m.get("tx_id") else "—"
         bus = "/".join(m["bus"]) if m["bus"] else "—"
         src = _SOURCE_LABEL.get(m["source"], m["source"])
+        if m.get("via"):
+            src = f"{src} ({m['via']})"
         src_c = ansi.c(f"{src:<18}", ansi.GREEN if m["source"] == "all" else ansi.DIM)
         name_c = ansi.c(f"{m['name']:<12}", ansi.CYAN)
         print(f"  {name_c} {tx:<6} {src_c} {ansi.c(bus, ansi.CYAN)}")

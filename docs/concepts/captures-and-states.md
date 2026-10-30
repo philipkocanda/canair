@@ -291,7 +291,8 @@ A state therefore declares which broader states it **specializes**:
 This is entailment, not priority — DRIVING isn't "more important" than READY, it
 *means* READY plus motion. So the hierarchy needs no renumbering when you add a
 state, and it reads as documentation. The bundled Ioniq declares
-`DRIVING → READY → ACC2 → ACC` and `CHARGING → PLUGGED`.
+`DRIVING → READY → ACC2 → ACC`, `CHARGING → PLUGGED`, `TOPUP → PARKED`, and READY, CHARGING
+and TOPUP each `→ IG3` (the EV supply rail the battery-side ECUs run on).
 
 Where it applies:
 
@@ -305,6 +306,9 @@ Where it applies:
 - **`--state` widens through it when filtering.** `--state ready` selects a
   `DRIVING` capture, because driving *is* a reading of ready. The converse does
   not hold: `--state driving` never returns a merely-`READY` capture.
+- **ECU availability widens the same way.** An ECU tagged `vehicle_states: [IG3]`
+  (readable whenever the IG3 rail is on) is listed by `canair states READY`,
+  because READY implies IG3; one tagged `[READY]` is not listed under `IG3`.
 - **Analysis groups by the reduced set.** `decode --group-by state` and
   `investigate`'s discriminability ranking bucket `READY, ACC2, PARKED` as
   `READY, PARKED` — one bucket, not two near-duplicates. Without it, a nine-state vocabulary

@@ -427,6 +427,33 @@ class TestEcusInState:
         # Querying ALL itself should return only ECUs that declare ALL, not every ECU.
         assert [m["name"] for m in ecus_in_state("ALL", self._data())] == ["IGPM"]
 
+    def test_matches_through_implied_broader_state(self):
+        # An ECU readable whenever IG3 holds is readable in READY and in DRIVING
+        # (transitively), because both imply IG3; not in an unrelated state.
+        from canlib.states import StateRule, ecus_in_state
+
+        rules = [
+            StateRule("IG3"),
+            StateRule("READY", implies=("IG3",)),
+            StateRule("DRIVING", implies=("READY",)),
+            StateRule("PARKED"),
+        ]
+        data = {"ecus": {"BMS": {"tx_id": 0x7E4, "vehicle_states": ["IG3"]}}}
+        for state in ("READY", "DRIVING"):
+            [m] = ecus_in_state(state, data, rules=rules)
+            assert (m["name"], m["source"], m["via"]) == ("BMS", "ecu", "IG3")
+        [direct] = ecus_in_state("IG3", data, rules=rules)
+        assert direct["via"] is None
+        assert ecus_in_state("PARKED", data, rules=rules) == []
+
+    def test_broader_tag_does_not_match_a_narrower_query_upward(self):
+        # Readable in READY says nothing about IG3 alone (charging, top-up).
+        from canlib.states import StateRule, ecus_in_state
+
+        rules = [StateRule("IG3"), StateRule("READY", implies=("IG3",))]
+        data = {"ecus": {"CLU": {"tx_id": 0x7C6, "vehicle_states": ["READY"]}}}
+        assert ecus_in_state("IG3", data, rules=rules) == []
+
 
 class TestKleeneLogic:
     """Three-valued (Kleene) evaluation: an unavailable param yields UNKNOWN."""

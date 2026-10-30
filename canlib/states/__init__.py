@@ -61,18 +61,23 @@ if TYPE_CHECKING:
 # has. The universal switch positions are OFF → ACC → ON → START; canair names
 # them with YAML-safe, vendor-agnostic tokens:
 #
-#     SLEEP   OFF / LOCK — ignition off, ECUs asleep / 12V standby   (Hyundai IGN0)
-#     ACC     accessory power                                        (Hyundai IGN1/ACC)
-#     RUN     ignition on — electronics live / driveable             (Hyundai IGN2)
-#     CRANK   starter engaged (ICE cranking)                         (Hyundai IGN3/START)
+#     SLEEP   OFF / LOCK — ignition off, ECUs asleep / 12V standby
+#     ACC     accessory power                                        (Hyundai ACC)
+#     RUN     ignition on — electronics live / driveable             (Hyundai IGN1 + IGN2)
+#     CRANK   starter engaged (ICE cranking)                         (Hyundai START)
+#
+# Hyundai/Kia terminal names, for orientation: ACC, IGN1 (ON or START), IGN2 (ON
+# only) and START are the ignition-switch relays; an EV's IG3 is not one of them but
+# a separate supply rail the HV side closes on its own (READY, charging), which an EV
+# profile declares as its own state.
 #
 # `RUN` (not `ON`) and `SLEEP` (not `OFF`) are used because `ON`/`OFF`/`YES`/`NO`
 # are YAML 1.1 booleans that would parse as `True`/`False` in a bare
 # `vehicle_states:` list; `RUN` also reads unambiguously where a bare `IGN`
-# invites "which IGN level?" (vendors number them, e.g. Hyundai IGN0-3).
+# invites "which IGN level?" (vendors number them: Hyundai IGN1/IGN2, plus IG3).
 #
 # Only the universal switch positions live here. Finer, vendor-specific rungs
-# (Hyundai's separate IGN1/IGN2 relays, an `ACC2` sub-level) and powertrain modes
+# (Hyundai's separate IGN1/IGN2 relays, the Ioniq's `ACC2`, its `IG3` rail) and powertrain modes
 # (EV `PLUGGED`/`READY`/`CHARGING`; the EV `READY` is that car's name for the
 # driveable state) are NOT baked in — a profile declares those in its
 # `vehicle_states.yaml`, so an ICE profile never inherits EV states and an EV
@@ -539,17 +544,26 @@ def ecu_states(ecu_def, profile=None) -> list[str]:
     return _order_states(tokens, profile)
 
 
-def ecus_in_state(state, pids_data, profile=None) -> list[dict]:
+def ecus_in_state(state, pids_data, profile=None, rules=None) -> list[dict]:
     """ECUs readable in ``state`` (the reverse of :func:`ecu_states`).
 
     ``pids_data`` is a ``load_pids()`` mapping. An ECU matches when ``state`` is
     among its resolved states (ECU-level, else the PID union); an ECU tagged
-    ``ALL`` is readable in *every* state, so it matches any query. Each returned
-    record carries ``name``/``tx_id`` and a ``source`` of ``"ecu"`` (ECU-level
-    field), ``"pids"`` (union of PID states), or ``"all"`` (matched via ``ALL``).
-    Sorted by ECU name.
+    ``ALL`` is readable in *every* state, so it matches any query. It also matches
+    through the ``implies:`` hierarchy: an ECU readable whenever IG3 holds is
+    readable in READY, which implies IG3 — the same widening ``--state`` applies.
+    Each returned record carries ``name``/``tx_id``, a ``source`` of ``"ecu"``
+    (ECU-level field), ``"pids"`` (union of PID states) or ``"all"`` (matched via
+    ``ALL``), and ``via`` — the broader state it matched through, else ``None``.
+    ``rules`` defaults to the profile's vocabulary. Sorted by ECU name.
     """
     target = str(state).strip().upper()
+    if rules is None:
+        try:
+            rules = load_states(profile)
+        except StatePredicateError:
+            rules = []
+    broader = implied_closure(rules, target)
     out: list[dict] = []
     for name, ecu_def in (pids_data.get("ecus") or {}).items():
         if not isinstance(ecu_def, dict):
@@ -558,10 +572,13 @@ def ecus_in_state(state, pids_data, profile=None) -> list[dict]:
         if not states:
             continue
         source = "ecu" if ecu_def.get("vehicle_states") else "pids"
+        rec = {"name": name, "tx_id": ecu_def.get("tx_id"), "via": None}
         if ALL_STATE in states and target != ALL_STATE:
-            out.append({"name": name, "tx_id": ecu_def.get("tx_id"), "source": "all"})
+            out.append({**rec, "source": "all"})
         elif target in states:
-            out.append({"name": name, "tx_id": ecu_def.get("tx_id"), "source": source})
+            out.append({**rec, "source": source})
+        elif via := next((s for s in states if s in broader), None):
+            out.append({**rec, "source": source, "via": via})
     out.sort(key=lambda r: str(r["name"]).upper())
     return out
 
