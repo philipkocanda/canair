@@ -588,22 +588,20 @@ OBC:
       created: "2026-10-30"
       updated: "2026-10-30"
       notes: >-
-        Hypothesis from OVMS (Open Vehicle Monitoring System) Kia Soul EV firmware: its on-board
-        charger (OBC, request id 0x794 there) takes KWP2000 InputOutputControlByLocalIdentifier to
-        drive the blue charge-port LEDs. Sequence in BlueChargeLed(): 10 81, then 10 90, then 30
-        {led} 00 = LED ON and 30 {led} 11 = LED OFF, with led 1 = centre, 2 = left, 3 = right, 4 =
-        all. So on that ECU 30 {LID} 00 ACTUATES; it is not a release. This contradicts the
-        assumption in docs/concepts/safety.md that 30 {LID} 00 is returnControlToECU under the SSF
-        14230 / Hyundai-Kia convention, which canair scan iocontrol relies on. Same pattern in OVMS
-        for the Soul EV ABS/EBP park-brake service mode (30 02 01 on, 30 02 03 off, 30 01 01
-        disengage), always inside a 10 90 session. Unverified: Soul EV code comments only, no
-        captured traffic of a 30 request. Supporting evidence from a 2021 Kona EV Car Scanner log
-        (profiles/kona-electric-2019/captures/can/221210-1-*): the Kona OBC (7E5) answers 10 90 with
-        50 90, rejects 10 03 with NRC 12, and answers 20 with 60, so it is a KWP2000 ECU with the
-        same session as the Soul. Ioniq AE differs: OBC is 0x7E5 and was probed 2026-07-22 with only
-        session 0x81 accepted, so check 10 90 again. Do not run scan iocontrol on this OBC until the
-        30 00 semantics are known. The same Kona logs show UDS 2F F0xx 03 / 00 for BMU relay control
-        (bms_diagnostics/*).
+        Hypothesis from OVMS (Open Vehicle Monitoring System) Kia Soul EV firmware: BlueChargeLed()
+        (vehicle_kiasoulev.cpp:1101-1115) targets the on-board charger (OBC, 0x794 on the Soul) with
+        10 81, then 10 90, then KWP2000 30 {led} {00 on | 11 off}, led 1 centre, 2 left, 3 right, 4
+        all. If real, 30 {LID} 00 actuates there rather than releasing. The evidence is WEAK (OVMS
+        master, read 2026-10-30): the function has no callers; the frame it builds is 08 03 30 {led}
+        {00|11} 00 00 00, whose leading 08 is an invalid single-frame length, so it has probably
+        never worked as written; nothing returns the session to 10 01. The Soul park-brake 30
+        commands (30 02 01 / 30 02 03 / 30 01 01) go to ABS_EBP_UNIT = 0x7A5, the smart key address
+        (comments say 7D5), and OVMS's own TODO says park brake service does not work. No captured
+        30 traffic exists for any HKMC car. Supporting context from 2021 Kona Car Scanner logs
+        (profiles/kona-electric-2019/captures/can/221210-*): the Kona OBC (7E5), VCU and MCU accept
+        10 90 (50 90) and reject 10 03 (NRC 12), so 10 90 is the HKMC KWP2000 session. The Ioniq
+        session scan (2026-07-22) only tried 81, 82 and 83, so 10 90 is untested here. Do not sweep
+        30 on this OBC until the 30 00 semantics are known.
       sources:
         - "OVMS vehicle_kiasoulev: vehicle_kiasoulev.cpp BlueChargeLed(), ks_commands.cpp CommandParkBreakService, ks_can_send.cpp Send_EBP_Command (openvehicles/Open-Vehicle-Monitoring-System-3, read 2026-10-30)"
       what_to_test:
