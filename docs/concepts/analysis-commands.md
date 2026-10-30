@@ -69,6 +69,7 @@ has nothing co-polled to correlate against.
 | no on-bus anchor | a byte that lands in a physical band | `hunt --physical` |
 | a suspected odometer / hour meter / cycle count | the bytes that **only ever rise** | `investigate <ECU> <PID> --counters` |
 | no idea which PID hides a counter | every counter in the car, ranked | `investigate --counters` (bare) |
+| a body/climate ECU with many bit-flag DIDs | which of their bits are **real signals** at all | `investigate <ECU> --support-map` |
 
 ## Counters: the one thing correlation cannot find
 
@@ -139,6 +140,56 @@ alone (`B14 = 88`) says nothing.
 
 Currently `uds` (diagnostic PIDs) only; the raw broadcast-CAN counterpart is not
 implemented.
+
+## Support maps: which bits are signals at all
+
+Some body and climate DIDs start their data with a few constant bytes that say which
+of the bits (or bytes) that follow are real signals. On the bundled Ioniq the IGPM's
+`22BC03`–`22BC07` read `62 BC03 FD EE 3C 73 …`: the four bytes never change, and map bit 7
+of the first marks data bit 0 of the first covered byte, bit 6 marks bit 1, and so on.
+Every bit that ever moves in about 1,750 captures per DID falls on a marked position; a
+bit outside the map never moves. HVAC `220100` uses the coarser form: one map bit per
+data byte.
+
+```bash
+canair investigate IGPM --support-map        # every IGPM DID: map, open signals, verdict
+canair investigate BCM 22B005 --support-map  # one DID, including why a fit is refused
+canair pids set-support-map IGPM 22BC03 --at 0 --length 4 --unit bit   # declare it
+```
+
+For each DID it reports the verdict and, for the signals the map marks, which are
+defined, and which are **open** — split into *moving*, *always on* and *never set* (a
+marked bit nobody has exercised yet is where the next body signal is hiding). It also
+lists defined signals the map does **not** mark, which deserve a second look.
+
+How far to trust a fit:
+
+| Verdict | Meaning |
+|---|---|
+| `STRONG` | consistent with the map and very unlikely to be chance on its own |
+| `CORROBORATED` | consistent, but only convincing together with sibling DIDs of the same ECU that share the placement |
+| `WEAK` | consistent, too little moving data to say more |
+| `REJECTED` | set bits (or live bytes) outside the map; the closest fit is shown but not proposed |
+
+The score is the probability that an unrelated map would fit this well:
+`C(m, s) / C(8, s)` per byte for *m* marked bits of which *s* ever move, multiplied across the
+map and charged for every placement tried. A single DID with a handful of moving bits can
+never be significant alone, which is why siblings corroborate each other; a DID that
+breaks the layout counts against them, not for them. A marked bit may be the *start* of a
+multi-bit field, so an unmarked bit directly above a mark is reported as a **field
+continuation**, not a violation (the IGPM's left/right turn signal is one 2-bit field).
+
+This is **not make-wide**. The service-21 pages (BMS, VCU, MCU, OBC) and the chassis
+`22xxxx` DIDs have similar-looking leading bytes that do not fit, and BCM `22B005` is a hard
+exception: its light-stalk bits move outside its map. That is why a map is *declared* per
+PID after reading the report, not applied automatically.
+
+Once declared (`canair pids set-support-map`), `canair coverage` reads the map off each
+payload: its own bytes and the bytes it marks as carrying nothing stop being reported as
+`UNMAPPED`, `BITS` only counts marked bits, and signals reading unmarked positions are
+reported as `OUTSIDE MAP`. `canair bix --annotate --ecu --pid` labels the map bytes in a
+payload. See [`plans/2026-10-29-support-bitmap-coverage.md`](https://github.com/philipkocanda/canair/blob/main/plans/2026-10-29-support-bitmap-coverage.md)
+for the design and the evidence.
 
 ## Where each sits in the RE lifecycle
 

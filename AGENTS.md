@@ -266,6 +266,14 @@ and **`g`/`G` address the view's primary axis**.
   domain can reuse it) and the capture-model bridge is `canlib/commands/investigate/counters.py`,
   which aligns a **prefix** payload matrix — aligning on the *modal* length would silently discard
   every capture of a minority length. Plan: `plans/2026-08-07-monotonic-counter-detection.md`.
+  **`--support-map`** finds the constant leading bytes some body/climate DIDs use to mark which
+  following bits (or bytes) are real signals: leaf `canlib/analysis/support_map.py` (scoring and
+  the one marking rule), bridge `canlib/commands/investigate/support_map.py`. **It is per-PID,
+  not make-wide** — BMS/VCU/MCU service-21 pages and the chassis DIDs do not fit, and BCM `22B005`
+  is a documented exception — so a map is *declared* (`pids set-support-map`), never inferred at
+  read time. Sibling DIDs of one ECU that share a placement corroborate each other, because one DID
+  with few moving bits cannot be significant alone. Plan:
+  `plans/2026-10-29-support-bitmap-coverage.md`.
 - **`canair search`** — "Where in my captures is this string?" Searches every payload (and, by
   default, labels/notes/text responses; `--defs` adds `ecus/` identity fields) for a literal,
   `--regex`, `--hex` byte pattern or `--vin`, **without knowing the ECU or PID**; with no pattern it
@@ -280,7 +288,11 @@ and **`g`/`G` address the view's primary axis**.
   bytes, incomplete **BITS**, **NO CAPTURE** PIDs. Bit coverage counts both models (the
   `Bn:k`/`Sn:k` accessor and a `type: bitmask` param's `bits:` keys) and a whole-byte read does
   **not** suppress the bit-gap report. One known blind spot: an `&`-mask expression contributes no
-  bit references, so **author bits as `Bn:k`, never a mask**.
+  bit references, so **author bits as `Bn:k`, never a mask**. A PID with a declared
+  **`support_map:`** (`canlib/uds/support_map.py`) stops reporting its map bytes and the bytes the
+  map marks as carrying no signal as **UNMAPPED**, counts only marked bits as **BITS** gaps, and
+  adds **OUTSIDE MAP** for a signal reading a position the map does not mark. No declaration, no
+  change to the output.
 - **`canair research`** — The open RE backlog from the per-ECU `research:` sections. Complements
   `coverage` (undecoded *bytes*) by surfacing *planned* work.
 
@@ -588,7 +600,9 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   optional `iocontrol_scan_ranges:`, `routines:`, `research:`. Identity-only modules (AMP/SRS) have
   no `pids:`. A PID may also carry **`response_frames:`** — how many CAN frames its response
   occupies, written back automatically once a session proves it (never hand-set; mutually exclusive
-  with `variable_length:`). Edit via `canair pids`/`ecu`; validate with `canair validate pids`.
+  with `variable_length:`). A PID may also carry **`support_map:`** — where its constant leading
+  support map sits (`canair pids set-support-map`; see `investigate --support-map`). Edit via
+  `canair pids`/`ecu`; validate with `canair validate pids`.
 - **`profiles/<car>/captures/`** — Recorded UDS payloads, one **JSON** file per date
   (`captures/YYYY-MM-DD.json`; JSON parses ~60× faster than YAML, the dominant cost of every
   history-consuming command). The read/write seam is `canlib/captures/io.py`; there is **no YAML

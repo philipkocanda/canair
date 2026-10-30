@@ -355,6 +355,16 @@ optional_pid_fields:
                       #   deliberate undercount). The true count is recorded even
                       #   when it exceeds what an adapter can be asked for — that
                       #   ceiling is consumer policy (MAX_REQUESTABLE_FRAMES).
+  - support_map      # {at, length, unit, order}: the PID's data starts with a constant
+                     #   support map — `length` bytes at data offset `at` (counted after
+                     #   the SID and DID echo) marking which of the data that follows are
+                     #   real signals. unit: bit = one map bit per data bit (a mark may
+                     #   start a multi-bit field), byte = one per data byte; order: msb
+                     #   (map bit 7 = first). Only the layout is stored; the map bytes are
+                     #   read from each payload. Found by `canair investigate ECU
+                     #   --support-map`, written by `canair pids set-support-map`, read by
+                     #   `canair coverage` (which then stops reporting bits that are not
+                     #   signals). Per-PID by design: the layout is not make-wide.
   - vehicle_states   # Power states in which this PID responds. Array of tokens:
                      #   sleep    — deep sleep, 12V standby only (unplugged)
                      #   plugged  — charge cable connected (AC or DC)

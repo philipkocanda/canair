@@ -248,6 +248,34 @@ def mapped_bits(
     return mapped
 
 
+def references_full_byte(expr: str, idx: int) -> bool:
+    """True if ``expr`` reads byte ``idx`` as a whole byte (Bn/Sn, not Bn:k)."""
+    return re.search(rf"(?<!\[)[BS]0*{idx}(?![0-9:])", expr) is not None
+
+
+def declared_bits(pdef: dict) -> dict[int, set[int]]:
+    """Map WiCAN byte index -> bit positions a param accounts for.
+
+    Two models declare a bit: the ``Bn:k``/``Sn:k`` accessor (one param per bit)
+    and a ``type: bitmask`` param whose ``bits:`` map labels positions of the
+    whole byte it reads. Both are real decodings, so both count as coverage —
+    otherwise converting a half-labelled byte to a bitmask would hide the rest
+    of the gap.
+    """
+    expr = pdef.get("expression") or ""
+    if not expr:
+        return {}
+    out: dict[int, set[int]] = {}
+    for byte, bit in extract_bit_indices(expr):
+        out.setdefault(byte, set()).add(bit)
+    if pdef.get("type") == "bitmask":
+        labelled = {int(k) for k in (pdef.get("bits") or {})}
+        if labelled:
+            for byte in extract_byte_indices(expr):
+                out.setdefault(byte, set()).update(labelled)
+    return out
+
+
 def mapped_offsets(
     parameters: dict, *, include_unverified: bool = True
 ) -> dict[int, tuple[str, bool]]:
@@ -344,6 +372,19 @@ def payload_to_wican_frame(payload_bytes: list[int]) -> list[tuple[int, int | No
 
 # Backwards-compatible alias (was defined in bix.py).
 _payload_to_wican_frame = payload_to_wican_frame
+
+
+def payload_index_to_wican(payload_bytes: list[int]) -> dict[int, int]:
+    """Map each ISO-TP payload index of ``payload_bytes`` to its WiCAN byte index.
+
+    Length-aware (a single-frame reply has one PCI byte, a multi-frame reply two), unlike
+    :func:`isotp_to_wican`, which assumes the multi-frame layout.
+    """
+    return {
+        pidx: wican_idx
+        for wican_idx, (_val, pidx) in enumerate(payload_to_wican_frame(payload_bytes))
+        if pidx is not None
+    }
 
 
 def mappable_data_indices(payload_hex: str, sfb: int) -> list[int]:

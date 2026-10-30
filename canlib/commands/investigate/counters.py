@@ -34,11 +34,8 @@ from canlib.keepmode import scope_is_keep_changes, scope_is_keep_unique
 from canlib.uds.byteindex import mapped_offsets, wican_to_isotp
 from canlib.uds.notation import ByteNotation, ByteRef, resolve_notation, subfunction_bytes_for_pid
 
+from ._matrix import payload_matrix as _payload_matrix
 from .render import print_keep_banner
-
-# Fraction of captures that must reach the common prefix length (see
-# _payload_matrix). Below this, a payload is treated as too short to align.
-MIN_LEN_FRAC = 0.9
 
 _KIND_TITLES = {
     "accumulator": (
@@ -57,28 +54,6 @@ _KIND_TITLES = {
         "(uptime / seconds-since-key-on)",
     ),
 }
-
-
-def _payload_matrix(lp: LoadedPid) -> tuple[list[datetime], list[bytes]]:
-    """Time-ordered ISO-TP payloads truncated to a common prefix length.
-
-    Aligned on a common **prefix**, not the modal length. An ISO-TP response is
-    frequently padded (a trailing 0xAA), so the same field sits at the same offset
-    in a 12- and a 13-byte payload; filtering to the modal length discarded 478 of
-    BCM 22C011's 3524 captures — three months of the horizon a long-run counter
-    search depends on. Takes the longest prefix that :data:`MIN_LEN_FRAC` of
-    captures reach and keeps every capture reaching it.
-    """
-    rows = [(d.dt, d.payload_bytes) for d in lp.decoded if d.dt is not None]
-    rows.sort(key=lambda r: r[0])
-    if not rows:
-        return [], []
-    lens = sorted(len(p) for _dt, p in rows)
-    usable = lens[max(0, int(len(lens) * (1.0 - MIN_LEN_FRAC)))]
-    kept = [(dt, p[:usable]) for dt, p in rows if len(p) >= usable]
-    if not kept or usable < 1:
-        return [], []
-    return [dt for dt, _p in kept], [p for _p_dt, p in kept]
 
 
 def _expression(cand: CounterCandidate) -> str | None:

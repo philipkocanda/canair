@@ -117,7 +117,49 @@ def test_annotate_ecu_pid_overlay_shows_params(capsys):
     out = capsys.readouterr().out
     assert "Param" in out  # overlay column present
     assert "DOOR_DRV_OPEN" in out  # a mapped bit is named
-    assert "unmapped" in out  # a data byte with no param is flagged
+    assert "support map" in out  # the PID's declared map bytes are named, not "unmapped"
+
+
+def test_annotate_overlay_flags_unmapped_bytes_on_a_pid_without_a_map(capsys):
+    # IGPM 22BC01 has no signals and no declared support map: every data byte is unmapped.
+    args = _parse(["-2", "-a", "62BC01400000000002", "--ecu", "IGPM", "--pid", "22BC01"])
+    assert bix.run(args) == 0
+    out = capsys.readouterr().out
+    assert "unmapped" in out
+    assert "support map" not in out
+
+
+def _resolved(payload_hex, unit="bit", length=4):
+    from canlib.uds.support_map import MapDecl, resolve
+
+    return resolve(MapDecl(0, length, unit), bytes.fromhex(payload_hex), header=3)
+
+
+class TestSupportCell:
+    # 62 BC03 | map 80 00 00 00 | data: B0 (bit 0 marked) B1 B2 B3 (nothing marked)
+    RM = _resolved("62BC038000000001020304")
+
+    def test_map_bytes_are_named(self):
+        assert bix._support_cell(self.RM, 3, "unmapped") == "support map"
+
+    def test_an_unmapped_byte_with_marks_lists_them(self):
+        assert bix._support_cell(self.RM, 7, "unmapped") == "unmapped (marked bits 0)"
+
+    def test_an_unmapped_byte_without_marks_is_not_a_signal(self):
+        assert bix._support_cell(self.RM, 8, "unmapped") == "not a signal"
+
+    def test_a_defined_byte_keeps_its_signal_name(self):
+        assert bix._support_cell(self.RM, 7, "[DOOR:0]") == "[DOOR:0]"
+        assert bix._support_cell(self.RM, 8, "[ODD:3]") == "[ODD:3]"
+
+    def test_a_byte_beyond_the_covered_data_is_untouched(self):
+        rm = _resolved("62BC03800000000102030405")
+        assert bix._support_cell(rm, 11, "unmapped") == "unmapped"
+
+    def test_per_byte_marks_do_not_list_bits(self):
+        rm = _resolved("62BC038000000001020304", unit="byte")
+        assert bix._support_cell(rm, 7, "unmapped") == "unmapped"
+        assert bix._support_cell(rm, 8, "unmapped") == "not a signal"
 
 
 def test_annotate_ecu_requires_pid(capsys):

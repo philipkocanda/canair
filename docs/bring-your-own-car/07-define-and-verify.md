@@ -80,6 +80,8 @@ What it reports per PID:
 | `UNVERIFIED` | a data byte read only by unverified signals |
 | `BITS` | a byte read bit by bit with some bits still undecoded |
 | `PAST END` | a signal reading beyond the end of the payload — a short reply, or a wrong offset |
+| `MAP` | the PID declares a [support map](../concepts/analysis-commands.md#support-maps-which-bits-are-signals-at-all): its own bytes, and any covered bytes that carry no signal, are not data to decode |
+| `OUTSIDE MAP` | a signal reads a bit or byte the declared support map does not mark (a bit just above a mark is shown dimmed as `FIELD CONTINUATION`) |
 | `NO CAPTURE` | no positive reply recorded (`in scope` when a scope flag such as `--until` is set) |
 | `NEGATIVE RESPONSE ONLY` | the ECU only ever answered with a negative response; its NRC is shown |
 
@@ -96,6 +98,12 @@ Which reply sets the length:
   import uds`, may store the last CAN frame padded out to 8 bytes. The flag is raised
   only when the length is a whole number of frames and every reply of that length ends
   in the same fill byte (`00`, `55`, `AA`, `CC` or `FF`). Re-read the PID to settle it.
+
+On a body or climate ECU whose DIDs are rows of bit flags, run
+`canair investigate <ECU> --support-map` first. If a DID leads with a constant support map,
+declare it with `canair pids set-support-map` and `coverage` stops counting bits that are
+not signals as gaps: `BITS … missing{…}` then lists only bits the map marks, with the rest
+as `(+N not signals)`.
 
 Unmapped bytes are your next research leads — loop back to
 [capture](05-capture.md) and [analyze](06-analyze.md).

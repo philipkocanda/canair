@@ -1,0 +1,13 @@
+
+Support maps — 0 of 1 PID(s) carry one
+
+  BCM 22B005  REJECTED per-bit map 20 00 10 00 at data+0, 279 rows, chance 10^-0.0
+      2 signals marked: 0 defined, 2 open
+      open, moving     B10:2
+      open, always on  B12:3
+      open, never set  -
+      field continuation  B10:3 (set, unmarked, directly above a mark)
+      outside the map  B10:5, B10:7
+      defined signals outside the map  BCM_LIGHT_SW_ON_B5 (B10:5), BCM_LIGHT_SW_AUTO (B10:6), BCM_LIGHT_SW_ON_B7 (B10:7)
+      closest fit only; not proposed for declaration
+

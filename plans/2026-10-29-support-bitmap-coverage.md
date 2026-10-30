@@ -1,6 +1,6 @@
 # Support bitmaps: detect them, declare them, let `coverage` read them
 
-Status: **PROPOSED**
+Status: **DONE** (all four phases; see "As built" for where it differs from the proposal)
 
 Several body and climate DIDs on the bundled Ioniq start their data with four constant bytes that
 say which of the following bits (or bytes) are real signals. Found by hand-written scripts while
@@ -110,27 +110,61 @@ puts a human in front of exceptions like 22B005.
    - a new `OUTSIDE MAP` finding lists defined signals reading unmarked positions, with field
      continuations shown separately.
    Without a declaration, output stays **byte-identical** (pinned by a test).
-2. **`canair bix --annotate --ecu --pid`** — the Role column shows `MAP` for map bytes and marks
-   unmarked bits/bytes, so a payload explains itself.
-3. **`canair validate pids`** — a non-blocking warning for a signal outside its PID's declared
-   map, the same style as the `states` predicate-reference warning. Malformed fields are schema
-   errors. A map that runs past the payload needs captures to see, so `coverage` reports it.
+2. **`canair bix --annotate --ecu --pid`** — the Param column names the map's bytes, marks
+   covered bytes that carry no signal, and lists the marked bits of an unmapped byte, so a
+   payload explains itself.
+3. **`canair validate pids`** — malformed declarations are schema errors (unknown field, bad
+   unit, length outside 1-4, non-integer offset). It does **not** check signals against the map:
+   the map's values live in the captures and `validate pids` reads definitions only, so that check
+   is `coverage`'s `OUTSIDE MAP`, along with a map that runs past the payload.
 
 ## Validation
 
 Golden expectations on the bundled profile, **scoped to a frozen date range** so the test cannot
-drift as captures grow (`tests/test_analysis_golden.py` rule):
+drift as captures grow (`tests/test_analysis_golden.py` rule): `investigate-support-map` (the IGPM
+family) and `investigate-support-map-exception` (BCM 22B005). Unit tests cover the leaf on
+synthetic payloads (both orders, both granularities, constant-map and all-FF rejection,
+continuation vs violation, the hypergeometric score checked against `log10(1/70)`, sibling
+corroboration), the declaration, the editor (including that clearing restores the original bytes),
+`coverage` on literal payloads for each new finding and for unchanged output without a declaration,
+`bix`, and the schema validation.
 
-- IGPM 22BC03, BC04, BC05, BC07 detected per-bit with no violations; BC06 detected with one field
-  continuation (`B11:1`).
-- BCM 22B004-22B00E detected per-bit, except 22B005 rejected (four violations).
-- HVAC 220100 detected per-byte with all 12 defined signals inside; SKM 22B006 and BCM 22B003
-  per-byte.
-- BMS/VCU/MCU/OBC 21xx pages and ESC/EPS/SCC 22xxxx DIDs **not** detected.
+Results over the full stored captures (the numbers the declarations were made from):
 
-Unit tests on synthetic payloads in the leaf: both orders, both granularities, constant-map and
-all-FF rejection, continuation vs violation, the chance score on a tiny matrix. Coverage tests on
-literal payloads for each new finding and for unchanged output without a declaration.
+| DID | Verdict | Note |
+|---|---|---|
+| IGPM 22BC03 | strong | 16 moving bits explained, none outside |
+| IGPM 22BC04 / 05 / 06 / 07 | corroborated | weak alone (few moving bits), convincing with the family; 22BC06 has the turn-signal field continuation |
+| BCM 22B004, 22B007 | strong | 22B004 has one continuation (`B12:5`) |
+| HVAC 220100 | strong | per-byte; 13 of 13 live bytes inside, all 12 defined signals inside |
+| BCM 22B003, 22B005, 22B008 | rejected | live byte `B20` / the light-stalk bits / `B13:1` fall outside |
+| SKM 22B006 | weak | consistent, 10^-1.1: no sibling shares a per-byte placement |
+| BMS/VCU/MCU/OBC 21xx pages, ESC/EPS/SCC | not detected | as expected |
+
+## As built
+
+What changed from the proposal, and why:
+
+- **Verdicts.** The proposal had accept/reject. Measuring showed a single DID with a handful of
+  moving bits is never significant alone (IGPM 22BC04 has chance 10^-0.3), so there are four:
+  `strong`, `corroborated`, `weak`, `rejected`. A weak fit is promoted when sibling DIDs of the same
+  ECU that share the placement jointly pass; only fits that explain at least three moving bits and
+  beat a random map by 10x on their own can testify, so a near-total map cannot ride on its
+  neighbours. The score is the exact `C(m, s) / C(8, s)` per byte, charged for every placement
+  tried; the shuffled-pairing baseline stayed an offline check.
+- **Only moving bits count as evidence.** A constant byte (a second copy of the map) would fit any
+  map that covers it.
+- **Search space.** Maps are searched at data offset 0 only by default (`--map-max-offset`),
+  because every known map sits right after the DID echo and each extra offset must be paid for.
+- **Flags.** `--support-map`, `--map-max-offset`, `--map-max-chance`, `--map-allow-violations`,
+  `--map-all`. `--support-map` is exclusive with `--counters` and `--events/--dwell`.
+- **Whole-byte reads do not define bits.** Same rule as `coverage`: `BRAKE_LIGHT = B10` leaves the
+  bits of `B10` open.
+- **Not built:** coverage does not warn when a payload's map differs from the most common one in
+  scope (it sees one representative payload per PID); `--promote` (the editor is the only write
+  path); field widths in the declaration (a continuation is shown, not sized).
+- **Declared in the bundled Ioniq:** IGPM 22BC03-07, BCM 22B004 and 22B007, HVAC 220100. BCM
+  22B005 is deliberately left undeclared.
 
 ## Rollout
 
@@ -140,7 +174,7 @@ Each phase is shippable on its own.
 2. Schema field, `pids set-support-map`, and declarations for the bundled Ioniq's IGPM, BCM, HVAC
    and SKM DIDs that pass detection.
 3. `coverage` and `bix` consumers.
-4. `validate pids` warning.
+4. Schema validation of the declaration (the outside-the-map check stays in `coverage`).
 
 ## Docs
 
@@ -153,15 +187,11 @@ Each phase is shippable on its own.
 
 ## Open questions
 
-- **Field widths.** The map marks a field's start bit, not its width. Should a declaration carry
-  known widths (e.g. `fields: {B11: 2}`) so coverage can stop calling a continuation bit a gap, or
-  is reporting continuations enough?
-- **Name.** `support_map` vs `signal_map` vs `validity_map`. The bytes' purpose (supported, valid
-  now, or present in this variant) is not known; a neutral name avoids asserting one.
-- **Mixed DIDs.** IGPM 22BCFD reads `FF FF FF FF` then non-bit values; is it a per-byte map with
-  every byte marked, or a different structure? Detection rejects all-`FF` maps by design, so it
-  stays undeclared until something else explains it.
+- **Field widths.** The map marks a field's start bit, not its width. Declaring known widths
+  (e.g. `fields: {B11: 2}`) would let `coverage` stop calling a continuation bit a gap.
 - **Other makes.** Worth checking against another manufacturer's captures before documenting this
-  as anything beyond "seen on Hyundai body/climate modules".
-- **`--promote`.** Should `investigate --support-map --promote` write the declaration directly, as
-  `correlate --promote` does for signals, or keep the separate editor as the only write path?
+  as anything beyond "seen on Hyundai body and climate modules".
+- **IGPM 22BCFD** reads `FF FF FF FF` then non-bit values; detection rejects all-`FF` maps by
+  design, so it stays undeclared until something else explains it.
+- **Name.** `support_map` was kept. What the bytes mean (supported, currently valid, or fitted to
+  this variant) is still not known; the name asserts only that they mark signals.

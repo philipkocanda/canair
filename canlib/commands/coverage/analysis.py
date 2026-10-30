@@ -4,16 +4,18 @@ Pure functions over ``(parameters, payload_hex, sfb)`` — no capture loading, n
 rendering — so every finding category is unit-testable on a literal payload.
 """
 
-import re
-from typing import TypedDict
+from typing import NotRequired, TypedDict
 
 from canlib.uds.byteindex import (
-    extract_bit_indices,
+    declared_bits,
     extract_byte_indices,
     mapped_offsets,
+    payload_index_to_wican,
     payload_to_wican_frame,
+    references_full_byte,
 )
 from canlib.uds.byteindex import mappable_data_indices as _mappable_data_indices
+from canlib.uds.support_map import MapDecl, ResolvedMap, resolve
 
 
 class BitfieldGap(TypedDict):
@@ -29,6 +31,8 @@ class BitfieldGap(TypedDict):
     have: list[int]
     missing: list[int]
     also_whole: bool
+    # With a support map: bits the map does not mark, so neither defined nor open work.
+    not_signals: NotRequired[list[int]]
 
 
 class PastEnd(TypedDict):
@@ -36,6 +40,26 @@ class PastEnd(TypedDict):
 
     signal: str
     bytes: list[int]
+
+
+class OutsideMap(TypedDict):
+    """A defined signal reading a position the PID's support map does not mark."""
+
+    signal: str
+    byte: int
+    bit: int | None
+    # True for a bit directly above a mark, which is read as the rest of a multi-bit field.
+    continuation: bool
+
+
+class SupportMapFinding(TypedDict):
+    """What a declared support map did to a PID's findings."""
+
+    unit: str
+    mask: str
+    # WiCAN indices of the map's own bytes, and of covered bytes that carry no signal.
+    map_bytes: list[int]
+    not_signal_bytes: list[int]
 
 
 class PidAnalysis(TypedDict):
@@ -52,6 +76,10 @@ class PidAnalysis(TypedDict):
     unverified_mapped: list[int]
     incomplete_bitfields: list[BitfieldGap]
     past_end: list[PastEnd]
+    support_map: NotRequired[SupportMapFinding]
+    outside_map: NotRequired[list[OutsideMap]]
+    # A declared map the representative payload is too short to contain.
+    support_map_past_end: NotRequired[bool]
 
 
 def subfunction_bytes(pid_code: str) -> int:
@@ -71,47 +99,26 @@ def mappable_data_indices(payload_hex: str, sfb: int) -> list[int]:
     return _mappable_data_indices(payload_hex, sfb)
 
 
-def references_full_byte(expr: str, idx: int) -> bool:
-    """True if ``expr`` reads byte ``idx`` as a whole byte (Bn/Sn, not Bn:k)."""
-    return re.search(rf"(?<!\[)[BS]0*{idx}(?![0-9:])", expr) is not None
-
-
-def declared_bits(pdef: dict) -> dict[int, set[int]]:
-    """Map WiCAN byte index -> bit positions a param accounts for.
-
-    Two models declare a bit: the ``Bn:k``/``Sn:k`` accessor (one param per bit)
-    and a ``type: bitmask`` param whose ``bits:`` map labels positions of the
-    whole byte it reads. Both are real decodings, so both count as coverage —
-    otherwise converting a half-labelled byte to a bitmask would hide the rest
-    of the gap.
-    """
-    expr = pdef.get("expression") or ""
-    if not expr:
-        return {}
-    out: dict[int, set[int]] = {}
-    for byte, bit in extract_bit_indices(expr):
-        out.setdefault(byte, set()).add(bit)
-    if pdef.get("type") == "bitmask":
-        labelled = {int(k) for k in (pdef.get("bits") or {})}
-        if labelled:
-            for byte in extract_byte_indices(expr):
-                out.setdefault(byte, set()).update(labelled)
-    return out
-
-
 def wican_frame_len(payload_hex: str) -> int:
     """How many WiCAN byte indices ``payload_hex`` occupies, PCI bytes included."""
     payload = [int(payload_hex[i : i + 2], 16) for i in range(0, len(payload_hex), 2)]
     return len(payload_to_wican_frame(payload))
 
 
-def analyze_pid(parameters: dict, payload_hex: str, sfb: int) -> PidAnalysis:
+def analyze_pid(
+    parameters: dict, payload_hex: str, sfb: int, support: MapDecl | None = None
+) -> PidAnalysis:
     """Return coverage findings for one PID's parameters against a payload.
 
     A signal reading a byte at or beyond the payload's end is reported in
     ``past_end`` rather than dropped: it either outgrew a short reply (a single
     truncated read, a ``variable_length:`` PID's shorter variant) or has the wrong
     offset, and both deserve a look.
+
+    ``support`` is the PID's declared support map. With one, its own bytes and the bytes it
+    marks as carrying no signal leave ``unmapped``, ``BITS`` only counts marked bits, and
+    defined signals reading unmarked positions are reported in ``outside_map``. Without one
+    the result is exactly what it always was.
     """
     data_idx = mappable_data_indices(payload_hex, sfb)
     frame_len = wican_frame_len(payload_hex)
@@ -156,7 +163,7 @@ def analyze_pid(parameters: dict, payload_hex: str, sfb: int) -> PidAnalysis:
             }
         )
 
-    return {
+    out: PidAnalysis = {
         "data_bytes": len(data_idx),
         "payload_len": len(payload_hex) // 2,
         "frame_len": frame_len,
@@ -164,4 +171,71 @@ def analyze_pid(parameters: dict, payload_hex: str, sfb: int) -> PidAnalysis:
         "unverified_mapped": unverified_mapped,
         "incomplete_bitfields": incomplete,
         "past_end": past_end,
+    }
+    if support is not None:
+        payload = bytes.fromhex(payload_hex)
+        resolved = resolve(support, payload, 1 + sfb)
+        if resolved is None:
+            out["support_map_past_end"] = True
+        else:
+            _apply_support_map(out, resolved, parameters, payload)
+    return out
+
+
+def _apply_support_map(out: PidAnalysis, rm: ResolvedMap, parameters: dict, payload: bytes) -> None:
+    """Fold a resolved support map into ``out``: drop non-signals, find reads outside it."""
+    to_wican = payload_index_to_wican(list(payload))
+    to_index = {w: i for i, w in to_wican.items()}
+    map_bytes = sorted(to_wican[i] for i in rm.map_indices)
+    not_signal = sorted(to_wican[i] for i in rm.covered if not rm.is_signal_byte(i))
+    skip = {*map_bytes, *not_signal}
+    out["unmapped"] = [b for b in out["unmapped"] if b not in skip]
+
+    gaps: list[BitfieldGap] = []
+    for gap in out["incomplete_bitfields"]:
+        index = to_index.get(gap["byte"])
+        if index is None or index not in rm.covered:
+            gaps.append(gap)
+            continue
+        marks, have = rm.signal_bits(index), set(gap["have"])
+        if marks - have:
+            gaps.append(
+                {
+                    "byte": gap["byte"],
+                    "have": gap["have"],
+                    "missing": sorted(marks - have),
+                    "also_whole": gap["also_whole"],
+                    "not_signals": sorted(set(range(8)) - marks - have),
+                }
+            )
+    out["incomplete_bitfields"] = gaps
+
+    outside: list[OutsideMap] = []
+    for name, pdef in parameters.items():
+        expr = pdef.get("expression") or ""
+        for byte, bits in declared_bits(pdef).items():
+            index = to_index.get(byte)
+            if index is None:
+                continue
+            bad, cont = rm.outside(index, bits)
+            outside += [
+                {"signal": str(name), "byte": byte, "bit": k, "continuation": k in cont}
+                for k in sorted(bad | cont)
+            ]
+        for byte in sorted(extract_byte_indices(expr)):
+            index = to_index.get(byte)
+            if (
+                index in rm.covered
+                and references_full_byte(expr, byte)
+                and not rm.is_signal_byte(index)
+            ):
+                outside.append(
+                    {"signal": str(name), "byte": byte, "bit": None, "continuation": False}
+                )
+    out["outside_map"] = outside
+    out["support_map"] = {
+        "unit": rm.decl.unit,
+        "mask": rm.mask_hex,
+        "map_bytes": map_bytes,
+        "not_signal_bytes": not_signal,
     }

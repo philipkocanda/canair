@@ -4,13 +4,13 @@
 
 ```
 usage: canair pids [-h]
-                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-pid-status,set-pid-variable-length,set-pid-period,set-response-frames,set-pid-notes,set-identity,rm-identity,set-can-bus,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing}
+                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-pid-status,set-pid-variable-length,set-support-map,set-pid-period,set-response-frames,set-pid-notes,set-identity,rm-identity,set-can-bus,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing}
                    ...
 
 [UDS] Safely edit ecus/ parameters and research entries (domain A — diagnostic UDS PIDs, freeform WiCAN expressions). The broadcast-frame (domain B) authoring counterpart is `canair signals` (linear signals/ maps).
 
 positional arguments:
-  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-pid-status,set-pid-variable-length,set-pid-period,set-response-frames,set-pid-notes,set-identity,rm-identity,set-can-bus,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing}
+  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-pid-status,set-pid-variable-length,set-support-map,set-pid-period,set-response-frames,set-pid-notes,set-identity,rm-identity,set-can-bus,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing}
     upsert-param        Add or update a signal
     rename-param        Rename a signal (key only; fields preserved)
     rm-param            Remove a signal
@@ -28,6 +28,8 @@ positional arguments:
     set-pid-variable-length
                         Flag a PID as returning legitimately variable-length
                         responses
+    set-support-map     Declare where a PID's support map sits (which
+                        following bits/bytes are signals)
     set-pid-period      Set how often the WiCAN AutoPID re-polls a PID (ms)
     set-response-frames
                         Set how many CAN frames a PID's response occupies
@@ -387,6 +389,36 @@ options:
   -h, --help     show this help message and exit
   --dir DIR      ecus/ directory (default: active profile)
   --no-validate  Skip the post-edit schema validation gate
+```
+
+## `canair pids set-support-map`
+
+```
+usage: canair pids set-support-map [-h] [--at AT] [--length LENGTH]
+                                   [--unit {bit,byte}] [--clear] [--dir DIR]
+                                   [--no-validate]
+                                   ecu pid
+
+Record that the PID's data starts with a constant support map: LENGTH bytes at
+data offset AT (counted after the SID and DID echo) marking which of the data
+that follows are real signals, one map bit per data bit (--unit bit) or per
+data byte (--unit byte), most significant bit first. `canair investigate ECU
+--support-map` finds and scores candidates and prints the exact command;
+`canair coverage` then stops reporting bits the map does not mark. --clear
+removes the declaration.
+
+positional arguments:
+  ecu
+  pid
+
+options:
+  -h, --help         show this help message and exit
+  --at AT            Data offset of the first map byte (usually 0)
+  --length LENGTH    Map length in bytes (1-4)
+  --unit {bit,byte}  What one map bit marks
+  --clear            Remove the declaration
+  --dir DIR          ecus/ directory (default: active profile)
+  --no-validate      Skip the post-edit schema validation gate
 ```
 
 ## `canair pids set-pid-period`

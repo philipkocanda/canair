@@ -52,8 +52,25 @@ def run(args) -> int:
         print(f"error: {err}", file=sys.stderr)
         return 2
 
+    views = [
+        flag
+        for flag, on in (
+            ("--counters", args.counters),
+            ("--support-map", args.support_map),
+            ("--events/--dwell", args.events or args.dwell),
+        )
+        if on
+    ]
+    if len(views) > 1:
+        print(f"error: {' and '.join(views)} are separate views; pick one", file=sys.stderr)
+        return 2
+
     fill = fill_policy_from_args(args)
     specs, single = _resolve_targets(args, since, until)
+    if args.support_map:
+        from .support_map import run_support_map
+
+        return run_support_map(specs, args, since, until)
     if single is not None:
         return _run_single(single[0], single[1], args, since, until, fill)
 

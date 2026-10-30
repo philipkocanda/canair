@@ -80,6 +80,7 @@ HVAC:
   # unless a hit is listed. Powertrain 22-DID probes are logged in each ECU's research:.
   pids:
     220100:
+      support_map: {at: 0, length: 4, unit: byte, order: msb}
       response_frames: 6
       status: active
       period: 30000

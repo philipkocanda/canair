@@ -33,6 +33,7 @@ from canlib.uds.layout import (
 )
 from canlib.uds.notation import subfunction_bytes_for_pid
 from canlib.uds.services import service_response_name
+from canlib.uds.support_map import MapDecl, ResolvedMap, SupportMapError, declaration, resolve
 
 NAME = "bix"
 
@@ -697,6 +698,7 @@ def _annotate_payload(
     show_obdb: bool = False,
     pid: str | None = None,
     legend: bool = True,
+    support: MapDecl | None = None,
 ) -> int:
     """Annotate each byte of a UDS response payload with WiCAN Bnn indices.
 
@@ -723,7 +725,9 @@ def _annotate_payload(
     showing which defined parameter maps each byte (``[NAME]`` verified,
     ``[NAME?]`` unverified, ``[NAME:k]`` a specific bit), and mark data bytes no
     param reads as ``unmapped`` — the overlay that makes a wrong byte offset
-    obvious at a glance.
+    obvious at a glance. With the PID's declared ``support`` map the column also names the
+    map's own bytes, marks covered bytes that carry no signal, and lists which bits of an
+    unmapped byte the map marks.
     """
     from canlib.uds.byteindex import (
         NotAFrameError,
@@ -748,6 +752,10 @@ def _annotate_payload(
     overlay = params is not None
     mapped = mapped_offsets(params) if overlay else {}
     mbits = mapped_bits(params) if overlay else {}
+    # A raw (already framed) paste has no reassembled payload to read the map off.
+    resolved = None
+    if overlay and support is not None and not raw_frame:
+        resolved = resolve(support, bytes(payload_bytes), 1 + sub_bytes)
 
     if layout is not None:
         _print_service_line(layout, frame)
@@ -872,6 +880,8 @@ def _annotate_payload(
 
         role = roles[w]
         param = _param_cell(w, byte_val, role, mapped, mbits) if overlay else None
+        if resolved is not None and pi is not None:
+            param = _support_cell(resolved, pi, param or "")
         line = _row(
             f"B{w:02d}",
             f"0x{isotp:02X}" if isotp is not None else "—",
@@ -887,6 +897,20 @@ def _annotate_payload(
     if legend:
         _print_role_legend(roles, has_data=any(r == "" for r in roles))
     return 0
+
+
+def _support_cell(rm: ResolvedMap, index: int, cell: str) -> str:
+    """Fold the declared support map into a byte's Param cell (``index`` is the ISO-TP index)."""
+    if index in rm.map_indices:
+        return "support map"
+    if index not in rm.covered:
+        return cell
+    marks = sorted(rm.signal_bits(index))
+    if not marks:
+        return "not a signal" if cell == "unmapped" else cell
+    if cell == "unmapped" and rm.decl.unit == "bit":
+        return f"unmapped (marked bits {','.join(map(str, marks))})"
+    return cell
 
 
 def _param_cell(offset: int, byte_val: int, role: str, mapped: dict, mbits: dict) -> str:
@@ -952,6 +976,7 @@ def run(args) -> int:
 
     if args.annotate:
         params = None
+        support = None
         if args.ecu:
             if not args.pid:
                 print("Error: --ecu requires --pid.", file=sys.stderr)
@@ -962,7 +987,12 @@ def run(args) -> int:
             ecu = canonical_ecu_name_safe(args.ecu).upper()
             pid = args.pid.upper()
             idx = build_ecu_index(load_pids())
-            params = idx.get(ecu, {}).get("pids", {}).get(pid, {}).get("parameters", {})
+            pid_entry = idx.get(ecu, {}).get("pids", {}).get(pid, {})
+            params = pid_entry.get("parameters", {})
+            try:
+                support = declaration({"support_map": pid_entry.get("support_map")})
+            except SupportMapError:
+                support = None  # a malformed declaration is `validate`'s to report
             if not params:
                 print(
                     f"Note: no defined parameters for {ecu} {pid} — showing unmapped overlay.",
@@ -981,6 +1011,7 @@ def run(args) -> int:
             show_obdb=args.show_obdb,
             pid=args.pid,
             legend=args.legend,
+            support=support,
         )
 
     if args.raw_frame:

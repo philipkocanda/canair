@@ -2,9 +2,7 @@
 PID coverage audit — 1 PID(s) with gaps, 0 without captures in scope
 
   IGPM 22BC05 (7p, 0 verified)  8 data bytes, 2026-08-02
-      UNMAPPED 0,8,16,24,56
+      MAP 7F 11 20 00 (bit) 0,8,16,24; 1 byte(s) carry no signal
       UNVERIFIED 32,40,48
-      BITS 32 have{4,5,6,7} missing{0,1,2,3}
-      BITS 40 have{3,7} missing{0,1,2,4,5,6}
-      BITS 48 have{2} missing{0,1,3,4,5,6,7}
+      BITS 32 have{4,5,6,7} missing{1,2,3} (+1 not signals)
 

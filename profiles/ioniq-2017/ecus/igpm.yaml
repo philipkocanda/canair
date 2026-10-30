@@ -46,6 +46,7 @@ IGPM:
         (requestRoutineResults). Sub-function 01 (startRoutine) untested (unsafe to scan blindly).
   pids:
     22BC07:
+      support_map: {at: 0, length: 4, unit: bit, order: msb}
       period: 5000
       status: active
       response_frames: 2
@@ -111,6 +112,7 @@ IGPM:
         # B10 = Doors and locks
         # B11 = Seatbelts
         # B12 = Lights
+      support_map: {at: 0, length: 4, unit: bit, order: msb}
         # B13 =
         DOOR_DRV_OPEN:
           expression: B10:5
@@ -295,6 +297,7 @@ IGPM:
           expression: "B10:2"
           ha_class: lock
           source: "Kia Niro EV WiCAN PR#716"
+      support_map: {at: 0, length: 4, unit: bit, order: msb}
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
@@ -421,6 +424,7 @@ IGPM:
           expression: B11:1
           ha_class: ""
           source: "Corrected 2026-08-09: moved from B10 to B11 (user-confirmed 1=left, 2=right); B10 bit1 had only n=1 support and was unrelated noise"
+      support_map: {at: 0, length: 4, unit: bit, order: msb}
           source_links: []
           verified: true
           notes: B11 reads 0 (no signal), 1 (left) or 2 (right), never 3, across a 500-sample check.
@@ -494,6 +498,7 @@ IGPM:
           enabled: false
         TURN_LAMP_RIGHT_2:
           expression: B10:7
+      support_map: {at: 0, length: 4, unit: bit, order: msb}
           min: "0"
           max: "1"
           source: canair decode --dump-bytes 2026-10-21

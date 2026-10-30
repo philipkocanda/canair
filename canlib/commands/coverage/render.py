@@ -12,6 +12,12 @@ if TYPE_CHECKING:
     from . import CoverageEntry
 
 
+def _where(o, label) -> str:
+    """``B10:5`` for a bit read, ``B10`` for a whole-byte read, in the chosen notation."""
+    base = label(o["byte"])
+    return base if o["bit"] is None else f"{base}:{o['bit']}"
+
+
 def render_text(results: Sequence[CoverageEntry], notation_arg: str | None, scoped: bool) -> None:
     """Print the audit; ``scoped`` qualifies every "no data" claim with "in scope"."""
     if not results:
@@ -62,6 +68,19 @@ def render_text(results: Sequence[CoverageEntry], notation_arg: str | None, scop
             f"{header}  {ansi.DIM}{e.get('data_bytes')} data bytes, "
             f"{capture.get('date')}{padding}{ansi.RESET}"
         )
+        sm = e.get("support_map")
+        if sm:
+            hidden = len(sm["not_signal_bytes"])
+            extra = f"; {hidden} byte(s) carry no signal" if hidden else ""
+            print(
+                f"      {ansi.DIM}MAP {sm['mask']} ({sm['unit']}) "
+                f"{','.join(map(label, sm['map_bytes']))}{extra}{ansi.RESET}"
+            )
+        if e.get("support_map_past_end"):
+            print(
+                f"      {ansi.RED}MAP PAST END{ansi.RESET} "
+                f"{ansi.DIM}— the declared support map is longer than the payload{ansi.RESET}"
+            )
         if e.get("unmapped"):
             print(f"      {ansi.YELLOW}UNMAPPED{ansi.RESET} {','.join(map(label, e['unmapped']))}")
         if e.get("unverified_mapped"):
@@ -71,9 +90,23 @@ def render_text(results: Sequence[CoverageEntry], notation_arg: str | None, scop
             have = ",".join(map(str, bf["have"]))
             miss = ",".join(map(str, bf["missing"]))
             whole = f" {ansi.DIM}(also read whole){ansi.RESET}" if bf.get("also_whole") else ""
+            ns = bf.get("not_signals")
+            extra = f" {ansi.DIM}(+{len(ns)} not signals){ansi.RESET}" if ns else ""
             print(
                 f"      {ansi.RED}BITS{ansi.RESET} {label(bf['byte'])} "
-                f"have{{{have}}} missing{{{miss}}}{whole}"
+                f"have{{{have}}} missing{{{miss}}}{whole}{extra}"
+            )
+        outside = e.get("outside_map") or []
+        hard = [o for o in outside if not o["continuation"]]
+        if hard:
+            reads = ", ".join(f"{o['signal']} ({_where(o, label)})" for o in hard)
+            print(f"      {ansi.RED}OUTSIDE MAP{ansi.RESET} {reads}")
+        soft = [o for o in outside if o["continuation"]]
+        if soft:
+            reads = ", ".join(f"{o['signal']} ({_where(o, label)})" for o in soft)
+            print(
+                f"      {ansi.DIM}FIELD CONTINUATION {reads} — unmarked bit directly above a "
+                f"mark{ansi.RESET}"
             )
         if e.get("past_end"):
             reads = ", ".join(

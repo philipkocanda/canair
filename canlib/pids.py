@@ -87,6 +87,7 @@ class PidIndexEntry(TypedDict):
     status: PidStatus
     shipped: bool  # include in the generated WiCAN device profile (see is_shipped)
     swept: bool  # include in a bare-ECU sweep (see is_swept)
+    support_map: Any  # raw `support_map:` declaration or None (see canlib.uds.support_map)
 
 
 class EcuIndexEntry(TypedDict):
@@ -517,5 +518,6 @@ def build_ecu_index(pids_data: dict) -> dict[str, EcuIndexEntry]:
                 # never re-implement the lifecycle rules:
                 "shipped": is_shipped(status),
                 "swept": is_swept(status),
+                "support_map": pid_def.get("support_map"),
             }
     return index

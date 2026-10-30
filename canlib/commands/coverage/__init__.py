@@ -12,6 +12,10 @@ reply for a variable_length: PID) and reports:
               account for the byte's individual bits.
   - PAST END  signals reading bytes beyond the end of that payload (a short or
               truncated reply, or a wrong offset)
+  - OUTSIDE MAP  signals reading a position the PID's declared support map does not
+              mark (see `canair investigate --support-map`). With a map, its own bytes
+              and the bytes it marks as carrying no signal stop being reported as
+              UNMAPPED, and BITS only counts marked bits.
   - NO CAPTURE PIDs that have signals defined but no positive reply captured
               (in scope, when a scope flag is set)
   - NEGATIVE RESPONSE ONLY  PIDs that only ever answered with an NRC
@@ -43,11 +47,14 @@ from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.commands._hints import pid_completer as _pid_completer
 from canlib.pids import build_ecu_index, load_pids
 from canlib.uds.notation import add_notation_arg
+from canlib.uds.support_map import MapDecl, SupportMapError, declaration
 
 from .analysis import (
     BitfieldGap,
+    OutsideMap,
     PastEnd,
     PidAnalysis,
+    SupportMapFinding,
     analyze_pid,
     declared_bits,
     mappable_data_indices,
@@ -75,8 +82,10 @@ __all__ = [
     "CoverageCaptures",
     "CoverageEntry",
     "NegativeOnly",
+    "OutsideMap",
     "PastEnd",
     "PidAnalysis",
+    "SupportMapFinding",
     "add_parser",
     "analyze_pid",
     "audit",
@@ -124,6 +133,9 @@ class CoverageEntry(TypedDict):
     unverified_mapped: NotRequired[list[int]]
     incomplete_bitfields: NotRequired[list[BitfieldGap]]
     past_end: NotRequired[list[PastEnd]]
+    support_map: NotRequired[SupportMapFinding]
+    outside_map: NotRequired[list[OutsideMap]]
+    support_map_past_end: NotRequired[bool]
 
 
 def add_parser(subparsers):
@@ -176,6 +188,14 @@ def variable_length_pids(pids_data: dict) -> frozenset[PidKey]:
     )
 
 
+def _declared_map(pid_entry) -> MapDecl | None:
+    """The PID's declared support map; a malformed one is ``validate``'s to report, not ours."""
+    try:
+        return declaration({"support_map": pid_entry.get("support_map")})
+    except SupportMapError:
+        return None
+
+
 def audit(
     ecu_index: dict,
     captures: CoverageCaptures,
@@ -216,7 +236,14 @@ def audit(
                     "file": cap["file"],
                     "may_include_padding": cap.get("may_include_padding", False),
                 }
-                entry.update(analyze_pid(parameters, cap["payload"], subfunction_bytes(pid)))
+                entry.update(
+                    analyze_pid(
+                        parameters,
+                        cap["payload"],
+                        subfunction_bytes(pid),
+                        _declared_map(ecu_index[ecu]["pids"][pid]),
+                    )
+                )
             results.append(entry)
     return results
 
@@ -238,7 +265,14 @@ def keep(e: CoverageEntry, args) -> bool:
         return has_bits
     if args.all:
         return True
-    return has_unmapped or has_unverified or has_bits or bool(e.get("past_end"))
+    return (
+        has_unmapped
+        or has_unverified
+        or has_bits
+        or bool(e.get("past_end"))
+        or any(not o["continuation"] for o in e.get("outside_map") or [])
+        or bool(e.get("support_map_past_end"))
+    )
 
 
 def run(args) -> int:

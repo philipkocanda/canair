@@ -33,7 +33,9 @@ usage: canair investigate uds [-h] [--min-r R] [--min-n N]
                               [--max-hold SECONDS] [--all] [--bits] [--events]
                               [--dwell] [--field NAME] [--counters]
                               [--min-bits BITS] [--counter-width N]
-                              [--unmapped-only]
+                              [--unmapped-only] [--support-map]
+                              [--map-max-offset N] [--map-max-chance P]
+                              [--map-allow-violations N] [--map-all]
                               [--independent-of ECU:PID:PARAM]
                               [--independent-of-file FILE] [--json] [--top N]
                               [--notation NAME] [--since WHEN] [--until WHEN]
@@ -123,6 +125,27 @@ options:
                         already decodes. A window mapped only by an unverified
                         guess is kept (tagged [NAME?]) — monotonicity is often
                         the evidence that refutes such a guess
+  --support-map         Find SUPPORT MAPS instead: constant leading bytes that
+                        mark which of the data bits (or bytes) that follow are
+                        real signals. Lists each PID's open signals (marked
+                        but undefined, split by whether they ever moved),
+                        flags defined signals the map does not mark, and
+                        proposes a `pids set-support-map` declaration. Sibling
+                        DIDs of an ECU that share a placement corroborate one
+                        another
+  --map-max-offset N    With --support-map: widest data offset a map may start
+                        at (default 0: right after the DID echo, where every
+                        known map sits). Each extra offset adds placements,
+                        which raises the evidence a fit needs
+  --map-max-chance P    With --support-map: probability an unrelated map would
+                        fit this well, below which a fit counts as significant
+                        (default 0.01)
+  --map-allow-violations N
+                        With --support-map: tolerate N set bits (or live
+                        bytes) outside the map before rejecting a fit (default
+                        0)
+  --map-all             With --support-map in a sweep: also list PIDs with no
+                        map-shaped leading bytes
   --independent-of ECU:PID:PARAM
                         Rank bytes that separate by state yet DON'T track this
                         driver signal — the 'active-but-independent' finder
@@ -189,6 +212,7 @@ examples:
   canair investigate IGPM 22BC03 --events  # bit/byte edges aligned to the event timeline
   canair investigate CLU 22B002 --counters # hunt monotonic counters (odometer / cycle count)
   canair investigate BMS 2101 --counters --unmapped-only   # only counters not settled yet
+  canair investigate IGPM --support-map    # which bits of each IGPM DID are real signals
   canair investigate BMS 2101 --state driving   # only consider drive captures
   canair investigate ESC 22C101 --min-r 0.8      # only show strong anchors (|r| >= 0.8)
   canair investigate AAF 2181 --json       # machine-readable output

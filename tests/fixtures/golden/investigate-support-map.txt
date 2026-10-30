@@ -1,0 +1,38 @@
+
+Support maps — 5 of 7 PID(s) carry one
+
+  IGPM 22BC03  CORROBORATED per-bit map FD EE 3C 73 at data+0, 292 rows, chance 10^-1.5, with siblings 10^-8.8
+      22 signals marked: 17 defined, 5 open
+      open, moving     -
+      open, always on  -
+      open, never set  B11:4, B13:2, B13:3, B13:6, B13:7
+      declare: canair pids set-support-map IGPM 22BC03 --at 0 --length 4 --unit bit
+
+  IGPM 22BC04  CORROBORATED per-bit map B5 3F F4 EA at data+0, 279 rows, chance 10^-0.3, with siblings 10^-8.8
+      21 signals marked: 8 defined, 13 open
+      open, moving     -
+      open, always on  B13:1
+      open, never set  B10:5, B10:7, B11:2, B11:3, B11:4, B11:5, B11:6, B11:7, B12:0, B13:0, B13:2, B13:4
+      declare: canair pids set-support-map IGPM 22BC04 --at 0 --length 4 --unit bit
+
+  IGPM 22BC05  CORROBORATED per-bit map 7F 11 20 00 at data+0, 281 rows, chance 10^-1.7, with siblings 10^-8.8
+      10 signals marked: 7 defined, 3 open
+      open, moving     -
+      open, always on  -
+      open, never set  B10:1, B10:2, B10:3
+      declare: canair pids set-support-map IGPM 22BC05 --at 0 --length 4 --unit bit
+
+  IGPM 22BC06  CORROBORATED per-bit map B4 80 00 00 at data+0, 276 rows, chance 10^-0.9, with siblings 10^-8.8
+      5 signals marked: 2 defined, 3 open
+      open, moving     B10:0, B10:3, B10:5
+      open, always on  -
+      open, never set  -
+      declare: canair pids set-support-map IGPM 22BC06 --at 0 --length 4 --unit bit
+
+  IGPM 22BC07  CORROBORATED per-bit map 08 41 FB CC at data+0, 259 rows, chance 10^-0.7, with siblings 10^-8.8
+      14 signals marked: 5 defined, 9 open
+      open, moving     -
+      open, always on  B12:4
+      open, never set  B11:1, B12:1, B12:6, B12:7, B13:0, B13:1, B13:4, B13:5
+      declare: canair pids set-support-map IGPM 22BC07 --at 0 --length 4 --unit bit
+

@@ -76,11 +76,13 @@ from canlib.pids_edit import (
     set_research_result,
     set_research_status,
     set_response_frames,
+    set_support_map,
     set_wake,
     update_iocontrol_field,
     upsert_parameter,
 )
 from canlib.profile import require_writable_definitions
+from canlib.uds.support_map import MapDecl, SupportMapError
 
 NAME = "pids"
 
@@ -437,6 +439,29 @@ def cmd_set_pid_variable_length(args: argparse.Namespace) -> int:
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
     state = "true" if value else "false (cleared)"
     echo_edit(f"{args.ecu} {args.pid} variable_length -> {state}", fpath)
+    return 0
+
+
+def cmd_set_support_map(args: argparse.Namespace) -> int:
+    decl = None
+    if not args.clear:
+        if args.at is None or args.length is None or args.unit is None:
+            raise SystemExit(
+                f"{ansi.RED}  Error: give --at, --length and --unit, or --clear{ansi.RESET}"
+            )
+        try:
+            decl = MapDecl.from_mapping(
+                {"at": args.at, "length": args.length, "unit": args.unit, "order": "msb"}
+            )
+        except SupportMapError as e:
+            raise SystemExit(f"{ansi.RED}  Error: {e}{ansi.RESET}") from e
+
+    def do():
+        set_support_map(args.ecu, args.pid, decl, pids_dir=args.dir)
+
+    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
+    state = decl.flow() if decl else "cleared"
+    echo_edit(f"{args.ecu} {args.pid} support_map -> {state}", fpath)
     return 0
 
 
@@ -922,6 +947,27 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     )
     _add_common(spv)
     spv.set_defaults(_pids_func=cmd_set_pid_variable_length)
+
+    ssm = sub.add_parser(
+        "set-support-map",
+        help="Declare where a PID's support map sits (which following bits/bytes are signals)",
+        description=(
+            "Record that the PID's data starts with a constant support map: LENGTH bytes at "
+            "data offset AT (counted after the SID and DID echo) marking which of the data that "
+            "follows are real signals, one map bit per data bit (--unit bit) or per data byte "
+            "(--unit byte), most significant bit first. `canair investigate ECU --support-map` "
+            "finds and scores candidates and prints the exact command; `canair coverage` then "
+            "stops reporting bits the map does not mark. --clear removes the declaration."
+        ),
+    )
+    ssm.add_argument("ecu")
+    ssm.add_argument("pid")
+    ssm.add_argument("--at", type=int, help="Data offset of the first map byte (usually 0)")
+    ssm.add_argument("--length", type=int, help="Map length in bytes (1-4)")
+    ssm.add_argument("--unit", choices=["bit", "byte"], help="What one map bit marks")
+    ssm.add_argument("--clear", action="store_true", help="Remove the declaration")
+    _add_common(ssm)
+    ssm.set_defaults(_pids_func=cmd_set_support_map)
 
     spp = sub.add_parser(
         "set-pid-period",

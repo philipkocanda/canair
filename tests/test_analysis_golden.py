@@ -95,6 +95,18 @@ CASES: list[tuple[str, str, list[str]]] = [
         "ioniq-2017",
         ["investigate", "uds", "IGPM", "22BC03", "--bits", "--until", FROZEN_UNTIL],
     ),
+    # -- support maps: the IGPM family corroborating one another, and BCM 22B005, the
+    # documented exception whose light-stalk bits fall outside its map --
+    (
+        "investigate-support-map",
+        "ioniq-2017",
+        ["investigate", "uds", "IGPM", "--support-map", "--until", FROZEN_UNTIL],
+    ),
+    (
+        "investigate-support-map-exception",
+        "ioniq-2017",
+        ["investigate", "uds", "BCM", "22B005", "--support-map", "--until", FROZEN_UNTIL],
+    ),
     # -- decode: mirrors / discriminate / dump-bytes --
     (
         "decode-mirrors-bits",
@@ -298,9 +310,11 @@ class TestGoldenHarnessItself:
         if REGEN:
             pytest.skip("regenerating")
         # Bnn/Snn (WiCAN, --signed), iN (ISO-TP), bix columns, or a Torque-letter
-        # label (`:A`, `D.6`) — the Torque view renders bare letters, not Bnn.
+        # label (`:A`, `D.6`) or a bare-letter list (`A,B,C`) — the Torque view renders bare
+        # letters, not Bnn — or a bare bix number after a finding keyword (`BITS 32`).
         label_re = re.compile(
             r"\b[BS]\d{1,2}\b|\bi\d{1,2}\b|\bbix\b|Torque|UNMAPPED|:[A-Z]{1,2}\b|\b[A-Z]\.\d\b"
+            r"|\b[A-Z](?:,[A-Z])+\b|\b(?:BITS|UNVERIFIED) \d+\b"
         )
         missing = [
             name

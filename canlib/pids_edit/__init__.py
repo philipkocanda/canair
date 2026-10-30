@@ -6,6 +6,7 @@ Split by concern into a package:
   * :mod:`.hits`   — scanner-section editors (routines / iocontrol_discoveries /
     sessions + discovery promotion)
   * :mod:`.params` — parameter / research / identity editors (the RE workflow)
+  * :mod:`.support_map` — the per-PID ``support_map:`` declaration editor
 
 The full public API is re-exported here so callers that
 ``from canlib.pids_edit import …`` are unaffected by the split.
@@ -46,6 +47,7 @@ from .params import (
     set_wake,
     upsert_parameter,
 )
+from .support_map import set_support_map
 
 __all__ = [
     "EDITABLE_FIELDS",
@@ -76,6 +78,7 @@ __all__ = [
     "set_research_result",
     "set_research_status",
     "set_response_frames",
+    "set_support_map",
     "set_wake",
     "update_iocontrol_field",
     "update_routines_field",

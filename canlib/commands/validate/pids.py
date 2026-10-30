@@ -14,6 +14,8 @@ from canlib.expression.decode_value import BYTE_RUN_TYPES as _BYTE_RUN_TYPES
 from canlib.expression.lint import signed_low_bytes
 from canlib.pids import PID_STATUSES, pid_status
 from canlib.uds.byteindex import wican_to_isotp
+from canlib.uds.support_map import SupportMapError
+from canlib.uds.support_map import declaration as support_map_declaration
 
 from ._common import EXPR_TOKEN_RE, SCHEMA_FILE
 from .send_to import send_to_findings
@@ -592,6 +594,11 @@ def _validate_one_pid(
     variable_length = pid_def.get("variable_length")
     if variable_length is not None and not isinstance(variable_length, bool):
         errors.append(f"{label}: variable_length must be a boolean")
+
+    try:
+        support_map_declaration(pid_def)
+    except SupportMapError as e:
+        errors.append(f"{label}: {e}")
 
     frames = pid_def.get("response_frames")
     if frames is not None:
