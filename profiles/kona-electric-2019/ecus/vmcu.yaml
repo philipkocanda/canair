@@ -40,15 +40,50 @@ VMCU:
             - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/kia/nirosoulkona-ev.json
           verified: false
           notes: Raw gear selector code (P/R/N/D mapping TBD).
+    2102:
+      status: active
+      parameters:
+        LDC_OUTPUT_CURRENT:
+          expression: "[B22:B23]/100"
+          unit: A
+          ha_class: current
+          min: "0"
+          max: "655"
+          source: OBDb Hyundai-Kona-Electric (KONAEV_AUX_AMPS_LDC; offset via canair bix)
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+          verified: false
+          notes: >-
+            Unsigned 16-bit big-endian. 31.2-34.0 A with the car READY and stationary; rises with
+            220101 BATTERY_POWER (r 0.46, n 38). At 13.2 V that is about 420 W, a plausible idle
+            load.
+        AUX_BATTERY_VOLTAGE_VMCU:
+          expression: ((S27 << 8) | B26)/1000
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "20"
+          source: OBDb Hyundai-Kona-Electric (KONAEV_AUX_V_7E2; offset via canair bix)
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+          verified: false
+          notes: >-
+            Signed 16-bit little-endian (OBDb flags the pair byte-swapped), mV. 13.23-13.29 V; BMS
+            220101 AUX_BATTERY_VOLTAGE reads 13.1-13.2 V over the same minutes, 0.08 V lower. Read
+            as big-endian it would be -20 to -5 V.
 
   research:
     - type: decode
       target: "2102"
-      status: pending
+      status: captured
       priority: P3
       vehicle_states: [READY]
       created: "2026-10-29"
-      updated: "2026-10-29"
-      notes: Aux/LDC detail. OBDb 2102 aux bytes look speculative; E004/E005 are the 2024+ UDS layout, not applicable to a 2019.
+      updated: "2026-10-30"
+      notes: >-
+        Defined: LDC_OUTPUT_CURRENT (B22:B23) and AUX_BATTERY_VOLTAGE (little-endian B26:B27, within
+        0.1 V of BMS aux voltage). OBDb's aux battery current (B28:B29) reads a constant high byte
+        0x81 with a varying low byte; as signed LE that is about -32 A beside +32 A LDC output,
+        which does not add up, so it is left undefined. Aux SOC (B30) is a constant 0xFF.
       sources:
         - OBDb Hyundai-Kona-Electric

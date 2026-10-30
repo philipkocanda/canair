@@ -16,11 +16,55 @@ IGPM:
         - OBDb Hyundai-Kona-Electric
     - type: decode
       target: 22BC03
-      status: pending
+      status: captured
       priority: P3
       vehicle_states: [ACC]
       created: "2026-10-29"
-      updated: "2026-10-29"
-      notes: "Exterior lights: low beam, hazards, turn signals, brake light, beams (OBDb 22BC03/05/06/08/09)."
+      updated: "2026-10-30"
+      notes: >-
+        IGN1_SWITCH, IGN2_SWITCH and LOW_BEAMS defined. The map bytes (FD EE 3C 73) equal the
+        Ioniq's, so its door, lock, hood and seat-belt bits are probably the same here, but all 13
+        captures are identical (B10 0, B11 0x60, B12 0, B13 0): no event was ever exercised. Needs a
+        narrated door/light capture.
       sources:
         - OBDb Hyundai-Kona-Electric
+  pids:
+    22BC03:
+      status: active
+      parameters:
+        IGN1_SWITCH:
+          expression: B11:5
+          source: Layout shared with the Ioniq IGPM 22BC03 (same constant map bytes FD EE 3C 73); Ioniq signal verified there
+          verified: false
+          notes: >-
+            Reads 1 in all 13 captures, taken with the car powered. Ioniq: 1 in ON and READY, 0 when
+            off and in ACC. This log never has the ignition off.
+        IGN2_SWITCH:
+          expression: B11:6
+          source: Layout shared with the Ioniq IGPM 22BC03 (same constant map bytes FD EE 3C 73)
+          verified: false
+          notes: >-
+            Reads 1 alongside IGN1_SWITCH in all 13 captures. The Ioniq's equals IGN1_SWITCH in
+            every capture too, so the two are not told apart.
+        LOW_BEAMS:
+          expression: B12
+          source: OBDb Hyundai-Kona-Electric (KONAEV_LOW_BEAMS; offset via canair bix)
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+          verified: false
+          notes: >-
+            Whole byte, as OBDb has it (the Ioniq splits it into lamp bits at B12:2-5). 0 in all 13
+            captures, so every lamp is off; never exercised.
+    22BC06:
+      status: active
+      parameters:
+        BRAKE_LIGHT:
+          expression: B10
+          source: OBDb Hyundai-Kona-Electric (KONAEV_BRAKE_LIGHT; offset via canair bix); same layout as the Ioniq IGPM 22BC06
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+          verified: false
+          notes: >-
+            Not a boolean: reads 0 (released) or 0x2D = 45 (pressed), the two values the Ioniq's
+            reads too (0x2D in 73 of its 504 captures). Both appear in these 16 captures. Constant
+            bytes B5-B7 and B9 are B4 80 00 00, as on the Ioniq.

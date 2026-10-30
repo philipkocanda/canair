@@ -6,11 +6,66 @@ HVAC:
   research:
     - type: decode
       target: "220100"
-      status: pending
+      status: done
       priority: P2
       vehicle_states: [ACC]
       created: "2026-10-29"
-      updated: "2026-10-29"
-      notes: Interior/exterior temperature and vehicle speed (OBDb KONAEV_TEMP_INT/TEMP_EXT/VSS_7B3).
+      updated: "2026-10-30"
+      notes: >-
+        CABIN_TEMP (B11), AMBIENT_TEMP (B12) and VEHICLE_SPEED (B38) defined from the 2019 dongle
+        logs. Ambient and speed are constant there (20 C, 0 km/h), so their scaling is untested. B13
+        (95-116, 18 values) is unmapped and ranks r -0.90 against BMS inlet temperature.
       sources:
         - OBDb Hyundai-Kona-Electric
+    - type: decode
+      target: "220102"
+      status: captured
+      priority: P3
+      vehicle_states: [READY]
+      created: "2026-10-30"
+      updated: "2026-10-30"
+      notes: 71 captures, nothing defined. OBDb's coolant temperature (B10) is 0xFF here (sensor absent) and its inverter temperature (B19, raw/2-40) gives -17.5 to -9 C in a 20 C garage, so the OBDb offsets do not fit this car. B19/2 would read 22-31 C and tracks cabin temperature (r 0.85, n 8), too few rows to call.
+      sources:
+        - OBDb Hyundai-Kona-Electric
+  pids:
+    220100:
+      status: active
+      parameters:
+        CABIN_TEMP:
+          expression: B11/2-40
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "87"
+          source: OBDb Hyundai-Kona-Electric (KONAEV_TEMP_INT; offset via canair bix)
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+          verified: false
+          notes: >-
+            27.0-28.5 C in a January log: a plausible indoor reading, in 4 steps of 0.5 C. Not
+            checked against a second thermometer.
+        AMBIENT_TEMP:
+          expression: B12/2-40
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "87"
+          source: OBDb Hyundai-Kona-Electric (KONAEV_TEMP_EXT; offset via canair bix)
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+          verified: false
+          notes: >-
+            Constant 20.0 C in both logs (raw 120): too little variation to check the scaling.
+        VEHICLE_SPEED_HVAC:
+          expression: B38
+          unit: km/h
+          ha_class: speed
+          min: "0"
+          max: "255"
+          source: OBDb Hyundai-Kona-Electric (KONAEV_VSS_7B3; offset via canair bix)
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+          verified: false
+          notes: >-
+            Constant 0 while VMCU 2101 VEHICLE_SPEED reads 0 (stationary car); the moving case is
+            untested.

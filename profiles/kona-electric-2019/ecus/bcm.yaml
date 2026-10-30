@@ -6,12 +6,15 @@ BCM:
   research:
     - type: decode
       target: 22C00B
-      status: pending
+      status: captured
       priority: P2
       vehicle_states: [ALL]
       created: "2026-10-29"
-      updated: "2026-10-29"
-      notes: TPMS per-wheel pressure & temperature (OBDb KONAEV_TP_*/TT_*; OBDb confirms this one on 2019).
+      updated: "2026-10-30"
+      notes: >-
+        Eight signals defined at the Ioniq's offsets (OBDb agrees). All 60 captures read 0 psi and
+        -50 C: the 2019 car's tyre sensors were not reporting, so the scaling is untested. The
+        constant 2 at B13/B18/B22/B27 is not the Ioniq's sensor-state byte (B12/B17/B21/B26).
       sources:
         - OBDb Hyundai-Kona-Electric
     - type: decode
@@ -24,3 +27,111 @@ BCM:
       notes: Heated steering wheel (OBDb KONAEV_HEATED_WHEEL).
       sources:
         - OBDb Hyundai-Kona-Electric
+  pids:
+    22C00B:
+      status: active
+      parameters:
+        TYRE_PRESSURE_FL:
+          expression: B10/72.52
+          unit: bar
+          ha_class: pressure
+          min: "0"
+          max: "5"
+          source: OBDb Hyundai-Kona-Electric (KONAEV_TP_FL, raw/5 psi; offset via canair bix); same byte as the Ioniq BCM
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+          verified: false
+          notes: >-
+            The front left tyre. Raw byte / 5 = psi. Reads 0 in all 60 captures: the sensor was not
+            reporting, so the scaling is untested here.
+        TYRE_TEMP_FL:
+          expression: B11-50
+          unit: °C
+          ha_class: temperature
+          min: "-50"
+          max: "205"
+          source: OBDb Hyundai-Kona-Electric (KONAEV_TT_FL, raw-50; offset via canair bix); same byte as the Ioniq BCM
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+          verified: false
+          notes: >-
+            The front left tyre. Reads -50 C (raw 0) in all 60 captures: the sensor was not
+            reporting.
+        TYRE_PRESSURE_FR:
+          expression: B14/72.52
+          unit: bar
+          ha_class: pressure
+          min: "0"
+          max: "5"
+          source: OBDb Hyundai-Kona-Electric (KONAEV_TP_FR, raw/5 psi; offset via canair bix); same byte as the Ioniq BCM
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+          verified: false
+          notes: >-
+            The front right tyre. Raw byte / 5 = psi. Reads 0 in all 60 captures: the sensor was not
+            reporting, so the scaling is untested here.
+        TYRE_TEMP_FR:
+          expression: B15-50
+          unit: °C
+          ha_class: temperature
+          min: "-50"
+          max: "205"
+          source: OBDb Hyundai-Kona-Electric (KONAEV_TT_FR, raw-50; offset via canair bix); same byte as the Ioniq BCM
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+          verified: false
+          notes: >-
+            The front right tyre. Reads -50 C (raw 0) in all 60 captures: the sensor was not
+            reporting.
+        TYRE_PRESSURE_RL:
+          expression: B19/72.52
+          unit: bar
+          ha_class: pressure
+          min: "0"
+          max: "5"
+          source: OBDb Hyundai-Kona-Electric (KONAEV_TP_RL, raw/5 psi; offset via canair bix); same byte as the Ioniq BCM
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+          verified: false
+          notes: >-
+            The rear left tyre. Raw byte / 5 = psi. Reads 0 in all 60 captures: the sensor was not
+            reporting, so the scaling is untested here.
+        TYRE_TEMP_RL:
+          expression: B20-50
+          unit: °C
+          ha_class: temperature
+          min: "-50"
+          max: "205"
+          source: OBDb Hyundai-Kona-Electric (KONAEV_TT_RL, raw-50; offset via canair bix); same byte as the Ioniq BCM
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+          verified: false
+          notes: >-
+            The rear left tyre. Reads -50 C (raw 0) in all 60 captures: the sensor was not
+            reporting.
+        TYRE_PRESSURE_RR:
+          expression: B23/72.52
+          unit: bar
+          ha_class: pressure
+          min: "0"
+          max: "5"
+          source: OBDb Hyundai-Kona-Electric (KONAEV_TP_RR, raw/5 psi; offset via canair bix); same byte as the Ioniq BCM
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+          verified: false
+          notes: >-
+            The rear right tyre. Raw byte / 5 = psi. Reads 0 in all 60 captures: the sensor was not
+            reporting, so the scaling is untested here.
+        TYRE_TEMP_RR:
+          expression: B25-50
+          unit: °C
+          ha_class: temperature
+          min: "-50"
+          max: "205"
+          source: OBDb Hyundai-Kona-Electric (KONAEV_TT_RR, raw-50; offset via canair bix); same byte as the Ioniq BCM
+          source_links:
+            - https://github.com/OBDb/Hyundai-Kona-Electric
+          verified: false
+          notes: >-
+            The rear right tyre. Reads -50 C (raw 0) in all 60 captures: the sensor was not
+            reporting.
