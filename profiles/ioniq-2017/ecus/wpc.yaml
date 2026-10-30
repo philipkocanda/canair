@@ -46,3 +46,29 @@ WPC:
           source_links: []
           verified: false
           notes: Signed 16-bit. Meaning unknown.
+
+  research:
+    - type: scan
+      target: 22BE01-22BE03
+      status: pending
+      priority: P3
+      vehicle_states: [ACC2]
+      created: "2026-10-30"
+      updated: "2026-10-30"
+      notes: "A later-generation Hyundai/Kia WPC keeps its live data in three record DIDs: BE01 user options, BE02 byte data (charging voltage/current/power, battery and IGN1 voltage, coil temperatures, fan speed) and BE03 bit data (LED states, smart-key LF search inhibit, charging status), each led by a 4-byte supported-PID map. The 2026-07-22 sweep covered 0101-010F, B001-B010 and C101-C10F only. Read BE00-BEFF with a phone on and off the pad."
+      sources:
+        - Hyundai/Kia WPC diagnostic spec (supplier ECU spec, 2018-2025)
+      what_to_test:
+        - canair read WPC:22BE01 WPC:22BE02 WPC:22BE03 --save
+    - type: iocontrol_scan
+      target: 2F F000-F0FF
+      status: pending
+      priority: P3
+      vehicle_states: [ACC2]
+      created: "2026-10-30"
+      updated: "2026-10-30"
+      notes: Hyundai/Kia reserve F010-F0FF for IOControl DIDs (HVAC and VESS use F011+). The later WPC spec puts the amber LED at F011, the green LED at F012 and fan steps at F013-F01E, released with 00 (returnControlToECU) and run with 03. Never scanned on this WPC. HVAC F012 rejects 00 but accepts 03, so a 00-only sweep can miss a DID.
+      sources:
+        - ES95486-00 Annex C; Hyundai/Kia WPC diagnostic spec
+      what_to_test:
+        - canair scan iocontrol WPC

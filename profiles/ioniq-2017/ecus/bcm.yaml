@@ -1375,6 +1375,18 @@ BCM:
         - byte sweep over all stored BCM captures, 2026-10-29
       what_to_test:
         - "Same narrated body sweep as the IGPM entry, with BCM 22B004-22B00E co-polled: every new moving bit should be inside its map, and 22B005 shows whether the BCM uses multi-bit fields where the map marks only a start bit."
+    - type: scan
+      target: 31 03 0200-DFFF
+      status: pending
+      priority: P3
+      vehicle_states: [ACC2]
+      created: "2026-10-30"
+      updated: "2026-10-30"
+      notes: The 2026-04-20 0x31 sweep ran in SLEEP and was cut off at C8D2. ES95486 allows RoutineControl only with ignition on and the car not READY, so NRC 0x22 answers (12A1) may change at ACC2. Manufacturer routine ids are 0200-DFFF; F000-FEFF (the scan default F000-F0FF) is the supplier range.
+      sources:
+        - ES95486-00 sections 3.1 and 8.1
+      what_to_test:
+        - canair scan routines BCM --rid-range 0200-DFFF --session, in ACC2
   iocontrol_discoveries:
     B003:
       response: "6FB00300"

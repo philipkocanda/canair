@@ -962,6 +962,19 @@ HVAC:
         - byte sweep over all stored HVAC captures, 2026-10-29
       what_to_test:
         - Capture HVAC 220100 with --keep-all across blower steps, modes and A/C on/off; time B20 and B42 against each change.
+    - type: verify
+      target: 2FF00002
+      status: pending
+      priority: P3
+      vehicle_states: [ACC2]
+      created: "2026-10-30"
+      updated: "2026-10-30"
+      notes: Newer Hyundai/Kia ECUs answer 2F F000 02 with a 4-byte bitmap of the supported IOControl DIDs F001-F020 (F020 and F040 cover the next 32 each), like the OBD-II PID 00 map. The 2026-04-19 returnControlToECU sweep found no F000 here, so this generation probably lacks it, but HVAC's known F011-F018/F022-F027 would check the bitmap if it answers. F000 is not an actuator, so 02 there drives nothing.
+      sources:
+        - Hyundai/Kia WPC diagnostic spec (IOControl supported check)
+      what_to_test:
+        - canair raw 7B3:2FF00002 --session (expect NRC 0x31 if absent)
+        - "if positive: canair raw 7B3:2FF02002 --session"
   dtcs:
     B1285:
       description: >

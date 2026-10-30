@@ -267,7 +267,8 @@ no `0x567`, `0x5D0`, `0x55C`, `0x588` or `0x5EC` (those are P-CAN-only). **Confi
 
   The functional request `0x7DF` goes to P-, C- and B-CAN, and the IGPM answers it itself on
   `0x778`. The `0x6xx` pairs with a +1 or +5 response offset are unexplained (supplier or
-  end-of-line addresses). **Confirmed (Kona).**
+  end-of-line addresses). **Confirmed (Kona).** How the ECUs handle a functional request, and
+  the evidence that `0x7DF` also reaches MM-CAN, are in `FUNCTIONAL_ADDRESSING_FINDINGS.md`.
 - **Routes are per bus.** On the Kona, requests to `0x720`, `0x737`, `0x760`, `0x7E0` and `0x7E1`
   are not forwarded to P-CAN, and P-CAN responses from `0x71D` and `0x74E` never reach the OBD port,
   while B-CAN `0x71D` does. A module can live on an internal bus and still be invisible to
