@@ -21,7 +21,7 @@ def _write(tmp_path, text):
 
 LEGACY = """\
 # leading comment
-default_profile: ioniq-2017
+default_profile: hyundai-ioniq-ae-ev
 
 # WiCAN device addresses.
 wican_addresses:

@@ -291,6 +291,8 @@ class SnapshotRisk:
     root: Path
     missing: list[Path]
     differing: list[Path]
+    # The profile's directory name in the clone, when it was renamed since install.
+    clone_name: str = ""
 
     @property
     def files(self) -> list[Path]:
@@ -316,6 +318,7 @@ def snapshot_profile_risks(clone: Path | None) -> list[SnapshotRisk]:
     since nothing then distinguishes an edit from upstream drift.
     """
     from .profile import BUNDLE_MEMBERS, BUNDLED_PROFILES_DIR, looks_like_profile
+    from .profile_names import build_alias_index
 
     if clone is None or not installed_snapshot_kind(BUNDLED_PROFILES_DIR):
         return []
@@ -325,6 +328,12 @@ def snapshot_profile_risks(clone: Path | None) -> list[SnapshotRisk]:
     site_packages = BUNDLED_PROFILES_DIR.parent
     installed = _installed_hashes(site_packages)
     reference = clone / "profiles"
+    # A profile renamed since install lives under its new name in the clone.
+    renamed = build_alias_index(
+        {p.name: p for p in reference.iterdir() if looks_like_profile(p)}
+        if reference.is_dir()
+        else {}
+    )
     tracked = [m for m in BUNDLE_MEMBERS if m.role != "generated"]
     risks: list[SnapshotRisk] = []
     # Only the snapshot's own profiles: discover_profiles() would also walk the
@@ -332,10 +341,11 @@ def snapshot_profile_risks(clone: Path | None) -> list[SnapshotRisk]:
     for root in sorted(p for p in BUNDLED_PROFILES_DIR.iterdir() if looks_like_profile(p)):
         missing: list[Path] = []
         differing: list[Path] = []
+        clone_name = renamed.target(root.name) or root.name
         for member in tracked:
             for path in _member_files(root, member):
                 rel = path.relative_to(root)
-                other = reference / root.name / rel
+                other = reference / clone_name / rel
                 if other.is_file() and _same_bytes(path, other):
                     continue
                 if installed is not None and _matches_record(
@@ -344,7 +354,9 @@ def snapshot_profile_risks(clone: Path | None) -> list[SnapshotRisk]:
                     continue
                 (differing if other.is_file() else missing).append(rel)
         if missing or differing:
-            risks.append(SnapshotRisk(root.name, root, sorted(missing), sorted(differing)))
+            risks.append(
+                SnapshotRisk(root.name, root, sorted(missing), sorted(differing), clone_name)
+            )
     return risks
 
 

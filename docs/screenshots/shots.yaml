@@ -11,16 +11,16 @@
 # re-render — freeze/vhs are not needed in CI — and never byte-compares images,
 # which aren't reproducible).
 #
-# Everything is captured against the bundled, read-only `ioniq-2017` profile
+# Everything is captured against the bundled, read-only `hyundai-ioniq-ae-ev` profile
 # with NO device attached, so the output is reproducible on any machine and
 # contains no owner-specific data. Do not add shots that surface free-text
 # capture notes/labels (e.g. `captures --sessions`) — those can leak behavioural
 # PII into the public docs. Battery/temperature values are fine.
 
 # A *relative* profiles dir keeps the absolute repo path (which contains a
-# username) out of the rendered output — commands print `profiles/ioniq-2017/…`
+# username) out of the rendered output — commands print `profiles/hyundai-ioniq-ae-ev/…`
 # instead of `/Users/<you>/…`. The generator runs from the repo root.
-profile: ioniq-2017
+profile: hyundai-ioniq-ae-ev
 profiles_dir: profiles
 freeze_config: freeze.json
 

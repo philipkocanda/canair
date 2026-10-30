@@ -83,7 +83,7 @@ def test_index_lists_every_bundled_profile(mod, tmp_path):
 
 def test_dedicated_page_links_resolve_from_the_index(mod):
     """The index's links to a tour page are relative to profiles/index.md."""
-    assert mod._page_link("profiles/ioniq-2017.md") == "ioniq-2017.md"
+    assert mod._page_link("profiles/hyundai-ioniq-ae-ev.md") == "hyundai-ioniq-ae-ev.md"
 
 
 def test_index_links_every_dedicated_page(mod):

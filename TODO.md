@@ -90,8 +90,8 @@ AAF) still have no actuators defined.
   Hyundai/Kia lead is weak: dead OVMS Kia Soul EV code that would send `30 {led} 00` / `30 {led}
   11` to switch an OBC charger LED on / off. Evidence and test plan: the `iocontrol_scan`
   research entry on the Ioniq OBC (`canair research --ecu OBC`).
-- [x] **Session handling** — the `hk_90_session` quirk (declared by `ioniq-2017` and
-  `kona-electric-2019`) permits `10 90` on KWP2000 ECUs through the existing
+- [x] **Session handling** — the `hk_90_session` quirk (declared by `hyundai-ioniq-ae-ev` and
+  `hyundai-kona-os-ev`) permits `10 90` on KWP2000 ECUs through the existing
   `session_mode_block` allowance, so an entry's `session_mode: "90"` and `canair raw 1090` work
   and `scan sessions` probes it. Still to check on the car: whether the Ioniq OBC accepts `10 90`
   (only `0x81` was seen) and whether it needs `10 81` first, as the Soul OBC does.
@@ -103,6 +103,6 @@ AAF) still have no actuators defined.
   as `release`. The interlock itself (funnel, `interlock.yaml`, watchdog) is still the open plan
   `plans/2026-10-22-actuation-safety-interlock.md`.
 - [ ] **Reference traffic** — Kona KWP and UDS diagnostic logs are in
-  `profiles/kona-electric-2019/captures/can/` (`221210-1-*` session/DTC sweep, `bms-*.asc` UDS
+  `profiles/hyundai-kona-os-ev/captures/can/` (`221210-1-*` session/DTC sweep, `bms-*.asc` UDS
   `2F F0xx` relay control). None contains a KWP `0x30` request, so a live capture on the Ioniq is
   still needed.

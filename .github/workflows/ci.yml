@@ -54,11 +54,11 @@ jobs:
         # --max-untimed is the untimed-payload ratchet: writes are enforced to
         # carry a timestamp, so a profile's untimed count only ever falls. New
         # profiles are gated at 0; a profile carrying grandfathered legacy rows
-        # (only ioniq-2017 today, at 284) declares its baseline here so the gate
+        # (only hyundai-ioniq-ae-ev today, at 284) declares its baseline here so the gate
         # forbids GROWTH without a history rewrite. Lower a baseline as its count
         # drops; a real regression (untimed rows creeping back in) fails CI.
         run: |
-          declare -A UNTIMED_BASELINE=( [ioniq-2017]=284 )
+          declare -A UNTIMED_BASELINE=( [hyundai-ioniq-ae-ev]=284 )
           for p in profiles/*/; do
             name="$(basename "$p")"
             max_untimed="${UNTIMED_BASELINE[$name]:-0}"

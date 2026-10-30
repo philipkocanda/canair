@@ -26,8 +26,8 @@ class TestRewriteHelpTokens:
             (["captures", "uds", "help"], ["captures", "uds", "-h"]),
             # Global option before a leading `help` is preserved.
             (
-                ["--profile", "ioniq-2017", "help", "decode"],
-                ["--profile", "ioniq-2017", "decode", "-h"],
+                ["--profile", "hyundai-ioniq-ae-ev", "help", "decode"],
+                ["--profile", "hyundai-ioniq-ae-ev", "decode", "-h"],
             ),
             # `-h`/`--help` already present → untouched.
             (["decode", "-h"], ["decode", "-h"]),

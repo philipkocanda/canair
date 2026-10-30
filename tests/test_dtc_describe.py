@@ -104,7 +104,7 @@ class TestProfileDefinitions:
         assert d["meaning"] == "Body · manufacturer-specific"
 
     def test_real_profile_dtc_yaml_loads(self):
-        # The bundled ioniq-2017 profile ships C182C + B1285 definitions.
+        # The bundled hyundai-ioniq-ae-ev profile ships C182C + B1285 definitions.
         d = describe_dtc("C182C-00")  # defs=None -> loads active profile
         assert d["description"] and "charg" in d["description"].lower()
         b = describe_dtc("B1285-77")

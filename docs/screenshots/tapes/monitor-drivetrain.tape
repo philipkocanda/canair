@@ -24,7 +24,7 @@ Type "export CANAIR_NO_UPDATE_CHECK=1" Enter
 Type "clear" Enter
 Show
 
-Type "uv run canair --profiles-dir profiles --profile ioniq-2017 monitor 'VCU:2101 MCU:2102' --wican home --transport wican-ws --interval 2 --save --state ready --label 'READY mode — drivetrain (live monitor, docs)'"
+Type "uv run canair --profiles-dir profiles --profile hyundai-ioniq-ae-ev monitor 'VCU:2101 MCU:2102' --wican home --transport wican-ws --interval 2 --save --state ready --label 'READY mode — drivetrain (live monitor, docs)'"
 Sleep 500ms
 Enter
 Sleep 20s

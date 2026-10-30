@@ -22,7 +22,7 @@ def _temp_ecu_profile(tmp_path, filename: str, ecu: str = "AAF", pid: str = "218
     to a temp profile — not the bundled one. Activating a profile (rather than
     monkeypatching an internal path resolver) means a refactor that moves the
     resolution seam can't silently redirect the write into `profiles/`, which is
-    how a promote test once appended a param to the real ioniq-2017 AAF file.
+    how a promote test once appended a param to the real hyundai-ioniq-ae-ev AAF file.
     """
     import textwrap
 

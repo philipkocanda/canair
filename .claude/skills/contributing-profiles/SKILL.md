@@ -18,6 +18,8 @@ Related skills — load the right one for the job:
   result.
 - **`contributing-code`** — changing canair's own Python (`canlib/`). If you're
   editing the tool rather than a profile, that's the skill.
+- **`profile-variants`** — whether a car needs its own profile, and how to name
+  (or rename) one. Settle that before contributing a new profile.
 
 Always run `canair` as `uv run canair …` from the repo root (never a
 globally-installed bare `canair`). See `AGENTS.md` for why.

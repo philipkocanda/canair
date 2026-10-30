@@ -1,5 +1,5 @@
-# Ioniq 2017 EV — vehicle profile settings
-# Profile-wide settings for the Ioniq 2017. Per-ECU definitions live in ecus/.
+# Hyundai Ioniq Electric (AE) — vehicle profile settings
+# Profile-wide settings for the Ioniq Electric. Per-ECU definitions live in ecus/.
 # Run `canair wican autopid write` to produce the AutoPID JSON from the ecus/ definitions.
 #
 # ┌──────────────────────────────────────────────────────────────────────────┐
@@ -23,7 +23,10 @@
 # │ passively (see `canair sniff`). Reads are request/response only.           │
 # └──────────────────────────────────────────────────────────────────────────┘
 #
-car_model: "Hyundai Ioniq 2017"
+car_model: "Hyundai Ioniq Electric (AE)"  # built on a 2017 28 kWh car
+# Former names that still resolve to this profile.
+aliases:
+  ioniq-2017: {}
 init: "ATSP6;ATS0;ATAL;ATST96;"
 
 # BATTERY COOLING: this car's 28 kWh pack is AIR-COOLED (no liquid thermal
@@ -51,7 +54,7 @@ quirks:
   - hk_forced_sleep
 
 # ELM327 response timeout in ms (applied as ATSTxx after init; --elm-timeout
-# overrides). The Ioniq 2017 responds slowly, so keep this high. ~614ms == ATST96.
+# overrides). The Ioniq Electric responds slowly, so keep this high. ~614ms == ATST96.
 response_timeout_ms: 614
 
 # Enable UDS service-22 multi-DID batching per ECU (see each ECU file's

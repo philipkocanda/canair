@@ -2,7 +2,10 @@
 # Per-ECU definitions live in ecus/. Populate with `canair discover --register`
 # (add --identify to read identity DIDs), then `canair pids ...`. Validate with
 # `canair validate`.
-car_model: "Hyundai Ioniq 5 2022"
+car_model: "Hyundai Ioniq 5 (NE)"
+# Former names that still resolve to this profile.
+aliases:
+  ioniq-5-2022: {}
 init: "ATSP6;ATS0;ATAL;ATST96;"
 
 # Vehicle-axis physical bands for the reference-free plausibility scan

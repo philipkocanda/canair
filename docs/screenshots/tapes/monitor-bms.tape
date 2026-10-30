@@ -23,7 +23,7 @@ Type "export CANAIR_NO_UPDATE_CHECK=1" Enter
 Type "clear" Enter
 Show
 
-Type "uv run canair --profiles-dir profiles --profile ioniq-2017 monitor BMS:2101 --wican home --transport wican-ws --interval 2 --save --state ready --label 'READY mode — battery (live monitor, docs)'"
+Type "uv run canair --profiles-dir profiles --profile hyundai-ioniq-ae-ev monitor BMS:2101 --wican home --transport wican-ws --interval 2 --save --state ready --label 'READY mode — battery (live monitor, docs)'"
 Sleep 500ms
 Enter
 Sleep 20s

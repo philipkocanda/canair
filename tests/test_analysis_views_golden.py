@@ -22,7 +22,7 @@ harness lives in :mod:`tests._golden`; only the case lists differ.
 ``label`` or capture ``notes`` (``--compact`` prints only the ``[STATE]`` divider,
 which is controlled vocabulary), so the PII constraint that forces
 :mod:`tests.test_captures_golden` onto a synthetic profile does not bind. The one
-``ioniq-2017`` case is a value-range table of parameter names. Keep it that way: a
+``hyundai-ioniq-ae-ev`` case is a value-range table of parameter names. Keep it that way: a
 new case that renders free text belongs on the fixture profile.
 
 Regenerate after an *intended* change, then **read the diff**::
@@ -77,7 +77,7 @@ CASES: list[tuple[str, str, list[str]]] = [
         # without churning every time someone works an undecoded bitfield backlog.
         # `(constant)` and `scope:` are all this case is here for.
         "decode-value-ranges-real",
-        "ioniq-2017",
+        "hyundai-ioniq-ae-ev",
         ["decode", "BMS", "2105", "--until", FROZEN_UNTIL],
     ),
     ("decode-compact", SINGLE_FRAME_PROFILE, ["decode", "ALPHA", "22F001", "--compact"]),

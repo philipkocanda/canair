@@ -16,7 +16,7 @@
 # Which vehicle profile to use when none is given on the command line.
 # Overridden by --profile or the CANAIR_PROFILE environment variable.
 # If exactly one profile is discovered, it is auto-selected and this is optional.
-default_profile: ioniq-2017
+default_profile: hyundai-ioniq-ae-ev
 
 # Extra directory to search for vehicle profiles (in addition to
 # ~/.config/canair/profiles and the repo-bundled profiles/). Local profiles

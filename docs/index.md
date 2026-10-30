@@ -20,19 +20,19 @@ document that data — turning it into a shareable
   <p><a class="md-button md-button--primary" href="profiles/explorer/">Open the explorer →</a>
   <span class="cx-muted">Try it on the 2017 Ioniq: 30 ECUs, 435 signals, 98 recorded drives and charges.</span></p>
   <div class="cx-hero-cards">
-    <a href="profiles/explorer/#ioniq-2017/BMS">
+    <a href="profiles/explorer/#hyundai-ioniq-ae-ev/BMS">
       <img src="assets/explorer/explorer-bus.png#only-light" alt="CAN bus map of the Ioniq's ECUs, coloured by how much of each is decoded" loading="lazy">
       <img src="assets/explorer/explorer-bus-dark.png#only-dark" alt="CAN bus map of the Ioniq's ECUs, coloured by how much of each is decoded" loading="lazy">
       <strong>Browse the buses</strong>
       <span>See which ECU sits on which CAN segment, then open any ECU for its PIDs, signals, actuators and research leads, each linked to its YAML.</span>
     </a>
-    <a href="profiles/explorer/#ioniq-2017/plot/2026-08-08-e84a15?s=BMS:2101:BATTERY_POWER,ESC:22C101:REAL_SPEED_KMH,BMS:2101:SOC_BMS">
+    <a href="profiles/explorer/#hyundai-ioniq-ae-ev/plot/2026-08-08-e84a15?s=BMS:2101:BATTERY_POWER,ESC:22C101:REAL_SPEED_KMH,BMS:2101:SOC_BMS">
       <img src="assets/explorer/explorer-plot.png#only-light" alt="Battery power, speed and state of charge plotted together over a drive, a fast charge and another drive" loading="lazy">
       <img src="assets/explorer/explorer-plot-dark.png#only-dark" alt="Battery power, speed and state of charge plotted together over a drive, a fast charge and another drive" loading="lazy">
       <strong>Plot signals from any ECU together</strong>
       <span>A drive, a 60 kW fast charge and another drive in one picture: battery power, speed and state of charge, with the vehicle states above.</span>
     </a>
-    <a href="profiles/explorer/#ioniq-2017/plot/2026-08-08-e84a15?s=BMS:2101:BATTERY_POWER">
+    <a href="profiles/explorer/#hyundai-ioniq-ae-ev/plot/2026-08-08-e84a15?s=BMS:2101:BATTERY_POWER">
       <img src="assets/explorer/explorer-overview.png#only-light" alt="Heat-strip overview of every signal that changed during a session, similar signals grouped" loading="lazy">
       <img src="assets/explorer/explorer-overview-dark.png#only-dark" alt="Heat-strip overview of every signal that changed during a session, similar signals grouped" loading="lazy">
       <strong>Find what hides in the data</strong>
@@ -67,7 +67,7 @@ command list (that lives in the [CLI reference](reference/cli/index.md)).
 - **Just want to look around? →** the [profile explorer](profiles/explorer.md) plots real
   Ioniq drives and charges in your browser, with nothing to install.
 - **Just want to use a bundled car? →** [Bundled profiles](profiles/index.md)
-  lists what ships (the mature [Ioniq 2017 profile](profiles/ioniq-2017.md) and
+  lists what ships (the mature [Ioniq Electric profile](profiles/hyundai-ioniq-ae-ev.md) and
   more) — their ECUs, decoded signals, and IOControl actuators.
 
 ## What you'll need

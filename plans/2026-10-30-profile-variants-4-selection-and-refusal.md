@@ -55,9 +55,8 @@ carries nothing else.
   - `xpeng-g6: {variant: 87kwh}`
   - `ioniq-5-2022` and `nissan-leaf-ze1` imply none, because their old `car_model` named no single
     pack.
-- Phase 1's breadcrumb `profile_settings.<profile>.renamed_from` is turned into an explicit
-  `variant` by a one-time step in the phase-1 migration module. This covers users whose config was
-  already rewritten, so they get the variant without being asked.
+- Phase 1 never rewrites a user's config, so a `default_profile` still holding an old name keeps
+  resolving through the alias, and picks up its implied variant with no extra step.
 - Session tags from an implied variant record `attribution.variant: alias`, and are shown as
   unconfirmed.
 
@@ -107,7 +106,7 @@ exercising today's behaviour.
 - An undeclared variant is an error.
 - The refusal fires on each gated path and not on any exempt one.
 - The picker writes config.
-- `renamed_from` becomes `variant`.
+- A config whose `default_profile` is an old name gets the implied variant.
 - Alias-implied tags carry `alias` attribution.
 - The ratchet passes at baseline and fails on growth.
 

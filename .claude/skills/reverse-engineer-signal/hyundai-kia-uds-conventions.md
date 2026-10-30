@@ -42,8 +42,8 @@ follow the same 1- vs 2-byte-subfunction split. User-facing summary lives in
 ## Where the DIDs are
 
 Hyundai/Kia's own spec (ES95486, summarized in
-`profiles/ioniq-2017/research/HKMC_UDS_SPEC_FINDINGS.md`) assigns the UDS DID space roughly as
-below. It is a guide, not a fence: a supplier's WPC uses `BExx`, inside a range the map calls
+`profiles/hyundai-ioniq-ae-ev/research/HKMC_UDS_SPEC_FINDINGS.md`) assigns the UDS DID space
+roughly as below. It is a guide, not a fence: a supplier's WPC uses `BExx`, inside a range the map calls
 legislative.
 
 | DIDs | Holds |

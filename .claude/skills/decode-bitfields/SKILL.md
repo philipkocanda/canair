@@ -32,7 +32,7 @@ completely separate code paths:
 | Analysis tooling sees it | **yes** — all of `--bits`, `coverage --bitfields`, `bix` overlay | partly — `coverage --bitfields` counts its `bits:` map, but `--bits` sweeps do not split it |
 | Best for | signals decoded incrementally, mixed verified/unverified, per-bit notes/`ha_class` | a byte that is *wholly* a known flag set (e.g. a weekday schedule mask) |
 
-**Model A is the working default.** The bundled `ioniq-2017` profile uses it
+**Model A is the working default.** The bundled `hyundai-ioniq-ae-ev` profile uses it
 exclusively — verified: zero `type: bitmask` params exist in any bundled
 profile. Prefer A while bits are still being discovered; it is the only model
 the per-bit ranking sweeps (`--discriminate --bits`, `--find-mirrors --bits`,
@@ -45,7 +45,7 @@ for it only once a byte is essentially fully understood.
 ## Step 1 — find the partially-decoded bytes
 
 ```
-uv run canair --profile ioniq-2017 coverage --bitfields
+uv run canair --profile hyundai-ioniq-ae-ev coverage --bitfields
 ```
 
 ```
@@ -97,7 +97,7 @@ mask. (Zero `&` expressions exist in bundled profiles today; keep it that way.)
 ## Step 2 — orient on the byte
 
 ```
-uv run canair --profile ioniq-2017 bix -a 62BC030AFF00000000 --ecu IGPM --pid 22BC03
+uv run canair --profile hyundai-ioniq-ae-ev bix -a 62BC030AFF00000000 --ecu IGPM --pid 22BC03
 ```
 
 ```
@@ -122,7 +122,7 @@ Correlation cannot decode a door bit; **a narrated event log can.** Bits need
 captures where you *caused* the transitions and wrote down what you did.
 
 ```
-uv run canair --profile ioniq-2017 monitor IGPM:22BC03 --save \
+uv run canair --profile hyundai-ioniq-ae-ev monitor IGPM:22BC03 --save \
     --label "IGPM bitfield events" --state ACC \
     --notes "fob unlock, open/close trunk, open/close pax door, open drv door, open/close hood, fob lock"
 ```
@@ -142,7 +142,7 @@ Four levers, in the order they usually pay off:
 
 **1. Edge timeline — the primary tool.**
 ```
-uv run canair --profile ioniq-2017 investigate IGPM 22BC03 --events --bits
+uv run canair --profile hyundai-ioniq-ae-ev investigate IGPM 22BC03 --events --bits
 ```
 ```
     22:07:14  B12:2 0→1  [DRL]
@@ -157,7 +157,7 @@ suppressed (`commands/investigate/render.py`).
 
 **2. Dwell classification — separates a pulse from a state.**
 ```
-uv run canair --profile ioniq-2017 investigate IGPM 22BC03 --dwell --bits
+uv run canair --profile hyundai-ioniq-ae-ev investigate IGPM 22BC03 --dwell --bits
 ```
 ```
     B12:2   sustained   4 episodes   8 trans    55.5s  [DRL]
@@ -169,7 +169,7 @@ uv run canair --profile ioniq-2017 investigate IGPM 22BC03 --dwell --bits
 
 **3. State discriminability — for bits with no event log.**
 ```
-uv run canair --profile ioniq-2017 decode IGPM 22BC03 --discriminate state --bits
+uv run canair --profile hyundai-ioniq-ae-ev decode IGPM 22BC03 --discriminate state --bits
 ```
 Ranks every toggling bit by how cleanly it separates vehicle power states (F =
 between/within variance). Use when you have broad state coverage but no narrated
@@ -177,7 +177,7 @@ events — an ignition/relay bit separates states enormously.
 
 **4. Cross-ECU mirrors — free identification.**
 ```
-uv run canair --profile ioniq-2017 correlate IGPM --find-mirrors --bits
+uv run canair --profile hyundai-ioniq-ae-ev correlate IGPM --find-mirrors --bits
 ```
 If an unknown bit mirrors a **named** bit on another ECU, it inherits that
 meaning with no reasoning required. Time-aligned, so it needs co-polled
@@ -199,7 +199,7 @@ so an exercised byte shows many values. A byte with a handful of values whose
 bits never move independently is an **enum**, not a bitfield:
 
 ```
-uv run canair --profile ioniq-2017 decode BCM 22B004 --dump-bytes --json \
+uv run canair --profile hyundai-ioniq-ae-ev decode BCM 22B004 --dump-bytes --json \
   | uv run python -c "import json,sys,collections; \
 rows=json.load(sys.stdin)['rows']; \
 c=collections.Counter(int(r['bytes']['B10']) for r in rows if 'B10' in r['bytes']); \
@@ -301,7 +301,7 @@ read does **not** suppress the bitfield-gap report, because
 One param per bit (Model A):
 
 ```
-uv run canair --profile ioniq-2017 pids upsert-param IGPM 22BC03 HOOD_OPEN B11:0 \
+uv run canair --profile hyundai-ioniq-ae-ev pids upsert-param IGPM 22BC03 HOOD_OPEN B11:0 \
     --ha-class door --verified \
     --source "timed event capture 2026-07-24" \
     --notes "Bit flag — 1=open. B11:0 went 0->1 only when the hood was opened during a narrated event sequence."
@@ -323,9 +323,9 @@ uv run canair --profile ioniq-2017 pids upsert-param IGPM 22BC03 HOOD_OPEN B11:0
 ## Step 7 — verify
 
 ```
-uv run canair --profile ioniq-2017 validate pids
-uv run canair --profile ioniq-2017 coverage IGPM --bitfields
-uv run canair --profile ioniq-2017 bix -a <payload> --ecu IGPM --pid 22BC03
+uv run canair --profile hyundai-ioniq-ae-ev validate pids
+uv run canair --profile hyundai-ioniq-ae-ev coverage IGPM --bitfields
+uv run canair --profile hyundai-ioniq-ae-ev bix -a <payload> --ecu IGPM --pid 22BC03
 ```
 
 `have{}` must have grown by exactly the bits you defined and `missing{}` shrunk

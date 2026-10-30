@@ -44,7 +44,7 @@ a bare `canair` is deleted by your next update. Decide once, up front:
 canair config set profiles_dir /path/to/canair/profiles
 
 # Or take your own copy of a bundled profile:
-canair profile adopt ioniq-2017
+canair profile adopt hyundai-ioniq-ae-ev
 ```
 
 A profile you create yourself (`canair profile create`, or the first-run chooser)

@@ -19,12 +19,12 @@ sections:
     note: >-
       Renames folded into signal names, notes and status_param readbacks. The bits marked "new"
       are not defined as signals yet.
-    target: profiles/ioniq-2017/ecus/igpm.yaml
+    target: profiles/hyundai-ioniq-ae-ev/ecus/igpm.yaml
   - section: "7.2"
     status: integrated
     date: 2026-10-30
     note: IOControl labels folded in, with warnings on BC13 (deadlock) and BC44 (IG3 relay).
-    target: profiles/ioniq-2017/ecus/igpm.yaml
+    target: profiles/hyundai-ioniq-ae-ev/ecus/igpm.yaml
   - section: "7.1"
     status: open
     note: Actuator-support map prediction not yet checked on the car.
@@ -33,20 +33,20 @@ sections:
     note: No on-car action from the list has been run, apart from item 1.
 relations:
   expands_on:
-    - path: profiles/ioniq-2017/research/IONIQ_AVN_FW_FINDINGS.md
+    - path: profiles/hyundai-ioniq-ae-ev/research/IONIQ_AVN_FW_FINDINGS.md
       note: Section 9's gateway frame translation, generalised in section 3.2.
-    - path: profiles/ioniq-2017/ecus/igpm.yaml
+    - path: profiles/hyundai-ioniq-ae-ev/ecus/igpm.yaml
       note: The research entry on the support bitmap (section 6.1) and on gateway frame forwarding.
   expanded_by:
-    - path: profiles/ioniq-2017/research/FUNCTIONAL_ADDRESSING_FINDINGS.md
+    - path: profiles/hyundai-ioniq-ae-ev/research/FUNCTIONAL_ADDRESSING_FINDINGS.md
       note: How functional (0x7DF) requests are routed and handled, beyond section 4.
   invalidates:
-    - path: profiles/ioniq-2017/references/kona/
+    - path: profiles/hyundai-ioniq-ae-ev/references/kona/
       note: >-
         "BMU capture No HV connected.csv" is from a 2020 Ioniq EV pack, not a Kona (section 8).
   related:
     - path: plans/2026-10-29-support-bitmap-coverage.md
-    - path: profiles/ioniq-2017/can_buses.yaml
+    - path: profiles/hyundai-ioniq-ae-ev/can_buses.yaml
 sources:
   - name: igpm-research bundle
     kind: downloaded third-party material, mixed licences, never committed

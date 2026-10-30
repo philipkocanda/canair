@@ -5,7 +5,7 @@ The docs embed SVG screenshots and animated GIFs of the CLI in action, all
 craft or maintain them by hand. Static command output is rendered with
 [`freeze`](https://github.com/charmbracelet/freeze) (SVG); interactive TUI and
 montage clips with [`vhs`](https://github.com/charmbracelet/vhs) (GIF). Every
-asset is captured against the bundled, read-only `ioniq-2017` profile with **no
+asset is captured against the bundled, read-only `hyundai-ioniq-ae-ev` profile with **no
 device attached**, so it's reproducible on any machine and contains no
 owner-specific data.
 

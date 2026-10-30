@@ -98,7 +98,7 @@ def _args(**kw) -> argparse.Namespace:
 
 class TestRun:
     def test_writes_capture_file(self, tmp_path):
-        # Uses the suite-pinned ioniq-2017 profile for ECU name resolution;
+        # Uses the suite-pinned hyundai-ioniq-ae-ev profile for ECU name resolution;
         # writes into an isolated tmp captures dir.
         rc = run(
             _args(

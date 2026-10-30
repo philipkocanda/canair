@@ -18,12 +18,12 @@ sections:
       headers on.
 relations:
   expands_on:
-    - path: profiles/ioniq-2017/research/IGPM_FINDINGS.md
+    - path: profiles/hyundai-ioniq-ae-ev/research/IGPM_FINDINGS.md
       note: Section 4 (diagnostics through the gateway, the Kona routing table).
-    - path: profiles/ioniq-2017/research/IONIQ_AVN_FW_FINDINGS.md
+    - path: profiles/hyundai-ioniq-ae-ev/research/IONIQ_AVN_FW_FINDINGS.md
       note: The AVN MICOM's diagnostic stack.
   expanded_by:
-    - path: profiles/ioniq-2017/research/HKMC_UDS_SPEC_FINDINGS.md
+    - path: profiles/hyundai-ioniq-ae-ev/research/HKMC_UDS_SPEC_FINDINGS.md
       note: What ES95486 says beyond functional addressing.
   followed_up_by:
     - path: plans/2026-10-30-functional-addressing-followups.md

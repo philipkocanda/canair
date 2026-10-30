@@ -1,5 +1,5 @@
 {
-  "car_model": "Nissan Leaf ZE1 (2018-2024, 40 kWh and 62 kWh e+)",
+  "car_model": "Nissan Leaf (ZE1)",
   "init": "ATSP6;ATS0;ATAL;ATST96;ATFCSH79B;ATFCSD300000;ATFCSM1;",
   "pids": [
     {

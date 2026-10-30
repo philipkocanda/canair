@@ -313,7 +313,7 @@ needs the MIC3624 sheet, so it remains unproven.
 
 This is what canair's `can_buses.yaml` models. The Ioniq declares `ALL`, `B-CAN` (100 kbit/s),
 `P-CAN`, `C-CAN`, `MM-CAN`, `H-CAN`, `D-CAN` (all 500 kbit/s) in
-`profiles/ioniq-2017/can_buses.yaml`; 15 of 30 ECU files declare a `can_bus:` (5 `[B-CAN]`,
+`profiles/hyundai-ioniq-ae-ev/can_buses.yaml`; 15 of 30 ECU files declare a `can_bus:` (5 `[B-CAN]`,
 2 `[P-CAN]`, 2 `[H-CAN, P-CAN]`, …).
 
 The distinction that matters for transport work:
@@ -597,8 +597,8 @@ The `ATFCSD` block size is always 0 (stmin from `isotp:`): the datasheet has mod
 flow control only in answer to a First Frame. Plan: `plans/2026-10-20-elm327-ecu-addressing.md`.
 
 > **Housekeeping rule, learned the hard way.** `ATCRA` and `ATAT` are **not in any profile init
-> string** (the Ioniq's is `ATSP6;ATS0;ATAL;ATST96;`, `profiles/ioniq-2017/profile.yaml:46`), so
-> they **persist across sessions** and silently corrupt later recordings — a stale `ATCRA` pins the
+> string** (the Ioniq's is `ATSP6;ATS0;ATAL;ATST96;`, in
+> `profiles/hyundai-ioniq-ae-ev/profile.yaml`), so they **persist across sessions** and silently corrupt later recordings — a stale `ATCRA` pins the
 > receive filter to one ECU. canair's own sessions start with `ATZ` (`init_elm`) and pin the filter
 > only for non-conventional ECUs, so this bites manual experiments (`canair repl`, other tools).
 > Reset with `ATZ` when done, and remember `ATZ` also clears `ATSP6`/`ATS0`, so the next request

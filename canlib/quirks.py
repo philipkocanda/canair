@@ -4,7 +4,7 @@ Some diagnostic behaviors are make-specific and would be *wrong* to apply
 universally. Rather than hardcode a Hyundai/Kia assumption into shared code, a
 profile declares the quirks it needs under a top-level ``quirks:`` list in
 ``profile.yaml`` and the shared code gates on it. New profiles start with no
-quirks (make-neutral); the bundled ``ioniq-2017`` profile opts into the ones its
+quirks (make-neutral); the bundled ``hyundai-ioniq-ae-ev`` profile opts into the ones its
 ECUs actually exhibit.
 
 Today there are five quirks:
@@ -31,7 +31,7 @@ Today there are five quirks:
 - :data:`HK_90_SESSION` — Hyundai/Kia KWP2000 ECUs take the OEM session
   ``10 90`` before an actuator test (``0x30``): the OVMS Kia Soul EV firmware
   opens it before its ``0x30`` commands, and a Car Scanner sweep of a 2021 Kona EV opens it on every powertrain ECU it reads
-  DTCs from (``profiles/kona-electric-2019/captures/can/``). It permits exactly
+  DTCs from (``profiles/hyundai-kona-os-ev/captures/can/``). It permits exactly
   ``10 90`` on the profile's KWP2000 ECUs.
 - :data:`HK_FORCED_SLEEP` — Hyundai/Kia's ES95486 (revisions 3-29) defines
   DiagnosticSessionControl ``10 D1`` "Sleep Mode Start Request", sent on the

@@ -45,13 +45,13 @@ options:
 examples:
   canair profile                              # interactive picker (TTY) / list (piped)
   canair profile show                         # details of the active profile
-  canair profile show ioniq-2017              # details of a named profile
+  canair profile show hyundai-ioniq-ae-ev              # details of a named profile
   canair profile path                         # print the active profile's directory
-  canair profile use ioniq-2017               # set the default profile
-  canair profile create ev6 --car-model "Kia EV6 2022"
-  canair profile create ev6 --car-model "Kia EV6 2022" --set-default
-  canair profile adopt ioniq-2017              # writable copy under ~/.config/canair
-  canair profile overlay ioniq-2017            # keep its definitions, record your own captures
+  canair profile use hyundai-ioniq-ae-ev               # set the default profile
+  canair profile create kia-ev6-cv-ev --car-model "Kia EV6 (CV)"
+  canair profile create kia-ev6-cv-ev --car-model "Kia EV6 (CV)" --set-default
+  canair profile adopt hyundai-ioniq-ae-ev              # writable copy under ~/.config/canair
+  canair profile overlay hyundai-ioniq-ae-ev            # keep its definitions, record your own captures
 ```
 
 ## `canair profile list`

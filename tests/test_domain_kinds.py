@@ -102,8 +102,8 @@ class TestInjectDefaultSubcommand:
             (["hunt", "--help"], ["hunt", "--help"]),
             # A global option before the command is skipped to find the token.
             (
-                ["--profile", "ioniq-2017", "captures", "BMS"],
-                ["--profile", "ioniq-2017", "captures", "uds", "BMS"],
+                ["--profile", "hyundai-ioniq-ae-ev", "captures", "BMS"],
+                ["--profile", "hyundai-ioniq-ae-ev", "captures", "uds", "BMS"],
             ),
             # Non-group command → untouched.
             (["decode", "BMS", "2101"], ["decode", "BMS", "2101"]),

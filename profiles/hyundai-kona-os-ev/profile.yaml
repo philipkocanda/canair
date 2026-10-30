@@ -3,7 +3,7 @@
 # DEVICE-FREE SEED. This profile was built without a car on the bench: every
 # signal below is transcribed from public community sources and is marked
 # `verified: false` until a capture from a real 2019 Kona Electric confirms it.
-# Record one with `canair read/monitor … --profile kona-electric-2019 --save`.
+# Record one with `canair read/monitor … --profile hyundai-kona-os-ev --save`.
 #
 # The Kona Electric (body code OS EV, 2018-2023 pre-facelift) is a pre-e-GMP
 # 400 V Hyundai/Kia EV on the same diagnostic generation as the Kia Niro EV (DE)
@@ -29,7 +29,10 @@
 #     2020-2024 cars; the 2019 is the first OS EV year and is essentially
 #     identical, but that is why these stay unverified here until a 2019 capture
 #     lands.
-car_model: "Hyundai Kona Electric 2019 (64 kWh)"
+car_model: "Hyundai Kona Electric (OS)"  # seeded for the 64 kWh pack
+# Former names that still resolve to this profile.
+aliases:
+  kona-electric-2019: {}
 
 # Hyundai ECUs respond slowly and the first request after idle can time out —
 # keep the ELM327 response timeout high (ATST96 ~= 614 ms), as on the Ioniq.

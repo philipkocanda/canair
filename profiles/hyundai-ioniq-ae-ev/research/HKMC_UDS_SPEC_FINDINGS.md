@@ -28,12 +28,12 @@ sections:
     note: The IOControl DID families no 0x22 read has reached are listed by canair research --gaps.
 relations:
   expands_on:
-    - path: profiles/ioniq-2017/research/FUNCTIONAL_ADDRESSING_FINDINGS.md
+    - path: profiles/hyundai-ioniq-ae-ev/research/FUNCTIONAL_ADDRESSING_FINDINGS.md
       note: Section 4 covers the spec's functional-addressing, timing and reprogramming rules.
     - path: plans/2026-10-29-support-bitmap-coverage.md
       note: Section 4 shows the empirically found support maps are a Hyundai/Kia template.
   related:
-    - path: profiles/ioniq-2017/research/IGPM_FINDINGS.md
+    - path: profiles/hyundai-ioniq-ae-ev/research/IGPM_FINDINGS.md
     - path: plans/2026-10-29-service-id-enumeration.md
       note: Would answer whether 0x24, 0x2A or 0x2C exist on this car (section 2).
     - path: .claude/skills/reverse-engineer-signal/hyundai-kia-uds-conventions.md

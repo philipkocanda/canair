@@ -23,7 +23,7 @@ from pathlib import Path
 
 from .config import set_config_value, user_profiles_dir
 from .install_context import installed_snapshot_kind
-from .profile import discover_profiles
+from .profile import selectable_profiles
 from .profile_create import adopt_profile, create_profile
 
 # Commands that manage config/profiles themselves, or don't touch a profile —
@@ -62,7 +62,7 @@ def run_first_run_setup(args) -> None:
     Best-effort and non-fatal: any error or an empty answer just falls through
     to canair's normal profile resolution (which prints its own guidance).
     """
-    profiles = discover_profiles(getattr(args, "profiles_dir", None))
+    profiles = selectable_profiles(getattr(args, "profiles_dir", None))
 
     print("\n  Welcome to canair! Let's pick a vehicle profile to work with.\n")
     print("  Profiles are directories bundling one vehicle's data. New ones you")

@@ -43,7 +43,10 @@
 #     cross-checks for the LBC and VCM decodes.
 # ECU addresses without a known DID (BCM, EPS, TCU, ...) come from the
 # dalathegreat table, which spans Leaf generations, so they are marked tentative.
-car_model: "Nissan Leaf ZE1 (2018-2024, 40 kWh and 62 kWh e+)"
+car_model: "Nissan Leaf (ZE1)"  # 2018-2024, 40 kWh and 62 kWh e+
+# Former names that still resolve to this profile.
+aliases:
+  nissan-leaf-ze1: {}
 # The upstream ELM327 init is ATSP6;ATFCSH79B;ATST96;ATFCSD300000;ATFCSM1;
 # with per-PID ATSH<tx>;ATFCSH<tx>;ATCRA<rx>. canair sets the header, receive
 # filter and flow control per ECU itself (from addressing: and rx_id below), so

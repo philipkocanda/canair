@@ -84,7 +84,7 @@ def test_base_argv_uses_relative_profiles_dir(mod, manifest):
     """The rendered command must use a relative --profiles-dir so no absolute
     (username-bearing) path is baked into the committed images."""
     argv = mod._base_argv(manifest)
-    assert argv == ["--profiles-dir", "profiles", "--profile", "ioniq-2017"]
+    assert argv == ["--profiles-dir", "profiles", "--profile", "hyundai-ioniq-ae-ev"]
 
 
 def test_committed_assets_present(mod, manifest):
@@ -123,7 +123,7 @@ def test_check_detects_missing_and_orphan_assets(mod, tmp_path, monkeypatch):
     (shots / "tapes").mkdir(parents=True)
     _write_manifest(
         shots,
-        "profile: ioniq-2017\nprofiles_dir: profiles\nfreeze_config: freeze.json\n"
+        "profile: hyundai-ioniq-ae-ev\nprofiles_dir: profiles\nfreeze_config: freeze.json\n"
         "shots:\n  - id: present\n    kind: rich\n    command: [bus]\n"
         "  - id: absent\n    kind: rich\n    command: [ecu]\n",
     )

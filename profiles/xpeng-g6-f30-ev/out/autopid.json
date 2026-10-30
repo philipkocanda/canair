@@ -1,5 +1,5 @@
 {
-  "car_model": "Xpeng G6 (87.5 kWh)",
+  "car_model": "XPeng G6 (F30)",
   "init": "ATSP6;ATS0;ATAL;ATSTFF;ATFCSH704;ATFCSD300000;ATFCSM1;",
   "pids": [
     {

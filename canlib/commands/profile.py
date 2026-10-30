@@ -10,13 +10,14 @@ from canlib.config import load_config, user_config_file
 from canlib.profile import (
     ProfileError,
     active,
+    alias_index,
     config_dir_hint,
-    discover_profiles,
-    extends_target,
     profile_layers,
     resolve_profile,
+    selectable_profiles,
 )
 from canlib.profile_create import DEFAULT_INIT, adopt_profile, create_profile, overlay_profile
+from canlib.profile_names import convention_problem
 
 NAME = "profile"
 ALIASES = ["prof"]
@@ -47,13 +48,13 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
 examples:
   canair profile                              # interactive picker (TTY) / list (piped)
   canair profile show                         # details of the active profile
-  canair profile show ioniq-2017              # details of a named profile
+  canair profile show hyundai-ioniq-ae-ev              # details of a named profile
   canair profile path                         # print the active profile's directory
-  canair profile use ioniq-2017               # set the default profile
-  canair profile create ev6 --car-model "Kia EV6 2022"
-  canair profile create ev6 --car-model "Kia EV6 2022" --set-default
-  canair profile adopt ioniq-2017              # writable copy under ~/.config/canair
-  canair profile overlay ioniq-2017            # keep its definitions, record your own captures
+  canair profile use hyundai-ioniq-ae-ev               # set the default profile
+  canair profile create kia-ev6-cv-ev --car-model "Kia EV6 (CV)"
+  canair profile create kia-ev6-cv-ev --car-model "Kia EV6 (CV)" --set-default
+  canair profile adopt hyundai-ioniq-ae-ev              # writable copy under ~/.config/canair
+  canair profile overlay hyundai-ioniq-ae-ev            # keep its definitions, record your own captures
 """,
     )
     sub = parser.add_subparsers(dest="profile_command")
@@ -150,6 +151,17 @@ def _resolve(name: str | None):
     return resolve_profile(name) if name else active()
 
 
+def _current_name(name: str, profiles_dir) -> str:
+    """``name``, or the current name of the profile it is an old name of."""
+    index = alias_index(profiles_dir)
+    profiles = selectable_profiles(profiles_dir, index)
+    target = index.target(name)
+    if name not in profiles and target in profiles:
+        print(f"note: '{name}' was renamed; using its current name, '{target}'.")
+        return target
+    return name
+
+
 def _cmd_default(args) -> int:
     """Bare ``canair profile``: an interactive picker on a TTY, else the list.
 
@@ -168,7 +180,7 @@ def _cmd_pick(args) -> int:
     from canlib.config import set_config_value
     from canlib.tui import select_from_list
 
-    profiles = discover_profiles(getattr(args, "profiles_dir", None))
+    profiles = selectable_profiles(getattr(args, "profiles_dir", None))
     if not profiles:
         return _cmd_list(args)  # prints the "no profiles" guidance
 
@@ -208,7 +220,9 @@ def _cmd_pick(args) -> int:
 
 
 def _cmd_list(args) -> int:
-    profiles = discover_profiles(getattr(args, "profiles_dir", None))
+    profiles_dir = getattr(args, "profiles_dir", None)
+    index = alias_index(profiles_dir)
+    profiles = selectable_profiles(profiles_dir, index)
     if not profiles:
         print("No profiles found.")
         print('Create one with `canair profile create <name> --car-model "..."`,')
@@ -221,9 +235,22 @@ def _cmd_list(args) -> int:
     for name, root in profiles.items():
         marker = "*" if name == active_name else " "
         print(f"{marker} {name}\t{root}")
-        if extends_target(root):
-            for base in profile_layers(name, getattr(args, "profiles_dir", None))[1:]:
-                print(f"    \tlayered over {base}")
+        old = index.aliases_of(name)
+        layers = profile_layers(name, profiles_dir, old)
+        if len(layers) > 1:
+            for layer in layers[:-1]:
+                if layer != root:
+                    print(f"    \tcaptures also from {layer}")
+            print(f"    \tlayered over {layers[-1]}")
+        successor = index.target(name)
+        if successor and successor in profiles:
+            print(f"    \t(an old profile name: the bundled successor is {successor})")
+    renamed = {a: t for a, t in index.targets.items() if t in profiles and a not in profiles}
+    if renamed:
+        print()
+        print("Renamed (old names still resolve):")
+        for alias, target in sorted(renamed.items()):
+            print(f"  {alias} → {target}")
 
     if not load_config().get("default_profile"):
         print()
@@ -361,8 +388,9 @@ def _cmd_path(args) -> int:
 def _cmd_use(args) -> int:
     from canlib.config import set_config_value
 
-    name = args.name.strip()
-    profiles = discover_profiles(getattr(args, "profiles_dir", None))
+    profiles_dir = getattr(args, "profiles_dir", None)
+    name = _current_name(args.name.strip(), profiles_dir)
+    profiles = selectable_profiles(profiles_dir)
     if name not in profiles:
         avail = ", ".join(profiles) or "none"
         print(f"error: profile '{name}' not found. Available: {avail}.", file=sys.stderr)
@@ -420,11 +448,17 @@ def _cmd_create(args) -> int:
     print(f"  car_model: {car_model}")
     print(f"  init:      {init}")
     print(default_note.lstrip("\n"))
+    problem = convention_problem(name)
+    if problem:
+        print(
+            f"\nnote: {problem}. Bundled profiles must follow it; rename before contributing "
+            "(see docs/concepts/profiles.md#naming-a-profile)."
+        )
     return 0
 
 
 def _cmd_adopt(args) -> int:
-    name = args.name.strip()
+    name = _current_name(args.name.strip(), getattr(args, "profiles_dir", None))
     try:
         source, dest = adopt_profile(
             name,
@@ -433,7 +467,7 @@ def _cmd_adopt(args) -> int:
             force=args.force,
         )
     except LookupError:
-        profiles = discover_profiles(getattr(args, "profiles_dir", None))
+        profiles = selectable_profiles(getattr(args, "profiles_dir", None))
         avail = ", ".join(profiles) or "none"
         print(f"error: profile '{name}' not found. Available: {avail}.", file=sys.stderr)
         return 1
@@ -457,7 +491,7 @@ def _cmd_adopt(args) -> int:
 
 
 def _cmd_overlay(args) -> int:
-    name = args.name.strip()
+    name = _current_name(args.name.strip(), getattr(args, "profiles_dir", None))
     try:
         base, dest = overlay_profile(
             name,
@@ -465,7 +499,7 @@ def _cmd_overlay(args) -> int:
             set_default=args.set_default,
         )
     except LookupError:
-        profiles = discover_profiles(getattr(args, "profiles_dir", None))
+        profiles = selectable_profiles(getattr(args, "profiles_dir", None))
         avail = ", ".join(profiles) or "none"
         print(f"error: profile '{name}' not found. Available: {avail}.", file=sys.stderr)
         return 1

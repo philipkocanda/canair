@@ -444,8 +444,8 @@ class TestUpdateCommand:
         monkeypatch.setattr(update_cmd.subprocess, "run", lambda cmd, *a, **k: _CP())
 
         risk = ic.SnapshotRisk(
-            name="ioniq-2017",
-            root=tmp_path / "site-packages" / "profiles" / "ioniq-2017",
+            name="hyundai-ioniq-ae-ev",
+            root=tmp_path / "site-packages" / "profiles" / "hyundai-ioniq-ae-ev",
             missing=[Path("captures/2026-08-05.json")],
             differing=[],
         )
@@ -456,7 +456,7 @@ class TestUpdateCommand:
         out = capsys.readouterr().out
         assert rc == 0
         assert "captures/2026-08-05.json" in out
-        assert "ioniq-2017" in out
+        assert "hyundai-ioniq-ae-ev" in out
         # The warning has to land before the reinstall is confirmed, not after it.
         assert out.index("2026-08-05.json") < out.index("Reinstalling")
 

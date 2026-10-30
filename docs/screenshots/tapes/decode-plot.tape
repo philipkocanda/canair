@@ -20,7 +20,7 @@ Type "export XDG_CONFIG_HOME=$(mktemp -d) CANAIR_NO_UPDATE_CHECK=1 FORCE_COLOR=1
 Type "clear" Enter
 Show
 
-Type "uv run canair --profiles-dir profiles --profile ioniq-2017 decode BMS:2101 --plot"
+Type "uv run canair --profiles-dir profiles --profile hyundai-ioniq-ae-ev decode BMS:2101 --plot"
 Sleep 700ms
 Enter
 Sleep 4s

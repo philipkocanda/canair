@@ -3,7 +3,7 @@
 
 Static command output is rendered with `freeze` (SVG); interactive TUI and
 montage clips with `vhs` (GIF). Everything runs against the bundled, read-only
-`ioniq-2017` profile with NO device attached, so the assets are reproducible on
+`hyundai-ioniq-ae-ev` profile with NO device attached, so the assets are reproducible on
 any machine and contain no owner-specific data. The manifest is
 `docs/screenshots/shots.yaml`.
 

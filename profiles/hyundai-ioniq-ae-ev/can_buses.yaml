@@ -1,4 +1,4 @@
-# Hyundai Ioniq 2017 — physical CAN bus segment vocabulary
+# Hyundai Ioniq Electric (AE) — physical CAN bus segment vocabulary
 #
 # Codes accepted by each ECU's `can_bus:` field (in ecus/). Hyundai/Kia split
 # the vehicle bus into functional segments bridged by the gateway (the IGPM

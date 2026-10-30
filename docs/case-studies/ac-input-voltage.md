@@ -228,7 +228,7 @@ overfit to a single drive. (Exact commands in the trail above.)
 
 ## Where it landed
 
-- `profiles/ioniq-2017/ecus/obc.yaml` — `AC_INPUT_V` added to `OBC 2101`,
+- `profiles/hyundai-ioniq-ae-ev/ecus/obc.yaml` — `AC_INPUT_V` added to `OBC 2101`,
   `OBC_UNKNOWN_B15` removed (it was the low byte), and the `2101 AC-side` research
   lead flipped from its negative to found.
 - **Follow-on work built directly on this:** a later charge with a *stepped* EVSE

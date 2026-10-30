@@ -20,7 +20,7 @@ def _plain(text: str) -> str:
 
 class TestEditLine:
     def test_names_the_full_path_not_the_file_name(self, tmp_path):
-        path = tmp_path / "profiles" / "ioniq-2017" / "ecus" / "bms.yaml"
+        path = tmp_path / "profiles" / "hyundai-ioniq-ae-ev" / "ecus" / "bms.yaml"
         line = _plain(edit_line("BMS 2101 SOC", path))
         assert "✓ BMS 2101 SOC" in line
         assert f"({path})" in line
@@ -44,7 +44,7 @@ class TestEchoEdit:
             / "python3.12"
             / "site-packages"
             / "profiles"
-            / "ioniq-2017"
+            / "hyundai-ioniq-ae-ev"
             / "ecus"
             / "bms.yaml"
         )

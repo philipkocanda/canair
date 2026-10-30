@@ -169,7 +169,7 @@ class TestSavedBanner:
             / "python3.12"
             / "site-packages"
             / "profiles"
-            / "ioniq-2017"
+            / "hyundai-ioniq-ae-ev"
             / "captures"
         )
         snap.mkdir(parents=True)
@@ -1100,7 +1100,7 @@ class TestCmdDelete:
 class TestCmdBackfillStates:
     """`canair captures uds --backfill-states` — offline state inference back-fill.
 
-    Uses the pinned real ``ioniq-2017`` profile (its vehicle_states.yaml carries
+    Uses the pinned real ``hyundai-ioniq-ae-ev`` profile (its vehicle_states.yaml carries
     the CHARGING/READY/PARKED/… predicates) with real captured payloads that
     decode to known state signals.
     """
@@ -1711,7 +1711,7 @@ class TestPrintDecodedPreview:
 class TestCmdBackfillStateSpans:
     """`canair captures uds --backfill-state-spans` — state *timeline* back-fill.
 
-    Uses the pinned real ``ioniq-2017`` profile and real VCU payloads that decode
+    Uses the pinned real ``hyundai-ioniq-ae-ev`` profile and real VCU payloads that decode
     to known state signals, at two timestamps far enough apart to land in separate
     pseudo-cycles.
     """

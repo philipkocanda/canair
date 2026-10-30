@@ -575,7 +575,7 @@ OBC:
         commands (30 02 01 / 30 02 03 / 30 01 01) go to ABS_EBP_UNIT = 0x7A5, the smart key address
         (comments say 7D5), and OVMS's own TODO says park brake service does not work. No captured
         30 traffic exists for any HKMC car. Supporting context from 2021 Kona Car Scanner logs
-        (profiles/kona-electric-2019/captures/can/221210-*): the Kona OBC (7E5), VCU and MCU accept
+        (profiles/hyundai-kona-os-ev/captures/can/221210-*): the Kona OBC (7E5), VCU and MCU accept
         10 90 (50 90) and reject 10 03 (NRC 12), so 10 90 is the HKMC KWP2000 session. The Ioniq
         session scan (2026-07-22) only tried 81, 82 and 83, so 10 90 is untested here. Do not sweep
         30 on this OBC until the 30 00 semantics are known.

@@ -1,4 +1,4 @@
-# Hyundai Ioniq 2017 EV — capture/monitor selector groups
+# Hyundai Ioniq Electric (AE) — capture/monitor selector groups
 #
 # A group is a named, reusable query: a list of ECU / ECU:PID selectors in the
 # shared mini-language. Reference one on the command line with the `@` sigil, and

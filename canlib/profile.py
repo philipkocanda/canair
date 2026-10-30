@@ -34,6 +34,7 @@ you forking it.
 from __future__ import annotations
 
 import os
+import sys
 from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
@@ -43,6 +44,7 @@ from canlib import yaml_io
 
 from .config import config_dir, load_config
 from .constants import BUNDLED_PROFILES_DIR
+from .profile_names import AliasIndex, build_alias_index
 
 
 class ProfileError(Exception):
@@ -308,7 +310,7 @@ def profiles_roots(profiles_dir: str | os.PathLike | None = None) -> list[Path]:
     if cfg:
         roots.append(Path(cfg))
     roots.append(config_dir() / "profiles")  # user profiles (uncommitted)
-    roots.append(BUNDLED_PROFILES_DIR)  # repo-bundled (e.g. ioniq-2017)
+    roots.append(BUNDLED_PROFILES_DIR)  # repo-bundled (e.g. hyundai-ioniq-ae-ev)
     return roots
 
 
@@ -340,24 +342,42 @@ def extends_target(root: Path) -> str | None:
     return str(target) if target else None
 
 
-def profile_layers(name: str, profiles_dir: str | os.PathLike | None = None) -> list[Path]:
+def profile_layers(
+    name: str,
+    profiles_dir: str | os.PathLike | None = None,
+    old_names: tuple[str, ...] | list[str] = (),
+) -> list[Path]:
     """Bundles contributing to ``name``, most specific first.
 
     Discovery normally stops at the first root holding ``name`` — a user profile
     *shadows* a bundled one. A bundle that declares ``extends:`` opts out of that:
     it is a layer, so the walk continues to the bundle it layers onto. This is how
-    ``--profile ioniq-2017`` keeps decoding against the read-only bundled
+    ``--profile hyundai-ioniq-ae-ev`` keeps decoding against the read-only bundled
     definitions while transparently including the captures you recorded.
+
+    ``old_names`` are the profile's aliases. An overlay still filed under one of
+    them (``extends: <old name>``) is a layer of this profile too, so a renamed
+    profile keeps its users' recordings before their directory is migrated. An
+    old-named bundle *without* ``extends:`` is a profile in its own right, never a
+    layer.
     """
     layers: list[Path] = []
     for root in profiles_roots(profiles_dir):
         if not root.is_dir():
             continue
-        candidate = root / name
-        if not looks_like_profile(candidate):
-            continue
-        layers.append(candidate)
-        if extends_target(candidate) is None:
+        reached_base = False
+        for candidate_name in (name, *old_names):
+            candidate = root / candidate_name
+            if not looks_like_profile(candidate):
+                continue
+            target = extends_target(candidate)
+            if candidate_name != name and target not in (candidate_name, name):
+                continue
+            layers.append(candidate)
+            if target is None:
+                reached_base = True
+                break
+        if reached_base:
             break
     return layers
 
@@ -369,7 +389,9 @@ def _same_path(a: Path, b: Path) -> bool:
         return a == b
 
 
-def _from_layers(name: str, layers: list[Path]) -> Profile:
+def _from_layers(
+    name: str, layers: list[Path], old_names: tuple[str, ...] | list[str] = ()
+) -> Profile:
     """Assemble a :class:`Profile` from :func:`profile_layers` output."""
     base = layers[-1]
     dangling = extends_target(base)
@@ -382,7 +404,7 @@ def _from_layers(name: str, layers: list[Path]) -> Profile:
         )
     for overlay in layers[:-1]:
         target = extends_target(overlay)
-        if target != name:
+        if target != name and target not in old_names:
             raise ProfileError(
                 f"Profile '{name}' at {overlay} declares `extends: {target}`. "
                 "Layering onto a differently-named profile is not supported yet "
@@ -392,11 +414,94 @@ def _from_layers(name: str, layers: list[Path]) -> Profile:
     return Profile(name, base, tuple(reversed(layers[:-1])))
 
 
+def alias_index(profiles_dir: str | os.PathLike | None = None) -> AliasIndex:
+    """Every old profile name a discoverable profile declares under ``aliases:``.
+
+    Read from each profile's definitions root (its base layer), since that is the
+    bundle that was renamed; an overlay's own ``profile.yaml`` carries no aliases.
+    """
+    bases: dict[str, Path] = {}
+    for name in discover_profiles(profiles_dir):
+        layers = profile_layers(name, profiles_dir)
+        if layers and extends_target(layers[-1]) is None:
+            bases[name] = layers[-1]
+    return build_alias_index(bases)
+
+
+def is_old_name_overlay(name: str, profiles_dir, index: AliasIndex) -> bool:
+    """``name`` is an old profile name whose only directory is a capture overlay.
+
+    Such an overlay (``extends: <old name>``) layers onto the renamed profile, so
+    it is not listed or selected as a profile of its own. It is deliberately never
+    renamed for the user: older canair checkouts sharing the same config still
+    know only the old name.
+    """
+    if index.target(name) is None:
+        return False
+    layers = profile_layers(name, profiles_dir)
+    return bool(layers) and extends_target(layers[-1]) is not None
+
+
+def selectable_profiles(
+    profiles_dir: str | os.PathLike | None = None, index: AliasIndex | None = None
+) -> dict[str, Path]:
+    """Discovered profiles a user can select, by name.
+
+    :func:`discover_profiles` minus capture overlays still filed under an old
+    profile name: those are layers of the renamed profile, not profiles.
+    """
+    index = index if index is not None else alias_index(profiles_dir)
+    return {
+        n: p
+        for n, p in discover_profiles(profiles_dir).items()
+        if not is_old_name_overlay(n, profiles_dir, index)
+    }
+
+
+def _resolve_named(name: str, profiles_dir, index: AliasIndex) -> Profile:
+    old = index.aliases_of(name)
+    return _from_layers(name, profile_layers(name, profiles_dir, old), old)
+
+
+_noted_renames: set[str] = set()
+
+
+def _note_renamed(alias: str, target: str) -> None:
+    """Say once per process that an old profile name was used."""
+    if alias in _noted_renames:
+        return
+    _noted_renames.add(alias)
+    print(
+        f"note: profile '{alias}' is now '{target}'. The old name keeps working; "
+        f"switch with `canair profile use {target}`.",
+        file=sys.stderr,
+    )
+
+
+def _alias_target(name: str, index: AliasIndex) -> str | None:
+    claimants = index.conflicts.get(name)
+    if claimants:
+        raise ProfileError(
+            f"'{name}' is declared as an alias by more than one profile "
+            f"({', '.join(claimants)}). Pass the profile's current name instead."
+        )
+    return index.target(name)
+
+
 def resolve_profile(
     name: str | None = None, profiles_dir: str | os.PathLike | None = None
 ) -> Profile:
-    """Resolve a :class:`Profile` from an explicit name/path, env, or config."""
-    name = name or os.environ.get("CANAIR_PROFILE") or load_config().get("default_profile")
+    """Resolve a :class:`Profile` from an explicit name/path, env, or config.
+
+    A real profile directory always wins over an alias of the same name, so an
+    adopted copy still called by an old name keeps resolving to itself. An old name
+    is noted only when typed (``--profile``/``CANAIR_PROFILE``): one kept in
+    ``default_profile`` keeps working silently, since a config shared by checkouts
+    of different ages cannot be rewritten to a name the older ones don't know.
+    """
+    typed = name or os.environ.get("CANAIR_PROFILE")
+    name = typed or load_config().get("default_profile")
+    index = alias_index(profiles_dir)
 
     # A path-like name is used directly.
     if name and (os.sep in str(name) or (Path(name).expanduser().is_absolute())):
@@ -406,20 +511,27 @@ def resolve_profile(
         if extends_target(root) is None:
             return Profile(root.name, root)
         # An explicit path to an overlay still needs its base, or nothing decodes.
-        below = [p for p in profile_layers(root.name, profiles_dir) if not _same_path(p, root)]
-        return _from_layers(root.name, [root, *below])
+        base_name = index.target(root.name) or root.name
+        old = index.aliases_of(base_name)
+        below = [p for p in profile_layers(base_name, profiles_dir, old) if not _same_path(p, root)]
+        return _from_layers(base_name, [root, *below], old)
 
-    profiles = discover_profiles(profiles_dir)
+    profiles = selectable_profiles(profiles_dir, index)
 
     if name:
         if name in profiles:
-            return _from_layers(name, profile_layers(name, profiles_dir))
+            return _resolve_named(name, profiles_dir, index)
+        target = _alias_target(name, index)
+        if target in profiles:
+            if typed:
+                _note_renamed(name, target)
+            return _resolve_named(target, profiles_dir, index)
         avail = ", ".join(profiles) or "none"
         raise ProfileError(f"Profile '{name}' not found. Available: {avail}.")
 
     if len(profiles) == 1:
         only = next(iter(profiles))
-        return _from_layers(only, profile_layers(only, profiles_dir))
+        return _resolve_named(only, profiles_dir, index)
     if not profiles:
         raise ProfileError(
             "No vehicle profiles found. Create one with "

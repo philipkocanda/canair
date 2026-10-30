@@ -5,8 +5,8 @@ The tooling is vehicle-agnostic; a profile is where the vehicle-specific
 knowledge lives. The repo ships one or more profiles under
 [`profiles/`](https://github.com/philipkocanda/canair/tree/main/profiles) — see
 [Bundled profiles](../profiles/index.md) for the current list. The most developed
-is `profiles/ioniq-2017/` (a 2017 Hyundai Ioniq Electric); see [the Ioniq 2017
-profile](../profiles/ioniq-2017.md) for what a mature profile looks like.
+is `profiles/hyundai-ioniq-ae-ev/` (built on a 2017 Hyundai Ioniq Electric); see [the Ioniq
+Electric profile](../profiles/hyundai-ioniq-ae-ev.md) for what a mature profile looks like.
 
 ## Bundle layout
 
@@ -136,6 +136,49 @@ The bundle has strict edit disciplines that keep it valid and reviewable:
 auto-revert on a validation failure), so you get safe edits without losing the
 file's structure or comments.
 
+## Naming a profile
+
+A profile shared in the repo is named `make-model-code-drivetrain`, with every part always
+present:
+
+| Part | Examples |
+|---|---|
+| make | `hyundai`, `nissan`, `xpeng` |
+| model | `ioniq`, `ioniq-5`, `kona`, `leaf`, `g6` |
+| code — the maker's model code for the generation | `ae`, `ne`, `os`, `ze1`, `f30` |
+| drivetrain | `ev`, `erev`, `phev`, `hev`, `ice`, `fcev` |
+
+So `hyundai-ioniq-ae-ev`, `hyundai-ioniq-5-ne-ev`, `xpeng-g6-f30-ev`. **Never a year**: a model
+year is wrong for most of the cars it names, and a name without the code or the drivetrain has
+to change the moment the model gets a successor or a new drivetrain. The best source for a
+model code is usually the car itself: its ECUs often report it in their identity strings (the
+Ioniq Electric's BMS answers `AEEV__ BMS`).
+
+`canair validate` enforces the convention for bundled profiles. Your own profile can be named
+anything; `canair profile create` only notes when a name doesn't follow it.
+
+### Renamed profiles
+
+When a profile is renamed, its `profile.yaml` keeps the old name under `aliases:`, and the old
+name keeps working everywhere a profile is named:
+
+```yaml
+aliases:
+  ioniq-2017: {}
+```
+
+- `--profile ioniq-2017` and `CANAIR_PROFILE=ioniq-2017` resolve to `hyundai-ioniq-ae-ev`, with a
+  one-line note naming the new name.
+- `default_profile: ioniq-2017` in your config keeps working without the note. Switch to the
+  new name with `canair profile use hyundai-ioniq-ae-ev` whenever you like; canair doesn't
+  rewrite your config, since an older canair sharing it would not know the new name.
+- A capture layer created under the old name (`~/.config/canair/profiles/ioniq-2017/` with
+  `extends: ioniq-2017`) layers onto the renamed profile, so your recordings stay in view.
+- A **real** profile directory with the old name always wins — a copy you adopted before the
+  rename stays your own profile. `canair contribute` sends such a copy upstream under the
+  profile's current name.
+- `canair profile list` shows each rename as `ioniq-2017 → hyundai-ioniq-ae-ev`.
+
 ## Selecting a profile
 
 Precedence (first match wins):
@@ -190,7 +233,7 @@ writes somewhere durable *first*:
 canair config set profiles_dir /path/to/canair/profiles
 
 # No clone (or you just want your own copy) — take the profile with you:
-canair profile adopt ioniq-2017
+canair profile adopt hyundai-ioniq-ae-ev
 ```
 
 `profiles_dir` is the persistent equivalent of `--profiles-dir` and is the right
@@ -207,18 +250,18 @@ definitions. If you only want to **record against a profile someone else
 maintains**, take a layer instead:
 
 ```bash
-canair profile overlay ioniq-2017
+canair profile overlay hyundai-ioniq-ae-ev
 ```
 
-That creates `~/.config/canair/profiles/ioniq-2017/` containing nothing but an
+That creates `~/.config/canair/profiles/hyundai-ioniq-ae-ev/` containing nothing but an
 empty `captures/` and a one-line marker:
 
 ```yaml
-extends: ioniq-2017
+extends: hyundai-ioniq-ae-ev
 ```
 
 The `extends:` key is what turns a same-named user profile from a *shadow* into a
-*layer*. From then on, `--profile ioniq-2017` resolves to both directories at once:
+*layer*. From then on, `--profile hyundai-ioniq-ae-ev` resolves to both directories at once:
 
 | Comes from | What |
 |---|---|

@@ -77,10 +77,10 @@ class TestUserConfigIsolation:
 
 class TestActiveProfilePinning:
     def test_canair_profile_is_pinned(self):
-        assert os.environ.get("CANAIR_PROFILE") == "ioniq-2017"
+        assert os.environ.get("CANAIR_PROFILE") == "hyundai-ioniq-ae-ev"
 
     def test_active_profile_resolves_to_the_bundled_reference(self):
-        assert profile.resolve_profile().name == "ioniq-2017"
+        assert profile.resolve_profile().name == "hyundai-ioniq-ae-ev"
 
 
 class TestNoEagerConfigReadAtImportTime:

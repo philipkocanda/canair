@@ -19,7 +19,7 @@ from canlib.profile import resolve_profile
 
 @pytest.fixture(scope="module")
 def source_root():
-    # conftest pins CANAIR_PROFILE=ioniq-2017 for the suite.
+    # conftest pins CANAIR_PROFILE=hyundai-ioniq-ae-ev for the suite.
     return resolve_profile().root
 
 

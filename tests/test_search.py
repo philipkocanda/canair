@@ -283,7 +283,9 @@ class TestOutput:
     def test_paste_ready_command_names_the_profile(self, corpus, monkeypatch, capsys):
         _run(corpus, monkeypatch, ["95400G7470", "--json", "--in", "payload"])
         (finding,) = json.loads(capsys.readouterr().out)["findings"]
-        assert finding["command"].startswith("canair --profile ioniq-2017 pids upsert-param BCM")
+        assert finding["command"].startswith(
+            "canair --profile hyundai-ioniq-ae-ev pids upsert-param BCM"
+        )
         assert "'[B5:B15]'" in finding["command"] and "--type ascii" in finding["command"]
 
     def test_no_ansi_when_piped(self, corpus, monkeypatch, capsys):

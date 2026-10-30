@@ -86,7 +86,7 @@ def test_writeback_two_digit_lid_keys(tmp_path):
 
 
 def test_split_ecus_by_protocol():
-    # Against the bundled ioniq-2017 profile: BMS is KWP2000, IGPM is UDS.
+    # Against the bundled hyundai-ioniq-ae-ev profile: BMS is KWP2000, IGPM is UDS.
     uds, kwp = split_ecus_by_protocol(["BMS", "IGPM"])
     assert "BMS" in kwp  # → 0x33 results path, never 0x31 StartRoutine
     assert "IGPM" in uds  # → UDS 0x31 SF03

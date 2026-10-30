@@ -1,8 +1,8 @@
 # canair — agent guide
 
 canair is a vehicle-agnostic CAN/UDS reverse-engineering CLI. The bundled reference car is a 2017
-Hyundai Ioniq (`profiles/ioniq-2017/`). For reference, the WiCAN firmware is checked out in
-`wican-fw/` (gitignored; pull if you need the latest).
+Hyundai Ioniq Electric (`profiles/hyundai-ioniq-ae-ev/`). For reference, the WiCAN firmware is
+checked out in `wican-fw/` (gitignored; pull if you need the latest).
 
 **How to read this file:** it carries the *rules*, a one-line-per-command *map*, and the *code/data
 map* — not a flag reference and not a workflow guide.
@@ -118,7 +118,8 @@ Verify internal links still resolve — a broken cross-link is a defect. Policy:
 
 > Workflows: reverse-engineering a signal end-to-end is the **reverse-engineer-signal** skill;
 > partially-decoded bitflag bytes are **decode-bitfields**; bundled-car/device context is
-> **ioniq-reverse-engineering**; changing canair's code is **contributing-code**. Deep
+> **ioniq-reverse-engineering**; changing canair's code is **contributing-code**; whether a car
+> needs its own profile and how to name one is **profile-variants**. Deep
 > protocol/transport/device-API work (the WiCAN Pro hardware, its ELM327 co-processor, the
 > firmware's modes and API) is **wican-hardware-and-protocol** — not needed for ordinary work.
 
@@ -560,7 +561,8 @@ reuse these instead of re-declaring a flag:
 Vehicle data lives in a **profile** bundle: `ecus/` (one file per ECU — the source of truth),
 `profile.yaml`, `captures/`, `references/`, `vehicle_states.yaml`, `can_buses.yaml`, `groups.yaml`,
 optional `signals/`, generated `out/`. The repo bundles several under `profiles/`
-(`profiles/ioniq-2017/` is the mature reference; `profiles/ioniq-5-2022/` an early seed).
+(`profiles/hyundai-ioniq-ae-ev/` is the mature reference; `profiles/hyundai-ioniq-5-ne-ev/` an
+early seed).
 
 **Since more than one ships, none is auto-selected.** Precedence: `--profile NAME|PATH` (a global
 flag, before the subcommand) > `CANAIR_PROFILE` > `default_profile` in config > a single discovered
@@ -568,6 +570,16 @@ profile. Discovery: `--profiles-dir`, `$CANAIR_PROFILES_DIR`, `profiles_dir` in 
 `~/.config/canair/profiles/` (user, uncommitted), then the repo's `profiles/`; user profiles shadow
 bundled ones by name — **unless the user one declares `extends:`, which layers instead** (see
 Layered profiles).
+
+**Names follow `make-model-code-drivetrain`, never a year** (rule and pattern:
+`canlib/profile_names.py`; `validate` enforces it for bundled profiles; reasoning in the
+**profile-variants** skill). A renamed profile lists its old names under `aliases:` in
+`profile.yaml`, and `resolve_profile` maps an old name to it (`alias_index`). A real directory
+of the old name always wins, a capture overlay filed under the old name layers onto the renamed
+profile (`profile_layers(..., old_names)`), and nothing rewrites a user's config or directories,
+since a config is often shared with older checkouts that only know the old name.
+`selectable_profiles` is discovery minus such old-named overlays — use it, not
+`discover_profiles`, for anything offered to a user.
 
 `canair profile list`/`show [NAME]`/`path [NAME]` inspect; `canair profile use NAME` sets the config
 default; a bare `canair profile` opens an arrow-key picker on a TTY. `profile create <name>
@@ -620,7 +632,7 @@ to `plans/2026-07-30-profile-variant-inheritance.md` — `extends:` is deliberat
 > upsert`, `import uds|can|dbc`, `discover --register`, `ecu add`, `wican autopid write`, and
 > `--save` reads. Without it they write to whatever `default_profile`/`CANAIR_PROFILE` resolves to —
 > **not necessarily the car you mean**. This is exactly how Ioniq-28-derived `WHL_SPD11` signals
-> once landed in `profiles/ioniq-5-2022/` instead of `ioniq-2017/` (fixed in the git history).
+> once landed in the Ioniq 5 profile instead of the Ioniq Electric one (fixed in the git history).
 > `signals`/`import` echo the target profile and full path on write — read it back. Read-only
 > commands resolve the same way, so prefer explicit `--profile` there too.
 

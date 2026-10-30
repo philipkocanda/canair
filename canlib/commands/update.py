@@ -213,6 +213,8 @@ def _warn_about_snapshot_data(c, clone: Path | None) -> None:
     c.print("  [dim]The reinstall replaces that directory, so they would be lost:[/dim]")
     for risk in risks:
         c.print(f"    [bold]{risk.name}[/bold]  [dim]{risk.root}[/dim]")
+        if risk.clone_name and risk.clone_name != risk.name:
+            c.print(f"      [dim]renamed: keep them under profiles/{risk.clone_name}/[/dim]")
         shown = risk.files[:5]
         for rel in shown:
             state = "edited after install" if rel in risk.differing else "only here"

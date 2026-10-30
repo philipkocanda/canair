@@ -1,6 +1,6 @@
 # Profile variants, phase 1 — make-model-code names and old-name aliases
 
-Status: **NOT STARTED.** Part of
+Status: **DONE** (2026-10-30). Part of
 [`2026-10-30-profile-variants-and-rename.md`](2026-10-30-profile-variants-and-rename.md) (the
 design; read its [Names](2026-10-30-profile-variants-and-rename.md#names-and-ids) and
 [Rename and aliases](2026-10-30-profile-variants-and-rename.md#rename-and-aliases) sections first).
@@ -22,9 +22,10 @@ working. **No variants yet**: nothing about decoding, captures or selection chan
 ## What users see
 
 - New names in `profile list`, docs and the explorer.
-- Old names keep resolving, with a one-line deprecation note naming the new one.
-- On first run, `default_profile` in config and overlay directories under
-  `~/.config/canair/profiles/` are migrated to the new name, each with a printed notice.
+- Old names keep resolving. A typed one (`--profile`, `CANAIR_PROFILE`) prints a one-line note
+  naming the new name, once per process; one kept in `default_profile` resolves silently.
+- Capture overlays under `~/.config/canair/profiles/<old name>/` keep layering onto the renamed
+  profile.
 - **No command refuses, and no output changes** beyond the profile name.
 
 ## Changes
@@ -38,21 +39,24 @@ working. **No variants yet**: nothing about decoding, captures or selection chan
   target, with the deprecation note on stderr; two profiles claiming one alias is a
   `ProfileError`.
 - `profile_layers` / `_from_layers`: an overlay found under an *old* name whose `extends:` names
-  that old name is layered onto the renamed base, so layering works even before its migration runs.
+  that old name is layered onto the renamed base.
+- `selectable_profiles`: discovery minus such old-named overlays, used wherever profiles are
+  offered (resolution, `profile list`/`use`/picker, first run).
 
-### First-run migration — new `canlib/migrations/profile_names.py`
+### No migration of user state
 
-Modelled on `migrations/devices.py::maybe_auto_migrate`: best-effort, never raises,
-self-clearing, one notice per action.
+An earlier draft of this phase rewrote `default_profile` and renamed overlay directories on first
+run. It was dropped during implementation: a user config is routinely shared by canair checkouts
+of different ages (and by concurrent agent sessions), and rewriting it to a name an older checkout
+doesn't know would break that checkout outright. The aliases make a migration unnecessary:
 
-- **Config:** `default_profile: <old>` → the new name. Also record
-  `profile_settings.<new>.renamed_from: <old>`, a breadcrumb that lets phase 4 apply the alias's
-  implied variant to users whose config this phase already rewrote.
-- **Overlays:** `~/.config/canair/profiles/<old>/` with `extends: <old>` → rename the directory,
-  rewrite `extends:`. If the target directory already exists, refuse and print why; never merge,
-  never delete.
-- **Adopted full copies** (no `extends:`) are left alone: rule 1 keeps them working as their own
-  profile, and `profile list` notes the bundled successor.
+- `default_profile: <old>` keeps resolving, silently (no note on every command);
+- an overlay under the old name layers onto the renamed profile in place;
+- an adopted full copy under the old name stays its own profile (rule 1), and `profile list`
+  notes the bundled successor.
+
+Phase 4 benefits: since the config keeps the old name, the alias's implied variant applies to
+those users directly, with no breadcrumb needed.
 
 ### Commands
 
@@ -100,9 +104,8 @@ generation, drivetrain, E/E architecture, profile-wide vocabularies). Write it w
 
 - Alias resolution: real directory wins; alias resolves with the note; duplicate alias errors;
   alias equal to a real name is rejected by `validate`.
-- Migration: config rewrite plus breadcrumb; overlay rename plus `extends:` rewrite; existing
-  target refused; idempotent; never raises.
-- Layering an un-migrated old-named overlay onto the renamed base.
+- `default_profile` under an old name resolves without a note; a typed old name notes once.
+- Layering an old-named overlay onto the renamed base, its captures included.
 - Contribute maps an alias-named source; snapshot rescue lands in the renamed directory.
 - The existing goldens pass with only the profile name changed. Any other diff in their output is
   a regression.
@@ -111,7 +114,7 @@ generation, drivetrain, E/E architecture, profile-wide vocabularies). Write it w
 
 `docs/concepts/profiles.md` (naming convention, aliases), `docs/bring-your-own-car/
 01-create-profile.md` (naming), the two renamed profile pages + stubs, `docs/profiles/index.md`,
-regenerated CLI reference, `CHANGELOG.md` (renames, aliases, the migration notices), AGENTS.md
+regenerated CLI reference, `CHANGELOG.md` (renames, aliases), AGENTS.md
 (profile names in examples and the Profiles section).
 
 ## Acceptance
@@ -120,8 +123,8 @@ regenerated CLI reference, `CHANGELOG.md` (renames, aliases, the migration notic
   names.
 - `CANAIR_PROFILE=ioniq-2017 uv run canair decode BMS 2101` produces the same output as before
   the rename, plus the deprecation note.
-- A config with `default_profile: ioniq-2017` and an overlay `ioniq-2017/` is migrated on first
-  run, and captures in that overlay still appear in `captures uds --sessions`.
+- A config with `default_profile: ioniq-2017` and an overlay `ioniq-2017/` keeps working
+  unchanged, and captures in that overlay still appear in `captures uds --sessions`.
 
 ## Out of scope
 
@@ -131,5 +134,5 @@ Variants of any kind (phase 2), implied variants on aliases (phase 4).
 
 - **The rename touches ~330 references.** Mechanical but wide; a grep for each old name in
   live files (excluding `plans/`) must come back empty.
-- **Migration on someone else's machine.** It only renames and rewrites, never deletes, and refuses
-  on a collision. A broken migration must never break a command.
+- **Old names are permanent resolver surface.** Every alias stays forever; keep them declared in
+  data, never in code.

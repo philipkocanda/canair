@@ -18,12 +18,14 @@ transport reference — load it too when working the Ioniq), **`decode-bitfields
 bit-level loop for discrete body signals), **`contributing-profiles`** (sharing the
 result upstream).
 
-> **Target the right profile.** The repo ships several (`ioniq-2017`, `ioniq-5-2022`,
-> …) and **none auto-selects**. **Pass `--profile NAME` on every mutative command** —
-> `pids …`, `hunt --promote`, `import uds`, `signals upsert`, `--save` reads —
-> otherwise they write to whatever `default_profile`/`CANAIR_PROFILE` resolves to,
+> **Target the right profile.** The repo ships several (`hyundai-ioniq-ae-ev`,
+> `hyundai-ioniq-5-ne-ev`, …) and **none auto-selects**. **Pass `--profile NAME` on every mutative
+> command** — `pids …`, `hunt --promote`, `import uds`, `signals upsert`, `--save` reads — otherwise
+> they write to whatever `default_profile`/`CANAIR_PROFILE` resolves to,
 > *not necessarily the car you mean* (exactly how signals once landed in the wrong
 > profile). Prefer it on read-only commands too. Examples below omit it — add it.
+> Unsure which profile a car belongs in, or what to name a new one? See the
+> **profile-variants** skill.
 
 ## Safety first (non-negotiable)
 
@@ -273,7 +275,7 @@ it for this step**:
   params — they can be wrong.
 
 Cross-reference external signal maps for this car or a close relative (Ioniq: the Kia
-Soul/Niro sheets in `profiles/ioniq-2017/references/`), and mind the PCI-boundary rule
+Soul/Niro sheets in `profiles/hyundai-ioniq-ae-ev/references/`), and mind the PCI-boundary rule
 when a value spans a frame (see Reference below).
 
 ### 7. Test the expression WITHOUT committing

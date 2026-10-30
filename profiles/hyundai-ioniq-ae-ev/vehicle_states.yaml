@@ -1,4 +1,4 @@
-# Hyundai Ioniq 2017 EV — vehicle operating states
+# Hyundai Ioniq Electric (AE) — vehicle operating states
 #
 # Canonical, ordered operating states for capture sessions. The `vehicle_states`
 # field on a capture session should draw from these names; `canair validate

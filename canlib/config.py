@@ -109,7 +109,7 @@ _STARTER_CONFIG = """\
 
 # Vehicle profile to use when none is given (--profile / CANAIR_PROFILE override).
 # Auto-selected when exactly one profile is discovered, so this is optional.
-# default_profile: ioniq-2017
+# default_profile: hyundai-ioniq-ae-ev
 
 # Extra directory to search for vehicle profiles (in addition to this dir's
 # profiles/ subfolder and the repo-bundled profiles/).

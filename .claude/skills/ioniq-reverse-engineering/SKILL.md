@@ -64,8 +64,8 @@ Backlog: `canair research --summary` (per-ECU `research:` sections), plus `canai
 --gaps` for actuator DID families never read with `22` (PSM `B4xx`, SKM `B1xx`, DDM `B1xx`,
 VESS `F0xx` as of 2026-10-30).
 
-Findings documents in `profiles/ioniq-2017/research/` collect what firmware, third-party logs and
-Hyundai/Kia's own specs say, for triage before a capture session. Each opens with YAML
+Findings documents in `profiles/hyundai-ioniq-ae-ev/research/` collect what firmware,
+third-party logs and Hyundai/Kia's own specs say, for triage before a capture session. Each opens with YAML
 frontmatter: dates, status, per-section status (integrated, superseded, invalidated, open),
 relations to the other documents and plans, and sources:
 
@@ -142,7 +142,7 @@ Vehicle data lives in a *profile* bundle: `ecus/` (one file per ECU — the
 (car_model/init/failure_types), `captures/` (dated UDS payloads), `vehicle_states.yaml`
 (canonical operating states + auto-suggest predicates), `references/` (reference
 data), and **generated** `out/` (never hand-edit — run `canair wican autopid write`). The repo ships
-`profiles/ioniq-2017/` as the default. Local (uncommitted) profiles live in
+`profiles/hyundai-ioniq-ae-ev/` as the default. Local (uncommitted) profiles live in
 `~/.config/canair/profiles/` and shadow bundled ones by name; precedence:
 `--profile NAME|PATH` > `CANAIR_PROFILE` > `default_profile` > single discovered.
 Inspect with `canair profile list|show|path`, `canair ecu`, and
@@ -490,10 +490,11 @@ fitted on every trim).
 
 - [wican-fw repo](https://github.com/meatpiHQ/wican-fw) ·
   [WiCAN docs](https://meatpihq.github.io/wican-fw/)
-- local `profiles/ioniq-2017/references/` spreadsheets (Kia Soul and Kia e-niro XLSX-format spreadsheets pulled from Google Docs):
+- local `profiles/hyundai-ioniq-ae-ev/references/` spreadsheets (Kia Soul and Kia e-niro
+  XLSX-format spreadsheets pulled from Google Docs):
   - [Kia Niro 64 kWh sheet](https://docs.google.com/spreadsheets/d/1eT2R8hmsD1hC__9LtnkZ3eDjLcdib9JR-3Myc97jy8M)
   - [Kia Soul EV sheet](https://docs.google.com/spreadsheets/d/1YYlZ-IcTQlz-LzaYkHO-7a4SFM8QYs2BGNXiSU5_EwI)
   - Both contain a lot of raw CAN logs and PID decoding information, SKM commands and ECU mappings. 
-- **User-facing docs:** `docs/` (task-first, for humans) — `docs/profiles/ioniq-2017.md`
+- **User-facing docs:** `docs/` (task-first, for humans) — `docs/profiles/hyundai-ioniq-ae-ev.md`
   documents the bundled profile. Keep it and the README current when you change a
   user-facing capability; see the README↔`docs/` policy in `AGENTS.md`.

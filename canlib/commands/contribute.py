@@ -26,13 +26,14 @@ from this docstring so internal structure never leaks into it.
 from __future__ import annotations
 
 import argparse
+import dataclasses
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
 from .. import contribute as C
-from ..profile import ProfileError, active
+from ..profile import ProfileError, active, alias_index
 from . import _contribute_gates as gates
 from ._contribute_report import (
     Reporter,
@@ -216,6 +217,7 @@ def _resolve_profile(args, rep: Reporter) -> tuple[Any, str]:
         error = str(e)  # `e` is unbound outside the except block
         rep.refuse(error, human=lambda: rep.console.print(f"[red]error:[/red] {error}"))
 
+    profile = _upstream_named(profile, rep)
     branch = args.branch or f"contribute/{profile.name}-{date.today():%Y%m%d}"
     rep.note(
         profile=profile.name,
@@ -224,6 +226,25 @@ def _resolve_profile(args, rep: Reporter) -> tuple[Any, str]:
         include_captures=bool(args.captures),
     )
     return profile, branch
+
+
+def _upstream_named(profile, rep: Reporter):
+    """The profile as upstream names it: an old profile name maps to its successor.
+
+    A copy adopted before a rename still carries the old name, and contributing it
+    as-is would recreate ``profiles/<old name>/`` beside the renamed profile. Only
+    the destination changes; the source is still read from the copy's own root.
+    """
+    target = alias_index().target(profile.name)
+    if target is None:
+        return profile
+    rep.note(renamed_from=profile.name)
+    if not rep.json_mode:
+        rep.console.print(
+            f"  [yellow]note:[/yellow] '{profile.name}' was renamed upstream; contributing "
+            f"it as [cyan]profiles/{target}/[/cyan]."
+        )
+    return dataclasses.replace(profile, name=target)
 
 
 def _stage_contribution(run_: _Contribution) -> int | None:

@@ -413,11 +413,11 @@ explicit `--variant` (plus optional `--revision`, and the usual scope filters), 
 captures come from several cars is stamped in several scoped runs. It writes
 `attribution: migrated`, and `--dry-run` previews it. It runs:
 
-- **in the rename commit**, for each bundled profile, from evidence about where the captures came
-  from (below);
-- **from the first-run overlay migration**, for a user's overlay of a renamed profile. Their
-  recordings are of *their* car — which may well be a 38 kWh car that used `ioniq-2017` for want
-  of anything better — so it asks which variant on a TTY and leaves them untagged otherwise.
+- **in the tagging phase's commit**, for each bundled profile, from evidence about where the
+  captures came from (below);
+- **by the owner**, for a user's overlay. Their recordings are of *their* car — which may well be
+  a 38 kWh car that used `ioniq-2017` for want of anything better — so canair hints at the command
+  and never stamps them itself.
 
 | Profile | Captures from | Stamp |
 |---|---|---|
@@ -578,10 +578,10 @@ profiles. `profile use ioniq-2017` writes the *new* name and variant, not the al
 
 | User state | What breaks without care | Handling |
 |---|---|---|
-| `default_profile: ioniq-2017` in config | not found | first-run config migration (like `migrations/devices.py`): rewrite to the new name, plus `profile_settings.<new>.variant` when the alias implies one; print what changed. The alias still covers it if the migration is skipped |
+| `default_profile: ioniq-2017` in config | not found | alias; resolves silently. canair never rewrites the config, which older checkouts sharing it would then fail to read |
 | `CANAIR_PROFILE=ioniq-2017`, scripts, `--profile ioniq-2017` | not found | alias, with the deprecation note |
 | Any bundled profile with no implied variant (Leaf, Ioniq 5) | first live command refuses | the refusal *is* the handling: it lists the variants and the one command to pick |
-| Overlay `~/.config/canair/profiles/ioniq-2017/` (`extends: ioniq-2017`) | dangling-overlay error; their captures vanish from view | first-run migration: rename dir, rewrite `extends:`, ask which variant to tag its untagged sessions with (TTY only), print what moved. Never silent, never deletes |
+| Overlay `~/.config/canair/profiles/ioniq-2017/` (`extends: ioniq-2017`) | dangling-overlay error; their captures vanish from view | it layers onto the renamed profile in place; never renamed for the user |
 | Adopted full copy `ioniq-2017` | keeps working as its own profile (rule 1); stops shadowing the bundled one | `profile list` notes the bundled successor; nothing auto-merged |
 | `canair contribute` from that copy | would recreate `profiles/ioniq-2017/` upstream next to the renamed one | contribute maps an alias-named source onto its target (and says so), or refuses with the fix |
 | Install snapshot with writes in `profiles/ioniq-2017/` | `snapshot_profile_risks` reports it under a dead name | rescue into the renamed directory |
@@ -655,7 +655,7 @@ step that refuses (phase 4). The byte-identical `28kwh` invariant is checked at 
 
 | # | Plan | What it does | Behaviour change |
 |---|---|---|---|
-| 1 | [Rename and aliases](2026-10-30-profile-variants-1-rename-and-aliases.md) | Five renames, `aliases:`, first-run config/overlay migration, the skill (naming + new-profile rules) | names only |
+| 1 ✓ | [Rename and aliases](2026-10-30-profile-variants-1-rename-and-aliases.md) | Five renames, `aliases:` (old names, old-named overlays, contribute), the skill (naming + new-profile rules) | names only |
 | 2 | [Variant registry](2026-10-30-profile-variants-2-variant-registry.md) | `variants.yaml` (metadata), `canair variants`, display in `profile show` and the explorer | none |
 | 3 | [Capture tags](2026-10-30-profile-variants-3-capture-tags.md) | `variant` tags, global `--variant` (opt-in), `migrate-variants` on bundled history, tagged-wins merge, analysis scope | imports need `--variant` |
 | 4 | [Selection and refusal](2026-10-30-profile-variants-4-selection-and-refusal.md) | `profile_settings`, `profile use --variant` + picker, alias-implied variants, the refusal, untagged ratchet | **breaking**: no variant, nothing runs |
@@ -722,8 +722,8 @@ the AGENTS.md Profiles section, and `docs/bring-your-own-car/01-create-profile.m
    keep every seeded definition `verified: false`.
 3. **"No variant, nothing runs" breaks every existing user once.** Every bundled profile becomes
    multi-variant, so after upgrading, the first live command refuses until a variant is chosen,
-   including for scripts and CI. The config migration pre-fills it for the three aliases that imply
-   a variant. For everyone else the refusal is a one-command fix that names itself. It needs a
+   including for scripts and CI. Users still on one of the three old names that imply a variant
+   are not interrupted. For everyone else the refusal is a one-command fix that names itself. It needs a
    prominent changelog entry, and `CANAIR_VARIANT` for non-interactive setups.
 4. **Two layers cost more than one.** The simple case (XPeng SR/LR cell lists) takes two edits — a
    BMS revision plus a variant mapping — where `variants:` on a PID would take one. That is

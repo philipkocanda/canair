@@ -17,7 +17,7 @@ from canlib import profile
 from canlib.commands.validate import _run_captures
 from canlib.pids import clear_cache
 
-# The ioniq-2017 baseline gated in .github/workflows/ci.yml. The count can only
+# The hyundai-ioniq-ae-ev baseline gated in .github/workflows/ci.yml. The count can only
 # fall (writes enforce a timestamp), so the profile must sit AT or under it — a
 # real regression pushes it over and fails both CI and this test in lockstep.
 IONIQ_2017_UNTIMED_BASELINE = 284
@@ -77,7 +77,7 @@ def test_no_ratchet_is_warnings_only(tmp_path, capsys):
 def test_bundled_ioniq_2017_sits_at_its_ci_baseline(capsys):
     """Guard: the real profile must not exceed the baseline CI gates it at.
 
-    Relies on the suite-wide ``CANAIR_PROFILE=ioniq-2017`` pin (conftest).
+    Relies on the suite-wide ``CANAIR_PROFILE=hyundai-ioniq-ae-ev`` pin (conftest).
     """
     assert _run_captures(max_untimed=IONIQ_2017_UNTIMED_BASELINE) == 0
 

@@ -86,7 +86,7 @@ sign-off; submitting a pull request is your agreement.
 
 Only contribute material you have the right to license this way — in
 particular, do not copy in third-party data under an incompatible licence (see
-`profiles/kona-electric-2019/profile.yaml` for how a CC BY-SA source is cited
+`profiles/hyundai-kona-os-ev/profile.yaml` for how a CC BY-SA source is cited
 rather than copied).
 
 ## Code of conduct

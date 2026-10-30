@@ -10,7 +10,10 @@ its ECUs, PID/parameter definitions, captured payloads, and settings. See
 canair profile create my-car --car-model "VW e-Golf 2019" --set-default
 ```
 
-- `my-car` — the profile name (used as the directory name).
+- `my-car` — the profile name (used as the directory name). Any name works for your
+  own car; a profile you intend to share follows the
+  [naming convention](../concepts/profiles.md#naming-a-profile),
+  `make-model-code-drivetrain` (like `hyundai-ioniq-ae-ev`), and never a year.
 - `--car-model` — a human description; stored in `profile.yaml`.
 - `--set-default` — makes this the profile all commands use by default (writes
   `default_profile` to your config). Without it, select the profile per-command
@@ -25,13 +28,13 @@ elsewhere.
     bundled `profiles/` directory** so it's tracked in git:
 
     ```bash
-    canair profile create ioniq-5-2022 --car-model "Hyundai Ioniq 5 2022" \
-        --path profiles/ioniq-5-2022
+    canair profile create hyundai-ioniq-5-ne-ev --car-model "Hyundai Ioniq 5 (NE)" \
+        --path profiles/hyundai-ioniq-5-ne-ev
     canair config set profiles_dir /path/to/canair/profiles
     ```
 
     A profile placed there is still discoverable by name (`--profile
-    ioniq-5-2022`), and it's where you'd open a pull request from. The
+    hyundai-ioniq-5-ne-ev`), and it's where you'd open a pull request from. The
     `profiles_dir` setting is what makes a globally-installed `canair` find it —
     and, just as importantly, keeps everything you record inside the checkout
     instead of the install snapshot, which a reinstall erases (see
@@ -48,16 +51,16 @@ elsewhere.
     one — take a writable copy and edit from there:
 
     ```bash
-    canair profile adopt ioniq-2017 --set-default
+    canair profile adopt hyundai-ioniq-ae-ev --set-default
     ```
 
-    It lands in `~/.config/canair/profiles/ioniq-2017/` and shadows the bundled
+    It lands in `~/.config/canair/profiles/hyundai-ioniq-ae-ev/` and shadows the bundled
     one by name. Note that the copy stops tracking upstream, so if the goal is to
     *contribute back* to that profile, set `profiles_dir` to your clone instead.
 
     If the bundled profile already fits your car and you only want to **record
     against it**, take a layer rather than a copy — `canair profile overlay
-    ioniq-2017` keeps its definitions tracking upstream while your captures land
+    hyundai-ioniq-ae-ev` keeps its definitions tracking upstream while your captures land
     in your own directory. See
     [Layering your captures](../concepts/profiles.md#layering-your-captures-over-someone-elses-definitions).
 

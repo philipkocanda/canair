@@ -15,7 +15,7 @@ sections:
     status: integrated
     date: 2026-08-25
     note: Registered as the EPB.
-    target: profiles/ioniq-2017/ecus/epb.yaml
+    target: profiles/hyundai-ioniq-ae-ev/ecus/epb.yaml
   - section: "2 (TPMS 0x7D6)"
     status: invalidated
     date: 2026-10-20
@@ -41,19 +41,19 @@ sections:
     status: integrated
     date: 2026-10-29
     target:
-      - profiles/ioniq-2017/signals/body.yaml
-      - profiles/ioniq-2017/signals/powertrain.yaml
+      - profiles/hyundai-ioniq-ae-ev/signals/body.yaml
+      - profiles/hyundai-ioniq-ae-ev/signals/powertrain.yaml
 relations:
   expanded_by:
-    - path: profiles/ioniq-2017/research/IGPM_FINDINGS.md
+    - path: profiles/hyundai-ioniq-ae-ev/research/IGPM_FINDINGS.md
       note: Section 3.2 generalises section 9's gateway frame translation.
-    - path: profiles/ioniq-2017/research/FUNCTIONAL_ADDRESSING_FINDINGS.md
+    - path: profiles/hyundai-ioniq-ae-ev/research/FUNCTIONAL_ADDRESSING_FINDINGS.md
       note: How the AVN MICOM handles functional (0x7DF) requests.
   related:
-    - path: profiles/ioniq-2017/ecus/avn.yaml
-    - path: profiles/ioniq-2017/ecus/vcu.yaml
+    - path: profiles/hyundai-ioniq-ae-ev/ecus/avn.yaml
+    - path: profiles/hyundai-ioniq-ae-ev/ecus/vcu.yaml
       note: research entry on the 0x57B IG3 relay mode cites section 6.
-    - path: profiles/ioniq-2017/ecus/igpm.yaml
+    - path: profiles/hyundai-ioniq-ae-ev/ecus/igpm.yaml
       note: research entry on gateway frame forwarding between MM-CAN, P-CAN and C-CAN.
 sources:
   - name: ioniq-avn-fw
@@ -71,11 +71,11 @@ sources:
 
 # Findings from Ioniq AVN head-unit firmware RE (for canair to triage)
 
-This document collects what reverse-engineering the 2017 Hyundai Ioniq (AE) **head-unit /
-telematics firmware** in the sibling project `ioniq-avn-fw` found that is relevant to this canair
-profile (`profiles/ioniq-2017/`). Items are folded into the profile one at a time, with canair's own
-tooling, once confirmed on the car; so far the EPB at `0x7D5` came from §2, and the TPMS address in
-§2 was tried and found not to apply.
+This document collects what reverse-engineering the 2017 Hyundai Ioniq (AE) **head-unit / telematics
+firmware** in the sibling project `ioniq-avn-fw` found that is relevant to this canair profile
+(`profiles/hyundai-ioniq-ae-ev/`). Items are folded into the profile one at a time, with canair's
+own tooling, once confirmed on the car; so far the EPB at `0x7D5` came from §2, and the TPMS address
+in §2 was tried and found not to apply.
 
 ## Provenance and how much to trust it
 

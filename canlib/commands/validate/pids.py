@@ -18,6 +18,7 @@ from canlib.uds.support_map import SupportMapError
 from canlib.uds.support_map import declaration as support_map_declaration
 
 from ._common import EXPR_TOKEN_RE, SCHEMA_FILE
+from .profile_names import profile_name_findings
 from .send_to import send_to_findings
 
 
@@ -1489,6 +1490,9 @@ def _run_pids(files: list[str] | None, stats: bool) -> int:
         profile_yaml = prof.meta_file
         if profile_yaml.exists():
             all_errors.extend(validate_meta(profile_yaml, required_meta_fields))
+            name_errors, name_warnings = profile_name_findings(prof)
+            all_errors.extend(name_errors)
+            all_warnings.extend(name_warnings)
 
         # Cross-file: an ECU short name (or alias) must be unique across ecus/.
         all_errors.extend(_duplicate_name_errors(file_paths))

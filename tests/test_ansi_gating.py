@@ -9,7 +9,7 @@ this test pins the fix so it can't regress.
 
 Each subtest runs the CLI end-to-end (through a subprocess so the whole run —
 including the subcommand-default injection in :func:`canlib.cli.main` — sees the
-real captured stdout) against the bundled ``ioniq-2017`` profile, and asserts
+real captured stdout) against the bundled ``hyundai-ioniq-ae-ev`` profile, and asserts
 the output contains no ``\\x1b[`` bytes. The command list intentionally spans
 every command the plan counted as leaking, so a regression in any of them fails
 here.
@@ -69,7 +69,7 @@ def _run(args: list[str], env: Mapping[str, str] | None = None) -> str:
     if env:
         base_env.update(env)
     result = subprocess.run(
-        [sys.executable, "-m", "canlib.cli", "--profile", "ioniq-2017", *args],
+        [sys.executable, "-m", "canlib.cli", "--profile", "hyundai-ioniq-ae-ev", *args],
         capture_output=True,
         text=True,
         env=base_env,

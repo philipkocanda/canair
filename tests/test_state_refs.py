@@ -335,7 +335,7 @@ class TestBundledProfiles:
         """Keeps the guard above from passing vacuously if predicate loading breaks."""
         from canlib.states.refs import profile_predicates
 
-        prof = profile.set_active("ioniq-2017")
+        prof = profile.set_active("hyundai-ioniq-ae-ev")
         predicates = profile_predicates(prof)
         assert len(predicates) >= 5
         assert any("VCU." in expr for _name, expr in predicates)

@@ -52,7 +52,7 @@ from tests._golden import (
 )
 
 # Synthetic profile whose only PID returns a SINGLE-FRAME (7-byte) payload with
-# *varying* data bytes. The bundled ioniq-2017 profile has no such PID — its 11
+# *varying* data bytes. The bundled hyundai-ioniq-ae-ev profile has no such PID — its 11
 # single-frame PIDs are either one-shot reads or entirely constant — so without
 # this fixture the one-PCI-byte layout has no end-to-end label coverage at all.
 # That gap is how the physical_scan and notation off-by-one bugs both survived.
@@ -80,37 +80,41 @@ CASES: list[tuple[str, str, list[str]]] = [
     # single-frame coverage labels are pinned by the synthetic sf-coverage-* cases.
     (
         "investigate-single-frame",
-        "ioniq-2017",
+        "hyundai-ioniq-ae-ev",
         ["investigate", "uds", "IGPM", "22BC02", "--until", FROZEN_UNTIL],
     ),
     # -- multi-frame PID (two FF PCI bytes + a CF PCI byte every 8) --
-    ("coverage-multi-frame", "ioniq-2017", ["coverage", "BMS", "2101", "--until", FROZEN_UNTIL]),
+    (
+        "coverage-multi-frame",
+        "hyundai-ioniq-ae-ev",
+        ["coverage", "BMS", "2101", "--until", FROZEN_UNTIL],
+    ),
     (
         "coverage-bitfields",
-        "ioniq-2017",
+        "hyundai-ioniq-ae-ev",
         ["coverage", "IGPM", "--bitfields", "--until", FROZEN_UNTIL],
     ),
     (
         "investigate-bits",
-        "ioniq-2017",
+        "hyundai-ioniq-ae-ev",
         ["investigate", "uds", "IGPM", "22BC03", "--bits", "--until", FROZEN_UNTIL],
     ),
     # -- support maps: the IGPM family corroborating one another, and BCM 22B005, the
     # documented exception whose light-stalk bits fall outside its map --
     (
         "investigate-support-map",
-        "ioniq-2017",
+        "hyundai-ioniq-ae-ev",
         ["investigate", "uds", "IGPM", "--support-map", "--until", FROZEN_UNTIL],
     ),
     (
         "investigate-support-map-exception",
-        "ioniq-2017",
+        "hyundai-ioniq-ae-ev",
         ["investigate", "uds", "BCM", "22B005", "--support-map", "--until", FROZEN_UNTIL],
     ),
     # -- decode: mirrors / discriminate / dump-bytes --
     (
         "decode-mirrors-bits",
-        "ioniq-2017",
+        "hyundai-ioniq-ae-ev",
         ["decode", "IGPM", "22BC03", "--find-mirrors", "--bits", "--until", FROZEN_UNTIL],
     ),
     (
@@ -118,7 +122,7 @@ CASES: list[tuple[str, str, list[str]]] = [
         # temperature mirror (equal at -100) is exactly what the old all-rows
         # exact-equality test reported as "no mirror".
         "correlate-mirrors-offset",
-        "ioniq-2017",
+        "hyundai-ioniq-ae-ev",
         [
             "correlate",
             "uds",
@@ -131,7 +135,7 @@ CASES: list[tuple[str, str, list[str]]] = [
     ),
     (
         "decode-discriminate-bytes",
-        "ioniq-2017",
+        "hyundai-ioniq-ae-ev",
         [
             "decode",
             "IGPM",
@@ -145,29 +149,29 @@ CASES: list[tuple[str, str, list[str]]] = [
     ),
     (
         "decode-dump-bytes",
-        "ioniq-2017",
+        "hyundai-ioniq-ae-ev",
         ["decode", "IGPM", "22BC02", "--dump-bytes", "--date", "2026-07-22"],
     ),
     (
         "decode-dump-bytes-signed",
-        "ioniq-2017",
+        "hyundai-ioniq-ae-ev",
         ["decode", "BMS", "2101", "--dump-bytes", "--signed", "--date", "2026-07-21"],
     ),
     # -- correlate: the 4-field bit label form lives here --
     (
         "correlate-bytes",
-        "ioniq-2017",
+        "hyundai-ioniq-ae-ev",
         ["correlate", "uds", "IGPM", "--bytes", "--until", FROZEN_UNTIL],
     ),
     (
         "correlate-bits",
-        "ioniq-2017",
+        "hyundai-ioniq-ae-ev",
         ["correlate", "uds", "IGPM", "--bits", "--until", FROZEN_UNTIL],
     ),
     # -- hunt: swept byte/interpretation labels --
     (
         "hunt-against",
-        "ioniq-2017",
+        "hyundai-ioniq-ae-ev",
         [
             "hunt",
             "uds",
@@ -182,17 +186,17 @@ CASES: list[tuple[str, str, list[str]]] = [
     # -- the same data rendered in every notation: proves the views stay in step --
     (
         "notation-isotp",
-        "ioniq-2017",
+        "hyundai-ioniq-ae-ev",
         ["coverage", "IGPM", "22BC05", "--notation", "isotp", "--until", FROZEN_UNTIL],
     ),
     (
         "notation-torque",
-        "ioniq-2017",
+        "hyundai-ioniq-ae-ev",
         ["coverage", "IGPM", "22BC05", "--notation", "torque", "--until", FROZEN_UNTIL],
     ),
     (
         "notation-bix",
-        "ioniq-2017",
+        "hyundai-ioniq-ae-ev",
         ["coverage", "IGPM", "22BC05", "--notation", "bix", "--until", FROZEN_UNTIL],
     ),
     # -- SYNTHETIC single-frame profile: the one-PCI-byte layout, with variation.

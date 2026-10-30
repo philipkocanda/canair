@@ -20,7 +20,7 @@ shared harness lives in :mod:`tests._golden`; only the case lists differ.
 list view render free-text session/capture ``label``/``notes``, which is exactly
 the PII surface the screenshot policy keeps out of shareable artifacts. Those
 views are therefore pinned **only** against the synthetic fixture profile;
-``ioniq-2017`` is used only for views that render no free text (enforced by
+``hyundai-ioniq-ae-ev`` is used only for views that render no free text (enforced by
 :meth:`TestGoldenHarnessItself.test_free_text_views_use_a_fixture_profile`).
 
 Regenerate after an *intended* change, then **read the diff**::
@@ -88,7 +88,7 @@ CASES: list[tuple[str, str, list[str]]] = [
     ),
     (
         "captures-diff-multiframe",
-        "ioniq-2017",
+        "hyundai-ioniq-ae-ev",
         ["captures", "uds", "BMS", "2101", "--diff", "--date", "2026-07-21", "--rulers"],
     ),
     ("captures-can", FIXTURE_PROFILE, ["captures", "can"]),

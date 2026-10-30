@@ -22,7 +22,7 @@ body:
       label: Command you ran
       description: The exact invocation, ideally as `uv run canair …` from the repo root.
       render: shell
-      placeholder: uv run canair captures BMS 2102 --profile xpeng-g6
+      placeholder: uv run canair captures BMS 2102 --profile xpeng-g6-f30-ev
     validations:
       required: true
   - type: input
@@ -30,7 +30,7 @@ body:
     attributes:
       label: Profile / car
       description: Which profile was active (and `car_model` if relevant)?
-      placeholder: xpeng-g6 (XPeng G6)
+      placeholder: xpeng-g6-f30-ev (XPeng G6)
     validations:
       required: true
   - type: textarea

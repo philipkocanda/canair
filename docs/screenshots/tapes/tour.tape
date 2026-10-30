@@ -19,7 +19,7 @@ Set TypingSpeed 40ms
 
 Hide
 Type "export XDG_CONFIG_HOME=$(mktemp -d) CANAIR_NO_UPDATE_CHECK=1 FORCE_COLOR=1 COLUMNS=96" Enter
-Type "alias canair='uv run canair --profiles-dir profiles --profile ioniq-2017'" Enter
+Type "alias canair='uv run canair --profiles-dir profiles --profile hyundai-ioniq-ae-ev'" Enter
 Type "clear" Enter
 Show
 
