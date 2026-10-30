@@ -67,6 +67,16 @@ jobs:
             echo "::endgroup::"
           done
 
+      - name: Git LFS objects are on the server
+        # The default checkout fetches pointer files only, so a commit pushed without
+        # its LFS objects (the upload hook skipped) would otherwise pass here and
+        # fail on the next `git pull` elsewhere. This asks the server, downloading
+        # nothing. A PR from a fork has no token and a read-only one; the public
+        # endpoint still answers for a public repository.
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: uv run python scripts/check_lfs_objects.py
+
       - name: CLI reference is current
         run: uv run python scripts/gen_cli_reference.py --check
 

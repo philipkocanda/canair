@@ -59,6 +59,18 @@ repos:
         pass_filenames: false
         stages: [pre-push]
 
+      # Listed last so the upload only happens once the checks above have passed.
+      # `pre-commit install` replaces git-lfs's own pre-push hook if that was not
+      # installed first (`make setup` does so), and a push then publishes commits whose
+      # LFS objects never arrive. CI's scripts/check_lfs_objects.py is the backstop.
+      - id: lfs-push
+        name: upload Git LFS objects
+        entry: scripts/lfs_pre_push.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
   # Normalize line endings on committed JSON. canair's capture writer always
   # emits LF, but a capture file created/edited on Windows (or pasted through a
   # CRLF editor) can sneak in \r bytes — noise in the append-only session logs

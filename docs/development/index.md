@@ -27,12 +27,25 @@ validation on each commit, the [Conventional Commits](commit-messages.md) check 
 message, and the generated-artifact currency checks on each push:
 
 ```bash
-make setup                                   # installs all three hook stages (+ uv sync)
+make setup                                   # Git LFS + all three hook stages (+ uv sync)
 # or, without make:
+git lfs install --force                      # first: see the note below
 uv run pre-commit install --install-hooks
 ```
 
 A clean local run means a green CI; CI stays the hard gate.
+
+!!! warning "Run `git lfs install --force` before `pre-commit install`"
+    Large profile files (raw CAN logs under `captures/can/`) live in Git LFS and are uploaded by
+    git-lfs's own `pre-push` hook. If that hook is installed first, `pre-commit install` chains
+    it; otherwise it replaces it. Without the upload, `git push` succeeds but publishes pointers
+    whose files never reach the server, and the next `git pull` on another machine fails with
+    `Object does not exist on the server`. (`--force` lets a re-run succeed once pre-commit's
+    hook is already in place.)
+
+    Two further guards: the `lfs-push` pre-push hook uploads the objects itself, and CI runs
+    `scripts/check_lfs_objects.py` (`make lfs-check` locally) to flag any pointer whose object is
+    missing from the server.
 
 ## Checks before you open a code PR
 
