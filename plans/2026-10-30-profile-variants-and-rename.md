@@ -2,7 +2,8 @@
 
 Status: **DESIGN — APPROVED IN PRINCIPLE, NOT STARTED.** Every decision is taken (see
 [Decisions](#decisions)); the whole of it is in scope, including revisions, overrides and detection,
-so the machinery is exercised from the start. Supersedes the *motivating case* of
+so the machinery is exercised from the start. Delivered in nine [phases](#phases), each its own
+plan. Supersedes the *motivating case* of
 `plans/2026-07-30-profile-variant-inheritance.md` (XPeng G6 SR vs LR is a variant, not a second
 profile). That plan stays open for **cross-profile** sharing between siblings (Kona OS / Niro DE /
 Soul SK3 / the Ioniq facelift BMS; a G6 EV and G6 EREV pair), which variants deliberately do not
@@ -646,31 +647,25 @@ capture.
 - `BUNDLE_MEMBERS` gains `variants.yaml` (role `definition`), so contribute/blind/`profile show`
   pick it up at once.
 
-## Phasing — all in scope; each phase lands green on its own
+## Phases
 
-1. **Names, aliases, variants, selection, tagging.** These land together because a selectable
-   second variant is useless, and dangerous, without tagged captures.
-   - The five renames; `aliases:` and their resolution; the config and overlay first-run
-     migrations; the contribute alias guard; docs stubs.
-   - `variants.yaml` schema/loader/`validate` (metadata only); `canair variants list/show`.
-   - Global `--variant`, `CANAIR_VARIANT`, `profile_settings`, `profile use --variant` and the
-     picker; the refusal; `Profile.variant`.
-   - Capture tags on every write path; `captures migrate-variants` run on the bundled profiles;
-     the untagged count and its CI ratchet; the tagged-wins merge/contribute rule; analysis
-     `--variant` scope; `--set-variant`.
-2. **Revisions and gating**, at the load seam: ECU `variants:`, `revisions:`, PID/signal
-   `revisions:`, the variant `revisions:` map, pins, the "undetermined → skip" rule, the subset
-   rule, disjoint-duplicate signal names, per-revision predicate resolution in `validate states`,
-   capture `revisions` tags, the byte-level analysis refusal. Lands with the synthetic fixture and
-   the Ioniq BMS `uds` seed.
-3. **Overrides and evidence routing** (`per_revision`; `verified`, `response_frames`, `identity`).
-   The highest-risk phase: it touches the frame-count write-back that guards against desync.
-4. **Detection** — fingerprint matching, the per-session probe, the cached result, `identity`
-   reporting, the captures mismatch warning.
-5. **Consumers** — `wican autopid write` per variant (`out/<variant>/`) with the resolved-revisions
-   requirement, the explorer's variant/revision switcher and metadata, `coverage`/`research` scoped
-   by revision, the `hyundai-ioniq-ae-ev` docs page.
-6. **Skill and docs** land with phase 1 (naming, boundaries, tagging) and grow with each phase.
+Nine phases, each its own plan, each landing green on its own and shippable before the next starts.
+They are ordered so that every additive step lands, and can be used and corrected, before the one
+step that refuses (phase 4). The byte-identical `28kwh` invariant is checked at every phase.
+
+| # | Plan | What it does | Behaviour change |
+|---|---|---|---|
+| 1 | [Rename and aliases](2026-10-30-profile-variants-1-rename-and-aliases.md) | Five renames, `aliases:`, first-run config/overlay migration, the skill (naming + new-profile rules) | names only |
+| 2 | [Variant registry](2026-10-30-profile-variants-2-variant-registry.md) | `variants.yaml` (metadata), `canair variants`, display in `profile show` and the explorer | none |
+| 3 | [Capture tags](2026-10-30-profile-variants-3-capture-tags.md) | `variant` tags, global `--variant` (opt-in), `migrate-variants` on bundled history, tagged-wins merge, analysis scope | imports need `--variant` |
+| 4 | [Selection and refusal](2026-10-30-profile-variants-4-selection-and-refusal.md) | `profile_settings`, `profile use --variant` + picker, alias-implied variants, the refusal, untagged ratchet | **breaking**: no variant, nothing runs |
+| 5 | [ECU revisions](2026-10-30-profile-variants-5-ecu-revisions.md) | `revisions:`, gating and resolution at the load seam, pins, validation, byte-level refusal, the synthetic fixture | none for bundled profiles |
+| 6 | [Ioniq facelift BMS](2026-10-30-profile-variants-6-ioniq-facelift-bms.md) | The real-profile exercise: BMS `kwp`/`uds`, Kona definitions ported unverified | `38kwh` only |
+| 7 | [Overrides and evidence](2026-10-30-profile-variants-7-overrides-and-evidence.md) | `per_revision:`; `verified`, `response_frames`, identity routed per revision | stricter on non-reference revisions |
+| 8 | [Detection](2026-10-30-profile-variants-8-detection.md) | Fingerprint matching, the per-session probe, `identity` names your variant | ambiguous ECUs read instead of skip |
+| 9 | [Consumers](2026-10-30-profile-variants-9-consumers.md) | AutoPID per variant, explorer switcher, coverage/research per revision, final docs | `out/<variant>/` |
+
+The skill and docs grow with each phase rather than landing ahead of the features they describe.
 
 ## The `profile-variants` skill
 
@@ -716,10 +711,10 @@ the AGENTS.md Profiles section, and `docs/bring-your-own-car/01-create-profile.m
 
 ## Critique
 
-1. **This is a large change shipped all at once.** The rename, the variant registry, revisions,
-   overrides and detection touch the loader, every write path, the analysis scoping and the
-   evidence write-back that guards against ELM327 desync. Mitigation: phases that each land green,
-   and the byte-identical `28kwh` invariant at every phase.
+1. **This is a large change.** The rename, the variant registry, revisions, overrides and detection
+   touch the loader, every write path, the analysis scoping and the evidence write-back that guards
+   against ELM327 desync. Mitigation: nine phases that each land green, additive steps before the
+   single refusing one, and the byte-identical `28kwh` invariant at every phase.
 2. **Revisions are being built before any real second-revision capture exists.** The Ioniq
    `uds` BMS rests on OVMS's word and a port from the Kona. The synthetic fixture covers the edge
    cases, but it was designed by the same people who designed the feature. Expect details
