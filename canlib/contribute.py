@@ -425,6 +425,83 @@ def reset_workspace(pre: Preflight, workspace: Path) -> list[Step]:
     ]
 
 
+def leftover_changes(pre: Preflight, workspace: Path) -> list[str]:
+    """Repo-relative paths an earlier run left uncommitted in the managed workspace.
+
+    Every tracked change, plus untracked files under ``profiles/`` (the only place
+    a run writes). These block :func:`start_branch` whenever the old HEAD — an
+    earlier contribution branch — and the new base disagree on a path, which is
+    why they are cleared (after a backup) *before* branching.
+    """
+    assert pre.git
+    res = _run(
+        [pre.git, "-C", str(workspace), "status", "--porcelain=v1", "-z", "--untracked-files=all"]
+    )
+    fields = res.stdout.split("\0")
+    paths: list[str] = []
+    i = 0
+    while i < len(fields):
+        entry = fields[i]
+        i += 1
+        if len(entry) < 4:
+            continue
+        code, path = entry[:2], entry[3:]
+        if code[0] in "RC":
+            i += 1  # the rename/copy source follows as its own field
+        if code == "??" and not path.startswith("profiles/"):
+            continue
+        paths.append(path)
+    return paths
+
+
+def backup_dir() -> Path:
+    """Where discarded workspace leftovers are saved.
+
+    Outside the clone itself, so deleting the workspace (the remedy for a broken
+    one) keeps them.
+    """
+    return workspace_dir().parent / "backups"
+
+
+def backup_leftovers(workspace: Path, paths: list[str], dest: Path) -> Path:
+    """Copy each leftover in ``paths`` from ``workspace`` into ``dest``.
+
+    Files are copied verbatim (no git filters, so LFS-tracked capture logs keep
+    their content), preserving their repo-relative paths. A path that no longer
+    exists (a deletion) is only listed in the ``MANIFEST.txt`` written alongside.
+    """
+    dest.mkdir(parents=True, exist_ok=True)
+    lines = []
+    for rel in paths:
+        src = workspace / rel
+        if src.is_file():
+            target = dest / rel
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, target)
+            lines.append(f"saved    {rel}")
+        else:
+            lines.append(f"deleted  {rel}")
+    (dest / "MANIFEST.txt").write_text(
+        f"Uncommitted leftovers discarded from {workspace}\n\n" + "\n".join(lines) + "\n"
+    )
+    return dest
+
+
+def discard_local_changes(pre: Preflight, workspace: Path) -> list[Step]:
+    """Drop uncommitted changes, keeping the current branch's commits.
+
+    Unlike :func:`reset_workspace` this resets to ``HEAD``, not the base, so a
+    ``--dry-run`` commit on an earlier branch survives; it only has to clear the
+    way for :func:`start_branch`.
+    """
+    assert pre.git
+    git = pre.git
+    return [
+        _run([git, "-C", str(workspace), "reset", "--hard", "--quiet", "HEAD"]),
+        _run([git, "-C", str(workspace), "clean", "-fd", "--quiet", "--", "profiles/"]),
+    ]
+
+
 def local_changes(pre: Preflight, workspace: Path, profile_name: str) -> list[str]:
     """``git status --porcelain`` entries under ``profiles/<name>`` in ``workspace``.
 

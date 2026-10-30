@@ -232,6 +232,39 @@ def _own_checkout_is_clean(rep: Reporter, ws: Path, profile, pre: C.Preflight) -
     return ws
 
 
+def leftovers(rep: Reporter, pre: C.Preflight, ws: Path, backup: Path) -> list[str]:
+    """Ask before discarding what an earlier run left uncommitted in the managed workspace.
+
+    A ``--diff``, a refused gate or a crash leaves the staged copy behind, and it
+    blocks branching for the next run. Only the managed clone gets here — a
+    ``--repo-dir`` is the user's own and is never discarded. Returns the paths
+    the caller should back up to ``backup`` and discard (empty: nothing to do).
+    """
+    if not C.is_managed_workspace(ws) or not (ws / ".git").is_dir():
+        return []
+    paths = C.leftover_changes(pre, ws)
+    if not paths:
+        return []
+
+    def show() -> None:
+        rep.console.print(
+            f"\n[yellow]⚠ An earlier contribution is still staged in {ws}:[/yellow]\n"
+        )
+        for path in paths[:10]:
+            rep.console.print(f"  [dim]{path}[/dim]")
+        if len(paths) > 10:
+            rep.console.print(f"  [dim]… and {len(paths) - 10} more[/dim]")
+        rep.console.print(f"\n  It will be backed up to [cyan]{backup}[/cyan] first.\n")
+
+    rep.gate(
+        error=f"an earlier contribution is still staged in {ws}",
+        prompt="Discard it and continue?",
+        human=show,
+        leftovers=paths,
+    )
+    return paths
+
+
 def privacy(
     rep: Reporter,
     profile,

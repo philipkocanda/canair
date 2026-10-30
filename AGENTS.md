@@ -498,7 +498,12 @@ reuse these instead of re-declaring a flag:
   **The managed workspace is made hermetic before the copy** (`contribute.reset_workspace`: `reset
   --hard` to the upstream base + `clean -fd -- profiles/`) — `checkout -B` alone keeps an
   uncommitted file an earlier `--diff` left behind, and `commit_profile` stages the whole profile
-  directory, which is how eight stale capture files once rode along in a PR. A user's own
+  directory, which is how eight stale capture files once rode along in a PR. **Leftovers are
+  cleared before branching:** an earlier run's uncommitted copy makes `checkout -B` refuse
+  whenever the old branch and the base disagree on a path, so `gates.leftovers` asks (`--yes`
+  passes), the files are copied to `contribute.backup_dir()` (outside the clone), and
+  `discard_local_changes` resets to `HEAD` (keeping an earlier `--dry-run` commit). `--diff`
+  discards its own preview the same way, so preview-then-contribute never prompts. A user's own
   `--repo-dir` is **never** reset; it is warned about instead (`_own_checkout_is_clean`), gated on
   `is_managed_workspace`. **A re-run updates the open PR** rather than failing: the branch name is
   date-based, so `find_open_pr` looks it up (`gh pr list --head <plain branch>`) after the push and

@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -894,6 +895,85 @@ class TestWorkspaceHygiene:
         ).stdout
         assert "2026-08-03.json" not in show
         assert "2026-08-05.json" not in show
+
+    def _staged_on_an_old_branch(self, tmp_path):
+        """A managed workspace whose earlier branch committed a file differently
+        from ``main`` and left an uncommitted edit to it — which makes a plain
+        ``checkout -B`` refuse ("local changes would be overwritten")."""
+        ws = tmp_path / "contribute" / "canair"
+        tracked = _seed_profile_repo(ws)
+        _git(ws, "checkout", "-B", "contribute/testcar-20261029", "main")
+        tracked.write_text("committed by an earlier run\n")
+        _git(ws, "commit", "-am", "earlier contribution")
+        tracked.write_text("staged by an earlier --diff\n")
+        stale = tracked.parent / "2026-10-29.json"
+        stale.write_text("untracked leftover\n")
+        return ws, tracked, stale
+
+    def test_staged_leftovers_are_backed_up_and_discarded(self, tmp_path, monkeypatch, capsys):
+        import json as _json
+
+        ws, _, stale = self._staged_on_an_old_branch(tmp_path)
+        prof = _make_profile(tmp_path / "prof")
+        monkeypatch.setattr(cmd, "active", lambda: prof)
+        monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(C, "preflight", lambda: _ready())
+        monkeypatch.setattr(C, "workspace_dir", lambda: ws)
+
+        rc = cmd.run(_cmd_args(dry_run=True))
+
+        assert rc == report.OK
+        payload = _json.loads(capsys.readouterr().out)
+        backup = Path(payload["leftovers_backup"])
+        assert backup.parent == tmp_path / "contribute" / "backups"
+        rel = Path("profiles/testcar/captures")
+        assert (backup / rel / "2026-08-05.json").read_text() == "staged by an earlier --diff\n"
+        assert (backup / rel / "2026-10-29.json").read_text() == "untracked leftover\n"
+        assert "profiles/testcar/captures/2026-08-05.json" in (backup / "MANIFEST.txt").read_text()
+        assert not stale.exists()
+        # The earlier branch's commit is kept; only the uncommitted state went.
+        log = subprocess.run(
+            ["git", "-C", str(ws), "log", "--oneline", "contribute/testcar-20261029"],
+            capture_output=True,
+            text=True,
+        ).stdout
+        assert "earlier contribution" in log
+
+    def test_staged_leftovers_need_consent_without_yes(self, tmp_path, monkeypatch, capsys):
+        import json as _json
+
+        ws, tracked, _ = self._staged_on_an_old_branch(tmp_path)
+        prof = _make_profile(tmp_path / "prof")
+        monkeypatch.setattr(cmd, "active", lambda: prof)
+        monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(C, "preflight", lambda: _ready())
+        monkeypatch.setattr(C, "workspace_dir", lambda: ws)
+
+        rc = cmd.run(_cmd_args(dry_run=True, yes=False))
+
+        assert rc == report.CANNOT
+        payload = _json.loads(capsys.readouterr().out)
+        assert "profiles/testcar/captures/2026-08-05.json" in payload["leftovers"]
+        assert tracked.read_text() == "staged by an earlier --diff\n"
+        assert not (tmp_path / "contribute" / "backups").exists()
+
+    def test_diff_cleans_up_its_preview(self, tmp_path, monkeypatch, capsys):
+        import json as _json
+
+        ws = tmp_path / "contribute" / "canair"
+        _seed_profile_repo(ws)
+        prof = _make_profile(tmp_path / "prof")
+        monkeypatch.setattr(cmd, "active", lambda: prof)
+        monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(C, "preflight", lambda: _ready())
+        monkeypatch.setattr(C, "workspace_dir", lambda: ws)
+
+        rc = cmd.run(_cmd_args(diff=True))
+
+        assert rc == report.OK
+        assert "profiles/testcar/ecus/bms.yaml" in _json.loads(capsys.readouterr().out)["diff"]
+        # So the usual --diff-then-contribute flow never meets the leftovers prompt.
+        assert C.leftover_changes(_ready(), ws) == []
 
     def test_dirty_user_repo_dir_warns_and_is_left_alone(self, tmp_path, monkeypatch, capsys):
         import json as _json

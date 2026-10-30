@@ -140,10 +140,13 @@ a second one for it.
     which is exactly where this command *writes*. canair refuses that case; the fix is to run
     `canair contribute` from your own checkout (or wherever your profile lives).
 
-    The clone is rebuilt from upstream on every run, so a leftover from an earlier `--diff`
-    can't ride along in a later PR. Your own checkout is never reset: if you point `--repo-dir`
-    at one with uncommitted changes under `profiles/<your-car>/`, canair lists them and asks
-    first, since everything in that directory is committed.
+    The clone is rebuilt from upstream on every run, and `--diff` cleans up its preview, so
+    nothing staged earlier can ride along in a later PR. When an interrupted or refused run left
+    a contribution staged there, canair lists the files and asks before discarding them, after
+    copying them to `~/.config/canair/contribute/backups/<timestamp>/` (`--yes` discards without
+    asking, still backing up). Your own checkout is never reset: if you point `--repo-dir` at one
+    with uncommitted changes under `profiles/<your-car>/`, canair lists them and asks first,
+    since everything in that directory is committed.
 
 Not sure what you're about to send? Run `canair contribute --diff` first — it
 prepares everything and prints the full diff of `profiles/<your-car>/` vs

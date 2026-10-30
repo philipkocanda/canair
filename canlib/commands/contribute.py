@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -255,6 +255,8 @@ def _stage_contribution(run_: _Contribution) -> int | None:
     if not rep.json_mode:
         rep.console.print(f"  mode: [cyan]{mode}[/cyan] (will push to {run_.target})")
 
+    _clear_leftovers(run_)
+
     br = C.start_branch(pre, workspace, run_.branch)
     if not br.ok:
         rep.fail(
@@ -290,14 +292,39 @@ def _stage_contribution(run_: _Contribution) -> int | None:
     return None
 
 
+def _clear_leftovers(run_: _Contribution) -> None:
+    """Back up and discard an earlier run's staged copy, which would block branching."""
+    rep = run_.rep
+    backup = C.backup_dir() / datetime.now().strftime("%Y%m%d-%H%M%S")
+    paths = gates.leftovers(rep, run_.pre, run_.workspace, backup)
+    if not paths:
+        return
+    C.backup_leftovers(run_.workspace, paths, backup)
+    rep.note(leftovers_backup=str(backup))
+    failed = next((s for s in C.discard_local_changes(run_.pre, run_.workspace) if not s.ok), None)
+    if failed is not None:
+        detail = failed.output
+        rep.fail(
+            "discarding workspace leftovers failed",
+            detail=detail,
+            human=lambda: rep.console.print(
+                "  [red]could not discard the earlier contribution:[/red] "
+                f"[dim]{detail}[/dim]\n"
+                f"  Delete the workspace and retry: [cyan]rm -rf {run_.workspace}[/cyan]"
+            ),
+        )
+    if not rep.json_mode:
+        rep.console.print(f"  backed up and discarded {len(paths)} leftover file(s) → {backup}")
+
+
 def _make_hermetic(run_: _Contribution) -> None:
     """Discard leftovers in the managed workspace so only this run's copy is staged.
 
-    Branching does not remove an uncommitted file an earlier run left behind (a
-    ``--diff`` stages a copy and never commits it), and ``commit_profile`` stages
-    the whole profile directory — so without this, stale files ride along in the
-    PR. Skipped for a user-supplied ``--repo-dir``, whose local work is theirs;
-    that case is warned about by the workspace gate instead.
+    Branching does not remove an uncommitted file an earlier run left behind (an
+    interrupted or refused run stages a copy and never commits it), and
+    ``commit_profile`` stages the whole profile directory — so without this, stale
+    files ride along in the PR. Skipped for a user-supplied ``--repo-dir``, whose
+    local work is theirs; that case is warned about by the workspace gate instead.
     """
     rep = run_.rep
     if not C.is_managed_workspace(run_.workspace):
@@ -321,6 +348,7 @@ def _report_diff(run_: _Contribution) -> int:
     """``--diff``: show exactly what would be contributed, then stop."""
     rep, pre, workspace = run_.rep, run_.pre, run_.workspace
     diff = C.diff_profile(pre, workspace, run_.profile.name)
+    _discard_preview(run_)
 
     def show() -> None:
         from rich.syntax import Syntax
@@ -344,6 +372,20 @@ def _report_diff(run_: _Contribution) -> int:
         replaced_sessions=replaced_json(run_.replaced),
         pr_url=None,
     )
+
+
+def _discard_preview(run_: _Contribution) -> None:
+    """Drop the copy ``--diff`` staged, so the next run starts from a clean workspace.
+
+    Without this, the preview-then-contribute workflow would meet the leftovers
+    prompt every time. Managed workspace only: a ``--repo-dir`` may hold the
+    user's own uncommitted work alongside the copy.
+    """
+    if not C.is_managed_workspace(run_.workspace):
+        return
+    failed = next((s for s in C.discard_local_changes(run_.pre, run_.workspace) if not s.ok), None)
+    if failed is not None:
+        run_.rep.warn(f"could not clean up the staged preview: {failed.output}")
 
 
 def _submit(run_: _Contribution) -> int:
