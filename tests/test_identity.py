@@ -110,3 +110,14 @@ class TestHkDidGating:
     def test_no_hk_label_in_tables(self):
         for _did, label, _fmt in ident.UDS_IDENTITY_DIDS:
             assert "(HK)" not in label
+
+    def test_c0de_is_gated_like_f187(self):
+        from canlib.modes import identity_records as recs
+        from canlib.quirks import HK_F1XX_MINUS_ONE
+
+        def dids(quirks):
+            return {d for d, _, _ in recs.records_for("uds", quirks)}
+
+        assert "C0DE" not in dids(frozenset())
+        assert "C0DE" in dids(frozenset({HK_F1XX_MINUS_ONE}))
+        assert "F186" in dids(frozenset())  # ISO standard, never gated

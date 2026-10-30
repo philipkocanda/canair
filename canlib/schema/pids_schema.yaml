@@ -168,7 +168,7 @@ identity_fields:
     - hw_version
     - sw_version
     - hw_sw          # combined hardware/software id (some ECUs)
-    - boot_sw        # bootloader software version
+    - boot_sw        # bootloader software version (F100 on Hyundai/Kia is the CAN DB version)
     - app_sw         # application software version
     - fw_version
     - firmware
@@ -177,7 +177,7 @@ identity_fields:
     - sw_id
     - calibration
     - supplier
-    - diag_address   # from F1A0
+    - diag_address   # legacy name for F1A0, which Hyundai/Kia use for their SW version
     - vin            # from F190
     - id_protocol    # how identity DIDs are read (see valid_id_protocols)
     - identity_confidence  # how sure we are of this ECU's identity (see valid_identity_confidence)

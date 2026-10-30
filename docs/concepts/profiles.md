@@ -52,7 +52,7 @@ and `init` are required; everything else is optional with a sensible default.
 | `multi_did_batching` | bool | Profile default for per-ECU service-22 multi-DID batching. |
 | `multi_did_max` | int | Profile default cap on how many service-22 DIDs are combined into one multi-DID request (default `3`). A per-ECU `multi_did_max` overrides it. |
 | `failure_types` | map | DTC failure-type byte meanings, profile-wide (`{0xNN: "meaning"}`). |
-| `quirks` | list | Make-specific behaviour toggles; make-neutral profiles omit it. `hk_f1xx_minus_one`: Hyundai/Kia identity DIDs answer one less than requested (`22F188` → `62F187`). `skm_wakeup`: enables the Ioniq Smart Key Module relay wake. `nissan_c0_session`: permits the Nissan session `10 C0` on KWP2000 ECUs (otherwise blocked, see [Safety](safety.md)) and adapts the `scan iocontrol`, `scan sessions` and `scan routines` probes to it. |
+| `quirks` | list | Make-specific behaviour toggles; make-neutral profiles omit it. `hk_f1xx_minus_one`: Hyundai/Kia identity DIDs answer one less than requested (`22F188` → `62F187`); `canair identity` then also probes `F187` and the EOL coding number `C0DE`. `skm_wakeup`: enables the Ioniq Smart Key Module relay wake. `nissan_c0_session`: permits the Nissan session `10 C0` on KWP2000 ECUs (otherwise blocked, see [Safety](safety.md)) and adapts the `scan iocontrol`, `scan sessions` and `scan routines` probes to it. |
 | `isotp` | map | Client-side ISO-TP tuning for `slcan-tcp` (see below). `stmin` also sets the ELM327 flow-control data (`ATFCSD 30 00 {stmin}`); the block size there is always `0`. |
 | `physical_bands` | map | Vehicle-axis overrides for the reference-free physical-value scan (see below). |
 

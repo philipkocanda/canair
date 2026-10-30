@@ -14,16 +14,20 @@ Each entry is ``(identifier_hex, label, decode_hint)`` where the hint is one of
 
 from ..quirks import HK_F1XX_MINUS_ONE
 
-# UDS ReadDataByIdentifier (service 22) identity DIDs.
+# UDS ReadDataByIdentifier (service 22) identity DIDs. F100-F17F and F1A0-F1EF are
+# vehicle-manufacturer identification options in ISO 14229-1, so their labels name the
+# Hyundai/Kia use: F1A0 is its own SW version (ES95486 Annex C), F100 the CAN database
+# version (a Hyundai/Kia ECU diagnostic spec).
 UDS_IDENTITY_DIDS: list[tuple[str, str, str]] = [
     ("F190", "VIN", "ascii"),
     ("F188", "ECU Part Number (UDS)", "ascii"),
     ("F187", "ECU Part Number (F187)", "ascii"),
     ("F18C", "ECU Serial / Cal ID", "ascii"),
     ("F18B", "Manufacture Date", "date"),
-    ("F18D", "ECU Manufacturing Date", "date"),
+    ("F186", "Active Diagnostic Session", "hex"),
+    ("F18D", "Supported Functional Units", "hex"),
     ("F191", "HW Version Number", "ascii"),
-    ("F100", "Boot SW ID", "ascii"),
+    ("F100", "OEM ID (Hyundai/Kia: CAN DB Version)", "ascii"),
     ("F101", "App SW ID", "ascii"),
     ("F110", "ECU Identification", "ascii"),
     ("F17E", "SW Install Date", "date"),
@@ -34,17 +38,18 @@ UDS_IDENTITY_DIDS: list[tuple[str, str, str]] = [
     ("F195", "Supplier SW Version", "ascii"),
     ("F196", "Exhaust Regulation / SW", "ascii"),
     ("F197", "System / Engine Name", "ascii"),
-    ("F1A0", "Diagnostic Address", "hex"),
+    ("F1A0", "OEM ID (Hyundai/Kia: SW Version)", "ascii"),
     ("F1A2", "HW Version", "ascii"),
     ("F1A4", "HW Part 2", "ascii"),
+    ("C0DE", "EOL Coding Number", "hex"),
 ]
 
-# Identity DIDs that only exist because of a make-specific identifier quirk,
-# keyed by the profile quirk token that enables probing them. F187 is answered
-# by Hyundai/Kia ECUs as the "-1" echo of a ``22F188`` request (see the
-# ``hk_f1xx_minus_one`` quirk); it is NOT a standard identity DID, so it is only
-# probed for profiles that declare that quirk (make-neutral profiles skip it).
-QUIRK_GATED_DIDS: dict[str, str] = {"F187": HK_F1XX_MINUS_ONE}
+# Make-specific identity DIDs, keyed by the profile quirk token that enables probing
+# them, so make-neutral profiles skip them. F187 is answered by Hyundai/Kia ECUs as the
+# "-1" echo of a ``22F188`` request (see the ``hk_f1xx_minus_one`` quirk). C0DE is
+# Hyundai/Kia's EOL coding number (the ECU's variant coding, ES95486 Annex C), outside
+# the ISO identification range; that quirk is the profile's only Hyundai/Kia marker.
+QUIRK_GATED_DIDS: dict[str, str] = {"F187": HK_F1XX_MINUS_ONE, "C0DE": HK_F1XX_MINUS_ONE}
 
 # KWP2000 ReadEcuIdentification (service 1A) records. Record identifiers 8x/9x
 # follow the ISO 14230 layout; the labels below are the common
