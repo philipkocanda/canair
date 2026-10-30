@@ -15,7 +15,7 @@ positional arguments:
                         (default)
     add                 Add a new state to the vocabulary
     rm                  Remove a state from the vocabulary
-    rename              Rename a state (references are NOT rewritten)
+    rename              Rename a state everywhere the profile references it
     set-description     Set/clear a state's description
     set-predicate       Set/clear a state's when: auto-suggest predicate
     set-implies         Set/clear which broader states this one specializes
@@ -36,7 +36,8 @@ options:
   canair states set-implies DRIVING               # clear the hierarchy
   canair states set-excludes DRIVING PARKED       # the two cannot co-occur
   canair states set-description ACC "Accessory power (ACC1)"
-  canair states rename ACC2 IGN
+  canair states rename ACC2 RUN --dry-run         # every file a rename rewrites
+  canair states rename ACC2 RUN                   # vocabulary + ecus/ + captures
   canair states rm PRECONDITION
 ```
 
@@ -94,7 +95,12 @@ options:
 ## `canair states rename`
 
 ```
-usage: canair states rename [-h] old new
+usage: canair states rename [-h] [--dry-run] [--yes] old new
+
+Rename a state in vehicle_states.yaml and in every reference: the
+vehicle_states lists in ecus/, every capture session's states and state_spans
+timeline, the DTC log and the raw-CAN log index. All or nothing: a failed
+write restores every file. Rewriting recorded data asks first unless --yes.
 
 positional arguments:
   old
@@ -102,6 +108,8 @@ positional arguments:
 
 options:
   -h, --help  show this help message and exit
+  --dry-run   List the files and references; write nothing
+  --yes, -y   Rewrite recorded data without asking
 ```
 
 ## `canair states set-description`

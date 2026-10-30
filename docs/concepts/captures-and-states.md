@@ -325,8 +325,15 @@ canair states add DRIVING --implies READY --when "ESC.REAL_SPEED_KMH > 0.5"
 `canair validate states` (and every `canair states` edit) rejects a target that
 isn't a declared state, a state implying itself, an `implies: [ALL]` (`ALL` is
 the "readable in every state" meta-token, not a state to specialize), and any
-cycle — a cycle would make "more specific than" meaningless. Removing or
-renaming a state retargets the states that referenced it.
+cycle — a cycle would make "more specific than" meaningless. Removing a state
+retargets the states that referenced it. Renaming one goes further and rewrites
+every reference in the profile — the `ecus/` tags, each recorded session's states
+and timeline, the DTC log and the raw-CAN log index — all or nothing:
+
+```bash
+canair states rename ACC2 RUN --dry-run   # list every file and reference it rewrites
+canair states rename ACC2 RUN             # asks before rewriting recorded data
+```
 
 ### Simultaneous vs sequential overlap (`state_spans`)
 

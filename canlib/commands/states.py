@@ -32,7 +32,8 @@ Examples:
   canair states set-implies DRIVING               # clear the hierarchy
   canair states set-excludes DRIVING PARKED       # the two cannot co-occur
   canair states set-description ACC "Accessory power (ACC1)"
-  canair states rename ACC2 IGN
+  canair states rename ACC2 RUN --dry-run         # every file a rename rewrites
+  canair states rename ACC2 RUN                   # vocabulary + ecus/ + captures
   canair states rm PRECONDITION
 """
 
@@ -41,6 +42,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from pathlib import Path
 from typing import TypedDict
 
 from canlib import ansi
@@ -431,15 +433,68 @@ def cmd_rm(args) -> int:
 
 
 def cmd_rename(args) -> int:
-    from canlib.states.edit import rename_state
+    from canlib.profile import require_writable_definitions
+    from canlib.states import StatePredicateError
+    from canlib.states.edit import StatesEditError
+    from canlib.states.rename import StateRenameError, apply_state_rename, plan_state_rename
 
-    args._states_msg = f"renamed {args.old.upper()} → {args.new.upper()}"
-    rc = _run_edit(args, lambda: rename_state(args.old, args.new))
-    print(
-        f"  {ansi.c('note:', ansi.YELLOW)} existing ecus/ and captures/ references still use "
-        f"{args.old.upper()!r} — update them (e.g. re-run the migration script)."
+    profile = require_writable_definitions()
+    try:
+        plan = plan_state_rename(args.old, args.new, profile=profile)
+    except (StateRenameError, StatesEditError) as e:
+        raise SystemExit(f"{ansi.c('  Error: ' + str(e), ansi.RED)}") from None
+
+    _print_rename_plan(plan, profile.root)
+    journals = sorted((profile.captures_dir / ".journal").glob("*.jsonl"))
+    if journals:
+        print(
+            f"  {ansi.c('note:', ansi.YELLOW)} {len(journals)} unreconciled journal(s) in "
+            f"{profile.captures_dir / '.journal'} still say {plan.old}; recover them first "
+            "(canair captures uds --recover) or they will bring it back."
+        )
+    if args.dry_run:
+        print("  (--dry-run: nothing written)")
+        return 0
+    if plan.rewrites_history and not args.yes:
+        if not (sys.stdin.isatty() and sys.stdout.isatty()):
+            raise SystemExit(
+                f"{ansi.c('  Error:', ansi.RED)} refusing to rewrite recorded data without "
+                "confirmation (pass --yes, or --dry-run to preview)."
+            )
+        if input("  Rewrite these files? [y/N] ").strip().lower() not in ("y", "yes"):
+            print("  Cancelled — nothing written.")
+            return 1
+    try:
+        apply_state_rename(plan, profile=profile)
+    except (StateRenameError, StatesEditError, StatePredicateError) as e:
+        raise SystemExit(f"{ansi.c('  Error (nothing changed): ' + str(e), ansi.RED)}") from None
+    echo_edit(f"renamed {plan.old} → {plan.new}", plan.states_file)
+    return 0
+
+
+def _print_rename_plan(plan, root: Path) -> None:
+    """List every file a rename rewrites, grouped by store, with reference counts."""
+
+    def _rel(path: Path) -> str:
+        try:
+            return str(path.relative_to(root))
+        except ValueError:
+            return str(path)
+
+    print(f"\n  {ansi.c(f'Rename {plan.old} → {plan.new}', ansi.BOLD)}")
+    print(f"    vocabulary   {_rel(plan.states_file)}")
+    groups = (
+        ("ecus/", plan.ecu_refs, "list"),
+        ("captures/", plan.capture_refs, "list"),
+        ("logs", plan.log_refs, "entry"),
     )
-    return rc
+    for label, refs, unit in groups:
+        if not refs:
+            continue
+        total = sum(refs.values())
+        print(f"    {label:<12} {total} {unit}{'s' if total != 1 else ''} in {len(refs)} file(s)")
+        for path, n in refs.items():
+            print(f"      {ansi.c(_rel(path), ansi.DIM)}  {n}")
 
 
 def cmd_set_description(args) -> int:
@@ -521,9 +576,22 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     rm.add_argument("name")
     rm.set_defaults(_states_func=cmd_rm)
 
-    ren = sub.add_parser("rename", help="Rename a state (references are NOT rewritten)")
+    ren = sub.add_parser(
+        "rename",
+        help="Rename a state everywhere the profile references it",
+        description="Rename a state in vehicle_states.yaml and in every reference: the "
+        "vehicle_states lists in ecus/, every capture session's states and state_spans "
+        "timeline, the DTC log and the raw-CAN log index. All or nothing: a failed write "
+        "restores every file. Rewriting recorded data asks first unless --yes.",
+    )
     ren.add_argument("old")
     ren.add_argument("new")
+    ren.add_argument(
+        "--dry-run", action="store_true", help="List the files and references; write nothing"
+    )
+    ren.add_argument(
+        "--yes", "-y", action="store_true", help="Rewrite recorded data without asking"
+    )
     ren.set_defaults(_states_func=cmd_rename)
 
     sd = sub.add_parser("set-description", help="Set/clear a state's description")

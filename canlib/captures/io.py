@@ -126,6 +126,11 @@ def capture_rx(cap: Mapping[str, Any]) -> str:
     return str(cap.get("rx") or cap.get("ecu") or "")
 
 
+def capture_text(data: Any) -> str:
+    """The canonical on-disk JSON text of a capture file (see :func:`dump_capture_file`)."""
+    return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
+
+
 def dump_capture_file(path: Path, data: Any) -> None:
     """Write ``data`` to ``path`` as pretty JSON, atomically.
 
@@ -134,7 +139,7 @@ def dump_capture_file(path: Path, data: Any) -> None:
     ``sort_keys``) so the builder's field grouping and diffs stay stable. Written
     via a temp file + ``os.replace`` so a crash never leaves a half-written file.
     """
-    text = json.dumps(data, indent=2, ensure_ascii=False) + "\n"
+    text = capture_text(data)
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp")
     try:

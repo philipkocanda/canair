@@ -357,7 +357,11 @@ reuse these instead of re-declaring a flag:
   shows it as a dim `specializes:` line and `canair states <STATE>` also reports the reverse edges
   (`specialized by:`). **Never hand-edit `vehicle_states.yaml`** (`canlib/states/edit.py`) — its
   editors also retarget/drop sibling `implies:` references on `rename`/`remove`, which a hand-edit
-  would leave dangling (and a dangling target fails the next validate).
+  would leave dangling (and a dangling target fails the next validate). **`states rename` rewrites
+  every reference in the profile** (`canlib/states/rename.py`): `ecus/` tags, capture sessions'
+  states and `state_spans`, the DTC log and the raw-CAN index, all or nothing. A state *is* its
+  token, so a vocabulary-only rename would leave the whole history out of vocabulary. `canair
+  states <STATE>` lists an ECU through `implies:` too (an `[IG3]` ECU appears under READY).
 - **`canair groups`** — List/edit `groups.yaml`, the named selector groups recalled with the `@`
   sigil. Expansion is **textual, before the query parser**
   (`canlib/ecus/ecu_groups.py::expand_group_refs`), so a group composes with other groups and with
