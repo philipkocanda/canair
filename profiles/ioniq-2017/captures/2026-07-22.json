@@ -29,18 +29,20 @@
             "at": "09:02:59.960",
             "states": [
               "READY",
-              "DRIVING"
+              "DRIVING",
+              "IG3"
             ]
           },
           {
             "at": "09:06:33.366",
             "states": [
               "READY",
-              "PARKED"
+              "PARKED",
+              "IG3"
             ]
           }
         ],
-        "version": "1.18.1+main.22a9bf9"
+        "version": "1.35.2+main.4636a47.dirty"
       },
       "captures": [
         {
@@ -11628,25 +11630,28 @@
             "at": "16:52:04.687",
             "states": [
               "READY",
-              "PARKED"
+              "PARKED",
+              "IG3"
             ]
           },
           {
             "at": "16:52:17.577",
             "states": [
               "READY",
-              "DRIVING"
+              "DRIVING",
+              "IG3"
             ]
           },
           {
             "at": "17:04:44.940",
             "states": [
               "READY",
-              "PARKED"
+              "PARKED",
+              "IG3"
             ]
           }
         ],
-        "version": "1.18.1+main.22a9bf9"
+        "version": "1.35.2+main.4636a47.dirty"
       },
       "captures": [
         {
@@ -16058,11 +16063,12 @@
             "at": "17:12:12.029",
             "states": [
               "READY",
-              "PARKED"
+              "PARKED",
+              "IG3"
             ]
           }
         ],
-        "version": "1.18.1+main.22a9bf9"
+        "version": "1.35.2+main.4636a47.dirty"
       },
       "captures": [
         {
@@ -16255,6 +16261,24 @@
         "DRIVING"
       ],
       "notes": "city driving only, one full stop halfway through [migrated state: Driving KW->Home]",
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {
+            "at": "17:13:09.445",
+            "states": [
+              "PARKED"
+            ]
+          },
+          {
+            "at": "17:14:04.696",
+            "states": [
+              "DRIVING"
+            ]
+          }
+        ],
+        "version": "1.35.2+main.4636a47.dirty"
+      },
       "captures": [
         {
           "rx": "0x7D9",
@@ -19190,25 +19214,7 @@
           "payload": "6102F8F8000001010000008B18B6816236220A8B8EE735",
           "time": "17:19:38.405"
         }
-      ],
-      "state_spans": {
-        "source": "backfill",
-        "spans": [
-          {
-            "at": "17:13:09.445",
-            "states": [
-              "PARKED"
-            ]
-          },
-          {
-            "at": "17:14:04.696",
-            "states": [
-              "DRIVING"
-            ]
-          }
-        ],
-        "version": "1.18.1+main.22a9bf9"
-      }
+      ]
     },
     {
       "date": "2026-07-22",

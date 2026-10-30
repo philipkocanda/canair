@@ -40006,18 +40006,27 @@
             "states": [
               "CHARGING",
               "PLUGGED",
-              "PARKED"
+              "PARKED",
+              "IG3"
             ]
           },
           {
             "at": "15:27:59.410",
             "states": [
               "PLUGGED",
+              "PARKED",
+              "IG3"
+            ]
+          },
+          {
+            "at": "15:28:10.617",
+            "states": [
+              "PLUGGED",
               "PARKED"
             ]
           }
         ],
-        "version": "1.18.1+main.22a9bf9"
+        "version": "1.35.2+main.4636a47.dirty"
       },
       "captures": [
         {

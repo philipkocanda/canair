@@ -17,14 +17,15 @@
         "resyncs": 13
       },
       "state_spans": {
-        "source": "record",
+        "source": "backfill",
         "spans": [
           {
             "at": "22:56:26.511",
             "states": [
               "CHARGING",
               "PLUGGED",
-              "PARKED"
+              "PARKED",
+              "IG3"
             ]
           },
           {
@@ -48,15 +49,24 @@
             ]
           },
           {
+            "at": "23:18:36.170",
+            "states": [
+              "PLUGGED",
+              "PARKED",
+              "IG3"
+            ]
+          },
+          {
             "at": "23:18:53.225",
             "states": [
               "CHARGING",
               "PLUGGED",
-              "PARKED"
+              "PARKED",
+              "IG3"
             ]
           }
         ],
-        "version": "1.34.0"
+        "version": "1.35.2+main.4636a47.dirty"
       },
       "captures": [
         {

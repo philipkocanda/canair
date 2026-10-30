@@ -465,7 +465,7 @@
         "resyncs": 42
       },
       "state_spans": {
-        "source": "record",
+        "source": "backfill",
         "spans": [
           {
             "at": "10:00:48.793",
@@ -478,11 +478,12 @@
             "states": [
               "CHARGING",
               "PLUGGED",
-              "PARKED"
+              "PARKED",
+              "IG3"
             ]
           }
         ],
-        "version": "1.19.0"
+        "version": "1.35.2+main.4636a47.dirty"
       },
       "captures": [
         {

@@ -209,11 +209,12 @@
             "at": "21:03:24.711",
             "states": [
               "PARKED",
-              "TOPUP"
+              "TOPUP",
+              "IG3"
             ]
           }
         ],
-        "version": "1.28.0+main.136c140.dirty"
+        "version": "1.35.2+main.4636a47.dirty"
       },
       "captures": [
         {
@@ -910,7 +911,8 @@
             "at": "21:07:30.877",
             "states": [
               "PARKED",
-              "TOPUP"
+              "TOPUP",
+              "IG3"
             ]
           },
           {
@@ -920,7 +922,7 @@
             ]
           }
         ],
-        "version": "1.28.0+main.136c140.dirty"
+        "version": "1.35.2+main.4636a47.dirty"
       },
       "captures": [
         {

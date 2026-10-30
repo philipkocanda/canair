@@ -285,6 +285,25 @@
         "no_data": 264,
         "drop": 23
       },
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {
+            "at": "08:08:42.099",
+            "states": [
+              "PARKED",
+              "IG3"
+            ]
+          },
+          {
+            "at": "08:40:08.835",
+            "states": [
+              "PARKED"
+            ]
+          }
+        ],
+        "version": "1.35.2+main.4636a47.dirty"
+      },
       "captures": [
         {
           "rx": "0x7BB",
@@ -24322,41 +24341,55 @@
             "states": [
               "READY",
               "ACC2",
-              "PARKED"
+              "PARKED",
+              "IG3"
             ]
           },
           {
             "at": "10:02:51.556",
             "states": [
               "READY",
-              "ACC2"
-            ]
-          },
-          {
-            "at": "10:03:02.125",
-            "states": [
-              "READY",
               "ACC2",
-              "DRIVING"
+              "DRIVING",
+              "IG3"
             ]
           },
           {
             "at": "10:03:12.775",
             "states": [
               "READY",
-              "ACC2"
+              "ACC2",
+              "IG3"
             ]
           },
           {
-            "at": "10:03:33.745",
+            "at": "10:03:23.009",
             "states": [
               "READY",
               "ACC2",
-              "DRIVING"
+              "DRIVING",
+              "IG3"
+            ]
+          },
+          {
+            "at": "10:03:43.805",
+            "states": [
+              "READY",
+              "ACC2",
+              "IG3"
+            ]
+          },
+          {
+            "at": "10:03:54.056",
+            "states": [
+              "READY",
+              "ACC2",
+              "DRIVING",
+              "IG3"
             ]
           }
         ],
-        "version": "1.18.1+main.22a9bf9"
+        "version": "1.35.2+main.4636a47.dirty"
       },
       "captures": [
         {
@@ -26252,14 +26285,16 @@
             "states": [
               "READY",
               "ACC2",
-              "DRIVING"
+              "DRIVING",
+              "IG3"
             ]
           },
           {
             "at": "10:15:12.444",
             "states": [
               "READY",
-              "ACC2"
+              "ACC2",
+              "IG3"
             ]
           },
           {
@@ -26267,7 +26302,8 @@
             "states": [
               "READY",
               "ACC2",
-              "DRIVING"
+              "DRIVING",
+              "IG3"
             ]
           },
           {
@@ -26275,14 +26311,26 @@
             "states": [
               "READY",
               "ACC2",
-              "PARKED"
+              "PARKED",
+              "DRIVING",
+              "IG3"
+            ]
+          },
+          {
+            "at": "10:17:20.902",
+            "states": [
+              "READY",
+              "ACC2",
+              "PARKED",
+              "IG3"
             ]
           },
           {
             "at": "10:24:07.284",
             "states": [
               "READY",
-              "ACC2"
+              "ACC2",
+              "IG3"
             ]
           },
           {
@@ -26290,14 +26338,16 @@
             "states": [
               "READY",
               "ACC2",
-              "DRIVING"
+              "DRIVING",
+              "IG3"
             ]
           },
           {
             "at": "10:24:49.824",
             "states": [
               "READY",
-              "ACC2"
+              "ACC2",
+              "IG3"
             ]
           },
           {
@@ -26305,11 +26355,12 @@
             "states": [
               "READY",
               "ACC2",
-              "DRIVING"
+              "DRIVING",
+              "IG3"
             ]
           }
         ],
-        "version": "1.18.1+main.22a9bf9"
+        "version": "1.35.2+main.4636a47.dirty"
       },
       "captures": [
         {
@@ -47293,7 +47344,8 @@
             "states": [
               "READY",
               "ACC2",
-              "DRIVING"
+              "DRIVING",
+              "IG3"
             ]
           },
           {
@@ -47310,15 +47362,23 @@
             ]
           },
           {
+            "at": "11:41:33.687",
+            "states": [
+              "PARKED",
+              "IG3"
+            ]
+          },
+          {
             "at": "11:41:44.124",
             "states": [
               "CHARGING",
               "PLUGGED",
-              "PARKED"
+              "PARKED",
+              "IG3"
             ]
           }
         ],
-        "version": "1.18.1+main.22a9bf9"
+        "version": "1.35.2+main.4636a47.dirty"
       },
       "captures": [
         {
@@ -65142,7 +65202,8 @@
             "states": [
               "READY",
               "ACC2",
-              "PARKED"
+              "PARKED",
+              "IG3"
             ]
           },
           {
@@ -65150,11 +65211,12 @@
             "states": [
               "READY",
               "ACC2",
-              "DRIVING"
+              "DRIVING",
+              "IG3"
             ]
           }
         ],
-        "version": "1.18.1+main.22a9bf9"
+        "version": "1.35.2+main.4636a47.dirty"
       },
       "captures": [
         {
@@ -72196,14 +72258,16 @@
             "states": [
               "READY",
               "ACC2",
-              "DRIVING"
+              "DRIVING",
+              "IG3"
             ]
           },
           {
             "at": "15:56:38.882",
             "states": [
               "READY",
-              "ACC2"
+              "ACC2",
+              "IG3"
             ]
           },
           {
@@ -72211,7 +72275,8 @@
             "states": [
               "READY",
               "ACC2",
-              "DRIVING"
+              "DRIVING",
+              "IG3"
             ]
           },
           {
@@ -72220,7 +72285,8 @@
               "READY",
               "ACC2",
               "PARKED",
-              "DRIVING"
+              "DRIVING",
+              "IG3"
             ]
           },
           {
@@ -72228,7 +72294,8 @@
             "states": [
               "READY",
               "PARKED",
-              "DRIVING"
+              "DRIVING",
+              "IG3"
             ]
           },
           {
@@ -72242,11 +72309,20 @@
             "states": [
               "CHARGING",
               "PLUGGED",
-              "PARKED"
+              "PARKED",
+              "IG3"
             ]
           },
           {
             "at": "16:43:54.444",
+            "states": [
+              "CHARGING",
+              "PARKED",
+              "IG3"
+            ]
+          },
+          {
+            "at": "16:44:04.885",
             "states": [
               "CHARGING",
               "PARKED"
@@ -72265,7 +72341,8 @@
             "states": [
               "READY",
               "ACC2",
-              "PARKED"
+              "PARKED",
+              "IG3"
             ]
           },
           {
@@ -72273,11 +72350,12 @@
             "states": [
               "READY",
               "ACC2",
-              "DRIVING"
+              "DRIVING",
+              "IG3"
             ]
           }
         ],
-        "version": "1.18.1+main.22a9bf9"
+        "version": "1.35.2+main.4636a47.dirty"
       },
       "captures": [
         {
@@ -122014,14 +122092,16 @@
             "states": [
               "READY",
               "ACC2",
-              "DRIVING"
+              "DRIVING",
+              "IG3"
             ]
           },
           {
             "at": "17:38:27.226",
             "states": [
               "READY",
-              "ACC2"
+              "ACC2",
+              "IG3"
             ]
           },
           {
@@ -122029,7 +122109,8 @@
             "states": [
               "READY",
               "ACC2",
-              "DRIVING"
+              "DRIVING",
+              "IG3"
             ]
           },
           {
@@ -122037,7 +122118,18 @@
             "states": [
               "READY",
               "ACC2",
-              "PARKED"
+              "PARKED",
+              "IG3"
+            ]
+          },
+          {
+            "at": "17:40:53.646",
+            "states": [
+              "READY",
+              "ACC2",
+              "PARKED",
+              "DRIVING",
+              "IG3"
             ]
           },
           {
@@ -122045,14 +122137,16 @@
             "states": [
               "READY",
               "ACC2",
-              "DRIVING"
+              "DRIVING",
+              "IG3"
             ]
           },
           {
             "at": "17:41:35.055",
             "states": [
               "READY",
-              "ACC2"
+              "ACC2",
+              "IG3"
             ]
           },
           {
@@ -122060,14 +122154,16 @@
             "states": [
               "READY",
               "ACC2",
-              "DRIVING"
+              "DRIVING",
+              "IG3"
             ]
           },
           {
             "at": "17:52:36.292",
             "states": [
               "READY",
-              "PARKED"
+              "PARKED",
+              "IG3"
             ]
           },
           {
@@ -122080,11 +122176,19 @@
             "at": "17:53:19.145",
             "states": [
               "PLUGGED",
+              "PARKED",
+              "IG3"
+            ]
+          },
+          {
+            "at": "18:03:22.123",
+            "states": [
+              "PLUGGED",
               "PARKED"
             ]
           }
         ],
-        "version": "1.18.1+main.22a9bf9"
+        "version": "1.35.2+main.4636a47.dirty"
       },
       "captures": [
         {

@@ -25,18 +25,27 @@
             "states": [
               "CHARGING",
               "PLUGGED",
-              "PARKED"
+              "PARKED",
+              "IG3"
             ]
           },
           {
             "at": "11:44:08.074",
             "states": [
               "PLUGGED",
+              "PARKED",
+              "IG3"
+            ]
+          },
+          {
+            "at": "11:44:20.008",
+            "states": [
+              "PLUGGED",
               "PARKED"
             ]
           }
         ],
-        "version": "1.18.1+main.22a9bf9"
+        "version": "1.35.2+main.4636a47.dirty"
       },
       "captures": [
         {
@@ -57792,7 +57801,8 @@
             "states": [
               "READY",
               "ACC2",
-              "PARKED"
+              "PARKED",
+              "IG3"
             ]
           },
           {
@@ -57800,7 +57810,8 @@
             "states": [
               "READY",
               "ACC2",
-              "DRIVING"
+              "DRIVING",
+              "IG3"
             ]
           },
           {
@@ -57809,7 +57820,8 @@
               "READY",
               "ACC2",
               "PARKED",
-              "DRIVING"
+              "DRIVING",
+              "IG3"
             ]
           },
           {
@@ -57817,7 +57829,8 @@
             "states": [
               "READY",
               "ACC2",
-              "DRIVING"
+              "DRIVING",
+              "IG3"
             ]
           },
           {
@@ -57826,7 +57839,8 @@
               "READY",
               "ACC2",
               "PARKED",
-              "DRIVING"
+              "DRIVING",
+              "IG3"
             ]
           },
           {
@@ -57834,7 +57848,8 @@
             "states": [
               "READY",
               "ACC2",
-              "DRIVING"
+              "DRIVING",
+              "IG3"
             ]
           },
           {
@@ -57842,11 +57857,12 @@
             "states": [
               "READY",
               "ACC2",
-              "PARKED"
+              "PARKED",
+              "IG3"
             ]
           }
         ],
-        "version": "1.18.1+main.22a9bf9"
+        "version": "1.35.2+main.4636a47.dirty"
       },
       "captures": [
         {

@@ -41082,7 +41082,8 @@
             "states": [
               "CHARGING",
               "PLUGGED",
-              "PARKED"
+              "PARKED",
+              "IG3"
             ]
           },
           {
@@ -41099,7 +41100,7 @@
             ]
           }
         ],
-        "version": "1.18.1+main.22a9bf9"
+        "version": "1.35.2+main.4636a47.dirty"
       },
       "captures": [
         {

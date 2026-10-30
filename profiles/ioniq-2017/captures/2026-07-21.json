@@ -4586,18 +4586,20 @@
           {
             "at": "12:51:27.403",
             "states": [
-              "READY"
+              "READY",
+              "IG3"
             ]
           },
           {
             "at": "12:51:38.166",
             "states": [
               "READY",
-              "ACC2"
+              "ACC2",
+              "IG3"
             ]
           }
         ],
-        "version": "1.18.1+main.22a9bf9"
+        "version": "1.35.2+main.4636a47.dirty"
       },
       "captures": [
         {
