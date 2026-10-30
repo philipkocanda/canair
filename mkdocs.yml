@@ -97,6 +97,7 @@ nav:
   - Concepts:
       - Architecture: concepts/architecture.md
       - Profiles: concepts/profiles.md
+      - Variants: concepts/variants.md
       - ECU protocols & PID prefixes: concepts/ecu-protocols.md
       - Query mini-language: concepts/query-mini-language.md
       - Which analysis command when: concepts/analysis-commands.md
@@ -146,6 +147,7 @@ nav:
           - canair bus: reference/cli/bus.md
           - canair states: reference/cli/states.md
           - canair groups: reference/cli/groups.md
+          - canair variants: reference/cli/variants.md
           - canair profile: reference/cli/profile.md
           - canair config: reference/cli/config.md
           - canair import: reference/cli/import.md

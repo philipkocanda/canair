@@ -109,6 +109,7 @@ All functionality is exposed as `canair <subcommand>`; run `canair <cmd> --help`
 | `canair bus` | List the profile's CAN bus segments, their descriptions, and ECU counts. |
 | `canair states` | List/edit the vehicle operating-state vocabulary and its specificity hierarchy; `states <STATE>` shows which ECUs are readable in it. |
 | `canair groups` | List/edit named selector groups (saved queries); recall one as `@name` in `read`/`monitor` (e.g. `monitor @charging`). |
+| `canair variants` | List/edit the profile car's variants (battery, facelift, market) and their metadata. |
 | `canair wican` | Generate the WiCAN AutoPID JSON; upload/download/diff (Pro). |
 | `canair validate` | Validate `ecus/`, `profile.yaml`, and `captures/` against their schemas (alias: `val`). |
 

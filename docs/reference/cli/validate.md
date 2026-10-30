@@ -7,7 +7,7 @@
 ```
 usage: canair validate [-h] [--stats] [--strict] [--max-untimed N]
                        [--show-untimed]
-                       [{pids,captures,ecus,states,can-buses,signals,groups,actions,can,all}]
+                       [{pids,captures,ecus,states,can-buses,signals,groups,actions,variants,can,all}]
                        [files ...]
 
 [UDS+CAN] Validate a profile's data files against their schemas and
@@ -22,6 +22,7 @@ Pick a target (default: all):
   signals   signals/ broadcast signal-definition files (domain B)
   groups    groups.yaml (named capture/monitor selector groups)
   actions   actions.yaml (guarded profile actions)
+  variants  variants.yaml (the car's variants and their metadata)
   can       captures/can/index.yaml (raw-CAN log index)
   all       everything above
 
@@ -44,7 +45,7 @@ Run this after editing ecus/ or adding captures; `canair pids` already
 validates each edit, so this is the whole-profile check.
 
 positional arguments:
-  {pids,captures,ecus,states,can-buses,signals,groups,actions,can,all}
+  {pids,captures,ecus,states,can-buses,signals,groups,actions,variants,can,all}
                         What to validate (default: all)
   files                 Specific ecus/ files (only with target=pids/ecus)
 

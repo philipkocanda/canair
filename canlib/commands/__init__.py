@@ -52,6 +52,7 @@ COMMAND_NAMES: list[str] = [
     "bus",
     "states",
     "groups",
+    "variants",
     "profile",
     "config",
     "contribute",

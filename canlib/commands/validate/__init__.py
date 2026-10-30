@@ -10,6 +10,7 @@ Validators merged into one subcommand:
   * ``validate signals`` — signals/ broadcast signal definitions (domain B)
   * ``validate groups`` — groups.yaml (named capture/monitor selector groups)
   * ``validate actions`` — actions.yaml (guarded profile actions)
+  * ``validate variants`` — variants.yaml (the car's variants and their metadata)
   * ``validate can`` — captures/can/index.yaml (raw-CAN log index)
   * ``validate all`` (default) — run all of them
 
@@ -51,6 +52,7 @@ from .pids import (
     validate_meta,
     validate_pids_file,
 )
+from .variants import _run_variants
 
 NAME = "validate"
 ALIASES = ["val"]
@@ -101,6 +103,7 @@ def add_parser(subparsers):
         "  signals   signals/ broadcast signal-definition files (domain B)\n"
         "  groups    groups.yaml (named capture/monitor selector groups)\n"
         "  actions   actions.yaml (guarded profile actions)\n"
+        "  variants  variants.yaml (the car's variants and their metadata)\n"
         "  can       captures/can/index.yaml (raw-CAN log index)\n"
         "  all       everything above\n\n"
         "`validate captures` also emits soft warnings for out-of-vocabulary vehicle\n"
@@ -142,6 +145,7 @@ examples:
             "signals",
             "groups",
             "actions",
+            "variants",
             "can",
             "all",
         ],
@@ -199,6 +203,8 @@ def run(args) -> int:
         return _run_groups()
     if args.target == "actions":
         return _run_actions()
+    if args.target == "variants":
+        return _run_variants()
     if args.target == "can":
         return _run_can()
     # all: the ecus/ files are validated once via _run_pids (they are the registry).
@@ -216,5 +222,7 @@ def run(args) -> int:
     print()
     rc_act = _run_actions()
     print()
+    rc_var = _run_variants()
+    print()
     rc_can = _run_can()
-    return rc_p or rc_c or rc_s or rc_cb or rc_sig or rc_grp or rc_act or rc_can
+    return rc_p or rc_c or rc_s or rc_cb or rc_sig or rc_grp or rc_act or rc_var or rc_can

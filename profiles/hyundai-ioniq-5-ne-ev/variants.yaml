@@ -1,0 +1,18 @@
+# The variants of this car (battery, facelift, market) and their metadata.
+# Edit with `canair variants`, never by hand. See docs/concepts/variants.md.
+variants:
+  58kwh:
+    name: Ioniq 5 58 kWh
+    generation: NE
+    battery: {gross_kwh: 58}
+    status: seed
+  77kwh:
+    name: Ioniq 5 77.4 kWh
+    generation: NE
+    battery: {gross_kwh: 77.4}
+    status: seed
+  84kwh:
+    name: Ioniq 5 84 kWh (facelift)
+    generation: NE
+    battery: {gross_kwh: 84}
+    status: seed

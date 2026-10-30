@@ -1,9 +1,27 @@
 # Profile variants, phase 2 — the variant registry (metadata only)
 
-Status: **NOT STARTED.** Part of
+Status: **DONE** (2026-10-30). Part of
 [`2026-10-30-profile-variants-and-rename.md`](2026-10-30-profile-variants-and-rename.md) (see its
 [Variants](2026-10-30-profile-variants-and-rename.md#variants-variantsyaml) section). Depends on
 phase 1.
+
+## As built
+
+Where the implementation differs from the plan below:
+
+- **No cache.** `load_variants` reads the file on each call, like `load_groups`; nothing derives
+  state from it yet, so there is nothing to invalidate. Register a derived cache with
+  `pids.register_derived_cache` once something does.
+- **The field table lives in Python** (`canlib/variants/__init__.py::VARIANT_FIELDS`), with the
+  schema YAML as its documented companion pinned by a test, following the signals precedent.
+- **IDs are `-`-separated words** (`^[a-z0-9]+(-[a-z0-9]+)*$`, at least one letter): no leading,
+  trailing or doubled `-`.
+- **The battery check accepts gross capacity.** Makers quote either, so a battery-named ID is
+  checked against `usable_kwh` when given, else `gross_kwh`.
+- **`sources` takes one item per `sources=…`**, repeated for more, since sources contain commas;
+  `markets` and `trims` stay comma-separated.
+- **`profile list` shows no variant count**; `profile show` and the explorer's toolbar list the
+  variants.
 
 ## Goal
 

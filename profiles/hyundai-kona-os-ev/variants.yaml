@@ -1,0 +1,19 @@
+# The variants of this car (battery, facelift, market) and their metadata.
+# Edit with `canair variants`, never by hand. See docs/concepts/variants.md.
+variants:
+  64kwh:
+    name: Kona Electric 64 kWh
+    generation: OS
+    production: ["2018", "2023"]
+    battery: {usable_kwh: 64, series_cells: 98}
+    status: community
+    sources:
+    - 'wican-fw community profile Kia/Hyundai: Niro/Soul/Kona'
+    - OBDb Hyundai-Kona-Electric
+    - projectgus/hyundai-kona-ev-can-logs (2019 and 2021 US Highlanders)
+  39kwh:
+    name: Kona Electric 39 kWh
+    generation: OS
+    production: ["2018", "2023"]
+    battery: {usable_kwh: 39.2}
+    status: seed

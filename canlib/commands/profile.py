@@ -326,6 +326,21 @@ def _detail_signals(prof) -> str:
     return f"{len(names)} files: {', '.join(names) if names else 'empty'}"
 
 
+def _detail_variants(prof) -> str:
+    from canlib.variants import VariantsError, describe, load_variants
+
+    try:
+        variants = load_variants(prof)
+    except VariantsError as ex:
+        return f"INVALID: {ex}"
+    if not variants:
+        return "empty"
+    # Each further line is printed as an indented continuation (see _cmd_show).
+    return "\n".join(
+        [f"{len(variants)} variants", *(f"  {vid}: {describe(v)}" for vid, v in variants.items())]
+    )
+
+
 def _detail_references(prof) -> str:
     return f"{sum(1 for p in prof.references_dir.rglob('*') if p.is_file())} files"
 
@@ -338,6 +353,7 @@ _MEMBER_DETAIL = {
     "vehicle_states.yaml": _detail_states,
     "groups.yaml": _detail_groups,
     "actions.yaml": _detail_actions,
+    "variants.yaml": _detail_variants,
     "signals": _detail_signals,
     "references": _detail_references,
 }

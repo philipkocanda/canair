@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 import pytest
+import yaml
 
 from canlib.explorer.export import export_profile, profile_maturity
 from canlib.explorer.layout import layout_buses
@@ -45,6 +46,8 @@ def _records(data):
             yield cmd["src"], cmd["did"]
         for dtc in ecu["dtcs"]:
             yield dtc["src"], dtc["code"]
+    for variant in data["variants"]:
+        yield variant["src"], variant["id"]
     for msg in data["broadcast"]:
         yield msg["src"], msg["id"]
         for sig in msg["signals"]:
@@ -198,3 +201,10 @@ def test_signal_inherits_the_pids_provenance():
     assert inherits["source"] == "page source"
     assert inherits["source_links"] == ["https://example.org/page"]
     assert owns["source"] == "own" and "source_links" not in owns
+
+
+def test_variants_are_exported_without_their_notes(exported):
+    root, data = exported
+    declared = yaml.safe_load((root / "variants.yaml").read_text())["variants"]
+    assert [v["id"] for v in data["variants"]] == list(declared)
+    assert all("notes" not in v and v["name"] for v in data["variants"])

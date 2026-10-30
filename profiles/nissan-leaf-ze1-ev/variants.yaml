@@ -1,0 +1,14 @@
+# The variants of this car (battery, facelift, market) and their metadata.
+# Edit with `canair variants`, never by hand. See docs/concepts/variants.md.
+variants:
+  40kwh:
+    name: Leaf 40 kWh
+    generation: ZE1
+    battery: {gross_kwh: 40}
+    status: community
+    sources: [meatpiHQ/wican-fw#750 (verified on a 2018 40 kWh car)]
+  62kwh:
+    name: Leaf e+ 62 kWh
+    generation: ZE1
+    battery: {gross_kwh: 62}
+    status: seed

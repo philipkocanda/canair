@@ -271,6 +271,33 @@ def _bus_records(root: Path) -> list[dict[str, Any]]:
     ]
 
 
+# What the explorer shows of a variant (notes stay in the file).
+VARIANT_FIELDS = (
+    "name",
+    "model_code",
+    "designation",
+    "generation",
+    "production",
+    "model_years",
+    "markets",
+    "battery",
+    "status",
+    "sources",
+)
+
+
+def _variant_records(root: Path) -> list[dict[str, Any]]:
+    path = root / "variants.yaml"
+    if not path.exists():
+        return []
+    doc = _mapping(_load(path)).get("variants")
+    file = f"profiles/{root.name}/variants.yaml"
+    return [
+        {"id": str(vid), **_pick(_mapping(v), VARIANT_FIELDS), "src": _src(file, doc, vid)}
+        for vid, v in _mapping(doc).items()
+    ]
+
+
 def export_profile(root: Path, *, blob_base: str = DEFAULT_BLOB_BASE) -> dict[str, Any]:
     """The explorer data for the profile bundle at ``root``.
 
@@ -306,6 +333,7 @@ def export_profile(root: Path, *, blob_base: str = DEFAULT_BLOB_BASE) -> dict[st
             "stats": counts,
             "blob_base": blob_base,
         },
+        "variants": _variant_records(root),
         "buses": buses,
         "layout": layout_buses(buses, ecus),
         "ecus": ecus,

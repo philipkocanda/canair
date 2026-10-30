@@ -1,0 +1,73 @@
+# Variants Schema (human-readable companion)
+# Validates the optional profiles/<name>/variants.yaml.
+#
+# A profile describes one model generation with one drivetrain. A variant is a version
+# of that car the owner can name — a battery size, a facelift, a market with different
+# diagnostics. This file gives each variant a stable ID and typed metadata. It is
+# metadata only so far: nothing selects a variant or gates a definition on one yet
+# (plans/2026-10-30-profile-variants-and-rename.md describes what follows).
+# Edit with `canair variants`, never by hand.
+#
+# Top-level structure:
+#   variants:                     # mapping keyed by variant ID
+#     <id>:                       # lower-case words joined by '-', at least one letter;
+#                                 # local to the profile, naming only what differs
+#                                 # (e.g. 28kwh, 38kwh-us), never a year
+#       name: str                 # required — human-readable name
+#       model_code: str           # optional — the maker's model code (e.g. AEEV, F30)
+#       designation: str          # optional — the maker's name for it (e.g. IONIQ EV PE)
+#       generation: str           # optional — generation code (e.g. AE, OS, ZE1)
+#       production: [str, str]    # optional — build window, "YYYY" or "YYYY-MM", quoted
+#       model_years: [int, int]   # optional — informational; markets disagree on it
+#       markets: [str, ...]       # optional — where it was sold (e.g. EU, US, KR)
+#       battery:                  # optional — mapping:
+#         usable_kwh: number      #   usable capacity
+#         gross_kwh: number       #   gross capacity
+#         series_cells: int       #   cells in series
+#         chemistry: str          #   e.g. Li-polymer, NMC, LFP
+#         cooling: str            #   e.g. air, liquid
+#       trims: [str, ...]         # optional — informational only, never a variant
+#       status: str               # optional — verified | community | seed
+#       sources: [str, ...]       # optional — where each fact came from
+#       notes: str                # optional
+#
+# A battery-named ID (28kwh) must agree with the battery it states: usable_kwh when
+# given, else gross_kwh, compared by whole kWh. `revisions` and `profile_overrides` are
+# reserved for later stages and rejected until something reads them.
+# Validated by `canair validate variants` (canlib/variants/__init__.py::check_variants_doc,
+# whose VARIANT_FIELDS and BATTERY_FIELDS are the authoritative field lists;
+# tests/test_variants.py pins this file to them).
+
+variant_id_pattern: "^[a-z0-9]+(-[a-z0-9]+)*$"
+
+required_variant_fields:
+  - name
+
+optional_variant_fields:
+  - model_code
+  - designation
+  - generation
+  - production
+  - model_years
+  - markets
+  - battery
+  - trims
+  - status
+  - sources
+  - notes
+
+battery_fields:
+  - usable_kwh
+  - gross_kwh
+  - series_cells
+  - chemistry
+  - cooling
+
+valid_statuses:
+  - verified
+  - community
+  - seed
+
+reserved_variant_fields:
+  - revisions
+  - profile_overrides

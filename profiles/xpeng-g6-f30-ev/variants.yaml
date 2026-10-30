@@ -1,0 +1,16 @@
+# The variants of this car (battery, facelift, market) and their metadata.
+# Edit with `canair variants`, never by hand. See docs/concepts/variants.md.
+variants:
+  87kwh:
+    name: G6 87.5 kWh (Long Range)
+    model_code: F30
+    generation: F30
+    battery: {gross_kwh: 87.5, series_cells: 150}
+    status: community
+    sources: [this profile's own BMS captures (150 cells at 575.3 V; see KNOWN-ISSUES.md)]
+  66kwh:
+    name: G6 66 kWh (Standard Range)
+    model_code: F30
+    generation: F30
+    battery: {gross_kwh: 66}
+    status: seed

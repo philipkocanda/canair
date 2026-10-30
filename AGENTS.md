@@ -411,6 +411,14 @@ reuse these instead of re-declaring a flag:
   duplicated ECU was polled twice per cycle *and* its rows collided on the
   `(ecu_label, pid, param_name)` selection key, snapping the TUI cursor and viewport back to the
   first copy.
+- **`canair variants`** — List/edit `variants.yaml`, the versions of the profile's car an owner
+  can name (battery, facelift, market) with typed metadata. **Metadata only so far**: nothing
+  selects a variant, gates a definition or tags a capture yet — the rest of the design is
+  `plans/2026-10-30-profile-variants-and-rename.md`, phase by phase. The field table and the
+  structural check live once in `canlib/variants/__init__.py` (`VARIANT_FIELDS`,
+  `check_variants_doc`), shared by the loader, `validate variants` and the editor
+  (`canlib/variants/edit.py`, which types each command-line value from that table). Keys a later
+  phase owns (`revisions`, `profile_overrides`) are rejected until something reads them.
 - **`canair bus`** — Read-only list of the profile's CAN bus segments from `can_buses.yaml` with ECU
   counts; flags **undeclared** codes and counts **unbussed** ECUs. Companion to `pids set-can-bus`.
 - **`canair validate`** (alias `val`) — `validate
@@ -733,6 +741,9 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
 - **`profiles/<car>/actions.yaml`** — Named, guarded make-specific actions — see `canair
   action`. Edit with `canair action add/set/rm`, never by hand. Withheld by the blind strip, since
   its conditions name decoded signals.
+- **`profiles/<car>/variants.yaml`** — The car's variants: local IDs naming only what differs
+  (`28kwh`, never a year), each with metadata. See `canair variants`. Loader
+  `canlib/variants/__init__.py::load_variants`.
 - **`profiles/<car>/signals/` + `captures/can/`** — The raw-CAN broadcast domain (in progress,
   `plans/2026-07-24-raw-can-analysis.md`), both optional. `signals/<bus>.yaml` holds DBC-compatible
   **linear** maps keyed by arbitration ID; `captures/can/` holds imported logs natively, indexed by

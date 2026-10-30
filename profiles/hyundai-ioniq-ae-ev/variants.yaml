@@ -1,0 +1,32 @@
+# The variants of this car (battery, facelift, market) and their metadata.
+# Edit with `canair variants`, never by hand. See docs/concepts/variants.md.
+variants:
+  28kwh:
+    name: Ioniq Electric 28 kWh (pre-facelift)
+    model_code: AEEV
+    generation: AE
+    production: ["2016", "2019-05"]
+    model_years: [2017, 2019]
+    markets: [EU, US, KR]
+    battery: {usable_kwh: 28, series_cells: 96, chemistry: Li-polymer, cooling: air}
+    status: verified
+    sources: ["this profile's own captures (a 2017 car, NL market)"]
+    notes: >-
+      The car's own ECUs report the model code (BMS 1A90: AEEV__ BMS). BMS ROM IDs 4604, 4804 and
+      4824 by production month are in ecus/bms.yaml identity notes.
+  38kwh:
+    name: Ioniq Electric 38 kWh (facelift)
+    model_code: AEEV
+    designation: IONIQ EV PE
+    generation: AE
+    production: ["2019-06", "2022"]
+    battery: {usable_kwh: 38.3}
+    status: seed
+    sources:
+    - 'OVMS docs: Kia e-Niro / Hyundai Kona / Hyundai Ioniq FL module (docs.openvehicles.com)'
+    - >-
+      Hyundai battery recall campaign text naming IONIQ EV PE (AEEV), built from 2019-06-01, as
+      quoted on SpeakEV
+    notes: >-
+      Nothing verified on this car yet. OVMS supports it with its Kona/e-Niro module, so its BMS
+      most likely answers the Kona's UDS 220101 reads where the 28 kWh car answers 2101.

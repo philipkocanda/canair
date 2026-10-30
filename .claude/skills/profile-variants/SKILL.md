@@ -1,6 +1,6 @@
 ---
 name: profile-variants
-description: Where a car belongs in canair and what to call it — whether a different car needs its own profile, how to name a profile (make-model-code-drivetrain, never a year), and how a renamed profile keeps its old name working. Load when creating, naming or renaming a profile, or when deciding whether a car fits an existing profile. NOT for decoding signals (reverse-engineer-signal) or submitting a profile upstream (contributing-profiles).
+description: Where a car belongs in canair and what to call it — whether a different car needs its own profile or is a variant of an existing one (battery, facelift, market), how to name a profile (make-model-code-drivetrain, never a year) and a variant, and how a renamed profile keeps its old name working. Load when creating, naming or renaming a profile, adding or editing a variant (variants.yaml, canair variants), or deciding whether a car fits an existing profile. NOT for decoding signals (reverse-engineer-signal) or submitting a profile upstream (contributing-profiles).
 ---
 
 # Where a car belongs, and what to call its profile
@@ -34,13 +34,34 @@ Not a reason for a new profile:
 
 - **Trim and equipment.** A car without BSD or a heat pump just has an ECU that doesn't answer.
 - **Model year.** A year is never by itself a distinction.
-- **Battery size, facelift or market** within one generation. These belong in the same profile;
-  the plan describes how such differences are recorded.
+- **Battery size, facelift or market** within one generation. These are *variants* of the same
+  profile (below).
 
 Two profiles of related cars (Kona and Niro, a model's EV and EREV) still duplicate their shared
 ECUs today. Sharing across profiles is the open inheritance design in
 `plans/2026-07-30-profile-variant-inheritance.md`; don't merge two cars into one profile to avoid
 the duplication.
+
+## Variants: versions of the car within one profile
+
+A **variant** is a version of the car the owner can name (battery size, facelift, a market with
+different diagnostics) **and** that matters to the diagnostics or to keeping captures apart. It
+is declared in the profile's `variants.yaml` with an ID and metadata. Variants are metadata only
+so far: nothing selects one or gates a definition on one yet, so don't describe them as if they
+did.
+
+- **Model year alone is never a variant.** Makers change parts on production dates, and owners
+  can't tell which side of a mid-year change their car is on. Record `production` (a build
+  window), and treat `model_years` as informational.
+- **Trim is never a variant.** Equipment differences only decide which ECUs answer.
+- **IDs are local and name only what differs**: the battery capacity the car is sold by, in whole
+  kWh (`28kwh`, `38kwh` for 38.3 kWh), plus the next difference when two variants share a pack
+  (`38kwh-us`). Never repeat the profile's make, model or code in an ID, and never use a year.
+- **Metadata is evidence.** Every value cites a source (`sources:`); leave a field out rather than
+  guess it. `status:` says how much to trust the variant as a whole: `verified` (proven on a car),
+  `community` (from community sources), `seed` (a placeholder for a car nobody has captured).
+  Record whether a battery figure is usable or gross; makers quote either.
+- **Edit with `canair variants`**, never by hand (`--help` for the syntax). Pass `--profile`.
 
 ## Naming a profile
 

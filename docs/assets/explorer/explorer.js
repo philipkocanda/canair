@@ -584,8 +584,14 @@
         if (route.mode === "plot") ui.writtenS = wanted;
         if (changed) {
           var s = data.profile.stats;
+          var variants = data.variants || [];
           ui.stats.textContent = data.profile.car_model + " · " + data.profile.maturity + " · " + s.ecus + " ECUs, " + s.pids + " PIDs, " +
-            s.params + " signals (" + s.verified + " verified)";
+            s.params + " signals (" + s.verified + " verified)" +
+            (variants.length ? " · variants: " + variants.map(function (v) { return v.id; }).join(", ") : "");
+          ui.stats.title = variants.map(function (v) {
+            return v.id + ": " + v.name + (v.production ? " (built " + v.production.join(" – ") + ")" : "") +
+              (v.status ? " · " + v.status : "");
+          }).join("\n");
           renderSearch();
         }
         var plot = route.mode === "plot" && window.canairExplorer.dataView;
