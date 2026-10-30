@@ -6,19 +6,21 @@ This module owns the keep-mode types/constants (see :data:`KeepMode` and
 writers, and the analysis commands all name the same values — no module compares
 against its own bare string literal.
 
-The monitor records with one of two dedup policies (per ECU/PID), both of which
-keep a capture file compact for a stationary signal:
+The monitor records every poll by default (``canair monitor --keep-all``); the
+capture file stays compact anyway, because repeated payloads are folded on disk
+(:mod:`canlib.captures.folding`). A session that recorded no dedup policy carries
+no ``keep_mode``. Two dedup policies can be recorded:
 
-- ``keep_mode: changes`` (the recording default, ``canair monitor --keep-changes``)
-  — **run-length**: only payloads that differ from the *immediately preceding*
-  one are stored. Genuine oscillation (``A→B→A→B``) is preserved and each stored
-  row is a real value-transition, so dwell durations are recoverable from the
-  timestamps. What's lost is the intra-run sampling cadence and the final run's
-  end time.
-- ``keep_mode: unique`` (legacy, ``canair monitor --keep-unique``) — **global**:
-  only payloads that differ from *any* seen before are stored. A return to any
-  prior value is dropped, so return-to-previous transitions and dwell durations
-  are absent, and stored-row time gaps are dedup artifacts, not real intervals.
+- ``keep_mode: changes`` (``canair monitor --keep-changes``) — **run-length**:
+  only payloads that differ from the *immediately preceding* one are stored.
+  Genuine oscillation (``A→B→A→B``) is preserved and each stored row is a real
+  value-transition, so dwell durations are recoverable from the timestamps.
+  What's lost is the intra-run sampling cadence and the final run's end time.
+- ``keep_mode: unique`` (legacy; no longer recordable) — **global**: only
+  payloads that differ from *any* seen before were stored. A return to any prior
+  value is dropped, so return-to-previous transitions and dwell durations are
+  absent, and stored-row time gaps are dedup artifacts, not real intervals.
+  Existing sessions keep the tag, so the analysis caveats below still apply.
 
 Analysis tools use the ``scope_is_*`` helpers to caveat results that would
 otherwise be misread. Pure inspection over already-loaded capture entries; no I/O
@@ -33,16 +35,17 @@ from typing import Literal, get_args
 # conflating them is the bug this typing prevents:
 #
 # - ``KeepMode`` is the monitor's *recording policy* — what the poll loop does
-#   with each payload. All four values are legitimate here.
-# - ``PersistedKeepMode`` is the *provenance* a capture session can carry. Only
-#   the two dedup policies are recordable: ``all``/``last`` mean "no dedup was
-#   applied", so the field's **absence** is the honest record. Writing "all" into
-#   a capture file would claim a dedup policy that was never applied.
+#   with each payload.
+# - ``PersistedKeepMode`` is the *provenance* a capture session can carry: the
+#   dedup policies. ``all``/``last`` mean "no dedup was applied", so the field's
+#   **absence** is the honest record. Writing "all" into a capture file would
+#   claim a dedup policy that was never applied. ``unique`` is provenance only:
+#   older sessions carry it, but nothing records it any more.
 #
 # Both are `Literal`s (not `StrEnum`) so the runtime values stay plain `str` and
 # serialise into YAML/JSON unchanged; the tuples below are derived from the types
 # so `choices=`/membership guards have exactly one source of truth.
-KeepMode = Literal["changes", "unique", "all", "last"]
+KeepMode = Literal["all", "changes", "last"]
 PersistedKeepMode = Literal["changes", "unique"]
 
 # The read-side spelling: ``load_all_captures`` denormalises the session's
@@ -50,10 +53,10 @@ PersistedKeepMode = Literal["changes", "unique"]
 # none (``all``/``last``, or a session predating the field).
 EntryKeepMode = Literal["changes", "unique", ""]
 
-KEEP_CHANGES: PersistedKeepMode = "changes"
-KEEP_UNIQUE: PersistedKeepMode = "unique"
 KEEP_ALL: KeepMode = "all"
+KEEP_CHANGES: KeepMode = "changes"
 KEEP_LAST: KeepMode = "last"
+KEEP_UNIQUE: PersistedKeepMode = "unique"
 
 KEEP_MODES: tuple[KeepMode, ...] = get_args(KeepMode)
 PERSISTED_KEEP_MODES: tuple[PersistedKeepMode, ...] = get_args(PersistedKeepMode)
@@ -62,9 +65,10 @@ PERSISTED_KEEP_MODES: tuple[PersistedKeepMode, ...] = get_args(PersistedKeepMode
 def parse_keep_mode(value: object) -> KeepMode | None:
     """Narrow an untrusted value (journal meta, loaded capture) to a keep mode.
 
-    Returns None for anything outside :data:`KEEP_MODES`, so a hand-edited or
-    stale file degrades to "no dedup policy known" instead of propagating a
-    bogus mode into the dedup logic.
+    Returns None for anything outside :data:`KEEP_MODES` — including the legacy
+    ``unique``, which is no longer recorded — so a hand-edited or stale file
+    degrades to "no dedup policy known" instead of propagating a bogus mode into
+    the dedup logic.
     """
     for mode in KEEP_MODES:
         if value == mode:
@@ -133,20 +137,18 @@ def scope_is_keep_changes(captures) -> bool:
 def keep_mode_from_args(args) -> KeepMode:
     """Resolve the monitor keep-mode from parsed ``--keep*`` flags.
 
-    The default is ``"changes"`` (run-length dedup) so a ``canair monitor --save``
-    session preserves real value-transitions without ballooning its capture file
-    with polled duplicates. Explicit overrides: ``--keep-unique`` → ``"unique"``
-    (legacy global dedup), ``--keep-all`` → ``"all"`` (full time-series),
-    ``--keep N`` → ``"last"``. Shared by both the ELM and raw-CAN monitor paths so
-    the default can't drift between transports.
+    The default is ``"all"`` (every poll): a stored row is then a real sample, so
+    row counts measure the polling rate and joins need no forward fill, while the
+    on-disk folding keeps the capture file about as small as run-length dedup
+    would. Explicit overrides: ``--keep-changes`` → ``"changes"`` (run-length
+    dedup), ``--keep N`` → ``"last"``. Shared by both the ELM and raw-CAN monitor
+    paths so the default can't drift between transports.
     """
-    if getattr(args, "keep_all", False):
-        return KEEP_ALL
     if getattr(args, "keep", None):
         return KEEP_LAST
-    if getattr(args, "keep_unique", False):
-        return KEEP_UNIQUE
-    return KEEP_CHANGES
+    if getattr(args, "keep_changes", False):
+        return KEEP_CHANGES
+    return KEEP_ALL
 
 
 def wants_save(args) -> bool:

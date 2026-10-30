@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://canair/captures/schema.json",
   "title": "canair capture file",
-  "description": "Machine schema for captures/*.json (format-agnostic — validates the parsed structure). Authoritative; the human-readable companion is docs/concepts/captures-and-states.md. Cross-checks that can't be expressed here (rx address must resolve via ecus/, filename must match session date) live in canlib/commands/validate/captures.py.",
+  "description": "Machine schema for captures/*.json (format-agnostic — validates the parsed structure, after loading has expanded every folded repeat: on disk a capture may carry a repeat_ms or repeat_inline_ms gap list, see canlib/captures/folding.py, but in memory every poll is its own capture, so neither field is valid here). Authoritative; the human-readable companion is docs/concepts/captures-and-states.md. Cross-checks that can't be expressed here (rx address must resolve via ecus/, filename must match session date) live in canlib/commands/validate/captures.py.",
   "type": "object",
   "required": ["sessions"],
   "additionalProperties": false,

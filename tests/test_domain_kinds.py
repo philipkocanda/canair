@@ -19,7 +19,8 @@ class TestGroupDefaults:
         # `captures` also carries a `migrate` kind (YAML→JSON store migration),
         # `migrate-rx` (the ecu→rx field rename), `migrate-discover` (the legacy
         # discover-responder repair), `split-batched` (the unsplit multi-DID reply
-        # repair), and `merge-driver` (the git session-union merge driver).
+        # repair), `compact` (the folded on-disk rewrite), and `merge-driver` (the
+        # git session-union merge driver).
         assert _GROUP_DEFAULTS["captures"] == (
             {
                 "uds",
@@ -28,6 +29,7 @@ class TestGroupDefaults:
                 "migrate-rx",
                 "migrate-discover",
                 "split-batched",
+                "compact",
                 "merge-driver",
             },
             "uds",

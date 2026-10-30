@@ -45,7 +45,6 @@ CANAIR_DEFAULTS: dict = {
     "monitor": None,
     "schedule": DEFAULT_SCHEDULE,
     "keep_changes": False,
-    "keep_unique": False,
     "keep_all": False,
     "keep": None,
     "save": False,

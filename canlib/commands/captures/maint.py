@@ -428,8 +428,9 @@ def _add_split_batched_parser(kinds) -> argparse.ArgumentParser:
         "through DIDs of the same ECU at each DID's established length, so a padded "
         "or merely long reply is left alone. The split rows drop `elapsed_ms` (one "
         "round trip answered them all). In a session recorded with a dedup keep mode "
-        "(`--keep-changes`/`--keep-unique`), a part the session would not have stored "
-        "(an unchanged value) is left out and reported as unchanged. Idempotent; a "
+        "(`--keep-changes`, or the legacy keep:unique), a part the session would not "
+        "have stored (an unchanged value) is left out and reported as unchanged. "
+        "Idempotent; a "
         "layered profile's read-only base is reported, not rewritten, and so is an "
         "overlay session the base holds identically (exit 1). A missing --dir is an "
         "error (exit 2). Performs the split by default; pass --dry-run to preview.",

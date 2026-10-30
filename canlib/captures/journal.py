@@ -40,7 +40,7 @@ from pathlib import Path
 from typing import cast
 
 from canlib.captures.types import CaptureSession, Quality
-from canlib.keepmode import KEEP_CHANGES, KEEP_UNIQUE, KeepMode, PersistedKeepMode, parse_keep_mode
+from canlib.keepmode import KEEP_CHANGES, KeepMode, PersistedKeepMode, parse_keep_mode
 
 JOURNAL_VERSION = 1
 JOURNAL_DIRNAME = ".journal"
@@ -256,31 +256,18 @@ def _dedup(
 ) -> list[tuple[str, str, str, str, str, int | None]]:
     """Apply keep-mode dedup to (ecu, pid, hex, time, date, elapsed_ms) rows, preserving order.
 
-    ``None``/``last`` keep every row as-is. The two dedup modes differ in how far
-    back they look, per (ecu, pid):
-
-    - ``changes`` (the recording default) — **run-length**: drop a row only when
-      its payload equals the *immediately preceding* kept payload for that PID. A
-      stationary signal collapses to one row, but genuine oscillation
-      (``A→B→A→B``) is preserved in full, and each stored row is a real transition
-      (so dwell durations are recoverable from the timestamps).
-    - ``unique`` (legacy) — **global**: drop a row whose (ecu, pid, payload) has
-      been seen *anywhere* before in the session, so a return to any prior value
-      is lost (return-to-previous transitions and durations are absent).
+    ``changes`` is **run-length**: drop a row only when its payload equals the
+    *immediately preceding* kept payload for that PID. A stationary signal
+    collapses to one row, but genuine oscillation (``A→B→A→B``) is preserved in
+    full, and each stored row is a real transition (so dwell durations are
+    recoverable from the timestamps). Every other mode keeps every row — including
+    a journal left by an older canair that recorded the retired ``unique`` mode,
+    which then reconciles with no dedup claimed, rather than with a dedup nothing
+    implements any more.
     """
-    if keep_mode == KEEP_UNIQUE:
-        seen: set[tuple[str, str, str]] = set()
-        out: list[tuple[str, str, str, str, str, int | None]] = []
-        for row in rows:
-            key = (row[0], row[1], row[2])
-            if key in seen:
-                continue
-            seen.add(key)
-            out.append(row)
-        return out
     if keep_mode == KEEP_CHANGES:
         last: dict[tuple[str, str], str] = {}
-        out = []
+        out: list[tuple[str, str, str, str, str, int | None]] = []
         for row in rows:
             key2 = (row[0], row[1])
             if last.get(key2) == row[2]:

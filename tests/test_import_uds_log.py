@@ -8,6 +8,7 @@ import json
 import pytest
 
 from canlib import can_logs
+from canlib.captures import io as capture_io
 from canlib.commands.import_uds import run
 from tests._isotp_frames import message_frames
 
@@ -77,7 +78,7 @@ def log(tmp_path):
 
 
 def session_of(tmp_path):
-    data = json.loads((tmp_path / "out" / "2023-01-12.json").read_text())
+    data = capture_io.load_capture_file(tmp_path / "out" / "2023-01-12.json")
     (session,) = data["sessions"]
     return session
 

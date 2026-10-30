@@ -653,15 +653,13 @@ def _overlay_capture_file(
     the upstream side a wholesale overwrite would drop exactly the sessions this
     overlay exists to preserve.
     """
-    import json
-
     from canlib.captures.io import dump_capture_file, load_capture_file
     from canlib.captures.merge import overlay
 
     try:
         up = load_capture_file(upstream)
         ours = load_capture_file(source)
-    except (OSError, json.JSONDecodeError) as e:
+    except (OSError, ValueError) as e:  # ValueError: bad JSON or a bad repeat encoding
         return f"{_CAPTURE_MEMBER}/{source.name}: not contributed (unreadable capture file: {e})"
     result = overlay(up, ours)
     if result.doc is not None:

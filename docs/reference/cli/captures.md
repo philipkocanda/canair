@@ -28,6 +28,8 @@ positional arguments:
                       probed TX
     split-batched     Split multi-DID replies stored whole under one DID into
                       per-DID captures
+    compact           Rewrite capture files with repeated polls folded, one
+                      capture per line
     merge-driver      Git merge driver: auto-union capture-file sessions (or
                       --install it)
 
@@ -329,11 +331,27 @@ usage: canair captures split-batched [-h] [--dry-run] [--json] [--dir DIR]
 
 Find service-22 captures whose payload is a whole multi-DID reply (62 D1 <data> D2 <data> …) stored under its first DID, and replace each with one capture per DID at the same time.
 
-A batched reply starts like a single reply to its first DID, so a batch reply that leaked into a per-DID read passed the echo check and was saved whole; `validate captures` reports these. A row is split only when it walks exactly through DIDs of the same ECU at each DID's established length, so a padded or merely long reply is left alone. The split rows drop `elapsed_ms` (one round trip answered them all). In a session recorded with a dedup keep mode (`--keep-changes`/`--keep-unique`), a part the session would not have stored (an unchanged value) is left out and reported as unchanged. Idempotent; a layered profile's read-only base is reported, not rewritten, and so is an overlay session the base holds identically (exit 1). A missing --dir is an error (exit 2). Performs the split by default; pass --dry-run to preview.
+A batched reply starts like a single reply to its first DID, so a batch reply that leaked into a per-DID read passed the echo check and was saved whole; `validate captures` reports these. A row is split only when it walks exactly through DIDs of the same ECU at each DID's established length, so a padded or merely long reply is left alone. The split rows drop `elapsed_ms` (one round trip answered them all). In a session recorded with a dedup keep mode (`--keep-changes`, or the legacy keep:unique), a part the session would not have stored (an unchanged value) is left out and reported as unchanged. Idempotent; a layered profile's read-only base is reported, not rewritten, and so is an overlay session the base holds identically (exit 1). A missing --dir is an error (exit 2). Performs the split by default; pass --dry-run to preview.
 
 options:
   -h, --help  show this help message and exit
   --dry-run   Preview splits without writing
+  --json      Machine-readable JSON output
+  --dir DIR   Captures directory (default: active profile)
+```
+
+## `canair captures compact`
+
+```
+usage: canair captures compact [-h] [--dry-run] [--json] [--dir DIR]
+
+Rewrite the active profile's capture files (captures/*.json) in the compact on-disk form.
+
+A poll that repeats the previous payload of the same ECU and PID is stored as a millisecond gap on the run's first capture (`repeat_ms` / `repeat_inline_ms`), and each capture is one line. Lossless: loading expands every repeat back into its own capture, so every command sees the same data. Every write already uses this form, so this only converts files no command has rewritten since. Idempotent; each file is verified before it is replaced, and a layered profile's read-only base is refused (exit 1). Performs the rewrite by default; pass --dry-run to preview.
+
+options:
+  -h, --help  show this help message and exit
+  --dry-run   Preview without writing
   --json      Machine-readable JSON output
   --dir DIR   Captures directory (default: active profile)
 ```

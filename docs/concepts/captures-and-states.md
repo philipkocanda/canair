@@ -61,6 +61,32 @@ Each `captures/YYYY-MM-DD.json` holds one day, as sessions of captures:
   every history-consuming command (`ecu`, `coverage`, `decode`, `correlate`,
   `hunt`, `investigate`).
 
+### Repeated polls are folded on disk
+
+A long recording polls a stationary signal over and over and gets the same payload back each
+time. On disk, a poll that repeats the previous payload of the same ECU and PID is not written
+as a row of its own. It is folded into the run's first capture as a gap in milliseconds since
+the previous poll of the run, and each capture sits on one line:
+
+```json
+      "captures": [
+        {"rx":"0x7BB","pid":"220100","payload":"62010…","time":"00:00:36.314","repeat_ms":[38822,45093,17789]},
+        {"rx":"0x7A8","pid":"22B001","payload":"62B00…","time":"00:00:36.402"}
+      ]
+```
+
+The first row stands for four polls: 00:00:36.314, then 38.822 s later, then 45.093 s after
+that, and so on. `repeat_ms` repeats are slotted back among the other PIDs' rows by their
+time; `repeat_inline_ms` (in a session stored grouped by PID) follow their row directly.
+
+Folding is **lossless**: every command loads the file with each repeat expanded back into
+its own capture, in the original order, so nothing downstream knows about it. canair folds
+only what it can restore exactly, which is why a capture with `elapsed_ms` or a note, or one
+with an untimed or non-standard `time`, stays a row of its own. Every write uses this form,
+and `canair captures compact` rewrites the files nothing has touched since (the bundled
+Ioniq's largest day went from 9.0 MB to 2.0 MB). Read the files through canair; a plain JSON
+parser sees the folded form.
+
 The **authoritative, machine-checked** schema (all fields, `scan_results`,
 deprecated fields) is `canlib/schema/captures_schema.json`; `canair validate
 captures` checks every file against it. A profile created before the JSON
@@ -190,8 +216,14 @@ canair captures uds --recover --discard   # or drop them unsaved
 
 `canair monitor … --save` records continuously: every poll cycle is
 journaled as it arrives and written to a capture file automatically when you
-quit. The scrollable live view shows a blinking `● REC` whenever a `--save`
-recording is active, and two keys control the session:
+quit. Every poll is kept (`--keep-all`, the default), so the stored rows show the real
+polling cadence; repeats cost little space because they are
+[folded on disk](#repeated-polls-are-folded-on-disk). `--keep-changes` instead stores only
+value-transitions per PID (run-length), and the session records `keep_mode: changes` so the
+analysis tools know to [carry each value forward](analysis-commands.md#forward-fill-a-run-length-row-is-a-segment-not-a-sample). The live view
+collapses each run of identical payloads into one row with its poll count (`×37`) and shows
+the newest few (`--keep N` sets how many). The scrollable live view shows a blinking `● REC`
+whenever a `--save` recording is active, and two keys control the session:
 
 - **`s` (label recording)** — set or edit the label / state / notes of the **current**
   recording. Everything is already journaled, so this only *labels* the session; it doesn't
@@ -528,7 +560,7 @@ canair --profile my-car captures split-batched
 
 A row is split only when it walks exactly through DIDs of the same ECU at each DID's
 established length (taken from its own replies), so a padded or merely long reply is left
-alone. In a `--keep-changes` or `--keep-unique` session, a part the session wouldn't have
+alone. In a `keep:changes` (or legacy `keep:unique`) session, a part the session wouldn't have
 stored again is left out. The repair is idempotent. In a layered profile it reports rows in the
 read-only base instead of rewriting them, and also overlay sessions the base holds identically
 (splitting only the overlay copy would turn one session into two).

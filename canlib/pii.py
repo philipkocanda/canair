@@ -279,8 +279,10 @@ def _base_session_keys(base_text: str | None) -> set[str]:
     """
     if not base_text:
         return set()
+    from canlib.captures import io as capture_io
+
     try:
-        data = json.loads(base_text)
+        data = capture_io.parse_capture_text(base_text)
     except ValueError:
         return set()
     if not isinstance(data, dict):

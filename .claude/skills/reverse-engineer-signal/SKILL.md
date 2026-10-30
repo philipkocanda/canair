@@ -195,9 +195,10 @@ canair import uds MCU:2102=6102... --label "forum: cold-soak" --state SLEEP \
     --notes "posted by <user>, 2017 Ioniq"   # ECU:PID=payload (SID-first, PCI stripped)
 ```
 
-> **Keep modes change what "a capture" *means*.** `monitor --save` defaults to
-> **`--keep-changes`** (run-length): a payload is stored only when it differs from the
-> previous one for that PID. So **a stored-row count measures VOLATILITY, not
+> **Keep modes change what "a capture" *means*.** `monitor --save` now records every poll
+> (**`--keep-all`**, folded losslessly on disk), but much of the history was recorded
+> **`--keep-changes`** (run-length): a payload stored only when it differs from the
+> previous one for that PID. There **a stored-row count measures VOLATILITY, not
 > sampling** — an ECU with 30 rows over 3 h was polled every cycle and merely didn't
 > *change*, while another in the same run with one noisy ADC byte stores thousands.
 > Never read a low count as "barely polled" or compare two ECUs' counts as sample
@@ -208,11 +209,10 @@ canair import uds MCU:2102=6102... --label "forum: cold-soak" --state SLEEP \
 > `align`/`correlate`/`hunt`/`investigate`/`decode` **forward-fill** `keep:changes` rows
 > (`--fill auto` default, `hold`/`none` to force/disable, `--max-hold` caps it), never
 > across a session boundary, and always report what they carried. Choose deliberately:
-> **`--keep-all`** for true timing/rate (dRPM, `--transform delta`, dwell);
-> **`--keep-changes`** for narrated event captures (both edges + recoverable dwell);
-> avoid **`--keep-unique`** whenever timing matters — global dedup discards
-> return-to-previous transitions, so the run structure is unrecoverable and fill cannot
-> reconstruct it.
+> the default **`--keep-all`** for true timing/rate (dRPM, `--transform delta`, dwell);
+> **`--keep-changes`** only when you want transition rows alone. Distrust timing on legacy
+> **`keep:unique`** sessions — global dedup discarded return-to-previous transitions, so
+> the run structure is unrecoverable and fill cannot reconstruct it.
 
 ### 5. Inspect — see the bytes
 

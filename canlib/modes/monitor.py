@@ -38,7 +38,7 @@ from ..formatting import (
     _bytes_to_ascii,
     _render_hex_line,
 )
-from ..keepmode import KEEP_ALL, KEEP_LAST, KeepMode
+from ..keepmode import KEEP_LAST, KeepMode
 from ..log import log_event
 from ..poll_schedule import DEFAULT_SCHEDULE, PollScheduler, Schedule
 from ..session_manager import SessionManager
@@ -889,18 +889,14 @@ class MonitorController:
         return self.view_mode
 
     def _history_render_limit(self) -> int:
-        """How many history rows to render per PID, by keep-mode.
+        """How many history rows (runs of identical payloads) to render per PID.
 
-        --keep N shows the requested N; --keep-all keeps the safety cap; the
-        default (--keep-changes) and --keep-unique stay compact at a handful of
-        newest rows so a noisy/long session's accrued payloads don't flood (or
-        choke) the live view — the full set is still in hex_history and the
-        --save journal.
+        --keep N shows the requested N; every other keep-mode stays compact at a
+        handful of newest runs so a noisy/long session doesn't flood (or choke)
+        the live view — every poll is still in the --save journal.
         """
         if self.keep_mode == KEEP_LAST and self.keep_n:
             return self.keep_n
-        if self.keep_mode == KEEP_ALL:
-            return _RENDER_MAX_ROWS
         return _RENDER_DEFAULT_ROWS
 
     def _ecu_ref(self, ecu_label: str) -> str:

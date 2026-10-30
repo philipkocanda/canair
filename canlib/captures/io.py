@@ -11,6 +11,12 @@ format lives in one seam (mirroring :mod:`canlib.yaml_io`).
 Capture files are **never hand-written**; they are produced by the
 ``canlib.captures`` helpers (the ``--save`` / journal-reconcile path) and edited
 via those helpers.
+
+On disk, repeated polls are folded into their run's first row
+(:mod:`canlib.captures.folding`) and each capture is one line; in memory every
+file is expanded back to one row per poll. :func:`parse_capture_text` and
+:func:`capture_text` are the two directions, so a reader that bypasses them
+(a bare ``json.loads``) sees the folded form.
 """
 
 from __future__ import annotations
@@ -22,6 +28,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+from canlib.captures.folding import CaptureFormatError, expand_file, fold_file
 from canlib.captures.types import CaptureFile
 
 # On-disk capture-file extension. Legacy profiles used ``.yaml`` (pre-migration);
@@ -107,9 +114,23 @@ def ensure_migrated(captures_dir: Path) -> None:
         )
 
 
+def parse_capture_text(text: str) -> CaptureFile:
+    """Parse capture-file text, expanding folded repeats to one row per poll.
+
+    The in-memory form of every capture file. Raises ``json.JSONDecodeError`` for
+    text that is not JSON and :class:`~canlib.captures.folding.CaptureFormatError`
+    for a malformed repeat encoding — both ``ValueError``.
+    """
+    return expand_file(json.loads(text))
+
+
 def load_capture_file(path: Path) -> CaptureFile:
-    """Parse one capture file (JSON). Returns the decoded structure (a dict)."""
-    return json.loads(path.read_text())
+    """Parse one capture file (see :func:`parse_capture_text`)."""
+    text = path.read_text()
+    try:
+        return parse_capture_text(text)
+    except CaptureFormatError as e:
+        raise CaptureFormatError(f"{path.name}: {e}") from e
 
 
 def capture_rx(cap: Mapping[str, Any]) -> str:
@@ -127,17 +148,46 @@ def capture_rx(cap: Mapping[str, Any]) -> str:
 
 
 def capture_text(data: Any) -> str:
-    """The canonical on-disk JSON text of a capture file (see :func:`dump_capture_file`)."""
-    return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
+    """The canonical on-disk JSON text of a capture file (see :func:`dump_capture_file`).
+
+    Repeated polls are folded (:mod:`canlib.captures.folding`), and the document is
+    pretty-printed with ``indent=2`` except that each capture is one compact line:
+    a session's metadata stays readable while a long recording costs a line per
+    stored capture, not one per field.
+    """
+    return _render(fold_file(data), 0, compact_items=False) + "\n"
+
+
+def _render(value: Any, level: int, *, compact_items: bool) -> str:
+    """``json.dumps(value, indent=2)``, with a session's ``captures`` one per line.
+
+    Byte-identical to ``json.dumps(indent=2, ensure_ascii=False)`` for everything
+    outside a session's ``captures`` list.
+    """
+    pad, close = "  " * (level + 1), "  " * level
+    if isinstance(value, dict) and value:
+        items = (
+            f"{pad}{json.dumps(k, ensure_ascii=False)}: "
+            + _render(v, level + 1, compact_items=level == 2 and k == "captures")
+            for k, v in value.items()
+        )
+        return "{\n" + ",\n".join(items) + f"\n{close}}}"
+    if isinstance(value, list) and value:
+        if compact_items:
+            rows = (pad + json.dumps(v, ensure_ascii=False, separators=(",", ":")) for v in value)
+        else:
+            rows = (pad + _render(v, level + 1, compact_items=False) for v in value)
+        return "[\n" + ",\n".join(rows) + f"\n{close}]"
+    return json.dumps(value, ensure_ascii=False)
 
 
 def dump_capture_file(path: Path, data: Any) -> None:
-    """Write ``data`` to ``path`` as pretty JSON, atomically.
+    """Write ``data`` to ``path`` in the canonical text form, atomically.
 
-    ``indent=2`` + ``ensure_ascii=False`` keep the file git-diffable and readable
-    for review (the tree is public); insertion order is preserved (no
-    ``sort_keys``) so the builder's field grouping and diffs stay stable. Written
-    via a temp file + ``os.replace`` so a crash never leaves a half-written file.
+    The text (:func:`capture_text`) stays git-diffable and readable for review
+    (the tree is public); insertion order is preserved (no ``sort_keys``) so the
+    builder's field grouping and diffs stay stable. Written via a temp file +
+    ``os.replace`` so a crash never leaves a half-written file.
     """
     text = capture_text(data)
     path.parent.mkdir(parents=True, exist_ok=True)

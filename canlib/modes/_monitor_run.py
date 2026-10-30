@@ -142,10 +142,10 @@ async def mode_monitor(
                         ``period:``; ``"fixed"`` polls every PID every cycle.
         session_steps:  Optional list of session/skm-wake steps to run once before
                         the first poll cycle.
-        keep_mode:      None = no history, "unique" = deduped unique payloads,
-                        "all" = every payload from every cycle,
-                        "last" = sliding window of last N payloads (see keep_n).
-        keep_n:         For keep_mode="last": number of recent payloads to display.
+        keep_mode:      None = no history, "all" = every poll (the CLI default),
+                        "changes" = only value-transitions per PID,
+                        "last" = sliding window of last N runs (see keep_n).
+        keep_n:         For keep_mode="last": number of recent runs to display.
         save:           Journal every polled payload as it arrives and reconcile
                         into captures/ on stop (crash/disconnect leaves a
                         recoverable journal). Metadata comes from label/state/

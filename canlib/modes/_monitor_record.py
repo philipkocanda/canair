@@ -26,13 +26,12 @@ from typing import TYPE_CHECKING, cast
 from canlib.captures.types import Quality
 
 from ..keepmode import (
-    KEEP_ALL,
+    KEEP_CHANGES,
     KEEP_LAST,
-    KEEP_UNIQUE,
     KeepMode,
-    PersistedKeepMode,
     persisted_keep_mode,
 )
+from ._monitor_history import PayloadHistory, extend_runs
 
 if TYPE_CHECKING:
     from .monitor import MonitorController
@@ -108,8 +107,8 @@ def _open_journal(controller, label: str | None, vehicle_states, notes: str | No
 
     Shared by ``mode_monitor`` (run start) and ``MonitorRecorder.new_segment``
     (segment rotate) so their open args can't drift. The recording keep-mode
-    (``changes``/``unique``) is carried through from the display keep-mode; other
-    modes journal every row.
+    (``changes``) is carried through from the controller; ``all``/``last`` keep
+    every row.
     The transport label (for saved-capture provenance) comes from the controller.
     """
     from canlib.captures.journal import CaptureJournal
@@ -140,16 +139,16 @@ class MonitorRecorder:
         self.c = controller
         # Frame accounting (surfaced in the status line). total_frames counts every
         # fresh (non-stale) payload received across all cycles — the "captured"
-        # figure; unique_frames counts distinct (ecu, pid, payload) values seen,
-        # which is what a keep:unique session actually stores/displays.
+        # figure; unique_frames counts distinct (ecu, pid, payload) values seen.
         self.total_frames = 0
         self.unique_frames = 0
         self._seen_payloads: set[tuple[tuple[str, str], str]] = set()
-        self.hex_history: dict[tuple[str, str], list[tuple[str, str]]] | None = (
-            {} if controller.keep_mode else None
-        )
+        # The live view's per-PID runs of identical payloads (display only).
+        self.hex_history: PayloadHistory | None = {} if controller.keep_mode else None
+        # The rows an on-demand save writes when no journal is recording them,
+        # kept by the keep-mode (every poll, or only value-transitions).
         self.save_history: dict[tuple[str, str], list[tuple[str, str]]] | None = (
-            {} if controller.save else None
+            {} if controller.save or controller.keep_mode else None
         )
         # High-water mark of payloads already written by a non-journal on-demand
         # save (the fallback --save-off path), per PID key. Repeated 's' presses
@@ -249,7 +248,7 @@ class MonitorRecorder:
                 c.prev_hex[key] = raw
                 # Frame accounting: every fresh payload is a captured frame; track
                 # distinct (key, payload) so the status line can show captured vs
-                # unique (which is what keep:unique stores).
+                # unique.
                 self.total_frames += 1
                 sig = (key, raw)
                 if sig not in self._seen_payloads:
@@ -263,29 +262,20 @@ class MonitorRecorder:
                 dt = datetime.fromtimestamp(acq) if acq else datetime.now()
                 ts = dt.strftime("%H:%M:%S.%f")[:-3]
                 ts_date = dt.strftime("%Y-%m-%d")
-                if self.save_history is not None:  # --save
-                    if self.journal is not None:
-                        # Journaled: the write-ahead log is the source of truth on
-                        # exit, so skip the redundant in-memory save_history growth.
-                        with contextlib.suppress(Exception):
-                            self.journal.append(
-                                c._ecu_ref(ecu_label), entry["pid"], raw, ts, ts_date
-                            )
-                    else:
-                        self.save_history.setdefault(key, []).append((raw, ts))
-                if self.hex_history is not None:  # --keep display history
-                    if c.keep_mode in (KEEP_ALL, KEEP_LAST):
-                        self.hex_history.setdefault(key, []).append((raw, ts))
-                        if (
-                            c.keep_mode == KEEP_LAST
-                            and c.keep_n
-                            and len(self.hex_history[key]) > c.keep_n
-                        ):
-                            self.hex_history[key] = self.hex_history[key][-c.keep_n :]
-                    else:  # "unique": store only if not seen before
-                        existing = [h for h, _ts in self.hex_history.get(key, [])]
-                        if raw not in existing:
-                            self.hex_history.setdefault(key, []).append((raw, ts))
+                keep_n = c.keep_n if c.keep_mode == KEEP_LAST else None
+                if self.journal is not None:
+                    # Journaled: the write-ahead log is the source of truth on exit,
+                    # so skip the redundant in-memory save_history growth.
+                    with contextlib.suppress(Exception):
+                        self.journal.append(c._ecu_ref(ecu_label), entry["pid"], raw, ts, ts_date)
+                elif self.save_history is not None:
+                    rows = self.save_history.setdefault(key, [])
+                    if c.keep_mode != KEEP_CHANGES or not rows or rows[-1][0] != raw:
+                        rows.append((raw, ts))
+                        if keep_n and len(rows) > keep_n:
+                            del rows[:-keep_n]
+                if self.hex_history is not None:
+                    extend_runs(self.hex_history.setdefault(key, []), raw, ts, limit=keep_n)
         # One durable flush per cycle instead of an fsync per payload — keeps the
         # poll loop (and TUI) off N serial fsync syscalls when saving many PIDs.
         if self.journal is not None:
@@ -360,8 +350,7 @@ class MonitorRecorder:
 
     def has_captures(self) -> bool:
         """True when there's at least one payload available to save."""
-        history = self.save_history if self.save_history is not None else (self.hex_history or {})
-        return bool(history) or bool(self.c.prev_hex)
+        return bool(self.save_history) or bool(self.c.prev_hex)
 
     def set_segment_meta(
         self, label: str | None, states: list[str] | None, notes: str | None
@@ -398,10 +387,9 @@ class MonitorRecorder:
         """Save the payloads captured so far (on-demand save from the TUI).
 
         ``vehicle_states`` may be a comma-separated string (as typed in the TUI
-        dialog) or a token list; it is normalized to a list. Uses the richest
-        history available — the full ``--save`` history if enabled, else the
-        display (``--keep``) history, else just the latest per-PID snapshot —
-        merged with the current values. Returns a one-line summary for display.
+        dialog) or a token list; it is normalized to a list. Writes the rows kept
+        since the last save (by the keep-mode), else just the latest per-PID
+        snapshot, merged with the current values. Returns a one-line summary for display.
         Never writes to stdout (the TUI owns the screen); the destination banner
         is deferred to :attr:`deferred_saves` and printed after the app exits.
         """
@@ -426,8 +414,7 @@ class MonitorRecorder:
                 "(auto-saved on quit / new session)."
             )
 
-        history = self.save_history if self.save_history is not None else (self.hex_history or {})
-        merged = _merge_history(history, self.c.prev_hex)
+        merged = _merge_history(self.save_history or {}, self.c.prev_hex)
         if not merged:
             return "No payloads captured yet — nothing to save."
 
@@ -452,14 +439,6 @@ class MonitorRecorder:
 
         n_pids = len(new_merged)
         n_payloads = sum(len(v) for v in new_merged.values())
-        # This non-journal path draws from the display history, which is
-        # globally deduped for both "changes" and "unique" modes (see observe()).
-        # Persist it honestly as "unique" (global) rather than the controller's
-        # nominal "changes" — run-length is only applied on the journal path. A
-        # non-dedup mode (all/last) records no policy at all.
-        save_keep: PersistedKeepMode | None = (
-            KEEP_UNIQUE if persisted_keep_mode(self.c.keep_mode) else None
-        )
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
             path = _write_merged(
@@ -468,7 +447,8 @@ class MonitorRecorder:
                 states,
                 notes or "",
                 captures_dir,
-                keep_mode=save_keep,
+                # save_history applied the keep-mode as it grew (see observe()).
+                keep_mode=self.c.keep_mode,
                 transport=getattr(self.c, "transport_type", None),
                 quality=self.segment_quality(),
             )

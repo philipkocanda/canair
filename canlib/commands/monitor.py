@@ -102,23 +102,23 @@ For a single one-shot read (no live refresh) use `canair read` instead.
     parser.add_argument("--wake", action="store_true", help="Wake ECUs from deep sleep (10 01)")
     keep = parser.add_mutually_exclusive_group()
     keep.add_argument(
-        "--keep-changes",
-        action="store_true",
-        help="Retain value-transitions per PID (run-length; collapses only "
-        "immediate repeats) — the default",
-    )
-    keep.add_argument(
-        "--keep-unique",
-        action="store_true",
-        help="Retain only globally-distinct payloads per PID (legacy global dedup; "
-        "return-to-previous transitions are dropped)",
-    )
-    keep.add_argument(
         "--keep-all",
         action="store_true",
-        help="Retain every polled payload (full time-series; larger capture files)",
+        help="Record every polled payload (full time-series) — the default. Repeated "
+        "payloads are folded on disk, so the capture file stays compact",
     )
-    keep.add_argument("--keep", type=int, metavar="N", help="Keep the last N payloads per PID")
+    keep.add_argument(
+        "--keep-changes",
+        action="store_true",
+        help="Record only value-transitions per PID (run-length; drops immediate "
+        "repeats, so the polling cadence is not recorded)",
+    )
+    keep.add_argument(
+        "--keep",
+        type=int,
+        metavar="N",
+        help="Show only the last N history rows per PID in the live view",
+    )
     parser.add_argument("--save", action="store_true", help="Save results to captures/")
     parser.add_argument("--label", metavar="TEXT", default=None, help="Session label for --save")
     parser.add_argument("--state", metavar="TEXT", default=None, help="Session state for --save")

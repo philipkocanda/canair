@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 """Validity intervals for run-length (``keep:changes``) capture data.
 
-``canair monitor --save`` defaults to ``--keep-changes``: a payload is stored only
-when it *differs from the immediately preceding one* for that PID. That is the
-right storage decision — a body ECU polled for three hours while the car sits
-parked would otherwise write thousands of identical rows — but it means a stored
-row is a **run-length segment**, not a sample. Its value is known to hold until
-the next stored row for that PID.
+``canair monitor --save --keep-changes`` (the default until keep-all replaced
+it, so much of the history is recorded this way) stores a payload only when it
+*differs from the immediately preceding one* for that PID. A stored row is then a
+**run-length segment**, not a sample. Its value is known to hold until the next
+stored row for that PID.
 
 The time-aligned joins (``align``/``correlate``/``hunt``/``investigate``) treated
 every stored row as a point sample, so a signal that legitimately did not change
@@ -222,7 +221,7 @@ FORCED_HOLD_WARNING = (
     f"warning: --fill hold is carrying values forward across keep:{KEEP_UNIQUE} "
     "sessions — global dedup discarded return-to-previous transitions, so a stored "
     "row's value is not known to have held until the next one. The filled segments "
-    "may be fiction; prefer --fill auto (or re-record with --keep-changes)."
+    "may be fiction; prefer --fill auto (or re-record: the default keep-all keeps every poll)."
 )
 
 

@@ -225,13 +225,15 @@ def _render_hex_line(
     prev_raw: str = "",
     prefix: str = "      ",
     prefix_style: str = "",
+    suffix: str = "",
 ) -> Text:
     """Render a payload hex line as Rich Text with per-byte change highlighting.
 
     Bytes get a base colour from parameter coverage (green=verified, yellow=
     unverified, grey=uncovered); bytes differing from ``prev_raw`` get a
     highlighted background variant. Unmapped/paramless payloads render grey with
-    a trailing ASCII column. ``prefix`` is prepended before the hex bytes.
+    a trailing ASCII column. ``prefix`` is prepended before the hex bytes and
+    ``suffix`` (dimmed) appended after them.
     """
     elm_bytes = [raw_hex[i : i + 2] for i in range(0, len(raw_hex), 2)]
     prev_bytes = [prev_raw[i : i + 2] for i in range(0, len(prev_raw), 2)] if prev_raw else []
@@ -259,6 +261,8 @@ def _render_hex_line(
             t.append(hb, style=style)
         t.append(f"  ({n_bytes} B)", style="bright_black")
 
+    if suffix:
+        t.append(suffix, style="dim")
     t.append("\n")
     return t
 

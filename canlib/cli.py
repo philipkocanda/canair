@@ -57,6 +57,7 @@ _GROUP_DEFAULTS = {
             "migrate-rx",
             "migrate-discover",
             "split-batched",
+            "compact",
             "merge-driver",
         },
         "uds",

@@ -19,7 +19,6 @@ from __future__ import annotations
 import argparse
 import contextlib
 import io
-import json
 from pathlib import Path
 from typing import Any
 
@@ -402,7 +401,7 @@ def unsplit_in_contribution(
         if path not in upstream:
             text = read_base(f"profiles/{profile.name}/captures/{path.name}")
             try:
-                base = json.loads(text) if text else {}
+                base = capture_io.parse_capture_text(text) if text else {}
             except ValueError:
                 base = {}
             upstream[path] = {
