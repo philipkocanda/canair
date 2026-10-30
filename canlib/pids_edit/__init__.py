@@ -7,6 +7,7 @@ Split by concern into a package:
     sessions + discovery promotion)
   * :mod:`.params` — parameter / research / identity editors (the RE workflow)
   * :mod:`.support_map` — the per-PID ``support_map:`` declaration editor
+  * :mod:`.provenance` — PID-level ``source``/``source_links`` and hoisting them out of parameters
 
 The full public API is re-exported here so callers that
 ``from canlib.pids_edit import …`` are unaffected by the split.
@@ -47,11 +48,13 @@ from .params import (
     set_wake,
     upsert_parameter,
 )
+from .provenance import Hoisted, hoist_provenance, set_pid_source, set_pid_source_links
 from .support_map import set_support_map
 
 __all__ = [
     "EDITABLE_FIELDS",
     "IOCONTROL_FIELDS",
+    "Hoisted",
     "PidsEditError",
     "add_pid",
     "add_research_entry",
@@ -62,6 +65,7 @@ __all__ = [
     "delete_pid",
     "delete_research_entry",
     "find_ecu_file",
+    "hoist_provenance",
     "promote_discovery",
     "remove_identity_field",
     "rename_parameter",
@@ -72,6 +76,8 @@ __all__ = [
     "set_param_field",
     "set_pid_notes",
     "set_pid_period",
+    "set_pid_source",
+    "set_pid_source_links",
     "set_pid_status",
     "set_pid_variable_length",
     "set_research_notes",

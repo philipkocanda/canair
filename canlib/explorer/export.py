@@ -25,7 +25,7 @@ from typing import Any
 from canlib.addressing import resolve_mode, resolve_rx, resolve_rx_offset
 from canlib.ecus.files import iter_ecu_files
 from canlib.explorer.layout import layout_buses
-from canlib.pids import pid_status
+from canlib.pids import effective_param, pid_status
 from canlib.yaml_rt import round_trip_yaml
 
 DEFAULT_BLOB_BASE = "https://github.com/philipkocanda/canair/blob/main/"
@@ -132,7 +132,10 @@ def _is_web_url(url: str) -> bool:
     return url.lower().startswith(("https://", "http://"))
 
 
-def _signal_record(name: str, sig: Mapping, node: Any, file: str) -> dict[str, Any]:
+def _signal_record(
+    name: str, sig: Mapping, node: Any, file: str, pid_def: Mapping
+) -> dict[str, Any]:
+    sig = effective_param(dict(pid_def), dict(sig))
     rec = {"name": name, **_pick(sig, SIGNAL_FIELDS), "src": _src(file, node, name)}
     links = [str(u) for u in sig.get("source_links") or [] if isinstance(u, str) and _is_web_url(u)]
     if links:
@@ -148,7 +151,7 @@ def _pid_record(pid: Any, pid_def: Mapping, node: Any, file: str) -> dict[str, A
         "status": pid_status(dict(pid_def)),
         **_pick(pid_def, ("period", "response_frames", "vehicle_states", "notes")),
         "signals": [
-            _signal_record(str(n), s, params, file)
+            _signal_record(str(n), s, params, file, pid_def)
             for n, s in params.items()
             if isinstance(s, Mapping)
         ],

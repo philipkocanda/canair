@@ -77,6 +77,27 @@ def pid_status(pid_def: dict) -> PidStatus:
     return DEFAULT_PID_STATUS
 
 
+# Provenance a PID states once for all its parameters. A parameter that sets the key itself
+# (even to ``""`` / ``[]``, an explicit "none") keeps its own value; one that omits it
+# inherits the PID's. ``notes`` is deliberately absent: a PID's notes describe the page,
+# a parameter's describe the signal, and neither stands in for the other.
+INHERITED_PARAM_FIELDS: tuple[str, ...] = ("source", "source_links")
+
+
+def effective_param(pid_def: dict, param_def: dict) -> dict:
+    """The parameter with its inherited provenance filled in from the PID.
+
+    Returns ``param_def`` itself when there is nothing to inherit, else a copy — the
+    definition on file is never modified.
+    """
+    inherited = {
+        field: pid_def[field]
+        for field in INHERITED_PARAM_FIELDS
+        if param_def.get(field) is None and (pid_def or {}).get(field) is not None
+    }
+    return {**param_def, **inherited} if inherited else param_def
+
+
 class PidIndexEntry(TypedDict):
     """One PID's entry in a :func:`build_ecu_index` result.
 

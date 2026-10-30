@@ -37,6 +37,7 @@ from pathlib import Path
 import requests
 
 from canlib.commands._group import group_help
+from canlib.pids import effective_param
 from canlib.response_frames import stored_count
 from canlib.transport.config import TransportType
 from canlib.wican.api import resolve_wican_url
@@ -298,7 +299,7 @@ def print_stats(data: dict) -> None:
             unverified_count += n_unverified
             total_pids += 1
 
-            sources = {p.get("source", "?") for p in params.values()}
+            sources = {effective_param(pid_data, p).get("source", "?") for p in params.values()}
             source_str = "; ".join(sorted(sources))[:40]
 
             # A dash means the PID still pays the adapter's full response-wait

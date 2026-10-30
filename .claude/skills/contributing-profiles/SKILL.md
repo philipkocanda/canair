@@ -84,7 +84,9 @@ Before submitting, make the profile clean and honest:
 - **Prefer verified params with a `--source`.** A verified parameter should carry
   the evidence that verified it (`--source`, `--notes`); an honest `--unverified`
   candidate is fine and welcome, just labelled as such. Author these with
-  `canair pids upsert-param` (never hand-edit `ecus/`).
+  `canair pids upsert-param` (never hand-edit `ecus/`). Evidence shared by a whole page goes on
+  the PID (`set-pid-source`, `set-pid-source-links`; `hoist-provenance` folds up repeats) —
+  signals without their own `source`/`source_links` inherit it.
 - **`car_model` pins down the vehicle** — model / year / market / battery — so
   another owner can tell whether the profile matches *their* car. Set it via the
   profile scaffold or `canair config`/profile tooling, not by hand-editing if a

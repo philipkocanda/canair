@@ -179,3 +179,22 @@ def test_layout_without_any_bus_data_puts_everything_in_unplaced():
 )
 def test_profile_maturity(counts, expected):
     assert profile_maturity(counts) == expected
+
+
+def test_signal_inherits_the_pids_provenance():
+    from canlib.explorer.export import _pid_record
+
+    pid_def = {
+        "status": "active",
+        "source": "page source",
+        "source_links": ["https://example.org/page", "not-a-web-link"],
+        "parameters": {
+            "INHERITS": {"expression": "B10"},
+            "OWNS": {"expression": "B11", "source": "own", "source_links": []},
+        },
+    }
+    rec = _pid_record("2101", pid_def, {"2101": pid_def}, "x.yaml")
+    inherits, owns = rec["signals"]
+    assert inherits["source"] == "page source"
+    assert inherits["source_links"] == ["https://example.org/page"]
+    assert owns["source"] == "own" and "source_links" not in owns

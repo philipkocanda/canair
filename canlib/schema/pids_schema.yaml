@@ -380,9 +380,13 @@ optional_pid_fields:
                      # A profile's vehicle_states.yaml may add composite tokens (parked/driving).
                      # Empty array [] means untested/unknown. Omitting is also valid.
   - notes
+  - source           # str: where the PID's decoding came from. Every parameter that does not
+                     #   set its own `source` inherits this one (a parameter's own value,
+                     #   including an explicit "", wins). State provenance here once rather
+                     #   than repeating it on each parameter: `canair pids hoist-provenance`
+                     #   moves a value shared by all of a PID's parameters up to this level.
+  - source_links     # list[str]: references for `source`, inherited the same way.
   - parameters
-
-# Accepted values for a PID's `status:` lifecycle field.
 valid_pid_status:
   - active
   - draft

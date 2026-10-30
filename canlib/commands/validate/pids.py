@@ -600,6 +600,7 @@ def _validate_one_pid(
     if variable_length is not None and not isinstance(variable_length, bool):
         errors.append(f"{label}: variable_length must be a boolean")
 
+    _validate_provenance(pid_def, label, errors)
     try:
         support_map_declaration(pid_def)
     except SupportMapError as e:
@@ -642,6 +643,18 @@ def _validate_one_pid(
     _validate_parameters(pid_def, path, ecu_name, pid_str, fields, errors, warnings, stats)
 
 
+def _validate_provenance(node: dict, label: str, errors: list) -> None:
+    """``source`` must be a string and ``source_links`` a list of strings (PID or parameter)."""
+    source = node.get("source")
+    if source is not None and not isinstance(source, str):
+        errors.append(f"{label}: source must be a string")
+    links = node.get("source_links")
+    if links is not None and (
+        not isinstance(links, list) or not all(isinstance(u, str) for u in links)
+    ):
+        errors.append(f"{label}: source_links must be a list of strings")
+
+
 def _validate_parameters(
     pid_def, path, ecu_name, pid_str, fields: _SchemaFields, errors, warnings, stats
 ) -> None:
@@ -668,6 +681,8 @@ def _validate_parameters(
         for field in param:
             if field not in fields.all_param:
                 warnings.append(f"{label}: unknown field '{field}'")
+
+        _validate_provenance(param, label, errors)
 
         expr = param.get("expression", "")
         if expr:

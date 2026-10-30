@@ -22,6 +22,9 @@ Subcommands:
   set-pid-status ECU PID STATUS    Set a PID's lifecycle (active|draft|static|slow|ignored)
   set-pid-period ECU PID MS|clear  Set the WiCAN AutoPID polling interval (ms)
   set-pid-notes ECU PID [TEXT]     Set (or clear) a PID's free-text notes
+  set-pid-source ECU PID [TEXT]    Set (or clear) the source every parameter of the PID inherits
+  set-pid-source-links ECU PID [URL ...] Set (or clear) the source links they inherit
+  hoist-provenance [ECU [PID]]     Move source/source_links repeated on each parameter to the PID
   set-identity ECU FIELD VALUE     Set a curated identity field (e.g. notes)
   rm-identity  ECU FIELD           Remove an identity field (e.g. a redundant duplicate)
   set-can-bus  ECU CODE [CODE ...] Set the physical CAN bus segment(s) (see can_buses.yaml)
@@ -62,6 +65,7 @@ from canlib.pids_edit import (
     delete_pid,
     delete_research_entry,
     find_ecu_file,
+    hoist_provenance,
     remove_identity_field,
     rename_parameter,
     rename_pid,
@@ -70,6 +74,8 @@ from canlib.pids_edit import (
     set_iocontrol_scan_ranges,
     set_pid_notes,
     set_pid_period,
+    set_pid_source,
+    set_pid_source_links,
     set_pid_status,
     set_pid_variable_length,
     set_research_notes,
@@ -498,6 +504,68 @@ def cmd_set_pid_notes(args: argparse.Namespace) -> int:
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
     what = "cleared" if not (notes or "").strip() else f"set ({len((notes or '').split())} words)"
     echo_edit(f"{args.ecu} {args.pid} notes {what}", fpath)
+    return 0
+
+
+def cmd_set_pid_source(args: argparse.Namespace) -> int:
+    def do():
+        set_pid_source(args.ecu, args.pid, args.value, pids_dir=args.dir)
+
+    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
+    state = "set" if (args.value or "").strip() else "cleared"
+    echo_edit(f"{args.ecu} {args.pid} source {state}", fpath)
+    return 0
+
+
+def cmd_set_pid_source_links(args: argparse.Namespace) -> int:
+    def do():
+        set_pid_source_links(args.ecu, args.pid, args.urls, pids_dir=args.dir)
+
+    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
+    state = f"set ({len(args.urls)})" if args.urls else "cleared"
+    echo_edit(f"{args.ecu} {args.pid} source_links {state}", fpath)
+    return 0
+
+
+def _ecu_names(ecus_dir: Path | None) -> list[str]:
+    """Every ECU key defined under ``ecus_dir`` (default: the active profile)."""
+    import yaml
+
+    from canlib.ecus.files import iter_ecu_files
+
+    names: list[str] = []
+    for path in iter_ecu_files(ecus_dir):
+        doc = yaml.safe_load(path.read_text())
+        if isinstance(doc, dict):
+            names.extend(str(k) for k in doc)
+    return names
+
+
+def cmd_hoist_provenance(args: argparse.Namespace) -> int:
+    if args.pid and not args.ecu:
+        raise SystemExit(f"{ansi.RED}  Error: a PID needs its ECU{ansi.RESET}")
+    ecus = [args.ecu] if args.ecu else _ecu_names(args.dir)
+    moved = 0
+    for ecu in ecus:
+        found: list = []
+
+        def do(ecu=ecu, found=found):
+            found.extend(hoist_provenance(ecu, args.pid, dry_run=args.dry_run, pids_dir=args.dir))
+
+        if args.dry_run:
+            do()
+            fpath = find_ecu_file(ecu, pids_dir=args.dir)
+        else:
+            if not args.dir:
+                require_writable_definitions()
+            fpath = _guarded(ecu, args.dir, do, validate=not args.no_validate)
+        for h in found:
+            print(f"  {ecu} {h.pid} {h.field}: {len(h.params)} parameters -> PID level")
+        if found and not args.dry_run:
+            echo_edit(f"{ecu} provenance hoisted ({len(found)} fields)", fpath)
+        moved += len(found)
+    verb = "Would hoist" if args.dry_run else "Hoisted"
+    print(f"  {verb} {moved} field(s).")
     return 0
 
 
@@ -1027,6 +1095,54 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     )
     _add_common(spn)
     spn.set_defaults(_pids_func=cmd_set_pid_notes)
+
+    sps_src = sub.add_parser(
+        "set-pid-source",
+        help="Set (or clear) the source every parameter of a PID inherits",
+        description=(
+            "Set the PID-level source: — where the page's decoding came from. A parameter "
+            "that sets no source of its own inherits it, so a source shared by the whole "
+            "page is stated once. Omit VALUE to clear the field."
+        ),
+    )
+    sps_src.add_argument("ecu")
+    sps_src.add_argument("pid")
+    sps_src.add_argument("value", nargs="?", help="New source text (omit to clear the field)")
+    _add_common(sps_src)
+    sps_src.set_defaults(_pids_func=cmd_set_pid_source)
+
+    spl = sub.add_parser(
+        "set-pid-source-links",
+        help="Set (or clear) the source links every parameter of a PID inherits",
+        description=(
+            "Set the PID-level source_links: list, inherited by every parameter that sets "
+            "none of its own. Give no URL to clear the field."
+        ),
+    )
+    spl.add_argument("ecu")
+    spl.add_argument("pid")
+    spl.add_argument("urls", nargs="*", metavar="URL", help="Links (omit to clear the field)")
+    _add_common(spl)
+    spl.set_defaults(_pids_func=cmd_set_pid_source_links)
+
+    hp = sub.add_parser(
+        "hoist-provenance",
+        help="Move source/source_links repeated on a PID's parameters up to the PID",
+        description=(
+            "Find PIDs whose parameters repeat the same source or source_links and state "
+            "the value once on the PID instead. A field moves only when it changes no "
+            "signal's provenance: every parameter must carry its own non-empty value, and "
+            "at least two share the most common one (a differing parameter keeps its value "
+            "as an override). The result is verified before it is kept. Name an ECU (and "
+            "PID) to narrow the sweep; with neither, the whole profile is processed. "
+            "--dry-run lists what would move."
+        ),
+    )
+    hp.add_argument("ecu", nargs="?", help="Limit to this ECU (default: every ECU)")
+    hp.add_argument("pid", nargs="?", help="Limit to this PID")
+    hp.add_argument("--dry-run", action="store_true", help="List what would move; write nothing")
+    _add_common(hp)
+    hp.set_defaults(_pids_func=cmd_hoist_provenance)
 
     si = sub.add_parser("set-identity", help="Set a curated identity field (e.g. notes)")
     si.add_argument("ecu")

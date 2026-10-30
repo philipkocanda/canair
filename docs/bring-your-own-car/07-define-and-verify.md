@@ -28,7 +28,10 @@ canair pids upsert-param MyECU 2101 SPEED_KMH "[B12]" \
   `canair bix --annotate`.
 - `--unit`, `--min`, `--max` — metadata that documents and bounds the signal.
 - `--source` — *why you believe it* (correlation, a reference car, a datasheet).
-  Evidence, not vibes.
+  Evidence, not vibes. When every signal on a page shares the same evidence, state it once on
+  the PID instead — `canair pids set-pid-source ECU PID "…"` (and `set-pid-source-links`) —
+  and each signal that sets no `source` of its own inherits it. `canair pids hoist-provenance`
+  moves duplicates you already have up to the PID, changing no signal's provenance.
 - `--unverified` — **start here.** A hypothesis is a hypothesis until proven.
 
 ## Verify before you trust it

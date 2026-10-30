@@ -57,6 +57,9 @@ _STRIP_ECU_SECTIONS = (
     "routines",
     "notes",
 )
+# PID-level provenance a parameter would otherwise inherit — it names the references the
+# signals were decoded from, so it goes with the parameters.
+_STRIP_PID_FIELDS = ("source", "source_links")
 # Identity sub-fields that narrate the module's function or carry PII.
 _STRIP_IDENTITY_FIELDS = ("description", "notes", "vin", "serial")
 # Top-level profile members withheld from the sandbox — each would hand over
@@ -203,6 +206,8 @@ def _strip_ecu_doc(body: dict, report: StripReport) -> None:
             if isinstance(params, dict):
                 report.params_removed += len(params)
             pid_def.pop("parameters", None)
+            for field in _STRIP_PID_FIELDS:
+                pid_def.pop(field, None)
             if "notes" in pid_def:
                 pid_def.pop("notes", None)
                 report.notes_removed += 1
@@ -318,8 +323,12 @@ def _find_leaks(ecus_dir: Path) -> list[str]:
                 if sec in body:
                     leaks.append(f"{path.name}:{ecu}:{sec}")
             for pid, pid_def in (body.get("pids") or {}).items():
-                if isinstance(pid_def, dict) and ("parameters" in pid_def or "notes" in pid_def):
-                    leaks.append(f"{path.name}:{ecu}:{pid}:parameters/notes")
+                if isinstance(pid_def, dict) and (
+                    "parameters" in pid_def
+                    or "notes" in pid_def
+                    or any(f in pid_def for f in _STRIP_PID_FIELDS)
+                ):
+                    leaks.append(f"{path.name}:{ecu}:{pid}:parameters/notes/source")
     return leaks
 
 
