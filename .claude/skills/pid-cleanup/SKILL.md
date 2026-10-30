@@ -127,10 +127,10 @@ guess from the note (rule 2).
    text to clear it) — that note ages fastest of anything in the file, since it
    describes what the page *is* while the decode underneath keeps changing.
    Never hand-edit YAML. Watch the `upsert-param` decoded-range echo as a sanity
-   check on the offset. Run `canair pids hoist-provenance <ECU> --dry-run` to find
-   `source`/`source_links` repeated across a page's params; drop the `--dry-run` to state
-   them once on the PID (params without their own value inherit it; nothing resolves
-   differently).
+   check on the offset. Run `canair pids hoist-defaults <ECU> --dry-run` to find
+   `unit`/`ha_class`/`min`/`max`/`verified`/`source`/`source_links` repeated across a page's
+   params; drop the `--dry-run` to state them once on the PID (params without their own value
+   inherit it; nothing resolves differently).
 5. **Fix cross-references** — after any rename, grep the profile and update
    expressions, notes, and research targets that named the old param.
 6. **Validate** — `canair validate pids` (also catches duplicate shipped param

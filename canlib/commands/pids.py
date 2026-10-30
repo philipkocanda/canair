@@ -22,9 +22,8 @@ Subcommands:
   set-pid-status ECU PID STATUS    Set a PID's lifecycle (active|draft|static|slow|ignored)
   set-pid-period ECU PID MS|clear  Set the WiCAN AutoPID polling interval (ms)
   set-pid-notes ECU PID [TEXT]     Set (or clear) a PID's free-text notes
-  set-pid-source ECU PID [TEXT]    Set (or clear) the source every parameter of the PID inherits
-  set-pid-source-links ECU PID [URL ...] Set (or clear) the source links they inherit
-  hoist-provenance [ECU [PID]]     Move source/source_links repeated on each parameter to the PID
+  set-pid-defaults ECU PID ...     Set unit/min/max/verified/source… every parameter inherits
+  hoist-defaults [ECU [PID]]       Move fields repeated across a PID's parameters up to the PID
   set-identity ECU FIELD VALUE     Set a curated identity field (e.g. notes)
   rm-identity  ECU FIELD           Remove an identity field (e.g. a redundant duplicate)
   set-can-bus  ECU CODE [CODE ...] Set the physical CAN bus segment(s) (see can_buses.yaml)
@@ -56,7 +55,7 @@ from pathlib import Path
 from canlib import ansi
 from canlib.commands._hexarg import HexArgError, parse_hex_arg
 from canlib.edit_echo import echo_edit
-from canlib.pids import PID_STATUSES
+from canlib.pids import INHERITED_PARAM_FIELDS, PID_STATUSES
 from canlib.pids_edit import (
     PidsEditError,
     add_pid,
@@ -65,17 +64,16 @@ from canlib.pids_edit import (
     delete_pid,
     delete_research_entry,
     find_ecu_file,
-    hoist_provenance,
+    hoist_defaults,
     remove_identity_field,
     rename_parameter,
     rename_pid,
     set_can_bus,
     set_identity_field,
     set_iocontrol_scan_ranges,
+    set_pid_defaults,
     set_pid_notes,
     set_pid_period,
-    set_pid_source,
-    set_pid_source_links,
     set_pid_status,
     set_pid_variable_length,
     set_research_notes,
@@ -507,23 +505,28 @@ def cmd_set_pid_notes(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_set_pid_source(args: argparse.Namespace) -> int:
+def cmd_set_pid_defaults(args: argparse.Namespace) -> int:
+    fields = {
+        "unit": args.unit,
+        "ha_class": args.ha_class,
+        "min": args.min,
+        "max": args.max,
+        "verified": args.verified,
+        "source": args.source,
+        "source_links": args.source_link or None,
+    }
+    fields = {k: v for k, v in fields.items() if v is not None}
+    clear = args.clear or []
+
     def do():
-        set_pid_source(args.ecu, args.pid, args.value, pids_dir=args.dir)
+        set_pid_defaults(args.ecu, args.pid, fields, clear=clear, pids_dir=args.dir)
 
-    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
-    state = "set" if (args.value or "").strip() else "cleared"
-    echo_edit(f"{args.ecu} {args.pid} source {state}", fpath)
-    return 0
-
-
-def cmd_set_pid_source_links(args: argparse.Namespace) -> int:
-    def do():
-        set_pid_source_links(args.ecu, args.pid, args.urls, pids_dir=args.dir)
-
-    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
-    state = f"set ({len(args.urls)})" if args.urls else "cleared"
-    echo_edit(f"{args.ecu} {args.pid} source_links {state}", fpath)
+    try:
+        fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
+    except PidsEditError as e:
+        raise SystemExit(f"{ansi.RED}  Error: {e}{ansi.RESET}") from e
+    detail = ", ".join([*fields, *(f"-{c}" for c in clear)])
+    echo_edit(f"{args.ecu} {args.pid} defaults: {detail}", fpath)
     return 0
 
 
@@ -541,16 +544,16 @@ def _ecu_names(ecus_dir: Path | None) -> list[str]:
     return names
 
 
-def cmd_hoist_provenance(args: argparse.Namespace) -> int:
+def cmd_hoist_defaults(args: argparse.Namespace) -> int:
     if args.pid and not args.ecu:
         raise SystemExit(f"{ansi.RED}  Error: a PID needs its ECU{ansi.RESET}")
     ecus = [args.ecu] if args.ecu else _ecu_names(args.dir)
-    moved = 0
+    pids = fields = 0
     for ecu in ecus:
         found: list = []
 
         def do(ecu=ecu, found=found):
-            found.extend(hoist_provenance(ecu, args.pid, dry_run=args.dry_run, pids_dir=args.dir))
+            found.extend(hoist_defaults(ecu, args.pid, dry_run=args.dry_run, pids_dir=args.dir))
 
         if args.dry_run:
             do()
@@ -559,13 +562,18 @@ def cmd_hoist_provenance(args: argparse.Namespace) -> int:
             if not args.dir:
                 require_writable_definitions()
             fpath = _guarded(ecu, args.dir, do, validate=not args.no_validate)
+        by_pid: dict[str, list] = {}
         for h in found:
-            print(f"  {ecu} {h.pid} {h.field}: {len(h.params)} parameters -> PID level")
+            by_pid.setdefault(h.pid, []).append(h)
+        for pid, hoisted in by_pid.items():
+            names = ", ".join(f"{h.field} ({len(h.params)}/{h.total})" for h in hoisted)
+            print(f"  {ecu} {pid}: {names}")
         if found and not args.dry_run:
-            echo_edit(f"{ecu} provenance hoisted ({len(found)} fields)", fpath)
-        moved += len(found)
+            echo_edit(f"{ecu} hoisted {len(found)} shared field(s)", fpath)
+        pids += len(by_pid)
+        fields += len(found)
     verb = "Would hoist" if args.dry_run else "Hoisted"
-    print(f"  {verb} {moved} field(s).")
+    print(f"  {verb} {fields} field(s) across {pids} PID(s).")
     return 0
 
 
@@ -1096,53 +1104,56 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     _add_common(spn)
     spn.set_defaults(_pids_func=cmd_set_pid_notes)
 
-    sps_src = sub.add_parser(
-        "set-pid-source",
-        help="Set (or clear) the source every parameter of a PID inherits",
+    spd = sub.add_parser(
+        "set-pid-defaults",
+        help="Set fields every parameter of a PID inherits (unit, min, max, verified, source…)",
         description=(
-            "Set the PID-level source: — where the page's decoding came from. A parameter "
-            "that sets no source of its own inherits it, so a source shared by the whole "
-            "page is stated once. Omit VALUE to clear the field."
+            "Set PID-level defaults: a field stated on the PID applies to every parameter "
+            "that sets none of its own, so a group such as the BMS cell voltages states "
+            "`unit: V`, `min`, `max` and `verified` once. A parameter's own value, including "
+            "an explicit empty one, still wins. Notes are not shared: a PID's describe the "
+            "page, a parameter's the signal. --clear removes a default. "
+            "`hoist-defaults` finds repetition you already have."
         ),
     )
-    sps_src.add_argument("ecu")
-    sps_src.add_argument("pid")
-    sps_src.add_argument("value", nargs="?", help="New source text (omit to clear the field)")
-    _add_common(sps_src)
-    sps_src.set_defaults(_pids_func=cmd_set_pid_source)
-
-    spl = sub.add_parser(
-        "set-pid-source-links",
-        help="Set (or clear) the source links every parameter of a PID inherits",
-        description=(
-            "Set the PID-level source_links: list, inherited by every parameter that sets "
-            "none of its own. Give no URL to clear the field."
-        ),
+    spd.add_argument("ecu")
+    spd.add_argument("pid")
+    spd.add_argument("--unit")
+    spd.add_argument("--ha-class", dest="ha_class")
+    spd.add_argument("--min")
+    spd.add_argument("--max")
+    spd.add_argument("--verified", dest="verified", action="store_true", default=None)
+    spd.add_argument("--unverified", dest="verified", action="store_false")
+    spd.add_argument("--source", help="Where the page's decoding came from")
+    spd.add_argument("--source-link", action="append", metavar="URL", help="Repeatable")
+    spd.add_argument(
+        "--clear",
+        action="append",
+        choices=list(INHERITED_PARAM_FIELDS),
+        metavar="FIELD",
+        help="Remove a PID-level default (repeatable): " + ", ".join(INHERITED_PARAM_FIELDS),
     )
-    spl.add_argument("ecu")
-    spl.add_argument("pid")
-    spl.add_argument("urls", nargs="*", metavar="URL", help="Links (omit to clear the field)")
-    _add_common(spl)
-    spl.set_defaults(_pids_func=cmd_set_pid_source_links)
+    _add_common(spd)
+    spd.set_defaults(_pids_func=cmd_set_pid_defaults)
 
     hp = sub.add_parser(
-        "hoist-provenance",
-        help="Move source/source_links repeated on a PID's parameters up to the PID",
+        "hoist-defaults",
+        help="Move fields repeated across a PID's parameters up to the PID",
         description=(
-            "Find PIDs whose parameters repeat the same source or source_links and state "
-            "the value once on the PID instead. A field moves only when it changes no "
-            "signal's provenance: every parameter must carry its own non-empty value, and "
-            "at least two share the most common one (a differing parameter keeps its value "
-            "as an override). The result is verified before it is kept. Name an ECU (and "
-            "PID) to narrow the sweep; with neither, the whole profile is processed. "
-            "--dry-run lists what would move."
+            "Find PIDs whose parameters repeat the same unit, ha_class, min, max, verified, "
+            "source or source_links and state the value once on the PID instead. A field "
+            "moves only when it changes no signal: every parameter must state its own "
+            "non-empty value, and one value must be shared by more than half of them (the "
+            "rest keep theirs as overrides). The result is verified before it is kept. Name "
+            "an ECU (and PID) to narrow the sweep; with neither, the whole profile is "
+            "processed. --dry-run lists what would move."
         ),
     )
     hp.add_argument("ecu", nargs="?", help="Limit to this ECU (default: every ECU)")
     hp.add_argument("pid", nargs="?", help="Limit to this PID")
     hp.add_argument("--dry-run", action="store_true", help="List what would move; write nothing")
     _add_common(hp)
-    hp.set_defaults(_pids_func=cmd_hoist_provenance)
+    hp.set_defaults(_pids_func=cmd_hoist_defaults)
 
     si = sub.add_parser("set-identity", help="Set a curated identity field (e.g. notes)")
     si.add_argument("ecu")

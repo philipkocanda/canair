@@ -4,13 +4,13 @@
 
 ```
 usage: canair pids [-h]
-                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-pid-status,set-pid-variable-length,set-support-map,set-pid-period,set-response-frames,set-pid-notes,set-pid-source,set-pid-source-links,hoist-provenance,set-identity,rm-identity,set-can-bus,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing}
+                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-pid-status,set-pid-variable-length,set-support-map,set-pid-period,set-response-frames,set-pid-notes,set-pid-defaults,hoist-defaults,set-identity,rm-identity,set-can-bus,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing}
                    ...
 
 [UDS] Safely edit ecus/ parameters and research entries (domain A — diagnostic UDS PIDs, freeform WiCAN expressions). The broadcast-frame (domain B) authoring counterpart is `canair signals` (linear signals/ maps).
 
 positional arguments:
-  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-pid-status,set-pid-variable-length,set-support-map,set-pid-period,set-response-frames,set-pid-notes,set-pid-source,set-pid-source-links,hoist-provenance,set-identity,rm-identity,set-can-bus,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing}
+  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-pid-status,set-pid-variable-length,set-support-map,set-pid-period,set-response-frames,set-pid-notes,set-pid-defaults,hoist-defaults,set-identity,rm-identity,set-can-bus,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing}
     upsert-param        Add or update a signal
     rename-param        Rename a signal (key only; fields preserved)
     rm-param            Remove a signal
@@ -35,13 +35,10 @@ positional arguments:
                         Set how many CAN frames a PID's response occupies
                         (skips the adapter's wait)
     set-pid-notes       Set (or clear) a PID's free-text notes
-    set-pid-source      Set (or clear) the source every parameter of a PID
-                        inherits
-    set-pid-source-links
-                        Set (or clear) the source links every parameter of a
-                        PID inherits
-    hoist-provenance    Move source/source_links repeated on a PID's
-                        parameters up to the PID
+    set-pid-defaults    Set fields every parameter of a PID inherits (unit,
+                        min, max, verified, source…)
+    hoist-defaults      Move fields repeated across a PID's parameters up to
+                        the PID
     set-identity        Set a curated identity field (e.g. notes)
     rm-identity         Remove an identity field from an ECU
     set-can-bus         Set the physical CAN bus segment(s) the ECU sits on
@@ -491,61 +488,56 @@ options:
   --no-validate  Skip the post-edit schema validation gate
 ```
 
-## `canair pids set-pid-source`
+## `canair pids set-pid-defaults`
 
 ```
-usage: canair pids set-pid-source [-h] [--dir DIR] [--no-validate]
-                                  ecu pid [value]
+usage: canair pids set-pid-defaults [-h] [--unit UNIT] [--ha-class HA_CLASS]
+                                    [--min MIN] [--max MAX] [--verified]
+                                    [--unverified] [--source SOURCE]
+                                    [--source-link URL] [--clear FIELD]
+                                    [--dir DIR] [--no-validate]
+                                    ecu pid
 
-Set the PID-level source: — where the page's decoding came from. A parameter
-that sets no source of its own inherits it, so a source shared by the whole
-page is stated once. Omit VALUE to clear the field.
+Set PID-level defaults: a field stated on the PID applies to every parameter
+that sets none of its own, so a group such as the BMS cell voltages states
+`unit: V`, `min`, `max` and `verified` once. A parameter's own value,
+including an explicit empty one, still wins. Notes are not shared: a PID's
+describe the page, a parameter's the signal. --clear removes a default.
+`hoist-defaults` finds repetition you already have.
 
 positional arguments:
   ecu
   pid
-  value          New source text (omit to clear the field)
 
 options:
-  -h, --help     show this help message and exit
-  --dir DIR      ecus/ directory (default: active profile)
-  --no-validate  Skip the post-edit schema validation gate
+  -h, --help           show this help message and exit
+  --unit UNIT
+  --ha-class HA_CLASS
+  --min MIN
+  --max MAX
+  --verified
+  --unverified
+  --source SOURCE      Where the page's decoding came from
+  --source-link URL    Repeatable
+  --clear FIELD        Remove a PID-level default (repeatable): unit,
+                       ha_class, min, max, source, source_links, verified
+  --dir DIR            ecus/ directory (default: active profile)
+  --no-validate        Skip the post-edit schema validation gate
 ```
 
-## `canair pids set-pid-source-links`
+## `canair pids hoist-defaults`
 
 ```
-usage: canair pids set-pid-source-links [-h] [--dir DIR] [--no-validate]
-                                        ecu pid [URL ...]
+usage: canair pids hoist-defaults [-h] [--dry-run] [--dir DIR] [--no-validate]
+                                  [ecu] [pid]
 
-Set the PID-level source_links: list, inherited by every parameter that sets
-none of its own. Give no URL to clear the field.
-
-positional arguments:
-  ecu
-  pid
-  URL            Links (omit to clear the field)
-
-options:
-  -h, --help     show this help message and exit
-  --dir DIR      ecus/ directory (default: active profile)
-  --no-validate  Skip the post-edit schema validation gate
-```
-
-## `canair pids hoist-provenance`
-
-```
-usage: canair pids hoist-provenance [-h] [--dry-run] [--dir DIR]
-                                    [--no-validate]
-                                    [ecu] [pid]
-
-Find PIDs whose parameters repeat the same source or source_links and state
-the value once on the PID instead. A field moves only when it changes no
-signal's provenance: every parameter must carry its own non-empty value, and
-at least two share the most common one (a differing parameter keeps its value
-as an override). The result is verified before it is kept. Name an ECU (and
-PID) to narrow the sweep; with neither, the whole profile is processed. --dry-
-run lists what would move.
+Find PIDs whose parameters repeat the same unit, ha_class, min, max, verified,
+source or source_links and state the value once on the PID instead. A field
+moves only when it changes no signal: every parameter must state its own non-
+empty value, and one value must be shared by more than half of them (the rest
+keep theirs as overrides). The result is verified before it is kept. Name an
+ECU (and PID) to narrow the sweep; with neither, the whole profile is
+processed. --dry-run lists what would move.
 
 positional arguments:
   ecu            Limit to this ECU (default: every ECU)

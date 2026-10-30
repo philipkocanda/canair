@@ -1,10 +1,10 @@
-"""PID-level ``source`` / ``source_links``: set them, and hoist them out of the parameters.
+"""PID-level defaults for parameter fields: set them, and hoist them out of the parameters.
 
-A parameter that omits ``source``/``source_links`` inherits its PID's
-(:func:`canlib.pids.effective_param`), so provenance shared by a whole page is stated once.
-:func:`hoist_provenance` moves existing duplicates up; the setters edit the PID-level value
-directly. Same discipline as the other editors: a surgical text edit, a YAML re-parse, and a
-restore on any failure.
+A PID can state :data:`canlib.pids.INHERITED_PARAM_FIELDS` (``unit``, ``min``, ``verified``,
+``source`` …) once; a parameter that sets none of its own inherits it
+(:func:`canlib.pids.effective_param`). :func:`hoist_defaults` moves existing repetition up;
+:func:`set_pid_defaults` edits the PID-level values directly. Same discipline as the other
+editors: a surgical text edit, a YAML re-parse, and a restore on any failure.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 import re
 from collections import Counter
-from collections.abc import Sequence
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -32,6 +32,10 @@ from ._text import (
     find_ecu_file,
 )
 
+# Fewest parameters that must share a value before it is worth stating on the PID: a pair
+# saves a line and makes both of them harder to read on their own.
+MIN_SHARING = 3
+
 _PID_INDENT = " " * 6
 _PARAM_INDENT = 10
 
@@ -44,21 +48,23 @@ class Hoisted:
     field: str
     value: Any
     params: tuple[str, ...]  # the parameters that dropped their own copy
+    total: int  # parameters in the PID
 
 
 def _empty(value: object) -> bool:
     return value is None or value == "" or value == []
 
 
-def _same(a: object, b: object) -> bool:
-    return json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True)
+def _key(value: object) -> str:
+    """A hashable identity that tells ``0`` from ``"0"`` and ``true`` from ``1``."""
+    return json.dumps(value, sort_keys=True)
 
 
 def _params(pid_def: dict) -> dict[str, dict]:
     raw = (pid_def or {}).get("parameters")
-    return (
-        {str(k): v for k, v in raw.items() if isinstance(v, dict)} if isinstance(raw, dict) else {}
-    )
+    if not isinstance(raw, dict):
+        return {}
+    return {str(k): v for k, v in raw.items() if isinstance(v, dict)}
 
 
 def plan_hoist(pid_def: dict) -> dict[str, tuple[Any, tuple[str, ...]]]:
@@ -66,8 +72,9 @@ def plan_hoist(pid_def: dict) -> dict[str, tuple[Any, tuple[str, ...]]]:
 
     ``{field: (value, parameters_that_drop_it)}``. A field qualifies when the PID does not
     state it yet, every parameter states a non-empty value of its own (an absent one would
-    start inheriting, an explicit empty one would be a pointless override), and at least two
-    share the most common value. Parameters with a different value keep it as an override.
+    start inheriting, an explicit empty one would be a pointless override), and one value is
+    shared by more than half of the parameters (and at least :data:`MIN_SHARING`). The minority keep their
+    value as an override.
     """
     params = _params(pid_def)
     if len(params) < 2:
@@ -79,11 +86,10 @@ def plan_hoist(pid_def: dict) -> dict[str, tuple[Any, tuple[str, ...]]]:
         values = {name: p.get(field) for name, p in params.items()}
         if any(_empty(v) for v in values.values()):
             continue
-        counts = Counter(json.dumps(v, sort_keys=True) for v in values.values())
-        top, n = counts.most_common(1)[0]
-        if n < 2:
+        top, n = Counter(_key(v) for v in values.values()).most_common(1)[0]
+        if n < MIN_SHARING or n * 2 <= len(params):
             continue
-        sharing = tuple(name for name, v in values.items() if json.dumps(v, sort_keys=True) == top)
+        sharing = tuple(name for name, v in values.items() if _key(v) == top)
         plan[field] = (values[sharing[0]], sharing)
     return plan
 
@@ -111,6 +117,17 @@ def _locate_pid(text: str, ecu_name: str, pid_u: str) -> tuple[int, int]:
     return pidb[0], pidb[3]
 
 
+def _render(indent: str, field: str, value: Any) -> list[str]:
+    """The YAML lines for one shared field, keeping the value's own type."""
+    if field == "source_links":
+        return _format_list_field(indent, field, list(value))
+    if isinstance(value, bool):
+        return [f"{indent}{field}: {'true' if value else 'false'}"]
+    if isinstance(value, (int, float)):
+        return [f"{indent}{field}: {value}"]
+    return [_format_scalar_field(indent, field, str(value))]
+
+
 def _insert_before_parameters(block: str, lines: list[str]) -> str:
     """Add ``lines`` to a PID block just above ``parameters:`` (or at its end)."""
     rows = block.splitlines(keepends=True)
@@ -119,69 +136,78 @@ def _insert_before_parameters(block: str, lines: list[str]) -> str:
 
 
 def _set_pid_field(block: str, field: str, lines: list[str]) -> str:
-    """Replace the PID's ``field`` with ``lines`` in place, or add it above ``parameters:``."""
-    present = re.search(rf"^ {{6}}{field}:", block, re.MULTILINE) is not None
+    """Replace the PID's ``field`` with ``lines`` in place, or add it above ``parameters:``.
+
+    No ``lines`` removes the field.
+    """
+    old = block.splitlines(keepends=True)
+    at = next((i for i, ln in enumerate(old) if re.match(rf"^ {{6}}{field}:", ln)), None)
     stripped = _remove_field_line(block, field, indent=6)
     if not lines:
         return stripped
-    if not present:
+    if at is None:
         return _insert_before_parameters(stripped, lines)
-    # Keep the field where it was: remove-then-insert at the old spot.
-    old = block.splitlines(keepends=True)
-    at = next(i for i, ln in enumerate(old) if re.match(rf"^ {{6}}{field}:", ln))
     kept = stripped.splitlines(keepends=True)
     return "".join(kept[:at] + [f"{ln}\n" for ln in lines] + kept[at:])
 
 
-def _edit_pid_field(
+def set_pid_defaults(
     ecu_name: str,
     pid: str,
-    field: str,
-    lines: list[str],
-    expected: object,
+    fields: Mapping[str, Any],
     *,
-    pids_dir: Path | None,
+    clear: Iterable[str] = (),
+    pids_dir: Path | None = None,
 ) -> Path:
+    """Set (and/or clear) a PID's shared parameter fields.
+
+    ``fields`` maps names from :data:`~canlib.pids.INHERITED_PARAM_FIELDS` to values; ``clear``
+    names fields to remove. An existing field keeps its position, a new one goes above
+    ``parameters:``. Every parameter that sets none of its own then inherits the value.
+    """
+    clear = tuple(clear)
+    unknown = [f for f in (*fields, *clear) if f not in INHERITED_PARAM_FIELDS]
+    if unknown:
+        raise PidsEditError(
+            f"not a shareable field: {', '.join(unknown)} (allowed: {', '.join(INHERITED_PARAM_FIELDS)})"
+        )
+    if set(fields) & set(clear):
+        raise PidsEditError("a field cannot be both set and cleared")
+    if not fields and not clear:
+        raise PidsEditError("nothing to set or clear")
+    for field, value in fields.items():
+        if _empty(value):
+            raise PidsEditError(f"{field} must not be empty (use clear to remove it)")
+
     fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
     original = fpath.read_text()
     pid_u = str(pid).strip().upper()
+    ordered = [f for f in INHERITED_PARAM_FIELDS if f in fields]
 
     def transform(text: str) -> str:
         start, end = _locate_pid(text, ecu_name, pid_u)
-        return text[:start] + _set_pid_field(text[start:end], field, lines) + text[end:]
+        block = text[start:end]
+        for field in clear:
+            block = _set_pid_field(block, field, [])
+        for field in ordered:
+            block = _set_pid_field(block, field, _render(_PID_INDENT, field, fields[field]))
+        return text[:start] + block + text[end:]
 
     def checker(ecu_def: dict) -> None:
         pdef = _pid_def(ecu_def, pid_u)
         if pdef is None:
             raise PidsEditError(f"PID {pid_u!r} missing after edit")
-        got = pdef.get(field)
-        if not _same(got, expected):
-            raise PidsEditError(f"PID {pid_u!r} {field} mismatch after edit: {got!r}")
+        for field, value in fields.items():
+            if _key(pdef.get(field)) != _key(value):
+                raise PidsEditError(
+                    f"PID {pid_u!r} {field} mismatch after edit: {pdef.get(field)!r}"
+                )
+        for field in clear:
+            if field in pdef:
+                raise PidsEditError(f"PID {pid_u!r} {field} still present after clear")
 
     _safe_write(fpath, original, transform(original), ecu_name.strip().upper(), checker)
     return fpath
-
-
-def set_pid_source(
-    ecu_name: str, pid: str, source: str | None, *, pids_dir: Path | None = None
-) -> Path:
-    """Set (or, with ``None``/blank, clear) a PID's ``source:``.
-
-    Every parameter of the PID that has no ``source`` of its own inherits it. An existing
-    field keeps its position; a new one goes above ``parameters:``.
-    """
-    text = "" if source is None else str(source).strip()
-    lines = [_format_scalar_field(_PID_INDENT, "source", text)] if text else []
-    return _edit_pid_field(ecu_name, pid, "source", lines, text or None, pids_dir=pids_dir)
-
-
-def set_pid_source_links(
-    ecu_name: str, pid: str, links: Sequence[str] | None, *, pids_dir: Path | None = None
-) -> Path:
-    """Set (or, with none, clear) a PID's ``source_links:``, inherited like ``source:``."""
-    urls = [str(u).strip() for u in (links or []) if str(u).strip()]
-    lines = _format_list_field(_PID_INDENT, "source_links", urls) if urls else []
-    return _edit_pid_field(ecu_name, pid, "source_links", lines, urls or None, pids_dir=pids_dir)
 
 
 def _hoist_in_block(block: str, plan: dict[str, tuple[Any, tuple[str, ...]]]) -> str:
@@ -198,27 +224,23 @@ def _hoist_in_block(block: str, plan: dict[str, tuple[Any, tuple[str, ...]]]) ->
                 + _remove_field_line(block[start:end], field, _PARAM_INDENT)
                 + block[end:]
             )
-        if field == "source_links":
-            lines = _format_list_field(_PID_INDENT, field, list(value))
-        else:
-            lines = [_format_scalar_field(_PID_INDENT, field, value)]
-        block = _insert_before_parameters(block, lines)
+        block = _insert_before_parameters(block, _render(_PID_INDENT, field, value))
     return block
 
 
-def hoist_provenance(
+def hoist_defaults(
     ecu_name: str,
     pid: str | None = None,
     *,
     dry_run: bool = False,
     pids_dir: Path | None = None,
 ) -> list[Hoisted]:
-    """Move provenance repeated across a PID's parameters up to the PID.
+    """Move fields repeated across a PID's parameters up to the PID.
 
     Applies :func:`plan_hoist` to ``pid`` (or every PID of the ECU) and rewrites the file
     once. The result is checked before it is kept: every parameter must resolve to exactly
-    the same ``source``/``source_links`` as before, so the move never changes what any
-    signal reports. With ``dry_run`` nothing is written. Returns what moved (or would).
+    the same shared fields as before, so the move never changes what any signal reports.
+    With ``dry_run`` nothing is written. Returns what moved (or would).
     """
     fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
     original = fpath.read_text()
@@ -229,6 +251,7 @@ def hoist_provenance(
 
     plans: dict[str, dict] = {}
     before: dict[str, dict[str, dict]] = {}
+    totals: dict[str, int] = {}
     for key, pdef in (ecu_def.get("pids") or {}).items():
         key_u = str(key).upper()
         if not isinstance(pdef, dict) or (wanted and key_u != wanted):
@@ -236,10 +259,11 @@ def hoist_provenance(
         plan = plan_hoist(pdef)
         if plan:
             plans[key_u] = plan
+            totals[key_u] = len(_params(pdef))
             before[key_u] = {n: effective_param(pdef, p) for n, p in _params(pdef).items()}
 
     hoisted = [
-        Hoisted(pid_u, field, value, names)
+        Hoisted(pid_u, field, value, names, totals[pid_u])
         for pid_u, plan in plans.items()
         for field, (value, names) in plan.items()
     ]
@@ -261,7 +285,7 @@ def hoist_provenance(
             for name, want in expected.items():
                 got = effective_param(pdef, now.get(name, {}))
                 for field in INHERITED_PARAM_FIELDS:
-                    if not _same(got.get(field), want.get(field)):
+                    if _key(got.get(field)) != _key(want.get(field)):
                         raise PidsEditError(
                             f"{pid_u}/{name}: {field} changed by the hoist, reverted"
                         )

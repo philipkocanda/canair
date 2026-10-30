@@ -12,7 +12,7 @@ import yaml
 from canlib import yaml_io
 from canlib.expression.decode_value import BYTE_RUN_TYPES as _BYTE_RUN_TYPES
 from canlib.expression.lint import signed_low_bytes
-from canlib.pids import PID_STATUSES, pid_status
+from canlib.pids import PID_STATUSES, effective_param, pid_status
 from canlib.uds.byteindex import wican_to_isotp
 from canlib.uds.support_map import SupportMapError
 from canlib.uds.support_map import declaration as support_map_declaration
@@ -600,7 +600,7 @@ def _validate_one_pid(
     if variable_length is not None and not isinstance(variable_length, bool):
         errors.append(f"{label}: variable_length must be a boolean")
 
-    _validate_provenance(pid_def, label, errors)
+    _validate_shared_fields(pid_def, label, errors)
     try:
         support_map_declaration(pid_def)
     except SupportMapError as e:
@@ -643,11 +643,21 @@ def _validate_one_pid(
     _validate_parameters(pid_def, path, ecu_name, pid_str, fields, errors, warnings, stats)
 
 
-def _validate_provenance(node: dict, label: str, errors: list) -> None:
-    """``source`` must be a string and ``source_links`` a list of strings (PID or parameter)."""
-    source = node.get("source")
-    if source is not None and not isinstance(source, str):
-        errors.append(f"{label}: source must be a string")
+def _validate_shared_fields(node: dict, label: str, errors: list) -> None:
+    """Type-check the fields a PID can share with its parameters (on the PID or a parameter)."""
+    for field in ("unit", "ha_class", "source"):
+        value = node.get(field)
+        if value is not None and not isinstance(value, str):
+            errors.append(f"{label}: {field} must be a string")
+    for field in ("min", "max"):
+        value = node.get(field)
+        if value is not None and (
+            isinstance(value, bool) or not isinstance(value, (str, int, float))
+        ):
+            errors.append(f"{label}: {field} must be a number or a numeric string")
+    verified = node.get("verified")
+    if verified is not None and not isinstance(verified, bool):
+        errors.append(f"{label}: verified must be a boolean")
     links = node.get("source_links")
     if links is not None and (
         not isinstance(links, list) or not all(isinstance(u, str) for u in links)
@@ -682,7 +692,7 @@ def _validate_parameters(
             if field not in fields.all_param:
                 warnings.append(f"{label}: unknown field '{field}'")
 
-        _validate_provenance(param, label, errors)
+        _validate_shared_fields(param, label, errors)
 
         expr = param.get("expression", "")
         if expr:
@@ -694,7 +704,7 @@ def _validate_parameters(
             _validate_param_type(param, param_name, pid_str, ecu_name, fields.valid_param_types)
         )
 
-        if param.get("verified", False):
+        if effective_param(pid_def, param).get("verified", False):
             stats["verified"] += 1
         else:
             stats["unverified"] += 1

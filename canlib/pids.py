@@ -77,15 +77,23 @@ def pid_status(pid_def: dict) -> PidStatus:
     return DEFAULT_PID_STATUS
 
 
-# Provenance a PID states once for all its parameters. A parameter that sets the key itself
-# (even to ``""`` / ``[]``, an explicit "none") keeps its own value; one that omits it
-# inherits the PID's. ``notes`` is deliberately absent: a PID's notes describe the page,
-# a parameter's describe the signal, and neither stands in for the other.
-INHERITED_PARAM_FIELDS: tuple[str, ...] = ("source", "source_links")
+# Parameter fields a PID can state once for all its parameters. A parameter that sets the key
+# itself (even to ``""`` / ``[]`` / ``false``, an explicit "none") keeps its own value; one that
+# omits it inherits the PID's. In parameter order. ``notes`` is deliberately absent: a PID's
+# notes describe the page, a parameter's describe the signal, and neither stands in for the other.
+INHERITED_PARAM_FIELDS: tuple[str, ...] = (
+    "unit",
+    "ha_class",
+    "min",
+    "max",
+    "source",
+    "source_links",
+    "verified",
+)
 
 
 def effective_param(pid_def: dict, param_def: dict) -> dict:
-    """The parameter with its inherited provenance filled in from the PID.
+    """The parameter with the PID's shared fields filled in where it sets none of its own.
 
     Returns ``param_def`` itself when there is nothing to inherit, else a copy — the
     definition on file is never modified.
@@ -96,6 +104,19 @@ def effective_param(pid_def: dict, param_def: dict) -> dict:
         if param_def.get(field) is None and (pid_def or {}).get(field) is not None
     }
     return {**param_def, **inherited} if inherited else param_def
+
+
+def _inherit_pid_fields(ecus: dict[str, Any]) -> None:
+    """Resolve every parameter's inherited fields in place, so readers never see the gap."""
+    for ecu_def in ecus.values():
+        pids = ecu_def.get("pids") if isinstance(ecu_def, dict) else None
+        for pid_def in (pids or {}).values():
+            params = pid_def.get("parameters") if isinstance(pid_def, dict) else None
+            if not isinstance(params, dict):
+                continue
+            for name, param in params.items():
+                if isinstance(param, dict):
+                    params[name] = effective_param(pid_def, param)
 
 
 class PidIndexEntry(TypedDict):
@@ -278,7 +299,9 @@ def merge_ecu_documents(docs: Iterable[tuple[Path, dict]]) -> dict[str, Any]:
     A document whose top level is not a mapping (an empty file, a stray scalar) is
     skipped with a warning for the same reason: every reader of ``ecus/`` goes
     through here, so raising would turn one malformed file into an opaque crash in
-    whatever command happened to touch it. ``canair validate pids`` is the gate
+    whatever command happened to touch it. Fields a PID states once for its parameters
+    (:data:`INHERITED_PARAM_FIELDS`) are resolved into each parameter here, so no reader
+    has to know about the inheritance. ``canair validate pids`` is the gate
     that reports it as an error.
     """
     merged: dict[str, Any] = {}
@@ -305,6 +328,7 @@ def merge_ecu_documents(docs: Iterable[tuple[Path, dict]]) -> dict[str, Any]:
                 continue
             merged[name] = definition
             origin[name] = path
+    _inherit_pid_fields(merged)
     return merged
 
 

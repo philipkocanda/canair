@@ -341,7 +341,15 @@ reuse these instead of re-declaring a flag:
   a successful `upsert-param` **echoes the new expression's decoded value range** across existing
   captures — a `constant` where you expected variation usually means the offset landed on a PCI
   byte. Typed decoding (`--type` + `--value`/`--bit`) is a *parallel* decoding in
-  `canlib/expression/decode_value.py`; the WiCAN `expression` stays the pure float. Free-text `notes`
+  `canlib/expression/decode_value.py`; the WiCAN `expression` stays the pure float.
+  **A PID can state `unit`/`ha_class`/`min`/`max`/`verified`/`source`/`source_links` once
+  for all its parameters** (`pids set-pid-defaults`; `pids hoist-defaults` folds up existing
+  repetition): a parameter that sets none of its own inherits it, and one that does (even to
+  `""`/`[]`/`false`) keeps its value. The list is `canlib/pids.py::INHERITED_PARAM_FIELDS` and
+  `merge_ecu_documents` resolves it into every loaded parameter, so **readers of loaded
+  definitions never see the gap — only code that parses the YAML itself** (the validator, the
+  explorer export, the editors) **must call `effective_param`**. PID `notes` are page-level and
+  deliberately not inherited. Free-text `notes`
   auto-format via `canlib/yaml_rt.py` (short inline, long folded `>-`) — pass plain strings, never
   hand-format block scalars.
 - **`canair signals`** — The domain-B analogue: view/edit the broadcast sidecar `signals/<bus>.yaml`

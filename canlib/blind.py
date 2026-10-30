@@ -44,6 +44,7 @@ from canlib.uds.byteindex import payload_to_wican_bytes
 
 from . import pids as pids_mod
 from .expression import evaluate_expression
+from .pids import INHERITED_PARAM_FIELDS
 from .profile import BUNDLE_MEMBERS, Profile, profile_for_path
 
 # ── What the strip removes ────────────────────────────────────────────────────
@@ -57,9 +58,9 @@ _STRIP_ECU_SECTIONS = (
     "routines",
     "notes",
 )
-# PID-level provenance a parameter would otherwise inherit — it names the references the
-# signals were decoded from, so it goes with the parameters.
-_STRIP_PID_FIELDS = ("source", "source_links")
+# PID-level defaults the parameters would otherwise inherit (units, ranges, the references the
+# signals were decoded from …): they describe the decodes, so they go with the parameters.
+_STRIP_PID_FIELDS = INHERITED_PARAM_FIELDS
 # Identity sub-fields that narrate the module's function or carry PII.
 _STRIP_IDENTITY_FIELDS = ("description", "notes", "vin", "serial")
 # Top-level profile members withheld from the sandbox — each would hand over
