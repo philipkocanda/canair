@@ -112,8 +112,9 @@
 #                          #   (Hyundai/Kia identity DIDs answer one less than requested,
 #                          #   22F188 -> 62F187; echo validation tolerates it for F1xx).
 #   isotp: {...}           # optional — client-side ISO-TP tuning (slcan-tcp transport):
-#                          #   tx_padding/blocksize/stmin/rx_flowcontrol_timeout/
-#                          #   rx_consecutive_frame_timeout/can_fd/tx_data_length.
+#                          #   tx_padding/rx_padding/blocksize/stmin/
+#                          #   rx_flowcontrol_timeout/rx_consecutive_frame_timeout/can_fd/
+#                          #   tx_data_length.
 #                          #   Defaults suit 11-bit/classic-CAN; see
 #                          #   canlib/transport/isotp_params.py for every field.
 

@@ -73,6 +73,14 @@ class TestIsotpBlock:
         p = _write(tmp_path, self._base("isotp:\n  tx_padding: 999\n"))
         assert any("tx_padding" in e for e in validate_meta(p, REQUIRED))
 
+    def test_rx_padding_accepted(self, tmp_path):
+        p = _write(tmp_path, self._base("isotp:\n  tx_padding: 0x55\n  rx_padding: 0xAA\n"))
+        assert validate_meta(p, REQUIRED) == []
+
+    def test_rx_padding_out_of_range(self, tmp_path):
+        p = _write(tmp_path, self._base("isotp:\n  rx_padding: 256\n"))
+        assert any("'isotp.rx_padding' must be a byte" in e for e in validate_meta(p, REQUIRED))
+
     def test_can_fd_must_be_bool(self, tmp_path):
         p = _write(tmp_path, self._base("isotp:\n  can_fd: yes_please\n"))
         assert any("can_fd" in e for e in validate_meta(p, REQUIRED))

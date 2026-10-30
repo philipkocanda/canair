@@ -80,7 +80,8 @@ quirks: [nissan_c0_session]
 # 11-bit/classic-CAN vehicles; override per this car's needs. See
 # canlib/transport/isotp_params.py for every field + default.
 # isotp:
-#   tx_padding: 0xAA   # ISO-TP fill byte (0x00/0xCC on some makes)
+#   tx_padding: 0xAA   # fill byte canair pads its requests with (0x00/0xCC on some makes)
+#   rx_padding: 0xAA   # fill byte the ECUs pad replies with (default: tx_padding)
 #   can_fd: false      # true for CAN-FD ECUs
 
 # Physical-value bands for the reference-free scan (`canair hunt --physical` /

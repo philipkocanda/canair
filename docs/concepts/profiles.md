@@ -87,12 +87,24 @@ addresses each PID from its own ECU.
 
 The `isotp:` block overrides the client-side ISO-TP flow-control / padding /
 CAN-FD parameters. The defaults suit most 11-bit / classic-CAN vehicles; override
-per this car's needs (e.g. an ECU that pads frames with `0x00` instead of `0xAA`,
-or a CAN-FD bus). The accepted keys — `tx_padding`, `blocksize`, `stmin`,
+per this car's needs (e.g. a car whose ECUs pad their replies with `0x00` instead of `0xAA`,
+or a CAN-FD bus). The accepted keys — `tx_padding`, `rx_padding`, `blocksize`, `stmin`,
 `rx_flowcontrol_timeout`, `rx_consecutive_frame_timeout`, `can_fd`,
 `tx_data_length` — and their defaults are defined in
 [`canlib/transport/isotp_params.py`](https://github.com/philipkocanda/canair/blob/main/canlib/transport/isotp_params.py).
 `canair validate` type-checks every field and rejects an unknown `isotp:` key.
+
+The two padding keys are different bytes:
+
+- **`tx_padding`** is the byte canair fills its own short frames with (default `0xAA`). Only the
+  `slcan-tcp` transport uses it. An ELM327 adapter (`wican-ws`, `elm327-tcp`) pads requests
+  itself, normally with `0x00`, and canair leaves that alone: the ELM327 and STN chips set their
+  CAN filler byte only through a programmable parameter, which is stored in non-volatile memory.
+- **`rx_padding`** is the byte the ECUs pad their replies with, which canair strips when it splits
+  a multi-DID reply. It defaults to `tx_padding` when that is set, else `0xAA`.
+
+Hyundai/Kia's diagnostic spec has them differ (requests `0x55`, replies `0xAA`), which is what the
+bundled Ioniq profile sets.
 
 ### Physical bands
 

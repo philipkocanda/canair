@@ -9,8 +9,9 @@ definition *and* a profile can override them per vehicle.
 The defaults reproduce the historical, Ioniq-verified behaviour (11-bit, no
 flow-control block/STmin gap, 8-byte classic CAN frames padded with ``0xAA``), so
 an existing profile that carries no ``isotp:`` block behaves exactly as before. A
-profile whose ECUs pad with a different byte, run CAN-FD, or need a different
-flow-control cadence sets those under ``isotp:`` in ``profile.yaml``.
+profile that pads its requests with a different byte, whose ECUs pad their replies
+with one (``rx_padding``, read by canair only), that runs CAN-FD, or that needs a
+different flow-control cadence sets those under ``isotp:`` in ``profile.yaml``.
 """
 
 from __future__ import annotations
@@ -40,8 +41,13 @@ _DEFAULTS: dict[str, int | bool] = {
     "tx_data_length": 8,  # frame data length (8 classic; up to 64 on CAN-FD)
 }
 
+# Fields canair reads itself and never hands to can-isotp, which has no notion of
+# the byte a *reply* is padded with. `rx_padding` defaults to `tx_padding` (see
+# `resolve_rx_padding`), so a profile that set only `tx_padding` keeps its behaviour.
+_CANAIR_ONLY_FIELDS: tuple[str, ...] = ("rx_padding",)
+
 # Names of the accepted fields (for schema/validation reuse).
-ISOTP_FIELDS: tuple[str, ...] = tuple(_DEFAULTS)
+ISOTP_FIELDS: tuple[str, ...] = (*_DEFAULTS, *_CANAIR_ONLY_FIELDS)
 
 # The two budgets above wait for a frame that has to cross the network, so on a
 # remote link the round trip is spent *inside* them. They are widened by the
@@ -105,17 +111,36 @@ def _warn_blocksize_cost(blocksize: int, link_budget: float) -> None:
     )
 
 
-def resolve_tx_padding(pids_data: dict | None) -> int:
-    """The profile's ISO-TP padding byte (``isotp.tx_padding``, default 0xAA).
-
-    The byte ECUs pad short frames with — Hyundai/Kia use ``0xAA``, but other
-    makes use ``0x00``/``0xCC``. Callers that strip trailing padding from a
-    reassembled payload read it from here rather than assuming ``0xAA``.
-    """
+def _padding_byte(pids_data: dict | None, key: str) -> int | None:
+    """``isotp.<key>`` when it is a byte, else None."""
     if isinstance(pids_data, dict):
         isotp = pids_data.get("isotp")
         if isinstance(isotp, dict):
-            value = isotp.get("tx_padding")
+            value = isotp.get(key)
             if isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= 0xFF:
                 return value
-    return DEFAULT_TX_PADDING
+    return None
+
+
+def resolve_tx_padding(pids_data: dict | None) -> int:
+    """The byte canair pads the short frames it *sends* with (``isotp.tx_padding``).
+
+    Default ``0xAA``. Only the raw ``slcan-tcp`` path reaches the bus with it: an
+    ELM327 pads requests itself. The byte to strip from a reply is a different
+    setting, :func:`resolve_rx_padding`.
+    """
+    value = _padding_byte(pids_data, "tx_padding")
+    return DEFAULT_TX_PADDING if value is None else value
+
+
+def resolve_rx_padding(pids_data: dict | None) -> int:
+    """The byte ECU replies are padded with, and so the byte to strip from them.
+
+    ``isotp.rx_padding``; when absent, ``isotp.tx_padding`` (the one byte both
+    meant before the two were separated), else ``0xAA``. Hyundai/Kia's ES95486
+    has them differ: requests padded with ``0x55``, responses with ``0xAA``.
+    """
+    value = _padding_byte(pids_data, "rx_padding")
+    if value is None:
+        value = _padding_byte(pids_data, "tx_padding")
+    return DEFAULT_TX_PADDING if value is None else value

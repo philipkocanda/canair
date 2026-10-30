@@ -1402,10 +1402,9 @@ def _validate_isotp(isotp: Any, allowed: set[str], is_int: Callable[[Any], bool]
             )
     if "can_fd" in isotp and not isinstance(isotp["can_fd"], bool):
         errors.append("profile.yaml: 'isotp.can_fd' must be a boolean")
-    if "tx_padding" in isotp and not (
-        is_int(isotp["tx_padding"]) and 0 <= isotp["tx_padding"] <= 255
-    ):
-        errors.append("profile.yaml: 'isotp.tx_padding' must be a byte (0–255)")
+    for key in ("tx_padding", "rx_padding"):
+        if key in isotp and not (is_int(isotp[key]) and 0 <= isotp[key] <= 255):
+            errors.append(f"profile.yaml: 'isotp.{key}' must be a byte (0–255)")
     for key in ("blocksize", "stmin", "rx_flowcontrol_timeout", "rx_consecutive_frame_timeout"):
         if key in isotp and not (is_int(isotp[key]) and isotp[key] >= 0):
             errors.append(f"profile.yaml: 'isotp.{key}' must be a non-negative integer")

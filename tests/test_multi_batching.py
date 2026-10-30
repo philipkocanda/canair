@@ -81,6 +81,21 @@ class TestSplitHelpers:
         bs.learn(0x770, "BC03", "62BC03FDEE3C730A0000FF0000")
         assert bs.lengths[(0x770, "BC03")] == 8
 
+    def test_split_strips_reply_padding_not_request_padding(self):
+        # ES95486: canair pads requests with 0x55, the ECU pads its reply with 0xAA.
+        from types import SimpleNamespace
+
+        from canlib.modes.monitor_raw import MonitorRawPoller
+        from canlib.transport.isotp_params import resolve_rx_padding
+
+        data = {"isotp": {"tx_padding": 0x55, "rx_padding": 0xAA}}
+        multi = "62BC03FDEE3C730A000000BC06B480000000000000AAAAAA"
+        lengths = [("BC03", 8), ("BC06", 8)]
+        assert split_multi_did(multi, lengths, pad=resolve_rx_padding(data)) is not None
+        assert split_multi_did(multi, lengths, pad=0x55) is None
+        poller = MonitorRawPoller(SimpleNamespace(pids_data=data))  # type: ignore[arg-type]
+        assert poller.pad == 0xAA
+
 
 class TestResolveMultiDidMax:
     def test_default_when_absent(self):

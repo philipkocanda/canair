@@ -5,7 +5,7 @@ subject: >-
   How the 11-bit functional request 0x7DF reaches each bus of the 2017 Ioniq Electric and how its
   UDS and KWP2000-style ECUs answer, time and suppress replies to it
 created: 2026-10-30
-updated: 2026-10-30
+updated: 2026-10-31
 status: active
 verification: >-
   Unverified on this car. Firmware of three Ioniq ECUs (CCM, VESS, AVN), third-party Ioniq and
@@ -14,8 +14,7 @@ sections:
   - section: "7"
     status: open
     note: >-
-      Needs a functional-request command that shows every responder, or the ELM327 REPL with
-      headers on.
+      Ready to run with `canair discover --functional` (slcan-tcp for the complete view).
 relations:
   expands_on:
     - path: profiles/hyundai-ioniq-ae-ev/research/IGPM_FINDINGS.md
@@ -286,13 +285,13 @@ evidence for what it actually does.
 
 Follow-ups are planned in `plans/2026-10-30-functional-addressing-followups.md`.
 
-- canair's raw path pads requests with `0xAA` (`isotp.tx_padding`) and its ELM327 path addresses
-  flow control to the responder's physical ID, so both meet rules 1 and 2. To follow the spec, the
-  request padding should be `0x55`. The same profile key is also used as the *response* padding to
-  strip, so the two need separate keys first.
-- `discover` sweeps physical IDs and skips `0x7DF`. A functional `3E 00` (or `22 F18C`) sweep would
-  list every routed responder in one request: a cheap cross-check of `discover`, and the way to map
-  which buses the gateway serves.
+- canair's raw path pads requests with `isotp.tx_padding` and strips `isotp.rx_padding` from
+  replies; this profile sets them to the spec's `0x55` and `0xAA`. Its ELM327 path addresses flow
+  control to the responder's physical ID, and the adapter pads requests itself (normally `0x00`),
+  so both meet rules 1 and 2.
+- `canair discover --functional` sends one functional `3E 00` (or another allowed read such as
+  `22 F18C`) and lists every routed responder by bus: a cheap cross-check of `discover`, and the
+  way to map which buses the gateway serves.
 - A functional `3E 80` keepalive for multi-ECU sessions is possible. The KWP2000 ECUs' handling of
   it is not established (KWP2000's own TesterPresent sub-functions are `01`/`02`), so keep per-ECU
   keepalives for them until it is tested.
@@ -309,6 +308,7 @@ Read-only. Parked, ignition on (so IG3-fed ECUs are awake):
 3. The same request again more than 1 s later, then 100 ms later: whether the B-CAN/MM-CAN replies
    drop out only in the fast case.
 
-canair has no functional request command that shows every responder yet (`raw` expects a single
-reply; the REPL's `!tester` broadcasts `3E 00` but prints only counts), so this needs either that
-feature or the REPL with ELM327 headers on.
+With canair, over `slcan-tcp`: step 1 is `canair discover --functional --save`, step 2 adds
+`--request 190208`, and the slow case of step 3 is `--repeat 2 --interval 1`. canair keeps
+functional requests at least 1 s apart, as the spec asks, so the 100 ms case needs the ELM327 REPL
+with headers on (`ATH1`).

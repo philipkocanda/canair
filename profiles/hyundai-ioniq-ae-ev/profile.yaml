@@ -57,6 +57,13 @@ quirks:
 # overrides). The Ioniq Electric responds slowly, so keep this high. ~614ms == ATST96.
 response_timeout_ms: 614
 
+# ISO-TP fill bytes (slcan-tcp only; an ELM327 pads requests itself, normally with
+# 0x00). ES95486 pads requests with 0x55 and responses with 0xAA. No ECU firmware
+# examined checks the request padding, so this is spec conformance, not a fix.
+isotp:
+  tx_padding: 0x55
+  rx_padding: 0xAA
+
 # Enable UDS service-22 multi-DID batching per ECU (see each ECU file's
 # `multi_did:` flag). Batching is only attempted for ECUs opted in; any ECU that
 # rejects it (NRC 0x13) auto-falls back to single-DID reads for the session.

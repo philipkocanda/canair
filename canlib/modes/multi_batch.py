@@ -114,7 +114,7 @@ class BatchState:
     def __init__(self, pad: int = 0xAA, max_dids: int = MULTI_DID_MAX_DEFAULT):
         self.lengths: dict[tuple[int, str], int] = {}  # (tx_id, DID4) -> data bytes
         self.disabled: set[int] = set()  # tx_ids that don't support batching
-        self.pad = pad  # ISO-TP padding byte (profile isotp.tx_padding)
+        self.pad = pad  # reply padding byte (profile isotp.rx_padding)
         self.max_dids = max_dids  # max DIDs combined per multi-DID request
         self._clamped: set[tuple[int, int]] = set()  # (tx_id, cap) already warned about
         self._unanswered: dict[int, int] = {}  # tx_id -> batches unanswered in a row
@@ -211,7 +211,7 @@ def split_multi_did(
     Args:
         resp_hex: reassembled UDS payload, ``62 D1 <data1> D2 <data2> … [pad…]``.
         dids_lengths: ordered ``(DID4, data_len_bytes)`` as requested.
-        pad: ISO-TP padding byte (profile ``isotp.tx_padding``, default 0xAA).
+        pad: the byte replies are padded with (profile ``isotp.rx_padding``, default 0xAA).
 
     Returns ``{DID4: "62"+DID+data hex}`` (each looking like a normal single-DID
     response so existing decoders work unchanged), or ``None`` if the response

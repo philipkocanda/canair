@@ -78,10 +78,10 @@ class MonitorRawPoller:
         # that arrived late in a single read's slot) this session.
         self.lengths: dict[tuple[str, str], int] = {}
         self.nobatch: set[str] = set()
-        # ISO-TP padding byte (profile isotp.tx_padding) for stripping/splitting.
-        from ..transport.isotp_params import resolve_tx_padding
+        # The byte ECU replies are padded with (profile isotp.rx_padding), to strip/split.
+        from ..transport.isotp_params import resolve_rx_padding
 
-        self.pad = resolve_tx_padding(getattr(controller, "pids_data", None))
+        self.pad = resolve_rx_padding(getattr(controller, "pids_data", None))
 
     def build_submissions(self):
         """Plan this tick's raw requests, batching multi-DID ECUs.

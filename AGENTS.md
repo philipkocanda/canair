@@ -777,8 +777,9 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
     the flow-control address override in `canlib/transport/isotp_stack.py` (raw path) and the
     ELM327 receive filter/flow control in `canlib/transport/elm327_addressing.py`.
   - **`isotp:`** — client-side ISO-TP tuning for `slcan-tcp` (padding, blocksize, stmin, timeouts,
-    CAN-FD); defaults in `canlib/transport/isotp_params.py`. The padding byte also drives multi-DID
-    split/strip (`resolve_tx_padding`).
+    CAN-FD); defaults in `canlib/transport/isotp_params.py`. `tx_padding` is what canair sends
+    (raw path only; an ELM327 pads its own requests); `rx_padding` (defaulting to `tx_padding`)
+    is what replies carry, and drives multi-DID split/strip (`resolve_rx_padding`).
   - **`quirks:`** — make-specific behaviour the profile opts into. Known: `hk_f1xx_minus_one` (the
     Hyundai/Kia identity-DID `-1` offset, `22F188`→`62F187`), `skm_wakeup` (enables the Ioniq SKM
     relay-wake), `nissan_c0_session` (permits the Nissan OEM session `10 C0` on KWP2000 ECUs,

@@ -6,6 +6,8 @@ from canlib.transport.isotp_params import (
     DEFAULT_TX_PADDING,
     ISOTP_FIELDS,
     build_isotp_params,
+    resolve_rx_padding,
+    resolve_tx_padding,
 )
 
 
@@ -45,8 +47,33 @@ class TestBuildIsotpParams:
         assert "bogus" not in params
         assert params == build_isotp_params(None)
 
-    def test_fields_tuple_matches_defaults(self):
-        assert set(ISOTP_FIELDS) == set(build_isotp_params(None))
+    def test_fields_tuple_is_the_library_params_plus_canair_only_ones(self):
+        # rx_padding is read by canair only: can-isotp has no reply-padding setting,
+        # so it is accepted in the profile but never handed to the library.
+        assert set(ISOTP_FIELDS) == set(build_isotp_params(None)) | {"rx_padding"}
+        assert "rx_padding" not in build_isotp_params({"rx_padding": 0x55})
+
+
+class TestPaddingResolvers:
+    """Request and reply padding are separate bytes (ES95486: 0x55 out, 0xAA back)."""
+
+    def test_defaults(self):
+        assert resolve_tx_padding(None) == resolve_rx_padding(None) == DEFAULT_TX_PADDING
+        assert resolve_rx_padding({}) == 0xAA
+
+    def test_rx_padding_falls_back_to_tx_padding(self):
+        # A profile that set only tx_padding keeps stripping that byte, as before.
+        assert resolve_rx_padding({"isotp": {"tx_padding": 0x00}}) == 0x00
+
+    def test_rx_padding_is_independent_when_set(self):
+        data = {"isotp": {"tx_padding": 0x55, "rx_padding": 0xAA}}
+        assert resolve_tx_padding(data) == 0x55
+        assert resolve_rx_padding(data) == 0xAA
+        assert build_isotp_params(data["isotp"])["tx_padding"] == 0x55
+
+    def test_invalid_rx_padding_falls_back(self):
+        assert resolve_rx_padding({"isotp": {"rx_padding": 999, "tx_padding": 0xCC}}) == 0xCC
+        assert resolve_rx_padding({"isotp": {"rx_padding": True}}) == 0xAA
 
 
 class TestLinkScaledTimeouts:
