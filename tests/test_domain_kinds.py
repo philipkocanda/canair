@@ -30,6 +30,7 @@ class TestGroupDefaults:
                 "migrate-discover",
                 "split-batched",
                 "compact",
+                "migrate-variants",
                 "merge-driver",
             },
             "uds",

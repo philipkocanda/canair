@@ -105,6 +105,21 @@ class StateSpans(TypedDict):
     version: NotRequired[str]
 
 
+AttributionSource = Literal["selected", "migrated", "asserted"]
+"""How a session's ``variant`` tag was decided (see :class:`Attribution`)."""
+
+
+class Attribution(TypedDict, total=False):
+    """Where a session's tags came from, per tagged field.
+
+    ``selected``: the recording command was given ``--variant``/``CANAIR_VARIANT``;
+    ``migrated``: stamped onto existing history by ``captures migrate-variants``;
+    ``asserted``: set afterwards with ``captures uds --set-variant``.
+    """
+
+    variant: AttributionSource
+
+
 class SessionMeta(TypedDict, total=False):
     """The optional metadata fields of a :class:`CaptureSession`.
 
@@ -131,6 +146,9 @@ class SessionMeta(TypedDict, total=False):
     keep_mode: PersistedKeepMode
     transport: str
     quality: Quality
+    # The profile variant (variants.yaml ID) the recorded car is, and how that was decided.
+    variant: str
+    attribution: Attribution
 
 
 class CaptureSession(SessionMeta):
@@ -194,6 +212,7 @@ class CaptureEntry(TypedDict):
     session_states: list[str]  # the session-level union
     states_resolved: bool  # False when the row fell back to the union
     session_notes: str
+    session_variant: str  # "" when the session carries no variant tag
     keep_mode: EntryKeepMode  # "" when the session recorded no dedup policy
     transport: str
     quality: Quality | None

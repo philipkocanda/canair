@@ -17,6 +17,10 @@
         "drop": 3,
         "resyncs": 2
       },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EE","pid":"2180","payload":"6180C366C00021130000000000456000313500007313009595","time":"20:38:21.488"},
         {"rx":"0x7EE","pid":"2180","payload":"6180C366C000211300000000004E6000313400007313009595","time":"20:38:26.070"},
@@ -127,6 +131,10 @@
       "quality": {
         "exchanges": 389,
         "drop": 2
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
       },
       "captures": [
         {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFFB7196E264803000D0F3C0E0D0D0E0D0D0E000DCB3CCA0100008F0005876E00058471000201090001F06E015F27980D01850000000003E8","time":"20:39:23.116"},

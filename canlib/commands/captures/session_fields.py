@@ -1,4 +1,4 @@
-"""``captures uds --set-notes TEXT`` / ``--set-transport NAME`` — correct session metadata.
+"""``captures uds --set-notes`` / ``--set-transport`` / ``--set-variant`` — correct session metadata.
 
 Replaces one free-text session field on the scope-selected sessions, for a value
 that turned out wrong after recording:
@@ -9,6 +9,8 @@ that turned out wrong after recording:
   discover/scan/raw saves once recorded from configuration rather than from the
   live client, mislabelling sessions run with ``--transport``/``--wican`` or after
   a fallback. Only a known transport label is accepted.
+- ``variant`` — which of the profile's variants the recorded car is. Only a
+  declared variant ID is accepted, and the tag is attributed ``asserted``.
 
 An empty value clears the field. Mirrors ``--set-state``: operate on the already
 scope-filtered entries, preview before writing, confirm on a TTY unless
@@ -61,6 +63,25 @@ def _transport_field() -> SessionField:
     from canlib.captures import set_session_transport
 
     return SessionField("transport", "--set-transport", set_session_transport, known_transports)
+
+
+def declared_variants() -> list[str]:
+    """The active profile's variant IDs (empty when it declares none)."""
+    from canlib.profile import active
+    from canlib.variants import load_variants
+
+    return list(load_variants(active()))
+
+
+def _variant_field() -> SessionField:
+    from canlib.captures import set_session_variant
+
+    return SessionField("variant", "--set-variant", set_session_variant, declared_variants)
+
+
+def cmd_set_variant(entries: Sequence[CaptureEntry], value: str, **kw) -> int:
+    """Tag every scope-selected session with variant ``value`` ('' removes the tag)."""
+    return cmd_set_field(entries, _variant_field(), value.lower(), **kw)
 
 
 def cmd_set_notes(entries: Sequence[CaptureEntry], value: str, **kw) -> int:

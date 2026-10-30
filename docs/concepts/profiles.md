@@ -202,6 +202,9 @@ Precedence (first match wins):
 3. `default_profile` in your config (set it with `canair profile use NAME`)
 4. the single discovered profile, if there's only one
 
+Within the profile, the global `--variant ID` (or `CANAIR_VARIANT`) names which of its
+[variants](variants.md) your car is: it tags what you record and scopes analysis to that car.
+
 ## Where profiles are discovered
 
 canair searches, in order: `--profiles-dir`, `$CANAIR_PROFILES_DIR`,

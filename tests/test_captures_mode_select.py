@@ -38,7 +38,12 @@ def _resolve(*argv: str):
 
 
 # Value-carrying session editors, and a value each is selected with.
-_EDITOR_VALUES = {"set_state": "ACC", "set_notes": "corrected", "set_transport": "wican-ws"}
+_EDITOR_VALUES = {
+    "set_state": "ACC",
+    "set_notes": "corrected",
+    "set_transport": "wican-ws",
+    "set_variant": "28kwh",
+}
 
 
 def _selecting(mode: str) -> dict:

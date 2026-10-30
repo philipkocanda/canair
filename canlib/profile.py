@@ -154,6 +154,10 @@ class Profile:
     name: str
     root: Path
     overlays: tuple[Path, ...] = ()
+    # The selected variant (a variants.yaml ID, or the analysis scope all/untagged)
+    # and where it came from — see canlib.variants.selection.
+    variant: str | None = None
+    variant_source: Literal["flag", "env"] | None = None
 
     @property
     def layered(self) -> bool:
@@ -573,15 +577,22 @@ def profile_for_path(path: Path | str) -> Profile:
 _active: Profile | None = None
 
 
-def set_active(name: str | None = None, profiles_dir: str | os.PathLike | None = None) -> Profile:
+def set_active(
+    name: str | None = None,
+    profiles_dir: str | os.PathLike | None = None,
+    variant: str | None = None,
+) -> Profile:
     """Resolve and memoize the active profile (called by the CLI).
 
+    ``variant`` is the ``--variant`` flag; ``CANAIR_VARIANT`` applies without it.
     Drops any state cached from the previous profile's definitions, so switching
     profiles in one process can't decode against the wrong vehicle.
     """
+    from canlib.variants.selection import apply_variant
+
     global _active
     previous = _active
-    _active = resolve_profile(name, profiles_dir)
+    _active = apply_variant(resolve_profile(name, profiles_dir), variant)
     if previous is not None and previous != _active:
         from .pids import clear_cache
 
@@ -593,7 +604,9 @@ def active() -> Profile:
     """Return the active profile, resolving it lazily on first use."""
     global _active
     if _active is None:
-        _active = resolve_profile()
+        from canlib.variants.selection import apply_variant
+
+        _active = apply_variant(resolve_profile())
     return _active
 
 

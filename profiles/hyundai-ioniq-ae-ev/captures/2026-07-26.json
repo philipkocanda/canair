@@ -10,6 +10,10 @@
         "IG3"
       ],
       "notes": "16A pilot, 3.44-3-56 kW (AC calibrated measurement)",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFF7926482648A3FFB10E1C141314141313140013BC02BB010000930005600A00055E740001F2A30001E3100152EBEF0901680000000003E800","time":"10:41:23.246"},
         {"rx":"0x7EC","pid":"2102","payload":"6102FFFFFFFFBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBC000000","time":"10:41:23.409"},
@@ -2990,6 +2994,10 @@
         ],
         "version": "1.35.2+main.4636a47.dirty"
       },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFF8B26482648A3FFA90E8C151415151514150013C202C1010000920005605500055E740001F2BE0001E3100152F86D0901740000000003E800","time":"11:34:44.688"},
         {"rx":"0x7EC","pid":"2102","payload":"6102FFFFFFFFC1C2C2C2C2C2C2C2C2C1C2C2C2C2C2C2C2C2C1C2C2C2C2C2C2C2C2C2C1C2C2C2000000","time":"11:34:44.886","repeat_ms":[4956]},
@@ -5461,6 +5469,10 @@
         "IG3"
       ],
       "notes": "10min. after arriving from 20 min medium speed drive (ambient: 22C)",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFF882648264803000B0E40151415151515150015BE17BD01000091000560AB00055ED40001F2DE0001E33301530D270D016C0000000003E800","time":"16:53:06.169"},
         {"rx":"0x7EC","pid":"2102","payload":"6102FFFFFFFFBDBEBEBEBEBEBEBEBEBDBEBEBEBEBEBEBEBEBDBEBEBEBEBEBEBEBEBEBDBEBEBE000000","time":"16:53:06.317"},
@@ -6418,6 +6430,10 @@
           {"at": "17:03:39.005", "states": ["READY", "PARKED", "IG3"]}
         ],
         "version": "1.35.2+main.4636a47.dirty"
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
       },
       "captures": [
         {"rx":"0x7D9","pid":"22C101","payload":"62C1015BD7E760FFFF00FF01EDFF00000000FF80FF0030F4000000FFFF802C07FB07FBFFFF0000FFFFFF000000000000","time":"16:59:33.955","repeat_ms":[2669]},
@@ -7641,6 +7657,10 @@
         "IG3"
       ],
       "notes": "HVAC modes cycled (no heating/cooling enabled): airflow face+legs -> legs only -> legs + windshield -> (speed from 3 to 5) -> face only -> face+legs -> driver only on -> driver only off -> recirculation on -> recirculation off",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EE","pid":"2180","payload":"6180C366C00022290000000000287B004749000088130098980000","time":"17:07:09.240","repeat_ms":[3042,2968,2950,3119]},
         {"rx":"0x7EE","pid":"2181","payload":"6181FFFFC00022290000000000287B8547494B4A88130698980000","time":"17:07:09.423","repeat_ms":[3021,2981,2932]},
@@ -9320,6 +9340,10 @@
         "IG3"
       ],
       "notes": "Parked, heater on high, airflow windshield+feet",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EE","pid":"2180","payload":"6180C366C00022290000000000297B004548000087130098980000","time":"17:17:08.762","repeat_ms":[2984]},
         {"rx":"0x7EE","pid":"2181","payload":"6181FFFFC00022290000000000297B8545484A4A87130698980000","time":"17:17:08.922","repeat_ms":[2987]},

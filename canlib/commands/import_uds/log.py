@@ -41,6 +41,10 @@ def check_args(args: argparse.Namespace) -> None:
 
 
 def run_from_log(args: argparse.Namespace) -> int:
+    from canlib.profile import active
+    from canlib.variants.selection import require_named_car
+
+    require_named_car(active(), "import uds")
     try:
         check_args(args)
         return _import_log(args)

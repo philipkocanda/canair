@@ -254,22 +254,25 @@ and **`g`/`G` address the view's primary axis**.
   QUERY; a bare `canair captures BMS 2102` is shorthand for it. Views: `--diff` (byte-level),
   `--step` (Textual stepper/comparator; a multi-PID QUERY stacks the PIDs time-joined in one frame),
   `--latest`, `--summary`, `--sessions` (the fast "what's in the captures?" index — time-span,
-  state, label, notes, ECUs, acquisition `transport`, recording `version`, a `quality` line; no
-  payloads).
+  state, label, notes, ECUs, the car's `variant` tag (or `untagged` on a multi-variant profile),
+  acquisition `transport`, recording `version`, a `quality` line; no payloads).
   **The default list view is capped at `--limit N` (default 50) with a loud footer** for hidden
   history, so a bare query can't blow the context window; widen with `--limit 0` or scope tighter.
   Mutating modes: `--delete` (refuses a bare `--delete`, previews with `--dry-run`, confirms unless
   `--yes`), `--backfill-states` (offline state inference, `canlib/states/infer.py`; fills unset
   states and *reports* contradicted ones unless `--overwrite`), `--set-state` (manual counterpart —
-  **requires** a scope filter so it can't blanket-relabel history), `--set-notes`/`--set-transport`
-  (correct a session's notes or recorded transport, same scope rule; one editor in
-  `commands/captures/session_fields.py`, and all three `--set-*` share
+  **requires** a scope filter so it can't blanket-relabel history),
+  `--set-notes`/`--set-transport`/`--set-variant` (correct a session's notes, recorded transport or
+  car, same scope rule — the global `--variant untagged` counts as one; one editor in
+  `commands/captures/session_fields.py`, and every `--set-*` shares
   `session_gate.py::refuse_write` for the base-layer refusal and confirmation), `--recover`, and
   the one-time `migrate` (YAML→JSON) / `migrate-rx` (`ecu`→`rx`) / `migrate-discover` (gives legacy
   discover responders their `tx`; `canlib/migrations/discover.py`) / `split-batched` (splits a
   multi-DID reply stored whole under its first DID into per-DID rows;
   `canlib/uds/unsplit_batches.py`) / `compact` (rewrite in the folded on-disk form;
-  `canlib/migrations/compact.py`) / `merge-driver` (see Key Files).
+  `canlib/migrations/compact.py`) / `migrate-variants ID` (tag untagged history with the car it
+  came from, attributed `migrated`, never retagging; `canlib/migrations/variants.py`) /
+  `merge-driver` (see Key Files).
   **`captures can`** (domain B) lists imported raw frame logs from `captures/can/index.yaml`.
 - **`canair decode`** (alias `dec`) — Value-centric decoding of all historical captures; the default
   view is each signal's value range. `--try` tests a candidate expression **without editing YAML**
@@ -419,13 +422,25 @@ reuse these instead of re-declaring a flag:
   `(ecu_label, pid, param_name)` selection key, snapping the TUI cursor and viewport back to the
   first copy.
 - **`canair variants`** — List/edit `variants.yaml`, the versions of the profile's car an owner
-  can name (battery, facelift, market) with typed metadata. **Metadata only so far**: nothing
-  selects a variant, gates a definition or tags a capture yet — the rest of the design is
-  `plans/2026-10-30-profile-variants-and-rename.md`, phase by phase. The field table and the
-  structural check live once in `canlib/variants/__init__.py` (`VARIANT_FIELDS`,
-  `check_variants_doc`), shared by the loader, `validate variants` and the editor
-  (`canlib/variants/edit.py`, which types each command-line value from that table). Keys a later
-  phase owns (`revisions`, `profile_overrides`) are rejected until something reads them.
+  can name (battery, facelift, market) with typed metadata. Nothing gates a definition on a
+  variant yet — the rest of the design is `plans/2026-10-30-profile-variants-and-rename.md`,
+  phase by phase. The field table and the structural check live once in
+  `canlib/variants/__init__.py` (`VARIANT_FIELDS`, `check_variants_doc`), shared by the loader,
+  `validate variants` and the editor (`canlib/variants/edit.py`, which types each command-line
+  value from that table). Keys a later phase owns (`revisions`, `profile_overrides`) are rejected
+  until something reads them. `rename` rewrites every tag that uses the ID and `rm` refuses while
+  one does (`canlib/variants/references.py`).
+  **The global `--variant ID` (or `CANAIR_VARIANT`) names the car**
+  (`canlib/variants/selection.py::apply_variant`, applied by `set_active`/`active`, never by a bare
+  `resolve_profile`, carried as `Profile.variant`/`variant_source`). It **tags captures**: every
+  save funnels through `captures.save_session` and the journal's meta, both via
+  `current_capture_tag` (only for the active profile's own store; the journal fixes the tag at
+  open so a later `--recover` cannot retag). It **scopes analysis** inside `load_all_captures`
+  (only when no explicit `--dir`; `all`/`untagged` are scope keywords). An untagged copy of a
+  tagged session is the same session with less information: the merge driver, the contribute
+  overlay and the layered read keep the tagged one (`canlib/variants/tags.py::strip_tag`).
+  Imports (`import uds`, `import can`) on a multi-variant profile **require the flag, not the
+  env var** — it is someone else's car (`selection.require_named_car`).
 - **`canair bus`** — Read-only list of the profile's CAN bus segments from `can_buses.yaml` with ECU
   counts; flags **undeclared** codes and counts **unbussed** ECUs. Companion to `pids set-can-bus`.
 - **`canair validate`** (alias `val`) — `validate

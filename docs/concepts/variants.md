@@ -5,11 +5,11 @@ Hyundai Ioniq Electric (AE). Within it, cars still differ in ways an owner can n
 28 kWh pack or the 38 kWh facelift, a market with different diagnostics. Those are the
 profile's **variants**, declared in its `variants.yaml`.
 
-!!! note "Metadata only, for now"
-    Variants currently record *what* versions of the car exist and what is known about
-    each. Nothing selects a variant, limits a definition to one, or tags a capture with
-    one yet; every definition in the profile still applies to every car. The design for
-    what follows is in
+!!! note "What variants do so far"
+    Variants record *what* versions of the car exist and what is known about each, and
+    [captures can be tagged](#tagging-captures-with-the-car) with the one they came from.
+    Nothing limits a definition to one variant yet: every definition in the profile still
+    applies to every car. The design for what follows is in
     [`plans/2026-10-30-profile-variants-and-rename.md`](https://github.com/philipkocanda/canair/blob/main/plans/2026-10-30-profile-variants-and-rename.md).
 
 ## What is a variant, and what is not
@@ -95,3 +95,55 @@ Short lists (`markets`, `trims`) are comma-separated; `sources` takes one source
 
 `canair profile show` lists a profile's variants, and the
 [profile explorer](../profiles/explorer.md) shows them in its toolbar.
+
+## Tagging captures with the car
+
+A capture is evidence about one car. In a profile with several variants, a session says which
+car it came from with a `variant` tag, plus an `attribution` recording how that was decided.
+
+Name your car with the global `--variant` flag (or `CANAIR_VARIANT`). It must be one of the
+profile's variants, and an unknown one is an error listing the valid ones:
+
+```bash
+canair --variant 28kwh monitor @driving --save --label "commute"   # tagged 28kwh
+canair --variant 28kwh decode BMS:2101                             # only that car's sessions
+```
+
+| Where | What the tag does |
+|---|---|
+| `--save` on any live command | the session is tagged `selected`; without `--variant` it stays untagged |
+| `canair import uds` / `import can` | on a multi-variant profile the global `--variant` is **required** (an import is someone else's car, so `CANAIR_VARIANT` doesn't count) |
+| `canair dtc` | each logged scan records the variant |
+| analysis (`decode`, `captures`, `correlate`, …) | `--variant ID` scopes to that car's sessions; `--variant all` (the default) to every session, `--variant untagged` to sessions with no tag |
+
+The tag is part of the recording, so a session recovered after a crash keeps the car it was
+recorded with, whatever a later run selects.
+
+`canair captures uds --sessions` shows each session's tag, and marks untagged sessions on a
+profile with several variants. `canair validate captures` counts the untagged sessions and warns
+about a tag naming a variant the profile doesn't declare.
+
+### Tagging existing history
+
+History recorded before a profile declared its variants is untagged. Stamp the sessions you
+know came from one car, once per car:
+
+```bash
+canair captures migrate-variants 28kwh --dry-run          # preview
+canair captures migrate-variants 28kwh --since 2026-01-01 --label commute
+```
+
+It only tags sessions that have no tag yet (attributed `migrated`) and only writes the
+profile's own captures. To correct one session's tag afterwards, use
+`canair captures uds --set-variant ID` with a scope filter (attributed `asserted`;
+`--set-variant ''` removes it). The global `--variant untagged` selects every untagged
+session.
+
+### Tags survive merges
+
+A copy of a session that lacks the tag is the same recording with less information. The capture
+merge driver, `canair contribute` and a layered profile's read all keep the tagged copy, so an
+older, untagged copy of your history can never strip the tags from it.
+
+`canair variants rename` rewrites every tag that uses the variant (captures, the raw-CAN log index
+and the DTC log), and `canair variants rm` refuses while any of them still does.

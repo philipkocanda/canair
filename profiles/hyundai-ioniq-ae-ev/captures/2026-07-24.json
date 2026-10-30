@@ -8,6 +8,11 @@
         "sleep"
       ],
       "notes": "sleep for a few minutes with low 12V, fob unlock, open/close trunk, open/close pax door, open drv door, open hood, close hood, close driver door, fob lock",
+      "keep_mode": "unique",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7A8","pid":"22B001","payload":"62B00140C0000000010000000000000201000000","time":"09:29:15.840"},
         {"rx":"0x7A8","pid":"22B002","payload":"62B002C00000000300AAAAAAAA","time":"09:29:16.002"},
@@ -222,8 +227,7 @@
         {"rx":"0x778","pid":"22BC06","payload":"62BC06B480000000000000","time":"09:29:18.460"},
         {"rx":"0x778","pid":"22BC07","payload":"62BC070841FBCC00001100AAAA","time":"09:29:15.533"},
         {"rx":"0x778","pid":"22BC07","payload":"62BC070841FBCC10001100AAAA","time":"09:37:09.084"}
-      ],
-      "keep_mode": "unique"
+      ]
     }
   ]
 }

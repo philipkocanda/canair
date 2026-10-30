@@ -18,7 +18,7 @@ from canlib.commands import iter_command_modules
 
 # Global options (before the subcommand) that consume a following value. Used by
 # _inject_default_subcommand to find the command token.
-_GLOBAL_OPTS_WITH_VALUE = {"--profile", "--profiles-dir"}
+_GLOBAL_OPTS_WITH_VALUE = {"--profile", "--profiles-dir", "--variant"}
 # Command groups that default to a kind when the token after them isn't a known
 # sub-kind. Maps command -> (known kinds, default kind).
 #
@@ -58,6 +58,7 @@ _GROUP_DEFAULTS = {
             "migrate-discover",
             "split-batched",
             "compact",
+            "migrate-variants",
             "merge-driver",
         },
         "uds",
@@ -262,6 +263,14 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Extra directory to search for vehicle profiles.",
     )
+    parser.add_argument(
+        "--variant",
+        metavar="ID",
+        default=None,
+        help="The profile variant your car is (a variants.yaml ID): tags what you record "
+        "and scopes analysis to that car's sessions (all / untagged also scope "
+        "analysis). Overrides CANAIR_VARIANT.",
+    )
     subparsers = parser.add_subparsers(dest="command", metavar="<command>")
 
     for module in iter_command_modules():
@@ -317,9 +326,10 @@ def main(argv: list[str] | None = None) -> int:
     if (
         getattr(args, "profile", None) is not None
         or getattr(args, "profiles_dir", None) is not None
+        or getattr(args, "variant", None) is not None
     ):
         try:
-            set_active(args.profile, args.profiles_dir)
+            set_active(args.profile, args.profiles_dir, args.variant)
         except ProfileError as e:
             print(f"error: {e}", file=sys.stderr)
             return 2

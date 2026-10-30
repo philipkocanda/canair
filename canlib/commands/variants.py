@@ -164,17 +164,27 @@ def cmd_unset_meta(args) -> int:
 
 
 def cmd_rename(args) -> int:
-    from canlib.variants.edit import rename_variant
+    from canlib.profile import active
+    from canlib.variants.references import rename_everywhere
 
-    return _run_edit(
-        f"renamed variant {args.old} → {args.new}", lambda: rename_variant(args.old, args.new)
-    )
+    written: list = []
+
+    def action():
+        path, rewritten = rename_everywhere(args.old, args.new, active())
+        written.extend(rewritten)
+        return path
+
+    rc = _run_edit(f"renamed variant {args.old} → {args.new}", action)
+    for path in written:
+        print(f"  {ansi.c('retagged', ansi.DIM)} {path}")
+    return rc
 
 
 def cmd_rm(args) -> int:
-    from canlib.variants.edit import remove_variant
+    from canlib.profile import active
+    from canlib.variants.references import remove_unreferenced
 
-    return _run_edit(f"removed variant {args.id}", lambda: remove_variant(args.id))
+    return _run_edit(f"removed variant {args.id}", lambda: remove_unreferenced(args.id, active()))
 
 
 def add_parser(subparsers) -> argparse.ArgumentParser:
@@ -216,12 +226,14 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     um.add_argument("keys", nargs="+", metavar="KEY", help="Field (battery.<field> for battery)")
     um.set_defaults(_variants_func=cmd_unset_meta)
 
-    ren = sub.add_parser("rename", help="Change a variant's ID")
+    ren = sub.add_parser(
+        "rename", help="Change a variant's ID, retagging the captures and logs that use it"
+    )
     ren.add_argument("old")
     ren.add_argument("new")
     ren.set_defaults(_variants_func=cmd_rename)
 
-    rm = sub.add_parser("rm", help="Remove a variant")
+    rm = sub.add_parser("rm", help="Remove a variant (refused while captures or logs use it)")
     rm.add_argument("id")
     rm.set_defaults(_variants_func=cmd_rm)
 

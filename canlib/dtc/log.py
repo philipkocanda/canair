@@ -113,8 +113,23 @@ def append_clear(entry: dict, path: Path | None = None) -> Path:
     return _append("clears", entry, path)
 
 
+def _with_variant(entry: dict) -> dict:
+    """``entry`` tagged with the selected variant: a code's meaning can differ per car."""
+    if "variant" in entry:
+        return entry
+    from canlib.profile import ProfileError, active
+    from canlib.variants.tags import selected_variant
+
+    try:
+        variant = selected_variant(active())
+    except ProfileError:
+        return entry
+    return {**entry, "variant": variant} if variant else entry
+
+
 def _append(section: str, entry: dict, path: Path | None = None) -> Path:
     """Append ``entry`` to the named top-level list, preserving comments."""
+    entry = _with_variant(entry)
     from ruamel.yaml.comments import CommentedMap
 
     from canlib.yaml_rt import dump as _dump

@@ -41,6 +41,17 @@ def poll(pid: str, ts: float, channel: int = 1, reply: str | None = None):
     return frames
 
 
+@pytest.fixture(autouse=True)
+def _named_car(monkeypatch):
+    """Imports must name the car on a multi-variant profile: give the suite's one."""
+    import dataclasses
+
+    from canlib import profile as profile_mod
+
+    prof = dataclasses.replace(profile_mod.active(), variant="28kwh", variant_source="flag")
+    monkeypatch.setattr(profile_mod, "_active", prof)
+
+
 def _args(log, **kw) -> argparse.Namespace:
     base = {
         "spec": [],

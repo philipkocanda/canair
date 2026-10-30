@@ -108,6 +108,13 @@ class CaptureJournal:
         }
         if transport:
             meta["transport"] = transport
+        # The car being recorded, fixed now: a crash is recovered by a later run,
+        # whose own selection says nothing about this recording.
+        from canlib.captures import current_capture_tag
+
+        tag = current_capture_tag(captures_dir)
+        if tag:
+            meta.update(tag)
         journal._write(meta, durable=True)
         return journal
 
@@ -290,7 +297,7 @@ def build_session_from_records(
     on save); rows missing a date fall back to the ``meta`` date. Returns an
     empty list when the journal has no capture/session payloads.
     """
-    from canlib.captures import build_query_session
+    from canlib.captures import apply_capture_tag, build_query_session
 
     meta = {"label": "", "vehicle_states": [], "notes": "", "keep_mode": None, "date": ""}
     session_records: list[dict] = []
@@ -298,9 +305,12 @@ def build_session_from_records(
     meta_date = ""
     transport: str | None = None
     quality: Quality | None = None
+    tag: dict | None = None
     for rec in records:
         rtype = rec.get("type")
         if rtype == "meta":
+            if rec.get("variant"):
+                tag = {"variant": rec["variant"], "attribution": rec.get("attribution") or {}}
             for k in ("label", "vehicle_states", "notes", "keep_mode", "date"):
                 if k in rec:
                     meta[k] = rec[k]
@@ -359,7 +369,7 @@ def build_session_from_records(
             _set_session_field(base, "quality", quality)
         for extra in session_records[1:]:
             base.setdefault("captures", []).extend(extra.get("captures", []))
-        return [base]
+        return [apply_capture_tag(base, tag)]
 
     if not rows:
         return []
@@ -386,7 +396,7 @@ def build_session_from_records(
                 quality=quality,
             )
         )
-    return sessions
+    return [apply_capture_tag(s, tag) for s in sessions]
 
 
 def reconcile_file(
@@ -413,7 +423,7 @@ def reconcile_file(
         return None
     written: Path | None = None
     for session in sessions:
-        written = save_session(session, captures_dir)
+        written = save_session(session, captures_dir, stamp_variant=False)
     path.unlink(missing_ok=True)
     return written
 

@@ -1,6 +1,6 @@
 # Profile variants, phase 3 — capture tags and the `--variant` flag
 
-Status: **NOT STARTED.** Part of
+Status: **DONE** (2026-10-31). Part of
 [`2026-10-30-profile-variants-and-rename.md`](2026-10-30-profile-variants-and-rename.md) (see its
 [Captures](2026-10-30-profile-variants-and-rename.md#captures--every-session-says-which-car-it-came-from)
 section). Depends on phase 2.
@@ -14,6 +14,32 @@ refusal.
 
 The split is deliberate. Everything here is additive, so it can land, be used and be corrected
 before anything starts refusing.
+
+## As built
+
+Where the implementation differs from the plan below:
+
+- **Analysis is scoped in one place.** `load_all_captures` applies the active profile's
+  `--variant` scope (when no explicit `--dir` is given), so every analysis command honours it
+  without touching `add_scope_args` or any command's filtering.
+- **The variant is applied where the active profile is set** (`set_active`/`active`, through
+  `canlib/variants/selection.py::apply_variant`), not inside `resolve_profile`, so resolving a
+  profile by name for any other purpose is unaffected. `Profile` carries `variant` and
+  `variant_source`.
+- **Tags are stamped at the two write funnels**, not threaded through every session builder:
+  `save_session` and the journal's meta, both via `current_capture_tag`. The journal fixes the
+  tag when it is opened, and its reconcile saves without restamping, so a session recovered by a
+  later run keeps the car it was recorded with.
+- **Imports require the flag, not `CANAIR_VARIANT`.** An import is someone else's car, so an
+  environment default meant for the user's own car does not count.
+- **`migrate-variants` takes the variant as a positional ID** and its own
+  `--date`/`--since`/`--until`/`--label`, since the full scope surface (states, last sessions)
+  doesn't apply to stamping. It writes the profile's own store only.
+- **The global `--variant` counts as a scope filter for `--set-variant`**, so
+  `--variant untagged --set-variant 28kwh` tags every untagged session.
+- **The DTC log is tagged at its single append funnel** from the active selection.
+- **Bundled history:** 282 Ioniq sessions (`28kwh`), 5 Kona (`64kwh`) and 3 XPeng (`87kwh`)
+  sessions were tagged; Leaf and Ioniq 5 stay untagged.
 
 ## What users see
 

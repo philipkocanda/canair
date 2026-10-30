@@ -11,6 +11,10 @@
         "IG3"
       ],
       "notes": "Live canair snapshot while parked in READY, ambient ~18C, cold-soaked (motor 0 RPM, no torque). Used to anchor MCU 2102 motor RPM (0 at park) and as a cold reference for future temp mapping.",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EB","pid":"2101","payload":"6101000003FF0C380079969F380000000A003D024F04B238D0FF0000300000000000","notes":"34 bytes. Parked READY. Candidate temp bytes ~ambient but bimodal/constant on review."},
         {"rx":"0x7EB","pid":"2102","payload":"610207FFFFFF000000000000220007090D0DF8FFF6FF7DD6CDABC2CD6B0043FD3000C607F726F606C1CD0900D13100000000000000000000000000000000","notes":"62 bytes. MOTOR_RPM [S10:S11]=0 at park. B27-B47 static calibration/offset block."},
@@ -34,6 +38,10 @@
         "PARKED",
         "IG3"
       ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EA","pid":"2101","payload":"6101FFE0000009215A5B0643030000000042753404200000000000","time":"12:11:04"},
         {"rx":"0x7EA","pid":"2101","payload":"6101FFE0000009215A5B0645030000000040753404200000000000","time":"12:11:05"},
@@ -65,6 +73,10 @@
         "charging"
       ],
       "notes": "HVAC running FAN ONLY (no AC/compressor), blower speed 2, set temp 22C, ambient ~19.5C, interior ~29.5C. Confirmed no AC: COMPRESSOR_RELAY=0, COOLING_MODE=0, PTC_HEATER=0. Reference state for decoding HVAC fan/AC/mode bytes. Note: HVAC_FAN_SPEED_LEVEL decoded to 255 (implausible for speed 2 — mapping suspect).\n",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7BB","pid":"220100","payload":"6201007E5007C8FF8B7781087149FFFF49FF11FFFFFFFFFFFFFFFFFF1FD7828200FFFF00FFFF000000","notes":"41B. Blower duty=0x71(113), interior 29.5C, AAT 19.5C, evaporator 24.5C, duct 25C."},
         {"rx":"0x7BB","pid":"220102","payload":"620102FF80000085840000000000001B00000000","notes":"20B. Heat-exchanger temps ~26C, compressor relay/load bytes."},
@@ -85,6 +97,10 @@
         "IG3"
       ],
       "notes": "~18C ambient; end-to-end test of --multi query --save\n",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EB","pid":"2101","payload":"6101000003FF083800C79A5D390000000A003D022B045E394900610056FF00000000"},
         {"rx":"0x7EB","pid":"2102","payload":"610207FFFFFF0000000000001C0009151717F7FFF6FF7DD6CDABC2CD6B0043FD3000C607F726F606C1CD0900B23100000000000000000000000000000000"},
@@ -99,6 +115,10 @@
         "ON"
       ],
       "notes": "ACC2 (was READY, switched to ACC2 during charging; charge finished 100% SoC). AC/heat off, ambient ~19.5C. Decodes 0x7E6 2180: AMBIENT=(B18-80)/2=19.5C, HEATER_ELEMENT=S17/2=19C, HEATSINK=B20-40=42C (still warm from OBC/inverter post-charge), COMPRESSOR=B21-40=19C. 2181 = richer variant (extra non-zero bytes).\n",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EE","pid":2180,"payload":"6180C366C00022290000000000267700523B000098130096960000","notes":"27B. AMBIENT 19.5C, HEATER_ELEMENT 19C, HEATSINK 42C (warm post-charge), COMPRESSOR 19C (AC off)."},
         {"rx":"0x7EE","pid":2181,"payload":"6181FFFFC0002229000000000026778F523B5A5A98130696960000","notes":"27B. Same layout as 2180 but extra non-zero bytes (B19=8F, B22/B23=5A, B24=06) — richer variant."}
@@ -111,6 +131,10 @@
         "ON"
       ],
       "notes": "GSA 0x7B6 scan (ACC2, gear P). Responds ONLY to 220100 (service 21 none; 22 0101-0130 all NRC). B19/B21/B22 = 0x77/0x76/0x78 (119/118/120) vs 2026-04-17 P capture 0x93/0x91/0x94 — drifted ~30 in same gear (likely lever hall sensors or temp). Needs a P/R/N/D shift test + drive-mode-button test.\n",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7BE","pid":"220100","payload":"620100FF00000080AA010000000000770176780001000000000000","notes":"27B. ACC2, gear P. Candidate lever-sensor bytes B19/B21/B22."}
       ]

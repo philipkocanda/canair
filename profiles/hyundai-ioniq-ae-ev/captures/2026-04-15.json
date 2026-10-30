@@ -4,19 +4,30 @@
       "date": "2026-04-15",
       "label": "Charging, dash on, doors unlocked — door/lock PID verification",
       "notes": "AC charging at home. Dashboard on, all doors closed, all doors UNLOCKED. Extended diagnostic session (1003) required for IGPM 22BC03/04/06. Verification session to confirm door open/lock bit positions. [CORRECTION 2026-07-21: the claim that IGPM service-22 reads require an extended session (1003) is WRONG. Verified live in READY mode — a bare ATSH770;ATFCSH770;22BC03 returns a valid 62BC03 with no 1003, reconfirmed after an 8s idle. 1003 sent during this 04-15 session was unnecessary for the reads. IOControl (2F) still needs 1003.]",
+      "vehicle_states": [
+        "ON"
+      ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x778","pid":"22BC03","payload":"62BC03FDEE3C7300600000AAAA","notes":"13 bytes (11 data + 2 padding 0xAA). Byte 7 = 0x00 (compare: 0x20 ACC, 0x0A keyfob). Byte 8 = 0x60 = 01100000. Bit 5 (B10:5) = 1, bit 6 (B10:6) = 1. All DOOR_*_OPEN bits (B10:0,2,4,5) read 0 — doors closed. TRUNK_OPEN (B10:7) = 0. DOOR_LOCK_RL (1-B10:1) = 1, DOOR_LOCK_RR (1-B10:3) = 1 — but doors are UNLOCKED.\n"},
         {"rx":"0x778","pid":"22BC04","payload":"62BC04B53FF4EA01000042AAAA","notes":"13 bytes (11 data + 2 padding 0xAA). DOOR_LOCK_FL (B10:3) = 0, DOOR_LOCK_FR (B10:2) = 0.\n"},
         {"rx":"0x778","pid":"22BC06","payload":"62BC06B480000000000000AAAA","notes":"13 bytes. BRAKE_LIGHT (B7) = 0x00 (not braking)."}
-      ],
-      "vehicle_states": [
-        "ON"
       ]
     },
     {
       "date": "2026-04-15",
       "label": "ACC mode — light/ignition/seatbelt/charge port verification",
       "notes": "Extended verification session in ACC2 mode. All IGPM reads use extended session (1003). BCM (0x7A0) does NOT require extended session. Tested: headlights (off/DRL/low/high), turn signals (left/right — hazards did NOT register), brake pedal, seatbelt toggle, ignition states (OFF/ACC1/ACC2/Ready), charge port flap (open/close). [CORRECTION 2026-07-21: the claim that IGPM service-22 reads require an extended session (1003) is WRONG. Verified live in READY mode — a bare ATSH770;ATFCSH770;22BC03 returns a valid 62BC03 with no 1003, reconfirmed after an 8s idle. 1003 sent during this 04-15 session was unnecessary for the reads. IOControl (2F) still needs 1003.]",
+      "vehicle_states": [
+        "ON"
+      ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x778","pid":"22BC03","payload":"62BC03FDEE3C730000000000AAAA","notes":"B7=0x00, B8=0x00 — no ignition flags set."},
         {"rx":"0x778","pid":"22BC03","payload":"62BC03FDEE3C730060000000AAAA","notes":"B7=0x00, B8=0x60 (bits 5,6). IGNITION_ON (B11:5)=1."},
@@ -38,9 +49,6 @@
         {"rx":"0x7A8","pid":"22B00E","payload":"62B00E0C00000000000000AAAA","notes":"B10=0x00 (bit 5 clear). CHARGE_PORT_OPEN (B10:5)=0."},
         {"rx":"0x778","pid":"2FBC01","payload":"6FBC0103","notes":"Positive response — low beams turned on physically. Actuator holds only\nwhile extended session (1003) is maintained with TesterPresent (3E00)\nkeepalive. Session drop releases the actuator (lights turn off).\nUse: canair raw 770:2FBC0103 --hold\n\n# --- IOControl scan BC00-BC20 (service 0x2F, append 03) ---\n"},
         {"rx":"0x778","pid":"2F_SCAN_BC00-BC20","response":"see notes","notes":"WARNING: This scan triggered the car alarm! BC09 (trunk unlock) and\nBC10/BC11 (door lock/unlock) were actuated during the scan.\nNEVER scan IOControl ranges blindly — always list individual commands\nand get explicit approval before sending.\n\nAccepted DIDs (positive 6F response):\n  BC01 — low beam (verified: lights turned on)\n  BC02 — high beam\n  BC03 — front fog light\n  BC04 — tail/rear light\n  BC05 — red backlight flash\n  BC07 — unknown\n  BC08 — rear fog light\n  BC09 — trunk unlock (TRIGGERED ALARM)\n  BC0A — unknown\n  BC0C — rear defogger relay\n  BC10 — door LOCK all (TRIGGERED ALARM)\n  BC11 — door UNLOCK all (TRIGGERED ALARM)\n  BC12 — unknown (unlock variant?)\n  BC14 — unknown\n  BC15 — left turn indicator\n  BC16 — right turn indicator\n  BC18 — unknown\n  BC1B — unknown\n\nRejected DIDs (NRC):\n  BC00 — 0x31 (requestOutOfRange)\n  BC06 — 0x31\n  BC0B — 0x31\n  BC0D — 0x31\n  BC0E — 0x31\n  BC13 — 0x22 (conditionsNotCorrect)\n  BC17 — 0x31\n  BC19 — 0x31\n  BC1A — 0x31\n\nNo DRL-specific DID found. DRLs may activate with BC04 (tail light).\n"}
-      ],
-      "vehicle_states": [
-        "ON"
       ]
     },
     {
@@ -49,6 +57,11 @@
       "vehicle_states": [
         "ready"
       ],
+      "notes": "[migrated state: Ready mode (ACC on), then off+locked for SKM deep sleep test. Fob nearby.]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7AD","pid":"2FB108030A0A05","label":"ACC relay ON — car in Ready (ACC already on)","response":"NRC 0x22 (conditionsNotCorrect)","notes":"ACC already active — IOControl rejects actuating to current state."},
         {"rx":"0x7AD","pid":"2FB10802","label":"ACC relay freezeCurrentState — car in Ready","payload":"6FB1080262550000AAAAAAAAAA","notes":"Status bytes 0x62=01100010, 0x55=01010101. Possibly relay state bitmask."},
@@ -66,13 +79,17 @@
         {"rx":"0x778","pid":"2FBC4203","label":"Unknown actuator test — Ready mode","response":"accepted","notes":"No visible or audible effect."},
         {"rx":"0x778","pid":"2FBC4303","label":"Unknown actuator test — Ready mode","response":"accepted","notes":"No visible or audible effect."},
         {"rx":"0x778","pid":"2FBC4403","label":"Unknown actuator test — Ready mode","response":"accepted","notes":"No visible or audible effect."}
-      ],
-      "notes": "[migrated state: Ready mode (ACC on), then off+locked for SKM deep sleep test. Fob nearby.]"
+      ]
     },
     {
       "date": "2026-04-15",
       "label": "SKM rapid-fire wake & ECU sweep",
       "vehicle_states": [],
+      "notes": "[migrated state: car off, locked, unplugged, fob ~10m away inside house]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7AD","pid":"1001","label":"Rapid-fire wake — cold start #1","payload":"5001","notes":"SKM alive at attempt 17 of 100. 64ms timeout (ATST10), 150ms intervals. No fob nearby."},
         {"rx":"0x7AD","pid":"1001","label":"Rapid-fire wake — cold start #2","payload":"5001","notes":"SKM alive at attempt 16. After WiCAN reboot + 15s settle."},
@@ -85,8 +102,7 @@
         {"rx":"0x7BB","pid":"1001","label":"Brute-force wake attempt","response":"NO DATA","notes":"50 rapid attempts — HVAC dead."},
         {"rx":"0x7EE","pid":"1001","label":"Wake probe","response":"NO DATA","notes":"GW (0x7E6) dead."},
         {"rx":"0x7D9","pid":"1001","label":"Wake probe","response":"NO DATA","notes":"ESC (0x7D1) dead."}
-      ],
-      "notes": "[migrated state: car off, locked, unplugged, fob ~10m away inside house]"
+      ]
     },
     {
       "date": "2026-04-15",
@@ -95,6 +111,10 @@
         "ON"
       ],
       "notes": "Method: canair scan range 7A0 --service 22 --range B001-B012 --wake [migrated state: Car off, locked, deep sleep. SKM ACC+IGN1 held via IOControl.]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7A8","pid":"22B001","label":"BCM data page 1","payload":"62B00140C0000000010000000000000201000000","notes":"20 bytes. Feature/config flags. Mostly zeros."},
         {"rx":"0x7A8","pid":"22B002","label":"BCM data page 2","payload":"62B002C00000000200AAAAAAAA","notes":"13 bytes. Minimal data."},
@@ -134,6 +154,10 @@
         "ON"
       ],
       "notes": "Method: BCM IOControl scan: 2F B0xx 00 (returnControlToECU, safe) [migrated state: Car off, deep sleep. SKM ACC+IGN1 held via IOControl.]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7A8","pid":"2F B0xx","label":"IOControl DID existence scan B000-B072","response":"Accepted (24 DIDs): B003, B006, B008, B009, B00A, B00F, B019, B01A,\n  B025, B028, B029, B030, B038, B039, B03A, B03B, B04D, B057, B059,\n  B05A, B05B, B05C, B071, B072\nRange B073-B0FF: scan timed out (SKM session drop during scan)\n","notes":"Scanned B000-B072 fully. B073-B0FF incomplete — SKM keepalive wasn't frequent enough, BCM lost power mid-scan. Re-scan needed. B061 (charge door open) NRC 0x31 — DID not supported on Ioniq 2017."},
         {"rx":"0x7A8","pid":"2FB06103","label":"Charge door open retry (with ACC power)","response":"NRC 0x31","notes":"requestOutOfRange — B061 not supported on Ioniq 2017. This was also tried earlier without ACC (got 0x7F then). Definitively not a supported DID."}
@@ -145,12 +169,16 @@
         "ACC"
       ],
       "label": "BCM power state comparison — ACC only",
+      "notes": "[migrated state: deep sleep → SKM ACC only (IOControl B108), no fob]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7A8","pid":"22B001","label":"BCM config flags — ACC only","response":"62B00140C0000100000000000002010000 00","notes":"Identical to earlier ACC+IGN1 read — B001 does not change with power state."},
         {"rx":"0x7A8","pid":"22B003","label":"BCM dense bitfield — ACC only","payload":"62B003BF8B8000973D09B8F9F8F9F73DF800000000000000AAAAAA","notes":"Byte 8 (stripped) = 0x09 (0b00001001). Compare with ACC+IGN1 where byte 8 = 0x0A. Bits 0 and 1 swap between ACC and IGN1 — possible power mode field."},
         {"rx":"0x7A8","pid":"22B008","label":"BCM status — ACC only","payload":"62B00800510C2000880000AAAA","notes":"Identical to earlier ACC+IGN1 read — B008 does not change with power state."}
-      ],
-      "notes": "[migrated state: deep sleep → SKM ACC only (IOControl B108), no fob]"
+      ]
     },
     {
       "date": "2026-04-15",
@@ -158,10 +186,14 @@
         "ON"
       ],
       "label": "BCM power state comparison — ACC + IGN1",
+      "notes": "[migrated state: deep sleep → SKM ACC + IGN1 (IOControl B108+B109), no fob]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7A8","pid":"22B003","label":"BCM dense bitfield — ACC + IGN1","payload":"62B003BF8B8000973D0AB8F9F8F9F73DF800000000000000AAAAAA","notes":"Byte 8 (stripped) = 0x0A (0b00001010). Changed from 0x09 in ACC-only. Bits 0→0, 1→1 compared to ACC state. Power mode tracking confirmed."}
-      ],
-      "notes": "[migrated state: deep sleep → SKM ACC + IGN1 (IOControl B108+B109), no fob]"
+      ]
     }
   ]
 }

@@ -219,6 +219,9 @@ def _run_captures(
         _print_grouped(warnings, marker="⚠")
         total_warnings += len(warnings)
 
+    from .variant_tags import report_variant_tags
+
+    total_warnings += report_variant_tags(files, prof)
     if total_warnings:
         print(
             f"\n{total_warnings} warning(s) — see `canair validate states` / echo mismatches above"

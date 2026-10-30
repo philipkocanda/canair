@@ -8,6 +8,10 @@
       ],
       "label": "BCM 22B003/22B004 live voltage monitoring",
       "notes": "Observed 22B003 and 22B004 changing every few seconds in monitor mode. 22B003 contains slowly decrementing ADC-like values u2014 likely 12V battery voltage measurements across multiple points (battery terminals, fuse box, BCM internal rail). B07 drifts fastest (~2 LSB/min), B10/B12/B14 follow. Static bytes (B03-B06, B08, B15) may be config/thresholds. 22B004 has a single bit (B09 bit 6) toggling 0x00u21940x40 every ~12-15s u2014 periodic heartbeat/watchdog flag. Rest of B004 is static. BCM likely uses these readings to decide when to activate the LDC (DC-DC converter) to top up the 12V from the HV traction battery.\n [migrated state: deep sleep, parked, locked, no charging]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7A8","pid":"22B003","notes":"run 1 — B07=0x95 (149)","payload":"62B003BF8B8000953DF5A5F9F8F9F83DF800000000000000AAAAAA"},
         {"rx":"0x7A8","pid":"22B003","notes":"run 2 — B07=0x94 (148)","payload":"62B003BF8B8000943DF5A5F9F8F9F83DF800000000000000AAAAAA"},
@@ -26,6 +30,10 @@
       ],
       "label": "BCM 22B001 — static config DID",
       "notes": "22B001 consistently returns NO DATA on the first query attempt, then responds on subsequent retries. 17 data bytes. All values appear static across multiple monitor cycles — no changes observed.\n [migrated state: deep sleep, parked, locked, no charging]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7A8","pid":"22B001","notes":"deep sleep, after session 1003. First attempt returns NO DATA, second succeeds.","payload":"62B00140C0000000010000000000000201000000"}
       ]
@@ -38,6 +46,10 @@
       ],
       "label": "IGPM 22BC07 — status DID, unknown decode",
       "notes": "10 data bytes. Not yet decoded. IOControl 2FBC0703 confirmed as Horn (see docs/IOControl CLI commands.md). Contents unknown \\u2014 possibly horn status, VESS, or unrelated body state.\n [migrated state: deep sleep, parked, locked, no charging]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x778","pid":"22BC07","notes":"deep sleep, monitor mode at 14:02:58","payload":"62BC070841FBCC00001100AAAA"}
       ]
@@ -48,6 +60,10 @@
       "vehicle_states": [
         "SLEEP"
       ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7A8","pid":"22B003","notes":"monitor capture at 15:20:15","payload":"62B003BF8B80009D3DF5A3F9F8F9F73DF800000000000000AAAAAA"},
         {"rx":"0x7A8","pid":"22B003","notes":"monitor capture at 15:20:19","payload":"62B003BF8B80009D3DF5A3F8F7F8F73DF700000000000000AAAAAA"},
@@ -62,6 +78,10 @@
       "vehicle_states": [
         "SLEEP"
       ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7A8","pid":"22B003","notes":"","payload":"62B003BF8B80009C3DF5A3F9F8F9F83DF800000000000000AAAAAA","time":"15:25:32"},
         {"rx":"0x7A8","pid":"22B003","notes":"","payload":"62B003BF8B80009C3DF5A3F9F8F9F73DF800000000000000AAAAAA","time":"15:25:37"},
@@ -75,6 +95,10 @@
       "vehicle_states": [
         "SLEEP"
       ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7A8","pid":"22B003","notes":"","payload":"62B003BF8B80009D3DF5A3F9F8F9F83DF800000000000000AAAAAA","time":"15:26:54"},
         {"rx":"0x7A8","pid":"22B003","notes":"","payload":"62B003BF8B80009C3DF5A3F9F8F9F83DF800000000000000AAAAAA","time":"15:27:04"},
@@ -93,6 +117,10 @@
       "vehicle_states": [
         "sleep"
       ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7A8","pid":"22B003","payload":"62B003BF8B80009C3DF5A3F9F8F9F73DF800000000000000AAAAAA","time":"15:33:59"},
         {"rx":"0x7A8","pid":"22B004","payload":"62B0047402990C00008000AAAA","time":"15:33:55"},
@@ -106,6 +134,10 @@
       "vehicle_states": [
         "ready"
       ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7CE","pid":"22B002","payload":"62B002E000000000AE01119F0000000000000000","time":"16:42:39"}
       ]
@@ -116,6 +148,10 @@
       "vehicle_states": [
         "ready"
       ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFF8C264826480300080E720F0E0E0E0F0F0E0010C00DC00100009100052BDD00052A4E0001DF7C0001D0830144875D0D01710000000003E800","time":"16:43:21"},
         {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFF8C264826480300080E710F0E0E0E0F0F0E0010C00DC00100009200052BDD00052A4E0001DF7C0001D0830144875F0D01710000000003E800","time":"16:43:23"},
@@ -143,6 +179,10 @@
       "vehicle_states": [
         "ready"
       ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7A8","pid":"22B001","payload":"62B00140C0000000010000000000000201000000","time":"16:44:24"},
         {"rx":"0x7A8","pid":"22B002","payload":"62B002C00000000200AAAAAAAA","time":"16:44:24"},
@@ -263,6 +303,10 @@
         "parked"
       ],
       "notes": "Full DID scan of HVAC ECU (0x7B3). Service 0x21 range 01-10 returned no positives. Service 0x22 range 0100-01FF found 9 responding DIDs. E000-E020 range empty. Identity: part 97250-G7060 (DATC), cal date 1705304705. 01A3-01A6 appear identical — possibly paged config or zone data.\n [migrated state: ACC on, HVAC off, parked]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7BB","pid":220102,"payload":"620102FF80000078770000000000001700000000","notes":"20 bytes. Previously untested. B06-B07 = 0x7877 (30839). B14 = 0x17 (23)."},
         {"rx":"0x7BB","pid":"F18C","response":"1705304705","notes":"ECU serial / calibration date"},
@@ -276,6 +320,10 @@
         "ready"
       ],
       "notes": "Systematic scan of untested DID ranges across all known ECUs plus 6 unverified addresses. Car in ready mode (ACC on), 14.2-14.3V battery. BMS, VCU, MCU, LDC all returned NRC for tested 22xxxx ranges. HVAC confirmed only 0100 and 0102 respond (already known). 5 new DIDs found: CLU B001/B003, ESC C102, EPS 0101/0102. EPS (0x7D4) confirmed as new responding ECU. Unverified ECU IDs (730, 79C, 7CD, 7E0, 7E1, 7C1) all NO DATA. Charging ECU (744) returned errors (likely asleep — not plugged in).\n",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EC","pid":"scan","scan_results":{"responding":[],"rejected":"BC01-BC0B (11 DIDs): all NRC 0x31. B002-B005 (4 DIDs): all NRC 0x31. E003-E005 (3 DIDs): all NRC 0x31."},"notes":"No service 22 DIDs found beyond existing 21xx PIDs"},
         {"rx":"0x7EA","pid":"scan","scan_results":{"responding":[],"rejected":"E001-E010 (16 DIDs): all NRC 0x31"},"notes":"No service 22 DIDs found"},
@@ -296,6 +344,10 @@
         "ready"
       ],
       "notes": "Queried UDS identity DIDs (F187/F18B/F100 etc) on all ECUs not yet identified. 7 ECUs responded with part numbers/dates. 6 ECUs (BMS, VCU, MCU, LDC, Gateway, AVN) do not support F1xx identity DIDs. Previously identified: BCM (95400G7470), HVAC (97250-G7060).\n",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x778","pid":"F18B","response":"20170606","notes":"Manufacture date 2017-06-06"},
         {"rx":"0x778","pid":"F100","response":"Boot SW: 20, App SW: 160205, HW: 100, SW: 109","notes":"Software/hardware version info"},
@@ -326,6 +378,10 @@
         "ready"
       ],
       "notes": "hvac off at the end, i enabled defogger before the defrost. temp started at 20C. Then up to 30 and down to 15C. Fan speed also max/min.\n",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7BB","pid":"220100","payload":"6201007E5007C8FF8D7576068FEFFFFFEFFF10FFFFFFFFFFFFFFFFFF2756807F00FFFF00FFFF000000","time":"17:42:32"},
         {"rx":"0x7BB","pid":"220100","payload":"6201007E5007C8FF8D7576068FEFFFFFEFFF10FFFFFFFFFFFFFFFFFF2756817F00FFFF00FFFF000000","time":"17:43:37"},
@@ -966,6 +1022,10 @@
         "ready"
       ],
       "notes": "Powertrain ECUs (BMS, VCU, MCU, LDC, Gateway) don't support UDS F1xx identity DIDs but respond to KWP2000 ReadEcuIdentification service 1A. Scanned 1A80-1A9F on each. Key discovery: these ECUs use KWP2000, not UDS, for identification. CarScanner uses the same service 1A approach.\n",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EC","pid":"1A80","payload":"5A800A0B0C0D0E0A0B0C0D0E20080709414545565F5F20424D53200000000000005645522E322E3320202020000A0B0C0D0E0A0B0C0D0E0000000034363034111111110000","notes":"69 bytes. ECU name: AEEV__ BMS, firmware: VER.2.3, build date: 2008-07-09, suffix: 4604"},
         {"rx":"0x7EC","pid":"1A8C","response":"CGBMSE305AE1000A","notes":"Software identifier"},
@@ -1003,6 +1063,10 @@
         "ready"
       ],
       "notes": "Gateway is KWP2000. Service 22 returns NO DATA (not supported). Service 21 range 80-9F found 2180 (known) and 2181 (new).",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EE","pid":"2181","scan_results":{"responding":[{"did":"81","response":"6181FFFFC0000229000000000024757E4339494986130798980000","notes":"27 bytes, very similar structure to 2180 (ambient temp). Bytes 4-7 differ (FFFF vs C366). Possibly freeze-frame or alternate measurement."}],"rejected":"82-9F: NRC 0x12. Service 22 B001-B010, C001-C010: NO DATA (not supported). Service 21 01-0F: all NRC."}}
       ]
@@ -1014,6 +1078,10 @@
         "ready"
       ],
       "notes": "Used canair discover to sweep all 240 addresses. 200ms delay between probes. 30 alive, 210 silent, 0 errors. [migrated state: ready mode (ACC on, 14.7V)]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EE","pid":"1001","notes":"Full address sweep 0x700-0x7EF — 30 responding addresses:\nKnown (16): 0x736(VESS), 0x744(errors-only, removed), 0x770(IGPM), 0x7A0(BCM), 0x7A3(PSM), 0x7A5(SKM),\n  0x7B3(HVAC), 0x7C0(AVN), 0x7C6(CLU), 0x7D1(ESC), 0x7D4(EPS), 0x7E2(VCU), 0x7E3(MCU),\n  0x7E4(BMS), 0x7E5(LDC), 0x7E6(Gateway)\nNewly discovered (14): 0x725(SAS), 0x733(PLC), 0x746(unknown), 0x755(FCAM), 0x780(TCU), 0x783(unknown),\n  0x796(AVM), 0x7A1(SWRC-L), 0x7A2(SWRC-R), 0x7B6(PTC), 0x7B7(RCAM), 0x7C4(MFC), 0x7D0(SCC),\n  0x7D2(unknown), 0x7D5(unknown)\nBroadcast: 0x7DF (OBD-II, skipped)\n","response":"30 alive, 210 silent, 0 errors"}
       ]
@@ -1025,6 +1093,10 @@
         "ready"
       ],
       "notes": "UDS F1xx identity on all 15 new addresses. KWP2000 1A 80-9F fallback on 0x746, 0x783, 0x7D2. [migrated state: ready mode (ACC on, 14.7V)]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x72D","pid":"F187","payload":"62F18739353536304737303030","notes":"Part 95560G7000. Boot SW 1.6, HW 1.00.00 (v100), SW 1.02.00 (v102)."},
         {"rx":"0x73B","pid":"F187","payload":"62F18739313935304737323030","notes":"Part 91950G7200 (PLC Charge Control Module). Mfg 2017-05-21. App SW 1104, HW 101, SW 103."},

@@ -78,6 +78,17 @@ class TestBuildManualSession:
         assert s["notes"] == "ctx"
 
 
+@pytest.fixture(autouse=True)
+def _named_car(monkeypatch):
+    """Imports must name the car on a multi-variant profile: give the suite's one."""
+    import dataclasses
+
+    from canlib import profile as profile_mod
+
+    prof = dataclasses.replace(profile_mod.active(), variant="28kwh", variant_source="flag")
+    monkeypatch.setattr(profile_mod, "_active", prof)
+
+
 def _args(**kw) -> argparse.Namespace:
     base = {
         "spec": [],

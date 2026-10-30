@@ -9,6 +9,10 @@
       ],
       "notes": "first service-22 read sweep above B010; IOControl map lists B019,B01A,B025,B028..B072 as existing",
       "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7A8","pid":"scan 22 B011-B0FF","scan_results":{"rejected":"239 DIDs returned 239 NRC"}}
       ]
@@ -22,6 +26,10 @@
       ],
       "notes": "parked READY; service-22 read sweep of previously unprobed range",
       "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7A8","pid":"scan 22 C015-C0FF","scan_results":{"rejected":"235 DIDs returned 235 NRC"}}
       ]
@@ -34,6 +42,10 @@
         "READY"
       ],
       "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7BB","pid":"scan 22 0000-00FF","scan_results":{"rejected":"256 DIDs returned 256 NRC"}}
       ]
@@ -46,6 +58,10 @@
         "READY"
       ],
       "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7BB","pid":"scan 22 0100-01FF","scan_results":{"responding":[{"did":"0100","response":"38 bytes","notes":"Raw: 6201007E5007C8FF63606005EEB7FFFFB7FF10FFFFFFFFFFFFFFFFFF4EBF616100FFFF00FFFF"},{"did":"0102","response":"16 bytes","notes":"Raw: 620102FF800000616000000000000010"},{"did":"01A0","response":"59 bytes","notes":"Raw: 6201A09E01C2AAAAAD2763636260288989000001000046281560080B0C00F40F000A00FFFF131300..."},{"did":"01A1","response":"59 bytes","notes":"Raw: 6201A1000000000000010100780051002F01C2005501A1148A000000000EF602350000000000012C..."},{"did":"01A2","response":"51 bytes","notes":"Raw: 6201A200000000000001011A24000001C20055016D001400400008007300060003000A000008FFD8..."},{"did":"01A3","response":"53 bytes","notes":"Raw: 6201A300550055FFFFFFFF00000058005406000000000000000000EE10B7B70000BF4E0000000000..."},{"did":"01A4","response":"53 bytes","notes":"Raw: 6201A400550055FFFFFFFF00000058005406000000000000000000EE10B7B70000BF4E0000000000..."},{"did":"01A5","response":"2 bytes","notes":"Raw: 6201"},{"did":"01A6","response":"2 bytes","notes":"Raw: 6201"}],"rejected":"247 DIDs returned 247 NRC"}}
       ]
@@ -59,6 +75,10 @@
       ],
       "notes": "parked READY; service-22 read sweep of previously unprobed range",
       "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7BB","pid":"scan 22 0103-01FF","scan_results":{"responding":[{"did":"01A0","response":"59 bytes","notes":"Raw: 6201A09E01C2AAAAAD276666676028898900000100004628152403040C00F40F000A00FFFF131300..."},{"did":"01A1","response":"59 bytes","notes":"Raw: 6201A1000000000000010100780067002F01C2006901A1148A000000000EF402360000000000012C..."},{"did":"01A2","response":"51 bytes","notes":"Raw: 6201A200000000000001011A24000001C200690159001400530008007300060003000A00000AFFD8..."},{"did":"01A3","response":"53 bytes","notes":"Raw: 6201A300690069FFFFFFFF00000062006206000000000000000000EF10B7B70000BF240000000000..."},{"did":"01A4","response":"53 bytes","notes":"Raw: 6201A400690069FFFFFFFF00000062006206000000000000000000EF10B7B70000BF240000000000..."},{"did":"01A5","response":"53 bytes","notes":"Raw: 6201A500690069FFFFFFFF00000062006206000000000000000000EF10B7B70000BF240000000000..."},{"did":"01A6","response":"53 bytes","notes":"Raw: 6201A600690069FFFFFFFF00000062006206000000000000000000EF10B7B70000BF240000000000..."}],"rejected":"246 DIDs returned 246 NRC"}}
       ]
@@ -71,6 +91,10 @@
         "READY"
       ],
       "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7BB","pid":"scan 22 0200-02FF","scan_results":{"rejected":"256 DIDs returned 256 NRC"}}
       ]
@@ -83,6 +107,10 @@
         "READY"
       ],
       "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7BB","pid":"scan 22 1000-10FF","scan_results":{"rejected":"256 DIDs returned 256 NRC"}}
       ]
@@ -95,6 +123,10 @@
         "READY"
       ],
       "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7BB","pid":"scan 22 B000-B1FF","scan_results":{"rejected":"512 DIDs returned 512 NRC"}}
       ]
@@ -107,6 +139,10 @@
         "READY"
       ],
       "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7BB","pid":"scan 22 C000-C1FF","scan_results":{"rejected":"512 DIDs returned 512 NRC"}}
       ]
@@ -119,6 +155,10 @@
         "READY"
       ],
       "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7BB","pid":"scan 22 D000-D0FF","scan_results":{"rejected":"256 DIDs returned 256 NRC"}}
       ]
@@ -131,6 +171,10 @@
         "READY"
       ],
       "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7BB","pid":"scan 22 E000-E1FF","scan_results":{"rejected":"512 DIDs returned 512 NRC"}}
       ]
@@ -144,6 +188,10 @@
       ],
       "notes": "parked READY; service-22 read sweep of previously unprobed range",
       "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7BB","pid":"scan 22 F000-F0FF","scan_results":{"rejected":"256 DIDs returned 256 NRC"}}
       ]
@@ -156,6 +204,10 @@
         "READY"
       ],
       "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7BB","pid":"scan 22 F000-F0FF","scan_results":{"rejected":"256 DIDs returned 256 NRC"}}
       ]
@@ -168,6 +220,10 @@
         "READY"
       ],
       "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7BB","pid":"scan 22 F200-F2FF","scan_results":{"rejected":"256 DIDs returned 256 NRC"}}
       ]
@@ -181,6 +237,10 @@
       ],
       "notes": "parked READY; service-22 read sweep of previously unprobed range",
       "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x778","pid":"scan 22 0100-01FF","scan_results":{"rejected":"256 DIDs returned 256 NRC"}}
       ]
@@ -194,6 +254,10 @@
       ],
       "notes": "parked READY; service-22 read sweep of previously unprobed range",
       "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x778","pid":"scan 22 B000-B0FF","scan_results":{"rejected":"256 DIDs returned 256 NRC"}}
       ]
@@ -207,6 +271,10 @@
       ],
       "notes": "parked READY; service-22 read sweep of previously unprobed range",
       "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x778","pid":"scan 22 BC20-BCFF","scan_results":{"responding":[{"did":"BCFD","response":"20 bytes","notes":"Raw: 62BCFDFFFFFFFF0C0E162B3F2636000000000000"},{"did":"BCFF","response":"7 bytes","notes":"Raw: 62BCFF31303930"}],"rejected":"222 DIDs returned 221 NRC + 1 errors"}}
       ]
@@ -220,6 +288,10 @@
       ],
       "notes": "parked READY; service-22 read sweep of previously unprobed range",
       "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x778","pid":"scan 22 C000-C0FF","scan_results":{"rejected":"256 DIDs returned 256 NRC"}}
       ]
@@ -233,6 +305,10 @@
       ],
       "notes": "parked READY; service-22 read sweep of previously unprobed range",
       "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x778","pid":"scan 22 E000-E0FF","scan_results":{"rejected":"256 DIDs returned 256 NRC"}}
       ]
@@ -253,6 +329,10 @@
         "exchanges": 421,
         "no_data": 36,
         "resyncs": 1
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
       },
       "captures": [
         {"rx":"0x7EE","pid":"2180","payload":"6180C366C000211300000000001660002D2D00007113009898","time":"09:25:51.513"},
@@ -398,6 +478,10 @@
       "transport": "wican-ws",
       "quality": {
         "exchanges": 554
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
       },
       "captures": [
         {"rx":"0x7EE","pid":"2180","payload":"6180C366C000211300000000001660002F2E00007313009898","time":"09:30:42.123"},
@@ -691,6 +775,10 @@
         "drop": 10,
         "resyncs": 5
       },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EE","pid":"2180","payload":"6180C366C00021130000000000166000342D00007913009898","time":"09:58:31.360","repeat_inline_ms":[12898,9257,10339,11861,13343,15361,17035,20289,19174,23037,21960]},
         {"rx":"0x7EE","pid":"2180","payload":"6180C366C00021130000000000166000352D00007913009898","time":"10:01:38.459"},
@@ -936,6 +1024,10 @@
       "quality": {
         "exchanges": 6
       },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7BB","pid":"220100","payload":"6201007E5007C8FF63606004EEB7FFFFB7FF10FFFFFFFFFFFFFFFFFF4EBF616000FFFF00FFFF","time":"10:07:20.609","elapsed_ms":79},
         {"rx":"0x7BB","pid":"220102","payload":"620102FF800000616000000000000010","time":"10:07:20.667","elapsed_ms":57},
@@ -957,6 +1049,10 @@
       "quality": {
         "exchanges": 4
       },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7BB","pid":"2201A0","payload":"6201A09F01C9ABABAE276464626028898900000100004628154806090C00F40F000A00FFFF13130057017201C90A00000000000000000000130000","time":"10:14:40.390","elapsed_ms":121},
         {"rx":"0x7BB","pid":"2201A1","payload":"6201A1000000000000010100780054002F01C9005701A1148A000000000EF502350000000000012C000A0AD5085B085B000000000EF50021000005","time":"10:14:40.500","elapsed_ms":110},
@@ -975,6 +1071,10 @@
       "transport": "wican-ws",
       "quality": {
         "exchanges": 10
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
       },
       "captures": [
         {"rx":"0x7A8","pid":"22C00C","payload":"62C00CFFFF030001C0F8117499434119180000000000FFFF0000000000000000FFFF000000","time":"10:38:43.794","elapsed_ms":168},
@@ -999,6 +1099,10 @@
       "quality": {
         "exchanges": 2
       },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x778","pid":"22BCFD","payload":"62BCFDFFFFFFFF0C0E162B3F2636000000000000","time":"10:42:42.874","elapsed_ms":667},
         {"rx":"0x778","pid":"22BCFF","payload":"62BCFF31303930","time":"10:42:43.529","elapsed_ms":654}
@@ -1016,6 +1120,10 @@
       "quality": {
         "exchanges": 2
       },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x778","pid":"22BCFD","payload":"62BCFDFFFFFFFF0C0E162B3F2636000000000000","time":"10:47:50.816","elapsed_ms":676},
         {"rx":"0x778","pid":"22BCFF","payload":"62BCFF31303930","time":"10:47:51.477","elapsed_ms":661}
@@ -1029,6 +1137,10 @@
       "quality": {
         "exchanges": 261,
         "no_data": 1
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
       },
       "captures": [
         {"rx":"0x7A8","pid":"22B001","payload":"62B00140C0000000010000000000000201000000","time":"14:21:58.667","repeat_inline_ms":[4340,4801,5087,4948,5138,4926,5045,5091,5092,4988,5107,4954,4991]},

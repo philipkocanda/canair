@@ -4,14 +4,18 @@
       "date": "2026-04-14",
       "label": "Charging (AC)",
       "notes": "Car parked, AC charging at ~2.6A. SOC ~51%. First OBC/LDC ECU captures.",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7ED","pid":"2101","payload":"6101FFFFF80000906C8A115775011D90024B00BB05AC43102000C8021C006276000B000701F38A4157CA000F00000000","notes":"First query during session. 48 bytes. OBC temps B52-B54 all zero — Niro PR#716 formulas produce -40C."},
         {"rx":"0x7ED","pid":"2101","payload":"6101FFFFF8000090488A14575E011D90024C00BB05AC43102000C8021C006276000B000701F48A437448000F00000000","notes":"Second query ~2 min later. 48 bytes. Minor value changes vs first query."},
         {"rx":"0x7ED","pid":"2102","payload":"6102FFFC0000684F792A694A79286E847927650F791B7499791F7293792B74827931","notes":"34 bytes. Interesting repeating pattern — possibly voltage/current pairs."},
         {"rx":"0x7ED","pid":"2103","payload":"","notes":"NRC 0x12 — subFunctionNotSupported. PID 2103 does not exist on this ECU."}
-      ],
-      "vehicle_states": [
-        "CHARGING"
       ]
     },
     {
@@ -24,6 +28,10 @@
         "PARKED",
         "IG3"
       ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFF6826482648A3FFE50DD30E0D0E0E0E0D0D000EB846B80100009100052B4000052A490001DF440001D082014440FB0901610000000003E800","notes":"62 bytes. SOC_BMS 52%, voltage 353.9V, current -2.7A (charging), temps 13-14°C."},
         {"rx":"0x7EC","pid":"2105","payload":"6105FFFFFFFF00000000000D0D0D0D0E0E0E264826480001640D0D03E80203E8016B0029000000000000000000000000","notes":"48 bytes. SOH 35.6%, SOC_DISP 53.5%. Module temps 13-14°C."},
@@ -41,6 +49,14 @@
       "date": "2026-04-14",
       "label": "ACC mode (accessory on, parked)",
       "notes": "Car in accessory mode (ACC), not charging, parked, all doors closed and locked. SKM wakeup (2FB108030A0A05 on 0x7A5) was used earlier in this session to bring ECUs online during charging — ACC stayed on even after ACC Off and ECU Reset commands. User then manually put car in ACC mode. All IGPM, CLU, TPMS, ESC responding. IGPM 22BC08-0A return NRC 0x31 (requestOutOfRange) — those DIDs don't exist.\n",
+      "vehicle_states": [
+        "ON",
+        "PARKED"
+      ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x778","pid":"22BC01","payload":"62BC01400000000002","notes":"9 bytes."},
         {"rx":"0x778","pid":"22BC02","payload":"62BC0200000000","notes":"7 bytes. All zeros."},
@@ -52,23 +68,23 @@
         {"rx":"0x7CE","pid":"22B002","payload":"62B002E0000000008E01119F00000000000000","notes":"18 bytes. Odometer at byte 9-11: 0x008E01 = needs verification. Responded in ACC (failed during charging)."},
         {"rx":"0x7A8","pid":"22C00B","payload":"62C00BFFFF0000C9430100CB430100CF440100CB440100","notes":"23 bytes. Tyre pressures and temps. FL: 0xC9=201/72.52=2.77bar, temp 0x43=67-50=17°C. FR: 0xCB=203/72.52=2.80bar, temp 0x43=17°C. RL: 0xCF=207/72.52=2.85bar, temp 0x44=18°C. RR: 0xCB=203/72.52=2.80bar, temp 0x44=18°C. Responded in ACC (failed during charging).\n"},
         {"rx":"0x7D9","pid":"22C101","payload":"62C1015BD7E760FFFF00FF01C4FF0000000000FF80FF0030F4000000FFFF801407FB07FCFFFF0000FFFFFF0000000000","notes":"42 bytes. First capture of ESC. Responded in ACC (failed during charging). Contains wheel speed and stability data — undecoded."}
-      ],
-      "vehicle_states": [
-        "ON",
-        "PARKED"
       ]
     },
     {
       "date": "2026-04-14",
       "label": "Keyfob wake (locked, no ignition)",
       "notes": "Car fully asleep, then manual keyfob lock/unlock/lock. No charging, no ignition. Only IGPM responds — BMS, VCU, SKM, CLU, TPMS all return NO DATA. SKM wakeup (1003, 2FB108030A0A05) also returns NO DATA — SKM is only powered during charging or ACC/IGN mode. IGPM stays awake ~10 min after keyfob activity. 22BC01 returned NO DATA (may need longer wake time or different power state).\n",
+      "vehicle_states": [
+        "SLEEP"
+      ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x778","pid":"22BC03","payload":"62BC03FDEE3C730A000000","notes":"11 bytes. Doors closed, locked, no ignition. Byte 7 = 0x0A (00001010) — compare: 0x00 during charging-only, 0x20 in ACC mode. Bits 1+3 set = keyfob-wake state. Bit 5 clear = no ACC.\n"},
         {"rx":"0x778","pid":"22BC04","payload":"62BC04B53FF4EA0C00000200","notes":"11 bytes. Door lock status. Byte 7 = 0x0C — compare: 0x00 during charging, 0x01 in ACC mode. Byte 10 = 0x02 — compare: 0x00 during charging, 0x42 in ACC mode.\n"},
         {"rx":"0x778","pid":"22BC06","payload":"62BC06B4800000000000","notes":"11 bytes. Same as ACC mode capture — no change."}
-      ],
-      "vehicle_states": [
-        "SLEEP"
       ]
     }
   ]

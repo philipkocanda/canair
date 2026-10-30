@@ -7,6 +7,10 @@
         "ready"
       ],
       "notes": "AC turned on, changed fan speed from 3 to 6 (AC is cooling, I can hear compressor spin up)",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7BB","pid":"220100","payload":"6201007E5007C8FF837D87337149FFFF49FF11FFFFFFFFFFFFFFFFFF0AEB878500FFFF00FFFF000000","time":"12:14:51.829"},
         {"rx":"0x7BB","pid":"220100","payload":"6201007E5007C8FF837D872A7149FFFF49FF11FFFFFFFFFFFFFFFFFF0AEC878500FFFF00FFFF000000","time":"12:14:56.752"},
@@ -231,6 +235,10 @@
         "ready"
       ],
       "notes": "Changed from AC ON, 21C, Fan speed (8/8 - max) -> AC OFF, 22C, Fan speed (3/8)",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7BB","pid":"220100","payload":"6201007E5007C8FF817D670D1149FFFF49FF10FFFFFFFFFFFFFFFFFF0DDF706F00FFFF01FFFF000000","time":"12:21:44.951"},
         {"rx":"0x7BB","pid":"220100","payload":"6201007E5007C8FF817D67231149FFFF49FF10FFFFFFFFFFFFFFFFFF0DDD706F00FFFF01FFFF000000","time":"12:21:50.520"},
@@ -346,6 +354,10 @@
         "ready"
       ],
       "notes": "AC ON (steady state, 22C, fan 3)",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EE","pid":"2180","payload":"6180C366C000225100000000003E7D004746000087130098980000","time":"12:36:51.758","repeat_inline_ms":[5456,5523]},
         {"rx":"0x7EE","pid":"2180","payload":"6180C366C000225100000000003D7D004746000087130098980000","time":"12:37:08.278"},
@@ -432,6 +444,10 @@
         "IG3"
       ],
       "notes": "parked",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7A8","pid":"22B001","payload":"62B00140C0000000010000000000000201000000","time":"12:41:17.737","repeat_inline_ms":[13797,11300,16809,10892,11857,11000,11391,11496,11136,11583]},
         {"rx":"0x7A8","pid":"22B002","payload":"62B002C00000000200AAAAAAAA","time":"12:41:18.120","repeat_inline_ms":[13815,11300,16750,11014,11720,11072,11552,11279,11129,11640]},
@@ -506,6 +522,10 @@
         "ready"
       ],
       "notes": "Park -> Drive -> Park",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFFB91B6026480300150F56111111111111110012CC02CC0100009100055FF700055D950001F29D0001E2C001516EAC0D01880000000003E800","time":"12:43:59.386"},
         {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFFB91B9526480300150F56111111111111110012CC02CC0100009200055FF700055D950001F29D0001E2C001516EB10D01880000000003E800","time":"12:44:04.164"},
@@ -543,6 +563,10 @@
           {"at": "12:51:38.166", "states": ["READY", "ON", "IG3"]}
         ],
         "version": "1.35.2+main.4636a47.dirty"
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
       },
       "captures": [
         {"rx":"0x7A8","pid":"22B001","payload":"62B00140C0000000010000000000000201000000","time":"12:51:31.416","repeat_inline_ms":[14600,15968,15418,16137,15844,15367,15823]},
@@ -625,6 +649,10 @@
         "PARKED"
       ],
       "notes": "Verifies IGPM service-22 reads do NOT need extended session (1003). Wire trace: ATSH770;ATFCSH770;22BC03 only, no 1003 sent. Valid 62BC03 returned. Reconfirmed after 8s idle (S3 expired). Refutes 2026-04-15 note. NOTE: 2F IOControl still needs 1003 (untested here). [migrated state: ready, parked, doors closed/unlocked]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x778","pid":"22BC03","payload":"62BC03FDEE3C7320600000AAAA"}
       ]
@@ -632,6 +660,10 @@
     {
       "date": "2026-07-21",
       "label": "MCU",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EB","pid":"2101","payload":"6101000003FF0C3800FA974F390000000A002A023F046339300030009FFF","time":"23:18:18.793"},
         {"rx":"0x7EB","pid":"2102","payload":"610207FFFFFF0000000000001B000A0E1111F7FFF8FF7DD6CDABC2CD6B0043FD3000C607F726F606C1CD0900523100000000000000000000","time":"23:18:18.793"},
@@ -642,12 +674,16 @@
     {
       "date": "2026-07-21",
       "label": "ESC",
+      "vehicle_states": [
+        "PARKED"
+      ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7D9","pid":"22C101","payload":"62C1015BD7E760FFFF00FF01ECFF00000000FF80FF0030F4000000FFFF803207FC07FBFFFF0000FFFFFF","time":"23:19:05.396"},
         {"rx":"0x7D9","pid":"22C102","payload":"62C1023FE00000FFFFFFFFFFFF010100009C9C000000C0C0D4D4","time":"23:19:05.396"}
-      ],
-      "vehicle_states": [
-        "PARKED"
       ]
     },
     {
@@ -659,6 +695,10 @@
         "IG3"
       ],
       "notes": "Fully powered/READY, parked, ~SOC90%. For verify/decode of MCU 2101 temps, VCU 2101/2102, LDC 2101, motor RPM at rest. [migrated state: ready, parked, not charging]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFFB424A426480300050F30141314141313130014CA3DCA0100009100055FF700055DAD0001F29D0001E2C90151B0E90D01840000000003E8"},
         {"rx":"0x7EC","pid":"2105","payload":"6105FFFFFFFF00000000001313131313141424A42648000150131303E80203E801BC0029000000000000000000"},
@@ -677,6 +717,10 @@
         "parked"
       ],
       "notes": "Fully powered/READY, parked. For ESC 22C101 speed/wheel decode, HVAC 220100 temps verify, CLU 22B002 odometer + extras verify. [migrated state: ready, parked, not charging]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7D9","pid":"22C101","payload":"62C1015BD7E760FFFF00FF01ECFF00000000FF80FF0030F4000000FFFF803107FE07FBFFFF0000FFFFFF"},
         {"rx":"0x7BB","pid":"220100","payload":"6201007E5007C8FF787274002F4AFFFF49FF10FFFFFFFFFFFFFFFFFF45D7757500FFFF00FFFF"},
@@ -690,6 +734,10 @@
         "ready",
         "parked"
       ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7D9","pid":"scan 22 C101-C10F","scan_results":{"responding":[{"did":"C101","response":"42 bytes","notes":"Raw: 62C1015BD7E760FFFF00FF01EBFF00000000FF80FF0030F4000000FFFF803107FD07FBFFFF0000FF..."},{"did":"C102","response":"26 bytes","notes":"Raw: 62C1023FE00000FFFFFFFFFFFF010100009C9C000000C0C0D4D4"}],"rejected":"13 DIDs returned 13 NRC"}}
       ]
@@ -701,6 +749,10 @@
         "ready",
         "parked"
       ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7D9","pid":"scan 22 0101-010F","scan_results":{"rejected":"15 DIDs returned 15 NRC"}}
       ]
@@ -713,6 +765,10 @@
         "parked"
       ],
       "notes": "Steering angle/MDPS current per Ioniq5 cross-ref",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7DC","pid":"scan 22 0101-010F","scan_results":{"responding":[{"did":"0101","response":"18 bytes","notes":"Raw: 620101939800FFCFFFFA0000000010102201"},{"did":"0102","response":"8 bytes","notes":"Raw: 6201020000000300"}],"rejected":"13 DIDs returned 13 NRC"}}
       ]
@@ -725,6 +781,10 @@
         "parked"
       ],
       "notes": "Cluster range scan; B002 odometer known",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7CE","pid":"scan 22 B001-B010","scan_results":{"responding":[{"did":"B001","response":"8 bytes","notes":"Raw: 62B0010000000000"},{"did":"B002","response":"15 bytes","notes":"Raw: 62B002E000000000AD011D16000000"},{"did":"B003","response":"8 bytes","notes":"Raw: 62B0038800000001"}],"rejected":"13 DIDs returned 13 errors"}}
       ]
@@ -737,6 +797,10 @@
         "parked"
       ],
       "notes": "Retry with power on; was NO DATA in deep sleep",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7C8","pid":"scan 22 B001-B005","scan_results":{"rejected":"5 DIDs returned 5 errors"}}
       ]

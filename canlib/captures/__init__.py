@@ -412,6 +412,40 @@ def _stamp_version(session: CaptureSession) -> CaptureSession:
     return cast(CaptureSession, rebuilt)
 
 
+def current_capture_tag(captures_dir: Path | None = None) -> dict | None:
+    """The variant tag a recording into ``captures_dir`` gets right now, or None.
+
+    The active profile's explicitly selected variant (``--variant`` /
+    ``CANAIR_VARIANT``), and only when ``captures_dir`` is that profile's own store
+    (or None): a write aimed at another directory is no evidence about the car the
+    active profile selected.
+    """
+    from canlib.profile import ProfileError, active
+    from canlib.variants.tags import capture_tag
+
+    try:
+        prof = active()
+    except ProfileError:
+        return None
+    if captures_dir is not None:
+        try:
+            if Path(captures_dir).resolve() != prof.captures_dir.resolve():
+                return None
+        except OSError:  # pragma: no cover - unreadable path
+            return None
+    return capture_tag(prof)
+
+
+def apply_capture_tag(session: CaptureSession, tag: dict | None) -> CaptureSession:
+    """``session`` with ``tag`` set, unless it already carries a variant of its own."""
+    if not tag or session.get("variant"):
+        return session
+    tagged = cast(CaptureSession, dict(session))
+    for key in ("variant", "attribution"):
+        _set_session_field(tagged, key, tag[key])
+    return tagged
+
+
 def saved_banner(capture_file: Path, n_captures: int) -> str:
     """The one-line "where the captures landed" banner.
 
@@ -431,7 +465,9 @@ def saved_banner(capture_file: Path, n_captures: int) -> str:
     return f"{banner}\n{note}" if note else banner
 
 
-def save_session(session: CaptureSession, captures_dir: Path | None = None) -> Path:
+def save_session(
+    session: CaptureSession, captures_dir: Path | None = None, *, stamp_variant: bool = True
+) -> Path:
     """Append a session dict to captures/YYYY-MM-DD.json. Returns the file path.
 
     The file is named after the session's own ``date`` (falling back to today),
@@ -443,8 +479,15 @@ def save_session(session: CaptureSession, captures_dir: Path | None = None) -> P
     place all save paths funnel through), unless it already carries one, and is
     annotated with a ``state_spans`` timeline when its payloads show the vehicle
     changing state mid-recording — see :func:`annotate_session_spans`.
+
+    It is also tagged with the selected variant (:func:`current_capture_tag`) unless
+    ``stamp_variant`` is False — the journal's reconcile, whose sessions carry the tag
+    recorded when the journal was opened, so a crash recovered later by a run with a
+    different selection still names the car that was actually recorded.
     """
     session = _stamp_version(session)
+    if stamp_variant:
+        session = apply_capture_tag(session, current_capture_tag(captures_dir))
     if captures_dir is None:
         from canlib.profile import active
 
@@ -557,6 +600,26 @@ def set_session_transport(fpath: Path, session_idx: int, transport: str) -> None
     data = capture_io.load_capture_file(fpath)
     session = data["sessions"][session_idx]
     _set_session_field(session, "transport", transport.strip())
+    _write_captures_file(fpath, data)
+
+
+def set_session_variant(fpath: Path, session_idx: int, variant: str) -> None:
+    """Set (or clear) the ``variant`` tag on one session, by index.
+
+    The tag's ``attribution`` becomes ``asserted``: a person said which car it was,
+    after the fact. An empty ``variant`` removes the tag and its attribution. Raises
+    IndexError if the index doesn't resolve.
+    """
+    data = capture_io.load_capture_file(fpath)
+    session = data["sessions"][session_idx]
+    variant = variant.strip()
+    _set_session_field(session, "variant", variant)
+    attribution = dict(session.get("attribution") or {})
+    if variant:
+        attribution["variant"] = "asserted"
+    else:
+        attribution.pop("variant", None)
+    _set_session_field(session, "attribution", attribution)
     _write_captures_file(fpath, data)
 
 

@@ -17,6 +17,10 @@
         "no_data": 27,
         "resyncs": 1
       },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFF8026482648A3FFE10E23191718181717190016BC33BC01000093000569560005678D0001F6140001E6510155845F0901690000000003E8","time":"09:10:34.462"},
         {"rx":"0x7EC","pid":"2102","payload":"6102FFFFFFFFBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBC","time":"09:10:34.647"},
@@ -116,6 +120,10 @@
           {"at": "10:01:34.608", "states": ["CHARGING", "PLUGGED", "PARKED", "IG3"]}
         ],
         "version": "1.35.2+main.4636a47.dirty"
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
       },
       "captures": [
         {"rx":"0x778","pid":"22BC01","payload":"62BC01400000000002","time":"10:00:48.793"},

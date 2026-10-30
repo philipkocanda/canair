@@ -7,6 +7,10 @@
         "ON"
       ],
       "notes": "Unique conditions: AC charging with ACC2 on (CLU+AVN lit), HVAC blower on lowest\nsetting at 18°C, heating switch off, cooling switch off (compressor+PTC both off).\nBattery 14.2V. Scanned 01xx DID range and captured actuator DIDs A1-A3.\nConfirmed: service 0x21 PIDs 0101-010B all NRC 0x11 (serviceNotSupported).\nService 0x22 range 0101-010B: only 0102 responds, rest NRC 0x31.\n [migrated state: AC charging, ACC2, HVAC blower low/18°C/no compressor/no PTC]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7BB","pid":"210101-21010B","label":"Service 0x21 scan of 01xx range","notes":"All 11 PIDs returned NRC 0x11 (serviceNotSupported). HVAC ECU does not support service 0x21.","response":"NRC 0x11 — all 11 PIDs rejected"},
         {"rx":"0x7BB","pid":"220101-22010B","label":"Service 0x22 scan of 01xx range","scan_results":{"responding":[{"did":"0102","response":"20 bytes (already known)"}],"rejected":"0101 and 0103-010B all returned NRC 0x31 (requestOutOfRange)","notes":"Confirmed HVAC ECU only has 220100, 220102, and 2201A0-A6 in known ranges."}},
@@ -28,6 +32,10 @@
         "ON"
       ],
       "notes": "while charging\u001b[D\u001b[D\u001b[D\u001b[D\u001b[D\u001b[D\u001b[D\u001b[D\n",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7BB","pid":"220100","payload":"6201007E5007C8FF73696D08ECB7FFFFB6FF10FFFFFFFFFFFFFFFFFF28BD6F6E00FFFF00FFFF000000","time":"14:29:54","repeat_inline_ms":[3000,3000,2000,3000,3000,2000,3000]},
         {"rx":"0x7BB","pid":"220100","payload":"6201007E5007C8FF73696D08EBB7FFFFB6FF10FFFFFFFFFFFFFFFFFF28BD6F6E00FFFF00FFFF000000","time":"14:30:16"},
@@ -212,6 +220,10 @@
         "ON"
       ],
       "notes": "Fan changed from lowest (1) to speed 4. Key changes from fan 1:\n220100 B33: 0x26→0x2D (fan speed setting). Blower duty B15 unchanged at 0xEC.\n2201A0 B57: still 0x00 (no max flag). B07/B51 shift 0xD1→0xD4.\n2201A1 B22: 0xD1→0xD4 (mirrors A0), B68: 0x05→0x0A.\n2201A3 B41: 0x26→0x2D (mirrors 220100 B33).\n [migrated state: AC charging, ACC2, HVAC blower speed 4/18°C/no compressor/no PTC]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7BB","pid":"220100","label":"Fan speed 4","payload":"6201007E5007C8FF72686D06ECB7FFFFB6FF10FFFFFFFFFFFFFFFFFF2DBD6E6E00FFFF00FFFF000000"},
         {"rx":"0x7BB","pid":"220102","label":"Fan speed 4","payload":"620102FF80000074710000000000001400000000"},
@@ -228,6 +240,10 @@
         "ON"
       ],
       "notes": "Fan changed to MAX. Key changes from fan 4:\n220100 B33: still 0x2D (same as fan 4 — caps at 0x2D?).\n2201A0 B07/B51: 0xD4→0xDB (increasing). B57: 0x00→0xAE (max fan indicator!).\n2201A1 B22: 0xD4→0xDB (mirrors A0 B07).\n [migrated state: AC charging, ACC2, HVAC blower MAX/18°C/no compressor/no PTC]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7BB","pid":"220100","label":"Fan speed MAX","payload":"6201007E5007C8FF72686D05ECB7FFFFB6FF10FFFFFFFFFFFFFFFFFF2DBD6E6E00FFFF00FFFF000000"},
         {"rx":"0x7BB","pid":"2201A0","label":"Fan speed MAX","payload":"6201A06E00DB78787D3072726868795F5F000001000048281068080B0D00F60F010A00FFFF12120097004400DB0A00000000000000000000AE0000000000"},
@@ -242,6 +258,10 @@
         "ON"
       ],
       "notes": "Scanned all known CLU DIDs (22B001/B002/B003) plus wide DID ranges (B010-B0FF,\nC000-C010, E000-E010) and service 0x21 (01-10). Also probed AVN/head unit\n(0x7C0/0x7C1). Ran partial ECU discover.\n\nResults: CLU has only 3 queryable DIDs (B001-B003), all identical to previous\nnon-charging captures. Charge % and remaining time displayed on CLU come from CAN\nbroadcast messages, not UDS-queryable data. AVN/head unit still not on diagnostic\nCAN bus even with ACC2 on.\n [migrated state: AC charging, ACC2, HVAC blower on, CLU fully lit showing charge % and remaining time]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7CE","pid":"22B001","label":"During AC charge + ACC2 — still all zeros","payload":"62B00100000000000000000000","notes":"Identical to 2026-04-17 non-charging capture. 13 data bytes, all 0x00."},
         {"rx":"0x7CE","pid":"22B002","label":"During AC charge + ACC2 — odometer only, no charge info","payload":"62B002E000000000AE0111C50000000000000000","notes":"Identical to 2026-04-17 capture. Odometer 70085 km at bytes 9-11 (0x011C5 * 10).\nB3=0xE0 purpose unknown. No charge %, remaining time, or other dynamic data visible.\n"},

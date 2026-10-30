@@ -15,8 +15,10 @@ positional arguments:
     add                 Add a variant
     set-meta            Set metadata fields on a variant
     unset-meta          Remove metadata fields from a variant
-    rename              Change a variant's ID
-    rm                  Remove a variant
+    rename              Change a variant's ID, retagging the captures and logs
+                        that use it
+    rm                  Remove a variant (refused while captures or logs use
+                        it)
 
 options:
   -h, --help            show this help message and exit

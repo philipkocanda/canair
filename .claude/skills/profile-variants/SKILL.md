@@ -1,6 +1,6 @@
 ---
 name: profile-variants
-description: Where a car belongs in canair and what to call it — whether a different car needs its own profile or is a variant of an existing one (battery, facelift, market), how to name a profile (make-model-code-drivetrain, never a year) and a variant, and how a renamed profile keeps its old name working. Load when creating, naming or renaming a profile, adding or editing a variant (variants.yaml, canair variants), or deciding whether a car fits an existing profile. NOT for decoding signals (reverse-engineer-signal) or submitting a profile upstream (contributing-profiles).
+description: Where a car belongs in canair and what to call it — whether a different car needs its own profile or is a variant of an existing one (battery, facelift, market), how to name a profile (make-model-code-drivetrain, never a year) and a variant, and how a renamed profile keeps its old name working. Load when creating, naming or renaming a profile, adding or editing a variant (variants.yaml, canair variants), tagging or importing captures from a particular car (--variant), or deciding whether a car fits an existing profile. NOT for decoding signals (reverse-engineer-signal) or submitting a profile upstream (contributing-profiles).
 ---
 
 # Where a car belongs, and what to call its profile
@@ -46,9 +46,9 @@ the duplication.
 
 A **variant** is a version of the car the owner can name (battery size, facelift, a market with
 different diagnostics) **and** that matters to the diagnostics or to keeping captures apart. It
-is declared in the profile's `variants.yaml` with an ID and metadata. Variants are metadata only
-so far: nothing selects one or gates a definition on one yet, so don't describe them as if they
-did.
+is declared in the profile's `variants.yaml` with an ID and metadata, and captures are tagged with
+the variant they came from (below). Nothing gates a definition on a variant yet, so don't describe
+variants as if they did.
 
 - **Model year alone is never a variant.** Makers change parts on production dates, and owners
   can't tell which side of a mid-year change their car is on. Record `production` (a build
@@ -62,6 +62,25 @@ did.
   `community` (from community sources), `seed` (a placeholder for a car nobody has captured).
   Record whether a battery figure is usable or gross; makers quote either.
 - **Edit with `canair variants`**, never by hand (`--help` for the syntax). Pass `--profile`.
+
+## Tagging captures with the car they came from
+
+A capture is evidence about one car, so on a profile with several variants every session should
+say which: its `variant` tag, set by the global `--variant ID` flag (see
+`docs/concepts/variants.md` for the mechanics).
+
+- **Record with `--variant`** whenever you know the car. Without it the session is untagged, and
+  analysis can't tell it apart from another car's.
+- **Every import names the car on the command line.** A forum paste or a third-party log is
+  someone else's car; `import uds`/`import can` refuse without the global `--variant`, and
+  `CANAIR_VARIANT` doesn't count. Never pick a variant just to make the command run: if the
+  source doesn't say which car it was, ask, or don't import it into a multi-variant profile.
+- **Tag existing history only from evidence** about where it came from (a capture's notes, who
+  recorded it, a battery size readable in the data). `captures migrate-variants ID`, scoped by
+  date and label, stamps sessions as `migrated`; leave a profile's history untagged rather than
+  guess.
+- **Fix a wrong tag with `captures uds --set-variant`**, never by hand. Renaming a variant goes
+  through `canair variants rename`, which retags everything.
 
 ## Naming a profile
 

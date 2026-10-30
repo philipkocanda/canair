@@ -11,6 +11,13 @@
         "exchanges": 430,
         "no_data": 248
       },
+      "vehicle_states": [
+        "PARKED"
+      ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EA","pid":"2101","payload":"6101FFE000000921806F064A0300000000A967300420","time":"20:46:15.514"},
         {"rx":"0x7EA","pid":"2102","payload":"6102F8F800000101000000951CB186463AC80A888AF539","time":"20:46:15.668"},
@@ -69,9 +76,6 @@
         {"rx":"0x778","pid":"22BC07","payload":"62BC070841FBCC10001100","time":"20:48:58.270"},
         {"rx":"0x7A8","pid":"22B003","payload":"62B003BF8B80009F3D25A1D3F7F86F3DF700000000000000","time":"20:48:58.884"},
         {"rx":"0x7A8","pid":"22C011","payload":"62C011E000000000A35F2766","time":"20:49:00.229"}
-      ],
-      "vehicle_states": [
-        "PARKED"
       ]
     },
     {
@@ -83,6 +87,10 @@
       "quality": {
         "exchanges": 71,
         "no_data": 30
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
       },
       "captures": [
         {"rx":"0x778","pid":"22BC01","payload":"62BC01400000000002","time":"20:49:48.136"},

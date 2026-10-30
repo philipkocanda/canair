@@ -8,6 +8,10 @@
       ],
       "label": "IGPM deep-sleep baseline — all status registers",
       "notes": "Car fully asleep (WiCAN sleep mode, woke via terminal session). Queried all 7 known IGPM status DIDs (BC01-BC07) using --wake flag (sends 10 01 wake frame, then 10 03 extended session). All 7 DIDs respond successfully during deep sleep. BC01 responds here but returned NO DATA during earlier keyfob-wake test — timing issue. BC08-BC0A confirmed NRC 0x31 (requestOutOfRange) in earlier session.\n [migrated state: deep sleep, parked, locked, no charging]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x778","pid":"22BC01","payload":"62BC01400000000002AAAAAAAA","notes":"9 data bytes + 4 padding. Byte 3 = 0x40 (bit 6), byte 8 = 0x02 (bit 1). Identical to ACC mode capture — appears static/config. May contain immobilizer or key-related config.\n"},
         {"rx":"0x778","pid":"22BC02","payload":"62BC0200000000","notes":"4 data bytes, all zeros. Identical to ACC mode. May only populate during driving (speed/wiper state?).\n"},
@@ -26,6 +30,10 @@
       ],
       "label": "BCM deep-sleep DID range scan — B0xx and C0xx",
       "notes": "Car fully asleep. BCM (0x7A0) responds to wake (10 01 + 10 03). CLU (0x7C6) does NOT respond during deep sleep — NO DATA to wake and session. Scanned B0xx range: B001-B00A valid (10 DIDs), B000 and B00B+ = NRC 0x31. Scanned C0xx range: C001-C014 valid (20 DIDs), C000 and C015+ = NRC 0x31. BCM has 30 readable DIDs during deep sleep total. B004-B007 not probed individually in this session (gap — fill in next time). C003-C007 contain ASCII TPMS sensor names (DO01, NA01, NTPM, DO02, NA02). C008-C00A are empty TPMS slots (all FF payload).\n [migrated state: deep sleep, parked, locked, no charging]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7A8","pid":"22B001","payload":"62B00140C0000000010000000000000201000000","notes":"20 bytes. Unknown purpose. Mostly zeros."},
         {"rx":"0x7A8","pid":"22B002","payload":"62B002C00000000200AAAAAAAA","notes":"13 bytes (6 data + padding). Sparse."},
@@ -62,6 +70,10 @@
         "SLEEP"
       ],
       "notes": "Car parked at home, 12V battery resting. BCM inherently awake. Probed B004-B007 (missed in 2026-04-15 session) and standard UDS identity DIDs.",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7A8","pid":"22B004","payload":"62B0047402990C00008000AAAA","notes":"13 bytes. Unknown — first 2 bytes 0x7402 may be a counter or flags."},
         {"rx":"0x7A8","pid":"22B005","payload":"62B0052000100000000800AAAA","notes":"13 bytes. Sparse bitfield — purpose unknown."},
@@ -80,6 +92,10 @@
         "SLEEP"
       ],
       "notes": "Proved BCM wakes from CAN bus activity alone — no ACC relay needed. Only IGPM 1001 was sent (5x), no SKM involvement. BCM responded to 22C00B after ~1s delay.\n [migrated state: deep sleep, unplugged, no SKM ACC, no extended session]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x778","pid":"1001","payload":"5001","notes":"Second attempt — IGPM responsive."},
         {"rx":"0x7A8","pid":"22C00B","payload":"62C00BFFFF0000C9450200CB430100CF440100CB440100AAAAAAAA","notes":"TPMS data. BCM woke from CAN bus activity without ACC power."}

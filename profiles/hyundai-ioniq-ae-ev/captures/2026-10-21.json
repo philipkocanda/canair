@@ -15,6 +15,10 @@
         "PARKED",
         "TOPUP"
       ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFFB7172026480300010F3D0B0A0B0B0B0B0A000BCB15CB010000920005876E00058472000201090001F06E015F2E660901850000000003E8","time":"21:00:58.225"},
         {"rx":"0x7EC","pid":"2102","payload":"6102FFFFFFFFCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCBCB","time":"21:00:58.339"},
@@ -70,6 +74,10 @@
           {"at": "21:03:24.711", "states": ["PARKED", "TOPUP", "IG3"]}
         ],
         "version": "1.35.2+main.4636a47.dirty"
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
       },
       "captures": [
         {"rx":"0x7A8","pid":"22B001","payload":"62B00140C0000000010000000000000201000000","time":"21:03:05.959"},
@@ -208,6 +216,10 @@
           {"at": "21:17:08.763", "states": ["PARKED"]}
         ],
         "version": "1.35.2+main.4636a47.dirty"
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
       },
       "captures": [
         {"rx":"0x7A8","pid":"22B001","payload":"62B00140C0000000010000000000000201000000","time":"21:07:12.276","repeat_inline_ms":[20874,21000,21065,21393,21708,21817,21972,22402,22693,22929,23330,25970,26008,24004,24281,24733,25044,25288,25594,26134,26329,26845,27216,27327,34402,50830,48408,42990,40411,45478,45265,45518,45780,45816,45817,45957,46557,46165]},

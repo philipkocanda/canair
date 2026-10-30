@@ -9,6 +9,10 @@
         "PARKED",
         "IG3"
       ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7ED","pid":"2101","payload":"6101FFFFF80000929C8E5A5902021A80024700BA05B443102000C803A200A576000B000401F48E9818FD000D00000000","time":"10:45:23"},
         {"rx":"0x7ED","pid":"2101","payload":"6101FFFFF8000092A28E57590A021B80024900BA05B643102000C803A200A576000B000401F48E98242E000D00000000","time":"10:45:25"},
@@ -118,6 +122,10 @@
         "IG3"
       ],
       "notes": "sleep\n",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EA","pid":"2101","payload":"6101FFE00000092110420636030000000081780007200000000000","time":"10:47:06"},
         {"rx":"0x7EA","pid":"2101","payload":"6101FFE0000009211047063603000000007D780007200000000000","time":"10:47:08"},
@@ -577,6 +585,10 @@
       "vehicle_states": [
         "charging"
       ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EA","pid":"2102","payload":"6102F8F800000101000000950AB77F4B3AE703318FF73900000000","time":"11:02:33"},
         {"rx":"0x7EA","pid":"2102","payload":"6102F8F800000101000000950AB77F4E3ADA032A8FF33900000000","time":"11:02:35"},
@@ -1320,6 +1332,10 @@
         "charging"
       ],
       "notes": "AC Charging (10A)\n",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EB","pid":"2101","payload":"6101000003FF083801DB94AE390000000A00160234047239E8FFB7FF610000000000","time":"13:14:21"},
         {"rx":"0x7EB","pid":"2101","payload":"6101000003FF083801DD94B5390000000A001802330477399200490025FF00000000","time":"13:14:23"},
@@ -1397,6 +1413,10 @@
         "charging"
       ],
       "notes": "After several hours of charging\n",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7ED","pid":"2101","payload":"6101FFFFF8000099659591569D01F0A3024D00BB05A843102000C803A200A576001D001201F3958D47DD001D00000000","time":"13:30:05"},
         {"rx":"0x7ED","pid":"2101","payload":"6101FFFFF8000099509596567801EFA3024C00BB05AA43102000C803A200A576001D001201F3958D5BA0001D00000000","time":"13:30:08"},
@@ -1424,6 +1444,10 @@
         "charging"
       ],
       "notes": "OBC/LDC while AC charging (10A)\n",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7ED","pid":"2101","payload":"6101FFFFF8000099739605579D01F4A4024C00BB05A743102000C803A100A576001D001201F395F67176001D00000000","time":"13:42:56"},
         {"rx":"0x7ED","pid":"2101","payload":"6101FFFFF80000997E960957A101F5A4024C00BB05A843102000C803A200A576001D001201F395F77610001D00000000","time":"13:42:58"},
@@ -1656,6 +1680,10 @@
         ],
         "version": "1.35.2+main.4636a47.dirty"
       },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7ED","pid":"2101","payload":"6101FFFFF800008A96024003D0000097003501BC05B54100000000001D0000600000000001F39B7302D7000000000000","time":"15:57:30"},
         {"rx":"0x7ED","pid":"2101","payload":"6101FFFFF8000089CD024103CF000096003501BC05B34100000000001D0000600000000001F39B7502D0000000000000","time":"15:57:36"},
@@ -1745,6 +1773,10 @@
           {"at": "16:01:25", "states": ["READY", "DRIVING", "IG3"]}
         ],
         "version": "1.35.2+main.4636a47.dirty"
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
       },
       "captures": [
         {"rx":"0x7ED","pid":"2101","payload":"6101FFFFF8000073E2022C03B400008A003501BC05B04100000000001A0000600000000001F39B5202BE000000000000","time":"16:01:10"},
@@ -2296,6 +2328,10 @@
           {"at": "17:45:34", "states": ["READY", "PARKED", "IG3"]}
         ],
         "version": "1.35.2+main.4636a47.dirty"
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
       },
       "captures": [
         {"rx":"0x7ED","pid":"2101","payload":"6101FFFFF80000029B01B70314000080003301BC05B24100000000000E0000600000000001F39901023E000000000000","time":"17:31:05"},

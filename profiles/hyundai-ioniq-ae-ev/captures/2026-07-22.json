@@ -20,6 +20,10 @@
         ],
         "version": "1.35.2+main.4636a47.dirty"
       },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7DC","pid":"220101","payload":"6201018A8EFF003F00070000000010101F01","time":"09:02:19.245"},
         {"rx":"0x7DC","pid":"220102","payload":"6201020000000300","time":"09:02:19.245"},
@@ -917,6 +921,10 @@
         "parked"
       ],
       "notes": "Ioniq5 cross-ref; expect NRC (Ioniq 2017 MCU is KWP2000/service 21)",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EB","pid":"scan 22 E001-E010","scan_results":{"rejected":"16 DIDs returned 16 NRC"}}
       ]
@@ -929,6 +937,10 @@
         "parked"
       ],
       "notes": "Ioniq5 cross-ref; expect NRC (VCU is KWP2000/service 21)",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EA","pid":"scan 22 E001-E010","scan_results":{"rejected":"16 DIDs returned 16 NRC"}}
       ]
@@ -941,6 +953,10 @@
         "parked"
       ],
       "notes": "ChatGPT-sourced DIDs; expect NRC (BMS is KWP2000/service 21)",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EC","pid":"scan 22 BC01-BC0B","scan_results":{"rejected":"11 DIDs returned 11 NRC"}}
       ]
@@ -953,6 +969,10 @@
         "parked"
       ],
       "notes": "range/time-to-full; expect NRC",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EC","pid":"scan 22 E003-E005","scan_results":{"rejected":"3 DIDs returned 3 NRC"}}
       ]
@@ -965,6 +985,10 @@
         "parked"
       ],
       "notes": "ChatGPT-sourced; expect NRC",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EC","pid":"scan 22 B002-B005","scan_results":{"rejected":"4 DIDs returned 4 NRC"}}
       ]
@@ -977,6 +1001,10 @@
         "parked"
       ],
       "notes": "Body/preheat pages incl B007/B00C/B00D preheat DIDs, fresh READY capture",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7A8","pid":"scan 22 B001-B010","scan_results":{"responding":[{"did":"B001","response":"20 bytes","notes":"Raw: 62B00140C0000000010000000000000201000000"},{"did":"B002","response":"9 bytes","notes":"Raw: 62B002C00000000200"},{"did":"B003","response":"24 bytes","notes":"Raw: 62B003BF8B8000B53D09B2F9F8F9F73DF80000B700B6B7B7"},{"did":"B004","response":"11 bytes","notes":"Raw: 62B0047402990C0E008000"},{"did":"B005","response":"11 bytes","notes":"Raw: 62B0052000100008000800"},{"did":"B006","response":"11 bytes","notes":"Raw: 62B0062000000000000000"},{"did":"B007","response":"11 bytes","notes":"Raw: 62B007002001E000040000"},{"did":"B008","response":"11 bytes","notes":"Raw: 62B00800510C2000880004"},{"did":"B009","response":"11 bytes","notes":"Raw: 62B009FEEEFEEE08000800"},{"did":"B00A","response":"11 bytes","notes":"Raw: 62B00AE3FEE3000040C500"},{"did":"B00C","response":"11 bytes","notes":"Raw: 62B00C3F00000000000000"},{"did":"B00D","response":"11 bytes","notes":"Raw: 62B00DFCFCE00000000000"},{"did":"B00E","response":"11 bytes","notes":"Raw: 62B00E0C00000000000000"}],"rejected":"3 DIDs returned 3 NRC"}}
       ]
@@ -989,6 +1017,10 @@
         "parked"
       ],
       "notes": "136-byte smart key payload; fob is present (car is READY). Baseline for key-present state. [migrated state: ready, parked, fob present]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7AD","pid":"22B002","payload":"62B002000000003C0A462C3F75FEFF1EC89664FA14323205061403073246141E1E1E2C3F75FE00000000FFFAC896649612080F0A14100AC864030F3CC8146428081010031E326464C800000000051E1EC4BCC81E1E050A1E031680100F10E0051003050A0A0A1E0F6414C48C0000000014320007120A0A1910E016800403320503090A1E32320205320F00140000000000000000000000000001020000001000000000000000000000000000000000000000"}
       ]
@@ -1002,6 +1034,10 @@
         "PARKED"
       ],
       "notes": "Fully powered/READY contrast vs prior deep-sleep BC0x captures. Doors closed, locked, lights off. [migrated state: ready, parked, ignition on]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x778","pid":"22BC01","payload":"62BC01400000000002"},
         {"rx":"0x778","pid":"22BC02","payload":"62BC0200000000"},
@@ -1020,6 +1056,10 @@
         "parked"
       ],
       "notes": "Gear shift assembly / gear selector - first-ever PID scan",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7BE","pid":"scan 22 0101-010F","scan_results":{"rejected":"15 DIDs returned 15 NRC"}}
       ]
@@ -1032,6 +1072,10 @@
         "parked"
       ],
       "notes": "First-ever live-data PID scan",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7AB","pid":"scan 22 0101-010F","scan_results":{"rejected":"15 DIDs returned 15 NRC"}}
       ]
@@ -1044,6 +1088,10 @@
         "parked"
       ],
       "notes": "First-ever live-data PID scan",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7AD","pid":"scan 22 0101-010F","scan_results":{"rejected":"15 DIDs returned 15 NRC"}}
       ]
@@ -1056,6 +1104,10 @@
         "parked"
       ],
       "notes": "First-ever live-data PID scan",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7D8","pid":"scan 22 0101-010F","scan_results":{"responding":[{"did":"0101","response":"6 bytes","notes":"Raw: 620101081401"},{"did":"0102","response":"6 bytes","notes":"Raw: 6201020D000C"},{"did":"0103","response":"7 bytes","notes":"Raw: 62010328543521"},{"did":"0105","response":"5 bytes","notes":"Raw: 6201050307"}],"rejected":"11 DIDs returned 11 NRC"}}
       ]
@@ -1068,6 +1120,10 @@
         "parked"
       ],
       "notes": "First-ever live-data PID scan",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7CC","pid":"scan 22 0101-010F","scan_results":{"responding":[{"did":"0101","response":"4 bytes","notes":"Raw: 620101FE"},{"did":"0102","response":"7 bytes","notes":"Raw: 620102FB010008"}],"rejected":"13 DIDs returned 13 NRC"}}
       ]
@@ -1080,6 +1136,10 @@
         "parked"
       ],
       "notes": "First-ever live-data PID scan",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x79E","pid":"scan 22 0101-010F","scan_results":{"rejected":"15 DIDs returned 15 NRC"}}
       ]
@@ -1092,6 +1152,10 @@
         "parked"
       ],
       "notes": "First-ever live-data PID scan",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x72D","pid":"scan 22 0101-010F","scan_results":{"rejected":"15 DIDs returned 15 NRC"}}
       ]
@@ -1104,6 +1168,10 @@
         "parked"
       ],
       "notes": "First-ever live-data PID scan",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x75D","pid":"scan 22 0101-010F","scan_results":{"rejected":"15 DIDs returned 15 NRC"}}
       ]
@@ -1116,6 +1184,10 @@
         "parked"
       ],
       "notes": "First-ever live-data PID scan",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7BF","pid":"scan 22 0101-010F","scan_results":{"rejected":"15 DIDs returned 15 NRC"}}
       ]
@@ -1128,6 +1200,10 @@
         "parked"
       ],
       "notes": "First-ever live-data PID scan",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7A9","pid":"scan 22 0101-010F","scan_results":{"rejected":"15 DIDs returned 15 NRC"}}
       ]
@@ -1140,6 +1216,10 @@
         "parked"
       ],
       "notes": "First-ever live-data PID scan",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7AA","pid":"scan 22 0101-010F","scan_results":{"rejected":"15 DIDs returned 15 NRC"}}
       ]
@@ -1152,6 +1232,10 @@
         "parked"
       ],
       "notes": "First-ever live-data PID scan",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x73E","pid":"scan 22 0101-010F","scan_results":{"rejected":"15 DIDs returned 15 NRC"}}
       ]
@@ -1164,6 +1248,10 @@
         "parked"
       ],
       "notes": "First-ever live-data PID scan",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7DD","pid":"scan 22 0101-010F","scan_results":{"rejected":"15 DIDs returned 15 NRC"}}
       ]
@@ -1176,6 +1264,10 @@
         "parked"
       ],
       "notes": "Live-data PID scan (B0xx range)",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7BE","pid":"scan 22 B001-B010","scan_results":{"rejected":"16 DIDs returned 16 NRC"}}
       ]
@@ -1188,6 +1280,10 @@
         "parked"
       ],
       "notes": "Live-data PID scan (B0xx range)",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7AB","pid":"scan 22 B001-B010","scan_results":{"rejected":"16 DIDs returned 16 NRC"}}
       ]
@@ -1200,6 +1296,10 @@
         "parked"
       ],
       "notes": "Live-data PID scan (B0xx range)",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7AD","pid":"scan 22 B001-B010","scan_results":{"responding":[{"did":"B003","response":"25 bytes","notes":"Raw: 62B003000000003412900300000000C6A21261000000000F00"},{"did":"B006","response":"11 bytes","notes":"Raw: 62B005FA6090001C04C001"},{"did":"B007","response":"17 bytes","notes":"Raw: 62B0071E7FB80000E600007FFF00000000"},{"did":"B008","response":"17 bytes","notes":"Raw: 62B0080000000000000009000000000000"},{"did":"B009","response":"33 bytes","notes":"Raw: 62B009000000000000000000000000000000000000000000000000000000000000"},{"did":"B00A","response":"19 bytes","notes":"Raw: 62B00A0100F038000501080600000021010000"},{"did":"B00B","response":"52 bytes","notes":"Raw: 62B00B8000000002000000000000000000000004040041193E000100000200000070010000000000..."}],"rejected":"9 DIDs returned 9 NRC"}}
       ]
@@ -1212,6 +1312,10 @@
         "parked"
       ],
       "notes": "Live-data PID scan (B0xx range)",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x79E","pid":"scan 22 B001-B010","scan_results":{"rejected":"16 DIDs returned 16 NRC"}}
       ]
@@ -1224,6 +1328,10 @@
         "parked"
       ],
       "notes": "Live-data PID scan (B0xx range)",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x72D","pid":"scan 22 B001-B010","scan_results":{"rejected":"16 DIDs returned 16 NRC"}}
       ]
@@ -1236,6 +1344,10 @@
         "parked"
       ],
       "notes": "Live-data PID scan (B0xx range)",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x75D","pid":"scan 22 B001-B010","scan_results":{"rejected":"16 DIDs returned 16 NRC"}}
       ]
@@ -1248,6 +1360,10 @@
         "parked"
       ],
       "notes": "Live-data PID scan (B0xx range)",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7BF","pid":"scan 22 B001-B010","scan_results":{"rejected":"16 DIDs returned 16 NRC"}}
       ]
@@ -1260,6 +1376,10 @@
         "parked"
       ],
       "notes": "Live-data PID scan (B0xx range)",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7A9","pid":"scan 22 B001-B010","scan_results":{"rejected":"16 DIDs returned 16 NRC"}}
       ]
@@ -1272,6 +1392,10 @@
         "parked"
       ],
       "notes": "Live-data PID scan (B0xx range)",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7AA","pid":"scan 22 B001-B010","scan_results":{"rejected":"16 DIDs returned 16 NRC"}}
       ]
@@ -1284,6 +1408,10 @@
         "parked"
       ],
       "notes": "Live-data PID scan (B0xx range)",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x73E","pid":"scan 22 B001-B010","scan_results":{"rejected":"16 DIDs returned 16 NRC"}}
       ]
@@ -1296,6 +1424,10 @@
         "parked"
       ],
       "notes": "Live-data PID scan (B0xx range)",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7DD","pid":"scan 22 B001-B010","scan_results":{"rejected":"16 DIDs returned 16 NRC"}}
       ]
@@ -1308,6 +1440,10 @@
         "parked"
       ],
       "notes": "Live-data PID scan (B0xx range)",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7D8","pid":"scan 22 B001-B010","scan_results":{"rejected":"16 DIDs returned 16 NRC"}}
       ]
@@ -1320,6 +1456,10 @@
         "parked"
       ],
       "notes": "Live-data PID scan (B0xx range)",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7CC","pid":"scan 22 B001-B010","scan_results":{"rejected":"16 DIDs returned 16 NRC"}}
       ]
@@ -1332,6 +1472,10 @@
         "parked"
       ],
       "notes": "Smart Key Module live-data range map [migrated state: ready, parked, fob present]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7AD","pid":"scan 22 B001-B010","scan_results":{"responding":[{"did":"B002","response":"178 bytes","notes":"Raw: 62B002000000003C0A462C3F75FEFF1EC89664FA14323205061403073246141E1E1E2C3F75FE0000..."},{"did":"B003","response":"25 bytes","notes":"Raw: 62B003000000003412900300000000C6A21261000000000F00"},{"did":"B005","response":"11 bytes","notes":"Raw: 62B005FA6090001C04C001"},{"did":"B007","response":"23 bytes","notes":"Raw: 62B006AFE00000B70000000000B7B7B700B70000000000"},{"did":"B009","response":"17 bytes","notes":"Raw: 62B0080000000000000009000000000000"},{"did":"B00B","response":"19 bytes","notes":"Raw: 62B00A0100F038000501080600000021010000"}],"rejected":"10 DIDs returned 10 NRC"}}
       ]
@@ -1344,6 +1488,10 @@
         "parked"
       ],
       "notes": "Extend SCC 01xx range",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7D8","pid":"scan 22 0106-0120","scan_results":{"rejected":"27 DIDs returned 27 NRC"}}
       ]
@@ -1356,6 +1504,10 @@
         "parked"
       ],
       "notes": "Extend MFC 01xx range",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7CC","pid":"scan 22 0103-0120","scan_results":{"rejected":"30 DIDs returned 30 NRC"}}
       ]
@@ -1367,6 +1519,10 @@
         "ready",
         "parked"
       ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7BE","pid":"scan 22 C101-C10F","scan_results":{"rejected":"15 DIDs returned 15 NRC"}}
       ]
@@ -1378,6 +1534,10 @@
         "ready",
         "parked"
       ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7AB","pid":"scan 22 C101-C10F","scan_results":{"rejected":"15 DIDs returned 15 NRC"}}
       ]
@@ -1389,6 +1549,10 @@
         "ready",
         "parked"
       ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x79E","pid":"scan 22 C101-C10F","scan_results":{"rejected":"15 DIDs returned 15 NRC"}}
       ]
@@ -1400,6 +1564,10 @@
         "ready",
         "parked"
       ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x72D","pid":"scan 22 C101-C10F","scan_results":{"rejected":"15 DIDs returned 15 NRC"}}
       ]
@@ -1411,6 +1579,10 @@
         "ready",
         "parked"
       ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x75D","pid":"scan 22 C101-C10F","scan_results":{"rejected":"15 DIDs returned 15 NRC"}}
       ]
@@ -1422,6 +1594,10 @@
         "ready",
         "parked"
       ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7BF","pid":"scan 22 C101-C10F","scan_results":{"rejected":"15 DIDs returned 15 NRC"}}
       ]
@@ -1433,6 +1609,10 @@
         "ready",
         "parked"
       ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7A9","pid":"scan 22 C101-C10F","scan_results":{"rejected":"15 DIDs returned 15 NRC"}}
       ]
@@ -1444,6 +1624,10 @@
         "ready",
         "parked"
       ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7AA","pid":"scan 22 C101-C10F","scan_results":{"rejected":"15 DIDs returned 15 NRC"}}
       ]
@@ -1455,6 +1639,10 @@
         "ready",
         "parked"
       ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x73E","pid":"scan 22 C101-C10F","scan_results":{"rejected":"15 DIDs returned 15 NRC"}}
       ]
@@ -1466,6 +1654,10 @@
         "ready",
         "parked"
       ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7DD","pid":"scan 22 C101-C10F","scan_results":{"responding":[{"did":"C101","response":"27 bytes","notes":"Raw: 62C101FB180000BD0DFFF4FCFD020001FFFFFFFFFF000026180004"}],"rejected":"14 DIDs returned 14 NRC"}}
       ]
@@ -1478,6 +1670,10 @@
         "parked"
       ],
       "notes": "7D5 identify - C1xx range hit",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7DD","pid":"scan 22 C101-C10F","scan_results":{"responding":[{"did":"C101","response":"27 bytes","notes":"Raw: 62C101FB180000BD0DFFF4FCFD020001FFFFFFFFFF000026180004"}],"rejected":"14 DIDs returned 14 NRC"}}
       ]
@@ -1489,6 +1685,10 @@
         "ready",
         "parked"
       ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7BE","pid":"scan 22 C001-C010","scan_results":{"rejected":"16 DIDs returned 16 NRC"}}
       ]
@@ -1500,6 +1700,10 @@
         "ready",
         "parked"
       ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7AB","pid":"scan 22 C001-C010","scan_results":{"rejected":"16 DIDs returned 16 NRC"}}
       ]
@@ -1511,6 +1715,10 @@
         "ready",
         "parked"
       ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7BE","pid":"scan 22 D001-D010","scan_results":{"rejected":"16 DIDs returned 16 NRC"}}
       ]
@@ -1522,6 +1730,10 @@
         "ready",
         "parked"
       ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7AB","pid":"scan 22 D001-D010","scan_results":{"rejected":"16 DIDs returned 16 NRC"}}
       ]
@@ -1533,6 +1745,10 @@
         "ready",
         "parked"
       ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7BE","pid":"scan 21 01-0F","scan_results":{"rejected":"15 DIDs returned 15 NRC"}}
       ]
@@ -1544,6 +1760,10 @@
         "ready",
         "parked"
       ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7AB","pid":"scan 21 01-0F","scan_results":{"rejected":"15 DIDs returned 15 NRC"}}
       ]
@@ -1556,6 +1776,10 @@
         "parked"
       ],
       "notes": "Double-check 0x7E5=EOBC vs 0x7E2=VLDC attribution",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7ED","pid":"1A8C","payload":"5A8C4145454F42433531"},
         {"rx":"0x7EA","pid":"1A8C","payload":"5A8C4145564C44433533"}
@@ -1569,6 +1793,10 @@
         "parked"
       ],
       "notes": "12V-load baseline; sampling B15 stability at idle [migrated state: ready, parked, not charging]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7ED","pid":"2101","payload":"6101FFFFF80000029B01B2031900007D003301BD05AB4100000000000D0000600000000001F494C802430000"},
         {"rx":"0x7ED","pid":"2101","payload":"6101FFFFF80000029701AF031500007D003301BD05AA4100000000000C0000600000000001F494C3023B0000"},
@@ -1583,6 +1811,10 @@
         "parked"
       ],
       "notes": "12V load step from ~2.3A baseline; testing B15 = LDC output current [migrated state: ready, parked, rear defroster on]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7ED","pid":"2101","payload":"6101FFFFF80000029E01B5031D00007D003301BD05504100000000000D0000600000000001F494B4023F0000"},
         {"rx":"0x7ED","pid":"2101","payload":"6101FFFFF80000029C01B5031B00007D003301BD05504100000000000D0000600000000001F494B702390000"}
@@ -1596,6 +1828,10 @@
         "parked"
       ],
       "notes": "defroster off: confirm LDC_OUTPUT_V recovers and B15 returns to baseline [migrated state: ready, parked, not charging]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7ED","pid":"2101","payload":"6101FFFFF80000029C01B1031900007D003301BD05AA4100000000000D0000600000000001F494AB02420000"},
         {"rx":"0x7ED","pid":"2101","payload":"6101FFFFF80000029D01B3031B00007D003301BD05AA4100000000000D0000600000000001F494B0023D0000"}
@@ -1610,6 +1846,10 @@
         "IG3"
       ],
       "notes": "PTC heater on (30C), center console reading ~1.2 kW for climate, ~0.4-0.5 kW for electronics.",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFFA2264526480300310ECF121112121111110012C502C50100008F00055FF800055DE50001F29D0001E2DE0152425A0D017A0000000003E8","time":"11:15:23.592"},
         {"rx":"0x7EC","pid":"2102","payload":"6102FFFFFFFFC5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5","time":"11:15:23.592"},
@@ -2298,6 +2538,10 @@
         "parked"
       ],
       "notes": "~1.5kW BMS discharge; probe HVAC 220101/220102 for PTC/compressor power [migrated state: ready, parked, climate heating 30C]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7BB","pid":"220100","payload":"6201007E5007C8FF806F753BEF4AFFFF49FF10FFFFFFFFFFFFFFFFFF19E7878E00FFFF00FFFF"},
         {"rx":"0x7BB","pid":"220102","payload":"620102FF800000AE7300000000000018"},
@@ -2312,6 +2556,10 @@
         "parked"
       ],
       "notes": "console: climate 1kW + electronics 0.5kW; decode 220102 climate power vs idle FF800000AE7300000000000018 [migrated state: ready, parked, climate ~1kW steady, electronics ~0.5kW]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7BB","pid":"220102","payload":"620102FF800000B6890000000000002E"},
         {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFFA1264626480300270ECC121112121211110012C53DC50100008700055FF800055DE90001F29D0001E2E00152478B0D017A0000000003E8"},
@@ -2327,6 +2575,10 @@
         "parked"
       ],
       "notes": "Capture positive 1902FF (availability mask + 7 DTCs); test 3-byte 190AFF (supported-DTC length hypothesis); enumerate by mask 08/04/01",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x78B","pid":"1902FF","payload":"5902FFA9190009A91A0009A91B0009A9150009A9160009A9200009A9210009"},
         {"rx":"0x78B","pid":"190208","payload":"590209"}
@@ -2335,6 +2587,13 @@
     {
       "date": "2026-07-22",
       "label": "ESC EPS OBC MCU VCU BCM",
+      "vehicle_states": [
+        "PARKED"
+      ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7D9","pid":"22C101","payload":"62C1015BD7E760FFFF00FF01DCFF00000000FF80FF0034F4000000FFFF801107FD07FCFFFF2F30FFFFFF","time":"16:48:38.675"},
         {"rx":"0x7D9","pid":"22C102","payload":"62C1023FE00000FFFFFFFFFFFF2E2F0707A3A32D2D50D5C0D4D4","time":"16:48:38.675"},
@@ -2367,9 +2626,6 @@
         {"rx":"0x7D9","pid":"22C101","payload":"62C1015BD7E760FFFF00FF01DCFF00000000FF81FF0034F4000000FFFF801007FE07FCFFFF2F30FFFFFF","time":"16:49:00.704"},
         {"rx":"0x7A8","pid":"22B003","payload":"62B003BF8B8000A93DF6A2D3F7F96E3DF70000AB00ABABAB","time":"16:49:00.704"},
         {"rx":"0x7A8","pid":"22C011","payload":"62C011E000000001ADF82755","time":"16:49:00.704"}
-      ],
-      "vehicle_states": [
-        "PARKED"
       ]
     },
     {
@@ -2380,6 +2636,10 @@
         "PARKED",
         "IG3"
       ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7D9","pid":"22C101","payload":"62C1015BD7E760FFFF00FF01DCFF00000000FF80FF0034F4000000FFFF801007FD07FBFFFF3232FFFFFF","time":"16:50:09.478"},
         {"rx":"0x7D9","pid":"22C102","payload":"62C1023FE00000FFFFFFFFFFFF33330707A3A32F3005D5C0D4D4","time":"16:50:09.478"},
@@ -2443,6 +2703,10 @@
           {"at": "17:04:44.940", "states": ["READY", "PARKED", "IG3"]}
         ],
         "version": "1.35.2+main.4636a47.dirty"
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
       },
       "captures": [
         {"rx":"0x7D9","pid":"22C101","payload":"62C1015BD7E760FFFF00FF01DDFF00000000FF80FF0034F4000000FFFF800E07FD07FBFFFF3131FFFFFF","time":"16:51:52.484"},
@@ -3194,6 +3458,10 @@
         ],
         "version": "1.35.2+main.4636a47.dirty"
       },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7D9","pid":"22C101","payload":"62C1015BD7E760FFFF00FF01DDFF00000000FF7EFF0030F4000000FFFF7F7B080007FAFFFF0000FFFFFF","time":"17:11:47.459"},
         {"rx":"0x7D9","pid":"22C102","payload":"62C1023FE00000FFFFFFFFFFFF01010000A1A2000000C0C0D4D4","time":"17:11:47.459"},
@@ -3242,6 +3510,10 @@
           {"at": "17:14:04.696", "states": ["DRIVING"]}
         ],
         "version": "1.35.2+main.4636a47.dirty"
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
       },
       "captures": [
         {"rx":"0x7D9","pid":"22C101","payload":"62C1015BD7E760FFFF00FF01DCFF00000000FF7EFF0030F4000000FFFF7F88080007FBFFFF0000FFFFFF","time":"17:13:09.445"},
@@ -3742,6 +4014,10 @@
         "ready"
       ],
       "notes": "extended diagnostic session (10 83) with periodic tester present; comparing payloads/sizes vs default session",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFF80264826480300030E32141213131211120013BD2BBD0100008E0005600A00055E5E0001F2A30001E30A01529FDD0D016B0000000003E8"},
         {"rx":"0x7EC","pid":"2102","payload":"6102FFFFFFFFBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBD"},
@@ -3757,6 +4033,10 @@
         "ready"
       ],
       "notes": "periodic/EOL diagnostic session (10 82) with tester present; comparing payloads/sizes vs default/83",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFF80264826480300040E32141213131211120013BD3DBD0100008F0005600A00055E5E0001F2A30001E30A01529FE40D016B0000000003E8"},
         {"rx":"0x7EC","pid":"2102","payload":"6102FFFFFFFFBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBD"},
@@ -3772,6 +4052,10 @@
         "ready"
       ],
       "notes": "standardDiagnosticSession (10 81) with tester present; comparing payloads/sizes vs 82/83/default",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFF80264826480300050E32141213131211120013BD03BD0100008E0005600A00055E5E0001F2A30001E30A01529FEC0D016B0000000003E8"},
         {"rx":"0x7EC","pid":"2102","payload":"6102FFFFFFFFBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBD"},
@@ -3789,6 +4073,10 @@
         "IG3"
       ],
       "notes": "standardDiagnosticSession (10 81) with tester present; VCU rejects 82/83 (NRC 0x12), testing whether 81 changes payload sizes",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EA","pid":"2101","payload":"6101FFE0000009215A79065C03000000005175340420"},
         {"rx":"0x7EA","pid":"2102","payload":"6102F8F800000101000000920EB687E8386705DE8DA638"}
@@ -3801,6 +4089,10 @@
         "ready"
       ],
       "notes": "standardDiagnosticSession (10 81) with tester present; MCU rejects 82/83 (NRC 0x12)",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EB","pid":"2101","payload":"6101000003FF0C3800F68D8B380000000A002C023C0499384900610056FF"},
         {"rx":"0x7EB","pid":"2102","payload":"610207FFFFFF00000000000022000A0E1111F7FFF5FF7DD6CDABC2CD61003FFA2600410AF726F606C1CD0900503100000000000000000000"},
@@ -3814,6 +4106,10 @@
         "ready"
       ],
       "notes": "standardDiagnosticSession (10 81) with tester present; OBC/LDC rejects 82/83 (NRC 0x12)",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7ED","pid":"2101","payload":"6101FFFFF8000002BB01D1033B00007F003401BD0598410000000000100000600000000001F38E0B02640000"},
         {"rx":"0x7ED","pid":"2102","payload":"6102FFFC0000684F792A694A79286E847927650F791B7499791F7293792B74827931"}
@@ -3826,6 +4122,10 @@
         "ready"
       ],
       "notes": "Hidden-page hunt: fill gaps around known BC01-BC08. BC09/BC0A/BC0C have IOControl slots so likely readable via 22. [migrated state: ready, ignition on]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x778","pid":"scan 22 BC00-BC1F","scan_results":{"responding":[{"did":"BC01","response":"9 bytes","notes":"Raw: 62BC01400000000002"},{"did":"BC02","response":"7 bytes","notes":"Raw: 62BC0200000000"},{"did":"BC03","response":"11 bytes","notes":"Raw: 62BC03FDEE3C7304600000"},{"did":"BC04","response":"11 bytes","notes":"Raw: 62BC04B53FF4EA01000042"},{"did":"BC05","response":"11 bytes","notes":"Raw: 62BC057F11200000000000"},{"did":"BC06","response":"11 bytes","notes":"Raw: 62BC06B480000000000000"},{"did":"BC07","response":"11 bytes","notes":"Raw: 62BC070841FBCC00001900"}],"rejected":"25 DIDs returned 25 NRC"}}
       ]
@@ -3837,6 +4137,10 @@
         "ready"
       ],
       "notes": "P1 backlog retry with ignition on (was NRC at rest). Ioniq5 cross-ref: E001 ignition V/motor RPM/torque/phase current/temps, E009 water/oil pump. [migrated state: ready, ignition on]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EB","pid":"scan 22 E001-E010","scan_results":{"rejected":"16 DIDs returned 16 NRC"}}
       ]
@@ -3848,6 +4152,10 @@
         "ready"
       ],
       "notes": "P1 backlog retry with ignition on. KWP2000 ECU - expecting NRC 0x12 like MCU. [migrated state: ready, ignition on]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EA","pid":"scan 22 E001-E010","scan_results":{"rejected":"16 DIDs returned 16 NRC"}}
       ]
@@ -3859,6 +4167,10 @@
         "ready"
       ],
       "notes": "Hidden-page hunt: known 220101/220102. LKAS backlog wants sibling 22010x pages carrying LKAS active/torque command. [migrated state: ready, ignition on]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7DC","pid":"scan 22 0100-0110","scan_results":{"responding":[{"did":"0101","response":"18 bytes","notes":"Raw: 6201019196FF00D600030000000010102301"},{"did":"0102","response":"8 bytes","notes":"Raw: 6201020000000300"}],"rejected":"15 DIDs returned 15 NRC"}}
       ]
@@ -3870,6 +4182,10 @@
         "ready"
       ],
       "notes": "Hidden-page hunt: known 220100-0103,0105. Fill 0104 + 0106-0110. [migrated state: ready, ignition on]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7D8","pid":"scan 22 0104-0110","scan_results":{"responding":[{"did":"0105","response":"5 bytes","notes":"Raw: 6201050307"}],"rejected":"12 DIDs returned 12 NRC"}}
       ]
@@ -3881,6 +4197,10 @@
         "ready"
       ],
       "notes": "Service-21 full LID sweep after 22 E0xx dead end. Hunting undocumented live-data pages beyond 2101-2103,21F2. [migrated state: ready, ignition on]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EB","pid":"scan 21 00-FF","scan_results":{"responding":[{"did":"01","response":"30 bytes","notes":"Raw: 6101000003FF0C3800BC8DC1380000000A002F024204C53818001800D0FF"},{"did":"02","response":"56 bytes","notes":"Raw: 610207FFFFFF0000000000001F000A0E1010F7FFF6FF7DD6CDABC2CD61003FFA2600410AF726F606..."},{"did":"03","response":"27 bytes","notes":"Raw: 610300000000000000000000000000000000000000000000000000"},{"did":"F2","response":"67 bytes","notes":"Raw: 61F2FFFFFF3FF7FFF6FF7DD609000000000000000000480500000405CDABC2CD61003FFA2600410A..."}],"rejected":"252 DIDs returned 252 NRC"}}
       ]
@@ -3892,6 +4212,10 @@
         "ready"
       ],
       "notes": "Service-21 full LID sweep after 22 E0xx dead end. Hunting undocumented live-data pages beyond 2101/2102. Looking for drive mode / regen / speed. [migrated state: ready, ignition on]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EA","pid":"scan 21 00-FF","scan_results":{"responding":[{"did":"01","response":"22 bytes","notes":"Raw: 6101FFE0000009215A7C065703000000004675340420"},{"did":"02","response":"23 bytes","notes":"Raw: 6102F8F800000101000000920DB586D5382E05B18D9038"},{"did":"F2","response":"86 bytes","notes":"Raw: 61F2FF0000000803654C458E331D01A197000000000000000000000000000504E121CB65F3014D00..."}],"rejected":"253 DIDs returned 253 NRC"}}
       ]
@@ -3903,6 +4227,10 @@
         "ready"
       ],
       "notes": "Service-21 full LID sweep. Hunting undocumented live-data pages beyond 2101-2105. [migrated state: ready, ignition on]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EC","pid":"scan 21 00-FF","scan_results":{"responding":[{"did":"01","response":"61 bytes","notes":"Raw: 6101FFFFFFFF7F264826480300050E2D141213131211120013BD02BC0100008E0005600A00055E61..."},{"did":"02","response":"38 bytes","notes":"Raw: 6102FFFFFFFFBCBDBDBDBDBDBDBDBDBCBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBCBDBDBD"},{"did":"03","response":"38 bytes","notes":"Raw: 6103FFFFFFFFBDBDBDBDBDBDBCBDBDBDBDBDBDBDBDBCBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBD"},{"did":"04","response":"38 bytes","notes":"Raw: 6104FFFFFFFFBDBDBDBDBCBDBDBDBDBDBDBCBDBDBCBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBD"},{"did":"05","response":"45 bytes","notes":"Raw: 6105FFFFFFFF0000000000121212111213132648264800014B111103E80203E80185002900000000..."},{"did":"F2","response":"123 bytes","notes":"Raw: 61F2FFFFFFFF3430363400210000000000000A16000000000000000B02000BB8C201002D01740162..."}],"rejected":"250 DIDs returned 250 NRC"}}
       ]
@@ -3914,6 +4242,10 @@
         "ready"
       ],
       "notes": "Service-21 full LID sweep on KWP2000 OBC/LDC. Known pages 2101/2102. Hunting hidden pages (cf. BMS 21F2 find). [migrated state: ready, ignition on]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7ED","pid":"scan 21 00-FF","scan_results":{"responding":[{"did":"01","response":"44 bytes","notes":"Raw: 6101FFFFF8000002B801CD033900007F003401BD0596410000000000100000600000000001F38DD6..."},{"did":"02","response":"34 bytes","notes":"Raw: 6102FFFC0000684F792A694A79286E847927650F791B7499791F7293792B74827931"}],"rejected":"254 DIDs returned 254 NRC"}}
       ]
@@ -3925,6 +4257,10 @@
         "ready"
       ],
       "notes": "Service-21 full LID sweep on KWP2000 Active Air Flap. Known pages 2180/2181 (note: 0x80 range, not 0x01). Hunting hidden pages. [migrated state: ready, ignition on]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EE","pid":"scan 21 00-FF","scan_results":{"responding":[{"did":"80","response":"25 bytes","notes":"Raw: 6180C366C00021270000000000216F00453C00008813009595"},{"did":"81","response":"25 bytes","notes":"Raw: 6181FFFFC00021270000000000216F7F453C4B4A8813069595"}],"rejected":"254 DIDs returned 254 NRC"}}
       ]
@@ -3936,6 +4272,10 @@
         "ready"
       ],
       "notes": "Service-21 full LID sweep on mysterious KWP2000 0x746. Only known page 21F2 (00000007). Hunting any other pages to identify function. [migrated state: ready, ignition on]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x74E","pid":"scan 21 00-FF","scan_results":{"rejected":"256 DIDs returned 255 NRC + 1 errors"}}
       ]
@@ -3947,6 +4287,10 @@
         "ready"
       ],
       "notes": "Long-shot: MFC is UDS (ADAS camera). Check if it answers any KWP-style service-21 page (LKAS data). Expect NRC. [migrated state: ready, ignition on]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7CC","pid":"scan 21 00-20","scan_results":{"rejected":"33 DIDs returned 33 NRC"}}
       ]
@@ -3958,6 +4302,10 @@
         "ready"
       ],
       "notes": "Head unit never probed for live-data DIDs. Try 22 01xx. [migrated state: ready, ignition on]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x788","pid":"scan 22 0100-010F","scan_results":{"rejected":"16 DIDs returned 16 NRC"}}
       ]
@@ -3969,6 +4317,10 @@
         "ready"
       ],
       "notes": "Head unit B0xx range. [migrated state: ready, ignition on]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x788","pid":"scan 22 B001-B010","scan_results":{"rejected":"16 DIDs returned 16 NRC"}}
       ]
@@ -3980,6 +4332,10 @@
         "ready"
       ],
       "notes": "Charge Control Module (DC PLC) never probed for live-data. Try 22 01xx (may be dormant unless DC charging). [migrated state: ready, ignition on]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x73B","pid":"scan 22 0100-010F","scan_results":{"rejected":"16 DIDs returned 16 NRC"}}
       ]
@@ -3991,6 +4347,10 @@
         "ready"
       ],
       "notes": "CCM B0xx range. [migrated state: ready, ignition on]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x73B","pid":"scan 22 B001-B010","scan_results":{"rejected":"16 DIDs returned 16 NRC"}}
       ]
@@ -4002,6 +4362,10 @@
         "ready"
       ],
       "notes": "Dormant module (session-only, no identity). Probe 22 01xx for any data. [migrated state: ready, ignition on]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7C8","pid":"scan 22 0100-010F","scan_results":{"rejected":"16 DIDs returned 16 errors"}}
       ]
@@ -4013,6 +4377,10 @@
         "ready"
       ],
       "notes": "Undocumented BMS service-21 page found in 21 00-FF sweep. 123 bytes. Likely calibration/identity (cf. MCU 21F2 = cal data). [migrated state: ready, ignition on]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EC","pid":"21F2","payload":"61F2FFFFFFFF3430363400210000000000000A16000000000000000B02000BB8C201002D017401620041001A000C00000000FFFFFFFF0000000007DC00000000000000000000000000000000000000000000000000001400FF000000000002E602B500000000000100044E37495A001EFFFFFFFF06E8018D010001"}
       ]
@@ -4024,6 +4392,10 @@
         "ready"
       ],
       "notes": "Read-to-read stability at ignition-on to classify static vs dynamic bytes. [migrated state: ready, ignition on]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EC","pid":"21F2","payload":"61F2FFFFFFFF3430363400210000000000000A16000000000000000B02000BB8C201002D017401620041001A000C00000000FFFFFFFF0000000007DC00000000000000000000000000000000000000000000000000001400FF000000000002E602B500000000000100044E37495A001EFFFFFFFF06E8018D010001"}
       ]
@@ -4035,6 +4407,10 @@
         "ready"
       ],
       "notes": "Read-to-read stability at ignition-on to classify static vs dynamic bytes. [migrated state: ready, ignition on]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EC","pid":"21F2","payload":"61F2FFFFFFFF3430363400210000000000000A16000000000000000B02000BB8C201002D017401620041001A000C00000000FFFFFFFF0000000007DC00000000000000000000000000000000000000000000000000001400FF000000000002E602B500000000000100044E37495A001EFFFFFFFF06E8018D010001"}
       ]
@@ -4046,6 +4422,10 @@
         "ready"
       ],
       "notes": "Read-to-read stability at ignition-on to classify static vs dynamic bytes. [migrated state: ready, ignition on]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EC","pid":"21F2","payload":"61F2FFFFFFFF3430363400210000000000000A16000000000000000B02000BB8C201002D017401620041001A000C00000000FFFFFFFF0000000007DC00000000000000000000000000000000000000000000000000001400FF000000000002E602B500000000000100044E37495A001EFFFFFFFF06E8018D010001"}
       ]

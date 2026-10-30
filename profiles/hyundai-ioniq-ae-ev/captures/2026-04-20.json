@@ -4,6 +4,11 @@
       "date": "2026-04-20",
       "label": "\u0003",
       "vehicle_states": [],
+      "notes": "[migrated state: C]",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7A8","pid":"22B001","payload":"62B00140C0000000010000000000000201000000","time":"20:24:36"},
         {"rx":"0x7A8","pid":"22B002","payload":"62B002C00000000200AAAAAAAA","time":"20:24:32"},
@@ -39,8 +44,7 @@
         {"rx":"0x7A8","pid":"22C011","payload":"62C011E0000000009BBC267CAA","time":"20:25:05"},
         {"rx":"0x7A8","pid":"22C011","payload":"62C011E0000000009C27267CAA","time":"20:25:09"},
         {"rx":"0x7A8","pid":"22C011","payload":"62C011E0000000009C0B267CAA","time":"20:25:13"}
-      ],
-      "notes": "[migrated state: C]"
+      ]
     }
   ]
 }

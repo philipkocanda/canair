@@ -14,6 +14,10 @@
         "exchanges": 3806,
         "no_data": 416
       },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EE","pid":"2180","payload":"6180C366C00021290000000000378F004F5000008E13009696","time":"20:32:03.062"},
         {"rx":"0x7EE","pid":"2181","payload":"6181FFFFC00021290000000000378F8F4F5051518E13069797","time":"20:32:06.091"},
@@ -1190,6 +1194,10 @@
       ],
       "notes": "Probe of HVAC (0x7B3) DID 21F2 while READY/parked. ECU returned negative response 7F 21 11 (serviceNotSupported). Confirms HVAC (UDS) does not answer service 0x21 at F2 — one data point in the P2 service-21 sweep backlog.",
       "transport": "import",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7BB","pid":"21F2","payload":"7F2111","notes":"NRC 0x11 serviceNotSupported"}
       ]
@@ -1203,11 +1211,15 @@
         "exchanges": 2,
         "no_data": 1
       },
-      "captures": [
-        {"rx":"0x7AD","pid":"22B003","payload":"62B003000000003412900300000000C6A21261000000000F00","time":"23:25:01.842"}
-      ],
       "vehicle_states": [
         "SLEEP"
+      ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
+      "captures": [
+        {"rx":"0x7AD","pid":"22B003","payload":"62B003000000003412900300000000C6A21261000000000F00","time":"23:25:01.842"}
       ]
     },
     {
@@ -1220,6 +1232,10 @@
       "transport": "slcan-tcp",
       "quality": {
         "exchanges": 15
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
       },
       "captures": [
         {"rx":"0x7AD","pid":"22B003","payload":"62B003000000003412900300000000C6A21261000000000F00","time":"23:26:50.426","repeat_ms":[1001]},

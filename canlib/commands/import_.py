@@ -109,12 +109,15 @@ def _run_can(args) -> int:
 
     from canlib import can_logs
     from canlib.profile import active
+    from canlib.variants.selection import require_named_car
 
     states = [s.strip() for s in (args.state or "").split(",") if s.strip()] or None
+    variant = require_named_car(active(), "import can")
     try:
         result = can_logs.import_log(
             Path(args.file),
             active(),
+            variant=variant,
             fmt=args.format,
             label=args.label,
             vehicle_states=states,

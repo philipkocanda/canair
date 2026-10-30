@@ -268,6 +268,7 @@ class SessionGroup(TypedDict):
     keep_mode: EntryKeepMode
     transport: str
     quality: Quality | None
+    variant: str  # "" when untagged
     n: int
     ecus: dict  # ordered set (dict) of ECU names
     times: list
@@ -307,6 +308,7 @@ def group_sessions(entries: Sequence[CaptureEntry]) -> list[SessionGroup]:
                 "keep_mode": e.get("keep_mode", ""),
                 "transport": e.get("transport", ""),
                 "quality": e.get("quality") or None,
+                "variant": e.get("session_variant", ""),
                 "n": 0,
                 "ecus": {},  # ordered set (dict) of ECU names
                 "times": [],

@@ -8,6 +8,10 @@
         "PARKED",
         "IG3"
       ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EA","pid":"2101","payload":"6101FFE0000009215A47063B03000000009B773404200000000000","time":"22:08:56"},
         {"rx":"0x7EA","pid":"2101","payload":"6101FFE0000009215A45063B03000000009A773404200000000000","time":"22:08:57"},
@@ -168,6 +172,10 @@
         "ready",
         "parked"
       ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EB","pid":"2101","payload":"6101000003FF0C3800F694D7390000000A0040024F04E339D0FFB7FF7A0000000000","time":"22:12:07"},
         {"rx":"0x7EB","pid":"2101","payload":"6101000003FF0C3800FE94C9390000000A0042025104D439300030009FFF00000000","time":"22:12:09"},
@@ -231,6 +239,10 @@
         "ready",
         "parked"
       ],
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7ED","pid":"2101","payload":"6101FFFFF800000278018F02F1000075003301BD05B6410000000000080000600000000001F3954C0221000000000000","time":"22:15:32"},
         {"rx":"0x7ED","pid":"2101","payload":"6101FFFFF800000279019002F3000075003301BD05B4410000000000080000600000000001F395480220000000000000","time":"22:15:34"},

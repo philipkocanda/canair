@@ -225,6 +225,7 @@ def import_log(
     source: str | None = None,
     date: str | None = None,
     force: bool = False,
+    variant: str | None = None,
 ) -> ImportedLog:
     """Copy a frame log into the profile's ``captures/can/`` store and index it.
 
@@ -261,6 +262,8 @@ def import_log(
         entry["vehicle_states"] = list(vehicle_states)
     if notes:
         entry["notes"] = notes
+    if variant:
+        entry["variant"] = variant
     entry["frame_count"] = summary.frame_count
     if summary.id_set:
         entry["id_set"] = summary.id_set

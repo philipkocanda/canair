@@ -28,6 +28,10 @@
         ],
         "version": "1.35.2+main.4636a47.dirty"
       },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EE","pid":"2180","payload":"6180C366C00021130000000000267600373700007D13009898","time":"09:52:55.216"},
         {"rx":"0x7EE","pid":"2181","payload":"6181FFFFC0002113000000000026767637373E3E7D13069898","time":"09:52:55.395"},
@@ -414,6 +418,10 @@
           {"at": "11:18:30.158", "states": ["PLUGGED", "ON", "PARKED", "IG3"]}
         ],
         "version": "1.35.2+main.4636a47.dirty"
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
       },
       "captures": [
         {"rx":"0x7EE","pid":"2180","payload":"6180C366C00021270000000000247600383700007C13009898","time":"09:55:23.597"},
@@ -8319,6 +8327,10 @@
         "exchanges": 990,
         "drop": 20
       },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EE","pid":"2180","payload":"6180C366C000222900000000002C76004D3C00008F13008181","time":"11:19:22.912"},
         {"rx":"0x7EE","pid":"2181","payload":"6181FFFFC000222900000000002C76A24D3B53538F13068181","time":"11:19:23.089"},
@@ -8658,6 +8670,10 @@
         "exchanges": 10
       },
       "notes": "Labelled READY, but the car was not READY: VCU 2101 read EV_READY 0 and VCU_POWER_STATE 6 at 11:50:50, and BMS B61:2 is 0. AC cable plugged in, HV contactors closed (B14 = 0x23), not charging.",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFF89264826482300080E67151515151515150015C011BF01000092000562A5000560B50001F3980001E3E0015425D60901700000000003E8","time":"11:49:48.961"},
         {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFF892648264823000A0E67151515151515150015C043BF01000091000562A5000560B50001F3980001E3E0015425D80901700000000003E8","time":"11:49:51.054"},
@@ -8682,6 +8698,10 @@
       "transport": "wican-ws",
       "quality": {
         "exchanges": 18
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
       },
       "captures": [
         {"rx":"0x7EA","pid":"2101","payload":"6101FFE0000009211251063B03000000003A78340620","time":"11:50:50.556"},
@@ -8714,6 +8734,10 @@
       "transport": "wican-ws",
       "quality": {
         "exchanges": 4
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
       },
       "captures": [
         {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFF89264826482000000E5D151515151515150017BF02BF0100007A000562A5000560B80001F3980001E3E2015433C70900020000000003E8","time":"12:49:21.581","elapsed_ms":187},

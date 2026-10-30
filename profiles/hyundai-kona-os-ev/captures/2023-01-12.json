@@ -12,6 +12,10 @@
       "vehicle_states": [
         "PARKED"
       ],
+      "variant": "64kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EA","pid":"2101","payload":"6101FFF800000921590606090300000000716B3404202005","time":"00:00:00.000"},
         {"rx":"0x7EC","pid":"220102","payload":"620102FFFFFFFFB4B5B5B5B5B5B5B5B5B5B4B5B5B5B5B5B5B5B4B5B5B5B5B5B5B5B5B5B5B5B4B5","time":"00:00:00.461"},
@@ -636,6 +640,10 @@
         "PARKED",
         "READY"
       ],
+      "variant": "64kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EC","pid":"220101","payload":"620101FFF7E7FF47000000000300220DDB17161616171700001DB51BB40B0000840000269D0000273400000E1900000E1F0018A06E0D0162000000000BB8","time":"00:02:19.000"},
         {"rx":"0x7EC","pid":"220101","payload":"620101FFF7E7FF47000000000300230DDB17161616171700001DB506B40B0000840000269D0000273400000E1900000E1F0018A06F0D0162000000000BB8","time":"00:02:19.259"},

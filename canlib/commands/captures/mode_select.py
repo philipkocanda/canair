@@ -33,6 +33,7 @@ Mode = Literal[
     "set_state",
     "set_notes",
     "set_transport",
+    "set_variant",
     "delete",
     "latest",
     "diff",
@@ -49,17 +50,18 @@ STANDALONE_MODES: tuple[Mode, ...] = (
     "set_state",
     "set_notes",
     "set_transport",
+    "set_variant",
 )
 
 # How those modes are named back to the user in a rejection message.
 _STANDALONE_LABEL = (
     "--summary/--sessions/--backfill-states/--backfill-state-spans/"
-    "--set-state/--set-notes/--set-transport"
+    "--set-state/--set-notes/--set-transport/--set-variant"
 )
 
 # Value-carrying modes: selected when their value was given at all, even an empty
 # one (``--set-notes ''`` clears the notes).
-_VALUE_MODES: tuple[Mode, ...] = ("set_state", "set_notes", "set_transport")
+_VALUE_MODES: tuple[Mode, ...] = ("set_state", "set_notes", "set_transport", "set_variant")
 
 # How each session-metadata editor is named in its scope-filter refusal: the flag,
 # then the rest of the sentence after "selecting which sessions to".
@@ -78,13 +80,18 @@ _SESSION_EDITORS: dict[Mode, tuple[str, str]] = {
         "correct (e.g. --label 'discovery sweep', --date 2026-04-15). "
         "Refusing to relabel every session's transport.",
     ),
+    "set_variant": (
+        "--set-variant",
+        "tag (e.g. --label 'commute', --date 2026-04-15, or the global --variant untagged). "
+        "Refusing to tag every session.",
+    ),
 }
 
 # View modifiers on top of a QUERY, in dispatch precedence order.
 VIEW_MODES: tuple[Mode, ...] = ("diff", "step")
 
 # Scope filters that narrow which sessions a mutating mode may touch.
-_SCOPE_ATTRS = ("label", "state", "date", "today", "since", "until", "last_sessions")
+_SCOPE_ATTRS = ("label", "state", "date", "today", "since", "until", "last_sessions", "variant")
 
 
 @dataclass(frozen=True)

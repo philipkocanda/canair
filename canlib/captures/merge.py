@@ -59,6 +59,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from canlib.captures.io import capture_rx
+from canlib.variants import tags as variant_tags
 
 
 class MergeConflict(Exception):
@@ -239,7 +240,26 @@ def merge_sessions(base: Any, ours: Any, theirs: Any) -> list[dict]:
             continue  # deleted on ours, unchanged on theirs → honour deletion
         merged.setdefault(k, s)
 
-    return sorted(merged.values(), key=_sort_key)
+    return sorted(_drop_untagged_twins(list(merged.values())), key=_sort_key)
+
+
+def _drop_untagged_twins(sessions: list[dict]) -> list[dict]:
+    """``sessions`` minus every untagged copy of a session also present tagged.
+
+    One side stamping a variant tag onto history (``captures migrate-variants``) while
+    the other appended or kept the untagged copy must not leave both; the tag is added
+    information, never a conflicting edit.
+    """
+    tagged = {
+        session_key(variant_tags.strip_tag(s)) for s in sessions if variant_tags.session_variant(s)
+    }
+    if not tagged:
+        return sessions
+    return [
+        s
+        for s in sessions
+        if variant_tags.session_variant(s) is not None or session_key(s) not in tagged
+    ]
 
 
 def merge_documents(base: Any, ours: Any, theirs: Any) -> dict:
@@ -302,6 +322,13 @@ def overlay(upstream: Any, source: Any) -> Overlay:
     up_raw = upstream.get("sessions") if isinstance(upstream, dict) else None
     up_sessions = list(up_raw) if isinstance(up_raw, list) else []
     seen = {session_key(s) for s in up_sessions}
+    # An untagged copy of a session upstream has tagged is that session minus
+    # information: neither new nor an edit, so it is left out rather than strip the tag.
+    seen |= {
+        session_key(variant_tags.strip_tag(s))
+        for s in up_sessions
+        if isinstance(s, dict) and variant_tags.session_variant(s)
+    }
     up_anchors = unique_anchors(up_sessions)
     src_sessions = _sessions(source)
     src_anchors = unique_anchors(src_sessions)

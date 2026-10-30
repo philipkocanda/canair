@@ -657,7 +657,7 @@ step that refuses (phase 4). The byte-identical `28kwh` invariant is checked at 
 |---|---|---|---|
 | 1 ✓ | [Rename and aliases](2026-10-30-profile-variants-1-rename-and-aliases.md) | Five renames, `aliases:` (old names, old-named overlays, contribute), the skill (naming + new-profile rules) | names only |
 | 2 ✓ | [Variant registry](2026-10-30-profile-variants-2-variant-registry.md) | `variants.yaml` (metadata), `canair variants`, display in `profile show` and the explorer | none |
-| 3 | [Capture tags](2026-10-30-profile-variants-3-capture-tags.md) | `variant` tags, global `--variant` (opt-in), `migrate-variants` on bundled history, tagged-wins merge, analysis scope | imports need `--variant` |
+| 3 ✓ | [Capture tags](2026-10-30-profile-variants-3-capture-tags.md) | `variant` tags, global `--variant` (opt-in), `migrate-variants` on bundled history, tagged-wins merge, analysis scope | imports need `--variant` |
 | 4 | [Selection and refusal](2026-10-30-profile-variants-4-selection-and-refusal.md) | `profile_settings`, `profile use --variant` + picker, alias-implied variants, the refusal, untagged ratchet | **breaking**: no variant, nothing runs |
 | 5 | [ECU revisions](2026-10-30-profile-variants-5-ecu-revisions.md) | `revisions:`, gating and resolution at the load seam, pins, validation, byte-level refusal, the synthetic fixture | none for bundled profiles |
 | 6 | [Ioniq facelift BMS](2026-10-30-profile-variants-6-ioniq-facelift-bms.md) | The real-profile exercise: BMS `kwp`/`uds`, Kona definitions ported unverified | `38kwh` only |

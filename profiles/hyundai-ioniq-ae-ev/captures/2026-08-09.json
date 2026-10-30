@@ -26,6 +26,10 @@
         ],
         "version": "1.35.2+main.4636a47.dirty"
       },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x778","pid":"22BC01","payload":"62BC01400000000002","time":"09:36:44.035"},
         {"rx":"0x778","pid":"22BC02","payload":"62BC0200000000","time":"09:36:44.135"},
@@ -9679,6 +9683,10 @@
           {"at": "14:07:46.982", "states": ["READY", "ON", "PARKED", "IG3"]}
         ],
         "version": "1.35.2+main.4636a47.dirty"
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
       },
       "captures": [
         {"rx":"0x778","pid":"22BC01","payload":"62BC01400000000002","time":"13:51:37.997"},

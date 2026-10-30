@@ -30,6 +30,8 @@ positional arguments:
                       per-DID captures
     compact           Rewrite capture files with repeated polls folded, one
                       capture per line
+    migrate-variants  Tag untagged capture sessions with the profile variant
+                      they came from
     merge-driver      Git merge driver: auto-union capture-file sessions (or
                       --install it)
 
@@ -41,7 +43,7 @@ options:
 
 ```
 usage: canair captures uds [-h] [--diff | --step]
-                           [--summary | --sessions | --latest | --recover | --delete | --backfill-states | --backfill-state-spans | --set-state STATES | --set-notes TEXT | --set-transport NAME]
+                           [--summary | --sessions | --latest | --recover | --delete | --backfill-states | --backfill-state-spans | --set-state STATES | --set-notes TEXT | --set-transport NAME | --set-variant ID]
                            [--discard] [--overwrite] [--cycle-tol SECONDS]
                            [--dry-run] [--yes] [--all] [--limit N] [--rulers]
                            [--notation NAME]
@@ -104,6 +106,12 @@ options:
                         elm327-tcp, import) on the scope-selected sessions —
                         for a session saved with the wrong one ('' clears it).
                         Requires a scope filter; previews with --dry-run,
+                        confirms unless --yes.
+  --set-variant ID      Tag the scope-selected sessions with the profile
+                        variant the recorded car is (a variants.yaml ID; ''
+                        removes the tag), attributed 'asserted'. Requires a
+                        scope filter — the global --variant untagged selects
+                        every untagged session; previews with --dry-run,
                         confirms unless --yes.
   --discard             With --recover: delete orphaned journals without
                         saving them
@@ -197,6 +205,7 @@ are aggregate modes that take no QUERY.
   --set-state STATES    Set vehicle_states on the scope-selected sessions
   --set-notes TEXT      Replace the notes on the scope-selected sessions ('' clears)
   --set-transport NAME  Correct the recorded transport of the scope-selected sessions
+  --set-variant ID      Tag the scope-selected sessions with the car's variant
   --summary             Overview: captures per ECU, per date, total payloads
   --sessions            Session table of contents: date/time-span/state/label/
                         notes/ECUs per session (no payloads); --json for machine
@@ -354,6 +363,33 @@ options:
   --dry-run   Preview without writing
   --json      Machine-readable JSON output
   --dir DIR   Captures directory (default: active profile)
+```
+
+## `canair captures migrate-variants`
+
+```
+usage: canair captures migrate-variants [-h] [--date YYYY-MM-DD]
+                                        [--since YYYY-MM-DD]
+                                        [--until YYYY-MM-DD] [--label LABEL]
+                                        [--dry-run] [--json] [--dir DIR]
+                                        ID
+
+Tag the active profile's untagged capture sessions with the variant (a variants.yaml ID) of the car that recorded them, attributed 'migrated'.
+
+For history recorded before the profile declared its variants. Scope it to the sessions you know came from that car with --date/--since/--until/--label, and run it once per car. Sessions that already carry a variant are never touched, and only the profile's own captures are written (a layered profile's base is left alone). Writes by default; --dry-run previews. To correct a tag afterwards, use `captures uds --set-variant`.
+
+positional arguments:
+  ID                  The variant the recorded car is (e.g. 28kwh)
+
+options:
+  -h, --help          show this help message and exit
+  --date YYYY-MM-DD   Only this day
+  --since YYYY-MM-DD  Only on or after this day
+  --until YYYY-MM-DD  Only on or before this day
+  --label LABEL       Only sessions whose label contains this text
+  --dry-run           Preview without writing
+  --json              Machine-readable JSON output
+  --dir DIR           Captures directory (default: active profile)
 ```
 
 ## `canair captures merge-driver`

@@ -25,6 +25,10 @@
         ],
         "version": "1.35.2+main.4636a47.dirty"
       },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7EE","pid":"2181","payload":"6181FFFFC0002113000000000018656F302F36367313079898","time":"13:27:30.723"},
         {"rx":"0x7EE","pid":"2181","payload":"6181FFFFC0002113000000000018656F312F36367313079898","time":"13:27:55.225"},
@@ -358,6 +362,10 @@
         "exchanges": 215,
         "no_data": 41,
         "resyncs": 2
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
       },
       "captures": [
         {"rx":"0x778","pid":"22BC01","payload":"62BC01400000000002","time":"20:05:59.685","repeat_ms":[21492,41148,30393,43996,30922,30688,14912,30716,45423,38107,33863,69116,25939,28500,33790,31120]},

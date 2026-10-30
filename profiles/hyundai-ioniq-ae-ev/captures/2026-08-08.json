@@ -14,6 +14,10 @@
       "quality": {
         "exchanges": 67
       },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x7BB","pid":"220100","payload":"6201007E5007C8FF7D6B6502EEEFFFFFF0FFEFFFFFFFFFFFFFFFFFFF3557878C00FFFF00FFFF","time":"08:08:27.089"},
         {"rx":"0x7BB","pid":"220102","payload":"620102FF800000816F00000000000018","time":"08:08:27.280"},
@@ -82,6 +86,10 @@
           {"at": "08:40:08.835", "states": ["PARKED"]}
         ],
         "version": "1.35.2+main.4636a47.dirty"
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
       },
       "captures": [
         {"rx":"0x7BB","pid":"220100","payload":"6201007E5007C8FF7C6B6202EEEFFFFFF0FFEFFFFFFFFFFFFFFFFFFF3658838900FFFF00FFFF","time":"08:08:42.099"},
@@ -3994,6 +4002,10 @@
         "exchanges": 1016,
         "no_data": 521
       },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x778","pid":"22BC01","payload":"62BC01400000000002","time":"09:36:55.683"},
         {"rx":"0x778","pid":"22BC02","payload":"62BC0200000000","time":"09:36:55.764"},
@@ -4128,6 +4140,10 @@
           {"at": "10:03:54.056", "states": ["READY", "ON", "DRIVING", "IG3"]}
         ],
         "version": "1.35.2+main.4636a47.dirty"
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
       },
       "captures": [
         {"rx":"0x778","pid":"22BC01","payload":"62BC01400000000002","time":"10:02:08.000"},
@@ -4474,6 +4490,10 @@
           {"at": "10:25:34.783", "states": ["READY", "ON", "DRIVING", "IG3"]}
         ],
         "version": "1.35.2+main.4636a47.dirty"
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
       },
       "captures": [
         {"rx":"0x778","pid":"22BC01","payload":"62BC01400000000002","time":"10:13:16.912"},
@@ -5519,6 +5539,10 @@
         "exchanges": 209,
         "drop": 1
       },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x778","pid":"22BC01","payload":"62BC01400000000002","time":"10:28:26.753"},
         {"rx":"0x778","pid":"22BC02","payload":"62BC0200000000","time":"10:28:26.935"},
@@ -5653,6 +5677,10 @@
       "quality": {
         "exchanges": 2923,
         "drop": 26
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
       },
       "captures": [
         {"rx":"0x778","pid":"22BC01","payload":"62BC01400000000002","time":"10:30:47.449"},
@@ -7257,6 +7285,10 @@
         "drop": 18,
         "stale": 2743
       },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x778","pid":"22BC01","payload":"62BC01400000000002","time":"10:49:37.344"},
         {"rx":"0x778","pid":"22BC02","payload":"62BC0200000000","time":"10:49:37.616"},
@@ -8049,6 +8081,10 @@
           {"at": "11:41:44.124", "states": ["CHARGING", "PLUGGED", "PARKED", "IG3"]}
         ],
         "version": "1.35.2+main.4636a47.dirty"
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
       },
       "captures": [
         {"rx":"0x778","pid":"22BC01","payload":"62BC01400000000002","time":"11:08:26.165"},
@@ -11047,6 +11083,10 @@
         ],
         "version": "1.35.2+main.4636a47.dirty"
       },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x778","pid":"22BC01","payload":"62BC01400000000002","time":"15:33:36.762"},
         {"rx":"0x778","pid":"22BC02","payload":"62BC0200000000","time":"15:33:36.909"},
@@ -12256,6 +12296,10 @@
           {"at": "16:44:50.169", "states": ["READY", "ON", "DRIVING", "IG3"]}
         ],
         "version": "1.35.2+main.4636a47.dirty"
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
       },
       "captures": [
         {"rx":"0x778","pid":"22BC01","payload":"62BC01400000000002","time":"15:47:56.192"},
@@ -19149,6 +19193,10 @@
         "drop": 22,
         "stale": 1
       },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"0x778","pid":"22BC01","payload":"62BC01400000000002","time":"17:19:59.903"},
         {"rx":"0x778","pid":"22BC02","payload":"62BC0200000000","time":"17:20:00.069"},
@@ -20596,6 +20644,10 @@
           {"at": "18:03:22.123", "states": ["PLUGGED", "PARKED"]}
         ],
         "version": "1.35.2+main.4636a47.dirty"
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "migrated"
       },
       "captures": [
         {"rx":"0x778","pid":"22BC01","payload":"62BC01400000000002","time":"17:37:24.689","repeat_ms":[2735337]},

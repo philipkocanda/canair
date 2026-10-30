@@ -44,6 +44,11 @@
           "items": { "type": "string" }
         },
         "notes": { "type": "string" },
+        "variant": {
+          "description": "The profile variant (variants.yaml ID) of the car the log came from. Required by `import can` on a profile with more than one variant.",
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+        },
         "frame_count": { "type": "integer", "minimum": 0 },
         "id_set": {
           "description": "Distinct arbitration IDs seen in the log (hex strings, e.g. 0x220, 0x18DAF110).",

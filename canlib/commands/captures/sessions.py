@@ -112,6 +112,17 @@ def _quality_tag(quality: Quality | None) -> str:
     return f"{ansi.DIM}⚠ quality:{ansi.RESET} " + " ".join(parts) + ex_txt
 
 
+def _declared_variants() -> dict:
+    """The active profile's variants (empty when it declares none or can't be read)."""
+    from canlib.profile import ProfileError, active
+    from canlib.variants import VariantsError, load_variants
+
+    try:
+        return load_variants(active())
+    except (ProfileError, VariantsError):
+        return {}
+
+
 def cmd_sessions(
     entries: Sequence[CaptureEntry], as_json: bool = False, max_notes: int = 6
 ) -> None:
@@ -139,6 +150,7 @@ def cmd_sessions(
                 "keep_mode": s["keep_mode"],
                 "transport": s["transport"],
                 "quality": s["quality"],
+                "variant": s["variant"] or None,
                 "captures": s["n"],
                 "ecus": list(s["ecus"]),
                 "time_start": min(s["times"]) if s["times"] else None,
@@ -156,6 +168,8 @@ def cmd_sessions(
         return
 
     print(f"\n  {ansi.BOLD}Sessions{ansi.RESET} — {len(sessions)} total\n")
+    # Only a profile with several variants needs every untagged session called out.
+    flag_untagged = len(_declared_variants()) > 1
     for s in sessions:
         span = ""
         if s["times"]:
@@ -178,8 +192,16 @@ def cmd_sessions(
         transport_tag = f" · {transport}" if transport else ""
         version = s.get("version")
         version_tag = f" · v{version}" if version else ""
+        variant = s.get("variant")
+        if variant:
+            variant_tag = f" · {ansi.CYAN}{variant}{ansi.RESET}{ansi.DIM}"
+        elif flag_untagged:
+            variant_tag = f" · {ansi.YELLOW}untagged{ansi.RESET}{ansi.DIM}"
+        else:
+            variant_tag = ""
         print(
-            f"    {ansi.DIM}{s['n']} captures · {ecus}{keep_tag}{transport_tag}{version_tag} · {s['file']}{ansi.RESET}"
+            f"    {ansi.DIM}{s['n']} captures · {ecus}{variant_tag}{keep_tag}{transport_tag}"
+            f"{version_tag} · {s['file']}{ansi.RESET}"
         )
         # Data-quality footprint: flag any drops/errors recorded for the session
         # (the transport-health provenance) so a suspect capture stands out.

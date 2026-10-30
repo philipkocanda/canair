@@ -44,6 +44,19 @@
           "type": "string"
         },
         "quality": { "$ref": "#/$defs/quality" },
+        "variant": {
+          "description": "The profile variant the recorded car is: an ID from the profile's variants.yaml (e.g. '28kwh'). Absent when the session was recorded without one (untagged). Written by a save given --variant, by `captures migrate-variants`, or by `captures uds --set-variant`.",
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+        },
+        "attribution": {
+          "description": "How each tag was decided, per tagged field: 'selected' (the recording was given --variant / CANAIR_VARIANT), 'migrated' (stamped onto existing history by `captures migrate-variants`), 'asserted' (set afterwards with `captures uds --set-variant`).",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "variant": { "enum": ["selected", "migrated", "asserted"] }
+          }
+        },
         "captures": {
           "type": "array",
           "items": { "$ref": "#/$defs/capture" }

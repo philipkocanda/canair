@@ -31,6 +31,7 @@ from canlib.captures import io as capture_io
 from canlib.captures import merge as captures_merge
 from canlib.captures.types import CaptureEntry
 from canlib.states.spans import span_keys, states_at
+from canlib.variants import tags as variant_tags
 
 # ---------------------------------------------------------------------------
 # On-the-fly decoding
@@ -213,6 +214,7 @@ def flatten_session(
                 "session_states": list(vehicle_states),
                 "states_resolved": resolved,
                 "session_notes": session_notes,
+                "session_variant": str(session.get("variant") or ""),
                 "keep_mode": keep_mode,
                 "transport": transport,
                 "quality": quality,
@@ -296,6 +298,7 @@ def load_all_captures(captures_dir: Path | None = None) -> list[CaptureEntry]:
     """
     rx_index = _rx_index()
     layers = capture_io.resolve_capture_layers(captures_dir)
+    scope = _variant_scope() if captures_dir is None else None
 
     stored: list[tuple[int, Path, int, Mapping[str, Any]]] = []
     for li, layer in enumerate(layers):
@@ -307,8 +310,13 @@ def load_all_captures(captures_dir: Path | None = None) -> list[CaptureEntry]:
             if not data or "sessions" not in data:
                 continue
             for s_idx, session in enumerate(data["sessions"]):
-                stored.append((li, fpath, s_idx, session))
+                if variant_tags.in_scope(session, scope):
+                    stored.append((li, fpath, s_idx, session))
     superseded = _superseded_by_a_later_layer(stored) if len(layers) > 1 else set()
+    # An untagged copy of a tagged session (a stale layer, an old copy) is the same
+    # recording with less information: keep the tagged one, whichever layer it is in.
+    twins = _untagged_twins(stored)
+    superseded = (superseded - set(twins.values())) | set(twins)
 
     entries: list[CaptureEntry] = []
     seen: set[str] = set()
@@ -325,6 +333,33 @@ def load_all_captures(captures_dir: Path | None = None) -> list[CaptureEntry]:
         # is not, and a stable sort leaves the single-layer result untouched.
         entries.sort(key=lambda e: (e.get("date") or "", e.get("time") or ""))
     return entries
+
+
+def _variant_scope() -> str | None:
+    """The active profile's ``--variant`` scope, or None (every session)."""
+    from canlib.profile import ProfileError, active
+
+    try:
+        return active().variant
+    except ProfileError:
+        return None
+
+
+def _untagged_twins(stored: Sequence[tuple[int, Path, int, Any]]) -> dict[int, int]:
+    """``untagged position -> tagged position`` for every untagged copy of a tagged session."""
+    tagged: dict[str, int] = {}
+    for n, (_li, _f, _s, session) in enumerate(stored):
+        if variant_tags.session_variant(session):
+            tagged.setdefault(captures_merge.session_key(variant_tags.strip_tag(session)), n)
+    if not tagged:
+        return {}
+    out: dict[int, int] = {}
+    for n, (_li, _f, _s, session) in enumerate(stored):
+        if variant_tags.session_variant(session) is None:
+            twin = tagged.get(captures_merge.session_key(session))
+            if twin is not None:
+                out[n] = twin
+    return out
 
 
 def _superseded_by_a_later_layer(stored: Sequence[tuple[int, Path, int, Any]]) -> set[int]:

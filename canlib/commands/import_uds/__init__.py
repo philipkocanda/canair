@@ -102,6 +102,11 @@ def run(args) -> int:
         print(f"{ansi.RED}error: {problem}{ansi.RESET}", file=sys.stderr)
         return 2
 
+    from canlib.profile import active
+    from canlib.variants.selection import require_named_car
+
+    require_named_car(active(), "import uds")
+
     from canlib.captures import build_manual_session, save_session
     from canlib.ecus import build_name_tx_index
     from canlib.states import parse_states
