@@ -116,8 +116,13 @@ CLU:
       updated: "2026-10-29"
       result: >-
         Confirmed on the uhi22 Ioniq28 P-CAN tap (24-bit LE x0.1 km = 123,385 km) and promoted to
-        signals/body.yaml CGW_ODO ODOMETER.
-      notes: Kona bench 0x5D0 carries only the odometer; sample '9D 13 04' = little-endian UINT24 0x04139D. You already read the odometer via CLU 22B002 (UDS, UINT24 big-endian). Broadcast variant is LE. OBD-unobservable here (gateway-isolated); Kona-sourced hypothesis.
+        signals/body.yaml EV_CP1 ODOMETER (formerly CGW_ODO).
+      notes: >-
+        Kona bench 0x5D0 carries only the odometer; sample '9D 13 04' = little-endian UINT24
+        0x04139D. You already read the odometer via CLU 22B002 (UDS, UINT24 big-endian). Broadcast
+        variant is LE. On the Ioniq the P-CAN 0x5D0 is the gateway's copy of the cluster's CLU12
+        odometer (signals/body.yaml EV_CP1 ODOMETER); on MM-CAN 0x5D0 is a different frame.
+        OBD-unobservable here (gateway-isolated); Kona-sourced hypothesis.
       sources:
         - projectgus car_hacking, bench_kona/igpm.py (Kona OS EV)
       what_to_test:

@@ -37,7 +37,7 @@ messages:
         min: 0.0
         max: 1.0
         source: uhi22 Ioniq28 DBC CLOCK; observed on the uhi22 P-CAN tap
-        notes: Clock ready flag (AVN CfTmuRdy, byte 4 bit 0). Observed 1.
+        notes: Clock ready flag (AVN CfTmuRdy, byte 4 bit 0). 1 in the 2025 logs. In the 2022 trace from ignition-on it is 0 for the first 12.9 s, while the gateway sends its stored, non-ticking time, and 1 once the head unit's time is in.
       clock_weekday:
         start_bit: 1
         length: 7
@@ -45,9 +45,9 @@ messages:
         min: 0.0
         max: 127.0
         source: AVN firmware HU_GW_P_05 (com.lge.ivi HuGwP05 compose/parse; ioniq-avn-fw docs/micom/micom-avn-can-signals.tsv); observed on the uhi22 Ioniq28 P-CAN tap
-        notes: 'Day-of-week bitmask, one bit set: bit 0 of this field Monday ... bit 6 Sunday (byte 0 bits 1-7). Confirmed twice against uhi22''s recording dates: 0x40 (Saturday) in both 2025-02-01 logs, 0x20 (Friday) in the trace started Friday 2022-07-22. In that trace the gateway sends its own clock at ignition-on (valid flag 0) and the head unit''s time takes over about 10 s later (seconds jump, valid flag 1 at 13 s).'
+        notes: 'Day-of-week bitmask, one bit set: bit 0 of this field Monday ... bit 6 Sunday (byte 0 bits 1-7). Confirmed twice against uhi22''s recording dates: 0x40 (Saturday) in both 2025-02-01 logs, 0x20 (Friday) in the trace started Friday 2022-07-22. In that trace the gateway first sends a stored time that does not tick (18:05:43 for the first 10.5 s, valid flag 0; the log''s own clock reads 18:08:25 at the first frame). The head unit''s time takes over at 10.5 s (seconds jump to 18:08:35, then ticking) and the valid flag is 1 from 12.9 s. So the gateway holds a time it last received; nothing here shows a running clock in the gateway while the car is off.'
   '0x5D0':
-    name: CGW_ODO
+    name: EV_CP1
     tx_ecu: IGPM
     signals:
       ODOMETER:
@@ -58,8 +58,8 @@ messages:
         min: 0.0
         max: 800000.0
         unit: km
-        source: uhi22 Ioniq28 DBC uwe5D0_ODO; observed on the uhi22 P-CAN tap (scripts/fetch_can_corpus.py)
-        notes: 24-bit LE x0.1 km. Observed BA D3 12 = 123,385 km (stable over the short log). Matches the Kona bench '0x5D0 = only the odometer'. verified:false pending owner-car confirmation.
+        source: uhi22 Ioniq28 DBC uwe5D0_ODO; US AE EV message table EV_CP1 (com.infobank Can2ACsmEV.parseEV_CP1); opendbc hyundai_2015_ccan.dbc CLU12; observed on the uhi22 P-CAN tap and 2022 trace
+        notes: "The cluster's odometer, CLU12 CF_Clu_Odometer (C-CAN 0x5B0), re-sent by the gateway on P-CAN with the same layout: 24-bit LE x0.1 km. Observed BA D3 12 = 123,385.0 km in the 2025 logs; E7 39 0C = 80,125.5 km in the 2022 trace, which ticks to 80,125.6 km (E8) near the end. Not the same frame as MM-CAN 0x5D0 (the cluster's CLU_HU_P_00: speed, SOC, motor torque). Matches the Kona bench '0x5D0 = only the odometer'. verified:false pending owner-car confirmation."
   '0x541':
     name: CGW1
     tx_ecu: IGPM
@@ -305,3 +305,175 @@ messages:
         max: 3.0
         source: AVN firmware HU_EV_P_01 (MM-CAN 0x57A); observed on the uhi22 Ioniq28 P-CAN tap, gateway-timed
         notes: 'Charge scheduling mode as set in the head unit, forwarded by the gateway: 0 = Charge Now (charge as soon as plugged in), 1 = Charge on Schedule with no off-peak window (the menu''s default and reset value), 2 = Charge on Schedule with off-peak time enabled, 3 = the same with ''Charge ONLY during the time shown below'' ticked. Mapping read from the head unit''s menu code (GreenCar DepartureClimateActivity radio buttons; EconomyReservationSettingActivity OK button sends 3 if that box is ticked, else 2). Not a charge-power setting. uhi22''s car: 3 in a July 2022 P-CAN trace (window unset), 0 in the Feb 2025 logs.'
+  '0x450':
+    name: EV_CP2
+    tx_ecu: IGPM
+    length: 3
+    signals:
+      Vanz:
+        start_bit: 0
+        length: 9
+        byte_order: little
+        scale: 0.5
+        min: 0.0
+        max: 255.5
+        unit: km/h
+        source: US AE EV message table (com.infobank Can2ACsmEV parser); observed on the uhi22 Ioniq28 P-CAN tap and 2022 trace; opendbc CLU11 CF_Clu_Vanz
+        notes: "The cluster's displayed speed, CLU11 CF_Clu_Vanz (C-CAN 0x4F1, byte 1 bit 8) re-sent here one byte earlier: byte 0 plus byte 1 bit 0, 0.5 km/h per bit. Against the 0x524 speed over the 2022 trace (n=840 samples above 3 km/h) it reads a median 1.12 times higher (r=0.98, fit 1.2x - 0.9 km/h), as a displayed speed should. Unverified on the owner car."
+      SPEED_UNIT:
+        start_bit: 21
+        length: 1
+        byte_order: little
+        source: US AE EV message table (com.infobank Can2ACsmEV parser); observed on the uhi22 Ioniq28 P-CAN tap and 2022 trace
+        notes: 'Speed unit flag as the US parser places it (byte 2 bit 5). 0 throughout both logs; presumably km/h. The rest of the frame is not decoded: byte 1 reads 0x26 or 0x28 and byte 2 reads 0x04, constant.'
+  '0x578':
+    name: EV_CP5
+    tx_ecu: IGPM
+    length: 6
+    signals:
+      CF_Clu_LowfuelWarn:
+        start_bit: 0
+        length: 2
+        byte_order: little
+        source: US AE EV message table (com.infobank Can2ACsmEV parser); observed on the uhi22 Ioniq28 P-CAN tap and 2022 trace; opendbc CLU13
+        notes: Low-fuel warning from the cluster (CLU13). 0 throughout.
+      CF_Lkas_LdwsSysState:
+        start_bit: 4
+        length: 4
+        byte_order: little
+        source: US AE EV message table (com.infobank Can2ACsmEV parser); observed on the uhi22 Ioniq28 P-CAN tap and 2022 trace; opendbc LKAS11
+        notes: Lane-departure warning system state from the camera (LKAS11, where it sits at bit 2). Frame byte 0 reads 0x00 for the first 0.7 s of the 2022 trace and 0x10 (state 1) from then on, in the 2025 logs too.
+      CF_Ahb_Def:
+        start_bit: 2
+        length: 2
+        byte_order: little
+        source: US AE EV message table (com.infobank Can2ACsmEV parser); observed on the uhi22 Ioniq28 P-CAN tap and 2022 trace
+        notes: Automatic high-beam (AHB) default flag as the US parser places it. Not seen to change.
+      CF_Mdps_WLmp:
+        start_bit: 8
+        length: 2
+        byte_order: little
+        source: US AE EV message table (com.infobank Can2ACsmEV parser); observed on the uhi22 Ioniq28 P-CAN tap and 2022 trace; opendbc MDPS11
+        notes: Steering (MDPS) warning lamp, from MDPS11 byte 0 bits 0-1. 0 throughout.
+      ACCFailInfo:
+        start_bit: 11
+        length: 2
+        byte_order: little
+        source: US AE EV message table (com.infobank Can2ACsmEV parser); observed on the uhi22 Ioniq28 P-CAN tap and 2022 trace; opendbc SCC12
+        notes: Cruise-control (SCC) failure info, same bit position as in SCC12 (bit 11). 0 throughout.
+      ACCMode:
+        start_bit: 13
+        length: 2
+        byte_order: little
+        source: US AE EV message table (com.infobank Can2ACsmEV parser); observed on the uhi22 Ioniq28 P-CAN tap and 2022 trace; opendbc SCC12
+        notes: Cruise-control mode, same bit position as in SCC12 (bit 13). 0 throughout.
+      POS_FL_W_LAMP:
+        start_bit: 16
+        length: 1
+        byte_order: little
+        source: US AE EV message table (com.infobank Can2ACsmEV parser); observed on the uhi22 Ioniq28 P-CAN tap and 2022 trace; opendbc TPMS11
+        notes: Tyre-pressure position lamp, front left (TPMS11 moves its high nibble into the low nibble here). 0 throughout.
+      POS_FR_W_LAMP:
+        start_bit: 17
+        length: 1
+        byte_order: little
+        source: US AE EV message table (com.infobank Can2ACsmEV parser); observed on the uhi22 Ioniq28 P-CAN tap and 2022 trace; opendbc TPMS11
+        notes: Tyre-pressure position lamp, front right. 0 throughout.
+      POS_RL_W_LAMP:
+        start_bit: 18
+        length: 1
+        byte_order: little
+        source: US AE EV message table (com.infobank Can2ACsmEV parser); observed on the uhi22 Ioniq28 P-CAN tap and 2022 trace; opendbc TPMS11
+        notes: Tyre-pressure position lamp, rear left. 0 throughout.
+      POS_RR_W_LAMP:
+        start_bit: 19
+        length: 1
+        byte_order: little
+        source: US AE EV message table (com.infobank Can2ACsmEV parser); observed on the uhi22 Ioniq28 P-CAN tap and 2022 trace; opendbc TPMS11
+        notes: Tyre-pressure position lamp, rear right. 0 throughout.
+      TPMS_W_LAMP:
+        start_bit: 20
+        length: 2
+        byte_order: little
+        source: US AE EV message table (com.infobank Can2ACsmEV parser); observed on the uhi22 Ioniq28 P-CAN tap and 2022 trace; opendbc TPMS11
+        notes: Tyre-pressure warning lamp (TPMS11 bits 0-1, moved to bits 20-21). 0 throughout.
+      THREAD_W_LAMP:
+        start_bit: 22
+        length: 2
+        byte_order: little
+        source: US AE EV message table (com.infobank Can2ACsmEV parser); observed on the uhi22 Ioniq28 P-CAN tap and 2022 trace; opendbc TPMS11
+        notes: Tyre tread warning lamp (TPMS11 bits 2-3, moved to bits 22-23). 0 throughout.
+      CF_Lkas_AAWarn:
+        start_bit: 30
+        length: 2
+        byte_order: little
+        source: US AE EV message table (com.infobank Can2ACsmEV parser); observed on the uhi22 Ioniq28 P-CAN tap and 2022 trace; opendbc LKAS12
+        notes: Active-assist warning from the camera (LKAS12). 0 throughout.
+      CF_Clu_AALastBreakTime:
+        start_bit: 32
+        length: 4
+        byte_order: little
+        source: US AE EV message table (com.infobank Can2ACsmEV parser); observed on the uhi22 Ioniq28 P-CAN tap and 2022 trace; opendbc CLU13
+        notes: Cluster's last-braking time field (CLU13). 0 throughout.
+      CF_Clu_RefDetMod:
+        start_bit: 42
+        length: 1
+        byte_order: little
+        source: US AE EV message table (com.infobank Can2ACsmEV parser); observed on the uhi22 Ioniq28 P-CAN tap and 2022 trace; opendbc CLU13
+        notes: Cluster reference-detection mode flag (CLU13). 0 throughout.
+      CF_Clu_DriveModeSW:
+        start_bit: 47
+        length: 1
+        byte_order: little
+        source: US AE EV message table (com.infobank Can2ACsmEV parser); observed on the uhi22 Ioniq28 P-CAN tap and 2022 trace; opendbc CLU13
+        notes: Drive-mode switch state from the cluster (CLU13). 0 throughout; the Kona sheet lists 0x578 as the drive-mode button.
+  '0x5D3':
+    name: HU_DATC_PE_00
+    tx_ecu: IGPM
+    length: 8
+    signals:
+      HU_VRActivity:
+        start_bit: 0
+        length: 2
+        byte_order: little
+        min: 0.0
+        max: 3.0
+        source: opendbc hyundai_2015_ccan.dbc HU_DATC_PE_00 (0x5D3); AVN firmware HuDatcPe00 (MM-CAN 0x1C0, byte 4 bits 1-0); observed on the uhi22 Ioniq28 P-CAN tap and 2022 trace
+        notes: "Head-unit voice-recognition activity. P-CAN 0x5D3 is the gateway's cut-down copy of the head unit's MM-CAN 0x1C0: only voice, phone and blower-noise fields, moved from byte 4 to byte 0 (the air-quality and rear-seat-lock fields do not cross). Reads 3 in every frame of all three logs; 3 is the head unit's default for this field (HuDatcPe00 loadDefaults). Test: a voice command should change it."
+      HU_PhoneActivity:
+        start_bit: 2
+        length: 2
+        byte_order: little
+        min: 0.0
+        max: 3.0
+        source: opendbc hyundai_2015_ccan.dbc HU_DATC_PE_00 (0x5D3); AVN firmware HuDatcPe00 (byte 4 bits 3-2); observed on the uhi22 Ioniq28 P-CAN tap and 2022 trace
+        notes: "Head-unit phone-call activity. Reads 3 throughout (the head unit's default). Test: a phone call should change it."
+      BlowerNoiseControl:
+        start_bit: 4
+        length: 2
+        byte_order: little
+        min: 0.0
+        max: 3.0
+        source: opendbc hyundai_2015_ccan.dbc HU_DATC_PE_00 (0x5D3); AVN firmware HuDatcPe00 (byte 4 bits 5-4); observed on the uhi22 Ioniq28 P-CAN tap and 2022 trace
+        notes: Blower-noise control request, raised while a call or voice command is active. Reads 0 throughout. The whole byte reads 0F, which a byte-for-byte copy of the head unit's defaults (CF 03 03 00 3F) would not.
+  '0x5D4':
+    name: TMU_GW_PE_01
+    tx_ecu: IGPM
+    length: 8
+    signals:
+      TMU_IVRActivity:
+        start_bit: 0
+        length: 2
+        byte_order: little
+        min: 0.0
+        max: 3.0
+        source: opendbc hyundai_2015_ccan.dbc TMU_GW_PE_01 (0x5D4); observed on the uhi22 Ioniq28 P-CAN tap and 2022 trace
+        notes: Telematics-unit voice (IVR) activity, the gateway's cut-down copy of MM-CAN 0x1B0. The EU car has no telematics unit, so the constant 3 is the gateway's own default.
+      TMU_PhoneActivity:
+        start_bit: 2
+        length: 2
+        byte_order: little
+        min: 0.0
+        max: 3.0
+        source: opendbc hyundai_2015_ccan.dbc TMU_GW_PE_01 (0x5D4); observed on the uhi22 Ioniq28 P-CAN tap and 2022 trace
+        notes: Telematics-unit phone activity. Constant 3 (gateway default, no telematics unit on the EU car).

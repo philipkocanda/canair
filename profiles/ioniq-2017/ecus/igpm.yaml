@@ -968,20 +968,6 @@ IGPM:
         canair monitor IGPM:22BC07 VCU:2101 BMS:2101 OBC:2101 --save --keep-all --interval 1 --label
         'IG3 hand-over at plug-in' --state PLUGGED; press s at plug-in and at charge start.
     - type: verify
-      target: IOControl BC12/BC13/BC14 (and BC1B) against the IG3 main relay
-      status: pending
-      priority: P2
-      vehicle_states: [SLEEP, ACC]
-      created: "2026-10-23"
-      updated: "2026-10-23"
-      notes: "The IGPM's power-switch controller drives a Main relay in the engine-bay PCB block that feeds the IG3 rail (EPCU, OBC, BMS, A/C control module, PTC heater, blower relay), and an electronics-off 'leak current autocut' relay. In US-market wiring these are IPS outputs. The stored IOControl results include several relays that click: BC12 and BC13 ('click-clack'), BC14 (accepted only when the car is asleep, NRC 0x22 in ACC) and BC1B (single click, dome light goes off, which fits the autocut relay). Any of BC12-BC14 could be the Main relay; none has been tied to a load. Unproven."
-      what_to_test:
-        - With the car asleep, unplugged and stationary, fob inside, open an IGPM session and switch BC14 on (then BC13, BC12, one at a time) with a second person at the engine-bay PCB block listening for the click. While it is on, read BMS 2101, VCU 2101 and HVAC 220100 and note whether any starts to answer without ACC. Release each DID before the next.
-      capture_protocol: >-
-        canair read 'session IGPM --wake' 'iocontrol IGPM BC14' 'sleep 3' 'query BMS:2101' 'query
-        VCU:2101' 'query HVAC:220100' 'iocontrol IGPM BC14 --off' --save --label 'IGPM BC14 IG3
-        test' --state SLEEP; only after confirming the car is parked and safe.
-    - type: verify
       target: "IG3 #1 / #2 / quick-charge relay: IGPM 22BC07 B12:3 vs OBC_AC_NOT_CONNECTED"
       status: pending
       priority: P2
@@ -1060,7 +1046,8 @@ IGPM:
         D5=valid (1) — now defined in signals/body.yaml CGW_CLOCK. NEGATIVE DID cross-check same
         date: swept every byte of IGPM 22BC01-07, BCM 22B00E/22C00B and CLU 22B002 against each
         capture's wall-clock (plain and BCD; hour/minute/second); no byte matched above 0.25. So the
-        gateway broadcasts its RTC on 0x567 but does NOT expose it in any captured status DID.
+        gateway broadcasts the time on 0x567 (a stored time that does not tick until the head unit's
+        arrives; no running clock is shown) but does NOT expose it in any captured status DID.
       sources:
         - projectgus car_hacking, bench_kona/igpm.py CGW_Clock (Kona OS EV)
       what_to_test:
@@ -1106,23 +1093,24 @@ IGPM:
         combines DC-DC converter, MCU, VCU, BMS and climate-unit signals. MM-CAN to P-CAN: 0x54F ->
         0x567, 0x57B -> 0x55C and 0x57A -> 0x588 byte for byte; HU_DATC_PE_00 0x1C0 -> 0x5D3 keeps
         only byte 4 bits 0-5, moved to byte 0 (see the AVN entry). C-CAN to P-CAN (names from the US
-        AE EV message table): EV_CP1 0x5D0 is the cluster's odometer frame (CLU12, same layout);
-        EV_CP2 0x450 is the cluster's displayed speed (CLU11 Vanz, 0.5 km/h, moved one byte earlier;
-        reads about 15 % above the MCU speed); EV_CP5 0x578 is a chassis warning summary (SCC12 ACC
-        fault and mode at the same bits, LKAS11 LDWS state in byte 0 bits 7-4, MDPS and TPMS lamps,
-        low fuel, drive-mode switch; 0x10 on uhi22's car is LDWS state 1). Senders, by clock over
-        the 19-minute 2022 trace: 19 IDs hold a fixed phase to CGW1 0x541 (0x414, 0x450, 0x462,
-        0x471, 0x4FE, 0x541, 0x553, 0x55C, 0x55F, 0x561, 0x567, 0x578, 0x588, 0x5B3, 0x5D0, 0x5D3,
-        0x5D4, 0x5DF, 0x5EC); the other P-CAN IDs drift on their own ECUs' clocks. 0x2B0 (SAS11,
-        steering angle) is not on the gateway's clock and has 4-5 times the period jitter of native
-        frames: either the steering sensor is also on P-CAN or the gateway passes the frame through
-        as it arrives. Diagnostic frames (0x7DF, 0x7Ex) cross with ID and bytes kept. Of the body
-        frames, CGW1 0x541 and CGW2 0x553 reach P-CAN; CGW4 0x559, GW_DDM_PE 0x521 and GW_IPM_PE_1
-        0x522 are absent from all three uhi22 P-CAN logs. On MM-CAN, 0x5D0 is the cluster's
-        CLU_HU_P_00 (speed, SOC, motor torque), not the odometer. Unproven on the car: no
-        simultaneous MM-CAN and P-CAN capture exists. The P-CAN layouts from the US firmware match
-        uhi22's EU P-CAN logs on every signal checked (pack voltage, SOC, charge times, range, DC-DC
-        power).
+        AE EV message table; defined in signals/body.yaml as EV_CP1/2/5): EV_CP1 0x5D0 is the
+        cluster's odometer frame (CLU12, same layout); EV_CP2 0x450 is the cluster's displayed speed
+        (CLU11 Vanz, 0.5 km/h, moved one byte earlier; reads a median 1.12 times the 0x524 speed);
+        EV_CP5 0x578 is a chassis warning summary (SCC12 ACC fault and mode at the same bits, LKAS11
+        LDWS state in byte 0 bits 7-4, MDPS and TPMS lamps, low fuel, drive-mode switch; 0x10 on
+        uhi22's car is LDWS state 1). Senders, by clock over the 19-minute 2022 trace: 19 IDs hold a
+        fixed phase to CGW1 0x541 (0x414, 0x450, 0x462, 0x471, 0x4FE, 0x541, 0x553, 0x55C, 0x55F,
+        0x561, 0x567, 0x578, 0x588, 0x5B3, 0x5D0, 0x5D3, 0x5D4, 0x5DF, 0x5EC); the other P-CAN IDs
+        drift on their own ECUs' clocks. 0x2B0 (SAS11, steering angle) is not on the gateway's clock
+        and has 4-5 times the period jitter of native frames: either the steering sensor is also on
+        P-CAN or the gateway passes the frame through as it arrives. Diagnostic frames (0x7DF,
+        0x7Ex) cross with ID and bytes kept. Of the body frames, CGW1 0x541 and CGW2 0x553 reach
+        P-CAN; CGW4 0x559, GW_DDM_PE 0x521 and GW_IPM_PE_1 0x522 are absent from all three uhi22
+        P-CAN logs. On MM-CAN, 0x5D0 is the cluster's CLU_HU_P_00 (speed, SOC, motor torque), not
+        the odometer. Unproven on the car: no simultaneous MM-CAN and P-CAN capture exists. The
+        P-CAN layouts from the US firmware match uhi22's EU P-CAN logs on every signal checked (pack
+        voltage, SOC, charge times, range, DC-DC power). HU_DATC_PE_00 0x5D3 and TMU_GW_PE_01 0x5D4
+        are defined in signals/body.yaml too.
       sources:
         - "ioniq-avn-fw EU head-unit firmware: com.lge.ivi GwEvP02-08, GwEvPe00 and HuDatcPe00 parse layouts; MICOM 7AEe EV getters 0x846DE-0x84790 (2026-10-30)"
         - "US telematics firmware AEEV.USA.SOP.V108: com.infobank Can2ACCANCsmEV P-CAN parsers and the Can2AAEEVMessage ID table (2026-10-30)"
@@ -1135,6 +1123,76 @@ IGPM:
       capture_protocol: >-
         Two adapters logging at the same time, one per tapped bus. Import each log with canair
         import can and line the frames up by timestamp.
+    - type: verify
+      target: who wakes the VCU for the parked 12 V top-up
+      status: pending
+      priority: P2
+      vehicle_states: [SLEEP, TOPUP]
+      created: "2026-10-30"
+      updated: "2026-10-30"
+      result: >-
+        Not settled. The VCU cannot start itself: on uhi22's bench the EPCU's supply only came up
+        from its wake-line pin (CN1000 3P), and IG3 is that rail (VCU_IG3_ON). So with the car
+        unplugged and asleep something else must close IG3. Leading candidate is the IGPM's own IG3
+        relay output (22BC07 B12:3): it reads 1 for the whole 2026-10-21 top-up, as in READY, and 0
+        in every charge with the ignition off, where the OBC's relay supplies IG3. The VCU then
+        decides and ends the top-up: the 12 V battery sensor reports through it (0x549), the HV
+        relay was open by 21:17:08, IG3 fell by 21:17:11 and the IGPM bit by 21:17:21. Not excluded:
+        the BCM, which measures the 12 V battery during deep sleep, asking the IGPM to close the
+        relay.
+      notes: >-
+        Only one top-up is recorded, and it was joined mid-run: the first capture (21:00:58) already
+        shows the BMS awake, so the start is missing (if it ran the manual's 20-minute maximum it
+        began about 20:57). The other parked VCU wake-ups in the captures are charging sessions
+        polled about once a minute, too coarse to order. Intervals: the 2017 owner's manual
+        describes Aux. Battery Saver+ Cycle Mode as running when the car is off with doors, hood and
+        tailgate closed, every 72 hours, at most 20 minutes each; uhi22 writes that the Ioniq wakes
+        every 24 hours and charges about 20 minutes if the 12 V battery is low. The closed-doors
+        condition is IGPM switch input (22BC03 door, hood, trunk bits). The VCU stayed alive for at
+        least 3 minutes after IG3 fell (2101 kept changing until 21:20:12, 2102 froze at 21:17:11),
+        so once started the EPCU holds itself on. The gateway clock on 0x567 is a stored time that
+        does not tick until the head unit's arrives, so nothing shows the IGPM keeping calendar time
+        while asleep; a countdown timer would be enough for a 72 h or 24 h cycle. See
+        IGPM_FINDINGS.md sections 5, 6.2 and 8 for the IG3 relay wiring, the BC44 actuator and the
+        Kona/Ioniq wake reports.
+      sources:
+        - uhi22 EPCU readme (CN1000 3P wake line, bench power-up)
+        - Hyundai Ioniq Electric 2017 owner's manual, Aux. Battery Saver+ (Cycle Mode)
+        - canair captures 2026-10-21 (parked 12 V top-up, three sessions)
+      what_to_test:
+        - "Can the IGPM close IG3 alone? Car asleep, unplugged, locked, parked and safe: open an IGPM session, switch BC44 on, read VCU:2101, BMS:2101 and IGPM:22BC07, switch it off. Expect VCU_IG3_ON = 1 and B12:3 = 1 while it is on. BC44 is the IG3 relay in ScanDoc's list (refused with NRC 0x22 in ACC, no effect in READY). Do not use BC12-BC14 for this: by the same list they are the driver-door unlock, deadlock and power-window relays, and BC13 deadlocks the doors."
+        - Which module holds the setting? In READY switch User Settings > Other > Aux. Battery Saver+ off and on while recording IGPM, BCM, VCU 2101/2102/21F2 and CLU; whichever module's data changes stores it.
+        - "Catch a real start: WiCAN kept awake, slow poll of IGPM:22BC07, BCM:22B003 and VCU:2101 across a night. A flip of the IGPM bit before the VCU first answers points to the IGPM. Polling keeps the gateway awake, so do this after the two tests above; a P-CAN tap showing whose frames appear first is cleaner."
+      capture_protocol: >-
+        canair read 'session IGPM --wake' 'iocontrol IGPM BC44' 'sleep 3' 'query VCU:2101' 'query
+        BMS:2101' 'query IGPM:22BC07' 'iocontrol IGPM BC44 --off' --save --label 'IGPM BC44 IG3
+        test' --state SLEEP. Only with the car parked and safe; the actuator releases when the
+        session ends.
+    - type: verify
+      target: IOControl BC44 (IG3 relay) and BC1B (auto cut relay) against their loads
+      status: pending
+      priority: P2
+      vehicle_states: [SLEEP, ACC]
+      created: "2026-10-23"
+      updated: "2026-10-30"
+      notes: >-
+        The IGPM's power-switch controller drives a Main relay in the engine-bay PCB block that
+        feeds the IG3 rail (EPCU, OBC, BMS, A/C control module, PTC heater, blower relay), and an
+        electronics-off 'leak current autocut' relay. In US-market wiring these are IPS outputs. Two
+        stored IOControl results fit them: BC44 is the IGPM's IG3 relay by ScanDoc's numbering
+        (22BC07 B12:3 is its output bit; ConditionsNotCorrect in ACC, no effect in READY where IG3
+        is already on) and BC1B is the auto cut relay (single click, dome light goes off). Neither
+        has been actuated with the car asleep or tied to a load. BC12, BC13 and BC14 are not
+        candidates: by the same numbering they are the driver-door unlock, deadlock and power-window
+        relays, and BC13 deadlocks the doors. The VCU-wake side of the BC44 test is in the entry
+        'who wakes the VCU for the parked 12 V top-up'.
+      what_to_test:
+        - With the car asleep, unplugged and stationary, fob inside, open an IGPM session and switch BC44 on with a second person at the engine-bay PCB block listening for the click. While it is on, read BMS 2101, VCU 2101 and HVAC 220100 and note whether any starts to answer without ACC. Release BC44 before anything else.
+        - In ACC, switch BC1B on and off and note which loads lose power (it turned the dome light off on 2026-04-15).
+      capture_protocol: >-
+        canair read 'session IGPM --wake' 'iocontrol IGPM BC44' 'sleep 3' 'query BMS:2101' 'query
+        VCU:2101' 'query HVAC:220100' 'iocontrol IGPM BC44 --off' --save --label 'IGPM BC44 IG3
+        test' --state SLEEP; only after confirming the car is parked and safe.
 
   iocontrol_discoveries:
     BC01:

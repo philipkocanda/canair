@@ -9,7 +9,8 @@
 # - Coordination between motor, inverter, battery, and safety systems
 # - Calculates remaining range
 # - Controls allowed AC power 
-# - Initiates 12V battery top-up as needed (a setting managed by CLU)
+# - Decides and runs the parked 12V battery top-up once woken (the Aux. Battery Saver+ setting is
+#   in the cluster's user settings). What wakes it is open: see the IGPM research entry.
 # - Controls ECO setting and drive modes
 # - Preconditioning (climate) timer, charge timer, charge power limit settings.
 #
