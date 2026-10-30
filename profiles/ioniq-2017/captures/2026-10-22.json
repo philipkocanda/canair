@@ -453,6 +453,7 @@
       "version": "1.28.0+main.a02dd84",
       "vehicle_states": [
         "READY",
+        "ACC2",
         "PARKED"
       ],
       "notes": "cold soaked (7-8 celcius)",

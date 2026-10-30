@@ -5,6 +5,7 @@
       "label": "BMS OBC:2101,2102 VCU:1A90,21F2,2102,2101 MCU:2103,2101,2102",
       "version": "1.18.1",
       "vehicle_states": [
+        "CHARGING",
         "PLUGGED",
         "PARKED"
       ],
@@ -14,6 +15,34 @@
       "quality": {
         "exchanges": 1,
         "no_data": 1
+      },
+      "state_spans": {
+        "source": "record",
+        "spans": [
+          {
+            "at": "13:13:02.220",
+            "states": [
+              "CHARGING",
+              "PLUGGED"
+            ]
+          },
+          {
+            "at": "13:14:17.833",
+            "states": [
+              "CHARGING",
+              "PLUGGED",
+              "PARKED"
+            ]
+          },
+          {
+            "at": "14:15:43.437",
+            "states": [
+              "PLUGGED",
+              "PARKED"
+            ]
+          }
+        ],
+        "version": "1.18.1"
       },
       "captures": [
         {
@@ -46696,35 +46725,7 @@
           "payload": "61F2FF000000088868E6474A5E1F019C8A06000000000000FE0316CCDB00060623201DB792010000640000000000000000000000000000000000000000005B001D030000000000000000000000000000000036303030",
           "time": "13:14:29.017"
         }
-      ],
-      "state_spans": {
-        "source": "record",
-        "spans": [
-          {
-            "at": "13:13:02.220",
-            "states": [
-              "CHARGING",
-              "PLUGGED"
-            ]
-          },
-          {
-            "at": "13:14:17.833",
-            "states": [
-              "CHARGING",
-              "PLUGGED",
-              "PARKED"
-            ]
-          },
-          {
-            "at": "14:15:43.437",
-            "states": [
-              "PLUGGED",
-              "PARKED"
-            ]
-          }
-        ],
-        "version": "1.18.1"
-      }
+      ]
     },
     {
       "date": "2026-08-10",

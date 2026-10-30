@@ -5,7 +5,8 @@
       "label": "AAF:2181 BCM BMS:2101,2102,2103,2104,2105,21F2 IGPM MCU:2101,21F2 OBC SKM VCU:2101,21F2",
       "version": "1.35.2+main.9e30bbb",
       "vehicle_states": [
-        "PARKED"
+        "PARKED",
+        "TOPUP"
       ],
       "transport": "wican-ws",
       "quality": {
@@ -13,6 +14,29 @@
         "no_data": 994,
         "stale": 3,
         "resyncs": 2
+      },
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {
+            "at": "13:27:30.723",
+            "states": []
+          },
+          {
+            "at": "13:27:52.905",
+            "states": [
+              "PARKED",
+              "TOPUP"
+            ]
+          },
+          {
+            "at": "13:40:17.679",
+            "states": [
+              "PARKED"
+            ]
+          }
+        ],
+        "version": "1.35.2+main.49eacb6.dirty"
       },
       "captures": [
         {
