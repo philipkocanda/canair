@@ -15,6 +15,38 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [2.0.0](https://github.com/philipkocanda/canair/compare/v1.36.0...v2.0.0) (2026-10-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* **captures:** `canair monitor --keep-unique` is removed, and the monitor records every poll unless --keep-changes is passed. Capture files written by this version may contain repeat_ms/repeat_inline_ms, which older canair versions cannot read.
+
+### Added
+
+* **captures:** fold repeated polls on disk and record every poll by default ([20456da](https://github.com/philipkocanda/canair/commit/20456da432b09339ac18525061314a326637ea01))
+* **captures:** write each state_spans span on one line ([c9e9fa9](https://github.com/philipkocanda/canair/commit/c9e9fa984085a66d782c6fb59e1f931d04eafaac))
+* **io:** drive KWP2000 0x30 actuators through a declared release ([f8c932f](https://github.com/philipkocanda/canair/commit/f8c932fd63b14f6d29d48f1301496c96f3621681))
+* **kona-electric-2019:** define the DIDs captured from the public dongle logs ([ba81f2f](https://github.com/philipkocanda/canair/commit/ba81f2f2f6a457b08337229c1701e6b652291218))
+* **kona-electric-2019:** import public Car Scanner and BMS relay-control frame logs ([666182b](https://github.com/philipkocanda/canair/commit/666182ba7e22e3c8c6bd7d5ff9cd7b2756a16989))
+* **kona-electric-2019:** protocols, 2021 read-all-params captures and QC relay bit ([831fe0c](https://github.com/philipkocanda/canair/commit/831fe0c568987c60b36ff0cd96ab605e195b9917))
+* **pids:** share unit, ha_class, min, max and verified from the PID ([6afbbeb](https://github.com/philipkocanda/canair/commit/6afbbeb39f6caad5e59f4806e9e603c8ddf7296c))
+* **pids:** state source and source_links once on the PID ([8f8c6dc](https://github.com/philipkocanda/canair/commit/8f8c6dccd7891b4ed77e5408a5504ac293169257))
+
+
+### Fixed
+
+* **contribute:** back up and discard a staged leftover instead of failing ([27eb7f0](https://github.com/philipkocanda/canair/commit/27eb7f0fc89b38f80abd0c8e933c887eb492737e))
+* **scan:** stop writing an empty notes field for new discoveries ([13d22d1](https://github.com/philipkocanda/canair/commit/13d22d11c58eafcd86a8594b93b0cb4d1b07bb59))
+
+
+### Documentation
+
+* **ioniq-2017:** add ScanDoc IGPM evidence for BC01, BCFD and 000A-000C ([578bf9b](https://github.com/philipkocanda/canair/commit/578bf9b6d697835a1eb9088a9e4f7e6f9aef86ea))
+* **ioniq-2017:** move the findings documents into research/ with frontmatter ([2802589](https://github.com/philipkocanda/canair/commit/2802589f6afe1d755829f9ce2af2609881581054))
+* **ioniq-2017:** weigh the OVMS evidence behind the OBC 30 LED hypothesis ([9409c9d](https://github.com/philipkocanda/canair/commit/9409c9d919073477b5a7b9bd926745f6fd3bc4d3))
+* stop citing the Kia Soul EV charger LED as fact ([3892112](https://github.com/philipkocanda/canair/commit/3892112cb63f367615dcc4d1df83b49880934123))
+
 ## [1.36.0](https://github.com/philipkocanda/canair/compare/v1.35.2...v1.36.0) (2026-10-30)
 
 
