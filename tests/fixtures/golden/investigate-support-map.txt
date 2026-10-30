@@ -23,8 +23,8 @@ Support maps — 5 of 7 PID(s) carry one
       declare: canair pids set-support-map IGPM 22BC05 --at 0 --length 4 --unit bit
 
   IGPM 22BC06  CORROBORATED per-bit map B4 80 00 00 at data+0, 276 rows, chance 10^-0.9, with siblings 10^-8.8
-      5 signals marked: 2 defined, 3 open
-      open, moving     B10:0, B10:3, B10:5
+      5 signals marked: 3 defined, 2 open
+      open, moving     B10:3, B10:5
       open, always on  -
       open, never set  -
       declare: canair pids set-support-map IGPM 22BC06 --at 0 --length 4 --unit bit
