@@ -168,8 +168,8 @@ and **`g`/`G` address the view's primary axis**.
   manufacturer). All are **safe probes**;
   hits are written to the ECU's `routines:`/`iocontrol_discoveries:`. `range` takes a comma list
   of ranges (`canlib/id_ranges.py`); without `--range` it sweeps the ECU's **DID families**
-  (`canlib/scan_presets.py::did_families` — high bytes from its `22`/`2F` PIDs and IOControl
-  hits), not the span between them.
+  (`canlib/did_families.py` — high bytes from its `22`/`2F` PIDs and IOControl hits), not the
+  span between them.
 - **`canair discover`** (alias `disc`) — Which ECUs answer right now; `--register` writes a new ECU
   into `ecus/`.
 - **`canair identity`** (alias `id`) — Standard UDS identity DIDs (F100/F18x/F190/F19x). Writes
@@ -297,7 +297,10 @@ and **`g`/`G` address the view's primary axis**.
   adds **OUTSIDE MAP** for a signal reading a position the map does not mark. No declaration, no
   change to the output.
 - **`canair research`** — The open RE backlog from the per-ECU `research:` sections. Complements
-  `coverage` (undecoded *bytes*) by surfacing *planned* work.
+  `coverage` (undecoded *bytes*) by surfacing *planned* work. **`--gaps`** derives unplanned work:
+  IOControl DID families no `0x22` read has reached (leaf `canlib/did_families.py`, evidence from
+  `scan_log:`/`research:`/saved scans in `commands/research/gaps.py`). An `iocontrol_discoveries:`
+  entry that only drew an NRC is not evidence: the DDM refuses whole ranges with one NRC.
 
 **Shared flags are declared once so their defaults cannot drift** — when adding an analysis command,
 reuse these instead of re-declaring a flag:

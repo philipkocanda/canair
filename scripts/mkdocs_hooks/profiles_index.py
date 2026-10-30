@@ -74,7 +74,7 @@ def profile_stats(ecus_dir: Path) -> dict[str, int]:
                     counts["verified"] += 1
         counts["iocontrol"] += len(ecu_def.get("iocontrol") or {})
         # Open research leads, matching `canair research`'s default view: every
-        # item whose status isn't `done` (see commands/research.py::_filter).
+        # item whose status isn't `done` (see commands/research/__init__.py::filter_records).
         for item in ecu_def.get("research") or []:
             if isinstance(item, dict) and item.get("status") != "done":
                 counts["research"] += 1

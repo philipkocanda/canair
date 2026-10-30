@@ -11,10 +11,9 @@ imported cheaply by the CLI, the interactive wizard, and the test suite.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any
 
+from .did_families import FAMILY_SIZE, did_families, family_ranges
 from .id_ranges import IdRange
 
 
@@ -217,63 +216,6 @@ def _dominant_service(pid_keys: list[str]) -> int | None:
         except ValueError:
             continue
     return Counter(services).most_common(1)[0][0] if services else None
-
-
-# Where an ECU's 16-bit DIDs are known from: its 22/2F PID keys, and the actuators an
-# IOControl scan or a curated entry has found.
-_FAMILY_SOURCES = (
-    ("pids", "PIDs"),
-    ("iocontrol", "IOControl"),
-    ("iocontrol_discoveries", "IOControl"),
-)
-
-FAMILY_SIZE = 0x100
-
-
-def did_families(ecu_def: Mapping[str, Any], *, include_iocontrol: bool = True) -> dict[int, str]:
-    """The DID high bytes an ECU is known to use, each with where it was seen.
-
-    An ECU keeps its DIDs in a few families that share a high byte (an IGPM's ``BCxx``, a
-    BCM's ``B0xx`` and ``C0xx``), and its IOControl DIDs usually sit in the same families as
-    its readable records. Returns ``{high_byte: "PIDs" | "IOControl" | "PIDs+IOControl"}``,
-    sorted by high byte. Only 4-hex-digit identifiers count, so KWP2000 local ids never form
-    a family.
-    """
-    seen: dict[int, list[str]] = {}
-    for field, label in _FAMILY_SOURCES:
-        if field != "pids" and not include_iocontrol:
-            continue
-        entries = ecu_def.get(field) or {}
-        if not isinstance(entries, Mapping):
-            continue
-        for key in entries:
-            did = _wide_did(str(key), from_pid=field == "pids")
-            if did is None:
-                continue
-            labels = seen.setdefault(did >> 8, [])
-            if label not in labels:
-                labels.append(label)
-    return {hi: "+".join(seen[hi]) for hi in sorted(seen)}
-
-
-def _wide_did(key: str, *, from_pid: bool) -> int | None:
-    """The 16-bit DID in a PID key (``22BC07``/``2FB015``) or a bare DID key (``BC01``)."""
-    k = key.upper().removeprefix("0X")
-    try:
-        if from_pid:
-            if len(k) != 6 or int(k[:2], 16) not in (0x22, 0x2F):
-                return None
-            return int(k[2:], 16)
-        return int(k, 16) if len(k) == 4 else None
-    except ValueError:
-        return None
-
-
-def family_ranges(families: Mapping[int, str], slots: int = FAMILY_SIZE) -> tuple[IdRange, ...]:
-    """One range per family: its first ``slots`` DIDs (``xx00`` up), the whole family by default."""
-    if not 1 <= slots <= FAMILY_SIZE:
-        raise ValueError(f"slots must be 1-{FAMILY_SIZE}, got {slots}")
-    return tuple(((hi << 8), (hi << 8) + slots - 1) for hi in families)
 
 
 def infer_iocontrol_ranges(ecu_def: dict) -> list[tuple[int, int]] | None:

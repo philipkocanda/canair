@@ -10,6 +10,9 @@ It complements the other audit tools:
   - `canair coverage`  finds undecoded *bytes* in PIDs that already have captures
   - `canair research`  surfaces *planned* work (scans/decodes/verifies) still to do
 
+`--gaps` derives work nobody has planned yet: IOControl DID families an ECU has
+actuators in but that no 0x22 read has reached (see `gaps.py`).
+
 Modes / filters (all combine with AND):
   --ecu ECU             Only this ECU
   --type TYPE           scan | decode | verify | iocontrol_scan
@@ -20,6 +23,7 @@ Modes / filters (all combine with AND):
                         (aliases: --vehicle-states / --prerequisite / --prereq;
                         case-insensitive)
   --summary             Counts by status / type / priority / ECU
+  --gaps                IOControl DID families never read with 0x22 (derived)
   --all                 Include done items (hidden by default)
   --verbose             Show full notes/results (default caps long prose)
   --json                Machine-readable output
@@ -32,6 +36,7 @@ Examples:
   canair research --type decode        # captured-but-undecoded work
   canair research --priority P1        # high-value items only
   canair research --states acc         # what needs ACC power to test
+  canair research --gaps               # actuator families whose records were never read
   canair research --json               # for further processing
 """
 
@@ -324,6 +329,13 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         help="Show aggregate counts instead of the item list",
     )
     parser.add_argument(
+        "--gaps",
+        action="store_true",
+        help="List IOControl DID families never read with 0x22, derived from iocontrol:, "
+        "scan_log:, research: and saved scans (combines with --ecu, --json and --dir only; "
+        "with --dir, saved scans are not consulted)",
+    )
+    parser.add_argument(
         "--all", "-a", action="store_true", help="Include done items (hidden by default)"
     )
     parser.add_argument(
@@ -341,6 +353,8 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
 
 
 def run(args) -> int:
+    if getattr(args, "gaps", False):
+        return run_gaps(args)
     records = load_research(args.dir)
     if not records:
         print("  No research entries found in ecus/.")
@@ -381,4 +395,62 @@ def run(args) -> int:
         if not args.all and args.status is None:
             hidden_done = sum(1 for r in records if r.get("status") == "done")
         cmd_list(filtered, hidden_done=hidden_done, verbose=args.verbose)
+    return 0
+
+
+def run_gaps(args) -> int:
+    """``--gaps``: print the derived unread-family list."""
+    from .gaps import capture_read_ranges, find_gaps
+
+    clashing = [
+        flag
+        for flag, value in (
+            ("--type", args.rtype),
+            ("--status", args.status),
+            ("--priority", args.priority),
+            ("--states", args.state),
+            ("--summary", args.summary),
+            ("--all", args.all),
+        )
+        if value
+    ]
+    if clashing:
+        print(
+            f"error: --gaps lists derived work, which {', '.join(clashing)} cannot filter",
+            file=sys.stderr,
+        )
+        return 2
+
+    ecus = load_pids(args.dir).get("ecus", {}) or {}
+    captured = {}
+    if args.dir is None:
+        from canlib.captures.store import load_all_captures
+
+        captured = capture_read_ranges(load_all_captures())
+    gaps = find_gaps(ecus, captured, ecu=args.ecu)
+
+    if args.json:
+        json.dump(gaps, sys.stdout, indent=2)
+        print()
+        return 0
+    if not gaps:
+        print("  No unread IOControl families: every one has had a 0x22 read.")
+        return 0
+    print(
+        f"\n  {ansi.BOLD}Unread DID families{ansi.RESET} — {len(gaps)} IOControl family(ies) "
+        "no 0x22 read has reached"
+    )
+    print(
+        f"  {ansi.DIM}An ECU often keeps its live-data records in its actuators' family; "
+        f"derived, not research: entries.{ansi.RESET}\n"
+    )
+    for g in gaps:
+        n = len(g["iocontrol_dids"])
+        tracked = f"  {ansi.DIM}(planned in research:){ansi.RESET}" if g["tracked"] else ""
+        print(
+            f"  {ansi.CYAN}{g['ecu']:<11}{ansi.RESET} {ansi.BOLD}{g['family']}{ansi.RESET}  "
+            f"{n} actuator DID(s) {g['iocontrol_span']}{tracked}"
+        )
+        print(f"       {ansi.DIM}→ {g['command']}{ansi.RESET}")
+    print()
     return 0

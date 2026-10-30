@@ -102,7 +102,10 @@ class TestDidFamilies:
         ecu = {
             "pids": {"22B002": {}, "22B00B": {}, "2101": {}},
             "iocontrol": {"B101": {}, "B130": {}},
-            "iocontrol_discoveries": {"B108": {}, "C001": {}},
+            "iocontrol_discoveries": {
+                "B108": {"response": "6FB10800"},
+                "C001": {"response": "6FC00100"},
+            },
         }
         assert sp.did_families(ecu) == {0xB0: "PIDs", 0xB1: "IOControl", 0xC0: "IOControl"}
 

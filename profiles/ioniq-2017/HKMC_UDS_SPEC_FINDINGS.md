@@ -151,14 +151,14 @@ only item it marks. This car follows the family part but not the slot meanings: 
 `BC01`-`BC08`, the BCM `B001`-`B00F`, the SKM `B002`-`B00B`, the cluster `B001`-`B003`.
 
 **An ECU's IOControl DIDs often share that family, and are then readable with `22`.** The IGPM
-reads and actuates `BCxx`, the BCM `B0xx`. Four ECUs here have IOControl DIDs that were never read,
-because their `22` sweeps stopped at `B001`-`B010`:
+reads and actuates `BCxx`, the BCM `B0xx`. Four ECUs here have IOControl DIDs no `22` read has
+reached; `canair research --gaps` lists them with the scan to run:
 
 | ECU | IOControl DIDs | Read with `22` |
 |---|---|---|
 | PSM | `B401`-`B408` | never tried |
-| SKM | `B101`-`B130` | never tried (its reads are `B0xx`) |
-| DDM | `B000`-`B524` (`B1xx` release positively, the rest answer NRC 0x22) | never tried |
+| SKM | `B101`-`B130` | `B100`-`B110` swept on 2026-04-18, no answer at all (asleep) |
+| DDM | `B100`-`B1FF` release positively; `B000`-`B524` otherwise all answer NRC 0x22 | never tried |
 | VESS | `F011` | never tried |
 
 The rule has an exception on this car: HVAC's IOControl DIDs `F011`-`F027` all answered an NRC to

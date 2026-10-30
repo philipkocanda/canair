@@ -58,6 +58,18 @@ canair pids add-research MyECU --type decode --target 2101 \
 canair research --summary    # your open reverse-engineering backlog
 ```
 
+Once `scan iocontrol` has found an ECU's actuators, ask which of their DID families
+nobody has read yet. ECUs often keep their live-data records next to their actuators,
+so this is where to look on an ECU that seemed to have no live data:
+
+```bash
+canair research --gaps       # actuator families no 0x22 read has reached, with the scan to run
+```
+
+It works from what the profile already records: the `iocontrol:` and
+`iocontrol_discoveries:` entries, `scan_log:`, `research:` targets and saved
+`scan range --save` sessions (a sweep the ECU slept through doesn't count).
+
 ---
 
 Next: **[5. Capture →](05-capture.md)**
