@@ -312,13 +312,13 @@ BCM:
             192: unknown_192
           min: "0"
           max: "255"
-          source: Cross-tab vs IGPM ACC2_IGN_ON and BCM_IGN_SUPPLY_V 2026-10-22
+          source: Cross-tab vs IGPM IGN1_SWITCH and BCM_IGN_SUPPLY_V 2026-10-22
           verified: false
           notes: >-
             Bits 1-3 only ever set together (14). 14 in all 51 rows where BCM_IGN_SUPPLY_V is on, 0
-            in all 908 where it is off; equals ACC2_IGN_ON in all 326 aligned rows, including
+            in all 908 where it is off; equals IGN1_SWITCH in all 326 aligned rows, including
             CHARGING+ON with the drive path down. 192 (bits 6, 7) in 2 untimed SLEEP captures on
-            2026-04-17, unexplained. Disabled as a duplicate of ACC2_IGN_ON.
+            2026-04-17, unexplained. Disabled as a duplicate of IGN1_SWITCH.
           enabled: false
         BCM_B004_B12_5:
           expression: B12:5
@@ -437,7 +437,7 @@ BCM:
           source: Ignition cross-tab 2026-10-22
           verified: false
           notes: >-
-            1 in 51 of 345 captures. Equals IGPM ACC2_IGN_ON and BCM_IGN_SUPPLY_V in every aligned
+            1 in 51 of 345 captures. Equals IGPM IGN1_SWITCH and BCM_IGN_SUPPLY_V in every aligned
             row (kappa 1.00), including ignition-on rows with the drive path down, so it follows the
             ignition, not READY. Disabled as a duplicate.
           enabled: false
@@ -462,7 +462,7 @@ BCM:
           source: Ignition cross-tab 2026-10-22
           verified: false
           notes: >-
-            1 in 50 of 348 captures. Equals IGPM ACC2_IGN_ON and BCM_IGN_SUPPLY_V in every aligned
+            1 in 50 of 348 captures. Equals IGPM IGN1_SWITCH and BCM_IGN_SUPPLY_V in every aligned
             row (kappa 1.00), including ignition-on rows with the drive path down, so it follows the
             ignition, not READY. Disabled as a duplicate.
           enabled: false
@@ -494,7 +494,7 @@ BCM:
           source: Ignition cross-tab 2026-10-22
           verified: false
           notes: >-
-            1 in 50 of 344 captures. B12:3 is identical in every capture. Equals IGPM ACC2_IGN_ON
+            1 in 50 of 344 captures. B12:3 is identical in every capture. Equals IGPM IGN1_SWITCH
             and BCM_IGN_SUPPLY_V in every aligned row (kappa 1.00), including ignition-on rows with
             the drive path down, so it follows the ignition, not READY. Disabled as a duplicate.
           enabled: false
@@ -525,7 +525,7 @@ BCM:
           verified: false
           notes: >-
             B12 is 0x05 off, 0xC5 on (bit 7 moves with it). 1 in 50 of 344 captures. Equals IGPM
-            ACC2_IGN_ON and BCM_IGN_SUPPLY_V in every aligned row (kappa 1.00), including
+            IGN1_SWITCH and BCM_IGN_SUPPLY_V in every aligned row (kappa 1.00), including
             ignition-on rows with the drive path down, so it follows the ignition, not READY.
             Disabled as a duplicate.
           enabled: false
@@ -662,7 +662,7 @@ BCM:
           verified: false
           notes: >-
             Ignition-switched supply at the BCM. 0 in 2779 of 3688 captures; when on it reads 1-3
-            counts above BCM_12V_BATTERY. Equals IGPM ACC2_IGN_ON (on/off) in all 356 aligned rows,
+            counts above BCM_12V_BATTERY. Equals IGPM IGN1_SWITCH (on/off) in all 356 aligned rows,
             and is on in all 612 CHARGING+ON rows with the drive path down, so it follows the
             ignition, not READY. B23, B26 and B27 read the same within 1-3 counts. Not seen in ACC,
             so none of the four is the ACC input. The BCM connector has IGN1 (pin D2), IGN2 (D23),
@@ -905,7 +905,7 @@ BCM:
           source: Ignition cross-tab 2026-10-22
           verified: false
           notes: >-
-            1 in 703 of 3760 captures. Equals IGPM ACC2_IGN_ON and BCM_IGN_SUPPLY_V in every aligned
+            1 in 703 of 3760 captures. Equals IGPM IGN1_SWITCH and BCM_IGN_SUPPLY_V in every aligned
             row (kappa 1.00), including ignition-on rows with the drive path down, so it follows the
             ignition, not READY. Disabled as a duplicate.
           enabled: false
@@ -1280,7 +1280,7 @@ BCM:
       created: "2026-08-06"
       updated: "2026-10-22"
       result: >-
-        2026-10-22: 14 = ignition on (equals ACC2_IGN_ON in all 326 aligned rows and
+        2026-10-22: 14 = ignition on (equals IGN1_SWITCH in all 326 aligned rows and
         BCM_IGN_SUPPLY_V in all 959), 0 = off. Defined as the disabled enum BCM_IGN_STATE_B004. 192
         still only in 2 untimed 2026-04-17 SLEEP captures.
       notes: "coverage --bitfields reports 'BITS B11 have{6}' for this PID, but B10 is the byte carrying the live signal and it is an ENUM, not independent flags: across 893 captures it takes only 3 values — 0 (n=861), 14 = bits 1,2,3 (n=30), 192 = bits 6,7 (n=2). Bits 1/2/3 never move independently, nor do 6/7, so defining them as separate flags would misrepresent one state code as five flags. Value 14 coincides with READY / powered states, 0 with SLEEP; n=2 for 192 is too thin to name."

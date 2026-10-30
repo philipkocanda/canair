@@ -414,7 +414,7 @@ BMS:
             1 in all 2538 aligned READY rows (VCU EV_READY 1) and throughout the 2026-08-02 AC
             charge begun with the car READY (521 rows, EV_READY 0). 0 in every charge begun with the
             car off (AC and DC), in the 2026-10-21 12 V top-up, and on 2026-08-02 after that charge
-            ended: it fell at 11:18:39 when the HV contactors opened, while IGPM ACC2_IGN_ON still
+            ended: it fell at 11:18:39 when the HV contactors opened, while IGPM IGN1_SWITCH still
             read 1 (11:19:27) and the car was still in ON at 12:49. OBDb names this bit BMS
             ignition; the 2026-08-02 window shows it is not the plain ignition input.
           enabled: true
@@ -2022,7 +2022,7 @@ BMS:
       vehicle_states: [ACC, READY]
       created: "2026-10-27"
       updated: "2026-10-27"
-      notes: "B61 reads 0x0D (READY, or charging begun while READY), 0x09 (charging from off, 12 V top-up, plugged idle) and 0x01 (after a charge ends or at power-off) in 12079 captures. b3 is BMS_IG3_ON. b0 is 1 in every capture. b2 (BMS_2101_B61_2) follows READY rather than the ignition input: on 2026-08-02 it fell when the HV contactors opened at the end of a charge while IGPM ACC2_IGN_ON stayed 1. OBDb calls b2 BMS ignition; Kona Electric and Niro EV responses there use the same values (0x00, 0x01, 0x09, 0x0D)."
+      notes: "B61 reads 0x0D (READY, or charging begun while READY), 0x09 (charging from off, 12 V top-up, plugged idle) and 0x01 (after a charge ends or at power-off) in 12079 captures. b3 is BMS_IG3_ON. b0 is 1 in every capture. b2 (BMS_2101_B61_2) follows READY rather than the ignition input: on 2026-08-02 it fell when the HV contactors opened at the end of a charge while IGPM IGN1_SWITCH stayed 1. OBDb calls b2 BMS ignition; Kona Electric and Niro EV responses there use the same values (0x00, 0x01, 0x09, 0x0D)."
       sources:
         - canair B61 cross-tab 2026-10-27 (align BMS:2101:B61:2 vs VCU/IGPM)
         - OBDb Hyundai/Kia signalsets and test cases (data byte 50 of 2101/220101)

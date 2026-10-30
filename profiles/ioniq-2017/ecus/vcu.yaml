@@ -348,12 +348,12 @@ VCU:
           expression: B11:0|B11:1
           min: "0"
           max: "1"
-          source: canair cross-tab vs IGPM 22BC03 ACC2_IGN_ON 2026-10-23
+          source: canair cross-tab vs IGPM 22BC03 IGN1_SWITCH 2026-10-23
           verified: false
           notes: >-
             Ignition on, from the two brake-switch contacts (VEHICLE_STATE_BRAKE_LAMP,
             VEHICLE_STATE_NOT_BRAKING): one of them reads 1 with the ignition on and both read 0
-            with it off. Equals IGPM ACC2_IGN_ON in all 360 aligned rows (3 s join), including
+            with it off. Equals IGPM IGN1_SWITCH in all 360 aligned rows (3 s join), including
             charging and post-charge with the ignition on. Fits the stop-lamp switch being fed from
             IGN1; ACC is not told apart from off.
     2102:
@@ -812,7 +812,7 @@ VCU:
       vehicle_states: [ACC]
       created: "2026-07-30"
       updated: "2026-07-30"
-      notes: "Resolve the 4 start-button power states individually (READY / true-OFF / ACC amber / ON blue). 2026-07-30 keep-unique cycle proved VCU 2101 B11 is the power-state byte (values 0x5A READY, 0x92/0x91/0x80 accessory/off) and that EV_READY(B11:3)/POWER_ENABLE(B11:6)/LDC(1-B11:7) drop together leaving READY — but keep-unique collapsed the fast transitions so ACC/ON/OFF were not separated. Re-capture with: canair monitor 'VCU:2101 IGPM:22BC03' --interval 1 --keep-all --save, cycling and dwelling ~10s in each LED state; then map each B11 value + IGPM ACC2_IGN_ON to the amber/blue/off LED."
+      notes: "Resolve the 4 start-button power states individually (READY / true-OFF / ACC amber / ON blue). 2026-07-30 keep-unique cycle proved VCU 2101 B11 is the power-state byte (values 0x5A READY, 0x92/0x91/0x80 accessory/off) and that EV_READY(B11:3)/POWER_ENABLE(B11:6)/LDC(1-B11:7) drop together leaving READY — but keep-unique collapsed the fast transitions so ACC/ON/OFF were not separated. Re-capture with: canair monitor 'VCU:2101 IGPM:22BC03' --interval 1 --keep-all --save, cycling and dwelling ~10s in each LED state; then map each B11 value + IGPM IGN1_SWITCH to the amber/blue/off LED."
     - type: decode
       target: 2102 aux power siblings
       status: pending

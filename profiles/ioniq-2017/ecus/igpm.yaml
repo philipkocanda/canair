@@ -78,7 +78,7 @@ IGPM:
             ScanDoc 'Ignition 3 Relay' (22BC07 byte 2 bit 3; actuator BC44): the IGPM's own IG3
             relay output. The OBC's relay supplies IG3 while charging with the ignition off, which
             is why it reads 0 then. Aligned with VCU 2101 (3 s join, no fill): 1 in 60 of 61 READY
-            rows and in 19 of 19 rows of the parked 12 V top-up (2026-10-21, ACC2_IGN_ON 0). Aligned
+            rows and in 19 of 19 rows of the parked 12 V top-up (2026-10-21, IGN1_SWITCH 0). Aligned
             with BMS 2101: 0 in 239 of 242 charging rows; the 3 exceptions are 2026-08-02, a session
             with the ignition on. 0 in 13 of 14 other VCU rows (HV off or drive path down). In the
             top-up run it last read 1 at 21:16:47 and first read 0 at 21:17:21; the VCU's HV relay
@@ -209,7 +209,7 @@ IGPM:
           verified: true
           notes: 1 = on, also while the high beams are on. Verified 2026-04-15.
 
-        ACC2_IGN_ON:
+        IGN1_SWITCH:
           expression: "B11:5"
           ha_class: power
           source: "Kia Niro EV WiCAN PR#716"
@@ -221,9 +221,9 @@ IGPM:
             charging. Fob unlock does not set it. It rises with the ACC to ON press, where IGN1 and
             IGN2 are energised together, so it cannot be attributed to one of them from the button
             sequence. GDS names B11:5 'IGN1 Switch' and B11:6 'IGN2 Switch' (IGN2_SWITCH); the AE
-            manual's current-data list runs brake fluid, IGN1, IGN2 in bit order. The name stays
-            because the ON state predicate and other ECUs' notes use it. IGN2 should drop while
-            START is held and IGN1 stay; not yet captured.
+            manual's current-data list runs brake fluid, IGN1, IGN2 in bit order. The ON state
+            predicate reads it. IGN2 should drop while START is held and IGN1 stay; not yet
+            captured. Named ACC2_IGN_ON until 2026-10-30.
 
         SEATBELT_FL:
           expression: "B11:1"
@@ -269,8 +269,8 @@ IGPM:
           source: RE 2026-07-23 bit analysis (40 captures)
           verified: false
           notes: >-
-            GDS 'IGN2 Switch' (22BC03 byte 1 bit 6). Equals ACC2_IGN_ON (the IGN1 switch, B11:5) in
-            every capture so far; the two should differ only while START is held (IGN2 drops, IGN1
+            GDS 'IGN2 Switch' (22BC03 byte 1 bit 6). Equals IGN1_SWITCH (B11:5) in every capture so
+            far; the two should differ only while START is held (IGN2 drops, IGN1
             stays), which has not been recorded. Disabled so it does not ship a duplicate. Named
             IGN_STATUS_MIRROR until 2026-10-30.
           enabled: false
@@ -333,15 +333,15 @@ IGPM:
           verified: false
           notes: >-
             GDS 'Power Window Enable Relay' (first item of the 22BC04 current-data list). Follows
-            the ignition on the way up: equals 22BC03 ACC2_IGN_ON in 431 of 432 aligned rows, with
+            the ignition on the way up: equals 22BC03 IGN1_SWITCH in 431 of 432 aligned rows, with
             the same poll rising. The BCM keeps the power-window relay on for 30 s after the
             ignition goes off and cuts it at once when a door opens, which fits the fall: 2026-08-08
-            17:52:39, ACC2_IGN_ON 0 with the doors shut and EV_READY falling by 17:52:49, this bit
+            17:52:39, IGN1_SWITCH 0 with the doors shut and EV_READY falling by 17:52:49, this bit
             still 1 in the read 0.25 s later and 0 by the next stored row at 17:53:19; on 2026-07-30
-            ACC2_IGN_ON went off 09:50:29 and this bit was first seen 0 at 09:51:14 (keep:unique).
+            IGN1_SWITCH went off 09:50:29 and this bit was first seen 0 at 09:51:14 (keep:unique).
             It fell in the same poll at the other 3 recorded power-offs; the aligned rows show the
             doors shut there too, so why is not established. Disabled as a near-duplicate of
-            ACC2_IGN_ON. Named ACC2_IGN_ON_BC04 until 2026-10-30.
+            IGN1_SWITCH. Named ACC2_IGN_ON_BC04 until 2026-10-30.
           enabled: false
         INTERIOR_LAMP_AUTOCUT_RELAY:
           expression: B13:6
@@ -582,7 +582,7 @@ IGPM:
           source: canair align cross-tab 2026-10-21; OBDb label added 2026-10-27
           verified: false
           notes: >-
-            Set only when the tail and low-beam outputs are on AND ACC2_IGN_ON=1 (23 rows). 0 in the
+            Set only when the tail and low-beam outputs are on AND IGN1_SWITCH=1 (23 rows). 0 in the
             6 rows with the lamps still on after ignition off, and 0 with the lamps off. The OBDb
             Hyundai-IONIQ-Electric signalset reads this byte as HL_SW, 'Headlight switch' (0 or 4,
             equal to this bit in every capture). ScanDoc lists this bit as the low beam switch
@@ -1039,7 +1039,7 @@ IGPM:
       notes: >-
         INTERIOR_LAMP_AUTOCUT_RELAY stayed 1 after 3 of 6 recorded locks, but each of those
         recordings stopped (or was keep:unique) before it could show the fall.
-        POWER_WINDOW_ENABLE_RELAY fell up to ~40 s after ACC2_IGN_ON at 2 of 5 power-offs; polling
+        POWER_WINDOW_ENABLE_RELAY fell up to ~40 s after IGN1_SWITCH at 2 of 5 power-offs; polling
         was too sparse to time it.
       what_to_test:
         - "Power off, wait 60 s, fob lock, keep recording 3 min: time B13:6 and B10:0 against the lock and the power button."

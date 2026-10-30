@@ -73,7 +73,7 @@ states:
   - name: "ON"
     description: "Start/Stop button ON position (blue LED, second press without the brake): ACC, IGN1 and IGN2 energised; HV may be off."
     implies: [ACC]
-    when: IGPM.ACC2_IGN_ON == 1
+    when: IGPM.IGN1_SWITCH == 1
   - name: PARKED
     description: Stationary, gear in Park.
     when: VCU.GEAR_P == 1 or ESC.GEAR_SELECTOR == 1
