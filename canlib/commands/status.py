@@ -154,7 +154,19 @@ def _gather(args) -> dict:
         from ..profile import active
 
         prof = active()
-        info["profile"] = {"name": prof.name, "root": str(prof.root)}
+        info["profile"] = {
+            "name": prof.name,
+            "root": str(prof.root),
+            "variant": prof.variant,
+            "variant_source": prof.variant_source,
+        }
+        from canlib.variants import load_variants
+
+        if prof.variant is None and len(load_variants(prof)) > 1:
+            info["warnings"].append(
+                f"no variant selected for {prof.name}: live commands will refuse — pick yours "
+                f"with `canair profile use {prof.name} --variant ID`"
+            )
     except Exception as e:
         info["profile"] = None
         info["warnings"].append(f"no active profile: {e}")
@@ -389,6 +401,10 @@ def _render(info: dict) -> None:
     p = info.get("profile")
     if p:
         c.print(f"  [bold]Profile[/bold]    {p['name']}  [dim]{p['root']}[/dim]")
+        if p.get("variant"):
+            c.print(
+                f"  [bold]Variant[/bold]    {p['variant']}  [dim](from {p['variant_source']})[/dim]"
+            )
 
     d = info.get("device")
     fw = info.get("firmware") or {}

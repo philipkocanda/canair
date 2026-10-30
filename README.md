@@ -145,6 +145,7 @@ canair config set devices.home.host 192.168.1.100
 canair config set default_wican home
 canair status                           # is the device reachable?
 canair discover                         # list every ECU on the bus (any car)
+canair profile use hyundai-ioniq-ae-ev --variant 28kwh   # which car you have (once)
 canair read BMS:2101                    # read a PID (Ioniq profile)
 canair monitor @charging                # monitor a saved selector group (see `canair groups`)
 ```

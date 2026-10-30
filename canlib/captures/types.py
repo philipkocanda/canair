@@ -105,14 +105,16 @@ class StateSpans(TypedDict):
     version: NotRequired[str]
 
 
-AttributionSource = Literal["selected", "migrated", "asserted"]
+AttributionSource = Literal["selected", "alias", "only", "migrated", "asserted"]
 """How a session's ``variant`` tag was decided (see :class:`Attribution`)."""
 
 
 class Attribution(TypedDict, total=False):
     """Where a session's tags came from, per tagged field.
 
-    ``selected``: the recording command was given ``--variant``/``CANAIR_VARIANT``;
+    ``selected``: the recording named the car (``--variant``, ``CANAIR_VARIANT`` or the
+    config); ``alias``: implied by the old profile name it was recorded under (shown as
+    unconfirmed); ``only``: the profile declares one variant;
     ``migrated``: stamped onto existing history by ``captures migrate-variants``;
     ``asserted``: set afterwards with ``captures uds --set-variant``.
     """

@@ -34,6 +34,7 @@ you forking it.
 
 from __future__ import annotations
 
+import dataclasses
 import os
 import sys
 from dataclasses import dataclass
@@ -157,7 +158,9 @@ class Profile:
     # The selected variant (a variants.yaml ID, or the analysis scope all/untagged)
     # and where it came from — see canlib.variants.selection.
     variant: str | None = None
-    variant_source: Literal["flag", "env"] | None = None
+    variant_source: Literal["flag", "env", "config", "alias", "only"] | None = None
+    # The old profile name this profile was resolved through (an ``aliases:`` entry).
+    alias: str | None = None
 
     @property
     def layered(self) -> bool:
@@ -477,14 +480,19 @@ def _resolve_named(name: str, profiles_dir, index: AliasIndex) -> Profile:
 _noted_renames: set[str] = set()
 
 
-def _note_renamed(alias: str, target: str) -> None:
-    """Say once per process that an old profile name was used."""
+def _note_renamed(alias: str, prof: Profile) -> None:
+    """Say once per process that an old profile name was used, and what to use instead."""
+    from .profile_names import declared_aliases
+
     if alias in _noted_renames:
         return
     _noted_renames.add(alias)
+    variant = declared_aliases(prof.root).get(alias, {}).get("variant")
+    implied = f" (variant {variant})" if variant else ""
+    switch = f"canair profile use {prof.name}" + (f" --variant {variant}" if variant else "")
     print(
-        f"note: profile '{alias}' is now '{target}'. The old name keeps working; "
-        f"switch with `canair profile use {target}`.",
+        f"note: profile '{alias}' is now '{prof.name}'{implied}. The old name keeps working; "
+        f"switch with `{switch}`.",
         file=sys.stderr,
     )
 
@@ -534,9 +542,10 @@ def resolve_profile(
             return _resolve_named(name, profiles_dir, index)
         target = _alias_target(name, index)
         if target in profiles:
+            prof = dataclasses.replace(_resolve_named(target, profiles_dir, index), alias=name)
             if typed:
-                _note_renamed(name, target)
-            return _resolve_named(target, profiles_dir, index)
+                _note_renamed(name, prof)
+            return prof
         avail = ", ".join(profiles) or "none"
         raise ProfileError(f"Profile '{name}' not found. Available: {avail}.")
 

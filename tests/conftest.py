@@ -46,6 +46,13 @@ def _isolate_user_config(tmp_path_factory):
     not to the developer's real environment).
     """
     path = tmp_path_factory.mktemp("xdg_config_home")
+    # The suite's bundled profile describes several cars; name the one its captures came
+    # from, as a user does once with `profile use … --variant`. Per profile, so a test
+    # that switches to another bundled profile meets it unselected, like a new user.
+    (path / "canair").mkdir()
+    (path / "canair" / "config.yaml").write_text(
+        "profile_settings:\n  hyundai-ioniq-ae-ev:\n    variant: 28kwh\n"
+    )
     prev = os.environ.get("XDG_CONFIG_HOME")
     os.environ["XDG_CONFIG_HOME"] = str(path)
     yield

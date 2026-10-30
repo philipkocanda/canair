@@ -6,7 +6,7 @@
 car_model: "XPeng G6 (F30)"  # built on an 87.5 kWh car
 # Former names that still resolve to this profile.
 aliases:
-  xpeng-g6: {}
+  xpeng-g6: {variant: 87kwh}  # the old profile named this one car
 # The upstream ELM327 init is
 # ATH1;ATSP6;ATS0;ATM0;ATAT1;ATSH704;ATCRA784;ATFCSH704;ATFCSM1 — the header,
 # receive filter and flow control are set per ECU by canair itself (from

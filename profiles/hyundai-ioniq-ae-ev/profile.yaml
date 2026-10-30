@@ -26,7 +26,7 @@
 car_model: "Hyundai Ioniq Electric (AE)"  # built on a 2017 28 kWh car
 # Former names that still resolve to this profile.
 aliases:
-  ioniq-2017: {}
+  ioniq-2017: {variant: 28kwh}  # the old profile named this one car
 init: "ATSP6;ATS0;ATAL;ATST96;"
 
 # BATTERY COOLING: this car's 28 kWh pack is AIR-COOLED (no liquid thermal

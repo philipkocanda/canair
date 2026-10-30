@@ -177,10 +177,13 @@ def run(args) -> int:
     from canlib.lock import WiCANLock
     from canlib.lock_watchdog import LockWatchdog
     from canlib.modes.raw_ops import slcan_preflight
+    from canlib.profile import active
     from canlib.stop_signals import graceful_stop
     from canlib.transport import resolve_transport
+    from canlib.variants.selection import require_variant
     from canlib.wican.mode import ModeError
 
+    require_variant(active(), "sniff the car")
     t = resolve_transport(args)
     try:
         filters = _parse_filters(args.filter)

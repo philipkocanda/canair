@@ -216,8 +216,25 @@ async def async_main(args):
     return rc
 
 
+# The live commands that help a user find out which car they have, and so may run
+# before one is chosen — but only while they record nothing.
+_IDENTIFYING_COMMANDS = frozenset({"discover", "disc", "identity", "id"})
+
+
+def _require_car(args) -> None:
+    """Refuse a live command until the profile's car is named (see require_variant)."""
+    from canlib.profile import active
+    from canlib.variants.selection import require_variant
+
+    saving = bool(getattr(args, "save", False))
+    if getattr(args, "command", None) in _IDENTIFYING_COMMANDS and not saving:
+        return
+    require_variant(active(), "record captures" if saving else "talk to the car")
+
+
 def run_live(args) -> int:
     """Acquire the device lock and run ``async_main`` for a live subcommand."""
+    _require_car(args)
     lock = WiCANLock()
     lock.acquire(force=args.force)
 

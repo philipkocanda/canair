@@ -63,14 +63,28 @@ variants as if they did.
   Record whether a battery figure is usable or gross; makers quote either.
 - **Edit with `canair variants`**, never by hand (`--help` for the syntax). Pass `--profile`.
 
+## Choosing the car you're working on
+
+On a profile with several variants, canair refuses to talk to the car, record or generate the
+AutoPID profile until a variant is named — and there is no default, by design. Name it with
+`canair profile use NAME --variant ID` (remembered per profile) or the global `--variant` for one
+command; `docs/concepts/variants.md` has the precedence.
+
+- **Never pick a variant to make a refusal go away.** Ask the user which car they have, or run
+  `discover`/`identity` (allowed without a choice) and read the evidence. A wrong choice tags
+  every recording with the wrong car.
+- **An old profile name may imply a variant** (`ioniq-2017` is the 28 kWh car). Those tags are
+  attributed `alias` and shown as unconfirmed; replace them with an explicit choice when the user
+  confirms.
+
 ## Tagging captures with the car they came from
 
 A capture is evidence about one car, so on a profile with several variants every session should
 say which: its `variant` tag, set by the global `--variant ID` flag (see
 `docs/concepts/variants.md` for the mechanics).
 
-- **Record with `--variant`** whenever you know the car. Without it the session is untagged, and
-  analysis can't tell it apart from another car's.
+- **Every recording is tagged with the chosen car**, so the choice above is what makes the tag
+  right.
 - **Every import names the car on the command line.** A forum paste or a third-party log is
   someone else's car; `import uds`/`import can` refuse without the global `--variant`, and
   `CANAIR_VARIANT` doesn't count. Never pick a variant just to make the command run: if the

@@ -101,6 +101,7 @@ Dotted keys create nested mappings (e.g. transport.type).
 
 known keys:
   default_profile
+  profile_settings.<profile>.variant
   profiles_dir
   default_wican
   devices.<alias>.host

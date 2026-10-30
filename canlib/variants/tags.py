@@ -40,12 +40,17 @@ def selected_variant(profile: Profile) -> str | None:
     return None if not variant or variant in SCOPES else variant
 
 
+# How each way of selecting a variant is recorded on the session it tags.
+_ATTRIBUTION = {"flag": "selected", "env": "selected", "config": "selected", "alias": "alias"}
+
+
 def capture_tag(profile: Profile) -> dict[str, Any] | None:
     """The tag a new recording against ``profile`` gets, or None (left untagged)."""
     variant = selected_variant(profile)
     if variant is None:
         return None
-    return {"variant": variant, "attribution": {"variant": "selected"}}
+    source = getattr(profile, "variant_source", None)
+    return {"variant": variant, "attribution": {"variant": _ATTRIBUTION.get(source, "only")}}
 
 
 def session_variant(session: Mapping[Any, Any]) -> str | None:
@@ -53,14 +58,23 @@ def session_variant(session: Mapping[Any, Any]) -> str | None:
     return str(value) if value else None
 
 
-def in_scope(session: Mapping[Any, Any], scope: str | None) -> bool:
-    """Whether ``session`` belongs to the ``--variant`` ``scope`` (None = everything)."""
-    if not scope or scope == SCOPE_ALL:
+def in_scope(session: Mapping[Any, Any], scope: str | None, *, several: bool = False) -> bool:
+    """Whether ``session`` belongs to the analysis ``scope``.
+
+    ``scope`` is the selected ``--variant``: an ID (that car's sessions, plus the untagged
+    ones, read as that car), ``all``, ``untagged``, or None. ``several`` says the profile
+    declares more than one variant; only then does None leave the untagged sessions out —
+    with no car named, nothing says which car they are. With one variant or none there is
+    nothing to tell apart, and every session is in scope.
+    """
+    if scope == SCOPE_ALL:
         return True
     variant = session_variant(session)
     if scope == SCOPE_UNTAGGED:
         return variant is None
-    return variant == scope
+    if variant is None:
+        return bool(scope) or not several
+    return not scope or variant == scope
 
 
 def strip_tag(session: Mapping[Any, Any]) -> dict[Any, Any]:

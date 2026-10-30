@@ -6,8 +6,9 @@ Hyundai Ioniq Electric (AE). Within it, cars still differ in ways an owner can n
 profile's **variants**, declared in its `variants.yaml`.
 
 !!! note "What variants do so far"
-    Variants record *what* versions of the car exist and what is known about each, and
-    [captures can be tagged](#tagging-captures-with-the-car) with the one they came from.
+    Variants record *what* versions of the car exist and what is known about each; you
+    [name yours](#choosing-your-car) once, and [captures are
+    tagged](#tagging-captures-with-the-car) with the one they came from.
     Nothing limits a definition to one variant yet: every definition in the profile still
     applies to every car. The design for what follows is in
     [`plans/2026-10-30-profile-variants-and-rename.md`](https://github.com/philipkocanda/canair/blob/main/plans/2026-10-30-profile-variants-and-rename.md).
@@ -96,32 +97,65 @@ Short lists (`markets`, `trims`) are comma-separated; `sources` takes one source
 `canair profile show` lists a profile's variants, and the
 [profile explorer](../profiles/explorer.md) shows them in its toolbar.
 
+## Choosing your car
+
+Name your car once per profile, and canair remembers it:
+
+```bash
+canair profile use hyundai-ioniq-ae-ev --variant 28kwh   # on a terminal, omit --variant to pick
+canair --variant 38kwh read BMS                          # or for one command
+```
+
+The variant in effect is the first of:
+
+1. the global `--variant ID` flag;
+2. `CANAIR_VARIANT`;
+3. `profile_settings.<profile>.variant` in your config (what `profile use … --variant` writes);
+4. the variant an **old profile name** implies, when you used one — `ioniq-2017` names the 28 kWh
+   car, so a setup still using it keeps working unchanged;
+5. the only variant, when the profile declares just one.
+
+There is **no default**. On a profile with several variants and none chosen, every command that
+talks to the car, records a capture or generates the AutoPID profile does nothing, and says how to
+pick:
+
+```text
+error: hyundai-ioniq-ae-ev describes 2 variants and none is selected, so canair won't talk to the car.
+
+  28kwh   Ioniq Electric 28 kWh (pre-facelift) · built 2016 – 2019-05 · 28 kWh usable · verified
+  38kwh   Ioniq Electric 38 kWh (facelift) · built 2019-06 – 2022 · 38.3 kWh usable · seed
+
+  Pick yours once:     canair profile use hyundai-ioniq-ae-ev --variant 28kwh
+  Or for one command:  canair --variant 28kwh <command> …
+```
+
+`discover` and `identity` still run without a choice (they're how you find out), as long as they
+don't `--save`. Editing definitions, `status`, `config` and read-only analysis don't need one
+either. `canair status` and `canair profile show` report the variant in effect and where it came
+from.
+
 ## Tagging captures with the car
 
 A capture is evidence about one car. In a profile with several variants, a session says which
 car it came from with a `variant` tag, plus an `attribution` recording how that was decided.
 
-Name your car with the global `--variant` flag (or `CANAIR_VARIANT`). It must be one of the
-profile's variants, and an unknown one is an error listing the valid ones:
-
-```bash
-canair --variant 28kwh monitor @driving --save --label "commute"   # tagged 28kwh
-canair --variant 28kwh decode BMS:2101                             # only that car's sessions
-```
+Every recording is tagged with [the car you chose](#choosing-your-car). A chosen variant must be
+one of the profile's, and an unknown one is an error listing the valid ones.
 
 | Where | What the tag does |
 |---|---|
-| `--save` on any live command | the session is tagged `selected`; without `--variant` it stays untagged |
+| `--save` on any live command | the session is tagged; its attribution is `selected` (you named it), `alias` (implied by an old profile name — shown as unconfirmed) or `only` (the profile's one variant) |
 | `canair import uds` / `import can` | on a multi-variant profile the global `--variant` is **required** (an import is someone else's car, so `CANAIR_VARIANT` doesn't count) |
 | `canair dtc` | each logged scan records the variant |
-| analysis (`decode`, `captures`, `correlate`, …) | `--variant ID` scopes to that car's sessions; `--variant all` (the default) to every session, `--variant untagged` to sessions with no tag |
+| analysis (`decode`, `captures`, `correlate`, …) | scoped to your car's sessions, plus untagged ones read as your car (with a note); with no car chosen, every tagged session and no untagged ones; `--variant all` / `--variant untagged` override that |
 
 The tag is part of the recording, so a session recovered after a crash keeps the car it was
 recorded with, whatever a later run selects.
 
 `canair captures uds --sessions` shows each session's tag, and marks untagged sessions on a
-profile with several variants. `canair validate captures` counts the untagged sessions and warns
-about a tag naming a variant the profile doesn't declare.
+profile with several variants. `canair validate captures` counts the untagged sessions (CI
+fails if that count grows: `--max-untagged N`) and warns about a tag naming a variant the
+profile doesn't declare.
 
 ### Tagging existing history
 

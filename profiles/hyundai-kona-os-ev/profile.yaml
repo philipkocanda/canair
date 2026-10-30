@@ -32,7 +32,7 @@
 car_model: "Hyundai Kona Electric (OS)"  # seeded for the 64 kWh pack
 # Former names that still resolve to this profile.
 aliases:
-  kona-electric-2019: {}
+  kona-electric-2019: {variant: 64kwh}  # the old profile named this one car
 
 # Hyundai ECUs respond slowly and the first request after idle can time out —
 # keep the ELM327 response timeout high (ATST96 ~= 614 ms), as on the Ioniq.

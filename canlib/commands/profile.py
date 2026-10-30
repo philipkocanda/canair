@@ -50,7 +50,7 @@ examples:
   canair profile show                         # details of the active profile
   canair profile show hyundai-ioniq-ae-ev              # details of a named profile
   canair profile path                         # print the active profile's directory
-  canair profile use hyundai-ioniq-ae-ev               # set the default profile
+  canair profile use hyundai-ioniq-ae-ev --variant 28kwh   # set the default profile + your car
   canair profile create kia-ev6-cv-ev --car-model "Kia EV6 (CV)"
   canair profile create kia-ev6-cv-ev --car-model "Kia EV6 (CV)" --set-default
   canair profile adopt hyundai-ioniq-ae-ev              # writable copy under ~/.config/canair
@@ -72,12 +72,20 @@ examples:
 
     use = sub.add_parser(
         "use",
-        help="Set the default profile (default_profile in the user config)",
-        description="Set NAME as the default profile — an alias for "
-        "`canair config set default_profile NAME`. The name must be a discovered "
-        "profile.",
+        help="Set the default profile, and which of its variants your car is",
+        description="Set NAME as the default profile (default_profile in the user config) "
+        "and, with --variant, which of its variants your car is "
+        "(profile_settings.NAME.variant, remembered per profile). On a terminal, a profile "
+        "with several variants and no --variant opens a picker. The name must be a "
+        "discovered profile; an old, renamed name is accepted and saved as the current one.",
     )
     use.add_argument("name", help="Profile name to set as default")
+    use.add_argument(
+        "--variant",
+        dest="use_variant",
+        metavar="ID",
+        help="The variant your car is (a variants.yaml ID), remembered for this profile",
+    )
     use.set_defaults(_profile_func=_cmd_use)
 
     crt = sub.add_parser(
@@ -215,6 +223,12 @@ def _cmd_pick(args) -> int:
     path = set_config_value("default_profile", name)
     print(f"default_profile = {name}")
     print(f"  ({root})")
+    variant = _choose_variant(name, getattr(args, "profiles_dir", None), None)
+    if variant:
+        from canlib.config import set_config_key
+
+        set_config_key(f"profile_settings.{name}.variant", variant)
+        print(f"profile_settings.{name}.variant = {variant}")
     print(f"Saved to {path}")
     return 0
 
@@ -359,6 +373,16 @@ _MEMBER_DETAIL = {
 }
 
 
+# How `profile show` names where the selected variant came from.
+_VARIANT_SOURCE = {
+    "flag": "--variant",
+    "env": "CANAIR_VARIANT",
+    "config": "profile_settings in the config",
+    "alias": "the old profile name",
+    "only": "the profile's only variant",
+}
+
+
 def _cmd_show(args) -> int:
     from canlib.profile import BUNDLE_MEMBERS
 
@@ -369,6 +393,10 @@ def _cmd_show(args) -> int:
     for overlay in prof.overlays:
         print(f"overlay:    {overlay}  (your layer — captures land here)")
     print(f"car_model:  {meta.get('car_model', '?')}")
+    if prof.variant:
+        print(
+            f"variant:    {prof.variant}  (from {_VARIANT_SOURCE[prof.variant_source or 'only']})"
+        )
     print(f"init:       {meta.get('init', '?')}")
 
     for member in BUNDLE_MEMBERS:
@@ -413,8 +441,56 @@ def _cmd_use(args) -> int:
         return 1
     path = set_config_value("default_profile", name)
     print(f"default_profile = {name}")
+    variant = _choose_variant(name, profiles_dir, getattr(args, "use_variant", None))
+    if variant == "":
+        return 2
+    if variant:
+        from canlib.config import set_config_key
+
+        set_config_key(f"profile_settings.{name}.variant", variant)
+        print(f"profile_settings.{name}.variant = {variant}")
     print(f"Saved to {path}")
     return 0
+
+
+def _choose_variant(name: str, profiles_dir, requested: str | None) -> str | None:
+    """The variant to remember for ``name``: the one requested, else picked on a TTY.
+
+    Returns None when there is nothing to choose (or the choice was skipped), and ""
+    after reporting an invalid ``requested`` variant.
+    """
+    from canlib.variants import VariantsError, describe, load_variants, normalize_variant_id
+
+    try:
+        variants = load_variants(resolve_profile(name, profiles_dir))
+    except (ProfileError, VariantsError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return ""
+    if requested:
+        vid = normalize_variant_id(requested)
+        if vid not in variants:
+            known = ", ".join(variants) or "none (no variants.yaml)"
+            print(f"error: '{name}' has no variant {vid!r}. Declared: {known}.", file=sys.stderr)
+            return ""
+        return vid
+    if len(variants) < 2:
+        return None
+    if not (sys.stdin.isatty() and sys.stdout.isatty()):
+        print(
+            f"note: '{name}' describes {len(variants)} variants; name yours with "
+            f"`canair profile use {name} --variant ID` ({', '.join(variants)})."
+        )
+        return None
+    from canlib.tui import select_from_list
+
+    items = list(variants.items())
+    chosen = select_from_list(
+        items,
+        title=f"Which {name} is your car?",
+        render=lambda item: f"[bold]{item[0]}[/bold]\n     [dim]{describe(item[1])}[/dim]",
+        footer="↑/↓ move · enter choose · q/esc skip",
+    )
+    return chosen[0] if chosen else None
 
 
 def _cmd_create(args) -> int:

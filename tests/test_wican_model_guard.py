@@ -204,6 +204,8 @@ class TestLocalOps:
 
         class _Prof:
             ecus_dir = tmp_path
+            variants_file = tmp_path / "variants.yaml"  # absent: one implicit car
+            variant = None
 
         monkeypatch.setattr("canlib.profile.active", lambda: _Prof())
         rc = wican.run(_parse("wican", "autopid", "write"))
@@ -216,6 +218,8 @@ class TestLocalOps:
 
         class _Prof:
             ecus_dir = tmp_path
+            variants_file = tmp_path / "variants.yaml"  # absent: one implicit car
+            variant = None
 
         monkeypatch.setattr("canlib.profile.active", lambda: _Prof())
         out = tmp_path / "custom.json"

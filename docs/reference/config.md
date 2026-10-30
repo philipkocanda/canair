@@ -23,6 +23,7 @@ canair config edit           # open in $EDITOR
 | Key | Purpose |
 |---|---|
 | `default_profile` | Which [profile](../concepts/profiles.md) to use when none is given. Overridden by `--profile` / `CANAIR_PROFILE`. Optional if only one profile is discovered. |
+| `profile_settings.<profile>.variant` | Which of that profile's [variants](../concepts/variants.md) your car is, remembered per profile. Set it with `canair profile use NAME --variant ID`. Overridden by `--variant` / `CANAIR_VARIANT`. Required (once) for a profile with several variants: live commands refuse until it is set. |
 | `profiles_dir` | Extra directory to search for profiles (never committed). |
 | `devices` | Named devices for the `--wican` flag: each alias has a `host` and optional per-device `transport`/`port`/`bitrate` (see below). |
 | `default_wican` | Which device alias to use by default. |

@@ -143,7 +143,14 @@ class TestScope:
 
     @pytest.mark.parametrize(
         ("scope", "labels"),
-        [(None, {"a", "b", "c"}), ("all", {"a", "b", "c"}), ("28kwh", {"a"}), ("untagged", {"c"})],
+        [
+            # No car named: every tagged session, but not the untagged one (whose car?).
+            (None, {"a", "b"}),
+            ("all", {"a", "b", "c"}),
+            # A car named: its sessions, plus the untagged ones read as that car.
+            ("28kwh", {"a", "c"}),
+            ("untagged", {"c"}),
+        ],
     )
     def test_load_all_captures_honours_the_scope(self, store, scope, labels):
         from canlib.captures.store import load_all_captures
@@ -152,6 +159,23 @@ class TestScope:
         rows = load_all_captures()
         assert {r["session_label"] for r in rows} == labels
         assert {r["session_variant"] for r in rows} <= {"28kwh", "38kwh", ""}
+
+    def test_a_single_variant_profile_reads_everything(self, store):
+        from canlib.captures.store import load_all_captures
+
+        variants_edit.remove_variant("38kwh", profile=store)
+        _select(store, None)
+        assert len(load_all_captures()) == 3
+
+    def test_the_untagged_sessions_are_noted_once(self, store, capsys):
+        from canlib.captures import store as capture_store
+
+        capture_store._noted_untagged.clear()
+        _select(store, None)
+        capture_store.load_all_captures()
+        capture_store.load_all_captures()
+        err = capsys.readouterr().err
+        assert err.count("1 untagged capture session(s) left out") == 1
 
     def test_an_explicit_directory_is_never_scoped(self, store):
         from canlib.captures.store import load_all_captures
@@ -320,7 +344,7 @@ class TestValidation:
             _session("b", variant="64kwh"),
             _session("c", variant="28kwh"),
         )
-        assert report_variant_tags([path], prof) == 1
+        assert report_variant_tags([path], prof) == (1, False)
         out = capsys.readouterr().out
         assert "'64kwh', which the profile does not declare" in out
         assert "1 untagged session(s)" in out
@@ -330,8 +354,16 @@ class TestValidation:
 
         variants_edit.remove_variant("38kwh", profile=prof)
         path = _write(prof.captures_dir / "2026-01-01.json", _session("a"))
-        assert report_variant_tags([path], prof) == 0
+        assert report_variant_tags([path], prof) == (0, False)
         assert "untagged" not in capsys.readouterr().out
+
+    def test_the_untagged_ratchet(self, prof, capsys):
+        from canlib.commands.validate.variant_tags import report_variant_tags
+
+        path = _write(prof.captures_dir / "2026-01-01.json", _session("a"), _session("b"))
+        assert report_variant_tags([path], prof, max_untagged=2) == (0, False)
+        assert report_variant_tags([path], prof, max_untagged=1) == (0, True)
+        assert "exceeds the --max-untagged 1 baseline" in capsys.readouterr().out
 
 
 def test_sessions_view_names_each_car(prof, capsys):
@@ -339,6 +371,7 @@ def test_sessions_view_names_each_car(prof, capsys):
     from canlib.commands.captures.sessions import cmd_sessions
 
     _write(prof.captures_dir / "2026-01-01.json", _session("a", variant="28kwh"), _session("b"))
+    _select(prof, "all")
     cmd_sessions(load_all_captures())
     out = capsys.readouterr().out
     assert "28kwh" in out and "untagged" in out

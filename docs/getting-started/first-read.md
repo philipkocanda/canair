@@ -1,8 +1,19 @@
 # Read live data
 
 With your [dongle connected](connect-device.md) and `canair status` happy, read
-some real data. These examples target the **bundled 2017 Ioniq profile**, so the
+some real data. These examples target the **bundled Ioniq Electric profile**, so the
 ECU names (`BMS`, `MCU`, …) are Ioniq-specific — but `discover` works on any car.
+
+First, say which car you have. A profile can describe several
+[variants](../concepts/variants.md) of one model (the Ioniq's 28 kWh car and its 38 kWh
+facelift), and canair won't talk to a car or record anything until you've named yours:
+
+```bash
+canair profile use hyundai-ioniq-ae-ev --variant 28kwh   # once; remembered for this profile
+canair variants                                          # what the profile's variants are
+```
+
+(`discover` and `identity` work before you've picked, since they're how you find out.)
 
 ```bash
 # See every ECU responding on the bus (works on any vehicle)

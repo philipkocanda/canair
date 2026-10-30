@@ -23,6 +23,7 @@ layer: see :mod:`canlib.commands.captures.query`.
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
@@ -32,6 +33,7 @@ from canlib.captures import merge as captures_merge
 from canlib.captures.types import CaptureEntry
 from canlib.states.spans import span_keys, states_at
 from canlib.variants import tags as variant_tags
+from canlib.variants.tags import SCOPE_ALL, SCOPE_UNTAGGED
 
 # ---------------------------------------------------------------------------
 # On-the-fly decoding
@@ -298,7 +300,8 @@ def load_all_captures(captures_dir: Path | None = None) -> list[CaptureEntry]:
     """
     rx_index = _rx_index()
     layers = capture_io.resolve_capture_layers(captures_dir)
-    scope = _variant_scope() if captures_dir is None else None
+    scope, several = _variant_scope() if captures_dir is None else (SCOPE_ALL, False)
+    untagged = 0
 
     stored: list[tuple[int, Path, int, Mapping[str, Any]]] = []
     for li, layer in enumerate(layers):
@@ -310,8 +313,12 @@ def load_all_captures(captures_dir: Path | None = None) -> list[CaptureEntry]:
             if not data or "sessions" not in data:
                 continue
             for s_idx, session in enumerate(data["sessions"]):
-                if variant_tags.in_scope(session, scope):
+                if several and variant_tags.session_variant(session) is None:
+                    untagged += 1
+                if variant_tags.in_scope(session, scope, several=several):
                     stored.append((li, fpath, s_idx, session))
+    if untagged and scope not in (SCOPE_ALL, SCOPE_UNTAGGED):
+        _note_untagged(untagged, scope)
     superseded = _superseded_by_a_later_layer(stored) if len(layers) > 1 else set()
     # An untagged copy of a tagged session (a stale layer, an old copy) is the same
     # recording with less information: keep the tagged one, whichever layer it is in.
@@ -335,14 +342,32 @@ def load_all_captures(captures_dir: Path | None = None) -> list[CaptureEntry]:
     return entries
 
 
-def _variant_scope() -> str | None:
-    """The active profile's ``--variant`` scope, or None (every session)."""
+def _variant_scope() -> tuple[str | None, bool]:
+    """The active profile's variant scope, and whether it declares several variants."""
     from canlib.profile import ProfileError, active
+    from canlib.variants import VariantsError, load_variants
 
     try:
-        return active().variant
-    except ProfileError:
-        return None
+        prof = active()
+        return prof.variant, len(load_variants(prof)) > 1
+    except (ProfileError, VariantsError):
+        return SCOPE_ALL, False
+
+
+_noted_untagged: set[str | None] = set()
+
+
+def _note_untagged(count: int, scope: str | None) -> None:
+    """Say once per process how untagged sessions were treated in this scope."""
+    if scope in _noted_untagged:
+        return
+    _noted_untagged.add(scope)
+    how = f"read as {scope}" if scope else "left out, since no car is selected"
+    print(
+        f"note: {count} untagged capture session(s) {how} — tag them with "
+        "`canair captures migrate-variants` (or scope with --variant all/untagged).",
+        file=sys.stderr,
+    )
 
 
 def _untagged_twins(stored: Sequence[tuple[int, Path, int, Any]]) -> dict[int, int]:

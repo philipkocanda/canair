@@ -42,13 +42,16 @@ class TestUserConfigIsolation:
     # recorded by the physical scan's first-run prompt so it never asks twice.
     SENTINEL_KEYS: ClassVar[set[str]] = {"grid_region_prompted"}
 
+    # The one setting conftest pins on purpose: the variant of the suite's car.
+    PINNED = ("profile_settings:", "  hyundai-ioniq-ae-ev:", "    variant: 28kwh")
+
     def test_the_pinned_config_has_no_active_settings(self):
-        """Any config in the pinned dir carries no real settings.
+        """The pinned config carries only conftest's own setting.
 
         `cli.main()` seeds a commented-out starter `config.yaml` on first run, and
         a run may record a one-shot sentinel (see SENTINEL_KEYS). What must never
-        happen is a *populated* config — that would mean the developer's own file
-        (or a leaked write) is steering the suite.
+        happen is any other setting — that would mean the developer's own file (or a
+        leaked write) is steering the suite.
         """
         path = config.user_config_file()
         if not path.exists():
@@ -59,6 +62,7 @@ class TestUserConfigIsolation:
             if line.strip()
             and not line.lstrip().startswith("#")
             and line.split(":", 1)[0].strip() not in self.SENTINEL_KEYS
+            and line not in self.PINNED
         ]
         assert active == [], f"pinned config has real settings: {active}"
 
