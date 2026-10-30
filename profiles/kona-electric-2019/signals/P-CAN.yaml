@@ -1,0 +1,13 @@
+messages:
+  '0x493':
+    name: BMS_493
+    tx_ecu: BMS
+    length: 8
+    signals:
+      QC_RELAY_ON:
+        start_bit: 13
+        length: 1
+        byte_order: little
+        verified: false
+        source: 'projectgus/hyundai-kona-ev-can-logs (CC0): bms_diagnostics + 221211-1 DC fast charge + 221228-4 AC charging'
+        notes: "Byte 1 bit 5. Set 13 ms after a diagnostic tool sent 2F F036 03 (quick-charger relays) to a bench BMS and cleared within 90 ms of the release; on a 2021 Kona DC fast charge set at log 380.5 s (upstream: charging visible 382 s) and cleared at 523 s (charge ended 518-522 s); never set in three AC charge cycles (2019 car). On the bench upstream says the contactors did not move, so this may be the BMS's relay command rather than contact feedback."

@@ -2,6 +2,11 @@ MCU:
   tx_id: 0x7E3
   identity:
     description: Motor Control Unit / inverter (EPCU)
+    id_protocol: KWP2000
+    notes: >-
+      KWP2000 by behaviour in the 2021 Kona Car Scanner logs (captures/can/221210-1, 221210-2): 10
+      03 -> NRC 12, 10 90 -> 50 90, 20 -> 60, 18 {00|20|60} {FF00|8000|4000} -> 58 (status 02 -> NRC
+      12), 19 -> NRC 11/12. Identity service (1A) not yet seen.
   pids:
     220102:
       status: active
@@ -40,3 +45,16 @@ MCU:
       notes: Motor RPM, nominal/actual torque, phase current, motor/inverter/heat-sink temps (OBDb 22E001). OBDb confirms only on 2024 cars with a newer UDS layout; verify the 2019 uses 21xx instead.
       sources:
         - OBDb Hyundai-Kona-Electric
+    - type: verify
+      target: "220102"
+      status: nrc
+      priority: P2
+      vehicle_states: [PARKED]
+      created: "2026-10-30"
+      updated: "2026-10-30"
+      result: 2021 Kona MCU refuses 22 01 02 with NRC 12 (319 of 319 requests)
+      notes: In the 2021 Kona Car Scanner read-all-params log (captures 2022-12-10; raw request/reply pairs only, the NRCs are not stored as captures) every 22 01 02 to the MCU (7E3) got 7F 22 12. The same log shows the MCU is KWP2000 (10 03 -> NRC 12, 10 90 -> 50 90, 18 works). OVMS's Kia Niro/Kona module polls this ECU with KWP2000 21 02 instead (vehicle_kianiroev.cpp poll list). So the OBDb 220102 debug entry this PID came from is probably wrong for the Kona; MOTOR_TEMP and INVERTER_TEMP need re-homing to a 21xx page.
+      sources:
+        - projectgus/hyundai-kona-ev-can-logs 221210-5 (CC0); OVMS vehicle_kianiroev (read 2026-10-30)
+      what_to_test:
+        - "On a Kona: canair read MCU:2101 MCU:2102 --save and compare temperature-like bytes to OBDb's 220102 offsets."

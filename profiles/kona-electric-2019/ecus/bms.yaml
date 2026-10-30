@@ -2,7 +2,12 @@ BMS:
   tx_id: 0x7E4
   identity:
     description: Battery Management System (64 kWh LG, 98S)
-    notes: Seeded device-free from OBDb + wican-fw Niro/Soul/Kona; unverified on a real car.
+    notes: >-
+      Seeded device-free from OBDb + wican-fw Niro/Soul/Kona; unverified on a real car. UDS by
+      behaviour in the 2021 Kona Car Scanner logs (captures/can/221210-1, 221210-2): 10 03 -> 50 03
+      (P2 50 ms, P2* 5000 ms), 19 02 -> 59 02 FF, 18 -> NRC 11, no reply to 10 90. Relay IOControl
+      is UDS 2F F0xx (captures/can/bms-*.asc).
+    id_protocol: UDS
   pids:
     220101:
       status: active
@@ -1463,3 +1468,45 @@ BMS:
       notes: Normal/quick charge counts and cumulative charge energy (OBDb 220111).
       sources:
         - OBDb Hyundai-Kona-Electric
+    - type: verify
+      target: 2F F030-F038 relay IOControl
+      status: captured
+      priority: P3
+      created: "2026-10-30"
+      updated: "2026-10-30"
+      notes: >-
+        Bench 2021 64 kWh pack, community diagnostic tool (captures/can/bms-*.asc). Requests seen:
+        2F F030 03 main relay (-), F031 precharge, F032 precharge sequence (main (-) plus
+        precharge), F033 normal sequence (precharge then main), F036 quick-charger relays, F038 main
+        relay (+); each 2F F0xx 03 got 6F F0xx 03 and the release 2F F0xx 00 got 6F F0xx 00, with 3E
+        00 keepalives; no 10 session request inside the logs. Exception: after F032 the BMU went
+        quiet for about 0.9 s (most P-CAN frames zero, then back), and its release got 7F 2F 7F
+        (serviceNotSupportedInActiveSession), so the BMU had left the session, which looks like a
+        reset. Upstream says the contactors did not respond on the bench, so these show the request
+        framing, not that the relays moved; only F036 changed a broadcast bit (0x493 QC_RELAY_ON).
+        Not defined as iocontrol: entries because no release has been seen hand an output back on a
+        car.
+      sources:
+        - projectgus/hyundai-kona-ev-can-logs bms_diagnostics (CC0; contributed by a Dala's EV Discord user)
+    - type: decode
+      target: broadcast 0x493 byte 1
+      status: captured
+      priority: P3
+      created: "2026-10-30"
+      updated: "2026-10-30"
+      result: bit 5 = QC_RELAY_ON (bench + DC fast charge + AC control)
+      notes: >-
+        Raw-CAN byte index r1 (no PCI). Bit 5 is now the signal P-CAN 0x493 QC_RELAY_ON
+        (signals/P-CAN.yaml, unverified): set by the quick-charger relay IOControl 2F F036 03 on a
+        bench BMS (captures/can/bms-quick-charger-relays-on.asc), set for the whole DC fast charge
+        in upstream 221211-1 (2021 car, 380.5-523 s), never set in three AC charges in upstream
+        221228-4 (2019 car). Open: bit 4 set at DC plug-in (325.8 s, upstream 'charge plug
+        connected' 326 s) and stayed set through the end of the charge; bit 6 set as the DC charge
+        ended (523 s). The low three bits step 0C -> 0D -> 0E at power-on and on each AC charge
+        start, and 08 -> 09 -> 0A -> 0B -> 0C during the bench precharge sequence, so they look like
+        a relay or precharge state counter. Byte 4 reads 21/22 at plug-in, 40 while charging and
+        61/62 at the end in both the AC and DC logs. Upstream kona-ev-dbc defines no signals in
+        0x493 (comment: 10 Hz, varies during AC charging). 0x497 byte 0 cycles 14/22/11 once a
+        second and 0x597 byte 0 bit 7 toggles every 100 ms, independent of any relay command.
+      what_to_test:
+        - In a P-CAN log of a real DC fast charge (221211-1 in the upstream repo), check that 0x493 r1 bit 5 is set while the car is DC charging.

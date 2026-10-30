@@ -2,6 +2,7 @@ IGPM:
   tx_id: 0x770
   identity:
     description: Integrated Gateway & Power Module (body/lights/doors)
+    id_protocol: UDS
 
   research:
     - type: decode

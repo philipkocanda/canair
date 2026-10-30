@@ -2,6 +2,11 @@ VMCU:
   tx_id: 0x7E2
   identity:
     description: Vehicle Control Unit (EPCU; VCU + LDC integrated)
+    id_protocol: KWP2000
+    notes: >-
+      KWP2000 by behaviour in the 2021 Kona Car Scanner logs (captures/can/221210-1, 221210-2): 10
+      03 -> NRC 12, 10 90 -> 50 90, 20 -> 60, 18 {00|20|60} {FF00|8000|4000} -> 58 (status 02 -> NRC
+      12), 19 -> NRC 11/12. Identity service (1A) not yet seen.
   pids:
     2101:
       status: active

@@ -2,6 +2,7 @@ ABS:
   tx_id: 0x7D1
   identity:
     description: ABS / ESC (wheel speeds)
+    id_protocol: UDS
 
   research:
     - type: decode

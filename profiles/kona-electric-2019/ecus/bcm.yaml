@@ -2,6 +2,7 @@ BCM:
   tx_id: 0x7A0
   identity:
     description: Body Control Module (TPMS, body state)
+    id_protocol: UDS
 
   research:
     - type: decode

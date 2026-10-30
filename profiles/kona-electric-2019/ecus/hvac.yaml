@@ -2,6 +2,7 @@ HVAC:
   tx_id: 0x7B3
   identity:
     description: Automatic climate control (DATC)
+    id_protocol: UDS
 
   research:
     - type: decode

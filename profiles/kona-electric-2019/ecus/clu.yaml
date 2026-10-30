@@ -2,6 +2,7 @@ CLU:
   tx_id: 0x7C6
   identity:
     description: Cluster (instrument panel)
+    id_protocol: UDS
   pids:
     22B002:
       status: active
