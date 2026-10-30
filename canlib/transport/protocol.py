@@ -28,6 +28,7 @@ from canlib.uds.parse import UdsResponse
 from ..frame_counts import FrameCountLedger
 from ..safety import SessionPolicy
 from ..timing import TimingRecorder
+from .functional import FunctionalResult
 
 
 @runtime_checkable
@@ -88,6 +89,17 @@ class Terminal(Protocol):
     ) -> UdsResponse: ...
 
     async def send_command(self, cmd: str, timeout: float | None = ...) -> str: ...
+
+    async def send_functional(
+        self, tx_id: int, request: str, window: float = ...
+    ) -> FunctionalResult:
+        """Broadcast one allowed read on a functional id and return every reply.
+
+        The one request that draws many replies, which ``send_uds`` cannot carry.
+        Refuses (``SafetyBlocked``) anything outside
+        :func:`canlib.safety.check_functional_request`.
+        """
+        ...
 
     async def enter_extended_session(
         self, wake: bool = ..., mode: str = ...

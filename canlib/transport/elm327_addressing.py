@@ -292,6 +292,9 @@ class AdapterState:
         self.rx_filter: int | str | _Unknown = AUTO
         self.fc_mode: int | _Unknown = FC_MODE_ADAPTER
         self.fc_data: str | None | _Unknown = None
+        # Whether replies carry their CAN id (ATH1). canair parses replies with
+        # headers off; only a functional sweep turns them on, and back off after.
+        self.headers: bool | _Unknown = False
         self.baseline_filter: int | str = AUTO
         self.epoch = 0
         self._rejected: set[str] = set()
@@ -307,6 +310,7 @@ class AdapterState:
         self.rx_filter = AUTO
         self.fc_mode = FC_MODE_ADAPTER
         self.fc_data = None
+        self.headers = False
         self._rejected.clear()
         self.epoch += 1
 
@@ -317,6 +321,7 @@ class AdapterState:
         self.rx_filter = UNKNOWN
         self.fc_mode = UNKNOWN
         self.fc_data = UNKNOWN
+        self.headers = UNKNOWN
         self._rejected.clear()
         self.epoch += 1
 
@@ -350,6 +355,8 @@ class AdapterState:
         elif cu.startswith("ATCRA"):
             value = None if failed else _hex(cu[5:])
             self.rx_filter = UNKNOWN if value is None else value
+        elif cu in ("ATH0", "ATH1"):
+            self.headers = UNKNOWN if failed else cu == "ATH1"
         else:
             self._observe_side_effects(cu)
 
@@ -379,6 +386,12 @@ class AdapterState:
             # or an STN filter all replace whatever ATCRA set. (ATCFC is flow control
             # on/off, not a filter.)
             self.rx_filter = UNKNOWN
+
+    def headers_command(self, on: bool) -> str | None:
+        """``ATH1``/``ATH0`` when the adapter is not known to show headers as ``on``."""
+        if self.headers is on:
+            return None
+        return "ATH1" if on else "ATH0"
 
     def _skippable_after_rejection(self, cu: str) -> bool:
         """Whether a ``?`` to ``cu`` means the adapter will never accept it."""

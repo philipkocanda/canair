@@ -173,7 +173,14 @@ and **`g`/`G` address the view's primary axis**.
   (`canlib/did_families.py` — high bytes from its `22`/`2F` PIDs and IOControl hits), not the
   span between them.
 - **`canair discover`** (alias `disc`) — Which ECUs answer right now; `--register` writes a new ECU
-  into `ecus/`.
+  into `ecus/`. **`--functional`** sends one read on the functional id instead and groups every
+  responder by `can_bus:` (the gateway routing map). Its request is an **allow-list**
+  (`canlib/safety.py::check_functional_request`, never widened by `--unsafe`); reception is
+  `Terminal.send_functional` over the pure collector `canlib/transport/functional.py` (raw:
+  `functional_raw.py` sends flow control to each responder's *physical* id via
+  `addressing.physical_request_id`; ELM: `elm327_functional.py` brackets the request with
+  `ATH1`/`ATH0` in one transaction, tracked by `AdapterState.headers`); classification is
+  `canlib/modes/functional_sweep.py`.
 - **`canair identity`** (alias `id`) — Standard UDS identity DIDs (F100/F18x/F190/F19x). Writes
   results into the ECU's `identity:`. Note it can write a **live VIN** there — see PII.
 - **`canair io`** / **`canair routines`** — IOControl (`0x2F`, or an entry's own KWP `0x30`

@@ -94,7 +94,8 @@ class FakeTerminal:
         self.send_command_reply = send_command_reply
         self.session_result = session_result
         self.key_by_header = key_by_header
-
+        # request hex -> [(rx_id, reply hex), ...] for send_functional.
+        self.functional_replies: dict[str, list[tuple[int, str]]] = {}
         self.header: int | None = None
         self.sent: list[str] = []
         self.headers: list[int] = []
@@ -160,6 +161,26 @@ class FakeTerminal:
     async def send_command(self, cmd: str, timeout: float | None = None) -> str:
         self.calls.append(("send_command", cmd))
         return self.send_command_reply
+
+    async def send_functional(self, tx_id: int, request: str, window: float = 0.3):
+        """Answer from ``functional_replies[request]`` (a list of ``(rx_id, hex)``).
+
+        Checks the request exactly as the real terminals do, so an allow-list
+        refusal surfaces the same way.
+        """
+        from canlib.transport.functional import (
+            FunctionalMessage,
+            FunctionalResult,
+            functional_request_bytes,
+        )
+
+        req = functional_request_bytes(tx_id, request)
+        self.calls.append(("send_functional", (tx_id, request, window)))
+        rows = self.functional_replies.get(request.replace(" ", "").upper(), [])
+        messages = [
+            FunctionalMessage(rx, bytes.fromhex(hex_), 10 + i) for i, (rx, hex_) in enumerate(rows)
+        ]
+        return FunctionalResult(tx_id, req, messages)
 
     async def enter_extended_session(self, wake: bool = False, mode: str = "03") -> tuple:
         self.sessions.append((wake, mode))

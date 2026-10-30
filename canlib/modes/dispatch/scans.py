@@ -217,6 +217,28 @@ async def handle_discover(args, terminal: Terminal, pids_data, host, *, reconnec
     from canlib.addressing import is_extended, resolve_mode
     from canlib.modes.discover import DEFAULT_TESTER_ADDRESS
 
+    if getattr(args, "functional", False):
+        from canlib.modes.discover_functional import DEFAULT_REQUEST, mode_discover_functional
+        from canlib.transport.functional import DEFAULT_WINDOW_S
+
+        await mode_discover_functional(
+            terminal,
+            pids_data,
+            request=getattr(args, "request", None) or DEFAULT_REQUEST,
+            window=getattr(args, "window", None) or DEFAULT_WINDOW_S,
+            repeat=getattr(args, "repeat", 1),
+            interval=args.interval,
+            as_json=args.json,
+            save=args.save,
+            label=args.label,
+            vehicle_states=args.state,
+            notes=args.notes,
+            register=getattr(args, "register", False),
+            dry_run=getattr(args, "dry_run", False),
+            identify=getattr(args, "identify", False),
+        )
+        return
+
     _addr_mode = resolve_mode(pids_data)
     # 11-bit sweeps arbitration ids (default 0x700-0x7EF); 29-bit sweeps the
     # target-address byte (default 0x00-0xFF), formed into 0x18DA{target}{tester}.

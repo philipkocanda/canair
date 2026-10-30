@@ -10,7 +10,7 @@ Bytes move only through an injected
 "support a new ELM327 wire" (the "keep the WiCAN replaceable" rule): the delicate
 timing loop lives here exactly once, never duplicated per transport.
 
-Four concerns deliberately live in sibling modules, each testable without a
+Five concerns deliberately live in sibling modules, each testable without a
 channel, a clock, or an event loop:
 
 - :mod:`~canlib.transport.elm327_pipe` — the ``>``-prompt ledger that decides
@@ -20,6 +20,8 @@ channel, a clock, or an event loop:
 - :mod:`~canlib.transport.elm327_frame_count` — expected-response-count policy.
 - :mod:`~canlib.transport.elm327_addressing` — which header, receive filter and
   flow control each ECU needs, and the cached adapter state.
+- :mod:`~canlib.transport.elm327_functional` — a functional request with headers
+  on, so every responder's reply is attributed.
 
 Wire bindings are separate too: :class:`canlib.transport.elm327_tcp.Elm327TcpTerminal`
 and :class:`canlib.transport.wican_terminal.WiCANTerminal`.
@@ -54,9 +56,11 @@ from .elm327_addressing import (
     target_in,
 )
 from .elm327_frame_count import CountKey, FrameCountCache
+from .elm327_functional import elm_functional_exchange
 from .elm327_pipe import ResponsePipe, compact
 from .elm327_session import enter_extended_session
 from .errors import AdapterRefusedError
+from .functional import DEFAULT_WINDOW_S, FunctionalResult, functional_request_bytes
 
 # Response classes that prove the pipe is carrying something other than this
 # request's answer, and so warrant realigning it. See the call site in `send_uds`
@@ -331,7 +335,7 @@ class Elm327Terminal:
             finally:
                 self._lock_owner = None
 
-    def _elm_response_budget(self) -> float:
+    def elm_response_budget(self) -> float:
         """Seconds the adapter itself may spend waiting for an ECU, from ``ATST``.
 
         The ELM327 guarantees it emits *something* (data, ``NO DATA``, an error)
@@ -357,7 +361,7 @@ class Elm327Terminal:
         arrives prompt-terminated, so the dirty-pipe flag never sets again).
 
         Soundness comes from the adapter's own contract rather than a tuned
-        constant: a reply is due within ``ATST`` (:meth:`_elm_response_budget`), so
+        constant: a reply is due within ``ATST`` (:meth:`elm_response_budget`), so
         silence for longer than that plus link latency means nothing is in flight.
         The link term is *measured* (:class:`~canlib.transport.link_latency.LinkLatency`),
         with ``_LINK_LATENCY_MARGIN`` only as a floor — guessing it is what made
@@ -382,7 +386,7 @@ class Elm327Terminal:
         # than stalling the poll loop.
         quiet = min(
             _RESYNC_QUIET_MAX,
-            self._elm_response_budget() + self.link.allowance(_LINK_LATENCY_MARGIN),
+            self.elm_response_budget() + self.link.allowance(_LINK_LATENCY_MARGIN),
         )
         try:
             await self._channel.drain(
@@ -709,6 +713,22 @@ class Elm327Terminal:
                         f" — retry {attempt}/{retries}",
                         file=sys.stderr,
                     )
+
+    async def send_functional(
+        self, tx_id: int, request: str, window: float = DEFAULT_WINDOW_S
+    ) -> FunctionalResult:
+        """Broadcast ``request`` on the functional id ``tx_id`` and collect every reply.
+
+        Best-effort on an ELM327 (see :mod:`canlib.transport.elm327_functional`).
+        Raises :class:`~canlib.safety.SafetyBlocked` for anything but an allowed
+        read (:func:`~canlib.safety.check_functional_request`).
+        """
+        req = functional_request_bytes(tx_id, request)
+        return await elm_functional_exchange(self, tx_id, req, window)
+
+    def headers_command(self, on: bool) -> str | None:
+        """The command that turns reply headers ``on``/off, or None if already so."""
+        return self._address.headers_command(on)
 
     async def enter_extended_session(
         self, wake: bool = False, mode: str = "03"

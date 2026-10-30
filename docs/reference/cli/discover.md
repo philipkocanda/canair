@@ -5,15 +5,17 @@
 *Alias: `disc`*
 
 ```
-usage: canair discover [-h] [--range START-END] [--delay DELAY] [--register]
-                       [--dry-run] [--identify] [--save] [--label TEXT]
-                       [--state TEXT] [--notes TEXT] [--wican WICAN]
+usage: canair discover [-h] [--range START-END] [--delay DELAY] [--functional]
+                       [--request HEX] [--window SECONDS] [--repeat N]
+                       [--interval SECONDS] [--register] [--dry-run]
+                       [--identify] [--save] [--label TEXT] [--state TEXT]
+                       [--notes TEXT] [--wican WICAN]
                        [--transport {slcan-tcp,wican-ws,elm327-tcp}]
                        [--no-fallback] [--wait] [--elm-timeout MS]
                        [--timeout SECONDS] [--no-learn-frames] [--json]
                        [--verbose] [--timings] [--reboot] [--unsafe] [--force]
 
-[UDS] Sweep a range of TX addresses (sends 10 01 to each) to find ECUs.
+[UDS] Sweep a range of TX addresses (sends 10 01 to each) to find ECUs. With --functional, send one read on the functional (broadcast) id instead and list every ECU that answers, grouped by bus: which buses a gateway car routes diagnostics to.
 
 options:
   -h, --help            show this help message and exit
@@ -69,6 +71,19 @@ options:
   --force               Ask a session already holding the connection to
                         release it, then wait for it
 
+functional sweep:
+  --functional          Send one request on the functional id (0x7DF, or
+                        0x18DB33F1 in a 29-bit mode) and list every responder,
+                        instead of sweeping physical ids
+  --request HEX         With --functional: the read to broadcast (default
+                        3E00; see below)
+  --window SECONDS      With --functional: how long to collect replies
+                        (default 0.3)
+  --repeat N            With --functional: send the request N times (default
+                        1)
+  --interval SECONDS    With --functional --repeat: seconds between requests
+                        (default and minimum 1)
+
 examples:
   canair discover                     Discover ECUs in 0x700-0x7EF (default)
   canair discover --range 600-6FF     Custom range
@@ -76,4 +91,18 @@ examples:
   canair discover --register          Auto-add newly-found ECUs to ecus/
   canair discover --register --dry-run  Preview what would be registered
   canair discover --identify          Read identity DIDs from each ECU found
+  canair discover --functional        One functional 3E 00: every routed responder
+  canair discover --functional --request 190208 --save
+                                      Functional DTC read, saved to captures/
+  canair discover --functional --repeat 3 --interval 1
+                                      Three rounds 1 s apart (does a bus drop out?)
+
+functional requests:
+  A functional frame reaches every ECU the gateway routes it to at once, so only
+  these reads may be sent, with or without --unsafe: 3E00, 22xxxx (one DID), 1Axx,
+  1902xx, 1800FF00. On Hyundai/Kia any functional frame also tells in-car testers
+  to stop sending diagnostic requests of their own (ES95486): it changes what the
+  car does, not only what canair sees.
+  slcan-tcp is the complete view; an ELM327 transport (wican-ws, elm327-tcp) is
+  best-effort, most of all for multi-frame replies.
 ```

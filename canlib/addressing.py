@@ -169,6 +169,37 @@ def fixed_29bit_rx(tx_id: int) -> int:
     return (tx_id & ~0xFFFF) | (sa << 8) | ta
 
 
+def functional_request_id(mode: AddressingMode) -> int:
+    """The functional (broadcast) request id for ``mode``: ``0x7DF`` or ``0x18DB33F1``."""
+    return FUNCTIONAL_29BIT_ID if is_extended(mode) else FUNCTIONAL_11BIT_ID
+
+
+def physical_request_id(
+    rx_id: int,
+    by_tx: Mapping[int, EcuAddress],
+    rx_offset: int = DEFAULT_RX_OFFSET,
+    mode: AddressingMode = DEFAULT_MODE,
+) -> int:
+    """The id to send a responder's flow control (or a physical request) to.
+
+    A registered ECU answering on ``rx_id`` gets its ``fc_id``, else its request
+    id. An unknown responder's id is derived the way its reply id would have been:
+    the byte swap for a 29-bit mode, else ``rx_id - rx_offset``. Never the
+    functional id, which some ECUs ignore flow control on.
+    """
+    for addr in by_tx.values():
+        if addr.rx_id != rx_id:
+            continue
+        if addr.fc_id is not None:
+            return addr.fc_id
+        if addr.tx_id not in (FUNCTIONAL_11BIT_ID, FUNCTIONAL_29BIT_ID):
+            return addr.tx_id
+        break
+    if is_extended(mode):
+        return fixed_29bit_rx(rx_id)
+    return rx_id - rx_offset
+
+
 def resolve_rx(
     tx_id: int,
     rx_id: int | None = None,

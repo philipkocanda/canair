@@ -12,7 +12,7 @@ Every capability is a `canair <subcommand>`. These pages are generated from each
 - [`canair read`](read.md) — Read ECUs/parameters live. Positional STEPs use the multi mini-language.
 - [`canair monitor`](monitor.md) — Monitor ECUs/signals live in a scrollable, refreshing view. Positional STEPs use the multi mini-language (same as `canair read`). With no STEP on a terminal, an interactive picker offers saved groups and ECUs, then PIDs.
 - [`canair scan`](scan.md) — Scan an ECU. Choose a kind:
-- [`canair discover`](discover.md) — Sweep a range of TX addresses (sends 10 01 to each) to find ECUs.
+- [`canair discover`](discover.md) — Sweep a range of TX addresses (sends 10 01 to each) to find ECUs. With --functional, send one read on the functional (broadcast) id instead and list every ECU that answers, grouped by bus: which buses a gateway car routes diagnostics to.
 - [`canair raw`](raw.md) — Send a raw UDS request (hex in, hex out).
 - [`canair sniff`](sniff.md) — ``canair sniff`` — passive CAN bus sniffer (raw SLCAN-over-TCP backend).
 - [`canair io`](io.md) — IOControl (UDS 0x2F, or an entry's own KWP2000 0x30 commands): interactive TUI, or single actuator command with --did. Every actuator switched on is released on exit and on Ctrl+C with its release request: returnControlToECU (2F{DID}00) on UDS, the entry's declared release: on KWP2000, where the 0x30 option byte has no standard release. A 0x30 ON without a declared release is refused (set one with `canair pids set-iocontrol ECU KEY --release HEX`). The TUI's value keys (v/+/-) build UDS 0x2F requests, so they are refused for a KWP2000 ECU.

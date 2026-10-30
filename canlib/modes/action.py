@@ -56,14 +56,9 @@ class Verdict:
 
 def functional_id(pids_data: dict) -> int:
     """The functional request id for the profile's addressing mode."""
-    from canlib.addressing import (
-        FUNCTIONAL_11BIT_ID,
-        FUNCTIONAL_29BIT_ID,
-        is_extended,
-        resolve_mode,
-    )
+    from canlib.addressing import functional_request_id, resolve_mode
 
-    return FUNCTIONAL_29BIT_ID if is_extended(resolve_mode(pids_data)) else FUNCTIONAL_11BIT_ID
+    return functional_request_id(resolve_mode(pids_data))
 
 
 def plan_requests(action: Action, pids_data: dict) -> list[PlannedRequest]:

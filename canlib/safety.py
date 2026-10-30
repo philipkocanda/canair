@@ -15,6 +15,10 @@ at runtime (through a per-target :class:`SessionPolicy`) and by ``canair
 validate``; an ECU whose protocol is unknown gets whichever reading is stricter.
 RoutineControl (``0x31``) is judged the same way: its reprogramming routine ids
 (:data:`BLOCKED_ROUTINES`) are refused on any ECU not known to speak KWP2000.
+
+A *functional* (broadcast) request is judged by a separate, stricter rule,
+:func:`check_functional_request`: an allow-list of reads that ``--unsafe`` cannot
+widen, since one frame reaches every routed ECU at once.
 """
 
 from __future__ import annotations
@@ -344,6 +348,43 @@ def check_routine(sub: int, rid: int) -> str | None:
     return (
         f"BLOCKED: RoutineControl 0x{rid:04X} ({name}) -- reprogramming routine; "
         "re-run with --unsafe if you are certain it is safe"
+    )
+
+
+# The only requests a functional sweep may broadcast, as (shape, what it reads).
+# A functional frame reaches every ECU the gateway routes it to at once, so the
+# rule is an allow-list rather than the blocklist, and --unsafe cannot widen it.
+FUNCTIONAL_READS: Final = (
+    ("3E00", "TesterPresent"),
+    ("22xxxx", "ReadDataByIdentifier, one DID"),
+    ("1Axx", "KWP2000 ReadEcuIdentification"),
+    ("1902xx", "ReadDTCInformation, reportDTCByStatusMask"),
+    ("1800FF00", "KWP2000 ReadDiagnosticTroubleCodesByStatus, all groups"),
+)
+
+
+def _matches_shape(request: str, shape: str) -> bool:
+    return len(request) == len(shape) and all(
+        s == "x" or s == r for s, r in zip(shape, request, strict=True)
+    )
+
+
+def check_functional_request(request: str) -> str | None:
+    """Why ``request`` may not be sent functionally, or None if it is an allowed read.
+
+    Session control, resets, DTC clears, communication control, DTC setting,
+    writes, IOControl and routines all fall outside :data:`FUNCTIONAL_READS`, so
+    they are refused; ``--unsafe`` plays no part.
+    """
+    clean = request.replace(" ", "").upper()
+    if len(clean) % 2 or not clean or not all(c in "0123456789ABCDEF" for c in clean):
+        return f"BLOCKED: functional request {request!r} is not hex bytes"
+    if any(_matches_shape(clean, shape) for shape, _ in FUNCTIONAL_READS):
+        return None
+    allowed = ", ".join(shape for shape, _ in FUNCTIONAL_READS)
+    return (
+        f"BLOCKED: {clean} may not be sent functionally: a broadcast reaches every ECU at once, "
+        f"so only these reads are allowed ({allowed}), with or without --unsafe"
     )
 
 

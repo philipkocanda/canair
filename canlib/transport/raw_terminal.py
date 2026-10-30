@@ -36,12 +36,15 @@ from ..addressing import (
     AddressingMode,
     EcuAddress,
     build_isotp_address,
+    physical_request_id,
     resolve_rx,
 )
 from ..frame_counts import FrameCountLedger, frames_for_payload
 from ..log import log_response
 from ..safety import SessionPolicy, enforce_command_safety
 from ..timing import TimingRecorder
+from .functional import DEFAULT_WINDOW_S, FunctionalResult, functional_request_bytes
+from .functional_raw import raw_functional_exchange
 from .isotp_stack import build_isotp_stack
 from .uds_raw import (
     PENDING_RECV_TIMEOUT,
@@ -202,6 +205,33 @@ class RawTerminal:
             return "?"
         resp = await self._exchange(req, timeout)
         return "NO DATA" if resp is None else resp.hex().upper()
+
+    async def send_functional(
+        self, tx_id: int, request: str, window: float = DEFAULT_WINDOW_S
+    ) -> FunctionalResult:
+        """Broadcast ``request`` on the functional id ``tx_id`` and collect every reply.
+
+        Raises :class:`~canlib.safety.SafetyBlocked` for anything but an allowed
+        read (:func:`~canlib.safety.check_functional_request`).
+        """
+        req = functional_request_bytes(tx_id, request)
+        result = await raw_functional_exchange(
+            self.bus,
+            self.notifier,
+            tx_id=tx_id,
+            request=req,
+            padding=int(self._params["tx_padding"]),
+            stmin=int(self._params["stmin"]),
+            window=window,
+            flow_control_to=self._functional_fc_target,
+        )
+        self.cmd_count += 1
+        return result
+
+    def _functional_fc_target(self, rx_id: int) -> int | None:
+        """Where a functional responder's flow control goes (None: its stack sends it)."""
+        target = physical_request_id(rx_id, self.addr_map, self.rx_offset, self.mode)
+        return None if target in self._stacks else target
 
     async def enter_extended_session(
         self, wake: bool = False, mode: str = "03"

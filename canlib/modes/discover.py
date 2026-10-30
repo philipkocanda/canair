@@ -283,13 +283,15 @@ async def _offer_identify(
         await mode_identity(terminal, tx_id, session=False, wake=False, as_json=False)
 
 
-def _register_discovered(alive: list[tuple[int, str, str]], dry_run: bool = False) -> None:
+def _register_discovered(
+    alive: list[tuple[int, str, str]], dry_run: bool = False, via: str = "10 01"
+) -> None:
     """Register alive TX ids that don't yet have an ``ecus/<name>.yaml`` file.
 
     New entries get a placeholder ``Unknown-<TX>`` name and a provenance note;
     existing entries are left untouched. ``id_protocol`` is intentionally left
     unset — a 10 01 probe cannot distinguish UDS from KWP2000 (that's the job of
-    ``canair identity``).
+    ``canair identity``). ``via`` names the probe in that note.
     """
     from datetime import date
 
@@ -320,7 +322,7 @@ def _register_discovered(alive: list[tuple[int, str, str]], dry_run: bool = Fals
     added = 0
     for tx, status in new:
         try:
-            register_ecu(tx, notes=f"Discovered {today} via 10 01 ({status}).")
+            register_ecu(tx, notes=f"Discovered {today} via {via} ({status}).")
             added += 1
             print(f"    + {fmt_id(tx)} -> Unknown-{tx:03X}  ({status})")
         except EcusEditError as e:
