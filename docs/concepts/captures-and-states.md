@@ -295,14 +295,14 @@ A state therefore declares which broader states it **specializes**:
 This is entailment, not priority — DRIVING isn't "more important" than READY, it
 *means* READY plus motion. So the hierarchy needs no renumbering when you add a
 state, and it reads as documentation. The bundled Ioniq declares
-`DRIVING → READY → ACC2 → ACC`, `CHARGING → PLUGGED`, `TOPUP → PARKED`, and READY, CHARGING
+`DRIVING → READY → ON → ACC`, `CHARGING → PLUGGED`, `TOPUP → PARKED`, and READY, CHARGING
 and TOPUP each `→ IG3` (the EV supply rail the battery-side ECUs run on).
 
 Where it applies:
 
 - **Single-state views narrow to the most specific match** — the monitor status
   bar shows `DRIVING`, dropping every state another match implies (transitively:
-  a match on DRIVING also suppresses ACC2 and ACC). States unrelated in the
+  a match on DRIVING also suppresses ON and ACC). States unrelated in the
   hierarchy both survive, and file order decides between them.
 - **Recordings keep every match.** A `--save` segment's states, the save
   dialog's pre-fill and `captures uds --backfill-states` are unchanged: they
@@ -314,7 +314,7 @@ Where it applies:
   (readable whenever the IG3 rail is on) is listed by `canair states READY`,
   because READY implies IG3; one tagged `[READY]` is not listed under `IG3`.
 - **Analysis groups by the reduced set.** `decode --group-by state` and
-  `investigate`'s discriminability ranking bucket `READY, ACC2, PARKED` as
+  `investigate`'s discriminability ranking bucket `READY, ON, PARKED` as
   `READY, PARKED` — one bucket, not two near-duplicates. Without it, a nine-state vocabulary
   split the same data into 39 buckets, thin enough to distort the F ranking.
 
@@ -335,8 +335,8 @@ every reference in the profile — the `ecus/` tags, each recorded session's sta
 and timeline, the DTC log and the raw-CAN log index — all or nothing:
 
 ```bash
-canair states rename ACC2 RUN --dry-run   # list every file and reference it rewrites
-canair states rename ACC2 RUN             # asks before rewriting recorded data
+canair states rename ACC2 ON --dry-run    # list every file and reference it rewrites
+canair states rename ACC2 ON             # asks before rewriting recorded data
 ```
 
 ### Simultaneous vs sequential overlap (`state_spans`)

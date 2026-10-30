@@ -19,13 +19,15 @@
 # parameter abstains rather than reading false. See canlib/states.py.
 #
 # `implies:` names the broader states a state specializes: DRIVING implies READY,
-# CHARGING implies PLUGGED, READY implies ACC2, ACC2 implies ACC, TOPUP implies
+# CHARGING implies PLUGGED, READY implies ON, ON implies ACC, TOPUP implies
 # PARKED, and READY, CHARGING and TOPUP each imply IG3. Both readings stay true (a
 # recorded session keeps every state it was in), but a view that must name ONE — the
 # monitor status bar — names the most specific, so driving reads DRIVING rather than READY.
 #
-# Names versus the car's terminals: ACC is the ACC relay alone; ACC2 is IGN (ACC + IGN1 + IGN2
-# energised). The start button (via the SKM) switches only those; START is momentary. IG3 is a
+# Names versus the car: ACC and ON are the owner's manual names for the Start/Stop button
+# positions (OFF → ACC → ON, then READY with the brake). ACC is the ACC relay alone; ON is ACC +
+# IGN1 + IGN2 energised. ON is written quoted ("ON") because YAML 1.1 reads a bare ON as true;
+# canair's editors quote it and `canair validate` rejects a bare one. START is momentary. IG3 is a
 # separate EV-only supply rail the HV side closes without the button (READY, charging, the 12 V
 # top-up, a while after plug-in), so it is its own state rather than a rung of the ladder. The
 # ignition-lines table in the ioniq-reverse-engineering skill has the relays, fuses and consumers.
@@ -51,7 +53,7 @@ states:
   # HV active / driveable. VEHICLE_STATE_EV_READY (VCU 2101 B11:3) is verified.
   - name: READY
     description: HV active, car in READY (driveable).
-    implies: [ACC2, IG3]
+    implies: ["ON", IG3]
     when: "VCU.VEHICLE_STATE_EV_READY == 1"
 
   # --- States below here were predicate-less; predicates added 2026-08-04 from
@@ -62,14 +64,14 @@ states:
   # in, and the IGPM's charge-port lock (a PLUGGED input) answers while asleep.
   - name: SLEEP
     description: Deep sleep / 12V standby (unplugged).
-    excludes: [READY, ACC, ACC2, DRIVING, CHARGING, TOPUP, IG3]
+    excludes: [READY, ACC, "ON", DRIVING, CHARGING, TOPUP, IG3]
   - name: PLUGGED
     description: Charge cable connected (AC or DC), not necessarily charging.
     when: BMS.AC_CHARGER_CONNECTED == 1 or BMS.CHARGING_DC == 1 or IGPM.CHARGE_PORT_LOCK == 1
   - name: ACC
-    description: 'ACC relay only: one press without the brake, amber button LED.'
-  - name: ACC2
-    description: "IGN: ACC, IGN1 and IGN2 on after a second press (blue LED); HV may be off."
+    description: 'Start/Stop button ACC position (amber LED, one press without the brake): the ACC relay only.'
+  - name: "ON"
+    description: "Start/Stop button ON position (blue LED, second press without the brake): ACC, IGN1 and IGN2 energised; HV may be off."
     implies: [ACC]
     when: IGPM.ACC2_IGN_ON == 1
   - name: PARKED
@@ -92,7 +94,7 @@ states:
   - name: TOPUP
     description: Parked and off, HV relay closed so the LDC can top up the 12V battery.
     implies: [PARKED, IG3]
-    excludes: [READY, CHARGING, DRIVING, ACC2]
+    excludes: [READY, CHARGING, DRIVING, "ON"]
     when: VCU.VCU_POWER_STATE == 1 and VCU.VEHICLE_STATE_LDC_ENABLED == 1 and VCU.VCU_IGN_ON == 0
 
   # The gateway/meta token — applicable in every vehicle state (the state
@@ -103,7 +105,7 @@ states:
   # The IG3 supply rail, from VCU 2101 VCU_IG3_ON (B11:4, verified): BMS, OBC, MCU,
   # AAF and HVAC answer only while it reads 1. On in READY, charging, the top-up,
   # ignition-on standby and plugged-in idle; READY, CHARGING and TOPUP imply it, so
-  # an ECU tagged [IG3] is listed under each of them. ACC2 is not declared to imply
+  # an ECU tagged [IG3] is listed under each of them. ON is not declared to imply
   # it: all but one transient of 3,746 stored ignition-on VCU rows have it on, but the
   # wiring does not say IGN closes it.
   - name: IG3

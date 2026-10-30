@@ -6,7 +6,7 @@
       "version": "1.21.0",
       "vehicle_states": [
         "READY",
-        "ACC2",
+        "ON",
         "PARKED",
         "IG3"
       ],
@@ -578,7 +578,7 @@
       "version": "1.21.0",
       "vehicle_states": [
         "READY",
-        "ACC2",
+        "ON",
         "PARKED",
         "IG3"
       ],

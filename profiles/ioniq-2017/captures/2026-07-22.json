@@ -5907,7 +5907,7 @@
       "label": "IGPM BC01-BC07 (READY, ignition on)",
       "vehicle_states": [
         "READY",
-        "ACC2",
+        "ON",
         "PARKED"
       ],
       "notes": "Fully powered/READY contrast vs prior deep-sleep BC0x captures. Doors closed, locked, lights off. [migrated state: ready, parked, ignition on]",

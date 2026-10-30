@@ -42,7 +42,7 @@ AVN:
       Firmware ID 'AE_EV EUR.SOP'. SoC is a Telechips TCC8930 (dual-core Cortex-A9 at 1 GHz plus
       Cortex-M3, Mali-400 MP, 1 GB DDR3, eMMC boot), per the firmware.
 
-  vehicle_states: [PLUGGED, ACC, ACC2, READY, CHARGING]
+  vehicle_states: [PLUGGED, ACC, "ON", READY, CHARGING]
   scan_log: # AVN (head unit)
     - service: 0x22
       range: "0100-010F,B001-B010"
@@ -93,7 +93,7 @@ AVN:
       target: head-unit broadcast commands and their P-CAN form
       status: captured
       priority: P2
-      vehicle_states: [ACC2, READY]
+      vehicle_states: ["ON", READY]
       created: "2026-10-29"
       updated: "2026-10-29"
       result: >-

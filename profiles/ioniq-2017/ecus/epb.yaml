@@ -33,7 +33,7 @@ EPB:
       only live-data DID is 22C101 (27 B), the same DID index ESC 0x7D1 exposes. F18C serial + F101
       app SW are the only identity DIDs; no part number. Earlier AHB/iBAU brake-actuator hypothesis
       superseded by the firmware EPB mapping. 01xx/B0xx/C0xx/D0xx/service-21 all NRC.
-  vehicle_states: [ACC, ACC2, READY]
+  vehicle_states: [ACC, "ON", READY]
   scan_log: # EPB (0x7D5)
     - service: 0x22
       range: "0101-010F,B001-B010,C101-C10F,C001-C010,D001-D010"

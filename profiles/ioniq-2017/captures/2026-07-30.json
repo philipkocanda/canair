@@ -7,7 +7,7 @@
         "READY",
         "SLEEP",
         "ACC",
-        "ACC2",
+        "ON",
         "PARKED",
         "IG3"
       ],
@@ -27,7 +27,7 @@
               "READY",
               "SLEEP",
               "ACC",
-              "ACC2",
+              "ON",
               "PARKED",
               "IG3"
             ]
@@ -6346,7 +6346,7 @@
       "label": "AAF BMS:2101 VCU OBC IGPM HVAC",
       "vehicle_states": [
         "READY",
-        "ACC2",
+        "ON",
         "PARKED",
         "IG3"
       ],
@@ -13557,7 +13557,7 @@
       "label": "AAF BMS:2101 VCU OBC BCM IGPM HVAC",
       "vehicle_states": [
         "READY",
-        "ACC2",
+        "ON",
         "PARKED",
         "IG3"
       ],
@@ -14782,7 +14782,7 @@
       "label": "AAF BMS:2101 VCU OBC BCM IGPM HVAC",
       "vehicle_states": [
         "READY",
-        "ACC2",
+        "ON",
         "PARKED",
         "IG3"
       ],
@@ -17237,7 +17237,7 @@
       "label": "AAF BMS:2101 VCU OBC BCM IGPM HVAC",
       "vehicle_states": [
         "READY",
-        "ACC2",
+        "ON",
         "PARKED",
         "IG3"
       ],

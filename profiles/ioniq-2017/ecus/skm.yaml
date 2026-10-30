@@ -19,7 +19,7 @@ SKM:
       Smart Key Module (self-identifies as "SMK") — key-fob detection,
       immobiliser and remote functions. Slow to wake (>1s, needs two or more
       CAN requests) and sleeps after ~60s of bus inactivity. Also known as SMARTRA.
-  vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+  vehicle_states: [SLEEP, PLUGGED, ACC, "ON", READY, CHARGING]
   wake:
     method: rapid_read
     prime_pid: 22B003
@@ -388,7 +388,7 @@ SKM:
       target: 22B002/22B003/22B005/22B006/22B008/22B00A terminal-feedback bits
       status: pending
       priority: P2
-      vehicle_states: [ACC, ACC2]
+      vehicle_states: [ACC, "ON"]
       created: "2026-10-23"
       updated: "2026-10-23"
       notes: >-

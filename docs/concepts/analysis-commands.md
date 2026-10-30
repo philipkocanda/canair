@@ -350,7 +350,7 @@ pairs.
       drive where the 12 V/temperature actually sweeps a range), not a two-state
       regime flip, and/or
     - **anchor on absolute value** rather than correlation: a real signal must
-      match the *known* physical value at each regime (e.g. read ≈12.2 in ACC2
+      match the *known* physical value at each regime (e.g. read ≈12.2 in ON
       **and** ≈14.5 while charging), which a spurious regime-discriminator won't.
 
     A continuously-varying reference (vehicle speed: flat at 0 parked, then a

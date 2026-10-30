@@ -682,7 +682,7 @@ MCU:
       target: 21F2
       status: captured
       priority: P2
-      vehicle_states: [CHARGING, ACC2]
+      vehicle_states: [CHARGING, "ON"]
       created: "2026-08-02"
       updated: "2026-08-02"
       notes: >-

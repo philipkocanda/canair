@@ -837,7 +837,7 @@
       "label": "OBC VCU HVAC IGPM BCM BMS MCU CLU",
       "vehicle_states": [
         "READY",
-        "ACC2",
+        "ON",
         "PARKED",
         "IG3"
       ],
@@ -1762,7 +1762,7 @@
       "label": "AAF OBC VCU HVAC IGPM BCM BMS MCU CLU",
       "vehicle_states": [
         "READY",
-        "ACC2",
+        "ON",
         "PARKED",
         "IG3"
       ],

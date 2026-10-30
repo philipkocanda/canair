@@ -10,7 +10,7 @@ BSD-L:
     serial: "31114851712211429"
     id_protocol: UDS  # F1xx (many FF-padded fields)
     notes: Left blind-spot detection radar. No readable live-data DIDs found.
-  vehicle_states: [ACC, ACC2, READY]
+  vehicle_states: [ACC, "ON", READY]
   scan_log: # BSD-L (blind spot radar, left)
     - service: 0x22
       range: "0101-010F,B001-B010,C101-C10F"

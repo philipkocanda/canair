@@ -10,7 +10,7 @@ EPS:
     firmware: "MDPS C 1.00/1.03"
     id_protocol: UDS  # F1xx
     notes: Steering column
-  vehicle_states: [ACC, ACC2, READY]
+  vehicle_states: [ACC, "ON", READY]
   pids:
     220101:
       response_frames: 3

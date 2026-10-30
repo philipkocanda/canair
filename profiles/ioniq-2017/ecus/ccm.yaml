@@ -36,14 +36,14 @@ CCM:
   pids:
     22F101:
       status: static
-      vehicle_states: [ACC2, READY]
+      vehicle_states: ["ON", READY]
       notes: >-
         Returns 4 bytes from the stored identification block: ASCII '1104' on uhi22's unit, the
         application software version this profile lists as identity app_sw. Source: CCM firmware
         (uhi22 code-flash dump), DID read callbacks decompiled in Ghidra.
     22F102:
       status: static
-      vehicle_states: [ACC2, READY]
+      vehicle_states: ["ON", READY]
       notes: >-
         Returns 6 bytes from the stored identification block: the CCM's PLC MAC address, which it
         sends to the charger as the EVCCID (uhi22's unit: the stored MAC equals the EVCCID in all 8
@@ -52,13 +52,13 @@ CCM:
         Source: CCM firmware (uhi22 code-flash dump), DID read callbacks decompiled in Ghidra.
     22F103:
       status: static
-      vehicle_states: [ACC2, READY]
+      vehicle_states: ["ON", READY]
       notes: >-
         Returns the 2 ASCII bytes '11', a constant in the firmware. Source: CCM firmware (uhi22
         code-flash dump), DID read callbacks decompiled in Ghidra.
     22BCFF:
       status: draft
-      vehicle_states: [ACC2, READY]
+      vehicle_states: ["ON", READY]
       notes: >-
         Returns the 4 ASCII bytes '1033', a constant in the firmware: the software version (F195
         '103') plus one more digit. The IGPM's 22BCFF ('1090', software version 109) follows the
@@ -66,7 +66,7 @@ CCM:
         in Ghidra.
     22C350:
       status: draft
-      vehicle_states: [ACC2, READY]
+      vehicle_states: ["ON", READY]
       notes: >-
         The CCM's last three CCS charging-session logs. The read callback copies one 259-byte record
         and steps back one record each time, so three reads in a row return the newest, then the two
@@ -78,7 +78,7 @@ CCM:
         callbacks decompiled in Ghidra.
     2212A0:
       status: ignored
-      vehicle_states: [ACC2, READY]
+      vehicle_states: ["ON", READY]
       notes: >-
         WRITE-ONLY factory DID; the firmware has no read callback. A service 2E write of FF + 24
         bytes replaces the stored identification block (part number, date, PLC MAC, software
@@ -86,7 +86,7 @@ CCM:
         (uhi22 code-flash dump), DID read callbacks decompiled in Ghidra.
     22CC01:
       status: draft
-      vehicle_states: [ACC2, READY]
+      vehicle_states: ["ON", READY]
       notes: >-
         Live CCS session status, 8 bytes: FF FF FF C0, then four bytes of packed CCM state bits.
         Byte 5: bits 0-2 the charger's last DIN 70121 EVSEStatusCode, bits 3-6 the CCM's internal
@@ -129,7 +129,7 @@ CCM:
       target: read the firmware DIDs (F101-F103, BCFF, C350, CC01)
       status: pending
       priority: P2
-      vehicle_states: [ACC2, READY]
+      vehicle_states: ["ON", READY]
       created: "2026-10-30"
       updated: "2026-10-30"
       result: "Firmware read callbacks: F187 part number, F18B date, F102 PLC MAC (EVCCID) and F101 '1104' from the stored identification block; F193 '101', F195 '103', F103 '11' and BCFF '1033' are constants; C350 returns the last three 259-byte CCS session logs, one per read (newest first); CC01 returns 8 bytes of live session status; 12A0 has no read callback and is a write-only factory DID. Services 10, 11, 14, 19, 20, 22, 27, 28, 29, 2E, 31, 3E, 85; no 21, 23 or 2F (no IOControl). This matches projectgus's Kona scan of 0x733. Session sub-functions in the table: 01, 02, 03, 04, 05, 10, 81, 85, 90. Only V2G namespace in the image: urn:din:70121:2012 (DIN SPEC 70121 only, no ISO 15118 or Plug and Charge)."

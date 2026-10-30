@@ -12,7 +12,7 @@ WPC:
     notes: >
       Wireless Phone Charging pad. 220100 exposes two signed 16-bit fields
       (B03:B04, B05:B06) of unknown purpose — re-examine with a phone on/off pad.
-  vehicle_states: [ACC, ACC2, READY]
+  vehicle_states: [ACC, "ON", READY]
   scan_log: # WPC (wireless phone charging)
     - service: 0x22
       range: "0101-010F,B001-B010,C101-C10F"
@@ -24,7 +24,7 @@ WPC:
     220100:
       status: draft
       period: 5000
-      vehicle_states: [ACC, ACC2, READY]
+      vehicle_states: [ACC, "ON", READY]
       parameters:
         WPC_0100_B03_B04:
           expression: "[S03:S04]"
@@ -52,7 +52,7 @@ WPC:
       target: 22BE01-22BE03
       status: pending
       priority: P3
-      vehicle_states: [ACC2]
+      vehicle_states: ["ON"]
       created: "2026-10-30"
       updated: "2026-10-30"
       notes: "A later-generation Hyundai/Kia WPC keeps its live data in three record DIDs: BE01 user options, BE02 byte data (charging voltage/current/power, battery and IGN1 voltage, coil temperatures, fan speed) and BE03 bit data (LED states, smart-key LF search inhibit, charging status), each led by a 4-byte supported-PID map. The 2026-07-22 sweep covered 0101-010F, B001-B010 and C101-C10F only. Read BE00-BEFF with a phone on and off the pad."
@@ -64,7 +64,7 @@ WPC:
       target: 2F F000-F0FF
       status: pending
       priority: P3
-      vehicle_states: [ACC2]
+      vehicle_states: ["ON"]
       created: "2026-10-30"
       updated: "2026-10-30"
       notes: Hyundai/Kia reserve F010-F0FF for IOControl DIDs (HVAC and VESS use F011+). The later WPC spec puts the amber LED at F011, the green LED at F012 and fan steps at F013-F01E, released with 00 (returnControlToECU) and run with 03. Never scanned on this WPC. HVAC F012 rejects 00 but accepts 03, so a 00-only sweep can miss a DID.

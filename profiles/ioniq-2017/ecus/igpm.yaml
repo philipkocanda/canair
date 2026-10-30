@@ -964,7 +964,7 @@ IGPM:
       target: 22BC03 B11:3,B11:4,B11:7 B12:0,B12:1,B12:6,B12:7
       status: pending
       priority: P3
-      vehicle_states: [ACC2]
+      vehicle_states: ["ON"]
       created: "2026-08-06"
       updated: "2026-08-06"
       notes: Declared bitfield gaps that are CONSTANT across all 297 timed captures — never exercised, so unknowable from current data rather than unused. B11 has bits 0,1,2,5,6 decoded (hood, seatbelts, ACC2/ign); B12 has 2,3,4,5 decoded (DRL, tail, high beam, low beam).
@@ -974,7 +974,7 @@ IGPM:
       target: 22BC03 B10:2 DOOR_RR_OPEN — no transition in the corpus
       status: pending
       priority: P3
-      vehicle_states: [ACC2]
+      vehicle_states: ["ON"]
       created: "2026-08-06"
       updated: "2026-08-06"
       notes: >-
@@ -1033,7 +1033,7 @@ IGPM:
       target: 22BC04 B13:6 / B10:0 after lock and power-off
       status: pending
       priority: P3
-      vehicle_states: [ACC2]
+      vehicle_states: ["ON"]
       created: "2026-10-22"
       updated: "2026-10-22"
       notes: >-
@@ -1160,7 +1160,7 @@ IGPM:
       target: 22BC03-07 support bitmap (B05-B07, B09)
       status: pending
       priority: P2
-      vehicle_states: [ACC2, READY]
+      vehicle_states: ["ON", READY]
       created: "2026-10-29"
       updated: "2026-10-29"
       result: >-

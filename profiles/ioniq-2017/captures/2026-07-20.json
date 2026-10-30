@@ -317,7 +317,7 @@
       "date": "2026-07-20",
       "label": "AAT/EPCU thermal (ACC2, charge just finished)",
       "vehicle_states": [
-        "acc2"
+        "ON"
       ],
       "notes": "ACC2 (was READY, switched to ACC2 during charging; charge finished 100% SoC). AC/heat off, ambient ~19.5C. Decodes 0x7E6 2180: AMBIENT=(B18-80)/2=19.5C, HEATER_ELEMENT=S17/2=19C, HEATSINK=B20-40=42C (still warm from OBC/inverter post-charge), COMPRESSOR=B21-40=19C. 2181 = richer variant (extra non-zero bytes).\n",
       "captures": [
@@ -339,7 +339,7 @@
       "date": "2026-07-20",
       "label": "GSA gear-shift assembly scan (ACC2)",
       "vehicle_states": [
-        "acc2"
+        "ON"
       ],
       "notes": "GSA 0x7B6 scan (ACC2, gear P). Responds ONLY to 220100 (service 21 none; 22 0101-0130 all NRC). B19/B21/B22 = 0x77/0x76/0x78 (119/118/120) vs 2026-04-17 P capture 0x93/0x91/0x94 — drifted ~30 in same gear (likely lever hall sensors or temp). Needs a P/R/N/D shift test + drive-mode-button test.\n",
       "captures": [

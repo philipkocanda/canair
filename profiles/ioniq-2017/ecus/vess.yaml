@@ -14,7 +14,7 @@ VESS:
     notes: >
       Virtual Engine Sound System (pedestrian-warning buzzer). Actuated via
       IOControl (F011); no readable live-data DIDs.
-  vehicle_states: [ACC, ACC2, READY]
+  vehicle_states: [ACC, "ON", READY]
   scan_log: # VESS
     - service: 0x22
       range: "0101-010F,B001-B010,C101-C10F"

@@ -11,7 +11,7 @@ GSA:
     sw_version: "KOSTAL_SW_G07"
     id_protocol: UDS  # F1xx
     notes: Gear Shift Assembly (Kostal shift-lever module). Gear state is read from VCU 2101 GEAR.
-  vehicle_states: [ACC, ACC2, READY]
+  vehicle_states: [ACC, "ON", READY]
   scan_log: # GSA (gear shift assembly)
     - service: 0x22
       range: "0101-010F,B001-B010,C001-C010,D001-D010"
@@ -24,7 +24,7 @@ GSA:
       response_frames: 4
       status: draft
       period: 5000
-      vehicle_states: [ACC, ACC2, READY]
+      vehicle_states: [ACC, "ON", READY]
       notes: >-
         21 bytes; the only DID GSA answers (service 21 and 22 0101-0130 all NRC, 2026-07-20). In
         Park on 2026-04-17 and 2026-07-20, B19, B21 and B22 changed from 0x93, 0x91, 0x94 to 0x77,

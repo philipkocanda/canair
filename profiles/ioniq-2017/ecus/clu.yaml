@@ -15,13 +15,13 @@ CLU:
       Cluster / instrument panel. Odometer is read via 22B002 (3-byte value at
       [B12:B14]); the imperial odometer / range / cruise fields the e-Niro
       exposes are absent on this car (15-byte response).
-  vehicle_states: [ACC, ACC2, READY]
+  vehicle_states: [ACC, "ON", READY]
   pids:
     22B002:
       response_frames: 3
       status: active
       period: 60000
-      vehicle_states: [ACC, ACC2, READY]
+      vehicle_states: [ACC, "ON", READY]
       parameters:
         ODOMETER:
           expression: "[B12:B14]"

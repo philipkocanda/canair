@@ -18,7 +18,7 @@ HVAC:
       the ON line (IGN2) and IG3; there is no ACC feed. The electric compressor and PTC heater sit
       on a small separate CAN bus with the DATC, not on the P-CAN. Taken from US-market wiring;
       unconfirmed on the EU car.
-  vehicle_states: [ACC2, IG3]
+  vehicle_states: ["ON", IG3]
   scan_log: # HVAC
     - service: 0x31
       range: "E000-E0FF"
@@ -84,7 +84,7 @@ HVAC:
       response_frames: 6
       status: active
       period: 30000
-      vehicle_states: [ACC2, IG3]
+      vehicle_states: ["ON", IG3]
       notes: >-
         38-byte response (35 data bytes after the DID) of sensor and actuator status; set
         temperature, fan level, mode and recirculation do not appear here. Constant in all 1758
@@ -314,7 +314,7 @@ HVAC:
       response_frames: 9
       status: active
       period: 10000
-      vehicle_states: [ACC2, IG3]
+      vehicle_states: ["ON", IG3]
       notes: >-
         59-byte response (56 data bytes after the DID): set temperature, heating source, blower
         feedback, air-door positions and temperature copies. Copies of other bytes: B10 = B9, B20 =
@@ -520,7 +520,7 @@ HVAC:
     2201A1:
       response_frames: 9
       status: draft
-      vehicle_states: [ACC2, IG3]
+      vehicle_states: ["ON", IG3]
       notes: >-
         59-byte response (56 data bytes after the DID). B6, B9 and B11 change fast. B21 equals
         2201A0 B6 (heat mode) in 1419 of 1420 time-joined rows and B22 follows 2201A0 B7
@@ -568,7 +568,7 @@ HVAC:
         (heat mode) in 1419 of 1420 time-joined rows and B20 follows 2201A0 B7 (r=+0.999). Constant
         in all 1499 captures: B45=0xFF, B46=0xD8, and 0x00 at B10, B30, B35, B37, B39, B43, B55, B58
         and B59.
-      vehicle_states: [ACC2, IG3]
+      vehicle_states: ["ON", IG3]
       parameters:
         HVAC_HEAT_POWER:
           expression: B42/10
@@ -619,7 +619,7 @@ HVAC:
     2201A3:
       response_frames: 8
       status: draft
-      vehicle_states: [ACC2, IG3]
+      vehicle_states: ["ON", IG3]
       notes: >-
         53-byte response (50 data bytes after the DID). B33, B34, B35, B36 and B41 carry 220100 B15,
         B22, B17, B20 and B34 (equal in 91-98 % of time-joined rows). B15 is non-zero (48-58) in
@@ -660,7 +660,7 @@ HVAC:
       notes: >-
         Not a fixed page: polled after 2201A3 it returned 2201A3's bytes (2026-07-27); read on
         its own on 2026-10-22 it returned 220100's data bytes under its own DID.
-      vehicle_states: [ACC2, IG3]
+      vehicle_states: ["ON", IG3]
       parameters: {}
 
     2201A5:
@@ -668,7 +668,7 @@ HVAC:
       notes: >-
         Not a fixed page: polled after 2201A3 it returned 2201A3's bytes (2026-07-27); read on
         its own on 2026-10-22 it returned 220100's data bytes under its own DID.
-      vehicle_states: [ACC2, IG3]
+      vehicle_states: ["ON", IG3]
       parameters: {}
 
     2201A6:
@@ -676,7 +676,7 @@ HVAC:
       notes: >-
         Not a fixed page: polled after 2201A3 it returned 2201A3's bytes (2026-07-27); read on
         its own on 2026-10-22 it returned 220100's data bytes under its own DID.
-      vehicle_states: [ACC2, IG3]
+      vehicle_states: ["ON", IG3]
       parameters: {}
     21F2:
       status: ignored
@@ -966,7 +966,7 @@ HVAC:
       target: 2FF00002
       status: pending
       priority: P3
-      vehicle_states: [ACC2]
+      vehicle_states: ["ON"]
       created: "2026-10-30"
       updated: "2026-10-30"
       notes: Newer Hyundai/Kia ECUs answer 2F F000 02 with a 4-byte bitmap of the supported IOControl DIDs F001-F020 (F020 and F040 cover the next 32 each), like the OBD-II PID 00 map. The 2026-04-19 returnControlToECU sweep found no F000 here, so this generation probably lacks it, but HVAC's known F011-F018/F022-F027 would check the bitmap if it answers. F000 is not an actuator, so 02 there drives nothing.

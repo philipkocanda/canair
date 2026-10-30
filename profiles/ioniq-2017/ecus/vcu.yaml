@@ -836,7 +836,7 @@ VCU:
       target: 2102 real 12V bus byte (B18 wrong)
       status: done
       priority: P2
-      vehicle_states: [ACC2]
+      vehicle_states: ["ON"]
       created: "2026-08-02"
       updated: "2026-08-02"
       result: >-

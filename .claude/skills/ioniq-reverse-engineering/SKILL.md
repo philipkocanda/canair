@@ -95,19 +95,20 @@ SKM unless noted.
 Factory labels are inconsistent: E46 is called both "#3 (IG2)" and "#2 (IG2)". The E-numbers and
 the SKM wiring above are consistent.
 
-**Driver-visible states:** OFF (locked or unlocked, no terminal), ACC (ACC), IGN (ACC + IGN1 +
-IGN2), START (IGN1 + START, momentary), IGN with the system running (ACC + IGN1 + IGN2). Without
-the brake each press steps OFF, ACC, IGN, OFF; with the brake in P or N one press goes to start.
-The button LED is amber in ACC and blue in IGN (some factory text says green; the car shows blue).
-ACC and IGN2 drop out during START; only IGN1 stays on.
+**Driver-visible states** (owner's manual names): OFF (locked or unlocked, no terminal), ACC
+(ACC), ON (ACC + IGN1 + IGN2), START (IGN1 + START, momentary), ON with the system running (ACC +
+IGN1 + IGN2, READY). Without the brake each press steps OFF, ACC, ON, OFF; with the brake in P or N
+one press goes to start. The button LED is amber in ACC and blue in ON (some factory text says
+green; the car shows blue). ACC and IGN2 drop out during START; only IGN1 stays on.
 
 **IG3:** IG3 #1 is closed while the HV controller operates, except during charging, and its coil is
 driven by the OBC. IG3 #2 is meant for AC charging and another relay for DC, but the #2 coil line
 runs to the head unit's "IG3 relay control" pins, so who closes it is unresolved. The PCB-block Main
 relay is commanded by the IGPM's IPS control module. "IGN3" in pin tables means IG3.
 
-**Mapping to canair names.** The `ACC` state is the ACC relay alone; `ACC2` (IGPM `ACC2_IGN_ON`) is
-IGN (ACC + IGN1 + IGN2); `READY` also needs IG3. The `IG3` state (`VCU_IG3_ON == 1`) is the rail
+**Mapping to canair names.** The `ACC` state is the ACC relay alone; `ON` (IGPM `ACC2_IGN_ON`,
+the GDS "IGN1 Switch") is ACC + IGN1 + IGN2 (called `ACC2` until 2026-10-30); `READY` also needs
+IG3. The `IG3` state (`VCU_IG3_ON == 1`) is the rail
 itself: READY, CHARGING and TOPUP imply it, and it alone names the plugged-in idle window after a
 charge. VCU 2101 `VCU_IG3_ON` (B11:4) is the IG3 rail: the IG3-fed ECUs (OBC, BMS, MCU, AAF, HVAC)
 answer only while it is 1. `VCU_IGN_ON` (B11:0|B11:1) is the
@@ -223,11 +224,13 @@ everywhere). `validate` errors if a PID omits it; set it with
 seeds `status: active` on a newly-created PID). Power
 states in which a PID/ECU responds, and those a research lead needs, use the
 shared **`vehicle_states:`** list (UPPERCASE vocabulary from the profile's
-`vehicle_states.yaml` — `SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING, IG3, TOPUP, PARKED, DRIVING`
+`vehicle_states.yaml` — `SLEEP, PLUGGED, ACC, "ON", READY, CHARGING, IG3, TOPUP, PARKED, DRIVING`
 — plus the `ALL` meta-token; list/edit it with `canair states`). It's written as an inline flow
 list (`[READY, CHARGING]`); input is case-insensitive. Tag an ECU with the *broadest* state it
 answers in: `canair states READY` lists an ECU tagged `[IG3]` because READY implies IG3, so the
-battery-side ECUs (BMS, OBC, MCU, AAF, VCU) are `[IG3]` and HVAC `[ACC2, IG3]`.
+battery-side ECUs (BMS, OBC, MCU, AAF, VCU) are `[IG3]` and HVAC `["ON", IG3]`. ACC and ON are
+the owner's manual names for the Start/Stop button positions; ON must stay quoted (`"ON"`), since
+YAML 1.1 reads a bare ON as `true` and `canair validate` rejects it.
 
 Edit with `canair pids upsert-param / add-research / set-status / set-pid-status /
 set-pid-notes`

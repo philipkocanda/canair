@@ -8,7 +8,7 @@ SCC:
     boot_sw: "AEev SCC F-CUP 1.00 1.00"
     id_protocol: UDS  # F1xx (3 DIDs)
     notes: Smart Cruise Control (front radar). Live-data DIDs 220100-0103 and 0105, all undecoded.
-  vehicle_states: [ACC, ACC2, READY]
+  vehicle_states: [ACC, "ON", READY]
   # UDS service-22 multi-DID batching: verified on-device 2026-07-29 (READY) —
   # SCC answers `22 0100 0101` with `620100 <data> 0101 <data>` and the response
   # splits cleanly. Batching cuts poll commands for its consecutive 22-DIDs.

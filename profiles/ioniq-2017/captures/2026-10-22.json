@@ -453,7 +453,7 @@
       "version": "1.28.0+main.a02dd84",
       "vehicle_states": [
         "READY",
-        "ACC2",
+        "ON",
         "PARKED",
         "IG3"
       ],
@@ -2693,7 +2693,7 @@
       "version": "1.28.0+main.a02dd84",
       "vehicle_states": [
         "READY",
-        "ACC2",
+        "ON",
         "PARKED",
         "IG3"
       ],
@@ -6539,7 +6539,7 @@
       "version": "1.28.0+main.2b4ed86",
       "vehicle_states": [
         "READY",
-        "ACC2",
+        "ON",
         "PARKED",
         "IG3"
       ],

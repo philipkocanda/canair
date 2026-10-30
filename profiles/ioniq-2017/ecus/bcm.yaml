@@ -260,7 +260,7 @@ BCM:
 
     22B00F:
       status: ignored
-      vehicle_states: [ACC2]
+      vehicle_states: ["ON"]
       notes: >-
         13 bytes as stored, probably 11 plus 0xAAAA frame padding as on 22B00D (only old, padded
         reads exist). Identical payload to B00D (0xFCFC E0...) — possibly mirrored register
@@ -574,7 +574,7 @@ BCM:
 
     22B00B:
       status: ignored
-      vehicle_states: [ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ACC, "ON", READY, CHARGING]
       notes: >
         NRC 0x31 (requestOutOfRange) in deep sleep AND in READY (retested
         2026-07-29). Only 2-byte response (7E00) on some attempts — may be a
@@ -1379,7 +1379,7 @@ BCM:
       target: 31 03 0200-DFFF
       status: pending
       priority: P3
-      vehicle_states: [ACC2]
+      vehicle_states: ["ON"]
       created: "2026-10-30"
       updated: "2026-10-30"
       notes: The 2026-04-20 0x31 sweep ran in SLEEP and was cut off at C8D2. ES95486 allows RoutineControl only with ignition on and the car not READY, so NRC 0x22 answers (12A1) may change at ACC2. Manufacturer routine ids are 0200-DFFF; F000-FEFF (the scan default F000-F0FF) is the supplier range.

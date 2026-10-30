@@ -24320,7 +24320,7 @@
       "version": "1.16.0",
       "vehicle_states": [
         "READY",
-        "ACC2",
+        "ON",
         "PARKED",
         "DRIVING",
         "IG3"
@@ -24340,7 +24340,7 @@
             "at": "10:02:08.000",
             "states": [
               "READY",
-              "ACC2",
+              "ON",
               "PARKED",
               "IG3"
             ]
@@ -24349,7 +24349,7 @@
             "at": "10:02:51.556",
             "states": [
               "READY",
-              "ACC2",
+              "ON",
               "DRIVING",
               "IG3"
             ]
@@ -24358,7 +24358,7 @@
             "at": "10:03:12.775",
             "states": [
               "READY",
-              "ACC2",
+              "ON",
               "IG3"
             ]
           },
@@ -24366,7 +24366,7 @@
             "at": "10:03:23.009",
             "states": [
               "READY",
-              "ACC2",
+              "ON",
               "DRIVING",
               "IG3"
             ]
@@ -24375,7 +24375,7 @@
             "at": "10:03:43.805",
             "states": [
               "READY",
-              "ACC2",
+              "ON",
               "IG3"
             ]
           },
@@ -24383,7 +24383,7 @@
             "at": "10:03:54.056",
             "states": [
               "READY",
-              "ACC2",
+              "ON",
               "DRIVING",
               "IG3"
             ]
@@ -26266,7 +26266,7 @@
       "version": "1.16.0",
       "vehicle_states": [
         "READY",
-        "ACC2",
+        "ON",
         "PARKED",
         "DRIVING",
         "IG3"
@@ -26284,7 +26284,7 @@
             "at": "10:13:16.912",
             "states": [
               "READY",
-              "ACC2",
+              "ON",
               "DRIVING",
               "IG3"
             ]
@@ -26293,7 +26293,7 @@
             "at": "10:15:12.444",
             "states": [
               "READY",
-              "ACC2",
+              "ON",
               "IG3"
             ]
           },
@@ -26301,7 +26301,7 @@
             "at": "10:15:55.586",
             "states": [
               "READY",
-              "ACC2",
+              "ON",
               "DRIVING",
               "IG3"
             ]
@@ -26310,7 +26310,7 @@
             "at": "10:17:10.688",
             "states": [
               "READY",
-              "ACC2",
+              "ON",
               "PARKED",
               "DRIVING",
               "IG3"
@@ -26320,7 +26320,7 @@
             "at": "10:17:20.902",
             "states": [
               "READY",
-              "ACC2",
+              "ON",
               "PARKED",
               "IG3"
             ]
@@ -26329,7 +26329,7 @@
             "at": "10:24:07.284",
             "states": [
               "READY",
-              "ACC2",
+              "ON",
               "IG3"
             ]
           },
@@ -26337,7 +26337,7 @@
             "at": "10:24:17.549",
             "states": [
               "READY",
-              "ACC2",
+              "ON",
               "DRIVING",
               "IG3"
             ]
@@ -26346,7 +26346,7 @@
             "at": "10:24:49.824",
             "states": [
               "READY",
-              "ACC2",
+              "ON",
               "IG3"
             ]
           },
@@ -26354,7 +26354,7 @@
             "at": "10:25:34.783",
             "states": [
               "READY",
-              "ACC2",
+              "ON",
               "DRIVING",
               "IG3"
             ]
@@ -32521,7 +32521,7 @@
       "version": "1.16.0",
       "vehicle_states": [
         "READY",
-        "ACC2",
+        "ON",
         "DRIVING",
         "IG3"
       ],
@@ -33236,7 +33236,7 @@
       "version": "1.16.0",
       "vehicle_states": [
         "READY",
-        "ACC2",
+        "ON",
         "DRIVING",
         "IG3"
       ],
@@ -42747,7 +42747,7 @@
       "version": "1.16.0",
       "vehicle_states": [
         "READY",
-        "ACC2",
+        "ON",
         "DRIVING",
         "IG3"
       ],
@@ -47324,7 +47324,7 @@
         "CHARGING",
         "READY",
         "PLUGGED",
-        "ACC2",
+        "ON",
         "PARKED",
         "DRIVING",
         "IG3"
@@ -47343,7 +47343,7 @@
             "at": "11:08:26.165",
             "states": [
               "READY",
-              "ACC2",
+              "ON",
               "DRIVING",
               "IG3"
             ]
@@ -47351,7 +47351,7 @@
           {
             "at": "11:41:08.307",
             "states": [
-              "ACC2",
+              "ON",
               "PARKED"
             ]
           },
@@ -65179,7 +65179,7 @@
       "version": "1.17.0+main.8efa6df",
       "vehicle_states": [
         "READY",
-        "ACC2",
+        "ON",
         "PARKED",
         "DRIVING",
         "IG3"
@@ -65201,7 +65201,7 @@
             "at": "15:33:36.762",
             "states": [
               "READY",
-              "ACC2",
+              "ON",
               "PARKED",
               "IG3"
             ]
@@ -65210,7 +65210,7 @@
             "at": "15:33:59.044",
             "states": [
               "READY",
-              "ACC2",
+              "ON",
               "DRIVING",
               "IG3"
             ]
@@ -72237,7 +72237,7 @@
         "CHARGING",
         "READY",
         "PLUGGED",
-        "ACC2",
+        "ON",
         "PARKED",
         "DRIVING",
         "IG3"
@@ -72257,7 +72257,7 @@
             "at": "15:47:56.192",
             "states": [
               "READY",
-              "ACC2",
+              "ON",
               "DRIVING",
               "IG3"
             ]
@@ -72266,7 +72266,7 @@
             "at": "15:56:38.882",
             "states": [
               "READY",
-              "ACC2",
+              "ON",
               "IG3"
             ]
           },
@@ -72274,7 +72274,7 @@
             "at": "15:56:59.922",
             "states": [
               "READY",
-              "ACC2",
+              "ON",
               "DRIVING",
               "IG3"
             ]
@@ -72283,7 +72283,7 @@
             "at": "16:31:06.866",
             "states": [
               "READY",
-              "ACC2",
+              "ON",
               "PARKED",
               "DRIVING",
               "IG3"
@@ -72332,7 +72332,7 @@
             "at": "16:44:16.065",
             "states": [
               "CHARGING",
-              "ACC2",
+              "ON",
               "PARKED"
             ]
           },
@@ -72340,7 +72340,7 @@
             "at": "16:44:28.475",
             "states": [
               "READY",
-              "ACC2",
+              "ON",
               "PARKED",
               "IG3"
             ]
@@ -72349,7 +72349,7 @@
             "at": "16:44:50.169",
             "states": [
               "READY",
-              "ACC2",
+              "ON",
               "DRIVING",
               "IG3"
             ]
@@ -113598,7 +113598,7 @@
       "version": "1.17.0+main.73f9815",
       "vehicle_states": [
         "READY",
-        "ACC2",
+        "ON",
         "DRIVING",
         "IG3"
       ],
@@ -122073,7 +122073,7 @@
       "vehicle_states": [
         "READY",
         "PLUGGED",
-        "ACC2",
+        "ON",
         "PARKED",
         "DRIVING",
         "IG3"
@@ -122091,7 +122091,7 @@
             "at": "17:37:24.689",
             "states": [
               "READY",
-              "ACC2",
+              "ON",
               "DRIVING",
               "IG3"
             ]
@@ -122100,7 +122100,7 @@
             "at": "17:38:27.226",
             "states": [
               "READY",
-              "ACC2",
+              "ON",
               "IG3"
             ]
           },
@@ -122108,7 +122108,7 @@
             "at": "17:39:30.664",
             "states": [
               "READY",
-              "ACC2",
+              "ON",
               "DRIVING",
               "IG3"
             ]
@@ -122117,7 +122117,7 @@
             "at": "17:40:12.222",
             "states": [
               "READY",
-              "ACC2",
+              "ON",
               "PARKED",
               "IG3"
             ]
@@ -122126,7 +122126,7 @@
             "at": "17:40:53.646",
             "states": [
               "READY",
-              "ACC2",
+              "ON",
               "PARKED",
               "DRIVING",
               "IG3"
@@ -122136,7 +122136,7 @@
             "at": "17:41:04.580",
             "states": [
               "READY",
-              "ACC2",
+              "ON",
               "DRIVING",
               "IG3"
             ]
@@ -122145,7 +122145,7 @@
             "at": "17:41:35.055",
             "states": [
               "READY",
-              "ACC2",
+              "ON",
               "IG3"
             ]
           },
@@ -122153,7 +122153,7 @@
             "at": "17:42:06.641",
             "states": [
               "READY",
-              "ACC2",
+              "ON",
               "DRIVING",
               "IG3"
             ]
