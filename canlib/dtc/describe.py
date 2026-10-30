@@ -16,43 +16,13 @@ annotate each decoded record.
 
 from __future__ import annotations
 
+from .failure_types import FAILURE_TYPE
+
 CATEGORY = {
     "P": "Powertrain",
     "C": "Chassis",
     "B": "Body",
     "U": "Network",
-}
-
-# DTCFailureType (ISO 14229-1 Annex D.3 / SAE J2012-DA) — a confident subset.
-FAILURE_TYPE = {
-    0x00: "no sub-type information",
-    0x01: "general electrical failure",
-    0x02: "general signal failure",
-    0x11: "circuit short to ground",
-    0x12: "circuit short to battery",
-    0x13: "circuit open",
-    0x16: "circuit voltage below threshold",
-    0x17: "circuit voltage above threshold",
-    0x18: "circuit current below threshold",
-    0x19: "circuit current above threshold",
-    0x1A: "circuit resistance below threshold",
-    0x1B: "circuit resistance above threshold",
-    0x1C: "circuit voltage out of range",
-    0x21: "signal amplitude below minimum",
-    0x22: "signal amplitude above maximum",
-    0x29: "signal invalid",
-    0x2F: "signal erratic",
-    0x31: "no signal",
-    0x49: "internal electronic failure",
-    0x62: "signal compare failure",
-    0x81: "invalid serial data received",
-    0x86: "signal invalid (bus)",
-    0x87: "missing message",
-    0x88: "bus off",
-    0x92: "performance or incorrect operation",
-    0x96: "component internal failure",
-    0x97: "component or system operation obstructed",
-    0x98: "component or system over temperature",
 }
 
 # A small set of well-known *generic* (ISO/SAE) codes. Manufacturer-specific
@@ -125,7 +95,7 @@ def describe_dtc(code: str, defs: dict | None = None) -> dict:
         first_digit = None
     kind = dtc_kind(letter, first_digit)
 
-    # Failure-type meaning: tool's standard table, then profile overrides/additions.
+    # Failure-type meaning: the standard table, then the profile's manufacturer-specific additions.
     ftb_desc = None
     if ftb is not None:
         ftb_desc = FAILURE_TYPE.get(ftb) or profile_ftb.get(ftb)

@@ -53,8 +53,9 @@ A UDS DTC prints as `Lxxxx-yy`, e.g. `B2915-11`:
   `1`/`2` manufacturer-specific.
 - **Failure-type byte (FTB)** — the `-yy` suffix (UDS only; ISO 14229-1 Annex D.3
   / SAE J2012-DA). It refines *how* the circuit failed, e.g. `-11` = short to
-  ground, `-13` = open circuit, `-1C` = voltage out of range. KWP2000 codes have
-  no FTB, so they print without a suffix (`P0420`).
+  ground, `-13` = open circuit, `-1C` = voltage out of range. canair knows the whole
+  standard table; only the manufacturer-specific category (`-F0`…`-FF`) needs the
+  profile. KWP2000 codes have no FTB, so they print without a suffix (`P0420`).
 
 canair decodes the standardized structure of *every* code, even one it has never
 seen. What it can't invent is the **manufacturer-specific text** — what Hyundai
@@ -120,8 +121,8 @@ canair layers meaning from three sources, most specific first:
 
 1. **The profile's per-ECU `dtcs:` sections** (`ecus/<name>.yaml`) — the
    authoritative, curated code text for *this* car.
-2. **The profile-wide `failure_types:`** (`profile.yaml`) — FTB descriptions
-   beyond canair's built-in subset.
+2. **The profile-wide `failure_types:`** (`profile.yaml`) — names for the
+   manufacturer-specific FTBs (`0xF0`–`0xFF`) that the standard table leaves open.
 3. **A small bundled generic (ISO/SAE) table** — a handful of well-known codes
    (`P0300`, `P0420`, `U0100`, …).
 

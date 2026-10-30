@@ -73,7 +73,7 @@ class TestProfileDefinitions:
             "C182C": {"description": "DC fast-charge (CCS) charging / PLC communication failure"},
             "B1285": {"description": "Direction Control Motor — AUTO Defog"},
         },
-        "failure_types": {0x77: "Hyundai-specific — meaning not yet determined"},
+        "failure_types": {0xF3: "manufacturer-specific symptom"},
     }
 
     def test_profile_description_used(self):
@@ -82,13 +82,21 @@ class TestProfileDefinitions:
         assert d["meaning"].startswith("DC fast-charge")
 
     def test_profile_ftb_and_description_combined(self):
-        d = describe_dtc("B1285-77", defs=self.DEFS)
+        d = describe_dtc("B1285-F3", defs=self.DEFS)
         assert d["description"] == "Direction Control Motor — AUTO Defog"
-        assert d["failure_type"] == "0x77"
-        assert d["failure_type_desc"] == "Hyundai-specific — meaning not yet determined"
+        assert d["failure_type"] == "0xF3"
+        assert d["failure_type_desc"] == "manufacturer-specific symptom"
         # meaning folds in both the code meaning and the FTB note.
         assert "AUTO Defog" in d["meaning"]
-        assert "FTB 0x77" in d["meaning"]
+        assert "FTB 0xF3" in d["meaning"]
+
+    def test_standard_ftb_needs_no_profile_entry(self):
+        # Hyundai/Kia use the SAE J2012 table unchanged (ES95486 Annex D).
+        d = describe_dtc("B1285-77", defs=self.DEFS)
+        assert d["failure_type_desc"] == "commanded position not reachable"
+
+    def test_reserved_ftb_is_unnamed(self):
+        assert describe_dtc("B1285-2A", defs={})["failure_type_desc"] is None
 
     def test_profile_missing_code_falls_back_to_structural(self):
         d = describe_dtc("B2915-00", defs=self.DEFS)
@@ -101,4 +109,4 @@ class TestProfileDefinitions:
         assert d["description"] and "charg" in d["description"].lower()
         b = describe_dtc("B1285-77")
         assert "Defog" in (b["description"] or "")
-        assert b["failure_type_desc"] and "Hyundai" in b["failure_type_desc"]
+        assert b["failure_type_desc"] == "commanded position not reachable"

@@ -65,6 +65,6 @@ multi_did_max: 6
 physical_bands:
   hv_pack: [240, 410]   # HV traction pack V (96S, ~360 V nominal)
 
-failure_types:
-  "0x00": "no sub-type information"          # standard (also known by the tool)
-  "0x77": "Hyundai-specific — meaning not yet determined"
+# DTC failure-type bytes: Hyundai/Kia use the standard SAE J2012 table (ES95486 Annex D), which the
+# tool already knows (0x77 on B1285 = commanded position not reachable). Name only
+# manufacturer-specific values (0xF0-0xFF) here, under `failure_types:`.

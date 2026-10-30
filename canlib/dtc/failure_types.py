@@ -1,0 +1,120 @@
+"""The standard DTC failure-type byte (FTB) table.
+
+The third byte of a UDS DTC: the high nibble is the failure category, the low nibble the
+subtype. The table is the one in SAE J2012-DA / ISO 15031-6, which ISO 14229-1 Annex D
+and Hyundai/Kia's ES95486 adopt unchanged. Reserved values are left out, so a lookup miss
+means "reserved or manufacturer-specific" (category ``F``, ``0xF0``-``0xFF``); a profile
+names those in its ``failure_types:``.
+"""
+
+from __future__ import annotations
+
+FAILURE_TYPE: dict[int, str] = {
+    # Category 0: general failure information (subtype = the category it stands for).
+    0x00: "no sub-type information",
+    0x01: "general electrical failure",
+    0x02: "general signal failure",
+    0x03: "FM/PWM failure",
+    0x04: "system internal failure",
+    0x05: "system programming failure",
+    0x06: "algorithm-based failure",
+    0x07: "mechanical failure",
+    0x08: "bus signal/message failure",
+    0x09: "component failure",
+    # Category 1: general electrical failures.
+    0x11: "circuit short to ground",
+    0x12: "circuit short to battery",
+    0x13: "circuit open",
+    0x14: "circuit short to ground or open",
+    0x15: "circuit short to battery or open",
+    0x16: "circuit voltage below threshold",
+    0x17: "circuit voltage above threshold",
+    0x18: "circuit current below threshold",
+    0x19: "circuit current above threshold",
+    0x1A: "circuit resistance below threshold",
+    0x1B: "circuit resistance above threshold",
+    0x1C: "circuit voltage out of range",
+    0x1D: "circuit current out of range",
+    0x1E: "circuit resistance out of range",
+    0x1F: "circuit intermittent",
+    # Category 2: general signal failures.
+    0x21: "signal amplitude below minimum",
+    0x22: "signal amplitude above maximum",
+    0x23: "signal stuck low",
+    0x24: "signal stuck high",
+    0x25: "signal shape/waveform failure",
+    0x26: "signal rate of change below threshold",
+    0x27: "signal rate of change above threshold",
+    0x28: "signal bias level out of range/zero adjustment failure",
+    0x29: "signal invalid",
+    0x2F: "signal erratic",
+    # Category 3: FM/PWM failures.
+    0x31: "no signal",
+    0x32: "signal low time below minimum",
+    0x33: "signal low time above maximum",
+    0x34: "signal high time below minimum",
+    0x35: "signal high time above maximum",
+    0x36: "signal frequency too low",
+    0x37: "signal frequency too high",
+    0x38: "signal frequency incorrect",
+    0x39: "too few pulses",
+    0x3A: "too many pulses",
+    # Category 4: system internal failures.
+    0x41: "general checksum failure",
+    0x42: "general memory failure",
+    0x43: "special memory failure",
+    0x44: "data memory failure",
+    0x45: "program memory failure",
+    0x46: "calibration/parameter memory failure",
+    0x47: "watchdog/safety microcontroller failure",
+    0x48: "supervision software failure",
+    0x49: "internal electronic failure",
+    0x4A: "incorrect component installed",
+    0x4B: "over temperature",
+    # Category 5: system programming failures.
+    0x51: "not programmed",
+    0x52: "not activated",
+    0x53: "deactivated",
+    0x54: "missing calibration",
+    0x55: "not configured",
+    # Category 6: algorithm-based failures.
+    0x61: "signal calculation failure",
+    0x62: "signal compare failure",
+    0x63: "circuit/component protection time-out",
+    0x64: "signal plausibility failure",
+    0x65: "signal has too few transitions/events",
+    0x66: "signal has too many transitions/events",
+    0x67: "signal incorrect after event",
+    0x68: "event information",
+    # Category 7: mechanical failures.
+    0x71: "actuator stuck",
+    0x72: "actuator stuck open",
+    0x73: "actuator stuck closed",
+    0x74: "actuator slipping",
+    0x75: "emergency position not reachable",
+    0x76: "wrong mounting position",
+    0x77: "commanded position not reachable",
+    0x78: "alignment or adjustment incorrect",
+    0x79: "mechanical linkage failure",
+    0x7A: "fluid leak or seal failure",
+    0x7B: "low fluid level",
+    # Category 8: bus signal/message failures.
+    0x81: "invalid serial data received",
+    0x82: "alive/sequence counter incorrect or not updated",
+    0x83: "signal protection calculation incorrect",
+    0x84: "signal below allowable range",
+    0x85: "signal above allowable range",
+    0x86: "signal invalid (bus)",
+    0x87: "missing message",
+    0x88: "bus off",
+    0x8F: "erratic (bus)",
+    # Category 9: component failures.
+    0x91: "parametric",
+    0x92: "performance or incorrect operation",
+    0x93: "no operation",
+    0x94: "unexpected operation",
+    0x95: "incorrect assembly",
+    0x96: "component internal failure",
+    0x97: "component or system operation obstructed",
+    0x98: "component or system over temperature",
+}
