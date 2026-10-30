@@ -170,7 +170,7 @@ uhi22's test of which EPCU transceiver sends each frame. None of this is the own
 
 Who sends what on P-CAN was settled by timing: frames from one controller leave in a fixed order a
 fraction of a millisecond apart each cycle. Every frame below follows the gateway's `CGW1` (`0x541`)
-by 0.3-4 ms in every cycle of both logs, and none is on the VCU's transceiver. The tool that does
+by 0.3-6 ms in every cycle of both logs, and none is on the VCU's transceiver. The tool that does
 this, and the one that read the layouts out of the head unit's `parse()` code, are in
 `ioniq-avn-fw` (`.opencode/skills/ioniq-avn-fw-reversing/scripts/can_sender_timing.py` and
 `parse_layouts.py`); that repo's `micom-can-findings.md` §7 carries the same correction.
@@ -182,7 +182,7 @@ this, and the one that read the layouts out of the head unit's `parse()` code, a
 | `0x57A` `HU_EV_P_01` off-peak window | gateway `0x588` | first four bytes echoed by the VCU |
 | `0x1AA` `HU_EV_PE_00` EV settings | gateway `0x5DF` or `0x5B3` | both gateway-timed; not told apart |
 | `0x54D`/`0x54E` nav road type/distance | gateway `0x55F`/`0x561`? | gateway-timed; all zero, no route active |
-| `0x1C0` `HU_DATC_PE_00` climate comfort | gateway `0x5D3`? | only the AQS 'no change' nibble matches |
+| `0x1C0` `HU_DATC_PE_00` climate comfort | gateway `0x5D3` | opendbc C-CAN ID; only byte 4 bits 0-5 forwarded, into byte 0 |
 
 The VCU keeps the schedules and re-broadcasts them: departure on `0x57A` (bytes 0-6 identical to
 `0x55C`, byte 7 bit 7 set) and the off-peak window on `0x579` (bytes 0-3 identical to `0x588`). The
@@ -194,8 +194,12 @@ Consequences for the claims above:
 - §3 and §7: the gateway does **not** repeat `0x57A`/`0x57B` onto P-CAN under the same IDs; on
   P-CAN those IDs belong to the VCU. The Soul EV `C_CAN` sheet rows for `0x57A`/`0x57B` describe the
   VCU's frames.
-- Gateway translations change the ID but keep the bytes, so the head unit's own layouts decode the
-  P-CAN copies. Definitions: `signals/body.yaml` (`CGW_CLOCK`, `GW_DEPART_*`, `GW_ECON_*`) and
-  `signals/powertrain.yaml` (`VCU_DEPART_*`, `VCU_ECON_*`).
+- Gateway translations change the ID. Fields that fit inside one byte keep their bits, so the head
+  unit's own layouts decode the P-CAN copies of the clock and schedule frames. `HU_DATC_PE_00` is
+  cut down to its byte 4 bits 0-5 (voice, phone, blower noise), moved to byte 0, as opendbc's C-CAN
+  DBC has it; `0x5D4` is the same shape for the telematics unit's `TMU_GW_PE_01`. Multi-byte
+  signals change byte order between MM-CAN (high byte first) and P-CAN (low byte first); see the
+  IGPM research entry on gateway frame forwarding. Definitions: `signals/body.yaml` (`CGW_CLOCK`,
+  `GW_DEPART_*`, `GW_ECON_*`) and `signals/powertrain.yaml` (`VCU_DEPART_*`, `VCU_ECON_*`).
 - The departure temperature field reads 63 and 7 in uhi22's car with preconditioning off, so its
   encoding is still unknown.

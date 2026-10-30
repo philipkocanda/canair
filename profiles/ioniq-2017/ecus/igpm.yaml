@@ -353,11 +353,12 @@ IGPM:
           source: OBDb Hyundai-IONIQ-Electric 22BC04 bix 54; IGPM support bitmap; opendbc CGW4 rear belt indicators (2026-10-29)
           verified: false
           notes: >-
-            Candidate rear-right seatbelt latched. Three sources agree: OBDb labels this bit (bix
-            54) as the rear-right belt; the 22BC04 support bitmap (B07=0xF4) marks this bit as a
-            real signal; and the gateway publishes rear belt states on broadcast 0x559 (opendbc CGW4
-            RL/RR/RC SeatBeltInd). 0 in all 1753 captures, so never exercised. Test: buckle each
-            rear belt in ACC2.
+            Candidate rear-right seatbelt latched. OBDb labels this bit (bix 54) as the rear-right
+            belt, and the 22BC04 support bitmap (B07=0xF4) marks it as a real signal. opendbc's
+            C-CAN DBC carries rear belt indicators in CGW4 (0x559, RL/RR/RC SeatBeltInd), but 0x559
+            is absent from all three uhi22 Ioniq P-CAN logs, so the gateway does not send it on
+            P-CAN; whether it does on C-CAN is unknown. 0 in all 1753 captures, so never exercised.
+            Test: buckle each rear belt in ACC2.
           enabled: false
         SEATBELT_RL:
           expression: B12:2
@@ -366,11 +367,12 @@ IGPM:
           source: OBDb Hyundai-IONIQ-Electric 22BC04 bix 53; IGPM support bitmap; opendbc CGW4 rear belt indicators (2026-10-29)
           verified: false
           notes: >-
-            Candidate rear-left seatbelt latched. Three sources agree: OBDb labels this bit (bix 53)
-            as the rear-left belt; the 22BC04 support bitmap (B07=0xF4) marks this bit as a real
-            signal; and the gateway publishes rear belt states on broadcast 0x559 (opendbc CGW4
-            RL/RR/RC SeatBeltInd). 0 in all 1753 captures, so never exercised. Test: buckle each
-            rear belt in ACC2.
+            Candidate rear-left seatbelt latched. OBDb labels this bit (bix 53) as the rear-left
+            belt, and the 22BC04 support bitmap (B07=0xF4) marks it as a real signal. opendbc's
+            C-CAN DBC carries rear belt indicators in CGW4 (0x559, RL/RR/RC SeatBeltInd), but 0x559
+            is absent from all three uhi22 Ioniq P-CAN logs, so the gateway does not send it on
+            P-CAN; whether it does on C-CAN is unknown. 0 in all 1753 captures, so never exercised.
+            Test: buckle each rear belt in ACC2.
           enabled: false
         SEATBELT_RM:
           expression: B12:3
@@ -379,11 +381,12 @@ IGPM:
           source: OBDb Hyundai-IONIQ-Electric 22BC04 bix 52; IGPM support bitmap; opendbc CGW4 rear belt indicators (2026-10-29)
           verified: false
           notes: >-
-            Candidate rear-middle seatbelt latched. Three sources agree: OBDb labels this bit (bix
-            52) as the rear-middle belt; the 22BC04 support bitmap (B07=0xF4) marks this bit as a
-            real signal; and the gateway publishes rear belt states on broadcast 0x559 (opendbc CGW4
-            RL/RR/RC SeatBeltInd). 0 in all 1753 captures, so never exercised. Test: buckle each
-            rear belt in ACC2.
+            Candidate rear-middle seatbelt latched. OBDb labels this bit (bix 52) as the rear-middle
+            belt, and the 22BC04 support bitmap (B07=0xF4) marks it as a real signal. opendbc's
+            C-CAN DBC carries rear belt indicators in CGW4 (0x559, RL/RR/RC SeatBeltInd), but 0x559
+            is absent from all three uhi22 Ioniq P-CAN logs, so the gateway does not send it on
+            P-CAN; whether it does on C-CAN is unknown. 0 in all 1753 captures, so never exercised.
+            Test: buckle each rear belt in ACC2.
           enabled: false
 
     22BC06:
@@ -1075,6 +1078,63 @@ IGPM:
         - byte sweep over all stored 22BC03-07 captures, 2026-10-29
       what_to_test:
         - "Narrated canair monitor IGPM --save --keep-changes in ACC2/READY: one actuation at a time from the candidate list (park brake, hazard, fog, each wiper stage, each window, heated wheel, rear belts, fob lock/unlock, handle lock/unlock), pressing 's' for each. Every bit that moves should be inside the mask; one outside it means the mask reading is wrong."
+    - type: decode
+      target: gateway frame forwarding between MM-CAN, P-CAN and C-CAN
+      status: captured
+      priority: P2
+      vehicle_states: [READY, CHARGING]
+      created: "2026-10-30"
+      updated: "2026-10-30"
+      result: >-
+        The IGPM routes signals, not frames. It builds each frame as the destination bus's message
+        table defines it and sends it on its own schedule, so source and destination IDs are
+        unrelated and one ID can name different frames on different buses (0x55C, 0x57A, 0x57B,
+        0x5D0, 0x5D7). MM-CAN carries multi-byte signals high byte first (Motorola) and P-CAN and
+        C-CAN low byte first (Intel), so every multi-byte signal is byte-swapped when it crosses.
+        Fields that fit inside one byte keep their bits, which is why the head unit's schedule and
+        clock frames cross unchanged.
+      notes: >-
+        Byte order: opendbc's Hyundai M-CAN DBC has 1184 of 1184 signals big-endian and its C-CAN
+        DBC 1154 of 1154 little-endian. The EU head unit's MM-CAN parsers read 83 of 83 multi-byte
+        fields high byte first, and its MICOM reads 0x56A as B3<<8|B4. The US telematics P-CAN
+        parsers read 22 of 22 low byte first. P-CAN to MM-CAN, joined by Hyundai signal name: pack
+        voltage 0x5D8 d6-d7 -> 0x55D B0-B1, swapped; quick-charge time left 0x491 d0-d1 -> 0x56A
+        B3-B4, swapped; range 0x200 (10 bits from bit 15) -> 0x56A (9 bits); A/C compressor power
+        0x5F5 -> 0x56A B5-B6; SOC 0x5D8 d1 -> 0x55E B2; BMS fault and standard-charge flags 0x5D8 d0
+        bits 1-3 -> 0x55E B1 bits 1-3; climate permission 0x57B d1.1 -> 0x55C B0.7. Copied
+        unchanged: VCU 0x579 d0-d4 -> 0x56B, VCU 0x57A -> 0x56C, climate unit 0x5CC -> 0x132. 0x56A
+        combines DC-DC converter, MCU, VCU, BMS and climate-unit signals. MM-CAN to P-CAN: 0x54F ->
+        0x567, 0x57B -> 0x55C and 0x57A -> 0x588 byte for byte; HU_DATC_PE_00 0x1C0 -> 0x5D3 keeps
+        only byte 4 bits 0-5, moved to byte 0 (see the AVN entry). C-CAN to P-CAN (names from the US
+        AE EV message table): EV_CP1 0x5D0 is the cluster's odometer frame (CLU12, same layout);
+        EV_CP2 0x450 is the cluster's displayed speed (CLU11 Vanz, 0.5 km/h, moved one byte earlier;
+        reads about 15 % above the MCU speed); EV_CP5 0x578 is a chassis warning summary (SCC12 ACC
+        fault and mode at the same bits, LKAS11 LDWS state in byte 0 bits 7-4, MDPS and TPMS lamps,
+        low fuel, drive-mode switch; 0x10 on uhi22's car is LDWS state 1). Senders, by clock over
+        the 19-minute 2022 trace: 19 IDs hold a fixed phase to CGW1 0x541 (0x414, 0x450, 0x462,
+        0x471, 0x4FE, 0x541, 0x553, 0x55C, 0x55F, 0x561, 0x567, 0x578, 0x588, 0x5B3, 0x5D0, 0x5D3,
+        0x5D4, 0x5DF, 0x5EC); the other P-CAN IDs drift on their own ECUs' clocks. 0x2B0 (SAS11,
+        steering angle) is not on the gateway's clock and has 4-5 times the period jitter of native
+        frames: either the steering sensor is also on P-CAN or the gateway passes the frame through
+        as it arrives. Diagnostic frames (0x7DF, 0x7Ex) cross with ID and bytes kept. Of the body
+        frames, CGW1 0x541 and CGW2 0x553 reach P-CAN; CGW4 0x559, GW_DDM_PE 0x521 and GW_IPM_PE_1
+        0x522 are absent from all three uhi22 P-CAN logs. On MM-CAN, 0x5D0 is the cluster's
+        CLU_HU_P_00 (speed, SOC, motor torque), not the odometer. Unproven on the car: no
+        simultaneous MM-CAN and P-CAN capture exists. The P-CAN layouts from the US firmware match
+        uhi22's EU P-CAN logs on every signal checked (pack voltage, SOC, charge times, range, DC-DC
+        power).
+      sources:
+        - "ioniq-avn-fw EU head-unit firmware: com.lge.ivi GwEvP02-08, GwEvPe00 and HuDatcPe00 parse layouts; MICOM 7AEe EV getters 0x846DE-0x84790 (2026-10-30)"
+        - "US telematics firmware AEEV.USA.SOP.V108: com.infobank Can2ACCANCsmEV P-CAN parsers and the Can2AAEEVMessage ID table (2026-10-30)"
+        - opendbc hyundai_2015_ccan.dbc and hyundai_2015_mcan.dbc (commaai, MIT)
+        - "uhi22 Ioniq28Investigations P-CAN logs (2025) and IoniqMotorCAN ioniq2018_motorCAN_500k_HPC.asc (2022): clock-phase sender attribution and value checks (2026-10-30)"
+      what_to_test:
+        - "Tap MM-CAN and P-CAN at the same time in READY, then while AC charging: 0x55D B0-B1 should equal 0x5D8 d6-d7 with the bytes swapped, and 0x56A B3-B4 should equal 0x491 d0-d1 swapped."
+        - "On the same capture: MM-CAN 0x56B bytes 0-4 should equal P-CAN 0x579, 0x56C should equal 0x57A, and 0x132 should equal 0x5CC."
+        - "Tap C-CAN as well: 0x2B0 on P-CAN should repeat the C-CAN copy a fixed short time later; look for the sources of the gateway-clocked 0x414, 0x462, 0x471 and 0x4FE."
+      capture_protocol: >-
+        Two adapters logging at the same time, one per tapped bus. Import each log with canair
+        import can and line the frames up by timestamp.
 
   iocontrol_discoveries:
     BC01:
