@@ -70,9 +70,9 @@ class TestParseUdsResponse:
         assert "buffer" in r["error"].lower()
 
     def test_nrc_unknown_code(self):
-        r = parse_uds_response("7F 22 99")
+        r = parse_uds_response("7F 22 5A")
         assert r["ok"] is False
-        assert r["nrc"] == 0x99
+        assert r["nrc"] == 0x5A
         assert "unknown" in r["nrc_desc"]
 
     def test_raw_preserved(self):
@@ -437,3 +437,26 @@ class TestIsoTpFrameCounterWrap:
         r = parse_uds_response(body)
         assert r["ok"] is True
         assert r["hex"] == expected.upper()
+
+
+class TestNrcNames:
+    def test_condition_refinements_are_named(self):
+        from canlib.uds.parse import nrc_abbrev, nrc_description
+
+        assert nrc_description(0x88) == "vehicleSpeedTooHigh"
+        assert nrc_description(0x90) == "shifterLeverNotInPark"
+        assert nrc_abbrev(0x93) == "VTL"
+
+    def test_ranges_get_their_iso_name(self):
+        from canlib.uds.parse import nrc_abbrev, nrc_description
+
+        assert nrc_description(0x8E) == "unknown (0x8E)"  # ISO/SAE reserved
+        assert nrc_description(0xA0) == "reservedForSpecificConditionsNotCorrect"
+        assert nrc_description(0xF3) == "vehicleManufacturerSpecificConditionsNotCorrect"
+        assert nrc_abbrev(0xF3) == "VMSCNC"
+        assert nrc_abbrev(0xFF) == "?"
+
+    def test_parsed_negative_response_uses_the_range_name(self):
+        r = parse_uds_response("7F31F4", expected_sid=0x31)
+        assert r["nrc"] == 0xF4
+        assert r["nrc_desc"] == "vehicleManufacturerSpecificConditionsNotCorrect"

@@ -131,7 +131,7 @@ class TestNrcName:
         assert nrc_name(0x78) == "requestCorrectlyReceivedResponsePending"
 
     def test_unknown_code_is_reported_not_hidden(self):
-        assert nrc_name(0xAB) == "unknown (0xAB)"
+        assert nrc_name(0x5A) == "unknown (0x5A)"
 
 
 class TestRoleDefinitions:

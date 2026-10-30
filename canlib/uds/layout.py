@@ -9,7 +9,7 @@ module is the one table that says so, so a byte can be *named* (``DID`` / ``LID`
 ``RID`` / ``NRC`` / …) instead of guessed at from a 1-vs-2-byte width flag.
 
 It builds on :mod:`canlib.uds.services` (the SID registry) and reuses
-:data:`canlib.uds.parse.NRC_CODES` for response-code names; the roles use the same
+:func:`canlib.uds.parse.nrc_description` for response-code names; the roles use the same
 ``DID``/``LID``/``RID`` vocabulary as :class:`canlib.modes.discovery_scan.DiscoveryProbe`.
 Data-only plus small resolvers: no I/O, no formatting decisions (a caller renders
 the labels and picks which definitions to show).
@@ -27,7 +27,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass
 
-from canlib.uds.parse import NRC_CODES
+from canlib.uds.parse import nrc_description
 from canlib.uds.services import NEGATIVE_RESPONSE_SID, RESPONSE_SID_OFFSET, service_info
 
 # ── role vocabulary ────────────────────────────────────────────────────────
@@ -282,7 +282,7 @@ def response_layout(resp_sid: int) -> ResponseLayout | None:
 
 def nrc_name(nrc: int) -> str:
     """Human name for a negative response code (``requestOutOfRange``, …)."""
-    return NRC_CODES.get(nrc, f"unknown (0x{nrc:02X})")
+    return nrc_description(nrc)
 
 
 def role_definitions(roles: Iterable[str]) -> list[tuple[str, str]]:

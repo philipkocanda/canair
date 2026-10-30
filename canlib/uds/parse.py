@@ -103,7 +103,45 @@ NRC_CODES = {
     0x78: "requestCorrectlyReceivedResponsePending",
     0x7E: "subFunctionNotSupportedInActiveSession",
     0x7F: "serviceNotSupportedInActiveSession",
+    # ISO 14229-1 conditionsNotCorrect refinements: why the ECU refused *now*.
+    0x81: "rpmTooHigh",
+    0x82: "rpmTooLow",
+    0x83: "engineIsRunning",
+    0x84: "engineIsNotRunning",
+    0x85: "engineRunTimeTooLow",
+    0x86: "temperatureTooHigh",
+    0x87: "temperatureTooLow",
+    0x88: "vehicleSpeedTooHigh",
+    0x89: "vehicleSpeedTooLow",
+    0x8A: "throttle/PedalTooHigh",
+    0x8B: "throttle/PedalTooLow",
+    0x8C: "transmissionRangeNotInNeutral",
+    0x8D: "transmissionRangeNotInGear",
+    0x8F: "brakeSwitch(es)NotClosed",
+    0x90: "shifterLeverNotInPark",
+    0x91: "torqueConverterClutchLocked",
+    0x92: "voltageTooHigh",
+    0x93: "voltageTooLow",
 }
+
+# ISO 14229-1 ranges without per-code names. 0xF0-0xFE differ per make (Hyundai/Kia use
+# them for gateway authentication and downgrade refusals), so they get the range name only.
+_NRC_RANGES = (
+    (range(0x94, 0xF0), "reservedForSpecificConditionsNotCorrect"),
+    (range(0xF0, 0xFF), "vehicleManufacturerSpecificConditionsNotCorrect"),
+)
+
+
+def nrc_description(nrc: int) -> str:
+    """Human name for a negative response code, or ``unknown (0xNN)``."""
+    name = NRC_CODES.get(nrc)
+    if name is not None:
+        return name
+    for codes, range_name in _NRC_RANGES:
+        if nrc in codes:
+            return range_name
+    return f"unknown (0x{nrc:02X})"
+
 
 # Short mnemonics for compact UI display (TUI "Last response" column, etc).
 # Derived from the initials of each NRC name; use `nrc_abbrev(n)` for lookup.
@@ -130,12 +168,33 @@ NRC_ABBREV = {
     0x78: "RCRRP",  # requestCorrectlyReceivedResponsePending
     0x7E: "SFNSIAS",  # subFunctionNotSupportedInActiveSession
     0x7F: "SNSIAS",  # serviceNotSupportedInActiveSession
+    # ISO 14229-1's own mnemonics for the conditionsNotCorrect refinements.
+    0x81: "RPMTH",
+    0x82: "RPMTL",
+    0x83: "EIR",
+    0x84: "EINR",
+    0x85: "ERTTL",
+    0x86: "TEMPTH",
+    0x87: "TEMPTL",
+    0x88: "VSTH",
+    0x89: "VSTL",
+    0x8A: "TPTH",
+    0x8B: "TPTL",
+    0x8C: "TRNIN",
+    0x8D: "TRNIG",
+    0x8F: "BSNC",
+    0x90: "SLNIP",
+    0x91: "TCCL",
+    0x92: "VTH",
+    0x93: "VTL",
 }
 
 
 def nrc_abbrev(nrc: int) -> str:
     """Short mnemonic for an NRC, or ``?`` if unknown."""
-    return NRC_ABBREV.get(nrc, "?")
+    if nrc in NRC_ABBREV:
+        return NRC_ABBREV[nrc]
+    return "VMSCNC" if 0xF0 <= nrc <= 0xFE else "?"
 
 
 def classify_response(resp: UdsResponse) -> str:
@@ -533,7 +592,7 @@ def parse_uds_response(
         nrc = response_bytes[2]
         result["nrc"] = nrc
         result["nrc_service"] = response_bytes[1]
-        result["nrc_desc"] = NRC_CODES.get(nrc, f"unknown (0x{nrc:02X})")
+        result["nrc_desc"] = nrc_description(nrc)
         if expected_sid is not None and response_bytes[1] != expected_sid:
             # NRC is reporting rejection for a *different* service — this is
             # a stale/misaligned frame, not a real NRC for our request.
