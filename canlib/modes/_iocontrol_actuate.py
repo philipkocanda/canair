@@ -364,8 +364,7 @@ class IOControlActuator:
         NRC 0x7F without one. A DID with no known release is skipped: a KWP2000
         ``0x30`` entry has one only when the profile declares it, because that
         service's control-option byte is manufacturer-defined and ``00`` is not a
-        release everywhere (it starts a one-shot command on Nissan, and switches a
-        Kia Soul EV charger LED on).
+        release everywhere (it starts a one-shot command on Nissan).
         """
         t = self.t
         for did in t.dids:

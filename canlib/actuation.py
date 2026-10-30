@@ -8,8 +8,8 @@ module only adds what a request *does*.
 KWP2000 ``InputOutputControlByLocalIdentifier`` (``0x30``) has no standard release.
 ISO 14230-3 leaves its control-option byte to the manufacturer, and the byte that
 SSF 14230-3 calls returnControlToECU (``00``) actuates elsewhere: Nissan's ``00`` is
-a one-shot command, and the OVMS Kia Soul EV firmware sends ``30 {led} 00`` to
-switch an on-board charger LED *on*. So a ``0x30`` request is a release only when
+a one-shot command, and what it does on Hyundai/Kia is unknown. So a ``0x30``
+request is a release only when
 the profile declares it as one (an IOControl entry's ``release:``), and every other
 ``0x30`` request is ``actuate``.
 

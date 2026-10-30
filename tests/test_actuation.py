@@ -49,8 +49,8 @@ class TestClassify:
 
     @pytest.mark.parametrize("protocol", PROTOCOLS)
     def test_kwp_0x30_actuates_unless_declared(self, protocol):
-        # 30 01 00 switches a Kia Soul EV charger LED on (OVMS); no option byte
-        # is a release by itself.
+        # The 0x30 option byte is manufacturer-defined; no option byte is a
+        # release by itself.
         for request_hex in ("300100", "300111", "30070000"):
             assert classify(request_hex, protocol) == ACTUATE
         assert classify("300111", protocol, releases=["30 01 11"]) == RELEASE

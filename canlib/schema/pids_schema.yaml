@@ -468,7 +468,7 @@ required_meta_fields:
 #   00 = returnControl (OFF / release)
 # KWP2000 0x30 is 30 <LID> <option> [state...] with an 8-bit local identifier.
 # ISO 14230-3 leaves the option byte to the manufacturer, and 00 is not a release
-# everywhere (Nissan: a one-shot command; Kia Soul EV OBC: charge-port LED on), so
+# everywhere (Nissan: a one-shot command; Hyundai/Kia: unknown), so
 # declare the release explicitly. The key is then a free-form label for the
 # command (e.g. the LID, or the LID plus its function byte).
 #

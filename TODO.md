@@ -86,10 +86,10 @@ AAF) still have no actuators defined.
   option byte. `scan iocontrol` still sends only `30 {LID} 00`, but now confirms first on every
   non-Nissan profile (`--yes`), since that probe is not proven to drive nothing.
 - [ ] **Settle the option-byte convention on the Ioniq.** ISO 14230-3 leaves it to the
-  manufacturer. The OVMS Kia Soul EV firmware sends `30 {led} 00` to switch an OBC charger LED
-  *on* and `30 {led} 11` to switch it off, so `00` is not a release there (docs and `scan
-  iocontrol` no longer assume it is). Evidence and test plan: the `iocontrol_scan` research entry
-  on the Ioniq OBC (`canair research --ecu OBC`).
+  manufacturer, so docs and `scan iocontrol` no longer assume `00` is a release. The only
+  Hyundai/Kia lead is weak: dead OVMS Kia Soul EV code that would send `30 {led} 00` / `30 {led}
+  11` to switch an OBC charger LED on / off. Evidence and test plan: the `iocontrol_scan`
+  research entry on the Ioniq OBC (`canair research --ecu OBC`).
 - [x] **Session handling** — the `hk_90_session` quirk (declared by `ioniq-2017` and
   `kona-electric-2019`) permits `10 90` on KWP2000 ECUs through the existing
   `session_mode_block` allowance, so an entry's `session_mode: "90"` and `canair raw 1090` work

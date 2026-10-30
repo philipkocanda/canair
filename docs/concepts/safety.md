@@ -79,8 +79,8 @@ Note the difference between *discovering* a capability and *using* it:
     - UDS IOControl uses the standard `returnControlToECU`, a safe probe.
     - KWP2000 IOControl (`0x30`) has no standard control-option byte (ISO 14230-3 leaves it to
       the manufacturer). The scan sends `30 {LID} 00`, which SSF 14230-3 calls
-      `returnControlToECU`, but no make is known to follow that: the OVMS Kia Soul EV firmware
-      sends `30 {led} 00` to switch a charge-port LED *on*. So the sweep asks for confirmation
+      `returnControlToECU`, but no make is known to follow that: on Nissan it begins a one-shot
+      command, and what it does on Hyundai/Kia is unknown. So the sweep asks for confirmation
       first (`--yes` to skip; it refuses non-interactively without it).
     - On a profile with the `nissan_c0_session` quirk canair sends Nissan's "is this value
       supported?" query instead, which drives nothing, so there is no prompt. Nissan's behaviour

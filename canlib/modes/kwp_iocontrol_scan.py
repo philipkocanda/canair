@@ -24,9 +24,9 @@ on — comes from SSF 14230-3 Issue 2 (the Swedish implementation standard, Tabl
 
 The scanner sends ONLY ``30 {LID} 00`` and hard-refuses any other IOCP. That probe
 is returnControlToECU under SSF 14230-3, but **no make is known to follow it**:
-the OVMS Kia Soul EV firmware sends ``30 {led} 00`` to switch an on-board charger
-LED *on*, so on Hyundai/Kia ``00`` can actuate too. The scan is therefore
-confirm-first (:func:`needs_confirmation`) on every profile without a proven
+on Nissan ``30 {LID} 00`` begins a one-shot command, and what ``00`` does on
+Hyundai/Kia is unknown. The scan is therefore confirm-first
+(:func:`needs_confirmation`) on every profile without a proven
 non-actuating probe. Never scan with another IOCP — even the SSF "report" values
 (01-03), since these ECUs are not guaranteed to be SSF-conformant.
 
@@ -224,7 +224,7 @@ def needs_confirmation(pids_data: dict) -> bool:
 UNPROVEN_WARNING = (
     "ISO 14230-3 leaves the 0x30 control-option byte manufacturer-defined, and this "
     "scan sends 30 {LID} 00 for every LID. That is returnControlToECU under SSF "
-    "14230-3, but it switches a Kia Soul EV charger LED on, so on this profile's "
+    "14230-3, but no make is known to follow SSF there, so on this profile's "
     "KWP2000 ECUs the probe may actuate outputs."
 )
 

@@ -165,9 +165,8 @@ and **`g`/`G` address the view's primary axis**.
 - **`canair scan`** — Kinds: `range` (bare `canair scan <ECU>` is this), `sessions`, `routines`
   (UDS `0x31` SF03 / KWP `0x33`, auto-selected by `id_protocol` so it never blind-sends
   StartRoutine), `iocontrol` (returnControlToECU: UDS `0x2F` / KWP `0x30`). All are **safe
-  probes** except a KWP `0x30` sweep: ISO 14230-3 leaves its option byte to the manufacturer
-  and `30 {LID} 00` switches a Kia Soul EV charger LED *on*, so that sweep confirms first
-  (`--yes`; Nissan profiles get a non-actuating query instead). Hits are written to the ECU's
+  probes** except a KWP `0x30` sweep, which confirms first (`--yes`; Nissan profiles get a
+  non-actuating query instead). Hits are written to the ECU's
   `routines:`/`iocontrol_discoveries:`. `range` takes a comma list of ranges
   (`canlib/id_ranges.py`); without `--range` it sweeps the ECU's **DID families**
   (`canlib/did_families.py` — high bytes from its `22`/`2F` PIDs and IOControl hits), not the

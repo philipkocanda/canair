@@ -98,8 +98,8 @@ service facts stay in one place, plus a small table of sub-function exceptions:
   (sub-functions 02/03), so when the protocol cannot be resolved the stricter reading wins: `31 02`
   to an unknown ECU is `actuate`.
 - KWP2000 `0x30` has no standard release: ISO 14230-3 leaves the control-option byte to the
-  manufacturer, Nissan's `00` is a one-shot command, and the OVMS Kia Soul EV firmware sends
-  `30 {led} 00` to switch a charger LED *on*. So no option byte is a release by itself; only a
+  manufacturer, Nissan's `00` is a one-shot command, and what `00` does on Hyundai/Kia is
+  unknown. So no option byte is a release by itself; only a
   request the profile declares as an entry's `release:` is.
 - The already-blocked flash/write services stay blocked by `check_command_safety` as before. The
   interlock is an *additional* gate, so `--unsafe` unblocking `0x2E` still also needs a passing

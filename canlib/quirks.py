@@ -30,8 +30,7 @@ Today there are four quirks:
   one-shot command.
 - :data:`HK_90_SESSION` — Hyundai/Kia KWP2000 ECUs take the OEM session
   ``10 90`` before an actuator test (``0x30``): the OVMS Kia Soul EV firmware
-  opens it for the on-board charger LEDs and the park-brake service mode, and a
-  Car Scanner sweep of a 2021 Kona EV opens it on every powertrain ECU it reads
+  opens it before its ``0x30`` commands, and a Car Scanner sweep of a 2021 Kona EV opens it on every powertrain ECU it reads
   DTCs from (``profiles/kona-electric-2019/captures/can/``). It permits exactly
   ``10 90`` on the profile's KWP2000 ECUs.
 
