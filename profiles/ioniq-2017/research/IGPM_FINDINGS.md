@@ -1,3 +1,92 @@
+---
+# Paths are relative to the repository root; references/can/ is gitignored (local only).
+title: "IGPM findings: hardware, gateway behaviour, diagnostics"
+subject: >-
+  The 2017 Ioniq Electric's IGPM (Integrated Gateway & Power control Module, UDS 0x770/0x778):
+  hardware, signal routing between the five buses, network management, the 22BCxx status DIDs
+  and the 2F BCxx actuators
+created: 2026-10-30
+updated: 2026-10-30
+status: active
+verification: >-
+  Mostly sibling-vehicle (Kona, Niro, i30) and first-party document evidence; each claim is tagged
+  confirmed, probable or speculative. The section 6.2 verdicts were cross-checked against this
+  car's captures on 2026-10-30.
+sections:
+  - section: "6.2"
+    status: integrated
+    date: 2026-10-30
+    note: >-
+      Renames folded into signal names, notes and status_param readbacks. The bits marked "new"
+      are not defined as signals yet.
+    target: profiles/ioniq-2017/ecus/igpm.yaml
+  - section: "7.2"
+    status: integrated
+    date: 2026-10-30
+    note: IOControl labels folded in, with warnings on BC13 (deadlock) and BC44 (IG3 relay).
+    target: profiles/ioniq-2017/ecus/igpm.yaml
+  - section: "7.1"
+    status: open
+    note: Actuator-support map prediction not yet checked on the car.
+  - section: "11"
+    status: open
+    note: No on-car action from the list has been run, apart from item 1.
+relations:
+  expands_on:
+    - path: profiles/ioniq-2017/research/IONIQ_AVN_FW_FINDINGS.md
+      note: Section 9's gateway frame translation, generalised in section 3.2.
+    - path: profiles/ioniq-2017/ecus/igpm.yaml
+      note: The research entry on the support bitmap (section 6.1) and on gateway frame forwarding.
+  expanded_by:
+    - path: profiles/ioniq-2017/research/FUNCTIONAL_ADDRESSING_FINDINGS.md
+      note: How functional (0x7DF) requests are routed and handled, beyond section 4.
+  invalidates:
+    - path: profiles/ioniq-2017/references/kona/
+      note: >-
+        "BMU capture No HV connected.csv" is from a 2020 Ioniq EV pack, not a Kona (section 8).
+  related:
+    - path: plans/2026-10-29-support-bitmap-coverage.md
+    - path: profiles/ioniq-2017/can_buses.yaml
+sources:
+  - name: igpm-research bundle
+    kind: downloaded third-party material, mixed licences, never committed
+    location: references/can/igpm-research/
+  - name: projectgus Kona EV CAN logs
+    kind: 2019/2021 Kona EV bus logs (CC0-1.0)
+    url: https://github.com/projectgus/hyundai-kona-ev-can-logs
+  - name: projectgus kona-ev-dbc and fakon
+    kind: Kona EV DBC (MIT) and IGPM emulator firmware (MPL-2.0)
+    url:
+      - https://github.com/projectgus/kona-ev-dbc
+      - https://github.com/projectgus/fakon
+  - name: Pelland-Coupe EV_Hacking
+    kind: isolated 2021 Kona EV IGPM bench sweeps
+    url: https://github.com/Pelland-Coupe/EV_Hacking
+  - name: openinverter topic 1195 (konalogs1.zip)
+    kind: Kona EV P-CAN logs
+    url: https://openinverter.org/forum/viewtopic.php?t=1195
+  - name: comma commaCarSegments
+    kind: C-CAN segments (MIT)
+    url: https://huggingface.co/datasets/commaai/commaCarSegments
+  - name: OBDb test cases
+    kind: raw 62BCxx responses across Hyundai/Kia models (CC BY-SA 4.0, facts only)
+    url: https://github.com/OBDb
+  - name: uhi22 Ioniq28Investigations
+    kind: 2018 EU Ioniq 28 P-CAN logs
+    url: https://github.com/uhi22/Ioniq28Investigations
+    location: references/can/uhi22
+  - name: Hyundai/Kia first-party documents
+    kind: >-
+      Ioniq AE, Niro DE and Genesis DH service-manual mirrors (hioniqae.com for the AE), owner's
+      manuals, TSBs 24-01-034H, 20-01-018H, 21-01-006H and Kia ELE253, KSAE17-S0264
+  - name: Patents
+    kind: design intent only
+    url:
+      - https://patents.google.com/patent/KR101439050B1
+      - https://patents.google.com/patent/KR101393539B1
+      - https://patents.google.com/patent/KR101582531B1
+---
+
 # IGPM findings: hardware, gateway behaviour, diagnostics (for canair to triage)
 
 This document collects what public sources, sibling-vehicle captures and a cross-check against

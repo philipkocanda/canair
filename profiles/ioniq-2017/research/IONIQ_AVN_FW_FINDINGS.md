@@ -1,3 +1,74 @@
+---
+# Paths are relative to the repository root; references/can/ is gitignored (local only).
+title: Findings from Ioniq AVN head-unit firmware RE
+subject: >-
+  ECU diagnostic addresses, broadcast schedule/charge frames and bus usage recovered from the EU
+  and US head-unit firmware of the 2017 Ioniq AE EV
+created: 2026-10-19
+updated: 2026-10-30
+status: partially-superseded
+verification: >-
+  Firmware-derived. Sections 2 (EPB, TPMS) and 8 checked on this car; section 9 checked against a
+  third-party Ioniq 28 P-CAN log, not this car.
+sections:
+  - section: "2 (EPB 0x7D5)"
+    status: integrated
+    date: 2026-08-25
+    note: Registered as the EPB.
+    target: profiles/ioniq-2017/ecus/epb.yaml
+  - section: "2 (TPMS 0x7D6)"
+    status: invalidated
+    date: 2026-10-20
+    note: Nothing answers at 0x7D6; this car reads tire pressures from the BCM (22C00B).
+  - section: "3"
+    status: superseded
+    date: 2026-10-29
+    by: section 9
+    note: >-
+      The gateway does not repeat 0x57A/0x57B onto P-CAN under the same IDs; there they are the
+      VCU's frames.
+  - section: "7"
+    status: resolved
+    date: 2026-10-29
+    by: section 9
+    note: On P-CAN 0x57A/0x57B are sent by the VCU; the head unit's copies exist only on MM-CAN.
+  - section: "8"
+    status: invalidated
+    date: 2026-10-20
+    note: >-
+      The firmware table's OBC-on-0x7E4 fold does not apply; the OBC answers at 0x7E5 on this car.
+  - section: "9"
+    status: integrated
+    date: 2026-10-29
+    target:
+      - profiles/ioniq-2017/signals/body.yaml
+      - profiles/ioniq-2017/signals/powertrain.yaml
+relations:
+  expanded_by:
+    - path: profiles/ioniq-2017/research/IGPM_FINDINGS.md
+      note: Section 3.2 generalises section 9's gateway frame translation.
+    - path: profiles/ioniq-2017/research/FUNCTIONAL_ADDRESSING_FINDINGS.md
+      note: How the AVN MICOM handles functional (0x7DF) requests.
+  related:
+    - path: profiles/ioniq-2017/ecus/avn.yaml
+    - path: profiles/ioniq-2017/ecus/vcu.yaml
+      note: research entry on the 0x57B IG3 relay mode cites section 6.
+    - path: profiles/ioniq-2017/ecus/igpm.yaml
+      note: research entry on gateway frame forwarding between MM-CAN, P-CAN and C-CAN.
+sources:
+  - name: ioniq-avn-fw
+    kind: firmware dumps (EU LG AVN, US Mobis DAUDIO Gen5), decompiled
+    location: sibling repository ioniq-avn-fw
+    files:
+      - docs/micom/micom-can-findings.md
+      - docs/versions/2020-11-02_USA.SOP.V108.201102/telematics-findings.md
+      - docs/can-bus-wiring.md
+  - name: uhi22 Ioniq28Investigations
+    kind: third-party P-CAN logs (2018 EU Ioniq 28) and EPCU bench logs
+    url: https://github.com/uhi22/Ioniq28Investigations
+    location: references/can/uhi22
+---
+
 # Findings from Ioniq AVN head-unit firmware RE (for canair to triage)
 
 This document collects what reverse-engineering the 2017 Hyundai Ioniq (AE) **head-unit /

@@ -64,8 +64,10 @@ Backlog: `canair research --summary` (per-ECU `research:` sections), plus `canai
 --gaps` for actuator DID families never read with `22` (PSM `B4xx`, SKM `B1xx`, DDM `B1xx`,
 VESS `F0xx` as of 2026-10-30).
 
-Findings documents in `profiles/ioniq-2017/` collect what firmware, third-party logs and
-Hyundai/Kia's own specs say, for triage before a capture session:
+Findings documents in `profiles/ioniq-2017/research/` collect what firmware, third-party logs and
+Hyundai/Kia's own specs say, for triage before a capture session. Each opens with YAML
+frontmatter: dates, status, per-section status (integrated, superseded, invalidated, open),
+relations to the other documents and plans, and sources:
 
 - `IGPM_FINDINGS.md` — the gateway (IGPM): hardware, gateway behaviour, diagnostics.
 - `IONIQ_AVN_FW_FINDINGS.md` — what the head-unit/telematics firmware says about other ECUs.

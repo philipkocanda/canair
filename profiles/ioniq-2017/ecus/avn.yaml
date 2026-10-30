@@ -76,7 +76,7 @@ AVN:
       notes: >-
         The AVN (and the audio unit on cars without navigation) has an 'IG3 relay control' pin wired
         to the IG3 #2 relay coil in US-market wiring. The relay's job is AC-charging power, yet its
-        coil is sunk by the head unit. The firmware notes in IONIQ_AVN_FW_FINDINGS.md fit a
+        coil is sunk by the head unit. The firmware notes in research/IONIQ_AVN_FW_FINDINGS.md fit a
         head-unit role: the US telematics sends an IG3 relay request (CF_TMU_IG3RLY in frame 0x587)
         and the VCU reports an IG3 relay mode (CF_Vcu_IG3RlyMd in 0x57B). Against it: on the EU car,
         with the AVN's always-on MULTIMEDIA fuse (F18, 10 A) pulled, a pre-conditioning schedule set

@@ -1096,7 +1096,7 @@ VCU:
         charging), but the two encodings have not been compared. The OBD port is behind the gateway,
         so 0x57B needs a P-CAN or MM-CAN tap.
       sources:
-        - IONIQ_AVN_FW_FINDINGS.md section 6
+        - research/IONIQ_AVN_FW_FINDINGS.md section 6
       what_to_test:
         - Record 0x57B with canair sniff on a tapped bus while polling VCU 2101 across READY, an AC charge and a 12 V top-up, and tabulate the 0x57B byte-2 high nibble against VCU_POWER_STATE
     - type: scan

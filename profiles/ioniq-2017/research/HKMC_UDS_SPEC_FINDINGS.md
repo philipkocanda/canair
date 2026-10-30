@@ -1,3 +1,52 @@
+---
+# Paths are relative to the repository root; references/can/ is gitignored (local only).
+title: What Hyundai/Kia's UDS specs say, beyond functional addressing
+subject: >-
+  Sessions, power-state rules, identification and record DIDs, support maps, IOControl, routines,
+  security access, NRCs and DTCs from Hyundai/Kia's ES95486 specs and a supplier's ECU spec
+created: 2026-10-30
+updated: 2026-10-30
+status: active
+verification: >-
+  Specification evidence, not observation. Only ES95486 rules from revision 10 (2016-07) or
+  earlier can be expected on this car; section 10's leads come from later body ECUs.
+sections:
+  - section: "1, 2, 6, 8"
+    status: integrated
+    date: 2026-10-30
+    note: >-
+      10 05 refused as a programming session, state-changing routines blocked
+      (canlib/safety.py::BLOCKED_ROUTINES), ISO condition-code NRCs named, the full J2012
+      failure-type table bundled.
+  - section: "3"
+    status: integrated
+    date: 2026-10-30
+    note: C0DE is probed by canair identity on this profile.
+  - section: "10"
+    status: integrated
+    date: 2026-10-30
+    note: The IOControl DID families no 0x22 read has reached are listed by canair research --gaps.
+relations:
+  expands_on:
+    - path: profiles/ioniq-2017/research/FUNCTIONAL_ADDRESSING_FINDINGS.md
+      note: Section 4 covers the spec's functional-addressing, timing and reprogramming rules.
+    - path: plans/2026-10-29-support-bitmap-coverage.md
+      note: Section 4 shows the empirically found support maps are a Hyundai/Kia template.
+  related:
+    - path: profiles/ioniq-2017/research/IGPM_FINDINGS.md
+    - path: plans/2026-10-29-service-id-enumeration.md
+      note: Would answer whether 0x24, 0x2A or 0x2C exist on this car (section 2).
+    - path: .claude/skills/reverse-engineer-signal/hyundai-kia-uds-conventions.md
+      note: The DID conventions for scanning, summarised from this document.
+sources:
+  - name: ES95486-00 "UDS on CAN", revision 30 (2025-10-16)
+    kind: Hyundai/Kia specification, private references repository only
+  - name: ES95486-02 "UDS integrated specification", revision 23 (2025-10-16)
+    kind: Hyundai/Kia specification (CAN-FD and Ethernet), private references repository only
+  - name: Supplier diagnostic specification and test tool for a Hyundai/Kia WPC, 2018-2025
+    kind: supplier document, private references repository only
+---
+
 # What Hyundai/Kia's UDS specs say, beyond functional addressing
 
 This document collects facts from Hyundai/Kia's own diagnostic specifications that matter to canair
@@ -17,9 +66,9 @@ sequence; nothing here repeats it.
   2018-2025.** It applies ES95486 to one ECU, so it shows how an ECU spec fills in what ES95486
   leaves to "each ECU's specification". It describes a later WPC than this car's `95560G7000`.
 
-All three are confidential Hyundai/Kia or supplier documents with no redistribution licence. They
-live only in the private references repository. Cite facts from them; never commit them or copy
-their text and tables.
+All three are Hyundai/Kia or supplier documents with no redistribution licence. They live only in
+the private references repository. Cite facts from them; never commit them or copy their text and
+tables.
 
 ## 1. Sessions
 

@@ -1,3 +1,61 @@
+---
+# Paths are relative to the repository root; references/can/ is gitignored (local only).
+title: "Functional (0x7DF) UDS requests: routing and ECU handling"
+subject: >-
+  How the 11-bit functional request 0x7DF reaches each bus of the 2017 Ioniq Electric and how its
+  UDS and KWP2000-style ECUs answer, time and suppress replies to it
+created: 2026-10-30
+updated: 2026-10-30
+status: active
+verification: >-
+  Unverified on this car. Firmware of three Ioniq ECUs (CCM, VESS, AVN), third-party Ioniq and
+  Kona logs, Hyundai/Kia's ES95486-00 and patents; section 7 is the on-car test.
+sections:
+  - section: "7"
+    status: open
+    note: >-
+      Needs a functional-request command that shows every responder, or the ELM327 REPL with
+      headers on.
+relations:
+  expands_on:
+    - path: profiles/ioniq-2017/research/IGPM_FINDINGS.md
+      note: Section 4 (diagnostics through the gateway, the Kona routing table).
+    - path: profiles/ioniq-2017/research/IONIQ_AVN_FW_FINDINGS.md
+      note: The AVN MICOM's diagnostic stack.
+  expanded_by:
+    - path: profiles/ioniq-2017/research/HKMC_UDS_SPEC_FINDINGS.md
+      note: What ES95486 says beyond functional addressing.
+  followed_up_by:
+    - path: plans/2026-10-30-functional-addressing-followups.md
+      note: Responder sweep, separate request padding, functional keepalive.
+sources:
+  - name: CCM code flash (uhi22 readout)
+    kind: Ioniq firmware, MPC5605B AUTOSAR stack, statically analysed
+    location: references/can/ccm-ghidra/
+  - name: VESS flash (uhi22 readout)
+    kind: Ioniq firmware, MC9S12G, statically analysed
+    location: references/can/vess-ghidra/
+  - name: AVN head-unit MICOM
+    kind: Ioniq firmware, RH850 EU image
+    location: sibling repository ioniq-avn-fw (tmp/functional-7df-notes.md)
+  - name: uhi22 Ioniq28Investigations
+    kind: 2018 Ioniq 28 P-CAN trace with an OBD-II poller; EPCU bench logs with Torque Pro
+    url: https://github.com/uhi22/Ioniq28Investigations
+    files:
+      - ioniq2018_motorCAN_500k_HPC.asc
+      - EPCU_torquePro*.csv
+  - name: Kona EV isolated-IGPM sweep and Car Scanner D-CAN logs
+    location: references/can/igpm-research/
+  - name: ES95486-00 "UDS on CAN", revision 30 (2025-10-16)
+    kind: Hyundai/Kia specification, local uncommitted copy only
+  - name: Patents
+    kind: design intent only
+    url:
+      - https://patents.google.com/patent/KR20200136751A
+      - https://patents.google.com/patent/KR20170141877A
+      - https://patents.google.com/patent/US10129124B2
+---
+
 # Functional (0x7DF) UDS requests: how they reach each bus and how ECUs handle them
 
 This document collects what firmware reverse-engineering and third-party bus logs say about UDS
@@ -24,10 +82,9 @@ Evidence classes, strongest first:
 - **Kona EV (same gateway supplier and generation):** Pelland-Coupe's isolated-IGPM ID sweep and the
   Car Scanner D-CAN logs in `references/can/igpm-research/` (see `IGPM_FINDINGS.md` section 4).
 - **Hyundai/Kia's own diagnostic spec, ES95486-00 "UDS on CAN" (revision 30, 2025-10-16).** A
-  confidential Hyundai/Kia internal document, found as a PDF in a third-party GitHub repo; kept as
-  a local, uncommitted copy only. It is the rulebook the UDS ECUs are built to,
-  not a description of this car, and revision 30 is about ten years newer than the car (see
-  section 4).
+  Hyundai/Kia internal document, found as a PDF in a third-party GitHub repo; kept as a local,
+  uncommitted copy only. It is the rulebook the UDS ECUs are built to, not a description of this
+  car, and revision 30 is about ten years newer than the car (see section 4).
 - **Hyundai/Kia/Yura patents** (KR20200136751A, KR20170141877A, US10129124B2): design intent only.
 
 Firmware images, the Kona logs and the spec carry no redistribution licence: cite facts, never

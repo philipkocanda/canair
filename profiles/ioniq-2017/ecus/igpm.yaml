@@ -1170,8 +1170,8 @@ IGPM:
         BC07 lies inside its mask. The plain (LSB-first) reading fails on every one. In 22BC06 the
         mask marks a field's start bit: B11 has only bit 0, so the turn signal is one 2-bit field (0
         off, 1 left, 2 right), which matches 'never 3'. 2026-10-30: the bits were then named from
-        Hyundai's GDS lists and the Kona/i30 ScanDoc lists (IGPM_FINDINGS.md section 6.2); the 'real
-        undecoded' bits in the notes are now mostly named but still never exercised.
+        Hyundai's GDS lists and the Kona/i30 ScanDoc lists (research/IGPM_FINDINGS.md section 6.2);
+        the 'real undecoded' bits in the notes are now mostly named but still never exercised.
       notes: >-
         Consequence: canair coverage's BITS 'missing' lists overstate the gaps. A bit outside the
         mask is not a signal. The real undecoded signals (in the mask, never set in any capture, so
@@ -1281,8 +1281,8 @@ IGPM:
         so once started the EPCU holds itself on. The gateway clock on 0x567 is a stored time that
         does not tick until the head unit's arrives, so nothing shows the IGPM keeping calendar time
         while asleep; a countdown timer would be enough for a 72 h or 24 h cycle. See
-        IGPM_FINDINGS.md sections 5, 6.2 and 8 for the IG3 relay wiring, the BC44 actuator and the
-        Kona/Ioniq wake reports.
+        research/IGPM_FINDINGS.md sections 5, 6.2 and 8 for the IG3 relay wiring, the BC44 actuator
+        and the Kona/Ioniq wake reports.
       sources:
         - uhi22 EPCU readme (CN1000 3P wake line, bench power-up)
         - Hyundai Ioniq Electric 2017 owner's manual, Aux. Battery Saver+ (Cycle Mode)
