@@ -136,3 +136,60 @@ Only facts about the protocol, for designing probes; canair never attempts an un
   therefore holds for the replies.
 - Requests are padded with `0x55`, responses with `0xAA`, on CAN and CAN-FD alike.
 - 29-bit physical ids are `0x17FF{target}{source}`, with the tester at source address `0x00`.
+
+## 10. What the supplier's test tool adds
+
+The tool's expected responses are real ECU answers, so they show the spec's conventions in use.
+They come from later body ECUs than this car's, so treat each item as a lead to test.
+
+**Record DIDs come in families.** Each ECU puts its live data in a few DIDs that share a high
+byte, numbered from the low end: the WPC uses `BE01`-`BE03`, the multi-function switch
+`B302`-`B303`, the steering-wheel remote control `B602`-`B605`. In these newer ECUs `xx01` holds
+user options, `xx02` byte-wide inputs and outputs and `xx03` bit-wide ones. Every example starts
+with the 4-byte support map of section 4: `B602` answers map `80 00 00 00` and one data byte, the
+only item it marks. This car follows the family part but not the slot meanings: the IGPM uses
+`BC01`-`BC08`, the BCM `B001`-`B00F`, the SKM `B002`-`B00B`, the cluster `B001`-`B003`.
+
+**An ECU's IOControl DIDs often share that family, and are then readable with `22`.** The IGPM
+reads and actuates `BCxx`, the BCM `B0xx`. Four ECUs here have IOControl DIDs that were never read,
+because their `22` sweeps stopped at `B001`-`B010`:
+
+| ECU | IOControl DIDs | Read with `22` |
+|---|---|---|
+| PSM | `B401`-`B408` | never tried |
+| SKM | `B101`-`B130` | never tried (its reads are `B0xx`) |
+| DDM | `B000`-`B524` (`B1xx` release positively, the rest answer NRC 0x22) | never tried |
+| VESS | `F011` | never tried |
+
+The rule has an exception on this car: HVAC's IOControl DIDs `F011`-`F027` all answered an NRC to
+`22` in the default session (2026-10-22 sweep); the extended session is untested.
+
+**The IOControl supported check lives at the start of the I/O range.** The WPC puts it at `F000`
+(section 5), the seat heat/vent unit at `F010`, with its seat heat and vent outputs from `F011`
+up. HVAC's `F011`-`F018`/`F022`-`F027` may include seat heating if the climate panel drives it on
+this car.
+
+**More identification DIDs:**
+
+- `F100` is the B-CAN database version on all five ECUs: three hex bytes (`25 02 01`) on some, ASCII
+  (`1.0`) on others.
+- `F1DD` is a supplier software version (ASCII) on all five. It sits in the Hyundai/Kia
+  identification-option range, so other suppliers may not use it.
+- `F1C1` (the software integrity hash) first answers response-pending (`7F 22 78`), then the hash.
+
+**DTCs.** The validation checklist encodes B-CAN bus-off as `B1603` (`96 03 00` plus status) and
+the IAU local-CAN bus-off as `B160F`. `19 0A` (report every DTC the ECU supports, not just the
+stored ones) is mandatory only since ES95486 revision 24 (2022), but it would give a per-ECU DTC
+catalogue on this car if any ECU answers it. canair's `dtc` sends only `19 02`.
+
+**WPC broadcast signals.** The WPC's CAN signal list gives meanings but no CAN ids or bit
+positions, and no public DBC carries the WPC's messages. Its 200 ms status message carries:
+
+- a 3-bit phone state: 0 off, 1 phone on the pad or left behind, 2 charging, 3 charged,
+  4 reminder, 5 error, 7 invalid;
+- a 2-bit on/off setting (0 default, 1 off, 2 on, 3 invalid);
+- the software version as three ASCII characters.
+
+It reads the vehicle speed, the ignition switch, the tail-lamp state, the smart-key LF search (which
+pauses charging), the door switches and the VCU READY flag. A body-bus `sniff` while placing and
+removing a phone, then `correlate can`, should find the status message.

@@ -480,8 +480,8 @@ itself, `canair bix w9` for one index, and `--annotate` for a real payload.
 ## Reference: UDS decoding conventions (Hyundai/Kia example)
 
 Marque DID conventions for the bundled Ioniq — PID categories, DID paging vs indexing,
-range semantics (`22Bxxx` cluster, `22Cxxx` body, `22Fxxx` flash), and the Hyundai/Kia
-identity-DID `-1` offset — are in the sibling
+where Hyundai/Kia put record, IOControl and identity DIDs, the record-DID families to sweep,
+and the identity-DID `-1` echo — are in the sibling
 [`hyundai-kia-uds-conventions.md`](hyundai-kia-uds-conventions.md). **These are
 marque-specific, not universal**; for another car expect a different scheme and
 re-derive it. The generic UDS-`22`-vs-KWP2000-`21` distinction (per each ECU's
