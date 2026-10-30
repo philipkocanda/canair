@@ -396,6 +396,10 @@ class MonitorController:
         """The profile's ordered ``(state, description)`` vocabulary for the save dialog."""
         return self.state.state_options()
 
+    def offer_states(self, *, next_segment: bool = False) -> list[str]:
+        """The save dialog's state pre-fill. See :meth:`MonitorRecorder.offer_states`."""
+        return self.recorder.offer_states(next_segment=next_segment)
+
     # --- Poll scheduling: delegated to the PollScheduler (poll_schedule.py).
 
     @property

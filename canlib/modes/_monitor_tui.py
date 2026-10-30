@@ -69,6 +69,7 @@ if TYPE_CHECKING:
     from .monitor import MonitorController
 
 import asyncio
+import functools
 import time
 from datetime import datetime
 
@@ -1529,11 +1530,15 @@ class MonitorApp(HelpMixin, App):
         self._flash_expires = time.monotonic() + secs
         self._update_status()
 
-    def _suggested_metadata(self) -> tuple[str, str, list[tuple[str, str]] | None]:
+    def _suggested_metadata(
+        self, *, next_segment: bool = False
+    ) -> tuple[str, str, list[tuple[str, str]] | None]:
         """Gather (suggested_label, suggested_state, state_options) for a dialog.
 
         Label pre-fills from the active query (e.g. "BCM VCU:2101"), falling back
-        to a timestamp; state is the profile's auto-suggestion from decoded values.
+        to a timestamp. State comes from ``offer_states``: the union observed over
+        the span being saved, or — for ``next_segment`` (the ``n`` dialog, which
+        labels the segment about to start) — the state active now.
         """
         suggested = ""
         label_fn = getattr(self.controller, "query_label", None)
@@ -1543,7 +1548,11 @@ class MonitorApp(HelpMixin, App):
             suggested = f"Monitor {datetime.now():%H:%M}"
 
         suggested_state = ""
-        state_fn = getattr(self.controller, "suggested_states", None)
+        offer_fn = getattr(self.controller, "offer_states", None)
+        if callable(offer_fn):
+            state_fn = functools.partial(offer_fn, next_segment=next_segment)
+        else:
+            state_fn = getattr(self.controller, "suggested_states", None)
         if callable(state_fn):
             try:
                 from ..states import join_states
@@ -1620,7 +1629,7 @@ class MonitorApp(HelpMixin, App):
         if getattr(self.controller, "journal", None) is None:
             self._flash("Start a new session needs --save (nothing is being recorded).")
             return
-        suggested, suggested_state, state_options = self._suggested_metadata()
+        suggested, suggested_state, state_options = self._suggested_metadata(next_segment=True)
 
         def _done(result: tuple[str, str, str] | None) -> None:
             if result is None:

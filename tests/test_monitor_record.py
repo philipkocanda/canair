@@ -132,6 +132,86 @@ class TestSpanAwareBackfill:
         assert session["vehicle_states"] == ["READY"]
 
 
+class TestSaveDialogOffer:
+    """The `s` dialog pre-fills the span's union, not the keypress-instant state.
+
+    Regression: a parked 12 V top-up that ended before `s` was pressed saved as
+    plain PARKED, because the dialog offered only what matched at that moment.
+    """
+
+    def _topup_then_parked(self, rec, c):
+        c.next_state = ["PARKED", "TOPUP"]
+        rec.observe([_frame("2101", "6101AA")])
+        c.next_state = ["PARKED"]
+        rec.observe([_frame("2101", "6101BB")])
+
+    def test_snapshot_save_offers_and_writes_the_union(self, tmp_path):
+        c = FakeController(tmp_path, save=False)
+        rec = MonitorRecorder(c)
+        self._topup_then_parked(rec, c)
+
+        offered = rec.offer_states()
+        assert offered == ["PARKED", "TOPUP"]
+        rec.save_now("topup", ",".join(offered), None)
+        assert _read_session(tmp_path)["vehicle_states"] == ["PARKED", "TOPUP"]
+
+    def test_snapshot_save_offer_resets_after_each_write(self, tmp_path):
+        c = FakeController(tmp_path, save=False)
+        rec = MonitorRecorder(c)
+        self._topup_then_parked(rec, c)
+        rec.save_now("first", ",".join(rec.offer_states()), None)
+
+        c.next_state = ["READY"]
+        rec.observe([_frame("2101", "6101CC")])
+        assert rec.offer_states() == ["READY"]  # the next write's span only
+
+    def test_journal_offer_is_segment_union(self, tmp_path):
+        c = FakeController(tmp_path)
+        rec = MonitorRecorder(c)
+        rec.open_journal("seg", None, None)
+        self._topup_then_parked(rec, c)
+        assert rec.offer_states() == ["PARKED", "TOPUP"]
+
+    def test_accepting_the_offer_keeps_the_segment_auto(self, tmp_path):
+        # Accepting the pre-fill unchanged must not pin the state: a state seen
+        # after the keypress still reaches the reconciled session.
+        c = FakeController(tmp_path)
+        rec = MonitorRecorder(c)
+        rec.open_journal("seg", None, None)
+        c.next_state = ["PARKED"]
+        rec.observe([_frame("2101", "6101AA")])
+
+        rec.save_now("seg", ",".join(rec.offer_states()), None)
+        assert rec.state_explicit is False
+
+        c.next_state = ["PARKED", "TOPUP"]
+        rec.observe([_frame("2101", "6101BB")])
+        rec.new_segment("seg2", None, None)
+        assert _read_session(tmp_path)["vehicle_states"] == ["PARKED", "TOPUP"]
+
+    def test_edited_offer_pins_the_state(self, tmp_path):
+        c = FakeController(tmp_path)
+        rec = MonitorRecorder(c)
+        rec.open_journal("seg", None, None)
+        self._topup_then_parked(rec, c)
+
+        rec.offer_states()
+        rec.save_now("seg", "TOPUP", None)
+        assert rec.state_explicit is True
+        assert rec.offer_states() == ["TOPUP"]  # the dialog re-shows the user's choice
+
+    def test_new_segment_offer_is_current_state_and_stays_auto(self, tmp_path):
+        c = FakeController(tmp_path)
+        rec = MonitorRecorder(c)
+        rec.open_journal("seg1", None, None)
+        self._topup_then_parked(rec, c)
+
+        offered = rec.offer_states(next_segment=True)
+        assert offered == ["PARKED"]
+        rec.new_segment("seg2", ",".join(offered), None)
+        assert rec.state_explicit is False
+
+
 class TestSegmentHistory:
     def test_new_segment_records_closed_segment_summary(self, tmp_path):
         c = FakeController(tmp_path)

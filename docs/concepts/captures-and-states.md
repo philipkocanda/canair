@@ -196,10 +196,15 @@ recording is active, and two keys control the session:
 - **`s` (label recording)** — set or edit the label / state / notes of the **current**
   recording. Everything is already journaled, so this only *labels* the session; it doesn't
   write a separate file. The state field is free text (comma-separated), pre-filled with the
-  auto-suggested state; if you leave it blank, the state is filled in from the data on save.
-  (Without `--save`, `s` instead writes the payloads captured so far to a new capture file.)
+  **union of every state auto-suggested so far in the segment** — not just the one active as
+  you press `s`, so a top-up that ended a minute ago is still offered. Accepting the
+  pre-fill unchanged (or leaving it blank) keeps the state automatic, so states seen after
+  the keypress still count; typing a different state pins it. (Without `--save`, `s`
+  instead writes the payloads captured since the previous `s` to a new capture file,
+  pre-filled with the union of states seen over that span.)
 - **`n` (finish & start new)** — write the current session to its own capture file **now**
-  and start a **fresh** recording, labelled via the same modal. Press it at each phase change
+  and start a **fresh** recording, labelled via the same modal (pre-filled with the state
+  active now, and likewise automatic unless you change it). Press it at each phase change
   (parked → driving → charging) to get several independently-labelled sessions from one run.
   Requires `--save`.
 - **`i` (session info)** — a read-only overlay with the current segment's label / state /

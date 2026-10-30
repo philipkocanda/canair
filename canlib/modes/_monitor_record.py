@@ -176,6 +176,14 @@ class MonitorRecorder:
         # snapshot) so a segment that charged then went idle is still labelled
         # `charging` — the exit snapshot alone would miss it.
         self.observed_states: dict[str, None] = {}
+        # The same accumulator for the non-journal on-demand save, reset after each
+        # `s` write: the span that write covers is "since the previous write", which
+        # a journal segment boundary does not track.
+        self._unsaved_states: dict[str, None] = {}
+        # The states the save dialog last pre-filled (see offer_states). Saving
+        # them unchanged keeps the segment auto-labelled instead of pinning it.
+        self._offered_states: list[str] | None = None
+        self._offered_next: list[str] | None = None
         # Transport-diagnostics baseline for the current segment: a snapshot of the
         # active client's .diag counts taken when the segment starts, so each
         # segment's recorded `quality` reflects only its own span (diff at
@@ -293,6 +301,41 @@ class MonitorRecorder:
         with contextlib.suppress(Exception):
             for suggested in self.c.suggested_states():
                 self.observed_states.setdefault(suggested, None)
+                self._unsaved_states.setdefault(suggested, None)
+
+    def offer_states(self, *, next_segment: bool = False) -> list[str]:
+        """The states the save dialog should pre-fill, remembered as the offer.
+
+        The union observed over the span the save will cover — the current
+        segment when journaling, else everything since the last on-demand write —
+        not the state active at the keypress, which loses a state the car left
+        before ``s`` was pressed (a 12 V top-up that ended a minute earlier saved
+        as plain PARKED). Falls back to the instantaneous suggestion when nothing
+        has been observed yet. ``next_segment`` is the ``n`` dialog, which labels
+        a segment that has not started, so it offers the state active now.
+        """
+        if next_segment:
+            offered: list[str] = []
+            with contextlib.suppress(Exception):
+                offered = list(self.c.suggested_states())
+            self._offered_next = offered
+            return offered
+        observed = self.observed_states if self.journal is not None else self._unsaved_states
+        offered = list(observed)
+        if self.journal is not None and self.state_explicit:
+            offered = list(self.session_states)  # keep showing the user's own choice
+        if not offered:
+            with contextlib.suppress(Exception):
+                offered = list(self.c.suggested_states())
+        self._offered_states = offered
+        return offered
+
+    @staticmethod
+    def _is_offer(states: list[str], offered: list[str] | None) -> bool:
+        """Whether ``states`` is a dialog's pre-fill, accepted unchanged."""
+        from ..states import parse_states
+
+        return offered is not None and set(states) == set(parse_states(offered))
 
     def _backfill_states(self) -> list[str] | None:
         """States to back-fill the closing segment with when none was set explicitly.
@@ -373,7 +416,9 @@ class MonitorRecorder:
             with contextlib.suppress(Exception):
                 self.journal.update_meta(label, states, notes)
             self.set_segment_meta(label, states, notes)
-            if states:
+            # Accepting the pre-filled union unchanged leaves the segment
+            # auto-labelled, so states observed after the keypress still count.
+            if states and not self._is_offer(states, self._offered_states):
                 self.state_explicit = True
             state_txt = f", state={', '.join(states)}" if states else ""
             return (
@@ -430,6 +475,8 @@ class MonitorRecorder:
         self._defer_save_output(buf)
         for key, entries in merged.items():
             self._saved_counts[key] = len(entries)
+        self._unsaved_states = {}
+        self._offered_states = None
         return f"Saved {n_payloads} payload(s) across {n_pids} PID(s) → {path.name}"
 
     def new_segment(self, label: str, vehicle_states=None, notes: str | None = None) -> str:
@@ -477,11 +524,15 @@ class MonitorRecorder:
         self._record_closed_segment(closing_states, written)
 
         self.journal = _open_journal(self.c, label, states, notes)
-        self.state_explicit = bool(states)
+        # As with `s`: the pre-filled current state accepted unchanged is an
+        # auto-suggestion, so the new segment still back-fills from what it sees.
+        self.state_explicit = bool(states) and not self._is_offer(states, self._offered_next)
+        self._offered_next = None
         # Fresh segment: reset the observed-state accumulator so it doesn't carry
         # the previous segment's states into this one's back-fill, and rebase the
         # diag baseline so the new segment's quality counts only its own span.
         self.observed_states = {}
+        self._offered_states = None
         self._reset_diag_base()
         # Reset per-segment timing/frame baseline for the new segment.
         self.segment_started_at = datetime.now()
