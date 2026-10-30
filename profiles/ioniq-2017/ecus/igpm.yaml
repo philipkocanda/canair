@@ -539,8 +539,9 @@ IGPM:
       notes: >-
         17 data bytes (20 B reassembled), found by the 2026-10-22 service-22 BC20-BCFF read sweep;
         no other DID in BC08-BCFE answers. Reads FFFFFFFF at B05-B07/B09, then 0C 0E 16 2B 3F 26 36
-        at B10-B15/B17 and zeros to the end. Identical in 3 reads over 5 minutes, so not a live
-        clock. Meaning unknown.
+        at B10-B15/B17 and zeros to the end. Identical in all 1,407 reads from 2026-10-22 to
+        2026-10-30, across READY, CHARGING, PARKED and SLEEP: stored data, not a live value. Meaning
+        unknown; candidates in research/IGPM_FINDINGS.md section 6.4.
     22BCFF:
       parameters:
         IGPM_BCFF_TAG:

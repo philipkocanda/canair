@@ -60,7 +60,7 @@ sources:
       - https://github.com/projectgus/kona-ev-dbc
       - https://github.com/projectgus/fakon
   - name: Pelland-Coupe EV_Hacking
-    kind: isolated 2021 Kona EV IGPM bench sweeps
+    kind: isolated 2021 Kona EV IGPM bench sweeps; ScanDoc D-CAN session on the IGPM
     url: https://github.com/Pelland-Coupe/EV_Hacking
   - name: openinverter topic 1195 (konalogs1.zip)
     kind: Kona EV P-CAN logs
@@ -476,16 +476,34 @@ fold relays elsewhere (the BCM's `2F B05B/B05C`), and the reverse lamps not driv
 - **22BC01** `40 00 00 00 | 00 02`: map bit for B10:1, plus a trailing value byte (`02` here,
   `01` on an e-Niro). The GDS list's first item is "One Touch Turn Signal: 3 Flashing", and the
   IGPM owns that user option (GDS "User Option → One Touch Turn Signal: 3/5/7 Flashing/DISABLE",
-  a data write). Test: change the setting in the cluster and re-read BC01. **Speculative.**
-- **22BCFD/22BCFF**: GDS lists "Battery Discharge Alarm History" and "Erase Network Configuration"
-  as IGPM functions; BCFD could hold either. **Speculative.**
-- **Kona-only so far**: a 2021 Kona IGPM answers `22 000A` (`0C 00 00 00 | 30 00 00 00`), `000B`
-  (12 bytes) and `000C` (`E0 00 00 00 | 00 00 00 00`), the same map-plus-data shape. This car's
-  sweeps covered `0100–01FF`, `B000–B0FF`, `BC00–BCFF`, `C000–C0FF` and `E000–E0FF`, but not
-  `0000–00FF`.
+  a data write). On a Kona, ScanDoc's IGPM "Configuration → Edit configuration" page sends
+  `22 BC01` and nothing else before being cancelled (Pelland's D-CAN capture
+  `ScanDoc session 30-01-25`, around frame 11420), so BC01 is the record that page edits.
+  **Probable**; test: change the setting in the cluster and re-read BC01.
+- **22BCFD**: constant on this car. All 1,407 reads from 2026-10-22 to 2026-10-30 return
+  `FF FF FF FF 0C 0E 16 2B 3F 26 36 00 00 00 00 00 00`, in READY, CHARGING, PARKED and SLEEP, so it
+  is stored data, not a live value. It is probably not the battery discharge alarm history: on
+  the Kona that function reads `000B`/`000C` (next item). The Kona and e-Niro owner's manuals have
+  the driver warning that most likely goes with it ("Battery discharging due to external
+  electrical devices"); the Ioniq's 2018 German and 2019 EU manuals do not, so this car may not
+  have the function at all.
+  That leaves "Erase Network Configuration"'s data as the main candidate, by elimination only.
+  **Speculative.**
+- **22BCFF** reads ASCII `1090`, the software version (`109`) plus one more digit. The CCM's
+  BCFF (`1033`, software version `103`) follows the same pattern.
+- **`000A`–`000C` (Kona only so far)**: a 2021 Kona IGPM answers `22 000A`
+  (`0C 00 00 00 | 30 00 00 00`), `000B` (`F0 00 00 00` plus 8 zero bytes) and `000C`
+  (`E0 00 00 00 | 00 00 00 00`), the same map-plus-data shape; `000D` returns NRC `0x31`. ScanDoc
+  reads all three in its IGPM data list, and its "battery discharge test" utility reads `000B` and
+  `000C` and then VCU `21 02` (same capture, around frame 11340). On the Kona, `000B`/`000C`
+  therefore hold the battery discharge data. **Probable.** This car's sweeps covered
+  `0100–01FF`, `B000–B0FF`, `BC00–BCFF`, `C000–C0FF` and `E000–E0FF`, but not `0000–00FF`.
 - **Identity**: the Kona answers F100 `07`, F101 `200901`, F102 `28`, F103 `27`, F104 `27` (F105
-  NRC `0x31`), F187 `91953K4780`, F18B `2021-05-26`, F193 `100`, F195 `401`. F102–F104 may be the
-  per-bus CAN DB versions ScanDoc's identification page names. **Speculative**; read F102–F105 here.
+  NRC `0x31`), F187 `91953K4780`, F18B `2021-05-26`, F193 `100`, F195 `401`. ScanDoc's
+  identification page reads exactly F100–F105, F187, F18B, F193 and F195, and names the CAN DB
+  versions for B-, M-, C- and P-CAN, the RDB version, part number, manufacture date, hardware
+  version and software number. That makes F100–F104 the four CAN DB versions plus the RDB version,
+  in an order the capture does not show. **Probable**; read F100–F105 here.
 
 ## 7. IOControl `2F BCxx`
 
@@ -589,7 +607,11 @@ From the 2019 Kona EV captures and bench (projectgus, CC0), unless marked:
 - **No variant coding.** G-scan lists only "User Option", "Erase Network Configuration" and
   "Battery Discharge Alarm History" for the IGPM. Options come from hard-wired inputs (the manual's
   "HID head lamp option" input; GDS shows `(Option)` items) and the gateway learns which modules
-  are present ("Erase Network Configuration" clears that after a module change). **Probable.**
+  are present ("Erase Network Configuration" clears that after a module change). ScanDoc's Kona
+  session matches: its IGPM "Edit configuration" page reads only BC01 (the One Touch Turn Signal
+  option) and its battery discharge utility reads `000B`/`000C` (section 6.4). The list covers
+  IGPMs of every model, so a function on it may be missing on this car: its owner's manuals have
+  no battery discharge warning (section 6.4). **Probable.**
 - **User settings.** The IGPM stores One Touch Turn Signal; the BCM stores door, lock, escort and
   welcome options. Settings travel as `CLU14` (`0x515`, cluster → gateway requests),
   `CGW_USM1` (`0x410`, current values back), `HU_GW_E_00/01` (`0x526`/`0x527`) and `GW_HU_E_00/01`
@@ -628,7 +650,7 @@ public.
 1. **Done 2026-10-30: renames and IOControl labels** (with warnings on BC13 and BC44). Still to do:
    define the "new" bits of section 6.2 as signals once a narrated capture exercises them.
 2. **Cheap read-only probes**: `canair scan range IGPM --range 0000-00FF` (Kona has `000A`–`000C`)
-   and identity F102–F105 (possible CAN DB versions).
+   and identity F100–F105 (probably the CAN DB and RDB versions).
 3. **Actuator-support maps** (`2F BC00 02`, `2F BC20 02`, `2F BC40 02`) to check section 7.1's
    prediction. This is IOControl, so only parked, and only after deciding it is acceptable under
    canair's safety rules.
