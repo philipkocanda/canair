@@ -16,6 +16,7 @@ from typing import Literal
 
 from canlib.uds.parse import request_echo
 
+from ..actuation import on_refusal
 from ..formatting import (
     decode_uds_response,
     print_ecu_results,
@@ -25,6 +26,7 @@ from ..log import log_event
 from ..pids import EcuIndexEntry, PidIndexEntry, build_iocontrol_index
 from ..session_manager import SessionManager
 from ..transport.elm327_terminal import Elm327Terminal
+from ._iocontrol_actuate import send_iocontrol
 from .multi_batch import (
     LEAKED_BATCH_ERROR,
     LEAKED_BATCH_REASON,
@@ -498,6 +500,11 @@ async def _exec_iocontrol(
     if not hex_cmd:
         print(f"  ERROR: No {action} command defined for {ecu_key} {did_key} ({label})")
         return
+    if not off:
+        refusal = on_refusal(hex_cmd, cmd_def["release"], ecu_info["protocol"])
+        if refusal:
+            print(f"  ERROR: {ecu_key} {did_key} ON refused — {refusal}")
+            return
 
     # Ensure a session of the actuator's mode is open on this ECU if needed
     if cmd_def["session"]:
@@ -511,7 +518,7 @@ async def _exec_iocontrol(
     await sm.terminal.set_header(tx_id)
 
     print(f"  {ecu_key} {did_key} ({label}) → {action}: {hex_cmd}")
-    response = await sm.terminal.send_uds(hex_cmd, timeout=3.0)
+    response = await send_iocontrol(sm.terminal, hex_cmd)
 
     if response["ok"]:
         print(f"  ✓ Positive response: {response['hex']}")

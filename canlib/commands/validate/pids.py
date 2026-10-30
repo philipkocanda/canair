@@ -746,6 +746,7 @@ def _validate_iocontrol(
         "verified",
         "on",
         "off",
+        "release",
         "notes",
         "session",
         "session_mode",
@@ -778,10 +779,56 @@ def _validate_iocontrol(
         _validate_session_mode(
             did_def.get("session_mode"), did_label, errors, warnings, protocol, profile_meta
         )
+        _validate_iocontrol_release(did_def, did_label, protocol, errors, warnings)
         _validate_state_list(
             did_def.get("vehicle_states"), did_label, "vehicle_states", errors, allowed_states_set
         )
         stats["iocontrol"] += 1
+
+
+def _validate_iocontrol_release(did_def, did_label, protocol, errors, warnings) -> None:
+    """Check an IOControl entry's ``release:`` against its ON request.
+
+    The release is what `canair io` sends to hand an output back, so a release that
+    addresses another output, or repeats the ON request, would leave it driven. A
+    KWP2000 ``0x30`` ON without one is refused at run time; say so here too.
+    """
+    from canlib.actuation import (
+        IOCONTROL_UDS,
+        UDS_RETURN_CONTROL,
+        default_release,
+        normalize_request,
+        on_refusal,
+        parse_io_request,
+        release_mismatch,
+    )
+
+    declared = did_def.get("release")
+    on = str(did_def.get("on") or did_def.get(True) or "")
+    if declared not in (None, ""):
+        if not isinstance(declared, str):
+            errors.append(f"{did_label}: release must be a quoted hex request, got {declared!r}")
+            return
+        try:
+            release = normalize_request(declared)
+        except ValueError as exc:
+            errors.append(f"{did_label}: {exc}")
+            return
+        mismatch = release_mismatch(on, release) if on else None
+        if mismatch:
+            errors.append(f"{did_label}: {mismatch}")
+            return
+        io = parse_io_request(release)
+        if io is not None and io.service == IOCONTROL_UDS and io.option != UDS_RETURN_CONTROL:
+            warnings.append(
+                f"{did_label}: release {release} is not returnControlToECU "
+                f"(2F{io.identifier.hex().upper()}00)"
+            )
+        return
+    if on:
+        reason = on_refusal(on, default_release(on, protocol), protocol)
+        if reason:
+            warnings.append(f"{did_label}: `canair io` refuses its ON — {reason}")
 
 
 def _validate_research(

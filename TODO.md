@@ -71,3 +71,38 @@ Status: NOT located in any polled PID as of 2026-07-20.
 4. Also monitor GSA 0x7B6 `220100` while shifting P/R/N/D (decode lever sensors B19/B21/B22) and while
    pressing the drive-mode button.
 5. Broaden: `21 03-FF` scan on VCU (0x7E2) and MCU (0x7E3).
+
+## `canair io`: KWP2000 (service `0x30`) support
+
+Added 2026-10-30. The tooling is in place; what is left needs the car. An IOControl entry now
+carries its own `release:` (the request that hands the output back), resolved per entry by
+`canlib/pids.py::build_iocontrol_index`: UDS implies `2F {DID} 00`, KWP2000 `0x30` implies nothing.
+`canair io` sends that release on exit and on Ctrl-C, `--poll` sends it, and a `0x30` ON without
+one is refused (`canlib/actuation.py::on_refusal`). The Ioniq's KWP ECUs (BMS, VCU, MCU, OBC, LDC,
+AAF) still have no actuators defined.
+
+- [x] **Model KWP actuators** — `30 {LID} {option} [state…]` with an 8-bit local identifier
+  (`canlib/actuation.py::parse_io_request`); each entry's `on`/`off`/`release` carry their own
+  option byte. `scan iocontrol` still sends only `30 {LID} 00`, but now confirms first on every
+  non-Nissan profile (`--yes`), since that probe is not proven to drive nothing.
+- [ ] **Settle the option-byte convention on the Ioniq.** ISO 14230-3 leaves it to the
+  manufacturer. The OVMS Kia Soul EV firmware sends `30 {led} 00` to switch an OBC charger LED
+  *on* and `30 {led} 11` to switch it off, so `00` is not a release there (docs and `scan
+  iocontrol` no longer assume it is). Evidence and test plan: the `iocontrol_scan` research entry
+  on the Ioniq OBC (`canair research --ecu OBC`).
+- [x] **Session handling** — the `hk_90_session` quirk (declared by `ioniq-2017` and
+  `kona-electric-2019`) permits `10 90` on KWP2000 ECUs through the existing
+  `session_mode_block` allowance, so an entry's `session_mode: "90"` and `canair raw 1090` work
+  and `scan sessions` probes it. Still to check on the car: whether the Ioniq OBC accepts `10 90`
+  (only `0x81` was seen) and whether it needs `10 81` first, as the Soul OBC does.
+- [ ] **Release semantics per ECU** — find out which request hands each output back, then record
+  it with `canair pids set-iocontrol ECU KEY --release HEX`. Never declare a release that was not
+  seen to hand the output back.
+- [x] **Gate it on the actuation safety interlock** — the plan's §1 classifier exists
+  (`canlib/actuation.py::classify`), with a `0x30` table that classifies only a declared release
+  as `release`. The interlock itself (funnel, `interlock.yaml`, watchdog) is still the open plan
+  `plans/2026-10-22-actuation-safety-interlock.md`.
+- [ ] **Reference traffic** — Kona KWP and UDS diagnostic logs are in
+  `profiles/kona-electric-2019/captures/can/` (`221210-1-*` session/DTC sweep, `bms-*.asc` UDS
+  `2F F0xx` relay control). None contains a KWP `0x30` request, so a live capture on the Ioniq is
+  still needed.

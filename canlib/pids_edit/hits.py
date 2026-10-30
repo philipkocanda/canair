@@ -37,6 +37,7 @@ IOCONTROL_FIELDS = (
     *EDITABLE_FIELDS,
     "on",
     "off",
+    "release",
     "session",
     "session_mode",
     "hold",
@@ -44,7 +45,7 @@ IOCONTROL_FIELDS = (
 )
 _IOCONTROL_BOOL_FIELDS = frozenset({"verified", "session", "hold"})
 # Hex strings stay quoted: a bare `03` or `30070001` would re-parse as an int.
-_IOCONTROL_QUOTED_FIELDS = frozenset({"on", "off", "session_mode"})
+_IOCONTROL_QUOTED_FIELDS = frozenset({"on", "off", "release", "session_mode"})
 
 
 # ── Routines section appender ────────────────────────────────────────────────

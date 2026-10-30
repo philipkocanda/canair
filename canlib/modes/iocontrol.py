@@ -13,13 +13,14 @@ import termios
 import tty
 from pathlib import Path
 
+from ..actuation import on_refusal
 from ..pids import IoControlCommand, IoControlIndexEntry, build_iocontrol_index, load_pids
 from ..pids_edit import PidsEditError, promote_discovery, update_iocontrol_field
-from ..safety import KWP, UNKNOWN, SessionProtocol, session_protocol
+from ..safety import SessionProtocol
 from ..transport.protocol import Terminal
 from ..tui import terminal_columns as _terminal_columns
 from ..tui import terminal_lines as _terminal_lines
-from ._iocontrol_actuate import ActuatorState, IOControlActuator
+from ._iocontrol_actuate import ActuatorState, IOControlActuator, send_iocontrol
 from ._iocontrol_render import _truncate_text, render_iocontrol
 from .status import format_status_value, query_param_status
 
@@ -27,17 +28,6 @@ from .status import format_status_value, query_param_status
 _LOGS_DIR = Path(__file__).parent.parent.parent / "logs"
 _LOG_FILE = _LOGS_DIR / "iocontrol-tui.log"
 _tui_logger = logging.getLogger("iocontrol-tui")
-
-
-def ecu_session_protocol(pids_data: dict, ecu_key: str) -> SessionProtocol:
-    """The session protocol of ``ecu_key`` (case-insensitive) from its ``id_protocol``."""
-    for name, ecu_def in (pids_data.get("ecus") or {}).items():
-        if str(name).upper() == ecu_key.upper() and isinstance(ecu_def, dict):
-            identity = ecu_def.get("identity")
-            return session_protocol(
-                identity.get("id_protocol") if isinstance(identity, dict) else None
-            )
-    return UNKNOWN
 
 
 def mode_iocontrol_list(pids_data: dict, ecu_name: str, as_json: bool = False) -> bool:
@@ -73,6 +63,8 @@ def mode_iocontrol_list(pids_data: dict, ecu_name: str, as_json: bool = False) -
                     "label": c["label"],
                     "on": c["on"],
                     "off": c["off"],
+                    "release": c["release"],
+                    "on_refused": on_refusal(c["on"], c["release"], ecu_info["protocol"]),
                     "session": c["session"],
                     "session_mode": c["session_mode"],
                     "hold": c["hold"],
@@ -114,6 +106,17 @@ def mode_iocontrol_list(pids_data: dict, ecu_name: str, as_json: bool = False) -
             f"{_truncate_text(sp, sp_w):<{sp_w}}     {v}        {h}"
         )
     print()
+    # The release is what exit and Ctrl-C send; it only needs naming where it is
+    # not simply the OFF command (always the case on UDS).
+    notes = []
+    for did, c in cmds.items():
+        refusal = on_refusal(c["on"], c["release"], ecu_info["protocol"])
+        if refusal:
+            notes.append(f"  {did}: ON refused — {refusal}")
+        elif c["release"] and c["release"] != c["off"].upper():
+            notes.append(f"  {did}: released with {c['release']}")
+    if notes:
+        print("\n".join(notes) + "\n")
     return True
 
 
@@ -160,6 +163,13 @@ async def mode_iocontrol_execute(
     if not hex_cmd:
         print(f"  No {action} command defined for {ecu_key} {did_key} ({label})")
         return
+    release_cmd = cmd_def["release"] or cmd_def["off"]
+    if not off:
+        refusal = on_refusal(hex_cmd, cmd_def["release"], ecu_info["protocol"])
+        if refusal:
+            # Nothing has been sent yet, so there is nothing to release.
+            print(f"error: {ecu_key} {did_key} ON refused — {refusal}", file=sys.stderr)
+            raise SystemExit(2)
 
     print(f"\n  {ecu_key} 0x{tx_id:03X} -- {label} -- {action}")
     print(f"  Command: {hex_cmd}")
@@ -187,7 +197,7 @@ async def mode_iocontrol_execute(
             print(f"  Readback before: {status_param} = {format_status_value(before)}")
 
     try:
-        response = await terminal.send_uds(hex_cmd, timeout=3.0)
+        response = await send_iocontrol(terminal, hex_cmd)
 
         if response["ok"]:
             print(f"  ✓ Positive response: {response['hex']}")
@@ -230,10 +240,12 @@ async def mode_iocontrol_execute(
             except asyncio.CancelledError:
                 pass
 
-        # Send OFF command on release if we were holding ON
-        if needs_hold and not off and cmd_def["off"]:
-            print(f"  Sending OFF: {cmd_def['off']}")
-            release_resp = await terminal.send_uds(cmd_def["off"], timeout=3.0)
+        # Hand the output back if we were holding it ON: the entry's release
+        # (returnControlToECU on UDS, the declared request on KWP2000), else OFF.
+        if needs_hold and not off and release_cmd:
+            print(f"  Releasing: {release_cmd}")
+            await terminal.set_header(tx_id)
+            release_resp = await send_iocontrol(terminal, release_cmd)
             if release_resp["ok"]:
                 print(f"  ✓ Released: {release_resp['hex']}")
             else:
@@ -265,7 +277,7 @@ class _IOControlTUI:
         Enter/Space  Toggle ON (or OFF if already ON). If the DID has no
                      simple ON command, opens the value prompt instead
                      (seeded with the last value sent this session, or 00).
-        o            Send explicit OFF (ReturnControlToECU 00)
+        o            Send explicit OFF (the entry's off command)
         v            Enter hex value → send ShortTermAdjustment (2F{DID}03{hex})
         +/-          Increment/decrement last value sent to current DID
         e            Edit label (writes to ecus/<ecu>.yaml)
@@ -274,7 +286,7 @@ class _IOControlTUI:
         d            Cycle view: curated / all / discoveries
         P            Promote current discovery to curated entry (on/off
                      inferred from response length; prompts for label)
-        q / Ctrl+C   Quit (auto-OFF any active actuator)
+        q / Ctrl+C   Quit (release every actuator switched on)
     """
 
     def __init__(
@@ -294,12 +306,13 @@ class _IOControlTUI:
         self.pids_data = pids_data
         self.verbose = verbose
         # A KWP2000 ECU's actuators are service 0x30, whose control-option byte is
-        # manufacturer-defined; the UDS-shaped poll and value keys are refused.
-        self.kwp: bool = ecu_session_protocol(pids_data, ecu_key) == KWP
+        # manufacturer-defined: an ON needs a declared release, and the UDS-shaped
+        # value keys are refused (canlib.actuation).
+        self.protocol: SessionProtocol = ecu_info["protocol"]
         # Background status polling is OPT-IN. When enabled, the poll loop sends
-        # 2F{DID}00 (returnControlToECU) to every DID — which can actuate
-        # relay/solenoid-backed DIDs (audible click). Off by default so merely
-        # launching the TUI sends no CAN traffic until the user acts.
+        # each DID's release (2F{DID}00, returnControlToECU, on UDS) — which can
+        # actuate relay/solenoid-backed DIDs (audible click). Off by default so
+        # merely launching the TUI sends no CAN traffic until the user acts.
         self._poll_enabled: bool = poll
 
         # View mode cycles through:
@@ -531,7 +544,7 @@ class _IOControlTUI:
             loop.add_reader(fd, _on_stdin_ready)
 
             # Start background status polling — ONLY when opted in via --poll.
-            # The poll sends 2F {DID} 00 (returnControlToECU) to every DID. That
+            # The poll sends each DID's release (2F {DID} 00 on UDS). That
             # is NOT a guaranteed silent read: returnControlToECU hands the I/O
             # back to the ECU's own logic and can physically actuate relay/
             # solenoid-backed DIDs (e.g. IGPM door lock/unlock, trunk, charge
@@ -715,18 +728,18 @@ async def mode_iocontrol_tui(
             print(f"  ECUs with IOControl: {', '.join(available)}")
         return
 
-    if poll and ecu_session_protocol(pids_data, ecu_key) == KWP:
-        # The poll sends UDS 2F{DID}00. Service 0x30's control-option byte is
-        # manufacturer-defined, so there is no equivalent guaranteed release to
-        # send instead (Nissan's 00 is a one-shot command).
+    ecu_info = ioctrl_index[ecu_key]
+    if poll and not any(c["release"] for c in ecu_info["cmds"].values()):
+        # The poll sends each entry's release. Service 0x30's control-option byte
+        # is manufacturer-defined, so a KWP2000 entry has one only when declared.
         print(
-            f"error: --poll is UDS-only (it sends 2F{{DID}}00) and {ecu_key} speaks "
-            "KWP2000; run without --poll",
+            f"error: --poll sends each actuator's release, and no {ecu_key} entry has one "
+            "(a KWP2000 0x30 entry needs a declared release:); run without --poll",
             file=sys.stderr,
         )
         raise SystemExit(2)
 
     tui = _IOControlTUI(
-        terminal, ecu_key, ioctrl_index[ecu_key], pids_data=pids_data, verbose=verbose, poll=poll
+        terminal, ecu_key, ecu_info, pids_data=pids_data, verbose=verbose, poll=poll
     )
     await tui.run()

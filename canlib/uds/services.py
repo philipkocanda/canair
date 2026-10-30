@@ -97,12 +97,14 @@ SERVICES: tuple[ServiceInfo, ...] = (
         safe_discovery_sf=0x00,
         actuates=True,
     ),
+    # No safe_discovery_sf: ISO 14230-3 leaves the option byte to the manufacturer,
+    # and the SSF 14230-3 returnControlToECU (00) switches a Kia Soul EV charger LED
+    # on. canlib.actuation classifies a 0x30 request as a release only when declared.
     ServiceInfo(
         0x30,
         "InputOutputControlByLocalIdentifier",
         KWP2000,
         id_width=1,
-        safe_discovery_sf=0x00,
         actuates=True,
     ),
     ServiceInfo(

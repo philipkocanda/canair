@@ -565,6 +565,7 @@ def cmd_set_iocontrol(args: argparse.Namespace) -> int:
             ("verified", args.verified),
             ("on", args.on),
             ("off", args.off),
+            ("release", args.release),
             ("session", args.session),
             ("session_mode", args.session_mode),
             ("hold", args.hold),
@@ -581,7 +582,7 @@ def cmd_set_iocontrol(args: argparse.Namespace) -> int:
             fields["session_mode"] = normalize_session_mode(args.session_mode)
         except ValueError as exc:
             raise SystemExit(f"{ansi.RED}  Error: --session-mode: {exc}{ansi.RESET}") from None
-    for name in ("on", "off"):
+    for name in ("on", "off", "release"):
         value = fields.get(name)
         if isinstance(value, str) and value and not re.fullmatch(r"(?:[0-9A-Fa-f]{2})+", value):
             raise SystemExit(
@@ -1081,7 +1082,8 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         epilog="examples:\n"
         "  canair pids set-iocontrol IGPM BC01 --verified --label 'Low beam'\n"
         "  canair pids set-iocontrol BCM 6900 --session-mode C0 --no-hold\n"
-        "  canair pids set-iocontrol HVAC F010 --on 2FF01003FF --off 2FF01000\n",
+        "  canair pids set-iocontrol HVAC F010 --on 2FF01003FF --off 2FF01000\n"
+        "  canair pids set-iocontrol BCM 6900 --release 30690000\n",
     )
     sio.add_argument("ecu")
     sio.add_argument("did", metavar="DID", help="The iocontrol: entry key (e.g. BC01)")
@@ -1095,6 +1097,14 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     )
     sio.add_argument("--on", default=None, metavar="HEX", help="Full ON request (e.g. 2FBC0103)")
     sio.add_argument("--off", default=None, metavar="HEX", help="Full OFF request (e.g. 2FBC0100)")
+    sio.add_argument(
+        "--release",
+        default=None,
+        metavar="HEX",
+        help="Full request that hands the output back to the ECU, sent on exit, on Ctrl+C "
+        "and by --poll. UDS implies 2F{DID}00; a KWP2000 0x30 entry has no standard one, "
+        "and `canair io` refuses its ON until this is set",
+    )
     sio.add_argument(
         "--session",
         action=argparse.BooleanOptionalAction,
@@ -1112,7 +1122,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "--hold",
         action=argparse.BooleanOptionalAction,
         default=None,
-        help="Keep the session alive after ON until Ctrl+C, then send OFF",
+        help="Keep the session alive after ON until Ctrl+C, then send the release",
     )
     sio.add_argument(
         "--status-param",

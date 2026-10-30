@@ -1,4 +1,4 @@
-"""``canair io`` — IOControl (0x2F) actuator control: TUI or single command."""
+"""``canair io`` — IOControl (UDS 0x2F / KWP2000 0x30) actuator control: TUI or single command."""
 
 from __future__ import annotations
 
@@ -15,7 +15,11 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         aliases=["iocontrol"],
         help="IOControl actuators: interactive TUI or single --did command",
         description="IOControl (UDS 0x2F, or an entry's own KWP2000 0x30 commands): interactive "
-        "TUI, or single actuator command with --did. The TUI's value keys (v/+/-) and --poll "
+        "TUI, or single actuator command with --did. Every actuator switched on is released "
+        "on exit and on Ctrl+C with its release request: returnControlToECU (2F{DID}00) on "
+        "UDS, the entry's declared release: on KWP2000, where the 0x30 option byte has no "
+        "standard release. A 0x30 ON without a declared release is refused (set one with "
+        "`canair pids set-iocontrol ECU KEY --release HEX`). The TUI's value keys (v/+/-) "
         "build UDS 0x2F requests, so they are refused for a KWP2000 ECU.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
@@ -31,15 +35,16 @@ examples:
         "iocontrol", metavar="ECU", nargs="?", help="ECU name (e.g. IGPM)"
     ).completer = ecu_completer
     parser.add_argument("--did", metavar="DID", help="DID to execute (e.g. BC01)")
-    parser.add_argument("--off", action="store_true", help="Send OFF/returnControl instead of ON")
+    parser.add_argument(
+        "--off", action="store_true", help="Send the entry's OFF command instead of ON"
+    )
     parser.add_argument(
         "--poll",
         action="store_true",
-        help="Enable background status polling in the TUI: sends 2F{DID}00 "
-        "(returnControlToECU) to every DID every 3s, inside each entry's own session. "
+        help="Enable background status polling in the TUI: sends each DID's release "
+        "(2F{DID}00, returnControlToECU, on UDS) every 3s, inside each entry's own session. "
         "This can actuate relay/solenoid-backed DIDs (audible click) — off by default. "
-        "UDS only: refused for a KWP2000 ECU, whose 0x30 option byte has no standard "
-        "release.",
+        "A KWP2000 entry is polled only when it declares a release.",
     )
     add_connection_args(parser)
     finalize_live_parser(parser)

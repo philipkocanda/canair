@@ -131,7 +131,11 @@ async def handle_routines_scan(
 async def handle_iocontrol_scan(
     args, terminal: Terminal, pids_data, host, *, reconnect=None
 ) -> None:
-    from canlib.modes.kwp_iocontrol_scan import mode_kwp_iocontrol_scan
+    from canlib.modes.kwp_iocontrol_scan import (
+        UNPROVEN_WARNING,
+        mode_kwp_iocontrol_scan,
+        needs_confirmation,
+    )
 
     did_range = parse_range(args.did_range) if args.did_range else None
 
@@ -144,6 +148,22 @@ async def handle_iocontrol_scan(
     _wake = getattr(args, "wake", False)
     # None = not given: the KWP2000 scanner then picks the profile's session.
     _mode = getattr(args, "session_mode", None)
+
+    # Asked before anything is sent, like the routine scan. A closed or
+    # non-interactive stdin reads as "no", so a script must pass --yes.
+    confirmed = bool(getattr(args, "yes", False))
+    if kwp_ecus and needs_confirmation(pids_data) and not confirmed:
+        print(f"!! WARNING: {UNPROVEN_WARNING}", file=sys.stderr)
+        print(
+            f"!! Sweep {', '.join(kwp_ecus)} with 30 {{LID}} 00 anyway? [y/N] ",
+            end="",
+            flush=True,
+            file=sys.stderr,
+        )
+        if sys.stdin.readline().strip().lower() not in ("y", "yes"):
+            print("Aborted.", file=sys.stderr)
+            return
+        confirmed = True
 
     if uds_ecus:
         await mode_iocontrol_scan(
@@ -170,6 +190,7 @@ async def handle_iocontrol_scan(
             session=_session,
             wake=_wake,
             session_mode=_mode,
+            confirmed=confirmed,
         )
 
 

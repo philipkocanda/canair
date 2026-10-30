@@ -12,7 +12,7 @@ usage: canair io [-h] [--did DID] [--off] [--poll] [--wican WICAN]
                  [--reboot] [--unsafe] [--force]
                  [ECU]
 
-[UDS] IOControl (UDS 0x2F, or an entry's own KWP2000 0x30 commands): interactive TUI, or single actuator command with --did. The TUI's value keys (v/+/-) and --poll build UDS 0x2F requests, so they are refused for a KWP2000 ECU.
+[UDS] IOControl (UDS 0x2F, or an entry's own KWP2000 0x30 commands): interactive TUI, or single actuator command with --did. Every actuator switched on is released on exit and on Ctrl+C with its release request: returnControlToECU (2F{DID}00) on UDS, the entry's declared release: on KWP2000, where the 0x30 option byte has no standard release. A 0x30 ON without a declared release is refused (set one with `canair pids set-iocontrol ECU KEY --release HEX`). The TUI's value keys (v/+/-) build UDS 0x2F requests, so they are refused for a KWP2000 ECU.
 
 positional arguments:
   ECU                   ECU name (e.g. IGPM)
@@ -20,13 +20,13 @@ positional arguments:
 options:
   -h, --help            show this help message and exit
   --did DID             DID to execute (e.g. BC01)
-  --off                 Send OFF/returnControl instead of ON
+  --off                 Send the entry's OFF command instead of ON
   --poll                Enable background status polling in the TUI: sends
-                        2F{DID}00 (returnControlToECU) to every DID every 3s,
-                        inside each entry's own session. This can actuate
-                        relay/solenoid-backed DIDs (audible click) — off by
-                        default. UDS only: refused for a KWP2000 ECU, whose
-                        0x30 option byte has no standard release.
+                        each DID's release (2F{DID}00, returnControlToECU, on
+                        UDS) every 3s, inside each entry's own session. This
+                        can actuate relay/solenoid-backed DIDs (audible click)
+                        — off by default. A KWP2000 entry is polled only when
+                        it declares a release.
   --wican WICAN         WiCAN address: ap or IP (default: config
                         transport.host / default_wican=ap)
   --transport {slcan-tcp,wican-ws,elm327-tcp}

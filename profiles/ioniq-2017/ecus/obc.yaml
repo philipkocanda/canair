@@ -580,6 +580,38 @@ OBC:
         canair monitor OBC:2101,2102 BMS:2101 --save --keep-all --interval 2 --label 'AC
         charge-current setting steps' --state CHARGING; press s at each menu change and name the
         setting.
+    - type: iocontrol_scan
+      target: 30 00-FF (LED LIDs 01-04 first)
+      status: pending
+      priority: P3
+      vehicle_states: [PARKED, ACC]
+      created: "2026-10-30"
+      updated: "2026-10-30"
+      notes: >-
+        Hypothesis from OVMS (Open Vehicle Monitoring System) Kia Soul EV firmware: its on-board
+        charger (OBC, request id 0x794 there) takes KWP2000 InputOutputControlByLocalIdentifier to
+        drive the blue charge-port LEDs. Sequence in BlueChargeLed(): 10 81, then 10 90, then 30
+        {led} 00 = LED ON and 30 {led} 11 = LED OFF, with led 1 = centre, 2 = left, 3 = right, 4 =
+        all. So on that ECU 30 {LID} 00 ACTUATES; it is not a release. This contradicts the
+        assumption in docs/concepts/safety.md that 30 {LID} 00 is returnControlToECU under the SSF
+        14230 / Hyundai-Kia convention, which canair scan iocontrol relies on. Same pattern in OVMS
+        for the Soul EV ABS/EBP park-brake service mode (30 02 01 on, 30 02 03 off, 30 01 01
+        disengage), always inside a 10 90 session. Unverified: Soul EV code comments only, no
+        captured traffic of a 30 request. Supporting evidence from a 2021 Kona EV Car Scanner log
+        (profiles/kona-electric-2019/captures/can/221210-1-*): the Kona OBC (7E5) answers 10 90 with
+        50 90, rejects 10 03 with NRC 12, and answers 20 with 60, so it is a KWP2000 ECU with the
+        same session as the Soul. Ioniq AE differs: OBC is 0x7E5 and was probed 2026-07-22 with only
+        session 0x81 accepted, so check 10 90 again. Do not run scan iocontrol on this OBC until the
+        30 00 semantics are known. The same Kona logs show UDS 2F F0xx 03 / 00 for BMU relay control
+        (bms_diagnostics/*).
+      sources:
+        - "OVMS vehicle_kiasoulev: vehicle_kiasoulev.cpp BlueChargeLed(), ks_commands.cpp CommandParkBreakService, ks_can_send.cpp Send_EBP_Command (openvehicles/Open-Vehicle-Monitoring-System-3, read 2026-10-30)"
+      what_to_test:
+        - "Car parked, ACC, charge port unplugged: use canair raw to open 10 81 then 10 90 on OBC (0x7E5) and check 10 90 is accepted (the hk_90_session quirk permits it); the earlier probe only accepted 0x81. Do not define an iocontrol: entry yet: canair io refuses a 0x30 ON until its release is known."
+        - "If 10 90 is accepted: send ONE 30 01 00 and watch the charge-port LED (second person), then 30 01 11. Stop on any unexpected NRC."
+      capture_protocol: >-
+        canair raw with --save --label 'OBC KWP 30 LED probe' --state ACC; record every request and
+        reply. Only LIDs 01-04, never a blind sweep.
 
   sessions:
     "81":

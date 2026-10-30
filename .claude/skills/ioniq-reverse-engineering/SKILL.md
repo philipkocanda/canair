@@ -304,9 +304,11 @@ Full reference: **AGENTS.md** + `canair <cmd> --help`. Key project behaviors:
   alone; BMS/MCU answer only while the IG3 rail is on (ignition ON, charging, the 12 V
   top-up), and the VCU a few minutes beyond, so ACC alone is not enough.**
 - **`canair io --poll` can actuate hardware.** The IOControl TUI's background
-  status poll (`--poll`, opt-in) sends `2F{DID}00` (returnControlToECU) to every
-  DID every 3s; on relay/solenoid DIDs this can re-assert defaults and cause an
-  audible click. Off by default, and refused for KWP2000 ECUs.
+  status poll (`--poll`, opt-in) sends each DID's release (`2F{DID}00`,
+  returnControlToECU) every 3s; on relay/solenoid DIDs this can re-assert defaults
+  and cause an audible click. Off by default. A KWP2000 `0x30` entry is polled, and
+  switched on, only once it declares a `release:` — none of the Ioniq's KWP ECUs
+  has one yet (see the OBC `iocontrol_scan` research entry).
 - **`--verbose`** debugs canair itself; not useful for normal reads.
 - **`canair raw`** is a last resort (hex only, no decoding) — use decoded
   `query`/`--param` when a PID definition exists.

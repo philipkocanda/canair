@@ -398,6 +398,7 @@ class TestExecIocontrolSession:
                         "label": "low beam",
                         "on": "2FBC0103",
                         "off": "2FBC0100",
+                        "release": "2FBC0100",
                         "session": True,
                         "session_mode": "03",
                         "hold": False,
@@ -406,6 +407,7 @@ class TestExecIocontrolSession:
                         "discovery": False,
                     }
                 },
+                "protocol": "uds",
             }
         }
         monkeypatch.setattr(multi_exec, "build_iocontrol_index", lambda _pids: idx)
@@ -453,6 +455,7 @@ class TestExecIocontrolPolarity:
             "label": "low beam",
             "on": self.ON_CMD,
             "off": self.OFF_CMD,
+            "release": self.OFF_CMD,
             "session": True,
             "session_mode": "03",
             "hold": False,
@@ -460,8 +463,9 @@ class TestExecIocontrolPolarity:
             "notes": "",
             "discovery": False,
         }
+        protocol = overrides.pop("protocol", "uds")
         cmd.update(overrides)
-        return {"IGPM": {"tx_id": 0x770, "cmds": {"BC01": cmd}}}
+        return {"IGPM": {"tx_id": 0x770, "protocol": protocol, "cmds": {"BC01": cmd}}}
 
     def _run(self, monkeypatch, *, off, cmd_overrides=None):
         from canlib.modes import multi_exec
@@ -499,6 +503,23 @@ class TestExecIocontrolPolarity:
     def test_an_open_session_of_the_same_mode_is_reused(self, monkeypatch):
         sm = self._run(monkeypatch, off=False)
         sm.open_session.assert_not_awaited()
+
+    def test_the_on_reply_echo_is_validated(self, monkeypatch):
+        sm = self._run(monkeypatch, off=False)
+        kwargs = sm.terminal.send_uds.await_args.kwargs
+        assert kwargs["expected_sid"] == 0x2F
+        assert kwargs["expected_echo"] == bytes.fromhex("BC01")
+
+    def test_a_kwp_on_without_a_release_is_refused(self, monkeypatch, capsys):
+        overrides = {"on": "300100", "off": "300111", "release": "", "protocol": "kwp"}
+        sm = self._run(monkeypatch, off=False, cmd_overrides=overrides)
+        sm.terminal.send_uds.assert_not_awaited()
+        assert "no release declared" in capsys.readouterr().out
+
+    def test_a_kwp_on_with_a_declared_release_is_sent(self, monkeypatch):
+        overrides = {"on": "300100", "off": "300111", "release": "300111", "protocol": "kwp"}
+        sm = self._run(monkeypatch, off=False, cmd_overrides=overrides)
+        assert sm.terminal.send_uds.await_args.args[0] == "300100"
 
 
 class TestBuildQueryPlanStatic:

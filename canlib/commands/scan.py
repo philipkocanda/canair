@@ -4,9 +4,10 @@ Three kinds of scan live under one command:
 
   * ``canair scan range <ECU>``      — sweep a PID/DID range on one ECU (the
     general-purpose scan, with friendly ``--service`` presets + a wizard).
-  * ``canair scan iocontrol <ECU>``  — SAFE IOControl discovery. Auto-selects
-    UDS ``0x2F`` or KWP2000 ``0x30`` from the ECU's ``id_protocol`` and only ever
-    sends the non-actuating returnControlToECU probe (never an actuating option).
+  * ``canair scan iocontrol <ECU>``  — IOControl discovery. Auto-selects UDS
+    ``0x2F`` or KWP2000 ``0x30`` from the ECU's ``id_protocol`` and only ever sends
+    the returnControlToECU probe (never an actuating option). On KWP2000 that probe
+    is not proven to drive nothing, so the sweep confirms first.
   * ``canair scan routines <ECU>``   — SAFE RoutineControl (``0x31``) discovery
     (probes requestRoutineResults only).
 
@@ -55,7 +56,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         help="Scan an ECU: range | iocontrol | routines | sessions",
         description="Scan an ECU. Choose a kind:\n"
         "  range      sweep a PID/DID range (general purpose)\n"
-        "  iocontrol  SAFE IOControl discovery (UDS 0x2F / KWP2000 0x30, auto)\n"
+        "  iocontrol  IOControl discovery (UDS 0x2F; KWP2000 0x30 asks first)\n"
         "  routines   SAFE RoutineControl discovery (UDS 0x31 SF03 / KWP2000 0x33, auto)\n"
         "  sessions   SAFE diagnostic session-type discovery (0x10, auto UDS/KWP2000)\n\n"
         "A bare `canair scan BMS` (or `canair scan` alone) is shorthand for "
@@ -172,31 +173,32 @@ tips:
 
 
 # ---------------------------------------------------------------------------
-# scan iocontrol — SAFE IOControl discovery (UDS 0x2F / KWP2000 0x30, auto)
+# scan iocontrol — IOControl discovery (UDS 0x2F / KWP2000 0x30, auto)
 # ---------------------------------------------------------------------------
 
 
 def _add_iocontrol_parser(kinds) -> argparse.ArgumentParser:
     parser = kinds.add_parser(
         "iocontrol",
-        help="SAFE IOControl discovery (UDS 0x2F / KWP2000 0x30, auto by id_protocol)",
+        help="IOControl discovery (UDS 0x2F; KWP2000 0x30 asks first)",
         description="Probe returnControlToECU across an id range on one or more ECUs. "
         "The service is auto-selected per ECU from its id_protocol: UDS ECUs use "
         "InputOutputControlByIdentifier (0x2F, 16-bit DID); KWP2000 ECUs (BMS, VCU, "
         "MCU, LDC, AAF) use InputOutputControlByLocalIdentifier (0x30, 8-bit LID). "
         "Only returnControlToECU (00) is ever sent, never an actuating option. On UDS "
-        "that is the standard release; ISO 14230-3 leaves the 0x30 option byte "
-        "manufacturer-defined, so on KWP2000 it is a release under the SSF 14230 / "
-        "Hyundai-Kia convention, and the scan warns on a profile that declares neither "
-        "make. On a profile with the nissan_c0_session quirk, KWP2000 ECUs get "
-        "Nissan's layout instead: 30 {LID} 01 00 (is value 00 supported?) inside the "
-        "Nissan session 10 C0, because there 30 {LID} 00 begins a one-shot command. "
+        "that is the standard release. ISO 14230-3 leaves the 0x30 option byte "
+        "manufacturer-defined, and 30 {LID} 00 switches a Kia Soul EV charger LED on, so "
+        "a KWP2000 sweep may actuate outputs: it asks for confirmation first (--yes to "
+        "skip; it refuses non-interactively without it). On a profile with the "
+        "nissan_c0_session quirk, KWP2000 ECUs get Nissan's layout instead, with no "
+        "prompt: 30 {LID} 01 00 (is value 00 supported?) inside the Nissan session "
+        "10 C0, because there 30 {LID} 00 begins a one-shot command. "
         "Hits are written to pids/<ecu>.yaml under an iocontrol_discoveries: "
         "section.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="examples:\n"
         "  canair scan iocontrol IGPM              # UDS 0x2F DID scan\n"
-        "  canair scan iocontrol BMS               # KWP2000 0x30 LID scan (auto)\n"
+        "  canair scan iocontrol BMS               # KWP2000 0x30 LID scan (asks first)\n"
         "  canair scan iocontrol BMS --session --mode 81   # sweep inside KWP2000 session\n"
         "  canair scan iocontrol IGPM BCM --did-range B000-BFFF\n",
     )
@@ -224,6 +226,13 @@ def _add_iocontrol_parser(kinds) -> argparse.ArgumentParser:
         help="Session mode for --session (default 03 = UDS extended; 81 = KWP2000 standard, "
         "e.g. BMS; on a profile with the nissan_c0_session quirk KWP2000 ECUs default to C0 "
         "and always open a session)",
+    )
+    parser.add_argument(
+        "--yes",
+        "-y",
+        action="store_true",
+        help="Skip the confirmation a KWP2000 0x30 sweep asks for, since 30 {LID} 00 is "
+        "not known to drive nothing (every profile without the nissan_c0_session quirk)",
     )
     add_connection_args(parser)
     finalize_live_parser(parser)

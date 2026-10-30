@@ -94,7 +94,8 @@ class TestServiceInfo:
 
         kwp = service_info(0x30)
         assert kwp.id_width == 1  # local identifier is a single byte
-        assert kwp.safe_discovery_sf == 0x00
+        # No standard release: 30 {LID} 00 actuates on a Kia Soul EV charger.
+        assert kwp.safe_discovery_sf is None
         assert kwp.actuates is True
 
     def test_routine_metadata(self):

@@ -88,7 +88,7 @@ def io_dir(tmp_path):
 
 def _io_args(io_dir, **kw):
     fields = dict.fromkeys(
-        ("label", "notes", "verified", "on", "off", "session", "session_mode", "hold")
+        ("label", "notes", "verified", "on", "off", "release", "session", "session_mode", "hold")
     )
     fields["status_param"] = None
     fields.update(kw)
@@ -104,6 +104,21 @@ def test_set_iocontrol_writes_only_the_given_fields(io_dir):
     assert entry["session_mode"] == "C0"
     assert entry["hold"] is False
     assert entry["label"] == "Mirrors"
+
+
+def test_set_iocontrol_writes_a_quoted_release(io_dir):
+    import canlib.yaml_io as yaml_io
+
+    assert cli.cmd_set_iocontrol(_io_args(io_dir, release="30690000")) == 0
+    text = (io_dir / "e.yaml").read_text()
+    assert 'release: "30690000"' in text
+    entry = yaml_io.safe_load(text)["TESTECU"]["iocontrol"][6900]
+    assert entry["release"] == "30690000"
+
+
+def test_set_iocontrol_rejects_a_non_hex_release(io_dir):
+    with pytest.raises(SystemExit, match="--release"):
+        cli.cmd_set_iocontrol(_io_args(io_dir, release="off"))
 
 
 def test_set_iocontrol_rejects_a_non_hex_command(io_dir):

@@ -7,7 +7,7 @@ usage: canair scan [-h] <kind> ...
 
 [UDS] Scan an ECU. Choose a kind:
   range      sweep a PID/DID range (general purpose)
-  iocontrol  SAFE IOControl discovery (UDS 0x2F / KWP2000 0x30, auto)
+  iocontrol  IOControl discovery (UDS 0x2F; KWP2000 0x30 asks first)
   routines   SAFE RoutineControl discovery (UDS 0x31 SF03 / KWP2000 0x33, auto)
   sessions   SAFE diagnostic session-type discovery (0x10, auto UDS/KWP2000)
 
@@ -16,8 +16,7 @@ A bare `canair scan BMS` (or `canair scan` alone) is shorthand for `canair scan 
 positional arguments:
   <kind>
     range      Sweep a range of PIDs/DIDs on an ECU
-    iocontrol  SAFE IOControl discovery (UDS 0x2F / KWP2000 0x30, auto by
-               id_protocol)
+    iocontrol  IOControl discovery (UDS 0x2F; KWP2000 0x30 asks first)
     routines   SAFE RoutineControl discovery (UDS 0x31 SF03 / KWP2000 0x33,
                auto)
     sessions   SAFE diagnostic session-type discovery (0x10, auto UDS/KWP2000)
@@ -148,7 +147,7 @@ tips:
 ```
 usage: canair scan iocontrol [-h] [--did-range START-END]
                              [--throttle-ms THROTTLE_MS] [--session] [--wake]
-                             [--mode HEX] [--wican WICAN]
+                             [--mode HEX] [--yes] [--wican WICAN]
                              [--transport {slcan-tcp,wican-ws,elm327-tcp}]
                              [--no-fallback] [--wait] [--elm-timeout MS]
                              [--timeout SECONDS] [--no-learn-frames] [--json]
@@ -156,7 +155,7 @@ usage: canair scan iocontrol [-h] [--did-range START-END]
                              [--force]
                              ECU [ECU ...]
 
-Probe returnControlToECU across an id range on one or more ECUs. The service is auto-selected per ECU from its id_protocol: UDS ECUs use InputOutputControlByIdentifier (0x2F, 16-bit DID); KWP2000 ECUs (BMS, VCU, MCU, LDC, AAF) use InputOutputControlByLocalIdentifier (0x30, 8-bit LID). Only returnControlToECU (00) is ever sent, never an actuating option. On UDS that is the standard release; ISO 14230-3 leaves the 0x30 option byte manufacturer-defined, so on KWP2000 it is a release under the SSF 14230 / Hyundai-Kia convention, and the scan warns on a profile that declares neither make. On a profile with the nissan_c0_session quirk, KWP2000 ECUs get Nissan's layout instead: 30 {LID} 01 00 (is value 00 supported?) inside the Nissan session 10 C0, because there 30 {LID} 00 begins a one-shot command. Hits are written to pids/<ecu>.yaml under an iocontrol_discoveries: section.
+Probe returnControlToECU across an id range on one or more ECUs. The service is auto-selected per ECU from its id_protocol: UDS ECUs use InputOutputControlByIdentifier (0x2F, 16-bit DID); KWP2000 ECUs (BMS, VCU, MCU, LDC, AAF) use InputOutputControlByLocalIdentifier (0x30, 8-bit LID). Only returnControlToECU (00) is ever sent, never an actuating option. On UDS that is the standard release. ISO 14230-3 leaves the 0x30 option byte manufacturer-defined, and 30 {LID} 00 switches a Kia Soul EV charger LED on, so a KWP2000 sweep may actuate outputs: it asks for confirmation first (--yes to skip; it refuses non-interactively without it). On a profile with the nissan_c0_session quirk, KWP2000 ECUs get Nissan's layout instead, with no prompt: 30 {LID} 01 00 (is value 00 supported?) inside the Nissan session 10 C0, because there 30 {LID} 00 begins a one-shot command. Hits are written to pids/<ecu>.yaml under an iocontrol_discoveries: section.
 
 positional arguments:
   ECU                   ECUs to scan (at least one required)
@@ -174,6 +173,9 @@ options:
                         81 = KWP2000 standard, e.g. BMS; on a profile with the
                         nissan_c0_session quirk KWP2000 ECUs default to C0 and
                         always open a session)
+  --yes, -y             Skip the confirmation a KWP2000 0x30 sweep asks for,
+                        since 30 {LID} 00 is not known to drive nothing (every
+                        profile without the nissan_c0_session quirk)
   --wican WICAN         WiCAN address: ap or IP (default: config
                         transport.host / default_wican=ap)
   --transport {slcan-tcp,wican-ws,elm327-tcp}
@@ -215,7 +217,7 @@ options:
 
 examples:
   canair scan iocontrol IGPM              # UDS 0x2F DID scan
-  canair scan iocontrol BMS               # KWP2000 0x30 LID scan (auto)
+  canair scan iocontrol BMS               # KWP2000 0x30 LID scan (asks first)
   canair scan iocontrol BMS --session --mode 81   # sweep inside KWP2000 session
   canair scan iocontrol IGPM BCM --did-range B000-BFFF
 ```

@@ -14,7 +14,10 @@ do.
   prompts for confirmation before acting, with an explicit flag escape hatch
   (e.g. `--yes`) for scripting.
 - **Actuators auto-release.** IOControl actions release control back to the ECU
-  when the session ends, so a toggled output doesn't stay stuck.
+  when the session ends, so a toggled output doesn't stay stuck. On a UDS ECU the
+  release is `returnControlToECU` (`2F {DID} 00`). KWP2000's `0x30` has no standard
+  release, so canair only switches a `0x30` actuator on when its profile entry
+  declares one (see below).
 
 ## Hard limits — what canair refuses
 
@@ -54,8 +57,11 @@ not know an ECU's protocol, it applies whichever reading is stricter.
 A profile can permit its own make's diagnostic session through a quirk. The
 bundled Nissan Leaf profile declares `nissan_c0_session`, which permits exactly
 `10 C0` — the session Nissan ECUs require for actuator tests — on its KWP2000
-ECUs only (on a UDS ECU `C0` is an OEM session with the suppress bit). No quirk
-can permit a programming or safety-system session. `canair validate` checks
+ECUs only (on a UDS ECU `C0` is an OEM session with the suppress bit). The
+Hyundai/Kia profiles declare `hk_90_session`, which permits `10 90` on their
+KWP2000 ECUs the same way: the Kia Soul EV opens it for actuator tests, and a
+commercial scan tool opens it on every Kona EV powertrain ECU. No quirk can permit
+a programming or safety-system session. `canair validate` checks
 every actuator's `session_mode` against the same rule. A refused request stops
 the command with `error: …` (exit code 2); `--unsafe` turns the refusal into a
 prompt you must answer `YES`; the same prompt covers every refusal on this page.
@@ -68,20 +74,26 @@ different code path.
 
 Note the difference between *discovering* a capability and *using* it:
 
-- `canair scan iocontrol` / `scan routines` are **safe probes** — they ask *whether* an
-  actuator or routine exists, using non-actuating variants, and trigger nothing. Which variant
-  is non-actuating depends on the make:
-    - UDS IOControl uses the standard `returnControlToECU`.
+- `canair scan iocontrol` / `scan routines` ask *whether* an actuator or routine exists, using
+  the least actuating request each service has. Which one that is depends on the make:
+    - UDS IOControl uses the standard `returnControlToECU`, a safe probe.
     - KWP2000 IOControl (`0x30`) has no standard control-option byte (ISO 14230-3 leaves it to
-      the manufacturer); `30 {LID} 00` is a release only under the SSF 14230 / Hyundai-Kia
-      convention. The scan therefore warns on a profile that declares neither make.
-    - On a profile with the `nissan_c0_session` quirk that probe would begin a one-shot command,
-      so canair sends Nissan's "is this value supported?" query instead. Nissan's behaviour for
-      the KWP2000 routine-results service is undocumented, so `scan routines` asks for
+      the manufacturer). The scan sends `30 {LID} 00`, which SSF 14230-3 calls
+      `returnControlToECU`, but no make is known to follow that: the OVMS Kia Soul EV firmware
+      sends `30 {led} 00` to switch a charge-port LED *on*. So the sweep asks for confirmation
+      first (`--yes` to skip; it refuses non-interactively without it).
+    - On a profile with the `nissan_c0_session` quirk canair sends Nissan's "is this value
+      supported?" query instead, which drives nothing, so there is no prompt. Nissan's behaviour
+      for the KWP2000 routine-results service is undocumented, so `scan routines` asks for
       confirmation there (`--yes` to skip; it refuses non-interactively without it).
 - Actually actuating (`canair io`) or starting a routine is a separate,
-  confirm-first action. The `canair io` TUI's status poll (`--poll`) and value
-  keys build UDS `0x2F` requests, so they are refused for a KWP2000 ECU.
+  confirm-first action. A KWP2000 `0x30` actuator is switched on only when its
+  profile entry declares a `release:` — the request that hands the output back,
+  which canair sends on exit and on Ctrl-C. Find that request per ECU (test it with
+  `canair raw`) and record it with `canair pids set-iocontrol ECU KEY --release
+  HEX`. The `canair io` TUI's status poll (`--poll`) sends each entry's release, so
+  it skips a `0x30` entry without one, and its value keys build UDS `0x2F` requests,
+  so they are refused for a KWP2000 ECU.
 
 ## Be gentle
 

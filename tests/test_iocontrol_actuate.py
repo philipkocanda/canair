@@ -33,16 +33,19 @@ class FakeTerminal:
         self.sent: list[str] = []
         self.headers: list[int] = []
         self.sessions: list[str] = []
+        self.kwargs: list[dict] = []
         self.fail_on = fail_on or set()
 
     async def set_header(self, tx_id: int) -> None:
         self.headers.append(tx_id)
 
-    async def send_uds(self, cmd: str, timeout: float = 3.0) -> dict:
+    async def send_uds(self, cmd: str, timeout: float = 3.0, **kwargs) -> dict:
         self.sent.append(cmd)
+        self.kwargs.append(kwargs)
         if cmd in self.fail_on:
             raise ConnectionError("bus dropped")
-        return {"ok": True, "hex": "6F" + cmd[2:]}
+        reply = f"{int(cmd[:2], 16) + 0x40:02X}{cmd[2:]}"
+        return {"ok": True, "hex": reply, "bytes": list(bytes.fromhex(reply))}
 
     async def enter_extended_session(self, mode: str = "03"):
         self.sessions.append(mode)
@@ -60,6 +63,7 @@ class FakeTui:
             d: {
                 "on": ON_CMD,
                 "off": OFF_CMD,
+                "release": OFF_CMD,
                 "label": f"actuator {d}",
                 "session": False,
                 "session_mode": "03",
@@ -77,7 +81,7 @@ class FakeTui:
         self._status = ""
         self._quit = False
         self._status_polling = False
-        self.kwp = False
+        self.protocol = "uds"
 
 
 def _actuator(dids=("BC01", "BC02", "BC03"), **kw):
@@ -153,7 +157,7 @@ class TestReleaseAll:
         tui.state["BC03"] = "on"
 
         calls: list[str] = []
-        original = act.send_off
+        original = act.send_release
 
         async def flaky(did: str) -> None:
             calls.append(did)
@@ -161,7 +165,7 @@ class TestReleaseAll:
                 raise ConnectionError("bus dropped mid-release")
             await original(did)
 
-        act.send_off = flaky  # type: ignore[method-assign]
+        act.send_release = flaky  # type: ignore[method-assign]
         asyncio.run(act.release_all())
         assert calls == ["BC01", "BC02", "BC03"], "release must continue past a failure"
         assert tui.state["BC02"] == "off"
@@ -257,6 +261,8 @@ class TestExtractStatusBytes:
             # controlStatusRecord is everything after that 3-byte echo.
             ({"ok": True, "bytes": [0x6F, 0xBC, 0x01, 0xAA, 0xBB]}, "AA BB"),
             ({"ok": True, "bytes": [0x6F, 0xBC, 0x01]}, ""),  # positive, no tail
+            # KWP2000 0x30 echoes a 1-byte local identifier: `70 {LID} [tail...]`.
+            ({"ok": True, "bytes": [0x70, 0x01, 0x11, 0x22]}, "11 22"),
             ({"ok": False, "nrc": 0x31}, "NRC 31 ROOR"),  # negative response
             ({"ok": False}, "ERR"),  # transport error
         ],
@@ -282,6 +288,7 @@ class TestSingleCommand:
                             "label": "Mirrors",
                             "on": "30690001",
                             "off": "30690000",
+                            "release": "30690000",
                             "session_mode": "C0",
                             "hold": False,
                         }
@@ -293,6 +300,42 @@ class TestSingleCommand:
         asyncio.run(mode_iocontrol_execute(term, pids_data, "BCM", "6900"))  # type: ignore[arg-type]
         assert term.sessions == ["C0"]
         assert term.sent == ["30690001"]
+
+    def test_a_kwp_on_without_a_release_is_refused_before_anything_is_sent(self, capsys):
+        from canlib.modes.iocontrol import mode_iocontrol_execute
+
+        term = FakeTerminal()
+        with pytest.raises(SystemExit) as exc:
+            asyncio.run(mode_iocontrol_execute(term, OBC_DATA, "OBC", "01"))  # type: ignore[arg-type]
+        assert exc.value.code == 2
+        assert term.sent == [] and term.sessions == []
+        assert "no release declared" in capsys.readouterr().err
+
+    def test_off_is_still_sent_without_a_release(self):
+        from canlib.modes.iocontrol import mode_iocontrol_execute
+
+        term = FakeTerminal()
+        asyncio.run(mode_iocontrol_execute(term, OBC_DATA, "OBC", "01", off=True))  # type: ignore[arg-type]
+        assert term.sent == ["300111"]
+
+    def test_a_held_kwp_on_is_released_with_its_declared_release(self):
+        from canlib.modes.iocontrol import mode_iocontrol_execute
+
+        data = _with_release(OBC_DATA, "3001AA")
+
+        async def run():
+            task = asyncio.ensure_future(
+                mode_iocontrol_execute(term, data, "OBC", "01")  # type: ignore[arg-type]
+            )
+            while "300100" not in term.sent:
+                await asyncio.sleep(0)
+            task.cancel()  # Ctrl+C while holding
+            await asyncio.gather(task, return_exceptions=True)
+
+        term = HoldingTerminal()
+        asyncio.run(run())
+        assert term.sent == ["300100", "3001AA"]
+        assert term.kwargs[-1] == {"expected_sid": 0x30, "expected_echo": b"\x01"}
 
 
 class FailingSessionTerminal(FakeTerminal):
@@ -355,11 +398,17 @@ class TestSessionHeader:
 
 
 class TestKwpActuators:
-    """The poll and value keys build UDS 0x2F requests; never send them to KWP2000."""
+    """KWP2000 0x30 has no standard release: ON needs a declared one, value keys never."""
+
+    def _kwp(self, release=""):
+        act, tui = _actuator(dids=("01",))
+        tui.protocol = "kwp"
+        tui.cmds["01"].update(on="300100", off="300111", release=release)
+        return act, tui
 
     def test_adjust_is_refused_for_a_kwp_ecu(self):
         act, tui = _actuator()
-        tui.kwp = True
+        tui.protocol = "kwp"
         asyncio.run(act.send_adjust("BC01", b"\x01"))
         assert tui.terminal.sent == []
         assert "UDS-only" in tui._status
@@ -372,7 +421,7 @@ class TestKwpActuators:
 
     def test_toggle_without_on_does_not_open_the_value_prompt_on_kwp(self):
         act, tui = _actuator()
-        tui.kwp = True
+        tui.protocol = "kwp"
         tui._hex_input = None
         tui.cmds["BC01"]["on"] = ""
         tui.state["BC01"] = None
@@ -380,13 +429,53 @@ class TestKwpActuators:
         assert tui._hex_input is None
         assert "UDS-only" in tui._status
 
-    def test_poll_sends_nothing_to_a_kwp_ecu(self):
-        act, tui = _actuator()
-        tui.kwp = True
+    def test_on_without_a_release_is_refused_and_sends_nothing(self):
+        # 30 {LID} 00 turns a Kia Soul EV charger LED ON: with no known release,
+        # nothing could switch it back off on exit.
+        act, tui = self._kwp()
+        tui._session_active = False
+        asyncio.run(act.send_on("01"))
+        assert tui.terminal.sent == [] and tui.terminal.sessions == []
+        assert tui.state["01"] != "on"
+        assert "no release declared" in tui._status
+
+    def test_on_with_a_declared_release_is_sent_and_released_on_exit(self):
+        act, tui = self._kwp(release="3001AA")
+        asyncio.run(act.send_on("01"))
+        assert tui.state["01"] == "on"
+        asyncio.run(act.cleanup())
+        assert tui.terminal.sent == ["300100", "3001AA"]
+        assert tui.state["01"] == "off"
+
+    def test_the_kwp_reply_echo_is_validated(self):
+        act, tui = self._kwp(release="3001AA")
+        asyncio.run(act.send_on("01"))
+        assert tui.terminal.kwargs == [{"expected_sid": 0x30, "expected_echo": b"\x01"}]
+
+    def test_a_release_for_another_lid_is_refused(self):
+        act, tui = self._kwp(release="300211")
+        asyncio.run(act.send_on("01"))
+        assert tui.terminal.sent == []
+        assert "addresses 30 02" in tui._status
+
+    def test_a_release_equal_to_on_is_refused(self):
+        act, tui = self._kwp(release="300100")
+        asyncio.run(act.send_on("01"))
+        assert tui.terminal.sent == []
+
+    def test_poll_skips_kwp_entries_without_a_release(self):
+        act, tui = self._kwp()
         tui._session_active = False
         asyncio.run(act.poll_status_once())
         assert tui.terminal.sent == []
         assert tui.terminal.sessions == []
+
+    def test_poll_sends_a_declared_kwp_release(self):
+        act, tui = self._kwp(release="3001AA")
+        asyncio.run(act.poll_status_once())
+        assert tui.terminal.sent == ["3001AA"]
+        # 70 {LID} echo, then the status record.
+        assert tui.status_bytes["01"] == "AA"
 
     def test_poll_uses_each_actuators_session_mode(self):
         act, tui = _actuator(dids=("BC01",))
@@ -417,6 +506,13 @@ class TestKwpActuators:
         assert tui.terminal.sent == [OFF_CMD]
         assert tui.state["BC01"] == "off"
 
+    def test_release_falls_back_to_off_without_a_release(self):
+        act, tui = _actuator(dids=("BC01",))
+        tui.cmds["BC01"]["release"] = ""
+        tui.state["BC01"] = "on"
+        asyncio.run(act.release_all())
+        assert tui.terminal.sent == [OFF_CMD]
+
 
 KWP_DATA = {
     "ecus": {
@@ -428,17 +524,46 @@ KWP_DATA = {
     }
 }
 
+# The OVMS Kia Soul EV charge-port LED: 30 01 00 switches it ON.
+OBC_DATA = {
+    "ecus": {
+        "OBC": {
+            "tx_id": 0x7E5,
+            "identity": {"id_protocol": "KWP2000"},
+            "iocontrol": {"01": {"label": "Centre LED", "on": "300100", "off": "300111"}},
+        }
+    }
+}
+
+
+def _with_release(data: dict, release: str) -> dict:
+    import copy
+
+    out = copy.deepcopy(data)
+    for ecu in out["ecus"].values():
+        for entry in ecu["iocontrol"].values():
+            entry["release"] = release
+    return out
+
+
+class HoldingTerminal(FakeTerminal):
+    """A terminal whose session hands back a keepalive task, so --did holds."""
+
+    async def enter_extended_session(self, mode: str = "03"):
+        self.sessions.append(mode)
+        return True, asyncio.ensure_future(asyncio.sleep(3600))
+
 
 class TestTuiProtocol:
     KWP_DATA = KWP_DATA
 
-    def test_poll_is_refused_for_a_kwp_ecu(self, capsys):
+    def test_poll_is_refused_when_no_entry_has_a_release(self, capsys):
         from canlib.modes.iocontrol import mode_iocontrol_tui
 
         with pytest.raises(SystemExit) as exc:
             asyncio.run(mode_iocontrol_tui(FakeTerminal(), self.KWP_DATA, "BCM", poll=True))  # type: ignore[arg-type]
         assert exc.value.code == 2
-        assert "--poll is UDS-only" in capsys.readouterr().err
+        assert "no BCM entry has one" in capsys.readouterr().err
 
     def test_the_tui_knows_its_ecu_is_kwp(self):
         from canlib.modes.iocontrol import _IOControlTUI
@@ -446,7 +571,8 @@ class TestTuiProtocol:
 
         entry = build_iocontrol_index(self.KWP_DATA, include_discoveries=True)["BCM"]
         tui = _IOControlTUI(FakeTerminal(), "BCM", entry, self.KWP_DATA)  # type: ignore[arg-type]
-        assert tui.kwp is True
+        assert tui.protocol == "kwp"
+        assert tui.actuator.is_kwp()
 
 
 class TestListJson:

@@ -49,6 +49,7 @@ BCM:
       session: true
       hold: false
       session_mode: "C0"
+      release: "30070000"
     6900:
       label: Mirrors fold / unfold
       verified: false
@@ -60,6 +61,7 @@ BCM:
       session: true
       hold: false
       session_mode: "C0"
+      release: "30690000"
     2200:
       label: Horn
       verified: false
@@ -70,6 +72,7 @@ BCM:
       session: true
       hold: false
       session_mode: "C0"
+      release: "30220000"
     4520:
       label: Wiper
       verified: false
@@ -81,6 +84,7 @@ BCM:
       session: true
       hold: false
       session_mode: "C0"
+      release: "30452000"
     3B20:
       label: Headlights low / high beam
       verified: false
@@ -92,6 +96,7 @@ BCM:
       session: true
       hold: false
       session_mode: "C0"
+      release: "303B2000"
 
   research:
     - type: decode

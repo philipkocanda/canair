@@ -20,16 +20,15 @@ no guaranteed meaning on an arbitrary KWP2000 ECU. The InputOutputControlParamet
 (IOCP) table — ``0x00`` returnControlToECU, ``0x07`` shortTermAdjustment, and so
 on — comes from SSF 14230-3 Issue 2 (the Swedish implementation standard, Table
 9.1.3.2), which also warns that the service "may result in permanent changes"
-(``0x08`` longTermAdjustment writes non-volatile memory). Hyundai/Kia follow a
-compatible manufacturer-specific convention (``…00`` = release, ``…03`` =
-actuate), which the free-form ISO byte allows.
+(``0x08`` longTermAdjustment writes non-volatile memory).
 
-In this layout the scanner sends ONLY ``30 {LID} 00`` and hard-refuses any other
-IOCP. That probe is **non-actuating under the SSF 14230 / HKMC convention**, not
-side-effect-free by standard: on a make that follows neither, byte 3 means
-whatever its manufacturer decided, so the scan warns on such a profile. Never
-scan with another IOCP — even the SSF "report" values (01-03), since these ECUs
-are not guaranteed to be SSF-conformant.
+The scanner sends ONLY ``30 {LID} 00`` and hard-refuses any other IOCP. That probe
+is returnControlToECU under SSF 14230-3, but **no make is known to follow it**:
+the OVMS Kia Soul EV firmware sends ``30 {led} 00`` to switch an on-board charger
+LED *on*, so on Hyundai/Kia ``00`` can actuate too. The scan is therefore
+confirm-first (:func:`needs_confirmation`) on every profile without a proven
+non-actuating probe. Never scan with another IOCP — even the SSF "report" values
+(01-03), since these ECUs are not guaranteed to be SSF-conformant.
 
 Positive response is ``0x70``. Classification mirrors the UDS 0x2F scanner.
 The generic scan loop lives in :mod:`canlib.modes.discovery_scan`.
@@ -53,7 +52,7 @@ from typing import NamedTuple
 
 from canlib.uds.parse import UdsResponse
 
-from ..quirks import HK_F1XX_MINUS_ONE, NISSAN_C0_SESSION, has_quirk
+from ..quirks import NISSAN_C0_SESSION, has_quirk
 from ..transport.protocol import Terminal
 from .discovery_scan import DiscoveryProbe, mode_discovery_scan
 
@@ -118,13 +117,13 @@ async def probe_kwp_iocontrol(
     """Send ``30 {LID} 00`` (returnControlToECU) and return the parsed response.
 
     Validates the ``0x70`` response SID echo. Refuses any IOCP other than
-    ``0x00`` — the scanner must never actuate, and ``0x00`` is the release under
-    the SSF 14230 / HKMC convention (see the module docstring for its limits).
+    ``0x00``, the SSF 14230-3 release; that it drives nothing is not proven on any
+    make (see the module docstring).
     """
     if iocp != IOCP_RETURN_CONTROL:
         raise ValueError(
             f"Refusing to probe with IOCP 0x{iocp:02X}; the scanner only sends 0x00 "
-            "(returnControlToECU under the SSF 14230 / HKMC convention)."
+            "(returnControlToECU under SSF 14230-3)."
         )
     return await _send_probe(terminal, lid, f"{iocp:02X}")
 
@@ -213,6 +212,23 @@ NISSAN_IOCONTROL_PROBE = dataclasses.replace(
 )
 
 
+def needs_confirmation(pids_data: dict) -> bool:
+    """True when this profile's ``0x30`` probe is not known to drive nothing.
+
+    Only Nissan's ``30 {LID} 01 00`` query is (a documented function that asks
+    and drives nothing); ``30 {LID} 00`` actuates on at least one Hyundai/Kia ECU.
+    """
+    return not has_quirk(pids_data, NISSAN_C0_SESSION)
+
+
+UNPROVEN_WARNING = (
+    "ISO 14230-3 leaves the 0x30 control-option byte manufacturer-defined, and this "
+    "scan sends 30 {LID} 00 for every LID. That is returnControlToECU under SSF "
+    "14230-3, but it switches a Kia Soul EV charger LED on, so on this profile's "
+    "KWP2000 ECUs the probe may actuate outputs."
+)
+
+
 async def mode_kwp_iocontrol_scan(
     terminal: Terminal,
     pids_data: dict,
@@ -224,28 +240,28 @@ async def mode_kwp_iocontrol_scan(
     session: bool = False,
     wake: bool = False,
     session_mode: str | None = None,
+    confirmed: bool = False,
 ) -> dict[str, list[KwpIOControlHit]]:
-    """Scan KWP2000 IOControl local identifiers with a probe that drives nothing.
+    """Scan KWP2000 IOControl local identifiers.
 
     Thin wrapper over :func:`discovery_scan.mode_discovery_scan`. Default LID
     range is the full single-byte space ``00–FF``. A Nissan profile gets the
-    Nissan probe inside ``10 C0`` (``session_mode`` still overrides the session).
-    A profile with neither a Nissan nor a Hyundai/Kia quirk gets the SSF probe
-    with a warning, since nothing says its ECUs follow that convention.
+    Nissan probe inside ``10 C0`` (``session_mode`` still overrides the session),
+    which drives nothing. Every other profile gets the SSF probe, and only when
+    ``confirmed`` (the caller's prompt or ``--yes``), since it may actuate.
     """
     probe = KWP_IOCONTROL_PROBE
     if has_quirk(pids_data, NISSAN_C0_SESSION):
         probe = NISSAN_IOCONTROL_PROBE
         session = True
         session_mode = session_mode or NISSAN_SESSION_MODE
-    elif not has_quirk(pids_data, HK_F1XX_MINUS_ONE):
+    elif not confirmed:
         print(
-            "  WARNING: ISO 14230-3 leaves the 0x30 control-option byte manufacturer-"
-            "defined. This scan sends 30 {LID} 00, which is returnControlToECU under "
-            "the SSF 14230 / Hyundai-Kia convention, but this profile declares neither "
-            "make, so the probe is not known to be non-actuating on its ECUs.",
+            f"  Refusing the KWP2000 IOControl scan: {UNPROVEN_WARNING} Re-run with --yes "
+            "to accept that.",
             file=sys.stderr,
         )
+        return {}
     return await mode_discovery_scan(
         terminal,
         probe,

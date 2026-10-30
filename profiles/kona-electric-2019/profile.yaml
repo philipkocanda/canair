@@ -42,8 +42,11 @@ can_bitrate: 500000
 # than requested (request 22F188 -> response 62F187); echo validation tolerates
 # it for F1xx. (The Ioniq's skm_wakeup quirk is NOT included — its relay-wake
 # DIDs/magic are specific to the Ioniq AE Smart Key Module.)
+# hk_90_session permits the KWP2000 OEM session 10 90, which a Car Scanner sweep
+# in captures/can/221210-1-* opens on 7E0-7E7 and the VCU accepts.
 quirks:
   - hk_f1xx_minus_one
+  - hk_90_session
 
 # Physical-value band for the reference-free scan (`canair hunt --physical` /
 # `canair investigate`). The 64 kWh Kona pack is 98S (LG, ~356 V nominal):

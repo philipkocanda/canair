@@ -34,18 +34,17 @@ with no ECU for an interactive wizard.
 each auto-selecting the right UDS/KWP2000 service:
 
 ```bash
-canair scan iocontrol MyECU   # discover IOControl actuators (safe: returnControlToECU)
+canair scan iocontrol MyECU   # discover IOControl actuators (returnControlToECU)
 canair scan routines MyECU    # discover diagnostic routines (safe: requestRoutineResults)
 canair scan sessions MyECU    # discover which diagnostic session types it supports
 ```
 
-These are non-actuating probes — they ask *whether* a capability exists, they
-don't actuate anything. One caveat for a new car: KWP2000's IOControl service
-leaves its control-option byte to the manufacturer, so `scan iocontrol` on a
-KWP2000 ECU relies on the common convention that `00` means "release" and warns
-when your profile declares no make known to follow it. Actually *triggering* an
-actuator or routine is a separate, confirm-first action (see
-[Safety](../concepts/safety.md)).
+These probes ask *whether* a capability exists rather than actuating it. One
+exception: KWP2000's IOControl service leaves its control-option byte to the
+manufacturer, and the `00` that `scan iocontrol` sends switches an output *on* on
+at least one Kia ECU. On a KWP2000 ECU the scan therefore asks before it sweeps
+(`--yes` to skip). Actually *triggering* an actuator or routine is a separate,
+confirm-first action (see [Safety](../concepts/safety.md)).
 
 ## Turning hits into a plan
 

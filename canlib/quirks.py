@@ -7,7 +7,7 @@ profile declares the quirks it needs under a top-level ``quirks:`` list in
 quirks (make-neutral); the bundled ``ioniq-2017`` profile opts into the ones its
 ECUs actually exhibit.
 
-Today there are three quirks:
+Today there are four quirks:
 
 - :data:`HK_F1XX_MINUS_ONE` — Hyundai/Kia identity DIDs answer one *less* than
   requested (request ``22F188`` → response ``62F187``). Expected HK behaviour,
@@ -28,6 +28,12 @@ Today there are three quirks:
   switches the KWP2000 IOControl scan to Nissan's ``0x30`` layout
   (:mod:`canlib.modes.kwp_iocontrol_scan`), where the ISO probe would begin a
   one-shot command.
+- :data:`HK_90_SESSION` — Hyundai/Kia KWP2000 ECUs take the OEM session
+  ``10 90`` before an actuator test (``0x30``): the OVMS Kia Soul EV firmware
+  opens it for the on-board charger LEDs and the park-brake service mode, and a
+  Car Scanner sweep of a 2021 Kona EV opens it on every powertrain ECU it reads
+  DTCs from (``profiles/kona-electric-2019/captures/can/``). It permits exactly
+  ``10 90`` on the profile's KWP2000 ECUs.
 
 See ``plans/2026-07-28-multi-vehicle-support.md`` (Phase 4, gap F).
 """
@@ -52,8 +58,11 @@ SKM_WAKEUP: Final = "skm_wakeup"
 # makes that never declared it (canlib.safety).
 NISSAN_C0_SESSION: Final = "nissan_c0_session"
 
+# The Hyundai/Kia KWP2000 OEM session (10 90) their actuator tests run in.
+HK_90_SESSION: Final = "hk_90_session"
+
 # Every recognized quirk token (the validation whitelist).
-KNOWN_QUIRKS: Final = frozenset({HK_F1XX_MINUS_ONE, SKM_WAKEUP, NISSAN_C0_SESSION})
+KNOWN_QUIRKS: Final = frozenset({HK_F1XX_MINUS_ONE, SKM_WAKEUP, NISSAN_C0_SESSION, HK_90_SESSION})
 
 # DiagnosticSessionControl sub-functions a quirk makes safe to enter, keyed by the
 # protocol whose ECUs it applies to. Only ever widens the OEM band the blocklist
@@ -63,6 +72,7 @@ KNOWN_QUIRKS: Final = frozenset({HK_F1XX_MINUS_ONE, SKM_WAKEUP, NISSAN_C0_SESSIO
 # allowance is scoped to KWP2000 ECUs.
 _QUIRK_SESSIONS: Final[dict[str, dict[str, frozenset[int]]]] = {
     NISSAN_C0_SESSION: {"kwp": frozenset({0xC0})},
+    HK_90_SESSION: {"kwp": frozenset({0x90})},
 }
 
 

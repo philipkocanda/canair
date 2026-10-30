@@ -64,7 +64,10 @@ The profile defines **107 IOControl DIDs** (UDS `0x2F`) for hardware you can
 toggle from the CLI — lights, horn, locks, charge-cable lock, mirrors, wipers,
 seat motors. The IGPM actuators release when the diagnostic session ends and
 work from deep sleep with `--wake`; others differ (the power-seat motors run
-until told to stop), so read an actuator's notes before driving it.
+until told to stop), so read an actuator's notes before driving it. The KWP2000
+ECUs (BMS, VCU, MCU, OBC, LDC, AAF) have no actuators defined yet: nobody knows
+which `0x30` request hands each output back, and `canair io` refuses to switch a
+`0x30` actuator on without one (see the OBC research entry in `canair research`).
 
 ```bash
 canair io IGPM          # interactive actuator TUI

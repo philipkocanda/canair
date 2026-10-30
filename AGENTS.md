@@ -163,20 +163,27 @@ and **`g`/`G` address the view's primary axis**.
   while the display keeps every selector's last value.
 - **`canair scan`** — Kinds: `range` (bare `canair scan <ECU>` is this), `sessions`, `routines`
   (UDS `0x31` SF03 / KWP `0x33`, auto-selected by `id_protocol` so it never blind-sends
-  StartRoutine), `iocontrol` (returnControlToECU: UDS `0x2F` / KWP `0x30` — on KWP a release
-  only under the SSF 14230 / HKMC convention, since ISO 14230-3 leaves that byte to the
-  manufacturer). All are **safe probes**;
-  hits are written to the ECU's `routines:`/`iocontrol_discoveries:`. `range` takes a comma list
-  of ranges (`canlib/id_ranges.py`); without `--range` it sweeps the ECU's **DID families**
+  StartRoutine), `iocontrol` (returnControlToECU: UDS `0x2F` / KWP `0x30`). All are **safe
+  probes** except a KWP `0x30` sweep: ISO 14230-3 leaves its option byte to the manufacturer
+  and `30 {LID} 00` switches a Kia Soul EV charger LED *on*, so that sweep confirms first
+  (`--yes`; Nissan profiles get a non-actuating query instead). Hits are written to the ECU's
+  `routines:`/`iocontrol_discoveries:`. `range` takes a comma list of ranges
+  (`canlib/id_ranges.py`); without `--range` it sweeps the ECU's **DID families**
   (`canlib/did_families.py` — high bytes from its `22`/`2F` PIDs and IOControl hits), not the
   span between them.
 - **`canair discover`** (alias `disc`) — Which ECUs answer right now; `--register` writes a new ECU
   into `ecus/`.
 - **`canair identity`** (alias `id`) — Standard UDS identity DIDs (F100/F18x/F190/F19x). Writes
   results into the ECU's `identity:`. Note it can write a **live VIN** there — see PII.
-- **`canair io`** / **`canair routines`** — IOControl (`0x2F`) and RoutineControl (`0x31`):
-  interactive TUI or a single actuation. **Mutative** — confirm-first, and actuators auto-release
-  when the session ends.
+- **`canair io`** / **`canair routines`** — IOControl (`0x2F`, or an entry's own KWP `0x30`
+  commands) and RoutineControl (`0x31`): interactive TUI or a single actuation. **Mutative** —
+  confirm-first, and actuators auto-release when the session ends, with each entry's resolved
+  `release` (`canlib/pids.py::build_iocontrol_index`). UDS implies `2F {DID} 00`; KWP `0x30` has
+  no standard release, so `canair io` refuses a `0x30` ON until the entry declares `release:`
+  (`pids set-iocontrol --release`). That gate is `canlib/actuation.py::on_refusal`, over the
+  read/release/actuate classifier the actuation interlock plan
+  (`plans/2026-10-22-actuation-safety-interlock.md`) will build its funnel on. Never declare a
+  release you have not seen hand the output back on the car.
 - **`canair dtc`** — Read DTCs for one ECU or `--all` (UDS `0x19` / KWP `0x18` by `id_protocol`),
   log each scan to `dtc_log.yaml`, and report what **changed** since the last scan. DTC meanings
   live per-ECU in `ecus/<name>.yaml` `dtcs:`; profile-wide `failure_types:` in `profile.yaml`.
@@ -716,11 +723,12 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
     split/strip (`resolve_tx_padding`).
   - **`quirks:`** — make-specific behaviour the profile opts into. Known: `hk_f1xx_minus_one` (the
     Hyundai/Kia identity-DID `-1` offset, `22F188`→`62F187`), `skm_wakeup` (enables the Ioniq SKM
-    relay-wake) and `nissan_c0_session` (permits the Nissan OEM session `10 C0` on KWP2000 ECUs,
+    relay-wake), `nissan_c0_session` (permits the Nissan OEM session `10 C0` on KWP2000 ECUs,
     which the `canlib/safety.py` blocklist otherwise refuses, and switches the KWP2000 IOControl
-    scan to Nissan's `30 {LID} 01 00` probe). Resolver `canlib/quirks.py`; a quirk may only
-    *widen* the OEM session band for one protocol (`allowed_session_modes(meta, protocol)`),
-    never reach a programming or safety-system session.
+    scan to Nissan's `30 {LID} 01 00` probe) and `hk_90_session` (permits the Hyundai/Kia
+    KWP2000 actuator-test session `10 90` on KWP2000 ECUs). Resolver `canlib/quirks.py`; a
+    quirk may only *widen* the OEM session band for one protocol
+    (`allowed_session_modes(meta, protocol)`), never reach a programming or safety-system session.
     **The session rule is protocol-aware and lives once:** `safety.py::session_mode_block` (UDS
     judges `sub & 0x7F`, so `10 82` is programming there; an unknown protocol gets the stricter
     reading). Runtime applies it through a `SessionPolicy` (`SessionPolicy.from_profile`: each

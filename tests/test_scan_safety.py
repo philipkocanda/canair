@@ -64,34 +64,86 @@ def test_session_scan_skips_explicit_modes_the_guard_refuses(capsys):
 # ── KWP2000 IOControl scan ───────────────────────────────────────────────────
 
 
-def _io_scan(data, **kw):
+def _io_scan(data, confirmed=False, **kw):
     term = FakeTerminal(**({"default": nrc(0x31)} | kw))
     asyncio.run(
         kwp_iocontrol_scan.mode_kwp_iocontrol_scan(
-            term, data, ["BCM"], lid_range=(0x07, 0x07), throttle_ms=0, write_yaml=False
+            term,
+            data,
+            ["BCM"],
+            lid_range=(0x07, 0x07),
+            throttle_ms=0,
+            write_yaml=False,
+            confirmed=confirmed,
         )
     )
     return term
 
 
-def test_unknown_make_gets_a_warning_but_the_same_probe(capsys):
-    term = _io_scan(_data())
+@pytest.mark.parametrize("quirk", [None, "hk_f1xx_minus_one"])
+def test_the_iso_probe_is_refused_unconfirmed(quirk, capsys):
+    # 30 {LID} 00 switches a Kia Soul EV charger LED on, so not even a
+    # Hyundai/Kia profile may sweep it without saying yes.
+    term = _io_scan(_data([quirk] if quirk else None))
+    assert term.sent == []
+    assert "--yes" in capsys.readouterr().err
+
+
+def test_the_iso_probe_runs_once_confirmed():
+    term = _io_scan(_data(["hk_f1xx_minus_one"]), confirmed=True)
     assert term.sent == ["300700"]
-    assert "not known to be non-actuating" in capsys.readouterr().err
 
 
-@pytest.mark.parametrize("quirk", ["hk_f1xx_minus_one", "nissan_c0_session"])
-def test_known_conventions_do_not_warn(quirk, capsys):
-    _io_scan(_data([quirk]))
-    assert "non-actuating" not in capsys.readouterr().err
+def test_the_nissan_probe_needs_no_confirmation(capsys):
+    term = _io_scan(_data(["nissan_c0_session"]))
+    assert term.sent == ["30070100"]
+    assert "--yes" not in capsys.readouterr().err
 
 
 def test_kwp_wrong_session_nrc_escalates_lazily_on_a_non_nissan_profile():
     # 0x80 serviceNotSupportedInActiveDiagnosticMode is a session problem, not a
     # hit: the engine opens the default session and retries.
-    term = _io_scan(_data(["hk_f1xx_minus_one"]), responses={"300700": nrc(0x80)})
+    term = _io_scan(_data(["hk_f1xx_minus_one"]), confirmed=True, responses={"300700": nrc(0x80)})
     assert term.sessions == [(False, "03")]
     assert term.sent == ["300700", "300700"]
+
+
+class TestIOControlScanDispatch:
+    def _run(self, monkeypatch, *, yes, stdin, quirks=("hk_f1xx_minus_one",)):
+        from canlib.modes.dispatch import scans
+
+        calls: list[dict] = []
+
+        async def _kwp(*a, **kw):
+            calls.append(kw)
+            return {}
+
+        monkeypatch.setattr(scans, "split_ecus_by_protocol", lambda names: ([], ["BMS"]))
+        monkeypatch.setattr(kwp_iocontrol_scan, "mode_kwp_iocontrol_scan", _kwp)
+        monkeypatch.setattr("sys.stdin", io.StringIO(stdin))
+        args = SimpleNamespace(
+            iocontrol_scan=["BMS"], did_range=None, throttle_ms=0, verbose=False, yes=yes
+        )
+        asyncio.run(scans.handle_iocontrol_scan(args, FakeTerminal(), _data(list(quirks)), "h"))  # type: ignore[arg-type]
+        return calls
+
+    def test_declined_prompt_sends_nothing(self, monkeypatch):
+        assert self._run(monkeypatch, yes=False, stdin="n\n") == []
+
+    def test_non_interactive_without_yes_is_refused(self, monkeypatch):
+        assert self._run(monkeypatch, yes=False, stdin="") == []
+
+    def test_accepted_prompt_confirms(self, monkeypatch):
+        calls = self._run(monkeypatch, yes=False, stdin="y\n")
+        assert calls and calls[0]["confirmed"] is True
+
+    def test_yes_skips_the_prompt(self, monkeypatch):
+        calls = self._run(monkeypatch, yes=True, stdin="")
+        assert calls and calls[0]["confirmed"] is True
+
+    def test_nissan_is_not_asked(self, monkeypatch):
+        calls = self._run(monkeypatch, yes=False, stdin="", quirks=("nissan_c0_session",))
+        assert calls and calls[0]["confirmed"] is False
 
 
 # ── KWP2000 routine scan ─────────────────────────────────────────────────────
@@ -180,7 +232,7 @@ def test_iocontrol_scan_defaults_uds_ecus_to_03_in_a_mixed_scan(monkeypatch):
     monkeypatch.setattr(scans, "mode_iocontrol_scan", _uds)
     monkeypatch.setattr(kwp_iocontrol_scan, "mode_kwp_iocontrol_scan", _kwp)
     args = SimpleNamespace(
-        iocontrol_scan=["IGPM", "BMS"], did_range=None, throttle_ms=0, verbose=False
+        iocontrol_scan=["IGPM", "BMS"], did_range=None, throttle_ms=0, verbose=False, yes=True
     )
     asyncio.run(scans.handle_iocontrol_scan(args, FakeTerminal(), {}, "h"))  # type: ignore[arg-type]
     # UDS falls back to 03; KWP gets None so its scanner picks the profile's session.

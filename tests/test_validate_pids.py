@@ -308,6 +308,43 @@ class TestIoControlValidation:
         _, warns = self._validate(tmp_path, "", key='"0700"')
         assert warns == []
 
+    KWP = "  identity:\n    id_protocol: KWP2000\n"
+
+    def test_a_kwp_on_without_a_release_warns_that_io_refuses_it(self, tmp_path):
+        entry = '      on: "300100"\n      off: "300111"\n'
+        errs, warns = self._validate(tmp_path, entry, key='"01"', head=self.KWP)
+        assert errs == []
+        assert any("refuses its ON" in w and "no release declared" in w for w in warns)
+
+    def test_a_declared_kwp_release_is_clean(self, tmp_path):
+        entry = '      on: "300100"\n      off: "300111"\n      release: "300111"\n'
+        errs, warns = self._validate(tmp_path, entry, key='"01"', head=self.KWP)
+        assert errs == [] and warns == []
+
+    def test_a_uds_on_needs_no_declared_release(self, tmp_path):
+        entry = '      on: "2FBC0103"\n      off: "2FBC0100"\n'
+        assert self._validate(tmp_path, entry) == ([], [])
+
+    @pytest.mark.parametrize(
+        "release,message",
+        [
+            ('"300211"', "addresses 30 02"),
+            ('"300100"', "ON request itself"),
+            ("300111", "quoted hex"),
+            ('"off"', "not a hex request"),
+        ],
+    )
+    def test_a_bad_release_is_an_error(self, tmp_path, release, message):
+        entry = f'      on: "300100"\n      release: {release}\n'
+        errs, _ = self._validate(tmp_path, entry, key='"01"', head=self.KWP)
+        assert any(message in e for e in errs)
+
+    def test_a_uds_release_other_than_return_control_warns(self, tmp_path):
+        entry = '      on: "2FBC0103"\n      release: "2FBC0101"\n'
+        errs, warns = self._validate(tmp_path, entry)
+        assert errs == []
+        assert any("not returnControlToECU" in w for w in warns)
+
 
 class TestAddressingModeValidation:
     """29-bit addressing widens the accepted tx_id/rx_id range; per-ECU mode is validated."""

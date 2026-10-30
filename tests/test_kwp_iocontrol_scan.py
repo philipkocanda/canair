@@ -202,7 +202,13 @@ async def test_an_explicit_session_mode_still_wins_on_nissan():
 async def test_other_profiles_keep_the_iso_probe_and_lazy_session():
     term = FakeTerminal(default=nrc(0x31))
     await mode_kwp_iocontrol_scan(
-        term, _pids(), ["BCM"], lid_range=(0x07, 0x07), throttle_ms=0, write_yaml=False
+        term,
+        _pids(),
+        ["BCM"],
+        lid_range=(0x07, 0x07),
+        throttle_ms=0,
+        write_yaml=False,
+        confirmed=True,
     )
     assert term.sessions == []
     assert term.sent == ["300700"]

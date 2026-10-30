@@ -128,6 +128,20 @@ def test_nissan_quirk_allows_only_the_c0_session_and_only_on_kwp():
     assert allowed_session_modes(None, KWP) == frozenset()
 
 
+def test_hk_quirk_allows_only_the_90_session_and_only_on_kwp():
+    from canlib.quirks import HK_90_SESSION, allowed_session_modes
+
+    meta = {"quirks": [HK_90_SESSION]}
+    assert allowed_session_modes(meta, KWP) == {0x90}
+    assert allowed_session_modes(meta, UDS) == frozenset()
+    assert allowed_session_modes(meta, UNKNOWN) == frozenset()
+    policy = SessionPolicy({KWP_ECU: KWP, UDS_ECU: UDS}, {KWP: frozenset({0x90})})
+    assert check_command_safety("1090") is not None
+    assert check_command_safety("1090", policy, KWP_ECU) is None
+    # On a UDS ECU 0x90 is OEM session 0x10 with the suppress bit.
+    assert check_command_safety("1090", policy, UDS_ECU) is not None
+
+
 class TestSessionPolicyFromProfile:
     def _profile(self, quirks=None):
         data = {

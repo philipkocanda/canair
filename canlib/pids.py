@@ -14,7 +14,9 @@ from pathlib import Path
 from typing import Any, Literal, TypedDict, get_args
 
 from canlib import yaml_io
+from canlib.actuation import default_release, normalize_request
 from canlib.addressing import AddressingMode, EcuAddress
+from canlib.safety import SessionProtocol, session_protocol
 
 # ── PID visibility lifecycle ──────────────────────────────────────────────
 # A PID's `status:` is a single, mutually-exclusive lifecycle value that
@@ -127,6 +129,12 @@ class IoControlCommand(TypedDict):
     ``session_mode`` is the DiagnosticSessionControl sub-function (two upper-case
     hex digits) opened when ``session`` is true.
 
+    ``release`` is the request that hands the output back to the ECU, sent on exit,
+    on Ctrl-C and by ``--poll``: the entry's declared ``release:``, else the one a
+    UDS ``0x2F`` request implies (``2F {DID} 00``), else ``""``. A KWP2000 ``0x30``
+    command implies none (:mod:`canlib.actuation`), so it has a release only when
+    the profile declares one, and ``canair io`` refuses its ``on`` until then.
+
     ``discovery`` marks an entry merged in from ``iocontrol_discoveries:``
     (probed, not curated) rather than the hand-verified ``iocontrol:`` section.
     """
@@ -134,6 +142,7 @@ class IoControlCommand(TypedDict):
     label: str
     on: str
     off: str
+    release: str
     session: bool
     session_mode: str
     hold: bool
@@ -147,6 +156,7 @@ class IoControlIndexEntry(TypedDict):
     """One ECU's entry in a :func:`build_iocontrol_index` result."""
 
     tx_id: int
+    protocol: SessionProtocol
     cmds: dict[str, IoControlCommand]
 
 
@@ -362,22 +372,28 @@ def build_iocontrol_index(
         discoveries = ecu_def.get("iocontrol_discoveries", {}) if include_discoveries else {}
         if not ioctrl and not discoveries:
             continue
+        identity = ecu_def.get("identity")
+        protocol = session_protocol(
+            identity.get("id_protocol") if isinstance(identity, dict) else None
+        )
         cmds: dict[str, IoControlCommand] = {}
         for did, cdef in ioctrl.items():
             did_str = str(did).upper()
             try:
                 session_mode = normalize_session_mode(cdef.get("session_mode"))
+                # YAML parses bare on/off as True/False booleans
+                on_cmd = str(cdef.get("on") or cdef.get(True, ""))
+                off_cmd = str(cdef.get("off") or cdef.get(False, ""))
+                release = _resolve_release(cdef.get("release"), on_cmd, off_cmd, protocol, did_str)
             except ValueError as exc:
                 from .profile import ProfileError
 
                 raise ProfileError(f"{ecu_name}/iocontrol/{did_str}: {exc}") from None
-            # YAML parses bare on/off as True/False booleans
-            on_cmd = cdef.get("on") or cdef.get(True, "")
-            off_cmd = cdef.get("off") or cdef.get(False, "")
             cmds[did_str] = {
                 "label": cdef.get("label", ""),
-                "on": str(on_cmd),
-                "off": str(off_cmd),
+                "on": on_cmd,
+                "off": off_cmd,
+                "release": release,
                 "session": cdef.get("session", True),
                 "session_mode": session_mode,
                 "hold": cdef.get("hold", True),
@@ -396,6 +412,9 @@ def build_iocontrol_index(
                 "label": "?",
                 "on": "",
                 "off": "",
+                # A 4-digit key is a UDS DID, whose release is implied; a 2-digit
+                # KWP2000 LID has none.
+                "release": _resolve_release(None, "", "", protocol, did_str),
                 "session": (ddef.get("session", "extended") == "extended"),
                 "session_mode": DEFAULT_IOCONTROL_SESSION_MODE,
                 "hold": True,
@@ -406,9 +425,33 @@ def build_iocontrol_index(
             }
         index[ecu_name.upper()] = {
             "tx_id": ecu_def["tx_id"],
+            "protocol": protocol,
             "cmds": cmds,
         }
     return index
+
+
+def _resolve_release(
+    declared: object, on: str, off: str, protocol: SessionProtocol, key: str = ""
+) -> str:
+    """An entry's release: the declared ``release:``, else the one it implies.
+
+    ``on``/``off`` imply one when they are UDS ``0x2F`` requests. An entry with
+    neither (driven only by the value keys, which build ``2F {key} 03 …``) implies
+    the release of its own 4-digit DID key.
+    """
+    if declared not in (None, ""):
+        if not isinstance(declared, str):
+            raise ValueError(f"release must be a quoted hex request, got {declared!r}")
+        return normalize_request(declared)
+    if not on and not off and len(key) == 4 and all(c in "0123456789ABCDEF" for c in key):
+        on = f"2F{key}00"
+    for request in (on, off):
+        if request:
+            implied = default_release(request, protocol)
+            if implied:
+                return implied
+    return ""
 
 
 def build_routines_index(pids_data: dict) -> dict[str, RoutineIndexEntry]:

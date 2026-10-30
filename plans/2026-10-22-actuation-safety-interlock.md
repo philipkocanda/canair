@@ -1,6 +1,8 @@
 # Actuation safety interlock: no actuator command unless the car is verifiably parked
 
-Status: **PROPOSED** (2026-10-22). Nothing implemented.
+Status: **PROPOSED** (2026-10-22). The §1 classifier exists as `canlib/actuation.py::classify`
+(2026-10-30), with the KWP2000 `0x30` table below; `canair io` uses it to refuse an ON request
+with no known release. The funnel, the interlock model and everything after are not implemented.
 
 canair can drive physical outputs: input/output control (IOControl, UDS `0x2F` / KWP2000 `0x30`),
 routine control (UDS `0x31`, KWP2000 `0x31`/`0x32`), and the Ioniq smart key module (SKM) relay
@@ -81,8 +83,8 @@ service facts stay in one place, plus a small table of sub-function exceptions:
 | UDS `31 01` startRoutine | `actuate` |
 | UDS `31 02` stopRoutine | `release` |
 | UDS `31 03` requestRoutineResults | `read` |
-| KWP2000 `30 {LID} 00` returnControlToECU | `release` |
-| KWP2000 `30 {LID}` with any other control parameter | `actuate` |
+| KWP2000 `30 {LID} …` declared as an IOControl entry's `release:` | `release` |
+| KWP2000 `30 {LID} …` otherwise, including `30 {LID} 00` | `actuate` |
 | KWP2000 `31 {LID}` startRoutineByLocalIdentifier | `actuate` |
 | KWP2000 `32 {LID}` stop / `33 {LID}` results | `release` / `read` |
 | `11` ECUReset, `28` CommunicationControl, `04`/`14` clear diagnostic trouble codes (DTCs) | `actuate` |
@@ -95,8 +97,10 @@ service facts stay in one place, plus a small table of sub-function exceptions:
   header through the address book. `0x31` means start on KWP2000 but stop/results on UDS
   (sub-functions 02/03), so when the protocol cannot be resolved the stricter reading wins: `31 02`
   to an unknown ECU is `actuate`.
-- The full KWP2000 `0x30` control-parameter table must be checked against ISO 14230-3 while
-  implementing. Any value not proven read-only or release is `actuate`.
+- KWP2000 `0x30` has no standard release: ISO 14230-3 leaves the control-option byte to the
+  manufacturer, Nissan's `00` is a one-shot command, and the OVMS Kia Soul EV firmware sends
+  `30 {led} 00` to switch a charger LED *on*. So no option byte is a release by itself; only a
+  request the profile declares as an entry's `release:` is.
 - The already-blocked flash/write services stay blocked by `check_command_safety` as before. The
   interlock is an *additional* gate, so `--unsafe` unblocking `0x2E` still also needs a passing
   interlock.
