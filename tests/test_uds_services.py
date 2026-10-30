@@ -1,6 +1,10 @@
 """Tests for canlib.uds.services — the diagnostic service (SID) registry."""
 
+import pytest
+
 from canlib.uds.services import (
+    BOTH,
+    KWP2000,
     RESPONSE_SID_OFFSET,
     SERVICES,
     service_info,
@@ -21,6 +25,64 @@ class TestServiceName:
 
     def test_unknown_service(self):
         assert service_name(0xAB) is None
+
+
+class TestKwpServices:
+    """The ISO 14230-3 services that were missing from, or mislabelled in, the registry."""
+
+    def test_by_address_routine_trio_uses_kwp_names(self):
+        assert "StartRoutineByAddress" in service_name(0x38)
+        assert "RequestFileTransfer" in service_name(0x38)  # the UDS meaning of the same byte
+        assert service_name(0x39) == "StopRoutineByAddress (KWP2000)"
+        assert service_name(0x3A) == "RequestRoutineResultsByAddress (KWP2000)"
+
+    def test_by_address_services_that_run_or_stop_code_actuate(self):
+        assert service_info(0x38).actuates is True
+        assert service_info(0x39).actuates is True
+        assert service_info(0x3A).actuates is False  # results are a read
+
+    def test_by_address_services_carry_no_identifier_width(self):
+        # Their address is 3 bytes, not an id, so a layout must not read it as a LID/DID.
+        for sid in (0x38, 0x39, 0x3A):
+            assert service_info(sid).id_width == 0
+
+    @pytest.mark.parametrize(
+        "sid,name",
+        [
+            (0x12, "ReadFreezeFrameData (KWP2000)"),
+            (0x13, "ReadDTCs (KWP2000)"),
+            (0x17, "ReadStatusOfDTCs (KWP2000)"),
+            (0x20, "StopDiagnosticSession (KWP2000)"),
+            (0x25, "StopRepeatedDataTransmission (KWP2000)"),
+            (0x26, "SetDataRates (KWP2000)"),
+            (0x80, "EscapeCode (KWP2000)"),
+        ],
+    )
+    def test_kwp_only_services_are_registered(self, sid, name):
+        assert service_name(sid) == name
+        assert service_info(sid).family == KWP2000
+        assert service_response_name(sid + RESPONSE_SID_OFFSET) == f"{name} (response)"
+
+    def test_write_memory_by_address_is_registered_and_actuates(self):
+        info = service_info(0x3D)
+        assert info.name == "WriteMemoryByAddress"
+        assert info.actuates is True
+
+    @pytest.mark.parametrize("sid", [0x22, 0x2E, 0x2F])
+    def test_identifier_services_shared_with_kwp_common_identifier(self, sid):
+        # Same 2-byte-id request on both protocols (KWP2000 calls them ...ByCommonIdentifier).
+        assert service_info(sid).family == BOTH
+        assert service_info(sid).id_width == 2
+
+    def test_every_blocked_service_is_a_registered_actuating_or_memory_service(self):
+        # The blocklist and the registry must not drift: a blocked SID without a registry
+        # entry would print as an unnamed service in scan output.
+        from canlib.safety import BLOCKED_UDS_SERVICES
+
+        for sid in BLOCKED_UDS_SERVICES:
+            if sid in (0x28, 0x87):  # UDS-only services the registry does not enumerate
+                continue
+            assert service_info(sid) is not None, f"0x{sid:02X} blocked but unregistered"
 
 
 class TestServiceInfo:

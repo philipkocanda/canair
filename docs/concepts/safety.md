@@ -28,7 +28,8 @@ will not:
 - Open the UDS **safety-system** session (`10 04`), used for airbag and
   pyrotechnic deployment tests.
 - Perform firmware **write/upload** or flash services, or write ECU memory
-  (`2E`, `3B`, `3D`).
+  (`2E`, `3B`, `3D`), or start or stop a KWP2000 routine at a raw memory address
+  (`38`, `39`; reading its results with `3A` stays allowed).
 - Reset an ECU (`11`), stop its normal CAN traffic (`28`) or change its bit rate
   (`87`). Each can take a system off the bus while the car is in use.
 - Start or stop a **reprogramming routine** (`31 01`/`31 02`): ISO's eraseMemory

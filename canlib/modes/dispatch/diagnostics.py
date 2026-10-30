@@ -15,7 +15,7 @@ from canlib.transport.protocol import Terminal
 
 async def handle_dtc(args, terminal: Terminal, pids_data, host, *, reconnect=None) -> None:
     from canlib.ecus import resolve_tx
-    from canlib.modes.dtc import mode_dtc_clear, mode_dtc_read, mode_dtc_scan_all
+    from canlib.modes.dtc import mode_dtc_clear, mode_dtc_read, mode_dtc_scan_all, resolve_protocol
 
     if getattr(args, "dtc_all", False):
         try:
@@ -81,6 +81,14 @@ async def handle_dtc(args, terminal: Terminal, pids_data, host, *, reconnect=Non
         except ValueError:
             print(f"Error: --mask must be hex (e.g. FF), got {args.mask!r}", file=sys.stderr)
             sys.exit(1)
+        supported = getattr(args, "dtc_supported", False)
+        if supported and resolve_protocol(args.protocol, tx_id) != "kwp":
+            print(
+                f"Error: --supported needs a KWP2000 ECU, but {args.dtc} is not one "
+                "(see `canair ecu`; --protocol kwp forces it)",
+                file=sys.stderr,
+            )
+            sys.exit(1)
         await mode_dtc_read(
             terminal,
             tx_id,
@@ -93,4 +101,5 @@ async def handle_dtc(args, terminal: Terminal, pids_data, host, *, reconnect=Non
             log=getattr(args, "dtc_log", True),
             label=args.label,
             vehicle_states=parse_states(getattr(args, "state", None)),
+            supported=supported,
         )

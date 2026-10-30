@@ -50,6 +50,33 @@ _MASK_FALLBACK = 0x08
 # response. Reads are non-mutative, so probing is safe.
 _KWP_READ_REQUESTS = ("1800FF00", "1802FF00", "1800FFFF")
 
+# KWP2000 "request supported 2-byte hex DTCs and status" (DaimlerChrysler/Mitsubishi), "request
+# all DTCs and status" in SSF 14230-3. It lists every DTC the ECU can report whatever its status, so
+# it is never a fallback for the forms above (a healthy ECU would look faulty) and is only sent on
+# request (``--supported``). The DTCs come back as raw 2-byte values, not SAE J2012 ones.
+_KWP_SUPPORTED_REQUEST = "1803FF00"
+_KWP_SUPPORTED_NOTE = (
+    "lists every DTC this ECU supports, whatever its status; none of them is necessarily "
+    "stored or active. Codes are shown as raw 2-byte hex because this request's DTC format is "
+    "not SAE J2012. The status byte is shown raw."
+)
+
+# What a reader should know when only an alternate form is answered. The first form is the one
+# Hyundai/Kia ECUs are known to accept (the DaimlerChrysler/Mitsubishi KWP2000 spec's "identified
+# DTCs, SAE J2012 format, all groups"), so it needs no note. The others differ in meaning between
+# KWP2000 documents, and canair formats every code as SAE J2012 regardless.
+_KWP_FORM_NOTES = {
+    "1802FF00": (
+        "answered the alternate form 18 02 FF 00, not 18 00 FF 00. Status 02 selects 2-byte hex "
+        "DTCs (DaimlerChrysler/Mitsubishi) or stored DTCs (SSF 14230-3); the codes below are "
+        "formatted as SAE J2012 and may not be real P/C/B/U codes."
+    ),
+    "1800FFFF": (
+        "answered the alternate form 18 00 FF FF, not 18 00 FF 00. Group FFFF is SSF 14230-3's "
+        "'all DTCs'; the DTC format is the same as the primary form."
+    ),
+}
+
 
 def format_dtc(b0: int, b1: int, b2: int) -> str:
     """Format a 3-byte UDS DTC as ``Lxxxx-yy`` (SAE J2012 + failure type)."""
@@ -136,11 +163,14 @@ def _report_read(as_json: bool, result: dict) -> None:
 
     if result.get("status_availability_mask") is not None:
         print(f"  Status availability mask: {result['status_availability_mask']}")
+    if result.get("note"):
+        print(f"  {ansi.YELLOW}Note:{ansi.RESET} {result['note']}")
     dtcs = result["dtcs"]
+    supported = result.get("supported")
     if not dtcs:
-        print("  No DTCs stored.\n")
+        print("  No supported DTCs reported.\n" if supported else "  No DTCs stored.\n")
         return
-    print(f"\n  {len(dtcs)} DTC(s):\n")
+    print(f"\n  {len(dtcs)} {'supported ' if supported else ''}DTC(s):\n")
     dtc_w = max(max(len(d["dtc"]) for d in dtcs), len("DTC"))
     for d in dtcs:
         flags = ", ".join(d["status_bits"]) or "(raw status)"
@@ -164,9 +194,18 @@ async def mode_dtc_read(
     log: bool = False,
     label: str | None = None,
     vehicle_states=None,
+    supported: bool = False,
 ):
-    """Read stored DTCs, auto-selecting UDS 0x19 or KWP2000 0x18 by protocol."""
+    """Read stored DTCs, auto-selecting UDS 0x19 or KWP2000 0x18 by protocol.
+
+    ``supported`` lists every DTC a KWP2000 ECU can report instead (``18 03 FF 00``). That is
+    a catalogue, not a fault list, so it is never written to the DTC log.
+    """
     proto = resolve_protocol(protocol, tx_id)
+    if supported and proto != "kwp":
+        raise ValueError("--supported is only available for KWP2000 ECUs (id_protocol: KWP2000)")
+    if supported:
+        log = False
 
     tester_task = None
     if session:
@@ -180,10 +219,12 @@ async def mode_dtc_read(
                 if proto == "uds"
                 else "KWP2000 18 (readDTCByStatus)"
             )
+            if supported:
+                fam += ", supported-DTC list"
             print(f"\n  DTC read: {ecu_display(tx_id)}")
             print(f"  Protocol: {fam}\n")
 
-        result = await _read_one(terminal, tx_id, mask, protocol, verbose)
+        result = await _read_one(terminal, tx_id, mask, protocol, verbose, supported=supported)
         _report_read(as_json, result)
         if log and "dtcs" in result:
             path, previous, diff = _log_scan(result["ecu"], [result], label, vehicle_states)
@@ -250,12 +291,13 @@ async def _read_one(
     protocol: str,
     verbose: bool,
     timeout: float = 3.0,
+    supported: bool = False,
 ) -> dict:
     """Set the header and read DTCs from one ECU (no session handling)."""
     proto = resolve_protocol(protocol, tx_id)
     await terminal.set_header(tx_id)
     if proto == "kwp":
-        return await _read_kwp(terminal, tx_id, timeout=timeout)
+        return await _read_kwp(terminal, tx_id, timeout=timeout, supported=supported)
     return await _read_uds(terminal, tx_id, mask, verbose, timeout=timeout)
 
 
@@ -293,11 +335,14 @@ async def _read_uds(
     return {**base, "error": response.get("error", "unknown")}
 
 
-async def _read_kwp(terminal: Terminal, tx_id: int, timeout: float = 3.0) -> dict:
+async def _read_kwp(
+    terminal: Terminal, tx_id: int, timeout: float = 3.0, supported: bool = False
+) -> dict:
     ecu = ecu_display(tx_id)
     response = None
-    cmd = _KWP_READ_REQUESTS[0]
-    for cmd in _KWP_READ_REQUESTS:
+    requests = (_KWP_SUPPORTED_REQUEST,) if supported else _KWP_READ_REQUESTS
+    cmd = requests[0]
+    for cmd in requests:
         response = await terminal.send_uds(cmd, timeout=timeout, expected_sid=0x18)
         if response["ok"]:
             break
@@ -313,7 +358,26 @@ async def _read_kwp(terminal: Terminal, tx_id: int, timeout: float = 3.0) -> dic
         data = response["bytes"]
         # 58 <count> [dtc_hi dtc_lo status]* — count is advisory; decode by length.
         records = decode_kwp_dtc_records(bytes(data[2:]))
-        return {**base, "count": len(records), "dtcs": _jsonable(records)}
+        if supported:
+            return {
+                **base,
+                "supported": True,
+                "count": len(records),
+                "dtcs": [
+                    {
+                        "dtc": f"0x{r['raw']}",
+                        "raw": r["raw"],
+                        "status": f"0x{r['status']:02X}",
+                        "status_bits": [],
+                    }
+                    for r in records
+                ],
+                "note": _KWP_SUPPORTED_NOTE,
+            }
+        result = {**base, "count": len(records), "dtcs": _jsonable(records)}
+        if cmd in _KWP_FORM_NOTES:
+            result["note"] = _KWP_FORM_NOTES[cmd]
+        return result
     if response.get("nrc") is not None:
         return {**base, "nrc": f"0x{response['nrc']:02X}", "nrc_desc": response["nrc_desc"]}
     return {**base, "error": response.get("error", "unknown")}
@@ -340,7 +404,8 @@ def _scan_status(res: dict) -> str:
     """One-line result summary for a single ECU in an all-ECU scan."""
     if "dtcs" in res:
         n = res["count"]
-        return f"{n} DTC(s)" if n else "clean"
+        base = f"{n} DTC(s)" if n else "clean"
+        return f"{base} (via {res['command']})" if res.get("note") else base
     if "nrc" in res:
         from canlib.uds.parse import nrc_abbrev
 

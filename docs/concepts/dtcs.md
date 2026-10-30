@@ -83,6 +83,18 @@ The most useful distinction: **`confirmedDTC`** (a real stored fault) vs
 KWP2000's status byte uses a different, ECU-specific layout, so canair reports
 its raw hex value without named bits.
 
+KWP2000 documents disagree on the `0x18` request itself, so canair tries `18 00 FF 00`
+first (the form the Ioniq's ECUs answer), then `18 02 FF 00` and `18 00 FF FF` if the
+ECU rejects it. When only an alternate form is answered the output carries a `Note:`
+line (and a `note` field in `--json`), and the all-ECU scan shows `(via 1802FF00)`.
+`18 02` in particular may select 2-byte hex DTCs rather than SAE J2012 ones, in which
+case the printed `P`/`C`/`B`/`U` letters are not meaningful.
+
+`canair dtc BMS --supported` sends a different request, `18 03 FF 00`, which lists every
+DTC a KWP2000 ECU can report whatever its status. That is a catalogue, not a fault list (a
+healthy ECU returns a long one), so it is never a fallback: it runs only on request, prints
+raw hex codes with their raw status byte, and is never written to the DTC log.
+
 ### Status masks
 
 The UDS read takes a **statusOfDTC mask** — only codes matching the mask are

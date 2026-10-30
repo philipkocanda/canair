@@ -141,6 +141,90 @@ class TestModeReadKwp:
         assert t.sent == ["1800FF00", "1802FF00"]
         assert data["count"] == 0
 
+    @pytest.mark.asyncio
+    async def test_primary_form_carries_no_note(self, capsys):
+        t = FakeTerminal({"1800FF00": _ok("5801" + "1234" + "20")})
+        await dtc.mode_dtc_read(t, 0x7E4, protocol="kwp", as_json=True)
+        assert "note" not in json.loads(capsys.readouterr().out)
+
+    @pytest.mark.asyncio
+    async def test_alternate_form_is_flagged_in_json(self, capsys):
+        nrc = {"ok": False, "nrc": 0x12, "nrc_desc": "subFunctionNotSupported"}
+        t = FakeTerminal({"1800FF00": nrc, "1802FF00": _ok("5801" + "0123" + "20")})
+        await dtc.mode_dtc_read(t, 0x7E4, protocol="kwp", as_json=True)
+        data = json.loads(capsys.readouterr().out)
+        assert data["command"] == "1802FF00"
+        assert "18 02 FF 00" in data["note"] and "may not be real" in data["note"]
+
+    @pytest.mark.asyncio
+    async def test_alternate_form_is_flagged_in_text(self, capsys):
+        nrc = {"ok": False, "nrc": 0x12, "nrc_desc": "subFunctionNotSupported"}
+        t = FakeTerminal(
+            {"1800FF00": nrc, "1802FF00": nrc, "1800FFFF": _ok("5801" + "0123" + "20")}
+        )
+        await dtc.mode_dtc_read(t, 0x7E4, protocol="kwp")
+        out = capsys.readouterr().out
+        assert "Note:" in out and "18 00 FF FF" in out
+
+    def test_scan_line_names_the_alternate_form(self):
+        res = {
+            "ecu": "BMS",
+            "protocol": "kwp",
+            "command": "1802FF00",
+            "count": 2,
+            "dtcs": [],
+            "note": "x",
+        }
+        assert dtc._scan_status(res) == "2 DTC(s) (via 1802FF00)"
+        assert dtc._scan_status({**res, "note": None}) == "2 DTC(s)"
+
+
+class TestSupportedList:
+    @pytest.mark.asyncio
+    async def test_sends_only_the_supported_request_and_never_falls_back(self, capsys):
+        t = FakeTerminal({"1803FF00": {"ok": False, "nrc": 0x12, "nrc_desc": "x"}})
+        await dtc.mode_dtc_read(t, 0x7E4, protocol="kwp", supported=True, as_json=True)
+        assert t.sent == ["1803FF00"]
+        assert json.loads(capsys.readouterr().out)["nrc"] == "0x12"
+
+    @pytest.mark.asyncio
+    async def test_codes_are_raw_hex_and_flagged_as_a_catalogue(self, capsys):
+        t = FakeTerminal({"1803FF00": _ok("5802" + "0123" + "10" + "C107" + "10")})
+        await dtc.mode_dtc_read(t, 0x7E4, protocol="kwp", supported=True, as_json=True)
+        data = json.loads(capsys.readouterr().out)
+        assert data["supported"] is True and data["count"] == 2
+        assert [d["dtc"] for d in data["dtcs"]] == ["0x0123", "0xC107"]
+        assert "whatever its status" in data["note"]
+
+    @pytest.mark.asyncio
+    async def test_text_output_says_supported_not_stored(self, capsys):
+        t = FakeTerminal({"1803FF00": _ok("5801" + "0123" + "10")})
+        await dtc.mode_dtc_read(t, 0x7E4, protocol="kwp", supported=True)
+        out = capsys.readouterr().out
+        assert "1 supported DTC(s)" in out and "Note:" in out
+
+    @pytest.mark.asyncio
+    async def test_never_written_to_the_dtc_log(self, capsys, monkeypatch):
+        logged = []
+        monkeypatch.setattr(dtc, "_log_scan", lambda *a, **k: logged.append(a))
+        t = FakeTerminal({"1803FF00": _ok("5801" + "0123" + "10")})
+        await dtc.mode_dtc_read(t, 0x7E4, protocol="kwp", supported=True, log=True)
+        assert logged == []
+
+    @pytest.mark.asyncio
+    async def test_refused_for_uds(self):
+        t = FakeTerminal({})
+        with pytest.raises(ValueError, match="KWP2000"):
+            await dtc.mode_dtc_read(t, 0x770, protocol="uds", supported=True)
+        assert t.sent == []
+
+    @pytest.mark.asyncio
+    async def test_normal_read_never_sends_it(self, capsys):
+        nrc = {"ok": False, "nrc": 0x12, "nrc_desc": "x"}
+        t = FakeTerminal({"1800FF00": nrc, "1802FF00": nrc, "1800FFFF": nrc})
+        await dtc.mode_dtc_read(t, 0x7E4, protocol="kwp", as_json=True)
+        assert "1803FF00" not in t.sent
+
 
 class TestFormatKwpDtc:
     def test_two_byte_no_failure_type(self):

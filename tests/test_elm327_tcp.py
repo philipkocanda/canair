@@ -290,6 +290,20 @@ class TestEngineOverArbitraryChannel:
         assert resp["ok"] is True
 
     @pytest.mark.asyncio
+    async def test_nrc_name_follows_the_addressed_ecus_protocol(self):
+        # 7F 33 23 is routineNotComplete on KWP2000, a code UDS leaves unnamed.
+        from canlib.safety import KWP, SessionPolicy
+
+        ch = FakeChannel(["OK\r>", "OK\r>", "7F3323\r>", "7F3323\r>"])
+        term = Elm327Terminal(ch)
+        await term.set_header(0x7E4)
+        assert (await term.send_uds("3301"))[
+            "nrc_desc"
+        ] == "routineNotCompleteOrServiceInProgress (KWP2000)"
+        term.session_policy = SessionPolicy({0x7E4: KWP})
+        assert (await term.send_uds("3301"))["nrc_desc"] == "routineNotCompleteOrServiceInProgress"
+
+    @pytest.mark.asyncio
     async def test_session_rule_follows_the_addressed_ecus_protocol(self):
         # 10 82 is a KWP2000 diagnostic session but UDS programmingSession with the
         # suppress bit: the terminal judges it by the ECU its header points at.

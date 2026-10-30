@@ -29,7 +29,8 @@ from .log import log_command
 
 # Services that write ECU memory, reflash firmware, reset an ECU or silence its
 # traffic. Blocked by default to prevent accidental damage. The SIDs mean the same
-# on UDS and KWP2000 except 0x3B, which exists only on KWP2000.
+# on UDS and KWP2000 except 0x38 (UDS file transfer, KWP2000 start-routine-at-address) and
+# 0x39 and 0x3B, which exist only on KWP2000.
 BLOCKED_UDS_SERVICES = {
     0x11: "ECUReset (restarts the ECU, unsafe while the car is in use)",
     0x28: "CommunicationControl (stops the ECU's normal CAN traffic)",
@@ -38,7 +39,8 @@ BLOCKED_UDS_SERVICES = {
     0x35: "RequestUpload (ECU memory dump)",
     0x36: "TransferData (flash data transfer)",
     0x37: "RequestTransferExit (finalize flash)",
-    0x38: "RequestFileTransfer",
+    0x38: "RequestFileTransfer (UDS) / StartRoutineByAddress (KWP2000: runs code in ECU memory)",
+    0x39: "StopRoutineByAddress (KWP2000)",
     0x3B: "WriteDataByLocalIdentifier (KWP2000 write to ECU memory)",
     0x3D: "WriteMemoryByAddress (write to ECU memory)",
     0x87: "LinkControl (changes the ECU's CAN bit rate)",

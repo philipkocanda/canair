@@ -5,8 +5,8 @@
 ```
 usage: canair dtc [-h] [--all] [--history] [--no-log] [--no-retry]
                   [--label LABEL] [--state STATES] [--mask HEX]
-                  [--protocol {auto,uds,kwp}] [--clear] [--group HEX] [--yes]
-                  [--session] [--wake] [--wican WICAN]
+                  [--protocol {auto,uds,kwp}] [--supported] [--clear]
+                  [--group HEX] [--yes] [--session] [--wake] [--wican WICAN]
                   [--transport {slcan-tcp,wican-ws,elm327-tcp}]
                   [--no-fallback] [--wait] [--elm-timeout MS]
                   [--timeout SECONDS] [--no-learn-frames] [--json] [--verbose]
@@ -47,6 +47,10 @@ options:
                         DTC protocol: uds (0x19/0x14), kwp (KWP2000
                         0x18/0x14), or auto (from the profile's id_protocol).
                         Default: auto
+  --supported           KWP2000 only: list every DTC the ECU supports (18 03
+                        FF 00) instead of its stored ones. This is a
+                        catalogue, not a fault list, so it is shown as raw hex
+                        and never logged. Not combinable with --all or --clear
   --clear               Clear DTCs (ClearDiagnosticInformation 0x14) instead
                         of reading
   --group HEX           groupOfDTC to clear (3-byte hex, default FFFFFF = all
@@ -105,6 +109,7 @@ examples:
   canair dtc BMS --clear               Clear all DTCs (asks to confirm)
   canair dtc BMS --clear --yes         Clear without the confirmation prompt
   canair dtc BMS --protocol kwp        Force KWP2000 readDTCByStatus (0x18)
+  canair dtc BMS --supported           List every DTC a KWP2000 ECU supports (not a fault list)
   canair dtc --history                 Show the last logged full-sweep scan (offline, no device)
   canair dtc BMS --history             Show the last logged scan for one ECU (offline)
 ```

@@ -307,6 +307,19 @@ class TestRawTerminalSafety:
         assert r["ok"] is True
         await t.close()
 
+    @pytest.mark.asyncio
+    async def test_nrc_name_follows_the_addressed_ecus_protocol(self, make_terminal):
+        from canlib.safety import KWP, SessionPolicy
+
+        t = make_terminal({(0x7E4, bytes.fromhex("3301")): bytes.fromhex("7F3323")})
+        await t.set_header(0x7E4)
+        assert (await t.send_uds("3301"))[
+            "nrc_desc"
+        ] == "routineNotCompleteOrServiceInProgress (KWP2000)"
+        t.session_policy = SessionPolicy({0x7E4: KWP})
+        assert (await t.send_uds("3301"))["nrc_desc"] == "routineNotCompleteOrServiceInProgress"
+        await t.close()
+
 
 class TestRawTerminalRxResolution:
     """The ISO-TP stack's rx address comes from addr_map (per-ECU rx_id / profile

@@ -35,6 +35,7 @@ examples:
   canair dtc BMS --clear               Clear all DTCs (asks to confirm)
   canair dtc BMS --clear --yes         Clear without the confirmation prompt
   canair dtc BMS --protocol kwp        Force KWP2000 readDTCByStatus (0x18)
+  canair dtc BMS --supported           List every DTC a KWP2000 ECU supports (not a fault list)
   canair dtc --history                 Show the last logged full-sweep scan (offline, no device)
   canair dtc BMS --history             Show the last logged scan for one ECU (offline)
 """,
@@ -103,6 +104,14 @@ examples:
         "(from the profile's id_protocol). Default: auto",
     )
     parser.add_argument(
+        "--supported",
+        dest="dtc_supported",
+        action="store_true",
+        help="KWP2000 only: list every DTC the ECU supports (18 03 FF 00) instead of its "
+        "stored ones. This is a catalogue, not a fault list, so it is shown as raw hex and "
+        "never logged. Not combinable with --all or --clear",
+    )
+    parser.add_argument(
         "--clear",
         action="store_true",
         help="Clear DTCs (ClearDiagnosticInformation 0x14) instead of reading",
@@ -127,6 +136,11 @@ examples:
 def run(args) -> int:
     if getattr(args, "dtc_history", False):
         return _run_history(args)
+    if getattr(args, "dtc_supported", False) and (
+        getattr(args, "dtc_all", False) or getattr(args, "clear", False)
+    ):
+        print("--supported reads one KWP2000 ECU; it can't be combined with --all or --clear.")
+        return 2
     if not args.dtc and not getattr(args, "dtc_all", False):
         from canlib.commands._hints import ecu_hint
 

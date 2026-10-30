@@ -217,6 +217,8 @@ class TestCheckCommandSafety:
         "2802",  # CommunicationControl: disable normal message transmission
         "3B9000",  # KWP2000 WriteDataByLocalIdentifier
         "3D14000010FF",  # WriteMemoryByAddress
+        "38000100",  # KWP2000 StartRoutineByAddress (runs code at a memory address)
+        "39000100",  # KWP2000 StopRoutineByAddress
         "870101",  # LinkControl
     ],
 )
@@ -228,6 +230,10 @@ def test_state_changing_services_blocked(cmd):
 def test_reprogramming_routines_blocked(cmd):
     blocked = check_command_safety(cmd, POLICY, UDS_ECU)
     assert blocked is not None and "--unsafe" in blocked
+
+
+def test_kwp_routine_results_by_address_is_a_read():
+    assert check_command_safety("3A000100", POLICY, KWP_ECU) is None
 
 
 def test_routine_results_and_other_routines_are_allowed():

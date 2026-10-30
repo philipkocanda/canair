@@ -57,6 +57,17 @@ ECU's protocol.
     Ioniq profile. A KWP2000 PID is conventionally written with its `21` prefix
     too (`2101`).
 
+## Negative response names follow the protocol too
+
+The same code can mean different things, so canair names a negative response by the target ECU's
+`id_protocol`, using SSF 14230-3 for KWP2000. There, `0x23` is
+`routineNotCompleteOrServiceInProgress` (still running, not refused: repeat requests then draw
+`0x21` busyRepeatRequest until it finishes), `0x72` is `transferAborted`, `0x80` is
+`serviceNotSupportedInActiveDiagnosticSession` and `0x22` covers both a wrong condition and a
+wrong request sequence. `0x81`–`0x8F` are reserved, so ISO 14229-1's `rpmTooHigh` and friends are
+not read into them, and `0x90`–`0xF9` print as `vehicleManufacturerSpecific`. When the protocol
+is unknown, a code only KWP2000 defines is shown with a `(KWP2000)` tag.
+
 ## The `-1` / `-2` in byte tooling
 
 The service byte also shifts where the *data* starts in the response, which is why `canair bix`

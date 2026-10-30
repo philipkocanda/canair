@@ -12,6 +12,8 @@ harmless there.
 import re
 from typing import NotRequired, TypedDict
 
+from ..safety import KWP, UDS
+
 # Exchange-outcome taxonomy. Every parsed response falls into exactly one
 # category; on a failure the same value is also stamped onto the response as
 # ``error_kind`` (set at the error site, so classification never has to re-parse
@@ -131,15 +133,69 @@ _NRC_RANGES = (
     (range(0xF0, 0xFF), "vehicleManufacturerSpecificConditionsNotCorrect"),
 )
 
+# KWP2000 response codes that are absent from, or mean something other than, their ISO 14229-1
+# namesake. Names and ranges follow SSF 14230-3 Issue 2 section 4.4, the implementation standard
+# the KWP2000 scanners already cite; the ISO 14230-3 draft leaves 0x80-0xFF entirely to the
+# manufacturer. Codes with the same meaning in both (0x10, 0x11, 0x21, 0x31, 0x33, 0x35-0x37,
+# 0x71, 0x78) are not repeated: a KWP lookup falls through to NRC_CODES.
+KWP_NRC_CODES = {
+    0x12: "subFunctionNotSupportedOrInvalidFormat",  # UDS splits this into 0x12 + 0x13
+    0x22: "conditionsNotCorrectOrRequestSequenceError",  # UDS splits this into 0x22 + 0x24
+    # Still running, not refused: repeating the request must not restart it, and the ECU then
+    # answers 0x21 busyRepeatRequest until it finishes. Reserved in UDS.
+    0x23: "routineNotCompleteOrServiceInProgress",
+    0x40: "downloadNotAccepted",
+    0x41: "improperDownloadType",
+    0x42: "cantDownloadToSpecifiedAddress",
+    0x43: "cantDownloadNumberOfBytesRequested",
+    0x50: "uploadNotAccepted",
+    0x51: "improperUploadType",
+    0x52: "cantUploadFromSpecifiedAddress",
+    0x53: "cantUploadNumberOfBytesRequested",
+    0x72: "transferAborted",  # UDS 0x72 is generalProgrammingFailure
+    0x74: "illegalAddressInBlockTransfer",
+    0x75: "illegalByteCountInBlockTransfer",
+    0x76: "illegalBlockTransferType",
+    0x77: "blockTransferDataChecksumError",
+    0x79: "incorrectByteCountDuringBlockTransfer",
+    0x80: "serviceNotSupportedInActiveDiagnosticSession",  # UDS: 0x7F
+}
+# KWP2000 range names for the rest of 0x80-0xFF. ISO 14229-1's 0x81-0x93 conditionsNotCorrect
+# refinements (rpmTooHigh, ...) are not KWP2000 codes, so they must not be read into one.
+_KWP_NRC_RANGES = (
+    (range(0x81, 0x90), "reservedByDocument"),
+    (range(0x90, 0xFA), "vehicleManufacturerSpecific"),
+    (range(0xFA, 0xFF), "systemSupplierSpecific"),
+)
 
-def nrc_description(nrc: int) -> str:
-    """Human name for a negative response code, or ``unknown (0xNN)``."""
+
+def nrc_description(nrc: int, protocol: str | None = None) -> str:
+    """Human name for a negative response code, or ``unknown (0xNN)``.
+
+    ``protocol`` is the target ECU's diagnostic protocol (``"uds"``/``"kwp"``), when
+    known, because the same code can mean different things:
+
+    * ``"kwp"`` reads SSF 14230-3 first (``0x23`` is ``routineNotCompleteOrServiceInProgress``,
+      ``0x72`` ``transferAborted``, ``0x90``-``0xF9`` ``vehicleManufacturerSpecific``), then
+      falls back to the shared names.
+    * ``"uds"`` reads ISO 14229-1 only.
+    * Anything else (unknown protocol) reads ISO 14229-1 and, for a code that standard
+      leaves unnamed, the KWP2000 name tagged ``(KWP2000)``.
+    """
+    if protocol == KWP:
+        if nrc in KWP_NRC_CODES:
+            return KWP_NRC_CODES[nrc]
+        for codes, range_name in _KWP_NRC_RANGES:
+            if nrc in codes:
+                return range_name
     name = NRC_CODES.get(nrc)
     if name is not None:
         return name
     for codes, range_name in _NRC_RANGES:
         if nrc in codes:
             return range_name
+    if protocol != UDS and nrc in KWP_NRC_CODES:
+        return f"{KWP_NRC_CODES[nrc]} (KWP2000)"
     return f"unknown (0x{nrc:02X})"
 
 
@@ -189,11 +245,35 @@ NRC_ABBREV = {
     0x93: "VTL",
 }
 
+# Mnemonics for the KWP2000-only response codes (:data:`KWP_NRC_CODES`) that ISO 14229-1
+# leaves unnamed, as SSF 14230-3 Issue 2 section 4.4 spells them. Kept apart from NRC_ABBREV so
+# that dict stays the ISO 14229-1 set; the codes shared with UDS (0x12, 0x22, 0x72) deliberately
+# keep their UDS mnemonic.
+_KWP_ONLY_ABBREV = {
+    0x23: "RNC",  # routineNotCompleteOrServiceInProgress
+    0x40: "DNA",  # downloadNotAccepted
+    0x41: "IDT",  # improperDownloadType
+    0x42: "CNDTSA",  # cantDownloadToSpecifiedAddress
+    0x43: "CNDNOBR",  # cantDownloadNumberOfBytesRequested
+    0x50: "UNA",  # uploadNotAccepted
+    0x51: "IUT",  # improperUploadType
+    0x52: "CNUFSA",  # cantUploadFromSpecifiedAddress
+    0x53: "CNUNOBR",  # cantUploadNumberOfBytesRequested
+    0x74: "IAIBT",  # illegalAddressInBlockTransfer
+    0x75: "IBCIBT",  # illegalByteCountInBlockTransfer
+    0x76: "IBTT",  # illegalBlockTransferType
+    0x77: "BTDCE",  # blockTransferDataChecksumError
+    0x79: "IBCDBT",  # incorrectByteCountDuringBlockTransfer
+    0x80: "SNSIADS",  # serviceNotSupportedInActiveDiagnosticSession
+}
+
 
 def nrc_abbrev(nrc: int) -> str:
     """Short mnemonic for an NRC, or ``?`` if unknown."""
     if nrc in NRC_ABBREV:
         return NRC_ABBREV[nrc]
+    if nrc in _KWP_ONLY_ABBREV:
+        return _KWP_ONLY_ABBREV[nrc]
     return "VMSCNC" if 0xF0 <= nrc <= 0xFE else "?"
 
 
@@ -397,6 +477,7 @@ def parse_uds_response(
     expected_did: int | None = None,
     expected_echo: bytes | None = None,
     hk_f1xx_offset: bool = False,
+    protocol: str | None = None,
 ) -> UdsResponse:
     """Parse a UDS response (as returned by any transport) into structured data.
 
@@ -437,6 +518,9 @@ def parse_uds_response(
     ``hk_f1xx_offset``: when True (the profile opts into the HK F1xx -1 quirk),
     an F1xx identity DID answering one *less* than requested passes echo
     validation instead of being rejected as a stale/misfiled frame.
+
+    ``protocol``: the target ECU's diagnostic protocol (``"uds"``/``"kwp"``/``"unknown"``),
+    which selects the NRC names in ``nrc_desc`` (see :func:`nrc_description`).
     """
     result: UdsResponse = {"raw": raw, "ok": False}
 
@@ -592,7 +676,7 @@ def parse_uds_response(
         nrc = response_bytes[2]
         result["nrc"] = nrc
         result["nrc_service"] = response_bytes[1]
-        result["nrc_desc"] = nrc_description(nrc)
+        result["nrc_desc"] = nrc_description(nrc, protocol)
         if expected_sid is not None and response_bytes[1] != expected_sid:
             # NRC is reporting rejection for a *different* service — this is
             # a stale/misaligned frame, not a real NRC for our request.

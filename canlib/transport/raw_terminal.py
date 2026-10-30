@@ -170,6 +170,7 @@ class RawTerminal:
                 expected_did=expected_did,
                 expected_echo=expected_echo,
                 hk_f1xx_offset=self.hk_f1xx_offset,
+                protocol=self.session_policy.protocol(self._cur),
             )
             if resp_bytes is not None and self._classic_can:
                 # parse_uds_response counts response *lines*, and this path hands it

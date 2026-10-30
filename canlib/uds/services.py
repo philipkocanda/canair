@@ -62,21 +62,37 @@ SERVICES: tuple[ServiceInfo, ...] = (
     # --- ISO 14230 KWP2000 diagnostic management / data ---
     ServiceInfo(0x10, "DiagnosticSessionControl", BOTH),
     ServiceInfo(0x11, "ECUReset", BOTH, actuates=True),
+    ServiceInfo(0x12, "ReadFreezeFrameData (KWP2000)", KWP2000),
+    ServiceInfo(0x13, "ReadDTCs (KWP2000)", KWP2000),
     ServiceInfo(0x14, "ClearDiagnosticInformation", BOTH),
+    ServiceInfo(0x17, "ReadStatusOfDTCs (KWP2000)", KWP2000),
     ServiceInfo(0x18, "ReadDTCByStatus (KWP2000)", KWP2000),
     ServiceInfo(0x19, "ReadDTCInformation", UDS),
     ServiceInfo(0x1A, "ReadEcuIdentification", KWP2000, id_width=1),
+    # 0x20 ends a KWP2000 diagnostic session (ISO 14230-3 6.2): the ECU releases any actuator
+    # the tester drove and re-locks security. SSF 14230-3 drops it as redundant and has the
+    # tester send 10 81 instead, which is the form the Ioniq's ECUs are known to accept.
+    ServiceInfo(0x20, "StopDiagnosticSession (KWP2000)", KWP2000),
     ServiceInfo(0x21, "ReadDataByLocalIdentifier", KWP2000, id_width=1),
-    ServiceInfo(0x22, "ReadDataByIdentifier", UDS, id_width=2),
+    # 0x22, 0x2E and 0x2F are byte-for-byte the same request on KWP2000, where ISO 14230-3
+    # calls them ...ByCommonIdentifier (a 2-byte id); one entry carries the UDS name.
+    ServiceInfo(0x22, "ReadDataByIdentifier", BOTH, id_width=2),
     ServiceInfo(0x23, "ReadMemoryByAddress", BOTH),
+    # ISO 14230-3 lets 21/22/23 take a transmissionMode that makes the ECU repeat its reply;
+    # 0x26 sets the repeat rates and 0x25 stops the repetition. SSF 14230-3 drops all three for
+    # a periodicTransmissions session (10 82), which the Ioniq BMS, VCU, MCU and OBC refuse.
+    ServiceInfo(0x25, "StopRepeatedDataTransmission (KWP2000)", KWP2000),
+    ServiceInfo(0x26, "SetDataRates (KWP2000)", KWP2000),
     ServiceInfo(0x27, "SecurityAccess", BOTH),
     ServiceInfo(0x28, "CommunicationControl", UDS),
+    # KWP2000 names this DynamicallyDefineLocalIdentifier, with a 1-byte target id rather than
+    # UDS's sub-function + 2-byte DID, so the two share a SID but not a request layout.
     ServiceInfo(0x2C, "DynamicallyDefineDataIdentifier", BOTH),
-    ServiceInfo(0x2E, "WriteDataByIdentifier", UDS, id_width=2, actuates=True),
+    ServiceInfo(0x2E, "WriteDataByIdentifier", BOTH, id_width=2, actuates=True),
     ServiceInfo(
         0x2F,
         "InputOutputControlByIdentifier",
-        UDS,
+        BOTH,
         id_width=2,
         safe_discovery_sf=0x00,
         actuates=True,
@@ -107,9 +123,21 @@ SERVICES: tuple[ServiceInfo, ...] = (
     ServiceInfo(0x35, "RequestUpload", BOTH, actuates=True),
     ServiceInfo(0x36, "TransferData", BOTH, actuates=True),
     ServiceInfo(0x37, "RequestTransferExit", BOTH, actuates=True),
-    ServiceInfo(0x38, "RequestFileTransfer", UDS, actuates=True),
+    # 0x38-0x3A are KWP2000's by-address routine trio: the address is 3 bytes, not an id, so
+    # none carries an id_width. 0x38 starts code at a memory address; UDS reuses the byte for
+    # file transfer, and both are unsafe to send.
+    ServiceInfo(
+        0x38,
+        "RequestFileTransfer (UDS) / StartRoutineByAddress (KWP2000)",
+        BOTH,
+        actuates=True,
+    ),
+    ServiceInfo(0x39, "StopRoutineByAddress (KWP2000)", KWP2000, actuates=True),
+    ServiceInfo(0x3A, "RequestRoutineResultsByAddress (KWP2000)", KWP2000),
     ServiceInfo(0x3B, "WriteDataByLocalIdentifier", KWP2000, id_width=1, actuates=True),
+    ServiceInfo(0x3D, "WriteMemoryByAddress", BOTH, actuates=True),
     ServiceInfo(0x3E, "TesterPresent", BOTH),
+    ServiceInfo(0x80, "EscapeCode (KWP2000)", KWP2000),
     ServiceInfo(0x85, "ControlDTCSetting", UDS),
 )
 
