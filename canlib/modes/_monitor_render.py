@@ -18,6 +18,7 @@ from ..formatting import (
     render_param_ranges,
     render_param_table,
 )
+from ._monitor_history import HistoryRun, PayloadHistory
 from .multi_batch import EcuFrame, ResultEntry
 
 # Ordered display view modes cycled by the TUI 'V' key. Increasing detail:
@@ -27,18 +28,17 @@ from .multi_batch import EcuFrame, ResultEntry
 #   full    — signals + the raw byte payloads (the default)
 VIEW_MODES = ("ecus", "ranges", "signals", "full")
 
-# Cap how many history rows a single PID renders per cycle. With --keep-all a
-# long drive accrues thousands of payloads per PID; rendering them all every
-# cycle is O(cycles²·PIDs) and unbounded. The full history still lives in the
+# Cap how many history rows a single PID renders per cycle when the caller sets
+# none. A noisy PID accrues thousands of runs over a long drive; rendering them all
+# every cycle is O(cycles²·PIDs) and unbounded. The full history still lives in the
 # journal (--save) — this only bounds the on-screen buffer to the newest rows.
 _RENDER_MAX_ROWS = 200
 
-# Default on-screen history depth for the implicit dedup display (the monitor
-# default keep-mode). The live view dedups payloads globally for display, so a
-# noisy PID can amass hundreds of distinct rows over a session; rendering them all
-# every cycle both clutters the view and (on a big multi-PID sweep) can make the
-# frame large enough to choke the TUI. Keep the live view compact — the full set
-# is still in hex_history (and the journal when --save). Overridable per keep-mode.
+# Default on-screen history depth (runs of identical payloads per PID). A noisy PID
+# can amass hundreds of runs over a session; rendering them all every cycle both
+# clutters the view and (on a big multi-PID sweep) can make the frame large enough
+# to choke the TUI. Keep the live view compact — every poll is still in the journal
+# when --save. `--keep N` overrides it.
 _RENDER_DEFAULT_ROWS = 4
 
 
@@ -88,7 +88,7 @@ def _entry_signature(
     row_cap: int,
     prev_raw: str,
     prev_values: dict[str, object] | None,
-    history: list[tuple[str, str]] | None,
+    history: list[HistoryRun] | None,
     view_mode: str = "full",
     stat_sig: tuple | None = None,
     notation: ByteNotation = ByteNotation.WICAN,
@@ -118,7 +118,9 @@ def _entry_signature(
         row_cap,
         prev_raw,
         tuple(sorted(prev_values.items())) if prev_values is not None else None,
-        tuple(history) if history is not None else None,
+        # The rendered tail plus the run count: the rows above the cap only show as
+        # the "earlier entries hidden" count, so hashing them is wasted work.
+        (len(history), tuple(history[-(row_cap + 1) :])) if history is not None else None,
         params,
         view_mode,
         stat_sig,
@@ -155,7 +157,7 @@ def _render_entry(
     row_cap: int,
     prev_raw: str,
     prev_values: dict[str, object] | None,
-    history: list[tuple[str, str]] | None,
+    history: list[HistoryRun] | None,
     view_mode: str = "full",
     pid_stats: dict | None = None,
     notation: ByteNotation = ByteNotation.WICAN,
@@ -205,7 +207,7 @@ def _render_entry(
     # to the raw-payload history the other views don't draw).
     if history is not None and show_hex:
         n_entries = len(history)
-        if raw_hex and raw_hex not in [h for h, _ts in history]:
+        if raw_hex and (not history or history[-1].payload != raw_hex):
             n_entries += 1  # current not yet added
         if n_entries > 1:
             entry_text.append(f"  ({n_entries} entries)", style="dim")
@@ -271,36 +273,39 @@ def _render_entry(
             ruler_pw = 16 if history is not None else 6
             entry_text.append_text(render_byte_rulers(byte_display, params, prefix_width=ruler_pw))
         if history is not None:
-            # Show all unique payloads chronologically, each diffed against predecessor
-            history_hexes = [h for h, _ts in history]
-            # Include current if not yet in history (first cycle edge case)
-            if raw_hex not in history_hexes:
-                all_entries = [*history, (raw_hex, "")]
-            else:
-                all_entries = list(history)
-            # Bound the rendered rows to the newest ``row_cap`` so a long
-            # --keep-all (or noisy dedup) run stays cheap to render (full
-            # data is retained in memory / the journal).
-            if len(all_entries) > row_cap:
-                omitted = len(all_entries) - row_cap
-                all_entries = all_entries[-row_cap:]
-                entry_text.append(f"      … {omitted} earlier entries hidden\n", style="dim")
-            for i, (payload, ts) in enumerate(all_entries):
-                prev_row = all_entries[i - 1][0] if i > 0 else ""
+            # One row per run of identical payloads, oldest first, each diffed
+            # against its predecessor. Include the current payload when it is not
+            # yet the newest run (first cycle edge case).
+            current = (
+                [HistoryRun(raw_hex, "")]
+                if raw_hex and (not history or history[-1].payload != raw_hex)
+                else []
+            )
+            # Bound the rendered rows to the newest ``row_cap`` so a long, noisy
+            # run stays cheap to render (every poll is in the journal).
+            shown = row_cap - len(current)
+            hidden = max(0, len(history) - shown)
+            all_entries = [*history[hidden:], *current]
+            if hidden:
+                entry_text.append(f"      … {hidden} earlier entries hidden\n", style="dim")
+            prev_row = history[hidden - 1].payload if hidden else ""
+            for run in all_entries:
                 # Display seconds resolution only (sub-second precision is kept in
                 # the stored capture `time` for cross-signal alignment, not shown).
-                ts_disp = ts.split(".")[0] if ts else ""
+                ts_disp = run.time.split(".")[0] if run.time else ""
                 prefix = f"      {ts_disp}  " if ts_disp else "                "
                 entry_text.append_text(
                     _render_hex_line(
-                        payload,
+                        run.payload,
                         params,
                         unmapped,
                         prev_raw=prev_row,
                         prefix=prefix,
-                        prefix_style="dim" if ts else "",
+                        prefix_style="dim" if run.time else "",
+                        suffix=f"  ×{run.polls}" if run.polls > 1 else "",
                     )
                 )
+                prev_row = run.payload
         else:
             entry_text.append_text(_render_hex_line(raw_hex, params, unmapped, prev_raw=prev_raw))
 
@@ -317,7 +322,7 @@ def _render_results(
     interval: float | str,
     prev_hex: dict[tuple[str, str], str] | None = None,
     prev_params: dict[tuple[str, str], dict[str, object]] | None = None,
-    hex_history: dict[tuple[str, str], list[tuple[str, str]]] | None = None,
+    hex_history: PayloadHistory | None = None,
     show_rulers: bool = False,
     footer: bool = True,
     selected: tuple[str, str, str] | None = None,

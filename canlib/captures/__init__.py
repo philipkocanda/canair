@@ -23,7 +23,7 @@ from canlib.captures.types import (
     StateSpanSource,
 )
 from canlib.id_ranges import IdRange, as_id_ranges, format_id_ranges
-from canlib.keepmode import KeepMode, persisted_keep_mode
+from canlib.keepmode import KeepMode, PersistedKeepMode, persisted_keep_mode
 from canlib.states import join_states as _join_states
 from canlib.states import parse_states as _parse_states
 from canlib.states.spans import StateSpan
@@ -573,7 +573,9 @@ def set_session_note(fpath: Path, session_idx: int, note: str) -> None:
     _write_captures_file(fpath, data)
 
 
-def set_session_keep_mode(fpath: Path, session_idx: int, keep_mode: KeepMode | None) -> None:
+def set_session_keep_mode(
+    fpath: Path, session_idx: int, keep_mode: KeepMode | PersistedKeepMode | None
+) -> None:
     """Set (or clear) the ``keep_mode`` field on one session, addressed by index.
 
     Only ``"changes"`` (run-length) and ``"unique"`` (legacy global dedup) are

@@ -507,9 +507,8 @@ def _keep_mode_label(keep_mode: str | None, keep_n: int | None) -> str:
     """Human-friendly description of a monitor keep/retain mode."""
     return {
         None: "none (latest only)",
-        "changes": "changes (run-length dedup)",
-        "unique": "unique (global dedup)",
         "all": "all (full time-series)",
+        "changes": "changes (run-length dedup)",
         "last": f"last {keep_n}" if keep_n else "last N",
     }.get(keep_mode, str(keep_mode))
 

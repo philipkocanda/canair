@@ -2,6 +2,7 @@
 
 import json
 
+from canlib.modes._monitor_history import HistoryRun, extend_runs
 from canlib.modes.monitor import (
     _HIGHLIGHT_STYLE,
     MonitorController,
@@ -184,14 +185,14 @@ class TestRenderResults:
         assert line.rstrip().endswith("✓  i1")
         assert any(ln.strip().startswith("isotp") for ln in out.splitlines())
 
-    def test_keep_all_history_render_is_capped(self):
-        # With --keep-all, a PID can accrue thousands of payloads; the render must
-        # cap to the newest _RENDER_MAX_ROWS and summarize the rest.
+    def test_history_render_is_capped(self):
+        # A noisy PID can accrue thousands of runs; the render must cap to the
+        # newest _RENDER_MAX_ROWS and summarize the rest.
         from canlib.modes.monitor import _RENDER_MAX_ROWS
 
         n = _RENDER_MAX_ROWS + 50
         hexes = [f"6101{i:04X}" for i in range(n)]
-        history = [(h, f"12:{i // 60:02d}:{i % 60:02d}") for i, h in enumerate(hexes)]
+        history = [HistoryRun(h, f"12:{i // 60:02d}:{i % 60:02d}") for i, h in enumerate(hexes)]
         hist = {("BMS (0x7E4)", "2101"): history}
         entry = self._make_pid_result(pid="2101", raw_hex=hexes[-1])  # already in history
         results = [("BMS (0x7E4)", [entry])]
@@ -205,11 +206,11 @@ class TestRenderResults:
         assert text.count("61 01 ") == _RENDER_MAX_ROWS
 
     def test_history_render_respects_max_history_rows(self):
-        # A caller-supplied cap (e.g. the compact --keep-unique default) bounds the
+        # A caller-supplied cap (e.g. the compact live-view default) bounds the
         # rendered rows to the newest N and hides the rest.
         n = 60
         hexes = [f"6101{i:04X}" for i in range(n)]
-        history = [(h, f"12:{i // 60:02d}:{i % 60:02d}") for i, h in enumerate(hexes)]
+        history = [HistoryRun(h, f"12:{i // 60:02d}:{i % 60:02d}") for i, h in enumerate(hexes)]
         hist = {("BMS (0x7E4)", "2101"): history}
         entry = self._make_pid_result(pid="2101", raw_hex=hexes[-1])
         results = [("BMS (0x7E4)", [entry])]
@@ -518,7 +519,12 @@ class TestKeepHistory:
         """With hex_history, all unique payloads shown oldest to newest."""
         entry = self._make_pid_result(raw_hex="62B003CC")
         results = [("BCM (0x7A0)", [entry])]
-        history = {("BCM (0x7A0)", "22B003"): [("62B003AA", "10:00:00"), ("62B003BB", "10:01:00")]}
+        history = {
+            ("BCM (0x7A0)", "22B003"): [
+                HistoryRun("62B003AA", "10:00:00"),
+                HistoryRun("62B003BB", "10:01:00"),
+            ]
+        }
         t = _render_results(
             results, verbose=False, cycle=3, elapsed=0.1, interval=5.0, hex_history=history
         )
@@ -533,22 +539,32 @@ class TestKeepHistory:
         assert pos_aa < pos_bb < pos_cc
 
     def test_history_skips_duplicate_of_current(self):
-        """If current payload is in history, it's not shown again as history."""
-        entry = self._make_pid_result(raw_hex="62B003AA")
+        """If the current payload is the newest run, it's not shown again."""
+        entry = self._make_pid_result(raw_hex="62B003BB")
         results = [("BCM (0x7A0)", [entry])]
-        history = {("BCM (0x7A0)", "22B003"): [("62B003AA", "10:00:00"), ("62B003BB", "10:01:00")]}
+        history = {
+            ("BCM (0x7A0)", "22B003"): [
+                HistoryRun("62B003AA", "10:00:00"),
+                HistoryRun("62B003BB", "10:01:00"),
+            ]
+        }
         t = _render_results(
             results, verbose=False, cycle=3, elapsed=0.1, interval=5.0, hex_history=history
         )
         plain = t.plain
-        assert plain.count("62 B0 03 AA") == 1
-        assert "62 B0 03 BB" in plain
+        assert plain.count("62 B0 03 BB") == 1
+        assert "62 B0 03 AA" in plain
 
     def test_unique_count_shown(self):
         """When history has multiple unique payloads, count is displayed."""
         entry = self._make_pid_result(raw_hex="62B003CC")
         results = [("BCM (0x7A0)", [entry])]
-        history = {("BCM (0x7A0)", "22B003"): [("62B003AA", "10:00:00"), ("62B003BB", "10:01:00")]}
+        history = {
+            ("BCM (0x7A0)", "22B003"): [
+                HistoryRun("62B003AA", "10:00:00"),
+                HistoryRun("62B003BB", "10:01:00"),
+            ]
+        }
         t = _render_results(
             results, verbose=False, cycle=3, elapsed=0.1, interval=5.0, hex_history=history
         )
@@ -558,7 +574,7 @@ class TestKeepHistory:
         """No count shown when only one unique payload exists."""
         entry = self._make_pid_result(raw_hex="62B003AA")
         results = [("BCM (0x7A0)", [entry])]
-        history = {("BCM (0x7A0)", "22B003"): [("62B003AA", "10:00:00")]}
+        history = {("BCM (0x7A0)", "22B003"): [HistoryRun("62B003AA", "10:00:00")]}
         t = _render_results(
             results, verbose=False, cycle=2, elapsed=0.1, interval=5.0, hex_history=history
         )
@@ -568,7 +584,12 @@ class TestKeepHistory:
         """Each history row highlights bytes that differ from its predecessor."""
         entry = self._make_pid_result(raw_hex="62B003CC")
         results = [("BCM (0x7A0)", [entry])]
-        history = {("BCM (0x7A0)", "22B003"): [("62B003AA", "10:00:00"), ("62B003BB", "10:01:00")]}
+        history = {
+            ("BCM (0x7A0)", "22B003"): [
+                HistoryRun("62B003AA", "10:00:00"),
+                HistoryRun("62B003BB", "10:01:00"),
+            ]
+        }
         t = _render_results(
             results, verbose=False, cycle=3, elapsed=0.1, interval=5.0, hex_history=history
         )
@@ -582,9 +603,9 @@ class TestKeepHistory:
         results = [("BCM (0x7A0)", [entry])]
         history = {
             ("BCM (0x7A0)", "22B003"): [
-                ("62B003AA", "10:00:00"),
-                ("62B003BB", "10:01:00"),
-                ("62B003CC", "10:02:00"),
+                HistoryRun("62B003AA", "10:00:00"),
+                HistoryRun("62B003BB", "10:01:00"),
+                HistoryRun("62B003CC", "10:02:00"),
             ]
         }
         t = _render_results(
@@ -597,11 +618,29 @@ class TestKeepHistory:
         pos_dd = plain.index("62 B0 03 DD")
         assert pos_aa < pos_bb < pos_cc < pos_dd
 
+    def test_a_run_of_repeats_is_one_row_with_its_poll_count(self):
+        entry = self._make_pid_result(raw_hex="62B003BB")
+        results = [("BCM (0x7A0)", [entry])]
+        history = {
+            ("BCM (0x7A0)", "22B003"): [
+                HistoryRun("62B003AA", "10:00:00", 37),
+                HistoryRun("62B003BB", "10:03:05"),
+            ]
+        }
+        plain = _render_results(
+            results, verbose=False, cycle=3, elapsed=0.1, interval=5.0, hex_history=history
+        ).plain
+        assert plain.count("62 B0 03 AA") == 1
+        line = next(ln for ln in plain.splitlines() if "62 B0 03 AA" in ln)
+        assert line.rstrip().endswith("×37")
+        line = next(ln for ln in plain.splitlines() if "62 B0 03 BB" in ln)
+        assert "×" not in line
+
     def test_timestamp_shown_for_history_entries(self):
         """Timestamps are shown for history entries."""
         entry = self._make_pid_result(raw_hex="62B003BB")
         results = [("BCM (0x7A0)", [entry])]
-        history = {("BCM (0x7A0)", "22B003"): [("62B003AA", "14:23:05")]}
+        history = {("BCM (0x7A0)", "22B003"): [HistoryRun("62B003AA", "14:23:05")]}
         t = _render_results(
             results, verbose=False, cycle=2, elapsed=0.1, interval=5.0, hex_history=history
         )
@@ -611,7 +650,7 @@ class TestKeepHistory:
         """Current (newest, not yet in history) entry has no timestamp."""
         entry = self._make_pid_result(raw_hex="62B003BB")
         results = [("BCM (0x7A0)", [entry])]
-        history = {("BCM (0x7A0)", "22B003"): [("62B003AA", "14:23:05")]}
+        history = {("BCM (0x7A0)", "22B003"): [HistoryRun("62B003AA", "14:23:05")]}
         t = _render_results(
             results, verbose=False, cycle=2, elapsed=0.1, interval=5.0, hex_history=history
         )
@@ -691,19 +730,20 @@ class TestControllerSnapshot:
         assert c.unique_frames == 0
 
     def test_history_render_limit_by_keep_mode(self):
-        from canlib.modes.monitor import _RENDER_DEFAULT_ROWS, _RENDER_MAX_ROWS, MonitorController
+        from canlib.modes.monitor import _RENDER_DEFAULT_ROWS, MonitorController
 
         def _c(**kw):
             return MonitorController(
                 terminal=None, query_steps=[], pids_data={}, verbose=False, **kw
             )
 
-        # Default (unique) stays compact.
-        assert _c(keep_mode="unique")._history_render_limit() == _RENDER_DEFAULT_ROWS
+        # The default (all) and --keep-changes stay compact: repeats collapse into
+        # runs, and only the newest few runs are drawn.
+        assert _c(keep_mode="all")._history_render_limit() == _RENDER_DEFAULT_ROWS
+        assert _c(keep_mode="changes")._history_render_limit() == _RENDER_DEFAULT_ROWS
         assert _c(keep_mode=None)._history_render_limit() == _RENDER_DEFAULT_ROWS
-        # --keep N shows N; --keep-all keeps the safety cap.
+        # --keep N shows N.
         assert _c(keep_mode="last", keep_n=25)._history_render_limit() == 25
-        assert _c(keep_mode="all")._history_render_limit() == _RENDER_MAX_ROWS
 
     def test_segment_title_and_meta(self):
         from canlib.modes.monitor import MonitorController
@@ -1157,3 +1197,49 @@ class TestQueryEcuError:
         ]
         err = query_ecu_error(steps, self._pids())
         assert err.split("\n")[0].count("ECS") + err.split("\n")[0].count("ecs") == 1
+
+
+class TestExtendRuns:
+    def test_repeats_extend_the_newest_run(self):
+        runs: list[HistoryRun] = []
+        for payload, ts in [("AA", "1"), ("AA", "2"), ("BB", "3"), ("AA", "4"), ("AA", "5")]:
+            extend_runs(runs, payload, ts, limit=None)
+        assert runs == [HistoryRun("AA", "1", 2), HistoryRun("BB", "3"), HistoryRun("AA", "4", 2)]
+
+    def test_limit_keeps_the_newest_runs(self):
+        runs: list[HistoryRun] = []
+        for payload in ["AA", "BB", "CC", "CC"]:
+            extend_runs(runs, payload, "t", limit=2)
+        assert runs == [HistoryRun("BB", "t"), HistoryRun("CC", "t", 2)]
+
+
+class TestRecorderKeepModes:
+    @staticmethod
+    def _poll(c, *payloads):
+        for raw in payloads:
+            c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": raw}])])
+
+    def test_keep_all_saves_every_poll_but_shows_runs(self, tmp_path):
+        c = MonitorController(
+            terminal=None, query_steps=[], pids_data={}, verbose=False, keep_mode="all"
+        )
+        c.captures_dir = tmp_path
+        self._poll(c, "6101AA", "6101AA", "6101BB", "6101AA")
+        runs = c.hex_history[("BMS (0x7E4)", "2101")]
+        assert [(r.payload, r.polls) for r in runs] == [("6101AA", 2), ("6101BB", 1), ("6101AA", 1)]
+        assert "Saved 4 payload" in c.save_now("ref")
+        (session,) = json.loads(next(tmp_path.glob("*.json")).read_text())["sessions"]
+        assert "keep_mode" not in session
+
+    def test_keep_changes_saves_transitions_and_says_so(self, tmp_path):
+        from canlib.captures import io as capture_io
+
+        c = MonitorController(
+            terminal=None, query_steps=[], pids_data={}, verbose=False, keep_mode="changes"
+        )
+        c.captures_dir = tmp_path
+        self._poll(c, "6101AA", "6101AA", "6101BB", "6101AA")
+        assert "Saved 3 payload" in c.save_now("ref")
+        (session,) = capture_io.load_capture_file(next(tmp_path.glob("*.json")))["sessions"]
+        assert [cap["payload"] for cap in session["captures"]] == ["6101AA", "6101BB", "6101AA"]
+        assert session["keep_mode"] == "changes"

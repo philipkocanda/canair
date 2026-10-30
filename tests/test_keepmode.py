@@ -1,5 +1,7 @@
 """Tests for canlib.keepmode helpers (T2)."""
 
+import pytest
+
 from canlib.keepmode import (
     KEEP_ALL,
     KEEP_CHANGES,
@@ -19,38 +21,36 @@ from canlib.keepmode import (
 class _Args:
     def __init__(self, **kw):
         self.keep_changes = False
-        self.keep_unique = False
         self.keep_all = False
         self.keep = None
         self.__dict__.update(kw)
 
 
 class TestKeepModeFromArgs:
-    def test_default_is_changes(self):
-        # No keep flag => run-length "changes" default (preserves transitions,
-        # still compact for stationary signals).
-        assert keep_mode_from_args(_Args()) == "changes"
+    def test_default_is_all(self):
+        # No keep flag => every poll is recorded (the on-disk folding keeps the
+        # capture file compact for stationary signals).
+        assert keep_mode_from_args(_Args()) == "all"
 
-    def test_keep_changes_explicit(self):
-        assert keep_mode_from_args(_Args(keep_changes=True)) == "changes"
-
-    def test_keep_unique_is_legacy_global(self):
-        assert keep_mode_from_args(_Args(keep_unique=True)) == "unique"
-
-    def test_keep_all_overrides(self):
+    def test_keep_all_explicit(self):
         assert keep_mode_from_args(_Args(keep_all=True)) == "all"
+
+    def test_keep_changes_overrides(self):
+        assert keep_mode_from_args(_Args(keep_changes=True)) == "changes"
 
     def test_keep_n_is_last(self):
         assert keep_mode_from_args(_Args(keep=5)) == "last"
 
-    def test_keep_all_beats_keep_n(self):
-        assert keep_mode_from_args(_Args(keep_all=True, keep=5)) == "all"
-
-    def test_keep_all_beats_keep_unique(self):
-        assert keep_mode_from_args(_Args(keep_all=True, keep_unique=True)) == "all"
-
     def test_tolerates_missing_attrs(self):
-        assert keep_mode_from_args(object()) == "changes"
+        assert keep_mode_from_args(object()) == "all"
+
+    def test_keep_unique_flag_is_gone(self):
+        from canlib.cli import build_parser
+
+        parser = build_parser()
+        assert parser.parse_args(["monitor", "BMS"]).keep_all is False
+        with pytest.raises(SystemExit):
+            parser.parse_args(["monitor", "BMS", "--keep-unique"])
 
 
 class TestScopeIsKeepUnique:
@@ -109,22 +109,19 @@ class TestKeepModeVocabulary:
 
         assert PERSISTED_KEEP_MODES == get_args(PersistedKeepMode)
 
-    def test_persisted_is_a_strict_subset_of_recording_policy(self):
+    def test_only_the_dedup_policy_is_both_recorded_and_persisted(self):
         # `all`/`last` are legitimate recording policies but must never be
         # persisted — they applied no dedup, so absence is the honest record.
-        assert set(PERSISTED_KEEP_MODES) < set(KEEP_MODES)
+        # `unique` is the reverse: provenance older sessions carry, never recorded.
+        assert set(PERSISTED_KEEP_MODES) & set(KEEP_MODES) == {KEEP_CHANGES}
         assert set(KEEP_MODES) - set(PERSISTED_KEEP_MODES) == {KEEP_ALL, KEEP_LAST}
-
-    def test_named_constants_are_members(self):
-        assert {KEEP_CHANGES, KEEP_UNIQUE} == set(PERSISTED_KEEP_MODES)
-        assert {KEEP_ALL, KEEP_LAST} <= set(KEEP_MODES)
+        assert set(PERSISTED_KEEP_MODES) - set(KEEP_MODES) == {KEEP_UNIQUE}
 
     def test_every_mode_is_reachable_from_args(self):
         # No mode may be declared-but-unproducible (or vice versa).
         produced = {
             keep_mode_from_args(_Args()),
-            keep_mode_from_args(_Args(keep_unique=True)),
-            keep_mode_from_args(_Args(keep_all=True)),
+            keep_mode_from_args(_Args(keep_changes=True)),
             keep_mode_from_args(_Args(keep=5)),
         }
         assert produced == set(KEEP_MODES)
@@ -150,6 +147,9 @@ class TestParseKeepMode:
     def test_accepts_every_known_mode(self):
         for mode in KEEP_MODES:
             assert parse_keep_mode(mode) == mode
+
+    def test_the_retired_unique_mode_is_not_a_recording_policy(self):
+        assert parse_keep_mode("unique") is None
 
     def test_rejects_unknown_and_non_string(self):
         assert parse_keep_mode("uniqe") is None

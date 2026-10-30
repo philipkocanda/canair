@@ -50,7 +50,7 @@ def _run_driver(base: str, ours: str, theirs: str, path: str | None = None) -> i
         base_doc = capture_io.load_capture_file(Path(base))
         ours_doc = capture_io.load_capture_file(ours_path)
         theirs_doc = capture_io.load_capture_file(Path(theirs))
-    except (OSError, json.JSONDecodeError) as exc:
+    except (OSError, ValueError) as exc:  # ValueError: bad JSON or a bad repeat encoding
         print(f"canair merge-driver: {label}: unreadable capture input ({exc})", file=sys.stderr)
         return 1
 

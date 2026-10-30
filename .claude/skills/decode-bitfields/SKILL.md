@@ -127,9 +127,9 @@ uv run canair --profile ioniq-2017 monitor IGPM:22BC03 --save \
     --notes "fob unlock, open/close trunk, open/close pax door, open drv door, open/close hood, fob lock"
 ```
 
-- Keep the default **`--keep-changes`** — it records both edges. `--keep-unique`
-  **drops falling edges**, which makes dwell durations unrecoverable (`--dwell`
-  warns and reports `unknown` classes).
+- Keep the default **`--keep-all`** (or `--keep-changes`) — both record both edges.
+  Older `keep:unique` sessions **dropped falling edges**, which makes dwell durations
+  unrecoverable there (`--dwell` warns and reports `unknown` classes).
 - Exercise **one actuation at a time**, pausing between, and press **`s`** in the
   monitor to note each action. A per-capture note is what `--events` aligns to.
 - Cover states: a bit gated by ignition only moves in `ACC`/`RUN`.
@@ -341,7 +341,7 @@ expression and silently claimed the whole byte — go back to Step 1's blind spo
 | Byte vanished from `coverage --bitfields` after an edit | An `&`-mask expression now claims it (a plain `Bn` only adds `(also read whole)`) |
 | New bit param reads `constant` in the upsert echo | Wrong byte offset (WiCAN `Bnn` includes ISO-TP PCI) or wrong bit index |
 | `bix -a` roles shifted by one | Annotating a `22xxxx` payload with no `--pid` and no `-2` |
-| `--dwell` classes all `unknown` | Session recorded `--keep-unique`; falling edges dropped |
+| `--dwell` classes all `unknown` | Session is legacy `keep:unique`; falling edges dropped |
 | Bit never appears in `--events` | Constant in scope — never exercised, not "unused" |
 | Several bits look like one signal | Enum code (check distinct byte values, Step 4.5) or co-driven by one action |
 | A bit toggles hundreds of times | Low bit of an analog/counter byte, not a flag (Step 4.5) |

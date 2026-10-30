@@ -52,9 +52,10 @@ sockets, ad-hoc scripts, or hand-edited YAML.
 - **Every write prints the capture file it landed in** (`canlib/captures.py::saved_banner`) — read
   it back to confirm which profile got the data. A save made *inside* the monitor TUI has its banner
   deferred to exit, since Textual owns stdout while the app is up.
-- **`monitor` records with `--keep-changes` (run-length) by default**, so a stored-row count
-  measures **volatility, not sampling**. `--keep-all` for true timing/rate; the keep-mode tradeoffs
-  and the joins' forward fill are in the **reverse-engineer-signal** skill.
+- **`monitor` records every poll (`--keep-all`) by default**, so a stored-row count measures the
+  polling rate. Much of the history is `keep:changes` (run-length, the previous default), where a
+  row count measures **volatility, not sampling**; `--keep-changes` still records that way. The
+  keep-mode tradeoffs and the joins' forward fill are in the **reverse-engineer-signal** skill.
 - **The vehicle state is auto-suggested** from decoded values via the profile's
   `vehicle_states.yaml`; a `--save` segment with no explicit state is back-filled with the union of
   every state observed across its span.
@@ -243,7 +244,8 @@ and **`g`/`G` address the view's primary axis**.
   the one-time `migrate` (YAML→JSON) / `migrate-rx` (`ecu`→`rx`) / `migrate-discover` (gives legacy
   discover responders their `tx`; `canlib/migrations/discover.py`) / `split-batched` (splits a
   multi-DID reply stored whole under its first DID into per-DID rows;
-  `canlib/uds/unsplit_batches.py`) / `merge-driver` (see Key Files).
+  `canlib/uds/unsplit_batches.py`) / `compact` (rewrite in the folded on-disk form;
+  `canlib/migrations/compact.py`) / `merge-driver` (see Key Files).
   **`captures can`** (domain B) lists imported raw frame logs from `captures/can/index.yaml`.
 - **`canair decode`** (alias `dec`) — Value-centric decoding of all historical captures; the default
   view is each signal's value range. `--try` tests a candidate expression **without editing YAML**
@@ -628,6 +630,12 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   (`captures/YYYY-MM-DD.json`; JSON parses ~60× faster than YAML, the dominant cost of every
   history-consuming command). The read/write seam is `canlib/captures/io.py`; there is **no YAML
   fallback** — an older profile fails fast and is converted once with `canair captures migrate`.
+  **On disk, repeated polls are folded** (a poll repeating its PID's previous payload becomes a
+  millisecond gap in the run's first row, `repeat_ms`/`repeat_inline_ms`;
+  `canlib/captures/folding.py`) and each capture is one line; loading expands every fold back, so
+  only `capture_io.parse_capture_text`/`capture_text` ever see it — **never `json.loads` a capture
+  file directly**. Folding is lossless, row order included, and every write applies it;
+  `canair captures compact` converts files nothing has rewritten since.
   Schema `canlib/schema/captures_schema.json` (format-agnostic, validates the parsed structure) with
   matching `TypedDict`s in `canlib/captures/types.py` that the builders/IO are typed against
   (enforced by `ty`). Human companion: `docs/concepts/captures-and-states.md`. **These are

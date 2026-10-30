@@ -11,3 +11,7 @@ For edits/removals of existing captures, use the `canlib.captures` helpers (`set
 
 The `rx` field stores the ECU CAN **response** address (RX = request TX + 8) as a hex string, e.g. `"0x7EC"` for BMS (`"broadcast"` for multi-ECU discovery scans). Tools resolve it back to the short name via the `ecus/` registry, so you still query by name (`--ecu BMS`). (It was renamed from `ecu` → `rx` to make clear it holds an address, not an ECU name)
 
+On disk, a poll that repeats the previous payload of the same ECU and PID is folded into the run's
+first capture as millisecond gaps (`repeat_ms` / `repeat_inline_ms`); `canair` expands these back on
+load, so a plain JSON read of these files does not show one row per poll. Another reason to go
+through `canair captures`.

@@ -249,19 +249,21 @@ All of these share the scope flags (`--since`/`--until`/`--date`, `--state`,
 `--state` (e.g. `--state charging`) or a single session.
 
 !!! note "keep-mode caveats"
-    The monitor deduplicates recorded payloads per PID. The default, `--keep-changes`, is
-    **run-length**: it stores every genuine value transition (so `A→B→A` survives and dwell
-    durations are recoverable from timestamps) and collapses only immediate repeats. The legacy
-    `--keep-unique` is **global** dedup, so return-to-previous transitions and durations are
-    absent.
+    The monitor records **every poll** by default (`--keep-all`), so a stored row is a real
+    sample. Repeated payloads are folded on disk, so this costs little space (see
+    [Captures & states](captures-and-states.md)). Two dedup modes appear in older captures:
+    `keep:changes` (`--keep-changes`, still available) is **run-length**: it stores every genuine
+    value transition (so `A→B→A` survives and dwell durations are recoverable from timestamps)
+    and collapses only immediate repeats. The retired `keep:unique` was **global** dedup, so
+    return-to-previous transitions and durations are absent.
 
     `align`/`decode`/`correlate`/`investigate` print a banner when `keep:changes` sessions are in
     scope, because a **stored-row count then measures volatility, not sampling** — an ECU polled
     every cycle that rarely changes looks "barely polled". `keep:unique` gets no blanket banner
-    (most historical captures use it); it is flagged only where it changes a reading: the
+    (many historical captures use it); it is flagged only where it changes a reading: the
     `investigate --events` dwell classes, the `--transform`/`--lag-scan` time-gap warnings and a
-    forced `--fill hold`. Rate/`delta` analysis is unreliable on either; use `--keep-all` when you
-    need real sampling cadence.
+    forced `--fill hold`. Rate/`delta` analysis is unreliable on either; record with the default
+    keep-all when you need real sampling cadence.
 
 ## Forward fill: a run-length row is a segment, not a sample
 

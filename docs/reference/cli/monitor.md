@@ -7,10 +7,9 @@
 ```
 usage: canair monitor [-h] [--interval SECONDS] [--schedule {dynamic,fixed}]
                       [--session] [--wake]
-                      [--keep-changes | --keep-unique | --keep-all | --keep N]
-                      [--save] [--label TEXT] [--state TEXT] [--notes TEXT]
-                      [--rulers] [--notation NAME] [--include-static]
-                      [--wican WICAN]
+                      [--keep-all | --keep-changes | --keep N] [--save]
+                      [--label TEXT] [--state TEXT] [--notes TEXT] [--rulers]
+                      [--notation NAME] [--include-static] [--wican WICAN]
                       [--transport {slcan-tcp,wican-ws,elm327-tcp}]
                       [--no-fallback] [--wait] [--elm-timeout MS]
                       [--timeout SECONDS] [--no-learn-frames] [--json]
@@ -34,14 +33,14 @@ options:
                         every PID every cycle, --interval apart
   --session             Enter extended session (10 03)
   --wake                Wake ECUs from deep sleep (10 01)
-  --keep-changes        Retain value-transitions per PID (run-length;
-                        collapses only immediate repeats) — the default
-  --keep-unique         Retain only globally-distinct payloads per PID (legacy
-                        global dedup; return-to-previous transitions are
-                        dropped)
-  --keep-all            Retain every polled payload (full time-series; larger
-                        capture files)
-  --keep N              Keep the last N payloads per PID
+  --keep-all            Record every polled payload (full time-series) — the
+                        default. Repeated payloads are folded on disk, so the
+                        capture file stays compact
+  --keep-changes        Record only value-transitions per PID (run-length;
+                        drops immediate repeats, so the polling cadence is not
+                        recorded)
+  --keep N              Show only the last N history rows per PID in the live
+                        view
   --save                Save results to captures/
   --label TEXT          Session label for --save
   --state TEXT          Session state for --save
