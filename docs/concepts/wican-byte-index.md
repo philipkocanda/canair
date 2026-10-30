@@ -251,6 +251,15 @@ The same PCI-inclusive `data[]` buffer backs every accessor:
     canair emits this automatically (`hunt --promote`, `decode --plot`), so you
     only need the rule when hand-authoring an expression.
 
+!!! danger "In a hand-built word, only the top byte may be `Snn`"
+
+    `(S15 << 8) | S17` sign-extends the low byte, so every value whose low byte is
+    ≥ 0x80 decodes 256 × the scale too low — e.g. +15.0 A reads as −10.6 A. It is
+    right across one band and wrong elsewhere, so it can pass a check against
+    captures that happen to sit in the good band. Write `(S15 << 8) | B17`.
+    `canair validate pids` rejects a signed lower byte (in `|`, `+`, `<< 8n` and
+    `* 256ⁿ` compositions, and `[Sn:Sm]` ranges used as a lower term).
+
 Because the indices go straight into the PCI-inclusive buffer, **a multi-byte
 range must not straddle a PCI byte** (B08/B16/B24/…) or it will fold a framing
 byte into the value. `canair validate pids` flags ranges that span a PCI byte.

@@ -376,7 +376,9 @@ reuse these instead of re-declaring a flag:
   ECU, one under an `ignored` PID, one that doesn't decode to a number). Resolver
   `canlib/states/refs.py`. The same check runs as a **non-blocking warning** from `states add
   --when`/`set-predicate` and `pids rename-param`/`rm-param`. **`validate pids`** also errors on a
-  duplicate *shipped* signal name across PIDs (each becomes a distinct device signal) and on an
+  duplicate *shipped* signal name across PIDs (each becomes a distinct device signal), on a
+  hand-built word whose lower byte is read signed (`(S15 << 8) | S17`; structural lint over the
+  evaluator's own grammar, `canlib/expression/lint.py`) and on an
   `identity:` field outside the schema's `identity_fields`, and warns when two *synonymous* identity
   fields hold the same value (dead mirrored data). **`validate captures`** soft-warns on
   out-of-vocabulary states, SID/DID **echo mismatches** (a misfiled payload), **cross-ECU misfiles**

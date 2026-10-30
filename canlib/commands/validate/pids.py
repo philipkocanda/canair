@@ -11,6 +11,7 @@ import yaml
 
 from canlib import yaml_io
 from canlib.expression.decode_value import BYTE_RUN_TYPES as _BYTE_RUN_TYPES
+from canlib.expression.lint import signed_low_bytes
 from canlib.pids import PID_STATUSES, pid_status
 from canlib.uds.byteindex import wican_to_isotp
 
@@ -29,7 +30,7 @@ def load_schema(path: Path = SCHEMA_FILE) -> dict:
 
 
 def validate_expression(expr: str, param_name: str, pid: str, ecu: str) -> list[str]:
-    """Basic expression syntax check."""
+    """Expression syntax check, plus the structural lint (:mod:`canlib.expression.lint`)."""
     errors = []
     if not expr or not expr.strip():
         errors.append(f"{ecu}/{pid}/{param_name}: empty expression")
@@ -40,6 +41,12 @@ def validate_expression(expr: str, param_name: str, pid: str, ecu: str) -> list[
     if cleaned.strip():
         errors.append(
             f"{ecu}/{pid}/{param_name}: suspicious expression chars: '{cleaned.strip()}' in '{expr}'"
+        )
+    for low, top in signed_low_bytes(expr):
+        errors.append(
+            f"{ecu}/{pid}/{param_name}: '{low}' is a lower byte of a word whose top byte is "
+            f"'{top}' but is read signed — only the top byte of a multi-byte integer carries "
+            f"the sign; use '{low.replace('S', 'B')}' in '{expr}'"
         )
     return errors
 

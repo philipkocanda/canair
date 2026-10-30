@@ -10,9 +10,14 @@ firmware.
 
 Everything here happens once per distinct expression string;
 :func:`canlib.expression.evaluate_expression` caches the result.
+
+The scan is generic over an :class:`ExpressionBuilder`, so the one grammar also
+serves consumers that want the expression's *structure* rather than a callable
+(:mod:`canlib.expression.lint`). :func:`compile_expression` is the closure builder.
 """
 
 import re
+from typing import Protocol
 
 from canlib.expression import nodes as nodes
 from canlib.expression.nodes import CompiledExpression
@@ -37,6 +42,50 @@ def _precedence(op: str) -> int:
     return _PRECEDENCE.get(op, 0)
 
 
+class ExpressionBuilder[T](Protocol):
+    """The node constructors :func:`parse_expression` assembles a tree from."""
+
+    def const(self, value: float) -> T: ...
+    def external_value(self) -> T: ...
+    def unsigned_byte(self, idx: int) -> T: ...
+    def signed_byte(self, idx: int) -> T: ...
+    def bit(self, idx: int, index: int) -> T: ...
+    def unsigned_range(self, start_idx: int, end_idx: int) -> T: ...
+    def signed_range(self, start_idx: int, end_idx: int) -> T: ...
+    def binary(self, op: str, a: T, b: T, expression: str) -> T: ...
+    def finish(self, root: T, discarded: tuple[T, ...]) -> T: ...
+
+
+class _ClosureBuilder:
+    """Builds the evaluator's closure tree from :mod:`canlib.expression.nodes`."""
+
+    const = staticmethod(nodes.const)
+    external_value = staticmethod(nodes.external_value)
+    unsigned_byte = staticmethod(nodes.unsigned_byte)
+    signed_byte = staticmethod(nodes.signed_byte)
+    bit = staticmethod(nodes.bit)
+    unsigned_range = staticmethod(nodes.unsigned_range)
+    signed_range = staticmethod(nodes.signed_range)
+
+    @staticmethod
+    def binary(
+        op: str, a: CompiledExpression, b: CompiledExpression, expression: str
+    ) -> CompiledExpression:
+        factory = nodes.BINARY_NODES.get(op)
+        if factory is None:
+            raise ValueError(f"Unknown operator: {op}")
+        return factory(a, b, expression)
+
+    @staticmethod
+    def finish(
+        root: CompiledExpression, discarded: tuple[CompiledExpression, ...]
+    ) -> CompiledExpression:
+        return nodes.with_discarded(root, discarded) if discarded else root
+
+
+_CLOSURES = _ClosureBuilder()
+
+
 def compile_expression(expression: str) -> CompiledExpression:
     """Parse a WiCAN expression once into a callable ``(data, V) -> float``.
 
@@ -54,7 +103,12 @@ def compile_expression(expression: str) -> CompiledExpression:
     Because :func:`canlib.expression.evaluate_expression` caches successful
     compiles only, a caller still sees an identical exception on every call.
     """
-    operand_stack: list[CompiledExpression] = []
+    return parse_expression(expression, _CLOSURES)
+
+
+def parse_expression[T](expression: str, builder: ExpressionBuilder[T]) -> T:
+    """Scan a WiCAN expression, assembling the tree ``builder`` constructs."""
+    operand_stack: list[T] = []
     operator_stack: list[str] = []
 
     def emit(op: str) -> None:
@@ -63,10 +117,7 @@ def compile_expression(expression: str) -> CompiledExpression:
         # operand stack with an IndexError exactly as it always did.
         b = operand_stack.pop()
         a = operand_stack.pop()
-        factory = nodes.BINARY_NODES.get(op)
-        if factory is None:
-            raise ValueError(f"Unknown operator: {op}")
-        operand_stack.append(factory(a, b, expression))
+        operand_stack.append(builder.binary(op, a, b, expression))
 
     def process_pending(min_prec: int) -> None:
         while (
@@ -92,13 +143,13 @@ def compile_expression(expression: str) -> CompiledExpression:
             j = i
             while j < len(expr) and (expr[j].isdigit() or expr[j] == "."):
                 j += 1
-            operand_stack.append(nodes.const(float(expr[i:j])))
+            operand_stack.append(builder.const(float(expr[i:j])))
             i = j
             continue
 
         # V (external value)
         if ch == "V" and (i + 1 >= len(expr) or not expr[i + 1].isalnum()):
-            operand_stack.append(nodes.external_value())
+            operand_stack.append(builder.external_value())
             i += 1
             continue
 
@@ -107,7 +158,7 @@ def compile_expression(expression: str) -> CompiledExpression:
             m_unsigned = _RANGE_UNSIGNED_RE.match(expr, i)
             if m_unsigned:
                 operand_stack.append(
-                    nodes.unsigned_range(int(m_unsigned.group(1)), int(m_unsigned.group(2)))
+                    builder.unsigned_range(int(m_unsigned.group(1)), int(m_unsigned.group(2)))
                 )
                 i = m_unsigned.end()
                 continue
@@ -115,7 +166,7 @@ def compile_expression(expression: str) -> CompiledExpression:
             m_signed = _RANGE_SIGNED_RE.match(expr, i)
             if m_signed:
                 operand_stack.append(
-                    nodes.signed_range(int(m_signed.group(1)), int(m_signed.group(2)))
+                    builder.signed_range(int(m_signed.group(1)), int(m_signed.group(2)))
                 )
                 i = m_signed.end()
                 continue
@@ -133,9 +184,9 @@ def compile_expression(expression: str) -> CompiledExpression:
                 i += 1
                 bit_index = int(expr[i])
                 i += 1
-                operand_stack.append(nodes.bit(idx, bit_index))
+                operand_stack.append(builder.bit(idx, bit_index))
             else:
-                operand_stack.append(nodes.unsigned_byte(idx))
+                operand_stack.append(builder.unsigned_byte(idx))
             continue
 
         # Signed byte: Sn
@@ -145,7 +196,7 @@ def compile_expression(expression: str) -> CompiledExpression:
             while i < len(expr) and expr[i].isdigit():
                 idx = idx * 10 + int(expr[i])
                 i += 1
-            operand_stack.append(nodes.signed_byte(idx))
+            operand_stack.append(builder.signed_byte(idx))
             continue
 
         # Parentheses
@@ -190,4 +241,4 @@ def compile_expression(expression: str) -> CompiledExpression:
     if not operand_stack:
         raise ValueError(f"Empty expression: {expression}")
     root, *discarded = operand_stack
-    return nodes.with_discarded(root, tuple(discarded)) if discarded else root
+    return builder.finish(root, tuple(discarded))

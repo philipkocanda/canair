@@ -186,6 +186,31 @@ the finding: demote it (`--unverified` / `enabled: false`), record the corrected
 reasoning in `notes:`, and open or adjust a `research:` lead rather than silently trusting
 it.
 
+### Right in one regime, wrong in another — suspect a byte boundary
+
+A decode that is correct in one operating band and off elsewhere is a **bit-width or sign
+error**, not a calibration error: a wrong scale is off proportionally everywhere, a wrong
+offset by a constant. Real case: BMS 2101 pack current was `((S15 << 8) | S17)/10`, which
+reads the *low* byte signed — every value whose low byte is ≥ 0x80 came out 25.6 A low.
+Only −25.6..0 A decoded right, which is exactly AC charging, so it "verified" against
+charging captures while driving power was a few kW out. Tells, each usable on its own:
+
+- **The error is quantized at 2ⁿ × scale.** Residuals against a reference (or jumps
+  between consecutive samples) clustering at ±256·scale or ±65536·scale mean a byte
+  boundary, not noise.
+- **The correct band lines up with 0x80/0x100 of a byte.** Ask which values decode right
+  and whether that range is one half of a byte's span.
+- **A low byte that never uses half its range.** A continuous signal's low byte covers
+  0x00–0xFF about evenly; the BMS current had 0 of 618 positive samples with a low byte
+  ≥ 0x80. `decode --dump-bytes` shows it.
+- **An integral that misses its counter.** Integrate an instantaneous power/current over a
+  drive and compare with the ECU's cumulative energy/charge counter (`investigate
+  --counters` finds those); the BMS drive integrals came out 2–3× low.
+
+Hence: **verify a signed signal on both sides of zero**, and in any hand-built word only the
+top byte is `Sn` — every lower byte is `Bn`. `validate pids` rejects a signed lower byte
+(`canlib/expression/lint.py`), so `pids upsert-param` reverts one.
+
 ---
 
 Next: test the candidate expression without committing (`decode --try`/`--plot`), then
