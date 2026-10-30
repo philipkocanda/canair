@@ -81,6 +81,45 @@ class TestRoundTrip:
         assert p.exists()
 
 
+_SPANNED_DATA = {
+    "sessions": [
+        {
+            "date": "2026-01-01",
+            "vehicle_states": ["READY", "PARKED"],
+            "state_spans": {
+                "source": "record",
+                "spans": [
+                    {"at": "00:00:01.500", "states": ["READY", "DRIVING"]},
+                    {"at": "00:10:00", "states": ["READY", "PARKED"]},
+                ],
+            },
+            "captures": [{"rx": "0x7E8", "pid": "2101", "payload": "6101"}],
+        }
+    ]
+}
+
+
+class TestOneLineItems:
+    def test_each_state_span_is_one_line(self):
+        text = capture_io.capture_text(_SPANNED_DATA)
+        assert '          {"at": "00:00:01.500", "states": ["READY", "DRIVING"]},\n' in text
+        assert '          {"at": "00:10:00", "states": ["READY", "PARKED"]}\n        ]' in text
+
+    def test_each_capture_is_one_compact_line(self):
+        text = capture_io.capture_text(_SPANNED_DATA)
+        assert '        {"rx":"0x7E8","pid":"2101","payload":"6101"}\n' in text
+
+    def test_session_metadata_stays_pretty_printed(self):
+        text = capture_io.capture_text(_SPANNED_DATA)
+        assert '      "vehicle_states": [\n        "READY",\n' in text
+        assert '      "state_spans": {\n        "source": "record",\n        "spans": [\n' in text
+
+    def test_text_reloads_to_the_same_document(self):
+        assert (
+            capture_io.parse_capture_text(capture_io.capture_text(_SPANNED_DATA)) == _SPANNED_DATA
+        )
+
+
 def test_load_capture_file_rejects_nonjson(tmp_path):
     p = tmp_path / "bad.json"
     p.write_text("not: json: at all")

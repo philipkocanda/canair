@@ -66,7 +66,8 @@ Each `captures/YYYY-MM-DD.json` holds one day, as sessions of captures:
 A long recording polls a stationary signal over and over and gets the same payload back each
 time. On disk, a poll that repeats the previous payload of the same ECU and PID is not written
 as a row of its own. It is folded into the run's first capture as a gap in milliseconds since
-the previous poll of the run, and each capture sits on one line:
+the previous poll of the run, and each capture sits on one line (so does each
+[`state_spans`](#simultaneous-vs-sequential-overlap-state_spans) span):
 
 ```json
       "captures": [

@@ -643,10 +643,10 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   fallback** — an older profile fails fast and is converted once with `canair captures migrate`.
   **On disk, repeated polls are folded** (a poll repeating its PID's previous payload becomes a
   millisecond gap in the run's first row, `repeat_ms`/`repeat_inline_ms`;
-  `canlib/captures/folding.py`) and each capture is one line; loading expands every fold back, so
-  only `capture_io.parse_capture_text`/`capture_text` ever see it — **never `json.loads` a capture
-  file directly**. Folding is lossless, row order included, and every write applies it;
-  `canair captures compact` converts files nothing has rewritten since.
+  `canlib/captures/folding.py`) and each capture and each `state_spans` span is one line; loading
+  expands every fold back, so only `capture_io.parse_capture_text`/`capture_text` ever see it —
+  **never `json.loads` a capture file directly**. Folding is lossless, row order included, and
+  every write applies it; `canair captures compact` converts files nothing has rewritten since.
   Schema `canlib/schema/captures_schema.json` (format-agnostic, validates the parsed structure) with
   matching `TypedDict`s in `canlib/captures/types.py` that the builders/IO are typed against
   (enforced by `ty`). Human companion: `docs/concepts/captures-and-states.md`. **These are

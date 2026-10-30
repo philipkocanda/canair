@@ -13,10 +13,10 @@ Capture files are **never hand-written**; they are produced by the
 via those helpers.
 
 On disk, repeated polls are folded into their run's first row
-(:mod:`canlib.captures.folding`) and each capture is one line; in memory every
-file is expanded back to one row per poll. :func:`parse_capture_text` and
-:func:`capture_text` are the two directions, so a reader that bypasses them
-(a bare ``json.loads``) sees the folded form.
+(:mod:`canlib.captures.folding`) and each capture, like each ``state_spans`` span, is one
+line; in memory every file is expanded back to one row per poll.
+:func:`parse_capture_text` and :func:`capture_text` are the two directions, so a reader
+that bypasses them (a bare ``json.loads``) sees the folded form.
 """
 
 from __future__ import annotations
@@ -151,32 +151,40 @@ def capture_text(data: Any) -> str:
     """The canonical on-disk JSON text of a capture file (see :func:`dump_capture_file`).
 
     Repeated polls are folded (:mod:`canlib.captures.folding`), and the document is
-    pretty-printed with ``indent=2`` except that each capture is one compact line:
-    a session's metadata stays readable while a long recording costs a line per
-    stored capture, not one per field.
+    pretty-printed with ``indent=2`` except that each capture and each ``state_spans``
+    span is one line: a session's metadata stays readable while a long recording costs a
+    line per stored capture, not one per field.
     """
-    return _render(fold_file(data), 0, compact_items=False) + "\n"
+    return _render(fold_file(data), 0, ()) + "\n"
 
 
-def _render(value: Any, level: int, *, compact_items: bool) -> str:
-    """``json.dumps(value, indent=2)``, with a session's ``captures`` one per line.
+# Lists whose items each sit on one line, keyed by the dict-key path from the document root
+# (list indices are not part of the path), with the separators used inside that line.
+_ONE_LINE_ITEMS: dict[tuple[str, ...], tuple[str, str]] = {
+    ("sessions", "captures"): (",", ":"),
+    ("sessions", "state_spans", "spans"): (", ", ": "),
+}
+
+
+def _render(value: Any, level: int, path: tuple[str, ...]) -> str:
+    """``json.dumps(value, indent=2)``, with the :data:`_ONE_LINE_ITEMS` lists one item per line.
 
     Byte-identical to ``json.dumps(indent=2, ensure_ascii=False)`` for everything
-    outside a session's ``captures`` list.
+    outside those lists.
     """
     pad, close = "  " * (level + 1), "  " * level
     if isinstance(value, dict) and value:
         items = (
-            f"{pad}{json.dumps(k, ensure_ascii=False)}: "
-            + _render(v, level + 1, compact_items=level == 2 and k == "captures")
+            f"{pad}{json.dumps(k, ensure_ascii=False)}: " + _render(v, level + 1, (*path, k))
             for k, v in value.items()
         )
         return "{\n" + ",\n".join(items) + f"\n{close}}}"
     if isinstance(value, list) and value:
-        if compact_items:
-            rows = (pad + json.dumps(v, ensure_ascii=False, separators=(",", ":")) for v in value)
+        separators = _ONE_LINE_ITEMS.get(path)
+        if separators:
+            rows = (pad + json.dumps(v, ensure_ascii=False, separators=separators) for v in value)
         else:
-            rows = (pad + _render(v, level + 1, compact_items=False) for v in value)
+            rows = (pad + _render(v, level + 1, path) for v in value)
         return "[\n" + ",\n".join(rows) + f"\n{close}]"
     return json.dumps(value, ensure_ascii=False)
 
