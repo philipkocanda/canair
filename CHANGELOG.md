@@ -15,6 +15,71 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [1.36.0](https://github.com/philipkocanda/canair/compare/v1.35.2...v1.36.0) (2026-10-30)
+
+
+### Added
+
+* add 2019 Hyundai Kona Electric (64 kWh) placeholder profile ([a3e7856](https://github.com/philipkocanda/canair/commit/a3e78563858588b9e19eeedabc2c40ddfc626390))
+* add ioniq-2017 research notes ([d026a7a](https://github.com/philipkocanda/canair/commit/d026a7a5f2bf44819969c56cba32bbe4e9254be7))
+* **dtc:** name every standard failure-type byte ([a948d8d](https://github.com/philipkocanda/canair/commit/a948d8d74f68b3f67fc9a06111d2694b6935af9f))
+* **import:** extract UDS replies from a diagnostic-bus frame log ([da2b05a](https://github.com/philipkocanda/canair/commit/da2b05a10a6d407a46a80bef9bea706b85fa5127))
+* **investigate:** detect support maps and let coverage read them ([e8797d0](https://github.com/philipkocanda/canair/commit/e8797d06482345fe625577c5aaa01b858c5bda33))
+* **ioniq-2017:** add EPCU and BMS findings from the uhi22 logs ([5fa463e](https://github.com/philipkocanda/canair/commit/5fa463e12c0a4e02a2276d9c3ed784bf8291d622))
+* **ioniq-2017:** add the IG3 state and tag the ECUs that run on it ([577a85e](https://github.com/philipkocanda/canair/commit/577a85eb1b4a1c955b741bbe8324b35a4aec6771))
+* **ioniq-2017:** add the VCU's stored-schedule broadcasts ([4380964](https://github.com/philipkocanda/canair/commit/438096403a123fa41f150bfc0c2427ae05b1c875))
+* **ioniq-2017:** add topup capture ([49eacb6](https://github.com/philipkocanda/canair/commit/49eacb68a1b444223bd4a3461a6e2a0111da32a9))
+* **ioniq-2017:** bitmap fields ([afbf2bc](https://github.com/philipkocanda/canair/commit/afbf2bce4f84c5365b1b170fda32660d01fce1a8))
+* **ioniq-2017:** decode IGPM body bits against gateway broadcasts ([254f111](https://github.com/philipkocanda/canair/commit/254f1113d64161012ef4eab9558661ad6036757a))
+* **ioniq-2017:** decode the CCM's DIDs and stop reasons ([8a0aaef](https://github.com/philipkocanda/canair/commit/8a0aaef069ea0451fe5307c8ece6dbb14587df00))
+* **ioniq-2017:** decode the CCM's inputs from its firmware ([e2fc6f2](https://github.com/philipkocanda/canair/commit/e2fc6f2fc1a777a8c461b4170515347253b71381))
+* **ioniq-2017:** define the gateway's chassis and head-unit frames, log the top-up wake question ([4c922fb](https://github.com/philipkocanda/canair/commit/4c922fbecc84f0fce5ebf75865f6a61b816910b2))
+* **ioniq-2017:** document how the head unit starts and stops charging ([0b831a1](https://github.com/philipkocanda/canair/commit/0b831a1ae9311555301ea207a8dfb7ca77775b69))
+* **ioniq-2017:** document the AC charge-current setting encoding ([e64b158](https://github.com/philipkocanda/canair/commit/e64b1584fbd280971728d9c775ef04abf2b1c06f))
+* **ioniq-2017:** IGPM stuff ([9e30bbb](https://github.com/philipkocanda/canair/commit/9e30bbbe6b9fa8149d9d5d24aca6664e750aa3b4))
+* **ioniq-2017:** IGPM/AVN signal routing research ([0415008](https://github.com/philipkocanda/canair/commit/04150083f77aa00cc04f8359ab5f5553c8c7b2dc))
+* **ioniq-2017:** map the CCM from its firmware and CCS frames ([9fe7769](https://github.com/philipkocanda/canair/commit/9fe7769ff7ec19d8f2966d2657f7acd3f2f5891d))
+* **ioniq-2017:** map the CCM's CCS sequence to vehicle signals ([889ad4f](https://github.com/philipkocanda/canair/commit/889ad4f9ff7d4f28e075a94a929fd9e1d3835787))
+* **kona-electric-2019:** seed captures from public dongle logs ([4396cd1](https://github.com/philipkocanda/canair/commit/4396cd1619b978c0a33bfe9c5a6176011b959a74))
+* **research:** list IOControl DID families no 0x22 read has reached ([ba355e3](https://github.com/philipkocanda/canair/commit/ba355e3889a1ee2a89ea179f7158b813a3a7cdc2))
+* **scan:** sweep an ECU's DID families and accept range lists ([8e5a82a](https://github.com/philipkocanda/canair/commit/8e5a82a30f1cce324c295c84a3418a90948b77cd))
+* **states:** allow YAML boolean words as quoted state names ([75780a4](https://github.com/philipkocanda/canair/commit/75780a48b7bfac3353c52009c85d6b509004463a))
+* **states:** list ECUs readable in a state through implies ([cb4f39a](https://github.com/philipkocanda/canair/commit/cb4f39ade6ab453a92e0c6be0e9ce40e077c03e5))
+* **states:** rename a state everywhere the profile references it ([d7e05ca](https://github.com/philipkocanda/canair/commit/d7e05cab23d3e0d6745d187569398bccc5762447))
+* **uds:** name KWP2000 negative responses and services per ISO 14230-3 ([7b408a3](https://github.com/philipkocanda/canair/commit/7b408a3c6ce5318b3ba8f399689c15912fea0cab))
+* **uds:** name the ISO condition-specific negative response codes ([fab14ef](https://github.com/philipkocanda/canair/commit/fab14efd253d0ce33b8610038957a326a6b31428))
+* **validate:** reject a signed lower byte in hand-built words ([2ada244](https://github.com/philipkocanda/canair/commit/2ada24460798c1f8ab24caebe059a4586c36c523))
+
+
+### Fixed
+
+* **identity:** label F18D, F100 and F1A0 by their meaning; probe F186 and C0DE ([f6ddc55](https://github.com/philipkocanda/canair/commit/f6ddc5541ba9a1c354e844817b07a74474998d2c))
+* **ioniq-2017:** back-fill IG3 into recorded sessions ([4636a47](https://github.com/philipkocanda/canair/commit/4636a47037ad2e458b5be3a76f985493f8e6f8b0))
+* **ioniq-2017:** back-fill states the save dialog dropped ([4c568d9](https://github.com/philipkocanda/canair/commit/4c568d98fa0e2d679f93619f6f0c8d2d76d242de))
+* **ioniq-2017:** drop speculative H-CAN segment ([30f8250](https://github.com/philipkocanda/canair/commit/30f8250908932f325d8cd4cbae066a2d19c3dd63))
+* **ioniq-2017:** rebuild state timelines with the IG3 state ([6e8b108](https://github.com/philipkocanda/canair/commit/6e8b1088cac8fee2b95f6571f83d0bece3a6fcbe))
+* **kona-electric-2019:** correct BMS current expressions and charge-flag bits ([b10c6b4](https://github.com/philipkocanda/canair/commit/b10c6b418312e1afa35ba0943702e02a51f4207b))
+* **monitor:** pre-fill the save dialog with the span's states ([14b4d36](https://github.com/philipkocanda/canair/commit/14b4d363484d1046d2f474af54adec8e7e945738))
+* **safety:** refuse Hyundai/Kia programming mode, reflash routines and bus-silencing services ([7d0e920](https://github.com/philipkocanda/canair/commit/7d0e9206276e63cad180d90764c31ab8b1af33b1))
+
+
+### Changed
+
+* **ioniq-2017:** rename IGPM ACC2_IGN_ON to IGN1_SWITCH ([07446bf](https://github.com/philipkocanda/canair/commit/07446bf1b1783039f8405ac570b69153bb038c6f))
+* **ioniq-2017:** rename the ACC2 state to ON ([6e6714a](https://github.com/philipkocanda/canair/commit/6e6714acb82c5a80adde3b27a6d40a224e570a6c))
+
+
+### Documentation
+
+* drop known incorrect statement ([29ceb38](https://github.com/philipkocanda/canair/commit/29ceb38d1a4535e1a0f1e762d6dc699989456928))
+* **ioniq-2017:** functional addressing research findings ([4ad51a7](https://github.com/philipkocanda/canair/commit/4ad51a71cbef6a54276595c649edfb13c003586f))
+* **ioniq-2017:** point the AVN findings at the ioniq-avn-fw tools ([99f4644](https://github.com/philipkocanda/canair/commit/99f464454bb3bb243ceb95c545e64de8b08d4cf8))
+* **ioniq-2017:** record what Hyundai/Kia's UDS specs say beyond functional addressing ([37b199d](https://github.com/philipkocanda/canair/commit/37b199d9afc2c16ecccc9626813095571a4dc6bd))
+* **ioniq-2017:** record-DID families and the leads from a supplier's test data ([8fde68c](https://github.com/philipkocanda/canair/commit/8fde68ca832aa8f94df4f3a57efc6eae9e47dc13))
+* name the ON and IG3 states in notes, comments and skills ([33c0d2e](https://github.com/philipkocanda/canair/commit/33c0d2e15b173e304c1f9beba99c1a1d352a819d))
+* **screenshots:** re-render the states and BMS PID views ([cdae2d4](https://github.com/philipkocanda/canair/commit/cdae2d435a885777d1aea61e16815cff1809714f))
+* **skills:** teach the DID-family scan default and research --gaps ([87b6104](https://github.com/philipkocanda/canair/commit/87b6104ff41cdef4861dcbf36b670157e4d3f1c3))
+
 ## [1.35.2](https://github.com/philipkocanda/canair/compare/v1.35.1...v1.35.2) (2026-10-29)
 
 
