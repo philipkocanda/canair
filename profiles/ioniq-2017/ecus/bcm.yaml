@@ -404,7 +404,9 @@ BCM:
           max: "1"
           source: Cross-tab vs IGPM 22BC04 B13:6 2026-10-22
           verified: false
-          notes: Equals IGPM UNLOCKED_OR_IGN_ON in all 323 aligned rows. Disabled as a duplicate.
+          notes: >-
+            Equals IGPM INTERIOR_LAMP_AUTOCUT_RELAY in all 323 aligned rows. Disabled as a
+            duplicate.
           enabled: false
     22B006:
       response_frames: 2
@@ -426,9 +428,9 @@ BCM:
           notes: >-
             0x00, or 0x04 (bit 2) on fob unlock (2026-07-24 09:36:52). 0x04 in 6 of 301 captures.
     22B007:
+      support_map: {at: 0, length: 4, unit: bit, order: msb}
       parameters:
         BCM_IGN_ON_B007:
-      support_map: {at: 0, length: 4, unit: bit, order: msb}
           expression: B11:2
           min: "0"
           max: "1"

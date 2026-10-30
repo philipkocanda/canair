@@ -103,7 +103,7 @@ uv run canair --profile ioniq-2017 bix -a 62BC030AFF00000000 --ecu IGPM --pid 22
 ```
   subfunction: 2-byte DID — derived from --pid 22BC03 (override with -1/-2)
     B10 | 0x00 |   0x07 |        | [DOOR_RL_OPEN:0] [DOOR_LOCK_RL:1] … [TRUNK_OPEN:7]
-    B11 | 0x00 |   0x08 |        | [HOOD_OPEN:0] [SEATBELT_FL:1] [SEATBELT_FR?:2] [ACC2_IGN_ON:5] [IGN_STATUS_MIRROR?:6]
+    B11 | 0x00 |   0x08 |        | [HOOD_OPEN:0] [SEATBELT_FL:1] [SEATBELT_FR?:2] [ACC2_IGN_ON:5] [IGN2_SWITCH?:6]
 ```
 
 The fastest per-bit "what's already claimed here" view (`?` suffix =

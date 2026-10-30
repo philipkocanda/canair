@@ -85,7 +85,7 @@ AVN:
         module. The AVN's ACC and IG3 feeds were still in place. Whether the head unit closes IG3 #2
         in other cases is unknown.
       what_to_test:
-        - Record IGPM 22BC07, OBC 2101 and BMS 2101 with --keep-all at 1 s across an AC plug-in and across a scheduled charge or pre-conditioning start, with the head unit awake and asleep, and see whether UNKNOWN_B12_3 or the OBC state moves with the head unit.
+        - Record IGPM 22BC07, OBC 2101 and BMS 2101 with --keep-all at 1 s across an AC plug-in and across a scheduled charge or pre-conditioning start, with the head unit awake and asleep, and see whether IG3_RELAY_OUTPUT or the OBC state moves with the head unit.
       capture_protocol: >-
         canair monitor IGPM:22BC07 OBC:2101 BMS:2101 --save --keep-all --interval 1 --label 'IG3 #2
         hand-over' --state PLUGGED; press s at plug-in and at any scheduled start.

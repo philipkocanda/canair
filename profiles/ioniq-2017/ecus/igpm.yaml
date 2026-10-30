@@ -71,25 +71,35 @@ IGPM:
           verified: true
           notes: "Complement of CHARGE_PORT_LOCK: 1 = unlocked. Verified 2026-07-18."
 
-        UNKNOWN_B12_3:
+        IG3_RELAY_OUTPUT:
           expression: "B12:3"
           verified: false
           notes: >-
-            Aligned with VCU 2101 (3 s join, no fill): 1 in 60 of 61 READY rows and in 19 of 19 rows
-            of the parked 12 V top-up (2026-10-21, ACC2_IGN_ON 0). Aligned with BMS 2101: 0 in 239
-            of 242 charging rows; the 3 exceptions are 2026-08-02, a session with the ignition on. 0
-            in 13 of 14 other VCU rows (HV off or drive path down). In the top-up run it last read 1
-            at 21:16:47 and first read 0 at 21:17:21; the VCU's HV relay was open by 21:17:08. One
-            READY row (2026-08-08) reads 0. On 2026-08-08 it read 0 from the first sample of both DC
-            fast charges (11:41:23, 16:31:23) and returned with READY at 16:44:22, while
-            OBC_AC_NOT_CONNECTED read 1 throughout, so the two are different signals.
+            ScanDoc 'Ignition 3 Relay' (22BC07 byte 2 bit 3; actuator BC44): the IGPM's own IG3
+            relay output. The OBC's relay supplies IG3 while charging with the ignition off, which
+            is why it reads 0 then. Aligned with VCU 2101 (3 s join, no fill): 1 in 60 of 61 READY
+            rows and in 19 of 19 rows of the parked 12 V top-up (2026-10-21, ACC2_IGN_ON 0). Aligned
+            with BMS 2101: 0 in 239 of 242 charging rows; the 3 exceptions are 2026-08-02, a session
+            with the ignition on. 0 in 13 of 14 other VCU rows (HV off or drive path down). In the
+            top-up run it last read 1 at 21:16:47 and first read 0 at 21:17:21; the VCU's HV relay
+            was open by 21:17:08. One READY row (2026-08-08) reads 0. On 2026-08-08 it read 0 from
+            the first sample of both DC fast charges (11:41:23, 16:31:23) and returned with READY at
+            16:44:22, while OBC_AC_NOT_CONNECTED read 1 throughout, so the two are different
+            signals. Named UNKNOWN_B12_3 until 2026-10-30.
           source: align vs VCU 2101 and BMS 2101 over stored captures, 2026-10-23
-        IGPM_BC07_B12_2:
+        CHARGE_DOOR_LAMP_REAR:
           expression: B12:2
           source: RE 2026-08-05 event-timeline analysis; revisited 2026-08-08 session
           verified: false
-          notes: 1 in 15 of 328 captures. Meaning unknown.
-          enabled: false
+          notes: >-
+            ScanDoc 'Rear Charge Door Lamp - Output' (22BC07 byte 2 bit 2; actuator BC43). 1 in 15
+            of 328 captures. Set at every recorded plug-in with the ignition off, just before the
+            port locks (2026-08-02 09:52:59, 08-08 11:41:23, 16:31:23, 17:53:19), and in a
+            minute-long episode with the port unlocked (2026-10-22 14:21:58-14:23:02); where sampled
+            it clears within 1-3 min, like a lamp timing out after the charge door opens.
+            Unexplained: pulses about every 6 min during the 2026-08-08 evening charge (18:09,
+            18:16, 18:22, 18:28). Named IGPM_BC07_B12_2 until 2026-10-30.
+          enabled: true
         TRUNK_OPEN_BC07:
           expression: B10:4
           min: "0"
@@ -97,11 +107,12 @@ IGPM:
           source: canair correlate --find-mirrors --bits 2026-10-21
           verified: false
           notes: >-
-            Equals 22BC03 TRUNK_OPEN (B10:7) in all 349 aligned rows, and 22BC05 TRUNK_INDICATOR.
-            Disabled as a duplicate.
+            Equals 22BC03 TRUNK_OPEN (B10:7) in all 349 aligned rows, and 22BC05
+            LUGGAGE_LAMP_OUTPUT. Disabled as a duplicate.
           enabled: false
 
     22BC03:
+      support_map: {at: 0, length: 4, unit: bit, order: msb}
       status: active
       period: 2500
       vehicle_states: [ALL]
@@ -112,7 +123,6 @@ IGPM:
         # B10 = Doors and locks
         # B11 = Seatbelts
         # B12 = Lights
-      support_map: {at: 0, length: 4, unit: bit, order: msb}
         # B13 =
         DOOR_DRV_OPEN:
           expression: B10:5
@@ -160,13 +170,18 @@ IGPM:
           verified: true
           notes: "Bit flag — 1=open. Verified 2026-04-15."
 
-        DRL:
+        TAIL_LAMP_INTERIOR:
           expression: "B12:2"
           ha_class: light
-          source: "Decoded from live captures (2026-04-15)"
+          source: Decoded from live captures (2026-04-15); GDS 'Tail Lamp Output (Interior)' name, align vs 22BC04 B12:5 2026-10-30
           source_links: []
           verified: true
-          notes: 1 = on, in every light mode (DRL, low and high beam). Verified 2026-04-15.
+          notes: >-
+            1 = interior tail lamp output (GDS 'Tail Lamp Output (Interior)', ScanDoc 'AV tail'),
+            the instrument illumination circuit; actuator twin BC05. Equals TAIL_LIGHTS (B12:3) in
+            1798 of 1799 aligned rows (the 1 exception reads 1 with B12:3 = 0). Reads 0 in the 8
+            rows where the dedicated DRL output (22BC04 DRL_DEDICATED_OUTPUT) is on, so it is not a
+            DRL signal. On in every light mode (DRL, low and high beam). Named DRL until 2026-10-30.
 
         TAIL_LIGHTS:
           expression: "B12:3"
@@ -174,7 +189,9 @@ IGPM:
           source: "Decoded from live captures (2026-04-15)"
           source_links: []
           verified: true
-          notes: 1 = on, in every light mode (DRL, low and high beam). Verified 2026-04-15.
+          notes: >-
+            1 = on, in every light mode (DRL, low and high beam). GDS 'Tail Lamp Output (Exterior)'
+            (the tail lamp relay). Verified 2026-04-15.
 
         HIGH_BEAM:
           expression: "B12:4"
@@ -203,7 +220,10 @@ IGPM:
             1 in ACC2 and READY (not told apart), 0 when off and in ACC1. Also 1 in ACC2 while AC
             charging. Fob unlock does not set it. It rises with the ACC to ON press, where IGN1 and
             IGN2 are energised together, so it cannot be attributed to one of them from the button
-            sequence.
+            sequence. GDS names B11:5 'IGN1 Switch' and B11:6 'IGN2 Switch' (IGN2_SWITCH); the AE
+            manual's current-data list runs brake fluid, IGN1, IGN2 in bit order. The name stays
+            because the ACC2 state predicate and other ECUs' notes use it. IGN2 should drop while
+            START is held and IGN1 stay; not yet captured.
 
         SEATBELT_FL:
           expression: "B11:1"
@@ -242,15 +262,17 @@ IGPM:
           verified: true
           notes: >-
             1 = locked; no inversion needed (the Niro EV source inverts it). Verified 2026-04-15.
-        IGN_STATUS_MIRROR:
+        IGN2_SWITCH:
           expression: B11:6
           min: "0"
           max: "1"
           source: RE 2026-07-23 bit analysis (40 captures)
           verified: false
           notes: >-
-            Equals ACC2_IGN_ON (B11:5) in every capture. Disabled so it does not ship a duplicate;
-            defined so bit 6 is accounted for.
+            GDS 'IGN2 Switch' (22BC03 byte 1 bit 6). Equals ACC2_IGN_ON (the IGN1 switch, B11:5) in
+            every capture so far; the two should differ only while START is held (IGN2 drops, IGN1
+            stays), which has not been recorded. Disabled so it does not ship a duplicate. Named
+            IGN_STATUS_MIRROR until 2026-10-30.
           enabled: false
         HOOD_OPEN:
           expression: B11:0
@@ -275,13 +297,15 @@ IGPM:
 
 
     22BC04:
+      support_map: {at: 0, length: 4, unit: bit, order: msb}
       status: active
       period: 5000
       vehicle_states: [ALL]
       notes: >-
-        8 data bytes. B10 holds the front door locks and ignition, B13:6 UNLOCKED_OR_IGN_ON. B05-B07
-        and B09 (B5 3F F4 EA), B11 (0) and B13:1 (1) are constant in all 410 captures, across every
-        power state. B12:5 set only in 8 captures (2026-07-21 READY).
+        8 data bytes. B10 holds the front door locks (B10:2/3) and the power window enable relay
+        (B10:0), B13:6 INTERIOR_LAMP_AUTOCUT_RELAY. B05-B07 and B09 (B5 3F F4 EA), B11 (0) and B13:1
+        (1) are constant in all 410 captures, across every power state. B12:5 (DRL_DEDICATED_OUTPUT)
+        set only in 8 captures (2026-07-21, in D with the lamps off).
       parameters:
         # TODO: All the other bytes on here
         DOOR_LOCK_FL:
@@ -297,58 +321,65 @@ IGPM:
           expression: "B10:2"
           ha_class: lock
           source: "Kia Niro EV WiCAN PR#716"
-      support_map: {at: 0, length: 4, unit: bit, order: msb}
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
           notes: "1=locked, 0=unlocked. Verified 2026-04-15."
-        ACC2_IGN_ON_BC04:
+        POWER_WINDOW_ENABLE_RELAY:
           expression: B10:0
           min: "0"
           max: "1"
           source: RE 2026-07-23 bit analysis; ignition cross-tab 2026-10-22
           verified: false
           notes: >-
-            Equals 22BC03 ACC2_IGN_ON in 431 of 432 aligned rows. Rises in the same poll; at
-            power-off it can fall later. The 1 miss: 2026-08-08 17:52:39, ACC2_IGN_ON 0 and VCU
-            EV_READY falling by 17:52:49, this bit still 1 in the read 0.25 s later, 0 by the next
-            stored row at 17:53:19. Same on 2026-07-30 (ACC2_IGN_ON off 09:50:29, this bit first
-            seen 0 at 09:51:14, keep:unique). Fell in the same poll at the other 3 recorded
-            power-offs. Disabled as a duplicate.
+            GDS 'Power Window Enable Relay' (first item of the 22BC04 current-data list). Follows
+            the ignition on the way up: equals 22BC03 ACC2_IGN_ON in 431 of 432 aligned rows, with
+            the same poll rising. The BCM keeps the power-window relay on for 30 s after the
+            ignition goes off and cuts it at once when a door opens, which fits the fall: 2026-08-08
+            17:52:39, ACC2_IGN_ON 0 with the doors shut and EV_READY falling by 17:52:49, this bit
+            still 1 in the read 0.25 s later and 0 by the next stored row at 17:53:19; on 2026-07-30
+            ACC2_IGN_ON went off 09:50:29 and this bit was first seen 0 at 09:51:14 (keep:unique).
+            It fell in the same poll at the other 3 recorded power-offs; the aligned rows show the
+            doors shut there too, so why is not established. Disabled as a near-duplicate of
+            ACC2_IGN_ON. Named ACC2_IGN_ON_BC04 until 2026-10-30.
           enabled: false
-        UNLOCKED_OR_IGN_ON:
+        INTERIOR_LAMP_AUTOCUT_RELAY:
           expression: B13:6
           min: "0"
           max: "1"
           source: Same-payload cross-tab + event timeline 2026-10-22
           verified: false
           notes: >-
-            1 = doors unlocked or ignition on. Equals (NOT DOOR_LOCK_FL) OR B10:0 in 406 of 410
-            captures. Rises with every unlock and ignition-on; fell in the same poll as the lock on
-            2026-07-30 12:20:48, 08-08 17:53:32 and 08-15 10:06:07. All 4 exceptions read 1 while
-            locked with the ignition off. 3 are a lock that is the last 22BC04 row of its session:
-            the session ended 0 s (04-18 22:15:25) and 8 s (08-08 11:42:35) later, and 07-24
-            09:38:19 is keep:unique, which cannot record a return to an earlier payload, so whether
-            it fell later is unrecorded. The 4th is an 18 s pulse at 08-15 10:11:03, 5 min after
-            locking, with nothing else on 22BC03/04/07 changing. Mirrored by BCM 22B005 B10:3 (35 of
-            35 rows) and VCU 2101 VCU_INVERTER_ARMED (kappa 0.98, n=358). Purpose unknown.
-        VEHICLE_NOT_IN_P_WARNING:
+            GDS 'Interior Lamp Autocut Relay' (ScanDoc; actuator BC1B 'Auto Cut Relay'): the
+            leak-current autocut (LCAD) relay that feeds the interior lamp, memory and multimedia
+            fuses. Observed as 1 = doors unlocked or ignition on. Equals (NOT DOOR_LOCK_FL) OR B10:0
+            in 406 of 410 captures. Rises with every unlock and ignition-on; fell in the same poll
+            as the lock on 2026-07-30 12:20:48, 08-08 17:53:32 and 08-15 10:06:07. All 4 exceptions
+            read 1 while locked with the ignition off. 3 are a lock that is the last 22BC04 row of
+            its session: the session ended 0 s (04-18 22:15:25) and 8 s (08-08 11:42:35) later, and
+            07-24 09:38:19 is keep:unique, which cannot record a return to an earlier payload, so
+            whether it fell later is unrecorded. The 4th is an 18 s pulse at 08-15 10:11:03, 5 min
+            after locking, with nothing else on 22BC03/04/07 changing. Mirrored by BCM 22B005 B10:3
+            (35 of 35 rows) and VCU 2101 VCU_INVERTER_ARMED (kappa 0.98, n=358). Its timing is not
+            reconciled with the manual's 20 min / 35-65 s power-down: here it fell in the same poll
+            as the lock. Named UNLOCKED_OR_IGN_ON until 2026-10-30.
+        DRL_DEDICATED_OUTPUT:
           expression: B12:5
           min: "0"
           max: "1"
           source: byte-value sweep + align 2026-10-29
           verified: false
           notes: >-
-            Candidate 'vehicle not in P' warning. Set in all 8 captures of the 2026-07-21
-            12:51-12:53 drive-mode session, each with VCU GEAR_D=1, brake pressed, driver door open
-            (DOOR_DRV_OPEN) and driver belt unbuckled, ignition on. 0 in the 34 rows in D with the
-            door closed and belt buckled, the 1 row in D with brake pressed, belt buckled and door
-            closed, and the 14 rows in P with brake pressed. Drive-mode and regen changes in that
-            session did not move it. The gateway publishes CF_Gway_VehicleNotPWarn on broadcast
-            0x553 (opendbc CGW2). Door and belt changed together here, so which one sets it is
-            unknown. Test: READY, in D, brake held: open the driver door with the belt buckled, then
-            unbuckle with the door closed; repeat in P.
-          enabled: false
+            GDS 'Dedicated DRL Output (Option)' (22BC04 byte 2 bit 5; actuator BC18). 1 only with
+            the ignition on, low beam off and the car not in Park: set in all 8 captures with the
+            lamps off in D (7 joined to VCU GEAR_D = 1, 2026-07-21 12:51-12:53), 0 in the 43 aligned
+            rows in P with the ignition on and lamps off, and 0 in all 65 aligned rows with low beam
+            on. So the DRLs go out in Park and while the low beams are on; whether the EU Ioniq does
+            that by design is not confirmed (test: READY in P with lamps off, then D). 22BC03
+            TAIL_LAMP_INTERIOR reads 0 in the rows where this is on, so it is not a DRL signal.
+            Named VEHICLE_NOT_IN_P_WARNING until 2026-10-30; the earlier door/belt reading is
+            withdrawn, because the D rows where it read 0 had the low beams on.
+          enabled: true
         SEATBELT_RR:
           expression: B12:1
           min: "0"
@@ -393,6 +424,7 @@ IGPM:
           enabled: false
 
     22BC06:
+      support_map: {at: 0, length: 4, unit: bit, order: msb}
       status: active
       period: 2500
       vehicle_states: [ALL]
@@ -411,7 +443,8 @@ IGPM:
           notes: >-
             Not a boolean: B10 reads 0x00 released and 0x2D pressed (73 of 504 captures), plus 0x2C
             (3), 0x01 (1) and 0x02 (1). 0x2D sets bits 0, 2, 3 and 5 together. Byte position
-            verified 2026-04-15.
+            verified 2026-04-15. The 0x02 capture (2026-04-15) sets a bit outside the support map
+            (B05 = 0xB4) and is probably corrupt.
         LEFT_TURN_SIGNAL:
           expression: B11:0
           ha_class: ""
@@ -424,18 +457,33 @@ IGPM:
           expression: B11:1
           ha_class: ""
           source: "Corrected 2026-08-09: moved from B10 to B11 (user-confirmed 1=left, 2=right); B10 bit1 had only n=1 support and was unrelated noise"
-      support_map: {at: 0, length: 4, unit: bit, order: msb}
           source_links: []
           verified: true
           notes: B11 reads 0 (no signal), 1 (left) or 2 (right), never 3, across a 500-sample check.
           enabled: true
-        BRAKE_PEDAL_BITS:
+        STOP_LAMP_LEFT:
           expression: B10:2
           min: "0"
           max: "1"
           source: RE 2026-07-23 bit analysis
           verified: false
-          notes: Bit 2 of BRAKE_LIGHT. Bits 3 and 5 never change without it.
+          notes: >-
+            GDS 'Stop Lamp Left' output (22BC06 byte 0 bit 2; the right lamp is bit 3 and the
+            high-mounted lamp bit 5; actuators BC2B, BC2C, BC2D). Bits 3 and 5 never change without
+            it. The pedal switch is bit 0 (BRAKE_PEDAL_SWITCH). Named BRAKE_PEDAL_BITS until
+            2026-10-30.
+          enabled: true
+        BRAKE_PEDAL_SWITCH:
+          expression: B10:0
+          min: "0"
+          max: "1"
+          source: GDS 'Stop Switch' (ScanDoc 22BC06 byte 0 bit 0); canair align 2026-10-30
+          verified: false
+          notes: >-
+            Brake pedal switch. B10 reads 0x01 once (switch closed, lamps not yet lit) and 0x2D when
+            pressed. Three captures on 2026-08-09 14:04 read 0x2C (both stop lamps and the
+            high-mounted lamp lit, switch bit clear) while driving at 43-77 km/h;
+            regeneration-triggered stop lamps are a plausible cause, unverified.
           enabled: true
 
     22BC01:
@@ -450,6 +498,7 @@ IGPM:
       vehicle_states: [ALL]
       notes: 4 data bytes, all 0 in every one of 297 captures.
     22BC05:
+      support_map: {at: 0, length: 4, unit: bit, order: msb}
       status: draft
       vehicle_states: [ALL]
       notes: >-
@@ -457,55 +506,63 @@ IGPM:
         outputs (0x50 left, 0xA0 right, 0xF0 both at the fob-unlock flash), B11:3 the trunk
         indicator and B11:7 passenger seat occupancy.
       parameters:
-        TRUNK_INDICATOR:
+        LUGGAGE_LAMP_OUTPUT:
           expression: B11:3
           min: "0"
           max: "1"
           source: canair correlate --find-mirrors + investigate --events 2026-07-24
           verified: false
-          notes: Set at trunk open (2026-07-24 09:37:08); 1 in 3 of 421 captures.
-        TURN_LAMP_LEFT:
+          notes: >-
+            GDS/ScanDoc 'Luggage Compartment Lamp' (22BC05 byte 1 bit 3; actuator BC1C). Set at
+            trunk open (2026-07-24 09:37:08); 1 in 3 of 421 captures. Named TRUNK_INDICATOR until
+            2026-10-30.
+        TURN_LAMP_LF:
           expression: B10:4
           min: "0"
           max: "1"
           source: canair align cross-tab + investigate --events 2026-10-21
           verified: false
           notes: >-
-            Left turn-lamp output (flashes, so a poll can catch it off). Cross-tab vs 22BC06
-            LEFT/RIGHT_TURN_SIGNAL over 380 aligned rows: set in 18 of 23 left rows, 0 of 23 right
-            rows, 0 of 334 with neither. Both sides set (B10=0xF0) only at the fob-unlock flash.
-            B10:6 never differs from it.
-        TURN_LAMP_RIGHT:
+            Left front turn-lamp output (GDS 'LF turn signal output') (flashes, so a poll can catch
+            it off). Cross-tab vs 22BC06 LEFT/RIGHT_TURN_SIGNAL over 380 aligned rows: set in 18 of
+            23 left rows, 0 of 23 right rows, 0 of 334 with neither. Both sides set (B10=0xF0) only
+            at the fob-unlock flash. B10:6 (TURN_LAMP_LR) never differs from it. Named
+            TURN_LAMP_LEFT until 2026-10-30.
+        TURN_LAMP_RF:
           expression: B10:5
           min: "0"
           max: "1"
           source: canair align cross-tab + investigate --events 2026-10-21
           verified: false
           notes: >-
-            Right turn-lamp output (flashes, so a poll can catch it off). Cross-tab vs 22BC06
-            LEFT/RIGHT_TURN_SIGNAL over 380 aligned rows: set in 20 of 23 right rows, 0 of 23 left
-            rows, 0 of 334 with neither. Both sides set (B10=0xF0) only at the fob-unlock flash.
-            B10:7 never differs from it.
-        TURN_LAMP_LEFT_2:
+            Right front turn-lamp output (GDS 'RF turn signal output') (flashes, so a poll can catch
+            it off). Cross-tab vs 22BC06 LEFT/RIGHT_TURN_SIGNAL over 380 aligned rows: set in 20 of
+            23 right rows, 0 of 23 left rows, 0 of 334 with neither. Both sides set (B10=0xF0) only
+            at the fob-unlock flash. B10:7 (TURN_LAMP_RR) never differs from it. Named
+            TURN_LAMP_RIGHT until 2026-10-30.
+        TURN_LAMP_LR:
           expression: B10:6
           min: "0"
           max: "1"
           source: canair decode --dump-bytes 2026-10-21
           verified: false
           notes: >-
-            Equals TURN_LAMP_LEFT (B10:4) in every capture (B10 is only ever 0x00, 0x50, 0xA0 or
-            0xF0). Probably the second left lamp circuit. Disabled as a duplicate.
+            Left rear turn-lamp output (GDS 'LR turn signal output'): a separate output with its own
+            fault detection, not a duplicate circuit. Equals TURN_LAMP_LF (B10:4) in every capture
+            (B10 is only ever 0x00, 0x50, 0xA0 or 0xF0). Disabled as redundant. Named
+            TURN_LAMP_LEFT_2 until 2026-10-30.
           enabled: false
-        TURN_LAMP_RIGHT_2:
+        TURN_LAMP_RR:
           expression: B10:7
-      support_map: {at: 0, length: 4, unit: bit, order: msb}
           min: "0"
           max: "1"
           source: canair decode --dump-bytes 2026-10-21
           verified: false
           notes: >-
-            Equals TURN_LAMP_RIGHT (B10:5) in every capture (B10 is only ever 0x00, 0x50, 0xA0 or
-            0xF0). Probably the second right lamp circuit. Disabled as a duplicate.
+            Right rear turn-lamp output (GDS 'RR turn signal output'): a separate output with its
+            own fault detection, not a duplicate circuit. Equals TURN_LAMP_RF (B10:5) in every
+            capture (B10 is only ever 0x00, 0x50, 0xA0 or 0xF0). Disabled as redundant. Named
+            TURN_LAMP_RIGHT_2 until 2026-10-30.
           enabled: false
         PASSENGER_SEAT_OCCUPIED:
           expression: B11:7
@@ -518,18 +575,19 @@ IGPM:
             11 buckled rows plus 4 unbuckled rows, never clear while buckled. 2026-08-08: set at
             10:23:53 when the passenger door closed, belt buckled 22 s later; belt unbuckled
             11:41:22, cleared 11:41:42, passenger door opened 11:42:22.
-        IGPM_BC05_B12_2:
+        LOW_BEAM_SWITCH:
           expression: B12:2
           min: "0"
           max: "1"
           source: canair align cross-tab 2026-10-21; OBDb label added 2026-10-27
           verified: false
           notes: >-
-            Set only when DRL, tail and low beam are on AND ACC2_IGN_ON=1 (23 rows). 0 in the 6 rows
-            with the lamps still on after ignition off, and 0 with the lamps off. The OBDb
+            Set only when the tail and low-beam outputs are on AND ACC2_IGN_ON=1 (23 rows). 0 in the
+            6 rows with the lamps still on after ignition off, and 0 with the lamps off. The OBDb
             Hyundai-IONIQ-Electric signalset reads this byte as HL_SW, 'Headlight switch' (0 or 4,
-            equal to this bit in every capture). Their label is unverified here; the
-            lamps-off-after-ignition-off rows fit a switch position.
+            equal to this bit in every capture). ScanDoc lists this bit as the low beam switch
+            ('Right Low Beam Button'). Unverified here; the lamps-off-after-ignition-off rows fit a
+            switch position. Named IGPM_BC05_B12_2 until 2026-10-30.
     22BC08:
       status: ignored
       vehicle_states: [ALL]
@@ -605,22 +663,25 @@ IGPM:
 
     BC05:
       vehicle_states: [ALL]
-      label: Blue instrument LEDs
+      label: Tail lamp output (interior)
       verified: true
       true: "2FBC0503"
       false: "2FBC0500"
-      notes: >
-        Also turns on green indicator on dash.
+      notes: >-
+        GDS 'Tail Lamp Output (Interior)': the instrument illumination circuit. Lights the blue
+        instrument LEDs and turns on the green indicator on the dash. Was labelled Blue instrument
+        LEDs.
+      status_param: TAIL_LAMP_INTERIOR
 
     BC07:
       vehicle_states: [ALL]
-      label: Horn
+      label: Burglar alarm horn relay
       verified: true
       true: "2FBC0703"
       false: "2FBC0700"
-      notes: >
-        LOUD — be careful when testing! Not labeled in Soul/e-Niro tables but
-        confirmed on Ioniq.
+      notes: >-
+        GDS 'Burglar Horn Relay': the alarm horn. LOUD, be careful when testing! Not labeled in
+        Soul/e-Niro tables but confirmed on Ioniq. Was labelled Horn.
 
     BC08:
       vehicle_states: [ALL]
@@ -641,13 +702,13 @@ IGPM:
 
     BC0A:
       vehicle_states: [ALL]
-      label: Welcome / approach light
+      label: Start inhibit relay (option)
       verified: false
       true: "2FBC0A03"
       false: "2FBC0A00"
-      notes: >
-        Likely puddle lights or DRL greeting on unlock.
-        ACC: Tested, no visible result.
+      notes: >-
+        GDS 'Start Inhibit Relay (Option)' by ScanDoc numbering (probable). ACC: tested, no visible
+        result. Was labelled Welcome / approach light.
 
     BC0C:
       vehicle_states: [ALL]
@@ -681,31 +742,36 @@ IGPM:
 
     BC12:
       vehicle_states: [ALL]
-      label: Heated mirror?
+      label: Driver door unlock relay (option)
       verified: false
       true: "2FBC1203"
       false: "2FBC1200"
       status_param: DOOR_LOCK_FL
-      notes: >
-        Acc: clicking relay (click-clack). Heated mirror?
+      notes: >-
+        Probably GDS 'Driver Door Unlock Relay (Option)' by ScanDoc numbering. Acc: clicking relay
+        (click-clack). Was labelled Heated mirror?
 
     BC13:
       vehicle_states: [ALL]
-      label: Unknown (conditional)
+      label: Deadlock relay (probable)
       verified: false
       true: "2FBC1303"
       false: "2FBC1300"
-      notes: >
-        Acc: same clicking relay sound as BC12 (click-clack). Works when car is asleep (though did not listen for relay).
+      notes: >-
+        WARNING: probably the deadlock relay (ScanDoc numbering; the EU DOOR LOCK fuse feeds the ICM
+        dead lock relay). Deadlocked doors cannot be opened from inside, so do not actuate with
+        anyone in the car. Acc: same clicking relay sound as BC12 (click-clack). Works when car is
+        asleep (though did not listen for relay).
 
     BC14:
       vehicle_states: [ALL]
-      label: Unknown (conditional)
+      label: Power window relay (probable)
       verified: false
       true: "2FBC1403"
       false: "2FBC1400"
-      notes: >
-        ConditionsNotCorrect in ACC. Only works in sleep!
+      notes: >-
+        Probably GDS 'Power Window Relay' by ScanDoc numbering. ConditionsNotCorrect in ACC, perhaps
+        because the relay is already commanded on then. Only works in sleep!
 
     BC15:
       vehicle_states: [ALL]
@@ -725,22 +791,26 @@ IGPM:
 
     BC18:
       vehicle_states: [ALL]
-      label: DRL lights
+      label: Dedicated DRL output
       verified: true
       true: "2FBC1803"
       false: "2FBC1800"
-      status_param: DRL
+      status_param: DRL_DEDICATED_OUTPUT
+      notes: >-
+        GDS 'Dedicated DRL Output (Option)'. Its status bit is 22BC04 B12:5, not 22BC03 B12:2 (the
+        interior tail lamp).
 
     BC1B:
       vehicle_states: [ALL]
-      label: Unknown
+      label: Auto cut relay (LCAD)
       verified: false
       true: "2FBC1B03"
       false: "2FBC1B00"
-      notes: >
-        ACC: relay single click, turns off the dome light (may cut power to
-        other loads). NRC 0x22 otherwise — possibly reverse light (only accepted
-        when the car is in reverse gear?).
+      notes: >-
+        GDS 'Auto Cut Relay': the leak-current autocut relay for the interior lamp, memory and
+        multimedia fuse feeds. ACC: relay single click, turns off the dome light. NRC 0x22
+        otherwise.
+      status_param: INTERIOR_LAMP_AUTOCUT_RELAY
 
     BC1C:
       vehicle_states: [ALL]
@@ -751,12 +821,13 @@ IGPM:
 
     BC25:
       vehicle_states: [ALL]
-      label: Unknown
+      label: High beam relay (probable)
       verified: false
       true: "2FBC2503"
       false: "2FBC2500"
-      notes: >
-        Accepted but no visible/audible effect. Tested 2026-04-15 (Ready mode).
+      notes: >-
+        ScanDoc item 33 'High beam relay' by numbering (the BC2B anchor); 22BC04 B13:4 shows this
+        car has one. Accepted but no visible/audible effect. Tested 2026-04-15 (Ready mode).
 
     BC2B:
       vehicle_states: [ALL]
@@ -803,31 +874,37 @@ IGPM:
 
     BC42:
       vehicle_states: [ALL]
-      label: Unknown
+      label: Front charge door lamp
       verified: false
       true: "2FBC4203"
       false: "2FBC4200"
-      notes: >
+      notes: >-
+        ScanDoc 'Front charge door lamp output' by numbering; this car has no front charge door.
         Accepted but no visible/audible effect. Tested 2026-04-15 (Ready mode).
 
     BC43:
       vehicle_states: [ALL]
-      label: Unknown
+      label: Rear charge door lamp
       verified: false
       true: "2FBC4303"
       false: "2FBC4300"
-      notes: >
-        Accepted but no visible/audible effect. Tested 2026-04-15 (Ready mode).
+      notes: >-
+        ScanDoc 'Rear charge door lamp output' by numbering. The lamp sits inside the charge-port
+        door, so no effect is expected until the door is open. Accepted but no visible/audible
+        effect with the door closed. Tested 2026-04-15 (Ready mode).
+      status_param: CHARGE_DOOR_LAMP_REAR
 
     BC44:
       vehicle_states: [ALL]
-      label: Unknown
+      label: Ignition 3 relay (probable)
       verified: false
       true: "2FBC4403"
       false: "2FBC4400"
-      notes: >
-        Accepted but no visible/audible effect. Tested 2026-04-15 (Ready mode).
-        ACC: ConditionsNotCorrect.
+      notes: >-
+        WARNING: probably the IGPM's IG3 relay (ScanDoc 'Ignition 3 relay'; 22BC07 B12:3 is its
+        output bit). IG3 powers the EPCU, OBC and BMS, so do not toggle it casually. Accepted but no
+        visible/audible effect in READY (IG3 already on). ACC: ConditionsNotCorrect.
+      status_param: IG3_RELAY_OUTPUT
   research:
     - type: decode
       target: 22BC04/BC06 body bits
@@ -837,10 +914,17 @@ IGPM:
       created: "2026-07-23"
       updated: "2026-07-23"
       result: >-
-        2026-10-22: BC04 B10:0 = ignition on (ACC2_IGN_ON_BC04, disabled duplicate, 432/433). BC04
-        B13:6 = doors unlocked or ignition on (UNLOCKED_OR_IGN_ON, 407/411 same-payload). BC04 B12:5
-        still unknown: set only in 8 captures, 2026-07-21 12:51-12:53 READY with the brake held.
-      notes: "Undecoded toggling bits in IGPM body DIDs (candidates registered, need physical correlation): BC04 B10:0 (distinct from door locks B10:2/3), BC04 B12:5, BC04 B13:6; BC06 brake composite B10=0x2D sets bits 2,3,5 (BRAKE_PEDAL_BITS=B10:2 candidate). Other BC03/BC04/BC06 unmapped bits constant-0. BC01/BC02/BC05 closed as static config. Verify: actuate each body function while capturing; press brake with turn signals off to isolate the brake bit."
+        2026-10-22: BC04 B10:0 = ignition on (POWER_WINDOW_ENABLE_RELAY, disabled duplicate,
+        432/433). BC04 B13:6 = doors unlocked or ignition on (INTERIOR_LAMP_AUTOCUT_RELAY, 407/411
+        same-payload). BC04 B12:5 still unknown: set only in 8 captures, 2026-07-21 12:51-12:53
+        READY with the brake held.
+      notes: >-
+        Undecoded toggling bits in IGPM body DIDs (candidates registered, need physical
+        correlation): BC04 B10:0 (distinct from door locks B10:2/3), BC04 B12:5, BC04 B13:6; BC06
+        brake composite B10=0x2D sets bits 2,3,5 (STOP_LAMP_LEFT=B10:2 candidate). Other
+        BC03/BC04/BC06 unmapped bits constant-0. BC01/BC02/BC05 closed as static config. Verify:
+        actuate each body function while capturing; press brake with turn signals off to isolate the
+        brake bit.
     - type: decode
       target: 22BC07
       status: captured
@@ -848,7 +932,18 @@ IGPM:
       vehicle_states: [ALL]
       created: "2026-08-05"
       updated: "2026-08-05"
-      notes: "IGPM 22BC07 corpus event-timeline pass 2026-08-05 (investigate --events --bits over 285 captures). CONFIRMED on fresh data: CHARGE_PORT_LOCK (B11:7) and CHARGE_PORT_LOCK_INV (B12:0) move together and inversely at every plug-in/charge-end across five separate charge sessions, re-validating both. TWO UNMAPPED BITS SHOW STRUCTURE: (1) B12:2 = self-clearing wake/power-transition latch, ~2-3 min, 2 clean episodes (added as IGPM_WAKE_LATCH_B12_2, disabled). (2) B10:4 = 4 transitions only, and inconsistent dwell: once 0->1 on arrival from a 1h drive then 1->0 just 50 s later, but on another date it held 1 for ~3.5 h and cleared exactly when charging started and the port locked. Both a 50 s and a 3.5 h dwell rule out a simple door/flap state; not defined. METHOD NOTE: a parked AC charge does not exercise body signals at all, so IGPM cannot be decoded from charge sessions - it needs a dedicated event capture."
+      notes: >-
+        IGPM 22BC07 corpus event-timeline pass 2026-08-05 (investigate --events --bits over 285
+        captures). CONFIRMED on fresh data: CHARGE_PORT_LOCK (B11:7) and CHARGE_PORT_LOCK_INV
+        (B12:0) move together and inversely at every plug-in/charge-end across five separate charge
+        sessions, re-validating both. TWO UNMAPPED BITS SHOW STRUCTURE: (1) B12:2 = self-clearing
+        latch, ~2-3 min, 2 clean episodes; read since 2026-10-30 as the rear charge door lamp output
+        (CHARGE_DOOR_LAMP_REAR), set around plug-ins. (2) B10:4 = 4 transitions only, and
+        inconsistent dwell: once 0->1 on arrival from a 1h drive then 1->0 just 50 s later, but on
+        another date it held 1 for ~3.5 h and cleared exactly when charging started and the port
+        locked. Both a 50 s and a 3.5 h dwell rule out a simple door/flap state; not defined. METHOD
+        NOTE: a parked AC charge does not exercise body signals at all, so IGPM cannot be decoded
+        from charge sessions - it needs a dedicated event capture.
       sources:
         - canair investigate --events --bits + decode --compact corpus timeline 2026-08-05
       what_to_test:
@@ -941,7 +1036,11 @@ IGPM:
       vehicle_states: [ACC2]
       created: "2026-10-22"
       updated: "2026-10-22"
-      notes: UNLOCKED_OR_IGN_ON stayed 1 after 3 of 6 recorded locks, but each of those recordings stopped (or was keep:unique) before it could show the fall. ACC2_IGN_ON_BC04 fell up to ~40 s after ACC2_IGN_ON at 2 of 5 power-offs; polling was too sparse to time it.
+      notes: >-
+        INTERIOR_LAMP_AUTOCUT_RELAY stayed 1 after 3 of 6 recorded locks, but each of those
+        recordings stopped (or was keep:unique) before it could show the fall.
+        POWER_WINDOW_ENABLE_RELAY fell up to ~40 s after ACC2_IGN_ON at 2 of 5 power-offs; polling
+        was too sparse to time it.
       what_to_test:
         - "Power off, wait 60 s, fob lock, keep recording 3 min: time B13:6 and B10:0 against the lock and the power button."
       capture_protocol: >-
@@ -960,8 +1059,8 @@ IGPM:
         IG3 #1 coil is driven by the OBC. The IG3 #2 coil line runs to the AVN and audio head unit's
         'IG3 relay control' pins (see the AVN research entry: the head unit is expected to request
         IG3 for scheduled or remote actions), so who closes #2 in practice is not known.
-        UNKNOWN_B12_3 follows the #1 pattern in the stored captures (1 in READY and the parked 12 V
-        top-up, 0 while charging, 1 in a charging session with the ignition on). Unproven: the bit
+        IG3_RELAY_OUTPUT follows the #1 pattern in the stored captures (1 in READY and the parked 12
+        V top-up, 0 while charging, 1 in a charging session with the ignition on). Unproven: the bit
         may instead be the IGPM's own request for the Main relay it controls, or another IG3 path.
         The wiring is from a US-market diagram; the stored captures are from the EU car.
       sources:
@@ -981,8 +1080,8 @@ IGPM:
       updated: "2026-10-23"
       notes: >-
         Two candidates for the IG3 relays disagree only where the stored data is thin. IGPM
-        UNKNOWN_B12_3 is 1 in READY, the 12 V top-up and AC charging with the ignition on, 0 in AC
-        and DC charging with it off. OBC_AC_NOT_CONNECTED (B22:0) is 0 whenever an AC cable is
+        IG3_RELAY_OUTPUT is 1 in READY, the 12 V top-up and AC charging with the ignition on, 0 in
+        AC and DC charging with it off. OBC_AC_NOT_CONNECTED (B22:0) is 0 whenever an AC cable is
         connected, ignition or not, and 1 during DC charging. The factory text has IG3 #1 open
         during charging and driven by the OBC, IG3 #2 for AC charging and another relay for DC. The
         IG3 rail itself is VCU_IG3_ON.
@@ -1064,8 +1163,32 @@ IGPM:
       vehicle_states: [ACC2, READY]
       created: "2026-10-29"
       updated: "2026-10-29"
-      result: "The four constant bytes before the data (B05, B06, B07, B09) are a per-DID bitmap of which data bits are real signals: B05 covers B10, B06 B11, B07 B12, B09 B13, MSB first (mask bit 7 = data bit 0). Over ~1750 captures per DID, every bit ever set in 22BC03, BC04, BC05 and BC07 lies inside its mask. The plain (LSB-first) reading fails on every one. In 22BC06 the mask marks a field's start bit: B11 has only bit 0, so the turn signal is one 2-bit field (0 off, 1 left, 2 right), which matches 'never 3'."
-      notes: "Consequence: canair coverage's BITS 'missing' lists overstate the gaps. A bit outside the mask is not a signal. The real undecoded signals (in the mask, never set in any capture, so never exercised) are: 22BC03 B11:4, B13:2, B13:3, B13:6, B13:7; 22BC04 B10:5, B10:7, B11:2-B11:7 (all six), B12:0, B13:0, B13:2, B13:4, plus B13:1 which is always 1 (B12:1-3 now SEATBELT_RR/RL/RM candidates); 22BC05 B10:1-B10:3; 22BC07 B11:1, B12:1, B12:6, B12:7, B13:0, B13:1, B13:4, B13:5, plus B12:4 which is always 1. 22BC06 B10:0, B10:3 and B10:5 are separate signals that set together with BRAKE_PEDAL_BITS (0x2D). OBDb Hyundai-IONIQ-Electric labels that fall outside the mask do not apply to this IGPM: 22BC04 B10:4 'reverse gear' (read 0 with VCU GEAR_R=1) and 22BC07 B11:0 'defog light' (0 during the 2026-07-30 defogger window). OBDb also lists 22BC08/22BC09, which return NRC 0x31 here, so its IGPM is a different variant. Its labels that fall inside the mask (22BC04 locks, 22BC05 B12 headlight switch, the rear belts) are worth testing. Candidates for the open slots, from the signals the gateway broadcasts (opendbc CGW1/CGW2/CGW4) that no DID maps yet: park brake switch, hazard switch, front and rear fog, wiper switches (int/low/high/auto/mist), rain sensor, passive-access lock and unlock, RKE command, four window states, heated steering wheel, sunroof, brake-fluid switch, ESCL warnings, key-out lamp."
+      result: >-
+        The four constant bytes before the data (B05, B06, B07, B09) are a per-DID bitmap of which
+        data bits are real signals: B05 covers B10, B06 B11, B07 B12, B09 B13, MSB first (mask bit 7
+        = data bit 0). Over ~1750 captures per DID, every bit ever set in 22BC03, BC04, BC05 and
+        BC07 lies inside its mask. The plain (LSB-first) reading fails on every one. In 22BC06 the
+        mask marks a field's start bit: B11 has only bit 0, so the turn signal is one 2-bit field (0
+        off, 1 left, 2 right), which matches 'never 3'. 2026-10-30: the bits were then named from
+        Hyundai's GDS lists and the Kona/i30 ScanDoc lists (IGPM_FINDINGS.md section 6.2); the 'real
+        undecoded' bits in the notes are now mostly named but still never exercised.
+      notes: >-
+        Consequence: canair coverage's BITS 'missing' lists overstate the gaps. A bit outside the
+        mask is not a signal. The real undecoded signals (in the mask, never set in any capture, so
+        never exercised) are: 22BC03 B11:4, B13:2, B13:3, B13:6, B13:7; 22BC04 B10:5, B10:7,
+        B11:2-B11:7 (all six), B12:0, B13:0, B13:2, B13:4, plus B13:1 which is always 1 (B12:1-3 now
+        SEATBELT_RR/RL/RM candidates); 22BC05 B10:1-B10:3; 22BC07 B11:1, B12:1, B12:6, B12:7, B13:0,
+        B13:1, B13:4, B13:5, plus B12:4 which is always 1. 22BC06 B10:0, B10:3 and B10:5 are
+        separate signals that set together with STOP_LAMP_LEFT (0x2D). OBDb Hyundai-IONIQ-Electric
+        labels that fall outside the mask do not apply to this IGPM: 22BC04 B10:4 'reverse gear'
+        (read 0 with VCU GEAR_R=1) and 22BC07 B11:0 'defog light' (0 during the 2026-07-30 defogger
+        window). OBDb also lists 22BC08/22BC09, which return NRC 0x31 here, so its IGPM is a
+        different variant. Its labels that fall inside the mask (22BC04 locks, 22BC05 B12 headlight
+        switch, the rear belts) are worth testing. Candidates for the open slots, from the signals
+        the gateway broadcasts (opendbc CGW1/CGW2/CGW4) that no DID maps yet: park brake switch,
+        hazard switch, front and rear fog, wiper switches (int/low/high/auto/mist), rain sensor,
+        passive-access lock and unlock, RKE command, four window states, heated steering wheel,
+        sunroof, brake-fluid switch, ESCL warnings, key-out lamp.
       sources:
         - byte sweep over all stored 22BC03-07 captures, 2026-10-29
       what_to_test:
