@@ -29,8 +29,9 @@ reference lives in **AGENTS.md**, `docs/reference/cli/`, and `canair <cmd>
 - **NEVER** use the UDS programming session (`10 02`) or any firmware
   write/upload command. This is a real, un-brickable car — a bad flash bricks an
   ECU or the whole vehicle.
-- **Never `2E` write** unless you know exactly what it does. Treat `0x22Fxxx`
-  (flash/calibration) DIDs as read-only.
+- **Never `2E` write** unless you know exactly what it does. Reads (`22`) are safe in
+  any DID range; canair's guard also refuses `10 05` (Hyundai/Kia's programming-mode
+  alias), ECU resets and reprogramming routines (`docs/concepts/safety.md`).
 - **IOControl (`2F`) actuates real hardware** — only with the car stationary and
   in a safe state.
 - Be gentle: the ECUs are old and slow. **No concurrent requests to one ECU.**
@@ -59,7 +60,21 @@ reference lives in **AGENTS.md**, `docs/reference/cli/`, and `canair <cmd>
 2. **Remote control** — remote pre-heat, door locks, etc. Likely needs direct CAN
    write access, not just OBD-II reads.
 
-Backlog: `canair research --summary` (per-ECU `research:` sections).
+Backlog: `canair research --summary` (per-ECU `research:` sections), plus `canair research
+--gaps` for actuator DID families never read with `22` (PSM `B4xx`, SKM `B1xx`, DDM `B1xx`,
+VESS `F0xx` as of 2026-10-30).
+
+Findings documents in `profiles/ioniq-2017/` collect what firmware, third-party logs and
+Hyundai/Kia's own specs say, for triage before a capture session:
+
+- `IGPM_FINDINGS.md` — the gateway (IGPM): hardware, gateway behaviour, diagnostics.
+- `IONIQ_AVN_FW_FINDINGS.md` — what the head-unit/telematics firmware says about other ECUs.
+- `FUNCTIONAL_ADDRESSING_FINDINGS.md` — `0x7DF` broadcast requests: routing, ECU behaviour,
+  timing.
+- `HKMC_UDS_SPEC_FINDINGS.md` — Hyundai/Kia's UDS spec (ES95486): session aliases, power-state
+  rules behind NRC 0x22, identification DIDs, record-DID families and support maps, IOControl
+  and routine id ranges, NRC and failure-type tables. The DID conventions for scanning are in the
+  `reverse-engineer-signal` skill's `hyundai-kia-uds-conventions.md`.
 
 ## Vehicle
 

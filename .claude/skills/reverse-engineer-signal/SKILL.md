@@ -30,8 +30,11 @@ result upstream).
 Full policy: `docs/concepts/safety.md`. The essentials:
 
 - **NEVER** open a programming session (`10 02`) or do any firmware write/upload —
-  ECUs can be bricked. canair blocks these; never work around it.
-- `0x22Fxxx` (flash/cal) is read-only. `2E` writes and `2F` actuation can brick or
+  ECUs can be bricked. canair blocks these; never work around it. The same guard refuses
+  ECU resets (`11`), silencing an ECU's traffic (`28`), memory writes (`2E`/`3B`/`3D`) and
+  reprogramming routines (`31 01 FF00`, Hyundai/Kia's `10 05` alias); the list is in
+  `docs/concepts/safety.md`.
+- Reads (`22`) are safe in any DID range. `2E` writes and `2F` actuation can brick or
   move hardware — out of scope for signal decoding.
 - **One canair connection at a time, any transport** (a `flock` mutex enforces it); no
   concurrent requests to one ECU. Clear a stuck session with `--force` or
@@ -93,12 +96,14 @@ redistribution; unlicensed corpora stay fetch-on-demand in gitignored `reference
 
 ```bash
 canair research --summary       # backlog counts; --priority P1 / --ecu MCU to narrow
+canair research --gaps          # actuator DID families no 0x22 read has reached yet
 canair coverage --no-capture    # params defined but never captured
 canair coverage --unmapped      # captured PIDs with undecoded bytes
 ```
 
-`research` surfaces *planned* work; `coverage` surfaces *undecoded bytes* in PIDs you
-already capture. `canair ecu` shows which ECUs carry which kind of signal.
+`research` surfaces *planned* work, and `--gaps` the unplanned reads the profile's own
+evidence points at; `coverage` surfaces *undecoded bytes* in PIDs you already capture.
+`canair ecu` shows which ECUs carry which kind of signal.
 
 ### 2. Prerequisites — power state & access
 
@@ -117,10 +122,17 @@ canair scan MCU --service 21 --range 01-FF --save                        # KWP l
 canair scan IGPM --service 22 --range BC00-BCFF --session --wake --save  # UDS DIDs
 ```
 
-A bare `canair scan <ECU>` is `scan range`. The other SAFE kinds cover the non-PID
+A bare `canair scan <ECU>` is `scan range`. `--range` takes a comma list
+(`B000-B01F,B100-B11F`); without it a UDS ECU gets its **DID families**, the high bytes the
+profile already shows it using in `22`/`2F` PIDs and IOControl hits, each swept whole
+(`--slots N` for the first N). The other SAFE kinds cover the non-PID
 signal types: `scan sessions` (which session types the ECU supports — informs step 2),
 `scan routines` (`0x31`/KWP `0x33`), `scan iocontrol` (`0x2F`/KWP `0x30`); hits land in
-the ECU's `routines:`/`iocontrol_discoveries:`.
+the ECU's `routines:`/`iocontrol_discoveries:`. **After an IOControl scan, run
+`canair research --gaps`:** ECUs often keep their live-data records in their actuators'
+family, so an ECU that "has no live data" frequently just has never been read there. A saved
+sweep the ECU slept through does not count as a read, so save sweeps (`--save`) and re-run
+asleep ones with `--wake`.
 
 **Always record the outcome — a discovered DID must never be lost:**
 
@@ -389,7 +401,7 @@ Flags live in each command's `--help`; `docs/concepts/analysis-commands.md` is t
 
 | Question | Tool |
 |------|------|
-| what to work on | `canair research`, `canair coverage` |
+| what to work on | `canair research` (`--gaps` for unread actuator families), `canair coverage` |
 | what's captured | `canair captures uds --sessions` (TOC; `--json`) |
 | talk to the car | `canair read`/`monitor`/`scan`/`discover` (`--save`) |
 | onboard a reading (no device) | `canair import uds ECU:PID=PAYLOAD --label … --state …` |

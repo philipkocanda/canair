@@ -65,6 +65,7 @@ has nothing co-polled to correlate against.
 | nothing, just the captures | every part number / version string in them | `search` |
 | a finished-ish profile | what bytes are still undecoded | `coverage` |
 | a session's end | what to work on next | `research` |
+| an ECU known only by its actuators | which of its DID families were never read | `research --gaps` |
 | a confounder to remove | correlation with a nuisance regressed out | `… --control REF` (hunt/correlate) |
 | no on-bus anchor | a byte that lands in a physical band | `hunt --physical` |
 | a suspected odometer / hour meter / cycle count | the bytes that **only ever rise** | `investigate <ECU> <PID> --counters` |

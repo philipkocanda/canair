@@ -62,13 +62,15 @@ IGPM `BC01`-`BC08`, BCM `B001`-`B00F`, SKM `B002`-`B00B`. Newer ECUs fix the slo
 options, `xx02` byte-wide I/O, `xx03` bit-wide I/O) and start each record with a 4-byte support
 map (see `canair investigate --support-map`). Three consequences for scanning:
 
-- **Sweep the low slots of every family, not a fixed range.** For each high byte the ECU already
-  uses (in `22` or `2F` keys), read `xx00`-`xx1F`. A sweep of `B001`-`B010` alone misses an ECU
-  whose family is `B4xx` or `BExx`.
+- **Sweep every family, not a fixed range.** A sweep of `B001`-`B010` alone misses an ECU whose
+  family is `B4xx` or `BExx`. `canair scan range <ECU>` with no `--range` already sweeps each
+  family the profile shows (whole, since real DIDs also sit at the top: IGPM `BCFD`/`BCFF`).
 - **Read an ECU's IOControl DIDs with `22`.** On this car the IGPM's `BCxx` and the BCM's `B0xx`
   are both read and actuated. HVAC's `F0xx` is the exception: `22` answers NRC there.
-- **An ECU with IOControl hits but no record DIDs is a gap**, not a dead end: try its IOControl
-  family with `22`, then the neighbouring families.
+- **An ECU with IOControl hits but no record DIDs is a gap**, not a dead end. `canair research
+  --gaps` lists every such family with the scan to run; after it, try the neighbouring families.
+- **An NRC-only IOControl "hit" is not evidence.** The DDM answers NRC 0x22 to every DID of
+  `B000`-`B524`; only its positive `B1xx` releases say where its actuators are.
 
 ## Identity DIDs and the `-1` echo
 
