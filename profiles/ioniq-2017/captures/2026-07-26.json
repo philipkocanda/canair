@@ -6,7 +6,8 @@
       "vehicle_states": [
         "CHARGING",
         "PLUGGED",
-        "PARKED"
+        "PARKED",
+        "IG3"
       ],
       "notes": "16A pilot, 3.44-3-56 kW (AC calibrated measurement)",
       "captures": [
@@ -34182,9 +34183,31 @@
       "vehicle_states": [
         "CHARGING",
         "PLUGGED",
-        "PARKED"
+        "PARKED",
+        "IG3"
       ],
       "notes": "charging continued (16A pilot)",
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {
+            "at": "11:34:44.688",
+            "states": [
+              "CHARGING",
+              "PLUGGED",
+              "PARKED"
+            ]
+          },
+          {
+            "at": "12:18:42.443",
+            "states": [
+              "PLUGGED",
+              "PARKED"
+            ]
+          }
+        ],
+        "version": "1.18.1+main.22a9bf9"
+      },
       "captures": [
         {
           "rx": "0x7EC",
@@ -62890,35 +62913,15 @@
           "payload": "6102F8F8000001000000008400888888330000306A6B3300000000",
           "time": "12:21:49.625"
         }
-      ],
-      "state_spans": {
-        "source": "backfill",
-        "spans": [
-          {
-            "at": "11:34:44.688",
-            "states": [
-              "CHARGING",
-              "PLUGGED",
-              "PARKED"
-            ]
-          },
-          {
-            "at": "12:18:42.443",
-            "states": [
-              "PLUGGED",
-              "PARKED"
-            ]
-          }
-        ],
-        "version": "1.18.1+main.22a9bf9"
-      }
+      ]
     },
     {
       "date": "2026-07-26",
       "label": "BMS LDC VCU MCU",
       "vehicle_states": [
         "READY",
-        "PARKED"
+        "PARKED",
+        "IG3"
       ],
       "notes": "10min. after arriving from 20 min medium speed drive (ambient: 22C)",
       "captures": [
@@ -70094,9 +70097,88 @@
       "vehicle_states": [
         "READY",
         "PARKED",
-        "DRIVING"
+        "DRIVING",
+        "IG3"
       ],
       "notes": "Back and forth a few times while steering a lot on the driveway",
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {
+            "at": "16:59:33.955",
+            "states": [
+              "READY",
+              "PARKED"
+            ]
+          },
+          {
+            "at": "16:59:44.159",
+            "states": [
+              "READY"
+            ]
+          },
+          {
+            "at": "17:00:04.680",
+            "states": [
+              "READY",
+              "DRIVING"
+            ]
+          },
+          {
+            "at": "17:00:14.760",
+            "states": [
+              "READY"
+            ]
+          },
+          {
+            "at": "17:00:24.979",
+            "states": [
+              "READY",
+              "DRIVING"
+            ]
+          },
+          {
+            "at": "17:00:35.242",
+            "states": [
+              "READY"
+            ]
+          },
+          {
+            "at": "17:00:45.353",
+            "states": [
+              "READY",
+              "DRIVING"
+            ]
+          },
+          {
+            "at": "17:00:55.475",
+            "states": [
+              "READY"
+            ]
+          },
+          {
+            "at": "17:02:58.560",
+            "states": [
+              "READY",
+              "DRIVING"
+            ]
+          },
+          {
+            "at": "17:03:28.765",
+            "states": [
+              "READY"
+            ]
+          },
+          {
+            "at": "17:03:39.005",
+            "states": [
+              "READY",
+              "PARKED"
+            ]
+          }
+        ],
+        "version": "1.18.1+main.22a9bf9"
+      },
       "captures": [
         {
           "rx": "0x7D9",
@@ -79500,92 +79582,15 @@
           "payload": "6102FFFC0000684F792A694A79286E847927650F791B7499791F7293792B74827931",
           "time": "17:06:14.986"
         }
-      ],
-      "state_spans": {
-        "source": "backfill",
-        "spans": [
-          {
-            "at": "16:59:33.955",
-            "states": [
-              "READY",
-              "PARKED"
-            ]
-          },
-          {
-            "at": "16:59:44.159",
-            "states": [
-              "READY"
-            ]
-          },
-          {
-            "at": "17:00:04.680",
-            "states": [
-              "READY",
-              "DRIVING"
-            ]
-          },
-          {
-            "at": "17:00:14.760",
-            "states": [
-              "READY"
-            ]
-          },
-          {
-            "at": "17:00:24.979",
-            "states": [
-              "READY",
-              "DRIVING"
-            ]
-          },
-          {
-            "at": "17:00:35.242",
-            "states": [
-              "READY"
-            ]
-          },
-          {
-            "at": "17:00:45.353",
-            "states": [
-              "READY",
-              "DRIVING"
-            ]
-          },
-          {
-            "at": "17:00:55.475",
-            "states": [
-              "READY"
-            ]
-          },
-          {
-            "at": "17:02:58.560",
-            "states": [
-              "READY",
-              "DRIVING"
-            ]
-          },
-          {
-            "at": "17:03:28.765",
-            "states": [
-              "READY"
-            ]
-          },
-          {
-            "at": "17:03:39.005",
-            "states": [
-              "READY",
-              "PARKED"
-            ]
-          }
-        ],
-        "version": "1.18.1+main.22a9bf9"
-      }
+      ]
     },
     {
       "date": "2026-07-26",
       "label": "AAF HVAC VCU BMS:2101 OBC",
       "vehicle_states": [
         "READY",
-        "PARKED"
+        "PARKED",
+        "IG3"
       ],
       "notes": "HVAC modes cycled (no heating/cooling enabled): airflow face+legs -> legs only -> legs + windshield -> (speed from 3 to 5) -> face only -> face+legs -> driver only on -> driver only off -> recirculation on -> recirculation off",
       "captures": [
@@ -93180,7 +93185,8 @@
       "label": "AAF HVAC VCU BMS:2101 OBC",
       "vehicle_states": [
         "READY",
-        "PARKED"
+        "PARKED",
+        "IG3"
       ],
       "notes": "Parked, heater on high, airflow windshield+feet",
       "captures": [

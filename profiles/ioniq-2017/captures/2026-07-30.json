@@ -8,7 +8,8 @@
         "SLEEP",
         "ACC",
         "ACC2",
-        "PARKED"
+        "PARKED",
+        "IG3"
       ],
       "notes": "cycling through READY->OFF(IGN0)->ACC1(IGN1?,amber LED)->ACC2(IGN1?,blue LED)->READY(IGN2?,LED off) (LED: start/power button)",
       "keep_mode": "unique",
@@ -16,6 +17,39 @@
       "quality": {
         "exchanges": 2745,
         "no_data": 88
+      },
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {
+            "at": "09:41:56.303",
+            "states": [
+              "READY",
+              "SLEEP",
+              "ACC",
+              "ACC2",
+              "PARKED"
+            ]
+          },
+          {
+            "at": "09:50:29.365",
+            "states": [
+              "SLEEP",
+              "ACC",
+              "PARKED"
+            ]
+          },
+          {
+            "at": "09:53:49.457",
+            "states": [
+              "READY",
+              "SLEEP",
+              "ACC",
+              "PARKED"
+            ]
+          }
+        ],
+        "version": "1.18.1+main.22a9bf9"
       },
       "captures": [
         {
@@ -6294,40 +6328,7 @@
           "payload": "6201A301050103FFFFFFFF000000F200F80600000000000000000010104A490000D1220000000000000002BC02DA00000000000000",
           "time": "09:57:49.770"
         }
-      ],
-      "state_spans": {
-        "source": "backfill",
-        "spans": [
-          {
-            "at": "09:41:56.303",
-            "states": [
-              "READY",
-              "SLEEP",
-              "ACC",
-              "ACC2",
-              "PARKED"
-            ]
-          },
-          {
-            "at": "09:50:29.365",
-            "states": [
-              "SLEEP",
-              "ACC",
-              "PARKED"
-            ]
-          },
-          {
-            "at": "09:53:49.457",
-            "states": [
-              "READY",
-              "SLEEP",
-              "ACC",
-              "PARKED"
-            ]
-          }
-        ],
-        "version": "1.18.1+main.22a9bf9"
-      }
+      ]
     },
     {
       "date": "2026-07-30",
@@ -6335,7 +6336,8 @@
       "vehicle_states": [
         "READY",
         "ACC2",
-        "PARKED"
+        "PARKED",
+        "IG3"
       ],
       "notes": "precondition schedule 01:00, Sun/Tue/Wed/Thu/Sat. 20C,no windshield heating.",
       "keep_mode": "unique",
@@ -13545,7 +13547,8 @@
       "vehicle_states": [
         "READY",
         "ACC2",
-        "PARKED"
+        "PARKED",
+        "IG3"
       ],
       "notes": "defroster on",
       "keep_mode": "unique",
@@ -14769,7 +14772,8 @@
       "vehicle_states": [
         "READY",
         "ACC2",
-        "PARKED"
+        "PARKED",
+        "IG3"
       ],
       "notes": "HVAC \"front\" button pressed (high fan, AC on, defroster still on too)",
       "keep_mode": "unique",
@@ -17223,7 +17227,8 @@
       "vehicle_states": [
         "READY",
         "ACC2",
-        "PARKED"
+        "PARKED",
+        "IG3"
       ],
       "notes": "changing DC loads to see what changes - now around 220-250W indicated for \"electronics\"",
       "keep_mode": "unique",
@@ -22594,7 +22599,8 @@
       "vehicle_states": [
         "CHARGING",
         "PLUGGED",
-        "PARKED"
+        "PARKED",
+        "IG3"
       ],
       "keep_mode": "unique",
       "transport": "wican-ws",
@@ -22602,6 +22608,27 @@
         "exchanges": 27108,
         "no_data": 1893,
         "drop": 22
+      },
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {
+            "at": "12:20:45.815",
+            "states": [
+              "CHARGING",
+              "PLUGGED",
+              "PARKED"
+            ]
+          },
+          {
+            "at": "14:43:31.164",
+            "states": [
+              "PLUGGED",
+              "PARKED"
+            ]
+          }
+        ],
+        "version": "1.18.1+main.22a9bf9"
       },
       "captures": [
         {
@@ -49514,28 +49541,7 @@
           "payload": "62C011E0000000009EBE2762",
           "time": "15:03:36.585"
         }
-      ],
-      "state_spans": {
-        "source": "backfill",
-        "spans": [
-          {
-            "at": "12:20:45.815",
-            "states": [
-              "CHARGING",
-              "PLUGGED",
-              "PARKED"
-            ]
-          },
-          {
-            "at": "14:43:31.164",
-            "states": [
-              "PLUGGED",
-              "PARKED"
-            ]
-          }
-        ],
-        "version": "1.18.1+main.22a9bf9"
-      }
+      ]
     }
   ]
 }

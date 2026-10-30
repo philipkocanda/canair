@@ -6,7 +6,8 @@
       "version": "1.35.2+main.9e30bbb",
       "vehicle_states": [
         "PARKED",
-        "TOPUP"
+        "TOPUP",
+        "IG3"
       ],
       "transport": "wican-ws",
       "quality": {

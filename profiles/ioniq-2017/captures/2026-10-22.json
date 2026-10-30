@@ -454,7 +454,8 @@
       "vehicle_states": [
         "READY",
         "ACC2",
-        "PARKED"
+        "PARKED",
+        "IG3"
       ],
       "notes": "cold soaked (7-8 celcius)",
       "transport": "wican-ws",
@@ -2693,7 +2694,8 @@
       "vehicle_states": [
         "READY",
         "ACC2",
-        "PARKED"
+        "PARKED",
+        "IG3"
       ],
       "notes": "cold soaked, hvac fan only (no heating/cooling)",
       "transport": "wican-ws",
@@ -6538,7 +6540,8 @@
       "vehicle_states": [
         "READY",
         "ACC2",
-        "PARKED"
+        "PARKED",
+        "IG3"
       ],
       "notes": "still rather cold soaked",
       "transport": "wican-ws",

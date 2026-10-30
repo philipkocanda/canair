@@ -5,8 +5,9 @@
       "label": "HVAC AAF OBC VCU MCU",
       "version": "1.16.0",
       "vehicle_states": [
+        "CHARGING",
         "PARKED",
-        "CHARGING"
+        "IG3"
       ],
       "keep_mode": "changes",
       "transport": "wican-ws",
@@ -273,7 +274,8 @@
       "label": "HVAC AAF OBC VCU MCU",
       "version": "1.16.0",
       "vehicle_states": [
-        "PARKED"
+        "PARKED",
+        "IG3"
       ],
       "notes": "preconditioning active",
       "keep_mode": "changes",
@@ -24301,7 +24303,8 @@
         "READY",
         "ACC2",
         "PARKED",
-        "DRIVING"
+        "DRIVING",
+        "IG3"
       ],
       "keep_mode": "changes",
       "transport": "wican-ws",
@@ -24310,6 +24313,50 @@
         "no_data": 633,
         "drop": 12,
         "stale": 2053
+      },
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {
+            "at": "10:02:08.000",
+            "states": [
+              "READY",
+              "ACC2",
+              "PARKED"
+            ]
+          },
+          {
+            "at": "10:02:51.556",
+            "states": [
+              "READY",
+              "ACC2"
+            ]
+          },
+          {
+            "at": "10:03:02.125",
+            "states": [
+              "READY",
+              "ACC2",
+              "DRIVING"
+            ]
+          },
+          {
+            "at": "10:03:12.775",
+            "states": [
+              "READY",
+              "ACC2"
+            ]
+          },
+          {
+            "at": "10:03:33.745",
+            "states": [
+              "READY",
+              "ACC2",
+              "DRIVING"
+            ]
+          }
+        ],
+        "version": "1.18.1+main.22a9bf9"
       },
       "captures": [
         {
@@ -26178,51 +26225,7 @@
           "payload": "62C1023FE00000FFFFFFFFFFFF010100009B9B000000C0C0D4D4",
           "time": "10:05:53.357"
         }
-      ],
-      "state_spans": {
-        "source": "backfill",
-        "spans": [
-          {
-            "at": "10:02:08.000",
-            "states": [
-              "READY",
-              "ACC2",
-              "PARKED"
-            ]
-          },
-          {
-            "at": "10:02:51.556",
-            "states": [
-              "READY",
-              "ACC2"
-            ]
-          },
-          {
-            "at": "10:03:02.125",
-            "states": [
-              "READY",
-              "ACC2",
-              "DRIVING"
-            ]
-          },
-          {
-            "at": "10:03:12.775",
-            "states": [
-              "READY",
-              "ACC2"
-            ]
-          },
-          {
-            "at": "10:03:33.745",
-            "states": [
-              "READY",
-              "ACC2",
-              "DRIVING"
-            ]
-          }
-        ],
-        "version": "1.18.1+main.22a9bf9"
-      }
+      ]
     },
     {
       "date": "2026-08-08",
@@ -26232,13 +26235,81 @@
         "READY",
         "ACC2",
         "PARKED",
-        "DRIVING"
+        "DRIVING",
+        "IG3"
       ],
       "keep_mode": "changes",
       "transport": "wican-ws",
       "quality": {
         "exchanges": 2206,
         "drop": 17
+      },
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {
+            "at": "10:13:16.912",
+            "states": [
+              "READY",
+              "ACC2",
+              "DRIVING"
+            ]
+          },
+          {
+            "at": "10:15:12.444",
+            "states": [
+              "READY",
+              "ACC2"
+            ]
+          },
+          {
+            "at": "10:15:55.586",
+            "states": [
+              "READY",
+              "ACC2",
+              "DRIVING"
+            ]
+          },
+          {
+            "at": "10:17:10.688",
+            "states": [
+              "READY",
+              "ACC2",
+              "PARKED"
+            ]
+          },
+          {
+            "at": "10:24:07.284",
+            "states": [
+              "READY",
+              "ACC2"
+            ]
+          },
+          {
+            "at": "10:24:17.549",
+            "states": [
+              "READY",
+              "ACC2",
+              "DRIVING"
+            ]
+          },
+          {
+            "at": "10:24:49.824",
+            "states": [
+              "READY",
+              "ACC2"
+            ]
+          },
+          {
+            "at": "10:25:34.783",
+            "states": [
+              "READY",
+              "ACC2",
+              "DRIVING"
+            ]
+          }
+        ],
+        "version": "1.18.1+main.22a9bf9"
       },
       "captures": [
         {
@@ -32391,74 +32462,7 @@
           "payload": "62C1015BD7E760FFFF40FF04ECFF40403F40FF84FF0030F4000000FFFF8024082F0813FFFF0000FFFFFF",
           "time": "10:26:56.936"
         }
-      ],
-      "state_spans": {
-        "source": "backfill",
-        "spans": [
-          {
-            "at": "10:13:16.912",
-            "states": [
-              "READY",
-              "ACC2",
-              "DRIVING"
-            ]
-          },
-          {
-            "at": "10:15:12.444",
-            "states": [
-              "READY",
-              "ACC2"
-            ]
-          },
-          {
-            "at": "10:15:55.586",
-            "states": [
-              "READY",
-              "ACC2",
-              "DRIVING"
-            ]
-          },
-          {
-            "at": "10:17:10.688",
-            "states": [
-              "READY",
-              "ACC2",
-              "PARKED"
-            ]
-          },
-          {
-            "at": "10:24:07.284",
-            "states": [
-              "READY",
-              "ACC2"
-            ]
-          },
-          {
-            "at": "10:24:17.549",
-            "states": [
-              "READY",
-              "ACC2",
-              "DRIVING"
-            ]
-          },
-          {
-            "at": "10:24:49.824",
-            "states": [
-              "READY",
-              "ACC2"
-            ]
-          },
-          {
-            "at": "10:25:34.783",
-            "states": [
-              "READY",
-              "ACC2",
-              "DRIVING"
-            ]
-          }
-        ],
-        "version": "1.18.1+main.22a9bf9"
-      }
+      ]
     },
     {
       "date": "2026-08-08",
@@ -32467,7 +32471,8 @@
       "vehicle_states": [
         "READY",
         "ACC2",
-        "DRIVING"
+        "DRIVING",
+        "IG3"
       ],
       "keep_mode": "changes",
       "transport": "wican-ws",
@@ -33181,7 +33186,8 @@
       "vehicle_states": [
         "READY",
         "ACC2",
-        "DRIVING"
+        "DRIVING",
+        "IG3"
       ],
       "keep_mode": "changes",
       "transport": "wican-ws",
@@ -42691,7 +42697,8 @@
       "vehicle_states": [
         "READY",
         "ACC2",
-        "DRIVING"
+        "DRIVING",
+        "IG3"
       ],
       "keep_mode": "changes",
       "transport": "wican-ws",
@@ -47268,7 +47275,8 @@
         "PLUGGED",
         "ACC2",
         "PARKED",
-        "DRIVING"
+        "DRIVING",
+        "IG3"
       ],
       "keep_mode": "changes",
       "transport": "wican-ws",
@@ -47276,6 +47284,41 @@
         "exchanges": 5248,
         "no_data": 91,
         "drop": 39
+      },
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {
+            "at": "11:08:26.165",
+            "states": [
+              "READY",
+              "ACC2",
+              "DRIVING"
+            ]
+          },
+          {
+            "at": "11:41:08.307",
+            "states": [
+              "ACC2",
+              "PARKED"
+            ]
+          },
+          {
+            "at": "11:41:22.987",
+            "states": [
+              "PARKED"
+            ]
+          },
+          {
+            "at": "11:41:44.124",
+            "states": [
+              "CHARGING",
+              "PLUGGED",
+              "PARKED"
+            ]
+          }
+        ],
+        "version": "1.18.1+main.22a9bf9"
       },
       "captures": [
         {
@@ -65068,42 +65111,7 @@
           "payload": "62C1015BD7E760FFFF00FF01EFFF00000000FF7FFF0030F4000000FFFF7FD0080007FBFFFF0000FFFFFF",
           "time": "11:42:43.794"
         }
-      ],
-      "state_spans": {
-        "source": "backfill",
-        "spans": [
-          {
-            "at": "11:08:26.165",
-            "states": [
-              "READY",
-              "ACC2",
-              "DRIVING"
-            ]
-          },
-          {
-            "at": "11:41:08.307",
-            "states": [
-              "ACC2",
-              "PARKED"
-            ]
-          },
-          {
-            "at": "11:41:22.987",
-            "states": [
-              "PARKED"
-            ]
-          },
-          {
-            "at": "11:41:44.124",
-            "states": [
-              "CHARGING",
-              "PLUGGED",
-              "PARKED"
-            ]
-          }
-        ],
-        "version": "1.18.1+main.22a9bf9"
-      }
+      ]
     },
     {
       "date": "2026-08-08",
@@ -65113,7 +65121,8 @@
         "READY",
         "ACC2",
         "PARKED",
-        "DRIVING"
+        "DRIVING",
+        "IG3"
       ],
       "keep_mode": "changes",
       "transport": "wican-ws",
@@ -65124,6 +65133,28 @@
         "stale": 1,
         "decode": 1,
         "resyncs": 2
+      },
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {
+            "at": "15:33:36.762",
+            "states": [
+              "READY",
+              "ACC2",
+              "PARKED"
+            ]
+          },
+          {
+            "at": "15:33:59.044",
+            "states": [
+              "READY",
+              "ACC2",
+              "DRIVING"
+            ]
+          }
+        ],
+        "version": "1.18.1+main.22a9bf9"
       },
       "captures": [
         {
@@ -72134,41 +72165,20 @@
           "payload": "6181FFFFC000225100263C00344E848E555C57518D13008D8D",
           "time": "15:47:26.252"
         }
-      ],
-      "state_spans": {
-        "source": "backfill",
-        "spans": [
-          {
-            "at": "15:33:36.762",
-            "states": [
-              "READY",
-              "ACC2",
-              "PARKED"
-            ]
-          },
-          {
-            "at": "15:33:59.044",
-            "states": [
-              "READY",
-              "ACC2",
-              "DRIVING"
-            ]
-          }
-        ],
-        "version": "1.18.1+main.22a9bf9"
-      }
+      ]
     },
     {
       "date": "2026-08-08",
       "label": "IGPM OBC AAF IGPM BMS:2101 BMS:2105 VCU:2101 VCU:2102 MCU EPS ESC CLU AAF:2180 AAF:2181",
       "version": "1.17.0+main.8efa6df.dirty",
       "vehicle_states": [
+        "CHARGING",
         "READY",
-        "ACC2",
-        "DRIVING",
-        "PARKED",
         "PLUGGED",
-        "CHARGING"
+        "ACC2",
+        "PARKED",
+        "DRIVING",
+        "IG3"
       ],
       "keep_mode": "changes",
       "transport": "wican-ws",
@@ -72177,6 +72187,97 @@
         "no_data": 1,
         "drop": 26,
         "resyncs": 1
+      },
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {
+            "at": "15:47:56.192",
+            "states": [
+              "READY",
+              "ACC2",
+              "DRIVING"
+            ]
+          },
+          {
+            "at": "15:56:38.882",
+            "states": [
+              "READY",
+              "ACC2"
+            ]
+          },
+          {
+            "at": "15:56:59.922",
+            "states": [
+              "READY",
+              "ACC2",
+              "DRIVING"
+            ]
+          },
+          {
+            "at": "16:31:06.866",
+            "states": [
+              "READY",
+              "ACC2",
+              "PARKED",
+              "DRIVING"
+            ]
+          },
+          {
+            "at": "16:31:23.526",
+            "states": [
+              "READY",
+              "PARKED",
+              "DRIVING"
+            ]
+          },
+          {
+            "at": "16:31:33.847",
+            "states": [
+              "PARKED"
+            ]
+          },
+          {
+            "at": "16:31:44.222",
+            "states": [
+              "CHARGING",
+              "PLUGGED",
+              "PARKED"
+            ]
+          },
+          {
+            "at": "16:43:54.444",
+            "states": [
+              "CHARGING",
+              "PARKED"
+            ]
+          },
+          {
+            "at": "16:44:16.065",
+            "states": [
+              "CHARGING",
+              "ACC2",
+              "PARKED"
+            ]
+          },
+          {
+            "at": "16:44:28.475",
+            "states": [
+              "READY",
+              "ACC2",
+              "PARKED"
+            ]
+          },
+          {
+            "at": "16:44:50.169",
+            "states": [
+              "READY",
+              "ACC2",
+              "DRIVING"
+            ]
+          }
+        ],
+        "version": "1.18.1+main.22a9bf9"
       },
       "captures": [
         {
@@ -113411,98 +113512,7 @@
           "payload": "6181FFFFC0002513004268003442848B4C5B4F4C8813008D8D",
           "time": "17:19:26.976"
         }
-      ],
-      "state_spans": {
-        "source": "backfill",
-        "spans": [
-          {
-            "at": "15:47:56.192",
-            "states": [
-              "READY",
-              "ACC2",
-              "DRIVING"
-            ]
-          },
-          {
-            "at": "15:56:38.882",
-            "states": [
-              "READY",
-              "ACC2"
-            ]
-          },
-          {
-            "at": "15:56:59.922",
-            "states": [
-              "READY",
-              "ACC2",
-              "DRIVING"
-            ]
-          },
-          {
-            "at": "16:31:06.866",
-            "states": [
-              "READY",
-              "ACC2",
-              "PARKED",
-              "DRIVING"
-            ]
-          },
-          {
-            "at": "16:31:23.526",
-            "states": [
-              "READY",
-              "PARKED",
-              "DRIVING"
-            ]
-          },
-          {
-            "at": "16:31:33.847",
-            "states": [
-              "PARKED"
-            ]
-          },
-          {
-            "at": "16:31:44.222",
-            "states": [
-              "CHARGING",
-              "PLUGGED",
-              "PARKED"
-            ]
-          },
-          {
-            "at": "16:43:54.444",
-            "states": [
-              "CHARGING",
-              "PARKED"
-            ]
-          },
-          {
-            "at": "16:44:16.065",
-            "states": [
-              "CHARGING",
-              "ACC2",
-              "PARKED"
-            ]
-          },
-          {
-            "at": "16:44:28.475",
-            "states": [
-              "READY",
-              "ACC2",
-              "PARKED"
-            ]
-          },
-          {
-            "at": "16:44:50.169",
-            "states": [
-              "READY",
-              "ACC2",
-              "DRIVING"
-            ]
-          }
-        ],
-        "version": "1.18.1+main.22a9bf9"
-      }
+      ]
     },
     {
       "date": "2026-08-08",
@@ -113511,7 +113521,8 @@
       "vehicle_states": [
         "READY",
         "ACC2",
-        "DRIVING"
+        "DRIVING",
+        "IG3"
       ],
       "keep_mode": "changes",
       "transport": "wican-ws",
@@ -121983,16 +121994,97 @@
       "version": "1.17.0+main.73f9815.dirty",
       "vehicle_states": [
         "READY",
+        "PLUGGED",
         "ACC2",
-        "DRIVING",
         "PARKED",
-        "PLUGGED"
+        "DRIVING",
+        "IG3"
       ],
       "keep_mode": "changes",
       "transport": "wican-ws",
       "quality": {
         "exchanges": 533,
         "no_data": 486
+      },
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {
+            "at": "17:37:24.689",
+            "states": [
+              "READY",
+              "ACC2",
+              "DRIVING"
+            ]
+          },
+          {
+            "at": "17:38:27.226",
+            "states": [
+              "READY",
+              "ACC2"
+            ]
+          },
+          {
+            "at": "17:39:30.664",
+            "states": [
+              "READY",
+              "ACC2",
+              "DRIVING"
+            ]
+          },
+          {
+            "at": "17:40:12.222",
+            "states": [
+              "READY",
+              "ACC2",
+              "PARKED"
+            ]
+          },
+          {
+            "at": "17:41:04.580",
+            "states": [
+              "READY",
+              "ACC2",
+              "DRIVING"
+            ]
+          },
+          {
+            "at": "17:41:35.055",
+            "states": [
+              "READY",
+              "ACC2"
+            ]
+          },
+          {
+            "at": "17:42:06.641",
+            "states": [
+              "READY",
+              "ACC2",
+              "DRIVING"
+            ]
+          },
+          {
+            "at": "17:52:36.292",
+            "states": [
+              "READY",
+              "PARKED"
+            ]
+          },
+          {
+            "at": "17:52:49.753",
+            "states": [
+              "PARKED"
+            ]
+          },
+          {
+            "at": "17:53:19.145",
+            "states": [
+              "PLUGGED",
+              "PARKED"
+            ]
+          }
+        ],
+        "version": "1.18.1+main.22a9bf9"
       },
       "captures": [
         {
@@ -131823,87 +131915,7 @@
           "payload": "62BC070841FBCC00801000",
           "time": "18:30:50.036"
         }
-      ],
-      "state_spans": {
-        "source": "backfill",
-        "spans": [
-          {
-            "at": "17:37:24.689",
-            "states": [
-              "READY",
-              "ACC2",
-              "DRIVING"
-            ]
-          },
-          {
-            "at": "17:38:27.226",
-            "states": [
-              "READY",
-              "ACC2"
-            ]
-          },
-          {
-            "at": "17:39:30.664",
-            "states": [
-              "READY",
-              "ACC2",
-              "DRIVING"
-            ]
-          },
-          {
-            "at": "17:40:12.222",
-            "states": [
-              "READY",
-              "ACC2",
-              "PARKED"
-            ]
-          },
-          {
-            "at": "17:41:04.580",
-            "states": [
-              "READY",
-              "ACC2",
-              "DRIVING"
-            ]
-          },
-          {
-            "at": "17:41:35.055",
-            "states": [
-              "READY",
-              "ACC2"
-            ]
-          },
-          {
-            "at": "17:42:06.641",
-            "states": [
-              "READY",
-              "ACC2",
-              "DRIVING"
-            ]
-          },
-          {
-            "at": "17:52:36.292",
-            "states": [
-              "READY",
-              "PARKED"
-            ]
-          },
-          {
-            "at": "17:52:49.753",
-            "states": [
-              "PARKED"
-            ]
-          },
-          {
-            "at": "17:53:19.145",
-            "states": [
-              "PLUGGED",
-              "PARKED"
-            ]
-          }
-        ],
-        "version": "1.18.1+main.22a9bf9"
-      }
+      ]
     }
   ]
 }

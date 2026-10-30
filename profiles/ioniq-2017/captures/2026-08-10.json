@@ -7,7 +7,8 @@
       "vehicle_states": [
         "CHARGING",
         "PLUGGED",
-        "PARKED"
+        "PARKED",
+        "IG3"
       ],
       "notes": "Charging capture with transport improvements",
       "keep_mode": "unique",

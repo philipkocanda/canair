@@ -7,7 +7,8 @@
       "vehicle_states": [
         "CHARGING",
         "PLUGGED",
-        "PARKED"
+        "PARKED",
+        "IG3"
       ],
       "keep_mode": "changes",
       "transport": "wican-ws",
@@ -450,9 +451,10 @@
       "label": "IGPM BMS:2101,2105 OBC VCU MCU BCM SKM",
       "version": "1.19.0",
       "vehicle_states": [
-        "PARKED",
         "CHARGING",
-        "PLUGGED"
+        "PLUGGED",
+        "PARKED",
+        "IG3"
       ],
       "keep_mode": "changes",
       "transport": "wican-ws",
@@ -461,6 +463,26 @@
         "no_data": 1194,
         "drop": 4,
         "resyncs": 42
+      },
+      "state_spans": {
+        "source": "record",
+        "spans": [
+          {
+            "at": "10:00:48.793",
+            "states": [
+              "PARKED"
+            ]
+          },
+          {
+            "at": "10:01:34.608",
+            "states": [
+              "CHARGING",
+              "PLUGGED",
+              "PARKED"
+            ]
+          }
+        ],
+        "version": "1.19.0"
       },
       "captures": [
         {
@@ -7795,27 +7817,7 @@
           "payload": "62C011E000000000B70F2781",
           "time": "11:09:32.161"
         }
-      ],
-      "state_spans": {
-        "source": "record",
-        "spans": [
-          {
-            "at": "10:00:48.793",
-            "states": [
-              "PARKED"
-            ]
-          },
-          {
-            "at": "10:01:34.608",
-            "states": [
-              "CHARGING",
-              "PLUGGED",
-              "PARKED"
-            ]
-          }
-        ],
-        "version": "1.19.0"
-      }
+      ]
     }
   ]
 }

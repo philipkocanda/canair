@@ -6,7 +6,8 @@
       "vehicle_states": [
         "CHARGING",
         "PLUGGED",
-        "PARKED"
+        "PARKED",
+        "IG3"
       ],
       "notes": "Charging at 10A (EVSE pilot)",
       "keep_mode": "unique",
@@ -1423,7 +1424,8 @@
       "vehicle_states": [
         "CHARGING",
         "PLUGGED",
-        "PARKED"
+        "PARKED",
+        "IG3"
       ],
       "notes": "13A (EVSE pilot)",
       "keep_mode": "unique",
@@ -1622,7 +1624,8 @@
       "vehicle_states": [
         "CHARGING",
         "PLUGGED",
-        "PARKED"
+        "PARKED",
+        "IG3"
       ],
       "notes": "13A (EVSE pilot)",
       "captures": [
@@ -19478,7 +19481,8 @@
       "vehicle_states": [
         "CHARGING",
         "PLUGGED",
-        "PARKED"
+        "PARKED",
+        "IG3"
       ],
       "notes": "16A (EVSE pilot)",
       "captures": [
@@ -41063,6 +41067,40 @@
     {
       "date": "2026-07-27",
       "label": "IGPM BCM BMS OBC VCU",
+      "vehicle_states": [
+        "CHARGING",
+        "PLUGGED",
+        "PARKED",
+        "IG3"
+      ],
+      "notes": "Charging wind-down: BMS current ~-10.8A until 13:28:16, then tapered to ~0.4A (charge stopped). Labelled charging for the whole segment (started charging); tail is idle. Back-filled after the span-aware state fix.",
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {
+            "at": "13:27:33.952",
+            "states": [
+              "CHARGING",
+              "PLUGGED",
+              "PARKED"
+            ]
+          },
+          {
+            "at": "13:28:44.846",
+            "states": [
+              "PLUGGED",
+              "PARKED"
+            ]
+          },
+          {
+            "at": "13:29:05.856",
+            "states": [
+              "PARKED"
+            ]
+          }
+        ],
+        "version": "1.18.1+main.22a9bf9"
+      },
       "captures": [
         {
           "rx": "0x778",
@@ -45180,40 +45218,7 @@
           "payload": "6102F8F8000001000000008500778021340000105DE43300000000",
           "time": "13:30:36.163"
         }
-      ],
-      "vehicle_states": [
-        "CHARGING",
-        "PLUGGED",
-        "PARKED"
-      ],
-      "notes": "Charging wind-down: BMS current ~-10.8A until 13:28:16, then tapered to ~0.4A (charge stopped). Labelled charging for the whole segment (started charging); tail is idle. Back-filled after the span-aware state fix.",
-      "state_spans": {
-        "source": "backfill",
-        "spans": [
-          {
-            "at": "13:27:33.952",
-            "states": [
-              "CHARGING",
-              "PLUGGED",
-              "PARKED"
-            ]
-          },
-          {
-            "at": "13:28:44.846",
-            "states": [
-              "PLUGGED",
-              "PARKED"
-            ]
-          },
-          {
-            "at": "13:29:05.856",
-            "states": [
-              "PARKED"
-            ]
-          }
-        ],
-        "version": "1.18.1+main.22a9bf9"
-      }
+      ]
     }
   ]
 }

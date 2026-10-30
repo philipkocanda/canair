@@ -2670,7 +2670,8 @@
       "vehicle_states": [
         "READY",
         "ACC2",
-        "PARKED"
+        "PARKED",
+        "IG3"
       ],
       "notes": "parked",
       "captures": [
@@ -4575,9 +4576,29 @@
       "label": "Drive mode",
       "vehicle_states": [
         "READY",
-        "ACC2"
+        "ACC2",
+        "IG3"
       ],
       "notes": "Normal (regen 1) -> Sport (regen 2) -> ECO (regen 1) -> Normal (regen 1) -> change regen to 0 [migrated state: READY (D)]",
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {
+            "at": "12:51:27.403",
+            "states": [
+              "READY"
+            ]
+          },
+          {
+            "at": "12:51:38.166",
+            "states": [
+              "READY",
+              "ACC2"
+            ]
+          }
+        ],
+        "version": "1.18.1+main.22a9bf9"
+      },
       "captures": [
         {
           "rx": "0x7A8",
@@ -5875,26 +5896,7 @@
           "payload": "6102F8F8000001010000009515C486223AAB075C99D83900000000",
           "time": "12:53:16.862"
         }
-      ],
-      "state_spans": {
-        "source": "backfill",
-        "spans": [
-          {
-            "at": "12:51:27.403",
-            "states": [
-              "READY"
-            ]
-          },
-          {
-            "at": "12:51:38.166",
-            "states": [
-              "READY",
-              "ACC2"
-            ]
-          }
-        ],
-        "version": "1.18.1+main.22a9bf9"
-      }
+      ]
     },
     {
       "date": "2026-07-21",
@@ -5968,8 +5970,9 @@
       "date": "2026-07-21",
       "label": "READY powertrain reference (parked, not charging)",
       "vehicle_states": [
-        "ready",
-        "parked"
+        "READY",
+        "PARKED",
+        "IG3"
       ],
       "notes": "Fully powered/READY, parked, ~SOC90%. For verify/decode of MCU 2101 temps, VCU 2101/2102, LDC 2101, motor RPM at rest. [migrated state: ready, parked, not charging]",
       "captures": [

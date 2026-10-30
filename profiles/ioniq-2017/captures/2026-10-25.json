@@ -7,7 +7,8 @@
       "vehicle_states": [
         "CHARGING",
         "PLUGGED",
-        "PARKED"
+        "PARKED",
+        "IG3"
       ],
       "transport": "wican-ws",
       "quality": {
@@ -292268,7 +292269,8 @@
         "READY",
         "ACC2",
         "PARKED",
-        "DRIVING"
+        "DRIVING",
+        "IG3"
       ],
       "transport": "wican-ws",
       "quality": {
@@ -292884,7 +292886,8 @@
         "READY",
         "ACC2",
         "PARKED",
-        "DRIVING"
+        "DRIVING",
+        "IG3"
       ],
       "transport": "wican-ws",
       "quality": {

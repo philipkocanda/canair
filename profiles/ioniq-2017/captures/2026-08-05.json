@@ -1093,7 +1093,8 @@
       "vehicle_states": [
         "CHARGING",
         "PLUGGED",
-        "PARKED"
+        "PARKED",
+        "IG3"
       ],
       "keep_mode": "changes",
       "transport": "wican-ws",
@@ -39986,7 +39987,8 @@
       "vehicle_states": [
         "CHARGING",
         "PLUGGED",
-        "PARKED"
+        "PARKED",
+        "IG3"
       ],
       "notes": "Charge current increased to ~20A",
       "keep_mode": "changes",
@@ -39995,6 +39997,27 @@
         "exchanges": 38672,
         "no_data": 220,
         "drop": 18
+      },
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {
+            "at": "13:31:57.258",
+            "states": [
+              "CHARGING",
+              "PLUGGED",
+              "PARKED"
+            ]
+          },
+          {
+            "at": "15:27:59.410",
+            "states": [
+              "PLUGGED",
+              "PARKED"
+            ]
+          }
+        ],
+        "version": "1.18.1+main.22a9bf9"
       },
       "captures": [
         {
@@ -117379,28 +117402,7 @@
           "payload": "6101FFE000000921805E064A03000000004A69000620",
           "time": "15:30:59.292"
         }
-      ],
-      "state_spans": {
-        "source": "backfill",
-        "spans": [
-          {
-            "at": "13:31:57.258",
-            "states": [
-              "CHARGING",
-              "PLUGGED",
-              "PARKED"
-            ]
-          },
-          {
-            "at": "15:27:59.410",
-            "states": [
-              "PLUGGED",
-              "PARKED"
-            ]
-          }
-        ],
-        "version": "1.18.1+main.22a9bf9"
-      }
+      ]
     }
   ]
 }

@@ -9,7 +9,8 @@
         "READY",
         "PLUGGED",
         "ACC2",
-        "PARKED"
+        "PARKED",
+        "IG3"
       ],
       "notes": "Car powered to READY (brake + start button), capture started, then charge port opened and cable plugged in (~09:53). EVSE control-pilot handshake at 09:53:55 (pilot duty 0->100%), AC charge started 09:54:18 (~3.3 kW, 230 V / ~15 A; pilot settled to 26.5% = 15.9 A EVSE rating). VCU EV_READY dropped 1->0 as soon as charging began.",
       "keep_mode": "unique",
@@ -17,6 +18,37 @@
       "quality": {
         "exchanges": 835,
         "drop": 6
+      },
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {
+            "at": "09:52:55.216",
+            "states": [
+              "READY",
+              "ACC2",
+              "PARKED"
+            ]
+          },
+          {
+            "at": "09:53:47.729",
+            "states": [
+              "PLUGGED",
+              "ACC2",
+              "PARKED"
+            ]
+          },
+          {
+            "at": "09:54:19.386",
+            "states": [
+              "CHARGING",
+              "PLUGGED",
+              "ACC2",
+              "PARKED"
+            ]
+          }
+        ],
+        "version": "1.18.1+main.22a9bf9"
       },
       "captures": [
         {
@@ -2167,38 +2199,7 @@
           "payload": "62C011E000000001BB1E2767",
           "time": "09:55:23.258"
         }
-      ],
-      "state_spans": {
-        "source": "backfill",
-        "spans": [
-          {
-            "at": "09:52:55.216",
-            "states": [
-              "READY",
-              "ACC2",
-              "PARKED"
-            ]
-          },
-          {
-            "at": "09:53:47.729",
-            "states": [
-              "PLUGGED",
-              "ACC2",
-              "PARKED"
-            ]
-          },
-          {
-            "at": "09:54:19.386",
-            "states": [
-              "CHARGING",
-              "PLUGGED",
-              "ACC2",
-              "PARKED"
-            ]
-          }
-        ],
-        "version": "1.18.1+main.22a9bf9"
-      }
+      ]
     },
     {
       "date": "2026-08-02",
@@ -2208,7 +2209,8 @@
         "CHARGING",
         "PLUGGED",
         "ACC2",
-        "PARKED"
+        "PARKED",
+        "IG3"
       ],
       "notes": "~1h24m single-phase AC charge, ~3.4 kW (230 V, 15.3 A AC in; pack ~9 A at 371 V; DC-charge flag = 0). SOC 57->68%, ~+3.6 kWh. Car kept fully powered the whole time: EV_READY=0 but HV contactors closed and the LDC (DC-DC) held 12 V at ~14.5 V, heating from 18 to ~68 C. EVSE charge ended 11:18:07 (pilot->100%, AC->0); HV contactors opened ~11:18:38.",
       "keep_mode": "unique",
@@ -2216,6 +2218,29 @@
       "quality": {
         "exchanges": 25573,
         "drop": 250
+      },
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {
+            "at": "09:55:23.597",
+            "states": [
+              "CHARGING",
+              "PLUGGED",
+              "ACC2",
+              "PARKED"
+            ]
+          },
+          {
+            "at": "11:18:30.158",
+            "states": [
+              "PLUGGED",
+              "ACC2",
+              "PARKED"
+            ]
+          }
+        ],
+        "version": "1.18.1+main.22a9bf9"
       },
       "captures": [
         {
@@ -49522,30 +49547,7 @@
           "payload": "62B003BF8B80009B3DF689F9F7F9783DF800009D009D9D9D",
           "time": "11:19:21.096"
         }
-      ],
-      "state_spans": {
-        "source": "backfill",
-        "spans": [
-          {
-            "at": "09:55:23.597",
-            "states": [
-              "CHARGING",
-              "PLUGGED",
-              "ACC2",
-              "PARKED"
-            ]
-          },
-          {
-            "at": "11:18:30.158",
-            "states": [
-              "PLUGGED",
-              "ACC2",
-              "PARKED"
-            ]
-          }
-        ],
-        "version": "1.18.1+main.22a9bf9"
-      }
+      ]
     },
     {
       "date": "2026-08-02",
@@ -49554,7 +49556,8 @@
       "vehicle_states": [
         "PLUGGED",
         "ACC2",
-        "PARKED"
+        "PARKED",
+        "IG3"
       ],
       "notes": "Charging stopped, cable still plugged; car still powered (accessory/ignition on, MCU/VCU/BMS still answering) but HV disconnected: LDC HV input ~0 V, 12 V no longer boosted (LDC output 12.5->12.35 V, slowly draining), LDC cooling 62->57 C. Auto-classified ACC2.",
       "keep_mode": "unique",
@@ -51579,7 +51582,8 @@
       "label": "READY mode — drivetrain (live monitor, docs)",
       "version": "1.10.1",
       "vehicle_states": [
-        "PARKED"
+        "PARKED",
+        "IG3"
       ],
       "keep_mode": "changes",
       "transport": "wican-ws",

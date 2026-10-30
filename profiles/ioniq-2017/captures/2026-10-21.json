@@ -186,7 +186,8 @@
       "version": "1.28.0",
       "vehicle_states": [
         "PARKED",
-        "TOPUP"
+        "TOPUP",
+        "IG3"
       ],
       "notes": "12V top-up",
       "keep_mode": "unique",
@@ -889,7 +890,8 @@
       "version": "1.28.0",
       "vehicle_states": [
         "PARKED",
-        "TOPUP"
+        "TOPUP",
+        "IG3"
       ],
       "notes": "12V top-up",
       "transport": "wican-ws",

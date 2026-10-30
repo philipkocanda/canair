@@ -6,9 +6,42 @@
       "vehicle_states": [
         "READY",
         "PARKED",
-        "DRIVING"
+        "DRIVING",
+        "IG3"
       ],
       "notes": "Steering: left then right after driving away [migrated state: Driving from kidswijs to home]",
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {
+            "at": "09:02:19.245",
+            "states": [
+              "PARKED"
+            ]
+          },
+          {
+            "at": "09:02:38.139",
+            "states": [
+              "DRIVING"
+            ]
+          },
+          {
+            "at": "09:02:59.960",
+            "states": [
+              "READY",
+              "DRIVING"
+            ]
+          },
+          {
+            "at": "09:06:33.366",
+            "states": [
+              "READY",
+              "PARKED"
+            ]
+          }
+        ],
+        "version": "1.18.1+main.22a9bf9"
+      },
       "captures": [
         {
           "rx": "0x7DC",
@@ -5674,39 +5707,7 @@
           "payload": "61F2FF00000008AB67995C741A1D01D2CF0300000000000011018CFB6E00060BE121CB65F30102005E0000000000000001000000000000000000000000005B0010030000000000000000000000000000000036303030",
           "time": "09:07:43.600"
         }
-      ],
-      "state_spans": {
-        "source": "backfill",
-        "spans": [
-          {
-            "at": "09:02:19.245",
-            "states": [
-              "PARKED"
-            ]
-          },
-          {
-            "at": "09:02:38.139",
-            "states": [
-              "DRIVING"
-            ]
-          },
-          {
-            "at": "09:02:59.960",
-            "states": [
-              "READY",
-              "DRIVING"
-            ]
-          },
-          {
-            "at": "09:06:33.366",
-            "states": [
-              "READY",
-              "PARKED"
-            ]
-          }
-        ],
-        "version": "1.18.1+main.22a9bf9"
-      }
+      ]
     },
     {
       "date": "2026-07-22",
@@ -6969,7 +6970,8 @@
       "label": "HVAC/BMS/VCU/OBC",
       "vehicle_states": [
         "READY",
-        "PARKED"
+        "PARKED",
+        "IG3"
       ],
       "notes": "PTC heater on (30C), center console reading ~1.2 kW for climate, ~0.4-0.5 kW for electronics.",
       "captures": [
@@ -11349,6 +11351,11 @@
     {
       "date": "2026-07-22",
       "label": "ESC EPS MCU VCU",
+      "vehicle_states": [
+        "READY",
+        "PARKED",
+        "IG3"
+      ],
       "captures": [
         {
           "rx": "0x7D9",
@@ -11596,10 +11603,6 @@
           "payload": "610207FFFFFF0000000000001F000B0A0E0EF8FFF6FF7DD6CDABC2CD61003FFA2600410AF726F606C1CD0900023200000000000000000000",
           "time": "16:50:56.206"
         }
-      ],
-      "vehicle_states": [
-        "READY",
-        "PARKED"
       ]
     },
     {
@@ -11608,9 +11611,43 @@
       "vehicle_states": [
         "READY",
         "PARKED",
-        "DRIVING"
+        "DRIVING",
+        "IG3"
       ],
       "notes": "standstill -> highway -> long decel -> roubdabout -> city slow -> park [migrated state: driving MT->KW]",
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {
+            "at": "16:51:52.484",
+            "states": [
+              "PARKED"
+            ]
+          },
+          {
+            "at": "16:52:04.687",
+            "states": [
+              "READY",
+              "PARKED"
+            ]
+          },
+          {
+            "at": "16:52:17.577",
+            "states": [
+              "READY",
+              "DRIVING"
+            ]
+          },
+          {
+            "at": "17:04:44.940",
+            "states": [
+              "READY",
+              "PARKED"
+            ]
+          }
+        ],
+        "version": "1.18.1+main.22a9bf9"
+      },
       "captures": [
         {
           "rx": "0x7D9",
@@ -15998,32 +16035,27 @@
           "payload": "6201018A8EFF0083FFE10000000010102101",
           "time": "17:11:10.374"
         }
+      ]
+    },
+    {
+      "date": "2026-07-22",
+      "label": "ESC EPS MCU:2101,2102 VCU:2101,2102",
+      "vehicle_states": [
+        "READY",
+        "PARKED",
+        "IG3"
       ],
       "state_spans": {
         "source": "backfill",
         "spans": [
           {
-            "at": "16:51:52.484",
+            "at": "17:11:47.459",
             "states": [
               "PARKED"
             ]
           },
           {
-            "at": "16:52:04.687",
-            "states": [
-              "READY",
-              "PARKED"
-            ]
-          },
-          {
-            "at": "16:52:17.577",
-            "states": [
-              "READY",
-              "DRIVING"
-            ]
-          },
-          {
-            "at": "17:04:44.940",
+            "at": "17:12:12.029",
             "states": [
               "READY",
               "PARKED"
@@ -16031,11 +16063,7 @@
           }
         ],
         "version": "1.18.1+main.22a9bf9"
-      }
-    },
-    {
-      "date": "2026-07-22",
-      "label": "ESC EPS MCU:2101,2102 VCU:2101,2102",
+      },
       "captures": [
         {
           "rx": "0x7D9",
@@ -16217,30 +16245,7 @@
           "payload": "6201018A8EFA007A00010100000010102101",
           "time": "17:12:40.036"
         }
-      ],
-      "vehicle_states": [
-        "READY",
-        "PARKED"
-      ],
-      "state_spans": {
-        "source": "backfill",
-        "spans": [
-          {
-            "at": "17:11:47.459",
-            "states": [
-              "PARKED"
-            ]
-          },
-          {
-            "at": "17:12:12.029",
-            "states": [
-              "READY",
-              "PARKED"
-            ]
-          }
-        ],
-        "version": "1.18.1+main.22a9bf9"
-      }
+      ]
     },
     {
       "date": "2026-07-22",
@@ -19315,7 +19320,8 @@
       "label": "VCU 2101-2105 in KWP session 1081",
       "vehicle_states": [
         "READY",
-        "PARKED"
+        "PARKED",
+        "IG3"
       ],
       "notes": "standardDiagnosticSession (10 81) with tester present; VCU rejects 82/83 (NRC 0x12), testing whether 81 changes payload sizes",
       "captures": [

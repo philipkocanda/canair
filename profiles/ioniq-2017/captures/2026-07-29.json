@@ -5,7 +5,8 @@
       "label": "var-length recheck: ready parked",
       "vehicle_states": [
         "READY",
-        "PARKED"
+        "PARKED",
+        "IG3"
       ],
       "keep_mode": "unique",
       "transport": "slcan-tcp",
