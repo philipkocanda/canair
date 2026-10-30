@@ -1105,9 +1105,9 @@ class TestCmdBackfillStates:
     decode to known state signals.
     """
 
-    # VCU:2101, EV_READY=1 & GEAR_PARK=1 → READY, PARKED.
+    # VCU:2101, EV_READY=1 & GEAR_PARK=1 → READY, PARKED, plus IG3 (B11 = 0x5A, bit 4 set).
     _VCU_READY_PARK = "6101ffe0000009215a5e064803000000009478340420"
-    # VCU:2101, EV_READY=0 & GEAR_PARK=1 → PARKED (and READY provably false).
+    # VCU:2101, EV_READY=0 & GEAR_PARK=1 → PARKED and IG3 (B11 = 0x10; READY provably false).
     _VCU_PARK_NOT_READY = "6101FFE000000921106A064A03000000008E770007200000000000"
 
     def _seed(self, cdir, payload, states, *, rx="0x7EA", pid="2101"):
@@ -1129,7 +1129,7 @@ class TestCmdBackfillStates:
         self._seed(tmp_path, self._VCU_READY_PARK, [])
         rc = self._run(tmp_path, assume_yes=True)
         assert rc == 0
-        assert self._states(tmp_path) == ["READY", "PARKED"]
+        assert self._states(tmp_path) == ["READY", "PARKED", "IG3"]
 
     def test_conflict_not_written_by_default(self, tmp_path, capsys):
         self._seed(tmp_path, self._VCU_PARK_NOT_READY, ["ready"])
@@ -1164,7 +1164,7 @@ class TestCmdBackfillStates:
         rows = json.loads(capsys.readouterr().out)
         assert len(rows) == 1
         assert rows[0]["verdict"] == "fill"
-        assert rows[0]["inferred"] == ["READY", "PARKED"]
+        assert rows[0]["inferred"] == ["READY", "PARKED", "IG3"]
 
     def test_non_tty_without_yes_refuses(self, tmp_path, capsys):
         self._seed(tmp_path, self._VCU_READY_PARK, [])
@@ -1744,7 +1744,10 @@ class TestCmdBackfillStateSpans:
         assert self._run(tmp_path, assume_yes=True) == 0
         block = self._session(tmp_path)["state_spans"]
         assert block["source"] == "backfill"
-        assert [s["states"] for s in block["spans"]] == [["READY", "PARKED"], ["PARKED"]]
+        assert [s["states"] for s in block["spans"]] == [
+            ["READY", "PARKED", "IG3"],
+            ["PARKED", "IG3"],
+        ]
         assert [s["at"] for s in block["spans"]] == ["10:00:00", "10:30:00"]
 
     def test_each_capture_then_resolves_to_its_own_states(self, tmp_path):
@@ -1849,7 +1852,10 @@ class TestSaveSessionAnnotatesSpans:
         block = session["state_spans"]
         assert block["source"] == "record"
         assert block["version"]  # provenance, as for a back-fill
-        assert [s["states"] for s in block["spans"]] == [["READY", "PARKED"], ["PARKED"]]
+        assert [s["states"] for s in block["spans"]] == [
+            ["READY", "PARKED", "IG3"],
+            ["PARKED", "IG3"],
+        ]
 
     def test_each_capture_resolves_to_its_own_states(self, tmp_path):
         """The reported defect, fixed at the moment of recording."""

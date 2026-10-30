@@ -13,13 +13,13 @@ AAF:
       Active Air Flap (AAF) controller — confirmed by the "AAF" module code in its
       sw_id (EAE16AAFB30001) and firmware (EAEAAFP201). Located in the front bumper, behind the grille.
       Also connected physically to the car's radiator, which cools the powertrain (inverter, motor, etc.).
-  vehicle_states: [READY, CHARGING]
+  vehicle_states: [IG3]
   pids:
     2180:
       response_frames: 4
       status: active
       period: 60000
-      vehicle_states: [READY, CHARGING]
+      vehicle_states: [IG3]
       parameters:
         AMBIENT_TEMP:
           expression: "(B18-80)/2"

@@ -41,13 +41,13 @@ OBC:
         - Max charging current: 29A (the 2019 facelift can do 32A, but this is from the 2017 model)
         - Max charging power: 6.6kW
 
-  vehicle_states: [READY, CHARGING, ACC2]
+  vehicle_states: [IG3]
   pids:
     2101:
       response_frames: 7
       status: active
       period: 5000
-      vehicle_states: [READY, CHARGING, ACC2]
+      vehicle_states: [IG3]
       parameters:
         LDC_HV_INPUT_V:
           expression: "[B45:B46]/100"
@@ -283,7 +283,7 @@ OBC:
     2102:
       status: static
       period: 5000
-      vehicle_states: [CHARGING, ACC2]
+      vehicle_states: [IG3]
       notes: >-
         34 bytes. Byte-identical across 2316 captures in every state: a calibration table (6-byte
         header and 7 groups of 4 bytes whose third byte is always 0x79). Answers while charging and

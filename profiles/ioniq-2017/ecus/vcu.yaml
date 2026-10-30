@@ -36,13 +36,13 @@ VCU:
     vin: KMHCXXXXXXXXXXXXX
     id_protocol: KWP2000  # 1Axx
     notes: Vehicle Control Unit (VMCU) with integrated LDC. Shares the EPCU housing with the MCU.
-  vehicle_states: [READY, CHARGING]
+  vehicle_states: [IG3]
   pids:
     2101:
       response_frames: 4
       status: active
       period: 2500
-      vehicle_states: [READY, CHARGING]
+      vehicle_states: [IG3]
       parameters:
         VCU_VEHICLE_SPEED:
           expression: ((S20*256)+B19)*1.609344/100
@@ -360,7 +360,7 @@ VCU:
       response_frames: 4
       status: active
       period: 10000
-      vehicle_states: [READY, CHARGING]
+      vehicle_states: [IG3]
       notes: >-
         Stops updating while VCU_IG3_ON (2101 B11:4) is 0: in each stored window the first read
         after the fall differs from the last live one, and every later read repeats it byte for byte

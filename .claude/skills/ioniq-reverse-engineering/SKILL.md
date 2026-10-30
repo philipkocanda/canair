@@ -107,8 +107,10 @@ runs to the head unit's "IG3 relay control" pins, so who closes it is unresolved
 relay is commanded by the IGPM's IPS control module. "IGN3" in pin tables means IG3.
 
 **Mapping to canair names.** The `ACC` state is the ACC relay alone; `ACC2` (IGPM `ACC2_IGN_ON`) is
-IGN (ACC + IGN1 + IGN2); `READY` also needs IG3. VCU 2101 `VCU_IG3_ON` (B11:4) is the IG3 rail: the
-IG3-fed ECUs (OBC, BMS, MCU, AAF, HVAC) answer only while it is 1. `VCU_IGN_ON` (B11:0|B11:1) is the
+IGN (ACC + IGN1 + IGN2); `READY` also needs IG3. The `IG3` state (`VCU_IG3_ON == 1`) is the rail
+itself: READY, CHARGING and TOPUP imply it, and it alone names the plugged-in idle window after a
+charge. VCU 2101 `VCU_IG3_ON` (B11:4) is the IG3 rail: the IG3-fed ECUs (OBC, BMS, MCU, AAF, HVAC)
+answer only while it is 1. `VCU_IGN_ON` (B11:0|B11:1) is the
 ignition as the VCU sees it, and `VCU_POWER_STATE` (B25) the VCU's operating mode. Which of IG3
 #1/#2/quick-charge is closed is not decoded: IGPM 22BC07 `IG3_RELAY_OUTPUT` (B12:3) and OBC 2101
 `OBC_AC_NOT_CONNECTED` are the candidates (hypotheses; see the IGPM research entry). Nothing decoded
@@ -220,11 +222,12 @@ everywhere). `validate` errors if a PID omits it; set it with
 `canair pids set-pid-status ECU PID STATUS` (and `canair pids upsert-param`
 seeds `status: active` on a newly-created PID). Power
 states in which a PID/ECU responds, and those a research lead needs, use the
-shared **`vehicle_states:`** list (UPPERCASE vocabulary
-`SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING` + the `ALL` meta-token; a profile's
-vehicle_states.yaml may add composites like `PARKED`/`DRIVING`, and is
-listed/edited with `canair states`). It's written as an inline flow list
-(`[READY, CHARGING]`); input is case-insensitive.
+shared **`vehicle_states:`** list (UPPERCASE vocabulary from the profile's
+`vehicle_states.yaml` — `SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING, IG3, TOPUP, PARKED, DRIVING`
+— plus the `ALL` meta-token; list/edit it with `canair states`). It's written as an inline flow
+list (`[READY, CHARGING]`); input is case-insensitive. Tag an ECU with the *broadest* state it
+answers in: `canair states READY` lists an ECU tagged `[IG3]` because READY implies IG3, so the
+battery-side ECUs (BMS, OBC, MCU, AAF, VCU) are `[IG3]` and HVAC `[ACC2, IG3]`.
 
 Edit with `canair pids upsert-param / add-research / set-status / set-pid-status /
 set-pid-notes`

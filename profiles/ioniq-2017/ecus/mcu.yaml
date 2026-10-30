@@ -34,13 +34,13 @@ MCU:
       Motor Control Unit — inverter / power electronics and control loops for
       the traction motor. Shares the EPCU (Electronic Powertrain Control Unit)
       physical housing with the VCU.
-  vehicle_states: [READY, CHARGING]
+  vehicle_states: [IG3]
   pids:
     2101:
       status: active
       response_frames: 5
       period: 10000
-      vehicle_states: [READY, CHARGING]
+      vehicle_states: [IG3]
       notes: >-
         30 bytes. Words are little-endian, unlike BMS 2101. B23 and B26 are constant 0x02 and 0x04.
         B9/B10/B11 read 8/56/1 in 5121 of 5776 CHARGING captures and in all 35 TOPUP captures; in

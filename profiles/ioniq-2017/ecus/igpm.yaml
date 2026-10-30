@@ -964,7 +964,7 @@ IGPM:
       target: 22BC03 B11:3,B11:4,B11:7 B12:0,B12:1,B12:6,B12:7
       status: pending
       priority: P3
-      vehicle_states: [RUN]
+      vehicle_states: [ACC2]
       created: "2026-08-06"
       updated: "2026-08-06"
       notes: Declared bitfield gaps that are CONSTANT across all 297 timed captures — never exercised, so unknowable from current data rather than unused. B11 has bits 0,1,2,5,6 decoded (hood, seatbelts, ACC2/ign); B12 has 2,3,4,5 decoded (DRL, tail, high beam, low beam).

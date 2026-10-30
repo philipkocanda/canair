@@ -23,13 +23,13 @@ BMS:
     notes: >-
       1A80 firmware build date reads 2008-07-09. Air-cooled pack: a BMS-controlled fan in the trunk
       draws cabin air in under the middle rear seat and out through the right rear wheel well.
-  vehicle_states: [READY, CHARGING]
+  vehicle_states: [IG3]
   pids:
     2101:
       response_frames: 9
       status: active
       period: 1000
-      vehicle_states: [READY, CHARGING]
+      vehicle_states: [IG3]
       parameters:
         SOC_BMS:
           expression: "B09/2"
@@ -437,7 +437,7 @@ BMS:
       response_frames: 7
       status: active
       period: 10000
-      vehicle_states: [READY, CHARGING]
+      vehicle_states: [IG3]
       parameters:
         AVAIL_CHARGE_POWER:
           expression: "[B22:B23]/100"
@@ -633,7 +633,7 @@ BMS:
       response_frames: 6
       status: active
       period: 60000
-      vehicle_states: [READY, CHARGING]
+      vehicle_states: [IG3]
       parameters:
         CELL_01_VOLTAGE:
           expression: "B9*0.02"
@@ -903,7 +903,7 @@ BMS:
       response_frames: 6
       status: active
       period: 60000
-      vehicle_states: [READY, CHARGING]
+      vehicle_states: [IG3]
       parameters:
         CELL_33_VOLTAGE:
           expression: "B9*0.02"
@@ -1168,7 +1168,7 @@ BMS:
       response_frames: 6
       status: active
       period: 60000
-      vehicle_states: [READY, CHARGING]
+      vehicle_states: [IG3]
       parameters:
         CELL_65_VOLTAGE:
           expression: "B9*0.02"

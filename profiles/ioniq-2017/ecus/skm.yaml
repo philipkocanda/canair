@@ -37,10 +37,10 @@ SKM:
       range: "0101-010F,B001-B010"
       date: 2026-07-22
       hits: "B002,B003,B005,B006,B008,B00A"
-      vehicle_states: [READY, FOB PRESENT]
+      vehicle_states: [READY]
       notes: >
-        Re-confirmed the B0xx live-data block (already registered in this file's pids:).
-        01xx all NRC. NOTE the Hyundai -1 echo: requesting B007/B009/B00B returns
+        Fob present. Re-confirmed the B0xx live-data block (already registered in this file's
+        pids:). 01xx all NRC. NOTE the Hyundai -1 echo: requesting B007/B009/B00B returns
         B006/B008/B00A's data. B002 (178 B) content DIFFERS between deep-sleep (2026-04-18)
         and READY — useful power-state contrast for decoding key/immobiliser bytes.
   pids:
