@@ -22,10 +22,21 @@ canair maintains a command blocklist that it enforces on **every** transport. It
 will not:
 
 - Open a UDS **programming session** (`10 02`, or `10 82` — the same session
-  with the suppress-positive-response bit) or the KWP2000 one (`10 85`).
+  with the suppress-positive-response bit), the KWP2000 one (`10 85`), or
+  Hyundai/Kia's alias of it (`10 05`, "ECU programming mode" in their ES95486
+  spec; ISO reserves the value, so blocking it costs nothing elsewhere).
 - Open the UDS **safety-system** session (`10 04`), used for airbag and
   pyrotechnic deployment tests.
-- Perform firmware **write/upload** or flash services.
+- Perform firmware **write/upload** or flash services, or write ECU memory
+  (`2E`, `3B`, `3D`).
+- Reset an ECU (`11`), stop its normal CAN traffic (`28`) or change its bit rate
+  (`87`). Each can take a system off the bus while the car is in use.
+- Start or stop a **reprogramming routine** (`31 01`/`31 02`): ISO's eraseMemory
+  (`FF00`) and checkProgrammingDependencies (`FF01`), plus Hyundai/Kia's firmware
+  bank swap, delta patch, update-condition and features-on-demand routines
+  (`0211`–`0213`, `0220`, `0301`, `0410`–`0440`). Reading a routine's results
+  (`31 03`) stays allowed. The Hyundai/Kia ids are manufacturer-range values, so on
+  another make they may be unrelated routines; the refusal is then only a prompt.
 
 Session requests are judged by the protocol of the ECU they go to (its
 `identity.id_protocol`), because the same byte means different things: `10 82`
@@ -46,7 +57,7 @@ ECUs only (on a UDS ECU `C0` is an OEM session with the suppress bit). No quirk
 can permit a programming or safety-system session. `canair validate` checks
 every actuator's `session_mode` against the same rule. A refused request stops
 the command with `error: …` (exit code 2); `--unsafe` turns the refusal into a
-prompt you must answer `YES`.
+prompt you must answer `YES`; the same prompt covers every refusal on this page.
 
 These exist to make it very hard to brick a real car by accident. The block is
 enforced centrally, not per-command, so it can't be quietly bypassed by a

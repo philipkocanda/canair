@@ -13,6 +13,8 @@ a KWP2000 diagnostic session but UDS *programmingSession* with the
 suppress-positive-response bit). :func:`check_session_mode` is the one rule, used
 at runtime (through a per-target :class:`SessionPolicy`) and by ``canair
 validate``; an ECU whose protocol is unknown gets whichever reading is stricter.
+RoutineControl (``0x31``) is judged the same way: its reprogramming routine ids
+(:data:`BLOCKED_ROUTINES`) are refused on any ECU not known to speak KWP2000.
 """
 
 from __future__ import annotations
@@ -25,16 +27,45 @@ from typing import Any, Final, Literal
 
 from .log import log_command
 
-# UDS services that can write to ECU memory, reflash firmware, or actuate
-# physical outputs. Blocked by default to prevent accidental damage.
+# Services that write ECU memory, reflash firmware, reset an ECU or silence its
+# traffic. Blocked by default to prevent accidental damage. The SIDs mean the same
+# on UDS and KWP2000 except 0x3B, which exists only on KWP2000.
 BLOCKED_UDS_SERVICES = {
+    0x11: "ECUReset (restarts the ECU, unsafe while the car is in use)",
+    0x28: "CommunicationControl (stops the ECU's normal CAN traffic)",
     0x2E: "WriteDataByIdentifier (write to ECU memory)",
     0x34: "RequestDownload (ECU reflash)",
     0x35: "RequestUpload (ECU memory dump)",
     0x36: "TransferData (flash data transfer)",
     0x37: "RequestTransferExit (finalize flash)",
     0x38: "RequestFileTransfer",
+    0x3B: "WriteDataByLocalIdentifier (KWP2000 write to ECU memory)",
+    0x3D: "WriteMemoryByAddress (write to ECU memory)",
+    0x87: "LinkControl (changes the ECU's CAN bit rate)",
 }
+
+# RoutineControl (UDS 0x31) routines that erase, reflash, swap firmware banks or
+# (de)activate paid features. ISO 14229-1 defines FF00/FF01; the rest are
+# Hyundai/Kia's (ES95486-02), in the manufacturer range, so on another make the
+# same id is some unrelated routine and the refusal is only a prompt (--unsafe).
+BLOCKED_ROUTINES = {
+    0xFF00: "eraseMemory",
+    0xFF01: "checkProgrammingDependencies",
+    0x0211: "FinishUpdate / CopyActiveAreaTo (Hyundai/Kia)",
+    0x0212: "EraseTargetArea (Hyundai/Kia)",
+    0x0213: "SwapActiveArea (Hyundai/Kia)",
+    0x0220: "WriteDeltaPatch (Hyundai/Kia)",
+    0x0301: "EnableUpdateCondition (Hyundai/Kia OTA)",
+    0x0410: "PrepareFoDActivation (Hyundai/Kia features on demand)",
+    0x0411: "ExecuteFoDActivation (Hyundai/Kia features on demand)",
+    0x0412: "ConfirmFoDActivation (Hyundai/Kia features on demand)",
+    0x0420: "PrepareFoDDeactivation (Hyundai/Kia features on demand)",
+    0x0421: "ExecuteFoDDeactivation (Hyundai/Kia features on demand)",
+    0x0422: "ConfirmFoDDeactivation (Hyundai/Kia features on demand)",
+    0x0440: "DeleteFoDCertificates (Hyundai/Kia features on demand)",
+}
+# startRoutine and stopRoutine act; requestRoutineResults (0x03) only reads.
+_ROUTINE_ACTING_SUBS = frozenset({0x01, 0x02})
 
 
 class SafetyBlocked(ValueError):
@@ -80,6 +111,9 @@ class SessionBlock:
 _UDS_SUPPRESS_BIT = 0x80
 _UDS_PROGRAMMING = 0x02
 _UDS_SAFETY_SYSTEM = 0x04
+# ISO-reserved, but Hyundai/Kia's ES95486 implements it as "ECU Programming Mode",
+# an alias of programmingSession (the UDS twin of KWP2000's 0x85).
+_HKMC_PROGRAMMING_MODE = 0x05
 # 0x40-0x5F vehicleManufacturerSpecific, 0x60-0x7E systemSupplierSpecific.
 _UDS_OEM_BAND = range(0x40, 0x7F)
 # KWP2000 StartDiagnosticSession modes that are plain diagnostic sessions:
@@ -94,6 +128,12 @@ def _low_band_block(t: int, allowed: Collection[int]) -> SessionBlock | None:
         return SessionBlock(
             "DiagnosticSessionControl sub 0x02 (programmingSession) -- required for "
             "flash/write operations",
+            hard=True,
+        )
+    if t == _HKMC_PROGRAMMING_MODE:
+        return SessionBlock(
+            "DiagnosticSessionControl sub 0x05 (ECU programming mode on Hyundai/Kia, an alias "
+            "of programmingSession) -- required for flash/write operations",
             hard=True,
         )
     if t == _UDS_SAFETY_SYSTEM:
@@ -265,7 +305,23 @@ def check_command_safety(
     if service_byte == 0x10 and len(hex_only) >= 4:
         return (policy or _NO_POLICY).check(int(hex_only[2:4], 16), tx_id)
 
+    if service_byte == 0x31 and len(hex_only) >= 8:
+        # On KWP2000, 0x31 is StartRoutineByLocalIdentifier: byte 2 is a local id.
+        if (policy or _NO_POLICY).protocol(tx_id) != KWP:
+            return check_routine(int(hex_only[2:4], 16), int(hex_only[4:8], 16))
+
     return None
+
+
+def check_routine(sub: int, rid: int) -> str | None:
+    """Why UDS ``31 {sub} {rid}`` is refused, or None if it may be sent."""
+    name = BLOCKED_ROUTINES.get(rid)
+    if name is None or (sub & 0x7F) not in _ROUTINE_ACTING_SUBS:
+        return None
+    return (
+        f"BLOCKED: RoutineControl 0x{rid:04X} ({name}) -- reprogramming routine; "
+        "re-run with --unsafe if you are certain it is safe"
+    )
 
 
 async def enforce_command_safety(

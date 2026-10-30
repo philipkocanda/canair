@@ -85,7 +85,15 @@ def test_uds_oem_and_supplier_band_blocked_unless_allowed(sub):
 def test_uds_reserved_session_types_are_not_blocked():
     # ISO-reserved types get an NRC from a conformant ECU; nothing to guard.
     assert check_session_mode(0x10, UDS) is None
-    assert check_session_mode(0x05, UDS) is None
+    assert check_session_mode(0x06, UDS) is None
+
+
+@pytest.mark.parametrize("protocol", [UDS, KWP, UNKNOWN])
+def test_hyundai_kia_programming_mode_05_is_hard_blocked(protocol):
+    """Regression: ES95486 implements the ISO-reserved 0x05 as an alias of programmingSession."""
+    block = session_mode_block(0x05, protocol, allowed={0x05})
+    assert block is not None and block.hard
+    assert check_command_safety("1005", POLICY, UDS_ECU) is not None
 
 
 def test_oem_session_blocked_unless_the_profile_allows_it():
@@ -197,3 +205,38 @@ class TestCheckCommandSafety:
         assert check_command_safety("") is None
         assert check_command_safety("hello") is None
         assert check_command_safety("A") is None  # single hex char
+
+
+# ── check_command_safety: service and routine blocklist ──────────────────────
+
+
+@pytest.mark.parametrize(
+    "cmd",
+    [
+        "1101",  # ECUReset
+        "2802",  # CommunicationControl: disable normal message transmission
+        "3B9000",  # KWP2000 WriteDataByLocalIdentifier
+        "3D14000010FF",  # WriteMemoryByAddress
+        "870101",  # LinkControl
+    ],
+)
+def test_state_changing_services_blocked(cmd):
+    assert check_command_safety(cmd) is not None
+
+
+@pytest.mark.parametrize("cmd", ["3101FF00", "3181FF00", "3102FF01", "31010212", "31010411"])
+def test_reprogramming_routines_blocked(cmd):
+    blocked = check_command_safety(cmd, POLICY, UDS_ECU)
+    assert blocked is not None and "--unsafe" in blocked
+
+
+def test_routine_results_and_other_routines_are_allowed():
+    assert check_command_safety("3103FF00", POLICY, UDS_ECU) is None  # requestRoutineResults
+    assert check_command_safety("310112A1", POLICY, UDS_ECU) is None  # an ordinary OEM routine
+    assert check_command_safety("3101F000", POLICY, UDS_ECU) is None
+
+
+def test_routine_rule_skips_kwp_local_identifiers():
+    # KWP2000 31 01 FF00 starts local routine 0x01 with option bytes FF 00.
+    assert check_command_safety("3101FF00", POLICY, KWP_ECU) is None
+    assert check_command_safety("3101FF00", POLICY, 0x7FF) is not None  # unknown: stricter
