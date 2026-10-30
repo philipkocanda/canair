@@ -4,7 +4,7 @@
 
 [![Docs](https://img.shields.io/badge/docs-philipkocanda.github.io%2Fcanair-blue)](https://philipkocanda.github.io/canair/)
 [![CI](https://github.com/philipkocanda/canair/actions/workflows/ci.yml/badge.svg)](https://github.com/philipkocanda/canair/actions/workflows/ci.yml)
-[![License: Unlicense](https://img.shields.io/badge/license-Unlicense-lightgrey)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 <img width="300" alt="Jul-23-2026 00-14-52" src="https://github.com/user-attachments/assets/e74ce18d-5350-4a69-b96e-d3b312b25b2f" />
 
@@ -194,7 +194,9 @@ See [the bundled Ioniq profile](https://philipkocanda.github.io/canair/profiles/
 
 ## License
 
-Public domain — see [LICENSE](LICENSE) (Unlicense).
+Code: [MIT](LICENSE). Vehicle profiles (`profiles/`): [CC BY 4.0](profiles/LICENSE). Both require
+attribution — keep the copyright notice, and credit "The canair contributors" when you reuse
+profile data.
 
 ## Warning
 

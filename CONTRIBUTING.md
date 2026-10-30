@@ -78,10 +78,16 @@ README ↔ `docs/` policy in `AGENTS.md`).
 
 ## License
 
-By contributing, you agree your contributions are released into the public
-domain under [The Unlicense](LICENSE), like the rest of the project. This is a
-deliberate choice — there is no separate contributor licensing agreement (CLA)
-or sign-off; contributing is dedicating your work to the public domain.
+By contributing, you agree your contributions are licensed like the rest of the
+project: code under the [MIT License](LICENSE), and anything under `profiles/`
+under [CC BY 4.0](profiles/LICENSE). Both let anyone reuse your work as long as
+they credit it. There is no separate contributor licensing agreement (CLA) or
+sign-off; submitting a pull request is your agreement.
+
+Only contribute material you have the right to license this way — in
+particular, do not copy in third-party data under an incompatible licence (see
+`profiles/kona-electric-2019/profile.yaml` for how a CC BY-SA source is cited
+rather than copied).
 
 ## Code of conduct
 

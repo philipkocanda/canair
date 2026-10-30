@@ -252,5 +252,6 @@ Then eyeball the diff for the PII/security classes above (the reviewer is the
 backstop), confirm `car_model` is precise, and submit with
 `uv run canair contribute` (or a hand-rolled PR under `profiles/<your-car>/`).
 
-Contributions are released into the public domain under The Unlicense, like the
-rest of the project.
+Contributions under `profiles/` are licensed CC BY 4.0 (`profiles/LICENSE`), like
+the rest of the profile data; code is MIT. Only submit material you have the right
+to license that way.

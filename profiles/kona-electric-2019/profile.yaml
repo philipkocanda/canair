@@ -25,7 +25,7 @@
 #   - OBDb Hyundai-Kona-Electric (https://github.com/OBDb/Hyundai-Kona-Electric,
 #     CC BY-SA 4.0) — the richer per-signal map. Cited per signal in source_links
 #     rather than copied in (its CC BY-SA licence is not compatible with this
-#     repo's public domain). OBDb's test corpus confirms most signals on
+#     repo's CC BY profile licence). OBDb's test corpus confirms most signals on
 #     2020-2024 cars; the 2019 is the first OS EV year and is essentially
 #     identical, but that is why these stay unverified here until a 2019 capture
 #     lands.

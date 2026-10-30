@@ -30,5 +30,6 @@ Run from the repo root:
 
 ---
 
-By submitting this pull request I agree my contribution is released into the
-public domain under [The Unlicense](../blob/main/LICENSE).
+By submitting this pull request I agree my contribution is licensed under the
+[MIT License](../blob/main/LICENSE) (code) or [CC BY 4.0](../blob/main/profiles/LICENSE)
+(anything under `profiles/`).
