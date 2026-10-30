@@ -49,7 +49,6 @@ MCU:
       parameters:
         MCU_2101_B22:
           expression: B22
-          unit: ""
           min: "0"
           max: "255"
           source: canair analysis 2026-08-08 (long drive + 50 kW DCFC), gap-verified against CLU ODOMETER
@@ -60,7 +59,6 @@ MCU:
             r=+0.012 vs AAF coolant and heat-sink temperatures. Steps down when propulsion stops and
             up when it resumes.
           enabled: false
-          ha_class: ""
         MCU_HV_VOLTAGE:
           expression: B13*2.56
           unit: V
@@ -73,7 +71,6 @@ MCU:
             BATTERY_VOLTAGE over 2016 samples of a 3 h AC charge (360-399 V).
         MCU_2101_B25:
           expression: B25
-          unit: ""
           min: "0"
           max: "255"
           verified: false
@@ -81,7 +78,6 @@ MCU:
             Range 38-105 across 8633 captures, slow-moving. r=-0.720 vs AAF:2181:MOTOR_COOLANT_TEMP
             and HEATSINK_TEMP (n=1488). B26 is constant 0x04.
           enabled: false
-          ha_class: ""
         MCU_PHASE_CURRENT_1:
           expression: (S30 << 8) | B29
           verified: false
@@ -142,11 +138,9 @@ MCU:
         MCU_MOTOR_RPM:
           expression: (S10<<8)|B09
           unit: RPM
-          ha_class: ""
           min: "-10500"
           max: "10500"
           source: Kia Soul EV VMCU CSV (Motor Actual Speed RPM) + physical validation; low byte corrected 2026-10-21
-          source_links: []
           verified: true
           notes: >-
             Signed 16-bit little-endian; B09 is the low byte. B11 cannot be: B11:B12 is the torque
@@ -158,11 +152,9 @@ MCU:
         MCU_MOTOR_TORQUE:
           expression: ((S12<<8)|B11)/10
           unit: Nm
-          ha_class: ""
           min: "-300"
           max: "300"
           source: energy balance vs BMS:2101 BATTERY_POWER and the cumulative energy counters, 2026-10-21
-          source_links: []
           verified: false
           notes: >-
             Signed 16-bit little-endian, 0.1 Nm/bit; negative in regen. Torque x MCU_MOTOR_RPM
@@ -175,12 +167,10 @@ MCU:
         MCU_MOTOR_TORQUE_2:
           expression: ((S14<<8)|B13)/10
           unit: Nm
-          ha_class: ""
           min: "-300"
           max: "300"
           enabled: false
           source: canair decode --find-mirrors 2026-10-21
-          source_links: []
           verified: false
           notes: >-
             B13:B14 equals B11:B12 (MCU_MOTOR_TORQUE) byte-for-byte in all 8231 captures. Disabled
@@ -193,7 +183,6 @@ MCU:
           max: "600"
           enabled: true
           source: canair align + within-PID fit 2026-10-21
-          source_links: []
           verified: false
           notes: >-
             Motor phase-current magnitude, 16-bit little-endian split across the PCI byte B16; never

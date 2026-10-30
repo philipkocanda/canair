@@ -58,9 +58,7 @@ BCM:
           min: "0"
           max: "5"
           source: "Original WiCAN config"
-          source_links: []
           verified: true
-          notes: ""
 
         TYRE_PRESSURE_RL:
           expression: "B19/72.52"
@@ -69,9 +67,7 @@ BCM:
           min: "0"
           max: "5"
           source: "Original WiCAN config"
-          source_links: []
           verified: true
-          notes: ""
 
         TYRE_PRESSURE_RR:
           expression: "B23/72.52"
@@ -80,9 +76,7 @@ BCM:
           min: "0"
           max: "5"
           source: "Original WiCAN config"
-          source_links: []
           verified: true
-          notes: ""
 
         TYRE_TEMP_FL:
           expression: "B11-50"
@@ -104,7 +98,6 @@ BCM:
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
-          notes: ""
 
         TYRE_TEMP_RL:
           expression: "B20-50"
@@ -115,7 +108,6 @@ BCM:
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
-          notes: ""
 
         TYRE_TEMP_RR:
           expression: "B25-50"
@@ -126,7 +118,6 @@ BCM:
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
-          notes: ""
         TYRE_SENSOR_STATE_FL:
           expression: B12
           type: enum
@@ -244,10 +235,7 @@ BCM:
       parameters:
         CHARGE_PORT_OPEN:
           expression: "B10:5"
-          unit: ""
           ha_class: opening
-          min: ""
-          max: ""
           source: "Kia Niro EV WiCAN PR#716"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
@@ -276,13 +264,10 @@ BCM:
       parameters:
         BCM_B004_B11_6:
           expression: "B11:6"
-          unit: ""
-          ha_class: ""
           mqtt_topic: ""
           min: "0"
           max: "1"
           source: Fob lock/unlock test 2026-04-18; ignition cross-tab 2026-10-22
-          source_links: []
           verified: false
           notes: >-
             Changed on fob lock and unlock on 2026-04-18. Does not follow the IGPM door locks: reads
@@ -354,12 +339,9 @@ BCM:
       parameters:
         BCM_B005_UNLOCK_BITS:
           expression: B10
-          unit: ""
-          ha_class: ""
           min: "0"
           max: "255"
           source: Fob lock/unlock test 2026-04-18; byte offset corrected 2026-07-24
-          source_links: []
           verified: false
           notes: >-
             Whole byte. Bits 2 and 3 set (0x0C) on fob unlock (2026-07-24 09:36:51). Bits 5-7 are
@@ -412,12 +394,9 @@ BCM:
       parameters:
         BCM_B006_UNLOCK_BITS:
           expression: B10
-          unit: ""
-          ha_class: ""
           min: "0"
           max: "255"
           source: Fob lock/unlock test 2026-04-18; byte offset corrected 2026-07-24
-          source_links: []
           verified: false
           notes: >-
             0x00, or 0x04 (bit 2) on fob unlock (2026-07-24 09:36:52). 0x04 in 6 of 301 captures.
@@ -624,19 +603,15 @@ BCM:
           min: "0"
           max: "20"
           source: "Reverse engineered from monitor drift analysis"
-          source_links: []
           verified: true
           notes: >-
             Scale estimated from one reading: raw 149 = 11.92 V against the WiCAN's own 12.1 V.
         BCM_AMBIENT_LIGHT:
           expression: B12
-          unit: ""
           display: ""
-          ha_class: ""
           min: "0"
           max: "255"
           source: "RE 2026-10-22: B12 by hour of day across 2026-04-15..2026-10-22"
-          source_links: []
           verified: false
           notes: >-
             Raw count, higher = brighter. 9-55 in every session after 20:00 and at 08:28 on
@@ -878,7 +853,6 @@ BCM:
           enabled: false
         BCM_EVENT_COUNTER_C011:
           expression: "[B13:B14]"
-          unit: ""
           min: "0"
           max: "65535"
           source: monotonic-counter sweep of all captures 2026-04-16..2026-08-05
@@ -1378,101 +1352,69 @@ BCM:
   iocontrol_discoveries:
     B003:
       response: "6FB00300"
-      notes: ""
     B006:
       response: "6FB00600"
-      notes: ""
     B008:
       response: "6FB00800"
-      notes: ""
     B009:
       response: "6FB00900"
-      notes: ""
     B00A:
       response: "6FB00A00"
-      notes: ""
     B00F:
       response: "6FB00F00"
-      notes: ""
     B019:
       response: "6FB01900"
-      notes: ""
     B01A:
       response: "6FB01A00"
-      notes: ""
     B025:
       response: "6FB02500"
-      notes: ""
     B028:
       response: "6FB02800"
-      notes: ""
     B029:
       response: "6FB02900"
-      notes: ""
     B030:
       response: "6FB03000"
-      notes: ""
     B038:
       response: "6FB03800"
-      notes: ""
     B039:
       response: "6FB03900"
-      notes: ""
     B03A:
       response: "6FB03A00"
-      notes: ""
     B03B:
       response: "6FB03B00"
-      notes: ""
     B04D:
       response: "6FB04D00"
-      notes: ""
     B057:
       response: "6FB05700"
-      notes: ""
     B059:
       response: "6FB05900"
-      notes: ""
     B05A:
       response: "6FB05A00"
-      notes: ""
     B05B:
       response: "6FB05B00"
-      notes: ""
     B05C:
       response: "6FB05C00"
-      notes: ""
     B071:
       response: "6FB07100"
-      notes: ""
     B072:
       response: "6FB07200"
-      notes: ""
     C001:
       response: "6FC00100"
-      notes: ""
     C002:
       response: "6FC00200"
-      notes: ""
     C003:
       response: "6FC00300"
-      notes: ""
     C004:
       response: "6FC00400"
-      notes: ""
     C005:
       response: "6FC00500"
-      notes: ""
     C006:
       response: "6FC00600"
-      notes: ""
 
   routines:
     12A1:
       nrc: 0x22
       nrc_desc: "conditionsNotCorrect"
-      notes: ""
     DDDD:
       nrc: 0x13
       nrc_desc: "incorrectMessageLengthOrInvalidFormat"
-      notes: ""

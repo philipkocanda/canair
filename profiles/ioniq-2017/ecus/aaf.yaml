@@ -28,7 +28,6 @@ AAF:
           min: "-40"
           max: "87"
           source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: >-
             Matches the ITStromer community sheet rows at known temperatures (10 °C read 9, 0 °C
@@ -41,7 +40,6 @@ AAF:
           min: "-40"
           max: "120"
           source: "ITStromer community PID sheet (heating element = signed(l)/2)"
-          source_links: []
           verified: false
           notes: >-
             Community sheet: 8 °C with heat set to 15.5 °C, 27 °C with heat set to 30 °C, about
@@ -54,7 +52,6 @@ AAF:
           min: "-40"
           max: "150"
           source: "ITStromer community PID sheet (VMCU heat sink = o-40)"
-          source_links: []
           verified: false
           notes: Community sheet. Range 9-70 °C across 3428 captures.
 
@@ -65,7 +62,6 @@ AAF:
           min: "-40"
           max: "120"
           source: "ITStromer community PID sheet (compressor = p-40)"
-          source_links: []
           verified: false
           notes: >-
             Community sheet. About ambient with the A/C off; range 12-66 °C across 3428 captures.

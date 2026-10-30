@@ -57,7 +57,6 @@ OBC:
           min: "0"
           max: "500"
           source: "Live READY vs charging + BMS cross-check (2026-07-20)"
-          source_links: []
           verified: true
           notes: >-
             HV pack voltage at the LDC, present at READY and while charging. r=0.998 vs
@@ -70,7 +69,6 @@ OBC:
           min: "0"
           max: "20"
           source: "Decoded from live captures (2026-04-14)"
-          source_links: []
           verified: true
           notes: >-
             12 V rail: 14.52 V charging, 14.31 V at READY. Sagged 14.5 to 13.6 V and recovered as a
@@ -83,7 +81,6 @@ OBC:
           min: "-40"
           max: "120"
           source: "Kia Soul EV LDC CSV (LDC Temp = i-100) + charging session trend (2026-07-19)"
-          source_links: []
           verified: true
           notes: >-
             Rose smoothly 28 to 65 °C over a 3 h AC charge; 21 °C at READY with about 18 °C ambient.
@@ -95,7 +92,6 @@ OBC:
           min: "0"
           max: "500"
           source: "Decoded from live captures (2026-04-14)"
-          source_links: []
           verified: true
           notes: About 370 V during AC charging, about 6 V when the OBC is idle.
 
@@ -106,7 +102,6 @@ OBC:
           min: "0"
           max: "500"
           source: "Decoded from live captures (2026-04-14); reclassified 2026-07-20"
-          source_links: []
           verified: true
           notes: 353-384 V during AC charging, about 3.8 V when the OBC is idle.
 
@@ -119,14 +114,12 @@ OBC:
           min: "0"
           max: "50"
           source: "Decoded from live captures (2026-04-14)"
-          source_links: []
           verified: true
           notes: OBC DC output current while charging; 0 when idle.
 
         OBC_PILOT_DUTY:
           expression: "[B35:B36]/10"
           unit: "%"
-          ha_class: ""
           min: "0"
           max: "100"
           source: Live EVSE current step 10/13/16A (2026-07-27)
@@ -143,7 +136,6 @@ OBC:
           min: "0"
           max: "80"
           source: Live EVSE current step 10/13/16A (2026-07-27); J1772 duty x 0.6
-          source_links: []
           verified: true
           notes: >-
             Pilot duty x 0.6. Read 9.9, 12.9 and 15.9 A at 10, 13 and 16 A pilot (2026-07-27); reads

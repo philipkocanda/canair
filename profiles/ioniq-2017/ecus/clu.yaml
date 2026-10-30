@@ -28,9 +28,7 @@ CLU:
           unit: km
           ha_class: distance
           min: "0"
-          max: ""
           source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: 3-byte odometer in km.
         CLU_B11_TEMP:

@@ -44,8 +44,6 @@ BMS:
           expression: "(([B18:B19]/10) * (((S15 << 8) | B17)/10)) / 1000"
           unit: kW
           ha_class: power
-          min: ""
-          max: ""
           verified: true
           notes: "Computed from voltage * current. Negative = charging."
           send_to: wican/ioniq/stream/battery_power
@@ -57,7 +55,6 @@ BMS:
           min: "200"
           max: "450"
           verified: true
-          notes: ""
 
         BATTERY_CURRENT:
           expression: "((S15 << 8) | B17)/10"
@@ -77,7 +74,6 @@ BMS:
           min: "0"
           max: "10"
           verified: true
-          notes: ""
 
         MIN_CELL_VOLTAGE:
           expression: "B33*0.02"
@@ -86,7 +82,6 @@ BMS:
           min: "0"
           max: "10"
           verified: true
-          notes: ""
 
         AUX_BATTERY_VOLTAGE:
           expression: "B37*0.1"
@@ -99,12 +94,7 @@ BMS:
 
         BMS_MAIN_RELAY:
           expression: "B14:0"
-          unit: ""
-          ha_class: ""
-          min: ""
-          max: ""
           source: "ITStromer community sheet (j:0 = BMS Relay) + captures"
-          source_links: []
           verified: true
           notes: >-
             HV main relay closed. 0 in 111 of 12079 captures, all with B14 = 0x20, 0x40 or 0x00.
@@ -112,10 +102,7 @@ BMS:
 
         AC_CHARGER_CONNECTED:
           expression: B14:5
-          unit: ""
           ha_class: plug
-          min: ""
-          max: ""
           verified: true
           notes: >-
             Set while an AC cable is plugged in, whether or not the EVSE delivers energy
@@ -124,10 +111,7 @@ BMS:
           source: canair analysis 2026-08-08 (CCS DCFC + scheduled home-EVSE wait)
         CHARGING_DC:
           expression: B14:6
-          unit: ""
           ha_class: plug
-          min: ""
-          max: ""
           verified: true
           notes: >-
             Set during DC fast charging (2026-08-08 CCS session, n=54). Clear in all 1576
@@ -140,30 +124,19 @@ BMS:
           source: canair analysis 2026-08-08 50 kW DCFC session (first real rapid charge on this car); OBDb cross-reference 2026-10-27
         CHARGING:
           expression: "B14:7"
-          unit: ""
           ha_class: battery_charging
-          min: ""
-          max: ""
           verified: true
-          notes: ""
 
         BATTERY_FAN_STATUS:
           expression: "B35"
-          unit: ""
-          ha_class: ""
           min: "0"
           max: "9"
           verified: true
-          notes: ""
 
         BATTERY_FAN_FEEDBACK:
           expression: "B36"
           unit: "Hz"
-          ha_class: ""
-          min: ""
-          max: ""
           verified: true
-          notes: ""
 
         BATTERY_INLET_TEMP:
           expression: "S29"
@@ -172,7 +145,6 @@ BMS:
           min: "-128"
           max: "128"
           verified: true
-          notes: ""
 
         BATTERY_MAX_TEMP:
           expression: "S20"
@@ -181,7 +153,6 @@ BMS:
           min: "-128"
           max: "128"
           verified: true
-          notes: ""
 
         BATTERY_MIN_TEMP:
           expression: "S21"
@@ -190,7 +161,6 @@ BMS:
           min: "-128"
           max: "128"
           verified: true
-          notes: ""
 
         MODULE_1_TEMP:
           expression: "S22"
@@ -199,7 +169,6 @@ BMS:
           min: "-128"
           max: "128"
           verified: true
-          notes: ""
 
         MODULE_2_TEMP:
           expression: "S23"
@@ -208,7 +177,6 @@ BMS:
           min: "-128"
           max: "128"
           verified: true
-          notes: ""
 
         MODULE_3_TEMP:
           expression: "S25"
@@ -217,7 +185,6 @@ BMS:
           min: "-128"
           max: "128"
           verified: true
-          notes: ""
 
         MODULE_4_TEMP:
           expression: "S26"
@@ -226,7 +193,6 @@ BMS:
           min: "-128"
           max: "128"
           verified: true
-          notes: ""
 
         MODULE_5_TEMP:
           expression: "S27"
@@ -235,23 +201,14 @@ BMS:
           min: "-128"
           max: "128"
           verified: true
-          notes: ""
 
         MAX_CELL_VOLTAGE_NO:
           expression: "B31"
-          unit: ""
-          ha_class: ""
-          min: ""
-          max: ""
           verified: true
           notes: "Cell number with max voltage"
 
         MIN_CELL_VOLTAGE_NO:
           expression: "B34"
-          unit: ""
-          ha_class: ""
-          min: ""
-          max: ""
           verified: true
           notes: "Cell number with min voltage"
 
@@ -260,7 +217,6 @@ BMS:
           unit: kWh
           ha_class: energy
           min: "0"
-          max: ""
           verified: true
           notes: Lifetime total, 0.1 kWh per LSB.
 
@@ -269,29 +225,22 @@ BMS:
           unit: kWh
           ha_class: energy
           min: "0"
-          max: ""
           verified: true
           notes: "Lifetime cumulative. ECU reports in 0.1 kWh units, /10 gives kWh."
 
         CUMULATIVE_CURRENT_CHARGED:
           expression: "((B38<<24)|(B39<<16)|(B41<<8)|B42)/10"
           unit: Ah
-          ha_class: ""
           min: "0"
-          max: ""
           source: "ImHex pattern (u32 @ ISO-TP 0x20) — PCI-corrected"
-          source_links: []
           verified: true
           notes: 32-bit at WiCAN B38, B39, B41, B42 (B40 is a PCI byte).
 
         CUMULATIVE_CURRENT_DISCHARGED:
           expression: "((B43<<24)|(B44<<16)|(B45<<8)|B46)/10"
           unit: Ah
-          ha_class: ""
           min: "0"
-          max: ""
           source: "ImHex pattern (u32 @ ISO-TP 0x24) — PCI-corrected"
-          source_links: []
           verified: true
           notes: 32-bit at WiCAN B43-B46.
 
@@ -310,7 +259,6 @@ BMS:
         DRIVE_MOTOR_SPEED:
           expression: "[S65:S66]"
           unit: RPM
-          ha_class: ""
           min: "-500"
           max: "8000"
           verified: true
@@ -322,7 +270,6 @@ BMS:
         ISOLATION_RESISTANCE:
           expression: (B69<<8)|B70
           unit: "kΩ"
-          ha_class: ""
           min: "300"
           max: "1000"
           verified: true
@@ -332,12 +279,7 @@ BMS:
 
         DEBUG_BMS_STATE_FLAGS:
           expression: B14
-          unit: ""
-          ha_class: ""
-          min: ""
-          max: ""
           source: AutoPID config (on device); bitfield decoded via ITStromer community sheet + ioniq-ev-bms xls; re-enumerated 2026-08-06; DC bits resolved 2026-08-08
-          source_links: []
           verified: false
           notes: >-
             Whole B14 byte. Observed values: 0x00 ignition off, unplugged (n=1); 0x03 READY or 12 V
@@ -443,8 +385,6 @@ BMS:
           expression: "[B22:B23]/100"
           unit: kW
           ha_class: power
-          min: ""
-          max: ""
           verified: true
           notes: >-
             Reads 98.0 kW throughout both 2026-08-08 DC fast charges (via the 2101 mirror), the same
@@ -455,28 +395,17 @@ BMS:
           expression: "[B25:B26]/100"
           unit: kW
           ha_class: power
-          min: ""
-          max: ""
           verified: true
-          notes: ""
 
         BATTERY_VOLTAGE_DEVIATION:
           expression: "B27*0.1"
           unit: V
           ha_class: voltage
-          min: ""
-          max: ""
           verified: true
-          notes: ""
 
         QUICK_CHARGING_NORMAL_STATUS:
           expression: "B28"
-          unit: ""
-          ha_class: ""
-          min: ""
-          max: ""
           verified: true
-          notes: ""
 
         MODULE_6_TEMP:
           expression: "S14"
@@ -485,7 +414,6 @@ BMS:
           min: "-128"
           max: "128"
           verified: true
-          notes: ""
 
         MODULE_7_TEMP:
           expression: "S15"
@@ -494,7 +422,6 @@ BMS:
           min: "-128"
           max: "128"
           verified: true
-          notes: ""
 
         MODULE_8_TEMP:
           expression: "S17"
@@ -503,7 +430,6 @@ BMS:
           min: "-128"
           max: "128"
           verified: true
-          notes: ""
 
         MODULE_9_TEMP:
           expression: "S18"
@@ -512,7 +438,6 @@ BMS:
           min: "-128"
           max: "128"
           verified: true
-          notes: ""
 
         MODULE_10_TEMP:
           expression: "S19"
@@ -521,7 +446,6 @@ BMS:
           min: "-128"
           max: "128"
           verified: true
-          notes: ""
 
         MODULE_11_TEMP:
           expression: "S20"
@@ -530,7 +454,6 @@ BMS:
           min: "-128"
           max: "128"
           verified: true
-          notes: ""
 
         MODULE_12_TEMP:
           expression: "S21"
@@ -539,7 +462,6 @@ BMS:
           min: "-128"
           max: "128"
           verified: true
-          notes: ""
 
         BATTERY_HEATER_1_TEMP:
           expression: "S30"
@@ -548,7 +470,6 @@ BMS:
           min: "-128"
           max: "128"
           verified: true
-          notes: ""
 
         BATTERY_HEATER_2_TEMP:
           expression: "S31"
@@ -557,12 +478,10 @@ BMS:
           min: "-128"
           max: "128"
           verified: true
-          notes: ""
 
         SOH:
           expression: "[B33:B34]/10"
           unit: "%"
-          ha_class: ""
           min: "0"
           max: "105"
           verified: true
@@ -570,30 +489,16 @@ BMS:
 
         MAX_DETERIORATION_CELL_NO:
           expression: "B35"
-          unit: ""
-          ha_class: ""
-          min: ""
-          max: ""
           verified: true
-          notes: ""
 
         MIN_DETERIORATION:
           expression: "[B36:B37]/10"
           unit: "%"
-          ha_class: ""
-          min: ""
-          max: ""
           verified: true
-          notes: ""
 
         MIN_DETERIORATION_CELL_NO:
           expression: "B38"
-          unit: ""
-          ha_class: ""
-          min: ""
-          max: ""
           verified: true
-          notes: ""
 
         SOC_DISP:
           expression: "B39/2"
@@ -606,12 +511,7 @@ BMS:
 
         BMS_DCFC_TICK_COUNTER:
           expression: B42
-          unit: ""
-          ha_class: ""
-          min: ""
-          max: ""
           source: 2026-08-08 DCFC session byte-diff (was DEBUG_BMS_STATE_FLAGS_2105, a misnamed guess from the Niro xls)
-          source_links: []
           verified: false
           notes: >-
             8-bit wrapping counter, about 0.52 per second, while CHARGING_DC is set (2026-08-08).
@@ -642,7 +542,6 @@ BMS:
           min: "0"
           max: "5"
           source: "ImHex pattern + raw capture verified"
-          source_links: []
           verified: true
           notes: >
             First cell. 2026-07-20 FIX: cells start at B9 (after the 4-byte 0xFFFFFFFF cell-present header at
@@ -657,7 +556,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_03_VOLTAGE:
           expression: "B11*0.02"
           unit: V
@@ -665,7 +563,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_04_VOLTAGE:
           expression: "B12*0.02"
           unit: V
@@ -673,7 +570,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_05_VOLTAGE:
           expression: "B13*0.02"
           unit: V
@@ -681,7 +577,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_06_VOLTAGE:
           expression: "B14*0.02"
           unit: V
@@ -689,7 +584,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_07_VOLTAGE:
           expression: "B15*0.02"
           unit: V
@@ -697,7 +591,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_08_VOLTAGE:
           expression: "B17*0.02"
           unit: V
@@ -705,7 +598,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_09_VOLTAGE:
           expression: "B18*0.02"
           unit: V
@@ -713,7 +605,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_10_VOLTAGE:
           expression: "B19*0.02"
           unit: V
@@ -721,7 +612,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_11_VOLTAGE:
           expression: "B20*0.02"
           unit: V
@@ -729,7 +619,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_12_VOLTAGE:
           expression: "B21*0.02"
           unit: V
@@ -737,7 +626,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_13_VOLTAGE:
           expression: "B22*0.02"
           unit: V
@@ -745,7 +633,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_14_VOLTAGE:
           expression: "B23*0.02"
           unit: V
@@ -753,7 +640,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_15_VOLTAGE:
           expression: "B25*0.02"
           unit: V
@@ -761,7 +647,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_16_VOLTAGE:
           expression: "B26*0.02"
           unit: V
@@ -769,7 +654,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_17_VOLTAGE:
           expression: "B27*0.02"
           unit: V
@@ -777,7 +661,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_18_VOLTAGE:
           expression: "B28*0.02"
           unit: V
@@ -785,7 +668,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_19_VOLTAGE:
           expression: "B29*0.02"
           unit: V
@@ -793,7 +675,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_20_VOLTAGE:
           expression: "B30*0.02"
           unit: V
@@ -801,7 +682,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_21_VOLTAGE:
           expression: "B31*0.02"
           unit: V
@@ -809,7 +689,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_22_VOLTAGE:
           expression: "B33*0.02"
           unit: V
@@ -817,7 +696,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_23_VOLTAGE:
           expression: "B34*0.02"
           unit: V
@@ -825,7 +703,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_24_VOLTAGE:
           expression: "B35*0.02"
           unit: V
@@ -833,7 +710,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_25_VOLTAGE:
           expression: "B36*0.02"
           unit: V
@@ -841,7 +717,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_26_VOLTAGE:
           expression: "B37*0.02"
           unit: V
@@ -849,7 +724,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_27_VOLTAGE:
           expression: "B38*0.02"
           unit: V
@@ -857,7 +731,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_28_VOLTAGE:
           expression: "B39*0.02"
           unit: V
@@ -865,7 +738,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_29_VOLTAGE:
           expression: "B41*0.02"
           unit: V
@@ -873,7 +745,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_30_VOLTAGE:
           expression: "B42*0.02"
           unit: V
@@ -881,7 +752,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_31_VOLTAGE:
           expression: "B43*0.02"
           unit: V
@@ -889,7 +759,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_32_VOLTAGE:
           expression: "B44*0.02"
           unit: V
@@ -912,7 +781,6 @@ BMS:
           min: "0"
           max: "5"
           source: "ImHex pattern + raw capture verified"
-          source_links: []
           verified: true
           notes: "First cell in PID 2103. Same B6..B37 pattern as 2102."
         CELL_34_VOLTAGE:
@@ -922,7 +790,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_35_VOLTAGE:
           expression: "B11*0.02"
           unit: V
@@ -930,7 +797,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_36_VOLTAGE:
           expression: "B12*0.02"
           unit: V
@@ -938,7 +804,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_37_VOLTAGE:
           expression: "B13*0.02"
           unit: V
@@ -946,7 +811,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_38_VOLTAGE:
           expression: "B14*0.02"
           unit: V
@@ -954,7 +818,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_39_VOLTAGE:
           expression: "B15*0.02"
           unit: V
@@ -962,7 +825,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_40_VOLTAGE:
           expression: "B17*0.02"
           unit: V
@@ -970,7 +832,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_41_VOLTAGE:
           expression: "B18*0.02"
           unit: V
@@ -978,7 +839,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_42_VOLTAGE:
           expression: "B19*0.02"
           unit: V
@@ -986,7 +846,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_43_VOLTAGE:
           expression: "B20*0.02"
           unit: V
@@ -994,7 +853,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_44_VOLTAGE:
           expression: "B21*0.02"
           unit: V
@@ -1002,7 +860,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_45_VOLTAGE:
           expression: "B22*0.02"
           unit: V
@@ -1010,7 +867,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_46_VOLTAGE:
           expression: "B23*0.02"
           unit: V
@@ -1018,7 +874,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_47_VOLTAGE:
           expression: "B25*0.02"
           unit: V
@@ -1026,7 +881,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_48_VOLTAGE:
           expression: "B26*0.02"
           unit: V
@@ -1034,7 +888,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_49_VOLTAGE:
           expression: "B27*0.02"
           unit: V
@@ -1042,7 +895,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_50_VOLTAGE:
           expression: "B28*0.02"
           unit: V
@@ -1050,7 +902,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_51_VOLTAGE:
           expression: "B29*0.02"
           unit: V
@@ -1058,7 +909,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_52_VOLTAGE:
           expression: "B30*0.02"
           unit: V
@@ -1066,7 +916,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_53_VOLTAGE:
           expression: "B31*0.02"
           unit: V
@@ -1074,7 +923,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_54_VOLTAGE:
           expression: "B33*0.02"
           unit: V
@@ -1082,7 +930,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_55_VOLTAGE:
           expression: "B34*0.02"
           unit: V
@@ -1090,7 +937,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_56_VOLTAGE:
           expression: "B35*0.02"
           unit: V
@@ -1098,7 +944,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_57_VOLTAGE:
           expression: "B36*0.02"
           unit: V
@@ -1106,7 +951,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_58_VOLTAGE:
           expression: "B37*0.02"
           unit: V
@@ -1114,7 +958,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_59_VOLTAGE:
           expression: "B38*0.02"
           unit: V
@@ -1122,7 +965,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_60_VOLTAGE:
           expression: "B39*0.02"
           unit: V
@@ -1130,7 +972,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_61_VOLTAGE:
           expression: "B41*0.02"
           unit: V
@@ -1138,7 +979,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_62_VOLTAGE:
           expression: "B42*0.02"
           unit: V
@@ -1146,7 +986,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_63_VOLTAGE:
           expression: "B43*0.02"
           unit: V
@@ -1154,7 +993,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_64_VOLTAGE:
           expression: "B44*0.02"
           unit: V
@@ -1177,7 +1015,6 @@ BMS:
           min: "0"
           max: "5"
           source: "ImHex pattern + raw capture verified"
-          source_links: []
           verified: true
           notes: "First cell in PID 2104. Same B6..B37 pattern."
         CELL_66_VOLTAGE:
@@ -1187,7 +1024,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_67_VOLTAGE:
           expression: "B11*0.02"
           unit: V
@@ -1195,7 +1031,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_68_VOLTAGE:
           expression: "B12*0.02"
           unit: V
@@ -1203,7 +1038,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_69_VOLTAGE:
           expression: "B13*0.02"
           unit: V
@@ -1211,7 +1045,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_70_VOLTAGE:
           expression: "B14*0.02"
           unit: V
@@ -1219,7 +1052,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_71_VOLTAGE:
           expression: "B15*0.02"
           unit: V
@@ -1227,7 +1059,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_72_VOLTAGE:
           expression: "B17*0.02"
           unit: V
@@ -1235,7 +1066,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_73_VOLTAGE:
           expression: "B18*0.02"
           unit: V
@@ -1243,7 +1073,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_74_VOLTAGE:
           expression: "B19*0.02"
           unit: V
@@ -1251,7 +1080,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_75_VOLTAGE:
           expression: "B20*0.02"
           unit: V
@@ -1259,7 +1087,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_76_VOLTAGE:
           expression: "B21*0.02"
           unit: V
@@ -1267,7 +1094,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_77_VOLTAGE:
           expression: "B22*0.02"
           unit: V
@@ -1275,7 +1101,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_78_VOLTAGE:
           expression: "B23*0.02"
           unit: V
@@ -1283,7 +1108,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_79_VOLTAGE:
           expression: "B25*0.02"
           unit: V
@@ -1291,7 +1115,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_80_VOLTAGE:
           expression: "B26*0.02"
           unit: V
@@ -1299,7 +1122,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_81_VOLTAGE:
           expression: "B27*0.02"
           unit: V
@@ -1307,7 +1129,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_82_VOLTAGE:
           expression: "B28*0.02"
           unit: V
@@ -1315,7 +1136,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_83_VOLTAGE:
           expression: "B29*0.02"
           unit: V
@@ -1323,7 +1143,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_84_VOLTAGE:
           expression: "B30*0.02"
           unit: V
@@ -1331,7 +1150,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_85_VOLTAGE:
           expression: "B31*0.02"
           unit: V
@@ -1339,7 +1157,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_86_VOLTAGE:
           expression: "B33*0.02"
           unit: V
@@ -1347,7 +1164,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_87_VOLTAGE:
           expression: "B34*0.02"
           unit: V
@@ -1355,7 +1171,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_88_VOLTAGE:
           expression: "B35*0.02"
           unit: V
@@ -1363,7 +1178,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_89_VOLTAGE:
           expression: "B36*0.02"
           unit: V
@@ -1371,7 +1185,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_90_VOLTAGE:
           expression: "B37*0.02"
           unit: V
@@ -1379,7 +1192,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_91_VOLTAGE:
           expression: "B38*0.02"
           unit: V
@@ -1387,7 +1199,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_92_VOLTAGE:
           expression: "B39*0.02"
           unit: V
@@ -1395,7 +1206,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_93_VOLTAGE:
           expression: "B41*0.02"
           unit: V
@@ -1403,7 +1213,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_94_VOLTAGE:
           expression: "B42*0.02"
           unit: V
@@ -1411,7 +1220,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_95_VOLTAGE:
           expression: "B43*0.02"
           unit: V
@@ -1419,7 +1227,6 @@ BMS:
           min: "0"
           max: "5"
           verified: true
-          notes: ""
         CELL_96_VOLTAGE:
           expression: "B44*0.02"
           unit: V

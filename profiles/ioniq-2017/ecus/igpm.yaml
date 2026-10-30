@@ -171,7 +171,6 @@ IGPM:
           expression: "B12:2"
           ha_class: light
           source: Decoded from live captures (2026-04-15); GDS 'Tail Lamp Output (Interior)' name, align vs 22BC04 B12:5 2026-10-30
-          source_links: []
           verified: true
           notes: >-
             1 = interior tail lamp output (GDS 'Tail Lamp Output (Interior)', ScanDoc 'AV tail'),
@@ -184,7 +183,6 @@ IGPM:
           expression: "B12:3"
           ha_class: light
           source: "Decoded from live captures (2026-04-15)"
-          source_links: []
           verified: true
           notes: >-
             1 = on, in every light mode (DRL, low and high beam). GDS 'Tail Lamp Output (Exterior)'
@@ -194,7 +192,6 @@ IGPM:
           expression: "B12:4"
           ha_class: light
           source: "Decoded from live captures (2026-04-15)"
-          source_links: []
           verified: true
           notes: 1 = on, only with high beams (B13:4 in the Niro EV source). Verified 2026-04-15.
 
@@ -202,7 +199,6 @@ IGPM:
           expression: "B12:5"
           ha_class: light
           source: "Decoded from live captures (2026-04-15)"
-          source_links: []
           verified: true
           notes: 1 = on, also while the high beams are on. Verified 2026-04-15.
 
@@ -223,7 +219,6 @@ IGPM:
 
         SEATBELT_FL:
           expression: "B11:1"
-          ha_class: ""
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
@@ -231,7 +226,6 @@ IGPM:
 
         SEATBELT_FR:
           expression: "B11:2"
-          ha_class: ""
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: false
@@ -425,11 +419,9 @@ IGPM:
       parameters:
         BRAKE_LIGHT:
           expression: B10
-          ha_class: ""
           min: "0"
           max: "255"
           source: "Decoded from live captures (2026-04-15)"
-          source_links: []
           verified: true
           notes: >-
             Not a boolean: B10 reads 0x00 released and 0x2D pressed (73 of 504 captures), plus 0x2C
@@ -438,17 +430,13 @@ IGPM:
             (B05 = 0xB4) and is probably corrupt.
         LEFT_TURN_SIGNAL:
           expression: B11:0
-          ha_class: ""
           source: "Corrected 2026-08-09: moved from B10 to B11 (user-confirmed 1=left, 2=right); B10 bit0 was the brake pattern, not the turn signal"
-          source_links: []
           verified: true
           notes: B11 reads 0 (no signal), 1 (left) or 2 (right), never 3, across a 500-sample check.
           enabled: true
         RIGHT_TURN_SIGNAL:
           expression: B11:1
-          ha_class: ""
           source: "Corrected 2026-08-09: moved from B10 to B11 (user-confirmed 1=left, 2=right); B10 bit1 had only n=1 support and was unrelated noise"
-          source_links: []
           verified: true
           notes: B11 reads 0 (no signal), 1 (left) or 2 (right), never 3, across a 500-sample check.
           enabled: true
@@ -1315,85 +1303,57 @@ IGPM:
   iocontrol_discoveries:
     BC01:
       response: "6FBC0100"
-      notes: ""
     BC02:
       response: "6FBC0200"
-      notes: ""
     BC04:
       response: "6FBC0400"
-      notes: ""
     BC05:
       response: "6FBC0500"
-      notes: ""
     BC07:
       response: "6FBC0700"
-      notes: ""
     BC08:
       response: "6FBC0800"
-      notes: ""
     BC09:
       response: "6FBC0900"
-      notes: ""
     BC0A:
       response: "6FBC0A00"
-      notes: ""
     BC0C:
       response: "6FBC0C00"
-      notes: ""
     BC10:
       response: "6FBC1000"
-      notes: ""
     BC11:
       response: "6FBC1100"
-      notes: ""
     BC12:
       response: "6FBC1200"
-      notes: ""
     BC13:
       response: "6FBC1300"
-      notes: ""
     BC14:
       response: "6FBC1400"
-      notes: ""
     BC15:
       response: "6FBC1500"
-      notes: ""
     BC16:
       response: "6FBC1600"
-      notes: ""
     BC18:
       response: "6FBC1800"
-      notes: ""
     BC1B:
       response: "6FBC1B00"
-      notes: ""
     BC1C:
       response: "6FBC1C00"
-      notes: ""
     BC25:
       response: "6FBC2500"
-      notes: ""
     BC2B:
       response: "6FBC2B00"
-      notes: ""
     BC2C:
       response: "6FBC2C00"
-      notes: ""
     BC2D:
       response: "6FBC2D00"
-      notes: ""
     BC3F:
       response: "6FBC3F00"
-      notes: ""
     BC41:
       response: "6FBC4100"
-      notes: ""
     BC42:
       response: "6FBC4200"
-      notes: ""
     BC43:
       response: "6FBC4300"
-      notes: ""
     BC44:
       response: "6FBC4400"
-      notes: ""

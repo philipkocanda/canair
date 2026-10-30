@@ -74,7 +74,6 @@ ESC:
           notes: 1 km/h per LSB. Right pair with B19; front versus rear not checked.
         GEAR_SELECTOR:
           expression: B14
-          unit: ""
           min: "0"
           max: "8"
           source: canair investigate/hunt vs VCU:2101:GEAR_P, 2026-07-22 drive; Reverse confirmed 2026-07-26
@@ -84,7 +83,6 @@ ESC:
             both reversing segments, n=52). Neutral, expected as 3, has not been captured here.
         LONG_ACCEL_RAW:
           expression: B23-128
-          unit: ""
           min: "-128"
           max: "127"
           source: canair hunt/investigate 2026-07-22 drive
@@ -96,7 +94,6 @@ ESC:
             unknown.
         BRAKE_PRESSURE:
           expression: B44
-          unit: ""
           min: "0"
           max: "255"
           source: canair correlate/decode 2026-07-22 drive

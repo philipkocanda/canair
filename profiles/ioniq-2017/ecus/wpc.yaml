@@ -29,20 +29,10 @@ WPC:
       parameters:
         WPC_0100_B03_B04:
           expression: "[S03:S04]"
-          unit: ""
-          ha_class: ""
-          min: ""
-          max: ""
-          source_links: []
           verified: false
           notes: Signed 16-bit. Meaning unknown.
         WPC_0100_B05_B06:
           expression: "[S05:S06]"
-          unit: ""
-          ha_class: ""
-          min: ""
-          max: ""
-          source_links: []
           verified: false
           notes: Signed 16-bit. Meaning unknown.
 

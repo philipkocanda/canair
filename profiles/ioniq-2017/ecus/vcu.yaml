@@ -63,7 +63,6 @@ VCU:
         ACCEL_PEDAL_DEPTH:
           expression: "B18/2"
           unit: "%"
-          ha_class: ""
           min: "0"
           max: "100"
           source: "ITStromer community PID sheet (Accel Pedal Depth = m/2)"
@@ -85,7 +84,6 @@ VCU:
 
         GEAR:
           expression: B10
-          unit: ""
           verified: true
           notes: >-
             Values across 10592 VCU 2101 captures: 0x21 Park (8849), 0x28 Drive (1656), 0x22 Reverse
@@ -102,41 +100,33 @@ VCU:
           source: canair bitfield analysis 2026-08-06; same-payload enumeration n=6365
         GEAR_P:
           expression: B10:0
-          unit: ""
           verified: true
           notes: Bit 0 of GEAR. Equals GEAR_P_MIRROR_B26_5 in every capture.
         GEAR_R:
           expression: B10:1
-          unit: ""
           verified: true
           notes: Bit 1 of GEAR. Matches ESC GEAR_SELECTOR=2 over the 2026-07-26 reversing.
         GEAR_N:
           expression: B10:2
-          unit: ""
           verified: true
           notes: >-
             Bit 2 of GEAR. Set in only 7 captures; ESC GEAR_SELECTOR was not polled at the same
             time.
         GEAR_D:
           expression: B10:3
-          unit: ""
           verified: true
           notes: Bit 3 of GEAR.
         DEBUG_VEHICLE_STATE_FLAGS:
           expression: "B11"
-          unit: ""
           verified: false
           notes: Whole B11 byte; its bits are the VEHICLE_STATE_* signals.
 
         VEHICLE_STATE_BRAKE_LAMP:
           expression: "B11:0"
-          unit: ""
           verified: true
-          notes: ""
 
         VEHICLE_STATE_NOT_BRAKING:
           expression: B11:1
-          unit: ""
           verified: true
           notes: >-
             Not the complement of VEHICLE_STATE_BRAKE_LAMP: across 10592 VCU 2101 captures both read
@@ -145,13 +135,10 @@ VCU:
 
         VEHICLE_STATE_EV_READY:
           expression: "B11:3"
-          unit: ""
           verified: true
-          notes: ""
 
         VCU_IG3_ON:
           expression: "B11:4"
-          unit: ""
           verified: true
           notes: >-
             1 while the IG3 rail is powered. In the 9 stored stretches where it stays 0 (B11 =
@@ -172,7 +159,6 @@ VCU:
 
         VEHICLE_STATE_EV_READY_MIRROR_B11_6:
           expression: B11:6
-          unit: ""
           verified: true
           notes: >-
             Equals VEHICLE_STATE_EV_READY (B11:3) in all 10675 captures on this car. In the JejuSoul
@@ -183,7 +169,6 @@ VCU:
           enabled: false
         VEHICLE_STATE_LDC_ENABLED:
           expression: "1-B11:7"
-          unit: ""
           verified: false
           notes: >-
             1 at READY (B11 = 0x5A) and while charging (0x10); 0 in accessory or off (B11 = 0x92,
@@ -211,7 +196,6 @@ VCU:
           max: "5"
         DEBUG_GEAR_STATE_FLAGS:
           expression: B26
-          unit: ""
           verified: true
           source: canair bitfield analysis 2026-08-06; same-payload cross-tab vs GEAR (B10) n=6365
           notes: >-
@@ -223,7 +207,6 @@ VCU:
             32: park
         GEAR_PARK_INV:
           expression: B26:3
-          unit: ""
           source: canair bitfield analysis 2026-08-06; same-payload cross-tab vs GEAR (B10) n=6365
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
@@ -237,7 +220,6 @@ VCU:
           enabled: false
         GEAR_P_MIRROR_B26_5:
           expression: B26:5
-          unit: ""
           source: canair bitfield analysis 2026-08-06; decode --find-mirrors --bits, n=6365 unanimous
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
@@ -253,7 +235,6 @@ VCU:
 
         VCU_INVERTER_ENABLED:
           expression: B23:2
-          unit: ""
           source: canair historical analysis 2026-07-23
           verified: true
           notes: >-
@@ -261,7 +242,6 @@ VCU:
             only at 52. Agrees with VEHICLE_STATE_EV_READY (r=+0.997, n=776).
         VCU_POWER_STATE:
           expression: B25
-          unit: ""
           min: "0"
           max: "8"
           source: canair historical analysis 2026-07-23; values 1, 2 and 6 re-read 2026-10-23 against stored captures and the JejuSoul US Ioniq logs
@@ -472,7 +452,6 @@ VCU:
           enabled: true
         VCU_HV_MAIN_RELAY_ON:
           expression: B10
-          unit: ""
           min: "0"
           max: "1"
           source: RE 2026-08-02, live ON confirmed
@@ -500,7 +479,6 @@ VCU:
       parameters:
         VCU_21F2_EVENT_COUNT:
           expression: ((B76<<8)|B75)
-          unit: ""
           min: "0"
           max: "65535"
           source: canair 21F2 vs BMS:2101 charge flags 2026-10-21

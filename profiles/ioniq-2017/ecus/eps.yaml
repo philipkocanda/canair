@@ -34,7 +34,6 @@ EPS:
             when reversing.
         EPS_STEERING_TORQUE:
           expression: (B12+S13*256)
-          unit: ""
           min: "-10000"
           max: "10000"
           source: RE 2026-07-23 analysis of 2026-07-22 MT->KW drive
@@ -46,7 +45,6 @@ EPS:
           enabled: true
         EPS_MDPS_ASSIST:
           expression: B17
-          unit: ""
           min: "0"
           max: "255"
           verified: false
@@ -56,7 +54,6 @@ EPS:
           enabled: true
         EPS_STEERING_TORQUE_ALT:
           expression: S7
-          unit: ""
           min: "-40"
           max: "40"
           verified: false
@@ -67,7 +64,6 @@ EPS:
 
         EPS_SPEED_BAND:
           expression: B15
-          unit: ""
           min: "0"
           max: "3"
           source: canair correlate/decode analysis of 2026-07-22 MT->KW drive
