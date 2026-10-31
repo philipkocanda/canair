@@ -41,6 +41,13 @@ init: "ATSP6;ATS0;ATAL;ATST96;"
 # ISO 15765-4 11-bit / 500 kbit/s (ATSP6).
 can_bitrate: 500000
 
+# ISO-TP fill bytes (slcan-tcp only; an ELM327 pads requests itself, normally with
+# 0x00). ES95486 pads requests with 0x55 and responses with 0xAA. No ECU firmware
+# examined checks the request padding, so this is spec conformance, not a fix.
+isotp:
+  tx_padding: 0x55
+  rx_padding: 0xAA
+
 # Make-specific quirk shared across Hyundai/Kia: identity DIDs answer one less
 # than requested (request 22F188 -> response 62F187); echo validation tolerates
 # it for F1xx. (The Ioniq's skm_wakeup quirk is NOT included — its relay-wake
