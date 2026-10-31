@@ -76,13 +76,19 @@ def _reset_active_profile():
     each module in its own worker.
     """
     import canlib.profile as profile
+    from canlib.config import load_config
     from canlib.pids import clear_cache
 
+    # The config is memoized too, and the active profile's variant is read from it: a
+    # test that points XDG_CONFIG_HOME elsewhere must not leave its config cached for
+    # the next test (which then meets the suite's car unselected).
     profile._active = None
     clear_cache()
+    load_config.cache_clear()
     yield
     profile._active = None
     clear_cache()
+    load_config.cache_clear()
 
 
 @pytest.fixture(autouse=True)
