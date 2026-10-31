@@ -60,11 +60,11 @@ jobs:
         #
         # --max-untagged is the same ratchet for capture sessions that name no car on
         # a profile with several variants: every recording names its car now, so the
-        # count only falls as history is tagged. The Leaf and Ioniq 5 history is
-        # untagged until someone knows which battery those cars had.
+        # count only falls as history is tagged. The Ioniq 5 history is untagged
+        # until someone knows which battery that car had.
         run: |
           declare -A UNTIMED_BASELINE=( [hyundai-ioniq-ae-ev]=284 )
-          declare -A UNTAGGED_BASELINE=( [nissan-leaf-ze1-ev]=5 [hyundai-ioniq-5-ne-ev]=1 )
+          declare -A UNTAGGED_BASELINE=( [hyundai-ioniq-5-ne-ev]=1 )
           for p in profiles/*/; do
             name="$(basename "$p")"
             max_untimed="${UNTIMED_BASELINE[$name]:-0}"

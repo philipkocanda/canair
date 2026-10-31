@@ -17,6 +17,9 @@ LBC:
       Sources: https://github.com/meatpiHQ/wican-fw/pull/750,
       https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/nissan/leaf-ze1-2018-.json
     id_protocol: KWP2000
+  revisions:
+    40kwh: {}
+    62kwh: {}
   pids:
     2101:
       source: meatpiHQ/wican-fw#750 (TyzzyT)
@@ -55,9 +58,10 @@ LBC:
           notes: >-
             State of health from the 24-bit AHr capacity at WiCAN B44:B46 against the 115.44 Ah
             reference of a new 40 kWh pack. Matched LeafSpy Pro on a 2018 40 kWh car (85.2 vs 85.23
-            %). Wrong on a 62 kWh e+ (new pack about 176 Ah, so a healthy e+ reads about 140 % and
-            is dropped, while one below about 65 % passes with a wrong value); use LBC:2161 SOH,
-            which the LBC reports for either pack. Min 1 drops a 0 % startup glitch.
+            %). Gated to the LBC's 40kwh revision: on a 62 kWh e+ (new pack about 176 Ah) a healthy
+            pack would read about 140 %. LBC:2161 SOH, which the LBC reports for either pack, is the
+            pack-independent reading. Min 1 drops a 0 % startup glitch.
+          revisions: [40kwh]
         HV_CAPACITY:
           expression: ((B44*65536)+[B45:B46])/10000
           unit: Ah

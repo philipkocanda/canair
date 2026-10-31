@@ -15,9 +15,11 @@
 # LBC:2101 12 V voltage, added here as LBC_12V; its three broadcast filters
 # (0x284, 0x1DA, 0x5C5) are in signals/.
 #
-# The profile covers both packs: LBC:2161 SOH is reported by the battery
-# controller itself, so it suits either. LBC:2101 SOH_40KWH uses the 40 kWh
-# pack's 115.44 Ah reference and is wrong on an e+ (new pack about 176 Ah).
+# The profile covers both packs as variants (variants.yaml): 40kwh and 62kwh
+# (e+). LBC:2161 SOH is reported by the battery controller itself, so it suits
+# either. LBC:2101 SOH_40KWH uses the 40 kWh pack's 115.44 Ah reference and is
+# wrong on an e+ (new pack about 176 Ah), so it is gated to the LBC's 40kwh
+# revision, which only the 40kwh variant carries.
 #
 # Per the PR, the ZE1's CAN gateway isolates the OBD-II port while the car is
 # off: every PID answers only with the ignition on (READY). The 2026-10-21

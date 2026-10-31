@@ -5,10 +5,26 @@ variants:
     name: Leaf 40 kWh
     generation: ZE1
     battery: {gross_kwh: 40}
-    status: community
-    sources: [meatpiHQ/wican-fw#750 (verified on a 2018 40 kWh car)]
+    revisions:
+      LBC: [40kwh]
+    status: verified
+    sources:
+    - this profile's own captures (2026-10-21; LBC:2101 HV_CAPACITY and LBC:2161 SOH)
+    - meatpiHQ/wican-fw#750 (verified on a 2018 40 kWh car)
+    notes: >-
+      Its LBC is the 40kwh revision. This profile's own captures (2026-10-21) are from a 40 kWh car:
+      LBC:2101 HV_CAPACITY 95.91 Ah at an LBC:2161 SOH of 83.08 % puts the new pack at 115.44 Ah,
+      the 40 kWh reference. OBDb's ZE1 test vectors read 92-108 Ah on 40 kWh cars and 161-169 Ah on
+      e+ cars.
   62kwh:
     name: Leaf e+ 62 kWh
     generation: ZE1
     battery: {gross_kwh: 62}
+    revisions:
+      LBC: [62kwh]
     status: seed
+    sources: [OBDb Nissan-Leaf ZE1 test vectors (https://github.com/OBDb/Nissan-Leaf)]
+    notes: >-
+      Its LBC is the 62kwh revision, which leaves out LBC:2101 SOH_40KWH: that signal's 115.44 Ah
+      reference would read a healthy e+ pack at about 140 %. OBDb's ZE1 test vectors put a new e+
+      pack at about 176.4 Ah (AHr / SOH). Nothing captured on an e+ yet.

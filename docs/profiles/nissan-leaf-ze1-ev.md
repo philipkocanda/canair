@@ -26,9 +26,11 @@ canair profile use nissan-leaf-ze1-ev
     years, packs and markets**, so re-check a value against your own captures before relying on
     it (see [Define & verify](../bring-your-own-car/07-define-and-verify.md)).
 
-    Two pack-specific traps: `LBC:2101` `SOH_40KWH` uses the 40 kWh pack's 115.44 Ah reference
-    and is **wrong on a 62 kWh e+**. Prefer `LBC:2161` `SOH`, which the battery controller reports
-    itself and suits either pack.
+    The 40 kWh and 62 kWh e+ cars are the profile's two [variants](../concepts/variants.md)
+    (`40kwh`, `62kwh`); name yours with `canair profile use nissan-leaf-ze1-ev --variant 40kwh`.
+    `LBC:2101` `SOH_40KWH` uses the 40 kWh pack's 115.44 Ah reference, so it is read only on the
+    `40kwh` car. `LBC:2161` `SOH`, which the battery controller reports itself, suits either
+    pack.
 
 ## At a glance
 

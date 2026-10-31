@@ -9,6 +9,10 @@
       ],
       "notes": "First device capture on this profile. Full 11-bit sweep (10 01) to confirm the device-free seeded ECU addresses from the dalathegreat table. Car off, 12V rail ~12.1V; only 0x758 answered (NRC 0x12), so this sweep does not show the LBC answering with the car off.",
       "transport": "wican-ws",
+      "variant": "40kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"broadcast","pid":"discover 700-7EF","scan_results":{"responding":[{"tx":"0x758","rx":"0x778","response":"NRC 0x12","notes":"Raw: subFunctionNotSupported"}],"rejected":"239 addresses silent"}}
       ]
@@ -25,6 +29,10 @@
       "quality": {
         "exchanges": 75,
         "no_data": 53
+      },
+      "variant": "40kwh",
+      "attribution": {
+        "variant": "migrated"
       },
       "captures": [
         {"rx":"0x79A","pid":"221102","payload":"62110200","time":"13:47:31.193","elapsed_ms":636},
@@ -62,6 +70,10 @@
       "transport": "wican-ws",
       "quality": {
         "exchanges": 48
+      },
+      "variant": "40kwh",
+      "attribution": {
+        "variant": "migrated"
       },
       "captures": [
         {"rx":"0x7BB","pid":"2101","payload":"6101FFFFF83002AFFFFFF935FFFFEC7805C430D4977038BD0388000170001817000CD5AF000EA263800005FFFFF935FFFFF9AA01AE","time":"14:06:24.366","elapsed_ms":158},
@@ -122,6 +134,10 @@
       ],
       "notes": "Full 11-bit sweep (10 01) with the car powered, 12V rail 13.9V. Counterpart to the car-off sweep in this profile's first session, where only 0x758 answered. Confirms which of the device-free seeded addresses are real.",
       "transport": "wican-ws",
+      "variant": "40kwh",
+      "attribution": {
+        "variant": "migrated"
+      },
       "captures": [
         {"rx":"broadcast","pid":"discover 700-7EF","scan_results":{"responding":[{"tx":"0x707","rx":"0x727","response":"NRC 0x12","notes":"Raw: subFunctionNotSupported"},{"tx":"0x70E","rx":"0x70F","response":"BRAKE (NRC 0x12)","notes":"Raw: subFunctionNotSupported"},{"tx":"0x73F","rx":"0x761","response":"VSP (NRC 0x12)","notes":"Raw: subFunctionNotSupported"},{"tx":"0x740","rx":"0x760","response":"ABS (positive)","notes":"Raw: 5001003201F4"},{"tx":"0x742","rx":"0x762","response":"EPS (NRC 0x12)","notes":"Raw: subFunctionNotSupported"},{"tx":"0x743","rx":"0x763","response":"METER (positive)","notes":"Raw: 5001003201F4"},{"tx":"0x744","rx":"0x764","response":"HVAC (NRC 0x12)","notes":"Raw: subFunctionNotSupported"},{"tx":"0x745","rx":"0x765","response":"BCM (NRC 0x12)","notes":"Raw: subFunctionNotSupported"},{"tx":"0x746","rx":"0x783","response":"TCU (NRC 0x12)","notes":"Raw: subFunctionNotSupported"},{"tx":"0x747","rx":"0x767","response":"MULTI_AV (NRC 0x12)","notes":"Raw: subFunctionNotSupported"},{"tx":"0x74D","rx":"0x76D","response":"IPDM (NRC 0x12)","notes":"Raw: subFunctionNotSupported"},{"tx":"0x74E","rx":"0x76E","response":"positive","notes":"Raw: 5001003201F4"},{"tx":"0x752","rx":"0x772","response":"AIRBAG (positive)","notes":"Raw: 5001003201F4"},{"tx":"0x755","rx":"0x775","response":"NRC 0x12","notes":"Raw: subFunctionNotSupported"},{"tx":"0x758","rx":"0x778","response":"NRC 0x12","notes":"Raw: subFunctionNotSupported"},{"tx":"0x75D","rx":"0x77D","response":"NRC 0x12","notes":"Raw: subFunctionNotSupported"},{"tx":"0x784","rx":"0x78C","response":"INVERTER (NRC 0x12)","notes":"Raw: subFunctionNotSupported"},{"tx":"0x792","rx":"0x793","response":"CHARGER (NRC 0x12)","notes":"Raw: subFunctionNotSupported"},{"tx":"0x796","rx":"0x7B6","response":"NRC 0x12","notes":"Raw: subFunctionNotSupported"},{"tx":"0x797","rx":"0x79A","response":"VCM (NRC 0x12)","notes":"Raw: subFunctionNotSupported"},{"tx":"0x79B","rx":"0x7BB","response":"LBC (NRC 0x12)","notes":"Raw: subFunctionNotSupported"},{"tx":"0x79D","rx":"0x7BD","response":"SHIFT (NRC 0x12)","notes":"Raw: subFunctionNotSupported"}],"rejected":"218 addresses silent"}}
       ]
@@ -139,6 +155,10 @@
         "exchanges": 51,
         "no_data": 6,
         "drop": 2
+      },
+      "variant": "40kwh",
+      "attribution": {
+        "variant": "migrated"
       },
       "captures": [
         {"rx":"0x7BB","pid":"2101","payload":"6101000032C802AF00002887000084D0056230D4983D3808038A000170001817000CCCA5000EA263005A050000288700002B0E01AE","time":"14:18:39.355","elapsed_ms":165},
