@@ -23,7 +23,7 @@ byte) and the CAN-FD / 32-bit-length escapes are not understood and are counted 
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Iterator
+from collections.abc import Container, Iterable, Iterator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -155,22 +155,35 @@ class Reassembler:
         self._partial.clear()
 
 
-def reassemble(frames: Iterable[can.Message], stats: ReassemblyStats) -> Iterator[IsoTpMessage]:
+def reassemble(
+    frames: Iterable[can.Message],
+    stats: ReassemblyStats,
+    *,
+    tracked: Container[int] | None = None,
+) -> Iterator[IsoTpMessage]:
     """Yield every ISO-TP message in ``frames``, in order of completion.
 
     ``stats`` is updated as the generator is consumed and is final once it is
     exhausted (a message still open at the end of the stream is then counted as
     truncated). Flow-control frames (always tester to ECU) carry no payload and
     are ignored.
+
+    ``tracked`` limits ``stats`` to those arbitration ids. Frames on other ids are
+    still reassembled and yielded, but their losses are not tallied: on a bus that
+    also carries broadcast traffic, most broadcast frames read as broken ISO-TP and
+    would otherwise drown the real diagnostic losses.
     """
-    reassembler = Reassembler(stats)
+    ours = Reassembler(stats)
+    others = ours if tracked is None else Reassembler(ReassemblyStats())
     for frame in frames:
         key: _Key = (
             getattr(frame, "channel", None),
             frame.arbitration_id,
             bool(frame.is_extended_id),
         )
+        reassembler = ours if tracked is None or frame.arbitration_id in tracked else others
         message = reassembler.feed(key, bytes(frame.data), float(frame.timestamp or 0.0))
         if message is not None:
             yield message
-    reassembler.finish()
+    ours.finish()
+    others.finish()
