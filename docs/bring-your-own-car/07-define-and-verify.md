@@ -66,7 +66,9 @@ canair pids rm-pid       MyECU 22B002         # remove a whole PID (drops pids: 
 If no `canair pids` subcommand covers a field you need, edit the file directly, run
 `canair validate pids`, and [report the gap](../contributing/index.md). It catches the usual
 hand-editing slip too: a key written twice (two signals of the same name in one PID, say),
-which YAML would otherwise load as the later one without a word.
+which YAML would otherwise load as the later one without a word. Every other `canair validate`
+target makes the same check on its file (`profile.yaml`, `variants.yaml`, `vehicle_states.yaml`,
+`groups.yaml`, `can_buses.yaml`, `actions.yaml`, `signals/`).
 
 ## Audit for gaps
 

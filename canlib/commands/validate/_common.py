@@ -1,7 +1,8 @@
-"""Shared constants for the validate submodules."""
+"""Shared constants and helpers for the validate submodules."""
 
 import re
 
+from canlib import yaml_io
 from canlib.constants import SCHEMA_DIR
 
 SCHEMA_FILE = SCHEMA_DIR / "pids_schema.yaml"
@@ -20,3 +21,15 @@ EXPR_TOKEN_RE = re.compile(
 )
 
 DEPRECATED_FIELDS = {"ecu_tx", "ecu_rx", "ecu_name", "decoded"}
+
+
+def duplicate_key_errors(text: str) -> list[str]:
+    """One error per key a YAML document repeats (the loaders keep the later value).
+
+    Call it on text that has already parsed; it raises :class:`yaml.YAMLError` otherwise.
+    """
+    return [
+        f"duplicate key '{d.key}' in {'/'.join(d.path) or 'the top level'} at line {d.line}"
+        f" (first at line {d.first_line}); only the later one is loaded"
+        for d in yaml_io.duplicate_keys(text)
+    ]

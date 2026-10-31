@@ -18,7 +18,7 @@ from canlib.uds.support_map import SupportMapError
 from canlib.uds.support_map import declaration as support_map_declaration
 from canlib.variants.revisions import check_ecu as check_revisions
 
-from ._common import EXPR_TOKEN_RE, SCHEMA_FILE
+from ._common import EXPR_TOKEN_RE, SCHEMA_FILE, duplicate_key_errors
 from .profile_names import profile_name_findings
 from .send_to import send_to_findings
 
@@ -418,11 +418,7 @@ def validate_ecu_file(
     if not data or not isinstance(data, dict):
         return [f"{path.name}: empty or invalid YAML"], [], stats
 
-    errors: list[str] = [
-        f"{path.name}:{d.line}: duplicate key '{d.key}' in {'/'.join(d.path) or 'the file'}"
-        f" (first at line {d.first_line}); only the later one is loaded"
-        for d in yaml_io.duplicate_keys(text)
-    ]
+    errors: list[str] = [f"{path.name}: {e}" for e in duplicate_key_errors(text)]
     warnings: list[str] = []
     for ecu_name, ecu_def in data.items():
         stats["ecus"] += 1
@@ -1171,14 +1167,15 @@ def validate_meta(path: Path, required_fields: set[str]) -> list[str]:
 
     errors = []
     try:
-        with open(path) as f:
-            data = yaml_io.safe_load(f)
+        text = path.read_text()
+        data = yaml_io.safe_load(text)
     except yaml.YAMLError as e:
         return [f"profile.yaml: YAML parse error: {e}"]
 
     if not data or not isinstance(data, dict):
         return ["profile.yaml: empty or invalid"]
 
+    errors += [f"profile.yaml: {e}" for e in duplicate_key_errors(text)]
     for field in required_fields:
         if field not in data:
             errors.append(f"profile.yaml: missing required field '{field}'")

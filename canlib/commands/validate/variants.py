@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from canlib import yaml_io
 
+from ._common import duplicate_key_errors
+
 
 def _reference_errors() -> list[str]:
     """Every ECU or revision a variant's ``revisions:`` names that ecus/ lacks."""
@@ -29,11 +31,12 @@ def _run_variants() -> int:
         print("No variants.yaml (optional) — skipping.")
         return 0
     try:
-        data = yaml_io.safe_load(path.read_text())
+        text = path.read_text()
+        data = yaml_io.safe_load(text)
     except Exception as e:
         print(f"{path.name}: YAML parse error: {e}")
         return 1
-    errors = check_variants_doc(data)
+    errors = duplicate_key_errors(text) + check_variants_doc(data)
     if not errors:
         errors = _reference_errors()
     if errors:

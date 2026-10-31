@@ -592,8 +592,8 @@ class TestDuplicateKeys:
         errors = self._errors(tmp_path, self.DOC)
         dup = [e for e in errors if "duplicate key" in e]
         assert dup == [
-            "vcu.yaml:8: duplicate key 'GEAR' in VCU/pids/2101/parameters (first at line 6);"
-            " only the later one is loaded"
+            "vcu.yaml: duplicate key 'GEAR' in VCU/pids/2101/parameters at line 8"
+            " (first at line 6); only the later one is loaded"
         ]
 
     def test_without_the_repeat_there_is_no_error(self, tmp_path):

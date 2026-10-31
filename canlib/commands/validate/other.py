@@ -1,4 +1,5 @@
-"""vehicle_states.yaml / signals/ / captures/can index validation."""
+"""Validation of the profile's other YAML files: vehicle_states.yaml, groups.yaml, actions.yaml,
+can_buses.yaml, signals/ and the captures/can index."""
 
 import json
 
@@ -6,7 +7,7 @@ from jsonschema import Draft202012Validator
 
 from canlib import yaml_io
 
-from ._common import CAN_INDEX_SCHEMA_FILE
+from ._common import CAN_INDEX_SCHEMA_FILE, duplicate_key_errors
 
 
 def _state_reference_errors(predicates: list[tuple[str, str]]) -> tuple[list[str], str | None]:
@@ -116,8 +117,9 @@ def _run_states() -> int:
         print("No vehicle_states.yaml (optional) — skipping.")
         return 0
 
-    data = yaml_io.safe_load(path.read_text()) or {}
-    errors: list[str] = []
+    text = path.read_text()
+    data = yaml_io.safe_load(text) or {}
+    errors: list[str] = duplicate_key_errors(text)
     if not isinstance(data, dict) or "states" not in data:
         print(f"{path.name}: missing top-level 'states:' list")
         return 1
@@ -197,7 +199,8 @@ def _run_groups() -> int:
         print("No groups.yaml (optional) — skipping.")
         return 0
 
-    data = yaml_io.safe_load(path.read_text()) or {}
+    text = path.read_text()
+    data = yaml_io.safe_load(text) or {}
     if not isinstance(data, dict) or "groups" not in data:
         print("groups.yaml: missing top-level 'groups:' mapping")
         return 1
@@ -214,7 +217,7 @@ def _run_groups() -> int:
     except Exception:
         ecu_index, name_index = {}, None
 
-    errors: list[str] = []
+    errors: list[str] = duplicate_key_errors(text)
     seen: set[str] = set()
     n_members = 0
     for name, meta in groups.items():
@@ -282,12 +285,16 @@ def _run_actions() -> int:
     if not path.exists():
         print("No actions.yaml (optional) — skipping.")
         return 0
+    text = path.read_text()
+    errors: list[str] = duplicate_key_errors(text)
     try:
-        actions = parse_actions_doc(yaml_io.safe_load(path.read_text()))
+        actions = parse_actions_doc(yaml_io.safe_load(text))
     except ActionError as e:
-        print(f"actions.yaml: 1 error\n  - {e}")
+        errors.append(str(e))
+        print(f"actions.yaml: {len(errors)} errors")
+        for err in errors:
+            print(f"  - {err}")
         return 1
-    errors: list[str] = []
     try:
         pids_data = load_pids()
     except Exception as ex:
@@ -322,13 +329,14 @@ def _run_can_buses() -> int:
         print("No can_buses.yaml (optional) — skipping.")
         return 0
 
-    data = yaml_io.safe_load(path.read_text()) or {}
+    text = path.read_text()
+    data = yaml_io.safe_load(text) or {}
     if not isinstance(data, dict) or "can_buses" not in data:
         print("can_buses.yaml: missing top-level 'can_buses:' mapping")
         return 1
     buses = data.get("can_buses")
 
-    errors: list[str] = []
+    errors: list[str] = duplicate_key_errors(text)
     seen: set[str] = set()
 
     def _check_code(i, code) -> None:
@@ -397,6 +405,7 @@ def _run_signals() -> int:
     total_signals = 0
     for path, data in ((d.path, d.data) for d in docs):
         errors, n_signals = check_signals_doc(data)
+        errors = duplicate_key_errors(path.read_text()) + errors
         total_signals += n_signals
         if errors:
             print(f"\n{path.name}: {len(errors)} errors")
@@ -425,13 +434,16 @@ def _run_can() -> int:
         schema = json.load(f)
     Draft202012Validator.check_schema(schema)
     validator = Draft202012Validator(schema)
-    data = yaml_io.safe_load(path.read_text()) or {}
-    errors = sorted(validator.iter_errors(data), key=lambda e: list(e.path))
+    text = path.read_text()
+    data = yaml_io.safe_load(text) or {}
+    schema_errors = sorted(validator.iter_errors(data), key=lambda e: list(e.path))
+    errors = duplicate_key_errors(text) + [
+        f"{'/'.join(str(p) for p in e.path) or '(root)'}: {e.message}" for e in schema_errors
+    ]
     if errors:
         print(f"captures/can/index.yaml: {len(errors)} errors")
         for e in errors:
-            loc = "/".join(str(p) for p in e.path) or "(root)"
-            print(f"  - {loc}: {e.message}")
+            print(f"  - {e}")
         return 1
     n = len(data.get("logs") or [])
     print(f"captures/can/index.yaml: OK ({n} log(s))")
