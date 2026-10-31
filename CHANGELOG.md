@@ -15,6 +15,17 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [2.1.0](https://github.com/philipkocanda/canair/compare/v2.0.0...v2.1.0) (2026-10-31)
+
+
+### Added
+
+* **action:** add guarded profile actions and the Ioniq sleep action ([37c9895](https://github.com/philipkocanda/canair/commit/37c989533aa4f12bd5a16926f58227b377fe3f23))
+* **discover:** map gateway routing with one functional request (--functional) ([0cd676e](https://github.com/philipkocanda/canair/commit/0cd676e9594ea61056a5171f8b3261d2423ad583))
+* **isotp:** pad requests and strip replies with separate bytes (rx_padding) ([76043dd](https://github.com/philipkocanda/canair/commit/76043dd75d926aaf682e4c26d25786becb651bc8))
+* **profiles:** rename bundled profiles to make-model-code-drivetrain names ([4d0a129](https://github.com/philipkocanda/canair/commit/4d0a12934c0bee1633a7a8b5096376772624f708))
+* **variants:** declare a car's variants and their metadata in variants.yaml ([48a052b](https://github.com/philipkocanda/canair/commit/48a052b3c3bbda1b54f24644853bc745d2a1cbce))
+
 ## [2.0.0](https://github.com/philipkocanda/canair/compare/v1.36.0...v2.0.0) (2026-10-30)
 
 
