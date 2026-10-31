@@ -2,17 +2,206 @@
 # List or edit with `canair variants`. See docs/concepts/variants.md.
 variants:
   58kwh:
-    name: Ioniq 5 58 kWh
+    name: Ioniq 5 58 kWh (Standard Range, pre-facelift)
     generation: NE
-    battery: {gross_kwh: 58}
+    production: ["2021", "2024"]
+    markets: [EU, US]
+    battery: {gross_kwh: 58.0, nominal_voltage: 522.7, series_cells: 144, parallel_cells: 2, chemistry: NMC, cell_format: pouch}
     status: seed
+    sources:
+    - >-
+      EVDB, IONIQ 5 Standard Range 2WD/AWD (MY21): 58.0 kWh, 288 pouch cells, 144s2p, NMC, 523 V,
+      built 2021-2024: https://ev-database.org/car/1476/Hyundai-IONIQ-5-Standard-Range-2WD
+    - >-
+      Hyundai Motor Company launch release, 2021-02-22 (58 and 72.6 kWh packs; 77.4 kWh for North
+      America):
+      https://www.hyundai.com/worldwide/en/newsroom/detail/hyundai-ioniq-5-redefines-electric-mobility-lifestyle-0000000551
+    - >-
+      Hyundai IONIQ 5 brochure, specifications table (58.0 kWh at 522.7 V, 72.6 kWh at 653.4 V):
+      https://www.hyundai.com/content/dam/hyundai/africa/en/data/marketing/brochure/product/ioniq5/EN_Brochure_IONIQ_5.pdf
+    - >-
+      Hyundai Motor America 2024 IONIQ 5 specifications (58.0 kWh at 522.7 V; 77.4 kWh at 697 V,
+      2P192S, SK Innovation):
+      https://www.hyundainews.com/assets/documents/original/56233-2024IONIQ5Specs062623.pdf
+    - >-
+      InsideEVs on the BASTRO Power Station teardown of a 72.6 kWh pack: 30 modules of 12 pouch
+      cells, two of 32 module slots empty:
+      https://insideevs.com/news/539940/hyundai-ioniq5-battery-pack-opened/
+    notes: >-
+      Launch Standard Range pack, sold with RWD or AWD (EVDB lists the AWD 2021-2022). 288 cells as
+      144 series groups of two (EVDB). The module count is not published; InsideEVs estimates 24
+      modules of the 12-cell module seen in the 72.6 kWh teardown, the layout Hyundai states for the
+      63 kWh successor. 522.7 V is Hyundai's figure, 144 x 3.63 V. EVDB estimates 54.0 kWh usable.
+      Hyundai names the pack by its gross capacity, as this ID does. Cell supplier not stated for
+      this pack in the sources checked. No capture from this car yet. A 144S pack spans about
+      360-605 V (2.5-4.2 V per cell), mostly below the profile's 450-820 V hv_pack band.
+  72kwh:
+    name: Ioniq 5 72.6 kWh (Long Range, launch)
+    generation: NE
+    production: ["2021", "2022"]
+    markets: [EU]
+    battery: {gross_kwh: 72.6, nominal_voltage: 653.4, series_cells: 180, parallel_cells: 2, modules: 30, chemistry: NMC, cell_format: pouch, cooling: liquid}
+    trims: [Project 45]
+    status: seed
+    sources:
+    - >-
+      EVDB, IONIQ 5 Long Range 2WD/AWD (MY21): 72.6 kWh, 360 pouch cells, 180s2p, NMC, 653 V, built
+      2021-2022: https://ev-database.org/car/1478/Hyundai-IONIQ-5-Long-Range-2WD
+    - >-
+      Hyundai Motor Company launch release, 2021-02-22 (58 and 72.6 kWh packs; 77.4 kWh for North
+      America):
+      https://www.hyundai.com/worldwide/en/newsroom/detail/hyundai-ioniq-5-redefines-electric-mobility-lifestyle-0000000551
+    - >-
+      Hyundai IONIQ 5 brochure, specifications table (58.0 kWh at 522.7 V, 72.6 kWh at 653.4 V):
+      https://www.hyundai.com/content/dam/hyundai/africa/en/data/marketing/brochure/product/ioniq5/EN_Brochure_IONIQ_5.pdf
+    - >-
+      InsideEVs on the BASTRO Power Station teardown of a 72.6 kWh pack: 30 modules of 12 pouch
+      cells, two of 32 module slots empty:
+      https://insideevs.com/news/539940/hyundai-ioniq5-battery-pack-opened/
+    - >-
+      InsideEVs on the BASTRO module teardown: 12 pouch cells in six pairs per module, cooled
+      through a bottom plate; cells by SK On, modules and pack by Hyundai Mobis:
+      https://insideevs.com/news/543792/hyundai-ioniq5-battery-cells-exposed/
+    - >-
+      EVDB, IONIQ 5 Project 45 (MY21), the launch edition on this pack:
+      https://ev-database.org/car/1381/Hyundai-IONIQ-5-Project-45
+    notes: >-
+      The launch Long Range pack outside North America, replaced by the 77.4 kWh pack in 2022. A
+      teardown shows 30 modules of 12 cells, with two of the 32 module slots empty; 360 cells as 180
+      series groups of two (EVDB). 653.4 V is Hyundai's figure, 180 x 3.63 V. EVDB estimates 70.0
+      kWh usable. The teardown reports SK On cells (as far as the reporter knew), so cell_supplier
+      is left unset. No capture from this car yet.
   77kwh:
-    name: Ioniq 5 77.4 kWh
+    name: Ioniq 5 77.4 kWh (Long Range, pre-facelift)
     generation: NE
-    battery: {gross_kwh: 77.4}
+    production: ["2021", "2024"]
+    markets: [EU, US, AU]
+    battery: {gross_kwh: 77.4, nominal_voltage: 697, series_cells: 192, parallel_cells: 2, chemistry: NMC, cell_format: pouch, cell_supplier: SK On (SK Innovation), cooling: liquid}
     status: seed
+    sources:
+    - >-
+      EVDB, IONIQ 5 Long Range 2WD/AWD (MY22): 77.4 kWh, 384 pouch cells, 192s2p, NMC, 697 V, built
+      2022-2024: https://ev-database.org/car/1662/Hyundai-IONIQ-5-Long-Range-2WD
+    - >-
+      Hyundai Motor America 2022 IONIQ 5 product guide (77.4 kWh, 697 V, structure 2P192S, supplier
+      SK Innovation):
+      https://www.hyundainews.com/assets/documents/original/48175-2022Ioniq5ProductGuidespecs090821.pdf
+    - >-
+      Hyundai Motor America 2024 IONIQ 5 specifications (58.0 kWh at 522.7 V; 77.4 kWh at 697 V,
+      2P192S, SK Innovation):
+      https://www.hyundainews.com/assets/documents/original/56233-2024IONIQ5Specs062623.pdf
+    - >-
+      Hyundai Motor Company launch release, 2021-02-22 (58 and 72.6 kWh packs; 77.4 kWh for North
+      America):
+      https://www.hyundai.com/worldwide/en/newsroom/detail/hyundai-ioniq-5-redefines-electric-mobility-lifestyle-0000000551
+    - >-
+      Hyundai Australia IONIQ 5 specification guide, Oct 2022 (77.4 kWh, liquid-cooled lithium-ion,
+      697 V):
+      https://www.hyundai.com/content/dam/hyundai/au/en/ecomm/ioniq5v3/IONIQ5_Specification_Guide_version3.pdf
+    - >-
+      InsideEVs on the BASTRO Power Station teardown of a 72.6 kWh pack: 30 modules of 12 pouch
+      cells, two of 32 module slots empty:
+      https://insideevs.com/news/539940/hyundai-ioniq5-battery-pack-opened/
+    notes: >-
+      The only pack in North America from launch (US model year 2022, built from 2021); elsewhere it
+      replaced the 72.6 kWh pack in 2022. 384 cells as 192 series groups of two (Hyundai's 2P192S;
+      EVDB). The module count is not published; 384 cells fill the 32 slots of 12-cell modules seen
+      in the 72.6 kWh teardown, which InsideEVs estimates, and Hyundai states 32 modules for the 84
+      kWh successor. 697 V is 192 x 3.63 V. Hyundai lists the supplier as SK Innovation, whose
+      battery business became SK On in 2021. EVDB estimates 74.0 kWh usable. No capture from this
+      car yet.
+  63kwh:
+    name: Ioniq 5 63 kWh (Standard Range, facelift)
+    generation: NE
+    production: ["2024", "2026"]
+    markets: [EU, US, AU]
+    battery: {gross_kwh: 63.0, nominal_voltage: 523, series_cells: 144, parallel_cells: 2, modules: 24, chemistry: NMC, cell_format: pouch, cooling: liquid}
+    status: seed
+    sources:
+    - >-
+      EVDB, IONIQ 5 63 kWh RWD (MY24): 63.0 kWh, 288 pouch cells, 144s2p, NMC, 520 V, built
+      2024-2026: https://ev-database.org/car/2235/Hyundai-IONIQ-5-63-kWh-RWD
+    - >-
+      Hyundai Motor America 2026 IONIQ 5 specifications (63.0 kWh at 523 V with 288 cells in 24
+      modules; 84.0 kWh at 697 V with 384 cells in 32 modules; supplier SK Innovation (Hungary)):
+      https://www.hyundainews.com/assets/documents/original/67177-2026IONIQ5SpecsFeatures20250702.pdf
+    - >-
+      Hyundai Australia IONIQ 5 specification sheet, Aug 2024 (63 kWh at 523 V and 84 kWh at 697 V,
+      both liquid-cooled lithium-ion):
+      https://www.hyundai.com/content/dam/hyundai/au/en/models/ioniq5/docs/Specification_Sheet_IONIQ5.pdf
+    - >-
+      Hyundai UK IONIQ 5 technical, specifications and pricing guide, model year 27, Oct 2026 (63
+      kWh RWD, 84 kWh RWD and AWD still offered):
+      https://dmassets.hyundai.com/is/content/hyundaiautoever/IONIQ_5_Tech_and_Spec_Guidepdf
+    notes: >-
+      The facelift Standard Range pack (RWD), replacing the 58 kWh pack in the same 144S2P layout
+      with higher-capacity cells: 288 cells in 24 modules (Hyundai), 144s2p (EVDB). 523 V is
+      Hyundai's figure; EVDB lists 520 V and estimates 60.0 kWh usable. Still built at the time of
+      writing (the UK model-year 27 guide), so the window ends at the last year the sources confirm.
+      Hyundai's 2026 US guide lists SK Innovation (Hungary) in a row shared with the 84 kWh pack,
+      and its Dec 2024 guide lists Hyundai Mobis (the pack maker), so cell_supplier is left unset.
+      Like the 58 kWh pack, its 144S range (about 360-605 V) sits mostly below the profile's hv_pack
+      band. No capture from this car yet.
   84kwh:
-    name: Ioniq 5 84 kWh (facelift)
+    name: Ioniq 5 84 kWh (Long Range, facelift)
     generation: NE
-    battery: {gross_kwh: 84}
+    production: ["2024", "2026"]
+    markets: [EU, US, AU]
+    battery: {gross_kwh: 84.0, nominal_voltage: 697, series_cells: 192, parallel_cells: 2, modules: 32, chemistry: NMC, cell_format: pouch, cell_supplier: SK On (SK Innovation), cooling: liquid}
+    trims: [N Line, XRT]
     status: seed
+    sources:
+    - >-
+      EVDB, IONIQ 5 84 kWh RWD/AWD (MY24): 84.0 kWh, 384 pouch cells, 192s2p, NMC, 697 V, built
+      2024-2026: https://ev-database.org/car/2236/Hyundai-IONIQ-5-84-kWh-RWD
+    - >-
+      Hyundai Motor America 2026 IONIQ 5 specifications (63.0 kWh at 523 V with 288 cells in 24
+      modules; 84.0 kWh at 697 V with 384 cells in 32 modules; supplier SK Innovation (Hungary)):
+      https://www.hyundainews.com/assets/documents/original/67177-2026IONIQ5SpecsFeatures20250702.pdf
+    - >-
+      Hyundai Australia IONIQ 5 specification sheet, Aug 2024 (63 kWh at 523 V and 84 kWh at 697 V,
+      both liquid-cooled lithium-ion):
+      https://www.hyundai.com/content/dam/hyundai/au/en/models/ioniq5/docs/Specification_Sheet_IONIQ5.pdf
+    - >-
+      Hyundai UK IONIQ 5 technical, specifications and pricing guide, model year 27, Oct 2026 (63
+      kWh RWD, 84 kWh RWD and AWD still offered):
+      https://dmassets.hyundai.com/is/content/hyundaiautoever/IONIQ_5_Tech_and_Spec_Guidepdf
+    - 'EVDB, IONIQ 5 84 kWh AWD (MY24): https://ev-database.org/car/2237/Hyundai-IONIQ-5-84-kWh-AWD'
+    notes: >-
+      The facelift Long Range pack, revealed March 2024, sold with RWD or AWD. Same 192S2P layout
+      and 697 V as the 77.4 kWh pack with higher-capacity cells: 384 cells in 32 modules (Hyundai),
+      192s2p (EVDB). EVDB estimates 80.0 kWh usable. Still built at the time of writing (the UK
+      model-year 27 guide), so the window ends at the last year the sources confirm. OBDb reads the
+      ICCU's LDC values at 22E101 from MY2025 instead of 22E011, a likely ECU revision rather than a
+      variant difference. The N is its own variant (84kwh-n). No capture from this car yet.
+  84kwh-n:
+    name: Ioniq 5 N 84 kWh
+    designation: IONIQ 5 N
+    generation: NE
+    production: ["2023", "2026"]
+    markets: [EU, US, AU]
+    battery: {gross_kwh: 84.0, nominal_voltage: 697, series_cells: 192, parallel_cells: 2, chemistry: NMC, cell_format: pouch, cell_supplier: SK On (SK Innovation)}
+    status: seed
+    sources:
+    - >-
+      EVDB, IONIQ 5 N (MY24): 84.0 kWh, 384 pouch cells, 192s2p, NMC, 697 V, built 2023-2026:
+      https://ev-database.org/car/2044/Hyundai-IONIQ-5-N
+    - >-
+      Hyundai Motor America 2025 IONIQ 5 N specifications (84.0 kWh, 697 V, structure 2P192S,
+      supplier SK Innovation):
+      https://www.hyundainews.com/assets/documents/original/62612-2025IONIQ5NSpecsFeatures071924.pdf
+    - >-
+      Hyundai Australia IONIQ 5 N specifications, 2024 (84.0 kWh, electronic controlled suspension,
+      rear e-LSD):
+      https://www.hyundai.com/content/dam/hyundai/au/en/models/ioniq5n/images/Hyundai_2024_IONIQ_5N_Specifications.pdf
+    - >-
+      Hyundai TSB 24-01-064H-1 and recall 25V-235 (IONIQ 5 N, NE N EV: IEB 58520-NI000, VCU
+      39751-1XPN1), TSB 25-01-022H (CCU 91920-NI000):
+      https://static.nhtsa.gov/odi/rcl/2025/RCLRPT-25V235-2216.PDF
+    notes: >-
+      The high-performance N, AWD only (448 kW, 478 kW with N Grin Boost). Same 84 kWh, 192S2P, 697
+      V pack as 84kwh (Hyundai 2P192S, 384 cells per EVDB); the sources do not give its module
+      count. A separate variant because its diagnostics differ: Hyundai TSBs and recalls name
+      N-specific parts for the VCU (39751-1XPN1), the IEB (58520-NI000) and the CCU (91920-NI000),
+      under the model code NE N EV, and it adds electronic controlled suspension and an electronic
+      limited-slip differential. EVDB estimates 80.0 kWh usable. No capture from this car yet.

@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=https://philipkocanda.github.io/canair/schema/profile.json
-# Hyundai Ioniq 5 2022 — vehicle profile settings (created by `canair profile create`)
+# Hyundai Ioniq 5 (NE) — vehicle profile settings (created by `canair profile create`)
 # Per-ECU definitions live in ecus/. Populate with `canair discover --register`
 # (add --identify to read identity DIDs), then `canair pids ...`. Validate with
 # `canair validate`.
@@ -19,7 +19,9 @@ isotp:
 # Vehicle-axis physical bands for the reference-free plausibility scan
 # (`canair hunt --physical` / `canair investigate`). The default hv_pack band
 # (300-450 V) is for a ~400 V car and would MISS this 800 V E-GMP architecture.
-# The 77.4 kWh pack is ~192S (~653 V nominal): 192 x 2.5 V (empty) to 192 x 4.2 V
-# (full) ~= 480-806 V. rail_12v + grid bands keep their defaults.
+# The 77.4 and 84 kWh packs are 192S2P (697 V nominal): 192 x 2.5 V (empty) to
+# 192 x 4.2 V (full) ~= 480-806 V; the 72.6 kWh pack (180S, 653 V) starts at 450 V.
+# The 58 and 63 kWh packs (144S, ~523 V) span ~360-605 V, mostly below this band
+# (see variants.yaml). rail_12v + grid bands keep their defaults.
 physical_bands:
-  hv_pack: [450, 820]   # HV traction pack V (800 V E-GMP, ~653 V nominal)
+  hv_pack: [450, 820]   # HV traction pack V (800 V E-GMP, 653-697 V nominal)
