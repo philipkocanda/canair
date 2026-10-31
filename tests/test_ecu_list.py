@@ -114,6 +114,20 @@ def test_sort_by_caps_descending_none_last(monkeypatch):
     assert [r["name"] for r in recs] == ["B", "A", "C"]
 
 
+def test_header_counts_only_ecus_with_pids(monkeypatch, capsys):
+    from collections import Counter
+
+    import canlib.commands.ecu as ecu
+
+    monkeypatch.setattr(ecu, "_all_captures_by_ecu", lambda: Counter())
+    pids_data = _pids_data_counts()
+    # C has an ecus/ definition but an empty pids: (identity-only / fresh seed).
+    pids_data["ecus"]["C"] = {"tx_id": 0x3, "pids": {}}
+    ecus = {0x1: {"name": "A"}, 0x2: {"name": "B"}, 0x3: {"name": "C"}}
+    cmd_list(_list_records(ecus, pids_data), as_json=False)
+    assert "3 in registry, 2 with PIDs" in capsys.readouterr().out
+
+
 def test_no_identity_confidence_in_records():
     recs = _list_records(_ecus(), {"ecus": {}})
     assert all("identity_confidence" not in r for r in recs)

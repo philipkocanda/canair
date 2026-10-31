@@ -245,10 +245,10 @@ def cmd_list(records: list[dict], as_json: bool, show_states: bool = False) -> i
         print()
         return 0
 
-    n_pids = sum(1 for r in records if r["has_pids"])
-    print(
-        f"\n  {ansi.BOLD}ECUs{ansi.RESET} — {len(records)} in registry, {n_pids} with PID definitions\n"
-    )
+    # An ECU file with an empty `pids:` (identity-only, or a fresh seed) has a
+    # definition but nothing to read, so count only ECUs with an active PID.
+    n_pids = sum(1 for r in records if r.get("pids"))
+    print(f"\n  {ansi.BOLD}ECUs{ansi.RESET} — {len(records)} in registry, {n_pids} with PIDs\n")
 
     # Column header. BUS (and optional STATES) are last: they're the widest,
     # most-variable columns, so trailing them keeps the numeric columns aligned.
