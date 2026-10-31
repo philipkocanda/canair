@@ -6,69 +6,48 @@ ICCU:
       Address confirmed by recorded responses in OBDb Hyundai-Ioniq-5 test cases (MY2022-2027,
       https://github.com/OBDb/Hyundai-Ioniq-5): 22E001-E003 (charge targets, OBC AC voltage, current
       and frequency) and LDC output on 22E011 (MY2021-2024) or 22E101 (MY2025+). The ICCU is E-GMP's
-      combined OBC and low-voltage DC-DC converter (LDC).
+      combined OBC and low-voltage DC-DC converter (LDC). Signals seeded from OBDb keep OBDb's names
+      without the IONIQ5_ prefix, unless a PID's notes list a rename.
   pids:
     "22E001":
       status: active
+      unit: A
+      ha_class: current
+      min: "0"
       source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
       source_links:
         - https://github.com/OBDb/Hyundai-Ioniq-5
         - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
       verified: false
       notes: >-
-        Seeded from OBDb (6 signals). Each expression was evaluated on OBDb's recorded responses (up
-        to 75 per signal, model years 2022, 2023, 2024); 6 of 6 signals reproduce OBDb's expected
-        value on every one.
+        Seeded from OBDb (6 signals), each checked with canair's evaluator on OBDb's recorded
+        responses (up to 75 per signal, model years 2022-2024).
       parameters:
         CHARGE_MODE_DC_TARGET_VOLTAGE:
           expression: "[B14:B15]/10"
           unit: V
           ha_class: voltage
-          min: "0"
           max: "6553.5"
-          notes: "OBDb IONIQ5_CHARGE_MODE_DC_TARGET_VOLTAGE: Charge mode DC target voltage."
         CHARGE_MODE_DC_MAXIMUM_CURRENT_LIMIT:
           expression: "[B17:B18]/10"
-          unit: A
-          ha_class: current
-          min: "0"
           max: "6553.5"
-          notes: >-
-            OBDb IONIQ5_CHARGE_MODE_DC_MAXIMUM_CURRENT_LIMIT: Charge mode DC maximum current limit.
         CHARGE_MODE_AC_MAXIMUM_CURRENT_LIMIT:
           expression: "[B19:B20]/10"
-          unit: A
-          ha_class: current
-          min: "0"
           max: "6553.5"
-          notes: >-
-            OBDb IONIQ5_CHARGE_MODE_AC_MAXIMUM_CURRENT_LIMIT: Charge mode A/C maximum current limit.
+          notes: Charge mode A/C maximum current limit.
         DISCHARGE_MODE_V2L_AC_TARGET_VOLTAGE:
           expression: B21
           unit: V
           ha_class: voltage
-          min: "0"
           max: "255"
-          notes: >-
-            OBDb IONIQ5_DISCHARGE_MODE_V2L_AC_TARGET_VOLTAGE: Discharge mode A/C target voltage.
+          notes: Discharge mode A/C target voltage.
         DISCHARGE_MODE_DC_MAXIMUM_CURRENT_LIMIT:
           expression: B23
-          unit: A
-          ha_class: current
-          min: "0"
           max: "255"
-          notes: >-
-            OBDb IONIQ5_DISCHARGE_MODE_DC_MAXIMUM_CURRENT_LIMIT: Discharge mode DC maximum current
-            limit.
         DISCHARGE_MODE_AC_MAXIMUM_CURRENT_LIMIT:
           expression: B25
-          unit: A
-          ha_class: current
-          min: "0"
           max: "255"
-          notes: >-
-            OBDb IONIQ5_DISCHARGE_MODE_AC_MAXIMUM_CURRENT_LIMIT: Discharge mode A/C maximum current
-            limit.
+          notes: Discharge mode A/C maximum current limit.
     "22E002":
       status: active
       source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
@@ -77,10 +56,9 @@ ICCU:
         - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
       verified: false
       notes: >-
-        Seeded from OBDb (14 signals). Each expression was evaluated on OBDb's recorded responses
-        (up to 156 per signal, model years 2022, 2023, 2024, 2025, 2026, 2027); 14 of 14 signals
-        reproduce OBDb's expected value on every one. OBDb applies this layout to model years up to
-        2024 only.
+        Seeded from OBDb (14 signals), each checked with canair's evaluator on OBDb's recorded
+        responses (up to 156 per signal, model years 2022-2027). OBDb applies this layout to model
+        years up to 2024 only.
       parameters:
         OBC_AC_VOLTAGE_A_RMS:
           expression: "[B10:B11]/10"
@@ -88,132 +66,121 @@ ICCU:
           ha_class: voltage
           min: "0"
           max: "6553.5"
-          notes: "OBDb IONIQ5_OBC_AC_VOLTAGE_A_RMS: On-board charger, AC voltage a."
+          notes: On-board charger, AC voltage a.
         OBC_AC_VOLTAGE_B_RMS:
           expression: "[B12:B13]/10"
           unit: V
           ha_class: voltage
           min: "0"
           max: "6553.5"
-          notes: "OBDb IONIQ5_OBC_AC_VOLTAGE_B_RMS: On-board charger, AC voltage b."
+          notes: On-board charger, AC voltage b.
         OBC_AC_FREQUENCY:
           expression: B17
           unit: Hz
           ha_class: frequency
           min: "0"
           max: "255"
-          notes: "OBDb IONIQ5_OBC_AC_FREQUENCY: On-board charger, AC frequency."
+          notes: On-board charger, AC frequency.
         OBC_AC_TOTAL_CURRENT_RMS:
           expression: "[S18:S19]/100"
           unit: A
           ha_class: current
           min: "-327.68"
           max: "327.67"
-          notes: "OBDb IONIQ5_OBC_AC_TOTAL_CURRENT_RMS: On-board charger, AC total current."
+          notes: On-board charger, AC total current.
         OBC_AC_CURRENT_A_RMS:
           expression: "[S20:S21]/100"
           unit: A
           ha_class: current
           min: "-327.68"
           max: "327.67"
-          notes: "OBDb IONIQ5_OBC_AC_CURRENT_A_RMS: On-board charger, AC current a."
+          notes: On-board charger, AC current a.
         OBC_AC_CURRENT_B_RMS:
           expression: "[S22:S23]/100"
           unit: A
           ha_class: current
           min: "-327.68"
           max: "327.67"
-          notes: "OBDb IONIQ5_OBC_AC_CURRENT_B_RMS: On-board charger, AC current b."
+          notes: On-board charger, AC current b.
         OBC_DC_VOLTAGE:
           expression: "[B27:B28]/10"
           unit: V
           ha_class: voltage
           min: "0"
           max: "6553.5"
-          notes: "OBDb IONIQ5_OBC_DC_VOLTAGE: On-board charger, DC voltage."
+          notes: On-board charger, DC voltage.
         OBC_DC_CURRENT_TOTAL_RMS:
           expression: "[S29:S30]/100"
           unit: A
           ha_class: current
           min: "-327.68"
           max: "327.67"
-          notes: "OBDb IONIQ5_OBC_DC_CURRENT_TOTAL_RMS: On-board charger, DC current total."
+          notes: On-board charger, DC current total.
         OBC_DC_CURRENT_A_RMS:
           expression: ((S31 << 8) | B33)/100
           unit: A
           ha_class: current
           min: "-327.68"
           max: "327.67"
-          notes: "OBDb IONIQ5_OBC_DC_CURRENT_A_RMS: On-board charger, DC current a."
+          notes: On-board charger, DC current a.
         OBC_DC_CURRENT_B_RMS:
           expression: "[S34:S35]/100"
           unit: A
           ha_class: current
           min: "-327.68"
           max: "327.67"
-          notes: "OBDb IONIQ5_OBC_DC_CURRENT_B_RMS: On-board charger, DC current b."
+          notes: On-board charger, DC current b.
         OBC_T_A:
           expression: B36-40
           unit: °C
           ha_class: temperature
           min: "-40"
           max: "215"
-          notes: "OBDb IONIQ5_OBC_T_A: On-board charger, temperature a."
+          notes: On-board charger, temperature a.
         OBC_T_B:
           expression: B37-40
           unit: °C
           ha_class: temperature
           min: "-40"
           max: "215"
-          notes: "OBDb IONIQ5_OBC_T_B: On-board charger, temperature b."
+          notes: On-board charger, temperature b.
         OBC_AC_INPUT_CURRENT_SENSOR_A_SIGNAL_VOLTAGE:
           expression: ((B47 << 8) | B49)/100
           unit: V
           ha_class: voltage
           min: "0"
           max: "655.35"
-          notes: >-
-            OBDb IONIQ5_OBC_AC_INPUT_CURRENT_SENSOR_A_SIGNAL_VOLTAGE: On-board charger, AC input
-            current sensor a signal voltage.
+          notes: On-board charger, AC input current sensor a signal voltage.
         OBC_AC_INPUT_CURRENT_SENSOR_B_SIGNAL_VOLTAGE:
           expression: "[B50:B51]/100"
           unit: V
           ha_class: voltage
           min: "0"
           max: "655.35"
-          notes: >-
-            OBDb IONIQ5_OBC_AC_INPUT_CURRENT_SENSOR_B_SIGNAL_VOLTAGE: On-board charger, AC input
-            current sensor b signal voltage.
+          notes: On-board charger, AC input current sensor b signal voltage.
     "22E003":
       status: active
+      min: "0"
+      max: "6553.5"
       source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
       source_links:
         - https://github.com/OBDb/Hyundai-Ioniq-5
         - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
       verified: false
       notes: >-
-        Seeded from OBDb (2 signals). Each expression was evaluated on OBDb's recorded responses (up
-        to 76 per signal, model years 2022, 2023, 2024); 2 of 2 signals reproduce OBDb's expected
-        value on every one.
+        Seeded from OBDb (2 signals), each checked with canair's evaluator on OBDb's recorded
+        responses (up to 76 per signal, model years 2022-2024).
       parameters:
         OBC_CHARGE_MODE_DC_TARGET_VOLTAGE:
           expression: "[B14:B15]/10"
           unit: V
           ha_class: voltage
-          min: "0"
-          max: "6553.5"
-          notes: >-
-            OBDb IONIQ5_OBC_CHARGE_MODE_DC_TARGET_VOLTAGE: On-board charger, charge mode DC target
-            voltage.
+          notes: On-board charger, charge mode DC target voltage.
         OBC_CHARGE_MODE_DC_TARGET_CURRENT:
           expression: "[B17:B18]/10"
           unit: A
           ha_class: current
-          min: "0"
-          max: "6553.5"
-          notes: >-
-            OBDb IONIQ5_OBC_CHARGE_MODE_DC_TARGET_CURRENT: On-board charger, charge mode DC target
-            current.
+          notes: On-board charger, charge mode DC target current.
     "22E011":
       status: active
       source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
@@ -222,9 +189,11 @@ ICCU:
         - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
       verified: false
       notes: >-
-        Seeded from OBDb (8 signals). Each expression was evaluated on OBDb's recorded responses (up
-        to 149 per signal, model years 2022, 2023, 2024); 5 of 8 signals reproduce OBDb's expected
-        value on every one. OBDb applies this layout to model years up to 2024 only.
+        Seeded from OBDb (8 signals), each checked with canair's evaluator on OBDb's recorded
+        responses (up to 149 per signal, model years 2022-2024). Recorded responses that disagree
+        with OBDb's expected value, where OBDb clamps to its min/max or the recorded frame is
+        corrupt: LDC_OUTPUT_CURRENT 1/149, AUX_BATTERY_CURRENT 1/149, AUX_BATTERY_STATE_OF_CHARGE
+        2/149. OBDb applies this layout to model years up to 2024 only.
       parameters:
         LDC_T:
           expression: B15-100
@@ -232,64 +201,51 @@ ICCU:
           ha_class: temperature
           min: "-100"
           max: "155"
-          notes: "OBDb IONIQ5_LDC_T: Low-voltage dc-dc converter, temperature."
+          notes: Low-voltage dc-dc converter, temperature.
         LDC_OUTPUT_VOLTAGE:
           expression: "[B17:B18]/1000"
           unit: V
           ha_class: voltage
           min: "0"
           max: "65.535"
-          notes: "OBDb IONIQ5_LDC_OUTPUT_VOLTAGE: Low-voltage dc-dc converter, output voltage."
+          notes: Low-voltage dc-dc converter, output voltage.
         LDC_OUTPUT_CURRENT:
           expression: "[B19:B20]*10/1000"
           unit: A
           ha_class: current
           min: "0"
           max: "655.35"
-          notes: >-
-            OBDb IONIQ5_LDC_OUTPUT_CURRENT: Low-voltage dc-dc converter, output current. 1 of 149
-            recorded responses disagree with OBDb's expected value (e.g. MY2024: 17.14 where OBDb
-            expects 16.23); OBDb clamps to its min/max, and a few recorded frames are corrupt.
+          notes: Low-voltage dc-dc converter, output current.
         LDC_INPUT_VOLTAGE:
           expression: "[B21:B22]/10"
           unit: V
           ha_class: voltage
           min: "0"
           max: "6553.5"
-          notes: "OBDb IONIQ5_LDC_INPUT_VOLTAGE: Low-voltage dc-dc converter, input voltage."
+          notes: Low-voltage dc-dc converter, input voltage.
         AUX_BATTERY_CURRENT:
           expression: "[B26:B27]/100-327"
           unit: A
           ha_class: current
           min: "-327"
           max: "328.35"
-          notes: >-
-            OBDb IONIQ5_AUX_BATTERY_CURRENT: Auxiliary battery current. 1 of 149 recorded responses
-            disagree with OBDb's expected value (e.g. MY2024: 7.25 where OBDb expects 7.88); OBDb
-            clamps to its min/max, and a few recorded frames are corrupt.
         AUX_BATTERY_STATE_OF_CHARGE:
           expression: B28
           unit: "%"
           min: "0"
           max: "100"
-          notes: >-
-            OBDb IONIQ5_AUX_BATTERY_STATE_OF_CHARGE: Auxiliary battery state of charge. 2 of 149
-            recorded responses disagree with OBDb's expected value (e.g. MY2024: 255 where OBDb
-            expects 100); OBDb clamps to its min/max, and a few recorded frames are corrupt.
         AUX_BATTERY_VOLTAGE_7E5:
           expression: "[B29:B30]/1000+6"
           unit: V
           ha_class: voltage
           min: "6"
           max: "71.535"
-          notes: "OBDb IONIQ5_AUX_BATTERY_VOLTAGE_7E5: Auxiliary battery voltage."
         AUX_BATTERY_T:
           expression: ((B31 << 8) | B33)/2-40
           unit: °C
           ha_class: temperature
           min: "-40"
           max: "32727.5"
-          notes: "OBDb IONIQ5_AUX_BATTERY_T: Auxiliary battery temperature."
     "22E101":
       status: draft
       source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
@@ -298,11 +254,13 @@ ICCU:
         - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
       verified: false
       notes: >-
-        Seeded from OBDb (8 signals). Each expression was evaluated on OBDb's recorded responses (up
-        to 112 per signal, model years 2025, 2026, 2027); 7 of 8 signals reproduce OBDb's expected
-        value on every one. OBDb applies this layout from model year 2025. Draft: its signals share
-        22E011's names, since a car answers one or the other; it becomes active once the ICCU's two
-        layouts are split into revisions.
+        Seeded from OBDb (8 signals), each checked with canair's evaluator on OBDb's recorded
+        responses (up to 112 per signal, model years 2025-2027). Recorded responses that disagree
+        with OBDb's expected value, where OBDb clamps to its min/max or the recorded frame is
+        corrupt: AUX_BATTERY_STATE_OF_CHARGE 3/112. OBDb names, where canair's differ:
+        ICCU_AUX_BATTERY_VOLTAGE = IONIQ5_2025_AUX_BATTERY_VOLTAGE. OBDb applies this layout from
+        model year 2025. Draft: its signals share 22E011's names, since a car answers one or the
+        other; it becomes active once the ICCU's two layouts are split into revisions.
       parameters:
         LDC_T:
           expression: B15-100
@@ -310,58 +268,51 @@ ICCU:
           ha_class: temperature
           min: "-100"
           max: "155"
-          notes: "OBDb IONIQ5_2025_LDC_T: Low-voltage dc-dc converter, temperature."
+          notes: Low-voltage dc-dc converter, temperature.
         LDC_OUTPUT_VOLTAGE:
           expression: "[B17:B18]/1000"
           unit: V
           ha_class: voltage
           min: "0"
           max: "65.535"
-          notes: "OBDb IONIQ5_2025_LDC_OUTPUT_VOLTAGE: Low-voltage dc-dc converter, output voltage."
+          notes: Low-voltage dc-dc converter, output voltage.
         LDC_OUTPUT_CURRENT:
           expression: "[B19:B20]*10/1000"
           unit: A
           ha_class: current
           min: "0"
           max: "655.35"
-          notes: "OBDb IONIQ5_2025_LDC_OUTPUT_CURRENT: Low-voltage dc-dc converter, output current."
+          notes: Low-voltage dc-dc converter, output current.
         LDC_INPUT_VOLTAGE:
           expression: "[B21:B22]/10"
           unit: V
           ha_class: voltage
           min: "0"
           max: "6553.5"
-          notes: "OBDb IONIQ5_2025_LDC_INPUT_VOLTAGE: Low-voltage dc-dc converter, input voltage."
+          notes: Low-voltage dc-dc converter, input voltage.
         AUX_BATTERY_CURRENT:
           expression: "[B26:B27]/100-327"
           unit: A
           ha_class: current
           min: "-327"
           max: "328.35"
-          notes: "OBDb IONIQ5_2025_AUX_BATTERY_CURRENT: Auxiliary battery current."
         AUX_BATTERY_STATE_OF_CHARGE:
           expression: B28
           unit: "%"
           min: "0"
           max: "100"
-          notes: >-
-            OBDb IONIQ5_2025_AUX_BATTERY_STATE_OF_CHARGE: Auxiliary battery state of charge. 3 of
-            112 recorded responses disagree with OBDb's expected value (e.g. MY2025: 255 where OBDb
-            expects 100); OBDb clamps to its min/max, and a few recorded frames are corrupt.
         ICCU_AUX_BATTERY_VOLTAGE:
           expression: "[B29:B30]/1000+6"
           unit: V
           ha_class: voltage
           min: "6"
           max: "71.535"
-          notes: "OBDb IONIQ5_2025_AUX_BATTERY_VOLTAGE: Auxiliary battery voltage."
         AUX_BATTERY_T:
           expression: ((B31 << 8) | B33)/2-40
           unit: °C
           ha_class: temperature
           min: "-40"
           max: "32727.5"
-          notes: "OBDb IONIQ5_2025_AUX_BATTERY_T: Auxiliary battery temperature."
 
   research:
     - type: decode

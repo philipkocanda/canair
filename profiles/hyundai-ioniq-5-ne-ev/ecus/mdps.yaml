@@ -5,7 +5,8 @@ MDPS:
     notes: >-
       Address confirmed by recorded responses in OBDb Hyundai-Ioniq-5 test cases (MY2022-2027,
       https://github.com/OBDb/Hyundai-Ioniq-5): 220101 (steering wheel angle, MDPS motor current).
-      The NE uses rack-mounted R-MDPS.
+      The NE uses rack-mounted R-MDPS. Signals seeded from OBDb keep OBDb's names without the
+      IONIQ5_ prefix, unless a PID's notes list a rename.
   pids:
     220101:
       status: active
@@ -15,20 +16,19 @@ MDPS:
         - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
       verified: false
       notes: >-
-        Seeded from OBDb (2 signals). Each expression was evaluated on OBDb's recorded responses (up
-        to 12 per signal, model years 2022, 2023, 2024, 2025, 2026, 2027); 2 of 2 signals reproduce
-        OBDb's expected value on every one.
+        Seeded from OBDb (2 signals), each checked with canair's evaluator on OBDb's recorded
+        responses (up to 12 per signal, model years 2022-2027).
       parameters:
         WHEEL_ANGLE_ABS:
           expression: "[S13:S14]/10"
           unit: °
           min: "-3276.8"
           max: "3276.7"
-          notes: "OBDb IONIQ5_WHEEL_ANGLE_ABS: Wheel turn angle, absolute."
+          notes: Wheel turn angle, absolute.
         MDPS_MOTOR_CURRENT:
           expression: S18
           unit: A
           ha_class: current
           min: "-128"
           max: "127"
-          notes: "OBDb IONIQ5_MDPS_MOTOR_CURRENT: Motor-driven power steering current."
+          notes: Motor-driven power steering current.

@@ -6,111 +6,84 @@ VCU:
       Address confirmed by recorded responses in OBDb Hyundai-Ioniq-5 test cases (MY2022-2027,
       https://github.com/OBDb/Hyundai-Ioniq-5): 22E004 (accelerator pedal, vehicle speed, 12 V),
       22E005 (AWD disconnector actuator). OVMS (which calls it VMCU) reads drive status here and
-      sends its VIN request (09 02) to 7E2. The NE VCU is part 39751-1XNN1 (TSB 24-01-088H).
+      sends its VIN request (09 02) to 7E2. The NE VCU is part 39751-1XNN1 (TSB 24-01-088H). Signals
+      seeded from OBDb keep OBDb's names without the IONIQ5_ prefix, unless a PID's notes list a
+      rename.
   pids:
     "22E004":
       status: active
+      min: "0"
       source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
       source_links:
         - https://github.com/OBDb/Hyundai-Ioniq-5
         - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
       verified: false
       notes: >-
-        Seeded from OBDb (3 signals). Each expression was evaluated on OBDb's recorded responses (up
-        to 195 per signal, model years 2022, 2023, 2024, 2025, 2026, 2027); 3 of 3 signals reproduce
-        OBDb's expected value on every one.
+        Seeded from OBDb (3 signals), each checked with canair's evaluator on OBDb's recorded
+        responses (up to 195 per signal, model years 2022-2027). OBDb names, where canair's differ:
+        VCU_VEHICLE_SPEED = IONIQ5_VSS_HD; VCU_AUX_BATTERY_VOLTAGE = IONIQ5_12V_V.
       parameters:
         ACCELERATOR_PEDAL_POSITION:
           expression: ((B15 << 8) | B14)/512
           unit: "%"
-          min: "0"
           max: "100"
-          notes: >-
-            OBDb IONIQ5_ACCELERATOR_PEDAL_POSITION: Accelerator pedal position. Little-endian (low
-            byte first).
         VCU_VEHICLE_SPEED:
           expression: ((S18 << 8) | B17)*156.25/10000
           unit: km/h
           ha_class: speed
           min: "-512"
           max: "511"
-          notes: >-
-            OBDb IONIQ5_VSS_HD: Vehicle speed, high resolution. Little-endian (low byte first).
+          notes: Vehicle speed, high resolution.
         VCU_AUX_BATTERY_VOLTAGE:
           expression: ((B20 << 8) | B19)*4.883/10000
           unit: V
           ha_class: voltage
-          min: "0"
           max: "32"
-          notes: "OBDb IONIQ5_12V_V: Auxiliary battery voltage. Little-endian (low byte first)."
     "22E005":
       status: active
+      min: "0"
       source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
       source_links:
         - https://github.com/OBDb/Hyundai-Ioniq-5
         - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
       verified: false
       notes: >-
-        Seeded from OBDb (7 signals). Each expression was evaluated on OBDb's recorded responses (up
-        to 105 per signal, model years 2022, 2023, 2024, 2025, 2026, 2027); 6 of 7 signals reproduce
-        OBDb's expected value on every one.
+        Seeded from OBDb (7 signals), each checked with canair's evaluator on OBDb's recorded
+        responses (up to 105 per signal, model years 2022-2027). Recorded responses that disagree
+        with OBDb's expected value, where OBDb clamps to its min/max or the recorded frame is
+        corrupt: DISCONNECTOR_INVERTER_PWM_DUTY 25/105.
       parameters:
         DISCONNECTOR_STROKE_POSITION:
           expression: ((B11 << 8) | B10)/128
           unit: mm
-          min: "0"
           max: "511"
-          notes: >-
-            OBDb IONIQ5_DISCONNECTOR_STROKE_POSITION: Disconnector stroke position. Little-endian
-            (low byte first).
         DISCONNECTOR_MEET_POINT:
           expression: ((B13 << 8) | B12)/128
           unit: mm
-          min: "0"
           max: "511"
-          notes: >-
-            OBDb IONIQ5_DISCONNECTOR_MEET_POINT: Disconnector meet point. Little-endian (low byte
-            first).
         DISCONNECTOR_END_POINT:
           expression: ((B15 << 8) | B14)/128
           unit: mm
-          min: "0"
           max: "511"
-          notes: >-
-            OBDb IONIQ5_DISCONNECTOR_END_POINT: Disconnector end point. Little-endian (low byte
-            first).
         DISCONNECTOR_DISENGAGE_LAST_TIME:
           expression: B17
           unit: ms
           ha_class: duration
-          min: "0"
           max: "255"
-          notes: "OBDb IONIQ5_DISCONNECTOR_DISENGAGE_LAST_TIME: Disconnector disengage last time."
         DISCONNECTOR_ACTUATOR_MOTOR_CURRENT:
           expression: S19*2
           unit: A
           ha_class: current
           min: "-256"
           max: "254"
-          notes: >-
-            OBDb IONIQ5_DISCONNECTOR_ACTUATOR_MOTOR_CURRENT: Disconnector actuator motor current.
         DISCONNECTOR_INVERTER_PWM_DUTY:
           expression: ((S21 << 8) | B20)*78.125/10000
           unit: "%"
-          min: "0"
           max: "100"
-          notes: >-
-            OBDb IONIQ5_DISCONNECTOR_INVERTER_PWM_DUTY: Disconnector inverter PWM duty.
-            Little-endian (low byte first). 25 of 105 recorded responses disagree with OBDb's
-            expected value (e.g. MY2026: -3.55469 where OBDb expects 0); OBDb clamps to its min/max,
-            and a few recorded frames are corrupt.
         DISCONNECTOR_ZERO_COUNT_OFFSET:
           expression: ((S23 << 8) | B22)
           min: "-32768"
           max: "32767"
-          notes: >-
-            OBDb IONIQ5_DISCONNECTOR_ZERO_COUNT_OFFSET: Disconnector zero count offset.
-            Little-endian (low byte first).
 
   research:
     - type: decode
