@@ -23,19 +23,31 @@ variants:
     designation: IONIQ EV PE
     generation: AE
     production: ["2019-06", "2022"]
-    battery: {usable_kwh: 38.3}
+    battery: {usable_kwh: 38.3, gross_kwh: 40.4, series_cells: 88, chemistry: Li-polymer NMC622, cooling: liquid}
     revisions:
       BMS: [uds]
     status: seed
     sources:
+    - >-
+      EVDB (battery cells, gross and usable capacity, NMC622, 88s2p):
+      https://ev-database.org/car/1165/Hyundai-IONIQ-Electric
+    - >-
+      Hyundai Motor Europe IONIQ Electric technical data, Aug 2019 (lithium-ion polymer, 38.3 kWh,
+      nominal 319.4 V):
+      https://www.hyundai.news/newsroom/dam/eu/uk/20190808_all-new_ioniq/Hyundai_IONIQ_Electric_Technical_Data.pdf
+    - >-
+      IONIQ Forum, Ioniq 38kWh thread (88s2p derived from 88 x 3.63 V = 319.4 V; 176 cells):
+      https://www.ioniqforum.com/threads/ioniq-38kwh.33300/page-2
     - 'OVMS docs: Kia e-Niro / Hyundai Kona / Hyundai Ioniq FL module (docs.openvehicles.com)'
     - >-
       Hyundai battery recall campaign text naming IONIQ EV PE (AEEV), built from 2019-06-01, as
       quoted on SpeakEV
     notes: >-
-      Nothing verified on this car yet. OVMS supports it with its Kona/e-Niro module, whose docs say
-      the Ioniq FL differs from those only by its 38 kWh capacity, so its BMS is the uds revision:
-      the Kona's 220101/220105 reads, ported unverified. It becomes a separate profile if one
-      discovery and identity session on a facelift car shows other ECU addresses or a gateway in
-      front of the OBD port, body ECUs (IGPM, BCM, CLU, HVAC) that don't answer the 28 kWh PIDs with
-      the same layouts, or power states that need other vehicle states.
+      Nothing verified on this car yet. Battery per the sources: 88s2p (88 series groups of 2
+      parallel cells, 176 cells), 40.4 kWh gross and 38.3 kWh usable, 319.4 V nominal (Hyundai's
+      figure; EVDB lists 325 V), 400 V architecture. OVMS supports it with its Kona/e-Niro module,
+      whose docs say the Ioniq FL differs from those only by its 38 kWh capacity, so its BMS is the
+      uds revision: the Kona's 220101/220105 reads, ported unverified. It becomes a separate profile
+      if one discovery and identity session on a facelift car shows other ECU addresses or a gateway
+      in front of the OBD port, body ECUs (IGPM, BCM, CLU, HVAC) that don't answer the 28 kWh PIDs
+      with the same layouts, or power states that need other vehicle states.
