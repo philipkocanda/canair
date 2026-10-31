@@ -1,0 +1,9 @@
+VCU:
+  tx_id: 0x7E2
+  identity:
+    description: Vehicle Control Unit
+    notes: >-
+      Address confirmed by recorded responses in OBDb Hyundai-Ioniq-5 test cases (MY2022-2027,
+      https://github.com/OBDb/Hyundai-Ioniq-5): 22E004 (accelerator pedal, vehicle speed, 12 V),
+      22E005 (AWD disconnector actuator). OVMS (which calls it VMCU) reads drive status here and
+      sends its VIN request (09 02) to 7E2. The NE VCU is part 39751-1XNN1 (TSB 24-01-088H).

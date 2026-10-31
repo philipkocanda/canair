@@ -1,0 +1,9 @@
+BMS:
+  tx_id: 0x7E4
+  identity:
+    description: Battery Management System
+    notes: >-
+      Address confirmed by recorded responses in OBDb Hyundai-Ioniq-5 test cases (MY2022-2027,
+      https://github.com/OBDb/Hyundai-Ioniq-5): 220101-0105, 010A-010C, 0111, 0114 (SOC, SOH, cell
+      voltages, charge counters). Also polled at 7E4/7EC by OVMS vehicle_hyundai_ioniq5 and the
+      wican-fw Ioniq5/6 profile.

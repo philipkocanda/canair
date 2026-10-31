@@ -1,0 +1,9 @@
+MCU:
+  tx_id: 0x7E3
+  identity:
+    description: Motor Control Unit (traction inverter)
+    notes: >-
+      Address confirmed by recorded responses in OBDb Hyundai-Ioniq-5 test cases (MY2022-2027,
+      https://github.com/OBDb/Hyundai-Ioniq-5): 22E001 (motor rpm, torque, inverter and motor
+      temperature; MY2021-2024 only), 22E009 (electric water and oil pumps). OVMS labels the 7EB
+      reply MCU. Which inverter answers here on AWD cars (front or rear) is not established.

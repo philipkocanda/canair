@@ -1,0 +1,9 @@
+ICCU:
+  tx_id: 0x7E5
+  identity:
+    description: Integrated Charging Control Unit (on-board charger + LDC)
+    notes: >-
+      Address confirmed by recorded responses in OBDb Hyundai-Ioniq-5 test cases (MY2022-2027,
+      https://github.com/OBDb/Hyundai-Ioniq-5): 22E001-E003 (charge targets, OBC AC voltage, current
+      and frequency) and LDC output on 22E011 (MY2021-2024) or 22E101 (MY2025+). The ICCU is E-GMP's
+      combined OBC and low-voltage DC-DC converter (LDC).
