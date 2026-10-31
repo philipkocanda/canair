@@ -15,6 +15,55 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [3.0.0](https://github.com/philipkocanda/canair/compare/v2.1.0...v3.0.0) (2026-10-31)
+
+
+### ⚠ BREAKING CHANGES
+
+* **variants:** on a bundled profile with several variants, live commands, --save and AutoPID generation refuse until a variant is chosen. Run `canair profile use <profile> --variant <id>` once, or set CANAIR_VARIANT in scripts and CI.
+
+### Added
+
+* **hyundai-ioniq-ae-ev:** give the BMS a kwp and a uds revision ([34db5b2](https://github.com/philipkocanda/canair/commit/34db5b29929e49c67f2094f027124e6fff4c0122))
+* **nissan-leaf-ze1-ev:** give the LBC a revision per pack ([cc4606f](https://github.com/philipkocanda/canair/commit/cc4606faa52b6a44b43268a243bc710181b2dcef))
+* **profile:** review the new-profile templates ([d687eda](https://github.com/philipkocanda/canair/commit/d687eda67d80774a0c611a8490dbe5d0e286d719))
+* **profiles:** describe every Ioniq 5 battery as its own variant ([b4d96f0](https://github.com/philipkocanda/canair/commit/b4d96f0983e03519e60104f4739a278dd62d2fb4))
+* **profiles:** editor JSON Schema for profile.yaml ([9b27e44](https://github.com/philipkocanda/canair/commit/9b27e4486088476ec311fdca502616f6e27e8cf4))
+* **profiles:** fill in the Ioniq Electric 38 kWh variant's battery details ([3ba00d6](https://github.com/philipkocanda/canair/commit/3ba00d64540e916b803c8a3818c8608269ba1983))
+* **profiles:** import projectgus kona P-CAN DBC into kona signals ([a00a95c](https://github.com/philipkocanda/canair/commit/a00a95cf01784b308f6b55418cdb193b3f310e0e))
+* **profiles:** import projectgus kona P-CAN DBC into kona signals ([dabe4a7](https://github.com/philipkocanda/canair/commit/dabe4a7d449d0cad8a658e8884dfe05d6dd82d56))
+* **profiles:** kona BMS ignition and inverter voltage from ignition-off logs ([552f565](https://github.com/philipkocanda/canair/commit/552f5651b6b9db7eb80fdff76954d0140d40222c))
+* **profiles:** lower the Ioniq 5 hv_pack band for the 144S packs ([f842d6f](https://github.com/philipkocanda/canair/commit/f842d6fceaab5bcfbdbcde26d90ed300ee78a0d6))
+* **profiles:** seed Ioniq 5 ECUs and CAN bus vocabulary ([f4f0e0c](https://github.com/philipkocanda/canair/commit/f4f0e0c6b083b5ffd29f06a8672685a9a6549a5b))
+* **profiles:** seed the first-generation Kia Niro EV / e-Niro (DE) ([9d79e05](https://github.com/philipkocanda/canair/commit/9d79e052ed5d34f32900693f04cafa03894257e6))
+* **variants:** choose your car once, and refuse to guess it ([037ac19](https://github.com/philipkocanda/canair/commit/037ac19afee822245e5e05370c8ba8f2f8c28334))
+* **variants:** detect an ambiguous ECU's revision from its own answers ([99828d2](https://github.com/philipkocanda/canair/commit/99828d230e00eb63a3b58bc0cb320b0f1092c2c1))
+* **variants:** ECU revisions, gated definitions and pins ([fe561d8](https://github.com/philipkocanda/canair/commit/fe561d8ed93eb4e66b956c07ad6d49981ff8a936))
+* **variants:** one AutoPID profile per car, and a variant picker in the explorer ([47eebe2](https://github.com/philipkocanda/canair/commit/47eebe2925cd540f3d12ecd0019bab350282fbff))
+* **variants:** per-revision overrides, and evidence that belongs to a revision ([eca5181](https://github.com/philipkocanda/canair/commit/eca5181a61703027fd4f8692ed887fa47e40271a))
+* **variants:** record a battery's voltage, parallel cells, modules and cells ([4fceeeb](https://github.com/philipkocanda/canair/commit/4fceeeb1a679751eba4bbde9e59feeb65faa27d0))
+
+
+### Fixed
+
+* **ci:** keep the raw-CAN log index out of Git LFS ([224f307](https://github.com/philipkocanda/canair/commit/224f307cfb2094f770f700b00b61d7b6617f3b9d))
+* **docs:** pin the car variant when rendering doc screenshots ([1227e23](https://github.com/philipkocanda/canair/commit/1227e234ce1cbb62b56effb17f365fe00954c95a))
+* **ecu:** count only ECUs with PIDs in the list header ([b7719a2](https://github.com/philipkocanda/canair/commit/b7719a2e9f481b672cab257bce24f8371fcbcfc3))
+* **hyundai-ioniq-ae-ev:** swap the left and right blind-spot radars ([7d600d9](https://github.com/philipkocanda/canair/commit/7d600d9e7256fb917efaf33ca3004fe702f4704f))
+* **import:** count ISO-TP losses only on diagnostic ids ([dd679e6](https://github.com/philipkocanda/canair/commit/dd679e68777642451a24acabeb407b49df03737d))
+* **investigate:** compute support-map chance from exact binomials ([31dd325](https://github.com/philipkocanda/canair/commit/31dd32529a9355045dd46618d3615364fb05d1f5))
+* **pids:** wrap a long single-line research note at 100 columns ([81e6200](https://github.com/philipkocanda/canair/commit/81e62007fcf263d0ff605b0bbcf76f1cab3eadc9))
+* **signals:** import DBCs that cantools rejects over dialect quirks ([014950f](https://github.com/philipkocanda/canair/commit/014950f134c792341a05a75d3f559788e8137df3))
+* **states:** add a new state before the trailing ALL ([ccbb13a](https://github.com/philipkocanda/canair/commit/ccbb13a7ab973cca914ab75d77fdaa3d89a892cd))
+* **validate:** reject a key written twice in an ecus/ file ([5d3efe6](https://github.com/philipkocanda/canair/commit/5d3efe6e5769bdde23d83498e89438d642c9acbf))
+* **validate:** reject a repeated key in every profile file, not only ecus/ ([46a1f22](https://github.com/philipkocanda/canair/commit/46a1f229afc521d05fba28c90737415856d1910a))
+* **variants:** with no car chosen, say to name it rather than pin each ECU ([886b968](https://github.com/philipkocanda/canair/commit/886b968934667aaa13d5756e0381b424fe685f6e))
+
+
+### Documentation
+
+* drop 'never edit by hand' notices for definition files ([26df720](https://github.com/philipkocanda/canair/commit/26df72004ef6d3f9512d8fdce9b4f7f55a45c8f5))
+
 ## [2.1.0](https://github.com/philipkocanda/canair/compare/v2.0.0...v2.1.0) (2026-10-31)
 
 
