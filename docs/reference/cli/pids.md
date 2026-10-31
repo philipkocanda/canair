@@ -80,8 +80,8 @@ usage: canair pids upsert-param [-h] [--unit UNIT] [--ha-class HA_CLASS]
                                 [--type {numeric,enum,bitmask,ascii,date,bcd}]
                                 [--value RAW=LABEL] [--bit INDEX=LABEL]
                                 [--verified | --unverified]
-                                [--enabled | --disabled] [--dir DIR]
-                                [--no-validate]
+                                [--enabled | --disabled] [--revision ID]
+                                [--dir DIR] [--no-validate]
                                 ecu pid name expression
 
 positional arguments:
@@ -120,6 +120,10 @@ options:
   --unverified
   --enabled
   --disabled
+  --revision ID         The ECU revision this was seen on: an existing signal
+                        gets the given fields under per_revision.ID (the rest
+                        stay shared); a new one is created gated to revisions:
+                        [ID], never claimed for every revision
   --dir DIR             ecus/ directory (default: active profile)
   --no-validate         Skip the post-edit schema validation gate
 ```

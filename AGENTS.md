@@ -181,8 +181,9 @@ and **`g`/`G` address the view's primary axis**.
   `addressing.physical_request_id`; ELM: `elm327_functional.py` brackets the request with
   `ATH1`/`ATH0` in one transaction, tracked by `AdapterState.headers`); classification is
   `canlib/modes/functional_sweep.py`.
-- **`canair identity`** (alias `id`) — Standard UDS identity DIDs (F100/F18x/F190/F19x). Writes
-  results into the ECU's `identity:`. Note it can write a **live VIN** there — see PII.
+- **`canair identity`** (alias `id`) — Identity DIDs/records (UDS `22 F1xx`, KWP2000 `1A 8x/9x`),
+  printed only: nothing is written to the ECU's `identity:` (which can hold a live VIN when
+  filled by hand or `ecu add` — see PII).
 - **`canair io`** / **`canair routines`** — IOControl (`0x2F`, or an entry's own KWP `0x30`
   commands) and RoutineControl (`0x31`): interactive TUI or a single actuation. **Mutative** —
   confirm-first, and actuators auto-release when the session ends, with each entry's resolved
@@ -450,6 +451,15 @@ reuse these instead of re-declaring a flag:
   revisions` / `ecu set-variants` (`canlib/ecus/revisions_edit.py`, whose `rename` rewrites
   gates, variants and capture tags) and `pids set-revisions`. The regression fixture is
   `tests/fixtures/profiles/variants/`.
+  **`per_revision:`** on a PID or signal replaces whitelisted fields for one revision
+  (`revisions.py::PID_OVERRIDE_FIELDS`/`SIGNAL_OVERRIDE_FIELDS`), applied after gating. **A
+  definition's own `verified`/`response_frames` speak for its *reference* revision** (the first
+  declared one it applies to, `reference_of`); another revision gets only what its
+  `per_revision` entry says, and an undetermined ECU keeps no count and verifies nothing. The
+  frame-count write-back routes the same way (`response_frames.py::revision_target`: base for
+  the reference, `per_revision.<r>` otherwise, nothing when undetermined), so one revision's
+  count can never seed — and undercount — a read of another. `pids upsert-param --revision R`
+  writes `per_revision.R` on an existing signal and gates a new one to `[R]`.
   **The variant names the car**, resolved by `canlib/variants/selection.py::apply_variant` —
   `--variant` > `CANAIR_VARIANT` > `profile_settings.<profile>.variant` (written by `profile use
   NAME --variant ID`) > the variant an old profile name implies (`aliases:` entry, via

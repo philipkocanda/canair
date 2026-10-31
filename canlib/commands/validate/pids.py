@@ -722,6 +722,13 @@ def _validate_parameters(
         if expr:
             errors.extend(validate_expression(expr, param_name, pid_str, ecu_name))
             warnings.extend(check_pci_bytes(expr, param_name, pid_str, ecu_name, param.get("type")))
+        overrides = param.get("per_revision")
+        for rid, entry in overrides.items() if isinstance(overrides, dict) else ():
+            rexpr = entry.get("expression") if isinstance(entry, dict) else None
+            if isinstance(rexpr, str) and rexpr:
+                errors.extend(
+                    validate_expression(rexpr, f"{param_name} ({rid})", pid_str, ecu_name)
+                )
 
         # Typed (multi-modal) decoding validation
         errors.extend(

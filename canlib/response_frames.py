@@ -235,10 +235,68 @@ def persist(pids_data: dict, ledger: FrameCountLedger, *, verbose: bool = False)
     written = 0
     for edit in edits:
         try:
-            path = set_response_frames(edit.ecu, edit.pid, edit.frames)
+            routable, target = revision_target(edit.ecu, edit.pid)
+        except Exception as e:  # pragma: no cover - an unloadable profile
+            routable, target = False, None
+            print(f"  [count] could not route {edit.ecu} {edit.pid}: {e}", file=sys.stderr)
+        if not routable:
+            if verbose:
+                print(
+                    f"  [count] {edit.ecu} {edit.pid}: not recorded — the ECU's revision is "
+                    "undetermined, and a count belongs to one revision",
+                    file=sys.stderr,
+                )
+            continue
+        try:
+            if target is None:
+                path = set_response_frames(edit.ecu, edit.pid, edit.frames)
+            else:
+                path = _set_revision_frames(edit.ecu, edit.pid, target, edit.frames)
         except (PidsEditError, OSError) as e:
             print(f"  [count] could not record {edit.ecu} {edit.pid}: {e}", file=sys.stderr)
             continue
-        echo_edit(edit.describe(), path)
+        where = f" (revision {target})" if target else ""
+        echo_edit(edit.describe() + where, path)
         written += 1
     return written
+
+
+def revision_target(ecu: str, pid: str) -> tuple[bool, str | None]:
+    """Where a count learned for ``ecu``/``pid`` this session belongs: ``(routable, rev)``.
+
+    ``rev`` None: the PID's own ``response_frames`` — an ECU without revisions, or the
+    revision the PID's base values speak for (its reference). A revision ID: that
+    revision's ``per_revision`` entry. Not routable: the ECU's revision is
+    undetermined, so the count cannot be attributed and is never written. The correctness, not tidiness, of
+    this routing is what keeps one revision's count from seeding — and undercounting — a
+    read of the other, which would desynchronise an ELM327 pipe.
+    """
+    from .pids import load_raw_pids, revision_resolutions
+    from .variants.revisions import declared, gate, reference_of
+
+    ecus = load_raw_pids().get("ecus") or {}
+    ecu_def = ecus.get(ecu) or {}
+    revs = declared(ecu_def)
+    if not revs:
+        return True, None
+    res = revision_resolutions().get(ecu)
+    if res is None or res.revision is None:
+        return False, None
+    pid_def = next(
+        (v for k, v in (ecu_def.get("pids") or {}).items() if _pid_request(k) == pid), None
+    )
+    reference = reference_of(gate(pid_def), revs)
+    return True, (None if res.revision == reference else res.revision)
+
+
+def _set_revision_frames(ecu: str, pid: str, revision: str, frames: int | None):
+    from .ecus.edit import EcusEditError
+    from .ecus.revisions_edit import set_override
+    from .pids_edit import PidsEditError
+
+    try:
+        if frames is None:
+            return set_override(ecu, pid, None, revision, {}, clear=[FIELD])
+        return set_override(ecu, pid, None, revision, {FIELD: int(frames)})
+    except EcusEditError as e:
+        raise PidsEditError(str(e)) from e

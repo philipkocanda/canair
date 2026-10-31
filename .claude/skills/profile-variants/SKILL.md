@@ -90,6 +90,11 @@ variant before new profile.
 - **Never guess a revision** to make PIDs appear. An undetermined ECU skips its gated PIDs on
   purpose; ask the user, read the ECU's identity, and pin it (`profile use NAME --pin ECU=ID`, or
   `--revision ECU=ID` once). A seeded revision's definitions stay `verified: false`.
+- **Evidence belongs to a revision.** A definition's own `verified` and `response_frames` speak
+  for its reference revision (the first it applies to); never assume a signal verified there holds
+  on another. Record a difference with `pids upsert-param … --revision R` (it writes
+  `per_revision.R`; a new signal is gated to `[R]`), and mark it verified only from a capture of
+  that revision. Ported or seeded definitions stay `verified: false`.
 - Edit with `canair ecu revisions ECU …` (its `rename` rewrites gates, variants and capture
   tags), never by hand. `docs/concepts/variants.md#ecu-revisions` has the model; the synthetic
   fixture `tests/fixtures/profiles/variants/` shows every case.

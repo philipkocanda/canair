@@ -233,6 +233,34 @@ answers, `2101`…`21F2`) and a `uds` one (the Kona-family `220101`/`220105` pag
 facelift most likely answers, ported from the Kona profile and all unverified). `28kwh` allows
 only `kwp`, `38kwh` only `uds`.
 
+### What differs per revision, and what was verified where
+
+A PID or signal shared by two revisions can differ field by field with `per_revision:`:
+
+```yaml
+SOC_BMS:
+  expression: "B09/2"
+  verified: true                  # verified on the reference revision
+  per_revision:
+    uds: {expression: "B10/2"}    # unverified on uds until it says verified: true
+```
+
+- A PID may override `period`, `response_frames`, `verified`, `notes`, `source` and
+  `source_links`; a signal `expression`, `unit`, `min`, `max`, `type` (with `values`/`bits`/
+  `fields`), `verified`, `notes`, `source` and `source_links`. Gates and `parameters:` can't be
+  overridden: override each signal instead.
+- **Evidence belongs to a revision.** A definition's own `verified` and `response_frames`
+  describe its *reference* revision — the first declared one it applies to. On any other
+  revision it is unverified, and has no frame count, unless its `per_revision` entry says
+  otherwise. So a signal verified on one car never counts as verified on another, and the
+  verified-only AutoPID output for a non-reference revision ships only what was verified there.
+- When a live session learns a PID's frame count, it is written for the revision that session
+  read: the PID's own `response_frames` on its reference revision, `per_revision.<id>` on
+  another, and nowhere when the revision is undetermined. A count from one layout seeding a read
+  of another would be an undercount, which desynchronises an ELM327 adapter.
+- `canair pids upsert-param ECU PID NAME EXPR --revision uds …` writes `per_revision.uds` on an
+  existing signal, and creates a new one gated to `[uds]`.
+
 ### Which revision your car has
 
 1. a **pin**: `canair profile use NAME --pin VCU=uds` (remembered, as

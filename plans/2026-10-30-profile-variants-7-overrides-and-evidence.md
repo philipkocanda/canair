@@ -1,9 +1,36 @@
 # Profile variants, phase 7 — per-revision overrides and evidence
 
-Status: **NOT STARTED.** Part of
+Status: **DONE** (2026-10-31). Part of
 [`2026-10-30-profile-variants-and-rename.md`](2026-10-30-profile-variants-and-rename.md) (see its
 [Evidence fields](2026-10-30-profile-variants-and-rename.md#evidence-fields--where-writes-land)
 section). Depends on phase 5 (phase 6 recommended first, so there is real data).
+
+## As built
+
+- **"Reference revision" is per definition:** the first declared ECU revision the PID or signal
+  applies to. A PID gated to `[uds]` has `uds` as its reference, so its own `verified` and
+  `response_frames` are `uds`'s — the Ioniq's ported `220101` needed no override to stay
+  coherent.
+- **Override whitelists differ by level.** A PID: `period`, `response_frames`, `verified`,
+  `notes`, `source`, `source_links`. A signal: `expression`, `unit`, `min`, `max`, `type`,
+  `values`, `bits`, `fields`, `verified`, `notes`, `source`, `source_links`. `unit`/`min`/`max`
+  are overridden per signal, not inherited from a PID override.
+- **An inherited `verified` is not trusted across references.** A signal whose reference
+  differs from its PID's and whose `verified` equals the PID's (so may be inherited) resolves
+  unverified until its own `per_revision` says otherwise. Conservative by design.
+- **An undetermined ECU** keeps no frame count and verifies nothing, so it neither seeds the
+  ELM327 digit nor ships to AutoPID.
+- **Frame-count routing** is `response_frames.py::revision_target`, used by `persist`; base
+  writes keep the text editor (`set_response_frames`), `per_revision` writes go through
+  `revisions_edit.set_override`. Tested through `persist` and `seed_counts` (what
+  `run_session_guarded`'s teardown calls), not a mock-bus session.
+- **Identity routing is not built:** `canair identity` writes nothing to `identity:` (AGENTS.md
+  said it did; corrected), so there is no write to route. Matching a reading against fingerprints
+  — and reporting a possible new revision — needs a DID → identity-field map and belongs with
+  detection (phase 8).
+- **There is no `pids verify`;** `upsert-param --revision` is the verify path (`--verified`).
+  Other `pids` editors (period, notes, …) don't take `--revision` yet.
+- `ecu revisions rename` rewrites `per_revision` keys too, and `rm` counts them as references.
 
 ## Goal
 

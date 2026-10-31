@@ -280,7 +280,7 @@ class RevisionReferences:
     def describe(self) -> str:
         parts = []
         if self.gates:
-            parts.append(f"{self.gates} PID/signal gate(s)")
+            parts.append(f"{self.gates} PID/signal gate(s) or override(s)")
         if self.variants:
             parts.append(f"variant(s) {', '.join(self.variants)}")
         if self.captures:
@@ -289,14 +289,29 @@ class RevisionReferences:
         return ", ".join(parts)
 
 
-def _gate_nodes(ecu_def: Mapping) -> list[Any]:
+def _nodes(ecu_def: Mapping) -> list[Any]:
+    """Every PID and signal mapping of an ECU."""
     out = []
     for pid_def in (ecu_def.get("pids") or {}).values():
         if not isinstance(pid_def, Mapping):
             continue
         out.append(pid_def)
         out += [p for p in (pid_def.get("parameters") or {}).values() if isinstance(p, Mapping)]
-    return [n for n in out if isinstance(n.get("revisions"), list)]
+    return out
+
+
+def _gate_nodes(ecu_def: Mapping) -> list[Any]:
+    return [n for n in _nodes(ecu_def) if isinstance(n.get("revisions"), list)]
+
+
+def _override_nodes(ecu_def: Mapping, rid: str) -> list[Any]:
+    """PIDs and signals with a ``per_revision`` entry for ``rid``."""
+    return [
+        n
+        for n in _nodes(ecu_def)
+        if isinstance(n.get("per_revision"), Mapping)
+        and any(normalize_revision_id(k) == rid for k in n["per_revision"])
+    ]
 
 
 def _session_revision(session: Mapping, ecu: str) -> str | None:
@@ -317,7 +332,7 @@ def find_revision_references(ecu: str, revision: str, profile: Profile) -> Revis
     ecu_def = ecus.get(name) or {}
     refs.gates = sum(
         1 for n in _gate_nodes(ecu_def) if rid in [normalize_revision_id(r) for r in n["revisions"]]
-    )
+    ) + len(_override_nodes(ecu_def, rid))
     refs.variants = [
         vid for vid, v in load_variants(profile).items() if rid in (v.revisions.get(name) or ())
     ]
@@ -392,6 +407,11 @@ def rename_revision(
             node["revisions"] = _flow_seq(
                 [new_id if normalize_revision_id(r) == old_id else r for r in node["revisions"]]
             )
+        for node in _override_nodes(ecu_def, old_id):
+            rebuilt_over = CommentedMap()
+            for k, v in node["per_revision"].items():
+                rebuilt_over[new_id if normalize_revision_id(k) == old_id else k] = v
+            node["per_revision"] = rebuilt_over
 
     def retag(session: dict) -> bool:
         tags = session.get("revisions")
@@ -476,3 +496,59 @@ def retag_ecu_rename(old: str, new: str, profile: Profile) -> list[Path]:
     if profile.variants_file.exists() and rename_variant_revisions_ecu(old, new, profile=profile):
         written.append(profile.variants_file)
     return written + _write_all(_retag_captures(profile, retag))
+
+
+# ── per-revision overrides ──────────────────────────────────────────────────
+
+
+def set_override(
+    ecu: str,
+    pid: str,
+    signal: str | None,
+    revision: str,
+    fields: Mapping[str, Any],
+    *,
+    clear: Sequence[str] = (),
+    profile: Profile | None = None,
+) -> Path:
+    """Set ``fields`` (and remove ``clear``) in a PID's or signal's ``per_revision.<rev>``.
+
+    An entry left empty is removed, and so is an empty ``per_revision:``. Which fields
+    may differ, and for which revisions, is the validator's call (it reverts the edit).
+    """
+    rid = _checked_id(revision)
+
+    def change(name: str, ecu_def: CommentedMap) -> None:
+        if rid not in declared(ecu_def):
+            raise EcusEditError(f"{name} declares no revision {rid!r}")
+        pids = ecu_def.get("pids") or {}
+        pkey = next((k for k in pids if str(k).upper() == str(pid).strip().upper()), None)
+        if pkey is None:
+            raise EcusEditError(f"PID {pid!r} not found under {name}")
+        node = pids[pkey]
+        if signal is not None:
+            params = node.get("parameters") or {}
+            if signal not in params:
+                raise EcusEditError(f"signal {signal!r} not found under {name} {pkey}")
+            node = params[signal]
+        block = node.get("per_revision")
+        if not isinstance(block, dict):
+            block = CommentedMap()
+            if signal is None and "parameters" in node:
+                node.insert(list(node).index("parameters"), "per_revision", block)
+            else:
+                node["per_revision"] = block
+        entry = block.get(rid)
+        if not isinstance(entry, dict):
+            entry = CommentedMap()
+            block[rid] = entry
+        for key in clear:
+            entry.pop(key, None)
+        for key, value in fields.items():
+            entry[key] = value
+        if not entry:
+            del block[rid]
+        if not block:
+            del node["per_revision"]
+
+    return _edit_ecu(ecu, profile, change)

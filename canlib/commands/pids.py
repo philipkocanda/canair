@@ -218,6 +218,10 @@ def cmd_upsert_param(args: argparse.Namespace) -> int:
         elif bits is not None:
             ptype = "bitmask"
 
+    revision = getattr(args, "revision", None)
+    if revision and _signal_exists(args.ecu, args.pid, args.name, args.dir):
+        return _upsert_revision_override(args, ptype, values, bits)
+
     def do():
         upsert_parameter(
             args.ecu,
@@ -243,6 +247,9 @@ def cmd_upsert_param(args: argparse.Namespace) -> int:
         )
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
+    if revision:
+        # A new signal seen on one revision exists only there until shown otherwise.
+        _gate_new_signal(args, revision)
     echo_edit(f"{args.ecu} {args.pid} {args.name}", fpath)
 
     # Passive sanity-check: decode the new expression against existing captures so
@@ -257,6 +264,80 @@ def cmd_upsert_param(args: argparse.Namespace) -> int:
         "bits": bits,
     }
     _echo_capture_range(args.ecu, args.pid, args.name, param)
+    return 0
+
+
+def _signal_exists(ecu: str, pid: str, name: str, pids_dir) -> bool:
+    from canlib.pids import load_pids, load_raw_pids
+
+    data = load_pids(pids_dir) if pids_dir else load_raw_pids()
+    ecu_def = next(
+        (d for k, d in (data.get("ecus") or {}).items() if str(k).upper() == ecu.upper()), None
+    )
+    pid_def = next(
+        (
+            d
+            for k, d in ((ecu_def or {}).get("pids") or {}).items()
+            if str(k).upper() == pid.upper()
+        ),
+        None,
+    )
+    return name in ((pid_def or {}).get("parameters") or {})
+
+
+def _gate_new_signal(args: argparse.Namespace, revision: str) -> None:
+    from canlib.ecus.edit import EcusEditError
+    from canlib.ecus.revisions_edit import set_gate
+
+    try:
+        set_gate(args.ecu, args.pid, args.name, [revision])
+    except EcusEditError as e:
+        raise SystemExit(f"{ansi.RED}  Error: {e}{ansi.RESET}") from None
+
+
+def _upsert_revision_override(args: argparse.Namespace, ptype, values, bits) -> int:
+    """``upsert-param --revision R`` on an existing signal: write ``per_revision.R``."""
+    from canlib.ecus.edit import EcusEditError
+    from canlib.ecus.revisions_edit import set_override
+
+    if args.dir is not None:
+        raise SystemExit(f"{ansi.RED}  Error: --revision does not take --dir{ansi.RESET}")
+    fields: dict = {"expression": args.expression}
+    for key, value in (
+        ("unit", args.unit),
+        ("min", args.min),
+        ("max", args.max),
+        ("source", args.source),
+        ("source_links", args.source_link or None),
+        ("verified", args.verified),
+        ("notes", args.notes),
+        ("type", ptype),
+        ("values", values),
+        ("bits", bits),
+    ):
+        if value is not None:
+            fields[key] = value
+    unsupported = [
+        flag
+        for flag, value in (
+            ("--ha-class", args.ha_class),
+            ("--mqtt-topic", args.mqtt_topic),
+            ("--send-to", args.send_to),
+            ("--display", args.display),
+            ("--enabled/--disabled", args.enabled),
+        )
+        if value is not None
+    ]
+    if unsupported:
+        raise SystemExit(
+            f"{ansi.RED}  Error: {', '.join(unsupported)} cannot differ by revision{ansi.RESET}"
+        )
+    require_writable_definitions()
+    try:
+        fpath = set_override(args.ecu, args.pid, args.name, args.revision, fields)
+    except EcusEditError as e:
+        raise SystemExit(f"{ansi.RED}  Error: {e}{ansi.RESET}") from None
+    echo_edit(f"{args.ecu} {args.pid} {args.name} (revision {args.revision})", fpath)
     return 0
 
 
@@ -839,6 +920,13 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     en = up.add_mutually_exclusive_group()
     en.add_argument("--enabled", dest="enabled", action="store_true", default=None)
     en.add_argument("--disabled", dest="enabled", action="store_false")
+    up.add_argument(
+        "--revision",
+        metavar="ID",
+        help="The ECU revision this was seen on: an existing signal gets the given fields "
+        "under per_revision.ID (the rest stay shared); a new one is created gated to "
+        "revisions: [ID], never claimed for every revision",
+    )
     _add_common(up)
     up.set_defaults(_pids_func=cmd_upsert_param)
 
