@@ -13,6 +13,7 @@ from canlib.analysis.support_map import (
     MIN_EXPLAINED,
     MapFit,
     Slot,
+    _chance_log10,
     best_fit,
     continuation_bits,
     corroborated,
@@ -185,6 +186,13 @@ class TestEvidence:
     def test_the_placement_penalty_is_paid(self):
         fit = best_fit(detect_support_maps(_bit_rows()))
         assert fit.penalised_log10 == pytest.approx(fit.chance_log10 + math.log10(fit.placements))
+
+    def test_an_even_chance_is_exactly_zero(self):
+        # C(1,1)/C(8,1) = 1/8 against 8 placements: exactly 1, on every platform's libm (lgamma
+        # left an ulp that printed as 10^-0.0 on macOS and 10^0.0 on Linux).
+        fit = _fit(_chance_log10([(1, 1, 8)]))
+        assert fit.penalised_log10 == 0.0
+        assert math.copysign(1.0, fit.penalised_log10) == 1.0
 
 
 def _fit(chance: float, inside: int = 6, violations: int = 0, key=("bit", 0, 4)) -> MapFit:

@@ -1,7 +1,7 @@
 
 Support maps — 0 of 1 PID(s) carry one
 
-  BCM 22B005  REJECTED per-bit map 20 00 10 00 at data+0, 279 rows, chance 10^-0.0
+  BCM 22B005  REJECTED per-bit map 20 00 10 00 at data+0, 279 rows, chance 10^0.0
       2 signals marked: 0 defined, 2 open
       open, moving     B10:2
       open, always on  B12:3

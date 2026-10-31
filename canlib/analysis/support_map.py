@@ -157,19 +157,19 @@ class MapFit:
         return "weak"
 
 
-def _log10_comb(n: int, k: int) -> float:
-    if k < 0 or k > n:
-        return float("-inf")
-    return (math.lgamma(n + 1) - math.lgamma(k + 1) - math.lgamma(n - k + 1)) / math.log(10)
-
-
 def _chance_log10(groups: Iterable[tuple[int, int, int]]) -> float:
-    """Sum of ``log10 C(m, s) / C(n, s)`` over ``(marked, set, universe)`` groups."""
-    total = 0.0
+    """``log10`` of the product of ``C(m, s) / C(n, s)`` over ``(marked, set, universe)`` groups.
+
+    Exact integer binomials rather than ``lgamma``: the libm ``lgamma`` differs by an ulp across
+    platforms, which flipped a chance of exactly 1 between ``10^-0.0`` and ``10^0.0``.
+    """
+    num = den = 1
     for m, s, n in groups:
-        if s:
-            total += _log10_comb(m, s) - _log10_comb(n, s)
-    return total
+        if s > m:
+            return float("-inf")
+        num *= math.comb(m, s)
+        den *= math.comb(n, s)
+    return math.log10(num) - math.log10(den)
 
 
 def _columns(rows: Sequence[bytes], start: int, count: int) -> list[Counter[int]]:
