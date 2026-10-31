@@ -139,11 +139,7 @@ def _format_research_item(fields: dict, indent: int = 4) -> list[str]:
             lines.append(f"{prefix}{key}: [{joined}]")
         elif key == "revisions":
             lines.append(f"{prefix}{key}: [{', '.join(str(r).strip().lower() for r in val)}]")
-        elif key in ("notes", "result") and "\n" in str(val):
-            block = _format_block_scalar(fld, key, str(val))
-            block[0] = prefix + block[0][len(fld) :]
-            lines.extend(block)
-        elif key == "capture_protocol":
+        elif key in ("notes", "result", "capture_protocol"):
             block = _format_block_scalar(fld, key, str(val))
             block[0] = prefix + block[0][len(fld) :]
             lines.extend(block)

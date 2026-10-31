@@ -389,6 +389,23 @@ class TestResearch:
         assert isinstance(new["target"], str)
         assert new["type"] == "decode"
 
+    def test_long_single_line_note_is_folded(self, pids_dir):
+        note = "A single-line research note long enough to need wrapping. " * 4
+        add_research_entry(
+            "TESTECU",
+            type="decode",
+            target="22C102",
+            status="pending",
+            notes=note.strip(),
+            pids_dir=pids_dir,
+        )
+        raw = (pids_dir / "test.yaml").read_text()
+        assert "notes: >-" in raw
+        assert max(len(line) for line in raw.splitlines()) <= 100
+        research = _load(pids_dir)["TESTECU"]["research"]
+        new = next(e for e in research if e["target"] == "22C102")
+        assert new["notes"] == note.strip()
+
     def test_capture_protocol_field(self, pids_dir):
         add_research_entry(
             "TESTECU",
