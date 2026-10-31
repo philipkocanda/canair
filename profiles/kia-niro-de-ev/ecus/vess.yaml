@@ -1,0 +1,9 @@
+VESS:
+  tx_id: 0x736
+  can_bus: [P-CAN]
+  identity:
+    description: Virtual Engine Sound System
+    id_protocol: UDS
+    notes: >-
+      Listed at 736/73E on P-CAN in the e-Niro CAN spreadsheet, answering with the car on. UDS by
+      behaviour there: 10 03 -> 50 03, and an IOControl (2F) sound test is recorded (not ported).

@@ -1,0 +1,28 @@
+BCM:
+  tx_id: 0x7A0
+  can_bus: [B-CAN, C-CAN]
+  identity:
+    description: Body Control Module (incl. TPMS)
+    id_protocol: UDS
+    notes: >-
+      Listed at 7A0/7A8 on B-CAN and C-CAN (the TPMS function) in the e-Niro CAN spreadsheet,
+      answering with the car off, charging and on: 22B001-B00E (body), 22C001-C002 and C00B-C00F
+      (TPMS). OBDb Kia-Niro-EV MY2019-2022 test cases read tyre pressures and temperatures on
+      22C00B. OVMS polls B00C (heated steering wheel), B00E (charge port), C002 (TPMS sensor IDs)
+      and C00B.
+
+  research:
+    - type: decode
+      target: 22C00B
+      status: pending
+      priority: P3
+      vehicle_states: [ACC]
+      created: "2026-10-31"
+      updated: "2026-10-31"
+      notes: >-
+        Tyre pressures (psi x 5) and temperatures (raw - 50). The Kona Electric (OS) profile defines
+        it from the same community sources (unverified there too).
+      sources:
+        - OBDb Kia-Niro-EV
+        - e-Niro CAN spreadsheet
+        - OVMS vehicle_kianiroev

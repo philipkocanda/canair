@@ -1,0 +1,8 @@
+EPS:
+  tx_id: 0x7D4
+  identity:
+    description: Electric Power Steering
+    notes: >-
+      Listed at 7D4/7DC in the e-Niro CAN spreadsheet, answering with the car on but not off. No
+      DIDs recorded.
+    alias: MDPS

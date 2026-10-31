@@ -1,0 +1,26 @@
+MCU:
+  tx_id: 0x7E3
+  can_bus: [H-CAN, P-CAN]
+  identity:
+    description: Motor Control Unit (inverter)
+    id_protocol: KWP2000
+    notes: >-
+      Listed at 7E3/7EB on H-CAN and P-CAN in the e-Niro CAN spreadsheet, answering while charging
+      and on but not off: 2101-2106. OVMS reads motor and inverter temperatures from 2102
+      (unconfirmed there). OBDb Kia-Niro-EV MY2019 and MY2022 test cases also get OBD-II mode 01
+      answers (0101, 0121, 0130, 0131) from it.
+
+  research:
+    - type: decode
+      target: "2102"
+      status: pending
+      priority: P3
+      vehicle_states: [READY]
+      created: "2026-10-31"
+      updated: "2026-10-31"
+      notes: >-
+        Motor and inverter temperatures (OVMS, unconfirmed there). The Kona Electric profile reads
+        its MCU on 220102 instead; establish which service this MCU answers.
+      sources:
+        - OVMS vehicle_kianiroev
+        - e-Niro CAN spreadsheet

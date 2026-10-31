@@ -1,0 +1,44 @@
+# Kia Niro EV / e-Niro (DE) — physical CAN bus segment vocabulary
+#
+# Codes accepted by each ECU's `can_bus:` field (set with `canair pids set-can-bus`). The IGPM
+# (Integrated Gateway & Power control Module, 0x770) is the gateway that bridges the segments.
+#
+# The segment of each ECU comes from the "Can bus" column of the ECU list in the e-Niro CAN
+# spreadsheet kept by the OVMS vehicle_kianiroev developers, which writes them B, P, C, M, H and
+# All. The codes below spell those out in the Hyundai/Kia form the sister Kona Electric (OS) and
+# Ioniq Electric (AE) profiles use (M as MM-CAN). ECUs whose column is blank there have no
+# can_bus: yet.
+#
+# Bit rates: only D-CAN's is established (the spreadsheet: 500 kbit/s on OBD-II pins 6 and 14,
+# ISO 15765-4 11-bit). The other segments' rates are not stated in the sources checked.
+#
+# Source: https://docs.google.com/spreadsheets/d/1eT2R8hmsD1hC__9LtnkZ3eDjLcdib9JR-3Myc97jy8M
+
+can_buses:
+  ALL:
+    name: All segments
+    description: >-
+      Convention for the IGPM, the gateway that bridges every segment. The OBD-II port reaches it
+      over D-CAN.
+  B-CAN:
+    name: Body CAN
+    description: Comfort/body electronics (BCM, door and seat modules, smart key, phone charger).
+  P-CAN:
+    name: Powertrain CAN
+    description: High-voltage/drivetrain control (BMS, VMCU, MCU, VESS).
+  C-CAN:
+    name: Chassis CAN
+    description: Chassis electronics (cluster, TPMS side of the BCM, rear camera).
+  MM-CAN:
+    name: Multimedia CAN
+    description: Infotainment/audio (amplifier, cluster).
+  H-CAN:
+    name: H-CAN
+    description: >-
+      Second segment of the VMCU and MCU, alongside P-CAN. The spreadsheet takes the Niro hybrid's
+      bus diagram as its reference, where H-CAN is the hybrid powertrain bus; what else sits on it
+      in the EV is not documented in the sources checked.
+  D-CAN:
+    name: Diagnostic CAN
+    description: Diagnostic bus on the OBD-II port (pins 6/14) for UDS/KWP2000 requests.
+    bitrate: 500000

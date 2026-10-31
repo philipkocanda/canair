@@ -1,0 +1,26 @@
+OBC:
+  tx_id: 0x7E5
+  identity:
+    description: On-Board Charger
+    id_protocol: KWP2000
+    notes: >-
+      Listed at 7E5/7ED in the e-Niro CAN spreadsheet, answering while charging and on: 2101-2103
+      (pilot duty, OBC temperature, AC and DC voltage and current per the sheet; OVMS polls 2101 and
+      2103). The 7.2 kW single-phase charger is standard; an 11 kW three-phase charger was offered
+      in Europe from June 2020, and whether it answers the same way is unknown.
+
+  research:
+    - type: decode
+      target: "2101"
+      status: pending
+      priority: P2
+      vehicle_states: [CHARGING]
+      created: "2026-10-31"
+      updated: "2026-10-31"
+      notes: >-
+        Pilot duty, OBC temperature, AC and DC voltage while charging; 2103 carries AC current. The
+        Kona Electric (OS) profile defines it from the same community sources (unverified there
+        too). Capture on a 7.2 kW and an 11 kW three-phase car if possible.
+      sources:
+        - e-Niro CAN spreadsheet
+        - OVMS vehicle_kianiroev

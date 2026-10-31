@@ -277,6 +277,7 @@ class TestCommands:
         "hyundai-ioniq-ae-ev",
         "hyundai-kona-os-ev",
         "hyundai-ioniq-5-ne-ev",
+        "kia-niro-de-ev",
         "nissan-leaf-ze1-ev",
         "xpeng-g6-f30-ev",
     ],

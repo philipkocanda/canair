@@ -1,0 +1,5 @@
+MFC:
+  tx_id: 0x7C4
+  identity:
+    description: Multi-Function Camera (ADAS)
+    notes: Listed at 7C4/7CC in the e-Niro CAN spreadsheet; no DIDs recorded.

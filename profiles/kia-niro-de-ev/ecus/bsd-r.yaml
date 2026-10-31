@@ -1,0 +1,8 @@
+BSD-R:
+  tx_id: 0x755
+  identity:
+    description: Blind Spot Detection radar (right)
+    notes: >-
+      Listed at 755/75D as BSD Right in the e-Niro CAN spreadsheet. Consistent with the Ioniq
+      Electric (AE), where the 0x755 radar reports part 95821-G2000, a right-hand BSD unit. No data
+      DIDs recorded.

@@ -1,0 +1,28 @@
+IGPM:
+  tx_id: 0x770
+  can_bus: [ALL]
+  identity:
+    description: Integrated Gateway & Power control Module (gateway, lights, doors)
+    id_protocol: UDS
+    notes: >-
+      Listed at 770/778 on all segments in the e-Niro CAN spreadsheet (answers with the car off,
+      charging and on): 22BC03-BC05 (door, lock and seat-belt bits, IGN1/IGN2, lights). OVMS
+      vehicle_kianiroev polls 22BC03 (doors, IGN1/IGN2: how it detects the car turning on), BC04 and
+      BC07 (defoggers). The spreadsheet also records IOControl (2F BCxx) for lights, locks and the
+      charge-cable lock (not ported).
+
+  research:
+    - type: decode
+      target: 22BC03
+      status: pending
+      priority: P2
+      vehicle_states: [ACC]
+      created: "2026-10-31"
+      updated: "2026-10-31"
+      notes: >-
+        Door, lock, hood and seat-belt bits, IGN1/IGN2, low beam (bit map in the e-Niro CAN
+        spreadsheet). The Kona Electric (OS) profile defines it from the same community sources
+        (unverified there too).
+      sources:
+        - e-Niro CAN spreadsheet
+        - OVMS vehicle_kianiroev

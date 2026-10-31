@@ -1,0 +1,7 @@
+DDM:
+  tx_id: 0x7A1
+  can_bus: [B-CAN]
+  identity:
+    description: Driver Door Module
+    notes: >-
+      Listed at 7A1/7A9 on B-CAN in the e-Niro CAN spreadsheet: doors and windows on the left side.

@@ -1,0 +1,12 @@
+SKM:
+  tx_id: 0x7A5
+  can_bus: [B-CAN]
+  identity:
+    description: Smart Key Module
+    id_protocol: UDS
+    notes: >-
+      Listed at 7A5 as SMK on B-CAN in the e-Niro CAN spreadsheet: 22B005-B00A, and IOControl 2F
+      B108/B109/B10B for the ACC, IGN1 and start relays (not ported). The sheet gives the response
+      as 7A5 but marks it unchecked; the default 7AD is kept, as on the Ioniq Electric (AE), whose
+      SKM at 7A5 answers on 7AD and sleeps about 2 s after its last request.
+    alias: SMK

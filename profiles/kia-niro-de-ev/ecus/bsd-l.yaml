@@ -1,0 +1,5 @@
+BSD-L:
+  tx_id: 0x7B7
+  identity:
+    description: Blind Spot Detection radar (left)
+    notes: Listed at 7B7/7BF as BSD Left in the e-Niro CAN spreadsheet. No data DIDs recorded.

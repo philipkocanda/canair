@@ -1,0 +1,9 @@
+PSM:
+  tx_id: 0x7A3
+  can_bus: [B-CAN]
+  identity:
+    description: Power Seat Module
+    id_protocol: UDS
+    notes: >-
+      Listed at 7A3/7AB on B-CAN in the e-Niro CAN spreadsheet, answering with the car off, charging
+      and on: 22B402 (seat height, slide and recline positions).

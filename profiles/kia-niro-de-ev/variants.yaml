@@ -1,0 +1,56 @@
+# The variants of this car (battery, facelift, market) and their metadata.
+# List or edit with `canair variants`. See docs/concepts/variants.md.
+variants:
+  64kwh:
+    name: Niro EV / e-Niro 64 kWh (long range)
+    generation: DE
+    production: ["2018", "2022"]
+    model_years: [2019, 2022]
+    markets: [KR, EU, US]
+    battery: {gross_kwh: 64, series_cells: 98, chemistry: NCM622, cooling: liquid}
+    status: community
+    sources:
+    - >-
+      Kia: 64 kWh, 356 V nominal, 180 Ah; 150 kW, 395 Nm (Kia US 2020 Niro EV specifications,
+      https://www.kiamedia.com/us/en/models/niro-ev/2020/specifications)
+    - >-
+      batterydesign.net teardown: 98s3p, 294 SK Innovation E600B NCM622 pouch cells (60 Ah, 3.63 V),
+      10 modules, liquid-cooled (https://www.batterydesign.net/kia-niro/)
+    - 'OVMS vehicle_kianiroev: 98 cell voltages (BmsSetCellArrangementVoltage(98, 1))'
+    - >-
+      OBDb Kia-Niro-EV MY2019-2022 signal set: 98 cell voltages over BMS 220102-220105
+      (https://github.com/OBDb/Kia-Niro-EV)
+    - >-
+      Niro Plus: 64 kWh first-generation Niro EV derivative, sold in Korea from May 2022
+      (https://www.etnews.com/20240904000079)
+    notes: >-
+      The only pack sold in the US (MY2019-2022). gross_kwh is Kia's figure, which equals the
+      nominal energy of the cells (294 x 60 Ah x 3.63 V = 64.0 kWh), so it is total rather than
+      usable energy; the usable figure is not established (ev-database estimates 67.5 kWh gross and
+      lists 64 usable). The Korean Kia Niro Plus taxi (2022-2024, built by Donghee in Seosan) is a
+      derivative of this car with the same 64 kWh pack; whether its diagnostics match is
+      unconfirmed.
+  39kwh:
+    name: e-Niro 39.2 kWh (standard range)
+    generation: DE
+    production: ["2018", "2022"]
+    markets: [KR, EU]
+    battery: {gross_kwh: 39.2, series_cells: 90}
+    status: seed
+    sources:
+    - >-
+      Kia figures 39.2 kWh, 327 V nominal, 100 kW, 395 Nm, 7.2 kW on-board charger (InsideEVs, Dec
+      2019, https://insideevs.com/news/388390/kia-niro-ev-more-compeling-2020/)
+    - >-
+      Korean launch with both packs, July 2018 (Kia press release,
+      https://press.kia.com/ie/en/home/media-resouces/press-releases/2018/All-electric_Kia_Niro_EV_now_on_sale_in_Korea.html)
+    - >-
+      UK launch of the 39 kWh '2' trim, June 2020 (Kia UK release,
+      https://insideevs.com/news/430944/kia-niro-ev-39-kwh-uk/)
+    - 'ev-database: 90s2p, 180 cells (https://ev-database.org/car/1339/Kia-e-Niro-39-kWh)'
+    notes: >-
+      Not sold in the US. Sold in Korea from the July 2018 launch; in the UK from June 2020.
+      series_cells follows from Kia's 327 V nominal and the 3.63 V cell of the 64 kWh pack (90 x
+      3.63 V = 327 V; 2 x 60 Ah x 327 V = 39.2 kWh), so gross_kwh is again total energy. No capture
+      from this car yet: its BMS should report 90 cell voltages rather than 98, which will need its
+      own decoding of 220104/220105.

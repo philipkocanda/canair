@@ -1,0 +1,42 @@
+VMCU:
+  tx_id: 0x7E2
+  can_bus: [H-CAN, P-CAN]
+  identity:
+    description: Vehicle Motor Control Unit
+    id_protocol: KWP2000
+    notes: >-
+      Listed at 7E2/7EA on H-CAN and P-CAN in the e-Niro CAN spreadsheet, answering while charging
+      and on but not off: 2101 (gear, vehicle speed, READY and park-brake bits) and 2102 (12 V
+      battery voltage, current and SOC); 2100 and 2103 get no reply. KWP2000 ReadECUIdentification
+      1A80 returns the VIN (sheet; OVMS reads it). 2101 is also in the wican-fw Niro/Soul/Kona
+      profile and OBDb Kia-Niro-EV MY2019-2022 test cases (vehicle speed).
+
+  research:
+    - type: decode
+      target: "2101"
+      status: pending
+      priority: P1
+      vehicle_states: [READY]
+      created: "2026-10-31"
+      updated: "2026-10-31"
+      notes: >-
+        Gear selector bits, vehicle speed, READY and park-brake bits (KWP2000). The Kona Electric
+        (OS) profile defines it from the same community sources (unverified there too), and its
+        READY/PARKED/DRIVING predicates read it.
+      sources:
+        - wican-fw nirosoulkona-ev
+        - OBDb Kia-Niro-EV
+        - e-Niro CAN spreadsheet
+    - type: decode
+      target: "2102"
+      status: pending
+      priority: P2
+      vehicle_states: [READY]
+      created: "2026-10-31"
+      updated: "2026-10-31"
+      notes: >-
+        12 V battery voltage, current and SOC per the e-Niro CAN spreadsheet and OVMS. The Kona
+        Electric (OS) profile defines it from the same community sources (unverified there too).
+      sources:
+        - e-Niro CAN spreadsheet
+        - OVMS vehicle_kianiroev

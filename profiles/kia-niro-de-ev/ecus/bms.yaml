@@ -1,0 +1,57 @@
+BMS:
+  tx_id: 0x7E4
+  can_bus: [P-CAN]
+  identity:
+    description: Battery Management System (SK Innovation pack)
+    id_protocol: UDS
+    notes: >-
+      Listed at 7E4/7EC on P-CAN in the e-Niro CAN spreadsheet, answering while charging and on but
+      not off: 220101-220106. 220101 and 220105 are in the wican-fw Niro/Soul/Kona profile; OBDb
+      Kia-Niro-EV MY2019-2022 test cases read 220101-220105 (SOC, SOH, currents, cell voltages,
+      energy counters), and the MY2019 and MY2022 cases OBD-II 015B; OVMS polls 220101-220106. The
+      39.2 kWh pack (90S) should report fewer cell voltages than the 64 kWh pack (98S).
+
+  research:
+    - type: decode
+      target: "220101"
+      status: pending
+      priority: P1
+      vehicle_states: [READY, CHARGING]
+      created: "2026-10-31"
+      updated: "2026-10-31"
+      notes: >-
+        SOC, pack current and voltage, temperatures, min/max cell voltage, 12 V, energy and charge
+        counters. The Kona Electric (OS) profile defines it from the same community sources
+        (unverified there too); port it and confirm the offsets against a capture from this car.
+      sources:
+        - wican-fw nirosoulkona-ev
+        - OBDb Kia-Niro-EV
+        - OVMS vehicle_kianiroev
+    - type: decode
+      target: "220105"
+      status: pending
+      priority: P1
+      vehicle_states: [READY]
+      created: "2026-10-31"
+      updated: "2026-10-31"
+      notes: >-
+        SOH, display SOC, min/max cell deterioration, cell voltages 97-98 on the 64 kWh pack. The
+        Kona Electric (OS) profile defines it from the same community sources (unverified there
+        too). The 90-cell 39.2 kWh pack ends its cell list earlier, so this page's layout may differ
+        between the variants.
+      sources:
+        - wican-fw nirosoulkona-ev
+        - OBDb Kia-Niro-EV
+    - type: decode
+      target: "220102"
+      status: pending
+      priority: P2
+      vehicle_states: [READY]
+      created: "2026-10-31"
+      updated: "2026-10-31"
+      notes: >-
+        Cell voltages 1-32 (V x 50); 220103 and 220104 carry 33-64 and 65-96. The Kona Electric (OS)
+        profile defines it from the same community sources (unverified there too).
+      sources:
+        - OBDb Kia-Niro-EV
+        - OVMS vehicle_kianiroev

@@ -1,0 +1,8 @@
+Unknown-7E6:
+  tx_id: 0x7E6
+  identity:
+    description: Unknown ECU at 0x7E6
+    notes: >-
+      Listed at 7E6/7EE as ?? in the e-Niro CAN spreadsheet, answering with the car on;
+      210805-21080F all draw negative responses (the sheet guesses the PTC heater). The Ioniq
+      Electric (AE) has its active air flap controller (KWP2000, 2180) at this address.

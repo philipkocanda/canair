@@ -1,0 +1,9 @@
+RCAM:
+  tx_id: 0x796
+  can_bus: [C-CAN]
+  identity:
+    description: Rear View Camera (Parking Guide System)
+    notes: >-
+      Listed at 796/79E as PGS (Parking Guide System) on C-CAN in the e-Niro CAN spreadsheet. The
+      Ioniq Electric (AE) has its rear camera at the same address.
+    alias: PGS

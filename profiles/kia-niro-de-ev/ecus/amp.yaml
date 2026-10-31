@@ -1,0 +1,8 @@
+AMP:
+  tx_id: 0x783
+  can_bus: [MM-CAN]
+  identity:
+    description: Audio Amplifier
+    notes: >-
+      Listed at 783/78B on M-CAN in the e-Niro CAN spreadsheet, answering with the car off, charging
+      and on. No data found there.

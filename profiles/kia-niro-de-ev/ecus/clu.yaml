@@ -1,0 +1,28 @@
+CLU:
+  tx_id: 0x7C6
+  can_bus: [C-CAN, MM-CAN]
+  identity:
+    description: Cluster (instrument panel)
+    id_protocol: UDS
+    notes: >-
+      Listed at 7C6/7CE as CM on C-CAN and M-CAN in the e-Niro CAN spreadsheet, answering with the
+      car on but not off: 22B001-B003. OBDb Kia-Niro-EV MY2019-2022 test cases read the odometer on
+      22B002; OVMS polls B002 and A020. The sheet records an IOControl (2F B001) indicator test (not
+      ported).
+    alias: CM
+
+  research:
+    - type: decode
+      target: 22B002
+      status: pending
+      priority: P2
+      vehicle_states: [READY]
+      created: "2026-10-31"
+      updated: "2026-10-31"
+      notes: >-
+        Odometer. The shared Hyundai/Kia cluster layout ([B12:B14], km) is verified on an Ioniq 5.
+        The Kona Electric (OS) profile defines it from the same community sources (unverified there
+        too).
+      sources:
+        - OBDb Kia-Niro-EV
+        - OVMS vehicle_kianiroev

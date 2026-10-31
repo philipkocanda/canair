@@ -1,0 +1,7 @@
+ADM:
+  tx_id: 0x7A2
+  can_bus: [B-CAN]
+  identity:
+    description: Assist Door Module
+    notes: >-
+      Listed at 7A2/7AA on B-CAN in the e-Niro CAN spreadsheet: doors and windows on the right side.

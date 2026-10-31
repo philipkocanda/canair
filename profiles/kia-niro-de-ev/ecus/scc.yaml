@@ -1,0 +1,9 @@
+SCC:
+  tx_id: 0x7D0
+  identity:
+    description: Smart Cruise Control / forward collision-avoidance radar
+    notes: >-
+      Listed at 7D0/7D8 as AEB (Autonomous Emergency Braking) in the e-Niro CAN spreadsheet,
+      possibly UDS: a 220200 read returns one byte the sheet takes for speed. The Ioniq Electric
+      (AE) has its SCC at the same address.
+    alias: AEB

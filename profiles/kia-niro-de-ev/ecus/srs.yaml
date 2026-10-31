@@ -1,0 +1,5 @@
+SRS:
+  tx_id: 0x7D2
+  identity:
+    description: Airbag / Supplemental Restraint System
+    notes: Listed at 7D2/7DA as AIRBAG in the e-Niro CAN spreadsheet; no DIDs recorded.

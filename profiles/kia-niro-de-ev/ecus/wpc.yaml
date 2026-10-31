@@ -1,0 +1,9 @@
+WPC:
+  tx_id: 0x725
+  can_bus: [B-CAN]
+  identity:
+    description: Wireless Phone Charging unit
+    notes: >-
+      Listed at 725/72D as WPS on B-CAN in the e-Niro CAN spreadsheet, answering with the car on. No
+      data DIDs recorded. The Ioniq Electric (AE) has its WPC at the same address.
+    alias: WPS

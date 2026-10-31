@@ -1,0 +1,67 @@
+# yaml-language-server: $schema=https://philipkocanda.github.io/canair/schema/profile.json
+# Kia Niro EV / e-Niro, first generation (DE) — vehicle profile settings
+#
+# DEVICE-FREE SEED. Built without a car on the bench: ECUs, buses and variants are transcribed
+# from the public sources below, and no PIDs are defined yet. Each ECU's `research:` entries say
+# where its first PIDs come from. Record a capture with
+# `canair --profile kia-niro-de-ev --variant 64kwh monitor … --save`.
+#
+# Scope: the battery-electric first-generation Niro (Kia "Niro EV (DE EV)"), sold as the e-Niro
+# in Europe and the Niro EV elsewhere, built 2018-2022 (US model years 2019-2022), with the
+# 39.2 kWh or 64 kWh pack (see variants.yaml). The second-generation Niro EV (SG2, 2022 on)
+# moved to UDS throughout and adds a VCMS at 0x744 (OBDb's MY2023+ test cases), so it needs a
+# profile of its own; so do the Niro hybrid and plug-in hybrid (DE HEV/PHEV).
+#
+# The DE EV is the Kia twin of the Hyundai Kona Electric (OS) and shares its diagnostics: the
+# wican-fw community profile and OVMS vehicle_kianiroev serve both cars, and the ECU addresses
+# and services here match the hyundai-kona-os-ev profile, the place to port definitions from.
+# BMS is UDS (22 01xx); VMCU, MCU and OBC are KWP2000 (21xx). Standard Hyundai/Kia 11-bit
+# addressing (ISO 15765-4, 500 kbit/s, response = request + 0x08), so no addressing block.
+#
+# Running changes an owner may meet (none is known to change the diagnostics, so none is a
+# variant): a battery heater and a 10.25-inch navigation screen on some trims from model year
+# 2020; an optional 11 kW three-phase on-board charger in Europe from June 2020 (the 7.2 kW
+# single-phase charger is standard); an optional heat pump depending on market and year.
+#
+# SOURCES (each ECU's notes cite which it relies on):
+#   - "Kia e-Niro Can messages" spreadsheet, kept by the OVMS vehicle_kianiroev developers: ECU
+#     list with request/response IDs, segment, protocol and which ECUs answer off, charging and
+#     on, plus per-ECU payload maps.
+#     https://docs.google.com/spreadsheets/d/1eT2R8hmsD1hC__9LtnkZ3eDjLcdib9JR-3Myc97jy8M
+#   - OVMS vehicle_kianiroev (MIT) poll list.
+#     https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/tree/master/vehicle/OVMS.V3/components/vehicle_kianiroev
+#   - OBDb Kia-Niro-EV (CC BY-SA 4.0): recorded responses in its MY2019-2022 test cases. Cited,
+#     not copied (its licence is not compatible with this repo's CC BY profile licence). Its
+#     MY2023+ cases are the SG2 and do not apply here.
+#     https://github.com/OBDb/Kia-Niro-EV
+#   - wican-fw community profile "Kia/Hyundai: Niro/Soul/Kona"
+#     (vehicle_profiles/kia/nirosoulkona-ev.json): BMS 220101/220105 and VMCU 2101.
+car_model: "Kia Niro EV / e-Niro (DE)"
+
+# Hyundai/Kia ECUs respond slowly and the first request after idle can time out, so the
+# ELM327 response timeout is kept high (ATST96 ~= 614 ms), as on the Ioniq and Kona.
+init: "ATSP6;ATS0;ATAL;ATST96;"
+
+# ISO 15765-4 11-bit / 500 kbit/s (ATSP6), on OBD-II pins 6 and 14.
+can_bitrate: 500000
+
+# ISO-TP fill bytes (slcan-tcp only; an ELM327 pads requests itself, normally with 0x00).
+# ES95486 pads requests with 0x55 and responses with 0xAA, as on the Kona. The spreadsheet's
+# responses carry 0xAA fill; its requests were padded with 0x00 and still answered, so the
+# request padding is spec conformance, not a fix.
+isotp:
+  tx_padding: 0x55
+  rx_padding: 0xAA
+
+# The Hyundai/Kia identity-DID -1 offset (request 22F188 -> response 62F187), make-wide; not
+# yet observed on this car. The Kona's hk_90_session is not carried over until a capture shows
+# this car's KWP2000 ECUs need session 10 90.
+quirks:
+  - hk_f1xx_minus_one
+
+# Physical-value band for the reference-free scan (`canair hunt --physical` /
+# `canair investigate`), wide enough for both packs: the 39.2 kWh pack is 90S (90 x 2.5 V =
+# 225 V empty) and the 64 kWh pack 98S (98 x 4.2 V = 412 V full). rail_12v and the grid bands
+# keep their defaults.
+physical_bands:
+  hv_pack: [220, 415]   # HV traction pack V (90S 327 V or 98S 356 V nominal)

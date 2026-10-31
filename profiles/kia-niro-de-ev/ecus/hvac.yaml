@@ -1,0 +1,24 @@
+HVAC:
+  tx_id: 0x7B3
+  identity:
+    description: Climate control (A/C control unit)
+    id_protocol: UDS
+    notes: >-
+      Listed at 7B3/7BB as AIRCON / ACU in the e-Niro CAN spreadsheet, answering while charging and
+      on but not off: 220100 (cabin, ambient and evaporator temperatures) and 220102 (coolant
+      temperatures). OVMS polls 220100 and reads vehicle speed from it.
+
+  research:
+    - type: decode
+      target: "220100"
+      status: pending
+      priority: P3
+      vehicle_states: [READY]
+      created: "2026-10-31"
+      updated: "2026-10-31"
+      notes: >-
+        Cabin, ambient and evaporator temperatures ((T + 40) x 2) and vehicle speed. The Kona
+        Electric (OS) profile defines it from the same community sources (unverified there too).
+      sources:
+        - e-Niro CAN spreadsheet
+        - OVMS vehicle_kianiroev
