@@ -188,6 +188,26 @@ def _as_pre_comment(token) -> list:
     return [CommentToken(f"{ln}\n", CommentMark(column)) for ln in lines if ln]
 
 
+def _insert_before_last(data: CommentedMap, entry: CommentedMap) -> None:
+    """Insert ``entry`` just before the last state, keeping that state's leading comment.
+
+    The comment above the last entry is stored on the entry before it (see
+    :func:`_comment_slot`), so a plain insert would leave it above the new entry
+    instead. It moves to the new entry's last key, which is where ruamel keeps the
+    comment above the entry that follows.
+    """
+    states = data["states"]
+    idx = len(states) - 1
+    items, key, slot = _comment_slot(data, idx)
+    leading = None
+    if key is not None and slot == 2 and key in items:
+        leading = items[key][slot]
+        items[key][slot] = None
+    states.insert(idx, entry)
+    if leading is not None:
+        entry.ca.items[list(entry.keys())[-1]] = [None, None, leading, None]
+
+
 def _delete_state_entry(data: CommentedMap, idx: int) -> None:
     """Delete ``states[idx]`` without stealing the next entry's leading comment.
 
@@ -315,12 +335,13 @@ def add_state(
     excludes=None,
     profile: Profile | None = None,
 ) -> Path:
-    """Append a new state to the vocabulary (scaffolds the file if absent).
+    """Add a new state to the vocabulary (scaffolds the file if absent).
 
-    Rejects a duplicate name (case-insensitive), an invalid ``when:`` predicate,
-    a malformed/cyclic ``implies:`` hierarchy and an ``excludes:`` that
-    contradicts it. The write is verified by a re-parse; on failure it is
-    reverted.
+    The state is appended, or inserted just before a trailing ``ALL`` entry so the
+    catch-all stays last. Rejects a duplicate name (case-insensitive), an invalid
+    ``when:`` predicate, a malformed/cyclic ``implies:`` hierarchy and an
+    ``excludes:`` that contradicts it. The write is verified by a re-parse; on
+    failure it is reverted.
     """
     name = normalize_name(name)
     if when:
@@ -329,9 +350,17 @@ def add_state(
     path = _states_path(profile)
     original = path.read_text() if path.exists() else None
     data = _load_doc(path)
-    if _find(data["states"], name) != -1:
+    states = data["states"]
+    if _find(states, name) != -1:
         raise StatesEditError(f"state {name!r} already exists")
-    data["states"].append(_new_entry(name, description, when, implies, excludes))
+    entry = _new_entry(name, description, when, implies, excludes)
+    # ALL is the catch-all, conventionally listed last: a new state goes before it,
+    # and the comment written above ALL stays above it.
+    last = states[-1] if len(states) else None
+    if isinstance(last, dict) and str(last.get("name", "")).upper() == ALL_STATE:
+        _insert_before_last(data, entry)
+    else:
+        states.append(entry)
     _safe_write(path, original, data)
     return path
 

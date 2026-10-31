@@ -91,6 +91,33 @@ class TestAddState:
         assert "# top comment" in prof.states_file.read_text()
         assert _names(prof) == ["READY", "CHARGING"]
 
+    def test_inserts_before_a_trailing_all(self, tmp_path):
+        prof = _Prof(tmp_path)
+        prof.states_file.write_text(
+            "states:\n"
+            "  - name: DRIVING\n"
+            "    excludes: [PARKED]\n"
+            "  - name: PARKED\n"
+            "    description: Stationary.\n"
+            "\n"
+            "  # catch-all\n"
+            "  - name: ALL\n"
+            "    description: Every state.\n"
+        )
+        add_state("READY", description="HV on", profile=prof)
+        add_state("CHARGING", excludes=["DRIVING"], profile=prof)
+        assert _names(prof) == ["DRIVING", "PARKED", "READY", "CHARGING", "ALL"]
+        # The comment written above ALL stays directly above it.
+        assert (
+            "excludes: [DRIVING]\n\n  # catch-all\n  - name: ALL\n" in prof.states_file.read_text()
+        )
+
+    def test_appends_when_all_is_not_last(self, tmp_path):
+        prof = _Prof(tmp_path)
+        prof.states_file.write_text("states:\n  - name: ALL\n  - name: READY\n")
+        add_state("CHARGING", profile=prof)
+        assert _names(prof) == ["ALL", "READY", "CHARGING"]
+
 
 class TestRemoveState:
     def test_removes(self, tmp_path):
