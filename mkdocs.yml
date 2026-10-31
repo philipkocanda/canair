@@ -66,6 +66,7 @@ plugins:
 hooks:
   - scripts/mkdocs_hooks/profiles_index.py
   - scripts/mkdocs_hooks/explorer.py
+  - scripts/mkdocs_hooks/schemas.py
 
 extra_css:
   - assets/explorer/vendor/uPlot.min.css

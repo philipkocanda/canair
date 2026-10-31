@@ -22,6 +22,7 @@ import shutil
 from pathlib import Path
 
 from .config import set_config_value, user_profiles_dir
+from .constants import PROFILE_SCHEMA_MODELINE
 from .profile import BUNDLE_MEMBERS, looks_like_profile, profiles_roots
 
 # Default ELM327 init string for a new profile: ISO 15765-4 CAN 11-bit/500 kbit
@@ -87,7 +88,12 @@ def create_profile(
     (root / "out").mkdir(parents=True, exist_ok=True)
 
     (root / "profile.yaml").write_text(
-        render_template("profile.yaml.tmpl", car_model=car_model, init=init)
+        render_template(
+            "profile.yaml.tmpl",
+            schema_modeline=PROFILE_SCHEMA_MODELINE,
+            car_model=car_model,
+            init=init,
+        )
     )
     (root / "vehicle_states.yaml").write_text(
         render_template("vehicle_states.yaml.tmpl", car_model=car_model)
@@ -170,6 +176,7 @@ def overlay_profile(
 
     (dest / "captures").mkdir(parents=True)
     (dest / "profile.yaml").write_text(
+        f"{PROFILE_SCHEMA_MODELINE}\n"
         f"# Capture layer over the '{name}' profile.\n"
         "#\n"
         f"# `extends:` makes this bundle a layer rather than a whole vehicle: {name}'s\n"

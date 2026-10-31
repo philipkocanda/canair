@@ -1,10 +1,10 @@
 """MkDocs hook: generate the profile explorer's data files when the docs site is built.
 
 For every bundled profile this writes ``assets/explorer/data/<profile>.json`` (the dict from
-``canlib.explorer_export.export_profile``) plus an ``index.json`` listing them, as virtual
+``canlib.explorer.export.export_profile``) plus an ``index.json`` listing them, as virtual
 files, so the data always matches ``profiles/`` and is never committed. Decoded capture series
 go alongside: ``data/<profile>/sessions.json`` and one ``data/<profile>/s/<id>.json`` per
-session (``canlib.explorer_series``), fetched only when a session is opened. The page that renders
+session (``canlib.explorer.series``), fetched only when a session is opened. The page that renders
 them is ``docs/profiles/explorer.md`` with ``docs/assets/explorer/explorer.{js,css}``.
 
 Source links are pinned to the commit being built (``GITHUB_SHA``) so a line number cannot

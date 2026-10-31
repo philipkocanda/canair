@@ -58,6 +58,22 @@ and `init` are required; everything else is optional with a sensible default.
 | `isotp` | map | Client-side ISO-TP tuning for `slcan-tcp` (see below). `stmin` also sets the ELM327 flow-control data (`ATFCSD 30 00 {stmin}`); the block size there is always `0`. |
 | `physical_bands` | map | Vehicle-axis overrides for the reference-free physical-value scan (see below). |
 
+### Editor validation
+
+Every `profile.yaml` starts with a modeline naming its JSON Schema, which canair publishes at
+<https://philipkocanda.github.io/canair/schema/profile.json>:
+
+```yaml
+# yaml-language-server: $schema=https://philipkocanda.github.io/canair/schema/profile.json
+```
+
+Editors built on `yaml-language-server` (VS Code's YAML extension, Zed, Neovim, Helix) then
+validate the file and autocomplete its fields. Without the modeline they pick a schema by filename
+from SchemaStore, which matches `profiles/*/profile.yaml` to an unrelated tool and reports
+`car_model` as not allowed. `canair profile create` and `canair profile overlay` write the
+modeline; add it by hand to a profile created before that. `canair validate` remains the
+authoritative check.
+
 ### Addressing
 
 `addressing:` tells canair how to build each ECU's request and response IDs.

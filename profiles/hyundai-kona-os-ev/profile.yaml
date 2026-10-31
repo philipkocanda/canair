@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://philipkocanda.github.io/canair/schema/profile.json
 # Hyundai Kona Electric 2019 (64 kWh) — vehicle profile settings
 #
 # DEVICE-FREE SEED. This profile was built without a car on the bench: every

@@ -34,6 +34,13 @@ GITHUB_REPO = "philipkocanda/canair"
 DOCS_URL = "https://philipkocanda.github.io/canair"
 CONFIG_DOCS_URL = f"{DOCS_URL}/reference/config/"
 
+# Editor-facing JSON Schema for profile.yaml, published on the docs site
+# (scripts/mkdocs_hooks/schemas.py). Every profile.yaml carries the modeline so
+# yaml-language-server editors use it instead of guessing one from the filename.
+PROFILE_SCHEMA_FILE = SCHEMA_DIR / "profile_schema.json"
+PROFILE_SCHEMA_URL = f"{DOCS_URL}/schema/profile.json"
+PROFILE_SCHEMA_MODELINE = f"# yaml-language-server: $schema={PROFILE_SCHEMA_URL}"
+
 # Commented, fully-documented example config — the authoritative reference for
 # every key (see `canair config example`). Force-included into the wheel
 # alongside `profiles`/`templates` so it's present in an installed copy too.

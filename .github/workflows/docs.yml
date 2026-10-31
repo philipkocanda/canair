@@ -10,7 +10,9 @@ on:
       # The bundled-profile pages render their counts from the profile data at
       # build time (scripts/mkdocs_hooks/), so a profile change must redeploy.
       - "scripts/mkdocs_hooks/**"
-      - "canlib/explorer_*.py"
+      - "canlib/explorer/**"
+      # The published editor schema (scripts/mkdocs_hooks/schemas.py).
+      - "canlib/schema/profile_schema.json"
       - "profiles/*/ecus/**"
       - "profiles/*/profile.yaml"
       - "profiles/*/can_buses.yaml"

@@ -18,6 +18,7 @@ import re
 from pathlib import Path
 
 import pytest
+import yaml
 
 from canlib.captures.store import load_all_captures
 from canlib.commands.captures import layers as capture_layers
@@ -291,6 +292,15 @@ class TestOverlayCommand:
         got_base, dest = overlay_profile("ev6")
         assert got_base == base
         assert dest == env.user / "ev6"
+
+    def test_overlay_names_the_editor_schema(self, env):
+        from canlib.constants import PROFILE_SCHEMA_MODELINE
+
+        _bundled(env)
+        _, dest = overlay_profile("ev6")
+        text = (dest / "profile.yaml").read_text()
+        assert text.splitlines()[0] == PROFILE_SCHEMA_MODELINE
+        assert yaml.safe_load(text) == {"extends": "ev6"}
 
 
 class TestDefinitionsAreReadOnly:

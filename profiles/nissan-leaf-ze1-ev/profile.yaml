@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://philipkocanda.github.io/canair/schema/profile.json
 # Nissan Leaf ZE1 (2018-2024, 40 kWh and 62 kWh e+) — vehicle profile settings
 # (created by `canair profile create`).
 # Per-ECU definitions live in ecus/. Populate with `canair discover --register`

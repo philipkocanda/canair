@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://philipkocanda.github.io/canair/schema/profile.json
 # Hyundai Ioniq Electric (AE) — vehicle profile settings
 # Profile-wide settings for the Ioniq Electric. Per-ECU definitions live in ecus/.
 # Run `canair wican autopid write` to produce the AutoPID JSON from the ecus/ definitions.

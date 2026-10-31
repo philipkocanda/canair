@@ -95,6 +95,14 @@ class TestProfileCreate:
         assert meta["car_model"] == "VW e-Golf 2019"
         assert meta["init"] == "ATSP0;"
 
+    def test_meta_names_the_editor_schema(self, tmp_path):
+        from canlib.constants import PROFILE_SCHEMA_MODELINE
+
+        root = tmp_path / "prof"
+        _cmd_create(_args(path=root))
+        first = (root / "profile.yaml").read_text().splitlines()[0]
+        assert first == PROFILE_SCHEMA_MODELINE
+
     def test_default_init(self, tmp_path):
         root = tmp_path / "prof"
         _cmd_create(_args(path=root))

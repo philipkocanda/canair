@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://philipkocanda.github.io/canair/schema/profile.json
 # Single-frame analysis fixture (synthetic) — vehicle profile settings (created by `canair profile create`)
 # Per-ECU definitions live in ecus/. Populate with `canair discover --register`
 # (add --identify to read identity DIDs), then `canair pids ...`. Validate with

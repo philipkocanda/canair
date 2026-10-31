@@ -789,7 +789,12 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
 - **`profiles/<car>/references/`** — External reference material (other-vehicle logs, spreadsheets,
   SavvyCAN exports, charge curves). Distinct from the per-ECU `research:` backlog.
 - **`profiles/<car>/profile.yaml`** — Profile-wide settings. Only `car_model` + `init` are required;
-  `canair validate` type-checks the rest: `response_timeout_ms`, `multi_did_batching`,
+  `canair validate` type-checks the rest. Its first line is a `yaml-language-server` modeline
+  (`canlib/constants.py::PROFILE_SCHEMA_MODELINE`) naming the editor schema
+  `canlib/schema/profile_schema.json`, published on the docs site by
+  `scripts/mkdocs_hooks/schemas.py`. **A new profile.yaml field goes in that schema too**;
+  `tests/test_profile_schema.py` pins its enums to the validator's. The fields:
+  `response_timeout_ms`, `multi_did_batching`,
   `multi_did_max` (per-ECU overridable), `can_bitrate`, DTC `failure_types:`, plus these blocks:
   - **`addressing:`** — the CAN diagnostic addressing rule. `mode`: `normal_11bit` (default),
     `normal_29bit`, `normal_fixed_29bit` (the ISO `0x18DA{target}{tester}` convention — RX by

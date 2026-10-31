@@ -1,0 +1,185 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://philipkocanda.github.io/canair/schema/profile.json",
+  "title": "canair profile.yaml",
+  "description": "Profile-wide settings of a canair vehicle profile. Editor-facing: `canair validate` is the authoritative check, and like it this schema tolerates unknown top-level keys.",
+  "type": "object",
+  "additionalProperties": true,
+  "anyOf": [
+    { "required": ["car_model", "init"] },
+    { "required": ["extends"] }
+  ],
+  "properties": {
+    "car_model": {
+      "type": "string",
+      "description": "Human-readable vehicle name."
+    },
+    "init": {
+      "type": "string",
+      "description": "ELM327 init AT commands, semicolon-separated (e.g. \"ATSP6;ATS0;ATAL;\")."
+    },
+    "extends": {
+      "type": "string",
+      "description": "Makes this bundle a capture layer over the named profile (`canair profile overlay`)."
+    },
+    "aliases": {
+      "type": "object",
+      "description": "Former profile names that still resolve to this profile.",
+      "additionalProperties": {
+        "type": ["object", "null"],
+        "properties": {
+          "variant": {
+            "type": "string",
+            "description": "The variant an old name implies (an ID from variants.yaml)."
+          }
+        }
+      }
+    },
+    "can_bitrate": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "description": "Diagnostic bus speed in bit/s (default 500000)."
+    },
+    "response_timeout_ms": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "description": "ELM327 response timeout in ms, applied as ATSTxx."
+    },
+    "multi_did_batching": {
+      "type": "boolean",
+      "description": "Whether UDS service-22 multi-DID batching may be attempted."
+    },
+    "multi_did_max": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Max DIDs per multi-DID request (default 3; an ECU may override)."
+    },
+    "failure_types": {
+      "type": "object",
+      "description": "Manufacturer-specific DTC failure-type bytes: {byte: meaning}.",
+      "additionalProperties": { "type": "string" }
+    },
+    "addressing": {
+      "type": "object",
+      "description": "CAN diagnostic addressing rule.",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "enum": [
+            "normal_11bit",
+            "normal_29bit",
+            "normal_fixed_29bit",
+            "normal_extended_11bit",
+            "extended_29bit"
+          ],
+          "description": "How diagnostic arbitration IDs are formed (default normal_11bit)."
+        },
+        "rx_offset": {
+          "description": "11-bit response offset: rx = tx_id + rx_offset (default 0x08; may be negative).",
+          "oneOf": [
+            { "type": "integer" },
+            { "type": "string", "pattern": "^[+-]0[xX][0-9a-fA-F]+$" }
+          ]
+        },
+        "target_address": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255,
+          "description": "Profile-default ISO-TP target address byte (extended modes)."
+        },
+        "source_address": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255,
+          "description": "Profile-default ISO-TP source address byte (extended modes)."
+        }
+      }
+    },
+    "isotp": {
+      "type": "object",
+      "description": "Client-side ISO-TP tuning for the slcan-tcp transport.",
+      "additionalProperties": false,
+      "properties": {
+        "tx_padding": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255,
+          "description": "Fill byte canair pads its requests with (default 0xAA)."
+        },
+        "rx_padding": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255,
+          "description": "Fill byte the ECUs pad replies with (default: tx_padding)."
+        },
+        "blocksize": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Flow-control BlockSize (0 = send all consecutive frames)."
+        },
+        "stmin": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Flow-control minimum separation time."
+        },
+        "rx_flowcontrol_timeout": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "ms to wait for a flow-control frame."
+        },
+        "rx_consecutive_frame_timeout": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "ms to wait for the next consecutive frame."
+        },
+        "can_fd": {
+          "type": "boolean",
+          "description": "CAN-FD ECUs (default classic CAN)."
+        },
+        "tx_data_length": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "description": "Frame data length (8 classic; up to 64 on CAN-FD)."
+        }
+      }
+    },
+    "quirks": {
+      "type": "array",
+      "description": "Make-specific behaviour this profile opts into.",
+      "items": {
+        "enum": [
+          "hk_90_session",
+          "hk_f1xx_minus_one",
+          "hk_forced_sleep",
+          "nissan_c0_session",
+          "skm_wakeup"
+        ]
+      }
+    },
+    "physical_bands": {
+      "type": "object",
+      "description": "Vehicle-axis band overrides for `hunt --physical` / `investigate`: {name: [low, high]}.",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "number" },
+        "minItems": 2,
+        "maxItems": 2
+      }
+    },
+    "unit_guess_candidates": {
+      "type": "array",
+      "description": "Make-specific scalings for the slope-to-unit sniffer.",
+      "items": {
+        "type": "object",
+        "required": ["factor", "label"],
+        "properties": {
+          "factor": { "type": "number" },
+          "offset": { "type": "number" },
+          "label": { "type": "string", "minLength": 1 },
+          "hint": { "type": "string" },
+          "dimension": { "type": "string" }
+        }
+      }
+    }
+  }
+}
