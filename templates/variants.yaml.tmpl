@@ -1,0 +1,22 @@
+# $car_model — the variants of this car
+#
+# A variant is a version of the car the owner can name (battery size, facelift, a market with
+# different diagnostics) that matters to the diagnostics or to keeping captures apart. Declare
+# them here once the car comes in more than one; with none or one, there is nothing to choose.
+# With several, canair won't talk to the car until you name yours (`canair profile use NAME
+# --variant ID`), and it tags every recording with that car. Edit with `canair variants` (add,
+# set-meta, unset-meta, rename, rm); see docs/concepts/variants.md and `canair validate
+# variants`.
+#
+# Not variants: a model year on its own, a trim, or optional equipment (an ECU that isn't fitted
+# just doesn't answer). Another generation or drivetrain is a separate profile.
+#
+# An ID names only what differs, never a year: the battery the car is sold by in whole kWh
+# (`64kwh`, `38kwh` for 38.3 kWh), then the next difference when two share a pack (`64kwh-us`).
+# Every value should cite its source; leave a field out rather than guess it. For example:
+#
+#   canair variants add 64kwh --name "64 kWh" production=2018,2022 markets=EU,US \
+#       battery.gross_kwh=64 battery.series_cells=98 status=community \
+#       "sources=maker's specification sheet"
+
+variants: {}

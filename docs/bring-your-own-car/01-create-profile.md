@@ -70,12 +70,17 @@ The command scaffolds a valid, empty bundle:
 
 ```
 my-car/
-  profile.yaml     # car_model + ELM327 init string
-  vehicle_states.yaml      # starter vehicle power-state vocabulary (sleep/acc/ready/…)
-  ecus/            # per-ECU definitions — empty, populated in the next steps
-  captures/        # recorded payloads — empty
-  out/             # generated AutoPID JSON — empty
+  profile.yaml         # car_model + ELM327 init string, optional settings commented
+  vehicle_states.yaml  # starter vehicle power-state vocabulary (SLEEP/ACC/RUN/…)
+  can_buses.yaml       # CAN bus segment vocabulary — only the gateway's ALL to start
+  groups.yaml          # named selector groups (@charging, …) — empty
+  variants.yaml        # the car's variants (battery, facelift, market) — empty
+  ecus/                # per-ECU definitions — empty, populated in the next steps
+  captures/            # recorded payloads — empty
+  out/                 # generated AutoPID JSON — empty
 ```
+
+Each file's header says what goes in it and which `canair` command edits it.
 
 `profile.yaml` holds `car_model` and an `init` string (the ELM327 initialization
 sent to the dongle). The default `ATSP6;ATS0;ATAL;` suits most cars (ISO 15765-4,
@@ -84,6 +89,8 @@ sent to the dongle). The default `ATSP6;ATS0;ATAL;` suits most cars (ISO 15765-4
 If your car uses a different bitrate, non-standard response addresses, 29-bit
 addressing, or needs ISO-TP tuning, set `can_bitrate:` / `addressing:` / `isotp:`
 — see [Profiles → `profile.yaml` settings](../concepts/profiles.md#profileyaml-settings).
+A different bitrate or 29-bit IDs also need the matching ELM327 protocol in `init`
+(`ATSP7` 29-bit 500 kbit, `ATSP8` 11-bit 250 kbit, `ATSP9` 29-bit 250 kbit).
 canair derives the header, receive filter and flow control per ECU from
 `addressing`, so when porting a WiCAN community profile leave its
 `ATSH`/`ATCRA`/`ATFCSH`/`ATFCSM` commands out of `init`.

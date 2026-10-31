@@ -1,42 +1,65 @@
 $schema_modeline
 # $car_model — vehicle profile settings (created by `canair profile create`)
-# Per-ECU definitions live in ecus/. Populate with `canair discover --register`
-# (add --identify to read identity DIDs), then `canair pids ...`. Validate with
-# `canair validate`.
+#
+# Profile-wide settings. Only car_model and init are required; each commented block below is
+# optional, with its default stated. Field reference: docs/concepts/profiles.md ("profile.yaml
+# settings"); check the file with `canair validate`.
+#
+# Next: register the car's ECUs in ecus/ with `canair discover --register` (or offline with
+# `canair ecu add`), declare its variants with `canair variants add` if it comes in several
+# versions, then define PIDs with `canair pids …`.
 car_model: "$car_model"
+
+# ELM327 init string, sent by the ELM327 transports (wican-ws, elm327-tcp); slcan-tcp ignores
+# it. ATSP6 is ISO 15765-4 CAN, 11-bit, 500 kbit/s (ATSP7: 29-bit 500k, ATSP8: 11-bit 250k,
+# ATSP9: 29-bit 250k). Leave ATSH, ATCRA, ATFCSH, ATFCSD and ATFCSM out: canair sets the header,
+# receive filter and flow control per ECU from `addressing`.
 init: "$init"
 
-# Vehicle bus speed in bit/s (the CAN datarate). Uncomment if this car's
-# diagnostic bus is not 500 kbit/s (e.g. 250000 for some body/comfort buses).
-# Precedence: config transport.bitrate > this > device config > 500000.
-# can_bitrate: 500000
+# ELM327 response timeout in ms, applied as ATSTxx after init (--elm-timeout overrides). Raise
+# it for slow ECUs (the Ioniq Electric needs 614); lower it to speed up NO DATA detection. Unset,
+# the adapter's default applies.
+# response_timeout_ms: 614
 
-# CAN diagnostic addressing. By default an ECU's response address is
-# tx_id + 0x08 (11-bit Hyundai/Kia convention). Set rx_offset once here for
-# a make with a different fixed offset (e.g. 0x80 for XPeng: 0x704 -> 0x784);
-# an individual ECU can still override with its own rx_id.
+# Bus speed in bit/s for the raw slcan-tcp transport and `canair sniff` (an ELM327 takes its
+# speed from the ATSP protocol in init). Set it when the diagnostic bus isn't 500 kbit/s.
+# Precedence: the device's config entry / transport.bitrate > this > the WiCAN's own setting >
+# 500000.
+# can_bitrate: 250000
+
+# CAN diagnostic addressing. The default, normal_11bit, answers each request on tx_id + 0x08
+# (0x7E0 -> 0x7E8, the ISO 15765-4 convention). Set rx_offset for a make with another fixed
+# offset (XPeng 0x80: 0x704 -> 0x784; negative is allowed), or mode for 29-bit or extended
+# addressing (normal_29bit, normal_fixed_29bit, normal_extended_11bit, extended_29bit). One
+# irregular ECU overrides it in its own ecus/ file (rx_id, addressing).
 # addressing:
+#   mode: normal_11bit
 #   rx_offset: 0x08
 
-# ELM327 response timeout in ms, applied as ATSTxx (--elm-timeout overrides).
-# Raise it for slow-responding ECUs; lower it to speed up cycles / NO-DATA
-# detection. Left unset, the ELM327 default applies.
-# response_timeout_ms: 500
-
-# Client-side ISO-TP tuning for the slcan-tcp transport. Defaults suit most
-# 11-bit/classic-CAN vehicles; override per this car's needs. See
-# canlib/transport/isotp_params.py for every field + default.
+# Client-side ISO-TP tuning for the slcan-tcp transport. The defaults suit most 11-bit classic
+# CAN cars; every field and default is in canlib/transport/isotp_params.py.
 # isotp:
-#   tx_padding: 0xAA   # fill byte canair pads its requests with (0x00/0xCC on some makes)
-#   rx_padding: 0xAA   # fill byte the ECUs pad replies with (default: tx_padding)
+#   tx_padding: 0xAA   # byte canair pads its requests with (default 0xAA)
+#   rx_padding: 0xAA   # byte the ECUs pad replies with (default: tx_padding)
 #   can_fd: false      # true for CAN-FD ECUs
 
-# Physical-value bands for the reference-free scan (`canair hunt --physical` /
-# `canair investigate`). Override the vehicle-axis bands here; a name matching a
-# built-in (hv_pack, rail_12v) replaces its [low, high], any other name adds a
-# custom band. Grid bands (mains_rms/mains_peak/line_freq) normally come from
-# the user's `grid_region` config, not here. The built-in hv_pack is a ~400 V
-# EV (300-450) — an 800 V architecture (E-GMP/PPE/Taycan) needs a wider band.
-# physical_bands:
-#   hv_pack: [450, 850]   # 800 V pack
+# Make-specific behaviour this profile opts into; a make-neutral profile omits it. Known:
+# hk_f1xx_minus_one (Hyundai/Kia identity DIDs answer one less than requested: 22F188 ->
+# 62F187), hk_90_session, hk_forced_sleep and skm_wakeup (Hyundai/Kia), nissan_c0_session
+# (Nissan). Each is described in docs/concepts/profiles.md.
+# quirks:
+#   - hk_f1xx_minus_one
 
+# UDS service-22 multi-DID batching (several DIDs in one request) is off unless enabled here or
+# with an ECU's own `multi_did:`; an ECU that refuses it falls back to single reads.
+# multi_did_max caps the DIDs per request (default 3; an ECU may override it).
+# multi_did_batching: true
+# multi_did_max: 3
+
+# Physical-value bands for the reference-free scan (`canair hunt --physical` /
+# `canair investigate`). A name matching a built-in (hv_pack, rail_12v) replaces its
+# [low, high]; any other name adds a band. The built-in hv_pack is a ~400 V pack (300-450 V):
+# for another pack take its series cell count N, from N x 2.5 V (empty) to N x 4.2 V (full) for
+# a lithium-ion NMC pack. Grid bands come from the user's `grid_region` config, not from here.
+# physical_bands:
+#   hv_pack: [450, 820]   # e.g. an 800 V pack (192S)

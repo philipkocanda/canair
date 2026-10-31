@@ -102,6 +102,7 @@ def create_profile(
         render_template("can_buses.yaml.tmpl", car_model=car_model)
     )
     (root / "groups.yaml").write_text(render_template("groups.yaml.tmpl", car_model=car_model))
+    (root / "variants.yaml").write_text(render_template("variants.yaml.tmpl", car_model=car_model))
 
     if set_default:
         set_config_value("default_profile", name)

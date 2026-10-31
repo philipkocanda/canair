@@ -1,18 +1,26 @@
 # $car_model — physical CAN bus segment vocabulary
 #
-# Codes accepted by each ECU's `can_bus:` field (in ecus/). Each bare code maps
-# to a human name + description (and an optional `bitrate` in bit/s). Naming is
-# vendor-specific: Hyundai/Kia use B-CAN/P-CAN/C-CAN/MM-CAN/H-CAN (Body,
-# Powertrain, Chassis, Multimedia, Hybrid); Ford uses HS/MS; BMW PT-CAN/K-CAN.
-# See canlib/schema/can_buses_schema.yaml and `canair validate can-buses`. Set an
-# ECU's segment(s) with `canair pids set-can-bus ECU CODE [CODE ...]`.
-# Mark a segment the gateway does not bridge (a link between a few modules) with
-# `private: true`: the ALL code and the OBD-II port then do not reach it.
+# Codes accepted by each ECU's `can_bus:` field (set it with `canair pids set-can-bus ECU CODE
+# [CODE ...]`, which accepts only codes declared here). Each code maps to a human name, a
+# description and an optional `bitrate` in bit/s. There is no editor for this file: edit it by
+# hand and check it with `canair validate can-buses` (schema: canlib/schema/can_buses_schema.yaml).
+#
+# Naming is vendor-specific, so take the codes from the car's service documentation:
+# Hyundai/Kia B-CAN/P-CAN/C-CAN/M-CAN (or MM-CAN)/H-CAN/D-CAN (Body, Powertrain, Chassis,
+# Multimedia, Hybrid, Diagnostic); Ford HS/MS; BMW PT-CAN/K-CAN/F-CAN.
+#
+# ALL is the convention for the gateway that bridges every segment. Mark a segment the gateway
+# does not bridge (a link between a few modules) with `private: true`: neither ALL nor the
+# OBD-II port reaches it.
 
 can_buses:
   ALL:
     name: All segments
     description: Convention for the gateway that bridges every segment.
+  # D-CAN:
+  #   name: Diagnostic CAN
+  #   description: Diagnostic bus on the OBD-II port (pins 6/14).
+  #   bitrate: 500000
   # B-CAN:
   #   name: Body CAN
   #   description: Comfort/body electronics.

@@ -76,17 +76,46 @@ class TestProfileCreate:
         assert not (root / "states.yaml").exists()
         data = yaml.safe_load(vs.read_text())
         names = {s["name"] for s in data["states"]}
-        # Scaffold declares the make-neutral base ladder (EV states are commented).
+        # Scaffold declares the make-neutral base ladder; EV states are added with the
+        # `canair states add` commands its header lists.
         assert "RUN" in names
         assert {"SLEEP", "ACC", "CRANK", "ALL"} <= names
+        assert data["states"][-1]["name"] == "ALL"
+        driving = next(s for s in data["states"] if s["name"] == "DRIVING")
+        assert driving["implies"] == ["RUN"] and driving["excludes"] == ["PARKED"]
 
     def test_scaffolds_groups(self, tmp_path):
         root = tmp_path / "prof"
         _cmd_create(_args(path=root))
         gf = root / "groups.yaml"
         assert gf.exists()
-        # Scaffold ships an empty groups mapping (examples commented out).
+        # Scaffold ships an empty groups mapping (examples live in the header).
         assert yaml.safe_load(gf.read_text()) == {"groups": {}}
+
+    def test_scaffolds_empty_variants(self, tmp_path):
+        root = tmp_path / "prof"
+        _cmd_create(_args(path=root))
+        assert yaml.safe_load((root / "variants.yaml").read_text()) == {"variants": {}}
+
+    def test_every_scaffolded_file_validates(self, tmp_path, capsys):
+        from canlib.commands.validate import _run_variants
+        from canlib.commands.validate.other import _run_can_buses, _run_groups, _run_states
+        from canlib.profile import set_active
+
+        root = tmp_path / "prof"
+        _cmd_create(_args(path=root))
+        set_active(str(root))
+        results = {
+            f.__name__: f() for f in (_run_states, _run_can_buses, _run_groups, _run_variants)
+        }
+        assert results == dict.fromkeys(results, 0)
+
+    def test_scaffolded_files_fit_the_line_length(self, tmp_path):
+        root = tmp_path / "prof"
+        _cmd_create(_args(path=root))
+        for path in root.glob("*.yaml"):
+            longest = max(len(line) for line in path.read_text().splitlines())
+            assert longest <= 100, path.name
 
     def test_meta_contents(self, tmp_path):
         root = tmp_path / "prof"

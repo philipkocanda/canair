@@ -1,21 +1,20 @@
 # Kia Niro EV / e-Niro (DE) — capture/monitor selector groups
 #
-# A group is a named, reusable query: a list of ECU / ECU:PID selectors in the
-# shared mini-language. Reference one on the command line with the `@` sigil, and
-# compose it with ad-hoc selectors:
+# A group is a named, reusable query: a list of ECU or ECU:PID selectors in the shared
+# mini-language, recalled on the command line with the `@` sigil and combinable with ad-hoc
+# selectors (`canair read` and `canair monitor`):
 #
 #   canair monitor @charging                 # expands to the group's members
-#   canair monitor @driving CLU:220B         # a group plus an extra selector
+#   canair monitor @driving CLU:22B002       # a group plus an extra selector
 #   canair read @powertrain --save --label "…"
 #
-# Members are plain selectors (ECU or ECU:PID) — not full mini-language steps.
-# List or edit with `canair groups`.
+# Members are plain selectors, never other groups or full mini-language steps, and each
+# member's ECU must exist in ecus/. Edit with `canair groups` (add, rm, rename,
+# set-description, set-members), for example:
+#
+#   canair groups add charging BMS OBC --description "SoC / charge power while plugged in"
+#   canair groups add driving BMS VMCU MCU --description "Powertrain while driving"
+#
 # See canlib/schema/groups_schema.yaml and `canair validate groups`.
 
 groups: {}
-  # charging:
-  #   description: SoC / charge power while plugged in
-  #   members: [BMS, OBC]
-  # driving:
-  #   description: Powertrain + chassis while driving
-  #   members: [BMS, VMCU, MCU]

@@ -1,25 +1,33 @@
 # $car_model — vehicle operating states
 #
-# Canonical, ordered operating states for capture sessions (`vehicle_states`
-# field). State names are UPPERCASE (a controlled vocabulary, like the CAN-bus
-# codes). Add a `when:` predicate over decoded PID values to auto-suggest the
-# state at save time — EVERY matching predicate contributes, so a session is
-# naturally composite ("READY, DRIVING"). See canlib/schema/states_schema.yaml
-# and `canair validate states` / `canair states`. Predicate grammar: ECU.PARAM
-# names, and/or/not, == != < <= > >=, numeric/'string' literals, and the
-# sentinels __no_response__ / __responded__.
+# The vocabulary of states a capture session can be recorded in (its `vehicle_states`). Names
+# are UPPERCASE. Order is display order only. Edit with `canair states` (add, rm, rename,
+# set-description, set-predicate, set-implies, set-excludes); see canlib/schema/states_schema.yaml
+# and `canair validate states`.
 #
-# `implies:` declares which broader states a state specializes (DRIVING implies
-# READY): both really are true while driving, and this is how a view that must
-# name ONE state (the monitor status bar) knows to name DRIVING. Targets must be
-# declared states, the graph must be acyclic, and ALL takes no part in it.
+# A `when:` predicate over decoded signals auto-suggests the state when a capture is saved, and
+# every matching predicate contributes, so a session can be several states at once ("READY,
+# DRIVING"). Grammar: ECU.SIGNAL names, and/or/not, == != < <= > >=, numeric or 'string'
+# literals, and the sentinels __no_response__ / __responded__. A predicate must name a signal
+# the profile defines, so add one once its PID is decoded.
 #
-# The make-neutral base ladder (SLEEP/ACC/RUN/CRANK) + ALL is always accepted
-# even if you delete it below; it's re-listed here just to describe each state.
-# Keep the ones your car has and delete the rest. These are the universal
-# ignition-switch positions OFF/ACC/ON/START — `RUN` (not `ON`) and `SLEEP` (not
-# `OFF`) because ON/OFF are YAML booleans. Vendors that number them (e.g. Hyundai
-# IGN0/1/2/3) or split IGN1/IGN2 can add those extra rungs below.
+# `implies:` names the broader states a state specializes (DRIVING implies RUN): a view that
+# shows ONE state (the monitor status bar) then shows the specific one. `excludes:` names states
+# that cannot hold at the same instant (DRIVING excludes PARKED).
+#
+# The make-neutral ignition ladder SLEEP/ACC/RUN/CRANK and ALL are always accepted, even if
+# removed here; they are listed to describe them. `RUN` and `SLEEP` stand for ON and OFF, which
+# YAML reads as booleans. Remove the ones your car lacks (`canair states rm CRANK` on an EV) and
+# add vendor rungs as needed (Hyundai/Kia IGN1/IGN2/IGN3, for example).
+#
+# A car with a traction battery usually adds:
+#   canair states add READY --description "HV active, driveable."
+#   canair states set-implies DRIVING READY
+#   canair states add PLUGGED --description "Charge cable connected, not necessarily charging."
+#   canair states add CHARGING --description "HV battery actively charging." \
+#       --implies PLUGGED --excludes DRIVING
+# and, once the signals exist, predicates such as
+#   canair states set-predicate CHARGING "BMS.BATTERY_CURRENT < -1"
 
 states:
   - name: DEEPSLEEP
@@ -42,18 +50,7 @@ states:
   - name: DRIVING
     description: In motion.
     implies: [RUN]
-
-  # --- EV / PHEV states — uncomment if your car has a traction battery -------
-  # - name: PLUGGED
-  #   description: Charge cable connected, not necessarily charging.
-  # - name: CHARGING
-  #   description: HV battery actively charging (implies plugged).
-  #   implies: [PLUGGED]
-  #   # when: "BMS.BATTERY_CURRENT < -1"
-  # - name: READY
-  #   description: HV active, driveable (the EV name for the IGN-and-go state).
-  #   # when: "VCU.EV_READY == 1"
-  #   # …and then DRIVING above should say `implies: [READY]` instead of [RUN].
+    excludes: [PARKED]
 
   - name: ALL
     description: Applicable/readable in every vehicle state.
