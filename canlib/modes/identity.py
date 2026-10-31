@@ -113,9 +113,11 @@ async def mode_identity(
 
         results = []
         n_ok = n_nrc = n_nodata = 0
+        responded: dict[str, bool] = {}
 
         for did_hex, label, fmt in records:
             response = await terminal.send_uds(f"{prefix}{did_hex}")
+            responded[f"{prefix}{did_hex}"] = bool(response["ok"])
             if response["ok"]:
                 n_ok += 1
                 payload = response["bytes"][offset:]
@@ -140,18 +142,22 @@ async def mode_identity(
             else:
                 n_nodata += 1
 
+        from .revision_probe import describe_identity_report, identity_report
+
+        try:
+            revision = identity_report(tx_id, responded) if n_ok else None
+        except Exception:  # an advisory report never fails the reading itself
+            revision = None
         if as_json:
-            print(
-                json.dumps(
-                    {
-                        "ecu": ecu_display(tx_id),
-                        "protocol": resolved,
-                        "summary": {"ok": n_ok, "nrc": n_nrc, "no_data": n_nodata},
-                        "results": results,
-                    },
-                    indent=2,
-                )
-            )
+            out = {
+                "ecu": ecu_display(tx_id),
+                "protocol": resolved,
+                "summary": {"ok": n_ok, "nrc": n_nrc, "no_data": n_nodata},
+                "results": results,
+            }
+            if revision is not None:
+                out["revision"] = revision
+            print(json.dumps(out, indent=2))
         else:
             if n_ok == 0:
                 if n_nodata and not n_nrc:
@@ -163,6 +169,8 @@ async def mode_identity(
                 f"\n  {n_ok} field(s) returned, {n_nrc} rejected, "
                 f"{n_nodata} no-response (of {len(records)} probed)."
             )
+            if revision is not None:
+                print("\n".join(describe_identity_report(revision)))
 
     finally:
         if tester_task:

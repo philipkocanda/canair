@@ -108,9 +108,10 @@ class StateSpans(TypedDict):
 AttributionSource = Literal["selected", "alias", "only", "migrated", "asserted"]
 """How a session's ``variant`` tag was decided (see :class:`Attribution`)."""
 
-RevisionAttributionSource = Literal["pinned", "only", "migrated", "asserted"]
+RevisionAttributionSource = Literal["pinned", "only", "detected", "migrated", "asserted"]
 """How one ECU's revision tag was decided: ``pinned`` (``--revision`` or a config pin),
-``only`` (the only revision the car can carry), ``migrated`` or ``asserted``."""
+``only`` (the only revision the car can carry), ``detected`` (from the ECU's own
+answers), ``migrated`` or ``asserted``."""
 
 
 class Attribution(TypedDict, total=False):

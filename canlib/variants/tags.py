@@ -45,7 +45,12 @@ def selected_variant(profile: Profile) -> str | None:
 # How each way of selecting a variant is recorded on the session it tags.
 _ATTRIBUTION = {"flag": "selected", "env": "selected", "config": "selected", "alias": "alias"}
 # How each way of resolving a revision is recorded.
-_REVISION_ATTRIBUTION = {"flag": "pinned", "config": "pinned", "only": "only"}
+_REVISION_ATTRIBUTION = {
+    "flag": "pinned",
+    "config": "pinned",
+    "only": "only",
+    "detected": "detected",
+}
 
 
 def _revision_tags(profile: Profile) -> tuple[dict[str, str], dict[str, str]]:

@@ -507,3 +507,162 @@ class TestEditors:
         assert "can only carry kwp" in capsys.readouterr().err
         config.load_config.cache_clear()
         assert "default_profile" not in config.load_config()
+
+
+# ── phase 7: per-revision overrides and evidence ────────────────────────────
+
+
+def _ecu_with_overrides() -> dict:
+    return {
+        "tx_id": 0x7E2,
+        "revisions": {"kwp": {}, "uds": {}},
+        "pids": {
+            "21F0": {
+                "status": "active",
+                "response_frames": 3,
+                "verified": True,
+                "per_revision": {"uds": {"response_frames": 5}},
+                "parameters": {
+                    "GEAR": {
+                        "expression": "B4",
+                        "verified": True,
+                        "per_revision": {"uds": {"expression": "B5", "unit": "x"}},
+                    },
+                    "MODE": {"expression": "B6", "verified": True},
+                    "UDS_ONLY": {"expression": "B7", "verified": True, "revisions": ["uds"]},
+                },
+            },
+            "22E001": {
+                "status": "active",
+                "revisions": ["uds"],
+                "response_frames": 2,
+                "parameters": {"SPEED": {"expression": "B6", "verified": True}},
+            },
+        },
+    }
+
+
+def _resolve_at(rid):
+    ecus = {"VCU": _ecu_with_overrides()}
+    res = {"VCU": rv.Resolution("VCU", rid, "flag" if rid else None, ("kwp", "uds"))}
+    return rv.apply(ecus, None, res)[0]["VCU"]["pids"]
+
+
+class TestOverridesAndEvidence:
+    def test_the_reference_revision_keeps_the_base_evidence(self):
+        pids = _resolve_at("kwp")
+        assert pids["21F0"]["response_frames"] == 3
+        gear = pids["21F0"]["parameters"]["GEAR"]
+        assert (gear["expression"], gear["verified"]) == ("B4", True)
+        assert "per_revision" not in gear and "22E001" not in pids
+
+    def test_another_revision_gets_only_its_own_evidence(self):
+        pids = _resolve_at("uds")
+        assert pids["21F0"]["response_frames"] == 5  # its own count, never kwp's 3
+        gear = pids["21F0"]["parameters"]["GEAR"]
+        assert (gear["expression"], gear["unit"], gear["verified"]) == ("B5", "x", False)
+        assert pids["21F0"]["parameters"]["MODE"]["verified"] is False
+        # A uds-only signal under an ungated PID: its own base speaks for uds, but a
+        # verified equal to the PID's may be inherited from it, which spoke for kwp —
+        # so it stays unverified until per_revision.uds says otherwise.
+        assert pids["21F0"]["parameters"]["UDS_ONLY"]["verified"] is False
+        # A uds-only PID's base values are uds's own.
+        assert pids["22E001"]["response_frames"] == 2
+        assert pids["22E001"]["parameters"]["SPEED"]["verified"] is True
+
+    def test_an_undetermined_revision_counts_and_verifies_nothing(self):
+        pids = _resolve_at(None)
+        assert "response_frames" not in pids["21F0"]
+        assert pids["21F0"]["parameters"]["MODE"]["verified"] is False
+
+    def test_seeds_come_from_the_resolved_revision_only(self):
+        from canlib.response_frames import seed_counts
+
+        for rid, want in (("kwp", 3), ("uds", 5)):
+            data = {"ecus": {"VCU": {**_ecu_with_overrides(), "pids": _resolve_at(rid)}}}
+            assert seed_counts(data)[(0x7E2, "21F0")] == want
+        data = {"ecus": {"VCU": {**_ecu_with_overrides(), "pids": _resolve_at(None)}}}
+        assert (0x7E2, "21F0") not in seed_counts(data)
+
+    @pytest.mark.parametrize(
+        ("entry", "message"),
+        [
+            ({"kwp": {"parameters": {}}}, "'parameters' cannot be overridden"),
+            ({"kwp": {"revisions": ["kwp"]}}, "'revisions' cannot be overridden"),
+            ({"kwp": {"status": "draft"}}, "'status' cannot differ"),
+            ({"can": {"period": 5}}, "declares no revision 'can'"),
+            ({"kwp": {"response_frames": True}}, "response_frames must be an int"),
+        ],
+    )
+    def test_pid_overrides_are_whitelisted(self, entry, message):
+        vcu = _vcu()
+        vcu["pids"]["21F0"]["per_revision"] = entry
+        assert any(message in e for e in rv.check_ecu("VCU", vcu)), rv.check_ecu("VCU", vcu)
+
+    def test_an_override_outside_the_applicability_is_dead_data(self):
+        vcu = _vcu()
+        vcu["pids"]["2101"]["per_revision"] = {"uds": {"period": 5}}
+        assert any("never read" in e for e in rv.check_ecu("VCU", vcu))
+
+    def test_signal_overrides_are_whitelisted(self):
+        vcu = _vcu()
+        vcu["pids"]["21F0"]["parameters"]["GEAR"]["per_revision"] = {"uds": {"ha_class": "x"}}
+        assert any("'ha_class' cannot differ" in e for e in rv.check_ecu("VCU", vcu))
+
+    def test_a_count_learned_on_one_revision_is_written_to_that_revision(self, copy):
+        from canlib.frame_counts import FrameCountLedger
+        from canlib.response_frames import persist, seed_counts
+
+        for rid, frames in (("uds", 4), ("kwp", 2)):
+            _activate(copy, variant="60kwh", pins=[f"VCU={rid}"])
+            ledger = FrameCountLedger()
+            ledger.confirm((0x7E2, "21F0"), frames)
+            assert persist(load_pids(), ledger) == 1
+        pid = _vcu_doc(copy)["pids"]["21F0"]
+        assert pid["response_frames"] == 2  # kwp is the reference revision
+        assert pid["per_revision"] == {"uds": {"response_frames": 4}}
+        _activate(copy, variant="60kwh", pins=["VCU=kwp"])
+        assert seed_counts(load_pids())[(0x7E2, "21F0")] == 2
+        _activate(copy, variant="60kwh", pins=["VCU=uds"])
+        assert seed_counts(load_pids())[(0x7E2, "21F0")] == 4
+
+    def test_an_undetermined_revision_persists_nothing(self, copy):
+        from canlib.frame_counts import FrameCountLedger
+        from canlib.response_frames import persist
+
+        _activate(copy, variant="60kwh")
+        ledger = FrameCountLedger()
+        ledger.confirm((0x7E2, "21F0"), 3)
+        before = (copy / "ecus" / "vcu.yaml").read_text()
+        assert persist(load_pids(), ledger) == 0
+        assert (copy / "ecus" / "vcu.yaml").read_text() == before
+
+    def test_upsert_param_revision_on_an_existing_signal(self, copy):
+        assert _run(copy, "pids", "upsert-param", "VCU", "21F0", "GEAR", "B5",
+                    "--revision", "uds", "--verified") == 0  # fmt: skip
+        gear = _vcu_doc(copy)["pids"]["21F0"]["parameters"]["GEAR"]
+        assert gear["expression"] == "B4"
+        assert gear["per_revision"] == {"uds": {"expression": "B5", "verified": True}}
+        _activate(copy, variant="60kwh", pins=["VCU=uds"])
+        assert _pids("VCU")["21F0"]["parameters"]["GEAR"]["expression"] == "B5"
+
+    def test_rename_follows_into_overrides(self, copy):
+        assert _run(copy, "pids", "upsert-param", "VCU", "21F0", "GEAR", "B5",
+                    "--revision", "uds") == 0  # fmt: skip
+        assert _run(copy, "ecu", "revisions", "VCU", "rename", "uds", "uds2") == 0
+        gear = _vcu_doc(copy)["pids"]["21F0"]["parameters"]["GEAR"]
+        assert list(gear["per_revision"]) == ["uds2"]
+
+    def test_upsert_param_revision_on_a_new_signal_gates_it(self, copy):
+        assert _run(copy, "pids", "upsert-param", "VCU", "21F0", "NEW", "B6",
+                    "--revision", "uds") == 0  # fmt: skip
+        assert _vcu_doc(copy)["pids"]["21F0"]["parameters"]["NEW"]["revisions"] == ["uds"]
+
+    def test_the_28kwh_ioniq_keeps_its_verified_and_counts(self):
+        set_active("hyundai-ioniq-ae-ev", variant="28kwh")
+        resolved = load_pids()["ecus"]["BMS"]["pids"]
+        raw = load_raw_pids()["ecus"]["BMS"]["pids"]
+        for code, pid in resolved.items():
+            assert pid.get("response_frames") == raw[code].get("response_frames")
+            for name, param in pid["parameters"].items():
+                assert param.get("verified") == raw[code]["parameters"][name].get("verified")

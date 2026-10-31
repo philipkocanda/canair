@@ -7,6 +7,13 @@ recommended), the ECU merge granularity (PID-level recommended), and the
 write-target policy (the plan explicitly defers this one). Only pays off once a
 real second variant exists — e.g. XPeng G6 SR vs LR.
 
+**Variants within one profile are solved elsewhere (2026-10-31).**
+`plans/2026-10-30-profile-variants-and-rename.md` (phases 1–9, done) models versions of one
+car — battery, facelift, market — as `variants.yaml` entries, and per-ECU differences as ECU
+revisions with gates and `per_revision:` overrides. The G6 SR/LR case is a variant there. What
+remains for this plan is sharing **across** profiles (Kona OS / Niro DE / the Ioniq facelift
+BMS, now ported into the Ioniq as its `uds` BMS revision; a G6 EV and EREV pair).
+
 **`extends:` now exists, but only for captures.**
 `plans/2026-08-05-profile-write-targets-and-workspace-hygiene.md` §B shipped
 *layered profiles*: a same-named user bundle whose `profile.yaml` carries

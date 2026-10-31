@@ -52,6 +52,7 @@ RESEARCH_FIELDS = (
     "status",
     "priority",
     "vehicle_states",
+    "revisions",
     "notes",
     "what_to_test",
     "result",
@@ -141,7 +142,39 @@ def _signal_record(
     if links:
         rec["source_links"] = links
     rec.setdefault("verified", False)
+    rec.update(_revision_fields(sig, SIGNAL_FIELDS))
     return rec
+
+
+def _revision_fields(node: Mapping, fields: tuple[str, ...]) -> dict[str, Any]:
+    """A PID's or signal's gate and per-revision overrides, allow-listed like the rest."""
+    out: dict[str, Any] = {}
+    gate = node.get("revisions")
+    if isinstance(gate, list) and gate:
+        out["revisions"] = [str(r) for r in gate]
+    overrides = {
+        str(rid): picked
+        for rid, entry in _mapping(node.get("per_revision")).items()
+        if (picked := _pick(_mapping(entry), fields))
+    }
+    if overrides:
+        out["per_revision"] = overrides
+    return out
+
+
+def _ecu_revisions(ecu_def: Mapping) -> list[dict[str, Any]]:
+    """An ECU's revisions: ID and protocol (fingerprints stay in the file)."""
+    return [
+        {
+            "id": str(rid),
+            **(
+                {"protocol": _plain(proto)}
+                if (proto := _mapping(_mapping(entry).get("identity")).get("id_protocol"))
+                else {}
+            ),
+        }
+        for rid, entry in _mapping(ecu_def.get("revisions")).items()
+    ]
 
 
 def _pid_record(pid: Any, pid_def: Mapping, node: Any, file: str) -> dict[str, Any]:
@@ -157,6 +190,7 @@ def _pid_record(pid: Any, pid_def: Mapping, node: Any, file: str) -> dict[str, A
         ],
         "src": _src(file, node, pid),
     }
+    rec.update(_revision_fields(pid_def, ("period", "response_frames", "verified", "notes")))
     return rec
 
 
@@ -224,6 +258,8 @@ def _ecu_record(name: str, ecu_def: Mapping, doc: Any, file: str, meta: Mapping)
         "iocontrol": _iocontrol_records(ecu_def, file),
         "research": _research_records(ecu_def, file),
         "dtcs": _dtc_records(ecu_def, file),
+        "revisions": _ecu_revisions(ecu_def),
+        "variants": [str(v) for v in ecu_def.get("variants") or []] or None,
         "src": _src(file, doc, name),
     }
 
@@ -281,6 +317,7 @@ VARIANT_FIELDS = (
     "model_years",
     "markets",
     "battery",
+    "revisions",
     "status",
     "sources",
 )

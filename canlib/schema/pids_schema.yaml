@@ -422,6 +422,10 @@ optional_pid_fields:
   - source_links     # list[str]: references for `source`
   - revisions        # list[str]: the ECU revisions this PID applies to (absent = all). A
                      #   signal's own revisions: must be within its PID's.
+  - per_revision     # {revision: {field: value}}: fields that differ on that revision —
+                     #   period, response_frames, verified, notes, source, source_links. The
+                     #   PID's own verified/response_frames speak for its reference revision
+                     #   (the first one it applies to); another revision has only these.
   - parameters
 
 # Accepted values for a PID's `status:` lifecycle field.
@@ -470,6 +474,10 @@ optional_param_fields:
   - values          # enum: {raw_int: "label", ...}
   - bits            # bitmask: {bit_index: "label", ...}  (0 = LSB)
   - fields          # struct: [{name, type, expression, values/bits/...}, ...]
+  - per_revision    # {revision: {field: value}}: fields that differ on that revision —
+                    #   expression, unit, min, max, type, values, bits, fields, verified,
+                    #   notes, source, source_links. Base verified speaks for the signal's
+                    #   reference revision; another is unverified unless it says otherwise.
   - revisions       # list[str]: the ECU revisions this signal applies to (absent = its
                     #   PID's). Two PIDs may ship the same signal name only when their
                     #   revisions are disjoint (one signal, followed across a revision).
@@ -544,6 +552,8 @@ iocontrol_fields:
 #       priority: P1 | P2 | P3    # P1=high value, P2=medium, P3=speculative
 #       vehicle_states: [acc]      # Car power states needed (same vocabulary as
 #                                  #   the PID/ECU vehicle_states field)
+#       revisions: [uds]           # The ECU revisions it concerns (absent = all): a car
+#                                  #   on another revision doesn't list it
 #       created: "2026-04-15"      # Auto-set to today when the entry is added
 #       updated: "2026-04-20"      # Auto-set to today on add and on set-status
 #       date: "2026-04-15"         # When last tested (optional)
@@ -560,7 +570,7 @@ iocontrol_fields:
 #   iocontrol_scan — IOControl (2F) discovery scan
 research_fields:
   required: [type, target, status]
-  optional: [priority, vehicle_states, created, updated, date, result, notes, sources, what_to_test, capture_protocol]
+  optional: [priority, vehicle_states, revisions, created, updated, date, result, notes, sources, what_to_test, capture_protocol]
 
 # Routines section — RoutineControl discovery results.
 # Populated by `canair scan routines` (UDS 0x31 SF03 requestRoutineResults with

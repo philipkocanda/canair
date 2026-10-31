@@ -67,7 +67,7 @@ FINGERPRINT_KINDS: tuple[str, ...] = ("identity", "responds")
 
 # Where a pin came from: the global --revision flag or the user config.
 PinSource = Literal["flag", "config"]
-ResolutionSource = Literal["flag", "config", "only"]
+ResolutionSource = Literal["flag", "config", "only", "detected"]
 
 _HEX_RE = re.compile(r"^(?:[0-9A-Fa-f]{2})+$")
 
@@ -163,6 +163,7 @@ def resolve(
     ecus: Mapping[str, Any],
     variant: Variant | None,
     pins: Iterable[tuple[str, str, PinSource]] = (),
+    detections: Iterable[tuple[str, str]] = (),
 ) -> dict[str, Resolution]:
     """Resolve every ECU that declares revisions (keyed by ECU name).
 
@@ -187,6 +188,9 @@ def resolve(
             )
         chosen.setdefault(name, (rid, source))
 
+    # A detection that names a revision this car can't carry is stale: ignored, not an
+    # error (it is remembered state, not something the user typed).
+    detected = {str(e).upper(): normalize_revision_id(r) for e, r in detections}
     out: dict[str, Resolution] = {}
     for name, ecu_def in ecus.items():
         if not declared(ecu_def):
@@ -204,6 +208,8 @@ def resolve(
             out[name] = Resolution(name, rid, source, possible)
         elif len(possible) == 1:
             out[name] = Resolution(name, possible[0], "only", possible)
+        elif detected.get(name.upper()) in possible:
+            out[name] = Resolution(name, detected[name.upper()], "detected", possible)
         else:
             out[name] = Resolution(name, None, None, possible)
     return out
@@ -237,8 +243,104 @@ def _overridden(ecu_def: Mapping, rid: str) -> dict:
     return out
 
 
-def _gated_pids(pids: Mapping, rid: str | None) -> tuple[dict, int, int]:
-    """``pids`` with every PID and signal outside ``rid`` left out (``rid`` None: all gated)."""
+# Fields a PID may set per revision (``per_revision: {uds: {...}}``), and a signal.
+PID_OVERRIDE_FIELDS: tuple[str, ...] = (
+    "period",
+    "response_frames",
+    "verified",
+    "notes",
+    "source",
+    "source_links",
+)
+SIGNAL_OVERRIDE_FIELDS: tuple[str, ...] = (
+    "expression",
+    "unit",
+    "min",
+    "max",
+    "type",
+    "values",
+    "bits",
+    "fields",
+    "verified",
+    "notes",
+    "source",
+    "source_links",
+)
+# PID-level overrides a signal follows when it has none of its own and inherited the
+# PID's value (the PID-default fields that are also revision evidence or provenance).
+_FOLLOWED_PID_FIELDS: tuple[str, ...] = ("verified", "source", "source_links")
+_RESOLVED_KEYS = ("revisions", "per_revision")
+
+
+def reference_of(applies: Sequence[str] | None, revs: Sequence[str]) -> str | None:
+    """An entity's reference revision: the first declared one it applies to.
+
+    A definition's own (base) evidence — ``verified``, ``response_frames`` — speaks for
+    this revision; any other one has only what its ``per_revision`` entry says.
+    """
+    return next((r for r in revs if applies is None or r in applies), None)
+
+
+def _override(node: Mapping, rid: str | None) -> Mapping:
+    block = node.get("per_revision") if isinstance(node, Mapping) else None
+    if not isinstance(block, Mapping) or rid is None:
+        return {}
+    entry = next((v for k, v in block.items() if normalize_revision_id(k) == rid), None)
+    return entry if isinstance(entry, Mapping) else {}
+
+
+def _resolved_pid(pid_def: Mapping, rid: str | None, revs: Sequence[str]) -> dict:
+    """One PID of an ECU with revisions, resolved for revision ``rid`` (None: unknown).
+
+    Order: base fields, then evidence the base cannot speak for is dropped (another
+    revision's ``verified``/``response_frames``), then the revision's ``per_revision``
+    entry replaces fields one by one. An unknown revision keeps no count and verifies
+    nothing: either would be a claim about a revision nobody determined.
+    """
+    pgate = gate(pid_def)
+    pref = reference_of(pgate, revs)
+    out = {k: v for k, v in pid_def.items() if k not in _RESOLVED_KEYS}
+    pover = _override(pid_def, rid)
+    if rid != pref:
+        out.pop("response_frames", None)
+        if "verified" in out:
+            out["verified"] = False
+    out.update({k: v for k, v in pover.items() if k in PID_OVERRIDE_FIELDS})
+    params = pid_def.get("parameters")
+    if not isinstance(params, Mapping):
+        return out
+    kept = {}
+    for name, param in params.items():
+        if not isinstance(param, Mapping):
+            kept[name] = param
+            continue
+        sgate = gate(param)
+        if sgate is not None and (rid is None or rid not in sgate):
+            continue
+        sref = reference_of(sgate if sgate is not None else pgate, revs)
+        new = {k: v for k, v in param.items() if k not in _RESOLVED_KEYS}
+        inherited = {
+            f for f in _FOLLOWED_PID_FIELDS if f in pid_def and new.get(f) == pid_def.get(f)
+        }
+        # A value inherited from the PID speaks for the PID's reference revision.
+        if rid != sref or ("verified" in inherited and sref != pref):
+            new["verified"] = False
+        sover = _override(param, rid)
+        for f in _FOLLOWED_PID_FIELDS:
+            if f in pover and f not in sover and f in inherited:
+                new[f] = pover[f]
+        new.update({k: v for k, v in sover.items() if k in SIGNAL_OVERRIDE_FIELDS})
+        kept[name] = new
+    out["parameters"] = kept
+    return out
+
+
+def _gated_pids(pids: Mapping, rid: str | None, revs: Sequence[str]) -> tuple[dict, int, int]:
+    """``pids`` resolved for revision ``rid`` (None: undetermined, every gated one left out).
+
+    Returns the PIDs and how many PIDs and signals were left out because they apply only
+    to some revisions and ``rid`` is undetermined.
+    """
     out: dict = {}
     dropped_pids = dropped_signals = 0
     for code, pid_def in pids.items():
@@ -247,29 +349,14 @@ def _gated_pids(pids: Mapping, rid: str | None) -> tuple[dict, int, int]:
             continue
         pgate = gate(pid_def)
         if pgate is not None and (rid is None or rid not in pgate):
-            dropped_pids += 1
+            if rid is None:
+                dropped_pids += 1
             continue
-        params = pid_def.get("parameters")
-        if pgate is None and not (
-            isinstance(params, Mapping) and any(gate(p) is not None for p in params.values())
-        ):
-            out[code] = pid_def
-            continue
-        new_pid = {k: v for k, v in pid_def.items() if k != "revisions"}
-        if isinstance(params, Mapping):
-            kept = {}
-            for name, param in params.items():
-                sgate = gate(param)
-                if sgate is not None and (rid is None or rid not in sgate):
-                    dropped_signals += 1
-                    continue
-                kept[name] = (
-                    {k: v for k, v in param.items() if k != "revisions"}
-                    if sgate is not None
-                    else param
-                )
-            new_pid["parameters"] = kept
-        out[code] = new_pid
+        if rid is None:
+            params = pid_def.get("parameters")
+            if isinstance(params, Mapping):
+                dropped_signals += sum(1 for p in params.values() if gate(p) is not None)
+        out[code] = _resolved_pid(pid_def, rid, revs)
     return out, dropped_pids, dropped_signals
 
 
@@ -308,7 +395,14 @@ def apply(
             if rid
             else {k: v for k, v in ecu_def.items() if k not in ("revisions", "variants")}
         )
-        pids, n_pids, n_signals = _gated_pids(ecu_def.get("pids") or {}, rid)
+        pids, n_pids, n_signals = _gated_pids(ecu_def.get("pids") or {}, rid, declared(ecu_def))
+        if rid and isinstance(ecu_def.get("research"), list):
+            # A task about another revision isn't this car's to do.
+            resolved["research"] = [
+                item
+                for item in ecu_def["research"]
+                if not isinstance(item, Mapping) or gate(item) is None or rid in (gate(item) or [])
+            ]
         if "pids" in ecu_def:
             resolved["pids"] = pids
         if rid is None and (n_pids or n_signals):
@@ -357,7 +451,12 @@ def skipped_note(
     return "\n".join(lines)
 
 
-_SOURCE_LABEL = {"flag": "--revision", "config": "a pin in the config", "only": "the only one"}
+_SOURCE_LABEL = {
+    "flag": "--revision",
+    "config": "a pin in the config",
+    "only": "the only one",
+    "detected": "detected from the car",
+}
 
 
 def describe_resolution(res: Resolution) -> str:
@@ -479,18 +578,30 @@ def check_ecu(
                     if known and v not in known
                 ]
 
+    research = ecu_def.get("research")
+    for i, item in enumerate(research if isinstance(research, list) else []):
+        if isinstance(item, Mapping):
+            errors += _gate_errors(f"{label}/research[{i}]", item, revs)[1]
     pids = ecu_def.get("pids")
     for code, pid_def in pids.items() if isinstance(pids, Mapping) else ():
         if not isinstance(pid_def, Mapping):
             continue
         pgate, perr = _gate_errors(f"{label}/{code}", pid_def, revs)
         errors += perr
+        errors += _override_errors(f"{label}/{code}", pid_def, pgate, revs, PID_OVERRIDE_FIELDS)
         params = pid_def.get("parameters")
         for pname, param in params.items() if isinstance(params, Mapping) else ():
             if not isinstance(param, Mapping):
                 continue
             sgate, serr = _gate_errors(f"{label}/{code}/{pname}", param, revs)
             errors += serr
+            errors += _override_errors(
+                f"{label}/{code}/{pname}",
+                param,
+                sgate if sgate is not None else pgate,
+                revs,
+                SIGNAL_OVERRIDE_FIELDS,
+            )
             if sgate is not None and pgate is not None:
                 outside = [r for r in sgate if r not in pgate]
                 if outside:
@@ -558,6 +669,60 @@ def _gate_errors(where: str, node: Mapping, revs: list[str]) -> tuple[list[str] 
             if r not in revs
         ]
     return ids, errors
+
+
+def _override_errors(
+    where: str,
+    node: Mapping,
+    applies: list[str] | None,
+    revs: list[str],
+    allowed: tuple[str, ...],
+) -> list[str]:
+    """Problems with a PID's or signal's ``per_revision:`` block."""
+    block = node.get("per_revision")
+    if block is None:
+        return []
+    if not isinstance(block, Mapping) or not block:
+        return [f"{where}: per_revision: must map revision IDs to the fields that differ"]
+    if not revs:
+        return [f"{where}: per_revision: is set, but its ECU declares no revisions"]
+    errors = []
+    for raw_id, entry in block.items():
+        rid = normalize_revision_id(raw_id)
+        at = f"{where}/per_revision/{raw_id}"
+        if rid not in revs:
+            errors.append(f"{at}: its ECU declares no revision '{rid}'")
+            continue
+        if applies is not None and rid not in applies:
+            errors.append(
+                f"{at}: it applies only to [{', '.join(applies)}], so an override for "
+                f"'{rid}' is never read"
+            )
+        if not isinstance(entry, Mapping) or not entry:
+            errors.append(f"{at}: must be a mapping of the fields that differ")
+            continue
+        for key in entry:
+            if key in ("revisions", "per_revision", "parameters"):
+                errors.append(
+                    f"{at}: '{key}' cannot be overridden"
+                    + (" (override each signal instead)" if key == "parameters" else "")
+                )
+            elif key not in allowed:
+                errors.append(
+                    f"{at}: '{key}' cannot differ by revision (only: {', '.join(allowed)})"
+                )
+        verified = entry.get("verified")
+        if verified is not None and not isinstance(verified, bool):
+            errors.append(f"{at}: verified must be a boolean")
+        frames = entry.get("response_frames")
+        if frames is not None and (
+            isinstance(frames, bool) or not isinstance(frames, int) or frames < 1
+        ):
+            errors.append(f"{at}: response_frames must be an int >= 1")
+        expr = entry.get("expression")
+        if expr is not None and (not isinstance(expr, str) or not expr.strip()):
+            errors.append(f"{at}: expression must be non-empty text")
+    return errors
 
 
 def owner_revisions(ecu_def: Mapping, pid_def: Mapping, param: Mapping) -> frozenset[str]:

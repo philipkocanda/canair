@@ -133,6 +133,7 @@ error: hyundai-ioniq-ae-ev describes 2 variants and none is selected, so canair 
 
   Pick yours once:     canair profile use hyundai-ioniq-ae-ev --variant 28kwh
   Or for one command:  canair --variant 28kwh <command> …
+  Not sure which you have?  canair identity BMS   (names the match)
 ```
 
 `discover` and `identity` still run without a choice (they're how you find out), as long as they
@@ -233,13 +234,57 @@ answers, `2101`…`21F2`) and a `uds` one (the Kona-family `220101`/`220105` pag
 facelift most likely answers, ported from the Kona profile and all unverified). `28kwh` allows
 only `kwp`, `38kwh` only `uds`.
 
+### What differs per revision, and what was verified where
+
+A PID or signal shared by two revisions can differ field by field with `per_revision:`:
+
+```yaml
+SOC_BMS:
+  expression: "B09/2"
+  verified: true                  # verified on the reference revision
+  per_revision:
+    uds: {expression: "B10/2"}    # unverified on uds until it says verified: true
+```
+
+- A PID may override `period`, `response_frames`, `verified`, `notes`, `source` and
+  `source_links`; a signal `expression`, `unit`, `min`, `max`, `type` (with `values`/`bits`/
+  `fields`), `verified`, `notes`, `source` and `source_links`. Gates and `parameters:` can't be
+  overridden: override each signal instead.
+- **Evidence belongs to a revision.** A definition's own `verified` and `response_frames`
+  describe its *reference* revision — the first declared one it applies to. On any other
+  revision it is unverified, and has no frame count, unless its `per_revision` entry says
+  otherwise. So a signal verified on one car never counts as verified on another, and the
+  verified-only AutoPID output for a non-reference revision ships only what was verified there.
+- When a live session learns a PID's frame count, it is written for the revision that session
+  read: the PID's own `response_frames` on its reference revision, `per_revision.<id>` on
+  another, and nowhere when the revision is undetermined. A count from one layout seeding a read
+  of another would be an undercount, which desynchronises an ELM327 adapter.
+- `canair pids upsert-param ECU PID NAME EXPR --revision uds …` writes `per_revision.uds` on an
+  existing signal, and creates a new one gated to `[uds]`.
+
 ### Which revision your car has
 
 1. a **pin**: `canair profile use NAME --pin VCU=uds` (remembered, as
    `profile_settings.<profile>.revisions`) or `--revision VCU=uds` for one command;
 2. the **only** revision your variant allows (its `revisions:` entry), or the ECU's only one;
-3. otherwise **undetermined**: canair does not guess. That ECU's revision-specific PIDs and
-   signals are skipped, with one note naming the pin; its other PIDs still read.
+3. a **detected** revision: the one the ECU itself identified as (below), remembered from an
+   earlier session;
+4. otherwise **undetermined**: canair does not guess. That ECU's revision-specific PIDs and
+   signals are skipped, with one note naming the fix; its other PIDs still read.
+
+**Detection.** When a `read` or `monitor` is about to read an ECU that is still ambiguous,
+canair first sends it its revisions' cheapest `responds:` fingerprint — a safe identity read,
+one per ECU and never per PID — and settles the revision when exactly one matches. A KWP2000
+ECU answers `1A90` and refuses a UDS `22F187`, so a protocol change is told apart without
+knowing a single part number. The result is remembered per profile and variant in
+`~/.config/canair/state/detected_revisions.yaml` (local, never contributed; safe to delete),
+so the next session sends nothing. A sleeping ECU answers nothing and stays undetermined; pin it
+if it can't be woken. An ECU that has one possible revision on your car is never probed.
+
+**`canair identity ECU`** reports which revision its reading matches and which variants allow
+it, with or without a car chosen — the way to find out which car you have. A reading that
+contradicts a remembered detection replaces it; one that matches no revision is reported as a
+question (possibly a revision the profile doesn't know yet), never filed as a new one.
 
 Every command sees the definitions resolved this way, so a 40 kWh car never polls the UDS
 VCU's PIDs. `canair status`, `canair profile show` and `canair ecu revisions VCU` report each

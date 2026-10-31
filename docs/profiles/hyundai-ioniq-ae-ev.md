@@ -15,8 +15,36 @@ Set it as your default profile once, and every `canair` command below just
 works without repeating `--profile`:
 
 ```bash
-canair profile use hyundai-ioniq-ae-ev
+canair profile use hyundai-ioniq-ae-ev --variant 28kwh   # or 38kwh — see below
 ```
+
+## Two variants: the 28 kWh car and the 38 kWh facelift
+
+| Variant | Built | State |
+|---|---|---|
+| `28kwh` | 2016 – 2019-05 | **Verified** on the author's 2017 car: everything below |
+| `38kwh` | 2019-06 – 2022 | **Seed**: nothing verified on a real car yet |
+
+The facelift's battery management follows the Kona/e-Niro family, so its BMS is a different
+[revision](../concepts/variants.md#ecu-revisions) of the ECU: `uds`, which answers the UDS
+`220101`/`220105` pages, where the 28 kWh car's `kwp` BMS answers `2101`–`2105`. Those `uds`
+pages are ported from the [Kona profile](https://github.com/philipkocanda/canair/tree/main/profiles/hyundai-kona-os-ev) and all **unverified**, so the
+default (verified-only) AutoPID build ships none of them. Every other ECU — the body,
+chassis and climate modules — is shared and assumed to behave the same, also unverified on a
+facelift. With `--variant 38kwh`, canair reads only the `uds` BMS pages.
+
+**Own a 38 kWh Ioniq?** One recorded session confirms or refutes most of it:
+
+```bash
+canair profile use hyundai-ioniq-ae-ev --variant 38kwh
+canair discover --save --label "38 kWh discovery"
+canair identity BMS                       # names the BMS revision it matches
+canair monitor BMS --save --label "38 kWh BMS"
+```
+
+Then [share it](../bring-your-own-car/08-share.md). If the discovery shows other ECU addresses,
+a gateway in front of the OBD port, or body ECUs that don't answer the 28 kWh PIDs, the facelift
+becomes a profile of its own.
 
 It's also the best thing to *study*: it shows what a mature profile looks like
 (verified parameters with sources, `research:` backlogs, IOControl actuators,

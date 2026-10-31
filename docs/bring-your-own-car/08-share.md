@@ -8,8 +8,9 @@ profile so others with the same vehicle benefit.
 
 `canair wican autopid write` renders your profile's **verified** parameters into
 the JSON format the WiCAN's AutoPID feature consumes, written to the bundle's
-`out/autopid.json` (pass `--include-unverified` to also ship in-progress
-candidates):
+`out/autopid.json` — `out/<variant>/autopid.json` when the profile describes several
+[variants](../concepts/variants.md), one device profile per car (pass
+`--include-unverified` to also ship in-progress candidates):
 
 ```bash
 canair wican autopid write                    # verified-only — ship what you've confirmed
