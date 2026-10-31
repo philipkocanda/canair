@@ -11,3 +11,3673 @@ messages:
         verified: false
         source: 'projectgus/hyundai-kona-ev-can-logs (CC0): bms_diagnostics + 221211-1 DC fast charge + 221228-4 AC charging'
         notes: "Byte 1 bit 5. Set 13 ms after a diagnostic tool sent 2F F036 03 (quick-charger relays) to a bench BMS and cleared within 90 ms of the release; on a 2021 Kona DC fast charge set at log 380.5 s (upstream: charging visible 382 s) and cleared at 523 s (charge ended 518-522 s); never set in three AC charge cycles (2019 car). On the bench upstream says the contactors did not move, so this may be the BMS's relay command rather than contact feedback."
+  '0x109':
+    name: VCU_109
+    length: 8
+    signals:
+      ParkActuatorRequest:
+        start_bit: 1
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        type: enum
+        values:
+          1: RequestLock
+          2: RequestUnlock
+          0: None
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Awake_Maybe:
+        start_bit: 8
+        length: 1
+        byte_order: big
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      UnkStatus1:
+        start_bit: 23
+        length: 8
+        byte_order: big
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      UnkChargeRelated:
+        start_bit: 31
+        length: 32
+        byte_order: big
+        min: 0
+        max: 4294967295
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Checksum:
+        start_bit: 59
+        length: 4
+        byte_order: big
+        min: 0
+        max: 15
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Counter:
+        start_bit: 60
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x10C':
+    name: SCU_10C
+    length: 8
+    signals:
+      ParkingActuator:
+        start_bit: 0
+        length: 3
+        byte_order: little
+        min: 0
+        max: 15
+        type: enum
+        values:
+          1: Unlocked
+          2: Moving
+          4: Locked
+          0: Unknown
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      FaultOrUnknown:
+        start_bit: 7
+        length: 1
+        byte_order: big
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Busy:
+        start_bit: 12
+        length: 1
+        byte_order: big
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      UnkConstant:
+        start_bit: 16
+        length: 16
+        byte_order: little
+        min: 0
+        max: 65535
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      UnkStatus:
+        start_bit: 39
+        length: 8
+        byte_order: big
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      StatusFault:
+        start_bit: 47
+        length: 1
+        byte_order: big
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      StatusOK:
+        start_bit: 46
+        length: 1
+        byte_order: big
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      UnkConstant2:
+        start_bit: 55
+        length: 8
+        byte_order: big
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Checksum:
+        start_bit: 56
+        length: 4
+        byte_order: little
+        min: 0
+        max: 15
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Counter:
+        start_bit: 60
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x153':
+    name: TractionControlFast
+    length: 8
+    signals:
+      TCS_REQ:
+        start_bit: 0
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      MSR_C_REQ:
+        start_bit: 1
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      TCS_PAS:
+        start_bit: 2
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      TCS_GSC:
+        start_bit: 3
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Esc_LimoInfo:
+        start_bit: 4
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      ABS_DIAG:
+        start_bit: 6
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      ABS_DEF:
+        start_bit: 7
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      TCS_DEF:
+        start_bit: 8
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      TCS_CTL:
+        start_bit: 9
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      ABS_ACT:
+        start_bit: 10
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      EBD_DEF:
+        start_bit: 11
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      ESP_PAS:
+        start_bit: 12
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      ESP_DEF:
+        start_bit: 13
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      ESP_CTL:
+        start_bit: 14
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      TCS_MFRN:
+        start_bit: 15
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      DBC_CTL:
+        start_bit: 16
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      DBC_PAS:
+        start_bit: 17
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      DBC_DEF:
+        start_bit: 18
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      HAC_CTL:
+        start_bit: 19
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      HAC_PAS:
+        start_bit: 20
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      HAC_DEF:
+        start_bit: 21
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      ESS_STAT:
+        start_bit: 22
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      TQI_TCS:
+        start_bit: 24
+        length: 8
+        byte_order: little
+        scale: 0.390625
+        min: 0
+        max: 99.609375
+        unit: '%'
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      TQI_MSR:
+        start_bit: 32
+        length: 8
+        byte_order: little
+        scale: 0.390625
+        min: 0
+        max: 99.609375
+        unit: '%'
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      TQI_SLW_TCS:
+        start_bit: 40
+        length: 8
+        byte_order: little
+        scale: 0.390625
+        min: 0
+        max: 99.609375
+        unit: '%'
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Esc_BrkCtl:
+        start_bit: 48
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      BLA_CTL:
+        start_bit: 49
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Counter1:
+        start_bit: 52
+        length: 4
+        byte_order: little
+        min: 0
+        max: 14
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Counter2:
+        start_bit: 60
+        length: 4
+        byte_order: little
+        min: 0
+        max: 15
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x200':
+    name: VCU_200
+    length: 8
+    signals:
+      RangeAdditionalClimateOff:
+        start_bit: 0
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      RangeLSB:
+        start_bit: 15
+        length: 1
+        byte_order: big
+        min: 0
+        max: 1
+        unit: km
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CURRENT_GEAR:
+        start_bit: 11
+        length: 3
+        byte_order: little
+        min: 0
+        max: 7
+        type: enum
+        values:
+          0: P
+          5: D
+          6: 'N'
+          7: R
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Range:
+        start_bit: 16
+        length: 8
+        byte_order: little
+        scale: 2
+        min: 0
+        max: 800
+        unit: km
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Accel_Pedal_Pos2:
+        start_bit: 32
+        length: 8
+        byte_order: little
+        min: 0
+        max: 254
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      UnkStatus:
+        start_bit: 40
+        length: 6
+        byte_order: little
+        min: 0
+        max: 63
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Counter:
+        start_bit: 46
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Accel_Pedal_Pos3:
+        start_bit: 63
+        length: 8
+        byte_order: big
+        min: 0
+        max: 254
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x201':
+    name: VCU_201
+    length: 8
+    signals:
+      UnkStatus:
+        start_bit: 0
+        length: 6
+        byte_order: little
+        min: 0
+        max: 63
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Counter1:
+        start_bit: 6
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Torque_error:
+        start_bit: 8
+        length: 16
+        byte_order: little
+        signed: true
+        min: 0
+        max: 255
+        unit: rpm
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Torque_desired:
+        start_bit: 24
+        length: 16
+        byte_order: little
+        signed: true
+        min: -32768
+        max: 32767
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Regen_maybe:
+        start_bit: 40
+        length: 16
+        byte_order: little
+        min: 0
+        max: 65535
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Unk:
+        start_bit: 56
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x202':
+    name: VCU_202
+    length: 8
+    signals:
+      Torque_desired_unk:
+        start_bit: 8
+        length: 12
+        byte_order: little
+        signed: true
+        min: -32768
+        max: 32767
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      REGEN_LEVEL:
+        start_bit: 23
+        length: 4
+        byte_order: big
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Torque_desired_unk2:
+        start_bit: 32
+        length: 12
+        byte_order: little
+        signed: true
+        min: -32768
+        max: 32767
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      UnkMaybeStatus:
+        start_bit: 56
+        length: 5
+        byte_order: little
+        min: 0
+        max: 31
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      UnkStatusBit:
+        start_bit: 63
+        length: 1
+        byte_order: big
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Counter:
+        start_bit: 61
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x220':
+    name: StabilityControl
+    length: 8
+    signals:
+      LAT_ACCEL:
+        start_bit: 0
+        length: 11
+        byte_order: little
+        scale: 0.01
+        offset: -10.23
+        min: -10.23
+        max: 10.24
+        unit: m/s^2
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      LAT_ACCEL_STAT:
+        start_bit: 11
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      LAT_ACCEL_DIAG:
+        start_bit: 12
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      LONG_ACCEL:
+        start_bit: 13
+        length: 11
+        byte_order: little
+        scale: 0.01
+        offset: -10.23
+        min: -10.23
+        max: 10.24
+        unit: m/s^2
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      LONG_ACCEL_STAT:
+        start_bit: 24
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      LONG_ACCEL_DIAG:
+        start_bit: 25
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CYL_PRES:
+        start_bit: 26
+        length: 12
+        byte_order: little
+        scale: 0.1
+        min: 0
+        max: 409.5
+        unit: Bar
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CYL_PRES_STAT:
+        start_bit: 38
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CYL_PRESS_DIAG:
+        start_bit: 39
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      YAW_RATE:
+        start_bit: 40
+        length: 13
+        byte_order: little
+        scale: 0.01
+        offset: -40.95
+        min: -40.95
+        max: 40.96
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      YAW_RATE_STAT:
+        start_bit: 53
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      YAW_RATE_DIAG:
+        start_bit: 54
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Checksum:
+        start_bit: 56
+        length: 4
+        byte_order: little
+        min: 0
+        max: 15
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Counter:
+        start_bit: 60
+        length: 4
+        byte_order: little
+        min: 0
+        max: 15
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x291':
+    name: VCU_291
+    length: 8
+    signals:
+      Power_Unk2:
+        start_bit: 0
+        length: 12
+        byte_order: little
+        signed: true
+        min: -32768
+        max: 32767
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Speed_signed:
+        start_bit: 16
+        length: 16
+        byte_order: little
+        signed: true
+        min: -32768
+        max: 32767
+        unit: rpm
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      NEW_SIGNAL_1:
+        start_bit: 39
+        length: 8
+        byte_order: big
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      NEW_SIGNAL_2:
+        start_bit: 47
+        length: 8
+        byte_order: big
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      NEW_SIGNAL_3:
+        start_bit: 55
+        length: 8
+        byte_order: big
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x2A2':
+    name: IEB_2A2
+    length: 8
+    signals:
+      HeartBeat:
+        start_bit: 0
+        length: 1
+        byte_order: big
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Regen_Maybe:
+        start_bit: 15
+        length: 16
+        byte_order: big
+        min: 0
+        max: 65535
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      BrakePedalForce:
+        start_bit: 24
+        length: 16
+        byte_order: little
+        min: 0
+        max: 65535
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      BrakeUnknown:
+        start_bit: 56
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x2B0':
+    name: Steering
+    length: 5
+    signals:
+      Angle:
+        start_bit: 0
+        length: 16
+        byte_order: little
+        signed: true
+        scale: 0.1
+        min: -3276.8
+        max: 3276.7
+        unit: Deg
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Speed:
+        start_bit: 16
+        length: 8
+        byte_order: little
+        scale: 4
+        min: 0
+        max: 1016
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Stat:
+        start_bit: 24
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Counter:
+        start_bit: 32
+        length: 4
+        byte_order: little
+        min: 0
+        max: 15
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Checksum:
+        start_bit: 36
+        length: 4
+        byte_order: little
+        min: 0
+        max: 15
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x331':
+    name: IEB_331
+    length: 8
+    signals:
+      BrakeUnknown:
+        start_bit: 0
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      WheelSpeed1:
+        start_bit: 16
+        length: 16
+        byte_order: little
+        min: 0
+        max: 65535
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      WheelSpeed2:
+        start_bit: 32
+        length: 16
+        byte_order: little
+        min: 0
+        max: 65535
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x354':
+    name: SBW_354
+    length: 8
+    signals:
+      ButtonPressed1:
+        start_bit: 7
+        length: 8
+        byte_order: big
+        min: 0
+        max: 255
+        type: enum
+        values:
+          168: Initialising
+          170: NoButton
+          106: D
+          154: 'N'
+          166: R
+          169: P
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      ButtonPressed2:
+        start_bit: 23
+        length: 8
+        byte_order: big
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Gear_Displayed:
+        start_bit: 40
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        type: enum
+        values:
+          0: None
+          1: P
+          2: R
+          3: 'N'
+          4: D
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Counter:
+        start_bit: 56
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x386':
+    name: IEB_386_WHEEL
+    length: 8
+    signals:
+      WHL_SPD_FL:
+        start_bit: 0
+        length: 14
+        byte_order: little
+        scale: 0.03125
+        min: 0
+        max: 511.96875
+        unit: km/h
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      WHL_SPD_AliveCounter_LSB:
+        start_bit: 14
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      WHL_SPD_FR:
+        start_bit: 16
+        length: 14
+        byte_order: little
+        scale: 0.03125
+        min: 0
+        max: 511.96875
+        unit: km/h
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      WHL_SPD_AliveCounter_MSB:
+        start_bit: 30
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      WHL_SPD_RL:
+        start_bit: 32
+        length: 14
+        byte_order: little
+        scale: 0.03125
+        min: 0
+        max: 511.96875
+        unit: km/h
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      WHL_SPD_Checksum_LSB:
+        start_bit: 46
+        length: 2
+        byte_order: little
+        min: 0
+        max: 15
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      WHL_SPD_RR:
+        start_bit: 48
+        length: 14
+        byte_order: little
+        scale: 0.03125
+        min: 0
+        max: 511.96875
+        unit: km/h
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      WHL_SPD_Checksum_MSB:
+        start_bit: 62
+        length: 2
+        byte_order: little
+        min: 0
+        max: 15
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x387':
+    name: IEB_387_WHEEL
+    length: 8
+    signals:
+      WHL_PUL_FL:
+        start_bit: 0
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        unit: pulse count
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      WHL_PUL_FR:
+        start_bit: 8
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        unit: pulse count
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      WHL_PUL_RL:
+        start_bit: 16
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        unit: pulse count
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      WHL_PUL_RR:
+        start_bit: 24
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        unit: pulse count
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      WHL_PUL_Chksum:
+        start_bit: 40
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      AliveCounterWHL_PUL:
+        start_bit: 48
+        length: 4
+        byte_order: little
+        min: 0
+        max: 14
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x394':
+    name: TractionControlMed
+    length: 8
+    signals:
+      aBasis:
+        start_bit: 0
+        length: 11
+        byte_order: little
+        scale: 0.01
+        offset: -10.23
+        min: -10.23
+        max: 10.24
+        unit: m/s^2
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      BrakeLight:
+        start_bit: 11
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      DCEnable:
+        start_bit: 12
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Counter:
+        start_bit: 13
+        length: 3
+        byte_order: little
+        min: 0
+        max: 7
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Pre_TCS_CTL:
+        start_bit: 16
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      EBA_ACK:
+        start_bit: 17
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      FCA_ACK:
+        start_bit: 18
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      DF_BF_STAT:
+        start_bit: 19
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      SCCReqLim:
+        start_bit: 22
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      TQI_SCC:
+        start_bit: 24
+        length: 8
+        byte_order: little
+        scale: 0.390625
+        min: 0
+        max: 199.609375
+        unit: '%'
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      ACCEL_REF_ACC:
+        start_bit: 32
+        length: 11
+        byte_order: little
+        scale: 0.01
+        offset: -10.23
+        min: -10.23
+        max: 10.24
+        unit: m/s^2
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      DriverOverride:
+        start_bit: 45
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      StandStill:
+        start_bit: 47
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Checksum:
+        start_bit: 48
+        length: 4
+        byte_order: little
+        min: 0
+        max: 15
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      ACC_EQUIP:
+        start_bit: 52
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      PBRAKE_ACT:
+        start_bit: 53
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      ACC_REQ:
+        start_bit: 54
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      DriverBraking:
+        start_bit: 55
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_VSM_Coded:
+        start_bit: 56
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_VSM_Avail:
+        start_bit: 57
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_VSM_Handshake:
+        start_bit: 59
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_DriBkeStat:
+        start_bit: 60
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_VSM_ConfSwi:
+        start_bit: 61
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      AEB_EQUIP:
+        start_bit: 63
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x414':
+    name: ChargeSettings
+    length: 8
+    signals:
+      ACChargingCurrent:
+        start_bit: 0
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        type: enum
+        values:
+          0: Maximum
+          1: Reduced
+          2: Minimum
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x450':
+    name: CGW_450
+    length: 3
+    signals:
+      Speed:
+        start_bit: 7
+        length: 8
+        byte_order: big
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      UNK_MAYBE_CRUISE_BUTTONS:
+        start_bit: 15
+        length: 16
+        byte_order: big
+        min: 0
+        max: 65535
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x45B':
+    name: VCU_45B
+    length: 8
+    signals:
+      UNK_CLIMATE_DRIVE_MODE:
+        start_bit: 0
+        length: 16
+        byte_order: little
+        min: 0
+        max: 65535
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x462':
+    name: CGW_462
+    length: 8
+    signals:
+      SometimesCounter:
+        start_bit: 32
+        length: 4
+        byte_order: little
+        min: 0
+        max: 15
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x471':
+    name: UNK_471
+    length: 6
+    signals:
+      Maybezeroes:
+        start_bit: 40
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Counter:
+        start_bit: 42
+        length: 4
+        byte_order: little
+        min: 0
+        max: 15
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      MaybeCounter:
+        start_bit: 46
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x47C':
+    name: OBC_47C
+    length: 8
+    signals:
+      ACCurrentRelated2:
+        start_bit: 63
+        length: 8
+        byte_order: big
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x490':
+    name: ParkingBrake
+    length: 8
+    signals:
+      EPB_I_LAMP:
+        start_bit: 0
+        length: 4
+        byte_order: little
+        min: 0
+        max: 15
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      EPB_F_LAMP:
+        start_bit: 4
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      EPB_ALARM:
+        start_bit: 6
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      EPB_CLU:
+        start_bit: 8
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      EPB_SWITCH:
+        start_bit: 16
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      EPB_RBL:
+        start_bit: 18
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      EPB_STATUS:
+        start_bit: 19
+        length: 3
+        byte_order: little
+        min: 0
+        max: 7
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      EPB_FRC_ERR:
+        start_bit: 22
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      EPB_DBF_STAT:
+        start_bit: 24
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      ESP_ACK:
+        start_bit: 25
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      EPB_DBF_REQ:
+        start_bit: 26
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      EPB_FAIL:
+        start_bit: 29
+        length: 3
+        byte_order: little
+        min: 0
+        max: 7
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      EPB_FORCE:
+        start_bit: 32
+        length: 12
+        byte_order: little
+        offset: -1000
+        min: -1000
+        max: 3000
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      EPB_DBF_DECEL:
+        start_bit: 48
+        length: 8
+        byte_order: little
+        scale: 0.01
+        min: 0
+        max: 2.54
+        unit: g
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x497':
+    name: BMS_497
+    length: 8
+    signals:
+      Unknown:
+        start_bit: 0
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x4E2':
+    name: BMS_4E2
+    length: 8
+    signals:
+      UNK_1:
+        start_bit: 16
+        length: 16
+        byte_order: little
+        min: 0
+        max: 65535
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x4FE':
+    name: CGW_4FE
+    length: 8
+    signals:
+      UnknownBit:
+        start_bit: 16
+        length: 1
+        byte_order: big
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x507':
+    name: IEB_507_TCS
+    length: 4
+    signals:
+      ABS_W_LAMP:
+        start_bit: 0
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      TCS_OFF_LAMP:
+        start_bit: 1
+        length: 2
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      TCS_LAMP:
+        start_bit: 3
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      DBC_W_LAMP:
+        start_bit: 5
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      DBC_F_LAMP:
+        start_bit: 6
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      ESC_Off_Step:
+        start_bit: 8
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      AVH_CLU:
+        start_bit: 16
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      AVH_I_LAMP:
+        start_bit: 24
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      EBD_W_LAMP:
+        start_bit: 26
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      AVH_ALARM:
+        start_bit: 27
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      AVH_LAMP:
+        start_bit: 29
+        length: 3
+        byte_order: little
+        min: 0
+        max: 7
+        type: enum
+        values:
+          0: Disabled
+          2: Enabled Stationary
+          3: Enabled Moving
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x50D':
+    name: UNK_50D
+    length: 8
+    signals:
+      UnknownBit:
+        start_bit: 27
+        length: 1
+        byte_order: big
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Counter10s:
+        start_bit: 32
+        length: 16
+        byte_order: little
+        min: 0
+        max: 65535
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x520':
+    name: UNK_520
+    length: 8
+    signals:
+      StartIndicator:
+        start_bit: 22
+        length: 1
+        byte_order: big
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x523':
+    name: InverterTemp
+    length: 8
+    signals:
+      uwe523_0:
+        start_bit: 0
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      TempIn:
+        start_bit: 16
+        length: 8
+        byte_order: little
+        offset: -40
+        min: -40
+        max: 215
+        unit: Â°C
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      TempFast1:
+        start_bit: 24
+        length: 8
+        byte_order: little
+        offset: -40
+        min: -40
+        max: 215
+        unit: Â°C
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      TempFast2:
+        start_bit: 32
+        length: 8
+        byte_order: little
+        offset: -40
+        min: -40
+        max: 215
+        unit: Â°C
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      TempSlow:
+        start_bit: 40
+        length: 8
+        byte_order: little
+        offset: -40
+        min: -40
+        max: 215
+        unit: Â°C
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CoolingPump:
+        start_bit: 48
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        unit: '%'
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x524':
+    name: InverterStatus
+    length: 8
+    signals:
+      V_Inverter:
+        start_bit: 0
+        length: 16
+        byte_order: little
+        min: 0
+        max: 511
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Speed_abs:
+        start_bit: 23
+        length: 16
+        byte_order: big
+        scale: 0.25
+        min: 0
+        max: 65535
+        unit: rpm
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Speed_desired_unk:
+        start_bit: 32
+        length: 12
+        byte_order: little
+        signed: true
+        min: -32768
+        max: 32767
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Power:
+        start_bit: 48
+        length: 16
+        byte_order: little
+        signed: true
+        min: -32768
+        max: 32767
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x540':
+    name: VCU_540
+    length: 8
+    signals:
+      uwe540_01:
+        start_bit: 0
+        length: 12
+        byte_order: little
+        min: 0
+        max: 65535
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      uwe540_23:
+        start_bit: 16
+        length: 16
+        byte_order: little
+        min: 0
+        max: 65535
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Torque_actual:
+        start_bit: 32
+        length: 16
+        byte_order: little
+        min: 0
+        max: 65535
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Unk_Increases:
+        start_bit: 55
+        length: 8
+        byte_order: big
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x541':
+    name: BodyState
+    length: 8
+    signals:
+      IgnitionSw:
+        start_bit: 0
+        length: 3
+        byte_order: little
+        min: 0
+        max: 7
+        type: enum
+        values:
+          0: 'Off'
+          3: 'On'
+          2: TurningOn_maybe
+          4: Starting
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_RKECmd:
+        start_bit: 3
+        length: 3
+        byte_order: little
+        min: 0
+        max: 7
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_DrvKeyLockSw:
+        start_bit: 6
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_DrvKeyUnlockSw:
+        start_bit: 7
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      DrvDoorSw:
+        start_bit: 8
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        type: enum
+        values:
+          0: Closed
+          1: Open
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      DrvSeatBeltSw:
+        start_bit: 10
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        type: enum
+        values:
+          1: Present
+          0: NotPresent
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_TrunkTgSw:
+        start_bit: 12
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_AstSeatBeltSw:
+        start_bit: 14
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_SMKOption:
+        start_bit: 16
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_HoodSw:
+        start_bit: 17
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_TurnSigLh:
+        start_bit: 19
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_WiperIntT:
+        start_bit: 21
+        length: 3
+        byte_order: little
+        min: 0
+        max: 7
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_WiperIntSw:
+        start_bit: 24
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_WiperLowSw:
+        start_bit: 25
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_WiperHighSw:
+        start_bit: 26
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_WiperAutoSw:
+        start_bit: 27
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_RainSnsState:
+        start_bit: 28
+        length: 3
+        byte_order: little
+        min: 0
+        max: 7
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_HeadLampLow:
+        start_bit: 31
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_HeadLampHigh:
+        start_bit: 32
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_HazardSw:
+        start_bit: 33
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      PassDoorSw:
+        start_bit: 35
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        type: enum
+        values:
+          0: Closed
+          1: Open
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_DefoggerRly:
+        start_bit: 36
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_ALightStat:
+        start_bit: 37
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_LightSwState:
+        start_bit: 38
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_Frt_Fog_Act:
+        start_bit: 40
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_TSigRHSw:
+        start_bit: 41
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_TSigLHSw:
+        start_bit: 42
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_DriveTypeOption:
+        start_bit: 43
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_StarterRlyState:
+        start_bit: 44
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_PassiveAccessLock:
+        start_bit: 45
+        length: 2
+        byte_order: little
+        min: 0
+        max: 7
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_WiperMistSw:
+        start_bit: 47
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_PassiveAccessUnlock:
+        start_bit: 48
+        length: 2
+        byte_order: little
+        min: 0
+        max: 7
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_RrSunRoofOpenState:
+        start_bit: 50
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_PassingSW:
+        start_bit: 51
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_HBAControlMode:
+        start_bit: 52
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_HLpHighSw:
+        start_bit: 53
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_InhibitRMT:
+        start_bit: 54
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_RainSnsOption:
+        start_bit: 56
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      C_SunRoofOpenState:
+        start_bit: 57
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Ign1:
+        start_bit: 58
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Ign2:
+        start_bit: 59
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_ParkBrakeSw:
+        start_bit: 60
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_TurnSigRh:
+        start_bit: 62
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x542':
+    name: BMS_542
+    length: 8
+    signals:
+      SocDisp:
+        start_bit: 0
+        length: 8
+        byte_order: little
+        scale: 0.5
+        min: 0
+        max: 100
+        unit: '%'
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      uwe542_12_Backcounter:
+        start_bit: 8
+        length: 16
+        byte_order: little
+        min: 0
+        max: 65535
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      unkCurrentRelated:
+        start_bit: 40
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      uwe542_78_UCCS:
+        start_bit: 48
+        length: 16
+        byte_order: little
+        scale: 0.1
+        min: 0
+        max: 500
+        unit: V
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x549':
+    name: TwelveVolt_Battery_INCORRECT
+    length: 8
+    signals:
+      BAT_SNSR_I:
+        start_bit: 0
+        length: 16
+        byte_order: little
+        scale: 0.01
+        offset: -327
+        min: -327
+        max: 328
+        unit: A
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      BAT_SOC:
+        start_bit: 16
+        length: 8
+        byte_order: little
+        min: 0
+        max: 100
+        unit: '%'
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      V_BAT_SNSR:
+        start_bit: 24
+        length: 14
+        byte_order: little
+        scale: 0.001
+        offset: 6
+        min: 6
+        max: 18
+        unit: V
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      BAT_SNSR_Temp:
+        start_bit: 38
+        length: 9
+        byte_order: little
+        signed: true
+        scale: 0.5
+        offset: -40
+        min: -40
+        max: 125
+        unit: deg
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      BAT_SNSR_State:
+        start_bit: 47
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      BAT_SOH:
+        start_bit: 48
+        length: 7
+        byte_order: little
+        min: 0
+        max: 100
+        unit: '%'
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      BAT_SNSR_Invalid:
+        start_bit: 55
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      BAT_SOF:
+        start_bit: 56
+        length: 7
+        byte_order: little
+        scale: 0.1
+        min: 0
+        max: 12
+        unit: V
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      BAT_SNSR_Error:
+        start_bit: 63
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x553':
+    name: BodyWarnings
+    length: 8
+    signals:
+      CF_Gway_GwayDiagState:
+        start_bit: 0
+        length: 1
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_DDMDiagState:
+        start_bit: 1
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_SCMDiagState:
+        start_bit: 2
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_PSMDiagState:
+        start_bit: 3
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_SJBDiagState:
+        start_bit: 4
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_IPMDiagState:
+        start_bit: 5
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_LDMFail:
+        start_bit: 6
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_CLUSwGuiCtrl:
+        start_bit: 10
+        length: 3
+        byte_order: little
+        min: 0
+        max: 63
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_CLUSwGroup:
+        start_bit: 13
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_CLUSwMode:
+        start_bit: 14
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_CLUSwEnter:
+        start_bit: 15
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_AutoLightValue:
+        start_bit: 16
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_BrakeFluidSw:
+        start_bit: 17
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_DrvSeatBeltInd:
+        start_bit: 18
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_AvTail:
+        start_bit: 20
+        length: 1
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_RearFogAct:
+        start_bit: 21
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_ExtTailAct:
+        start_bit: 22
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_RRDrSw:
+        start_bit: 23
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_RLDrSw:
+        start_bit: 24
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_IntTailAct:
+        start_bit: 25
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_CountryCfg:
+        start_bit: 26
+        length: 3
+        byte_order: little
+        min: 0
+        max: 7
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_WiperParkPosition:
+        start_bit: 32
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_HLLowLHFail:
+        start_bit: 33
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_HLLowRHFail:
+        start_bit: 34
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_ESCLFailWarn:
+        start_bit: 35
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_ESCLNotLockedWarn:
+        start_bit: 36
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_ESCLNotUnlockWarn:
+        start_bit: 37
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_IDoutWarn:
+        start_bit: 38
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_ImmoLp:
+        start_bit: 40
+        length: 1
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_BCMRKEID:
+        start_bit: 41
+        length: 3
+        byte_order: little
+        min: 0
+        max: 7
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_VehicleNotPWarn:
+        start_bit: 44
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_DeactivationWarn:
+        start_bit: 45
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_KeyBATDischargeWarn:
+        start_bit: 46
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_SSBWarn:
+        start_bit: 47
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_SMKFobID:
+        start_bit: 48
+        length: 3
+        byte_order: little
+        min: 0
+        max: 7
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_SMKRKECmd:
+        start_bit: 51
+        length: 3
+        byte_order: little
+        min: 0
+        max: 7
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_AutoLightOption:
+        start_bit: 54
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_SJBDeliveryMode:
+        start_bit: 55
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_KeyoutLp:
+        start_bit: 56
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_SMKDispWarn:
+        start_bit: 57
+        length: 4
+        byte_order: little
+        min: 0
+        max: 15
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Gway_WngBuz:
+        start_bit: 61
+        length: 3
+        byte_order: little
+        min: 0
+        max: 7
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x559':
+    name: UNK_559
+    length: 8
+    signals:
+      UnkBit:
+        start_bit: 14
+        length: 1
+        byte_order: big
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x562':
+    name: UpdateChargeSettings
+    length: 8
+    signals:
+      SetChargeCurrent:
+        start_bit: 15
+        length: 8
+        byte_order: big
+        min: 0
+        max: 255
+        type: enum
+        values:
+          0: No button down
+          4: Maximum down
+          8: Minimum down
+          28: Uninitialised default
+          12: Reduced down
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      SetACChargeLimit:
+        start_bit: 32
+        length: 8
+        byte_order: little
+        scale: 0.5
+        min: 0
+        max: 255
+        unit: '%'
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      SetDCChargeLimit:
+        start_bit: 47
+        length: 8
+        byte_order: big
+        scale: 0.5
+        min: 0
+        max: 255
+        unit: '%'
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x567':
+    name: Clock
+    length: 8
+    signals:
+      Unknown:
+        start_bit: 0
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Hour:
+        start_bit: 8
+        length: 8
+        byte_order: little
+        min: 0
+        max: 23
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Minute:
+        start_bit: 16
+        length: 6
+        byte_order: little
+        min: 0
+        max: 59
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Second:
+        start_bit: 24
+        length: 8
+        byte_order: little
+        min: 0
+        max: 59
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Valid:
+        start_bit: 32
+        length: 8
+        byte_order: little
+        signed: true
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x578':
+    name: CGW_578
+    length: 6
+    signals:
+      FaultMaybe:
+        start_bit: 15
+        length: 8
+        byte_order: big
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      NaviRequest1:
+        start_bit: 31
+        length: 8
+        byte_order: big
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      UnkStatus:
+        start_bit: 39
+        length: 8
+        byte_order: big
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      DriveModeChange:
+        start_bit: 47
+        length: 1
+        byte_order: big
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x57B':
+    name: VCU_57B
+    length: 8
+    signals:
+      DriverErrorMaybe:
+        start_bit: 39
+        length: 8
+        byte_order: big
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x57F':
+    name: HU_MON_PE_01
+    length: 8
+    signals:
+      HU_Type:
+        start_bit: 0
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x581':
+    name: ACChargeStatus
+    length: 8
+    signals:
+      I_AC:
+        start_bit: 0
+        length: 16
+        byte_order: little
+        scale: 0.01
+        min: 0
+        max: 65535
+        unit: A
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      V_AC:
+        start_bit: 16
+        length: 16
+        byte_order: little
+        scale: 0.1
+        min: 0
+        max: 65535
+        unit: V
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      UnkReadback:
+        start_bit: 32
+        length: 16
+        byte_order: little
+        min: 0
+        max: 65535
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Power_AC:
+        start_bit: 48
+        length: 16
+        byte_order: little
+        scale: 3.90625
+        min: 0
+        max: 65535
+        unit: W
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x584':
+    name: AAF_584
+    length: 8
+    signals:
+      CF_Aaf_ActFlapStatus:
+        start_bit: 0
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Aaf_ModeStatus:
+        start_bit: 2
+        length: 3
+        byte_order: little
+        min: 0
+        max: 7
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Aaf_WrnLamp:
+        start_bit: 5
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Aaf_ErrStatus:
+        start_bit: 6
+        length: 10
+        byte_order: little
+        min: 0
+        max: 1023
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Aaf_OpenRqSysAct:
+        start_bit: 16
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Aaf_PStatus:
+        start_bit: 24
+        length: 8
+        byte_order: little
+        min: 0
+        max: 100
+        unit: '%'
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Aaf_OpenRqSysSol:
+        start_bit: 32
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Aaf_SolFlapStatus:
+        start_bit: 40
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Aaf_MilOnReq:
+        start_bit: 42
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x588':
+    name: CGW_588
+    length: 8
+    signals:
+      Unk0:
+        start_bit: 7
+        length: 8
+        byte_order: big
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Unk1:
+        start_bit: 15
+        length: 8
+        byte_order: big
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Unk2:
+        start_bit: 23
+        length: 8
+        byte_order: big
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x58E':
+    name: OBC_58E
+    length: 8
+    signals:
+      AlarmMaybe:
+        start_bit: 7
+        length: 8
+        byte_order: big
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      ChargeStatusMaybe:
+        start_bit: 8
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      ACCurrentPossible:
+        start_bit: 23
+        length: 8
+        byte_order: big
+        scale: 0.5
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      PortLockSetting:
+        start_bit: 37
+        length: 1
+        byte_order: big
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      EVSEDetected:
+        start_bit: 36
+        length: 1
+        byte_order: big
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      EVSEDisconnected:
+        start_bit: 35
+        length: 1
+        byte_order: big
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      PortLockReq:
+        start_bit: 34
+        length: 1
+        byte_order: big
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      PortUnlockReq:
+        start_bit: 33
+        length: 1
+        byte_order: big
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      PortLocked:
+        start_bit: 32
+        length: 1
+        byte_order: big
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x58F':
+    name: VCU_58F
+    length: 8
+    signals:
+      Unk_Status:
+        start_bit: 43
+        length: 4
+        byte_order: big
+        min: 0
+        max: 15
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x592':
+    name: VCU_592
+    length: 8
+    signals:
+      MaybeTotalDrivingPower:
+        start_bit: 23
+        length: 8
+        byte_order: big
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      MaybeClimateConsumption:
+        start_bit: 31
+        length: 8
+        byte_order: big
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CC_React:
+        start_bit: 34
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Movement_related_unk2:
+        start_bit: 55
+        length: 8
+        byte_order: big
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Unk_Status:
+        start_bit: 56
+        length: 4
+        byte_order: little
+        min: 0
+        max: 15
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Counter:
+        start_bit: 62
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x593':
+    name: UNK_593
+    length: 6
+    signals:
+      Unknown1:
+        start_bit: 0
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Unknown2:
+        start_bit: 8
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Unknown3:
+        start_bit: 23
+        length: 32
+        byte_order: big
+        min: 0
+        max: 4294967295
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x594':
+    name: BatteryLimits
+    length: 8
+    signals:
+      ChargeAvailable:
+        start_bit: 0
+        length: 16
+        byte_order: little
+        scale: 0.01
+        min: 0
+        max: 65535
+        unit: kW
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      DischargeAvailable:
+        start_bit: 16
+        length: 16
+        byte_order: little
+        scale: 0.01
+        min: 0
+        max: 65535
+        unit: kW
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      SoC_Maybe:
+        start_bit: 47
+        length: 8
+        byte_order: big
+        scale: 0.5
+        min: 0
+        max: 255
+        unit: '%'
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      SoC_Fraction:
+        start_bit: 48
+        length: 3
+        byte_order: little
+        scale: 0.1
+        min: 0
+        max: 7
+        unit: '%'
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x595':
+    name: Batt_HV_Status
+    length: 8
+    signals:
+      ACChargingTransient:
+        start_bit: 11
+        length: 1
+        byte_order: big
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      DCFastChargerDetected:
+        start_bit: 10
+        length: 1
+        byte_order: big
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      ACChargerDetected:
+        start_bit: 9
+        length: 1
+        byte_order: big
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      PrechargeRelay:
+        start_bit: 8
+        length: 1
+        byte_order: big
+        min: 0
+        max: 1
+        type: enum
+        values:
+          0: Open
+          1: Closed
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      IBatt:
+        start_bit: 32
+        length: 16
+        byte_order: little
+        signed: true
+        scale: 0.1
+        min: -1000
+        max: 1000
+        unit: A
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      VBatt:
+        start_bit: 48
+        length: 16
+        byte_order: little
+        scale: 0.1
+        min: 0
+        max: 500
+        unit: V
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x596':
+    name: BatteryCharging
+    length: 8
+    signals:
+      Voltage_12V:
+        start_bit: 8
+        length: 8
+        byte_order: little
+        scale: 0.1
+        min: 0
+        max: 25
+        unit: V
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      uwe596_2_remainingChTAC:
+        start_bit: 16
+        length: 16
+        byte_order: little
+        min: 0
+        max: 65535
+        unit: min
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      uwe596_4_remainingChTDC:
+        start_bit: 32
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        unit: min
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      uwe596_6_TAkkuL:
+        start_bit: 48
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        unit: Â°C
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      uwe596_7_TAkkuH:
+        start_bit: 56
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        unit: Â°C
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x597':
+    name: BMS_597
+    length: 8
+    signals:
+      AliveCounterBit:
+        start_bit: 7
+        length: 1
+        byte_order: big
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Active:
+        start_bit: 2
+        length: 1
+        byte_order: big
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      NEW_SIGNAL_1:
+        start_bit: 8
+        length: 16
+        byte_order: little
+        min: 0
+        max: 65535
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      UNK_STATUS_BITS:
+        start_bit: 56
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x599':
+    name: BMS_599
+    length: 8
+    signals:
+      UNK:
+        start_bit: 7
+        length: 16
+        byte_order: big
+        min: 0
+        max: 65535
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      STATE_OF_CHARGE:
+        start_bit: 16
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CCS_COMMS_TRIGGER:
+        start_bit: 56
+        length: 1
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      ChargeEndAck:
+        start_bit: 63
+        length: 1
+        byte_order: big
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      ChargeTrigger:
+        start_bit: 57
+        length: 1
+        byte_order: big
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x59C':
+    name: UNK_59C
+    length: 8
+    signals:
+      unk_changerelated:
+        start_bit: 24
+        length: 16
+        byte_order: little
+        min: 0
+        max: 65535
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x59E':
+    name: BMS_59E
+    length: 8
+    signals:
+      UNK_U_HV:
+        start_bit: 39
+        length: 8
+        byte_order: big
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x5A0':
+    name: AirbagStatus
+    length: 8
+    signals:
+      CF_Ods_SNRcv:
+        start_bit: 1
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Ods_IDRcv:
+        start_bit: 2
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Ods_RZReq:
+        start_bit: 4
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Abg_DepInhEnt:
+        start_bit: 6
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Abg_DepEnt:
+        start_bit: 7
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_PasBkl_FltStat:
+        start_bit: 28
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_DriBkl_FltStat:
+        start_bit: 29
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_PasBkl_Stat:
+        start_bit: 30
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_DriBkl_Stat:
+        start_bit: 31
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_SWL_Ind:
+        start_bit: 32
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Acu_FltStat:
+        start_bit: 34
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Acu_ExtOfSab:
+        start_bit: 36
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Acu_Dtc:
+        start_bit: 40
+        length: 16
+        byte_order: little
+        min: 0
+        max: 65535
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CF_Acu_NumOfFlt:
+        start_bit: 56
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x5A3':
+    name: BMS_5A3
+    length: 8
+    signals:
+      UnkStatus:
+        start_bit: 0
+        length: 4
+        byte_order: little
+        min: 0
+        max: 15
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      ContactorClosed:
+        start_bit: 6
+        length: 1
+        byte_order: big
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      FastChargeRelayClosed:
+        start_bit: 5
+        length: 1
+        byte_order: big
+        min: 0
+        max: 1
+        type: enum
+        values:
+          0: Open
+          1: Closed
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      ACChargeLimit:
+        start_bit: 32
+        length: 16
+        byte_order: little
+        scale: 0.003
+        min: 0
+        max: 65535
+        unit: '%'
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      DCChargeLimit:
+        start_bit: 48
+        length: 16
+        byte_order: little
+        scale: 0.003
+        min: 0
+        max: 65535
+        unit: '%'
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x5B3':
+    name: CGW_5B3
+    length: 8
+    signals:
+      UnkPowerRelated:
+        start_bit: 4
+        length: 4
+        byte_order: little
+        min: 0
+        max: 15
+        type: enum
+        values:
+          15: PoweredOff
+          4: PowerOn
+          5: PowerOnAlt
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Unknown2:
+        start_bit: 8
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Unknown3:
+        start_bit: 16
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        type: enum
+        values:
+          255: StartingUp
+          254: Normal
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      PowerState:
+        start_bit: 31
+        length: 4
+        byte_order: big
+        min: 0
+        max: 15
+        type: enum
+        values:
+          15: 'Off'
+          3: GoingToSleep
+          0: 'On'
+          12: PoweringOn
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x5CB':
+    name: ClimateStatus_5CB
+    length: 8
+    signals:
+      Setpoint:
+        start_bit: 7
+        length: 8
+        byte_order: big
+        scale: 0.5
+        offset: 14
+        min: 14
+        max: 27
+        unit: C
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      SetpointDup:
+        start_bit: 15
+        length: 8
+        byte_order: big
+        scale: 0.5
+        offset: 14
+        min: 14
+        max: 27
+        unit: C
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x5D0':
+    name: Odometer
+    length: 8
+    signals:
+      Odometer:
+        start_bit: 0
+        length: 24
+        byte_order: little
+        scale: 0.1
+        min: 0
+        max: 800000
+        unit: km
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x5D3':
+    name: CGW_HU_DATC_PE_00
+    length: 8
+    signals:
+      HU_VRActivity:
+        start_bit: 0
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      HU_PhoneActivity:
+        start_bit: 2
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      BlowerNoiseControl:
+        start_bit: 4
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x5D6':
+    name: BMS_5D6
+    length: 8
+    signals:
+      uwe5D6_UBatt_inv:
+        start_bit: 0
+        length: 16
+        byte_order: little
+        signed: true
+        scale: 0.1
+        unit: V
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      IBatt:
+        start_bit: 16
+        length: 16
+        byte_order: little
+        scale: 0.1
+        min: 0
+        max: 65535
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x5D7':
+    name: BMS_5D7
+    length: 8
+    signals:
+      UNK_ChargeRelated1:
+        start_bit: 0
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      UNK_ChargeRelated2:
+        start_bit: 8
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      UNK_ChargeRelated3:
+        start_bit: 23
+        length: 16
+        byte_order: big
+        min: 0
+        max: 65535
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x5D8':
+    name: BMS_5D8
+    length: 8
+    signals:
+      UnkContactorRelated:
+        start_bit: 0
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x5D9':
+    name: VCU_5D9
+    length: 8
+    signals:
+      NEW_SIGNAL_1:
+        start_bit: 8
+        length: 9
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      NEW_SIGNAL_2:
+        start_bit: 17
+        length: 2
+        byte_order: little
+        min: 0
+        max: 3
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Counter_Charging:
+        start_bit: 63
+        length: 8
+        byte_order: big
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x5DC':
+    name: VCU_5DC
+    length: 8
+    signals:
+      Speed_signed_slow:
+        start_bit: 0
+        length: 16
+        byte_order: little
+        signed: true
+        min: -32768
+        max: 32767
+        unit: rpm
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Speed_desired_slow_maybe:
+        start_bit: 24
+        length: 8
+        byte_order: little
+        signed: true
+        min: -128
+        max: 127
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      UNK:
+        start_bit: 40
+        length: 16
+        byte_order: little
+        min: 0
+        max: 65535
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x5DE':
+    name: VCU_5DE
+    length: 8
+    signals:
+      NEW_SIGNAL_3:
+        start_bit: 23
+        length: 8
+        byte_order: big
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      NEW_SIGNAL_4:
+        start_bit: 31
+        length: 8
+        byte_order: big
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      NEW_SIGNAL_1:
+        start_bit: 47
+        length: 8
+        byte_order: big
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      TracksSpeed_UNK:
+        start_bit: 55
+        length: 8
+        byte_order: big
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x5DF':
+    name: CGW_5DF
+    length: 8
+    signals:
+      NEW_SIGNAL_1:
+        start_bit: 7
+        length: 8
+        byte_order: big
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x5E5':
+    name: CCM_5E5
+    length: 8
+    signals:
+      CCM_PresentVoltage:
+        start_bit: 32
+        length: 16
+        byte_order: little
+        signed: true
+        scale: 0.1
+        min: 0
+        max: 500
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CCM_PresentCurrent:
+        start_bit: 48
+        length: 16
+        byte_order: little
+        signed: true
+        scale: 0.1
+        min: 0
+        max: 1000
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x5E6':
+    name: CCM_5E6
+    length: 8
+    signals:
+      CCM_CCS_TCP_connected:
+        start_bit: 0
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CCM_CCS_ended:
+        start_bit: 1
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x5E9':
+    name: CCM_5E9
+    length: 8
+    signals:
+      CCM_togglebit:
+        start_bit: 0
+        length: 1
+        byte_order: little
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CCM_ChargeProgess:
+        start_bit: 1
+        length: 7
+        byte_order: little
+        min: 0
+        max: 127
+        type: enum
+        values:
+          127: WeldingDetection
+          63: PowerDeliveryStop
+          31: CurrentDemand
+          7: PreCharge
+          3: CableCheck
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x5EC':
+    name: ChargePort
+    length: 8
+    signals:
+      UnkStatus2:
+        start_bit: 4
+        length: 1
+        byte_order: big
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      UnkStatus1:
+        start_bit: 3
+        length: 1
+        byte_order: big
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      ChargePortLocked:
+        start_bit: 0
+        length: 1
+        byte_order: big
+        min: 0
+        max: 1
+        type: enum
+        values:
+          0: Unlocked
+          1: Locked
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      MaybePassengerSeatOccupied:
+        start_bit: 26
+        length: 1
+        byte_order: big
+        min: 0
+        max: 1
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x5F5':
+    name: FATC_5F5
+    length: 64
+    signals:
+      UnkDoesntChange:
+        start_bit: 13
+        length: 6
+        byte_order: big
+        min: 0
+        max: 63
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      CompressorPower:
+        start_bit: 14
+        length: 10
+        byte_order: little
+        scale: 10
+        offset: 1
+        min: 0
+        max: 1023
+        unit: W
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Counter1:
+        start_bit: 32
+        length: 4
+        byte_order: little
+        min: 0
+        max: 15
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Counter2:
+        start_bit: 59
+        length: 4
+        byte_order: big
+        min: 0
+        max: 15
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x5F6':
+    name: FATC_5F6
+    length: 8
+    signals:
+      Unk:
+        start_bit: 0
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      Unk_Status:
+        start_bit: 8
+        length: 4
+        byte_order: little
+        min: 0
+        max: 15
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      UnkDoesntChange:
+        start_bit: 48
+        length: 6
+        byte_order: little
+        min: 0
+        max: 63
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      HeaterPower:
+        start_bit: 54
+        length: 10
+        byte_order: little
+        scale: 10
+        min: 0
+        max: 1023
+        unit: W
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x5F7':
+    name: FATC_5F7
+    length: 8
+    signals:
+      uwe5F7_0:
+        start_bit: 0
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      uwe5F7_1:
+        start_bit: 8
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      uwe5F7_2:
+        start_bit: 16
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      uwe5F7_3:
+        start_bit: 24
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      uwe5F7_4:
+        start_bit: 32
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      uwe5F7_5:
+        start_bit: 40
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      uwe5F7_6:
+        start_bit: 48
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      uwe5F7_7:
+        start_bit: 56
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+  '0x5F8':
+    name: FATC_5F8
+    length: 8
+    signals:
+      uwe5F8_0:
+        start_bit: 0
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      uwe5F8_1:
+        start_bit: 8
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      uwe5F8_2:
+        start_bit: 16
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      uwe5F8_3:
+        start_bit: 24
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      uwe5F8_4:
+        start_bit: 32
+        length: 8
+        byte_order: little
+        min: 0
+        max: 255
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      uwe5F8_5_ClimateTTarget:
+        start_bit: 40
+        length: 8
+        byte_order: little
+        scale: 0.5
+        offset: -40
+        min: -40
+        max: 87.5
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      uwe5F8_6_ClimateTFreezer:
+        start_bit: 48
+        length: 8
+        byte_order: little
+        scale: 0.5
+        offset: -40
+        min: -40
+        max: 87.5
+        unit: Â°C
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc
+      uwe5F8_7_ClimateTInside:
+        start_bit: 56
+        length: 8
+        byte_order: little
+        scale: 0.5
+        offset: -40
+        min: -40
+        max: 87.5
+        source: dbc:projectgus-kona-ev-dbc-pcan.dbc

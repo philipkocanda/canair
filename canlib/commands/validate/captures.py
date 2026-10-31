@@ -124,7 +124,10 @@ def validate_captures_file(path: Path, validator: Validator, rx_addrs: set[int])
 
 
 def _run_captures(
-    strict: bool = False, max_untimed: int | None = None, show_untimed: bool = False
+    strict: bool = False,
+    max_untimed: int | None = None,
+    show_untimed: bool = False,
+    max_untagged: int | None = None,
 ) -> int:
     with open(CAPTURES_SCHEMA_FILE) as f:
         schema = json.load(f)
@@ -221,7 +224,8 @@ def _run_captures(
 
     from .variant_tags import report_variant_tags
 
-    total_warnings += report_variant_tags(files, prof)
+    tag_warnings, untagged_failed = report_variant_tags(files, prof, max_untagged)
+    total_warnings += tag_warnings
     if total_warnings:
         print(
             f"\n{total_warnings} warning(s) — see `canair validate states` / echo mismatches above"
@@ -251,7 +255,7 @@ def _run_captures(
     if total_errors:
         print(f"\n{total_errors} total errors across {len(files)} files")
         return 1
-    if ratchet_failed:
+    if ratchet_failed or untagged_failed:
         return 1
     print(f"\nAll {len(files)} files valid.")
     return 0

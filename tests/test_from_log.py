@@ -164,3 +164,11 @@ class TestStamp:
         ]
         with pytest.raises(ValueError, match="past midnight"):
             stamp(replies, datetime(2023, 1, 12, 23, 0, 0))
+
+
+def test_broadcast_frames_do_not_inflate_the_loss_count(ecus):
+    # A P-CAN log where the car's own telematics polls the BMS among broadcast traffic.
+    noise = [*message_frames(0x4E2, bytes(range(30)))[1:], *message_frames(0x5EC, b"\x25")]
+    out = extract_replies([*noise, *exchange("220101", "620101" + BODY.hex(), 1.0)], ecus)
+    assert [r.pid for r in out.replies] == ["220101"]
+    assert out.lost == 0 and out.reassembly.malformed == 0

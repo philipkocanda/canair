@@ -554,7 +554,9 @@ def _verified_only(args) -> bool:
 def _generate(args) -> tuple[dict, dict]:
     """Load the active bundle and generate the AutoPID profile (grouped format)."""
     from canlib.profile import active
+    from canlib.variants.selection import require_variant
 
+    require_variant(active(), "generate the AutoPID profile")
     print(f"Loading {active().ecus_dir}")
     data = load_yaml()
 

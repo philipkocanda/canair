@@ -6,7 +6,7 @@
 
 ```
 usage: canair validate [-h] [--stats] [--strict] [--max-untimed N]
-                       [--show-untimed]
+                       [--max-untagged N] [--show-untimed]
                        [{pids,captures,ecus,states,can-buses,signals,groups,actions,variants,can,all}]
                        [files ...]
 
@@ -60,6 +60,9 @@ options:
                         are enforced to carry a timestamp, so the count only
                         ever falls; lower N as it drops. Distinct from
                         --strict (which forbids any untimed row)
+  --max-untagged N      Fail (exit 1) if a profile with several variants has
+                        MORE than N capture sessions that name no car — a
+                        ratchet baseline for CI, like --max-untimed
   --show-untimed        List untimed payload captures per file instead of
                         collapsing them to a single count — they otherwise
                         drown the echo/quality warnings that need attention

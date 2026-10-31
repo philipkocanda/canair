@@ -1,6 +1,6 @@
 # Profile variants, phase 4 — choosing a variant, and refusing without one
 
-Status: **NOT STARTED.** Part of
+Status: **DONE** (2026-10-31). Part of
 [`2026-10-30-profile-variants-and-rename.md`](2026-10-30-profile-variants-and-rename.md) (see its
 [Selection](2026-10-30-profile-variants-and-rename.md#selection) section). Depends on phase 3.
 
@@ -9,6 +9,25 @@ Status: **NOT STARTED.** Part of
 Remember each user's variant per profile, and make every command that needs a variant **do
 nothing** until one is chosen. This is the one deliberately breaking phase of the series, so it
 carries nothing else.
+
+## As built
+
+Where the implementation differs from the plan below:
+
+- **No breadcrumb to convert.** Phase 1 never rewrites a user's config, so a `default_profile`
+  that still holds an old name resolves through the alias, which carries the implied variant
+  (`Profile.alias`). Nothing else was needed.
+- **Analysis without a chosen car** reads every *tagged* session and leaves the untagged ones out
+  (a once-per-process note says so); with a car chosen, its sessions plus the untagged ones, read
+  as it. One rule in `variants/tags.py::in_scope`, applied inside `load_all_captures`.
+- **`profile use --variant` writes `profile_settings.<profile>.variant`**, under a separate dest
+  (`use_variant`) so it can't clobber the global `--variant`. The bare `canair profile` picker
+  asks for the variant too.
+- **The suite pins its car in conftest's isolated config**, not with `CANAIR_VARIANT`: per
+  profile, so a test that switches to another bundled profile meets it unselected, like a new user.
+- **`--max-untagged` baselines:** Leaf 5, Ioniq 5 1; every other profile 0.
+- **Not built:** the overlay hint pointing at `captures migrate-variants` on the first live run.
+  The untagged-sessions note on every analysis run already says it.
 
 ## What users see
 

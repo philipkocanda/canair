@@ -50,11 +50,11 @@
           "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
         },
         "attribution": {
-          "description": "How each tag was decided, per tagged field: 'selected' (the recording was given --variant / CANAIR_VARIANT), 'migrated' (stamped onto existing history by `captures migrate-variants`), 'asserted' (set afterwards with `captures uds --set-variant`).",
+          "description": "How each tag was decided, per tagged field: 'selected' (the recording named the car: --variant, CANAIR_VARIANT or the config), 'alias' (implied by the old profile name it was recorded under; unconfirmed), 'only' (the profile declares one variant), 'migrated' (stamped onto existing history by `captures migrate-variants`), 'asserted' (set afterwards with `captures uds --set-variant`).",
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "variant": { "enum": ["selected", "migrated", "asserted"] }
+            "variant": { "enum": ["selected", "alias", "only", "migrated", "asserted"] }
           }
         },
         "captures": {

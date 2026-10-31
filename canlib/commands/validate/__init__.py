@@ -174,6 +174,15 @@ examples:
         "(which forbids any untimed row)",
     )
     parser.add_argument(
+        "--max-untagged",
+        type=int,
+        default=None,
+        metavar="N",
+        dest="max_untagged",
+        help="Fail (exit 1) if a profile with several variants has MORE than N capture "
+        "sessions that name no car — a ratchet baseline for CI, like --max-untimed",
+    )
+    parser.add_argument(
         "--show-untimed",
         action="store_true",
         dest="show_untimed",
@@ -192,7 +201,12 @@ def run(args) -> int:
     if args.target in ("pids", "ecus"):
         return _run_pids(args.files or None, args.stats)
     if args.target == "captures":
-        return _run_captures(strict=strict, max_untimed=max_untimed, show_untimed=show_untimed)
+        return _run_captures(
+            strict=strict,
+            max_untimed=max_untimed,
+            show_untimed=show_untimed,
+            max_untagged=getattr(args, "max_untagged", None),
+        )
     if args.target == "states":
         return _run_states()
     if args.target == "can-buses":
@@ -210,7 +224,12 @@ def run(args) -> int:
     # all: the ecus/ files are validated once via _run_pids (they are the registry).
     rc_p = _run_pids(None, args.stats)
     print()
-    rc_c = _run_captures(strict=strict, max_untimed=max_untimed, show_untimed=show_untimed)
+    rc_c = _run_captures(
+        strict=strict,
+        max_untimed=max_untimed,
+        show_untimed=show_untimed,
+        max_untagged=getattr(args, "max_untagged", None),
+    )
     print()
     rc_s = _run_states()
     print()

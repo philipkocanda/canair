@@ -40,6 +40,7 @@ NAME = "config"
 # with a wildcard leaf (wican_addresses.<alias>) are documented, not enumerated.
 _KNOWN_KEYS = (
     "default_profile",
+    "profile_settings.<profile>.variant",
     "profiles_dir",
     "default_wican",
     "devices.<alias>.host",

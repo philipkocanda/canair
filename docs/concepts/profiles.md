@@ -204,8 +204,10 @@ Precedence (first match wins):
 3. `default_profile` in your config (set it with `canair profile use NAME`)
 4. the single discovered profile, if there's only one
 
-Within the profile, the global `--variant ID` (or `CANAIR_VARIANT`) names which of its
-[variants](variants.md) your car is: it tags what you record and scopes analysis to that car.
+Within the profile, name which of its [variants](variants.md) your car is — once, with
+`canair profile use NAME --variant ID` (remembered per profile), or per command with the
+global `--variant ID` (or `CANAIR_VARIANT`). On a profile with several variants, live commands
+refuse until you have; see [Choosing your car](variants.md#choosing-your-car).
 
 ## Where profiles are discovered
 

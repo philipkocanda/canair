@@ -31,8 +31,8 @@ positional arguments:
     list                List discovered profiles
     show                Show details of a profile (default: active)
     path                Print the root directory of a profile
-    use                 Set the default profile (default_profile in the user
-                        config)
+    use                 Set the default profile, and which of its variants
+                        your car is
     create (init, new)  Scaffold a new empty profile
     adopt               Copy a profile to ~/.config/canair/profiles/ so you
                         can write to it
@@ -47,7 +47,7 @@ examples:
   canair profile show                         # details of the active profile
   canair profile show hyundai-ioniq-ae-ev              # details of a named profile
   canair profile path                         # print the active profile's directory
-  canair profile use hyundai-ioniq-ae-ev               # set the default profile
+  canair profile use hyundai-ioniq-ae-ev --variant 28kwh   # set the default profile + your car
   canair profile create kia-ev6-cv-ev --car-model "Kia EV6 (CV)"
   canair profile create kia-ev6-cv-ev --car-model "Kia EV6 (CV)" --set-default
   canair profile adopt hyundai-ioniq-ae-ev              # writable copy under ~/.config/canair
@@ -90,16 +90,21 @@ options:
 ## `canair profile use`
 
 ```
-usage: canair profile use [-h] name
+usage: canair profile use [-h] [--variant ID] name
 
-Set NAME as the default profile — an alias for `canair config set
-default_profile NAME`. The name must be a discovered profile.
+Set NAME as the default profile (default_profile in the user config) and, with
+--variant, which of its variants your car is (profile_settings.NAME.variant,
+remembered per profile). On a terminal, a profile with several variants and no
+--variant opens a picker. The name must be a discovered profile; an old,
+renamed name is accepted and saved as the current one.
 
 positional arguments:
-  name        Profile name to set as default
+  name          Profile name to set as default
 
 options:
-  -h, --help  show this help message and exit
+  -h, --help    show this help message and exit
+  --variant ID  The variant your car is (a variants.yaml ID), remembered for
+                this profile
 ```
 
 ## `canair profile create`

@@ -1,0 +1,928 @@
+VERSION ""
+
+NS_ :
+  NS_DESC_
+
+BO_ 127 UNK_07F: 8 XXX
+
+BO_ 265 VCU_109: 8 VCU
+ SG_ ParkActuatorRequest : 1|2@1+ (1,0) [0|3] "" XXX
+ SG_ Awake_Maybe : 8|1@0+ (1,0) [0|1] "" XXX
+ SG_ UnkStatus1 : 23|8@0+ (1,0) [0|255] "" XXX
+ SG_ UnkChargeRelated : 31|32@0+ (1,0) [0|4294967295] "" XXX
+ SG_ Checksum : 59|4@0+ (1,0) [0|15] "" XXX
+ SG_ Counter : 60|2@1+ (1,0) [0|3] "" XXX
+
+BO_ 268 SCU_10C: 8 SCU
+ SG_ ParkingActuator : 0|3@1+ (1,0) [0|15] "" XXX
+ SG_ FaultOrUnknown : 7|1@0+ (1,0) [0|1] "" XXX
+ SG_ Busy : 12|1@0+ (1,0) [0|1] "" XXX
+ SG_ UnkConstant : 16|16@1+ (1,0) [0|65535] "" XXX
+ SG_ UnkStatus : 39|8@0+ (1,0) [0|255] "" XXX
+ SG_ StatusOK : 46|1@0+ (1,0) [0|1] "" XXX
+ SG_ StatusFault : 47|1@0+ (1,0) [0|1] "" XXX
+ SG_ UnkConstant2 : 55|8@0+ (1,0) [0|255] "" XXX
+ SG_ Checksum : 56|4@1+ (1,0) [0|15] "" XXX
+ SG_ Counter : 60|2@1+ (1,0) [0|3] "" XXX
+
+BO_ 339 TractionControlFast: 8 IEB
+ SG_ TCS_REQ : 0|1@1+ (1,0) [0|1] "" XXX
+ SG_ MSR_C_REQ : 1|1@1+ (1,0) [0|1] "" XXX
+ SG_ TCS_PAS : 2|1@1+ (1,0) [0|1] "" XXX
+ SG_ TCS_GSC : 3|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Esc_LimoInfo : 4|2@1+ (1,0) [0|3] "" XXX
+ SG_ ABS_DIAG : 6|1@1+ (1,0) [0|1] "" XXX
+ SG_ ABS_DEF : 7|1@1+ (1,0) [0|1] "" XXX
+ SG_ TCS_DEF : 8|1@1+ (1,0) [0|1] "" XXX
+ SG_ TCS_CTL : 9|1@1+ (1,0) [0|1] "" XXX
+ SG_ ABS_ACT : 10|1@1+ (1,0) [0|1] "" XXX
+ SG_ EBD_DEF : 11|1@1+ (1,0) [0|1] "" XXX
+ SG_ ESP_PAS : 12|1@1+ (1,0) [0|1] "" XXX
+ SG_ ESP_DEF : 13|1@1+ (1,0) [0|1] "" XXX
+ SG_ ESP_CTL : 14|1@1+ (1,0) [0|1] "" XXX
+ SG_ TCS_MFRN : 15|1@1+ (1,0) [0|1] "" XXX
+ SG_ DBC_CTL : 16|1@1+ (1,0) [0|1] "" XXX
+ SG_ DBC_PAS : 17|1@1+ (1,0) [0|1] "" XXX
+ SG_ DBC_DEF : 18|1@1+ (1,0) [0|1] "" XXX
+ SG_ HAC_CTL : 19|1@1+ (1,0) [0|1] "" XXX
+ SG_ HAC_PAS : 20|1@1+ (1,0) [0|1] "" XXX
+ SG_ HAC_DEF : 21|1@1+ (1,0) [0|1] "" XXX
+ SG_ ESS_STAT : 22|2@1+ (1,0) [0|3] "" XXX
+ SG_ TQI_TCS : 24|8@1+ (0.390625,0) [0|99.609375] "%" XXX
+ SG_ TQI_MSR : 32|8@1+ (0.390625,0) [0|99.609375] "%" XXX
+ SG_ TQI_SLW_TCS : 40|8@1+ (0.390625,0) [0|99.609375] "%" XXX
+ SG_ CF_Esc_BrkCtl : 48|1@1+ (1,0) [0|1] "" XXX
+ SG_ BLA_CTL : 49|2@1+ (1,0) [0|3] "" XXX
+ SG_ Counter1 : 52|4@1+ (1,0) [0|14] "" XXX
+ SG_ Counter2 : 60|4@1+ (1,0) [0|15] "" XXX
+
+BO_ 512 VCU_200: 8 VCU
+ SG_ RangeAdditionalClimateOff : 0|8@1+ (1,0) [0|255] "" XXX
+ SG_ CURRENT_GEAR : 11|3@1+ (1,0) [0|7] "" XXX
+ SG_ RangeLSB : 15|1@0+ (1,0) [0|1] "km" XXX
+ SG_ Range : 16|8@1+ (2,0) [0|800] "km" XXX
+ SG_ Accel_Pedal_Pos2 : 32|8@1+ (1,0) [0|254] "" XXX
+ SG_ UnkStatus : 40|6@1+ (1,0) [0|63] "" XXX
+ SG_ Counter : 46|2@1+ (1,0) [0|3] "" XXX
+ SG_ Accel_Pedal_Pos3 : 63|8@0+ (1,0) [0|254] "" XXX
+
+BO_ 513 VCU_201: 8 VCU
+ SG_ UnkStatus : 0|6@1+ (1,0) [0|63] "" XXX
+ SG_ Counter1 : 6|2@1+ (1,0) [0|3] "" XXX
+ SG_ Torque_error : 8|16@1- (1,0) [0|255] "rpm" XXX
+ SG_ Torque_desired : 24|16@1- (1,0) [-32768|32767] "" XXX
+ SG_ Regen_maybe : 40|16@1+ (1,0) [0|65535] "" XXX
+ SG_ Unk : 56|8@1+ (1,0) [0|255] "" XXX
+
+BO_ 514 VCU_202: 8 VCU
+ SG_ Torque_desired_unk : 8|12@1- (1,0) [-32768|32767] "" XXX
+ SG_ REGEN_LEVEL : 23|4@0+ (1,0) [0|1] "" XXX
+ SG_ Torque_desired_unk2 : 32|12@1- (1,0) [-32768|32767] "" XXX
+ SG_ UnkMaybeStatus : 56|5@1+ (1,0) [0|31] "" XXX
+ SG_ Counter : 61|2@1+ (1,0) [0|3] "" XXX
+ SG_ UnkStatusBit : 63|1@0+ (1,0) [0|1] "" XXX
+
+BO_ 544 StabilityControl: 8 IEB
+ SG_ LAT_ACCEL : 0|11@1+ (0.01,-10.23) [-10.23|10.24] "m/s^2" XXX
+ SG_ LAT_ACCEL_STAT : 11|1@1+ (1,0) [0|1] "" XXX
+ SG_ LAT_ACCEL_DIAG : 12|1@1+ (1,0) [0|1] "" XXX
+ SG_ LONG_ACCEL : 13|11@1+ (0.01,-10.23) [-10.23|10.24] "m/s^2" XXX
+ SG_ LONG_ACCEL_STAT : 24|1@1+ (1,0) [0|1] "" XXX
+ SG_ LONG_ACCEL_DIAG : 25|1@1+ (1,0) [0|1] "" XXX
+ SG_ CYL_PRES : 26|12@1+ (0.1,0) [0|409.5] "Bar" XXX
+ SG_ CYL_PRES_STAT : 38|1@1+ (1,0) [0|1] "" XXX
+ SG_ CYL_PRESS_DIAG : 39|1@1+ (1,0) [0|1] "" XXX
+ SG_ YAW_RATE : 40|13@1+ (0.01,-40.95) [-40.95|40.96] "" XXX
+ SG_ YAW_RATE_STAT : 53|1@1+ (1,0) [0|1] "" XXX
+ SG_ YAW_RATE_DIAG : 54|1@1+ (1,0) [0|1] "" XXX
+ SG_ Checksum : 56|4@1+ (1,0) [0|15] "" XXX
+ SG_ Counter : 60|4@1+ (1,0) [0|15] "" XXX
+
+BO_ 657 VCU_291: 8 VCU
+ SG_ Power_Unk2 : 0|12@1- (1,0) [-32768|32767] "" XXX
+ SG_ Speed_signed : 16|16@1- (1,0) [-32768|32767] "rpm" XXX
+ SG_ NEW_SIGNAL_1 : 39|8@0+ (1,0) [0|255] "" XXX
+ SG_ NEW_SIGNAL_2 : 47|8@0+ (1,0) [0|255] "" XXX
+ SG_ NEW_SIGNAL_3 : 55|8@0+ (1,0) [0|255] "" XXX
+
+BO_ 673 VCU_2A1: 8 VCU
+
+BO_ 674 IEB_2A2: 8 IEB
+ SG_ HeartBeat : 0|1@0+ (1,0) [0|1] "" XXX
+ SG_ Regen_Maybe : 15|16@0+ (1,0) [0|65535] "" XXX
+ SG_ BrakePedalForce : 24|16@1+ (1,0) [0|65535] "" XXX
+ SG_ BrakeUnknown : 56|8@1+ (1,0) [0|255] "" XXX
+
+BO_ 688 Steering: 5 IGPM
+ SG_ Angle : 0|16@1- (0.1,0) [-3276.8|3276.7] "Deg" XXX
+ SG_ Speed : 16|8@1+ (4,0) [0|1016] "" XXX
+ SG_ Stat : 24|8@1+ (1,0) [0|255] "" XXX
+ SG_ Counter : 32|4@1+ (1,0) [0|15] "" XXX
+ SG_ Checksum : 36|4@1+ (1,0) [0|15] "" XXX
+
+BO_ 817 IEB_331: 8 IEB
+ SG_ BrakeUnknown : 0|8@1+ (1,0) [0|255] "" XXX
+ SG_ WheelSpeed1 : 16|16@1+ (1,0) [0|65535] "" XXX
+ SG_ WheelSpeed2 : 32|16@1+ (1,0) [0|65535] "" XXX
+
+BO_ 819 VCU_333: 8 VCU
+
+BO_ 852 SBW_354: 8 SBW
+ SG_ ButtonPressed1 : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ ButtonPressed2 : 23|8@0+ (1,0) [0|255] "" XXX
+ SG_ Gear_Displayed : 40|8@1+ (1,0) [0|255] "" XXX
+ SG_ Counter : 56|8@1+ (1,0) [0|255] "" XXX
+
+BO_ 902 IEB_386_WHEEL: 8 IEB
+ SG_ WHL_SPD_FL : 0|14@1+ (0.03125,0) [0|511.96875] "km/h" XXX
+ SG_ WHL_SPD_AliveCounter_LSB : 14|2@1+ (1,0) [0|3] "" XXX
+ SG_ WHL_SPD_FR : 16|14@1+ (0.03125,0) [0|511.96875] "km/h" XXX
+ SG_ WHL_SPD_AliveCounter_MSB : 30|2@1+ (1,0) [0|3] "" XXX
+ SG_ WHL_SPD_RL : 32|14@1+ (0.03125,0) [0|511.96875] "km/h" XXX
+ SG_ WHL_SPD_Checksum_LSB : 46|2@1+ (1,0) [0|15] "" XXX
+ SG_ WHL_SPD_RR : 48|14@1+ (0.03125,0) [0|511.96875] "km/h" XXX
+ SG_ WHL_SPD_Checksum_MSB : 62|2@1+ (1,0) [0|15] "" XXX
+
+BO_ 903 IEB_387_WHEEL: 8 IEB
+ SG_ WHL_PUL_FL : 0|8@1+ (1,0) [0|255] "pulse count" XXX
+ SG_ WHL_PUL_FR : 8|8@1+ (1,0) [0|255] "pulse count" XXX
+ SG_ WHL_PUL_RL : 16|8@1+ (1,0) [0|255] "pulse count" XXX
+ SG_ WHL_PUL_RR : 24|8@1+ (1,0) [0|255] "pulse count" XXX
+ SG_ WHL_PUL_Chksum : 40|8@1+ (1,0) [0|255] "" XXX
+ SG_ AliveCounterWHL_PUL : 48|4@1+ (1,0) [0|14] "" XXX
+
+BO_ 916 TractionControlMed: 8 IEB
+ SG_ aBasis : 0|11@1+ (0.01,-10.23) [-10.23|10.24] "m/s^2" XXX
+ SG_ BrakeLight : 11|1@1+ (1,0) [0|1] "" XXX
+ SG_ DCEnable : 12|1@1+ (1,0) [0|1] "" XXX
+ SG_ Counter : 13|3@1+ (1,0) [0|7] "" XXX
+ SG_ Pre_TCS_CTL : 16|1@1+ (1,0) [0|1] "" XXX
+ SG_ EBA_ACK : 17|1@1+ (1,0) [0|1] "" XXX
+ SG_ FCA_ACK : 18|1@1+ (1,0) [0|1] "" XXX
+ SG_ DF_BF_STAT : 19|2@1+ (1,0) [0|3] "" XXX
+ SG_ SCCReqLim : 22|2@1+ (1,0) [0|3] "" XXX
+ SG_ TQI_SCC : 24|8@1+ (0.390625,0) [0|199.609375] "%" XXX
+ SG_ ACCEL_REF_ACC : 32|11@1+ (0.01,-10.23) [-10.23|10.24] "m/s^2" XXX
+ SG_ DriverOverride : 45|2@1+ (1,0) [0|3] "" XXX
+ SG_ StandStill : 47|1@1+ (1,0) [0|1] "" XXX
+ SG_ Checksum : 48|4@1+ (1,0) [0|15] "" XXX
+ SG_ ACC_EQUIP : 52|1@1+ (1,0) [0|1] "" XXX
+ SG_ PBRAKE_ACT : 53|1@1+ (1,0) [0|1] "" XXX
+ SG_ ACC_REQ : 54|1@1+ (1,0) [0|1] "" XXX
+ SG_ DriverBraking : 55|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_VSM_Coded : 56|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_VSM_Avail : 57|2@1+ (1,0) [0|3] "" XXX
+ SG_ CF_VSM_Handshake : 59|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_DriBkeStat : 60|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_VSM_ConfSwi : 61|2@1+ (1,0) [0|3] "" XXX
+ SG_ AEB_EQUIP : 63|1@1+ (1,0) [0|1] "" XXX
+
+BO_ 1014 BMS_3F6: 8 BMS
+
+BO_ 1042 UNK_412: 8 XXX
+
+BO_ 1044 ChargeSettings: 8 IGPM
+ SG_ ACChargingCurrent : 0|8@1+ (1,0) [0|255] "" XXX
+
+BO_ 1104 CGW_450: 3 IGPM
+ SG_ Speed : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ UNK_MAYBE_CRUISE_BUTTONS : 15|16@0+ (1,0) [0|65535] "" XXX
+
+BO_ 1115 VCU_45B: 8 VCU
+ SG_ UNK_CLIMATE_DRIVE_MODE : 0|16@1+ (1,0) [0|65535] "" XXX
+
+BO_ 1116 UNK_45C: 8 XXX
+
+BO_ 1117 CGW_45D: 8 IGPM
+
+BO_ 1118 CGW_45E: 8 IGPM
+
+BO_ 1122 CGW_462: 8 IGPM
+ SG_ SometimesCounter : 32|4@1+ (1,0) [0|15] "" XXX
+
+BO_ 1137 UNK_471: 6 XXX
+ SG_ Maybezeroes : 40|2@1+ (1,0) [0|3] "" XXX
+ SG_ Counter : 42|4@1+ (1,0) [0|15] "" XXX
+ SG_ MaybeCounter : 46|2@1+ (1,0) [0|3] "" XXX
+
+BO_ 1148 OBC_47C: 8 OBC
+ SG_ ACCurrentRelated2 : 63|8@0+ (1,0) [0|255] "" XXX
+
+BO_ 1168 ParkingBrake: 8 IEB
+ SG_ EPB_I_LAMP : 0|4@1+ (1,0) [0|15] "" XXX
+ SG_ EPB_F_LAMP : 4|2@1+ (1,0) [0|3] "" XXX
+ SG_ EPB_ALARM : 6|2@1+ (1,0) [0|3] "" XXX
+ SG_ EPB_CLU : 8|8@1+ (1,0) [0|255] "" XXX
+ SG_ EPB_SWITCH : 16|2@1+ (1,0) [0|3] "" XXX
+ SG_ EPB_RBL : 18|1@1+ (1,0) [0|1] "" XXX
+ SG_ EPB_STATUS : 19|3@1+ (1,0) [0|7] "" XXX
+ SG_ EPB_FRC_ERR : 22|2@1+ (1,0) [0|3] "" XXX
+ SG_ EPB_DBF_STAT : 24|1@1+ (1,0) [0|1] "" XXX
+ SG_ ESP_ACK : 25|1@1+ (1,0) [0|1] "" XXX
+ SG_ EPB_DBF_REQ : 26|1@1+ (1,0) [0|1] "" XXX
+ SG_ EPB_FAIL : 29|3@1+ (1,0) [0|7] "" XXX
+ SG_ EPB_FORCE : 32|12@1+ (1,-1000) [-1000|3000] "" XXX
+ SG_ EPB_DBF_DECEL : 48|8@1+ (0.01,0) [0|2.54] "g" XXX
+
+BO_ 1169 BMS_491: 8 BMS
+
+BO_ 1171 BMS_493: 8 BMS
+
+BO_ 1175 BMS_497: 8 BMS
+ SG_ Unknown : 0|8@1+ (1,0) [0|255] "" XXX
+
+BO_ 1176 BMS_498: 8 BMS
+
+BO_ 1245 BMS_4DD: 8 BMS
+
+BO_ 1246 BMS_4DE: 8 BMS
+
+BO_ 1250 BMS_4E2: 8 BMS
+ SG_ UNK_1 : 16|16@1+ (1,0) [0|65535] "" XXX
+
+BO_ 1252 EWP_BMS_4E4: 8 EWP_BMS
+
+BO_ 1262 OBC_4EE: 8 OBC
+
+BO_ 1278 CGW_4FE: 8 IGPM
+ SG_ UnknownBit : 16|1@0+ (1,0) [0|1] "" XXX
+
+BO_ 1287 IEB_507_TCS: 4 IEB
+ SG_ ABS_W_LAMP : 0|1@1+ (1,0) [0|1] "" XXX
+ SG_ TCS_OFF_LAMP : 1|2@1+ (1,0) [0|1] "" XXX
+ SG_ TCS_LAMP : 3|2@1+ (1,0) [0|3] "" XXX
+ SG_ DBC_W_LAMP : 5|1@1+ (1,0) [0|1] "" XXX
+ SG_ DBC_F_LAMP : 6|2@1+ (1,0) [0|3] "" XXX
+ SG_ ESC_Off_Step : 8|2@1+ (1,0) [0|3] "" XXX
+ SG_ AVH_CLU : 16|8@1+ (1,0) [0|255] "" XXX
+ SG_ AVH_I_LAMP : 24|2@1+ (1,0) [0|3] "" XXX
+ SG_ EBD_W_LAMP : 26|1@1+ (1,0) [0|1] "" XXX
+ SG_ AVH_ALARM : 27|2@1+ (1,0) [0|3] "" XXX
+ SG_ AVH_LAMP : 29|3@1+ (1,0) [0|7] "" XXX
+
+BO_ 1293 UNK_50D: 8 XXX
+ SG_ UnknownBit : 27|1@0+ (1,0) [0|1] "" XXX
+ SG_ Counter10s : 32|16@1+ (1,0) [0|65535] "" XXX
+
+BO_ 1294 UNK_50E: 8 XXX
+
+BO_ 1312 UNK_520: 8 XXX
+ SG_ StartIndicator : 22|1@0+ (1,0) [0|1] "" XXX
+
+BO_ 1315 InverterTemp: 8 VCU
+ SG_ uwe523_0 : 0|8@1+ (1,0) [0|255] "" XXX
+ SG_ TempIn : 16|8@1+ (1,-40) [-40|215] "°C" XXX
+ SG_ TempFast1 : 24|8@1+ (1,-40) [-40|215] "°C" XXX
+ SG_ TempFast2 : 32|8@1+ (1,-40) [-40|215] "°C" XXX
+ SG_ TempSlow : 40|8@1+ (1,-40) [-40|215] "°C" XXX
+ SG_ CoolingPump : 48|8@1+ (1,0) [0|255] "%" XXX
+
+BO_ 1316 InverterStatus: 8 VCU
+ SG_ V_Inverter : 0|16@1+ (1,0) [0|511] "" XXX
+ SG_ Speed_abs : 23|16@0+ (0.25,0) [0|65535] "rpm" XXX
+ SG_ Speed_desired_unk : 32|12@1- (1,0) [-32768|32767] "" XXX
+ SG_ Power : 48|16@1- (1,0) [-32768|32767] "" XXX
+
+BO_ 1321 VCU_529: 8 VCU
+
+BO_ 1344 VCU_540: 8 VCU
+ SG_ uwe540_01 : 0|12@1+ (1,0) [0|65535] "" XXX
+ SG_ uwe540_23 : 16|16@1+ (1,0) [0|65535] "" XXX
+ SG_ Torque_actual : 32|16@1+ (1,0) [0|65535] "" XXX
+ SG_ Unk_Increases : 55|8@0+ (1,0) [0|255] "" XXX
+
+BO_ 1345 BodyState: 8 IGPM
+ SG_ IgnitionSw : 0|3@1+ (1,0) [0|7] "" XXX
+ SG_ CF_Gway_RKECmd : 3|3@1+ (1,0) [0|7] "" XXX
+ SG_ CF_Gway_DrvKeyLockSw : 6|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_DrvKeyUnlockSw : 7|1@1+ (1,0) [0|1] "" XXX
+ SG_ DrvDoorSw : 8|2@1+ (1,0) [0|3] "" XXX
+ SG_ DrvSeatBeltSw : 10|2@1+ (1,0) [0|3] "" XXX
+ SG_ CF_Gway_TrunkTgSw : 12|2@1+ (1,0) [0|3] "" XXX
+ SG_ CF_Gway_AstSeatBeltSw : 14|2@1+ (1,0) [0|3] "" XXX
+ SG_ CF_Gway_SMKOption : 16|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_HoodSw : 17|2@1+ (1,0) [0|3] "" XXX
+ SG_ CF_Gway_TurnSigLh : 19|2@1+ (1,0) [0|3] "" XXX
+ SG_ CF_Gway_WiperIntT : 21|3@1+ (1,0) [0|7] "" XXX
+ SG_ CF_Gway_WiperIntSw : 24|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_WiperLowSw : 25|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_WiperHighSw : 26|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_WiperAutoSw : 27|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_RainSnsState : 28|3@1+ (1,0) [0|7] "" XXX
+ SG_ CF_Gway_HeadLampLow : 31|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_HeadLampHigh : 32|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_HazardSw : 33|2@1+ (1,0) [0|3] "" XXX
+ SG_ PassDoorSw : 35|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_DefoggerRly : 36|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_ALightStat : 37|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_LightSwState : 38|2@1+ (1,0) [0|3] "" XXX
+ SG_ CF_Gway_Frt_Fog_Act : 40|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_TSigRHSw : 41|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_TSigLHSw : 42|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_DriveTypeOption : 43|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_StarterRlyState : 44|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_PassiveAccessLock : 45|2@1+ (1,0) [0|7] "" XXX
+ SG_ CF_Gway_WiperMistSw : 47|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_PassiveAccessUnlock : 48|2@1+ (1,0) [0|7] "" XXX
+ SG_ CF_Gway_RrSunRoofOpenState : 50|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_PassingSW : 51|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_HBAControlMode : 52|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_HLpHighSw : 53|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_InhibitRMT : 54|2@1+ (1,0) [0|3] "" XXX
+ SG_ CF_Gway_RainSnsOption : 56|1@1+ (1,0) [0|1] "" XXX
+ SG_ C_SunRoofOpenState : 57|1@1+ (1,0) [0|1] "" XXX
+ SG_ Ign1 : 58|1@1+ (1,0) [0|1] "" XXX
+ SG_ Ign2 : 59|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_ParkBrakeSw : 60|2@1+ (1,0) [0|3] "" XXX
+ SG_ CF_Gway_TurnSigRh : 62|2@1+ (1,0) [0|3] "" XXX
+
+BO_ 1346 BMS_542: 8 BMS
+ SG_ SocDisp : 0|8@1+ (0.5,0) [0|100] "%" XXX
+ SG_ uwe542_12_Backcounter : 8|16@1+ (1,0) [0|65535] "" XXX
+ SG_ unkCurrentRelated : 40|8@1+ (1,0) [0|255] "" XXX
+ SG_ uwe542_78_UCCS : 48|16@1+ (0.1,0) [0|500] "V" XXX
+
+BO_ 1353 TwelveVolt_Battery_INCORRECT: 8 VCU_MAYBE
+ SG_ BAT_SNSR_I : 0|16@1+ (0.01,-327) [-327|328] "A" XXX
+ SG_ BAT_SOC : 16|8@1+ (1,0) [0|100] "%" XXX
+ SG_ V_BAT_SNSR : 24|14@1+ (0.001,6) [6|18] "V" XXX
+ SG_ BAT_SNSR_Temp : 38|9@1- (0.5,-40) [-40|125] "deg" XXX
+ SG_ BAT_SNSR_State : 47|1@1+ (1,0) [0|1] "" XXX
+ SG_ BAT_SOH : 48|7@1+ (1,0) [0|100] "%" XXX
+ SG_ BAT_SNSR_Invalid : 55|1@1+ (1,0) [0|1] "" XXX
+ SG_ BAT_SOF : 56|7@1+ (0.1,0) [0|12] "V" XXX
+ SG_ BAT_SNSR_Error : 63|1@1+ (1,0) [0|1] "" XXX
+
+BO_ 1363 BodyWarnings: 8 IGPM
+ SG_ CF_Gway_GwayDiagState : 0|1@1+ (1,0) [0|3] "" XXX
+ SG_ CF_Gway_DDMDiagState : 1|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_SCMDiagState : 2|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_PSMDiagState : 3|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_SJBDiagState : 4|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_IPMDiagState : 5|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_LDMFail : 6|2@1+ (1,0) [0|3] "" XXX
+ SG_ CF_Gway_CLUSwGuiCtrl : 10|3@1+ (1,0) [0|63] "" XXX
+ SG_ CF_Gway_CLUSwGroup : 13|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_CLUSwMode : 14|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_CLUSwEnter : 15|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_AutoLightValue : 16|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_BrakeFluidSw : 17|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_DrvSeatBeltInd : 18|2@1+ (1,0) [0|3] "" XXX
+ SG_ CF_Gway_AvTail : 20|1@1+ (1,0) [0|3] "" XXX
+ SG_ CF_Gway_RearFogAct : 21|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_ExtTailAct : 22|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_RRDrSw : 23|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_RLDrSw : 24|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_IntTailAct : 25|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_CountryCfg : 26|3@1+ (1,0) [0|7] "" XXX
+ SG_ CF_Gway_WiperParkPosition : 32|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_HLLowLHFail : 33|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_HLLowRHFail : 34|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_ESCLFailWarn : 35|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_ESCLNotLockedWarn : 36|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_ESCLNotUnlockWarn : 37|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_IDoutWarn : 38|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_ImmoLp : 40|1@1+ (1,0) [0|3] "" XXX
+ SG_ CF_Gway_BCMRKEID : 41|3@1+ (1,0) [0|7] "" XXX
+ SG_ CF_Gway_VehicleNotPWarn : 44|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_DeactivationWarn : 45|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_KeyBATDischargeWarn : 46|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_SSBWarn : 47|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_SMKFobID : 48|3@1+ (1,0) [0|7] "" XXX
+ SG_ CF_Gway_SMKRKECmd : 51|3@1+ (1,0) [0|7] "" XXX
+ SG_ CF_Gway_AutoLightOption : 54|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_SJBDeliveryMode : 55|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_KeyoutLp : 56|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Gway_SMKDispWarn : 57|4@1+ (1,0) [0|15] "" XXX
+ SG_ CF_Gway_WngBuz : 61|3@1+ (1,0) [0|7] "" XXX
+
+BO_ 1369 UNK_559: 8 XXX
+ SG_ UnkBit : 14|1@0+ (1,0) [0|1] "" XXX
+
+BO_ 1372 CGW_55C: 8 IGPM
+
+BO_ 1375 CGW_55F: 8 IGPM
+
+BO_ 1377 CGW_561: 8 IGPM
+
+BO_ 1378 UpdateChargeSettings: 8 NAVI
+ SG_ SetChargeCurrent : 15|8@0+ (1,0) [0|255] "" XXX
+ SG_ SetACChargeLimit : 32|8@1+ (0.5,0) [0|255] "%" XXX
+ SG_ SetDCChargeLimit : 47|8@0+ (0.5,0) [0|255] "%" XXX
+
+BO_ 1383 Clock: 8 IGPM
+ SG_ Unknown : 0|8@1+ (1,0) [0|255] "" XXX
+ SG_ Hour : 8|8@1+ (1,0) [0|23] "" XXX
+ SG_ Minute : 16|6@1+ (1,0) [0|59] "" XXX
+ SG_ Second : 24|8@1+ (1,0) [0|59] "" XXX
+ SG_ Valid : 32|8@1- (1,0) [0|1] "" XXX
+
+BO_ 1392 EWP_ER_570: 8 EWP_ER
+
+BO_ 1400 CGW_578: 6 IGPM
+ SG_ FaultMaybe : 15|8@0+ (1,0) [0|255] "" XXX
+ SG_ NaviRequest1 : 31|8@0+ (1,0) [0|255] "" XXX
+ SG_ UnkStatus : 39|8@0+ (1,0) [0|255] "" XXX
+ SG_ DriveModeChange : 47|1@0+ (1,0) [0|1] "" XXX
+
+BO_ 1401 VCU_579: 8 VCU
+
+BO_ 1402 VCU_57A: 8 VCU
+
+BO_ 1403 VCU_57B: 8 VCU
+ SG_ DriverErrorMaybe : 39|8@0+ (1,0) [0|255] "" XXX
+
+BO_ 1407 HU_MON_PE_01: 8 OBC
+ SG_ HU_Type : 0|8@1+ (1,0) [0|255] "" XXX
+
+BO_ 1409 ACChargeStatus: 8 OBC
+ SG_ I_AC : 0|16@1+ (0.01,0) [0|65535] "A" XXX
+ SG_ V_AC : 16|16@1+ (0.1,0) [0|65535] "V" XXX
+ SG_ UnkReadback : 32|16@1+ (1,0) [0|65535] "" XXX
+ SG_ Power_AC : 48|16@1+ (3.90625,0) [0|65535] "W" XXX
+
+BO_ 1412 AAF_584: 8 AAF
+ SG_ CF_Aaf_ActFlapStatus : 0|2@1+ (1,0) [0|3] "" XXX
+ SG_ CF_Aaf_ModeStatus : 2|3@1+ (1,0) [0|7] "" XXX
+ SG_ CF_Aaf_WrnLamp : 5|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Aaf_ErrStatus : 6|10@1+ (1,0) [0|1023] "" XXX
+ SG_ CF_Aaf_OpenRqSysAct : 16|8@1+ (1,0) [0|255] "" XXX
+ SG_ CF_Aaf_PStatus : 24|8@1+ (1,0) [0|100] "%" XXX
+ SG_ CF_Aaf_OpenRqSysSol : 32|8@1+ (1,0) [0|255] "" XXX
+ SG_ CF_Aaf_SolFlapStatus : 40|2@1+ (1,0) [0|3] "" XXX
+ SG_ CF_Aaf_MilOnReq : 42|1@1+ (1,0) [0|1] "" XXX
+
+BO_ 1416 CGW_588: 8 IGPM
+ SG_ Unk0 : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ Unk1 : 15|8@0+ (1,0) [0|255] "" XXX
+ SG_ Unk2 : 23|8@0+ (1,0) [0|255] "" XXX
+
+BO_ 1422 OBC_58E: 8 OBC
+ SG_ AlarmMaybe : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ ChargeStatusMaybe : 8|8@1+ (1,0) [0|255] "" XXX
+ SG_ ACCurrentPossible : 23|8@0+ (0.5,0) [0|255] "" XXX
+ SG_ PortLocked : 32|1@0+ (1,0) [0|1] "" XXX
+ SG_ PortUnlockReq : 33|1@0+ (1,0) [0|1] "" XXX
+ SG_ PortLockReq : 34|1@0+ (1,0) [0|1] "" XXX
+ SG_ EVSEDisconnected : 35|1@0+ (1,0) [0|1] "" XXX
+ SG_ EVSEDetected : 36|1@0+ (1,0) [0|1] "" XXX
+ SG_ PortLockSetting : 37|1@0+ (1,0) [0|1] "" XXX
+
+BO_ 1423 VCU_58F: 8 VCU
+ SG_ Unk_Status : 43|4@0+ (1,0) [0|15] "" XXX
+
+BO_ 1424 VCU_590: 8 VCU
+
+BO_ 1426 VCU_592: 8 VCU
+ SG_ MaybeTotalDrivingPower : 23|8@0+ (1,0) [0|255] "" XXX
+ SG_ MaybeClimateConsumption : 31|8@0+ (1,0) [0|255] "" XXX
+ SG_ CC_React : 34|1@1+ (1,0) [0|1] "" XXX
+ SG_ Movement_related_unk2 : 55|8@0+ (1,0) [0|255] "" XXX
+ SG_ Unk_Status : 56|4@1+ (1,0) [0|15] "" XXX
+ SG_ Counter : 62|2@1+ (1,0) [0|3] "" XXX
+
+BO_ 1427 UNK_593: 6 XXX
+ SG_ Unknown1 : 0|8@1+ (1,0) [0|255] "" XXX
+ SG_ Unknown2 : 8|8@1+ (1,0) [0|255] "" XXX
+ SG_ Unknown3 : 23|32@0+ (1,0) [0|4294967295] "" XXX
+
+BO_ 1428 BatteryLimits: 8 BMS
+ SG_ ChargeAvailable : 0|16@1+ (0.01,0) [0|65535] "kW" XXX
+ SG_ DischargeAvailable : 16|16@1+ (0.01,0) [0|65535] "kW" XXX
+ SG_ SoC_Maybe : 47|8@0+ (0.5,0) [0|255] "%" XXX
+ SG_ SoC_Fraction : 48|3@1+ (0.1,0) [0|7] "%" XXX
+
+BO_ 1429 Batt_HV_Status: 8 BMS
+ SG_ PrechargeRelay : 8|1@0+ (1,0) [0|1] "" XXX
+ SG_ ACChargerDetected : 9|1@0+ (1,0) [0|1] "" XXX
+ SG_ DCFastChargerDetected : 10|1@0+ (1,0) [0|1] "" XXX
+ SG_ ACChargingTransient : 11|1@0+ (1,0) [0|1] "" XXX
+ SG_ IBatt : 32|16@1- (0.1,0) [-1000|1000] "A" XXX
+ SG_ VBatt : 48|16@1+ (0.1,0) [0|500] "V" XXX
+
+BO_ 1430 BatteryCharging: 8 BMS
+ SG_ Voltage_12V : 8|8@1+ (0.1,0) [0|25] "V" XXX
+ SG_ uwe596_2_remainingChTAC : 16|16@1+ (1,0) [0|65535] "min" XXX
+ SG_ uwe596_4_remainingChTDC : 32|8@1+ (1,0) [0|255] "min" XXX
+ SG_ uwe596_6_TAkkuL : 48|8@1+ (1,0) [0|255] "°C" XXX
+ SG_ uwe596_7_TAkkuH : 56|8@1+ (1,0) [0|255] "°C" XXX
+
+BO_ 1431 BMS_597: 8 BMS
+ SG_ Active : 2|1@0+ (1,0) [0|1] "" XXX
+ SG_ AliveCounterBit : 7|1@0+ (1,0) [0|1] "" XXX
+ SG_ NEW_SIGNAL_1 : 8|16@1+ (1,0) [0|65535] "" XXX
+ SG_ UNK_STATUS_BITS : 56|8@1+ (1,0) [0|255] "" XXX
+
+BO_ 1432 BMS_598: 8 BMS
+
+BO_ 1433 BMS_599: 8 BMS
+ SG_ UNK : 7|16@0+ (1,0) [0|65535] "" XXX
+ SG_ STATE_OF_CHARGE : 16|8@1+ (1,0) [0|255] "" XXX
+ SG_ CCS_COMMS_TRIGGER : 56|1@1+ (1,0) [0|3] "" XXX
+ SG_ ChargeTrigger : 57|1@0+ (1,0) [0|1] "" XXX
+ SG_ ChargeEndAck : 63|1@0+ (1,0) [0|1] "" XXX
+
+BO_ 1436 UNK_59C: 8 XXX
+ SG_ unk_changerelated : 24|16@1+ (1,0) [0|65535] "" XXX
+
+BO_ 1438 BMS_59E: 8 BMS
+ SG_ UNK_U_HV : 39|8@0+ (1,0) [0|255] "" XXX
+
+BO_ 1440 AirbagStatus: 8 ACU
+ SG_ CF_Ods_SNRcv : 1|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Ods_IDRcv : 2|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Ods_RZReq : 4|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Abg_DepInhEnt : 6|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Abg_DepEnt : 7|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_PasBkl_FltStat : 28|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_DriBkl_FltStat : 29|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_PasBkl_Stat : 30|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_DriBkl_Stat : 31|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_SWL_Ind : 32|2@1+ (1,0) [0|3] "" XXX
+ SG_ CF_Acu_FltStat : 34|2@1+ (1,0) [0|3] "" XXX
+ SG_ CF_Acu_ExtOfSab : 36|2@1+ (1,0) [0|3] "" XXX
+ SG_ CF_Acu_Dtc : 40|16@1+ (1,0) [0|65535] "" XXX
+ SG_ CF_Acu_NumOfFlt : 56|8@1+ (1,0) [0|255] "" XXX
+
+BO_ 1443 BMS_5A3: 8 BMS
+ SG_ UnkStatus : 0|4@1+ (1,0) [0|15] "" XXX
+ SG_ FastChargeRelayClosed : 5|1@0+ (1,0) [0|1] "" XXX
+ SG_ ContactorClosed : 6|1@0+ (1,0) [0|1] "" XXX
+ SG_ ACChargeLimit : 32|16@1+ (0.003,0) [0|65535] "%" XXX
+ SG_ DCChargeLimit : 48|16@1+ (0.003,0) [0|65535] "%" XXX
+
+BO_ 1459 CGW_5B3: 8 IGPM
+ SG_ UnkPowerRelated : 4|4@1+ (1,0) [0|15] "" XXX
+ SG_ Unknown2 : 8|8@1+ (1,0) [0|255] "" XXX
+ SG_ Unknown3 : 16|8@1+ (1,0) [0|255] "" XXX
+ SG_ PowerState : 31|4@0+ (1,0) [0|15] "" XXX
+
+BO_ 1482 UNK_5CA: 8 XXX
+
+BO_ 1483 ClimateStatus_5CB: 8 FATC
+ SG_ Setpoint : 7|8@0+ (0.5,14) [14|27] "C" XXX
+ SG_ SetpointDup : 15|8@0+ (0.5,14) [14|27] "C" XXX
+
+BO_ 1484 FATC_5CC: 8 FATC
+
+BO_ 1488 Odometer: 8 IGPM
+ SG_ Odometer : 0|24@1+ (0.1,0) [0|800000] "km" XXX
+
+BO_ 1491 CGW_HU_DATC_PE_00: 8 IGPM
+ SG_ HU_VRActivity : 0|2@1+ (1,0) [0|3] "" XXX
+ SG_ HU_PhoneActivity : 2|2@1+ (1,0) [0|3] "" XXX
+ SG_ BlowerNoiseControl : 4|2@1+ (1,0) [0|3] "" XXX
+
+BO_ 1493 BMS_5D5: 8 BMS
+
+BO_ 1494 BMS_5D6: 8 BMS
+ SG_ uwe5D6_UBatt_inv : 0|16@1- (0.1,0) [0|0] "V" XXX
+ SG_ IBatt : 16|16@1+ (0.1,0) [0|65535] "" XXX
+
+BO_ 1495 BMS_5D7: 8 BMS
+ SG_ UNK_ChargeRelated1 : 0|8@1+ (1,0) [0|255] "" XXX
+ SG_ UNK_ChargeRelated2 : 8|8@1+ (1,0) [0|255] "" XXX
+ SG_ UNK_ChargeRelated3 : 23|16@0+ (1,0) [0|65535] "" XXX
+
+BO_ 1496 BMS_5D8: 8 BMS
+ SG_ UnkContactorRelated : 0|8@1+ (1,0) [0|255] "" XXX
+
+BO_ 1497 VCU_5D9: 8 VCU
+ SG_ NEW_SIGNAL_1 : 8|9@1+ (1,0) [0|255] "" XXX
+ SG_ NEW_SIGNAL_2 : 17|2@1+ (1,0) [0|3] "" XXX
+ SG_ Counter_Charging : 63|8@0+ (1,0) [0|255] "" XXX
+
+BO_ 1500 VCU_5DC: 8 VCU
+ SG_ Speed_signed_slow : 0|16@1- (1,0) [-32768|32767] "rpm" XXX
+ SG_ Speed_desired_slow_maybe : 24|8@1- (1,0) [-128|127] "" XXX
+ SG_ UNK : 40|16@1+ (1,0) [0|65535] "" XXX
+
+BO_ 1502 VCU_5DE: 8 VCU
+ SG_ NEW_SIGNAL_3 : 23|8@0+ (1,0) [0|255] "" XXX
+ SG_ NEW_SIGNAL_4 : 31|8@0+ (1,0) [0|255] "" XXX
+ SG_ NEW_SIGNAL_1 : 47|8@0+ (1,0) [0|255] "" XXX
+ SG_ TracksSpeed_UNK : 55|8@0+ (1,0) [0|255] "" XXX
+
+BO_ 1503 CGW_5DF: 8 IGPM
+ SG_ NEW_SIGNAL_1 : 7|8@0+ (1,0) [0|255] "" XXX
+
+BO_ 1507 Heartbeat: 8 VESS
+
+BO_ 1509 CCM_5E5: 8 CCM
+ SG_ CCM_PresentVoltage : 32|16@1- (0.1,0) [0|500] "" XXX
+ SG_ CCM_PresentCurrent : 48|16@1- (0.1,0) [0|1000] "" XXX
+
+BO_ 1510 CCM_5E6: 8 CCM
+ SG_ CCM_CCS_TCP_connected : 0|1@1+ (1,0) [0|1] "" XXX
+ SG_ CCM_CCS_ended : 1|1@1+ (1,0) [0|1] "" XXX
+
+BO_ 1512 CCM_5E8: 8 CCM
+
+BO_ 1513 CCM_5E9: 8 CCM
+ SG_ CCM_togglebit : 0|1@1+ (1,0) [0|1] "" XXX
+ SG_ CCM_ChargeProgess : 1|7@1+ (1,0) [0|127] "" XXX
+
+BO_ 1516 ChargePort: 8 IGPM
+ SG_ ChargePortLocked : 0|1@0+ (1,0) [0|1] "" XXX
+ SG_ UnkStatus1 : 3|1@0+ (1,0) [0|1] "" XXX
+ SG_ UnkStatus2 : 4|1@0+ (1,0) [0|1] "" XXX
+ SG_ MaybePassengerSeatOccupied : 26|1@0+ (1,0) [0|1] "" XXX
+
+BO_ 1525 FATC_5F5: 64 FATC
+ SG_ UnkDoesntChange : 13|6@0+ (1,0) [0|63] "" XXX
+ SG_ CompressorPower : 14|10@1+ (10,1) [0|1023] "W" XXX
+ SG_ Counter1 : 32|4@1+ (1,0) [0|15] "" XXX
+ SG_ Counter2 : 59|4@0+ (1,0) [0|15] "" XXX
+
+BO_ 1526 FATC_5F6: 8 FATC
+ SG_ Unk : 0|8@1+ (1,0) [0|255] "" XXX
+ SG_ Unk_Status : 8|4@1+ (1,0) [0|15] "" XXX
+ SG_ UnkDoesntChange : 48|6@1+ (1,0) [0|63] "" XXX
+ SG_ HeaterPower : 54|10@1+ (10,0) [0|1023] "W" XXX
+
+BO_ 1527 FATC_5F7: 8 FATC
+ SG_ uwe5F7_0 : 0|8@1+ (1,0) [0|255] "" XXX
+ SG_ uwe5F7_1 : 8|8@1+ (1,0) [0|255] "" XXX
+ SG_ uwe5F7_2 : 16|8@1+ (1,0) [0|255] "" XXX
+ SG_ uwe5F7_3 : 24|8@1+ (1,0) [0|255] "" XXX
+ SG_ uwe5F7_4 : 32|8@1+ (1,0) [0|255] "" XXX
+ SG_ uwe5F7_5 : 40|8@1+ (1,0) [0|255] "" XXX
+ SG_ uwe5F7_6 : 48|8@1+ (1,0) [0|255] "" XXX
+ SG_ uwe5F7_7 : 56|8@1+ (1,0) [0|255] "" XXX
+
+BO_ 1528 FATC_5F8: 8 FATC
+ SG_ uwe5F8_0 : 0|8@1+ (1,0) [0|255] "" XXX
+ SG_ uwe5F8_1 : 8|8@1+ (1,0) [0|255] "" XXX
+ SG_ uwe5F8_2 : 16|8@1+ (1,0) [0|255] "" XXX
+ SG_ uwe5F8_3 : 24|8@1+ (1,0) [0|255] "" XXX
+ SG_ uwe5F8_4 : 32|8@1+ (1,0) [0|255] "" XXX
+ SG_ uwe5F8_5_ClimateTTarget : 40|8@1+ (0.5,-40) [-40|87.5] "" XXX
+ SG_ uwe5F8_6_ClimateTFreezer : 48|8@1+ (0.5,-40) [-40|87.5] "°C" XXX
+ SG_ uwe5F8_7_ClimateTInside : 56|8@1+ (0.5,-40) [-40|87.5] "" XXX
+
+BO_ 1529 FATC_5F9: 8 FATC
+
+CM_ BO_ 127 "Only seen on 2021 car. 1Hz.
+
+All zeroes except sometimes one bit is set. Heartbeat with some kind of indicator status?";
+CM_ BO_ 265 "100Hz message. On when IG3 is powered.
+
+Most bytes in this message don't seem to change often, except for some transient situations: gear changes (parking request bits), scheduled charging(?), and when the motor accelerates unloaded...";
+CM_ SG_ 265 ParkActuatorRequest "Directions to SCU to lock or unlock parking actuator. Correspond to the Park RX PWM signal duty.";
+CM_ SG_ 265 Awake_Maybe "Goes to zero just before vehicle goes to sleep?";
+CM_ SG_ 265 UnkStatus1 "Has value FD often (maybe when Ready?), sometimes transient value FC, but  hasmany other values only during the 'wheels off the ground' tests!";
+CM_ SG_ 265 UnkChargeRelated "These bytes seem to only take different values when scheduled charging is set, or maybe during AC charging generally on the 2019 model...?";
+CM_ SG_ 265 Checksum "Sum of all other nibbles in the message";
+CM_ BO_ 268 "100Hz when IG3 is powered.";
+CM_ SG_ 268 ParkingActuator "Logs only show the discrete values in the value table. May be bits or enums.";
+CM_ SG_ 268 FaultOrUnknown "Possibly this is an 8-bit field, but splitting out this flag makes it easier to graph...";
+CM_ SG_ 268 Busy "Only bit in this byte observed to be set. Set while the actuator is moving.";
+CM_ SG_ 268 UnkConstant "Same value in all logs";
+CM_ SG_ 268 UnkStatus "Observed to be 0x15 during normal operation, sometimes 0x25 usually during abnormal operation";
+CM_ SG_ 268 StatusOK "Seems to be set normally and cleared if StatusFault is set";
+CM_ SG_ 268 StatusFault "Bit seems to be set when there's a fault detected";
+CM_ SG_ 268 UnkConstant2 "Same value in all logs";
+CM_ SG_ 268 Checksum "Sum of all nibbles in the message";
+CM_ BO_ 339 "10Hz. TCS11 in other DBC Files. Appears  on PCAN, CCAN.";
+CM_ SG_ 339 Counter1 "Incrementing counter skips 0xF";
+CM_ SG_ 339 Counter2 "This counter skips value 9. Updates same frequency but out of phase with Counter1 (offset seems to vary from run to run but stays constant while module is on.)";
+CM_ BO_ 512 "100Hz. Present when IG3 powered.";
+CM_ SG_ 512 RangeAdditionalClimateOff "On Kia Soul this is apparently the extra range if climate control is off. Unconfirmed for Kona.";
+CM_ SG_ 512 RangeLSB "Add to 'range' to get the total range (not sure if can represent as one DBC field?)";
+CM_ SG_ 512 UnkStatus "Status bits, maybe? 0x3b for Ready, briefly 0x7b when going into Ready?";
+CM_ BO_ 513 "100Hz. Present when IG3 powered.
+
+This message has a bunch of signals that do counter-like things when the motor is turning and all zero otherwise";
+CM_ SG_ 513 Torque_error "Ofte (not always) the difference between Speed_desired and the actual motor speed in VCU_291. Maps TorqueReqest_maybe in VCU 540 closely.";
+CM_ BO_ 514 "100Hz. Present when IG3 powered.";
+CM_ SG_ 514 UnkMaybeStatus "This might be a discrete value or a set of status bits";
+CM_ SG_ 514 UnkStatusBit "Status bit, unknown purpose";
+CM_ BO_ 544 "100Hz. Present when IG3 powered.";
+CM_ SG_ 657 Power_Unk2 "Tracks against  Power_Unk in VCU_524. Maybe acceleration not power?";
+CM_ SG_ 657 Speed_signed "Motor rpm, signed";
+CM_ SG_ 674 BrakeUnknown "Same byte exists in message 0x331";
+CM_ BO_ 688 "100Hz when IG3 is powered.
+
+Relayed onto PCAN from CCAN, from power steering module via IGPM";
+CM_ SG_ 688 Stat "'7' is probably 'normal'";
+CM_ SG_ 688 Checksum "XOR of all other nibbles in the message";
+CM_ SG_ 817 BrakeUnknown "Same byte exists in message 0x2a2";
+CM_ BO_ 819 "100Hz when IG3 is powered.";
+CM_ BO_ 852 "Shift Select Switch. 100Hz.
+
+Bytes not mapped to signals don't change in logs captured so far.";
+CM_ SG_ 852 ButtonPressed1 "Only the mapped values are observed in any logs";
+CM_ SG_ 852 ButtonPressed2 "Binary  inverse of ButtonPressed field";
+CM_ SG_ 852 Counter "Seems to be two nibbles counting independently";
+CM_ BO_ 902 "Wheel speed. Named WHL_SPD11 in some DBC files. Forwarded onto CCAN.";
+CM_ SG_ 902 WHL_SPD_AliveCounter_MSB "Increments when the LSB counter wraps";
+CM_ BO_ 903 "Wheel direction and status? Named WHL_PUL11 in some DBC files. Forwarded onto CCAN.";
+CM_ BO_ 916 "50Hz. Forwarded onto CCAN.";
+CM_ BO_ 1014 "1Hz";
+CM_ BO_ 1042 "5Hz when IG3 powered on. Could be: OBC, BMS, EPCU. Not EWP.
+
+This message only appears on PCAN on the 2021 model and is all zeroes in every log. A similar message appears in CCAN on 2019 and 2021...";
+CM_ BO_ 1044 "OBC classifies as coming from gateway. 5Hz always present (maybe 1Hz sometimes?). Possibly relayed from NAVI system.
+
+Only visible on 2019 model, 2021 model sends UpdateChargeSettings instead.";
+CM_ SG_ 1044 ACChargingCurrent "This message only seems to exist on the 2019 model, not on the 2021 model.";
+CM_ BO_ 1104 "50Hz. Always present.
+
+VCU triggers a Gateway Communications DTC if this message is missing. Not clear if the source is IGPM or a module on a different bus, forwarded by IGPM.";
+CM_ BO_ 1116 "5Hz. Message data all zeroes";
+CM_ BO_ 1117 "5Hz always present.
+
+Message body all zeroes, except sometimes when it becomes FF,FF,FF,FF,FF,FF,FF,0F.
+
+VCU triggers a Gateway Communications DTC if this message is missing. Not clear if the source is IGPM or a module on a different bus, forwarded by IGPM.";
+CM_ BO_ 1118 "5Hz always present. Message mostly all zeroes, occasionally FF,FF,FF,FF,FF,00,00,00
+
+VCU triggers a Gateway Communications DTC if this message is missing. Not clear if the source is IGPM or a module on a different bus, forwarded by IGPM.";
+CM_ BO_ 1122 "50Hz. Always present.
+
+Contents mostly constant. The 2019 logs seem to always show a mostly-FFs pattern, on the 2021 it changes when the car comes on to another mostly constant pattern.
+
+VCU triggers a Gateway Communications DTC if this message is missing. Not clear if the source is IGPM or a module on a different bus, forwarded by IGPM.";
+CM_ SG_ 1122 SometimesCounter "While moving(?) this value sometimes counts 0-3 in a loop at 10Hz but sometimes pauses";
+CM_ BO_ 1137 "50Hz. Always present.";
+CM_ SG_ 1137 Maybezeroes "Possibly always zeroes";
+CM_ SG_ 1137 MaybeCounter "This value changes in sync with the counter but not 100%. Possibly this is a 2-bit checksum of some kind...?";
+CM_ SG_ 1148 ACCurrentRelated2 "Value is proportional to the actual charge current, looks like probably a scaled readback value";
+CM_ BO_ 1168 "Forwarded onto CCAN (final byte may be different on CCAN?)";
+CM_ BO_ 1169 "10Hz.
+
+Values mostly unchanging except during charging.";
+CM_ BO_ 1171 "10Hz.
+
+Values vary a little in normal use, and a lot during AC charging?";
+CM_ BO_ 1175 "1Hz.";
+CM_ SG_ 1175 Unknown "Seems to cycle 0x11 0x14 0x22 a lot, sometimes looks counter-like and sometimes random";
+CM_ BO_ 1252 "10Hz.";
+CM_ BO_ 1278 "5Hz. Always present. Mostly constant in logs.
+
+VCU triggers a Gateway Communications DTC if this message is missing. Not clear if the source is IGPM or a module on a different bus, forwarded by IGPM.";
+CM_ SG_ 1278 UnknownBit "Mostly set but sometimes clears, seemingly when fuses are pulled - so error related? Only bit observed to change in entire message.";
+CM_ BO_ 1287 "TCS15 in other DBC files. Forwarded onto CCAN.";
+CM_ SG_ 1287 AVH_I_LAMP "Auto Vehicle Hold Lamp (inverted)";
+CM_ SG_ 1287 AVH_LAMP "Auto Vehicle Hold Lamp";
+CM_ BO_ 1294 "Present when IG3 powered on.";
+CM_ BO_ 1312 "10Hz. Always present.
+
+Only one bit in this message is observed to change.";
+CM_ SG_ 1312 StartIndicator "Goes high for 1-5 seconds when car comes On, seemingly at end of precharge.";
+CM_ SG_ 1315 uwe523_0 "Possibly a status indicator?";
+CM_ SG_ 1316 Speed_abs "Motor rpm, unsigned";
+CM_ SG_ 1316 Speed_desired_unk "This seems to lag the Speed_desired field in VCU_201 by a very small amount of time...";
+CM_ SG_ 1316 Power "Matches battery current in BMS_595 very closely";
+CM_ SG_ 1344 uwe540_01 "Unclear if 12 or 16 byte long signal";
+CM_ BO_ 1345 "10Hz. Always present. Looks like a summary of BCAN. Also forwarded onto CCAN (although some signals have different values?)
+
+VCU and E-Shifter both trigger a DTC if missing.";
+CM_ SG_ 1346 SocDisp "State of charge as displayed on dash (unconfirmed)";
+CM_ SG_ 1346 unkCurrentRelated "Changes when AC Charge Current changes, might be readback or a request for the OBC";
+CM_ BO_ 1353 "The marking of 'Incorrect' label comes from uwe's records, haven't verified these although some look correct";
+CM_ BO_ 1363 "5Hz. Always present. Forwarded onto CCAN (although some signals have different values).
+
+VCU triggers a DTC if this message is missing.";
+CM_ BO_ 1369 "5Hz. In all logs this message is all zeroes except for one intermittent bit.
+
+On PCAN this message is only seen on the 2021 model. On the 2019 model this ID is present on CCAN only.";
+CM_ SG_ 1369 UnkBit "Only bit to be sometimes set in this message. Is often set when vehicle is in Park, but doesn't 100% line up with this either.";
+CM_ BO_ 1372 "10Hz. Always present. 
+Constant message data, first two bytes different on different cars. Probably some kind of vehicle identifier or diagnostic summary.
+
+VCU triggers a Gateway Communications DTC if this message is missing. Not clear if the source is IGPM or a module on a different bus, forwarded by IGPM.";
+CM_ BO_ 1375 "10Hz. Always present.
+
+Message payload is all zeroes on the 2019 logs but mostly another (constant) byte sequence on the 2021 logs.
+
+VCU triggers a Gateway Communications DTC if this message is missing. Not clear if the source is IGPM or a module on a different bus, forwarded by IGPM.";
+CM_ BO_ 1377 "10Hz. Always present.
+
+Occasionally all zeroes, otherwise has constant values that never change (on both cars).
+
+VCU triggers a Gateway Communications DTC if this message is missing. Not clear if the source is IGPM or a module on a different bus, forwarded by IGPM.";
+CM_ BO_ 1378 "From NAVI head unit but relayed via gateway, maybe rewritten. Only visible on PCAN for the 2021 model, the 2019 model looks to send ChargeSettings message instead.
+
+Message sent at 50ms intervals for 150-400ms any time a setting is changed on the head unit. Otherwise not seen on bus.";
+CM_ SG_ 1378 SetChargeCurrent "Looks like momentary button status for the Maximum / Reduced / Minimum buttons, maybe also others?";
+CM_ SG_ 1378 SetACChargeLimit "AC charge cutoff point. Special value FF for 'no change'.";
+CM_ BO_ 1383 "10Hz. OBC, E-Shifter and VCU all trigger a DTC if this message is missing.";
+CM_ SG_ 1383 Unknown "Not clear what this is. Non-zero when clock is 2, often 0, sometimes other values.";
+CM_ BO_ 1392 "10Hz.";
+CM_ BO_ 1400 "10Hz, always present.
+
+VCU triggers a Gateway Communications DTC if this message is missing. Not clear if the source is IGPM or a module on a different bus, forwarded by IGPM.";
+CM_ SG_ 1400 FaultMaybe "Usually 0x00. 0x18 in logs where IEB disconnected. 0x02 in logs where VCU disconnected.";
+CM_ SG_ 1400 NaviRequest1 "Goes to 0x3 while Utility Mode is on. Seems to momentarily go to 0x1 and 0x2 while changing 'smart recuperation' setting.";
+CM_ SG_ 1400 UnkStatus "Consistently has value 0F when vehicle is off (head unit asleep, maybe). 00 mostly when on, but some 2021 logs show 01,02,03 instead for unknown reason.";
+CM_ SG_ 1400 DriveModeChange "This bit is set for approx 2 messages when the drive mode changes. Possibly is trigger for 'select next drive mode', unverified";
+CM_ BO_ 1403 "10Hz.";
+CM_ SG_ 1403 DriverErrorMaybe "Has value 2C when prompt for driver to press Brake is shown";
+CM_ BO_ 1409 "AC charging sensor readback values.
+
+During DC fast charge most of these values seem to be noise, except for UnkReadback signal.";
+CM_ SG_ 1409 I_AC "AC charging current (probably)";
+CM_ SG_ 1409 V_AC "AC charging volts (probably)";
+CM_ SG_ 1409 UnkReadback "Definitely looks like a contiguous readout. Non-zero when charging. Maybe related to charger PWM somehow?";
+CM_ SG_ 1409 Power_AC "Charge power as kW/256. This value seems to map with dash display, is a little higher than volts times amps.";
+CM_ BO_ 1416 "10Hz. Always present.
+
+This message only seems to have a few discrete values. Possibly charging related, or schedule related.
+
+Note on the Kia Soul suggest this message might be related to Climate pre-heat timer settings...?
+
+- Always 00s when vehicle is off.
+- FC FF 03 00 00 00 00 00 when driving/Ready mode
+- 58 1C 00 00 00 00 00 00 when on but not ready (or charging)
+- first byte goes to 5A when scheduled charging enabled, and 5B 1E at some other times...?
+- 33 1E 00 00 00 00 00 00 during scheduled charge (?)
+
+VCU triggers a Gateway Communications DTC if this message is missing. Not clear if the source is IGPM or a module on a different bus, forwarded by IGPM.";
+CM_ BO_ 1422 "Originally thought might be CDM, but looks like OBC";
+CM_ SG_ 1422 AlarmMaybe "Seems to be non-zero when EVSE is connected but powered off, or similar. 0x76 if charge port won't lock. 0x24 if EVSE powered off while charging. 0x08 when disconnected, maybe? 0x07 if connected and not powered.";
+CM_ SG_ 1422 ACCurrentPossible "Seems to be minimum of charge last offered by EVSE and max charge configured in OBC.";
+CM_ SG_ 1422 PortLocked "Updated by IGPM ChargePort message";
+CM_ SG_ 1422 PortLockSetting "Bit is set when the 'Lock' is set via button in dash, and button is illuminated. Unset means 'auto unlock'";
+CM_ BO_ 1426 "Forwarded onto CCAN.";
+CM_ SG_ 1426 MaybeTotalDrivingPower "Could be total power used for driving perhaps";
+CM_ SG_ 1426 MaybeClimateConsumption "Seems a bit off but tracks climate consumption on display";
+CM_ SG_ 1426 Movement_related_unk2 "Another value that goes up both when moving and rolling, and back to 0 when still. Doesn't track speed.";
+CM_ BO_ 1427 "5Hz. Present even when vehicle is off. Forwarded onto (from?) CCAN.
+
+Mostly unchanging but sometimes changes.";
+CM_ SG_ 1427 Unknown1 "0x00 or 0x01 when off, 0x24 when vehicle on. Sometimes 0x04 and 0xE4 as well.";
+CM_ SG_ 1427 Unknown2 "Only observed values 0x00 and 0x08";
+CM_ SG_ 1427 Unknown3 "These bytes are 0xFFFFFFFF always except for in one log, also the one where Unknown1 has value 0xE4";
+CM_ BO_ 1428 "10Hz.";
+CM_ SG_ 1428 ChargeAvailable "Unconfirmed but seems correct";
+CM_ SG_ 1428 DischargeAvailable "Unconfirmed but seems correct";
+CM_ SG_ 1428 SoC_Maybe "Probably SoC Actual, TBC";
+CM_ SG_ 1428 SoC_Fraction "Additional 0.1% increments of SoC, it seems";
+CM_ BO_ 1429 "10Hz. A similar message with same ID appears on CCAN.";
+CM_ SG_ 1429 ACChargerDetected "Bit set when AC charger is detected. Pulse briefly when DC fast charge is detected/";
+CM_ SG_ 1429 ACChargingTransient "Bit briefly set while establishing an AC charge session";
+CM_ BO_ 1430 "10Hz. A similar message with same ID appears on CCAN.";
+CM_ SG_ 1431 Active "This bit set when vehicle is in Ready, or Charging";
+CM_ SG_ 1433 ChargeTrigger "Set to 1 during both AC and DC charging. Might indicate contactors closed?";
+CM_ SG_ 1433 ChargeEndAck "Seems to go high to 'ack' the CCS_CCM_error bit from CCM, and also at end of AC charge";
+CM_ SG_ 1438 UNK_U_HV "Maps to 595 UBatt, maybe voltage at another point?";
+CM_ BO_ 1440 "1Hz. Also called ACU11";
+CM_ SG_ 1443 UnkStatus "These 4 bytes are always 0xF except when DC Fast Charging when they are 0x3";
+CM_ SG_ 1443 FastChargeRelayClosed "Not 100% sure but I think it's this. Becomes set as DC fast charge negotiation starts.";
+CM_ SG_ 1443 ContactorClosed "Indicates contactors fully closed (i.e. after precharge)";
+CM_ SG_ 1443 ACChargeLimit "Doesn't seem to quite match setpoint, maybe this is True not Display SoC?";
+CM_ SG_ 1443 DCChargeLimit "Doesn't seem to quite match setpoint, maybe this is True not Display SoC?";
+CM_ BO_ 1459 "5Hz always present.
+
+VCU triggers a Gateway Communications DTC if this message is missing. Not clear if the source is IGPM or a module on a different bus, forwarded by IGPM.";
+CM_ SG_ 1459 PowerState "Seems to show when car is powering on or off";
+CM_ BO_ 1482 "1Hz when IG3 is on";
+CM_ BO_ 1483 "The VCU and BMS do not read this status message. Cabin only?";
+CM_ SG_ 1483 SetpointDup "When vehicle is Ready, this signal is always the same as Setpoint. When off, one or both of these fields have value FF.";
+CM_ BO_ 1484 "1s interval but possibly sends a flurry of messages when values change";
+CM_ BO_ 1488 "1Hz. Always present, but only has valid values when IG1 is on.
+
+VCU and OBC both trigger a DTC if this message is missing.";
+CM_ BO_ 1491 "1Hz always present. OBC classifies this as a gateway message";
+CM_ SG_ 1494 uwe5D6_UBatt_inv "These two bytes seem to match two bytes in 0x595, but unsure what they are.";
+CM_ SG_ 1494 IBatt "This looks like a copy of the IBatt signal in 0x595";
+CM_ SG_ 1497 Counter_Charging "Counter only increments when charging? TBC";
+CM_ BO_ 1500 "1Hz output seems to include signals also found in other messages";
+CM_ SG_ 1500 Speed_signed_slow "1Hz version of the signal found in VCU_291";
+CM_ SG_ 1500 Speed_desired_slow_maybe "May be a scaled slow version of signal Speed_desired in VCU 201";
+CM_ SG_ 1500 UNK "Starts at zero, increments inconsistently while vehicle is on?";
+CM_ SG_ 1502 TracksSpeed_UNK "Seems to go up when motor is turning, even when rolling, but doesn't track to speed or motor current";
+CM_ BO_ 1503 "5Hz. Always present.
+
+VCU and OBC both trigger a DTC if this message is missing.";
+CM_ BO_ 1507 "1Hz heartbeat from VESS.";
+CM_ BO_ 1516 "10Hz always present. OBC classifies this as a gateway message. Only the four bits defined here are ever set in any logs.";
+CM_ SG_ 1516 UnkStatus1 "Goes high very briefly in a couple of logs while driving. Might be 'doors locking'.";
+CM_ SG_ 1516 UnkStatus2 "Goes high very briefly in a couple of logs while driving. Unclear what it corresponds to.";
+CM_ SG_ 1525 CompressorPower "Copied from signal in COMP_CAN ID 0x120, used in 'Climate' consumption field of infotainment display.";
+CM_ SG_ 1525 Counter2 "Inverse of the Counter1 signal in this same message";
+CM_ SG_ 1526 HeaterPower "Copied from signal in COMP_CAN ID 0x140, used in 'Climate' consumption field of infotainment display";
+CM_ BO_ 1527 "Marked as 'Climate' by Eric Router";
+CM_ BO_ 1528 "Marked as 'Climate' by Eric Router";
+VAL_ 265 ParkActuatorRequest 1 "RequestLock" 2 "RequestUnlock" 0 "None";
+VAL_ 268 ParkingActuator 1 "Unlocked" 2 "Moving" 4 "Locked" 0 "Unknown";
+VAL_ 512 CURRENT_GEAR 0 "P" 5 "D" 6 "N" 7 "R";
+VAL_ 852 ButtonPressed1 168 "Initialising" 170 "NoButton" 106 "D" 154 "N" 166 "R" 169 "P";
+VAL_ 852 Gear_Displayed 0 "None" 1 "P" 2 "R" 3 "N" 4 "D";
+VAL_ 1044 ACChargingCurrent 0 "Maximum" 1 "Reduced" 2 "Minimum";
+VAL_ 1287 AVH_LAMP 0 "Disabled" 2 "Enabled Stationary" 3 "Enabled Moving";
+VAL_ 1345 IgnitionSw 0 "Off" 3 "On" 2 "TurningOn_maybe" 4 "Starting";
+VAL_ 1345 DrvDoorSw 0 "Closed" 1 "Open";
+VAL_ 1345 DrvSeatBeltSw 1 "Present" 0 "NotPresent";
+VAL_ 1345 PassDoorSw 0 "Closed" 1 "Open";
+VAL_ 1378 SetChargeCurrent 0 "No button down" 4 "Maximum down" 8 "Minimum down" 28 "Uninitialised default" 12 "Reduced down";
+VAL_ 1378 SetACChargeLimit 255 "No change";
+VAL_ 1378 SetDCChargeLimit 255 "No change";
+VAL_ 1429 PrechargeRelay 0 "Open" 1 "Closed";
+VAL_ 1443 FastChargeRelayClosed 0 "Open" 1 "Closed";
+VAL_ 1459 UnkPowerRelated 15 "PoweredOff" 4 "PowerOn" 5 "PowerOnAlt";
+VAL_ 1459 Unknown3 255 "StartingUp" 254 "Normal";
+VAL_ 1459 PowerState 15 "Off" 3 "GoingToSleep" 0 "On" 12 "PoweringOn";
+VAL_ 1513 CCM_ChargeProgess 127 "WeldingDetection" 63 "PowerDeliveryStop" 31 "CurrentDemand" 7 "PreCharge" 3 "CableCheck";
+VAL_ 1516 ChargePortLocked 0 "Unlocked" 1 "Locked";

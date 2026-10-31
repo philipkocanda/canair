@@ -110,3 +110,27 @@ class TestLostFrames:
             ]
         )
         assert msgs == [] and stats.malformed == 4
+
+
+class TestTrackedIds:
+    BROADCAST = 0x4E2
+
+    def test_broadcast_noise_is_not_counted_as_lost_replies(self):
+        # A P-CAN log mixes diagnostic replies with broadcast frames whose first byte is
+        # often an ISO-TP-looking PCI; only the tracked ids' losses may be tallied.
+        noise = [
+            frame(self.BROADCAST, bytes([0x25, 0x4A])),  # a "consecutive frame"
+            frame(self.BROADCAST, bytes([0x10, 0x20, 1, 2])),  # a "first frame", never finished
+            frame(self.BROADCAST, bytes([0xF0])),  # an unknown PCI
+        ]
+        stats = ReassemblyStats()
+        reply = message_frames(ECU, bytes(range(20)))
+        msgs = list(reassemble([*noise, *reply], stats, tracked={ECU}))
+        assert [m.arbitration_id for m in msgs] == [ECU]
+        assert (stats.lost, stats.malformed, stats.messages) == (0, 0, 1)
+
+    def test_untracked_messages_are_still_yielded(self):
+        stats = ReassemblyStats()
+        msgs = list(reassemble(message_frames(self.BROADCAST, b"\x62\x01"), stats, tracked={ECU}))
+        assert [m.payload for m in msgs] == [b"\x62\x01"]
+        assert stats.messages == 0

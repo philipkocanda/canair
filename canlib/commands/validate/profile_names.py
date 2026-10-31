@@ -37,12 +37,28 @@ def profile_name_findings(prof) -> tuple[list[str], list[str]]:
         errors.append("profile.yaml: 'aliases' must be a mapping of old profile name → {}")
         return errors, warnings
 
+    from canlib.variants import VariantsError, load_variants
+
+    try:
+        declared = set(load_variants(prof))
+    except VariantsError:
+        declared = set()  # `validate variants` reports a broken variants.yaml
     index = alias_index()
     profiles = selectable_profiles(index=index)
     for alias, entry in aliases.items():
         label = f"profile.yaml: alias '{alias}'"
         if not isinstance(entry, dict):
             errors.append(f"{label} must map to a mapping ({{}} when it carries nothing)")
+        else:
+            for key in set(entry) - {"variant"}:
+                errors.append(f"{label}: unknown field '{key}' (only 'variant')")
+            variant = entry.get("variant")
+            if variant is not None and str(variant) not in declared:
+                known = ", ".join(sorted(declared)) or "none"
+                errors.append(
+                    f"{label} implies variant {variant!r}, which the profile does not declare "
+                    f"(declared: {known})"
+                )
         if alias == prof.name:
             errors.append(f"{label} is the profile's own name")
         claimants = index.conflicts.get(str(alias))

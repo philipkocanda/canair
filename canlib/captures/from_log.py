@@ -97,7 +97,8 @@ def extract_replies(
     rx_to_tx = {rx_for_tx(tx, ecus): tx for tx in ecus}
     last_request: dict[tuple[int | str | None, int], _Request | None] = {}
 
-    for msg in reassemble(frames, result.reassembly):
+    tracked = set(ecus) | set(rx_to_tx)
+    for msg in reassemble(frames, result.reassembly, tracked=tracked):
         payload = msg.payload
         if msg.arbitration_id in ecus:
             last_request[(msg.channel, msg.arbitration_id)] = _parse_request(payload)

@@ -31,14 +31,21 @@ def variant_tag_findings(files: list[Path], declared: set[str]) -> tuple[int, Co
     return untagged, undeclared
 
 
-def report_variant_tags(files: list[Path], profile) -> int:
-    """Print the variant-tag findings for ``files``; returns the number of warnings."""
+def report_variant_tags(
+    files: list[Path], profile, max_untagged: int | None = None
+) -> tuple[int, bool]:
+    """Print the variant-tag findings for ``files``.
+
+    Returns ``(warnings, ratchet_failed)``. ``max_untagged`` is the CI ratchet: on a
+    profile with several variants the untagged count may not grow past it, since every
+    recording names its car now and the count only falls as history is tagged.
+    """
     from canlib.variants import VariantsError, load_variants
 
     try:
         declared = set(load_variants(profile))
     except VariantsError:
-        return 0  # `validate variants` reports a broken variants.yaml
+        return 0, False  # `validate variants` reports a broken variants.yaml
     untagged, undeclared = variant_tag_findings(files, declared)
     for variant, n in sorted(undeclared.items()):
         known = ", ".join(sorted(declared)) or "none"
@@ -46,9 +53,20 @@ def report_variant_tags(files: list[Path], profile) -> int:
             f"  ⚠ {n} session(s) tagged with variant {variant!r}, which the profile does not "
             f"declare (declared: {known}) — retag with `captures uds --set-variant`"
         )
-    if len(declared) > 1 and untagged:
+    several = len(declared) > 1
+    failed = several and max_untagged is not None and untagged > max_untagged
+    if several and untagged:
+        ceiling = ""
+        if max_untagged is not None:
+            verb = "exceeds" if failed else "within"
+            ceiling = f", {verb} the --max-untagged {max_untagged} baseline"
         print(
-            f"  ({untagged} untagged session(s): no car named — tag them with "
+            f"  ({untagged} untagged session(s){ceiling}: no car named — tag them with "
             "`captures migrate-variants` or `captures uds --set-variant`)"
         )
-    return sum(undeclared.values())
+    if failed:
+        print(
+            f"\n{untagged} untagged session(s) exceeds the --max-untagged {max_untagged} "
+            "baseline — new recordings must name their car (--variant / profile use)."
+        )
+    return sum(undeclared.values()), failed

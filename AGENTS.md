@@ -430,17 +430,26 @@ reuse these instead of re-declaring a flag:
   value from that table). Keys a later phase owns (`revisions`, `profile_overrides`) are rejected
   until something reads them. `rename` rewrites every tag that uses the ID and `rm` refuses while
   one does (`canlib/variants/references.py`).
-  **The global `--variant ID` (or `CANAIR_VARIANT`) names the car**
-  (`canlib/variants/selection.py::apply_variant`, applied by `set_active`/`active`, never by a bare
-  `resolve_profile`, carried as `Profile.variant`/`variant_source`). It **tags captures**: every
-  save funnels through `captures.save_session` and the journal's meta, both via
-  `current_capture_tag` (only for the active profile's own store; the journal fixes the tag at
-  open so a later `--recover` cannot retag). It **scopes analysis** inside `load_all_captures`
-  (only when no explicit `--dir`; `all`/`untagged` are scope keywords). An untagged copy of a
-  tagged session is the same session with less information: the merge driver, the contribute
-  overlay and the layered read keep the tagged one (`canlib/variants/tags.py::strip_tag`).
-  Imports (`import uds`, `import can`) on a multi-variant profile **require the flag, not the
-  env var** — it is someone else's car (`selection.require_named_car`).
+  **The variant names the car**, resolved by `canlib/variants/selection.py::apply_variant` —
+  `--variant` > `CANAIR_VARIANT` > `profile_settings.<profile>.variant` (written by `profile use
+  NAME --variant ID`) > the variant an old profile name implies (`aliases:` entry, via
+  `Profile.alias`) > the only variant. **No default.** It is applied by `set_active`/`active`,
+  never by a bare `resolve_profile`, and carried as `Profile.variant`/`variant_source`.
+  **`require_variant` refuses** — listing the variants and how to pick — every command that
+  talks to the car (`_live/runtime.py::run_live`, except `discover`/`identity` without `--save`),
+  `sniff` and AutoPID generation (`wican._generate`), on a profile with several variants and none
+  named. The suite pins its car in conftest's isolated config. It **tags captures**: every save
+  funnels through `captures.save_session` and the journal's meta, both via `current_capture_tag`
+  (only for the active profile's own store; the journal fixes the tag at open so a later `--recover`
+  cannot retag; attribution from the source — `selected`, `alias`, `only`). It **scopes analysis**
+  inside `load_all_captures` (only when no explicit `--dir`): the car's sessions plus untagged ones
+  read as it, or with no car every tagged session and no untagged ones (a once-per-process stderr
+  note says which); `all`/`untagged` are scope keywords from the flag or env only. `validate
+  captures --max-untagged N` is the CI ratchet. An untagged copy of a tagged session is the same
+  session with less information: the merge driver, the contribute overlay and the layered read keep
+  the tagged one (`canlib/variants/tags.py::strip_tag`). Imports (`import uds`, `import can`) on a
+  multi-variant profile **require the flag, not the env var** — it is someone else's car
+  (`selection.require_named_car`).
 - **`canair bus`** — Read-only list of the profile's CAN bus segments from `can_buses.yaml` with ECU
   counts; flags **undeclared** codes and counts **unbussed** ECUs. Companion to `pids set-can-bus`.
 - **`canair validate`** (alias `val`) — `validate
