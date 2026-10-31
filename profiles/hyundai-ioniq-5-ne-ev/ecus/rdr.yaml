@@ -1,0 +1,9 @@
+RDR:
+  tx_id: 0x7D0
+  identity:
+    description: Front radar
+    notes: >-
+      Identity string NE1_ RDR (part 99110-GI000) from DID F100, listed in openpilot's opendbc
+      fingerprints (opendbc/car/hyundai/fingerprints.py, HYUNDAI_IONIQ_5). openpilot reads it from
+      the driver-assistance bus side, so whether it answers through the OBD-II port's gateway is
+      untested. The response address is assumed to be the usual tx+8.

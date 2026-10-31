@@ -6,3 +6,119 @@ HVAC:
       Address confirmed by recorded responses in OBDb Hyundai-Ioniq-5 test cases (MY2022-2027,
       https://github.com/OBDb/Hyundai-Ioniq-5): 220100-0102 (cabin, ambient, evaporator, coolant
       temperatures). Polled at 7B3/7BB by OVMS.
+  pids:
+    220100:
+      status: active
+      source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
+      source_links:
+        - https://github.com/OBDb/Hyundai-Ioniq-5
+        - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
+      verified: false
+      notes: >-
+        Seeded from OBDb (7 signals). Each expression was evaluated on OBDb's recorded responses (up
+        to 249 per signal, model years 2022, 2023, 2024, 2025, 2026, 2027); 7 of 7 signals reproduce
+        OBDb's expected value on every one.
+      parameters:
+        HVAC_IAT:
+          expression: B11/2-40
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "87.5"
+          notes: "OBDb IONIQ5_HVAC_IAT: Interior temperature, front."
+        HVAC_AAT:
+          expression: B12/2-40
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "87.5"
+          notes: "OBDb IONIQ5_HVAC_AAT: Outdoor temperature."
+        HVAC_EVAPORATOR_T:
+          expression: B13/2-40
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "87.5"
+          notes: "OBDb IONIQ5_HVAC_EVAPORATOR_T: Evaporator temperature."
+        HVAC_HUMIDITY_SENSOR_FOR_AUTOMATIC_DEFOGGER:
+          expression: B34
+          unit: "%"
+          min: "0"
+          max: "100"
+          notes: >-
+            OBDb IONIQ5_HVAC_HUMIDITY_SENSOR_FOR_AUTOMATIC_DEFOGGER: Humidity sensor for automatic
+            defogger.
+        HVAC_IAT_DRIVER_VENT:
+          expression: B36/2-40
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "87.5"
+          notes: "OBDb IONIQ5_HVAC_IAT_DRIVER_VENT: Interior temperature, driver vent."
+        HVAC_IAT_DRIVER_LEGS_VENT:
+          expression: B37/2-40
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "87.5"
+          notes: "OBDb IONIQ5_HVAC_IAT_DRIVER_LEGS_VENT: Interior temperature, driver legs vent."
+        HVAC_VEHICLE_SPEED:
+          expression: B38
+          unit: km/h
+          ha_class: speed
+          min: "0"
+          max: "255"
+          notes: "OBDb IONIQ5_VSS: Vehicle speed."
+    220101:
+      status: active
+      source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
+      source_links:
+        - https://github.com/OBDb/Hyundai-Ioniq-5
+        - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
+      verified: false
+      notes: >-
+        Seeded from OBDb (2 signals). Each expression was evaluated on OBDb's recorded responses (up
+        to 53 per signal, model years 2022, 2023, 2024, 2025, 2026, 2027); 2 of 2 signals reproduce
+        OBDb's expected value on every one.
+      parameters:
+        HVAC_IAT_PASSENGER_VENT:
+          expression: B14/2-40
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "87.5"
+          notes: "OBDb IONIQ5_HVAC_IAT_PASSENGER_VENT: Interior temperature, passenger vent."
+        HVAC_IAT_PASSENGER_LEGS_VENT:
+          expression: B15/2-40
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "87.5"
+          notes: >-
+            OBDb IONIQ5_HVAC_IAT_PASSENGER_LEGS_VENT: Interior temperature, passenger legs vent.
+    220102:
+      status: active
+      source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
+      source_links:
+        - https://github.com/OBDb/Hyundai-Ioniq-5
+        - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
+      verified: false
+      notes: >-
+        Seeded from OBDb (2 signals). Each expression was evaluated on OBDb's recorded responses (up
+        to 44 per signal, model years 2022, 2023, 2024, 2025, 2026, 2027); 2 of 2 signals reproduce
+        OBDb's expected value on every one.
+      parameters:
+        HVAC_COOLANT_T:
+          expression: B10/2-40
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "87.5"
+          notes: "OBDb IONIQ5_HVAC_COOLANT_T: Coolant temperature."
+        HVAC_INVERTER_T:
+          expression: B19/2-40
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "87.5"
+          notes: "OBDb IONIQ5_HVAC_INVERTER_T: Inverter temperature."
