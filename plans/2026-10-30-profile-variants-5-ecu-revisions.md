@@ -1,10 +1,36 @@
 # Profile variants, phase 5 — ECU revisions and gating
 
-Status: **NOT STARTED.** Part of
+Status: **DONE** (2026-10-31). Part of
 [`2026-10-30-profile-variants-and-rename.md`](2026-10-30-profile-variants-and-rename.md) (see its
 [ECU revisions](2026-10-30-profile-variants-and-rename.md#ecu-revisions-revisions-in-ecusecuyaml)
 and [Resolution](2026-10-30-profile-variants-and-rename.md#resolution-happens-once-at-the-load-seam)
 sections). Depends on phase 4.
+
+## As built
+
+Where the implementation differs from the plan below:
+
+- **`--revision ECU=ID` is a global flag**, beside `--variant`, not an `add_scope_args` flag: it
+  decides the definitions at the load seam, before any command runs, and it also scopes analysis.
+  Repeatable; it outranks a config pin for the same ECU.
+- **Per-session decoding is by scope, not by re-resolving each session.** Analysis keeps only the
+  sessions that agree with the resolved revision of every determined ECU (an untagged session is
+  read as the resolved one). An undetermined ECU has only its ungated definitions, which apply to
+  every revision, so no session is decoded with another revision's layout; a signal-level view
+  spanning two revisions just shows the shared signals. Decoding gated signals of two revisions
+  side by side is left to phases 7/9, when `per_revision:` makes it necessary.
+- **Imports ignore config pins** (`selection.require_named_car`): like the variant, an import's
+  revision comes from `--revision` or from the only possible one, never from the user's own car.
+- **`captures uds --set-revision` is not built.** `validate captures` reports a tag naming a
+  revision the ECU (or the session's variant) cannot have.
+- **Renames reach further than listed:** `ecu rename` rewrites the ECU's key in variants'
+  `revisions:` and in capture tags; `variants rename` rewrites ECU `variants:` lists, and
+  `variants rm` refuses while an ECU is fitted to the variant.
+- **`profile_overrides`** are set with `variants set-meta ID profile_overrides.<setting>=VALUE`
+  (`physical_bands`, a mapping, can't be given on the command line).
+- **`validate states` across combinations** lives in `states/refs.py::
+  check_references_on_every_car`, which the `states` command's warnings use too.
+- `CHANGELOG.md` is written by release-please from the commit; no hand edit.
 
 ## Goal
 

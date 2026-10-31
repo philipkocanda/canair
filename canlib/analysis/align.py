@@ -337,8 +337,13 @@ def load_signal_captures(
     state: str | Sequence[str] | None = None,
     label: str | None = None,
     captures_dir: Path | None = None,
+    one_revision: str | None = None,
 ) -> dict[tuple[str, str], LoadedPid]:
     """Load ``payload`` captures grouped by ``(ecu, pid)`` for a set of specs.
+
+    ``one_revision`` names a byte-level analysis (``"investigate"``): it then refuses a
+    scope whose captures span two revisions of an ECU it loads
+    (:func:`canlib.variants.tags.require_one_revision`).
 
     ``specs`` is a list of ``(ECU, PID)`` (canonical short names, upper-cased for
     matching). Reuses the single canonical loader
@@ -359,6 +364,10 @@ def load_signal_captures(
     entries = load_all_captures(captures_dir)
     entries = filter_by_date_range(entries, since, until)
     entries = filter_by_text(entries, state=state, label=label)
+    if one_revision:
+        from canlib.variants.tags import require_one_revision
+
+        require_one_revision(entries, {e for e, _ in wanted}, one_revision)
     session_ends = session_end_times(entries)
 
     for e, p in specs:

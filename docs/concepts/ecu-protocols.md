@@ -50,6 +50,13 @@ a `0x22` UDS request to a KWP2000 ECU (which would NRC), and vice versa. This is
 why a bare identifier often just works: the tool supplies the correct SID from the
 ECU's protocol.
 
+!!! note "One ECU, two protocols"
+    An ECU's protocol can change between versions of the same car — a VCU that went from
+    KWP2000 to UDS in a running change, or a facelift BMS that answers `220101` where the
+    older one answers `2101`. Those are two [revisions](variants.md#ecu-revisions) of that
+    ECU: each revision sets its own `id_protocol`, and the PIDs only one of them answers
+    are gated to it. The protocol canair uses is the one of the revision your car has.
+
 !!! tip "The prefix is optional but recommended"
     Because canair knows each ECU's protocol, a UDS ECU accepts a bare DID
     (`CLU:B002`) as well as the full `CLU:22B002`. **Prefer the full form**

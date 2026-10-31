@@ -248,8 +248,15 @@ def clear_cache() -> None:
     Call after writing any ECU file, or after switching the active profile.
     """
     _cache.clear()
+    _resolution_cache.clear()
     for clear in _derived_cache_hooks:
         clear()
+
+
+# Revision resolutions, keyed like _cache (a resolution depends on the same inputs).
+_resolution_cache: dict[str, dict] = {}
+# Profiles (by cache key) whose skipped revision-gated definitions were already noted.
+_noted_skips: set[str] = set()
 
 
 def load_pids(path: Path | None = None) -> dict:
@@ -257,7 +264,11 @@ def load_pids(path: Path | None = None) -> dict:
 
     Accepts either a directory (``ecus/``) containing per-ECU YAML files, or a
     single legacy YAML file. When ``path`` is None, the active vehicle profile's
-    ``ecus/`` directory is used (and the result is memoized per process).
+    definitions are returned **resolved for the selected car** — only the ECUs it is
+    fitted with, each at its resolved revision (see :mod:`canlib.variants.revisions`),
+    with ``profile.yaml`` as the variant overrides it — and memoized per process. A
+    ``path`` reads the files as written; :func:`load_raw_pids` does the same for the
+    active profile.
     """
     if path is None:
         from .profile import active
@@ -267,7 +278,7 @@ def load_pids(path: Path | None = None) -> dict:
         cached = _cache.get(key)
         if cached is not None:
             return cached
-        result = _load_dir(prof.ecus_dir, meta=prof.meta)
+        result = _resolved(prof)
         _cache[key] = result
         return result
 
@@ -285,6 +296,87 @@ def load_pids(path: Path | None = None) -> dict:
     # Legacy: single file
     with open(path) as f:
         return _yaml_load(f)
+
+
+def load_raw_pids(profile=None) -> dict:
+    """The active (or given) profile's definitions as written: no variant, no revision.
+
+    For the variant-aware readers — ``validate``, the editors, and anything that must
+    see every revision at once. Memoized like :func:`load_pids`.
+    """
+    from .profile import active, read_meta
+
+    prof = profile or active()
+    key = f"{prof.root}|raw"
+    cached = _cache.get(key)
+    if cached is None:
+        cached = _load_dir(prof.ecus_dir, meta=read_meta(prof.meta_file))
+        _cache[key] = cached
+    return cached
+
+
+def _selected_variant_def(prof):
+    from canlib.variants import VariantsError, load_variants
+    from canlib.variants.tags import selected_variant
+
+    from .profile import ProfileError
+
+    vid = selected_variant(prof)
+    if vid is None:
+        return None
+    try:
+        return load_variants(prof).get(vid)
+    except VariantsError as e:
+        raise ProfileError(str(e)) from None
+
+
+def revision_resolutions(profile=None) -> dict:
+    """ECU name -> :class:`~canlib.variants.revisions.Resolution`, for the selected car.
+
+    Only ECUs that declare revisions appear. Raises :class:`~canlib.profile.ProfileError`
+    when a pin names an ECU or revision that cannot be.
+    """
+    from canlib.variants.revisions import RevisionError, resolve
+
+    from .profile import ProfileError, active
+
+    prof = profile or active()
+    key = prof.cache_key
+    cached = _resolution_cache.get(key)
+    if cached is not None:
+        return cached
+    ecus = load_raw_pids(prof).get("ecus") or {}
+    try:
+        result = resolve(ecus, _selected_variant_def(prof), prof.revision_pins)
+    except RevisionError as e:
+        raise ProfileError(str(e)) from None
+    _resolution_cache[key] = result
+    return result
+
+
+def _resolved(prof) -> dict:
+    """``prof``'s definitions for the selected car (see :func:`load_pids`)."""
+    from canlib.variants.revisions import apply, has_gates, skipped_note
+    from canlib.variants.tags import selected_variant
+
+    raw = load_raw_pids(prof)
+    ecus = raw.get("ecus") or {}
+    if not has_gates(ecus) and not prof.revision_pins:
+        result = dict(prof.meta)
+        result["ecus"] = ecus
+        return result
+    resolved, skipped = apply(ecus, selected_variant(prof), revision_resolutions(prof))
+    if skipped and prof.cache_key not in _noted_skips:
+        _noted_skips.add(prof.cache_key)
+        unchosen: list[str] = []
+        if selected_variant(prof) is None:
+            from canlib.variants import load_variants
+
+            unchosen = list(load_variants(prof))
+        print(skipped_note(prof.name, skipped, unchosen), file=sys.stderr)
+    result = dict(prof.meta)
+    result["ecus"] = resolved
+    return result
 
 
 def merge_ecu_documents(docs: Iterable[tuple[Path, dict]]) -> dict[str, Any]:

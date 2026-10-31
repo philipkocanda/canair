@@ -70,10 +70,21 @@ class TestCheck:
     def test_name_is_required(self):
         assert any("missing required field 'name'" in e for e in v.check_variants_doc(_doc(a={})))
 
-    @pytest.mark.parametrize("key", v.RESERVED_FIELDS)
-    def test_reserved_fields_are_rejected(self, key):
-        errors = v.check_variants_doc(_doc(a={"name": "x", key: {}}))
-        assert any("not supported yet" in e for e in errors)
+    def test_revisions_shape(self):
+        ok = _doc(a={"name": "x", "revisions": {"BMS": ["kwp", "uds"]}})
+        assert v.check_variants_doc(ok) == []
+        for bad in ({"BMS": []}, {"BMS": ["UDS!"]}, {"BMS": ["kwp", "kwp"]}, ["BMS"]):
+            assert v.check_variants_doc(_doc(a={"name": "x", "revisions": bad})), bad
+
+    def test_profile_overrides_whitelist(self):
+        ok = _doc(a={"name": "x", "profile_overrides": {"car_model": "Y", "multi_did_max": 2}})
+        assert v.check_variants_doc(ok) == []
+        errors = v.check_variants_doc(_doc(a={"name": "x", "profile_overrides": {"isotp": {}}}))
+        assert any("cannot override 'isotp'" in e for e in errors)
+        errors = v.check_variants_doc(
+            _doc(a={"name": "x", "profile_overrides": {"multi_did_max": 0}})
+        )
+        assert any("positive whole number" in e for e in errors)
 
     def test_unknown_field(self):
         assert any(
@@ -289,7 +300,7 @@ class TestSchemaCompanion:
         )
         assert tuple(s["battery_fields"]) == tuple(v.BATTERY_FIELDS)
         assert tuple(s["valid_statuses"]) == v.STATUSES
-        assert tuple(s["reserved_variant_fields"]) == v.RESERVED_FIELDS
+        assert tuple(s["profile_override_fields"]) == tuple(v.PROFILE_OVERRIDE_FIELDS)
 
     def test_comment_block_documents_every_field_in_order(self):
         def documented(indent: int) -> list[str]:

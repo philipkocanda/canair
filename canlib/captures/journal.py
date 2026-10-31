@@ -309,8 +309,10 @@ def build_session_from_records(
     for rec in records:
         rtype = rec.get("type")
         if rtype == "meta":
-            if rec.get("variant"):
-                tag = {"variant": rec["variant"], "attribution": rec.get("attribution") or {}}
+            if rec.get("variant") or rec.get("revisions"):
+                from canlib.variants.tags import TAG_FIELDS
+
+                tag = {k: rec[k] for k in TAG_FIELDS if rec.get(k)}
             for k in ("label", "vehicle_states", "notes", "keep_mode", "date"):
                 if k in rec:
                     meta[k] = rec[k]

@@ -1,9 +1,32 @@
 # Profile variants, phase 6 — the Ioniq facelift BMS as a real revision
 
-Status: **NOT STARTED.** Part of
+Status: **DONE** (2026-10-31). Part of
 [`2026-10-30-profile-variants-and-rename.md`](2026-10-30-profile-variants-and-rename.md) (see its
 [research on the facelift](2026-10-30-profile-variants-and-rename.md#the-ioniq-facelift-a-variant-not-a-profile)).
 Depends on phase 5.
+
+## As built
+
+- **Ported pages:** `220101` (24 signals) and `220105` (7: SOH, deterioration, dashboard SOC,
+  cell deviation, heater temperature). The Kona's cells 97/98 at the end of `220105`, and its
+  `220102`–`220104`/`220106` cell pages, are not ported: the plan names `220101`/`220105`, and the
+  38 kWh pack's cell layout is unknown.
+- **Offsets** are the Kona profile's (themselves OBDb's, via `canair bix`), cross-checked against
+  the Ioniq `2101`/`2105` layout: each is that page's offset moved one data byte by the wider DID
+  echo (skipping the PCI byte where it lands on one), the same relation the two cars' pages show.
+- **Names follow the `kwp` pages** where the quantity is the same: the Kona's
+  `NORMAL_CHARGE_PORT`/`RAPID_CHARGE_PORT` are `AC_CHARGER_CONNECTED`/`CHARGING_DC` (the two
+  `vehicle_states.yaml` predicates read them), `SOC_DISPLAY` is `SOC_DISP`, `HEATER_TEMP` is
+  `BATTERY_HEATER_1_TEMP`, the module temperatures are `MODULE_n_TEMP`, the fan signals and the
+  `220101` charge-power limits take the `2101` names. The Kona's `CELL_VOLTAGE_DEVIATION` keeps its
+  name: its scaling differs from `BATTERY_VOLTAGE_DEVIATION`.
+- Both pages are `status: active` with PID-level `verified: false`, so the verified-only AutoPID
+  default ships none of them.
+- **The goldens were re-pointed:** the two golden modules' own config now names the suite's car
+  (`28kwh`), as conftest does. They used to run with no car selected, which now leaves the BMS
+  undetermined. No golden was regenerated.
+- Boy Scout: `pids upsert-param` now adds a missing `parameters:` block after the PID's own fields
+  instead of straight after its header.
 
 ## Goal
 

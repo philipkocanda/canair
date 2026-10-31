@@ -61,7 +61,14 @@ def _gather_series(
     """
     from canlib.pids import build_ecu_index, load_pids
 
-    loaded = load_signal_captures(specs, since=since, until=until, state=state, label=label)
+    loaded = load_signal_captures(
+        specs,
+        since=since,
+        until=until,
+        state=state,
+        label=label,
+        one_revision="correlate" if want_bytes or want_bits else None,
+    )
     ecu_index = build_ecu_index(load_pids())
     series: dict = {}
     for (ecu, pid), lp in loaded.items():

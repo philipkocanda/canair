@@ -389,7 +389,9 @@ reuse these instead of re-declaring a flag:
   `--rx-id` or a 29-bit/extended addressing block in one valid write). **`ecu <ECU> rename NEW`**
   renames an ECU — its name *is* its top-level YAML key plus its `ecus/<name>.yaml` filename, so the
   rename rewrites the key and moves the file (validated, comment-preserving); use it to promote a
-  placeholder like `Unknown-7D5` once identified. **`ecu <ECU> edit`** opens
+  placeholder like `Unknown-7D5` once identified (it also renames the ECU's key in variants'
+  `revisions:` and in capture revision tags). **`ecu revisions ECU …`** and **`ecu set-variants`**
+  edit an ECU's revisions and presence (see `canair variants` below). **`ecu <ECU> edit`** opens
   `$EDITOR` and is **TTY-only — agents cannot drive it**; use `pids …`/`ecu add` instead.
 - **`canair states`** — List/edit the profile's vehicle-state vocabulary (`vehicle_states.yaml`);
   `canair states <STATE>` is the reverse lookup (which ECUs are readable in that state, via
@@ -422,14 +424,32 @@ reuse these instead of re-declaring a flag:
   `(ecu_label, pid, param_name)` selection key, snapping the TUI cursor and viewport back to the
   first copy.
 - **`canair variants`** — List/edit `variants.yaml`, the versions of the profile's car an owner
-  can name (battery, facelift, market) with typed metadata. Nothing gates a definition on a
-  variant yet — the rest of the design is `plans/2026-10-30-profile-variants-and-rename.md`,
-  phase by phase. The field table and the structural check live once in
-  `canlib/variants/__init__.py` (`VARIANT_FIELDS`, `check_variants_doc`), shared by the loader,
-  `validate variants` and the editor (`canlib/variants/edit.py`, which types each command-line
-  value from that table). Keys a later phase owns (`revisions`, `profile_overrides`) are rejected
-  until something reads them. `rename` rewrites every tag that uses the ID and `rm` refuses while
-  one does (`canlib/variants/references.py`).
+  can name (battery, facelift, market) with typed metadata, which ECU revisions each car can carry
+  (`revisions:`, `set-revisions`) and which `profile.yaml` settings differ for it
+  (`profile_overrides:`, a whitelist applied by `Profile.meta`). The rest of the design is
+  `plans/2026-10-30-profile-variants-and-rename.md`, phase by phase. The field table and the
+  structural check live once in `canlib/variants/__init__.py` (`VARIANT_FIELDS`,
+  `PROFILE_OVERRIDE_FIELDS`, `check_variants_doc`), shared by the loader, `validate variants` and
+  the editor (`canlib/variants/edit.py`, which types each command-line value from that table).
+  `rename` rewrites every tag and ECU `variants:` list that uses the ID and `rm` refuses while one
+  does (`canlib/variants/references.py`).
+  **ECU revisions** (`canlib/variants/revisions.py`) are versions of one ECU that differ in
+  protocol or decoding: an ECU's `revisions:` mapping (overrides from a whitelist plus
+  `fingerprints:`, checked but not matched yet), `revisions: [..]` gates on PIDs and signals,
+  and `variants: [..]` for ECU presence. **They are resolved once, at the load seam**:
+  `load_pids()` (no path) returns definitions already filtered and overridden for the selected
+  variant and each ECU's revision — `--revision ECU=ID` > `profile_settings.<p>.revisions`
+  (`profile use --pin`) > the only possible one > *undetermined*, which skips the ECU's gated
+  PIDs/signals with one stderr note. `Profile.cache_key` covers the variant and the pins;
+  `load_raw_pids()` is the as-written loader for variant-aware code (validate, the editors), and
+  `load_pids(path)` stays raw too. A profile without revisions or presence gets the raw objects
+  back untouched. Sessions are tagged `revisions: {ECU: id}` for captured multi-revision ECUs,
+  analysis drops sessions tagged with another revision of a determined ECU
+  (`tags.revisions_in_scope`), and the byte-level analyses refuse a scope spanning two revisions
+  (`tags.require_one_revision`, via `load_signal_captures(one_revision=…)`). Editors: `ecu
+  revisions` / `ecu set-variants` (`canlib/ecus/revisions_edit.py`, whose `rename` rewrites
+  gates, variants and capture tags) and `pids set-revisions`. The regression fixture is
+  `tests/fixtures/profiles/variants/`.
   **The variant names the car**, resolved by `canlib/variants/selection.py::apply_variant` —
   `--variant` > `CANAIR_VARIANT` > `profile_settings.<profile>.variant` (written by `profile use
   NAME --variant ID`) > the variant an old profile name implies (`aliases:` entry, via

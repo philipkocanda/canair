@@ -49,12 +49,24 @@
           "type": "string",
           "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
         },
+        "revisions": {
+          "description": "ECU name -> the revision (an ID from that ECU's revisions: in ecus/) it was on, for each captured ECU that declares more than one revision. Absent when no such ECU was captured, or its revision was not determined.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+          }
+        },
         "attribution": {
-          "description": "How each tag was decided, per tagged field: 'selected' (the recording named the car: --variant, CANAIR_VARIANT or the config), 'alias' (implied by the old profile name it was recorded under; unconfirmed), 'only' (the profile declares one variant), 'migrated' (stamped onto existing history by `captures migrate-variants`), 'asserted' (set afterwards with `captures uds --set-variant`).",
+          "description": "How each tag was decided, per tagged field: 'selected' (the recording named the car: --variant, CANAIR_VARIANT or the config), 'alias' (implied by the old profile name it was recorded under; unconfirmed), 'only' (the profile declares one variant), 'migrated' (stamped onto existing history by `captures migrate-variants`), 'asserted' (set afterwards with `captures uds --set-variant`). Under revisions, per ECU: 'pinned' (--revision or a profile_settings pin), 'only' (the only revision the car can carry), 'migrated', 'asserted'.",
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "variant": { "enum": ["selected", "alias", "only", "migrated", "asserted"] }
+            "variant": { "enum": ["selected", "alias", "only", "migrated", "asserted"] },
+            "revisions": {
+              "type": "object",
+              "additionalProperties": { "enum": ["pinned", "only", "migrated", "asserted"] }
+            }
           }
         },
         "captures": {

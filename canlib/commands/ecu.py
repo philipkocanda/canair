@@ -18,6 +18,7 @@ Examples:
   canair ecu --json          # all ECUs as JSON
   canair ecu HVAC edit       # open HVAC's ecus/ YAML in $EDITOR (TTY only)
   canair ecu rename Unknown-7D5 EPB   # rename an ECU (rewrites key + file)
+  canair ecu revisions VCU   # an ECU's revisions (see `canair ecu revisions -h`)
 
 Columns & legend:
   BUS    physical CAN bus segment(s) the ECU sits on (profile-specific codes,
@@ -723,11 +724,14 @@ def _unknown_ecu(value: str, records: list[dict]) -> int:
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
-        help="Inspect ECUs (list/detail), add one, or rename one: show | add | rename",
+        help="Inspect ECUs (list/detail), add, rename, or edit revisions: "
+        "show | add | rename | revisions | set-variants",
         description="Inspect or edit the profile's ECU registry.\n"
-        "  show     list ECUs, or show one ECU's details and PID stats (default)\n"
-        "  add      register a new ECU in the active profile's ecus/ (offline)\n"
-        "  rename   rename an ECU (rewrites its key and ecus/ file)\n\n"
+        "  show          list ECUs, or show one ECU's details and PID stats (default)\n"
+        "  add           register a new ECU in the active profile's ecus/ (offline)\n"
+        "  rename        rename an ECU (rewrites its key and ecus/ file)\n"
+        "  revisions     list or edit an ECU's revisions (protocol/decoding versions)\n"
+        "  set-variants  say which variants an ECU is fitted to\n\n"
         "A bare `canair ecu` or `canair ecu BMS` is shorthand for `canair ecu show …`.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__.split("Examples:")[1] if "Examples:" in __doc__ else "",
@@ -736,6 +740,9 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     _add_show_parser(kinds)
     _add_add_parser(kinds)
     _add_rename_parser(kinds)
+    from canlib.commands.ecu_revisions import add_parsers as _add_revision_parsers
+
+    _add_revision_parsers(kinds)
     parser.set_defaults(func=group_help("_ecu_group_parser"), _ecu_group_parser=parser)
     return parser
 
@@ -936,6 +943,7 @@ def cmd_rename(args) -> int:
 
     if args.dir is None:
         require_writable_definitions()
+    old_name = (load_ecus().get(tx_id) or {}).get("name")
     try:
         new_path = rename_ecu(tx_id, args.new_name, ecus_dir=args.dir)
     except EcusEditError as e:
@@ -943,6 +951,13 @@ def cmd_rename(args) -> int:
         return 1
 
     echo_edit(f"renamed {args.ecu} → {args.new_name} ({tx_key(tx_id)})", new_path)
+    if args.dir is None and old_name and old_name != args.new_name:
+        # Variants' revisions: lists and capture revision tags are keyed by ECU name.
+        from canlib.ecus.revisions_edit import retag_ecu_rename
+        from canlib.profile import active
+
+        for path in retag_ecu_rename(old_name, args.new_name.strip(), active()):
+            print(f"  {ansi.c('rewrote', ansi.DIM)} {path}")
     return 0
 
 

@@ -1,0 +1,12 @@
+# Variants fixture (synthetic) — vehicle operating states. DRIVING reads a signal that
+# both VCU revisions define, so it must resolve on every car and revision.
+states:
+  - name: SLEEP
+    description: Off.
+  - name: RUN
+    description: Ignition on.
+  - name: DRIVING
+    description: In motion.
+    when: "VCU.VEHICLE_SPEED > 0"
+  - name: ALL
+    description: Applicable in every vehicle state.

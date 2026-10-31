@@ -19,6 +19,7 @@ from ruamel.yaml.scalarstring import DoubleQuotedScalarString
 from canlib import yaml_io
 from canlib.variants import (
     BATTERY_FIELDS,
+    PROFILE_OVERRIDE_FIELDS,
     VARIANT_FIELDS,
     check_variants_doc,
     id_problem,
@@ -92,8 +93,33 @@ def _pair(key: str, raw: str) -> list[str]:
     return parts
 
 
+def _override_value(sub: str, raw: str) -> Any:
+    kind = PROFILE_OVERRIDE_FIELDS.get(sub)
+    if kind is None:
+        raise VariantsEditError(
+            f"cannot override '{sub}' (only: {', '.join(PROFILE_OVERRIDE_FIELDS)})"
+        )
+    if kind == "text":
+        return folded(raw.strip(), key_indent=_FIELD_INDENT + 2, key=sub)
+    if kind == "positive_int":
+        value = _number(f"profile_overrides.{sub}", raw)
+        if not isinstance(value, int):
+            raise VariantsEditError(f"profile_overrides.{sub}: must be a whole number")
+        return value
+    if kind == "texts":
+        return _flow_seq([p.strip() for p in raw.split(",") if p.strip()])
+    raise VariantsEditError(
+        f"profile_overrides.{sub} is a mapping; it cannot be given on the command line"
+    )
+
+
 def parse_value(key: str, raw: str) -> Any:
-    """Type a command-line ``raw`` value for field ``key`` (``battery.<x>`` for battery)."""
+    """Type a command-line ``raw`` value for field ``key`` (``battery.<x>`` for battery).
+
+    ``profile_overrides.<setting>`` types the value as that ``profile.yaml`` setting.
+    """
+    if key.startswith("profile_overrides."):
+        return _override_value(key.split(".", 1)[1], raw)
     if key.startswith("battery."):
         sub = key.split(".", 1)[1]
         kind = BATTERY_FIELDS.get(sub)
@@ -112,6 +138,12 @@ def parse_value(key: str, raw: str) -> Any:
         raise VariantsEditError(f"unknown field '{key}' (known: {', '.join(VARIANT_FIELDS)})")
     if kind == "battery":
         raise VariantsEditError("set battery fields one at a time, e.g. battery.usable_kwh=28")
+    if kind == "revisions":
+        raise VariantsEditError("set an ECU's revisions with `canair variants set-revisions`")
+    if kind == "overrides":
+        raise VariantsEditError(
+            "set overrides one at a time, e.g. profile_overrides.car_model=NAME"
+        )
     if kind == "status":
         return raw.strip()
     if kind == "text":
@@ -172,21 +204,28 @@ def _place(entry: CommentedMap, key: str, value: Any) -> None:
 
 def _assign(entry: CommentedMap, key: str, raw: str) -> None:
     value = parse_value(key, raw)
-    if not key.startswith("battery."):
-        _place(entry, key, value)
-        return
-    sub = key.split(".", 1)[1]
-    battery = entry.get("battery")
-    if not isinstance(battery, dict):
-        battery = CommentedMap()
-        battery.fa.set_flow_style()
-        _place(entry, "battery", battery)
-    order = list(BATTERY_FIELDS)
-    if sub in battery:
-        battery[sub] = value
+    if key.startswith("battery."):
+        _assign_sub(entry, "battery", list(BATTERY_FIELDS), key.split(".", 1)[1], value)
+    elif key.startswith("profile_overrides."):
+        sub = key.split(".", 1)[1]
+        _assign_sub(entry, "profile_overrides", list(PROFILE_OVERRIDE_FIELDS), sub, value)
     else:
-        pos = sum(1 for k in battery if k in order and order.index(k) < order.index(sub))
-        battery.insert(pos, sub, value)
+        _place(entry, key, value)
+
+
+def _assign_sub(entry: CommentedMap, field: str, order: list[str], sub: str, value: Any) -> None:
+    """Set ``sub`` inside the mapping ``field`` (created if absent), in canonical order."""
+    block = entry.get(field)
+    if not isinstance(block, dict):
+        block = CommentedMap()
+        if field == "battery":
+            block.fa.set_flow_style()
+        _place(entry, field, block)
+    if sub in block:
+        block[sub] = value
+    else:
+        pos = sum(1 for k in block if k in order and order.index(k) < order.index(sub))
+        block.insert(pos, sub, value)
 
 
 def _assign_all(entry: CommentedMap, assignments: Sequence[tuple[str, str]]) -> None:
@@ -283,14 +322,14 @@ def unset_variant_meta(
         for key in keys:
             if key == "name":
                 raise VariantsEditError("a variant's name cannot be removed")
-            if key.startswith("battery."):
-                battery = entry.get("battery")
-                sub = key.split(".", 1)[1]
-                if not isinstance(battery, dict) or sub not in battery:
+            field, dot, sub = key.partition(".")
+            if dot and field in ("battery", "profile_overrides"):
+                block = entry.get(field)
+                if not isinstance(block, dict) or sub not in block:
                     raise VariantsEditError(f"variant {vid!r} has no {key}")
-                del battery[sub]
-                if not battery:
-                    del entry["battery"]
+                del block[sub]
+                if not block:
+                    del entry[field]
             elif key in entry:
                 del entry[key]
             else:
@@ -328,3 +367,65 @@ def remove_variant(variant_id: str, *, profile: Profile | None = None) -> Path:
         del data["variants"][key]
 
     return _edit(profile, change)
+
+
+def set_variant_revisions(
+    variant_id: str, ecu: str, revisions: Sequence[str] | None, *, profile: Profile | None = None
+) -> Path:
+    """Say which revisions of ``ecu`` the variant can carry (None: any — the entry is removed).
+
+    That the ECU and each revision exist is the caller's check (it needs the ECU files);
+    the shape is checked here like every other field.
+    """
+    vid = _checked_id(variant_id)
+    revs = [str(r).strip().lower() for r in (revisions or []) if str(r).strip()]
+    for rid in revs:
+        if problem := id_problem(rid, "revision", "uds"):
+            raise VariantsEditError(problem)
+
+    def change(data: CommentedMap) -> None:
+        entry = _entry(data, vid)
+        block = entry.get("revisions")
+        if not revs:
+            if not isinstance(block, dict) or ecu not in block:
+                raise VariantsEditError(f"variant {vid!r} does not limit {ecu}'s revisions")
+            del block[ecu]
+            if not block:
+                del entry["revisions"]
+            return
+        if not isinstance(block, dict):
+            block = CommentedMap()
+            _place(entry, "revisions", block)
+        block[ecu] = _flow_seq(list(dict.fromkeys(revs)))
+
+    return _edit(profile, change)
+
+
+def rename_variant_revisions_ecu(old: str, new: str, *, profile: Profile | None = None) -> bool:
+    """Follow an ECU rename: rename its key in every variant's ``revisions:``.
+
+    Returns whether anything changed (the file is left untouched otherwise).
+    """
+    path = _path(profile)
+    if not path.exists():
+        return False
+    found = False
+
+    def change(data: CommentedMap) -> None:
+        nonlocal found
+        for entry in data["variants"].values():
+            block = entry.get("revisions") if isinstance(entry, dict) else None
+            if isinstance(block, dict) and old in block:
+                rebuilt = CommentedMap()
+                for k, v in block.items():
+                    rebuilt[new if k == old else k] = v
+                entry["revisions"] = rebuilt
+                found = True
+
+    original = path.read_text()
+    data = _load(path)
+    change(data)
+    if not found:
+        return False
+    _write(path, original, data)
+    return True

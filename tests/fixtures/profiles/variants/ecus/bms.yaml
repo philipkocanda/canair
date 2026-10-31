@@ -1,0 +1,14 @@
+# Shared by both cars, one revision: nothing about it varies.
+BMS:
+  tx_id: 0x7E4
+  identity:
+    description: 'Synthetic BMS'
+    id_protocol: KWP2000
+  pids:
+    "2101":
+      status: active
+      parameters:
+        SOC:
+          expression: B4/2
+          unit: "%"
+          verified: true

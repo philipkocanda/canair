@@ -152,7 +152,12 @@ def _print_cross_mirrors(specs, since, until, args, notation=ByteNotation.WICAN)
 
     fill = fill_policy_from_args(args)
     loaded = load_signal_captures(
-        specs, since=since, until=until, state=args.state, label=args.label
+        specs,
+        since=since,
+        until=until,
+        state=args.state,
+        label=args.label,
+        one_revision="correlate",
     )
     # Per-PID payload lengths: one mirror list mixes labels from several PIDs, so
     # each needs its own frame layout to render a correct non-WiCAN label.

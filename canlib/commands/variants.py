@@ -8,7 +8,8 @@ modify the file surgically (comment-preserving, checked, reverted on failure).
 Metadata values are typed per field: short lists (``markets``, ``trims``) are
 comma-separated, ``sources`` takes one source per ``sources=…`` (repeat it for more),
 battery fields are set one at a time as ``battery.<field>``, and
-``production``/``model_years`` take a ``from,to`` pair. Setting a field replaces it.
+``production``/``model_years`` take a ``from,to`` pair, and ``profile.yaml`` overrides are
+set one at a time as ``profile_overrides.<setting>``. Setting a field replaces it.
 
 Examples:
   canair variants                                   # list the variants
@@ -17,6 +18,8 @@ Examples:
       production=2019-06,2022 battery.usable_kwh=38.3 status=seed
   canair variants set-meta 28kwh model_code=AEEV markets=EU,US,KR
   canair variants unset-meta 28kwh trims
+  canair variants set-meta 38kwh profile_overrides.car_model="Ioniq Electric 38 kWh"
+  canair variants set-revisions 38kwh BMS uds        # the 38 kWh car's BMS is the UDS one
   canair variants rename 28kwh 28kwh-eu
   canair variants rm 38kwh
 """
@@ -162,6 +165,38 @@ def cmd_unset_meta(args) -> int:
     )
 
 
+def cmd_set_revisions(args) -> int:
+    from canlib.pids import load_raw_pids
+    from canlib.variants.edit import VariantsEditError, set_variant_revisions
+    from canlib.variants.revisions import canonical_ecu, declared
+
+    revs = [r.strip().lower() for part in args.revisions for r in part.split(",") if r.strip()]
+    if args.clear == bool(revs):
+        raise SystemExit(f"{ansi.c('  Error: give the revisions, or --clear', ansi.RED)}")
+    ecus = load_raw_pids().get("ecus") or {}
+    ecu = canonical_ecu(args.ecu, ecus)
+    if ecu is None:
+        raise SystemExit(f"{ansi.c(f'  Error: no ECU {args.ecu!r} in ecus/', ansi.RED)}")
+    have = declared(ecus[ecu])
+    unknown = [r for r in revs if r not in have]
+    if unknown:
+        raise SystemExit(
+            ansi.c(
+                f"  Error: {ecu} declares no revision {', '.join(unknown)} "
+                f"(declared: {', '.join(have) or 'none'})",
+                ansi.RED,
+            )
+        )
+    what = f"[{', '.join(revs)}]" if revs else "any revision"
+    try:
+        return _run_edit(
+            f"variant {args.id}: {ecu} -> {what}",
+            lambda: set_variant_revisions(args.id, ecu, None if args.clear else revs),
+        )
+    except VariantsEditError as e:  # pragma: no cover - _run_edit reports these
+        raise SystemExit(str(e)) from None
+
+
 def cmd_rename(args) -> int:
     from canlib.profile import active
     from canlib.variants.references import rename_everywhere
@@ -192,7 +227,8 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         help="List and edit the variants of the profile's car (variants.yaml)",
         description="List the variants of the active profile's car — the versions an owner "
         "can name, such as a battery size or a facelift — or edit them "
-        "(add/set-meta/unset-meta/rename/rm). Variants carry metadata only so far.",
+        "(add/set-meta/unset-meta/set-revisions/rename/rm). A variant can limit which "
+        "ECU revisions its car carries and override some profile.yaml settings.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__.split("Examples:")[1] if "Examples:" in __doc__ else "",
     )
@@ -225,14 +261,33 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     um.add_argument("keys", nargs="+", metavar="KEY", help="Field (battery.<field> for battery)")
     um.set_defaults(_variants_func=cmd_unset_meta)
 
+    srv = sub.add_parser(
+        "set-revisions",
+        help="Say which revisions of an ECU this car can carry",
+        description="Record which of an ECU's revisions (its revisions: IDs in ecus/) a "
+        "variant's car can carry. One revision: that ECU is determined for the car. Several: "
+        "a running change, so the ECU decides (pin it with `profile use --pin`). --clear: "
+        "any of them (the default).",
+    )
+    srv.add_argument("id", help="Variant ID")
+    srv.add_argument("ecu", metavar="ECU")
+    srv.add_argument(
+        "revisions", nargs="*", metavar="REVISION", help="Revision IDs (or a comma list)"
+    )
+    srv.add_argument("--clear", action="store_true", help="Any of the ECU's revisions")
+    srv.set_defaults(_variants_func=cmd_set_revisions)
+
     ren = sub.add_parser(
-        "rename", help="Change a variant's ID, retagging the captures and logs that use it"
+        "rename",
+        help="Change a variant's ID, retagging the captures, logs and ECU files that use it",
     )
     ren.add_argument("old")
     ren.add_argument("new")
     ren.set_defaults(_variants_func=cmd_rename)
 
-    rm = sub.add_parser("rm", help="Remove a variant (refused while captures or logs use it)")
+    rm = sub.add_parser(
+        "rm", help="Remove a variant (refused while captures, logs or ECU files use it)"
+    )
     rm.add_argument("id")
     rm.set_defaults(_variants_func=cmd_rm)
 

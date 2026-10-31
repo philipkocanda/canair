@@ -8,9 +8,10 @@ profile's **variants**, declared in its `variants.yaml`.
 !!! note "What variants do so far"
     Variants record *what* versions of the car exist and what is known about each; you
     [name yours](#choosing-your-car) once, and [captures are
-    tagged](#tagging-captures-with-the-car) with the one they came from.
-    Nothing limits a definition to one variant yet: every definition in the profile still
-    applies to every car. The design for what follows is in
+    tagged](#tagging-captures-with-the-car) with the one they came from. An ECU can declare
+    [revisions](#ecu-revisions), and a variant can say which of them its car carries, which
+    ECUs it has and which `profile.yaml` settings differ for it. Recognising an ECU's revision
+    from the car itself is not built yet: pin it. The design for what follows is in
     [`plans/2026-10-30-profile-variants-and-rename.md`](https://github.com/philipkocanda/canair/blob/main/plans/2026-10-30-profile-variants-and-rename.md).
 
 ## What is a variant, and what is not
@@ -67,6 +68,8 @@ variants:
 | `markets` | Where it was sold |
 | `battery` | `usable_kwh`, `gross_kwh`, `series_cells`, `chemistry`, `cooling` |
 | `trims` | Informational only |
+| `revisions` | ECU → the [revisions](#ecu-revisions) of that ECU this car can carry (`BMS: [uds]`); an unlisted ECU may be any |
+| `profile_overrides` | `profile.yaml` settings that differ for this car, replaced whole: `car_model`, `physical_bands`, `response_timeout_ms`, `init`, `multi_did_max`, `quirks` |
 | `status` | `verified` (proven on a car), `community` (from community sources), `seed` (placeholder) |
 | `sources` | Where the facts came from |
 | `notes` | Free text |
@@ -87,12 +90,15 @@ canair variants add 38kwh --name "Ioniq Electric 38 kWh (facelift)" \
 canair variants set-meta 28kwh markets=EU,US,KR \
     "sources=first source" "sources=second source, with a comma"
 canair variants unset-meta 28kwh trims
+canair variants set-meta 38kwh profile_overrides.car_model="Ioniq Electric 38 kWh"
+canair variants set-revisions 38kwh BMS uds
 canair variants rename 28kwh 28kwh-eu
 canair variants rm 38kwh
 ```
 
 Short lists (`markets`, `trims`) are comma-separated; `sources` takes one source per
-`sources=…`, so a source can contain a comma. Setting a field replaces it.
+`sources=…`, so a source can contain a comma; a `profile.yaml` override is set one at a time as
+`profile_overrides.<setting>=…`. Setting a field replaces it.
 
 `canair profile show` lists a profile's variants, and the
 [profile explorer](../profiles/explorer.md) shows them in its toolbar.
@@ -180,4 +186,90 @@ merge driver, `canair contribute` and a layered profile's read all keep the tagg
 older, untagged copy of your history can never strip the tags from it.
 
 `canair variants rename` rewrites every tag that uses the variant (captures, the raw-CAN log index
-and the DTC log), and `canair variants rm` refuses while any of them still does.
+and the DTC log) and every ECU fitted to it, and `canair variants rm` refuses while any of them
+still does.
+
+## ECU revisions
+
+A variant describes the car; a **revision** describes one ECU. ECUs change on their own
+production dates, and a dealer-replaced ECU follows the newer rules in an older car, so a
+running change — a VCU that went from KWP2000 to UDS mid-year — is two revisions of that ECU,
+not two variants. A revision exists only if some definition differs: a new part number with the
+same diagnostics is another *fingerprint* of an existing revision, not a new one.
+
+```yaml
+VCU:
+  tx_id: 0x7E2
+  revisions:
+    kwp:                                   # listed first: the reference revision
+      identity: {id_protocol: KWP2000}
+      fingerprints:
+        - {responds: "1A90"}               # a safe read only this revision answers
+    uds:
+      identity: {id_protocol: UDS}
+      fingerprints:
+        - {identity: {part_number: "36601-0E1*"}}
+  pids:
+    "2101":
+      revisions: [kwp]                     # only the kwp VCU answers it
+      parameters: {...}
+    "22E001":
+      revisions: [uds]
+      parameters: {...}
+```
+
+- **IDs** follow the variant rule and name what differs (`kwp`/`uds`, `150s`), local to the ECU.
+- A revision may **override** the ECU's `sessions`, `wake`, `multi_did`, `multi_did_max`,
+  `response_timeout_ms`, `addressing`, `rx_id` and `identity.id_protocol`.
+- **Gating:** `revisions:` on a PID or signal lists the revisions it applies to; absent means
+  every revision. A signal's list must be within its PID's. Two PIDs of one ECU may ship the
+  same signal name when their revisions are disjoint — that is how `VCU.VEHICLE_SPEED` stays one
+  name, for state predicates and Home Assistant, across a protocol change.
+- **Presence:** `variants: [60kwh]` on an ECU says only those cars have it.
+- **Fingerprints** are recorded and checked, but canair does not match them against a car yet.
+
+The bundled Ioniq is the worked case: its BMS has a `kwp` revision (every page the 28 kWh car
+answers, `2101`…`21F2`) and a `uds` one (the Kona-family `220101`/`220105` pages the 38 kWh
+facelift most likely answers, ported from the Kona profile and all unverified). `28kwh` allows
+only `kwp`, `38kwh` only `uds`.
+
+### Which revision your car has
+
+1. a **pin**: `canair profile use NAME --pin VCU=uds` (remembered, as
+   `profile_settings.<profile>.revisions`) or `--revision VCU=uds` for one command;
+2. the **only** revision your variant allows (its `revisions:` entry), or the ECU's only one;
+3. otherwise **undetermined**: canair does not guess. That ECU's revision-specific PIDs and
+   signals are skipped, with one note naming the pin; its other PIDs still read.
+
+Every command sees the definitions resolved this way, so a 40 kWh car never polls the UDS
+VCU's PIDs. `canair status`, `canair profile show` and `canair ecu revisions VCU` report each
+ECU's revision and where it came from.
+
+### Captures and analysis
+
+A recording tags each captured ECU that declares several revisions with the one it was on
+(`revisions: {VCU: uds}`, attributed `pinned` or `only`). Analysis then reads only the
+sessions that agree with your car's resolved revisions (an untagged session is read as yours).
+**Byte-level analyses** — `investigate`, `hunt`, `correlate`, `coverage`, and `decode
+--dump-bytes`/`--try` — refuse a scope that spans two revisions of an ECU they analyse, since a
+byte offset means nothing across two layouts; scope with `--revision ECU=ID`. With no car
+chosen (or `--variant all`), an ECU with several possible revisions is undetermined, so its
+revision-specific definitions are left out of analysis too, and the note says so: name your car
+(`--variant ID`), or add `--revision ECU=ID`.
+
+### Editing
+
+```bash
+canair ecu revisions VCU                              # list
+canair ecu revisions VCU add uds --protocol UDS
+canair ecu revisions VCU set-fingerprint uds --responds 22F187
+canair ecu revisions VCU rename uds uds-2018          # rewrites gates, variants, capture tags
+canair ecu revisions VCU rm uds-2018                  # refused while anything uses it
+canair pids set-revisions VCU:22E001 uds              # gate a PID (ECU:PID:SIGNAL: a signal)
+canair ecu set-variants HEATER 60kwh                  # presence
+canair variants set-revisions 40kwh VCU kwp
+```
+
+`canair validate` checks every reference, the subset rule, and that each state predicate
+resolves on every variant and revision the profile describes — a predicate naming a signal
+only one revision has would otherwise turn its state dark on the other car alone.

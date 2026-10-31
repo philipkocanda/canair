@@ -18,7 +18,7 @@ from canlib.commands import iter_command_modules
 
 # Global options (before the subcommand) that consume a following value. Used by
 # _inject_default_subcommand to find the command token.
-_GLOBAL_OPTS_WITH_VALUE = {"--profile", "--profiles-dir", "--variant"}
+_GLOBAL_OPTS_WITH_VALUE = {"--profile", "--profiles-dir", "--variant", "--revision"}
 # Command groups that default to a kind when the token after them isn't a known
 # sub-kind. Maps command -> (known kinds, default kind).
 #
@@ -31,7 +31,7 @@ _GROUP_DEFAULTS = {
     # Only `uds` exists today; a `can` kind joins when raw-frame search is designed.
     "search": ({"uds"}, "uds"),
     "scan": ({"range", "iocontrol", "routines", "sessions"}, "range"),
-    "ecu": ({"show", "add", "rename"}, "show"),
+    "ecu": ({"show", "add", "rename", "revisions", "set-variants"}, "show"),
     # A bare token after `states` (e.g. `canair states READY`) is a state name to
     # look up (which ECUs are readable in it), routed through the `list` kind.
     "states": (
@@ -271,6 +271,17 @@ def build_parser() -> argparse.ArgumentParser:
         "and scopes analysis to that car's sessions (all / untagged also scope "
         "analysis). Overrides CANAIR_VARIANT.",
     )
+    parser.add_argument(
+        "--revision",
+        metavar="ECU=ID",
+        action="append",
+        dest="revision_pins",
+        default=None,
+        help="Which revision an ECU of your car is (an ECU's revisions: ID), for one "
+        "command: decides its definitions, tags what you record and scopes analysis to "
+        "that revision's sessions. Repeat for several ECUs. Overrides a pin set with "
+        "`profile use --pin`.",
+    )
     subparsers = parser.add_subparsers(dest="command", metavar="<command>")
 
     for module in iter_command_modules():
@@ -327,9 +338,10 @@ def main(argv: list[str] | None = None) -> int:
         getattr(args, "profile", None) is not None
         or getattr(args, "profiles_dir", None) is not None
         or getattr(args, "variant", None) is not None
+        or getattr(args, "revision_pins", None)
     ):
         try:
-            set_active(args.profile, args.profiles_dir, args.variant)
+            set_active(args.profile, args.profiles_dir, args.variant, args.revision_pins)
         except ProfileError as e:
             print(f"error: {e}", file=sys.stderr)
             return 2

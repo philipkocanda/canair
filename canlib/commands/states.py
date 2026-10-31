@@ -234,14 +234,13 @@ def _load_broken_refs(rules) -> dict[str, list[dict[str, str]]]:
     surfaces it here — otherwise a permanently-dead predicate still shows a
     healthy ``●``. Best-effort: an unloadable registry simply reports nothing.
     """
-    from canlib.pids import load_pids
-    from canlib.states.refs import check_references
+    from canlib.pids import load_raw_pids
+    from canlib.states.refs import check_references_on_every_car
 
     try:
-        pids_data = load_pids()
-        if not pids_data.get("ecus"):
+        if not load_raw_pids().get("ecus"):
             return {}
-        issues = check_references([(r.name, r.expr) for r in rules if r.expr], pids_data)
+        issues = check_references_on_every_car([(r.name, r.expr) for r in rules if r.expr])
     except Exception:
         return {}
     out: dict[str, list[dict[str, str]]] = {}
@@ -393,10 +392,9 @@ def _warn_unresolved_refs(state: str, expr: str | None) -> None:
     if not expr:
         return
     try:
-        from canlib.pids import load_pids
-        from canlib.states.refs import check_references
+        from canlib.states.refs import check_references_on_every_car
 
-        issues = check_references([(state, expr)], load_pids())
+        issues = check_references_on_every_car([(state, expr)])
     except Exception:
         return  # never let an advisory check fail a successful write
     for issue in issues:

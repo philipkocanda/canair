@@ -12,12 +12,13 @@ diagnostics. ``variants.yaml`` gives each variant a stable ID and typed metadata
         battery: {usable_kwh: 28, series_cells: 96}
         status: verified
 
-The file is optional, and so far it is metadata only: nothing selects a variant, gates
-a definition or tags a capture yet (see ``plans/2026-10-30-profile-variants-and-rename.md``
-for what follows). The field lists and the structural check live here once, shared by
-the loader, ``canair validate variants`` and the editor (:mod:`canlib.variants.edit`),
-so a field one accepts is never rejected by another; ``canlib/schema/
-variants_schema.yaml`` documents the same fields for humans.
+The file is optional. Beside its metadata a variant may say which ECU revisions the car
+can carry (``revisions: {BMS: [kwp]}``, see :mod:`canlib.variants.revisions`) and which
+``profile.yaml`` settings differ for it (``profile_overrides:``, a whitelist). The field
+lists and the structural check live here once, shared by the loader, ``canair validate
+variants`` and the editor (:mod:`canlib.variants.edit`), so a field one accepts is never
+rejected by another; ``canlib/schema/variants_schema.yaml`` documents the same fields for
+humans.
 """
 
 from __future__ import annotations
@@ -43,7 +44,17 @@ _BATTERY_ID_RE = re.compile(r"^(\d+)kwh(?:-|$)")
 STATUSES = ("verified", "community", "seed")
 VariantStatus = Literal["verified", "community", "seed"]
 
-FieldKind = Literal["text", "texts", "sentences", "years", "year_months", "status", "battery"]
+FieldKind = Literal[
+    "text",
+    "texts",
+    "sentences",
+    "years",
+    "year_months",
+    "status",
+    "battery",
+    "revisions",
+    "overrides",
+]
 # Every field a variant may carry, in canonical render order, with its value kind.
 VARIANT_FIELDS: dict[str, FieldKind] = {
     "name": "text",
@@ -55,6 +66,8 @@ VARIANT_FIELDS: dict[str, FieldKind] = {
     "markets": "texts",
     "battery": "battery",
     "trims": "texts",
+    "revisions": "revisions",
+    "profile_overrides": "overrides",
     "status": "status",
     "sources": "sentences",
     "notes": "text",
@@ -67,9 +80,17 @@ BATTERY_FIELDS: dict[str, Literal["number", "count", "text"]] = {
     "chemistry": "text",
     "cooling": "text",
 }
-# Keys a later stage of the design owns. Rejected until something reads them, so nobody
-# writes data that silently does nothing.
-RESERVED_FIELDS = ("revisions", "profile_overrides")
+# The profile.yaml settings a variant may replace (shallow), and the type each must have.
+# A whitelist, not a second profile.yaml: anything else describes the whole profile.
+OverrideKind = Literal["text", "positive_int", "mapping", "texts"]
+PROFILE_OVERRIDE_FIELDS: dict[str, OverrideKind] = {
+    "car_model": "text",
+    "physical_bands": "mapping",
+    "response_timeout_ms": "positive_int",
+    "init": "text",
+    "multi_did_max": "positive_int",
+    "quirks": "texts",
+}
 
 
 class VariantsError(ValueError):
@@ -102,6 +123,14 @@ class Variant:
     status: VariantStatus | None = None
     sources: tuple[str, ...] = ()
     notes: str | None = None
+    # ECU name -> the revisions of that ECU this car can carry (an unlisted ECU: any).
+    revisions: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
+    # profile.yaml settings that differ for this car (PROFILE_OVERRIDE_FIELDS only).
+    profile_overrides: Mapping[str, Any] = field(default_factory=dict)
+
+    def allowed_revisions(self, ecu: str) -> tuple[str, ...] | None:
+        """The revisions of ``ecu`` this car can carry, or None when it doesn't say."""
+        return self.revisions.get(ecu)
 
 
 def normalize_variant_id(value: str) -> str:
@@ -109,12 +138,16 @@ def normalize_variant_id(value: str) -> str:
     return str(value).strip().lower()
 
 
-def id_problem(variant_id: str) -> str | None:
-    """Why ``variant_id`` is not a valid ID, or ``None`` when it is."""
+def id_problem(variant_id: str, noun: str = "variant", example: str = "28kwh") -> str | None:
+    """Why ``variant_id`` is not a valid ID, or ``None`` when it is.
+
+    Revision IDs follow the same rule (``noun="revision"``): local to their ECU, naming
+    only what differs.
+    """
     if not _ID_RE.match(variant_id) or not re.search(r"[a-z]", variant_id):
         return (
-            f"invalid variant ID {variant_id!r}: lower-case letters and digits in '-'-separated "
-            "words, with at least one letter (e.g. 28kwh)"
+            f"invalid {noun} ID {variant_id!r}: lower-case letters and digits in '-'-separated "
+            f"words, with at least one letter (e.g. {example})"
         )
     return None
 
@@ -164,7 +197,61 @@ def _value_problem(kind: FieldKind, value: Any) -> str | None:
             if sub_kind == "text" and not (isinstance(sub, str) and sub.strip()):
                 return f"'{key}' must be non-empty text"
         return None
+    if kind == "revisions":
+        return _revisions_problem(value)
+    if kind == "overrides":
+        return _overrides_problem(value)
     return None  # pragma: no cover - every kind is handled above
+
+
+def _revisions_problem(value: Any) -> str | None:
+    """Why a variant's ``revisions:`` map is malformed (ECU name -> list of revision IDs).
+
+    Only the shape is checked here; that each ECU and revision exists is checked against
+    the ECU files (:func:`canlib.variants.revisions.variant_reference_errors`).
+    """
+    if not isinstance(value, dict):
+        return "must be a mapping of ECU name -> list of revision IDs"
+    for ecu, revs in value.items():
+        if not isinstance(ecu, str) or not ecu.strip():
+            return f"has a non-text ECU name {ecu!r}"
+        if not isinstance(revs, list) or not revs:
+            return f"'{ecu}' must list at least one revision ID"
+        ids = [str(r).strip().lower() for r in revs]
+        for rid in ids:
+            if problem := id_problem(rid, "revision", "uds"):
+                return f"'{ecu}': {problem}"
+        if len(set(ids)) != len(ids):
+            return f"'{ecu}' lists a revision twice"
+    return None
+
+
+def _overrides_problem(value: Any) -> str | None:
+    """Why a variant's ``profile_overrides:`` is malformed."""
+    if not isinstance(value, dict):
+        return "must be a mapping of profile.yaml settings"
+    for key, sub in value.items():
+        kind = PROFILE_OVERRIDE_FIELDS.get(str(key))
+        if kind is None:
+            return (
+                f"cannot override '{key}' (only: {', '.join(PROFILE_OVERRIDE_FIELDS)}); a "
+                "setting that differs more widely is a sign of a separate profile"
+            )
+        ok = {
+            "text": isinstance(sub, str) and bool(sub.strip()),
+            "positive_int": isinstance(sub, int) and not isinstance(sub, bool) and sub > 0,
+            "mapping": isinstance(sub, dict),
+            "texts": isinstance(sub, list) and all(isinstance(q, str) for q in sub),
+        }[kind]
+        if not ok:
+            want = {
+                "text": "non-empty text",
+                "positive_int": "a positive whole number",
+                "mapping": "a mapping",
+                "texts": "a list of text",
+            }[kind]
+            return f"'{key}' must be {want}"
+    return None
 
 
 def check_variants_doc(data: Any) -> list[str]:
@@ -196,9 +283,6 @@ def check_variants_doc(data: Any) -> list[str]:
             f"{label}: missing required field '{f}'" for f in REQUIRED_FIELDS if f not in entry
         ]
         for key, value in entry.items():
-            if key in RESERVED_FIELDS:
-                errors.append(f"{label}: '{key}' is not supported yet")
-                continue
             kind = VARIANT_FIELDS.get(str(key))
             if kind is None:
                 errors.append(f"{label}: unknown field '{key}'")
@@ -245,6 +329,11 @@ def _variant_from(vid: str, entry: Mapping[str, Any]) -> Variant:
         status=entry.get("status"),
         sources=tuple(entry.get("sources") or ()),
         notes=entry.get("notes"),
+        revisions={
+            str(ecu): tuple(str(r).strip().lower() for r in revs)
+            for ecu, revs in (entry.get("revisions") or {}).items()
+        },
+        profile_overrides=dict(entry.get("profile_overrides") or {}),
     )
 
 

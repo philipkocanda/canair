@@ -378,6 +378,10 @@ def decode_one(
         return 1
 
     captures = scope_captures(load_pid_captures(ecu_key, pid_key), **scope)
+    if args.dump_bytes or raw_byte_mode or getattr(args, "try_expr", None):
+        from canlib.variants.tags import require_one_revision
+
+        require_one_revision(({"ecu": ecu_key, **c} for c in captures), [ecu_key], "decode")
     if not captures:
         if multi:
             print(

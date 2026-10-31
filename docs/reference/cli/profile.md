@@ -90,13 +90,14 @@ options:
 ## `canair profile use`
 
 ```
-usage: canair profile use [-h] [--variant ID] name
+usage: canair profile use [-h] [--variant ID] [--pin ECU=ID] name
 
 Set NAME as the default profile (default_profile in the user config) and, with
 --variant, which of its variants your car is (profile_settings.NAME.variant,
-remembered per profile). On a terminal, a profile with several variants and no
---variant opens a picker. The name must be a discovered profile; an old,
-renamed name is accepted and saved as the current one.
+remembered per profile), and with --pin, which revision an ECU of it is. On a
+terminal, a profile with several variants and no --variant opens a picker. The
+name must be a discovered profile; an old, renamed name is accepted and saved
+as the current one.
 
 positional arguments:
   name          Profile name to set as default
@@ -105,6 +106,11 @@ options:
   -h, --help    show this help message and exit
   --variant ID  The variant your car is (a variants.yaml ID), remembered for
                 this profile
+  --pin ECU=ID  Which revision an ECU of your car is (one of its revisions:
+                IDs), remembered for this profile
+                (profile_settings.NAME.revisions). Repeat for several ECUs.
+                For when canair cannot tell on its own; overridden for one
+                command by --revision
 ```
 
 ## `canair profile create`

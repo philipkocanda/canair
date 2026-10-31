@@ -6,20 +6,26 @@
 usage: canair ecu [-h] <kind> ...
 
 [UDS] Inspect or edit the profile's ECU registry.
-  show     list ECUs, or show one ECU's details and PID stats (default)
-  add      register a new ECU in the active profile's ecus/ (offline)
-  rename   rename an ECU (rewrites its key and ecus/ file)
+  show          list ECUs, or show one ECU's details and PID stats (default)
+  add           register a new ECU in the active profile's ecus/ (offline)
+  rename        rename an ECU (rewrites its key and ecus/ file)
+  revisions     list or edit an ECU's revisions (protocol/decoding versions)
+  set-variants  say which variants an ECU is fitted to
 
 A bare `canair ecu` or `canair ecu BMS` is shorthand for `canair ecu show …`.
 
 positional arguments:
   <kind>
-    show      List ECUs, or show one ECU's details and PID stats
-    add       Register a new ECU in the active profile (offline; no device)
-    rename    Rename an ECU (rewrites its key and ecus/ file)
+    show          List ECUs, or show one ECU's details and PID stats
+    add           Register a new ECU in the active profile (offline; no
+                  device)
+    rename        Rename an ECU (rewrites its key and ecus/ file)
+    revisions     List or edit an ECU's revisions (versions that differ in
+                  protocol or decoding)
+    set-variants  Say which variants an ECU is fitted to (ECU presence)
 
 options:
-  -h, --help  show this help message and exit
+  -h, --help      show this help message and exit
 
   canair ecu                 # plain list of all ECUs (one per line)
   canair ecu BMS             # details + stats for the BMS
@@ -32,6 +38,7 @@ options:
   canair ecu --json          # all ECUs as JSON
   canair ecu HVAC edit       # open HVAC's ecus/ YAML in $EDITOR (TTY only)
   canair ecu rename Unknown-7D5 EPB   # rename an ECU (rewrites key + file)
+  canair ecu revisions VCU   # an ECU's revisions (see `canair ecu revisions -h`)
 
 Columns & legend:
   BUS    physical CAN bus segment(s) the ECU sits on (profile-specific codes,
@@ -93,6 +100,7 @@ options:
   canair ecu --json          # all ECUs as JSON
   canair ecu HVAC edit       # open HVAC's ecus/ YAML in $EDITOR (TTY only)
   canair ecu rename Unknown-7D5 EPB   # rename an ECU (rewrites key + file)
+  canair ecu revisions VCU   # an ECU's revisions (see `canair ecu revisions -h`)
 
 Columns & legend:
   BUS    physical CAN bus segment(s) the ECU sits on (profile-specific codes,
@@ -184,4 +192,63 @@ options:
 examples:
   canair ecu rename Unknown-7D5 EPB
   canair ecu rename 0x7D5 EPB          # resolve the old ECU by hex id
+```
+
+## `canair ecu revisions`
+
+```
+usage: canair ecu revisions [-h] [--json] ECU <action> ...
+
+``canair ecu revisions`` / ``canair ecu set-variants`` — an ECU's revisions and presence.
+
+A *revision* is a version of one ECU that differs in protocol or decoding (a KWP2000 VCU
+that became UDS, a BMS with another cell count); the first declared is the reference. A
+PID or signal is gated to revisions with ``canair pids set-revisions``; a variant says
+which revisions its car can carry with ``canair variants set-revisions``. Every edit is
+validated and reverted on failure, and a rename rewrites every reference.
+
+positional arguments:
+  ECU                ECU name
+  <action>
+    list             List the ECU's revisions (default)
+    add              Declare a revision (the first declared is the reference)
+    set-fingerprint  Add a fingerprint: evidence that recognises the revision
+    rename           Rename a revision, rewriting its gates, variants' lists
+                     and capture tags
+    rm               Remove a revision (refused while anything refers to it)
+
+options:
+  -h, --help         show this help message and exit
+  --json             Output the list as JSON
+
+examples:
+  canair ecu revisions VCU                         # list VCU's revisions
+  canair ecu revisions VCU add kwp --protocol KWP2000
+  canair ecu revisions VCU add uds --protocol UDS
+  canair ecu revisions VCU set-fingerprint kwp --responds 1A90
+  canair ecu revisions VCU set-fingerprint uds --identity part_number='36601-0E1*'
+  canair ecu revisions VCU rename uds uds-2018     # rewrites gates, variants, capture tags
+  canair ecu revisions VCU rm uds-2018             # refused while anything refers to it
+  canair ecu set-variants HEATER 60kwh             # fitted only to the 60 kWh car
+  canair ecu set-variants HEATER --clear           # fitted to every variant
+```
+
+## `canair ecu set-variants`
+
+```
+usage: canair ecu set-variants [-h] [--clear] ECU [VARIANT ...]
+
+Record that an ECU is fitted only to some of the profile's variants (its variants: list). Commands for another car then leave it out. --clear: fitted to every variant (the default).
+
+positional arguments:
+  ECU         ECU name
+  VARIANT     Variant IDs (or comma list)
+
+options:
+  -h, --help  show this help message and exit
+  --clear     Fitted to every variant
+
+examples:
+  canair ecu set-variants HEATER 60kwh
+  canair ecu set-variants HEATER --clear
 ```

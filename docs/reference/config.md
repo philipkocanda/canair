@@ -24,6 +24,7 @@ canair config edit           # open in $EDITOR
 |---|---|
 | `default_profile` | Which [profile](../concepts/profiles.md) to use when none is given. Overridden by `--profile` / `CANAIR_PROFILE`. Optional if only one profile is discovered. |
 | `profile_settings.<profile>.variant` | Which of that profile's [variants](../concepts/variants.md) your car is, remembered per profile. Set it with `canair profile use NAME --variant ID`. Overridden by `--variant` / `CANAIR_VARIANT`. Required (once) for a profile with several variants: live commands refuse until it is set. |
+| `profile_settings.<profile>.revisions.<ECU>` | Which revision an ECU of your car is (one of its `revisions:` IDs), for an ECU your variant allows several of. Set it with `canair profile use NAME --pin ECU=ID`. Overridden for one command by `--revision ECU=ID`. Without it, that ECU's revision-specific PIDs and signals are skipped. See [ECU revisions](../concepts/variants.md#ecu-revisions). |
 | `profiles_dir` | Extra directory to search for profiles (never committed). |
 | `devices` | Named devices for the `--wican` flag: each alias has a `host` and optional per-device `transport`/`port`/`bitrate` (see below). |
 | `default_wican` | Which device alias to use by default. |

@@ -1,6 +1,6 @@
 ---
 name: profile-variants
-description: Where a car belongs in canair and what to call it — whether a different car needs its own profile or is a variant of an existing one (battery, facelift, market), how to name a profile (make-model-code-drivetrain, never a year) and a variant, and how a renamed profile keeps its old name working. Load when creating, naming or renaming a profile, adding or editing a variant (variants.yaml, canair variants), tagging or importing captures from a particular car (--variant), or deciding whether a car fits an existing profile. NOT for decoding signals (reverse-engineer-signal) or submitting a profile upstream (contributing-profiles).
+description: Where a car belongs in canair and what to call it — whether a different car needs its own profile, is a variant of an existing one (battery, facelift, market), or only has a different revision of one ECU; how to name a profile (make-model-code-drivetrain, never a year), a variant and a revision; and how a renamed profile keeps its old name working. Load when creating, naming or renaming a profile, adding or editing a variant (variants.yaml, canair variants) or an ECU revision (canair ecu revisions, pids set-revisions, --pin/--revision), tagging or importing captures from a particular car (--variant), or deciding whether a car fits an existing profile. NOT for decoding signals (reverse-engineer-signal) or submitting a profile upstream (contributing-profiles).
 ---
 
 # Where a car belongs, and what to call its profile
@@ -47,8 +47,9 @@ the duplication.
 A **variant** is a version of the car the owner can name (battery size, facelift, a market with
 different diagnostics) **and** that matters to the diagnostics or to keeping captures apart. It
 is declared in the profile's `variants.yaml` with an ID and metadata, and captures are tagged with
-the variant they came from (below). Nothing gates a definition on a variant yet, so don't describe
-variants as if they did.
+the variant they came from (below). A variant can also say which ECUs its car has and which
+revision of an ECU it carries (next section), and override a few `profile.yaml` settings
+(`profile_overrides:`).
 
 - **Model year alone is never a variant.** Makers change parts on production dates, and owners
   can't tell which side of a mid-year change their car is on. Record `production` (a build
@@ -62,6 +63,36 @@ variants as if they did.
   `community` (from community sources), `seed` (a placeholder for a car nobody has captured).
   Record whether a battery figure is usable or gross; makers quote either.
 - **Edit with `canair variants`**, never by hand (`--help` for the syntax). Pass `--profile`.
+
+## ECU revisions: when one ECU changed, not the car
+
+A **revision** is a version of one ECU that differs in protocol or decoding — a VCU that went
+from KWP2000 to UDS, a BMS whose cell count changed the layout. Decide bottom-up: revision before
+variant before new profile.
+
+- **The ECU decides, not the car.** ECUs change on their own production dates, and a dealer
+  replacement follows the newer rules in an older car. A running change inside one variant is two
+  revisions of the ECU, never two variants (that multiplies: `2^n` variants for `n` changes, and
+  asks the owner a question they can't answer).
+- **A revision exists only if a definition differs.** A new part number with the same diagnostics
+  is another *fingerprint* of an existing revision (`identity:` globs, or `responds:` — a safe
+  identity read only that revision answers). An identity that matches no fingerprint is a
+  question to investigate, not a new revision.
+- **Name it by what differs** (`kwp`/`uds`, `150s`), local to the ECU, never a year. The first
+  declared revision is the reference.
+- **Gate what differs, nothing more.** `pids set-revisions ECU:PID uds` (or `ECU:PID:SIGNAL`) on
+  the PIDs and signals only one revision has; leave shared ones ungated. Keep a signal's *name*
+  across revisions (two PIDs may ship one name when their revisions are disjoint), so predicates,
+  groups and Home Assistant keep working — `validate states` checks every predicate on every car
+  and revision.
+- **Let the variant narrow it**: `variants set-revisions 38kwh BMS uds` when a car can only have
+  one; an ECU only some cars have gets `ecu set-variants`.
+- **Never guess a revision** to make PIDs appear. An undetermined ECU skips its gated PIDs on
+  purpose; ask the user, read the ECU's identity, and pin it (`profile use NAME --pin ECU=ID`, or
+  `--revision ECU=ID` once). A seeded revision's definitions stay `verified: false`.
+- Edit with `canair ecu revisions ECU …` (its `rename` rewrites gates, variants and capture
+  tags), never by hand. `docs/concepts/variants.md#ecu-revisions` has the model; the synthetic
+  fixture `tests/fixtures/profiles/variants/` shows every case.
 
 ## Choosing the car you're working on
 

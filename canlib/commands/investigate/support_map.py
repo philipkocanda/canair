@@ -300,7 +300,7 @@ def run_support_map(specs: list[tuple[str, str]], args, since, until) -> int:
         wanted = {p for e, p in specs if e == ecu}
         pairs = sorted({(ecu, p) for p in wanted} | set(siblings))
         loaded = load_signal_captures(pairs, since=since, until=until, state=args.state,
-                                      label=args.label)  # fmt: skip
+                                      label=args.label, one_revision="investigate")  # fmt: skip
         per_pid: dict[str, PidScan] = {}
         for _e, pid in pairs:
             lp = loaded.get((ecu.upper(), pid))

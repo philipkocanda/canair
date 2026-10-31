@@ -1,0 +1,17 @@
+# The variants of this car (battery, facelift, market) and their metadata.
+# List or edit with `canair variants`. See docs/concepts/variants.md.
+variants:
+  40kwh:
+    name: "Fixture car, 40 kWh"
+    battery: {usable_kwh: 40}
+    revisions:
+      VCU: [kwp]
+    status: seed
+  60kwh:
+    name: "Fixture car, 60 kWh (either VCU)"
+    battery: {usable_kwh: 60}
+    revisions:
+      VCU: [kwp, uds]
+    profile_overrides:
+      car_model: "Variants fixture, 60 kWh (synthetic)"
+    status: seed

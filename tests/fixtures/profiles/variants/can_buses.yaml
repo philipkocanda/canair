@@ -1,0 +1,4 @@
+can_buses:
+  ALL:
+    name: All segments
+    description: Convention for the gateway that bridges every segment.

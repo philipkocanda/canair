@@ -4,13 +4,13 @@
 
 ```
 usage: canair pids [-h]
-                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-pid-status,set-pid-variable-length,set-support-map,set-pid-period,set-response-frames,set-pid-notes,set-pid-defaults,hoist-defaults,set-identity,rm-identity,set-can-bus,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing}
+                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-pid-status,set-pid-variable-length,set-support-map,set-pid-period,set-response-frames,set-pid-notes,set-pid-defaults,hoist-defaults,set-identity,rm-identity,set-can-bus,set-revisions,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing}
                    ...
 
 [UDS] Safely edit ecus/ parameters and research entries (domain A — diagnostic UDS PIDs, freeform WiCAN expressions). The broadcast-frame (domain B) authoring counterpart is `canair signals` (linear signals/ maps).
 
 positional arguments:
-  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-pid-status,set-pid-variable-length,set-support-map,set-pid-period,set-response-frames,set-pid-notes,set-pid-defaults,hoist-defaults,set-identity,rm-identity,set-can-bus,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing}
+  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-pid-status,set-pid-variable-length,set-support-map,set-pid-period,set-response-frames,set-pid-notes,set-pid-defaults,hoist-defaults,set-identity,rm-identity,set-can-bus,set-revisions,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing}
     upsert-param        Add or update a signal
     rename-param        Rename a signal (key only; fields preserved)
     rm-param            Remove a signal
@@ -42,6 +42,7 @@ positional arguments:
     set-identity        Set a curated identity field (e.g. notes)
     rm-identity         Remove an identity field from an ECU
     set-can-bus         Set the physical CAN bus segment(s) the ECU sits on
+    set-revisions       Gate a PID or signal to some of its ECU's revisions
     set-iocontrol-ranges
                         Set the IOControl (0x2F) scan DID ranges swept on this
                         ECU
@@ -598,6 +599,27 @@ options:
   -h, --help     show this help message and exit
   --dir DIR      ecus/ directory (default: active profile)
   --no-validate  Skip the post-edit schema validation gate
+```
+
+## `canair pids set-revisions`
+
+```
+usage: canair pids set-revisions [-h] [--clear]
+                                 ECU:PID[:SIGNAL] [REVISION ...]
+
+Record that a PID (ECU:PID) or one signal of it (ECU:PID:SIGNAL) exists only
+on some revisions of its ECU (the ECU's revisions: IDs, declared with `canair
+ecu revisions`). A car whose ECU is another revision never reads it; one whose
+revision is undetermined skips it. A signal's revisions must be within its
+PID's. --clear: it applies to every revision (the default).
+
+positional arguments:
+  ECU:PID[:SIGNAL]
+  REVISION          Revision IDs (or a comma list)
+
+options:
+  -h, --help        show this help message and exit
+  --clear           Apply to every revision
 ```
 
 ## `canair pids set-iocontrol-ranges`

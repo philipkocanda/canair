@@ -489,7 +489,12 @@ def run(args) -> int:
         ref_label = f"{ref_label} · control {control_label}"
 
     loaded = load_signal_captures(
-        [(ecu, pid)], since=since, until=until, state=args.state, label=args.label
+        [(ecu, pid)],
+        since=since,
+        until=until,
+        state=args.state,
+        label=args.label,
+        one_revision="hunt",
     )
     lp = loaded[(ecu.upper(), pid)]
     if not lp.captures:
@@ -612,7 +617,12 @@ def _run_physical(args, ecu: str, pid: str, since, until) -> int:
     from canlib.profile import active
 
     loaded = load_signal_captures(
-        [(ecu, pid)], since=since, until=until, state=args.state, label=args.label
+        [(ecu, pid)],
+        since=since,
+        until=until,
+        state=args.state,
+        label=args.label,
+        one_revision="hunt",
     )
     lp = loaded[(ecu.upper(), pid)]
     if not lp.captures:

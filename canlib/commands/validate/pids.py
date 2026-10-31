@@ -16,6 +16,7 @@ from canlib.pids import PID_STATUSES, effective_param, pid_status
 from canlib.uds.byteindex import wican_to_isotp
 from canlib.uds.support_map import SupportMapError
 from canlib.uds.support_map import declaration as support_map_declaration
+from canlib.variants.revisions import check_ecu as check_revisions
 
 from ._common import EXPR_TOKEN_RE, SCHEMA_FILE
 from .profile_names import profile_name_findings
@@ -351,6 +352,16 @@ class _SchemaFields:
         )
 
 
+def _declared_variant_ids(profile) -> list[str] | None:
+    """The profile's variant IDs, or None when its variants.yaml can't be read."""
+    from canlib.variants import VariantsError, load_variants
+
+    try:
+        return list(load_variants(profile))
+    except (VariantsError, OSError):
+        return None  # reported by `canair validate variants`
+
+
 def _new_ecu_stats() -> dict:
     """Fresh zeroed stats accumulator for one ECU file."""
     return {
@@ -395,6 +406,7 @@ def validate_ecu_file(
     allowed_can_buses_set = _allowed_can_buses(profile)
     profile_meta = getattr(profile, "meta", None) or {}
     fields = _SchemaFields.from_schema(schema)
+    variant_ids = _declared_variant_ids(profile)
     stats = _new_ecu_stats()
 
     try:
@@ -410,6 +422,17 @@ def validate_ecu_file(
     warnings: list[str] = []
     for ecu_name, ecu_def in data.items():
         stats["ecus"] += 1
+        if isinstance(ecu_def, dict):
+            errors += [
+                f"{path.name}/{e}"
+                for e in check_revisions(
+                    ecu_name,
+                    ecu_def,
+                    variant_ids=variant_ids,
+                    identity_fields=fields.identity,
+                    valid_protocols=fields.valid_protocols,
+                )
+            ]
         _validate_ecu_entry(
             ecu_name,
             ecu_def,
@@ -1499,6 +1522,7 @@ def _run_pids(files: list[str] | None, stats: bool) -> int:
         # (the device turns each into a distinct signal). Caught here, not just
         # at `wican autopid write`.
         all_errors.extend(_duplicate_param_errors(file_paths))
+        all_errors.extend(_variant_reference_errors(prof))
         all_warnings.extend(_addressing_warnings(prof.ecus_dir))
 
     # Print results
@@ -1551,6 +1575,25 @@ def _run_pids(files: list[str] | None, stats: bool) -> int:
         print(f"  Sessions:   {total_stats['sessions']}")
 
     return 0
+
+
+def _disjoint(ecu_a: str, revs_a: frozenset[str], ecu_b: str, revs_b: frozenset[str]) -> bool:
+    """Two definitions of one signal that can never both exist: one ECU, no shared revision."""
+    return ecu_a == ecu_b and bool(revs_a) and bool(revs_b) and not revs_a & revs_b
+
+
+def _variant_reference_errors(prof) -> list[str]:
+    """Every ECU or revision a variant's ``revisions:`` names that ecus/ lacks."""
+    from canlib.pids import load_raw_pids
+    from canlib.variants import VariantsError, load_variants
+    from canlib.variants.revisions import variant_reference_errors
+
+    try:
+        variants = load_variants(prof)
+        ecus = load_raw_pids(prof).get("ecus") or {}
+    except (VariantsError, OSError, yaml.YAMLError):
+        return []  # reported by the per-file checks and `validate variants`
+    return [f"variants.yaml: {e}" for e in variant_reference_errors(variants, ecus)]
 
 
 def _addressing_warnings(ecus_dir: Path) -> list[str]:
@@ -1607,9 +1650,11 @@ def _duplicate_param_errors(file_paths: list[Path]) -> list[str]:
     `wican autopid write` does. See ``canlib.wican.autopid_profile.generate_profile``.
     """
     from canlib.pids import is_shipped
+    from canlib.variants.revisions import owner_revisions
 
     errors: list[str] = []
-    origin: dict[str, str] = {}
+    # name -> every (ECU, PID, revisions) that ships it
+    origin: dict[str, list[tuple[str, str, frozenset[str]]]] = {}
     for fpath in file_paths:
         if fpath.name.startswith("_"):
             continue
@@ -1630,14 +1675,24 @@ def _duplicate_param_errors(file_paths: list[Path]) -> list[str]:
                     if not isinstance(param, dict) or not param.get("enabled", True):
                         continue
                     where = f"{ecu_name} {pid_code}"
-                    if pname in origin and origin[pname] != where:
+                    revs = owner_revisions(ecu_def, pid_def, param)
+                    clash = next(
+                        (
+                            f"{e} {p}"
+                            for e, p, r in origin.get(pname, [])
+                            if f"{e} {p}" != where and not _disjoint(e, r, ecu_name, revs)
+                        ),
+                        None,
+                    )
+                    if clash:
                         errors.append(
                             f"duplicate shipped parameter name '{pname}' in {where} "
-                            f"(also {origin[pname]}) — each shipped signal name must be "
-                            f"unique across all PIDs (rename one via `canair pids rename-param`)"
+                            f"(also {clash}) — each shipped signal name must be "
+                            f"unique across all PIDs (rename one via `canair pids rename-param`), "
+                            "unless both are on one ECU and apply to disjoint revisions"
                         )
                     else:
-                        origin[pname] = where
+                        origin.setdefault(pname, []).append((ecu_name, str(pid_code), revs))
     return errors
 
 

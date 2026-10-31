@@ -21,18 +21,18 @@ def _state_reference_errors(predicates: list[tuple[str, str]]) -> tuple[list[str
     can't be loaded — mirroring ``_run_groups``' tolerance, since a profile with a
     broken ``ecus/`` already fails ``validate pids`` loudly.
     """
-    from canlib.pids import load_pids
-    from canlib.states.refs import check_references
+    from canlib.pids import load_raw_pids
+    from canlib.states.refs import check_references_on_every_car
 
     if not predicates:
         return ([], None)
     try:
-        pids_data = load_pids()
+        if not load_raw_pids().get("ecus"):
+            return ([], "no ECUs defined in ecus/ yet")
+        issues = check_references_on_every_car(predicates)
     except Exception as ex:
         return ([], f"could not load ecus/ ({ex}) — see `canair validate pids`")
-    if not pids_data.get("ecus"):
-        return ([], "no ECUs defined in ecus/ yet")
-    return ([str(issue) for issue in check_references(predicates, pids_data)], None)
+    return ([str(issue) for issue in issues], None)
 
 
 def _state_relation_errors(

@@ -659,8 +659,8 @@ step that refuses (phase 4). The byte-identical `28kwh` invariant is checked at 
 | 2 ✓ | [Variant registry](2026-10-30-profile-variants-2-variant-registry.md) | `variants.yaml` (metadata), `canair variants`, display in `profile show` and the explorer | none |
 | 3 ✓ | [Capture tags](2026-10-30-profile-variants-3-capture-tags.md) | `variant` tags, global `--variant` (opt-in), `migrate-variants` on bundled history, tagged-wins merge, analysis scope | imports need `--variant` |
 | 4 ✓ | [Selection and refusal](2026-10-30-profile-variants-4-selection-and-refusal.md) | `profile_settings`, `profile use --variant` + picker, alias-implied variants, the refusal, untagged ratchet | **breaking**: no variant, nothing runs |
-| 5 | [ECU revisions](2026-10-30-profile-variants-5-ecu-revisions.md) | `revisions:`, gating and resolution at the load seam, pins, validation, byte-level refusal, the synthetic fixture | none for bundled profiles |
-| 6 | [Ioniq facelift BMS](2026-10-30-profile-variants-6-ioniq-facelift-bms.md) | The real-profile exercise: BMS `kwp`/`uds`, Kona definitions ported unverified | `38kwh` only |
+| 5 ✓ | [ECU revisions](2026-10-30-profile-variants-5-ecu-revisions.md) | `revisions:`, gating and resolution at the load seam, pins, validation, byte-level refusal, the synthetic fixture | none for bundled profiles |
+| 6 ✓ | [Ioniq facelift BMS](2026-10-30-profile-variants-6-ioniq-facelift-bms.md) | The real-profile exercise: BMS `kwp`/`uds`, Kona definitions ported unverified | `38kwh` only |
 | 7 | [Overrides and evidence](2026-10-30-profile-variants-7-overrides-and-evidence.md) | `per_revision:`; `verified`, `response_frames`, identity routed per revision | stricter on non-reference revisions |
 | 8 | [Detection](2026-10-30-profile-variants-8-detection.md) | Fingerprint matching, the per-session probe, `identity` names your variant | ambiguous ECUs read instead of skip |
 | 9 | [Consumers](2026-10-30-profile-variants-9-consumers.md) | AutoPID per variant, explorer switcher, coverage/research per revision, final docs | `out/<variant>/` |

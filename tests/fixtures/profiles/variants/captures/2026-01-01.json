@@ -1,0 +1,75 @@
+{
+  "sessions": [
+    {
+      "date": "2026-01-01",
+      "label": "40 kWh car, KWP2000 VCU",
+      "version": "2.1.0",
+      "vehicle_states": [
+        "RUN"
+      ],
+      "transport": "import",
+      "variant": "40kwh",
+      "revisions": {
+        "VCU": "kwp"
+      },
+      "attribution": {
+        "variant": "selected",
+        "revisions": {
+          "VCU": "only"
+        }
+      },
+      "captures": [
+        {"rx":"0x7EA","pid":"2101","payload":"6101000A00","time":"10:00:00"},
+        {"rx":"0x7EA","pid":"21F0","payload":"61F0030000","time":"10:00:01"},
+        {"rx":"0x7EC","pid":"2101","payload":"6101960000","time":"10:00:02"}
+      ]
+    },
+    {
+      "date": "2026-01-01",
+      "label": "60 kWh car, UDS VCU",
+      "version": "2.1.0",
+      "vehicle_states": [
+        "RUN"
+      ],
+      "transport": "import",
+      "variant": "60kwh",
+      "revisions": {
+        "VCU": "uds"
+      },
+      "attribution": {
+        "variant": "selected",
+        "revisions": {
+          "VCU": "pinned"
+        }
+      },
+      "captures": [
+        {"rx":"0x7EA","pid":"22E001","payload":"62E001000014","time":"11:00:00"},
+        {"rx":"0x7EA","pid":"21F0","payload":"61F0040200","time":"11:00:01"},
+        {"rx":"0x7BB","pid":"22B001","payload":"62B001003C00","time":"11:00:02"}
+      ]
+    },
+    {
+      "date": "2026-01-01",
+      "label": "60 kWh car, KWP2000 VCU",
+      "version": "2.1.0",
+      "vehicle_states": [
+        "RUN"
+      ],
+      "transport": "import",
+      "variant": "60kwh",
+      "revisions": {
+        "VCU": "kwp"
+      },
+      "attribution": {
+        "variant": "selected",
+        "revisions": {
+          "VCU": "pinned"
+        }
+      },
+      "captures": [
+        {"rx":"0x7EA","pid":"2101","payload":"6101001E00","time":"12:00:00"},
+        {"rx":"0x7EA","pid":"21F0","payload":"61F0050000","time":"12:00:01"}
+      ]
+    }
+  ]
+}

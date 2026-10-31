@@ -151,6 +151,10 @@ optional_ecu_fields:
                     #   When absent, ranges are PID-derived, else the full DID space.
   - research        # Untested/undecoded PIDs and scan TODOs — see research_fields below
   - routines        # RoutineControl (service 0x31) discoveries — see routines_fields below
+  - revisions       # The ECU's revisions: versions of it that differ in protocol or decoding,
+                    #   keyed by a local ID naming what differs (kwp/uds, 150s), the first
+                    #   being the reference — see revision_fields below
+  - variants        # The variants (variants.yaml IDs) this ECU is fitted to; absent = all
 
 # Identity section (under ECU_NAME.identity) — who this module is. The canonical
 # short name is the top-level ECU key, not a field here. All fields optional.
@@ -315,6 +319,29 @@ valid_wake_methods:
   - session
   - relay
 
+# revisions section (under ECU_NAME.revisions) — the versions of this ECU that differ in
+# protocol or decoding. A revision exists only if some definition differs; a new part
+# number with identical diagnostics is a fingerprint, not a revision. Which one a car has:
+# a pin (`profile use --pin ECU=ID`, `--revision ECU=ID`), else the only one its variant
+# allows (variants.yaml revisions:), else undetermined — and then the ECU's revision-gated
+# PIDs and signals are skipped. Edit with `canair ecu revisions`.
+#   revisions:
+#     kwp:                              # listed first = the reference revision
+#       identity: {id_protocol: KWP2000}
+#       fingerprints:
+#         - {responds: "1A90"}          # a safe identity read only this revision answers
+#     uds:
+#       identity: {id_protocol: UDS}
+#       fingerprints:
+#         - {identity: {part_number: "36601-0E1*"}}   # identity fields, glob patterns
+# A revision's other keys override the ECU's own, replaced whole (identity: only
+# id_protocol). Fingerprints are recorded and checked, not yet matched against a car.
+revision_fields:
+  overrides:
+    [identity, sessions, wake, multi_did, multi_did_max, response_timeout_ms, addressing, rx_id]
+  optional: [fingerprints]
+valid_fingerprint_kinds: [identity, responds]
+
 required_pid_fields:
   - status           # PID lifecycle: active | draft | static | ignored.
                      #   Required + explicit on every PID (no implicit default in
@@ -393,6 +420,8 @@ optional_pid_fields:
   - verified
   - source           # str: where the PID's decoding came from
   - source_links     # list[str]: references for `source`
+  - revisions        # list[str]: the ECU revisions this PID applies to (absent = all). A
+                     #   signal's own revisions: must be within its PID's.
   - parameters
 
 # Accepted values for a PID's `status:` lifecycle field.
@@ -441,6 +470,9 @@ optional_param_fields:
   - values          # enum: {raw_int: "label", ...}
   - bits            # bitmask: {bit_index: "label", ...}  (0 = LSB)
   - fields          # struct: [{name, type, expression, values/bits/...}, ...]
+  - revisions       # list[str]: the ECU revisions this signal applies to (absent = its
+                    #   PID's). Two PIDs may ship the same signal name only when their
+                    #   revisions are disjoint (one signal, followed across a revision).
 
 # Accepted values for a param's optional `type:` field (typed decoding).
 valid_param_types:

@@ -621,6 +621,29 @@ def cmd_set_can_bus(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_set_revisions(args: argparse.Namespace) -> int:
+    from canlib.ecus.edit import EcusEditError
+    from canlib.ecus.revisions_edit import set_gate
+
+    parts = args.target.split(":")
+    if len(parts) not in (2, 3) or not all(p.strip() for p in parts):
+        raise SystemExit(
+            f"{ansi.RED}  Error: expected ECU:PID or ECU:PID:SIGNAL, got {args.target!r}{ansi.RESET}"
+        )
+    ecu, pid, signal = parts[0], parts[1], (parts[2] if len(parts) == 3 else None)
+    revs = [r for part in args.revisions for r in part.split(",") if r.strip()]
+    if args.clear == bool(revs):
+        raise SystemExit(f"{ansi.RED}  Error: give the revisions, or --clear{ansi.RESET}")
+    require_writable_definitions()
+    try:
+        fpath = set_gate(ecu, pid, signal, None if args.clear else revs)
+    except EcusEditError as e:
+        raise SystemExit(f"{ansi.RED}  Error: {e}{ansi.RESET}") from None
+    what = f"[{', '.join(revs)}]" if revs else "every revision (cleared)"
+    echo_edit(f"{args.target} revisions -> {what}", fpath)
+    return 0
+
+
 def cmd_set_iocontrol_ranges(args: argparse.Namespace) -> int:
     def do():
         set_iocontrol_scan_ranges(args.ecu, args.ranges, pids_dir=args.dir)
@@ -1177,6 +1200,24 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     )
     _add_common(scb)
     scb.set_defaults(_pids_func=cmd_set_can_bus)
+
+    srv = sub.add_parser(
+        "set-revisions",
+        help="Gate a PID or signal to some of its ECU's revisions",
+        description=(
+            "Record that a PID (ECU:PID) or one signal of it (ECU:PID:SIGNAL) exists only on "
+            "some revisions of its ECU (the ECU's revisions: IDs, declared with `canair ecu "
+            "revisions`). A car whose ECU is another revision never reads it; one whose "
+            "revision is undetermined skips it. A signal's revisions must be within its "
+            "PID's. --clear: it applies to every revision (the default)."
+        ),
+    )
+    srv.add_argument("target", metavar="ECU:PID[:SIGNAL]")
+    srv.add_argument(
+        "revisions", nargs="*", metavar="REVISION", help="Revision IDs (or a comma list)"
+    )
+    srv.add_argument("--clear", action="store_true", help="Apply to every revision")
+    srv.set_defaults(_pids_func=cmd_set_revisions)
 
     sir = sub.add_parser(
         "set-iocontrol-ranges",

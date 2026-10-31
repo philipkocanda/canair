@@ -161,6 +161,9 @@ class Profile:
     variant_source: Literal["flag", "env", "config", "alias", "only"] | None = None
     # The old profile name this profile was resolved through (an ``aliases:`` entry).
     alias: str | None = None
+    # ECU revision pins as (ECU, revision, source): the global --revision flag ("flag")
+    # and profile_settings.<profile>.revisions ("config"). Checked when resolved.
+    revision_pins: tuple[tuple[str, str, Literal["flag", "config"]], ...] = ()
 
     @property
     def layered(self) -> bool:
@@ -271,20 +274,55 @@ class Profile:
     def cache_key(self) -> str:
         """Identity of this profile's definitions, for per-process memoization.
 
-        Everything a profile resolves is rooted here, so the root identifies the
-        definitions a cache entry was built from. Callers key on this rather than
-        on one member's path, so a cache cannot be shared between two profiles
-        that happen to agree on the member it was keyed by.
+        Everything a profile resolves is rooted here, and the definitions are resolved for
+        the selected variant and revision pins, so all three identify what a cache entry
+        was built from. Callers key on this rather than on one member's path, so a cache
+        cannot be shared between two profiles (or two cars of one profile) that happen to
+        agree on the member it was keyed by.
         """
-        return str(self.root)
+        key = str(self.root)
+        if self.variant:
+            key += f"|variant={self.variant}"
+        if self.revision_pins:
+            key += "|pins=" + ",".join(f"{e}={r}" for e, r, _ in sorted(self.revision_pins))
+        return key
 
     @cached_property
     def meta(self) -> dict:
-        """Contents of <profile>/profile.yaml (car_model, init, ...), or {}."""
-        if self.meta_file.exists():
-            with open(self.meta_file) as f:
-                return yaml_io.safe_load(f) or {}
-        return {}
+        """<profile>/profile.yaml (car_model, init, ...) for the selected car, or {}.
+
+        The selected variant's ``profile_overrides:`` replace the settings they name; the
+        file as written is :func:`read_meta`.
+        """
+        meta = read_meta(self.meta_file)
+        from canlib.variants import VariantsError, load_variants
+        from canlib.variants.tags import selected_variant
+
+        vid = selected_variant(self)
+        if vid is None:
+            return meta
+        try:
+            variant = load_variants(self).get(vid)
+        except VariantsError:
+            return meta  # reported by `canair validate variants`
+        if variant is None or not variant.profile_overrides:
+            return meta
+        return {**meta, **variant.profile_overrides}
+
+    @cached_property
+    def revisions(self) -> dict[str, str]:
+        """ECU name -> its revision for the selected car, for every ECU that is determined.
+
+        An ECU with several possible revisions and no pin is absent (undetermined); see
+        :func:`canlib.pids.revision_resolutions` for the full picture.
+        """
+        from canlib.pids import revision_resolutions
+
+        return {
+            name: res.revision
+            for name, res in revision_resolutions(self).items()
+            if res.revision is not None
+        }
 
     def member_path(self, member: BundleMember) -> Path:
         """Resolve a bundle member to this profile's path for it.
@@ -299,6 +337,14 @@ class Profile:
     def member_exists(self, member: BundleMember) -> bool:
         path = self.member_path(member)
         return path.is_dir() if member.kind == "dir" else path.exists()
+
+
+def read_meta(meta_file: Path) -> dict:
+    """A ``profile.yaml`` as written, or {} when absent."""
+    if meta_file.exists():
+        with open(meta_file) as f:
+            return yaml_io.safe_load(f) or {}
+    return {}
 
 
 def looks_like_profile(path: Path) -> bool:
@@ -590,19 +636,32 @@ def set_active(
     name: str | None = None,
     profiles_dir: str | os.PathLike | None = None,
     variant: str | None = None,
+    revisions: list[str] | tuple[str, ...] | None = None,
 ) -> Profile:
     """Resolve and memoize the active profile (called by the CLI).
 
     ``variant`` is the ``--variant`` flag; ``CANAIR_VARIANT`` applies without it.
-    Drops any state cached from the previous profile's definitions, so switching
-    profiles in one process can't decode against the wrong vehicle.
+    ``revisions`` are the ``--revision ECU=ID`` pins. Drops any state cached from the
+    previous profile's definitions, so switching profiles (or cars) in one process
+    can't decode against the wrong vehicle.
     """
     from canlib.variants.selection import apply_variant
 
     global _active
     previous = _active
-    _active = apply_variant(resolve_profile(name, profiles_dir), variant)
+    _active = apply_variant(resolve_profile(name, profiles_dir), variant, revisions)
     if previous is not None and previous != _active:
+        from .pids import clear_cache
+
+        clear_cache()
+    return _active
+
+
+def replace_active(profile: Profile) -> Profile:
+    """Make ``profile`` the active profile, dropping what was cached from the previous one."""
+    global _active
+    if profile != _active:
+        _active = profile
         from .pids import clear_cache
 
         clear_cache()
