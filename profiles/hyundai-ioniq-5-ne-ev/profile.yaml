@@ -8,6 +8,13 @@ aliases:
   ioniq-5-2022: {}
 init: "ATSP6;ATS0;ATAL;ATST96;"
 
+# ISO-TP fill bytes (slcan-tcp only; an ELM327 pads requests itself, normally with
+# 0x00). ES95486 pads requests with 0x55 and responses with 0xAA. No ECU firmware
+# examined checks the request padding, so this is spec conformance, not a fix.
+isotp:
+  tx_padding: 0x55
+  rx_padding: 0xAA
+
 # Vehicle-axis physical bands for the reference-free plausibility scan
 # (`canair hunt --physical` / `canair investigate`). The default hv_pack band
 # (300-450 V) is for a ~400 V car and would MISS this 800 V E-GMP architecture.
