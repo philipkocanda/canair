@@ -1,6 +1,5 @@
 # ─── RCAM (Rear View Camera) ──────────────────────────────────────────
 # Parking camera at 0x796. Part: 95760G2000
-# No live data DIDs discovered. Service 22 scan returned no results (2026-04-17).
 RCAM:
   tx_id: 0x796
   can_bus: [C-CAN]
@@ -12,11 +11,9 @@ RCAM:
     sw_version: "102"
     boot_sw: "CAN_15.11.01"
     id_protocol: UDS  # F1xx
-    notes: >
-      Rear-view (parking) camera. Exposes only identity/diagnostics via OBD —
-      no live-data DIDs found.
+    notes: Rear-view (parking) camera. No readable live-data DIDs found.
   vehicle_states: [PLUGGED, ACC, "ON", READY, CHARGING]
-  scan_log: # RCAM (rear camera)
+  scan_log:
     - service: 0x22
       range: "0101-010F,B001-B010,C101-C10F"
       date: 2026-07-22

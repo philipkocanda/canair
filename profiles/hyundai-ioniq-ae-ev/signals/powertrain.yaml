@@ -14,7 +14,7 @@ messages:
         unit: km/h
         verified: false
         source: 'uhi22 Ioniq28Investigations: IONIQ_PCAN_drive_fwd_neutral_drive_reverse_neutral.csv (fetch: scripts/fetch_can_corpus.py)'
-        notes: 'Front-left wheel speed. Confirmed on the source log: 0-9.3 km/h; four wheels (r0/r2/r4/r6) correlate >=0.985 over 1678 samples. Unverified pending owner-car confirmation.'
+        notes: 'Front-left wheel speed. 0-9.3 km/h in the source log; the four wheel speeds (r0/r2/r4/r6) correlate >=0.985 (n=1678).'
       WHL_SPD_FR:
         start_bit: 16
         length: 14
@@ -32,7 +32,7 @@ messages:
         max: 15.0
         verified: false
         source: 'uhi22 Ioniq28Investigations: IONIQ_PCAN_drive_fwd_neutral_drive_reverse_neutral.csv (fetch: scripts/fetch_can_corpus.py)'
-        notes: "Gear lever, low nibble of the 6th data byte (D6 / start_bit 40). Enum P=1,R=2,N=3,D=4 (ascending PRND). Data evidence: codes 1&3 always stationary (wheel speed 0 over 460/397 samples), 2&4 moving (2=reverse phase 66%, 4=drive phase 67%); code 3 = both neutral phases. Byte 1 of VCU200 (0x200) changed in lockstep but is FCO's MSB per the upstream DBC, so treated as a loose correlate, not a confirmed mirror. Unverified pending owner-car confirmation."
+        notes: "Gear lever, low nibble of byte 5. P=1, R=2, N=3, D=4: codes 1 and 3 occur only stationary, 2 in the log's reverse phase and 4 in its drive phase."
   '0x331':
     name: TCS_331
     tx_ecu: ESC
@@ -48,7 +48,7 @@ messages:
         unit: km/h
         verified: false
         source: 'uhi22 Ioniq28Investigations: IONIQ_PCAN_drive_fwd_neutral_drive_reverse_neutral.csv (fetch: scripts/fetch_can_corpus.py)'
-        notes: ESC/TCS wheel-speed echo (byte 2-3, 14-bit LE). r=1.00 vs 0x386 WHL_SPD_FL over 1678 samples; 0-9.3 km/h. Not in the upstream DBC. Unverified pending owner-car confirmation.
+        notes: ESC/TCS wheel-speed echo (bytes 2-3, 14-bit LE). r=1.00 vs 0x386 WHL_SPD_FL (n=1678). Not in the upstream DBC.
   '0x524':
     name: EPCU_524
     tx_ecu: MCU
@@ -61,7 +61,7 @@ messages:
         max: 511.0
         unit: V
         source: uhi22 Ioniq28 DBC uwe524_EPCU_voltage; uhi22 EPCU readme (0x524 sent by the MCU's transceiver U9002); uhi22 P-CAN drive log
-        notes: EPCU DC voltage, 1 V/bit. Reads 370-373 V in the drive log against 373.5-373.9 V pack voltage on 0x595. The Kona bench reads the same bytes as inverter voltage. Unverified on the owner car.
+        notes: EPCU DC voltage, 1 V/bit. Reads 370-373 V in the drive log against 373.5-373.9 V pack voltage on 0x595. The Kona bench reads the same bytes as inverter voltage.
       VEHICLE_SPEED:
         start_bit: 23
         length: 16
@@ -71,7 +71,7 @@ messages:
         max: 255.0
         unit: km/h
         source: uhi22 Ioniq28 P-CAN tap, drive log (scripts/fetch_can_corpus.py); uhi22 script_VESS_play.js
-        notes: Vehicle speed, bytes 2-3 big-endian, 1/256 km/h, unsigned (positive in reverse too, per the VESS script). r = 0.997 against 0x386 WHL_SPD_FL over 3327 frames of the drive log, top 9.25 vs 9.31 km/h. The VESS takes its speed from this frame. Unverified on the owner car.
+        notes: Vehicle speed, bytes 2-3 big-endian, 1/256 km/h, unsigned (positive in reverse too). r=0.997 against 0x386 WHL_SPD_FL (n=3327). The VESS takes its speed from this frame.
   '0x595':
     name: BMS_595
     tx_ecu: BMS
@@ -137,7 +137,7 @@ messages:
         byte_order: little
         unit: degC
         source: uhi22 DBC uwe596_6_TAkkuL; uhi22 BMS bench capture (BMS_BatteryManagementSystem/Ioniq28-cellvoltages-read-with-CarScanner.txt), BMS 2102-2104 replies in the same 0.8 s; uhi22 Ioniq28 P-CAN drive and leave-car logs
-        notes: Bench 22 degC, car logs 2 degC (winter). Read as unsigned per the uhi22 DBC; whether it goes signed below 0 degC is not observed.
+        notes: Bench 22 degC, car logs 2 degC (winter). Unsigned per the uhi22 DBC; no reading below 0 degC observed.
       BMS_MAX_MODULE_TEMP:
         start_bit: 56
         length: 8
@@ -161,7 +161,7 @@ messages:
         byte_order: little
         unit: Wh
         source: uhi22 vehiclesim.py and DIN 70121 logs
-        notes: "Energy to full: the simulation's 18480 = 28000 Wh x 66 % at its 34 % SOC, and uhi22's charger logs show EVEnergyRequest = 28000 x (100 - SOC) % (20160 Wh at 28 %). Reads 0 in READY. Without 0x5A3 the CCM stops after ContractAuthentication."
+        notes: "Energy to full: 28000 Wh x (100 - SOC) % in uhi22's charger logs (20160 Wh at 28 %). Reads 0 in READY. Without 0x5A3 the CCM stops after ContractAuthentication."
       CCS_ENERGY_TRANSFER_TYPE:
         start_bit: 0
         length: 4
@@ -422,13 +422,13 @@ messages:
         length: 1
         byte_order: little
         source: CCM application firmware (uhi22 code-flash dump), Com receive table and DIN 70121 message builder decompiled in Ghidra
-        notes: Copied into the DIN 70121 message right after DC_EVStatus, with an isUsed flag; by field order most likely BulkChargingComplete. uhi22's charger logs show BulkChargingComplete going 0 -> 1 in some sessions.
+        notes: "Copied into the DIN 70121 message right after DC_EVStatus, with an isUsed flag: in DIN field order, BulkChargingComplete. uhi22's charger logs show BulkChargingComplete going 0 -> 1 in some sessions."
       CCS_CHARGING_COMPLETE:
         start_bit: 14
         length: 1
         byte_order: little
         source: CCM application firmware (uhi22 code-flash dump), Com receive table and DIN 70121 message builder decompiled in Ghidra
-        notes: The field after CCS_BULK_CHARGING_COMPLETE; by field order most likely ChargingComplete.
+        notes: 'The field after CCS_BULK_CHARGING_COMPLETE: in DIN field order, ChargingComplete.'
       CCS_STOP_REQUEST:
         start_bit: 15
         length: 1
@@ -533,7 +533,7 @@ messages:
         scale: 0.01
         unit: kW
         source: uhi22 CCM readme (bench session with vehiclesim.py and pyPLC as charger) and vehiclesim.py; the BMS transmits it (uhi22 BMS readme)
-        notes: Forwarded as EVMaximumPowerLimit (0 kW if the frame is missing). 98 kW in uhi22's car trace and DIN logs; the owner car's BMS 2101 AVAIL_CHARGE_POWER_MIRROR also reads 98.0 kW throughout both 2026-08-08 DC charges.
+        notes: Forwarded as EVMaximumPowerLimit (0 kW if the frame is missing). 98 kW in uhi22's car trace and DIN logs; the owner car's BMS 2101 AVAIL_CHARGE_POWER_MIRROR also reads 98.0 kW while DC charging.
   '0x57A':
     name: VCU_DEPART_SCHEDULE
     tx_ecu: VCU
@@ -726,7 +726,7 @@ messages:
         byte_order: little
         max: 3.0
         source: AVN firmware layout (GwEvP06); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
-        notes: 'The VCU''s stored copy of the charge scheduling mode: 0 = Charge Now (charge as soon as plugged in), 1 = Charge on Schedule with no off-peak window (the menu''s default and reset value), 2 = Charge on Schedule with off-peak time enabled, 3 = the same with ''Charge ONLY during the time shown below'' ticked. Mapping read from the head unit''s menu code (GreenCar DepartureClimateActivity radio buttons; EconomyReservationSettingActivity OK button sends 3 if that box is ticked, else 2). Not a charge-power setting. Matches the gateway''s 0x588 in both uhi22 recordings (3 in July 2022, 0 in Feb 2025); bits 2 and 6 of the same byte read 1 in every recording (raw 0x44/0x47), meaning unknown.'
+        notes: 'The VCU''s stored copy of the charge scheduling mode (same values as the gateway''s 0x588): 0 = Charge Now, 1 = Charge on Schedule without an off-peak window (the default), 2 = with off-peak time enabled, 3 = also with ''Charge ONLY during the time shown below'' ticked. Matches 0x588 in both uhi22 recordings. Bits 2 and 6 of the same byte read 1 in every recording (raw 0x44/0x47), meaning unknown.'
   '0x57F':
     name: OBC1
     tx_ecu: OBC
@@ -768,7 +768,7 @@ messages:
         length: 1
         byte_order: little
         source: CCM application firmware (uhi22 code-flash dump), Com receive table and DIN 70121 message builder decompiled in Ghidra; uhi22 vehiclesim.py
-        notes: "Meaning unknown; required before CableCheck: the CCM sends CableCheckReq only once this bit and CCS_EV_READY are both 1. Possibly the charge-connector lock confirmation. 1 in uhi22's DC charging trace."
+        notes: "Meaning unknown. The CCM sends CableCheckReq only once this bit and CCS_EV_READY are both 1. 1 in uhi22's DC charging trace."
       OBC_EVSE_FAULT:
         start_bit: 44
         length: 1
@@ -815,4 +815,4 @@ messages:
         length: 1
         byte_order: little
         source: CCM application firmware (uhi22 code-flash dump), Com receive table and DIN 70121 message builder decompiled in Ghidra; uhi22 BMS readme (0x5D5 power relay temperature frame)
-        notes: "After each WeldingDetectionRes, the CCM ends the session when this bit is 1 and repeats WeldingDetection otherwise: probably 'contactors confirmed open, not welded'. The only 0x5D5 bit the CCM receives. uhi22's bench sessions run without 0x5D5 (so the CCM keeps repeating WeldingDetection until the charger ends it)."
+        notes: "After each WeldingDetectionRes the CCM ends the session when this bit is 1 and repeats WeldingDetection otherwise. The only 0x5D5 bit the CCM receives."

@@ -1,5 +1,5 @@
 # ─── VESS (Virtual Engine Sound System) ───────────────────────────────
-# Pedestrian warning buzzer. From online sources — untested on Ioniq 2017.
+# Pedestrian warning buzzer.
 VESS:
   tx_id: 0x736
   can_bus: [P-CAN]
@@ -11,17 +11,17 @@ VESS:
     sw_version: "101"
     boot_sw: "060"
     id_protocol: UDS  # F1xx
-    notes: >
-      Virtual Engine Sound System (pedestrian-warning buzzer). Actuated via
-      IOControl (F011); no readable live-data DIDs.
+    notes: >-
+      Virtual Engine Sound System (pedestrian-warning buzzer). Actuated via IOControl F011; no
+      readable live-data DIDs.
   vehicle_states: [ACC, "ON", READY]
-  scan_log: # VESS
+  scan_log:
     - service: 0x22
       range: "0101-010F,B001-B010,C101-C10F"
       date: 2026-07-22
       hits: 0
       vehicle_states: [READY]
-      notes: "No live-data DIDs found (VESS actuation is via IOControl, not read DIDs)."
+      notes: "No live-data DIDs found."
   pids: {}
 
   # ─── IOControl (service 2F) ──────────────────────────────────────────
@@ -33,5 +33,4 @@ VESS:
       verified: true
       true: "2FF011030001"
       false: "2FF01100"
-      notes: >
-        Plays pedestrian warning sound for ~5 sec. Payload bytes after 03 unclear.
+      notes: Plays the pedestrian warning sound for ~5 s.

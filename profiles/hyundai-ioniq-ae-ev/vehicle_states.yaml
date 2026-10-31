@@ -1,67 +1,74 @@
 # Hyundai Ioniq Electric (AE) — vehicle operating states
 #
-# Canonical, ordered operating states for capture sessions. The `vehicle_states`
-# field on a capture session should draw from these names; `canair validate
-# captures` emits a soft warning when a session's state has no token from this
-# vocabulary (free text is still accepted — this only nudges toward
-# standardization). Inspect/edit this file with `canair states`.
-#
-# State names are UPPERCASE (like the CAN-bus segment codes in can_buses.yaml) —
-# a controlled vocabulary, not free prose. Input is normalized to uppercase, so
-# any casing typed on `--state` is accepted.
-#
-# States with a `when:` predicate are auto-suggested from decoded PID values at
-# save time, and can back-fill historical sessions via
-# `canair captures uds --backfill-states`. A session is composite: every
-# matching predicate contributes (e.g. READY + PARKED), so predicate order is
-# display order only, not priority. Predicates reference decoded parameters as
-# ECU.PARAM and use three-valued logic — a predicate depending on an unpolled
-# parameter abstains rather than reading false. See canlib/states.py.
+# The capture-session state vocabulary. Edit with `canair states`. A `when:` predicate
+# auto-suggests the state from decoded ECU.PARAM values at save time (and with
+# `canair captures uds --backfill-states`); every matching predicate contributes, so a
+# session is composite (e.g. READY + PARKED).
 #
 # `implies:` names the broader states a state specializes: DRIVING implies READY,
 # CHARGING implies PLUGGED, READY implies ON, ON implies ACC, TOPUP implies
 # PARKED, and READY, CHARGING and TOPUP each imply IG3. Both readings stay true (a
-# recorded session keeps every state it was in), but a view that must name ONE — the
-# monitor status bar — names the most specific, so driving reads DRIVING rather than READY.
+# recorded session keeps every state it was in), but a view that must name one (the
+# monitor status bar) names the most specific, so driving reads DRIVING rather than READY.
 #
 # Names versus the car: ACC and ON are the owner's manual names for the Start/Stop button
 # positions (OFF → ACC → ON, then READY with the brake). ACC is the ACC relay alone; ON is ACC +
-# IGN1 + IGN2 energised. ON is written quoted ("ON") because YAML 1.1 reads a bare ON as true;
-# canair's editors quote it and `canair validate` rejects a bare one. START is momentary. IG3 is a
-# separate EV-only supply rail the HV side closes without the button (READY, charging, the 12 V
-# top-up, a while after plug-in), so it is its own state rather than a rung of the ladder. The
-# ignition-lines table in the ioniq-reverse-engineering skill has the relays, fuses and consumers.
+# IGN1 + IGN2 energised. ON is written quoted ("ON") because YAML 1.1 reads a bare ON as true.
+# IG3 is a separate EV-only supply rail the HV side closes without the button (READY, charging,
+# the 12 V top-up, a while after plug-in), so it is its own state rather than a rung of the
+# ladder. The ignition-lines table in the ioniq-reverse-engineering skill has the relays, fuses
+# and consumers.
 #
-# Schema: canlib/schema/states_schema.yaml   (canair validate states)
+# Power states and transitions. "press" is the Start/Stop button without the brake; "off" is
+# SLEEP once the ECUs have timed out (canair has no separate OFF state).
+#
+#   Ignition ladder (the button):
+#
+#                 press            press            press
+#      SLEEP -----------> ACC -----------> "ON" -----------> off
+#        |                 |                 |
+#        +- brake + press -+-----------------+-------> READY ---- press ----> off
+#                                                      |   ^
+#                                             moving   |   |   stopped
+#                                                      v   |
+#                                                     DRIVING
+#
+#   Charge cable (independent of the button; a parked car sleeps with the cable in, so
+#   SLEEP + PLUGGED is a normal combination):
+#
+#               cable in            charge starts
+#      (any) -----------> PLUGGED ---------------> CHARGING
+#        ^                 |   ^                      |
+#        +--- cable out ---+   +---- charge ends -----+
+#
+#   Parked 12 V top-up (what wakes the VCU is open; see the IGPM research entry):
+#
+#      SLEEP ---- VCU wakes ----> TOPUP ---- top-up done ----> SLEEP
+#
+#   The IG3 rail (battery-side ECUs awake) is on in READY, CHARGING and TOPUP. PARKED and
+#   DRIVING describe motion and overlay the ladder.
 
 states:
-  # Actively charging. BMS 2101 B14 bit7 (CHARGING) is energy flow of either
-  # kind — set in all 1576 AC-charging captures and in the DC byte 0xC3 — and
-  # bit6 (CHARGING_DC) backs it up on DC. Both live in one BMS byte, so a single
-  # BMS read decides this state; an earlier cross-ECU predicate (BMS current OR
-  # OBC DC amps) abstained under Kleene logic whenever OBC was not co-polled,
-  # and inferred CHARGING in 0 of 237 stored sessions. Battery current is
-  # deliberately NOT used: it is negative under regen too (626 aligned rows
-  # while moving), which is why that predicate needed a hand-rolled `and not
-  # (speed…)` mutex. Bit 7 reads 0 in every one of those rows, so no mutex.
+  # BMS 2101 B14 bit 7 (CHARGING) is set for energy flow of either kind (every AC-charging
+  # capture, and the DC byte 0xC3); bit 6 (CHARGING_DC) backs it up on DC. One BMS read decides
+  # the state. Battery current is not used: it is negative under regen too, while bit 7 reads 0
+  # in every moving row.
   - name: CHARGING
     description: HV battery actively charging (AC or DC). Implies plugged.
     implies: [PLUGGED, IG3]
     excludes: [DRIVING]
     when: "BMS.CHARGING == 1 or BMS.CHARGING_DC == 1"
 
-  # HV active / driveable. VEHICLE_STATE_EV_READY (VCU 2101 B11:3) is verified.
+  # VCU 2101 B11:3, verified.
   - name: READY
     description: HV active, car in READY (driveable).
     implies: ["ON", IG3]
     when: "VCU.VEHICLE_STATE_EV_READY == 1"
 
-  # --- States below here were predicate-less; predicates added 2026-08-04 from
-  # verified signals so historical sessions can be back-filled. SLEEP/ACC have
-  # no trustworthy positive signal offline (SLEEP's __no_response__ is
-  # unobservable in a stored capture), so they stay vocabulary-only. SLEEP does not
-  # exclude PLUGGED: a car left plugged in after a charge goes to sleep with the cable
-  # in, and the IGPM's charge-port lock (a PLUGGED input) answers while asleep.
+  # SLEEP and ACC have no positive signal in a stored capture (SLEEP is an absence of
+  # replies), so they have no predicate. SLEEP does not exclude PLUGGED: a car left plugged in
+  # sleeps with the cable in, and the IGPM's charge-port lock (a PLUGGED input) answers while
+  # asleep.
   - name: SLEEP
     description: Deep sleep / 12V standby (unplugged).
     excludes: [READY, ACC, "ON", DRIVING, CHARGING, TOPUP, IG3]
@@ -83,31 +90,24 @@ states:
     excludes: [PARKED]
     when: ESC.REAL_SPEED_KMH > 0.5 or VCU.VCU_VEHICLE_SPEED > 0.5 or VCU.VCU_VEHICLE_SPEED < -0.5 or EPS.EPS_VEHICLE_SPEED > 0.5 or MCU.MCU_MOTOR_RPM > 100
 
-  # Parked 12 V top-up: car off and locked, HV relay closed, LDC on. Seen in two
-  # runs (2026-10-21, 35 VCU 2101 captures; 2026-10-30). Only the VCU tells it apart:
-  # BMS 2101 B14 reads 0x03 as in READY, MCU 2101 matches charging, and
-  # VCU_POWER_STATE == 1 alone also matches ignition-on standby (LDC off there).
-  # VCU_IGN_ON == 0 (same PID) states the "car off" half explicitly: all 69 stored
-  # rows with power state 1 and the LDC on already read 0. Implies PARKED and IG3 so
-  # the monitor names TOPUP. Not called "conditioning", which reads as HVAC
-  # preconditioning.
+  # Parked 12 V top-up: car off and locked, HV relay closed, LDC on (seen 2026-10-21 and
+  # 2026-10-30). Only the VCU tells it apart: BMS 2101 B14 reads 0x03 as in READY, MCU 2101
+  # matches charging, and VCU_POWER_STATE == 1 alone also matches ignition-on standby (LDC off
+  # there). Not called "conditioning", which reads as HVAC preconditioning.
   - name: TOPUP
     description: Parked and off, HV relay closed so the LDC can top up the 12V battery.
     implies: [PARKED, IG3]
     excludes: [READY, CHARGING, DRIVING, "ON"]
     when: VCU.VCU_POWER_STATE == 1 and VCU.VEHICLE_STATE_LDC_ENABLED == 1 and VCU.VCU_IGN_ON == 0
 
-  # The gateway/meta token — applicable in every vehicle state (the state
-  # analogue of the ALL CAN-bus code). Documentary; no auto-suggest predicate.
+  # The meta token for "every state" (the analogue of the ALL CAN-bus code); no predicate.
   - name: ALL
     description: Applicable/readable in every vehicle state.
 
-  # The IG3 supply rail, from VCU 2101 VCU_IG3_ON (B11:4, verified): BMS, OBC, MCU,
-  # AAF and HVAC answer only while it reads 1. On in READY, charging, the top-up,
-  # ignition-on standby and plugged-in idle; READY, CHARGING and TOPUP imply it, so
-  # an ECU tagged [IG3] is listed under each of them. ON is not declared to imply
-  # it: all but one transient of 3,746 stored ignition-on VCU rows have it on, but the
-  # wiring does not say IGN closes it.
+  # The IG3 supply rail (VCU 2101 VCU_IG3_ON, B11:4, verified): BMS, OBC, MCU, AAF and HVAC
+  # answer only while it reads 1. On in READY, charging, the top-up, ignition-on standby and
+  # plugged-in idle. ON does not imply it: it is on in all but one transient of the stored
+  # ignition-on VCU rows, but the wiring does not show IGN closing it.
   - name: IG3
     description: 'IG3 rail powered: the battery-side ECUs (BMS, OBC, MCU, AAF, HVAC) are awake.'
     when: VCU.VCU_IG3_ON == 1

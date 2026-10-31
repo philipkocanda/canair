@@ -49,7 +49,7 @@ HVAC:
       hits: 0
       probes: 2
       vehicle_states: [READY]
-      notes: "Both NRC 0x11 (serviceNotSupported), as 21F2 was on 2026-07-29."
+      notes: "Both NRC 0x11 (serviceNotSupported)."
     - service: 0x10
       range: "01, 03"
       date: 2026-10-22
@@ -74,10 +74,6 @@ HVAC:
       probes: 3072
       vehicle_states: [READY]
       notes: "Default session; every DID returned an NRC."
-  # ─── 2026-07-22 read-DID (service 22) sweep, car in READY (parked) ───
-  # Goal: find live-data DIDs on ECUs previously only identity-scanned.
-  # Ranges tried per ECU noted below. All responses were NRC (alive, no such DID)
-  # unless a hit is listed. Powertrain 22-DID probes are logged in each ECU's research:.
   pids:
     220100:
       support_map: {at: 0, length: 4, unit: byte, order: msb}
@@ -87,11 +83,9 @@ HVAC:
       vehicle_states: ["ON", IG3]
       notes: >-
         38-byte response (35 data bytes after the DID) of sensor and actuator status; set
-        temperature, fan level, mode and recirculation do not appear here. Constant in all 1758
-        captures: B5=0x7E, B6=0x50, B7=0x07, B9=0xC8, and 0xFF at B10, B18, B19, B21, B23, B25-B31,
-        B33, B39, B41, B43 and B44. B20 is 16-240 (r=+0.49 vs blower). B38 is vehicle speed in km/h
-        (HVAC_VEHICLE_SPEED): 0 whenever stationary, so it only moves in the driving captures. B42
-        reads 0 or 1. 2201A3 B33-B36 and B41 carry copies of B15, B22, B17, B20 and B34.
+        temperature, fan level, mode and recirculation are not here. Constant in all 1758 captures:
+        B5=0x7E, B6=0x50, B7=0x07, B9=0xC8, and 0xFF at B10, B18, B19, B21, B23, B25-B31, B33, B39,
+        B41, B43 and B44. 2201A3 B33-B36 and B41 carry copies of B15, B22, B17, B20 and B34.
       source: Original WiCAN config
       verified: false
       parameters:
@@ -131,12 +125,9 @@ HVAC:
           max: "255"
           source: canair investigate/correlate 2026-08-02; HVAC audit 2026-10-22
           notes: >-
-            16-239 across 1758 captures. 235-239 with the compressor off: fan only at 12 °C ambient
-            (2026-04-19), resistive-heater preconditioning (2026-08-08), 2026-10-22. Fell from 113
-            to 44 in the first minute of A/C cooling (2026-07-21). On 2026-10-25 it read 238 with
-            the A/C idle, fell 132 to 16 between 12:27:54 and 12:29:37, held 16 until the A/C went
-            off at 12:34:54, then 199 and 238. Inverse of cooling demand, saturating at 16, so it
-            carries no power scale. r=+0.42 vs HVAC_HEAT_PUMP_ON, -0.74 vs HVAC_AAT (n=1420).
+            16-239 across 1758 captures. 235-239 with the compressor off; during A/C cooling it
+            falls and saturates at 16, recovering when the A/C stops (2026-10-25). r=+0.42 vs
+            HVAC_HEAT_PUMP_ON, -0.74 vs HVAC_AAT (n=1420).
         HVAC_UNKNOWN_B17:
           expression: B17
           min: "0"
@@ -203,21 +194,20 @@ HVAC:
           max: "255"
           source: OBDb Hyundai-IONIQ-Electric (7B3 22 0100 bix 232, VSS_7B3) + canair align 2026-10-27
           notes: >-
-            Unsigned byte, whole km/h. Non-zero only in the driving captures (about 100 rows,
-            0-107). r=0.97 vs VCU:2101:VCU_VEHICLE_SPEED (1135 of 1213 rows equal) and r=0.985 vs
-            ESC wheel speeds.
+            Whole km/h; non-zero only while driving (0-107). r=0.97 vs VCU:2101:VCU_VEHICLE_SPEED
+            (1135 of 1213 rows equal), r=0.985 vs ESC wheel speeds.
           enabled: true
         HVAC_UNKNOWN_B20:
           expression: B20
           source: support-bitmap sweep 2026-10-29
           notes: >-
-            Marked by the 220100 map. 24 values, 16-241 (129, 16, 240 and 73 most common); r=+0.49
-            vs blower (PID notes). Meaning unknown.
+            Marked by the 220100 support map. 24 values, 16-241 (129, 16, 240 and 73 most common);
+            r=+0.49 vs blower.
           enabled: false
         HVAC_UNKNOWN_B42:
           expression: B42
           source: support-bitmap sweep 2026-10-29
-          notes: Marked by the 220100 map. 0 or 1; 1 in 522 of 3051 captures. Meaning unknown.
+          notes: Marked by the 220100 support map. 0 or 1; 1 in 522 of 3051 captures.
           enabled: false
     220102:
       response_frames: 3
@@ -271,11 +261,9 @@ HVAC:
           max: "127"
           source: Monitor session 2026-04-17; reclassified 2026-07-20; OBDb label added 2026-10-27
           notes: >-
-            Raw byte in °C, 16-82 across 950 captures. r=+0.80 vs HVAC_HEAT_EXCHANGER_TEMP, -0.46 vs
-            HVAC_HEAT_PUMP_TEMP (n=1420). The OBDb Hyundai-IONIQ-Electric signalset labels this byte
-            'Inverter temperature' (7B3 22 0102 bix 96) but scales it raw/2-40, which would read -32
-            to 1 degC here and does not fit. As plain degC it tracks MCU_HEATSINK_TEMP at r=+0.87
-            (n=435, slope 0.82), so the inverter label looks right and the scale does not.
+            Raw byte in °C, 16-82 across 950 captures. Tracks MCU_HEATSINK_TEMP at r=+0.87 (n=435,
+            slope 0.82); r=+0.80 vs HVAC_HEAT_EXCHANGER_TEMP. OBDb labels this byte 'Inverter
+            temperature' (bix 96) with raw/2-40, which reads -32 to 1 °C here.
         HVAC_HEAT_PUMP_ON_MIRROR_B12:
           expression: B12
           source: coverage analysis 2026-07-23
@@ -323,9 +311,8 @@ HVAC:
           max: "1"
           source: "Monitor session 2026-04-17; HVAC audit 2026-10-22"
           notes: >-
-            0/1. 0 exactly when B21 is non-zero (one exception in 2256 captures): throughout the
-            2026-04-17 tests, including heat-pump heating at a 30 °C set point, and during the
-            2026-08-08 preconditioning until 08:30:03. 1 in every other session.
+            0/1. 0 exactly when B21 is non-zero (one exception in 2256 captures): all of 2026-04-17
+            and the first part of the 2026-08-08 preconditioning. 1 in every other session.
 
         HVAC_A0_UNKNOWN_B25:
           expression: "B25"
@@ -341,9 +328,8 @@ HVAC:
           source: 2026-07-26 heater-high session (regime split vs HVAC_HEAT_PUMP_ON)
           notes: >-
             Heating source: 0 off, 1 resistive heater (PTC), 2 heat pump. 2 exactly when 220102
-            HVAC_HEAT_PUMP_ON is 1. On 2026-07-26 it went 0, 1 (1.1-1.5 kW, compressor off), 2 (up
-            to 4.5 kW) at 22 °C ambient. Reads 1 during preconditioning at 13.5 °C (2026-08-08)
-            and at 8 °C ambient (2026-10-22). Copied at B51, 2201A1 B21 and 2201A2 B19.
+            HVAC_HEAT_PUMP_ON is 1. Reads 1 at 8-13.5 °C ambient (2026-08-08, 2026-10-22). Copied at
+            B51, 2201A1 B21 and 2201A2 B19.
           type: enum
           values:
             0: "off"
@@ -439,10 +425,8 @@ HVAC:
           source: HVAC fan-only + fan 1->MAX->1 sweep captures 2026-07-26
           verified: true
           notes: >-
-            Blower speed feedback. A fan 1-to-MAX sweep (2026-07-26) gave plateaus 40, 52, 65, 77,
-            90, 102, 111 and 121 for levels 1-8. Values between plateaus appear when vent or
-            recirculation changes alter the airflow load. Read 95-100 during the 2026-08-08
-            preconditioning.
+            Blower speed feedback; plateaus 40-121 for fan levels 1-8 (2026-07-26 sweep). Values
+            between plateaus appear when vent or recirculation changes alter the airflow load.
           type: enum
           values:
             40: Fan 1
@@ -458,9 +442,9 @@ HVAC:
           max: "1"
           source: preconditioning session 2026-08-08 vs all other HVAC captures
           notes: >-
-            1 in all 368 captures of the 2026-08-08 preconditioning session, including after B23
-            went to 1 at 08:30; 0 in every other capture, including 2026-10-22 with the
-            preconditioning timer armed but not running.
+            0-2. 1 throughout the 2026-08-08 preconditioning session (368 captures); 2 during PTC
+            heating while charging on 2026-10-25 07:11-08:22 (242 captures); 0 otherwise, including
+            with the preconditioning timer armed but not running (2026-10-22).
     2201A1:
       response_frames: 9
       status: draft
@@ -481,13 +465,11 @@ HVAC:
           source: "RE 2026-10-27: parked pack residual vs 2201A1, 2026-07-30 and 2026-08-09"
           verified: true
           notes: >-
-            Electric A/C compressor input power, 16-bit big-endian in watts (shown as kW). 0-1.33 kW
+            Electric A/C compressor input power, 16-bit big-endian in W (shown as kW); 0-1.33 kW
             across 1692 captures. Parked in READY with the PTC off, BMS BATTERY_POWER minus
-            VCU_AUX_POWER/0.9 = 1.09 x this + 0.08 kW (r=0.957, n=71) and steps on and off with it
-            (2026-07-30 10:17:37 on, 10:23:26 off); the baseline with it at 0 is 0.06 kW (n=401).
-            Equals HVAC_COMPRESSOR_CURRENT x about 358 V. In heat-pump mode it runs 0.53-0.63 kW and
-            the pack residual equals HVAC_HEAT_POWER, so HEAT_POWER already includes it there.
-            Mirrored at [B30:B31] in 82 % of captures.
+            VCU_AUX_POWER/0.9 = 1.09 x this + 0.08 kW (r=0.957, n=71). Equals
+            HVAC_COMPRESSOR_CURRENT x about 358 V. In heat-pump mode it reads 0.53-0.63 kW and is
+            included in HVAC_HEAT_POWER. Mirrored at [B30:B31] in 82 % of captures.
         HVAC_COMPRESSOR_CURRENT:
           expression: "[B33:B34]/10"
           unit: A
@@ -498,10 +480,9 @@ HVAC:
           verified: false
           notes: >-
             16-bit big-endian, 0-3.7 A across 1692 captures (B33 always 0). HVAC_COMPRESSOR_POWER /
-            this is 35.3-39.1 V per 0.1 A (median 358 V, pack 365 V), so 0.1 A/bit matches a DC
-            input current; no independent current reference. Mirrored at [B59:B60]. Reads 0 in 21
-            captures where the power word is non-zero (separate reads in the same response, ramp
-            edges).
+            this gives a median 358 V against a 365 V pack; no independent current reference.
+            Mirrored at [B59:B60]. Can read 0 while the power word is non-zero at ramp edges (21
+            captures).
 
     2201A2:
       response_frames: 8
@@ -527,19 +508,16 @@ HVAC:
           verified: true
           notes: >-
             High-voltage heating draw (resistive heater and heat pump), 0.1 kW per bit. Parked in
-            READY it equals pack power minus the LDC input (median ratio 0.99, r=0.88, n=129
-            heating rows, 2026-10-21); r=0.956 vs BMS BATTERY_POWER on 2026-07-26 (n=152,
-            0.25-4.39 kW); read 13 at about 1.2 kW on the console. 0 with climate off and during
-            A/C cooling (2026-07-21).
+            READY it equals pack power minus the LDC input (median ratio 0.99, r=0.88, n=129,
+            2026-10-21); r=0.956 vs BMS BATTERY_POWER (n=152, 0.25-4.39 kW, 2026-07-26). 0 with
+            climate off and during A/C cooling.
         HVAC_COOL_LOAD_B41:
           expression: B41
           source: 2026-07-21 AC-cooling + 2026-07-26 heating (align time-series)
           notes: >-
-            10-60 across 1499 captures. 20 at idle. Stayed 20 in all 17 reads during A/C cooling on
-            2026-10-25 (12:23:31-12:34:36, HVAC_UNKNOWN_B15 down to 16), so it is not a cooling
-            power byte; the 50-60 under A/C on 2026-07-21 did not reproduce. 10 or 20 during
-            heating, not tied to HVAC_HEAT_MODE (10 in heat pump 07:01, 20 in PTC from 07:04, both
-            in PTC 12:34-12:37).
+            10-60 across 1499 captures; 20 at idle. Read 50-60 under A/C on 2026-07-21 but stayed 20
+            throughout A/C cooling on 2026-10-25, so it does not track cooling power. 10 or 20
+            during heating, independent of HVAC_HEAT_MODE.
         HVAC_HEAT_LOAD_B17:
           expression: B17
           unit: A
@@ -574,10 +552,10 @@ HVAC:
           source: "RE 2026-10-27: hunt vs parked pack residual"
           verified: false
           notes: >-
-            0-1.2 kW at 0.1 kW/bit across 2050 captures. Pack residual = 1.15 x this (r=0.947,
-            n=71); B28 vs 2201A1 B34 r=0.71 (reads seconds apart while the compressor ramps). Reads
-            0.4 kW in heat-pump mode against 0.53-0.63 kW on HVAC_COMPRESSOR_POWER. B27 is not its
-            high byte: B27 and B25 are 1 only in heat-pump mode (2026-07-22, 2026-07-26).
+            0-1.2 kW at 0.1 kW/bit across 2050 captures. Parked pack residual = 1.15 x this
+            (r=0.947, n=71); r=0.71 vs 2201A1 HVAC_COMPRESSOR_POWER. Reads 0.4 kW in heat-pump mode
+            against 0.53-0.63 kW on HVAC_COMPRESSOR_POWER. B27 is not its high byte: B25 and B27 are
+            1 only in heat-pump mode.
         HVAC_COMPRESSOR_SPEED:
           expression: "[B42:B43]"
           unit: RPM
@@ -586,11 +564,10 @@ HVAC:
           source: "RE 2026-10-27: 2201A3 vs HVAC_COMPRESSOR_POWER"
           verified: false
           notes: >-
-            16-bit big-endian. Only 0, 1350, 1500, 2490, 2500 and 3300 across 2050 captures, so
-            likely the commanded speed. 0 exactly when HVAC_COMPRESSOR_POWER is 0. 3300 at 0.86-0.96
-            kW median (2026-07-30, 2026-08-09), 1500 at 0.59 kW (2026-08-08), 1350 at 0.43 kW
-            (2026-04-17). The OBDb Ioniq Electric (2020) signalset carries compressor speed on BMS
-            220106 instead.
+            16-bit big-endian. Takes only 0, 1350, 1500, 2490, 2500 and 3300 across 2050 captures; 0
+            exactly when HVAC_COMPRESSOR_POWER is 0. 3300 at about 0.9 kW, 1500 at 0.59 kW, 1350 at
+            0.43 kW. The OBDb Ioniq Electric (2020) signalset has compressor speed on BMS 220106
+            instead.
 
     2201A4:
       status: ignored
@@ -628,18 +605,16 @@ HVAC:
       true: ""
       false: "2FF01100"
       hold: false
-      notes: >
-        updated via TUI test
+      notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
     F012:
       label: "Unknown actuator 2"
       verified: false
       true: ""
       false: ""
       hold: false
-      notes: >
-        Write-only: NRC 0x31 for ReturnControlToECU (00), but NRC 0x13 for
-        ShortTermAdjustment (03) — meaning 03 is accepted but needs value bytes.
-        No OFF/release command available via 00.
+      notes: >-
+        ReturnControlToECU (00) returns NRC 0x31, so there is no release. ShortTermAdjustment (03)
+        returns NRC 0x13: it needs value bytes.
     F013:
       label: "Unknown actuator 3"
       verified: false
@@ -731,17 +706,11 @@ HVAC:
       date: "2026-04-19"
       priority: P1
       vehicle_states: [ACC, CHARGING]
-      result: >
-        13 DIDs respond to ReturnControlToECU (00): F011, F013-F018, F022-F027.
-        F012 accepts ShortTermAdjustment (03) but rejects ReturnControlToECU (00).
-        All return 6F{DID}0000 (5 bytes). Gaps at F012 (exists for 03 but not 00),
-        F019-F021. ShortTermAdjustment (03) accepted but requires value bytes —
-        NRC 0x13 without them. Ranges E0xx, B0xx, C0xx, 01xx, F1xx, 00xx all
-        NRC 0x31 (empty).
-      notes: >
-        Two groups: F011-F018 (7 DIDs, gap at F012) and F022-F027 (6 DIDs).
-        F028-F0FF not yet scanned. Value byte format unknown — need to test
-        with TUI v-key (ShortTermAdjustment with user-provided values).
+      result: >-
+        F011, F013-F018 and F022-F027 answer ReturnControlToECU (00) with 6F {DID} 00 00; F012
+        accepts only ShortTermAdjustment (03). 03 needs value bytes (NRC 0x13 without them). E0xx,
+        B0xx, C0xx, 01xx, F1xx and 00xx: all NRC 0x31.
+      notes: The value-byte format for ShortTermAdjustment (03) is unknown.
     - type: verify
       target: "220100"
       status: done
@@ -749,37 +718,11 @@ HVAC:
       vehicle_states: [ACC]
       updated: "2026-10-22"
       notes: >-
-        The Ioniq 5 220100 signals do not port to the 2017 Ioniq: (B15/2)-40 gives no sensible
-        temperature (B15 is HVAC_UNKNOWN_B15, 16-239); there is no vehicle-speed byte at bix 232 /
-        B29 (B25-B31 are 0xFF in every capture); B34 (HVAC_UNKNOWN_B34) is not a temperature.
+        The Ioniq 5 220100 signals mostly do not port: (B15/2)-40 gives no sensible temperature (B15
+        is HVAC_UNKNOWN_B15) and B34 (HVAC_UNKNOWN_B34) is not a temperature. Vehicle speed at bix
+        232 does port (B38, HVAC_VEHICLE_SPEED).
       sources:
         - "OBDb Ioniq 5 — 220100 signals (did not port to the 2017)"
-    - type: scan
-      target: "22 0100-010B"
-      status: done
-      priority: P1
-      vehicle_states: [ACC]
-      notes: >-
-        Scanned 2026-04-19. Service 0x21 for 0101-010B: all NRC 0x11. Service 0x22 for 0101-010B:
-        only 0102 responds; 0101 and 0103-010B return NRC 0x31. The wider 0100-01FF sweep finds
-        0100, 0102 and 01A0-01A6 (see scan_log).
-    - type: decode
-      target: "climate power (console split)"
-      status: done
-      priority: P2
-      vehicle_states: [READY]
-      result: >-
-        Heating: 2201A2 HVAC_HEAT_POWER (B42/10), the whole HV heating draw including the compressor
-        in heat-pump mode (2026-10-21, 2026-10-27). Cooling: 2201A1 HVAC_COMPRESSOR_POWER, since
-        HEAT_POWER reads 0 under A/C (2026-10-27, r=0.957 vs the parked pack residual). Electronics:
-        VCU_AUX_POWER.
-      notes: >-
-        The 2026-10-25 drive cannot resolve the cooling draw: its pack residual (BATTERY_POWER -
-        MCU_MOTOR_POWER - VCU_AUX_POWER/0.9) swings 5-40 kW between reads 1.4-2.7 s apart, and
-        2201A1 was not polled. A model of HVAC_COMPRESSOR_POWER from the polled HVAC temperatures
-        (validated by holding out each day, error 130-300 W) puts that A/C run (12:26:30-12:34:50,
-        12.5 °C outside) at about 0.3-0.65 kW. 2201A1 is now in @driving and @climate.
-      updated: "2026-10-27"
     - type: decode
       target: 2201A0 actuator doors
       status: captured
@@ -788,11 +731,9 @@ HVAC:
       created: "2026-07-23"
       updated: "2026-10-22"
       notes: >-
-        Mode-cycle capture 2026-07-26: B7 (mode door) runs face about 122 < face and legs 137-157 <
-        floor about 230 < floor and windshield about 237, with about ±20 on repeat visits. B5, B9
-        and B11 move together (r >= 0.995) at offsets that differ between sessions. Recirculation
-        and driver-only produced no flag on 2201A0 or 220100. Open: a dwell capture holding each
-        direction about 30 s, noting each, to map B7 and B5.
+        B7 is the mode door (positions in HVAC_ACTUATOR_TARGET_2); B5, B9 and B11 move together at
+        session-dependent offsets. Recirculation and driver-only set no flag on 2201A0 or 220100.
+        Open: hold each direction about 30 s, noting each, to map B7 and B5.
     - type: decode
       target: 220100 B14/B34/B35 signals
       status: captured
@@ -801,21 +742,8 @@ HVAC:
       created: "2026-07-23"
       updated: "2026-10-22"
       notes: >-
-        Three non-constant unmapped 220100 bytes, registered as unverified unknowns:
-        HVAC_UNKNOWN_B14 (0-59, r=-0.70 vs 2201A0 B5), HVAC_UNKNOWN_B34 (0-78, r=-0.40 vs interior
-        temperature; r=-0.07 vs the blower on 2026-07-26, so not the fan) and HVAC_UNKNOWN_B35
-        (70-246, r=-0.54 vs blower). Open: change heat and fan one at a time and see which moves.
-    - type: verify
-      target: 2201A0 B18 blower fan speed
-      status: done
-      priority: P2
-      vehicle_states: [READY]
-      created: "2026-07-27"
-      updated: "2026-07-27"
-      result: >-
-        Fan 1-to-MAX sweep (2026-07-26): plateaus 40, 52, 65, 77, 90, 102, 111 and 121 for levels
-        1-8, with intermediate values when vents or recirculation change the airflow load, so B18
-        is blower feedback. HVAC_BLOWER_FAN_SPEED is verified.
+        HVAC_UNKNOWN_B14, B34 and B35 vary but are undecoded; B34 does not follow the blower
+        (r=-0.07, 2026-07-26). Open: change heat and fan one at a time and see which moves.
     - type: decode
       target: 2201A1/A2/A3 sensor pages
       status: captured
@@ -824,23 +752,10 @@ HVAC:
       created: "2026-07-27"
       updated: "2026-10-22"
       notes: >-
-        A1, A2 and A3 carry copies of known bytes (heat mode at A1 B21 and A2 B19, mode door at A1
-        B22 and A2 B20, 220100 bytes at A3 B33-B41) plus several 16-bit words that co-move with
-        temperatures under heating. A1 B68 steps with the fan (5 at fan 1-2, 10 at fan 3-8).
-        Compressor signals decoded 2026-10-27: A1 [B57:B58] power (mirror [B30:B31]) and [B33:B34]
-        current (mirror [B59:B60]), A3 B28 coarse power and [B42:B43] speed; A3 B25 and B27 are 1
-        only in heat-pump mode. Open: vary one temperature or actuator at a time, hold, note, then
-        hunt each remaining word against the isolated reference.
-    - type: scan
-      target: 21 00-FF
-      status: nrc
-      priority: P2
-      vehicle_states: [READY]
-      created: "2026-07-28"
-      updated: "2026-10-22"
-      result: >-
-        Not needed: 2101 and 21F2 return NRC 0x11 serviceNotSupported (2026-07-29, 2026-10-22), as
-        did 2101-210B on 2026-04-19. HVAC does not support service 21.
+        Beyond the decoded compressor and heating signals and the copies of known bytes, A1-A3 carry
+        several 16-bit words that co-move with temperatures under heating; A1 B68 steps with the fan
+        (5 at fan 1-2, 10 at fan 3-8). Open: vary one temperature or actuator at a time, hold, note,
+        then hunt each remaining word against the isolated reference.
     - type: decode
       target: compressor vs PTC power split
       status: done
@@ -849,30 +764,21 @@ HVAC:
       created: "2026-10-21"
       updated: "2026-10-27"
       result: >-
-        2026-10-27, parked pack residual against every HVAC byte: 2201A1 [B57:B58] is the compressor
-        input power in W (HVAC_COMPRESSOR_POWER; residual = 1.09 x it + 0.08 kW, r=0.957, n=71,
-        2026-07-30 and 2026-08-09). In heat-pump mode it runs 0.53-0.63 kW while the residual equals
-        HVAC_HEAT_POWER (ratio 0.93-1.15, n=120), so HEAT_POWER already includes the compressor
-        there and PTC = HVAC_HEAT_POWER - HVAC_COMPRESSOR_POWER. Under A/C cooling HEAT_POWER is 0
-        and the compressor word is the whole draw.
+        PTC share = HVAC_HEAT_POWER - HVAC_COMPRESSOR_POWER in heat-pump mode; under A/C cooling
+        HVAC_HEAT_POWER is 0 and HVAC_COMPRESSOR_POWER is the whole draw (2026-10-27).
       notes: >-
-        Companions on the same compressor: 2201A1 [B33:B34] current (0.1 A), 2201A3 B28 coarse power
-        (0.1 kW) and [B42:B43] speed (0/1350/1500/2490/2500/3300 RPM). Not yet seen: a PTC-only
-        session with the heat pump off, which would confirm HVAC_HEAT_POWER minus the compressor
-        equals the PTC share.
+        Not yet seen: a PTC-only session with the heat pump off, to confirm HVAC_HEAT_POWER minus
+        the compressor equals the PTC share.
       sources:
         - BMS:2101 BATTERY_POWER - VCU:2102 VCU_AUX_POWER residual, 2026-10-21
       what_to_test:
         - >-
-          A/C cooling only (no PTC): the pack residual should track one compressor candidate while
-          2201A2 B42 stays 0
-        - >-
-          Heater with A/C and heat pump off (PTC only): compressor candidates stay at idle while B42
+          Heater with A/C and heat pump off (PTC only): compressor signals stay at 0 while B42
           rises
       capture_protocol: >-
         canair monitor 'BMS:2101 VCU:2102 HVAC:220100,220102,2201A0,2201A1,2201A2,2201A3' --save
         --keep-all --label 'HVAC power split' --state READY. Parked, 3 min per mode: climate off,
-        A/C cooling at fan 3, A/C off with heat at max, noting each change with 's'.
+        then heat at max with A/C off, noting each change with 's'.
     - type: decode
       target: "220100 HVAC_HEAT_PUMP_TEMP and duct temperatures: which sensors"
       status: pending
@@ -880,9 +786,16 @@ HVAC:
       vehicle_states: [READY]
       created: "2026-10-23"
       updated: "2026-10-23"
-      notes: The DATC reads an in-car sensor, an ambient sensor, an evaporator sensor, two duct sensors (vent and floor), and, with the heat pump fitted, two refrigerant temperature sensors. HVAC_HEAT_PUMP_TEMP (B13) fell to 6 degC on A/C start and may be the evaporator sensor; HVAC_DUCT_TEMP_1/2 (B36/B37) may be the two duct sensors. None is confirmed.
+      notes: >-
+        The DATC reads an in-car sensor, an ambient sensor, an evaporator sensor, two duct sensors
+        (vent and floor) and, with the heat pump, two refrigerant sensors. Open: whether
+        HVAC_HEAT_PUMP_TEMP (B13, falls to 6 °C on A/C start) is the evaporator sensor and
+        HVAC_DUCT_TEMP_1/2 (B36/B37) are the duct sensors.
       what_to_test:
-        - "A/C on at a fixed blower speed for 10 minutes: check whether B13 cycles with the compressor. Then switch between face and floor modes and see which of B36/B37 follows the mode door."
+        - >-
+          A/C on at a fixed blower speed for 10 minutes: check whether B13 cycles with the
+          compressor. Then switch between face and floor modes and see which of B36/B37 follows
+          the mode door.
       capture_protocol: >-
         canair monitor HVAC:220100 --save --keep-changes --interval 2 --label 'A/C cycling and mode
         change' --state READY; press s at A/C on and at each mode change.
@@ -893,12 +806,18 @@ HVAC:
       vehicle_states: [READY]
       created: "2026-10-29"
       updated: "2026-10-29"
-      result: "220100's constant map 7E 50 07 C8 marks 14 data bytes as signals (one bit per data byte, MSB first): B11-B15, B17, B20, B22, B34-B38 and B42. All 13 bytes that vary are inside, and all 12 defined signals read bytes inside, so the map holds on this DID."
-      notes: The two marked bytes with no signal are B20 (24 values, 16-241, r=+0.49 vs blower per the PID notes) and B42 (0/1, 1 in 522 of 3051 captures). Both added as disabled candidates. The other HVAC pages (2201A0-A3) were not tested here.
+      result: >-
+        The constant map 7E 50 07 C8 marks 14 data bytes (one bit per byte, MSB first): B11-B15,
+        B17, B20, B22, B34-B38 and B42. Every varying byte and every defined signal is inside it.
+      notes: >-
+        B20 and B42 are the marked bytes with no decoded meaning (disabled candidates). 2201A0-A3
+        not tested.
       sources:
         - byte sweep over all stored HVAC captures, 2026-10-29
       what_to_test:
-        - Capture HVAC 220100 with --keep-all across blower steps, modes and A/C on/off; time B20 and B42 against each change.
+        - >-
+          Capture HVAC 220100 with --keep-all across blower steps, modes and A/C on/off; time B20
+          and B42 against each change.
     - type: verify
       target: 2FF00002
       status: pending
@@ -906,7 +825,10 @@ HVAC:
       vehicle_states: ["ON"]
       created: "2026-10-30"
       updated: "2026-10-30"
-      notes: Newer Hyundai/Kia ECUs answer 2F F000 02 with a 4-byte bitmap of the supported IOControl DIDs F001-F020 (F020 and F040 cover the next 32 each), like the OBD-II PID 00 map. The 2026-04-19 returnControlToECU sweep found no F000 here, so this generation probably lacks it, but HVAC's known F011-F018/F022-F027 would check the bitmap if it answers. F000 is not an actuator, so 02 there drives nothing.
+      notes: >-
+        Newer Hyundai/Kia ECUs answer 2F F000 02 with a 4-byte bitmap of the supported IOControl
+        DIDs F001-F020 (F020 and F040 cover the next 32 each). The 2026-04-19 returnControlToECU
+        sweep found no F000 here. F000 is not an actuator, so 02 there drives nothing.
       sources:
         - Hyundai/Kia WPC diagnostic spec (IOControl supported check)
       what_to_test:

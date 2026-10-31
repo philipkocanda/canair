@@ -1,11 +1,10 @@
 # ─── SKM (Smart Key Module) ────────────────────────────────────────────
-# Self-identifies as "SMK". Wakes from at least two or more CAN requests, slow to wake (>1s).
-# Responsible for key fob detection, immobilizer, and keyfob functions.
-# Falls asleep after ~60s of bus inactivity.
-# Connected directly to the SSB (start/stop button) via dedicated CAN line.
+# Self-identifies as "SMK". Key fob detection, immobiliser and remote functions. Sleeps within
+# seconds of its last request, so reads need the wake ritual below. Has a dedicated CAN line to
+# the start/stop button (SSB).
 SKM:
   tx_id: 0x7A5
-  can_bus: [B-CAN, P-CAN] # + SSB CAN 
+  can_bus: [B-CAN, P-CAN]
   identity:
     alias: SMK  # ECU self-identifies as "SMK"
     description: Smart Key Module
@@ -15,10 +14,9 @@ SKM:
     sw_version: "10200"
     id_protocol: UDS  # F1xx
     part_number: ""
-    notes: >
-      Smart Key Module (self-identifies as "SMK") — key-fob detection,
-      immobiliser and remote functions. Slow to wake (>1s, needs two or more
-      CAN requests) and sleeps after ~60s of bus inactivity. Also known as SMARTRA.
+    notes: >-
+      Smart Key Module (self-identifies as SMK, also known as SMARTRA): key-fob detection,
+      immobiliser and remote functions. Sleeps about 2 s after its last request; see wake:.
   vehicle_states: [SLEEP, PLUGGED, ACC, "ON", READY, CHARGING]
   wake:
     method: rapid_read
@@ -27,10 +25,9 @@ SKM:
     interval_ms: 80
     sleep_timer_ms: 2000
     notes: >-
-      SKM powers its CAN transceiver only briefly (~2s) and answers one request before sleeping
-      again. Rapid-fire a cheap read (22B003) to hold it awake, then open a session and read the
-      B0xx block. Verified 2026-07-29 on slcan-tcp: single 1001 wake races the sleep timer;
-      back-to-back reads succeed.
+      SKM keeps its CAN transceiver up only ~2 s and answers one request before sleeping again. A
+      burst of cheap 22B003 reads holds it awake for a session and the B0xx reads; a single 1001
+      wake races the sleep timer.
   session: true
   scan_log: # SKM
     - service: 0x22
@@ -38,11 +35,7 @@ SKM:
       date: 2026-07-22
       hits: "B002,B003,B005,B006,B008,B00A"
       vehicle_states: [READY]
-      notes: >
-        Fob present. Re-confirmed the B0xx live-data block (already registered in this file's
-        pids:). 01xx all NRC. NOTE the Hyundai -1 echo: requesting B007/B009/B00B returns
-        B006/B008/B00A's data. B002 (178 B) content DIFFERS between deep-sleep (2026-04-18)
-        and READY — useful power-state contrast for decoding key/immobiliser bytes.
+      notes: Fob present. 01xx all NRC.
   pids:
     22B002:
       response_frames: 26
@@ -85,27 +78,25 @@ SKM:
           notes: Within 1 of SKM_B006_VAL_A in every capture.
         SKM_B006_B12:
           expression: B12
-          notes: >-
-            Marked by the 22B006 map. 0-92; non-zero only on 2026-10-25 (19 captures). Meaning
-            unknown.
+          notes: Marked by the 22B006 support map. 0-92; non-zero only on 2026-10-25 (19 captures).
           enabled: false
         SKM_B006_B17:
           expression: B17
           notes: >-
-            Marked by the 22B006 map. 183-187 when non-zero (2026-10-22 x8, 2026-10-25 x24), else 0.
-            Same range as SKM_B006_VAL_A/B: probably the same quantity on another channel.
+            Marked by the 22B006 support map. 183-187 when non-zero (2026-10-22 x8, 2026-10-25 x24),
+            else 0; the same range as SKM_B006_VAL_A/B.
           enabled: false
         SKM_B006_B18:
           expression: B18
           notes: >-
-            Marked by the 22B006 map. Non-zero in the same captures as SKM_B006_B17, 183-186. See
-            SKM_B006_B17.
+            Marked by the 22B006 support map. Non-zero in the same captures as SKM_B006_B17,
+            183-186.
           enabled: false
         SKM_B006_B19:
           expression: B19
           notes: >-
-            Marked by the 22B006 map. Non-zero in the same captures as SKM_B006_B17, 183-186. See
-            SKM_B006_B17.
+            Marked by the 22B006 support map. Non-zero in the same captures as SKM_B006_B17,
+            183-186.
           enabled: false
     22B007:
       response_frames: 3
@@ -152,12 +143,12 @@ SKM:
       false: "2FB10800"
       hold: false
       notes: >-
-        Requires fob proximity — UDS positive response without fob is misleading (relay doesn't
-        physically close). Verify via IGPM BC03 ignition byte. ACC ON: dash lights, infotainment,
-        doors unlock. NRC 0x22 if ACC already on. freezeCurrentState (02) returns status bytes 6255.
-        Drives the Button Start #1 (ACC) relay E48 (SMK connector B pin 12). Its output is the 'hot
-        in ACC or ON' group (IGPM MODULE2 fuse): audio, navigation, USB and wireless charger, BCM,
-        SMK, SBW switch. Taken from US-market wiring; unconfirmed on the EU car.
+        Needs the fob in range: without it the ECU answers positively but the relay does not close,
+        so check the IGPM BC03 ignition byte. ACC on: dash lights, infotainment, doors unlock. NRC
+        0x22 if ACC is already on. freezeCurrentState (02) returns status bytes 6255. Drives the
+        Button Start #1 (ACC) relay E48 (SMK connector B pin 12), which feeds the 'hot in ACC or ON'
+        group (IGPM MODULE2 fuse): audio, navigation, USB and wireless charger, BCM, SMK, SBW
+        switch. Wiring from US-market diagrams.
 
     B109:
       vehicle_states: []
@@ -167,10 +158,10 @@ SKM:
       false: "2FB10900"
       hold: false
       notes: >-
-        Drives the Button Start #2 (IG1) relay E43 (SMK connector B pin 2). Its output is the 'hot
-        in ON or START' group: cluster, SRS airbag module, MDPS, door modules, stop-lamp switch and
-        the EPCU ON/START input (pin 46). It does not carry the start request to the EPCU (see
-        B10B). Not tested on this car. Taken from US-market wiring; unconfirmed on the EU car.
+        Drives the Button Start #2 (IG1) relay E43 (SMK connector B pin 2), which feeds the 'hot in
+        ON or START' group: cluster, SRS airbag module, MDPS, door modules, stop-lamp switch and the
+        EPCU ON/START input (pin 46). It does not carry the start request to the EPCU (see B10B).
+        Untested. Wiring from US-market diagrams.
     B10A:
       vehicle_states: []
       label: IGN2 relay
@@ -179,10 +170,10 @@ SKM:
       false: "2FB10A00"
       hold: false
       notes: >-
-        Drives the Button Start #3 (IG2) relay E46 (SMK connector B pin 1). Its output is the 'hot
-        in ON' group: front wipers, washer, A/C control module, seat warmers and ventilation, heated
-        steering, BCM and SMK MODULE6 supply. IGN2 drops out during the START phase. Not tested on
-        this car. Taken from US-market wiring; unconfirmed on the EU car.
+        Drives the Button Start #3 (IG2) relay E46 (SMK connector B pin 1), which feeds the 'hot in
+        ON' group: front wipers, washer, A/C control module, seat warmers and ventilation, heated
+        steering, BCM and SMK MODULE6 supply. IGN2 drops out during START. Untested. Wiring from
+        US-market diagrams.
 
     B10B:
       vehicle_states: []
@@ -192,11 +183,10 @@ SKM:
       false: "2FB10B00"
       hold: false
       notes: >-
-        SMK Start Relay Output (connector C pin 10). On this EV it does not switch a starter: the
-        line feeds the IGPM START fuse ('hot in START'), which supplies the EPCU 'Start Switch'
-        input (pin 42) and the front-wiper FRT2 fuse, and returns to the SMK as Start Relay Feedback
-        (pin 16). Asserting it presents the EPCU's start request. Not tested on this car. Taken from
-        US-market wiring; unconfirmed on the EU car.
+        SMK Start Relay Output (connector C pin 10). On this EV it switches no starter: it feeds the
+        IGPM START fuse ('hot in START'), which supplies the EPCU 'Start Switch' input (pin 42) and
+        the front-wiper FRT2 fuse, and returns to the SMK as Start Relay Feedback (pin 16).
+        Asserting it presents the EPCU start request. Untested. Wiring from US-market diagrams.
 
     B101:
       vehicle_states: []
@@ -204,30 +194,29 @@ SKM:
       verified: false
       true: "2FB10103"
       false: "2FB10100"
-      notes: >
-        DANGER: Likely main power relay or ESCL (steering column lock). Activating
-        ESCL via raw UDS can corrupt its internal state machine, causing it to refuse
-        to unlock. Known to have bricked a Renault Zoe ESCL via DDT4All — required
-        dealer replacement of ESCL+SKM+BCM (cryptographically paired). Do not test
-        until positively identified through non-destructive means.
+      notes: >-
+        Do not test until identified by non-destructive means: may be the main power relay or the
+        ESCL (steering column lock). Actuating an ESCL over raw UDS can corrupt its state machine so
+        it refuses to unlock; a Renault Zoe ESCL bricked this way via DDT4All needed dealer
+        replacement of ESCL, SKM and BCM (cryptographically paired).
     B102:
       vehicle_states: []
       label: "⚠ DO NOT TEST — likely ESCL or immobilizer"
       verified: false
       true: "2FB10203"
       false: "2FB10200"
-      notes: >
-        DANGER: See B101 notes. Likely ESCL lock/unlock or immobilizer control.
-        ESCL has wear counter and error state that is unrecoverable without dealer tools.
+      notes: >-
+        Do not test (see B101): may be ESCL lock/unlock or immobiliser control. The ESCL's wear
+        counter and error state cannot be reset without dealer tools.
     B103:
       vehicle_states: []
       label: "⚠ DO NOT TEST — likely immobilizer lamp or ESCL"
       verified: false
       true: "2FB10303"
       false: "2FB10300"
-      notes: >
-        DANGER: See B101 notes. May be immobilizer indicator lamp (lower risk) or
-        ESCL-related (high risk). Skip until B101/B102 are identified.
+      notes: >-
+        Do not test (see B101): may be the immobiliser lamp or ESCL-related. Skip until B101/B102
+        are identified.
     B104:
       vehicle_states: []
       label: Unknown
@@ -337,19 +326,13 @@ SKM:
       priority: P1
       vehicle_states: [SLEEP]
       date: "2026-07-29"
-      notes: >
-        178-byte block, stable/reproducible. CORRECTION (2026-07-29): the earlier
-        claim that "bytes 7-13 track power state" was WRONG — it compared a CORRUPT
-        2026-04-18 capture (139B, chunks reordered from dropped/misordered ISO-TP
-        frames on the fast-sleeping SKM) against the good 178B read. With clean reads,
-        B002 is byte-identical across READY+fob-present (2026-07-22) and SLEEP+fob-absent
-        (2026-07-29): it does NOT encode power state or fob presence. Repeated 6-7B
-        motifs point to a per-key record table / config. Still undecoded; needs
-        controlled experiments (fob near/far, add/remove a registered key).
+      notes: >-
+        178-byte block, byte-identical in READY with the fob present (2026-07-22) and in SLEEP
+        without it (2026-07-29), so it does not encode power state or fob presence. Repeating 6-7
+        byte groups. Undecoded.
       what_to_test:
-        - "Fob near vs removed/far — same session, diff B002 (the key-isolation test; still pending — prior captures did NOT vary)"
-        - "Add/remove a registered key — does the record count / a motif block change? (tests the per-key-table hypothesis)"
-        - "B006 B10/B21 (slow-drift analog pair, 0x9A-0xA2) — correlate with a controlled 12V or temperature reference to identify the unit"
+        - "Fob near vs removed/far in one session; diff B002"
+        - "Add or remove a registered key; check whether a record count or a repeated group changes"
 
     - type: verify
       target: "2FB109"
@@ -365,7 +348,7 @@ SKM:
       target: "2FB10B"
       status: pending
       priority: P3
-      notes: "Start relay ON — CAUTION. Only test if safe."
+      notes: Start output ON. Untested; asserting it presents the EPCU start request.
       sources:
         - "Obsidian: SKM.md — KIA Soul commands"
     - type: verify
@@ -375,7 +358,10 @@ SKM:
       vehicle_states: [SLEEP]
       created: "2026-07-30"
       updated: "2026-07-30"
-      notes: B006 B10/B21 = redundant slow-drift analog pair (0x9A-0xA2, drifts ~1/reading, tracked within +-1). Registered as unverified candidates. Identify unit via a controlled reference (12V rail or temperature). B007 B11 = small enum (0x00/0x06) — correlate with a physical event.
+      notes: >-
+        B10/B21 (SKM_B006_VAL_A/B): 0x9A-0xA2, drifting about 1 per reading and within 1 of each
+        other. Identify the unit against a controlled reference (12 V rail or temperature). B007 B11
+        (SKM_B007_FLAG, 0x00/0x06): correlate with a physical event.
     - type: decode
       target: 22B002/22B003/22B005/22B006/22B008/22B00A terminal-feedback bits
       status: pending
@@ -384,11 +370,10 @@ SKM:
       created: "2026-10-23"
       updated: "2026-10-23"
       notes: >-
-        No signal tells ACC apart from OFF yet. The SKM reads back three terminal lines after the
-        relays: ON input (IGN2), ACC/ON input (ACC) and ON/START input (IGN1) (SKM connector C pins
-        8, 18 and 9), and drives separate ACC and IGN LEDs on the start button. The ACC/ON input is
-        the one that separates ACC from OFF. Whether any of these is exposed in a B0xx page is not
-        known. Taken from US-market wiring; unconfirmed on the EU car.
+        No signal tells ACC apart from OFF yet. The SKM reads back three terminal lines after its
+        relays: ON (IGN2), ACC/ON (ACC) and ON/START (IGN1), on SMK connector C pins 8, 18 and 9,
+        and drives separate ACC and IGN LEDs on the start button. The ACC/ON input separates ACC
+        from OFF. Whether any is exposed in a B0xx page is unknown. Wiring from US-market diagrams.
       what_to_test:
         - "Press the start button without the brake: OFF to ACC to ON to OFF, holding each state about 10 s, recording the SKM B0xx pages with --keep-changes and pressing s at every press. Look for bits that change at each step."
       capture_protocol: >-
@@ -402,8 +387,15 @@ SKM:
       vehicle_states: [SLEEP, READY]
       created: "2026-10-29"
       updated: "2026-10-29"
-      result: "22B006's constant map AF E0 00 00 marks B10, B12, B14, B15 and B17-B21 as signals (one bit per data byte, MSB first). All 6 varying bytes are inside. Defined so far: SKM_B006_VAL_A (B10) and SKM_B006_VAL_B (B21). 22B005 does not follow the map (4 of 9 set bits outside)."
-      notes: "B17, B18 and B19 read 183-187 when non-zero (2026-10-22 x8, 2026-10-25 x24) and 0 otherwise: the same range as VAL_A/VAL_B (~185), so probably the same quantity on three more channels. B12 reads 0-92, non-zero only on 2026-10-25 (19 captures). B14 (0, once 160), B15 and B20 (always 0) are marked but have not moved. All added as disabled candidates."
+      result: >-
+        22B006's constant map AF E0 00 00 marks B10, B12, B14, B15 and B17-B21 as signals (one bit
+        per data byte, MSB first); all 6 varying bytes are inside. 22B005 does not follow the map (4
+        of 9 set bits outside).
+      notes: >-
+        B17, B18 and B19 read 183-187 when non-zero (2026-10-22 x8, 2026-10-25 x24) and 0 otherwise,
+        the same range as VAL_A/VAL_B. B12 reads 0-92, non-zero only on 2026-10-25. B14 (0, once
+        160), B15 and B20 (always 0) have not moved. B12 and B17-B19 are defined as disabled
+        candidates.
       sources:
         - byte sweep over all stored SKM captures, 2026-10-29
       what_to_test:

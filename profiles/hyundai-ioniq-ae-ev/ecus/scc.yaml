@@ -7,11 +7,10 @@ SCC:
     part_number: "96400-G7000"
     boot_sw: "AEev SCC F-CUP 1.00 1.00"
     id_protocol: UDS  # F1xx (3 DIDs)
-    notes: Smart Cruise Control (front radar). Live-data DIDs 220100-0103 and 0105, all undecoded.
+    notes: >-
+      Smart Cruise Control (front radar). Live-data DIDs 220100-0103 and 0105, all undecoded and not
+      yet captured while driving.
   vehicle_states: [ACC, "ON", READY]
-  # UDS service-22 multi-DID batching: verified on-device 2026-07-29 (READY) —
-  # SCC answers `22 0100 0101` with `620100 <data> 0101 <data>` and the response
-  # splits cleanly. Batching cuts poll commands for its consecutive 22-DIDs.
   multi_did: true
   scan_log: # SCC (smart cruise control)
     - service: 0x22
@@ -19,34 +18,34 @@ SCC:
       date: 2026-07-22
       hits: "0101,0102,0103,0105"
       vehicle_states: [READY]
-      notes: "Re-confirmed the 01xx block (already registered). 0106-0120 and B0xx all NRC."
+      notes: "0106-0120 and B0xx all NRC."
   pids:
     220100:
       response_frames: 1
       status: draft
       period: 2500
       vehicle_states: [READY]
-      notes: "6 bytes: 620100030200. Not captured while driving."
+      notes: "6 bytes: 620100030200."
     220101:
       status: draft
       period: 2500
       vehicle_states: []
-      notes: "6 bytes: 620101081401. Not captured while driving."
+      notes: "6 bytes: 620101081401."
     220102:
       status: draft
       period: 2500
       vehicle_states: []
-      notes: "6 bytes: 6201020D000C. Not captured while driving."
+      notes: "6 bytes: 6201020D000C."
     220103:
       status: draft
       period: 2500
       vehicle_states: []
-      notes: "7 bytes: 62010328543521. Not captured while driving."
+      notes: "7 bytes: 62010328543521."
     220105:
       status: draft
       period: 2500
       vehicle_states: []
-      notes: "5 bytes: 6201050307. Not captured while driving."
+      notes: "5 bytes: 6201050307."
   research:
     - type: scan
       target: 22 0104-0110
@@ -54,8 +53,7 @@ SCC:
       priority: P3
       vehicle_states: [READY]
       date: "2026-07-22"
-      result: "22010x gap sweep (ignition on): only 0105 (5B, 6201050307) responds in 0104-0110; 0104 and 0106-0110 all NRC. SCC readable pages remain 0100-0103,0105 — no hidden pages found."
-      notes: Hidden-page hunt 2026-07-22.
+      result: Only 0105 answers in 0104-0110; 0104 and 0106-0110 NRC.
       updated: "2026-07-23"
     - type: decode
       target: 220102 speed byte
@@ -64,6 +62,9 @@ SCC:
       vehicle_states: [READY]
       created: "2026-07-27"
       updated: "2026-07-27"
-      notes: "e-Niro AEB 0x7D0 22 02 00: byte 3 of the 62 02 xx response = vehicle Speed. Ioniq SCC/AEB is also 0x7D0 (220100-220105 defined, NO captures yet). LEAD: capture SCC 220102/220100 while driving and hunt for the speed byte vs ESC:22C101:REAL_SPEED_KMH. e-Niro is single-frame so the offset is a hint, not a map."
+      notes: >-
+        e-Niro AEB 0x7D0 22 02 00 carries vehicle speed in byte 3 of its reply. Capture SCC
+        220100-220105 while driving and hunt for a speed byte against ESC:22C101:REAL_SPEED_KMH; the
+        e-Niro reply is single-frame, so its offset is only a hint.
       sources:
         - kia-e-niro-can-messages.xlsx (AEB sheet)

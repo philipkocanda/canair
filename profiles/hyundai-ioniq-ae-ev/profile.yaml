@@ -2,26 +2,12 @@
 # Profile-wide settings for the Ioniq Electric. Per-ECU definitions live in ecus/.
 # Run `canair wican autopid write` to produce the AutoPID JSON from the ecus/ definitions.
 #
-# ┌──────────────────────────────────────────────────────────────────────────┐
-# │ RECON GOTCHA — ECU WARM-UP (first request after idle is slow)             │
-# ├──────────────────────────────────────────────────────────────────────────┤
-# │ Ioniq ECUs drop to a low-power state when idle. The FIRST diagnostic       │
-# │ request to an ECU that hasn't been queried "in a while" is noticeably      │
-# │ slow (the ECU/gateway has to wake) and can even TIME OUT / return NO DATA  │
-# │ on that first try — subsequent requests are fast. This is normal, not a    │
-# │ dead ECU or a wrong PID. Confirmed on IGPM (0x770); very likely applies to │
-# │ most ECUs.                                                                 │
-# │                                                                            │
-# │ During recon: if a first read fails/looks unresponsive, RETRY once (or     │
-# │ send a throwaway "prime" read first) before concluding the PID/ECU is bad. │
-# │ The live monitor's raw backend (--raw-can) primes each ECU on start for    │
-# │ exactly this reason; the high response_timeout_ms below also helps the ELM │
-# │ path ride out the slow first response.                                     │
-# │                                                                            │
-# │ Separately, the OBD-II port is GATEWAY-ISOLATED: ECUs answer diagnostic    │
-# │ request/response, but there is ~no unsolicited broadcast traffic to sniff  │
-# │ passively (see `canair sniff`). Reads are request/response only.           │
-# └──────────────────────────────────────────────────────────────────────────┘
+# Gotchas:
+# - The first request to an ECU that has been idle is slow and can time out or return NO DATA;
+#   later requests are fast (seen on IGPM 0x770). Retry once before concluding a PID or ECU is
+#   bad.
+# - The OBD-II port is gateway-isolated: ECUs answer request/response, but there is almost no
+#   broadcast traffic to sniff there.
 #
 car_model: "Hyundai Ioniq Electric (AE)"  # built on a 2017 28 kWh car
 # Former names that still resolve to this profile.
@@ -29,11 +15,8 @@ aliases:
   ioniq-2017: {}
 init: "ATSP6;ATS0;ATAL;ATST96;"
 
-# BATTERY COOLING: this car's 28 kWh pack is AIR-COOLED (no liquid thermal
-# management loop). This is true of every Ioniq 28 kWh variant, not a quirk of
-# this specific car — relevant when investigating thermal-related signals on
-# BMS (e.g. no coolant temp/flow PIDs to expect) or comparing against later
-# Hyundai/Kia EVs, which use liquid cooling.
+# The 28 kWh pack is air-cooled (every 28 kWh Ioniq): there are no coolant temperature or flow
+# signals to find on BMS, unlike later liquid-cooled Hyundai/Kia EVs.
 
 # Make-specific quirks this profile opts into (make-neutral profiles omit this).
 # hk_f1xx_minus_one: Hyundai/Kia identity DIDs answer one less than requested
@@ -64,25 +47,18 @@ isotp:
   tx_padding: 0x55
   rx_padding: 0xAA
 
-# Enable UDS service-22 multi-DID batching per ECU (see each ECU file's
-# `multi_did:` flag). Batching is only attempted for ECUs opted in; any ECU that
-# rejects it (NRC 0x13) auto-falls back to single-DID reads for the session.
+# UDS service-22 multi-DID batching is attempted only for ECUs with `multi_did:` set in their
+# ecus/ file; an ECU that rejects it (NRC 0x13) falls back to single-DID reads for the session.
 #
-# multi_did_max: max DIDs combined into one multi-DID request (default 3). Raised
-# to 6 here after on-car verification 2026-07-29: IGPM (0x770) answered all 7 of
-# its BC01-BC07 DIDs in one request (62-byte multi-frame reassembly, request
-# itself multi-frame) with no truncation, repeatably. 6 stays under that proven
-# ceiling. A per-ECU `multi_did_max:` overrides this.
+# multi_did_max: max DIDs per multi-DID request (default 3; a per-ECU `multi_did_max:`
+# overrides). IGPM (0x770) answers all 7 of its BC01-BC07 DIDs in one request without
+# truncation (2026-07-29); 6 stays under that.
 multi_did_max: 6
 
-# Vehicle-axis physical bands for the reference-free plausibility scan
-# (`canair hunt --physical` / `canair investigate`). Only hv_pack is overridden;
-# rail_12v (11-15 V) and the grid bands (mains/line-freq, from `grid_region`)
-# keep their defaults. The 28 kWh pack is 96S Li-polymer: 96 x 2.5 V (empty) to
-# 96 x 4.2 V (full) ~= 240-403 V. Band widened slightly to bracket the range.
+# Vehicle-axis physical bands for `canair hunt --physical` / `canair investigate`. Only hv_pack
+# is overridden: 96S Li-polymer, 96 x 2.5 V to 96 x 4.2 V = 240-403 V, widened slightly.
 physical_bands:
   hv_pack: [240, 410]   # HV traction pack V (96S, ~360 V nominal)
 
-# DTC failure-type bytes: Hyundai/Kia use the standard SAE J2012 table (ES95486 Annex D), which the
-# tool already knows (0x77 on B1285 = commanded position not reachable). Name only
-# manufacturer-specific values (0xF0-0xFF) here, under `failure_types:`.
+# DTC failure-type bytes follow the standard SAE J2012 table (ES95486 Annex D), which canair
+# already knows. Only manufacturer-specific values (0xF0-0xFF) would go under `failure_types:`.

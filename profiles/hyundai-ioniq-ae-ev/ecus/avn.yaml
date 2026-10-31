@@ -1,5 +1,5 @@
 # ─── AVN (Audio/Video/Navigation) ─────────────────────────────────────
-# No live data DIDs discovered yet. Service 22 ranges untested.
+# No live-data DIDs found.
 #
 # From the "Version info" screen in settings:
 # - Platform: Compact Gen5 navigation
@@ -10,25 +10,20 @@
 # - Navigation version: COM5.EUR.HMC.240621.3f75729
 # - Device ID: 3391961266
 #
-# Runs Android, see XDA forum for hacking.
-# The Linux version has no navigation and *looks* almost the same but isn't!
+# Runs Android (see the XDA forum). The non-navigation unit runs Linux; it looks almost the same
+# but is a different unit.
 #
-# This unit is what is used to set:
+# This unit sets:
 # - The two cabin preconditioning schedules
 # - The two AC charging schedules
 # - Station AC charging current (Maximum/Reduced/Minimum)
 # - Portable ("granny charger") AC charging current (Maximum/Reduced/Minimum)
 # - Default/Eco/Sport profiles (regen level and climate ECO setting)
 #
-# TODO:
-# - Add details on how schedules are defined in the UI exactly!
-# - Scan for PIDs with the screen in another state (engineering menu / "info" page) — some DIDs may only be exposed in those states.
+# Connector pinouts: https://gitlab.com/g4933/wideopen/-/wikis/Unit/Pinouts
 #
-# Links/sources:
-# - Connector pinouts: https://gitlab.com/g4933/wideopen/-/wikis/Unit/Pinouts
-#
-# can_bus: the EU head unit sits on MM-CAN only (it reaches the powertrain through the gateway). The
-# pinout wiki above also lists B-CAN and P-CAN, which fits the US unit.
+# can_bus: the EU head unit sits on MM-CAN only and reaches the powertrain through the gateway. The
+# pinout wiki also lists B-CAN and P-CAN, which fits the US unit.
 AVN:
   tx_id: 0x780
   can_bus: [MM-CAN]
@@ -49,8 +44,7 @@ AVN:
       date: 2026-07-22
       hits: 0
       vehicle_states: [READY]
-      notes: >
-        Head unit alive (all NRC, 0 timeouts) but exposes NO live-data DIDs — identity DIDs only. Hidden-page hunt.
+      notes: All NRC, no timeouts.
 
   pids: {}
 
@@ -74,16 +68,14 @@ AVN:
       created: "2026-10-23"
       updated: "2026-10-23"
       notes: >-
-        The AVN (and the audio unit on cars without navigation) has an 'IG3 relay control' pin wired
-        to the IG3 #2 relay coil in US-market wiring. The relay's job is AC-charging power, yet its
-        coil is sunk by the head unit. The firmware notes in research/IONIQ_AVN_FW_FINDINGS.md fit a
-        head-unit role: the US telematics sends an IG3 relay request (CF_TMU_IG3RLY in frame 0x587)
-        and the VCU reports an IG3 relay mode (CF_Vcu_IG3RlyMd in 0x57B). Against it: on the EU car,
-        with the AVN's always-on MULTIMEDIA fuse (F18, 10 A) pulled, a pre-conditioning schedule set
-        earlier still ran, and the car pre-conditioned while on a charger. So a scheduled
-        pre-conditioning start does not need the head unit, and the schedule is stored in another
-        module. The AVN's ACC and IG3 feeds were still in place. Whether the head unit closes IG3 #2
-        in other cases is unknown.
+        In US-market wiring the AVN (or the audio unit on cars without navigation) has an 'IG3 relay
+        control' pin wired to the IG3 #2 relay coil, the relay for AC-charging power. Related frames
+        (research/IONIQ_AVN_FW_FINDINGS.md): the US telematics unit sends an IG3 relay request
+        (CF_TMU_IG3RLY, 0x587) and the VCU reports an IG3 relay mode (CF_Vcu_IG3RlyMd, 0x57B). On
+        the EU car, with the AVN's always-on MULTIMEDIA fuse (F18, 10 A) pulled and its ACC and IG3
+        feeds in place, a stored pre-conditioning schedule still ran on a charger: the schedule
+        lives in another module and a scheduled start does not need the head unit. Open: whether the
+        head unit closes IG3 #2 in other cases.
       what_to_test:
         - Record IGPM 22BC07, OBC 2101 and BMS 2101 with --keep-all at 1 s across an AC plug-in and across a scheduled charge or pre-conditioning start, with the head unit awake and asleep, and see whether IG3_RELAY_OUTPUT or the OBC state moves with the head unit.
       capture_protocol: >-
@@ -97,38 +89,28 @@ AVN:
       created: "2026-10-29"
       updated: "2026-10-29"
       result: >-
-        The EU head unit transmits seven commands on MM-CAN (ioniq-avn-fw). The gateway does not
-        repeat them onto P-CAN under the same IDs: on P-CAN, 0x57A and 0x57B are sent by the VCU
-        itself (uhi22 EPCU transceiver test; the EPCU alone on a bench still sends them). Matched on
-        real P-CAN traffic by content and by timing (each frame below is sent within 0.3-4 ms after
-        the gateway's CGW1 0x541, every cycle): MM 0x54F HU_GW_P_05 clock -> P 0x567, exact layout
-        including the weekday bit, which reads Saturday on logs recorded on Saturday 2025-02-01. MM
-        0x57B HU_EV_P_02 departure schedule -> P 0x55C, echoed byte for byte by the VCU on P 0x57A
-        (decodes as departure 1 Sunday 13:40, departure 2 Tuesday-Friday 16:40). MM 0x57A HU_EV_P_01
-        off-peak window and charge mode -> P 0x588, echoed by the VCU on P 0x579 (04:50-09:20,
-        manual mode). The VCU's 0x57B is its status frame (US firmware: VCU10, IG3 relay mode and
-        aircon feedback), which the gateway folds into GW_EV_P_02 for the head unit. MM 0x1C0
-        HU_DATC_PE_00 -> P 0x5D3, and the telematics unit's TMU_GW_PE_01 (MM 0x1B0) -> P 0x5D4:
-        opendbc's C-CAN DBC defines both at these IDs, and on the Ioniq both are gateway frames sent
-        every 1 s (fixed phase to 0x541). The P-CAN copy is not byte for byte. 0x5D3 keeps only
-        HU_DATC_PE_00 byte 4 bits 0-5 (voice-recognition activity, phone activity, blower noise
-        control), moved to byte 0; 0x5D4 likewise keeps TMU_GW_PE_01's IVR and phone activity in
-        byte 0 bits 0-3. Both read 0F on uhi22's car: activity fields 3, blower noise control 0. A
-        byte-for-byte copy of HU_DATC_PE_00 with the head unit's default values would read CF 03 03
-        00 3F. The EU car has no telematics unit, so 0x5D4's 0F is the gateway's own default. Not
-        resolved: HU_EV_PE_00 (MM 0x1AA: drive-mode climate limits, regen levels, max speed, and the
-        station/portable charge-current modes) -> P 0x5DF or 0x5B3 (both gateway-timed, both decode
-        plausibly); HU_GW_P_03/04 (MM 0x54D/0x54E nav road type and distance) -> P 0x55F/0x561
-        (gateway-timed, 100 ms, all zero with no route).
+        The EU head unit sends seven commands on MM-CAN (ioniq-avn-fw); the gateway re-encodes them
+        onto P-CAN under other IDs, each sent 0.3-4 ms after CGW1 0x541 every cycle. P-CAN 0x57A and
+        0x57B come from the VCU itself (an EPCU alone on a bench still sends them). Matched by
+        content and timing: MM 0x54F HU_GW_P_05 clock -> P 0x567 (same layout, weekday bit
+        included). MM 0x57B HU_EV_P_02 departure schedule -> P 0x55C, echoed byte for byte by the
+        VCU on P 0x57A. MM 0x57A HU_EV_P_01 off-peak window and charge mode -> P 0x588, echoed by
+        the VCU on P 0x579. The VCU's 0x57B is its status frame (US: VCU10, IG3 relay mode, aircon
+        feedback), folded by the gateway into GW_EV_P_02 for the head unit. MM 0x1C0 HU_DATC_PE_00
+        -> P 0x5D3 and TMU_GW_PE_01 (MM 0x1B0) -> P 0x5D4, both 1 s gateway frames (opendbc C-CAN
+        IDs); only the activity bits survive, moved to byte 0 (0x5D3: voice-recognition, phone,
+        blower-noise control; 0x5D4: IVR and phone). Both read 0F on uhi22's car; the EU car has no
+        telematics unit, so its 0x5D4 0F is a gateway default. Unresolved: HU_EV_PE_00 (MM 0x1AA:
+        drive-mode climate limits, regen levels, max speed, charge-current modes) -> P 0x5DF or
+        0x5B3; HU_GW_P_03/04 (MM 0x54D/0x54E nav road type and distance) -> P 0x55F/0x561 (100 ms,
+        all zero with no route).
       notes: >-
-        HVAC is reached two ways: by HU_DATC_PE_00, whose P-CAN copy 0x5D3 carries only the
-        voice-recognition, phone and blower-noise hints (no setpoint, on/off or air-quality fields),
-        and through the VCU for departure preconditioning (the VCU holds the schedule and starts the
-        climate). The head unit does not send a cabin setpoint or climate start of its own; the
-        immediate remote-climate command HU_GW_P_00 is dropped by the EU MICOM (ioniq-avn-fw §7B).
-        Test for the 0x5D3 layout: a phone call or a voice command should change 0x5D3 byte 0 bits
-        0-3. How the gateway converts frames in general: see the IGPM research entry on gateway
-        frame forwarding.
+        The head unit sends no cabin setpoint or climate start of its own: HVAC only gets the 0x5D3
+        activity hints, and departure preconditioning runs through the VCU, which holds the
+        schedule. The immediate remote-climate command HU_GW_P_00 is dropped by the EU MICOM
+        (ioniq-avn-fw §7B). Check the 0x5D3 layout: a phone call or voice command should change byte
+        0 bits 0-3. General gateway conversion: see the IGPM research entry on gateway frame
+        forwarding.
       sources:
         - "ioniq-avn-fw (EU LG firmware: com.lge.ivi compose/parse, MICOM CAN tables); uhi22 Ioniq28 P-CAN logs and EPCU bench log; projectgus Kona bench; Kona EV P-CAN sheet; 2026-10-29"
       what_to_test:

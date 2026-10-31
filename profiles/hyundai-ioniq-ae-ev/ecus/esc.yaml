@@ -12,9 +12,7 @@ ESC:
       Electronic Stability Control (ABS/AHB). 22C101 carries vehicle speed, the four wheel speeds,
       gear, brake pressure and steering angle.
   vehicle_states: [ACC, "ON", READY]
-  # UDS service-22 multi-DID batching: verified on-device 2026-07-29 (READY) —
-  # ESC answers `22 C101 C102` with `62C101 <data> C102 <data>` and the response
-  # splits cleanly. Batching cuts poll commands for its consecutive 22-DIDs.
+  # Multi-DID batching verified 2026-07-29: `22 C101 C102` returns both DIDs in one reply.
   multi_did: true
   pids:
     22C101:
@@ -36,11 +34,10 @@ ESC:
             - https://github.com/meatpiHQ/wican-fw/pull/660
           notes: >-
             1 km/h per LSB. r=+1.000 vs the four wheel speeds; 0 at standstill. Unsigned: positive
-            when reversing (2026-07-26); direction comes from GEAR_SELECTOR. B10, B11 and B13 are
-            constant 0xFF. True road speed: MCU_MOTOR_RPM is 63.96 rpm per km/h of this signal over
-            all stored drives above 30 km/h (n=1223), against 64.07 expected from the 7.412
-            reduction ratio and 1928 mm tyre circumference (uhi22). VCU_VEHICLE_SPEED reads about
-            3.6 % higher.
+            when reversing; direction comes from GEAR_SELECTOR. B10, B11 and B13 are constant 0xFF.
+            True road speed: MCU_MOTOR_RPM is 63.96 rpm per km/h above 30 km/h (n=1223), against
+            64.07 expected from the 7.412 reduction ratio and 1928 mm tyre circumference (uhi22).
+            VCU_VEHICLE_SPEED reads about 3.6 % higher.
         WHEEL_SPEED_FL:
           expression: B18
           unit: km/h
@@ -69,8 +66,8 @@ ESC:
           max: "8"
           source: canair investigate/hunt vs VCU:2101:GEAR_P, 2026-07-22 drive; Reverse confirmed 2026-07-26
           notes: >-
-            1 Park, 2 Reverse, 4 Drive, confirmed on the 2026-07-26 driveway manoeuvres (2 during
-            both reversing segments, n=52). Neutral, expected as 3, has not been captured here.
+            1 Park, 2 Reverse, 4 Drive (Reverse confirmed 2026-07-26, n=52). Neutral not captured
+            yet.
         LONG_ACCEL_RAW:
           expression: B23-128
           min: "-128"
@@ -78,10 +75,9 @@ ESC:
           source: canair hunt/investigate 2026-07-22 drive
           verified: false
           notes: >-
-            Name is unconfirmed. Offset binary centred on 127 (113-139 over 381 driving samples),
-            giving -34 to +127. r=+0.70 vs VCU ACCEL_PEDAL_DEPTH and -0.90 vs VCU NOT_BRAKING; the
-            correlation with acceleration flips sign between 2.5 s and 1.2 s joins. Sign and scale
-            unknown.
+            Name is unconfirmed. Raw 113-139 while driving (n=381). r=+0.70 vs VCU ACCEL_PEDAL_DEPTH
+            and -0.90 vs VCU NOT_BRAKING, but only +0.43 vs d(speed)/dt; the sign of its correlation
+            with acceleration flips between 2.5 s and 1.2 s joins. Sign and scale unknown.
         BRAKE_PRESSURE:
           expression: B44
           max: "255"
@@ -107,11 +103,10 @@ ESC:
           source: canair align --csv + kinematic fit, 2026-10-21 (DRIVING captures)
           verified: false
           notes: >-
-            Yaw rate, 12-bit offset-binary centred 2048, split across the PCI byte B40. r=+0.992 vs
-            speed x STEERING_ANGLE (n=1544 moving samples), the kinematic yaw-rate reference; same
-            sign as STEERING_ANGLE. Reads -5 at rest. One ON capture read 0xFFFF (not ready).
-            Scale not proven: two full-lock samples with a 5.0-5.3 m turning radius give about 0.06
-            deg/s per count (1/16 would be 0.0625).
+            Yaw rate, 12-bit offset binary centred on 2048, split around the PCI byte B40. r=+0.992
+            vs speed × STEERING_ANGLE (n=1544 moving samples); same sign as STEERING_ANGLE. Reads -5
+            at rest; 0xFFFF when not ready. Scale unproven: two full-lock samples (5.0-5.3 m turning
+            radius) give about 0.06 deg/s per count.
         LAT_ACCEL_RAW:
           expression: "[B37:B38]-2048"
           min: "-2048"
@@ -119,10 +114,10 @@ ESC:
           source: canair align --csv + kinematic fit, 2026-10-21 (DRIVING captures)
           verified: false
           notes: >-
-            Lateral acceleration, 12-bit offset-binary centred 2048. r=+0.930 vs speed x
-            YAW_RATE_RAW and +0.910 vs speed^2 x STEERING_ANGLE (n=1544), but only +0.049 vs speed
-            and +0.07 vs LONG_ACCEL_RAW. Reads about +8 counts at rest. Scale not proven: with yaw
-            at 1/16 deg/s per count the fit gives about 0.017 m/s2 per count.
+            Lateral acceleration, 12-bit offset binary centred on 2048. r=+0.930 vs speed ×
+            YAW_RATE_RAW and +0.910 vs speed² × STEERING_ANGLE (n=1544), but only +0.05 vs speed and
+            +0.07 vs LONG_ACCEL_RAW. Reads about +8 at rest. Scale unproven: with yaw at 1/16 deg/s
+            per count the fit gives about 0.017 m/s² per count.
         ESC_SUPPLY_VOLTAGE:
           expression: B15/16
           unit: V
@@ -140,9 +135,8 @@ ESC:
           source: canair decode --corr 2026-10-21
           verified: false
           notes: >-
-            Second brake-pressure reading. r=+1.000 vs BRAKE_PRESSURE (B44) over 1693 DRIVING
-            captures, 0-59, differing by one count at times, so likely a second sensor. Disabled as
-            a near-duplicate.
+            r=+1.000 vs BRAKE_PRESSURE (B44) over 1693 DRIVING captures, 0-59, at times one count
+            apart. Disabled as a near-duplicate.
           enabled: false
     22C102:
       status: draft
@@ -157,35 +151,17 @@ ESC:
       status: captured
       priority: P2
       vehicle_states: [ACC]
-      result: >-
-        2026-10-21: B37:B38 and (B39<<8)|B41 are lateral accel and yaw rate (LAT_ACCEL_RAW,
-        YAW_RATE_RAW); see the ESP12 lead entry.
-      notes: >
-        REAL_SPEED_KMH (B12) and 4 wheel speeds (B18-B21, FL/FR/RL/RR interleaved,
-        1 km/h/bit) decoded + verified from the 2026-07-22 drive (r=+1.000).
-        B35:B36 RESOLVED + VERIFIED 2026-07-30 = STEERING_ANGLE (absolute SAS,
-        big-endian offset-binary centred 0x8000, /10 deg): over the 2026-07-30
-        DRIVING steer-sweep it tracks EPS 220101 EPS_STEERING_ANGLE r=+1.000, both
-        crossing ~0 at centre together (independent ECUs) — scale, sign and 0x8000
-        zero confirmed. The 2026-07-26 '+24 at rest' was the wheel parked off-centre.
-        STILL UNDECODED: B37:B38 (~2048 = offset-binary accel?), and B39/B41 (~2048,
-        spans PCI B40 so use (B39<<8)|B41 → 2nd accel axis?) — both sit near centre
-        at standstill so neither the driveway nor the 2026-07-30 (also ~stationary)
-        capture can resolve them; need a real moving drive. Also B18-B21 front/rear
-        within a side is by convention only. B22/B27 = low-rate status/counter.
-        SPEED SIGN (2026-07-26): REAL_SPEED_KMH (B12) and the wheel speeds are
-        UNSIGNED magnitudes and read positive in reverse — confirmed correct (not a
-        bug): neighbours B10/B11/B13 are constant 0xFF (no high/sign byte). Direction
-        is GEAR_SELECTOR (B14, 2=Reverse now verified). A signed vehicle speed would
-        have to be a derived signal (magnitude x gear-direction), not decodable as a
-        single WiCAN arithmetic expression — deferred to a downstream/typed approach.
+      notes: >-
+        Decoded: speed, wheel speeds, gear, steering angle, brake pressure, yaw rate, lateral accel,
+        supply voltage. Open: wheel front/rear within a side follows convention only; B22 and B27
+        are low-rate status or counter bytes. Speed is an unsigned magnitude, so a signed speed has
+        to combine REAL_SPEED_KMH with GEAR_SELECTOR outside a single expression.
       what_to_test:
-        - "B37:B38 and (B39<<8)|B41 centred ~2048 — lateral/longitudinal accel (needs a real moving drive; stayed at centre on both stationary steer captures)"
         - "Confirm wheel front/rear assignment (needs known-corner reference)"
-        - "GEAR_SELECTOR Neutral value (expected 3) still unobserved — capture a shift through N"
+        - "GEAR_SELECTOR Neutral value: capture a shift through N"
       sources:
-        - "captures/2026-07-22.yaml — driving capture, lots of steering"
-        - "captures/2026-07-26.yaml — driveway steer-and-hold capture (resolved B35:B36 = steering angle; verified GEAR_SELECTOR Reverse=2; confirmed speed is unsigned magnitude)"
+        - "captures/2026-07-22.json — driving capture, lots of steering"
+        - "captures/2026-07-26.json — driveway steer-and-hold capture"
         - "OBDb Ioniq 5"
     - type: scan
       target: "22 C101-C10F"
@@ -198,7 +174,7 @@ ESC:
       status: nrc
       priority: P2
       vehicle_states: [ACC]
-      notes: "ESC 01xx range. 0104 = individual wheel speeds FL/FR/RL/RR per Ioniq 5."
+      notes: All NRC on this car. OBDb Ioniq 5 puts individual wheel speeds at 0104.
       sources:
         - "OBDb Ioniq 5"
     - type: scan
@@ -206,7 +182,9 @@ ESC:
       status: nrc
       priority: P2
       vehicle_states: [READY]
-      notes: "Ioniq 5 uses 0x730 for ESC with 22F010: 4 wheel speeds (16-bit/32), steering angle (/10), lateral/longitudinal accel, yaw rate. Try on both 0x7D1 and 0x730."
+      notes: >-
+        NRC here. The Ioniq 5 ESC (0x730) answers 22F010 with 4 wheel speeds (16-bit, /32), steering
+        angle (/10), lateral and longitudinal accel and yaw rate.
       sources:
         - "OBDb Ioniq 5"
     - type: decode
@@ -217,17 +195,19 @@ ESC:
       created: "2026-10-21"
       updated: "2026-10-21"
       result: >-
-        2026-10-21: both located. YAW_RATE_RAW = (B39<<8)|B41 - 2048, r=+0.992 vs speed x steering
-        angle; LAT_ACCEL_RAW = [B37:B38] - 2048, r=+0.930 vs speed x yaw. Scales unproven (~0.06
-        deg/s and ~0.017 m/s2 per count from turning-radius geometry). Also found ESC_SUPPLY_VOLTAGE
-        = B15/16 and BRAKE_PRESSURE_2 = B45. LONG_ACCEL_RAW (B23) only reaches r=+0.43 vs
-        d(speed)/dt at 1 km/h speed resolution, so still unproven.
-      notes: "opendbc ESP12 (0x220, sender ESC) carries LAT_ACCEL, LONG_ACCEL, YAW_RATE and CYL_PRES (brake pressure) in one frame. It decodes plausibly on the uhi22 Ioniq 28 logs: longitudinal accel -1.8..+1.8 m/s2, brake pressure 0-65 bar, small yaw and lateral values. 22C101 already has LONG_ACCEL_RAW (B23) and BRAKE_PRESSURE (B44), so the ESC probably exposes lateral accel and yaw rate in this DID too. First candidates: the undecoded B37:B38 and (B39<<8)|B41 words, both ~2048 at rest (see the 22C101 decode entry). Broadcast scalings: accel 11-bit, 0.01 m/s2/bit, offset -10.23; yaw 13-bit, 0.01/bit, offset -40.95 (unit not given). The DID encoding may differ."
+        YAW_RATE_RAW = (B39<<8)|B41 - 2048 (r=+0.992 vs speed × steering angle) and LAT_ACCEL_RAW =
+        [B37:B38] - 2048 (r=+0.930 vs speed × yaw). Scales unproven (about 0.06 deg/s and 0.017 m/s²
+        per count from turning-radius geometry). LONG_ACCEL_RAW (B23) only reaches r=+0.43 vs
+        d(speed)/dt at 1 km/h speed resolution.
+      notes: >-
+        opendbc ESP12 (0x220, sender ESC) carries LAT_ACCEL, LONG_ACCEL, YAW_RATE and CYL_PRES
+        (brake pressure). On the uhi22 Ioniq 28 logs: longitudinal accel -1.8 to +1.8 m/s², brake
+        pressure 0-65 bar. Broadcast scalings: accel 11-bit, 0.01 m/s²/bit, offset -10.23; yaw
+        13-bit, 0.01/bit, offset -40.95 (unit not given). The DID encoding may differ.
       sources:
         - opendbc hyundai_2015_ccan.dbc (commaai, MIT), cross-checked against uhi22 Ioniq28Investigations P-CAN logs (scripts/fetch_can_corpus.py)
       what_to_test:
-        - "Lateral accel: candidate swings in opposite directions on left vs right turns and is ~0 driving straight"
-        - "Yaw rate: candidate sign follows STEERING_ANGLE sign in turns and scales with REAL_SPEED_KMH"
+        - "Yaw and lateral-accel scales: drive circles of known radius at steady speed"
         - "Brake pressure scale: compare BRAKE_PRESSURE (B44) range in normal stops against ESP12's 0-65 bar"
       capture_protocol: >-
         canair monitor ESC:22C101 --save --keep-all --label 'ESC turns' --state DRIVING. In an empty
@@ -240,9 +220,9 @@ ESC:
       created: "2026-10-27"
       updated: "2026-10-27"
       notes: >-
-        OBDb defines 7D1 21 01, 22 0104 and 22 4000 (four signals each). 22 0101-010F are already
-        NRC; 22 4000 and 21 01 were never tried. OBDb 2017/2018 command_support lists all three as
-        unsupported, but see the BMS 22 01xx item for why that list is weak evidence.
+        OBDb defines 7D1 21 01, 22 0104 and 22 4000 (four signals each). 22 0101-010F are NRC; 22
+        4000 and 21 01 were never tried. OBDb 2017/2018 command_support lists all three as
+        unsupported, but that list also marks VCU 2101 unsupported, which answers on this car.
       sources:
         - OBDb Hyundai-IONIQ-Electric signalset (pelican.clutch.engineering ioniq-electric parameters), compared 2026-10-27
       capture_protocol: >-

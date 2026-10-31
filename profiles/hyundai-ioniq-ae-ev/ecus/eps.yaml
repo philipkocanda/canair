@@ -9,7 +9,7 @@ EPS:
     mfg_date: "2017-06-01"
     firmware: "MDPS C 1.00/1.03"
     id_protocol: UDS  # F1xx
-    notes: Steering column
+    notes: Mounted on the steering column.
   vehicle_states: [ACC, "ON", READY]
   pids:
     220101:
@@ -18,8 +18,8 @@ EPS:
       period: 10000
       vehicle_states: [READY]
       notes: >-
-        18 bytes. Unmapped: B05, B06 (0x8A and 0x8E at rest), B07 (constant) and B11. B18:B19 is
-        constant 0x1010; B21 constant 0x01.
+        18 bytes. Unmapped: B05 and B06 (0x8A and 0x8E at rest) and B11. B18:B19 is constant 0x1010,
+        B21 constant 0x01.
       source: RE 2026-07-23 analysis
       min: "0"
       verified: false
@@ -64,8 +64,8 @@ EPS:
           max: "3"
           source: canair correlate/decode analysis of 2026-07-22 MT->KW drive
           notes: >-
-            Only 0-3 (219, 85, 23 and 33 samples), rising with speed: r=+0.953 vs EPS_VEHICLE_SPEED
-            (n=360). Steps 0 to 1 at about 26-27 km/h and back below about 25 km/h.
+            Only 0-3, rising with speed: r=+0.953 vs EPS_VEHICLE_SPEED (n=360). Steps 0 to 1 at
+            about 26-27 km/h and back below about 25 km/h.
         EPS_STEERING_ANGLE:
           expression: 0-(S9*256+B10)/10
           unit: deg
@@ -83,80 +83,51 @@ EPS:
           max: "255"
           source: "RE 2026-10-22: B20 vs HVAC_INTERIOR_TEMP/AAF AMBIENT_TEMP, 2026-07-22..10-22"
           notes: >-
-            Read as degC with no offset: 10 at the 2026-10-22 cold-soak start (ambient 8, cabin 8-9
-            degC), rising to 20 over 35 min parked at READY; 31-46 in summer. B20 ~ 1.15 x cabin +
-            6.6, r=0.975, n=153; vs AAF AMBIENT_TEMP r=0.883, n=1322. Unit is on the steering
-            column, so it tracks the cabin plus self-heating. One 0 at 2026-08-08 16:44:14. B21
-            constant 0x01.
+            °C with no offset. 10 at a 2026-10-22 cold-soak start (ambient 8, cabin 8-9 °C), rising
+            to 20 over 35 min parked at READY; 31-46 in summer. Tracks the cabin plus self-heating:
+            B20 ≈ 1.15 × cabin + 6.6, r=0.975 (n=153).
     220102:
       status: static
       period: 2500
       vehicle_states: [READY]
       notes: "13 bytes, B6=0x03, the rest 0: 62010200000003000000000000."
   research:
-    - type: scan
-      target: "22 0101-0105"
-      status: done
-      priority: P2
-      vehicle_states: [ACC]
-      notes: "0101 = steering wheel angle absolute (/10 deg), MDPS motor current (signed A) per Ioniq 5."
-      sources:
-        - "OBDb Ioniq 5"
-        - "OpenDBC fingerprints confirm EPS at 0x7D4"
     - type: decode
       target: "220101"
       status: captured
       priority: P1
       vehicle_states: [READY]
-      notes: >
-        RESOLVED 2026-07-30 (absolute angle): EPS_STEERING_ANGLE =
-        -(S9*256+B10)/10 deg — a signed big-endian 16-bit (S9 sign/high byte at
-        ISO-TP 0x06/WiCAN B09, B10 low byte at 0x07/B10), verified. r=+1.000
-        (n=29, resid 1.35deg) vs verified ESC 22C101 STEERING_ANGLE over the
-        2026-07-30 DRIVING steer-sweep (+-90deg), and cross-checks the 2026-07-26
-        held-wheel session (both read -461 then +24 deg). This fixes the earlier
-        mistakes: the disproven B10:B11 LE 'EPS_STEERING_FAST' mixed the angle's
-        LOW byte (B10) with the separate B11; the old EPS_B9_FLAG (bimodal 0/FF)
-        was just this angle's sign byte (removed). VEHICLE_SPEED (B14), SPEED_BAND
-        (B15) also decoded. STILL OPEN (torque/assist): EPS_STEERING_TORQUE =
-        (B12+S13*256) LE signed-16 at ISO-TP 0x09:0x0A (range ±9500, ~0 at rest,
-        r=-0.62 vs angle); EPS_MDPS_ASSIST = B17 (0 at standstill, 0-253 moving,
-        speed-gated); EPS_STEERING_TORQUE_ALT = S7 (small signed ±36); and B11's
-        own meaning.
+      notes: >-
+        Angle, vehicle speed and speed band are decoded. Open: torque and assist.
+        EPS_STEERING_TORQUE (B12 + S13×256, signed LE, about ±9500, ~0 at rest, r=-0.62 vs angle),
+        EPS_MDPS_ASSIST (B17, 0 at standstill, 0-253 moving) and EPS_STEERING_TORQUE_ALT (S7, about
+        ±36) have unconfirmed meanings; B11 is undecoded.
       what_to_test:
-        - "EPS_STEERING_TORQUE (B12:S13) — torque vs 2nd angle? hold wheel against resistance at fixed positions to separate torque from displacement; find units"
-        - "EPS_MDPS_ASSIST (B17) — motor current/PWM? push wheel with engine on/off to vary assist effort at fixed speed"
-        - "EPS_STEERING_TORQUE_ALT (S7) vs B12:S13 — which is driver torque, which is rate/MDPS?"
-        - "B11 — separate fast signal? correlate vs d(EPS_STEERING_ANGLE)/dt on a real drive"
+        - "EPS_STEERING_TORQUE (B12:S13): hold the wheel against resistance at fixed positions to separate torque from displacement; find units"
+        - "EPS_MDPS_ASSIST (B17): vary assist effort at a fixed speed"
+        - "EPS_STEERING_TORQUE_ALT (S7) vs B12:S13: which one is driver torque"
+        - "B11: correlate against d(EPS_STEERING_ANGLE)/dt on a real drive"
       sources:
-        - "captures/2026-07-22.yaml — driving capture, lots of steering"
-        - "captures/2026-07-26.yaml — driveway steer-and-hold (disproved B10:B11 as absolute angle; ESC 22C101 B35:B36 is the real one)"
+        - "captures/2026-07-22.json — driving capture, lots of steering"
+        - "captures/2026-07-26.json — driveway steer-and-hold"
         - "OBDb Ioniq 5"
-      capture_protocol: >
-        Car stationary in ACC/ready. Hold wheel steady ~5s at each of: centre,
-        quarter-turn left, quarter-turn right, full-lock left, full-lock right;
-        then a slow lock-to-lock sweep. Save each with --label/--state, then
-        'canair decode ESC 22C101 --param STEERING_ANGLE --compact' to confirm the
-        SAS zero/scale, and diff EPS_STEERING_FAST against d(angle)/dt.
+      capture_protocol: >-
+        Car stationary in READY. Hold the wheel steady about 5 s at centre, quarter-turn left and
+        right, and full lock left and right, then sweep slowly lock to lock. Save each with
+        --label/--state.
     - type: decode
       target: "220101"
       status: pending
       priority: P2
       vehicle_states: [READY]
-      notes: >
-        LKAS / lane-keep signals. This car has active LKAS (lane-keep assist steering)
-        which commands the MDPS to apply torque — so EPS 220101 (or a sibling
-        22010x page / a separate LKAS-related DID) likely carries an LKAS active
-        flag, a commanded-torque/overlay-torque value, and possibly a driver-override
-        / hands-on-wheel torque. Capture during an LKAS-active highway drive (lane
-        markings present, LKAS engaged, then let it nudge the wheel and also
-        override it) and diff against a manual-steering drive to isolate the LKAS
-        command bytes from the driver-angle/torque bytes (B7/B12 region).
+      notes: >-
+        LKAS signals. The car has active lane-keep assist, which commands MDPS torque; no LKAS
+        active flag, commanded torque or hands-on torque is decoded yet. Capture an LKAS-active
+        highway drive (let it nudge the wheel, then override it) and diff against manual steering.
       what_to_test:
         - "LKAS active/engaged flag"
         - "LKAS commanded/overlay steering torque"
         - "Driver override / hands-on-wheel torque"
-        - "Whether LKAS data is on 220101 or a sibling 22010x page"
       sources:
         - "OpenDBC Hyundai LKAS message set (MDPS / LKAS11/LKAS12)"
         - "OBDb Ioniq 5"
@@ -166,8 +137,9 @@ EPS:
       priority: P2
       vehicle_states: [READY]
       date: "2026-07-22"
-      result: "22010x sibling sweep (ignition on): only 0101 (18B) and 0102 (8B) respond; 0100 and 0103-0110 all NRC. No hidden sibling pages -> any LKAS active/torque-command signal must live WITHIN 220101/220102 themselves (or is not OBD-exposed on EPS). Narrows the LKAS decode lead."
-      notes: Hidden-page hunt 2026-07-22. Rules out sibling 22010x pages for the LKAS backlog.
+      result: >-
+        Only 0101 and 0102 answer (ignition on); 0100 and 0103-0110 NRC. Any LKAS signal must be in
+        220101/220102 or is not exposed on EPS.
       updated: "2026-07-23"
     - type: verify
       target: "220101"
@@ -176,7 +148,10 @@ EPS:
       vehicle_states: [READY]
       created: "2026-07-23"
       updated: "2026-07-23"
-      notes: "Verify EPS_SPEED_BAND (B15). 2026-07-23: discrete 0-3 band, r=+0.953 vs speed, steps 0->1 at ~26-27 km/h with hysteresis. Confirm thresholds with a sustained-speed sweep (hold 15/25/35/50/70/90 km/h) and check whether steering assist/effort changes at each band edge."
+      notes: >-
+        Verify EPS_SPEED_BAND (B15): discrete 0-3, steps 0 to 1 at about 26-27 km/h with hysteresis.
+        Hold 15/25/35/50/70/90 km/h to find the thresholds and check whether steering effort changes
+        at each edge.
     - type: scan
       target: 21 01
       status: pending
@@ -185,10 +160,8 @@ EPS:
       created: "2026-10-27"
       updated: "2026-10-27"
       notes: >-
-        OBDb defines 7D4 21 01 with a steering wheel angle (bix 72, signed, /10 degrees) and lists
-        it as unsupported for 2017 and 2018. Only service 22 was ever probed on EPS. The OBDb 22
-        0101 angle field did not hold up against our captures, so a KWP page would be the likely
-        source of a real angle.
+        OBDb defines 7D4 21 01 with a steering wheel angle (bix 72, signed, /10 deg) and lists it
+        unsupported for 2017 and 2018. Service 21 has never been probed on EPS.
       sources:
         - OBDb Hyundai-IONIQ-Electric signalset (pelican.clutch.engineering ioniq-electric parameters), compared 2026-10-27
       capture_protocol: canair read EPS:2101 --save while steering lock to lock, parked in READY

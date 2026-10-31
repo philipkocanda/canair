@@ -1,9 +1,5 @@
 # ─── DDM (Driver Door Module) ─────────────────────────────────────────
 # Driver door module at 0x7A1. Part: 93570G2110
-# (Previously misidentified as "SWRC-L" / steering-wheel remote — corrected 2026-07-27.)
-# No readable live-data DIDs (service 22) found. IOControl (service 2F) scan
-# 2026-07-27 found 244 returnControlToECU responders in B100-B1xx (door/window
-# actuators) — see iocontrol_discoveries below.
 DDM:
   tx_id: 0x7A1
   can_bus: [B-CAN]
@@ -13,10 +9,10 @@ DDM:
     mfg_date: "2017-06-02"
     hw_version: "100"
     sw_version: "100"
-    id_protocol: UDS  # F1xx (very chatty — 21 DIDs, echoes part# in many fields)
+    id_protocol: UDS  # F1xx (21 DIDs; the part number repeats in many fields)
     notes: Driver door module. No readable live-data DIDs found.
   vehicle_states: [PLUGGED, ACC, "ON", READY, CHARGING]
-  scan_log: # DDM (driver door module)
+  scan_log:
     - service: 0x22
       range: "0101-010F,B001-B010,C101-C10F"
       date: 2026-07-22
@@ -28,11 +24,10 @@ DDM:
       date: 2026-07-27
       hits: 244
       vehicle_states: [READY]
-      notes: >
-        IOControl returnControlToECU (2F …00) sweep. 244 positive 6F responders
-        (mostly B100-B1xx, response 6FB1xx00FF000C00 — door/window actuators),
-        ~1065 NRC 0x22 conditionsNotCorrect. See iocontrol_discoveries. Values
-        for ShortTermAdjustment (03) not yet determined; do NOT blind-actuate.
+      notes: >-
+        returnControlToECU (2F …00) sweep: 244 positive responders, mostly B100-B1xx
+        (6FB1xx00FF000C00), and ~1065 NRC 0x22 (conditionsNotCorrect). ShortTermAdjustment (03)
+        values unknown; do not actuate blind.
   pids: {}
 
   iocontrol_discoveries:

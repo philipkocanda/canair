@@ -1,10 +1,6 @@
 # ─── BMS (Battery Management System) ─────────────────────────────────
 #
-# KWP2000 diagnostic sessions (service 0x10) — probed 2026-07-22, car in READY:
-# see the structured `sessions:` field at the end of this ECU block.
-# Only 0x81 (standardDiagnosticSession) is accepted; 21xx live-data reads work
-# in the default session anyway — no session unlocks extra data. Payload sizes
-# are identical across sessions: 2101=61B, 2102=38B, 2103=38B, 2104=38B, 2105=45B.
+# 21xx live-data reads work in the default session; 10 81 unlocks no extra data.
 BMS:
   tx_id: 0x7E4
   can_bus: [P-CAN]
@@ -44,7 +40,7 @@ BMS:
           expression: "(([B18:B19]/10) * (((S15 << 8) | B17)/10)) / 1000"
           unit: kW
           ha_class: power
-          notes: "Computed from voltage * current. Negative = charging."
+          notes: Negative = charging.
           send_to: wican/ioniq/stream/battery_power
 
         BATTERY_VOLTAGE:
@@ -90,28 +86,22 @@ BMS:
           expression: "B14:0"
           source: "ITStromer community sheet (j:0 = BMS Relay) + captures"
           notes: >-
-            HV main relay closed. 0 in 111 of 12079 captures, all with B14 = 0x20, 0x40 or 0x00.
-            Also 1 during a parked 12 V top-up (TOPUP).
+            HV main relay closed. 0 only with B14 = 0x00, 0x20 or 0x40; 1 during a parked 12 V
+            top-up.
 
         AC_CHARGER_CONNECTED:
           expression: B14:5
           ha_class: plug
           notes: >-
-            Set while an AC cable is plugged in, whether or not the EVSE delivers energy
-            (2026-08-08: 1 with CHARGING 0, contactors open and pilot duty 100 %). Clear throughout
-            a CCS fast charge (2026-08-08, n=50). Backs the PLUGGED state predicate.
+            Set while an AC cable is plugged in, whether or not the EVSE delivers energy; clear
+            during a CCS fast charge. Backs the PLUGGED state predicate.
           source: canair analysis 2026-08-08 (CCS DCFC + scheduled home-EVSE wait)
         CHARGING_DC:
           expression: B14:6
           ha_class: plug
           notes: >-
-            Set during DC fast charging (2026-08-08 CCS session, n=54). Clear in all 1576
-            AC-charging captures, where CHARGING (B14:7) is set. Layout matches the OBDb signalsets
-            for the Ioniq Electric, Soul EV and Niro EV (RAPID_CHG_PORT, bix 73 = bit 6 of this
-            byte, alongside HV_CHG bit 7, NORMAL_CHG_PORT bit 5 and BAT_MANAGEMENT_MAIN bit 0), and
-            the Ioniq 5, Ioniq 6 and EV6 place their rapid-port flag at the same bit. Definitions
-            only: OBDb has no frame with the bit set, and its label likely shares the community
-            lineage we use.
+            Set during DC fast charging (2026-08-08 CCS session, n=54); clear during AC charging.
+            OBDb names this bit RAPID_CHG_PORT for the Ioniq Electric, Soul EV and Niro EV.
           source: canair analysis 2026-08-08 50 kW DCFC session (first real rapid charge on this car); OBDb cross-reference 2026-10-27
         CHARGING:
           expression: "B14:7"
@@ -202,21 +192,21 @@ BMS:
           unit: kWh
           ha_class: energy
           min: "0"
-          notes: "Lifetime cumulative. ECU reports in 0.1 kWh units, /10 gives kWh."
+          notes: Lifetime total, 0.1 kWh per LSB.
 
         CUMULATIVE_CURRENT_CHARGED:
           expression: "((B38<<24)|(B39<<16)|(B41<<8)|B42)/10"
           unit: Ah
           min: "0"
           source: "ImHex pattern (u32 @ ISO-TP 0x20) — PCI-corrected"
-          notes: 32-bit at WiCAN B38, B39, B41, B42 (B40 is a PCI byte).
+          notes: Lifetime total, 0.1 Ah per LSB. B40 is a PCI byte.
 
         CUMULATIVE_CURRENT_DISCHARGED:
           expression: "((B43<<24)|(B44<<16)|(B45<<8)|B46)/10"
           unit: Ah
           min: "0"
           source: "ImHex pattern (u32 @ ISO-TP 0x24) — PCI-corrected"
-          notes: 32-bit at WiCAN B43-B46.
+          notes: Lifetime total, 0.1 Ah per LSB.
 
         OPERATING_TIME:
           expression: "[B57:B60]/3600"
@@ -227,16 +217,14 @@ BMS:
           source: "CSS Electronics DBC (OperatingTime m257 : 399|32@0+, scale 1/3600) + live verification"
           source_links:
             - "CSS Electronics/ev-data-pack-v10/electric_cars/dbc_files/can1-hyundai-kia-uds-v2.4.dbc"
-          notes: 32-bit unsigned seconds at WiCAN B57-B60.
+          notes: 32-bit unsigned seconds, shown in hours.
 
         DRIVE_MOTOR_SPEED:
           expression: "[S65:S66]"
           unit: RPM
           min: "-500"
           max: "8000"
-          notes: >-
-            Signed 16-bit big-endian, RPM directly. r=+0.997 vs MCU:2102:MCU_MOTOR_RPM (n=1149
-            measured rows, slope 0.986). B67 repeats B65.
+          notes: Signed 16-bit, RPM. r=0.997 vs MCU:2102:MCU_MOTOR_RPM (n=1149, slope 0.986).
           source: canair analysis 2026-08-08 long drive + DCFC (cross-ECU vs MCU 2102)
 
         ISOLATION_RESISTANCE:
@@ -244,22 +232,20 @@ BMS:
           unit: "kΩ"
           min: "300"
           max: "1000"
-          notes: >-
-            Big-endian 16-bit word B69:B70. 0x03E8 (1000 kΩ) in all 10764 captures, every state.
-          source: byte word corrected from B69*1000, canair decode --dump-bytes 2026-10-22
+          notes: Reads 1000 kΩ (0x03E8) in every capture, in every state.
+          source: canair decode --dump-bytes 2026-10-22
 
         DEBUG_BMS_STATE_FLAGS:
           expression: B14
-          source: AutoPID config (on device); bitfield decoded via ITStromer community sheet + ioniq-ev-bms xls; re-enumerated 2026-08-06; DC bits resolved 2026-08-08
+          source: AutoPID config (on device); bits via ITStromer community sheet, ioniq-ev-bms xls and the 2026-08-08 DCFC session
           verified: false
           notes: >-
-            Whole B14 byte. Observed values: 0x00 ignition off, unplugged (n=1); 0x03 READY or 12 V
-            top-up; 0x20 AC plugged with contactors open; 0x23 AC plugged with contactors closed,
-            not charging (VCU EV_READY 0); 0x40 CCS plugged before the contactors close (~30 s, both
-            DC sessions); 0xA3 AC charging; 0xC3 DC charging. Bits: b0 BMS_MAIN_RELAY, b1 always
-            equals b0, b5 AC_CHARGER_CONNECTED, b6 CHARGING_DC, b7 CHARGING. b2-b4 never set in
-            12079 captures, including two DC fast charges. Kia Soul EV GDS sheet names the same byte
-            b1 BMS Controllable State, b2 BMS Warning, b3 BMS Fault, b4 BMS Weld Flag.
+            Whole B14 byte. Values seen: 0x00 ignition off, unplugged; 0x03 READY or 12 V top-up;
+            0x20 AC plugged, contactors open; 0x23 AC plugged, contactors closed, not charging; 0x40
+            CCS plugged before the contactors close (~30 s); 0xA3 AC charging; 0xC3 DC charging.
+            Bits: b0 BMS_MAIN_RELAY, b1 always equals b0, b5 AC_CHARGER_CONNECTED, b6 CHARGING_DC,
+            b7 CHARGING; b2-b4 never set, including two DC fast charges. The Kia Soul EV GDS sheet
+            names b1 BMS Controllable State, b2 BMS Warning, b3 BMS Fault, b4 BMS Weld Flag.
 
         AVAIL_CHARGE_POWER_MIRROR:
           expression: "[B10:B11]/100"
@@ -267,10 +253,7 @@ BMS:
           max: "655"
           source: OBDb Hyundai-IONIQ-Electric (7E4 21 01 bix 40) + canair align 2026-10-27
           verified: false
-          notes: >-
-            Exact mirror of 2105 AVAIL_CHARGE_POWER: 5448 of 5467 aligned rows equal, r=1.000.
-            Replaces the old single-byte B10 candidate, which was this word's high byte (22-38 =
-            57-98 kW).
+          notes: "Mirror of 2105 AVAIL_CHARGE_POWER: 5448 of 5467 aligned rows equal, r=1.000."
           unit: kW
           ha_class: power
           enabled: false
@@ -281,10 +264,8 @@ BMS:
           source: OBDb Hyundai-IONIQ-Electric (7E4 21 01 bix 408) + canair align 2026-10-27
           verified: false
           notes: >-
-            Unsigned 16-bit big-endian, volts. r=0.986 vs VCU:2102:VCU_DCLINK_VOLTAGE, slope 1.00.
-            Reads 0 to a few volts with the main relay open, hence r=0.37 vs pack voltage over all
-            rows. B62 is the old disabled BMS_2101_B62 (1 once the bus is above 256 V); the old
-            BMS_2101_B63 candidate was the low byte.
+            Unsigned 16-bit, volts. r=0.986 vs VCU:2102:VCU_DCLINK_VOLTAGE, slope 1.00. Reads 0 to a
+            few volts with the main relay open.
           unit: V
           ha_class: voltage
           enabled: true
@@ -292,8 +273,8 @@ BMS:
           expression: B14:1
           source: canair analysis 2026-08-08 DCFC
           notes: >-
-            Equals BMS_MAIN_RELAY (B14:0) in every capture, including a DC fast charge. Disabled so
-            it does not ship a duplicate signal; defined so bit 1 is accounted for.
+            Equals BMS_MAIN_RELAY (B14:0) in every capture, including DC fast charges. Disabled as a
+            duplicate.
           enabled: false
         AVAIL_DISCHARGE_POWER_MIRROR:
           expression: "[B12:B13]/100"
@@ -304,8 +285,8 @@ BMS:
           source: OBDb Hyundai-IONIQ-Electric (7E4 21 01 bix 56) + canair align 2026-10-27
           verified: false
           notes: >-
-            Exact mirror of 2105 AVAIL_DISCHARGE_POWER: 5467 of 5467 aligned rows equal. Pinned at
-            98 kW most of the time (91.66-98 kW).
+            Mirror of 2105 AVAIL_DISCHARGE_POWER: 5467 of 5467 aligned rows equal. Mostly 98 kW
+            (range 91.66-98 kW).
           enabled: false
         DRIVE_MOTOR_SPEED_MIRROR:
           expression: "[S67:S68]"
@@ -314,21 +295,17 @@ BMS:
           max: "8000"
           source: OBDb Hyundai-IONIQ-Electric (7E4 21 01 bix 440, DRIVE_MOTOR_SPD_2) + canair align 2026-10-27
           verified: false
-          notes: >-
-            Signed 16-bit big-endian. Identical to DRIVE_MOTOR_SPEED [S65:S66] in 12069 of 12069
-            rows.
+          notes: Identical to DRIVE_MOTOR_SPEED [S65:S66] in all 12069 rows.
           enabled: false
         BMS_2101_B61_2:
           expression: B61:2
           source: OBDb Hyundai-IONIQ-Electric (7E4 21 01 bix 405, BAT_MANAGEMENT_IGN); canair B61 cross-tab vs VCU/IGPM 2026-10-27
           verified: false
           notes: >-
-            1 in all 2538 aligned READY rows (VCU EV_READY 1) and throughout the 2026-08-02 AC
-            charge begun with the car READY (521 rows, EV_READY 0). 0 in every charge begun with the
-            car off (AC and DC), in the 2026-10-21 12 V top-up, and on 2026-08-02 after that charge
-            ended: it fell at 11:18:39 when the HV contactors opened, while IGPM IGN1_SWITCH still
-            read 1 (11:19:27) and the car was still in ON at 12:49. OBDb names this bit BMS
-            ignition; the 2026-08-02 window shows it is not the plain ignition input.
+            1 while READY and through an AC charge begun while READY; 0 in charges begun with the
+            car off (AC and DC) and in a 12 V top-up. Falls when the HV contactors open at the end
+            of a charge while IGPM:22BC03:IGN1_SWITCH stays 1, so it is not the plain ignition
+            input. OBDb names it BMS ignition.
           enabled: true
           min: "0"
           max: "1"
@@ -338,9 +315,8 @@ BMS:
           max: "1"
           source: canair B61 cross-tab vs VCU 2101 VCU_IG3_ON 2026-10-27
           notes: >-
-            Equals VCU_IG3_ON in 10845 of 10846 aligned rows; the exception is the last row of the
-            2026-10-21 12 V top-up (BMS 1, VCU 0). 0 in 7 BMS captures (B61 = 0x01), each after a
-            charge ended or the car was switched off. Disabled as a duplicate of VCU_IG3_ON.
+            Equals VCU:2101:VCU_IG3_ON in 10845 of 10846 aligned rows. 0 (B61 = 0x01) only after a
+            charge ends or the car is switched off. Disabled as a duplicate of VCU_IG3_ON.
           enabled: false
 
 
@@ -356,9 +332,8 @@ BMS:
           unit: kW
           ha_class: power
           notes: >-
-            Reads 98.0 kW throughout both 2026-08-08 DC fast charges (via the 2101 mirror), the same
-            98 kW the car sends a charger as EVMaximumPowerLimit (broadcast 0x59E bytes 6-7,
-            forwarded by the CCM into DIN 70121 ChargeParameterDiscovery; uhi22 charger logs).
+            98.0 kW throughout DC fast charging: the EVMaximumPowerLimit the car sends a charger
+            (broadcast 0x59E bytes 6-7; uhi22 charger logs).
 
         AVAIL_DISCHARGE_POWER:
           expression: "[B25:B26]/100"
@@ -441,7 +416,7 @@ BMS:
           unit: "%"
           min: "0"
           max: "105"
-          notes: "State of Health"
+          notes: State of health.
 
         MAX_DETERIORATION_CELL_NO:
           expression: "B35"
@@ -463,23 +438,19 @@ BMS:
 
         BMS_DCFC_TICK_COUNTER:
           expression: B42
-          source: 2026-08-08 DCFC session byte-diff (was DEBUG_BMS_STATE_FLAGS_2105, a misnamed guess from the Niro xls)
+          source: 2026-08-08 DCFC session byte-diff
           verified: false
           notes: >-
-            8-bit wrapping counter, about 0.52 per second, while CHARGING_DC is set (2026-08-08).
-            Holds at 41 (occasionally 49) otherwise, including all 2379 AC-charge captures.
-    # Cell voltage PIDs — 96 cells across 3 PIDs (32 each)
-    # Format: B(6+n)*0.02 where n=cell index within PID (0-31)
-    # Cells 1-32 in 2102, 33-64 in 2103, 65-96 in 2104
-    # Only a subset are defined here; add more as needed.
+            8-bit wrapping counter, ~0.52 per second, while CHARGING_DC is set. Otherwise holds at
+            41 (occasionally 49), including during AC charging.
           enabled: true
         BMS_2105_B41:
           expression: B41
           source: 2026-08-08 DCFC session byte-diff
           verified: false
           notes: >-
-            0 except during DC fast charging: on 2026-08-08 it stepped to 13 at onset, 14 after
-            about 30 s and 15 after about 9 min. 0 in all 2379 AC-charge captures.
+            0 except during DC fast charging: 13 at onset, 14 after ~30 s, 15 after ~9 min
+            (2026-08-08).
           enabled: true
     2102:
       response_frames: 6
@@ -495,12 +466,9 @@ BMS:
         CELL_01_VOLTAGE:
           expression: "B9*0.02"
           source: "ImHex pattern + raw capture verified"
-          notes: >
-            First cell. 2026-07-20 FIX: cells start at B9 (after the 4-byte 0xFFFFFFFF cell-present header at
-            B4-B7) and skip PCI bytes (B8/16/24/32/40). The old linear B(5+n) mapping was wrong on two counts:
-            CELL_01/02 read the 0xFF header (5.10V) and CELL_03/11/19/27 landed on PCI bytes (0.66-0.72V).
-            Correct WiCAN indices per in-PID cell (1..32): B9,10,11,12,13,14,15, B17,18,19,20,21,22,23,
-            B25,26,27,28,29,30,31, B33,34,35,36,37,38,39, B41,42,43,44. Same layout for 2103 (33-64) and 2104 (65-96).
+          notes: >-
+            Cells start at B9, after the 4-byte 0xFFFFFFFF header at B4-B7, and skip the PCI bytes
+            B8, B16, B24, B32 and B40. 2103 (cells 33-64) and 2104 (65-96) use the same layout.
         CELL_02_VOLTAGE:
           expression: "B10*0.02"
         CELL_03_VOLTAGE:
@@ -563,7 +531,6 @@ BMS:
           expression: "B43*0.02"
         CELL_32_VOLTAGE:
           expression: "B44*0.02"
-          notes: "Last cell in PID 2102."
 
     2103:
       response_frames: 6
@@ -579,7 +546,6 @@ BMS:
         CELL_33_VOLTAGE:
           expression: "B9*0.02"
           source: "ImHex pattern + raw capture verified"
-          notes: "First cell in PID 2103. Same B6..B37 pattern as 2102."
         CELL_34_VOLTAGE:
           expression: "B10*0.02"
         CELL_35_VOLTAGE:
@@ -642,7 +608,6 @@ BMS:
           expression: "B43*0.02"
         CELL_64_VOLTAGE:
           expression: "B44*0.02"
-          notes: "Last cell in PID 2103."
 
     2104:
       response_frames: 6
@@ -658,7 +623,6 @@ BMS:
         CELL_65_VOLTAGE:
           expression: "B9*0.02"
           source: "ImHex pattern + raw capture verified"
-          notes: "First cell in PID 2104. Same B6..B37 pattern."
         CELL_66_VOLTAGE:
           expression: "B10*0.02"
         CELL_67_VOLTAGE:
@@ -721,7 +685,6 @@ BMS:
           expression: "B43*0.02"
         CELL_96_VOLTAGE:
           expression: "B44*0.02"
-          notes: "Last cell. Total: 96 cells across PIDs 2102/2103/2104."
 
     21F2:
       status: slow
@@ -729,10 +692,10 @@ BMS:
       response_frames: 18
       vehicle_states: [READY]
       notes: >-
-        121 data bytes, 13 distinct payloads over 29 captures. A record of the previous drive or
-        charge cycle (duration, SOC and temperature histograms, start/end SOC, cell and pack voltage
-        extremes, energy in/out, peak powers, average temperature), updated when a cycle ends, plus
-        the constant ASCII tag '4064' at B9-B12. Found by the 21 00-FF sweep on 2026-07-22.
+        121 data bytes: a record of the previous drive or charge cycle (duration, SOC and
+        temperature histograms, start/end SOC, cell and pack voltage extremes, energy in/out, peak
+        powers, average temperature), updated when a cycle ends, plus the constant ASCII tag '4064'
+        at B9-B12.
       source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
       verified: false
       parameters:
@@ -744,9 +707,8 @@ BMS:
           max: "5"
           source: canair align vs BMS:2101 2026-10-21
           notes: >-
-            Lowest cell voltage of the previous drive or charge cycle (same 1/50 V scale as 2101).
-            Frozen while the car is on: 4.12 V through the whole 2026-08-08 10:02-11:08 drive while
-            the live minimum fell to 3.68 V, then 3.52 V from 11:41 after the drive ended.
+            Lowest cell voltage of the previous drive or charge cycle, 1/50 V. Frozen while the car
+            is on: 4.12 V through a drive whose live minimum fell to 3.68 V.
         LAST_CYCLE_MAX_CELL_VOLTAGE:
           expression: B38/50
           unit: V
@@ -755,9 +717,8 @@ BMS:
           max: "5"
           source: canair align vs BMS:2101 2026-10-21
           notes: >-
-            Highest cell voltage of the previous drive or charge cycle. 4.14 V after the 2026-08-08
-            drive that started at a 4.14 V live maximum; 4.16 V during the 2026-07-30 AC charge to
-            95 %.
+            Highest cell voltage of the previous drive or charge cycle, 1/50 V. 4.16 V after an AC
+            charge to 95 %.
         LAST_CYCLE_MAX_PACK_VOLTAGE:
           expression: "[B43:B44]"
           unit: V
@@ -765,9 +726,7 @@ BMS:
           min: "0"
           max: "450"
           source: canair align vs BMS:2101 2026-10-21
-          notes: >-
-            Highest pack voltage of the previous cycle, 1 V/bit. 398 V through the 2026-08-08
-            10:02-11:08 drive (live 397 to 354 V), 397 V from 11:41.
+          notes: Highest pack voltage of the previous cycle, 1 V/bit.
         LAST_CYCLE_MIN_PACK_VOLTAGE:
           expression: "[B45:B46]"
           unit: V
@@ -776,8 +735,8 @@ BMS:
           max: "450"
           source: canair align vs BMS:2101 2026-10-21
           notes: >-
-            Lowest pack voltage of the previous cycle, 1 V/bit. 397 V through the 2026-08-08 drive,
-            then 340 V from 11:41, below the 346 V read live at the end of the drive (load sag).
+            Lowest pack voltage of the previous cycle, 1 V/bit, including load sag: 340 V after a
+            drive that ended at a live 346 V.
         BMS_21F2_TAG:
           expression: "[B9:B12]"
           type: ascii
@@ -793,158 +752,122 @@ BMS:
           max: "255"
           notes: >-
             Length of the previous drive or charge cycle in minutes: the five temperature-band
-            seconds summed and divided by 60, rounded down, in all 13 records. The ten SOC bands sum
-            to within 3 min of it. 99 for the 2026-08-08 10:02-11:41 drive, 62 for the 2026-08-10
-            13:13-14:15 charge.
+            seconds summed and divided by 60, rounded down, in all 13 records. The ten SOC bands
+            (B15-B26) sum to within 3 min of it.
         LAST_CYCLE_MINUTES_SOC_10_20:
           expression: B17
           unit: min
           min: "0"
           max: "255"
-          notes: >-
-            Minutes of the previous cycle spent at 10-20 % SOC. The ten bands (B15-B26) sum to
-            within 3 min of LAST_CYCLE_DURATION. 2026-07-30 AC charge 66 to 95 %: 40, 56, 57 and 32
-            min in the 60-70 to 90-100 % bands.
+          notes: Minutes of the previous cycle spent at 10-20 % SOC.
         LAST_CYCLE_MINUTES_SOC_20_30:
           expression: B18
           unit: min
           min: "0"
           max: "255"
-          notes: >-
-            Minutes of the previous cycle spent at 20-30 % SOC. The ten bands (B15-B26) sum to
-            within 3 min of LAST_CYCLE_DURATION. 2026-07-30 AC charge 66 to 95 %: 40, 56, 57 and 32
-            min in the 60-70 to 90-100 % bands.
+          notes: Minutes of the previous cycle spent at 20-30 % SOC.
         LAST_CYCLE_MINUTES_SOC_30_40:
           expression: B19
           unit: min
           min: "0"
           max: "255"
-          notes: >-
-            Minutes of the previous cycle spent at 30-40 % SOC. The ten bands (B15-B26) sum to
-            within 3 min of LAST_CYCLE_DURATION. 2026-07-30 AC charge 66 to 95 %: 40, 56, 57 and 32
-            min in the 60-70 to 90-100 % bands.
+          notes: Minutes of the previous cycle spent at 30-40 % SOC.
         LAST_CYCLE_MINUTES_SOC_40_50:
           expression: B20
           unit: min
           min: "0"
           max: "255"
-          notes: >-
-            Minutes of the previous cycle spent at 40-50 % SOC. The ten bands (B15-B26) sum to
-            within 3 min of LAST_CYCLE_DURATION. 2026-07-30 AC charge 66 to 95 %: 40, 56, 57 and 32
-            min in the 60-70 to 90-100 % bands.
+          notes: Minutes of the previous cycle spent at 40-50 % SOC.
         LAST_CYCLE_MINUTES_SOC_50_60:
           expression: B21
           unit: min
           min: "0"
           max: "255"
-          notes: >-
-            Minutes of the previous cycle spent at 50-60 % SOC. The ten bands (B15-B26) sum to
-            within 3 min of LAST_CYCLE_DURATION. 2026-07-30 AC charge 66 to 95 %: 40, 56, 57 and 32
-            min in the 60-70 to 90-100 % bands.
+          notes: Minutes of the previous cycle spent at 50-60 % SOC.
         LAST_CYCLE_MINUTES_SOC_60_70:
           expression: B22
           unit: min
           min: "0"
           max: "255"
-          notes: >-
-            Minutes of the previous cycle spent at 60-70 % SOC. The ten bands (B15-B26) sum to
-            within 3 min of LAST_CYCLE_DURATION. 2026-07-30 AC charge 66 to 95 %: 40, 56, 57 and 32
-            min in the 60-70 to 90-100 % bands.
+          notes: Minutes of the previous cycle spent at 60-70 % SOC.
         LAST_CYCLE_MINUTES_SOC_70_80:
           expression: B23
           unit: min
           min: "0"
           max: "255"
-          notes: >-
-            Minutes of the previous cycle spent at 70-80 % SOC. The ten bands (B15-B26) sum to
-            within 3 min of LAST_CYCLE_DURATION. 2026-07-30 AC charge 66 to 95 %: 40, 56, 57 and 32
-            min in the 60-70 to 90-100 % bands.
+          notes: Minutes of the previous cycle spent at 70-80 % SOC.
         LAST_CYCLE_MINUTES_SOC_80_90:
           expression: B25
           unit: min
           min: "0"
           max: "255"
-          notes: >-
-            Minutes of the previous cycle spent at 80-90 % SOC. The ten bands (B15-B26) sum to
-            within 3 min of LAST_CYCLE_DURATION. 2026-07-30 AC charge 66 to 95 %: 40, 56, 57 and 32
-            min in the 60-70 to 90-100 % bands.
+          notes: Minutes of the previous cycle spent at 80-90 % SOC.
         LAST_CYCLE_MINUTES_SOC_90_100:
           expression: B26
           unit: min
           min: "0"
           max: "255"
-          notes: >-
-            Minutes of the previous cycle spent at 90-100 % SOC. The ten bands (B15-B26) sum to
-            within 3 min of LAST_CYCLE_DURATION. 2026-07-30 AC charge 66 to 95 %: 40, 56, 57 and 32
-            min in the 60-70 to 90-100 % bands.
+          notes: Minutes of the previous cycle spent at 90-100 % SOC.
         LAST_CYCLE_SOC_START:
           expression: "[B109:B110]/10"
           unit: "%"
           min: "0"
           max: "100"
           notes: >-
-            SOC at the start of the previous cycle, 0.1 %/bit. 95.2 % for the 2026-08-08 drive that
-            left at 95 %.
+            SOC at the start of the previous cycle, 0.1 %/bit. 95.2 % for a drive that left at 95 %.
         LAST_CYCLE_SOC_END:
           expression: ((B111<<8)|B113)/10
           unit: "%"
           min: "0"
           max: "100"
           notes: >-
-            SOC at the end of the previous cycle, 0.1 %/bit (B112 is a PCI byte). 40.5 % after the
-            2026-08-08 drive, matching live SOC_BMS, and equal to VCU:21F2 VCU_21F2_SOC in every
-            co-read record.
+            SOC at the end of the previous cycle, 0.1 %/bit (B112 is a PCI byte). Matches live
+            SOC_BMS after a drive, and VCU:21F2:VCU_21F2_SOC in every co-read record.
         LAST_CYCLE_ENERGY_DISCHARGED:
           expression: "[B134:B135]"
           unit: Wh
           min: "0"
           max: "65535"
           notes: >-
-            Energy taken from the pack during the previous cycle. 17258 Wh for the 2026-08-08 drive
-            (CUMULATIVE_ENERGY_DISCHARGED rose 17.2 kWh); 63 Wh for a plugged-in preconditioning
-            cycle.
+            Energy taken from the pack during the previous cycle. 17258 Wh for a drive over which
+            CUMULATIVE_ENERGY_DISCHARGED rose 17.2 kWh.
         LAST_CYCLE_ENERGY_CHARGED:
           expression: "[B137:B138]"
           unit: Wh
           min: "0"
           max: "65535"
           notes: >-
-            Energy put into the pack during the previous cycle (regen or charging). 740 Wh regen on
-            the 2026-08-08 drive (CUMULATIVE_ENERGY_CHARGED +0.6 kWh); 8990 Wh for the 2026-07-30 AC
-            charge 66 to 95 %; 1402 Wh for 71.9 to 76.9 %.
+            Energy put into the pack during the previous cycle (regen or charging). 8990 Wh for an
+            AC charge from 66 to 95 %.
         LAST_CYCLE_ENERGY_START:
           expression: "[B123:B124]"
           unit: Wh
           min: "0"
           max: "65535"
           notes: >-
-            Unconfirmed: probably the pack's energy content at the start of the previous cycle.
-            26555 at 95.2 % and 10402 at 40.5 % SOC (2026-08-08 drive); the 16153 Wh difference is
-            near the 16518 Wh net discharge. 0 in charging cycles.
+            Meaning unconfirmed. 26555 for a drive from 95.2 to 40.5 % SOC, where
+            LAST_CYCLE_ENERGY_END read 10402; the 16153 difference is close to that drive's 16518 Wh
+            net discharge. 0 in charging cycles.
         LAST_CYCLE_ENERGY_END:
           expression: "[B125:B126]"
           unit: Wh
           min: "0"
           max: "65535"
-          notes: >-
-            Unconfirmed: probably the pack's energy content at the end of the previous cycle; see
-            LAST_CYCLE_ENERGY_START.
+          notes: Meaning unconfirmed; see LAST_CYCLE_ENERGY_START. 0 in charging cycles.
         LAST_CYCLE_MAX_DISCHARGE_POWER:
           expression: B49
           unit: kW
           min: "0"
           max: "255"
           notes: >-
-            Peak discharge power of the previous cycle. 57 kW for the 2026-08-08 drive (live
-            BATTERY_POWER peaked at 57.5 kW); 3 kW for a preconditioning cycle; 0 for charging.
+            Peak discharge power of the previous cycle. 57 kW for a drive whose live BATTERY_POWER
+            peaked at 57.5 kW; 0 for charging cycles.
         LAST_CYCLE_MAX_CHARGE_POWER:
           expression: B51
           unit: kW
           min: "0"
           max: "255"
-          notes: >-
-            Peak charge or regen power of the previous cycle. 45 kW regen on the 2026-08-08 drive
-            (live sampled peak -40.5 kW); 3 kW for a 3.3 kW AC charge.
+          notes: Peak charge or regen power of the previous cycle. 3 kW for a 3.3 kW AC charge.
         LAST_CYCLE_AVG_BATTERY_TEMP:
           expression: B100
           unit: °C
@@ -952,110 +875,72 @@ BMS:
           min: "-40"
           max: "100"
           notes: >-
-            Average battery temperature of the previous cycle. 18 for the 2026-08-08 drive (live
-            module temps 17-21, mean 18.7); 26 for the 2026-07-30 charge (25-27); 23 for 2026-08-10
-            (23-24).
+            Average battery temperature of the previous cycle. 18 °C for a drive with live module
+            temperatures of 17-21 °C (mean 18.7).
         LAST_CYCLE_SECONDS_TEMP_BAND_1:
           expression: ((B63<<8)|B65)
           unit: s
           min: "0"
           max: "65535"
           notes: >-
-            Seconds of the previous cycle in battery-temperature band 1 of 5; the five bands sum to
-            LAST_CYCLE_DURATION. Seen in use: band 3 with an average of 16-20 °C, band 4 at 22-24
-            °C, band 5 at 26-29 °C; bands 1-2 never set. Thresholds unknown.
+            Seconds of the previous cycle in battery-temperature band 1 of 5. Never non-zero in
+            captures; thresholds unknown. The five bands sum to LAST_CYCLE_DURATION.
         LAST_CYCLE_SECONDS_TEMP_BAND_2:
           expression: "[B66:B67]"
           unit: s
           min: "0"
           max: "65535"
           notes: >-
-            Seconds of the previous cycle in battery-temperature band 2 of 5; the five bands sum to
-            LAST_CYCLE_DURATION. Seen in use: band 3 with an average of 16-20 °C, band 4 at 22-24
-            °C, band 5 at 26-29 °C; bands 1-2 never set. Thresholds unknown.
+            Seconds of the previous cycle in battery-temperature band 2 of 5. Never non-zero in
+            captures.
         LAST_CYCLE_SECONDS_TEMP_BAND_3:
           expression: "[B68:B69]"
           unit: s
           min: "0"
           max: "65535"
           notes: >-
-            Seconds of the previous cycle in battery-temperature band 3 of 5; the five bands sum to
-            LAST_CYCLE_DURATION. Seen in use: band 3 with an average of 16-20 °C, band 4 at 22-24
-            °C, band 5 at 26-29 °C; bands 1-2 never set. Thresholds unknown.
+            Seconds of the previous cycle in battery-temperature band 3 of 5. In use at an average
+            battery temperature of 16-20 °C.
         LAST_CYCLE_SECONDS_TEMP_BAND_4:
           expression: "[B70:B71]"
           unit: s
           min: "0"
           max: "65535"
           notes: >-
-            Seconds of the previous cycle in battery-temperature band 4 of 5; the five bands sum to
-            LAST_CYCLE_DURATION. Seen in use: band 3 with an average of 16-20 °C, band 4 at 22-24
-            °C, band 5 at 26-29 °C; bands 1-2 never set. Thresholds unknown.
+            Seconds of the previous cycle in battery-temperature band 4 of 5. In use at an average
+            battery temperature of 22-24 °C.
         LAST_CYCLE_SECONDS_TEMP_BAND_5:
           expression: "[B73:B74]"
           unit: s
           min: "0"
           max: "65535"
           notes: >-
-            Seconds of the previous cycle in battery-temperature band 5 of 5; the five bands sum to
-            LAST_CYCLE_DURATION. Seen in use: band 3 with an average of 16-20 °C, band 4 at 22-24
-            °C, band 5 at 26-29 °C; bands 1-2 never set. Thresholds unknown.
+            Seconds of the previous cycle in battery-temperature band 5 of 5. In use at an average
+            battery temperature of 26-29 °C.
         LAST_CYCLE_MINUTES_SOC_00_10:
           expression: B15
           unit: min
           min: "0"
           max: "255"
-          notes: >-
-            Minutes of the previous cycle spent at 0-10 % SOC. The ten bands (B15-B26) sum to within
-            3 min of LAST_CYCLE_DURATION. 2026-07-30 AC charge 66 to 95 %: 40, 56, 57 and 32 min in
-            the 60-70 to 90-100 % bands.
+          notes: Minutes of the previous cycle spent at 0-10 % SOC.
   research:
-    - type: iocontrol_scan
-      target: "30 00-FF"
-      status: done
-      priority: P1
-      vehicle_states: [ACC]
-      notes: >
-        Looking for the battery fan / EWP control local identifier. The BMS is a
-        KWP2000 ECU, so IOControl is service 0x30 InputOutputControlByLocalIdentifier
-        (8-bit LID) — NOT UDS 0x2F. Scan safely with `canair iocontrol-scan BMS`
-        (auto-selects 0x30, sends only IOCP 0x00 returnControlToECU — never actuates).
-        Kingbolen scanner can actuate the fan from the BMS; find the LID here, then
-        actuate one LID at a time in a safe state.
-      updated: "2026-07-23"
     - type: iocontrol_scan
       target: "2F BC00-BCFF"
       status: pending
       priority: P2
       vehicle_states: [ACC]
-      notes: "BMS IOControl body/comfort-style DIDs (UDS 0x2F). Likely NRC 0x11 — BMS is KWP2000; kept as a cross-check."
+      notes: "UDS 0x2F body/comfort-range DIDs. Cross-check only: the BMS speaks KWP2000."
     - type: scan
       target: 33 00-FF
       status: done
       priority: P2
       vehicle_states: [ACC]
       date: "2026-07-22"
-      result: NRC 0x11 serviceNotSupported
-      notes: "KWP2000 RequestRoutineResultsByLocalIdentifier (0x33) not implemented on BMS (every LID would NRC 0x11; scan aborts on first). Companion findings same session: 30 00 00 IOControl-by-LID -> NRC 0x11; and 10 03 (UDS extended session) -> NRC 0x12 subFunctionNotSupported (BMS does not accept the UDS extended-session mode byte). Conclusion: BMS exposes neither actuator service (0x2F/0x30) nor routine services (0x31/0x33) over OBD in the default session, and the UDS extended session is rejected. Next: (1) sniff a Kingbolen fan actuator test with SavvyCAN/candump to capture the exact ECU + diagnostic session + security(0x27) + service + LID; (2) do NOT blind-sweep 10 xx session modes (KWP programming/development modes are dangerous). Fan control likely requires a manufacturer KWP2000 diagnostic session + security access, or is not the BMS at all."
+      result: NRC 0x11 serviceNotSupported (default session)
+      notes: >-
+        In the default session 0x33 and 0x30 both return NRC 0x11, and UDS 10 03 returns NRC 0x12.
       sources:
         - on-car 2026-07-22 (raw 7E4:300000 --session; canair scan routines BMS)
-      updated: "2026-07-23"
-    - type: scan
-      target: 10 81 session
-      status: done
-      priority: P1
-      vehicle_states: [ACC]
-      date: "2026-07-22"
-      result: ACCEPTED (positive 50 81)
-      notes: "The BMS accepts the KWP2000 standard diagnostic session 10 81 (unlike UDS 10 03, which returns NRC 0x12 subFunctionNotSupported). This is the session byte to use for BMS diagnostics. 27 01 (SecurityAccess) inside 10 81 returns NRC 0x11 (not exposed). NOTE: earlier 0x30/0x33/0x2F NRC 0x11 results were in the DEFAULT session, not 10 81 — re-probe those services inside a 10 81 session before concluding they are unsupported."
-      sources:
-        - on-car 2026-07-22 SLCAN
-    - type: iocontrol_scan
-      target: 30/33 in 1081
-      status: done
-      priority: P1
-      vehicle_states: [ACC]
-      notes: "Re-probe IOControl 0x30 and RoutineResults 0x33 on the BMS INSIDE the confirmed 10 81 session (earlier NRC 0x11 was in the default session). If they respond, the battery fan may be actuatable via 10 81 + IOControl/StartRoutine without security. Use: canair scan iocontrol BMS --session --mode 81 (and scan routines BMS --session --mode 81). Never send 0x31 StartRoutine as a blind probe."
       updated: "2026-07-23"
     - type: scan
       target: fan actuation (sniff needed)
@@ -1064,86 +949,20 @@ BMS:
       vehicle_states: [ACC]
       date: "2026-07-22"
       result: safe avenues exhausted
-      notes: "Battery fan actuation not reachable via safe OBD probing: in the confirmed 10 81 session, 0x27/0x30/0x33 all return NRC 0x11. NOTE 0x33 (RoutineResults) NRC 0x11 does NOT rule out 0x31 StartRoutineByLocalIdentifier — HKMC actuator tests are often fire-and-forget StartRoutine with no results service, but 0x31 actuates so we will NOT blind-probe it. Remaining leads (all need external info): (1) sniff Kingbolen/GDS fan actuation to capture the exact session+service+LID+params; (2) a Hyundai-specific 10 8x session mode (blocked by safety guard). PAUSED pending scanner sniff access."
+      notes: >-
+        In session 10 81, 0x27, 0x30 and 0x33 all return NRC 0x11. 0x31
+        StartRoutineByLocalIdentifier is not probed because it actuates. Remaining lead: sniff a
+        scan-tool (Kingbolen/GDS) fan actuation test to capture the session, service and LID.
       sources:
         - on-car 2026-07-22
       updated: "2026-07-23"
-    - type: decode
-      target: 21F2
-      status: captured
-      priority: P2
-      vehicle_states: [READY]
-      date: "2026-07-22"
-      result: "NEW PAGE found via 21 00-FF sweep 2026-07-22 (ignition on): BMS answers 21F2 with 121 data bytes, previously undocumented (BMS defined pages were 2101-2105 only). Payload starts 61F2 FFFFFFFF 34303634('4064') ... with embedded ASCII 'N7IZ' -> looks like a calibration/identity/version block (cf. MCU 21F2 = cal data with 'EHEL-MS2' cal ID), NOT live sensor data. Static content expected."
-      notes: "Decode candidate: identify the ASCII part/cal IDs and any static config fields. Compare against MCU/VCU/OBC 21F2 layout."
-      what_to_test:
-        - Re-read 21F2 in different states (sleep/charging/driving) — if bytes never move, it is static cal/identity
-        - Decode ASCII runs (4064 / N7IZ) as part-number or calibration ID fragments
     - type: scan
       target: 21 00-FF
       status: done
       priority: P2
       vehicle_states: [READY]
       date: "2026-07-22"
-      result: "Exhaustive service-21 LID sweep (ignition on): 01/02/03/04/05 (known 2101-2105) PLUS F2 (NEW - see 21F2 decode entry). All 250 others NRC. One new page discovered."
-      notes: Hidden-page hunt. Only genuine new page found in the whole session.
-    - type: decode
-      target: 2101 B10/B63 charge-tracking bytes
-      status: done
-      priority: P2
-      vehicle_states: [CHARGING]
-      created: "2026-08-01"
-      updated: "2026-10-27"
-      result: >-
-        B10 = charge power word high byte (mirror of 2105); B62:B63 = inverter capacitor voltage
-      notes: >-
-        Resolved 2026-10-27 using the OBDb Hyundai-IONIQ-Electric signalset. B10 was the high byte
-        of a 16-bit available-charge-power word: [B10:B11]/100 kW equals 2105 AVAIL_CHARGE_POWER
-        (5448 of 5467 aligned rows, r=1.000), now the disabled AVAIL_CHARGE_POWER_MIRROR.
-        [B12:B13]/100 is the matching discharge-power mirror (5467 of 5467 equal). B62:B63 is one
-        16-bit inverter capacitor voltage in volts, r=0.986 vs VCU_DCLINK_VOLTAGE, now
-        BMS_INVERTER_CAPACITOR_VOLTAGE. The earlier SOC-monotone correlations were these two words
-        tracking SOC. Old BMS_2101_B62 removed.
-    - type: verify
-      target: 2101 B14 bits 1,2,3,4,6 — needs a DC fast charge
-      status: done
-      priority: P2
-      vehicle_states: [CHARGING, PLUGGED]
-      created: "2026-08-06"
-      updated: "2026-08-08"
-      result: >-
-        bit 6 = CHARGING_DC, verified on the 2026-08-08 CCS session; bits 1-4 still unexercised
-      notes: >-
-        Partly resolved by the 2026-08-08 CCS session (n=54 DC rows): bit 6 is CHARGING_DC, set only
-        during DC charging (0xC3), and bit 7 CHARGING is set in AC and DC alike. The OBDb signalsets
-        agree on bits 7, 6, 5 and 0 (Hv_charging, rapid port, normal port, main relay). Still open:
-        bit 1 is indistinguishable from bit 0 (BMS_MAIN_RELAY), and bits 2-4 have never been set,
-        including during the DC charge. The earlier claim that the corpus holds no DC session and
-        that CHARGING_DC is community lineage only is obsolete.
-      sources:
-        - canair bitfield analysis 2026-08-06 (plans/2026-08-06-bitfield-audit-and-gear-state.md)
-      what_to_test:
-        - Does bit6 set on a CCS plug? (confirms or kills CHARGING_DC)
-        - Does bit1 diverge from bit0 during DC? (would make BMS_MAIN_RELAY_MIRROR_B14_1 a real second contactor)
-        - Do bits 2/3/4 ever set? (bit2 was the withdrawn 0x45's rapid-charge candidate)
-        - Does bit5 (CHARGER_CONNECTED) also set on CCS, or is it AC-plug-only?
-      capture_protocol: >-
-        At a CCS charger: canair monitor 'BMS:2101,2105 VCU:2101 OBC:2101' --save --keep-changes
-        --label 'DC fast charge' --state 'CHARGING, PLUGGED'. Start recording BEFORE plugging in and
-        keep it running through plug-in, handshake, ramp-up, and unplug, noting each phase with 's'.
-    - type: decode
-      target: 2101 B67:B68 drive-motor-speed mirror
-      status: done
-      priority: P3
-      vehicle_states: [DRIVING]
-      created: "2026-08-08"
-      updated: "2026-10-27"
-      notes: >-
-        Resolved 2026-10-27: [S67:S68] is an exact copy of DRIVE_MOTOR_SPEED [S65:S66], 12069 of
-        12069 rows equal (OBDb DRIVE_MOTOR_SPD_2). Recorded as the disabled
-        DRIVE_MOTOR_SPEED_MIRROR.
-      what_to_test:
-        - Decode [S67:S68] and compare against [S65:S66] - identical, lagged/filtered, or a different shaft
+      result: Only 01-05 and F2 answer; every other LID returns NRC.
     - type: verify
       target: 2105 BMS_DCFC_TICK_COUNTER/BMS_2105_B41
       status: captured
@@ -1151,21 +970,26 @@ BMS:
       vehicle_states: [CHARGING]
       created: "2026-08-08"
       updated: "2026-08-08"
-      notes: "2026-08-08 DCFC-2 session: renamed misnamed DEBUG_BMS_STATE_FLAGS_2105 (B42) to BMS_DCFC_TICK_COUNTER - proven to free-run as an 8-bit wrapping counter (~0.52/s) only while CHARGING_DC=1, confirmed flat across 2379 historical AC-charge captures. Sibling B41 steps 0->13->14->15 across the same DCFC session, also confirmed 0 during all historical AC charging. Both --unverified, single DCFC session tested."
+      notes: Both seen in one DC fast charge only (2026-08-08); both flat during AC charging.
       what_to_test:
-        - "BMS_DCFC_TICK_COUNTER: confirm tick rate/meaning on a 2nd DCFC session; check if it's elapsed time (would give a clean rate) or a cycle counter"
-        - "BMS_2105_B41: capture a full 0-100% DCFC to see if it's SOC-quantised (would give many more distinct values) or a coarse phase counter (would stay in a small band)"
+        - "BMS_DCFC_TICK_COUNTER: confirm the tick rate on a second DC fast charge"
+        - "BMS_2105_B41: capture a full 0-100 % DC fast charge and compare its steps against SOC"
     - type: decode
       target: 21F2 remaining last-cycle fields
       status: captured
       priority: P3
       created: "2026-10-21"
       updated: "2026-10-21"
-      notes: "21F2 is a record of the previous drive or charge cycle: duration, minutes per 10 % SOC band, seconds per battery-temperature band, start/end SOC, discharged/charged Wh, peak powers and average temperature are decoded (LAST_CYCLE_*). Still unknown: B39 (0/1 flag), B42 (137 after the 2026-08-08 drive, 92 after 2026-08-02, 5 after an AC charge; not the sampled peak current), B53 (11-13), B108 (0/2), B117 (cycle type? 0x00 drives, 0x11 short or zero-length cycles, 0x40 charging cycles), B118:B119 (a count: 1-2 after drives, 3-22 after charges), B122 (4, 18, 46 after drives), B127/B129."
+      notes: >-
+        Undecoded: B39 (0/1), B42 (137 and 92 after drives, 5 after an AC charge; not the sampled
+        peak current), B53 (11-13), B108 (0/2), B117 (0x00 after drives, 0x11 after short or
+        zero-length cycles, 0x40 after charges), B118:B119 (1-2 after drives, 3-22 after charges),
+        B122 (4, 18, 46 after drives), B127, B129. LAST_CYCLE_ENERGY_START/END meaning unconfirmed.
+        Temperature-band thresholds unknown.
       sources:
         - canair 21F2 cross-check vs live data 2026-10-21
       what_to_test:
-        - "Temperature-band thresholds: capture a cycle whose battery temperature crosses 20 and 25 °C and compare the band seconds"
+        - "Temperature-band thresholds: capture a cycle whose battery temperature crosses 20 and 25 °C"
         - Read BMS 21F2 right after a short drive with a known distance and peak current to place B42 and B122
     - type: scan
       target: 22 0101-0114, E001, E002, E00A
@@ -1176,11 +1000,9 @@ BMS:
       updated: "2026-10-27"
       notes: >-
         Never probed on this car. OBDb defines 7E4 service-22 DIDs 0101-0106, 010A-010C, 0111 and
-        0114 (cell voltages, temperatures, BMS state, fan duty). Pelican marks them not supported
-        for 2017-2018 and the OBDb 2017/2018 command_support lists 220101-220105 and 22010A-22010C
-        as unsupported, so NRC is expected. That list is weak evidence: it also calls VCU 2101
-        unsupported, which answers on this car. E003-E005 are already NRC. One read-only sweep
-        closes it.
+        0114 (cell voltages, temperatures, BMS state, fan duty) and lists most as unsupported for
+        2017-2018, but the same list calls VCU 2101 unsupported, which answers on this car.
+        E003-E005 already return NRC.
       sources:
         - OBDb Hyundai-IONIQ-Electric signalset (pelican.clutch.engineering ioniq-electric parameters), compared 2026-10-27
       what_to_test:
@@ -1194,7 +1016,10 @@ BMS:
       vehicle_states: [READY]
       created: "2026-10-27"
       updated: "2026-10-27"
-      notes: OBDb IONIQEV_AIRBAG_DUTY (7E4 21 05 bix 176). B29 takes only 75, 80, 85 and 100 across 5478 captures, 100 in some sessions and 75-85 in others. No physical anchor found, so no param is registered.
+      notes: >-
+        OBDb IONIQEV_AIRBAG_DUTY (7E4 21 05 bix 176). B29 takes only 75, 80, 85 and 100 across 5478
+        captures: 100 in some sessions, 75-85 in others. No physical anchor, so no signal is
+        registered.
       sources:
         - OBDb Hyundai-IONIQ-Electric signalset (pelican.clutch.engineering ioniq-electric parameters), compared 2026-10-27
       what_to_test:
@@ -1206,7 +1031,9 @@ BMS:
       vehicle_states: [CHARGING]
       created: "2026-10-27"
       updated: "2026-10-27"
-      notes: Ours is B27*0.1 V, OBDb uses raw/50 (0.02 V per count). Raw B27 is only ever 0 or 1 in our captures, so the scale is undetermined. Needs a capture with a larger cell imbalance, for example a long DC fast charge.
+      notes: >-
+        Ours is B27*0.1 V, OBDb uses 0.02 V per count. Raw B27 is only ever 0 or 1, so the scale is
+        undetermined; needs a capture with a larger cell imbalance.
       sources:
         - OBDb Hyundai-IONIQ-Electric signalset (pelican.clutch.engineering ioniq-electric parameters), compared 2026-10-27
       what_to_test:
@@ -1218,7 +1045,11 @@ BMS:
       vehicle_states: [READY]
       created: "2026-10-27"
       updated: "2026-10-27"
-      notes: OBDb command_support for 2017 and 2018 lists standard Mode 01 PIDs answering from 0x7E4 (monitor status, MIL distance, warm-ups, distance since clear) and 2018 adds 01 5B, hybrid battery pack remaining life (BAT_SOC). We have no Mode 01 captures at all. 01 5B would be a third SOC source next to SOC_BMS and SOC_DISP.
+      notes: >-
+        OBDb lists standard Mode 01 PIDs answering from 0x7E4 on 2017-2018 cars (monitor status, MIL
+        distance, warm-ups, distance since clear), and 01 5B (hybrid battery pack remaining life) on
+        2018. No Mode 01 captures exist. 01 5B would be a third SOC source next to SOC_BMS and
+        SOC_DISP.
       sources:
         - OBDb Hyundai-IONIQ-Electric signalset and its tests/test_cases (2017/2018 command_support), compared 2026-10-27
       capture_protocol: canair read BMS:015B BMS:0101 BMS:0121 BMS:0130 BMS:0131 --save in READY
@@ -1230,18 +1061,12 @@ BMS:
       created: "2026-10-27"
       updated: "2026-10-27"
       notes: >-
-        The Kia Soul EV GDS sheet (references/kia-soul-ev-can-messages.xlsx, 21 01 -> 21 6.x, the
-        same byte as Ioniq B14) names b1 BMS Controllable State, b2 BMS Warning, b3 BMS Fault, b4
-        BMS Weld Flag, marking b2-b4 as error flags that should always be 0. Across 12079 captures
-        (READY, 12 V top-up, AC charging, two DC fast charges) b1 equals b0 (BMS_MAIN_RELAY) in
-        every capture and b2-b4 are never set. B14 values seen: 0x00, 0x03, 0x20, 0x23, 0x40, 0xA3,
-        0xC3. OBDb (github.com/OBDb, checked 2026-10-27): every Hyundai/Kia/Genesis signalset
-        defines only b0, b5, b6 and b7 of this byte (data byte 9 of 2101/220101, bix 72-79); none
-        defines b1-b4. OBDb test-case responses (2919 from 17 vehicle repos) never set b2-b4. b1 is
-        set without b0 (value 0x02) in two hybrid responses (Hyundai Elantra 2023, Kia Niro 2020,
-        pack ~240-255 V, current 0), so b1 is a separate flag, not a copy of b0. E-GMP models (IONIQ
-        5/6/9, EV3/EV6/EV9, GV60) read 0x00 in all 1624 of their responses, so they carry no
-        evidence for this byte.
+        The Kia Soul EV GDS sheet (references/kia-soul-ev-can-messages.xlsx) names B14 b1 BMS
+        Controllable State, b2 BMS Warning, b3 BMS Fault and b4 BMS Weld Flag. On this car b1 equals
+        b0 (BMS_MAIN_RELAY) and b2-b4 are never set in 12079 captures (READY, 12 V top-up, AC and DC
+        charging). No OBDb signalset defines b1-b4; in OBDb test responses b2-b4 are never set, and
+        b1 is set without b0 (0x02) in two hybrids (Elantra 2023, Niro 2020), so b1 is a separate
+        flag.
       sources:
         - Kia Soul EV GDS sheet (kia-soul-ev-can-messages.xlsx, BMC rows 19-23)
         - ioniq-ev-bms-2101-2105.xls (same bit list, names marked '?')
@@ -1263,13 +1088,16 @@ BMS:
       vehicle_states: [ACC, READY]
       created: "2026-10-27"
       updated: "2026-10-27"
-      notes: "B61 reads 0x0D (READY, or charging begun while READY), 0x09 (charging from off, 12 V top-up, plugged idle) and 0x01 (after a charge ends or at power-off) in 12079 captures. b3 is BMS_IG3_ON. b0 is 1 in every capture. b2 (BMS_2101_B61_2) follows READY rather than the ignition input: on 2026-08-02 it fell when the HV contactors opened at the end of a charge while IGPM IGN1_SWITCH stayed 1. OBDb calls b2 BMS ignition; Kona Electric and Niro EV responses there use the same values (0x00, 0x01, 0x09, 0x0D)."
+      notes: >-
+        B61 reads 0x0D (READY, or charging begun while READY), 0x09 (charging from off, 12 V top-up,
+        plugged idle) and 0x01 (after a charge ends or at power-off). b3 is BMS_IG3_ON, b0 is 1 in
+        every capture, and b2 (BMS_2101_B61_2) follows READY rather than the ignition input.
       sources:
         - canair B61 cross-tab 2026-10-27 (align BMS:2101:B61:2 vs VCU/IGPM)
         - OBDb Hyundai/Kia signalsets and test cases (data byte 50 of 2101/220101)
       what_to_test:
         - "b2 with ignition ON but not READY from cold (press the button twice, no brake): 1 = ignition input, 0 = drive/HV request"
-        - b2 at ACC only, and its timing against VCU EV_READY at a READY -> OFF press
+        - b2 at ACC only, and its timing against VCU VEHICLE_STATE_EV_READY at a READY -> OFF press
         - "b0: does it ever read 0 while the BMS answers (e.g. during the IG3 power-off tail)?"
       capture_protocol: >-
         canair monitor 'BMS:2101 VCU:2101 IGPM:22BC03' --save --keep-all --interval 1 --label 'B61
@@ -1284,10 +1112,9 @@ BMS:
       created: "2026-10-29"
       updated: "2026-10-29"
       notes: >-
-        Kona bench READS 0x5A3: byte0 bit6 = HV main contactor closed. On the uhi22 Ioniq P-CAN
-        drive log 0x5A3 reads 4F 00 00 00 00 00 00 00 throughout, so bit6 = 1 while driving with the
-        contactor closed. Consistent, but never seen open, so unproven. Needs a log across contactor
-        open/close.
+        The Kona bench code reads 0x5A3 byte 0 bit 6 as HV main contactor closed. On the uhi22 Ioniq
+        P-CAN drive log 0x5A3 is 4F 00 00 00 00 00 00 00 throughout (bit 6 = 1, contactor closed);
+        never seen open.
       sources:
         - projectgus car_hacking, bench_kona/bench_kona.py (Kona OS EV)
       what_to_test:

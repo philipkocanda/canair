@@ -1,14 +1,8 @@
 # ─── Unknown-746 ─────────────────────────────────────────────────────
-# Service discovery (2026-04-19):
-#   Supported: 1A (identity), 20 (stopDiagSession), 21 (live data — only F2),
-#              27 (security — conditionsNotCorrect), 28 (commControl — conditionsNotCorrect),
-#              31 (routineControl — conditionsNotCorrect), 3E (testerPresent — conditionsNotCorrect)
-#   Not supported: 10 (session — NRC 0x12), 22 (NRC 0x11)
-#
-# KWP2000 identity (1A 80-9F, 10/32 responding):
-#   1A80: FFFFFFFF    1A8A: FFFFFFFF    1A8B: FFFFFFFF
-#   1A8C: "1.10"      1A8D: "Z311"      1A8E: "Z311"
-#   1A91: FFFFFFFF    1A92: "3.5"       1A98: FFFFFFFF    1A99: FFFFFFFF
+# Service probe (2026-04-19): 1A, 20 and 21 (only 21F2) answer; 27, 28, 31 and 3E return
+# conditionsNotCorrect; 10 returns NRC 0x12 and 22 NRC 0x11.
+# KWP2000 identity: 10 of 32 IDs in 1A80-1A9F respond. Those not under identity: (1A80, 1A8A,
+# 1A8B, 1A91, 1A98, 1A99) read FFFFFFFF.
 Unknown-746:
   tx_id: 0x746
   identity:
@@ -18,9 +12,7 @@ Unknown-746:
     calibration: "Z311"
     hw_sw: "3.5"  # KWP2000 1A92
     id_protocol: KWP2000  # 1Axx (10/32 responding)
-    notes: >-
-      Service 10 returns NRC 0x12; service 22 returns NRC 0x11. 10 of 32 KWP2000 1A identity IDs
-      respond, most with FFFFFFFF. Only data PID is 21F2.
+    notes: KWP2000 module, not yet identified. Only data PID is 21F2.
   vehicle_states: [READY, CHARGING]
   pids:
     21F2:
@@ -28,9 +20,9 @@ Unknown-746:
       period: 10000
       vehicle_states: [CHARGING]
       notes: >-
-        6-byte response 61F200000007 during AC charging (2026-04-18); the capture notes the same
-        response with the car off. NO DATA at READY (2026-07-22). The only service-21 PID that
-        responds (sweeps 2026-04-18 and 2026-07-22).
+        6-byte response 61F200000007 during AC charging (2026-04-18); a capture note reports the
+        same with the car off. NO DATA at READY (2026-07-22). The only service-21 PID that responds
+        (sweeps 2026-04-18 and 2026-07-22).
       parameters: {}
   research:
     - type: scan
@@ -40,7 +32,9 @@ Unknown-746:
       vehicle_states: [SLEEP]
       created: "2026-10-20"
       updated: "2026-10-20"
-      notes: "Pin down when 21F2 answers: it did during AC charging but not at READY. Re-read with the car fully off."
+      notes: >-
+        Pin down when 21F2 answers: it did during AC charging but not at READY. Re-read with the car
+        fully off.
     - type: verify
       target: identify the responder at 0x746 against factory modules with no ECU file
       status: pending
@@ -48,7 +42,13 @@ Unknown-746:
       vehicle_states: [CHARGING]
       created: "2026-10-23"
       updated: "2026-10-23"
-      notes: "The 0x700-0x7EF sweep (2026-04-17, ignition on) found 30 responders and every one has an ecus/ file, so modules the car is known to have but the profile lacks (electric water pump, occupant detection sensor, shift control unit, dynamic bending light on cars fitted with it) either do not answer at a 0x7xx address or were not awake. 0x746 speaks KWP2000, answered during AC charging and returned NO DATA at READY on 2026-07-22. Candidates by behaviour only: the electric water pump or the shift control unit. Unproven."
+      notes: >-
+        The 0x700-0x7EF sweep (2026-04-17, ignition on) found 30 responders, all with an ecus/ file,
+        so modules the car has but the profile lacks (electric water pump, occupant detection
+        sensor, shift control unit, dynamic bending light where fitted) do not answer at a 0x7xx
+        address or were asleep. 0x746 speaks KWP2000 and answered during AC charging but not at
+        READY (2026-07-22). By behaviour it could be the electric water pump or the shift control
+        unit; unproven.
       what_to_test:
         - Sweep 0x700-0x7EF again with canair discover while AC charging and again with the car off and locked, and compare the responder lists with the READY sweep.
         - Read 0x746 21F2 at the start and end of a charge and when the coolant pump is audibly running.

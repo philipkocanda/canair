@@ -1,7 +1,5 @@
 # ─── PSM (Power Seat Module) ──────────────────────────────────────────
-# From e-Niro — confirmed on Ioniq 2017 (Premium trim has power seats).
-# Likely requires ACC/IGN on. Actuators are continuous motors — hold command
-# active for desired duration, send OFF to stop.
+# Actuator DIDs come from the e-Niro and are confirmed on this car (power seats: Premium trim).
 PSM:
   tx_id: 0x7A3
   iocontrol_scan_ranges: [B000-BFFF]
@@ -14,10 +12,9 @@ PSM:
     sw_version: "100"
     boot_sw: "190"
     id_protocol: UDS  # F1xx
-    notes: >
-      Power Seat Module. No readable live-data DIDs (seat position not exposed
-      via OBD); seat actuators are driven via IOControl (service 2F) — continuous
-      motors, send OFF to stop.
+    notes: >-
+      No live-data DIDs (seat position is not readable). The seat motors are driven via IOControl
+      (service 2F) and run until OFF is sent.
   vehicle_states: [PLUGGED, ACC, "ON", READY, CHARGING]
   scan_log: # PSM (power seat)
     - service: 0x22
@@ -25,12 +22,11 @@ PSM:
       date: 2026-07-22
       hits: 0
       vehicle_states: [READY]
-      notes: "Also service 21 01-0F: all NRC. No live-data DIDs (seat position not exposed via OBD read)."
+      notes: "Service 21 01-0F also all NRC."
   pids: {}
 
   # ─── IOControl (service 2F) ──────────────────────────────────────────
-  # Continuous motors: send ON, wait desired duration, send OFF.
-  # Usage: canair io PSM --did <DID>
+  # Each actuator is a motor that runs until OFF is sent.
   iocontrol:
     B401:
       vehicle_states: []
@@ -38,8 +34,6 @@ PSM:
       verified: true
       true: "2FB40103"
       false: "2FB40100"
-      notes: >
-        Continuous motor — send OFF to stop.
 
     B402:
       vehicle_states: []
@@ -47,8 +41,6 @@ PSM:
       verified: true
       true: "2FB40203"
       false: "2FB40200"
-      notes: >
-        Continuous motor — send OFF to stop.
 
     B403:
       vehicle_states: []
@@ -56,8 +48,6 @@ PSM:
       verified: true
       true: "2FB40303"
       false: "2FB40300"
-      notes: >
-        Continuous motor — send OFF to stop.
 
     B404:
       vehicle_states: []
@@ -65,8 +55,6 @@ PSM:
       verified: true
       true: "2FB40403"
       false: "2FB40400"
-      notes: >
-        Continuous motor — send OFF to stop.
 
     B405:
       vehicle_states: []
@@ -74,8 +62,6 @@ PSM:
       verified: true
       true: "2FB40503"
       false: "2FB40500"
-      notes: >
-        Continuous motor — send OFF to stop.
 
     B406:
       vehicle_states: []
@@ -83,8 +69,6 @@ PSM:
       verified: true
       true: "2FB40603"
       false: "2FB40600"
-      notes: >
-        Continuous motor — send OFF to stop.
 
     B407:
       vehicle_states: []
@@ -92,8 +76,6 @@ PSM:
       verified: true
       true: "2FB40703"
       false: "2FB40700"
-      notes: >
-        Continuous motor — send OFF to stop.
 
     B408:
       vehicle_states: []
@@ -101,5 +83,3 @@ PSM:
       verified: true
       true: "2FB40803"
       false: "2FB40800"
-      notes: >
-        Continuous motor — send OFF to stop.

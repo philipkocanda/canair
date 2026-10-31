@@ -1,5 +1,4 @@
 # ─── CLU (Cluster / Instrument Panel) ─────────────────────────────────
-# BCM seems to be implicated in a lot of cluster functions and diagnostics!
 CLU:
   tx_id: 0x7C6
   can_bus: [C-CAN, MM-CAN]
@@ -12,9 +11,8 @@ CLU:
     boot_sw: "625"
     id_protocol: UDS  # F1xx
     notes: >
-      Cluster / instrument panel. Odometer is read via 22B002 (3-byte value at
-      [B12:B14]); the imperial odometer / range / cruise fields the e-Niro
-      exposes are absent on this car (15-byte response).
+      Odometer is 22B002 [B12:B14]. The imperial odometer, range and cruise fields the e-Niro
+      exposes are absent here (22B002 is a 15-byte response).
   vehicle_states: [ACC, "ON", READY]
   pids:
     22B002:
@@ -34,10 +32,10 @@ CLU:
         CLU_B11_TEMP:
           expression: B11/2-40
           unit: degC
-          source: 2026-08-08 whole-day byte scan (canair bix confirmed real data byte, just before the [B12:B14] ODOMETER field)
+          source: 2026-08-08 whole-day byte scan
           verified: false
           notes: >-
-            Read 40-47 °C through 2026-08-08, rising slowly across the day; warmer than ambient.
+            31-47 °C; rose slowly across the 2026-08-08 whole-day scan and runs warmer than ambient.
             Which sensor is unknown.
           enabled: true
     22B001:
@@ -53,36 +51,22 @@ CLU:
       vehicle_states: []
       notes: "8 bytes: 62B0038800000001."
   research:
-    - type: verify
-      target: "22B002"
-      status: done
-      priority: P1
-      vehicle_states: [ACC]
-      notes: >
-        Odometer (ODOMETER = [B12:B14]) confirmed = 72982 km in READY (2026-07-22).
-        NEGATIVE result on the e-Niro extras: 22B002 returns only 15 bytes on the Ioniq
-        (62 B0 02 E0 00 00 00 00 AD 01 1D 16 00 00 00), so there is no room for the
-        imperial odometer / range / time-driven / speed-limit / cruise fields the e-Niro
-        exposes at higher offsets — they are simply not present in this DID on this car.
-        A full CLU B001-B010 scan (2026-07-22, READY) found only B001 (8B, zeros),
-        B002 (odometer) and B003 (8B, 88..01); B004+ do not respond.
-      what_to_test:
-        - "Imperial odometer / range / speed-limit / cruise — ABSENT (15-byte response, confirmed 2026-07-22)"
-      sources:
-        - "OBDb Ioniq 5 — 22B002"
-        - "e-Niro reference sheet"
     - type: scan
       target: "22 B001-B010"
       status: done
       priority: P2
       vehicle_states: [ACC]
-      notes: "CLU cluster range scan."
+      notes: >-
+        Only B001 (8 bytes, zeros), B002 (odometer) and B003 (8 bytes) respond; B004-B010 do not
+        (2026-07-22, READY).
     - type: scan
       target: "0x7C0/0x7C1 probes"
       status: nrc
       priority: P2
       vehicle_states: [ACC]
-      notes: "Head unit — NO DATA during deep sleep (probed 2026-04-16). May be on M-CAN bus. Retry with ACC on: scan 21 01-05, 22 B001-B010."
+      notes: >-
+        Head unit: no data in deep sleep (2026-04-16); at READY 0x7C0 also returns NO DATA to 22
+        B001-B005 and 0100-010F (see Unknown-7C0).
       sources:
         - "Hyundai/Kia convention: 0x7C0 = AVN"
     - type: iocontrol_scan
@@ -92,7 +76,10 @@ CLU:
       vehicle_states: [READY]
       created: "2026-07-27"
       updated: "2026-07-27"
-      notes: "e-Niro cluster: in a 10 03 session, 2F B0 01 03 turns ON all cluster indicator lamps, 2F B0 01 00 restores normal. LEAD: probe returnControlToECU (2F B001 00) on CLU 0x7C6 to confirm the actuator exists on the Ioniq (safe, non-actuating) before any ShortTermAdjustment. e-Niro CM PIDs 22B001-B003 largely match Ioniq (B002=odo)."
+      notes: >-
+        On the e-Niro cluster, 2F B0 01 03 in a 10 03 session lights every indicator lamp and 2F B0
+        01 00 restores normal. Open: send returnControlToECU (2F B001 00, non-actuating) on CLU
+        0x7C6 to see whether the DID exists here.
       sources:
         - kia-e-niro-can-messages.xlsx (CM Commands sheet)
     - type: verify
@@ -102,26 +89,9 @@ CLU:
       vehicle_states: [ALL]
       created: "2026-08-08"
       updated: "2026-08-08"
-      notes: "2026-08-08 whole-day scan: B11 (byte just before the [B12:B14] ODOMETER field, confirmed real data via canair bix) decodes to a sensible 40-47 degC range on the raw/2-40 EV-temp formula, slowly rising through the day. Too warm for outside ambient - candidate CLU/cluster internal electronics temp. --unverified, no cross-ECU ambient match attempted."
-      what_to_test:
-        - Correlate against AAF:2181:AMBIENT_TEMP (should NOT match if this is an internal temp) and against cabin/sun-load proxies
-    - type: decode
-      target: broadcast 0x5D0 (odometer)
-      status: done
-      priority: P3
-      vehicle_states: [ALL]
-      created: "2026-10-29"
-      updated: "2026-10-29"
-      result: >-
-        Confirmed on the uhi22 Ioniq28 P-CAN tap (24-bit LE x0.1 km = 123,385 km) and promoted to
-        signals/body.yaml EV_CP1 ODOMETER (formerly CGW_ODO).
       notes: >-
-        Kona bench 0x5D0 carries only the odometer; sample '9D 13 04' = little-endian UINT24
-        0x04139D. You already read the odometer via CLU 22B002 (UDS, UINT24 big-endian). Broadcast
-        variant is LE. On the Ioniq the P-CAN 0x5D0 is the gateway's copy of the cluster's CLU12
-        odometer (signals/body.yaml EV_CP1 ODOMETER); on MM-CAN 0x5D0 is a different frame.
-        OBD-unobservable here (gateway-isolated); Kona-sourced hypothesis.
-      sources:
-        - projectgus car_hacking, bench_kona/igpm.py (Kona OS EV)
+        B11 reads 31-47 °C on raw/2-40. Not yet correlated against ambient or cabin temperature.
       what_to_test:
-        - Tapped P-CAN sniff; confirm 0x5D0 [b0:b2] LE equals the dash odometer and matches CLU 22B002.
+        - >-
+          Correlate against AAF:2181:AMBIENT_TEMP and HVAC_INTERIOR_TEMP; an internal temperature
+          would match neither

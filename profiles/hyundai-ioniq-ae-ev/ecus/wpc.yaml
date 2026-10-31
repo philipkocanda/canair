@@ -9,9 +9,9 @@ WPC:
     sw_version: "102"
     boot_sw: "1.6"
     id_protocol: UDS  # F1xx
-    notes: >
-      Wireless Phone Charging pad. 220100 exposes two signed 16-bit fields
-      (B03:B04, B05:B06) of unknown purpose — re-examine with a phone on/off pad.
+    notes: >-
+      Wireless phone charging pad. 220100 carries two signed 16-bit fields (B03:B04, B05:B06) of
+      unknown meaning.
   vehicle_states: [ACC, "ON", READY]
   scan_log: # WPC (wireless phone charging)
     - service: 0x22
@@ -30,11 +30,11 @@ WPC:
         WPC_0100_B03_B04:
           expression: "[S03:S04]"
           verified: false
-          notes: Signed 16-bit. Meaning unknown.
+          notes: Meaning unknown.
         WPC_0100_B05_B06:
           expression: "[S05:S06]"
           verified: false
-          notes: Signed 16-bit. Meaning unknown.
+          notes: Meaning unknown.
 
   research:
     - type: scan
@@ -44,7 +44,12 @@ WPC:
       vehicle_states: ["ON"]
       created: "2026-10-30"
       updated: "2026-10-30"
-      notes: "A later-generation Hyundai/Kia WPC keeps its live data in three record DIDs: BE01 user options, BE02 byte data (charging voltage/current/power, battery and IGN1 voltage, coil temperatures, fan speed) and BE03 bit data (LED states, smart-key LF search inhibit, charging status), each led by a 4-byte supported-PID map. The 2026-07-22 sweep covered 0101-010F, B001-B010 and C101-C10F only. Read BE00-BEFF with a phone on and off the pad."
+      notes: >-
+        A later-generation Hyundai/Kia WPC keeps its live data in three record DIDs, each led by a
+        4-byte supported-PID map: BE01 user options, BE02 byte data (charging voltage/current/power,
+        battery and IGN1 voltage, coil temperatures, fan speed) and BE03 bit data (LED states,
+        smart-key LF search inhibit, charging status). The 2026-07-22 sweep covered only 0101-010F,
+        B001-B010 and C101-C10F. Read BE00-BEFF with a phone on and off the pad.
       sources:
         - Hyundai/Kia WPC diagnostic spec (supplier ECU spec, 2018-2025)
       what_to_test:
@@ -56,7 +61,11 @@ WPC:
       vehicle_states: ["ON"]
       created: "2026-10-30"
       updated: "2026-10-30"
-      notes: Hyundai/Kia reserve F010-F0FF for IOControl DIDs (HVAC and VESS use F011+). The later WPC spec puts the amber LED at F011, the green LED at F012 and fan steps at F013-F01E, released with 00 (returnControlToECU) and run with 03. Never scanned on this WPC. HVAC F012 rejects 00 but accepts 03, so a 00-only sweep can miss a DID.
+      notes: >-
+        Hyundai/Kia reserve F010-F0FF for IOControl DIDs (HVAC and VESS use F011+). The later WPC
+        spec puts the amber LED at F011, the green LED at F012 and fan steps at F013-F01E, released
+        with 00 (returnControlToECU) and run with 03. Never scanned on this WPC. HVAC F012 rejects
+        00 but accepts 03, so a 00-only sweep can miss a DID.
       sources:
         - ES95486-00 Annex C; Hyundai/Kia WPC diagnostic spec
       what_to_test:

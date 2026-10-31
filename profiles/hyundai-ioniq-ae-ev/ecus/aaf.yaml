@@ -1,18 +1,16 @@
 # ─── AAF (Active Air Flap controller) ────────────────────────────────
-#
 AAF:
   tx_id: 0x7E6
   can_bus: [P-CAN]
   identity:
     description: Active Air Flap controller
     part_number: M3062000307  # KWP2000 1A91
-    sw_id: EAE16AAFB30001  # KWP2000 1A8D — "AAF" is the Hyundai internal module code
-    firmware: EAEAAFP201  # KWP2000 1A98 — "AAF" is the Hyundai internal module code
+    sw_id: EAE16AAFB30001  # KWP2000 1A8D
+    firmware: EAEAAFP201  # KWP2000 1A98
     id_protocol: KWP2000  # 1Axx
-    notes: >
-      Active Air Flap (AAF) controller — confirmed by the "AAF" module code in its
-      sw_id (EAE16AAFB30001) and firmware (EAEAAFP201). Located in the front bumper, behind the grille.
-      Also connected physically to the car's radiator, which cools the powertrain (inverter, motor, etc.).
+    notes: >-
+      Active Air Flap controller ("AAF" module code in sw_id and firmware), in the front bumper
+      behind the grille, at the radiator that cools the powertrain (inverter, motor, OBC, LDC).
   vehicle_states: [IG3]
   pids:
     2180:
@@ -40,30 +38,27 @@ AAF:
           source: "ITStromer community PID sheet (heating element = signed(l)/2)"
           notes: >-
             Community sheet: 8 °C with heat set to 15.5 °C, 27 °C with heat set to 30 °C, about
-            ambient with heat off. Range 14.5-51 across 3428 captures.
+            ambient with heat off. Range 14.5-51 °C.
 
         HEATSINK_TEMP:
           expression: "B20-40"
           max: "150"
           source: "ITStromer community PID sheet (VMCU heat sink = o-40)"
-          notes: Community sheet. Range 9-70 °C across 3428 captures.
+          notes: Range 9-70 °C.
 
         COMPRESSOR_TEMP:
           expression: "B21-40"
           max: "120"
           source: "ITStromer community PID sheet (compressor = p-40)"
-          notes: >-
-            Community sheet. About ambient with the A/C off; range 12-66 °C across 3428 captures.
+          notes: About ambient with the A/C off; range 12-66 °C.
 
         AAF_COOLANT_TEMP_B25:
           expression: B25-100
           max: "150"
           source: canair correlate --find-mirrors --allow-offset 2026-10-21
           notes: >-
-            Not a 12 V voltage (was AAF_AUX_BATTERY_VOLTAGE, B25/10): r=-0.04 vs
-            VCU:2102:VCU_AUX_BATTERY_VOLTAGE_FINE. B25 equals VCU:2102 B18 (VCU_COOLANT_TEMP + 100)
-            in 4321 of 4469 aligned rows, r=+0.999. The old r=0.995 voltage match was against VCU
-            B18/10, itself later disproven.
+            Same raw byte as VCU:2102 B18, so it reads VCU_COOLANT_TEMP (equal in 4321 of 4469
+            aligned rows, r=+0.999). Not a 12 V voltage: r=-0.04 vs VCU_AUX_BATTERY_VOLTAGE_FINE.
     2181:
       response_frames: 4
       status: draft
@@ -81,9 +76,7 @@ AAF:
           unit: km/h
           min: "0"
           max: "250"
-          notes: >-
-            r=0.997 vs ESC:22C101:REAL_SPEED_KMH (n=66, 2026-07-22 drive, up to about 40 km/h).
-            Range 0-121 across 4319 captures.
+          notes: r=0.997 vs ESC:22C101:REAL_SPEED_KMH (n=66, 2026-07-22). Range 0-121 km/h.
           enabled: true
         AAF_VEHICLE_SPEED_MPH:
           expression: B12
@@ -99,8 +92,8 @@ AAF:
           max: "150"
           source: canair correlate --find-mirrors --allow-offset 2026-10-21
           notes: >-
-            Same byte as AAF:2180:AAF_COOLANT_TEMP_B25 (equal in 3754 of 3826 rows) and VCU:2102 B18
-            (VCU_COOLANT_TEMP + 100). Disabled as a duplicate.
+            Same byte as AAF:2180:AAF_COOLANT_TEMP_B25 and VCU:2102 B18 (VCU_COOLANT_TEMP). Disabled
+            as a duplicate.
           ha_class: temperature
           enabled: false
         HEATSINK_TEMP:
@@ -115,11 +108,12 @@ AAF:
           unit: °C
           min: "-40"
           max: "150"
-          source: RE 2026-08-05 cross-ECU agreement with VCU:2102 B18-100 (supersedes the 2026-07-22 MCU_TEMP_2 correlation)
+          source: RE 2026-08-05 cross-ECU agreement with VCU:2102 VCU_COOLANT_TEMP
           notes: >-
-            Equals VCU:2102:VCU_COOLANT_TEMP - 100 exactly in 77 % of 1729 co-polled rows. Rose 29
-            to 44 °C over a 3 h AC charge; 34-37 °C while driving. The loop also serves the EPCU,
-            OBC and LDC; which branch the sensor sits on is unknown.
+            Equals VCU:2102:VCU_COOLANT_TEMP in 77 % of 1729 co-polled rows; read up to 11 °C above
+            it on the 2026-08-08 DC charge day. Rose 29 to 44 °C over a 3 h AC charge; 34-37 °C
+            while driving. The loop also serves the EPCU, OBC and LDC; which branch the sensor sits
+            on is unknown.
         AAF_LDC_TEMP:
           expression: B19-100
           unit: °C
@@ -128,8 +122,8 @@ AAF:
           source: RE 2026-08-05 cross-ECU offset-mirror vs verified OBC LDC_TEMP
           verified: true
           notes: >-
-            Same raw value as OBC:2101:LDC_TEMP (equal in 94.9 % of 1729 co-polled rows; the rest
-            differ by 1). Disabled as a duplicate of the OBC signal.
+            Same raw value as OBC:2101:LDC_TEMP (equal in 94.9 % of 1729 co-polled rows, otherwise
+            off by 1). Disabled as a duplicate.
           enabled: false
         AMBIENT_TEMP:
           expression: (B18-80)/2
@@ -140,7 +134,7 @@ AAF:
           verified: true
           notes: >-
             Equals AAF:2180 B18 in 98.1 % of 839 co-polled rows. Disabled as a duplicate of
-            AAF:2180:AMBIENT_TEMP. 2180 and 2181 differ at B19 and B22.
+            AAF:2180:AMBIENT_TEMP.
           enabled: false
         AAF_2181_B27:
           expression: B27
@@ -149,8 +143,7 @@ AAF:
             7: charging
           source: 2026-08-08 DCFC byte-diff + full-corpus state check
           notes: >-
-            Reads 7 in every charging capture, AC and DC. Otherwise 0, 2, 5 or 6 (4319 captures: 0
-            x1916, 2 x93, 5 x30, 6 x667, 7 x1613).
+            Reads 7 in every charging capture, AC and DC; otherwise 0, 2, 5 or 6 (meaning unknown).
           enabled: true
         AAF_2181_B15:
           expression: B15
@@ -161,8 +154,8 @@ AAF:
             67: driving
           source: 2026-08-08 DCFC byte-diff + full-corpus state check
           notes: >-
-            Values 0 (2613), 52 (1423), 67 (262), 82 (21) across 4319 captures. 0 in every charging
-            capture, but also in most READY parked ones.
+            Reads 0, 52, 67 or 82. 0 in every charging capture, but also in most READY parked ones;
+            82 is unmapped.
           enabled: true
         AAF_COOLANT_TEMP_2:
           expression: B23-40
@@ -180,39 +173,7 @@ AAF:
       priority: P3
       vehicle_states: [READY]
       date: "2026-07-22"
-      result: "Exhaustive service-21 LID sweep (ignition on): only 80/81 respond (= known 2180/2181), all 254 others NRC. Confirms AAF lives in the 0x80 page range (not 0x01); no hidden pages. Fully mapped."
-      notes: Hidden-page hunt 2026-07-22 (KWP2000 completion).
-    - type: decode
-      target: 2180/2181 thermal bytes
-      status: captured
-      priority: P2
-      vehicle_states: [READY]
-      created: "2026-07-23"
-      updated: "2026-07-30"
-      result: >-
-        2026-10-21: B25 is not the 12 V voltage: B25-100 equals VCU_COOLANT_TEMP (renamed
-        AAF_COOLANT_TEMP_B25).
-      notes: >
-        Speed bytes decoded (2181 B12=MPH, B13=km/h; r=0.997 vs ESC). Identity docs
-        list ambient/heater-element/heat-sink/compressor temps on 2180/2181; temp
-        bytes not yet located. 2026-07-30 finally co-polled AAF 2180/2181 WITH HVAC
-        220100 over the READY sessions (the overlap that was missing) — but the
-        ambient anchor FAILED: HVAC_AAT was constant 23.5C across the whole ~30min
-        window (distinct=1), so no byte correlates and the ambient-anchor method
-        can't run on this data. AAF 2180 bytes that DO vary in scope: B17 (distinct
-        21, raw 41-53), B20/B21 (~61-67, move together), plus the known B25 (aux
-        voltage) and B28/B29 mirror — B17 and B20/B21 are candidate internal
-        heater/compressor temps but have no anchor here. NEEDS a session with real
-        thermal contrast (cold-start vs warm cabin, or A/C on driving the ambient
-        reading) so HVAC_AAT actually moves; then correlate AAF bytes vs HVAC_AAT."
-    - type: decode
-      target: "2180"
-      status: done
-      priority: P3
-      vehicle_states: [READY]
-      created: "2026-07-23"
-      updated: "2026-07-23"
-      notes: "AAF 2180 has two more varying bytes beyond the 4 defined temps: B25 (raw 129-152) and B28==B29 (mirror pair, raw 141-152). Both plausibly temperatures at the same (x-80)/2 scale AMBIENT_TEMP uses on B18: B25->24.5-36C, B28->30.5-36C. Only 77 captures in a narrow ambient band and B25 does NOT track AMBIENT_TEMP (r=0.26), so it is a distinct signal (evaporator / in-car / coolant?). Needs a wide-thermal-range capture (cold morning + hot cabin + A/C on) with a temp anchor to assign. B28==B29 exact mirror suggests a duplicated/unit-variant temp."
+      result: Only LIDs 80 and 81 answer (ignition on); all others NRC.
     - type: decode
       target: 2180 B28/B29 mirror
       status: captured
@@ -220,19 +181,24 @@ AAF:
       vehicle_states: [READY]
       created: "2026-07-23"
       updated: "2026-07-23"
-      notes: "AAF 2180 B25 RESOLVED = AAF_AUX_BATTERY_VOLTAGE (B25/10, r=0.995 vs VCU aux) — was mis-guessed as a temp. Renamed from AUX_BATTERY_VOLTAGE to AAF_AUX_BATTERY_VOLTAGE 2026-07-24 to avoid a shipped-signal-name collision with BMS 2101 AUX_BATTERY_VOLTAGE. Remaining: B28==B29 mirror pair (raw 141-152, distinct=3 among timed caps) still undecoded; near-constant, not a temp (doesn't track ambient). Low priority; needs a wider-range capture."
+      notes: >-
+        B28 and B29 are an exact mirror pair (raw 141-152, near-constant) that does not track
+        ambient. Undecoded; needs a capture over a wide temperature range.
     - type: verify
-      target: 2181 AAF_CHARGE_ACTIVE/AAF_OPERATING_MODE/AAF_COOLANT_TEMP_2
+      target: 2181 AAF_2181_B27/AAF_2181_B15/AAF_COOLANT_TEMP_2
       status: captured
       priority: P2
       vehicle_states: [CHARGING, DRIVING]
       created: "2026-08-08"
       updated: "2026-08-08"
-      notes: "2026-08-08 DCFC-2 session (16:31:44-16:43:54) yielded 3 new AAF 2181 candidates via byte-diff: AAF_CHARGE_ACTIVE (B27, raw 7 = any charging AC/DC, other values 0/2/5/6 unmapped), AAF_OPERATING_MODE (B15, raw 0/52/67, correlated with charge+motion state but not a clean tri-state - likely flap-duty tied to speed/thermal need), AAF_COOLANT_TEMP_2 (B23-40 degC, r=0.976 vs VCU:2102:VCU_COOLANT_TEMP - candidate 2nd sensor on the SAME powertrain loop as AAF's own MOTOR_COOLANT_TEMP at B22; battery is air-cooled so this is not battery-related). All --unverified, single-session evidence only."
+      notes: >-
+        Found by byte-diff on the 2026-08-08 DC charge; single-session evidence. B27 reads 7 while
+        charging, B15 follows charge and motion state but is not a clean tri-state, B23-40 tracks
+        VCU_COOLANT_TEMP (r=0.976).
       what_to_test:
-        - "AAF_CHARGE_ACTIVE: what do raw 0/2/5/6 correspond to (speed? time-since-stop?)"
-        - "AAF_OPERATING_MODE: correlate raw value directly against AAF_VEHICLE_SPEED_KMH and time-parked instead of charge state"
-        - "AAF_COOLANT_TEMP_2: confirm sensor location vs existing MOTOR_COOLANT_TEMP (B22) - inlet/outlet pair?"
+        - "AAF_2181_B27: what raw 0/2/5/6 correspond to"
+        - "AAF_2181_B15: correlate against AAF_VEHICLE_SPEED_KMH and time parked"
+        - "AAF_COOLANT_TEMP_2: sensor location relative to MOTOR_COOLANT_TEMP (B22)"
     - type: decode
       target: 2181 flap position/status (AAF11 lead)
       status: pending
@@ -240,7 +206,12 @@ AAF:
       vehicle_states: [READY]
       created: "2026-10-21"
       updated: "2026-10-21"
-      notes: "opendbc AAF11 (0x584, sender AAF) broadcasts the flap's own state: CF_Aaf_ActFlapStatus (2-bit), CF_Aaf_ModeStatus (3-bit), CF_Aaf_ErrStatus (10-bit), CF_Aaf_PStatus (position, 0-100 %) and CF_Aaf_SolFlapStatus. On the uhi22 Ioniq 28 logs: ActFlapStatus 1, PStatus 41 %, constant. 2180/2181 decode temperatures, speed and voltage but no flap position. AAF_2181_B15 (raw 0/52/67, tied to motion and charging; see the 2181 AAF_OPERATING_MODE entry) is a candidate flap position percentage."
+      notes: >-
+        opendbc AAF11 (0x584, sender AAF) broadcasts the flap state: CF_Aaf_ActFlapStatus (2-bit),
+        CF_Aaf_ModeStatus (3-bit), CF_Aaf_ErrStatus (10-bit), CF_Aaf_PStatus (position, 0-100 %)
+        and CF_Aaf_SolFlapStatus. On the uhi22 Ioniq 28 logs ActFlapStatus is 1 and PStatus 41 %,
+        constant. No flap position is decoded on 2180/2181 yet; AAF_2181_B15 is the first
+        candidate.
       sources:
         - opendbc hyundai_2015_ccan.dbc (commaai, MIT), cross-checked against uhi22 Ioniq28Investigations P-CAN logs (scripts/fetch_can_corpus.py)
       what_to_test:

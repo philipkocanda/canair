@@ -1,6 +1,5 @@
 # ─── BCM (Body Control Module) / TPMS ──────────────────────────────────
 # BCM and TPMS share TX ID 0x7A0 (same physical ECU, part 95400G7470).
-# TPMS data is accessed via DID 22C00B on the BCM.
 BCM:
   tx_id: 0x7A0
   iocontrol_scan_ranges: [B000-B3FF, B400-B7FF, C000-C0FF, F000-F0FF]
@@ -14,23 +13,17 @@ BCM:
       Body Control Module. Shares TX ID 0x7A0 with TPMS (same physical ECU,
       part 95400G7470); TPMS data is read via DID 22C00B on the BCM.
   vehicle_states: [ALL]
-  scan_log: # BCM
+  scan_log:
     - service: 0x31
       range: "0000-FFFF"
       date: 2026-04-20
-      hits: "~71+ (screen only, not in log — connection dropped)"
+      hits: "~71+ (seen on screen only; not logged)"
       probes: 49813  # cut off at 0xC8D2 — WiCAN sleep/disconnect
       vehicle_states: [SLEEP]
-      notes: >
-        BCM supports service 31 (sub-fn 03 requestRoutineResults).
-        Two clusters of positive responses seen on screen (not saved to log — connection dropped):
-          Cluster A: 0x95CE–0x97C2 (~40 hits, stride 0x0D)
-          Cluster B: 0xC726–0xC8B8 (~32 hits, stride 0x0D)
-        All responses are 2 bytes (just positive ack, no result data — routine exists but no
-        result available, likely needs startRoutine first or ignition on).
-        Notable: RID 0x12A1 returned NRC 0x22 (conditionsNotCorrect).
-        Remaining range 0xC8D3-0xFFFF not yet scanned.
-        TODO: Resume scan from 0xC8D3. Also re-scan 0x95CE-0xC8D2 to capture hits to log.
+      notes: >-
+        Sub-function 03 (requestRoutineResults). Positive replies came in two clusters with stride
+        0x0D: 0x95CE-0x97C2 (~40) and 0xC726-0xC8B8 (~32). Each is a 2-byte ack with no result
+        data. RID 0x12A1 returned NRC 0x22 (conditionsNotCorrect). 0xC8D3-0xFFFF not scanned.
   pids:
     22C00B:
       response_frames: 4
@@ -49,7 +42,7 @@ BCM:
           source: "Original WiCAN config + Ioniq forum"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
-          notes: Raw byte / 72.52 = bar (B10 / 5 = psi).
+          notes: Raw / 5 = psi.
 
         TYRE_PRESSURE_FR:
           expression: "B14/72.52"
@@ -118,12 +111,10 @@ BCM:
           source: TPMS timeline 2026-10-22
           verified: false
           notes: >-
-            Reads 1 or 2. On 2026-08-02 (parked, ON) the four wheels flipped 1->2 one at a time
-            between 10:12:35 and 10:18:49, each at the same capture as its own pressure and
-            temperature stepped from the previous evening's warm values to cold ones, so 2 is read
-            as a reading received this power cycle and 1 as a held one. 2 in READY on 07-28 and
-            07-30 (all wheels) and 07-21 (all but FL); 1 on every wheel in READY on 10-22 (21
-            captures, parked) and in most key-off captures.
+            1 = held reading, 2 = reading received this power cycle. On 2026-08-02 (parked, ON) each
+            wheel flipped 1->2 at the capture where its own pressure and temperature stepped from
+            the previous evening's warm values to cold ones. 1 on every wheel in READY on 2026-10-22
+            and in most key-off captures.
         TYRE_SENSOR_STATE_FR:
           expression: B17
           type: enum
@@ -133,9 +124,7 @@ BCM:
           max: "2"
           source: TPMS timeline 2026-10-22
           verified: false
-          notes: >-
-            Same behaviour as TYRE_SENSOR_STATE_FL, for the FR wheel; it flipped 1->2 with its own
-            pressure/temperature step on 2026-08-02.
+          notes: As TYRE_SENSOR_STATE_FL, for the FR wheel.
         TYRE_SENSOR_STATE_RL:
           expression: B21
           type: enum
@@ -145,9 +134,7 @@ BCM:
           max: "2"
           source: TPMS timeline 2026-10-22
           verified: false
-          notes: >-
-            Same behaviour as TYRE_SENSOR_STATE_FL, for the RL wheel; it flipped 1->2 with its own
-            pressure/temperature step on 2026-08-02.
+          notes: As TYRE_SENSOR_STATE_FL, for the RL wheel.
         TYRE_SENSOR_STATE_RR:
           expression: B26
           type: enum
@@ -157,9 +144,7 @@ BCM:
           max: "2"
           source: TPMS timeline 2026-10-22
           verified: false
-          notes: >-
-            Same behaviour as TYRE_SENSOR_STATE_FL, for the RR wheel; it flipped 1->2 with its own
-            pressure/temperature step on 2026-08-02.
+          notes: As TYRE_SENSOR_STATE_FL, for the RR wheel.
     22B00D:
       response_frames: 2
       status: draft
@@ -181,10 +166,8 @@ BCM:
           max: "3"
           source: Cross-tab vs 22B005 B10 bits 5-7 and 22B003 B14, 2026-10-22
           notes: >-
-            Light-stalk position as one code. Agrees with BCM_LIGHT_SW_ADC levels in all 375 aligned
-            rows (0 at ~249, 1 at 101, 3 at ~211) and with BCM_LIGHT_SW_ON_B5/_AUTO in all 344.
-            Cleared with the stalk at 10:25:29 on 2026-07-30 and 09:54:31 on 2026-08-02. Parking
-            position not captured.
+            Light-stalk position. Agrees with BCM_LIGHT_SW_ADC in all 375 aligned rows and with
+            BCM_LIGHT_SW_ON_B5/_AUTO in all 344. Parking position not captured.
         BCM_B00D_B11_4:
           expression: B11:4
           source: Cross-tab vs 22B003 B18 2026-10-22
@@ -197,8 +180,7 @@ BCM:
           source: Event timeline 2026-10-22
           notes: >-
             Set only while BCM_B00D_B11_4 is 1 (21 of 49 such captures, never otherwise), in runs of
-            20 s to 82 min: 2026-08-02 09:54-11:21, 08-03 21:46, 08-05 12:54-14:05 (13 runs while
-            charging), 08-08 09:44-09:45. No co-polled signal follows it. Meaning unknown.
+            20 s to 82 min, 13 of them while charging on 2026-08-05. No co-polled signal follows it.
         BCM_B00D_B11_5:
           expression: B11:5
           source: Same-payload cross-tab 2026-10-22
@@ -225,8 +207,8 @@ BCM:
       status: ignored
       vehicle_states: ["ON"]
       notes: >-
-        13 bytes as stored, probably 11 plus 0xAAAA frame padding as on 22B00D (only old, padded
-        reads exist). Identical payload to B00D (0xFCFC E0...) — possibly mirrored register
+        13 bytes as stored, ending in 0xAAAA frame padding (only old, padded reads exist). Payload
+        identical to 22B00D (FC FC E0 ...).
       parameters: {}
 
     22B004:
@@ -248,20 +230,16 @@ BCM:
           max: "1"
           source: Fob lock/unlock test 2026-04-18; ignition cross-tab 2026-10-22
           notes: >-
-            Changed on fob lock and unlock on 2026-04-18. Does not follow the IGPM door locks: reads
-            0 in 254 of 292 aligned captures where IGPM DOOR_LOCK_FL and DOOR_LOCK_FR read 1, and
-            changed 12 times between 21:03 and 21:27 on 2026-10-21 (runs of 21 s to 8 min) with all
-            doors locked throughout. 344 short pulses (median 5 s), all with the ignition off: 0 in
-            all 75 ignition-on captures. 1 in 367 of 994 captures.
+            Changed on fob lock and unlock (2026-04-18) but does not follow the IGPM door locks: it
+            changed 12 times in 24 min on 2026-10-21 with all doors locked. Short pulses (median 5
+            s), only with the ignition off. 1 in 367 of 994 captures.
         BCM_LIGHT_SW_AUTO_B004:
           expression: B12:3
           min: "0"
           max: "1"
           source: "RE 2026-10-22: 22B004/22B005 co-polled sessions 2026-04-17..2026-10-22"
           notes: >-
-            Equal to 22B005 BCM_LIGHT_SW_AUTO in every co-polled capture: 1 only on 2026-10-22
-            (stalk at AUTO). Disabled as a duplicate. B12:7 is constant 1; B12:5 varies
-            independently of the stalk.
+            Equals 22B005 BCM_LIGHT_SW_AUTO in every co-polled capture. Disabled as a duplicate.
           enabled: false
         BCM_IGN_STATE_B004:
           expression: B10
@@ -274,10 +252,9 @@ BCM:
           max: "255"
           source: Cross-tab vs IGPM IGN1_SWITCH and BCM_IGN_SUPPLY_V 2026-10-22
           notes: >-
-            Bits 1-3 only ever set together (14). 14 in all 51 rows where BCM_IGN_SUPPLY_V is on, 0
-            in all 908 where it is off; equals IGN1_SWITCH in all 326 aligned rows, including
-            CHARGING+ON with the drive path down. 192 (bits 6, 7) in 2 untimed SLEEP captures on
-            2026-04-17, unexplained. Disabled as a duplicate of IGN1_SWITCH.
+            Bits 1-3 only ever set together (14). Equals IGPM IGN1_SWITCH in all 326 aligned rows,
+            including CHARGING+ON with the drive path down. 192 (bits 6, 7) only in 2 untimed SLEEP
+            captures on 2026-04-17. Disabled as a duplicate of IGN1_SWITCH.
           enabled: false
         BCM_B004_B12_5:
           expression: B12:5
@@ -285,20 +262,17 @@ BCM:
           max: "1"
           source: Cross-tab vs 22B003 B18 2026-10-22
           notes: >-
-            1 exactly when BCM_B003_B18 is in its 109-136 band, 0 when it is 158-159 or open (959 of
-            959 aligned rows), i.e. the digital reading of that input. Mirrored by 22B00A B11:3 and
-            22B00D B11:4. Meaning unknown.
+            1 exactly when BCM_B003_B18 is in its 109-136 band, 0 at 158-159 or open (959 of 959
+            aligned rows). Mirrored by 22B00A B11:3 and 22B00D B11:4.
         BCM_B004_B12_7:
           expression: B12:7
           notes: >-
             Marked by the 22B004 map. 1 in 2342 of 2349 captures; 0 on 2026-04-17 (x2) and
-            2026-10-25 (x5). Meaning unknown.
+            2026-10-25 (x5).
           enabled: false
         BCM_B004_B13_4:
           expression: B13:4
-          notes: >-
-            Marked by the 22B004 map. 1 in 6 of 2349 captures (2026-07-22 x1, 2026-10-25 x5).
-            Meaning unknown.
+          notes: Marked by the 22B004 map. 1 in 6 of 2349 captures (2026-07-22 x1, 2026-10-25 x5).
           enabled: false
 
     22B005:
@@ -316,29 +290,28 @@ BCM:
         BCM_B005_UNLOCK_BITS:
           expression: B10
           max: "255"
-          source: Fob lock/unlock test 2026-04-18; byte offset corrected 2026-07-24
+          source: Fob lock/unlock tests 2026-04-18, 2026-07-24
           notes: >-
-            Whole byte. Bits 2 and 3 set (0x0C) on fob unlock (2026-07-24 09:36:51). Bits 5-7 are
-            the light-stalk position (BCM_LIGHT_SW_*): the common 0xA0 is the stalk in a lamps-on
-            position, 0x00/0x08/0x0C with it OFF, 0x48 at AUTO.
+            Whole byte. Bits 2 and 3 set (0x0C) on fob unlock. Bits 5-7 are the light-stalk position
+            (BCM_LIGHT_SW_*): 0xA0 with the stalk in a lamps-on position, 0x00/0x08/0x0C at OFF,
+            0x48 at AUTO.
         BCM_LIGHT_SW_AUTO:
           expression: B10:6
           notes: >-
-            1 only on 2026-10-22 (21 captures), when the light stalk was confirmed set to AUTO; 0 in
-            every other session. Bits 5 and 7 clear while set. Duplicated by 22B004 B12:3.
+            1 only on 2026-10-22 (21 captures), with the light stalk at AUTO; 0 in every other
+            session. Bits 5 and 7 clear while set. Duplicated by 22B004 B12:3.
         BCM_LIGHT_SW_ON_B5:
           expression: B10:5
           notes: >-
-            Set together with B10:7 whenever 22B003 B14 reads ~211, including the 2026-07-30 and
-            2026-08-02 READY captures with IGPM LOW_BEAM and TAIL_LIGHTS on; clear at ~249 (lamps
-            never on at READY). Cleared with B10:7 between 10:20:52 and 10:25:27 on 2026-07-30 as
-            LOW_BEAM went 1->0. Parking-light vs headlamp contact not separated: parking position
-            never captured (prediction: B10:5 alone).
+            Set together with B10:7 whenever 22B003 B14 reads ~211, including READY captures with
+            IGPM LOW_BEAM and TAIL_LIGHTS on; clear at ~249. Cleared with B10:7 as LOW_BEAM went
+            1->0 on 2026-07-30. Parking position never captured, so the parking-light and headlamp
+            contacts are not separated.
         BCM_LIGHT_SW_ON_B7:
           expression: B10:7
           notes: >-
-            Always equal to B10:5 so far (see BCM_LIGHT_SW_ON_B5). Set with the stalk in a lamps-on
-            position, clear at OFF and AUTO.
+            Always equal to B10:5 (BCM_LIGHT_SW_ON_B5): set with the stalk in a lamps-on position,
+            clear at OFF and AUTO.
         BCM_UNLOCKED_OR_IGN_ON:
           expression: B10:3
           source: Cross-tab vs IGPM 22BC04 B13:6 2026-10-22
@@ -358,10 +331,9 @@ BCM:
           expression: B10
           min: "0"
           max: "255"
-          source: Fob lock/unlock test 2026-04-18; byte offset corrected 2026-07-24
+          source: Fob lock/unlock tests 2026-04-18, 2026-07-24
           verified: false
-          notes: >-
-            0x00, or 0x04 (bit 2) on fob unlock (2026-07-24 09:36:52). 0x04 in 6 of 301 captures.
+          notes: 0x00, or 0x04 (bit 2) on fob unlock. 0x04 in 6 of 301 captures.
     22B007:
       support_map: {at: 0, length: 4, unit: bit, order: msb}
       parameters:
@@ -388,7 +360,7 @@ BCM:
       notes: >-
         11 bytes. B12:4 follows the brake (BCM_BRAKE_SWITCH), B13:2 the ignition (BCM_IGN_ON_B008).
         B13:1 set in 3 captures, 2 with the passenger door open. B05=0x00, B06=0x51, B07=0x0C,
-        B09=0x20, B11=0x88 constant. Sample: 62B00800510C2000880000.
+        B09=0x20, B11=0x88 constant.
       parameters:
         BCM_IGN_ON_B008:
           expression: B13:2
@@ -408,19 +380,17 @@ BCM:
           source: Cross-tab vs IGPM 22BC06 BRAKE_LIGHT 2026-10-22
           verified: false
           notes: >-
-            1 only while IGPM BRAKE_LIGHT reads 0x2D: all 19 captures 2026-07-21 12:41-12:53 READY
-            (BC06 B10 = 0x2D throughout), and 2026-08-01 20:48:18-20:49:50, 1-2 s after BRAKE_LIGHT
-            rose (20:48:17) and fell (20:49:48). 0 in all 315 aligned rows with the brake released.
-            2 sessions, 1 with both edges.
+            1 only while IGPM BRAKE_LIGHT reads 0x2D: all 19 captures on 2026-07-21 (READY), and on
+            2026-08-01 1-2 s after each BRAKE_LIGHT edge. 0 in all 315 aligned rows with the brake
+            released.
 
     22B009:
       response_frames: 2
       status: draft
       vehicle_states: [ALL]
       notes: >-
-        11 bytes. Repeating 0xFEEE pattern (B03-B06) — possibly sensor addresses or calibration
-        references. Rest zeros, except B10 and B12, which read 0x08 in 30 of 82 captures. Sample:
-        62B009FEEEFEEE00000000.
+        11 bytes. B03-B06 read FE EE FE EE; the rest 0 except B10 and B12 bit 3, which follow the
+        ignition. Sample: 62B009FEEEFEEE00000000.
       source: Ignition cross-tab 2026-10-22
       parameters:
         BCM_IGN_ON_B009:
@@ -446,10 +416,8 @@ BCM:
       status: draft
       vehicle_states: [ALL]
       notes: >-
-        11 bytes. B11:3 the 22B003 B18 input, B12 bits 6-7 the ignition (BCM_IGN_ON_B00A). B10:2 is
-        1 in 240 of 344 captures, 238 of them in the 2026-07-27 charging session (also 1 capture
-        each on 07-22 and 08-15), 0 in the other charging sessions; meaning unknown. B11:5 set in 1
-        capture. B05=0xE3, B06=0xFE, B07=0xE3 constant.
+        11 bytes. B11:3 the 22B003 B18 input, B12 bits 6-7 the ignition (BCM_IGN_ON_B00A). B05=0xE3,
+        B06=0xFE, B07=0xE3 constant.
       source: support-bitmap sweep 2026-10-29
       verified: false
       parameters:
@@ -477,35 +445,28 @@ BCM:
           expression: B10:2
           notes: >-
             Marked by the 22B00A map. 1 in 250 of 1694 captures, 238 of them during the 2026-07-27
-            AC charge (10-16 A EVSE pilot steps). Meaning unknown.
+            AC charge; 0 in the other charging sessions.
           enabled: false
         BCM_B00A_B11_5:
           expression: B11:5
-          notes: >-
-            Marked by the 22B00A map. 1 in 3 of 1694 captures (2026-08-15 x1, 2026-10-25 x2).
-            Meaning unknown.
+          notes: Marked by the 22B00A map. 1 in 3 of 1694 captures (2026-08-15 x1, 2026-10-25 x2).
           enabled: false
         BCM_B00A_B11_6:
           expression: B11:6
           notes: >-
             Marked by the 22B00A map. 1 in 1689 of 1694 captures; 0 only in 5 rows on 2026-10-25.
-            Meaning unknown.
           enabled: false
         BCM_B00A_B12_7:
           expression: B12:7
-          notes: >-
-            Marked by the 22B00A map. 1 in 82 of 1694 captures spread over 8 dates (2026-07-21 x19,
-            2026-10-22 x21, 2026-10-25 x32). Meaning unknown.
+          notes: Marked by the 22B00A map. 1 in 82 of 1694 captures, spread over 8 dates.
           enabled: false
 
     22B00B:
       status: ignored
       vehicle_states: [ACC, "ON", READY, CHARGING]
-      notes: >
-        NRC 0x31 (requestOutOfRange) in deep sleep AND in READY (retested
-        2026-07-29). Only 2-byte response (7E00) on some attempts — may be a
-        status register that requires a state not yet tested. No valid capture
-        (no 62B00B response) has ever been recorded in any state.
+      notes: >-
+        NRC 0x31 (requestOutOfRange) in deep sleep and in READY; some attempts return only 7E00. No
+        positive (62B00B) reply recorded in any state.
       parameters: {}
 
     22B00C:
@@ -515,8 +476,8 @@ BCM:
           source: support-bitmap sweep 2026-10-29
           verified: false
           notes: >-
-            Marked by the 22B00C map (only signal there besides never-set B10:3-7). 1 in 2 of 1693
-            captures, both 2026-10-25. Meaning unknown.
+            Marked by the 22B00C map, whose other marked bits (B10:3-7) are never set. 1 in 2 of
+            1693 captures, both 2026-10-25.
           enabled: false
       response_frames: 2
       status: draft
@@ -536,7 +497,7 @@ BCM:
       response_frames: 2
       status: draft
       vehicle_states: [ALL]
-      notes: "9 bytes. Sparse data. Purpose unknown. Sample: 62B002C00000000300."
+      notes: "9 bytes, sparse. B10:0 changes between days. Sample: 62B002C00000000300."
       parameters: {}
 
     22B003:
@@ -547,9 +508,8 @@ BCM:
       notes: >-
         24 bytes. Analog inputs at about 0.08 V per count: B10 the 12 V battery, B23/B26/B27/B28
         ignition-switched supplies, B12/B13/B14/B18 sensor and switch inputs. B11 and B19 read 61-62
-        in 3685 of 3688 captures (about 4.9 V at the same scale, probably a regulated sensor
-        supply). B15, B17 and B20 sit at 246-249 in every capture, i.e. open inputs. B05-B07, B09,
-        B21, B22 and B25 are constant.
+        (about 4.9 V) in 3685 of 3688 captures. B15, B17 and B20 sit at 246-249 (open circuit) in
+        every capture. B05-B07, B09, B21, B22 and B25 are constant.
       source: Same-payload cross-tab 2026-10-22
       min: "0"
       max: "20"
@@ -570,100 +530,93 @@ BCM:
           max: "255"
           source: "RE 2026-10-22: B12 by hour of day across 2026-04-15..2026-10-22"
           notes: >-
-            Raw count, higher = brighter. 9-55 in every session after 20:00 and at 08:28 on
-            2026-08-05; 245-246 (ceiling) in daylight; 51-246 while parked charging 12:31-15:30 on
-            2026-08-05. Ceiling in daylight fits an auto-headlight sensor. No HVAC byte tracks it
-            (|r| <= 0.32). Auto-on threshold not captured (no AUTO-in-dark data).
+            Raw count, higher = brighter: 9-55 after dark, 245-246 (ceiling) in daylight, 51-246
+            while parked charging on an afternoon. No HVAC byte tracks it (|r| <= 0.32).
+            Auto-headlight threshold not captured.
           enabled: false
         BCM_IGN_SUPPLY_V:
           expression: B28*0.08
           unit: V
           source: RE 2026-08-02 state discrimination; ignition cross-tab 2026-10-22
           notes: >-
-            Ignition-switched supply at the BCM. 0 in 2779 of 3688 captures; when on it reads 1-3
-            counts above BCM_12V_BATTERY. Equals IGPM IGN1_SWITCH (on/off) in all 356 aligned rows,
-            and is on in all 612 CHARGING+ON rows with the drive path down, so it follows the
-            ignition, not READY. B23, B26 and B27 read the same within 1-3 counts. Not seen in ACC,
-            so none of the four is the ACC input. The BCM connector has IGN1 (pin D2), IGN2 (D23),
-            ACC (D24) and two IG2 heated-steering supplies (D3, D4); which of B23/B26/B27/B28 is
-            which is not known. Taken from US-market wiring; unconfirmed on the EU car.
+            Ignition-switched supply at the BCM; 1-3 counts above BCM_12V_BATTERY when on. Equals
+            IGPM IGN1_SWITCH in all 356 aligned rows and is on in all 612 CHARGING+ON rows with the
+            drive path down, so it follows the ignition, not READY. B23, B26 and B27 read the same
+            within 1-3 counts; none of the four is on in ACC. US-market wiring gives the BCM IGN1
+            (pin D2), IGN2 (D23), ACC (D24) and two IG2 heated-steering supplies (D3, D4); which
+            channel is which is unknown.
         BCM_LIGHT_SW_ADC:
           expression: B14
           max: "255"
           source: "RE 2026-10-22: B14 levels vs 22B005 B10 bits 5-7 and IGPM 22BC03 lamp outputs"
           notes: >-
-            Discrete levels with +-1 LSB flicker, read as a resistor-ladder light-stalk input: ~249
-            OFF, ~211 lamps on, 101 AUTO (2026-10-22, stalk confirmed AUTO). Same partition as
-            BCM_LIGHT_SW_* on 22B005 in every co-polled session. Parking-light level not captured.
+            Discrete levels with +-1 LSB flicker: ~249 OFF, ~211 lamps on, 101 AUTO. Same partition
+            as BCM_LIGHT_SW_* on 22B005 in every co-polled session. Parking-light level not
+            captured.
         BCM_TEMP_RAW_B13:
           expression: B13
           max: "255"
           source: "RE 2026-10-22: B13 vs HVAC_INTERIOR_TEMP, 2026-04-15..2026-10-22"
           notes: >-
-            Raw count, falls as temperature rises (NTC-like). Against HVAC_INTERIOR_TEMP, excluding
-            dropouts: B13 ~ 224.2 - 2.26 x cabin degC, r=-0.955, n=830, cabin 9-38.5 degC. 112-203
-            overall; 201-203 at 9 degC on 2026-10-22, 169 -> 136 as the cabin went 26 -> 38.5 degC
-            on 2026-08-02. Isolated single-sample drops to 62 (22 of 3676), read as an invalid-value
-            marker. Sensor location unknown: lags cabin air, may be BCM board temperature.
+            Raw count, falls as temperature rises. Against HVAC_INTERIOR_TEMP: B13 ~ 224.2 - 2.26 x
+            cabin degC, r=-0.955, n=830, cabin 9-38.5 degC; lags the cabin air. Isolated
+            single-sample drops to 62 (22 of 3676). Sensor location unknown.
         BCM_IGN_SUPPLY_V_B23:
           expression: B23*0.08
           unit: V
           notes: >-
-            0 in exactly the same 2779 of 3688 captures as BCM_IGN_SUPPLY_V (B28), within 1-3 counts
-            of it otherwise. A second ignition-switched input; disabled as a duplicate.
+            0 in the same captures as BCM_IGN_SUPPLY_V (B28), within 1-3 counts of it otherwise.
+            Disabled as a duplicate.
           enabled: false
         BCM_IGN_SUPPLY_V_B26:
           expression: B26*0.08
           unit: V
           notes: >-
-            0 in exactly the same 2779 of 3688 captures as BCM_IGN_SUPPLY_V (B28), within 1-3 counts
-            of it otherwise. A second ignition-switched input; disabled as a duplicate.
+            0 in the same captures as BCM_IGN_SUPPLY_V (B28), within 1-3 counts of it otherwise.
+            Disabled as a duplicate.
           enabled: false
         BCM_IGN_SUPPLY_V_B27:
           expression: B27*0.08
           unit: V
           notes: >-
-            0 in exactly the same 2779 of 3688 captures as BCM_IGN_SUPPLY_V (B28), within 1-3 counts
-            of it otherwise. A second ignition-switched input; disabled as a duplicate.
+            0 in the same captures as BCM_IGN_SUPPLY_V (B28), within 1-3 counts of it otherwise.
+            Disabled as a duplicate.
           enabled: false
         BCM_B003_B18:
           expression: B18
           max: "255"
           source: "RE 2026-10-22: B18 by session, 2026-04-15..2026-10-22"
           notes: >-
-            Analog input that holds one of three bands for days: 246-248 (open circuit, like
-            B15/B17/B20) on 2026-04-15..04-20, 07-21, 07-24..07-30 and 10-21..10-22; 109-136 with
-            +-10 count noise on 07-22 and 08-01..08-15 09:10; 158-159 from 08-15 10:03. Never
-            changes band within a session. 22B004 BCM_B004_B12_5 is 1 exactly when B18 is in the
-            109-136 band (959 of 959 aligned rows). No correlation with temperature, light or 12 V.
-            Meaning unknown.
+            Analog input holding one of three bands for days, never changing band within a session:
+            246-248 (open circuit, like B15/B17/B20), 109-136 with +-10 noise (07-22, 08-01 to 08-15
+            09:10), 158-159 (from 08-15 10:03). 22B004 BCM_B004_B12_5 is 1 exactly in the 109-136
+            band. No correlation with temperature, light or 12 V.
     # ─── TPMS configuration DIDs (22C001-C014) ───────────────────────────
     # Static TPMS sensor registration, IDs, and configuration data.
     # C00B (above) has live tyre pressure/temp readings.
     22C001:
       status: ignored
       vehicle_states: [ALL]
-      notes: >
-        34 bytes. Contains 4× C0F8-prefixed TPMS receiver addresses — one per wheel.
-        Static configuration. Sample: 62C001FFFF000001C0F80410C0F80BD2C0F81174C0F81188AAAA.
+      notes: >-
+        34 bytes. Four C0F8-prefixed sensor IDs, one per wheel. Static. Sample:
+        62C001FFFF000001C0F80410C0F80BD2C0F81174C0F81188AAAA.
       parameters: {}
 
     22C002:
       status: ignored
       vehicle_states: [ALL]
       notes: >-
-        27 bytes as stored, probably 23 plus four 0xAA of frame padding (only old, padded reads
-        exist). Same C0F8 addresses as C001 but in different order — wheel-to-receiver mapping
-        table. Sample: 62C002FFFF0000C0F81174C0F80410C0F80BD2C0F81188AAAAAAAA.
+        27 bytes as stored, ending in 0xAA frame padding (only old, padded reads exist). The C001
+        sensor IDs in a different order. Sample:
+        62C002FFFF0000C0F81174C0F80410C0F80BD2C0F81188AAAAAAAA.
       parameters: {}
 
     22C003:
       status: ignored
       vehicle_states: [ALL]
       notes: >-
-        34 bytes as stored, probably 33 plus one 0xAA of frame padding (only old, padded reads
-        exist). TPMS sensor registration for wheel 1. ASCII 'DO01' at offset 7. Contains pressure
-        limits, sensor ID, calibration data. Sample:
+        34 bytes as stored, ending in 0xAA frame padding (only old, padded reads exist). ASCII
+        'DO01' at offset 7. Sample:
         62C00300000000444F303101002E2E02500706B5B50A098C3C0000000001FF0100AA.
       parameters: {}
 
@@ -671,44 +624,40 @@ BCM:
       status: ignored
       vehicle_states: [ALL]
       notes: >-
-        34 bytes as stored, probably 33 plus one 0xAA of frame padding (only old, padded reads
-        exist). TPMS sensor registration for wheel 2. ASCII 'NA01'. Sample:
-        62C004000000004E41303101002E2E024B0005B5B508088C3C0100000001FF0100AA.
+        34 bytes as stored, ending in 0xAA frame padding (only old, padded reads exist). ASCII
+        'NA01'. Sample: 62C004000000004E41303101002E2E024B0005B5B508088C3C0100000001FF0100AA.
       parameters: {}
 
     22C005:
       status: ignored
       vehicle_states: [ALL]
       notes: >-
-        34 bytes as stored, probably 33 plus one 0xAA of frame padding (only old, padded reads
-        exist). Spare/reference TPMS sensor. ASCII 'NTPM'. Sample:
-        62C005000000004E54504D0100302F02500000ABAB00008C3C0000030001FF0000AA.
+        34 bytes as stored, ending in 0xAA frame padding (only old, padded reads exist). ASCII
+        'NTPM'. Sample: 62C005000000004E54504D0100302F02500000ABAB00008C3C0000030001FF0000AA.
       parameters: {}
 
     22C006:
       status: ignored
       vehicle_states: [ALL]
       notes: >-
-        34 bytes as stored, probably 33 plus one 0xAA of frame padding (only old, padded reads
-        exist). TPMS sensor registration for wheel 3. ASCII 'DO02'. Sample:
-        62C00600000000444F303201002E2E02500706B5AB0A098C3C0000000001010100AA.
+        34 bytes as stored, ending in 0xAA frame padding (only old, padded reads exist). ASCII
+        'DO02'. Sample: 62C00600000000444F303201002E2E02500706B5AB0A098C3C0000000001010100AA.
       parameters: {}
 
     22C007:
       status: ignored
       vehicle_states: [ALL]
       notes: >-
-        34 bytes as stored, probably 33 plus one 0xAA of frame padding (only old, padded reads
-        exist). TPMS sensor registration for wheel 4. ASCII 'NA02'. Sample:
-        62C007000000004E41303201002E2E024B0005B5AB08088C3C0100000001010100AA.
+        34 bytes as stored, ending in 0xAA frame padding (only old, padded reads exist). ASCII
+        'NA02'. Sample: 62C007000000004E41303201002E2E024B0005B5AB08088C3C0100000001010100AA.
       parameters: {}
 
     22C008:
       status: ignored
       vehicle_states: [ALL]
       notes: >-
-        34 bytes as stored, probably 33 plus one 0xAA of frame padding (only old, padded reads
-        exist). Empty TPMS slot (all FF after ASCII '0005'). Sample:
+        34 bytes as stored, ending in 0xAA frame padding (only old, padded reads exist). All FF
+        after ASCII '0005' (empty slot). Sample:
         62C00800000000303030350000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFAA.
       parameters: {}
 
@@ -716,8 +665,8 @@ BCM:
       status: ignored
       vehicle_states: [ALL]
       notes: >-
-        34 bytes as stored, probably 33 plus one 0xAA of frame padding (only old, padded reads
-        exist). Empty TPMS slot (ASCII '0006'). Sample:
+        34 bytes as stored, ending in 0xAA frame padding (only old, padded reads exist). All FF
+        after ASCII '0006' (empty slot). Sample:
         62C00900000000303030360000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFAA.
       parameters: {}
 
@@ -725,8 +674,8 @@ BCM:
       status: ignored
       vehicle_states: [ALL]
       notes: >-
-        34 bytes as stored, probably 33 plus one 0xAA of frame padding (only old, padded reads
-        exist). Empty TPMS slot (ASCII '0007'). Sample:
+        34 bytes as stored, ending in 0xAA frame padding (only old, padded reads exist). All FF
+        after ASCII '0007' (empty slot). Sample:
         62C00A00000000303030370000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFAA.
       parameters: {}
 
@@ -734,8 +683,7 @@ BCM:
       status: ignored
       vehicle_states: [ALL]
       notes: >-
-        37 bytes. Extended TPMS data — wheel 1 has live data with C0F8 address, other slots empty
-        (FFFF). May contain per-wheel signal quality or sensor history. Sample:
+        37 bytes. The first slot holds sensor ID C0F81174, the other slots FFFF. Sample:
         62C00CFFFF030001C0F8117499434119180000000000FFFF000000000000...
       parameters: {}
 
@@ -743,7 +691,7 @@ BCM:
       status: ignored
       vehicle_states: [ALL]
       notes: >-
-        37 bytes. Extended TPMS data — all slots empty (FFFF/zeros). Sample:
+        37 bytes. All slots empty (FFFF/zeros). Sample:
         62C00DFFFF03000000000000FFFF0000000000000000FFFF000000...
       parameters: {}
 
@@ -751,22 +699,21 @@ BCM:
       status: ignored
       vehicle_states: [ALL]
       notes: >-
-        37 bytes. Extended TPMS data — all slots empty. Sample:
-        62C00EFFFF03000000000000FFFF0000000000000000FFFF000000...
+        37 bytes. All slots empty. Sample: 62C00EFFFF03000000000000FFFF0000000000000000FFFF000000...
       parameters: {}
 
     22C00F:
       status: ignored
       vehicle_states: [ALL]
       notes: >-
-        37 bytes. Extended TPMS data — one active entry with C0F8 address (C0F81188). Sample:
+        37 bytes. One slot holds sensor ID C0F81188. Sample:
         62C00FFFFF030001C0F8118801203B1E560000000000FFFF000000...
       parameters: {}
 
     22C010:
       status: ignored
       vehicle_states: [ALL]
-      notes: "8 bytes. Mostly zeros. B03=0xFC. Purpose unknown. Sample: 62C010FC00000000."
+      notes: "8 bytes, mostly 0; B03=0xFC. Sample: 62C010FC00000000."
       parameters: {}
 
     22C011:
@@ -795,8 +742,8 @@ BCM:
           source: monotonic-counter sweep of all captures 2026-04-16..2026-08-05
           verified: false
           notes: >-
-            16-bit big-endian. Only rises (9835 to 10113), flat within every recording session,
-            about 2.3 steps a day. Not a timer. What it counts is unknown.
+            16-bit big-endian. Only rises (9835 to 10279), flat within every recording session. Not
+            a timer.
         BCM_IGN_ON_C011:
           expression: B10:0
           max: "1"
@@ -811,30 +758,23 @@ BCM:
     22C012:
       status: ignored
       vehicle_states: [ALL]
-      notes: >-
-        11 bytes. ASCII 'DO01' at B07-B10 — references wheel 1 sensor ID. Sample:
-        62C01280000000444F3031.
+      notes: "11 bytes. ASCII 'DO01' at B07-B10 (the 22C003 tag). Sample: 62C01280000000444F3031."
       parameters: {}
 
     22C013:
       status: ignored
       vehicle_states: [ALL]
-      notes: >
-        13 bytes. ASCII '0x0620' — possibly TPMS firmware version or config revision.
-        Sample: 62C01380000000307830363230.
+      notes: "13 bytes. ASCII '0x0620'. Sample: 62C01380000000307830363230."
       parameters: {}
 
     22C014:
       status: ignored
       vehicle_states: [ALL]
-      notes: >-
-        8 bytes. B10=0x0C. Purpose unknown — last responding DID in C0xx range. Sample:
-        62C014F00000000C.
+      notes: "8 bytes. B10=0x0C. Last DID answering in the C0xx range. Sample: 62C014F00000000C."
       parameters: {}
 
   # ─── IOControl (service 2F) ──────────────────────────────────────────
-  # BCM requires extended diagnostic session (10 03) AND SKM ACC+IGN1 power.
-  # Scan status: B000-B0FF fully scanned (24 DIDs), C000-C0FF (6 DIDs), E000-E0FF (0). 2026-04-18.
+  # Needs the extended session (10 03) and ACC+IGN1 power (via SKM).
   iocontrol:
     B003:
       vehicle_states: []
@@ -842,8 +782,7 @@ BCM:
       verified: false
       true: "2FB00303"
       false: "2FB00300"
-      notes: >
-        Sleep (locked): NRC 0x22: conditionsNotCorrect
+      notes: NRC 0x22 (conditionsNotCorrect) in SLEEP (locked).
 
     B006:
       vehicle_states: [ACC, READY]
@@ -851,9 +790,8 @@ BCM:
       verified: true
       true: "2FB00603"
       false: "2FB00600"
-      notes: >
-        Turns on parking sensors switch (LED)
-        Sleep (locked): NRC 0x22: conditionsNotCorrect
+      notes: >-
+        Turns on the parking-sensor switch LED. NRC 0x22 (conditionsNotCorrect) in SLEEP (locked).
 
     B008:
       vehicle_states: []
@@ -861,8 +799,7 @@ BCM:
       verified: true
       true: "2FB00803"
       false: "2FB00800"
-      notes: >
-        Sleep (locked): NRC 0x22: conditionsNotCorrect
+      notes: NRC 0x22 (conditionsNotCorrect) in SLEEP (locked).
 
     B009:
       vehicle_states: []
@@ -870,8 +807,7 @@ BCM:
       verified: true
       true: "2FB00903"
       false: "2FB00900"
-      notes: >
-        Sleep (locked): NRC 0x22: conditionsNotCorrect
+      notes: NRC 0x22 (conditionsNotCorrect) in SLEEP (locked).
 
     B00A:
       vehicle_states: []
@@ -879,8 +815,7 @@ BCM:
       verified: false
       true: "2FB00A03"
       false: "2FB00A00"
-      notes: >
-        Sleep (locked): NRC 0x22: conditionsNotCorrect
+      notes: NRC 0x22 (conditionsNotCorrect) in SLEEP (locked).
 
     B00F:
       vehicle_states: []
@@ -888,8 +823,7 @@ BCM:
       verified: false
       true: "2FB00F03"
       false: "2FB00F00"
-      notes: >
-        Sleep (locked): No visible effect, but no NRC
+      notes: No visible effect and no NRC in SLEEP (locked).
 
     B019:
       vehicle_states: []
@@ -897,9 +831,7 @@ BCM:
       verified: true
       true: "2FB01903"
       false: "2FB01900"
-      notes: >
-        Sleep (locked): No visible effect, but no NRC
-        ACC: Confirmed
+      notes: Works in ACC; no visible effect (no NRC) in SLEEP (locked).
 
     B01A:
       vehicle_states: []
@@ -907,8 +839,6 @@ BCM:
       verified: false
       true: "2FB01A03"
       false: "2FB01A00"
-      notes: >
-        Adjacent to room lamp — may be reading lamp or trunk lamp?
 
     B025:
       vehicle_states: [SLEEP, PLUGGED]
@@ -923,8 +853,7 @@ BCM:
       verified: false
       true: "2FB02803"
       false: "2FB02800"
-      notes: >
-        ACC: ConditionsNotCorrect
+      notes: NRC 0x22 (conditionsNotCorrect) in ACC.
 
     B029:
       vehicle_states: []
@@ -932,8 +861,6 @@ BCM:
       verified: false
       true: "2FB02903"
       false: "2FB02900"
-      notes: >
-        Possibly window or wiper motor.
 
     B030:
       vehicle_states: []
@@ -941,8 +868,6 @@ BCM:
       verified: false
       true: "2FB03003"
       false: "2FB03000"
-      notes: >
-        Possibly wiper/washer pump.
 
     B038:
       vehicle_states: []
@@ -985,8 +910,6 @@ BCM:
       verified: false
       true: "2FB05703"
       false: "2FB05700"
-      notes: >
-        Mirror/handle region.
 
     B059:
       vehicle_states: []
@@ -994,9 +917,9 @@ BCM:
       verified: true
       true: "2FB05903"
       false: "2FB05900"
-      notes: >
-        Sleep (locked): NRC 0x22: conditionsNotCorrect
-        e-Niro labels as heated door handle. May refer to heated steering wheel on Ioniq?
+      notes: >-
+        Labelled heated door handle on the e-Niro; drives the heated steering wheel on this car. NRC
+        0x22 (conditionsNotCorrect) in SLEEP (locked).
 
     B05A:
       vehicle_states: []
@@ -1004,8 +927,7 @@ BCM:
       verified: true
       true: "2FB05A03"
       false: "2FB05A00"
-      notes: >
-        Sleep (locked): NRC 0x22: conditionsNotCorrect
+      notes: NRC 0x22 (conditionsNotCorrect) in SLEEP (locked).
 
     B05B:
       vehicle_states: [ALL]
@@ -1013,9 +935,8 @@ BCM:
       verified: true
       true: "2FB05B03"
       false: "2FB05B00"
-      notes: >
-        Fold side mirrors in. From e-Niro, confirmed on Ioniq.
-        Must be turned off again for the mirror unfold command (B05C) to work!
+      notes: >-
+        Folds the side mirrors in (e-Niro DID). Must be turned off again before B05C (unfold) works.
 
     B05C:
       vehicle_states: [ALL]
@@ -1023,8 +944,7 @@ BCM:
       verified: true
       true: "2FB05C03"
       false: "2FB05C00"
-      notes: >
-        Unfold side mirrors. From e-Niro, confirmed on Ioniq.
+      notes: Unfolds the side mirrors (e-Niro DID).
 
     B061:
       vehicle_states: []
@@ -1032,8 +952,7 @@ BCM:
       verified: false
       true: "2FB06103"
       false: "2FB06100"
-      notes: >
-        NRC 0x31: requestoutotRange (Tested with and without ACC power)
+      notes: NRC 0x31 (requestOutOfRange), with and without ACC power.
 
     B071:
       vehicle_states: [ALL]
@@ -1055,10 +974,9 @@ BCM:
       verified: false
       true: "2FC00103"
       false: "2FC00100"
-      notes: >
-        WARNING: C0xx is the TPMS/body-comfort DID range. C001-C006 may be TPMS sensor
-        registration or reset commands. Do NOT activate (03) without understanding —
-        could reset TPMS pairing. Discovered via returnControl (00) probe only.
+      notes: >-
+        C001-C006 lie in the TPMS DID range and were found by a returnControl (00) probe only. Do
+        not activate (03) blind: it may reset TPMS pairing.
 
     C002:
       vehicle_states: []
@@ -1066,8 +984,7 @@ BCM:
       verified: false
       true: "2FC00203"
       false: "2FC00200"
-      notes: >
-        WARNING: TPMS region. See C001 notes. Do not activate without understanding.
+      notes: TPMS DID range; do not activate blind. See C001.
 
     C003:
       vehicle_states: []
@@ -1075,8 +992,7 @@ BCM:
       verified: false
       true: "2FC00303"
       false: "2FC00300"
-      notes: >
-        WARNING: TPMS region. See C001 notes. Do not activate without understanding.
+      notes: TPMS DID range; do not activate blind. See C001.
 
     C004:
       vehicle_states: []
@@ -1084,9 +1000,7 @@ BCM:
       verified: false
       true: "2FC00403"
       false: "2FC00400"
-      notes: >
-        WARNING: TPMS region. See C001 notes. C004-C007 are the 4 TPMS sensor
-        registration read DIDs — IOControl on these could trigger sensor re-learn.
+      notes: TPMS DID range; do not activate blind. See C001.
 
     C005:
       vehicle_states: []
@@ -1094,8 +1008,7 @@ BCM:
       verified: false
       true: "2FC00503"
       false: "2FC00500"
-      notes: >
-        WARNING: TPMS region. See C004 notes.
+      notes: TPMS DID range; do not activate blind. See C001.
 
     C006:
       vehicle_states: []
@@ -1103,8 +1016,7 @@ BCM:
       verified: false
       true: "2FC00603"
       false: "2FC00600"
-      notes: >
-        WARNING: TPMS region. See C004 notes.
+      notes: TPMS DID range; do not activate blind. See C001.
 
   research:
     - type: decode
@@ -1112,52 +1024,29 @@ BCM:
       status: captured
       priority: P2
       vehicle_states: [ACC]
-      notes: "LIKELY INCORRECT. Reads B05=0x3F (=63), constant across all 23 captures; never observed to change. '6 days set' is an unverified pattern-match, likely a static config/format byte rather than the live schedule. Re-capture after toggling schedule days to find which bytes actually move."
+      notes: >-
+        B05 reads 0x3F in every capture. Capture after changing the charge-schedule days to see
+        whether any byte moves.
       sources:
         - "Captured 2026-04-15"
-    - type: decode
-      target: "22B00D"
-      status: done
-      priority: P2
-      vehicle_states: [ACC]
-      result: >-
-        2026-10-22: the varying bytes are B10 (light-stalk position: 0 OFF, 1 AUTO, 3 ON,
-        BCM_LIGHT_SW_POSITION) and B11 (bit 4 the 22B003 B18 input, bits 3/5 pulses), not B07/B08 as
-        noted. Nothing in this DID moved with a preheat setting.
-      notes: "LIKELY NOT PREHEAT. B03-B05=0xFCFCE0 constant across all 23 captures; the only bytes that vary are B07 (0x00->0x03) and B08 (0x00->0x10). Preheat-timer interpretation is unverified and probably incorrect. Re-capture after changing preheat settings to see whether any byte tracks the change."
-      sources:
-        - "Captured 2026-04-15"
-      updated: "2026-10-22"
     - type: decode
       target: "22B007"
       status: captured
       priority: P2
       vehicle_states: [ACC]
-      notes: "LIKELY INCORRECT. 0x01E0 (=480) is constant across all 25 captures and never changed; 480=08:00 is an unverified pattern-match. The bytes that vary between captures are elsewhere (payload B08/B09 area), not the 0x01E0 this reads. Probably a fixed config/format constant, not the departure time. Re-capture after changing the departure time to confirm."
+      notes: >-
+        B07:B09 reads 0x01E0 (480) in every capture. Capture after changing the departure time to
+        see whether any byte moves.
       sources:
         - "Captured 2026-04-15"
-    - type: decode
-      target: "22B001-B00A, B00F"
-      status: done
-      priority: P3
-      vehicle_states: [ACC]
-      result: >-
-        2026-10-22 corpus pass: B001 and B00C constant in every capture; B00F has one capture.
-        Ignition-on bits in B004 B10, B007 B11:2, B008 B13:2, B009 B10:3/B12:3, B00A B12:6 (all
-        disabled mirrors); B008 B12:4 brake switch; B005 B10:3 unlocked-or-ignition; B00D B10
-        light-stalk position; B004 B12:5, B00A B11:3, B00D B11:4 the 22B003 B18 input. Still
-        unexplained: B002 B10:0 (2/3, changes between days), B00A B10:2 (one charging session), B004
-        B11:6 and B00D B11:3 pulses with the ignition off.
-      notes: "BCM body data pages, all responding, mostly undecoded. B001 config flags (20B), B003 dense bitfields (27B), B004 voltage/current, B009 repeating FEEE."
-      sources:
-        - "Captured 2026-04-15"
-      updated: "2026-10-22"
     - type: iocontrol_scan
       target: "2F B073-B0FF"
       status: done
       priority: P2
       vehicle_states: [ACC]
-      notes: "B000-B0FF complete (24 DIDs, all in B000-B072). B100-B1FF empty. C000-C0FF has 6 new (C001-C006, TPMS region). E000-E0FF empty. Scanned 2026-04-18."
+      notes: >-
+        B000-B0FF: 24 DIDs, all in B000-B072. C000-C0FF: 6 (C001-C006). B100-B1FF and E000-E0FF:
+        none. Scanned 2026-04-18.
       sources:
         - "IOControl scan 2026-04-15, 2026-04-18"
     - type: scan
@@ -1167,23 +1056,13 @@ BCM:
       created: "2026-07-24"
       updated: "2026-07-23"
       date: "2026-07-22"
-      result: present; SecurityAccess uses a non-trivial seed-key (no simple transform)
-      notes: "BCM supports SecurityAccess (0x27) in the 10 03 extended session: 27 01 returns a fresh random 4-byte seed each request. The seed-key is a non-trivial HKMC scheme (likely SA2 bytecode/secret), not a simple transform, so opening security access requires dealer-level tooling — out of scope for canair (read/diagnostics only). Aggressive lockout (~2 attempts -> NRC 0x37 11s delay)."
+      result: present; non-trivial seed-key
+      notes: >-
+        In the extended session (10 03), 27 01 returns a fresh random 4-byte seed on each request;
+        the key is not a simple transform of it. Lockout after about 2 wrong keys (NRC 0x37, 11 s
+        delay).
       sources:
         - on-car 2026-07-22
-    - type: decode
-      target: 22B004 B10 (enum, not bitfield)
-      status: done
-      priority: P3
-      created: "2026-08-06"
-      updated: "2026-10-22"
-      result: >-
-        2026-10-22: 14 = ignition on (equals IGN1_SWITCH in all 326 aligned rows and
-        BCM_IGN_SUPPLY_V in all 959), 0 = off. Defined as the disabled enum BCM_IGN_STATE_B004. 192
-        still only in 2 untimed 2026-04-17 SLEEP captures.
-      notes: "coverage --bitfields reports 'BITS B11 have{6}' for this PID, but B10 is the byte carrying the live signal and it is an ENUM, not independent flags: across 893 captures it takes only 3 values — 0 (n=861), 14 = bits 1,2,3 (n=30), 192 = bits 6,7 (n=2). Bits 1/2/3 never move independently, nor do 6/7, so defining them as separate flags would misrepresent one state code as five flags. Value 14 coincides with READY / powered states, 0 with SLEEP; n=2 for 192 is too thin to name."
-      what_to_test:
-        - "Model B10 as a whole-byte enum (type: enum with values 0/14/192) once each value has a confirmed state. Capture more instances of value 192 to identify it."
     - type: verify
       target: 22C011
       status: captured
@@ -1191,7 +1070,10 @@ BCM:
       vehicle_states: [ACC, READY]
       created: "2026-08-07"
       updated: "2026-08-07"
-      notes: "Identify BCM_EVENT_COUNTER_C011 (B13:B14, monotonic 9835->10092 over 112 days, ~2.3/day, 7.24 km per count lifetime). Controlled test: read 22C011, cycle the ignition ONCE without moving the car, re-read. +1 => ignition/power-cycle count; unchanged => distance-gated trip count. Repeat with a short drive to separate the two."
+      notes: >-
+        BCM_EVENT_COUNTER_C011 only rises. Read 22C011, cycle the ignition once without moving the
+        car, and re-read: +1 means a power-cycle count, unchanged a distance-gated count. Repeat
+        with a short drive to separate the two.
     - type: verify
       target: 22B005 B10:5-7 / 22B003 B12,B14 light stalk + auto-light
       status: captured
@@ -1200,10 +1082,9 @@ BCM:
       created: "2026-10-22"
       updated: "2026-10-22"
       notes: >-
-        Stalk OFF/lamps-on/AUTO decoded from 2026-04-17..2026-10-22 captures (BCM_LIGHT_SW_*,
-        BCM_LIGHT_SW_ADC, and the 22B00D enum BCM_LIGHT_SW_POSITION); BCM_AMBIENT_LIGHT is a
-        candidate auto-headlight sensor. Parking-light position and the AUTO on/off threshold are
-        uncaptured.
+        Stalk OFF, lamps-on and AUTO are decoded (BCM_LIGHT_SW_*, BCM_LIGHT_SW_ADC,
+        BCM_LIGHT_SW_POSITION). Not captured: the parking-light position, and whether
+        BCM_AMBIENT_LIGHT is the auto-headlight sensor (its AUTO on/off threshold).
       what_to_test:
         - Stalk OFF, AUTO, parking, low beam (~3 s each); parking = B10:5 alone?
         - "AUTO, cover dash sensor: BCM_AMBIENT_LIGHT at LOW_BEAM on and off"
@@ -1216,7 +1097,11 @@ BCM:
       priority: P3
       created: "2026-10-22"
       updated: "2026-10-22"
-      notes: "Analog input with three bands that changes only between sessions: ~247 open, 109-136 (07-22, 08-01..08-15 morning), 158-159 (08-15 from 10:03). 22B004 B12:5, 22B00A B11:3 and 22B00D B11:4 are its digital reading; 22B00D B11:3 pulses only while it is set. Owner does not recall what was set differently over those weeks."
+      notes: >-
+        Analog input with three bands that changes only between sessions: ~247 open, 109-136 (07-22,
+        08-01 to 08-15 morning), 158-159 (08-15 from 10:03). 22B004 B12:5, 22B00A B11:3 and 22B00D
+        B11:4 are its digital reading; 22B00D B11:3 pulses only while it is set. The owner does not
+        recall what was set differently over those weeks.
       what_to_test:
         - "With 22B003 and 22B004 polled, step one control at a time and hold ~5 s each: wiper stalk (OFF/AUTO-INT, each ring position), rear wiper, headlamp levelling dial, dimmer, seat heaters, 12 V socket plug, mirror switch; watch for B18 leaving ~247."
       capture_protocol: >-
@@ -1230,11 +1115,10 @@ BCM:
       created: "2026-10-23"
       updated: "2026-10-23"
       notes: >-
-        Four ignition-switched analog channels, identical in every capture. The BCM has two ignition
-        terminals in the button-start chain (IGN1 and IGN2) plus two IG2 heated-steering supplies.
-        During the START phase only IGN1 stays on (IGN2 and ACC drop out), so a fast recording
-        across the OFF to READY sequence may separate the channels. Taken from US-market wiring;
-        unconfirmed on the EU car.
+        Four ignition-switched analog channels, identical in every capture. The BCM has IGN1 and
+        IGN2 plus two IG2 heated-steering supplies; during START only IGN1 stays on (IGN2 and ACC
+        drop out), so a fast recording across OFF to READY may separate the channels. Terminal list
+        from US-market wiring.
       what_to_test:
         - Record BCM 22B003 with --keep-all at the fastest interval across a brake-pressed OFF to READY start and look for a channel that dips while the others stay up.
       capture_protocol: >-
@@ -1248,11 +1132,10 @@ BCM:
       created: "2026-10-27"
       updated: "2026-10-27"
       notes: >-
-        Our TYRE_PRESSURE_RL is B19 and TYRE_PRESSURE_RR is B23 (original WiCAN config, never
-        checked against a single tyre). OBDb Hyundai-IONIQ-Electric and Kia-Niro (older layout) read
-        the same bytes as rear right then rear left. OBDb Kona-Electric, Niro-EV and Soul-EV read
-        them as rear left then rear right, so the community is split. Both rear pressures sit in the
-        same 35-41 psi band, so no existing capture decides it.
+        TYRE_PRESSURE_RL is B19 and TYRE_PRESSURE_RR B23 (original WiCAN config, never checked
+        against a single tyre). OBDb is split: Hyundai-IONIQ-Electric and the older Kia-Niro layout
+        read the pair as rear right then rear left; Kona-Electric, Niro-EV and Soul-EV as rear left
+        then rear right. Both rear tyres sit at 35-41 psi, so no capture decides it.
       sources:
         - OBDb Hyundai-IONIQ-Electric signalset and its tests/test_cases (2017/2018 command_support), compared 2026-10-27
       what_to_test:
@@ -1267,8 +1150,21 @@ BCM:
       vehicle_states: [READY, CHARGING]
       created: "2026-10-29"
       updated: "2026-10-29"
-      result: "Same layout as IGPM 22BC03-07 (see that research entry), with exceptions. In 22B004-22B00E the four constant bytes B05, B06, B07, B09 map the data bits of B10, B11, B12, B13, MSB first: 34 of the 41 bits ever set lie inside the map, against 12-20 for a random pairing (99th percentile 20). 22B003 uses a per-byte version: map BF 8B 80 00 marks B10, B12-B15, B17-B19, B23 and B26-B28 as signals; 11 of its 12 varying bytes are inside (B20, an unconnected input, is not). B11, the constant ~4.9 V reading, is outside; B15, B17 and B19 are inside but undefined."
-      notes: "EXCEPTION: in 22B005 (map 20 00 10 00) only B10:2 and B12:3 are marked, yet BCM_LIGHT_SW_AUTO (B10:6), BCM_LIGHT_SW_ON_B5/B7 (B10:5, B10:7) and BCM_UNLOCKED_OR_IGN_ON (B10:3) all move and are backed by the 2026-10-22 AUTO test, so the map is not authoritative on the BCM. Also outside a map: BCM_B004_B12_5 (22B004 map byte 0x99 marks B12:0, 3, 4, 7), possibly the second bit of a field that starts at bit 4. Marked bits with no definition, MOVING (now candidate signals): 22B004 B12:7 (0 in 7 of 2349: 2026-04-17 x2, 2026-10-25 x5), B13:4 (6: 2026-07-22, 2026-10-25); 22B00A B10:2 (250 of 1694, 238 of them in the 2026-07-27 AC charge), B11:5 (3), B11:6 (0 in 5, all 2026-10-25), B12:7 (82, spread over 8 dates); 22B00C B10:2 (2, 2026-10-25). 22B007 B12:7 and B13:0-2 are set in one row only (2026-10-25 12:23:32, a session with many transport errors), so probably a bad read. ALWAYS 1: 22B005 B12:3, 22B008 B11:3 and B11:7, 22B00A B12:0 and B12:2. NEVER SET: 22B004 B12:0, B12:4, B13:5; 22B008 B11:1, B12:5; 22B009 24 of its 26 marked bits; 22B00A B10:0, B10:1, B10:6, B10:7, B11:0-2, B11:4, B12:1; 22B00C B10:3-B10:7; 22B00D B11:0-2, B12:0-2; 22B00E B10:4."
+      result: >-
+        Same layout as IGPM 22BC03-07. In 22B004-22B00E the constant bytes B05, B06, B07, B09 map
+        the data bits of B10, B11, B12, B13, MSB first: 34 of the 41 bits ever set lie inside the
+        map, against 12-20 for a random pairing. 22B003 uses a per-byte map (BF 8B 80 00) marking
+        B10, B12-B15, B17-B19, B23 and B26-B28; 11 of its 12 varying bytes are inside (not B20, an
+        unconnected input).
+      notes: >-
+        Exceptions: in 22B005 (map 20 00 10 00) only B10:2 and B12:3 are marked, yet B10:3 and
+        B10:5-7 move (unlock, light stalk), so the map is not authoritative on the BCM.
+        BCM_B004_B12_5 is outside the 22B004 map (0x99 marks B12:0, 3, 4, 7). 22B007 B12:7 and
+        B13:0-2 are set in one row only, in a session with many transport errors (2026-10-25
+        12:23:32). Always 1: 22B005 B12:3, 22B008 B11:3 and B11:7, 22B00A B12:0 and B12:2. Never
+        set: 22B004 B12:0, B12:4, B13:5; 22B008 B11:1, B12:5; 22B009 24 of its 26 marked bits;
+        22B00A B10:0, B10:1, B10:6, B10:7, B11:0-2, B11:4, B12:1; 22B00C B10:3-7; 22B00D B11:0-2,
+        B12:0-2; 22B00E B10:4.
       sources:
         - byte sweep over all stored BCM captures, 2026-10-29
       what_to_test:
@@ -1280,7 +1176,10 @@ BCM:
       vehicle_states: ["ON"]
       created: "2026-10-30"
       updated: "2026-10-30"
-      notes: The 2026-04-20 0x31 sweep ran in SLEEP and was cut off at C8D2. ES95486 allows RoutineControl only with ignition on and the car not READY, so NRC 0x22 answers (12A1) may change in ON. Manufacturer routine ids are 0200-DFFF; F000-FEFF (the scan default F000-F0FF) is the supplier range.
+      notes: >-
+        The 2026-04-20 0x31 sweep ran in SLEEP and stopped at C8D2. ES95486 allows RoutineControl
+        only with the ignition on and the car not READY, so the NRC 0x22 answers (12A1) may differ
+        in ON. Manufacturer routine IDs are 0200-DFFF; F000-FEFF is the supplier range.
       sources:
         - ES95486-00 sections 3.1 and 8.1
       what_to_test:

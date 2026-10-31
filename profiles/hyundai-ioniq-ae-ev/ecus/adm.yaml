@@ -1,7 +1,5 @@
 # ─── ADM (Assist Door Module) ─────────────────────────────────────────
 # Assist (passenger) door module at 0x7A2. Part: 93575G2160
-# (Previously misidentified as "SWRC-R" / steering-wheel remote — corrected 2026-07-27.)
-# No live data DIDs discovered yet. Service 22 ranges untested.
 ADM:
   tx_id: 0x7A2
   can_bus: [B-CAN]
@@ -14,7 +12,7 @@ ADM:
     id_protocol: UDS  # F1xx (same pattern as DDM)
     notes: Assist (front passenger) door module. No readable live-data DIDs found.
   vehicle_states: [PLUGGED, ACC, "ON", READY, CHARGING]
-  scan_log: # ADM (assist door module)
+  scan_log:
     - service: 0x22
       range: "0101-010F,B001-B010,C101-C10F"
       date: 2026-07-22

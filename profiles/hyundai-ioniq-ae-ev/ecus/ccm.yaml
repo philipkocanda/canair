@@ -1,10 +1,9 @@
 # ─── CCM (Charge Control Module) ──────────────────────────────────
-# Power Line Communication (PLC) for DC CCS fast-charging at 0x733. Part: 91950G7200
+# Power Line Communication (PLC) for DC CCS fast-charging at 0x733, under the front left seat.
 # Its firmware has 11 DIDs (10 readable, 12A0 write-only; see pids:): identification, the last
 # three CCS session logs (C350) and live session status (CC01). Live charging values are on the
-# broadcast frames 0x5E5-0x5E9 (signals/powertrain.yaml). The 2026-04-17 scan did not cover them.
-#
-# Confirmed physical location: under front left seat!
+# broadcast frames 0x5E5-0x5E9 (signals/powertrain.yaml). The DID descriptions below come from
+# the CCM firmware (uhi22 code-flash dump, DID read callbacks decompiled in Ghidra).
 
 # https://www.projectgus.com/2024/12/fakon/
 # https://github.com/uhi22/Ioniq28Investigations/blob/main/CCM_ChargeControlModule_PLC_CCS/readme.md
@@ -23,10 +22,10 @@ CCM:
     notes: >-
       Charge Control Module (power-line communication for CCS DC charging). Answers identity and DTC
       requests at ignition-on, with no live-data DIDs then. Not scanned during a DC fast charge.
-  # 0x744 removed — never responded positively. Discovery scan (2026-04-17) returned
-  # CAN-level errors, service 21 scan during AC charging (2026-04-18) returned 255 NO DATA.
+  # 0x744 does not answer: CAN-level errors on discovery (2026-04-17), NO DATA to service 21
+  # during AC charging (2026-04-18).
   vehicle_states: [CHARGING]
-  scan_log: # CCM / PLC (DC fast-charge)
+  scan_log:
     - service: 0x22
       range: "0100-010F,B001-B010"
       date: 2026-07-22
@@ -38,52 +37,44 @@ CCM:
       status: static
       vehicle_states: ["ON", READY]
       notes: >-
-        Returns 4 bytes from the stored identification block: ASCII '1104' on uhi22's unit, the
-        application software version this profile lists as identity app_sw. Source: CCM firmware
-        (uhi22 code-flash dump), DID read callbacks decompiled in Ghidra.
+        4 bytes from the stored identification block: ASCII '1104' on uhi22's unit, the application
+        software version (identity app_sw).
     22F102:
       status: static
       vehicle_states: ["ON", READY]
       notes: >-
-        Returns 6 bytes from the stored identification block: the CCM's PLC MAC address, which it
-        sends to the charger as the EVCCID (uhi22's unit: the stored MAC equals the EVCCID in all 8
-        of his DC sessions). Chargers that offer Autocharge use the EVCCID to identify and bill the
-        car, so treat the value like the VIN: never contribute it, and redact it from captures.
-        Source: CCM firmware (uhi22 code-flash dump), DID read callbacks decompiled in Ghidra.
+        6 bytes from the stored identification block: the PLC MAC address, which the CCM sends to
+        the charger as the EVCCID (equal in all 8 of uhi22's DC sessions). Chargers that offer
+        Autocharge use it to identify and bill the car, so treat it like the VIN: never contribute
+        it, and redact it from captures.
     22F103:
       status: static
       vehicle_states: ["ON", READY]
-      notes: >-
-        Returns the 2 ASCII bytes '11', a constant in the firmware. Source: CCM firmware (uhi22
-        code-flash dump), DID read callbacks decompiled in Ghidra.
+      notes: The 2 ASCII bytes '11', a firmware constant.
     22BCFF:
       status: draft
       vehicle_states: ["ON", READY]
       notes: >-
-        Returns the 4 ASCII bytes '1033', a constant in the firmware: the software version (F195
-        '103') plus one more digit. The IGPM's 22BCFF ('1090', software version 109) follows the
-        same convention. Source: CCM firmware (uhi22 code-flash dump), DID read callbacks decompiled
-        in Ghidra.
+        The 4 ASCII bytes '1033', a firmware constant: the software version (F195 '103') plus one
+        digit. The IGPM's 22BCFF ('1090', software version 109) follows the same convention.
     22C350:
       status: draft
       vehicle_states: ["ON", READY]
       notes: >-
-        The CCM's last three CCS charging-session logs. The read callback copies one 259-byte record
-        and steps back one record each time, so three reads in a row return the newest, then the two
-        older ones. A record holds the session counter, a snapshot of every vehicle input the CCM
-        received (the 0x599, 0x59C, 0x59E, 0x5A3, 0x57F and 0x5D5 fields), the CCM's own state
-        (including its internal stop reason and the charger's last DIN 70121 EVSEStatusCode) and the
-        charger's parameters. Saved to data flash at session stages. The place to look after a DC
-        fast-charge abort such as DTC C182C. Source: CCM firmware (uhi22 code-flash dump), DID read
-        callbacks decompiled in Ghidra.
+        The last three CCS charging-session logs. Each read returns one 259-byte record and steps
+        back one, so three reads in a row return the newest, then the two older ones. A record holds
+        the session counter, a snapshot of every vehicle input the CCM received (the 0x599, 0x59C,
+        0x59E, 0x5A3, 0x57F and 0x5D5 fields), the CCM's own state (including its internal stop
+        reason and the charger's last DIN 70121 EVSEStatusCode) and the charger's parameters. Saved
+        to data flash at session stages. The place to look after a DC fast-charge abort such as DTC
+        C182C.
     2212A0:
       status: ignored
       vehicle_states: ["ON", READY]
       notes: >-
-        WRITE-ONLY factory DID; the firmware has no read callback. A service 2E write of FF + 24
+        Write-only factory DID; the firmware has no read callback. A service 2E write of FF + 24
         bytes replaces the stored identification block (part number, date, PLC MAC, software
-        version); FE pushes the stored MAC to the PLC modem. NEVER write it. Source: CCM firmware
-        (uhi22 code-flash dump), DID read callbacks decompiled in Ghidra.
+        version); FE pushes the stored MAC to the PLC modem. Never write it.
     22CC01:
       status: draft
       vehicle_states: ["ON", READY]
@@ -91,15 +82,13 @@ CCM:
         Live CCS session status, 8 bytes: FF FF FF C0, then four bytes of packed CCM state bits.
         Byte 5: bits 0-2 the charger's last DIN 70121 EVSEStatusCode, bits 3-6 the CCM's internal
         stop reason, bit 7 a stop flag (the same layout as broadcast 0x5E8 byte 6). Bytes 4, 6 and 7
-        are other session flags (not decoded). Source: CCM firmware (uhi22 code-flash dump), DID
-        read callbacks decompiled in Ghidra.
+        are other session flags (not decoded).
   dtcs:
     C182C:
       description: "DC fast-charge (CCS) charging / PLC communication failure"
       source: >
-        canair RE — stored on the CCM (Charge Control Module, Power Line
-        Communication) charge controller; correlated with an owner-observed DC
-        fast-charge (DCFC) abort. Also in the CCM firmware's DTC table (uhi22 code-flash dump).
+        Stored on the CCM after an owner-observed DC fast-charge abort; also in the CCM firmware's
+        DTC table (uhi22 code-flash dump).
       verified: false
     # The rest of the CCM firmware's DTC table (uhi22 code-flash dump, entries 0x582B00 ...
     # 0x586500, failure type 00). Meanings are not in the firmware.
@@ -132,11 +121,24 @@ CCM:
       vehicle_states: ["ON", READY]
       created: "2026-10-30"
       updated: "2026-10-30"
-      result: "Firmware read callbacks: F187 part number, F18B date, F102 PLC MAC (EVCCID) and F101 '1104' from the stored identification block; F193 '101', F195 '103', F103 '11' and BCFF '1033' are constants; C350 returns the last three 259-byte CCS session logs, one per read (newest first); CC01 returns 8 bytes of live session status; 12A0 has no read callback and is a write-only factory DID. Services 10, 11, 14, 19, 20, 22, 27, 28, 29, 2E, 31, 3E, 85; no 21, 23 or 2F (no IOControl). This matches projectgus's Kona scan of 0x733. Session sub-functions in the table: 01, 02, 03, 04, 05, 10, 81, 85, 90. Only V2G namespace in the image: urn:din:70121:2012 (DIN SPEC 70121 only, no ISO 15118 or Plug and Charge)."
-      notes: "The 2026-04-17 and 2026-07-22 scans covered only 0100-010F and B001-B010. SAFETY: read only (service 22). Never write 12A0: FF + 24 bytes replaces the part number, date, MAC and software version. Do not open sessions other than 01/03: 02 and 85 are the usual programming sessions; 04, 05, 10 and 90 are unidentified. The routine table looks like the standard reprogramming set (FF00, FF01). EV limits this car sends a charger, from uhi22's DIN 70121 logs: max 200 A, 412.8 V, 98 kW; capacity 28000 Wh; FullSOC 94, BulkSOC 83; energy request = capacity x (100 - SOC) %."
+      result: >-
+        Firmware (not yet read on the car): DIDs as listed under pids:. Services 10, 11, 14, 19, 20,
+        22, 27, 28, 29, 2E, 31, 3E and 85; no 21, 23 or 2F (no IOControl), matching projectgus's
+        Kona scan of 0x733. Session sub-functions 01, 02, 03, 04, 05, 10, 81, 85 and 90. The only
+        V2G namespace is urn:din:70121:2012 (DIN SPEC 70121 only, no ISO 15118 or Plug and Charge).
+      notes: >-
+        The 2026-04-17 and 2026-07-22 scans covered only 0100-010F and B001-B010. Read only (service
+        22): never write 12A0, and open no session other than 01/03 (02 and 85 are the usual
+        programming sessions; 04, 05, 10 and 90 are unidentified). EV limits this car sends a
+        charger, from uhi22's DIN 70121 logs: max 200 A, 412.8 V, 98 kW; capacity 28000 Wh; FullSOC
+        94, BulkSOC 83.
       sources:
-        - uhi22 CCM code-flash and data-flash dumps decompiled in Ghidra (references/can/ccm-ghidra); uhi22 CCM readme; projectgus kona_service_ids.txt; 2026-10-29/30
+        - >-
+          uhi22 CCM code-flash and data-flash dumps decompiled in Ghidra (references/can/ccm-ghidra);
+          uhi22 CCM readme; projectgus kona_service_ids.txt; 2026-10-29/30
       what_to_test:
         - "Ignition on: canair read CCM:22F101,22F103,22BCFF,22CC01 --save --label 'CCM firmware DIDs'"
-        - "Read CCM:22C350 three times in a row with --save: three session logs, newest first. Best right after a DC fast charge, or after a failed one."
+        - >-
+          Read CCM:22C350 three times in a row with --save: three session logs, newest first. Best
+          right after a DC fast charge, or after a failed one.
         - "Read CCM:22F102 separately without --save: it is the car's EVCCID (Autocharge identity)."

@@ -1,6 +1,6 @@
 # ─── VCU (Vehicle Control Unit) ──────────────────────────────────────
 #
-# Sometimes referred to as VMCU, though the distinction is vague..
+# Also called the VMCU.
 #
 # The VCU is the logical brain of the EV powertrain:
 # - Torque requests (accelerator input, cruise control)
@@ -8,20 +8,16 @@
 # - Regen braking strength (0-1-2-3) and brake blending
 # - Coordination between motor, inverter, battery, and safety systems
 # - Calculates remaining range
-# - Controls allowed AC power 
+# - Controls allowed AC power
 # - Decides and runs the parked 12V battery top-up once woken (the Aux. Battery Saver+ setting is
-#   in the cluster's user settings). What wakes it is open: see the IGPM research entry.
+#   in the cluster's user settings). What wakes it: see the IGPM research entry.
 # - Controls ECO setting and drive modes
 # - Preconditioning (climate) timer, charge timer, charge power limit settings.
 #
 # The Vehicle Control Unit (VCU) and Motor Control Unit (MCU, the inverter)
 # are both part of the Electronic Powertrain Control Unit (EPCU) physical housing.
 #
-# KWP2000 diagnostic sessions (service 0x10) — probed 2026-07-22, car in READY:
-# see the structured `sessions:` field at the end of this ECU block.
-# Only 0x81 is accepted; 21xx reads work in the default session too — no session
-# unlocks extra data. Payload sizes are session-independent: 2101=22B, 2102=23B;
-# 2103/2104/2105 → NRC 0x12 (do not exist).
+# Only KWP2000 session 0x81 is accepted; no session unlocks extra data. 2103-2105 answer NRC 0x12.
 #
 VCU:
   tx_id: 0x7E2
@@ -52,12 +48,10 @@ VCU:
           min: "0"
           max: "250"
           notes: >-
-            16-bit MPH (high byte B20 signed, low byte B19 unsigned) converted to km/h. r=0.999 vs
-            ESC:22C101:REAL_SPEED_KMH (n=124, 2026-07-22 drive, 0-105.7 km/h). Reads about 3.6 %
-            above true speed, so it is probably the speed the cluster shows: over all stored drives
-            above 30 km/h, MCU_MOTOR_RPM is 61.8 rpm per km/h of this signal (n=1372, IQR 61.6-62.1)
-            against 64.07 expected from the 7.412 reduction ratio and 1928 mm tyre circumference
-            (uhi22) and 63.96 measured against ESC REAL_SPEED_KMH.
+            Speed in MPH (B20 signed high byte, B19 low byte) converted to km/h. r=0.999 vs
+            ESC:22C101:REAL_SPEED_KMH (n=124, 0-105.7 km/h). Reads about 3.6 % above true speed:
+            above 30 km/h MCU_MOTOR_RPM is 61.8 rpm per km/h of this signal (n=1372) against 64.07
+            from the 7.412 reduction ratio and 1928 mm tyre circumference.
           source: VCU 2101 speed lead (MPH formula) + cross-ECU verification vs ESC, 2026-07-23
           enabled: true
         ACCEL_PEDAL_DEPTH:
@@ -68,8 +62,8 @@ VCU:
           source: "ITStromer community PID sheet (Accel Pedal Depth = m/2)"
           verified: false
           notes: >-
-            B18 = 0 with the pedal released and 200 (100 %) with it floored (ITStromer community
-            sheet). Captures: 0 % at rest, up to 56 % driving, up to 86 % pressed in Park.
+            B18 = 0 with the pedal released and 200 (100 %) floored (ITStromer sheet). Captures: up
+            to 56 % driving, up to 86 % pressed in Park.
 
         ACCEL_PEDAL_DEPTH_FINE:
           expression: ((B18<<8)|B17)/512
@@ -85,10 +79,9 @@ VCU:
         GEAR:
           expression: B10
           notes: >-
-            Values across 10592 VCU 2101 captures: 0x21 Park (8849), 0x28 Drive (1656), 0x22 Reverse
-            (70), 0x24 Neutral (7), 0x01 Park with GEAR_SIGNAL_VALID clear (10, at power-mode
-            transitions). Bits 0-3 are one-hot P/R/N/D, bit 5 is GEAR_SIGNAL_VALID, bits 4, 6 and 7
-            are always 0.
+            Values: 0x21 Park, 0x28 Drive, 0x22 Reverse, 0x24 Neutral (7 captures), 0x01 Park with
+            GEAR_SIGNAL_VALID clear (at power-mode transitions). Bits 0-3 are one-hot P/R/N/D, bit 5
+            is GEAR_SIGNAL_VALID; bits 4, 6 and 7 are always 0.
           type: enum
           values:
             1: park_gear_signal_invalid
@@ -105,9 +98,7 @@ VCU:
           notes: Bit 1 of GEAR. Matches ESC GEAR_SELECTOR=2 over the 2026-07-26 reversing.
         GEAR_N:
           expression: B10:2
-          notes: >-
-            Bit 2 of GEAR. Set in only 7 captures; ESC GEAR_SELECTOR was not polled at the same
-            time.
+          notes: Bit 2 of GEAR. Set in only 7 captures, none with ESC GEAR_SELECTOR co-polled.
         GEAR_D:
           expression: B10:3
           notes: Bit 3 of GEAR.
@@ -122,9 +113,8 @@ VCU:
         VEHICLE_STATE_NOT_BRAKING:
           expression: B11:1
           notes: >-
-            Not the complement of VEHICLE_STATE_BRAKE_LAMP: across 10592 VCU 2101 captures both read
-            0 in 6915 (mostly with the drive path down, VCU_POWER_STATE 7) and both read 1 in 6.
-            Meaningful only while VCU_POWER_STATE is 4.
+            Not the complement of VEHICLE_STATE_BRAKE_LAMP: both read 0 in most captures with the
+            drive path down (VCU_POWER_STATE 7). Meaningful only while VCU_POWER_STATE is 4.
 
         VEHICLE_STATE_EV_READY:
           expression: "B11:3"
@@ -132,55 +122,41 @@ VCU:
         VCU_IG3_ON:
           expression: "B11:4"
           notes: >-
-            1 while the IG3 rail is powered. In the 9 stored stretches where it stays 0 (B11 =
-            0x80), every OBC, BMS, MCU, AAF and HVAC page being polled stops at the fall and records
-            nothing more, while the VCU, IGPM and BCM keep answering and VCU 2102 stops updating;
-            1.7-3 min later the VCU stops answering too or the recording ends. Three of those
-            sessions stored every reply, so there the silence is a missing reply; the other six
-            stored only changes, but those pages had changed on every poll up to the fall. The other
-            8 zero readings are single samples at a wake or at a change from READY to DC charging,
-            and the IG3-fed ECUs answered again 1-40 s later. Equals BMS 2101 BMS_IG3_ON (B61:3) in
-            10845 of 10846 aligned rows. 1 in READY, AC and DC charging, the 12 V top-up and
-            ignition-on standby, so it is the rail, not one of the IG3 #1/#2/quick-charge relays.
-            Also 1 in all 250 replies of the uhi22 EPCU bench log, where the EPCU was powered on its
-            12 V and wake-line pins only, while VCU_IGN_ON reads 0: it follows the EPCU's own wake
-            input, not the ignition. Formerly VEHICLE_STATE_VCU_READY.
+            IG3 rail powered. When it falls (B11 = 0x80) the OBC, BMS, MCU, AAF and HVAC stop
+            answering and VCU 2102 stops updating, while the VCU, IGPM and BCM answer for another
+            1.7-3 min (9 stored stretches). Equals BMS_IG3_ON (BMS 2101 B61:3) in 10845 of 10846
+            aligned rows. 1 in READY, AC and DC charging, the 12 V top-up and ignition-on standby.
+            Reads 1 in the uhi22 EPCU bench log (EPCU on its 12 V and wake-line pins only) while
+            VCU_IGN_ON reads 0, so it follows the EPCU wake input, not the ignition.
           source: canair cross-ECU response-presence analysis 2026-10-23 (stored captures + JejuSoul US Ioniq logs)
 
 
         VEHICLE_STATE_EV_READY_MIRROR_B11_6:
           expression: B11:6
           notes: >-
-            Equals VEHICLE_STATE_EV_READY (B11:3) in all 10675 captures on this car. In the JejuSoul
-            US Ioniq logs it reads 1 with B11:3 at 0 at power-off (B11 = 0xD0 after a drive, 0xD2
-            after an AC charge), so it is a separate signal that only coincides with B11:3 here.
-            Disabled so it does not ship a duplicate; defined so bit 6 is accounted for.
+            Equals VEHICLE_STATE_EV_READY (B11:3) in every capture on this car. In the JejuSoul US
+            Ioniq logs it reads 1 with B11:3 at 0 at power-off (B11 = 0xD0 after a drive, 0xD2 after
+            an AC charge), so it is a separate signal. Disabled so it does not ship a duplicate.
           source: canair bitfield analysis 2026-08-06; decode --find-mirrors --bits, n=6365 unanimous
           enabled: false
         VEHICLE_STATE_LDC_ENABLED:
           expression: "1-B11:7"
           verified: false
           notes: >-
-            1 at READY (B11 = 0x5A) and while charging (0x10); 0 in accessory or off (B11 = 0x92,
-            0x91, 0x80) on the 2026-07-30 power cycle. Also 1 (B11 = 0x10) for the whole 2026-10-21
-            parked 12 V top-up run (35 captures, VCU_AUX_POWER 80-154 W, OBC LDC_HV_INPUT_V 390 V),
-            dropping to 0 (B11 = 0x80) when the run ended at 21:17:08. With VCU_POWER_STATE == 1 it
-            is the TOPUP state predicate: exact on all 35 captures, no false positive in the corpus.
-            ACC, ON and off are not told apart.
+            1 at READY (B11 = 0x5A), while charging and during the parked 12 V top-up (B11 = 0x10);
+            0 in accessory or off (B11 = 0x92, 0x91, 0x80). With VCU_POWER_STATE == 1 it is the
+            TOPUP state predicate (exact on all 35 top-up captures, no false positive). Does not
+            tell ACC, ON and off apart.
 
         VCU_APS1_VOLTAGE:
           expression: ((B13<<8)|B12)/2048
           unit: V
           verified: false
           notes: >-
-            Accelerator pedal sensor track 1, 16-bit little-endian; B12 is the low byte. r=+0.996 vs
-            ACCEL_PEDAL_DEPTH over 1607 DRIVING captures. Always 1.97x (1.91-2.37) VCU_APS2_VOLTAGE,
-            the usual two-track pedal sensor layout. Reads 0.80 V released and 3.55 V at 87.5 %
-            pedal. Scale check: in the uhi22 EPCU bench log (CAN/EPCU_torquePro.csv): the EPCU alone
-            on a desk, woken by its wake line, no other ECU on the bus, 250 VCU 2101 replies the
-            pedal inputs were potentiometers set to full (broadcast 0x200 byte 4 = 254,
-            ACCEL_PEDAL_DEPTH 100 %); this reads 3.93 V where uhi22's multimeter table gives 3.97 V
-            at 254, so 1/2048 V is within about 1 %.
+            Accelerator pedal sensor track 1, 16-bit little-endian. r=+0.996 vs ACCEL_PEDAL_DEPTH
+            (n=1607, DRIVING). About 1.97x VCU_APS2_VOLTAGE. Reads 0.80 V released and 3.55 V at
+            87.5 % pedal. Scale check: 3.93 V at full pedal in the uhi22 EPCU bench log, where his
+            multimeter reads 3.97 V.
           source: canair decode/align 2026-10-21; uhi22 EPCU bench 2026-10-29
           min: "0"
           max: "5"
@@ -188,8 +164,8 @@ VCU:
           expression: B26
           source: canair bitfield analysis 2026-08-06; same-payload cross-tab vs GEAR (B10) n=6365
           notes: >-
-            Reads 0x20 in Park and 0x08 in Reverse, Neutral or Drive across 10592 VCU 2101 captures;
-            no information beyond GEAR.
+            Reads 0x20 in Park and 0x08 in Reverse, Neutral or Drive; no information beyond GEAR on
+            the car.
           type: enum
           values:
             8: not_park
@@ -201,10 +177,8 @@ VCU:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           notes: >-
             Set in Reverse, Neutral and Drive; the exact complement of GEAR_P in every car capture.
-            Reads 0 in the uhi22 EPCU bench log (CAN/EPCU_torquePro.csv): the EPCU alone on a desk,
-            woken by its wake line, no other ECU on the bus, 250 VCU 2101 replies, where GEAR_P is 1
-            and no shifter is connected, so, like B26:5, it may come from the shift module rather
-            than the VCU. Disabled so it does not ship a duplicate.
+            Reads 0 in the uhi22 EPCU bench log (no shifter connected) while GEAR_P reads 1.
+            Disabled so it does not ship a duplicate.
           enabled: false
         GEAR_P_MIRROR_B26_5:
           expression: B26:5
@@ -212,11 +186,8 @@ VCU:
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           notes: >-
-            Equals GEAR_P (B10:0) in every car capture. Not a plain mirror: in the uhi22 EPCU bench
-            log (CAN/EPCU_torquePro.csv): the EPCU alone on a desk, woken by its wake line, no other
-            ECU on the bus, 250 VCU 2101 replies, GEAR_P reads 1 and this bit 0 in all 250 replies,
-            with no shifter connected. So B26 probably carries the gear as reported by another
-            module (the shift-by-wire or parking-actuator unit), and B10 the VCU's own state.
+            Equals GEAR_P (B10:0) in every car capture, but reads 0 in all 250 replies of the uhi22
+            EPCU bench log (no shifter connected) while GEAR_P reads 1, so B26 is not a copy of B10.
             Disabled so it does not ship a duplicate.
           enabled: false
 
@@ -224,27 +195,19 @@ VCU:
           expression: B23:2
           source: canair historical analysis 2026-07-23
           notes: >-
-            B23 reads 0 (6876), 48 (40) or 52 (3676) across 10592 VCU 2101 captures; bit 2 is set
-            only at 52. Agrees with VEHICLE_STATE_EV_READY (r=+0.997, n=776).
+            B23 reads 0, 48 or 52; bit 2 is set only at 52. Agrees with VEHICLE_STATE_EV_READY
+            (r=+0.997, n=776).
         VCU_POWER_STATE:
           expression: B25
           min: "0"
           max: "8"
           source: canair historical analysis 2026-07-23; values 1, 2 and 6 re-read 2026-10-23 against stored captures and the JejuSoul US Ioniq logs
           notes: >-
-            VCU operating mode. Values across 10675 VCU 2101 captures: 4 drive-ready (3154), 7
-            charging (7149: AC, DC and plugged-in pre-conditioning), 6 at entry to and exit from a
-            charge or plug-in (311), 1 standby with no drive or charge (61: ignition on but not
-            READY on 2026-07-30, the 2026-10-21 parked 12 V top-up, and 5 samples after the top-up
-            with VCU_IG3_ON 0). The JejuSoul US Ioniq logs show the same values plus 2 at power-off
-            (B11 = 0xD0, then 0x80, at the end of the drive log; B11 = 0xD2 as the last reading of
-            both AC-charge logs), never seen on this car. The uhi22 EPCU bench log
-            (CAN/EPCU_torquePro.csv): the EPCU alone on a desk, woken by its wake line, no other ECU
-            on the bus, 250 VCU 2101 replies reads 8 in all 250 replies, a value never seen in a
-            car; the VCU there stores no-communication DTCs for the BMS, the gateway and the HVAC
-            unit (U0111, U0146, U0164). A candidate diagnostic view of the VCU's IG3 relay mode
-            (CF_Vcu_IG3RlyMd in broadcast 0x57B, observed 2 and 10 on a US car); the encodings are
-            not known to match.
+            VCU operating mode: 4 drive-ready, 7 charging (AC, DC and plugged-in preconditioning), 6
+            at entry to and exit from a charge, 1 standby (ignition on but not READY, and the parked
+            12 V top-up). 2 appears only in the JejuSoul US Ioniq logs, at power-off. Reads 8 in the
+            uhi22 EPCU bench log, where the VCU stores no-communication DTCs for the BMS, gateway
+            and HVAC.
           type: enum
           values:
             1: standby
@@ -259,10 +222,9 @@ VCU:
           source: canair align fit 2026-10-21
           verified: false
           notes: >-
-            12 V supply voltage at the VCU, 16-bit little-endian; B21 is the low byte. r=+0.995 vs
-            VCU_AUX_BATTERY_VOLTAGE_FINE (n=10357); the same ~2070 counts/V fit against the MCU and
-            ESC supply words. The empirical /2072 matches the other ECUs; /2048 would read about 1.2
-            % high. B21's old speed correlation was the bus voltage sagging under driving load.
+            12 V supply voltage at the VCU, 16-bit little-endian. r=+0.995 vs
+            VCU_AUX_BATTERY_VOLTAGE_FINE (n=10357). The /2072 scale is fitted and matches the MCU
+            and ESC supply words; /2048 reads about 1.2 % high.
           unit: V
           ha_class: voltage
         VCU_INVERTER_ARMED:
@@ -286,8 +248,8 @@ VCU:
           source: canair bitfield analysis 2026-08-06; n=6365, 4 transitions in the 2026-07-30 power-cycle session
           verified: false
           notes: >-
-            Set in P, R, N and D. Clear in 10 of 10592 VCU 2101 captures, all at VCU power-mode
-            transitions on 2026-07-30 with the car in Park.
+            Set in P, R, N and D. Clear in 10 captures, all at power-mode transitions on 2026-07-30
+            with the car in Park.
         VCU_POWER_STATE_B25_1:
           expression: B25:1
           source: canair correlate, 2026-08-08 DCFC-2
@@ -306,9 +268,7 @@ VCU:
           notes: >-
             Accelerator pedal sensor track 2, 16-bit little-endian. About half of VCU_APS1_VOLTAGE
             (ratio median 1.97). Reads 0.42 V released and 1.80 V at 87.5 % pedal. Scale check: 2.06
-            V in the uhi22 EPCU bench log (CAN/EPCU_torquePro.csv): the EPCU alone on a desk, woken
-            by its wake line, no other ECU on the bus, 250 VCU 2101 replies at full pedal, where
-            uhi22's multimeter table gives 2.00 V, so 1/2048 V is within about 3 %.
+            V at full pedal in the uhi22 EPCU bench log, where his multimeter reads 2.00 V.
         VCU_IGN_ON:
           expression: B11:0|B11:1
           min: "0"
@@ -316,23 +276,19 @@ VCU:
           source: canair cross-tab vs IGPM 22BC03 IGN1_SWITCH 2026-10-23
           verified: false
           notes: >-
-            Ignition on, from the two brake-switch contacts (VEHICLE_STATE_BRAKE_LAMP,
-            VEHICLE_STATE_NOT_BRAKING): one of them reads 1 with the ignition on and both read 0
-            with it off. Equals IGPM IGN1_SWITCH in all 360 aligned rows (3 s join), including
-            charging and post-charge with the ignition on. Fits the stop-lamp switch being fed from
-            IGN1; ACC is not told apart from off.
+            Ignition on: one of the two brake-switch contacts (VEHICLE_STATE_BRAKE_LAMP,
+            VEHICLE_STATE_NOT_BRAKING) reads 1 with the ignition on, both read 0 with it off. Equals
+            IGPM IGN1_SWITCH in all 360 aligned rows, including charging with the ignition on. Does
+            not tell ACC from off.
     2102:
       response_frames: 4
       status: active
       period: 10000
       vehicle_states: [IG3]
       notes: >-
-        Stops updating while VCU_IG3_ON (2101 B11:4) is 0: in each stored window the first read
-        after the fall differs from the last live one, and every later read repeats it byte for byte
-        (29 repeats across the 2026-07-26, 07-27 and 10-21 windows). After the 2026-10-21 12 V
-        top-up it held VCU_AUX_POWER 0 and VCU_LDC_OUTPUT_VOLTAGE 13.551 V from 21:17:11 to 21:20:12
-        while BCM_12V_BATTERY fell from 12.96 to 12.56 V. Readings taken with the IG3 rail off are
-        not live.
+        Stops updating while VCU_IG3_ON (2101 B11:4) is 0: every read after the fall repeats the
+        first one byte for byte, so readings taken with the IG3 rail off are not live. Motor RPM,
+        torque and temperatures are not on this page; they are on the MCU (0x7E3).
       min: "0"
       verified: false
       parameters:
@@ -377,12 +333,9 @@ VCU:
           max: "6553"
           source: 2026-07-30 dash anchor (130->650 W); low byte B21 per decode/align 2026-10-21
           notes: >-
-            LDC output power in watts, 16-bit little-endian. 0 whenever VCU_HV_MAIN_RELAY_ON is 0,
-            so it is the converter's output (12 V loads plus battery charging), not a load
-            measurement. Matched the dash electronics bar from 130 to 650 W (2026-07-30) and rose
-            195 to 601 W with the rear and side defrosters. Low byte is B21, not B23: B23 is the low
-            byte of VCU_DCLINK_VOLTAGE, and B21 tracks the coarse field B15*10 more tightly (r=0.998
-            vs 0.970 charging). Excludes HV climate power.
+            LDC output power, 16-bit little-endian. 0 whenever VCU_HV_MAIN_RELAY_ON is 0. Matched
+            the dash electronics bar from 130 to 650 W (2026-07-30) and rose 195 to 601 W with the
+            rear and side defrosters. Excludes HV climate power.
         VCU_AUX_POWER_COARSE:
           expression: B15*10
           unit: W
@@ -393,11 +346,9 @@ VCU:
           expression: ((B20<<8)|B19)/1000
           source: canair hunt vs OBC:2101:LDC_OUTPUT_V 2026-10-21
           notes: >-
-            12 V bus voltage at the LDC side, 1 mV/bit, 16-bit little-endian. r=+0.997 vs
-            OBC:2101:LDC_OUTPUT_V (n=11057, slope 1.019). Reads 0.02-0.22 V above
-            VCU_AUX_BATTERY_VOLTAGE_FINE, and the gap tracks VCU_AUX_POWER (r=+0.86), as a cable
-            drop under load would. Which end of the cable each reading is taken at is inferred, not
-            proven.
+            12 V bus voltage at the LDC, 16-bit little-endian. r=+0.997 vs OBC:2101:LDC_OUTPUT_V
+            (n=11057, slope 1.019). Reads 0.02-0.22 V above VCU_AUX_BATTERY_VOLTAGE_FINE; the gap
+            tracks VCU_AUX_POWER (r=+0.86).
           unit: V
           ha_class: voltage
           max: "16"
@@ -406,10 +357,9 @@ VCU:
           expression: ((B27<<8)|B26)/1000
           source: canair hunt vs BMS:2101:AUX_BATTERY_VOLTAGE 2026-10-21; Kia e-Niro VMCU sheet
           notes: >-
-            12 V battery voltage, 1 mV/bit, 16-bit little-endian. r=+0.996 vs
-            BMS:2101:AUX_BATTERY_VOLTAGE (n=10542, slope 0.998). The e-Niro sheet puts the same
-            field at the same offset. The e-Niro continues with 12 V battery current and SOC; the
-            Ioniq response ends at B27.
+            12 V battery voltage, 16-bit little-endian. r=+0.996 vs BMS:2101:AUX_BATTERY_VOLTAGE
+            (n=10542, slope 0.998). Same offset as the Kia e-Niro VMCU sheet; the e-Niro 12 V
+            current and SOC that follow it are not in the Ioniq reply.
           unit: V
           ha_class: voltage
           max: "16"
@@ -417,9 +367,9 @@ VCU:
           expression: B18-100
           source: RE 2026-08-05 cross-ECU offset-mirror + within-PID state-divergence disambiguation
           notes: >-
-            Equals AAF:2181:MOTOR_COOLANT_TEMP + 100 exactly in 77 % of 1729 co-polled rows. Moves
+            Equals AAF:2181:MOTOR_COOLANT_TEMP exactly in 77 % of 1729 co-polled rows. Moves
             opposite to the 12 V bus in ON, so it is not a voltage. Rose 29 to 44 °C over a 3 h AC
-            charge. Which branch of the coolant loop it sits on is unknown.
+            charge.
           unit: °C
           min: "-40"
           max: "150"
@@ -430,8 +380,8 @@ VCU:
           source: RE 2026-08-02, live ON confirmed
           verified: true
           notes: >-
-            1 while the HV contactors are closed, 0 when open: went 1 to 0 as LDC_HV_INPUT fell 206
-            to 6.7 V, and read 0 in ON with the bus at 6.3 V. Agrees with BMS_MAIN_RELAY.
+            1 while the HV contactors are closed: went 1 to 0 as LDC_HV_INPUT fell 206 to 6.7 V, and
+            reads 0 in ON. Agrees with BMS_MAIN_RELAY.
         VCU_DCLINK_VOLTAGE:
           expression: ((B25<<8)|B23)/100
           unit: V
@@ -455,16 +405,11 @@ VCU:
           max: "65535"
           source: canair 21F2 vs BMS:2101 charge flags 2026-10-21
           notes: >-
-            A count of some VCU event, read as a little-endian 16-bit value with B76 as the high
-            byte (B76 read 3 in all 158 captures, so 784 to 847 from 2026-07-22 to 10-19; that high
-            byte is assumed). Only ever rises, flat within a cycle. In the densely logged 2026-07-30
-            to 08-15 period each bracketed rise follows an ended AC charge (07-30, 08-02, 08-09,
-            08-10 twice, 08-15) or a plugged-in preconditioning run (08-08 08:08-08:42); two DC fast
-            charges, two drives and a 5-day mostly parked stretch (08-10 to 08-15) added nothing
-            else. But it rose 48 between 08-15 and 10-19 (0.74 a day), several times the owner's 1-2
-            charges a week, so it may also count 12V-battery top-ups, scheduled preconditioning or
-            scheduled-charge starts. 847 over 9 years (about 0.26 a day) fits a charge count better
-            than a top-up count.
+            Event counter, 16-bit little-endian (B76 reads 3 in every capture, so the high byte is
+            unproven until B75 wraps). Only rises, flat within a cycle: 784 on 2026-07-22, 847 on
+            10-19, 857 on 10-30. From 07-30 to 08-15 each rise follows an ended AC charge or a
+            plugged-in preconditioning run; DC charges, drives and parked days added nothing. The
+            2026-10-21 parked 12 V top-up did not move it.
         VCU_ODOMETER:
           expression: (B14 | (B15 << 8) | (B17 << 16) | (B18 << 24)) / 256
           unit: km
@@ -473,8 +418,8 @@ VCU:
           source: monotonic-counter sweep of all captures 2026-07-22..08-05; cross-checked vs the verified CLU 22B002 ODOMETER
           notes: >-
             32-bit little-endian at WiCAN B14, B15, B17, B18 (B16 is a PCI byte), 1/256 km per LSB.
-            Only rises over the corpus (72986.45 to 75234.69 km). A constant +4.36 to +4.66 km above
-            CLU:22B002:ODOMETER at 5 co-polled points, all parked.
+            Only rises. +4.36 to +4.66 km above CLU:22B002:ODOMETER at 5 co-polled points, all
+            parked.
         VCU_21F2_TAG:
           expression: "[B95:B99]"
           type: ascii
@@ -489,30 +434,24 @@ VCU:
           max: "100"
           source: canair 21F2 cross-check 2026-10-21
           notes: >-
-            SOC at the end of the previous cycle, 8.8 fixed point (B12 the fraction). Equals
-            BMS:21F2 LAST_CYCLE_SOC_END in all 6 co-read records (40.5, 57.1, 66.3, 71.9, 64.0 and
-            95.2 vs 95.1 %).
+            SOC at the end of the previous cycle, 8.8 fixed point. Equals BMS:21F2
+            LAST_CYCLE_SOC_END in all 6 co-read records.
         VCU_21F2_RANGE_START:
           expression: B19
           notes: >-
-            Probably the range estimate at the start of the last READY cycle. Across the 22 distinct
-            records it continues the previous record's VCU_21F2_RANGE_END to within 2 km in all 9
-            cases with nothing in between (e.g. 207/207, 163/162, 176/175, 144/145), and resets
-            upward after every charge (68 to 168 across the 2026-08-09 AC charge). Exceptions: two
-            jumps across an unlogged drive (odometer moved), and 208 to 233 at the start of the
-            2026-08-08 drive, straight after a climate preconditioning cycle. Not compared with the
-            cluster display yet.
+            Continues the previous record VCU_21F2_RANGE_END to within 2 km in all 9 cases with no
+            unlogged drive in between, and resets upward after every charge (68 to 168 across the
+            2026-08-09 AC charge). Rose 208 to 233 at the start of the 2026-08-08 drive, right after
+            a preconditioning cycle.
           unit: km
           min: "0"
           max: "255"
         VCU_21F2_RANGE_END:
           expression: B20
           notes: >-
-            Probably the range estimate at the end of the last READY cycle. Divided by VCU_21F2_SOC
-            it gives 2.17-2.27 km per % in 19 of the 22 distinct records (about 220 km at 100 %);
-            the others are 2.05 and 1.92 after highway driving on 2026-08-08/09, and 1.54 for a
-            charging cycle. Charging does not update it: the 2026-07-30 charge to 95.2 % kept the
-            147 km of the READY cycle before it.
+            Divided by VCU_21F2_SOC it gives 2.17-2.27 km per % in 19 of 22 distinct records (about
+            220 km at 100 %); 1.92-2.05 after highway driving. A charge does not update it: the
+            2026-07-30 charge to 95.2 % kept the 147 km of the READY cycle before it.
           unit: km
           min: "0"
           max: "255"
@@ -520,9 +459,9 @@ VCU:
 
       vehicle_states: [CHARGING, READY]
       notes: >-
-        About 86 bytes. A previous-cycle record like BMS 21F2: odometer, end SOC, range at
-        start/end, an event count and other fields that change after a drive or charge (B38-B44
-        after charging events), plus the ASCII tag '6000' at B95-B99. See the 21F2 research entries.
+        About 86 bytes. A previous-cycle record like BMS 21F2: odometer, end SOC, range at start and
+        end, an event count and fields that change after a drive or charge (B38-B44 after charging),
+        plus the ASCII tag 6000 at B95-B99. See the 21F2 research entries.
     1A90:
       response_frames: 3
       parameters:
@@ -538,12 +477,10 @@ VCU:
       status: draft
       vehicle_states: [READY]
       notes: >-
-        KWP2000 ReadEcuIdentification record 0x90 — the vehicle VIN as ASCII (SID 0x5A + REC 0x90 +
-        VIN bytes). Discovered by the 2026-04-17 1A80-1A9F identity scan; only the decoded ASCII was
-        kept (redacted), so the record's real byte length is UNCONFIRMED. Kept draft: never ship a
-        VIN to the device AutoPID, and the ascii range expression is not a device float expression.
-        Re-capture with 'canair read VCU:1A90' to confirm the length — see the PRIVACY note on the
-        VIN signal before saving.
+        KWP2000 ReadEcuIdentification record 0x90: the VIN as ASCII. Only the redacted decoded
+        string from the 2026-04-17 identity scan was kept, so the record length is unconfirmed;
+        re-read VCU:1A90 to confirm. Draft: a VIN must never ship to the device AutoPID, and an
+        ascii range is not a device float expression.
 
   # From a KWP2000 18 00 FF 00 read of an EPCU running alone on a bench (uhi22
   # CAN/EPCU_torquePro_reading_error_memory_18DTCs_found.csv), status 0x44 each. Descriptions are
@@ -580,174 +517,46 @@ VCU:
       status: pending
       priority: P1
       vehicle_states: [ACC]
-      notes: >
-        Several unverified params: ACCEL_PEDAL_DEPTH (B17), LDC_INHIBIT (B11:7). The B26 pair
-        (formerly CAR_READY / PARK_BRAKE) and B11:6 (formerly MCU_STATE / POWER_ENABLE) were
-        resolved 2026-08-06 — see what_to_test below.
-        DRIVE MODE / REGEN: 2026-07-21 stationary test (READY, in D) cycled Normal(regen1) -> Sport(regen2) ->
-        ECO(regen1) -> Normal(regen1) -> regen0 while polling VCU/MCU/BCM/IGPM. RESULT: NOT found. Across the
-        whole window VCU 2101 B10 (GEAR) stays flat at 0x28 (D) — the "ECO/Sport/Normal in B10
-        upper nibble" hypothesis is DISPROVEN (upper nibble constant). No other byte on any polled PID (VCU
-        2101/2102, MCU 2101/2102/2103, BCM 22B0xx/BCxx, IGPM 22BCxx) steps through the 5-state sequence; every
-        varying byte is analog noise (currents/voltages/temps/counters). HYPOTHESIS (untested): modes may only
-        re-map torque/regen response, which would be invisible when parked with pedal at 0. Next: (1) scan VCU 22 E006/E007 (see
-        scan entry below — Ioniq 5 exposes drive mode / regen level there); (2) re-capture WHILE DRIVING,
-        holding one mode per labelled session, or --monitor a single PID fast while cycling modes.
-      what_to_test:
-        - "CAR_READY (B26:3) — RESOLVED 2026-07-23, CORRECTED 2026-08-06: now GEAR_PARK_INV. It is NOT car-ready and NOT the drive gear either — B26:3 reads 1 in Reverse (n=54) and Neutral (n=3) as well as Drive, so it is simply 'gear is not Park'. The 2026-07-23 r=+0.984 vs the drive bit only looked convincing because R and N were unsampled then. Disabled: it is the exact complement of B26:5 and redundant with GEAR (B10)."
-        - "PARK_BRAKE (B26:5) — RESOLVED 2026-07-23, CORRECTED 2026-08-06: now GEAR_P_MIRROR_B26_5. The park-gear reading stands (not EPB, which merely co-occurs), but it is identical to GEAR_P (B10:0) in 6365/6365 captures, so it is a mirror rather than an independent signal. Disabled to avoid shipping a duplicate."
-        - "B23 / B25 — RESOLVED 2026-07-23: added VCU_INVERTER_ENABLED (B23:2; B23=0x34 ready / 0 charge, r=+0.997 vs EV_READY) and VCU_POWER_STATE (B25=4 ready / 7 standby, r=-1.000 vs EV_READY). Both verified:true, independent-byte cross-checks of the B11 state bitfield."
-        - "ECO/Sport/Normal mode — NOT in B10 upper nibble (disproven 2026-07-21 stationary); try 22 E006 or capture while driving"
-        - "Regen mode (off/1/2/3) — not in any 2101/2102 byte stationary; try 22 E007 or capture while coasting/braking (regen torque only appears in motion)"
-        - "B14 / B21 (still unmapped, dynamic) — 2026-07-23: B14 sits ~82 at pedal=0 and swings both above (232) and below (11) with pedal (r~0.30, noisy); B21 is high at rest (108-158), low while moving (r=-0.46 vs speed) but jumps to ~248 at sustained high speed. Both are fast-cycling (currents/angle/power) that alias at the 2.5s poll — need a high-rate --monitor capture to resolve. B22 is constant 119 (0x77) in ready/drive (not a temp)."
-        - "ACCEL_PEDAL — Kia Soul VMCU has 'Accel Pedal Related=i' + 'Accel Pedal Depth=j/2' (%). In our 2101, B17 and B18 are 0 when truly parked (P) and active while driving — strong candidates. Press pedal while stationary in Ready to confirm which is depth (÷2 for %) and the raw-related byte."
-      sources:
-        - "canair historical analysis 2026-07-23 — B23/B25/B26 state & gear bits"
-        - "Kia Niro PR — CAR_READY/PARK_BRAKE (offset disproven, bits are gear state)"
-        - "Kia Soul EV VMCU CSV — accel pedal (i, j/2), drive-mode/state bits"
-        - "Obsidian: VCU.md"
-    - type: decode
-      target: "2102"
-      status: done
-      priority: P1
-      vehicle_states: [READY, CHARGING]
-      result: >-
-        2026-10-21: every varying byte is now mapped. The 'max-entropy' B19/B21/B23/B26 are the low
-        bytes of little-endian words: [B19:B20] LDC output voltage and [B26:B27] 12 V battery
-        voltage (1 mV), [B21:B22] LDC output power (0.1 W), and (B25<<8)|B23 DC-link voltage (0.01
-        V). B4-B7, B9 and B11-B13 are constant.
       notes: >-
-        23 bytes. 2026-07-20 (Kia Soul EV VMCU cross-ref, 0x7E2): mapped
-        INVERTER_INPUT_VOLTAGE=B17*2 (verified vs BMS pack ~369V) and AUX_BATTERY_VOLTAGE=B18/10
-        (~12–13.6V). KEY FINDING: the Ioniq redistributes the Soul VMCU payload — motor
-        RPM/torque/heat-sink & MCU temp/phase currents are NOT in VCU 2102 (candidate temp bytes are
-        constant across cold/hot sessions; no byte tracks speed like RPM). Those live in the
-        separate MCU ECU (0x7E3). Soul letter positions also don't transfer 1:1 (Soul e/f = our
-        B18/B17, transposed). Disabled the old bogus params (MOTOR_RPM/HEAT_SINK/MCU_TEMP).
-        2026-07-23 (canair historical byte analysis, 1674 captures): (1) DATA-INTEGRITY BUG — 22
-        captures at 16:13–16:14 on 2026-07-19 filed under 2102 are actually VCU 2101 responses
-        (begin 61 01). They are the SOLE source of the VCU_TORQUE_REQUEST "±31k while driving"
-        signal, which is now DISPROVEN — in real 6102 frames B12=B13=0x00 always (even at speed).
-        Purge/relabel those frames. (2) B25 is a coarse 8-bit copy of the HV DC-link voltage
-        (B25*2.56 ≈ B17*2, r=+0.950) → added disabled VCU_DCLINK_VOLTAGE_COARSE. (3) Constants in
-        ready/drive: B4/B5=0xF8, B6/B7=0, B9=1, B10=1, B11=0, B14~149, B20~58, B27~57, B22 low. (4)
-        Still-unmapped fast signals B19/B21/B23/B26 are max-entropy (all 256 values) — likely motor
-        phase currents / resolver offset / angle per the Soul VMCU sheet (Int16 phase-current &
-        resolver fields), aliasing at the 5s poll. 2026-07-23 (re-audit): 0 misfiled 6101-under-2102
-        frames remain (all 1652 VCU 0x7EA + 1015 sibling 2102 payloads begin 6102).
-        VCU_TORQUE_REQUEST [S12:S13] constant 0 across all 1652 genuine frames (kept disabled as the
-        disproof). Only car-access work remains (fast bytes need a synced high-rate MCU drive; temps
-        need a cold/hot contrast).
+        Drive mode (Eco/Normal/Sport) and regen level are not found. A 2026-07-21 stationary session
+        in D cycling the modes showed no byte on VCU 2101/2102, MCU 2101-2103, BCM 22B0xx or IGPM
+        22BCxx stepping with them, and service 21 has no further VCU page. Next: capture while
+        driving, one mode per labelled session.
       what_to_test:
-        - "Re-map motor RPM/torque/temps under MCU 0x7E3 2101/2102 using the Soul VMCU scalings as a guide"
-        - "Confirm B17 HV voltage with a same-instant BMS read while driving"
-        - "B19/B21/B23/B26 (max-entropy fast bytes) — try Int16 phase-current / resolver-offset reads per the Soul VMCU sheet (Int16(v:u) phase-current RMS, Int16(ad:ac) resolver offset) against a synced high-rate MCU motor-current/RPM capture; single-byte + 5s-poll cannot resolve them (weak r<0.33 vs speed/torque)."
-        - "EWP (electric water pump) speed / target RPM — Soul VMCU exposes these (g,h); look for a 0..190 byte that spins up under load/charge (EPCU coolant loop exists even though the 28 kWh battery is air-cooled). B14~149/B20~58/B27~57 are near-constant here → not EWP-varying in this data."
-        - "Coolant/EPCU temperature(s) — B20/B27 are ~57-58 raw in BOTH cold April park and warm July drive (flat), so NOT (value-40) temps in this data; confirm against a genuinely cold cold-soak vs hot fast-DC-charge contrast."
+        - "Drive mode (Eco/Normal/Sport): a byte that steps with the mode while driving"
+        - "Regen level (0-3): a byte that steps with the level while coasting or braking"
       sources:
-        - "Kia Soul EV VMCU CSV — 0x7E2 (Inverter f*2, Aux e/10, temps w/x/y-40, RPM/torque 16-bit)"
-        - "Obsidian: VCU.md — 23 bytes captured 2025-08-07"
-        - "38kWh profile — B20*3.97+2.3 speed formula"
-      updated: "2026-10-21"
-
+        - "Kia Soul EV VMCU CSV — drive-mode/state bits"
     - type: scan
       target: "22 E001-E010"
       status: done
       priority: P1
       vehicle_states: [ACC]
-      notes: >
-        Ioniq 5 cross-ref: E001 vehicle speed, E002 motor RPM, E004 accel pedal/speed HD/aux voltage, E005 disconnector, E006 drive mode, E007 regen level, E008 torque request, E009 actual regen torque, E00A odometer, E00B motor temp, E00C inverter cooling temp, E010 gear state."
-        2026-07-19: 22E001 -> NRC 0x12 (subFunctionNotSupported)
-        2026-07-21: now the PRIMARY lead for drive mode / regen level — E006 (drive mode) and E007 (regen level)
-        would directly answer the 2101 verify entry, since a stationary 2101/2102/MCU/BCM/IGPM sweep found no
-        such byte. E001 NRC'd; retry the full E000-E010 range with extended session (10 03) + wake, ideally
-        while driving so any live values are non-zero.
+      notes: >-
+        The Ioniq 5 (OBDb) exposes drive mode, regen level and other drive data at 22 E001-E010.
 
       date: "2026-07-22"
-      result: >
-        Re-scanned E001-E010 with ignition ON (battery 14.4V) 2026-07-22: all 16 -> NRC (0 timeouts,
-        ECU alive). Same NRC 0x12 pattern as MCU. CONFIRMED DEAD END for service-22 E0xx on this
-        KWP2000 VCU — E0xx DIDs are a UDS-era Ioniq-5 construct absent here. The drive-mode / regen
-        data must be found in the service-21 (21xx) range instead; sweep 21 00-FF for hidden pages.
+      result: >-
+        All 16 DIDs E001-E010 answer NRC 0x12 with the ignition on (2026-07-22): service 22 E0xx is
+        not implemented on this KWP2000 VCU.
       sources:
         - "OBDb Ioniq 5"
-        - "ChatGPT"
-      updated: "2026-07-23"
-    - type: verify
-      target: "2101 speed"
-      status: done
-      priority: P1
-      vehicle_states: [READY]
-      notes: >
-        2026-07-20: RESOLVED unit = MPH (not km/h) and low byte = B19 (unsigned), high byte = S20 (signed).
-        Expression ((S20*256)+B19)*1.609344/100 reads 0 at park (verified live) and ~+4% under dashboard.
-        An interim revision wrongly used B21 as low byte → non-zero jittery speed while parked (B21 is a
-        separate signal, 67–150 at standstill); reverted to B19. STILL PENDING: GPS + multi-point
-        confirmation across full speed range. Also capture ESC 22C101 REAL_SPEED_KMH (B12)
-        while driving to verify it as the true dashboard speed source.
       updated: "2026-07-23"
     - type: scan
       target: "0x7E1 22 0101-0105"
       status: nrc
       priority: P3
       vehicle_states: [ACC]
-      notes: "Powertrain address — test if anything responds."
+      notes: 0x7E1 answers 22 0101-0105 with a negative response.
     - type: scan
       target: 21 00-FF
       status: done
       priority: P2
       vehicle_states: [READY]
       date: "2026-07-22"
-      result: "Exhaustive service-21 LID sweep (ignition on): only 01/02/F2 respond (= known 2101/2102/21F2), all 253 others NRC. No hidden pages. Drive-mode/regen not exposed as a separate VCU service-21 page — must be bytes within 2101/2102 (or 21F2)."
-      notes: Hidden-page hunt. Redirects the drive-mode/regen search back into the known 2101/2102 payloads.
-    - type: decode
-      target: "2101"
-      status: done
-      priority: P3
-      vehicle_states: [READY]
-      notes: "VCU 2101 B13/B15 = accelerator/torque REQUEST echo (driver demand), essentially redundant with ACCEL_PEDAL_DEPTH so not worth a separate param. From 2026-07-22 drive: B13 and B15 both correlate ~0.99 with ACCEL_PEDAL_DEPTH; B13 = 2xB15 exactly; linear fit B13 = 0.263*pedal + 6.4 (residual std 0.44); both FLOOR at their idle value (B13=6, B15=3) during braking/regen (never go negative), confirming it is a >=0 request signal, not actual bidirectional motor torque (which lives in MCU 2102). Neighbouring unmapped B14/B21 are uncorrelated with speed/pedal (noise/other). Actual motor torque + regen must be read from MCU 2102 (MCU_MOTOR_TORQUE) — VCU 2101 does not expose signed motor torque."
-    - type: decode
-      target: 2102 aux power (was charge-time)
-      status: done
-      priority: P3
-      vehicle_states: [READY, CHARGING]
-      created: "2026-07-27"
-      updated: "2026-07-30"
-      notes: >
-        RESOLVED 2026-07-30 — [B22:B23]/10 is 12V/accessory electrical POWER in watts, NOT
-        time-to-full. The 2026-07-27 "time-to-full (min)" label was WRONG (renamed
-        VCU_CHARGE_TIME_REMAINING -> VCU_AUX_POWER, unit W). Proof: (1) READY DC-load session
-        raw/10 137->651 matches the dash climate/electronics power bar 130->650W (owner
-        confirmed the dash shows 3 separate power values — climate / electronics / driving,
-        driving=0 while parked); (2) rose 195->601W when the rear+side defroster switched on
-        (~28A@14.5V step); (3) r=+0.97 vs BMS BATTERY_POWER/CURRENT while load-varying;
-        (4) during 24min steady 10A AC charge it does NOT count down — wanders non-monotonically
-        52-108W (standby electronics), which a time-to-full cannot do. The earlier "time" evidence
-        (byte*I const, -0.77 vs SOC) was coincidental drift over a short charge window. Coarse
-        mirror: B15 = [B22:B23]/100 (~0.1kW). OPEN follow-up (new lead below): resolve whether
-        this field is climate-only vs electronics-only vs total accessory, and find the sibling
-        power components — the other varying VCU 2102 bytes (B19/B21) are aliased phase currents,
-        so the siblings are likely on HVAC (climate) or another DID, needing a keep-all capture
-        that toggles climate and non-climate 12V loads independently while noting each dash value.
-    - type: decode
-      target: 2101 charge/drive state bits
-      status: captured
-      priority: P3
-      vehicle_states: [READY]
-      created: "2026-07-27"
-      updated: "2026-07-27"
-      notes: "State-discrimination 2026-07-27 surfaced: (1) B22:3 = charge-active indicator — set 98% during AC charging, 0% ready-parked, but ~34% during driving; hypothesis = 'battery charge current flowing' (EVSE + regen), UNCONFIRMED (driveway drive had negligible regen; vs BMS current join n/a, vs MCU torque r~0.01). Retest on a highway drive with strong regen + co-polled BMS:2101 BATTERY_CURRENT. (2) B23 = drive-path-enable bitmask = 52 (bits 2/4/5) ready/drive, 0 charging; B23:2 is VCU_INVERTER_ENABLED, B23:4/B23:5 undecoded companions (same pattern, no ready-vs-drive distinction). (3) VCU_POWER_STATE now enum 4/6/7."
-    - type: decode
-      target: 21F2 charge-schedule
-      status: done
-      priority: P2
-      vehicle_states: [CHARGING]
-      created: "2026-07-28"
-      updated: "2026-10-20"
-      notes: Looked for charge-timer and preconditioning schedule bytes in VCU 21F2.
       result: >-
-        Closed 2026-10-20: the schedule settings recorded for this hunt are known to be invalid, so
-        the B38-B43 change between 2026-07-22 and 2026-07-28 is not attributed to the charge timer.
+        Service 21 LID sweep 00-FF (ignition on, 2026-07-22): only 01, 02 and F2 answer; all others
+        NRC.
     - type: verify
       target: 2101 power-state LED
       status: pending
@@ -755,7 +564,11 @@ VCU:
       vehicle_states: [ACC]
       created: "2026-07-30"
       updated: "2026-07-30"
-      notes: "Resolve the 4 start-button power states individually (READY / true-OFF / ACC amber / ON blue). 2026-07-30 keep-unique cycle proved VCU 2101 B11 is the power-state byte (values 0x5A READY, 0x92/0x91/0x80 accessory/off) and that EV_READY(B11:3)/POWER_ENABLE(B11:6)/LDC(1-B11:7) drop together leaving READY — but keep-unique collapsed the fast transitions so ACC/ON/OFF were not separated. Re-capture with: canair monitor 'VCU:2101 IGPM:22BC03' --interval 1 --keep-all --save, cycling and dwelling ~10s in each LED state; then map each B11 value + IGPM IGN1_SWITCH to the amber/blue/off LED."
+      notes: >-
+        Map each B11 value (0x80, 0x90, 0x91, 0x92) to the start-button states OFF, ACC (amber) and
+        ON (blue). The 2026-07-30 power cycle stored only changes, so the transitions were not
+        separated. Capture: canair monitor VCU:2101 IGPM:22BC03 --interval 1 --keep-all --save,
+        dwelling about 10 s in each state.
     - type: decode
       target: 2102 aux power siblings
       status: pending
@@ -763,7 +576,11 @@ VCU:
       vehicle_states: [READY]
       created: "2026-07-30"
       updated: "2026-07-30"
-      notes: "Find the climate / electronics / driving power components the dash shows as 3 separate values. RESOLVED (aux) 2026-07-30: VCU_AUX_POWER ([B22:B23]/10 W) is the 12V AUX/ELECTRONICS term (all LDC-fed 12V loads incl. blower + rear defroster), NOT climate and NOT total. Proof: 2026-07-22 11:15 heat-pump session (HVAC_HEAT_PUMP_ON=1, pack BATTERY_POWER swinging 1.29-2.27kW as the HV climate load modulated) — VCU_AUX_POWER stayed flat 256-309W, r=-0.09 vs BATTERY_POWER = independent of the HV climate load. CLIMATE + MOTOR siblings are NOT on VCU 2102 (nor 2101/21F2): hunt of every VCU byte vs the climate power gave |r|<0.26, aux-controlled partial-corr empty; no HVAC/OBC byte either. So the HV climate (compressor+PTC) and motor terms are NOT broadcast as watts on the polled ECUs — the dash split is computed/derived (climate_W ~= BATTERY_POWER - VCU_AUX_POWER/eff - HV_baseline). Motor power is separately available as MCU/BMS during a drive. (VCU 2102 B19/B21 are aliased phase currents, not power.) Only untested: a dedicated e-compressor/PTC inverter address or a passive broadcast frame. See OBC/HVAC 'climate power' research entries."
+      notes: >-
+        Find the climate and driving power the dash shows next to electronics. VCU_AUX_POWER is the
+        electronics term: flat 256-309 W while the HV climate load swung the pack power 1.29-2.27 kW
+        (r=-0.09, 2026-07-22). No byte on VCU 2101/2102/21F2 tracks the climate power (|r|<0.26);
+        HVAC_HEAT_POWER and HVAC_COMPRESSOR_POWER carry it on the HVAC. Untested: a broadcast frame.
     - type: decode
       target: SOC mirror search (21F2 open)
       status: captured
@@ -771,32 +588,9 @@ VCU:
       vehicle_states: [CHARGING, READY]
       created: "2026-08-01"
       updated: "2026-08-01"
-      notes: "SOC is NOT republished on VCU 2101/2102 (nor OBC/AAF/BCM/IGPM) in decodable form. 2026-07-30 long AC charge (SOC 71->95%): full-byte fingerprint scan of every co-polled PID (scripts/soc_mirror_scan.py) using scale + coarseness + value-range + charge-off discriminators. Every non-BMS byte that correlates with SOC is either a FINE voltage (600+ distinct, ~0.01%/LSB, collapses at charge-off — e.g. VCU 2102 p19:20 r=0.95, OBC 2101 p9:10 r=0.998) or a COARSE temperature (AAF 2180/2181 p17, ~2.15%/LSB, range 68-78) — a monotone-charge coincidence, not an SOC value. SOC lives ONLY on BMS: 2101 payload[6] (raw=%x2) = SOC_BMS, and 2105 = SOC_DISP. CAVEAT: a single steady charge proves this by scale/range/coarseness, not correlation (SOC is monotone). OPEN: VCU 21F2 (charge-management block) had only 2 timed samples here (keep-unique dedup) - the sole remaining place SOC could hide. NEXT: --keep-all capture of VCU:21F2 during charge AND a READY drive/discharge (non-monotone SOC w/ regen) co-polling BMS:2101 to disambiguate a true SOC field from voltage; re-run scripts/soc_mirror_scan.py over the drive."
-      what_to_test:
-        - --keep-all VCU:21F2 during charge (currently dedup'd to 2 pts)
-        - Re-run soc_mirror_scan.py over a READY drive (non-monotone SOC) to separate SOC from voltage
-    - type: decode
-      target: 2102 real 12V bus byte (B18 wrong)
-      status: done
-      priority: P2
-      vehicle_states: ["ON"]
-      created: "2026-08-02"
-      updated: "2026-08-02"
-      result: >-
-        2026-10-21: the fine 12 V readings are 16-bit LE mV words: [B19:B20]
-        (VCU_LDC_OUTPUT_VOLTAGE) and [B26:B27] (VCU_AUX_BATTERY_VOLTAGE_FINE).
-      notes: VCU_AUX_BATTERY_VOLTAGE (B18/10) disproven live 2026-08-02 (read 14.70V in ON vs 12.2V 3-ECU consensus; B18 inversely tracks the bus). Find VCU's real 12V byte. Hunt was inconclusive here - 12V is bimodal (14.5 charge / 12.2 ON) so every charge-vs-ON byte correlates ~1.0 (two-cluster trap). Needs keep-all data with continuous 12V variation (e.g. a drive, or READY idle as 12V floats), or accept VCU may not cleanly broadcast it.
-    - type: decode
-      target: "2102"
-      status: done
-      priority: P2
-      vehicle_states: [ALL]
-      created: "2026-08-05"
-      updated: "2026-08-05"
-      result: "B18 IDENTIFIED as the powertrain coolant-loop temperature (B18-100), renamed VCU_2102_B18 -> VCU_COOLANT_TEMP. Two proofs: (1) cross-ECU, B18-100 == AAF:2181 MOTOR_COOLANT_TEMP (B22-40) at a constant offset of exactly 100 in 77% of 1729 co-polled rows (rest +/-1..2 poll skew); (2) not a voltage — settled against this PID's own verified 12V (B14*0.0974): in ON the real bus sags 14.42->12.08 V while B18/10 RISES 14.40->14.70, and while driving the bus is pinned 14.51 V while B18 keeps varying. Explains the old '14.70 V in ON' anomaly (it was 47 C coolant). NOTE the degeneracy trap: B18/10 = 12.0-15.0 V looks like a 12V bus and correlates r=0.998 with AAF_AUX_BATTERY_VOLTAGE during charge (thermal-soak coincidence) — range plausibility alone cannot separate the two readings."
-      notes: Identify VCU 2102 B18 (placeholder 'check if voltage/temp-like').
-      sources:
-        - canair align cross-ECU offset-mirror + state-divergence 2026-08-05
+      notes: >-
+        Live SOC is not on VCU 2101/2102, OBC, AAF, BCM or IGPM; only BMS carries it. VCU 21F2 holds
+        the previous cycle end SOC (VCU_21F2_SOC).
     - type: verify
       target: 2101 gear PRND enum + ESC cross-check
       status: pending
@@ -805,21 +599,12 @@ VCU:
       created: "2026-08-06"
       updated: "2026-08-06"
       notes: >-
-        The gear byte VCU 2101 B10 is decoded as GEAR (enum) + GEAR_P/R/N/D, but two of the four
-        positions rest on thin evidence. 2026-08-08 (long drive + several park manoeuvres, 1831 VCU
-        and 1417 ESC gear samples) ADDS A THIRD INDEPENDENT REVERSE SESSION but does NOT close the
-        lead: VCU GEAR values 1(n=1), 33(n=551), 34(n=13), 40(n=1266); ESC 22C101 GEAR_SELECTOR
-        values 1(n=105), 2(n=15), 4(n=1297). NEUTRAL WAS NEVER ENGAGED all day (no GEAR_SELECTOR==3
-        and no VCU Neutral code across 3248 samples), so the sequential-encoding hypothesis
-        1=P/2=R/4=D with 3=N is still inferred from the gap rather than observed - a
-        parked-and-plugged period does not pass through N. STILL NEEDED: one deliberate P-R-N-D
-        sweep at standstill dwelling ~5 s in Neutral, co-polling VCU:2101 with ESC:22C101.
-        Everything else in this lead is unchanged.
+        VCU Neutral (GEAR 0x24) is seen in 7 captures, none with ESC:22C101 co-polled, so ESC
+        GEAR_SELECTOR = 3 for Neutral is still unobserved.
       sources:
         - canair bitfield analysis 2026-08-06 (plans/2026-08-06-bitfield-audit-and-gear-state.md)
       what_to_test:
         - ESC 22C101 GEAR_SELECTOR = 3 in Neutral (last unobserved value)
-        - GEAR_PARK_INV (B26:3) = 1 in Reverse and Neutral — confirms it is not-Park, not drive
         - Whether B26 ever takes a third value (would break the park/not_park enum)
       capture_protocol: >-
         canair monitor 'VCU:2101 ESC:22C101' --save --keep-changes --label 'gear PRND sweep' --state
@@ -834,50 +619,20 @@ VCU:
       vehicle_states: [ACC, READY]
       created: "2026-08-06"
       updated: "2026-08-06"
-      notes: Two findings from the 2026-07-30 power-cycle session need a repeat at full sample rate. (1) GEAR_SIGNAL_VALID (B10:5) is clear in only 9 of 6365 captures, all at four power-mode transitions, and always with the car in Park — so 'validity flag' is inferred from when it drops, not from seeing it drop in another gear. (2) VCU_POWER_STATE (B25) reads an undeclared value 1 (n=21) inside that same window, currently labelled unknown_1. The blocker is that the 2026-07-30 session was recorded --keep-unique, which drops falling edges and makes the transition timing unrecoverable — the repeat MUST be --keep-all.
+      notes: >-
+        GEAR_SIGNAL_VALID (B10:5) is clear only at four power-mode transitions on 2026-07-30, always
+        in Park, in a session that stored only changes. Repeat with --keep-all and once outside
+        Park.
       sources:
         - canair bitfield analysis 2026-08-06 (plans/2026-08-06-bitfield-audit-and-gear-state.md)
       what_to_test:
-        - B10:5 falls at every power-mode transition (>=3 independent episodes) — promotes GEAR_SIGNAL_VALID to verified
-        - Whether B10:5 also drops when the gear is not Park (distinguishes 'signal valid' from 'park position confirmed')
-        - Which button press maps to B25=1 — replaces the unknown_1 enum label
-        - B11 values 0x80/0x90/0x91/0x92 vs the 4 LED states (feeds the existing 2101 power-state LED item)
+        - B10:5 falls at every power-mode transition (3 or more independent episodes)
+        - Whether B10:5 also drops when the gear is not Park
       capture_protocol: >-
         canair monitor VCU:2101 --save --keep-all --interval 1 --label 'VCU power cycle keep-all'
         --state ACC. From READY: press start to OFF, then ACC (amber), then ON (blue), then back
         to READY; press 's' to note each press. Repeat 3x. Then, if safe and stationary with brake
         held, repeat one cycle while NOT in Park to see whether B10:5 drops there too.
-    - type: decode
-      target: 2101 B12 (analog, misnamed VCU_STATE_FLAGS_RAW)
-      status: done
-      priority: P3
-      created: "2026-08-06"
-      updated: "2026-10-21"
-      result: >-
-        2026-10-21: B12 is the low byte of accelerator pedal sensor track 1, (B13<<8)|B12
-        (VCU_APS1_VOLTAGE).
-      notes: "VCU_STATE_FLAGS_RAW is not a flag byte: B12 takes 136 distinct values across 6365 captures with all 8 bits varying independently. Triage it as an analog value or counter, then rename. Do NOT decode it bit-by-bit."
-      sources:
-        - canair bitfield analysis 2026-08-06
-      what_to_test:
-        - Autocorrelation / mean step size — smooth analog vs counter vs checksum
-        - correlate/hunt against speed, pedal, motor RPM, pack current and the 12V rail
-    - type: decode
-      target: 2101 B13/B15 (same quantity, two resolutions)
-      status: done
-      priority: P3
-      created: "2026-08-06"
-      updated: "2026-10-21"
-      result: >-
-        2026-10-21: two accelerator pedal sensor tracks, not two resolutions: (B13<<8)|B12 and
-        (B15<<8)|B14 with a fixed ~1.97 ratio (VCU_APS1_VOLTAGE, VCU_APS2_VOLTAGE). Also B17 is the
-        low byte of the pedal position (ACCEL_PEDAL_DEPTH_FINE) and B21 of the VCU supply voltage.
-      notes: "B13 and B15 are both unmapped and hold one quantity at two resolutions: B15 == B13>>1 in 6351 of 6365 captures. B13 is mostly 0x06 (n=6204) and B15 mostly 0x03, so it is a small-range value, not a wide analog. Decoding either one decodes both; the 2x relationship is itself a strong hint (a half-step unit, or a raw-vs-rounded pair)."
-      sources:
-        - canair bitfield analysis 2026-08-06 (decode --find-mirrors --bits)
-      what_to_test:
-        - canair decode VCU 2101 --find-mirrors --allow-offset to confirm the exact scale/offset
-        - investigate --events on B13 against session notes — what changes it away from 6
     - type: verify
       target: 21F2
       status: captured
@@ -885,31 +640,21 @@ VCU:
       vehicle_states: [READY]
       created: "2026-08-07"
       updated: "2026-08-07"
-      notes: "Verify VCU_ODOMETER (ISO-TP i11-i14 LE / 256 = km, 1/256 km resolution). Co-poll VCU 21F2 with CLU 22B002 across a drive: confirm the i11 fraction advances smoothly (not in whole-km jumps) and the +4.4..+4.7 km offset vs the verified CLU ODOMETER stays constant. Currently only 5 co-polled points, all parked."
+      notes: >-
+        Co-poll VCU 21F2 with CLU 22B002 across a drive: check VCU_ODOMETER advances in sub-km steps
+        and its +4.4 to +4.7 km offset to CLU ODOMETER stays constant. Only 5 co-polled points so
+        far, all parked.
     - type: decode
       target: 21F2 B75
       status: captured
       priority: P3
       created: "2026-10-20"
       updated: "2026-10-21"
-      result: >-
-        2026-10-21: VCU_21F2_EVENT_COUNT, read as (B76<<8)|B75 (784 to 847). July-August rises line
-        up with ended AC charges and one plugged-in preconditioning run, DC charges did not move it,
-        but the 08-15 to 10-19 rate (0.74/day) is far above the owner's 1-2 charges a week.
-        Candidate events: AC charge sessions, 12V-battery top-ups (HV wake while parked), scheduled
-        preconditioning, scheduled-charge starts.
       notes: >-
-        Find what VCU_21F2_EVENT_COUNT counts. Note it, then let the car sit unplugged and unused
-        for 2-3 cold days (12V top-ups only) and read it again; then do one AC charge (plug in,
-        charge, unplug) and one DC fast charge, reading it after each. Check the climate and charge
-        schedules in the head unit first: a preconditioning schedule set on 2026-07-30 (01:00
-        Sun/Tue/Wed/Thu/Sat) fits the 08-01 and 08-06/08-08 rises but not the quiet 08-02 to 08-05
-        and 08-10 to 08-15 stretches, so it may have been switched off. 2026-10-19 20:39 to 10-21
-        21:03 (two days at about 8 °C, a 1.5 km drive, no charge) left it at 847, which argues
-        against counting 12V top-ups unless none ran. The next VCU 21F2 read after the 10-21 21:00
-        top-up session will show whether that session counted. A 12V top-up should also show in BMS
-        21F2 as a short cycle with a small discharge. B76 as the high byte is unproven until B75
-        passes 255. B73:B74 next to it is a constant 91.
+        Find what VCU_21F2_EVENT_COUNT counts. Candidates: AC charge sessions, scheduled
+        preconditioning, scheduled-charge starts. The 2026-10-21 12 V top-up and two parked days
+        before it left it unchanged. Test: read it before and after one AC charge, one DC charge and
+        one scheduled preconditioning. B73:B74 next to it is a constant 91.
     - type: decode
       target: 12V battery sensor SOC/SOH/temp/current
       status: pending
@@ -919,32 +664,20 @@ VCU:
       updated: "2026-10-21"
       result: >-
         Voltage found (VCU 2102 [B26:B27]); SoC, SoH, current and temperature are not in any
-        captured PID. Source frame is P-CAN 0x549 (BAT11).
+        captured PID. The VCU itself transmits them on P-CAN 0x549 (BAT11).
       notes: >-
-        The Ioniq P-CAN carries the 12 V battery sensor frame 0x549 (opendbc BAT11: current, SoC,
-        voltage, temperature, SoH, state of function). In the uhi22 28 kWh logs it decodes as 14.8
-        V, SoC 65-68 %, SoH 89 %, 1-2 degC, about one frame per 7 s. OBDb exposes the same
-        quantities with the same scales (current raw/100-327, voltage raw/1000+6, temperature
-        raw/2-40) over diagnostics at 7E5 22 E011 and 22 E101, so those pages look like BAT11
-        re-served on newer cars. 2026-10-27 negative results on this car: (1) a scan of all 84
-        captured ECU/PID combinations for slow 0-100 bytes and for near-constant 60-100 bytes found
-        only temperatures, enums and known constants; (2) correlating every raw byte against
-        VCU_AUX_BATTERY_VOLTAGE_FINE finds only copies of the voltage; (3) the 27-byte variant of
-        VCU 2102 (3320 older captures) has constant zeros where the e-Niro layout puts current and
-        SoC, and the current 23-byte reply stops after the voltage; (4) VCU 22 E001-E010 and OBC 22
-        E001-E011 are refused, and the 7E0 ECM that OBDb uses for 22 E004 is not on this car.
-        2026-10-29: the VCU itself transmits 0x549. uhi22 found this by watching each EPCU CAN
-        transceiver (0x549 leaves on the VCU's), and in the uhi22 EPCU bench log, with no battery
-        sensor connected, the VCU sends BAT11 at its defaults with BAT_SNSR_Error = 1. So the VCU
-        reads the sensor and holds all of these values; any diagnostic copy is most likely on the
-        VCU. Still open: OBC 22 E101, a KWP2000 service-21 or 22 page on the VCU not yet read, and
-        whether the OBD port can see 0x549 at all.
+        The VCU reads the 12 V battery sensor and transmits it as P-CAN 0x549 (opendbc BAT11:
+        current, SoC, voltage, temperature, SoH): uhi22 traced 0x549 to the VCU transceiver, and his
+        EPCU on the bench sends BAT11 defaults with BAT_SNSR_Error = 1. OBDb reads the same
+        quantities at 7E5 22 E011 and 22 E101 on newer cars. Negative on this car: no slow 0-100 or
+        near-constant 60-100 byte in any captured PID; the older 27-byte VCU 2102 reply has zeros
+        where the e-Niro puts current and SoC; VCU 22 E001-E010 and OBC 22 E001-E011 are refused.
+        Open: OBC 22 E101, an unread VCU service-22 page, and whether the OBD port sees 0x549.
       sources:
         - opendbc hyundai_2015_ccan.dbc (commaai, MIT), cross-checked against uhi22 Ioniq28Investigations P-CAN logs (scripts/fetch_can_corpus.py)
       what_to_test:
-        - A VCU 2101/2102/21F2 byte in 0-100 that falls slowly in ON with the LDC off and rises in READY (12V SOC)
-        - A near-constant byte matching the 12V battery's health percentage (SOH)
-        - If no VCU byte fits, look on the OBC (LDC side) and BMS
+        - OBC 22 E101
+        - A VCU service-22 page not yet read, for slow 0-100 (SoC) or near-constant 60-100 (SoH) bytes
     - type: decode
       target: 21F2 remaining previous-cycle fields
       status: captured
@@ -952,17 +685,12 @@ VCU:
       created: "2026-10-21"
       updated: "2026-10-21"
       notes: >-
-        VCU 21F2 is a previous-cycle record. Decoded: odometer, end SOC (VCU_21F2_SOC, equal to BMS
-        21F2 LAST_CYCLE_SOC_END), range at start/end (VCU_21F2_RANGE_START/END) and an event count
-        (VCU_21F2_EVENT_COUNT, B75/B76). Unknown: (B11<<8)|B10 /256 (97-106), B21 (0-22), B29-B34,
-        B36/B37, B38-B44 (a block that changes after charging events), B45/B47/B54 (percentages
-        summing to ~100: 0/100 after drives and charges, 79-99 in B45 after parked-READY cycles, 97
-        in B54 once), and the constant B73:B74 (91).
+        Unknown fields of the VCU 21F2 previous-cycle record: (B11<<8)|B10 /256 (97-106), B21
+        (0-22), B29-B34, B36/B37, B38-B44 (change after charging), B45/B47/B54 (sum to about 100:
+        0/100 after drives and charges, 79-99 in B45 after parked READY cycles), and the constant
+        B73:B74 (91).
       sources:
         - canair 21F2 cross-check vs live data 2026-10-21
-      what_to_test:
-        - Compare B19/B20 with the cluster range at key-on and key-off
-        - Note every AC and DC charge for a week and compare with B75
     - type: verify
       target: 21F2 range start/end vs cluster
       status: captured
@@ -970,12 +698,14 @@ VCU:
       vehicle_states: [READY]
       created: "2026-10-21"
       updated: "2026-10-21"
-      notes: "VCU_21F2_RANGE_START/END (B19/B20) behave like the range estimate: about 2.2 km per % SOC, continuous between cycles, reset after charging, untouched by a charge. Needs a live comparison with the cluster's displayed range."
+      notes: >-
+        Compare VCU_21F2_RANGE_START/END (B19/B20) with the range the cluster shows at key-on and
+        key-off.
       sources:
         - canair 21F2 cross-check 2026-10-21
       what_to_test:
         - Note the cluster range at key-on and key-off for one drive, then read VCU 21F2 after the next wake-up; B19 should equal the key-on value and B20 the key-off value
-        - "Repeat with climate on and off at key-on: the 2026-08-08 jump from 208 to 233 suggests the climate deduction is included"
+        - "Repeat with climate on and off at key-on (the range rose 208 to 233 at the start of the 2026-08-08 drive, right after preconditioning)"
     - type: decode
       target: where the pre-conditioning and charge schedules are stored and run
       status: captured
@@ -984,23 +714,14 @@ VCU:
       created: "2026-10-23"
       updated: "2026-10-29"
       result: >-
-        2026-10-29: the VCU stores them. On P-CAN the VCU broadcasts its stored departure schedule
-        on 0x57A and its off-peak charge window on 0x579 (uhi22's EPCU transceiver test puts both on
-        the VCU's own transceiver). Its EPCU, running alone on uhi22's bench with no head unit or
-        gateway present, still sent both, with its own stored content. In uhi22's car the gateway
-        sends the head unit's settings onto P-CAN as 0x55C (departure) and 0x588 (charge window),
-        and the VCU's 0x57A/0x579 carry the same bytes. So the VCU receives the schedule from the
-        gateway, keeps it, and re-broadcasts it, which explains why a schedule still runs with the
-        AVN fuse pulled. Decoded in signals/body.yaml (GW_DEPART_*, GW_ECON_*) and
-        signals/powertrain.yaml (VCU_DEPART_*, VCU_ECON_*). Still open: which VCU DID, if any,
-        exposes the stored schedule over diagnostics.
-      notes: "The pre-conditioning and AC-charge schedules survive removal of the AVN: on the EU car, with the AVN fuse pulled, a schedule set earlier still ran and the car pre-conditioned on a charger. So a car module holds and executes them. The head-unit firmware notes say the schedules are sent as broadcast frames when edited (0x57A/0x57B) and that VCU 21F2 before/after, HVAC and AVN sweeps found nothing; the VCU 21F2 comparison there is recorded as invalid. Candidates: the VCU, the HVAC unit, the BMS or the OBC."
+        The VCU stores and runs them (a schedule still runs with the AVN fuse pulled). It receives
+        the head-unit settings from the gateway (P-CAN 0x55C departure, 0x588 charge window) and
+        re-broadcasts its stored copy on 0x57A and 0x579, also on a bench with no gateway or head
+        unit (uhi22). Decoded in signals/body.yaml (GW_DEPART_*, GW_ECON_*) and
+        signals/powertrain.yaml (VCU_DEPART_*, VCU_ECON_*). No diagnostic page known.
+      notes: Find a VCU diagnostic page that exposes the stored departure and off-peak schedules.
       what_to_test:
-        - Record VCU 2101/2102/21F2, HVAC 220100, BMS 2101 and OBC 2101 with --keep-changes across a scheduled start with the AVN off and look for pages that change at the scheduled time without a driver action. Repeat with the car unplugged to see whether a schedule alone wakes the car.
-      capture_protocol: >-
-        canair monitor VCU HVAC:220100 BMS:2101 OBC:2101 --save --keep-changes --interval 5 --label
-        'scheduled pre-conditioning, AVN off' --state PLUGGED; start about 10 minutes before the
-        schedule, press s at the start.
+        - Read VCU 2101/2102/21F2 before and after changing the departure and off-peak schedules in the head unit, and look for bytes that follow the 0x57A/0x579 content.
     - type: verify
       target: 2101 B11:4 VCU_IG3_ON + B25 power-off value 2
       status: pending
@@ -1009,11 +730,10 @@ VCU:
       created: "2026-10-23"
       updated: "2026-10-23"
       notes: >-
-        VCU_IG3_ON (B11:4) falls exactly when the IG3-fed ECUs (OBC, BMS, MCU, AAF, HVAC) stop
-        answering in every stored stretch, but none of them is a power-off straight from READY
-        recorded with --keep-all, so the order of the fall and the other ECUs going quiet is known
-        only to the poll interval (5-27 s). The US logs show B11 = 0xD0 and VCU_POWER_STATE 2 at
-        power-off, then 0x80; neither value 2 nor B11:6 without B11:3 has been seen on this car.
+        VCU_IG3_ON falls when the IG3-fed ECUs (OBC, BMS, MCU, AAF, HVAC) stop answering, but no
+        power-off straight from READY is recorded with --keep-all, so the order is known only to the
+        poll interval (5-27 s). The US logs show B11 = 0xD0 and VCU_POWER_STATE 2 at power-off, then
+        0x80; neither has been seen on this car.
       sources:
         - canair response-presence analysis 2026-10-23; JejuSoul US Ioniq logs
       what_to_test:
@@ -1034,10 +754,8 @@ VCU:
       updated: "2026-10-23"
       notes: >-
         The US head-unit firmware reads an IG3 relay mode from the VCU in frame 0x57B
-        (CF_Vcu_IG3RlyMd, byte 2 bits 7-4, values 2 and 10 seen). VCU_POWER_STATE is the closest
-        diagnostic field (1 standby, 2 shutdown in the US logs, 4 drive, 6 charge transition, 7
-        charging), but the two encodings have not been compared. The OBD port is behind the gateway,
-        so 0x57B needs a P-CAN or MM-CAN tap.
+        (CF_Vcu_IG3RlyMd, byte 2 bits 7-4, values 2 and 10 seen). Compare its encoding with
+        VCU_POWER_STATE. The OBD port is behind the gateway, so 0x57B needs a P-CAN or MM-CAN tap.
       sources:
         - research/IONIQ_AVN_FW_FINDINGS.md section 6
       what_to_test:
@@ -1049,7 +767,10 @@ VCU:
       vehicle_states: [READY]
       created: "2026-10-27"
       updated: "2026-10-27"
-      notes: Check whether the OBD port exposes the broadcast 12 V battery sensor frame 0x549 (opendbc BAT11). It would give 12 V SoC, SoH, current and temperature, none of which is in any diagnostic page captured so far. The uhi22 logs show it about every 7 s with SoC 65-68 % and SoH 89 %. No raw broadcast capture exists for this car yet (captures/can is empty).
+      notes: >-
+        Check whether the OBD port carries the 12 V battery sensor frame 0x549 (opendbc BAT11: 12 V
+        SoC, SoH, current, temperature). uhi22 logs show it about every 7 s. No raw broadcast
+        capture exists for this car yet.
       sources:
         - opendbc hyundai_2015_ccan.dbc BAT11; uhi22 Ioniq28Investigations P-CAN logs; canair 12 V SoC/SoH search 2026-10-27
       what_to_test:
@@ -1065,7 +786,11 @@ VCU:
       vehicle_states: [READY]
       created: "2026-10-29"
       updated: "2026-10-29"
-      notes: "The steering-wheel regen paddles are wired straight into the EPCU harness connector: CN1000 3H is the right paddle (decrease regen), 3J the left (increase), each a switch to ground (about 202 ohm pressed). So the regen level is held in the VCU, and the momentary switch states are VCU inputs. The 2026-07-21 drive-mode session found no regen field in VCU 2101/2102, but it stored only changes on a 2.5 s poll, which can miss a press shorter than one poll. Same readme: the accelerator pedal is also a direct EPCU input (CN1000 3C/3F), reflected in broadcast 0x200 byte 4 (0-254, 255 invalid)."
+      notes: >-
+        The regen paddles are wired into the EPCU connector (CN1000 3H right = decrease, 3J left =
+        increase, each a switch to ground, about 202 ohm pressed), so the switch states and the
+        regen level are VCU inputs. The 2026-07-21 drive-mode session stored only changes on a 2.5 s
+        poll, which can miss a short press.
       sources:
         - uhi22 EPCU readme (CN1000 pin-out), 2026-10-29
       what_to_test:
@@ -1080,8 +805,19 @@ VCU:
       vehicle_states: [PLUGGED, CHARGING]
       created: "2026-10-30"
       updated: "2026-10-30"
-      result: "The EU head unit has no start or stop command. Its only charge on/off control is the scheduling mode on the 'Charging and Climate Settings' page: 'Charge Now' sends mode 0, 'Charge on Schedule' resends the mode last saved on the off-peak page (1 = no off-peak window, 2 = off-peak enabled, 3 = 'Charge ONLY during the time shown below'). It goes out at once as HU_EV_P_01 (MM-CAN 0x57A, byte 4 bits 1-0, with the weekday and weekend off-peak windows in bytes 0-3); the gateway forwards it to P-CAN as 0x588 unchanged; the VCU stores it and re-broadcasts it on 0x579, which the gateway turns into GW_EV_P_06 (MM-CAN 0x56B) for the head unit's display. The VCU then starts or stops the charge itself, using the window and the gateway clock 0x567 (weekday and time). The head unit's dedicated start/stop frame HU_GW_P_00 (CfTmuChargeCtr / CfTmuCharCancel) is never built by any app and is dropped by the MICOM; its US counterpart is the telematics frame TMU1 (0x587), which does not exist on the EU car. On P-CAN the mode reads 3 in uhi22's 2022 trace and 0 in his 2025 logs, so the frames are live."
-      notes: "What a stop looks like in our diagnostics: OBC_SESSION_FLAGS bit 2 tracks the charger's pilot PWM. All seven charge ends we recorded at 0x76 -> 0x72 had the pilot go to 100 % duty, i.e. the charger ended the session. A car-side stop keeps the PWM: 2026-08-05 15:28 (95 % SOC, pilot still 20 A) went 0x76 -> 0x7E with VCU_POWER_STATE 7 -> 6. A stop by the scheduling mode should look like that second case."
+      result: >-
+        The EU head unit has no start or stop command; its only charge control is the scheduling
+        mode: Charge Now sends mode 0, Charge on Schedule resends the saved off-peak mode (1 no
+        window, 2 off-peak enabled, 3 charge only in the window). It goes out as HU_EV_P_01 (MM-CAN
+        0x57A byte 4 bits 1-0, with the off-peak windows in bytes 0-3), the gateway forwards it to
+        P-CAN as 0x588, and the VCU stores it, re-broadcasts it on 0x579 and starts or stops the
+        charge itself using the gateway clock 0x567. The dedicated start/stop frame HU_GW_P_00 is
+        never built and is dropped by the MICOM.
+      notes: >-
+        OBC_SESSION_FLAGS bit 2 follows the charger pilot PWM. All seven recorded charger-ended
+        sessions went 0x76 -> 0x72 with the pilot at 100 % duty; the one car-side stop (2026-08-05
+        15:28, 95 % SOC) kept the PWM and went 0x76 -> 0x7E with VCU_POWER_STATE 7 -> 6. A stop by
+        the scheduling mode should look like the car-side stop.
       sources:
         - ioniq-avn-fw EU firmware (GreenCar DepartureClimateActivity/EconomyReservationSettingActivity, IviServer GreenCarMessageSetting, MICOM tables); uhi22 IoniqMotorCAN P-CAN trace 2022-07-22 and Ioniq28Investigations logs; canair OBC 2101 captures; 2026-10-30
       what_to_test:

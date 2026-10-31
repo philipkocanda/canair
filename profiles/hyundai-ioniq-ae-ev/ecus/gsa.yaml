@@ -12,13 +12,13 @@ GSA:
     id_protocol: UDS  # F1xx
     notes: Gear Shift Assembly (Kostal shift-lever module). Gear state is read from VCU 2101 GEAR.
   vehicle_states: [ACC, "ON", READY]
-  scan_log: # GSA (gear shift assembly)
+  scan_log:
     - service: 0x22
       range: "0101-010F,B001-B010,C001-C010,D001-D010"
       date: 2026-07-22
       hits: 0
       vehicle_states: [READY]
-      notes: "Also service 21 01-0F: all NRC. No live-data DIDs exposed via OBD — gear state is available via VCU 2101 GEAR instead."
+      notes: "Service 21 01-0F also all NRC."
   pids:
     220100:
       response_frames: 4
@@ -26,7 +26,5 @@ GSA:
       period: 5000
       vehicle_states: [ACC, "ON", READY]
       notes: >-
-        21 bytes; the only DID GSA answers (service 21 and 22 0101-0130 all NRC, 2026-07-20). In
-        Park on 2026-04-17 and 2026-07-20, B19, B21 and B22 changed from 0x93, 0x91, 0x94 to 0x77,
-        0x76, 0x78; B20 is constant 0x01. Payloads: 620100FF00000080AA010000000000930191940001 and
-        620100FF00000080AA010000000000770176780001.
+        21 bytes; the only DID GSA answers (service 21 and 22 0101-0130 all NRC). B19, B21 and B22
+        read either 0x93/0x91/0x94 or 0x77/0x76/0x78, both seen in Park; B20 is constant 0x01.

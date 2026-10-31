@@ -4,10 +4,9 @@ Unknown-7C0:
     description: Unknown ECU at 0x7C0
     id_protocol: unknown
     notes: >-
-      Answered the 2026-04-17 address sweep (READY). No identity DID has responded. NO DATA during
-      AC charging (2026-04-19: 1001, 1003, 3E00, 1A8C) and at READY (2026-07-21: 22 B001-B005;
-      2026-07-22: 22 0100-010F).
-  scan_log: # Unknown-7C0
+      Answered the 2026-04-17 address sweep (READY). No identity DID responds. NO DATA to 1001,
+      1003, 3E00 and 1A8C during AC charging, and to 22 B001-B005 and 22 0100-010F at READY.
+  scan_log:
     - service: 0x22
       range: "0100-010F"
       date: 2026-07-22

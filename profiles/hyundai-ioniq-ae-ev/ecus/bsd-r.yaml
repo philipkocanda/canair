@@ -1,6 +1,5 @@
 # ─── BSD-R (Blind Spot Detection — Right) ─────────────────────────────
 # Right BSD radar at 0x7B7. Part: 95811G2000
-# No live data DIDs discovered yet. Service 22 ranges untested.
 BSD-R:
   tx_id: 0x7B7
   can_bus: [C-CAN]
@@ -8,11 +7,10 @@ BSD-R:
     description: Blind Spot Detection radar (right)
     part_number: "95811G2000"
     serial: "31114851713802876"
-    id_protocol: UDS  # F1xx (many FF-padded fields, same format as BSD-L 0x755)
-    notes: >
-      Right blind-spot detection radar. No readable live-data DIDs found.
+    id_protocol: UDS  # F1xx (many FF-padded fields)
+    notes: Right blind-spot detection radar. No readable live-data DIDs found.
   vehicle_states: [ACC, "ON", READY]
-  scan_log: # BSD-R (blind spot radar, right)
+  scan_log:
     - service: 0x22
       range: "0101-010F,B001-B010,C101-C10F"
       date: 2026-07-22
