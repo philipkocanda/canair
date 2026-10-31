@@ -371,7 +371,13 @@ reuse these instead of re-declaring a flag:
   `merge_ecu_documents` resolves it into every loaded parameter, so **readers of loaded
   definitions never see the gap — only code that parses the YAML itself** (the validator, the
   explorer export, the editors) **must call `effective_param`**. PID `notes` are page-level and
-  deliberately not inherited. Free-text `notes`
+  deliberately not inherited. **State a shared value once, never per signal:** whatever holds
+  for the whole page (those fields, and a provenance or method note) goes on the PID, and a
+  signal's own `notes` carry only what is specific to it — never the source, a restated name or a
+  byte order the expression already shows. A bulk seed (from OBDb, OVMS, a Torque sheet) writes
+  the PID's defaults and note *first* and gives a signal its own value only where it differs
+  (`""` to opt out of an inherited unit); `pids hoist-defaults --dry-run` must then report
+  nothing. The seeding workflow is in the **reverse-engineer-signal** skill. Free-text `notes`
   auto-format via `canlib/yaml_rt.py` (short inline, long folded `>-`) — pass plain strings, never
   hand-format block scalars.
 - **`canair signals`** — The domain-B analogue: view/edit the broadcast sidecar `signals/<bus>.yaml`

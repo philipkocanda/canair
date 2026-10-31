@@ -47,6 +47,9 @@ next person down a false trail.
   narrative of how you found it, TODO musings, restating the expression in
   prose. Speculation about *untested* regimes belongs in a `research:` entry
   (via `canair pids add-research`), not the param note.
+- **Cut what repeats.** A note that recurs on many of a page's params (the source, how
+  it was checked, a byte order, a description restating the name) belongs once in the
+  PID note (`set-pid-notes`), or nowhere.
 - If a fact is genuinely uncertain, the *name* carries the uncertainty (rule 4)
   and the note simply omits the guess.
 

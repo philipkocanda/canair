@@ -336,6 +336,36 @@ byte is *proven* bogus or redundant and you're keeping it for the research trail
 (padding, a counter, an exact mirror of a mapped param). **Keep `--notes` terse and
 factual**: byte offset, observed range/per-state values, the one key piece of evidence.
 
+#### Seeding from third-party definitions (OBDb, OVMS, Torque sheets)
+
+A new profile is often seeded device-free from someone else's definitions. Do it so the result
+reads as if each page were written by hand, once:
+
+1. **Convert offsets with the framing in mind.** OBDb `bix` and Torque letters count from the
+   first data byte after the DID echo (`canlib/uds/byteindex.py`); the WiCAN index then depends
+   on whether the reply is single- or multi-frame (see the byte-index reference below). Take the
+   reply length from a recorded response, never a guess. Multi-byte values that straddle a frame
+   boundary need shift-and-or expressions; OBDb's `blsb` means little-endian.
+2. **Check every expression against recorded replies before writing anything.** OBDb's
+   `tests/test_cases/` hold real multi-frame replies with expected values: frame them in the
+   WiCAN layout, run `canlib.expression.evaluate_expression`, and compare. A signal that
+   disagrees on more than a stray corrupt frame or a clamped value is wrong — fix or drop it.
+3. **Write each PID's shared fields and note first.** `pids add-pid --status active`, then
+   `set-pid-defaults` with `verified: false`, the `source`/`source_links`, and every
+   `unit`/`ha_class`/`min`/`max` most of its signals share; then `set-pid-notes` with what holds
+   for the whole page (where it came from, how it was checked, which recorded replies disagreed,
+   a rename table for a block of look-alike signals such as cell voltages).
+4. **Then write the signals with only what differs.** A signal states a field only when its value
+   differs from the PID's (`""` opts a flag out of an inherited unit). Its note is a fact about
+   that signal alone — a no-data value, a bit's meaning, a source that disagrees — or absent.
+   Never repeat the source, a description that restates the name, or a byte order the
+   expression already shows. Finish with `pids hoist-defaults --dry-run` reporting nothing.
+5. **Keep provenance honest.** Definitions for the car itself are `active` and unverified; a DID
+   only a sibling car or another project defines is `draft` until this car answers it; sources
+   that disagree become a `research:` entry instead of a guess. Take facts (DIDs, offsets,
+   scalings) only — never copy a source's recorded payloads into `captures/` unless its licence
+   allows it and you know which car (variant) they came from.
+
 ### 9. Verify — confirm against reality
 
 ```bash

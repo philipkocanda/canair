@@ -89,7 +89,8 @@ Before submitting, make the profile clean and honest:
   `canair pids upsert-param` (never hand-edit `ecus/`). Values shared by a whole page (`unit`,
   `ha_class`, `min`, `max`, `verified`, `source`, `source_links`) go on the PID once
   (`set-pid-defaults`; `hoist-defaults` folds up repeats) — signals that set none of their own
-  inherit them.
+  inherit them. A note true of the whole page goes in the PID note (`set-pid-notes`), not on
+  every signal.
 - **`car_model` pins down the vehicle** — model / year / market / battery — so
   another owner can tell whether the profile matches *their* car. Set it via the
   profile scaffold or `canair config`/profile tooling, not by hand-editing if a
