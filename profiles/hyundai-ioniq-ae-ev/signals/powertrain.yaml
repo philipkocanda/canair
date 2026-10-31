@@ -32,7 +32,7 @@ messages:
         max: 15.0
         verified: false
         source: 'uhi22 Ioniq28Investigations: IONIQ_PCAN_drive_fwd_neutral_drive_reverse_neutral.csv (fetch: scripts/fetch_can_corpus.py)'
-        notes: "Gear lever, low nibble of the 6th data byte (D6 / start_bit 40). Enum P=1,R=2,N=3,D=4 (ascending PRND). Data evidence: codes 1&3 always stationary (wheel speed 0 over 460/397 samples), 2&4 moving (2=reverse phase 66%, 4=drive phase 67%); code 3 = both neutral phases. Byte 1 of VCU200 (0x200) changed in lockstep but is FCO's MSB per the upstream DBC, so treated as a loose correlate, not a confirmed mirror. Unverified pending owner-car confirmation."
+        notes: "Gear lever, low nibble of the 6th data byte (D6 / start_bit 40). Enum P=1,R=2,N=3,D=4 (ascending PRND). Data evidence: codes 1&3 always stationary (wheel speed 0 over 460/397 samples), 2&4 moving (2=reverse phase 66%, 4=drive phase 67%); code 3 = both neutral phases. Mirrored by 0x200 GEAR_SHIFTER (opendbc hyundai_can.dbc; a different enum, P=0 D=5 N=6 R=7), which changes at the same moments. Unverified pending owner-car confirmation."
   '0x331':
     name: TCS_331
     tx_ecu: ESC
@@ -816,3 +816,227 @@ messages:
         byte_order: little
         source: CCM application firmware (uhi22 code-flash dump), Com receive table and DIN 70121 message builder decompiled in Ghidra; uhi22 BMS readme (0x5D5 power relay temperature frame)
         notes: "After each WeldingDetectionRes, the CCM ends the session when this bit is 1 and repeats WeldingDetection otherwise: probably 'contactors confirmed open, not welded'. The only 0x5D5 bit the CCM receives. uhi22's bench sessions run without 0x5D5 (so the CCM keeps repeating WeldingDetection until the charger ends it)."
+  '0x200':
+    name: EMS20
+    tx_ecu: VCU
+    length: 8
+    signals:
+      GEAR_SHIFTER:
+        start_bit: 11
+        length: 3
+        byte_order: little
+        min: 0.0
+        max: 7.0
+        verified: false
+        source: opendbc generator/hyundai/hyundai_can.dbc EMS20 HYDROGEN_GEAR_SHIFTER (commaai, MIT); observed on the uhi22 Ioniq28 P-CAN tap (scripts/fetch_can_corpus.py)
+        notes: 'Gear lever. Enum per opendbc: P=0, D=5, N=6, R=7 (S=8 does not fit 3 bits; not seen). The drive log (IONIQ_PCAN_drive_fwd_neutral_drive_reverse_neutral.csv) reads P, D, N, R, N, the order the drive was made in; the second log stays P. Changes together with GEAR_354 GEAR_LEVER. opendbc names it for the hydrogen Nexo; the 2015 C-CAN DBC calls this byte part of FCO. The car sends 8 bytes, opendbc says 6. Unverified pending owner-car confirmation.'
+  '0x220':
+    name: ESP12
+    tx_ecu: ESC
+    length: 7
+    signals:
+      LONG_ACCEL:
+        start_bit: 13
+        length: 11
+        byte_order: little
+        scale: 0.01
+        offset: -10.23
+        min: -10.23
+        max: 10.24
+        unit: m/s^2
+        verified: false
+        source: opendbc generator/hyundai/hyundai_can.dbc ESP12 (commaai, MIT); observed on the uhi22 Ioniq28 P-CAN tap (scripts/fetch_can_corpus.py)
+        notes: "Longitudinal acceleration. In the drive log (IONIQ_PCAN_drive_fwd_neutral_drive_reverse_neutral.csv), 1 s means track the derivative of 0x386 WHL_SPD_FL (sign flipped while 0x200 reads R): r=0.94, slope 1.06, offset +0.17 m/s^2 (sensor bias or road slope). Range -1.8 to +1.8. The car sends 7 bytes, opendbc says 8, so opendbc's checksum and counter byte is absent. Unverified pending owner-car confirmation."
+      LAT_ACCEL:
+        start_bit: 0
+        length: 11
+        byte_order: little
+        scale: 0.01
+        offset: -10.23
+        min: -10.23
+        max: 10.24
+        unit: m/s^2
+        verified: false
+        source: opendbc generator/hyundai/hyundai_can.dbc ESP12 (commaai, MIT); observed on the uhi22 Ioniq28 P-CAN tap (scripts/fetch_can_corpus.py)
+        notes: Lateral acceleration. Only -0.14 to +0.42 in the logs, which never turn hard, so the layout is not tested beyond a plausible near-zero value. Unverified pending owner-car confirmation.
+      CYL_PRES:
+        start_bit: 26
+        length: 12
+        byte_order: little
+        scale: 0.1
+        min: 0.0
+        max: 409.5
+        unit: bar
+        verified: false
+        source: opendbc generator/hyundai/hyundai_can.dbc ESP12 (commaai, MIT); observed on the uhi22 Ioniq28 P-CAN tap (scripts/fetch_can_corpus.py)
+        notes: Brake master-cylinder pressure. 0 to 64.7 bar. Averages 17.1 bar while 0x394 DriverBraking is 1 and 0.1 bar while it is 0. Unverified pending owner-car confirmation.
+      YAW_RATE:
+        start_bit: 40
+        length: 13
+        byte_order: little
+        scale: 0.01
+        offset: -40.95
+        min: -40.95
+        max: 40.96
+        unit: deg/s
+        verified: false
+        source: opendbc generator/hyundai/hyundai_can.dbc ESP12 (commaai, MIT); observed on the uhi22 Ioniq28 P-CAN tap (scripts/fetch_can_corpus.py)
+        notes: Yaw rate. -1.34 to -0.12; about -0.8 both stationary and moving, so the logs show a bias and no turn. Unit not given by opendbc. Unverified pending owner-car confirmation.
+  '0x387':
+    name: WHL_PUL11
+    tx_ecu: ESC
+    length: 8
+    signals:
+      WHL_PUL_FL:
+        start_bit: 0
+        length: 8
+        byte_order: little
+        min: 0.0
+        max: 255.0
+        unit: pulses
+        verified: false
+        source: opendbc generator/hyundai/hyundai_can.dbc WHL_PUL11 (commaai, MIT); observed on the uhi22 Ioniq28 P-CAN tap (scripts/fetch_can_corpus.py)
+        notes: Wheel-speed sensor edge counter, wraps at 256. Its rate over 1 s windows tracks 0x386 WHL_SPD_FL at r=0.997, about 48 counts per metre on every wheel. opendbc scales it by 0.5; kept raw here because it is a counter. It counts up in reverse too, and opendbc's WHL_DIR fields read 0 throughout. The car sends 8 bytes, opendbc says 6. Unverified pending owner-car confirmation.
+      WHL_PUL_FR:
+        start_bit: 8
+        length: 8
+        byte_order: little
+        min: 0.0
+        max: 255.0
+        unit: pulses
+        verified: false
+        source: opendbc generator/hyundai/hyundai_can.dbc WHL_PUL11 (commaai, MIT); observed on the uhi22 Ioniq28 P-CAN tap (scripts/fetch_can_corpus.py)
+        notes: Wheel-speed sensor edge counter, wraps at 256. Its rate over 1 s windows tracks 0x386 WHL_SPD_FL at r=0.997, about 48 counts per metre on every wheel. opendbc scales it by 0.5; kept raw here because it is a counter. It counts up in reverse too, and opendbc's WHL_DIR fields read 0 throughout. The car sends 8 bytes, opendbc says 6. Unverified pending owner-car confirmation.
+      WHL_PUL_RL:
+        start_bit: 16
+        length: 8
+        byte_order: little
+        min: 0.0
+        max: 255.0
+        unit: pulses
+        verified: false
+        source: opendbc generator/hyundai/hyundai_can.dbc WHL_PUL11 (commaai, MIT); observed on the uhi22 Ioniq28 P-CAN tap (scripts/fetch_can_corpus.py)
+        notes: Wheel-speed sensor edge counter, wraps at 256. Its rate over 1 s windows tracks 0x386 WHL_SPD_FL at r=0.997, about 48 counts per metre on every wheel. opendbc scales it by 0.5; kept raw here because it is a counter. It counts up in reverse too, and opendbc's WHL_DIR fields read 0 throughout. The car sends 8 bytes, opendbc says 6. Unverified pending owner-car confirmation.
+      WHL_PUL_RR:
+        start_bit: 24
+        length: 8
+        byte_order: little
+        min: 0.0
+        max: 255.0
+        unit: pulses
+        verified: false
+        source: opendbc generator/hyundai/hyundai_can.dbc WHL_PUL11 (commaai, MIT); observed on the uhi22 Ioniq28 P-CAN tap (scripts/fetch_can_corpus.py)
+        notes: Wheel-speed sensor edge counter, wraps at 256. Its rate over 1 s windows tracks 0x386 WHL_SPD_FL at r=0.997, about 48 counts per metre on every wheel. opendbc scales it by 0.5; kept raw here because it is a counter. It counts up in reverse too, and opendbc's WHL_DIR fields read 0 throughout. The car sends 8 bytes, opendbc says 6. Unverified pending owner-car confirmation.
+  '0x394':
+    name: TCS13
+    tx_ecu: ESC
+    length: 8
+    signals:
+      StandStill:
+        start_bit: 47
+        length: 1
+        byte_order: little
+        min: 0.0
+        max: 1.0
+        verified: false
+        source: opendbc generator/hyundai/hyundai_can.dbc TCS13 (commaai, MIT); observed on the uhi22 Ioniq28 P-CAN tap (scripts/fetch_can_corpus.py)
+        notes: Vehicle at standstill. When 1, 0x386 WHL_SPD_FL never exceeds 0.22 km/h (1099 frames); when 0 it averages 4.4 km/h. Unverified pending owner-car confirmation.
+      DriverBraking:
+        start_bit: 55
+        length: 1
+        byte_order: little
+        min: 0.0
+        max: 1.0
+        verified: false
+        source: opendbc generator/hyundai/hyundai_can.dbc TCS13 (commaai, MIT); observed on the uhi22 Ioniq28 P-CAN tap (scripts/fetch_can_corpus.py)
+        notes: Brake pedal pressed. 0x220 CYL_PRES averages 17.1 bar while 1 and 0.1 bar while 0. CF_DriBkeStat (bit 60) changes at the same moments; opendbc's BrakeLight (bit 11) stays 0 throughout, braking included. Unverified pending owner-car confirmation.
+      aBasis:
+        start_bit: 0
+        length: 11
+        byte_order: little
+        scale: 0.01
+        offset: -10.23
+        min: -10.23
+        max: 10.24
+        unit: m/s^2
+        verified: false
+        source: opendbc generator/hyundai/hyundai_can.dbc TCS13 (commaai, MIT); observed on the uhi22 Ioniq28 P-CAN tap (scripts/fetch_can_corpus.py)
+        notes: Acceleration reference. Follows 0x220 LONG_ACCEL (1 s means, r=0.94 against the wheel-speed derivative, same slope and offset). Unverified pending owner-car confirmation.
+  '0x2B0':
+    name: SAS11
+    tx_ecu: EPS
+    length: 5
+    signals:
+      SAS_Angle:
+        start_bit: 0
+        length: 16
+        byte_order: little
+        signed: true
+        scale: 0.1
+        min: -3276.8
+        max: 3276.7
+        unit: deg
+        verified: false
+        source: opendbc generator/hyundai/hyundai_can.dbc SAS11 (commaai, MIT); observed on the uhi22 Ioniq28 P-CAN tap (scripts/fetch_can_corpus.py)
+        notes: Steering wheel angle. 8.7 to 8.9 deg in the drive log, 2.4 to 4.0 deg in the other; neither log turns the wheel, so the sign and scale are untested. Relayed from C-CAN by the gateway (see IGPM research). Unverified pending owner-car confirmation.
+  '0x549':
+    name: BAT11
+    length: 8
+    signals:
+      BAT_SNSR_V:
+        start_bit: 24
+        length: 14
+        byte_order: little
+        scale: 0.001
+        offset: 6.0
+        min: 6.0
+        max: 22.383
+        unit: V
+        verified: false
+        source: opendbc generator/hyundai/hyundai_can.dbc BAT11 (commaai, MIT); observed on the uhi22 Ioniq28 P-CAN tap (scripts/fetch_can_corpus.py)
+        notes: 12 V battery voltage at the battery sensor. 14.78 to 14.82 V in READY, about 0.23 V above 0x596 BMS_AUX_BATTERY_VOLTAGE at the same moments. 10 Hz. Unverified pending owner-car confirmation.
+      BAT_SNSR_I:
+        start_bit: 0
+        length: 16
+        byte_order: little
+        scale: 0.01
+        offset: -327.0
+        min: -327.0
+        max: 328.0
+        unit: A
+        verified: false
+        source: opendbc generator/hyundai/hyundai_can.dbc BAT11 (commaai, MIT); observed on the uhi22 Ioniq28 P-CAN tap (scripts/fetch_can_corpus.py)
+        notes: 12 V battery current. 4 to 5 A in the drive log and 1 A in the other, both in READY; positive read as charging, consistent with 14.8 V. Whole amps only, so the 0.01 A scale may be finer than the sensor reports. Unverified pending owner-car confirmation.
+      BAT_SOC:
+        start_bit: 16
+        length: 8
+        byte_order: little
+        min: 0.0
+        max: 100.0
+        unit: '%'
+        verified: false
+        source: opendbc generator/hyundai/hyundai_can.dbc BAT11 (commaai, MIT); observed on the uhi22 Ioniq28 P-CAN tap (scripts/fetch_can_corpus.py)
+        notes: 12 V battery state of charge. 65 to 66 % in the drive log, 68 % in the other. Unverified pending owner-car confirmation.
+      BAT_SNSR_Temp:
+        start_bit: 38
+        length: 9
+        byte_order: little
+        signed: true
+        scale: 0.5
+        offset: -40.0
+        min: -40.0
+        max: 125.0
+        unit: degC
+        verified: false
+        source: opendbc generator/hyundai/hyundai_can.dbc BAT11 (commaai, MIT); observed on the uhi22 Ioniq28 P-CAN tap (scripts/fetch_can_corpus.py)
+        notes: 12 V battery temperature. 1 and 2 degC in the two logs; the log dates and ambient temperature are unknown. Unverified pending owner-car confirmation.
+      BAT_SOH:
+        start_bit: 48
+        length: 7
+        byte_order: little
+        min: 0.0
+        max: 100.0
+        unit: '%'
+        verified: false
+        source: opendbc generator/hyundai/hyundai_can.dbc BAT11 (commaai, MIT); observed on the uhi22 Ioniq28 P-CAN tap (scripts/fetch_can_corpus.py)
+        notes: 12 V battery state of health. 89 % in both logs. Unverified pending owner-car confirmation.
