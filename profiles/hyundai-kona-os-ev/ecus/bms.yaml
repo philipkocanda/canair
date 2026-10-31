@@ -57,28 +57,29 @@ BMS:
           unit: kW
           ha_class: power
           notes: BMS-permitted discharge power limit.
-        CHARGING:
+        BMS_B15_7_UNKN:
           expression: B15:7
           notes: >-
-            Energy flowing into the pack (AC or DC). Bit 7 of B15, as on the Ioniq BMS (OBDb bix 72,
-            numbered from the byte's MSB). Clear throughout the 2019 dongle logs (including a READY
-            car); never seen set.
+            B15 bit 7 (OBDb bix 72, labelled HV battery charging). 1 in all 166 captures of
+            2021-05-21 (ignition off: 12V top-up, sleep entry, AC charge and after unplug, relay
+            open and 0 A included); 0 in all 1489 captures with ignition on (B62:2 = 1).
         RAPID_CHARGE_PORT:
           expression: B15:6
           notes: >-
             DC rapid-charge port active. Bit 6 of B15 (OBDb bix 73, MSB-first). Clear throughout the
             2019 dongle logs (including a READY car); never seen set.
-        NORMAL_CHARGE_PORT:
+        BMS_B15_5_UNKN:
           expression: B15:5
           notes: >-
-            AC normal-charge port active. Bit 5 of B15 (OBDb bix 74, MSB-first). Clear throughout
-            the 2019 dongle logs (including a READY car); never seen set.
+            B15 bit 5 (OBDb bix 74, labelled normal charge port). 0 in every capture, including a
+            7.4 kW AC charge on 2021-05-21.
         BMS_MAIN_RELAY:
           expression: B15:0
           notes: >-
-            HV main relay closed. Bit 0 of B15 (OBDb bix 79, MSB-first). Set (B15 = 0x03) throughout
-            the 2019 logs, where upstream says the car was READY (221207-1); a READY Ioniq reads the
-            same 0x03. Bit 1 equals bit 0 here and is unmapped.
+            HV main relay closed. Bit 0 of B15 (OBDb bix 79, MSB-first). Set throughout the 2019
+            logs, where upstream says the car was READY (221207-1); a READY Ioniq reads the same
+            0x03. On 2021-05-21 set during a 12V top-up and an AC charge, clear from 1 s after the
+            charge stopped. Bit 1 equals bit 0 in every capture and is unmapped.
         BATTERY_MAX_TEMP:
           expression: S21
           unit: °C
@@ -154,6 +155,22 @@ BMS:
           min: "0"
           max: "16"
           notes: 12V auxiliary battery.
+        INVERTER_CAPACITOR_VOLTAGE:
+          expression: (B63 << 8) | B65
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "450"
+          source: OBDb Hyundai-Kona-Electric (bix 408)
+          notes: >-
+            Tracks BATTERY_VOLTAGE (352-354 V) with the main relay closed; decays 354 to 210 V over
+            15 s after the relay opens (2021-05-21 AC charge end); 0 asleep.
+        IGNITION:
+          expression: B62:2
+          source: OBDb Hyundai-Kona-Electric (bix 405)
+          notes: >-
+            1 in all 1489 captures of the 2019/2021 dongle logs (READY or parked with ignition on);
+            0 in all 166 ignition-off captures of 2021-05-21.
     220105:
       status: active
       source: OBDb Hyundai-Kona-Electric (offsets via canair bix)

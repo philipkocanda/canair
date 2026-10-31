@@ -61,9 +61,9 @@ states:
     when: VMCU.EV_READY == 1
   - name: PLUGGED
     description: Charge cable connected, not necessarily charging.
-    when: BMS.NORMAL_CHARGE_PORT == 1 or BMS.RAPID_CHARGE_PORT == 1
+    when: BMS.RAPID_CHARGE_PORT == 1 or OBC.CHARGER_AC_INPUT_VOLTAGE > 100
   - name: CHARGING
     description: HV battery actively charging (AC or DC). Implies plugged.
     implies: [PLUGGED]
     excludes: [DRIVING]
-    when: BMS.CHARGING == 1
+    when: BMS.BATTERY_CURRENT < -1 and VMCU.EV_READY == 0
