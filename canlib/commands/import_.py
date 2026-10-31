@@ -79,6 +79,12 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     p_dbc = sub.add_parser(
         "dbc",
         help="Import DBC broadcast signal definitions into the signals/ model",
+        description=(
+            "Import DBC broadcast signal definitions into the signals/ model. A DBC that "
+            "cantools rejects as written (a malformed comment, a 29-bit ID without the "
+            "extended flag, a name starting with a digit, ...) is repaired in memory, "
+            "never on disk, and every repair is listed with its line."
+        ),
     )
     p_dbc.add_argument("file", help="Path to a .dbc file")
     p_dbc.add_argument("--bus", help="Target bus (signals/<bus>.yaml; default: DBC filename)")
@@ -267,20 +273,30 @@ def _run_dbc(args) -> int:
     import json
 
     try:
-        import cantools
+        import cantools  # noqa: F401
     except ImportError:
         print("import dbc: cantools is required (pip install cantools).", file=sys.stderr)
         return 1
+
+    from canlib.dbc_repair import DbcLoadError, load_dbc, summarize
 
     path = Path(args.file)
     if not path.is_file():
         print(f"import dbc: no such file: {path}", file=sys.stderr)
         return 1
     try:
-        db = cantools.database.load_file(str(path), strict=False)
-    except Exception as e:  # cantools parse errors
+        db, repairs = load_dbc(path)
+    except DbcLoadError as e:
         print(f"import dbc: could not parse {path.name}: {e}", file=sys.stderr)
         return 1
+    if repairs and not args.json:
+        print(
+            f"import dbc: {path.name} does not parse as written; repaired "
+            f"{len(repairs)} line(s) in memory (the file is unchanged):",
+            file=sys.stderr,
+        )
+        for line in summarize(repairs):
+            print(f"  {line}", file=sys.stderr)
 
     id_filter = None
     if args.ids:
@@ -310,6 +326,7 @@ def _run_dbc(args) -> int:
     left_out = {
         "skipped": result.skipped,
         "value_tables_dropped": result.value_tables_dropped,
+        "repairs": [{"kind": r.kind, "line": r.line, "detail": r.detail} for r in repairs],
     }
 
     if args.dry_run:

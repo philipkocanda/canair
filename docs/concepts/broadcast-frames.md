@@ -123,8 +123,18 @@ canair import dbc car.dbc --bus powertrain             # DBC → signals/
 canair export dbc --bus powertrain -o mycar.dbc        # signals/ → DBC
 ```
 
-Real-world DBCs (with overlapping signals) load in non-strict mode. A round trip
-carries:
+Real-world DBCs (with overlapping signals) load in non-strict mode. A DBC that
+cantools rejects as written is repaired in memory and parsed again; the file itself
+is never changed, and every repair is listed with its line (and under `repairs` in
+`--json`). The repairs cover the dialect quirks common in hand-maintained DBCs such
+as opendbc's: a malformed `CM_` comment (dropped, since comments are not imported),
+a 29-bit ID written without the DBC extended flag, a number without its leading
+zero (`.25`), a `VAL_` table without its closing `;`, missing `BS_:`/`BU_:` header
+lines, and a message or signal name starting with a digit — the one repair you see
+in the result, as the name gains a `_` prefix (`0_COUNTER` → `_0_COUNTER`). The
+list is in `canlib/dbc_repair.py`.
+
+A round trip carries:
 
 - **each signal's** layout (start bit, length, byte order), signedness, integer or
   float type, scale, offset, min/max and unit, and its value table (DBC `VAL_`) when

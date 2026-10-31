@@ -17,8 +17,10 @@ Outside the model, so reported as counts rather than failures: messages without
 signals (not stored in signals/), messages canair refuses to store (e.g. a signal
 overrunning its frame), value tables on scaled or float signals (not carried),
 multiplexed messages (flattened on import; not decoded), and messages cantools
-cannot decode from the source DBC either. A DBC cantools cannot parse at all, or
-whose standard and extended frames share a number, is listed and skipped.
+cannot decode from the source DBC either. Ground truth for a DBC cantools rejects as
+written is its parse after `import dbc`'s dialect repairs (canlib/dbc_repair.py); one
+that does not parse even then, or whose standard and extended frames share a number,
+is listed and skipped.
 
 The default corpus is commaai/opendbc (MIT), fetched on demand into the gitignored
 references/can/ like scripts/fetch_can_corpus.py. Its DBCs that pull in shared
@@ -188,11 +190,12 @@ class Checker:
         import cantools
 
         from canlib.commands.import_ import DbcImportError, _dbc_to_signals
+        from canlib.dbc_repair import DbcLoadError, load_dbc
 
         try:
-            src = cantools.database.load_file(str(path), strict=False)
-        except Exception as e:
-            self.skipped.append(f"{path.name}: cantools cannot parse it ({e})")
+            src, repairs = load_dbc(path)
+        except DbcLoadError as e:
+            self.skipped.append(f"{path.name}: cantools cannot parse it, even repaired ({e})")
             return
         try:
             expected = _dbc_to_signals(src, None, None, None)
@@ -200,6 +203,7 @@ class Checker:
             self.skipped.append(f"{path.name}: {e}")
             return
         self.totals["dbcs"] += 1
+        self.totals["DBCs repaired on load (canlib/dbc_repair.py)"] += bool(repairs)
         self.totals["messages canair cannot store (skipped on import)"] += len(expected.skipped)
         self.totals["value tables on scaled/float signals (not carried)"] += len(
             expected.value_tables_dropped

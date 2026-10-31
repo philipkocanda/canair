@@ -132,6 +132,11 @@ usage: canair import dbc [-h] [--bus BUS] [--tx-ecu TX_ECU] [--ids IDS]
                          [--dry-run] [--json]
                          file
 
+Import DBC broadcast signal definitions into the signals/ model. A DBC that
+cantools rejects as written (a malformed comment, a 29-bit ID without the
+extended flag, a name starting with a digit, ...) is repaired in memory, never
+on disk, and every repair is listed with its line.
+
 positional arguments:
   file             Path to a .dbc file
 

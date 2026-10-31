@@ -547,9 +547,11 @@ reuse these instead of re-declaring a flag:
   native — they are never exploded into per-day capture files.
 - **`canair import dbc <FILE>`** — Imports a DBC's broadcast definitions into `signals/<bus>.yaml`
   (cantools with `strict=False`, to tolerate real-world overlapping-signal DBCs; `--dry-run`
-  previews). Module note: `commands/import_.py` (`import` is a keyword) with `NAME="import"`; the
-  `uds` kind lives in the `commands/import_uds/` package. Fetch the reference corpus with
-  `scripts/fetch_can_corpus.py` (into gitignored `references/can/`).
+  previews). A DBC cantools rejects as written goes through the in-memory dialect repairs of
+  `canlib/dbc_repair.py::load_dbc` (each reported with its line); add a new quirk there, never
+  as a pre-edited copy of the file. Module note: `commands/import_.py` (`import` is a keyword)
+  with `NAME="import"`; the `uds` kind lives in the `commands/import_uds/` package. Fetch the
+  reference corpus with `scripts/fetch_can_corpus.py` (into gitignored `references/can/`).
 - **`canair export dbc`** — Writes `signals/` out as a DBC for SavvyCAN/cabana/Wireshark;
   round-trips with `import dbc`. (Domain-A decoded-value export is future work.)
 - **`canair contribute`** (alias `share`) — Opens the upstream PR for the **active** profile via the
