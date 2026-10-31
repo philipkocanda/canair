@@ -33,7 +33,7 @@ if TYPE_CHECKING:
 
 _HEADER = (
     "# The variants of this car (battery, facelift, market) and their metadata.\n"
-    "# Edit with `canair variants`, never by hand. See docs/concepts/variants.md.\n"
+    "# List or edit with `canair variants`. See docs/concepts/variants.md.\n"
 )
 
 

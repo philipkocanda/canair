@@ -941,8 +941,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "set-research-notes",
         help="Set (or clear) a research item's free-text notes",
         description=(
-            "Set a research: item's notes: without touching status: or other fields, "
-            "and without hand-editing the YAML.\n\n"
+            "Set a research: item's notes: without touching status: or other fields.\n\n"
             "Omit VALUE to clear the field. Short notes stay inline; longer ones "
             "become a word-wrapped folded block scalar. Disambiguate with --type/--index "
             "the same way as set-status/rm-research."
@@ -974,8 +973,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "set-research-result",
         help="Set (or clear) a research item's short result summary",
         description=(
-            "Set a research: item's result: without touching status: or other fields, "
-            "and without hand-editing the YAML.\n\n"
+            "Set a research: item's result: without touching status: or other fields.\n\n"
             "Omit VALUE to clear the field. Short results stay inline; longer ones "
             "become a word-wrapped folded block scalar. Disambiguate with --type/--index "
             "the same way as set-status/rm-research."
@@ -1086,8 +1084,8 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         help="Set (or clear) a PID's free-text notes",
         description=(
             "Set the PID-level notes: — the record of what the page is and what is "
-            "known about it. Because that record goes stale as decoding progresses, "
-            "correcting it needs a validated editor rather than a hand-edit.\n\n"
+            "known about it. It goes stale as decoding progresses, so keep it "
+            "current.\n\n"
             "Omit VALUE to clear the field. Short notes stay inline; longer ones "
             "become a word-wrapped folded block scalar. An existing note keeps its "
             "position; a new one is inserted above parameters:."

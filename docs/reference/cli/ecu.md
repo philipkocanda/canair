@@ -126,7 +126,7 @@ usage: canair ecu add [-h] [--name NAME] [--description DESCRIPTION]
 
 Register a new ECU as ecus/<name>.yaml in the active profile.
 
-Offline counterpart to `canair discover --register` (which needs a live bus): use this to seed a known ECU into a blank profile — e.g. one shared with another model-year — ready for contributions. The write is validated and comment-preserving (never hand-edit ecus/).
+Offline counterpart to `canair discover --register` (which needs a live bus): use this to seed a known ECU into a blank profile — e.g. one shared with another model-year — ready for contributions. The write is validated and comment-preserving.
 
 positional arguments:
   TX                    ECU TX id (hex, e.g. 7C6 or 0x7C6)
@@ -171,7 +171,7 @@ usage: canair ecu rename [-h] [--dir DIR] ECU NEW_NAME
 
 Rename an ECU in the active profile.
 
-An ECU's name is its top-level YAML key plus its ecus/<name>.yaml filename, so this rewrites the key and moves the file. The write is validated and comment-preserving (never hand-edit ecus/). Use it to promote a placeholder (e.g. Unknown-7D5) to a real name once identified.
+An ECU's name is its top-level YAML key plus its ecus/<name>.yaml filename, so this rewrites the key and moves the file. The write is validated and comment-preserving. Use it to promote a placeholder (e.g. Unknown-7D5) to a real name once identified.
 
 positional arguments:
   ECU         ECU to rename: current name, alias, or hex TX/RX id

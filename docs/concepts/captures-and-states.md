@@ -356,7 +356,7 @@ Where it applies:
   `READY, PARKED` — one bucket, not two near-duplicates. Without it, a nine-state vocabulary
   split the same data into 39 buckets, thin enough to distort the F ranking.
 
-Edit it with `canair states` (never hand-edit the file):
+Edit it with `canair states`, which also updates every reference when you rename a state:
 
 ```bash
 canair states set-implies DRIVING READY      # declare / replace

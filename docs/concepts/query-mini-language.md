@@ -45,9 +45,8 @@ steps. A group reference carries no PID suffix (`@charging`, not
 `@charging:2101`).
 
 List and edit the vocabulary with [`canair groups`](../reference/cli/index.md)
-(`add`/`rm`/`rename`/`set-description`/`set-members`) — never hand-edit
-`groups.yaml`; the editor re-validates on write. `canair validate groups` checks
-every member's ECU exists.
+(`add`/`rm`/`rename`/`set-description`/`set-members`); the editor re-validates on write.
+`canair validate groups` checks every member's ECU exists.
 
 ## Overlapping selectors are coalesced
 

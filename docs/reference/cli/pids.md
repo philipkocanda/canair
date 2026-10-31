@@ -311,7 +311,7 @@ usage: canair pids set-research-notes [-h]
                                       [--no-validate]
                                       ecu target [value]
 
-Set a research: item's notes: without touching status: or other fields, and without hand-editing the YAML.
+Set a research: item's notes: without touching status: or other fields.
 
 Omit VALUE to clear the field. Short notes stay inline; longer ones become a word-wrapped folded block scalar. Disambiguate with --type/--index the same way as set-status/rm-research.
 
@@ -340,7 +340,7 @@ usage: canair pids set-research-result [-h]
                                        [--no-validate]
                                        ecu target [value]
 
-Set a research: item's result: without touching status: or other fields, and without hand-editing the YAML.
+Set a research: item's result: without touching status: or other fields.
 
 Omit VALUE to clear the field. Short results stay inline; longer ones become a word-wrapped folded block scalar. Disambiguate with --type/--index the same way as set-status/rm-research.
 
@@ -473,7 +473,7 @@ options:
 usage: canair pids set-pid-notes [-h] [--dir DIR] [--no-validate]
                                  ecu pid [value]
 
-Set the PID-level notes: — the record of what the page is and what is known about it. Because that record goes stale as decoding progresses, correcting it needs a validated editor rather than a hand-edit.
+Set the PID-level notes: — the record of what the page is and what is known about it. It goes stale as decoding progresses, so keep it current.
 
 Omit VALUE to clear the field. Short notes stay inline; longer ones become a word-wrapped folded block scalar. An existing note keeps its position; a new one is inserted above parameters:.
 

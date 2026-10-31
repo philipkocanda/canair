@@ -788,7 +788,7 @@ def _add_add_parser(kinds) -> argparse.ArgumentParser:
         "Offline counterpart to `canair discover --register` (which needs a live "
         "bus): use this to seed a known ECU into a blank profile — e.g. one shared "
         "with another model-year — ready for contributions. The write is validated "
-        "and comment-preserving (never hand-edit ecus/).",
+        "and comment-preserving.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="examples:\n"
         "  canair ecu add 7C6 --name CLU --description 'Cluster (instrument panel)'\n"
@@ -909,7 +909,7 @@ def _add_rename_parser(kinds) -> argparse.ArgumentParser:
         description="Rename an ECU in the active profile.\n\n"
         "An ECU's name is its top-level YAML key plus its ecus/<name>.yaml "
         "filename, so this rewrites the key and moves the file. The write is "
-        "validated and comment-preserving (never hand-edit ecus/). Use it to "
+        "validated and comment-preserving. Use it to "
         "promote a placeholder (e.g. Unknown-7D5) to a real name once identified.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="examples:\n"

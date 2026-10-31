@@ -19,7 +19,7 @@ exact. See :func:`canlib.states.contradictory_states`.
 
 A bare ``canair states`` lists the vocabulary (like ``canair bus``); the edit
 subcommands surgically modify ``vehicle_states.yaml`` (comment-preserving,
-re-validated, reverted on failure) so you never hand-edit it.
+re-validated, reverted on failure).
 
 Examples:
   canair states                                   # list the vocabulary + usage

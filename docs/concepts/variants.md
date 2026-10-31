@@ -75,8 +75,8 @@ documents it.
 
 ## Editing
 
-`variants.yaml` is edited with [`canair variants`](../reference/cli/variants.md), never by hand.
-Every edit is checked and reverted on failure.
+Edit `variants.yaml` with [`canair variants`](../reference/cli/variants.md). Every edit is
+checked and reverted on failure, and a rename also rewrites the captures tagged with the old ID.
 
 ```bash
 canair variants                                   # list

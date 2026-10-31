@@ -6,7 +6,7 @@
 # diagnostics. This file gives each variant a stable ID and typed metadata. It is
 # metadata only so far: nothing selects a variant or gates a definition on one yet
 # (plans/2026-10-30-profile-variants-and-rename.md describes what follows).
-# Edit with `canair variants`, never by hand.
+# List or edit with `canair variants`.
 #
 # Top-level structure:
 #   variants:                     # mapping keyed by variant ID

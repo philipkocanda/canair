@@ -96,8 +96,7 @@ the physical sweep.
 `discover` needs a live vehicle. If you're bootstrapping a **blank profile for
 contribution** — e.g. seeding one ECU you *know* exists from another model-year —
 register it offline with `canair ecu add` (the offline counterpart to
-`discover --register`; the write is validated and comment-preserving, never
-hand-editing `ecus/`):
+`discover --register`; the write is validated and comment-preserving):
 
 ```bash
 canair --profile my-car ecu add 7C6 --name CLU \

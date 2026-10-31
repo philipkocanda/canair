@@ -3,8 +3,7 @@
 A *variant* is a version of the car the owner can name — a battery size, a facelift, a
 market with different diagnostics — declared in ``profiles/<name>/variants.yaml`` with a
 stable ID and metadata. A bare ``canair variants`` lists them; the edit subcommands
-modify the file surgically (comment-preserving, checked, reverted on failure), so it is
-never hand-edited.
+modify the file surgically (comment-preserving, checked, reverted on failure).
 
 Metadata values are typed per field: short lists (``markets``, ``trims``) are
 comma-separated, ``sources`` takes one source per ``sources=…`` (repeat it for more),

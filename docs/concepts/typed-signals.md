@@ -38,7 +38,7 @@ This never changes device output or the numeric path.
 
 ## Defining a typed param
 
-Use `canair pids upsert-param` — never hand-edit `ecus/`:
+Use `canair pids upsert-param`:
 
 ```bash
 # An enum: the gear byte on VCU 2101 (B10 reads 0x21 in Park, 0x28 in Drive)

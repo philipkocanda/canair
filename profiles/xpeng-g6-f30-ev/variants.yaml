@@ -1,5 +1,5 @@
 # The variants of this car (battery, facelift, market) and their metadata.
-# Edit with `canair variants`, never by hand. See docs/concepts/variants.md.
+# List or edit with `canair variants`. See docs/concepts/variants.md.
 variants:
   87kwh:
     name: G6 87.5 kWh (Long Range)

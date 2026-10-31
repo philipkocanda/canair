@@ -33,7 +33,7 @@ car's public PID data is one of the fastest ways to seed hypotheses.
 ## Recording curated identity fields
 
 Anything you want to *store* about an ECU beyond the raw decoded DIDs — notes, a
-description — goes through the validated editor rather than hand-editing YAML:
+description — is easiest through the validated editor:
 
 ```bash
 canair pids set-identity MyECU notes "Body control module; mirrors IGPM door bits"

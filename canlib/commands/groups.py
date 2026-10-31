@@ -5,7 +5,7 @@ a list of ECU / ECU:PID selectors recalled on the command line with the ``@``
 sigil (``canair monitor @charging``). It's the saved-query analogue of
 ``canair bus``/``canair states``: a bare ``canair groups`` lists the vocabulary,
 and the edit subcommands surgically modify ``groups.yaml`` (comment-preserving,
-re-validated, reverted on failure) so you never hand-edit it.
+re-validated, reverted on failure).
 
 Examples:
   canair groups                                   # list the groups

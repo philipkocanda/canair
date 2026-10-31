@@ -11,7 +11,7 @@ validated, shareable signal.
 
 ## Write the parameter
 
-Never hand-edit `ecus/`. Use `canair pids upsert-param`, which is surgical,
+Use `canair pids upsert-param`, which is surgical,
 comment-preserving, and schema-validated (and auto-reverts if the edit would
 break validation):
 
@@ -63,9 +63,8 @@ canair pids rm-param     MyECU 2101 NAME      # remove one parameter
 canair pids rm-pid       MyECU 22B002         # remove a whole PID (drops pids: if it was the last)
 ```
 
-If you ever find yourself reaching for a text editor because no `canair pids`
-subcommand covers a field, that's a [bug to report](../contributing/index.md) —
-not a reason to hand-edit.
+If no `canair pids` subcommand covers a field you need, edit the file directly, run
+`canair validate pids`, and [report the gap](../contributing/index.md).
 
 ## Audit for gaps
 

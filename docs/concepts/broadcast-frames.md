@@ -84,7 +84,7 @@ canair validate signals                # structural check
 ```
 
 Edits are surgical, comment-preserving, validated, and auto-reverted on failure
-(via `canair signals` / `canlib/signals_edit.py`) — never hand-edit `signals/`.
+(via `canair signals` / `canlib/signals_edit.py`).
 
 `--start-bit` follows DBC numbering, so for `--byte-order big` it names the field's
 *most significant* bit: a 16-bit big-endian field in data bytes 4-5 is

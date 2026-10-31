@@ -87,7 +87,7 @@ correlation and a plausible fit before you believe it.
 Broadcast signals use a **linear model** (`physical = raw·scale + offset` over a
 contiguous bit range) — DBC-compatible, deliberately simpler than domain A's
 freeform expressions. Write them with `canair signals` (surgical, validated,
-auto-reverted — never hand-edit the sidecar):
+auto-reverted):
 
 ```bash
 canair signals upsert powertrain 0x386 WHL_SPD_FL \
