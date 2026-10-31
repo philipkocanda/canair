@@ -76,7 +76,7 @@ _DEFAULT_STALE_CYCLES = 3
 # its own ISO-TP and has no adapter to instruct.
 _DEFAULT_EXPECTED_RESPONSES = True
 # Whether live commands ask a WiCAN which firmware generation it runs before using
-# a 4.x-only interface (`transport.firmware_check`; canlib/wican_firmware.py). Off
+# a 4.x-only interface (`transport.firmware_check`; canlib/wican/firmware.py). Off
 # skips the probe entirely, for users who know what they're running; "always" also
 # probes elm327-tcp hosts, which are usually clones with no HTTP server.
 _DEFAULT_FIRMWARE_CHECK = True

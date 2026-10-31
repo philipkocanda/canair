@@ -123,7 +123,7 @@ AutoPID schema, and the bundled chip firmware pinned back to `V2.3.22` (so a chi
 - **The release tag does not pin a components commit**, so no checkout proves what a given v6
   build contains. Read `fw_build` from `GET /api/info` on the device, and treat every
   meatpi-components citation as "at commit X", never "in v6".
-- Identify it the way canair does (`canlib/wican_firmware.py`): `GET /api/info` answers v6 with an
+- Identify it the way canair does (`canlib/wican/firmware.py`): `GET /api/info` answers v6 with an
   integer `api_level` (or a 401/403 gate) and answers 4.x with 404.
 
 The audit, what still works (`elm327-tcp`), and the follow-up work:
@@ -616,7 +616,7 @@ link.
 - [ ] `wican-fw` on `wican-pro`, and the tag diffed against the device's `git_version`.
 - [ ] Device firmware generation known (`canair status`); anything that uses a 4.x-only interface
       (`/ws`, the protocol mode, the legacy HTTP routes, AutoPID sync) is gated through
-      `canlib/wican_firmware.py`'s policy table, not an ad-hoc version check.
+      `canlib/wican/firmware.py`'s policy table, not an ad-hoc version check.
 - [ ] Not reading the `!= WICAN_PRO` emulator block, or `wican-fw/main/ws_router.c`.
 - [ ] Clear on which chip the change affects — MIC3624 (`wican-ws`, `elm327-tcp`) or ESP32 TWAI
       (`slcan-tcp`) — and whether it must work on both.
