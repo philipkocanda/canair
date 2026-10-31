@@ -7,3 +7,44 @@ IEB:
       https://github.com/OBDb/Hyundai-Ioniq-5): 220104 (four wheel speeds). 0x7D1 is the Hyundai
       ABS/ESC address; on the NE that function sits in the IEB unit (GDS lists it under ABS/ESC, TSB
       24-01-064H-1). That this unit is the 7D1 responder is inferred, not read from an identity DID.
+  pids:
+    220104:
+      status: active
+      source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
+      source_links:
+        - https://github.com/OBDb/Hyundai-Ioniq-5
+        - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
+      verified: false
+      notes: >-
+        Seeded from OBDb (4 signals). Each expression was evaluated on OBDb's recorded responses (up
+        to 138 per signal, model years 2022, 2023, 2024, 2025, 2026); 4 of 4 signals reproduce
+        OBDb's expected value on every one.
+      parameters:
+        WHEEL_FL_VSS:
+          expression: B17
+          unit: km/h
+          ha_class: speed
+          min: "0"
+          max: "255"
+          notes: "OBDb IONIQ5_WHEEL_FL_VSS: Front left wheel speed."
+        WHEEL_FR_VSS:
+          expression: B18
+          unit: km/h
+          ha_class: speed
+          min: "0"
+          max: "255"
+          notes: "OBDb IONIQ5_WHEEL_FR_VSS: Front right wheel speed."
+        WHEEL_RL_VSS:
+          expression: B19
+          unit: km/h
+          ha_class: speed
+          min: "0"
+          max: "255"
+          notes: "OBDb IONIQ5_WHEEL_RL_VSS: Rear left wheel speed."
+        WHEEL_RR_VSS:
+          expression: B20
+          unit: km/h
+          ha_class: speed
+          min: "0"
+          max: "255"
+          notes: "OBDb IONIQ5_WHEEL_RR_VSS: Rear right wheel speed."

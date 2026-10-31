@@ -7,3 +7,155 @@ IBU:
       https://github.com/OBDb/Hyundai-Ioniq-5): 22B008 (brake switch), B00C (heated steering wheel),
       C002/C00B (TPMS sensor IDs, tyre pressures and temperatures). Polled at 7A0/7A8 by OVMS as
       BCM. The NE service manual names the body controller IBU.
+  pids:
+    22B008:
+      status: active
+      source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
+      source_links:
+        - https://github.com/OBDb/Hyundai-Ioniq-5
+        - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
+      verified: false
+      notes: >-
+        Seeded from OBDb (1 signals). Each expression was evaluated on OBDb's recorded responses (up
+        to 8 per signal, model years 2022, 2023, 2024, 2025, 2026, 2027); 1 of 1 signals reproduce
+        OBDb's expected value on every one.
+      parameters:
+        BRAKE_SW:
+          expression: B12:4
+          min: "0"
+          max: "1"
+          notes: "OBDb IONIQ5_BRAKE_SW: Brake switch."
+    22B00C:
+      status: active
+      source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
+      source_links:
+        - https://github.com/OBDb/Hyundai-Ioniq-5
+        - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
+      verified: false
+      notes: >-
+        Seeded from OBDb (2 signals). Each expression was evaluated on OBDb's recorded responses (up
+        to 3 per signal, model years 2022, 2023, 2024); 2 of 2 signals reproduce OBDb's expected
+        value on every one.
+      parameters:
+        HEATED_WHEEL:
+          expression: B10:5
+          min: "0"
+          max: "1"
+          notes: "OBDb IONIQ5_HEATED_WHEEL: Heated steering wheel."
+        HEATED_WHEEL_ALT:
+          expression: B11:5
+          min: "0"
+          max: "1"
+          notes: "OBDb IONIQ5_HEATED_WHEEL_ALT: Heated steering wheel, alternate bit."
+    22C002:
+      status: active
+      source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
+      source_links:
+        - https://github.com/OBDb/Hyundai-Ioniq-5
+        - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
+      verified: false
+      notes: >-
+        Seeded from OBDb (4 signals). Each expression was evaluated on OBDb's recorded responses (up
+        to 7 per signal, model years 2022, 2023, 2024, 2025, 2026, 2027); 4 of 4 signals reproduce
+        OBDb's expected value on every one.
+      parameters:
+        TPMS_SENSOR_ID_1:
+          expression: "[B10:B13]"
+          min: "0"
+          max: "4.29497e+09"
+          notes: "OBDb IONIQ5_TID_1: Tire sensor 1 ID."
+        TPMS_SENSOR_ID_2:
+          expression: ((B14 << 24) | (B15 << 16) | (B17 << 8) | B18)
+          min: "0"
+          max: "4.29497e+09"
+          notes: "OBDb IONIQ5_TID_2: Tire sensor 2 ID."
+        TPMS_SENSOR_ID_3:
+          expression: "[B19:B22]"
+          min: "0"
+          max: "4.29497e+09"
+          notes: "OBDb IONIQ5_TID_3: Tire sensor 3 ID."
+        TPMS_SENSOR_ID_4:
+          expression: ((B23 << 24) | (B25 << 16) | (B26 << 8) | B27)
+          min: "0"
+          max: "4.29497e+09"
+          notes: "OBDb IONIQ5_TID_4: Tire sensor 4 ID."
+    22C00B:
+      status: active
+      source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
+      source_links:
+        - https://github.com/OBDb/Hyundai-Ioniq-5
+        - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
+      verified: false
+      notes: >-
+        Seeded from OBDb (8 signals). Each expression was evaluated on OBDb's recorded responses (up
+        to 175 per signal, model years 2022, 2023, 2024, 2025, 2026, 2027); 4 of 8 signals reproduce
+        OBDb's expected value on every one.
+      parameters:
+        TIRE_PRESSURE_FL:
+          expression: B10/5
+          unit: psi
+          ha_class: pressure
+          min: "0"
+          max: "51"
+          notes: "OBDb IONIQ5_TP_FL: Front left tire pressure."
+        TIRE_TEMP_FL:
+          expression: B11-50
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "65"
+          notes: >-
+            OBDb IONIQ5_TT_FL: Front left tire temperature. 42 of 175 recorded responses disagree
+            with OBDb's expected value (e.g. MY2027: 205 where OBDb expects 65); OBDb clamps to its
+            min/max, and a few recorded frames are corrupt.
+        TIRE_PRESSURE_FR:
+          expression: B15/5
+          unit: psi
+          ha_class: pressure
+          min: "0"
+          max: "51"
+          notes: "OBDb IONIQ5_TP_FR: Front right tire pressure."
+        TIRE_TEMP_FR:
+          expression: B17-50
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "65"
+          notes: >-
+            OBDb IONIQ5_TT_FR: Front right tire temperature. 35 of 175 recorded responses disagree
+            with OBDb's expected value (e.g. MY2027: 205 where OBDb expects 65); OBDb clamps to its
+            min/max, and a few recorded frames are corrupt.
+        TIRE_PRESSURE_RL:
+          expression: B21/5
+          unit: psi
+          ha_class: pressure
+          min: "0"
+          max: "51"
+          notes: "OBDb IONIQ5_TP_RL: Rear left tire pressure."
+        TIRE_TEMP_RL:
+          expression: B22-50
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "65"
+          notes: >-
+            OBDb IONIQ5_TT_RL: Rear left tire temperature. 35 of 175 recorded responses disagree
+            with OBDb's expected value (e.g. MY2027: 205 where OBDb expects 65); OBDb clamps to its
+            min/max, and a few recorded frames are corrupt.
+        TIRE_PRESSURE_RR:
+          expression: B27/5
+          unit: psi
+          ha_class: pressure
+          min: "0"
+          max: "51"
+          notes: "OBDb IONIQ5_TP_RR: Rear right tire pressure."
+        TIRE_TEMP_RR:
+          expression: B28-50
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "65"
+          notes: >-
+            OBDb IONIQ5_TT_RR: Rear right tire temperature. 27 of 175 recorded responses disagree
+            with OBDb's expected value (e.g. MY2027: 205 where OBDb expects 65); OBDb clamps to its
+            min/max, and a few recorded frames are corrupt.

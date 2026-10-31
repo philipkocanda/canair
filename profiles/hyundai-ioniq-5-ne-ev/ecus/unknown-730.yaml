@@ -1,0 +1,86 @@
+Unknown-730:
+  tx_id: 0x730
+  identity:
+    description: Unidentified ECU at 0x730 (wheel speeds, steering angle, yaw, accelerations)
+    notes: >-
+      Address confirmed by recorded responses in OBDb Hyundai-Ioniq-5 test cases (MY2022-2027,
+      https://github.com/OBDb/Hyundai-Ioniq-5): 22F010 carries high-resolution wheel speeds,
+      steering angle, yaw rate and lateral/longitudinal acceleration (OBDb types it
+      driverAssistance). Which module answers here is not established; promote it with `canair ecu
+      Unknown-730 rename` once an identity read names it.
+  pids:
+    22F010:
+      status: active
+      source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
+      source_links:
+        - https://github.com/OBDb/Hyundai-Ioniq-5
+        - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
+      verified: false
+      notes: >-
+        Seeded from OBDb (8 signals). Each expression was evaluated on OBDb's recorded responses (up
+        to 107 per signal, model years 2022, 2023, 2024, 2025, 2026, 2027); 8 of 8 signals reproduce
+        OBDb's expected value on every one.
+      parameters:
+        WHEEL_FR_VSS_HD:
+          expression: ((B11 << 8) | B10)/32
+          unit: km/h
+          ha_class: speed
+          min: "0"
+          max: "2047"
+          notes: >-
+            OBDb IONIQ5_WHEEL_FR_VSS_HD: Front right wheel speed, high resolution. Little-endian
+            (low byte first).
+        WHEEL_FL_VSS_HD:
+          expression: ((B13 << 8) | B12)/32
+          unit: km/h
+          ha_class: speed
+          min: "0"
+          max: "2047"
+          notes: >-
+            OBDb IONIQ5_WHEEL_FL_VSS_HD: Front left wheel speed, high resolution. Little-endian (low
+            byte first).
+        WHEEL_RR_VSS_HD:
+          expression: ((B15 << 8) | B14)/32
+          unit: km/h
+          ha_class: speed
+          min: "0"
+          max: "2047"
+          notes: >-
+            OBDb IONIQ5_WHEEL_RR_VSS_HD: Rear right wheel speed, high resolution. Little-endian (low
+            byte first).
+        WHEEL_RL_VSS_HD:
+          expression: ((B18 << 8) | B17)/32
+          unit: km/h
+          ha_class: speed
+          min: "0"
+          max: "2047"
+          notes: >-
+            OBDb IONIQ5_WHEEL_RL_VSS_HD: Rear left wheel speed, high resolution. Little-endian (low
+            byte first).
+        STEERING_ANGLE:
+          expression: ((S20 << 8) | B19)/10
+          unit: °
+          min: "-3276.8"
+          max: "3276.7"
+          notes: "OBDb IONIQ5_STEERING_ANGLE: Steering wheel angle. Little-endian (low byte first)."
+        LATERAL_ACCELERATION:
+          expression: ((B22 << 8) | B21)*8.354/65535-4.177
+          unit: m/s²
+          min: "-4.177"
+          max: "4.177"
+          notes: >-
+            OBDb IONIQ5_LATERAL_ACCELERATION: Lateral acceleration. Little-endian (low byte first).
+        LONGITUDINAL_ACCELERATION:
+          expression: ((B25 << 8) | B23)*8.354/65535-4.177
+          unit: m/s²
+          min: "-4.177"
+          max: "4.177"
+          notes: >-
+            OBDb IONIQ5_LONGITUDINAL_ACCELERATION: Longitudinal acceleration. Little-endian (low
+            byte first).
+        YAW_RATE:
+          expression: B26/200
+          unit: °
+          min: "0"
+          max: "1.275"
+          notes: "OBDb IONIQ5_YAW_RATE: Yaw rate."

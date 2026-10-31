@@ -7,3 +7,139 @@ MCU:
       https://github.com/OBDb/Hyundai-Ioniq-5): 22E001 (motor rpm, torque, inverter and motor
       temperature; MY2021-2024 only), 22E009 (electric water and oil pumps). OVMS labels the 7EB
       reply MCU. Which inverter answers here on AWD cars (front or rear) is not established.
+  pids:
+    "22E001":
+      status: active
+      source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
+      source_links:
+        - https://github.com/OBDb/Hyundai-Ioniq-5
+        - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
+      verified: false
+      notes: >-
+        Seeded from OBDb (8 signals). Each expression was evaluated on OBDb's recorded responses (up
+        to 237 per signal, model years 2022, 2023, 2024); 8 of 8 signals reproduce OBDb's expected
+        value on every one. OBDb applies this layout to model years up to 2024 only.
+      parameters:
+        IGN_VOLTAGE:
+          expression: ((B23 << 8) | B22)*10/10000
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "65.535"
+          notes: "OBDb IONIQ5_IGN_VOLTAGE: Ignition voltage. Little-endian (low byte first)."
+        MOTOR_RPM:
+          expression: ((S26 << 8) | B25)
+          unit: rpm
+          min: "-32768"
+          max: "32767"
+          notes: "OBDb IONIQ5_MOTOR_RPM: Motor RPM. Little-endian (low byte first)."
+        NOMINAL_TORQUE_VALUE:
+          expression: ((S28 << 8) | B27)/10
+          unit: Nm
+          min: "-3276.8"
+          max: "3276.7"
+          notes: >-
+            OBDb IONIQ5_NOMINAL_TORQUE_VALUE: Nominal torque value. Little-endian (low byte first).
+        MOTOR_ACTUAL_TORQUE:
+          expression: ((S30 << 8) | B29)/10
+          unit: Nm
+          min: "-3276.8"
+          max: "3276.7"
+          notes: >-
+            OBDb IONIQ5_MOTOR_ACTUAL_TORQUE: Motor actual torque. Little-endian (low byte first).
+        MOTOR_PHASE_CURRENT_RMS:
+          expression: ((B33 << 8) | B31)/10
+          unit: A
+          ha_class: current
+          min: "0"
+          max: "6553.5"
+          notes: >-
+            OBDb IONIQ5_MOTOR_PHASE_CURRENT_RMS: Motor phase current. Little-endian (low byte
+            first).
+        MOTOR_T:
+          expression: ((S35 << 8) | B34)/100
+          unit: °C
+          ha_class: temperature
+          min: "-327.68"
+          max: "327.67"
+          notes: "OBDb IONIQ5_MOTOR_T: Motor temperature. Little-endian (low byte first)."
+        INVERTER_T:
+          expression: ((S37 << 8) | B36)/100
+          unit: °C
+          ha_class: temperature
+          min: "-327.68"
+          max: "327.67"
+          notes: "OBDb IONIQ5_INVERTER_T: Inverter temperature. Little-endian (low byte first)."
+        HEAT_SINK_T:
+          expression: ((S70 << 8) | B69)/100
+          unit: °C
+          ha_class: temperature
+          min: "-327.68"
+          max: "327.67"
+          notes: "OBDb IONIQ5_HEAT_SINK_T: Heat sink temperature. Little-endian (low byte first)."
+    "22E009":
+      status: active
+      source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
+      source_links:
+        - https://github.com/OBDb/Hyundai-Ioniq-5
+        - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
+      verified: false
+      notes: >-
+        Seeded from OBDb (8 signals). Each expression was evaluated on OBDb's recorded responses (up
+        to 145 per signal, model years 2022, 2023, 2024, 2025, 2026, 2027); 8 of 8 signals reproduce
+        OBDb's expected value on every one.
+      parameters:
+        EWP_CURRENT_DC:
+          expression: B13/10
+          unit: A
+          ha_class: current
+          min: "0"
+          max: "25.5"
+          notes: "OBDb IONIQ5_EWP_CURRENT_DC: Electric water pump, current DC."
+        EWP_VOLTAGE_DC:
+          expression: B14/10
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "25.5"
+          notes: "OBDb IONIQ5_EWP_VOLTAGE_DC: Electric water pump, voltage DC."
+        EWP_COMMANDED_ROTATION_SPEED:
+          expression: B18*24
+          unit: rpm
+          min: "0"
+          max: "6120"
+          notes: >-
+            OBDb IONIQ5_EWP_COMMANDED_ROTATION_SPEED: Electric water pump, commanded rotation speed.
+        EWP_ACTUAL_ROTATION_SPEED:
+          expression: B19*24
+          unit: rpm
+          min: "0"
+          max: "6120"
+          notes: >-
+            OBDb IONIQ5_EWP_ACTUAL_ROTATION_SPEED: Electric water pump, actual rotation speed.
+        EOP_ACTUAL_SPEED:
+          expression: B21*20
+          unit: rpm
+          min: "0"
+          max: "5100"
+          notes: "OBDb IONIQ5_EOP_ACTUAL_SPEED: Electric oil pump, actual speed."
+        EOP_COMMANDED_SPEED:
+          expression: B27*20
+          unit: rpm
+          min: "0"
+          max: "5100"
+          notes: "OBDb IONIQ5_EOP_COMMANDED_SPEED: Electric oil pump, commanded speed."
+        EOP_CURRENT_DC:
+          expression: B30
+          unit: A
+          ha_class: current
+          min: "0"
+          max: "255"
+          notes: "OBDb IONIQ5_EOP_CURRENT_DC: Electric oil pump, current DC."
+        EOP_CURRENT_IQ:
+          expression: B31
+          unit: A
+          ha_class: current
+          min: "0"
+          max: "255"
+          notes: "OBDb IONIQ5_EOP_CURRENT_IQ: Electric oil pump, current IQ."

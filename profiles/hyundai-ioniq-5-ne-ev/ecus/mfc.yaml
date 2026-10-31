@@ -1,0 +1,10 @@
+MFC:
+  tx_id: 0x7C4
+  identity:
+    description: Front view camera (multi-function camera)
+    notes: >-
+      Identity strings NE1 MFC AT <market> <LHD|RHD> (parts 99211-GI000/GI010/GI020/GI100) from DID
+      F100, listed in openpilot's opendbc fingerprints (opendbc/car/hyundai/fingerprints.py,
+      HYUNDAI_IONIQ_5). openpilot reads it from the driver-assistance bus side, so whether it
+      answers through the OBD-II port's gateway is untested. The response address is assumed to be
+      the usual tx+8.
