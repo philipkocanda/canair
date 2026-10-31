@@ -19,7 +19,7 @@ Set Framerate 24
 Set Theme "Dracula"
 
 Hide
-Type "export CANAIR_NO_UPDATE_CHECK=1" Enter
+Type "export CANAIR_NO_UPDATE_CHECK=1 CANAIR_VARIANT=28kwh" Enter
 Type "clear" Enter
 Show
 

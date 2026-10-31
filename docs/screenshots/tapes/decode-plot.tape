@@ -16,7 +16,7 @@ Set Framerate 24
 Set Theme "Dracula"
 
 Hide
-Type "export XDG_CONFIG_HOME=$(mktemp -d) CANAIR_NO_UPDATE_CHECK=1 FORCE_COLOR=1" Enter
+Type "export XDG_CONFIG_HOME=$(mktemp -d) CANAIR_NO_UPDATE_CHECK=1 CANAIR_VARIANT=28kwh FORCE_COLOR=1" Enter
 Type "clear" Enter
 Show
 

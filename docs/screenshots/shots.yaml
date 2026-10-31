@@ -22,6 +22,9 @@
 # instead of `/Users/<you>/…`. The generator runs from the repo root.
 profile: hyundai-ioniq-ae-ev
 profiles_dir: profiles
+# The profile has several variants and no default; this names the car every shot is of
+# (exported as CANAIR_VARIANT, so the printed commands stay as a reader would type them).
+variant: 28kwh
 freeze_config: freeze.json
 
 # ── Static command output → SVG (freeze) ────────────────────────────────────

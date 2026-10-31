@@ -41,7 +41,7 @@ def _isolated_env(cols: int | None = None) -> dict[str, str]:
     """Environment that makes canair output reproducible and device-free.
 
     Neutralizes any local user config (so a `--wican`/`default_profile` in the
-    author's config can't leak in), silences the background update check, and
+    author's config can't leak in), pins the car variant, silences the background update check, and
     forces colour + a fixed width so the rendered output is stable.
     """
     env = dict(os.environ)
@@ -50,6 +50,8 @@ def _isolated_env(cols: int | None = None) -> dict[str, str]:
     env["FORCE_COLOR"] = "1"
     env.pop("CANAIR_PROFILE", None)
     env.pop("CANAIR_PROFILES_DIR", None)
+    # A multi-variant profile refuses to guess which car; the manifest names it.
+    env["CANAIR_VARIANT"] = _load_manifest()["variant"]
     if cols is not None:
         env["COLUMNS"] = str(cols)
     return env
