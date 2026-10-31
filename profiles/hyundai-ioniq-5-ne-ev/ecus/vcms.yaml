@@ -6,369 +6,302 @@ VCMS:
       Address confirmed by recorded responses in OBDb Hyundai-Ioniq-5 test cases (MY2022-2027,
       https://github.com/OBDb/Hyundai-Ioniq-5): 22E001-E004 (charge states, EVSE limits, control
       pilot and proximity, inlet temperatures, 400 V relay); OBDb names two of its signals *_VCMS.
-      The NE has a VCMS module (TSB 23-EV-003H).
+      The NE has a VCMS module (TSB 23-EV-003H). Signals seeded from OBDb keep OBDb's names without
+      the IONIQ5_ prefix, unless a PID's notes list a rename.
   pids:
     "22E001":
       status: active
+      min: "0"
       source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
       source_links:
         - https://github.com/OBDb/Hyundai-Ioniq-5
         - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
       verified: false
       notes: >-
-        Seeded from OBDb (10 signals). Each expression was evaluated on OBDb's recorded responses
-        (up to 188 per signal, model years 2022, 2023, 2024, 2025, 2026); 10 of 10 signals reproduce
-        OBDb's expected value on every one.
+        Seeded from OBDb (10 signals), each checked with canair's evaluator on OBDb's recorded
+        responses (up to 188 per signal, model years 2022-2026). OBDb names, where canair's differ:
+        VCMS_AUX_BATTERY_VOLTAGE = IONIQ5_AUX_BATTERY_VOLTAGE.
       parameters:
         VCMS_AUX_BATTERY_VOLTAGE:
           expression: "[B18:B19]/100"
           unit: V
           ha_class: voltage
-          min: "0"
           max: "655.35"
-          notes: "OBDb IONIQ5_AUX_BATTERY_VOLTAGE: Auxiliary battery voltage."
         DC_CHRG_STATE:
           expression: B25:3
-          min: "0"
           max: "1"
-          notes: "OBDb IONIQ5_DC_CHRG_STATE: DC charging state."
         AC_CHRG_STATE:
           expression: B25:2
-          min: "0"
           max: "1"
-          notes: "OBDb IONIQ5_AC_CHRG_STATE: AC charging state."
         OBC_CHRG_DC_VOLTAGE:
           expression: "[B27:B28]/10"
           unit: V
           ha_class: voltage
-          min: "0"
           max: "6553.5"
-          notes: "OBDb IONIQ5_OBC_CHRG_DC_VOLTAGE: On-board charger, charging DC voltage."
+          notes: On-board charger, charging DC voltage.
         OBC_CHRG_DC_CURRENT:
           expression: "[B29:B30]/10"
           unit: A
           ha_class: current
-          min: "0"
           max: "6553.5"
-          notes: "OBDb IONIQ5_OBC_CHRG_DC_CURRENT: On-board charger, charging DC current."
+          notes: On-board charger, charging DC current.
         OBC_CHRG_AC_CURRENT:
           expression: ((B31 << 8) | B33)/10
           unit: A
           ha_class: current
-          min: "0"
           max: "6553.5"
-          notes: "OBDb IONIQ5_OBC_CHRG_AC_CURRENT: On-board charger, charging AC current."
+          notes: On-board charger, charging AC current.
         OBC_CHRG_AC_VOLTAGE:
           expression: B34
           unit: V
           ha_class: voltage
-          min: "0"
           max: "255"
-          notes: "OBDb IONIQ5_OBC_CHRG_AC_VOLTAGE: On-board charger, charging AC voltage."
+          notes: On-board charger, charging AC voltage.
         OBC_DCHRG_DC_CURRENT:
           expression: B35
           unit: A
           ha_class: current
-          min: "0"
           max: "255"
-          notes: "OBDb IONIQ5_OBC_DCHRG_DC_CURRENT: On-board charger, discharging DC current."
+          notes: On-board charger, discharging DC current.
         OBC_DCHRG_AC_CURRENT:
           expression: B36
           unit: A
           ha_class: current
-          min: "0"
           max: "255"
-          notes: "OBDb IONIQ5_OBC_DCHRG_AC_CURRENT: On-board charger, discharging AC current."
+          notes: On-board charger, discharging AC current.
         ESTIMATED_CHRG_POWER:
           expression: "[B37:B38]*10-50"
           unit: W
           ha_class: power
           min: "-50"
           max: "655300"
-          notes: "OBDb IONIQ5_ESTIMATED_CHRG_POWER: Estimated charging power."
     "22E002":
       status: active
+      min: "0"
+      max: "6553.5"
       source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
       source_links:
         - https://github.com/OBDb/Hyundai-Ioniq-5
         - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
       verified: false
       notes: >-
-        Seeded from OBDb (10 signals). Each expression was evaluated on OBDb's recorded responses
-        (up to 44 per signal, model years 2022, 2023, 2024, 2025, 2026); 10 of 10 signals reproduce
-        OBDb's expected value on every one.
+        Seeded from OBDb (10 signals), each checked with canair's evaluator on OBDb's recorded
+        responses (up to 44 per signal, model years 2022-2026).
       parameters:
         EVSE_MAXIMUM_VOLTAGE_VALUE:
           expression: ((B15 << 8) | B17)/10
           unit: V
           ha_class: voltage
-          min: "0"
-          max: "6553.5"
-          notes: >-
-            OBDb IONIQ5_EVSE_MAXIMUM_VOLTAGE_VALUE: Electric vehicle supply equipment, voltage, max.
+          notes: Electric vehicle supply equipment, voltage, max.
         EVSE_MAXIMUM_CURRENT_VALUE:
           expression: "[B18:B19]/10"
           unit: A
           ha_class: current
-          min: "0"
-          max: "6553.5"
-          notes: >-
-            OBDb IONIQ5_EVSE_MAXIMUM_CURRENT_VALUE: Electric vehicle supply equipment, current, max.
+          notes: Electric vehicle supply equipment, current, max.
         EVSE_MINIMUM_VOLTAGE_VALUE:
           expression: "[B20:B21]/10"
           unit: V
           ha_class: voltage
-          min: "0"
-          max: "6553.5"
-          notes: >-
-            OBDb IONIQ5_EVSE_MINIMUM_VOLTAGE_VALUE: Electric vehicle supply equipment, voltage, min.
+          notes: Electric vehicle supply equipment, voltage, min.
         EVSE_MINIMUM_CURRENT_VALUE:
           expression: "[B22:B23]/10"
           unit: A
           ha_class: current
-          min: "0"
-          max: "6553.5"
-          notes: >-
-            OBDb IONIQ5_EVSE_MINIMUM_CURRENT_VALUE: Electric vehicle supply equipment, current, min.
+          notes: Electric vehicle supply equipment, current, min.
         EVSE_V:
           expression: "[B25:B26]/10"
           unit: V
           ha_class: voltage
-          min: "0"
-          max: "6553.5"
-          notes: "OBDb IONIQ5_EVSE_V: Electric vehicle supply equipment, voltage."
+          notes: Electric vehicle supply equipment, voltage.
         EVSE_C:
           expression: "[B27:B28]/10"
           unit: A
           ha_class: current
-          min: "0"
-          max: "6553.5"
-          notes: "OBDb IONIQ5_EVSE_C: Electric vehicle supply equipment, current."
+          notes: Electric vehicle supply equipment, current.
         EVSE_CURRENT_REGULATION_TOLERANCE_VALUE:
           expression: B30-50
           unit: A
           ha_class: current
           min: "-50"
           max: "205"
-          notes: >-
-            OBDb IONIQ5_EVSE_CURRENT_REGULATION_TOLERANCE_VALUE: Electric vehicle supply equipment,
-            regulation tolerance.
+          notes: Electric vehicle supply equipment, regulation tolerance.
         EVSE_DELIVERED_POWER_VALUE:
           expression: ((B31 << 8) | B33)*10/1000
           unit: kWh
           ha_class: energy
-          min: "0"
           max: "655.35"
-          notes: >-
-            OBDb IONIQ5_EVSE_DELIVERED_POWER_VALUE: Electric vehicle supply equipment, power,
-            delivered.
+          notes: Electric vehicle supply equipment, power, delivered.
         EVSE_MAXIMUM_POWER_VALUE:
           expression: "[B34:B35]*10"
           unit: W
           ha_class: power
-          min: "0"
           max: "655350"
-          notes: >-
-            OBDb IONIQ5_EVSE_MAXIMUM_POWER_VALUE: Electric vehicle supply equipment, power, max.
+          notes: Electric vehicle supply equipment, power, max.
         EVSE_MAIN_POWER:
           expression: B36
           unit: kW
           ha_class: power
-          min: "0"
           max: "255"
-          notes: "OBDb IONIQ5_EVSE_MAIN_POWER: Electric vehicle supply equipment, power, main."
+          notes: Electric vehicle supply equipment, power, main.
     "22E003":
       status: active
+      min: "0"
       source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
       source_links:
         - https://github.com/OBDb/Hyundai-Ioniq-5
         - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
       verified: false
       notes: >-
-        Seeded from OBDb (19 signals). Each expression was evaluated on OBDb's recorded responses
-        (up to 450 per signal, model years 2022, 2023, 2024, 2025, 2026); 19 of 19 signals reproduce
-        OBDb's expected value on every one.
+        Seeded from OBDb (19 signals), each checked with canair's evaluator on OBDb's recorded
+        responses (up to 450 per signal, model years 2022-2026). OBDb names, where canair's differ:
+        VCMS_AC_CHARGING_TIME = IONIQ5_VCMS__AC_CHARGING_TIME.
       parameters:
         HVBAT_CP_VOLTAGE:
           expression: B12/10
           unit: V
           ha_class: voltage
-          min: "0"
           max: "25.5"
-          notes: "OBDb IONIQ5_HVBAT_CP_VOLTAGE: Control pilot voltage."
+          notes: Control pilot voltage.
         HVBAT_CP_DUTY_CYCLE:
           expression: "[B13:B14]/10"
           unit: "%"
-          min: "0"
           max: "100"
-          notes: "OBDb IONIQ5_HVBAT_CP_DUTY_CYCLE: Control pilot duty cycle."
+          notes: Control pilot duty cycle.
         HVBAT_PD_VOLTAGE:
           expression: "[B18:B19]*10/10000"
           unit: V
           ha_class: voltage
-          min: "0"
           max: "65.535"
-          notes: "OBDb IONIQ5_HVBAT_PD_VOLTAGE: Proximity detection voltage."
+          notes: Proximity detection voltage.
         HVBAT_HV_BATTERY_VOLTAGE:
           expression: "[B20:B21]/10"
           unit: V
           ha_class: voltage
-          min: "0"
           max: "6553.5"
-          notes: >-
-            OBDb IONIQ5_HVBAT_HV_BATTERY_VOLTAGE: High voltage battery, voltage. OBDb reads 0 and
-            6553.5 as no data.
+          notes: High voltage battery, voltage. OBDb reads 0 and 6553.5 as no data.
         HVBAT_SOC_VCMS:
           expression: B22/2
           unit: "%"
           ha_class: battery
-          min: "0"
           max: "100"
-          notes: "OBDb IONIQ5_HVBAT_SOC_VCMS: High voltage battery, state of charge."
+          notes: High voltage battery, state of charge.
         HVBAT_TARGET_VOLT:
           expression: ((B23 << 8) | B25)/10
           unit: V
           ha_class: voltage
-          min: "0"
           max: "6553.5"
-          notes: "OBDb IONIQ5_HVBAT_TARGET_VOLT: Electric vehicle supply equipment, target voltage."
+          notes: Electric vehicle supply equipment, target voltage.
         HVBAT_TARGET_CURR:
           expression: "[B26:B27]/10"
           unit: A
           ha_class: current
-          min: "0"
           max: "6553.5"
-          notes: "OBDb IONIQ5_HVBAT_TARGET_CURR: Electric vehicle supply equipment, target current."
+          notes: Electric vehicle supply equipment, target current.
         HVBAT_EV_MAX_VOLTAGE:
           expression: "[B28:B29]/10"
           unit: V
           ha_class: voltage
-          min: "0"
           max: "6553.5"
-          notes: "OBDb IONIQ5_HVBAT_EV_MAX_VOLTAGE: High voltage battery, max voltage."
+          notes: High voltage battery, max voltage.
         HVBAT_EV_MAX_CURRENT:
           expression: "[B30:B31]/10"
           unit: A
           ha_class: current
-          min: "0"
           max: "6553.5"
-          notes: "OBDb IONIQ5_HVBAT_EV_MAX_CURRENT: High voltage battery, max current."
+          notes: High voltage battery, max current.
         HVBAT_BMS_TARGET_VOLTAGE:
           expression: "[B33:B34]/10"
           unit: V
           ha_class: voltage
-          min: "0"
           max: "6553.5"
-          notes: "OBDb IONIQ5_HVBAT_BMS_TARGET_VOLTAGE: High voltage battery, target voltage."
+          notes: High voltage battery, target voltage.
         HVBAT_BMS_TARGET_CURRENT:
           expression: "[B35:B36]/10"
           unit: A
           ha_class: current
-          min: "0"
           max: "6553.5"
-          notes: "OBDb IONIQ5_HVBAT_BMS_TARGET_CURRENT: High voltage battery, target current."
+          notes: High voltage battery, target current.
         HVBAT_AC_CHARGING_COUNTER:
           expression: ((B39 << 8) | B41)
-          min: "0"
           max: "65535"
-          notes: "OBDb IONIQ5_HVBAT_AC_CHARGING_COUNTER: A/C charging counter."
+          notes: A/C charging counter.
         HVBAT_CHRG_CNT:
           expression: "[B42:B43]"
-          min: "0"
           max: "65535"
-          notes: "OBDb IONIQ5_HVBAT_CHRG_CNT: DC charging counter."
+          notes: DC charging counter.
         VCMS_AC_CHARGING_TIME:
           expression: "[B44:B45]"
           unit: h
           ha_class: duration
-          min: "0"
           max: "65535"
-          notes: "OBDb IONIQ5_VCMS__AC_CHARGING_TIME: A/C charging time."
+          notes: A/C charging time.
         DC_CHRG_TIME:
           expression: "[B46:B47]"
           unit: h
           ha_class: duration
-          min: "0"
           max: "65535"
-          notes: "OBDb IONIQ5_DC_CHRG_TIME: Cumulative DC charging time."
+          notes: Cumulative DC charging time.
         AC_CHARGER_CURRENT:
           expression: "[B49:B50]/100"
           unit: A
           ha_class: current
-          min: "0"
           max: "655.35"
-          notes: "OBDb IONIQ5_AC_CHARGER_CURRENT: A/C charger current."
+          notes: A/C charger current.
         DC_CHARGER_CURRENT_CAPABILITY:
           expression: "[B51:B52]/100"
           unit: A
           ha_class: current
-          min: "0"
           max: "655.35"
-          notes: "OBDb IONIQ5_DC_CHARGER_CURRENT_CAPABILITY: DC charger current capability."
         AC_CHARGING_TIME_AFTER_PLUG_IN:
           expression: "[B53:B54]"
           unit: min
           ha_class: duration
-          min: "0"
           max: "65535"
-          notes: "OBDb IONIQ5_AC_CHARGING_TIME_AFTER_PLUG_IN: A/C charging time, after plug-in."
+          notes: A/C charging time, after plug-in.
         DC_CHARGING_TIME_AFTER_PLUG_IN:
           expression: ((B55 << 8) | B57)
           unit: min
           ha_class: duration
-          min: "0"
           max: "65535"
-          notes: "OBDb IONIQ5_DC_CHARGING_TIME_AFTER_PLUG_IN: DC charging time, after plug-in."
     "22E004":
       status: active
+      min: "0"
+      max: "1"
       source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
       source_links:
         - https://github.com/OBDb/Hyundai-Ioniq-5
         - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
       verified: false
       notes: >-
-        Seeded from OBDb (7 signals). Each expression was evaluated on OBDb's recorded responses (up
-        to 73 per signal, model years 2022, 2023, 2024, 2025, 2026); 7 of 7 signals reproduce OBDb's
-        expected value on every one.
+        Seeded from OBDb (7 signals), each checked with canair's evaluator on OBDb's recorded
+        responses (up to 73 per signal, model years 2022-2026). OBDb names, where canair's differ:
+        RELAY_400V_STATUS = IONIQ5_400V_RELAY_STATUS; RELAY_400V_REQUEST =
+        IONIQ5_400V_RELAY_ON_OFF_REQUEST.
       parameters:
         BATTERY_MAIN_RELAY_STATUS:
           expression: B10:2
-          min: "0"
-          max: "1"
-          notes: "OBDb IONIQ5_BATTERY_MAIN_RELAY_STATUS: Battery main relay status."
         CHARGING_SOCKET_CONNECTED:
           expression: B10:1
-          min: "0"
-          max: "1"
-          notes: "OBDb IONIQ5_CHARGING_SOCKET_CONNECTED: Charging socket connected."
         RELAY_400V_STATUS:
           expression: B11:5
-          min: "0"
-          max: "1"
-          notes: "OBDb IONIQ5_400V_RELAY_STATUS: 400V relay status."
         RELAY_400V_REQUEST:
           expression: B11:4
-          min: "0"
-          max: "1"
-          notes: "OBDb IONIQ5_400V_RELAY_ON_OFF_REQUEST: 400V relay on/off request."
+          notes: 400V relay on/off request.
         DC_INLET_T_1:
           expression: B14-50
           unit: °C
           ha_class: temperature
           min: "-50"
           max: "205"
-          notes: "OBDb IONIQ5_DC_INLET_T_1: DC inlet temperature 1."
         DC_INLET_T_2:
           expression: B15-50
           unit: °C
           ha_class: temperature
           min: "-50"
           max: "205"
-          notes: "OBDb IONIQ5_DC_INLET_T_2: DC inlet temperature 2."
         AC_INLET_T_1:
           expression: B17-50
           unit: °C
           ha_class: temperature
           min: "-50"
           max: "205"
-          notes: "OBDb IONIQ5_AC_INLET_T_1: AC inlet temperature 1."

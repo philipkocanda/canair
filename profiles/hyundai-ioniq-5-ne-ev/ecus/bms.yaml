@@ -6,1823 +6,761 @@ BMS:
       Address confirmed by recorded responses in OBDb Hyundai-Ioniq-5 test cases (MY2022-2027,
       https://github.com/OBDb/Hyundai-Ioniq-5): 220101-0105, 010A-010C, 0111, 0114 (SOC, SOH, cell
       voltages, charge counters). Also polled at 7E4/7EC by OVMS vehicle_hyundai_ioniq5 and the
-      wican-fw Ioniq5/6 profile. Part numbers from Hyundai TSB 22-01-094H (2022MY BMS update, event
-      892): 375A0-GI150, ROM IDs 4400/4500/4600/4700/4800/5000/5300 updated to 5400, and
-      375A0-GI100, ROM IDs 4402/4502/4602/4702/4802 and later
-      (https://static.nhtsa.gov/odi/tsbs/2022/MC-10228645-0001.pdf). Useful as identity fingerprints
-      if the BMS layout ever differs between them.
+      wican-fw Ioniq5/6 profile. Signals seeded from OBDb keep OBDb's names without the IONIQ5_
+      prefix, unless a PID's notes list a rename. Part numbers from Hyundai TSB 22-01-094H (2022MY
+      BMS update, event 892): 375A0-GI150, ROM IDs 4400/4500/4600/4700/4800/5000/5300 updated to
+      5400, and 375A0-GI100, ROM IDs 4402/4502/4602/4702/4802 and later
+      (https://static.nhtsa.gov/odi/tsbs/2022/MC-10228645-0001.pdf).
   pids:
     220101:
       status: active
+      min: "0"
       source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
       source_links:
         - https://github.com/OBDb/Hyundai-Ioniq-5
         - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
       verified: false
       notes: >-
-        Seeded from OBDb (32 signals). Each expression was evaluated on OBDb's recorded responses
-        (up to 591 per signal, model years 2022, 2023, 2024, 2025, 2026, 2027); 17 of 32 signals
-        reproduce OBDb's expected value on every one.
+        Seeded from OBDb (32 signals), each checked with canair's evaluator on OBDb's recorded
+        responses (up to 591 per signal, model years 2022-2027). Recorded responses that disagree
+        with OBDb's expected value, where OBDb clamps to its min/max or the recorded frame is
+        corrupt: HVBAT_SOC 1/591, MAXIMUM_CELL_VOLTAGE 6/591, MAXIMUM_CELL_VOLTAGE_NO 2/591,
+        MINIMUM_CELL_VOLTAGE 7/591, MINIMUM_CELL_VOLTAGE_NO 1/591, BMS_AUX_BATTERY_VOLTAGE 7/591,
+        CUMULATIVE_CHARGE_CURRENT 1/591, CUMULATIVE_DISCHARGE_CURRENT 2/591,
+        CUMULATIVE_ENERGY_CHARGED 2/591, CUMULATIVE_ENERGY_DISCHARGED 2/591,
+        BATTERY_WORK_TIME_TOTAL_SEC 2/591, INVERTER_CAPACITOR_VOLTAGE 2/575, DRIVE_MOTOR_SPEED_1
+        2/591, DRIVE_MOTOR_SPEED_2 2/591, ISOLATION_RESISTANCE 2/591. OBDb names, where canair's
+        differ: BMS_AUX_BATTERY_VOLTAGE = IONIQ5_AUXILLARY_BATTERY_VOLTAGE.
       parameters:
         HVBAT_SOC:
           expression: B10/2
           unit: "%"
           ha_class: battery
-          min: "0"
           max: "100"
-          notes: >-
-            OBDb IONIQ5_HVBAT_SOC: HV battery charge, dashboard. 1 of 591 recorded responses
-            disagree with OBDb's expected value (e.g. MY2022: 81 where OBDb expects 81.5); OBDb
-            clamps to its min/max, and a few recorded frames are corrupt.
+          notes: HV battery charge, dashboard.
         HV_CHARGING:
           expression: B15:7
-          min: "0"
           max: "1"
-          notes: "OBDb IONIQ5_HV_CHARGING: Charging?"
         RAPID_CHARGE_PORT:
           expression: B15:6
-          min: "0"
           max: "1"
-          notes: "OBDb IONIQ5_RAPID_CHARGE_PORT: Rapid charge port."
         NORMAL_CHARGE_PORT:
           expression: B15:5
-          min: "0"
           max: "1"
-          notes: "OBDb IONIQ5_NORMAL_CHARGE_PORT: Normal charge port."
         BMS_MAIN_RELAY:
           expression: B15:0
-          min: "0"
           max: "1"
-          notes: "OBDb IONIQ5_BMS_MAIN_RELAY: Battery management system main relay."
+          notes: Battery management system main relay.
         BATTERY_CURRENT:
           expression: "[S17:S18]/10"
           unit: A
           ha_class: current
           min: "-3276.8"
           max: "3276.7"
-          notes: "OBDb IONIQ5_BATTERY_CURRENT: Battery current."
         BATTERY_DC_VOLTAGE:
           expression: "[B19:B20]/10"
           unit: V
           ha_class: voltage
-          min: "0"
           max: "1000"
-          notes: "OBDb IONIQ5_BATTERY_DC_VOLTAGE: Battery DC voltage."
         BATTERY_MAX_T:
           expression: S21
           unit: °C
           ha_class: temperature
           min: "-40"
           max: "80"
-          notes: "OBDb IONIQ5_BATTERY_MAX_T: Battery max temperature."
         BATTERY_MIN_T:
           expression: S22
           unit: °C
           ha_class: temperature
           min: "-40"
           max: "80"
-          notes: "OBDb IONIQ5_BATTERY_MIN_T: Battery min temperature."
         BATTERY_PACK_B01:
           expression: S23
           unit: °C
           ha_class: temperature
           min: "-40"
           max: "80"
-          notes: "OBDb IONIQ5_BATTERY_PACK_B01: Battery pack B01."
         BATTERY_PACK_B02:
           expression: S25
           unit: °C
           ha_class: temperature
           min: "-40"
           max: "80"
-          notes: "OBDb IONIQ5_BATTERY_PACK_B02: Battery pack B02."
         BATTERY_PACK_B03:
           expression: S26
           unit: °C
           ha_class: temperature
           min: "-40"
           max: "80"
-          notes: "OBDb IONIQ5_BATTERY_PACK_B03: Battery pack B03."
         BATTERY_PACK_B04:
           expression: S27
           unit: °C
           ha_class: temperature
           min: "-40"
           max: "80"
-          notes: "OBDb IONIQ5_BATTERY_PACK_B04: Battery pack B04."
         BATTERY_PACK_B05:
           expression: S28
           unit: °C
           ha_class: temperature
           min: "-40"
           max: "80"
-          notes: "OBDb IONIQ5_BATTERY_PACK_B05: Battery pack B05."
         BATTERY_INLET_T:
           expression: B30-40
           unit: °C
           ha_class: temperature
           min: "-40"
           max: "215"
-          notes: "OBDb IONIQ5_BATTERY_INLET_T: Battery inlet temperature."
         MAXIMUM_CELL_VOLTAGE:
           expression: B31/50
           unit: V
           ha_class: voltage
           min: "2.8"
           max: "4.2"
-          notes: >-
-            OBDb IONIQ5_MAXIMUM_CELL_VOLTAGE: Maximum cell voltage. 6 of 591 recorded responses
-            disagree with OBDb's expected value (e.g. MY2023: 0 where OBDb expects 2.8); OBDb clamps
-            to its min/max, and a few recorded frames are corrupt.
         MAXIMUM_CELL_VOLTAGE_NO:
           expression: B33
-          min: "0"
           max: "255"
-          notes: >-
-            OBDb IONIQ5_MAXIMUM_CELL_VOLTAGE_NO: Maximum cell voltage no. 2 of 591 recorded
-            responses disagree with OBDb's expected value (e.g. MY2025: 69 where OBDb expects 155);
-            OBDb clamps to its min/max, and a few recorded frames are corrupt.
         MINIMUM_CELL_VOLTAGE:
           expression: B34/50
           unit: V
           ha_class: voltage
           min: "2.8"
           max: "4.2"
-          notes: >-
-            OBDb IONIQ5_MINIMUM_CELL_VOLTAGE: Minimum cell voltage. 7 of 591 recorded responses
-            disagree with OBDb's expected value (e.g. MY2023: 0 where OBDb expects 2.8); OBDb clamps
-            to its min/max, and a few recorded frames are corrupt.
         MINIMUM_CELL_VOLTAGE_NO:
           expression: B35
-          min: "0"
           max: "255"
-          notes: >-
-            OBDb IONIQ5_MINIMUM_CELL_VOLTAGE_NO: Minimum cell voltage no. 1 of 591 recorded
-            responses disagree with OBDb's expected value (e.g. MY2022: 175 where OBDb expects 164);
-            OBDb clamps to its min/max, and a few recorded frames are corrupt.
         BATTERY_FAN_STATUS:
           expression: B36
-          min: "0"
           max: "9"
-          notes: "OBDb IONIQ5_BATTERY_FAN_STATUS: Battery fan status."
         BATTERY_FAN_FEEDBACK:
           expression: B37
           unit: Hz
           ha_class: frequency
-          min: "0"
           max: "120"
-          notes: "OBDb IONIQ5_BATTERY_FAN_FEEDBACK: Battery fan feedback."
         BMS_AUX_BATTERY_VOLTAGE:
           expression: B38/10
           unit: V
           ha_class: voltage
           min: "11"
           max: "14.6"
-          notes: >-
-            OBDb IONIQ5_AUXILLARY_BATTERY_VOLTAGE: Auxiliary battery voltage. 7 of 591 recorded
-            responses disagree with OBDb's expected value (e.g. MY2023: 0 where OBDb expects 11);
-            OBDb clamps to its min/max, and a few recorded frames are corrupt.
         CUMULATIVE_CHARGE_CURRENT:
           expression: ((B39 << 24) | (B41 << 16) | (B42 << 8) | B43)/10
           unit: Ah
-          min: "0"
           max: "4.29497e+08"
-          notes: >-
-            OBDb IONIQ5_CUMULATIVE_CHARGE_CURRENT: Cumulative charge current. 1 of 591 recorded
-            responses disagree with OBDb's expected value (e.g. MY2025: 408832 where OBDb expects
-            8034.3); OBDb clamps to its min/max, and a few recorded frames are corrupt.
         CUMULATIVE_DISCHARGE_CURRENT:
           expression: "[B44:B47]/10"
           unit: Ah
-          min: "0"
           max: "4.29497e+08"
-          notes: >-
-            OBDb IONIQ5_CUMULATIVE_DISCHARGE_CURRENT: Cumulative discharge current. 2 of 591
-            recorded responses disagree with OBDb's expected value (e.g. MY2025: 3.25048e+06 where
-            OBDb expects 7867.5); OBDb clamps to its min/max, and a few recorded frames are corrupt.
         CUMULATIVE_ENERGY_CHARGED:
           expression: "[B49:B52]/10"
           unit: kWh
           ha_class: energy
-          min: "0"
           max: "4.29497e+08"
-          notes: >-
-            OBDb IONIQ5_CUMULATIVE_ENERGY_CHARGED: Cumulative energy charged. 2 of 591 recorded
-            responses disagree with OBDb's expected value (e.g. MY2025: 4.02116e+08 where OBDb
-            expects 6008.1); OBDb clamps to its min/max, and a few recorded frames are corrupt.
         CUMULATIVE_ENERGY_DISCHARGED:
           expression: ((B53 << 24) | (B54 << 16) | (B55 << 8) | B57)/10
           unit: kWh
           ha_class: energy
-          min: "0"
           max: "4.29497e+08"
-          notes: >-
-            OBDb IONIQ5_CUMULATIVE_ENERGY_DISCHARGED: Cumulative energy discharged. 2 of 591
-            recorded responses disagree with OBDb's expected value (e.g. MY2025: 0 where OBDb
-            expects 5705.2); OBDb clamps to its min/max, and a few recorded frames are corrupt.
         BATTERY_WORK_TIME_TOTAL_SEC:
           expression: "[B58:B61]"
           unit: s
           ha_class: duration
-          min: "0"
           max: "4.29497e+09"
-          notes: >-
-            OBDb IONIQ5_BATTERY_WORK_TIME_TOTAL_SEC: Battery work time total. 2 of 591 recorded
-            responses disagree with OBDb's expected value (e.g. MY2025: 8.58921e+07 where OBDb
-            expects 1.07323e+07); OBDb clamps to its min/max, and a few recorded frames are corrupt.
         BMS_IGNITION:
           expression: B62:2
-          min: "0"
           max: "1"
-          notes: "OBDb IONIQ5_BMS_IGNITION: Battery management system ignition."
+          notes: Battery management system ignition.
         INVERTER_CAPACITOR_VOLTAGE:
           expression: ((B63 << 8) | B65)
           unit: V
           ha_class: voltage
-          min: "0"
           max: "1000"
-          notes: >-
-            OBDb IONIQ5_INVERTER_CAPACITOR_VOLTAGE: Inverter capacitor voltage. OBDb reads 1000 as
-            no data. 2 of 575 recorded responses disagree with OBDb's expected value (e.g. MY2025:
-            4881 where OBDb expects 782); OBDb clamps to its min/max, and a few recorded frames are
-            corrupt.
+          notes: OBDb reads 1000 as no data.
         DRIVE_MOTOR_SPEED_1:
           expression: "[S66:S67]"
           unit: rpm
           min: "-32768"
           max: "32767"
-          notes: >-
-            OBDb IONIQ5_DRIVE_MOTOR_SPEED_1: Drive motor speed 1. 2 of 591 recorded responses
-            disagree with OBDb's expected value (e.g. MY2025: 4371 where OBDb expects 0); OBDb
-            clamps to its min/max, and a few recorded frames are corrupt.
         DRIVE_MOTOR_SPEED_2:
           expression: "[S68:S69]"
           unit: rpm
           min: "-32768"
           max: "32767"
-          notes: >-
-            OBDb IONIQ5_DRIVE_MOTOR_SPEED_2: Drive motor speed 2. 2 of 591 recorded responses
-            disagree with OBDb's expected value (e.g. MY2025: 4864 where OBDb expects 0); OBDb
-            clamps to its min/max, and a few recorded frames are corrupt.
         ISOLATION_RESISTANCE:
           expression: "[B70:B71]"
           unit: kΩ
-          min: "0"
           max: "3000"
-          notes: >-
-            OBDb IONIQ5_ISOLATION_RESISTANCE: Isolation resistance. 2 of 591 recorded responses
-            disagree with OBDb's expected value (e.g. MY2025: 14796 where OBDb expects 3000); OBDb
-            clamps to its min/max, and a few recorded frames are corrupt.
     220102:
       status: active
+      unit: V
+      ha_class: voltage
+      min: "0"
+      max: "5.1"
       source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
       source_links:
         - https://github.com/OBDb/Hyundai-Ioniq-5
         - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
       verified: false
       notes: >-
-        Seeded from OBDb (32 signals). Each expression was evaluated on OBDb's recorded responses
-        (up to 255 per signal, model years 2022, 2023, 2024, 2025, 2026, 2027); 32 of 32 signals
-        reproduce OBDb's expected value on every one.
+        Seeded from OBDb (32 signals), each checked with canair's evaluator on OBDb's recorded
+        responses (up to 255 per signal, model years 2022-2027). CELL_001_VOLTAGE to
+        CELL_032_VOLTAGE: cell voltages, OBDb IONIQ5_HVBAT_CMUnnn_VOLT (HV battery module nnn
+        voltage).
       parameters:
         CELL_001_VOLTAGE:
           expression: B10/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU001_VOLT: HV battery module 001 voltage."
         CELL_002_VOLTAGE:
           expression: B11/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU002_VOLT: HV battery module 002 voltage."
         CELL_003_VOLTAGE:
           expression: B12/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU003_VOLT: HV battery module 003 voltage."
         CELL_004_VOLTAGE:
           expression: B13/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU004_VOLT: HV battery module 004 voltage."
         CELL_005_VOLTAGE:
           expression: B14/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU005_VOLT: HV battery module 005 voltage."
         CELL_006_VOLTAGE:
           expression: B15/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU006_VOLT: HV battery module 006 voltage."
         CELL_007_VOLTAGE:
           expression: B17/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU007_VOLT: HV battery module 007 voltage."
         CELL_008_VOLTAGE:
           expression: B18/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU008_VOLT: HV battery module 008 voltage."
         CELL_009_VOLTAGE:
           expression: B19/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU009_VOLT: HV battery module 009 voltage."
         CELL_010_VOLTAGE:
           expression: B20/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU010_VOLT: HV battery module 010 voltage."
         CELL_011_VOLTAGE:
           expression: B21/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU011_VOLT: HV battery module 011 voltage."
         CELL_012_VOLTAGE:
           expression: B22/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU012_VOLT: HV battery module 012 voltage."
         CELL_013_VOLTAGE:
           expression: B23/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU013_VOLT: HV battery module 013 voltage."
         CELL_014_VOLTAGE:
           expression: B25/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU014_VOLT: HV battery module 014 voltage."
         CELL_015_VOLTAGE:
           expression: B26/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU015_VOLT: HV battery module 015 voltage."
         CELL_016_VOLTAGE:
           expression: B27/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU016_VOLT: HV battery module 016 voltage."
         CELL_017_VOLTAGE:
           expression: B28/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU017_VOLT: HV battery module 017 voltage."
         CELL_018_VOLTAGE:
           expression: B29/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU018_VOLT: HV battery module 018 voltage."
         CELL_019_VOLTAGE:
           expression: B30/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU019_VOLT: HV battery module 019 voltage."
         CELL_020_VOLTAGE:
           expression: B31/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU020_VOLT: HV battery module 020 voltage."
         CELL_021_VOLTAGE:
           expression: B33/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU021_VOLT: HV battery module 021 voltage."
         CELL_022_VOLTAGE:
           expression: B34/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU022_VOLT: HV battery module 022 voltage."
         CELL_023_VOLTAGE:
           expression: B35/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU023_VOLT: HV battery module 023 voltage."
         CELL_024_VOLTAGE:
           expression: B36/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU024_VOLT: HV battery module 024 voltage."
         CELL_025_VOLTAGE:
           expression: B37/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU025_VOLT: HV battery module 025 voltage."
         CELL_026_VOLTAGE:
           expression: B38/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU026_VOLT: HV battery module 026 voltage."
         CELL_027_VOLTAGE:
           expression: B39/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU027_VOLT: HV battery module 027 voltage."
         CELL_028_VOLTAGE:
           expression: B41/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU028_VOLT: HV battery module 028 voltage."
         CELL_029_VOLTAGE:
           expression: B42/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU029_VOLT: HV battery module 029 voltage."
         CELL_030_VOLTAGE:
           expression: B43/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU030_VOLT: HV battery module 030 voltage."
         CELL_031_VOLTAGE:
           expression: B44/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU031_VOLT: HV battery module 031 voltage."
         CELL_032_VOLTAGE:
           expression: B45/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU032_VOLT: HV battery module 032 voltage."
     220103:
       status: active
+      unit: V
+      ha_class: voltage
+      min: "0"
+      max: "5.1"
       source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
       source_links:
         - https://github.com/OBDb/Hyundai-Ioniq-5
         - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
       verified: false
       notes: >-
-        Seeded from OBDb (32 signals). Each expression was evaluated on OBDb's recorded responses
-        (up to 240 per signal, model years 2022, 2023, 2024, 2025, 2026, 2027); 27 of 32 signals
-        reproduce OBDb's expected value on every one.
+        Seeded from OBDb (32 signals), each checked with canair's evaluator on OBDb's recorded
+        responses (up to 240 per signal, model years 2022-2027). Recorded responses that disagree
+        with OBDb's expected value, where OBDb clamps to its min/max or the recorded frame is
+        corrupt: CELL_060_VOLTAGE 2/240, CELL_061_VOLTAGE 2/240, CELL_062_VOLTAGE 2/240,
+        CELL_063_VOLTAGE 2/240, CELL_064_VOLTAGE 2/240. CELL_033_VOLTAGE to CELL_064_VOLTAGE: cell
+        voltages, OBDb IONIQ5_HVBAT_CMUnnn_VOLT (HV battery module nnn voltage).
       parameters:
         CELL_033_VOLTAGE:
           expression: B10/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU033_VOLT: HV battery module 033 voltage."
         CELL_034_VOLTAGE:
           expression: B11/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU034_VOLT: HV battery module 034 voltage."
         CELL_035_VOLTAGE:
           expression: B12/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU035_VOLT: HV battery module 035 voltage."
         CELL_036_VOLTAGE:
           expression: B13/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU036_VOLT: HV battery module 036 voltage."
         CELL_037_VOLTAGE:
           expression: B14/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU037_VOLT: HV battery module 037 voltage."
         CELL_038_VOLTAGE:
           expression: B15/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU038_VOLT: HV battery module 038 voltage."
         CELL_039_VOLTAGE:
           expression: B17/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU039_VOLT: HV battery module 039 voltage."
         CELL_040_VOLTAGE:
           expression: B18/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU040_VOLT: HV battery module 040 voltage."
         CELL_041_VOLTAGE:
           expression: B19/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU041_VOLT: HV battery module 041 voltage."
         CELL_042_VOLTAGE:
           expression: B20/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU042_VOLT: HV battery module 042 voltage."
         CELL_043_VOLTAGE:
           expression: B21/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU043_VOLT: HV battery module 043 voltage."
         CELL_044_VOLTAGE:
           expression: B22/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU044_VOLT: HV battery module 044 voltage."
         CELL_045_VOLTAGE:
           expression: B23/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU045_VOLT: HV battery module 045 voltage."
         CELL_046_VOLTAGE:
           expression: B25/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU046_VOLT: HV battery module 046 voltage."
         CELL_047_VOLTAGE:
           expression: B26/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU047_VOLT: HV battery module 047 voltage."
         CELL_048_VOLTAGE:
           expression: B27/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU048_VOLT: HV battery module 048 voltage."
         CELL_049_VOLTAGE:
           expression: B28/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU049_VOLT: HV battery module 049 voltage."
         CELL_050_VOLTAGE:
           expression: B29/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU050_VOLT: HV battery module 050 voltage."
         CELL_051_VOLTAGE:
           expression: B30/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU051_VOLT: HV battery module 051 voltage."
         CELL_052_VOLTAGE:
           expression: B31/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU052_VOLT: HV battery module 052 voltage."
         CELL_053_VOLTAGE:
           expression: B33/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU053_VOLT: HV battery module 053 voltage."
         CELL_054_VOLTAGE:
           expression: B34/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU054_VOLT: HV battery module 054 voltage."
         CELL_055_VOLTAGE:
           expression: B35/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU055_VOLT: HV battery module 055 voltage."
         CELL_056_VOLTAGE:
           expression: B36/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU056_VOLT: HV battery module 056 voltage."
         CELL_057_VOLTAGE:
           expression: B37/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU057_VOLT: HV battery module 057 voltage."
         CELL_058_VOLTAGE:
           expression: B38/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU058_VOLT: HV battery module 058 voltage."
         CELL_059_VOLTAGE:
           expression: B39/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU059_VOLT: HV battery module 059 voltage."
         CELL_060_VOLTAGE:
           expression: B41/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: >-
-            OBDb IONIQ5_HVBAT_CMU060_VOLT: HV battery module 060 voltage. 2 of 240 recorded
-            responses disagree with OBDb's expected value (e.g. MY2026: 0.78 where OBDb expects
-            3.86); OBDb clamps to its min/max, and a few recorded frames are corrupt.
         CELL_061_VOLTAGE:
           expression: B42/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: >-
-            OBDb IONIQ5_HVBAT_CMU061_VOLT: HV battery module 061 voltage. 2 of 240 recorded
-            responses disagree with OBDb's expected value (e.g. MY2026: 1.96 where OBDb expects
-            3.86); OBDb clamps to its min/max, and a few recorded frames are corrupt.
         CELL_062_VOLTAGE:
           expression: B43/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: >-
-            OBDb IONIQ5_HVBAT_CMU062_VOLT: HV battery module 062 voltage. 2 of 240 recorded
-            responses disagree with OBDb's expected value (e.g. MY2026: 0.02 where OBDb expects
-            3.86); OBDb clamps to its min/max, and a few recorded frames are corrupt.
         CELL_063_VOLTAGE:
           expression: B44/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: >-
-            OBDb IONIQ5_HVBAT_CMU063_VOLT: HV battery module 063 voltage. 2 of 240 recorded
-            responses disagree with OBDb's expected value (e.g. MY2026: 0.06 where OBDb expects
-            3.86); OBDb clamps to its min/max, and a few recorded frames are corrupt.
         CELL_064_VOLTAGE:
           expression: B45/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: >-
-            OBDb IONIQ5_HVBAT_CMU064_VOLT: HV battery module 064 voltage. 2 of 240 recorded
-            responses disagree with OBDb's expected value (e.g. MY2026: 5.1 where OBDb expects
-            3.86); OBDb clamps to its min/max, and a few recorded frames are corrupt.
     220104:
       status: active
+      unit: V
+      ha_class: voltage
+      min: "0"
+      max: "5.1"
       source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
       source_links:
         - https://github.com/OBDb/Hyundai-Ioniq-5
         - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
       verified: false
       notes: >-
-        Seeded from OBDb (32 signals). Each expression was evaluated on OBDb's recorded responses
-        (up to 224 per signal, model years 2022, 2023, 2024, 2025, 2026, 2027); 32 of 32 signals
-        reproduce OBDb's expected value on every one.
+        Seeded from OBDb (32 signals), each checked with canair's evaluator on OBDb's recorded
+        responses (up to 224 per signal, model years 2022-2027). CELL_065_VOLTAGE to
+        CELL_096_VOLTAGE: cell voltages, OBDb IONIQ5_HVBAT_CMUnnn_VOLT (HV battery module nnn
+        voltage).
       parameters:
         CELL_065_VOLTAGE:
           expression: B10/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU065_VOLT: HV battery module 065 voltage."
         CELL_066_VOLTAGE:
           expression: B11/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU066_VOLT: HV battery module 066 voltage."
         CELL_067_VOLTAGE:
           expression: B12/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU067_VOLT: HV battery module 067 voltage."
         CELL_068_VOLTAGE:
           expression: B13/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU068_VOLT: HV battery module 068 voltage."
         CELL_069_VOLTAGE:
           expression: B14/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU069_VOLT: HV battery module 069 voltage."
         CELL_070_VOLTAGE:
           expression: B15/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU070_VOLT: HV battery module 070 voltage."
         CELL_071_VOLTAGE:
           expression: B17/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU071_VOLT: HV battery module 071 voltage."
         CELL_072_VOLTAGE:
           expression: B18/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU072_VOLT: HV battery module 072 voltage."
         CELL_073_VOLTAGE:
           expression: B19/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU073_VOLT: HV battery module 073 voltage."
         CELL_074_VOLTAGE:
           expression: B20/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU074_VOLT: HV battery module 074 voltage."
         CELL_075_VOLTAGE:
           expression: B21/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU075_VOLT: HV battery module 075 voltage."
         CELL_076_VOLTAGE:
           expression: B22/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU076_VOLT: HV battery module 076 voltage."
         CELL_077_VOLTAGE:
           expression: B23/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU077_VOLT: HV battery module 077 voltage."
         CELL_078_VOLTAGE:
           expression: B25/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU078_VOLT: HV battery module 078 voltage."
         CELL_079_VOLTAGE:
           expression: B26/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU079_VOLT: HV battery module 079 voltage."
         CELL_080_VOLTAGE:
           expression: B27/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU080_VOLT: HV battery module 080 voltage."
         CELL_081_VOLTAGE:
           expression: B28/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU081_VOLT: HV battery module 081 voltage."
         CELL_082_VOLTAGE:
           expression: B29/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU082_VOLT: HV battery module 082 voltage."
         CELL_083_VOLTAGE:
           expression: B30/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU083_VOLT: HV battery module 083 voltage."
         CELL_084_VOLTAGE:
           expression: B31/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU084_VOLT: HV battery module 084 voltage."
         CELL_085_VOLTAGE:
           expression: B33/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU085_VOLT: HV battery module 085 voltage."
         CELL_086_VOLTAGE:
           expression: B34/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU086_VOLT: HV battery module 086 voltage."
         CELL_087_VOLTAGE:
           expression: B35/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU087_VOLT: HV battery module 087 voltage."
         CELL_088_VOLTAGE:
           expression: B36/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU088_VOLT: HV battery module 088 voltage."
         CELL_089_VOLTAGE:
           expression: B37/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU089_VOLT: HV battery module 089 voltage."
         CELL_090_VOLTAGE:
           expression: B38/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU090_VOLT: HV battery module 090 voltage."
         CELL_091_VOLTAGE:
           expression: B39/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU091_VOLT: HV battery module 091 voltage."
         CELL_092_VOLTAGE:
           expression: B41/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU092_VOLT: HV battery module 092 voltage."
         CELL_093_VOLTAGE:
           expression: B42/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU093_VOLT: HV battery module 093 voltage."
         CELL_094_VOLTAGE:
           expression: B43/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU094_VOLT: HV battery module 094 voltage."
         CELL_095_VOLTAGE:
           expression: B44/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU095_VOLT: HV battery module 095 voltage."
         CELL_096_VOLTAGE:
           expression: B45/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU096_VOLT: HV battery module 096 voltage."
     220105:
       status: active
+      unit: "%"
+      ha_class: battery
+      min: "0"
+      max: "100"
       source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
       source_links:
         - https://github.com/OBDb/Hyundai-Ioniq-5
         - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
       verified: false
       notes: >-
-        Seeded from OBDb (3 signals). Each expression was evaluated on OBDb's recorded responses (up
-        to 339 per signal, model years 2022, 2023, 2024, 2025, 2026, 2027); 3 of 3 signals reproduce
-        OBDb's expected value on every one.
+        Seeded from OBDb (3 signals), each checked with canair's evaluator on OBDb's recorded
+        responses (up to 339 per signal, model years 2022-2027).
       parameters:
         HVBAT_SOH:
           expression: "[B34:B35]/10"
-          unit: "%"
-          ha_class: battery
-          min: "0"
-          max: "100"
-          notes: "OBDb IONIQ5_HVBAT_SOH: HV battery state of health. OBDb reads 0 as no data."
+          notes: HV battery state of health. OBDb reads 0 as no data.
         HVBAT_WH:
           expression: "[B37:B38]*2/1000"
           unit: kWh
           ha_class: energy
-          min: "0"
           max: "131.07"
-          notes: "OBDb IONIQ5_HVBAT_WH: HV battery remaining energy. OBDb reads 131.07 as no data."
+          notes: HV battery remaining energy. OBDb reads 131.07 as no data.
         HVBAT_SOC_DISP:
           expression: B41/2
-          unit: "%"
-          ha_class: battery
-          min: "0"
-          max: "100"
-          notes: "OBDb IONIQ5_HVBAT_SOC_DISP: HV battery charge."
+          notes: HV battery charge.
     22010A:
       status: active
+      unit: V
+      ha_class: voltage
+      min: "0"
+      max: "5.1"
       source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
       source_links:
         - https://github.com/OBDb/Hyundai-Ioniq-5
         - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
       verified: false
       notes: >-
-        Seeded from OBDb (32 signals). Each expression was evaluated on OBDb's recorded responses
-        (up to 233 per signal, model years 2022, 2023, 2024, 2025, 2026, 2027); 32 of 32 signals
-        reproduce OBDb's expected value on every one.
+        Seeded from OBDb (32 signals), each checked with canair's evaluator on OBDb's recorded
+        responses (up to 233 per signal, model years 2022-2027). CELL_097_VOLTAGE to
+        CELL_128_VOLTAGE: cell voltages, OBDb IONIQ5_HVBAT_CMUnnn_VOLT (HV battery module nnn
+        voltage).
       parameters:
         CELL_097_VOLTAGE:
           expression: B10/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU097_VOLT: HV battery module 097 voltage."
         CELL_098_VOLTAGE:
           expression: B11/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU098_VOLT: HV battery module 098 voltage."
         CELL_099_VOLTAGE:
           expression: B12/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU099_VOLT: HV battery module 099 voltage."
         CELL_100_VOLTAGE:
           expression: B13/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU100_VOLT: HV battery module 100 voltage."
         CELL_101_VOLTAGE:
           expression: B14/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU101_VOLT: HV battery module 101 voltage."
         CELL_102_VOLTAGE:
           expression: B15/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU102_VOLT: HV battery module 102 voltage."
         CELL_103_VOLTAGE:
           expression: B17/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU103_VOLT: HV battery module 103 voltage."
         CELL_104_VOLTAGE:
           expression: B18/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU104_VOLT: HV battery module 104 voltage."
         CELL_105_VOLTAGE:
           expression: B19/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU105_VOLT: HV battery module 105 voltage."
         CELL_106_VOLTAGE:
           expression: B20/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU106_VOLT: HV battery module 106 voltage."
         CELL_107_VOLTAGE:
           expression: B21/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU107_VOLT: HV battery module 107 voltage."
         CELL_108_VOLTAGE:
           expression: B22/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU108_VOLT: HV battery module 108 voltage."
         CELL_109_VOLTAGE:
           expression: B23/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU109_VOLT: HV battery module 109 voltage."
         CELL_110_VOLTAGE:
           expression: B25/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU110_VOLT: HV battery module 110 voltage."
         CELL_111_VOLTAGE:
           expression: B26/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU111_VOLT: HV battery module 111 voltage."
         CELL_112_VOLTAGE:
           expression: B27/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU112_VOLT: HV battery module 112 voltage."
         CELL_113_VOLTAGE:
           expression: B28/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU113_VOLT: HV battery module 113 voltage."
         CELL_114_VOLTAGE:
           expression: B29/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU114_VOLT: HV battery module 114 voltage."
         CELL_115_VOLTAGE:
           expression: B30/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU115_VOLT: HV battery module 115 voltage."
         CELL_116_VOLTAGE:
           expression: B31/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU116_VOLT: HV battery module 116 voltage."
         CELL_117_VOLTAGE:
           expression: B33/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU117_VOLT: HV battery module 117 voltage."
         CELL_118_VOLTAGE:
           expression: B34/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU118_VOLT: HV battery module 118 voltage."
         CELL_119_VOLTAGE:
           expression: B35/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU119_VOLT: HV battery module 119 voltage."
         CELL_120_VOLTAGE:
           expression: B36/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU120_VOLT: HV battery module 120 voltage."
         CELL_121_VOLTAGE:
           expression: B37/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU121_VOLT: HV battery module 121 voltage."
         CELL_122_VOLTAGE:
           expression: B38/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU122_VOLT: HV battery module 122 voltage."
         CELL_123_VOLTAGE:
           expression: B39/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU123_VOLT: HV battery module 123 voltage."
         CELL_124_VOLTAGE:
           expression: B41/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU124_VOLT: HV battery module 124 voltage."
         CELL_125_VOLTAGE:
           expression: B42/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU125_VOLT: HV battery module 125 voltage."
         CELL_126_VOLTAGE:
           expression: B43/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU126_VOLT: HV battery module 126 voltage."
         CELL_127_VOLTAGE:
           expression: B44/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU127_VOLT: HV battery module 127 voltage."
         CELL_128_VOLTAGE:
           expression: B45/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU128_VOLT: HV battery module 128 voltage."
     22010B:
       status: active
+      unit: V
+      ha_class: voltage
+      min: "0"
+      max: "5.1"
       source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
       source_links:
         - https://github.com/OBDb/Hyundai-Ioniq-5
         - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
       verified: false
       notes: >-
-        Seeded from OBDb (32 signals). Each expression was evaluated on OBDb's recorded responses
-        (up to 216 per signal, model years 2022, 2023, 2024, 2025, 2026, 2027); 32 of 32 signals
-        reproduce OBDb's expected value on every one.
+        Seeded from OBDb (32 signals), each checked with canair's evaluator on OBDb's recorded
+        responses (up to 216 per signal, model years 2022-2027). CELL_129_VOLTAGE to
+        CELL_160_VOLTAGE: cell voltages, OBDb IONIQ5_HVBAT_CMUnnn_VOLT (HV battery module nnn
+        voltage).
       parameters:
         CELL_129_VOLTAGE:
           expression: B10/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU129_VOLT: HV battery module 129 voltage."
         CELL_130_VOLTAGE:
           expression: B11/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU130_VOLT: HV battery module 130 voltage."
         CELL_131_VOLTAGE:
           expression: B12/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU131_VOLT: HV battery module 131 voltage."
         CELL_132_VOLTAGE:
           expression: B13/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU132_VOLT: HV battery module 132 voltage."
         CELL_133_VOLTAGE:
           expression: B14/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU133_VOLT: HV battery module 133 voltage."
         CELL_134_VOLTAGE:
           expression: B15/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU134_VOLT: HV battery module 134 voltage."
         CELL_135_VOLTAGE:
           expression: B17/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU135_VOLT: HV battery module 135 voltage."
         CELL_136_VOLTAGE:
           expression: B18/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU136_VOLT: HV battery module 136 voltage."
         CELL_137_VOLTAGE:
           expression: B19/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU137_VOLT: HV battery module 137 voltage."
         CELL_138_VOLTAGE:
           expression: B20/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU138_VOLT: HV battery module 138 voltage."
         CELL_139_VOLTAGE:
           expression: B21/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU139_VOLT: HV battery module 139 voltage."
         CELL_140_VOLTAGE:
           expression: B22/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU140_VOLT: HV battery module 140 voltage."
         CELL_141_VOLTAGE:
           expression: B23/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU141_VOLT: HV battery module 141 voltage."
         CELL_142_VOLTAGE:
           expression: B25/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU142_VOLT: HV battery module 142 voltage."
         CELL_143_VOLTAGE:
           expression: B26/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU143_VOLT: HV battery module 143 voltage."
         CELL_144_VOLTAGE:
           expression: B27/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU144_VOLT: HV battery module 144 voltage."
         CELL_145_VOLTAGE:
           expression: B28/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU145_VOLT: HV battery module 145 voltage."
         CELL_146_VOLTAGE:
           expression: B29/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU146_VOLT: HV battery module 146 voltage."
         CELL_147_VOLTAGE:
           expression: B30/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU147_VOLT: HV battery module 147 voltage."
         CELL_148_VOLTAGE:
           expression: B31/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU148_VOLT: HV battery module 148 voltage."
         CELL_149_VOLTAGE:
           expression: B33/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU149_VOLT: HV battery module 149 voltage."
         CELL_150_VOLTAGE:
           expression: B34/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU150_VOLT: HV battery module 150 voltage."
         CELL_151_VOLTAGE:
           expression: B35/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU151_VOLT: HV battery module 151 voltage."
         CELL_152_VOLTAGE:
           expression: B36/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU152_VOLT: HV battery module 152 voltage."
         CELL_153_VOLTAGE:
           expression: B37/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU153_VOLT: HV battery module 153 voltage."
         CELL_154_VOLTAGE:
           expression: B38/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU154_VOLT: HV battery module 154 voltage."
         CELL_155_VOLTAGE:
           expression: B39/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU155_VOLT: HV battery module 155 voltage."
         CELL_156_VOLTAGE:
           expression: B41/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU156_VOLT: HV battery module 156 voltage."
         CELL_157_VOLTAGE:
           expression: B42/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU157_VOLT: HV battery module 157 voltage."
         CELL_158_VOLTAGE:
           expression: B43/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU158_VOLT: HV battery module 158 voltage."
         CELL_159_VOLTAGE:
           expression: B44/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU159_VOLT: HV battery module 159 voltage."
         CELL_160_VOLTAGE:
           expression: B45/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU160_VOLT: HV battery module 160 voltage."
     22010C:
       status: active
+      unit: V
+      ha_class: voltage
+      min: "0"
+      max: "5.1"
       source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
       source_links:
         - https://github.com/OBDb/Hyundai-Ioniq-5
         - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
       verified: false
       notes: >-
-        Seeded from OBDb (32 signals). Each expression was evaluated on OBDb's recorded responses
-        (up to 220 per signal, model years 2022, 2023, 2024, 2025, 2026, 2027); 26 of 32 signals
-        reproduce OBDb's expected value on every one.
+        Seeded from OBDb (32 signals), each checked with canair's evaluator on OBDb's recorded
+        responses (up to 220 per signal, model years 2022-2027). Recorded responses that disagree
+        with OBDb's expected value, where OBDb clamps to its min/max or the recorded frame is
+        corrupt: CELL_168_VOLTAGE 1/220, CELL_188_VOLTAGE 2/220, CELL_189_VOLTAGE 2/220,
+        CELL_190_VOLTAGE 2/220, CELL_191_VOLTAGE 2/220, CELL_192_VOLTAGE 2/220. CELL_161_VOLTAGE to
+        CELL_192_VOLTAGE: cell voltages, OBDb IONIQ5_HVBAT_CMUnnn_VOLT (HV battery module nnn
+        voltage).
       parameters:
         CELL_161_VOLTAGE:
           expression: B10/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU161_VOLT: HV battery module 161 voltage."
         CELL_162_VOLTAGE:
           expression: B11/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU162_VOLT: HV battery module 162 voltage."
         CELL_163_VOLTAGE:
           expression: B12/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU163_VOLT: HV battery module 163 voltage."
         CELL_164_VOLTAGE:
           expression: B13/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU164_VOLT: HV battery module 164 voltage."
         CELL_165_VOLTAGE:
           expression: B14/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU165_VOLT: HV battery module 165 voltage."
         CELL_166_VOLTAGE:
           expression: B15/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU166_VOLT: HV battery module 166 voltage."
         CELL_167_VOLTAGE:
           expression: B17/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU167_VOLT: HV battery module 167 voltage."
         CELL_168_VOLTAGE:
           expression: B18/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: >-
-            OBDb IONIQ5_HVBAT_CMU168_VOLT: HV battery module 168 voltage. 1 of 220 recorded
-            responses disagree with OBDb's expected value (e.g. MY2023: 3.6 where OBDb expects
-            3.62); OBDb clamps to its min/max, and a few recorded frames are corrupt.
         CELL_169_VOLTAGE:
           expression: B19/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU169_VOLT: HV battery module 169 voltage."
         CELL_170_VOLTAGE:
           expression: B20/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU170_VOLT: HV battery module 170 voltage."
         CELL_171_VOLTAGE:
           expression: B21/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU171_VOLT: HV battery module 171 voltage."
         CELL_172_VOLTAGE:
           expression: B22/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU172_VOLT: HV battery module 172 voltage."
         CELL_173_VOLTAGE:
           expression: B23/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU173_VOLT: HV battery module 173 voltage."
         CELL_174_VOLTAGE:
           expression: B25/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU174_VOLT: HV battery module 174 voltage."
         CELL_175_VOLTAGE:
           expression: B26/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU175_VOLT: HV battery module 175 voltage."
         CELL_176_VOLTAGE:
           expression: B27/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU176_VOLT: HV battery module 176 voltage."
         CELL_177_VOLTAGE:
           expression: B28/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU177_VOLT: HV battery module 177 voltage."
         CELL_178_VOLTAGE:
           expression: B29/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU178_VOLT: HV battery module 178 voltage."
         CELL_179_VOLTAGE:
           expression: B30/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU179_VOLT: HV battery module 179 voltage."
         CELL_180_VOLTAGE:
           expression: B31/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU180_VOLT: HV battery module 180 voltage."
         CELL_181_VOLTAGE:
           expression: B33/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU181_VOLT: HV battery module 181 voltage."
         CELL_182_VOLTAGE:
           expression: B34/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU182_VOLT: HV battery module 182 voltage."
         CELL_183_VOLTAGE:
           expression: B35/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU183_VOLT: HV battery module 183 voltage."
         CELL_184_VOLTAGE:
           expression: B36/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU184_VOLT: HV battery module 184 voltage."
         CELL_185_VOLTAGE:
           expression: B37/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU185_VOLT: HV battery module 185 voltage."
         CELL_186_VOLTAGE:
           expression: B38/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU186_VOLT: HV battery module 186 voltage."
         CELL_187_VOLTAGE:
           expression: B39/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: "OBDb IONIQ5_HVBAT_CMU187_VOLT: HV battery module 187 voltage."
         CELL_188_VOLTAGE:
           expression: B41/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: >-
-            OBDb IONIQ5_HVBAT_CMU188_VOLT: HV battery module 188 voltage. 2 of 220 recorded
-            responses disagree with OBDb's expected value (e.g. MY2023: 0.78 where OBDb expects
-            3.62); OBDb clamps to its min/max, and a few recorded frames are corrupt.
         CELL_189_VOLTAGE:
           expression: B42/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: >-
-            OBDb IONIQ5_HVBAT_CMU189_VOLT: HV battery module 189 voltage. 2 of 220 recorded
-            responses disagree with OBDb's expected value (e.g. MY2023: 1.96 where OBDb expects
-            3.62); OBDb clamps to its min/max, and a few recorded frames are corrupt.
         CELL_190_VOLTAGE:
           expression: B43/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: >-
-            OBDb IONIQ5_HVBAT_CMU190_VOLT: HV battery module 190 voltage. 2 of 220 recorded
-            responses disagree with OBDb's expected value (e.g. MY2023: 0.02 where OBDb expects
-            3.62); OBDb clamps to its min/max, and a few recorded frames are corrupt.
         CELL_191_VOLTAGE:
           expression: B44/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: >-
-            OBDb IONIQ5_HVBAT_CMU191_VOLT: HV battery module 191 voltage. 2 of 220 recorded
-            responses disagree with OBDb's expected value (e.g. MY2023: 0.24 where OBDb expects
-            3.62); OBDb clamps to its min/max, and a few recorded frames are corrupt.
         CELL_192_VOLTAGE:
           expression: B45/50
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5.1"
-          notes: >-
-            OBDb IONIQ5_HVBAT_CMU192_VOLT: HV battery module 192 voltage. 2 of 220 recorded
-            responses disagree with OBDb's expected value (e.g. MY2023: 5.1 where OBDb expects
-            3.62); OBDb clamps to its min/max, and a few recorded frames are corrupt.
     220111:
       status: active
+      min: "0"
+      max: "4.29497e+09"
       source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
       source_links:
         - https://github.com/OBDb/Hyundai-Ioniq-5
         - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
       verified: false
       notes: >-
-        Seeded from OBDb (6 signals). Each expression was evaluated on OBDb's recorded responses (up
-        to 131 per signal, model years 2022, 2023, 2024, 2025, 2026, 2027); 6 of 6 signals reproduce
-        OBDb's expected value on every one.
+        Seeded from OBDb (6 signals), each checked with canair's evaluator on OBDb's recorded
+        responses (up to 131 per signal, model years 2022-2027).
       parameters:
         NORMAL_CHARGING_COUNT:
           expression: "[B10:B13]"
-          min: "0"
-          max: "4.29497e+09"
-          notes: "OBDb IONIQ5_NORMAL_CHARGING_COUNT: Normal charging, count."
         QUICK_CHARGING_COUNT:
           expression: ((B14 << 24) | (B15 << 16) | (B17 << 8) | B18)
-          min: "0"
-          max: "4.29497e+09"
-          notes: "OBDb IONIQ5_QUICK_CHARGING_COUNT: Quick charging, count."
         NORMAL_CHARGING_ENERGY_TOT:
           expression: "[B19:B22]"
           unit: kWh
           ha_class: energy
-          min: "0"
-          max: "4.29497e+09"
-          notes: "OBDb IONIQ5_NORMAL_CHARGING_ENERGY_TOT: Normal charging energy, total."
         QUICK_CHARGING_ENERGY_TOT:
           expression: ((B23 << 24) | (B25 << 16) | (B26 << 8) | B27)
           unit: kWh
           ha_class: energy
-          min: "0"
-          max: "4.29497e+09"
-          notes: "OBDb IONIQ5_QUICK_CHARGING_ENERGY_TOT: Quick charging energy, total."
         BATTERY_PACK_B17:
           expression: S35
           unit: °C
           ha_class: temperature
           min: "-40"
           max: "80"
-          notes: "OBDb IONIQ5_BATTERY_PACK_B17: Battery pack B17."
         BATTERY_PACK_B18:
           expression: S36
           unit: °C
           ha_class: temperature
           min: "-40"
           max: "80"
-          notes: "OBDb IONIQ5_BATTERY_PACK_B18: Battery pack B18."
     220114:
       status: active
+      unit: rpm
+      min: "0"
+      max: "1.3107e+06"
       source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
       source_links:
         - https://github.com/OBDb/Hyundai-Ioniq-5
         - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
       verified: false
       notes: >-
-        Seeded from OBDb (1 signals). Each expression was evaluated on OBDb's recorded responses (up
-        to 76 per signal, model years 2022, 2023, 2024, 2025, 2026, 2027); 1 of 1 signals reproduce
-        OBDb's expected value on every one.
+        Seeded from OBDb (1 signals), each checked with canair's evaluator on OBDb's recorded
+        responses (up to 76 per signal, model years 2022-2027).
       parameters:
         AC_COMPRESSOR_OPERATION_RPM:
           expression: "[B35:B36]*20"
-          unit: rpm
-          min: "0"
-          max: "1.3107e+06"
-          notes: "OBDb IONIQ5_AC_COMPRESSOR_OPERATION_RPM: A/C compressor operation RPM."
+          notes: A/C compressor operation RPM.
     220106:
       status: draft
       source: OBDb Kia EV6 / Ioniq 6 / GV60 / EV9 (not the Ioniq 5 set)
@@ -1832,43 +770,38 @@ BMS:
       verified: false
       notes: >-
         Not in OBDb's Ioniq 5 set, but defined identically for the Kia EV6, Ioniq 6, Genesis GV60
-        and Kia EV9. Each expression reproduces OBDb's expected value on its recorded EV6 (28) and
-        EV9 (10) responses, a 38-byte reply. Draft until an Ioniq 5 answers it.
+        and Kia EV9 (OBDb EV6_BMS_STATE, EV6_HVBAT_WCS_INLET_T, EV6_HVBAT_FAN_DUTY, EV6_AC_COMP_RPM,
+        EV6_HVBAT_PRA_T). Each expression reproduces OBDb's expected value on its recorded EV6 (28)
+        and EV9 (10) responses, a 38-byte reply. Draft until an Ioniq 5 answers it.
+      min: "0"
       parameters:
         BMS_STATE:
           expression: B5
-          min: "0"
           max: "255"
-          notes: >-
-            OBDb EV6_BMS_STATE: battery management state (an enumeration; OBDb's EV6 set caps it at
-            15, its EV9 set at 255).
+          notes: An enumeration; OBDb's EV6 set caps it at 15, its EV9 set at 255.
         HVBAT_WCS_INLET_TEMP:
           expression: S10
           unit: °C
           ha_class: temperature
           min: "-128"
           max: "127"
-          notes: >-
-            OBDb EV6_HVBAT_WCS_INLET_T: battery temperature at the water cooling system inlet.
+          notes: Battery temperature at the water cooling system inlet.
         HVBAT_FAN_DUTY:
           expression: B14
           unit: "%"
-          min: "0"
           max: "100"
-          notes: "OBDb EV6_HVBAT_FAN_DUTY: battery fan duty feedback."
+          notes: Battery fan duty feedback.
         AC_COMPRESSOR_SPEED:
           expression: B19*20
           unit: rpm
-          min: "0"
           max: "5100"
-          notes: "OBDb EV6_AC_COMP_RPM: air conditioning compressor speed."
         HVBAT_PRA_TEMP:
           expression: S28*2
           unit: °C
           ha_class: temperature
           min: "-256"
           max: "254"
-          notes: "OBDb EV6_HVBAT_PRA_T: battery temperature at the power relay assembly."
+          notes: Battery temperature at the power relay assembly.
 
   research:
     - type: scan

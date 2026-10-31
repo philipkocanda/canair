@@ -8,214 +8,115 @@ ICU:
       https://github.com/OBDb/Hyundai-Ioniq-5): 22BC03, BC06, BC10 (lights). OVMS reads BC03/BC04
       here for door state and IGN1/IGN2. The ICU replaces the IGPM on this car: smart junction block
       (IPS) plus the central/security gateway that bridges all eight ICU-H CAN segments. Body
-      control proper is the IBU at 7A0.
+      control proper is the IBU at 7A0. Signals seeded from OBDb keep OBDb's names without the
+      IONIQ5_ prefix, unless a PID's notes list a rename.
   pids:
     22BC03:
       status: active
-      source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
-      source_links:
-        - https://github.com/OBDb/Hyundai-Ioniq-5
-        - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
-      verified: false
-      notes: >-
-        LOW_BEAMS seeded from OBDb and checked on its recorded responses. The door, trunk, hood,
-        seat-belt and ignition bits come from the same byte layout in OBDb's Kia EV9 set, OVMS's
-        Ioniq 5 module and this repo's Ioniq Electric IGPM (verified there); none is checked on an
-        Ioniq 5 capture. Bits 1 and 3 of B10 are the rear door locks on the Ioniq Electric (OVMS
-        agrees, set = unlocked) but the handbrake (bit 3) on the EV9, so they are left undefined.
-        Sources:
-        https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_hyundai_ioniq5/src/hif_can_poll.cpp;
-        https://github.com/OBDb/Kia-EV9; profiles/hyundai-ioniq-ae-ev/ecus/igpm.yaml.
-      parameters:
-        LOW_BEAMS:
-          expression: B12
-          min: "0"
-          max: "255"
-          notes: "OBDb IONIQ5_LOW_BEAMS: Low beams."
-        TRUNK_OPEN:
-          expression: B10:7
-          min: "0"
-          max: "1"
-          notes: Agreed by OBDb EV9 (EV9_TRUNK), OVMS and the Ioniq Electric IGPM.
-          source: OBDb Kia EV9 + OVMS Ioniq 5 + Ioniq Electric IGPM
-          source_links:
-            - https://github.com/OBDb/Kia-EV9
-            - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_hyundai_ioniq5/src/hif_can_poll.cpp
-        DOOR_DRV_OPEN:
-          expression: B10:5
-          min: "0"
-          max: "1"
-          notes: >-
-            Driver-side front door. Agreed by OBDb EV9 (EV9_DOOR_FL), OVMS and the Ioniq Electric
-            IGPM.
-          source: OBDb Kia EV9 + OVMS Ioniq 5 + Ioniq Electric IGPM
-          source_links:
-            - https://github.com/OBDb/Kia-EV9
-            - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_hyundai_ioniq5/src/hif_can_poll.cpp
-        DOOR_PAS_OPEN:
-          expression: B10:4
-          min: "0"
-          max: "1"
-          notes: >-
-            Passenger-side front door. Agreed by OBDb EV9 (EV9_DOOR_FR), OVMS and the Ioniq Electric
-            IGPM.
-          source: OBDb Kia EV9 + OVMS Ioniq 5 + Ioniq Electric IGPM
-          source_links:
-            - https://github.com/OBDb/Kia-EV9
-            - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_hyundai_ioniq5/src/hif_can_poll.cpp
-        DOOR_RL_OPEN:
-          expression: B10:0
-          min: "0"
-          max: "1"
-          notes: >-
-            OBDb EV9 (EV9_DOOR_RL) and the Ioniq Electric IGPM; OVMS reads bit 0 as the
-            passenger-side rear door instead.
-          source: OBDb Kia EV9 + OVMS Ioniq 5 + Ioniq Electric IGPM
-          source_links:
-            - https://github.com/OBDb/Kia-EV9
-            - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_hyundai_ioniq5/src/hif_can_poll.cpp
-        DOOR_RR_OPEN:
-          expression: B10:2
-          min: "0"
-          max: "1"
-          notes: >-
-            OBDb EV9 (EV9_DOOR_RR) and the Ioniq Electric IGPM; OVMS reads bit 2 as the driver-side
-            rear door instead.
-          source: OBDb Kia EV9 + OVMS Ioniq 5 + Ioniq Electric IGPM
-          source_links:
-            - https://github.com/OBDb/Kia-EV9
-            - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_hyundai_ioniq5/src/hif_can_poll.cpp
-        HOOD_OPEN:
-          expression: B11:0
-          min: "0"
-          max: "1"
-          notes: OVMS and the Ioniq Electric IGPM.
-          source: OBDb Kia EV9 + OVMS Ioniq 5 + Ioniq Electric IGPM
-          source_links:
-            - https://github.com/OBDb/Kia-EV9
-            - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_hyundai_ioniq5/src/hif_can_poll.cpp
-        SEATBELT_FL:
-          expression: B11:1
-          min: "0"
-          max: "1"
-          notes: Driver seat belt. OVMS and the Ioniq Electric IGPM.
-          source: OBDb Kia EV9 + OVMS Ioniq 5 + Ioniq Electric IGPM
-          source_links:
-            - https://github.com/OBDb/Kia-EV9
-            - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_hyundai_ioniq5/src/hif_can_poll.cpp
-        SEATBELT_FR:
-          expression: B11:2
-          min: "0"
-          max: "1"
-          notes: Passenger seat belt. OVMS and the Ioniq Electric IGPM.
-          source: OBDb Kia EV9 + OVMS Ioniq 5 + Ioniq Electric IGPM
-          source_links:
-            - https://github.com/OBDb/Kia-EV9
-            - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_hyundai_ioniq5/src/hif_can_poll.cpp
-        IGN1_SWITCH:
-          expression: B11:5
-          min: "0"
-          max: "1"
-          notes: >-
-            OVMS treats bit 5 or 6 set as ignition on; the Ioniq Electric IGPM and the Kona profile
-            read bit 5 as IGN1.
-          source: OBDb Kia EV9 + OVMS Ioniq 5 + Ioniq Electric IGPM
-          source_links:
-            - https://github.com/OBDb/Kia-EV9
-            - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_hyundai_ioniq5/src/hif_can_poll.cpp
-        IGN2_SWITCH:
-          expression: B11:6
-          min: "0"
-          max: "1"
-          notes: >-
-            OVMS treats bit 5 or 6 set as ignition on; the Ioniq Electric IGPM and the Kona profile
-            read bit 6 as IGN2.
-          source: OBDb Kia EV9 + OVMS Ioniq 5 + Ioniq Electric IGPM
-          source_links:
-            - https://github.com/OBDb/Kia-EV9
-            - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_hyundai_ioniq5/src/hif_can_poll.cpp
-    22BC06:
-      status: active
-      source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
-      source_links:
-        - https://github.com/OBDb/Hyundai-Ioniq-5
-        - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
-      verified: false
-      notes: >-
-        Seeded from OBDb (1 signals). Each expression was evaluated on OBDb's recorded responses (up
-        to 14 per signal, model years 2022, 2023, 2024, 2025, 2026, 2027); 1 of 1 signals reproduce
-        OBDb's expected value on every one.
-      parameters:
-        BRAKE_LIGHT:
-          expression: B10
-          min: "0"
-          max: "255"
-          notes: "OBDb IONIQ5_BRAKE_LIGHT: Brake light."
-    22BC10:
-      status: active
-      source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
-      source_links:
-        - https://github.com/OBDb/Hyundai-Ioniq-5
-        - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
-      verified: false
-      notes: >-
-        Seeded from OBDb (1 signals). Each expression was evaluated on OBDb's recorded responses (up
-        to 6 per signal, model years 2022, 2023, 2024, 2025, 2026, 2027); 1 of 1 signals reproduce
-        OBDb's expected value on every one.
-      parameters:
-        LIGHTS_CODE:
-          expression: ((B10 >> 4) & 15)
-          min: "0"
-          max: "15"
-          notes: "OBDb IONIQ5_LIGHTS_CODE: Exterior lights state code."
-    22BC04:
-      status: draft
+      min: "0"
+      max: "1"
       source: OBDb Kia EV9 + OVMS Ioniq 5 + Ioniq Electric IGPM
       source_links:
         - https://github.com/OBDb/Kia-EV9
         - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_hyundai_ioniq5/src/hif_can_poll.cpp
       verified: false
       notes: >-
-        OVMS polls 22BC04 on the Ioniq 5 for front locks and rear belts, so the ICU answers it; its
-        reply is 11 bytes (8 data bytes after the DID, per OVMS). The bits are where OBDb's EV9 set
-        (checked on its 7 recorded EV9 responses) and the Ioniq Electric IGPM put them. Draft until
-        an Ioniq 5 capture confirms the layout; OBDb's EV9 also reads B10:4 as reverse gear.
+        LOW_BEAMS is from OBDb's Ioniq 5 set and checked on its recorded responses. The other bits
+        are where OBDb's Kia EV9 set, OVMS's Ioniq 5 module and this repo's Ioniq Electric IGPM
+        (profiles/hyundai-ioniq-ae-ev/ecus/igpm.yaml, verified there) put them, unless a signal's
+        note says a source differs; none is checked on an Ioniq 5 capture. B10 bits 1 and 3 are the
+        rear door locks on the Ioniq Electric (OVMS agrees, set = unlocked) but bit 3 is the
+        handbrake on the EV9, so both are left undefined. Front doors and belts are named by side on
+        a left-hand-drive car.
+      parameters:
+        LOW_BEAMS:
+          expression: B12
+          min: "0"
+          max: "255"
+          source: OBDb Hyundai-Ioniq-5
+          source_links:
+            - https://github.com/OBDb/Hyundai-Ioniq-5
+        TRUNK_OPEN:
+          expression: B10:7
+        DOOR_DRV_OPEN:
+          expression: B10:5
+        DOOR_PAS_OPEN:
+          expression: B10:4
+        DOOR_RL_OPEN:
+          expression: B10:0
+          notes: OVMS reads bit 0 as the passenger-side rear door.
+        DOOR_RR_OPEN:
+          expression: B10:2
+          notes: OVMS reads bit 2 as the driver-side rear door.
+        HOOD_OPEN:
+          expression: B11:0
+        SEATBELT_FL:
+          expression: B11:1
+        SEATBELT_FR:
+          expression: B11:2
+        IGN1_SWITCH:
+          expression: B11:5
+          notes: OVMS treats bit 5 or 6 set as ignition on.
+        IGN2_SWITCH:
+          expression: B11:6
+          notes: OVMS treats bit 5 or 6 set as ignition on.
+    22BC06:
+      status: active
+      min: "0"
+      max: "255"
+      source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
+      source_links:
+        - https://github.com/OBDb/Hyundai-Ioniq-5
+        - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
+      verified: false
+      notes: >-
+        Seeded from OBDb (1 signals), each checked with canair's evaluator on OBDb's recorded
+        responses (up to 14 per signal, model years 2022-2027).
+      parameters:
+        BRAKE_LIGHT:
+          expression: B10
+    22BC10:
+      status: active
+      min: "0"
+      max: "15"
+      source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
+      source_links:
+        - https://github.com/OBDb/Hyundai-Ioniq-5
+        - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
+      verified: false
+      notes: >-
+        Seeded from OBDb (1 signals), each checked with canair's evaluator on OBDb's recorded
+        responses (up to 6 per signal, model years 2022-2027).
+      parameters:
+        LIGHTS_CODE:
+          expression: ((B10 >> 4) & 15)
+          notes: Exterior lights state code.
+    22BC04:
+      status: draft
+      min: "0"
+      max: "1"
+      source: OBDb Kia EV9 + OVMS Ioniq 5 + Ioniq Electric IGPM
+      source_links:
+        - https://github.com/OBDb/Kia-EV9
+        - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_hyundai_ioniq5/src/hif_can_poll.cpp
+      verified: false
+      notes: >-
+        OVMS polls 22BC04 on the Ioniq 5 for the front locks and rear belts, so the ICU answers it;
+        its reply is 11 bytes. The bits are where OBDb's EV9 set (checked on its 7 recorded EV9
+        responses) and the Ioniq Electric IGPM put them. OVMS agrees on the locks, reading set =
+        unlocked, but reads the rear belts one byte later (B13). OBDb's EV9 also reads B10:4 as
+        reverse gear. Draft until an Ioniq 5 capture confirms the layout.
       parameters:
         DOOR_LOCK_FL:
           expression: B10:3
-          min: "0"
-          max: "1"
-          notes: >-
-            Driver-side front lock. OBDb EV9 (EV9_LOCK_FL), OVMS and the Ioniq Electric IGPM agree;
-            OVMS reads set = unlocked.
         DOOR_LOCK_FR:
           expression: B10:2
-          min: "0"
-          max: "1"
-          notes: >-
-            Passenger-side front lock. OBDb EV9 (EV9_LOCK_FR), OVMS and the Ioniq Electric IGPM
-            agree; OVMS reads set = unlocked.
         SEATBELT_RM:
           expression: B12:3
-          min: "0"
-          max: "1"
-          notes: >-
-            OBDb EV9 (EV9_BELT_RM) and the Ioniq Electric IGPM; OVMS reads the rear belts one byte
-            later (B13).
         SEATBELT_RL:
           expression: B12:2
-          min: "0"
-          max: "1"
-          notes: >-
-            OBDb EV9 (EV9_BELT_RL) and the Ioniq Electric IGPM; OVMS reads the rear belts one byte
-            later (B13).
         SEATBELT_RR:
           expression: B12:1
-          min: "0"
-          max: "1"
-          notes: >-
-            OBDb EV9 (EV9_BELT_RR) and the Ioniq Electric IGPM; OVMS reads the rear belts one byte
-            later (B13).
 
   research:
     - type: decode
