@@ -564,3 +564,38 @@ class TestResponseFramesValidation:
 
     def test_variable_length_alone_still_passes(self, tmp_path):
         assert self._validate(tmp_path, "variable_length: true") == []
+
+
+class TestDuplicateKeys:
+    """A repeated key in an ECU file is an error: loading keeps only the later one."""
+
+    DOC = (
+        "VCU:\n"
+        "  tx_id: 0x7E2\n"
+        "  pids:\n"
+        "    '2101':\n"
+        "      parameters:\n"
+        "        GEAR:\n"
+        "          expression: B4\n"
+        "        GEAR:\n"
+        "          expression: B9\n"
+    )
+
+    def _errors(self, tmp_path, doc):
+        (tmp_path / "ecus").mkdir()
+        path = tmp_path / "ecus" / "vcu.yaml"
+        path.write_text(doc)
+        errors, _, _ = validate_pids.validate_ecu_file(path, validate_pids.load_schema())
+        return errors
+
+    def test_a_repeated_signal_is_an_error(self, tmp_path):
+        errors = self._errors(tmp_path, self.DOC)
+        dup = [e for e in errors if "duplicate key" in e]
+        assert dup == [
+            "vcu.yaml:8: duplicate key 'GEAR' in VCU/pids/2101/parameters (first at line 6);"
+            " only the later one is loaded"
+        ]
+
+    def test_without_the_repeat_there_is_no_error(self, tmp_path):
+        doc = self.DOC.replace("        GEAR:\n          expression: B9\n", "")
+        assert not [e for e in self._errors(tmp_path, doc) if "duplicate key" in e]

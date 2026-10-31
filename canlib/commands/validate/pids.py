@@ -410,15 +410,19 @@ def validate_ecu_file(
     stats = _new_ecu_stats()
 
     try:
-        with open(path) as f:
-            data = yaml_io.safe_load(f)
+        text = path.read_text()
+        data = yaml_io.safe_load(text)
     except yaml.YAMLError as e:
         return [f"{path.name}: YAML parse error: {e}"], [], stats
 
     if not data or not isinstance(data, dict):
         return [f"{path.name}: empty or invalid YAML"], [], stats
 
-    errors: list[str] = []
+    errors: list[str] = [
+        f"{path.name}:{d.line}: duplicate key '{d.key}' in {'/'.join(d.path) or 'the file'}"
+        f" (first at line {d.first_line}); only the later one is loaded"
+        for d in yaml_io.duplicate_keys(text)
+    ]
     warnings: list[str] = []
     for ecu_name, ecu_def in data.items():
         stats["ecus"] += 1

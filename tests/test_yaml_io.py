@@ -37,3 +37,32 @@ def test_load_path_reads_file(tmp_path):
 
 def test_empty_document_is_none():
     assert yaml_io.safe_load("") is None
+
+
+class TestDuplicateKeys:
+    def test_a_clean_document_has_none(self):
+        assert yaml_io.duplicate_keys("a: 1\nb: {c: 2, d: [x, {e: 3}]}\n") == []
+
+    def test_a_repeated_key_is_reported_with_its_path_and_lines(self):
+        doc = "VCU:\n  pids:\n    21F0:\n      parameters:\n        GEAR: 1\n        GEAR: 2\n"
+        (dup,) = yaml_io.duplicate_keys(doc)
+        assert dup == yaml_io.DuplicateKey(("VCU", "pids", "21F0", "parameters"), "GEAR", 6, 5)
+
+    def test_quoted_and_bare_keys_are_the_same_key(self):
+        (dup,) = yaml_io.duplicate_keys("pids:\n  2101: {}\n  '2101': {}\n")
+        assert dup.key == "2101"
+
+    def test_flow_mappings_and_sequences_are_searched(self):
+        dups = yaml_io.duplicate_keys("top: {a: 1, a: 2}\nlist:\n  - {b: 1}\n  - {b: 1, b: 2}\n")
+        assert [(d.path, d.key) for d in dups] == [(("top",), "a"), (("list", "[1]"), "b")]
+
+    def test_the_same_key_in_sibling_mappings_is_fine(self):
+        assert yaml_io.duplicate_keys("x: {unit: V}\ny: {unit: V}\n") == []
+
+    def test_an_alias_is_not_reported_twice(self):
+        doc = "base: &b {k: 1, k: 2}\nuse: *b\nmerged:\n  <<: *b\n  j: 3\n"
+        assert [d.path for d in yaml_io.duplicate_keys(doc)] == [("base",)]
+
+    def test_what_the_loader_does_with_one(self):
+        # Why the check exists: the loader keeps the later value without a word.
+        assert yaml_io.safe_load("k: 1\nk: 2\n") == {"k": 2}

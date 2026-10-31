@@ -10,11 +10,13 @@ This module centralises the "prefer the C loader" choice so every reader gets
 the speedup without duplicating the fallback dance, and so there is a single
 place to change loading behaviour. It is behaviourally identical to
 ``yaml.safe_load`` — same accepted YAML, same Python objects — just faster when
-libyaml is present.
+libyaml is present. :func:`duplicate_keys` is the one check the loaders cannot
+make: a repeated mapping key, which they silently resolve to the last value.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, Any
 
@@ -40,3 +42,52 @@ def safe_load(stream: str | bytes | IO[str] | IO[bytes]) -> Any:
 def load_path(path: Path | str) -> Any:
     """Load and parse a YAML file by path (read as text, C loader)."""
     return yaml.load(Path(path).read_text(), Loader=SafeLoader)
+
+
+_MERGE_TAG = "tag:yaml.org,2002:merge"
+
+
+@dataclass(frozen=True)
+class DuplicateKey:
+    """A mapping key that appears twice; loading keeps only the later value."""
+
+    path: tuple[str, ...]  # keys (and ``[i]`` sequence indexes) leading to the mapping
+    key: str
+    line: int  # 1-based line of the repeated key
+    first_line: int  # 1-based line of its first occurrence
+
+
+def duplicate_keys(text: str) -> list[DuplicateKey]:
+    """Every repeated key in any mapping of a YAML document, in document order.
+
+    PyYAML (like ruamel's round-trip mode) silently keeps the last value of a repeated
+    key, so a hand edit or a merge that writes one twice loads without complaint.
+    Keys compare by their written text, so ``2101`` and ``"2101"`` count as the same
+    key (canair normalises PID codes to text). Raises :class:`yaml.YAMLError` on a
+    document that does not parse.
+    """
+    found: list[DuplicateKey] = []
+    visited: set[int] = set()
+
+    def walk(node: yaml.Node | None, path: tuple[str, ...]) -> None:
+        if node is None or id(node) in visited:  # an alias already walked at its anchor
+            return
+        visited.add(id(node))
+        if isinstance(node, yaml.MappingNode):
+            first: dict[str, int] = {}
+            for key_node, value_node in node.value:
+                if isinstance(key_node, yaml.ScalarNode) and key_node.tag != _MERGE_TAG:
+                    key, line = key_node.value, key_node.start_mark.line + 1
+                    if key in first:
+                        found.append(DuplicateKey(path, key, line, first[key]))
+                    else:
+                        first[key] = line
+                    walk(value_node, (*path, key))
+                else:
+                    walk(value_node, path)
+        elif isinstance(node, yaml.SequenceNode):
+            for i, item in enumerate(node.value):
+                walk(item, (*path, f"[{i}]"))
+
+    walk(yaml.compose(text, Loader=SafeLoader), ())
+    return found
