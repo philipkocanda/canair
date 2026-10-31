@@ -11,8 +11,8 @@ import yaml
 
 from canlib import yaml_io
 from canlib.expression.decode_value import BYTE_RUN_TYPES as _BYTE_RUN_TYPES
-from canlib.expression.lint import signed_low_bytes
-from canlib.pids import PID_STATUSES, effective_param, pid_status
+from canlib.expression.lint import firmware_grammar_problems, signed_low_bytes
+from canlib.pids import PID_STATUSES, effective_param, is_shipped, pid_status
 from canlib.uds.byteindex import wican_to_isotp
 from canlib.uds.support_map import SupportMapError
 from canlib.uds.support_map import declaration as support_map_declaration
@@ -53,6 +53,15 @@ def validate_expression(expr: str, param_name: str, pid: str, ecu: str) -> list[
             f"the sign; use '{low.replace('S', 'B')}' in '{expr}'"
         )
     return errors
+
+
+def firmware_expression_errors(expr: str, param_name: str, pid: str, ecu: str) -> list[str]:
+    """A shipped expression WiCAN firmware v6 refuses, which would sink its whole table."""
+    return [
+        f"{ecu}/{pid}/{param_name}: WiCAN firmware v6 refuses '{expr}': {reason}, and would "
+        f"reject the whole AutoPID table"
+        for reason in firmware_grammar_problems(expr)
+    ]
 
 
 def _validate_param_type(
@@ -701,6 +710,9 @@ def _validate_parameters(
     if not params:
         warnings.append(f"{path.name}/{ecu_name}/{pid_str}: no parameters defined")
 
+    # Only what ships reaches the device, so only that can sink its table.
+    pid_ships = is_shipped(pid_status(pid_def))
+
     for param_name, param in params.items():
         stats["params"] += 1
         label = f"{ecu_name}/{pid_str}/{param_name}"
@@ -719,16 +731,20 @@ def _validate_parameters(
         _validate_shared_fields(param, label, errors)
 
         expr = param.get("expression", "")
+        ships = pid_ships and param.get("enabled", True)
         if expr:
             errors.extend(validate_expression(expr, param_name, pid_str, ecu_name))
+            if ships:
+                errors.extend(firmware_expression_errors(expr, param_name, pid_str, ecu_name))
             warnings.extend(check_pci_bytes(expr, param_name, pid_str, ecu_name, param.get("type")))
         overrides = param.get("per_revision")
         for rid, entry in overrides.items() if isinstance(overrides, dict) else ():
             rexpr = entry.get("expression") if isinstance(entry, dict) else None
             if isinstance(rexpr, str) and rexpr:
-                errors.extend(
-                    validate_expression(rexpr, f"{param_name} ({rid})", pid_str, ecu_name)
-                )
+                label_r = f"{param_name} ({rid})"
+                errors.extend(validate_expression(rexpr, label_r, pid_str, ecu_name))
+                if ships:
+                    errors.extend(firmware_expression_errors(rexpr, label_r, pid_str, ecu_name))
 
         # Typed (multi-modal) decoding validation
         errors.extend(

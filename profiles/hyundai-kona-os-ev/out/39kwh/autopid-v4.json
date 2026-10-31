@@ -1,0 +1,6 @@
+{
+  "car_model": "Hyundai Kona Electric (OS)",
+  "init": "ATSP6;ATS0;ATAL;ATST96;",
+  "pids": [],
+  "can_filters": []
+}

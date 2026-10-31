@@ -385,7 +385,7 @@ and confirm no lead you touched still shows its old status.
 ### 10. Integrate
 
 ```bash
-canair wican autopid write   # regenerate out/autopid.json (--include-unverified for candidates)
+canair wican autopid write   # regenerate out/[<variant>/]autopid-v{4,6}.json
 canair wican autopid diff    # compare to device (optional)
 uv run pytest -q             # keep the suite green (always `uv run` from the repo root)
 ```

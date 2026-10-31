@@ -197,9 +197,10 @@ Most of this is wrapped by `canair` and `wican-cli` — prefer those over raw HT
 
 ### Two profile formats (don't confuse them)
 
-1. **Vehicle Profile format** (`out/autopid.json`) — grouped params per PID
+1. **Vehicle Profile format** (`out/<variant>/autopid-v4.json`) — grouped params per PID
    (`"PARAM": "expression"`), used for upstream PRs. **Generated** by
-   `canair wican autopid write` from `ecus/`; never hand-edit.
+   `canair wican autopid write` from `ecus/`, beside `autopid-v6.json` (the firmware v6
+   AutoPID table); never hand-edit.
 2. **Device format** — what the firmware parses: params as an array of objects
    (`[{"name":…, "expression":…, "unit":…, "period":…}]`) wrapped in
    `{"cars":[{"car_model":…, "init":…, "pids":[…]}]}`. `canair wican autopid upload`

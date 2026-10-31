@@ -8,6 +8,8 @@ clear message, without touching the device or the profile. `autopid write` and
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 import canlib.config as cfg_mod
@@ -200,7 +202,7 @@ class TestLocalOps:
         _classic(monkeypatch)  # local ops work regardless of model
         data = {"car_model": "X", "init": "ATZ", "ecus": {}}
         monkeypatch.setattr(wican, "load_yaml", lambda: data)
-        monkeypatch.setattr(wican, "_profile_out", lambda: tmp_path / "autopid.json")
+        monkeypatch.setattr(wican, "_profile_out", lambda fw: tmp_path / f"autopid-v{fw}.json")
 
         class _Prof:
             ecus_dir = tmp_path
@@ -212,7 +214,8 @@ class TestLocalOps:
         monkeypatch.setattr(wican, "_require_resolved_revisions", lambda: None)
         rc = wican.run(_parse("wican", "autopid", "write"))
         assert rc == 0
-        assert (tmp_path / "autopid.json").exists()
+        assert (tmp_path / "autopid-v4.json").exists()
+        assert (tmp_path / "autopid-v6.json").exists()
 
     def test_write_honors_out_flag(self, monkeypatch, tmp_path):
         data = {"car_model": "X", "init": "ATZ", "ecus": {}}
@@ -227,6 +230,12 @@ class TestLocalOps:
         # No ECU here declares revisions, so there is nothing to resolve.
         monkeypatch.setattr(wican, "_require_resolved_revisions", lambda: None)
         out = tmp_path / "custom.json"
-        rc = wican.run(_parse("wican", "autopid", "write", "--out", str(out)))
+        rc = wican.run(_parse("wican", "autopid", "write", "--firmware", "6", "--out", str(out)))
         assert rc == 0
-        assert out.exists()
+        assert set(json.loads(out.read_text())) >= {"groups", "pids", "filters"}
+
+    def test_out_without_a_firmware_is_refused(self, tmp_path, capsys):
+        out = tmp_path / "custom.json"
+        assert wican.run(_parse("wican", "autopid", "write", "--out", str(out))) == 2
+        assert "--firmware 4 or --firmware 6" in capsys.readouterr().err
+        assert not out.exists()

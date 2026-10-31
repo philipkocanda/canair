@@ -1,0 +1,61 @@
+{
+  "car_model": "Nissan Leaf (ZE1)",
+  "init": "ATSP6;ATS0;ATAL;ATST96;ATFCSH743;ATFCSD300000;ATFCSM1;",
+  "pids": [
+    {
+      "pid_init": "ATSH743;ATFCSH743;ATCRA763;",
+      "pid": "220E01",
+      "enabled": true,
+      "period": "30000",
+      "parameters": {
+        "ODOMETER": "(B4*65536)+(B5*256)+B6"
+      }
+    },
+    {
+      "pid_init": "ATSH797;ATFCSH797;ATCRA79A;",
+      "pid": "221205",
+      "enabled": true,
+      "period": "600000",
+      "parameters": {
+        "L2_COUNT": "[B4:B5]"
+      }
+    },
+    {
+      "pid_init": "ATSH797;ATFCSH797;ATCRA79A;",
+      "pid": "22114E",
+      "enabled": true,
+      "period": "5000",
+      "parameters": {
+        "CHARGE_MODE": "B4"
+      }
+    },
+    {
+      "pid_init": "ATSH797;ATFCSH797;ATCRA79A;",
+      "pid": "221234",
+      "enabled": true,
+      "period": "5000",
+      "parameters": {
+        "PLUG_STATE": "B4"
+      }
+    },
+    {
+      "pid_init": "ATSH797;ATFCSH797;ATCRA79A;",
+      "pid": "221236",
+      "enabled": true,
+      "period": "5000",
+      "parameters": {
+        "OBC_OUT_PWR": "[B4:B5]*100"
+      }
+    },
+    {
+      "pid_init": "ATSH797;ATFCSH797;ATCRA79A;",
+      "pid": "221304",
+      "enabled": true,
+      "period": "5000",
+      "parameters": {
+        "POWER_SWITCH": "B4:7"
+      }
+    }
+  ],
+  "can_filters": []
+}

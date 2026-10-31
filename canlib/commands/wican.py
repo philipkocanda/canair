@@ -11,7 +11,7 @@ Terminology (deliberately disambiguated):
     ecus/ and stored on the device's AutoPID feature, managed here.
 
 Subcommands:
-  autopid write               Generate AutoPID JSON to the bundle's out/
+  autopid write               Generate the v4 and v6 AutoPID JSON to the bundle's out/
   autopid upload              Generate + upload to the device (Pro only)
   autopid download            Download the device's current AutoPID JSON (Pro)
   autopid diff                Download + diff against the generated JSON (Pro)
@@ -20,7 +20,8 @@ Subcommands:
   mode set MODE               Switch the device protocol/mode + align transport (Pro)
 
 Examples:
-  canair wican autopid write                       # verified-only out/[<variant>/]autopid.json
+  canair wican autopid write                       # verified-only, both firmware files
+  canair wican autopid write --firmware 6          # only the firmware v6 table
   canair wican autopid write --include-unverified  # also include unverified params
   canair wican autopid write --no-expected-responses  # omit the response-frame counts
   canair wican autopid upload --reboot             # upload + reboot to apply
@@ -42,10 +43,13 @@ from canlib.transport.config import TransportType
 from canlib.wican.api import resolve_wican_url
 from canlib.wican.autopid_profile import (
     ProfileGenerationError,
-    generate_profile,
+    ShippedProfile,
     normalize_device_profile,
+    render_v4,
+    ship_profile,
     to_device_format,
 )
+from canlib.wican.autopid_v6 import to_v6
 from canlib.wican.firmware import Surface
 
 NAME = "wican"
@@ -70,7 +74,7 @@ def _require_pro(operation: str) -> int | None:
         f"error: `canair wican {operation}` needs a WiCAN Pro — the classic "
         "(non-Pro) WiCAN has no AutoPID / vehicle-profile support.\n"
         "        Your config sets wican_model: classic. Generating the AutoPID "
-        "JSON still works — run `canair wican autopid write` to write out/autopid.json.\n"
+        "JSON still works — run `canair wican autopid write` to write it to out/.\n"
         "        If this device is actually a Pro, run: canair config set wican_model pro",
         file=sys.stderr,
     )
@@ -106,11 +110,16 @@ def _require_v4_api(base_url: str, surface: Surface, *, writes: bool = False) ->
     return None
 
 
-def _profile_out() -> Path:
-    """Default output path for the generated WiCAN profile JSON.
+# The generated file for each WiCAN firmware generation: the 4.x vehicle profile and
+# the v6 AutoPID table are different formats, so each gets its own name.
+FIRMWARE_FILES: dict[str, str] = {"4": "autopid-v4.json", "6": "autopid-v6.json"}
 
-    ``out/<variant>/autopid.json`` on a profile with several variants — each car gets its
-    own device profile — else ``out/autopid.json``.
+
+def _profile_out(firmware: str) -> Path:
+    """Default output path for the generated AutoPID JSON for ``firmware`` (4 or 6).
+
+    ``out/<variant>/autopid-v<N>.json`` on a profile with several variants — each car gets
+    its own device profile — else ``out/autopid-v<N>.json``.
     """
     from canlib.profile import active
     from canlib.variants import load_variants
@@ -118,9 +127,10 @@ def _profile_out() -> Path:
 
     prof = active()
     variant = selected_variant(prof)
+    name = FIRMWARE_FILES[firmware]
     if variant and len(load_variants(prof)) > 1:
-        return prof.out_dir / variant / "autopid.json"
-    return prof.out_dir / "autopid.json"
+        return prof.out_dir / variant / name
+    return prof.out_dir / name
 
 
 def _require_resolved_revisions() -> None:
@@ -419,7 +429,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         description="Build and sync the WiCAN device's AutoPID profile.\n\n"
         "Nothing is written until you ask for it — a bare `canair wican` prints "
         "this help. Choose a subcommand:\n"
-        "  autopid write     generate AutoPID JSON to the bundle's out/\n"
+        "  autopid write     generate the v4 and v6 AutoPID JSON to the bundle's out/\n"
         "  autopid upload    generate + upload to the device (Pro)\n"
         "  autopid download  download the device's current AutoPID JSON (Pro)\n"
         "  autopid diff      download + diff against the generated JSON (Pro)\n"
@@ -457,18 +467,26 @@ def _add_autopid_parser(groups) -> argparse.ArgumentParser:
 
     write = sub.add_parser(
         "write",
-        help="Generate the AutoPID JSON to the bundle's out/[<variant>/]autopid.json",
-        description="Generate the WiCAN AutoPID profile JSON and write it to the "
-        "active bundle's out/autopid.json — out/<variant>/autopid.json on a profile with "
-        "several variants, one device profile per car. Refused while an ECU's revision is "
-        "undetermined: the device polls a fixed list and can't detect it.",
+        help="Generate the AutoPID JSON for firmware 4.x and v6 to the bundle's out/",
+        description="Generate the WiCAN AutoPID profile and write it to the active "
+        "bundle's out/, once per firmware generation: autopid-v4.json is the 4.x vehicle "
+        "profile, autopid-v6.json the v6 AutoPID table (from 6.0.0-beta.3; it also names "
+        "the car's 'vehicle' and 'specific_init' device settings). On a profile with several "
+        "variants both go to out/<variant>/, one device profile per car. Refused while an "
+        "ECU's revision is undetermined: the device polls a fixed list and can't detect it.",
+    )
+    write.add_argument(
+        "--firmware",
+        choices=sorted(FIRMWARE_FILES),
+        default=None,
+        help="Write only the file for this WiCAN firmware generation (default: both)",
     )
     write.add_argument(
         "--out",
         metavar="PATH",
         type=Path,
         default=None,
-        help="Write to PATH instead of the bundle's out/[<variant>/]autopid.json",
+        help="Write to PATH instead of the bundle's out/ (needs --firmware: one file)",
     )
     _add_generate_args(write)
     write.set_defaults(_wican_func=_cmd_autopid_write)
@@ -586,8 +604,8 @@ def _verified_only(args) -> bool:
     return not getattr(args, "include_unverified", False)
 
 
-def _generate(args) -> tuple[dict, dict]:
-    """Load the active bundle and generate the AutoPID profile (grouped format)."""
+def _ship(args) -> tuple[dict, ShippedProfile]:
+    """Load the active bundle and decide what ships to the device, for any firmware."""
     from canlib.profile import active
     from canlib.variants.selection import require_variant
 
@@ -601,29 +619,72 @@ def _generate(args) -> tuple[dict, dict]:
     counts = getattr(args, "expected_responses", True)
     print(f"\nGenerating AutoPID profile{label}...")
     try:
-        profile = generate_profile(data, verified_only, expected_responses=counts)
+        shipped = ship_profile(data, verified_only, expected_responses=counts)
     except ProfileGenerationError as e:
         print(f"error: {e}", file=sys.stderr)
         sys.exit(1)
-    n_groups = len(profile["pids"])
-    n_params = sum(len(p["parameters"]) for p in profile["pids"])
+    n_groups = len(shipped.pids)
+    n_params = sum(len(p.params) for p in shipped.pids)
     print(f"  {n_groups} PID groups, {n_params} signals")
-    n_streams = sum(len(p.get("send_to") or {}) for p in profile["pids"])
+    n_streams = sum(len(p.send_to) for p in shipped.pids)
     if n_streams:
         print(f"  {n_streams} stream(s) to their own MQTT topic on every poll (send_to)")
     if counts:
-        n_counted = sum(1 for p in profile["pids"] if len(p["pid"]) % 2)
+        n_counted = sum(1 for p in shipped.pids if len(p.request) % 2)
         print(f"  {n_counted}/{n_groups} carry an expected-response count")
         if n_counted < n_groups:
             print("  (the rest keep the unoptimized path — record more with canair monitor)")
-    return data, profile
+    return data, shipped
+
+
+def _generate(args) -> tuple[dict, dict]:
+    """Load the active bundle and generate the 4.x AutoPID profile (grouped format)."""
+    data, shipped = _ship(args)
+    return data, render_v4(shipped)
+
+
+def _render_v6(shipped: ShippedProfile) -> dict:
+    """The v6 table document, or exit with every way it doesn't fit."""
+    try:
+        v6 = to_v6(shipped)
+    except ProfileGenerationError as e:
+        print(f"error: {e}", file=sys.stderr)
+        sys.exit(1)
+    if v6.dropped_streams:
+        print(
+            f"warning: firmware v6 has no per-signal MQTT stream, so the send_to of "
+            f"{', '.join(v6.dropped_streams)} is left out of the v6 table (a v6 event rule "
+            "on autopid.param → mqtt.publish is the nearest equivalent)",
+            file=sys.stderr,
+        )
+    return v6.document
 
 
 def _cmd_autopid_write(args) -> int:
-    _data, profile = _generate(args)
-    out = args.out if getattr(args, "out", None) else _profile_out()
+    firmware = getattr(args, "firmware", None)
+    out = getattr(args, "out", None)
+    if out is not None and firmware is None:
+        print(
+            "error: --out writes one file, but `autopid write` makes one per firmware "
+            "generation: add --firmware 4 or --firmware 6",
+            file=sys.stderr,
+        )
+        return 2
+    _data, shipped = _ship(args)
+    documents = {
+        "4": lambda: render_v4(shipped),
+        "6": lambda: _render_v6(shipped),
+    }
+    wanted = [firmware] if firmware else sorted(FIRMWARE_FILES)
+    rendered = {fw: documents[fw]() for fw in wanted}
     print("\nWriting output...")
-    write_json(profile, out)
+    for fw, document in rendered.items():
+        write_json(document, out if out is not None else _profile_out(fw))
+    if "6" in rendered:
+        print(
+            "  (v6: 'vehicle' and 'specific_init' are the device's autopid settings, "
+            "not part of the table)"
+        )
     print("\nDone.")
     return 0
 

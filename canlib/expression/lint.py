@@ -154,3 +154,53 @@ def signed_low_bytes(expression: str) -> list[tuple[str, str]]:
     except (ValueError, IndexError):
         return []
     return [(low.text, top.text) for low, top in _signed_low_terms(tree)]
+
+
+# Firmware v6 checks every expression when a table is saved
+# (meatpi-components components/expression_parser), and refuses these forms, which
+# canair's evaluator reads as a value: the device would reject the whole table.
+_MAX_RANGE_BYTES = 8
+_MAX_BIT = 7
+
+
+class _FirmwareGrammarBuilder(_TreeBuilder):
+    def __init__(self) -> None:
+        self.problems: list[str] = []
+
+    def bit(self, idx: int, index: int) -> _Node:
+        if index > _MAX_BIT:
+            self.problems.append(f"bit index {index} in 'B{idx}:{index}' is over {_MAX_BIT}")
+        return super().bit(idx, index)
+
+    def _range(self, prefix: str, start_idx: int, end_idx: int) -> None:
+        text = f"[{prefix}{start_idx}:{prefix}{end_idx}]"
+        if end_idx < start_idx:
+            self.problems.append(f"'{text}' is an inverted range")
+        elif end_idx - start_idx + 1 > _MAX_RANGE_BYTES:
+            self.problems.append(f"'{text}' spans more than {_MAX_RANGE_BYTES} bytes")
+
+    def unsigned_range(self, start_idx: int, end_idx: int) -> _Node:
+        self._range("B", start_idx, end_idx)
+        return super().unsigned_range(start_idx, end_idx)
+
+    def signed_range(self, start_idx: int, end_idx: int) -> _Node:
+        self._range("S", start_idx, end_idx)
+        return super().signed_range(start_idx, end_idx)
+
+    def finish(self, root: _Node, discarded: tuple[_Node, ...]) -> _Node:
+        if discarded:
+            self.problems.append("it leaves an operand with no operator (no single value)")
+        return root
+
+
+def firmware_grammar_problems(expression: str) -> list[str]:
+    """Why WiCAN firmware v6 would refuse ``expression``, which canair's evaluator accepts.
+
+    An unparseable expression yields ``[]`` — syntax is reported elsewhere.
+    """
+    builder = _FirmwareGrammarBuilder()
+    try:
+        parse_expression(expression, builder)
+    except (ValueError, IndexError):
+        return []
+    return builder.problems

@@ -1,0 +1,28 @@
+{
+  "vehicle": "Hyundai Ioniq 5 (NE)",
+  "specific_init": "ATSP6;ATAL;ATST96",
+  "groups": [],
+  "pids": [
+    {
+      "name": "CLU_22B002",
+      "type": "specific",
+      "cmd": "22B002",
+      "init": "ATSH7C6;ATFCSH7C6",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 5000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "ODOMETER",
+          "expression": "[B12:B14]",
+          "unit": "km",
+          "class": "distance",
+          "min": 0,
+          "max": 16777215
+        }
+      ]
+    }
+  ],
+  "filters": []
+}

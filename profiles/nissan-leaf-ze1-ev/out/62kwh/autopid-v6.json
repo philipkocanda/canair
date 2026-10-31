@@ -1,0 +1,120 @@
+{
+  "vehicle": "Nissan Leaf (ZE1)",
+  "specific_init": "ATSP6;ATAL;ATST96;ATFCSH743;ATFCSD300000;ATFCSM1",
+  "groups": [],
+  "pids": [
+    {
+      "name": "METER_220E01",
+      "type": "specific",
+      "cmd": "220E01",
+      "init": "ATSH743;ATFCSH743",
+      "rxheader": "763",
+      "group": "default",
+      "period_ms": 30000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "ODOMETER",
+          "expression": "(B4*65536)+(B5*256)+B6",
+          "unit": "km",
+          "class": "none",
+          "min": 0,
+          "max": 999999
+        }
+      ]
+    },
+    {
+      "name": "VCM_221205",
+      "type": "specific",
+      "cmd": "221205",
+      "init": "ATSH797;ATFCSH797",
+      "rxheader": "79A",
+      "group": "default",
+      "period_ms": 600000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "L2_COUNT",
+          "expression": "[B4:B5]",
+          "unit": "",
+          "class": "none"
+        }
+      ]
+    },
+    {
+      "name": "VCM_22114E",
+      "type": "specific",
+      "cmd": "22114E",
+      "init": "ATSH797;ATFCSH797",
+      "rxheader": "79A",
+      "group": "default",
+      "period_ms": 5000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "CHARGE_MODE",
+          "expression": "B4",
+          "unit": "",
+          "class": "none"
+        }
+      ]
+    },
+    {
+      "name": "VCM_221234",
+      "type": "specific",
+      "cmd": "221234",
+      "init": "ATSH797;ATFCSH797",
+      "rxheader": "79A",
+      "group": "default",
+      "period_ms": 5000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "PLUG_STATE",
+          "expression": "B4",
+          "unit": "",
+          "class": "none"
+        }
+      ]
+    },
+    {
+      "name": "VCM_221236",
+      "type": "specific",
+      "cmd": "221236",
+      "init": "ATSH797;ATFCSH797",
+      "rxheader": "79A",
+      "group": "default",
+      "period_ms": 5000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "OBC_OUT_PWR",
+          "expression": "[B4:B5]*100",
+          "unit": "W",
+          "class": "none",
+          "min": 0,
+          "max": 7000
+        }
+      ]
+    },
+    {
+      "name": "VCM_221304",
+      "type": "specific",
+      "cmd": "221304",
+      "init": "ATSH797;ATFCSH797",
+      "rxheader": "79A",
+      "group": "default",
+      "period_ms": 5000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "POWER_SWITCH",
+          "expression": "B4:7",
+          "unit": "",
+          "class": "none"
+        }
+      ]
+    }
+  ],
+  "filters": []
+}

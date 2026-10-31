@@ -65,7 +65,7 @@ _STRIP_PID_FIELDS = INHERITED_PARAM_FIELDS
 _STRIP_IDENTITY_FIELDS = ("description", "notes", "vin", "serial")
 # Top-level profile members withheld from the sandbox — each would hand over
 # answers (or is simply not needed). Declared by the bundle registry's
-# `blind_strip` flag: out/ (generated autopid.json — contains every
+# `blind_strip` flag: out/ (generated autopid-v4/v6.json — contains every
 # expression!), references/ (third-party sheets with decodes), signals/
 # (broadcast signal names and scales), dtc_log.yaml.
 _STRIP_BUNDLE_MEMBERS = tuple(m.name for m in BUNDLE_MEMBERS if m.blind_strip)

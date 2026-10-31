@@ -16,6 +16,7 @@ reconstruction).
 from __future__ import annotations
 
 from collections import OrderedDict
+from dataclasses import dataclass, field
 
 from canlib.addressing import EcuAddress, resolve_ecu_address
 from canlib.pids import is_shipped, pid_status
@@ -50,6 +51,52 @@ class InvalidSendToError(ProfileGenerationError):
     Two signals on one topic would interleave on a single stream, and a malformed
     topic is published verbatim by the firmware — so either is refused at generation.
     """
+
+
+@dataclass(frozen=True)
+class PidAddressing:
+    """The adapter state one shipped PID's init chain sets up.
+
+    ``rx_filter`` is an id to pin, :data:`AUTO` to restore the adapter's own filter, or
+    None to leave the filter alone (a profile with no pinned ECU).
+    """
+
+    header: int
+    fc_header: int
+    rx_filter: int | str | None
+    extended: bool
+    session: bool
+
+
+@dataclass
+class ShippedPid:
+    """One PID that ships to the device, with the signals it carries."""
+
+    ecu: str
+    pid: str
+    request: str  # the request as sent, an earned expected-response digit included
+    period: object  # as written in ecus/ (the schema says milliseconds)
+    params: dict[str, dict]  # shipped signal name -> its definition
+    send_to: dict[str, str] = field(default_factory=dict)
+    addressing: PidAddressing | None = None  # set once every shipped ECU is known
+
+    @property
+    def expressions(self) -> dict[str, str]:
+        return {name: param["expression"] for name, param in self.params.items()}
+
+
+@dataclass
+class ShippedProfile:
+    """What ships to the device, independent of the firmware's file format.
+
+    ``init`` is the car-level init chain, flow-control setup included when a PID
+    needs it. :func:`generate_profile` renders this for firmware 4.x;
+    :mod:`canlib.wican.autopid_v6` renders it for firmware v6.
+    """
+
+    car_model: str
+    init: str
+    pids: list[ShippedPid]
 
 
 def make_pid_init(
@@ -118,7 +165,7 @@ def request_with_count(pid_code: object, pid_def: dict) -> str:
 def generate_profile(
     data: dict, verified_only: bool = False, expected_responses: bool = True
 ) -> dict:
-    """Generate Vehicle Profile format JSON (grouped parameters per PID).
+    """Generate Vehicle Profile format JSON (grouped parameters per PID), for firmware 4.x.
 
     Produces the upstream source format where parameters is a dict of
     {"PARAM_NAME": "expression"} pairs. This format is used for:
@@ -136,13 +183,49 @@ def generate_profile(
     :mod:`canlib.wican.autopid_send_to`); the key is omitted when no signal has one, so a
     profile without streams is unchanged.
     """
-    profile = {
-        "car_model": data["car_model"],
-        "init": data["init"],
-        "pids": [],
+    return render_v4(ship_profile(data, verified_only, expected_responses))
+
+
+def render_v4(shipped: ShippedProfile) -> dict:
+    """The 4.x Vehicle Profile document for ``shipped`` (see :func:`generate_profile`)."""
+    pids = []
+    for pid in shipped.pids:
+        address = pid.addressing
+        assert address is not None  # ship_profile addresses every PID
+        entry = {
+            "pid_init": make_pid_init(
+                address.header,
+                session=address.session,
+                fc_header=address.fc_header,
+                rx_filter=address.rx_filter,
+                extended=address.extended,
+            ),
+            "pid": pid.request,
+            "enabled": True,
+            "period": str(pid.period),
+            "parameters": pid.expressions,
+        }
+        if pid.send_to:
+            entry["send_to"] = dict(pid.send_to)
+        pids.append(entry)
+    return {
+        "car_model": shipped.car_model,
+        "init": shipped.init,
+        "pids": pids,
         "can_filters": [],
     }
 
+
+def ship_profile(
+    data: dict, verified_only: bool = False, expected_responses: bool = True
+) -> ShippedProfile:
+    """Everything that ships to the device, before any firmware's file format.
+
+    The single shipping gate: a PID ships when its status says so (``active`` or
+    ``slow``) and at least one of its signals is enabled (and verified, with
+    ``verified_only``). Refuses a signal name shipped twice and a malformed or shared
+    ``send_to`` topic, reporting every offender at once.
+    """
     # Where each shipped parameter name was first seen, so a collision can name
     # both origins. Populated as we build; checked after the full pass so every
     # duplicate is reported at once. The same for send_to topics.
@@ -151,9 +234,9 @@ def generate_profile(
     topic_origin: dict[str, str] = {}
     topic_errors: list[str] = []
 
-    # Each shipped entry with its ECU's address, so the pid_init can be chosen once
-    # every shipped ECU is known (see `_address_entries`).
-    addressed: list[tuple[dict, EcuAddress, bool]] = []
+    # Each shipped PID with its ECU's address, so the addressing can be chosen once
+    # every shipped ECU is known (see `_address_pids`).
+    addressed: list[tuple[ShippedPid, EcuAddress, bool]] = []
 
     for ecu_name, ecu in data["ecus"].items():
         address = resolve_ecu_address(data, ecu)
@@ -166,14 +249,14 @@ def generate_profile(
             if not is_shipped(pid_status(pid_data)):
                 continue
 
-            parameters = {}
-            send_to = {}
+            params: dict[str, dict] = {}
+            send_to: dict[str, str] = {}
             for param_name, param in pid_data["parameters"].items():
                 if not param.get("enabled", True):
                     continue
                 if verified_only and not param.get("verified", False):
                     continue
-                parameters[param_name] = param["expression"]
+                params[param_name] = param
 
                 origin = f"{ecu_name} {pid_code}"
                 if param_name in name_origin:
@@ -196,24 +279,20 @@ def generate_profile(
                     topic_origin[topic] = param_name
                     send_to[param_name] = topic
 
-            if not parameters:
+            if not params:
                 continue
 
-            entry = {
-                "pid_init": "",  # set by _address_entries
-                "pid": (
+            shipped = ShippedPid(
+                ecu=ecu_name,
+                pid=str(pid_code),
+                request=(
                     request_with_count(pid_code, pid_data) if expected_responses else str(pid_code)
                 ),
-                "enabled": True,
-                "period": str(pid_data.get("period", 5000)),
-                "parameters": parameters,
-            }
-            if send_to:
-                entry["send_to"] = send_to
-            profile["pids"].append(entry)
-            addressed.append((entry, address, session))
-
-    _address_entries(profile, addressed, flow_control_data(data.get("isotp")))
+                period=pid_data.get("period", 5000),
+                params=params,
+                send_to=send_to,
+            )
+            addressed.append((shipped, address, session))
 
     if collisions:
         lines = [
@@ -231,13 +310,16 @@ def generate_profile(
             "topic must be well-formed and unique:\n" + "\n".join(topic_errors)
         )
 
-    return profile
+    init = _address_pids(addressed, data["init"], flow_control_data(data.get("isotp")))
+    return ShippedProfile(
+        car_model=data["car_model"], init=init, pids=[pid for pid, _, _ in addressed]
+    )
 
 
-def _address_entries(
-    profile: dict, addressed: list[tuple[dict, EcuAddress, bool]], fc_data: str
-) -> None:
-    """Set every entry's ``pid_init``, and the flow-control setup when it is needed.
+def _address_pids(
+    addressed: list[tuple[ShippedPid, EcuAddress, bool]], init: str, fc_data: str
+) -> str:
+    """Set every PID's addressing, and return the car init with flow control if needed.
 
     A profile of only conventional ECUs (ISO 15765-4 ``tx + 0x08``) keeps the
     header pair it always had, so its device diff is unchanged. If any shipped ECU
@@ -256,20 +338,19 @@ def _address_entries(
     own reply id is both possible and right.
     """
     pin = any(target_for(address).explicit for _, address, _ in addressed)
-    for entry, address, session in addressed:
+    for pid, address, session in addressed:
         target = pinned_target(address) if pin else target_for(address)
-        entry["pid_init"] = make_pid_init(
-            target.header,
-            session=session,
+        pid.addressing = PidAddressing(
+            header=target.header,
             fc_header=target.fc_header,
             rx_filter=target.rx_filter if pin else None,
             extended=target.extended,
+            session=session,
         )
-    if pin:
-        first = next(target_for(a) for _, a, _ in addressed if target_for(a).explicit)
-        profile["init"] = with_flow_control(
-            profile["init"], first.fc_header, fc_data, first.extended
-        )
+    if not pin:
+        return init
+    first = next(target_for(a) for _, a, _ in addressed if target_for(a).explicit)
+    return with_flow_control(init, first.fc_header, fc_data, first.extended)
 
 
 def to_device_format(profile: dict, data: dict | None = None) -> dict:

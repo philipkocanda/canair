@@ -72,7 +72,7 @@ obscurely:
 | `slcan-tcp` transport (the default) | **Warns, then tries.** A stock v6 device serves no SLCAN until you enable three settings (below) |
 | `sniff --listen-only` | **Refused.** v6 ignores SLCAN's listen-only command; set `can_manager.silent` on the device instead. If the generation can't be confirmed, canair warns that listen-only isn't guaranteed |
 | `wican mode show`/`set` | **Refused.** v6 has no protocol mode |
-| `wican autopid upload`/`download`/`diff` | **Refused.** v6 changed the AutoPID format and API, which canair can't sync yet. `autopid write` still works. If the generation can't be confirmed, an upload goes ahead with a warning |
+| `wican autopid upload`/`download`/`diff` | **Refused.** v6 changed the AutoPID format and API, which canair can't sync yet. `autopid write` generates the v6 table too (`autopid-v6.json`, for `6.0.0-beta.3` and later), which you can load through the device's web UI ([Share](../bring-your-own-car/08-share.md)). If the generation can't be confirmed, an upload goes ahead with a warning |
 | `--reboot` | **Skipped.** v6 resumes AutoPID by itself |
 
 So on v6, point canair at the ELM327 socket:

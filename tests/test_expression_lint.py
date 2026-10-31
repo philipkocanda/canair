@@ -1,4 +1,4 @@
-"""Tests for the signed-low-byte expression lint (canlib.expression.lint)."""
+"""Tests for the structural expression lints (canlib.expression.lint)."""
 
 from pathlib import Path
 
@@ -7,7 +7,7 @@ import yaml
 
 from canlib.commands import validate as validate_pids
 from canlib.expression import evaluate_expression
-from canlib.expression.lint import signed_low_bytes
+from canlib.expression.lint import firmware_grammar_problems, signed_low_bytes
 
 
 class TestFlagsSignedLowByte:
@@ -77,3 +77,57 @@ def test_shipped_profiles_have_no_signed_low_bytes():
                     expr = (pmeta or {}).get("expression") or ""
                     offenders += [f"{ecu}/{pid}/{pname}: {expr}" for _ in signed_low_bytes(expr)]
     assert not offenders, "signed low bytes:\n" + "\n".join(offenders)
+
+
+class TestFirmwareGrammar:
+    """Forms WiCAN firmware v6's expression checker refuses but canair's evaluator reads.
+
+    The refused cases are the v6 checker's own verdicts (expression_parser_check, run on
+    the host against meatpi-components aa4c2b3).
+    """
+
+    @pytest.mark.parametrize(
+        ("expr", "reason"),
+        [
+            ("[B3:B0]", "inverted range"),
+            ("[S5:S4]", "inverted range"),
+            ("[B0:B8]", "more than 8 bytes"),
+            ("B4:8", "bit index 8"),
+            ("B3 B4", "no single value"),
+            ("B3(B4)", "no single value"),
+        ],
+    )
+    def test_refused(self, expr, reason):
+        (problem,) = firmware_grammar_problems(expr)
+        assert reason in problem
+        evaluate_expression(expr, bytes(range(16)))  # while canair decodes it
+
+    @pytest.mark.parametrize(
+        "expr", ["[B0:B7]", "[S2:S3]", "B4:7", "(B3<<8)|B4", "B9/2-40", "V*B3", "B03"]
+    )
+    def test_accepted(self, expr):
+        assert firmware_grammar_problems(expr) == []
+
+    def test_unparseable_is_left_to_the_syntax_check(self):
+        assert firmware_grammar_problems("((B1 << 8) |") == []
+
+    def test_validate_names_the_signal(self):
+        from canlib.commands.validate.pids import firmware_expression_errors
+
+        (msg,) = firmware_expression_errors("[B0:B8]", "X", "2101", "BMS")
+        assert "BMS/2101/X" in msg and "firmware v6" in msg
+
+
+@pytest.mark.parametrize(("status", "refused"), [("active", True), ("draft", False)])
+def test_validate_judges_only_what_ships(tmp_path, status, refused):
+    from canlib.commands.validate import validate_pids_file
+
+    path = tmp_path / "test.yaml"
+    path.write_text(
+        "TEST:\n  tx_id: 0x700\n  pids:\n    2101:\n"
+        f"      status: {status}\n      parameters:\n        TAG:\n"
+        "          expression: '[B4:B12]'\n          verified: true\n"
+    )
+    ok, out = validate_pids_file(path)
+    assert ok is not refused
+    assert ("firmware v6" in out) is refused

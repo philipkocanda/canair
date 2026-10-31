@@ -183,7 +183,8 @@ def _v6_policy(info: FirmwareInfo, surface: Surface) -> Verdict:
             "refuse",
             f"{name} uses a new AutoPID format and API that canair cannot sync yet: the 4.x "
             "routes canair uses are gone, so the request would only fail.\n"
-            "  • `canair wican autopid write` still generates the 4.x JSON locally",
+            "  • `canair wican autopid write` generates the v6 table (autopid-v6.json, from "
+            "6.0.0-beta.3) to load through the device's web UI",
         )
     if surface == "reboot":
         return Verdict(

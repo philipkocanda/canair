@@ -7,24 +7,51 @@ profile so others with the same vehicle benefit.
 ## Generate the WiCAN AutoPID JSON
 
 `canair wican autopid write` renders your profile's **verified** parameters into
-the JSON format the WiCAN's AutoPID feature consumes, written to the bundle's
-`out/autopid.json` — `out/<variant>/autopid.json` when the profile describes several
-[variants](../concepts/variants.md), one device profile per car (pass
-`--include-unverified` to also ship in-progress candidates):
+the JSON the WiCAN's AutoPID feature consumes, once per firmware generation, in the
+bundle's `out/` (`out/<variant>/` when the profile describes several
+[variants](../concepts/variants.md), one device profile per car):
+
+| File | For | What it is |
+|---|---|---|
+| `autopid-v4.json` | WiCAN firmware 4.x | the vehicle profile, in the upstream source format (grouped signals per PID) |
+| `autopid-v6.json` | WiCAN firmware v6, from `6.0.0-beta.3` | the AutoPID table v6 takes, plus the car's `vehicle` and `specific_init` device settings |
+
+Pass `--include-unverified` to also ship in-progress candidates, and `--firmware 4`
+or `--firmware 6` to write only one of the two (`--out PATH` needs it):
 
 ```bash
 canair wican autopid write                    # verified-only — ship what you've confirmed
 canair wican autopid write --include-unverified  # also include in-progress candidates
+canair wican autopid write --firmware 6 --out my-car.json  # just the v6 table, elsewhere
 ```
 
-On a **WiCAN Pro**, you can sync it to the device directly (these are Pro-only):
+The two carry the same PIDs and the same expressions: from `6.0.0-beta.3`, v6 counts
+a reply's bytes exactly as 4.x does. Firmware `6.0.0-beta.1`/`beta.2` count them
+differently, so neither file is right for those; update the firmware. Two things in
+the v6 file differ from 4.x:
+
+- **No per-signal MQTT stream.** v6 has no `send_to`, so canair leaves it out and
+  says which signals had one. A v6 rule on `autopid.param` → `mqtt.publish` is the
+  nearest equivalent; it fires when the value changes rather than on every poll.
+- **Signal bounds filter readings.** A reading outside a signal's `min`/`max` is
+  dropped, as 4.x already did.
+
+On firmware 4.x and a **WiCAN Pro**, you can sync the profile to the device directly
+(these are Pro-only):
 
 ```bash
 canair wican autopid diff      # what would change on the device
 canair wican autopid upload    # push the profile to the dongle
 ```
 
-`out/*.json` is generated — never hand-edit it; regenerate.
+canair can't upload to firmware v6 yet. To load `autopid-v6.json` by hand, drop it
+on the device web UI's **Automate** page: it loads as the whole AutoPID table, which
+**replaces the PIDs already there**, your own included. Then set the device's
+`vehicle` and `specific_init` AutoPID settings to the file's values; they apply after
+the restart the web UI offers. AutoPID polling is off on a fresh v6 device, so turn
+it on as well.
+
+`out/` is generated — never hand-edit it; regenerate.
 
 ### Making the device's reads faster
 

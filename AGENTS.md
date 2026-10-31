@@ -523,7 +523,13 @@ reuse these instead of re-declaring a flag:
 - **`canair wican`** — Build/sync the device's AutoPID profile from the active bundle's `ecus/`. A
   bare `canair wican` prints help (writes nothing). `autopid write` generates JSON into `out/`
   (`out/<variant>/` on a multi-variant profile, from the car's resolved definitions, and
-  **refused while an ECU's revision is undetermined** — the device can't detect one)
+  **refused while an ECU's revision is undetermined** — the device can't detect one), **one
+  file per firmware generation**: `autopid-v4.json` (the 4.x vehicle profile) and
+  `autopid-v6.json` (the v6 AutoPID table, `canlib/wican/autopid_v6.py`). Both render one
+  shipping decision, `autopid_profile.py::ship_profile`, so they cannot disagree on what
+  ships; the v6 renderer refuses, never truncates, a value the firmware's fixed buffers
+  would cut short, and `validate pids` errors on a shipped expression v6's checker refuses
+  (`expression/lint.py::firmware_grammar_problems`)
   — **verified-only by default**, `--include-unverified` also emits in-progress candidates;
   `upload`/`download`/`diff` sync the device (Pro-only, same verified-only default). **Each
   PID's persisted `response_frames` count is appended to its request string by default**

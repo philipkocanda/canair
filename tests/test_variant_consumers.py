@@ -42,38 +42,59 @@ class TestAutoPid:
         from canlib.commands.wican import _profile_out
 
         set_active(str(FIXTURE), variant="40kwh")
-        assert _profile_out() == FIXTURE / "out" / "40kwh" / "autopid.json"
-        set_active("hyundai-kona-os-ev")  # one variant: unchanged
-        assert _profile_out().parent.name == "out"
+        assert _profile_out("4") == FIXTURE / "out" / "40kwh" / "autopid-v4.json"
+        assert _profile_out("6") == FIXTURE / "out" / "40kwh" / "autopid-v6.json"
+        set_active("hyundai-kona-os-ev")  # no car named: unchanged
+        assert _profile_out("4").parent.name == "out"
 
-    def test_the_28kwh_ioniq_build_is_the_committed_one(self, tmp_path, capsys):
+    @pytest.mark.parametrize("firmware", ["4", "6"])
+    def test_the_28kwh_ioniq_build_is_the_committed_one(self, tmp_path, capsys, firmware):
         out = tmp_path / "autopid.json"
         argv = ["--profile", "hyundai-ioniq-ae-ev", "--variant", "28kwh"]
-        assert main([*argv, "wican", "autopid", "write", "--out", str(out)]) == 0
-        committed = REPO / "profiles" / "hyundai-ioniq-ae-ev" / "out" / "28kwh" / "autopid.json"
+        write = ["wican", "autopid", "write", "--firmware", firmware, "--out", str(out)]
+        assert main([*argv, *write]) == 0
+        name = f"autopid-v{firmware}.json"
+        committed = REPO / "profiles" / "hyundai-ioniq-ae-ev" / "out" / "28kwh" / name
         assert out.read_bytes() == committed.read_bytes()
+
+    def test_every_bundled_car_carries_both_firmware_files(self):
+        from canlib.profile import resolve_profile
+        from canlib.variants import load_variants
+
+        missing = []
+        for root in sorted((REPO / "profiles").glob("*/profile.yaml")):
+            prof = resolve_profile(str(root.parent))
+            for variant in load_variants(prof) or {"": None}:
+                folder = prof.root / "out" / variant
+                missing += [
+                    str(folder / f"autopid-v{fw}.json")
+                    for fw in ("4", "6")
+                    if not (folder / f"autopid-v{fw}.json").exists()
+                ]
+        assert not missing, "regenerate with `canair wican autopid write`:\n" + "\n".join(missing)
 
     def test_the_38kwh_build_ships_none_of_the_unverified_port(self, tmp_path, capsys):
         out = tmp_path / "a.json"
         argv = ["--profile", "hyundai-ioniq-ae-ev", "--variant", "38kwh", "wican", "autopid"]
-        assert main([*argv, "write", "--out", str(out)]) == 0
+        write = ["write", "--firmware", "4", "--out", str(out)]
+        assert main([*argv, *write]) == 0
         names = {n for g in json.loads(out.read_text())["pids"] for n in g["parameters"]}
         assert "CELL_VOLTAGE_DEVIATION" not in names  # the uds port is unverified
         assert "CUMULATIVE_ENERGY_CHARGED" not in names  # a 28 kWh (kwp) page
-        assert main([*argv, "write", "--out", str(out), "--include-unverified"]) == 0
+        assert main([*argv, *write, "--include-unverified"]) == 0
         names = {n for g in json.loads(out.read_text())["pids"] for n in g["parameters"]}
         assert "CELL_VOLTAGE_DEVIATION" in names
         assert "CUMULATIVE_ENERGY_CHARGED" not in names
 
     def test_refused_while_a_revision_is_undetermined(self, tmp_path, capsys):
         argv = ["--profile", str(FIXTURE), "--variant", "60kwh", "wican", "autopid", "write"]
-        assert main([*argv, "--out", str(tmp_path / "a.json")]) == 2
+        assert main([*argv, "--firmware", "4", "--out", str(tmp_path / "a.json")]) == 2
         err = capsys.readouterr().err
         assert "VCU is undetermined" in err and "--pin VCU=kwp" in err
         assert not (tmp_path / "a.json").exists()
         pinned = ["--profile", str(FIXTURE), "--variant", "60kwh", "--revision", "VCU=uds"]
         out = tmp_path / "b.json"
-        assert main([*pinned, "wican", "autopid", "write", "--out", str(out),
+        assert main([*pinned, "wican", "autopid", "write", "--firmware", "4", "--out", str(out),
                      "--include-unverified"]) == 0  # fmt: skip
         exprs = {
             (n, e) for g in json.loads(out.read_text())["pids"] for n, e in g["parameters"].items()
