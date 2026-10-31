@@ -89,6 +89,13 @@ async def run_session_guarded(
     from canlib.transport.errors import describe_transport_error, transport_error_types
 
     try:
+        from canlib.modes.revision_probe import detect_revisions, targeted_ecus
+
+        if await detect_revisions(terminal, targeted_ecus(args)):
+            from canlib.pids import load_pids
+
+            # A settled revision changes which PIDs exist; read them before the mode does.
+            pids_data = load_pids()
         await dispatch_mode(args, terminal, pids_data, host, reconnect=reconnect)
         if getattr(args, "timings", False):
             from canlib.timing import print_timings

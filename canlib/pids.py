@@ -347,7 +347,9 @@ def revision_resolutions(profile=None) -> dict:
         return cached
     ecus = load_raw_pids(prof).get("ecus") or {}
     try:
-        result = resolve(ecus, _selected_variant_def(prof), prof.revision_pins)
+        result = resolve(
+            ecus, _selected_variant_def(prof), prof.revision_pins, prof.revision_detections
+        )
     except RevisionError as e:
         raise ProfileError(str(e)) from None
     _resolution_cache[key] = result

@@ -1,9 +1,30 @@
 # Profile variants, phase 8 — detecting an ECU's revision
 
-Status: **NOT STARTED.** Part of
+Status: **DONE** (2026-10-31). Part of
 [`2026-10-30-profile-variants-and-rename.md`](2026-10-30-profile-variants-and-rename.md) (see its
 [Which revision, per ECU](2026-10-30-profile-variants-and-rename.md#which-revision-per-ecu)
 section). Depends on phase 7.
+
+## As built
+
+- **The probe runs once, before the mode,** in `run_session_guarded` (not
+  `SessionManager.open_session`), and only for the ECUs the command's `read`/`monitor` steps
+  name (groups expanded). Other live modes don't decode gated PIDs and send no probe. It stops at
+  the first positive answer.
+- **No session split is needed:** detection settles before any mode opens its `--save` journal,
+  so a recording is tagged `detected` from its first capture. Late detection doesn't exist.
+- **The `slcan-tcp` monitor** (`run_raw_monitor`) bypasses `run_session_guarded`, so it doesn't
+  probe; it uses a remembered detection or a pin. Every other path, raw `read` included, probes.
+- **Order:** pin > only one possible > detected > undetermined. A remembered detection the car
+  cannot carry is ignored, not an error (it's state, not something typed). Imports drop
+  detections, like config pins.
+- **`identity` matches on `responds:` only:** it knows which of its identity requests the ECU
+  answered, but has no map from identity DIDs to `identity:` field names, so `identity:` glob
+  fingerprints are matched by the leaf matcher (and tested) but not yet fed by a live reading.
+  `discover` doesn't report revisions.
+- **The ELM327-emulator scenarios are not written;** detection is tested through a fake terminal
+  at the `Terminal` surface. `validate captures` warns about replies to PIDs outside a session's
+  tagged revision; an identity reply contradicting a tag is not checked.
 
 ## Goal
 

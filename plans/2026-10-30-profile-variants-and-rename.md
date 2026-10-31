@@ -662,7 +662,7 @@ step that refuses (phase 4). The byte-identical `28kwh` invariant is checked at 
 | 5 ✓ | [ECU revisions](2026-10-30-profile-variants-5-ecu-revisions.md) | `revisions:`, gating and resolution at the load seam, pins, validation, byte-level refusal, the synthetic fixture | none for bundled profiles |
 | 6 ✓ | [Ioniq facelift BMS](2026-10-30-profile-variants-6-ioniq-facelift-bms.md) | The real-profile exercise: BMS `kwp`/`uds`, Kona definitions ported unverified | `38kwh` only |
 | 7 ✓ | [Overrides and evidence](2026-10-30-profile-variants-7-overrides-and-evidence.md) | `per_revision:`; `verified`, `response_frames`, identity routed per revision | stricter on non-reference revisions |
-| 8 | [Detection](2026-10-30-profile-variants-8-detection.md) | Fingerprint matching, the per-session probe, `identity` names your variant | ambiguous ECUs read instead of skip |
+| 8 ✓ | [Detection](2026-10-30-profile-variants-8-detection.md) | Fingerprint matching, the per-session probe, `identity` names your variant | ambiguous ECUs read instead of skip |
 | 9 | [Consumers](2026-10-30-profile-variants-9-consumers.md) | AutoPID per variant, explorer switcher, coverage/research per revision, final docs | `out/<variant>/` |
 
 The skill and docs grow with each phase rather than landing ahead of the features they describe.

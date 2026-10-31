@@ -112,7 +112,20 @@ def apply_variant(profile: Profile, flag: str | None = None, revisions=None) -> 
     pins = _revision_pins(profile, revisions)
     if pins:
         profile = dataclasses.replace(profile, revision_pins=pins)
-    return _apply_variant(profile, flag)
+    profile = _apply_variant(profile, flag)
+    return with_detections(profile)
+
+
+def with_detections(profile: Profile) -> Profile:
+    """``profile`` carrying the revisions remembered as detected for its car."""
+    from canlib.variants.detected import remembered
+    from canlib.variants.tags import selected_variant
+
+    found = remembered(profile.name, selected_variant(profile))
+    detections = tuple(sorted(found.items()))
+    if detections == profile.revision_detections:
+        return profile
+    return dataclasses.replace(profile, revision_detections=detections)
 
 
 def _apply_variant(profile: Profile, flag: str | None) -> Profile:
@@ -179,8 +192,24 @@ def require_variant(profile: Profile, what: str) -> None:
         f"{profile.name} describes {len(declared)} variants and none is selected, so canair "
         f"won't {what}.\n\n{rows}\n\n"
         f"  Pick yours once:     canair profile use {profile.name} --variant {example}\n"
-        f"  Or for one command:  canair --variant {example} <command> …"
+        f"  Or for one command:  canair --variant {example} <command> …" + _identity_hint(profile)
     )
+
+
+def _identity_hint(profile: Profile) -> str:
+    """The "not sure?" line, naming an ECU whose revision tells the variants apart."""
+    from canlib.pids import load_raw_pids
+    from canlib.variants.revisions import declared, revision_entry
+
+    try:
+        ecus = load_raw_pids(profile).get("ecus") or {}
+    except Exception:
+        return ""
+    for name, ecu_def in ecus.items():
+        revs = declared(ecu_def)
+        if len(revs) > 1 and any(revision_entry(ecu_def, r).get("fingerprints") for r in revs):
+            return f"\n  Not sure which you have?  canair identity {name}   (names the match)"
+    return ""
 
 
 def require_named_car(profile: Profile, what: str) -> str | None:
@@ -189,17 +218,18 @@ def require_named_car(profile: Profile, what: str) -> str | None:
     Imported data comes from someone else's car, so on a profile with more than one
     variant it must say which on the command line (the global ``--variant``) — never
     by a default meant for the user's own car (``CANAIR_VARIANT``, the config, an
-    alias). For the same reason, revisions pinned in the config are dropped from the
-    active profile: only ``--revision`` (or the only possible revision) tags an import.
+    alias). For the same reason, revisions pinned in the config or detected on the user's
+    car are dropped from the active profile: only ``--revision`` (or the only possible
+    revision) tags an import.
     Returns the variant, or the selection (possibly None) when the profile has at most
     one variant.
     """
     from canlib import profile as profile_mod
     from canlib.profile import ProfileError
 
-    if any(src == "config" for *_, src in profile.revision_pins):
+    if profile.revision_detections or any(src == "config" for *_, src in profile.revision_pins):
         flagged = tuple(p for p in profile.revision_pins if p[2] == "flag")
-        stripped = dataclasses.replace(profile, revision_pins=flagged)
+        stripped = dataclasses.replace(profile, revision_pins=flagged, revision_detections=())
         if profile_mod._active == profile:
             profile_mod.replace_active(stripped)
         profile = stripped

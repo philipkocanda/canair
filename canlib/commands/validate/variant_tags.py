@@ -6,7 +6,8 @@ Two findings, both reported as a footer rather than per file:
   car the profile no longer knows (a hand edit, or a ``variants.yaml`` change made
   without ``canair variants rename``);
 * sessions tagged with an ECU revision the ECU does not declare (``revisions:``), or
-  one the session's own variant cannot carry;
+  one the session's own variant cannot carry, and sessions holding replies to PIDs their
+  tagged revision does not answer (a protocol revision identifies itself in the data);
 * on a profile with more than one variant, how many sessions carry no tag at all,
   since analysis can't tell which car those came from.
 """
@@ -35,15 +36,41 @@ def variant_tag_findings(files: list[Path], declared: set[str]) -> tuple[int, Co
 
 def revision_tag_findings(files: list[Path], profile) -> Counter[str]:
     """``problem -> sessions`` for every revision tag that names what cannot be."""
+    from canlib.ecus import build_rx_index, ecu_name_from_ref
     from canlib.pids import load_raw_pids
     from canlib.variants import load_variants
-    from canlib.variants.revisions import canonical_ecu, possible_revisions
+    from canlib.variants.revisions import canonical_ecu, gate, possible_revisions
 
     ecus = load_raw_pids(profile).get("ecus") or {}
     variants = load_variants(profile)
+    rx_index = build_rx_index()
     found: Counter[str] = Counter()
     for path in files:
         for session in (capture_io.load_capture_file(path) or {}).get("sessions") or []:
+            tags = {str(e).upper(): r for e, r in (session.get("revisions") or {}).items()}
+            outside: set[str] = set()
+            for cap in session.get("captures") or []:
+                rx = capture_io.capture_rx(cap)
+                ecu = str(ecu_name_from_ref(rx, rx_index)) if rx else ""
+                rid = tags.get(ecu.upper())
+                ecu_def = ecus.get(ecu) or {}
+                pid_def = next(
+                    (
+                        d
+                        for k, d in (ecu_def.get("pids") or {}).items()
+                        if str(k).upper() == str(cap.get("pid", "")).upper()
+                    ),
+                    None,
+                )
+                applies = gate(pid_def)
+                if rid and applies is not None and rid not in applies and cap.get("payload"):
+                    outside.add(f"{ecu} {cap.get('pid')}")
+            for where in sorted(outside):
+                ecu = where.split()[0]
+                found[
+                    f"a reply to {where}, which {ecu} revision {tags[ecu.upper()]!r} does not "
+                    "answer (is the session's revision tag wrong?)"
+                ] += 1
             for ecu, rid in (session.get("revisions") or {}).items():
                 name = canonical_ecu(ecu, ecus)
                 if name is None:
@@ -81,10 +108,12 @@ def report_variant_tags(
     except Exception:
         bad_revisions = Counter()  # a broken ecus/ is `validate pids`'s to report
     for problem, n in sorted(bad_revisions.items()):
-        print(
-            f"  ⚠ {n} session(s) tagged with {problem} — was the revision renamed or removed "
-            "outside `canair ecu revisions`?"
+        hint = (
+            ""
+            if problem.startswith("a reply")
+            else " — was the revision renamed or removed outside `canair ecu revisions`?"
         )
+        print(f"  ⚠ {n} session(s) {'holding' if not hint else 'tagged with'} {problem}{hint}")
     for variant, n in sorted(undeclared.items()):
         known = ", ".join(sorted(declared)) or "none"
         print(

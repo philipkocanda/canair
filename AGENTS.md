@@ -460,6 +460,13 @@ reuse these instead of re-declaring a flag:
   the reference, `per_revision.<r>` otherwise, nothing when undetermined), so one revision's
   count can never seed — and undercount — a read of another. `pids upsert-param --revision R`
   writes `per_revision.R` on an existing signal and gates a new one to `[R]`.
+  **Detection** ranks after "only one" and before undetermined: `run_session_guarded` calls
+  `canlib/modes/revision_probe.py::detect_revisions` before dispatch, which sends each
+  ambiguous ECU the current `read`/`monitor` steps target its cheapest `responds:` fingerprint
+  (matcher: the I/O-free `canlib/variants/fingerprints.py`), remembers a single match in user
+  state (`canlib/variants/detected.py`, carried as `Profile.revision_detections` and in
+  `cache_key`) and reloads the definitions. A determined ECU is never probed. `canair identity`
+  reports the matching revision and the variants allowing it (`identity_report`).
   **The variant names the car**, resolved by `canlib/variants/selection.py::apply_variant` —
   `--variant` > `CANAIR_VARIANT` > `profile_settings.<profile>.variant` (written by `profile use
   NAME --variant ID`) > the variant an old profile name implies (`aliases:` entry, via

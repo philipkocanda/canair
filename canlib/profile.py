@@ -164,6 +164,9 @@ class Profile:
     # ECU revision pins as (ECU, revision, source): the global --revision flag ("flag")
     # and profile_settings.<profile>.revisions ("config"). Checked when resolved.
     revision_pins: tuple[tuple[str, str, Literal["flag", "config"]], ...] = ()
+    # ECU revisions detected from the car (ECU, revision): remembered from an earlier
+    # session, or settled by this one's probe. Outranked by a pin and by "only one".
+    revision_detections: tuple[tuple[str, str], ...] = ()
 
     @property
     def layered(self) -> bool:
@@ -285,6 +288,8 @@ class Profile:
             key += f"|variant={self.variant}"
         if self.revision_pins:
             key += "|pins=" + ",".join(f"{e}={r}" for e, r, _ in sorted(self.revision_pins))
+        if self.revision_detections:
+            key += "|detected=" + ",".join(f"{e}={r}" for e, r in sorted(self.revision_detections))
         return key
 
     @cached_property

@@ -67,7 +67,7 @@ FINGERPRINT_KINDS: tuple[str, ...] = ("identity", "responds")
 
 # Where a pin came from: the global --revision flag or the user config.
 PinSource = Literal["flag", "config"]
-ResolutionSource = Literal["flag", "config", "only"]
+ResolutionSource = Literal["flag", "config", "only", "detected"]
 
 _HEX_RE = re.compile(r"^(?:[0-9A-Fa-f]{2})+$")
 
@@ -163,6 +163,7 @@ def resolve(
     ecus: Mapping[str, Any],
     variant: Variant | None,
     pins: Iterable[tuple[str, str, PinSource]] = (),
+    detections: Iterable[tuple[str, str]] = (),
 ) -> dict[str, Resolution]:
     """Resolve every ECU that declares revisions (keyed by ECU name).
 
@@ -187,6 +188,9 @@ def resolve(
             )
         chosen.setdefault(name, (rid, source))
 
+    # A detection that names a revision this car can't carry is stale: ignored, not an
+    # error (it is remembered state, not something the user typed).
+    detected = {str(e).upper(): normalize_revision_id(r) for e, r in detections}
     out: dict[str, Resolution] = {}
     for name, ecu_def in ecus.items():
         if not declared(ecu_def):
@@ -204,6 +208,8 @@ def resolve(
             out[name] = Resolution(name, rid, source, possible)
         elif len(possible) == 1:
             out[name] = Resolution(name, possible[0], "only", possible)
+        elif detected.get(name.upper()) in possible:
+            out[name] = Resolution(name, detected[name.upper()], "detected", possible)
         else:
             out[name] = Resolution(name, None, None, possible)
     return out
@@ -438,7 +444,12 @@ def skipped_note(
     return "\n".join(lines)
 
 
-_SOURCE_LABEL = {"flag": "--revision", "config": "a pin in the config", "only": "the only one"}
+_SOURCE_LABEL = {
+    "flag": "--revision",
+    "config": "a pin in the config",
+    "only": "the only one",
+    "detected": "detected from the car",
+}
 
 
 def describe_resolution(res: Resolution) -> str:
