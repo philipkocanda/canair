@@ -170,8 +170,27 @@ class TestCacheKey:
         assert "HEATER" not in _ecus()
 
     def test_a_bundled_profile_without_revisions_is_untouched(self):
-        set_active("hyundai-ioniq-ae-ev")
+        set_active("hyundai-kona-os-ev")
         assert load_pids()["ecus"] is load_raw_pids()["ecus"]
+
+
+class TestIoniqFaceliftBms:
+    """The bundled Ioniq's BMS: ``kwp`` on the 28 kWh car, ``uds`` (ported, unverified) on 38."""
+
+    def test_the_28kwh_car_reads_exactly_the_kwp_pages(self):
+        set_active("hyundai-ioniq-ae-ev", variant="28kwh")
+        bms = load_pids()["ecus"]["BMS"]
+        assert {str(p) for p in bms["pids"]} == {"2101", "2102", "2103", "2104", "2105", "21F2"}
+        assert bms["identity"]["id_protocol"] == "KWP2000"
+        assert "revisions" not in bms and "revisions" not in bms["pids"][2101]
+
+    def test_the_38kwh_car_reads_only_the_ported_uds_pages_unverified(self):
+        set_active("hyundai-ioniq-ae-ev", variant="38kwh")
+        bms = load_pids()["ecus"]["BMS"]
+        assert {str(p) for p in bms["pids"]} == {"220101", "220105"}
+        assert bms["identity"]["id_protocol"] == "UDS"
+        params = [p for pid in bms["pids"].values() for p in pid["parameters"].values()]
+        assert params and not any(p.get("verified") for p in params)
 
 
 # ── checks ──────────────────────────────────────────────────────────────────

@@ -256,7 +256,10 @@ def _deterministic_grid_region(tmp_path, monkeypatch):
 
     cfg = tmp_path / "canair"
     cfg.mkdir(parents=True, exist_ok=True)
-    (cfg / "config.yaml").write_text("grid_region: EU\n")
+    # The suite's car, as conftest names it: the goldens pin the 28 kWh car's output.
+    (cfg / "config.yaml").write_text(
+        "grid_region: EU\nprofile_settings:\n  hyundai-ioniq-ae-ev:\n    variant: 28kwh\n"
+    )
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
     config.load_config.cache_clear()
     yield

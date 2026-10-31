@@ -290,9 +290,9 @@ def upsert_parameter(
         param_lines = _format_param_block(param_name, fields, indent=8)
 
         if not params:
-            # PID exists but has no parameters: — add one after the PID header.
+            # PID exists but has no parameters: — add them last, after the PID's own fields.
             block = ["      parameters:", *param_lines]
-            return _insert_lines(text, pid_body_start, pid_body_start, block)
+            return _insert_lines(text, pid_body_start, pid_body_end, block)
 
         p_hdr, p_line_end, p_body_start, p_body_end, p_inline = params
         if p_inline in ("{}", "{ }"):

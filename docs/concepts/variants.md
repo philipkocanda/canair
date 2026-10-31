@@ -228,6 +228,11 @@ VCU:
 - **Presence:** `variants: [60kwh]` on an ECU says only those cars have it.
 - **Fingerprints** are recorded and checked, but canair does not match them against a car yet.
 
+The bundled Ioniq is the worked case: its BMS has a `kwp` revision (every page the 28 kWh car
+answers, `2101`…`21F2`) and a `uds` one (the Kona-family `220101`/`220105` pages the 38 kWh
+facelift most likely answers, ported from the Kona profile and all unverified). `28kwh` allows
+only `kwp`, `38kwh` only `uds`.
+
 ### Which revision your car has
 
 1. a **pin**: `canair profile use NAME --pin VCU=uds` (remembered, as
@@ -247,7 +252,9 @@ A recording tags each captured ECU that declares several revisions with the one 
 sessions that agree with your car's resolved revisions (an untagged session is read as yours).
 **Byte-level analyses** — `investigate`, `hunt`, `correlate`, `coverage`, and `decode
 --dump-bytes`/`--try` — refuse a scope that spans two revisions of an ECU they analyse, since a
-byte offset means nothing across two layouts; scope with `--revision ECU=ID`.
+byte offset means nothing across two layouts; scope with `--revision ECU=ID`. With no car
+chosen (or `--variant all`), an ECU with several possible revisions is undetermined, so its
+revision-specific definitions are left out of analysis too; add `--revision ECU=ID`.
 
 ### Editing
 

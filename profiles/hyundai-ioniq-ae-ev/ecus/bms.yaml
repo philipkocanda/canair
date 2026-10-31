@@ -23,12 +23,25 @@ BMS:
     notes: >-
       1A80 firmware build date reads 2008-07-09. Air-cooled pack: a BMS-controlled fan in the trunk
       draws cabin air in under the middle rear seat and out through the right rear wheel well.
+  revisions:
+    kwp:
+      identity: {id_protocol: KWP2000}
+      fingerprints:
+        - {responds: "1A90"}
+        - {identity: {calibration: "4604"}}
+        - {identity: {calibration: "4804"}}
+        - {identity: {calibration: "4824"}}
+    uds:
+      identity: {id_protocol: UDS}
+      fingerprints:
+        - {responds: "22F187"}
   vehicle_states: [IG3]
   pids:
     2101:
       response_frames: 9
       status: active
       period: 1000
+      revisions: [kwp]
       vehicle_states: [IG3]
       verified: true
       parameters:
@@ -348,6 +361,7 @@ BMS:
       response_frames: 7
       status: active
       period: 10000
+      revisions: [kwp]
       vehicle_states: [IG3]
       verified: true
       parameters:
@@ -485,6 +499,7 @@ BMS:
       response_frames: 6
       status: active
       period: 60000
+      revisions: [kwp]
       vehicle_states: [IG3]
       unit: V
       ha_class: voltage
@@ -569,6 +584,7 @@ BMS:
       response_frames: 6
       status: active
       period: 60000
+      revisions: [kwp]
       vehicle_states: [IG3]
       unit: V
       ha_class: voltage
@@ -648,6 +664,7 @@ BMS:
       response_frames: 6
       status: active
       period: 60000
+      revisions: [kwp]
       vehicle_states: [IG3]
       unit: V
       ha_class: voltage
@@ -726,6 +743,7 @@ BMS:
     21F2:
       status: slow
       period: 300000
+      revisions: [kwp]
       response_frames: 18
       vehicle_states: [READY]
       notes: >-
@@ -1009,6 +1027,175 @@ BMS:
             Minutes of the previous cycle spent at 0-10 % SOC. The ten bands (B15-B26) sum to within
             3 min of LAST_CYCLE_DURATION. 2026-07-30 AC charge 66 to 95 %: 40, 56, 57 and 32 min in
             the 60-70 to 90-100 % bands.
+    220101:
+      status: active
+      revisions: [uds]
+      notes: >-
+        38 kWh facelift (uds revision): Kona-family BMS, same DID layout as the Kona's. Every offset
+        is the 2101 one shifted by the DID echo's extra byte. Unverified: no facelift capture yet.
+      source: Kona BMS (hyundai-kona-os-ev, OBDb offsets); the Ioniq FL BMS is Kona-family (OVMS)
+      source_links:
+        - https://github.com/OBDb/Hyundai-Kona-Electric
+        - https://docs.openvehicles.com/en/latest/components/vehicle_kianiroev/docs/index.html
+      verified: false
+      parameters:
+        SOC_BMS:
+          expression: B10/2
+          unit: "%"
+          ha_class: battery
+          min: "0"
+          max: "100"
+        BATTERY_CURRENT:
+          expression: "[S17:S18]/10"
+          unit: A
+          ha_class: current
+          min: "-400"
+          max: "400"
+          notes: Signed 16-bit BE; negative = charging.
+        BATTERY_VOLTAGE:
+          expression: "[B19:B20]/10"
+          unit: V
+          ha_class: voltage
+          min: "240"
+          max: "450"
+        BATTERY_POWER:
+          expression: (([B19:B20]/10)*([S17:S18]/10))/1000
+          unit: kW
+          ha_class: power
+          notes: Voltage x current; negative = charging.
+        AVAIL_CHARGE_POWER_MIRROR:
+          expression: "[B11:B12]/100"
+          unit: kW
+          ha_class: power
+        AVAIL_DISCHARGE_POWER_MIRROR:
+          expression: "[B13:B14]/100"
+          unit: kW
+          ha_class: power
+        BMS_MAIN_RELAY:
+          expression: B15:0
+        AC_CHARGER_CONNECTED:
+          expression: B15:5
+          notes: The Kona's NORMAL_CHARGE_PORT (OBDb bix 74); named as on the 2101 page.
+        CHARGING_DC:
+          expression: B15:6
+          notes: The Kona's RAPID_CHARGE_PORT (OBDb bix 73); named as on the 2101 page.
+        CHARGING:
+          expression: B15:7
+        BATTERY_MAX_TEMP:
+          expression: S21
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "80"
+        BATTERY_MIN_TEMP:
+          expression: S22
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "80"
+        MODULE_1_TEMP:
+          expression: S23
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "80"
+        MODULE_2_TEMP:
+          expression: S25
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "80"
+        MODULE_3_TEMP:
+          expression: S26
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "80"
+        MODULE_4_TEMP:
+          expression: S27
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "80"
+        BATTERY_INLET_TEMP:
+          expression: S30
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "80"
+        MAX_CELL_VOLTAGE:
+          expression: B31/50
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "5"
+        MAX_CELL_VOLTAGE_NO:
+          expression: B33
+        MIN_CELL_VOLTAGE:
+          expression: B34/50
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "5"
+        MIN_CELL_VOLTAGE_NO:
+          expression: B35
+        BATTERY_FAN_STATUS:
+          expression: B36
+        BATTERY_FAN_FEEDBACK:
+          expression: B37
+          unit: Hz
+        AUX_BATTERY_VOLTAGE:
+          expression: B38/10
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "16"
+    220105:
+      status: active
+      period: 10000
+      revisions: [uds]
+      notes: >-
+        38 kWh facelift (uds revision): Kona-family BMS, same DID layout as the Kona's. Every offset
+        is the 2101 one shifted by the DID echo's extra byte. Unverified: no facelift capture yet.
+      source: Kona BMS (hyundai-kona-os-ev, OBDb offsets); the Ioniq FL BMS is Kona-family (OVMS)
+      source_links:
+        - https://github.com/OBDb/Hyundai-Kona-Electric
+        - https://docs.openvehicles.com/en/latest/components/vehicle_kianiroev/docs/index.html
+      verified: false
+      parameters:
+        SOH:
+          expression: "[B34:B35]/10"
+          unit: "%"
+          ha_class: battery
+          min: "0"
+          max: "100"
+        MAX_DETERIORATION_CELL_NO:
+          expression: B36
+        MIN_DETERIORATION:
+          expression: "[B37:B38]/10"
+          unit: "%"
+        MIN_DETERIORATION_CELL_NO:
+          expression: B39
+        SOC_DISP:
+          expression: B41/2
+          unit: "%"
+          ha_class: battery
+          min: "0"
+          max: "100"
+          notes: Dashboard SOC; the Kona's SOC_DISPLAY, named as on the 2105 page.
+        CELL_VOLTAGE_DEVIATION:
+          expression: B28/50
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "5"
+          notes: Max-min cell voltage spread (the Kona's scaling; 2105 reads it as B27*0.1).
+        BATTERY_HEATER_1_TEMP:
+          expression: S31
+          unit: °C
+          ha_class: temperature
+          min: "-40"
+          max: "120"
   research:
     - type: iocontrol_scan
       target: "30 00-FF"
