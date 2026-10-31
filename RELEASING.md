@@ -35,6 +35,12 @@ version ordering — and a released install shows no suffix at all.
    up to date, bumping `pyproject.toml` + `uv.lock` and writing the `CHANGELOG.md`
    section. Nothing to run.
 
+   The same workflow also regenerates every bundled profile's WiCAN AutoPID JSON
+   (`profiles/*/out/`) on the release PR's branch and commits it when it changed
+   (`scripts/gen_autopid.py`, with an empty user config so the output is the same
+   everywhere), so a release ships device profiles that match its definitions.
+   Run the script by hand to refresh `out/` between releases.
+
 2. **Check the release PR is green.** CI runs on it like any other PR (see
    [Prerequisites](#prerequisites)); the default branch requires the `test` check.
 
@@ -44,7 +50,8 @@ version ordering — and a released install shows no suffix at all.
    it matters*, with no internal scaffolding (no "Stage N", no private branch
    names) and plan docs referenced by name. The rules are in
    `.claude/skills/contributing-code/SKILL.md` → "Cutting a release". Edit
-   `CHANGELOG.md` **on the release PR's branch**.
+   `CHANGELOG.md` **on the release PR's branch** (pull it first: the AutoPID
+   regeneration may have added a commit).
 
 4. **Merge the PR.** release-please then tags `vX.Y.Z` and publishes the GitHub
    Release automatically.
@@ -102,7 +109,8 @@ you do not know about it.
 |---|---|
 | `release-please-config.json` | how versions and changelog sections are computed |
 | `.release-please-manifest.json` | the last released version (`{".": "X.Y.Z"}`) |
-| `.github/workflows/release.yml` | opens/updates the release PR; tags and releases on merge |
+| `.github/workflows/release.yml` | opens/updates the release PR and regenerates its AutoPID JSON; tags and releases on merge |
+| `scripts/gen_autopid.py` | regenerates `profiles/*/out/` for every bundled profile and variant |
 
 Worth knowing before you change any of it:
 

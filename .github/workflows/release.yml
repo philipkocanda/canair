@@ -46,3 +46,56 @@ jobs:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+  # Keep the committed WiCAN AutoPID JSON (profiles/*/out/) in step with the
+  # definitions being released, by regenerating it on the open release PR's branch.
+  # Runs on every pass rather than only when release-please touched the PR: a
+  # hidden-type commit (chore, test…) can change ecus/ without updating the PR.
+  # release-please force-pushes its branch whenever the notes change, which drops
+  # this commit, but the same pass then regenerates it on the new head.
+  autopid:
+    needs: release-please
+    runs-on: ubuntu-latest
+    steps:
+      - name: Find the open release PR
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+        run: |
+          branch=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open \
+            --label "autorelease: pending" --json headRefName --jq '.[0].headRefName // ""')
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          [ -n "$branch" ] || echo "No open release PR; nothing to regenerate."
+
+      # The PAT again, so the regenerated commit triggers CI on the release PR.
+      - uses: actions/checkout@v7
+        if: steps.pr.outputs.branch != ''
+        with:
+          ref: ${{ steps.pr.outputs.branch }}
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+
+      - name: Install uv
+        if: steps.pr.outputs.branch != ''
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
+
+      - name: Regenerate the AutoPID profiles
+        if: steps.pr.outputs.branch != ''
+        run: |
+          uv python install 3.12
+          uv sync
+          uv run python scripts/gen_autopid.py
+
+      - name: Commit to the release PR
+        if: steps.pr.outputs.branch != ''
+        run: |
+          git add -A -- 'profiles/*/out'
+          if git diff --cached --quiet; then
+            echo "AutoPID profiles already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore(release): regenerate the WiCAN AutoPID profiles"
+          git push origin "HEAD:${{ steps.pr.outputs.branch }}"
