@@ -831,9 +831,11 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   `index.yaml`. Path accessors `Profile.signals_dir`/`.can_dir`/`.can_index_file`.
   **Storage/licensing:** a profile's **own** logs are committed in full — via **Git LFS** when large
   (`.gitattributes` tracks `*.blf`/`*.asc`/`*.trc` + `profiles/*/captures/can/**`;
-  `tests/fixtures/**` is excluded so the tiny excerpts stay plain diffable git). **Third-party**
-  logs only when their license permits redistribution; **unlicensed** corpora stay fetch-on-demand
-  in gitignored `references/can/` plus a minimal fair-use excerpt in `tests/fixtures/can/`. LFS is
+  `tests/fixtures/**` is excluded so the tiny excerpts stay plain diffable git, and so is
+  `captures/can/index.yaml`, which `validate can` must read in CI's pointer-only checkout).
+  **Third-party** logs only when their license permits redistribution; **unlicensed** corpora stay
+  fetch-on-demand in gitignored `references/can/` plus a minimal fair-use excerpt in
+  `tests/fixtures/can/`. LFS is
   storage only — it grants no redistribution right. Contributors need `git lfs install`. Full
   policy: `docs/concepts/broadcast-frames.md`.
 - **`profiles/<car>/references/`** — External reference material (other-vehicle logs, spreadsheets,

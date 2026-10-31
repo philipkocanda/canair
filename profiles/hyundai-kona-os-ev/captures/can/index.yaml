@@ -1,3 +1,338 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:f951bb62ed692e061e6d642809e28276806445b1e82d496088b2dfdf9bf1ac5b
-size 10633
+logs:
+- file: 221210-2-2021-dcan-car-scanner-elm327-vcu-mcu-only.csv
+  format: gvret
+  date: '2022-12-10'
+  source: https://github.com/projectgus/hyundai-kona-ev-can-logs (CC0), 221210-2-2021-dcan-car-scanner-elm327-vcu-mcu-only.csv
+  label: Car Scanner KWP/UDS DTC sweep, VCU+MCU only (D-CAN)
+  notes: '2021 Kona EV, D-CAN only. Car Scanner ELM OBD2 app running its Kona presets. Contains the tester side of KWP2000 session control (10 03 rejected NRC 12, 10 90 accepted on VCU 7E2), 20, 18 DTC-by-status and 19 02 requests to 7E2-7E5. Vehicle state not documented upstream. Imported 2026-10-30 to study HKMC KWP2000 conventions (see ioniq-2017 OBC research: KWP 30 LED hypothesis).'
+  frame_count: 638
+  id_set:
+  - '0x72D'
+  - '0x73B'
+  - '0x778'
+  - '0x788'
+  - '0x78B'
+  - '0x79E'
+  - '0x7A8'
+  - '0x7AD'
+  - '0x7BB'
+  - '0x7BF'
+  - '0x7CC'
+  - '0x7CE'
+  - '0x7DC'
+  - '0x7DF'
+  - '0x7E2'
+  - '0x7E3'
+  - '0x7E4'
+  - '0x7EA'
+  - '0x7EB'
+  - '0x7EC'
+  - '0x7ED'
+  bitrate: 500000
+- file: 221210-1-2021-dcan-car-scanner-elm327.csv
+  format: gvret
+  date: '2022-12-10'
+  source: https://github.com/projectgus/hyundai-kona-ev-can-logs (CC0), 221210-1-2021-dcan-car-scanner-elm327.csv
+  label: Car Scanner KWP/UDS DTC sweep, all ECUs (D-CAN)
+  notes: 2021 Kona EV, D-CAN only. Car Scanner ELM OBD2 app scanning every ECU with its Kona presets. Tester-side KWP2000 session control (10 03 rejected NRC 12 on VCU 7E2, 10 90 accepted, 20 stop), 18 DTC-by-status and 19 02 requests to 7E2-7E5. Vehicle state not documented upstream. Imported 2026-10-30 to study HKMC KWP2000 conventions.
+  frame_count: 1845
+  id_set:
+  - '0x725'
+  - '0x72D'
+  - '0x730'
+  - '0x73B'
+  - '0x73E'
+  - '0x740'
+  - '0x751'
+  - '0x752'
+  - '0x755'
+  - '0x757'
+  - '0x760'
+  - '0x770'
+  - '0x771'
+  - '0x776'
+  - '0x777'
+  - '0x778'
+  - '0x77E'
+  - '0x780'
+  - '0x783'
+  - '0x788'
+  - '0x78B'
+  - '0x791'
+  - '0x793'
+  - '0x794'
+  - '0x796'
+  - '0x79E'
+  - '0x7A0'
+  - '0x7A1'
+  - '0x7A2'
+  - '0x7A3'
+  - '0x7A4'
+  - '0x7A5'
+  - '0x7A6'
+  - '0x7A7'
+  - '0x7A8'
+  - '0x7AD'
+  - '0x7B1'
+  - '0x7B3'
+  - '0x7B6'
+  - '0x7B7'
+  - '0x7BB'
+  - '0x7BE'
+  - '0x7BF'
+  - '0x7C1'
+  - '0x7C4'
+  - '0x7C5'
+  - '0x7C6'
+  - '0x7C7'
+  - '0x7CC'
+  - '0x7CE'
+  - '0x7D0'
+  - '0x7D1'
+  - '0x7D2'
+  - '0x7D3'
+  - '0x7D4'
+  - '0x7D5'
+  - '0x7D6'
+  - '0x7D9'
+  - '0x7DA'
+  - '0x7DC'
+  - '0x7DF'
+  - '0x7E0'
+  - '0x7E1'
+  - '0x7E2'
+  - '0x7E3'
+  - '0x7E4'
+  - '0x7E5'
+  - '0x7E7'
+  - '0x7EA'
+  - '0x7EB'
+  - '0x7EC'
+  - '0x7ED'
+  bitrate: 500000
+- file: bms-idle-no-function.asc
+  format: asc
+  source: https://github.com/projectgus/hyundai-kona-ev-can-logs (CC0), bms_diagnostics/Idle log (no diagnostic function selected).asc
+  label: 'BMS diagnostic tool: idle, no function selected'
+  notes: Kona 2021 64 kWh battery pack on the bench, powered and on P-CAN only, no other components; logged from a community diagnostic tool talking to the BMU (tester 7E4, reply 7EC). UDS 2F F0xx 03 closes a contactor and 2F F0xx 00 releases it (F030 main relay -, F031 precharge, F036 quick-charger relays, F038 main relay +), with 3E 00 keepalives. Contributed by a user of Dala's EV Discord per the upstream README; unclear what safeguards the tool applies. Log date from the .asc header. Imported 2026-10-30 as a reference for UDS IOControl framing on an HKMC ECU.
+  frame_count: 543
+  id_set:
+  - '0x3F6'
+  - '0x491'
+  - '0x493'
+  - '0x497'
+  - '0x498'
+  - '0x4DD'
+  - '0x4DE'
+  - '0x4E2'
+  - '0x542'
+  - '0x594'
+  - '0x595'
+  - '0x596'
+  - '0x597'
+  - '0x598'
+  - '0x599'
+  - '0x59C'
+  - '0x59E'
+  - '0x5A3'
+  - '0x5D5'
+  - '0x5D6'
+  - '0x5D7'
+  - '0x5D8'
+  - '0x7E4'
+  - '0x7EC'
+  bitrate: 500000
+- file: bms-main-relay-minus-on.asc
+  format: asc
+  source: https://github.com/projectgus/hyundai-kona-ev-can-logs (CC0), bms_diagnostics/Main Relay (-) On.asc
+  label: 'BMS diagnostic tool: Main Relay (-) On'
+  notes: Kona 2021 64 kWh battery pack on the bench, powered and on P-CAN only, no other components; logged from a community diagnostic tool talking to the BMU (tester 7E4, reply 7EC). UDS 2F F0xx 03 closes a contactor and 2F F0xx 00 releases it (F030 main relay -, F031 precharge, F036 quick-charger relays, F038 main relay +), with 3E 00 keepalives. Contributed by a user of Dala's EV Discord per the upstream README; unclear what safeguards the tool applies. Log date from the .asc header. Imported 2026-10-30 as a reference for UDS IOControl framing on an HKMC ECU.
+  frame_count: 640
+  id_set:
+  - '0x3F6'
+  - '0x491'
+  - '0x493'
+  - '0x497'
+  - '0x498'
+  - '0x4DD'
+  - '0x4DE'
+  - '0x4E2'
+  - '0x542'
+  - '0x594'
+  - '0x595'
+  - '0x596'
+  - '0x597'
+  - '0x598'
+  - '0x599'
+  - '0x59C'
+  - '0x59E'
+  - '0x5A3'
+  - '0x5D5'
+  - '0x5D6'
+  - '0x5D7'
+  - '0x5D8'
+  - '0x7E4'
+  - '0x7EC'
+  bitrate: 500000
+- file: bms-main-relay-plus-on.asc
+  format: asc
+  source: https://github.com/projectgus/hyundai-kona-ev-can-logs (CC0), bms_diagnostics/Main Relay (+) On.asc
+  label: 'BMS diagnostic tool: Main Relay (+) On'
+  notes: Kona 2021 64 kWh battery pack on the bench, powered and on P-CAN only, no other components; logged from a community diagnostic tool talking to the BMU (tester 7E4, reply 7EC). UDS 2F F0xx 03 closes a contactor and 2F F0xx 00 releases it (F030 main relay -, F031 precharge, F036 quick-charger relays, F038 main relay +), with 3E 00 keepalives. Contributed by a user of Dala's EV Discord per the upstream README; unclear what safeguards the tool applies. Log date from the .asc header. Imported 2026-10-30 as a reference for UDS IOControl framing on an HKMC ECU.
+  frame_count: 738
+  id_set:
+  - '0x3F6'
+  - '0x491'
+  - '0x493'
+  - '0x497'
+  - '0x498'
+  - '0x4DD'
+  - '0x4DE'
+  - '0x4E2'
+  - '0x542'
+  - '0x594'
+  - '0x595'
+  - '0x596'
+  - '0x597'
+  - '0x598'
+  - '0x599'
+  - '0x59C'
+  - '0x59E'
+  - '0x5A3'
+  - '0x5D5'
+  - '0x5D6'
+  - '0x5D7'
+  - '0x5D8'
+  - '0x7E4'
+  - '0x7EC'
+  bitrate: 500000
+- file: bms-precharge-relay-on.asc
+  format: asc
+  source: https://github.com/projectgus/hyundai-kona-ev-can-logs (CC0), bms_diagnostics/Precharge relay (On).asc
+  label: 'BMS diagnostic tool: Precharge Relay On'
+  notes: Kona 2021 64 kWh battery pack on the bench, powered and on P-CAN only, no other components; logged from a community diagnostic tool talking to the BMU (tester 7E4, reply 7EC). UDS 2F F0xx 03 closes a contactor and 2F F0xx 00 releases it (F030 main relay -, F031 precharge, F036 quick-charger relays, F038 main relay +), with 3E 00 keepalives. Contributed by a user of Dala's EV Discord per the upstream README; unclear what safeguards the tool applies. Log date from the .asc header. Imported 2026-10-30 as a reference for UDS IOControl framing on an HKMC ECU.
+  frame_count: 879
+  id_set:
+  - '0x3F6'
+  - '0x491'
+  - '0x493'
+  - '0x497'
+  - '0x498'
+  - '0x4DD'
+  - '0x4DE'
+  - '0x4E2'
+  - '0x542'
+  - '0x594'
+  - '0x595'
+  - '0x596'
+  - '0x597'
+  - '0x598'
+  - '0x599'
+  - '0x59C'
+  - '0x59E'
+  - '0x5A3'
+  - '0x5D5'
+  - '0x5D6'
+  - '0x5D7'
+  - '0x5D8'
+  - '0x7E4'
+  - '0x7EC'
+  bitrate: 500000
+- file: bms-quick-charger-relays-on.asc
+  format: asc
+  source: https://github.com/projectgus/hyundai-kona-ev-can-logs (CC0), bms_diagnostics/Quick charger relay (-)(+) ON simultaneous.asc
+  label: 'BMS diagnostic tool: Quick charger relays (-)(+) On simultaneously'
+  notes: Kona 2021 64 kWh battery pack on the bench, powered and on P-CAN only, no other components; logged from a community diagnostic tool talking to the BMU (tester 7E4, reply 7EC). UDS 2F F0xx 03 closes a contactor and 2F F0xx 00 releases it (F030 main relay -, F031 precharge, F036 quick-charger relays, F038 main relay +), with 3E 00 keepalives. Contributed by a user of Dala's EV Discord per the upstream README; unclear what safeguards the tool applies. Log date from the .asc header. Imported 2026-10-30 as a reference for UDS IOControl framing on an HKMC ECU.
+  frame_count: 838
+  id_set:
+  - '0x3F6'
+  - '0x491'
+  - '0x493'
+  - '0x497'
+  - '0x498'
+  - '0x4DD'
+  - '0x4DE'
+  - '0x4E2'
+  - '0x542'
+  - '0x594'
+  - '0x595'
+  - '0x596'
+  - '0x597'
+  - '0x598'
+  - '0x599'
+  - '0x59C'
+  - '0x59E'
+  - '0x5A3'
+  - '0x5D5'
+  - '0x5D6'
+  - '0x5D7'
+  - '0x5D8'
+  - '0x7E4'
+  - '0x7EC'
+  bitrate: 500000
+- file: bms-normal-sequence-precharge-main-on.asc
+  format: asc
+  source: https://github.com/projectgus/hyundai-kona-ev-can-logs (CC0), bms_diagnostics/Normal sequence) Precharge Relay ON, Main Relay (-), (+) ON  (no response yet of contactors).asc
+  label: 'BMS diagnostic tool: normal sequence, precharge then main relays On'
+  notes: Kona 2021 64 kWh battery pack on the bench, powered and on P-CAN only, no other components; logged from a community diagnostic tool talking to the BMU (tester 7E4, reply 7EC). UDS 2F F0xx 03 closes a contactor and 2F F0xx 00 releases it (F030 main relay -, F031 precharge, F036 quick-charger relays, F038 main relay +), with 3E 00 keepalives. Contributed by a user of Dala's EV Discord per the upstream README; unclear what safeguards the tool applies. Log date from the .asc header. Imported 2026-10-30 as a reference for UDS IOControl framing on an HKMC ECU.
+  frame_count: 857
+  id_set:
+  - '0x3F6'
+  - '0x491'
+  - '0x493'
+  - '0x497'
+  - '0x498'
+  - '0x4DD'
+  - '0x4DE'
+  - '0x4E2'
+  - '0x542'
+  - '0x594'
+  - '0x595'
+  - '0x596'
+  - '0x597'
+  - '0x598'
+  - '0x599'
+  - '0x59C'
+  - '0x59E'
+  - '0x5A3'
+  - '0x5D5'
+  - '0x5D6'
+  - '0x5D7'
+  - '0x5D8'
+  - '0x7E4'
+  - '0x7EC'
+  bitrate: 500000
+- file: bms-precharge-sequence-start-stop.asc
+  format: asc
+  source: https://github.com/projectgus/hyundai-kona-ev-can-logs (CC0), bms_diagnostics/Start and stop of the Main Relay (-), Precharge Relay, Simultaneously On (Precharge Sequence).asc
+  label: 'BMS diagnostic tool: precharge sequence, start and stop'
+  notes: Kona 2021 64 kWh battery pack on the bench, powered and on P-CAN only, no other components; logged from a community diagnostic tool talking to the BMU (tester 7E4, reply 7EC). UDS 2F F0xx 03 closes a contactor and 2F F0xx 00 releases it (F030 main relay -, F031 precharge, F036 quick-charger relays, F038 main relay +), with 3E 00 keepalives. Contributed by a user of Dala's EV Discord per the upstream README; unclear what safeguards the tool applies. Log date from the .asc header. Imported 2026-10-30 as a reference for UDS IOControl framing on an HKMC ECU.
+  frame_count: 720
+  id_set:
+  - '0x0'
+  - '0x3F6'
+  - '0x491'
+  - '0x493'
+  - '0x497'
+  - '0x498'
+  - '0x4DD'
+  - '0x4DE'
+  - '0x4E2'
+  - '0x542'
+  - '0x594'
+  - '0x595'
+  - '0x596'
+  - '0x597'
+  - '0x598'
+  - '0x599'
+  - '0x59C'
+  - '0x59E'
+  - '0x5A3'
+  - '0x5D5'
+  - '0x5D6'
+  - '0x5D7'
+  - '0x5D8'
+  - '0x7DF'
+  - '0x7E4'
+  - '0x7EC'
+  bitrate: 500000

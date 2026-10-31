@@ -19,6 +19,9 @@
 
 # A profile's own raw-CAN capture store (any format, incl. large .csv logs)
 profiles/*/captures/can/** filter=lfs diff=lfs merge=lfs -text
+# ...except its index: small YAML metadata that `canair validate can` reads, so it must
+# be real content in a checkout without LFS objects (CI's default checkout).
+profiles/*/captures/can/index.yaml !filter !diff !merge text=auto
 
 # Diagnostic capture files (captures/YYYY-MM-DD.json) are append-only session
 # logs — two machines routinely both append on the same day, which git's

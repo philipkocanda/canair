@@ -9,6 +9,9 @@ from canlib import yaml_io
 
 from ._common import CAN_INDEX_SCHEMA_FILE, duplicate_key_errors
 
+# First line of the pointer file a checkout without the LFS object holds in place of the content.
+LFS_POINTER_PREFIX = "version https://git-lfs.github.com/spec/v1"
+
 
 def _state_reference_errors(predicates: list[tuple[str, str]]) -> tuple[list[str], str | None]:
     """Cross-reference each ``when:`` predicate's ECU.PARAM refs against the registry.
@@ -435,6 +438,13 @@ def _run_can() -> int:
     Draft202012Validator.check_schema(schema)
     validator = Draft202012Validator(schema)
     text = path.read_text()
+    if text.startswith(LFS_POINTER_PREFIX):
+        print(
+            "captures/can/index.yaml: 1 errors\n"
+            "  - is a Git LFS pointer, not the index — run `git lfs pull`, and keep the index "
+            "out of LFS (.gitattributes)"
+        )
+        return 1
     data = yaml_io.safe_load(text) or {}
     schema_errors = sorted(validator.iter_errors(data), key=lambda e: list(e.path))
     errors = duplicate_key_errors(text) + [

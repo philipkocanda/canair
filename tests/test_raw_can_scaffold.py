@@ -8,6 +8,9 @@ plans/2026-07-24-raw-can-analysis.md.
 from __future__ import annotations
 
 import argparse
+import shutil
+import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -145,6 +148,33 @@ class TestValidateCan:
             "logs:\n  - file: x.blf\n    format: blf\n    id_set: ['220']\n"  # not 0x-prefixed
         )
         assert validate._run_can() == 1
+
+    def test_lfs_pointer_is_named(self, temp_profile, capsys):
+        can = temp_profile / "captures" / "can"
+        can.mkdir(parents=True)
+        (can / "index.yaml").write_text(
+            "version https://git-lfs.github.com/spec/v1\noid sha256:f951bb\nsize 10633\n"
+        )
+        assert validate._run_can() == 1
+        assert "Git LFS pointer" in capsys.readouterr().out
+
+
+def test_bundled_can_indexes_are_not_lfs_tracked():
+    """CI checks out LFS pointers only, so an LFS-tracked index fails `validate can` there."""
+    repo = Path(__file__).resolve().parents[1]
+    if shutil.which("git") is None or not (repo / ".git").exists():
+        pytest.skip("not a git checkout")
+    indexes = sorted(repo.glob("profiles/*/captures/can/index.yaml"))
+    if not indexes:
+        pytest.skip("no bundled raw-CAN index")
+    out = subprocess.run(
+        ["git", "check-attr", "filter", "--", *(str(p.relative_to(repo)) for p in indexes)],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    assert ": filter: lfs" not in out, out
 
 
 # ── validate parser wiring ────────────────────────────────────────────────

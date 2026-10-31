@@ -184,7 +184,8 @@ so the repository history stays small. The tracking rules live in
 `.gitattributes`:
 
 - `*.blf`, `*.asc`, `*.trc` and everything under `profiles/*/captures/can/**`
-  are stored in LFS.
+  are stored in LFS — except `captures/can/index.yaml`, which stays plain git so
+  `canair validate can` can read it in a checkout without the LFS objects (CI).
 - the tiny `tests/fixtures/**` excerpts are explicitly kept in **plain git** so
   they stay diffable and inspectable.
 
