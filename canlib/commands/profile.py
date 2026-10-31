@@ -75,7 +75,8 @@ examples:
         help="Set the default profile, and which of its variants your car is",
         description="Set NAME as the default profile (default_profile in the user config) "
         "and, with --variant, which of its variants your car is "
-        "(profile_settings.NAME.variant, remembered per profile). On a terminal, a profile "
+        "(profile_settings.NAME.variant, remembered per profile), and with --pin, which "
+        "revision an ECU of it is. On a terminal, a profile "
         "with several variants and no --variant opens a picker. The name must be a "
         "discovered profile; an old, renamed name is accepted and saved as the current one.",
     )
@@ -85,6 +86,15 @@ examples:
         dest="use_variant",
         metavar="ID",
         help="The variant your car is (a variants.yaml ID), remembered for this profile",
+    )
+    use.add_argument(
+        "--pin",
+        dest="pins",
+        action="append",
+        metavar="ECU=ID",
+        help="Which revision an ECU of your car is (one of its revisions: IDs), remembered "
+        "for this profile (profile_settings.NAME.revisions). Repeat for several ECUs. For "
+        "when canair cannot tell on its own; overridden for one command by --revision",
     )
     use.set_defaults(_profile_func=_cmd_use)
 
@@ -397,6 +407,11 @@ def _cmd_show(args) -> int:
         print(
             f"variant:    {prof.variant}  (from {_VARIANT_SOURCE[prof.variant_source or 'only']})"
         )
+    from canlib.pids import revision_resolutions
+    from canlib.variants.revisions import describe_resolution
+
+    for name, res in revision_resolutions(prof).items():
+        print(f"revision:   {name} {describe_resolution(res)}")
     print(f"init:       {meta.get('init', '?')}")
 
     for member in BUNDLE_MEMBERS:
@@ -439,18 +454,53 @@ def _cmd_use(args) -> int:
         avail = ", ".join(profiles) or "none"
         print(f"error: profile '{name}' not found. Available: {avail}.", file=sys.stderr)
         return 1
-    path = set_config_value("default_profile", name)
-    print(f"default_profile = {name}")
     variant = _choose_variant(name, profiles_dir, getattr(args, "use_variant", None))
     if variant == "":
         return 2
-    if variant:
-        from canlib.config import set_config_key
+    # Checked before anything is written, so a bad pin leaves the config as it was.
+    pins = _checked_pins(name, profiles_dir, variant, getattr(args, "pins", None) or [])
+    if pins is None:
+        return 2
+    from canlib.config import set_config_key
 
+    path = set_config_value("default_profile", name)
+    print(f"default_profile = {name}")
+    if variant:
         set_config_key(f"profile_settings.{name}.variant", variant)
         print(f"profile_settings.{name}.variant = {variant}")
+    for ecu, rid in pins:
+        set_config_key(f"profile_settings.{name}.revisions.{ecu}", rid)
+        print(f"profile_settings.{name}.revisions.{ecu} = {rid}")
     print(f"Saved to {path}")
     return 0
+
+
+def _checked_pins(
+    name: str, profiles_dir, variant: str | None, texts: list[str]
+) -> list[tuple[str, str]] | None:
+    """``--pin ECU=ID`` values checked against the profile, or None after reporting one.
+
+    Each must name an ECU that declares the revision, and one the chosen car (the variant
+    being set, else the one remembered) can carry.
+    """
+    if not texts:
+        return []
+    from canlib.pids import load_raw_pids
+    from canlib.variants import VariantsError, load_variants
+    from canlib.variants.revisions import RevisionError, canonical_ecu, parse_pin, resolve
+    from canlib.variants.selection import configured_variant
+
+    try:
+        prof = resolve_profile(name, profiles_dir)
+        ecus = load_raw_pids(prof).get("ecus") or {}
+        vid = variant or configured_variant(prof)
+        car = load_variants(prof).get(vid) if vid else None
+        pins = [parse_pin(t) for t in texts]
+        resolve(ecus, car, [(e, r, "flag") for e, r in pins])
+    except (ProfileError, VariantsError, RevisionError) as e:
+        print(f"error: --pin: {e}", file=sys.stderr)
+        return None
+    return [(canonical_ecu(e, ecus) or e, r) for e, r in pins]
 
 
 def _choose_variant(name: str, profiles_dir, requested: str | None) -> str | None:

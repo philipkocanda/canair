@@ -1,0 +1,42 @@
+# Two revisions: a running change from KWP2000 to UDS. The 40 kWh car only ever had the
+# KWP2000 one; the 60 kWh car may have either, so its VCU is pinned or undetermined.
+VCU:
+  tx_id: 0x7E2
+  identity:
+    description: 'Synthetic VCU with a protocol change'
+    id_protocol: KWP2000
+  revisions:
+    kwp:
+      identity: {id_protocol: KWP2000}
+      fingerprints:
+        - {responds: "1A90"}
+    uds:
+      identity: {id_protocol: UDS}
+      response_timeout_ms: 300
+      fingerprints:
+        - {responds: "22F187"}
+  pids:
+    "2101":
+      status: active
+      revisions: [kwp]
+      parameters:
+        VEHICLE_SPEED:
+          expression: B4
+          unit: km/h
+          verified: true
+    "22E001":
+      status: active
+      revisions: [uds]
+      parameters:
+        VEHICLE_SPEED:
+          expression: B6
+          unit: km/h
+    "21F0":
+      status: active
+      notes: Answered by both revisions; one signal only by the UDS one.
+      parameters:
+        GEAR:
+          expression: B4
+        DRIVE_MODE:
+          expression: B5
+          revisions: [uds]

@@ -1,7 +1,8 @@
 """Renaming or removing a variant, with everything that refers to it.
 
-A variant ID is written into the history: capture sessions' ``variant`` tags, the
-raw-CAN log index and DTC-log entries. Renaming one in ``variants.yaml`` alone would
+A variant ID is written into the history — capture sessions' ``variant`` tags, the
+raw-CAN log index and DTC-log entries — and into the ECU files that are fitted only to
+some variants (``variants:``). Renaming one in ``variants.yaml`` alone would
 leave all of that naming a car the profile no longer declares, so a rename rewrites
 every reference with it, all or nothing; a removal is refused while anything still
 refers to the variant. Like ``states rename``, it touches only the profile's own
@@ -29,13 +30,17 @@ class References:
     captures: dict[Path, int]
     can_index: int
     dtc_log: int
+    # ECUs whose `variants:` (presence) list names it.
+    ecus: tuple[str, ...] = ()
 
     @property
     def total(self) -> int:
-        return sum(self.captures.values()) + self.can_index + self.dtc_log
+        return sum(self.captures.values()) + self.can_index + self.dtc_log + len(self.ecus)
 
     def describe(self) -> str:
         parts = []
+        if self.ecus:
+            parts.append(f"the variants: list of ECU(s) {', '.join(self.ecus)}")
         if self.captures:
             parts.append(
                 f"{sum(self.captures.values())} capture session(s) in {len(self.captures)} file(s)"
@@ -74,7 +79,16 @@ def find_references(profile: Profile, variant_id: str) -> References:
         for e in _entries(profile.dtc_log_file, section)
         if isinstance(e, dict) and e.get("variant") == vid
     )
-    return References(captures, can_index, dtc_log)
+    return References(captures, can_index, dtc_log, _fitted_ecus(profile, vid))
+
+
+def _fitted_ecus(profile: Profile, vid: str) -> tuple[str, ...]:
+    """ECUs whose ``variants:`` names ``vid``."""
+    from canlib.pids import load_raw_pids
+    from canlib.variants.revisions import presence
+
+    ecus = load_raw_pids(profile).get("ecus") or {}
+    return tuple(name for name, d in ecus.items() if vid in (presence(d) or ()))
 
 
 def _retag_yaml(path: Path, sections: tuple[str, ...], old: str, new: str) -> str | None:
@@ -144,14 +158,37 @@ def rename_everywhere(old: str, new: str, profile: Profile) -> tuple[Path, list[
     Returns ``variants.yaml`` and the history files rewritten. If rewriting the
     history fails, ``variants.yaml`` is restored, so the two never disagree.
     """
+    from canlib.ecus.revisions_edit import set_ecu_variants
+    from canlib.pids import load_raw_pids
     from canlib.variants.edit import rename_variant
+    from canlib.variants.revisions import presence
 
+    old_id, new_id = normalize_variant_id(old), normalize_variant_id(new)
+    fitted = {
+        name: presence(d)
+        for name, d in (load_raw_pids(profile).get("ecus") or {}).items()
+        if old_id in (presence(d) or ())
+    }
     original = profile.variants_file.read_text()
     path = rename_variant(old, new, profile=profile)
+    ecu_files: dict[Path, str] = {}
     try:
-        written = retag_history(profile, old, new)
+        for name, ids in fitted.items():
+            from canlib.ecus.files import find_by_name
+
+            fpath = find_by_name(name, profile.ecus_dir)
+            if fpath is not None:
+                ecu_files.setdefault(fpath, fpath.read_text())
+            renamed = [new_id if v == old_id else v for v in ids or ()]
+            set_ecu_variants(name, renamed, profile=profile)
+        written = [*ecu_files, *retag_history(profile, old, new)]
     except Exception:
         profile.variants_file.write_text(original)
+        for fpath, text in ecu_files.items():
+            fpath.write_text(text)
+        from canlib.pids import clear_cache
+
+        clear_cache()
         raise
     return path, written
 
@@ -164,7 +201,7 @@ def remove_unreferenced(variant_id: str, profile: Profile) -> Path:
     if refs.total:
         raise VariantsEditError(
             f"variant {normalize_variant_id(variant_id)!r} is still used by {refs.describe()}. "
-            "Retag them first (`canair captures uds --set-variant`), or rename the variant "
-            "instead of removing it."
+            "Retag them first (`canair captures uds --set-variant` for sessions, `canair ecu "
+            "set-variants` for ECUs), or rename the variant instead of removing it."
         )
     return remove_variant(variant_id, profile=profile)

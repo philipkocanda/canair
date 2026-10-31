@@ -119,7 +119,12 @@ def _run_single(ecu: str, pid: str, args, since, until, fill) -> int:
     from canlib.pids import build_ecu_index, load_pids
 
     loaded = load_signal_captures(
-        [(ecu, pid)], since=since, until=until, state=args.state, label=args.label
+        [(ecu, pid)],
+        since=since,
+        until=until,
+        state=args.state,
+        label=args.label,
+        one_revision="investigate",
     )
     lp = loaded[(ecu.upper(), pid)]
     if not lp.captures:

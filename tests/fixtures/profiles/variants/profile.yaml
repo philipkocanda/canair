@@ -1,0 +1,5 @@
+# Variants fixture (synthetic): two cars, an ECU with two revisions, an ECU only one car
+# has. The regression fixture for profile variants and ECU revisions
+# (plans/2026-10-30-profile-variants-5-ecu-revisions.md). Never recorded into.
+car_model: "Variants fixture (synthetic)"
+init: "ATSP6;ATS0;ATAL;"

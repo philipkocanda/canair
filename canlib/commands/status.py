@@ -151,6 +151,9 @@ def _gather(args) -> dict:
 
     # Active vehicle profile.
     try:
+        from canlib.pids import revision_resolutions
+        from canlib.variants import load_variants
+
         from ..profile import active
 
         prof = active()
@@ -159,9 +162,11 @@ def _gather(args) -> dict:
             "root": str(prof.root),
             "variant": prof.variant,
             "variant_source": prof.variant_source,
+            "revisions": {
+                name: {"revision": r.revision, "source": r.source, "possible": list(r.possible)}
+                for name, r in revision_resolutions(prof).items()
+            },
         }
-        from canlib.variants import load_variants
-
         if prof.variant is None and len(load_variants(prof)) > 1:
             info["warnings"].append(
                 f"no variant selected for {prof.name}: live commands will refuse — pick yours "
@@ -405,6 +410,11 @@ def _render(info: dict) -> None:
             c.print(
                 f"  [bold]Variant[/bold]    {p['variant']}  [dim](from {p['variant_source']})[/dim]"
             )
+        from canlib.variants.revisions import Resolution, describe_resolution
+
+        for name, r in (p.get("revisions") or {}).items():
+            res = Resolution(name, r["revision"], r["source"], tuple(r["possible"]))
+            c.print(f"  [bold]Revision[/bold]   {name} {describe_resolution(res)}")
 
     d = info.get("device")
     fw = info.get("firmware") or {}

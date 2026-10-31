@@ -217,6 +217,7 @@ def flatten_session(
                 "states_resolved": resolved,
                 "session_notes": session_notes,
                 "session_variant": str(session.get("variant") or ""),
+                "session_revisions": variant_tags.session_revisions(session),
                 "keep_mode": keep_mode,
                 "transport": transport,
                 "quality": quality,
@@ -301,6 +302,7 @@ def load_all_captures(captures_dir: Path | None = None) -> list[CaptureEntry]:
     rx_index = _rx_index()
     layers = capture_io.resolve_capture_layers(captures_dir)
     scope, several = _variant_scope() if captures_dir is None else (SCOPE_ALL, False)
+    resolved = _revision_scope() if captures_dir is None else {}
     untagged = 0
 
     stored: list[tuple[int, Path, int, Mapping[str, Any]]] = []
@@ -315,7 +317,9 @@ def load_all_captures(captures_dir: Path | None = None) -> list[CaptureEntry]:
             for s_idx, session in enumerate(data["sessions"]):
                 if several and variant_tags.session_variant(session) is None:
                     untagged += 1
-                if variant_tags.in_scope(session, scope, several=several):
+                if variant_tags.in_scope(
+                    session, scope, several=several
+                ) and variant_tags.revisions_in_scope(session, resolved):
                     stored.append((li, fpath, s_idx, session))
     if untagged and scope not in (SCOPE_ALL, SCOPE_UNTAGGED):
         _note_untagged(untagged, scope)
@@ -352,6 +356,16 @@ def _variant_scope() -> tuple[str | None, bool]:
         return prof.variant, len(load_variants(prof)) > 1
     except (ProfileError, VariantsError):
         return SCOPE_ALL, False
+
+
+def _revision_scope() -> dict[str, str]:
+    """The active profile's determined ECU revisions (ECU -> revision)."""
+    from canlib.profile import ProfileError, active
+
+    try:
+        return active().revisions
+    except ProfileError:
+        return {}
 
 
 _noted_untagged: set[str | None] = set()
@@ -449,6 +463,7 @@ def load_pid_captures(ecu: str, pid: str) -> list[dict]:
                 "keep_mode": e.get("keep_mode", ""),
                 "_path": e.get("_path", ""),
                 "_session_idx": e.get("_session_idx", 0),
+                "session_revisions": e.get("session_revisions") or {},
             }
         )
     return entries

@@ -4,21 +4,23 @@
 
 ```
 usage: canair variants [-h] [--json]
-                       {list,show,add,set-meta,unset-meta,rename,rm} ...
+                       {list,show,add,set-meta,unset-meta,set-revisions,rename,rm}
+                       ...
 
-List the variants of the active profile's car — the versions an owner can name, such as a battery size or a facelift — or edit them (add/set-meta/unset-meta/rename/rm). Variants carry metadata only so far.
+List the variants of the active profile's car — the versions an owner can name, such as a battery size or a facelift — or edit them (add/set-meta/unset-meta/set-revisions/rename/rm). A variant can limit which ECU revisions its car carries and override some profile.yaml settings.
 
 positional arguments:
-  {list,show,add,set-meta,unset-meta,rename,rm}
+  {list,show,add,set-meta,unset-meta,set-revisions,rename,rm}
     list                List the variants (default)
     show                Show one variant's metadata
     add                 Add a variant
     set-meta            Set metadata fields on a variant
     unset-meta          Remove metadata fields from a variant
-    rename              Change a variant's ID, retagging the captures and logs
-                        that use it
-    rm                  Remove a variant (refused while captures or logs use
-                        it)
+    set-revisions       Say which revisions of an ECU this car can carry
+    rename              Change a variant's ID, retagging the captures, logs
+                        and ECU files that use it
+    rm                  Remove a variant (refused while captures, logs or ECU
+                        files use it)
 
 options:
   -h, --help            show this help message and exit
@@ -30,6 +32,8 @@ options:
       production=2019-06,2022 battery.usable_kwh=38.3 status=seed
   canair variants set-meta 28kwh model_code=AEEV markets=EU,US,KR
   canair variants unset-meta 28kwh trims
+  canair variants set-meta 38kwh profile_overrides.car_model="Ioniq Electric 38 kWh"
+  canair variants set-revisions 38kwh BMS uds        # the 38 kWh car's BMS is the UDS one
   canair variants rename 28kwh 28kwh-eu
   canair variants rm 38kwh
 ```
@@ -97,6 +101,26 @@ positional arguments:
 
 options:
   -h, --help  show this help message and exit
+```
+
+## `canair variants set-revisions`
+
+```
+usage: canair variants set-revisions [-h] [--clear] id ECU [REVISION ...]
+
+Record which of an ECU's revisions (its revisions: IDs in ecus/) a variant's
+car can carry. One revision: that ECU is determined for the car. Several: a
+running change, so the ECU decides (pin it with `profile use --pin`). --clear:
+any of them (the default).
+
+positional arguments:
+  id          Variant ID
+  ECU
+  REVISION    Revision IDs (or a comma list)
+
+options:
+  -h, --help  show this help message and exit
+  --clear     Any of the ECU's revisions
 ```
 
 ## `canair variants rename`

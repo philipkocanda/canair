@@ -3,9 +3,8 @@
 #
 # A profile describes one model generation with one drivetrain. A variant is a version
 # of that car the owner can name — a battery size, a facelift, a market with different
-# diagnostics. This file gives each variant a stable ID and typed metadata. It is
-# metadata only so far: nothing selects a variant or gates a definition on one yet
-# (plans/2026-10-30-profile-variants-and-rename.md describes what follows).
+# diagnostics. This file gives each variant a stable ID and typed metadata, says which
+# ECU revisions that car can carry, and which profile.yaml settings differ for it.
 # Edit with `canair variants`, never by hand.
 #
 # Top-level structure:
@@ -27,15 +26,22 @@
 #         chemistry: str          #   e.g. Li-polymer, NMC, LFP
 #         cooling: str            #   e.g. air, liquid
 #       trims: [str, ...]         # optional — informational only, never a variant
+#       revisions:                # optional — ECU name -> the revisions of that ECU (its
+#         BMS: [kwp]              #   ecus/ file's revisions: keys) this car can carry; an
+#                                 #   unlisted ECU may be any of its revisions
+#       profile_overrides:        # optional — profile.yaml settings that differ for this
+#         <setting>: value        #   car, replaced whole: car_model, physical_bands,
+#                                 #   response_timeout_ms, init, multi_did_max, quirks
 #       status: str               # optional — verified | community | seed
 #       sources: [str, ...]       # optional — where each fact came from
 #       notes: str                # optional
 #
 # A battery-named ID (28kwh) must agree with the battery it states: usable_kwh when
-# given, else gross_kwh, compared by whole kWh. `revisions` and `profile_overrides` are
-# reserved for later stages and rejected until something reads them.
+# given, else gross_kwh, compared by whole kWh. Every ECU and revision a variant's
+# `revisions:` names must exist in ecus/ (`canair validate variants`).
 # Validated by `canair validate variants` (canlib/variants/__init__.py::check_variants_doc,
-# whose VARIANT_FIELDS and BATTERY_FIELDS are the authoritative field lists;
+# whose VARIANT_FIELDS, BATTERY_FIELDS and PROFILE_OVERRIDE_FIELDS are the authoritative
+# field lists;
 # tests/test_variants.py pins this file to them).
 
 variant_id_pattern: "^[a-z0-9]+(-[a-z0-9]+)*$"
@@ -52,6 +58,8 @@ optional_variant_fields:
   - markets
   - battery
   - trims
+  - revisions
+  - profile_overrides
   - status
   - sources
   - notes
@@ -68,6 +76,10 @@ valid_statuses:
   - community
   - seed
 
-reserved_variant_fields:
-  - revisions
-  - profile_overrides
+profile_override_fields:
+  - car_model
+  - physical_bands
+  - response_timeout_ms
+  - init
+  - multi_did_max
+  - quirks

@@ -24,6 +24,7 @@ import os
 from typing import TYPE_CHECKING, Literal
 
 from canlib.variants import Variant, VariantsError, describe, load_variants, normalize_variant_id
+from canlib.variants.revisions import PinSource
 from canlib.variants.tags import SCOPES, selected_variant
 
 if TYPE_CHECKING:
@@ -64,12 +65,57 @@ def alias_variant(profile: Profile) -> str | None:
     return str(value) if value else None
 
 
-def apply_variant(profile: Profile, flag: str | None = None) -> Profile:
-    """``profile`` with its selected variant applied (see the module docstring).
+def configured_pins(profile: Profile) -> dict[str, str]:
+    """The ECU revisions pinned for ``profile`` in the user config (ECU -> revision)."""
+    from canlib.config import load_config
 
-    Raises :class:`~canlib.profile.ProfileError` when a selection names a variant the
-    profile does not declare.
+    settings = load_config().get("profile_settings")
+    entry = settings.get(profile.name) if isinstance(settings, dict) else None
+    pins = entry.get("revisions") if isinstance(entry, dict) else None
+    if not isinstance(pins, dict):
+        return {}
+    return {str(ecu): str(rid).strip().lower() for ecu, rid in pins.items() if rid}
+
+
+def _revision_pins(profile: Profile, flags) -> tuple[tuple[str, str, PinSource], ...]:
+    """Every revision pin for ``profile``: the ``--revision`` flags, then the config's.
+
+    Only the shape is checked here; whether each names a real ECU and revision is
+    checked when the definitions are resolved (that needs the ECU files).
     """
+    from canlib.profile import ProfileError
+    from canlib.variants.revisions import RevisionError, parse_pin
+
+    pins: list[tuple[str, str, PinSource]] = []
+    for text in flags or ():
+        try:
+            ecu, rid = parse_pin(text)
+        except RevisionError as e:
+            raise ProfileError(f"--revision: {e}") from None
+        pins.append((ecu, rid, "flag"))
+    flagged = {ecu.upper() for ecu, _, _ in pins}
+    pins += [
+        (ecu, rid, "config")
+        for ecu, rid in configured_pins(profile).items()
+        if ecu.upper() not in flagged
+    ]
+    return tuple(pins)
+
+
+def apply_variant(profile: Profile, flag: str | None = None, revisions=None) -> Profile:
+    """``profile`` with its selected variant and revision pins applied (see the docstring).
+
+    ``revisions`` are the ``--revision ECU=ID`` flags. Raises
+    :class:`~canlib.profile.ProfileError` when a selection names a variant the profile
+    does not declare, or a pin is malformed.
+    """
+    pins = _revision_pins(profile, revisions)
+    if pins:
+        profile = dataclasses.replace(profile, revision_pins=pins)
+    return _apply_variant(profile, flag)
+
+
+def _apply_variant(profile: Profile, flag: str | None) -> Profile:
     from canlib.profile import ProfileError
 
     candidates: list[tuple[str | None, VariantSource]] = [
@@ -143,10 +189,20 @@ def require_named_car(profile: Profile, what: str) -> str | None:
     Imported data comes from someone else's car, so on a profile with more than one
     variant it must say which on the command line (the global ``--variant``) — never
     by a default meant for the user's own car (``CANAIR_VARIANT``, the config, an
-    alias). Returns the variant, or the selection (possibly None) when the profile has
-    at most one variant.
+    alias). For the same reason, revisions pinned in the config are dropped from the
+    active profile: only ``--revision`` (or the only possible revision) tags an import.
+    Returns the variant, or the selection (possibly None) when the profile has at most
+    one variant.
     """
+    from canlib import profile as profile_mod
     from canlib.profile import ProfileError
+
+    if any(src == "config" for *_, src in profile.revision_pins):
+        flagged = tuple(p for p in profile.revision_pins if p[2] == "flag")
+        stripped = dataclasses.replace(profile, revision_pins=flagged)
+        if profile_mod._active == profile:
+            profile_mod.replace_active(stripped)
+        profile = stripped
 
     declared = _declared(profile)
     if len(declared) < 2:

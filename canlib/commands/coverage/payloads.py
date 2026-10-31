@@ -226,10 +226,14 @@ def load_coverage_captures(
     """:func:`select_captures` over the active profile's captures, in scope."""
     from canlib.captures.dates import filter_by_date_range, filter_by_text
     from canlib.captures.store import load_all_captures
+    from canlib.variants.tags import require_one_revision
 
-    entries = filter_by_date_range(load_all_captures(), since, until)
+    entries = filter_by_text(
+        filter_by_date_range(load_all_captures(), since, until), state=state, label=label
+    )
+    require_one_revision(entries, None, "coverage")
     return select_captures(
-        filter_by_text(entries, state=state, label=label),
+        entries,
         variable_length=variable_length,
         hk_f1xx_offset=hk_f1xx_offset,
     )

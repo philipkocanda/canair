@@ -10,8 +10,9 @@ renaming a signal once silently disabled a state, with every validator green.
 This module is the seam between the state vocabulary and the ``ecus/`` registry.
 It answers two questions:
 
-* :func:`check_references` — which references cannot resolve, and why
-  (``canair validate states``).
+* :func:`check_references` — which references cannot resolve, and why;
+  :func:`check_references_on_every_car` asks it of every variant and ECU revision the
+  profile describes (``canair validate states``).
 * :func:`states_referencing` — which states read a given signal, so renaming or
   removing it can warn about the predicates it breaks (``canair pids
   rename-param`` / ``rm-param``).
@@ -188,6 +189,44 @@ def check_references(
                 kind, message = found
                 issues.append(StateRefIssue(state=state, ref=ref, kind=kind, message=message))
     return issues
+
+
+def check_references_on_every_car(
+    predicates: Iterable[tuple[str, str]], profile=None
+) -> list[StateRefIssue]:
+    """:func:`check_references` on every car the profile describes.
+
+    A profile whose ECUs declare revisions (or are fitted only to some variants) has
+    one registry per reachable variant × revision combination, and a predicate must
+    resolve on each, or its state goes dark on that car alone while every other check
+    is green. An issue found on some combinations names them in its message. Without
+    such ECUs this is exactly :func:`check_references` on the definitions as written.
+    """
+    from canlib.pids import load_raw_pids
+    from canlib.variants import load_variants
+    from canlib.variants.revisions import definitions_for, has_gates, reachable_combinations
+
+    predicates = list(predicates)
+    raw = load_raw_pids(profile)
+    ecus = raw.get("ecus") or {}
+    if not has_gates(ecus):
+        return check_references(predicates, raw)
+    variants = load_variants(profile)
+    found: dict[tuple[str, str, str, str], list[str]] = {}
+    for vid, revisions in reachable_combinations(ecus, variants):
+        car = variants.get(vid) if vid else None
+        defs = {**raw, "ecus": definitions_for(ecus, car, revisions)}
+        where = ", ".join(
+            [*([f"variant {vid}"] if vid else []), *(f"{e}={r}" for e, r in revisions.items())]
+        )
+        for issue in check_references(predicates, defs):
+            found.setdefault((issue.state, issue.ref, issue.kind, issue.message), []).append(where)
+    return [
+        StateRefIssue(state, ref, kind, f"{message} (on {'; '.join(w for w in wheres if w)})")
+        if any(wheres)
+        else StateRefIssue(state, ref, kind, message)
+        for (state, ref, kind, message), wheres in found.items()
+    ]
 
 
 def profile_predicates(profile=None) -> list[tuple[str, str]]:

@@ -5,8 +5,22 @@ from __future__ import annotations
 from canlib import yaml_io
 
 
+def _reference_errors() -> list[str]:
+    """Every ECU or revision a variant's ``revisions:`` names that ecus/ lacks."""
+    from canlib.pids import load_raw_pids
+    from canlib.variants import load_variants
+    from canlib.variants.revisions import variant_reference_errors
+
+    try:
+        ecus = load_raw_pids().get("ecus") or {}
+    except Exception:
+        return []  # a broken ecus/ is `validate pids`'s to report
+    return variant_reference_errors(load_variants(), ecus)
+
+
 def _run_variants() -> int:
-    """Validate ``variants.yaml``: structure, IDs and every metadata field."""
+    """Validate ``variants.yaml``: structure, IDs, every metadata field, and that every ECU
+    revision it names exists."""
     from canlib.profile import active
     from canlib.variants import check_variants_doc
 
@@ -20,6 +34,8 @@ def _run_variants() -> int:
         print(f"{path.name}: YAML parse error: {e}")
         return 1
     errors = check_variants_doc(data)
+    if not errors:
+        errors = _reference_errors()
     if errors:
         for e in errors:
             print(f"  ERROR: {path.name}: {e}")

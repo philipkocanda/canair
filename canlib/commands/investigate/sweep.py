@@ -51,7 +51,12 @@ def run_sweep(specs: list[tuple[str, str]], args, since, until, fill) -> int:
 
     ecu_index = build_ecu_index(load_pids())
     loaded = load_signal_captures(
-        specs, since=since, until=until, state=args.state, label=args.label
+        specs,
+        since=since,
+        until=until,
+        state=args.state,
+        label=args.label,
+        one_revision="investigate",
     )
 
     def params_of(ecu: str, pid: str) -> dict:

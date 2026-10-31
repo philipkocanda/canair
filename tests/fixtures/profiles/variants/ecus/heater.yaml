@@ -1,0 +1,14 @@
+# Fitted only to the 60 kWh car.
+HEATER:
+  tx_id: 0x7B3
+  variants: [60kwh]
+  identity:
+    description: 'Synthetic heater'
+    id_protocol: UDS
+  pids:
+    "22B001":
+      status: active
+      parameters:
+        HEATER_TEMP:
+          expression: B5-40
+          unit: degC

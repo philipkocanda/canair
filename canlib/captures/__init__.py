@@ -436,13 +436,37 @@ def current_capture_tag(captures_dir: Path | None = None) -> dict | None:
     return capture_tag(prof)
 
 
+def _captured_ecus(session: CaptureSession) -> set[str]:
+    """Upper-cased names of the ECUs whose replies ``session`` holds."""
+    from canlib.ecus import build_rx_index, ecu_name_from_ref
+
+    try:
+        index = build_rx_index()
+    except Exception:
+        return set()
+    names = set()
+    for cap in session.get("captures") or []:
+        rx = capture_io.capture_rx(cap)
+        if rx:
+            names.add(str(ecu_name_from_ref(rx, index)).upper())
+    return names
+
+
 def apply_capture_tag(session: CaptureSession, tag: dict | None) -> CaptureSession:
-    """``session`` with ``tag`` set, unless it already carries a variant of its own."""
-    if not tag or session.get("variant"):
+    """``session`` with ``tag`` set, unless it already carries a tag of its own.
+
+    Revisions are kept only for the ECUs the session captured.
+    """
+    if not tag or session.get("variant") or session.get("revisions"):
         return session
+    from canlib.variants.tags import TAG_FIELDS, narrow_to_captured
+
+    if tag.get("revisions"):
+        tag = narrow_to_captured(tag, _captured_ecus(session))
     tagged = cast(CaptureSession, dict(session))
-    for key in ("variant", "attribution"):
-        _set_session_field(tagged, key, tag[key])
+    for key in TAG_FIELDS:
+        if key in tag:
+            _set_session_field(tagged, key, tag[key])
     return tagged
 
 

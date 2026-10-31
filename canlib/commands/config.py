@@ -41,6 +41,7 @@ NAME = "config"
 _KNOWN_KEYS = (
     "default_profile",
     "profile_settings.<profile>.variant",
+    "profile_settings.<profile>.revisions.<ECU>",
     "profiles_dir",
     "default_wican",
     "devices.<alias>.host",

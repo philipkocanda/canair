@@ -108,6 +108,10 @@ class StateSpans(TypedDict):
 AttributionSource = Literal["selected", "alias", "only", "migrated", "asserted"]
 """How a session's ``variant`` tag was decided (see :class:`Attribution`)."""
 
+RevisionAttributionSource = Literal["pinned", "only", "migrated", "asserted"]
+"""How one ECU's revision tag was decided: ``pinned`` (``--revision`` or a config pin),
+``only`` (the only revision the car can carry), ``migrated`` or ``asserted``."""
+
 
 class Attribution(TypedDict, total=False):
     """Where a session's tags came from, per tagged field.
@@ -120,6 +124,8 @@ class Attribution(TypedDict, total=False):
     """
 
     variant: AttributionSource
+    # Per ECU: how its revision tag was decided.
+    revisions: dict[str, RevisionAttributionSource]
 
 
 class SessionMeta(TypedDict, total=False):
@@ -150,6 +156,8 @@ class SessionMeta(TypedDict, total=False):
     quality: Quality
     # The profile variant (variants.yaml ID) the recorded car is, and how that was decided.
     variant: str
+    # ECU name -> its revision, for each captured ECU that declares several.
+    revisions: dict[str, str]
     attribution: Attribution
 
 
@@ -215,6 +223,7 @@ class CaptureEntry(TypedDict):
     states_resolved: bool  # False when the row fell back to the union
     session_notes: str
     session_variant: str  # "" when the session carries no variant tag
+    session_revisions: dict[str, str]  # ECU -> revision tag ({} when none)
     keep_mode: EntryKeepMode  # "" when the session recorded no dedup policy
     transport: str
     quality: Quality | None

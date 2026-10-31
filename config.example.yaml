@@ -18,6 +18,20 @@
 # If exactly one profile is discovered, it is auto-selected and this is optional.
 default_profile: hyundai-ioniq-ae-ev
 
+# Per-profile facts about YOUR car, keyed by profile name.
+#   variant   — which of the profile's variants (variants.yaml IDs) your car is. A
+#               profile with several refuses live commands until this is set. Set it
+#               with `canair profile use NAME --variant ID`; --variant /
+#               CANAIR_VARIANT override it for one command.
+#   revisions — ECU -> which of its revisions (its `revisions:` IDs) your car has, for
+#               an ECU your variant allows several of. Set with `canair profile use NAME
+#               --pin ECU=ID`; --revision ECU=ID overrides it for one command.
+# profile_settings:
+#   hyundai-ioniq-ae-ev:
+#     variant: 28kwh
+#     revisions:
+#       BMS: kwp
+
 # Extra directory to search for vehicle profiles (in addition to
 # ~/.config/canair/profiles and the repo-bundled profiles/). Local profiles
 # placed here are never committed to the repo.
