@@ -1,14 +1,17 @@
 # ─── BSD-R (Blind Spot Detection — Right) ─────────────────────────────
-# Right BSD radar at 0x7B7. Part: 95811G2000
+# Right BSD radar at 0x755. Part: 95821G2000
 BSD-R:
-  tx_id: 0x7B7
+  tx_id: 0x755
   can_bus: [C-CAN]
   identity:
     description: Blind Spot Detection radar (right)
-    part_number: "95811G2000"
-    serial: "31114851713802876"
+    part_number: "95821G2000"
+    serial: "31114851712211429"
     id_protocol: UDS  # F1xx (many FF-padded fields)
-    notes: Right blind-spot detection radar. No readable live-data DIDs found.
+    notes: >-
+      Right blind-spot detection radar: part 95821-G2000 is the right-hand BSD unit. No readable
+      live-data DIDs found. Named BSD-L until 2026-10-31, so the 2026-07-22 scan sessions labelled
+      BSD-L are this radar (0x755).
   vehicle_states: [ACC, "ON", READY]
   scan_log:
     - service: 0x22
