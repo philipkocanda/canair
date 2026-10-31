@@ -254,7 +254,8 @@ sessions that agree with your car's resolved revisions (an untagged session is r
 --dump-bytes`/`--try` — refuse a scope that spans two revisions of an ECU they analyse, since a
 byte offset means nothing across two layouts; scope with `--revision ECU=ID`. With no car
 chosen (or `--variant all`), an ECU with several possible revisions is undetermined, so its
-revision-specific definitions are left out of analysis too; add `--revision ECU=ID`.
+revision-specific definitions are left out of analysis too, and the note says so: name your car
+(`--variant ID`), or add `--revision ECU=ID`.
 
 ### Editing
 

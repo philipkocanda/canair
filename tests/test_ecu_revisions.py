@@ -94,6 +94,14 @@ class TestResolution:
         load_pids()
         assert "could be any" not in capsys.readouterr().err  # once per process
 
+    def test_with_no_car_chosen_the_note_says_to_name_it(self, capsys):
+        _activate()
+        load_pids()
+        err = capsys.readouterr().err
+        assert "No car is chosen (40kwh, 60kwh)" in err
+        assert "--variant 40kwh" in err
+        assert "--pin" not in err
+
     def test_a_pin_applies_the_revisions_overrides_and_gates(self):
         _activate(variant="60kwh", pins=["VCU=uds"])
         res = revision_resolutions()["VCU"]

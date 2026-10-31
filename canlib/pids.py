@@ -368,7 +368,12 @@ def _resolved(prof) -> dict:
     resolved, skipped = apply(ecus, selected_variant(prof), revision_resolutions(prof))
     if skipped and prof.cache_key not in _noted_skips:
         _noted_skips.add(prof.cache_key)
-        print(skipped_note(prof.name, skipped), file=sys.stderr)
+        unchosen: list[str] = []
+        if selected_variant(prof) is None:
+            from canlib.variants import load_variants
+
+            unchosen = list(load_variants(prof))
+        print(skipped_note(prof.name, skipped, unchosen), file=sys.stderr)
     result = dict(prof.meta)
     result["ecus"] = resolved
     return result

@@ -38,7 +38,7 @@ same objects — a profile without revisions is untouched.
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -318,9 +318,17 @@ def apply(
     return out, skipped
 
 
-def skipped_note(profile_name: str, skipped: Iterable[Skipped]) -> str:
-    """The one message naming what undetermined ECUs left out, and how to pin them."""
+def skipped_note(
+    profile_name: str, skipped: Iterable[Skipped], unchosen: Sequence[str] = ()
+) -> str:
+    """The one message naming what undetermined ECUs left out, and the fix.
+
+    ``unchosen`` are the profile's variants when none is selected: then the fix is to
+    name the car, which settles every ECU its variant allows one revision of. A pin is
+    the fix when the chosen car itself allows several.
+    """
     lines = []
+    skipped = list(skipped)
     for s in skipped:
         what = ", ".join(
             p
@@ -330,11 +338,21 @@ def skipped_note(profile_name: str, skipped: Iterable[Skipped]) -> str:
             )
             if p
         )
-        example = s.possible[0] if s.possible else "ID"
-        lines.append(
+        line = (
             f"note: {s.ecu} could be any of {', '.join(s.possible)}, so its {what} specific to "
-            f"one revision are skipped. Pin yours: canair profile use {profile_name} "
-            f"--pin {s.ecu}={example} (or --revision {s.ecu}={example} for one command)."
+            "one revision are skipped."
+        )
+        if not unchosen:
+            example = s.possible[0] if s.possible else "ID"
+            line += (
+                f" Pin yours: canair profile use {profile_name} --pin {s.ecu}={example} "
+                f"(or --revision {s.ecu}={example} for one command)."
+            )
+        lines.append(line)
+    if unchosen and skipped:
+        lines.append(
+            f"  No car is chosen ({', '.join(unchosen)}). Name yours: canair profile use "
+            f"{profile_name} --variant {unchosen[0]} (or --variant ID for one command)."
         )
     return "\n".join(lines)
 
