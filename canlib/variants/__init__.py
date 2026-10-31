@@ -76,8 +76,13 @@ REQUIRED_FIELDS = ("name",)
 BATTERY_FIELDS: dict[str, Literal["number", "count", "text"]] = {
     "usable_kwh": "number",
     "gross_kwh": "number",
+    "nominal_voltage": "number",  # volts
     "series_cells": "count",
+    "parallel_cells": "count",
+    "modules": "count",
     "chemistry": "text",
+    "cell_format": "text",
+    "cell_supplier": "text",
     "cooling": "text",
 }
 # The profile.yaml settings a variant may replace (shallow), and the type each must have.
@@ -101,8 +106,13 @@ class VariantsError(ValueError):
 class Battery:
     usable_kwh: float | None = None
     gross_kwh: float | None = None
+    nominal_voltage: float | None = None
     series_cells: int | None = None
+    parallel_cells: int | None = None
+    modules: int | None = None
     chemistry: str | None = None
+    cell_format: str | None = None
+    cell_supplier: str | None = None
     cooling: str | None = None
 
 

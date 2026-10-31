@@ -48,7 +48,16 @@ class TestCheck:
                     "production": ["2016", "2019-05"],
                     "model_years": [2017, 2019],
                     "markets": ["EU"],
-                    "battery": {"usable_kwh": 28, "series_cells": 96, "cooling": "air"},
+                    "battery": {
+                        "usable_kwh": 28,
+                        "nominal_voltage": 360,
+                        "series_cells": 96,
+                        "parallel_cells": 1,
+                        "modules": 8,
+                        "cell_format": "pouch",
+                        "cell_supplier": "LG Chem",
+                        "cooling": "air",
+                    },
                     "status": "verified",
                     "sources": ["a source"],
                 }
@@ -103,6 +112,10 @@ class TestCheck:
             ("markets", "EU"),
             ("battery", {"usable_kwh": -1}),
             ("battery", {"series_cells": 96.5}),
+            ("battery", {"modules": 0}),
+            ("battery", {"parallel_cells": 2.5}),
+            ("battery", {"nominal_voltage": -1}),
+            ("battery", {"cell_supplier": ""}),
             ("battery", {"voltage": 360}),
         ],
     )

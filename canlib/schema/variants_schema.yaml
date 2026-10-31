@@ -22,8 +22,13 @@
 #       battery:                  # optional — mapping:
 #         usable_kwh: number      #   usable capacity
 #         gross_kwh: number       #   gross capacity
-#         series_cells: int       #   cells in series
+#         nominal_voltage: number #   pack nominal voltage, in volts
+#         series_cells: int       #   cells (or parallel cell groups) in series
+#         parallel_cells: int     #   cells in parallel per series group (2 for 192s2p)
+#         modules: int            #   modules in the pack
 #         chemistry: str          #   e.g. Li-polymer, NMC, LFP
+#         cell_format: str        #   e.g. pouch, prismatic, cylindrical
+#         cell_supplier: str      #   who makes the cells, e.g. SK On
 #         cooling: str            #   e.g. air, liquid
 #       trims: [str, ...]         # optional — informational only, never a variant
 #       revisions:                # optional — ECU name -> the revisions of that ECU (its
@@ -67,8 +72,13 @@ optional_variant_fields:
 battery_fields:
   - usable_kwh
   - gross_kwh
+  - nominal_voltage
   - series_cells
+  - parallel_cells
+  - modules
   - chemistry
+  - cell_format
+  - cell_supplier
   - cooling
 
 valid_statuses:

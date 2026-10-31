@@ -66,7 +66,7 @@ variants:
 | `production` | Build window, `"YYYY"` or `"YYYY-MM"` — the meaningful window, since running changes follow production dates |
 | `model_years` | Informational; markets disagree on model year |
 | `markets` | Where it was sold |
-| `battery` | `usable_kwh`, `gross_kwh`, `series_cells`, `chemistry`, `cooling` |
+| `battery` | `usable_kwh`, `gross_kwh`, `nominal_voltage` (V), `series_cells`, `parallel_cells`, `modules`, `chemistry`, `cell_format`, `cell_supplier`, `cooling` |
 | `trims` | Informational only |
 | `revisions` | ECU → the [revisions](#ecu-revisions) of that ECU this car can carry (`BMS: [uds]`); an unlisted ECU may be any |
 | `profile_overrides` | `profile.yaml` settings that differ for this car, replaced whole: `car_model`, `physical_bands`, `response_timeout_ms`, `init`, `multi_did_max`, `quirks` |
