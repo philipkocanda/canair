@@ -283,6 +283,8 @@
         ["Response id (rx)", ecu.rx_id ? el("code", {}, ecu.rx_id) : null],
         ["Identity protocol", ecu.protocol],
         ["CAN buses", ecu.buses.join(", ")],
+        ["Revisions", (ecu.revisions || []).map(function (r) { return r.id + (r.protocol ? " (" + r.protocol + ")" : ""); }).join(", ")],
+        ["Fitted to", ecu.variants ? ecu.variants.join(", ") : null],
         ["Vehicle states", ecu.vehicle_states.join(", ")],
         ["Contents", ecu.counts.pids + " PIDs · " + ecu.counts.signals + " signals (" + ecu.counts.verified + " verified) · " +
           ecu.iocontrol.length + " IO controls · " + ecu.research.length + " research items"],
@@ -323,10 +325,22 @@
       el("td", { class: "cx-c-src" }, srcLink(data, sig.src, "↗")));
   }
 
-  function viewPids(data, ecu, route, verifiedOnly) {
+  // Variants and ECU revisions: which definitions the chosen car (null: every car) has.
+  function allowedRevisions(ecu, car) {
+    var ids = (ecu.revisions || []).map(function (r) { return r.id; });
+    if (!car || !ids.length) return null;
+    return (car.revisions && car.revisions[ecu.name]) || ids;
+  }
+  function applies(node, allowed) {
+    return !allowed || !node.revisions || node.revisions.some(function (r) { return allowed.indexOf(r) >= 0; });
+  }
+  function fitted(ecu, car) { return !car || !ecu.variants || ecu.variants.indexOf(car.id) >= 0; }
+
+  function viewPids(data, ecu, route, verifiedOnly, car) {
     if (!ecu.pids.length) return el("p", { class: "cx-muted" }, "No PIDs defined for this ECU.");
-    return el("div", {}, ecu.pids.map(function (pid) {
-      var sigs = pid.signals.filter(function (s) { return !verifiedOnly || s.verified; });
+    var allowed = allowedRevisions(ecu, car);
+    return el("div", {}, ecu.pids.filter(function (pid) { return applies(pid, allowed); }).map(function (pid) {
+      var sigs = pid.signals.filter(function (s) { return (!verifiedOnly || s.verified) && applies(s, allowed); });
       if (verifiedOnly && !sigs.length) return null;
       var details = el("details", {
         class: "cx-pid", open: route.pid === pid.id || null, "data-pid": pid.id,
@@ -338,7 +352,8 @@
       },
         el("summary", {}, el("code", {}, pid.id), " ", badge(pid.status, pid.status === "active" ? "ok" : "warn"), " ",
           el("span", { class: "cx-muted" }, sigs.length + " signal" + (sigs.length === 1 ? "" : "s") +
-            (pid.period ? " · every " + pid.period + " ms" : "") + (pid.response_frames ? " · " + pid.response_frames + " frames" : ""))),
+            (pid.period ? " · every " + pid.period + " ms" : "") + (pid.response_frames ? " · " + pid.response_frames + " frames" : "") +
+            (pid.revisions ? " · revision " + pid.revisions.join(", ") : ""))),
         el("div", { class: "cx-pid-body" },
           command("canair --profile " + data.profile.name + " read " + ecu.name + ":" + pid.id),
           notes(pid.notes), srcLink(data, pid.src, "PID in yaml ↗"),
@@ -437,6 +452,8 @@
       select: el("select", { class: "cx-select", "aria-label": "Profile", onchange: function () { go({ profile: ui.select.value }); } }),
       search: el("input", { type: "search", class: "cx-input", placeholder: "Search signal names…", "aria-label": "Search signals", oninput: renderSearch }),
       verified: el("input", { type: "checkbox", onchange: function () { ui.verifiedOnly = ui.verified.checked; renderRail(); renderDetail(); } }),
+      car: el("select", { class: "cx-select", "aria-label": "Variant", hidden: true, onchange: function () { ui.carId = ui.car.value; renderRail(); renderDetail(); } }),
+      carId: "",
       results: el("div", { class: "cx-results", hidden: true }),
       stats: el("span", { class: "cx-muted" }),
       wide: el("button", { type: "button", class: "cx-button cx-widebtn", "aria-pressed": "false" }),
@@ -478,12 +495,26 @@
         : [el("span", { class: "cx-muted" }, ui.search.value.trim().length < 2 ? "Keep typing…" : "No matching signal.")]);
     }
 
+    function chosenCar() {
+      return ((ui.data && ui.data.variants) || []).filter(function (v) { return v.id === ui.carId; })[0] || null;
+    }
+
+    function renderCars(data) {
+      var variants = data.variants || [];
+      if (variants.every(function (v) { return v.id !== ui.carId; })) ui.carId = "";
+      ui.car.hidden = variants.length < 2;
+      ui.car.replaceChildren.apply(ui.car, [el("option", { value: "" }, "every variant")].concat(variants.map(function (v) {
+        return el("option", { value: v.id }, v.id);
+      })));
+      ui.car.value = ui.carId;
+    }
+
     function renderRail() {
       var data = ui.data, route = parseHash();
       if (!data) return;
       var items = data.ecus.filter(function (e) {
         return (!ui.filter || e.name.toLowerCase().indexOf(ui.filter) >= 0 || (e.description || "").toLowerCase().indexOf(ui.filter) >= 0) &&
-          (!ui.verifiedOnly || e.counts.verified > 0);
+          (!ui.verifiedOnly || e.counts.verified > 0) && fitted(e, chosenCar());
       }).map(function (e) {
         return el("button", { type: "button", class: "cx-ecu" + (e.name === route.ecu ? " cx-active" : ""), onclick: function () {
           ui.reveal = true;
@@ -514,7 +545,7 @@
         } else {
           var views = {
             overview: function () { return viewOverview(data, ecu); },
-            pids: function () { return viewPids(data, ecu, route, ui.verifiedOnly); },
+            pids: function () { return viewPids(data, ecu, route, ui.verifiedOnly, chosenCar()); },
             io: function () { return viewIo(data, ecu, ui.verifiedOnly); },
             research: function () { return viewResearch(data, ecu); },
           };
@@ -593,6 +624,7 @@
               (v.status ? " · " + v.status : "");
           }).join("\n");
           renderSearch();
+          renderCars(data);
         }
         var plot = route.mode === "plot" && window.canairExplorer.dataView;
         keepingHeight(function () {
@@ -616,7 +648,7 @@
 
     ui.show = show;
     fill(root, 
-      el("div", { class: "cx-toolbar" }, ui.select, ui.search, el("label", { class: "cx-check" }, ui.verified, " verified only"), ui.stats, ui.wide),
+      el("div", { class: "cx-toolbar" }, ui.select, ui.search, el("label", { class: "cx-check" }, ui.verified, " verified only"), ui.car, ui.stats, ui.wide),
       ui.results, ui.mode, ui.tray, ui.diagram, ui.defsBody, ui.dataHost);
 
     fetch(new URL("index.json", DATA_URL)).then(function (r) { return r.json(); }).then(function (index) {

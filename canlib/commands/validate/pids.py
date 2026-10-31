@@ -912,6 +912,7 @@ def _validate_research(
         "sources",
         "what_to_test",
         "capture_protocol",
+        "revisions",
     }
     research_required = {"type", "target", "status"}
     all_research_fields = research_required | research_optional

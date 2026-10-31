@@ -231,8 +231,8 @@ usage: canair pids add-research [-h] --type
                                 [--updated YYYY-MM-DD] [--result RESULT]
                                 [--notes NOTES] [--source SRC]
                                 [--what-to-test ITEM]
-                                [--capture-protocol TEXT] [--dir DIR]
-                                [--no-validate]
+                                [--capture-protocol TEXT] [--revision ID]
+                                [--dir DIR] [--no-validate]
                                 ecu
 
 positional arguments:
@@ -256,6 +256,9 @@ options:
   --source SRC
   --what-to-test ITEM
   --capture-protocol TEXT
+  --revision ID         An ECU revision the task concerns (repeatable; absent
+                        = every revision): a car on another revision doesn't
+                        list it
   --dir DIR             ecus/ directory (default: active profile)
   --no-validate         Skip the post-edit schema validation gate
 ```

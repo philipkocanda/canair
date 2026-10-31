@@ -1,7 +1,8 @@
 """send_to validation — the per-signal MQTT stream topic (see ``canlib.wican.autopid_send_to``).
 
 Checks every signal that sets ``send_to`` across the given ecus/ files: the topic must be
-well-formed (an error), unique across shipped signals (an error, since two signals on one topic
+well-formed (an error), unique across shipped signals — per car: one ECU's definitions on
+disjoint revisions never ship together — (an error, since two signals on one topic
 interleave on a single stream), and set only where it would actually ship (a warning otherwise).
 Mirrors the shipping gate of ``canlib.wican.autopid_profile.generate_profile``.
 """
@@ -36,9 +37,13 @@ def _never_ships(pid_def: dict, param: dict) -> str | None:
 
 def send_to_findings(file_paths: list[Path]) -> tuple[list[str], list[str]]:
     """Return ``(errors, warnings)`` for every ``send_to`` in ``file_paths``."""
+    from canlib.variants.revisions import owner_revisions
+
     errors: list[str] = []
     warnings: list[str] = []
-    owner: dict[str, str] = {}
+    # topic -> every (ECU, revisions, label) that ships it. One ECU's definitions on
+    # disjoint revisions never ship together (each car's build has one), so they may share.
+    owner: dict[str, list[tuple[str, frozenset[str], str]]] = {}
     for fpath in file_paths:
         if fpath.name.startswith("_"):
             continue
@@ -70,11 +75,20 @@ def send_to_findings(file_paths: list[Path]) -> tuple[list[str], list[str]]:
                             f"{label}: send_to '{topic}' ships only with --include-unverified "
                             "(the signal is unverified)"
                         )
-                    if topic in owner:
+                    revs = owner_revisions(ecu_def, pid_def, param)
+                    clash = next(
+                        (
+                            other
+                            for e, r, other in owner.get(topic, [])
+                            if not (e == ecu_name and r and revs and not r & revs)
+                        ),
+                        None,
+                    )
+                    if clash:
                         errors.append(
-                            f"{label}: send_to '{topic}' is also used by {owner[topic]} — "
+                            f"{label}: send_to '{topic}' is also used by {clash} — "
                             "each shipped signal needs its own topic"
                         )
                     else:
-                        owner[topic] = label
+                        owner.setdefault(topic, []).append((ecu_name, revs, label))
     return errors, warnings

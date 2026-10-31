@@ -1,8 +1,29 @@
 # Profile variants, phase 9 — AutoPID, the explorer and coverage per variant
 
-Status: **NOT STARTED.** Part of
+Status: **DONE** (2026-10-31). Part of
 [`2026-10-30-profile-variants-and-rename.md`](2026-10-30-profile-variants-and-rename.md). Depends on
 phase 8.
+
+## As built
+
+- **AutoPID:** `out/<variant>/autopid.json` only on a profile with several variants; a profile
+  with one or none keeps `out/autopid.json`. The Ioniq's committed `out/autopid.json` moved to
+  `out/28kwh/autopid.json` unchanged (a test pins the 28 kWh build to it, byte for byte). The
+  refusal names every undetermined ECU and three ways out: a live read (which detects), `canair
+  identity`, or a pin.
+- **`send_to` uniqueness** is relaxed the same way as shipped signal names: one ECU's
+  definitions on disjoint revisions may share a topic, since no car's build has both.
+- **Explorer:** the export adds ECU revisions (ID and protocol, never fingerprints), ECU
+  presence, PID/signal gates and allow-listed `per_revision` fields, and each variant's
+  `revisions:` map. The toolbar's variant picker (shown for two or more variants) hides ECUs not
+  fitted to the car and PIDs/signals outside the revisions it allows. Shown `verified` is the base
+  (reference-revision) value; the per-revision `verified` rule is not re-implemented in the JS.
+- **Capture plots** are unchanged: every bundled session is on one revision per ECU, so per-tag
+  decoding and series labelling by variant wait for a second car's captures.
+- **Coverage per revision** is the resolved definitions plus phase 5's refusal: `coverage` with
+  `--variant`/`--revision` reports that revision's gaps; no separate per-revision table.
+- **Research:** entries take `revisions: [..]` (`pids add-research --revision ID`, validated
+  against the ECU's revisions); a car on another revision doesn't list them.
 
 ## Goal
 

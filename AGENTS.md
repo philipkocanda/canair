@@ -519,6 +519,8 @@ reuse these instead of re-declaring a flag:
   opportunistically. `--strict` forbids any untimed row.
 - **`canair wican`** — Build/sync the device's AutoPID profile from the active bundle's `ecus/`. A
   bare `canair wican` prints help (writes nothing). `autopid write` generates JSON into `out/`
+  (`out/<variant>/` on a multi-variant profile, from the car's resolved definitions, and
+  **refused while an ECU's revision is undetermined** — the device can't detect one)
   — **verified-only by default**, `--include-unverified` also emits in-progress candidates;
   `upload`/`download`/`diff` sync the device (Pro-only, same verified-only default). **Each
   PID's persisted `response_frames` count is appended to its request string by default**
@@ -638,9 +640,15 @@ reuse these instead of re-declaring a flag:
 
 Vehicle data lives in a **profile** bundle: `ecus/` (one file per ECU — the source of truth),
 `profile.yaml`, `captures/`, `references/`, `vehicle_states.yaml`, `can_buses.yaml`, `groups.yaml`,
-optional `signals/`, generated `out/`. The repo bundles several under `profiles/`
+`variants.yaml`, optional `signals/`, generated `out/`. The repo bundles several under `profiles/`
 (`profiles/hyundai-ioniq-ae-ev/` is the mature reference; `profiles/hyundai-ioniq-5-ne-ev/` an
 early seed).
+
+**One profile, several cars.** A resolved `Profile` carries the car (`variant`, `variant_source`),
+the revision pins (`revision_pins`) and remembered detections (`revision_detections`); its
+`cache_key` covers all three, `.meta` applies the variant's `profile_overrides`, and `.revisions`
+is each determined ECU's revision. `load_pids()` returns the definitions for exactly that car
+(see `canair variants` above); anything that must see every car reads `load_raw_pids()`.
 
 **Since more than one ships, none is auto-selected.** Precedence: `--profile NAME|PATH` (a global
 flag, before the subcommand) > `CANAIR_PROFILE` > `default_profile` in config > a single discovered

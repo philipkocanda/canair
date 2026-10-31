@@ -208,6 +208,8 @@ class TestLocalOps:
             variant = None
 
         monkeypatch.setattr("canlib.profile.active", lambda: _Prof())
+        # No ECU here declares revisions, so there is nothing to resolve.
+        monkeypatch.setattr(wican, "_require_resolved_revisions", lambda: None)
         rc = wican.run(_parse("wican", "autopid", "write"))
         assert rc == 0
         assert (tmp_path / "autopid.json").exists()
@@ -222,6 +224,8 @@ class TestLocalOps:
             variant = None
 
         monkeypatch.setattr("canlib.profile.active", lambda: _Prof())
+        # No ECU here declares revisions, so there is nothing to resolve.
+        monkeypatch.setattr(wican, "_require_resolved_revisions", lambda: None)
         out = tmp_path / "custom.json"
         rc = wican.run(_parse("wican", "autopid", "write", "--out", str(out)))
         assert rc == 0

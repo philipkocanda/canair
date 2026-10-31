@@ -552,6 +552,8 @@ iocontrol_fields:
 #       priority: P1 | P2 | P3    # P1=high value, P2=medium, P3=speculative
 #       vehicle_states: [acc]      # Car power states needed (same vocabulary as
 #                                  #   the PID/ECU vehicle_states field)
+#       revisions: [uds]           # The ECU revisions it concerns (absent = all): a car
+#                                  #   on another revision doesn't list it
 #       created: "2026-04-15"      # Auto-set to today when the entry is added
 #       updated: "2026-04-20"      # Auto-set to today on add and on set-status
 #       date: "2026-04-15"         # When last tested (optional)
@@ -568,7 +570,7 @@ iocontrol_fields:
 #   iocontrol_scan — IOControl (2F) discovery scan
 research_fields:
   required: [type, target, status]
-  optional: [priority, vehicle_states, created, updated, date, result, notes, sources, what_to_test, capture_protocol]
+  optional: [priority, vehicle_states, revisions, created, updated, date, result, notes, sources, what_to_test, capture_protocol]
 
 # Routines section — RoutineControl discovery results.
 # Populated by `canair scan routines` (UDS 0x31 SF03 requestRoutineResults with

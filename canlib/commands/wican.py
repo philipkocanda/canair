@@ -20,7 +20,7 @@ Subcommands:
   mode set MODE               Switch the device protocol/mode + align transport (Pro)
 
 Examples:
-  canair wican autopid write                       # verified-only out/autopid.json
+  canair wican autopid write                       # verified-only out/[<variant>/]autopid.json
   canair wican autopid write --include-unverified  # also include unverified params
   canair wican autopid write --no-expected-responses  # omit the response-frame counts
   canair wican autopid upload --reboot             # upload + reboot to apply
@@ -107,10 +107,43 @@ def _require_v4_api(base_url: str, surface: Surface, *, writes: bool = False) ->
 
 
 def _profile_out() -> Path:
-    """Default output path for the generated WiCAN profile JSON."""
-    from canlib.profile import active
+    """Default output path for the generated WiCAN profile JSON.
 
-    return active().out_dir / "autopid.json"
+    ``out/<variant>/autopid.json`` on a profile with several variants — each car gets its
+    own device profile — else ``out/autopid.json``.
+    """
+    from canlib.profile import active
+    from canlib.variants import load_variants
+    from canlib.variants.tags import selected_variant
+
+    prof = active()
+    variant = selected_variant(prof)
+    if variant and len(load_variants(prof)) > 1:
+        return prof.out_dir / variant / "autopid.json"
+    return prof.out_dir / "autopid.json"
+
+
+def _require_resolved_revisions() -> None:
+    """Refuse device-profile generation while an ECU's revision is undetermined.
+
+    The device polls a fixed list and cannot detect a revision, and shipping both
+    revisions' PIDs would double the poll list and publish one signal name from two PIDs.
+    """
+    from canlib.pids import revision_resolutions
+    from canlib.profile import ProfileError, active
+
+    open_ = [r for r in revision_resolutions().values() if r.revision is None]
+    if not open_:
+        return
+    prof = active()
+    res = open_[0]
+    names = ", ".join(r.ecu for r in open_)
+    raise ProfileError(
+        f"the revision of {names} is undetermined, and the device can't detect it. "
+        f"{res.ecu} could be {' or '.join(res.possible)}: run a `canair read {res.ecu}` once "
+        f"to detect it, `canair identity {res.ecu}`, or pin it "
+        f"(canair profile use {prof.name} --pin {res.ecu}={res.possible[0]})."
+    )
 
 
 def load_yaml() -> dict:
@@ -424,16 +457,18 @@ def _add_autopid_parser(groups) -> argparse.ArgumentParser:
 
     write = sub.add_parser(
         "write",
-        help="Generate the AutoPID JSON to the bundle's out/autopid.json",
+        help="Generate the AutoPID JSON to the bundle's out/[<variant>/]autopid.json",
         description="Generate the WiCAN AutoPID profile JSON and write it to the "
-        "active bundle's out/autopid.json.",
+        "active bundle's out/autopid.json — out/<variant>/autopid.json on a profile with "
+        "several variants, one device profile per car. Refused while an ECU's revision is "
+        "undetermined: the device polls a fixed list and can't detect it.",
     )
     write.add_argument(
         "--out",
         metavar="PATH",
         type=Path,
         default=None,
-        help="Write to PATH instead of the bundle's out/autopid.json",
+        help="Write to PATH instead of the bundle's out/[<variant>/]autopid.json",
     )
     _add_generate_args(write)
     write.set_defaults(_wican_func=_cmd_autopid_write)
@@ -557,6 +592,7 @@ def _generate(args) -> tuple[dict, dict]:
     from canlib.variants.selection import require_variant
 
     require_variant(active(), "generate the AutoPID profile")
+    _require_resolved_revisions()
     print(f"Loading {active().ecus_dir}")
     data = load_yaml()
 

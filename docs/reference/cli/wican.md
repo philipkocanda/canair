@@ -45,7 +45,7 @@ Subcommands:
   mode set MODE               Switch the device protocol/mode + align transport (Pro)
 
 Examples:
-  canair wican autopid write                       # verified-only out/autopid.json
+  canair wican autopid write                       # verified-only out/[<variant>/]autopid.json
   canair wican autopid write --include-unverified  # also include unverified params
   canair wican autopid write --no-expected-responses  # omit the response-frame counts
   canair wican autopid upload --reboot             # upload + reboot to apply
@@ -62,7 +62,8 @@ Build the WiCAN AutoPID profile from the active bundle's ecus/ and (optionally) 
 
 positional arguments:
   <action>
-    write     Generate the AutoPID JSON to the bundle's out/autopid.json
+    write     Generate the AutoPID JSON to the bundle's
+              out/[<variant>/]autopid.json
     upload    Generate + upload the AutoPID profile to the device (Pro)
     download  Download the device's current AutoPID profile (Pro)
     diff      Download + diff the device profile against the generated one

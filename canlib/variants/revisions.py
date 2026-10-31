@@ -396,6 +396,13 @@ def apply(
             else {k: v for k, v in ecu_def.items() if k not in ("revisions", "variants")}
         )
         pids, n_pids, n_signals = _gated_pids(ecu_def.get("pids") or {}, rid, declared(ecu_def))
+        if rid and isinstance(ecu_def.get("research"), list):
+            # A task about another revision isn't this car's to do.
+            resolved["research"] = [
+                item
+                for item in ecu_def["research"]
+                if not isinstance(item, Mapping) or gate(item) is None or rid in (gate(item) or [])
+            ]
         if "pids" in ecu_def:
             resolved["pids"] = pids
         if rid is None and (n_pids or n_signals):
@@ -571,6 +578,10 @@ def check_ecu(
                     if known and v not in known
                 ]
 
+    research = ecu_def.get("research")
+    for i, item in enumerate(research if isinstance(research, list) else []):
+        if isinstance(item, Mapping):
+            errors += _gate_errors(f"{label}/research[{i}]", item, revs)[1]
     pids = ecu_def.get("pids")
     for code, pid_def in pids.items() if isinstance(pids, Mapping) else ():
         if not isinstance(pid_def, Mapping):

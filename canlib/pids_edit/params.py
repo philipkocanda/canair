@@ -78,6 +78,7 @@ RESEARCH_FIELD_ORDER = (
     "status",
     "priority",
     "vehicle_states",
+    "revisions",
     "created",
     "updated",
     "date",
@@ -136,6 +137,8 @@ def _format_research_item(fields: dict, indent: int = 4) -> list[str]:
         if key == "vehicle_states":
             joined = ", ".join(_format_label(t, flow=True) for t in _norm_states(val))
             lines.append(f"{prefix}{key}: [{joined}]")
+        elif key == "revisions":
+            lines.append(f"{prefix}{key}: [{', '.join(str(r).strip().lower() for r in val)}]")
         elif key in ("notes", "result") and "\n" in str(val):
             block = _format_block_scalar(fld, key, str(val))
             block[0] = prefix + block[0][len(fld) :]
@@ -1017,6 +1020,7 @@ def add_research_entry(
     sources: list | None = None,
     what_to_test: list | None = None,
     capture_protocol: str | None = None,
+    revisions: list | None = None,
     pids_dir: Path | None = None,
 ) -> Path:
     """Append a new item to the ECU's ``research:`` list (creating it if absent).
@@ -1039,6 +1043,7 @@ def add_research_entry(
         "sources": sources,
         "what_to_test": what_to_test,
         "capture_protocol": capture_protocol,
+        "revisions": revisions,
     }
     fields = {k: v for k, v in provided.items() if v is not None}
     for req in ("type", "target", "status"):

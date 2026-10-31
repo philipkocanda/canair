@@ -1,8 +1,8 @@
 # Profile variants, ECU revisions, make-model-code names, and old-name aliases
 
-Status: **DESIGN — APPROVED IN PRINCIPLE, NOT STARTED.** Every decision is taken (see
-[Decisions](#decisions)); the whole of it is in scope, including revisions, overrides and detection,
-so the machinery is exercised from the start. Delivered in nine [phases](#phases), each its own
+Status: **DONE** (2026-10-31): all nine phases; each phase plan's "As built" records what
+differs. Every decision is taken (see [Decisions](#decisions)); the whole of it is in scope,
+including revisions, overrides and detection, so the machinery is exercised from the start. Delivered in nine [phases](#phases), each its own
 plan. Supersedes the *motivating case* of
 `plans/2026-07-30-profile-variant-inheritance.md` (XPeng G6 SR vs LR is a variant, not a second
 profile). That plan stays open for **cross-profile** sharing between siblings (Kona OS / Niro DE /
@@ -663,7 +663,7 @@ step that refuses (phase 4). The byte-identical `28kwh` invariant is checked at 
 | 6 ✓ | [Ioniq facelift BMS](2026-10-30-profile-variants-6-ioniq-facelift-bms.md) | The real-profile exercise: BMS `kwp`/`uds`, Kona definitions ported unverified | `38kwh` only |
 | 7 ✓ | [Overrides and evidence](2026-10-30-profile-variants-7-overrides-and-evidence.md) | `per_revision:`; `verified`, `response_frames`, identity routed per revision | stricter on non-reference revisions |
 | 8 ✓ | [Detection](2026-10-30-profile-variants-8-detection.md) | Fingerprint matching, the per-session probe, `identity` names your variant | ambiguous ECUs read instead of skip |
-| 9 | [Consumers](2026-10-30-profile-variants-9-consumers.md) | AutoPID per variant, explorer switcher, coverage/research per revision, final docs | `out/<variant>/` |
+| 9 ✓ | [Consumers](2026-10-30-profile-variants-9-consumers.md) | AutoPID per variant, explorer switcher, coverage/research per revision, final docs | `out/<variant>/` |
 
 The skill and docs grow with each phase rather than landing ahead of the features they describe.
 

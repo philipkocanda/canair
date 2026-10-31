@@ -448,6 +448,7 @@ def cmd_add_research(args: argparse.Namespace) -> int:
             sources=args.source or None,
             what_to_test=args.what_to_test or None,
             capture_protocol=args.capture_protocol,
+            revisions=args.revisions or None,
             pids_dir=args.dir,
         )
 
@@ -1010,6 +1011,14 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     ar.add_argument("--source", action="append", metavar="SRC")
     ar.add_argument("--what-to-test", action="append", metavar="ITEM")
     ar.add_argument("--capture-protocol", metavar="TEXT")
+    ar.add_argument(
+        "--revision",
+        dest="revisions",
+        action="append",
+        metavar="ID",
+        help="An ECU revision the task concerns (repeatable; absent = every revision): a "
+        "car on another revision doesn't list it",
+    )
     _add_common(ar)
     ar.set_defaults(_pids_func=cmd_add_research)
 
