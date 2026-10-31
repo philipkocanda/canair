@@ -1,0 +1,59 @@
+# Hyundai Ioniq 5 (NE) — physical CAN bus segment vocabulary
+#
+# Codes accepted by each ECU's `can_bus:` field (set with `canair pids set-can-bus`).
+#
+# The eight segments below are the eight CAN pairs on the ICU's ICU-H connector (KSC
+# 5011-0137-2, pins 17-32), as drawn in the NE service-manual connector page. The ICU
+# (Integrated Central control Unit) is the gateway that bridges them. The service-manual wiring
+# shows ten CAN buses in all; the two that do not reach the ICU are not named in any source
+# checked, so they are not declared here.
+#
+# Bit rates: only D-CAN's is established (the OBD-II port answers ISO 15765-4 11-bit 500 kbit/s
+# requests). The CAN FD / classical CAN split is from the Electroniq Buttons harness kit, which
+# exposes every ICU-H bus and reports P, C, G and E as CAN FD (unreadable by a CAN 2.0 WiCAN).
+# The B-CAN, P-CAN, C-CAN, M-CAN and D-CAN names follow the usual Hyundai expansions; the
+# sources checked do not expand E-CAN, G-CAN or I-CAN.
+#
+# Sources:
+#   https://github.com/dragz/explorationsincarhacking/blob/main/articles/getting_past_the_secure_gateway/getting_past_the_secure_gateway.md
+#   https://github.com/tylerharvey/Ioniq5_CAN/tree/main/wiring_harness
+#   https://electroniqbuttons.com/products/hyundai-kia-selectable-can-car-hacking-kit-pre-order
+
+can_buses:
+  ALL:
+    name: All segments
+    description: >-
+      Convention for the ICU, the gateway that terminates all eight ICU-H segments. The OBD-II
+      port reaches the rest of the car only through it, over D-CAN.
+  B-CAN:
+    name: Body CAN
+    description: >-
+      Body/comfort electronics. ICU-H pins 27/28. Classical CAN. Aftermarket proximity-lock modules
+      tap it.
+  P-CAN:
+    name: Powertrain CAN
+    description: Powertrain segment. ICU-H pins 19/20. CAN FD.
+  C-CAN:
+    name: Chassis CAN
+    description: Chassis segment. ICU-H pins 21/22. CAN FD.
+  M-CAN:
+    name: Multimedia CAN
+    description: >-
+      Infotainment segment. ICU-H pins 31/32; also on the head unit's M05-B connector. Classical
+      CAN.
+  D-CAN:
+    name: Diagnostic CAN
+    description: >-
+      Diagnostic bus on the OBD-II port (UDS requests), ICU-H pins 25/26. Classical CAN. Other
+      segments are reached only through the ICU's security gateway.
+    bitrate: 500000
+  E-CAN:
+    name: E-CAN
+    description: ICU-H pins 17/18. CAN FD. Function not documented in the sources checked.
+  G-CAN:
+    name: G-CAN
+    description: ICU-H pins 29/30. CAN FD. Function not documented in the sources checked.
+  I-CAN:
+    name: I-CAN
+    description: >-
+      ICU-H pins 23/24. Classical CAN. Function not documented in the sources checked.

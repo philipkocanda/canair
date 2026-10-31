@@ -1,0 +1,8 @@
+MDPS:
+  tx_id: 0x7D4
+  identity:
+    description: Motor Driven Power Steering
+    notes: >-
+      Address confirmed by recorded responses in OBDb Hyundai-Ioniq-5 test cases (MY2022-2027,
+      https://github.com/OBDb/Hyundai-Ioniq-5): 220101 (steering wheel angle, MDPS motor current).
+      The NE uses rack-mounted R-MDPS.

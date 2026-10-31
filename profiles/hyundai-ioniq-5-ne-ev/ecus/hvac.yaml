@@ -1,0 +1,8 @@
+HVAC:
+  tx_id: 0x7B3
+  identity:
+    description: Climate control (A/C control module)
+    notes: >-
+      Address confirmed by recorded responses in OBDb Hyundai-Ioniq-5 test cases (MY2022-2027,
+      https://github.com/OBDb/Hyundai-Ioniq-5): 220100-0102 (cabin, ambient, evaporator, coolant
+      temperatures). Polled at 7B3/7BB by OVMS.

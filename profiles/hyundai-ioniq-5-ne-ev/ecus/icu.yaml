@@ -1,0 +1,11 @@
+ICU:
+  tx_id: 0x770
+  can_bus: [ALL]
+  identity:
+    description: Integrated Central control Unit (junction block + central gateway)
+    notes: >-
+      Address confirmed by recorded responses in OBDb Hyundai-Ioniq-5 test cases (MY2022-2027,
+      https://github.com/OBDb/Hyundai-Ioniq-5): 22BC03, BC06, BC10 (lights). OVMS reads BC03/BC04
+      here for door state and IGN1/IGN2. The ICU replaces the IGPM on this car: smart junction block
+      (IPS) plus the central/security gateway that bridges all eight ICU-H CAN segments. Body
+      control proper is the IBU at 7A0.

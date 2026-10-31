@@ -1,0 +1,9 @@
+VCMS:
+  tx_id: 0x744
+  identity:
+    description: Vehicle Charging Management System
+    notes: >-
+      Address confirmed by recorded responses in OBDb Hyundai-Ioniq-5 test cases (MY2022-2027,
+      https://github.com/OBDb/Hyundai-Ioniq-5): 22E001-E004 (charge states, EVSE limits, control
+      pilot and proximity, inlet temperatures, 400 V relay); OBDb names two of its signals *_VCMS.
+      The NE has a VCMS module (TSB 23-EV-003H).
