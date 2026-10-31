@@ -7,6 +7,9 @@ variants:
     production: ["2021", "2024"]
     markets: [EU, US]
     battery: {gross_kwh: 58.0, nominal_voltage: 522.7, series_cells: 144, parallel_cells: 2, chemistry: NMC, cell_format: pouch}
+    profile_overrides:
+      physical_bands:
+        hv_pack: [350, 620]   # 144S pack: 144 x 2.5 V to 144 x 4.2 V ~= 360-605 V
     status: seed
     sources:
     - >-
@@ -34,7 +37,8 @@ variants:
       63 kWh successor. 522.7 V is Hyundai's figure, 144 x 3.63 V. EVDB estimates 54.0 kWh usable.
       Hyundai names the pack by its gross capacity, as this ID does. Cell supplier not stated for
       this pack in the sources checked. No capture from this car yet. A 144S pack spans about
-      360-605 V (2.5-4.2 V per cell), mostly below the profile's 450-820 V hv_pack band.
+      360-605 V (2.5-4.2 V per cell), below the profile's 450-820 V hv_pack band, so this variant
+      overrides the band.
   72kwh:
     name: Ioniq 5 72.6 kWh (Long Range, launch)
     generation: NE
@@ -116,6 +120,9 @@ variants:
     production: ["2024", "2026"]
     markets: [EU, US, AU]
     battery: {gross_kwh: 63.0, nominal_voltage: 523, series_cells: 144, parallel_cells: 2, modules: 24, chemistry: NMC, cell_format: pouch, cooling: liquid}
+    profile_overrides:
+      physical_bands:
+        hv_pack: [350, 620]   # 144S pack: 144 x 2.5 V to 144 x 4.2 V ~= 360-605 V
     status: seed
     sources:
     - >-
@@ -140,8 +147,8 @@ variants:
       writing (the UK model-year 27 guide), so the window ends at the last year the sources confirm.
       Hyundai's 2026 US guide lists SK Innovation (Hungary) in a row shared with the 84 kWh pack,
       and its Dec 2024 guide lists Hyundai Mobis (the pack maker), so cell_supplier is left unset.
-      Like the 58 kWh pack, its 144S range (about 360-605 V) sits mostly below the profile's hv_pack
-      band. No capture from this car yet.
+      Like the 58 kWh pack, its 144S range (about 360-605 V) sits below the profile's hv_pack band, so
+      this variant overrides the band. No capture from this car yet.
   84kwh:
     name: Ioniq 5 84 kWh (Long Range, facelift)
     generation: NE
