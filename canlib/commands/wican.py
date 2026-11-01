@@ -22,7 +22,7 @@ Subcommands:
 Examples:
   canair wican autopid write                       # verified-only, both firmware files
   canair wican autopid write --firmware 6          # only the firmware v6 table
-  canair wican autopid write --include-unverified  # also include unverified params
+  canair wican autopid write --include-unverified  # also unverified: autopid-v*-unverified.json
   canair wican autopid write --no-expected-responses  # omit the response-frame counts
   canair wican autopid upload --reboot             # upload + reboot to apply
   canair wican autopid diff --wican home           # compare device vs generated
@@ -115,11 +115,13 @@ def _require_v4_api(base_url: str, surface: Surface, *, writes: bool = False) ->
 FIRMWARE_FILES: dict[str, str] = {"4": "autopid-v4.json", "6": "autopid-v6.json"}
 
 
-def _profile_out(firmware: str) -> Path:
+def _profile_out(firmware: str, include_unverified: bool = False) -> Path:
     """Default output path for the generated AutoPID JSON for ``firmware`` (4 or 6).
 
     ``out/<variant>/autopid-v<N>.json`` on a profile with several variants — each car gets
-    its own device profile — else ``out/autopid-v<N>.json``.
+    its own device profile — else ``out/autopid-v<N>.json``. A build that includes the
+    unverified signals is ``autopid-v<N>-unverified.json`` beside it, so it never replaces
+    the verified-only file.
     """
     from canlib.profile import active
     from canlib.variants import load_variants
@@ -128,6 +130,8 @@ def _profile_out(firmware: str) -> Path:
     prof = active()
     variant = selected_variant(prof)
     name = FIRMWARE_FILES[firmware]
+    if include_unverified:
+        name = name.replace(".json", "-unverified.json")
     if variant and len(load_variants(prof)) > 1:
         return prof.out_dir / variant / name
     return prof.out_dir / name
@@ -472,7 +476,10 @@ def _add_autopid_parser(groups) -> argparse.ArgumentParser:
         "bundle's out/, once per firmware generation: autopid-v4.json is the 4.x vehicle "
         "profile, autopid-v6.json the v6 AutoPID table (from 6.0.0-beta.3; it also names "
         "the car's 'vehicle' and 'specific_init' device settings). On a profile with several "
-        "variants both go to out/<variant>/, one device profile per car. Refused while an "
+        "variants both go to out/<variant>/, one device profile per car. With "
+        "--include-unverified they are autopid-v4-unverified.json and "
+        "autopid-v6-unverified.json instead, so the verified-only files stay as they are. "
+        "Refused while an "
         "ECU's revision is undetermined: the device polls a fixed list and can't detect it.",
     )
     write.add_argument(
@@ -679,7 +686,10 @@ def _cmd_autopid_write(args) -> int:
     rendered = {fw: documents[fw]() for fw in wanted}
     print("\nWriting output...")
     for fw, document in rendered.items():
-        write_json(document, out if out is not None else _profile_out(fw))
+        write_json(
+            document,
+            out if out is not None else _profile_out(fw, not _verified_only(args)),
+        )
     if "6" in rendered:
         print(
             "  (v6: 'vehicle' and 'specific_init' are the device's autopid settings, "

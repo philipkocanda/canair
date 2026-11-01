@@ -174,7 +174,8 @@ data itself is **`contributing-profiles`**.
 - `profiles/*/captures/*.json` are written by the `--save` path, never by hand, and are
   **append-only** logs unioned by canair's git merge driver. If you touch the on-disk format, keep
   `canlib/captures_merge.py` aligned with `canlib/capture_io.py`.
-- `profiles/*/out/*.json` is generated (`canair wican autopid write`) — regenerate, never hand-edit.
+- `profiles/*/out/*.json` is generated — regenerate (`uv run python scripts/gen_autopid.py` writes
+  both the verified-only and the `-unverified` build of every bundled car), never hand-edit.
 - Schemas are tool-owned in `canlib/schema/`; validate with `canair validate`.
 
 ## No PII or location data — the tree is public

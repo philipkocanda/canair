@@ -47,7 +47,7 @@ Subcommands:
 Examples:
   canair wican autopid write                       # verified-only, both firmware files
   canair wican autopid write --firmware 6          # only the firmware v6 table
-  canair wican autopid write --include-unverified  # also include unverified params
+  canair wican autopid write --include-unverified  # also unverified: autopid-v*-unverified.json
   canair wican autopid write --no-expected-responses  # omit the response-frame counts
   canair wican autopid upload --reboot             # upload + reboot to apply
   canair wican autopid diff --wican home           # compare device vs generated

@@ -44,8 +44,18 @@ class TestAutoPid:
         set_active(str(FIXTURE), variant="40kwh")
         assert _profile_out("4") == FIXTURE / "out" / "40kwh" / "autopid-v4.json"
         assert _profile_out("6") == FIXTURE / "out" / "40kwh" / "autopid-v6.json"
+        assert _profile_out("4", True) == FIXTURE / "out" / "40kwh" / "autopid-v4-unverified.json"
         set_active("hyundai-kona-os-ev")  # no car named: unchanged
         assert _profile_out("4").parent.name == "out"
+
+    def test_an_unverified_build_leaves_the_verified_file_alone(self, copy, capsys):
+        argv = ["--profile", str(copy), "--variant", "40kwh", "wican", "autopid", "write"]
+        assert main([*argv, "--firmware", "4"]) == 0
+        verified = copy / "out" / "40kwh" / "autopid-v4.json"
+        before = verified.read_bytes()
+        assert main([*argv, "--firmware", "4", "--include-unverified"]) == 0
+        assert verified.read_bytes() == before
+        assert (copy / "out" / "40kwh" / "autopid-v4-unverified.json").exists()
 
     @pytest.mark.parametrize("firmware", ["4", "6"])
     def test_the_28kwh_ioniq_build_is_the_committed_one(self, tmp_path, capsys, firmware):
@@ -66,12 +76,13 @@ class TestAutoPid:
             prof = resolve_profile(str(root.parent))
             for variant in load_variants(prof) or {"": None}:
                 folder = prof.root / "out" / variant
+                # The unverified v6 table is left out when a candidate does not fit v6.
                 missing += [
-                    str(folder / f"autopid-v{fw}.json")
-                    for fw in ("4", "6")
-                    if not (folder / f"autopid-v{fw}.json").exists()
+                    str(folder / name)
+                    for name in ("autopid-v4.json", "autopid-v6.json", "autopid-v4-unverified.json")
+                    if not (folder / name).exists()
                 ]
-        assert not missing, "regenerate with `canair wican autopid write`:\n" + "\n".join(missing)
+        assert not missing, "regenerate with `scripts/gen_autopid.py`:\n" + "\n".join(missing)
 
     def test_the_38kwh_build_ships_none_of_the_unverified_port(self, tmp_path, capsys):
         out = tmp_path / "a.json"

@@ -3,8 +3,9 @@
 
 Runs ``canair wican autopid write`` once per profile under ``profiles/`` and, on a profile
 with several variants, once per variant, so each car's ``out/`` files match its current
-``ecus/`` definitions. The release workflow runs it on the release PR's branch; run it by
-hand whenever you want ``out/`` current between releases.
+``ecus/`` definitions: the verified-only ``autopid-v<N>.json`` and, with
+``--include-unverified``, ``autopid-v<N>-unverified.json``. The release workflow runs it on
+the release PR's branch; run it by hand whenever you want ``out/`` current between releases.
 
 Usage:
     uv run python scripts/gen_autopid.py                    # every bundled profile
@@ -44,17 +45,43 @@ def _isolated_env(config_home: str) -> dict[str, str]:
     return env
 
 
-def _write(profile_dir: Path, variant: str | None, env: dict[str, str]) -> bool:
+def _write(
+    profile_dir: Path,
+    variant: str | None,
+    unverified: bool,
+    firmware: str | None,
+    env: dict[str, str],
+) -> bool:
+    """Write one build; ``False`` only when a verified-only build fails.
+
+    An unverified build may legitimately not fit (a candidate's name over firmware v6's
+    limit, say), and that must not hold back the verified files every release ships, so its
+    failure is reported as a warning instead.
+    """
     cmd = [sys.executable, "-m", "canlib.cli", "--profile", str(profile_dir)]
     if variant:
         cmd += ["--variant", variant]
     cmd += ["wican", "autopid", "write"]
+    if unverified:
+        cmd.append("--include-unverified")
+    if firmware:
+        cmd += ["--firmware", firmware]
     label = profile_dir.name + (f" ({variant})" if variant else "")
+    label += ", with unverified" if unverified else ", verified only"
+    if firmware:
+        label += f", v{firmware}"
     result = subprocess.run(cmd, env=env, cwd=REPO_ROOT, capture_output=True, text=True)
-    if result.returncode != 0:
+    if result.returncode == 0:
+        print(f"✓ {label}")
+        return True
+    errors = [line for line in result.stderr.splitlines() if line.strip()]
+    if not unverified:
         print(f"✗ {label}\n{result.stdout}{result.stderr}", file=sys.stderr)
         return False
-    print(f"✓ {label}")
+    print(f"! {label}: skipped what does not fit\n" + "\n".join(errors), file=sys.stderr)
+    if os.environ.get("GITHUB_ACTIONS"):
+        detail = "%0A".join(errors)  # the annotation's own newline escape
+        print(f"::warning title=Unverified AutoPID build skipped::{label}%0A{detail}")
     return True
 
 
@@ -82,7 +109,11 @@ def main(argv: list[str] | None = None) -> int:
         env = _isolated_env(config_home)
         for profile_dir in dirs:
             for variant in _variants(profile_dir) or [None]:
-                ok &= _write(profile_dir, variant, env)
+                for unverified in (False, True):
+                    # Per firmware for the unverified build, so a v6 table that does not
+                    # fit still leaves its v4 file written.
+                    for firmware in (None,) if not unverified else ("4", "6"):
+                        ok &= _write(profile_dir, variant, unverified, firmware, env)
     return 0 if ok else 1
 
 

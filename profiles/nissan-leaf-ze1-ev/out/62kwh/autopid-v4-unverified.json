@@ -1,0 +1,522 @@
+{
+  "car_model": "Nissan Leaf (ZE1)",
+  "init": "ATSP6;ATS0;ATAL;ATST96;ATFCSH740;ATFCSD300000;ATFCSM1;",
+  "pids": [
+    {
+      "pid_init": "ATSH740;ATFCSH740;ATCRA760;",
+      "pid": "221115",
+      "enabled": true,
+      "period": "2000",
+      "parameters": {
+        "ACCEL_PEDAL": "B4/2"
+      }
+    },
+    {
+      "pid_init": "ATSH740;ATFCSH740;ATCRA760;",
+      "pid": "221208",
+      "enabled": true,
+      "period": "2000",
+      "parameters": {
+        "STEERING_ANGLE": "[S4:S5]/10"
+      }
+    },
+    {
+      "pid_init": "ATSH740;ATFCSH740;ATCRA760;",
+      "pid": "221209",
+      "enabled": true,
+      "period": "2000",
+      "parameters": {
+        "BRAKE_MC_PRESSURE_RAW": "[B4:B5]"
+      }
+    },
+    {
+      "pid_init": "ATSH744;ATFCSH744;ATCRA764;",
+      "pid": "2110",
+      "enabled": true,
+      "period": "10000",
+      "parameters": {
+        "HVAC_AMBIENT_T": "B4-40",
+        "HVAC_CABIN_T": "B5-40",
+        "HVAC_EVAP_T": "B6-40",
+        "HVAC_SUNLOAD": "B7",
+        "HVAC_AC_ON": "B15:7",
+        "HVAC_FAN_ON": "B17:7",
+        "HVAC_BLOWER_V": "B17-128*B17:7",
+        "HVAC_COMPRESSOR_RPM": "[B28:B29]"
+      }
+    },
+    {
+      "pid_init": "ATSH784;ATFCSH784;ATCRA78C;",
+      "pid": "221225",
+      "enabled": true,
+      "period": "2000",
+      "parameters": {
+        "INV_TORQUE": "[S4:S5]/64"
+      }
+    },
+    {
+      "pid_init": "ATSH784;ATFCSH784;ATCRA78C;",
+      "pid": "221121",
+      "enabled": true,
+      "period": "10000",
+      "parameters": {
+        "MOTOR_T": "B4-40"
+      }
+    },
+    {
+      "pid_init": "ATSH79B;ATFCSH79B;ATCRA7BB;",
+      "pid": "2101",
+      "enabled": true,
+      "period": "10000",
+      "parameters": {
+        "SOC": "((B39*65536)+[B41:B42])/10000",
+        "SOC_D": "((((B39*65536)+[B41:B42])/10000)-12)/0.85",
+        "HV_CAPACITY": "((B44*65536)+[B45:B46])/10000",
+        "HV_CAPACITY_KWH": "((B44*65536)+[B45:B46])/29600",
+        "HV_CAPACITY_R": "((B39*65536)+[B41:B42])/10000*((B44*65536)+[B45:B46])/29600/100",
+        "HX": "[B36:B37]/102.4",
+        "HV_PACK_V": "[B25:B26]/100",
+        "HV_CURRENT_1": "[S4:S7]/1024",
+        "HV_CURRENT_2": "[S11:S14]/1024",
+        "INSULATION_RAW": "[B29:B30]",
+        "GIDS": "((B39*65536)+[B41:B42])/10000/100*((B44*65536)+[B45:B46])/10000*4.425",
+        "LBC_12V": "[B27:B28]/1000"
+      }
+    },
+    {
+      "pid_init": "ATSH79B;ATFCSH79B;ATCRA7BB;",
+      "pid": "2104",
+      "enabled": true,
+      "period": "10000",
+      "parameters": {
+        "HV_T_1": "S6",
+        "HV_T_2": "S10",
+        "HV_T_3": "S17",
+        "HV_T_4": "S18"
+      }
+    },
+    {
+      "pid_init": "ATSH79B;ATFCSH79B;ATCRA7BB;",
+      "pid": "2102",
+      "enabled": true,
+      "period": "30000",
+      "parameters": {
+        "HV_CELL_01_V": "[B4:B5]/1000",
+        "HV_CELL_02_V": "[B6:B7]/1000",
+        "HV_CELL_03_V": "[B9:B10]/1000",
+        "HV_CELL_04_V": "[B11:B12]/1000",
+        "HV_CELL_05_V": "[B13:B14]/1000",
+        "HV_CELL_06_V": "((B15*256)+B17)/1000",
+        "HV_CELL_07_V": "[B18:B19]/1000",
+        "HV_CELL_08_V": "[B20:B21]/1000",
+        "HV_CELL_09_V": "[B22:B23]/1000",
+        "HV_CELL_10_V": "[B25:B26]/1000",
+        "HV_CELL_11_V": "[B27:B28]/1000",
+        "HV_CELL_12_V": "[B29:B30]/1000",
+        "HV_CELL_13_V": "((B31*256)+B33)/1000",
+        "HV_CELL_14_V": "[B34:B35]/1000",
+        "HV_CELL_15_V": "[B36:B37]/1000",
+        "HV_CELL_16_V": "[B38:B39]/1000",
+        "HV_CELL_17_V": "[B41:B42]/1000",
+        "HV_CELL_18_V": "[B43:B44]/1000",
+        "HV_CELL_19_V": "[B45:B46]/1000",
+        "HV_CELL_20_V": "((B47*256)+B49)/1000",
+        "HV_CELL_21_V": "[B50:B51]/1000",
+        "HV_CELL_22_V": "[B52:B53]/1000",
+        "HV_CELL_23_V": "[B54:B55]/1000",
+        "HV_CELL_24_V": "[B57:B58]/1000",
+        "HV_CELL_25_V": "[B59:B60]/1000",
+        "HV_CELL_26_V": "[B61:B62]/1000",
+        "HV_CELL_27_V": "((B63*256)+B65)/1000",
+        "HV_CELL_28_V": "[B66:B67]/1000",
+        "HV_CELL_29_V": "[B68:B69]/1000",
+        "HV_CELL_30_V": "[B70:B71]/1000",
+        "HV_CELL_31_V": "[B73:B74]/1000",
+        "HV_CELL_32_V": "[B75:B76]/1000",
+        "HV_CELL_33_V": "[B77:B78]/1000",
+        "HV_CELL_34_V": "((B79*256)+B81)/1000",
+        "HV_CELL_35_V": "[B82:B83]/1000",
+        "HV_CELL_36_V": "[B84:B85]/1000",
+        "HV_CELL_37_V": "[B86:B87]/1000",
+        "HV_CELL_38_V": "[B89:B90]/1000",
+        "HV_CELL_39_V": "[B91:B92]/1000",
+        "HV_CELL_40_V": "[B93:B94]/1000",
+        "HV_CELL_41_V": "((B95*256)+B97)/1000",
+        "HV_CELL_42_V": "[B98:B99]/1000",
+        "HV_CELL_43_V": "[B100:B101]/1000",
+        "HV_CELL_44_V": "[B102:B103]/1000",
+        "HV_CELL_45_V": "[B105:B106]/1000",
+        "HV_CELL_46_V": "[B107:B108]/1000",
+        "HV_CELL_47_V": "[B109:B110]/1000",
+        "HV_CELL_48_V": "((B111*256)+B113)/1000",
+        "HV_CELL_49_V": "[B114:B115]/1000",
+        "HV_CELL_50_V": "[B116:B117]/1000",
+        "HV_CELL_51_V": "[B118:B119]/1000",
+        "HV_CELL_52_V": "[B121:B122]/1000",
+        "HV_CELL_53_V": "[B123:B124]/1000",
+        "HV_CELL_54_V": "[B125:B126]/1000",
+        "HV_CELL_55_V": "((B127*256)+B129)/1000",
+        "HV_CELL_56_V": "[B130:B131]/1000",
+        "HV_CELL_57_V": "[B132:B133]/1000",
+        "HV_CELL_58_V": "[B134:B135]/1000",
+        "HV_CELL_59_V": "[B137:B138]/1000",
+        "HV_CELL_60_V": "[B139:B140]/1000",
+        "HV_CELL_61_V": "[B141:B142]/1000",
+        "HV_CELL_62_V": "((B143*256)+B145)/1000",
+        "HV_CELL_63_V": "[B146:B147]/1000",
+        "HV_CELL_64_V": "[B148:B149]/1000",
+        "HV_CELL_65_V": "[B150:B151]/1000",
+        "HV_CELL_66_V": "[B153:B154]/1000",
+        "HV_CELL_67_V": "[B155:B156]/1000",
+        "HV_CELL_68_V": "[B157:B158]/1000",
+        "HV_CELL_69_V": "((B159*256)+B161)/1000",
+        "HV_CELL_70_V": "[B162:B163]/1000",
+        "HV_CELL_71_V": "[B164:B165]/1000",
+        "HV_CELL_72_V": "[B166:B167]/1000",
+        "HV_CELL_73_V": "[B169:B170]/1000",
+        "HV_CELL_74_V": "[B171:B172]/1000",
+        "HV_CELL_75_V": "[B173:B174]/1000",
+        "HV_CELL_76_V": "((B175*256)+B177)/1000",
+        "HV_CELL_77_V": "[B178:B179]/1000",
+        "HV_CELL_78_V": "[B180:B181]/1000",
+        "HV_CELL_79_V": "[B182:B183]/1000",
+        "HV_CELL_80_V": "[B185:B186]/1000",
+        "HV_CELL_81_V": "[B187:B188]/1000",
+        "HV_CELL_82_V": "[B189:B190]/1000",
+        "HV_CELL_83_V": "((B191*256)+B193)/1000",
+        "HV_CELL_84_V": "[B194:B195]/1000",
+        "HV_CELL_85_V": "[B196:B197]/1000",
+        "HV_CELL_86_V": "[B198:B199]/1000",
+        "HV_CELL_87_V": "[B201:B202]/1000",
+        "HV_CELL_88_V": "[B203:B204]/1000",
+        "HV_CELL_89_V": "[B205:B206]/1000",
+        "HV_CELL_90_V": "((B207*256)+B209)/1000",
+        "HV_CELL_91_V": "[B210:B211]/1000",
+        "HV_CELL_92_V": "[B212:B213]/1000",
+        "HV_CELL_93_V": "[B214:B215]/1000",
+        "HV_CELL_94_V": "[B217:B218]/1000",
+        "HV_CELL_95_V": "[B219:B220]/1000",
+        "HV_CELL_96_V": "[B221:B222]/1000",
+        "HV_PACK_V_2102": "((B223*256)+B225)/100",
+        "HV_BUS_V": "[B226:B227]/100"
+      }
+    },
+    {
+      "pid_init": "ATSH79B;ATFCSH79B;ATCRA7BB;",
+      "pid": "2103",
+      "enabled": true,
+      "period": "10000",
+      "parameters": {
+        "HV_CELL_MAX_V": "((B15*256)+B17)/1000",
+        "HV_CELL_MIN_V": "[B18:B19]/1000"
+      }
+    },
+    {
+      "pid_init": "ATSH79B;ATFCSH79B;ATCRA7BB;",
+      "pid": "210C",
+      "enabled": true,
+      "period": "600000",
+      "parameters": {
+        "LBC_DISTANCE_COUNTER": "[B4:B7]"
+      }
+    },
+    {
+      "pid_init": "ATSH79B;ATFCSH79B;ATCRA7BB;",
+      "pid": "2161",
+      "enabled": true,
+      "period": "300000",
+      "parameters": {
+        "SOH": "[B6:B7]/100"
+      }
+    },
+    {
+      "pid_init": "ATSH743;ATFCSH743;ATCRA763;",
+      "pid": "220E01",
+      "enabled": true,
+      "period": "30000",
+      "parameters": {
+        "ODOMETER": "(B4*65536)+(B5*256)+B6"
+      }
+    },
+    {
+      "pid_init": "ATSH743;ATFCSH743;ATCRA763;",
+      "pid": "220E2E",
+      "enabled": true,
+      "period": "10000",
+      "parameters": {
+        "RANGE": "[B4:B5]"
+      }
+    },
+    {
+      "pid_init": "ATSH743;ATFCSH743;ATCRA763;",
+      "pid": "220E25",
+      "enabled": true,
+      "period": "30000",
+      "parameters": {
+        "TP_FR": "B4*1.7236894"
+      }
+    },
+    {
+      "pid_init": "ATSH743;ATFCSH743;ATCRA763;",
+      "pid": "220E26",
+      "enabled": true,
+      "period": "30000",
+      "parameters": {
+        "TP_FL": "B4*1.7236894"
+      }
+    },
+    {
+      "pid_init": "ATSH743;ATFCSH743;ATCRA763;",
+      "pid": "220E27",
+      "enabled": true,
+      "period": "30000",
+      "parameters": {
+        "TP_RR": "B4*1.7236894"
+      }
+    },
+    {
+      "pid_init": "ATSH743;ATFCSH743;ATCRA763;",
+      "pid": "220E28",
+      "enabled": true,
+      "period": "30000",
+      "parameters": {
+        "TP_RL": "B4*1.7236894"
+      }
+    },
+    {
+      "pid_init": "ATSH743;ATFCSH743;ATCRA763;",
+      "pid": "220E2D",
+      "enabled": true,
+      "period": "30000",
+      "parameters": {
+        "SOC_DASH": "B21"
+      }
+    },
+    {
+      "pid_init": "ATSH797;ATFCSH797;ATCRA79A;",
+      "pid": "221203",
+      "enabled": true,
+      "period": "600000",
+      "parameters": {
+        "QC_COUNT": "[B4:B5]"
+      }
+    },
+    {
+      "pid_init": "ATSH797;ATFCSH797;ATCRA79A;",
+      "pid": "221205",
+      "enabled": true,
+      "period": "600000",
+      "parameters": {
+        "L2_COUNT": "[B4:B5]"
+      }
+    },
+    {
+      "pid_init": "ATSH797;ATFCSH797;ATCRA79A;",
+      "pid": "221102",
+      "enabled": true,
+      "period": "2000",
+      "parameters": {
+        "VCM_SPEED": "B4"
+      }
+    },
+    {
+      "pid_init": "ATSH797;ATFCSH797;ATCRA79A;",
+      "pid": "221103",
+      "enabled": true,
+      "period": "10000",
+      "parameters": {
+        "VPWR_12V": "B4*0.08"
+      }
+    },
+    {
+      "pid_init": "ATSH797;ATFCSH797;ATCRA79A;",
+      "pid": "221106",
+      "enabled": true,
+      "period": "5000",
+      "parameters": {
+        "AC_ON": "B4"
+      }
+    },
+    {
+      "pid_init": "ATSH797;ATFCSH797;ATCRA79A;",
+      "pid": "22110F",
+      "enabled": true,
+      "period": "30000",
+      "parameters": {
+        "REAR_HEATER": "B4"
+      }
+    },
+    {
+      "pid_init": "ATSH797;ATFCSH797;ATCRA79A;",
+      "pid": "221128",
+      "enabled": true,
+      "period": "2000",
+      "parameters": {
+        "MOTOR_TQ_NOMINAL": "[S4:S5]/64"
+      }
+    },
+    {
+      "pid_init": "ATSH797;ATFCSH797;ATCRA79A;",
+      "pid": "221146",
+      "enabled": true,
+      "period": "2000",
+      "parameters": {
+        "MOTOR_PWR": "[B4:B5]*40"
+      }
+    },
+    {
+      "pid_init": "ATSH797;ATFCSH797;ATCRA79A;",
+      "pid": "22114E",
+      "enabled": true,
+      "period": "5000",
+      "parameters": {
+        "CHARGE_MODE": "B4"
+      }
+    },
+    {
+      "pid_init": "ATSH797;ATFCSH797;ATCRA79A;",
+      "pid": "221151",
+      "enabled": true,
+      "period": "5000",
+      "parameters": {
+        "AC_PWR": "B4*250"
+      }
+    },
+    {
+      "pid_init": "ATSH797;ATFCSH797;ATCRA79A;",
+      "pid": "221152",
+      "enabled": true,
+      "period": "5000",
+      "parameters": {
+        "AUX_PWR": "B4*100"
+      }
+    },
+    {
+      "pid_init": "ATSH797;ATFCSH797;ATCRA79A;",
+      "pid": "221156",
+      "enabled": true,
+      "period": "2000",
+      "parameters": {
+        "GEAR": "B4"
+      }
+    },
+    {
+      "pid_init": "ATSH797;ATFCSH797;ATCRA79A;",
+      "pid": "22115D",
+      "enabled": true,
+      "period": "30000",
+      "parameters": {
+        "AMBIENT_T": "B4/2-40.5"
+      }
+    },
+    {
+      "pid_init": "ATSH797;ATFCSH797;ATCRA79A;",
+      "pid": "221183",
+      "enabled": true,
+      "period": "5000",
+      "parameters": {
+        "VPWR_12V_CURRENT": "[S4:S5]/256"
+      }
+    },
+    {
+      "pid_init": "ATSH797;ATFCSH797;ATCRA79A;",
+      "pid": "22121A",
+      "enabled": true,
+      "period": "2000",
+      "parameters": {
+        "VEHICLE_SPEED": "[B4:B5]/10"
+      }
+    },
+    {
+      "pid_init": "ATSH797;ATFCSH797;ATCRA79A;",
+      "pid": "221234",
+      "enabled": true,
+      "period": "5000",
+      "parameters": {
+        "PLUG_STATE": "B4"
+      }
+    },
+    {
+      "pid_init": "ATSH797;ATFCSH797;ATCRA79A;",
+      "pid": "221236",
+      "enabled": true,
+      "period": "5000",
+      "parameters": {
+        "OBC_OUT_PWR": "[B4:B5]*100"
+      }
+    },
+    {
+      "pid_init": "ATSH797;ATFCSH797;ATCRA79A;",
+      "pid": "221248",
+      "enabled": true,
+      "period": "2000",
+      "parameters": {
+        "HV_CURRENT_VCM": "[S4:S5]/2"
+      }
+    },
+    {
+      "pid_init": "ATSH797;ATFCSH797;ATCRA79A;",
+      "pid": "221254",
+      "enabled": true,
+      "period": "2000",
+      "parameters": {
+        "MOTOR_TQ": "[S4:S5]/64"
+      }
+    },
+    {
+      "pid_init": "ATSH797;ATFCSH797;ATCRA79A;",
+      "pid": "221255",
+      "enabled": true,
+      "period": "2000",
+      "parameters": {
+        "MOTOR_RPM": "[S4:S5]"
+      }
+    },
+    {
+      "pid_init": "ATSH797;ATFCSH797;ATCRA79A;",
+      "pid": "221261",
+      "enabled": true,
+      "period": "5000",
+      "parameters": {
+        "AC_PWR_EST": "B4*50"
+      }
+    },
+    {
+      "pid_init": "ATSH797;ATFCSH797;ATCRA79A;",
+      "pid": "221262",
+      "enabled": true,
+      "period": "5000",
+      "parameters": {
+        "PTC_PWR_EST": "B4*250"
+      }
+    },
+    {
+      "pid_init": "ATSH797;ATFCSH797;ATCRA79A;",
+      "pid": "221304",
+      "enabled": true,
+      "period": "5000",
+      "parameters": {
+        "POWER_SWITCH": "B4:7"
+      }
+    },
+    {
+      "pid_init": "ATSH797;ATFCSH797;ATCRA79A;",
+      "pid": "221318",
+      "enabled": true,
+      "period": "10000",
+      "parameters": {
+        "ECO_MODE": "B4"
+      }
+    },
+    {
+      "pid_init": "ATSH797;ATFCSH797;ATCRA79A;",
+      "pid": "22131A",
+      "enabled": true,
+      "period": "10000",
+      "parameters": {
+        "EPEDAL_MODE": "B4"
+      }
+    }
+  ],
+  "can_filters": []
+}

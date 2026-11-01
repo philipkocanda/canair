@@ -1,0 +1,1440 @@
+{
+  "vehicle": "Hyundai Kona Electric (OS)",
+  "specific_init": "ATSP6;ATAL;ATST96",
+  "groups": [],
+  "pids": [
+    {
+      "name": "BCM_22C00B",
+      "type": "specific",
+      "cmd": "22C00B",
+      "init": "ATSH7A0;ATFCSH7A0",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 5000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "TYRE_PRESSURE_FL",
+          "expression": "B10/72.52",
+          "unit": "bar",
+          "class": "pressure",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "TYRE_TEMP_FL",
+          "expression": "B11-50",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -50,
+          "max": 205
+        },
+        {
+          "name": "TYRE_PRESSURE_FR",
+          "expression": "B14/72.52",
+          "unit": "bar",
+          "class": "pressure",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "TYRE_TEMP_FR",
+          "expression": "B15-50",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -50,
+          "max": 205
+        },
+        {
+          "name": "TYRE_PRESSURE_RL",
+          "expression": "B19/72.52",
+          "unit": "bar",
+          "class": "pressure",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "TYRE_TEMP_RL",
+          "expression": "B20-50",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -50,
+          "max": 205
+        },
+        {
+          "name": "TYRE_PRESSURE_RR",
+          "expression": "B23/72.52",
+          "unit": "bar",
+          "class": "pressure",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "TYRE_TEMP_RR",
+          "expression": "B25-50",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -50,
+          "max": 205
+        }
+      ]
+    },
+    {
+      "name": "BMS_220101",
+      "type": "specific",
+      "cmd": "220101",
+      "init": "ATSH7E4;ATFCSH7E4",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 5000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "SOC_BMS",
+          "expression": "B10/2",
+          "unit": "%",
+          "class": "battery",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "name": "BATTERY_CURRENT",
+          "expression": "[S17:S18]/10",
+          "unit": "A",
+          "class": "current",
+          "min": -400,
+          "max": 400
+        },
+        {
+          "name": "BATTERY_VOLTAGE",
+          "expression": "[B19:B20]/10",
+          "unit": "V",
+          "class": "voltage",
+          "min": 240,
+          "max": 450
+        },
+        {
+          "name": "BATTERY_POWER",
+          "expression": "(([B19:B20]/10)*([S17:S18]/10))/1000",
+          "unit": "kW",
+          "class": "power"
+        },
+        {
+          "name": "AVAILABLE_CHARGE_POWER",
+          "expression": "[B11:B12]/100",
+          "unit": "kW",
+          "class": "power"
+        },
+        {
+          "name": "AVAILABLE_DISCHARGE_POWER",
+          "expression": "[B13:B14]/100",
+          "unit": "kW",
+          "class": "power"
+        },
+        {
+          "name": "BMS_B15_7_UNKN",
+          "expression": "B15:7",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "RAPID_CHARGE_PORT",
+          "expression": "B15:6",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "BMS_B15_5_UNKN",
+          "expression": "B15:5",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "BMS_MAIN_RELAY",
+          "expression": "B15:0",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "BATTERY_MAX_TEMP",
+          "expression": "S21",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 80
+        },
+        {
+          "name": "BATTERY_MIN_TEMP",
+          "expression": "S22",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 80
+        },
+        {
+          "name": "BATTERY_MODULE_TEMP_1",
+          "expression": "S23",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 80
+        },
+        {
+          "name": "BATTERY_MODULE_TEMP_2",
+          "expression": "S25",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 80
+        },
+        {
+          "name": "BATTERY_MODULE_TEMP_3",
+          "expression": "S26",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 80
+        },
+        {
+          "name": "BATTERY_MODULE_TEMP_4",
+          "expression": "S27",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 80
+        },
+        {
+          "name": "BATTERY_INLET_TEMP",
+          "expression": "S30",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 80
+        },
+        {
+          "name": "MAX_CELL_VOLTAGE",
+          "expression": "B31/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "MAX_CELL_VOLTAGE_NO",
+          "expression": "B33",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "MIN_CELL_VOLTAGE",
+          "expression": "B34/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "MIN_CELL_VOLTAGE_NO",
+          "expression": "B35",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "FAN_STATUS",
+          "expression": "B36",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "FAN_FEEDBACK",
+          "expression": "B37",
+          "unit": "Hz",
+          "class": "frequency"
+        },
+        {
+          "name": "AUX_BATTERY_VOLTAGE",
+          "expression": "B38/10",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 16
+        },
+        {
+          "name": "INVERTER_CAPACITOR_VOLTAGE",
+          "expression": "(B63 << 8) | B65",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 450
+        },
+        {
+          "name": "IGNITION",
+          "expression": "B62:2",
+          "unit": "",
+          "class": ""
+        }
+      ]
+    },
+    {
+      "name": "BMS_220105",
+      "type": "specific",
+      "cmd": "220105",
+      "init": "ATSH7E4;ATFCSH7E4",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 5000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "SOH",
+          "expression": "[B34:B35]/10",
+          "unit": "%",
+          "class": "",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "name": "SOC_DISPLAY",
+          "expression": "B41/2",
+          "unit": "%",
+          "class": "battery",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "name": "MIN_DETERIORATION",
+          "expression": "[B37:B38]/10",
+          "unit": "%",
+          "class": ""
+        },
+        {
+          "name": "CELL_VOLTAGE_DEVIATION",
+          "expression": "B28/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HEATER_TEMP",
+          "expression": "S31",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 120
+        },
+        {
+          "name": "MAX_DETERIORATION_CELL_NO",
+          "expression": "B36",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "MIN_DETERIORATION_CELL_NO",
+          "expression": "B39",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "CELL_97_VOLTAGE",
+          "expression": "B44/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_98_VOLTAGE",
+          "expression": "B45/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        }
+      ]
+    },
+    {
+      "name": "BMS_220102",
+      "type": "specific",
+      "cmd": "220102",
+      "init": "ATSH7E4;ATFCSH7E4",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 5000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "CELL_01_VOLTAGE",
+          "expression": "B10/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_02_VOLTAGE",
+          "expression": "B11/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_03_VOLTAGE",
+          "expression": "B12/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_04_VOLTAGE",
+          "expression": "B13/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_05_VOLTAGE",
+          "expression": "B14/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_06_VOLTAGE",
+          "expression": "B15/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_07_VOLTAGE",
+          "expression": "B17/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_08_VOLTAGE",
+          "expression": "B18/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_09_VOLTAGE",
+          "expression": "B19/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_10_VOLTAGE",
+          "expression": "B20/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_11_VOLTAGE",
+          "expression": "B21/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_12_VOLTAGE",
+          "expression": "B22/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_13_VOLTAGE",
+          "expression": "B23/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_14_VOLTAGE",
+          "expression": "B25/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_15_VOLTAGE",
+          "expression": "B26/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_16_VOLTAGE",
+          "expression": "B27/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_17_VOLTAGE",
+          "expression": "B28/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_18_VOLTAGE",
+          "expression": "B29/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_19_VOLTAGE",
+          "expression": "B30/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_20_VOLTAGE",
+          "expression": "B31/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_21_VOLTAGE",
+          "expression": "B33/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_22_VOLTAGE",
+          "expression": "B34/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_23_VOLTAGE",
+          "expression": "B35/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_24_VOLTAGE",
+          "expression": "B36/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_25_VOLTAGE",
+          "expression": "B37/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_26_VOLTAGE",
+          "expression": "B38/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_27_VOLTAGE",
+          "expression": "B39/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_28_VOLTAGE",
+          "expression": "B41/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_29_VOLTAGE",
+          "expression": "B42/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_30_VOLTAGE",
+          "expression": "B43/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_31_VOLTAGE",
+          "expression": "B44/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_32_VOLTAGE",
+          "expression": "B45/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        }
+      ]
+    },
+    {
+      "name": "BMS_220103",
+      "type": "specific",
+      "cmd": "220103",
+      "init": "ATSH7E4;ATFCSH7E4",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 5000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "CELL_33_VOLTAGE",
+          "expression": "B10/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_34_VOLTAGE",
+          "expression": "B11/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_35_VOLTAGE",
+          "expression": "B12/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_36_VOLTAGE",
+          "expression": "B13/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_37_VOLTAGE",
+          "expression": "B14/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_38_VOLTAGE",
+          "expression": "B15/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_39_VOLTAGE",
+          "expression": "B17/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_40_VOLTAGE",
+          "expression": "B18/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_41_VOLTAGE",
+          "expression": "B19/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_42_VOLTAGE",
+          "expression": "B20/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_43_VOLTAGE",
+          "expression": "B21/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_44_VOLTAGE",
+          "expression": "B22/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_45_VOLTAGE",
+          "expression": "B23/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_46_VOLTAGE",
+          "expression": "B25/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_47_VOLTAGE",
+          "expression": "B26/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_48_VOLTAGE",
+          "expression": "B27/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_49_VOLTAGE",
+          "expression": "B28/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_50_VOLTAGE",
+          "expression": "B29/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_51_VOLTAGE",
+          "expression": "B30/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_52_VOLTAGE",
+          "expression": "B31/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_53_VOLTAGE",
+          "expression": "B33/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_54_VOLTAGE",
+          "expression": "B34/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_55_VOLTAGE",
+          "expression": "B35/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_56_VOLTAGE",
+          "expression": "B36/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_57_VOLTAGE",
+          "expression": "B37/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_58_VOLTAGE",
+          "expression": "B38/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_59_VOLTAGE",
+          "expression": "B39/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_60_VOLTAGE",
+          "expression": "B41/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_61_VOLTAGE",
+          "expression": "B42/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_62_VOLTAGE",
+          "expression": "B43/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_63_VOLTAGE",
+          "expression": "B44/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_64_VOLTAGE",
+          "expression": "B45/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        }
+      ]
+    },
+    {
+      "name": "BMS_220104",
+      "type": "specific",
+      "cmd": "220104",
+      "init": "ATSH7E4;ATFCSH7E4",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 5000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "CELL_65_VOLTAGE",
+          "expression": "B10/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_66_VOLTAGE",
+          "expression": "B11/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_67_VOLTAGE",
+          "expression": "B12/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_68_VOLTAGE",
+          "expression": "B13/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_69_VOLTAGE",
+          "expression": "B14/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_70_VOLTAGE",
+          "expression": "B15/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_71_VOLTAGE",
+          "expression": "B17/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_72_VOLTAGE",
+          "expression": "B18/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_73_VOLTAGE",
+          "expression": "B19/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_74_VOLTAGE",
+          "expression": "B20/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_75_VOLTAGE",
+          "expression": "B21/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_76_VOLTAGE",
+          "expression": "B22/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_77_VOLTAGE",
+          "expression": "B23/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_78_VOLTAGE",
+          "expression": "B25/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_79_VOLTAGE",
+          "expression": "B26/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_80_VOLTAGE",
+          "expression": "B27/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_81_VOLTAGE",
+          "expression": "B28/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_82_VOLTAGE",
+          "expression": "B29/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_83_VOLTAGE",
+          "expression": "B30/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_84_VOLTAGE",
+          "expression": "B31/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_85_VOLTAGE",
+          "expression": "B33/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_86_VOLTAGE",
+          "expression": "B34/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_87_VOLTAGE",
+          "expression": "B35/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_88_VOLTAGE",
+          "expression": "B36/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_89_VOLTAGE",
+          "expression": "B37/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_90_VOLTAGE",
+          "expression": "B38/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_91_VOLTAGE",
+          "expression": "B39/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_92_VOLTAGE",
+          "expression": "B41/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_93_VOLTAGE",
+          "expression": "B42/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_94_VOLTAGE",
+          "expression": "B43/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_95_VOLTAGE",
+          "expression": "B44/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "CELL_96_VOLTAGE",
+          "expression": "B45/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        }
+      ]
+    },
+    {
+      "name": "BMS_220106",
+      "type": "specific",
+      "cmd": "220106",
+      "init": "ATSH7E4;ATFCSH7E4",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 5000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "BATTERY_WCS_INLET_TEMP",
+          "expression": "S10",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 100
+        },
+        {
+          "name": "BATTERY_FAN_DUTY",
+          "expression": "B14",
+          "unit": "%",
+          "class": "",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "name": "AC_COMPRESSOR_RPM",
+          "expression": "B19*20",
+          "unit": "rpm",
+          "class": "",
+          "min": 0,
+          "max": 5100
+        },
+        {
+          "name": "BATTERY_PRA_TEMP",
+          "expression": "S28*2",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 150
+        }
+      ]
+    },
+    {
+      "name": "CLU_22B002",
+      "type": "specific",
+      "cmd": "22B002",
+      "init": "ATSH7C6;ATFCSH7C6",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 5000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "ODOMETER",
+          "expression": "[B12:B14]",
+          "unit": "km",
+          "class": "distance",
+          "min": 0,
+          "max": 16777215
+        }
+      ]
+    },
+    {
+      "name": "HVAC_220100",
+      "type": "specific",
+      "cmd": "220100",
+      "init": "ATSH7B3;ATFCSH7B3",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 5000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "CABIN_TEMP",
+          "expression": "B11/2-40",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 87
+        },
+        {
+          "name": "AMBIENT_TEMP",
+          "expression": "B12/2-40",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 87
+        },
+        {
+          "name": "VEHICLE_SPEED_HVAC",
+          "expression": "B38",
+          "unit": "km/h",
+          "class": "speed",
+          "min": 0,
+          "max": 255
+        }
+      ]
+    },
+    {
+      "name": "IGPM_22BC03",
+      "type": "specific",
+      "cmd": "22BC03",
+      "init": "ATSH770;ATFCSH770",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 5000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "IGN1_SWITCH",
+          "expression": "B11:5",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "IGN2_SWITCH",
+          "expression": "B11:6",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "LOW_BEAMS",
+          "expression": "B12",
+          "unit": "",
+          "class": ""
+        }
+      ]
+    },
+    {
+      "name": "IGPM_22BC06",
+      "type": "specific",
+      "cmd": "22BC06",
+      "init": "ATSH770;ATFCSH770",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 5000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "BRAKE_LIGHT",
+          "expression": "B10",
+          "unit": "",
+          "class": ""
+        }
+      ]
+    },
+    {
+      "name": "MCU_220102",
+      "type": "specific",
+      "cmd": "220102",
+      "init": "ATSH7E3;ATFCSH7E3",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 5000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "MOTOR_TEMP",
+          "expression": "S18",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 200
+        },
+        {
+          "name": "INVERTER_TEMP",
+          "expression": "S19",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 200
+        }
+      ]
+    },
+    {
+      "name": "OBC_2101",
+      "type": "specific",
+      "cmd": "2101",
+      "init": "ATSH7E5;ATFCSH7E5",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 5000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "CHARGER_AC_INPUT_VOLTAGE",
+          "expression": "B14*2.56",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 300
+        },
+        {
+          "name": "CHARGER_AC_INPUT_CURRENT",
+          "expression": "B33*2.56",
+          "unit": "A",
+          "class": "current",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "name": "CHARGER_TEMP",
+          "expression": "B19-100",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 155
+        }
+      ]
+    },
+    {
+      "name": "VMCU_2101",
+      "type": "specific",
+      "cmd": "2101",
+      "init": "ATSH7E2;ATFCSH7E2",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 5000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "VEHICLE_SPEED",
+          "expression": "((S20 << 8) | B19)*1.609344/100",
+          "unit": "km/h",
+          "class": "speed",
+          "min": -20,
+          "max": 220
+        },
+        {
+          "name": "EV_READY",
+          "expression": "B26:3",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "PARK_BRAKE",
+          "expression": "B26:5",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "GEAR_SELECTOR_RAW",
+          "expression": "B10",
+          "unit": "",
+          "class": ""
+        }
+      ]
+    },
+    {
+      "name": "VMCU_2102",
+      "type": "specific",
+      "cmd": "2102",
+      "init": "ATSH7E2;ATFCSH7E2",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 5000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "LDC_OUTPUT_CURRENT",
+          "expression": "[B22:B23]/100",
+          "unit": "A",
+          "class": "current",
+          "min": 0,
+          "max": 655
+        },
+        {
+          "name": "AUX_BATTERY_VOLTAGE_VMCU",
+          "expression": "((S27 << 8) | B26)/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 20
+        }
+      ]
+    }
+  ],
+  "filters": []
+}

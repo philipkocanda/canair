@@ -16,12 +16,16 @@ bundle's `out/` (`out/<variant>/` when the profile describes several
 | `autopid-v4.json` | WiCAN firmware 4.x | the vehicle profile, in the upstream source format (grouped signals per PID) |
 | `autopid-v6.json` | WiCAN firmware v6, from `6.0.0-beta.3` | the AutoPID table v6 takes, plus the car's `vehicle` and `specific_init` device settings |
 
-Pass `--include-unverified` to also ship in-progress candidates, and `--firmware 4`
-or `--firmware 6` to write only one of the two (`--out PATH` needs it):
+Pass `--include-unverified` to also ship in-progress candidates: that build goes to
+`autopid-v4-unverified.json` and `autopid-v6-unverified.json` instead, so the
+verified-only files stay as they are. `--firmware 4` or `--firmware 6` writes only one
+of the two (`--out PATH` needs it). The bundled profiles carry both builds, regenerated
+on every release; a car's unverified v6 table is left out while one of its candidates
+does not fit v6 (a signal name over the firmware's 31 bytes, say):
 
 ```bash
 canair wican autopid write                    # verified-only — ship what you've confirmed
-canair wican autopid write --include-unverified  # also include in-progress candidates
+canair wican autopid write --include-unverified  # verified + in-progress candidates
 canair wican autopid write --firmware 6 --out my-car.json  # just the v6 table, elsewhere
 ```
 

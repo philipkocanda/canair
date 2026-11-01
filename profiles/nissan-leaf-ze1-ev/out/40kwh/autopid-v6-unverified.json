@@ -1,0 +1,1824 @@
+{
+  "vehicle": "Nissan Leaf (ZE1)",
+  "specific_init": "ATSP6;ATAL;ATST96;ATFCSH740;ATFCSD300000;ATFCSM1",
+  "groups": [],
+  "pids": [
+    {
+      "name": "ABS_221115",
+      "type": "specific",
+      "cmd": "221115",
+      "init": "ATSH740;ATFCSH740",
+      "rxheader": "760",
+      "group": "default",
+      "period_ms": 2000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "ACCEL_PEDAL",
+          "expression": "B4/2",
+          "unit": "%",
+          "class": "",
+          "min": 0,
+          "max": 100
+        }
+      ]
+    },
+    {
+      "name": "ABS_221208",
+      "type": "specific",
+      "cmd": "221208",
+      "init": "ATSH740;ATFCSH740",
+      "rxheader": "760",
+      "group": "default",
+      "period_ms": 2000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "STEERING_ANGLE",
+          "expression": "[S4:S5]/10",
+          "unit": "\u00b0",
+          "class": "",
+          "min": -720,
+          "max": 720
+        }
+      ]
+    },
+    {
+      "name": "ABS_221209",
+      "type": "specific",
+      "cmd": "221209",
+      "init": "ATSH740;ATFCSH740",
+      "rxheader": "760",
+      "group": "default",
+      "period_ms": 2000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "BRAKE_MC_PRESSURE_RAW",
+          "expression": "[B4:B5]",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 65535
+        }
+      ]
+    },
+    {
+      "name": "HVAC_2110",
+      "type": "specific",
+      "cmd": "2110",
+      "init": "ATSH744;ATFCSH744",
+      "rxheader": "764",
+      "group": "default",
+      "period_ms": 10000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "HVAC_AMBIENT_T",
+          "expression": "B4-40",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 87
+        },
+        {
+          "name": "HVAC_CABIN_T",
+          "expression": "B5-40",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 87
+        },
+        {
+          "name": "HVAC_EVAP_T",
+          "expression": "B6-40",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 87
+        },
+        {
+          "name": "HVAC_SUNLOAD",
+          "expression": "B7",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 255
+        },
+        {
+          "name": "HVAC_AC_ON",
+          "expression": "B15:7",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "HVAC_FAN_ON",
+          "expression": "B17:7",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "HVAC_BLOWER_V",
+          "expression": "B17-128*B17:7",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 127
+        },
+        {
+          "name": "HVAC_COMPRESSOR_RPM",
+          "expression": "[B28:B29]",
+          "unit": "rpm",
+          "class": "",
+          "min": 0,
+          "max": 65535
+        }
+      ]
+    },
+    {
+      "name": "INVERTER_221225",
+      "type": "specific",
+      "cmd": "221225",
+      "init": "ATSH784;ATFCSH784",
+      "rxheader": "78C",
+      "group": "default",
+      "period_ms": 2000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "INV_TORQUE",
+          "expression": "[S4:S5]/64",
+          "unit": "Nm",
+          "class": "",
+          "min": -512,
+          "max": 512
+        }
+      ]
+    },
+    {
+      "name": "INVERTER_221121",
+      "type": "specific",
+      "cmd": "221121",
+      "init": "ATSH784;ATFCSH784",
+      "rxheader": "78C",
+      "group": "default",
+      "period_ms": 10000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "MOTOR_T",
+          "expression": "B4-40",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 215
+        }
+      ]
+    },
+    {
+      "name": "LBC_2101",
+      "type": "specific",
+      "cmd": "2101",
+      "init": "ATSH79B;ATFCSH79B",
+      "rxheader": "7BB",
+      "group": "default",
+      "period_ms": 10000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "SOC",
+          "expression": "((B39*65536)+[B41:B42])/10000",
+          "unit": "%",
+          "class": "",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "name": "SOC_D",
+          "expression": "((((B39*65536)+[B41:B42])/10000)-12)/0.85",
+          "unit": "%",
+          "class": "",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "name": "SOH_40KWH",
+          "expression": "((B44*65536)+[B45:B46])/11544",
+          "unit": "%",
+          "class": "",
+          "min": 1,
+          "max": 100
+        },
+        {
+          "name": "HV_CAPACITY",
+          "expression": "((B44*65536)+[B45:B46])/10000",
+          "unit": "Ah",
+          "class": "",
+          "min": 0,
+          "max": 200
+        },
+        {
+          "name": "HV_CAPACITY_KWH",
+          "expression": "((B44*65536)+[B45:B46])/29600",
+          "unit": "kWh",
+          "class": "energy",
+          "min": 0,
+          "max": 70
+        },
+        {
+          "name": "HV_CAPACITY_R",
+          "expression": "((B39*65536)+[B41:B42])/10000*((B44*65536)+[B45:B46])/29600/100",
+          "unit": "kWh",
+          "class": "energy",
+          "min": 0,
+          "max": 70
+        },
+        {
+          "name": "HX",
+          "expression": "[B36:B37]/102.4",
+          "unit": "%",
+          "class": "",
+          "min": 0,
+          "max": 120
+        },
+        {
+          "name": "HV_PACK_V",
+          "expression": "[B25:B26]/100",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 450
+        },
+        {
+          "name": "HV_CURRENT_1",
+          "expression": "[S4:S7]/1024",
+          "unit": "A",
+          "class": "current",
+          "min": -600,
+          "max": 600
+        },
+        {
+          "name": "HV_CURRENT_2",
+          "expression": "[S11:S14]/1024",
+          "unit": "A",
+          "class": "current",
+          "min": -600,
+          "max": 600
+        },
+        {
+          "name": "INSULATION_RAW",
+          "expression": "[B29:B30]",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 65535
+        },
+        {
+          "name": "GIDS",
+          "expression": "((B39*65536)+[B41:B42])/10000/100*((B44*65536)+[B45:B46])/10000*4.425",
+          "unit": "gid",
+          "class": "",
+          "min": 0,
+          "max": 800
+        },
+        {
+          "name": "LBC_12V",
+          "expression": "[B27:B28]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 20
+        }
+      ]
+    },
+    {
+      "name": "LBC_2104",
+      "type": "specific",
+      "cmd": "2104",
+      "init": "ATSH79B;ATFCSH79B",
+      "rxheader": "7BB",
+      "group": "default",
+      "period_ms": 10000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "HV_T_1",
+          "expression": "S6",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 90
+        },
+        {
+          "name": "HV_T_2",
+          "expression": "S10",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 90
+        },
+        {
+          "name": "HV_T_3",
+          "expression": "S17",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 90
+        },
+        {
+          "name": "HV_T_4",
+          "expression": "S18",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 90
+        }
+      ]
+    },
+    {
+      "name": "LBC_2102",
+      "type": "specific",
+      "cmd": "2102",
+      "init": "ATSH79B;ATFCSH79B",
+      "rxheader": "7BB",
+      "group": "default",
+      "period_ms": 30000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "HV_CELL_01_V",
+          "expression": "[B4:B5]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_02_V",
+          "expression": "[B6:B7]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_03_V",
+          "expression": "[B9:B10]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_04_V",
+          "expression": "[B11:B12]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_05_V",
+          "expression": "[B13:B14]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_06_V",
+          "expression": "((B15*256)+B17)/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_07_V",
+          "expression": "[B18:B19]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_08_V",
+          "expression": "[B20:B21]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_09_V",
+          "expression": "[B22:B23]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_10_V",
+          "expression": "[B25:B26]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_11_V",
+          "expression": "[B27:B28]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_12_V",
+          "expression": "[B29:B30]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_13_V",
+          "expression": "((B31*256)+B33)/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_14_V",
+          "expression": "[B34:B35]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_15_V",
+          "expression": "[B36:B37]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_16_V",
+          "expression": "[B38:B39]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_17_V",
+          "expression": "[B41:B42]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_18_V",
+          "expression": "[B43:B44]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_19_V",
+          "expression": "[B45:B46]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_20_V",
+          "expression": "((B47*256)+B49)/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_21_V",
+          "expression": "[B50:B51]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_22_V",
+          "expression": "[B52:B53]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_23_V",
+          "expression": "[B54:B55]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_24_V",
+          "expression": "[B57:B58]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_25_V",
+          "expression": "[B59:B60]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_26_V",
+          "expression": "[B61:B62]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_27_V",
+          "expression": "((B63*256)+B65)/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_28_V",
+          "expression": "[B66:B67]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_29_V",
+          "expression": "[B68:B69]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_30_V",
+          "expression": "[B70:B71]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_31_V",
+          "expression": "[B73:B74]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_32_V",
+          "expression": "[B75:B76]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_33_V",
+          "expression": "[B77:B78]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_34_V",
+          "expression": "((B79*256)+B81)/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_35_V",
+          "expression": "[B82:B83]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_36_V",
+          "expression": "[B84:B85]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_37_V",
+          "expression": "[B86:B87]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_38_V",
+          "expression": "[B89:B90]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_39_V",
+          "expression": "[B91:B92]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_40_V",
+          "expression": "[B93:B94]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_41_V",
+          "expression": "((B95*256)+B97)/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_42_V",
+          "expression": "[B98:B99]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_43_V",
+          "expression": "[B100:B101]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_44_V",
+          "expression": "[B102:B103]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_45_V",
+          "expression": "[B105:B106]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_46_V",
+          "expression": "[B107:B108]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_47_V",
+          "expression": "[B109:B110]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_48_V",
+          "expression": "((B111*256)+B113)/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_49_V",
+          "expression": "[B114:B115]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_50_V",
+          "expression": "[B116:B117]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_51_V",
+          "expression": "[B118:B119]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_52_V",
+          "expression": "[B121:B122]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_53_V",
+          "expression": "[B123:B124]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_54_V",
+          "expression": "[B125:B126]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_55_V",
+          "expression": "((B127*256)+B129)/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_56_V",
+          "expression": "[B130:B131]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_57_V",
+          "expression": "[B132:B133]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_58_V",
+          "expression": "[B134:B135]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_59_V",
+          "expression": "[B137:B138]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_60_V",
+          "expression": "[B139:B140]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_61_V",
+          "expression": "[B141:B142]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_62_V",
+          "expression": "((B143*256)+B145)/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_63_V",
+          "expression": "[B146:B147]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_64_V",
+          "expression": "[B148:B149]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_65_V",
+          "expression": "[B150:B151]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_66_V",
+          "expression": "[B153:B154]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_67_V",
+          "expression": "[B155:B156]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_68_V",
+          "expression": "[B157:B158]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_69_V",
+          "expression": "((B159*256)+B161)/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_70_V",
+          "expression": "[B162:B163]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_71_V",
+          "expression": "[B164:B165]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_72_V",
+          "expression": "[B166:B167]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_73_V",
+          "expression": "[B169:B170]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_74_V",
+          "expression": "[B171:B172]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_75_V",
+          "expression": "[B173:B174]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_76_V",
+          "expression": "((B175*256)+B177)/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_77_V",
+          "expression": "[B178:B179]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_78_V",
+          "expression": "[B180:B181]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_79_V",
+          "expression": "[B182:B183]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_80_V",
+          "expression": "[B185:B186]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_81_V",
+          "expression": "[B187:B188]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_82_V",
+          "expression": "[B189:B190]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_83_V",
+          "expression": "((B191*256)+B193)/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_84_V",
+          "expression": "[B194:B195]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_85_V",
+          "expression": "[B196:B197]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_86_V",
+          "expression": "[B198:B199]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_87_V",
+          "expression": "[B201:B202]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_88_V",
+          "expression": "[B203:B204]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_89_V",
+          "expression": "[B205:B206]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_90_V",
+          "expression": "((B207*256)+B209)/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_91_V",
+          "expression": "[B210:B211]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_92_V",
+          "expression": "[B212:B213]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_93_V",
+          "expression": "[B214:B215]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_94_V",
+          "expression": "[B217:B218]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_95_V",
+          "expression": "[B219:B220]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_96_V",
+          "expression": "[B221:B222]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_PACK_V_2102",
+          "expression": "((B223*256)+B225)/100",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 450
+        },
+        {
+          "name": "HV_BUS_V",
+          "expression": "[B226:B227]/100",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 450
+        }
+      ]
+    },
+    {
+      "name": "LBC_2103",
+      "type": "specific",
+      "cmd": "2103",
+      "init": "ATSH79B;ATFCSH79B",
+      "rxheader": "7BB",
+      "group": "default",
+      "period_ms": 10000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "HV_CELL_MAX_V",
+          "expression": "((B15*256)+B17)/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "HV_CELL_MIN_V",
+          "expression": "[B18:B19]/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        }
+      ]
+    },
+    {
+      "name": "LBC_210C",
+      "type": "specific",
+      "cmd": "210C",
+      "init": "ATSH79B;ATFCSH79B",
+      "rxheader": "7BB",
+      "group": "default",
+      "period_ms": 600000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "LBC_DISTANCE_COUNTER",
+          "expression": "[B4:B7]",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 4294967295
+        }
+      ]
+    },
+    {
+      "name": "LBC_2161",
+      "type": "specific",
+      "cmd": "2161",
+      "init": "ATSH79B;ATFCSH79B",
+      "rxheader": "7BB",
+      "group": "default",
+      "period_ms": 300000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "SOH",
+          "expression": "[B6:B7]/100",
+          "unit": "%",
+          "class": "",
+          "min": 0,
+          "max": 100
+        }
+      ]
+    },
+    {
+      "name": "METER_220E01",
+      "type": "specific",
+      "cmd": "220E01",
+      "init": "ATSH743;ATFCSH743",
+      "rxheader": "763",
+      "group": "default",
+      "period_ms": 30000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "ODOMETER",
+          "expression": "(B4*65536)+(B5*256)+B6",
+          "unit": "km",
+          "class": "distance",
+          "min": 0,
+          "max": 999999
+        }
+      ]
+    },
+    {
+      "name": "METER_220E2E",
+      "type": "specific",
+      "cmd": "220E2E",
+      "init": "ATSH743;ATFCSH743",
+      "rxheader": "763",
+      "group": "default",
+      "period_ms": 10000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "RANGE",
+          "expression": "[B4:B5]",
+          "unit": "km",
+          "class": "distance",
+          "min": 1,
+          "max": 400
+        }
+      ]
+    },
+    {
+      "name": "METER_220E25",
+      "type": "specific",
+      "cmd": "220E25",
+      "init": "ATSH743;ATFCSH743",
+      "rxheader": "763",
+      "group": "default",
+      "period_ms": 30000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "TP_FR",
+          "expression": "B4*1.7236894",
+          "unit": "kPa",
+          "class": "pressure",
+          "min": 0,
+          "max": 440
+        }
+      ]
+    },
+    {
+      "name": "METER_220E26",
+      "type": "specific",
+      "cmd": "220E26",
+      "init": "ATSH743;ATFCSH743",
+      "rxheader": "763",
+      "group": "default",
+      "period_ms": 30000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "TP_FL",
+          "expression": "B4*1.7236894",
+          "unit": "kPa",
+          "class": "pressure",
+          "min": 0,
+          "max": 440
+        }
+      ]
+    },
+    {
+      "name": "METER_220E27",
+      "type": "specific",
+      "cmd": "220E27",
+      "init": "ATSH743;ATFCSH743",
+      "rxheader": "763",
+      "group": "default",
+      "period_ms": 30000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "TP_RR",
+          "expression": "B4*1.7236894",
+          "unit": "kPa",
+          "class": "pressure",
+          "min": 0,
+          "max": 440
+        }
+      ]
+    },
+    {
+      "name": "METER_220E28",
+      "type": "specific",
+      "cmd": "220E28",
+      "init": "ATSH743;ATFCSH743",
+      "rxheader": "763",
+      "group": "default",
+      "period_ms": 30000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "TP_RL",
+          "expression": "B4*1.7236894",
+          "unit": "kPa",
+          "class": "pressure",
+          "min": 0,
+          "max": 440
+        }
+      ]
+    },
+    {
+      "name": "METER_220E2D",
+      "type": "specific",
+      "cmd": "220E2D",
+      "init": "ATSH743;ATFCSH743",
+      "rxheader": "763",
+      "group": "default",
+      "period_ms": 30000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "SOC_DASH",
+          "expression": "B21",
+          "unit": "%",
+          "class": "",
+          "min": 0,
+          "max": 100
+        }
+      ]
+    },
+    {
+      "name": "VCM_221203",
+      "type": "specific",
+      "cmd": "221203",
+      "init": "ATSH797;ATFCSH797",
+      "rxheader": "79A",
+      "group": "default",
+      "period_ms": 600000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "QC_COUNT",
+          "expression": "[B4:B5]",
+          "unit": "",
+          "class": ""
+        }
+      ]
+    },
+    {
+      "name": "VCM_221205",
+      "type": "specific",
+      "cmd": "221205",
+      "init": "ATSH797;ATFCSH797",
+      "rxheader": "79A",
+      "group": "default",
+      "period_ms": 600000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "L2_COUNT",
+          "expression": "[B4:B5]",
+          "unit": "",
+          "class": ""
+        }
+      ]
+    },
+    {
+      "name": "VCM_221102",
+      "type": "specific",
+      "cmd": "221102",
+      "init": "ATSH797;ATFCSH797",
+      "rxheader": "79A",
+      "group": "default",
+      "period_ms": 2000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "VCM_SPEED",
+          "expression": "B4",
+          "unit": "km/h",
+          "class": "speed",
+          "min": 0,
+          "max": 255
+        }
+      ]
+    },
+    {
+      "name": "VCM_221103",
+      "type": "specific",
+      "cmd": "221103",
+      "init": "ATSH797;ATFCSH797",
+      "rxheader": "79A",
+      "group": "default",
+      "period_ms": 10000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "VPWR_12V",
+          "expression": "B4*0.08",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 20
+        }
+      ]
+    },
+    {
+      "name": "VCM_221106",
+      "type": "specific",
+      "cmd": "221106",
+      "init": "ATSH797;ATFCSH797",
+      "rxheader": "79A",
+      "group": "default",
+      "period_ms": 5000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "AC_ON",
+          "expression": "B4",
+          "unit": "",
+          "class": ""
+        }
+      ]
+    },
+    {
+      "name": "VCM_22110F",
+      "type": "specific",
+      "cmd": "22110F",
+      "init": "ATSH797;ATFCSH797",
+      "rxheader": "79A",
+      "group": "default",
+      "period_ms": 30000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "REAR_HEATER",
+          "expression": "B4",
+          "unit": "",
+          "class": ""
+        }
+      ]
+    },
+    {
+      "name": "VCM_221128",
+      "type": "specific",
+      "cmd": "221128",
+      "init": "ATSH797;ATFCSH797",
+      "rxheader": "79A",
+      "group": "default",
+      "period_ms": 2000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "MOTOR_TQ_NOMINAL",
+          "expression": "[S4:S5]/64",
+          "unit": "Nm",
+          "class": "",
+          "min": -512,
+          "max": 512
+        }
+      ]
+    },
+    {
+      "name": "VCM_221146",
+      "type": "specific",
+      "cmd": "221146",
+      "init": "ATSH797;ATFCSH797",
+      "rxheader": "79A",
+      "group": "default",
+      "period_ms": 2000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "MOTOR_PWR",
+          "expression": "[B4:B5]*40",
+          "unit": "W",
+          "class": "power",
+          "min": 0,
+          "max": 2621400
+        }
+      ]
+    },
+    {
+      "name": "VCM_22114E",
+      "type": "specific",
+      "cmd": "22114E",
+      "init": "ATSH797;ATFCSH797",
+      "rxheader": "79A",
+      "group": "default",
+      "period_ms": 5000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "CHARGE_MODE",
+          "expression": "B4",
+          "unit": "",
+          "class": ""
+        }
+      ]
+    },
+    {
+      "name": "VCM_221151",
+      "type": "specific",
+      "cmd": "221151",
+      "init": "ATSH797;ATFCSH797",
+      "rxheader": "79A",
+      "group": "default",
+      "period_ms": 5000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "AC_PWR",
+          "expression": "B4*250",
+          "unit": "W",
+          "class": "power",
+          "min": 0,
+          "max": 63750
+        }
+      ]
+    },
+    {
+      "name": "VCM_221152",
+      "type": "specific",
+      "cmd": "221152",
+      "init": "ATSH797;ATFCSH797",
+      "rxheader": "79A",
+      "group": "default",
+      "period_ms": 5000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "AUX_PWR",
+          "expression": "B4*100",
+          "unit": "W",
+          "class": "power",
+          "min": 0,
+          "max": 25500
+        }
+      ]
+    },
+    {
+      "name": "VCM_221156",
+      "type": "specific",
+      "cmd": "221156",
+      "init": "ATSH797;ATFCSH797",
+      "rxheader": "79A",
+      "group": "default",
+      "period_ms": 2000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "GEAR",
+          "expression": "B4",
+          "unit": "",
+          "class": ""
+        }
+      ]
+    },
+    {
+      "name": "VCM_22115D",
+      "type": "specific",
+      "cmd": "22115D",
+      "init": "ATSH797;ATFCSH797",
+      "rxheader": "79A",
+      "group": "default",
+      "period_ms": 30000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "AMBIENT_T",
+          "expression": "B4/2-40.5",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 80
+        }
+      ]
+    },
+    {
+      "name": "VCM_221183",
+      "type": "specific",
+      "cmd": "221183",
+      "init": "ATSH797;ATFCSH797",
+      "rxheader": "79A",
+      "group": "default",
+      "period_ms": 5000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "VPWR_12V_CURRENT",
+          "expression": "[S4:S5]/256",
+          "unit": "A",
+          "class": "current",
+          "min": -128,
+          "max": 128
+        }
+      ]
+    },
+    {
+      "name": "VCM_22121A",
+      "type": "specific",
+      "cmd": "22121A",
+      "init": "ATSH797;ATFCSH797",
+      "rxheader": "79A",
+      "group": "default",
+      "period_ms": 2000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "VEHICLE_SPEED",
+          "expression": "[B4:B5]/10",
+          "unit": "km/h",
+          "class": "speed",
+          "min": 0,
+          "max": 250
+        }
+      ]
+    },
+    {
+      "name": "VCM_221234",
+      "type": "specific",
+      "cmd": "221234",
+      "init": "ATSH797;ATFCSH797",
+      "rxheader": "79A",
+      "group": "default",
+      "period_ms": 5000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "PLUG_STATE",
+          "expression": "B4",
+          "unit": "",
+          "class": ""
+        }
+      ]
+    },
+    {
+      "name": "VCM_221236",
+      "type": "specific",
+      "cmd": "221236",
+      "init": "ATSH797;ATFCSH797",
+      "rxheader": "79A",
+      "group": "default",
+      "period_ms": 5000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "OBC_OUT_PWR",
+          "expression": "[B4:B5]*100",
+          "unit": "W",
+          "class": "power",
+          "min": 0,
+          "max": 7000
+        }
+      ]
+    },
+    {
+      "name": "VCM_221248",
+      "type": "specific",
+      "cmd": "221248",
+      "init": "ATSH797;ATFCSH797",
+      "rxheader": "79A",
+      "group": "default",
+      "period_ms": 2000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "HV_CURRENT_VCM",
+          "expression": "[S4:S5]/2",
+          "unit": "A",
+          "class": "current",
+          "min": -600,
+          "max": 600
+        }
+      ]
+    },
+    {
+      "name": "VCM_221254",
+      "type": "specific",
+      "cmd": "221254",
+      "init": "ATSH797;ATFCSH797",
+      "rxheader": "79A",
+      "group": "default",
+      "period_ms": 2000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "MOTOR_TQ",
+          "expression": "[S4:S5]/64",
+          "unit": "Nm",
+          "class": "",
+          "min": -512,
+          "max": 512
+        }
+      ]
+    },
+    {
+      "name": "VCM_221255",
+      "type": "specific",
+      "cmd": "221255",
+      "init": "ATSH797;ATFCSH797",
+      "rxheader": "79A",
+      "group": "default",
+      "period_ms": 2000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "MOTOR_RPM",
+          "expression": "[S4:S5]",
+          "unit": "rpm",
+          "class": "",
+          "min": -12000,
+          "max": 12000
+        }
+      ]
+    },
+    {
+      "name": "VCM_221261",
+      "type": "specific",
+      "cmd": "221261",
+      "init": "ATSH797;ATFCSH797",
+      "rxheader": "79A",
+      "group": "default",
+      "period_ms": 5000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "AC_PWR_EST",
+          "expression": "B4*50",
+          "unit": "W",
+          "class": "power",
+          "min": 0,
+          "max": 12750
+        }
+      ]
+    },
+    {
+      "name": "VCM_221262",
+      "type": "specific",
+      "cmd": "221262",
+      "init": "ATSH797;ATFCSH797",
+      "rxheader": "79A",
+      "group": "default",
+      "period_ms": 5000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "PTC_PWR_EST",
+          "expression": "B4*250",
+          "unit": "W",
+          "class": "power",
+          "min": 0,
+          "max": 63750
+        }
+      ]
+    },
+    {
+      "name": "VCM_221304",
+      "type": "specific",
+      "cmd": "221304",
+      "init": "ATSH797;ATFCSH797",
+      "rxheader": "79A",
+      "group": "default",
+      "period_ms": 5000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "POWER_SWITCH",
+          "expression": "B4:7",
+          "unit": "",
+          "class": ""
+        }
+      ]
+    },
+    {
+      "name": "VCM_221318",
+      "type": "specific",
+      "cmd": "221318",
+      "init": "ATSH797;ATFCSH797",
+      "rxheader": "79A",
+      "group": "default",
+      "period_ms": 10000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "ECO_MODE",
+          "expression": "B4",
+          "unit": "",
+          "class": ""
+        }
+      ]
+    },
+    {
+      "name": "VCM_22131A",
+      "type": "specific",
+      "cmd": "22131A",
+      "init": "ATSH797;ATFCSH797",
+      "rxheader": "79A",
+      "group": "default",
+      "period_ms": 10000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "EPEDAL_MODE",
+          "expression": "B4",
+          "unit": "",
+          "class": ""
+        }
+      ]
+    }
+  ],
+  "filters": []
+}

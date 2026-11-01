@@ -202,7 +202,9 @@ class TestLocalOps:
         _classic(monkeypatch)  # local ops work regardless of model
         data = {"car_model": "X", "init": "ATZ", "ecus": {}}
         monkeypatch.setattr(wican, "load_yaml", lambda: data)
-        monkeypatch.setattr(wican, "_profile_out", lambda fw: tmp_path / f"autopid-v{fw}.json")
+        monkeypatch.setattr(
+            wican, "_profile_out", lambda fw, unverified=False: tmp_path / f"autopid-v{fw}.json"
+        )
 
         class _Prof:
             ecus_dir = tmp_path

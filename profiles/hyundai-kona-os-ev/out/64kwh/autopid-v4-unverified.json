@@ -1,0 +1,289 @@
+{
+  "car_model": "Hyundai Kona Electric (OS)",
+  "init": "ATSP6;ATS0;ATAL;ATST96;",
+  "pids": [
+    {
+      "pid_init": "ATSH7A0;ATFCSH7A0;",
+      "pid": "22C00B",
+      "enabled": true,
+      "period": "5000",
+      "parameters": {
+        "TYRE_PRESSURE_FL": "B10/72.52",
+        "TYRE_TEMP_FL": "B11-50",
+        "TYRE_PRESSURE_FR": "B14/72.52",
+        "TYRE_TEMP_FR": "B15-50",
+        "TYRE_PRESSURE_RL": "B19/72.52",
+        "TYRE_TEMP_RL": "B20-50",
+        "TYRE_PRESSURE_RR": "B23/72.52",
+        "TYRE_TEMP_RR": "B25-50"
+      }
+    },
+    {
+      "pid_init": "ATSH7E4;ATFCSH7E4;",
+      "pid": "220101",
+      "enabled": true,
+      "period": "5000",
+      "parameters": {
+        "SOC_BMS": "B10/2",
+        "BATTERY_CURRENT": "[S17:S18]/10",
+        "BATTERY_VOLTAGE": "[B19:B20]/10",
+        "BATTERY_POWER": "(([B19:B20]/10)*([S17:S18]/10))/1000",
+        "AVAILABLE_CHARGE_POWER": "[B11:B12]/100",
+        "AVAILABLE_DISCHARGE_POWER": "[B13:B14]/100",
+        "BMS_B15_7_UNKN": "B15:7",
+        "RAPID_CHARGE_PORT": "B15:6",
+        "BMS_B15_5_UNKN": "B15:5",
+        "BMS_MAIN_RELAY": "B15:0",
+        "BATTERY_MAX_TEMP": "S21",
+        "BATTERY_MIN_TEMP": "S22",
+        "BATTERY_MODULE_TEMP_1": "S23",
+        "BATTERY_MODULE_TEMP_2": "S25",
+        "BATTERY_MODULE_TEMP_3": "S26",
+        "BATTERY_MODULE_TEMP_4": "S27",
+        "BATTERY_INLET_TEMP": "S30",
+        "MAX_CELL_VOLTAGE": "B31/50",
+        "MAX_CELL_VOLTAGE_NO": "B33",
+        "MIN_CELL_VOLTAGE": "B34/50",
+        "MIN_CELL_VOLTAGE_NO": "B35",
+        "FAN_STATUS": "B36",
+        "FAN_FEEDBACK": "B37",
+        "AUX_BATTERY_VOLTAGE": "B38/10",
+        "INVERTER_CAPACITOR_VOLTAGE": "(B63 << 8) | B65",
+        "IGNITION": "B62:2"
+      }
+    },
+    {
+      "pid_init": "ATSH7E4;ATFCSH7E4;",
+      "pid": "220105",
+      "enabled": true,
+      "period": "5000",
+      "parameters": {
+        "SOH": "[B34:B35]/10",
+        "SOC_DISPLAY": "B41/2",
+        "MIN_DETERIORATION": "[B37:B38]/10",
+        "CELL_VOLTAGE_DEVIATION": "B28/50",
+        "HEATER_TEMP": "S31",
+        "MAX_DETERIORATION_CELL_NO": "B36",
+        "MIN_DETERIORATION_CELL_NO": "B39",
+        "CELL_97_VOLTAGE": "B44/50",
+        "CELL_98_VOLTAGE": "B45/50"
+      }
+    },
+    {
+      "pid_init": "ATSH7E4;ATFCSH7E4;",
+      "pid": "220102",
+      "enabled": true,
+      "period": "5000",
+      "parameters": {
+        "CELL_01_VOLTAGE": "B10/50",
+        "CELL_02_VOLTAGE": "B11/50",
+        "CELL_03_VOLTAGE": "B12/50",
+        "CELL_04_VOLTAGE": "B13/50",
+        "CELL_05_VOLTAGE": "B14/50",
+        "CELL_06_VOLTAGE": "B15/50",
+        "CELL_07_VOLTAGE": "B17/50",
+        "CELL_08_VOLTAGE": "B18/50",
+        "CELL_09_VOLTAGE": "B19/50",
+        "CELL_10_VOLTAGE": "B20/50",
+        "CELL_11_VOLTAGE": "B21/50",
+        "CELL_12_VOLTAGE": "B22/50",
+        "CELL_13_VOLTAGE": "B23/50",
+        "CELL_14_VOLTAGE": "B25/50",
+        "CELL_15_VOLTAGE": "B26/50",
+        "CELL_16_VOLTAGE": "B27/50",
+        "CELL_17_VOLTAGE": "B28/50",
+        "CELL_18_VOLTAGE": "B29/50",
+        "CELL_19_VOLTAGE": "B30/50",
+        "CELL_20_VOLTAGE": "B31/50",
+        "CELL_21_VOLTAGE": "B33/50",
+        "CELL_22_VOLTAGE": "B34/50",
+        "CELL_23_VOLTAGE": "B35/50",
+        "CELL_24_VOLTAGE": "B36/50",
+        "CELL_25_VOLTAGE": "B37/50",
+        "CELL_26_VOLTAGE": "B38/50",
+        "CELL_27_VOLTAGE": "B39/50",
+        "CELL_28_VOLTAGE": "B41/50",
+        "CELL_29_VOLTAGE": "B42/50",
+        "CELL_30_VOLTAGE": "B43/50",
+        "CELL_31_VOLTAGE": "B44/50",
+        "CELL_32_VOLTAGE": "B45/50"
+      }
+    },
+    {
+      "pid_init": "ATSH7E4;ATFCSH7E4;",
+      "pid": "220103",
+      "enabled": true,
+      "period": "5000",
+      "parameters": {
+        "CELL_33_VOLTAGE": "B10/50",
+        "CELL_34_VOLTAGE": "B11/50",
+        "CELL_35_VOLTAGE": "B12/50",
+        "CELL_36_VOLTAGE": "B13/50",
+        "CELL_37_VOLTAGE": "B14/50",
+        "CELL_38_VOLTAGE": "B15/50",
+        "CELL_39_VOLTAGE": "B17/50",
+        "CELL_40_VOLTAGE": "B18/50",
+        "CELL_41_VOLTAGE": "B19/50",
+        "CELL_42_VOLTAGE": "B20/50",
+        "CELL_43_VOLTAGE": "B21/50",
+        "CELL_44_VOLTAGE": "B22/50",
+        "CELL_45_VOLTAGE": "B23/50",
+        "CELL_46_VOLTAGE": "B25/50",
+        "CELL_47_VOLTAGE": "B26/50",
+        "CELL_48_VOLTAGE": "B27/50",
+        "CELL_49_VOLTAGE": "B28/50",
+        "CELL_50_VOLTAGE": "B29/50",
+        "CELL_51_VOLTAGE": "B30/50",
+        "CELL_52_VOLTAGE": "B31/50",
+        "CELL_53_VOLTAGE": "B33/50",
+        "CELL_54_VOLTAGE": "B34/50",
+        "CELL_55_VOLTAGE": "B35/50",
+        "CELL_56_VOLTAGE": "B36/50",
+        "CELL_57_VOLTAGE": "B37/50",
+        "CELL_58_VOLTAGE": "B38/50",
+        "CELL_59_VOLTAGE": "B39/50",
+        "CELL_60_VOLTAGE": "B41/50",
+        "CELL_61_VOLTAGE": "B42/50",
+        "CELL_62_VOLTAGE": "B43/50",
+        "CELL_63_VOLTAGE": "B44/50",
+        "CELL_64_VOLTAGE": "B45/50"
+      }
+    },
+    {
+      "pid_init": "ATSH7E4;ATFCSH7E4;",
+      "pid": "220104",
+      "enabled": true,
+      "period": "5000",
+      "parameters": {
+        "CELL_65_VOLTAGE": "B10/50",
+        "CELL_66_VOLTAGE": "B11/50",
+        "CELL_67_VOLTAGE": "B12/50",
+        "CELL_68_VOLTAGE": "B13/50",
+        "CELL_69_VOLTAGE": "B14/50",
+        "CELL_70_VOLTAGE": "B15/50",
+        "CELL_71_VOLTAGE": "B17/50",
+        "CELL_72_VOLTAGE": "B18/50",
+        "CELL_73_VOLTAGE": "B19/50",
+        "CELL_74_VOLTAGE": "B20/50",
+        "CELL_75_VOLTAGE": "B21/50",
+        "CELL_76_VOLTAGE": "B22/50",
+        "CELL_77_VOLTAGE": "B23/50",
+        "CELL_78_VOLTAGE": "B25/50",
+        "CELL_79_VOLTAGE": "B26/50",
+        "CELL_80_VOLTAGE": "B27/50",
+        "CELL_81_VOLTAGE": "B28/50",
+        "CELL_82_VOLTAGE": "B29/50",
+        "CELL_83_VOLTAGE": "B30/50",
+        "CELL_84_VOLTAGE": "B31/50",
+        "CELL_85_VOLTAGE": "B33/50",
+        "CELL_86_VOLTAGE": "B34/50",
+        "CELL_87_VOLTAGE": "B35/50",
+        "CELL_88_VOLTAGE": "B36/50",
+        "CELL_89_VOLTAGE": "B37/50",
+        "CELL_90_VOLTAGE": "B38/50",
+        "CELL_91_VOLTAGE": "B39/50",
+        "CELL_92_VOLTAGE": "B41/50",
+        "CELL_93_VOLTAGE": "B42/50",
+        "CELL_94_VOLTAGE": "B43/50",
+        "CELL_95_VOLTAGE": "B44/50",
+        "CELL_96_VOLTAGE": "B45/50"
+      }
+    },
+    {
+      "pid_init": "ATSH7E4;ATFCSH7E4;",
+      "pid": "220106",
+      "enabled": true,
+      "period": "5000",
+      "parameters": {
+        "BATTERY_WCS_INLET_TEMP": "S10",
+        "BATTERY_FAN_DUTY": "B14",
+        "AC_COMPRESSOR_RPM": "B19*20",
+        "BATTERY_PRA_TEMP": "S28*2"
+      }
+    },
+    {
+      "pid_init": "ATSH7C6;ATFCSH7C6;",
+      "pid": "22B002",
+      "enabled": true,
+      "period": "5000",
+      "parameters": {
+        "ODOMETER": "[B12:B14]"
+      }
+    },
+    {
+      "pid_init": "ATSH7B3;ATFCSH7B3;",
+      "pid": "220100",
+      "enabled": true,
+      "period": "5000",
+      "parameters": {
+        "CABIN_TEMP": "B11/2-40",
+        "AMBIENT_TEMP": "B12/2-40",
+        "VEHICLE_SPEED_HVAC": "B38"
+      }
+    },
+    {
+      "pid_init": "ATSH770;ATFCSH770;",
+      "pid": "22BC03",
+      "enabled": true,
+      "period": "5000",
+      "parameters": {
+        "IGN1_SWITCH": "B11:5",
+        "IGN2_SWITCH": "B11:6",
+        "LOW_BEAMS": "B12"
+      }
+    },
+    {
+      "pid_init": "ATSH770;ATFCSH770;",
+      "pid": "22BC06",
+      "enabled": true,
+      "period": "5000",
+      "parameters": {
+        "BRAKE_LIGHT": "B10"
+      }
+    },
+    {
+      "pid_init": "ATSH7E3;ATFCSH7E3;",
+      "pid": "220102",
+      "enabled": true,
+      "period": "5000",
+      "parameters": {
+        "MOTOR_TEMP": "S18",
+        "INVERTER_TEMP": "S19"
+      }
+    },
+    {
+      "pid_init": "ATSH7E5;ATFCSH7E5;",
+      "pid": "2101",
+      "enabled": true,
+      "period": "5000",
+      "parameters": {
+        "CHARGER_AC_INPUT_VOLTAGE": "B14*2.56",
+        "CHARGER_AC_INPUT_CURRENT": "B33*2.56",
+        "CHARGER_TEMP": "B19-100"
+      }
+    },
+    {
+      "pid_init": "ATSH7E2;ATFCSH7E2;",
+      "pid": "2101",
+      "enabled": true,
+      "period": "5000",
+      "parameters": {
+        "VEHICLE_SPEED": "((S20 << 8) | B19)*1.609344/100",
+        "EV_READY": "B26:3",
+        "PARK_BRAKE": "B26:5",
+        "GEAR_SELECTOR_RAW": "B10"
+      }
+    },
+    {
+      "pid_init": "ATSH7E2;ATFCSH7E2;",
+      "pid": "2102",
+      "enabled": true,
+      "period": "5000",
+      "parameters": {
+        "LDC_OUTPUT_CURRENT": "[B22:B23]/100",
+        "AUX_BATTERY_VOLTAGE_VMCU": "((S27 << 8) | B26)/1000"
+      }
+    }
+  ],
+  "can_filters": []
+}

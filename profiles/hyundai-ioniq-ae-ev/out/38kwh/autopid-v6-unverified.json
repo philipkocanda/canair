@@ -1,0 +1,1947 @@
+{
+  "vehicle": "Hyundai Ioniq Electric (AE)",
+  "specific_init": "ATSP6;ATAL;ATST96",
+  "groups": [],
+  "pids": [
+    {
+      "name": "AAF_2180",
+      "type": "specific",
+      "cmd": "21804",
+      "init": "ATSH7E6;ATFCSH7E6",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 60000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "AMBIENT_TEMP",
+          "expression": "(B18-80)/2",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 87
+        },
+        {
+          "name": "HEATER_ELEMENT_TEMP",
+          "expression": "S17/2",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 120
+        },
+        {
+          "name": "HEATSINK_TEMP",
+          "expression": "B20-40",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 150
+        },
+        {
+          "name": "COMPRESSOR_TEMP",
+          "expression": "B21-40",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 120
+        },
+        {
+          "name": "AAF_COOLANT_TEMP_B25",
+          "expression": "B25-100",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 150
+        }
+      ]
+    },
+    {
+      "name": "BCM_22C00B",
+      "type": "specific",
+      "cmd": "22C00B4",
+      "init": "ATSH7A0;ATFCSH7A0",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 60000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "TYRE_PRESSURE_FL",
+          "expression": "B10/72.52",
+          "unit": "bar",
+          "class": "pressure",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "TYRE_PRESSURE_FR",
+          "expression": "B14/72.52",
+          "unit": "bar",
+          "class": "pressure",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "TYRE_PRESSURE_RL",
+          "expression": "B19/72.52",
+          "unit": "bar",
+          "class": "pressure",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "TYRE_PRESSURE_RR",
+          "expression": "B23/72.52",
+          "unit": "bar",
+          "class": "pressure",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "TYRE_TEMP_FL",
+          "expression": "B11-50",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -50,
+          "max": 100
+        },
+        {
+          "name": "TYRE_TEMP_FR",
+          "expression": "B15-50",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -50,
+          "max": 100
+        },
+        {
+          "name": "TYRE_TEMP_RL",
+          "expression": "B20-50",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -50,
+          "max": 100
+        },
+        {
+          "name": "TYRE_TEMP_RR",
+          "expression": "B25-50",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -50,
+          "max": 100
+        },
+        {
+          "name": "TYRE_SENSOR_STATE_FL",
+          "expression": "B12",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 2
+        },
+        {
+          "name": "TYRE_SENSOR_STATE_FR",
+          "expression": "B17",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 2
+        },
+        {
+          "name": "TYRE_SENSOR_STATE_RL",
+          "expression": "B21",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 2
+        },
+        {
+          "name": "TYRE_SENSOR_STATE_RR",
+          "expression": "B26",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 2
+        }
+      ]
+    },
+    {
+      "name": "BCM_22B00E",
+      "type": "specific",
+      "cmd": "22B00E2",
+      "init": "ATSH7A0;ATFCSH7A0",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 5000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "CHARGE_PORT_OPEN",
+          "expression": "B10:5",
+          "unit": "",
+          "class": "opening"
+        }
+      ]
+    },
+    {
+      "name": "BMS_220101",
+      "type": "specific",
+      "cmd": "220101",
+      "init": "ATSH7E4;ATFCSH7E4",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 5000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "SOC_BMS",
+          "expression": "B10/2",
+          "unit": "%",
+          "class": "battery",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "name": "BATTERY_CURRENT",
+          "expression": "[S17:S18]/10",
+          "unit": "A",
+          "class": "current",
+          "min": -400,
+          "max": 400
+        },
+        {
+          "name": "BATTERY_VOLTAGE",
+          "expression": "[B19:B20]/10",
+          "unit": "V",
+          "class": "voltage",
+          "min": 240,
+          "max": 450
+        },
+        {
+          "name": "BATTERY_POWER",
+          "expression": "(([B19:B20]/10)*([S17:S18]/10))/1000",
+          "unit": "kW",
+          "class": "power"
+        },
+        {
+          "name": "AVAIL_CHARGE_POWER_MIRROR",
+          "expression": "[B11:B12]/100",
+          "unit": "kW",
+          "class": "power"
+        },
+        {
+          "name": "AVAIL_DISCHARGE_POWER_MIRROR",
+          "expression": "[B13:B14]/100",
+          "unit": "kW",
+          "class": "power"
+        },
+        {
+          "name": "BMS_MAIN_RELAY",
+          "expression": "B15:0",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "AC_CHARGER_CONNECTED",
+          "expression": "B15:5",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "CHARGING_DC",
+          "expression": "B15:6",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "CHARGING",
+          "expression": "B15:7",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "BATTERY_MAX_TEMP",
+          "expression": "S21",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 80
+        },
+        {
+          "name": "BATTERY_MIN_TEMP",
+          "expression": "S22",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 80
+        },
+        {
+          "name": "MODULE_1_TEMP",
+          "expression": "S23",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 80
+        },
+        {
+          "name": "MODULE_2_TEMP",
+          "expression": "S25",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 80
+        },
+        {
+          "name": "MODULE_3_TEMP",
+          "expression": "S26",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 80
+        },
+        {
+          "name": "MODULE_4_TEMP",
+          "expression": "S27",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 80
+        },
+        {
+          "name": "BATTERY_INLET_TEMP",
+          "expression": "S30",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 80
+        },
+        {
+          "name": "MAX_CELL_VOLTAGE",
+          "expression": "B31/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "MAX_CELL_VOLTAGE_NO",
+          "expression": "B33",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "MIN_CELL_VOLTAGE",
+          "expression": "B34/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "MIN_CELL_VOLTAGE_NO",
+          "expression": "B35",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "BATTERY_FAN_STATUS",
+          "expression": "B36",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "BATTERY_FAN_FEEDBACK",
+          "expression": "B37",
+          "unit": "Hz",
+          "class": "frequency"
+        },
+        {
+          "name": "AUX_BATTERY_VOLTAGE",
+          "expression": "B38/10",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 16
+        }
+      ]
+    },
+    {
+      "name": "BMS_220105",
+      "type": "specific",
+      "cmd": "220105",
+      "init": "ATSH7E4;ATFCSH7E4",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 10000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "SOH",
+          "expression": "[B34:B35]/10",
+          "unit": "%",
+          "class": "",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "name": "MAX_DETERIORATION_CELL_NO",
+          "expression": "B36",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "MIN_DETERIORATION",
+          "expression": "[B37:B38]/10",
+          "unit": "%",
+          "class": ""
+        },
+        {
+          "name": "MIN_DETERIORATION_CELL_NO",
+          "expression": "B39",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "SOC_DISP",
+          "expression": "B41/2",
+          "unit": "%",
+          "class": "battery",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "name": "CELL_VOLTAGE_DEVIATION",
+          "expression": "B28/50",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "BATTERY_HEATER_1_TEMP",
+          "expression": "S31",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 120
+        }
+      ]
+    },
+    {
+      "name": "CLU_22B002",
+      "type": "specific",
+      "cmd": "22B0023",
+      "init": "ATSH7C6;ATFCSH7C6",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 60000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "ODOMETER",
+          "expression": "[B12:B14]",
+          "unit": "km",
+          "class": "distance",
+          "min": 0
+        },
+        {
+          "name": "CLU_B11_TEMP",
+          "expression": "B11/2-40",
+          "unit": "degC",
+          "class": "temperature"
+        }
+      ]
+    },
+    {
+      "name": "EPS_220101",
+      "type": "specific",
+      "cmd": "2201013",
+      "init": "ATSH7D4;ATFCSH7D4",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 10000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "EPS_VEHICLE_SPEED",
+          "expression": "B14",
+          "unit": "km/h",
+          "class": "speed",
+          "min": 0,
+          "max": 250
+        },
+        {
+          "name": "EPS_STEERING_TORQUE",
+          "expression": "(B12+S13*256)",
+          "unit": "",
+          "class": "",
+          "min": -10000,
+          "max": 10000
+        },
+        {
+          "name": "EPS_MDPS_ASSIST",
+          "expression": "B17",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 255
+        },
+        {
+          "name": "EPS_STEERING_TORQUE_ALT",
+          "expression": "S7",
+          "unit": "",
+          "class": "",
+          "min": -40,
+          "max": 40
+        },
+        {
+          "name": "EPS_SPEED_BAND",
+          "expression": "B15",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 3
+        },
+        {
+          "name": "EPS_STEERING_ANGLE",
+          "expression": "0-(S9*256+B10)/10",
+          "unit": "deg",
+          "class": "",
+          "min": -600,
+          "max": 600
+        },
+        {
+          "name": "EPS_TEMP",
+          "expression": "B20",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": 0,
+          "max": 255
+        }
+      ]
+    },
+    {
+      "name": "ESC_22C101",
+      "type": "specific",
+      "cmd": "22C1017",
+      "init": "ATSH7D1;ATFCSH7D1",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 2500,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "REAL_SPEED_KMH",
+          "expression": "B12",
+          "unit": "km/h",
+          "class": "speed",
+          "min": 0,
+          "max": 250
+        },
+        {
+          "name": "WHEEL_SPEED_FL",
+          "expression": "B18",
+          "unit": "km/h",
+          "class": "speed",
+          "min": 0,
+          "max": 250
+        },
+        {
+          "name": "WHEEL_SPEED_FR",
+          "expression": "B19",
+          "unit": "km/h",
+          "class": "speed",
+          "min": 0,
+          "max": 250
+        },
+        {
+          "name": "WHEEL_SPEED_RL",
+          "expression": "B20",
+          "unit": "km/h",
+          "class": "speed",
+          "min": 0,
+          "max": 250
+        },
+        {
+          "name": "WHEEL_SPEED_RR",
+          "expression": "B21",
+          "unit": "km/h",
+          "class": "speed",
+          "min": 0,
+          "max": 250
+        },
+        {
+          "name": "GEAR_SELECTOR",
+          "expression": "B14",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 8
+        },
+        {
+          "name": "LONG_ACCEL_RAW",
+          "expression": "B23-128",
+          "unit": "",
+          "class": "",
+          "min": -128,
+          "max": 127
+        },
+        {
+          "name": "BRAKE_PRESSURE",
+          "expression": "B44",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 255
+        },
+        {
+          "name": "STEERING_ANGLE",
+          "expression": "([B35:B36]-32768)/10",
+          "unit": "deg",
+          "class": "",
+          "min": -600,
+          "max": 600
+        },
+        {
+          "name": "YAW_RATE_RAW",
+          "expression": "((B39<<8)|B41)-2048",
+          "unit": "",
+          "class": "",
+          "min": -2048,
+          "max": 2047
+        },
+        {
+          "name": "LAT_ACCEL_RAW",
+          "expression": "[B37:B38]-2048",
+          "unit": "",
+          "class": "",
+          "min": -2048,
+          "max": 2047
+        },
+        {
+          "name": "ESC_SUPPLY_VOLTAGE",
+          "expression": "B15/16",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 16
+        }
+      ]
+    },
+    {
+      "name": "HVAC_220100",
+      "type": "specific",
+      "cmd": "2201006",
+      "init": "ATSH7B3;ATFCSH7B3",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 30000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "HVAC_INTERIOR_TEMP",
+          "expression": "(B11/2)-40",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 87.5
+        },
+        {
+          "name": "HVAC_AAT",
+          "expression": "(B12/2)-40",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 87.5
+        },
+        {
+          "name": "HVAC_HEAT_PUMP_TEMP",
+          "expression": "(B13/2)-40",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 87.5
+        },
+        {
+          "name": "HVAC_UNKNOWN_B15",
+          "expression": "B15",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 255
+        },
+        {
+          "name": "HVAC_UNKNOWN_B17",
+          "expression": "B17",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 255
+        },
+        {
+          "name": "HVAC_UNKNOWN_B22",
+          "expression": "B22",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 255
+        },
+        {
+          "name": "HVAC_DUCT_TEMP_1",
+          "expression": "(B36/2)-40",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 87.5
+        },
+        {
+          "name": "HVAC_DUCT_TEMP_2",
+          "expression": "(B37/2)-40",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 87.5
+        },
+        {
+          "name": "HVAC_UNKNOWN_B34",
+          "expression": "B34",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "name": "HVAC_UNKNOWN_B14",
+          "expression": "B14",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 59
+        },
+        {
+          "name": "HVAC_UNKNOWN_B35",
+          "expression": "B35",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 255
+        },
+        {
+          "name": "HVAC_VEHICLE_SPEED",
+          "expression": "B38",
+          "unit": "km/h",
+          "class": "speed",
+          "min": 0,
+          "max": 255
+        }
+      ]
+    },
+    {
+      "name": "HVAC_220102",
+      "type": "specific",
+      "cmd": "2201023",
+      "init": "ATSH7B3;ATFCSH7B3",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 10000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "HVAC_HEAT_EXCHANGER_TEMP",
+          "expression": "(B10/2)-40",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 87.5
+        },
+        {
+          "name": "HVAC_HEAT_EXCHANGER_TEMP_2",
+          "expression": "(B11/2)-40",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 87.5
+        },
+        {
+          "name": "HVAC_HEAT_PUMP_ON",
+          "expression": "B17",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "name": "HVAC_HEAT_PUMP_ON_MIRROR_B18",
+          "expression": "B18",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "name": "HVAC_HOTSIDE_TEMP",
+          "expression": "B19",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": 0,
+          "max": 127
+        },
+        {
+          "name": "HVAC_HEAT_PUMP_ON_MIRROR_B12",
+          "expression": "B12",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 1
+        }
+      ]
+    },
+    {
+      "name": "HVAC_2201A0",
+      "type": "specific",
+      "cmd": "2201A09",
+      "init": "ATSH7B3;ATFCSH7B3",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 10000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "HVAC_SET_TEMP_DRIVER",
+          "expression": "B44",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": 15,
+          "max": 32
+        },
+        {
+          "name": "HVAC_SET_TEMP_PASSENGER",
+          "expression": "B45",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": 15,
+          "max": 32
+        },
+        {
+          "name": "HVAC_A0_UNKNOWN_B23",
+          "expression": "B23",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "name": "HVAC_A0_UNKNOWN_B25",
+          "expression": "B25",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "name": "HVAC_HEAT_MODE",
+          "expression": "B06",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 2
+        },
+        {
+          "name": "HVAC_DEFROST_FLAGS",
+          "expression": "(B58 << 8) | B59",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 65535
+        },
+        {
+          "name": "HVAC_ACTUATOR_TARGET_1",
+          "expression": "B5",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 255
+        },
+        {
+          "name": "HVAC_ACTUATOR_TARGET_2",
+          "expression": "B7",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 255
+        },
+        {
+          "name": "HVAC_ACTUATOR_TARGET_3",
+          "expression": "B9",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 255
+        },
+        {
+          "name": "HVAC_ACTUATOR_TARGET_4",
+          "expression": "B11",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 255
+        },
+        {
+          "name": "HVAC_AAT_MIRROR_B17",
+          "expression": "(B17/2)-40",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 87.5
+        },
+        {
+          "name": "HVAC_INTERIOR_TEMP_B13",
+          "expression": "(B13/2)-40",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 87.5
+        },
+        {
+          "name": "HVAC_AAT_B15",
+          "expression": "(B15/2)-40",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 87.5
+        },
+        {
+          "name": "HVAC_A0_UNKNOWN_B47",
+          "expression": "B47",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 255
+        },
+        {
+          "name": "HVAC_A0_UNKNOWN_B50",
+          "expression": "B50",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 255
+        },
+        {
+          "name": "HVAC_BLOWER_FAN_SPEED",
+          "expression": "B18",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 121
+        },
+        {
+          "name": "HVAC_PRECONDITIONING_ACTIVE",
+          "expression": "B41",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 1
+        }
+      ]
+    },
+    {
+      "name": "HVAC_2201A2",
+      "type": "specific",
+      "cmd": "2201A28",
+      "init": "ATSH7B3;ATFCSH7B3",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 10000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "HVAC_HEAT_POWER",
+          "expression": "B42/10",
+          "unit": "kW",
+          "class": "power",
+          "min": 0,
+          "max": 12
+        },
+        {
+          "name": "HVAC_COOL_LOAD_B41",
+          "expression": "B41",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 255
+        },
+        {
+          "name": "HVAC_HEAT_LOAD_B17",
+          "expression": "B17",
+          "unit": "A",
+          "class": "current",
+          "min": 0,
+          "max": 255
+        },
+        {
+          "name": "HVAC_A2_UNKNOWN_B44",
+          "expression": "B44",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 255
+        }
+      ]
+    },
+    {
+      "name": "IGPM_22BC07",
+      "type": "specific",
+      "cmd": "22BC072",
+      "init": "ATSH770;ATFCSH770",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 5000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "CHARGE_PORT_LOCK",
+          "expression": "B11:7",
+          "unit": "",
+          "class": "lock"
+        },
+        {
+          "name": "CHARGE_PORT_LOCK_INV",
+          "expression": "B12:0",
+          "unit": "",
+          "class": "lock"
+        },
+        {
+          "name": "IG3_RELAY_OUTPUT",
+          "expression": "B12:3",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "CHARGE_DOOR_LAMP_REAR",
+          "expression": "B12:2",
+          "unit": "",
+          "class": ""
+        }
+      ]
+    },
+    {
+      "name": "IGPM_22BC03",
+      "type": "specific",
+      "cmd": "22BC03",
+      "init": "ATSH770;ATFCSH770",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 2500,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "DOOR_DRV_OPEN",
+          "expression": "B10:5",
+          "unit": "",
+          "class": "door"
+        },
+        {
+          "name": "DOOR_PAS_OPEN",
+          "expression": "B10:4",
+          "unit": "",
+          "class": "door"
+        },
+        {
+          "name": "DOOR_RL_OPEN",
+          "expression": "B10:0",
+          "unit": "",
+          "class": "door"
+        },
+        {
+          "name": "DOOR_RR_OPEN",
+          "expression": "B10:2",
+          "unit": "",
+          "class": "door"
+        },
+        {
+          "name": "TRUNK_OPEN",
+          "expression": "B10:7",
+          "unit": "",
+          "class": "door"
+        },
+        {
+          "name": "TAIL_LAMP_INTERIOR",
+          "expression": "B12:2",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "TAIL_LIGHTS",
+          "expression": "B12:3",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "HIGH_BEAM",
+          "expression": "B12:4",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "LOW_BEAM",
+          "expression": "B12:5",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "IGN1_SWITCH",
+          "expression": "B11:5",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "SEATBELT_FL",
+          "expression": "B11:1",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "SEATBELT_FR",
+          "expression": "B11:2",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "DOOR_LOCK_RL",
+          "expression": "B10:1",
+          "unit": "",
+          "class": "lock"
+        },
+        {
+          "name": "DOOR_LOCK_RR",
+          "expression": "B10:3",
+          "unit": "",
+          "class": "lock"
+        },
+        {
+          "name": "HOOD_OPEN",
+          "expression": "B11:0",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "name": "REAR_DEFOGGER_RELAY",
+          "expression": "B13:1",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "BRAKE_FLUID_SWITCH",
+          "expression": "B11:4",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "name": "BURGLAR_ALARM_HORN_RELAY",
+          "expression": "B13:2",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "name": "START_INHIBITOR_RELAY",
+          "expression": "B13:3",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 1
+        }
+      ]
+    },
+    {
+      "name": "IGPM_22BC04",
+      "type": "specific",
+      "cmd": "22BC04",
+      "init": "ATSH770;ATFCSH770",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 5000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "DOOR_LOCK_FL",
+          "expression": "B10:3",
+          "unit": "",
+          "class": "lock"
+        },
+        {
+          "name": "DOOR_LOCK_FR",
+          "expression": "B10:2",
+          "unit": "",
+          "class": "lock"
+        },
+        {
+          "name": "INTERIOR_LAMP_AUTOCUT_RELAY",
+          "expression": "B13:6",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "name": "DRL_DEDICATED_OUTPUT",
+          "expression": "B12:5",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 1
+        }
+      ]
+    },
+    {
+      "name": "IGPM_22BC06",
+      "type": "specific",
+      "cmd": "22BC06",
+      "init": "ATSH770;ATFCSH770",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 2500,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "BRAKE_LIGHT",
+          "expression": "B10",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 255
+        },
+        {
+          "name": "LEFT_TURN_SIGNAL",
+          "expression": "B11:0",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "RIGHT_TURN_SIGNAL",
+          "expression": "B11:1",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "STOP_LAMP_LEFT",
+          "expression": "B10:2",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "name": "BRAKE_PEDAL_SWITCH",
+          "expression": "B10:0",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 1
+        }
+      ]
+    },
+    {
+      "name": "MCU_2101",
+      "type": "specific",
+      "cmd": "21015",
+      "init": "ATSH7E3;ATFCSH7E3",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 10000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "MCU_HV_VOLTAGE",
+          "expression": "B13*2.56",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 500
+        },
+        {
+          "name": "MCU_PHASE_CURRENT_1",
+          "expression": "(S30 << 8) | B29",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "MCU_PHASE_CURRENT_2",
+          "expression": "(S33 << 8) | B31",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "MCU_PHASE_CURRENT_3",
+          "expression": "(S35 << 8) | B34",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "MCU_SUPPLY_VOLTAGE_1",
+          "expression": "((B15<<8)|B14)/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 16
+        },
+        {
+          "name": "MCU_SUPPLY_VOLTAGE_2",
+          "expression": "((B28<<8)|B27)/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 16
+        }
+      ]
+    },
+    {
+      "name": "MCU_2102",
+      "type": "specific",
+      "cmd": "21029",
+      "init": "ATSH7E3;ATFCSH7E3",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 10000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "MCU_MOTOR_RPM",
+          "expression": "(S10<<8)|B09",
+          "unit": "RPM",
+          "class": "",
+          "min": -10500,
+          "max": 10500
+        },
+        {
+          "name": "MCU_MOTOR_TORQUE",
+          "expression": "((S12<<8)|B11)/10",
+          "unit": "Nm",
+          "class": "",
+          "min": -300,
+          "max": 300
+        },
+        {
+          "name": "MCU_MOTOR_CURRENT",
+          "expression": "((B17<<8)|B15)/10",
+          "unit": "A",
+          "class": "current",
+          "min": 0,
+          "max": 600
+        },
+        {
+          "name": "MCU_COOLANT_TEMP",
+          "expression": "B20*2",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 150
+        },
+        {
+          "name": "MCU_HEATSINK_TEMP",
+          "expression": "B19*2",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 150
+        },
+        {
+          "name": "MCU_TEMP_B18",
+          "expression": "B18*2",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 150
+        },
+        {
+          "name": "MCU_MOTOR_COOLANT_TEMP",
+          "expression": "B21*2",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 150
+        },
+        {
+          "name": "MCU_MOTOR_POWER",
+          "expression": "((S12<<8)|B11)/10*((S10<<8)|B09)*0.00010472",
+          "unit": "kW",
+          "class": "power",
+          "min": -100,
+          "max": 100
+        },
+        {
+          "name": "MCU_CURRENT_SENSOR_OFFSET_1",
+          "expression": "(S23<<8)|B22",
+          "unit": "",
+          "class": "",
+          "min": -100,
+          "max": 100
+        },
+        {
+          "name": "MCU_CURRENT_SENSOR_OFFSET_2",
+          "expression": "(S26<<8)|B25",
+          "unit": "",
+          "class": "",
+          "min": -100,
+          "max": 100
+        }
+      ]
+    },
+    {
+      "name": "MCU_21F2",
+      "type": "specific",
+      "cmd": "21F2",
+      "init": "ATSH7E3;ATFCSH7E3",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 300000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "MCU_21F2_HEATSINK_TEMP_AVG",
+          "expression": "B47",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 150
+        },
+        {
+          "name": "MCU_21F2_HEATSINK_TEMP_MAX",
+          "expression": "B50",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 150
+        },
+        {
+          "name": "MCU_21F2_TEMP_B18_AVG",
+          "expression": "B57",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 150
+        },
+        {
+          "name": "MCU_21F2_TEMP_B18_MAX",
+          "expression": "B59",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 150
+        },
+        {
+          "name": "MCU_21F2_COOLANT_TEMP_AVG",
+          "expression": "B67",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 150
+        },
+        {
+          "name": "MCU_21F2_COOLANT_TEMP_MAX",
+          "expression": "B68",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 150
+        },
+        {
+          "name": "MCU_21F2_SUPPLY_VOLTAGE_AVG",
+          "expression": "B66/10",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 16
+        },
+        {
+          "name": "MCU_21F2_SUPPLY_VOLTAGE_MAX",
+          "expression": "B63/10",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 16
+        },
+        {
+          "name": "MCU_21F2_SUPPLY_VOLTAGE_MIN",
+          "expression": "B65/10",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 16
+        },
+        {
+          "name": "MCU_21F2_W27",
+          "expression": "(B28<<8)|B27",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 65535
+        },
+        {
+          "name": "MCU_21F2_W31",
+          "expression": "(B33<<8)|B31",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 65535
+        }
+      ]
+    },
+    {
+      "name": "OBC_2101",
+      "type": "specific",
+      "cmd": "21017",
+      "init": "ATSH7E5;ATFCSH7E5",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 5000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "LDC_HV_INPUT_V",
+          "expression": "[B45:B46]/100",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 500
+        },
+        {
+          "name": "LDC_OUTPUT_V",
+          "expression": "[B25:B26]/100",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 20
+        },
+        {
+          "name": "LDC_TEMP",
+          "expression": "B19-100",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 120
+        },
+        {
+          "name": "OBC_CHARGE_V",
+          "expression": "[B10:B11]/100",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 500
+        },
+        {
+          "name": "OBC_OUTPUT_V",
+          "expression": "[B12:B13]/100",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 500
+        },
+        {
+          "name": "OBC_DC_A",
+          "expression": "[B17:B18]/100",
+          "unit": "A",
+          "class": "current",
+          "min": 0,
+          "max": 50
+        },
+        {
+          "name": "OBC_PILOT_DUTY",
+          "expression": "[B35:B36]/10",
+          "unit": "%",
+          "class": "",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "name": "OBC_PILOT_AMPS",
+          "expression": "[B35:B36]*0.06",
+          "unit": "A",
+          "class": "current",
+          "min": 0,
+          "max": 80
+        },
+        {
+          "name": "OBC_DC_POWER",
+          "expression": "[B10:B11]*[B17:B18]/10000000",
+          "unit": "kW",
+          "class": "power",
+          "min": 0,
+          "max": 10
+        },
+        {
+          "name": "AC_INPUT_V",
+          "expression": "[B14:B15]/100",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 300
+        },
+        {
+          "name": "AC_INPUT_A",
+          "expression": "[B33:B34]/100",
+          "unit": "A",
+          "class": "current",
+          "min": 0,
+          "max": 40
+        },
+        {
+          "name": "OBC_CHARGE_STATE",
+          "expression": "B20",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "OBC_EFFICIENCY",
+          "expression": "100*[B10:B11]*[B17:B18]/([B14:B15]*[B33:B34])",
+          "unit": "%",
+          "class": "",
+          "min": 0,
+          "max": 105
+        },
+        {
+          "name": "OBC_AC_NOT_CONNECTED",
+          "expression": "B22:0",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "name": "OBC_MODE",
+          "expression": "B23",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "OBC_DC_CHARGE_MODE",
+          "expression": "B23:6",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "name": "OBC_SESSION_FLAGS",
+          "expression": "B37",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "OBC_CABLE_SESSION",
+          "expression": "B37:4",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 1
+        }
+      ]
+    },
+    {
+      "name": "VCU_2101",
+      "type": "specific",
+      "cmd": "21014",
+      "init": "ATSH7E2;ATFCSH7E2",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 2500,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "VCU_VEHICLE_SPEED",
+          "expression": "((S20*256)+B19)*1.609344/100",
+          "unit": "km/h",
+          "class": "speed",
+          "min": 0,
+          "max": 250
+        },
+        {
+          "name": "ACCEL_PEDAL_DEPTH",
+          "expression": "B18/2",
+          "unit": "%",
+          "class": "",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "name": "ACCEL_PEDAL_DEPTH_FINE",
+          "expression": "((B18<<8)|B17)/512",
+          "unit": "%",
+          "class": "",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "name": "GEAR",
+          "expression": "B10",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "GEAR_P",
+          "expression": "B10:0",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "GEAR_R",
+          "expression": "B10:1",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "GEAR_N",
+          "expression": "B10:2",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "GEAR_D",
+          "expression": "B10:3",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "DEBUG_VEHICLE_STATE_FLAGS",
+          "expression": "B11",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "VEHICLE_STATE_BRAKE_LAMP",
+          "expression": "B11:0",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "VEHICLE_STATE_NOT_BRAKING",
+          "expression": "B11:1",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "VEHICLE_STATE_EV_READY",
+          "expression": "B11:3",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "VCU_IG3_ON",
+          "expression": "B11:4",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "VEHICLE_STATE_LDC_ENABLED",
+          "expression": "1-B11:7",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "VCU_APS1_VOLTAGE",
+          "expression": "((B13<<8)|B12)/2048",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "DEBUG_GEAR_STATE_FLAGS",
+          "expression": "B26",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "VCU_INVERTER_ENABLED",
+          "expression": "B23:2",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "VCU_POWER_STATE",
+          "expression": "B25",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 8
+        },
+        {
+          "name": "VCU_SUPPLY_VOLTAGE",
+          "expression": "((B22<<8)|B21)/2072",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 16
+        },
+        {
+          "name": "VCU_INVERTER_ARMED",
+          "expression": "B23:4",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "GEAR_SIGNAL_VALID",
+          "expression": "B10:5",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "VCU_APS2_VOLTAGE",
+          "expression": "((B15<<8)|B14)/2048",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "VCU_IGN_ON",
+          "expression": "B11:0|B11:1",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 1
+        }
+      ]
+    },
+    {
+      "name": "VCU_2102",
+      "type": "specific",
+      "cmd": "21024",
+      "init": "ATSH7E2;ATFCSH7E2",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 10000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "VCU_INVERTER_INPUT_VOLTAGE",
+          "expression": "B17*2",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 450
+        },
+        {
+          "name": "VCU_AUX_BATTERY_VOLTAGE",
+          "expression": "B14*0.0974",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 16
+        },
+        {
+          "name": "VCU_AUX_POWER",
+          "expression": "((B22<<8)|B21)/10",
+          "unit": "W",
+          "class": "power",
+          "min": 0,
+          "max": 6553
+        },
+        {
+          "name": "VCU_AUX_POWER_COARSE",
+          "expression": "B15*10",
+          "unit": "W",
+          "class": "power",
+          "min": 0,
+          "max": 2550
+        },
+        {
+          "name": "VCU_LDC_OUTPUT_VOLTAGE",
+          "expression": "((B20<<8)|B19)/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 16
+        },
+        {
+          "name": "VCU_AUX_BATTERY_VOLTAGE_FINE",
+          "expression": "((B27<<8)|B26)/1000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 16
+        },
+        {
+          "name": "VCU_COOLANT_TEMP",
+          "expression": "B18-100",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 150
+        },
+        {
+          "name": "VCU_HV_MAIN_RELAY_ON",
+          "expression": "B10",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "name": "VCU_DCLINK_VOLTAGE",
+          "expression": "((B25<<8)|B23)/100",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 450
+        }
+      ]
+    },
+    {
+      "name": "VCU_21F2",
+      "type": "specific",
+      "cmd": "21F2",
+      "init": "ATSH7E2;ATFCSH7E2",
+      "rxheader": "",
+      "group": "default",
+      "period_ms": 300000,
+      "enabled": true,
+      "parameters": [
+        {
+          "name": "VCU_21F2_EVENT_COUNT",
+          "expression": "((B76<<8)|B75)",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 65535
+        },
+        {
+          "name": "VCU_ODOMETER",
+          "expression": "(B14 | (B15 << 8) | (B17 << 16) | (B18 << 24)) / 256",
+          "unit": "km",
+          "class": "distance",
+          "min": 0,
+          "max": 1000000
+        },
+        {
+          "name": "VCU_21F2_SOC",
+          "expression": "((B13<<8)|B12)/256",
+          "unit": "%",
+          "class": "",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "name": "VCU_21F2_RANGE_START",
+          "expression": "B19",
+          "unit": "km",
+          "class": "distance",
+          "min": 0,
+          "max": 255
+        },
+        {
+          "name": "VCU_21F2_RANGE_END",
+          "expression": "B20",
+          "unit": "km",
+          "class": "distance",
+          "min": 0,
+          "max": 255
+        }
+      ]
+    }
+  ],
+  "filters": []
+}
