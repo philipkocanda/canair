@@ -241,6 +241,24 @@ class TestSlowStatusNeedsAPeriod:
         assert not any("slow" in e for e in self._errors(tmp_path, "      period: 300000\n"))
 
 
+class TestOctalPidKey:
+    """A leading-zero OBD-II PID key YAML 1.1 reads as an octal integer."""
+
+    def _errors(self, tmp_path, key: str) -> list[str]:
+        p = tmp_path / "e.yaml"
+        p.write_text(f"ECU:\n  tx_id: 0x7E0\n  pids:\n    {key}:\n      status: draft\n")
+        errors, _warnings, _stats = validate_pids.validate_ecu_file(p, validate_pids.load_schema())
+        return errors
+
+    def test_unquoted_mode_01_key_is_an_error(self, tmp_path):
+        # 0105 loads as 69, so the PID would be requested as "69".
+        assert any("octal" in e and "0105" in e for e in self._errors(tmp_path, "0105"))
+
+    @pytest.mark.parametrize("key", ['"0105"', "010D", "2101"])
+    def test_keys_that_read_back_are_fine(self, tmp_path, key):
+        assert not any("octal" in e for e in self._errors(tmp_path, key))
+
+
 class TestIoControlValidation:
     """Actuator entries: the session_mode byte and keys YAML misreads as octal."""
 

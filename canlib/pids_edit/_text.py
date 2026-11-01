@@ -329,12 +329,14 @@ def _needs_key_quoting(key: str) -> bool:
 
     PID codes are hex strings, but a code of all decimal digits with a leading
     zero (``0105``, ``0902`` — standard OBD-II Mode-01/09 PIDs) is parsed by YAML
-    as an *integer*, losing the leading zero (``0105`` -> ``105``). The surgical
-    editors compare keys via ``str(k)``, so such a key silently fails to round-
-    trip and the edit reverts — unless it's quoted. Keys that already round-trip
-    via ``str()`` (``2101`` -> ``2101``) or are non-numeric (``22B004``, ``010C``)
-    are left unquoted, so existing profiles don't churn. Both readers must agree
-    (:func:`_plain_reads_back`): ruamel reads ``220E01`` as the float ``2200.0``.
+    as an *integer*, losing the leading zero (ruamel reads ``0105`` as ``105``; the
+    YAML 1.1 loader behind :func:`canlib.pids.load_pids` reads it as the octal
+    ``69``). The surgical editors compare keys via ``str(k)``, so such a key
+    silently fails to round-trip and the edit reverts — unless it's quoted. Keys
+    that already round-trip via ``str()`` (``2101`` -> ``2101``) or are
+    non-numeric (``22B004``, ``010C``) are left unquoted, so existing profiles
+    don't churn. Both readers must agree (:func:`_plain_reads_back`): ruamel reads
+    ``220E01`` as the float ``2200.0``.
     """
     return not _plain_reads_back(key, as_key=True)
 

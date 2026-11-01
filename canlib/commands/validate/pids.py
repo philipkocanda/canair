@@ -610,6 +610,16 @@ def _validate_one_pid(
     pid_str = str(pid_code)
     label = f"{path.name}/{ecu_name}/{pid_str}"
 
+    if isinstance(pid_code, int) and len(pid_str) < 4:
+        # A request code is a service byte plus an identifier, so at least four hex
+        # digits; a shorter integer is what YAML 1.1 makes of a leading-zero key
+        # (0105 -> octal 69), and the PID would be requested as "69".
+        errors.append(
+            f"{label}: PID key parsed as the integer {pid_code} — quote it; YAML reads a "
+            'leading-zero key such as 0105 as octal (write "0105":)'
+        )
+        return
+
     if not isinstance(pid_def, dict):
         errors.append(f"{label}: PID definition must be a dict")
         return
