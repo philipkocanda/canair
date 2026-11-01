@@ -15,6 +15,40 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [3.1.0](https://github.com/philipkocanda/canair/compare/v3.0.0...v3.1.0) (2026-11-01)
+
+
+### Added
+
+* **monitor:** back off slow ECUs, poll faster by default, show stale age ([9fc1016](https://github.com/philipkocanda/canair/commit/9fc1016957bc80d74ac45ba5d8b4513c42205c06))
+* **monitor:** reuse the start-up ECU/PID picker for the live p key ([67382f7](https://github.com/philipkocanda/canair/commit/67382f772e1224ce10bf2fb0064e332c708f6132))
+* **profiles:** add Ioniq IGPM bits and DTC meanings from the shop manual ([ae80c33](https://github.com/philipkocanda/canair/commit/ae80c3394951f303cdf172c88bdd79923fa8ec52))
+* **profiles:** decode Ioniq SKM gear, 12 V, speed and ignition-line bytes ([1c9c353](https://github.com/philipkocanda/canair/commit/1c9c3536a345cf0c5a74cda81db6943dfbe48e3d))
+* **profiles:** name Ioniq BMS flags and bytes from the shop manual's GDS lists ([f632b76](https://github.com/philipkocanda/canair/commit/f632b76dcbc2becd261d63f7264d9f945816c163))
+* **profiles:** name Ioniq SKM inputs from GDS and log GDS actuator lists ([a55e7c1](https://github.com/philipkocanda/canair/commit/a55e7c11d0f196493b79be60e18c1759e5f3c7f9))
+* **profiles:** seed Ioniq 5 PIDs from OBDb, checked on its recorded replies ([3e60e2a](https://github.com/philipkocanda/canair/commit/3e60e2a61b772baa87fe481eb09c47658cc24c78))
+* **wican:** generate a WiCAN firmware v6 AutoPID table alongside the 4.x profile ([088b889](https://github.com/philipkocanda/canair/commit/088b889fc45be93244aa8f0cdc385d38ee03b6cf))
+
+
+### Fixed
+
+* **profiles:** add the Ioniq 5 signals wican-fw reads that OBDb lacks ([8a4ae72](https://github.com/philipkocanda/canair/commit/8a4ae727b22303124eccef0c87e20603fc010991))
+* **variants:** offer the variant when re-selecting a profile, and withhold another revision's identity ([9819fbb](https://github.com/philipkocanda/canair/commit/9819fbb248a5536b1066668ee707d8ab15128bda))
+
+
+### Changed
+
+* **profiles:** state the Ioniq 5's shared PID fields once ([760867e](https://github.com/philipkocanda/canair/commit/760867e3a55eabc06574540527bb1c924604641e))
+
+
+### Documentation
+
+* **plans:** re-check the WiCAN v6 compatibility audit against beta.5 ([cc01514](https://github.com/philipkocanda/canair/commit/cc0151430230f305e5160d431c7e2937dbdfc601))
+* **profiles:** add the shop manual's fan levels and BMS actuation tests to the Ioniq BMS ([894e6bd](https://github.com/philipkocanda/canair/commit/894e6bdf37cf6faf7795f905d6bb21e3d88f1827))
+* **profiles:** tie Ioniq AIRBAG_HWIRE_DUTY to the ignition and list ACC predicate candidates ([b74fd93](https://github.com/philipkocanda/canair/commit/b74fd933f862d077a9b290236fef200052ffce51))
+* **profiles:** tie Ioniq AIRBAG_HWIRE_DUTY to the ignition and list ACC predicate candidates ([9e02753](https://github.com/philipkocanda/canair/commit/9e027531ecf8a61d0218496fb9b4ab1df733197c))
+* **skills:** seed third-party definitions with shared fields stated once ([37bc827](https://github.com/philipkocanda/canair/commit/37bc827d96e75c0bb63322a0ac15100e469b75ce))
+
 ## [3.0.0](https://github.com/philipkocanda/canair/compare/v2.1.0...v3.0.0) (2026-10-31)
 
 
