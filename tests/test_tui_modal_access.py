@@ -11,15 +11,17 @@ from textual.containers import VerticalScroll
 from textual.widgets import Input, OptionList
 
 from canlib.commands.captures.step_tui import CapturesStepApp
+from canlib.modes._monitor_select_tui import LiveMonitorSelectScreen
+from canlib.modes._monitor_selectors import PickerSeed
 from canlib.modes._monitor_tui import (
     EditParamDialog,
     EventLogModal,
     MonitorApp,
-    PidPickerScreen,
     SaveDialog,
     SessionInfoModal,
     SessionPickerScreen,
 )
+from canlib.modes.monitor_select import build_choices
 from canlib.tui.help import HelpModal
 
 from .test_captures_step import _model
@@ -32,14 +34,15 @@ class PickerController(FakeController):
     def available_ecus(self):
         return ["BMS", "HVAC", "IGPM"]
 
-    def swept_ecus(self):
-        return {"BMS", "HVAC", "IGPM"}
+    def picker_seed(self):
+        def pid(**params):
+            return {"parameters": params, "status": "active", "swept": True}
 
-    def available_pids(self, ecu):
-        return [("2101", "pack state"), ("2102", "cell block 1")]
-
-    def active_selectors(self):
-        return {("BMS", "2101")}
+        index = {
+            name: {"tx_id": 0x7E0 + i, "pids": {"2101": pid(pack={}), "2102": pid(cell={})}}
+            for i, name in enumerate(("BMS", "HVAC", "IGPM"))
+        }
+        return PickerSeed(build_choices(index), [], {"BMS": ["2101"]}, False)
 
     def active_session_modes(self):
         return {}
@@ -47,11 +50,9 @@ class PickerController(FakeController):
     def known_session_types(self, ecu):
         return [("uds", "UDS", True), ("kwp", "KWP2000", False)]
 
-    def add_pid_selector(self, ecu, pid):
-        self.added = (ecu, pid)
-
-    def remove_pid_selector(self, ecu, pid):
-        self.removed = (ecu, pid)
+    def apply_selection(self, selected):
+        self.applied = selected
+        return [f"{ecu}:{','.join(pids)}" for ecu, pids in selected.items()]
 
 
 def _monitor(**kw):
@@ -173,7 +174,7 @@ class TestPickersAreFilterable:
             await pilot.pause(0.1)
             await pilot.press("p")
             await pilot.pause(0.1)
-            assert isinstance(app.screen, PidPickerScreen)
+            assert isinstance(app.screen, LiveMonitorSelectScreen)
             await pilot.press("slash")
             await pilot.pause(0.1)
             assert isinstance(app.focused, Input)

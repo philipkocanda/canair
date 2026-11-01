@@ -1,54 +1,73 @@
-"""Textual picker shown by a bare ``canair monitor``: which ECUs, then which PIDs.
+"""Textual ECU → PID picker for ``canair monitor``: which ECUs, then which PIDs.
 
-Two steps in one screen. Step 1 ticks ECUs; step 2 lists every PID of the ticked
-ECUs (pre-ticked with each ECU's default sweep, so accepting without changes is
-the same as typing the bare ECU names). It runs before any connection is made —
-it only needs the profile — and exits with ``{ecu: [pid, ...]}`` or ``None``.
+Two steps in one screen. Step 1 ticks saved ``@groups`` and ECUs; step 2 lists every
+PID of the ticked ECUs (pre-ticked with each ECU's default sweep, so accepting
+without changes is the same as typing the bare ECU names). The same screen serves
+both entry points, so picking looks and works the same before and during a run:
+
+- :class:`MonitorSelectApp` — a bare ``canair monitor`` runs it before any
+  connection is made (it only needs the profile) and exits with
+  ``{ecu: [pid, ...]}`` or ``None``.
+- :class:`LiveMonitorSelectScreen` — the running monitor's ``p`` key pushes it,
+  opened on what is already polled, and dismisses with the new picks.
 """
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
 from typing import ClassVar, cast
 
 from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.binding import Binding
+from textual.screen import Screen
 from textual.widgets import Input, Label, SelectionList
 from textual.widgets.selection_list import Selection
 
-from canlib.tui.help import HelpMixin
-from canlib.tui.keys import bind
+from canlib.tui.help import SCROLL_HELP_ROWS, HelpModal, bindings_help_rows
+from canlib.tui.keys import DISMISS_DESCRIPTION, bind
 from canlib.tui.status import P_ESSENTIAL, P_HIGH, P_LOW, P_NORMAL, StatusBar, StatusItem
 from canlib.tui.widgets import CheckSelectionList
 
 from .monitor_select import EcuChoice, GroupChoice
 
+Picks = dict[str, list[str]]
 
-class MonitorSelectApp(HelpMixin, App["dict[str, list[str]] | None"]):
-    """Group/ECU → PID checklist; ``run()`` returns the picks, or ``None`` on cancel.
+
+class MonitorSelectScreen(Screen["Picks | None"]):
+    """Group/ECU → PID checklist; dismisses with the picks, or ``None`` on cancel.
 
     Step 1 offers the profile's saved ``@groups`` (rows prefixed ``@``) above its
     ECUs. Ticking a group ticks its member ECUs and seeds step 2 with the PIDs it
     names; an ECU ticked on its own gets its default sweep, and when both apply
-    the two are combined.
+    the two are combined. ``initial`` opens the screen on an existing selection
+    (ECUs ticked, their PIDs carried into step 2 as they are).
     """
 
-    HELP_TITLE = "Select what to monitor"
+    HELP_TITLE: ClassVar[str] = "Select what to monitor"
+    #: What ``ctrl+s`` does on step 2, as shown in the status bar.
+    FINISH_HINT: ClassVar[str] = "start"
+    #: What ``q`` does, as shown in the status bar.
+    QUIT_HINT: ClassVar[str] = "quit"
+    #: Whether ``escape`` on step 1 cancels. Off at the top level of the
+    #: standalone picker, where ``escape`` must never quit.
+    BACK_CANCELS: ClassVar[bool] = False
 
-    # canair registers no command-palette commands and pins the theme, so the
-    # built-in ctrl+p palette only adds an unstyled modal that overflows a narrow
-    # terminal. Disable it, matching every other canair TUI.
-    ENABLE_COMMAND_PALETTE = False
-
+    # Unscoped, id-selected ``CSS`` (screen CSS is otherwise scoped to the
+    # screen's descendants, so it could not style the screen itself), so the
+    # picker stays opaque over a host app whose CSS makes every ``Screen``
+    # transparent — the monitor does, to keep the terminal's own background.
+    SCOPED_CSS = False
     CSS = """
-    #title { text-style: bold; margin: 1 2 0 2; }
-    #filter { margin: 1 2 0 2; }
-    #choices { margin: 1 2; height: 1fr; }
+    #monitor-select { background: $background; }
+    #monitor-select #title { text-style: bold; margin: 1 2 0 2; }
+    #monitor-select #filter { margin: 1 2 0 2; }
+    #monitor-select #choices { margin: 1 2; height: 1fr; }
     """
 
     BINDINGS: ClassVar[list[Binding]] = [
-        *bind("quit", "quit"),
-        *bind("quit_force", "quit", show=False, priority=True),
+        *bind("quit", "cancel"),
+        *bind("quit_force", "cancel", show=False, priority=True),
         *bind("help", "help"),
         *bind("back", "back", show=False),
         *bind("filter", "focus_filter"),
@@ -62,17 +81,19 @@ class MonitorSelectApp(HelpMixin, App["dict[str, list[str]] | None"]):
         groups: list[GroupChoice] | None = None,
         *,
         include_static: bool = False,
+        initial: Mapping[str, Iterable[str]] | None = None,
     ):
-        super().__init__()
+        super().__init__(id="monitor-select")
         self._choices = choices
         self._by_name = {c.name: c for c in choices}
         self._groups = {g.name: g for g in groups or []}
         self._include_static = include_static
         self._step = 1
-        self._ecus: set[str] = set()  # ticked directly, on an ECU row
+        seed = {name: set(pids) for name, pids in (initial or {}).items() if name in self._by_name}
+        self._ecus: set[str] = {name for name, pids in seed.items() if pids}  # ticked directly
         self._ticked_groups: set[str] = set()
         self._excluded: set[str] = set()  # unticked by hand although a group covers them
-        self._pids: dict[str, set[str]] = {}
+        self._pids: dict[str, set[str]] = {name: seed[name] for name in self._ecus}
 
     def _covered(self) -> set[str]:
         return {ecu for g in self._ticked_groups for ecu in self._groups[g].picks}
@@ -87,8 +108,6 @@ class MonitorSelectApp(HelpMixin, App["dict[str, list[str]] | None"]):
         yield StatusBar(id="status")
 
     def on_mount(self) -> None:
-        if "ansi-dark" in self.available_themes:
-            self.theme = "ansi-dark"
         self._show_step(1)
 
     # -- rendering ---------------------------------------------------------
@@ -168,11 +187,11 @@ class MonitorSelectApp(HelpMixin, App["dict[str, list[str]] | None"]):
                 StatusItem("[dim]/ filter[/]", P_NORMAL),
                 StatusItem("[dim]ctrl+a all/none[/]", P_LOW),
                 StatusItem("[dim]esc back[/]", P_NORMAL),
-                StatusItem("[dim]ctrl+s start[/]", P_HIGH),
+                StatusItem(f"[dim]ctrl+s {self.FINISH_HINT}[/]", P_HIGH),
             ]
         items += [
             StatusItem("[dim]? help[/]", P_ESSENTIAL),
-            StatusItem("[dim]q quit[/]", P_ESSENTIAL),
+            StatusItem(f"[dim]q {self.QUIT_HINT}[/]", P_ESSENTIAL),
         ]
         self.query_one("#title", Label).update(title)
         self.query_one("#status", StatusBar).set_lines(items)
@@ -235,8 +254,14 @@ class MonitorSelectApp(HelpMixin, App["dict[str, list[str]] | None"]):
         return seed
 
     # -- actions -----------------------------------------------------------
-    async def action_quit(self) -> None:
-        self.exit(None)
+    def action_cancel(self) -> None:
+        self.dismiss(None)
+
+    def action_help(self) -> None:
+        if isinstance(self.app.screen, HelpModal):
+            return
+        rows = bindings_help_rows(self) + list(SCROLL_HELP_ROWS)
+        self.app.push_screen(HelpModal(self.HELP_TITLE, rows))
 
     def action_focus_filter(self) -> None:
         self.query_one("#filter", Input).focus()
@@ -246,6 +271,8 @@ class MonitorSelectApp(HelpMixin, App["dict[str, list[str]] | None"]):
             self.query_one("#choices", SelectionList).focus()
         elif self._step == 2:
             self._show_step(1)
+        elif self.BACK_CANCELS:
+            self.dismiss(None)
 
     def action_toggle_all(self) -> None:
         selection = self.query_one("#choices", SelectionList)
@@ -282,4 +309,50 @@ class MonitorSelectApp(HelpMixin, App["dict[str, list[str]] | None"]):
         if not result:
             self.notify("Select at least one PID first.", severity="warning")
             return
-        self.exit(result)
+        self.dismiss(result)
+
+
+class LiveMonitorSelectScreen(MonitorSelectScreen):
+    """The picker as the running monitor's ``p`` key opens it.
+
+    ``escape`` backs out to the monitor from step 1 and ``q`` closes the picker
+    rather than the monitor; ``ctrl+c`` is left to the monitor, which quits.
+    """
+
+    HELP_TITLE = "Select what to monitor (live)"
+    FINISH_HINT = "apply"
+    QUIT_HINT = "close"
+    BACK_CANCELS = True
+
+    BINDINGS: ClassVar[list[Binding]] = [
+        *bind("quit", "cancel", desc=DISMISS_DESCRIPTION),
+        *bind("help", "help"),
+        *bind("back", "back", show=False),
+        *bind("filter", "focus_filter"),
+        *bind("select_all", "toggle_all", priority=True),
+        *bind("apply", "advance"),
+    ]
+
+
+class MonitorSelectApp(App["Picks | None"]):
+    """The standalone picker a bare ``canair monitor`` runs before connecting."""
+
+    # canair registers no command-palette commands and pins the theme, so the
+    # built-in ctrl+p palette only adds an unstyled modal that overflows a narrow
+    # terminal. Disable it, matching every other canair TUI.
+    ENABLE_COMMAND_PALETTE = False
+
+    def __init__(
+        self,
+        choices: list[EcuChoice],
+        groups: list[GroupChoice] | None = None,
+        *,
+        include_static: bool = False,
+    ):
+        super().__init__()
+        self.picker = MonitorSelectScreen(choices, groups, include_static=include_static)
+
+    def on_mount(self) -> None:
+        if "ansi-dark" in self.available_themes:
+            self.theme = "ansi-dark"
+        self.push_screen(self.picker, self.exit)

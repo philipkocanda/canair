@@ -152,7 +152,9 @@ and **`g`/`G` address the view's primary axis**.
   (`canlib/modes/monitor_select.py` = pure choice/selector logic,
   `_monitor_select_tui.py` = the screen; it needs only the profile, never the device, and prints
   the equivalent command; saved `@groups` are listed above the ECUs and expand to their ECUs and
-  PIDs). Non-TTY with no STEP is still an error. **`read` never had a
+  PIDs). **The running monitor's `p` key opens that same screen** on what is polled now
+  (`LiveMonitorSelectScreen`, backed by `_monitor_selectors.py`), so there is one picker, not
+  two. Non-TTY with no STEP is still an error. **`read` never had a
   `--monitor` flag.** `--wait` blocks until the device is online and makes a mid-session drop
   reconnect forever (see Mid-session reconnect). **Polling is per-PID by default**
   (`--schedule dynamic`): each PID is read at half its profile `period:`

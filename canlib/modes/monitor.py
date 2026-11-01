@@ -26,6 +26,7 @@ import contextlib
 import logging
 import re
 import time
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -52,7 +53,7 @@ from ._monitor_render import (
     RenderCache,
     _render_results,
 )
-from ._monitor_selectors import MonitorSelectors
+from ._monitor_selectors import MonitorSelectors, PickerSeed
 from ._monitor_sessions import MonitorSessions
 from ._monitor_state import STATE_INPUT_STALE_CYCLES, MonitorStateSuggester
 from ._monitor_stats import ParamStats
@@ -482,44 +483,26 @@ class MonitorController:
     # --- Live PID selection: delegated to the MonitorSelectors collaborator
     # (_monitor_selectors.py). Mutating self.query_steps mid-poll is safe —
     # _poll_elm/_poll_raw iterate a fresh `for step in self.query_steps` each
-    # cycle, so an add/remove takes effect on the very next cycle. These facades
-    # keep the TUI 'p' picker's surface stable.
+    # cycle, so a new selection takes effect on the very next cycle. These
+    # facades keep the TUI 'p' picker's surface stable.
 
     def available_ecus(self) -> list[str]:
-        """Every ECU known in the active profile, for the PID-picker."""
+        """Every ECU known in the active profile, for the session-type picker."""
         return self.selectors.available_ecus()
 
-    def available_pids(self, ecu_name: str) -> list[tuple[str, str]]:
-        """(pid_code, description) pairs for one ECU's defined PIDs.
+    def picker_seed(self) -> PickerSeed:
+        """The ECU → PID picker's choices, opened on what is polled now.
 
-        See :meth:`MonitorSelectors.available_pids`.
+        See :meth:`MonitorSelectors.picker_seed`.
         """
-        return self.selectors.available_pids(ecu_name)
+        return self.selectors.picker_seed()
 
-    def active_selectors(self) -> set[tuple[str, str]]:
-        """(ECU, PID) pairs currently polled with an explicit PID filter."""
-        return self.selectors.active_selectors()
+    def apply_selection(self, selected: Mapping[str, Sequence[str]]) -> list[str]:
+        """Poll exactly ``selected`` from the next cycle on; returns the selectors.
 
-    def swept_ecus(self) -> set[str]:
-        """ECUs currently polled with NO PID filter (a bare whole-ECU sweep).
-
-        See :meth:`MonitorSelectors.swept_ecus`.
+        See :meth:`MonitorSelectors.apply`.
         """
-        return self.selectors.swept_ecus()
-
-    def add_pid_selector(self, ecu_name: str, pid_code: str) -> None:
-        """Start polling one PID on ``ecu_name`` (TUI PID-picker toggle-on).
-
-        See :meth:`MonitorSelectors.add`.
-        """
-        self.selectors.add(ecu_name, pid_code)
-
-    def remove_pid_selector(self, ecu_name: str, pid_code: str) -> None:
-        """Stop polling one PID on ``ecu_name`` (TUI PID-picker toggle-off).
-
-        See :meth:`MonitorSelectors.remove`.
-        """
-        self.selectors.remove(ecu_name, pid_code)
+        return self.selectors.apply(selected)
 
     # --- Diagnostic session type: delegated to the MonitorSessions collaborator
     # (_monitor_sessions.py). Session *opening* on setup() forwards a

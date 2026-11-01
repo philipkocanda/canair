@@ -86,6 +86,11 @@ names; an ECU ticked on its own starts from its default sweep. The equivalent
 command is printed before the monitor starts so you can reuse it. It only reads
 the profile, so it works before the device is reachable.
 
+Changed your mind mid-run? Press **`p`** in the running monitor (the header and
+status bar both show it) to open the same picker on what is being polled now:
+add or drop ECUs and PIDs, then `ctrl+s` twice to apply without restarting;
+`escape` or `q` leaves the selection as it was.
+
 ## On a different car
 
 `discover` will list *your* car's ECUs, but `BMS:2101` and the other named reads

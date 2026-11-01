@@ -84,7 +84,7 @@ ROLES: dict[str, KeyRole] = {
         _r("block_next", "tab", "next block"),
         _r("block_prev", "shift+tab", "prev block"),
         # -- choosing what is shown ----------------------------------------
-        _r("pick", "p a", "add/remove signals", "switch PID"),
+        _r("pick", "p a", "add/remove signals", "switch PID", "select ECUs/PIDs"),
         _r("filter", "slash", "filter"),
         _r("select_all", "ctrl+a", "select all/none"),
         _r("filter_cycle", "F", "cycle filter"),

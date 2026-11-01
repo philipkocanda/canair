@@ -4,7 +4,7 @@ canair's four Textual apps and their modals grew independently and drifted: ``a`
 added PIDs in the stepper while the monitor used ``p``, ``escape`` quit one app
 and cleared a selection in another, ``l`` was both vim-right and "open the event
 log". :mod:`canlib.tui.keys` is now the single home for what a key means; these
-tests walk every ``App``/``ModalScreen`` in ``canlib`` and fail when a binding
+tests walk every ``App``/``Screen`` in ``canlib`` and fail when a binding
 escapes it, so the drift cannot come back one commit at a time.
 
 They are deliberately structural (they read ``BINDINGS``, they do not drive a
@@ -22,7 +22,7 @@ from typing import Any
 import pytest
 from textual.app import App
 from textual.binding import Binding
-from textual.screen import ModalScreen
+from textual.screen import ModalScreen, Screen
 
 import canlib
 from canlib.tui.keys import DISMISS_DESCRIPTION, KEY_ROLES, ROLES, bind
@@ -34,7 +34,7 @@ _ALLOWED_MULTI_ROLE_KEYS = {"n"}
 
 
 def _tui_classes() -> list[type]:
-    """Every Textual ``App``/``ModalScreen`` subclass defined in ``canlib``.
+    """Every Textual ``App``/``Screen`` subclass defined in ``canlib``.
 
     Discovered by import rather than listed, so a new TUI is covered the moment
     it exists — a hand-maintained list would be exactly as driftable as the
@@ -49,7 +49,7 @@ def _tui_classes() -> list[type]:
         for _name, obj in inspect.getmembers(module, inspect.isclass):
             if obj.__module__ != mod_info.name:
                 continue
-            if issubclass(obj, App | ModalScreen) and obj not in (App, ModalScreen):
+            if issubclass(obj, App | Screen) and obj not in (App, Screen, ModalScreen):
                 found[f"{obj.__module__}.{obj.__qualname__}"] = obj
     return list(found.values())
 
@@ -69,6 +69,7 @@ def test_tui_classes_are_discovered():
     names = {c.__name__ for c in _tui_classes()}
     assert {"MonitorApp", "CapturesStepApp", "PlotApp", "SniffApp"} <= names
     assert {"HelpModal", "ConfirmModal", "TextPromptModal", "SaveDialog"} <= names
+    assert {"MonitorSelectScreen", "LiveMonitorSelectScreen"} <= names
 
 
 def test_every_declared_key_is_in_the_keymap():

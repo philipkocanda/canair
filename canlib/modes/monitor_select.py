@@ -1,8 +1,9 @@
-"""Choosing what to monitor when ``canair monitor`` is run with no selectors.
+"""Choosing what ``canair monitor`` polls: before it starts, and from its ``p`` key.
 
 Pure, Textual-free logic: turn the profile's ECU index (and saved ``@groups``) into
-pickable choices, and turn the user's picks back into the ordinary selector strings
-(``BMS``, ``VCU:2101,2102``) the multi mini-language already understands. The
+pickable choices, turn the user's picks back into the ordinary selector strings
+(``BMS``, ``VCU:2101,2102``) the multi mini-language already understands, and turn
+a running monitor's query steps into picks so the picker can open on them. The
 interactive screen lives in :mod:`canlib.modes._monitor_select_tui`; keeping the
 mapping here means it is unit-testable without a terminal and cannot drift from the
 sweep rules in :func:`canlib.modes.multi_exec.build_query_plan`.
@@ -39,6 +40,26 @@ class EcuChoice:
     def default_pids(self, include_static: bool) -> list[str]:
         """The PIDs a bare ``canair monitor ECU`` would poll, in display order."""
         return [p.pid for p in self.pids if include_static or p.swept]
+
+    def resolve(self, filters: Sequence[str], include_static: bool) -> tuple[set[str], list[str]]:
+        """The PIDs a selector's PID filters pick, plus the filters that match none.
+
+        No filters means the default sweep. A filter matches a PID exactly or as
+        its suffix (``BC03`` picks ``22BC03``), the same rule
+        :func:`canlib.modes.multi_exec.build_query_plan` polls by.
+        """
+        wanted = [f.upper() for f in filters]
+        if not wanted:
+            return set(self.default_pids(include_static)), []
+        picked: set[str] = set()
+        unmatched: list[str] = []
+        for want in wanted:
+            hits = {p.pid for p in self.pids if p.pid == want or p.pid.endswith(want)}
+            if hits:
+                picked |= hits
+            else:
+                unmatched.append(want)
+        return picked, unmatched
 
 
 def build_choices(ecu_index: Mapping[str, Any]) -> list[EcuChoice]:
@@ -98,17 +119,8 @@ def _resolve_members(
         if ecu is None:
             skipped.append(name)
             continue
-        wanted = [p.upper() for p in step.get("pids") or []]
-        if not wanted:
-            picked = set(ecu.default_pids(include_static))
-        else:
-            picked = set()
-            for want in wanted:
-                hits = [p.pid for p in ecu.pids if p.pid == want or p.pid.endswith(want)]
-                if hits:
-                    picked.update(hits)
-                else:
-                    skipped.append(f"{name}:{want}")
+        picked, unmatched = ecu.resolve(step.get("pids") or [], include_static)
+        skipped.extend(f"{name}:{want}" for want in unmatched)
         if picked:
             picks[name] = tuple(p.pid for p in ecu.pids if p.pid in picked)
     return picks, skipped
@@ -127,31 +139,44 @@ def build_group_choices(
     return out
 
 
-def selectors_from_selection(
+def selection_steps(
     choices: Sequence[EcuChoice],
     selected: Mapping[str, Sequence[str]],
     *,
     include_static: bool = False,
-) -> list[str]:
-    """Selector strings for the user's picks, one per ECU, in ``choices`` order.
+) -> list[tuple[str, list[str]]]:
+    """``(ecu, pids)`` per selected ECU, in ``choices`` order; ``pids`` empty = bare sweep.
 
-    An ECU whose picks are exactly its default sweep collapses to the bare name,
+    An ECU whose picks are exactly its default sweep collapses to the bare ECU,
     so the command printed back to the user is the short one they could have
     typed (and a PID later added to that ECU is picked up like any other sweep).
-    Anything else is spelled out as ``ECU:PID,PID`` — an explicit PID is always
-    polled, even one a bare sweep would skip.
+    Anything else lists its PIDs — an explicit PID is always polled, even one a
+    bare sweep would skip.
     """
-    out: list[str] = []
+    out: list[tuple[str, list[str]]] = []
     for ecu in choices:
         picked = set(selected.get(ecu.name, ()))
         if not picked:
             continue
         sweep = set(ecu.default_pids(include_static))
         if sweep and picked == sweep:
-            out.append(ecu.name)
+            out.append((ecu.name, []))
         else:
-            out.append(f"{ecu.name}:{','.join(p.pid for p in ecu.pids if p.pid in picked)}")
+            out.append((ecu.name, [p.pid for p in ecu.pids if p.pid in picked]))
     return out
+
+
+def selectors_from_selection(
+    choices: Sequence[EcuChoice],
+    selected: Mapping[str, Sequence[str]],
+    *,
+    include_static: bool = False,
+) -> list[str]:
+    """Selector strings (``BMS``, ``VCU:2101,2102``) for :func:`selection_steps`."""
+    return [
+        f"{ecu}:{','.join(pids)}" if pids else ecu
+        for ecu, pids in selection_steps(choices, selected, include_static=include_static)
+    ]
 
 
 def pick_selectors(pids_data: dict, *, include_static: bool = False) -> list[str] | None:
@@ -175,3 +200,27 @@ def pick_selectors(pids_data: dict, *, include_static: bool = False) -> list[str
     if not picked:
         return None
     return selectors_from_selection(choices, picked, include_static=include_static)
+
+
+def current_selection(
+    choices: Sequence[EcuChoice], query_steps: Sequence[Mapping[str, Any]], include_static: bool
+) -> dict[str, list[str]]:
+    """What running ``query_steps`` polls, as the picker's ``{ecu: [pid, ...]}``.
+
+    The inverse of :func:`selection_steps`, used to open the live monitor's picker
+    on what is already being polled. A step for an ECU the picker cannot show (an
+    unknown or identity-only module) is left out.
+    """
+    by_name = {c.name: c for c in choices}
+    picked: dict[str, set[str]] = {}
+    for step in query_steps:
+        ecu = by_name.get(str(step["ecu"]).upper())
+        if ecu is None:
+            continue
+        pids, _unmatched = ecu.resolve(step.get("pids") or [], include_static)
+        picked.setdefault(ecu.name, set()).update(pids)
+    return {
+        name: [p.pid for p in by_name[name].pids if p.pid in pids]
+        for name, pids in picked.items()
+        if pids
+    }

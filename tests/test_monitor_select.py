@@ -6,11 +6,17 @@ import pytest
 from textual.widgets import Input, SelectionList
 
 from canlib.ecus.ecu_groups import Group
-from canlib.modes._monitor_select_tui import MonitorSelectApp
+from canlib.modes._monitor_select_tui import (
+    LiveMonitorSelectScreen,
+    MonitorSelectApp,
+    MonitorSelectScreen,
+)
 from canlib.modes.monitor_select import (
     build_choices,
     build_group_choices,
+    current_selection,
     pick_selectors,
+    selection_steps,
     selectors_from_selection,
 )
 
@@ -109,7 +115,7 @@ class TestApp:
         async with app.run_test(size=(100, 30)) as pilot:
             await pilot.pause()
             await _press(pilot, "space", "ctrl+s")  # tick BMS, next
-            assert app._step == 2
+            assert app.picker._step == 2
             await _press(pilot, "ctrl+s")
         assert app.return_value == {"BMS": ["2101", "2105"]}
 
@@ -127,7 +133,7 @@ class TestApp:
         async with app.run_test(size=(100, 30)) as pilot:
             await pilot.pause()
             await _press(pilot, "ctrl+s")
-            assert app._step == 1
+            assert app.picker._step == 1
             await _press(pilot, "q")
         assert app.return_value is None
 
@@ -137,7 +143,7 @@ class TestApp:
         async with app.run_test(size=(100, 30)) as pilot:
             await pilot.pause()
             await _press(pilot, "space", "ctrl+s", "space", "escape")  # drop 2101, back
-            assert app._step == 1
+            assert app.picker._step == 1
             await _press(pilot, "ctrl+s", "ctrl+s")
         assert app.return_value == {"BMS": ["2105"]}
 
@@ -149,9 +155,9 @@ class TestApp:
             await _press(pilot, "slash", "v", "c", "u")
             assert isinstance(app.focused, Input)
             await _press(pilot, "escape", "ctrl+a")  # leave filter, tick visible (VCU)
-            assert app._ecus == {"VCU"}
+            assert app.picker._ecus == {"VCU"}
             await _press(pilot, "ctrl+s")
-            assert list(app._pids) == ["VCU"]
+            assert list(app.picker._pids) == ["VCU"]
             await _press(pilot, "ctrl+s")
         assert app.return_value == {"VCU": ["2101", "2102"]}
 
@@ -168,7 +174,7 @@ class TestApp:
         async with app.run_test(size=(100, 30)) as pilot:
             await pilot.pause()
             await _press(pilot, "space")  # the @drive row is first
-            assert app._effective_ecus() == {"BMS", "VCU"}
+            assert app.picker._effective_ecus() == {"BMS", "VCU"}
             await _press(pilot, "ctrl+s", "ctrl+s")
         assert app.return_value == {"BMS": ["2105"], "VCU": ["2102"]}
 
@@ -187,7 +193,7 @@ class TestApp:
         async with app.run_test(size=(100, 30)) as pilot:
             await pilot.pause()
             await _press(pilot, "space", "space")
-            assert app._effective_ecus() == set()
+            assert app.picker._effective_ecus() == set()
 
     @pytest.mark.asyncio
     async def test_ecu_unticked_by_hand_stays_out_of_a_ticked_group(self):
@@ -195,7 +201,7 @@ class TestApp:
         async with app.run_test(size=(100, 30)) as pilot:
             await pilot.pause()
             await _press(pilot, "space", "down", "space")  # @drive, then untick BMS
-            assert app._effective_ecus() == {"VCU"}
+            assert app.picker._effective_ecus() == {"VCU"}
 
     @pytest.mark.asyncio
     async def test_toggle_all_twice_clears(self):
@@ -203,10 +209,10 @@ class TestApp:
         async with app.run_test(size=(100, 30)) as pilot:
             await pilot.pause()
             await _press(pilot, "ctrl+a")
-            assert app._ecus == {"BMS", "VCU"}
-            assert len(app.query_one(SelectionList).selected) == 2
+            assert app.picker._ecus == {"BMS", "VCU"}
+            assert len(app.screen.query_one(SelectionList).selected) == 2
             await _press(pilot, "ctrl+a")
-            assert app._ecus == set()
+            assert app.picker._ecus == set()
 
 
 def _plain(renderable) -> str:
@@ -233,21 +239,122 @@ class TestPresentation:
         app = MonitorSelectApp(build_choices(_index()))
         async with app.run_test(size=(100, 30)) as pilot:
             await pilot.pause()
-            assert list(app.query(Footer)) == []
-            assert app.query_one("#status", StatusBar)
+            assert list(app.screen.query(Footer)) == []
+            assert app.screen.query_one("#status", StatusBar)
 
     @pytest.mark.asyncio
     async def test_status_shows_step_and_escape_hatches(self):
         app = MonitorSelectApp(build_choices(_index()))
         async with app.run_test(size=(100, 30)) as pilot:
             await pilot.pause()
-            status = _plain(app.query_one("#status").render())
+            status = _plain(app.screen.query_one("#status").render())
             assert "step 1/2" in status
             assert "ctrl+s next" in status
             assert "? help" in status
             assert "q quit" in status
             await _press(pilot, "space", "ctrl+s")  # tick BMS, advance to step 2
-            status = _plain(app.query_one("#status").render())
+            status = _plain(app.screen.query_one("#status").render())
             assert "step 2/2" in status
             assert "ctrl+s start" in status
             assert "esc back" in status
+
+
+class TestPureHelpers:
+    def test_resolve_matches_exact_and_suffix_and_reports_the_rest(self):
+        bms = build_choices(_index())[0]
+        assert bms.resolve(["2101", "F2", "BEEF"], False) == ({"2101", "21F2"}, ["BEEF"])
+        assert bms.resolve([], False) == ({"2101", "2105"}, [])
+
+    def test_selection_steps_collapse_the_sweep(self):
+        choices = build_choices(_index())
+        picked = {"VCU": ["2101"], "BMS": ["2101", "2105"]}
+        assert selection_steps(choices, picked) == [("BMS", []), ("VCU", ["2101"])]
+
+    def test_current_selection_inverts_running_steps(self):
+        choices = build_choices(_index())
+        steps = [
+            {"type": "query", "ecu": "VCU", "pids": []},
+            {"type": "query", "ecu": "bms", "pids": ["F2"]},
+            {"type": "query", "ecu": "AMP", "pids": []},
+        ]
+        assert current_selection(choices, steps, False) == {
+            "VCU": ["2101", "2102"],
+            "BMS": ["21F2"],
+        }
+
+
+class TestInitialSelection:
+    @pytest.mark.asyncio
+    async def test_opens_on_the_given_selection_and_keeps_it(self):
+        screen = MonitorSelectScreen(build_choices(_index()), initial={"BMS": ["21F2"]})
+        app = MonitorSelectApp(build_choices(_index()))
+        app.picker = screen
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            assert screen._effective_ecus() == {"BMS"}
+            await _press(pilot, "ctrl+s")
+            assert screen._pids == {"BMS": {"21F2"}}
+            await _press(pilot, "ctrl+s")
+        assert app.return_value == {"BMS": ["21F2"]}
+
+    @pytest.mark.asyncio
+    async def test_escape_on_step_one_never_quits_the_standalone_picker(self):
+        app = MonitorSelectApp(build_choices(_index()))
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            await _press(pilot, "escape")
+            assert app.screen is app.picker
+
+
+class TestLivePicker:
+    """The running monitor's ``p`` opens this same picker."""
+
+    def _app(self):
+        from .test_tui_modal_access import _monitor
+
+        return _monitor()
+
+    @pytest.mark.asyncio
+    async def test_p_opens_on_the_polled_selection_and_applies(self):
+        app = self._app()
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause(0.1)
+            await _press(pilot, "p")
+            picker = app.screen
+            assert isinstance(picker, LiveMonitorSelectScreen)
+            assert picker._effective_ecus() == {"BMS"}
+            # Arrows must reach the list, not the monitor's own signal cursor.
+            await _press(pilot, "down", "space")  # tick HVAC
+            assert picker._effective_ecus() == {"BMS", "HVAC"}
+            await _press(pilot, "ctrl+s", "ctrl+s")
+            assert not isinstance(app.screen, LiveMonitorSelectScreen)
+            assert app.controller.applied == {"BMS": ["2101"], "HVAC": ["2101", "2102"]}
+            await pilot.press("q")
+
+    @pytest.mark.asyncio
+    async def test_picker_hides_the_monitor_beneath_it(self):
+        # The monitor makes every Screen transparent; the picker must stay opaque.
+        app = self._app()
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause(0.1)
+            assert "value=" in app.export_screenshot()
+            await _press(pilot, "p")
+            assert "value=" not in app.export_screenshot()
+            await pilot.press("q")
+
+    @pytest.mark.asyncio
+    async def test_escape_and_q_close_the_picker_not_the_monitor(self):
+        app = self._app()
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause(0.1)
+            for key in ("escape", "q"):
+                await _press(pilot, "p")
+                assert isinstance(app.screen, LiveMonitorSelectScreen)
+                await _press(pilot, key)
+                assert not isinstance(app.screen, LiveMonitorSelectScreen)
+                assert app.is_running
+            assert not hasattr(app.controller, "applied")
+            status = _plain(app.query_one("#status").render())
+            assert "p select ECUs/PIDs" in status
+            assert "p select ECUs/PIDs" in _plain(app.query_one("#header").render())
+            await pilot.press("q")

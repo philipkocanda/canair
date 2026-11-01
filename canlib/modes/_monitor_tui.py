@@ -28,8 +28,9 @@ read-only session-info overlay showing the current segment's label/state/notes,
 the run's frame/cycle counters and retain mode, where the ``--save`` journal is
 being written, and the history of finished ``--save`` segments this run.
 
-``p`` opens the PID picker: a two-step ECU → signal list that adds or removes
-``ECU:PID`` selectors from the live poll without restarting the session. ``t``
+``p`` opens the ECU → PID picker — the same screen a bare ``canair monitor``
+shows — on what is polled now; applying it swaps the live poll's selectors
+without restarting the session. ``t``
 opens the diagnostic session-type switcher: pick an ECU, then a session mode —
 preferring the ECU's own known-good modes from ``canair scan sessions`` history,
 falling back to the safe fixed list (01/03/81/82/83; 02 programmingSession and
@@ -60,7 +61,7 @@ from textual.widgets import Button, Input, Label, OptionList, Static
 from textual.widgets.option_list import Option
 
 from canlib.tui.help import HelpMixin
-from canlib.tui.keys import DISMISS_DESCRIPTION, bind
+from canlib.tui.keys import DISMISS_DESCRIPTION, bind, keys_for
 from canlib.tui.scroll import reveal_marker
 from canlib.tui.status import P_ESSENTIAL, P_HIGH, P_LOW, P_NORMAL, StatusBar, StatusItem
 from canlib.tui.widgets import CheckBox
@@ -75,6 +76,9 @@ from datetime import datetime
 
 from ..log import log_event, log_exception
 from ..transport.errors import transport_error_types
+
+#: The hint for the ECU/PID picker key, shown in the header and the status bar.
+PICK_HINT = f"{keys_for('pick')[0]} select ECUs/PIDs"
 
 
 def _split_state_tokens(value: str) -> tuple[list[str], str]:
@@ -677,140 +681,6 @@ class SessionInfoModal(ModalScreen[None]):
         self.query_one("#sess-rows", VerticalScroll).scroll_end(animate=False)
 
 
-class PidPickerScreen(ModalScreen[None]):
-    """Live PID-selector picker: add/remove polled ECU:PID pairs, mid-run.
-
-    Two-step ``OptionList`` flow — pick an ECU, then toggle its PIDs on/off
-    with enter. Each toggle mutates the controller's ``query_steps`` directly
-    (``MonitorController.add_pid_selector``/``remove_pid_selector``), so the
-    poll loop (which re-reads ``query_steps`` fresh every cycle) picks it up
-    on the very next cycle — there is no separate "apply" step, and the modal
-    can be left open while toggling several PIDs. Escape backs out one level
-    (PID list to ECU list, ECU list closes). An ECU already polled as a bare
-    whole-ECU sweep (no PID filter) shows every PID marked "swept" and toggling
-    is a no-op — removing a single PID from a sweep isn't a supported action
-    here (that would require narrowing the sweep itself).
-    """
-
-    CSS = """
-    PidPickerScreen { align: center middle; background: $background 60%; }
-    #pid-box {
-        width: 84; max-width: 90%; height: 80%; max-height: 90%; padding: 1 2;
-        border: round $accent; background: $surface;
-    }
-    #pid-title { text-style: bold; margin-bottom: 1; }
-    #pid-input { margin-bottom: 1; }
-    #pid-list { height: 1fr; }
-    #pid-hint { color: $text-muted; margin-top: 1; }
-    """
-
-    BINDINGS: ClassVar[list[Binding]] = [
-        *bind("back", "back"),
-        *bind("filter", "focus_filter", show=False),
-    ]
-
-    def __init__(self, controller: MonitorController):
-        super().__init__()
-        self._controller = controller
-        self._ecu: str | None = None  # None while choosing an ECU
-
-    def action_focus_filter(self) -> None:
-        self.query_one("#pid-input", Input).focus()
-
-    def compose(self) -> ComposeResult:
-        from textual.containers import Vertical
-
-        with Vertical(id="pid-box"):
-            yield Label("", id="pid-title")
-            yield Input(placeholder="type to filter…", id="pid-input")
-            yield OptionList(id="pid-list")
-            yield Label("", id="pid-hint")
-
-    def on_mount(self) -> None:
-        self._show_ecus()
-
-    def _show_ecus(self) -> None:
-        self._ecu = None
-        self.query_one("#pid-title", Label).update("PID picker — choose an ECU")
-        self.query_one("#pid-hint", Label).update("enter select ECU · / filter · esc close")
-        field = self.query_one("#pid-input", Input)
-        field.value = ""
-        field.focus()
-        self._filter_ecus("")
-
-    def _filter_ecus(self, needle: str) -> None:
-        needle = needle.strip().lower()
-        options = self.query_one("#pid-list", OptionList)
-        options.clear_options()
-        swept = self._controller.swept_ecus()
-        for ecu in self._controller.available_ecus():
-            if needle and needle not in ecu.lower():
-                continue
-            suffix = "  [dim](swept)[/]" if ecu in swept else ""
-            options.add_option(Option(f"{ecu}{suffix}", id=ecu))
-
-    def _show_pids(self, ecu: str) -> None:
-        self._ecu = ecu
-        swept = ecu in self._controller.swept_ecus()
-        title = f"PID picker — {ecu}"
-        if swept:
-            title += "  [dim](whole-ECU sweep — every PID already polled)[/]"
-        self.query_one("#pid-title", Label).update(title)
-        hint = "esc back · / filter" if swept else "enter toggle · esc back · / filter"
-        self.query_one("#pid-hint", Label).update(hint)
-        field = self.query_one("#pid-input", Input)
-        field.value = ""
-        field.focus()
-        self._filter_pids(ecu, "")
-
-    def _filter_pids(self, ecu: str, needle: str) -> None:
-        needle = needle.strip().lower()
-        options = self.query_one("#pid-list", OptionList)
-        options.clear_options()
-        active = self._controller.active_selectors()
-        swept = ecu in self._controller.swept_ecus()
-        for pid, desc in self._controller.available_pids(ecu):
-            if needle and needle not in f"{pid} {desc}".lower():
-                continue
-            mark = "●" if swept else ("✓" if (ecu, pid) in active else "·")
-            prompt = f"{mark} {pid}"
-            if desc:
-                prompt += f"  [dim]{desc}[/]"
-            options.add_option(Option(prompt, id=pid))
-
-    def on_input_changed(self, event: Input.Changed) -> None:
-        if self._ecu is None:
-            self._filter_ecus(event.value)
-        else:
-            self._filter_pids(self._ecu, event.value)
-
-    def on_input_submitted(self, event: Input.Submitted) -> None:
-        options = self.query_one("#pid-list", OptionList)
-        if options.option_count:
-            options.focus()
-            if options.highlighted is None:
-                options.highlighted = 0
-
-    def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
-        option_id = event.option.id or ""
-        if self._ecu is None:
-            self._show_pids(option_id)
-            return
-        ecu = self._ecu
-        if ecu not in self._controller.swept_ecus():
-            if (ecu, option_id) in self._controller.active_selectors():
-                self._controller.remove_pid_selector(ecu, option_id)
-            else:
-                self._controller.add_pid_selector(ecu, option_id)
-        self._filter_pids(ecu, self.query_one("#pid-input", Input).value)
-
-    def action_back(self) -> None:
-        if self._ecu is None:
-            self.dismiss(None)
-        else:
-            self._show_ecus()
-
-
 class SessionPickerScreen(ModalScreen[tuple[str, str] | None]):
     """Diagnostic session-type picker: view/switch what's open per ECU.
 
@@ -986,7 +856,7 @@ class MonitorApp(HelpMixin, App):
         *bind("exclude", "disable", desc="en/disable"),
         *bind("filter_cycle", "cycle_filter"),
         *bind("reconnect", "force_reconnect"),
-        *bind("pick", "pid_picker"),
+        *bind("pick", "pid_picker", desc="select ECUs/PIDs"),
         *bind("value_type", "session_type", desc="session type"),
     ]
 
@@ -1254,6 +1124,7 @@ class MonitorApp(HelpMixin, App):
         line1 = f"[b cyan]{title or 'Monitor'}[/]"
         if states:
             line1 += f"  [dim]· {', '.join(states)}[/]"
+        line1 += f"  [dim]·[/] [b]{PICK_HINT}[/]"
         lines = [line1]
         if notes:
             width = max(20, (self.size.width or 80) - 4)
@@ -1288,6 +1159,9 @@ class MonitorApp(HelpMixin, App):
         if view and view != "full":
             items.append(StatusItem(f"[dim]view[/] [cyan]{view}[/]", P_HIGH))
 
+        # Changing what is polled is the key a newcomer most needs and would not
+        # guess, so it leads the hints, undimmed, and outlives the other keys.
+        items.append(StatusItem(f"[b]{PICK_HINT}[/]", P_HIGH))
         items.append(StatusItem(f"[dim]{'s label' if recording else 's save'}[/]", P_HIGH))
         if recording:
             items.append(StatusItem("[dim]n new-session[/]", P_HIGH))
@@ -1304,7 +1178,6 @@ class MonitorApp(HelpMixin, App):
         items.append(StatusItem("[dim]V view[/]", P_NORMAL))
         items.append(StatusItem("[dim]r ruler[/]", P_NORMAL))
         items.append(StatusItem("[dim]i info[/]", P_NORMAL))
-        items.append(StatusItem("[dim]p PIDs[/]", P_NORMAL))
         items.append(StatusItem("[dim]t session[/]", P_NORMAL))
         items.append(StatusItem("[dim]E errors[/]", P_LOW))
         items.append(StatusItem("[dim]space pause[/]", P_LOW))
@@ -1376,15 +1249,27 @@ class MonitorApp(HelpMixin, App):
         self._flash(f"View: {mode}")
 
     def action_pid_picker(self) -> None:
-        """Open the live PID-selector picker (add/remove polled ECU:PID pairs)."""
+        """Open the ECU → PID picker (the bare ``canair monitor`` one) on the live poll."""
         if self._modal_active():
             return
+        from ._monitor_select_tui import LiveMonitorSelectScreen
 
-        def _done(_: None) -> None:
+        seed = self.controller.picker_seed()
+        if not seed.choices:
+            self._flash("The profile defines no pollable PIDs.")
+            return
+
+        def _done(picked: dict[str, list[str]] | None) -> None:
+            if picked:
+                selectors = self.controller.apply_selection(picked)
+                self._flash(f"Polling: {' '.join(selectors)}", secs=3.0)
             self._refresh_body()
             self._update_header()
 
-        self.push_screen(PidPickerScreen(self.controller), _done)
+        screen = LiveMonitorSelectScreen(
+            seed.choices, seed.groups, include_static=seed.include_static, initial=seed.current
+        )
+        self.push_screen(screen, _done)
 
     def action_session_type(self) -> None:
         """Open the diagnostic session-type picker (view/switch per ECU).
@@ -1415,6 +1300,14 @@ class MonitorApp(HelpMixin, App):
     def _modal_active(self) -> bool:
         """True when a dialog owns the screen (don't act on the view beneath it)."""
         return len(self.screen_stack) > 1
+
+    def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
+        # The signal cursor's arrow bindings are priority bindings, which run
+        # before the focused widget — so while a dialog is up they must stand
+        # down, or the dialog's own list could never be moved.
+        if action == "select" and self._modal_active():
+            return False
+        return True
 
     def action_select(self, delta: int) -> None:
         """Move the signal-selection cursor and scroll it into view.
