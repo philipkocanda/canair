@@ -30,10 +30,10 @@ relations:
 sources:
   - name: CCM code flash (uhi22 readout)
     kind: Ioniq firmware, MPC5605B AUTOSAR stack, statically analysed
-    location: references/can/ccm-ghidra/
+    location: references/ccm-ghidra/
   - name: VESS flash (uhi22 readout)
     kind: Ioniq firmware, MC9S12G, statically analysed
-    location: references/can/vess-ghidra/
+    location: references/vess-ghidra/
   - name: AVN head-unit MICOM
     kind: Ioniq firmware, RH850 EU image
     location: sibling repository ioniq-avn-fw (tmp/functional-7df-notes.md)
@@ -70,9 +70,9 @@ Evidence classes, strongest first:
 
 - **Ioniq firmware, statically analysed (2026-10-30).** Three ECUs of this car's generation:
   - **CCM** (charge control module, `0x733`/`0x73B`, P-CAN): MPC5605B, an AUTOSAR stack. uhi22's
-    code-flash readout, in the local Ghidra project `references/can/ccm-ghidra/`.
+    code-flash readout, in the local Ghidra project `references/ccm-ghidra/`.
   - **VESS** (`0x736`/`0x73E`, P-CAN): MC9S12G, a hand-written stack. uhi22's flash readout, in
-    `references/can/vess-ghidra/` (`NOTES.md` has the addresses).
+    `references/vess-ghidra/` (`NOTES.md` has the addresses).
   - **AVN head unit MICOM** (`0x780`/`0x788`, MM-CAN): RH850, EU image, in the sibling repo
     `ioniq-avn-fw` (`tmp/functional-7df-notes.md`).
 - **Bus logs of other Ioniqs:** uhi22's 2018 Ioniq 28 P-CAN trace with an OBD-II poller on the

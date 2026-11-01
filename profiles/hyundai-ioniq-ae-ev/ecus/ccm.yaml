@@ -20,8 +20,9 @@ CCM:
     app_sw: "1104"
     id_protocol: UDS  # F1xx
     notes: >-
-      Charge Control Module (power-line communication for CCS DC charging). Answers identity and DTC
-      requests at ignition-on, with no live-data DIDs then. Not scanned during a DC fast charge.
+      Charge Control Module (power-line communication for CCS DC charging). Answers at ignition-on
+      and during AC charging with the ignition off (2026-11-01), including 22C350 and 22CC01. Not
+      yet read during or right after a DC fast charge.
   # 0x744 does not answer: CAN-level errors on discovery (2026-04-17), NO DATA to service 21
   # during AC charging (2026-04-18).
   vehicle_states: [CHARGING]
@@ -37,8 +38,8 @@ CCM:
       status: static
       vehicle_states: ["ON", READY]
       notes: >-
-        4 bytes from the stored identification block: ASCII '1104' on uhi22's unit, the application
-        software version (identity app_sw).
+        4 bytes from the stored identification block: ASCII '1104', the application software version
+        (identity app_sw), on this car (2026-11-01) and on uhi22's unit.
     22F102:
       status: static
       vehicle_states: ["ON", READY]
@@ -50,25 +51,199 @@ CCM:
     22F103:
       status: static
       vehicle_states: ["ON", READY]
-      notes: The 2 ASCII bytes '11', a firmware constant.
+      notes: The 2 ASCII bytes '11', a firmware constant; read on this car 2026-11-01.
     22BCFF:
       status: draft
       vehicle_states: ["ON", READY]
       notes: >-
         The 4 ASCII bytes '1033', a firmware constant: the software version (F195 '103') plus one
-        digit. The IGPM's 22BCFF ('1090', software version 109) follows the same convention.
+        digit; read on this car 2026-11-01. The IGPM's 22BCFF ('1090', software version 109) follows
+        the same convention.
     22C350:
       response_frames: 40
       status: draft
       vehicle_states: ["ON", READY]
       notes: >-
-        The last three CCS charging-session logs. Each read returns one 259-byte record and steps
-        back one, so three reads in a row return the newest, then the two older ones. A record holds
-        the session counter, a snapshot of every vehicle input the CCM received (the 0x599, 0x59C,
-        0x59E, 0x5A3, 0x57F and 0x5D5 fields), the CCM's own state (including its internal stop
-        reason and the charger's last DIN 70121 EVSEStatusCode) and the charger's parameters. Saved
-        to data flash at session stages. The place to look after a DC fast-charge abort such as DTC
-        C182C.
+        The newest of the last three saved CCS session logs. The reply is 276 data bytes: a 259-byte
+        record, then 17 bytes the firmware does not write (zero). Multi-byte values are big-endian.
+        The record holds the session-log counter, the CCM's copies of the vehicle frames 0x599,
+        0x59C, 0x59E, 0x5A3, 0x57F and 0x5D5 (bit flags in reversed bit order), the values it
+        broadcasts on 0x5E5, 0x5E6, 0x5E8 and 0x5E9, the SLAC result, and per DIN 70121 request a
+        ResponseCode, sent and answered flags and two timestamps (from byte 123, not decoded). Three
+        NvM slots (blocks 11-13) hold the records; a read returns the newest, and while no session
+        runs the firmware resets the read pointer every 10 ms, so repeated reads return the same
+        record. A record is saved only when a CCM DTC other than C160E is raised (not at a normal
+        session end), in the first idle cycle after the fault, so inputs the CCM has already reset
+        read 0. 2026-11-01, AC charging: record 62, with no SLAC attempt and all charger fields 0.
+      source: CCM firmware (uhi22 code-flash dump, decompiled)
+      verified: false
+      parameters:
+        CCM_LOG_EV_NO_ERROR:
+          expression: B06:4
+          notes: >-
+            0x599 byte 0 bit 3 (CCS_EV_NO_ERROR). Byte 1 holds 0x599 byte 0 in reversed bit order.
+        CCM_LOG_EV_STOP_REQUEST:
+          expression: B07:0
+          notes: >-
+            0x599 byte 1 bit 7 (CCS_STOP_REQUEST). Byte 2 holds 0x599 byte 1 in reversed bit order.
+        CCM_LOG_EV_SOC:
+          expression: B09 * 0.5
+          unit: "%"
+          notes: 0x599 byte 2 (CCS_SOC).
+        CCM_LOG_EV_MAX_CURRENT:
+          expression: "[B10:B11] * 0.1"
+          unit: A
+          notes: 0x599 bytes 3-4.
+        CCM_LOG_EV_MAX_VOLTAGE:
+          expression: "[B12:B13] * 0.1"
+          unit: V
+          notes: 0x599 bytes 5-6.
+        CCM_LOG_CCS_TRIGGER:
+          expression: B14:7
+          notes: 0x599 byte 7 bit 0.
+        CCM_LOG_RELAYS_CLOSED:
+          expression: B14:6
+          notes: 0x599 byte 7 bit 1.
+        CCM_LOG_FULL_SOC:
+          expression: B15 * 0.5
+          unit: "%"
+          notes: 0x59C byte 0.
+        CCM_LOG_BULK_SOC:
+          expression: B17 * 0.5
+          unit: "%"
+          notes: 0x59C byte 1.
+        CCM_LOG_TARGET_VOLTAGE:
+          expression: "[B18:B19] * 0.1"
+          unit: V
+          notes: 0x59C bytes 2-3.
+        CCM_LOG_TARGET_CURRENT:
+          expression: "[B20:B21] * 0.1"
+          unit: A
+          notes: 0x59C bytes 4-5.
+        CCM_LOG_EV_ENERGY_CAPACITY:
+          expression: "[B22:B23]"
+          unit: Wh
+          notes: 0x59C bytes 6-7.
+        CCM_LOG_REMAINING_TIME_FULL:
+          expression: "[B25:B26]"
+          unit: s
+          notes: 0x59E bytes 0-1.
+        CCM_LOG_REMAINING_TIME_BULK:
+          expression: "[B27:B28]"
+          unit: s
+          notes: 0x59E bytes 2-3.
+        CCM_LOG_PACK_VOLTAGE:
+          expression: "[B29:B30] * 0.1"
+          unit: V
+          notes: 0x59E bytes 4-5. 345.7 V in the 2026-11-01 reads.
+        CCM_LOG_EV_MAX_POWER:
+          expression: ((B31 << 8) | B33) * 0.01
+          unit: kW
+          notes: 0x59E bytes 6-7.
+        CCM_LOG_ENERGY_TRANSFER_TYPE:
+          expression: B34 >> 4
+          notes: >-
+            0x5A3 byte 0 bits 0-3. 15 in the 2026-11-01 reads; the CCM needs 3 to proceed past
+            ContractAuthentication.
+        CCM_LOG_MAIN_CONTACTOR_CLOSED:
+          expression: B34:3
+          notes: 0x5A3 byte 0 bit 6.
+        CCM_LOG_EV_ENERGY_REQUEST:
+          expression: "[B35:B36]"
+          unit: Wh
+          notes: 0x5A3 bytes 1-2.
+        CCM_LOG_PLUG_STATE:
+          expression: B39 >> 6
+          notes: 0x57F byte 0 bits 1-2 (OBC_PLUG_STATE).
+        CCM_LOG_EVSE_MAX_VOLTAGE:
+          expression: "[B41:B42] * 0.1"
+          unit: V
+          notes: As sent on 0x5E5 bytes 0-1.
+        CCM_LOG_EVSE_MAX_CURRENT:
+          expression: "[B43:B44] * 0.1"
+          unit: A
+          notes: As sent on 0x5E5 bytes 2-3.
+        CCM_LOG_EVSE_PRESENT_VOLTAGE:
+          expression: "[B45:B46] * 0.1"
+          unit: V
+          notes: As sent on 0x5E5 bytes 4-5.
+        CCM_LOG_EVSE_PRESENT_CURRENT:
+          expression: ((B47 << 8) | B49) * 0.1
+          unit: A
+          notes: As sent on 0x5E5 bytes 6-7.
+        CCM_LOG_EVSE_MAX_POWER:
+          expression: "[B57:B58] * 0.01"
+          unit: kW
+          notes: As sent on 0x5E6 bytes 6-7.
+        CCM_LOG_EVSE_MIN_CURRENT:
+          expression: "[B70:B71] * 0.1"
+          unit: A
+          notes: As sent on 0x5E8 bytes 2-3.
+        CCM_LOG_EVSE_MIN_VOLTAGE:
+          expression: "[B73:B74] * 0.1"
+          unit: V
+          notes: As sent on 0x5E8 bytes 4-5.
+        CCM_LOG_SESSION_STOPPED:
+          expression: B75:0
+          notes: As sent on 0x5E8 byte 6 bit 7.
+        CCM_LOG_STOP_REASON:
+          expression: (B75 >> 1) & 15
+          type: enum
+          values:
+            0: none
+            2: normal end
+            3: normal end (3)
+            4: SLAC failed
+            5: response timeout
+            6: setup timer (30 s)
+            7: CableCheck timer (60 s)
+            8: PreCharge timer (10 s)
+            9: ContractAuthentication/ChargeParameterDiscovery timer (180 s)
+            10: vehicle input timeout
+            11: charger failure ResponseCode
+            12: charger EmergencyShutdown/Malfunction
+          notes: As sent on 0x5E8 byte 6 bits 3-6.
+        CCM_LOG_EVSE_STATUS_CODE:
+          expression: B75 >> 5
+          type: enum
+          values:
+            0: EVSE_NotReady
+            1: EVSE_Ready
+            2: EVSE_Shutdown
+            3: EVSE_UtilityInterruptEvent
+            4: EVSE_IsolationMonitoringActive
+            5: EVSE_EmergencyShutdown
+            6: EVSE_Malfunction
+          notes: The charger's last DIN 70121 EVSEStatusCode, as sent on 0x5E8 byte 6 bits 0-2.
+        CCM_LOG_CHARGE_PROGRESS:
+          expression: ((B77:0 << 6) | (B77:1 << 5) | (B77:2 << 4) | (B77:3 << 3) | (B77:4 << 2) | (B77:5 << 1) | B77:6)
+          type: enum
+          values:
+            0: idle
+            1: charge parameters known
+            3: CableCheck
+            7: PreCharge
+            15: PowerDelivery
+            31: CurrentDemand
+            63: PowerDeliveryStop
+            127: WeldingDetection
+          notes: >-
+            CCM_CHARGE_PROGRESS of 0x5E9 byte 0 bits 1-7; byte 63 holds 0x5E9 byte 0 in reversed bit
+            order.
+        CCM_LOG_SLAC_ATTEMPTS:
+          expression: B107
+          notes: SlacParamReq retries; the CCM gives up after 50 (stop reason 4).
+        CCM_LOG_SLAC_STARTED:
+          expression: B135:7
+          notes: Set when SLAC starts.
+        CCM_LOG_SLAC_DONE:
+          expression: B135:6
+          notes: Set when SLAC completes and the V2G session starts.
+        CCM_LOG_COUNTER:
+          expression: B05
+          notes: >-
+            Session-log counter at the time the record was saved; increments by one per saved record
+            and wraps at 256.
     2212A0:
       status: ignored
       vehicle_states: ["ON", READY]
@@ -80,66 +255,172 @@ CCM:
       status: draft
       vehicle_states: ["ON", READY]
       notes: >-
-        Live CCS session status, 8 bytes: FF FF FF C0, then four bytes of packed CCM state bits.
-        Byte 5: bits 0-2 the charger's last DIN 70121 EVSEStatusCode, bits 3-6 the CCM's internal
-        stop reason, bit 7 a stop flag (the same layout as broadcast 0x5E8 byte 6). Bytes 4, 6 and 7
-        are other session flags (not decoded).
+        Live CCS session status, 8 bytes: FF FF FF C0, then bit-packed copies of values the CCM
+        broadcasts. Byte 4 bits 0-1 are 0x5E6 byte 0 bits 0-1, bits 2-7 are 0x5E6 byte 1 bits 2-7.
+        Byte 5 is 0x5E8 byte 6. Byte 6 bit 0 is 0x5E8 byte 7 bit 0, bit 1 is 0x5E6 byte 0 bit 7,
+        bits 2-7 are 0x5E9 byte 0 bits 0-5. Byte 7 bits 0-1 are 0x5E9 byte 0 bits 6-7. 2026-11-01,
+        AC charging: FF FF FF C0 F0 00 00 00.
+      source: CCM firmware (uhi22 code-flash dump, decompiled)
+      verified: false
+      parameters:
+        CCM_SESSION_EVSE_STATUS_CODE:
+          expression: B11 & 7
+          type: enum
+          values:
+            0: EVSE_NotReady
+            1: EVSE_Ready
+            2: EVSE_Shutdown
+            3: EVSE_UtilityInterruptEvent
+            4: EVSE_IsolationMonitoringActive
+            5: EVSE_EmergencyShutdown
+            6: EVSE_Malfunction
+          notes: Same value as 0x5E8 byte 6 bits 0-2.
+        CCM_SESSION_STOP_REASON:
+          expression: (B11 >> 3) & 15
+          type: enum
+          values:
+            0: none
+            2: normal end
+            3: normal end (3)
+            4: SLAC failed
+            5: response timeout
+            6: setup timer (30 s)
+            7: CableCheck timer (60 s)
+            8: PreCharge timer (10 s)
+            9: ContractAuthentication/ChargeParameterDiscovery timer (180 s)
+            10: vehicle input timeout
+            11: charger failure ResponseCode
+            12: charger EmergencyShutdown/Malfunction
+          notes: Same value as 0x5E8 byte 6 bits 3-6.
+        CCM_SESSION_STOPPED:
+          expression: B11:7
+          notes: Same value as 0x5E8 byte 6 bit 7.
+        CCM_SESSION_STOPPED_2:
+          expression: B12:0
+          notes: Same value as 0x5E8 byte 7 bit 0.
+        CCM_SESSION_CURRENT_DEMAND_RUNNING:
+          expression: B12:1
+          notes: Same value as 0x5E6 byte 0 bit 7.
+        CCM_SESSION_CHARGE_PROGRESS:
+          expression: (B12 >> 3) | ((B13 & 3) << 5)
+          type: enum
+          values:
+            0: idle
+            1: charge parameters known
+            3: CableCheck
+            7: PreCharge
+            15: PowerDelivery
+            31: CurrentDemand
+            63: PowerDeliveryStop
+            127: WeldingDetection
+          notes: Same value as 0x5E9 byte 0 bits 1-7.
+        CCM_CC01_B4_HI_UNKN:
+          expression: B10 >> 4
+          notes: >-
+            Same value as 0x5E6 byte 1 bits 4-7; the firmware initialises it to 15, the value read
+            on 2026-11-01.
+  # Meanings from the code that raises each Dem event in the CCM firmware (uhi22 code-flash dump,
+  # decompiled): event config 0x2ACAC (0x30 per event, DTC index at +0x0E), DTC table 0x2B7C4
+  # (0x14 per DTC). The application monitors C182B, C182C, B2211, C1829 and C1865 only while the
+  # analogue input at 0x4000AAFC reads 900-1600; each of them also saves a 22C350 session log.
   dtcs:
     C182C:
-      description: "DC fast-charge (CCS) charging / PLC communication failure"
-      source: >
-        Stored on the CCM after an owner-observed DC fast-charge abort; also in the CCM firmware's
-        DTC table (uhi22 code-flash dump).
+      description: >-
+        CCS session failed: SLAC with the charger failed, a DIN 70121 stage timer or response
+        timeout expired, or the charger answered with a failure ResponseCode
+      source: >-
+        CCM firmware, Dem event 0x12: raised with CCM_STOP_REASON 4-9 and 11. Stored on this car
+        after an owner-observed DC fast-charge abort.
       verified: false
-    # The rest of the CCM firmware's DTC table (uhi22 code-flash dump, entries 0x582B00 ...
-    # 0x586500, failure type 00). Meanings are not in the firmware.
     C182B:
-      description: "Meaning unknown"
-      source: "CCM firmware DTC table (uhi22 code-flash dump)"
+      description: >-
+        PLC modem (QCA7005) not ready: its SPI signature and write-buffer checks failed for 3 s
+      source: >-
+        CCM firmware, Dem event 0x13. Not monitored once 0x57F OBC_PLUG_STATE has read 0 for 60 s.
+      verified: false
+    B2211:
+      description: "CAN frame 0x597 (BMS) not received (timeout)"
+      source: >-
+        CCM firmware, Dem event 0x36: set by the 0x597 receive-timeout notification, cleared when
+        0x597 arrives again. Blocks a CCS session while set.
       verified: false
     C1829:
-      description: "Meaning unknown"
-      source: "CCM firmware DTC table (uhi22 code-flash dump)"
+      description: "CAN frame 0x57F (OBC) not received (timeout)"
+      source: >-
+        CCM firmware, Dem event 0x37: set by the 0x57F receive-timeout notification. Blocks a CCS
+        session while set.
       verified: false
     C1865:
-      description: "Meaning unknown"
-      source: "CCM firmware DTC table (uhi22 code-flash dump)"
+      description: >-
+        Vehicle CAN input fault: the 0x597 alive bit stopped toggling for 60 s, or a vehicle input
+        a CCS stage waits for did not arrive in time
+      source: >-
+        CCM firmware, Dem event 0x38: raised by the 0x597 alive check and with CCM_STOP_REASON 10.
       verified: false
     C160E:
       description: "Meaning unknown"
-      source: "CCM firmware DTC table (uhi22 code-flash dump)"
-      verified: false
-    B2211:
-      description: "Meaning unknown"
-      source: "CCM firmware DTC table (uhi22 code-flash dump)"
+      source: >-
+        CCM firmware, Dem event 0x11. Reported by the basic software; no call site in the CCM
+        application code.
       verified: false
 
   research:
     - type: scan
       target: read the firmware DIDs (F101-F103, BCFF, C350, CC01)
-      status: pending
+      status: done
       priority: P2
       vehicle_states: ["ON", READY]
       created: "2026-10-30"
-      updated: "2026-10-30"
+      updated: "2026-11-01"
       result: >-
-        Firmware (not yet read on the car): DIDs as listed under pids:. Services 10, 11, 14, 19, 20,
-        22, 27, 28, 29, 2E, 31, 3E and 85; no 21, 23 or 2F (no IOControl), matching projectgus's
-        Kona scan of 0x733. Session sub-functions 01, 02, 03, 04, 05, 10, 81, 85 and 90. The only
-        V2G namespace is urn:din:70121:2012 (DIN SPEC 70121 only, no ISO 15118 or Plug and Charge).
+        Read on this car 2026-11-01 during AC charging: F101 '1104', F103 '11', BCFF '1033', CC01 FF
+        FF FF C0 F0 00 00 00, C350 276 data bytes (record 62). C350 and CC01 decoded from the
+        firmware (see pids:). Services 10, 11, 14, 19, 20, 22, 27, 28, 29, 2E, 31, 3E and 85 per the
+        firmware; no 21, 23 or 2F (no IOControl), matching projectgus's Kona scan of 0x733. Session
+        sub-functions 01, 02, 03, 04, 05, 10, 81, 85 and 90. DIN SPEC 70121 only
+        (urn:din:70121:2012), no ISO 15118 or Plug and Charge.
       notes: >-
-        The 2026-04-17 and 2026-07-22 scans covered only 0100-010F and B001-B010. Read only (service
-        22): never write 12A0, and open no session other than 01/03 (02 and 85 are the usual
-        programming sessions; 04, 05, 10 and 90 are unidentified). EV limits this car sends a
-        charger, from uhi22's DIN 70121 logs: max 200 A, 412.8 V, 98 kW; capacity 28000 Wh; FullSOC
-        94, BulkSOC 83.
+        Read only (service 22): never write 12A0, and open no session other than 01/03 (02 and 85
+        are the usual programming sessions; 04, 05, 10 and 90 are unidentified). 22F102 is the car's
+        EVCCID: read it without --save. EV limits this car sends a charger, from uhi22's DIN 70121
+        logs: max 200 A, 412.8 V, 98 kW; capacity 28000 Wh; FullSOC 94, BulkSOC 83.
       sources:
         - >-
-          uhi22 CCM code-flash and data-flash dumps decompiled in Ghidra (references/can/ccm-ghidra);
-          uhi22 CCM readme; projectgus kona_service_ids.txt; 2026-10-29/30
+          uhi22 CCM code-flash and data-flash dumps decompiled in Ghidra (references/ccm-ghidra);
+          uhi22 CCM readme; projectgus kona_service_ids.txt; 2026-10-29/30, 2026-11-01
       what_to_test:
         - "Ignition on: canair read CCM:22F101,22F103,22BCFF,22CC01 --save --label 'CCM firmware DIDs'"
         - >-
-          Read CCM:22C350 three times in a row with --save: three session logs, newest first. Best
-          right after a DC fast charge, or after a failed one.
+          Read CCM:22C350 with --save: the newest saved session log (repeated reads return the
+          same record). Best right after a failed DC fast charge.
         - "Read CCM:22F102 separately without --save: it is the car's EVCCID (Autocharge identity)."
+    - type: verify
+      target: 22C350 session log after a DC fast charge
+      status: pending
+      priority: P2
+      vehicle_states: [CHARGING]
+      created: "2026-11-01"
+      updated: "2026-11-01"
+      notes: >-
+        The signals come from the firmware and every recorded value so far is 0 except the counter,
+        pack voltage and two flag fields. A record is saved only when a CCM DTC is raised, so the
+        useful moment is right after a failed DC fast charge.
+      sources:
+        - CCM firmware (uhi22 code-flash dump), decompiled 2026-11-01
+      what_to_test:
+        - "Right after a DC fast charge that ended with a fault: canair read CCM:22C350 CCM:22CC01 --save, then canair dtc CCM. Check CCM_LOG_COUNTER rose, CCM_LOG_STOP_REASON matches the fault, and the EVSE and target values are plausible for the charger."
+        - "After a normal DC fast charge: CCM_LOG_COUNTER should not change (no record at a normal end)."
+    - type: decode
+      target: DTC C160E source (Dem event 0x11)
+      status: pending
+      priority: P3
+      created: "2026-11-01"
+      updated: "2026-11-01"
+      notes: >-
+        C160E is Dem event 0x11, the only CCM DTC with no call site in the application code; the
+        basic software reports it. The reporting module (CAN state manager, NvM or ECU state manager
+        config) is not identified.
+      sources:
+        - CCM firmware (uhi22 code-flash dump), decompiled 2026-11-01
+      what_to_test:
+        - Find the Dem_ReportErrorStatus caller or the BSW config entry that carries event 0x11 in references/ccm-ghidra.

@@ -302,7 +302,7 @@ messages:
         min: 0.0
         max: 15.0
         source: CCM firmware Com TX signal table (uhi22 code-flash dump, Ghidra); state machine decompiled in Ghidra
-        notes: "The CCM's internal reason for ending a CCS session, recorded only when the vehicle did not ask for the stop (0x599 CCS_STOP_REQUEST and 0x57F byte 0 bit 3 both 0). From the firmware: 2 or 3 at the normal end of the session; 5-9 session timers (5 when no specific timer fired); 10 a CCM-side timeout, such as the CCS trigger (0x599 byte 7 bit 0) not set within 4 s; 11 the charger answered a request with a failure ResponseCode; 12 the charger reported EVSE_EmergencyShutdown or EVSE_Malfunction. Also in DID 22CC01 byte 5 and the 22C350 session logs."
+        notes: "The CCM's internal reason for ending a CCS session. From the firmware: 2 or 3 at the normal end of the session; 4 SLAC failed (no SlacParamCnf after 50 SlacParamReq); 5 no response to a request within the message timeout (4 s; 0.6 s in CurrentDemand, 10 s in PowerDelivery); 6 the 30 s setup timer (SessionSetup to ServiceDiscovery); 7 the 60 s CableCheck timer; 8 the 10 s PreCharge timer; 9 the 180 s ContractAuthentication or ChargeParameterDiscovery timer; 10 a vehicle input the stage waits for did not arrive (2 s; 20 s in CableCheck, 10 s in WeldingDetection), or the CCS trigger (0x599 byte 7 bit 0) not set within 4 s; 11 the charger answered a request with a failure ResponseCode; 12 the charger reported EVSE_EmergencyShutdown or EVSE_Malfunction. Reasons 4-9 and 11 also raise DTC C182C, the vehicle-input timeout of 10 raises C1865. Also in DID 22CC01 byte 5 and the 22C350 session log."
       CCM_SESSION_STOPPED:
         start_bit: 55
         length: 1
@@ -805,7 +805,7 @@ messages:
         length: 1
         byte_order: little
         source: uhi22 vehiclesim.py; CCM application firmware (uhi22 code-flash dump), Com receive table and DIN 70121 message builder decompiled in Ghidra
-        notes: Toggles every frame. The CCM reads only this bit of 0x597; if it stops toggling for 60 s the CCM records a fault event and ends the session.
+        notes: Toggles every frame. The CCM reads only this bit of 0x597; if it stops toggling for 60 s the CCM sets DTC C1865, saves a 22C350 session log and ends the session. If the frame stops arriving, the CCM sets B2211.
   '0x5D5':
     name: BMS_5D5
     tx_ecu: BMS
