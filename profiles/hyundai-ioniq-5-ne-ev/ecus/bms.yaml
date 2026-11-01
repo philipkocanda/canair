@@ -189,6 +189,26 @@ BMS:
           expression: "[B70:B71]"
           unit: kΩ
           max: "3000"
+        CHARGE_CURRENT_REQUEST:
+          expression: "[B13:B14]/10"
+          unit: A
+          ha_class: current
+          max: "6553.5"
+          source: wican-fw ioniq5-6 (CHARGING_R_A) + OVMS
+          source_links:
+            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/hyundai/ioniq5-6.json
+            - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_hyundai_ioniq5/src/hif_can_poll.cpp
+          notes: 0 in most recorded replies; up to 331.6 A.
+        BATTERY_POWER:
+          expression: "[B19:B20]/10*[S17:S18]/10/1000"
+          unit: kW
+          ha_class: power
+          min: "-600"
+          max: "600"
+          source: wican-fw ioniq5-6 (HV_W)
+          source_links:
+            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/hyundai/ioniq5-6.json
+          notes: BATTERY_DC_VOLTAGE x BATTERY_CURRENT; positive = discharging, as OVMS reads it.
     220102:
       status: active
       unit: V
@@ -434,33 +454,6 @@ BMS:
           expression: B44/50
         CELL_096_VOLTAGE:
           expression: B45/50
-    220105:
-      status: active
-      unit: "%"
-      ha_class: battery
-      min: "0"
-      max: "100"
-      source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
-      source_links:
-        - https://github.com/OBDb/Hyundai-Ioniq-5
-        - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
-      verified: false
-      notes: >-
-        Seeded from OBDb (3 signals), each checked with canair's evaluator on OBDb's recorded
-        responses (up to 339 per signal, model years 2022-2027).
-      parameters:
-        HVBAT_SOH:
-          expression: "[B34:B35]/10"
-          notes: HV battery state of health. OBDb reads 0 as no data.
-        HVBAT_WH:
-          expression: "[B37:B38]*2/1000"
-          unit: kWh
-          ha_class: energy
-          max: "131.07"
-          notes: HV battery remaining energy. OBDb reads 131.07 as no data.
-        HVBAT_SOC_DISP:
-          expression: B41/2
-          notes: HV battery charge.
     22010A:
       status: active
       unit: V
@@ -802,7 +795,116 @@ BMS:
           min: "-256"
           max: "254"
           notes: Battery temperature at the power relay assembly.
-
+    220105:
+      status: active
+      unit: °C
+      ha_class: temperature
+      min: "-40"
+      max: "80"
+      source: OBDb Hyundai-Ioniq-5; wican-fw ioniq5-6 and OVMS for the signals OBDb lacks
+      source_links:
+        - https://github.com/OBDb/Hyundai-Ioniq-5
+        - https://github.com/OBDb/Hyundai-Ioniq-5/tree/main/tests/test_cases
+        - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/hyundai/ioniq5-6.json
+        - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_hyundai_ioniq5/src/hif_can_poll.cpp
+      verified: false
+      notes: >-
+        HVBAT_SOH, HVBAT_WH and HVBAT_SOC_DISP are OBDb's, checked on its 339 recorded replies
+        (model years 2022-2027). The rest are where wican-fw's Ioniq 5/6 profile and OVMS's Ioniq 5
+        module read them (the Kona uses the same layout): available charge and discharge power
+        (wican-fw REGEN_MAX/POWER_MAX; the recorded maxima of 432 and 535 kW are the Ioniq 5 N's
+        rated charge and discharge power), module temperatures 6-16, which continue 220101's
+        BATTERY_PACK_B01-B05, the cell-voltage deviation, the battery heater temperature and the
+        deterioration cell numbers. Each is plausible on the recorded replies but none is checked
+        against a known value. OVMS reads B37:B38 as the minimum cell deterioration (/10 %); the
+        recorded values make that 2,000-4,000 %, so OBDb's remaining energy (HVBAT_WH) is kept.
+      parameters:
+        HVBAT_SOH:
+          expression: "[B34:B35]/10"
+          unit: "%"
+          ha_class: battery
+          min: "0"
+          max: "100"
+          notes: HV battery state of health. OBDb reads 0 as no data.
+        HVBAT_WH:
+          expression: "[B37:B38]*2/1000"
+          unit: kWh
+          ha_class: energy
+          min: "0"
+          max: "131.07"
+          notes: HV battery remaining energy. OBDb reads 131.07 as no data.
+        HVBAT_SOC_DISP:
+          expression: B41/2
+          unit: "%"
+          ha_class: battery
+          min: "0"
+          max: "100"
+          notes: HV battery charge.
+        BATTERY_PACK_B06:
+          expression: S15
+        BATTERY_PACK_B07:
+          expression: S17
+        BATTERY_PACK_B08:
+          expression: S18
+        BATTERY_PACK_B09:
+          expression: S19
+        BATTERY_PACK_B10:
+          expression: S20
+        BATTERY_PACK_B11:
+          expression: S21
+        BATTERY_PACK_B12:
+          expression: S22
+        BATTERY_PACK_B13:
+          expression: S50
+        BATTERY_PACK_B14:
+          expression: S51
+        BATTERY_PACK_B15:
+          expression: S52
+        BATTERY_PACK_B16:
+          expression: S53
+        AVAILABLE_CHARGE_POWER:
+          expression: ((B23 << 8) | B25)/100
+          unit: kW
+          ha_class: power
+          min: "0"
+          max: "655.35"
+        AVAILABLE_DISCHARGE_POWER:
+          expression: "[B26:B27]/100"
+          unit: kW
+          ha_class: power
+          min: "0"
+          max: "655.35"
+        CELL_VOLTAGE_DEVIATION:
+          expression: B28/50
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "5.1"
+        AIRBAG_H_WIRE_DUTY:
+          expression: B30
+          unit: "%"
+          ha_class: ""
+          min: "0"
+          max: "100"
+          notes: Crash-signal (airbag harness) wire duty.
+        HEATER_TEMP:
+          expression: S31
+          min: "-128"
+          max: "127"
+          notes: Battery heater temperature.
+        MAX_DETERIORATION_CELL_NO:
+          expression: B36
+          unit: ""
+          ha_class: ""
+          min: "0"
+          max: "255"
+        MIN_DETERIORATION_CELL_NO:
+          expression: B39
+          unit: ""
+          ha_class: ""
+          min: "0"
+          max: "255"
+          notes: 0 in all 339 recorded replies.
   research:
     - type: scan
       target: "220106"
@@ -815,3 +917,15 @@ BMS:
         that the draft signals hold.
       sources:
         - https://github.com/OBDb/Kia-EV6
+    - type: decode
+      target: "220101"
+      status: pending
+      priority: P3
+      created: "2026-10-31"
+      updated: "2026-10-31"
+      notes: >-
+        B11:B12 is the Kona's available charge power (/100 kW); OVMS reads it on the Ioniq 5 as
+        available power in W. On OBDb's 591 recorded replies it is 0 in all but a few (3 distinct
+        values), and 220105 carries the available powers, so it is left undefined.
+      sources:
+        - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_hyundai_ioniq5/src/hif_can_poll.cpp

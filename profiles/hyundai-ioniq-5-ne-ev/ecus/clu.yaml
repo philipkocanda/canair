@@ -15,10 +15,25 @@ CLU:
           notes: >-
             3-byte odometer at WiCAN [B12:B14] (ISO-TP data bytes g:h:i, Torque Int24). Verified by
             timwelchnz: 62B002E0000000FFB7008D08000000 -> 0x008D08 = 36104 km, matched the dash.
-            Same layout as the 2017 Ioniq CLU (shares 0x7C6). OBDb IONIQ5_ODO_KM reads the same
-            bytes and matches on its 97 recorded responses (MY2022-2027).
+            Same layout as the 2017 Ioniq CLU (shares 0x7C6). Reads 0 on cars that report
+            ODOMETER_MI instead: of OBDb's 97 recorded replies, 18 carry this field and 70 the
+            other.
           min: "0"
           max: "16777215"
           source: GitHub meatpiHQ/wican-fw#478 (timwelchnz)
           source_links:
             - https://github.com/meatpiHQ/wican-fw/issues/478#issuecomment-5074723016
+        ODOMETER_MI:
+          expression: ((B15 << 16) | (B17 << 8) | B18)
+          unit: mi
+          ha_class: distance
+          min: "0"
+          max: "16777215"
+          source: OBDb Hyundai-Ioniq-5 (IONIQ5_ODO_MI) + wican-fw ioniq5-6 (ODOMETER_MI)
+          source_links:
+            - https://github.com/OBDb/Hyundai-Ioniq-5
+            - https://github.com/meatpiHQ/wican-fw/blob/main/vehicle_profiles/hyundai/ioniq5-6.json
+          verified: false
+          notes: >-
+            The odometer field cars without ODOMETER fill; the other reads 0. Both sources call it
+            miles; no reading has been checked against a dash.
