@@ -2,10 +2,10 @@
 Support maps — 5 of 7 PID(s) carry one
 
   IGPM 22BC03  CORROBORATED per-bit map FD EE 3C 73 at data+0, 292 rows, chance 10^-1.5, with siblings 10^-8.8
-      22 signals marked: 17 defined, 5 open
+      22 signals marked: 20 defined, 2 open
       open, moving     -
       open, always on  -
-      open, never set  B11:4, B13:2, B13:3, B13:6, B13:7
+      open, never set  B13:6, B13:7
       declare: canair pids set-support-map IGPM 22BC03 --at 0 --length 4 --unit bit
 
   IGPM 22BC04  CORROBORATED per-bit map B5 3F F4 EA at data+0, 279 rows, chance 10^-0.3, with siblings 10^-8.8

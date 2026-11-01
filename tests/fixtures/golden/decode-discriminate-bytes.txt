@@ -1,5 +1,5 @@
 
-IGPM PID 22BC03 — 17 parameters (14 verified, 3 unverified), 310 captures
+IGPM PID 22BC03 — 20 parameters (14 verified, 6 unverified), 310 captures
 
   scope: earliest .. 2026-08-02
 
@@ -26,4 +26,7 @@ IGPM PID 22BC03 — 17 parameters (14 verified, 3 unverified), 310 captures
     · B14  F=1.1  ON=139.1  READY=170.0  SLEEP, PARKED=170.0  SLEEP=170.0  READY, PARKED=170.0  CHARGING, PARKED=170.0
     ✓ DOOR_RR_OPEN  F=n/a
     ? SEATBELT_FR  F=n/a
+    ? BRAKE_FLUID_SWITCH  F=n/a
+    ? BURGLAR_ALARM_HORN_RELAY  F=n/a
+    ? START_INHIBITOR_RELAY  F=n/a
 

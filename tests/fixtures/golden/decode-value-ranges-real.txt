@@ -1,26 +1,30 @@
 
-BMS PID 2105 — 20 parameters (18 verified, 2 unverified), 1896 captures
+BMS PID 2105 — 24 parameters (18 verified, 6 unverified), 1896 captures
 
   scope: earliest .. 2026-08-02
 
-    ✓ MODULE_6_TEMP                           13°C — 27°C
-    ✓ MODULE_7_TEMP                           13°C — 27°C
-    ✓ MODULE_8_TEMP                           13°C — 27°C
-    ✓ MODULE_9_TEMP                            0°C — 27°C
-    ✓ MODULE_10_TEMP                           0°C — 28°C
-    ✓ MODULE_11_TEMP                           0°C — 27°C
-    ✓ MODULE_12_TEMP                           0°C — 28°C
-    ✓ AVAIL_CHARGE_POWER                   70.61kW — 98kW
-    ✓ AVAIL_DISCHARGE_POWER                   98kW  (constant)
-    ✓ BATTERY_VOLTAGE_DEVIATION                 0V  (constant)
-    ✓ QUICK_CHARGING_NORMAL_STATUS               1  (constant)
-    ✓ BATTERY_HEATER_1_TEMP                   13°C — 28°C
-    ✓ BATTERY_HEATER_2_TEMP                   13°C — 27°C
-    ✓ SOH                                     100%  (constant)
-    ✓ MAX_DETERIORATION_CELL_NO                  2  (constant)
-    ✓ MIN_DETERIORATION                       100%  (constant)
-    ✓ MIN_DETERIORATION_CELL_NO                  1  (constant)
-    ✓ SOC_DISP                              53.50% — 100%
-    ? BMS_2105_B41                               0  (constant)
-    ? BMS_DCFC_TICK_COUNTER                     41 — 49
+    ? MAX_INTERNAL_RESISTANCE                   0mOhm  (constant)
+    ? MAX_INTERNAL_RESISTANCE_CELL_NO               0  (constant)
+    ? AVG_INTERNAL_RESISTANCE                   0mOhm  (constant)
+    ✓ MODULE_6_TEMP                              13°C — 27°C
+    ✓ MODULE_7_TEMP                              13°C — 27°C
+    ✓ MODULE_8_TEMP                              13°C — 27°C
+    ✓ MODULE_9_TEMP                               0°C — 27°C
+    ✓ MODULE_10_TEMP                              0°C — 28°C
+    ✓ MODULE_11_TEMP                              0°C — 27°C
+    ✓ MODULE_12_TEMP                              0°C — 28°C
+    ✓ AVAIL_CHARGE_POWER                      70.61kW — 98kW
+    ✓ AVAIL_DISCHARGE_POWER                      98kW  (constant)
+    ✓ BATTERY_VOLTAGE_DEVIATION                    0V  (constant)
+    ✓ QUICK_CHARGING_NORMAL_STATUS                  1  (constant)
+    ? AIRBAG_HWIRE_DUTY                           75% — 100%
+    ✓ BATTERY_HEATER_1_TEMP                      13°C — 28°C
+    ✓ BATTERY_HEATER_2_TEMP                      13°C — 27°C
+    ✓ SOH                                        100%  (constant)
+    ✓ MAX_DETERIORATION_CELL_NO                     2  (constant)
+    ✓ MIN_DETERIORATION                          100%  (constant)
+    ✓ MIN_DETERIORATION_CELL_NO                     1  (constant)
+    ✓ SOC_DISP                                 53.50% — 100%
+    ? BMS_2105_B41                                  0  (constant)
+    ? BMS_DCFC_TICK_COUNTER                        41 — 49
 
