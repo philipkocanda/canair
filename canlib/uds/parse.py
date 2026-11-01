@@ -339,6 +339,12 @@ def classify_error(error: str | None) -> str:
     return "other"
 
 
+#: Services whose request carries one 1-byte identifier that a positive reply
+#: repeats right after its SID: KWP2000 readDataByLocalIdentifier, and OBD-II
+#: modes 0x01 (current data) and 0x09 (vehicle information).
+_ONE_BYTE_ID_SERVICES = frozenset({0x01, 0x09, 0x21})
+
+
 def request_echo(request_hex: str) -> tuple[int, bytes] | None:
     """Derive the (expected_sid, echo_bytes) a positive response must repeat.
 
@@ -353,8 +359,12 @@ def request_echo(request_hex: str) -> tuple[int, bytes] | None:
     - ``22 xxxx`` (readDataByIdentifier): 2-byte DID echo — ``62 xx xx …``. A
       multi-DID batch (``22 xxxx yyyy …``) is validated against its *first* DID,
       which the response must still repeat immediately after the SID.
+    - ``01 xx`` / ``09 xx`` (OBD-II current data / vehicle information): 1-byte PID
+      or InfoType echo — ``41 xx …`` / ``49 xx …``. Only the single-PID form: a
+      multi-PID ``01 0C 0D …`` reply interleaves each PID with its data, so it is
+      left unvalidated.
 
-    Returns ``(sid, echo_bytes)`` for those two services (``echo_bytes`` may be
+    Returns ``(sid, echo_bytes)`` for those services (``echo_bytes`` may be
     empty if the request carried no identifier), or ``None`` when the request
     isn't a plain identifier read we can validate (unknown length, sub-function
     services, etc.) — callers should then skip echo validation.
@@ -367,9 +377,9 @@ def request_echo(request_hex: str) -> tuple[int, bytes] | None:
     except ValueError:
         return None
     sid = req[0]
-    if sid == 0x21:
-        # service 21 carries a 1-byte PID (a multi-DID 21 request is unusual;
-        # only validate the single-PID form we actually emit).
+    if sid in _ONE_BYTE_ID_SERVICES:
+        # A 1-byte PID. Only the single-PID form is validated: a multi-PID service-21
+        # request is unusual, and a multi-PID OBD-II reply is not a plain echo.
         return (sid, req[1:2]) if len(req) == 2 else None
     if sid == 0x22:
         # service 22 carries 2-byte DIDs. A positive response repeats them in
@@ -416,7 +426,7 @@ def payload_echo_mismatch(
     """
     echo = request_echo(request_pid)
     if echo is None:
-        return None  # not a plain 21xx/22xxxx read — nothing to check
+        return None  # not a plain identifier read — nothing to check
     expected_sid, expected_id = echo
     cleaned = payload_hex.replace(" ", "").strip()
     if len(cleaned) < 2 or len(cleaned) % 2 != 0:
@@ -471,6 +481,40 @@ def payload_not_hex(payload: str) -> str | None:
     return None
 
 
+_HEX = frozenset("0123456789ABCDEF")
+
+
+def _is_request_echo(data_lines: list[str], request: str | None) -> bool:
+    """True when the first data line is the adapter's echo of the request.
+
+    An ELM327 with echo on (``ATZ`` leaves it on, and canair never sends ``ATE0``)
+    repeats each command before its reply. With the request known, only a line
+    *equal to it* is an echo — spaces and case aside, and optionally followed by the
+    one-digit expected-frame count canair appends
+    (:func:`canlib.transport.elm327_frame_count.annotate_request`). A positive reply
+    starts with SID + 0x40 and a negative one with ``7F``, so no reply can equal its
+    request; a guess by first byte could not say the same, since the bare ISO-TP
+    length token that opens a multi-frame reply with echo off (``017``, ``117``) and
+    every OBD-II mode (``01``–``0A``) look alike.
+
+    Without the request, the fallback guesses by the first byte: any UDS/KWP2000
+    request SID (``0x10``–``0x3E``) on a line followed by another one.
+    """
+    if not data_lines:
+        return False
+    first = data_lines[0].replace(" ", "").upper()
+    if request is not None:
+        sent = request.replace(" ", "").upper()
+        if not sent:
+            return False
+        return first == sent or (
+            len(first) == len(sent) + 1 and first.startswith(sent) and first[-1] in _HEX
+        )
+    if len(data_lines) < 2 or len(first) < 2 or not set(first) <= _HEX:
+        return False
+    return 0x10 <= int(first[:2], 16) <= 0x3E
+
+
 def parse_uds_response(
     raw: str,
     expected_sid: int | None = None,
@@ -478,6 +522,7 @@ def parse_uds_response(
     expected_echo: bytes | None = None,
     hk_f1xx_offset: bool = False,
     protocol: str | None = None,
+    request: str | None = None,
 ) -> UdsResponse:
     """Parse a UDS response (as returned by any transport) into structured data.
 
@@ -521,6 +566,10 @@ def parse_uds_response(
 
     ``protocol``: the target ECU's diagnostic protocol (``"uds"``/``"kwp"``/``"unknown"``),
     which selects the NRC names in ``nrc_desc`` (see :func:`nrc_description`).
+
+    ``request``: the command as sent (hex, with or without the ELM327 frame-count
+    digit). An adapter echo is then recognised by equality rather than guessed at;
+    see :func:`_is_request_echo`. Pass it whenever it is known.
     """
     result: UdsResponse = {"raw": raw, "ok": False}
 
@@ -569,13 +618,10 @@ def parse_uds_response(
     if not data_lines:
         return _fail(CAT_NO_DATA, "Empty response")
 
-    # Filter out echo of the request
-    if len(data_lines) > 1:
-        first = data_lines[0].replace(" ", "")
-        if len(first) >= 2 and all(c in "0123456789ABCDEFabcdef" for c in first):
-            first_byte = int(first[:2], 16)
-            if 0x10 <= first_byte <= 0x3E:
-                data_lines = data_lines[1:]
+    if _is_request_echo(data_lines, request):
+        data_lines = data_lines[1:]
+        if not data_lines:
+            return _fail(CAT_NO_DATA, "Empty response (only the request echo)")
 
     # Check for multi-frame ISO-TP format. The ELM327 prefixes each numbered
     # frame line with a SINGLE hex-digit counter (0..F) that wraps back to 0

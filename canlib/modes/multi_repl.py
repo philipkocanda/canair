@@ -195,7 +195,7 @@ async def _multi_repl(
                 raw = await terminal.send_command(cmd)
                 print(raw)
 
-                response = parse_uds_response(raw)
+                response = parse_uds_response(raw, request=cmd)
                 if response.get("ok") or response.get("nrc") is not None:
                     _last_response = response
                     if response.get("nrc") is not None:

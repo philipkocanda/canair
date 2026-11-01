@@ -111,3 +111,26 @@ async def test_obd_pid_and_voltage(emulator):
         assert "V" in await term.send_command("ATRV")
     finally:
         await term.close()
+
+
+@pytest.mark.asyncio
+async def test_obd_pid_with_echo_on(emulator):
+    """With echo on (the default after ATZ), the echoed request is not kept as data.
+
+    Regression: a mode 01 echo (``0105``) passed the old first-byte guess, so the
+    stored payload read ``01054105xx``.
+    """
+    from canlib.uds.parse import request_echo
+
+    host, port = emulator
+    term = Elm327TcpTerminal(host, port, timeout=6.0)
+    await term.connect()
+    await term.init_elm("ATE1;ATL0;ATSP0")
+    try:
+        await term.set_header(0x7E0)
+        sid, echo = request_echo("0105")
+        resp = await term.send_uds("0105", timeout=6.0, expected_sid=sid, expected_echo=echo)
+        assert resp["ok"] is True, resp
+        assert resp["hex"].startswith("4105") and len(resp["hex"]) == 6
+    finally:
+        await term.close()

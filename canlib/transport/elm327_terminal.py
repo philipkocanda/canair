@@ -661,6 +661,7 @@ class Elm327Terminal:
                     expected_echo=expected_echo,
                     hk_f1xx_offset=self.hk_f1xx_offset,
                     protocol=self.session_policy.protocol(header),
+                    request=command,
                 )
                 self.diag.record_response(
                     resp,

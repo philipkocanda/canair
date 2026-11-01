@@ -80,6 +80,59 @@ class TestParseUdsResponse:
         assert r["raw"] == "NO DATA"
 
 
+class TestRequestEchoStripping:
+    """An echoed request is recognised by equality with what was sent.
+
+    Regression: the BMS mode 01 probe stored ``0100410080000001`` for the reply
+    ``410080000001``, because the old first-byte guess (0x10-0x3E) knows no OBD-II
+    mode.
+    """
+
+    def test_obd_mode_01_echo_stripped_when_request_known(self):
+        r = parse_uds_response("0100\n410080000001\n\n>", request="0100")
+        assert r["ok"] is True
+        assert r["hex"] == "410080000001"
+
+    def test_echo_with_frame_count_digit_stripped(self):
+        r = parse_uds_response("010D1\n410D32", request="010D")
+        assert r["hex"] == "410D32"
+        r = parse_uds_response("010D1\n410D32", request="010D1")
+        assert r["hex"] == "410D32"
+
+    def test_echo_spaces_and_case_ignored(self):
+        r = parse_uds_response("01 0d\n41 0D 32", request="010D")
+        assert r["hex"] == "410D32"
+
+    def test_multiframe_length_token_kept_with_echo_off(self):
+        # Echo off: the first line is the ISO-TP length token `017`, whose leading
+        # `01` an OBD-II-aware first-byte guess would take for an echo.
+        raw = "017\n0:62C00BFFFF00AA\n1:BBCCDDEEFF0011\n2:22334455667788\n3:99AABB"
+        r = parse_uds_response(raw, request="22C00B")
+        assert r["ok"] is True
+        assert r["isotp_declared_len"] == 0x17
+        assert r["hex"].startswith("62C00B")
+
+    def test_multiframe_with_echo(self):
+        raw = "0902\n014\n0:490201314847\n1:43473535343031\n2:32333435363738"
+        r = parse_uds_response(raw, request="0902")
+        assert r["ok"] is True
+        assert r["hex"].startswith("490201")
+
+    def test_line_that_is_not_the_request_is_kept(self):
+        r = parse_uds_response("2101\n6101AA", request="2102")
+        assert r["hex"] == "21016101AA"
+
+    def test_only_the_echo_is_no_data(self):
+        r = parse_uds_response("0100", request="0100")
+        assert r["ok"] is False
+        assert r["error_kind"] == "no_data"
+
+    def test_unknown_request_falls_back_to_the_first_byte_guess(self):
+        assert parse_uds_response("2101\n6101AA")["hex"] == "6101AA"
+        # Without the request, an OBD-II echo is still indistinguishable from data.
+        assert parse_uds_response("0100\n410080000001")["hex"] == "0100410080000001"
+
+
 class TestEchoValidation:
     """SID/DID echo validation catches stale/misaligned frames buffered
     in the ELM327 adapter — the off-by-one we saw during IGPM 0x2F scans
@@ -177,6 +230,28 @@ class TestRequestEcho:
 
     def test_other_service_none(self):
         assert request_echo("1003") is None
+
+    def test_obd_mode_01_and_09_single_pid(self):
+        assert request_echo("010D") == (0x01, b"\x0d")
+        assert request_echo("0902") == (0x09, b"\x02")
+
+    def test_obd_multi_pid_not_validated(self):
+        # A multi-PID reply interleaves PID and data: not a plain echo.
+        assert request_echo("010C0D") is None
+        assert request_echo("01") is None
+
+    def test_obd_reply_in_the_wrong_slot_is_stale(self):
+        sid, echo = request_echo("010D")
+        r = parse_uds_response("410C1AF8", expected_sid=sid, expected_echo=echo)
+        assert r["ok"] is False
+        assert r["error_kind"] == "stale"
+        assert parse_uds_response("410D32", expected_sid=sid, expected_echo=echo)["ok"]
+
+    def test_obd_payload_echo_mismatch(self):
+        assert payload_echo_mismatch("0100", "410080000001") is None
+        # The echo-contaminated BMS probe payload is caught by the capture lint.
+        assert "0x01" in payload_echo_mismatch("0100", "0100410080000001")
+        assert payload_echo_mismatch("010D", "410C1AF8") is not None
 
     def test_garbage_none(self):
         assert request_echo("ZZ") is None
