@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 
 import pytest
 import yaml
@@ -392,6 +393,42 @@ class TestProfileDefaultDispatch:
         if cfg_file.exists():
             cfg = yaml.safe_load(cfg_file.read_text()) or {}
             assert cfg.get("default_profile") is None
+
+    def test_reselecting_the_current_profile_still_offers_its_variants(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        import shutil
+
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
+        monkeypatch.setenv("CANAIR_PROFILES_DIR", str(tmp_path / "profiles"))
+        monkeypatch.setenv("CANAIR_PROFILE", "variants")
+        from canlib import config, profile
+
+        config.load_config.cache_clear()
+        profile._active = None
+        fixture = Path(__file__).parent / "fixtures" / "profiles" / "variants"
+        shutil.copytree(fixture, tmp_path / "profiles" / "variants")
+        config.set_config_key("profile_settings.variants.variant", "40kwh")
+        config.load_config.cache_clear()
+        monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+        monkeypatch.setattr("sys.stdout.isatty", lambda: True)
+        asked: list[str] = []
+
+        def _fake_select(items, **kw):
+            items = list(items)
+            asked.append(kw["title"])
+            if len(asked) == 1:  # the profile: keep the current one
+                return next(i for i in items if i[0] == "variants")
+            assert kw["initial"] == 0  # the remembered 40kwh car is preselected
+            return next(i for i in items if i[0] == "60kwh")
+
+        monkeypatch.setattr("canlib.tui.select_from_list", _fake_select)
+
+        assert _cmd_default(argparse.Namespace(profiles_dir=None)) == 0
+        assert "car?" in asked[1]
+        cfg = yaml.safe_load((tmp_path / "cfg" / "canair" / "config.yaml").read_text())
+        assert cfg["profile_settings"]["variants"]["variant"] == "60kwh"
+        assert "already the default" in capsys.readouterr().out
 
 
 def _adopt_args(**kw) -> argparse.Namespace:

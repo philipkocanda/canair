@@ -110,6 +110,8 @@ Name your car once per profile, and canair remembers it:
 ```bash
 canair profile use hyundai-ioniq-ae-ev --variant 28kwh   # on a terminal, omit --variant to pick
 canair --variant 38kwh read BMS                          # or for one command
+canair profile                                           # picker: re-select the current profile
+                                                         # to change only the car
 ```
 
 The variant in effect is the first of:
@@ -222,6 +224,10 @@ VCU:
 - **IDs** follow the variant rule and name what differs (`kwp`/`uds`, `150s`), local to the ECU.
 - A revision may **override** the ECU's `sessions`, `wake`, `multi_did`, `multi_did_max`,
   `response_timeout_ms`, `addressing`, `rx_id` and `identity.id_protocol`.
+- **Recorded identity (part number, calibration, notes, …) belongs to the first declared
+  revision**, the one it was read from. On a car whose ECU is another revision, `canair ecu`
+  shows none rather than the other revision's values; only `description`, `alias` and
+  `id_protocol` carry over.
 - **Gating:** `revisions:` on a PID or signal lists the revisions it applies to; absent means
   every revision. A signal's list must be within its PID's. Two PIDs of one ECU may ship the
   same signal name when their revisions are disjoint — that is how `VCU.VEHICLE_SPEED` stays one

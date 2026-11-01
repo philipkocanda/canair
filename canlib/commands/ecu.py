@@ -318,6 +318,7 @@ def _detail_record(
         "rx": rx_addr_str(tx_id),
         "notes": info.get("notes"),
         "identity": {k: info[k] for k, _ in _IDENTITY_FIELDS if info.get(k) is not None},
+        "identity_note": _identity_note(name),
     }
     per_pid, total = _captures_by_pid(name)
     if ecu_def is not None:
@@ -330,6 +331,30 @@ def _detail_record(
         rec["captures"] = total
         rec["pid_list"] = []
     return rec
+
+
+def _identity_note(name: str) -> str | None:
+    """Which revision the recorded identity belongs to, when the car's ECU may be another.
+
+    The part number, calibration and the like were read from the ECU's reference revision;
+    the loader withholds them from another revision, so say why they are absent rather than
+    leave the identity looking merely unrecorded.
+    """
+    from canlib.pids import load_raw_pids
+    from canlib.profile import active
+    from canlib.variants.revisions import canonical_ecu, identity_reference
+
+    raw = load_raw_pids().get("ecus") or {}
+    key = canonical_ecu(name, raw)
+    reference = identity_reference(raw[key]) if key else None
+    if reference is None:
+        return None
+    revision = active().revisions.get(key)
+    if revision is None:
+        return f"Recorded from the {reference} revision; this car's revision is undetermined."
+    if revision != reference:
+        return f"None recorded for the {revision} revision (the recorded values belong to {reference})."
+    return None
 
 
 def _pid_details(ecu_def: dict, per_pid: Counter) -> list[dict]:
@@ -386,11 +411,14 @@ def cmd_detail(rec: dict, as_json: bool) -> int:
         print(f"  {ansi.DIM}CAN bus{ansi.RESET} {', '.join(parts)}")
 
     # Identity fields
-    if rec["identity"]:
+    note = rec.get("identity_note")
+    if rec["identity"] or note:
         print(f"\n  {ansi.BOLD}Identity{ansi.RESET}")
         for key, label in _IDENTITY_FIELDS:
             if key in rec["identity"]:
                 print(f"    {label:<12} {rec['identity'][key]}")
+        if note:
+            print(f"    {ansi.DIM}{note}{ansi.RESET}")
 
     # Stats
     stats = rec.get("stats")

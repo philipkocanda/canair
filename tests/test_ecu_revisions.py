@@ -115,6 +115,34 @@ class TestResolution:
         assert vcu["response_timeout_ms"] == 300
         assert "revisions" not in vcu and "revisions" not in pids["22E001"]
 
+    def test_recorded_identity_belongs_to_the_reference_revision_only(self):
+        _activate(variant="60kwh", pins=["VCU=kwp"])
+        kwp = _ecus()["VCU"]["identity"]
+        assert kwp["part_number"] == "SYN-0001" and kwp["calibration"] == "1234"
+        _activate(variant="60kwh", pins=["VCU=uds"])
+        assert _ecus()["VCU"]["identity"] == {
+            "description": "Synthetic VCU with a protocol change",
+            "id_protocol": "UDS",
+        }
+        _activate(variant="60kwh")  # undetermined: could be either, nothing is withheld
+        assert _ecus()["VCU"]["identity"]["part_number"] == "SYN-0001"
+
+    def test_ecu_detail_says_why_identity_is_missing_on_another_revision(self, capsys):
+        from canlib.commands.ecu import _detail_record, cmd_detail
+        from canlib.ecus import load_ecus, resolve_tx
+
+        for pins, expected in (
+            (["VCU=uds"], "None recorded for the uds revision (the recorded values belong to kwp)"),
+            (None, "this car's revision is undetermined"),
+            (["VCU=kwp"], None),
+        ):
+            _activate(variant="60kwh", pins=pins)
+            tx = resolve_tx("VCU")
+            rec = _detail_record(load_ecus()[tx], tx, "VCU", _ecus()["VCU"])
+            assert cmd_detail(rec, False) == 0
+            out = capsys.readouterr().out
+            assert (expected in out) if expected else ("None recorded" not in out)
+
     def test_a_config_pin_and_the_flag_outranking_it(self):
         config.set_config_key("profile_settings.variants.revisions.VCU", "kwp")
         config.load_config.cache_clear()

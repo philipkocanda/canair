@@ -5,6 +5,9 @@ VCU:
   identity:
     description: 'Synthetic VCU with a protocol change'
     id_protocol: KWP2000
+    part_number: SYN-0001
+    calibration: "1234"
+    notes: Read from a car with the kwp revision.
   revisions:
     kwp:
       identity: {id_protocol: KWP2000}

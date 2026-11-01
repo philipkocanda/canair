@@ -40,7 +40,8 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "  adopt NAME      copy a read-only profile to ~/.config/canair/profiles/ to write to it\n"
         "  overlay NAME    record your own captures over a read-only profile's definitions\n\n"
         "A bare `canair profile` opens an interactive arrow-key picker on a TTY (choose\n"
-        "the default profile); piped/non-interactive it prints the list. Select the\n"
+        "the default profile, then your car when it has several variants — re-select the\n"
+        "current profile to change only the variant); piped it prints the list. Select the\n"
         "active profile with the global --profile flag, CANAIR_PROFILE, or\n"
         "default_profile in config (set the last with `canair profile use NAME`).",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -227,11 +228,11 @@ def _cmd_pick(args) -> int:
         return 0
 
     name, root = chosen
+    path = set_config_value("default_profile", name)
     if name == active_name:
         print(f"'{name}' is already the default profile.")
-        return 0
-    path = set_config_value("default_profile", name)
-    print(f"default_profile = {name}")
+    else:
+        print(f"default_profile = {name}")
     print(f"  ({root})")
     variant = _choose_variant(name, getattr(args, "profiles_dir", None), None)
     if variant:
@@ -510,9 +511,12 @@ def _choose_variant(name: str, profiles_dir, requested: str | None) -> str | Non
     after reporting an invalid ``requested`` variant.
     """
     from canlib.variants import VariantsError, describe, load_variants, normalize_variant_id
+    from canlib.variants.selection import configured_variant
 
     try:
-        variants = load_variants(resolve_profile(name, profiles_dir))
+        prof = resolve_profile(name, profiles_dir)
+        variants = load_variants(prof)
+        remembered = configured_variant(prof)
     except (ProfileError, VariantsError) as e:
         print(f"error: {e}", file=sys.stderr)
         return ""
@@ -534,10 +538,16 @@ def _choose_variant(name: str, profiles_dir, requested: str | None) -> str | Non
     from canlib.tui import select_from_list
 
     items = list(variants.items())
+
+    def _render(item) -> str:
+        current = "  [green](current)[/green]" if item[0] == remembered else ""
+        return f"[bold]{item[0]}[/bold]{current}\n     [dim]{describe(item[1])}[/dim]"
+
     chosen = select_from_list(
         items,
         title=f"Which {name} is your car?",
-        render=lambda item: f"[bold]{item[0]}[/bold]\n     [dim]{describe(item[1])}[/dim]",
+        render=_render,
+        initial=next((i for i, (vid, _) in enumerate(items) if vid == remembered), 0),
         footer="↑/↓ move · enter choose · q/esc skip",
     )
     return chosen[0] if chosen else None

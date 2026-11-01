@@ -22,7 +22,8 @@ Subcommands:
   overlay NAME    record your own captures over a read-only profile's definitions
 
 A bare `canair profile` opens an interactive arrow-key picker on a TTY (choose
-the default profile); piped/non-interactive it prints the list. Select the
+the default profile, then your car when it has several variants — re-select the
+current profile to change only the variant); piped it prints the list. Select the
 active profile with the global --profile flag, CANAIR_PROFILE, or
 default_profile in config (set the last with `canair profile use NAME`).
 

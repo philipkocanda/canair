@@ -60,6 +60,10 @@ OVERRIDE_FIELDS: tuple[str, ...] = (
     "rx_id",
 )
 IDENTITY_OVERRIDE_FIELDS: tuple[str, ...] = ("id_protocol",)
+# The identity fields that describe the module in general rather than the unit a capture
+# came from; every other one (part number, calibration, notes, ...) speaks for the ECU's
+# reference revision only.
+GENERAL_IDENTITY_FIELDS: tuple[str, ...] = ("description", "alias", "id_protocol")
 REVISION_FIELDS: tuple[str, ...] = (*OVERRIDE_FIELDS, "fingerprints")
 # How a revision is recognised: identity fields matching globs, or a safe read only this
 # revision answers.
@@ -228,9 +232,17 @@ class Skipped:
     signals: int
 
 
+def identity_reference(ecu_def: Any) -> str | None:
+    """The revision the ECU's recorded identity (part number, calibration, ...) belongs to."""
+    revs = declared(ecu_def)
+    return revs[0] if revs else None
+
+
 def _overridden(ecu_def: Mapping, rid: str) -> dict:
     entry = revision_entry(ecu_def, rid)
     out = {k: v for k, v in ecu_def.items() if k not in ("revisions", "variants")}
+    if rid != identity_reference(ecu_def) and isinstance(out.get("identity"), Mapping):
+        out["identity"] = {k: v for k, v in out["identity"].items() if k in GENERAL_IDENTITY_FIELDS}
     for key in OVERRIDE_FIELDS:
         if key not in entry:
             continue
