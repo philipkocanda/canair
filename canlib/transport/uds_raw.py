@@ -132,6 +132,8 @@ class RawUdsClient:
         self._tx_ids = {name: address.tx_id for name, address in addresses.items()}
         # Per-(ECU, PID) round-trip timing (surfaced by `canair read --timings`).
         self.timings = TimingRecorder()
+        # Each request's send-to-resolve time from the last poll(), keyed like its result.
+        self.last_latency: dict[tuple[str, bytes], float] = {}
         # Per-exchange outcome tally (drops/errors/decode), same as the terminals.
         self.diag = TransportStats(transport="slcan-tcp")
         # Responses each ECU still owes us, from requests abandoned at their
@@ -332,10 +334,15 @@ class RawUdsClient:
         answer (see :meth:`_stale_reason`); a late reply to an earlier request is
         discarded and waiting continues, so a stalled link can't leave this client
         reporting values one cycle behind for the rest of the session.
+
+        Each request's own send-to-resolve time is left in :attr:`last_latency`
+        (a timeout counts its whole budget), so a caller can tell which ECU is
+        holding the rounds up.
         """
 
-        def _finish(ecu: str, req: bytes, value):
+        def _finish(ecu: str, req: bytes, value, sent_at: float):
             out[(ecu, req)] = value
+            self.last_latency[(ecu, req)] = time.monotonic() - sent_at
             self.diag.record_raw(value, ecu=ecu, pid=req.hex().upper())
             if on_result is not None:
                 try:
@@ -351,6 +358,7 @@ class RawUdsClient:
             queues[ecu].append(req)
 
         out: dict[tuple[str, bytes], bytes | Exception] = {}
+        self.last_latency = {}
         while any(queues.values()):
             if self._interrupt.is_set():
                 break
@@ -387,7 +395,7 @@ class RawUdsClient:
                     try:
                         resp = st.recv(block=False) if st.available() else None
                     except Exception as e:  # surface per-request, keep polling the rest
-                        _finish(ecu, req, e)
+                        _finish(ecu, req, e, info["sent_at"])
                         del pending[ecu]
                         progressed = True
                         continue
@@ -414,12 +422,12 @@ class RawUdsClient:
                         self.timings.record(
                             ecu, req.hex().upper(), time.monotonic() - info["sent_at"]
                         )
-                        _finish(ecu, req, resp)
+                        _finish(ecu, req, resp, info["sent_at"])
                         del pending[ecu]
                         progressed = True
                     elif now >= info["deadline"]:
                         self._abandon(ecu)
-                        _finish(ecu, req, TimeoutError("no response"))
+                        _finish(ecu, req, TimeoutError("no response"), info["sent_at"])
                         del pending[ecu]
                         progressed = True
                 if pending and not progressed:

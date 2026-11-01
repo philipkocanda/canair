@@ -4,8 +4,7 @@ from __future__ import annotations
 
 from canlib.poll_schedule import (
     DEFAULT_SCHEDULE,
-    MAX_SCALE,
-    MIN_SCALE,
+    MAX_RATE_STEPS,
     PollScheduler,
     declared_period_ms,
 )
@@ -112,9 +111,9 @@ class TestDynamicSchedule:
         s.end_tick()
         assert {e[0] for e in due} == {"A", "B"}
 
-    def test_scale_stretches_every_period(self):
+    def test_slower_stretches_every_period(self):
         s = PollScheduler("dynamic", interval=5.0)
-        s.slower()  # x1.5
+        s.slower()  # rate / 1.5
         plan = _plan(("A", 2000))
         s.begin_tick(0.0)
         s.take_due("E", plan)
@@ -122,14 +121,43 @@ class TestDynamicSchedule:
         assert s.period(("E", "A")) == 3.0  # 2 s x 1.5
         assert s.seconds_until_due(0.0) == 3.0
 
-    def test_scale_is_clamped(self):
+    def test_faster_shortens_every_period(self):
+        # Regression: = must poll faster. The label used to show the period
+        # multiplier (x0.67 after "faster"), which read as the opposite.
+        s = PollScheduler("dynamic", interval=6.0)
+        s.faster()
+        plan = _plan(("A", 3000), ("B", None))
+        s.begin_tick(0.0)
+        s.take_due("E", plan)
+        assert s.period(("E", "A")) == 2.0
+        assert s.period(("E", "B")) == 4.0
+        assert s.describe() == "per-PID 1.5× faster"
+
+    def test_faster_then_slower_returns_exactly_to_start(self):
+        s = PollScheduler("dynamic")
+        for _ in range(3):
+            s.slower()
+        for _ in range(3):
+            s.faster()
+        assert s.rate == 1.0
+        assert s.describe() == "per-PID"
+
+    def test_rate_is_clamped(self):
         s = PollScheduler("dynamic")
         for _ in range(100):
             s.slower()
-        assert s.scale == MAX_SCALE
+        assert s.rate_steps == -MAX_RATE_STEPS
         for _ in range(200):
             s.faster()
-        assert s.scale == MIN_SCALE
+        assert s.rate_steps == MAX_RATE_STEPS
+
+    def test_period_speedup_applies_to_declared_periods_only(self):
+        s = PollScheduler("dynamic", interval=5.0, period_speedup=2.0)
+        plan = _plan(("A", 10000), ("B", None))
+        s.begin_tick(0.0)
+        s.take_due("E", plan)
+        assert s.period(("E", "A")) == 5.0
+        assert s.period(("E", "B")) == 5.0  # --interval is already the caller's seconds
 
     def test_wake_makes_the_next_tick_due_now(self):
         s = PollScheduler("dynamic", interval=5.0)
@@ -155,6 +183,59 @@ class TestDynamicSchedule:
         s.end_tick()
         # ...and the next due time is 11 s, not a backlog at 1,2,3…
         assert s.seconds_until_due(10.0) == 1.0
+
+
+class TestFixedRateControl:
+    def test_faster_shortens_the_interval(self):
+        s = PollScheduler("fixed", interval=3.0)
+        assert s.faster() == "2.0s"
+        assert s.slower() == "3.0s"
+
+
+class TestSlowdown:
+    def test_dynamic_slowdown_stretches_only_that_ecu(self):
+        s = PollScheduler("dynamic", interval=5.0)
+        plan = _plan(("A", 1000))
+        s.begin_tick(0.0)
+        s.take_due("SLOW", plan)
+        s.take_due("FAST", plan)
+        s.end_tick()
+        s.set_slowdown("SLOW", 4)
+        due_slow = []
+        due_fast = []
+        for t in (1.0, 2.0, 3.0, 4.0):
+            s.begin_tick(t)
+            due_slow += s.take_due("SLOW", plan)
+            due_fast += s.take_due("FAST", plan)
+            s.end_tick()
+        assert len(due_fast) == 4
+        assert len(due_slow) == 1  # only at t=4
+
+    def test_fixed_slowdown_sits_out_rounds(self):
+        s = PollScheduler("fixed", interval=1.0)
+        plan = _plan(("A", None))
+        polled = []
+        for t in range(7):
+            s.begin_tick(float(t))
+            polled.append(bool(s.take_due("SLOW", plan)))
+            assert s.take_due("FAST", plan) == plan
+            s.end_tick()
+            if t == 0:
+                # Applied straight after a poll, as the monitor's backoff does.
+                s.set_slowdown("SLOW", 3)
+        assert polled == [True, False, False, True, False, False, True]
+
+    def test_clearing_the_slowdown_restores_the_rate(self):
+        s = PollScheduler("fixed", interval=1.0)
+        plan = _plan(("A", None))
+        s.set_slowdown("E", 4)
+        s.begin_tick(0.0)
+        s.take_due("E", plan)
+        s.end_tick()
+        s.set_slowdown("E", 1)
+        s.begin_tick(1.0)
+        assert s.take_due("E", plan) == plan
+        assert s.slowdown("E") == 1
 
 
 class TestToggle:
@@ -201,4 +282,4 @@ class TestDescribe:
         s = PollScheduler("dynamic")
         assert s.describe() == "per-PID"
         s.slower()
-        assert "×" in s.describe()
+        assert s.describe() == "per-PID 1.5× slower"

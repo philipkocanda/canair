@@ -1135,6 +1135,11 @@ class MonitorApp(HelpMixin, App):
             items.append(StatusItem("[reverse] PAUSED [/]", P_ESSENTIAL))
         items.append(StatusItem(f"[dim]cycle[/] {c.cycle}", P_NORMAL))
         items.append(StatusItem(f"{c.schedule.describe()}", P_NORMAL))
+        backoff = getattr(c, "backoff", None)
+        slowed = backoff.slowed() if backoff is not None else {}
+        if slowed:
+            ecus = " ".join(f"{ecu}÷{factor}" for ecu, factor in sorted(slowed.items()))
+            items.append(StatusItem(f"[dim]slow[/] [yellow]{ecus}[/]", P_HIGH))
         items.append(StatusItem(f"{c.elapsed:.1f}[dim]s[/]", P_LOW))
         # ELM path reports commands + time spent in the ELM327; the raw path
         # reports UDS requests (no ELM involved).

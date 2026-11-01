@@ -159,6 +159,7 @@ async def run_raw_monitor(args, host: str, port: int, bitrate: int, pids_data: d
             include_static=getattr(args, "include_static", False),
             reconnect=build_raw_reconnector(args, ecus, pids_data),
             schedule=getattr(args, "schedule", DEFAULT_SCHEDULE),
+            backoff=not getattr(args, "no_backoff", False),
         )
     except transport_error_types() as e:
         print(

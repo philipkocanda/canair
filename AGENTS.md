@@ -155,12 +155,16 @@ and **`g`/`G` address the view's primary axis**.
   PIDs). Non-TTY with no STEP is still an error. **`read` never had a
   `--monitor` flag.** `--wait` blocks until the device is online and makes a mid-session drop
   reconnect forever (see Mid-session reconnect). **Polling is per-PID by default**
-  (`--schedule dynamic`): each PID is read at its own profile `period:`, a PID without one every
-  `--interval` (`--schedule fixed` reads every PID every cycle). The scheduler is a dependency-free
-  leaf, `canlib/poll_schedule.py::PollScheduler` (the parser imports its vocabulary at CLI start-up,
-  so it must not reach into `canlib/modes`); it drives which PIDs each tick reads and, since a slow
-  PID is now polled far less often than a fast one, also supplies the per-signal *clock* the
-  state-suggestion staleness is counted on (polls of that PID, not ticks of a faster neighbour).
+  (`--schedule dynamic`): each PID is read at half its profile `period:`
+  (`MONITOR_PERIOD_SPEEDUP`), a PID without one every `--interval` (`--schedule fixed` reads
+  every PID every cycle). A slow or silent ECU holds up every other ECU's next read, so the
+  leaf `canlib/poll_backoff.py::EcuBackoff` slows it (×2 up to ×8, `--no-backoff` off) from
+  per-ECU `PollCost`s the pollers leave in `MonitorController.ecu_costs`. The scheduler is a
+  dependency-free leaf, `canlib/poll_schedule.py::PollScheduler` (the parser imports its
+  vocabulary at CLI start-up, so it must not reach into `canlib/modes`); it drives which PIDs each
+  tick reads and, since a slow PID is now polled far less often than a fast one, also supplies the
+  per-signal *clock* the state-suggestion staleness is counted on (polls of that PID, not ticks of
+  a faster neighbour).
   The monitor records only the PIDs actually read on a tick (`MonitorController.fresh_queries`),
   while the display keeps every selector's last value.
 - **`canair scan`** — Kinds: `range` (bare `canair scan <ECU>` is this), `sessions`, `routines`

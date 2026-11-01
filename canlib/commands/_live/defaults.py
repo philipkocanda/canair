@@ -45,6 +45,7 @@ CANAIR_DEFAULTS: dict = {
     "protocol": "auto",
     "monitor": None,
     "schedule": DEFAULT_SCHEDULE,
+    "no_backoff": False,
     "keep_changes": False,
     "keep_all": False,
     "keep": None,

@@ -342,15 +342,16 @@ list/edit; e.g. `@charging`, `@driving`) and composes with ad-hoc selectors.
 ### `canair monitor`
 
 Live-refreshing poll (its own top-level command; positional query steps like
-`canair read`). By default each PID refreshes at its own profile `period:` and a
-PID without one every `--interval` seconds (5.0); `--schedule fixed` polls every
-PID every cycle, `--interval` apart. Non-query steps run once
+`canair read`). By default each PID refreshes twice as often as its profile
+`period:` and a PID without one every `--interval` seconds (5.0); `--schedule fixed`
+polls every PID every cycle, `--interval` apart. A slow or silent ECU (the SKM once
+asleep) is polled up to 8× less often until it recovers (`--no-backoff` turns it off). Non-query steps run once
 as setup, `query` steps poll in a
 background worker with TesterPresent keepalives. On a TTY it's a scrollable
 Textual TUI (`↑↓/j/k`/wheel scroll — the view **never** follows the tail, a
 repaint leaves the scroll position put; `space` pause, `=`/`-` poll
-faster/slower live (the interval on `--schedule fixed`, a multiplier on every
-PID's period otherwise), `m` switch schedule,
+faster/slower live (the interval on `--schedule fixed`, every PID's rate by 1.5×
+otherwise), `m` switch schedule,
 `r` toggle the byte ruler + per-signal byte-reference column
 (in `display.byte_notation`/`--notation`), `E` open the errors/diagnostics
 log overlay, `↑`/`↓` select a signal (`esc` deselects), `e`/`v`/`x`/`F`

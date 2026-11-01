@@ -45,6 +45,7 @@ async def handle_monitor(args, terminal: Terminal, pids_data, host, *, reconnect
         include_static=getattr(args, "include_static", False),
         reconnect=reconnect,
         schedule=getattr(args, "schedule", DEFAULT_SCHEDULE),
+        backoff=not getattr(args, "no_backoff", False),
     )
 
 

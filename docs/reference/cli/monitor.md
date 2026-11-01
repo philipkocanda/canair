@@ -6,7 +6,7 @@
 
 ```
 usage: canair monitor [-h] [--interval SECONDS] [--schedule {dynamic,fixed}]
-                      [--session] [--wake]
+                      [--no-backoff] [--session] [--wake]
                       [--keep-all | --keep-changes | --keep N] [--save]
                       [--label TEXT] [--state TEXT] [--notes TEXT] [--rulers]
                       [--notation NAME] [--include-static] [--wican WICAN]
@@ -31,6 +31,9 @@ options:
                         dynamic (default): poll each PID at its own profile
                         `period:`, falling back to --interval; fixed: poll
                         every PID every cycle, --interval apart
+  --no-backoff          Keep polling an ECU that times out or answers slowly
+                        at its normal rate (default: poll it less often until
+                        it recovers, so it can't hold up the rest)
   --session             Enter extended session (10 03)
   --wake                Wake ECUs from deep sleep (10 01)
   --keep-all            Record every polled payload (full time-series) — the
@@ -96,7 +99,7 @@ options:
 
 examples:
   canair monitor                            Pick ECUs, then PIDs, interactively (TTY only)
-  canair monitor BMS:2101                   Monitor BMS PID 2101 at its profile period
+  canair monitor BMS:2101                   Monitor BMS PID 2101 at twice its profile rate
   canair monitor BMS:2101 --interval 2      PIDs without a profile period refresh every 2s
   canair monitor BMS:2101 --schedule fixed --interval 1   Every PID every 1s
   canair monitor "VCU:2101 BMS:2101"        Cross-ECU monitor
@@ -105,14 +108,18 @@ examples:
   canair monitor "skm-wake acc" "query IGPM:BC03,BC06"
   canair monitor BMS:2101 --save --label "…" --state "READY, PARKED"  Record while monitoring
 
-Polling: by default each PID is read at its own `period:` from the profile (the same
-milliseconds the WiCAN AutoPID profile uses; set one with `canair pids set-pid-period`),
-and a PID without one every --interval seconds. --schedule fixed reads every PID on every
-cycle, --interval apart.
+Polling: by default each PID is read every half of its own `period:` from the profile
+(the period is the WiCAN AutoPID cadence; set one with `canair pids set-pid-period`), and a
+PID without one every --interval seconds. --schedule fixed reads every PID on every cycle,
+--interval apart.
+
+An ECU that stops answering or answers very slowly holds up every other ECU's next poll,
+so it is polled 2x, 4x, then up to 8x less often until it answers promptly again; its
+header and the status line say so. --no-backoff keeps polling it at the normal rate.
 
 In the TUI: mouse wheel / scrollbar / arrows-jk / PgUp-PgDn / g-G scroll,
-space pauses, =/- poll faster/slower (the interval on the fixed schedule, a
-multiplier on every PID's period on the per-PID one), m switches schedule,
+space pauses, =/- poll faster/slower (the interval on the fixed schedule, every
+PID's rate by 1.5x on the per-PID one), m switches schedule,
 r toggles the byte-index ruler, E opens the errors/diagnostics log,
 V cycles the view mode (ecus / ranges / signals / full),
 i opens the session-info overlay (segment history + summary),

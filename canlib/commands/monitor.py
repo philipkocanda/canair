@@ -49,7 +49,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         epilog="""\
 examples:
   canair monitor                            Pick ECUs, then PIDs, interactively (TTY only)
-  canair monitor BMS:2101                   Monitor BMS PID 2101 at its profile period
+  canair monitor BMS:2101                   Monitor BMS PID 2101 at twice its profile rate
   canair monitor BMS:2101 --interval 2      PIDs without a profile period refresh every 2s
   canair monitor BMS:2101 --schedule fixed --interval 1   Every PID every 1s
   canair monitor "VCU:2101 BMS:2101"        Cross-ECU monitor
@@ -58,14 +58,18 @@ examples:
   canair monitor "skm-wake acc" "query IGPM:BC03,BC06"
   canair monitor BMS:2101 --save --label "…" --state "READY, PARKED"  Record while monitoring
 
-Polling: by default each PID is read at its own `period:` from the profile (the same
-milliseconds the WiCAN AutoPID profile uses; set one with `canair pids set-pid-period`),
-and a PID without one every --interval seconds. --schedule fixed reads every PID on every
-cycle, --interval apart.
+Polling: by default each PID is read every half of its own `period:` from the profile
+(the period is the WiCAN AutoPID cadence; set one with `canair pids set-pid-period`), and a
+PID without one every --interval seconds. --schedule fixed reads every PID on every cycle,
+--interval apart.
+
+An ECU that stops answering or answers very slowly holds up every other ECU's next poll,
+so it is polled 2x, 4x, then up to 8x less often until it answers promptly again; its
+header and the status line say so. --no-backoff keeps polling it at the normal rate.
 
 In the TUI: mouse wheel / scrollbar / arrows-jk / PgUp-PgDn / g-G scroll,
-space pauses, =/- poll faster/slower (the interval on the fixed schedule, a
-multiplier on every PID's period on the per-PID one), m switches schedule,
+space pauses, =/- poll faster/slower (the interval on the fixed schedule, every
+PID's rate by 1.5x on the per-PID one), m switches schedule,
 r toggles the byte-index ruler, E opens the errors/diagnostics log,
 V cycles the view mode (ecus / ranges / signals / full),
 i opens the session-info overlay (segment history + summary),
@@ -97,6 +101,12 @@ For a single one-shot read (no live refresh) use `canair read` instead.
         default=DEFAULT_SCHEDULE,
         help="dynamic (default): poll each PID at its own profile `period:`, falling back "
         "to --interval; fixed: poll every PID every cycle, --interval apart",
+    )
+    parser.add_argument(
+        "--no-backoff",
+        action="store_true",
+        help="Keep polling an ECU that times out or answers slowly at its normal rate "
+        "(default: poll it less often until it recovers, so it can't hold up the rest)",
     )
     parser.add_argument("--session", action="store_true", help="Enter extended session (10 03)")
     parser.add_argument("--wake", action="store_true", help="Wake ECUs from deep sleep (10 01)")

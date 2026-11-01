@@ -20,6 +20,8 @@ import contextlib
 import logging
 from typing import TYPE_CHECKING
 
+from ..poll_backoff import PollCost
+
 if TYPE_CHECKING:
     from .monitor import MonitorController
     from .multi_batch import EcuFrame, ResultEntry
@@ -243,6 +245,24 @@ class MonitorRawPoller:
         c.fresh_queries = self.fresh_queries(plan_by_ecu, by_pid)
         c.last_cmds = len(requests)
         c.last_elm_time = 0.0
+        c.ecu_costs = self.ecu_costs(submissions, result_dict)
+
+    def ecu_costs(self, submissions: list[dict], results: dict) -> dict[str, PollCost]:
+        """Per-ECU cost of this tick: requests, their summed latency, coherent answers.
+
+        Summed per ECU because the client works through an ECU's queue one request
+        per round, so that sum is how long the ECU kept the tick open.
+        """
+        latency = getattr(self.c.raw_client, "last_latency", None) or {}
+        costs: dict[str, PollCost] = {}
+        for s in submissions:
+            key = (s["ecu"], s["req"])
+            cost = costs.setdefault(s["ecu"], PollCost())
+            cost.reads += 1
+            cost.seconds += latency.get(key, 0.0)
+            if isinstance(results.get(key), (bytes, bytearray)):
+                cost.answered += 1
+        return costs
 
     def apply_submission(
         self, s: dict, val, acquired: float, by_pid: dict[tuple[str, str], ResultEntry]

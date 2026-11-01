@@ -59,14 +59,23 @@ It monitors several ECUs at once, too. This cross-ECU view watches the
 
 ![canair monitor — live cross-ECU drivetrain view in READY mode](../screenshots/monitor-drivetrain.gif)
 
-By default each PID refreshes at its own cadence — the `period:` the profile ships
-for it (what the WiCAN AutoPID profile uses) — so a fast-moving signal updates
-briskly while a slow per-cycle record is read only as often as it changes, and the
-bus isn't flooded re-reading values that never move. A PID with no declared period
-falls back to `--interval` (default 5 s). Press `=`/`-` to speed up or slow down the
-whole poll live, and `m` to switch to `--schedule fixed`, which reads *every* PID on
-every cycle `--interval` apart — handy when you want an even time-series of one
-signal for analysis.
+By default each PID refreshes at its own cadence — twice as often as the `period:`
+the profile ships for it (what the WiCAN AutoPID profile uses) — so a fast-moving
+signal updates briskly while a slow per-cycle record is read only as often as it
+changes, and the bus isn't flooded re-reading values that never move. A PID with no
+declared period falls back to `--interval` (default 5 s). Press `=`/`-` to poll the
+whole set 1.5× faster or slower live (the status line says e.g. `per-PID 1.5× faster`),
+and `m` to switch to `--schedule fixed`, which reads *every* PID on every cycle
+`--interval` apart — handy when you want an even time-series of one signal for
+analysis.
+
+The ECUs are read one after another, so an ECU that stops answering (a body module
+that has gone to sleep, say) or answers very slowly holds up everyone else's next
+read. The monitor notices and polls that ECU 2×, then 4×, up to 8× less often until it
+answers promptly again; its header says `slow (not answering) · polled 4× less often`
+and the status line lists it (`slow SKM÷4`). Pass `--no-backoff` to keep hammering it.
+A PID whose read failed keeps showing its last value, greyed and marked with how old
+it is — `(stale 12s)`.
 
 Not sure what to type? Run `canair monitor` with no arguments on a terminal and
 pick from the profile instead: first tick saved groups (the `@` rows, see

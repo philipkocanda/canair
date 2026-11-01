@@ -462,3 +462,64 @@ class TestRawBatchRepliesNeverLandUnderOneDid:
         c.raw_poller.apply_submission(sub, bytes.fromhex(self.BATCH), 0.0, by_pid)
         assert "raw_hex" not in by_pid[("IGPM", "22bc03")]
         assert c._raw_lengths[("IGPM", "BC03")] == 8
+
+
+class _TimedRawClient(FakeRawClient):
+    """A FakeRawClient whose unanswered requests each cost ``timeout_s``."""
+
+    def __init__(self, table, timeout_s=1.0):
+        super().__init__(table)
+        self.timeout_s = timeout_s
+        self.last_latency = {}
+
+    def poll(self, requests, timeout=None, on_result=None):
+        out = super().poll(requests, timeout, on_result)
+        self.last_latency = {
+            key: (self.timeout_s if val is None else 0.02) for key, val in out.items()
+        }
+        return out
+
+
+class TestSlowEcuBackoff:
+    """A silent ECU holds up every other ECU's next poll, so it is polled less often."""
+
+    def _ctrl(self, backoff=True):
+        table = {("BMS", bytes.fromhex("2101")): bytes.fromhex("6101AA")}
+        steps = [{"ecu": "IGPM", "pids": ["BC03"]}, {"ecu": "BMS", "pids": ["2101"]}]
+        c = MonitorController(
+            None,
+            steps,
+            {},
+            verbose=False,
+            raw_client=_TimedRawClient(table),
+            schedule="fixed",
+            backoff=backoff,
+        )
+        c._ecu_index = _IGPM_BMS_INDEX
+        return c
+
+    def test_raw_costs_sum_each_ecus_latency(self):
+        c = self._ctrl()
+        asyncio.run(c._poll_raw())
+        assert c.ecu_costs["IGPM"].reads == 1 and c.ecu_costs["IGPM"].answered == 0
+        assert c.ecu_costs["IGPM"].seconds == 1.0
+        assert c.ecu_costs["BMS"].answered == 1
+
+    def test_a_silent_ecu_is_slowed_and_flagged(self):
+        from canlib.poll_backoff import ESCALATE_AFTER
+
+        c = self._ctrl()
+        for _ in range(ESCALATE_AFTER):
+            asyncio.run(c.poll_once())
+        assert c.schedule.slowdown("IGPM") == 2
+        assert c.schedule.slowdown("BMS") == 1
+        # It now sits out the next round while BMS keeps being read.
+        asyncio.run(c.poll_once())
+        assert "IGPM" not in c.ecu_costs and "BMS" in c.ecu_costs
+        assert "slow (not answering) · polled 2× less often" in c.render().plain
+
+    def test_no_backoff_keeps_polling(self):
+        c = self._ctrl(backoff=False)
+        for _ in range(6):
+            asyncio.run(c.poll_once())
+        assert c.schedule.slowdown("IGPM") == 1

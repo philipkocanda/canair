@@ -245,6 +245,39 @@ class TestRenderResults:
         # Dimmed as a unit: a "dim" span covers part of the entry.
         assert any("dim" in str(span.style) for span in t.spans)
 
+    def test_stale_entry_shows_how_long_it_has_been_held(self):
+        entry = {"pid": "2101", "raw_hex": "6101AA", "stale": True, "acquired_at": 1000.0}
+        results = [("BMS (0x7E4)", [entry])]
+        for now, label in (
+            (1012.4, "(stale 12s)"),
+            (1200.0, "(stale 3m)"),
+            (8500.0, "(stale 2h05m)"),
+        ):
+            t = _render_results(results, verbose=False, cycle=3, elapsed=0.1, interval=5.0, now=now)
+            assert label in t.plain
+
+    def test_stale_age_invalidates_the_render_cache(self):
+        from canlib.modes._monitor_render import RenderCache
+
+        cache = RenderCache()
+        entry = {"pid": "2101", "raw_hex": "6101AA", "stale": True, "acquired_at": 1000.0}
+        results = [("BMS (0x7E4)", [entry])]
+        kw = {"verbose": False, "cycle": 3, "elapsed": 0.1, "interval": 5.0, "cache": cache}
+        assert "(stale 5s)" in _render_results(results, now=1005.0, **kw).plain
+        assert "(stale 9s)" in _render_results(results, now=1009.0, **kw).plain
+
+    def test_ecu_note_follows_the_header(self):
+        entry = {"pid": "2101", "raw_hex": "6101AA"}
+        t = _render_results(
+            [("SKM (0x7A5)", [entry])],
+            verbose=False,
+            cycle=3,
+            elapsed=0.1,
+            interval=5.0,
+            ecu_notes={"SKM (0x7A5)": "slow · polled 2× less often"},
+        )
+        assert "SKM (0x7A5)  slow · polled 2× less often" in t.plain
+
     def test_params_rendered(self):
         params = [("SOC_BMS", 50.0, "%", "B09/2", None, True, "")]
         entry = self._make_pid_result(params=params, raw_hex="6101000000000000006400")

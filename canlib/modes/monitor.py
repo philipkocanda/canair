@@ -23,6 +23,7 @@ layer differs.
 
 import asyncio
 import contextlib
+import logging
 import re
 import time
 from pathlib import Path
@@ -40,7 +41,8 @@ from ..formatting import (
 )
 from ..keepmode import KEEP_LAST, KeepMode
 from ..log import log_event
-from ..poll_schedule import DEFAULT_SCHEDULE, PollScheduler, Schedule
+from ..poll_backoff import EcuBackoff, PollCost, describe_slowdown
+from ..poll_schedule import DEFAULT_SCHEDULE, MONITOR_PERIOD_SPEEDUP, PollScheduler, Schedule
 from ..session_manager import SessionManager
 from ._monitor_record import MonitorRecorder, _merge_history, _open_journal, _write_merged
 from ._monitor_render import (
@@ -82,6 +84,11 @@ __all__ = [
     "_write_merged",
     "query_ecu_error",
 ]
+
+
+def _answered(entry: ResultEntry) -> bool:
+    """A coherent reply: a payload, or a negative response (a prompt refusal)."""
+    return bool(entry.get("raw_hex")) or str(entry.get("error", "")).startswith("NRC")
 
 
 def _label_ecu(label: str) -> str:
@@ -142,6 +149,7 @@ class MonitorController:
         raw_client=None,
         include_static: bool = False,
         schedule: Schedule = DEFAULT_SCHEDULE,
+        backoff: bool = True,
     ):
         self.terminal = terminal
         self.raw_client = raw_client  # transport.RawUdsClient when using the raw backend
@@ -149,7 +157,12 @@ class MonitorController:
         self.query_steps = query_steps
         self.pids_data = pids_data
         self.verbose = verbose
-        self.schedule = PollScheduler(schedule, interval)
+        self.schedule = PollScheduler(schedule, interval, period_speedup=MONITOR_PERIOD_SPEEDUP)
+        # Slow-ECU backoff: an ECU that times out or answers very slowly holds up every
+        # other ECU's next poll, so it is polled less often until it recovers. Fed the
+        # per-ECU cost of each tick, which the poll backends leave in ecu_costs.
+        self.backoff = EcuBackoff(enabled=backoff)
+        self.ecu_costs: dict[str, PollCost] = {}
         self.keep_mode = keep_mode
         self.keep_n = keep_n
         self.save = save
@@ -665,6 +678,7 @@ class MonitorController:
         base = diag.snapshot() if diag is not None else None
         self._cycle_answered = False
         self.fresh_queries = []
+        self.ecu_costs = {}
         t0 = time.monotonic()
         self.schedule.begin_tick(t0)
         try:
@@ -681,10 +695,34 @@ class MonitorController:
             self.last_errors = delta.errors
             self.last_stale = delta.stale
         self._record(self.fresh_queries)
+        self._apply_backoff()
         self._check_liveness(
             {_label_ecu(label) for label, rows in self.fresh_queries if rows},
             {_label_ecu(label) for label, _rows in self.last_queries},
         )
+
+    def _apply_backoff(self) -> None:
+        """Slow down (or restore) each ECU this tick's costs say is holding up the poll."""
+        for ecu, cost in self.ecu_costs.items():
+            factor = self.backoff.observe(ecu, cost)
+            if factor is None:
+                continue
+            self.schedule.set_slowdown(ecu, factor)
+            if factor > 1:
+                detail = f"{ecu} is slow ({self.backoff.reason(ecu)}): polled {factor}x less often"
+            else:
+                detail = f"{ecu} answers promptly again: back to its normal poll rate"
+            log_event("config", detail, level=logging.INFO, transport=self.transport_type)
+
+    def ecu_notes(self) -> dict[str, str]:
+        """Header note per slowed-down ECU, keyed by its display label."""
+        notes: dict[str, str] = {}
+        for label, _rows in self.last_queries:
+            ecu = _label_ecu(label)
+            factor = self.schedule.slowdown(ecu)
+            if factor > 1:
+                notes[label] = describe_slowdown(factor, self.backoff.reason(ecu))
+        return notes
 
     def _check_liveness(self, polled: set[str], live: set[str]) -> None:
         """Escalate an all-stale run to a reconnect.
@@ -751,11 +789,18 @@ class MonitorController:
         last_render = 0.0
         for step in self.query_steps:
             full_codes: list[str] = []
+            due_on: list[str] = []
 
-            def _take_due(ecu: str, plan: list, codes: list[str] = full_codes) -> list:
+            def _take_due(
+                ecu: str, plan: list, codes: list[str] = full_codes, due_on: list[str] = due_on
+            ) -> list:
                 codes.extend(entry[0] for entry in plan)
-                return self.schedule.take_due(ecu, plan)
+                due = self.schedule.take_due(ecu, plan)
+                if due:
+                    due_on.append(ecu)
+                return due
 
+            step_t0 = _t.monotonic()
             try:
                 result = await _exec_query(
                     self.sm,
@@ -773,6 +818,14 @@ class MonitorController:
             except ConnectionError:
                 self.disconnected = True
                 return
+            if result is not None and due_on:
+                # The ELM327 pipe is serial: this step's wall time is exactly how long
+                # this ECU kept every other ECU waiting.
+                self.ecu_costs[due_on[0]] = PollCost(
+                    reads=len(result[1]),
+                    seconds=_t.monotonic() - step_t0,
+                    answered=sum(1 for e in result[1] if _answered(e)),
+                )
             if result is not None:
                 label, pids = result
                 # Keep a timed-out PID's last-good values (stale/dimmed) instead
@@ -880,6 +933,7 @@ class MonitorController:
             view_mode=self.view_mode,
             param_stats=self.param_stats,
             notation=self.notation,
+            ecu_notes=self.ecu_notes(),
         )
 
     def cycle_view(self) -> str:

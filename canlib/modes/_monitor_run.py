@@ -122,6 +122,7 @@ async def mode_monitor(
     transport_type: str | None = None,
     reconnect: Reconnector | None = None,
     schedule: Schedule = DEFAULT_SCHEDULE,
+    backoff: bool = True,
 ):
     """Live-refresh ECU parameter monitor.
 
@@ -139,7 +140,10 @@ async def mode_monitor(
                         period of any PID without a ``period:`` on the per-PID
                         one (default: 5.0).
         schedule:       ``"dynamic"`` (default) polls each PID at its own profile
-                        ``period:``; ``"fixed"`` polls every PID every cycle.
+                        ``period:`` (twice as often, see MONITOR_PERIOD_SPEEDUP);
+                        ``"fixed"`` polls every PID every cycle.
+        backoff:        Poll an ECU that times out or answers very slowly less
+                        often, so it stops holding up the rest (canlib.poll_backoff).
         session_steps:  Optional list of session/skm-wake steps to run once before
                         the first poll cycle.
         keep_mode:      None = no history, "all" = every poll (the CLI default),
@@ -180,6 +184,7 @@ async def mode_monitor(
         raw_client=raw_client,
         include_static=include_static,
         schedule=schedule,
+        backoff=backoff,
     )
     controller.captures_dir = captures_dir
     # Seed the header's segment metadata from the initial --label/--state/--notes.
