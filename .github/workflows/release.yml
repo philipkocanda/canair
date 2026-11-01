@@ -90,7 +90,7 @@ jobs:
       - name: Commit to the release PR
         if: steps.pr.outputs.branch != ''
         run: |
-          git add -A -- 'profiles/*/out'
+          git add -A -- 'profiles/*/out/*'
           if git diff --cached --quiet; then
             echo "AutoPID profiles already current."
             exit 0
