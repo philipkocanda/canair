@@ -36,6 +36,18 @@ from canlib.captures import merge as captures_merge
 DRIVER_NAME = "canair-captures"
 
 
+def _load_base(path: Path) -> capture_io.CaptureFile:
+    """The merge ancestor, or an empty document when git has none to give.
+
+    When both sides *add* the same dated file (the first recording of the day on two
+    machines) there is no common ancestor and git passes an empty ``%O`` file. That
+    is no history, not unreadable input: the merge reduces to a union of the two sides.
+    """
+    if not path.read_text().strip():
+        return {"sessions": []}
+    return capture_io.load_capture_file(path)
+
+
 def _run_driver(base: str, ours: str, theirs: str, path: str | None = None) -> int:
     """Perform the union merge git asked for. Returns a git-style exit code.
 
@@ -47,7 +59,7 @@ def _run_driver(base: str, ours: str, theirs: str, path: str | None = None) -> i
     label = path or ours
     ours_path = Path(ours)
     try:
-        base_doc = capture_io.load_capture_file(Path(base))
+        base_doc = _load_base(Path(base))
         ours_doc = capture_io.load_capture_file(ours_path)
         theirs_doc = capture_io.load_capture_file(Path(theirs))
     except (OSError, ValueError) as exc:  # ValueError: bad JSON or a bad repeat encoding

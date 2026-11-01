@@ -192,6 +192,20 @@ class TestDriverCommand:
         self._write(theirs, _doc())
         assert merge_driver._run_driver(str(base), str(ours), str(theirs)) != 0
 
+    @pytest.mark.parametrize("empty", ["", "\n"])
+    def test_run_driver_empty_base_unions_both_sides(self, tmp_path, empty):
+        # Both sides added the file: git hands the driver an empty ancestor.
+        base = tmp_path / "base.json"
+        ours = tmp_path / "ours.json"
+        theirs = tmp_path / "theirs.json"
+        base.write_text(empty)
+        self._write(ours, _doc(_session("ours", "12:00:00")))
+        self._write(theirs, _doc(_session("theirs", "11:00:00")))
+
+        assert merge_driver._run_driver(str(base), str(ours), str(theirs)) == 0
+        result = json.loads(ours.read_text())
+        assert [s["label"] for s in result["sessions"]] == ["theirs", "ours"]
+
     def test_output_is_byte_identical_to_save_format(self, tmp_path):
         # Merged file must be indistinguishable from a normally-written one.
         base = tmp_path / "base.json"
@@ -285,6 +299,35 @@ class TestGitMergeIntegration:
 
         result = json.loads((repo / rel).read_text())
         assert [s["label"] for s in result["sessions"]] == ["shared", "b", "a"]
+
+    def test_both_add_the_same_file_merges_cleanly(self, git_repo):
+        # Add/add: neither branch has the file in the merge base, so git gives the
+        # driver an empty ancestor.
+        repo = git_repo
+        rel = "profiles/p/captures/2026-07-28.json"
+        (repo / ".gitattributes").write_text("profiles/*/captures/*.json merge=canair-captures\n")
+        _git(repo, "add", ".gitattributes")
+        _git(repo, "commit", "-qm", "base")
+        base_branch = "main" if _has_branch(repo, "main") else "master"
+
+        _git(repo, "checkout", "-qb", "machine-a")
+        self._commit_file(repo, rel, _doc(_session("a", "12:00:00")))
+        _git(repo, "commit", "-qm", "machine a")
+        _git(repo, "checkout", "-q", base_branch)
+        _git(repo, "checkout", "-qb", "machine-b")
+        self._commit_file(repo, rel, _doc(_session("b", "11:00:00")))
+        _git(repo, "commit", "-qm", "machine b")
+
+        self._register_driver(repo)
+        merge = subprocess.run(
+            ["git", "merge", "machine-a", "-m", "merge"],
+            cwd=repo,
+            capture_output=True,
+            text=True,
+        )
+        assert merge.returncode == 0, merge.stderr + merge.stdout
+        result = json.loads((repo / rel).read_text())
+        assert [s["label"] for s in result["sessions"]] == ["b", "a"]
 
     def test_without_driver_conflicts(self, git_repo):
         # Sanity: prove the conflict is real when the driver is NOT registered
