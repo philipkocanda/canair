@@ -360,6 +360,7 @@ FUNCTIONAL_READS: Final = (
     ("1Axx", "KWP2000 ReadEcuIdentification"),
     ("1902xx", "ReadDTCInformation, reportDTCByStatusMask"),
     ("1800FF00", "KWP2000 ReadDiagnosticTroubleCodesByStatus, all groups"),
+    ("01xx", "OBD-II mode 01 current data, one PID"),
 )
 
 

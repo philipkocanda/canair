@@ -100,9 +100,9 @@ examples:
 functional requests:
   A functional frame reaches every ECU the gateway routes it to at once, so only
   these reads may be sent, with or without --unsafe: 3E00, 22xxxx (one DID), 1Axx,
-  1902xx, 1800FF00. On Hyundai/Kia any functional frame also tells in-car testers
-  to stop sending diagnostic requests of their own (ES95486): it changes what the
-  car does, not only what canair sees.
+  1902xx, 1800FF00, 01xx (one OBD-II mode 01 PID). On Hyundai/Kia any functional
+  frame also tells in-car testers to stop sending diagnostic requests of their own
+  (ES95486): it changes what the car does, not only what canair sees.
   slcan-tcp is the complete view; an ELM327 transport (wican-ws, elm327-tcp) is
   best-effort, most of all for multi-frame replies.
 ```

@@ -74,8 +74,9 @@ the physical sweep.
 
 - **Allowed requests:** a functional frame reaches every ECU at once, so only these reads can be
   sent with `--request`, and `--unsafe` does not widen the list: `3E00`, `22xxxx` (one DID),
-  `1Axx`, `1902xx`, `1800FF00`. Session control, resets, DTC clears and anything that writes or
-  actuates are refused.
+  `1Axx`, `1902xx`, `1800FF00`, `01xx` (one OBD-II mode 01 PID, the request a generic scan tool
+  broadcasts). Session control, resets, DTC clears and anything that writes or actuates are
+  refused.
 - **Not every ECU answers everything:** UDS ECUs stay silent for a request they do not support,
   while KWP2000-style ECUs often answer with an NRC. Try a second request such as `--request
   22F18C` (serial number) or `--request 190208` (DTCs) before concluding a bus is unreachable.

@@ -36,7 +36,9 @@ from ._fakes import FakeTerminal, QueuedChannel
 
 
 class TestAllowList:
-    @pytest.mark.parametrize("req", ["3E00", "22F18C", "1A87", "190208", "1800FF00", "3e 00"])
+    @pytest.mark.parametrize(
+        "req", ["3E00", "22F18C", "1A87", "190208", "1800FF00", "3e 00", "0100", "010D"]
+    )
     def test_reads_are_allowed(self, req):
         assert check_functional_request(req) is None
 
@@ -58,7 +60,11 @@ class TestAllowList:
             "22F18CF18D",  # more than one DID
             "1901FF",  # a different ReadDTCInformation sub-function
             "2101",
-            "0100",
+            "04",  # OBD-II clear emission DTCs
+            "01",  # mode 01 with no PID
+            "010C0D",  # several mode 01 PIDs in one request
+            "0902",  # mode 09 is not on the list
+            "0800",  # OBD-II control of an on-board system
             "ZZ",
         ],
     )
@@ -68,6 +74,20 @@ class TestAllowList:
     def test_unsafe_does_not_widen_it(self):
         args = _discover_args(functional=True, request="1003", unsafe=True)
         assert "may not be sent functionally" in discover_cmd.functional_args_error(args)
+
+    def test_help_and_docs_list_every_allowed_shape(self):
+        import argparse
+        from pathlib import Path
+
+        from canlib.safety import FUNCTIONAL_READS
+
+        parser = discover_cmd.add_parser(argparse.ArgumentParser().add_subparsers())
+        epilog = " ".join((parser.epilog or "").split())
+        doc = Path(__file__).parents[1] / "docs/bring-your-own-car/02-discover-ecus.md"
+        text = " ".join(doc.read_text().split())
+        for shape, _ in FUNCTIONAL_READS:
+            assert shape in epilog, shape
+            assert f"`{shape}`" in text, shape
 
     @pytest.mark.asyncio
     async def test_the_terminal_refuses_too(self):
