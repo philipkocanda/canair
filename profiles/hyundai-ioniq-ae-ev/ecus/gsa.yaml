@@ -18,7 +18,6 @@ GSA:
       date: 2026-07-22
       hits: 0
       vehicle_states: [READY]
-      notes: "Service 21 01-0F also all NRC."
   pids:
     220100:
       response_frames: 4
@@ -26,5 +25,5 @@ GSA:
       period: 5000
       vehicle_states: [ACC, "ON", READY]
       notes: >-
-        21 bytes; the only DID GSA answers (service 21 and 22 0101-0130 all NRC). B19, B21 and B22
+        21 bytes; the only DID GSA answers (22 0101-0130 all NRC). B19, B21 and B22
         read either 0x93/0x91/0x94 or 0x77/0x76/0x78, both seen in Park; B20 is constant 0x01.

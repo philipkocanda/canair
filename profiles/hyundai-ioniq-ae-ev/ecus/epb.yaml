@@ -21,7 +21,7 @@ EPB:
       date: 2026-07-22
       hits: "C101"
       vehicle_states: [READY]
-      notes: "Only C101 (27 B) answers; every other DID in these ranges, and service 21, NRC."
+      notes: "Only C101 (27 B) answers; every other DID in these ranges NRC."
   pids:
     22C101:
       response_frames: 4

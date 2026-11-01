@@ -1,6 +1,6 @@
 # ─── Unknown-746 ─────────────────────────────────────────────────────
 # Service probe (2026-04-19): 1A, 20 and 21 (only 21F2) answer; 27, 28, 31 and 3E return
-# conditionsNotCorrect; 10 returns NRC 0x12 and 22 NRC 0x11.
+# conditionsNotCorrect; 10 returns NRC 0x12.
 # KWP2000 identity: 10 of 32 IDs in 1A80-1A9F respond. Those not under identity: (1A80, 1A8A,
 # 1A8B, 1A91, 1A98, 1A99) read FFFFFFFF.
 Unknown-746:

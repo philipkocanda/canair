@@ -241,17 +241,6 @@ OBC:
         - "Kia Soul EV LDC CSV (0x7C5 2101) + OBC CSV (0x794 2102)"
         - "Kia Niro PR#660"
     - type: scan
-      target: "22 E001-E011"
-      status: done
-      priority: P2
-      vehicle_states: [CHARGING]
-      date: "2026-04-19"
-      notes: >-
-        All 17 DIDs return NRC 0x12 in the default and extended session; 10 03 is also refused with
-        NRC 0x12.
-      sources:
-        - "OBDb Ioniq 5"
-    - type: scan
       target: 21 00-FF
       status: done
       priority: P3
@@ -274,8 +263,7 @@ OBC:
         VCU_AUX_POWER's unverified status.
       notes: >-
         Also absent from VCU 2101/2102, MCU 2102 (motor phase currents) and Unknown-746 21F2. No
-        hidden service-21 page on OBC or VCU; service 22 is refused. VCU 21F2 has no charging
-        capture yet. The Soul's standalone LDC (0x7C5) DC_Current_Out has no counterpart here.
+        hidden service-21 page on OBC or VCU. VCU 21F2 has no charging capture yet. The Soul's standalone LDC (0x7C5) DC_Current_Out has no counterpart here.
       what_to_test:
         - "12 V-only load step at READY (rear defroster, high beams, blower; A/C off) co-polling OBC:2101, VCU:2102, VCU:21F2 and BMS:2101 with --keep-all: pack BATTERY_CURRENT is then the LDC input alone, a cross-check on VCU_AUX_POWER / LDC_OUTPUT_V. The 2026-07-30 step also ran the A/C compressor."
         - "Capture VCU 21F2 with --keep-all while charging, to contrast its analog bytes against READY."
@@ -311,20 +299,6 @@ OBC:
         canair monitor OBC:2101 BMS:2101 --save --keep-all --interval 1 --label 'OBC B20:B21 pilot'
         --state PLUGGED; plug in, let it charge 2 min, stop from the EVSE, unplug. Press s at each
         step.
-    - type: scan
-      target: 22 E101
-      status: pending
-      priority: P3
-      vehicle_states: [READY, CHARGING]
-      created: "2026-10-27"
-      updated: "2026-10-27"
-      notes: >-
-        OBDb defines 7E5 22 E101 and 22 E011 as the 12 V battery sensor: current (bix 144,
-        raw/100-327), SoC (bix 160), voltage (bix 168, raw/1000+6), temperature (bix 184, raw/2-40),
-        matching BAT11 on P-CAN (0x549). E001-E011 are refused on this car; E101 is unprobed.
-      sources:
-        - OBDb Hyundai-IONIQ-Electric signalset (pelican.clutch.engineering ioniq-electric parameters), compared 2026-10-27
-      capture_protocol: canair scan OBC --service 22 --range E100-E10F --save
     - type: decode
       target: broadcast 0x562 (OBC AC charge current / charge-limit command)
       status: pending

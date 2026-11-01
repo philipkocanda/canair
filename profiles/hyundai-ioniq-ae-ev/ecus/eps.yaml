@@ -151,19 +151,6 @@ EPS:
         Verify EPS_SPEED_BAND (B15): discrete 0-3, steps 0 to 1 at about 26-27 km/h with hysteresis.
         Hold 15/25/35/50/70/90 km/h to find the thresholds and check whether steering effort changes
         at each edge.
-    - type: scan
-      target: 21 01
-      status: pending
-      priority: P3
-      vehicle_states: [READY]
-      created: "2026-10-27"
-      updated: "2026-10-27"
-      notes: >-
-        OBDb defines 7D4 21 01 with a steering wheel angle (bix 72, signed, /10 deg) and lists it
-        unsupported for 2017 and 2018. Service 21 has never been probed on EPS.
-      sources:
-        - OBDb Hyundai-IONIQ-Electric signalset (pelican.clutch.engineering ioniq-electric parameters), compared 2026-10-27
-      capture_protocol: canair read EPS:2101 --save while steering lock to lock, parked in READY
   dtcs:
     C1290:
       description: Torque sensor signal error

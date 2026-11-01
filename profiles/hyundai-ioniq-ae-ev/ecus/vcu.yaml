@@ -520,27 +520,6 @@ VCU:
       sources:
         - "Kia Soul EV VMCU CSV — drive-mode/state bits"
     - type: scan
-      target: "22 E001-E010"
-      status: done
-      priority: P1
-      vehicle_states: [ACC]
-      notes: >-
-        The Ioniq 5 (OBDb) exposes drive mode, regen level and other drive data at 22 E001-E010.
-
-      date: "2026-07-22"
-      result: >-
-        All 16 DIDs E001-E010 answer NRC 0x12 with the ignition on (2026-07-22): service 22 E0xx is
-        not implemented on this KWP2000 VCU.
-      sources:
-        - "OBDb Ioniq 5"
-      updated: "2026-07-23"
-    - type: scan
-      target: "0x7E1 22 0101-0105"
-      status: nrc
-      priority: P3
-      vehicle_states: [ACC]
-      notes: 0x7E1 answers 22 0101-0105 with a negative response.
-    - type: scan
       target: 21 00-FF
       status: done
       priority: P2
@@ -661,15 +640,11 @@ VCU:
         The VCU reads the 12 V battery sensor and transmits it as P-CAN 0x549 (opendbc BAT11:
         current, SoC, voltage, temperature, SoH): uhi22 traced 0x549 to the VCU transceiver, and his
         EPCU on the bench sends BAT11 defaults with BAT_SNSR_Error = 1. OBDb reads the same
-        quantities at 7E5 22 E011 and 22 E101 on newer cars. Negative on this car: no slow 0-100 or
-        near-constant 60-100 byte in any captured PID; the older 27-byte VCU 2102 reply has zeros
-        where the e-Niro puts current and SoC; VCU 22 E001-E010 and OBC 22 E001-E011 are refused.
-        Open: OBC 22 E101, an unread VCU service-22 page, and whether the OBD port sees 0x549.
+        quantities over UDS on newer cars. Negative on this car: no slow 0-100 or near-constant
+        60-100 byte in any captured PID; the older 27-byte VCU 2102 reply has zeros where the e-Niro
+        puts current and SoC. Open: whether the OBD port sees 0x549.
       sources:
         - opendbc hyundai_2015_ccan.dbc (commaai, MIT), cross-checked against uhi22 Ioniq28Investigations P-CAN logs (scripts/fetch_can_corpus.py)
-      what_to_test:
-        - OBC 22 E101
-        - A VCU service-22 page not yet read, for slow 0-100 (SoC) or near-constant 60-100 (SoH) bytes
     - type: decode
       target: 21F2 remaining previous-cycle fields
       status: captured

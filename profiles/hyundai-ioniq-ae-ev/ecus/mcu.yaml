@@ -433,24 +433,6 @@ MCU:
         - "OBDb Ioniq 5 MCU 22E001"
       updated: "2026-08-08"
     - type: scan
-      target: "22 E001-E010"
-      status: done
-      priority: P1
-      vehicle_states: [ACC]
-      date: "2026-07-22"
-      notes: The Ioniq 5 MCU exposes live data on 22 E001 and E009 (OBDb).
-      result: >-
-        All 16 DIDs NRC 0x12 with ignition on (2026-07-22): this KWP2000 MCU does not implement 22
-        E0xx.
-      sources:
-        - "OBDb Ioniq 5"
-      updated: "2026-07-23"
-    - type: iocontrol_scan
-      target: "2F E000-E0FF"
-      status: pending
-      priority: P2
-      vehicle_states: [ACC]
-    - type: scan
       target: 21 00-FF
       status: done
       priority: P2

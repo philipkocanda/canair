@@ -1133,12 +1133,6 @@ BMS:
           min: "-40"
           max: "120"
   research:
-    - type: iocontrol_scan
-      target: "2F BC00-BCFF"
-      status: pending
-      priority: P2
-      vehicle_states: [ACC]
-      notes: "UDS 0x2F body/comfort-range DIDs. Cross-check only: the BMS speaks KWP2000."
     - type: scan
       target: 33 00-FF
       status: done
@@ -1147,7 +1141,7 @@ BMS:
       date: "2026-07-22"
       result: NRC 0x11 serviceNotSupported (default session)
       notes: >-
-        In the default session 0x33 and 0x30 both return NRC 0x11, and UDS 10 03 returns NRC 0x12.
+        In the default session 0x33 and 0x30 both return NRC 0x11.
       sources:
         - on-car 2026-07-22 (raw 7E4:300000 --session; canair scan routines BMS)
       updated: "2026-07-23"
@@ -1205,24 +1199,6 @@ BMS:
       what_to_test:
         - "Temperature-band thresholds: capture a cycle whose battery temperature crosses 20 and 25 °C"
         - Read BMS 21F2 right after a short drive with a known distance and peak current to place B42 and B122
-    - type: scan
-      target: 22 0101-0114, E001, E002, E00A
-      status: pending
-      priority: P3
-      vehicle_states: [READY]
-      created: "2026-10-27"
-      updated: "2026-10-27"
-      notes: >-
-        Never probed on this car. OBDb defines 7E4 service-22 DIDs 0101-0106, 010A-010C, 0111 and
-        0114 (cell voltages, temperatures, BMS state, fan duty) and lists most as unsupported for
-        2017-2018, but the same list calls VCU 2101 unsupported, which answers on this car.
-        E003-E005 already return NRC.
-      sources:
-        - OBDb Hyundai-IONIQ-Electric signalset (pelican.clutch.engineering ioniq-electric parameters), compared 2026-10-27
-      what_to_test:
-        - Do any 22 01xx DIDs answer? If yes, register with add-pid and compare against the 21xx pages
-      capture_protocol: >-
-        canair scan BMS --service 22 --range 0100-0114 --save, then E001-E002 and E00A, in READY
     - type: decode
       target: 2105 B29 airbag hard-wire duty
       status: done

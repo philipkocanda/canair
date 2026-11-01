@@ -8,8 +8,8 @@ MFC:
     boot_sw: "AEE MFC AT EUR LHD 1.00 1.00 95740-G2200 161014"
     id_protocol: UDS  # F1xx (only 1 DID: F100)
     notes: >-
-      Multi-Function Camera (ADAS / LKAS: lane detection, speed-sign recognition). UDS only: service
-      21 00-20 all NRC (2026-07-22). Live data on 220100/0101/0102.
+      Multi-Function Camera (ADAS / LKAS: lane detection, speed-sign recognition). Live data on
+      220100/0101/0102.
   vehicle_states: [ACC, "ON", READY]
   multi_did: true
   scan_log: # MFC (ADAS camera)

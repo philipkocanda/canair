@@ -49,17 +49,6 @@ AVN:
   pids: {}
 
   research:
-    - type: scan
-      target: 21 00-FF
-      status: pending
-      priority: P2
-      vehicle_states: [ACC]
-      created: "2026-07-28"
-      updated: "2026-07-28"
-      notes: >-
-        Never swept for service 21. The driver sets the charge timer and preconditioning schedules
-        on this unit. Sweep 21 00-FF (especially 21F2); if a page answers, capture it, change one
-        schedule field and diff.
     - type: verify
       target: "IG3 relay #2 control output"
       status: pending
