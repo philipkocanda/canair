@@ -48,10 +48,6 @@ class TestTypedFields:
         p = _write(tmp_path, self._base("multi_did_batching: 1\n"))
         assert any("multi_did_batching" in e for e in validate_meta(p, REQUIRED))
 
-    def test_failure_types_must_be_mapping(self, tmp_path):
-        p = _write(tmp_path, self._base("failure_types: [1, 2]\n"))
-        assert any("failure_types" in e for e in validate_meta(p, REQUIRED))
-
     def test_init_must_be_string(self, tmp_path):
         p = _write(tmp_path, 'car_model: "C"\ninit: 6\n')
         assert any("'init'" in e for e in validate_meta(p, REQUIRED))
@@ -213,3 +209,11 @@ class TestProfileWideDtcs:
     def test_must_be_a_mapping(self, tmp_path):
         errors, _ = self._findings(tmp_path, "  - U1100\n")
         assert errors == ["profile.yaml: 'dtcs' must be a dict"]
+
+    def test_failure_types_is_retired(self, tmp_path):
+        from canlib.commands.validate.pids import profile_dtc_findings
+
+        p = _write(tmp_path, 'car_model: "C"\ninit: "ATSP6;"\nfailure_types: {0xF3: x}\n')
+        errors, warnings = profile_dtc_findings(p, self.FIELDS)
+        assert errors == []
+        assert any("'failure_types' is no longer read" in w for w in warnings)

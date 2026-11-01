@@ -143,9 +143,9 @@ canair layers a code's meaning from these sources, most specific first:
 3. **A small bundled generic (ISO/SAE) table** — a handful of well-known codes
    (`P0300`, `P0420`, `U0100`, …).
 
-The failure-type byte (the `-XX` suffix) is named from the profile-wide
-`failure_types:` (`profile.yaml`) for the manufacturer-specific values
-(`0xF0`–`0xFF`) the standard table leaves open.
+The failure-type byte (the `-XX` suffix) is named from the standard SAE J2012 /
+ISO 14229-1 table, which manufacturers such as Hyundai/Kia adopt unchanged; a
+manufacturer-specific value (`0xF0`–`0xFF`) is shown by its number.
 
 Manufacturer meanings are **never invented** — an unknown manufacturer code shows
 its structure only. To teach canair a code's meaning, add it to the ECU's `dtcs:`

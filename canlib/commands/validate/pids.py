@@ -1124,15 +1124,24 @@ def _check_dtc_section(dtcs, label: str, dtcs_fields, errors, warnings) -> int:
 
 
 def profile_dtc_findings(path: Path, dtcs_fields) -> tuple[list[str], list[str]]:
-    """Errors and warnings for the profile-wide ``dtcs:`` in ``profile.yaml``."""
+    """Errors and warnings for the DTC settings in ``profile.yaml``: the profile-wide
+    ``dtcs:``, and the retired ``failure_types:``."""
     errors: list[str] = []
     warnings: list[str] = []
     try:
         data = yaml_io.safe_load(path.read_text())
     except yaml.YAMLError:
         return errors, warnings  # validate_meta reports the parse error
-    if isinstance(data, dict) and data.get("dtcs") is not None:
+    if not isinstance(data, dict):
+        return errors, warnings
+    if data.get("dtcs") is not None:
         _check_dtc_section(data["dtcs"], "profile.yaml/dtcs", dtcs_fields, errors, warnings)
+    if "failure_types" in data:
+        warnings.append(
+            "profile.yaml: 'failure_types' is no longer read — the failure-type byte is named "
+            "from the standard table, and a manufacturer-specific one (0xF0-0xFF) is shown by "
+            "value; remove it"
+        )
     return errors, warnings
 
 
@@ -1279,9 +1288,6 @@ def validate_meta(path: Path, required_fields: set[str]) -> list[str]:
         not _is_int(data["multi_did_max"]) or data["multi_did_max"] < 1
     ):
         errors.append("profile.yaml: 'multi_did_max' must be a positive integer")
-
-    if "failure_types" in data and not isinstance(data["failure_types"], dict):
-        errors.append("profile.yaml: 'failure_types' must be a mapping of {byte: meaning}")
 
     if "isotp" in data:
         errors.extend(_validate_isotp(data["isotp"], set(ISOTP_FIELDS), _is_int))

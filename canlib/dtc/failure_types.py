@@ -3,8 +3,8 @@
 The third byte of a UDS DTC: the high nibble is the failure category, the low nibble the
 subtype. The table is the one in SAE J2012-DA / ISO 15031-6, which ISO 14229-1 Annex D
 and Hyundai/Kia's ES95486 adopt unchanged. Reserved values are left out, so a lookup miss
-means "reserved or manufacturer-specific" (category ``F``, ``0xF0``-``0xFF``); a profile
-names those in its ``failure_types:``.
+means "reserved or manufacturer-specific" (category ``F``, ``0xF0``-``0xFF``), shown by
+value.
 """
 
 from __future__ import annotations

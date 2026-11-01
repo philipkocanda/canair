@@ -65,21 +65,21 @@ def describe_dtc(code: str, defs: dict | None = None, *, ecu: str | None = None)
     no failure type). Reports the standardized structural interpretation
     (category, generic-vs-manufacturer, failure-type byte) and layers on any
     known *meaning*: the profile's definitions first (the reporting ECU's
-    ``dtcs:`` section, then the profile-wide ``dtcs:`` in ``profile.yaml``, plus
-    the profile-wide ``failure_types:``), then the small bundled generic (ISO/SAE)
-    table. Manufacturer meanings are never invented — they come only from those
+    ``dtcs:`` section, then the profile-wide ``dtcs:`` in ``profile.yaml``), then
+    the small bundled generic (ISO/SAE) table. The failure-type byte is named from
+    the standard table; a manufacturer-specific one (``0xF0``-``0xFF``) is shown
+    by value. Manufacturer meanings are never invented — they come only from those
     curated sources.
 
     A manufacturer code means what the ECU that reported it says it means — two
     units can give one code different meanings — so pass ``ecu`` (the ECU's
     name). ``defs`` is an already-resolved definitions mapping
-    (``{"dtcs":…, "failure_types":…}``); it defaults to :func:`profile_dtc_defs`
+    (``{"dtcs":…}``); it defaults to :func:`profile_dtc_defs`
     for ``ecu`` (pass ``{}`` for none).
     """
     if defs is None:
         defs = profile_dtc_defs(ecu)
     profile_dtcs = defs.get("dtcs", {})
-    profile_ftb = defs.get("failure_types", {})
 
     code = (code or "").strip().upper()
     base, _, ftb_hex = code.partition("-")
@@ -98,10 +98,7 @@ def describe_dtc(code: str, defs: dict | None = None, *, ecu: str | None = None)
         first_digit = None
     kind = dtc_kind(letter, first_digit)
 
-    # Failure-type meaning: the standard table, then the profile's manufacturer-specific additions.
-    ftb_desc = None
-    if ftb is not None:
-        ftb_desc = FAILURE_TYPE.get(ftb) or profile_ftb.get(ftb)
+    ftb_desc = FAILURE_TYPE.get(ftb) if ftb is not None else None
 
     # Code meaning: profile definition first, then the bundled generic table.
     description = _description(profile_dtcs.get(base)) or GENERIC_DTCS.get(base)
@@ -131,18 +128,17 @@ def profile_dtc_defs(ecu: str | None = None) -> dict:
     borrowed. With no ECU, a code is described only when every meaning it can have —
     each ECU's entry, and the profile-wide one — agrees: otherwise the answer would
     depend on which unit reported it.
-    ``failure_types`` comes from the profile-wide ``profile.yaml``.
     """
     index = _profile_dtc_index()
     if not index:
         return {}
-    shared, by_ecu, ftb = index
+    shared, by_ecu = index
     if ecu is not None:
         own = next((d for name, d in by_ecu.items() if name.upper() == ecu.upper()), {})
         dtcs = {**shared, **own}
     else:
         dtcs = _agreed([shared, *by_ecu.values()])
-    return {"dtcs": dtcs, "failure_types": ftb}
+    return {"dtcs": dtcs}
 
 
 def _description(entry: object) -> str | None:
@@ -167,7 +163,7 @@ def _agreed(sections: list[dict[str, object]]) -> dict[str, object]:
     return out
 
 
-_DtcIndex = tuple[dict[str, object], dict[str, dict[str, object]], dict[int, str]]
+_DtcIndex = tuple[dict[str, object], dict[str, dict[str, object]]]
 _index_cache: tuple[object, _DtcIndex] | None = None
 
 
@@ -177,7 +173,7 @@ def _codes(dtcs: object) -> dict[str, object]:
 
 
 def _profile_dtc_index() -> _DtcIndex | None:
-    """``(profile-wide {code: entry}, {ECU: {code: entry}}, {failure_type_byte: text})``."""
+    """``(profile-wide {code: entry}, {ECU: {code: entry}})`` for the active profile."""
     global _index_cache
     try:
         from canlib.pids import load_pids
@@ -196,20 +192,12 @@ def _profile_dtc_index() -> _DtcIndex | None:
         if dtcs:
             by_ecu[str(name)] = dtcs
 
-    ftb: dict[int, str] = {}
-    for key, val in (data.get("failure_types") or {}).items():
-        try:
-            byte = key if isinstance(key, int) else int(str(key), 16)
-        except (TypeError, ValueError):
-            continue
-        ftb[byte] = val
-
     # The profile-wide section comes straight from profile.yaml, so its fields stated
     # once (source, verified, ...) are resolved here; the loader did the ECUs' already.
     from canlib.dtc.definitions import effective_entries
 
     raw_shared = data.get("dtcs")
     shared = _codes(effective_entries(raw_shared)) if isinstance(raw_shared, dict) else {}
-    index: _DtcIndex = (shared, by_ecu, ftb)
+    index: _DtcIndex = (shared, by_ecu)
     _index_cache = (data, index)
     return index

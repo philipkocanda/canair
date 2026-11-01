@@ -64,4 +64,4 @@ physical_bands:
   hv_pack: [240, 410]   # HV traction pack V (96S, ~360 V nominal)
 
 # DTC failure-type bytes follow the standard SAE J2012 table (ES95486 Annex D), which canair
-# already knows. Only manufacturer-specific values (0xF0-0xFF) would go under `failure_types:`.
+# already knows.

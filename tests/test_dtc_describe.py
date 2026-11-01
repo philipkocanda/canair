@@ -68,14 +68,13 @@ class TestDescribeDtc:
 
 
 class TestProfileDefinitions:
-    """Manufacturer meanings + failure-type bytes come from the profile's per-ECU dtcs: + failure_types:."""
+    """Manufacturer meanings come from the profile's dtcs:; failure-type bytes from the standard table."""
 
     DEFS: ClassVar = {
         "dtcs": {
             "C182C": {"description": "DC fast-charge (CCS) charging / PLC communication failure"},
             "B1285": {"description": "Direction Control Motor — AUTO Defog"},
         },
-        "failure_types": {0xF3: "manufacturer-specific symptom"},
     }
 
     def test_profile_description_used(self):
@@ -83,14 +82,13 @@ class TestProfileDefinitions:
         assert d["description"] == "DC fast-charge (CCS) charging / PLC communication failure"
         assert d["meaning"].startswith("DC fast-charge")
 
-    def test_profile_ftb_and_description_combined(self):
+    def test_a_manufacturer_ftb_is_shown_by_value(self):
         d = describe_dtc("B1285-F3", defs=self.DEFS)
         assert d["description"] == "Direction Control Motor — AUTO Defog"
         assert d["failure_type"] == "0xF3"
-        assert d["failure_type_desc"] == "manufacturer-specific symptom"
-        # meaning folds in both the code meaning and the FTB note.
-        assert "AUTO Defog" in d["meaning"]
-        assert "FTB 0xF3" in d["meaning"]
+        assert d["failure_type_desc"] is None
+        # meaning folds in both the code meaning and the FTB.
+        assert d["meaning"] == "Direction Control Motor — AUTO Defog · failure type 0xF3"
 
     def test_standard_ftb_needs_no_profile_entry(self):
         # Hyundai/Kia use the SAE J2012 table unchanged (ES95486 Annex D).

@@ -4,7 +4,7 @@ Each vehicle profile stores its ECU definitions as one YAML file per ECU under
 ``<profile>/ecus/``. Every file is the single source of truth for one ECU:
 identity, probe history (``scan_log``), DTC meanings (``dtcs``), and all
 readable/actuatable data (``pids``/``iocontrol``/``routines``). Profile-wide
-settings (``car_model``, ``init``, ``failure_types``, ...) live one level up in
+settings (``car_model``, ``init``, shared ``dtcs``, ...) live one level up in
 ``<profile>/profile.yaml``.
 """
 

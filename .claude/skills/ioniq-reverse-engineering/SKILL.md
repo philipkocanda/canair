@@ -140,7 +140,7 @@ capture (SKM research entry). SKM IOControl B108 to B10B are the ACC, IGN1, IGN2
 
 Vehicle data lives in a *profile* bundle: `ecus/` (one file per ECU — the
 **source of truth**, each carrying identity/scan_log/dtcs/pids), `profile.yaml`
-(car_model/init/failure_types), `captures/` (dated UDS payloads), `vehicle_states.yaml`
+(car_model/init/shared dtcs), `captures/` (dated UDS payloads), `vehicle_states.yaml`
 (canonical operating states + auto-suggest predicates), `references/` (reference
 data), and **generated** `out/` (never hand-edit — run `canair wican autopid write`). The repo ships
 `profiles/hyundai-ioniq-ae-ev/` as the default. Local (uncommitted) profiles live in
