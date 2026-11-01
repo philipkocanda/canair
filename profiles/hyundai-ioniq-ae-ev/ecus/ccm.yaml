@@ -324,6 +324,7 @@ CCM:
   # (0x14 per DTC). The application monitors C182B, C182C, B2211, C1829 and C1865 only while the
   # analogue input at 0x4000AAFC reads 900-1600; each of them also saves a 22C350 session log.
   dtcs:
+    verified: false
     C182C:
       description: >-
         CCS session failed: SLAC with the charger failed, a DIN 70121 stage timer or response
@@ -331,39 +332,32 @@ CCM:
       source: >-
         CCM firmware, Dem event 0x12: raised with CCM_STOP_REASON 4-9 and 11. Stored on this car
         after an owner-observed DC fast-charge abort.
-      verified: false
     C182B:
       description: >-
         PLC modem (QCA7005) not ready: its SPI signature and write-buffer checks failed for 3 s
       source: >-
         CCM firmware, Dem event 0x13. Not monitored once 0x57F OBC_PLUG_STATE has read 0 for 60 s.
-      verified: false
     B2211:
       description: "CAN frame 0x597 (BMS) not received (timeout)"
       source: >-
         CCM firmware, Dem event 0x36: set by the 0x597 receive-timeout notification, cleared when
         0x597 arrives again. Blocks a CCS session while set.
-      verified: false
     C1829:
       description: "CAN frame 0x57F (OBC) not received (timeout)"
       source: >-
         CCM firmware, Dem event 0x37: set by the 0x57F receive-timeout notification. Blocks a CCS
         session while set.
-      verified: false
     C1865:
       description: >-
         Vehicle CAN input fault: the 0x597 alive bit stopped toggling for 60 s, or a vehicle input
         a CCS stage waits for did not arrive in time
       source: >-
         CCM firmware, Dem event 0x38: raised by the 0x597 alive check and with CCM_STOP_REASON 10.
-      verified: false
     C160E:
       description: "Meaning unknown"
       source: >-
         CCM firmware, Dem event 0x11. Reported by the basic software; no call site in the CCM
         application code.
-      verified: false
-
   research:
     - type: scan
       target: read the firmware DIDs (F101-F103, BCFF, C350, CC01)

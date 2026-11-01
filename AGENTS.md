@@ -792,7 +792,10 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   `can_bus:` (flow list of `can_buses.yaml` codes), optional `wake:` (a per-ECU **wake ritual** for
   a fast-sleeping ECU — resolver `canlib/wake.py`), `scan_log:`, `dtcs:`, `pids:`, `iocontrol:`,
   optional `iocontrol_scan_ranges:`, `routines:`, `research:`. Identity-only modules (AMP/SRS) have
-  no `pids:`. A PID may also carry **`response_frames:`** — how many CAN frames its response
+  no `pids:`. A `dtcs:` section may state `source`/`source_links`/`verified` once, next to its
+  codes (`canlib/dtc/definitions.py`); the loader resolves them into each code like PID defaults,
+  so code that parses the YAML itself must split them off with `split_section`. A PID may also
+  carry **`response_frames:`** — how many CAN frames its response
   occupies, written back automatically once a session proves it (never hand-set; mutually exclusive
   with `variable_length:`, which is how a PID whose length legitimately changes says it has no
   count). A PID may also carry **`support_map:`** — where its constant leading support map sits

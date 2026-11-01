@@ -515,60 +515,36 @@ SKM:
       what_to_test:
         - Record SKM 22B006 with --keep-all through ACC and ON without READY, to see whether B14, B15 or B20 move.
   dtcs:
+    source: Ioniq Electric 2017 service manual, Smart Key Unit diagnosis (EV)
+    source_links:
+      - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Body%20%26%20Frame/Door%20Locks/Smart%20Key%20Unit%20Diagnosis%20%28EV%29/
+    verified: false
     B1602:
       description: CAN error
       causes: >-
         CAN high or low shorted to battery or ground, open, or shorted together; smart key unit
-      source: Ioniq Electric 2017 service manual, Smart Key Unit diagnosis (EV), DTC B1602-00
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Body%20%26%20Frame/Door%20Locks/Smart%20Key%20Unit%20Diagnosis%20%28EV%29/
-      verified: false
       notes: Over 0.3 s. History clears after 30 ignition cycles.
     B1603:
       description: CAN bus off
       causes: CAN high and low shorted together to battery or ground; smart key unit
-      source: Ioniq Electric 2017 service manual, Smart Key Unit diagnosis (EV), DTC B1603-00
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Body%20%26%20Frame/Door%20Locks/Smart%20Key%20Unit%20Diagnosis%20%28EV%29/
-      verified: false
       notes: Over 2 s. History clears after 30 ignition cycles.
     B16A8:
       description: Interior antenna 1 failure
       causes: antenna open circuit
-      source: Ioniq Electric 2017 service manual, Smart Key Unit diagnosis (EV), DTC B16A8-00
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Body%20%26%20Frame/Door%20Locks/Smart%20Key%20Unit%20Diagnosis%20%28EV%29/
-      verified: false
       notes: Ignition on, below 3 km/h. The manual says the code is only displayed, not stored.
     B16A9:
       description: Interior antenna 2 failure
       causes: antenna open circuit
-      source: Ioniq Electric 2017 service manual, Smart Key Unit diagnosis (EV), DTC B16A9-00
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Body%20%26%20Frame/Door%20Locks/Smart%20Key%20Unit%20Diagnosis%20%28EV%29/
-      verified: false
       notes: Ignition on, below 3 km/h. The manual says the code is only displayed, not stored.
     B16AA:
       description: Interior antenna 3 failure
       causes: antenna open circuit
-      source: Ioniq Electric 2017 service manual, Smart Key Unit diagnosis (EV), DTC B16AA-00
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Body%20%26%20Frame/Door%20Locks/Smart%20Key%20Unit%20Diagnosis%20%28EV%29/
-      verified: false
       notes: Ignition on, below 3 km/h. The manual says the code is only displayed, not stored.
     B16AC:
       description: Driver side door handle antenna failure
       causes: antenna open circuit
-      source: Ioniq Electric 2017 service manual, Smart Key Unit diagnosis (EV), DTC B16AC-00
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Body%20%26%20Frame/Door%20Locks/Smart%20Key%20Unit%20Diagnosis%20%28EV%29/
-      verified: false
       notes: Ignition on, below 3 km/h. The manual says the code is only displayed, not stored.
     B19AD:
       description: Passenger side door handle antenna failure
       causes: antenna open circuit
-      source: Ioniq Electric 2017 service manual, Smart Key Unit diagnosis (EV), DTC B19AD-00
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Body%20%26%20Frame/Door%20Locks/Smart%20Key%20Unit%20Diagnosis%20%28EV%29/
-      verified: false
       notes: Ignition on, below 3 km/h. The manual says the code is only displayed, not stored.

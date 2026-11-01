@@ -360,62 +360,42 @@ MCU:
   # OBD-II service 0A also lists P0A8B, P0AEF, P0C17 and U019B as permanent. Descriptions are the
   # SAE J2012 generic meanings; the bench had no motor, resolver, HV supply or BMS connected.
   dtcs:
+    source: SAE J2012; uhi22 EPCU bench DTC read
+    verified: false
     P0A0D:
       description: "High voltage system interlock circuit high"
-      source: "SAE J2012; uhi22 EPCU bench DTC read"
-      verified: false
     P0A2D:
       description: "Drive motor A temperature sensor circuit low"
-      source: "SAE J2012; uhi22 EPCU bench DTC read"
-      verified: false
     P0A41:
       description: "Drive motor A position sensor circuit low"
       source: "SAE J2012; uhi22 EPCU bench DTC read (resolver not connected)"
-      verified: false
     P0A8B:
       description: "14 volt power module system voltage"
-      source: "SAE J2012; uhi22 EPCU bench DTC read"
-      verified: false
     P0AEF:
       description: "Drive motor inverter temperature sensor A circuit low"
-      source: "SAE J2012; uhi22 EPCU bench DTC read"
-      verified: false
     P0BE6:
       description: "Drive motor A phase U current sensor circuit range/performance"
-      source: "SAE J2012; uhi22 EPCU bench DTC read"
-      verified: false
     P0BE7:
       description: "Drive motor A phase U current sensor circuit low"
-      source: "SAE J2012; uhi22 EPCU bench DTC read"
-      verified: false
     P0BEA:
       description: "Drive motor A phase V current sensor circuit range/performance"
-      source: "SAE J2012; uhi22 EPCU bench DTC read"
-      verified: false
     P0BEB:
       description: "Drive motor A phase V current sensor circuit low"
-      source: "SAE J2012; uhi22 EPCU bench DTC read"
-      verified: false
     P0CF1:
       description: "Meaning unknown"
       source: "uhi22 EPCU bench DTC read (status 0x20)"
-      verified: false
     P0C17:
       description: "Meaning unknown (reported as permanent by OBD-II service 0A)"
       source: "uhi22 EPCU bench OBD-II 0A read"
-      verified: false
     U0111:
       description: "Lost communication with battery energy control module A (BMS)"
       source: "SAE J2012; uhi22 EPCU bench DTC read (no BMS connected)"
-      verified: false
     U019B:
       description: "Network fault; meaning unknown"
       source: "uhi22 EPCU bench DTC read"
-      verified: false
     U1116:
       description: "Manufacturer-specific network fault; meaning unknown"
       source: "uhi22 EPCU bench DTC read"
-      verified: false
   research:
     - type: decode
       target: "2101"

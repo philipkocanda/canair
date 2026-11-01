@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any
 
 from canlib.addressing import resolve_mode, resolve_rx, resolve_rx_offset
+from canlib.dtc.definitions import split_section as split_dtc_section
 from canlib.ecus.files import iter_ecu_files
 from canlib.explorer.layout import layout_buses
 from canlib.pids import effective_param, pid_status
@@ -226,9 +227,10 @@ def _research_records(ecu_def: Mapping, file: str) -> list[dict[str, Any]]:
 
 def _dtc_records(ecu_def: Mapping, file: str) -> list[dict[str, Any]]:
     dtcs = _mapping(ecu_def.get("dtcs"))
+    _shared, entries = split_dtc_section(dtcs)
     return [
         {"code": str(code), **_pick(_mapping(d), ("description",)), "src": _src(file, dtcs, code)}
-        for code, d in dtcs.items()
+        for code, d in entries.items()
     ]
 
 

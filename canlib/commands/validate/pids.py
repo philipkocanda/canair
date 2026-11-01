@@ -10,6 +10,9 @@ from typing import Any
 import yaml
 
 from canlib import yaml_io
+from canlib.dtc.definitions import SECTION_FIELDS as DTC_SECTION_FIELDS
+from canlib.dtc.definitions import is_dtc_code
+from canlib.dtc.definitions import split_section as split_dtc_section
 from canlib.expression.decode_value import BYTE_RUN_TYPES as _BYTE_RUN_TYPES
 from canlib.expression.lint import firmware_grammar_problems, signed_low_bytes
 from canlib.pids import PID_STATUSES, effective_param, is_shipped, pid_status
@@ -1085,21 +1088,29 @@ def _validate_scan_log(ecu_def, path, ecu_name, scan_log_fields, errors, warning
 
 
 def _validate_dtcs(ecu_def, path, ecu_name, dtcs_fields, errors, warnings, stats) -> None:
-    """Validate the ECU's dtcs: map (manufacturer DTC meanings)."""
+    """Validate the ECU's dtcs: map (manufacturer DTC meanings, plus fields stated once)."""
     dtcs = ecu_def.get("dtcs")
     if dtcs is None:
         return
     if not isinstance(dtcs, dict):
         errors.append(f"{path.name}/{ecu_name}: 'dtcs' must be a dict")
         return
-    for code, entry in dtcs.items():
+    shared, entries = split_dtc_section(dtcs)
+    _validate_shared_fields(shared, f"{path.name}/{ecu_name}/dtcs", errors)
+    for code, entry in entries.items():
         label = f"{path.name}/{ecu_name}/dtcs/{code}"
+        if not is_dtc_code(code):
+            warnings.append(
+                f"{label}: not a DTC code (a letter and four hex digits, without the -FTB "
+                f"suffix) nor a field shared by every code ({', '.join(DTC_SECTION_FIELDS)})"
+            )
         if not isinstance(entry, dict):
             errors.append(f"{label}: entry must be a mapping")
             continue
         for field in entry:
             if field not in dtcs_fields:
                 warnings.append(f"{label}: unknown field '{field}'")
+        _validate_shared_fields(entry, label, errors)
         stats["dtcs"] += 1
 
 

@@ -478,26 +478,22 @@ VCU:
   # CAN/EPCU_torquePro_reading_error_memory_18DTCs_found.csv), status 0x44 each. Descriptions are
   # the SAE J2012 generic meanings; the U1xxx codes are manufacturer-specific.
   dtcs:
+    verified: false
     U0111:
       description: "Lost communication with battery energy control module A (BMS)"
       source: "SAE J2012; uhi22 EPCU bench DTC read (no BMS connected)"
-      verified: false
     U0146:
       description: "Lost communication with gateway A"
       source: "SAE J2012; uhi22 EPCU bench DTC read (no gateway connected)"
-      verified: false
     U0164:
       description: "Lost communication with HVAC control module"
       source: "SAE J2012; uhi22 EPCU bench DTC read (no HVAC unit connected)"
-      verified: false
     U1310:
       description: "Manufacturer-specific network fault; meaning unknown"
       source: "uhi22 EPCU bench DTC read"
-      verified: false
     U1112:
       description: "Manufacturer-specific network fault; possibly lost communication with the AVN"
       source: "uhi22 EPCU bench DTC read; owner observation on the 28 kWh Ioniq"
-      verified: false
       notes: >-
         Unconfirmed guess. Stored on the VCU in the 2026-11-01 full DTC scan, taken with the AVN
         fuse pulled to avoid draining the 12 V battery. The 2026-07-22 full scans (the first after
@@ -509,8 +505,6 @@ VCU:
     U1017:
       description: "Manufacturer-specific network fault; meaning unknown"
       source: "uhi22 EPCU bench DTC read"
-      verified: false
-
   research:
     - type: verify
       target: "2101"

@@ -142,6 +142,26 @@ Manufacturer meanings are **never invented** — an unknown manufacturer code sh
 its structure only. To teach canair a code's meaning, add it to the ECU's `dtcs:`
 section (this is authored data — edit it through the profile, not by guessing).
 
+Where every code in a section comes from the same place, state `source`,
+`source_links` and `verified` once, directly under `dtcs:`. A code that sets one of
+them itself keeps its own value:
+
+```yaml
+dtcs:
+  source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV)
+  source_links:
+    - https://example.com/esp-ahb-diagnosis
+  verified: false
+  C1101:
+    description: Battery voltage high
+  C1102:
+    description: Battery voltage low
+    source: Ioniq 2017 US shop manual   # overrides the section's source
+```
+
+Keys are told apart by shape: a code is a letter and four hex digits (`C1101`),
+without the `-FTB` suffix.
+
 ## The DTC log
 
 Every scan is recorded to the DTC log (disable with `--no-log`)

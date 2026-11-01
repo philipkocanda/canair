@@ -226,375 +226,236 @@ ESC:
       capture_protocol: >-
         canair read ESC:224000 --save in READY, then widen to 22 4000-400F if it answers
   dtcs:
+    source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV)
+    source_links:
+      - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
+    verified: false
     C1101:
       description: Battery voltage high
       causes: power supply circuit (IGN+), alternator, LDC, IBAU
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C1101-01
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
       notes: >-
-        VBAT above 17 +/-0.5 V for 2 s, or above 19 +/-0.5 V for 0.5 s. Clears after 2 s back in
-        range.
+        Listed as C1101-01. VBAT above 17 +/-0.5 V for 2 s, or above 19 +/-0.5 V for 0.5 s. Clears
+        after 2 s back in range.
     C1102:
       description: Battery voltage low
       causes: power supply circuit, discharged battery, LDC, IBAU
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C1102-01
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
       notes: >-
-        VBAT below 9.5 +/-0.5 V for 0.5 s above 7 km/h, or below 8.0 +/-0.5 V below 7 km/h or during
-        ABS/TCS/ESP control.
+        Listed as C1102-01. VBAT below 9.5 +/-0.5 V for 0.5 s above 7 km/h, or below 8.0 +/-0.5 V
+        below 7 km/h or during ABS/TCS/ESP control.
     C1103:
       description: Ignition voltage
       causes: ignition circuit, power supply circuit, IBAU
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C1103-01
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
-      notes: Hardware ignition input off for over 30 s above 15 km/h. No warning lamp.
+      notes: >-
+        Listed as C1103-01. Hardware ignition input off for over 30 s above 15 km/h. No warning
+        lamp.
     C1113:
       description: 5 V sensor power voltage
       causes: sensor supply circuit, IBAU
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C1113-01
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
-      notes: Sensor supply outside 5 +/-0.25 V for over 1 s.
+      notes: Listed as C1113-01. Sensor supply outside 5 +/-0.25 V for over 1 s.
     C1200:
       description: Wheel speed sensor front-LH open/short
       causes: sensor circuit open or short, wheel speed sensor, connector
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C1200-01
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
       notes: >-
-        Sensor current outside 4-60 mA (+/-10 %) for over 140 ms, or leakage current above limit.
+        Listed as C1200-01. Sensor current outside 4-60 mA (+/-10 %) for over 140 ms, or leakage
+        current above limit.
     C1201:
       description: Wheel speed sensor front-LH range/performance/intermittent
       causes: >-
         sensor installation, rotor or wheel bearing, tone wheel, sensor, external noise, wrong
         sensor type
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C1201-02
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
       notes: >-
-        Repeated speed jumps (wheel acceleration of +/-100 g or 70 g), the wheel out of step with
-        the others for 20 s to 2 min, or a sensor of the wrong type. Jump counters clear every 30
-        min.
+        Listed as C1201-02. Repeated speed jumps (wheel acceleration of +/-100 g or 70 g), the wheel
+        out of step with the others for 20 s to 2 min, or a sensor of the wrong type. Jump counters
+        clear every 30 min.
     C1202:
       description: Wheel speed sensor front-LH invalid/no signal
       causes: sensor installation, large air gap, rotor or wheel bearing, wrong sensor type, sensor
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C1202-02
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
       notes: >-
-        Air gap: the slowest wheel below 0.25 km/h while the others exceed 10 km/h for 160 ms, or
-        two wheels below 2 km/h for 20 s. Also ABS control longer than 36 s, or a wheel above 512
-        km/h.
+        Listed as C1202-02. Air gap: the slowest wheel below 0.25 km/h while the others exceed 10
+        km/h for 160 ms, or two wheels below 2 km/h for 20 s. Also ABS control longer than 36 s, or
+        a wheel above 512 km/h.
     C1203:
       description: Wheel speed sensor front-RH open/short
       causes: sensor circuit open or short, wheel speed sensor, connector
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C1203-01
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
       notes: >-
-        Sensor current outside 4-60 mA (+/-10 %) for over 140 ms, or leakage current above limit.
+        Listed as C1203-01. Sensor current outside 4-60 mA (+/-10 %) for over 140 ms, or leakage
+        current above limit.
     C1204:
       description: Wheel speed sensor front-RH range/performance/intermittent
       causes: >-
         sensor installation, rotor or wheel bearing, tone wheel, sensor, external noise, wrong
         sensor type
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C1204-02
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
       notes: >-
-        Repeated speed jumps (wheel acceleration of +/-100 g or 70 g), the wheel out of step with
-        the others for 20 s to 2 min, or a sensor of the wrong type. Jump counters clear every 30
-        min.
+        Listed as C1204-02. Repeated speed jumps (wheel acceleration of +/-100 g or 70 g), the wheel
+        out of step with the others for 20 s to 2 min, or a sensor of the wrong type. Jump counters
+        clear every 30 min.
     C1205:
       description: Wheel speed sensor front-RH invalid/no signal
       causes: sensor installation, large air gap, rotor or wheel bearing, wrong sensor type, sensor
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C1205-02
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
       notes: >-
-        Air gap: the slowest wheel below 0.25 km/h while the others exceed 10 km/h for 160 ms, or
-        two wheels below 2 km/h for 20 s. Also ABS control longer than 36 s, or a wheel above 512
-        km/h.
+        Listed as C1205-02. Air gap: the slowest wheel below 0.25 km/h while the others exceed 10
+        km/h for 160 ms, or two wheels below 2 km/h for 20 s. Also ABS control longer than 36 s, or
+        a wheel above 512 km/h.
     C1206:
       description: Wheel speed sensor rear-LH open/short
       causes: sensor circuit open or short, wheel speed sensor, connector
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C1206-01
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
       notes: >-
-        Sensor current outside 4-60 mA (+/-10 %) for over 140 ms, or leakage current above limit.
+        Listed as C1206-01. Sensor current outside 4-60 mA (+/-10 %) for over 140 ms, or leakage
+        current above limit.
     C1207:
       description: Wheel speed sensor rear-LH range/performance/intermittent
       causes: >-
         sensor installation, rotor or wheel bearing, tone wheel, sensor, external noise, wrong
         sensor type
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C1207-02
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
       notes: >-
-        Repeated speed jumps (wheel acceleration of +/-100 g or 70 g), the wheel out of step with
-        the others for 20 s to 2 min, or a sensor of the wrong type. Jump counters clear every 30
-        min.
+        Listed as C1207-02. Repeated speed jumps (wheel acceleration of +/-100 g or 70 g), the wheel
+        out of step with the others for 20 s to 2 min, or a sensor of the wrong type. Jump counters
+        clear every 30 min.
     C1208:
       description: Wheel speed sensor rear-LH invalid/no signal
       causes: sensor installation, large air gap, rotor or wheel bearing, wrong sensor type, sensor
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C1208-02
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
       notes: >-
-        Air gap: the slowest wheel below 0.25 km/h while the others exceed 10 km/h for 160 ms, or
-        two wheels below 2 km/h for 20 s. Also ABS control longer than 36 s, or a wheel above 512
-        km/h.
+        Listed as C1208-02. Air gap: the slowest wheel below 0.25 km/h while the others exceed 10
+        km/h for 160 ms, or two wheels below 2 km/h for 20 s. Also ABS control longer than 36 s, or
+        a wheel above 512 km/h.
     C1209:
       description: Wheel speed sensor rear-RH open/short
       causes: sensor circuit open or short, wheel speed sensor, connector
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C1209-01
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
       notes: >-
-        Sensor current outside 4-60 mA (+/-10 %) for over 140 ms, or leakage current above limit.
+        Listed as C1209-01. Sensor current outside 4-60 mA (+/-10 %) for over 140 ms, or leakage
+        current above limit.
     C1210:
       description: Wheel speed sensor rear-RH range/performance/intermittent
       causes: >-
         sensor installation, rotor or wheel bearing, tone wheel, sensor, external noise, wrong
         sensor type
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C1210-02
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
       notes: >-
-        Repeated speed jumps (wheel acceleration of +/-100 g or 70 g), the wheel out of step with
-        the others for 20 s to 2 min, or a sensor of the wrong type. Jump counters clear every 30
-        min.
+        Listed as C1210-02. Repeated speed jumps (wheel acceleration of +/-100 g or 70 g), the wheel
+        out of step with the others for 20 s to 2 min, or a sensor of the wrong type. Jump counters
+        clear every 30 min.
     C1211:
       description: Wheel speed sensor rear-RH invalid/no signal
       causes: sensor installation, large air gap, rotor or wheel bearing, wrong sensor type, sensor
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C1211-02
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
       notes: >-
-        Air gap: the slowest wheel below 0.25 km/h while the others exceed 10 km/h for 160 ms, or
-        two wheels below 2 km/h for 20 s. Also ABS control longer than 36 s, or a wheel above 512
-        km/h.
+        Listed as C1211-02. Air gap: the slowest wheel below 0.25 km/h while the others exceed 10
+        km/h for 160 ms, or two wheels below 2 km/h for 20 s. Also ABS control longer than 36 s, or
+        a wheel above 512 km/h.
     C1233:
       description: Front pressure sensor
       causes: bleeding, hydraulic line leak, pressure sensor, PSU
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C1233-02
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
-      notes: Accumulator (HPA) pressure unchanged for over 5 s while charging. Lamps and buzzer.
+      notes: >-
+        Listed as C1233-02. Accumulator (HPA) pressure unchanged for over 5 s while charging. Lamps
+        and buzzer.
     C1235:
       description: Pressure sensor (primary), electrical
       causes: bleeding, hydraulic line leak, pressure sensor, PSU
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C1235-01
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
       notes: >-
-        Either sensor signal above 4.8 V or below 0.2 V for over 1 s, or their average outside 2.5
-        +/-0.1 V.
+        Listed as C1235-01. Either sensor signal above 4.8 V or below 0.2 V for over 1 s, or their
+        average outside 2.5 +/-0.1 V.
     C1236:
       description: Pressure sensor (secondary), electrical
       causes: bleeding, hydraulic line leak, pressure sensor, excessive braking
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C1236-02
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
-      notes: Accumulator pressure under 100 bar for over 1.2 s; repeated hard braking can set it.
+      notes: >-
+        Listed as C1236-02. Accumulator pressure under 100 bar for over 1.2 s; repeated hard braking
+        can set it.
     C1260:
       description: Steering angle sensor circuit, signal
       causes: installation, calibration, steering angle sensor
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C1260-02
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
       notes: >-
-        Angle over 55 deg while driving straight, out of sensor range, rate off the estimate by over
-        50 deg/s for 1.5 s, or under 3 deg in a curve.
+        Listed as C1260-02. Angle over 55 deg while driving straight, out of sensor range, rate off
+        the estimate by over 50 deg/s for 1.5 s, or under 3 deg in a curve.
     C1261:
       description: Steering angle sensor not calibrated
       causes: not calibrated after sensor or IBAU replacement
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C1261-04
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
-      notes: Clears after zero-point calibration with the diagnostic tool.
+      notes: Listed as C1261-04. Clears after zero-point calibration with the diagnostic tool.
     C1283:
       description: Lateral G, longitudinal G or yaw rate sensor, signal error
       causes: IMU in the airbag control unit (SRSCM), installation, wiring, IBAU
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C1283-02
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
       notes: >-
-        IMU values off the estimates, its rolling counter stuck for 100 ms, or its fail flag set;
-        for example yaw rate over 6 deg/s for 2 s at standstill.
+        Listed as C1283-02. IMU values off the estimates, its rolling counter stuck for 100 ms, or
+        its fail flag set; for example yaw rate over 6 deg/s for 2 s at standstill.
     C1285:
       description: Longitudinal G (Ax) signal not calibrated
       causes: uncalibrated longitudinal G sensor
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C1285-04
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
-      notes: Zero point not set, or a sensor replacement detected.
+      notes: Listed as C1285-04. Zero point not set, or a sensor replacement detected.
     C1286:
       description: Yaw rate and G sensor failure, check SRSCM
       causes: IMU in the SRSCM, installation
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C1286-01
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
-      notes: IMU rolling counter stuck for 0.1 s, or its fail flag repeated.
+      notes: Listed as C1286-01. IMU rolling counter stuck for 0.1 s, or its fail flag repeated.
     C1287:
       description: Brake fluid low
       causes: brake fluid leak, brake fluid pressure line sensor
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C1287-02
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
-      notes: Fluid level signal low for over 1 s. RBS lamp only.
+      notes: Listed as C1287-02. Fluid level signal low for over 1 s. RBS lamp only.
     C1604:
       description: ECU hardware error
       causes: IBAU
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C1604-04
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
       notes: >-
-        Internal fault: EEPROM write or erase, RAM, ROM, timer, A/D converter, internal
-        communication or internal power supply.
+        Listed as C1604-04. Internal fault: EEPROM write or erase, RAM, ROM, timer, A/D converter,
+        internal communication or internal power supply.
     C160E:
       description: P-CAN bus off
       causes: short in the CAN line, IBAU
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C160E-08
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
-      notes: Bus off more than 10 times in a row (70 ms recovery each).
+      notes: Listed as C160E-08. Bus off more than 10 times in a row (70 ms recovery each).
     C1616:
       description: C-CAN bus off
       causes: short in the CAN line, IBAU
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C1616-08
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
-      notes: Bus off more than 10 times in a row (70 ms recovery each).
+      notes: Listed as C1616-08. Bus off more than 10 times in a row (70 ms recovery each).
     C1623:
       description: CAN time-out, steering angle sensor
       causes: steering angle sensor, open CAN line, connection, another ECU occupying the bus
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C1623-08
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
-      notes: No message for over 500 ms; monitored from 1.5 s after power-up.
+      notes: Listed as C1623-08. No message for over 500 ms; monitored from 1.5 s after power-up.
     C1638:
       description: ACC (SCC) communication error
       causes: SCC, open CAN line, connection, another ECU occupying the bus
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C1638-08
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
       notes: >-
-        No SCC message for 500 ms during control or 1500 ms otherwise, or its alive counter stuck.
-        No warning lamp.
+        Listed as C1638-08. No SCC message for 500 ms during control or 1500 ms otherwise, or its
+        alive counter stuck. No warning lamp.
     C1651:
       description: CAN time-out, EPB
       causes: EPB, IBAU
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C1651-08
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
-      notes: No message for 500 ms during control or 1500 ms otherwise. No warning lamp.
+      notes: >-
+        Listed as C1651-08. No message for 500 ms during control or 1500 ms otherwise. No warning
+        lamp.
     C1687:
       description: CAN time-out, VSM2 (MDPS)
       causes: MDPS, IBAU
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C1687-08
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
       notes: >-
-        No VSM message from the MDPS for 500 ms during control or 1500 ms otherwise. No warning
-        lamp.
+        Listed as C1687-08. No VSM message from the MDPS for 500 ms during control or 1500 ms
+        otherwise. No warning lamp.
     C16B4:
       description: CAN time-out, VCU
       causes: VCU, CAN line, connection, IBAU
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C16B4-08
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
-      notes: No message for 0.5 s during control or 1.5 s otherwise.
+      notes: Listed as C16B4-08. No message for 0.5 s during control or 1.5 s otherwise.
     C1702:
       description: Variant coding error
       causes: PCM replacement (as printed), IBAU
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C1702-04
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
       notes: >-
-        No or wrong variant code, or a 4WD, Ax or EPB message on a car coded without it. Clears once
-        coded.
+        Listed as C1702-04. No or wrong variant code, or a 4WD, Ax or EPB message on a car coded
+        without it. Clears once coded.
     C1806:
       description: CAN time-out, MCU
       causes: IBAU, MCU, CAN connection
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C1806-08
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
-      notes: No message for 500 ms during control or 1500 ms otherwise.
+      notes: Listed as C1806-08. No message for 500 ms during control or 1500 ms otherwise.
     C2112:
       description: Valve relay error
       causes: power supply circuit (IGN+), IBAU
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C2112-01
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
       notes: >-
-        Relay voltage under 6 V for 0.2 s with the relay on, or over 1 +/-0.15 V across the relay
-        for 0.2 s.
+        Listed as C2112-01. Relay voltage under 6 V for 0.2 s with the relay on, or over 1 +/-0.15 V
+        across the relay for 0.2 s.
     C2227:
       description: Excessive temperature of brake disc
       causes: overheated disc, pad-to-disc air gap, wheel cylinder
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C2227-07
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
       notes: >-
-        Calculated disc temperature above 500 C, or above 650 C with DBC on. No warning lamp; clears
-        below 400 C.
+        Listed as C2227-07. Calculated disc temperature above 500 C, or above 650 C with DBC on. No
+        warning lamp; clears below 400 C.
     C2380:
       description: ABS/TCS/ESP valve error
       causes: connector, IBAU
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C2380-01
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
       notes: >-
-        Solenoid coil open or short, for example an ABS valve under 2.0 V or over 8.5 +/-2.5 A for
-        0.06 s. An AHB valve fault disables AHB and sounds the buzzer.
+        Listed as C2380-01. Solenoid coil open or short, for example an ABS valve under 2.0 V or
+        over 8.5 +/-2.5 A for 0.06 s. An AHB valve fault disables AHB and sounds the buzzer.
     C2402:
       description: Motor electrical
       causes: power supply circuit (ABS1), IBAU
-      source: Ioniq Electric 2017 service manual, ESP/AHB diagnosis (EV), DTC C2402-01
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Brakes/Traction%20Control/Esp%2FAHB%20Diagnosis%20%28EV%29/
-      verified: false
-      notes: Pump motor fuse open, motor circuit open or short, or motor ground loss.
+      notes: >-
+        Listed as C2402-01. Pump motor fuse open, motor circuit open or short, or motor ground loss.

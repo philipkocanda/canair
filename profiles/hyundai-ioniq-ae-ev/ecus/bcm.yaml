@@ -1271,370 +1271,216 @@ BCM:
       nrc: 0x13
       nrc_desc: "incorrectMessageLengthOrInvalidFormat"
   dtcs:
+    source: Ioniq Electric 2017 service manual, Tire Pressure Monitoring System diagnosis (EV)
+    source_links:
+      - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Suspension/Wheels%20%26%20Tire%20System/Tire%20Pressure%20Monitoring%20System%20Diagnosis%20%28EV%29/
+    verified: false
     B1210:
       description: Parking assist sensor fault, front left
       causes: dirt on the sensor, trapped sensor rubber, LIN fault, open or poor connection, sensor
       source: >-
-        Ioniq Electric 2017 service manual, Integrated Body Control Unit diagnosis (EV), DTC
-        B1210-00
+        Ioniq Electric 2017 service manual, Integrated Body Control Unit diagnosis (EV)
       source_links:
         - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Body%20Control%20Unit%20Diagnosis%20%28EV%29/
-      verified: false
       notes: LIN data from the ultrasonic sensor missing or abnormal; checked with ignition on in D.
     B1211:
       description: Parking assist sensor fault, front center left
       causes: dirt on the sensor, trapped sensor rubber, LIN fault, open or poor connection, sensor
       source: >-
-        Ioniq Electric 2017 service manual, Integrated Body Control Unit diagnosis (EV), DTC
-        B1211-00
+        Ioniq Electric 2017 service manual, Integrated Body Control Unit diagnosis (EV)
       source_links:
         - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Body%20Control%20Unit%20Diagnosis%20%28EV%29/
-      verified: false
       notes: LIN data from the ultrasonic sensor missing or abnormal; checked with ignition on in D.
     B1212:
       description: Parking assist sensor fault, front center right
       causes: dirt on the sensor, trapped sensor rubber, LIN fault, open or poor connection, sensor
       source: >-
-        Ioniq Electric 2017 service manual, Integrated Body Control Unit diagnosis (EV), DTC
-        B1212-00
+        Ioniq Electric 2017 service manual, Integrated Body Control Unit diagnosis (EV)
       source_links:
         - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Body%20Control%20Unit%20Diagnosis%20%28EV%29/
-      verified: false
       notes: LIN data from the ultrasonic sensor missing or abnormal; checked with ignition on in D.
     B1213:
       description: Parking assist sensor fault, front right
       causes: dirt on the sensor, trapped sensor rubber, LIN fault, open or poor connection, sensor
       source: >-
-        Ioniq Electric 2017 service manual, Integrated Body Control Unit diagnosis (EV), DTC
-        B1213-00
+        Ioniq Electric 2017 service manual, Integrated Body Control Unit diagnosis (EV)
       source_links:
         - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Body%20Control%20Unit%20Diagnosis%20%28EV%29/
-      verified: false
       notes: LIN data from the ultrasonic sensor missing or abnormal; checked with ignition on in D.
     B1214:
       description: Parking assist sensor fault, rear left
       causes: dirt on the sensor, trapped sensor rubber, LIN fault, open or poor connection, sensor
       source: >-
-        Ioniq Electric 2017 service manual, Integrated Body Control Unit diagnosis (EV), DTC
-        B1214-00
+        Ioniq Electric 2017 service manual, Integrated Body Control Unit diagnosis (EV)
       source_links:
         - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Body%20Control%20Unit%20Diagnosis%20%28EV%29/
-      verified: false
       notes: LIN data from the ultrasonic sensor missing or abnormal; checked with ignition on in D.
     B1215:
       description: Parking assist sensor fault, rear center left
       causes: dirt on the sensor, trapped sensor rubber, LIN fault, open or poor connection, sensor
       source: >-
-        Ioniq Electric 2017 service manual, Integrated Body Control Unit diagnosis (EV), DTC
-        B1215-00
+        Ioniq Electric 2017 service manual, Integrated Body Control Unit diagnosis (EV)
       source_links:
         - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Body%20Control%20Unit%20Diagnosis%20%28EV%29/
-      verified: false
       notes: LIN data from the ultrasonic sensor missing or abnormal; checked with ignition on in D.
     B1216:
       description: Parking assist sensor fault, rear center right
       causes: dirt on the sensor, trapped sensor rubber, LIN fault, open or poor connection, sensor
       source: >-
-        Ioniq Electric 2017 service manual, Integrated Body Control Unit diagnosis (EV), DTC
-        B1216-00
+        Ioniq Electric 2017 service manual, Integrated Body Control Unit diagnosis (EV)
       source_links:
         - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Body%20Control%20Unit%20Diagnosis%20%28EV%29/
-      verified: false
       notes: LIN data from the ultrasonic sensor missing or abnormal; checked with ignition on in D.
     B1217:
       description: Parking assist sensor fault, rear right
       causes: dirt on the sensor, trapped sensor rubber, LIN fault, open or poor connection, sensor
       source: >-
-        Ioniq Electric 2017 service manual, Integrated Body Control Unit diagnosis (EV), DTC
-        B1217-00
+        Ioniq Electric 2017 service manual, Integrated Body Control Unit diagnosis (EV)
       source_links:
         - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Body%20Control%20Unit%20Diagnosis%20%28EV%29/
-      verified: false
       notes: LIN data from the ultrasonic sensor missing or abnormal; checked with ignition on in D.
     B1602:
       description: B-CAN error
       causes: B-CAN high or low shorted to battery or ground, open, or shorted together
       source: >-
-        Ioniq Electric 2017 service manual, Integrated Body Control Unit diagnosis (EV), DTC
-        B1602-00
+        Ioniq Electric 2017 service manual, Integrated Body Control Unit diagnosis (EV)
       source_links:
         - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Body%20Control%20Unit%20Diagnosis%20%28EV%29/
-      verified: false
       notes: One B-CAN line failed while the bus still works; 9-16 V, 2 s.
     B1603:
       description: B-CAN bus off
       causes: B-CAN high and low shorted together to battery or ground
       source: >-
-        Ioniq Electric 2017 service manual, Integrated Body Control Unit diagnosis (EV), DTC
-        B1603-00
+        Ioniq Electric 2017 service manual, Integrated Body Control Unit diagnosis (EV)
       source_links:
         - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Body%20Control%20Unit%20Diagnosis%20%28EV%29/
-      verified: false
       notes: B-CAN communication impossible; 9-16 V, 2 s.
     B1609:
       description: CAN time-out, SJB
       causes: SJB B-CAN line open or poor connection, SJB power supply
       source: >-
-        Ioniq Electric 2017 service manual, Integrated Body Control Unit diagnosis (EV), DTC
-        B1609-00
+        Ioniq Electric 2017 service manual, Integrated Body Control Unit diagnosis (EV)
       source_links:
         - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Body%20Control%20Unit%20Diagnosis%20%28EV%29/
-      verified: false
       notes: No B-CAN message from the SJB (the IGPM's power-control half) for 10 s.
     B168A:
       description: CAN time-out, smart key unit
       causes: smart key unit B-CAN line open or poor connection, its power supply
       source: >-
-        Ioniq Electric 2017 service manual, Integrated Body Control Unit diagnosis (EV), DTC
-        B168A-00
+        Ioniq Electric 2017 service manual, Integrated Body Control Unit diagnosis (EV)
       source_links:
         - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Body%20Control%20Unit%20Diagnosis%20%28EV%29/
-      verified: false
       notes: No B-CAN message from the smart key unit for 10 s.
     C1616:
       description: C-CAN bus off
       causes: C-CAN high and low shorted together to battery or ground
       source: >-
-        Ioniq Electric 2017 service manual, Integrated Body Control Unit diagnosis (EV), DTC
-        C1616-00
+        Ioniq Electric 2017 service manual, Integrated Body Control Unit diagnosis (EV)
       source_links:
         - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Body%20Control%20Unit%20Diagnosis%20%28EV%29/
-      verified: false
       notes: C-CAN communication impossible; 9-16 V, 700 ms.
     C1121:
       description: TPMS sensor battery voltage low, front left
-      source: >-
-        Ioniq Electric 2017 service manual, Tire Pressure Monitoring System diagnosis (EV), DTC
-        C1121-00
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Suspension/Wheels%20%26%20Tire%20System/Tire%20Pressure%20Monitoring%20System%20Diagnosis%20%28EV%29/
-      verified: false
       notes: Sensor battery below 2.2 V for 3 bursts, then 180 s. No TPMS lamp.
     C1122:
       description: TPMS sensor battery voltage low, front right
-      source: >-
-        Ioniq Electric 2017 service manual, Tire Pressure Monitoring System diagnosis (EV), DTC
-        C1122-00
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Suspension/Wheels%20%26%20Tire%20System/Tire%20Pressure%20Monitoring%20System%20Diagnosis%20%28EV%29/
-      verified: false
       notes: Sensor battery below 2.2 V for 3 bursts, then 180 s. No TPMS lamp.
     C1123:
       description: TPMS sensor battery voltage low, rear left
-      source: >-
-        Ioniq Electric 2017 service manual, Tire Pressure Monitoring System diagnosis (EV), DTC
-        C1123-00
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Suspension/Wheels%20%26%20Tire%20System/Tire%20Pressure%20Monitoring%20System%20Diagnosis%20%28EV%29/
-      verified: false
       notes: Sensor battery below 2.2 V for 3 bursts, then 180 s. No TPMS lamp.
     C1124:
       description: TPMS sensor battery voltage low, rear right
-      source: >-
-        Ioniq Electric 2017 service manual, Tire Pressure Monitoring System diagnosis (EV), DTC
-        C1124-00
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Suspension/Wheels%20%26%20Tire%20System/Tire%20Pressure%20Monitoring%20System%20Diagnosis%20%28EV%29/
-      verified: false
       notes: Sensor battery below 2.2 V for 3 bursts, then 180 s. No TPMS lamp.
     C1126:
       description: TPMS ECU battery voltage low
       causes: charging system, 12 V battery, BCM (integrated TPMS module)
-      source: >-
-        Ioniq Electric 2017 service manual, Tire Pressure Monitoring System diagnosis (EV), DTC
-        C1126-00
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Suspension/Wheels%20%26%20Tire%20System/Tire%20Pressure%20Monitoring%20System%20Diagnosis%20%28EV%29/
-      verified: false
       notes: 12 V battery below 9 V for 2 s above 25 km/h. TPMS lamp flashes 60 s, then stays on.
     C1127:
       description: TPMS ECU battery voltage high
       causes: charging system, 12 V battery, TPMS module
-      source: >-
-        Ioniq Electric 2017 service manual, Tire Pressure Monitoring System diagnosis (EV), DTC
-        C1127-00
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Suspension/Wheels%20%26%20Tire%20System/Tire%20Pressure%20Monitoring%20System%20Diagnosis%20%28EV%29/
-      verified: false
       notes: 12 V battery above 16 V for 2 s, ignition on. TPMS lamp flashes 60 s, then stays on.
     C1212:
       description: Vehicle speed signal
-      source: >-
-        Ioniq Electric 2017 service manual, Tire Pressure Monitoring System diagnosis (EV), DTC
-        C1212-00
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Suspension/Wheels%20%26%20Tire%20System/Tire%20Pressure%20Monitoring%20System%20Diagnosis%20%28EV%29/
-      verified: false
       notes: Abnormal vehicle speed values from the ABS/ESC over CAN for 30 s. TPMS lamp on.
     C1312:
       description: TPMS sensor RF channel failure, front left
       causes: external interference, sensor, BCM
-      source: >-
-        Ioniq Electric 2017 service manual, Tire Pressure Monitoring System diagnosis (EV), DTC
-        C1312-00
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Suspension/Wheels%20%26%20Tire%20System/Tire%20Pressure%20Monitoring%20System%20Diagnosis%20%28EV%29/
-      verified: false
       notes: >-
         No RF signal from the sensor for 540 s (EU) or 1140 s (NA) after exceeding 25 km/h. TPMS
         lamp on.
     C1313:
       description: TPMS sensor RF channel failure, front right
       causes: external interference, sensor, BCM
-      source: >-
-        Ioniq Electric 2017 service manual, Tire Pressure Monitoring System diagnosis (EV), DTC
-        C1313-00
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Suspension/Wheels%20%26%20Tire%20System/Tire%20Pressure%20Monitoring%20System%20Diagnosis%20%28EV%29/
-      verified: false
       notes: >-
         No RF signal from the sensor for 540 s (EU) or 1140 s (NA) after exceeding 25 km/h. TPMS
         lamp on.
     C1314:
       description: TPMS sensor RF channel failure, rear left
       causes: external interference, sensor, BCM
-      source: >-
-        Ioniq Electric 2017 service manual, Tire Pressure Monitoring System diagnosis (EV), DTC
-        C1314-00
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Suspension/Wheels%20%26%20Tire%20System/Tire%20Pressure%20Monitoring%20System%20Diagnosis%20%28EV%29/
-      verified: false
       notes: >-
         No RF signal from the sensor for 540 s (EU) or 1140 s (NA) after exceeding 25 km/h. TPMS
         lamp on.
     C1315:
       description: TPMS sensor RF channel failure, rear right
       causes: external interference, sensor, BCM
-      source: >-
-        Ioniq Electric 2017 service manual, Tire Pressure Monitoring System diagnosis (EV), DTC
-        C1315-00
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Suspension/Wheels%20%26%20Tire%20System/Tire%20Pressure%20Monitoring%20System%20Diagnosis%20%28EV%29/
-      verified: false
       notes: >-
         No RF signal from the sensor for 540 s (EU) or 1140 s (NA) after exceeding 25 km/h. TPMS
         lamp on.
     C1322:
       description: TPMS sensor over temperature, front left
       causes: damaged tire, high surrounding temperature, driving on a low tire, excessive braking
-      source: >-
-        Ioniq Electric 2017 service manual, Tire Pressure Monitoring System diagnosis (EV), DTC
-        C1322-00
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Suspension/Wheels%20%26%20Tire%20System/Tire%20Pressure%20Monitoring%20System%20Diagnosis%20%28EV%29/
-      verified: false
       notes: >-
         Sensor silent for 180 s of driving with its last temperature at or above 115 C. No TPMS
         lamp.
     C1323:
       description: TPMS sensor over temperature, front right
       causes: damaged tire, high surrounding temperature, driving on a low tire, excessive braking
-      source: >-
-        Ioniq Electric 2017 service manual, Tire Pressure Monitoring System diagnosis (EV), DTC
-        C1323-00
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Suspension/Wheels%20%26%20Tire%20System/Tire%20Pressure%20Monitoring%20System%20Diagnosis%20%28EV%29/
-      verified: false
       notes: >-
         Sensor silent for 180 s of driving with its last temperature at or above 115 C. No TPMS
         lamp.
     C1324:
       description: TPMS sensor over temperature, rear left
       causes: damaged tire, high surrounding temperature, driving on a low tire, excessive braking
-      source: >-
-        Ioniq Electric 2017 service manual, Tire Pressure Monitoring System diagnosis (EV), DTC
-        C1324-00
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Suspension/Wheels%20%26%20Tire%20System/Tire%20Pressure%20Monitoring%20System%20Diagnosis%20%28EV%29/
-      verified: false
       notes: >-
         Sensor silent for 180 s of driving with its last temperature at or above 115 C. No TPMS
         lamp.
     C1325:
       description: TPMS sensor over temperature, rear right
       causes: damaged tire, high surrounding temperature, driving on a low tire, excessive braking
-      source: >-
-        Ioniq Electric 2017 service manual, Tire Pressure Monitoring System diagnosis (EV), DTC
-        C1325-00
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Suspension/Wheels%20%26%20Tire%20System/Tire%20Pressure%20Monitoring%20System%20Diagnosis%20%28EV%29/
-      verified: false
       notes: >-
         Sensor silent for 180 s of driving with its last temperature at or above 115 C. No TPMS
         lamp.
     C1332:
       description: TPMS sensor fault, front left
-      source: >-
-        Ioniq Electric 2017 service manual, Tire Pressure Monitoring System diagnosis (EV), DTC
-        C1332-00
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Suspension/Wheels%20%26%20Tire%20System/Tire%20Pressure%20Monitoring%20System%20Diagnosis%20%28EV%29/
-      verified: false
       notes: >-
         Sensor reports pressure, temperature or acceleration as 00h for 3 bursts, or fails a
         plausibility check; confirmed after 180 s. TPMS lamp on.
     C1333:
       description: TPMS sensor fault, front right
-      source: >-
-        Ioniq Electric 2017 service manual, Tire Pressure Monitoring System diagnosis (EV), DTC
-        C1333-00
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Suspension/Wheels%20%26%20Tire%20System/Tire%20Pressure%20Monitoring%20System%20Diagnosis%20%28EV%29/
-      verified: false
       notes: >-
         Sensor reports pressure, temperature or acceleration as 00h for 3 bursts, or fails a
         plausibility check; confirmed after 180 s. TPMS lamp on.
     C1334:
       description: TPMS sensor fault, rear left
-      source: >-
-        Ioniq Electric 2017 service manual, Tire Pressure Monitoring System diagnosis (EV), DTC
-        C1334-00
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Suspension/Wheels%20%26%20Tire%20System/Tire%20Pressure%20Monitoring%20System%20Diagnosis%20%28EV%29/
-      verified: false
       notes: >-
         Sensor reports pressure, temperature or acceleration as 00h for 3 bursts, or fails a
         plausibility check; confirmed after 180 s. TPMS lamp on.
     C1335:
       description: TPMS sensor fault, rear right
-      source: >-
-        Ioniq Electric 2017 service manual, Tire Pressure Monitoring System diagnosis (EV), DTC
-        C1335-00
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Suspension/Wheels%20%26%20Tire%20System/Tire%20Pressure%20Monitoring%20System%20Diagnosis%20%28EV%29/
-      verified: false
       notes: >-
         Sensor reports pressure, temperature or acceleration as 00h for 3 bursts, or fails a
         plausibility check; confirmed after 180 s. TPMS lamp on.
     C1660:
       description: TPMS receiver RF circuit failure
       causes: BCM (integrated TPMS module)
-      source: >-
-        Ioniq Electric 2017 service manual, Tire Pressure Monitoring System diagnosis (EV), DTC
-        C1660-00
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Suspension/Wheels%20%26%20Tire%20System/Tire%20Pressure%20Monitoring%20System%20Diagnosis%20%28EV%29/
-      verified: false
       notes: >-
         No telegrams from all four sensors for 540 s (EU) or 1140 s (NA) and the receiver does not
         respond. TPMS lamp on.
     C1662:
       description: TPMS auto learning failure
       causes: sensor, external interference, vehicle speed signal
-      source: >-
-        Ioniq Electric 2017 service manual, Tire Pressure Monitoring System diagnosis (EV), DTC
-        C1662-00
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Suspension/Wheels%20%26%20Tire%20System/Tire%20Pressure%20Monitoring%20System%20Diagnosis%20%28EV%29/
-      verified: false
       notes: A sensor still missing after 10 min of driving above 25 km/h. No TPMS lamp.
     C1663:
       description: TPMS auto location failure
       causes: RF jamming, vehicle speed signal, wheel pulse signal, sensor
-      source: >-
-        Ioniq Electric 2017 service manual, Tire Pressure Monitoring System diagnosis (EV), DTC
-        C1663-00
-      source_links:
-        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Suspension/Wheels%20%26%20Tire%20System/Tire%20Pressure%20Monitoring%20System%20Diagnosis%20%28EV%29/
-      verified: false
       notes: New sensor ID found while learning and fewer than 3 positions located. No TPMS lamp.

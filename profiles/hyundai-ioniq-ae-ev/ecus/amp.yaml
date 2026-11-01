@@ -12,31 +12,20 @@ AMP:
       (readDTCByStatusMask), so no snapshot or extended DTC data. Its DTCs are open-load faults on
       the premium-audio speaker channels, which confirms the identity.
   dtcs:
+    source: owner-provided Infinity premium-audio channel map
+    verified: false
     B2915:
       description: "Front Left Woofer — Open Load"
-      source: "owner-provided Infinity premium-audio channel map"
-      verified: false
     B2916:
       description: "Front Right Woofer — Open Load"
-      source: "owner-provided Infinity premium-audio channel map"
-      verified: false
     B2919:
       description: "Front Center — Open Load"
-      source: "owner-provided Infinity premium-audio channel map"
-      verified: false
     B291A:
       description: "Rear Left Woofer — Open Load"
-      source: "owner-provided Infinity premium-audio channel map"
-      verified: false
     B291B:
       description: "Rear Right Woofer — Open Load"
-      source: "owner-provided Infinity premium-audio channel map"
-      verified: false
     B2920:
       description: "Subwoofer 1 — Open Load"
-      source: "owner-provided Infinity premium-audio channel map"
-      verified: false
     B2921:
       description: "Amplifier channel — Open Load (channel unidentified; the car has one rear sub)"
       source: "owner-confirmed single rear sub"
-      verified: false

@@ -16,6 +16,7 @@ from typing import Any, Literal, TypedDict, get_args
 from canlib import yaml_io
 from canlib.actuation import default_release, normalize_request
 from canlib.addressing import AddressingMode, EcuAddress
+from canlib.dtc.definitions import effective_entries as _effective_dtc_entries
 from canlib.safety import SessionProtocol, session_protocol
 from canlib.signal_category import category_of
 
@@ -117,6 +118,14 @@ def _inherit_pid_fields(ecus: dict[str, Any]) -> None:
             for name, param in params.items():
                 if isinstance(param, dict):
                     params[name] = effective_param(pid_def, param)
+
+
+def _inherit_dtc_fields(ecus: dict[str, Any]) -> None:
+    """Resolve each ``dtcs:`` section's shared fields into its entries, in place."""
+    for ecu_def in ecus.values():
+        dtcs = ecu_def.get("dtcs") if isinstance(ecu_def, dict) else None
+        if isinstance(dtcs, dict):
+            ecu_def["dtcs"] = _effective_dtc_entries(dtcs)
 
 
 class PidIndexEntry(TypedDict):
@@ -394,9 +403,10 @@ def merge_ecu_documents(docs: Iterable[tuple[Path, dict]]) -> dict[str, Any]:
     skipped with a warning for the same reason: every reader of ``ecus/`` goes
     through here, so raising would turn one malformed file into an opaque crash in
     whatever command happened to touch it. Fields a PID states once for its parameters
-    (:data:`INHERITED_PARAM_FIELDS`) are resolved into each parameter here, so no reader
-    has to know about the inheritance. ``canair validate pids`` is the gate
-    that reports it as an error.
+    (:data:`INHERITED_PARAM_FIELDS`), and those a ``dtcs:`` section states once for its codes
+    (:data:`canlib.dtc.definitions.SECTION_FIELDS`), are resolved into each parameter and each
+    code here, so no reader has to know about the inheritance. ``canair validate pids`` is the
+    gate that reports it as an error.
     """
     merged: dict[str, Any] = {}
     origin: dict[str, Path] = {}
@@ -423,6 +433,7 @@ def merge_ecu_documents(docs: Iterable[tuple[Path, dict]]) -> dict[str, Any]:
             merged[name] = definition
             origin[name] = path
     _inherit_pid_fields(merged)
+    _inherit_dtc_fields(merged)
     return merged
 
 

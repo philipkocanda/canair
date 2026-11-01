@@ -233,6 +233,9 @@ scan_log_entry_fields:
 # (category / generic-vs-manufacturer / failure-type byte) on its own; this
 # supplies the meanings it cannot infer. Profile-wide failure-type byte meanings
 # live in <profile>/profile.yaml under `failure_types:`.
+# `source`, `source_links` and `verified` may also sit directly under `dtcs:`, next
+# to the codes, stated once for every entry; an entry that sets one keeps its own.
+# The field list is canlib/dtc/definitions.py::SECTION_FIELDS.
 dtcs_fields:
   optional:
     - description
