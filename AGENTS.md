@@ -160,7 +160,7 @@ and **`g`/`G` address the view's primary axis**.
   (`--schedule dynamic`): each PID is read at half its profile `period:`
   (`MONITOR_PERIOD_SPEEDUP`), a PID without one every `--interval` (`--schedule fixed` reads
   every PID every cycle). A slow or silent ECU holds up every other ECU's next read, so the
-  leaf `canlib/poll_backoff.py::EcuBackoff` slows it (×2 up to ×8, `--no-backoff` off) from
+  leaf `canlib/poll_backoff.py::EcuBackoff` slows it (×2 up to ×32, `--no-backoff` off) from
   per-ECU `PollCost`s the pollers leave in `MonitorController.ecu_costs`. The scheduler is a
   dependency-free leaf, `canlib/poll_schedule.py::PollScheduler` (the parser imports its
   vocabulary at CLI start-up, so it must not reach into `canlib/modes`); it drives which PIDs each

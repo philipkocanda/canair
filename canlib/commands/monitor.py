@@ -64,7 +64,7 @@ PID without one every --interval seconds. --schedule fixed reads every PID on ev
 --interval apart.
 
 An ECU that stops answering or answers very slowly holds up every other ECU's next poll,
-so it is polled 2x, 4x, then up to 8x less often until it answers promptly again; its
+so it is polled 2x, 4x, then up to 32x less often until it answers promptly again; its
 header and the status line say so. --no-backoff keeps polling it at the normal rate.
 
 In the TUI: mouse wheel / scrollbar / arrows-jk / PgUp-PgDn / g-G scroll,

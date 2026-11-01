@@ -71,7 +71,7 @@ analysis.
 
 The ECUs are read one after another, so an ECU that stops answering (a body module
 that has gone to sleep, say) or answers very slowly holds up everyone else's next
-read. The monitor notices and polls that ECU 2×, then 4×, up to 8× less often until it
+read. The monitor notices and polls that ECU 2×, then 4×, up to 32× less often until it
 answers promptly again; its header says `slow (not answering) · polled 4× less often`
 and the status line lists it (`slow SKM÷4`). Pass `--no-backoff` to keep hammering it.
 A PID whose read failed keeps showing its last value, greyed and marked with how old

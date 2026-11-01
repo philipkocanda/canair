@@ -31,8 +31,13 @@ class TestEscalation:
         changes = _feed(b, SILENT, ESCALATE_AFTER)
         assert changes[-1] == 2
         assert b.reason("SKM") == "not answering"
+
+    def test_once_slowed_each_slow_poll_doubles_again(self):
+        # A slowed ECU is polled rarely, so waiting for two slow polls per step would
+        # take minutes to reach the ceiling.
+        b = EcuBackoff()
         _feed(b, SILENT, ESCALATE_AFTER)
-        assert b.slowdown("SKM") == 4
+        assert _feed(b, SILENT, 3) == [4, 8, 16]
 
     def test_slow_answers_count_too(self):
         b = EcuBackoff()
@@ -61,7 +66,7 @@ class TestEscalation:
 class TestRecovery:
     def test_steps_back_after_healthy_polls(self):
         b = EcuBackoff()
-        _feed(b, SILENT, ESCALATE_AFTER * 2)
+        _feed(b, SILENT, ESCALATE_AFTER + 1)
         assert b.slowdown("SKM") == 4
         assert _feed(b, HEALTHY, RECOVER_AFTER)[-1] == 2
         assert _feed(b, HEALTHY, RECOVER_AFTER)[-1] == 1
@@ -71,9 +76,9 @@ class TestRecovery:
         b = EcuBackoff()
         _feed(b, SILENT, ESCALATE_AFTER)
         _feed(b, HEALTHY, RECOVER_AFTER - 1)
-        b.observe("SKM", SILENT)
+        b.observe("SKM", SILENT)  # slowed already, so this also doubles it
         _feed(b, HEALTHY, RECOVER_AFTER - 1)
-        assert b.slowdown("SKM") == 2
+        assert b.slowdown("SKM") == 4
 
 
 class TestDisabled:

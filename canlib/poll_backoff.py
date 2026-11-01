@@ -19,9 +19,12 @@ from dataclasses import dataclass
 # tens of milliseconds on the raw path and well under that on an ELM327 with a learned
 # frame count, so this only trips on timeouts and pathologically slow responses.
 SLOW_READ_S = 0.5
-MAX_SLOWDOWN = 8
-# Consecutive slow polls before slowing down (one cold first read is not a pattern),
-# and consecutive healthy polls before each step back.
+# An ECU that drops reads can cost seconds per poll, so the ceiling is high: at 32x a
+# PID with a 5 s monitor period is read every 160 s.
+MAX_SLOWDOWN = 32
+# Consecutive slow polls before the first slowdown (one cold first read is not a
+# pattern); once slowed, each further slow poll doubles it again. Consecutive healthy
+# polls before each step back.
 ESCALATE_AFTER = 2
 RECOVER_AFTER = 3
 
@@ -71,7 +74,8 @@ class EcuBackoff:
             h.ok_streak = 0
             h.slow_streak += 1
             h.reason = reason
-            if h.slow_streak >= ESCALATE_AFTER and h.slowdown < MAX_SLOWDOWN:
+            needed = ESCALATE_AFTER if h.slowdown == 1 else 1
+            if h.slow_streak >= needed and h.slowdown < MAX_SLOWDOWN:
                 h.slow_streak = 0
                 h.slowdown *= 2
                 return h.slowdown
