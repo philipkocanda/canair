@@ -256,9 +256,7 @@ BMS:
             Whole B14 byte. Values seen: 0x00 ignition off, unplugged; 0x03 READY or 12 V top-up;
             0x20 AC plugged, contactors open; 0x23 AC plugged, contactors closed, not charging; 0x40
             CCS plugged before the contactors close (~30 s); 0xA3 AC charging; 0xC3 DC charging.
-            Bits: b0 BMS_MAIN_RELAY, b1 always equals b0, b5 AC_CHARGER_CONNECTED, b6 CHARGING_DC,
-            b7 CHARGING; b2-b4 never set, including two DC fast charges. The Kia Soul EV GDS sheet
-            names b1 BMS Controllable State, b2 BMS Warning, b3 BMS Fault, b4 BMS Weld Flag.
+            b2-b4 never set, including two DC fast charges.
 
         AVAIL_CHARGE_POWER_MIRROR:
           expression: "[B10:B11]/100"
@@ -282,12 +280,12 @@ BMS:
           unit: V
           ha_class: voltage
           enabled: true
-        BMS_MAIN_RELAY_MIRROR_B14_1:
+        BMS_CONTROLLABLE_STATE:
           expression: B14:1
-          source: canair analysis 2026-08-08 DCFC
+          source: GDS list order (shop manual 0657); 2026-08-08 DCFC analysis
           notes: >-
-            Equals BMS_MAIN_RELAY (B14:0) in every capture, including DC fast charges. Disabled as a
-            duplicate.
+            GDS name BMS Controllable State. Equals BMS_MAIN_RELAY (B14:0) in every capture,
+            including DC fast charges. Disabled as a duplicate.
           enabled: false
         AVAIL_DISCHARGE_POWER_MIRROR:
           expression: "[B12:B13]/100"
@@ -310,27 +308,64 @@ BMS:
           verified: false
           notes: Identical to DRIVE_MOTOR_SPEED [S65:S66] in all 12069 rows.
           enabled: false
-        BMS_2101_B61_2:
+        MCU_CONTROLLABLE:
           expression: B61:2
-          source: OBDb Hyundai-IONIQ-Electric (7E4 21 01 bix 405, BAT_MANAGEMENT_IGN); canair B61 cross-tab vs VCU/IGPM 2026-10-27
+          source: GDS list order (shop manual 0647); B61 cross-tab 2026-10-27
           verified: false
           notes: >-
-            1 while READY and through an AC charge begun while READY; 0 in charges begun with the
-            car off (AC and DC) and in a 12 V top-up. Falls when the HV contactors open at the end
-            of a charge while IGPM:22BC03:IGN1_SWITCH stays 1, so it is not the plain ignition
-            input. OBDb names it BMS ignition.
+            GDS name MCU Controllable, the third of four B61 flags between OPERATING_TIME and
+            BMS_INVERTER_CAPACITOR_VOLTAGE. 1 while READY and through an AC charge begun while
+            READY; 0 in charges begun with the car off (AC and DC) and in a 12 V top-up. Falls when
+            the HV contactors open at the end of a charge while IGPM:22BC03:IGN1_SWITCH stays 1.
+            OBDb calls it BMS ignition (bix 405).
           enabled: true
           min: "0"
           max: "1"
-        BMS_IG3_ON:
+        HCU_READY:
           expression: B61:3
           min: "0"
           max: "1"
-          source: canair B61 cross-tab vs VCU 2101 VCU_IG3_ON 2026-10-27
+          source: GDS list order (shop manual 0647); B61 cross-tab 2026-10-27
           notes: >-
-            Equals VCU:2101:VCU_IG3_ON in 10845 of 10846 aligned rows. 0 (B61 = 0x01) only after a
-            charge ends or the car is switched off. Disabled as a duplicate of VCU_IG3_ON.
+            GDS name HCU Ready. Equals VCU:2101:VCU_IG3_ON in 10845 of 10846 aligned rows. 0 (B61 =
+            0x01) only after a charge ends or the car is switched off. Disabled as a duplicate of
+            VCU_IG3_ON.
           enabled: false
+        MCU_READY:
+          expression: B61:0
+          min: "0"
+          max: "1"
+          source: GDS Current Data list order, Ioniq shop manual pages 0647 and 0657
+          verified: false
+          notes: GDS name MCU Ready. 1 in every capture, including after power-off.
+        MCU_MAIN_RELAY_OFF_REQUEST:
+          expression: B61:1
+          min: "0"
+          max: "1"
+          source: GDS Current Data list order, Ioniq shop manual pages 0647 and 0657
+          verified: false
+          notes: GDS name MCU Main Relay Off Request. 0 in every capture.
+        BMS_WARNING:
+          expression: B14:2
+          min: "0"
+          max: "1"
+          source: GDS Current Data list order, Ioniq shop manual pages 0647 and 0657
+          verified: false
+          notes: GDS name BMS Warning. 0 in every capture.
+        BMS_FAULT:
+          expression: B14:3
+          min: "0"
+          max: "1"
+          source: GDS Current Data list order, Ioniq shop manual pages 0647 and 0657
+          verified: false
+          notes: GDS name BMS Fault. 0 in every capture.
+        BMS_WELD_FLAG:
+          expression: B14:4
+          min: "0"
+          max: "1"
+          source: GDS Current Data list order, Ioniq shop manual pages 0647 and 0657
+          verified: false
+          notes: GDS name BMS Weld Flag. 0 in every capture.
 
 
     2105:
@@ -466,6 +501,36 @@ BMS:
             0 except during DC fast charging: 13 at onset, 14 after ~30 s, 15 after ~9 min
             (2026-08-08).
           enabled: true
+        MAX_INTERNAL_RESISTANCE:
+          expression: "[B9:B10]/100"
+          unit: mOhm
+          source: GDS Current Data list order, Ioniq shop manual pages 0661, 0663 and 0700
+          verified: false
+          notes: >-
+            GDS shows 0.00 mOhm; 0 in every capture (5514), so scale and byte order are unconfirmed.
+        MAX_INTERNAL_RESISTANCE_CELL_NO:
+          expression: B11
+          source: GDS Current Data list order, Ioniq shop manual pages 0661, 0663 and 0700
+          verified: false
+          notes: GDS shows 0; 0 in every capture.
+        AVG_INTERNAL_RESISTANCE:
+          expression: "[B12:B13]/100"
+          unit: mOhm
+          source: GDS Current Data list order, Ioniq shop manual pages 0661, 0663 and 0700
+          verified: false
+          notes: >-
+            GDS shows 0.00 mOhm; 0 in every capture (5514), so scale and byte order are unconfirmed.
+        AIRBAG_HWIRE_DUTY:
+          expression: B29
+          unit: "%"
+          min: "0"
+          max: "100"
+          source: GDS list order (shop manual 0661, 0663, 0700); OBDb bix 176
+          verified: false
+          notes: >-
+            GDS name Airbag H/wire Duty, listed between Quick Charging Normal Status and Heat 1
+            Temperature; GDS shows 80 %. Takes only 75, 80, 85 and 100 across 5478 captures: 100 in
+            some sessions, 75-85 in others.
     2102:
       response_frames: 6
       status: active
@@ -1204,9 +1269,10 @@ BMS:
       created: "2026-10-27"
       updated: "2026-10-27"
       notes: >-
-        OBDb IONIQEV_AIRBAG_DUTY (7E4 21 05 bix 176). B29 takes only 75, 80, 85 and 100 across 5478
-        captures: 100 in some sessions, 75-85 in others. No physical anchor, so no signal is
-        registered.
+        Registered as AIRBAG_HWIRE_DUTY: the GDS list (shop manual pages 0661, 0663, 0700) places
+        Airbag H/wire Duty between Quick Charging Normal Status and Heat 1 Temperature, at 80 %. B29
+        takes only 75, 80, 85 and 100 across 5478 captures: 100 in some sessions, 75-85 in others.
+        What it drives is unknown.
       sources:
         - OBDb Hyundai-IONIQ-Electric signalset (pelican.clutch.engineering ioniq-electric parameters), compared 2026-10-27
       what_to_test:
@@ -1219,8 +1285,9 @@ BMS:
       created: "2026-10-27"
       updated: "2026-10-27"
       notes: >-
-        Ours is B27*0.1 V, OBDb uses 0.02 V per count. Raw B27 is only ever 0 or 1, so the scale is
-        undetermined; needs a capture with a larger cell imbalance.
+        Ours is B27*0.1 V, OBDb uses 0.02 V per count, and GDS shows the value to two decimals (0.00
+        V, shop manual pages 0661, 0663), which fits 0.02 V. Raw B27 is only ever 0 or 1, so the
+        scale is undetermined; needs a capture with a larger cell imbalance.
       sources:
         - OBDb Hyundai-IONIQ-Electric signalset (pelican.clutch.engineering ioniq-electric parameters), compared 2026-10-27
       what_to_test:
@@ -1248,12 +1315,13 @@ BMS:
       created: "2026-10-27"
       updated: "2026-10-27"
       notes: >-
-        The Kia Soul EV GDS sheet (references/kia-soul-ev-can-messages.xlsx) names B14 b1 BMS
-        Controllable State, b2 BMS Warning, b3 BMS Fault and b4 BMS Weld Flag. On this car b1 equals
-        b0 (BMS_MAIN_RELAY) and b2-b4 are never set in 12079 captures (READY, 12 V top-up, AC and DC
-        charging). No OBDb signalset defines b1-b4; in OBDb test responses b2-b4 are never set, and
-        b1 is set without b0 (0x02) in two hybrids (Elantra 2023, Niro 2020), so b1 is a separate
-        flag.
+        The Ioniq shop manual's GDS Current Data list (pages 0657, 0661) orders the B14 flags BMS
+        Main Relay ON Status, BMS Controllable State, BMS Warning, BMS Fault, BMS Weld Flag,
+        matching the Kia Soul EV GDS sheet's b0-b4; registered as BMS_CONTROLLABLE_STATE,
+        BMS_WARNING, BMS_FAULT, BMS_WELD_FLAG. On this car b1 equals b0 and b2-b4 are never set in
+        12079 captures (READY, 12 V top-up, AC and DC charging). In OBDb test responses b2-b4 are
+        never set, and b1 is set without b0 (0x02) in two hybrids (Elantra 2023, Niro 2020), so b1
+        is a separate flag.
       sources:
         - Kia Soul EV GDS sheet (kia-soul-ev-can-messages.xlsx, BMC rows 19-23)
         - ioniq-ev-bms-2101-2105.xls (same bit list, names marked '?')
@@ -1276,9 +1344,12 @@ BMS:
       created: "2026-10-27"
       updated: "2026-10-27"
       notes: >-
+        The Ioniq shop manual's GDS list (page 0647) places four flags between Accumulative
+        Operating Time and Inverter Capacitor Voltage: MCU Ready, MCU Main Relay Off Request, MCU
+        Controllable, HCU Ready (YES, NO, NO, YES = 0x09 in its screenshot), registered as b0-b3.
         B61 reads 0x0D (READY, or charging begun while READY), 0x09 (charging from off, 12 V top-up,
-        plugged idle) and 0x01 (after a charge ends or at power-off). b3 is BMS_IG3_ON, b0 is 1 in
-        every capture, and b2 (BMS_2101_B61_2) follows READY rather than the ignition input.
+        plugged idle) and 0x01 (after a charge ends or at power-off). b0 is 1 and b1 is 0 in every
+        capture.
       sources:
         - canair B61 cross-tab 2026-10-27 (align BMS:2101:B61:2 vs VCU/IGPM)
         - OBDb Hyundai/Kia signalsets and test cases (data byte 50 of 2101/220101)

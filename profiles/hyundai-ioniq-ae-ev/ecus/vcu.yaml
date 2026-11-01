@@ -124,7 +124,7 @@ VCU:
           notes: >-
             IG3 rail powered. When it falls (B11 = 0x80) the OBC, BMS, MCU, AAF and HVAC stop
             answering and VCU 2102 stops updating, while the VCU, IGPM and BCM answer for another
-            1.7-3 min (9 stored stretches). Equals BMS_IG3_ON (BMS 2101 B61:3) in 10845 of 10846
+            1.7-3 min (9 stored stretches). Equals HCU_READY (BMS 2101 B61:3) in 10845 of 10846
             aligned rows. 1 in READY, AC and DC charging, the 12 V top-up and ignition-on standby.
             Reads 1 in the uhi22 EPCU bench log (EPCU on its 12 V and wake-line pins only) while
             VCU_IGN_ON reads 0, so it follows the EPCU wake input, not the ignition.
