@@ -43,7 +43,7 @@ lives in `.claude/skills/contributing-profiles/SKILL.md`). Before opening a code
 PR, run from the repo root:
 
 ```bash
-make setup                                          # once per clone: deps + git hooks
+make install                                        # once per clone: deps + git hooks + CLI
 uv run pytest -q                                    # parallel by default; -n0 for one file
 uv run ruff check . && uv run ruff format --check .
 uv run ty check

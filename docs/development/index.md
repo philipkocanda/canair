@@ -27,7 +27,7 @@ validation on each commit, the [Conventional Commits](commit-messages.md) check 
 message, and the generated-artifact currency checks on each push:
 
 ```bash
-make setup                                   # Git LFS + all three hook stages (+ uv sync)
+make install                                 # Git LFS + hooks + uv sync + `canair` tool (alias: setup)
 # or, without make:
 git lfs install --force                      # first: see the note below
 uv run pre-commit install --install-hooks

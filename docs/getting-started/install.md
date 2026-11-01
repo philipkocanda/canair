@@ -32,6 +32,10 @@ uv run canair --help
 `uv run canair …` executes the code in the current repo checkout. This is also
 what you'll use if you're hacking on canair itself.
 
+Inside a clone, `make install` (alias `make setup`) does the whole bootstrap in one go: Git LFS,
+`uv sync`, the git hooks and `uv tool install --reinstall .`. Re-run it after a `git pull` to
+refresh the bare `canair` command.
+
 ## Point your writes somewhere durable
 
 `uv tool install` bakes a **frozen copy** of canair — including the profiles it

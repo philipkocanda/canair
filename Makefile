@@ -10,11 +10,12 @@
 # Rationale: plans/2026-07-24-documentation-strategy.md.
 export NO_MKDOCS_2_WARNING := 1
 
-.PHONY: help setup lfs-check docs docs-serve screenshots screenshots-check gen gen-check check
+.PHONY: help install setup lfs-check docs docs-serve screenshots screenshots-check gen gen-check check
 
 help:
 	@echo "Targets:"
-	@echo "  setup              Install Git LFS, deps and the git hooks (run once per clone)"
+	@echo "  install            Install Git LFS, deps, git hooks and the \`canair\` tool (re-run after pull)"
+	@echo "  setup              Alias for install"
 	@echo "  screenshots        Regenerate the doc screenshots + animations (needs freeze + vhs)"
 	@echo "  screenshots-check  Verify screenshots are current (no render; used by CI)"
 	@echo "  gen                Regenerate all committed generated docs (CLI reference, screenshots)"
@@ -36,10 +37,17 @@ help:
 # `--force` is what makes a re-run work: without it git-lfs refuses to touch a pre-push
 # hook that pre-commit already generated, and fails. pre-commit then moves the
 # freshly written LFS hook aside again, so repeating this is harmless.
-setup:
+#
+# The last step refreshes the bare `canair` command from this clone. `uv tool install` is a
+# frozen snapshot, so after a `git pull` it runs old code against new profile data until it is
+# reinstalled; re-running this target is the one-command fix. `setup` is an alias.
+install:
 	git lfs install --force
 	uv sync
 	uv run pre-commit install --install-hooks
+	uv tool install --reinstall .
+
+setup: install
 
 screenshots:
 	uv run python scripts/gen_screenshots.py
