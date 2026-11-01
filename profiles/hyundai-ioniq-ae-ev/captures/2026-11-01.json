@@ -81,28 +81,6 @@
         }
       },
       "captures": [
-        {"rx":"0x7EC","pid":"0100","payload":"0100410080000001","time":"17:21:55"}
-      ]
-    },
-    {
-      "date": "2026-11-01",
-      "label": "BMS mode 01 probe",
-      "version": "3.1.0+main.e6a5d10.dirty",
-      "vehicle_states": [
-        "CHARGING"
-      ],
-      "transport": "wican-ws",
-      "variant": "28kwh",
-      "revisions": {
-        "BMS": "kwp"
-      },
-      "attribution": {
-        "variant": "selected",
-        "revisions": {
-          "BMS": "only"
-        }
-      },
-      "captures": [
         {"rx":"0x7EC","pid":"015B","response":"No response from ECU (NO DATA)"}
       ]
     },
@@ -213,39 +191,18 @@
         }
       },
       "captures": [
-        {"rx":"0x7EC","pid":"0100","payload":"0100410080000001","time":"17:22:19"}
-      ]
-    },
-    {
-      "date": "2026-11-01",
-      "label": "BMS mode 01 probe repeat",
-      "version": "3.1.0+main.e6a5d10.dirty",
-      "vehicle_states": [
-        "CHARGING"
-      ],
-      "transport": "wican-ws",
-      "variant": "28kwh",
-      "revisions": {
-        "BMS": "kwp"
-      },
-      "attribution": {
-        "variant": "selected",
-        "revisions": {
-          "BMS": "only"
-        }
-      },
-      "captures": [
         {"rx":"0x7EC","pid":"0101","response":"No response from ECU (NO DATA)"}
       ]
     },
     {
       "date": "2026-11-01",
-      "label": "BMS mode 01 probe repeat",
-      "version": "3.1.0+main.e6a5d10.dirty",
+      "label": "BMS mode 01 probe",
+      "version": "3.1.0+main.ecc5fb2.dirty",
       "vehicle_states": [
         "CHARGING"
       ],
-      "transport": "wican-ws",
+      "notes": "Re-imported: the 2026-11-01 wican-ws read kept the ELM327 request echo in the stored payload (fixed in the parser).",
+      "transport": "import",
       "variant": "28kwh",
       "revisions": {
         "BMS": "kwp"
@@ -257,7 +214,53 @@
         }
       },
       "captures": [
-        {"rx":"0x7EC","pid":"0120","payload":"0120412080018001","time":"17:22:24"}
+        {"rx":"0x7EC","pid":"0100","payload":"410080000001","time":"17:21:55"}
+      ]
+    },
+    {
+      "date": "2026-11-01",
+      "label": "BMS mode 01 probe repeat",
+      "version": "3.1.0+main.ecc5fb2.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "notes": "Re-imported: the 2026-11-01 wican-ws read kept the ELM327 request echo in the stored payload (fixed in the parser).",
+      "transport": "import",
+      "variant": "28kwh",
+      "revisions": {
+        "BMS": "kwp"
+      },
+      "attribution": {
+        "variant": "selected",
+        "revisions": {
+          "BMS": "only"
+        }
+      },
+      "captures": [
+        {"rx":"0x7EC","pid":"0100","payload":"410080000001","time":"17:22:19"}
+      ]
+    },
+    {
+      "date": "2026-11-01",
+      "label": "BMS mode 01 probe repeat",
+      "version": "3.1.0+main.ecc5fb2.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "notes": "Re-imported: the 2026-11-01 wican-ws read kept the ELM327 request echo in the stored payload (fixed in the parser).",
+      "transport": "import",
+      "variant": "28kwh",
+      "revisions": {
+        "BMS": "kwp"
+      },
+      "attribution": {
+        "variant": "selected",
+        "revisions": {
+          "BMS": "only"
+        }
+      },
+      "captures": [
+        {"rx":"0x7EC","pid":"0120","payload":"412080018001","time":"17:22:24"}
       ]
     }
   ]

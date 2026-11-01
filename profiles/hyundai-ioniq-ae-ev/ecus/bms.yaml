@@ -1321,8 +1321,10 @@ BMS:
         OBDb lists these standard Mode 01 PIDs answering from 0x7E4 on 2017-2018 cars (monitor
         status, MIL distance, warm-ups, distance since clear), and 01 5B (hybrid battery pack
         remaining life) on 2018. 01 5B would be a third SOC source next to SOC_BMS and SOC_DISP. The
-        stored 2026-11-01 0100/0120 payloads start with the echoed request (01 00 / 01 20) because
-        the ELM327 parser strips an echo only for service IDs 0x10-0x3E.
+        2026-11-01 0100/0120 payloads were first stored with the ELM327 request echo in front (01 00
+        / 01 20); the parser now drops an echo only when it equals the request, and the three rows
+        were re-imported with the true replies at their original times. Mode 01 PIDs are read with
+        the SERVICE/ID query form, e.g. canair read BMS:01/01.
       sources:
         - OBDb Hyundai-IONIQ-Electric signalset and its tests/test_cases (2017/2018 command_support), compared 2026-10-27
         - on-car 2026-11-01 (canair raw 7E4:01xx --save, wican-ws, AC charging)
