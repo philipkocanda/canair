@@ -10,8 +10,8 @@ status: active
 verification: >-
   Text transcribed from the manual's per-DTC pages (DTC Description and DTC Detecting Condition),
   not from the code lists of other sites. Nothing here has been seen on this car: the logged scans
-  contain only AMP B2915-B2921 and CCM C182C. Treat every entry as `verified: false` until a scan
-  returns it.
+  contain only AMP B2915-B2921 and CCM C182C. Every entry added to `ecus/` is `verified: false`
+  until a scan returns it.
 sections:
   - section: "1"
     status: open
@@ -22,10 +22,14 @@ sections:
       What the "-NN" suffix is. The manual never says; the match with the standard failure-type
       table is an inference.
   - section: "3-7"
-    status: open
+    status: integrated
+    date: 2026-11-01
     note: >-
-      Per-unit meanings. None are in `ecus/*.yaml` yet; `esc.yaml`, `bcm.yaml` and `igpm.yaml`
-      have no `dtcs:` section.
+      Every code whose own page was read is in `esc.yaml`, `bcm.yaml` (IBU and TPMS), `igpm.yaml`
+      and `skm.yaml` as `verified: false`. Codes known only from the index (sections 3 and 8) are
+      not. `eps.yaml` was corrected against the EV MDPS index: C1604, C1705, C2412, C2413,
+      C1692, C1102 and C1628 renamed, C1687 and C1688 removed (ESC codes), the rest flagged.
+    target: profiles/hyundai-ioniq-ae-ev/ecus/
 relations:
   related:
     - path: docs/concepts/dtcs.md
@@ -128,8 +132,9 @@ if fitted; exceptions are noted.
 | C2380 | ABS/TCS/ESP valve error | ABS valve under 2.0 V for 0.06 s, AHB valve voltage difference over 5 V for 1 s, or valve current over 8.5 +/- 2.5 A for 0.06 s | all lamps; AHB control lost and buzzer |
 | C2402 | Motor electrical | battery under 4 V for 1 s, relay voltage above 4 +/- 0.5 V while off for 500 ms, motor relay voltage below spec for 1 s, or ground loss above 5 V / below 1 V for 100 ms | all lamps; buzzer if accumulator pressure is low |
 
-Listed in the ESC index but not read in detail: `C1204`/`C1207`/`C1210` (range), `C1205`/`C1208`/
-`C1211` (no signal), `C1234` (rear pressure sensor), `C1237` (pressure sensor other), `C1268`
+The wheel-sensor siblings (`C1204`/`C1207`/`C1210` and `C1205`/`C1208`/`C1211`) were read
+afterwards: identical to `C1201` and `C1202` apart from the wheel. Listed in the ESC index but not
+read in detail: `C1234` (rear pressure sensor), `C1237` (pressure sensor other), `C1268`
 (circuit leak), `C1353`-`C1356` (wheel 1 and 2 pressure sensors), `C1358` (AVH unavailable, EPB in
 emergency release), `C135C` (VCU torque control unavailable for SCC), `C1378`-`C1380`/`C1384`
 (pedal and pressure sensor signal and calibration), `C1503` (TCS switch), `C1542` (brake switch),
@@ -219,7 +224,7 @@ All codes are `-00`. Per-wheel families repeat for FL, FR, RL, RR with consecuti
 |---|---|---|---|
 | C1121-C1124 | Sensor battery low | sensor battery below 2.2 V, 3 consecutive bursts, then 180 s | off |
 | C1126 | TPMS ECU battery low | vehicle battery below 9 V for 2 s, above 25 km/h | on (60 s flashing, then steady) |
-| C1127 | TPMS ECU battery high | listed in the index; threshold not read | |
+| C1127 | TPMS ECU battery high | 12 V battery above 16 V for 2 s, ignition on | on (60 s flashing, then steady) |
 | C1212 | Vehicle speed signal | EMS speed invalid for 2.5 s, or wheel-acceleration plausibility fails; 30 s of bad ABS/ESC values | on |
 | C1312-C1315 | Sensor RF channel failure | no RF signal for 540 s (EU) or 1140 s (NA) after exceeding 25 km/h | on |
 | C1322-C1325 | Sensor over temperature | last temperature at or above 115 C (239 F) | off |
@@ -242,7 +247,8 @@ hear the ESC.
 
 ## 9. Next steps
 
-- Add the ESC, IBU/BCM and IGPM codes to `ecus/*.yaml` as `verified: false`, with source "Ioniq
-  2017 manual" and the page, using `canair pids`. This note is the staging area for that.
 - Run `canair dtc --all` with the car awake and compare the printed suffixes with section 2.
-- Read the remaining ESC and EPB pages (section 3 list) before adding them.
+- Read the remaining ESC pages (section 3 list) and the EPB, cluster, door-module and airbag pages
+  (section 8) before adding them; and the EV MDPS pages, whose codes `eps.yaml` lacks (`C1101`,
+  `C1109`, `C1262`, `C1603`, `C1614`, `C1711`, `C1802`, `C1804`, `C1817`).
+- TPMS `C1611`, `C1625` and `C1642` are index-only too.

@@ -161,29 +161,52 @@ EPS:
       source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
       verified: false
     C1705:
-      description: ECU hardware error
-      source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
+      description: ECU pre-charge circuit fail
+      source: >-
+        Ioniq Electric 2017 service manual, DTC index (EV), Motor Driven Power Steering System DTCs,
+        C1705-16
       verified: false
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Quick%20Lookups/DTC%20Index/DTC%20Index%20%28EV%29/Motor%20Driven%20Power%20Steering%20System%20DTCS/
+      notes: The shop manual's MDPS table (shop:0069) calls it 'ECU hardware error'.
     C1604:
-      description: ECU over/discharge error
-      source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
-      verified: false
-    C2413:
       description: ECU hardware error
-      source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
+      source: >-
+        Ioniq Electric 2017 service manual, DTC index (EV), Motor Driven Power Steering System DTCs,
+        C1604-52/72/73/93/96
       verified: false
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Quick%20Lookups/DTC%20Index/DTC%20Index%20%28EV%29/Motor%20Driven%20Power%20Steering%20System%20DTCS/
+      notes: The shop manual's MDPS table (shop:0069) calls it 'ECU over/discharge error'.
+    C2413:
+      description: Motor current fail (current over)
+      source: >-
+        Ioniq Electric 2017 service manual, DTC index (EV), Motor Driven Power Steering System DTCs,
+        C2413-22/28
+      verified: false
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Quick%20Lookups/DTC%20Index/DTC%20Index%20%28EV%29/Motor%20Driven%20Power%20Steering%20System%20DTCS/
+      notes: The shop manual's MDPS table (shop:0069) calls it 'ECU hardware error'.
     C2400:
       description: Motor signal error
       source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
       verified: false
+      notes: >-
+        Not in the EV MDPS DTC index; the shop-manual table it comes from (shop:0069) also lists
+        codes for combustion cars.
     C2401:
       description: Motor circuit error
       source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
       verified: false
     C2412:
-      description: Motor voltage supply error
-      source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
+      description: Motor short or open
+      source: >-
+        Ioniq Electric 2017 service manual, DTC index (EV), Motor Driven Power Steering System DTCs,
+        C2412-96
       verified: false
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Quick%20Lookups/DTC%20Index/DTC%20Index%20%28EV%29/Motor%20Driven%20Power%20Steering%20System%20DTCS/
+      notes: The shop manual's MDPS table (shop:0069) calls it 'Motor voltage supply error'.
     C1259:
       description: Steering angle sensor signal error
       source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
@@ -192,50 +215,89 @@ EPS:
       description: Steering angle sensor signal error
       source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
       verified: false
+      notes: >-
+        Not in the EV MDPS DTC index; the shop-manual table it comes from (shop:0069) also lists
+        codes for combustion cars.
     C1261:
       description: Steering angle zero-setting error
       source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
       verified: false
     C1102:
-      description: Battery voltage problem
-      source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
+      description: Battery voltage low
+      source: >-
+        Ioniq Electric 2017 service manual, DTC index (EV), Motor Driven Power Steering System DTCs,
+        C1102-01
       verified: false
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Quick%20Lookups/DTC%20Index/DTC%20Index%20%28EV%29/Motor%20Driven%20Power%20Steering%20System%20DTCS/
+      notes: The shop manual's MDPS table (shop:0069) calls it 'Battery voltage problem'.
     C1696:
       description: SPAS signal error
       source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
       verified: false
+      notes: >-
+        Not in the EV MDPS DTC index; the shop-manual table it comes from (shop:0069) also lists
+        codes for combustion cars.
     C1697:
       description: SPAS signal error
       source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
       verified: false
+      notes: >-
+        Not in the EV MDPS DTC index; the shop-manual table it comes from (shop:0069) also lists
+        codes for combustion cars.
     C1612:
       description: TCU signal error
       source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
       verified: false
+      notes: >-
+        Not in the EV MDPS DTC index; the shop-manual table it comes from (shop:0069) also lists
+        codes for combustion cars.
     C1646:
       description: TCU signal error
       source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
       verified: false
+      notes: >-
+        Not in the EV MDPS DTC index; the shop-manual table it comes from (shop:0069) also lists
+        codes for combustion cars.
     C1628:
-      description: Instrument cluster signal error
-      source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
+      description: CAN time-out, cluster
+      source: >-
+        Ioniq Electric 2017 service manual, DTC index (EV), Motor Driven Power Steering System DTCs,
+        C1628-87
       verified: false
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Quick%20Lookups/DTC%20Index/DTC%20Index%20%28EV%29/Motor%20Driven%20Power%20Steering%20System%20DTCS/
+      notes: The shop manual's MDPS table (shop:0069) calls it 'Instrument cluster signal error'.
     C1656:
       description: Instrument cluster signal error
       source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
       verified: false
+      notes: >-
+        Not in the EV MDPS DTC index; the shop-manual table it comes from (shop:0069) also lists
+        codes for combustion cars.
     C1692:
-      description: VSM signal error
-      source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
+      description: CAN time-out, ESC
+      source: >-
+        Ioniq Electric 2017 service manual, DTC index (EV), Motor Driven Power Steering System DTCs,
+        C1692-87
       verified: false
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Quick%20Lookups/DTC%20Index/DTC%20Index%20%28EV%29/Motor%20Driven%20Power%20Steering%20System%20DTCS/
+      notes: The shop manual's MDPS table (shop:0069) calls it 'VSM signal error'.
     C1693:
       description: VSM signal error
       source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
       verified: false
+      notes: >-
+        Not in the EV MDPS DTC index; the shop-manual table it comes from (shop:0069) also lists
+        codes for combustion cars.
     C1611:
       description: CAN timeout, EMS
       source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
       verified: false
+      notes: >-
+        Not in the EV MDPS DTC index; the shop-manual table it comes from (shop:0069) also lists
+        codes for combustion cars.
     C1616:
       description: CAN bus off
       source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
@@ -244,15 +306,13 @@ EPS:
       description: Vehicle speed signal error
       source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
       verified: false
+      notes: >-
+        Not in the EV MDPS DTC index; the shop-manual table it comes from (shop:0069) also lists
+        codes for combustion cars.
     C1623:
       description: CAN timeout, steering angle sensor
       source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
       verified: false
-    C1687:
-      description: CAN timeout, steering angle sensor
-      source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
-      verified: false
-    C1688:
-      description: CAN timeout, steering angle sensor
-      source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
-      verified: false
+      notes: >-
+        Not in the EV MDPS DTC index; the shop-manual table it comes from (shop:0069) also lists
+        codes for combustion cars.

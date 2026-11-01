@@ -1179,3 +1179,615 @@ IGPM:
       response: "6FBC4300"
     BC44:
       response: "6FBC4400"
+  dtcs:
+    B1101:
+      description: Battery voltage high
+      causes: charging system
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        B1101-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: Ignition supply above 19 V for 3 s, from 5 s after ignition on.
+    B1102:
+      description: Battery voltage low
+      causes: charging system
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        B1102-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: Ignition supply below 6.5 V for 3 s, from 5 s after ignition on.
+    B1581:
+      description: Ignition switch signal error
+      causes: BCM ON/START input open, shorted to battery or to ground
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        B1581-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: >-
+        The gateway's ignition input disagrees for 5 s with the ignition state in the BCM's B-CAN
+        data.
+    B1602:
+      description: CAN line error (B-CAN)
+      causes: B-CAN high or low shorted to battery or ground, open, or shorted together
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        B1602-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: One B-CAN line failed while the bus still works; 9-16 V, 2 s.
+    B1603:
+      description: CAN bus off (B-CAN)
+      causes: B-CAN high and low shorted together to battery or ground
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        B1603-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: B-CAN communication impossible; 9-16 V, 2 s.
+    B1604:
+      description: CAN time-out, BCM
+      causes: BCM CAN lines open or poor connection, BCM power supply
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        B1604-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: No B-CAN message from the BCM for 10 s.
+    B1605:
+      description: CAN time-out, driver door module
+      causes: driver door module CAN lines open or poor connection, driver door module power supply
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        B1605-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: No B-CAN message from the driver door module for 10 s.
+    B1606:
+      description: CAN time-out, assist door module
+      causes: assist door module CAN lines open or poor connection, assist door module power supply
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        B1606-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: No B-CAN message from the assist door module for 10 s.
+    B1607:
+      description: CAN time-out, power seat module
+      causes: power seat module CAN lines open or poor connection, power seat module power supply
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        B1607-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: No B-CAN message from the power seat module for 10 s.
+    B1621:
+      description: ECU failure
+      causes: gateway
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        B1621-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: EEPROM read or write error inside the gateway.
+    B1644:
+      description: CAN time-out, airbag control unit (ACU)
+      causes: >-
+        airbag control unit (ACU) CAN lines open or poor connection, airbag control unit (ACU) power
+        supply
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        B1644-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: No P-CAN message from the airbag control unit (ACU) for 10 s.
+    B1648:
+      description: CAN time-out, occupant detection (ODS)
+      causes: >-
+        occupant detection (ODS) CAN lines open or poor connection, occupant detection (ODS) power
+        supply
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        B1648-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: >-
+        No P-CAN message from the occupant detection (ODS) for 10 s. The manual's enable condition
+        says B-CAN.
+    B164D:
+      description: CAN time-out, wireless phone charger
+      causes: >-
+        wireless phone charger CAN lines open or poor connection, wireless phone charger power
+        supply
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        B164D-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: No B-CAN message from the wireless phone charger for 10 s.
+    B168A:
+      description: CAN time-out, smart key unit
+      causes: smart key unit CAN lines open or poor connection, smart key unit power supply
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        B168A-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: No P-CAN message from the smart key unit for 10 s. The IBU's B168A says B-CAN instead.
+    B1699:
+      description: CAN time-out, AV/AVN head unit
+      causes: AV/AVN head unit CAN lines open or poor connection, AV/AVN head unit power supply
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        B1699-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: No M-CAN message from the AV/AVN head unit for 10 s.
+    B2211:
+      description: CAN time-out, BMS
+      causes: BMS CAN lines open or poor connection, BMS power supply
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        B2211-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: No P-CAN message from the BMS for 10 s.
+    B2352:
+      description: Dedicated DRL LH short to ground
+      causes: short to ground in the lamp circuit, lamp
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        B2352-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: Over 7.2 A in the output with the lamp switched on.
+    B2353:
+      description: Dedicated DRL RH short to ground
+      causes: short to ground in the lamp circuit, lamp
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        B2353-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: Over 7.2 A in the output with the lamp switched on.
+    B2510:
+      description: Head lamp high RH short to ground
+      causes: short to ground in the lamp circuit, lamp
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        B2510-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: Over 12.5 A in the output with the lamp switched on.
+    B2511:
+      description: Head lamp high LH short to ground
+      causes: short to ground in the lamp circuit, lamp
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        B2511-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: Over 12.5 A in the output with the lamp switched on.
+    B2512:
+      description: Head lamp low RH short to ground
+      causes: short to ground in the lamp circuit, lamp
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        B2512-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: Over 12.5 A in the output with the lamp switched on.
+    B2513:
+      description: Head lamp low LH short to ground
+      causes: short to ground in the lamp circuit, lamp
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        B2513-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: Over 12.5 A in the output with the lamp switched on.
+    B2517:
+      description: Internal tail lamp circuit short to ground
+      causes: short to ground in the lamp circuit, lamp
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        B2517-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: Over 7.2 A in the output with the lamp switched on.
+    B251D:
+      description: Stop lamp right circuit short to ground
+      causes: short to ground in the lamp circuit, lamp
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        B251D-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: Over 6.2 A in the output with the lamp switched on.
+    B251E:
+      description: Stop lamp left circuit short to ground
+      causes: short to ground in the lamp circuit, lamp
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        B251E-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: Over 6.2 A in the output with the lamp switched on.
+    B251F:
+      description: High mounted stop lamp short to ground
+      causes: short to ground in the lamp circuit, lamp
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        B251F-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: Over 6.2 A in the output with the lamp switched on.
+    B2522:
+      description: Turn signal LH front short to ground
+      causes: short to ground in the lamp circuit, lamp
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        B2522-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: Over 7.2 A in the output with the lamp switched on.
+    B2523:
+      description: Turn signal LH rear short to ground
+      causes: short to ground in the lamp circuit, lamp
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        B2523-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: Over 7.2 A in the output with the lamp switched on.
+    B2524:
+      description: Turn signal RH front short to ground
+      causes: short to ground in the lamp circuit, lamp
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        B2524-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: Over 7.2 A in the output with the lamp switched on.
+    B2525:
+      description: Turn signal RH rear short to ground
+      causes: short to ground in the lamp circuit, lamp
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        B2525-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: Over 7.2 A in the output with the lamp switched on.
+    B258A:
+      description: External tail lamp front right short to ground
+      causes: short to ground in the lamp circuit, lamp
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        B258A-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: Over 6.2 A in the output with the lamp switched on.
+    B258B:
+      description: External tail lamp front left short to ground
+      causes: short to ground in the lamp circuit, lamp
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        B258B-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: Over 6.2 A in the output with the lamp switched on.
+    B258C:
+      description: External tail lamp rear right short to ground
+      causes: short to ground in the lamp circuit, lamp
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        B258C-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: Over 6.2 A in the output with the lamp switched on.
+    B258D:
+      description: External tail lamp rear left short to ground
+      causes: short to ground in the lamp circuit, lamp
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        B258D-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: Over 7.8 A in the output with the lamp switched on.
+    B2800:
+      description: CAN bus off (M-CAN)
+      causes: M-CAN high and low shorted together to battery or ground
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        B2800-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: M-CAN communication impossible; 9-16 V, 2 s.
+    B2801:
+      description: CAN single line error (M-CAN)
+      causes: M-CAN high or low shorted to battery or ground, open, or shorted together
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        B2801-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: One M-CAN line failed while the bus still works; 9-16 V, 2 s.
+    B2804:
+      description: CAN time-out, climate control (DATC)
+      causes: >-
+        climate control (DATC) CAN lines open or poor connection, climate control (DATC) power
+        supply
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        B2804-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: No P-CAN message from the climate control (DATC) for 10 s.
+    B2805:
+      description: CAN time-out, IBOX
+      causes: IBOX CAN lines open or poor connection, IBOX power supply
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        B2805-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: No M-CAN message from the IBOX for 10 s.
+    C160E:
+      description: CAN bus off (P-CAN)
+      causes: P-CAN high and low shorted together to battery or ground
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        C160E-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: P-CAN communication impossible; 9-16 V, 2 s.
+    C160F:
+      description: CAN bus off (D-CAN)
+      causes: D-CAN high and low shorted together to battery or ground
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        C160F-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: D-CAN communication impossible; 9-16 V, 2 s.
+    C1614:
+      description: CAN time-out, VCU
+      causes: VCU CAN lines open or poor connection, VCU power supply
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        C1614-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: No P-CAN message from the VCU for 10 s.
+    C1616:
+      description: CAN bus off (C-CAN)
+      causes: C-CAN high and low shorted together to battery or ground
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        C1616-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: C-CAN communication impossible; 9-16 V, 2 s.
+    C1625:
+      description: CAN time-out, ESC (ABS/ESP)
+      causes: ESC (ABS/ESP) CAN lines open or poor connection, ESC (ABS/ESP) power supply
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        C1625-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: No C-CAN message from the ESC (ABS/ESP) for 10 s.
+    C1628:
+      description: CAN time-out, cluster
+      causes: cluster CAN lines open or poor connection, cluster power supply
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        C1628-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: No C-CAN message from the cluster for 10 s.
+    C1651:
+      description: CAN time-out, EPB
+      causes: EPB CAN lines open or poor connection, EPB power supply
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        C1651-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: No C-CAN message from the EPB for 10 s.
+    C1667:
+      description: CAN time-out, SCC
+      causes: SCC CAN lines open or poor connection, SCC power supply
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        C1667-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: No C-CAN message from the SCC for 10 s.
+    C1687:
+      description: CAN time-out, MDPS
+      causes: MDPS CAN lines open or poor connection, MDPS power supply
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        C1687-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: No C-CAN message from the MDPS for 10 s.
+    C1804:
+      description: CAN time-out, LKAS
+      causes: LKAS CAN lines open or poor connection, LKAS power supply
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        C1804-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: No C-CAN message from the LKAS for 10 s.
+    C1806:
+      description: CAN time-out, MCU
+      causes: MCU CAN lines open or poor connection, MCU power supply
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        C1806-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: No P-CAN message from the MCU for 10 s.
+    C1808:
+      description: CAN time-out, LDC
+      causes: LDC CAN lines open or poor connection, LDC power supply
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        C1808-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: No P-CAN message from the LDC for 10 s.
+    C1818:
+      description: CAN time-out, blind-spot radar (LCA)
+      causes: >-
+        blind-spot radar (LCA) CAN lines open or poor connection, blind-spot radar (LCA) power
+        supply
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        C1818-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: No C-CAN message from the blind-spot radar (LCA) for 10 s.
+    C1819:
+      description: CAN time-out, TPMS (in the BCM)
+      causes: TPMS (in the BCM) CAN lines open or poor connection, TPMS (in the BCM) power supply
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        C1819-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: No C-CAN message from the TPMS (in the BCM) for 10 s.
+    C181A:
+      description: CAN time-out, active air flap (AAF)
+      causes: >-
+        active air flap (AAF) CAN lines open or poor connection, active air flap (AAF) power supply
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        C181A-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: No P-CAN message from the active air flap (AAF) for 10 s.
+    C181C:
+      description: CAN time-out, shift-by-wire lever (LVR)
+      causes: >-
+        shift-by-wire lever (LVR) CAN lines open or poor connection, shift-by-wire lever (LVR) power
+        supply
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        C181C-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: No P-CAN message from the shift-by-wire lever (LVR) for 10 s.
+    C1827:
+      description: CAN time-out, iBAU
+      causes: iBAU CAN lines open or poor connection, iBAU power supply
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        C1827-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: >-
+        No C-CAN message from the iBAU for 10 s. The manual does not say how this differs from
+        C1625.
+    C1829:
+      description: CAN time-out, OBC
+      causes: OBC CAN lines open or poor connection, OBC power supply
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        C1829-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: No P-CAN message from the OBC for 10 s.
+    C182D:
+      description: CAN time-out, SCU
+      causes: SCU CAN lines open or poor connection, SCU power supply
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        C182D-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: No P-CAN message from the SCU for 10 s.
+    C1830:
+      description: CAN time-out, VESS
+      causes: VESS CAN lines open or poor connection, VESS power supply
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        C1830-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: No P-CAN message from the VESS for 10 s.
+    C220B:
+      description: Charge inlet actuator failure
+      causes: actuator circuit open or short, lock or unlock relay circuit open or short
+      source: >-
+        Ioniq Electric 2017 service manual, Integrated Gateway Power Module diagnosis (EV), DTC
+        C220B-00
+      source_links:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Accessories%20%26%20Equipment/Communication%20Devices/Integrated%20Gateway%20Power%20Module%20Diagnosis%20%28EV%29/
+      verified: false
+      notes: >-
+        The OBC's charge-connector lock or unlock command failed twice, with the IG3 relay on, 9-16
+        V and a connector plugged in.
