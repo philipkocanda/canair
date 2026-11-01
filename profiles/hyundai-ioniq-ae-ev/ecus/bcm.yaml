@@ -1201,6 +1201,20 @@ BCM:
         B18.
       sources:
         - Ioniq 2017 US shop manual, BCM Current Data screenshots
+    - type: scan
+      target: 0x19 sub-functions, 0x24 scaling
+      status: done
+      priority: P3
+      created: "2026-11-01"
+      updated: "2026-11-01"
+      result: >-
+        2026-11-01, AC charging: 19 01 FF -> 59 01 09 00 00 00 and 19 02 FF -> 59 02 09. The DTC
+        status availability mask is 0x09: only testFailed (bit 0) and confirmedDTC (bit 3) are
+        maintained, so the other status bits of a BCM DTC carry nothing. 19 0A (reportSupportedDTC)
+        and 19 03 (snapshot identification) return NRC 0x12. 0x24 ReadScalingDataByIdentifier
+        returns NRC 0x11 for B003, B004, C00B and F190, in the default and extended sessions.
+      sources:
+        - on-car 2026-11-01 support probe (canair read raw steps --save, wican-ws, AC charging)
   iocontrol_discoveries:
     B003:
       response: "6FB00300"

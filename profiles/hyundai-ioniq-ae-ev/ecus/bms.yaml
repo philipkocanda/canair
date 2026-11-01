@@ -19,6 +19,9 @@ BMS:
     notes: >-
       1A80 firmware build date reads 2008-07-09. Air-cooled pack: a BMS-controlled fan in the trunk
       draws cabin air in under the middle rear seat and out through the right rear wheel well.
+      OBD-II mode 09 (2026-11-01): 09 00 advertises InfoTypes 04, 06 and 0A; the calibration ID (09
+      04) is AEEVB4604R, which carries the 4604 ROM ID, the CVN (09 06) is FF62F854 and the ECU name
+      (09 0A) is BECM-B+EnergyCtrl. 09 02 (VIN) is not answered.
   revisions:
     kwp:
       identity: {id_protocol: KWP2000}
@@ -1313,10 +1316,11 @@ BMS:
       updated: "2026-11-01"
       result: >-
         2026-11-01, AC charging with the ignition off: the BMS answers the Mode 01 support bitmaps,
-        01 00 -> 41 00 80 00 00 01 (PIDs 01 and 20) and 01 20 -> 41 20 80 01 80 01 (PIDs 21, 30, 31
-        and 40), matching OBDb's list. 01 01, 01 21, 01 30 and 01 31 return NO DATA despite being
-        advertised; 01 5B is not advertised and returns NO DATA. Service 22 is not supported (NRC
-        0x11).
+        01 00 -> 41 00 80 00 00 01 (PIDs 01 and 20), 01 20 -> 41 20 80 01 80 01 (PIDs 21, 30, 31 and
+        40) and 01 40 -> 41 40 00 00 00 20 (PID 5B), matching OBDb's list. Every advertised PID (01,
+        21, 30, 31, 5B) returns NO DATA, read both physically and functionally on 0x7DF, while the
+        OBC answers 01, 21, 30 and 31 without advertising them (OBC research entry). Service 22 is
+        not supported (NRC 0x11).
       notes: >-
         OBDb lists these standard Mode 01 PIDs answering from 0x7E4 on 2017-2018 cars (monitor
         status, MIL distance, warm-ups, distance since clear), and 01 5B (hybrid battery pack
@@ -1328,13 +1332,12 @@ BMS:
       sources:
         - OBDb Hyundai-IONIQ-Electric signalset and its tests/test_cases (2017/2018 command_support), compared 2026-10-27
         - on-car 2026-11-01 (canair raw 7E4:01xx --save, wican-ws, AC charging)
+        - on-car 2026-11-01 support probe (canair read and discover --functional --save, wican-ws, AC charging)
       what_to_test:
-        - "In READY: do 01 01, 01 21, 01 30 and 01 31 answer once the ignition is on?"
-        - "01 40: which PIDs the third support bitmap advertises."
+        - "In READY: do 01 01, 01 21, 01 30, 01 31 and 01 5B answer once the ignition is on?"
       capture_protocol: >-
-        canair read BMS:01/01,01/21,01/30,01/31,01/40,01/5B --save --label 'BMS mode 01 READY'
-        --state READY; if the advertised PIDs stay silent, try once functionally with canair
-        discover --functional --request 0101 --save
+        canair read BMS:01/01,01/21,01/30,01/31,01/5B --save --label 'BMS mode 01 READY' --state
+        READY
 
   sessions:
     "81":

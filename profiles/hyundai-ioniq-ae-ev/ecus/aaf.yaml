@@ -216,3 +216,30 @@ AAF:
         - B15 stays within 0-100 in every capture
         - B15 rises when motor/coolant temps rise (flap opening for cooling) or changes with speed
         - A 2-bit flap status and an error word that stays 0 in normal operation
+    - type: decode
+      target: 2180/2181 per-byte support maps
+      status: captured
+      priority: P3
+      vehicle_states: [IG3]
+      created: "2026-11-01"
+      updated: "2026-11-01"
+      result: >-
+        2026-11-01, over all stored captures (4742 2180 rows, 15 dates): both pages start with a
+        constant 4-byte map at B04-B07, 2180 C3 66 C0 00 and 2181 FF FF C0 00. Read per byte, most
+        significant bit first, map bit k marks ISO-TP data byte 7+k, which is WiCAN B10 onward with
+        the PCI bytes B16 and B24 skipped; data byte 6 (B09) is covered by neither map. The 2180 map
+        is a subset of the 2181 map, and their difference (3C 99 00) marks exactly the bytes that
+        vary in 2181 but read 00 in every 2180 row: B12, B13 (vehicle speed), B14, B15, B19 (LDC
+        temperature), B22 (motor coolant), B23 and B27. Every byte that varies in 2180 except B09
+        lies inside its own map. So each map says which fields that page fills in, and an unmarked
+        field reads 0.
+      notes: >-
+        Not declared with pids set-support-map: the declaration model has the covered data follow
+        the map directly, and here a byte sits in between. investigate --support-map misses the pair
+        for the same reason. With that one-byte gap, VCU 2101, OBC 2101 and ESC 22C101 still do not
+        fit.
+      sources:
+        - canair captures uds --json and decode --dump-bytes over all stored AAF 2180/2181 captures, 2026-11-01
+      what_to_test:
+        - Confirm the one-byte gap against a 2180/2181 payload with bix --annotate before declaring it
+        - Teach the support-map declaration (and investigate --support-map) an offset between map and covered data, then declare both pages

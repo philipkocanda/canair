@@ -262,6 +262,404 @@
       "captures": [
         {"rx":"0x7EC","pid":"0120","payload":"412080018001","time":"17:22:24"}
       ]
+    },
+    {
+      "date": "2026-11-01",
+      "label": "support-probe: functional 0100",
+      "version": "3.1.0+main.16eaf42",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "notes": "OBD-II mode 01 supported-PID bitmap broadcast",
+      "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"broadcast","pid":"discover functional 7DF 0100","time":"23:05:22","scan_results":{"responding":[{"tx":"0x7E3","rx":"0x7EB","response":"MCU (positive)","notes":"Raw: 410080000001"},{"tx":"0x7E4","rx":"0x7EC","response":"BMS (positive)","notes":"Raw: 410080000001"}],"rejected":"28 known ECUs silent","notes":"Silent: AAF, ADM, AMP, AVN, BCM, BSD-L, BSD-R, CCM, CLU, DDM, EPB, EPS, ESC, GSA, HVAC, IGPM, MFC, OBC, PSM, RCAM, SCC, SKM, SRS, Unknown-746, Unknown-7C0, VCU, VESS, WPC"}}
+      ]
+    },
+    {
+      "date": "2026-11-01",
+      "label": "support-probe: functional 0120",
+      "version": "3.1.0+main.16eaf42.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "notes": "OBD-II mode 01 supported-PID bitmap broadcast",
+      "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"broadcast","pid":"discover functional 7DF 0120","time":"23:05:25","scan_results":{"responding":[{"tx":"0x7E3","rx":"0x7EB","response":"MCU (positive)","notes":"Raw: 412080018000"},{"tx":"0x7E4","rx":"0x7EC","response":"BMS (positive)","notes":"Raw: 412080018001"}],"rejected":"28 known ECUs silent","notes":"Silent: AAF, ADM, AMP, AVN, BCM, BSD-L, BSD-R, CCM, CLU, DDM, EPB, EPS, ESC, GSA, HVAC, IGPM, MFC, OBC, PSM, RCAM, SCC, SKM, SRS, Unknown-746, Unknown-7C0, VCU, VESS, WPC"}}
+      ]
+    },
+    {
+      "date": "2026-11-01",
+      "label": "support-probe: functional 0140",
+      "version": "3.1.0+main.16eaf42.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "notes": "OBD-II mode 01 supported-PID bitmap broadcast",
+      "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"broadcast","pid":"discover functional 7DF 0140","time":"23:05:27","scan_results":{"responding":[{"tx":"0x7E4","rx":"0x7EC","response":"BMS (positive)","notes":"Raw: 414000000020"}],"rejected":"29 known ECUs silent","notes":"Silent: AAF, ADM, AMP, AVN, BCM, BSD-L, BSD-R, CCM, CLU, DDM, EPB, EPS, ESC, GSA, HVAC, IGPM, MCU, MFC, OBC, PSM, RCAM, SCC, SKM, SRS, Unknown-746, Unknown-7C0, VCU, VESS, WPC"}}
+      ]
+    },
+    {
+      "date": "2026-11-01",
+      "label": "support-probe: functional 0101",
+      "version": "3.1.0+main.16eaf42.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "notes": "OBD-II mode 01 PID advertised by the 0100/0120/0140 bitmaps",
+      "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"broadcast","pid":"discover functional 7DF 0101","time":"23:05:41","scan_results":{"responding":[{"tx":"0x7E3","rx":"0x7EB","response":"MCU (positive)","notes":"Raw: 410100"},{"tx":"0x7E5","rx":"0x7ED","response":"OBC (positive)","notes":"Raw: 410100040000"},{"tx":"0x7E2","rx":"0x7EA","response":"VCU (positive)","notes":"Raw: 410100"}],"rejected":"27 known ECUs silent","notes":"Silent: AAF, ADM, AMP, AVN, BCM, BMS, BSD-L, BSD-R, CCM, CLU, DDM, EPB, EPS, ESC, GSA, HVAC, IGPM, MFC, PSM, RCAM, SCC, SKM, SRS, Unknown-746, Unknown-7C0, VESS, WPC"}}
+      ]
+    },
+    {
+      "date": "2026-11-01",
+      "label": "support-probe: functional 0121",
+      "version": "3.1.0+main.16eaf42.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "notes": "OBD-II mode 01 PID advertised by the 0100/0120/0140 bitmaps",
+      "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"broadcast","pid":"discover functional 7DF 0121","time":"23:05:43","scan_results":{"responding":[{"tx":"0x7E3","rx":"0x7EB","response":"MCU (positive)","notes":"Raw: 412100"},{"tx":"0x7E5","rx":"0x7ED","response":"OBC (positive)","notes":"Raw: 41210000"}],"rejected":"28 known ECUs silent","notes":"Silent: AAF, ADM, AMP, AVN, BCM, BMS, BSD-L, BSD-R, CCM, CLU, DDM, EPB, EPS, ESC, GSA, HVAC, IGPM, MFC, PSM, RCAM, SCC, SKM, SRS, Unknown-746, Unknown-7C0, VCU, VESS, WPC"}}
+      ]
+    },
+    {
+      "date": "2026-11-01",
+      "label": "support-probe: functional 0130",
+      "version": "3.1.0+main.16eaf42.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "notes": "OBD-II mode 01 PID advertised by the 0100/0120/0140 bitmaps",
+      "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"broadcast","pid":"discover functional 7DF 0130","time":"23:05:46","scan_results":{"responding":[{"tx":"0x7E5","rx":"0x7ED","response":"OBC (positive)","notes":"Raw: 4130FF"}],"rejected":"29 known ECUs silent","notes":"Silent: AAF, ADM, AMP, AVN, BCM, BMS, BSD-L, BSD-R, CCM, CLU, DDM, EPB, EPS, ESC, GSA, HVAC, IGPM, MCU, MFC, PSM, RCAM, SCC, SKM, SRS, Unknown-746, Unknown-7C0, VCU, VESS, WPC"}}
+      ]
+    },
+    {
+      "date": "2026-11-01",
+      "label": "support-probe: functional 0131",
+      "version": "3.1.0+main.16eaf42.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "notes": "OBD-II mode 01 PID advertised by the 0100/0120/0140 bitmaps",
+      "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"broadcast","pid":"discover functional 7DF 0131","time":"23:05:48","scan_results":{"responding":[{"tx":"0x7E5","rx":"0x7ED","response":"OBC (positive)","notes":"Raw: 41312A4E"}],"rejected":"29 known ECUs silent","notes":"Silent: AAF, ADM, AMP, AVN, BCM, BMS, BSD-L, BSD-R, CCM, CLU, DDM, EPB, EPS, ESC, GSA, HVAC, IGPM, MCU, MFC, PSM, RCAM, SCC, SKM, SRS, Unknown-746, Unknown-7C0, VCU, VESS, WPC"}}
+      ]
+    },
+    {
+      "date": "2026-11-01",
+      "label": "support-probe: physical mode 01/09",
+      "version": "3.1.0+main.16eaf42.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "notes": "Per-ECU OBD-II mode 01 support bitmaps, advertised PIDs, and mode 09 info types",
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 54,
+        "no_data": 40
+      },
+      "variant": "28kwh",
+      "revisions": {
+        "BMS": "kwp"
+      },
+      "attribution": {
+        "variant": "selected",
+        "revisions": {
+          "BMS": "only"
+        }
+      },
+      "captures": [
+        {"rx":"0x7EA","pid":"0101","payload":"410100","time":"23:06:10.052","elapsed_ms":646},
+        {"rx":"0x7EB","pid":"0100","payload":"410080000001","time":"23:06:19.691","elapsed_ms":638},
+        {"rx":"0x7EB","pid":"0101","payload":"410100","time":"23:06:20.334","elapsed_ms":644},
+        {"rx":"0x7EB","pid":"0120","payload":"412080018000","time":"23:06:20.970","elapsed_ms":636},
+        {"rx":"0x7EB","pid":"0121","payload":"412100","time":"23:06:21.067","elapsed_ms":96},
+        {"rx":"0x7EB","pid":"0900","payload":"490014400000","time":"23:06:22.425","elapsed_ms":92},
+        {"rx":"0x7EC","pid":"0100","payload":"410080000001","time":"23:06:22.549","elapsed_ms":88},
+        {"rx":"0x7EC","pid":"0120","payload":"412080018001","time":"23:06:23.946","elapsed_ms":138},
+        {"rx":"0x7EC","pid":"0140","payload":"414000000020","time":"23:06:27.833","elapsed_ms":89},
+        {"rx":"0x7EC","pid":"0900","payload":"490014400000","time":"23:06:29.380","elapsed_ms":93},
+        {"rx":"0x7ED","pid":"0101","payload":"410100040000","time":"23:06:30.789","elapsed_ms":95},
+        {"rx":"0x7ED","pid":"0121","payload":"41210000","time":"23:06:32.137","elapsed_ms":89},
+        {"rx":"0x7ED","pid":"0130","payload":"4130FF","time":"23:06:32.231","elapsed_ms":94},
+        {"rx":"0x7ED","pid":"0131","payload":"41312A4E","time":"23:06:32.374","elapsed_ms":142}
+      ]
+    },
+    {
+      "date": "2026-11-01",
+      "label": "support-probe: mode 09 info types",
+      "version": "3.1.0+main.16eaf42.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "notes": "Mode 09 InfoTypes 04/06/0A advertised by BMS and MCU 0900 (14 40 00 00)",
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 17,
+        "no_data": 10
+      },
+      "variant": "28kwh",
+      "revisions": {
+        "BMS": "kwp"
+      },
+      "attribution": {
+        "variant": "selected",
+        "revisions": {
+          "BMS": "only"
+        }
+      },
+      "captures": [
+        {"rx":"0x7EB","pid":"0904","payload":"49040100","time":"23:06:54.222","elapsed_ms":642},
+        {"rx":"0x7EB","pid":"0906","payload":"490601C2199D2C","time":"23:06:54.863","elapsed_ms":641},
+        {"rx":"0x7EB","pid":"090A","payload":"490A0100","time":"23:06:54.977","elapsed_ms":114},
+        {"rx":"0x7EC","pid":"0904","payload":"49040141454556423436303452000000000000","time":"23:06:56.402","elapsed_ms":133},
+        {"rx":"0x7EC","pid":"0906","payload":"490601FF62F854","time":"23:06:56.520","elapsed_ms":118},
+        {"rx":"0x7EC","pid":"090A","payload":"490A014245434D2D422B456E657267794374726C000000","time":"23:06:56.661","elapsed_ms":141},
+        {"rx":"0x7EA","pid":"0904","payload":"49040100","time":"23:06:59.367","elapsed_ms":104}
+      ]
+    },
+    {
+      "date": "2026-11-01",
+      "label": "support-probe: functional 22F400",
+      "version": "3.1.0+main.16eaf42.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "notes": "OBD-on-UDS (SAE J1979-2) support bitmap DID",
+      "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"broadcast","pid":"discover functional 7DF 22F400","time":"23:08:53","scan_results":{"responding":[{"tx":"0x7E3","rx":"0x7EB","response":"MCU (NRC 0x12)","notes":"Raw: 7F2212"},{"tx":"0x7E5","rx":"0x7ED","response":"OBC (NRC 0x12)","notes":"Raw: 7F2212"},{"tx":"0x7E2","rx":"0x7EA","response":"VCU (NRC 0x12)","notes":"Raw: 7F2212"},{"tx":"0x7E4","rx":"0x7EC","response":"BMS (NRC 0x11)","notes":"Raw: 7F2211"}],"rejected":"26 known ECUs silent","notes":"Silent: AAF, ADM, AMP, AVN, BCM, BSD-L, BSD-R, CCM, CLU, DDM, EPB, EPS, ESC, GSA, HVAC, IGPM, MFC, PSM, RCAM, SCC, SKM, SRS, Unknown-746, Unknown-7C0, VESS, WPC"}}
+      ]
+    },
+    {
+      "date": "2026-11-01",
+      "label": "support-probe: functional 22F800",
+      "version": "3.1.0+main.16eaf42.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "notes": "OBD-on-UDS (SAE J1979-2) support bitmap DID",
+      "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"broadcast","pid":"discover functional 7DF 22F800","time":"23:08:55","scan_results":{"responding":[{"tx":"0x7E4","rx":"0x7EC","response":"BMS (NRC 0x11)","notes":"Raw: 7F2211"},{"tx":"0x7E3","rx":"0x7EB","response":"MCU (NRC 0x12)","notes":"Raw: 7F2212"},{"tx":"0x7E2","rx":"0x7EA","response":"VCU (NRC 0x12)","notes":"Raw: 7F2212"},{"tx":"0x7E5","rx":"0x7ED","response":"OBC (NRC 0x12)","notes":"Raw: 7F2212"}],"rejected":"26 known ECUs silent","notes":"Silent: AAF, ADM, AMP, AVN, BCM, BSD-L, BSD-R, CCM, CLU, DDM, EPB, EPS, ESC, GSA, HVAC, IGPM, MFC, PSM, RCAM, SCC, SKM, SRS, Unknown-746, Unknown-7C0, VESS, WPC"}}
+      ]
+    },
+    {
+      "date": "2026-11-01",
+      "label": "support-probe: functional 22F600",
+      "version": "3.1.0+main.16eaf42.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "notes": "OBD-on-UDS (SAE J1979-2) support bitmap DID",
+      "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"broadcast","pid":"discover functional 7DF 22F600","time":"23:08:58","scan_results":{"responding":[{"tx":"0x7E5","rx":"0x7ED","response":"OBC (NRC 0x12)","notes":"Raw: 7F2212"},{"tx":"0x7E2","rx":"0x7EA","response":"VCU (NRC 0x12)","notes":"Raw: 7F2212"},{"tx":"0x7E3","rx":"0x7EB","response":"MCU (NRC 0x12)","notes":"Raw: 7F2212"},{"tx":"0x7E4","rx":"0x7EC","response":"BMS (NRC 0x11)","notes":"Raw: 7F2211"}],"rejected":"26 known ECUs silent","notes":"Silent: AAF, ADM, AMP, AVN, BCM, BSD-L, BSD-R, CCM, CLU, DDM, EPB, EPS, ESC, GSA, HVAC, IGPM, MFC, PSM, RCAM, SCC, SKM, SRS, Unknown-746, Unknown-7C0, VESS, WPC"}}
+      ]
+    },
+    {
+      "date": "2026-11-01",
+      "label": "support-probe: 0x24 scaling and 0x19 sub-functions",
+      "version": "3.1.0+main.6b45ed5.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "notes": "ReadScalingDataByIdentifier and ReadDTCInformation 01/02/03/0A probes; IGPM in extended session",
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 22,
+        "no_data": 7
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x7A8","pid":"1901FF","payload":"590109000000","time":"23:17:25.378"},
+        {"rx":"0x7A8","pid":"1902FF","payload":"590209","time":"23:17:25.493"},
+        {"rx":"0x7A8","pid":"24B004","response":"No response from ECU (NO DATA)"},
+        {"rx":"0x7A8","pid":"24B003","response":"NRC 0x11 (serviceNotSupported)"},
+        {"rx":"0x7A8","pid":"24C00B","response":"NRC 0x11 (serviceNotSupported)"},
+        {"rx":"0x7A8","pid":"24F190","response":"NRC 0x11 (serviceNotSupported)"},
+        {"rx":"0x7A8","pid":"190A","response":"NRC 0x12 (subFunctionNotSupported)"},
+        {"rx":"0x7A8","pid":"1903","response":"NRC 0x12 (subFunctionNotSupported)"},
+        {"rx":"0x7BB","pid":"240100","response":"No response from ECU (NO DATA)"},
+        {"rx":"0x7BB","pid":"1901FF","response":"No response from ECU (NO DATA)"},
+        {"rx":"0x7BB","pid":"1902FF","response":"No response from ECU (NO DATA)"},
+        {"rx":"0x7BB","pid":"190A","response":"No response from ECU (NO DATA)"},
+        {"rx":"0x7BB","pid":"1903","response":"No response from ECU (NO DATA)"},
+        {"rx":"0x73B","pid":"1902FF","response":"No response from ECU (NO DATA)"},
+        {"rx":"0x778","pid":"24BC03","response":"NRC 0x11 (serviceNotSupported)"},
+        {"rx":"0x778","pid":"24BC07","response":"NRC 0x11 (serviceNotSupported)"},
+        {"rx":"0x778","pid":"1901FF","response":"NRC 0x31 (requestOutOfRange)"},
+        {"rx":"0x778","pid":"1902FF","response":"NRC 0x31 (requestOutOfRange)"},
+        {"rx":"0x778","pid":"190A","response":"NRC 0x13 (incorrectMessageLengthOrInvalidFormat)"},
+        {"rx":"0x778","pid":"1903","response":"NRC 0x13 (incorrectMessageLengthOrInvalidFormat)"}
+      ]
+    },
+    {
+      "date": "2026-11-01",
+      "label": "support-probe: HVAC/CCM 0x24 and 0x19 sub-functions",
+      "version": "3.1.0+main.6b45ed5.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "notes": "Re-run of the HVAC/CCM part while charging; the 23:17 run caught them asleep. VCU 2101 read for the IG3 state",
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 12
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x7EA","pid":"2101","payload":"6101FFE0000009211060064D03000000006E78000720","time":"23:18:49.446","elapsed_ms":58},
+        {"rx":"0x7BB","pid":"1902FF","payload":"590209","time":"23:18:49.820"},
+        {"rx":"0x73B","pid":"1902FF","payload":"590209582C0008","time":"23:18:50.179"},
+        {"rx":"0x73B","pid":"1901FF","payload":"590109000001","time":"23:18:50.288"},
+        {"rx":"0x73B","pid":"1903","payload":"5903582C0001582C0002","time":"23:18:50.503"},
+        {"rx":"0x7BB","pid":"240100","response":"NRC 0x11 (serviceNotSupported)"},
+        {"rx":"0x7BB","pid":"1901FF","response":"NRC 0x12 (subFunctionNotSupported)"},
+        {"rx":"0x7BB","pid":"190A","response":"NRC 0x13 (incorrectMessageLengthOrInvalidFormat)"},
+        {"rx":"0x7BB","pid":"1903","response":"NRC 0x13 (incorrectMessageLengthOrInvalidFormat)"},
+        {"rx":"0x73B","pid":"190A","response":"NRC 0x12 (subFunctionNotSupported)"},
+        {"rx":"0x73B","pid":"24F190","response":"NRC 0x11 (serviceNotSupported)"},
+        {"rx":"0x7A8","pid":"24B004","response":"NRC 0x11 (serviceNotSupported)"}
+      ]
+    },
+    {
+      "date": "2026-11-01",
+      "label": "support-probe: CCM DTC snapshot records",
+      "version": "3.1.0+main.70cba25.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "notes": "19 03 listed snapshot records 01 and 02 for DTC 582C00; read them (19 04) and its extended data (19 06)",
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 5
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x73B","pid":"1904582C0001","payload":"5904582C000801014710021AA7207C0AFFFFFF","time":"23:19:01.628"},
+        {"rx":"0x73B","pid":"1904582C0002","payload":"5904582C000802014710C02E6736FC0AFFFFF8","time":"23:19:01.805"},
+        {"rx":"0x73B","pid":"1904582C00FF","payload":"5904582C000801014710021AA7207C0AFFFFFF02014710C02E6736FC0AFFFFF8","time":"23:19:01.919"},
+        {"rx":"0x73B","pid":"1902FF","payload":"590209582C0008","time":"23:19:02.122"},
+        {"rx":"0x73B","pid":"1906582C00FF","response":"NRC 0x12 (subFunctionNotSupported)"}
+      ]
+    },
+    {
+      "date": "2026-11-01",
+      "label": "support-probe: snapshot DID 4710 live",
+      "version": "3.1.0+main.70cba25.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "notes": "CCM DTC 582C00 snapshot records carry DID 4710 (9 bytes); read it live",
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 4
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x73B","pid":"224710","response":"NRC 0x31 (requestOutOfRange)"},
+        {"rx":"0x73B","pid":"224710","response":"NRC 0x31 (requestOutOfRange)"},
+        {"rx":"0x7A8","pid":"224710","response":"NRC 0x31 (requestOutOfRange)"},
+        {"rx":"0x7BB","pid":"224710","response":"NRC 0x31 (requestOutOfRange)"}
+      ]
+    },
+    {
+      "date": "2026-11-01",
+      "label": "support-probe: functional 224710",
+      "version": "3.1.0+main.70cba25.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "notes": "Which ECUs serve the snapshot environment DID 4710",
+      "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"broadcast","pid":"discover functional 7DF 224710","time":"23:19:19","scan_results":{"responding":[{"tx":"0x7E4","rx":"0x7EC","response":"BMS (NRC 0x11)","notes":"Raw: 7F2211"},{"tx":"0x7E3","rx":"0x7EB","response":"MCU (NRC 0x12)","notes":"Raw: 7F2212"},{"tx":"0x7E2","rx":"0x7EA","response":"VCU (NRC 0x12)","notes":"Raw: 7F2212"},{"tx":"0x7E5","rx":"0x7ED","response":"OBC (NRC 0x12)","notes":"Raw: 7F2212"}],"rejected":"26 known ECUs silent","notes":"Silent: AAF, ADM, AMP, AVN, BCM, BSD-L, BSD-R, CCM, CLU, DDM, EPB, EPS, ESC, GSA, HVAC, IGPM, MFC, PSM, RCAM, SCC, SKM, SRS, Unknown-746, Unknown-7C0, VESS, WPC"}}
+      ]
+    },
+    {
+      "date": "2026-11-01",
+      "label": "support-probe: snapshot DID 4710 extended session",
+      "version": "3.1.0+main.70cba25.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "notes": "DID 4710 in the CCM extended session",
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 2
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x73B","pid":"224710","response":"NRC 0x31 (requestOutOfRange)"}
+      ]
     }
   ]
 }

@@ -388,6 +388,30 @@ OBC:
       capture_protocol: >-
         canair raw with --save --label 'OBC KWP 30 LED probe' --state ACC; record every request and
         reply. Only LIDs 01-04, never a blind sweep.
+    - type: scan
+      target: 01 01, 01 21, 01 30, 01 31
+      status: captured
+      priority: P3
+      vehicle_states: [IG3]
+      created: "2026-11-01"
+      updated: "2026-11-01"
+      result: >-
+        2026-11-01, AC charging: the OBC (0x7ED) answers OBD-II Mode 01 although it advertises none
+        of it (01 00, 01 20, 01 40 and 09 00 return NO DATA). 01 01 -> 00 04 00 00 (MIL off, no
+        DTCs, only the comprehensive-components monitor flagged), 01 21 -> 00 00 (0 km driven with
+        the MIL on), 01 30 -> FF (255 warm-ups since DTCs were cleared, saturated), 01 31 -> 2A 4E
+        (10830 km since DTCs were cleared). The BMS and MCU advertise these PIDs but return NO DATA
+        or one-byte replies, so the OBC is the only ECU on this car that serves them.
+      notes: >-
+        01 31 is a candidate signal (distance since the last DTC clear); the CLU odometer read 75669
+        km on 2026-10-25, which puts that clear near 64800 km. Not defined yet; a READY or drive
+        capture would confirm it counts up.
+      sources:
+        - on-car 2026-11-01 support probe (canair read and discover --functional --save, wican-ws, AC charging)
+      what_to_test:
+        - Does 01 31 grow with distance driven (co-poll with CLU 22B002 ODOMETER on a drive)?
+      capture_protocol: >-
+        canair monitor OBC:01/31 CLU:22B002 --save --label 'OBC 01 31 vs odometer' --state DRIVING
 
   sessions:
     "81":

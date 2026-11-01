@@ -479,12 +479,20 @@ MCU:
       vehicle_states: [READY]
       created: "2026-10-27"
       updated: "2026-10-27"
+      result: >-
+        2026-11-01, AC charging: 01 00 -> 41 00 80 00 00 01 (PIDs 01 and 20) and 01 20 -> 41 20 80
+        01 80 00 (PIDs 21, 30 and 31; no 40). 01 01 and 01 21 answer with a single data byte, 00,
+        where SAE J1979 defines four and two: malformed. 01 30 and 01 31 stay silent when sent
+        functionally; 01 40 returns NO DATA. Mode 09: 09 00 -> 14 40 00 00 (InfoTypes 04, 06 and
+        0A); 09 04 and 09 0A report one item each but empty (01 00), 09 06 (CVN) is C2199D2C, 09 02
+        (VIN) is not answered.
       notes: >-
         OBDb command_support for 2017 and 2018 lists these four Mode 01 PIDs answering from 0x7E3.
-        No Mode 01 captures exist for any ECU here.
+        The OBC answers the same four correctly while charging (OBC research entry).
       sources:
         - OBDb Hyundai-IONIQ-Electric signalset and its tests/test_cases (2017/2018 command_support), compared 2026-10-27
-      capture_protocol: canair read MCU:0101 MCU:0121 MCU:0130 MCU:0131 --save in READY
+      capture_protocol: >-
+        canair read MCU:01/01,01/21,01/30,01/31 --save --label 'MCU mode 01 READY' --state READY
     - type: decode
       target: broadcast 0x524 (inverter DC-link voltage)
       status: pending

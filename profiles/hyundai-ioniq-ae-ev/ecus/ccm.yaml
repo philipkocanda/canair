@@ -418,3 +418,31 @@ CCM:
         - CCM firmware (uhi22 code-flash dump), decompiled 2026-11-01
       what_to_test:
         - Find the Dem_ReportErrorStatus caller or the BSW config entry that carries event 0x11 in references/ccm-ghidra.
+    - type: decode
+      target: DTC snapshot DID 4710
+      status: pending
+      priority: P3
+      vehicle_states: [IG3]
+      created: "2026-11-01"
+      updated: "2026-11-01"
+      result: >-
+        2026-11-01, AC charging: 19 02 FF -> 59 02 09 58 2C 00 08 (status availability mask 0x09;
+        C182C-00 confirmed) and 19 01 FF -> 59 01 09 00 00 01. 19 03 -> 59 03 582C00 01 582C00 02:
+        C182C has snapshot records 01 and 02. 19 04 582C00 01 and 02 each hold one DID, 4710, with 9
+        bytes: record 01 02 1A A7 20 7C 0A FF FF FF, record 02 C0 2E 67 36 FC 0A FF FF F8 (19 04 ...
+        FF returns both). 22 4710 returns NRC 0x31 in the default and extended sessions, so the DID
+        exists only in snapshots; functionally only the KWP2000 ECUs answer, with NRCs. 19 0A and 19
+        06 (extended data) return NRC 0x12. 0x24 on F190 returns NRC 0x11.
+      notes: >-
+        4710 is the environment data the CCM stores with a DTC, so its layout is likely in the Dem
+        snapshot configuration of the decompiled firmware this file already draws on. Bytes 7-9 read
+        FF FF FF in record 01 and FF FF F8 in record 02, which looks like invalid fill and would
+        mark field boundaries.
+      sources:
+        - on-car 2026-11-01 support probe (canair read raw steps --save, wican-ws, AC charging)
+      what_to_test:
+        - Find DID 4710's Dem snapshot layout in the CCM firmware and decode the two records
+        - After the next CCM DTC, compare a fresh snapshot with the vehicle state at the time it was set
+      capture_protocol: >-
+        canair read 'raw 733:1903' 'raw 733:1904582C00FF' --save --label 'CCM snapshot' --state
+        CHARGING

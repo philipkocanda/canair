@@ -17,9 +17,7 @@
         {"rx":"0x7A8","pid":"22B003","notes":"run 2 — B07=0x94 (148)","payload":"62B003BF8B8000943DF5A5F9F8F9F83DF800000000000000AAAAAA"},
         {"rx":"0x7A8","pid":"22B003","notes":"run 4 — B07=0x93 (147)","payload":"62B003BF8B80009343F5A5F9F8F9F73DF800000000000000AAAAAA"},
         {"rx":"0x7A8","pid":"22B003","notes":"run 6 — B12=F7, B14=F7","payload":"62B003BF8B80009334F5A5F9F7F9F73DF800000000000000AAAAAA"},
-        {"rx":"0x7A8","pid":"22B003","notes":"run 10 — B10=A4, B15=F7 (all drifting down)","payload":"62B003BF8B80009334F5A4F8F7F8F73DF700000000000000AAAAAA"},
-        {"rx":"0x7A8","pid":"22B004","notes":"B09=0x00","payload":"62B00474029900C000080000AAAA"},
-        {"rx":"0x7A8","pid":"22B004","notes":"B09=0x40 (bit 6 set)","payload":"62B00474029900C004080000AAAA"}
+        {"rx":"0x7A8","pid":"22B003","notes":"run 10 — B10=A4, B15=F7 (all drifting down)","payload":"62B003BF8B80009334F5A4F8F7F8F73DF700000000000000AAAAAA"}
       ]
     },
     {

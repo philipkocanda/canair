@@ -1121,6 +1121,18 @@ IGPM:
         canair read 'session IGPM --wake' 'iocontrol IGPM BC44' 'sleep 3' 'query BMS:2101' 'query
         VCU:2101' 'query HVAC:220100' 'iocontrol IGPM BC44 --off' --save --label 'IGPM BC44 IG3
         test' --state SLEEP; only after confirming the car is parked and safe.
+    - type: scan
+      target: 0x19 sub-functions, 0x24 scaling
+      status: done
+      priority: P3
+      created: "2026-11-01"
+      updated: "2026-11-01"
+      result: >-
+        2026-11-01, AC charging, extended session: 19 01 FF and 19 02 FF return NRC 0x31 (mask FF
+        refused; canair dtc falls back to mask 08), 19 0A and 19 03 return NRC 0x13. 0x24
+        ReadScalingDataByIdentifier on BC03 and BC07 returns NRC 0x11.
+      sources:
+        - on-car 2026-11-01 support probe (canair read raw steps --save, wican-ws, AC charging)
 
   iocontrol_discoveries:
     BC01:

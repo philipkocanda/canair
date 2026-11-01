@@ -837,6 +837,20 @@ HVAC:
         - Ioniq 2017 US shop manual, HVAC actuator inspection screenshots
       what_to_test:
         - Sniff a GDS/Kingbolen HVAC actuation test, or try 2F F0xx 03 with one value byte (00/80/FF) on one DID while watching the doors and HVAC 2201A0
+    - type: scan
+      target: 0x19 sub-functions, 0x24 scaling
+      status: done
+      priority: P3
+      vehicle_states: [IG3]
+      created: "2026-11-01"
+      updated: "2026-11-01"
+      result: >-
+        2026-11-01, AC charging: 19 02 FF -> 59 02 09, the same DTC status availability mask as the
+        BCM (0x09: only testFailed and confirmedDTC are maintained). 19 01 FF returns NRC 0x12; 19
+        0A and 19 03 return NRC 0x13 (incorrectMessageLengthOrInvalidFormat). 0x24
+        ReadScalingDataByIdentifier on 0100 returns NRC 0x11 in the default and extended sessions.
+      sources:
+        - on-car 2026-11-01 support probe (canair read raw steps --save, wican-ws, AC charging)
   dtcs:
     B1285:
       description: >
