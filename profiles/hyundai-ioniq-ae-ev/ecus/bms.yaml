@@ -124,10 +124,19 @@ BMS:
           expression: "B35"
           min: "0"
           max: "9"
+          source: Ioniq shop manual cooling fan inspection (shop:0730); 28 kWh captures 2026
+          notes: >-
+            Fan level 0-9. The manual gives the duty and speed per level: 1 20 % 1200 rpm, 2 28 %
+            1440, 3 38 % 1740, 4 44 % 1920, 5 52 % 2170, 6 60 % 2450, 7 70 % 2600, 8 80 % 2800, 9 90
+            % 3000. Levels 0-4 seen.
 
         BATTERY_FAN_FEEDBACK:
           expression: "B36"
           unit: "Hz"
+          source: Ioniq shop manual cooling fan inspection (shop:0730); 28 kWh captures 2026
+          notes: >-
+            Fan tachometer. Modal reading per level: 42 Hz at 1, 50 at 2, 60 at 3, 66 at 4, about
+            the manual's speed per level divided by 29.
 
         BATTERY_INLET_TEMP:
           expression: "S29"
@@ -1203,8 +1212,13 @@ BMS:
       result: safe avenues exhausted
       notes: >-
         In session 10 81, 0x27, 0x30 and 0x33 all return NRC 0x11. 0x31
-        StartRoutineByLocalIdentifier is not probed because it actuates. Remaining lead: sniff a
-        scan-tool (Kingbolen/GDS) fan actuation test to capture the session, service and LID.
+        StartRoutineByLocalIdentifier is not probed because it actuates. The shop manual's GDS
+        Actuation Test lists FAN 1st-9th and FAN Stop (shop:0730, ignition on) and, ignition on with
+        the motor off, the HV relays: Main Relay(-) ON, Precharge Relay ON, Main(-) with Precharge,
+        Main(-) then Main(+) in sequence, all OFF, Quick Charger Relay(-)/(+) ON singly and
+        together, both OFF, and High Voltage Battery Heater Relay ON/OFF (shop:0685, shop:0715).
+        Each runs until Stop. Remaining lead: sniff a scan-tool (Kingbolen/GDS) actuation test to
+        capture the session, service and LID.
       sources:
         - on-car 2026-07-22
       updated: "2026-07-23"
