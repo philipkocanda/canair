@@ -705,6 +705,12 @@ since a config is often shared with older checkouts that only know the old name.
 `selectable_profiles` is discovery minus such old-named overlays — use it, not
 `discover_profiles`, for anything offered to a user.
 
+**Other names for a car** (`also_known_as:` in `profile.yaml`, and per variant in `variants.yaml`)
+are labels people search by — "Classic Ioniq", "Ioniq 28", "Ioniq vFL" — and resolve nothing,
+unlike `aliases:`. One reader, `canlib/profile_names.py::also_known_as`, feeds `profile show`
+and the docs hook (`scripts/mkdocs_hooks/profiles_index.py`: the index, a tour page's managed
+block, its meta description). Give a new profile or variant the names owners actually use.
+
 `canair profile list`/`show [NAME]`/`path [NAME]` inspect; `canair profile use NAME` sets the config
 default; a bare `canair profile` opens an arrow-key picker on a TTY. `profile create <name>
 --car-model "…"` scaffolds a new vehicle and **`profile adopt <name>`** copies a read-only one into
@@ -716,12 +722,6 @@ root. It skips `role: generated` members (`out/` is regenerated, not inherited).
 component list is **not hand-written** — it is the `BUNDLE_MEMBERS` registry in `canlib/profile.py`,
 which also decides what `contribute` ships and what the blind-test strip withholds, so a new bundle
 member is one edit there.
-
-**Other names for a car** (`also_known_as:` in `profile.yaml`, and per variant in `variants.yaml`)
-are labels people search by — "Classic Ioniq", "Ioniq 28", "Ioniq vFL" — and resolve nothing,
-unlike `aliases:`. One reader, `canlib/profile_names.py::also_known_as`, feeds `profile show`
-and the docs hook (`scripts/mkdocs_hooks/profiles_index.py`: the index, a tour page's managed
-block, its meta description). Give a new profile or variant the names owners actually use.
 
 **Layered profiles — a read-only base plus your capture layer.** `canair profile overlay <name>`
 (`canlib/profile_create.py::overlay_profile`) writes *only* `~/.config/canair/profiles/<name>/
