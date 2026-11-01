@@ -15,6 +15,53 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [4.0.0](https://github.com/philipkocanda/canair/compare/v3.1.0...v4.0.0) (2026-11-01)
+
+
+### ⚠ BREAKING CHANGES
+
+* **dtc:** profile.yaml `failure_types:` is ignored; remove it.
+* **pids:** the ha_class signal field and the --ha-class flag are removed. Run `canair pids migrate-categories` on a profile that still uses ha_class.
+
+### Added
+
+* **discover:** allow a functional OBD-II mode 01 read ([b4627b7](https://github.com/philipkocanda/canair/commit/b4627b78ee7a35b0765e8f4a9a1514fc5469dba6))
+* **dtc:** a profile-wide dtcs: for codes that mean the same on every ECU ([3199ad6](https://github.com/philipkocanda/canair/commit/3199ad62aabf6977ee13c0cdd43619b1e7ddd0de))
+* **dtc:** keep the DTC log in user state, scoped to the car, with `dtc log` ([cee21ee](https://github.com/philipkocanda/canair/commit/cee21ee551ca3fc4edcf469d49ca129faf0ce0f9))
+* **dtc:** let a dtcs: section state source, source_links and verified once ([eb2a287](https://github.com/philipkocanda/canair/commit/eb2a287d2d9a37a07af82139b57e03b45b3a635a))
+* **dtc:** move every profile's legacy DTC log before a reinstall, and tag old entries ([0b40cdd](https://github.com/philipkocanda/canair/commit/0b40cdd4757beeb00f5d06c6a28b6967dcc97af3))
+* **hyundai-ioniq-ae-ev:** add manual-sourced DTC meanings for ESC, BCM, IGPM and SKM ([ecc5fb2](https://github.com/philipkocanda/canair/commit/ecc5fb29f66b74eca52543d822a2d929012b5946))
+* **hyundai-ioniq-ae-ev:** decode the CCM session log and status DIDs and its DTCs ([1ef9fe6](https://github.com/philipkocanda/canair/commit/1ef9fe6af887241ae61a0f199c272c0188e7410c))
+* **ioniq-2017:** VCU DTC description (AVN comms) ([de7f9c5](https://github.com/philipkocanda/canair/commit/de7f9c57aa4a30f70e0a03476fc959cd0ed971bb))
+* **monitor:** let the slow-ECU backoff reach 32x and escalate faster ([2b97dba](https://github.com/philipkocanda/canair/commit/2b97dba4c65ef1a063bd1c711d340cc338d07ff2))
+* **pids:** edit a research lead's capture_protocol with set-research-capture-protocol ([6b45ed5](https://github.com/philipkocanda/canair/commit/6b45ed53a70ce64856ca5b358594280be543fb0b))
+* **pids:** replace ha_class with category, stated only where the unit does not say it ([96dc173](https://github.com/philipkocanda/canair/commit/96dc17315aeef0ce14a9d990159b6eb02bd01e17))
+* **profiles:** list the other names a car goes by and show them in the docs ([2f06a27](https://github.com/philipkocanda/canair/commit/2f06a27e2af5276326ac86587f562d19ddf61d55))
+* **query:** name OBD-II mode 01 and 09 PIDs with an explicit SERVICE/ID token ([8f89ccc](https://github.com/philipkocanda/canair/commit/8f89ccc263f025eebc7279a225503ecc6cc5dfe4))
+* **wican:** write the unverified AutoPID build beside the verified one ([bb4f351](https://github.com/philipkocanda/canair/commit/bb4f351f9f8562aa4983a96e8dfc895feaeedeb7))
+
+
+### Fixed
+
+* **captures:** keep a raw pipeline step's NRC or no reply with read --save ([e81fc3f](https://github.com/philipkocanda/canair/commit/e81fc3fba094e4533fe55ad322b75536ad90e7cb))
+* **captures:** merge driver unions files both sides added ([33b2241](https://github.com/philipkocanda/canair/commit/33b2241483797e94ae9d8d5dfcd25b2fddaeeff5))
+* **dtc:** describe a code with the meaning of the ECU that reported it ([3390377](https://github.com/philipkocanda/canair/commit/33903774a75d4933a3f128599b7eb631a9f06a92))
+* improve handling of variable frame length DIDs ([041a766](https://github.com/philipkocanda/canair/commit/041a766aa23ebff0d8366b24c04a75b2b5008a53))
+* **pii:** flag an OBD-II mode 09 VIN read as an identity read ([c733e60](https://github.com/philipkocanda/canair/commit/c733e60b64e1b258e8fd78c9cb8e324a80e4f2ae))
+* **uds:** drop an ELM327 request echo only when it repeats the request ([0c62e0b](https://github.com/philipkocanda/canair/commit/0c62e0bfdda02c2f9747ead2ba3f0a5720c1fc5f))
+* **validate:** flag a PID key YAML reads as an octal integer ([3ca1f50](https://github.com/philipkocanda/canair/commit/3ca1f503a913a5592179a07bee83b04cb56283b2))
+
+
+### Changed
+
+* **dtc:** name ECUs by response address in the DTC log, store only readings ([70cba25](https://github.com/philipkocanda/canair/commit/70cba254c28dd0461fc6721fffadd9af6334aad7))
+* **dtc:** retire profile.yaml failure_types: ([cae86a2](https://github.com/philipkocanda/canair/commit/cae86a2ab1df60a3fe45d6597ee06e67ba754450))
+
+
+### Documentation
+
+* **hyundai-ioniq-ae-ev:** research note on ESC, BCM, IGPM, smart key and TPMS DTC meanings ([088a310](https://github.com/philipkocanda/canair/commit/088a3107530cf2ba462dda0d99ec24b087d302ca))
+
 ## [3.1.0](https://github.com/philipkocanda/canair/compare/v3.0.0...v3.1.0) (2026-11-01)
 
 

@@ -1,6 +1,6 @@
 [project]
 name = "canair"
-version = "3.1.0"
+version = "4.0.0"
 description = "General-purpose CAN/UDS/KWP2000 diagnostic reverse-engineering CLI (WiCAN over-the-air)"
 requires-python = ">=3.12"
 license = "MIT AND CC-BY-4.0"
