@@ -65,9 +65,10 @@ def describe_dtc(code: str, defs: dict | None = None, *, ecu: str | None = None)
     no failure type). Reports the standardized structural interpretation
     (category, generic-vs-manufacturer, failure-type byte) and layers on any
     known *meaning*: the profile's definitions first (the reporting ECU's
-    ``dtcs:`` section plus profile-wide ``failure_types:``), then the small
-    bundled generic (ISO/SAE) table. Manufacturer meanings are never invented —
-    they come only from those curated sources.
+    ``dtcs:`` section, then the profile-wide ``dtcs:`` in ``profile.yaml``, plus
+    the profile-wide ``failure_types:``), then the small bundled generic (ISO/SAE)
+    table. Manufacturer meanings are never invented — they come only from those
+    curated sources.
 
     A manufacturer code means what the ECU that reported it says it means — two
     units can give one code different meanings — so pass ``ecu`` (the ECU's
@@ -124,20 +125,23 @@ def describe_dtc(code: str, defs: dict | None = None, *, ecu: str | None = None)
 def profile_dtc_defs(ecu: str | None = None) -> dict:
     """The active profile's DTC meanings for ``ecu``, or {} if unavailable.
 
-    ``dtcs`` is that ECU's own ``dtcs:`` section (in ``ecus/<name>.yaml``), matched
-    case-insensitively; another ECU's meaning for the same code is never borrowed. With
-    no ECU, a code is described only when every ECU defining it agrees on the meaning:
-    otherwise the answer would depend on which one happened to load last.
+    ``dtcs`` is the profile-wide ``dtcs:`` (in ``profile.yaml``, for codes that mean the
+    same on every unit) overlaid with that ECU's own ``dtcs:`` (in ``ecus/<name>.yaml``,
+    matched case-insensitively), so an ECU's entry wins; another ECU's meaning is never
+    borrowed. With no ECU, a code is described only when every meaning it can have —
+    each ECU's entry, and the profile-wide one — agrees: otherwise the answer would
+    depend on which unit reported it.
     ``failure_types`` comes from the profile-wide ``profile.yaml``.
     """
     index = _profile_dtc_index()
     if not index:
         return {}
-    by_ecu, ftb = index
+    shared, by_ecu, ftb = index
     if ecu is not None:
-        dtcs = next((d for name, d in by_ecu.items() if name.upper() == ecu.upper()), {})
+        own = next((d for name, d in by_ecu.items() if name.upper() == ecu.upper()), {})
+        dtcs = {**shared, **own}
     else:
-        dtcs = _agreed(by_ecu)
+        dtcs = _agreed([shared, *by_ecu.values()])
     return {"dtcs": dtcs, "failure_types": ftb}
 
 
@@ -147,11 +151,11 @@ def _description(entry: object) -> str | None:
     return " ".join(str(text).split()) if text else None
 
 
-def _agreed(by_ecu: dict[str, dict[str, object]]) -> dict[str, object]:
-    """The codes whose meaning is the same on every ECU that defines them."""
+def _agreed(sections: list[dict[str, object]]) -> dict[str, object]:
+    """The codes whose meaning is the same in every section that defines them."""
     out: dict[str, object] = {}
     conflicting: set[str] = set()
-    for dtcs in by_ecu.values():
+    for dtcs in sections:
         for code, entry in dtcs.items():
             if code in conflicting:
                 continue
@@ -163,11 +167,17 @@ def _agreed(by_ecu: dict[str, dict[str, object]]) -> dict[str, object]:
     return out
 
 
-_index_cache: tuple[object, tuple[dict[str, dict[str, object]], dict[int, str]]] | None = None
+_DtcIndex = tuple[dict[str, object], dict[str, dict[str, object]], dict[int, str]]
+_index_cache: tuple[object, _DtcIndex] | None = None
 
 
-def _profile_dtc_index() -> tuple[dict[str, dict[str, object]], dict[int, str]] | None:
-    """``({ECU: {base_code: entry}}, {failure_type_byte: text})`` for the active profile."""
+def _codes(dtcs: object) -> dict[str, object]:
+    """A loaded ``dtcs:`` section's entries, keyed by upper-cased base code."""
+    return {str(code).upper(): e for code, e in dtcs.items()} if isinstance(dtcs, dict) else {}
+
+
+def _profile_dtc_index() -> _DtcIndex | None:
+    """``(profile-wide {code: entry}, {ECU: {code: entry}}, {failure_type_byte: text})``."""
     global _index_cache
     try:
         from canlib.pids import load_pids
@@ -182,7 +192,7 @@ def _profile_dtc_index() -> tuple[dict[str, dict[str, object]], dict[int, str]] 
     for name, ecu_def in (data.get("ecus") or {}).items():
         if not isinstance(ecu_def, dict):
             continue
-        dtcs = {str(code).upper(): entry for code, entry in (ecu_def.get("dtcs") or {}).items()}
+        dtcs = _codes(ecu_def.get("dtcs"))
         if dtcs:
             by_ecu[str(name)] = dtcs
 
@@ -194,5 +204,12 @@ def _profile_dtc_index() -> tuple[dict[str, dict[str, object]], dict[int, str]] 
             continue
         ftb[byte] = val
 
-    _index_cache = (data, (by_ecu, ftb))
-    return by_ecu, ftb
+    # The profile-wide section comes straight from profile.yaml, so its fields stated
+    # once (source, verified, ...) are resolved here; the loader did the ECUs' already.
+    from canlib.dtc.definitions import effective_entries
+
+    raw_shared = data.get("dtcs")
+    shared = _codes(effective_entries(raw_shared)) if isinstance(raw_shared, dict) else {}
+    index: _DtcIndex = (shared, by_ecu, ftb)
+    _index_cache = (data, index)
+    return index

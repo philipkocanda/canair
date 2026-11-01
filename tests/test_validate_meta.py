@@ -185,3 +185,31 @@ class TestPhysicalBands:
     def test_low_must_be_less_than_high(self, tmp_path):
         p = _write(tmp_path, self._base("physical_bands:\n  hv_pack: [850, 450]\n"))
         assert any("must be less than high" in e for e in validate_meta(p, REQUIRED))
+
+
+class TestProfileWideDtcs:
+    FIELDS = frozenset({"description", "causes", "source", "source_links", "verified"})
+
+    def _findings(self, tmp_path, dtcs: str):
+        from canlib.commands.validate.pids import profile_dtc_findings
+
+        p = _write(tmp_path, 'car_model: "C"\ninit: "ATSP6;"\ndtcs:\n' + dtcs)
+        return profile_dtc_findings(p, self.FIELDS)
+
+    def test_a_valid_section(self, tmp_path):
+        errors, warnings = self._findings(
+            tmp_path, "  source: manual\n  verified: false\n  U1100:\n    description: x\n"
+        )
+        assert errors == [] and warnings == []
+
+    def test_checked_like_an_ecus_section(self, tmp_path):
+        errors, warnings = self._findings(
+            tmp_path, "  verified: maybe\n  U1100-87:\n    description: x\n    colour: red\n"
+        )
+        assert any("verified must be a boolean" in e for e in errors)
+        assert any("U1100-87" in w and "not a DTC code" in w for w in warnings)
+        assert any("unknown field 'colour'" in w for w in warnings)
+
+    def test_must_be_a_mapping(self, tmp_path):
+        errors, _ = self._findings(tmp_path, "  - U1100\n")
+        assert errors == ["profile.yaml: 'dtcs' must be a dict"]

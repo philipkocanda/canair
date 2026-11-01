@@ -1092,26 +1092,48 @@ def _validate_dtcs(ecu_def, path, ecu_name, dtcs_fields, errors, warnings, stats
     dtcs = ecu_def.get("dtcs")
     if dtcs is None:
         return
+    stats["dtcs"] += _check_dtc_section(
+        dtcs, f"{path.name}/{ecu_name}/dtcs", dtcs_fields, errors, warnings
+    )
+
+
+def _check_dtc_section(dtcs, label: str, dtcs_fields, errors, warnings) -> int:
+    """Check one ``dtcs:`` section (an ECU's or the profile-wide one); returns its codes."""
     if not isinstance(dtcs, dict):
-        errors.append(f"{path.name}/{ecu_name}: 'dtcs' must be a dict")
-        return
+        errors.append(f"{label.removesuffix('/dtcs')}: 'dtcs' must be a dict")
+        return 0
     shared, entries = split_dtc_section(dtcs)
-    _validate_shared_fields(shared, f"{path.name}/{ecu_name}/dtcs", errors)
+    _validate_shared_fields(shared, label, errors)
+    n = 0
     for code, entry in entries.items():
-        label = f"{path.name}/{ecu_name}/dtcs/{code}"
+        where = f"{label}/{code}"
         if not is_dtc_code(code):
             warnings.append(
-                f"{label}: not a DTC code (a letter and four hex digits, without the -FTB "
+                f"{where}: not a DTC code (a letter and four hex digits, without the -FTB "
                 f"suffix) nor a field shared by every code ({', '.join(DTC_SECTION_FIELDS)})"
             )
         if not isinstance(entry, dict):
-            errors.append(f"{label}: entry must be a mapping")
+            errors.append(f"{where}: entry must be a mapping")
             continue
         for field in entry:
             if field not in dtcs_fields:
-                warnings.append(f"{label}: unknown field '{field}'")
-        _validate_shared_fields(entry, label, errors)
-        stats["dtcs"] += 1
+                warnings.append(f"{where}: unknown field '{field}'")
+        _validate_shared_fields(entry, where, errors)
+        n += 1
+    return n
+
+
+def profile_dtc_findings(path: Path, dtcs_fields) -> tuple[list[str], list[str]]:
+    """Errors and warnings for the profile-wide ``dtcs:`` in ``profile.yaml``."""
+    errors: list[str] = []
+    warnings: list[str] = []
+    try:
+        data = yaml_io.safe_load(path.read_text())
+    except yaml.YAMLError:
+        return errors, warnings  # validate_meta reports the parse error
+    if isinstance(data, dict) and data.get("dtcs") is not None:
+        _check_dtc_section(data["dtcs"], "profile.yaml/dtcs", dtcs_fields, errors, warnings)
+    return errors, warnings
 
 
 def _validate_sessions(ecu_def, path, ecu_name, sessions_fields, errors, warnings, stats) -> None:
@@ -1564,6 +1586,10 @@ def _run_pids(files: list[str] | None, stats: bool) -> int:
         profile_yaml = prof.meta_file
         if profile_yaml.exists():
             all_errors.extend(validate_meta(profile_yaml, required_meta_fields))
+            dtcs_fields = set((load_schema().get("dtcs_fields", {}) or {}).get("optional", []))
+            dtc_errors, dtc_warnings = profile_dtc_findings(profile_yaml, dtcs_fields)
+            all_errors.extend(dtc_errors)
+            all_warnings.extend(dtc_warnings)
             name_errors, name_warnings = profile_name_findings(prof)
             all_errors.extend(name_errors)
             all_warnings.extend(name_warnings)

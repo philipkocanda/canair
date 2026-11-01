@@ -129,21 +129,28 @@ machine-readable result.
 
 ## Where meanings come from
 
-canair layers meaning from three sources, most specific first:
+canair layers a code's meaning from these sources, most specific first:
 
 1. **The reporting ECU's `dtcs:` section** (`ecus/<name>.yaml`) — the
    authoritative, curated code text for *this* car. A code is looked up on the
    ECU that reported it, never borrowed from another: two units can give one code
    different meanings (`C1616` is "CAN communication line malfunction" on a blind-spot
-   radar and "CAN bus off" on the steering). A shared code needs an entry on each ECU.
-2. **The profile-wide `failure_types:`** (`profile.yaml`) — names for the
-   manufacturer-specific FTBs (`0xF0`–`0xFF`) that the standard table leaves open.
+   radar and "CAN bus off" on the steering).
+2. **The profile-wide `dtcs:` section** (`profile.yaml`) — codes that mean the same
+   on every unit that reports them (a manufacturer often keeps "bus off" or a
+   module time-out consistent across its ECUs), stated once instead of on each ECU.
+   An ECU's own entry for the code wins.
 3. **A small bundled generic (ISO/SAE) table** — a handful of well-known codes
    (`P0300`, `P0420`, `U0100`, …).
 
+The failure-type byte (the `-XX` suffix) is named from the profile-wide
+`failure_types:` (`profile.yaml`) for the manufacturer-specific values
+(`0xF0`–`0xFF`) the standard table leaves open.
+
 Manufacturer meanings are **never invented** — an unknown manufacturer code shows
 its structure only. To teach canair a code's meaning, add it to the ECU's `dtcs:`
-section (this is authored data — edit it through the profile, not by guessing).
+section, or to the profile-wide one if it means the same on every unit (this is
+authored data — edit it through the profile, not by guessing).
 
 Where every code in a section comes from the same place, state `source`,
 `source_links` and `verified` once, directly under `dtcs:`. A code that sets one of
@@ -163,7 +170,8 @@ dtcs:
 ```
 
 Keys are told apart by shape: a code is a letter and four hex digits (`C1101`),
-without the `-FTB` suffix.
+without the `-FTB` suffix. The profile-wide `dtcs:` in `profile.yaml` takes the same
+shape.
 
 ## The DTC log
 

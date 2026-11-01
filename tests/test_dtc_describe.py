@@ -123,9 +123,36 @@ class TestPerEcuMeaning:
         "BMS": {"dtcs": {"P1AAA": "Cell imbalance"}},
     }
 
+    SHARED: ClassVar = {
+        "source": "Shop manual",
+        "U1100": {"description": "Time-out ESP"},
+        "C1616": "Bus off (shared)",
+    }
+
     @pytest.fixture(autouse=True)
     def _profile(self, monkeypatch):
         monkeypatch.setattr("canlib.pids.load_pids", lambda: {"ecus": self.ECUS})
+
+    def _with_shared(self, monkeypatch):
+        data = {"dtcs": self.SHARED, "ecus": self.ECUS}
+        monkeypatch.setattr("canlib.pids.load_pids", lambda: data)
+
+    def test_a_profile_wide_code_applies_to_every_ecu(self, monkeypatch):
+        from canlib.dtc.describe import profile_dtc_defs
+
+        self._with_shared(monkeypatch)
+        assert describe_dtc("U1100-87", ecu="BMS")["description"] == "Time-out ESP"
+        assert describe_dtc("U1100-87", ecu="EPS")["description"] == "Time-out ESP"
+        assert describe_dtc("U1100-87")["description"] == "Time-out ESP"
+        # Fields stated once on the profile-wide section reach its codes too.
+        assert profile_dtc_defs("BMS")["dtcs"]["U1100"]["source"] == "Shop manual"
+        assert "source" not in profile_dtc_defs("BMS")["dtcs"]
+
+    def test_an_ecus_own_entry_beats_the_profile_wide_one(self, monkeypatch):
+        self._with_shared(monkeypatch)
+        assert describe_dtc("C1616-00", ecu="EPS")["description"] == "CAN bus off"
+        assert describe_dtc("C1616-00", ecu="BMS")["description"] == "Bus off (shared)"
+        assert describe_dtc("C1616-00")["description"] is None  # depends on the unit
 
     def test_the_reporting_ecus_meaning_wins(self):
         assert describe_dtc("C1616-00", ecu="EPS")["description"] == "CAN bus off"

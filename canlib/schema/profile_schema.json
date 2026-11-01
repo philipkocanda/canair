@@ -60,6 +60,10 @@
       "minimum": 1,
       "description": "Max DIDs per multi-DID request (default 3; an ECU may override)."
     },
+    "dtcs": {
+      "type": "object",
+      "description": "DTC meanings shared by every ECU: {CODE: {description, ...}}. An ECU's own dtcs: wins."
+    },
     "failure_types": {
       "type": "object",
       "description": "Manufacturer-specific DTC failure-type bytes: {byte: meaning}.",

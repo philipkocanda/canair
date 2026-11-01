@@ -212,8 +212,11 @@ and **`g`/`G` address the view's primary axis**.
 - **`canair dtc`** — A group: `dtc read` (the default kind, so `canair dtc BMS`/`--all` still
   work) reads DTCs for one ECU or `--all` (UDS `0x19` / KWP `0x18` by `id_protocol`), logs each
   scan and reports what **changed** since the last one; `dtc log` shows the last logged scan
-  offline. DTC meanings live per-ECU in `ecus/<name>.yaml` `dtcs:`; profile-wide
-  `failure_types:` in `profile.yaml`. Read-only unless `--clear` (`0x14`). **The DTC log is user
+  offline. DTC meanings live per-ECU in `ecus/<name>.yaml` `dtcs:` and, for codes that mean the
+  same on every unit, in a profile-wide `dtcs:` in `profile.yaml`; a code is always looked up on
+  the reporting ECU (`canlib/dtc/describe.py::profile_dtc_defs`: its own entry, then the
+  profile-wide one, never another ECU's). Profile-wide `failure_types:` names manufacturer FTBs.
+  Read-only unless `--clear` (`0x14`). **The DTC log is user
   state, not a bundle member** — `<config dir>/dtc_log/<profile>.yaml`
   (`canlib/dtc/log.py::log_file`), because a reinstall or re-clone deletes a profile directory;
   a legacy `<profile>/dtc_log.yaml` is folded in on first use, and for every profile by
@@ -892,7 +895,8 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   `scripts/mkdocs_hooks/schemas.py`. **A new profile.yaml field goes in that schema too**;
   `tests/test_profile_schema.py` pins its enums to the validator's. The fields:
   `response_timeout_ms`, `multi_did_batching`,
-  `multi_did_max` (per-ECU overridable), `can_bitrate`, DTC `failure_types:`, plus these blocks:
+  `multi_did_max` (per-ECU overridable), `can_bitrate`, shared DTC meanings (`dtcs:`), DTC
+  `failure_types:`, plus these blocks:
   - **`addressing:`** — the CAN diagnostic addressing rule. `mode`: `normal_11bit` (default),
     `normal_29bit`, `normal_fixed_29bit` (the ISO `0x18DA{target}{tester}` convention — RX by
     byte-swap, no offset), `normal_extended_11bit` (an 11-bit header plus a per-ECU `target_address`

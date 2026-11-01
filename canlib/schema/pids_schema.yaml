@@ -106,6 +106,7 @@
 #   multi_did_batching: bool   # profile default for per-ECU service-22 multi-DID batching
 #   multi_did_max: int         # profile default cap on DIDs combined per multi-DID request
 #                              #   (default 3; per-ECU multi_did_max overrides it)
+#   dtcs: {CODE: {...}}        # optional — DTC meanings shared by every ECU (see dtcs_fields)
 #   failure_types: {0xNN: str} # optional — DTC failure-type byte meanings (profile-wide)
 #   quirks: [str]          # optional — make-specific behavior toggles the profile opts
 #                          #   into (make-neutral profiles omit). Known: hk_f1xx_minus_one
@@ -231,8 +232,10 @@ scan_log_entry_fields:
 # ECU's Diagnostic Trouble Codes. Keys are the base SAE code WITHOUT the -FTB
 # suffix (e.g. B2915, not B2915-00). The tool derives structural interpretation
 # (category / generic-vs-manufacturer / failure-type byte) on its own; this
-# supplies the meanings it cannot infer. Profile-wide failure-type byte meanings
-# live in <profile>/profile.yaml under `failure_types:`.
+# supplies the meanings it cannot infer. Codes that mean the same on every ECU
+# may instead sit in <profile>/profile.yaml under a `dtcs:` of the same shape; an
+# ECU's own entry wins. Profile-wide failure-type byte meanings live in
+# <profile>/profile.yaml under `failure_types:`.
 # `source`, `source_links` and `verified` may also sit directly under `dtcs:`, next
 # to the codes, stated once for every entry; an entry that sets one keeps its own.
 # The field list is canlib/dtc/definitions.py::SECTION_FIELDS.
