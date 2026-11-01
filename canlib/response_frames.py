@@ -82,6 +82,30 @@ def seed_counts(pids_data: dict) -> dict[CountKey, int]:
     return out
 
 
+def variable_length_keys(pids_data: dict) -> frozenset[CountKey]:
+    """``{(tx_id, request)}`` of every polled PID flagged ``variable_length:``.
+
+    The transport opts these out of the expected-response digit up front. Keeping
+    them out of the seed and the write-back is not enough on its own: within a
+    session the cache would still learn a count from the first plain read, ask for
+    it on the next, get a different length and pay a retry — once per session, per
+    PID, since the profile already says no count fits.
+    """
+    out: set[CountKey] = set()
+    for ecu_def in (pids_data.get("ecus") or {}).values():
+        tx = ecu_def.get("tx_id")
+        if tx is None:
+            continue
+        for pid_code, pid_def in (ecu_def.get("pids") or {}).items():
+            if (
+                isinstance(pid_def, dict)
+                and pid_def.get("variable_length") is True
+                and pid_status(pid_def) != "ignored"
+            ):
+                out.add((int(tx), _pid_request(pid_code)))
+    return frozenset(out)
+
+
 @dataclass(frozen=True)
 class FrameCountEdit:
     """One pending ``response_frames`` write, already diffed against the profile.

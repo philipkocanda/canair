@@ -20,7 +20,7 @@ from canlib.frame_counts import (
     FrameCountLedger,
     frames_for_payload,
 )
-from canlib.response_frames import FIELD, resolve_edits, seed_counts
+from canlib.response_frames import FIELD, resolve_edits, seed_counts, variable_length_keys
 
 _KEY = (0x7E4, "2101")
 _OTHER = (0x7E4, "2105")
@@ -164,6 +164,31 @@ class TestSeedCounts:
         # nibble, not to the profile reader — a profile fact is reported as-is.
         data = _profile({"21F2": {"status": "active", FIELD: 13}})
         assert seed_counts(data) == {(0x7E4, "21F2"): 13}
+
+
+class TestVariableLengthKeys:
+    """The keys the transport must never ask for a count on."""
+
+    def test_a_variable_length_pid_is_reported(self):
+        data = _profile({"2101": {"variable_length": True}, 2105: {FIELD: 2}})
+        assert variable_length_keys(data) == frozenset({(0x7E4, "2101")})
+
+    def test_an_ignored_pid_is_not_reported(self):
+        data = _profile({"2101": {"status": "ignored", "variable_length": True}})
+        assert variable_length_keys(data) == frozenset()
+
+    def test_only_a_true_flag_counts(self):
+        data = _profile({"2101": {"variable_length": False}, "2105": {"variable_length": "yes"}})
+        assert variable_length_keys(data) == frozenset()
+
+    def test_a_session_never_writes_a_count_onto_it(self):
+        data = _profile({"2101": {"status": "active", "variable_length": True}})
+        ledger = FrameCountLedger()
+        for _ in range(3):
+            ledger.observe((0x7E4, "2101"), 4)
+        ledger.confirm((0x7E4, "2101"), 4)
+
+        assert resolve_edits(data, ledger) == ([], [])
 
 
 class TestResolveEdits:

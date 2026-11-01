@@ -79,7 +79,7 @@ async def connect_elm_terminal(transport, pids_data: dict, args) -> Terminal:
     from canlib import config
     from canlib.addressing import AddressBook
     from canlib.quirks import HK_F1XX_MINUS_ONE, has_quirk
-    from canlib.response_frames import seed_counts
+    from canlib.response_frames import seed_counts, variable_length_keys
     from canlib.safety import SessionPolicy
     from canlib.transport import DEFAULT_ELM327_TCP_PORT, Elm327TcpTerminal, Elm327Terminal
     from canlib.transport.elm327_addressing import flow_control_data
@@ -98,6 +98,7 @@ async def connect_elm_terminal(transport, pids_data: dict, args) -> Terminal:
     # Counts previous sessions proved, so the first read of each PID is already
     # fast instead of paying the adapter's full ATST wait to re-learn it.
     seeds = seed_counts(pids_data) if counts else {}
+    variable = variable_length_keys(pids_data) if counts else frozenset()
     terminal: Elm327Terminal
     if transport.type == "elm327-tcp":
         port = transport.port or DEFAULT_ELM327_TCP_PORT
@@ -110,6 +111,7 @@ async def connect_elm_terminal(transport, pids_data: dict, args) -> Terminal:
             hk_f1xx_offset=hk,
             expected_responses=counts,
             response_frames=seeds,
+            variable_length=variable,
         )
         connecting = f"Connecting to ELM327 adapter at {host}:{port}..."
     else:
@@ -121,6 +123,7 @@ async def connect_elm_terminal(transport, pids_data: dict, args) -> Terminal:
             hk_f1xx_offset=hk,
             expected_responses=counts,
             response_frames=seeds,
+            variable_length=variable,
         )
         connecting = f"Connecting to WiCAN at {host}..."
     # Per-ECU response budgets apply only when the user didn't force --timeout.

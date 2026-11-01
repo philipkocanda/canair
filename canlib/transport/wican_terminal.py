@@ -7,6 +7,7 @@ ELM327 protocol logic lives in the transport-agnostic engine; only the WebSocket
 channel and the HTTP :func:`reboot_wican` are WiCAN-specific here.
 """
 
+from collections.abc import Iterable
 from typing import cast
 
 from canlib.transport.channel import WebSocketChannel
@@ -26,6 +27,7 @@ class WiCANTerminal(Elm327Terminal):
         hk_f1xx_offset: bool = False,
         expected_responses: bool = True,
         response_frames: dict[CountKey, int] | None = None,
+        variable_length: Iterable[CountKey] | None = None,
     ):
         channel = WebSocketChannel(host, verbose=verbose)
         super().__init__(
@@ -36,6 +38,7 @@ class WiCANTerminal(Elm327Terminal):
             hk_f1xx_offset=hk_f1xx_offset,
             expected_responses=expected_responses,
             response_frames=response_frames,
+            variable_length=variable_length,
         )
 
     # The raw WebSocket is exposed for the WiCAN-only paths that read it directly

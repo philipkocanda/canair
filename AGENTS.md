@@ -777,9 +777,10 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   optional `iocontrol_scan_ranges:`, `routines:`, `research:`. Identity-only modules (AMP/SRS) have
   no `pids:`. A PID may also carry **`response_frames:`** — how many CAN frames its response
   occupies, written back automatically once a session proves it (never hand-set; mutually exclusive
-  with `variable_length:`). A PID may also carry **`support_map:`** — where its constant leading
-  support map sits (`canair pids set-support-map`; see `investigate --support-map`). Edit via
-  `canair pids`/`ecu`; validate with `canair validate pids`.
+  with `variable_length:`, which is how a PID whose length legitimately changes says it has no
+  count). A PID may also carry **`support_map:`** — where its constant leading support map sits
+  (`canair pids set-support-map`; see `investigate --support-map`). Edit via `canair pids`/`ecu`;
+  validate with `canair validate pids`.
 - **`profiles/<car>/captures/`** — Recorded UDS payloads, one **JSON** file per date
   (`captures/YYYY-MM-DD.json`; JSON parses ~60× faster than YAML, the dominant cost of every
   history-consuming command). The read/write seam is `canlib/captures/io.py`; there is **no YAML
@@ -1078,6 +1079,13 @@ makes a cold first read fast instead of paying one plain read per PID to re-lear
   fact is never silently rewritten by whoever reads it), and `resolve_edits` **refuses a TX header
   shared by several ECUs** (under `normal_extended_11bit` they are told apart by a target-address
   byte a `CountKey` does not carry) — reported, not guessed.
+- **`variable_length: true` excludes a PID both ways** — `stored_count`/`seed_counts` yield
+  nothing and `resolve_edits` never writes or clears a count on it — and
+  `variable_length_keys()` hands its keys to `FrameCountCache.seed_variable_length`, which opts
+  them out of the digit for the whole session (surviving `reset()`); without that the cache
+  still learned a count in-session and paid a retry on the next read. A conflict seen on the
+  wire never sets the flag: it only *clears* a stored count, because a clone that mangles the
+  digit looks identical.
 - **The write-back seam is `Terminal.frame_counts`**, so one implementation covers every transport:
   `canlib/modes/dispatch/__init__.py::run_session_guarded` calls `_persist_frame_counts` in a
   `finally`, so an interrupted or failed session still banks what it proved (Ctrl-C is the *normal*

@@ -5,7 +5,6 @@
       SOC_BMS                         92.50 %              ✓  B9
       AVAIL_CHARGE_POWER_MIRROR       70.61 kW             ?  B10-B11
       AVAIL_DISCHARGE_POWER_MIRROR    98 kW                ?  B12-B13
-      DEBUG_BMS_STATE_FLAGS           3                    ?  B14
       BMS_MAIN_RELAY                  1                    ✓  B14
       BMS_CONTROLLABLE_STATE          1                    ✓  B14
       BMS_WARNING                     0                    ?  B14
@@ -40,7 +39,7 @@
       MCU_READY                       1                    ?  B61
       MCU_MAIN_RELAY_OFF_REQUEST      0                    ?  B61
       MCU_CONTROLLABLE                1                    ?  B61
-      HCU_READY                       1                    ✓  B61
+      VCU_IG3_ON_MIRROR               1                    ✓  B61
       BMS_INVERTER_CAPACITOR_VOLTAGE  392 V                ?  B62-B63
       DRIVE_MOTOR_SPEED               0 RPM                ✓  B65-B66
       DRIVE_MOTOR_SPEED_MIRROR        0 RPM                ?  B67-B68

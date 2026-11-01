@@ -369,7 +369,9 @@ optional_pid_fields:
                       #   fixed-length PID, where a short payload is suspect.
                       #   Truncation is guarded at capture time regardless (the
                       #   ISO-TP declared-length check in parse_uds_response);
-                      #   this flag documents intent for analysis/lint tooling.
+                      #   this flag documents intent for analysis/lint tooling,
+                      #   and stops the ELM327 transports ever requesting a frame
+                      #   count for the PID (no count fits a varying length).
   - response_frames   # int >= 1: how many CAN frames this PID's positive response
                       #   occupies on the wire, measured and confirmed live (never
                       #   inferred from stored payload lengths, which multi-DID

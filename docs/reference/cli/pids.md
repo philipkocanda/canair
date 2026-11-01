@@ -401,8 +401,10 @@ usage: canair pids set-pid-variable-length [-h] [--dir DIR] [--no-validate]
 positional arguments:
   ecu
   pid
-  {true,false}   true = variable-length (a short payload is not truncation);
-                 false = clear the flag (fixed-length, the default)
+  {true,false}   true = variable-length (a short payload is not truncation,
+                 and no frame count is ever requested or recorded; drops any
+                 response_frames count); false = clear the flag (fixed-length,
+                 the default)
 
 options:
   -h, --help     show this help message and exit

@@ -410,6 +410,15 @@ class TestSetResponseFrames:
 
 
 class TestSetPidVariableLength:
+    def test_setting_it_drops_a_stored_frame_count(self, tmp_pids_dir: Path):
+        # A count is wrong by definition once the length varies, and the two together
+        # fail validation, so the flag takes the count with it.
+        set_response_frames("TEST", "2200", 4, pids_dir=tmp_pids_dir)
+        p = set_pid_variable_length("TEST", "2200", True, pids_dir=tmp_pids_dir)
+        pid = _reload(p)["TEST"]["pids"][2200]
+        assert pid["variable_length"] is True
+        assert "response_frames" not in pid
+
     def test_sets_true(self, tmp_pids_dir: Path):
         p = set_pid_variable_length("TEST", "2200", True, pids_dir=tmp_pids_dir)
         pid = _reload(p)["TEST"]["pids"][2200]

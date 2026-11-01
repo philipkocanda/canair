@@ -37,8 +37,8 @@ groups:
     members: [HVAC:220100, HVAC:220102, HVAC:2201A0, HVAC:2201A1, HVAC:2201A2, VCU:2102, BMS:2101, AAF:2180, AAF:2181]
 
   body:
-    description: Body / gateway / smart-key comfort modules
-    members: [IGPM, BCM, SKM]
+    description: Body / gateway comfort modules
+    members: [IGPM, BCM]
 
   # status: slow PIDs, so a bare-ECU sweep skips them and the device polls them every 5 min.
   # The heaviest reads in the profile (41 frames together); they change only when a cycle
@@ -51,6 +51,10 @@ groups:
   battery:
     description: 'All BMS pages: cell voltages, temperatures, SoC'
     members: [BMS:2101, BMS:2102, BMS:2103, BMS:2104, BMS:2105]
+
+  skm:
+    description: Smart Key Module (sleeps fast and drops reads, so it is polled apart from @body)
+    members: [SKM]
 
   # --- More useful sets (uncomment to enable) --------------------------------
   # charging-dc:

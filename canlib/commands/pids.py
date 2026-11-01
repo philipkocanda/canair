@@ -1179,7 +1179,8 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     spv.add_argument(
         "value",
         choices=["true", "false"],
-        help="true = variable-length (a short payload is not truncation); "
+        help="true = variable-length (a short payload is not truncation, and no frame "
+        "count is ever requested or recorded; drops any response_frames count); "
         "false = clear the flag (fixed-length, the default)",
     )
     _add_common(spv)

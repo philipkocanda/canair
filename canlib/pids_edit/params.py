@@ -658,9 +658,12 @@ def set_pid_variable_length(
     """Set (or clear) a PID's ``variable_length:`` flag.
 
     ``variable_length: true`` documents that the PID legitimately returns
-    variable-length responses, so a shorter payload is not a truncated read.
-    Passing ``False`` removes the field (the default is fixed-length). Written
-    after the PID header; verified by a YAML re-parse, restored on failure.
+    variable-length responses, so a shorter payload is not a truncated read, and
+    stops canair ever asking an ELM327 adapter for a frame count on it. Setting it
+    drops any ``response_frames:`` count, which the flag makes wrong by definition
+    (the two together are a validation error). Passing ``False`` removes the field
+    (the default is fixed-length). Written after the PID header; verified by a YAML
+    re-parse, restored on failure.
     """
     fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
     original = fpath.read_text()
@@ -680,6 +683,7 @@ def set_pid_variable_length(
         block_text = text[p_hdr:p_body_end]
         block_text = _remove_field_line(block_text, "variable_length", indent=6)
         if value:
+            block_text = _remove_field_line(block_text, "response_frames", indent=6)
             lines = block_text.splitlines(keepends=True)
             block_text = lines[0] + "      variable_length: true\n" + "".join(lines[1:])
         return text[:p_hdr] + block_text + text[p_body_end:]

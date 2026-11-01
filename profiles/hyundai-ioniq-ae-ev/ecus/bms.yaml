@@ -252,16 +252,6 @@ BMS:
           notes: Reads 1000 kΩ (0x03E8) in every capture, in every state.
           source: canair decode --dump-bytes 2026-10-22
 
-        DEBUG_BMS_STATE_FLAGS:
-          expression: B14
-          source: AutoPID config (on device); bits via ITStromer community sheet, ioniq-ev-bms xls and the 2026-08-08 DCFC session
-          verified: false
-          notes: >-
-            Whole B14 byte. Values seen: 0x00 ignition off, unplugged; 0x03 READY or 12 V top-up;
-            0x20 AC plugged, contactors open; 0x23 AC plugged, contactors closed, not charging; 0x40
-            CCS plugged before the contactors close (~30 s); 0xA3 AC charging; 0xC3 DC charging.
-            b2-b4 never set, including two DC fast charges.
-
         AVAIL_CHARGE_POWER_MIRROR:
           expression: "[B10:B11]/100"
           min: "0"
@@ -322,15 +312,16 @@ BMS:
           enabled: true
           min: "0"
           max: "1"
-        HCU_READY:
+        VCU_IG3_ON_MIRROR:
           expression: B61:3
           min: "0"
           max: "1"
           source: GDS list order (shop manual 0647); B61 cross-tab 2026-10-27
           notes: >-
-            GDS name HCU Ready. Equals VCU:2101:VCU_IG3_ON in 10845 of 10846 aligned rows. 0 (B61 =
-            0x01) only after a charge ends or the car is switched off. Disabled as a duplicate of
-            VCU_IG3_ON.
+            GDS name HCU Ready (HCU is the dealer-tool name for the VCU), but it means the IG3 rail
+            is powered, not drive-ready: it reads 1 while charging. Equals VCU:2101:VCU_IG3_ON in
+            10845 of 10846 aligned rows. 0 (B61 = 0x01) only after a charge ends or the car is
+            switched off. Disabled as a duplicate of VCU_IG3_ON.
           enabled: false
         MCU_READY:
           expression: B61:0

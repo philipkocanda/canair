@@ -504,6 +504,56 @@ class TestWireRules:
         assert len(annotate_request("22C00B", 4)) == len("22C00B") + 1
 
 
+class TestVariableLengthSeed:
+    """A PID the profile flags ``variable_length`` is never asked for a count."""
+
+    def _plain_read(self, cache, frames):
+        attempt = cache.attempt(_KEY)
+        assert attempt.command("22C00B") == "22C00B"
+        attempt.verdict({"ok": True, "isotp_frame_count": frames})
+
+    def test_it_is_never_given_a_digit_even_after_a_clean_read(self):
+        cache = FrameCountCache()
+        cache.seed_variable_length([_KEY])
+        self._plain_read(cache, 4)
+        assert cache.attempt(_KEY).command("22C00B") == "22C00B"
+        assert cache.count_for(_KEY) is None
+
+    def test_it_stays_declared_across_a_reconnect(self):
+        cache = FrameCountCache()
+        cache.seed_variable_length([_KEY])
+        cache.reset()
+        self._plain_read(cache, 4)
+        assert cache.count_for(_KEY) is None
+
+    def test_it_wins_over_a_seeded_count(self):
+        cache = FrameCountCache()
+        cache.seed_variable_length([_KEY])
+        cache.seed({_KEY: _FRAMES})
+        assert cache.attempt(_KEY).command("22C00B") == "22C00B"
+
+    def test_declaring_it_after_the_seed_drops_the_count_too(self):
+        cache = FrameCountCache()
+        cache.seed({_KEY: _FRAMES})
+        cache.seed_variable_length([_KEY])
+        assert cache.attempt(_KEY).command("22C00B") == "22C00B"
+
+    def test_reads_still_feed_the_ledger(self):
+        # The ledger is evidence, not policy; `resolve_edits` is what refuses to act on a
+        # variable-length PID (tests/test_frame_counts.py).
+        cache = FrameCountCache()
+        cache.seed_variable_length([_KEY])
+        self._plain_read(cache, 4)
+        assert cache.ledger.record(_KEY) is not None
+
+    def test_other_requests_are_unaffected(self):
+        cache = FrameCountCache()
+        cache.seed_variable_length([_KEY])
+        other = (0x7A0, "22C00C")
+        cache.learn(other, 3)
+        assert cache.attempt(other).command("22C00C") == "22C00C3"
+
+
 class TestSeeding:
     """A count carried in from the profile is used before anything is learned."""
 

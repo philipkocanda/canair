@@ -27,6 +27,7 @@ This module owns the policy and the bookkeeping; the terminal owns the I/O.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 
 from canlib.uds.parse import CAT_DECODE, CAT_DROP, CAT_STALE, UdsResponse
@@ -112,6 +113,21 @@ class FrameCountCache:
     _counts: dict[CountKey, int] = field(default_factory=dict)
     _opted_out: set[CountKey] = field(default_factory=set)
     _seeded: dict[CountKey, int] = field(default_factory=dict)
+    _variable: set[CountKey] = field(default_factory=set)
+
+    def seed_variable_length(self, keys: Iterable[CountKey]) -> None:
+        """Never request a digit for ``keys``: the profile flags them ``variable_length``.
+
+        Kept apart from :meth:`opt_out`, which *convicts* a count on wire evidence and
+        retires it from the profile. This is the profile's own standing statement, so
+        there is nothing to write back, and like the seed it outlives a reconnect: a
+        response's length is a fact about the car, not the link.
+        """
+        self._variable = set(keys)
+        self._opted_out |= self._variable
+        for key in self._variable:
+            self._counts.pop(key, None)
+            self._seeded.pop(key, None)
 
     def seed(self, counts: dict[CountKey, int]) -> None:
         """Prime the cache from the profile's ``response_frames:`` values.
@@ -122,13 +138,16 @@ class FrameCountCache:
         learned count, costing latency but never a reading, and is retired from the
         profile only once a plain reply proves a genuinely different length.
         """
-        self._seeded = {k: v for k, v in counts.items() if requestable(k[1], v)}
+        self._seeded = {
+            k: v for k, v in counts.items() if requestable(k[1], v) and k not in self._variable
+        }
         self._apply_seed()
 
     def reset(self) -> None:
         """Forget every learned count and opt-out, then re-apply the seed."""
         self._counts.clear()
         self._opted_out.clear()
+        self._opted_out |= self._variable
         self._apply_seed()
 
     def _apply_seed(self) -> None:

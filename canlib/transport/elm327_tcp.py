@@ -13,6 +13,8 @@ Unlike the WiCAN there is no HTTP config API and no ``reboot``, which is why
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 from .channel import TcpChannel
 from .elm327_frame_count import CountKey
 from .elm327_terminal import Elm327Terminal
@@ -31,6 +33,7 @@ class Elm327TcpTerminal(Elm327Terminal):
         hk_f1xx_offset: bool = False,
         expected_responses: bool = True,
         response_frames: dict[CountKey, int] | None = None,
+        variable_length: Iterable[CountKey] | None = None,
     ):
         self.port = port
         channel = TcpChannel(host, port, verbose=verbose)
@@ -42,4 +45,5 @@ class Elm327TcpTerminal(Elm327Terminal):
             hk_f1xx_offset=hk_f1xx_offset,
             expected_responses=expected_responses,
             response_frames=response_frames,
+            variable_length=variable_length,
         )

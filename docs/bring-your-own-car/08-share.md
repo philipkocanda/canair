@@ -76,6 +76,12 @@ longer than 9 frames. PIDs without a confirmed count are simply left as they wer
 so this is fine on a partly-decoded profile — read the car some more and re-run to
 widen coverage.
 
+A PID whose answer legitimately changes length has no count that is always right. Say
+so with `canair pids set-pid-variable-length ECU PID true`: canair then never asks the
+adapter for a count on that PID (saving the failed attempt and retry it would otherwise
+make each session) and never records one for it. canair never sets this on its own; a
+session that merely sees two lengths clears a stored count instead.
+
 ### Streaming a signal at its poll rate
 
 The WiCAN publishes AutoPID results to MQTT as one batch snapshot (the latest

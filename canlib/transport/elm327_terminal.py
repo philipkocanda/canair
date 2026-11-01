@@ -37,7 +37,7 @@ import contextlib
 import re
 import sys
 import time
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterable
 
 from canlib.transport.link_latency import LinkLatency
 from canlib.transport.stats import TransportStats
@@ -138,6 +138,7 @@ class Elm327Terminal:
         hk_f1xx_offset: bool = False,
         expected_responses: bool = True,
         response_frames: dict[CountKey, int] | None = None,
+        variable_length: Iterable[CountKey] | None = None,
     ):
         self._channel = channel
         # Connection host if the channel is host-based (WebSocket/TCP), else None
@@ -160,6 +161,8 @@ class Elm327Terminal:
         # profile survive a reconnect, because the car's answer length does not
         # depend on how canair reached it.
         self._frame_counts = FrameCountCache(enabled=expected_responses)
+        if variable_length:
+            self._frame_counts.seed_variable_length(variable_length)
         if response_frames:
             self._frame_counts.seed(response_frames)
         # What this session observed, for the write-back that persists a confirmed
