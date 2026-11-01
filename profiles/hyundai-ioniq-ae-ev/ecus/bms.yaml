@@ -1234,21 +1234,6 @@ BMS:
         - OBDb Hyundai-IONIQ-Electric signalset (pelican.clutch.engineering ioniq-electric parameters), compared 2026-10-27
       what_to_test:
         - Find a capture with raw B27 above 1 and compare against max minus min cell voltage from 2102-2104
-    - type: scan
-      target: 01 01, 01 21, 01 30, 01 31, 01 5B
-      status: pending
-      priority: P3
-      vehicle_states: [READY]
-      created: "2026-10-27"
-      updated: "2026-10-27"
-      notes: >-
-        OBDb lists standard Mode 01 PIDs answering from 0x7E4 on 2017-2018 cars (monitor status, MIL
-        distance, warm-ups, distance since clear), and 01 5B (hybrid battery pack remaining life) on
-        2018. No Mode 01 captures exist. 01 5B would be a third SOC source next to SOC_BMS and
-        SOC_DISP.
-      sources:
-        - OBDb Hyundai-IONIQ-Electric signalset and its tests/test_cases (2017/2018 command_support), compared 2026-10-27
-      capture_protocol: canair read BMS:015B BMS:0101 BMS:0121 BMS:0130 BMS:0131 --save in READY
     - type: verify
       target: 2101 B14 bits 1-4 — dealer-tool (GDS) names
       status: pending
@@ -1319,6 +1304,35 @@ BMS:
         - projectgus car_hacking, bench_kona/bench_kona.py (Kona OS EV)
       what_to_test:
         - Tapped P-CAN sniff across contactor close/open (plug in / go READY / unplug); check 0x5A3 byte0 bit6.
+    - type: scan
+      target: 01 01, 01 21, 01 30, 01 31, 01 5B
+      status: pending
+      priority: P3
+      vehicle_states: [READY]
+      created: "2026-10-27"
+      updated: "2026-11-01"
+      result: >-
+        2026-11-01, AC charging with the ignition off: the BMS answers the Mode 01 support bitmaps,
+        01 00 -> 41 00 80 00 00 01 (PIDs 01 and 20) and 01 20 -> 41 20 80 01 80 01 (PIDs 21, 30, 31
+        and 40), matching OBDb's list. 01 01, 01 21, 01 30 and 01 31 return NO DATA despite being
+        advertised; 01 5B is not advertised and returns NO DATA. Service 22 is not supported (NRC
+        0x11).
+      notes: >-
+        OBDb lists these standard Mode 01 PIDs answering from 0x7E4 on 2017-2018 cars (monitor
+        status, MIL distance, warm-ups, distance since clear), and 01 5B (hybrid battery pack
+        remaining life) on 2018. 01 5B would be a third SOC source next to SOC_BMS and SOC_DISP. The
+        stored 2026-11-01 0100/0120 payloads start with the echoed request (01 00 / 01 20) because
+        the ELM327 parser strips an echo only for service IDs 0x10-0x3E.
+      sources:
+        - OBDb Hyundai-IONIQ-Electric signalset and its tests/test_cases (2017/2018 command_support), compared 2026-10-27
+        - on-car 2026-11-01 (canair raw 7E4:01xx --save, wican-ws, AC charging)
+      what_to_test:
+        - "In READY: do 01 01, 01 21, 01 30 and 01 31 answer once the ignition is on?"
+        - "01 40: which PIDs the third support bitmap advertises."
+      capture_protocol: >-
+        canair raw 7E4:0101 --save --label 'BMS mode 01 READY' --state READY, repeated for 0121,
+        0130, 0131, 0140 and 015B (canair read sends a 4-digit PID as service 22, so Mode 01 needs
+        canair raw)
 
   sessions:
     "81":
