@@ -142,6 +142,8 @@ and **`g`/`G` address the view's primary axis**.
   each PID to its ECU with a colon (`IGPM:22BC07`), never a space**: in a query step a space
   separates *independent ECU selectors*, so `"query IGPM 22BC07"` means "all of IGPM plus a bogus
   ECU" and is rejected. A **`@group`** token expands to a saved selector set (`canair groups`).
+  **An undefined 4-hex-digit PID is a service-22 DID** (`BMS:0101` sends `220101`); name OBD-II
+  mode 01/09 with the explicit `SERVICE/ID` form (`BMS:01/0D` sends `010D`; `canlib/query.py`).
   **TesterPresent keepalives are automatic — there is no `tester-present` command/flag**; opening a
   session keeps it alive with idle-aware `3E00` (shared by UDS and KWP2000). Use `--reboot` to
   restore AutoPID after a WebSocket session. `--verbose` is for debugging canair itself.

@@ -115,9 +115,9 @@ async def mode_interactive(terminal: Elm327Terminal, pids_data: dict, verbose: b
                 print("  No TX ID set. Use ATSH to set the ECU header first.")
                 continue
             resp_bytes = last_response["bytes"]
-            if resp_bytes[0] == 0x61:
-                pid_str = f"21{resp_bytes[1]:02X}"
-            elif resp_bytes[0] == 0x62:
+            if resp_bytes[0] in (0x41, 0x49, 0x61) and len(resp_bytes) >= 2:
+                pid_str = f"{resp_bytes[0] - 0x40:02X}{resp_bytes[1]:02X}"
+            elif resp_bytes[0] == 0x62 and len(resp_bytes) >= 3:
                 pid_str = f"22{resp_bytes[1]:02X}{resp_bytes[2]:02X}"
             else:
                 print(f"  Unknown response SID: 0x{resp_bytes[0]:02X}")
@@ -170,7 +170,7 @@ async def mode_interactive(terminal: Elm327Terminal, pids_data: dict, verbose: b
             raw = await terminal.send_command(cmd)
             print(raw)
 
-            response = parse_uds_response(raw)
+            response = parse_uds_response(raw, request=cmd)
             if response.get("ok") or response.get("nrc") is not None:
                 last_response = response
 

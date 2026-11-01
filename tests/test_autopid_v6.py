@@ -106,6 +106,17 @@ class TestDocument:
         data = _data()
         assert render_v4(ship_profile(data)) == generate_profile(data)
 
+    def test_an_obd_mode_01_pid_ships_as_a_specific_row(self):
+        # A mode 01 PID is an ordinary request to the device: the firmware's own
+        # standard-PID table is a separate, user-configured path.
+        data = _data({"SPEED": _param("B03", unit="km/h")}, tx_id=0x7E0, ecu="ENGINE", pid="010D")
+        data["ecus"]["ENGINE"]["pids"]["010D"]["response_frames"] = 1
+        row = _row(data)
+        assert (row["name"], row["type"], row["cmd"]) == ("ENGINE_010D", "specific", "010D1")
+        assert row["parameters"][0]["expression"] == "B03"
+        (v4_pid,) = render_v4(ship_profile(data))["pids"]
+        assert (v4_pid["pid"], v4_pid["parameters"]) == ("010D1", {"SPEED": "B03"})
+
 
 class TestReceiveFilter:
     def _pinned(self):

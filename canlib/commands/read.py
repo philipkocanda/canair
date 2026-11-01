@@ -41,6 +41,8 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         epilog="""\
 examples:
   canair read BMS:2101                      Read BMS PID 2101
+  canair read BMS:01/0D                     OBD-II mode 01 PID 0D (an undefined bare
+                                            010D would read DID 0x010D)
   canair read "VCU:2101 BMS:2101"           Cross-ECU read
   canair read @charging                     Read a saved group (see `canair groups`)
   canair read @driving CLU:220B             A group plus an extra selector

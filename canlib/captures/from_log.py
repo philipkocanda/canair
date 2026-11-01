@@ -20,6 +20,11 @@ What counts as a reply, and why only that:
 - A negative reply (``7F sid nrc``) does not repeat the identifier either, so it is
   filed only on request, and only against an unambiguous single-identifier request.
   ``responsePending`` (``0x78``) is never a result, always followed by one.
+- OBD-II mode 01 replies (``41 PID …``) are left out, and reported with the other
+  services. A multi-PID request (``01 0C 0D``) is answered by one reply interleaving
+  each PID with its data, so only the request can say a reply holds more than one PID.
+  A scan tool sends mode 01 on the functional id, which names no ECU the per-ECU
+  request tracking above could pair with it.
 
 Only ECUs in the profile's registry are extracted, because the registry is what turns
 a CAN id into a response address and a name; replies from other ids are counted so the

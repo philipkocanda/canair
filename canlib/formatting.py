@@ -9,6 +9,7 @@ from rich.text import Text
 from canlib.expression.decoding import ParamRow
 from canlib.uds.byteindex import extract_byte_indices, wican_to_elm_idx
 from canlib.uds.layout import subfunction_name
+from canlib.uds.obd import is_support_bitmap_pid, supported_pids
 from canlib.uds.parse import UdsResponse
 
 if TYPE_CHECKING:
@@ -607,6 +608,16 @@ def decode_uds_response(data: bytes) -> str | None:
         did = (data[1] << 8) | data[2]
         payload_len = len(data) - 3
         return f"ReadDataByIdentifier: DID 0x{did:04X}, {payload_len} data bytes"
+
+    if sid == 0x41 and len(data) >= 2:
+        pid = data[1]
+        if is_support_bitmap_pid(pid) and len(data) == 6:
+            listed = " ".join(f"{p:02X}" for p in supported_pids(pid, data[2:6])) or "none"
+            return f"OBD-II mode 01: PID 0x{pid:02X} supported PIDs {listed}"
+        return f"OBD-II mode 01: PID 0x{pid:02X}, {len(data) - 2} data bytes"
+
+    if sid == 0x49 and len(data) >= 2:
+        return f"OBD-II mode 09: InfoType 0x{data[1]:02X}, {len(data) - 2} data bytes"
 
     # 0x61 answers 0x21 ReadDataByLocalIdentifier (KWP2000), whose identifier is a
     # 1-byte Local Identifier — not the 2-byte DID of UDS 0x22. Named to match the

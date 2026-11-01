@@ -14,11 +14,42 @@ whatever the *active* profile defines; see `canair ecu`.)
 | `BMS` | all known PIDs for BMS |
 | `BMS:2101` | BMS PID `2101` only |
 | `IGPM:BC03,BC06` | two IGPM DIDs (comma-separated) |
+| `BMS:01/0D` | OBD-II mode 01 PID `0D` (request `010D`) — see below |
 | `VCU:2101 BMS:2101` | cross-ECU — a **space separates independent selectors** |
 
 A PID like `2101` vs `22B002` differs by its service-byte prefix — see
 [ECU protocols & PID prefixes](ecu-protocols.md) for what the `21`/`22` means and
 why canair can resolve a bare identifier.
+
+### Naming the service: `SERVICE/ID`
+
+A PID the profile does not define is sent with a service inferred from its length:
+two hex digits are a KWP2000 local identifier (`01` → `2101`), four are a UDS
+service-22 DID (`B001` → `22B001`). That makes `0101` the DID `0x0101`, which is a
+real identifier on some ECUs — so it can never also mean OBD-II mode 01 PID `01`.
+
+Write the service and the identifier with a `/` to say exactly which request you
+mean:
+
+| Token | Request | What it is |
+|---|---|---|
+| `01/0D` | `010D` | OBD-II mode 01 (current data), PID `0D` |
+| `09/02` | `0902` | OBD-II mode 09 (vehicle information), InfoType `02` (the VIN) |
+| `21/01` | `2101` | KWP2000 local identifier `01` |
+| `22/0101` | `220101` | UDS DID `0x0101` |
+
+```bash
+canair read BMS:01/00,01/20 --save --label "BMS mode 01 support"   # support bitmaps
+canair captures uds BMS:01/00                                       # their captures
+```
+
+A `SERVICE/ID` token matches **only** that request code, in `read`/`monitor` and in the
+capture tools alike, so `BMS:01/00` never picks a `220100` DID the way a bare `0100`
+(prefix/suffix matching) can. Only these services are accepted, each with a
+single identifier — not a multi-PID mode 01 request (`01 0C 0D`). A PID the profile
+*defines* is still found by its key: a mode 01 PID defined as `010D` decodes with its
+signals whether you write `01/0D` or `010D`. (Quote an all-digit key in YAML, e.g.
+`"0105"`: unquoted, it reads as an octal number; `canair validate pids` reports it.)
 
 !!! warning "Bind each PID to its ECU with a colon, never a space"
     `IGPM 22BC07` means "all of IGPM **plus** a bogus ECU `22BC07`" — write

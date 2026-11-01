@@ -14,6 +14,7 @@ import time
 from collections.abc import Callable
 from typing import Literal
 
+from canlib.query import inferred_request, pids_named_by
 from canlib.uds.parse import request_echo
 
 from ..actuation import on_refusal
@@ -207,9 +208,11 @@ def build_query_plan(
     """Resolve an ECU + PID filter into a sorted query plan.
 
     Returns ``[(pid_code, pid_info_or_None, unmapped)]`` sorted by DID, or None
-    if a non-empty ``pid_filter`` matched nothing. Filters match flexibly
-    (``BC03`` matches key ``22BC03``); unmatched hex filters become raw UDS
-    requests (``01``->``2101``, ``B001``->``22B001``, ``22BC03`` verbatim).
+    if a non-empty ``pid_filter`` matched nothing. Filters pick definitions by
+    :func:`canlib.query.pids_named_by` (``BC03`` picks key ``22BC03``, ``01/0D``
+    exactly ``010D``); an unmatched filter becomes the raw request
+    :func:`canlib.query.inferred_request` names (``01``->``2101``,
+    ``B001``->``22B001``, ``22BC03`` verbatim, ``01/0D``->``010D``).
 
     A bare ECU selector (empty ``pid_filter`` = "all PIDs") omits PIDs flagged
     ``status: static`` (identity/calibration blocks) or ``status: slow`` (per-cycle
@@ -220,32 +223,20 @@ def build_query_plan(
     pids_to_query = ecu_info["pids"]
     raw_pids: list[str] = []
     if pid_filter:
-        filter_upper = [p.upper() for p in pid_filter]
-        pids_to_query = {
-            k: v
-            for k, v in pids_to_query.items()
-            if k.upper() in filter_upper or any(k.upper().endswith(f) for f in filter_upper)
-        }
-        matched_filters = set()
-        for f in filter_upper:
-            for k in pids_to_query:
-                if k.upper() == f or k.upper().endswith(f):
-                    matched_filters.add(f)
-                    break
-        for u in (f for f in filter_upper if f not in matched_filters):
-            if all(c in "0123456789ABCDEF" for c in u):
-                if len(u) <= 2:
-                    raw_pids.append(f"21{u}")  # short KWP local ID: 01 -> 2101
-                elif len(u) == 4 and u[:2] in ("21", "22"):
-                    raw_pids.append(u)  # already service+id
-                elif len(u) == 4:
-                    raw_pids.append(f"22{u}")  # 4-char DID -> 22xxxx
-                elif len(u) >= 5 and u[:2] in ("21", "22"):
-                    raw_pids.append(u)  # full request code
-                else:
-                    raw_pids.append(f"22{u}")
-            elif not quiet:
-                print(f"  WARNING: Invalid PID format '{u}', skipping")
+        picked: dict[str, PidIndexEntry] = {}
+        for token in (p.upper() for p in pid_filter):
+            hits = pids_named_by(token, pids_to_query)
+            for key in hits:
+                picked[key] = pids_to_query[key]
+            if hits:
+                continue
+            request = inferred_request(token)
+            if request is None:
+                if not quiet:
+                    print(f"  WARNING: Invalid PID format '{token}', skipping")
+            elif request not in raw_pids:
+                raw_pids.append(request)
+        pids_to_query = picked
         if raw_pids and not quiet:
             print(f"  NOTE: {', '.join(raw_pids)} not in ecus/ — querying raw")
         if not pids_to_query and not raw_pids:

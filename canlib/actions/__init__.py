@@ -219,7 +219,7 @@ def registry_issues(action: Action, pids_data: Mapping[str, Any]) -> list[str]:
     ``canair validate states`` runs on state predicates).
     """
     from canlib.pids import build_ecu_index
-    from canlib.query import parse_selector
+    from canlib.query import parse_selector, pids_named_by
     from canlib.states.refs import check_references
 
     index = build_ecu_index(dict(pids_data))
@@ -234,10 +234,9 @@ def registry_issues(action: Action, pids_data: Mapping[str, Any]) -> list[str]:
         if entry is None:
             issues.append(f"{where}: read {tok!r} names unknown ECU {sel.ecu!r}")
             continue
-        defined = [k.upper() for k in entry["pids"]]
         for pid in sel.pids:
             # The query planner's own match: BC03 names 22BC03.
-            if not any(k == pid or k.endswith(pid) for k in defined):
+            if not pids_named_by(pid, entry["pids"]):
                 issues.append(f"{where}: read {tok!r}: PID {pid} is not defined on {sel.ecu}")
     for issue in check_references([(action.name, action.require)], pids_data):
         issues.append(f"{where}: 'require' tests {issue.ref} — {issue.message}")

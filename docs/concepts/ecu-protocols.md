@@ -64,6 +64,12 @@ ECU's protocol.
     Ioniq profile. A KWP2000 PID is conventionally written with its `21` prefix
     too (`2101`).
 
+!!! note "OBD-II mode 01 needs its service spelled out"
+    A standard OBD-II PID is written `01` + PID (`010D`), the same four hex digits as a UDS
+    DID. canair reads an undefined four-digit token as a DID, so ask for mode 01 with the
+    explicit `SERVICE/ID` form, `BMS:01/0D` — see
+    [the query mini-language](query-mini-language.md#naming-the-service-serviceid).
+
 ## Negative response names follow the protocol too
 
 The same code can mean different things, so canair names a negative response by the target ECU's

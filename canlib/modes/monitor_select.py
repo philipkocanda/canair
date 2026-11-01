@@ -44,17 +44,19 @@ class EcuChoice:
     def resolve(self, filters: Sequence[str], include_static: bool) -> tuple[set[str], list[str]]:
         """The PIDs a selector's PID filters pick, plus the filters that match none.
 
-        No filters means the default sweep. A filter matches a PID exactly or as
-        its suffix (``BC03`` picks ``22BC03``), the same rule
-        :func:`canlib.modes.multi_exec.build_query_plan` polls by.
+        No filters means the default sweep. A filter picks PIDs by
+        :func:`canlib.query.pids_named_by` (``BC03`` picks ``22BC03``), the same
+        rule :func:`canlib.modes.multi_exec.build_query_plan` polls by.
         """
+        from ..query import pids_named_by
+
         wanted = [f.upper() for f in filters]
         if not wanted:
             return set(self.default_pids(include_static)), []
         picked: set[str] = set()
         unmatched: list[str] = []
         for want in wanted:
-            hits = {p.pid for p in self.pids if p.pid == want or p.pid.endswith(want)}
+            hits = set(pids_named_by(want, (p.pid for p in self.pids)))
             if hits:
                 picked |= hits
             else:
