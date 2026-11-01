@@ -487,10 +487,12 @@ SKM:
         (SKM_ACC_INPUT etc.). The ACC-only state has not been captured, so whether B17 and B10:2
         show ACC on their own is open.
       notes: >-
-        No signal tells ACC apart from OFF yet. The SKM reads back three terminal lines after its
-        relays: ON (IGN2), ACC/ON (ACC) and ON/START (IGN1), on SMK connector C pins 8, 18 and 9,
-        and drives separate ACC and IGN LEDs on the start button. The ACC/ON input separates ACC
-        from OFF. Whether any is exposed in a B0xx page is unknown. Wiring from US-market diagrams.
+        No signal tells ACC apart from OFF yet, so the ACC state has no when: predicate. Candidates
+        by GDS name: 22B005 SKM_ACC_INPUT (B10:2) and 22B006 SKM_ACC_RELAY_OUTPUT_V (B17), plus BCM
+        22B004 B10:1. If one is 1 in ACC with IGN1/IGN2 off, it can back an ACC predicate. The SKM
+        reads back three terminal lines after its relays: ON (IGN2), ACC/ON (ACC) and ON/START
+        (IGN1), on SMK connector C pins 8, 18 and 9 (US-market wiring), and drives separate ACC and
+        IGN LEDs on the start button.
       what_to_test:
         - "Press the start button without the brake: OFF to ACC to ON to OFF, holding each state about 10 s, recording the SKM B0xx pages with --keep-changes and pressing s at every press. Look for bits that change at each step."
       capture_protocol: >-
