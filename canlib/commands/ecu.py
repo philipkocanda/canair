@@ -365,7 +365,7 @@ def _print_dtcs(rec: dict) -> None:
     print(f"\n  {ansi.BOLD}DTCs{ansi.RESET}  {ansi.c(f'{len(codes)} open', ansi.RED)} {when}")
     width = max(len(c) for c in codes)
     for code in codes:
-        meaning = describe_dtc(code).get("meaning") or ""
+        meaning = describe_dtc(code, ecu=rec["name"]).get("meaning") or ""
         print(f"    {ansi.c(f'{code:<{width}}', ansi.RED)}  {meaning}".rstrip())
 
 

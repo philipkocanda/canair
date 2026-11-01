@@ -47,12 +47,21 @@ than in the profile, which a reinstall or re-clone deletes. A legacy
 from __future__ import annotations
 
 import sys
+from collections.abc import Mapping
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from canlib import ansi
-from canlib.dtc.scope import ALL_SCOPE, Car, current_car, display_name, entry_revision, scope_key
+from canlib.dtc.scope import (
+    ALL_SCOPE,
+    Car,
+    current_car,
+    display_name,
+    display_tx,
+    entry_revision,
+    scope_key,
+)
 
 if TYPE_CHECKING:
     from canlib.profile import Profile
@@ -312,6 +321,21 @@ def format_diff(diff: dict, previous: dict) -> list[str]:
     return lines
 
 
+def ecu_name_for(display: str, info: Mapping) -> str:
+    """The registry name of the ECU a logged ``display`` label (and its ``tx``) names.
+
+    Resolved by TX id, so a code logged before an ECU rename is still described with
+    that ECU's meanings; falls back to the name in the label."""
+    from canlib.ecus import load_ecus
+
+    tx = display_tx(str(info.get("tx") or "")) or display_tx(display)
+    try:
+        entry = load_ecus().get(tx) if tx is not None else None
+    except Exception:
+        entry = None
+    return str(entry["name"]) if entry else display_name(display)
+
+
 def describe_car(entry: dict) -> str | None:
     """``variant 28kwh · VCU kwp`` for a tagged entry, None for an untagged one."""
     parts = [f"variant {entry['variant']}"] if entry.get("variant") else []
@@ -353,8 +377,9 @@ def render_scan(entry: dict, previous: dict | None = None) -> list[str]:
                 continue
             lines.append(f"  {ecu} — {len(codes)} DTC(s):")
             code_w = max(len(c) for c in codes)
+            name = ecu_name_for(ecu, ecus[ecu] or {})
             for code in codes:
-                meaning = describe_dtc(code).get("meaning") or ""
+                meaning = describe_dtc(code, ecu=name).get("meaning") or ""
                 lines.append(f"    {code:<{code_w}}  {meaning}".rstrip())
             lines.append("")
     if entry.get("unread"):

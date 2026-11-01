@@ -11,7 +11,7 @@ standardized — and what this module decodes — is:
   the ``-XX`` suffix on a 3-byte UDS DTC.
 
 Keep this pure and data-driven; ``modes/dtc.py`` calls :func:`describe_dtc` to
-annotate each decoded record.
+annotate each decoded record, naming the ECU that reported it.
 """
 
 from __future__ import annotations
@@ -58,23 +58,25 @@ def dtc_kind(letter: str, first_digit: int | None) -> str:
     }.get(first_digit, "unknown")
 
 
-def describe_dtc(code: str, defs: dict | None = None) -> dict:
+def describe_dtc(code: str, defs: dict | None = None, *, ecu: str | None = None) -> dict:
     """Return an interpretation of a formatted DTC string.
 
     Accepts ``"B2915-00"`` (UDS, with failure-type byte) or ``"P0420"`` (KWP /
     no failure type). Reports the standardized structural interpretation
     (category, generic-vs-manufacturer, failure-type byte) and layers on any
-    known *meaning*: the profile's definitions first (per-ECU ``dtcs:`` sections
-    plus profile-wide ``failure_types:``), then the small bundled generic
-    (ISO/SAE) table. Manufacturer meanings are never invented — they come only
-    from those curated sources.
+    known *meaning*: the profile's definitions first (the reporting ECU's
+    ``dtcs:`` section plus profile-wide ``failure_types:``), then the small
+    bundled generic (ISO/SAE) table. Manufacturer meanings are never invented —
+    they come only from those curated sources.
 
-    ``defs`` is the profile definitions mapping (``{"dtcs":…, "failure_types":…}``);
-    it defaults to the active profile's aggregated definitions (pass ``{}`` for
-    none).
+    A manufacturer code means what the ECU that reported it says it means — two
+    units can give one code different meanings — so pass ``ecu`` (the ECU's
+    name). ``defs`` is an already-resolved definitions mapping
+    (``{"dtcs":…, "failure_types":…}``); it defaults to :func:`profile_dtc_defs`
+    for ``ecu`` (pass ``{}`` for none).
     """
     if defs is None:
-        defs = _profile_dtc_defs()
+        defs = profile_dtc_defs(ecu)
     profile_dtcs = defs.get("dtcs", {})
     profile_ftb = defs.get("failure_types", {})
 
@@ -101,16 +103,7 @@ def describe_dtc(code: str, defs: dict | None = None) -> dict:
         ftb_desc = FAILURE_TYPE.get(ftb) or profile_ftb.get(ftb)
 
     # Code meaning: profile definition first, then the bundled generic table.
-    entry = profile_dtcs.get(base)
-    if isinstance(entry, str):
-        description = entry
-    elif isinstance(entry, dict):
-        description = entry.get("description")
-    else:
-        description = None
-    description = description or GENERIC_DTCS.get(base)
-    if description:
-        description = " ".join(description.split())  # collapse folded-YAML newlines
+    description = _description(profile_dtcs.get(base)) or GENERIC_DTCS.get(base)
 
     base_summary = description or " · ".join(p for p in (category, kind) if p and p != "unknown")
     parts = [base_summary]
@@ -128,26 +121,70 @@ def describe_dtc(code: str, defs: dict | None = None) -> dict:
     }
 
 
-def _profile_dtc_defs() -> dict:
-    """Aggregate DTC meanings from the active profile, or {} if unavailable.
+def profile_dtc_defs(ecu: str | None = None) -> dict:
+    """The active profile's DTC meanings for ``ecu``, or {} if unavailable.
 
-    Per-ECU ``dtcs:`` sections (in each ``ecus/<name>.yaml``) are merged into a
-    single ``{base_code: entry}`` map; ``failure_types:`` comes from the
-    profile-wide ``profile.yaml``.
+    ``dtcs`` is that ECU's own ``dtcs:`` section (in ``ecus/<name>.yaml``), matched
+    case-insensitively; another ECU's meaning for the same code is never borrowed. With
+    no ECU, a code is described only when every ECU defining it agrees on the meaning:
+    otherwise the answer would depend on which one happened to load last.
+    ``failure_types`` comes from the profile-wide ``profile.yaml``.
     """
+    index = _profile_dtc_index()
+    if not index:
+        return {}
+    by_ecu, ftb = index
+    if ecu is not None:
+        dtcs = next((d for name, d in by_ecu.items() if name.upper() == ecu.upper()), {})
+    else:
+        dtcs = _agreed(by_ecu)
+    return {"dtcs": dtcs, "failure_types": ftb}
+
+
+def _description(entry: object) -> str | None:
+    """An entry's text (a bare string or a ``description:``), folded-YAML newlines collapsed."""
+    text = entry.get("description") if isinstance(entry, dict) else entry
+    return " ".join(str(text).split()) if text else None
+
+
+def _agreed(by_ecu: dict[str, dict[str, object]]) -> dict[str, object]:
+    """The codes whose meaning is the same on every ECU that defines them."""
+    out: dict[str, object] = {}
+    conflicting: set[str] = set()
+    for dtcs in by_ecu.values():
+        for code, entry in dtcs.items():
+            if code in conflicting:
+                continue
+            if code in out and _description(out[code]) != _description(entry):
+                conflicting.add(code)
+                del out[code]
+            else:
+                out.setdefault(code, entry)
+    return out
+
+
+_index_cache: tuple[object, tuple[dict[str, dict[str, object]], dict[int, str]]] | None = None
+
+
+def _profile_dtc_index() -> tuple[dict[str, dict[str, object]], dict[int, str]] | None:
+    """``({ECU: {base_code: entry}}, {failure_type_byte: text})`` for the active profile."""
+    global _index_cache
     try:
         from canlib.pids import load_pids
 
         data = load_pids()
     except Exception:
-        return {}
+        return None
+    if _index_cache is not None and _index_cache[0] is data:
+        return _index_cache[1]
 
-    dtcs: dict[str, object] = {}
-    for _name, ecu_def in (data.get("ecus") or {}).items():
+    by_ecu: dict[str, dict[str, object]] = {}
+    for name, ecu_def in (data.get("ecus") or {}).items():
         if not isinstance(ecu_def, dict):
             continue
-        for code, entry in (ecu_def.get("dtcs") or {}).items():
-            dtcs[str(code).upper()] = entry
+        dtcs = {str(code).upper(): entry for code, entry in (ecu_def.get("dtcs") or {}).items()}
+        if dtcs:
+            by_ecu[str(name)] = dtcs
 
     ftb: dict[int, str] = {}
     for key, val in (data.get("failure_types") or {}).items():
@@ -157,4 +194,5 @@ def _profile_dtc_defs() -> dict:
             continue
         ftb[byte] = val
 
-    return {"dtcs": dtcs, "failure_types": ftb}
+    _index_cache = (data, (by_ecu, ftb))
+    return by_ecu, ftb

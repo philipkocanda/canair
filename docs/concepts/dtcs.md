@@ -131,8 +131,11 @@ machine-readable result.
 
 canair layers meaning from three sources, most specific first:
 
-1. **The profile's per-ECU `dtcs:` sections** (`ecus/<name>.yaml`) — the
-   authoritative, curated code text for *this* car.
+1. **The reporting ECU's `dtcs:` section** (`ecus/<name>.yaml`) — the
+   authoritative, curated code text for *this* car. A code is looked up on the
+   ECU that reported it, never borrowed from another: two units can give one code
+   different meanings (`C1616` is "CAN communication line malfunction" on a blind-spot
+   radar and "CAN bus off" on the steering). A shared code needs an entry on each ECU.
 2. **The profile-wide `failure_types:`** (`profile.yaml`) — names for the
    manufacturer-specific FTBs (`0xF0`–`0xFF`) that the standard table leaves open.
 3. **A small bundled generic (ISO/SAE) table** — a handful of well-known codes

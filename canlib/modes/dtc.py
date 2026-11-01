@@ -336,7 +336,7 @@ async def _read_uds(
             **base,
             "status_availability_mask": f"0x{avail:02X}" if avail is not None else None,
             "count": len(records),
-            "dtcs": _jsonable(records),
+            "dtcs": _jsonable(records, tx_id),
         }
     if response.get("nrc") is not None:
         return {**base, "nrc": f"0x{response['nrc']:02X}", "nrc_desc": response["nrc_desc"]}
@@ -382,7 +382,7 @@ async def _read_kwp(
                 ],
                 "note": _KWP_SUPPORTED_NOTE,
             }
-        result = {**base, "count": len(records), "dtcs": _jsonable(records)}
+        result = {**base, "count": len(records), "dtcs": _jsonable(records, tx_id)}
         if cmd in _KWP_FORM_NOTES:
             result["note"] = _KWP_FORM_NOTES[cmd]
         return result
@@ -391,18 +391,20 @@ async def _read_kwp(
     return {**base, "error": response.get("error", "unknown")}
 
 
-def _jsonable(records: list[dict]) -> list[dict]:
+def _jsonable(records: list[dict], tx_id: int) -> list[dict]:
     """Render internal records (int status) into the JSON/print-friendly shape,
-    annotated with a structural interpretation of each code."""
+    annotated with each code's interpretation on the ECU ``tx_id`` that reported it."""
     from canlib.dtc.describe import describe_dtc
+    from canlib.ecus import ecu_name
 
+    ecu = ecu_name(tx_id)
     return [
         {
             "dtc": r["dtc"],
             "raw": r["raw"],
             "status": f"0x{r['status']:02X}",
             "status_bits": r["status_bits"],
-            "interpretation": describe_dtc(r["dtc"]),
+            "interpretation": describe_dtc(r["dtc"], ecu=ecu),
         }
         for r in records
     ]
