@@ -1392,3 +1392,75 @@ BMS:
       supported: false
       nrc: 0x12
       nrc_desc: "subFunctionNotSupported"
+  dtcs:
+    P0B3B:
+      description: Voltage sensing fault, cell monitoring unit (CMU) No. 1
+      causes: Cell monitoring unit No. 1; high voltage battery modules 1 and 2
+      source: Ioniq 2017 US shop manual, High Voltage Battery Module inspection (shop:0663)
+      verified: false
+    P0B40:
+      description: Voltage sensing fault, cell monitoring unit (CMU) No. 2
+      causes: Cell monitoring unit No. 2; high voltage battery modules 2 and 3
+      source: Ioniq 2017 US shop manual, High Voltage Battery Module inspection (shop:0663)
+      verified: false
+      notes: Printed as P0440 (an evaporative-emission code) in the manual.
+    P0B45:
+      description: Voltage sensing fault, cell monitoring unit (CMU) No. 3
+      causes: Cell monitoring unit No. 3; high voltage battery module 4
+      source: Ioniq 2017 US shop manual, High Voltage Battery Module inspection (shop:0663)
+      verified: false
+    P0B4A:
+      description: Voltage sensing fault, cell monitoring unit (CMU) No. 4
+      causes: Cell monitoring unit No. 4; high voltage battery module 5
+      source: Ioniq 2017 US shop manual, High Voltage Battery Module inspection (shop:0663)
+      verified: false
+    P0B4F:
+      description: Voltage sensing fault, cell monitoring unit (CMU) No. 5
+      causes: Cell monitoring unit No. 5; high voltage battery module 6
+      source: Ioniq 2017 US shop manual, High Voltage Battery Module inspection (shop:0663)
+      verified: false
+    P0B54:
+      description: Voltage sensing fault, cell monitoring unit (CMU) No. 6
+      causes: Cell monitoring unit No. 6; high voltage battery module 7
+      source: Ioniq 2017 US shop manual, High Voltage Battery Module inspection (shop:0663)
+      verified: false
+    P0B59:
+      description: Voltage sensing fault, cell monitoring unit (CMU) No. 7
+      causes: Cell monitoring unit No. 7; high voltage battery module 8
+      source: Ioniq 2017 US shop manual, High Voltage Battery Module inspection (shop:0663)
+      verified: false
+    P0B5E:
+      description: Voltage sensing fault, cell monitoring unit (CMU) No. 8
+      causes: Cell monitoring unit No. 8; high voltage battery module 9
+      source: Ioniq 2017 US shop manual, High Voltage Battery Module inspection (shop:0663)
+      verified: false
+    P0B63:
+      description: Voltage sensing fault, cell monitoring unit (CMU) No. 9
+      causes: Cell monitoring unit No. 9; high voltage battery modules 10 and 11
+      source: Ioniq 2017 US shop manual, High Voltage Battery Module inspection (shop:0663)
+      verified: false
+    P0B68:
+      description: Voltage sensing fault, cell monitoring unit (CMU) No. 10
+      causes: Cell monitoring unit No. 10; high voltage battery modules 11 and 12
+      source: Ioniq 2017 US shop manual, High Voltage Battery Module inspection (shop:0663)
+      verified: false
+    P0DE7:
+      description: High voltage battery overvoltage
+      source: Ioniq 2017 US shop manual, Battery Control System (shop:0647, shop:0663)
+      verified: false
+    P0DE6:
+      description: High voltage battery undervoltage
+      source: Ioniq 2017 US shop manual, Battery Control System (shop:0647, shop:0663)
+      verified: false
+    P1B96:
+      description: High voltage battery cell voltage deviation
+      source: Ioniq 2017 US shop manual, High Voltage Battery Module inspection (shop:0663)
+      verified: false
+    P1B77:
+      description: High voltage fuse disconnection (short circuit)
+      source: Ioniq 2017 US shop manual, Battery Control System (shop:0647)
+      verified: false
+    P1B25:
+      description: High voltage fuse disconnection (short circuit)
+      source: Ioniq 2017 US shop manual, Battery Control System (shop:0647)
+      verified: false

@@ -21,3 +21,54 @@ BSD-L:
       vehicle_states: [READY]
       notes: "No live-data DIDs found."
   pids: {}
+  dtcs:
+    C1101:
+      description: Battery power high
+      causes: battery, charger, cables, connectors
+      source: Ioniq 2017 US electrical troubleshooting manual, BSD service tips (etm:0052)
+      verified: false
+    C1102:
+      description: Battery power low
+      causes: battery, charger, cables, connectors
+      source: Ioniq 2017 US electrical troubleshooting manual, BSD service tips (etm:0052)
+      verified: false
+    C1616:
+      description: CAN communication line malfunction
+      causes: cables, connectors
+      source: Ioniq 2017 US electrical troubleshooting manual, BSD service tips (etm:0052)
+      verified: false
+    C160A:
+      description: Private CAN communication line malfunction
+      causes: cables, connectors
+      source: Ioniq 2017 US electrical troubleshooting manual, BSD service tips (etm:0052)
+      verified: false
+    C170A:
+      description: Switch LED circuit malfunction
+      causes: switch circuit shorted to ground
+      source: Ioniq 2017 US electrical troubleshooting manual, BSD service tips (etm:0052)
+      verified: false
+    C1501:
+      description: Switch malfunction
+      causes: switch stuck pressed
+      source: Ioniq 2017 US electrical troubleshooting manual, BSD service tips (etm:0052)
+      verified: false
+    C170C:
+      description: Right sensor ECU hardware malfunction
+      causes: right radar sensor
+      source: Ioniq 2017 US electrical troubleshooting manual, BSD service tips (etm:0052)
+      verified: false
+    C170D:
+      description: Left sensor ECU hardware malfunction
+      causes: left radar sensor
+      source: Ioniq 2017 US electrical troubleshooting manual, BSD service tips (etm:0052)
+      verified: false
+    C2702:
+      description: Right (master) sensor calibration missing
+      causes: right radar mounting angle
+      source: Ioniq 2017 US electrical troubleshooting manual, BSD service tips (etm:0052)
+      verified: false
+    C2703:
+      description: Left (slave) sensor calibration missing
+      causes: left radar mounting angle
+      source: Ioniq 2017 US electrical troubleshooting manual, BSD service tips (etm:0052)
+      verified: false

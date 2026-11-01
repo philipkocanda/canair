@@ -90,8 +90,10 @@ IGPM:
       period: 2500
       vehicle_states: [ALL]
       notes: >-
-        B05-B07 and B09 (FD EE 3C 73, the support map) are constant in all 384 captures. B13 is 0
-        except B13:1. B10 bit 6 has never been set.
+        B05-B07 and B09 (FD EE 3C 73, the support map) are constant in all 384 captures. The marked
+        bits follow the GDS Current Data order (shop manual page 0485), LSB first; GDS also lists
+        Parking Brake Switch (B10:6) and Front Deicer Relay (B13:0), which are unmarked. B13:6 and
+        B13:7 come after the screenshot's last item. B13 is 0 except B13:1.
       source: Kia Niro EV WiCAN PR#716
       verified: true
       parameters:
@@ -130,7 +132,7 @@ IGPM:
           ha_class: door
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
-          notes: 1 = open.
+          notes: GDS 'Tailgate Door Switch'. 1 = open.
 
         TAIL_LAMP_INTERIOR:
           expression: "B12:2"
@@ -181,7 +183,9 @@ IGPM:
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: false
-          notes: 1 in 22 of 384 captures. Not checked against a buckled passenger belt.
+          notes: >-
+            GDS 'Assist Seat Belt Switch'. 1 in 22 of 384 captures. Not checked against a buckled
+            passenger belt.
 
         DOOR_LOCK_RL:
           expression: "B10:1"
@@ -214,7 +218,7 @@ IGPM:
           notes: 1 = open.
         REAR_DEFOGGER_RELAY:
           expression: B13:1
-          source: bitfield analysis 2026-08-06; align vs VCU_AUX_POWER 2026-10-21; DBC cross-check 2026-10-29
+          source: bitfield analysis 2026-08-06; VCU_AUX_POWER align 2026-10-21; GDS order
           verified: false
           notes: >-
             Set only in the 2026-07-30 10:17-10:25 window narrated 'defroster on'; each edge moves
@@ -222,6 +226,33 @@ IGPM:
             not narrated. HVAC_DEFROST_FLAGS and 22BC07 B11 (OBDb 'defog light') stay 0 in that
             window. The gateway publishes a rear defogger relay state on 0x541 (opendbc
             CF_Gway_DefoggerRly).
+        BRAKE_FLUID_SWITCH:
+          expression: B11:4
+          min: "0"
+          max: "1"
+          source: GDS Current Data list order (shop manual 0485) vs the support map
+          verified: false
+          notes: >-
+            GDS 'Brake Fluid Switch', the only GDS item between Assist Seat Belt Switch (B11:2) and
+            IGN1 Switch (B11:5), and B11:4 the only marked bit there. 0 in every capture.
+        BURGLAR_ALARM_HORN_RELAY:
+          expression: B13:2
+          min: "0"
+          max: "1"
+          source: GDS Current Data list order (shop manual 0485) vs the support map
+          verified: false
+          notes: >-
+            GDS 'Burglar Alarm Horn Relay', the item after Rear Defogger Relay (B13:1). 0 in every
+            capture.
+        START_INHIBITOR_RELAY:
+          expression: B13:3
+          min: "0"
+          max: "1"
+          source: GDS Current Data list order (shop manual 0485) vs the support map
+          verified: false
+          notes: >-
+            GDS 'Start Inhibitor Relay (Smartkey Except)', the item after Burglar Alarm Horn Relay.
+            0 in every capture.
 
 
     22BC04:

@@ -165,3 +165,108 @@ EPS:
       sources:
         - OBDb Hyundai-IONIQ-Electric signalset (pelican.clutch.engineering ioniq-electric parameters), compared 2026-10-27
       capture_protocol: canair read EPS:2101 --save while steering lock to lock, parked in READY
+  dtcs:
+    C1290:
+      description: Torque sensor signal error
+      source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
+      verified: false
+    C1112:
+      description: Torque sensor voltage error
+      source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
+      verified: false
+    C1705:
+      description: ECU hardware error
+      source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
+      verified: false
+    C1604:
+      description: ECU over/discharge error
+      source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
+      verified: false
+    C2413:
+      description: ECU hardware error
+      source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
+      verified: false
+    C2400:
+      description: Motor signal error
+      source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
+      verified: false
+    C2401:
+      description: Motor circuit error
+      source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
+      verified: false
+    C2412:
+      description: Motor voltage supply error
+      source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
+      verified: false
+    C1259:
+      description: Steering angle sensor signal error
+      source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
+      verified: false
+    C1260:
+      description: Steering angle sensor signal error
+      source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
+      verified: false
+    C1261:
+      description: Steering angle zero-setting error
+      source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
+      verified: false
+    C1102:
+      description: Battery voltage problem
+      source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
+      verified: false
+    C1696:
+      description: SPAS signal error
+      source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
+      verified: false
+    C1697:
+      description: SPAS signal error
+      source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
+      verified: false
+    C1612:
+      description: TCU signal error
+      source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
+      verified: false
+    C1646:
+      description: TCU signal error
+      source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
+      verified: false
+    C1628:
+      description: Instrument cluster signal error
+      source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
+      verified: false
+    C1656:
+      description: Instrument cluster signal error
+      source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
+      verified: false
+    C1692:
+      description: VSM signal error
+      source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
+      verified: false
+    C1693:
+      description: VSM signal error
+      source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
+      verified: false
+    C1611:
+      description: CAN timeout, EMS
+      source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
+      verified: false
+    C1616:
+      description: CAN bus off
+      source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
+      verified: false
+    C1622:
+      description: Vehicle speed signal error
+      source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
+      verified: false
+    C1623:
+      description: CAN timeout, steering angle sensor
+      source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
+      verified: false
+    C1687:
+      description: CAN timeout, steering angle sensor
+      source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
+      verified: false
+    C1688:
+      description: CAN timeout, steering angle sensor
+      source: Ioniq 2017 US shop manual, MDPS inspection items per DTC (shop:0069)
+      verified: false
