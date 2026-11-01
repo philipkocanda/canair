@@ -1,4 +1,4 @@
-"""Profile-name checks: the naming convention and the ``aliases:`` block.
+"""Profile-name checks: the naming convention, ``also_known_as:`` and the ``aliases:`` block.
 
 Run with ``validate pids`` alongside ``profile.yaml``'s own checks. The convention is
 enforced only for bundled profiles (CI runs this on each); a user's own profile may be
@@ -8,7 +8,7 @@ named anything, and ``profile create`` merely warns.
 from __future__ import annotations
 
 from canlib.constants import BUNDLED_PROFILES_DIR
-from canlib.profile_names import convention_problem
+from canlib.profile_names import convention_problem, duplicate_names
 
 
 def _is_bundled(prof) -> bool:
@@ -29,6 +29,13 @@ def profile_name_findings(prof) -> tuple[list[str], list[str]]:
         problem = convention_problem(prof.name)
         if problem:
             errors.append(f"profile name: {problem}")
+
+    names = prof.meta.get("also_known_as")
+    if names is not None:
+        if not (isinstance(names, list) and all(isinstance(n, str) and n.strip() for n in names)):
+            errors.append("profile.yaml: 'also_known_as' must be a list of non-empty text")
+        elif dupes := duplicate_names(names):
+            errors.append(f"profile.yaml: 'also_known_as' lists {', '.join(dupes)} twice")
 
     aliases = prof.meta.get("aliases")
     if aliases is None:

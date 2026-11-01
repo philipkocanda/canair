@@ -49,6 +49,7 @@ and `init` are required; everything else is optional with a sensible default.
 | Field | Type | Meaning |
 |---|---|---|
 | `car_model` | str | Human description (required). |
+| `also_known_as` | list | Other names owners call the car, for finding it: `[Classic Ioniq, Ioniq EV]`. See [Other names for a car](#other-names-for-a-car). |
 | `init` | str | ELM327 AT init string, `;`-separated (required). Used by the ELM327 transports (`wican-ws`, `elm327-tcp`) only; `slcan-tcp` ignores it. A fresh profile scaffolds `ATSP6;ATS0;ATAL;` (ISO 15765-4, 11-bit, 500 kbit). Leave out `ATSH`/`ATFCSH`/`ATFCSD`/`ATFCSM` — canair sets those per ECU from `addressing`, and `canair validate` warns about them. An `ATCRA` filter set here stays in force for conventional (`tx + 0x08`) ECUs. |
 | `can_bitrate` | int | Vehicle bus speed in bit/s, used by the raw `slcan-tcp` transport and `canair sniff` (an ELM327 takes its speed from the `ATSP` protocol in `init`). Set it when the diagnostic bus isn't 500 kbit/s (e.g. `250000`). Precedence: the device's config entry or `transport.bitrate` > this > the WiCAN's own setting > `500000`. |
 | `addressing` | map | How arbitration IDs are formed: `mode`, `rx_offset`, and the extended-mode address bytes. See [Addressing](#addressing) below. |
@@ -213,6 +214,24 @@ aliases:
   rename stays your own profile. `canair contribute` sends such a copy upstream under the
   profile's current name.
 - `canair profile list` shows each rename as `ioniq-2017 → hyundai-ioniq-ae-ev`.
+
+### Other names for a car
+
+People rarely search for `hyundai-ioniq-ae-ev`; they search for "Classic Ioniq" or "Ioniq 28".
+List those names under `also_known_as:` in `profile.yaml` for names that fit every version of the
+car, and in `variants.yaml` for names of one variant (`canair variants set-meta 38kwh
+"also_known_as=Ioniq vFL,Ioniq FL"`):
+
+```yaml
+also_known_as: [Ioniq Electric, Ioniq EV, Classic Ioniq]
+```
+
+The docs site shows them on the [bundled profiles](../profiles/index.md) page and in a profile
+tour's "At a glance" table, and puts them in the tour's page description, so the in-site search
+and web search engines find the profile by them. `canair profile show` lists them too.
+
+They are labels only. Unlike `aliases:` (former profile names), `--profile "Classic Ioniq"`
+does not resolve. `canair validate` checks that the list is text with no repeats.
 
 ## Selecting a profile
 

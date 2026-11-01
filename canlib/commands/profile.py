@@ -404,6 +404,10 @@ def _cmd_show(args) -> int:
     for overlay in prof.overlays:
         print(f"overlay:    {overlay}  (your layer — captures land here)")
     print(f"car_model:  {meta.get('car_model', '?')}")
+    from canlib.profile_names import also_known_as
+
+    if known_as := also_known_as(prof.root).all():
+        print(f"known as:   {', '.join(known_as)}")
     if prof.variant:
         print(
             f"variant:    {prof.variant}  (from {_VARIANT_SOURCE[prof.variant_source or 'only']})"

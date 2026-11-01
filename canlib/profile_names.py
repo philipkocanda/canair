@@ -9,6 +9,10 @@ When a profile is renamed, its ``profile.yaml`` keeps the old name under ``alias
 (a mapping, so each entry can carry more than the bare name later), and resolving the
 old name lands on the new profile. The index here is pure: it is handed the bundles to
 read and knows nothing about discovery roots, which ``canlib.profile`` owns.
+
+Separately, ``also_known_as:`` (in ``profile.yaml`` for the whole car, in ``variants.yaml``
+for one variant) lists the other names owners call the car ("Classic Ioniq", "Ioniq 28").
+They are labels for people and the docs site to find the profile by; nothing resolves them.
 """
 
 from __future__ import annotations
@@ -49,6 +53,78 @@ def declared_aliases(root: Path) -> dict[str, dict]:
     if not isinstance(aliases, dict):
         return {}
     return {str(k): (v if isinstance(v, dict) else {}) for k, v in aliases.items()}
+
+
+@dataclass(frozen=True)
+class VariantNames:
+    """The other names owners give one variant of the car."""
+
+    id: str
+    name: str
+    names: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class AlsoKnownAs:
+    """The other names a car goes by, for people looking for it.
+
+    Labels only: unlike ``aliases:`` (old profile names), none of these resolve to the
+    profile on the command line. ``profile`` names fit every variant of the car; each
+    variant lists its own.
+    """
+
+    profile: tuple[str, ...] = ()
+    variants: tuple[VariantNames, ...] = ()
+
+    def all(self) -> list[str]:
+        """Every name once (case-insensitively), the profile's first."""
+        seen: set[str] = set()
+        out: list[str] = []
+        for name in (*self.profile, *(n for v in self.variants for n in v.names)):
+            if name.casefold() not in seen:
+                seen.add(name.casefold())
+                out.append(name)
+        return out
+
+
+def _texts(value: object) -> tuple[str, ...]:
+    if not isinstance(value, list):
+        return ()
+    return tuple(v.strip() for v in value if isinstance(v, str) and v.strip())
+
+
+def _load_mapping(path: Path) -> dict:
+    if not path.exists():
+        return {}
+    with open(path) as f:
+        data = yaml_io.safe_load(f)
+    return data if isinstance(data, dict) else {}
+
+
+def also_known_as(root: Path) -> AlsoKnownAs:
+    """The ``also_known_as:`` names a bundle declares in ``profile.yaml`` and ``variants.yaml``.
+
+    Reads the files raw and tolerates malformed entries (``validate`` reports those), so a
+    docs build never fails on a name.
+    """
+    profile = _texts(_load_mapping(root / "profile.yaml").get("also_known_as"))
+    declared = _load_mapping(root / "variants.yaml").get("variants")
+    variants = []
+    for vid, entry in (declared if isinstance(declared, dict) else {}).items():
+        if isinstance(entry, dict) and (names := _texts(entry.get("also_known_as"))):
+            variants.append(VariantNames(str(vid), str(entry.get("name") or vid), names))
+    return AlsoKnownAs(profile, tuple(variants))
+
+
+def duplicate_names(names: object) -> list[str]:
+    """The entries of a name list that repeat an earlier one, ignoring case."""
+    seen: set[str] = set()
+    dupes: list[str] = []
+    for name in _texts(names):
+        if name.casefold() in seen:
+            dupes.append(name)
+        seen.add(name.casefold())
+    return dupes
 
 
 @dataclass(frozen=True)

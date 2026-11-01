@@ -22,6 +22,12 @@
       "type": "string",
       "description": "Makes this bundle a capture layer over the named profile (`canair profile overlay`)."
     },
+    "also_known_as": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true,
+      "description": "Other names owners call this car (\"Classic Ioniq\"), shown on the docs site so people can find the profile. Labels only: they do not resolve on the command line. A variant lists its own in variants.yaml."
+    },
     "aliases": {
       "type": "object",
       "description": "Former profile names that still resolve to this profile.",

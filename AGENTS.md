@@ -706,6 +706,12 @@ component list is **not hand-written** — it is the `BUNDLE_MEMBERS` registry i
 which also decides what `contribute` ships and what the blind-test strip withholds, so a new bundle
 member is one edit there.
 
+**Other names for a car** (`also_known_as:` in `profile.yaml`, and per variant in `variants.yaml`)
+are labels people search by — "Classic Ioniq", "Ioniq 28", "Ioniq vFL" — and resolve nothing,
+unlike `aliases:`. One reader, `canlib/profile_names.py::also_known_as`, feeds `profile show`
+and the docs hook (`scripts/mkdocs_hooks/profiles_index.py`: the index, a tour page's managed
+block, its meta description). Give a new profile or variant the names owners actually use.
+
 **Layered profiles — a read-only base plus your capture layer.** `canair profile overlay <name>`
 (`canlib/profile_create.py::overlay_profile`) writes *only* `~/.config/canair/profiles/<name>/
 profile.yaml` with `extends: <name>` plus an empty `captures/`; the base then keeps tracking

@@ -31,6 +31,8 @@
 #     identical, but that is why these stay unverified here until a 2019 capture
 #     lands.
 car_model: "Hyundai Kona Electric (OS)"  # seeded for the 64 kWh pack
+# Other names owners search for this car by (shown on the docs site; not resolvable).
+also_known_as: [Kona Electric, Kona EV, Kona OS]
 # Former names that still resolve to this profile.
 aliases:
   kona-electric-2019: {variant: 64kwh}  # the old profile named this one car

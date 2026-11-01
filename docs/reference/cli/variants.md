@@ -31,6 +31,7 @@ options:
   canair variants add 38kwh --name "Ioniq Electric 38 kWh (facelift)" \
       production=2019-06,2022 battery.usable_kwh=38.3 status=seed
   canair variants set-meta 28kwh model_code=AEEV markets=EU,US,KR
+  canair variants set-meta 38kwh "also_known_as=Ioniq vFL,Ioniq facelift"
   canair variants unset-meta 28kwh trims
   canair variants set-meta 38kwh profile_overrides.car_model="Ioniq Electric 38 kWh"
   canair variants set-revisions 38kwh BMS uds        # the 38 kWh car's BMS is the UDS one

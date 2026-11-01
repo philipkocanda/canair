@@ -3,6 +3,7 @@
 variants:
   28kwh:
     name: Ioniq Electric 28 kWh (pre-facelift)
+    also_known_as: [Ioniq 28, Ioniq 28 kWh, Ioniq PFL, Ioniq pre-facelift]
     model_code: AEEV
     generation: AE
     production: ["2016", "2019-05"]
@@ -19,6 +20,7 @@ variants:
       (ecus/bms.yaml).
   38kwh:
     name: Ioniq Electric 38 kWh (facelift)
+    also_known_as: [Ioniq vFL, Ioniq FL, Ioniq 38, Ioniq 38 kWh, Ioniq facelift]
     model_code: AEEV
     designation: IONIQ EV PE
     generation: AE

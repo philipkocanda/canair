@@ -11,6 +11,8 @@
 #   broadcast traffic to sniff there.
 #
 car_model: "Hyundai Ioniq Electric (AE)"  # built on a 2017 28 kWh car
+# Other names owners search for this car by (shown on the docs site; not resolvable).
+also_known_as: [Ioniq Electric, Ioniq EV, Ioniq BEV, Ioniq AE, Classic Ioniq]
 # Former names that still resolve to this profile.
 aliases:
   ioniq-2017: {variant: 28kwh}  # the old profile named this one car

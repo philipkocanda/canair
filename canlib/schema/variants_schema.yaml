@@ -13,6 +13,7 @@
 #                                 # local to the profile, naming only what differs
 #                                 # (e.g. 28kwh, 38kwh-us), never a year
 #       name: str                 # required — human-readable name
+#       also_known_as: [str, ...] # optional — other names owners call it (Ioniq 28, Ioniq vFL)
 #       model_code: str           # optional — the maker's model code (e.g. AEEV, F30)
 #       designation: str          # optional — the maker's name for it (e.g. IONIQ EV PE)
 #       generation: str           # optional — generation code (e.g. AE, OS, ZE1)
@@ -55,6 +56,7 @@ required_variant_fields:
   - name
 
 optional_variant_fields:
+  - also_known_as
   - model_code
   - designation
   - generation

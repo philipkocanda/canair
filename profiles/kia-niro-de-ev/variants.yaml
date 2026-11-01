@@ -3,6 +3,7 @@
 variants:
   64kwh:
     name: Niro EV / e-Niro 64 kWh (long range)
+    also_known_as: [Niro EV 64 kWh, e-Niro 64 kWh, Niro 64]
     generation: DE
     production: ["2018", "2022"]
     model_years: [2019, 2022]
@@ -32,6 +33,7 @@ variants:
       unconfirmed.
   39kwh:
     name: e-Niro 39.2 kWh (standard range)
+    also_known_as: [Niro EV 39 kWh, e-Niro 39 kWh, Niro 39]
     generation: DE
     production: ["2018", "2022"]
     markets: [KR, EU]

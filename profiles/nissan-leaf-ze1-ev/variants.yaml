@@ -3,6 +3,7 @@
 variants:
   40kwh:
     name: Leaf 40 kWh
+    also_known_as: [Leaf 40]
     generation: ZE1
     battery: {gross_kwh: 40}
     revisions:
@@ -18,6 +19,7 @@ variants:
       e+ cars.
   62kwh:
     name: Leaf e+ 62 kWh
+    also_known_as: [Leaf 62, Leaf 62 kWh, Leaf Plus, Leaf e-Plus]
     generation: ZE1
     battery: {gross_kwh: 62}
     revisions:

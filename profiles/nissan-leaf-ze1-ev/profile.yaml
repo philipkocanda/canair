@@ -47,6 +47,8 @@
 # ECU addresses without a known DID (BCM, EPS, TCU, ...) come from the
 # dalathegreat table, which spans Leaf generations, so they are marked tentative.
 car_model: "Nissan Leaf (ZE1)"  # 2018-2024, 40 kWh and 62 kWh e+
+# Other names owners search for this car by (shown on the docs site; not resolvable).
+also_known_as: [Leaf, Leaf 2, Second-gen Leaf, Leaf ZE1]
 # Former names that still resolve to this profile.
 aliases:
   nissan-leaf-ze1: {}

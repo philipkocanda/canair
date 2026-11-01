@@ -10,6 +10,9 @@ instead of being committed:
   only the block between the ``<!-- BEGIN/END generated-stats -->`` markers is
   replaced (``on_page_markdown``). In the source, that block holds a placeholder
   row for readers browsing the Markdown on GitHub.
+- The other names people call a car by (``also_known_as:`` in ``profile.yaml`` and
+  ``variants.yaml``) are rendered on the index, in a dedicated page's managed block
+  and in its meta description, so a search for "Classic Ioniq" finds the right page.
 
 Committing the rendered numbers instead made every profile commit also
 regenerate the docs; forgetting to was the cause of nearly every red CI run, and
@@ -22,9 +25,13 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from mkdocs.exceptions import PluginError
 from mkdocs.structure.files import File, Files
+
+if TYPE_CHECKING:
+    from canlib.profile_names import AlsoKnownAs
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PROFILES_DIR = REPO_ROOT / "profiles"
@@ -79,6 +86,12 @@ def profile_stats(ecus_dir: Path) -> dict[str, int]:
             if isinstance(item, dict) and item.get("status") != "done":
                 counts["research"] += 1
     return counts
+
+
+def _also_known_as(root: Path) -> AlsoKnownAs:
+    from canlib.profile_names import also_known_as
+
+    return also_known_as(root)
 
 
 def _car_model(root: Path) -> str:
@@ -141,11 +154,30 @@ def profile_summary(counts: dict[str, int], source: str) -> str:
     return f"{lead}. Browse {source}."
 
 
-def render_stats_block(counts: dict[str, int]) -> str:
+def _cell(text: str) -> str:
+    return text.replace("|", "\\|")
+
+
+def known_as_cell(names: AlsoKnownAs) -> str:
+    """The "Also known as" table cell: the car's names, then one line per variant."""
+    lines = [", ".join(names.profile)] if names.profile else []
+    lines += [f"**{v.name}**: {', '.join(v.names)}" for v in names.variants]
+    return _cell("<br>".join(lines))
+
+
+def page_description(car_model: str, names: AlsoKnownAs) -> str:
+    """The page's meta description, which carries the names to search engines."""
+    known = names.all()
+    suffix = f", also known as {', '.join(known)}" if known else ""
+    return f"canair vehicle profile for the {car_model}{suffix}."
+
+
+def render_stats_block(counts: dict[str, int], names: AlsoKnownAs | None = None) -> str:
     """The managed "At a glance" rows for a dedicated profile page.
 
-    Only the derived counts live here; the vehicle description row above them is
-    hand-written prose outside the markers.
+    The derived counts and the car's other names live here, because they come from the
+    profile's data; the vehicle description row above them is hand-written prose outside
+    the markers.
 
     The BEGIN marker is glued to the end of the *preceding* (hand-written) table
     row and the END marker to the end of the *last* generated row, rather than
@@ -156,7 +188,8 @@ def render_stats_block(counts: dict[str, int]) -> str:
     existing row is simply dropped by the table renderer instead.
     """
     unverified = counts["params"] - counts["verified"]
-    rows = [
+    rows = [f"| Also known as | {known_as_cell(names)} |"] if names and names.all() else []
+    rows += [
         f"| ECUs mapped | **{counts['ecus']}** (all registered with identity) |",
         f"| PIDs | **{counts['pids']}** active/draft |",
         f"| Signals | **{counts['params']}** decoded "
@@ -168,14 +201,16 @@ def render_stats_block(counts: dict[str, int]) -> str:
     return f"{STATS_BEGIN}\n{body}"
 
 
-def fill_stats_block(markdown: str, counts: dict[str, int], page_uri: str) -> str:
-    """Return ``markdown`` with its managed stats block rendered from ``counts``."""
+def fill_stats_block(
+    markdown: str, counts: dict[str, int], page_uri: str, names: AlsoKnownAs | None = None
+) -> str:
+    """Return ``markdown`` with its managed stats block rendered from ``counts`` and ``names``."""
     if not _STATS_BLOCK.search(markdown):
         raise PluginError(
             f"{page_uri} has no {STATS_BEGIN} / {STATS_END} block — add one around its "
             '"At a glance" count rows.'
         )
-    return _STATS_BLOCK.sub(lambda _m: render_stats_block(counts), markdown)
+    return _STATS_BLOCK.sub(lambda _m: render_stats_block(counts, names), markdown)
 
 
 def render_index(profiles: list[tuple[str, Path]]) -> str:
@@ -211,8 +246,10 @@ def render_index(profiles: list[tuple[str, Path]]) -> str:
         )
 
     lines += ["", "## The profiles", ""]
-    for name, _root, counts, model in rows:
+    for name, root, counts, model in rows:
         page = DEDICATED_PAGES.get(name)
+        known = _also_known_as(root).all()
+        model = f"{model}. Also known as {', '.join(known)}" if known else model
         source = f"[`profiles/{name}/`]({GITHUB_TREE}/{name})"
         if page and _maturity(counts) == "mature":
             lines.append(
@@ -247,5 +284,8 @@ def on_page_markdown(markdown: str, page, config, files) -> str:
     uri = page.file.src_uri
     for name, page_uri in DEDICATED_PAGES.items():
         if uri == page_uri:
-            return fill_stats_block(markdown, profile_stats(PROFILES_DIR / name / "ecus"), uri)
+            root = PROFILES_DIR / name
+            names = _also_known_as(root)
+            page.meta.setdefault("description", page_description(_car_model(root), names))
+            return fill_stats_block(markdown, profile_stats(root / "ecus"), uri, names)
     return markdown

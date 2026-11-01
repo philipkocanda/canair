@@ -58,6 +58,7 @@ FieldKind = Literal[
 # Every field a variant may carry, in canonical render order, with its value kind.
 VARIANT_FIELDS: dict[str, FieldKind] = {
     "name": "text",
+    "also_known_as": "texts",
     "model_code": "text",
     "designation": "text",
     "generation": "text",
@@ -122,6 +123,7 @@ class Variant:
 
     id: str
     name: str
+    also_known_as: tuple[str, ...] = ()
     model_code: str | None = None
     designation: str | None = None
     generation: str | None = None
@@ -328,6 +330,7 @@ def _variant_from(vid: str, entry: Mapping[str, Any]) -> Variant:
     return Variant(
         id=vid,
         name=str(entry["name"]),
+        also_known_as=tuple(entry.get("also_known_as") or ()),
         model_code=entry.get("model_code"),
         designation=entry.get("designation"),
         generation=entry.get("generation"),

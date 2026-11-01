@@ -3,6 +3,7 @@
 variants:
   64kwh:
     name: Kona Electric 64 kWh
+    also_known_as: [Kona 64, Kona 64 kWh, Kona EV 64 kWh]
     generation: OS
     production: ["2018", "2023"]
     battery: {usable_kwh: 64, series_cells: 98}
@@ -13,6 +14,7 @@ variants:
     - projectgus/hyundai-kona-ev-can-logs (2019 and 2021 US Highlanders)
   39kwh:
     name: Kona Electric 39 kWh
+    also_known_as: [Kona 39, Kona 39 kWh, Kona EV 39 kWh]
     generation: OS
     production: ["2018", "2023"]
     battery: {usable_kwh: 39.2}
