@@ -1,12 +1,12 @@
-"""Parameter / research / identity editors (the reverse-engineering workflow).
+"""Parameter / PID / identity editors (the reverse-engineering workflow).
 
 Unlike the scanner sections (routines / iocontrol_discoveries), these edit the
-hand-authored ``pids:``/``research:``/``identity:`` structures used when
-decoding a new PID. The deeper nesting (pids: PID: parameters: PARAM: field)
-needs its own indent-anchored locators. Every write is followed by a YAML
-re-parse; on any failure the original text is restored so a botched edit never
-lands on disk. Builds on the shared primitives in
-:mod:`canlib.pids_edit._text`.
+hand-authored ``pids:``/``identity:`` structures used when decoding a new PID
+(the ``research:`` backlog has its own module, :mod:`canlib.pids_edit.research`).
+The deeper nesting (pids: PID: parameters: PARAM: field) needs its own
+indent-anchored locators. Every write is followed by a YAML re-parse; on any
+failure the original text is restored so a botched edit never lands on disk.
+Builds on the shared primitives in :mod:`canlib.pids_edit._text`.
 """
 
 from __future__ import annotations
@@ -19,29 +19,27 @@ import yaml
 
 from ._text import (
     PidsEditError,
-    _attached_comments_start,
     _cut_block,
     _find_ecu_block,
     _format_block_scalar,
     _format_inline_list_field,
-    _format_label,
     _format_list_field,
     _format_map_field,
     _format_scalar_field,
     _insert_lines,
     _key_token,
     _keyed_block,
+    _norm_states,
     _remove_field_line,
     _replace_field_in_block_at,
     _safe_write,
-    _today,
     find_ecu_file,
 )
 
-# ── Parameter + research editing (reverse-engineering workflow) ───────────────
+# ── Parameter editing (reverse-engineering workflow) ──────────────────────────
 #
 # Unlike the scanner sections above (routines / iocontrol_discoveries), these
-# edit the hand-authored pids: and research: structures used when decoding a new
+# edit the hand-authored pids: structures used when decoding a new
 # PID. The deeper nesting (pids: PID: parameters: PARAM: field) needs its own
 # indent-anchored locators. Every write is followed by a YAML re-parse; on any
 # failure the original text is restored so a botched edit never lands on disk.
@@ -71,36 +69,6 @@ PARAM_FIELD_ORDER = (
 # stream must drop the key; an empty category is not a category either.
 CLEARABLE_PARAM_FIELDS = ("send_to", "category")
 
-# Canonical field order for a rendered research entry.
-RESEARCH_FIELD_ORDER = (
-    "type",
-    "target",
-    "status",
-    "priority",
-    "vehicle_states",
-    "revisions",
-    "created",
-    "updated",
-    "date",
-    "result",
-    "notes",
-    "sources",
-    "what_to_test",
-    "capture_protocol",
-)
-
-
-def _norm_states(value: object) -> list[str]:
-    """Normalize a ``vehicle_states`` value to the canonical UPPERCASE token list.
-
-    Delegates to :func:`canlib.states.parse_states` so the normalization rule
-    (strip + upper-case, drop empties, accept a list or comma-string) is shared
-    with the runtime readers rather than reimplemented in the text editors.
-    """
-    from canlib.states import parse_states
-
-    return parse_states(value)
-
 
 def _format_param_block(name: str, fields: dict, indent: int = 8) -> list[str]:
     """Render a full ``PARAM_NAME:`` block (key at ``indent``, fields +2)."""
@@ -121,35 +89,6 @@ def _format_param_block(name: str, fields: dict, indent: int = 8) -> list[str]:
             lines.extend(_format_map_field(fld, key, val if isinstance(val, dict) else {}))
         else:
             lines.append(_format_scalar_field(fld, key, val))
-    return lines
-
-
-def _format_research_item(fields: dict, indent: int = 4) -> list[str]:
-    """Render one ``- ...`` research list item (dash at ``indent``, fields +2)."""
-    dash = " " * indent + "- "
-    fld = " " * (indent + 2)
-    lines: list[str] = []
-    for key in RESEARCH_FIELD_ORDER:
-        if key not in fields or fields[key] is None:
-            continue
-        val = fields[key]
-        prefix = dash if not lines else fld  # first field sits on the dash line
-        if key == "vehicle_states":
-            joined = ", ".join(_format_label(t, flow=True) for t in _norm_states(val))
-            lines.append(f"{prefix}{key}: [{joined}]")
-        elif key == "revisions":
-            lines.append(f"{prefix}{key}: [{', '.join(str(r).strip().lower() for r in val)}]")
-        elif key in ("notes", "result", "capture_protocol"):
-            block = _format_block_scalar(fld, key, str(val))
-            block[0] = prefix + block[0][len(fld) :]
-            lines.extend(block)
-        elif key in ("sources", "what_to_test"):
-            block = _format_list_field(fld, key, val if isinstance(val, (list, tuple)) else [val])
-            block[0] = prefix + block[0][len(fld) :]
-            lines.extend(block)
-        else:
-            line = _format_scalar_field(fld, key, val)
-            lines.append(prefix + line[len(fld) :])
     return lines
 
 
@@ -1004,80 +943,6 @@ def _replace_param_field_line(indent: str, key: str, value) -> str:
     return _format_scalar_field(indent, key, value)
 
 
-def add_research_entry(
-    ecu_name: str,
-    *,
-    type: str,
-    target: str,
-    status: str,
-    priority: str | None = None,
-    vehicle_states: list | None = None,
-    created: str | None = None,
-    updated: str | None = None,
-    date: str | None = None,
-    result: str | None = None,
-    notes: str | None = None,
-    sources: list | None = None,
-    what_to_test: list | None = None,
-    capture_protocol: str | None = None,
-    revisions: list | None = None,
-    pids_dir: Path | None = None,
-) -> Path:
-    """Append a new item to the ECU's ``research:`` list (creating it if absent).
-
-    ``created`` and ``updated`` default to today's date (``YYYY-MM-DD``) so every
-    entry is timestamped without the caller having to pass anything.
-    """
-    today = _today()
-    provided = {
-        "type": type,
-        "target": target,
-        "status": status,
-        "priority": priority,
-        "vehicle_states": vehicle_states,
-        "created": created or today,
-        "updated": updated or today,
-        "date": date,
-        "result": result,
-        "notes": notes,
-        "sources": sources,
-        "what_to_test": what_to_test,
-        "capture_protocol": capture_protocol,
-        "revisions": revisions,
-    }
-    fields = {k: v for k, v in provided.items() if v is not None}
-    for req in ("type", "target", "status"):
-        if not str(fields.get(req, "")).strip():
-            raise PidsEditError(f"research entry requires non-empty {req!r}")
-
-    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
-    original = fpath.read_text()
-    ecu_key = ecu_name.strip().upper()
-    item_lines = _format_research_item(fields, indent=4)
-
-    def transform(text: str) -> str:
-        ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
-        research = _keyed_block(text, "research", 2, ecu_start, ecu_end)
-        if research:
-            _, _, r_body_start, r_body_end, _ = research
-            return _insert_lines(text, r_body_start, r_body_end, item_lines)
-        # No research: section — append one at the end of the ECU block.
-        body = text[ecu_start:ecu_end].rstrip("\n")
-        new_block = body + "\n\n  research:\n" + "".join(ln + "\n" for ln in item_lines)
-        return text[:ecu_start] + new_block + text[ecu_end:]
-
-    def checker(ecu_def: dict) -> None:
-        research = ecu_def.get("research")
-        if not isinstance(research, list) or not any(
-            str(e.get("target")) == str(target) and e.get("type") == type for e in research
-        ):
-            raise PidsEditError("research entry missing after edit")
-
-    new_text = transform(original)
-    _safe_write(fpath, original, new_text, ecu_key, checker)
-    return fpath
-
-
 # ── Identity field editor ─────────────────────────────────────────────────────
 #
 # The ``identity:`` block (part number, versions, protocol, notes, …) is normally
@@ -1397,380 +1262,6 @@ def set_wake(
             raise PidsEditError("wake: block missing after edit")
         if got.get("method") != method:
             raise PidsEditError(f"wake.method mismatch after edit (got {got.get('method')!r})")
-
-    new_text = transform(original)
-    _safe_write(fpath, original, new_text, ecu_key, checker)
-    return fpath
-
-
-def _find_research_block(text: str, ecu_name: str):
-    """Return the ``_keyed_block`` tuple for ``ECU_NAME``'s ``research:`` section.
-
-    Raises ``PidsEditError`` if the ECU has no ``research:`` section.
-    """
-    ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
-    research = _keyed_block(text, "research", 2, ecu_start, ecu_end)
-    if not research:
-        raise PidsEditError(f"ECU {ecu_name!r} has no research: section")
-    return research
-
-
-def _research_item_spans(text: str, research_block) -> list[tuple[int, int]]:
-    """Return ``[(start, end), ...]`` spans of every item in a ``research:`` list.
-
-    An item ends before the comments heading the next one
-    (:func:`~canlib.pids_edit._text._attached_comments_start`).
-    """
-    _, _, r_body_start, r_body_end, _ = research_block
-    item_re = re.compile(r"^ {4}- ", re.MULTILINE)
-    starts = [r_body_start + m.start() for m in item_re.finditer(text[r_body_start:r_body_end])]
-    ends = [*starts[1:], r_body_end]
-    return [(s, _attached_comments_start(text, s, e, 4)) for s, e in zip(starts, ends, strict=True)]
-
-
-def _match_research_items(
-    text: str, research_block, target: str, type: str | None = None
-) -> list[tuple[int, int]]:
-    """Return the ``research:`` item spans matching ``target`` (and ``type``, if given).
-
-    Spans are returned in list order.
-    """
-    target_re = re.compile(r"^ {4,6}(?:- )?target:[ \t]*(.*)$", re.MULTILINE)
-    type_re = re.compile(r"^ {4,6}(?:- )?type:[ \t]*(.*)$", re.MULTILINE)
-    target_norm = str(target).strip().strip('"').strip("'")
-
-    matches = []
-    for s, e in _research_item_spans(text, research_block):
-        item = text[s:e]
-        tm = target_re.search(item)
-        if not tm or tm.group(1).strip().strip('"').strip("'") != target_norm:
-            continue
-        if type is not None:
-            ty = type_re.search(item)
-            if not ty or ty.group(1).strip().strip('"').strip("'") != type:
-                continue
-        matches.append((s, e))
-    return matches
-
-
-def _select_research_match(
-    target: str, type: str | None, matches: list[tuple[int, int]], *, index: int | None = None
-) -> tuple[int, int]:
-    """Apply the shared "refuse rather than guess" selector policy.
-
-    ``matches`` is the list of ``(start, end)`` spans already narrowed by
-    ``target`` (and ``type``, if given). Real profiles routinely carry several
-    research items with the same ``(type, target)`` as a signal is worked
-    byte-by-byte, so ``type`` alone does not guarantee uniqueness — ``index``
-    (0-based, within this already-narrowed group) is the final disambiguator.
-    """
-    type_suffix = f" and type {type!r}" if type else ""
-    if not matches:
-        raise PidsEditError(f"no research item with target {target!r}" + type_suffix)
-    if index is not None:
-        if not (0 <= index < len(matches)):
-            raise PidsEditError(
-                f"index {index} out of range for target {target!r}{type_suffix} "
-                f"({len(matches)} matching item{'s' if len(matches) != 1 else ''})"
-            )
-        return matches[index]
-    if len(matches) > 1:
-        raise PidsEditError(
-            f"ambiguous target {target!r} ({len(matches)} matches); pass type= or index="
-        )
-    return matches[0]
-
-
-def _research_list_index(text: str, research_block, span: tuple[int, int]) -> int:
-    """Ordinal position of ``span`` among ALL items in the research: list.
-
-    Lets a caller build a positionally-robust post-write checker: even when
-    several items share the same ``(type, target)``, checking
-    ``research[list_index]`` verifies the *specific* item that was edited,
-    rather than just "some item with this target/type looks right".
-    """
-    spans = _research_item_spans(text, research_block)
-    return next(i for i, (s, _e) in enumerate(spans) if s == span[0])
-
-
-def set_research_status(
-    ecu_name: str,
-    target: str,
-    status: str,
-    *,
-    type: str | None = None,
-    index: int | None = None,
-    pids_dir: Path | None = None,
-) -> Path:
-    """Update the ``status:`` of the research item matching ``target`` (and ``type``).
-
-    Also refreshes the item's ``updated`` timestamp to today's date so status
-    transitions are dated automatically.
-
-    Selector policy: matches are narrowed by ``target`` (exact) and, if given,
-    ``type``. When more than one item still shares that ``target``/``type``
-    pair (common — a signal is often worked over several ``decode`` passes),
-    pass ``index`` (0-based, within the narrowed group) to pick one; the group
-    order matches the item order in the ``research:`` list. Raises
-    ``PidsEditError`` if no item matches, ``index`` is out of range, or the
-    match is still ambiguous.
-    """
-    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
-    original = fpath.read_text()
-    ecu_key = ecu_name.strip().upper()
-    target_norm = str(target).strip().strip('"').strip("'")
-    today = _today()
-
-    research_block = _find_research_block(original, ecu_name)
-    matches = _match_research_items(original, research_block, target, type)
-    s, e = _select_research_match(target, type, matches, index=index)
-    list_index = _research_list_index(original, research_block, (s, e))
-
-    def transform(text: str) -> str:
-        item = text[s:e]
-        new_item = _replace_field_in_block_at(item, "status", f"      status: {status}", indent=6)
-        new_item = _replace_field_in_block_at(
-            new_item, "updated", f'      updated: "{today}"', indent=6
-        )
-        return text[:s] + new_item + text[e:]
-
-    def checker(ecu_def: dict) -> None:
-        research = ecu_def.get("research") or []
-        if list_index >= len(research):
-            raise PidsEditError("status not applied after edit")
-        item = research[list_index]
-        ok = (
-            item.get("target") == target_norm
-            and item.get("status") == status
-            and item.get("updated") == today
-            and (type is None or item.get("type") == type)
-        )
-        if not ok:
-            raise PidsEditError("status not applied after edit")
-
-    new_text = transform(original)
-    _safe_write(fpath, original, new_text, ecu_key, checker)
-    return fpath
-
-
-def delete_research_entry(
-    ecu_name: str,
-    target: str,
-    *,
-    type: str | None = None,
-    index: int | None = None,
-    pids_dir: Path | None = None,
-) -> Path:
-    """Remove an item from the ECU's ``research:`` list.
-
-    A lead is dropped once it's a dead end, superseded, or folded into another
-    entry — previously the only way to do this was hand-editing the YAML,
-    which the edit-via-tool discipline forbids. Selector policy (``type``/
-    ``index``) mirrors :func:`set_research_status`.
-
-    Drops the whole ``research:`` section if this was the last remaining item
-    (an empty ``research:`` key parses to ``None`` and fails the schema).
-    Verified by YAML re-parse; the file is restored on failure.
-    """
-    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
-    original = fpath.read_text()
-    ecu_key = ecu_name.strip().upper()
-    target_norm = str(target).strip().strip('"').strip("'")
-
-    research_block = _find_research_block(original, ecu_name)
-    matches = _match_research_items(original, research_block, target, type)
-    s, e = _select_research_match(target, type, matches, index=index)
-    pre_count = len(matches)
-
-    def transform(text: str) -> str:
-        r_start, _, _r_body_start, r_body_end, _ = research_block
-        others = [span for span in _research_item_spans(text, research_block) if span[0] != s]
-        if not others:
-            # Last item — drop the whole research: block, else an empty
-            # ``research:`` key parses to None and fails the schema.
-            return _cut_block(text, r_start, r_body_end)
-        # Same gap rules as any keyed block: the comments heading what follows
-        # stay, and the first item takes no list-leading blank line with it.
-        return _cut_block(text, s, e)
-
-    def checker(ecu_def: dict) -> None:
-        research = ecu_def.get("research") or []
-        post_count = sum(
-            1
-            for item in research
-            if str(item.get("target")) == target_norm and (type is None or item.get("type") == type)
-        )
-        if post_count != pre_count - 1:
-            raise PidsEditError("research entry still present after delete")
-
-    new_text = transform(original)
-    _safe_write(fpath, original, new_text, ecu_key, checker)
-    return fpath
-
-
-def set_research_notes(
-    ecu_name: str,
-    target: str,
-    notes: str | None,
-    *,
-    type: str | None = None,
-    index: int | None = None,
-    pids_dir: Path | None = None,
-) -> Path:
-    """Set (or clear) a research item's free-text ``notes:``.
-
-    The research-list counterpart to :func:`set_pid_notes` — lets a lead's
-    notes be corrected or extended as work on it progresses, without touching
-    ``status``/other fields and without hand-editing the YAML. Selector policy
-    (``type``/``index``) mirrors :func:`set_research_status`.
-
-    ``notes=None`` (or blank) removes the field. Rendered by the shared note
-    policy (:func:`canlib.pids_edit._text._format_block_scalar`): short notes
-    stay inline, longer ones become a word-wrapped folded ``>-`` block. An
-    existing note is replaced in place; a new one is inserted before whichever
-    of ``sources:``/``what_to_test:``/``capture_protocol:`` comes first (or at
-    the end of the item if none are present), matching the field order in
-    ``RESEARCH_FIELD_ORDER``.
-    """
-    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
-    original = fpath.read_text()
-    ecu_key = ecu_name.strip().upper()
-    target_norm = str(target).strip().strip('"').strip("'")
-    text_val = "" if notes is None else str(notes).strip()
-    clearing = not text_val
-
-    research_block = _find_research_block(original, ecu_name)
-    matches = _match_research_items(original, research_block, target, type)
-    s, e = _select_research_match(target, type, matches, index=index)
-    list_index = _research_list_index(original, research_block, (s, e))
-
-    def transform(text: str) -> str:
-        item = text[s:e]
-        has_note = re.search(r"^ {6}notes:", item, re.MULTILINE) is not None
-        if clearing:
-            if not has_note:
-                raise PidsEditError(f"research item {target_norm!r} has no notes: to clear")
-            new_item = _replace_field_in_block_at(item, "notes", [], indent=6)
-        else:
-            repl = _format_block_scalar(" " * 6, "notes", text_val)
-            if has_note:
-                new_item = _replace_field_in_block_at(item, "notes", repl, indent=6)
-            else:
-                lines = item.splitlines(keepends=True)
-                anchor = next(
-                    (
-                        i
-                        for i, ln in enumerate(lines)
-                        if re.match(r"^ {6}(sources|what_to_test|capture_protocol):", ln)
-                    ),
-                    len(lines),
-                )
-                new_item = "".join(lines[:anchor] + [f"{ln}\n" for ln in repl] + lines[anchor:])
-        return text[:s] + new_item + text[e:]
-
-    def checker(ecu_def: dict) -> None:
-        research = ecu_def.get("research") or []
-        if list_index >= len(research):
-            raise PidsEditError(f"research item {target_norm!r} missing after edit")
-        item = research[list_index]
-        if str(item.get("target")) != target_norm or (
-            type is not None and item.get("type") != type
-        ):
-            raise PidsEditError(f"research item {target_norm!r} missing after edit")
-        got = item.get("notes")
-        if clearing:
-            if got is not None:
-                raise PidsEditError("notes still present after clear")
-            return
-        if got is None:
-            raise PidsEditError("notes missing after edit")
-        if " ".join(str(got).split()) != " ".join(text_val.split()):
-            raise PidsEditError("notes mismatch after edit")
-
-    new_text = transform(original)
-    _safe_write(fpath, original, new_text, ecu_key, checker)
-    return fpath
-
-
-def set_research_result(
-    ecu_name: str,
-    target: str,
-    result: str | None,
-    *,
-    type: str | None = None,
-    index: int | None = None,
-    pids_dir: Path | None = None,
-) -> Path:
-    """Set (or clear) a research item's short ``result:`` summary.
-
-    The research-list counterpart to :func:`set_research_notes`, for the
-    ``result`` field instead of ``notes`` — lets a lead's outcome be recorded
-    or corrected without touching ``status``/other fields and without
-    hand-editing the YAML. Selector policy (``type``/``index``) mirrors
-    :func:`set_research_status`.
-
-    ``result=None`` (or blank) removes the field. Rendered by the shared note
-    policy (:func:`canlib.pids_edit._text._format_block_scalar`): short text
-    stays inline, longer text becomes a word-wrapped folded ``>-`` block. An
-    existing result is replaced in place; a new one is inserted before
-    whichever of ``notes:``/``sources:``/``what_to_test:``/``capture_protocol:``
-    comes first (or at the end of the item if none are present), matching the
-    field order in ``RESEARCH_FIELD_ORDER``.
-    """
-    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
-    original = fpath.read_text()
-    ecu_key = ecu_name.strip().upper()
-    target_norm = str(target).strip().strip('"').strip("'")
-    text_val = "" if result is None else str(result).strip()
-    clearing = not text_val
-
-    research_block = _find_research_block(original, ecu_name)
-    matches = _match_research_items(original, research_block, target, type)
-    s, e = _select_research_match(target, type, matches, index=index)
-    list_index = _research_list_index(original, research_block, (s, e))
-
-    def transform(text: str) -> str:
-        item = text[s:e]
-        has_result = re.search(r"^ {6}result:", item, re.MULTILINE) is not None
-        if clearing:
-            if not has_result:
-                raise PidsEditError(f"research item {target_norm!r} has no result: to clear")
-            new_item = _replace_field_in_block_at(item, "result", [], indent=6)
-        else:
-            repl = _format_block_scalar(" " * 6, "result", text_val)
-            if has_result:
-                new_item = _replace_field_in_block_at(item, "result", repl, indent=6)
-            else:
-                lines = item.splitlines(keepends=True)
-                anchor = next(
-                    (
-                        i
-                        for i, ln in enumerate(lines)
-                        if re.match(r"^ {6}(notes|sources|what_to_test|capture_protocol):", ln)
-                    ),
-                    len(lines),
-                )
-                new_item = "".join(lines[:anchor] + [f"{ln}\n" for ln in repl] + lines[anchor:])
-        return text[:s] + new_item + text[e:]
-
-    def checker(ecu_def: dict) -> None:
-        research = ecu_def.get("research") or []
-        if list_index >= len(research):
-            raise PidsEditError(f"research item {target_norm!r} missing after edit")
-        item = research[list_index]
-        if str(item.get("target")) != target_norm or (
-            type is not None and item.get("type") != type
-        ):
-            raise PidsEditError(f"research item {target_norm!r} missing after edit")
-        got = item.get("result")
-        if clearing:
-            if got is not None:
-                raise PidsEditError("result still present after clear")
-            return
-        if got is None:
-            raise PidsEditError("result missing after edit")
-        if " ".join(str(got).split()) != " ".join(text_val.split()):
-            raise PidsEditError("result mismatch after edit")
 
     new_text = transform(original)
     _safe_write(fpath, original, new_text, ecu_key, checker)

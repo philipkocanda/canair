@@ -10,9 +10,11 @@ from canlib.pids_edit import (
     add_pid,
     add_research_entry,
     delete_research_entry,
+    set_research_capture_protocol,
     set_research_notes,
     set_research_result,
     set_research_status,
+    set_research_text,
     upsert_parameter,
 )
 
@@ -683,6 +685,47 @@ class TestSetResearchResult:
         new = next(e for e in _load(pids_dir)["TESTECU"]["research"] if e["target"] == "22Z004")
         assert new["result"] == "the result"
         assert new["notes"] == "existing note"
+
+
+class TestSetResearchText:
+    """The capture_protocol field, and the placement rule all three fields share."""
+
+    TEXT = (
+        "X:\n  tx_id: 0x700\n  research:\n"
+        "    - type: scan\n      target: R1\n      status: pending\n"
+        "      what_to_test:\n        - one\n\n"
+        "    - type: scan\n      target: R2\n      status: pending\n"
+    )
+
+    def _write(self, tmp_path):
+        (tmp_path / "x.yaml").write_text(self.TEXT)
+        return tmp_path
+
+    def test_capture_protocol_goes_last_and_keeps_the_gap(self, tmp_path):
+        set_research_capture_protocol("X", "R1", "read it in READY", pids_dir=self._write(tmp_path))
+        after = (tmp_path / "x.yaml").read_text()
+        assert "        - one\n      capture_protocol: read it in READY\n\n    - type" in after
+        assert yaml.safe_load(after)["X"]["research"][0]["capture_protocol"] == "read it in READY"
+
+    def test_replace_and_clear_capture_protocol(self, tmp_path):
+        d = self._write(tmp_path)
+        set_research_capture_protocol("X", "R2", "first", pids_dir=d)
+        set_research_capture_protocol("X", "R2", "second", pids_dir=d)
+        assert (
+            yaml.safe_load((d / "x.yaml").read_text())["X"]["research"][1]["capture_protocol"]
+            == "second"
+        )
+        set_research_capture_protocol("X", "R2", None, pids_dir=d)
+        assert (d / "x.yaml").read_text() == self.TEXT
+
+    def test_notes_go_before_a_later_field(self, tmp_path):
+        set_research_text("X", "R1", "notes", "a note", pids_dir=self._write(tmp_path))
+        after = (tmp_path / "x.yaml").read_text()
+        assert "      notes: a note\n      what_to_test:" in after
+
+    def test_other_fields_are_refused(self, tmp_path):
+        with pytest.raises(PidsEditError, match="not one of"):
+            set_research_text("X", "R1", "status", "done", pids_dir=self._write(tmp_path))
 
 
 def _load2(pids_dir):

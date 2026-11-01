@@ -19,6 +19,8 @@ Subcommands:
                                     (--type/--index disambiguate)
   set-research-result ECU TARGET [TEXT] Set (or clear) a research item's result summary
                                     (--type/--index disambiguate)
+  set-research-capture-protocol ECU TARGET [TEXT] Set (or clear) how to capture for an item
+                                    (--type/--index disambiguate)
   set-pid-status ECU PID STATUS    Set a PID's lifecycle (active|draft|static|slow|ignored)
   set-pid-period ECU PID MS|clear  Set the WiCAN AutoPID polling interval (ms)
   set-pid-notes ECU PID [TEXT]     Set (or clear) a PID's free-text notes
@@ -79,9 +81,8 @@ from canlib.pids_edit import (
     set_pid_period,
     set_pid_status,
     set_pid_variable_length,
-    set_research_notes,
-    set_research_result,
     set_research_status,
+    set_research_text,
     set_response_frames,
     set_support_map,
     set_wake,
@@ -483,31 +484,26 @@ def cmd_rm_research(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_set_research_notes(args: argparse.Namespace) -> int:
-    notes = args.value
+#: The research free-text editors: (subcommand, research field, what --help calls it).
+_RESEARCH_TEXT_COMMANDS = (
+    ("set-research-notes", "notes", "free-text notes"),
+    ("set-research-result", "result", "short result summary"),
+    ("set-research-capture-protocol", "capture_protocol", "capture recipe"),
+)
+
+
+def cmd_set_research_text(args: argparse.Namespace) -> int:
+    """Set or clear the research free-text field the subcommand names."""
+    field, text = args.research_field, args.value
 
     def do():
-        set_research_notes(
-            args.ecu, args.target, notes, type=args.type, index=args.index, pids_dir=args.dir
+        set_research_text(
+            args.ecu, args.target, field, text, type=args.type, index=args.index, pids_dir=args.dir
         )
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
-    what = "cleared" if not (notes or "").strip() else f"set ({len((notes or '').split())} words)"
-    echo_edit(f"{args.ecu} research {args.target} notes {what}", fpath)
-    return 0
-
-
-def cmd_set_research_result(args: argparse.Namespace) -> int:
-    result = args.value
-
-    def do():
-        set_research_result(
-            args.ecu, args.target, result, type=args.type, index=args.index, pids_dir=args.dir
-        )
-
-    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
-    what = "cleared" if not (result or "").strip() else f"set ({len((result or '').split())} words)"
-    echo_edit(f"{args.ecu} research {args.target} result {what}", fpath)
+    what = "cleared" if not (text or "").strip() else f"set ({len((text or '').split())} words)"
+    echo_edit(f"{args.ecu} research {args.target} {field} {what}", fpath)
     return 0
 
 
@@ -1099,69 +1095,34 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     _add_common(rr)
     rr.set_defaults(_pids_func=cmd_rm_research)
 
-    srn = sub.add_parser(
-        "set-research-notes",
-        help="Set (or clear) a research item's free-text notes",
-        description=(
-            "Set a research: item's notes: without touching status: or other fields.\n\n"
-            "Omit VALUE to clear the field. Short notes stay inline; longer ones "
-            "become a word-wrapped folded block scalar. Disambiguate with --type/--index "
-            "the same way as set-status/rm-research."
-        ),
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
-    srn.add_argument("ecu")
-    srn.add_argument("target")
-    srn.add_argument(
-        "value",
-        nargs="?",
-        help="New notes text (omit to clear the field)",
-    )
-    srn.add_argument(
-        "--type",
-        choices=["scan", "decode", "verify", "iocontrol_scan"],
-        help="Disambiguate when multiple items share the target",
-    )
-    srn.add_argument(
-        "--index",
-        type=int,
-        help="Disambiguate by 0-based position among matches (after --type filtering); "
-        "needed when several items share the same target and type",
-    )
-    _add_common(srn)
-    srn.set_defaults(_pids_func=cmd_set_research_notes)
-
-    srr = sub.add_parser(
-        "set-research-result",
-        help="Set (or clear) a research item's short result summary",
-        description=(
-            "Set a research: item's result: without touching status: or other fields.\n\n"
-            "Omit VALUE to clear the field. Short results stay inline; longer ones "
-            "become a word-wrapped folded block scalar. Disambiguate with --type/--index "
-            "the same way as set-status/rm-research."
-        ),
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
-    srr.add_argument("ecu")
-    srr.add_argument("target")
-    srr.add_argument(
-        "value",
-        nargs="?",
-        help="New result text (omit to clear the field)",
-    )
-    srr.add_argument(
-        "--type",
-        choices=["scan", "decode", "verify", "iocontrol_scan"],
-        help="Disambiguate when multiple items share the target",
-    )
-    srr.add_argument(
-        "--index",
-        type=int,
-        help="Disambiguate by 0-based position among matches (after --type filtering); "
-        "needed when several items share the same target and type",
-    )
-    _add_common(srr)
-    srr.set_defaults(_pids_func=cmd_set_research_result)
+    for command, field, what in _RESEARCH_TEXT_COMMANDS:
+        p = sub.add_parser(
+            command,
+            help=f"Set (or clear) a research item's {what}",
+            description=(
+                f"Set a research: item's {field}: without touching status: or other fields.\n\n"
+                "Omit VALUE to clear the field. Short text stays inline; longer text "
+                "becomes a word-wrapped folded block scalar. Disambiguate with --type/--index "
+                "the same way as set-status/rm-research."
+            ),
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+        )
+        p.add_argument("ecu")
+        p.add_argument("target")
+        p.add_argument("value", nargs="?", help=f"New {field} text (omit to clear the field)")
+        p.add_argument(
+            "--type",
+            choices=["scan", "decode", "verify", "iocontrol_scan"],
+            help="Disambiguate when multiple items share the target",
+        )
+        p.add_argument(
+            "--index",
+            type=int,
+            help="Disambiguate by 0-based position among matches (after --type filtering); "
+            "needed when several items share the same target and type",
+        )
+        _add_common(p)
+        p.set_defaults(_pids_func=cmd_set_research_text, research_field=field)
 
     sps = sub.add_parser("set-pid-status", help="Set a PID's lifecycle status")
     sps.add_argument("ecu")

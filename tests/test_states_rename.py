@@ -231,7 +231,7 @@ class TestBooleanWordStates:
 
 
 def test_research_writer_quotes_a_boolean_word():
-    from canlib.pids_edit.params import _format_research_item
+    from canlib.pids_edit.research import _format_research_item
 
     lines = _format_research_item({"type": "decode", "vehicle_states": ["ON", "READY"]})
     assert '  vehicle_states: ["ON", READY]' in "\n".join(lines)

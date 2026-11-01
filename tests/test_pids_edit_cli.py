@@ -259,36 +259,25 @@ def test_rm_research_removes_selected_item(research_pids_dir):
     assert len(doc["TESTECU"]["research"]) == 1
 
 
-def test_set_research_notes_sets_and_clears(research_pids_dir):
+@pytest.mark.parametrize("field", ["notes", "result", "capture_protocol"])
+def test_set_research_text_sets_and_clears(research_pids_dir, field):
     import canlib.yaml_io as yaml_io
 
-    def notes(index):
+    def value(index):
         doc = yaml_io.safe_load((research_pids_dir / "e.yaml").read_text())
-        return doc["TESTECU"]["research"][index].get("notes")
+        return doc["TESTECU"]["research"][index].get(field)
 
-    args = _ResearchArgs(value="Corrected lead.", type="decode", index=0, dir=research_pids_dir)
-    assert cli.cmd_set_research_notes(args) == 0
-    assert notes(0) == "Corrected lead."
+    args = _ResearchArgs(
+        value="Corrected.", research_field=field, type="decode", index=0, dir=research_pids_dir
+    )
+    assert cli.cmd_set_research_text(args) == 0
+    assert value(0) == "Corrected."
 
-    args = _ResearchArgs(value=None, type="decode", index=0, dir=research_pids_dir)
-    assert cli.cmd_set_research_notes(args) == 0
-    assert notes(0) is None
-
-
-def test_set_research_result_sets_and_clears(research_pids_dir):
-    import canlib.yaml_io as yaml_io
-
-    def result(index):
-        doc = yaml_io.safe_load((research_pids_dir / "e.yaml").read_text())
-        return doc["TESTECU"]["research"][index].get("result")
-
-    args = _ResearchArgs(value="Confirmed at B3.", type="decode", index=0, dir=research_pids_dir)
-    assert cli.cmd_set_research_result(args) == 0
-    assert result(0) == "Confirmed at B3."
-
-    args = _ResearchArgs(value=None, type="decode", index=0, dir=research_pids_dir)
-    assert cli.cmd_set_research_result(args) == 0
-    assert result(0) is None
+    args = _ResearchArgs(
+        value=None, research_field=field, type="decode", index=0, dir=research_pids_dir
+    )
+    assert cli.cmd_set_research_text(args) == 0
+    assert value(0) is None
 
 
 def test_research_verbs_parse_index_and_optional_value():
@@ -309,6 +298,10 @@ def test_research_verbs_parse_index_and_optional_value():
     assert e.value is None
     f = p.parse_args(["set-research-result", "BCM", "2101", "yo", "--index", "1"])
     assert f.value == "yo" and f.index == 1
+    # Each verb names the field it edits.
+    g = p.parse_args(["set-research-capture-protocol", "BCM", "2101", "read it in READY"])
+    assert (g.research_field, g.value) == ("capture_protocol", "read it in READY")
+    assert c.research_field == "notes" and e.research_field == "result"
 
 
 def _upsert_args(pids_dir, *flags):

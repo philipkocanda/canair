@@ -1332,9 +1332,9 @@ BMS:
         - "In READY: do 01 01, 01 21, 01 30 and 01 31 answer once the ignition is on?"
         - "01 40: which PIDs the third support bitmap advertises."
       capture_protocol: >-
-        canair raw 7E4:0101 --save --label 'BMS mode 01 READY' --state READY, repeated for 0121,
-        0130, 0131, 0140 and 015B (canair read sends a 4-digit PID as service 22, so Mode 01 needs
-        canair raw)
+        canair read BMS:01/01,01/21,01/30,01/31,01/40,01/5B --save --label 'BMS mode 01 READY'
+        --state READY; if the advertised PIDs stay silent, try once functionally with canair
+        discover --functional --request 0101 --save
 
   sessions:
     "81":

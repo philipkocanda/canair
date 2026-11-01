@@ -623,3 +623,15 @@ def _replace_field_in_block_at(block: str, field: str, new_line_or_lines, indent
 def _today() -> str:
     """Today's date as ``YYYY-MM-DD`` (local time) for research timestamps."""
     return datetime.date.today().isoformat()
+
+
+def _norm_states(value: object) -> list[str]:
+    """Normalize a ``vehicle_states`` value to the canonical UPPERCASE token list.
+
+    Delegates to :func:`canlib.states.parse_states` so the normalization rule
+    (strip + upper-case, drop empties, accept a list or comma-string) is shared
+    with the runtime readers rather than reimplemented in the text editors.
+    """
+    from canlib.states import parse_states
+
+    return parse_states(value)

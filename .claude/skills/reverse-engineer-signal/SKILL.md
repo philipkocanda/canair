@@ -409,6 +409,11 @@ Every outcome counts, not just success:
 - **Only part done → keep it open with a follow-up**: update `notes`/`what_to_test` so
   the next pass starts where you stopped instead of re-deriving it.
 
+The free-text fields have their own editors, so a lead never needs hand-editing:
+`pids set-research-result`, `set-research-notes` and `set-research-capture-protocol`
+(omit the text to clear the field). Correct a stale capture recipe the moment the
+tooling it names changes.
+
 Rule of thumb: after any analysis or capture session, run `canair research --ecu <ECU>`
 and confirm no lead you touched still shows its old status.
 

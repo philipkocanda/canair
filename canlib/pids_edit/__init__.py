@@ -5,7 +5,8 @@ Split by concern into a package:
     YAML re-parse/rollback safety wrapper
   * :mod:`.hits`   — scanner-section editors (routines / iocontrol_discoveries /
     sessions + discovery promotion)
-  * :mod:`.params` — parameter / research / identity editors (the RE workflow)
+  * :mod:`.params` — parameter / PID / identity editors (the RE workflow)
+  * :mod:`.research` — the ``research:`` backlog editors
   * :mod:`.support_map` — the per-PID ``support_map:`` declaration editor
   * :mod:`.defaults` — PID-level defaults for parameter fields and hoisting them out of parameters
   * :mod:`.categories` — the one-time ``ha_class`` → ``category`` migration
@@ -29,10 +30,8 @@ from .hits import (
 )
 from .params import (
     add_pid,
-    add_research_entry,
     delete_parameter,
     delete_pid,
-    delete_research_entry,
     remove_identity_field,
     rename_parameter,
     rename_pid,
@@ -44,18 +43,26 @@ from .params import (
     set_pid_period,
     set_pid_status,
     set_pid_variable_length,
-    set_research_notes,
-    set_research_result,
-    set_research_status,
     set_response_frames,
     set_wake,
     upsert_parameter,
+)
+from .research import (
+    RESEARCH_TEXT_FIELDS,
+    add_research_entry,
+    delete_research_entry,
+    set_research_capture_protocol,
+    set_research_notes,
+    set_research_result,
+    set_research_status,
+    set_research_text,
 )
 from .support_map import set_support_map
 
 __all__ = [
     "EDITABLE_FIELDS",
     "IOCONTROL_FIELDS",
+    "RESEARCH_TEXT_FIELDS",
     "Hoisted",
     "Migrated",
     "PidsEditError",
@@ -83,9 +90,11 @@ __all__ = [
     "set_pid_period",
     "set_pid_status",
     "set_pid_variable_length",
+    "set_research_capture_protocol",
     "set_research_notes",
     "set_research_result",
     "set_research_status",
+    "set_research_text",
     "set_response_frames",
     "set_support_map",
     "set_wake",
