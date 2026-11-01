@@ -13,7 +13,6 @@ IEB:
     220104:
       status: active
       unit: km/h
-      ha_class: speed
       min: "0"
       max: "255"
       source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)

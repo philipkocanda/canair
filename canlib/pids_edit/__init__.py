@@ -8,12 +8,14 @@ Split by concern into a package:
   * :mod:`.params` — parameter / research / identity editors (the RE workflow)
   * :mod:`.support_map` — the per-PID ``support_map:`` declaration editor
   * :mod:`.defaults` — PID-level defaults for parameter fields and hoisting them out of parameters
+  * :mod:`.categories` — the one-time ``ha_class`` → ``category`` migration
 
 The full public API is re-exported here so callers that
 ``from canlib.pids_edit import …`` are unaffected by the split.
 """
 
 from ._text import PidsEditError, find_ecu_file
+from .categories import Migrated, migrate_categories
 from .defaults import Hoisted, hoist_defaults, set_pid_defaults
 from .hits import (
     EDITABLE_FIELDS,
@@ -55,6 +57,7 @@ __all__ = [
     "EDITABLE_FIELDS",
     "IOCONTROL_FIELDS",
     "Hoisted",
+    "Migrated",
     "PidsEditError",
     "add_pid",
     "add_research_entry",
@@ -66,6 +69,7 @@ __all__ = [
     "delete_research_entry",
     "find_ecu_file",
     "hoist_defaults",
+    "migrate_categories",
     "promote_discovery",
     "remove_identity_field",
     "rename_parameter",

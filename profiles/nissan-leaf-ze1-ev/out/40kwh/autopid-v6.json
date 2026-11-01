@@ -17,7 +17,7 @@
           "name": "SOC",
           "expression": "((B39*65536)+[B41:B42])/10000",
           "unit": "%",
-          "class": "none",
+          "class": "",
           "min": 0,
           "max": 100
         },
@@ -25,7 +25,7 @@
           "name": "SOC_D",
           "expression": "((((B39*65536)+[B41:B42])/10000)-12)/0.85",
           "unit": "%",
-          "class": "none",
+          "class": "",
           "min": 0,
           "max": 100
         },
@@ -33,7 +33,7 @@
           "name": "SOH_40KWH",
           "expression": "((B44*65536)+[B45:B46])/11544",
           "unit": "%",
-          "class": "none",
+          "class": "",
           "min": 1,
           "max": 100
         },
@@ -41,7 +41,7 @@
           "name": "HV_CAPACITY",
           "expression": "((B44*65536)+[B45:B46])/10000",
           "unit": "Ah",
-          "class": "none",
+          "class": "",
           "min": 0,
           "max": 200
         },
@@ -49,7 +49,7 @@
           "name": "HV_PACK_V",
           "expression": "[B25:B26]/100",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 450
         }
@@ -69,7 +69,7 @@
           "name": "HV_T_1",
           "expression": "S6",
           "unit": "\u00b0C",
-          "class": "none",
+          "class": "temperature",
           "min": -40,
           "max": 90
         },
@@ -77,7 +77,7 @@
           "name": "HV_T_2",
           "expression": "S10",
           "unit": "\u00b0C",
-          "class": "none",
+          "class": "temperature",
           "min": -40,
           "max": 90
         },
@@ -85,7 +85,7 @@
           "name": "HV_T_3",
           "expression": "S17",
           "unit": "\u00b0C",
-          "class": "none",
+          "class": "temperature",
           "min": -40,
           "max": 90
         }
@@ -105,7 +105,7 @@
           "name": "HV_CELL_01_V",
           "expression": "[B4:B5]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -113,7 +113,7 @@
           "name": "HV_CELL_02_V",
           "expression": "[B6:B7]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -121,7 +121,7 @@
           "name": "HV_CELL_03_V",
           "expression": "[B9:B10]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -129,7 +129,7 @@
           "name": "HV_CELL_04_V",
           "expression": "[B11:B12]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -137,7 +137,7 @@
           "name": "HV_CELL_05_V",
           "expression": "[B13:B14]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -145,7 +145,7 @@
           "name": "HV_CELL_06_V",
           "expression": "((B15*256)+B17)/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -153,7 +153,7 @@
           "name": "HV_CELL_07_V",
           "expression": "[B18:B19]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -161,7 +161,7 @@
           "name": "HV_CELL_08_V",
           "expression": "[B20:B21]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -169,7 +169,7 @@
           "name": "HV_CELL_09_V",
           "expression": "[B22:B23]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -177,7 +177,7 @@
           "name": "HV_CELL_10_V",
           "expression": "[B25:B26]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -185,7 +185,7 @@
           "name": "HV_CELL_11_V",
           "expression": "[B27:B28]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -193,7 +193,7 @@
           "name": "HV_CELL_12_V",
           "expression": "[B29:B30]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -201,7 +201,7 @@
           "name": "HV_CELL_13_V",
           "expression": "((B31*256)+B33)/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -209,7 +209,7 @@
           "name": "HV_CELL_14_V",
           "expression": "[B34:B35]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -217,7 +217,7 @@
           "name": "HV_CELL_15_V",
           "expression": "[B36:B37]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -225,7 +225,7 @@
           "name": "HV_CELL_16_V",
           "expression": "[B38:B39]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -233,7 +233,7 @@
           "name": "HV_CELL_17_V",
           "expression": "[B41:B42]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -241,7 +241,7 @@
           "name": "HV_CELL_18_V",
           "expression": "[B43:B44]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -249,7 +249,7 @@
           "name": "HV_CELL_19_V",
           "expression": "[B45:B46]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -257,7 +257,7 @@
           "name": "HV_CELL_20_V",
           "expression": "((B47*256)+B49)/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -265,7 +265,7 @@
           "name": "HV_CELL_21_V",
           "expression": "[B50:B51]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -273,7 +273,7 @@
           "name": "HV_CELL_22_V",
           "expression": "[B52:B53]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -281,7 +281,7 @@
           "name": "HV_CELL_23_V",
           "expression": "[B54:B55]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -289,7 +289,7 @@
           "name": "HV_CELL_24_V",
           "expression": "[B57:B58]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -297,7 +297,7 @@
           "name": "HV_CELL_25_V",
           "expression": "[B59:B60]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -305,7 +305,7 @@
           "name": "HV_CELL_26_V",
           "expression": "[B61:B62]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -313,7 +313,7 @@
           "name": "HV_CELL_27_V",
           "expression": "((B63*256)+B65)/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -321,7 +321,7 @@
           "name": "HV_CELL_28_V",
           "expression": "[B66:B67]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -329,7 +329,7 @@
           "name": "HV_CELL_29_V",
           "expression": "[B68:B69]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -337,7 +337,7 @@
           "name": "HV_CELL_30_V",
           "expression": "[B70:B71]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -345,7 +345,7 @@
           "name": "HV_CELL_31_V",
           "expression": "[B73:B74]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -353,7 +353,7 @@
           "name": "HV_CELL_32_V",
           "expression": "[B75:B76]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -361,7 +361,7 @@
           "name": "HV_CELL_33_V",
           "expression": "[B77:B78]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -369,7 +369,7 @@
           "name": "HV_CELL_34_V",
           "expression": "((B79*256)+B81)/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -377,7 +377,7 @@
           "name": "HV_CELL_35_V",
           "expression": "[B82:B83]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -385,7 +385,7 @@
           "name": "HV_CELL_36_V",
           "expression": "[B84:B85]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -393,7 +393,7 @@
           "name": "HV_CELL_37_V",
           "expression": "[B86:B87]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -401,7 +401,7 @@
           "name": "HV_CELL_38_V",
           "expression": "[B89:B90]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -409,7 +409,7 @@
           "name": "HV_CELL_39_V",
           "expression": "[B91:B92]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -417,7 +417,7 @@
           "name": "HV_CELL_40_V",
           "expression": "[B93:B94]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -425,7 +425,7 @@
           "name": "HV_CELL_41_V",
           "expression": "((B95*256)+B97)/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -433,7 +433,7 @@
           "name": "HV_CELL_42_V",
           "expression": "[B98:B99]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -441,7 +441,7 @@
           "name": "HV_CELL_43_V",
           "expression": "[B100:B101]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -449,7 +449,7 @@
           "name": "HV_CELL_44_V",
           "expression": "[B102:B103]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -457,7 +457,7 @@
           "name": "HV_CELL_45_V",
           "expression": "[B105:B106]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -465,7 +465,7 @@
           "name": "HV_CELL_46_V",
           "expression": "[B107:B108]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -473,7 +473,7 @@
           "name": "HV_CELL_47_V",
           "expression": "[B109:B110]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -481,7 +481,7 @@
           "name": "HV_CELL_48_V",
           "expression": "((B111*256)+B113)/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -489,7 +489,7 @@
           "name": "HV_CELL_49_V",
           "expression": "[B114:B115]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -497,7 +497,7 @@
           "name": "HV_CELL_50_V",
           "expression": "[B116:B117]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -505,7 +505,7 @@
           "name": "HV_CELL_51_V",
           "expression": "[B118:B119]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -513,7 +513,7 @@
           "name": "HV_CELL_52_V",
           "expression": "[B121:B122]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -521,7 +521,7 @@
           "name": "HV_CELL_53_V",
           "expression": "[B123:B124]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -529,7 +529,7 @@
           "name": "HV_CELL_54_V",
           "expression": "[B125:B126]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -537,7 +537,7 @@
           "name": "HV_CELL_55_V",
           "expression": "((B127*256)+B129)/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -545,7 +545,7 @@
           "name": "HV_CELL_56_V",
           "expression": "[B130:B131]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -553,7 +553,7 @@
           "name": "HV_CELL_57_V",
           "expression": "[B132:B133]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -561,7 +561,7 @@
           "name": "HV_CELL_58_V",
           "expression": "[B134:B135]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -569,7 +569,7 @@
           "name": "HV_CELL_59_V",
           "expression": "[B137:B138]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -577,7 +577,7 @@
           "name": "HV_CELL_60_V",
           "expression": "[B139:B140]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -585,7 +585,7 @@
           "name": "HV_CELL_61_V",
           "expression": "[B141:B142]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -593,7 +593,7 @@
           "name": "HV_CELL_62_V",
           "expression": "((B143*256)+B145)/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -601,7 +601,7 @@
           "name": "HV_CELL_63_V",
           "expression": "[B146:B147]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -609,7 +609,7 @@
           "name": "HV_CELL_64_V",
           "expression": "[B148:B149]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -617,7 +617,7 @@
           "name": "HV_CELL_65_V",
           "expression": "[B150:B151]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -625,7 +625,7 @@
           "name": "HV_CELL_66_V",
           "expression": "[B153:B154]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -633,7 +633,7 @@
           "name": "HV_CELL_67_V",
           "expression": "[B155:B156]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -641,7 +641,7 @@
           "name": "HV_CELL_68_V",
           "expression": "[B157:B158]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -649,7 +649,7 @@
           "name": "HV_CELL_69_V",
           "expression": "((B159*256)+B161)/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -657,7 +657,7 @@
           "name": "HV_CELL_70_V",
           "expression": "[B162:B163]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -665,7 +665,7 @@
           "name": "HV_CELL_71_V",
           "expression": "[B164:B165]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -673,7 +673,7 @@
           "name": "HV_CELL_72_V",
           "expression": "[B166:B167]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -681,7 +681,7 @@
           "name": "HV_CELL_73_V",
           "expression": "[B169:B170]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -689,7 +689,7 @@
           "name": "HV_CELL_74_V",
           "expression": "[B171:B172]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -697,7 +697,7 @@
           "name": "HV_CELL_75_V",
           "expression": "[B173:B174]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -705,7 +705,7 @@
           "name": "HV_CELL_76_V",
           "expression": "((B175*256)+B177)/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -713,7 +713,7 @@
           "name": "HV_CELL_77_V",
           "expression": "[B178:B179]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -721,7 +721,7 @@
           "name": "HV_CELL_78_V",
           "expression": "[B180:B181]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -729,7 +729,7 @@
           "name": "HV_CELL_79_V",
           "expression": "[B182:B183]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -737,7 +737,7 @@
           "name": "HV_CELL_80_V",
           "expression": "[B185:B186]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -745,7 +745,7 @@
           "name": "HV_CELL_81_V",
           "expression": "[B187:B188]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -753,7 +753,7 @@
           "name": "HV_CELL_82_V",
           "expression": "[B189:B190]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -761,7 +761,7 @@
           "name": "HV_CELL_83_V",
           "expression": "((B191*256)+B193)/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -769,7 +769,7 @@
           "name": "HV_CELL_84_V",
           "expression": "[B194:B195]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -777,7 +777,7 @@
           "name": "HV_CELL_85_V",
           "expression": "[B196:B197]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -785,7 +785,7 @@
           "name": "HV_CELL_86_V",
           "expression": "[B198:B199]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -793,7 +793,7 @@
           "name": "HV_CELL_87_V",
           "expression": "[B201:B202]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -801,7 +801,7 @@
           "name": "HV_CELL_88_V",
           "expression": "[B203:B204]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -809,7 +809,7 @@
           "name": "HV_CELL_89_V",
           "expression": "[B205:B206]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -817,7 +817,7 @@
           "name": "HV_CELL_90_V",
           "expression": "((B207*256)+B209)/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -825,7 +825,7 @@
           "name": "HV_CELL_91_V",
           "expression": "[B210:B211]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -833,7 +833,7 @@
           "name": "HV_CELL_92_V",
           "expression": "[B212:B213]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -841,7 +841,7 @@
           "name": "HV_CELL_93_V",
           "expression": "[B214:B215]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -849,7 +849,7 @@
           "name": "HV_CELL_94_V",
           "expression": "[B217:B218]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -857,7 +857,7 @@
           "name": "HV_CELL_95_V",
           "expression": "[B219:B220]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -865,7 +865,7 @@
           "name": "HV_CELL_96_V",
           "expression": "[B221:B222]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -873,7 +873,7 @@
           "name": "HV_PACK_V_2102",
           "expression": "((B223*256)+B225)/100",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 450
         },
@@ -881,7 +881,7 @@
           "name": "HV_BUS_V",
           "expression": "[B226:B227]/100",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 450
         }
@@ -901,7 +901,7 @@
           "name": "HV_CELL_MAX_V",
           "expression": "((B15*256)+B17)/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         },
@@ -909,7 +909,7 @@
           "name": "HV_CELL_MIN_V",
           "expression": "[B18:B19]/1000",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 5
         }
@@ -929,7 +929,7 @@
           "name": "SOH",
           "expression": "[B6:B7]/100",
           "unit": "%",
-          "class": "none",
+          "class": "",
           "min": 0,
           "max": 100
         }
@@ -949,7 +949,7 @@
           "name": "ODOMETER",
           "expression": "(B4*65536)+(B5*256)+B6",
           "unit": "km",
-          "class": "none",
+          "class": "distance",
           "min": 0,
           "max": 999999
         }
@@ -969,7 +969,7 @@
           "name": "L2_COUNT",
           "expression": "[B4:B5]",
           "unit": "",
-          "class": "none"
+          "class": ""
         }
       ]
     },
@@ -987,7 +987,7 @@
           "name": "CHARGE_MODE",
           "expression": "B4",
           "unit": "",
-          "class": "none"
+          "class": ""
         }
       ]
     },
@@ -1005,7 +1005,7 @@
           "name": "PLUG_STATE",
           "expression": "B4",
           "unit": "",
-          "class": "none"
+          "class": ""
         }
       ]
     },
@@ -1023,7 +1023,7 @@
           "name": "OBC_OUT_PWR",
           "expression": "[B4:B5]*100",
           "unit": "W",
-          "class": "none",
+          "class": "power",
           "min": 0,
           "max": 7000
         }
@@ -1043,7 +1043,7 @@
           "name": "POWER_SWITCH",
           "expression": "B4:7",
           "unit": "",
-          "class": "none"
+          "class": ""
         }
       ]
     }

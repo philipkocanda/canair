@@ -46,15 +46,23 @@ IGPM:
       parameters:
         CHARGE_PORT_LOCK:
           expression: "B11:7"
-          ha_class: lock
+          category: lock
           verified: true
           notes: 1 = locked.
+          type: enum
+          values:
+            0: unlocked
+            1: locked
 
         CHARGE_PORT_LOCK_INV:
           expression: "B12:0"
-          ha_class: lock
+          category: lock
           verified: true
           notes: "Complement of CHARGE_PORT_LOCK: 1 = unlocked."
+          type: enum
+          values:
+            0: locked
+            1: unlocked
 
         IG3_RELAY_OUTPUT:
           expression: "B12:3"
@@ -100,72 +108,107 @@ IGPM:
         # B10 doors and locks, B11 hood, seatbelts and ignition, B12 lamps
         DOOR_DRV_OPEN:
           expression: B10:5
-          ha_class: door
+          category: door
           source: Kia Niro EV WiCAN PR#716; confirmed by timed event capture 2026-07-24
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           notes: 1 = open.
+          type: enum
+          values:
+            0: closed
+            1: open
 
         DOOR_PAS_OPEN:
           expression: "B10:4"
-          ha_class: door
+          category: door
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           notes: 1 = open.
+          type: enum
+          values:
+            0: closed
+            1: open
 
         DOOR_RL_OPEN:
           expression: "B10:0"
-          ha_class: door
+          category: door
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           notes: 1 = open.
+          type: enum
+          values:
+            0: closed
+            1: open
 
         DOOR_RR_OPEN:
           expression: B10:2
-          ha_class: door
+          category: door
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           notes: 1 = open.
+          type: enum
+          values:
+            0: closed
+            1: open
 
         TRUNK_OPEN:
           expression: "B10:7"
-          ha_class: door
+          category: door
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           notes: GDS 'Tailgate Door Switch'. 1 = open.
+          type: enum
+          values:
+            0: closed
+            1: open
 
         TAIL_LAMP_INTERIOR:
           expression: "B12:2"
-          ha_class: light
+          category: lamp
           source: Decoded from live captures (2026-04-15); GDS 'Tail Lamp Output (Interior)' name, align vs 22BC04 B12:5 2026-10-30
           notes: >-
             GDS 'Tail Lamp Output (Interior)' (ScanDoc 'AV tail'): the instrument illumination
             circuit; actuator BC05. Equals TAIL_LIGHTS in 1798 of 1799 aligned rows. Reads 0
             whenever 22BC04 DRL_DEDICATED_OUTPUT is on, so it is not a DRL signal.
+          type: enum
+          values:
+            0: "off"
+            1: "on"
 
         TAIL_LIGHTS:
           expression: "B12:3"
-          ha_class: light
+          category: lamp
           source: "Decoded from live captures (2026-04-15)"
           notes: >-
             GDS 'Tail Lamp Output (Exterior)', the tail lamp relay. 1 in every light mode (DRL, low
             and high beam).
+          type: enum
+          values:
+            0: "off"
+            1: "on"
 
         HIGH_BEAM:
           expression: "B12:4"
-          ha_class: light
+          category: lamp
           source: "Decoded from live captures (2026-04-15)"
           notes: 1 = on, only with high beams (B13:4 in the Niro EV source).
+          type: enum
+          values:
+            0: "off"
+            1: "on"
 
         LOW_BEAM:
           expression: "B12:5"
-          ha_class: light
+          category: lamp
           source: "Decoded from live captures (2026-04-15)"
           notes: 1 = on, also while the high beams are on.
+          type: enum
+          values:
+            0: "off"
+            1: "on"
 
         IGN1_SWITCH:
           expression: "B11:5"
-          ha_class: power
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           notes: >-
@@ -189,17 +232,25 @@ IGPM:
 
         DOOR_LOCK_RL:
           expression: "B10:1"
-          ha_class: lock
+          category: lock
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           notes: 1 = locked (the Niro EV source inverts it).
+          type: enum
+          values:
+            0: unlocked
+            1: locked
 
         DOOR_LOCK_RR:
           expression: "B10:3"
-          ha_class: lock
+          category: lock
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           notes: 1 = locked (the Niro EV source inverts it).
+          type: enum
+          values:
+            0: unlocked
+            1: locked
         IGN2_SWITCH:
           expression: B11:6
           min: "0"
@@ -268,19 +319,27 @@ IGPM:
       parameters:
         DOOR_LOCK_FL:
           expression: "B10:3"
-          ha_class: lock
+          category: lock
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
           notes: 1 = locked.
+          type: enum
+          values:
+            0: unlocked
+            1: locked
 
         DOOR_LOCK_FR:
           expression: "B10:2"
-          ha_class: lock
+          category: lock
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
           notes: 1 = locked.
+          type: enum
+          values:
+            0: unlocked
+            1: locked
         POWER_WINDOW_ENABLE_RELAY:
           expression: B10:0
           min: "0"

@@ -405,8 +405,11 @@ awake, so it stays opt-in.
 - **Q-C. Does `1003` in a row's `init` behave?** It is a non-AT element. The chain sender
   forwards it, but whether the session's reply confuses the next request's parse is untested.
   This affects only ECUs with `session: true`.
-- **Q-D. Is `class: "none"` harmless?** canair emits it for signals without an `ha_class`. What
-  does v6's Home Assistant discovery do with it, compared with an empty string?
+- **Q-D. Is `class: "none"` harmless?** Answered from source (`aa4c2b3`): v6 stores `class`
+  (`autopid_config.c` `copy_str`, `""` when absent) and only echoes it back with the config and
+  the standard tables; no snapshot, push or event carries it, and there is no MQTT discovery.
+  canair now writes `""` for a signal without one, and derives the class from the signal's
+  category (`canlib/wican/autopid_class.py`).
 - **Q-E. Does the Ioniq's first contact create a store entry?** It depends on whether the car
   answers `0100`/`0902`. If not, the device runs the table on the no-car prelude, and step 1 of the
   upload must handle "no current car" as the normal case for this car.

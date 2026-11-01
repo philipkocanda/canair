@@ -19,7 +19,6 @@ AAF:
       period: 60000
       vehicle_states: [IG3]
       unit: °C
-      ha_class: temperature
       min: "-40"
       verified: false
       parameters:
@@ -94,7 +93,6 @@ AAF:
           notes: >-
             Same byte as AAF:2180:AAF_COOLANT_TEMP_B25 and VCU:2102 B18 (VCU_COOLANT_TEMP). Disabled
             as a duplicate.
-          ha_class: temperature
           enabled: false
         HEATSINK_TEMP:
           expression: B20-40

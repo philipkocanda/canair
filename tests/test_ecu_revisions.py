@@ -634,8 +634,8 @@ class TestOverridesAndEvidence:
 
     def test_signal_overrides_are_whitelisted(self):
         vcu = _vcu()
-        vcu["pids"]["21F0"]["parameters"]["GEAR"]["per_revision"] = {"uds": {"ha_class": "x"}}
-        assert any("'ha_class' cannot differ" in e for e in rv.check_ecu("VCU", vcu))
+        vcu["pids"]["21F0"]["parameters"]["GEAR"]["per_revision"] = {"uds": {"category": "door"}}
+        assert any("'category' cannot differ" in e for e in rv.check_ecu("VCU", vcu))
 
     def test_a_count_learned_on_one_revision_is_written_to_that_revision(self, copy):
         from canlib.frame_counts import FrameCountLedger

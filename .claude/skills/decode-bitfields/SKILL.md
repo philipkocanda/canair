@@ -30,7 +30,7 @@ completely separate code paths:
 |---|---|---|
 | Expression | `expression: B10:5` (×8 params) | `expression: B10` + `bits: {5: door_drv}` |
 | Analysis tooling sees it | **yes** — all of `--bits`, `coverage --bitfields`, `bix` overlay | partly — `coverage --bitfields` counts its `bits:` map, but `--bits` sweeps do not split it |
-| Best for | signals decoded incrementally, mixed verified/unverified, per-bit notes/`ha_class` | a byte that is *wholly* a known flag set (e.g. a weekday schedule mask) |
+| Best for | signals decoded incrementally, mixed verified/unverified, per-bit notes/`category` | a byte that is *wholly* a known flag set (e.g. a weekday schedule mask) |
 
 **Model A is the working default.** The bundled `hyundai-ioniq-ae-ev` profile uses it
 exclusively — verified: zero `type: bitmask` params exist in any bundled
@@ -302,9 +302,9 @@ One param per bit (Model A):
 
 ```
 uv run canair --profile hyundai-ioniq-ae-ev pids upsert-param IGPM 22BC03 HOOD_OPEN B11:0 \
-    --ha-class door --verified \
+    --category opening --value 0=closed --value 1=open --verified \
     --source "timed event capture 2026-07-24" \
-    --notes "Bit flag — 1=open. B11:0 went 0->1 only when the hood was opened during a narrated event sequence."
+    --notes "B11:0 went 0->1 only when the hood was opened during a narrated event sequence."
 ```
 
 - **Watch the decoded-range echo** `upsert-param` prints — a bit param that

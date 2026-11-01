@@ -39,7 +39,6 @@ OBC:
         LDC_HV_INPUT_V:
           expression: "[B45:B46]/100"
           unit: V
-          ha_class: voltage
           min: "0"
           max: "500"
           source: "Live READY vs charging + BMS cross-check (2026-07-20)"
@@ -50,7 +49,6 @@ OBC:
         LDC_OUTPUT_V:
           expression: "[B25:B26]/100"
           unit: V
-          ha_class: voltage
           min: "0"
           max: "20"
           source: "Decoded from live captures (2026-04-14)"
@@ -61,7 +59,6 @@ OBC:
         LDC_TEMP:
           expression: "B19-100"
           unit: "°C"
-          ha_class: temperature
           min: "-40"
           max: "120"
           source: "Kia Soul EV LDC CSV (LDC Temp = i-100) + charging session trend (2026-07-19)"
@@ -71,7 +68,6 @@ OBC:
         OBC_CHARGE_V:
           expression: "[B10:B11]/100"
           unit: V
-          ha_class: voltage
           min: "0"
           max: "500"
           source: "Decoded from live captures (2026-04-14)"
@@ -80,7 +76,6 @@ OBC:
         OBC_OUTPUT_V:
           expression: "[B12:B13]/100"
           unit: V
-          ha_class: voltage
           min: "0"
           max: "500"
           source: Decoded from live captures (2026-04-14, 2026-07-20)
@@ -89,7 +84,6 @@ OBC:
         OBC_DC_A:
           expression: "[B17:B18]/100"
           unit: A
-          ha_class: current
           min: "0"
           max: "50"
           source: "Decoded from live captures (2026-04-14)"
@@ -109,7 +103,6 @@ OBC:
         OBC_PILOT_AMPS:
           expression: "[B35:B36]*0.06"
           unit: A
-          ha_class: current
           min: "0"
           max: "80"
           source: Live EVSE current step 10/13/16A (2026-07-27); J1772 duty x 0.6
@@ -121,7 +114,6 @@ OBC:
         OBC_DC_POWER:
           expression: "[B10:B11]*[B17:B18]/10000000"
           unit: kW
-          ha_class: power
           min: "0"
           max: "10"
           source: Derived OBC_CHARGE_V*OBC_DC_A; validated vs wattmeter 2026-07-26
@@ -131,7 +123,6 @@ OBC:
         AC_INPUT_V:
           expression: "[B14:B15]/100"
           unit: V
-          ha_class: voltage
           min: "0"
           max: "300"
           source: Live 16A AC charge 2026-07-26; checked and confirmed accurate
@@ -139,7 +130,6 @@ OBC:
         AC_INPUT_A:
           expression: "[B33:B34]/100"
           unit: A
-          ha_class: current
           min: "0"
           max: "40"
           source: Live EVSE current step 10/13/16A (2026-07-27) + AC power balance

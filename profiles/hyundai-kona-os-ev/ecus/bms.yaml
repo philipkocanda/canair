@@ -20,14 +20,13 @@ BMS:
         SOC_BMS:
           expression: B10/2
           unit: "%"
-          ha_class: battery
+          category: state_of_charge
           min: "0"
           max: "100"
           notes: Raw BMS state of charge (not display-adjusted; see SOC_DISPLAY on 220105).
         BATTERY_CURRENT:
           expression: "[S17:S18]/10"
           unit: A
-          ha_class: current
           min: "-400"
           max: "400"
           notes: >-
@@ -37,25 +36,21 @@ BMS:
         BATTERY_VOLTAGE:
           expression: "[B19:B20]/10"
           unit: V
-          ha_class: voltage
           min: "240"
           max: "450"
           notes: HV pack DC voltage.
         BATTERY_POWER:
           expression: (([B19:B20]/10)*([S17:S18]/10))/1000
           unit: kW
-          ha_class: power
           notes: >-
             Computed voltage x current; negative = charging. Seeded with the unparseable [S17:B18].
         AVAILABLE_CHARGE_POWER:
           expression: "[B11:B12]/100"
           unit: kW
-          ha_class: power
           notes: BMS-permitted charge power limit.
         AVAILABLE_DISCHARGE_POWER:
           expression: "[B13:B14]/100"
           unit: kW
-          ha_class: power
           notes: BMS-permitted discharge power limit.
         BMS_B15_7_UNKN:
           expression: B15:7
@@ -83,50 +78,42 @@ BMS:
         BATTERY_MAX_TEMP:
           expression: S21
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "80"
         BATTERY_MIN_TEMP:
           expression: S22
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "80"
         BATTERY_MODULE_TEMP_1:
           expression: S23
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "80"
         BATTERY_MODULE_TEMP_2:
           expression: S25
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "80"
         BATTERY_MODULE_TEMP_3:
           expression: S26
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "80"
         BATTERY_MODULE_TEMP_4:
           expression: S27
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "80"
         BATTERY_INLET_TEMP:
           expression: S30
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "80"
           notes: Battery inlet air temperature.
         MAX_CELL_VOLTAGE:
           expression: B31/50
           unit: V
-          ha_class: voltage
           min: "0"
           max: "5"
         MAX_CELL_VOLTAGE_NO:
@@ -135,7 +122,6 @@ BMS:
         MIN_CELL_VOLTAGE:
           expression: B34/50
           unit: V
-          ha_class: voltage
           min: "0"
           max: "5"
         MIN_CELL_VOLTAGE_NO:
@@ -151,14 +137,12 @@ BMS:
         AUX_BATTERY_VOLTAGE:
           expression: B38/10
           unit: V
-          ha_class: voltage
           min: "0"
           max: "16"
           notes: 12V auxiliary battery.
         INVERTER_CAPACITOR_VOLTAGE:
           expression: (B63 << 8) | B65
           unit: V
-          ha_class: voltage
           min: "0"
           max: "450"
           source: OBDb Hyundai-Kona-Electric (bix 408)
@@ -181,7 +165,7 @@ BMS:
         SOH:
           expression: "[B34:B35]/10"
           unit: "%"
-          ha_class: battery
+          category: state_of_health
           min: "0"
           max: "100"
           source: OBDb Hyundai-Kona-Electric (offsets via canair bix) + wican-fw Niro/Soul/Kona
@@ -192,7 +176,7 @@ BMS:
         SOC_DISPLAY:
           expression: B41/2
           unit: "%"
-          ha_class: battery
+          category: state_of_charge
           min: "0"
           max: "100"
           source: OBDb Hyundai-Kona-Electric (offsets via canair bix) + wican-fw Niro/Soul/Kona
@@ -211,14 +195,12 @@ BMS:
         CELL_VOLTAGE_DEVIATION:
           expression: B28/50
           unit: V
-          ha_class: voltage
           min: "0"
           max: "5"
           notes: Max-min cell voltage spread.
         HEATER_TEMP:
           expression: S31
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "120"
           notes: Battery heater 1 temperature.
@@ -231,7 +213,6 @@ BMS:
         CELL_97_VOLTAGE:
           expression: B44/50
           unit: V
-          ha_class: voltage
           min: "0"
           max: "5"
           source: OBDb Hyundai-Kona-Electric (KONAEV_HVBAT_CMUnnn_VOLT; offset via canair bix)
@@ -241,7 +222,6 @@ BMS:
         CELL_98_VOLTAGE:
           expression: B45/50
           unit: V
-          ha_class: voltage
           min: "0"
           max: "5"
           source: OBDb Hyundai-Kona-Electric (KONAEV_HVBAT_CMUnnn_VOLT; offset via canair bix)
@@ -251,7 +231,6 @@ BMS:
       source_links:
         - https://github.com/OBDb/Hyundai-Kona-Electric
       unit: V
-      ha_class: voltage
       min: "0"
       max: "5"
       verified: false
@@ -331,7 +310,6 @@ BMS:
       source_links:
         - https://github.com/OBDb/Hyundai-Kona-Electric
       unit: V
-      ha_class: voltage
       min: "0"
       max: "5"
       verified: false
@@ -411,7 +389,6 @@ BMS:
       source_links:
         - https://github.com/OBDb/Hyundai-Kona-Electric
       unit: V
-      ha_class: voltage
       min: "0"
       max: "5"
       verified: false
@@ -494,7 +471,6 @@ BMS:
         BATTERY_WCS_INLET_TEMP:
           expression: S10
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "100"
           source: OBDb Hyundai-Kona-Electric (KONAEV_HVBAT_WCS_INLET_T; offset via canair bix)
@@ -522,7 +498,6 @@ BMS:
         BATTERY_PRA_TEMP:
           expression: S28*2
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "150"
           source: OBDb Hyundai-Kona-Electric (KONAEV_HVBAT_PRA_T; offset via canair bix)

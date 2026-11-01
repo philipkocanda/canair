@@ -25,7 +25,6 @@ MCU:
         IGN_VOLTAGE:
           expression: ((B23 << 8) | B22)*10/10000
           unit: V
-          ha_class: voltage
           min: "0"
           max: "65.535"
           notes: Ignition voltage.
@@ -47,25 +46,21 @@ MCU:
         MOTOR_PHASE_CURRENT_RMS:
           expression: ((B33 << 8) | B31)/10
           unit: A
-          ha_class: current
           min: "0"
           max: "6553.5"
         MOTOR_T:
           expression: ((S35 << 8) | B34)/100
           unit: °C
-          ha_class: temperature
           min: "-327.68"
           max: "327.67"
         INVERTER_T:
           expression: ((S37 << 8) | B36)/100
           unit: °C
-          ha_class: temperature
           min: "-327.68"
           max: "327.67"
         HEAT_SINK_T:
           expression: ((S70 << 8) | B69)/100
           unit: °C
-          ha_class: temperature
           min: "-327.68"
           max: "327.67"
     "22E009":
@@ -83,13 +78,11 @@ MCU:
         EWP_CURRENT_DC:
           expression: B13/10
           unit: A
-          ha_class: current
           max: "25.5"
           notes: Electric water pump, current DC.
         EWP_VOLTAGE_DC:
           expression: B14/10
           unit: V
-          ha_class: voltage
           max: "25.5"
           notes: Electric water pump, voltage DC.
         EWP_COMMANDED_ROTATION_SPEED:
@@ -115,12 +108,10 @@ MCU:
         EOP_CURRENT_DC:
           expression: B30
           unit: A
-          ha_class: current
           max: "255"
           notes: Electric oil pump, current DC.
         EOP_CURRENT_IQ:
           expression: B31
           unit: A
-          ha_class: current
           max: "255"
           notes: Electric oil pump, current IQ.

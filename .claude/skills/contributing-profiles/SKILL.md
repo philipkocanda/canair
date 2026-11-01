@@ -87,7 +87,7 @@ Before submitting, make the profile clean and honest:
   the evidence that verified it (`--source`, `--notes`); an honest `--unverified`
   candidate is fine and welcome, just labelled as such. Author these with
   `canair pids upsert-param` (never hand-edit `ecus/`). Values shared by a whole page (`unit`,
-  `ha_class`, `min`, `max`, `verified`, `source`, `source_links`) go on the PID once
+  `min`, `max`, `verified`, `source`, `source_links`) go on the PID once
   (`set-pid-defaults`; `hoist-defaults` folds up repeats) — signals that set none of their own
   inherit them. A note true of the whole page goes in the PID note (`set-pid-notes`), not on
   every signal.

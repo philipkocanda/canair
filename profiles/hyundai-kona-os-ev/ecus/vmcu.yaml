@@ -17,7 +17,6 @@ VMCU:
         VEHICLE_SPEED:
           expression: ((S20 << 8) | B19)*1.609344/100
           unit: km/h
-          ha_class: speed
           min: "-20"
           max: "220"
           source: OBDb Hyundai-Kona-Electric (KONAEV_VSS; offsets via canair bix)
@@ -46,7 +45,6 @@ VMCU:
         LDC_OUTPUT_CURRENT:
           expression: "[B22:B23]/100"
           unit: A
-          ha_class: current
           min: "0"
           max: "655"
           source: OBDb Hyundai-Kona-Electric (KONAEV_AUX_AMPS_LDC; offset via canair bix)
@@ -58,7 +56,6 @@ VMCU:
         AUX_BATTERY_VOLTAGE_VMCU:
           expression: ((S27 << 8) | B26)/1000
           unit: V
-          ha_class: voltage
           min: "0"
           max: "20"
           source: OBDb Hyundai-Kona-Electric (KONAEV_AUX_V_7E2; offset via canair bix)

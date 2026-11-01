@@ -17,7 +17,7 @@
           "name": "ODOMETER",
           "expression": "(B4*65536)+(B5*256)+B6",
           "unit": "km",
-          "class": "none",
+          "class": "distance",
           "min": 0,
           "max": 999999
         }
@@ -37,7 +37,7 @@
           "name": "L2_COUNT",
           "expression": "[B4:B5]",
           "unit": "",
-          "class": "none"
+          "class": ""
         }
       ]
     },
@@ -55,7 +55,7 @@
           "name": "CHARGE_MODE",
           "expression": "B4",
           "unit": "",
-          "class": "none"
+          "class": ""
         }
       ]
     },
@@ -73,7 +73,7 @@
           "name": "PLUG_STATE",
           "expression": "B4",
           "unit": "",
-          "class": "none"
+          "class": ""
         }
       ]
     },
@@ -91,7 +91,7 @@
           "name": "OBC_OUT_PWR",
           "expression": "[B4:B5]*100",
           "unit": "W",
-          "class": "none",
+          "class": "power",
           "min": 0,
           "max": 7000
         }
@@ -111,7 +111,7 @@
           "name": "POWER_SWITCH",
           "expression": "B4:7",
           "unit": "",
-          "class": "none"
+          "class": ""
         }
       ]
     }

@@ -44,7 +44,6 @@ VCU:
         VCU_VEHICLE_SPEED:
           expression: ((S20*256)+B19)*1.609344/100
           unit: km/h
-          ha_class: speed
           min: "0"
           max: "250"
           notes: >-
@@ -226,7 +225,6 @@ VCU:
             VCU_AUX_BATTERY_VOLTAGE_FINE (n=10357). The /2072 scale is fitted and matches the MCU
             and ESC supply words; /2048 reads about 1.2 % high.
           unit: V
-          ha_class: voltage
         VCU_INVERTER_ARMED:
           expression: B23:4
           source: canair bitfield analysis 2026-08-06; same-payload cross-tab n=6367
@@ -295,7 +293,6 @@ VCU:
         VCU_INVERTER_INPUT_VOLTAGE:
           expression: "B17*2"
           unit: V
-          ha_class: voltage
           max: "450"
           source: "Kia Soul EV VMCU CSV (Inverter Input Voltage = f*2)"
           verified: true
@@ -307,7 +304,6 @@ VCU:
         VCU_AUX_BATTERY_VOLTAGE:
           expression: B14*0.0974
           unit: V
-          ha_class: voltage
           max: "16"
           enabled: true
           source: RE 2026-08-02 absolute-value anchoring + live ON, vs OBC/BMS/BCM consensus
@@ -320,7 +316,6 @@ VCU:
         VCU_DCLINK_VOLTAGE_COARSE:
           expression: "B25*2.56"
           unit: V
-          ha_class: voltage
           max: "450"
           enabled: false
           source: "canair historical analysis 2026-07-23"
@@ -350,7 +345,6 @@ VCU:
             (n=11057, slope 1.019). Reads 0.02-0.22 V above VCU_AUX_BATTERY_VOLTAGE_FINE; the gap
             tracks VCU_AUX_POWER (r=+0.86).
           unit: V
-          ha_class: voltage
           max: "16"
 
         VCU_AUX_BATTERY_VOLTAGE_FINE:
@@ -361,7 +355,6 @@ VCU:
             (n=10542, slope 0.998). Same offset as the Kia e-Niro VMCU sheet; the e-Niro 12 V
             current and SOC that follow it are not in the Ioniq reply.
           unit: V
-          ha_class: voltage
           max: "16"
         VCU_COOLANT_TEMP:
           expression: B18-100
@@ -385,7 +378,6 @@ VCU:
         VCU_DCLINK_VOLTAGE:
           expression: ((B25<<8)|B23)/100
           unit: V
-          ha_class: voltage
           max: "450"
           source: canair decode/align 2026-10-21
           notes: >-

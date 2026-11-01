@@ -35,7 +35,7 @@ BMS:
         HVBAT_SOC:
           expression: B10/2
           unit: "%"
-          ha_class: battery
+          category: state_of_charge
           max: "100"
           notes: HV battery charge, dashboard.
         HV_CHARGING:
@@ -54,66 +54,55 @@ BMS:
         BATTERY_CURRENT:
           expression: "[S17:S18]/10"
           unit: A
-          ha_class: current
           min: "-3276.8"
           max: "3276.7"
         BATTERY_DC_VOLTAGE:
           expression: "[B19:B20]/10"
           unit: V
-          ha_class: voltage
           max: "1000"
         BATTERY_MAX_T:
           expression: S21
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "80"
         BATTERY_MIN_T:
           expression: S22
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "80"
         BATTERY_PACK_B01:
           expression: S23
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "80"
         BATTERY_PACK_B02:
           expression: S25
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "80"
         BATTERY_PACK_B03:
           expression: S26
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "80"
         BATTERY_PACK_B04:
           expression: S27
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "80"
         BATTERY_PACK_B05:
           expression: S28
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "80"
         BATTERY_INLET_T:
           expression: B30-40
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "215"
         MAXIMUM_CELL_VOLTAGE:
           expression: B31/50
           unit: V
-          ha_class: voltage
           min: "2.8"
           max: "4.2"
         MAXIMUM_CELL_VOLTAGE_NO:
@@ -122,7 +111,6 @@ BMS:
         MINIMUM_CELL_VOLTAGE:
           expression: B34/50
           unit: V
-          ha_class: voltage
           min: "2.8"
           max: "4.2"
         MINIMUM_CELL_VOLTAGE_NO:
@@ -134,12 +122,10 @@ BMS:
         BATTERY_FAN_FEEDBACK:
           expression: B37
           unit: Hz
-          ha_class: frequency
           max: "120"
         BMS_AUX_BATTERY_VOLTAGE:
           expression: B38/10
           unit: V
-          ha_class: voltage
           min: "11"
           max: "14.6"
         CUMULATIVE_CHARGE_CURRENT:
@@ -153,17 +139,14 @@ BMS:
         CUMULATIVE_ENERGY_CHARGED:
           expression: "[B49:B52]/10"
           unit: kWh
-          ha_class: energy
           max: "4.29497e+08"
         CUMULATIVE_ENERGY_DISCHARGED:
           expression: ((B53 << 24) | (B54 << 16) | (B55 << 8) | B57)/10
           unit: kWh
-          ha_class: energy
           max: "4.29497e+08"
         BATTERY_WORK_TIME_TOTAL_SEC:
           expression: "[B58:B61]"
           unit: s
-          ha_class: duration
           max: "4.29497e+09"
         BMS_IGNITION:
           expression: B62:2
@@ -172,7 +155,6 @@ BMS:
         INVERTER_CAPACITOR_VOLTAGE:
           expression: ((B63 << 8) | B65)
           unit: V
-          ha_class: voltage
           max: "1000"
           notes: OBDb reads 1000 as no data.
         DRIVE_MOTOR_SPEED_1:
@@ -192,7 +174,6 @@ BMS:
         CHARGE_CURRENT_REQUEST:
           expression: "[B13:B14]/10"
           unit: A
-          ha_class: current
           max: "6553.5"
           source: wican-fw ioniq5-6 (CHARGING_R_A) + OVMS
           source_links:
@@ -202,7 +183,6 @@ BMS:
         BATTERY_POWER:
           expression: "[B19:B20]/10*[S17:S18]/10/1000"
           unit: kW
-          ha_class: power
           min: "-600"
           max: "600"
           source: wican-fw ioniq5-6 (HV_W)
@@ -212,7 +192,6 @@ BMS:
     220102:
       status: active
       unit: V
-      ha_class: voltage
       min: "0"
       max: "5.1"
       source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
@@ -293,7 +272,6 @@ BMS:
     220103:
       status: active
       unit: V
-      ha_class: voltage
       min: "0"
       max: "5.1"
       source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
@@ -376,7 +354,6 @@ BMS:
     220104:
       status: active
       unit: V
-      ha_class: voltage
       min: "0"
       max: "5.1"
       source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
@@ -457,7 +434,6 @@ BMS:
     22010A:
       status: active
       unit: V
-      ha_class: voltage
       min: "0"
       max: "5.1"
       source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
@@ -538,7 +514,6 @@ BMS:
     22010B:
       status: active
       unit: V
-      ha_class: voltage
       min: "0"
       max: "5.1"
       source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
@@ -619,7 +594,6 @@ BMS:
     22010C:
       status: active
       unit: V
-      ha_class: voltage
       min: "0"
       max: "5.1"
       source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
@@ -720,21 +694,17 @@ BMS:
         NORMAL_CHARGING_ENERGY_TOT:
           expression: "[B19:B22]"
           unit: kWh
-          ha_class: energy
         QUICK_CHARGING_ENERGY_TOT:
           expression: ((B23 << 24) | (B25 << 16) | (B26 << 8) | B27)
           unit: kWh
-          ha_class: energy
         BATTERY_PACK_B17:
           expression: S35
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "80"
         BATTERY_PACK_B18:
           expression: S36
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "80"
     220114:
@@ -775,7 +745,6 @@ BMS:
         HVBAT_WCS_INLET_TEMP:
           expression: S10
           unit: °C
-          ha_class: temperature
           min: "-128"
           max: "127"
           notes: Battery temperature at the water cooling system inlet.
@@ -791,14 +760,12 @@ BMS:
         HVBAT_PRA_TEMP:
           expression: S28*2
           unit: °C
-          ha_class: temperature
           min: "-256"
           max: "254"
           notes: Battery temperature at the power relay assembly.
     220105:
       status: active
       unit: °C
-      ha_class: temperature
       min: "-40"
       max: "80"
       source: OBDb Hyundai-Ioniq-5; wican-fw ioniq5-6 and OVMS for the signals OBDb lacks
@@ -822,21 +789,20 @@ BMS:
         HVBAT_SOH:
           expression: "[B34:B35]/10"
           unit: "%"
-          ha_class: battery
+          category: state_of_health
           min: "0"
           max: "100"
           notes: HV battery state of health. OBDb reads 0 as no data.
         HVBAT_WH:
           expression: "[B37:B38]*2/1000"
           unit: kWh
-          ha_class: energy
           min: "0"
           max: "131.07"
           notes: HV battery remaining energy. OBDb reads 131.07 as no data.
         HVBAT_SOC_DISP:
           expression: B41/2
           unit: "%"
-          ha_class: battery
+          category: state_of_charge
           min: "0"
           max: "100"
           notes: HV battery charge.
@@ -865,25 +831,21 @@ BMS:
         AVAILABLE_CHARGE_POWER:
           expression: ((B23 << 8) | B25)/100
           unit: kW
-          ha_class: power
           min: "0"
           max: "655.35"
         AVAILABLE_DISCHARGE_POWER:
           expression: "[B26:B27]/100"
           unit: kW
-          ha_class: power
           min: "0"
           max: "655.35"
         CELL_VOLTAGE_DEVIATION:
           expression: B28/50
           unit: V
-          ha_class: voltage
           min: "0"
           max: "5.1"
         AIRBAG_H_WIRE_DUTY:
           expression: B30
           unit: "%"
-          ha_class: ""
           min: "0"
           max: "100"
           notes: Crash-signal (airbag harness) wire duty.
@@ -895,13 +857,11 @@ BMS:
         MAX_DETERIORATION_CELL_NO:
           expression: B36
           unit: ""
-          ha_class: ""
           min: "0"
           max: "255"
         MIN_DETERIORATION_CELL_NO:
           expression: B39
           unit: ""
-          ha_class: ""
           min: "0"
           max: "255"
           notes: 0 in all 339 recorded replies.

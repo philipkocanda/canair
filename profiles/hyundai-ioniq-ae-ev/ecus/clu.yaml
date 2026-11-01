@@ -24,7 +24,6 @@ CLU:
         ODOMETER:
           expression: "[B12:B14]"
           unit: km
-          ha_class: distance
           min: "0"
           source: "Original WiCAN config"
           verified: true

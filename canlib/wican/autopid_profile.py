@@ -29,6 +29,7 @@ from canlib.transport.elm327_addressing import (
     target_for,
 )
 from canlib.transport.elm327_frame_count import annotate_request, requestable
+from canlib.wican.autopid_class import autopid_class
 from canlib.wican.autopid_send_to import DEFAULT_TYPE, MQTT_TOPIC_TYPE, topic_problem
 
 
@@ -398,7 +399,7 @@ def to_device_format(profile: dict, data: dict | None = None) -> dict:
                     "name": name,
                     "expression": expression,
                     "unit": meta.get("unit", ""),
-                    "class": meta.get("ha_class", "none") or "none",
+                    "class": autopid_class(meta) or "none",
                     "period": pid_entry.get("period", "5000"),
                     "min": str(meta.get("min", "")) if meta.get("min", "") != "" else "",
                     "max": str(meta.get("max", "")) if meta.get("max", "") != "" else "",

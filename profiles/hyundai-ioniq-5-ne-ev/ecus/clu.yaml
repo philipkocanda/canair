@@ -10,7 +10,6 @@ CLU:
         ODOMETER:
           expression: "[B12:B14]"
           unit: km
-          ha_class: distance
           verified: true
           notes: >-
             3-byte odometer at WiCAN [B12:B14] (ISO-TP data bytes g:h:i, Torque Int24). Verified by
@@ -26,7 +25,6 @@ CLU:
         ODOMETER_MI:
           expression: ((B15 << 16) | (B17 << 8) | B18)
           unit: mi
-          ha_class: distance
           min: "0"
           max: "16777215"
           source: OBDb Hyundai-Ioniq-5 (IONIQ5_ODO_MI) + wican-fw ioniq5-6 (ODOMETER_MI)

@@ -82,7 +82,6 @@ MCU:
         MCU_SUPPLY_VOLTAGE_1:
           expression: ((B15<<8)|B14)/1000
           unit: V
-          ha_class: voltage
           min: "0"
           max: "16"
           source: canair decode --corr / hunt 2026-10-21
@@ -93,7 +92,6 @@ MCU:
         MCU_SUPPLY_VOLTAGE_2:
           expression: ((B28<<8)|B27)/1000
           unit: V
-          ha_class: voltage
           min: "0"
           max: "16"
           source: canair decode --corr / hunt 2026-10-21
@@ -147,7 +145,6 @@ MCU:
         MCU_MOTOR_CURRENT:
           expression: ((B17<<8)|B15)/10
           unit: A
-          ha_class: current
           min: "0"
           max: "600"
           enabled: true
@@ -161,7 +158,6 @@ MCU:
         MCU_COOLANT_TEMP:
           expression: B20*2
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "150"
           notes: >-
@@ -179,7 +175,6 @@ MCU:
           notes: >-
             Inverter heatsink temperature, 2 °C per count. Mirrors AAF:2181:HEATSINK_TEMP: r=+0.990
             over 1973 co-polled rows, reading 1 °C below it (median).
-          ha_class: temperature
         MCU_TEMP_B18:
           expression: B18*2
           unit: °C
@@ -190,7 +185,6 @@ MCU:
             16 to 54 °C over the 2026-08-08 10:02-11:41 drive (cycle mean 43 °C, against 36 °C for
             MCU_HEATSINK_TEMP), and cools while parked or DC charging.
           enabled: true
-          ha_class: temperature
         MCU_MOTOR_COOLANT_TEMP:
           expression: B21*2
           unit: °C
@@ -200,12 +194,10 @@ MCU:
             2 °C per count. Mirrors AAF:2181:MOTOR_COOLANT_TEMP: r=+0.991 over 1973 rows, 1 °C below
             it (median). Rises faster under load than MCU_COOLANT_TEMP: 36 to 58 °C over the
             2026-08-08 15:33-16:31 drive.
-          ha_class: temperature
           enabled: true
         MCU_MOTOR_POWER:
           expression: ((S12<<8)|B11)/10*((S10<<8)|B09)*0.00010472
           unit: kW
-          ha_class: power
           min: "-100"
           max: "100"
           source: derived from MCU_MOTOR_TORQUE x MCU_MOTOR_RPM, 2026-10-21
@@ -263,7 +255,6 @@ MCU:
         MCU_21F2_HEATSINK_TEMP_AVG:
           expression: B47
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "150"
           notes: >-
@@ -272,7 +263,6 @@ MCU:
         MCU_21F2_HEATSINK_TEMP_MAX:
           expression: B50
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "150"
           notes: >-
@@ -281,7 +271,6 @@ MCU:
         MCU_21F2_TEMP_B18_AVG:
           expression: B57
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "150"
           notes: >-
@@ -290,7 +279,6 @@ MCU:
         MCU_21F2_TEMP_B18_MAX:
           expression: B59
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "150"
           notes: >-
@@ -299,7 +287,6 @@ MCU:
         MCU_21F2_COOLANT_TEMP_AVG:
           expression: B67
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "150"
           notes: >-
@@ -308,7 +295,6 @@ MCU:
         MCU_21F2_COOLANT_TEMP_MAX:
           expression: B68
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "150"
           notes: >-
@@ -317,7 +303,6 @@ MCU:
         MCU_21F2_SUPPLY_VOLTAGE_AVG:
           expression: B66/10
           unit: V
-          ha_class: voltage
           min: "0"
           max: "16"
           notes: >-
@@ -326,7 +311,6 @@ MCU:
         MCU_21F2_SUPPLY_VOLTAGE_MAX:
           expression: B63/10
           unit: V
-          ha_class: voltage
           min: "0"
           max: "16"
           notes: >-
@@ -336,7 +320,6 @@ MCU:
         MCU_21F2_SUPPLY_VOLTAGE_MIN:
           expression: B65/10
           unit: V
-          ha_class: voltage
           min: "0"
           max: "16"
           notes: >-

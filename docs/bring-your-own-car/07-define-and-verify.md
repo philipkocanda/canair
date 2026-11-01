@@ -27,10 +27,15 @@ canair pids upsert-param MyECU 2101 SPEED_KMH "[B12]" \
   value from the payload. Byte indexing matters — confirm the offset with
   `canair bix --annotate`.
 - `--unit`, `--min`, `--max` — metadata that documents and bounds the signal.
+- `--category` — what the signal is, **only where the unit doesn't already say it**: a `%`
+  that is a `state_of_charge`, `state_of_health` or `humidity`, or a two-state signal that is a
+  `door`, `opening`, `lock`, `lamp`, `plug` or `charging`. A two-state one also gets
+  `--value 0=closed --value 1=open` (or its own labels), which records which value means which.
+  A `V` signal is a voltage without saying so; stating it anyway fails validation.
 - `--source` — *why you believe it* (correlation, a reference car, a datasheet).
   Evidence, not vibes. When the signals on a page share fields — a group of cell voltages with
   the same unit, range and evidence — state them once on the PID instead:
-  `canair pids set-pid-defaults ECU PID --unit V --ha-class voltage --min 0 --max 5 --verified`
+  `canair pids set-pid-defaults ECU PID --unit V --min 0 --max 5 --verified`
   (also `--source`, `--source-link`). Each signal that sets none of its own inherits them, and
   one that does keeps its value. `canair pids hoist-defaults` moves repetition you already have
   up to the PID, changing no signal.

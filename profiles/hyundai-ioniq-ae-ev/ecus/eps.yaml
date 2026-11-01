@@ -79,7 +79,6 @@ EPS:
         EPS_TEMP:
           expression: B20
           unit: °C
-          ha_class: temperature
           max: "255"
           source: "RE 2026-10-22: B20 vs HVAC_INTERIOR_TEMP/AAF AMBIENT_TEMP, 2026-07-22..10-22"
           notes: >-

@@ -160,7 +160,6 @@ SKM:
       source: Cross-tab vs BCM, IGPM and VCU over all SKM captures, 2026-11-01
       verified: false
       unit: V
-      ha_class: voltage
       min: "0"
       max: "20"
       notes: >-
@@ -191,7 +190,6 @@ SKM:
             on 2026-10-25 (12:22-12:36, 19 captures): 41 at VCU_VEHICLE_SPEED 42.3, 84 at 87.4, 66
             at 66-70, 0 when stopped; within 1 of AAF_VEHICLE_SPEED_KMH.
           unit: km/h
-          ha_class: speed
           max: "255"
         SKM_ACC_RELAY_OUTPUT_V:
           expression: B17*0.08

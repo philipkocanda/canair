@@ -17,6 +17,7 @@ from canlib import yaml_io
 from canlib.actuation import default_release, normalize_request
 from canlib.addressing import AddressingMode, EcuAddress
 from canlib.safety import SessionProtocol, session_protocol
+from canlib.signal_category import category_of
 
 # ── PID visibility lifecycle ──────────────────────────────────────────────
 # A PID's `status:` is a single, mutually-exclusive lifecycle value that
@@ -83,7 +84,6 @@ def pid_status(pid_def: dict) -> PidStatus:
 # notes describe the page, a parameter's describe the signal, and neither stands in for the other.
 INHERITED_PARAM_FIELDS: tuple[str, ...] = (
     "unit",
-    "ha_class",
     "min",
     "max",
     "source",
@@ -456,7 +456,7 @@ def build_param_index(pids_data: dict) -> dict:
                     "expression": param.get("expression", ""),
                     "unit": param.get("unit", ""),
                     "verified": param.get("verified", False),
-                    "ha_class": param.get("ha_class", ""),
+                    "category": category_of(param) or "",
                     "display": param.get("display", ""),
                     "type": param.get("type", ""),
                     "values": param.get("values", {}),

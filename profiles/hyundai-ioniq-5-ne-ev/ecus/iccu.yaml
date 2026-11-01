@@ -12,7 +12,6 @@ ICCU:
     "22E001":
       status: active
       unit: A
-      ha_class: current
       min: "0"
       source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
       source_links:
@@ -26,7 +25,6 @@ ICCU:
         CHARGE_MODE_DC_TARGET_VOLTAGE:
           expression: "[B14:B15]/10"
           unit: V
-          ha_class: voltage
           max: "6553.5"
         CHARGE_MODE_DC_MAXIMUM_CURRENT_LIMIT:
           expression: "[B17:B18]/10"
@@ -38,7 +36,6 @@ ICCU:
         DISCHARGE_MODE_V2L_AC_TARGET_VOLTAGE:
           expression: B21
           unit: V
-          ha_class: voltage
           max: "255"
           notes: Discharge mode A/C target voltage.
         DISCHARGE_MODE_DC_MAXIMUM_CURRENT_LIMIT:
@@ -63,98 +60,84 @@ ICCU:
         OBC_AC_VOLTAGE_A_RMS:
           expression: "[B10:B11]/10"
           unit: V
-          ha_class: voltage
           min: "0"
           max: "6553.5"
           notes: On-board charger, AC voltage a.
         OBC_AC_VOLTAGE_B_RMS:
           expression: "[B12:B13]/10"
           unit: V
-          ha_class: voltage
           min: "0"
           max: "6553.5"
           notes: On-board charger, AC voltage b.
         OBC_AC_FREQUENCY:
           expression: B17
           unit: Hz
-          ha_class: frequency
           min: "0"
           max: "255"
           notes: On-board charger, AC frequency.
         OBC_AC_TOTAL_CURRENT_RMS:
           expression: "[S18:S19]/100"
           unit: A
-          ha_class: current
           min: "-327.68"
           max: "327.67"
           notes: On-board charger, AC total current.
         OBC_AC_CURRENT_A_RMS:
           expression: "[S20:S21]/100"
           unit: A
-          ha_class: current
           min: "-327.68"
           max: "327.67"
           notes: On-board charger, AC current a.
         OBC_AC_CURRENT_B_RMS:
           expression: "[S22:S23]/100"
           unit: A
-          ha_class: current
           min: "-327.68"
           max: "327.67"
           notes: On-board charger, AC current b.
         OBC_DC_VOLTAGE:
           expression: "[B27:B28]/10"
           unit: V
-          ha_class: voltage
           min: "0"
           max: "6553.5"
           notes: On-board charger, DC voltage.
         OBC_DC_CURRENT_TOTAL_RMS:
           expression: "[S29:S30]/100"
           unit: A
-          ha_class: current
           min: "-327.68"
           max: "327.67"
           notes: On-board charger, DC current total.
         OBC_DC_CURRENT_A_RMS:
           expression: ((S31 << 8) | B33)/100
           unit: A
-          ha_class: current
           min: "-327.68"
           max: "327.67"
           notes: On-board charger, DC current a.
         OBC_DC_CURRENT_B_RMS:
           expression: "[S34:S35]/100"
           unit: A
-          ha_class: current
           min: "-327.68"
           max: "327.67"
           notes: On-board charger, DC current b.
         OBC_T_A:
           expression: B36-40
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "215"
           notes: On-board charger, temperature a.
         OBC_T_B:
           expression: B37-40
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "215"
           notes: On-board charger, temperature b.
         OBC_AC_INPUT_CURRENT_SENSOR_A_SIGNAL_VOLTAGE:
           expression: ((B47 << 8) | B49)/100
           unit: V
-          ha_class: voltage
           min: "0"
           max: "655.35"
           notes: On-board charger, AC input current sensor a signal voltage.
         OBC_AC_INPUT_CURRENT_SENSOR_B_SIGNAL_VOLTAGE:
           expression: "[B50:B51]/100"
           unit: V
-          ha_class: voltage
           min: "0"
           max: "655.35"
           notes: On-board charger, AC input current sensor b signal voltage.
@@ -174,12 +157,10 @@ ICCU:
         OBC_CHARGE_MODE_DC_TARGET_VOLTAGE:
           expression: "[B14:B15]/10"
           unit: V
-          ha_class: voltage
           notes: On-board charger, charge mode DC target voltage.
         OBC_CHARGE_MODE_DC_TARGET_CURRENT:
           expression: "[B17:B18]/10"
           unit: A
-          ha_class: current
           notes: On-board charger, charge mode DC target current.
     "22E011":
       status: active
@@ -198,35 +179,30 @@ ICCU:
         LDC_T:
           expression: B15-100
           unit: °C
-          ha_class: temperature
           min: "-100"
           max: "155"
           notes: Low-voltage dc-dc converter, temperature.
         LDC_OUTPUT_VOLTAGE:
           expression: "[B17:B18]/1000"
           unit: V
-          ha_class: voltage
           min: "0"
           max: "65.535"
           notes: Low-voltage dc-dc converter, output voltage.
         LDC_OUTPUT_CURRENT:
           expression: "[B19:B20]*10/1000"
           unit: A
-          ha_class: current
           min: "0"
           max: "655.35"
           notes: Low-voltage dc-dc converter, output current.
         LDC_INPUT_VOLTAGE:
           expression: "[B21:B22]/10"
           unit: V
-          ha_class: voltage
           min: "0"
           max: "6553.5"
           notes: Low-voltage dc-dc converter, input voltage.
         AUX_BATTERY_CURRENT:
           expression: "[B26:B27]/100-327"
           unit: A
-          ha_class: current
           min: "-327"
           max: "328.35"
         AUX_BATTERY_STATE_OF_CHARGE:
@@ -237,13 +213,11 @@ ICCU:
         AUX_BATTERY_VOLTAGE_7E5:
           expression: "[B29:B30]/1000+6"
           unit: V
-          ha_class: voltage
           min: "6"
           max: "71.535"
         AUX_BATTERY_T:
           expression: ((B31 << 8) | B33)/2-40
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "32727.5"
     "22E101":
@@ -265,35 +239,30 @@ ICCU:
         LDC_T:
           expression: B15-100
           unit: °C
-          ha_class: temperature
           min: "-100"
           max: "155"
           notes: Low-voltage dc-dc converter, temperature.
         LDC_OUTPUT_VOLTAGE:
           expression: "[B17:B18]/1000"
           unit: V
-          ha_class: voltage
           min: "0"
           max: "65.535"
           notes: Low-voltage dc-dc converter, output voltage.
         LDC_OUTPUT_CURRENT:
           expression: "[B19:B20]*10/1000"
           unit: A
-          ha_class: current
           min: "0"
           max: "655.35"
           notes: Low-voltage dc-dc converter, output current.
         LDC_INPUT_VOLTAGE:
           expression: "[B21:B22]/10"
           unit: V
-          ha_class: voltage
           min: "0"
           max: "6553.5"
           notes: Low-voltage dc-dc converter, input voltage.
         AUX_BATTERY_CURRENT:
           expression: "[B26:B27]/100-327"
           unit: A
-          ha_class: current
           min: "-327"
           max: "328.35"
         AUX_BATTERY_STATE_OF_CHARGE:
@@ -304,13 +273,11 @@ ICCU:
         ICCU_AUX_BATTERY_VOLTAGE:
           expression: "[B29:B30]/1000+6"
           unit: V
-          ha_class: voltage
           min: "6"
           max: "71.535"
         AUX_BATTERY_T:
           expression: ((B31 << 8) | B33)/2-40
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "32727.5"
 

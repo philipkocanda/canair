@@ -25,7 +25,6 @@ VCMS:
         VCMS_AUX_BATTERY_VOLTAGE:
           expression: "[B18:B19]/100"
           unit: V
-          ha_class: voltage
           max: "655.35"
         DC_CHRG_STATE:
           expression: B25:3
@@ -36,43 +35,36 @@ VCMS:
         OBC_CHRG_DC_VOLTAGE:
           expression: "[B27:B28]/10"
           unit: V
-          ha_class: voltage
           max: "6553.5"
           notes: On-board charger, charging DC voltage.
         OBC_CHRG_DC_CURRENT:
           expression: "[B29:B30]/10"
           unit: A
-          ha_class: current
           max: "6553.5"
           notes: On-board charger, charging DC current.
         OBC_CHRG_AC_CURRENT:
           expression: ((B31 << 8) | B33)/10
           unit: A
-          ha_class: current
           max: "6553.5"
           notes: On-board charger, charging AC current.
         OBC_CHRG_AC_VOLTAGE:
           expression: B34
           unit: V
-          ha_class: voltage
           max: "255"
           notes: On-board charger, charging AC voltage.
         OBC_DCHRG_DC_CURRENT:
           expression: B35
           unit: A
-          ha_class: current
           max: "255"
           notes: On-board charger, discharging DC current.
         OBC_DCHRG_AC_CURRENT:
           expression: B36
           unit: A
-          ha_class: current
           max: "255"
           notes: On-board charger, discharging AC current.
         ESTIMATED_CHRG_POWER:
           expression: "[B37:B38]*10-50"
           unit: W
-          ha_class: power
           min: "-50"
           max: "655300"
     "22E002":
@@ -91,56 +83,46 @@ VCMS:
         EVSE_MAXIMUM_VOLTAGE_VALUE:
           expression: ((B15 << 8) | B17)/10
           unit: V
-          ha_class: voltage
           notes: Electric vehicle supply equipment, voltage, max.
         EVSE_MAXIMUM_CURRENT_VALUE:
           expression: "[B18:B19]/10"
           unit: A
-          ha_class: current
           notes: Electric vehicle supply equipment, current, max.
         EVSE_MINIMUM_VOLTAGE_VALUE:
           expression: "[B20:B21]/10"
           unit: V
-          ha_class: voltage
           notes: Electric vehicle supply equipment, voltage, min.
         EVSE_MINIMUM_CURRENT_VALUE:
           expression: "[B22:B23]/10"
           unit: A
-          ha_class: current
           notes: Electric vehicle supply equipment, current, min.
         EVSE_V:
           expression: "[B25:B26]/10"
           unit: V
-          ha_class: voltage
           notes: Electric vehicle supply equipment, voltage.
         EVSE_C:
           expression: "[B27:B28]/10"
           unit: A
-          ha_class: current
           notes: Electric vehicle supply equipment, current.
         EVSE_CURRENT_REGULATION_TOLERANCE_VALUE:
           expression: B30-50
           unit: A
-          ha_class: current
           min: "-50"
           max: "205"
           notes: Electric vehicle supply equipment, regulation tolerance.
         EVSE_DELIVERED_POWER_VALUE:
           expression: ((B31 << 8) | B33)*10/1000
           unit: kWh
-          ha_class: energy
           max: "655.35"
           notes: Electric vehicle supply equipment, power, delivered.
         EVSE_MAXIMUM_POWER_VALUE:
           expression: "[B34:B35]*10"
           unit: W
-          ha_class: power
           max: "655350"
           notes: Electric vehicle supply equipment, power, max.
         EVSE_MAIN_POWER:
           expression: B36
           unit: kW
-          ha_class: power
           max: "255"
           notes: Electric vehicle supply equipment, power, main.
     "22E003":
@@ -159,7 +141,6 @@ VCMS:
         HVBAT_CP_VOLTAGE:
           expression: B12/10
           unit: V
-          ha_class: voltage
           max: "25.5"
           notes: Control pilot voltage.
         HVBAT_CP_DUTY_CYCLE:
@@ -170,55 +151,47 @@ VCMS:
         HVBAT_PD_VOLTAGE:
           expression: "[B18:B19]*10/10000"
           unit: V
-          ha_class: voltage
           max: "65.535"
           notes: Proximity detection voltage.
         HVBAT_HV_BATTERY_VOLTAGE:
           expression: "[B20:B21]/10"
           unit: V
-          ha_class: voltage
           max: "6553.5"
           notes: High voltage battery, voltage. OBDb reads 0 and 6553.5 as no data.
         HVBAT_SOC_VCMS:
           expression: B22/2
           unit: "%"
-          ha_class: battery
+          category: state_of_charge
           max: "100"
           notes: High voltage battery, state of charge.
         HVBAT_TARGET_VOLT:
           expression: ((B23 << 8) | B25)/10
           unit: V
-          ha_class: voltage
           max: "6553.5"
           notes: Electric vehicle supply equipment, target voltage.
         HVBAT_TARGET_CURR:
           expression: "[B26:B27]/10"
           unit: A
-          ha_class: current
           max: "6553.5"
           notes: Electric vehicle supply equipment, target current.
         HVBAT_EV_MAX_VOLTAGE:
           expression: "[B28:B29]/10"
           unit: V
-          ha_class: voltage
           max: "6553.5"
           notes: High voltage battery, max voltage.
         HVBAT_EV_MAX_CURRENT:
           expression: "[B30:B31]/10"
           unit: A
-          ha_class: current
           max: "6553.5"
           notes: High voltage battery, max current.
         HVBAT_BMS_TARGET_VOLTAGE:
           expression: "[B33:B34]/10"
           unit: V
-          ha_class: voltage
           max: "6553.5"
           notes: High voltage battery, target voltage.
         HVBAT_BMS_TARGET_CURRENT:
           expression: "[B35:B36]/10"
           unit: A
-          ha_class: current
           max: "6553.5"
           notes: High voltage battery, target current.
         HVBAT_AC_CHARGING_COUNTER:
@@ -232,36 +205,30 @@ VCMS:
         VCMS_AC_CHARGING_TIME:
           expression: "[B44:B45]"
           unit: h
-          ha_class: duration
           max: "65535"
           notes: A/C charging time.
         DC_CHRG_TIME:
           expression: "[B46:B47]"
           unit: h
-          ha_class: duration
           max: "65535"
           notes: Cumulative DC charging time.
         AC_CHARGER_CURRENT:
           expression: "[B49:B50]/100"
           unit: A
-          ha_class: current
           max: "655.35"
           notes: A/C charger current.
         DC_CHARGER_CURRENT_CAPABILITY:
           expression: "[B51:B52]/100"
           unit: A
-          ha_class: current
           max: "655.35"
         AC_CHARGING_TIME_AFTER_PLUG_IN:
           expression: "[B53:B54]"
           unit: min
-          ha_class: duration
           max: "65535"
           notes: A/C charging time, after plug-in.
         DC_CHARGING_TIME_AFTER_PLUG_IN:
           expression: ((B55 << 8) | B57)
           unit: min
-          ha_class: duration
           max: "65535"
     "22E004":
       status: active
@@ -290,18 +257,15 @@ VCMS:
         DC_INLET_T_1:
           expression: B14-50
           unit: °C
-          ha_class: temperature
           min: "-50"
           max: "205"
         DC_INLET_T_2:
           expression: B15-50
           unit: °C
-          ha_class: temperature
           min: "-50"
           max: "205"
         AC_INLET_T_1:
           expression: B17-50
           unit: °C
-          ha_class: temperature
           min: "-50"
           max: "205"

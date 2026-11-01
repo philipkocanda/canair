@@ -37,7 +37,6 @@ BCM:
         TYRE_PRESSURE_FL:
           expression: "B10/72.52"
           unit: bar
-          ha_class: pressure
           max: "5"
           source: "Original WiCAN config + Ioniq forum"
           source_links:
@@ -47,28 +46,24 @@ BCM:
         TYRE_PRESSURE_FR:
           expression: "B14/72.52"
           unit: bar
-          ha_class: pressure
           max: "5"
           source: "Original WiCAN config"
 
         TYRE_PRESSURE_RL:
           expression: "B19/72.52"
           unit: bar
-          ha_class: pressure
           max: "5"
           source: "Original WiCAN config"
 
         TYRE_PRESSURE_RR:
           expression: "B23/72.52"
           unit: bar
-          ha_class: pressure
           max: "5"
           source: "Original WiCAN config"
 
         TYRE_TEMP_FL:
           expression: "B11-50"
           unit: "°C"
-          ha_class: temperature
           min: "-50"
           max: "100"
           source_links:
@@ -78,7 +73,6 @@ BCM:
         TYRE_TEMP_FR:
           expression: "B15-50"
           unit: "°C"
-          ha_class: temperature
           min: "-50"
           max: "100"
           source_links:
@@ -87,7 +81,6 @@ BCM:
         TYRE_TEMP_RL:
           expression: "B20-50"
           unit: "°C"
-          ha_class: temperature
           min: "-50"
           max: "100"
           source_links:
@@ -96,7 +89,6 @@ BCM:
         TYRE_TEMP_RR:
           expression: "B25-50"
           unit: "°C"
-          ha_class: temperature
           min: "-50"
           max: "100"
           source_links:
@@ -195,13 +187,17 @@ BCM:
       parameters:
         CHARGE_PORT_OPEN:
           expression: "B10:5"
-          ha_class: opening
+          category: opening
           source: "Kia Niro EV WiCAN PR#716"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
           notes: >-
             1 = open. Bit 5 on this car (bit 4 in the Niro EV source). Works in the default session.
+          type: enum
+          values:
+            0: closed
+            1: open
 
     22B00F:
       status: ignored
@@ -519,7 +515,6 @@ BCM:
           expression: "B10*0.08"
           unit: "V"
           display: ""
-          ha_class: voltage
           source: "Reverse engineered from monitor drift analysis"
           verified: true
           notes: >-

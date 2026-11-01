@@ -4,13 +4,13 @@
 
 ```
 usage: canair pids [-h]
-                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-pid-status,set-pid-variable-length,set-support-map,set-pid-period,set-response-frames,set-pid-notes,set-pid-defaults,hoist-defaults,set-identity,rm-identity,set-can-bus,set-revisions,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing}
+                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-pid-status,set-pid-variable-length,set-support-map,set-pid-period,set-response-frames,set-pid-notes,set-pid-defaults,hoist-defaults,migrate-categories,set-identity,rm-identity,set-can-bus,set-revisions,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing}
                    ...
 
 [UDS] Safely edit ecus/ parameters and research entries (domain A — diagnostic UDS PIDs, freeform WiCAN expressions). The broadcast-frame (domain B) authoring counterpart is `canair signals` (linear signals/ maps).
 
 positional arguments:
-  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-pid-status,set-pid-variable-length,set-support-map,set-pid-period,set-response-frames,set-pid-notes,set-pid-defaults,hoist-defaults,set-identity,rm-identity,set-can-bus,set-revisions,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing}
+  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-pid-status,set-pid-variable-length,set-support-map,set-pid-period,set-response-frames,set-pid-notes,set-pid-defaults,hoist-defaults,migrate-categories,set-identity,rm-identity,set-can-bus,set-revisions,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing}
     upsert-param        Add or update a signal
     rename-param        Rename a signal (key only; fields preserved)
     rm-param            Remove a signal
@@ -39,6 +39,7 @@ positional arguments:
                         min, max, verified, source…)
     hoist-defaults      Move fields repeated across a PID's parameters up to
                         the PID
+    migrate-categories  Replace the retired ha_class field with category
     set-identity        Set a curated identity field (e.g. notes)
     rm-identity         Remove an identity field from an ECU
     set-can-bus         Set the physical CAN bus segment(s) the ECU sits on
@@ -72,7 +73,7 @@ options:
 ## `canair pids upsert-param`
 
 ```
-usage: canair pids upsert-param [-h] [--unit UNIT] [--ha-class HA_CLASS]
+usage: canair pids upsert-param [-h] [--unit UNIT] [--category CATEGORY]
                                 [--mqtt-topic MQTT_TOPIC] [--send-to TOPIC]
                                 [--min MIN] [--max MAX] [--source SOURCE]
                                 [--source-link URL] [--display DISPLAY]
@@ -93,7 +94,13 @@ positional arguments:
 options:
   -h, --help            show this help message and exit
   --unit UNIT
-  --ha-class HA_CLASS
+  --category CATEGORY   What the signal measures or represents, only where the
+                        unit does not say it: state_of_charge,
+                        state_of_health, humidity, door, opening, lock, lamp,
+                        plug, charging (or a quantity, when there is no unit).
+                        A two-state one (door, lock…) also needs --value
+                        0=LABEL --value 1=LABEL. Pass an empty string to
+                        remove it
   --mqtt-topic MQTT_TOPIC
                         Legacy, inert Home Assistant name for the signal (read
                         by no code); to stream a signal use --send-to
@@ -499,11 +506,11 @@ options:
 ## `canair pids set-pid-defaults`
 
 ```
-usage: canair pids set-pid-defaults [-h] [--unit UNIT] [--ha-class HA_CLASS]
-                                    [--min MIN] [--max MAX] [--verified]
-                                    [--unverified] [--source SOURCE]
-                                    [--source-link URL] [--clear FIELD]
-                                    [--dir DIR] [--no-validate]
+usage: canair pids set-pid-defaults [-h] [--unit UNIT] [--min MIN] [--max MAX]
+                                    [--verified] [--unverified]
+                                    [--source SOURCE] [--source-link URL]
+                                    [--clear FIELD] [--dir DIR]
+                                    [--no-validate]
                                     ecu pid
 
 Set PID-level defaults: a field stated on the PID applies to every parameter
@@ -518,19 +525,18 @@ positional arguments:
   pid
 
 options:
-  -h, --help           show this help message and exit
+  -h, --help         show this help message and exit
   --unit UNIT
-  --ha-class HA_CLASS
   --min MIN
   --max MAX
   --verified
   --unverified
-  --source SOURCE      Where the page's decoding came from
-  --source-link URL    Repeatable
-  --clear FIELD        Remove a PID-level default (repeatable): unit,
-                       ha_class, min, max, source, source_links, verified
-  --dir DIR            ecus/ directory (default: active profile)
-  --no-validate        Skip the post-edit schema validation gate
+  --source SOURCE    Where the page's decoding came from
+  --source-link URL  Repeatable
+  --clear FIELD      Remove a PID-level default (repeatable): unit, min, max,
+                     source, source_links, verified
+  --dir DIR          ecus/ directory (default: active profile)
+  --no-validate      Skip the post-edit schema validation gate
 ```
 
 ## `canair pids hoist-defaults`
@@ -539,13 +545,13 @@ options:
 usage: canair pids hoist-defaults [-h] [--dry-run] [--dir DIR] [--no-validate]
                                   [ecu] [pid]
 
-Find PIDs whose parameters repeat the same unit, ha_class, min, max, verified,
-source or source_links and state the value once on the PID instead. A field
-moves only when it changes no signal: every parameter must state its own non-
-empty value, and one value must be shared by more than half of them (the rest
-keep theirs as overrides). The result is verified before it is kept. Name an
-ECU (and PID) to narrow the sweep; with neither, the whole profile is
-processed. --dry-run lists what would move.
+Find PIDs whose parameters repeat the same unit, min, max, verified, source or
+source_links and state the value once on the PID instead. A field moves only
+when it changes no signal: every parameter must state its own non-empty value,
+and one value must be shared by more than half of them (the rest keep theirs
+as overrides). The result is verified before it is kept. Name an ECU (and PID)
+to narrow the sweep; with neither, the whole profile is processed. --dry-run
+lists what would move.
 
 positional arguments:
   ecu            Limit to this ECU (default: every ECU)
@@ -554,6 +560,32 @@ positional arguments:
 options:
   -h, --help     show this help message and exit
   --dry-run      List what would move; write nothing
+  --dir DIR      ecus/ directory (default: active profile)
+  --no-validate  Skip the post-edit schema validation gate
+```
+
+## `canair pids migrate-categories`
+
+```
+usage: canair pids migrate-categories [-h] [--dry-run] [--dir DIR]
+                                      [--no-validate]
+                                      [ecu]
+
+One-time migration off ha_class (a Home Assistant device class on nearly every
+signal). An ha_class the signal's unit already implies is removed; any other
+becomes a category (battery -> state_of_charge, light -> lamp,
+battery_charging -> charging), and one with no matching category is removed. A
+PID-level ha_class is resolved into its signals, as category is not inherited.
+Afterwards `canair validate pids` lists the two-state categories that still
+need --value maps. Name an ECU to narrow the sweep; --dry-run lists what would
+change.
+
+positional arguments:
+  ecu            Limit to this ECU (default: every ECU)
+
+options:
+  -h, --help     show this help message and exit
+  --dry-run      List what would change; write nothing
   --dir DIR      ecus/ directory (default: active profile)
   --no-validate  Skip the post-edit schema validation gate
 ```

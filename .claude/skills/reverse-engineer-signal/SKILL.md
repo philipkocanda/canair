@@ -352,7 +352,7 @@ reads as if each page were written by hand, once:
    disagrees on more than a stray corrupt frame or a clamped value is wrong — fix or drop it.
 3. **Write each PID's shared fields and note first.** `pids add-pid --status active`, then
    `set-pid-defaults` with `verified: false`, the `source`/`source_links`, and every
-   `unit`/`ha_class`/`min`/`max` most of its signals share; then `set-pid-notes` with what holds
+   `unit`/`min`/`max` most of its signals share; then `set-pid-notes` with what holds
    for the whole page (where it came from, how it was checked, which recorded replies disagreed,
    a rename table for a block of look-alike signals such as cell voltages).
 4. **Then write the signals with only what differs.** A signal states a field only when its value

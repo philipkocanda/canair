@@ -25,25 +25,21 @@ Unknown-730:
         WHEEL_FR_VSS_HD:
           expression: ((B11 << 8) | B10)/32
           unit: km/h
-          ha_class: speed
           max: "2047"
           notes: Front right wheel speed, high resolution.
         WHEEL_FL_VSS_HD:
           expression: ((B13 << 8) | B12)/32
           unit: km/h
-          ha_class: speed
           max: "2047"
           notes: Front left wheel speed, high resolution.
         WHEEL_RR_VSS_HD:
           expression: ((B15 << 8) | B14)/32
           unit: km/h
-          ha_class: speed
           max: "2047"
           notes: Rear right wheel speed, high resolution.
         WHEEL_RL_VSS_HD:
           expression: ((B18 << 8) | B17)/32
           unit: km/h
-          ha_class: speed
           max: "2047"
           notes: Rear left wheel speed, high resolution.
         STEERING_ANGLE:

@@ -11,7 +11,6 @@ HVAC:
     220100:
       status: active
       unit: °C
-      ha_class: temperature
       min: "-40"
       max: "87.5"
       source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
@@ -35,9 +34,9 @@ HVAC:
         HVAC_HUMIDITY_SENSOR_FOR_AUTOMATIC_DEFOGGER:
           expression: B34
           unit: "%"
-          ha_class: ""
           min: "0"
           max: "100"
+          category: humidity
         HVAC_IAT_DRIVER_VENT:
           expression: B36/2-40
           notes: Interior temperature, driver vent.
@@ -47,13 +46,11 @@ HVAC:
         HVAC_VEHICLE_SPEED:
           expression: B38
           unit: km/h
-          ha_class: speed
           min: "0"
           max: "255"
     220101:
       status: active
       unit: °C
-      ha_class: temperature
       min: "-40"
       max: "87.5"
       source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)
@@ -74,7 +71,6 @@ HVAC:
     220102:
       status: active
       unit: °C
-      ha_class: temperature
       min: "-40"
       max: "87.5"
       source: OBDb Hyundai-Ioniq-5 (offsets checked against its recorded responses)

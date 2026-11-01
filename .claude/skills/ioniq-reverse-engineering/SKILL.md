@@ -222,7 +222,7 @@ Per-ECU YAML under `ecus/` (one ECU per file, with its `tx_id`, `identity:`, and
 SOC_BMS:
   expression: "B09/2"      # WiCAN formula (see reverse-engineer-signal skill)
   unit: "%"
-  ha_class: battery        # downstream device_class
+  category: state_of_charge  # only where the unit does not say it (canlib/signal_category.py)
   mqtt_topic: soc_bms
   min: "0"
   max: "100"

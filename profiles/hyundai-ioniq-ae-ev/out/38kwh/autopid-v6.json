@@ -150,7 +150,7 @@
           "name": "EPS_VEHICLE_SPEED",
           "expression": "B14",
           "unit": "km/h",
-          "class": "none",
+          "class": "speed",
           "min": 0,
           "max": 250
         },
@@ -158,7 +158,7 @@
           "name": "EPS_STEERING_ANGLE",
           "expression": "0-(S9*256+B10)/10",
           "unit": "deg",
-          "class": "none",
+          "class": "",
           "min": -600,
           "max": 600
         }
@@ -186,7 +186,7 @@
           "name": "WHEEL_SPEED_FL",
           "expression": "B18",
           "unit": "km/h",
-          "class": "none",
+          "class": "speed",
           "min": 0,
           "max": 250
         },
@@ -194,7 +194,7 @@
           "name": "WHEEL_SPEED_FR",
           "expression": "B19",
           "unit": "km/h",
-          "class": "none",
+          "class": "speed",
           "min": 0,
           "max": 250
         },
@@ -202,7 +202,7 @@
           "name": "WHEEL_SPEED_RL",
           "expression": "B20",
           "unit": "km/h",
-          "class": "none",
+          "class": "speed",
           "min": 0,
           "max": 250
         },
@@ -210,7 +210,7 @@
           "name": "WHEEL_SPEED_RR",
           "expression": "B21",
           "unit": "km/h",
-          "class": "none",
+          "class": "speed",
           "min": 0,
           "max": 250
         },
@@ -218,7 +218,7 @@
           "name": "GEAR_SELECTOR",
           "expression": "B14",
           "unit": "",
-          "class": "none",
+          "class": "",
           "min": 0,
           "max": 8
         },
@@ -226,7 +226,7 @@
           "name": "STEERING_ANGLE",
           "expression": "([B35:B36]-32768)/10",
           "unit": "deg",
-          "class": "none",
+          "class": "",
           "min": -600,
           "max": 600
         }
@@ -282,7 +282,7 @@
           "name": "HVAC_HEAT_PUMP_ON",
           "expression": "B17",
           "unit": "",
-          "class": "none",
+          "class": "",
           "min": 0,
           "max": 1
         }
@@ -302,7 +302,7 @@
           "name": "HVAC_SET_TEMP_DRIVER",
           "expression": "B44",
           "unit": "\u00b0C",
-          "class": "none",
+          "class": "temperature",
           "min": 15,
           "max": 32
         },
@@ -310,7 +310,7 @@
           "name": "HVAC_SET_TEMP_PASSENGER",
           "expression": "B45",
           "unit": "\u00b0C",
-          "class": "none",
+          "class": "temperature",
           "min": 15,
           "max": 32
         },
@@ -318,7 +318,7 @@
           "name": "HVAC_BLOWER_FAN_SPEED",
           "expression": "B18",
           "unit": "",
-          "class": "none",
+          "class": "",
           "min": 0,
           "max": 121
         }
@@ -338,7 +338,7 @@
           "name": "HVAC_HEAT_POWER",
           "expression": "B42/10",
           "unit": "kW",
-          "class": "none",
+          "class": "power",
           "min": 0,
           "max": 12
         }
@@ -412,37 +412,37 @@
           "name": "TAIL_LAMP_INTERIOR",
           "expression": "B12:2",
           "unit": "",
-          "class": "light"
+          "class": ""
         },
         {
           "name": "TAIL_LIGHTS",
           "expression": "B12:3",
           "unit": "",
-          "class": "light"
+          "class": ""
         },
         {
           "name": "HIGH_BEAM",
           "expression": "B12:4",
           "unit": "",
-          "class": "light"
+          "class": ""
         },
         {
           "name": "LOW_BEAM",
           "expression": "B12:5",
           "unit": "",
-          "class": "light"
+          "class": ""
         },
         {
           "name": "IGN1_SWITCH",
           "expression": "B11:5",
           "unit": "",
-          "class": "power"
+          "class": ""
         },
         {
           "name": "SEATBELT_FL",
           "expression": "B11:1",
           "unit": "",
-          "class": "none"
+          "class": ""
         },
         {
           "name": "DOOR_LOCK_RL",
@@ -460,7 +460,7 @@
           "name": "HOOD_OPEN",
           "expression": "B11:0",
           "unit": "",
-          "class": "none",
+          "class": "",
           "min": 0,
           "max": 1
         }
@@ -504,7 +504,7 @@
           "name": "BRAKE_LIGHT",
           "expression": "B10",
           "unit": "",
-          "class": "none",
+          "class": "",
           "min": 0,
           "max": 255
         },
@@ -512,13 +512,13 @@
           "name": "LEFT_TURN_SIGNAL",
           "expression": "B11:0",
           "unit": "",
-          "class": "none"
+          "class": ""
         },
         {
           "name": "RIGHT_TURN_SIGNAL",
           "expression": "B11:1",
           "unit": "",
-          "class": "none"
+          "class": ""
         }
       ]
     },
@@ -536,7 +536,7 @@
           "name": "MCU_HV_VOLTAGE",
           "expression": "B13*2.56",
           "unit": "V",
-          "class": "none",
+          "class": "voltage",
           "min": 0,
           "max": 500
         }
@@ -556,7 +556,7 @@
           "name": "MCU_MOTOR_RPM",
           "expression": "(S10<<8)|B09",
           "unit": "RPM",
-          "class": "none",
+          "class": "",
           "min": -10500,
           "max": 10500
         }
@@ -624,7 +624,7 @@
           "name": "OBC_PILOT_DUTY",
           "expression": "[B35:B36]/10",
           "unit": "%",
-          "class": "none",
+          "class": "",
           "min": 0,
           "max": 100
         },
@@ -664,7 +664,7 @@
           "name": "OBC_CHARGE_STATE",
           "expression": "B20",
           "unit": "",
-          "class": "none"
+          "class": ""
         }
       ]
     },
@@ -690,73 +690,73 @@
           "name": "GEAR",
           "expression": "B10",
           "unit": "",
-          "class": "none"
+          "class": ""
         },
         {
           "name": "GEAR_P",
           "expression": "B10:0",
           "unit": "",
-          "class": "none"
+          "class": ""
         },
         {
           "name": "GEAR_R",
           "expression": "B10:1",
           "unit": "",
-          "class": "none"
+          "class": ""
         },
         {
           "name": "GEAR_N",
           "expression": "B10:2",
           "unit": "",
-          "class": "none"
+          "class": ""
         },
         {
           "name": "GEAR_D",
           "expression": "B10:3",
           "unit": "",
-          "class": "none"
+          "class": ""
         },
         {
           "name": "VEHICLE_STATE_BRAKE_LAMP",
           "expression": "B11:0",
           "unit": "",
-          "class": "none"
+          "class": ""
         },
         {
           "name": "VEHICLE_STATE_NOT_BRAKING",
           "expression": "B11:1",
           "unit": "",
-          "class": "none"
+          "class": ""
         },
         {
           "name": "VEHICLE_STATE_EV_READY",
           "expression": "B11:3",
           "unit": "",
-          "class": "none"
+          "class": ""
         },
         {
           "name": "VCU_IG3_ON",
           "expression": "B11:4",
           "unit": "",
-          "class": "none"
+          "class": ""
         },
         {
           "name": "DEBUG_GEAR_STATE_FLAGS",
           "expression": "B26",
           "unit": "",
-          "class": "none"
+          "class": ""
         },
         {
           "name": "VCU_INVERTER_ENABLED",
           "expression": "B23:2",
           "unit": "",
-          "class": "none"
+          "class": ""
         },
         {
           "name": "VCU_POWER_STATE",
           "expression": "B25",
           "unit": "",
-          "class": "none",
+          "class": "",
           "min": 0,
           "max": 8
         }
@@ -792,7 +792,7 @@
           "name": "VCU_HV_MAIN_RELAY_ON",
           "expression": "B10",
           "unit": "",
-          "class": "none",
+          "class": "",
           "min": 0,
           "max": 1
         }

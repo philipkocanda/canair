@@ -10,7 +10,6 @@ CLU:
         ODOMETER:
           expression: "[B12:B14]"
           unit: km
-          ha_class: distance
           min: "0"
           max: "16777215"
           source: OBDb Hyundai-Kona-Electric + shared Hyundai/Kia CLU layout (offsets via canair bix)

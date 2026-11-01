@@ -24,6 +24,7 @@ Subcommands:
   set-pid-notes ECU PID [TEXT]     Set (or clear) a PID's free-text notes
   set-pid-defaults ECU PID ...     Set unit/min/max/verified/source… every parameter inherits
   hoist-defaults [ECU [PID]]       Move fields repeated across a PID's parameters up to the PID
+  migrate-categories [ECU]         Replace the retired ha_class field with category
   set-identity ECU FIELD VALUE     Set a curated identity field (e.g. notes)
   rm-identity  ECU FIELD           Remove an identity field (e.g. a redundant duplicate)
   set-can-bus  ECU CODE [CODE ...] Set the physical CAN bus segment(s) (see can_buses.yaml)
@@ -57,6 +58,7 @@ from canlib.commands._hexarg import HexArgError, parse_hex_arg
 from canlib.edit_echo import echo_edit
 from canlib.pids import INHERITED_PARAM_FIELDS, PID_STATUSES
 from canlib.pids_edit import (
+    Migrated,
     PidsEditError,
     add_pid,
     add_research_entry,
@@ -65,6 +67,7 @@ from canlib.pids_edit import (
     delete_research_entry,
     find_ecu_file,
     hoist_defaults,
+    migrate_categories,
     remove_identity_field,
     rename_parameter,
     rename_pid,
@@ -86,6 +89,7 @@ from canlib.pids_edit import (
     upsert_parameter,
 )
 from canlib.profile import require_writable_definitions
+from canlib.signal_category import CATEGORIES, QUANTITY_CATEGORIES
 from canlib.uds.support_map import MapDecl, SupportMapError
 
 NAME = "pids"
@@ -229,7 +233,7 @@ def cmd_upsert_param(args: argparse.Namespace) -> int:
             args.name,
             args.expression,
             unit=args.unit,
-            ha_class=args.ha_class,
+            category=args.category,
             mqtt_topic=args.mqtt_topic,
             send_to=args.send_to,
             min=args.min,
@@ -320,7 +324,7 @@ def _upsert_revision_override(args: argparse.Namespace, ptype, values, bits) -> 
     unsupported = [
         flag
         for flag, value in (
-            ("--ha-class", args.ha_class),
+            ("--category", args.category),
             ("--mqtt-topic", args.mqtt_topic),
             ("--send-to", args.send_to),
             ("--display", args.display),
@@ -590,7 +594,6 @@ def cmd_set_pid_notes(args: argparse.Namespace) -> int:
 def cmd_set_pid_defaults(args: argparse.Namespace) -> int:
     fields = {
         "unit": args.unit,
-        "ha_class": args.ha_class,
         "min": args.min,
         "max": args.max,
         "verified": args.verified,
@@ -656,6 +659,37 @@ def cmd_hoist_defaults(args: argparse.Namespace) -> int:
         fields += len(found)
     verb = "Would hoist" if args.dry_run else "Hoisted"
     print(f"  {verb} {fields} field(s) across {pids} PID(s).")
+    return 0
+
+
+def cmd_migrate_categories(args: argparse.Namespace) -> int:
+    ecus = [args.ecu] if args.ecu else _ecu_names(args.dir)
+    kept = dropped = 0
+    for ecu in ecus:
+        found: list[Migrated] = []
+
+        def do(ecu=ecu, found=found):
+            found.extend(migrate_categories(ecu, dry_run=args.dry_run, pids_dir=args.dir))
+
+        if args.dry_run:
+            do()
+            fpath = find_ecu_file(ecu, pids_dir=args.dir)
+        else:
+            if not args.dir:
+                require_writable_definitions()
+            fpath = _guarded(ecu, args.dir, do, validate=not args.no_validate)
+        for m in found:
+            where = f"{m.pid}/{m.param}" if m.param else f"{m.pid} (PID default)"
+            change = f"category: {m.category}" if m.category else "removed"
+            print(f"  {ecu} {where}: ha_class {m.ha_class!r} -> {change} ({m.reason})")
+            if m.param and m.category:
+                kept += 1
+            else:
+                dropped += 1
+        if found and not args.dry_run:
+            echo_edit(f"{ecu} migrated {len(found)} ha_class field(s)", fpath)
+    verb = "Would migrate" if args.dry_run else "Migrated"
+    print(f"  {verb} {kept + dropped} ha_class field(s): {kept} to category, {dropped} removed.")
     return 0
 
 
@@ -873,7 +907,15 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     up.add_argument("name")
     up.add_argument("expression")
     up.add_argument("--unit")
-    up.add_argument("--ha-class", dest="ha_class")
+    up.add_argument(
+        "--category",
+        choices=[*CATEGORIES, ""],
+        metavar="CATEGORY",
+        help="What the signal measures or represents, only where the unit does not say it: "
+        + ", ".join(c for c in CATEGORIES if c not in QUANTITY_CATEGORIES)
+        + " (or a quantity, when there is no unit). A two-state one (door, lock…) also "
+        "needs --value 0=LABEL --value 1=LABEL. Pass an empty string to remove it",
+    )
     up.add_argument(
         "--mqtt-topic",
         dest="mqtt_topic",
@@ -1237,7 +1279,6 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     spd.add_argument("ecu")
     spd.add_argument("pid")
     spd.add_argument("--unit")
-    spd.add_argument("--ha-class", dest="ha_class")
     spd.add_argument("--min")
     spd.add_argument("--max")
     spd.add_argument("--verified", dest="verified", action="store_true", default=None)
@@ -1258,7 +1299,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "hoist-defaults",
         help="Move fields repeated across a PID's parameters up to the PID",
         description=(
-            "Find PIDs whose parameters repeat the same unit, ha_class, min, max, verified, "
+            "Find PIDs whose parameters repeat the same unit, min, max, verified, "
             "source or source_links and state the value once on the PID instead. A field "
             "moves only when it changes no signal: every parameter must state its own "
             "non-empty value, and one value must be shared by more than half of them (the "
@@ -1272,6 +1313,25 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     hp.add_argument("--dry-run", action="store_true", help="List what would move; write nothing")
     _add_common(hp)
     hp.set_defaults(_pids_func=cmd_hoist_defaults)
+
+    mc = sub.add_parser(
+        "migrate-categories",
+        help="Replace the retired ha_class field with category",
+        description=(
+            "One-time migration off ha_class (a Home Assistant device class on nearly every "
+            "signal). An ha_class the signal's unit already implies is removed; any other "
+            "becomes a category (battery -> state_of_charge, light -> lamp, "
+            "battery_charging -> charging), and one with no matching category is removed. "
+            "A PID-level ha_class is resolved into its signals, as category is not "
+            "inherited. Afterwards `canair validate pids` lists the two-state categories "
+            "that still need --value maps. Name an ECU to narrow the sweep; --dry-run lists "
+            "what would change."
+        ),
+    )
+    mc.add_argument("ecu", nargs="?", help="Limit to this ECU (default: every ECU)")
+    mc.add_argument("--dry-run", action="store_true", help="List what would change; write nothing")
+    _add_common(mc)
+    mc.set_defaults(_pids_func=cmd_migrate_categories)
 
     si = sub.add_parser("set-identity", help="Set a curated identity field (e.g. notes)")
     si.add_argument("ecu")

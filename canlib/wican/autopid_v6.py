@@ -28,6 +28,7 @@ from dataclasses import dataclass
 
 from canlib.expression.lint import firmware_grammar_problems
 from canlib.transport.elm327_addressing import elm_id
+from canlib.wican.autopid_class import autopid_class
 from canlib.wican.autopid_profile import (
     ProfileGenerationError,
     ShippedPid,
@@ -130,7 +131,7 @@ def _parameter(name: str, param: dict) -> dict:
         "name": name,
         "expression": param["expression"],
         "unit": param.get("unit", "") or "",
-        "class": param.get("ha_class", "none") or "none",
+        "class": autopid_class(param),
     }
     # Numbers, or the firmware ignores them. On a specific row a reading outside
     # them is dropped, as 4.x did with the string bounds it parsed.

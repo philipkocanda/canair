@@ -44,7 +44,7 @@ BMS:
         SOC_BMS:
           expression: "B09/2"
           unit: "%"
-          ha_class: battery
+          category: state_of_charge
           min: "0"
           max: "100"
           notes: Raw BMS state of charge (not display-adjusted; see SOC_DISP).
@@ -52,21 +52,18 @@ BMS:
         BATTERY_POWER:
           expression: "(([B18:B19]/10) * (((S15 << 8) | B17)/10)) / 1000"
           unit: kW
-          ha_class: power
           notes: Negative = charging.
           send_to: wican/ioniq/stream/battery_power
 
         BATTERY_VOLTAGE:
           expression: "[B18:B19]/10"
           unit: V
-          ha_class: voltage
           min: "200"
           max: "450"
 
         BATTERY_CURRENT:
           expression: "((S15 << 8) | B17)/10"
           unit: A
-          ha_class: current
           min: "-300"
           max: "300"
           notes: >-
@@ -76,21 +73,18 @@ BMS:
         MAX_CELL_VOLTAGE:
           expression: "B30*0.02"
           unit: V
-          ha_class: voltage
           min: "0"
           max: "10"
 
         MIN_CELL_VOLTAGE:
           expression: "B33*0.02"
           unit: V
-          ha_class: voltage
           min: "0"
           max: "10"
 
         AUX_BATTERY_VOLTAGE:
           expression: "B37*0.1"
           unit: V
-          ha_class: voltage
           min: "0"
           max: "128"
           notes: "12V auxiliary battery"
@@ -104,21 +98,33 @@ BMS:
 
         AC_CHARGER_CONNECTED:
           expression: B14:5
-          ha_class: plug
+          category: plug
           notes: >-
             Set while an AC cable is plugged in, whether or not the EVSE delivers energy; clear
             during a CCS fast charge. Backs the PLUGGED state predicate.
           source: canair analysis 2026-08-08 (CCS DCFC + scheduled home-EVSE wait)
+          type: enum
+          values:
+            0: unplugged
+            1: plugged
         CHARGING_DC:
           expression: B14:6
-          ha_class: plug
+          category: charging
           notes: >-
             Set during DC fast charging (2026-08-08 CCS session, n=54); clear during AC charging.
             OBDb names this bit RAPID_CHG_PORT for the Ioniq Electric, Soul EV and Niro EV.
           source: canair analysis 2026-08-08 50 kW DCFC session (first real rapid charge on this car); OBDb cross-reference 2026-10-27
+          type: enum
+          values:
+            0: not_dc_charging
+            1: dc_charging
         CHARGING:
           expression: "B14:7"
-          ha_class: battery_charging
+          category: charging
+          type: enum
+          values:
+            0: not_charging
+            1: charging
 
         BATTERY_FAN_STATUS:
           expression: "B35"
@@ -141,56 +147,48 @@ BMS:
         BATTERY_INLET_TEMP:
           expression: "S29"
           unit: "°C"
-          ha_class: temperature
           min: "-128"
           max: "128"
 
         BATTERY_MAX_TEMP:
           expression: "S20"
           unit: "°C"
-          ha_class: temperature
           min: "-128"
           max: "128"
 
         BATTERY_MIN_TEMP:
           expression: "S21"
           unit: "°C"
-          ha_class: temperature
           min: "-128"
           max: "128"
 
         MODULE_1_TEMP:
           expression: "S22"
           unit: "°C"
-          ha_class: temperature
           min: "-128"
           max: "128"
 
         MODULE_2_TEMP:
           expression: "S23"
           unit: "°C"
-          ha_class: temperature
           min: "-128"
           max: "128"
 
         MODULE_3_TEMP:
           expression: "S25"
           unit: "°C"
-          ha_class: temperature
           min: "-128"
           max: "128"
 
         MODULE_4_TEMP:
           expression: "S26"
           unit: "°C"
-          ha_class: temperature
           min: "-128"
           max: "128"
 
         MODULE_5_TEMP:
           expression: "S27"
           unit: "°C"
-          ha_class: temperature
           min: "-128"
           max: "128"
 
@@ -205,14 +203,12 @@ BMS:
         CUMULATIVE_ENERGY_CHARGED:
           expression: "((B47<<24)|(B49<<16)|(B50<<8)|B51)/10"
           unit: kWh
-          ha_class: energy
           min: "0"
           notes: Lifetime total, 0.1 kWh per LSB.
 
         CUMULATIVE_ENERGY_DISCHARGED:
           expression: "((B52<<24)|(B53<<16)|(B54<<8)|B55)/10"
           unit: kWh
-          ha_class: energy
           min: "0"
           notes: Lifetime total, 0.1 kWh per LSB.
 
@@ -233,7 +229,6 @@ BMS:
         OPERATING_TIME:
           expression: "[B57:B60]/3600"
           unit: "h"
-          ha_class: duration
           min: "0"
           max: "1000000"
           source: "CSS Electronics DBC (OperatingTime m257 : 399|32@0+, scale 1/3600) + live verification"
@@ -275,7 +270,6 @@ BMS:
           verified: false
           notes: "Mirror of 2105 AVAIL_CHARGE_POWER: 5448 of 5467 aligned rows equal, r=1.000."
           unit: kW
-          ha_class: power
           enabled: false
         BMS_INVERTER_CAPACITOR_VOLTAGE:
           expression: "[B62:B63]"
@@ -287,7 +281,6 @@ BMS:
             Unsigned 16-bit, volts. r=0.986 vs VCU:2102:VCU_DCLINK_VOLTAGE, slope 1.00. Reads 0 to a
             few volts with the main relay open.
           unit: V
-          ha_class: voltage
           enabled: true
         BMS_CONTROLLABLE_STATE:
           expression: B14:1
@@ -299,7 +292,6 @@ BMS:
         AVAIL_DISCHARGE_POWER_MIRROR:
           expression: "[B12:B13]/100"
           unit: kW
-          ha_class: power
           min: "0"
           max: "655"
           source: OBDb Hyundai-IONIQ-Electric (7E4 21 01 bix 56) + canair align 2026-10-27
@@ -388,7 +380,6 @@ BMS:
         AVAIL_CHARGE_POWER:
           expression: "[B22:B23]/100"
           unit: kW
-          ha_class: power
           notes: >-
             98.0 kW throughout DC fast charging: the EVMaximumPowerLimit the car sends a charger
             (broadcast 0x59E bytes 6-7; uhi22 charger logs).
@@ -396,12 +387,10 @@ BMS:
         AVAIL_DISCHARGE_POWER:
           expression: "[B25:B26]/100"
           unit: kW
-          ha_class: power
 
         BATTERY_VOLTAGE_DEVIATION:
           expression: "B27*0.1"
           unit: V
-          ha_class: voltage
 
         QUICK_CHARGING_NORMAL_STATUS:
           expression: "B28"
@@ -409,63 +398,54 @@ BMS:
         MODULE_6_TEMP:
           expression: "S14"
           unit: "°C"
-          ha_class: temperature
           min: "-128"
           max: "128"
 
         MODULE_7_TEMP:
           expression: "S15"
           unit: "°C"
-          ha_class: temperature
           min: "-128"
           max: "128"
 
         MODULE_8_TEMP:
           expression: "S17"
           unit: "°C"
-          ha_class: temperature
           min: "-128"
           max: "128"
 
         MODULE_9_TEMP:
           expression: "S18"
           unit: "°C"
-          ha_class: temperature
           min: "-128"
           max: "128"
 
         MODULE_10_TEMP:
           expression: "S19"
           unit: "°C"
-          ha_class: temperature
           min: "-128"
           max: "128"
 
         MODULE_11_TEMP:
           expression: "S20"
           unit: "°C"
-          ha_class: temperature
           min: "-128"
           max: "128"
 
         MODULE_12_TEMP:
           expression: "S21"
           unit: "°C"
-          ha_class: temperature
           min: "-128"
           max: "128"
 
         BATTERY_HEATER_1_TEMP:
           expression: "S30"
           unit: "°C"
-          ha_class: temperature
           min: "-128"
           max: "128"
 
         BATTERY_HEATER_2_TEMP:
           expression: "S31"
           unit: "°C"
-          ha_class: temperature
           min: "-128"
           max: "128"
 
@@ -489,7 +469,7 @@ BMS:
         SOC_DISP:
           expression: "B39/2"
           unit: "%"
-          ha_class: battery
+          category: state_of_charge
           min: "0"
           max: "100"
           notes: "Display SOC (what the dashboard shows)"
@@ -549,7 +529,6 @@ BMS:
       revisions: [kwp]
       vehicle_states: [IG3]
       unit: V
-      ha_class: voltage
       min: "0"
       max: "5"
       verified: true
@@ -630,7 +609,6 @@ BMS:
       revisions: [kwp]
       vehicle_states: [IG3]
       unit: V
-      ha_class: voltage
       min: "0"
       max: "5"
       verified: true
@@ -708,7 +686,6 @@ BMS:
       revisions: [kwp]
       vehicle_states: [IG3]
       unit: V
-      ha_class: voltage
       min: "0"
       max: "5"
       verified: true
@@ -796,7 +773,6 @@ BMS:
         LAST_CYCLE_MIN_CELL_VOLTAGE:
           expression: B37/50
           unit: V
-          ha_class: voltage
           min: "0"
           max: "5"
           source: canair align vs BMS:2101 2026-10-21
@@ -806,7 +782,6 @@ BMS:
         LAST_CYCLE_MAX_CELL_VOLTAGE:
           expression: B38/50
           unit: V
-          ha_class: voltage
           min: "0"
           max: "5"
           source: canair align vs BMS:2101 2026-10-21
@@ -816,7 +791,6 @@ BMS:
         LAST_CYCLE_MAX_PACK_VOLTAGE:
           expression: "[B43:B44]"
           unit: V
-          ha_class: voltage
           min: "0"
           max: "450"
           source: canair align vs BMS:2101 2026-10-21
@@ -824,7 +798,6 @@ BMS:
         LAST_CYCLE_MIN_PACK_VOLTAGE:
           expression: "[B45:B46]"
           unit: V
-          ha_class: voltage
           min: "0"
           max: "450"
           source: canair align vs BMS:2101 2026-10-21
@@ -965,7 +938,6 @@ BMS:
         LAST_CYCLE_AVG_BATTERY_TEMP:
           expression: B100
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "100"
           notes: >-
@@ -1032,35 +1004,30 @@ BMS:
         SOC_BMS:
           expression: B10/2
           unit: "%"
-          ha_class: battery
+          category: state_of_charge
           min: "0"
           max: "100"
         BATTERY_CURRENT:
           expression: "[S17:S18]/10"
           unit: A
-          ha_class: current
           min: "-400"
           max: "400"
           notes: Signed 16-bit BE; negative = charging.
         BATTERY_VOLTAGE:
           expression: "[B19:B20]/10"
           unit: V
-          ha_class: voltage
           min: "240"
           max: "450"
         BATTERY_POWER:
           expression: (([B19:B20]/10)*([S17:S18]/10))/1000
           unit: kW
-          ha_class: power
           notes: Voltage x current; negative = charging.
         AVAIL_CHARGE_POWER_MIRROR:
           expression: "[B11:B12]/100"
           unit: kW
-          ha_class: power
         AVAIL_DISCHARGE_POWER_MIRROR:
           expression: "[B13:B14]/100"
           unit: kW
-          ha_class: power
         BMS_MAIN_RELAY:
           expression: B15:0
         AC_CHARGER_CONNECTED:
@@ -1074,49 +1041,41 @@ BMS:
         BATTERY_MAX_TEMP:
           expression: S21
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "80"
         BATTERY_MIN_TEMP:
           expression: S22
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "80"
         MODULE_1_TEMP:
           expression: S23
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "80"
         MODULE_2_TEMP:
           expression: S25
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "80"
         MODULE_3_TEMP:
           expression: S26
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "80"
         MODULE_4_TEMP:
           expression: S27
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "80"
         BATTERY_INLET_TEMP:
           expression: S30
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "80"
         MAX_CELL_VOLTAGE:
           expression: B31/50
           unit: V
-          ha_class: voltage
           min: "0"
           max: "5"
         MAX_CELL_VOLTAGE_NO:
@@ -1124,7 +1083,6 @@ BMS:
         MIN_CELL_VOLTAGE:
           expression: B34/50
           unit: V
-          ha_class: voltage
           min: "0"
           max: "5"
         MIN_CELL_VOLTAGE_NO:
@@ -1137,7 +1095,6 @@ BMS:
         AUX_BATTERY_VOLTAGE:
           expression: B38/10
           unit: V
-          ha_class: voltage
           min: "0"
           max: "16"
     220105:
@@ -1156,7 +1113,7 @@ BMS:
         SOH:
           expression: "[B34:B35]/10"
           unit: "%"
-          ha_class: battery
+          category: state_of_health
           min: "0"
           max: "100"
         MAX_DETERIORATION_CELL_NO:
@@ -1169,21 +1126,19 @@ BMS:
         SOC_DISP:
           expression: B41/2
           unit: "%"
-          ha_class: battery
+          category: state_of_charge
           min: "0"
           max: "100"
           notes: Dashboard SOC; the Kona's SOC_DISPLAY, named as on the 2105 page.
         CELL_VOLTAGE_DEVIATION:
           expression: B28/50
           unit: V
-          ha_class: voltage
           min: "0"
           max: "5"
           notes: Max-min cell voltage spread (the Kona's scaling; 2105 reads it as B27*0.1).
         BATTERY_HEATER_1_TEMP:
           expression: S31
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "120"
   research:

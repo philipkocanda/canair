@@ -414,7 +414,6 @@ optional_pid_fields:
   # hoist-defaults` moves a value shared by most of a PID's parameters up to this level. Notes
   # are NOT inherited: a PID's describe the page, a parameter's the signal.
   - unit
-  - ha_class
   - min
   - max
   - verified
@@ -441,7 +440,11 @@ required_param_fields:
 
 optional_param_fields:
   - unit
-  - ha_class
+  - category        # What the signal measures or represents, stated ONLY where its unit does
+                    #   not imply it (a % that is a state of charge, a bit that is a door).
+                    #   Vocabulary and the unit table: canlib/signal_category.py. A binary
+                    #   category (door, lock, lamp…) names the thing; its two-state
+                    #   `type: enum` `values:` says which value is which. Never inherited.
   - mqtt_topic
   - send_to         # Full MQTT topic the WiCAN publishes this signal to on EVERY poll,
                     #   independent of the AutoPID batch cycle (device config canair does

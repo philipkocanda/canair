@@ -92,7 +92,6 @@ HVAC:
         HVAC_INTERIOR_TEMP:
           expression: (B11/2)-40
           unit: "°C"
-          ha_class: temperature
           min: "-40"
           max: "87.5"
           verified: true
@@ -101,7 +100,6 @@ HVAC:
         HVAC_AAT:
           expression: (B12/2)-40
           unit: "°C"
-          ha_class: temperature
           min: "-40"
           max: "87.5"
           verified: true
@@ -111,7 +109,6 @@ HVAC:
         HVAC_HEAT_PUMP_TEMP:
           expression: (B13/2)-40
           unit: "°C"
-          ha_class: temperature
           min: "-40"
           max: "87.5"
           verified: true
@@ -146,7 +143,6 @@ HVAC:
         HVAC_DUCT_TEMP_1:
           expression: (B36/2)-40
           unit: "°C"
-          ha_class: temperature
           min: "-40"
           max: "87.5"
           source: "Monitor session 2026-04-17"
@@ -156,7 +152,6 @@ HVAC:
         HVAC_DUCT_TEMP_2:
           expression: (B37/2)-40
           unit: "°C"
-          ha_class: temperature
           min: "-40"
           max: "87.5"
           source: "Monitor session 2026-04-17"
@@ -189,7 +184,6 @@ HVAC:
         HVAC_VEHICLE_SPEED:
           expression: B38
           unit: km/h
-          ha_class: speed
           min: "0"
           max: "255"
           source: OBDb Hyundai-IONIQ-Electric (7B3 22 0100 bix 232, VSS_7B3) + canair align 2026-10-27
@@ -224,7 +218,6 @@ HVAC:
         HVAC_HEAT_EXCHANGER_TEMP:
           expression: (B10/2)-40
           unit: "°C"
-          ha_class: temperature
           min: "-40"
           max: "87.5"
           notes: >-
@@ -233,7 +226,6 @@ HVAC:
         HVAC_HEAT_EXCHANGER_TEMP_2:
           expression: (B11/2)-40
           unit: "°C"
-          ha_class: temperature
           min: "-40"
           max: "87.5"
           notes: Name is unconfirmed. 8-45.5 °C across 950 captures.
@@ -257,7 +249,6 @@ HVAC:
         HVAC_HOTSIDE_TEMP:
           expression: B19
           unit: °C
-          ha_class: temperature
           max: "127"
           source: Monitor session 2026-04-17; reclassified 2026-07-20; OBDb label added 2026-10-27
           notes: >-
@@ -375,7 +366,6 @@ HVAC:
         HVAC_AAT_MIRROR_B17:
           expression: (B17/2)-40
           unit: "°C"
-          ha_class: temperature
           min: "-40"
           max: "87.5"
           source: HVAC audit 2026-10-22 (time-joined against 220100)
@@ -384,7 +374,6 @@ HVAC:
         HVAC_INTERIOR_TEMP_B13:
           expression: (B13/2)-40
           unit: "°C"
-          ha_class: temperature
           min: "-40"
           max: "87.5"
           source: HVAC audit 2026-10-22 (time-joined against 220100)
@@ -395,7 +384,6 @@ HVAC:
         HVAC_AAT_B15:
           expression: (B15/2)-40
           unit: "°C"
-          ha_class: temperature
           min: "-40"
           max: "87.5"
           source: HVAC audit 2026-10-22 (time-joined against 220100)
@@ -459,7 +447,6 @@ HVAC:
         HVAC_COMPRESSOR_POWER:
           expression: "[B57:B58]/1000"
           unit: kW
-          ha_class: power
           min: "0"
           max: "6"
           source: "RE 2026-10-27: parked pack residual vs 2201A1, 2026-07-30 and 2026-08-09"
@@ -473,7 +460,6 @@ HVAC:
         HVAC_COMPRESSOR_CURRENT:
           expression: "[B33:B34]/10"
           unit: A
-          ha_class: current
           min: "0"
           max: "20"
           source: "RE 2026-10-27: ratio to HVAC_COMPRESSOR_POWER"
@@ -546,7 +532,6 @@ HVAC:
         HVAC_COMPRESSOR_POWER_COARSE:
           expression: B28/10
           unit: kW
-          ha_class: power
           min: "0"
           max: "6"
           source: "RE 2026-10-27: hunt vs parked pack residual"

@@ -28,7 +28,6 @@ MDPS:
         MDPS_MOTOR_CURRENT:
           expression: S18
           unit: A
-          ha_class: current
           min: "-128"
           max: "127"
           notes: Motor-driven power steering current.

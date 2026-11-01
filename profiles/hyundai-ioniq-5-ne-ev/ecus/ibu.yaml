@@ -90,56 +90,48 @@ IBU:
         TIRE_PRESSURE_FL:
           expression: B10/5
           unit: psi
-          ha_class: pressure
           min: "0"
           max: "51"
           notes: Front left tire pressure.
         TIRE_TEMP_FL:
           expression: B11-50
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "65"
           notes: Front left tire temperature.
         TIRE_PRESSURE_FR:
           expression: B15/5
           unit: psi
-          ha_class: pressure
           min: "0"
           max: "51"
           notes: Front right tire pressure.
         TIRE_TEMP_FR:
           expression: B17-50
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "65"
           notes: Front right tire temperature.
         TIRE_PRESSURE_RL:
           expression: B21/5
           unit: psi
-          ha_class: pressure
           min: "0"
           max: "51"
           notes: Rear left tire pressure.
         TIRE_TEMP_RL:
           expression: B22-50
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "65"
           notes: Rear left tire temperature.
         TIRE_PRESSURE_RR:
           expression: B27/5
           unit: psi
-          ha_class: pressure
           min: "0"
           max: "51"
           notes: Rear right tire pressure.
         TIRE_TEMP_RR:
           expression: B28-50
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "65"
           notes: Rear right tire temperature.

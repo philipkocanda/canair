@@ -70,28 +70,24 @@ TEST:
         CELL_1:
           expression: B10*0.02
           unit: V
-          ha_class: voltage
           min: "0"
           max: "5"
           verified: true
         CELL_2:
           expression: B11*0.02
           unit: V
-          ha_class: voltage
           min: "0"
           max: "5"
           verified: true
         CELL_4:
           expression: B13*0.02
           unit: V
-          ha_class: voltage
           min: "0"
           max: "5"
           verified: true
         CELL_3:
           expression: B12*0.02
           unit: V
-          ha_class: voltage
           min: "0"
           max: "5"
           verified: false
@@ -157,7 +153,7 @@ class TestPlanHoist:
 
     def test_a_cell_voltage_group_shares_its_unit_range_and_verified(self):
         plan = plan_hoist(_load_text()["2104"])
-        assert set(plan) == {"unit", "ha_class", "min", "max", "verified"}
+        assert set(plan) == {"unit", "min", "max", "verified"}
         assert plan["unit"] == ("V", ("CELL_1", "CELL_2", "CELL_4", "CELL_3"))
         assert plan["verified"] == (True, ("CELL_1", "CELL_2", "CELL_4"))
 
@@ -207,7 +203,7 @@ class TestHoist:
         hoist_defaults("TEST", "2104", pids_dir=pids_dir)
         text = (pids_dir / "test.yaml").read_text()
         assert (
-            "    2104:\n      status: active\n      unit: V\n      ha_class: voltage\n"
+            "    2104:\n      status: active\n      unit: V\n"
             '      min: "0"\n      max: "5"\n      verified: true\n      parameters:\n'
         ) in text
         cell3 = _load(pids_dir)[2104]["parameters"]["CELL_3"]
@@ -339,10 +335,10 @@ class TestValidation:
 def test_cli_hoist_and_dry_run(pids_dir, capsys):
     args = argparse.Namespace(ecu="TEST", pid=None, dir=pids_dir, dry_run=True, no_validate=False)
     assert cli.cmd_hoist_defaults(args) == 0
-    assert "Would hoist 7 field(s) across 2 PID(s)" in capsys.readouterr().out
+    assert "Would hoist 6 field(s) across 2 PID(s)" in capsys.readouterr().out
     args.dry_run = False
     assert cli.cmd_hoist_defaults(args) == 0
-    assert "Hoisted 7 field(s)" in capsys.readouterr().out
+    assert "Hoisted 6 field(s)" in capsys.readouterr().out
     assert _load(pids_dir)[2101]["source"] == "shared source"
 
 
@@ -359,7 +355,6 @@ def test_cli_set_pid_defaults(pids_dir):
         dir=pids_dir,
         no_validate=False,
         unit="V",
-        ha_class="voltage",
         min="0",
         max="5",
         verified=True,
@@ -369,9 +364,8 @@ def test_cli_set_pid_defaults(pids_dir):
     )
     assert cli.cmd_set_pid_defaults(args) == 0
     pid = _load(pids_dir)[2102]
-    assert (pid["unit"], pid["ha_class"], pid["min"], pid["max"], pid["verified"]) == (
+    assert (pid["unit"], pid["min"], pid["max"], pid["verified"]) == (
         "V",
-        "voltage",
         "0",
         "5",
         True,

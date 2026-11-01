@@ -13,6 +13,8 @@ from canlib import yaml_io
 from canlib.expression.decode_value import BYTE_RUN_TYPES as _BYTE_RUN_TYPES
 from canlib.expression.lint import firmware_grammar_problems, signed_low_bytes
 from canlib.pids import PID_STATUSES, effective_param, is_shipped, pid_status
+from canlib.pids_edit.categories import RETIRED_FIELD
+from canlib.signal_category import category_findings
 from canlib.uds.byteindex import wican_to_isotp
 from canlib.uds.support_map import SupportMapError
 from canlib.uds.support_map import declaration as support_map_declaration
@@ -21,6 +23,11 @@ from canlib.variants.revisions import check_ecu as check_revisions
 from ._common import EXPR_TOKEN_RE, SCHEMA_FILE, duplicate_key_errors
 from .profile_names import profile_name_findings
 from .send_to import send_to_findings
+
+_RETIRED_HINT = (
+    f"{RETIRED_FIELD} is retired in favour of category (stated only where the unit does not "
+    "imply it): run canair pids migrate-categories"
+)
 
 
 def load_schema(path: Path = SCHEMA_FILE) -> dict:
@@ -608,7 +615,9 @@ def _validate_one_pid(
         if field not in pid_def:
             errors.append(f"{label}: missing required PID field '{field}'")
     for field in pid_def:
-        if field not in fields.all_pid:
+        if field == RETIRED_FIELD:
+            warnings.append(f"{label}: {_RETIRED_HINT}")
+        elif field not in fields.all_pid:
             warnings.append(f"{label}: unknown PID field '{field}'")
 
     # Reject legacy visibility booleans (migrated to `status:`) and the
@@ -678,7 +687,7 @@ def _validate_one_pid(
 
 def _validate_shared_fields(node: dict, label: str, errors: list) -> None:
     """Type-check the fields a PID can share with its parameters (on the PID or a parameter)."""
-    for field in ("unit", "ha_class", "source"):
+    for field in ("unit", "source"):
         value = node.get(field)
         if value is not None and not isinstance(value, str):
             errors.append(f"{label}: {field} must be a string")
@@ -725,10 +734,17 @@ def _validate_parameters(
             if field not in param:
                 errors.append(f"{label}: missing '{field}'")
         for field in param:
-            if field not in fields.all_param:
+            if field == RETIRED_FIELD:
+                warnings.append(f"{label}: {_RETIRED_HINT}")
+            elif field not in fields.all_param:
                 warnings.append(f"{label}: unknown field '{field}'")
 
         _validate_shared_fields(param, label, errors)
+        category_errors, category_warnings = category_findings(
+            effective_param(pid_def, param), label
+        )
+        errors.extend(category_errors)
+        warnings.extend(category_warnings)
 
         expr = param.get("expression", "")
         ships = pid_ships and param.get("enabled", True)

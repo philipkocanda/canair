@@ -52,7 +52,7 @@ class TestDocument:
 
     def test_row(self):
         params = {
-            "SOC": _param("B9/2", unit="%", ha_class="battery", min=0, max=100),
+            "SOC": _param("B9/2", unit="%", category="state_of_charge", min=0, max=100),
             "PACK_V": _param("[B12:B13]/10", unit="V"),
         }
         assert _row(_data(params)) == {
@@ -73,7 +73,7 @@ class TestDocument:
                     "min": 0,
                     "max": 100,
                 },
-                {"name": "PACK_V", "expression": "[B12:B13]/10", "unit": "V", "class": "none"},
+                {"name": "PACK_V", "expression": "[B12:B13]/10", "unit": "V", "class": "voltage"},
             ],
         }
 

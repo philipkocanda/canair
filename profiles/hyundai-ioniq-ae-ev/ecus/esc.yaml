@@ -27,7 +27,6 @@ ESC:
         REAL_SPEED_KMH:
           expression: B12
           unit: km/h
-          ha_class: speed
           max: "250"
           source: Kia Niro EV WiCAN PR#660; verified RE 2026-07-22
           source_links:
@@ -121,7 +120,6 @@ ESC:
         ESC_SUPPLY_VOLTAGE:
           expression: B15/16
           unit: V
-          ha_class: voltage
           max: "16"
           source: canair investigate/hunt 2026-10-21
           verified: false

@@ -38,7 +38,6 @@ HVAC:
         CABIN_TEMP:
           expression: B11/2-40
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "87"
           source: OBDb Hyundai-Kona-Electric (KONAEV_TEMP_INT; offset via canair bix)
@@ -48,7 +47,6 @@ HVAC:
         AMBIENT_TEMP:
           expression: B12/2-40
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "87"
           source: OBDb Hyundai-Kona-Electric (KONAEV_TEMP_EXT; offset via canair bix)
@@ -57,7 +55,6 @@ HVAC:
         VEHICLE_SPEED_HVAC:
           expression: B38
           unit: km/h
-          ha_class: speed
           min: "0"
           max: "255"
           source: OBDb Hyundai-Kona-Electric (KONAEV_VSS_7B3; offset via canair bix)

@@ -2,49 +2,49 @@
 
   BMS (0x7E4)
     2101  (11 entries)
-      SOC_BMS                         92.50 %       ✓  B9
-      AVAIL_CHARGE_POWER_MIRROR       70.61 kW      ?  B10-B11
-      AVAIL_DISCHARGE_POWER_MIRROR    98 kW         ?  B12-B13
-      DEBUG_BMS_STATE_FLAGS           3             ?  B14
-      BMS_MAIN_RELAY                  1             ✓  B14
-      BMS_CONTROLLABLE_STATE          1             ✓  B14
-      BMS_WARNING                     0             ?  B14
-      BMS_FAULT                       0             ?  B14
-      BMS_WELD_FLAG                   0             ?  B14
-      AC_CHARGER_CONNECTED            0             ✓  B14
-      CHARGING_DC                     0             ✓  B14
-      CHARGING                        0             ✓  B14
-      BATTERY_POWER                   0.71 kW       ✓  B15,B17-B19
-      BATTERY_CURRENT                 1.80 A        ✓  B15,B17
-      BATTERY_VOLTAGE                 392.60 V      ✓  B18-B19
-      BATTERY_MAX_TEMP                17 °C         ✓  B20
-      BATTERY_MIN_TEMP                17 °C         ✓  B21
-      MODULE_1_TEMP                   17 °C         ✓  B22
-      MODULE_2_TEMP                   17 °C         ✓  B23
-      MODULE_3_TEMP                   17 °C         ✓  B25
-      MODULE_4_TEMP                   17 °C         ✓  B26
-      MODULE_5_TEMP                   17 °C         ✓  B27
-      BATTERY_INLET_TEMP              18 °C         ✓  B29
-      MAX_CELL_VOLTAGE                4.08 V        ✓  B30
-      MAX_CELL_VOLTAGE_NO             2             ✓  B31
-      MIN_CELL_VOLTAGE                4.08 V        ✓  B33
-      MIN_CELL_VOLTAGE_NO             1             ✓  B34
-      BATTERY_FAN_STATUS              0             ✓  B35
-      BATTERY_FAN_FEEDBACK            0 Hz          ✓  B36
-      AUX_BATTERY_VOLTAGE             14.50 V       ✓  B37
-      CUMULATIVE_CURRENT_CHARGED      35224.70 Ah   ✓  B38-B39,B41-B42
-      CUMULATIVE_CURRENT_DISCHARGED   35163.80 Ah   ✓  B43-B46
-      CUMULATIVE_ENERGY_CHARGED       12764.50 kWh  ✓  B47,B49-B51
-      CUMULATIVE_ENERGY_DISCHARGED    12358.40 kWh  ✓  B52-B55
-      OPERATING_TIME                  6142.78 h     ✓  B57-B60
-      MCU_READY                       1             ?  B61
-      MCU_MAIN_RELAY_OFF_REQUEST      0             ?  B61
-      MCU_CONTROLLABLE                1             ?  B61
-      HCU_READY                       1             ✓  B61
-      BMS_INVERTER_CAPACITOR_VOLTAGE  392 V         ?  B62-B63
-      DRIVE_MOTOR_SPEED               0 RPM         ✓  B65-B66
-      DRIVE_MOTOR_SPEED_MIRROR        0 RPM         ?  B67-B68
-      ISOLATION_RESISTANCE            1000 kΩ       ✓  B69-B70
+      SOC_BMS                         92.50 %              ✓  B9
+      AVAIL_CHARGE_POWER_MIRROR       70.61 kW             ?  B10-B11
+      AVAIL_DISCHARGE_POWER_MIRROR    98 kW                ?  B12-B13
+      DEBUG_BMS_STATE_FLAGS           3                    ?  B14
+      BMS_MAIN_RELAY                  1                    ✓  B14
+      BMS_CONTROLLABLE_STATE          1                    ✓  B14
+      BMS_WARNING                     0                    ?  B14
+      BMS_FAULT                       0                    ?  B14
+      BMS_WELD_FLAG                   0                    ?  B14
+      AC_CHARGER_CONNECTED            0 (unplugged)        ✓  B14
+      CHARGING_DC                     0 (not_dc_charging)  ✓  B14
+      CHARGING                        0 (not_charging)     ✓  B14
+      BATTERY_POWER                   0.71 kW              ✓  B15,B17-B19
+      BATTERY_CURRENT                 1.80 A               ✓  B15,B17
+      BATTERY_VOLTAGE                 392.60 V             ✓  B18-B19
+      BATTERY_MAX_TEMP                17 °C                ✓  B20
+      BATTERY_MIN_TEMP                17 °C                ✓  B21
+      MODULE_1_TEMP                   17 °C                ✓  B22
+      MODULE_2_TEMP                   17 °C                ✓  B23
+      MODULE_3_TEMP                   17 °C                ✓  B25
+      MODULE_4_TEMP                   17 °C                ✓  B26
+      MODULE_5_TEMP                   17 °C                ✓  B27
+      BATTERY_INLET_TEMP              18 °C                ✓  B29
+      MAX_CELL_VOLTAGE                4.08 V               ✓  B30
+      MAX_CELL_VOLTAGE_NO             2                    ✓  B31
+      MIN_CELL_VOLTAGE                4.08 V               ✓  B33
+      MIN_CELL_VOLTAGE_NO             1                    ✓  B34
+      BATTERY_FAN_STATUS              0                    ✓  B35
+      BATTERY_FAN_FEEDBACK            0 Hz                 ✓  B36
+      AUX_BATTERY_VOLTAGE             14.50 V              ✓  B37
+      CUMULATIVE_CURRENT_CHARGED      35224.70 Ah          ✓  B38-B39,B41-B42
+      CUMULATIVE_CURRENT_DISCHARGED   35163.80 Ah          ✓  B43-B46
+      CUMULATIVE_ENERGY_CHARGED       12764.50 kWh         ✓  B47,B49-B51
+      CUMULATIVE_ENERGY_DISCHARGED    12358.40 kWh         ✓  B52-B55
+      OPERATING_TIME                  6142.78 h            ✓  B57-B60
+      MCU_READY                       1                    ?  B61
+      MCU_MAIN_RELAY_OFF_REQUEST      0                    ?  B61
+      MCU_CONTROLLABLE                1                    ?  B61
+      HCU_READY                       1                    ✓  B61
+      BMS_INVERTER_CAPACITOR_VOLTAGE  392 V                ?  B62-B63
+      DRIVE_MOTOR_SPEED               0 RPM                ✓  B65-B66
+      DRIVE_MOTOR_SPEED_MIRROR        0 RPM                ?  B67-B68
+      ISOLATION_RESISTANCE            1000 kΩ              ✓  B69-B70
  wican              02 03 04 05 06 07 09 10 11 12 13 14 15 17 18 19 20 21 22 23 25 26 27 28 29 30 31 33 34 35 36 37 38 39 41 42 43 44 45 46 47 49 50 51 52 53 54 55 57 58 59 60 61 62 63 65 66 67 68 69 70 71
       2026-07-21    61 01 FF FF FF FF B4 24 A4 26 48 03 00 05 0F 30 14 13 14 14 13 13 13 00 14 CA 3D CA 01 00 00 91 00 05 5F F7 00 05 5D AD 00 01 F2 9D 00 01 E2 C9 01 51 B0 E9 0D 01 84 00 00 00 00 03 E8  (61 B)
       12:43:59.386  61 01 FF FF FF FF B9 1B 60 26 48 03 00 15 0F 56 11 11 11 11 11 11 11 00 12 CC 02 CC 01 00 00 91 00 05 5F F7 00 05 5D 95 00 01 F2 9D 00 01 E2 C0 01 51 6E AC 0D 01 88 00 00 00 00 03 E8 00  (62 B)

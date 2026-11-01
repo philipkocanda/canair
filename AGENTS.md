@@ -370,7 +370,13 @@ reuse these instead of re-declaring a flag:
   captures — a `constant` where you expected variation usually means the offset landed on a PCI
   byte. Typed decoding (`--type` + `--value`/`--bit`) is a *parallel* decoding in
   `canlib/expression/decode_value.py`; the WiCAN `expression` stays the pure float.
-  **A PID can state `unit`/`ha_class`/`min`/`max`/`verified`/`source`/`source_links` once
+  **A signal states `category:` only where its unit does not imply one** (a `%` that is a
+  state of charge, a bit that is a door; `--category`): the vocabulary, the unit table and the
+  rules are `canlib/signal_category.py`, a category the unit implies is a validation error, a
+  two-state one needs a two-entry `type: enum` saying which value is which, and it is never
+  inherited. Exporters map it onto their target (`canlib/wican/autopid_class.py`). It replaced
+  `ha_class`; `pids migrate-categories` converts an old profile.
+  **A PID can state `unit`/`min`/`max`/`verified`/`source`/`source_links` once
   for all its parameters** (`pids set-pid-defaults`; `pids hoist-defaults` folds up existing
   repetition): a parameter that sets none of its own inherits it, and one that does (even to
   `""`/`[]`/`false`) keeps its value. The list is `canlib/pids.py::INHERITED_PARAM_FIELDS` and
@@ -836,7 +842,7 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   accepts only declared codes and `validate pids` errors on an out-of-vocabulary value.
 - **`profiles/<car>/groups.yaml`** — Named selector groups (`@name`) — see `canair groups`. Loader
   `canlib/ecus/ecu_groups.py`. The bundled Ioniq ships
-  `@charging`/`@driving`/`@powertrain`/`@climate`/`@body`.
+  `@charging`/`@driving`/`@powertrain`/`@climate`/`@body`/`@skm`.
 - **`profiles/<car>/actions.yaml`** — Named, guarded make-specific actions — see `canair
   action`. Edit with `canair action add/set/rm`, never by hand. Withheld by the blind strip, since
   its conditions name decoded signals.

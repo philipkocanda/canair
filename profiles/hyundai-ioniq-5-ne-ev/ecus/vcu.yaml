@@ -30,14 +30,12 @@ VCU:
         VCU_VEHICLE_SPEED:
           expression: ((S18 << 8) | B17)*156.25/10000
           unit: km/h
-          ha_class: speed
           min: "-512"
           max: "511"
           notes: Vehicle speed, high resolution.
         VCU_AUX_BATTERY_VOLTAGE:
           expression: ((B20 << 8) | B19)*4.883/10000
           unit: V
-          ha_class: voltage
           max: "32"
     "22E005":
       status: active
@@ -68,12 +66,10 @@ VCU:
         DISCONNECTOR_DISENGAGE_LAST_TIME:
           expression: B17
           unit: ms
-          ha_class: duration
           max: "255"
         DISCONNECTOR_ACTUATOR_MOTOR_CURRENT:
           expression: S19*2
           unit: A
-          ha_class: current
           min: "-256"
           max: "254"
         DISCONNECTOR_INVERTER_PWM_DUTY:

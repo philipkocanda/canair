@@ -53,7 +53,7 @@ PARAM_FIELD_ORDER = (
     "values",
     "bits",
     "unit",
-    "ha_class",
+    "category",
     "mqtt_topic",
     "send_to",
     "min",
@@ -68,8 +68,8 @@ PARAM_FIELD_ORDER = (
 
 # Optional param fields an empty value *removes* rather than writes as ``""``. An empty
 # send_to is not "no destination" to the profile — it fails validation — so clearing a
-# stream must drop the key.
-CLEARABLE_PARAM_FIELDS = ("send_to",)
+# stream must drop the key; an empty category is not a category either.
+CLEARABLE_PARAM_FIELDS = ("send_to", "category")
 
 # Canonical field order for a rendered research entry.
 RESEARCH_FIELD_ORDER = (
@@ -176,7 +176,7 @@ def upsert_parameter(
     expression: str,
     *,
     unit: str | None = None,
-    ha_class: str | None = None,
+    category: str | None = None,
     mqtt_topic: str | None = None,
     send_to: str | None = None,
     min: str | None = None,
@@ -215,7 +215,7 @@ def upsert_parameter(
         "values": values,
         "bits": bits,
         "unit": unit,
-        "ha_class": ha_class,
+        "category": category,
         "mqtt_topic": mqtt_topic,
         "send_to": send_to,
         "min": min,

@@ -17,7 +17,6 @@ MCU:
         MOTOR_TEMP:
           expression: S18
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "200"
           verified: false
@@ -25,7 +24,6 @@ MCU:
         INVERTER_TEMP:
           expression: S19
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "200"
           verified: false

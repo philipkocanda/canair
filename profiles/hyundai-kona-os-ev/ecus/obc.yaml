@@ -18,7 +18,6 @@ OBC:
         CHARGER_AC_INPUT_VOLTAGE:
           expression: B14*2.56
           unit: V
-          ha_class: voltage
           min: "0"
           max: "300"
           notes: >-
@@ -27,7 +26,6 @@ OBC:
         CHARGER_AC_INPUT_CURRENT:
           expression: B33*2.56
           unit: A
-          ha_class: current
           min: "0"
           max: "100"
           notes: >-
@@ -36,7 +34,6 @@ OBC:
         CHARGER_TEMP:
           expression: B19-100
           unit: °C
-          ha_class: temperature
           min: "-40"
           max: "155"
           notes: Charger temperature (raw-100). OBDb confirmed 2021; 2019 outside its tested range.
