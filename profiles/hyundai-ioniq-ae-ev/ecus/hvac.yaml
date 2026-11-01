@@ -834,6 +834,24 @@ HVAC:
       what_to_test:
         - canair raw 7B3:2FF00002 --session (expect NRC 0x31 if absent)
         - "if positive: canair raw 7B3:2FF02002 --session"
+    - type: iocontrol_scan
+      target: F011-F027 actuator identities
+      status: pending
+      priority: P3
+      vehicle_states: ["ON"]
+      created: "2026-11-01"
+      updated: "2026-11-01"
+      notes: >-
+        The GDS Actuation Test for the HVAC (shop manual pages 0608, 0612, 0616, 0627; ignition on,
+        until Stop) lists, in order: Driver Air Mix Door 0/50/100 %, Passenger Air Mix Door 0/50/100
+        %, Driver Mode Door Vent/Floor/Defrost, Air Inlet Mode Selection Fresh/Recirculation; the
+        list continues below the screenshot. These are the actuators behind the 14 unnamed F011-F027
+        entries; the ShortTermAdjustment value bytes are probably a door position. Mapping DIDs to
+        actuators needs a sniffed GDS test or a value-byte probe with the doors watched.
+      sources:
+        - Ioniq 2017 US shop manual, HVAC actuator inspection screenshots
+      what_to_test:
+        - Sniff a GDS/Kingbolen HVAC actuation test, or try 2F F0xx 03 with one value byte (00/80/FF) on one DID while watching the doors and HVAC 2201A0
   dtcs:
     B1285:
       description: >

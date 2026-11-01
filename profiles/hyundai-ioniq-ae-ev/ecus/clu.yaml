@@ -78,8 +78,10 @@ CLU:
       updated: "2026-07-27"
       notes: >-
         On the e-Niro cluster, 2F B0 01 03 in a 10 03 session lights every indicator lamp and 2F B0
-        01 00 restores normal. Open: send returnControlToECU (2F B001 00, non-actuating) on CLU
-        0x7C6 to see whether the DID exists here.
+        01 00 restores normal. This car's GDS Actuation Test for the cluster offers exactly
+        Indicator ALL ON and Indicator ALL OFF, ignition on, until Stop (shop manual page 0462), so
+        the same test exists here. Open: send returnControlToECU (2F B001 00, non-actuating) on CLU
+        0x7C6 to see whether the DID exists.
       sources:
         - kia-e-niro-can-messages.xlsx (CM Commands sheet)
     - type: verify
@@ -95,3 +97,17 @@ CLU:
         - >-
           Correlate against AAF:2181:AMBIENT_TEMP and HVAC_INTERIOR_TEMP; an internal temperature
           would match neither
+    - type: decode
+      target: 22B003 GDS Current Data names
+      status: pending
+      priority: P3
+      vehicle_states: ["ON"]
+      created: "2026-11-01"
+      updated: "2026-11-01"
+      notes: >-
+        The GDS cluster list (shop manual page 0462) is FUEL INPUT, Battery Voltage on CLU, IGN1,
+        Battery Charge Status, Washer Low. 22B003 (62B0038800000001) marks two bits, B10:0 and
+        B10:4; B10:0 is 1 in every capture (the cluster only answers with the ignition on), which
+        fits IGN1. Which of Battery Charge Status and Washer Low is B10:4 is open.
+      what_to_test:
+        - Read CLU:22B003 with the washer reservoir low, and with the 12 V charge warning lit

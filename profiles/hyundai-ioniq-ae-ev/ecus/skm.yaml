@@ -71,7 +71,87 @@ SKM:
       status: draft
       period: 10000
       vehicle_states: [SLEEP]
-      notes: "11 bytes: 62B005FA60900000040000."
+      notes: >-
+        11 bytes. Support map FA 60 90 at B05-B07. The marked bits follow the GDS Current Data order
+        (shop manual page 0417), LSB first: start button switches, ACC/IGN1/IGN2, start relay
+        feedback, stop lamp switch and fuse, door handle buttons. ON/READY reads B10 = 0x1C, B12 =
+        0xC0, B13 = 0x01; off 0x00, 0x00, 0x00. B11 is 0x04 except one 0x06 (driving) and one 0x24
+        (parked). B12 bits 6-7 and B13 are outside the map.
+      parameters:
+        SSB_SWITCH_1:
+          expression: B10:0
+          min: "0"
+          max: "1"
+          source: GDS Current Data list order (shop manual 0417) vs the support map
+          verified: false
+          notes: GDS 'Start Stop Button Switch1'. 0 in every capture.
+        SSB_SWITCH_2:
+          expression: B10:1
+          min: "0"
+          max: "1"
+          source: GDS Current Data list order (shop manual 0417) vs the support map
+          verified: false
+          notes: GDS 'Start Stop Button Switch2'. 0 in every capture.
+        SKM_ACC_INPUT:
+          expression: B10:2
+          min: "0"
+          max: "1"
+          source: GDS Current Data list order (shop manual 0417) vs the support map
+          verified: false
+          notes: GDS 'ACC'. 1 in every ON/READY capture, 0 off; ACC alone not captured.
+        SKM_IGN1_INPUT:
+          expression: B10:3
+          min: "0"
+          max: "1"
+          source: GDS Current Data list order (shop manual 0417) vs the support map
+          verified: false
+          notes: GDS 'IGN1'. 1 in every ON/READY capture, 0 off.
+        SKM_IGN2_INPUT:
+          expression: B10:4
+          min: "0"
+          max: "1"
+          source: GDS Current Data list order (shop manual 0417) vs the support map
+          verified: false
+          notes: GDS 'IGN2'. 1 in every ON/READY capture, 0 off.
+        START_RELAY_FEEDBACK:
+          expression: B10:6
+          min: "0"
+          max: "1"
+          source: GDS Current Data list order (shop manual 0417) vs the support map
+          verified: false
+          notes: >-
+            GDS lists 'Start Relay Feed Back Signal' then 'Gearshift P Position' after IGN2, with
+            only B10:6 marked (B10:5 is not). 0 in every capture, including parked in P, so it is
+            not an active-high P switch.
+        STOP_LAMP_SWITCH:
+          expression: B11:1
+          min: "0"
+          max: "1"
+          source: GDS Current Data list order (shop manual 0417) vs the support map
+          verified: false
+          notes: >-
+            GDS 'Stop Lamp Switch'. Set in 1 capture, while driving; not checked against the brake.
+        STOP_LAMP_FUSE:
+          expression: B11:2
+          min: "0"
+          max: "1"
+          source: GDS Current Data list order (shop manual 0417) vs the support map
+          verified: false
+          notes: GDS 'Stop Lamp Fuse' (ON = fuse intact). 1 in every capture.
+        DRIVER_DOOR_HANDLE_BUTTON:
+          expression: B12:0
+          min: "0"
+          max: "1"
+          source: GDS Current Data list order (shop manual 0417) vs the support map
+          verified: false
+          notes: GDS 'Driver Door Handle Toggle Button Switch'. 0 in every capture.
+        ASSIST_DOOR_HANDLE_BUTTON:
+          expression: B12:3
+          min: "0"
+          max: "1"
+          source: GDS Current Data list order (shop manual 0417) vs the support map
+          verified: false
+          notes: GDS 'Assist Door Handle Toggle Button Switch'. 0 in every capture.
     22B006:
       response_frames: 4
       status: draft
@@ -84,38 +164,48 @@ SKM:
       min: "0"
       max: "20"
       notes: >-
-        Analog inputs at 0.08 V per count, plus vehicle speed. B17, B18 and B19 (SKM_IGN_LINE_V_*)
-        are ignition-line feedback: non-zero in all 32 captures with IGPM IGN1_SWITCH = 1 and 0 in
-        every other, including 282 charging and top-up captures; 14.2-15.0 V when on, within a count
-        of BCM 22B003 B26/B27/B28. They are the SKM's ACC, ON/START and ON inputs, but all three
-        were on together in every capture, so which byte is which line is open.
+        Analog inputs at 0.08 V per count, plus vehicle speed. Marked bytes follow the GDS Current
+        Data order (shop manual page 0417): Battery Voltage (by CPU) B10, Engine Speed (unmarked
+        B11), Vehicle Speed B12, then ACC, IGN1, IGN2 and Starter Relay Output, then Battery Voltage
+        (by Load) B21. B17-B19 are the three relay outputs: non-zero in all 32 captures with IGPM
+        IGN1_SWITCH = 1 and 0 in every other, including 282 charging and top-up captures; 14.2-15.0
+        V when on, within a count of BCM 22B003 B26/B27/B28. B20 is the starter output (always 0);
+        B14 and B15 have no GDS item (B15 always 0, B14 160 in one capture).
       parameters:
 
         SKM_12V_BATTERY:
           expression: B10*0.08
           notes: >-
-            Reads 2-3 counts (about 0.2 V) above BCM_12V_BATTERY in 175 of 186 co-polled rows
-            (r=0.96), the same 0.08 V/count scale: about 12.4 V parked, 14.8 V in READY and while
-            charging.
-        SKM_12V_SUPPLY_B21:
+            GDS 'Battery Voltage Monitoring Input (by CPU)'. Reads 2-3 counts (about 0.2 V) above
+            BCM_12V_BATTERY in 175 of 186 co-polled rows (r=0.96), the same 0.08 V/count scale:
+            about 12.4 V parked, 14.8 V in READY and while charging.
+        SKM_12V_BATTERY_BY_LOAD:
           expression: B21*0.08
           notes: >-
-            Equals SKM_12V_BATTERY or 1 count below in every capture: a second battery-fed supply
-            input.
+            GDS 'Battery Voltage Monitoring Input (by Load)', the last GDS item and the last marked
+            byte. Equals SKM_12V_BATTERY or 1 count below in every capture.
         SKM_VEHICLE_SPEED:
           expression: B12
           notes: >-
-            0 except while driving on 2026-10-25 (12:22-12:36, 19 captures): 41 at VCU_VEHICLE_SPEED
-            42.3, 84 at 87.4, 66 at 66-70, 0 when stopped. VCU reads about 4% high.
+            GDS 'Vehicle Speed Signal', after 'Engine Speed' (unmarked B11). 0 except while driving
+            on 2026-10-25 (12:22-12:36, 19 captures): 41 at VCU_VEHICLE_SPEED 42.3, 84 at 87.4, 66
+            at 66-70, 0 when stopped; within 1 of AAF_VEHICLE_SPEED_KMH.
           unit: km/h
           ha_class: speed
           max: "255"
-        SKM_IGN_LINE_V_B17:
+        SKM_ACC_RELAY_OUTPUT_V:
           expression: B17*0.08
-        SKM_IGN_LINE_V_B18:
+        SKM_IGN1_RELAY_OUTPUT_V:
           expression: B18*0.08
-        SKM_IGN_LINE_V_B19:
+        SKM_IGN2_RELAY_OUTPUT_V:
           expression: B19*0.08
+        SKM_STARTER_RELAY_OUTPUT_V:
+          expression: B20*0.08
+          source: GDS Current Data list order (shop manual 0417) vs the support map
+          verified: false
+          notes: >-
+            GDS 'Starter Relay Output', the item between IGN2 Relay Output and Battery Voltage (by
+            Load). 0 in every capture.
     22B007:
       response_frames: 3
       status: draft
@@ -380,7 +470,7 @@ SKM:
       updated: "2026-07-30"
       result: >-
         B10/B21 are 12 V supply voltages at 0.08 V/count: B10 reads 2-3 counts above BCM_12V_BATTERY
-        (SKM_12V_BATTERY, SKM_12V_SUPPLY_B21).
+        (SKM_12V_BATTERY, SKM_12V_BATTERY_BY_LOAD).
       notes: >-
         Open: B007 B11 (SKM_B007_FLAG) bit 1, 0x04/0x06 with the ignition off; correlate with a
         physical event.
@@ -392,9 +482,10 @@ SKM:
       created: "2026-10-23"
       updated: "2026-10-23"
       result: >-
-        22B006 B17, B18 and B19 (SKM_IGN_LINE_V_*) read the ignition-line voltages: non-zero exactly
-        when IGN1_SWITCH = 1. The ON-only and ACC states have not been captured, so which byte is
-        which line, and whether ACC shows on its own, is open.
+        22B006 B17, B18 and B19 are non-zero exactly when IGN1_SWITCH = 1; GDS order names them the
+        ACC, IGN1 and IGN2 relay outputs. 22B005 B10 bits 2-4 are the GDS ACC, IGN1 and IGN2 inputs
+        (SKM_ACC_INPUT etc.). The ACC-only state has not been captured, so whether B17 and B10:2
+        show ACC on their own is open.
       notes: >-
         No signal tells ACC apart from OFF yet. The SKM reads back three terminal lines after its
         relays: ON (IGN2), ACC/ON (ACC) and ON/START (IGN1), on SMK connector C pins 8, 18 and 9,

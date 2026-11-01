@@ -1184,6 +1184,28 @@ BCM:
         - ES95486-00 sections 3.1 and 8.1
       what_to_test:
         - canair scan routines BCM --rid-range 0200-DFFF --session, in ON
+    - type: decode
+      target: GDS Current Data names for the bit pages
+      status: pending
+      priority: P3
+      created: "2026-11-01"
+      updated: "2026-11-01"
+      notes: >-
+        The GDS BCM lists (shop manual pages 0426, 0487, 0372) give, after the option settings and
+        the 22B003 voltages: ACC, IGN1, IGN2, Defogger/Deicer Switch, Washer, INT, Mist, Wiper Stop
+        Position Switch, Wiper Low/High Relay, Head Lamp Washer Relay, Room Lamp Output, Foot Lamp
+        Output, Tail Lamp Switch, Auto Light Switch, Head Lamp Switch, Head Lamp High Switch,
+        Front/Rear Fog Switch, Tail AV, Auto Light Power, Rear Fog Relay, Puddle Lamp Output,
+        External Trunk Release Switch, Key Interlock Switch, ATM Solenoid Output, Safety Power
+        Window Enable, Assist Seat Belt Indicator, Crash Input Signal, Rain Sensor Option Line, PAS
+        Option Line, Brake Switch, Sunroof Open, Head Lamp Passing Switch, Wiper Low/High Switch,
+        Front Wiper Backup Switch. 22B004 B10 bits 1-3 (0x0E in ON) fit ACC/IGN1/IGN2; the rest do
+        not line up with the support-mapped bits of 22B004-22B00D in one consistent order. The
+        22B003 order (battery, auto light sensor, light switch, head lamp high, fog, front wiper
+        switch, wiper INT volume voltages) fits B10, B12, B14 and puts the front wiper switch at
+        B18.
+      sources:
+        - Ioniq 2017 US shop manual, BCM Current Data screenshots
   iocontrol_discoveries:
     B003:
       response: "6FB00300"

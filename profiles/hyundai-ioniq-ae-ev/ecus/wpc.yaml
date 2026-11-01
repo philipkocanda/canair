@@ -48,8 +48,11 @@ WPC:
         A later-generation Hyundai/Kia WPC keeps its live data in three record DIDs, each led by a
         4-byte supported-PID map: BE01 user options, BE02 byte data (charging voltage/current/power,
         battery and IGN1 voltage, coil temperatures, fan speed) and BE03 bit data (LED states,
-        smart-key LF search inhibit, charging status). The 2026-07-22 sweep covered only 0101-010F,
-        B001-B010 and C101-C10F. Read BE00-BEFF with a phone on and off the pad.
+        smart-key LF search inhibit, charging status). This car's GDS list (shop manual page 0566)
+        matches: Charging Voltage, Charging Current, Charging Power, Battery Voltage, ACC Input
+        Voltage, then ACC, Amber LED On/Off, Amber Blinking, Green LED On/Off, SMK LF Searching
+        Signal and Charging Status. The 2026-07-22 sweep covered only 0101-010F, B001-B010 and
+        C101-C10F. Read BE00-BEFF with a phone on and off the pad.
       sources:
         - Hyundai/Kia WPC diagnostic spec (supplier ECU spec, 2018-2025)
       what_to_test:
