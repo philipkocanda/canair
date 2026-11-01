@@ -132,8 +132,9 @@ answer only while it is 1. `VCU_IGN_ON` (B11:0|B11:1) is the
 ignition as the VCU sees it, and `VCU_POWER_STATE` (B25) the VCU's operating mode. Which of IG3
 #1/#2/quick-charge is closed is not decoded: IGPM 22BC07 `IG3_RELAY_OUTPUT` (B12:3) and OBC 2101
 `OBC_AC_NOT_CONNECTED` are the candidates (hypotheses; see the IGPM research entry). Nothing decoded
-separates ACC from OFF yet; the SKM's `ACC/ON input` is the candidate (SKM research entry). SKM
-IOControl B108 to B10B are the ACC, IGN1, IGN2 and START outputs.
+separates ACC from OFF yet; the SKM's `ACC/ON input` is the candidate: SKM 22B006 B17/B18/B19
+(`SKM_IGN_LINE_V_*`) read the three ignition-line voltages, but which byte is ACC needs an ACC-only
+capture (SKM research entry). SKM IOControl B108 to B10B are the ACC, IGN1, IGN2 and START outputs.
 
 ## Profiles
 

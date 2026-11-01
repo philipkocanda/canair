@@ -538,8 +538,10 @@ BMS:
           verified: false
           notes: >-
             GDS name Airbag H/wire Duty, listed between Quick Charging Normal Status and Heat 1
-            Temperature; GDS shows 80 %. Takes only 75, 80, 85 and 100 across 5478 captures: 100 in
-            some sessions, 75-85 in others.
+            Temperature; GDS shows 80 %. Follows the ignition: 100 in 1555 of 1557 rows with IGPM
+            IGN1_SWITCH = 0, 75-85 in 119 of 120 with it on (the exceptions are transition rows).
+            Within READY it steps between 75, 80 and 85 with no link to temperature, SOC, current or
+            12 V.
     2102:
       response_frames: 6
       status: active
@@ -1277,11 +1279,15 @@ BMS:
         canair scan BMS --service 22 --range 0100-0114 --save, then E001-E002 and E00A, in READY
     - type: decode
       target: 2105 B29 airbag hard-wire duty
-      status: captured
+      status: done
       priority: P3
       vehicle_states: [READY]
       created: "2026-10-27"
-      updated: "2026-10-27"
+      updated: "2026-11-01"
+      result: >-
+        100 % with the ignition off, 75-85 % with it on (IGN1_SWITCH cross-tab, 1676 aligned rows).
+        Consistent with the airbag unit's hard-wired crash-signal output, a PWM line it drives only
+        on IGN1; the line reads 100 % when undriven.
       notes: >-
         Registered as AIRBAG_HWIRE_DUTY: the GDS list (shop manual pages 0661, 0663, 0700) places
         Airbag H/wire Duty between Quick Charging Normal Status and Heat 1 Temperature, at 80 %. B29
