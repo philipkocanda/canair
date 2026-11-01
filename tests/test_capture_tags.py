@@ -14,6 +14,7 @@ import pytest
 
 from canlib import profile as profile_mod
 from canlib.captures import io as capture_io
+from canlib.dtc.log import log_file
 from canlib.profile import Profile, ProfileError
 from canlib.variants import edit as variants_edit
 from canlib.variants.selection import apply_variant, require_named_car
@@ -34,6 +35,7 @@ def _session(label: str, *, variant: str | None = None, time: str = "09:00:00") 
 def prof(tmp_path, monkeypatch):
     """A two-variant profile with an empty capture store, made active."""
     monkeypatch.delenv("CANAIR_VARIANT", raising=False)
+    monkeypatch.setattr("canlib.dtc.log.log_dir", lambda: tmp_path / "dtc_log")
     root = tmp_path / "kia-ev6-cv-ev"
     (root / "ecus").mkdir(parents=True)
     (root / "captures").mkdir()
@@ -313,13 +315,15 @@ class TestRenameAndRemove:
         )
         prof.can_dir.mkdir(parents=True)
         prof.can_index_file.write_text("logs:\n- file: x.asc\n  format: asc\n  variant: 28kwh\n")
-        prof.dtc_log_file.write_text("scans:\n- timestamp: t\n  variant: 28kwh\n")
+        dtc_log = log_file(prof)
+        dtc_log.parent.mkdir(parents=True, exist_ok=True)
+        dtc_log.write_text("scans:\n- timestamp: t\n  variant: 28kwh\n")
         assert find_references(prof, "28kwh").total == 3
         _, written = rename_everywhere("28kwh", "28kwh-eu", prof)
         assert len(written) == 3
         assert capture_io.load_capture_file(path)["sessions"][0]["variant"] == "28kwh-eu"
         assert "variant: 28kwh-eu" in prof.can_index_file.read_text()
-        assert "variant: 28kwh-eu" in prof.dtc_log_file.read_text()
+        assert "variant: 28kwh-eu" in dtc_log.read_text()
         assert "28kwh-eu" in prof.variants_file.read_text()
         assert find_references(prof, "28kwh").total == 0
 

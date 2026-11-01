@@ -14,7 +14,6 @@ A *profile* is a self-contained directory bundling one vehicle's data:
       signals/             broadcast signal maps, one <bus>.yaml per CAN bus
       captures/            raw UDS capture files (per date) + can/ frame logs
       references/          external reference material (spreadsheets, other logs)
-      dtc_log.yaml         DTC scan history (gitignored)
       out/                 generated WiCAN JSON profiles (optional)
 
 Only ``profile.yaml`` and ``ecus/`` are required; every other member is optional
@@ -68,9 +67,11 @@ class ProfileError(Exception):
 #   evidence   — recorded measurements: contributed opt-in (`--captures`),
 #                append-only, unioned rather than replaced.
 #   external   — third-party material of uncertain licence: never contributed.
-#   local      — machine-local bookkeeping (gitignored): never contributed.
 #   generated  — reproducible output: never contributed, regenerate instead.
-MemberRole = Literal["definition", "evidence", "external", "local", "generated"]
+# Machine-local bookkeeping about *your* car (the DTC log, detected revisions) is no
+# member at all: it lives in user state under the config dir, where a reinstall or
+# re-clone of the profile cannot delete it.
+MemberRole = Literal["definition", "evidence", "external", "generated"]
 MemberKind = Literal["file", "dir"]
 
 
@@ -126,7 +127,6 @@ BUNDLE_MEMBERS: tuple[BundleMember, ...] = (
     BundleMember("signals", "dir", "definition", attr="signals_dir", blind_strip=True),
     BundleMember("captures", "dir", "evidence", attr="captures_dir"),
     BundleMember("references", "dir", "external", attr="references_dir", blind_strip=True),
-    BundleMember("dtc_log.yaml", "file", "local", attr="dtc_log_file", blind_strip=True),
     BundleMember("out", "dir", "generated", attr="out_dir", blind_strip=True),
 )
 
@@ -196,11 +196,6 @@ class Profile:
     def references_dir(self) -> Path:
         """External reference material (other-vehicle logs, spreadsheets)."""
         return self.root / "references"
-
-    @property
-    def dtc_log_file(self) -> Path:
-        """Per-profile DTC scan history (gitignored — recorded by `canair dtc`)."""
-        return self.write_root / "dtc_log.yaml"
 
     @property
     def captures_dir(self) -> Path:

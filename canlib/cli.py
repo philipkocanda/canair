@@ -32,6 +32,7 @@ _GROUP_DEFAULTS = {
     "search": ({"uds"}, "uds"),
     "scan": ({"range", "iocontrol", "routines", "sessions"}, "range"),
     "ecu": ({"show", "add", "rename", "revisions", "set-variants"}, "show"),
+    "dtc": ({"read", "log"}, "read"),
     # A bare token after `states` (e.g. `canair states READY`) is a state name to
     # look up (which ECUs are readable in it), routed through the `list` kind.
     "states": (

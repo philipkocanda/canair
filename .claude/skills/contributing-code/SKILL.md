@@ -124,7 +124,7 @@ A selector missing from `_DISPATCH` is not an error — it silently falls throug
 REPL, which is why `tests/test_dispatch_table.py` pins both membership and the table's
 (load-bearing) order.
 
-Follow an existing command as a template: `commands/dtc.py` + `modes/dtc.py`.
+Follow an existing command as a template: `commands/dtc/` + `modes/dtc.py`.
 
 ## Selecting ECUs/PIDs — prefer the query mini-language
 

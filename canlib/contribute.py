@@ -59,8 +59,7 @@ MODE_DIRECT = "direct"  # push to upstream directly, same-repo PR
 # Bundle members copied into a contribution, from the single declaration in
 # canlib.profile. Curated definitions always ship; the captures/ evidence is
 # opt-in-controlled separately. External material (references/, uncertain
-# licence), machine-local bookkeeping (dtc_log.yaml) and generated output (out/)
-# are excluded by their role.
+# licence) and generated output (out/) are excluded by their role.
 _DEFINITION_MEMBERS = member_names(members_by_role("definition"))
 _CAPTURE_MEMBER = members_by_role("evidence")[0].name
 # Transient/helper members never contributed, matched as globs against each path

@@ -29,7 +29,6 @@ class TestBundleLayout:
         assert prof.can_buses_file == tmp_path / "can_buses.yaml"
         assert prof.groups_file == tmp_path / "groups.yaml"
         assert prof.references_dir == tmp_path / "references"
-        assert prof.dtc_log_file == tmp_path / "dtc_log.yaml"
         assert prof.out_dir == tmp_path / "out"
 
     def test_states_file_prefers_canonical_name(self, tmp_path):

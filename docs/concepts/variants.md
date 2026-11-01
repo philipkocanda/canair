@@ -156,7 +156,7 @@ one of the profile's, and an unknown one is an error listing the valid ones.
 |---|---|
 | `--save` on any live command | the session is tagged; its attribution is `selected` (you named it), `alias` (implied by an old profile name — shown as unconfirmed) or `only` (the profile's one variant) |
 | `canair import uds` / `import can` | on a multi-variant profile the global `--variant` is **required** (an import is someone else's car, so `CANAIR_VARIANT` doesn't count) |
-| `canair dtc` | each logged scan records the variant |
+| `canair dtc` | each logged scan records the variant and the ECU revisions; `canair dtc log`, the open codes in `canair ecu` and the totals count only your car's scans |
 | analysis (`decode`, `captures`, `correlate`, …) | scoped to your car's sessions, plus untagged ones read as your car (with a note); with no car chosen, every tagged session and no untagged ones; `--variant all` / `--variant untagged` override that |
 
 The tag is part of the recording, so a session recovered after a crash keeps the car it was

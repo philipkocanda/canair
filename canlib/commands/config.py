@@ -466,7 +466,35 @@ def _gather(args) -> dict:
         info["profile"] = None
         info["profile_error"] = str(e)
 
+    info["dtc_log"] = _dtc_log_stats((info.get("profile") or {}).get("name"))
     return info
+
+
+def _dtc_log_stats(active_name: str | None) -> dict:
+    """Every profile's DTC log in user state; open codes only for the active car."""
+    from canlib.dtc.history import log_stats
+    from canlib.dtc.log import log_dir, log_path
+    from canlib.dtc.scope import ANY_CAR
+
+    if active_name:
+        try:
+            log_path()  # folds a legacy in-profile log in before it is counted
+        except Exception:
+            pass
+    directory = log_dir()
+    logs = []
+    for path in sorted(directory.glob("*.yaml")) if directory.is_dir() else []:
+        active = path.stem == active_name
+        try:
+            stats = log_stats(path, car=None if active else ANY_CAR)
+        except Exception as e:
+            logs.append({"profile": path.stem, "file": str(path), "error": str(e)})
+            continue
+        entry = {"profile": path.stem, "active": active, **stats.as_dict()}
+        if not active:
+            del entry["open"], entry["open_codes"]
+        logs.append(entry)
+    return {"dir": str(directory), "logs": logs}
 
 
 # Keys rendered on their own in the "Settings" block are shown from the
@@ -528,6 +556,8 @@ def _render(info: dict) -> None:
         for k, v in others.items():
             c.print(f"    {k:<{width + 2}}{v}")
 
+    _render_dtc_log(c, info.get("dtc_log") or {})
+
     p = info.get("profile")
     if p:
         c.print(f"\n  [bold]Active profile[/bold]  {p['name']}  [dim]{p['root']}[/dim]")
@@ -535,6 +565,29 @@ def _render(info: dict) -> None:
         c.print(f"\n  [bold]Active profile[/bold]  [yellow]{info['profile_error']}[/yellow]")
     c.print(f"\n  [dim]Every key documented: `canair config example` · {CONFIG_DOCS_URL}[/dim]")
     c.print()
+
+
+def _render_dtc_log(c, dtc: dict) -> None:
+    logs = dtc.get("logs") or []
+    c.print(f"\n  [bold]DTC log[/bold]   {dtc.get('dir', '?')}")
+    if not logs:
+        c.print("    [dim]no scans logged yet (`canair dtc --all` records one)[/dim]")
+        return
+    width = max(len(e["profile"]) for e in logs)
+    for e in logs:
+        name = f"{e['profile']:<{width}}"
+        if e.get("error"):
+            c.print(f"    {name}  [red]{e['error']}[/red]")
+            continue
+        text = f"{e['scans']} scan(s), {e['dtcs_seen']} DTC(s) seen"
+        if e.get("active"):
+            n, ecus = e["open_codes"], len(e["open"])
+            text += f", [red]{n} open on {ecus} ECU(s)[/red]" if n else ", none open"
+        if e.get("last_scan"):
+            text += f"  [dim]last {e['last_scan']}[/dim]"
+        if e.get("other_car_scans"):
+            text += f"  [dim](+{e['other_car_scans']} for another car or revision)[/dim]"
+        c.print(f"    {name}  {text}")
 
 
 def _cmd_show(args) -> int:

@@ -6,6 +6,7 @@ import json
 
 import pytest
 
+from canlib.dtc.log import log_file
 from canlib.profile import Profile
 from canlib.states.rename import (
     StateRenameError,
@@ -60,7 +61,8 @@ def _session(states, spans=None):
 
 
 @pytest.fixture
-def prof(tmp_path):
+def prof(tmp_path, monkeypatch):
+    monkeypatch.setattr("canlib.dtc.log.log_dir", lambda: tmp_path / "dtc_log")
     root = tmp_path / "car"
     (root / "ecus").mkdir(parents=True)
     (root / "captures").mkdir()
@@ -78,10 +80,11 @@ def prof(tmp_path):
         ]
     }
     (root / "captures" / "2026-01-01.json").write_text(json.dumps(data, indent=2) + "\n")
-    (root / "dtc_log.yaml").write_text(
-        "scans:\n- timestamp: '2026-01-01T10:00:00'\n  vehicle_states:\n  - ACC2\n"
-    )
-    return Profile("car", root)
+    profile = Profile("car", root)
+    log = log_file(profile)
+    log.parent.mkdir(parents=True)
+    log.write_text("scans:\n- timestamp: '2026-01-01T10:00:00'\n  vehicle_states:\n  - ACC2\n")
+    return profile
 
 
 class TestSwapToken:
@@ -115,7 +118,7 @@ class TestPlan:
         assert plan.ecu_refs == {prof.ecus_dir / "engine.yaml": 3}
         # Session 0: union + one span; session 1: union (lowercase); session 2: none.
         assert plan.capture_refs == {prof.captures_dir / "2026-01-01.json": 3}
-        assert plan.log_refs == {prof.dtc_log_file: 1}
+        assert plan.log_refs == {log_file(prof): 1}
         assert plan.rewrites_history
         assert {p: p.read_text() for p in prof.root.rglob("*") if p.is_file()} == before
 
@@ -156,7 +159,7 @@ class TestApply:
         assert sessions[1]["vehicle_states"] == ["RUN", "PARKED"]
         assert list(sessions[0]) == ["date", "label", "vehicle_states", "state_spans", "captures"]
 
-        assert "- RUN" in prof.dtc_log_file.read_text()
+        assert "- RUN" in log_file(prof).read_text()
 
     def test_a_failed_write_restores_every_file(self, prof, monkeypatch):
         before = {p: p.read_text() for p in prof.root.rglob("*") if p.is_file()}
@@ -186,9 +189,7 @@ class TestBooleanWordStates:
         # Every YAML store reads back the string, never the boolean.
         assert yaml_io.safe_load(ecu)["ENGINE"]["vehicle_states"] == ["READY", "ON"]
         assert yaml_io.safe_load(states)["states"][1]["name"] == "ON"
-        assert yaml_io.safe_load(prof.dtc_log_file.read_text())["scans"][0]["vehicle_states"] == [
-            "ON"
-        ]
+        assert yaml_io.safe_load(log_file(prof).read_text())["scans"][0]["vehicle_states"] == ["ON"]
         # JSON needs no quoting.
         sessions = json.loads((prof.captures_dir / "2026-01-01.json").read_text())["sessions"]
         assert sessions[1]["vehicle_states"] == ["ON", "PARKED"]

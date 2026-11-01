@@ -325,7 +325,7 @@ The `extends:` key is what turns a same-named user profile from a *shadow* into 
 | Comes from | What |
 |---|---|
 | the base (bundled, read-only) | `ecus/`, `vehicle_states.yaml`, `can_buses.yaml`, `groups.yaml`, `signals/`, and its committed `captures/` |
-| your layer | every capture you record, `dtc_log.yaml`, generated `out/` |
+| your layer | every capture you record, generated `out/` |
 
 Analysis reads both layers as one history — `canair decode`, `correlate`, `hunt`,
 `align` and `captures` see the upstream captures *and* yours, in chronological

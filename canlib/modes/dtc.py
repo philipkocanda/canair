@@ -254,8 +254,10 @@ def _log_scan(scope: str, results: list[dict], label: str | None, vehicle_states
     )
 
     ecus: dict = {}
+    unread: list[str] = []
     for r in results:
         if "dtcs" not in r:
+            unread.append(r["ecu"])
             continue
         codes = [d["dtc"] for d in r["dtcs"]]
         # Full sweep keeps only ECUs with codes (absence on a same-scope sweep =
@@ -264,7 +266,13 @@ def _log_scan(scope: str, results: list[dict], label: str | None, vehicle_states
         if scope != "all" or codes:
             ecus[r["ecu"]] = {"tx": r.get("tx"), "protocol": r["protocol"], "dtcs": codes}
 
-    current = build_scan(scope, ecus, label=label, vehicle_states=vehicle_states)
+    current = build_scan(
+        scope,
+        ecus,
+        label=label,
+        vehicle_states=vehicle_states,
+        unread=unread if scope == "all" else None,
+    )
     previous = latest_matching(scope)
     diff = diff_scans(previous, current) if previous else None
     path = append_scan(current)
@@ -281,7 +289,7 @@ def _print_log_result(path, previous, diff) -> None:
             print(line)
     else:
         print("  No previous scan of this scope — recorded as baseline.")
-    print(f"  \033[2mLogged scan to {path.name}\033[0m\n")
+    print(f"  {ansi.DIM}Logged scan to {path} (`canair dtc log` to review){ansi.RESET}\n")
 
 
 async def _read_one(
@@ -534,7 +542,7 @@ async def mode_dtc_scan_all(
         if log:
             # log_path is set by _log_scan() in the identical `if log:` block above.
             assert log_path is not None
-            out["log"] = {"file": log_path.name, "diff": log_diff}
+            out["log"] = {"file": str(log_path), "diff": log_diff}
         print(json.dumps(out, indent=2))
         return
 
@@ -589,7 +597,7 @@ async def mode_dtc_clear(
     (0xFFFF = all). Mutates ECU fault memory — confirmation is the caller's job.
 
     When ``log`` is set, the current codes are read first (so the log records
-    what was cleared), a ``manual`` clear event is written to dtc_log.yaml, and
+    what was cleared), a ``manual`` clear event is written to the DTC log, and
     the ECU's scan baseline is updated to clean so a later scan doesn't also
     report these as self-cleared.
     """
@@ -639,7 +647,7 @@ async def mode_dtc_clear(
                 elif pre_codes == []:
                     print("    (no codes were present)")
                 if log:
-                    print("  \033[2mLogged clear to dtc_log.yaml\033[0m")
+                    print(f"  {ansi.DIM}Logged clear to the DTC log{ansi.RESET}")
                 print()
         elif response.get("nrc") is not None:
             if as_json:

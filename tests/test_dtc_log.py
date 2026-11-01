@@ -1,4 +1,4 @@
-"""Tests for canlib.dtc_log — DTC scan history (append + diff)."""
+"""Tests for canlib.dtc.log — DTC scan history (append + diff)."""
 
 from canlib.dtc import log as dtc_log
 
@@ -136,7 +136,7 @@ def test_render_scan_decodes_and_shows_metadata():
         timestamp="2026-07-22T10:00:00",
     )
     text = "\n".join(dtc_log.render_scan(entry, previous=None))
-    assert "DTC history: all" in text
+    assert "DTC log: all" in text
     assert "2026-07-22T10:00:00" in text
     assert "baseline" in text
     assert "ready" in text

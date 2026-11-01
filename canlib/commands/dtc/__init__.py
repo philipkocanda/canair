@@ -1,9 +1,20 @@
-"""``canair dtc`` — read and clear Diagnostic Trouble Codes (UDS 0x19 / 0x14)."""
+"""``canair dtc`` — read and clear Diagnostic Trouble Codes, and review their log.
+
+Two kinds live under one command:
+
+  * ``canair dtc read [ECU]`` — read (UDS ``0x19`` / KWP2000 ``0x18``) or clear
+    (``0x14``) an ECU's fault memory, or sweep every ECU with ``--all``. Each read is
+    recorded to the DTC log. A bare ``canair dtc BMS`` (or ``canair dtc --all``) is
+    shorthand for it — see ``_inject_default_subcommand`` in ``canlib/cli.py``.
+  * ``canair dtc log [ECU]`` — the last logged scan, offline (:mod:`.log`).
+"""
 
 from __future__ import annotations
 
 import argparse
+import sys
 
+from canlib.commands._group import group_help
 from canlib.commands._live import (
     add_connection_args,
     ecu_completer,
@@ -13,20 +24,54 @@ from canlib.commands._live import (
 
 NAME = "dtc"
 
+# Kept in sync with the ``dtc`` entry in ``cli._GROUP_DEFAULTS``.
+DTC_KINDS = ("read", "log")
+
 
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
-        help="Read or clear DTCs (ReadDTCInformation 0x19 / ClearDiagnosticInformation 0x14)",
+        help="Read or clear DTCs (ReadDTCInformation 0x19 / ClearDiagnosticInformation 0x14), "
+        "or review the DTC log: read | log",
+        description="Read, clear or review Diagnostic Trouble Codes. Choose a kind:\n"
+        "  read  read stored DTCs (UDS 0x19 / KWP2000 0x18) or clear them (0x14)\n"
+        "  log   show the last logged scan, offline (no device)\n\n"
+        "A bare `canair dtc BMS` (or `canair dtc --all`, or `canair dtc` alone) is "
+        "shorthand for `canair dtc read …`.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""\
+examples:
+  canair dtc BMS                       Read all stored DTCs (bare = read)
+  canair dtc --all                     Scan every ECU (logs + shows changes since last scan)
+  canair dtc log                       Show the last logged full-sweep scan (offline)
+  canair dtc log BMS                   Show the last logged scan for one ECU (offline)
+
+Run `canair dtc <kind> --help` for the flags of each kind.""",
+    )
+    kinds = parser.add_subparsers(dest="dtc_kind", metavar="<kind>")
+    _add_read_parser(kinds)
+    from canlib.commands.dtc.log import add_parser as _add_log_parser
+
+    _add_log_parser(kinds)
+    parser.set_defaults(func=group_help("_dtc_group_parser"), _dtc_group_parser=parser)
+    return parser
+
+
+def _add_read_parser(kinds) -> argparse.ArgumentParser:
+    parser = kinds.add_parser(
+        "read",
+        help="Read or clear DTCs on one ECU, or scan every ECU (--all)",
         description="Read stored Diagnostic Trouble Codes with UDS 0x19 "
-        "(reportDTCByStatusMask), or clear them with UDS 0x14. Clearing mutates "
-        "ECU fault memory and prompts for confirmation unless --yes is given.",
+        "(reportDTCByStatusMask) or KWP2000 0x18, or clear them with 0x14. Clearing "
+        "mutates ECU fault memory and prompts for confirmation unless --yes is given. "
+        "Every read is recorded to the DTC log (`canair dtc log`), which lives in user "
+        "state, not in the profile.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
 examples:
   canair dtc BMS                       Read all stored DTCs (status mask FF)
   canair dtc --all                     Scan every ECU (logs + shows changes since last scan)
-  canair dtc --all --no-log            Scan every ECU without recording to the history log
+  canair dtc --all --no-log            Scan every ECU without recording to the DTC log
   canair dtc BMS --label fixed         Read + log a single-ECU scan with a label
   canair dtc --all --state ready       Log a full scan tagged with the vehicle state
   canair dtc BMS --mask 08             Read confirmed DTCs only (mask 0x08)
@@ -36,8 +81,6 @@ examples:
   canair dtc BMS --clear --yes         Clear without the confirmation prompt
   canair dtc BMS --protocol kwp        Force KWP2000 readDTCByStatus (0x18)
   canair dtc BMS --supported           List every DTC a KWP2000 ECU supports (not a fault list)
-  canair dtc --history                 Show the last logged full-sweep scan (offline, no device)
-  canair dtc BMS --history             Show the last logged scan for one ECU (offline)
 """,
     )
     parser.add_argument(
@@ -49,22 +92,17 @@ examples:
         action="store_true",
         help="Scan every ECU in the profile for DTCs (protocol auto-selected per ECU)",
     )
+    # Superseded by `canair dtc log`; kept working so old scripts don't break.
     parser.add_argument(
-        "--history",
-        dest="dtc_history",
-        action="store_true",
-        help="Show the most recent logged scan from dtc_log.yaml without touching "
-        "the device (useful when the WiCAN is offline). Decodes each code and "
-        "reports the change since the previous scan. Scope is --all by default, "
-        "or a single ECU when one is named.",
+        "--history", dest="dtc_history", action="store_true", help=argparse.SUPPRESS
     )
     parser.add_argument(
         "--no-log",
         dest="dtc_log",
         action="store_false",
         default=True,
-        help="Don't record this scan to the profile's dtc_log.yaml (scans are "
-        "logged by default, reporting what cleared/appeared since the last scan)",
+        help="Don't record this scan to the DTC log (scans are logged by default, "
+        "reporting what cleared/appeared since the last scan)",
     )
     parser.add_argument(
         "--no-retry",
@@ -135,7 +173,10 @@ examples:
 
 def run(args) -> int:
     if getattr(args, "dtc_history", False):
-        return _run_history(args)
+        from canlib.commands.dtc.log import run as run_log
+
+        print("note: `--history` is now `canair dtc log`.", file=sys.stderr)
+        return run_log(args)
     if getattr(args, "dtc_supported", False) and (
         getattr(args, "dtc_all", False) or getattr(args, "clear", False)
     ):
@@ -143,42 +184,12 @@ def run(args) -> int:
         return 2
     if not args.dtc and not getattr(args, "dtc_all", False):
         from canlib.commands._hints import ecu_hint
+        from canlib.commands.dtc.log import log_hint
 
         print("Specify an ECU (e.g. `canair dtc BMS`) or `canair dtc --all`.\n")
         print(ecu_hint())
+        hint = log_hint()
+        if hint:
+            print(f"\n{hint}")
         return 2
     return run_live(args)
-
-
-def _run_history(args) -> int:
-    """Offline: print the most recent logged scan for the requested scope."""
-    from canlib.dtc.log import latest_matching, prior_matching, render_scan
-
-    if args.dtc:
-        from canlib.ecus import ecu_display, resolve_tx
-
-        tx_id = resolve_tx(args.dtc)
-        if tx_id is None:
-            from canlib.commands._hints import ecu_hint
-
-            print(f"Unknown ECU '{args.dtc}'.\n")
-            print(ecu_hint())
-            return 2
-        scope = ecu_display(tx_id)
-    else:
-        scope = "all"
-
-    entry = latest_matching(scope)
-    if entry is None:
-        print(
-            f"No logged DTC scan for scope '{scope}'. "
-            "Run `canair dtc "
-            + (args.dtc if args.dtc else "--all")
-            + "` while connected to record one."
-        )
-        return 1
-
-    previous = prior_matching(scope, entry.get("timestamp", ""))
-    for line in render_scan(entry, previous):
-        print(line)
-    return 0

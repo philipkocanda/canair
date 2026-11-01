@@ -51,7 +51,8 @@ elm.log*
 # Per-profile logs (command/response captures) and generated build output
 profiles/*/logs/
 
-# Per-vehicle DTC scan history — runtime state, changes every scan, not shared
+# Legacy location of the DTC log (now user state, ~/.config/canair/dtc_log/); an older
+# canair may still write it here until the next run moves it
 profiles/*/dtc_log.yaml
 
 # Capture journals — write-ahead logs, reconciled into captures/*.json on exit

@@ -519,6 +519,19 @@ class TestEditors:
         assert session["revisions"] == {"PCU": "kwp"}
         assert session["attribution"]["revisions"] == {"PCU": "only"}
 
+    def test_revision_and_ecu_renames_follow_into_the_dtc_log(self, copy, tmp_path, monkeypatch):
+        monkeypatch.setattr("canlib.dtc.log.log_dir", lambda: tmp_path / "dtc_log")
+        log = tmp_path / "dtc_log" / "variants.yaml"
+        log.parent.mkdir()
+        log.write_text(
+            "scans:\n- timestamp: t\n  scope: VCU (0x7E2)\n  ecus: {}\n  revisions: {VCU: uds}\n"
+        )
+        assert _run(copy, "ecu", "revisions", "VCU", "rename", "uds", "uds2") == 0
+        assert yaml.safe_load(log.read_text())["scans"][0]["revisions"] == {"VCU": "uds2"}
+        assert _run(copy, "ecu", "revisions", "VCU", "rm", "uds2") == 1  # still logged
+        assert _run(copy, "ecu", "rename", "VCU", "PCU") == 0
+        assert yaml.safe_load(log.read_text())["scans"][0]["revisions"] == {"PCU": "uds2"}
+
     def test_profile_use_pin(self, monkeypatch, tmp_path):
         monkeypatch.setenv("CANAIR_PROFILES_DIR", str(FIXTURE.parent))
         assert main(["profile", "use", "variants", "--variant", "60kwh", "--pin", "vcu=uds"]) == 0

@@ -215,6 +215,7 @@ def plan_state_rename(old: str, new: str, *, profile: Profile | None = None) -> 
     rename cannot be made: ``old`` is not declared, ``new`` already is, either is
     ``ALL``, or a reference is in a form this cannot rewrite.
     """
+    from canlib.dtc.log import log_file as dtc_log_file
     from canlib.profile import active
     from canlib.states.edit import _find, _load_doc, normalize_name
 
@@ -233,7 +234,7 @@ def plan_state_rename(old: str, new: str, *, profile: Profile | None = None) -> 
     plan = StateRenamePlan(old=old, new=new, states_file=profile.states_file)
     _plan_ecus(plan, profile.ecus_dir)
     _plan_captures(plan, profile.captures_dir)
-    _plan_round_trip(plan, profile.dtc_log_file)
+    _plan_round_trip(plan, dtc_log_file(profile))
     _plan_round_trip(plan, profile.can_index_file)
     return plan
 

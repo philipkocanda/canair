@@ -189,7 +189,6 @@ class TestResolution:
         assert prof.states_file == base / "vehicle_states.yaml"
         assert prof.write_root == dest
         assert prof.captures_dir == dest / "captures"
-        assert prof.dtc_log_file == dest / "dtc_log.yaml"
         assert prof.out_dir == dest / "out"
         assert prof.capture_layers == [base / "captures", dest / "captures"]
 

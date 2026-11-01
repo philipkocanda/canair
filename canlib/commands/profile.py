@@ -441,6 +441,12 @@ def _cmd_show(args) -> int:
                 idx = "none — optional"
             print(f"{'can logs:':<12}{prof.can_dir}  ({idx})")
 
+    from canlib.dtc.log import load_log, log_file
+
+    dtc_log = log_file(prof)
+    scans = len(load_log(dtc_log)["scans"]) if dtc_log.exists() else 0
+    detail = f"{scans} scan(s) — user state" if scans else "none — user state"
+    print(f"{'dtc log:':<12}{dtc_log}  ({detail})")
     return 0
 
 

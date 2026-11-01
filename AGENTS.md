@@ -209,10 +209,19 @@ and **`g`/`G` address the view's primary axis**.
   steps still refuse it and `--unsafe` plays no part; and **every action is guarded** — mandatory
   `reads`/`require`, only TRUE passes, no `or`/`not`, only read ECUs. The Ioniq's `sleep` sends
   the functional `10 D1` (quirk `hk_forced_sleep`); untested on the car.
-- **`canair dtc`** — Read DTCs for one ECU or `--all` (UDS `0x19` / KWP `0x18` by `id_protocol`),
-  log each scan to `dtc_log.yaml`, and report what **changed** since the last scan. DTC meanings
-  live per-ECU in `ecus/<name>.yaml` `dtcs:`; profile-wide `failure_types:` in `profile.yaml`.
-  Read-only unless `--clear` (`0x14`).
+- **`canair dtc`** — A group: `dtc read` (the default kind, so `canair dtc BMS`/`--all` still
+  work) reads DTCs for one ECU or `--all` (UDS `0x19` / KWP `0x18` by `id_protocol`), logs each
+  scan and reports what **changed** since the last one; `dtc log` shows the last logged scan
+  offline. DTC meanings live per-ECU in `ecus/<name>.yaml` `dtcs:`; profile-wide
+  `failure_types:` in `profile.yaml`. Read-only unless `--clear` (`0x14`). **The DTC log is user
+  state, not a bundle member** — `<config dir>/dtc_log/<profile>.yaml`
+  (`canlib/dtc/log.py::log_file`), because a reinstall or re-clone deletes a profile directory;
+  a legacy `<profile>/dtc_log.yaml` is folded in on first use (`canlib/migrations/dtc_log.py`).
+  Entries are tagged with the car (variant + `revisions:`, like a capture session) and every
+  reader filters through `canlib/dtc/scope.py::Car`: another variant's or another ECU
+  revision's codes say nothing about this car. Open codes and totals
+  (`canlib/dtc/history.py`) back the bare-`dtc` hint, `canair ecu <ECU>` (open codes in red)
+  and `canair config`.
 - **`canair sniff`** — Passive sniffer, **`slcan-tcp` only** (offers to switch the device). Live
   per-ID table plus optional `.asc`/`.blf`/`.csv` logging via `--save`. The only way to observe
   broadcasts the request/response path can't see.
@@ -722,7 +731,7 @@ a **dangling** overlay (nothing underneath) and on `extends:` naming a *differen
 to `plans/2026-07-30-profile-variant-inheritance.md` — `extends:` is deliberately that plan's key).
 - **`Profile` gained `overlays: tuple[Path, ...]`** (least specific first) with `layered`,
   `write_root` and `capture_layers`. Definitions (`ecus_dir`, `states_file`, `signals_dir`,
-  `can_buses_file`, `groups_file`, `meta_file`) stay on `root`; `captures_dir`/`dtc_log_file`/
+  `can_buses_file`, `groups_file`, `meta_file`) stay on `root`; `captures_dir`/
   `out_dir` derive from `write_root`. **Definitions do not overlay in this slice** — an edit is
   refused by `canlib/profile.py::require_writable_definitions()`, called from the single edit funnel
   in each of `pids`/`states`/`groups`/`signals`/`ecu add`. It raises `ProfileError`, which

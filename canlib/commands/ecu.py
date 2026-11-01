@@ -320,6 +320,7 @@ def _detail_record(
         "identity": {k: info[k] for k, _ in _IDENTITY_FIELDS if info.get(k) is not None},
         "identity_note": _identity_note(name),
     }
+    rec["dtcs"] = _dtc_status(tx_id, name)
     per_pid, total = _captures_by_pid(name)
     if ecu_def is not None:
         rec["stats"] = _pid_stats(ecu_def)
@@ -331,6 +332,41 @@ def _detail_record(
         rec["captures"] = total
         rec["pid_list"] = []
     return rec
+
+
+def _dtc_status(tx_id: int, name: str) -> dict | None:
+    """The ECU's codes at its latest logged scan on this car (None: never scanned)."""
+    from canlib.dtc.history import ecu_status
+    from canlib.profile import ProfileError
+
+    try:
+        status = ecu_status(tx_id, name)
+    except (ProfileError, OSError):
+        return None
+    return status.as_dict() if status is not None else None
+
+
+def _print_dtcs(rec: dict) -> None:
+    """Open DTCs in red, from the DTC log (offline: as of the latest logged scan)."""
+    from canlib.dtc.describe import describe_dtc
+
+    status = rec.get("dtcs")
+    if status is None:
+        print(
+            f"\n  {ansi.BOLD}DTCs{ansi.RESET}  {ansi.DIM}none logged — "
+            f"`canair dtc {rec['name']}` reads them{ansi.RESET}"
+        )
+        return
+    codes = status["open"]
+    when = f"{ansi.DIM}(as of the scan of {status['scanned']}){ansi.RESET}"
+    if not codes:
+        print(f"\n  {ansi.BOLD}DTCs{ansi.RESET}  {ansi.GREEN}none open{ansi.RESET} {when}")
+        return
+    print(f"\n  {ansi.BOLD}DTCs{ansi.RESET}  {ansi.c(f'{len(codes)} open', ansi.RED)} {when}")
+    width = max(len(c) for c in codes)
+    for code in codes:
+        meaning = describe_dtc(code).get("meaning") or ""
+        print(f"    {ansi.c(f'{code:<{width}}', ansi.RED)}  {meaning}".rstrip())
 
 
 def _identity_note(name: str) -> str | None:
@@ -458,6 +494,8 @@ def cmd_detail(rec: dict, as_json: bool) -> int:
         if rec.get("vehicle_states"):
             avail = ", ".join(str(a) for a in rec["vehicle_states"])
             print(f"    {'States':<14} {avail}")
+
+    _print_dtcs(rec)
 
     # Per-PID breakdown
     if rec["pid_list"]:

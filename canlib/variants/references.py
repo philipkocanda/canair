@@ -1,12 +1,13 @@
 """Renaming or removing a variant, with everything that refers to it.
 
 A variant ID is written into the history — capture sessions' ``variant`` tags, the
-raw-CAN log index and DTC-log entries — and into the ECU files that are fitted only to
-some variants (``variants:``). Renaming one in ``variants.yaml`` alone would
-leave all of that naming a car the profile no longer declares, so a rename rewrites
-every reference with it, all or nothing; a removal is refused while anything still
-refers to the variant. Like ``states rename``, it touches only the profile's own
-files — a layered profile's base is never rewritten.
+raw-CAN log index and DTC-log entries (in user state, :mod:`canlib.dtc.log`) — and
+into the ECU files that are fitted only to some variants (``variants:``). Renaming one
+in ``variants.yaml`` alone would leave all of that naming a car the profile no longer
+declares, so a rename rewrites every reference with it, all or nothing; a removal is
+refused while anything still refers to the variant. Like ``states rename``, it touches
+only the profile's own files and its DTC log — a layered profile's base is never
+rewritten.
 """
 
 from __future__ import annotations
@@ -62,6 +63,8 @@ def _entries(path: Path, section: str) -> list:
 
 def find_references(profile: Profile, variant_id: str) -> References:
     """Every use of ``variant_id`` in ``profile``'s own recorded history."""
+    from canlib.dtc.log import log_file as dtc_log_file
+
     vid = normalize_variant_id(variant_id)
     captures: dict[Path, int] = {}
     for layer in profile.capture_layers:
@@ -76,7 +79,7 @@ def find_references(profile: Profile, variant_id: str) -> References:
     dtc_log = sum(
         1
         for section in ("scans", "clears")
-        for e in _entries(profile.dtc_log_file, section)
+        for e in _entries(dtc_log_file(profile), section)
         if isinstance(e, dict) and e.get("variant") == vid
     )
     return References(captures, can_index, dtc_log, _fitted_ecus(profile, vid))
@@ -119,6 +122,8 @@ def retag_history(profile: Profile, old: str, new: str) -> list[Path]:
     All or nothing: every new file body is computed first, then written, and the
     originals are restored if any write fails. Returns the files written.
     """
+    from canlib.dtc.log import log_file as dtc_log_file
+
     old, new = normalize_variant_id(old), normalize_variant_id(new)
     planned: dict[Path, str] = {}
     cdir = profile.captures_dir
@@ -133,7 +138,7 @@ def retag_history(profile: Profile, old: str, new: str) -> list[Path]:
                 planned[path] = capture_io.capture_text(data)
     for path, sections in (
         (profile.can_index_file, ("logs",)),
-        (profile.dtc_log_file, ("scans", "clears")),
+        (dtc_log_file(profile), ("scans", "clears")),
     ):
         text = _retag_yaml(path, sections, old, new)
         if text is not None:

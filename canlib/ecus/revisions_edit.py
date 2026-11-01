@@ -272,10 +272,11 @@ class RevisionReferences:
     gates: int = 0
     variants: list[str] = field(default_factory=list)
     captures: dict[Path, int] = field(default_factory=dict)
+    dtc_log: int = 0
 
     @property
     def total(self) -> int:
-        return self.gates + len(self.variants) + sum(self.captures.values())
+        return self.gates + len(self.variants) + sum(self.captures.values()) + self.dtc_log
 
     def describe(self) -> str:
         parts = []
@@ -286,6 +287,8 @@ class RevisionReferences:
         if self.captures:
             n = sum(self.captures.values())
             parts.append(f"{n} capture session(s) in {len(self.captures)} file(s)")
+        if self.dtc_log:
+            parts.append(f"{self.dtc_log} DTC-log entr(ies)")
         return ", ".join(parts)
 
 
@@ -344,7 +347,39 @@ def find_revision_references(ecu: str, revision: str, profile: Profile) -> Revis
             n = sum(1 for s in sessions if _session_revision(s, name) == rid)
             if n:
                 refs.captures[path] = n
+    refs.dtc_log = sum(1 for e in _dtc_log_entries(profile) if _session_revision(e, name) == rid)
     return refs
+
+
+def _dtc_log_entries(profile: Profile) -> list:
+    from canlib.dtc.log import load_log, log_file
+
+    data = load_log(log_file(profile))
+    return [
+        e for section in ("scans", "clears") for e in data.get(section) or [] if isinstance(e, dict)
+    ]
+
+
+def _retag_dtc_log(profile: Profile, rewrite_entry) -> dict[Path, str]:
+    """New text for ``profile``'s DTC log when a rewrite changes any of its entries.
+
+    Its entries carry the same ``revisions:`` tag a capture session does."""
+    from io import StringIO
+
+    from canlib.dtc.log import log_file
+    from canlib.yaml_rt import dump, round_trip_yaml
+
+    path = log_file(profile)
+    if not path.exists():
+        return {}
+    data = round_trip_yaml().load(path.read_text())
+    entries = [e for s in ("scans", "clears") for e in (data or {}).get(s) or []]
+    changed = [rewrite_entry(e) for e in entries if isinstance(e, dict)]
+    if not any(changed):
+        return {}
+    buf = StringIO()
+    dump(data, buf)
+    return {path: buf.getvalue()}
 
 
 def _retag_captures(profile: Profile, rewrite_session) -> dict[Path, str]:
@@ -384,7 +419,8 @@ def rename_revision(
 
     Rewrites the declaration (keeping its position), every PID/signal gate naming it,
     each variant's ``revisions:`` list for the ECU, and the ``revisions`` tags of the
-    profile's own capture sessions. Returns the ECU file and the other files rewritten.
+    profile's own capture sessions and of its DTC log. Returns the ECU file and the
+    other files rewritten.
     """
     from canlib.variants.edit import set_variant_revisions
 
@@ -423,7 +459,7 @@ def rename_revision(
         tags[key] = new_id
         return True
 
-    planned = _retag_captures(prof, retag)
+    planned = {**_retag_captures(prof, retag), **_retag_dtc_log(prof, retag)}
     variants_original = prof.variants_file.read_text() if prof.variants_file.exists() else None
     ecu_original = fpath.read_text()
     _edit_ecu(name, prof, change)
@@ -478,7 +514,8 @@ def remove_revision(ecu: str, revision: str, *, profile: Profile | None = None) 
 
 
 def retag_ecu_rename(old: str, new: str, profile: Profile) -> list[Path]:
-    """After an ECU rename: rewrite variants' ``revisions:`` keys and capture tags."""
+    """After an ECU rename: rewrite variants' ``revisions:`` keys, and the revision tags
+    of captures and of the DTC log."""
     from canlib.variants.edit import rename_variant_revisions_ecu
 
     def retag(session: dict) -> bool:
@@ -495,7 +532,8 @@ def retag_ecu_rename(old: str, new: str, profile: Profile) -> list[Path]:
     written: list[Path] = []
     if profile.variants_file.exists() and rename_variant_revisions_ecu(old, new, profile=profile):
         written.append(profile.variants_file)
-    return written + _write_all(_retag_captures(profile, retag))
+    planned = {**_retag_captures(profile, retag), **_retag_dtc_log(profile, retag)}
+    return written + _write_all(planned)
 
 
 # ── per-revision overrides ──────────────────────────────────────────────────

@@ -67,10 +67,11 @@ _STRIP_IDENTITY_FIELDS = ("description", "notes", "vin", "serial")
 # answers (or is simply not needed). Declared by the bundle registry's
 # `blind_strip` flag: out/ (generated autopid-v4/v6.json — contains every
 # expression!), references/ (third-party sheets with decodes), signals/
-# (broadcast signal names and scales), dtc_log.yaml.
+# (broadcast signal names and scales). A legacy dtc_log.yaml not yet moved into user
+# state (canlib.migrations.dtc_log) is withheld too.
 _STRIP_BUNDLE_MEMBERS = tuple(m.name for m in BUNDLE_MEMBERS if m.blind_strip)
 _COPY_IGNORE = shutil.ignore_patterns(
-    *_STRIP_BUNDLE_MEMBERS, ".journal", "*.tmp", ".git", "__pycache__"
+    *_STRIP_BUNDLE_MEMBERS, "dtc_log.yaml", ".journal", "*.tmp", ".git", "__pycache__"
 )
 
 # ── Curated non-trivial corpus (stable across runs) ─────────────────────────────

@@ -142,9 +142,9 @@ Manufacturer meanings are **never invented** — an unknown manufacturer code sh
 its structure only. To teach canair a code's meaning, add it to the ECU's `dtcs:`
 section (this is authored data — edit it through the profile, not by guessing).
 
-## The scan history log
+## The DTC log
 
-Every scan is recorded to the profile's `dtc_log.yaml` (disable with `--no-log`)
+Every scan is recorded to the DTC log (disable with `--no-log`)
 and compared against the previous same-scope scan, so canair reports **what
 changed** — codes that **appeared** and codes that **cleared** (the car
 self-healed or a code aged out) since last time. Tag a scan for context:
@@ -159,13 +159,31 @@ canair dtc BMS --label "after replacing sensor"
   from the [`vehicle_states.yaml`](captures-and-states.md) vocabulary, e.g.
   `ready` or `sleep, plugged`).
 
-Review history **without touching the device** (handy when the car is off) with
-`--history`:
+Review the log **without touching the device** (handy when the car is off) with
+`canair dtc log`:
 
 ```bash
-canair dtc --history        # the last logged full sweep, offline
-canair dtc BMS --history    # the last logged scan for one ECU, offline
+canair dtc log         # the last logged full sweep, offline
+canair dtc log BMS     # the last logged scan for one ECU, offline
 ```
+
+A bare `canair dtc` says how many codes the log holds and how many are still open,
+`canair ecu <ECU>` lists that ECU's **open** codes in red (the codes its most recent
+logged scan read), and `canair config` shows each profile's log totals.
+
+**Where it lives.** The log is the only record of your car's fault history, so it is
+kept in user state, `~/.config/canair/dtc_log/<profile>.yaml`, and not in the profile
+directory, which a reinstall, a re-clone or a `git clean` deletes. A
+`dtc_log.yaml` left in a profile by an older canair is moved there the first time
+the log is used.
+
+**It belongs to one car.** Each entry records the [variant](variants.md) it was
+read from and the revision of each multi-revision ECU it covers. A code read from
+another variant, or from another revision of the ECU (a swapped module starts with
+its own fault memory), says nothing about this car, so it is left out of the
+comparison, the open codes and the totals. With several variants and none selected,
+pick one with `--variant`. A full sweep also records which ECUs it could not read:
+an ECU that was asleep is neither "cleared" nor "clean".
 
 ## Clearing codes
 

@@ -18,7 +18,7 @@ Every capability is a `canair <subcommand>`. These pages are generated from each
 - [`canair io`](io.md) — IOControl (UDS 0x2F, or an entry's own KWP2000 0x30 commands): interactive TUI, or single actuator command with --did. Every actuator switched on is released on exit and on Ctrl+C with its release request: returnControlToECU (2F{DID}00) on UDS, the entry's declared release: on KWP2000, where the 0x30 option byte has no standard release. A 0x30 ON without a declared release is refused (set one with `canair pids set-iocontrol ECU KEY --release HEX`). The TUI's value keys (v/+/-) build UDS 0x2F requests, so they are refused for a KWP2000 ECU.
 - [`canair routines`](routines.md) — RoutineControl (0x31): interactive TUI, or single command with --rid.
 - [`canair identity`](identity.md) — Query ECU identity data and decode it. Supports UDS (22 F1xx) and KWP2000 (1A 8x/9x) ECUs; the protocol is auto-selected from the profile registry or an on-device probe (override with --protocol).
-- [`canair dtc`](dtc.md) — Read stored Diagnostic Trouble Codes with UDS 0x19 (reportDTCByStatusMask), or clear them with UDS 0x14. Clearing mutates ECU fault memory and prompts for confirmation unless --yes is given.
+- [`canair dtc`](dtc.md) — Read, clear or review Diagnostic Trouble Codes. Choose a kind:
 - [`canair repl`](repl.md) — Drop into an interactive live terminal (REPL) over an ELM327
 - [`canair lock`](lock.md) — ``canair lock`` — inspect and clear the device connection mutex.
 

@@ -3,17 +3,46 @@
 # `canair dtc`
 
 ```
-usage: canair dtc [-h] [--all] [--history] [--no-log] [--no-retry]
-                  [--label LABEL] [--state STATES] [--mask HEX]
-                  [--protocol {auto,uds,kwp}] [--supported] [--clear]
-                  [--group HEX] [--yes] [--session] [--wake] [--wican WICAN]
-                  [--transport {slcan-tcp,wican-ws,elm327-tcp}]
-                  [--no-fallback] [--wait] [--elm-timeout MS]
-                  [--timeout SECONDS] [--no-learn-frames] [--json] [--verbose]
-                  [--timings] [--reboot] [--unsafe] [--force]
-                  [ECU]
+usage: canair dtc [-h] <kind> ...
 
-[UDS] Read stored Diagnostic Trouble Codes with UDS 0x19 (reportDTCByStatusMask), or clear them with UDS 0x14. Clearing mutates ECU fault memory and prompts for confirmation unless --yes is given.
+[UDS] Read, clear or review Diagnostic Trouble Codes. Choose a kind:
+  read  read stored DTCs (UDS 0x19 / KWP2000 0x18) or clear them (0x14)
+  log   show the last logged scan, offline (no device)
+
+A bare `canair dtc BMS` (or `canair dtc --all`, or `canair dtc` alone) is shorthand for `canair dtc read …`.
+
+positional arguments:
+  <kind>
+    read      Read or clear DTCs on one ECU, or scan every ECU (--all)
+    log       Show the last logged DTC scan, offline (no device)
+
+options:
+  -h, --help  show this help message and exit
+
+examples:
+  canair dtc BMS                       Read all stored DTCs (bare = read)
+  canair dtc --all                     Scan every ECU (logs + shows changes since last scan)
+  canair dtc log                       Show the last logged full-sweep scan (offline)
+  canair dtc log BMS                   Show the last logged scan for one ECU (offline)
+
+Run `canair dtc <kind> --help` for the flags of each kind.
+```
+
+## `canair dtc read`
+
+```
+usage: canair dtc read [-h] [--all] [--no-log] [--no-retry] [--label LABEL]
+                       [--state STATES] [--mask HEX]
+                       [--protocol {auto,uds,kwp}] [--supported] [--clear]
+                       [--group HEX] [--yes] [--session] [--wake]
+                       [--wican WICAN]
+                       [--transport {slcan-tcp,wican-ws,elm327-tcp}]
+                       [--no-fallback] [--wait] [--elm-timeout MS]
+                       [--timeout SECONDS] [--no-learn-frames] [--json]
+                       [--verbose] [--timings] [--reboot] [--unsafe] [--force]
+                       [ECU]
+
+Read stored Diagnostic Trouble Codes with UDS 0x19 (reportDTCByStatusMask) or KWP2000 0x18, or clear them with 0x14. Clearing mutates ECU fault memory and prompts for confirmation unless --yes is given. Every read is recorded to the DTC log (`canair dtc log`), which lives in user state, not in the profile.
 
 positional arguments:
   ECU                   ECU name or TX ID (e.g. BMS or 7E4)
@@ -22,14 +51,9 @@ options:
   -h, --help            show this help message and exit
   --all                 Scan every ECU in the profile for DTCs (protocol auto-
                         selected per ECU)
-  --history             Show the most recent logged scan from dtc_log.yaml
-                        without touching the device (useful when the WiCAN is
-                        offline). Decodes each code and reports the change
-                        since the previous scan. Scope is --all by default, or
-                        a single ECU when one is named.
-  --no-log              Don't record this scan to the profile's dtc_log.yaml
-                        (scans are logged by default, reporting what
-                        cleared/appeared since the last scan)
+  --no-log              Don't record this scan to the DTC log (scans are
+                        logged by default, reporting what cleared/appeared
+                        since the last scan)
   --no-retry            With --all, don't retry unresponsive ECUs (by default
                         a no-response ECU is retried once with a wake + longer
                         timeout so it isn't skipped)
@@ -100,7 +124,7 @@ options:
 examples:
   canair dtc BMS                       Read all stored DTCs (status mask FF)
   canair dtc --all                     Scan every ECU (logs + shows changes since last scan)
-  canair dtc --all --no-log            Scan every ECU without recording to the history log
+  canair dtc --all --no-log            Scan every ECU without recording to the DTC log
   canair dtc BMS --label fixed         Read + log a single-ECU scan with a label
   canair dtc --all --state ready       Log a full scan tagged with the vehicle state
   canair dtc BMS --mask 08             Read confirmed DTCs only (mask 0x08)
@@ -110,6 +134,26 @@ examples:
   canair dtc BMS --clear --yes         Clear without the confirmation prompt
   canair dtc BMS --protocol kwp        Force KWP2000 readDTCByStatus (0x18)
   canair dtc BMS --supported           List every DTC a KWP2000 ECU supports (not a fault list)
-  canair dtc --history                 Show the last logged full-sweep scan (offline, no device)
-  canair dtc BMS --history             Show the last logged scan for one ECU (offline)
+```
+
+## `canair dtc log`
+
+```
+usage: canair dtc log [-h] [--json] [ECU]
+
+Show the most recent logged DTC scan without touching the device (useful when the WiCAN is offline): each code decoded, and the change since the previous scan of the same scope. The scope is the full sweep (`canair dtc --all`) by default, or one ECU when named.
+
+Only scans recorded for the selected car (--variant) and its ECU revisions are used: a code read from another car, or from another revision of the ECU, says nothing about this one. The log lives in user state (<config dir>/dtc_log/<profile>.yaml), not in the profile, so reinstalling or re-cloning canair cannot erase it; `canair config` shows where.
+
+positional arguments:
+  ECU         ECU name or TX ID (omit for the full sweep)
+
+options:
+  -h, --help  show this help message and exit
+  --json      Output as JSON
+
+examples:
+  canair dtc log                       Last logged full sweep, with the change since the one before
+  canair dtc log BMS                   Last logged scan of one ECU
+  canair dtc log --json                Machine-readable (the scan, the previous one, the diff)
 ```
