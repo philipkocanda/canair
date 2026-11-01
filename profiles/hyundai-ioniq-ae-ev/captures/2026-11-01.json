@@ -1,0 +1,264 @@
+{
+  "sessions": [
+    {
+      "date": "2026-11-01",
+      "label": "who answers while charging 2026-11-01",
+      "version": "3.1.0+main.79ae388.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"broadcast","pid":"discover 700-7EF","scan_results":{"responding":[{"tx":"0x733","rx":"0x73B","response":"CCM (positive)","notes":"Raw: 5001003201F4"},{"tx":"0x746","rx":"0x74E","response":"Unknown-746 (NRC 0x12)","notes":"Raw: subFunctionNotSupportedOrInvalidFormat"},{"tx":"0x770","rx":"0x778","response":"IGPM (positive)","notes":"Raw: 5001"},{"tx":"0x783","rx":"0x78B","response":"AMP (positive)","notes":"Raw: 5001003201F4"},{"tx":"0x7A0","rx":"0x7A8","response":"BCM (positive)","notes":"Raw: 5001"},{"tx":"0x7A1","rx":"0x7A9","response":"DDM (positive)","notes":"Raw: 5001"},{"tx":"0x7A2","rx":"0x7AA","response":"ADM (positive)","notes":"Raw: 5001"},{"tx":"0x7A3","rx":"0x7AB","response":"PSM (positive)","notes":"Raw: 5001"},{"tx":"0x7B3","rx":"0x7BB","response":"HVAC (positive)","notes":"Raw: 5001"},{"tx":"0x7DF","rx":"0x7E7","response":"NRC 0x12","notes":"Raw: subFunctionNotSupported"},{"tx":"0x7E2","rx":"0x7EA","response":"VCU (NRC 0x12)","notes":"Raw: subFunctionNotSupportedOrInvalidFormat"},{"tx":"0x7E3","rx":"0x7EB","response":"MCU (NRC 0x12)","notes":"Raw: subFunctionNotSupportedOrInvalidFormat"},{"tx":"0x7E4","rx":"0x7EC","response":"BMS (NRC 0x12)","notes":"Raw: subFunctionNotSupportedOrInvalidFormat"},{"tx":"0x7E5","rx":"0x7ED","response":"OBC (NRC 0x12)","notes":"Raw: subFunctionNotSupportedOrInvalidFormat"},{"tx":"0x7E6","rx":"0x7EE","response":"AAF (NRC 0x22)","notes":"Raw: conditionsNotCorrectOrRequestSequenceError"}],"rejected":"225 addresses silent"}}
+      ]
+    },
+    {
+      "date": "2026-11-01",
+      "label": "CCM firmware DIDs first read",
+      "version": "3.1.0+main.79ae388.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "notes": "read-only service 22, default session, car AC charging",
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 6
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x73B","pid":"22BCFF","payload":"62BCFF31303333","time":"17:20:36.911","elapsed_ms":683},
+        {"rx":"0x73B","pid":"22C350","payload":"62C3503E10000000000000000000000000000000000000000D810000F000000000000000000000000000000F00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","time":"17:20:37.183","elapsed_ms":272},
+        {"rx":"0x73B","pid":"22CC01","payload":"62CC01FFFFFFC0F0000000","time":"17:20:37.254","elapsed_ms":71},
+        {"rx":"0x73B","pid":"22F101","payload":"62F10131313034","time":"17:20:37.331","elapsed_ms":77},
+        {"rx":"0x73B","pid":"22F103","payload":"62F1033131","time":"17:20:37.487","elapsed_ms":67}
+      ]
+    },
+    {
+      "date": "2026-11-01",
+      "label": "CCM C350 x3 + BMS mode 01",
+      "version": "3.1.0+main.79ae388.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "notes": "AC charging; C350 read 3x 2 s apart",
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 8
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x73B","pid":"22C350","payload":"62C3503E10000000000000000000000000000000000000000D810000F000000000000000000000000000000F00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","time":"17:21:14.404","elapsed_ms":268},
+        {"rx":"0x73B","pid":"22C350","payload":"62C3503E10000000000000000000000000000000000000000D810000F000000000000000000000000000000F00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","time":"17:21:16.667","elapsed_ms":256},
+        {"rx":"0x73B","pid":"22C350","payload":"62C3503E10000000000000000000000000000000000000000D810000F000000000000000000000000000000F00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","time":"17:21:18.957","elapsed_ms":275}
+      ]
+    },
+    {
+      "date": "2026-11-01",
+      "label": "BMS mode 01 probe",
+      "version": "3.1.0+main.e6a5d10.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "variant": "28kwh",
+      "revisions": {
+        "BMS": "kwp"
+      },
+      "attribution": {
+        "variant": "selected",
+        "revisions": {
+          "BMS": "only"
+        }
+      },
+      "captures": [
+        {"rx":"0x7EC","pid":"0100","payload":"0100410080000001","time":"17:21:55"}
+      ]
+    },
+    {
+      "date": "2026-11-01",
+      "label": "BMS mode 01 probe",
+      "version": "3.1.0+main.e6a5d10.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "variant": "28kwh",
+      "revisions": {
+        "BMS": "kwp"
+      },
+      "attribution": {
+        "variant": "selected",
+        "revisions": {
+          "BMS": "only"
+        }
+      },
+      "captures": [
+        {"rx":"0x7EC","pid":"015B","response":"No response from ECU (NO DATA)"}
+      ]
+    },
+    {
+      "date": "2026-11-01",
+      "label": "BMS mode 01 probe",
+      "version": "3.1.0+main.e6a5d10.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "variant": "28kwh",
+      "revisions": {
+        "BMS": "kwp"
+      },
+      "attribution": {
+        "variant": "selected",
+        "revisions": {
+          "BMS": "only"
+        }
+      },
+      "captures": [
+        {"rx":"0x7EC","pid":"0101","response":"No response from ECU (NO DATA)"}
+      ]
+    },
+    {
+      "date": "2026-11-01",
+      "label": "BMS mode 01 probe",
+      "version": "3.1.0+main.e6a5d10.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "variant": "28kwh",
+      "revisions": {
+        "BMS": "kwp"
+      },
+      "attribution": {
+        "variant": "selected",
+        "revisions": {
+          "BMS": "only"
+        }
+      },
+      "captures": [
+        {"rx":"0x7EC","pid":"0121","response":"No response from ECU (NO DATA)"}
+      ]
+    },
+    {
+      "date": "2026-11-01",
+      "label": "BMS mode 01 probe",
+      "version": "3.1.0+main.e6a5d10.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "variant": "28kwh",
+      "revisions": {
+        "BMS": "kwp"
+      },
+      "attribution": {
+        "variant": "selected",
+        "revisions": {
+          "BMS": "only"
+        }
+      },
+      "captures": [
+        {"rx":"0x7EC","pid":"0130","response":"No response from ECU (NO DATA)"}
+      ]
+    },
+    {
+      "date": "2026-11-01",
+      "label": "BMS mode 01 probe",
+      "version": "3.1.0+main.e6a5d10.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "variant": "28kwh",
+      "revisions": {
+        "BMS": "kwp"
+      },
+      "attribution": {
+        "variant": "selected",
+        "revisions": {
+          "BMS": "only"
+        }
+      },
+      "captures": [
+        {"rx":"0x7EC","pid":"0131","response":"No response from ECU (NO DATA)"}
+      ]
+    },
+    {
+      "date": "2026-11-01",
+      "label": "BMS mode 01 probe repeat",
+      "version": "3.1.0+main.e6a5d10.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "variant": "28kwh",
+      "revisions": {
+        "BMS": "kwp"
+      },
+      "attribution": {
+        "variant": "selected",
+        "revisions": {
+          "BMS": "only"
+        }
+      },
+      "captures": [
+        {"rx":"0x7EC","pid":"0100","payload":"0100410080000001","time":"17:22:19"}
+      ]
+    },
+    {
+      "date": "2026-11-01",
+      "label": "BMS mode 01 probe repeat",
+      "version": "3.1.0+main.e6a5d10.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "variant": "28kwh",
+      "revisions": {
+        "BMS": "kwp"
+      },
+      "attribution": {
+        "variant": "selected",
+        "revisions": {
+          "BMS": "only"
+        }
+      },
+      "captures": [
+        {"rx":"0x7EC","pid":"0101","response":"No response from ECU (NO DATA)"}
+      ]
+    },
+    {
+      "date": "2026-11-01",
+      "label": "BMS mode 01 probe repeat",
+      "version": "3.1.0+main.e6a5d10.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "variant": "28kwh",
+      "revisions": {
+        "BMS": "kwp"
+      },
+      "attribution": {
+        "variant": "selected",
+        "revisions": {
+          "BMS": "only"
+        }
+      },
+      "captures": [
+        {"rx":"0x7EC","pid":"0120","payload":"0120412080018001","time":"17:22:24"}
+      ]
+    }
+  ]
+}

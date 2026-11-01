@@ -58,6 +58,7 @@ CCM:
         The 4 ASCII bytes '1033', a firmware constant: the software version (F195 '103') plus one
         digit. The IGPM's 22BCFF ('1090', software version 109) follows the same convention.
     22C350:
+      response_frames: 40
       status: draft
       vehicle_states: ["ON", READY]
       notes: >-
