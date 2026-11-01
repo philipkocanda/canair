@@ -253,13 +253,13 @@ class TestScanLog:
         out2 = capsys.readouterr().out
         assert "cleared" in out2
         assert "P0123-00" in out2
-        # Two scans recorded, same scope.
-        assert len(dtc_log.load_log(logp)["scans"]) == 2
-        # The self-clear is also recorded as a first-class 'detected' clear event.
-        clears = dtc_log.load_log(logp).get("clears", [])
-        assert len(clears) == 1
-        assert clears[0]["type"] == "detected"
-        assert ["BMS (0x7E4)", "P0123-00"] in clears[0]["cleared"]
+        # Two scans recorded, same scope, the ECU named by its response address. The
+        # self-clear is worked out from them, not stored as an entry of its own.
+        data = dtc_log.load_log(logp)
+        assert [s["scope"] for s in data["scans"]] == ["0x7EC", "0x7EC"]
+        assert list(data["scans"][0]["ecus"]) == ["0x7EC"]
+        assert "tx" not in data["scans"][0]["ecus"]["0x7EC"]
+        assert not data.get("clears")
 
     @pytest.mark.asyncio
     async def test_manual_clear_logs_event_and_clean_baseline(self, monkeypatch, tmp_path, capsys):
@@ -277,14 +277,25 @@ class TestScanLog:
         data = dtc_log.load_log(logp)
         clears = data.get("clears", [])
         assert len(clears) == 1
-        assert clears[0]["type"] == "manual"
+        assert clears[0]["rx"] == "0x7EC"
         assert clears[0]["group"] == "0xFFFFFF"
         assert clears[0]["codes"] == ["P0123-00"]
         assert clears[0]["label"] == "fixed"
-        # A clean post-clear baseline scan is recorded so a later scan of the same
-        # ECU won't also report these as self-cleared.
-        bms_scans = [s for s in data["scans"] if s["scope"] == "BMS (0x7E4)"]
-        assert bms_scans and bms_scans[-1]["ecus"]["BMS (0x7E4)"]["dtcs"] == []
+        # No reading is invented for after the clear: only the clear is recorded.
+        assert not data["scans"]
+
+        # A later scan reports the code as wiped by the clear, not as self-cleared,
+        # and it coming back as new.
+        dtc_log.append_scan(
+            dtc_log.build_scan(
+                "0x7EC", {"0x7EC": {"dtcs": ["P0123-00"]}}, timestamp="2000-01-01T00:00:00"
+            )
+        )
+        t2 = FakeTerminal({"1902FF": _ok("5902FF" + "0123002F")})
+        await dtc.mode_dtc_read(t2, 0x7E4, protocol="uds", log=True)
+        out = capsys.readouterr().out
+        assert "--clear since then (1)" in out and "+ new (1)" in out
+        assert "✓ cleared" not in out
 
 
 class TestScanAll:
@@ -511,13 +522,14 @@ class TestLogOffline:
     def test_log_single_ecu_scope(self, monkeypatch, tmp_path, capsys):
         from canlib.commands.dtc import log as dtc_cmd
         from canlib.dtc import log as dtc_log
+        from canlib.dtc.refs import ecu_ref
         from canlib.ecus import ecu_display, resolve_tx
 
         self._seed(monkeypatch, tmp_path)
         tx = resolve_tx("BMS")
         assert tx is not None
         scope = ecu_display(tx)
-        dtc_log.append_scan(dtc_log.build_scan(scope, {}, timestamp="2026-07-22T09:00:00"))
+        dtc_log.append_scan(dtc_log.build_scan(ecu_ref(tx), {}, timestamp="2026-07-22T09:00:00"))
         rc = dtc_cmd.run(self._args(dtc="BMS"))
         out = capsys.readouterr().out
         assert rc == 0

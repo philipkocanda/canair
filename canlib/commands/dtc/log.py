@@ -47,15 +47,23 @@ def _scope(ecu: str | None) -> str | None:
     """The log scope for ``ecu`` (``all`` when None), or None for an unknown ECU."""
     if not ecu:
         return "all"
-    from canlib.ecus import ecu_display, resolve_tx
+    from canlib.dtc.refs import ecu_ref
+    from canlib.ecus import resolve_tx
 
     tx_id = resolve_tx(ecu)
-    return None if tx_id is None else ecu_display(tx_id)
+    return None if tx_id is None else ecu_ref(tx_id)
 
 
 def run(args) -> int:
     from canlib.dtc.history import log_stats
-    from canlib.dtc.log import diff_scans, latest_matching, prior_matching, render_scan
+    from canlib.dtc.log import (
+        clears_between,
+        diff_scans,
+        latest_matching,
+        prior_matching,
+        render_scan,
+        scope_label,
+    )
 
     scope = _scope(args.dtc)
     if scope is None:
@@ -68,12 +76,18 @@ def run(args) -> int:
     stats = log_stats()
     entry = latest_matching(scope)
     previous = prior_matching(scope, entry.get("timestamp", "")) if entry else None
+    since = (
+        clears_between(previous.get("timestamp", ""), entry.get("timestamp", ""))
+        if entry and previous
+        else []
+    )
     if getattr(args, "json", False):
         out = {
             "scope": scope,
             "scan": entry,
             "previous": previous,
-            "diff": diff_scans(previous, entry) if entry and previous else None,
+            "clears_since": since,
+            "diff": diff_scans(previous, entry, since) if entry and previous else None,
             "log": stats.as_dict(),
         }
         print(json.dumps(out, indent=2, default=str))
@@ -88,14 +102,14 @@ def run(args) -> int:
             )
         else:
             print(
-                f"No logged DTC scan for scope '{scope}'. Run `canair dtc "
+                f"No logged DTC scan for scope '{scope_label(scope)}'. Run `canair dtc "
                 + (args.dtc if args.dtc else "--all")
                 + "` while connected to record one."
             )
         _print_footer(stats)
         return 1
 
-    for line in render_scan(entry, previous):
+    for line in render_scan(entry, previous, since):
         print(line)
     _print_footer(stats)
     return 0

@@ -4,7 +4,7 @@ An ECU's **open** codes are the ones its most recent admitted scan read (see
 :class:`canlib.dtc.scope.Car`) — a single-ECU scan of it, or a full sweep that read it.
 A full sweep lists only the ECUs that had codes, so one it read but did not list was
 clean; one it lists under ``unread:`` says nothing and the search goes further back. A
-``--clear`` logs a clean scan of the ECU, so cleared codes are not open.
+``--clear`` leaves the ECU clean until it is read again, so cleared codes are not open.
 
 Read-only and offline: :func:`ecu_status` backs ``canair ecu <ECU>``, :func:`log_stats`
 the hints on a bare ``canair dtc`` and in ``canair config``.
@@ -18,97 +18,102 @@ from pathlib import Path
 from typing import Any
 
 from canlib.dtc.log import load_log
-from canlib.dtc.scope import ALL_SCOPE, Car, current_car, display_name, display_tx, scope_key
+from canlib.dtc.refs import EcuRefs
+from canlib.dtc.scope import ALL_SCOPE, Car, current_car
 
 
 @dataclass(frozen=True)
 class EcuStatus:
-    """One ECU as its latest admitted scan read it."""
+    """One ECU as its latest admitted reading (or clear) left it."""
 
-    tx: int
-    ecu: str  # the display label the scan recorded
+    rx: str
+    ecu: str  # the ECU as people name it (resolved from the profile when read)
     codes: tuple[str, ...]
     timestamp: str
     label: str | None = None
+    cleared: bool = False  # the latest event was a `--clear`, not a reading
 
     def as_dict(self) -> dict[str, Any]:
         return {
             "ecu": self.ecu,
-            "tx": f"0x{self.tx:03X}",
+            "rx": self.rx,
             "open": list(self.codes),
             "scanned": self.timestamp,
             "label": self.label,
+            "cleared": self.cleared,
         }
 
 
-def _read_in(entry: Mapping[str, Any], tx_id: int) -> tuple[str, tuple[str, ...]] | None:
-    """(display, codes) when ``entry`` read the ECU ``tx_id``, else None."""
-    for display, info in (entry.get("ecus") or {}).items():
-        info = info or {}
-        tx = display_tx(str(info.get("tx") or "")) or display_tx(display)
-        if tx == tx_id:
-            return str(display), tuple(str(c) for c in info.get("dtcs") or [])
-    if entry.get("scope") != ALL_SCOPE:
+def _read_in(entry: Mapping[str, Any], rx: str) -> tuple[str, ...] | None:
+    """The codes ``entry`` read from ``rx``, or None when it did not read it."""
+    ecus = entry.get("ecus") or {}
+    if rx in ecus:
+        return tuple(str(c) for c in (ecus[rx] or {}).get("dtcs") or [])
+    if entry.get("scope") != ALL_SCOPE or rx in (entry.get("unread") or []):
         return None
-    if any(display_tx(str(u)) == tx_id for u in entry.get("unread") or []):
-        return None
-    return "", ()
+    return ()
+
+
+def _events(data: Mapping[str, Any]) -> list[tuple[str, str, Mapping[str, Any]]]:
+    """``(timestamp, kind, entry)`` for every scan and clear, newest first."""
+    events = [
+        (str(e.get("timestamp", "")), kind, e)
+        for kind in ("scans", "clears")
+        for e in data.get(kind) or []
+        if isinstance(e, Mapping)
+    ]
+    # A clear and the scan it followed can share a second: the clear is the later event.
+    return sorted(events, key=lambda ev: (ev[0], ev[1] == "clears"), reverse=True)
 
 
 def ecu_status(
-    tx_id: int,
-    name: str | None = None,
+    rx: str,
     *,
     car: Car | None = None,
     data: Mapping[str, Any] | None = None,
+    refs: EcuRefs | None = None,
 ) -> EcuStatus | None:
-    """The ECU's codes at its latest admitted scan, or None when no scan read it.
-
-    ``name`` is the ECU's registry name, for the revision check (defaults to the name
-    the scan recorded)."""
-    car = car or current_car()
-    scans = (data if data is not None else load_log()).get("scans") or []
-    for entry in reversed(scans):
-        if not isinstance(entry, Mapping):
+    """The ECU ``rx``'s codes after its latest admitted reading or clear, or None when
+    neither ever happened."""
+    car, refs = car or current_car(), refs or EcuRefs.current()
+    data = data if data is not None else load_log()
+    name = refs.name(rx)
+    for timestamp, kind, entry in _events(data):
+        if kind == "clears":
+            if entry.get("rx") != rx:
+                continue
+            codes: tuple[str, ...] | None = ()
+        elif entry.get("scope") in (ALL_SCOPE, rx):
+            codes = _read_in(entry, rx)
+        else:
             continue
-        key = scope_key(str(entry.get("scope", "")))
-        if key not in (ALL_SCOPE, tx_id):
-            continue
-        read = _read_in(entry, tx_id)
-        if read is None:
-            continue
-        display, codes = read
-        ecu_name = name or (display_name(display) if display else None)
-        if not car.admits(entry, [ecu_name] if ecu_name else []):
+        if codes is None or not car.admits(entry, [name] if name else []):
             continue
         return EcuStatus(
-            tx=tx_id,
-            ecu=display or (f"{name} (0x{tx_id:03X})" if name else f"0x{tx_id:03X}"),
+            rx=rx,
+            ecu=refs.label(rx),
             codes=codes,
-            timestamp=str(entry.get("timestamp", "?")),
+            timestamp=timestamp or "?",
             label=entry.get("label"),
+            cleared=kind == "clears",
         )
     return None
 
 
-def logged_ecus(data: Mapping[str, Any]) -> dict[int, str]:
-    """TX id -> display label of every ECU any scan recorded codes or a reading for."""
-    out: dict[int, str] = {}
-    for entry in data.get("scans") or []:
-        for display, info in ((entry or {}).get("ecus") or {}).items():
-            tx = display_tx(str((info or {}).get("tx") or "")) or display_tx(display)
-            if tx is not None:
-                out[tx] = str(display)
-    return out
+def logged_ecus(data: Mapping[str, Any]) -> list[str]:
+    """Every ECU (rx) any scan recorded a reading for, sorted."""
+    return sorted(
+        {str(rx) for e in data.get("scans") or [] for rx in ((e or {}).get("ecus") or {})}
+    )
 
 
 def open_dtcs(*, car: Car | None = None, data: Mapping[str, Any] | None = None) -> list[EcuStatus]:
-    """Every ECU whose latest admitted scan read codes, by TX id."""
-    car = car or current_car()
+    """Every ECU whose latest admitted reading still has codes."""
+    car, refs = car or current_car(), EcuRefs.current()
     data = data if data is not None else load_log()
     out = []
-    for tx, display in sorted(logged_ecus(data).items()):
-        status = ecu_status(tx, display_name(display), car=car, data=data)
+    for rx in logged_ecus(data):
+        status = ecu_status(rx, car=car, data=data, refs=refs)
         if status is not None and status.codes:
             out.append(status)
     return out
@@ -154,12 +159,12 @@ def log_stats(path: Path | None = None, *, car: Car | None = None) -> LogStats:
     scans = [e for e in data.get("scans") or [] if isinstance(e, Mapping)]
     admitted = [e for e in scans if car.admits(e)]
     clears = [e for e in data.get("clears") or [] if isinstance(e, Mapping) and car.admits(e)]
-    seen = set()
-    for entry in admitted:
-        for display, info in (entry.get("ecus") or {}).items():
-            tx = display_tx(str((info or {}).get("tx") or "")) or display_tx(display)
-            for code in (info or {}).get("dtcs") or []:
-                seen.add((tx if tx is not None else display, str(code)))
+    seen = {
+        (str(rx), str(code))
+        for entry in admitted
+        for rx, info in (entry.get("ecus") or {}).items()
+        for code in (info or {}).get("dtcs") or []
+    }
     return LogStats(
         path=p,
         scans=len(admitted),

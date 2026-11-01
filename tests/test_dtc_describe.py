@@ -173,14 +173,15 @@ class TestPerEcuMeaning:
 
     def test_a_read_and_a_logged_scan_are_described_by_their_ecu(self, monkeypatch):
         from canlib.dtc import log as dtc_log
+        from canlib.dtc.refs import EcuRefs
         from canlib.modes import dtc
 
         monkeypatch.setattr("canlib.ecus.ecu_name", lambda tx: {0x7D4: "EPS"}[tx])
-        monkeypatch.setattr("canlib.ecus.load_ecus", lambda: {0x7D4: {"name": "EPS"}})
+        refs = EcuRefs(tx_by_rx={0x7DC: 0x7D4}, names={0x7DC: "EPS"})
+        monkeypatch.setattr(EcuRefs, "current", classmethod(lambda cls: refs))
         rec = {"dtc": "C1616-00", "raw": "561600", "status": 0x09, "status_bits": []}
         assert dtc._jsonable([rec], 0x7D4)[0]["interpretation"]["description"] == "CAN bus off"
-        # Logged under a since-renamed label: resolved by the TX id it recorded.
-        scan = dtc_log.build_scan(
-            "all", {"OLD (0x7D4)": {"tx": "0x7D4", "dtcs": ["C1616-00"]}}, timestamp="t"
-        )
-        assert "CAN bus off" in "\n".join(dtc_log.render_scan(scan))
+        # The log names the ECU by address; its name (and meanings) come from the profile.
+        scan = dtc_log.build_scan("all", {"0x7DC": {"dtcs": ["C1616-00"]}}, timestamp="t")
+        text = "\n".join(dtc_log.render_scan(scan))
+        assert "EPS (0x7D4)" in text and "CAN bus off" in text

@@ -320,7 +320,7 @@ def _detail_record(
         "identity": {k: info[k] for k, _ in _IDENTITY_FIELDS if info.get(k) is not None},
         "identity_note": _identity_note(name),
     }
-    rec["dtcs"] = _dtc_status(tx_id, name)
+    rec["dtcs"] = _dtc_status(tx_id)
     per_pid, total = _captures_by_pid(name)
     if ecu_def is not None:
         rec["stats"] = _pid_stats(ecu_def)
@@ -334,13 +334,14 @@ def _detail_record(
     return rec
 
 
-def _dtc_status(tx_id: int, name: str) -> dict | None:
-    """The ECU's codes at its latest logged scan on this car (None: never scanned)."""
+def _dtc_status(tx_id: int) -> dict | None:
+    """The ECU's codes after its latest logged reading or clear on this car (None: none)."""
     from canlib.dtc.history import ecu_status
+    from canlib.dtc.refs import ecu_ref
     from canlib.profile import ProfileError
 
     try:
-        status = ecu_status(tx_id, name)
+        status = ecu_status(ecu_ref(tx_id))
     except (ProfileError, OSError):
         return None
     return status.as_dict() if status is not None else None
@@ -358,7 +359,8 @@ def _print_dtcs(rec: dict) -> None:
         )
         return
     codes = status["open"]
-    when = f"{ansi.DIM}(as of the scan of {status['scanned']}){ansi.RESET}"
+    event = "the --clear" if status.get("cleared") else "the scan"
+    when = f"{ansi.DIM}(as of {event} of {status['scanned']}){ansi.RESET}"
     if not codes:
         print(f"\n  {ansi.BOLD}DTCs{ansi.RESET}  {ansi.GREEN}none open{ansi.RESET} {when}")
         return

@@ -7,7 +7,7 @@ def test_append_and_load(tmp_path):
     p = tmp_path / "dtc_log.yaml"
     entry = dtc_log.build_scan(
         "all",
-        {"AMP (0x783)": {"tx": "0x783", "protocol": "kwp", "dtcs": ["B2915-00"]}},
+        {"0x78B": {"tx": "0x783", "protocol": "kwp", "dtcs": ["B2915-00"]}},
         label="baseline",
         timestamp="2026-07-22T10:00:00",
     )
@@ -45,38 +45,38 @@ def test_build_scan_omits_empty_vehicle_states():
 def test_latest_matching_by_scope(tmp_path):
     p = tmp_path / "dtc_log.yaml"
     dtc_log.append_scan(dtc_log.build_scan("all", {}, timestamp="t1"), path=p)
-    dtc_log.append_scan(dtc_log.build_scan("BMS (0x7E4)", {}, timestamp="t2"), path=p)
+    dtc_log.append_scan(dtc_log.build_scan("0x7EC", {}, timestamp="t2"), path=p)
     dtc_log.append_scan(dtc_log.build_scan("all", {}, timestamp="t3"), path=p)
     assert dtc_log.latest_matching("all", path=p)["timestamp"] == "t3"
-    assert dtc_log.latest_matching("BMS (0x7E4)", path=p)["timestamp"] == "t2"
-    assert dtc_log.latest_matching("VCU (0x7E2)", path=p) is None
+    assert dtc_log.latest_matching("0x7EC", path=p)["timestamp"] == "t2"
+    assert dtc_log.latest_matching("0x7EA", path=p) is None
 
 
 def test_diff_scans():
     prev = {
         "ecus": {
-            "AMP (0x783)": {"dtcs": ["B2915-00", "B2916-00"]},
-            "PLC (0x733)": {"dtcs": ["C182C-00"]},
+            "0x78B": {"dtcs": ["B2915-00", "B2916-00"]},
+            "0x73B": {"dtcs": ["C182C-00"]},
         }
     }
-    curr = {"ecus": {"AMP (0x783)": {"dtcs": ["B2915-00", "B9999-00"]}}}
+    curr = {"ecus": {"0x78B": {"dtcs": ["B2915-00", "B9999-00"]}}}
     d = dtc_log.diff_scans(prev, curr)
     # PLC gone entirely + AMP lost one code -> both cleared
-    assert ("AMP (0x783)", "B2916-00") in d["cleared"]
-    assert ("PLC (0x733)", "C182C-00") in d["cleared"]
-    assert ("AMP (0x783)", "B9999-00") in d["new"]
-    assert ("AMP (0x783)", "B2915-00") in d["persisting"]
+    assert ("0x78B", "B2916-00") in d["cleared"]
+    assert ("0x73B", "C182C-00") in d["cleared"]
+    assert ("0x78B", "B9999-00") in d["new"]
+    assert ("0x78B", "B2915-00") in d["persisting"]
 
 
 def test_diff_no_change():
-    scan = {"ecus": {"AMP (0x783)": {"dtcs": ["B2915-00"]}}}
+    scan = {"ecus": {"0x78B": {"dtcs": ["B2915-00"]}}}
     d = dtc_log.diff_scans(scan, scan)
     assert d["cleared"] == [] and d["new"] == []
-    assert d["persisting"] == [("AMP (0x783)", "B2915-00")]
+    assert d["persisting"] == [("0x78B", "B2915-00")]
 
 
 def test_format_diff_reports_cleared():
-    prev = {"timestamp": "t0", "ecus": {"AMP (0x783)": {"dtcs": ["B2915-00"]}}}
+    prev = {"timestamp": "t0", "ecus": {"0x78B": {"dtcs": ["B2915-00"]}}}
     curr = {"ecus": {}}
     lines = "\n".join(dtc_log.format_diff(dtc_log.diff_scans(prev, curr), prev))
     assert "cleared" in lines
@@ -88,13 +88,7 @@ def test_append_clear_and_coexist_with_scans(tmp_path):
     dtc_log.append_scan(dtc_log.build_scan("all", {}, timestamp="t1"), path=p)
     dtc_log.append_clear(
         dtc_log.build_clear(
-            "manual",
-            "BMS (0x7E4)",
-            ecu="BMS (0x7E4)",
-            protocol="kwp",
-            group="0xFFFF",
-            codes=["P1AAA-00"],
-            timestamp="t2",
+            "0x7EC", protocol="kwp", group="0xFFFF", codes=["P1AAA-00"], timestamp="t2"
         ),
         path=p,
     )
@@ -102,35 +96,32 @@ def test_append_clear_and_coexist_with_scans(tmp_path):
     assert len(data["scans"]) == 1
     assert len(data["clears"]) == 1
     clr = data["clears"][0]
-    assert clr["type"] == "manual"
-    assert clr["ecu"] == "BMS (0x7E4)"
+    assert clr["rx"] == "0x7EC"
     assert clr["codes"] == ["P1AAA-00"]
     assert clr["timestamp"] == "t2"
 
 
 def test_build_clear_omits_none_fields():
-    e = dtc_log.build_clear("detected", "all", cleared=[["PLC (0x733)", "C182C-00"]], codes=None)
-    assert "codes" not in e
-    assert e["type"] == "detected"
-    assert e["cleared"] == [["PLC (0x733)", "C182C-00"]]
+    e = dtc_log.build_clear("0x73B", codes=None, timestamp="t")
+    assert e == {"timestamp": "t", "rx": "0x73B"}
 
 
 def test_prior_matching_returns_scan_before_timestamp(tmp_path):
     p = tmp_path / "dtc_log.yaml"
     dtc_log.append_scan(dtc_log.build_scan("all", {}, timestamp="t1"), path=p)
-    dtc_log.append_scan(dtc_log.build_scan("BMS (0x7E4)", {}, timestamp="t2"), path=p)
+    dtc_log.append_scan(dtc_log.build_scan("0x7EC", {}, timestamp="t2"), path=p)
     dtc_log.append_scan(dtc_log.build_scan("all", {}, timestamp="t3"), path=p)
     # The scan the t3 'all' entry was diffed against is the t1 'all' entry.
     assert dtc_log.prior_matching("all", "t3", path=p)["timestamp"] == "t1"
     # Nothing earlier of the same scope.
     assert dtc_log.prior_matching("all", "t1", path=p) is None
-    assert dtc_log.prior_matching("BMS (0x7E4)", "t2", path=p) is None
+    assert dtc_log.prior_matching("0x7EC", "t2", path=p) is None
 
 
 def test_render_scan_decodes_and_shows_metadata():
     entry = dtc_log.build_scan(
         "all",
-        {"AMP (0x783)": {"tx": "0x783", "protocol": "uds", "dtcs": ["B2915-00"]}},
+        {"0x78B": {"tx": "0x783", "protocol": "uds", "dtcs": ["B2915-00"]}},
         label="baseline",
         vehicle_states=["ready"],
         timestamp="2026-07-22T10:00:00",
@@ -145,7 +136,7 @@ def test_render_scan_decodes_and_shows_metadata():
 
 
 def test_render_scan_reports_no_dtcs():
-    entry = dtc_log.build_scan("BMS (0x7E4)", {}, timestamp="t")
+    entry = dtc_log.build_scan("0x7EC", {}, timestamp="t")
     text = "\n".join(dtc_log.render_scan(entry))
     assert "No DTCs stored" in text
 
@@ -153,12 +144,12 @@ def test_render_scan_reports_no_dtcs():
 def test_render_scan_includes_diff_against_previous():
     previous = dtc_log.build_scan(
         "all",
-        {"AMP (0x783)": {"dtcs": ["B2915-00", "B2916-00"]}},
+        {"0x78B": {"dtcs": ["B2915-00", "B2916-00"]}},
         timestamp="t1",
     )
     current = dtc_log.build_scan(
         "all",
-        {"AMP (0x783)": {"dtcs": ["B2915-00"]}},
+        {"0x78B": {"dtcs": ["B2915-00"]}},
         timestamp="t2",
     )
     text = "\n".join(dtc_log.render_scan(current, previous))

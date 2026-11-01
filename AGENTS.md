@@ -224,6 +224,9 @@ and **`g`/`G` address the view's primary axis**.
   a legacy `<profile>/dtc_log.yaml` is folded in on first use, and for every profile by
   `canair config` and before `canair update` reinstalls (`canlib/migrations/dtc_log.py`, which
   also tags older entries with what the profile alone settles, never a guess).
+  An entry names an ECU only by its response address, like a capture (`canlib/dtc/refs.py`
+  resolves the name and label from the profile), and records only scans and `--clear`s: what
+  follows from them (self-clears, clean-after-clear) is derived when read, never stored.
   Entries are tagged with the car (variant + `revisions:`, like a capture session) and every
   reader filters through `canlib/dtc/scope.py::Car`: another variant's or another ECU
   revision's codes say nothing about this car. Open codes and totals

@@ -9,14 +9,12 @@ admits. An untagged entry reads as the selected car, as an untagged capture does
 with several variants and none named, nothing says which car an entry is, so none is
 admitted.
 
-Entries name an ECU by its display label (``BMS (0x7E4)``); :func:`display_tx` and
-:func:`display_name` take it apart, and matching is by TX id so an ECU rename does not
-orphan its history.
+The revision tag names ECUs (as a capture session's does); the entries themselves name
+them by address (:mod:`canlib.dtc.refs`), so a reader resolves the name to check it.
 """
 
 from __future__ import annotations
 
-import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
@@ -24,27 +22,6 @@ from typing import Any
 from canlib.variants.tags import SCOPE_ALL, in_scope, revisions_in_scope
 
 ALL_SCOPE = "all"
-
-_DISPLAY_TX = re.compile(r"(?:^|\()0x([0-9A-Fa-f]+)\)?$")
-
-
-def display_tx(display: str) -> int | None:
-    """The TX id in an ECU display label (``BMS (0x7E4)`` or ``0x7E4``), or None."""
-    m = _DISPLAY_TX.search(str(display).strip())
-    return int(m.group(1), 16) if m else None
-
-
-def display_name(display: str) -> str:
-    """The ECU name in a display label (``BMS (0x7E4)`` -> ``BMS``)."""
-    return str(display).split(" (0x", 1)[0].strip()
-
-
-def scope_key(scope: str) -> str | int:
-    """A scope compared by TX id, so ``OLD (0x7E4)`` and ``NEW (0x7E4)`` are one scope."""
-    if scope == ALL_SCOPE:
-        return ALL_SCOPE
-    tx = display_tx(scope)
-    return tx if tx is not None else scope
 
 
 @dataclass(frozen=True)

@@ -21,6 +21,7 @@ import json
 
 from canlib import ansi
 
+from ..dtc.refs import ecu_ref
 from ..ecus import ecu_display
 from ..transport.protocol import Terminal
 
@@ -227,7 +228,7 @@ async def mode_dtc_read(
         result = await _read_one(terminal, tx_id, mask, protocol, verbose, supported=supported)
         _report_read(as_json, result)
         if log and "dtcs" in result:
-            path, previous, diff = _log_scan(result["ecu"], [result], label, vehicle_states)
+            path, previous, diff = _log_scan(ecu_ref(tx_id), [result], label, vehicle_states)
             if not as_json:
                 _print_log_result(path, previous, diff)
     finally:
@@ -242,13 +243,12 @@ async def mode_dtc_read(
 def _log_scan(scope: str, results: list[dict], label: str | None, vehicle_states=None):
     """Append this scan to the DTC log; return (path, previous_scan, diff).
 
-    Codes that disappeared since the last same-scope scan (car self-cleared or
-    aged out) are also recorded as a first-class ``detected`` clear event."""
+    ``scope`` is ``all`` or the scanned ECU's reference (:func:`canlib.dtc.refs.ecu_ref`).
+    The diff is against the previous same-scope scan, net of any ``--clear`` since."""
     from canlib.dtc.log import (
-        append_clear,
         append_scan,
-        build_clear,
         build_scan,
+        clears_between,
         diff_scans,
         latest_matching,
     )
@@ -256,15 +256,16 @@ def _log_scan(scope: str, results: list[dict], label: str | None, vehicle_states
     ecus: dict = {}
     unread: list[str] = []
     for r in results:
+        rx = ecu_ref(int(r["tx"], 16))
         if "dtcs" not in r:
-            unread.append(r["ecu"])
+            unread.append(rx)
             continue
         codes = [d["dtc"] for d in r["dtcs"]]
         # Full sweep keeps only ECUs with codes (absence on a same-scope sweep =
         # cleared); a single-ECU scope keeps the ECU even when clean so a later
         # compare can see its codes clear.
         if scope != "all" or codes:
-            ecus[r["ecu"]] = {"tx": r.get("tx"), "protocol": r["protocol"], "dtcs": codes}
+            ecus[rx] = {"protocol": r["protocol"], "dtcs": codes}
 
     current = build_scan(
         scope,
@@ -274,10 +275,11 @@ def _log_scan(scope: str, results: list[dict], label: str | None, vehicle_states
         unread=unread if scope == "all" else None,
     )
     previous = latest_matching(scope)
-    diff = diff_scans(previous, current) if previous else None
+    diff = None
+    if previous:
+        since = clears_between(previous.get("timestamp", ""), current["timestamp"])
+        diff = diff_scans(previous, current, since)
     path = append_scan(current)
-    if diff and diff["cleared"]:
-        append_clear(build_clear("detected", scope, cleared=[[e, c] for e, c in diff["cleared"]]))
     return path, previous, diff
 
 
@@ -599,9 +601,8 @@ async def mode_dtc_clear(
     (0xFFFF = all). Mutates ECU fault memory — confirmation is the caller's job.
 
     When ``log`` is set, the current codes are read first (so the log records
-    what was cleared), a ``manual`` clear event is written to the DTC log, and
-    the ECU's scan baseline is updated to clean so a later scan doesn't also
-    report these as self-cleared.
+    what was cleared) and the clear is written to the DTC log, so a later scan
+    reports these codes as wiped by the clear rather than as self-cleared.
     """
     proto = resolve_protocol(protocol, tx_id)
     await terminal.set_header(tx_id)
@@ -684,27 +685,15 @@ async def mode_dtc_clear(
 
 
 def _log_manual_clear(tx_id, proto, group, pre_codes, label):
-    """Record a manual clear event + a post-clear clean scan baseline."""
-    from canlib.dtc.log import append_clear, append_scan, build_clear, build_scan
+    """Record a ``--clear``: readers take the ECU as clean from here until it is read."""
+    from canlib.dtc.log import append_clear, build_clear
 
-    ecu = ecu_display(tx_id)
     append_clear(
         build_clear(
-            "manual",
-            ecu,
-            ecu=ecu,
+            ecu_ref(tx_id),
             protocol=proto,
             group=group,
-            codes=(pre_codes if pre_codes else None),
+            codes=pre_codes or None,
             label=label,
-        )
-    )
-    # The ECU is clean now — record it so the next scan's diff is correct and
-    # doesn't re-report these as a self-clear.
-    append_scan(
-        build_scan(
-            ecu,
-            {ecu: {"tx": f"0x{tx_id:03X}", "protocol": proto, "dtcs": []}},
-            label="post-clear",
         )
     )

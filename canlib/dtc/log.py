@@ -6,65 +6,60 @@ scope* (all-ECU sweep, or a single ECU) on the same car: which codes **cleared**
 which are **new**, and which **persist**. That's how you tell, next time, whether a
 fault went away (e.g. after a fix or a self-heal) rather than eyeballing two dumps.
 
-The file is tool-managed (append-only, newest entry last):
+The file is tool-managed (append-only, newest entry last). An ECU is named by its
+response address only (:mod:`canlib.dtc.refs`); its name comes from the profile:
 
+    format: 2
     scans:
     - timestamp: '2026-07-22T15:40:03'
-      scope: all                 # 'all' or an ECU display name like 'BMS (0x7E4)'
+      scope: all                 # 'all', or the one ECU read (its rx, e.g. '0x7EC')
       label: before clearing     # optional, from --label
-      ecus:                      # only ECUs that had codes (empty on a clean sweep)
-        AMP (0x783): {tx: '0x783', protocol: kwp, dtcs: [B2915-00, B2916-00]}
-        PLC (0x733): {tx: '0x733', protocol: uds, dtcs: [C182C-00]}
-      unread: [SKM (0x7A5)]      # full sweep only: ECUs that gave no DTC list
+      ecus:                      # rx -> what it reported; a sweep lists only ECUs with codes
+        '0x78B': {protocol: kwp, dtcs: [B2915-00, B2916-00]}
+        '0x73B': {protocol: uds, dtcs: [C182C-00]}
+      unread: ['0x7AD']          # full sweep only: ECUs that gave no DTC list
       variant: 28kwh             # the car (a variants.yaml ID), when one is selected
       revisions: {VCU: kwp}      # determined revisions of multi-revision ECUs
     clears:
     - timestamp: '2026-07-22T16:02:11'
-      type: manual               # 'manual' (ran --clear) or 'detected' (gone since last scan)
-      scope: BMS (0x7E4)
-      ecu: BMS (0x7E4)           # manual only
-      protocol: kwp              # manual only
-      group: '0xFFFF'            # manual only
-      codes: [P1AAA-00]          # manual: codes present before the clear
-    - timestamp: '2026-07-22T16:30:00'
-      type: detected
-      scope: all
-      cleared: [['PLC (0x733)', 'C182C-00']]   # (ecu, code) pairs gone vs last scan
+      rx: '0x7EC'                # the ECU `canair dtc --clear` cleared
+      protocol: kwp
+      group: '0xFFFF'
+      codes: [P1AAA-00]          # what it held before the clear, when that could be read
 
-A full sweep also lists, under ``unread:``, the ECUs that gave no DTC list (no
-response, or an NRC): their absence from ``ecus:`` says nothing, so they are
-neither "cleared" against the previous sweep nor "clean" in :mod:`canlib.dtc.history`.
-Every entry is tagged with the car it was read from (``variant``, and ``revisions:``
-for the multi-revision ECUs it covers) — see :mod:`canlib.dtc.scope`.
+Only readings and clears are recorded. Whatever follows from them — that an ECU was
+clean after a clear, which codes disappeared between two scans — is worked out when
+the log is read, never stored. A full sweep lists, under ``unread:``, the ECUs that
+gave no DTC list (no response, or an NRC): their absence from ``ecus:`` says nothing,
+so they are neither "cleared" against the previous sweep nor "clean" in
+:mod:`canlib.dtc.history`. Every entry is tagged with the car it was read from
+(``variant``, and ``revisions:`` for the multi-revision ECUs it covers) — see
+:mod:`canlib.dtc.scope`.
 
 This is a fact about *your* car, not shared data, and the only record of its fault
 history, so it lives in user state (``<config dir>/dtc_log/<profile>.yaml``) rather
 than in the profile, which a reinstall or re-clone deletes. A legacy
-``<profile>/dtc_log.yaml`` is moved there on first use
-(:mod:`canlib.migrations.dtc_log`).
+``<profile>/dtc_log.yaml``, and a log in an earlier format, is converted on first
+use (:mod:`canlib.migrations.dtc_log`).
 """
 
 from __future__ import annotations
 
 import sys
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from canlib import ansi
-from canlib.dtc.scope import (
-    ALL_SCOPE,
-    Car,
-    current_car,
-    display_name,
-    display_tx,
-    entry_revision,
-    scope_key,
-)
+from canlib.dtc.refs import EcuRefs
+from canlib.dtc.scope import ALL_SCOPE, Car, current_car, entry_revision
 
 if TYPE_CHECKING:
     from canlib.profile import Profile
+
+FORMAT = 2
+SECTIONS = ("scans", "clears")
 
 _HEADER = (
     "DTC scan history recorded by `canair dtc` for one profile's car. This is the only\n"
@@ -82,7 +77,7 @@ def log_dir() -> Path:
 
 
 def log_file(profile: Profile) -> Path:
-    """``profile``'s DTC log, after folding in any legacy in-profile copy (once)."""
+    """``profile``'s DTC log, brought up to date (legacy copies, format) once per process."""
     dest = log_dir() / f"{profile.name}.yaml"
     key = (dest, profile.root, profile.overlays)
     if key not in _migrated:
@@ -92,7 +87,7 @@ def log_file(profile: Profile) -> Path:
         try:
             migrate(profile, dest)
         except OSError as e:
-            print(f"warning: could not migrate the legacy DTC log: {e}", file=sys.stderr)
+            print(f"warning: could not migrate the DTC log: {e}", file=sys.stderr)
     return dest
 
 
@@ -119,13 +114,15 @@ def load_log(path: Path | None = None) -> dict:
     return data
 
 
-def write_log(data: dict, path: Path) -> Path:
+def write_log(data: Mapping, path: Path) -> Path:
     """Write a whole log document to ``path`` (creating its directory), with the header."""
     from ruamel.yaml.comments import CommentedMap
 
     from canlib.yaml_rt import dump
 
     doc = data if isinstance(data, CommentedMap) else CommentedMap(data)
+    if doc.get("format") != FORMAT:
+        doc.insert(0, "format", FORMAT)
     if not doc.ca.comment:
         doc.yaml_set_start_comment(_HEADER)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -144,8 +141,8 @@ def build_scan(
     unread: list[str] | None = None,
     timestamp: str | None = None,
 ) -> dict:
-    """Build a scan entry. ``ecus`` maps display-name → {tx, protocol, dtcs:[codes]};
-    ``unread`` lists the ECUs a full sweep asked but got no DTC list from."""
+    """Build a scan entry. ``scope`` is ``all`` or the ECU's rx; ``ecus`` maps rx →
+    {protocol, dtcs:[codes]}; ``unread`` lists the ECUs a full sweep got no DTC list from."""
     entry: dict = {
         "timestamp": timestamp or datetime.now().isoformat(timespec="seconds"),
         "scope": scope,
@@ -167,29 +164,34 @@ def append_scan(entry: dict, path: Path | None = None) -> Path:
     return _append("scans", entry, path)
 
 
-def build_clear(kind: str, scope: str, *, timestamp: str | None = None, **fields) -> dict:
-    """Build a clear event. ``kind`` is 'manual' (ran the clear command) or
-    'detected' (codes gone since the last scan). Extra fields (ecu, protocol,
-    group, codes, cleared, label) are included when not None."""
-    entry: dict = {
-        "timestamp": timestamp or datetime.now().isoformat(timespec="seconds"),
-        "type": kind,
-        "scope": scope,
-    }
-    for key, val in fields.items():
-        if val is not None:
-            entry[key] = val
+def build_clear(
+    rx: str,
+    *,
+    protocol: str | None = None,
+    group: str | None = None,
+    codes: list[str] | None = None,
+    label: str | None = None,
+    timestamp: str | None = None,
+) -> dict:
+    """Build the record of a ``--clear`` on the ECU ``rx``; ``codes`` are what it held."""
+    entry: dict = {"timestamp": timestamp or datetime.now().isoformat(timespec="seconds")}
+    fields = {"rx": rx, "protocol": protocol, "group": group, "codes": codes, "label": label}
+    entry.update({k: v for k, v in fields.items() if v is not None})
     return entry
 
 
 def append_clear(entry: dict, path: Path | None = None) -> Path:
-    """Append a clear event to the log's ``clears:`` list, returning the path."""
+    """Append a clear to the log's ``clears:`` list, returning the path."""
     return _append("clears", entry, path)
 
 
-def _scope_ecus(scope: str) -> list[str] | None:
-    """The ECU names a scope covers for the revision check (None: every ECU)."""
-    return None if scope_key(scope) == ALL_SCOPE else [display_name(scope)]
+def entry_ecus(entry: Mapping[str, Any], refs: EcuRefs) -> list[str] | None:
+    """The ECU names an entry covers for the revision check (None: every ECU)."""
+    ref = entry.get("rx") if "rx" in entry else entry.get("scope")
+    if ref == ALL_SCOPE:
+        return None
+    name = refs.name(ref)
+    return [name] if name else []
 
 
 def _with_tag(entry: dict) -> dict:
@@ -207,7 +209,7 @@ def _with_tag(entry: dict) -> dict:
         return entry
     if not tag:
         return entry
-    ecus = _scope_ecus(str(entry.get("scope", "")))
+    ecus = entry_ecus(entry, EcuRefs.current())
     if ecus is not None:
         tag = narrow_to_captured(tag, {e.upper() for e in ecus})
     out = dict(entry)
@@ -237,17 +239,15 @@ def _append(section: str, entry: dict, path: Path | None = None) -> Path:
     return write_log(data, p)
 
 
-def _same_scope(entry: dict, scope: str, car: Car) -> bool:
-    return scope_key(str(entry.get("scope", ""))) == scope_key(scope) and car.admits(
-        entry, _scope_ecus(scope)
-    )
+def _same_scope(entry: Mapping, scope: str, car: Car, refs: EcuRefs) -> bool:
+    return entry.get("scope") == scope and car.admits(entry, entry_ecus(entry, refs))
 
 
 def latest_matching(scope: str, path: Path | None = None, car: Car | None = None) -> dict | None:
     """The most recent logged scan of ``scope`` on ``car`` (default: the active one)."""
-    car = car or current_car()
+    car, refs = car or current_car(), EcuRefs.current()
     for entry in reversed(load_log(path).get("scans", [])):
-        if _same_scope(entry, scope, car):
+        if _same_scope(entry, scope, car, refs):
             return entry
     return None
 
@@ -257,103 +257,126 @@ def prior_matching(
 ) -> dict | None:
     """The most recent same-scope scan logged strictly *before* the ``before``
     timestamp — the entry a stored scan was diffed against when it was recorded."""
-    car = car or current_car()
+    car, refs = car or current_car(), EcuRefs.current()
     match = None
     for entry in load_log(path).get("scans", []):
-        if _same_scope(entry, scope, car) and entry.get("timestamp", "") < before:
+        if _same_scope(entry, scope, car, refs) and entry.get("timestamp", "") < before:
             match = entry
     return match
 
 
-def _pairs(entry: dict) -> set[tuple[str, str]]:
-    """The set of (ecu, code) pairs recorded in a scan entry."""
+def clears_between(
+    after: str, before: str, path: Path | None = None, car: Car | None = None
+) -> list[dict]:
+    """The clears logged after ``after`` and up to ``before`` (timestamps) on ``car``."""
+    car, refs = car or current_car(), EcuRefs.current()
+    return [
+        e
+        for e in load_log(path).get("clears") or []
+        if isinstance(e, Mapping)
+        and after < str(e.get("timestamp", "")) <= before
+        and car.admits(e, entry_ecus(e, refs))
+    ]
+
+
+def _pairs(entry: Mapping) -> set[tuple[str, str]]:
+    """The set of (rx, code) pairs recorded in a scan entry."""
     out: set[tuple[str, str]] = set()
-    for ecu, info in (entry.get("ecus") or {}).items():
+    for rx, info in (entry.get("ecus") or {}).items():
         for code in (info or {}).get("dtcs") or []:
-            out.add((ecu, code))
+            out.add((str(rx), str(code)))
     return out
 
 
-def _unread(entry: dict) -> set[str]:
+def _unread(entry: Mapping) -> set[str]:
     return {str(u) for u in entry.get("unread") or []}
 
 
-def _comparable(ecu: str, previous: dict, current: dict) -> bool:
-    """Whether both scans read ``ecu``, from the same revision of it."""
-    if ecu in _unread(previous) or ecu in _unread(current):
+def _comparable(rx: str, previous: Mapping, current: Mapping, refs: EcuRefs) -> bool:
+    """Whether both scans read ``rx``, from the same revision of it."""
+    if rx in _unread(previous) or rx in _unread(current):
         return False
-    name = display_name(ecu)
+    name = refs.name(rx)
+    if name is None:
+        return True
     before, now = entry_revision(previous, name), entry_revision(current, name)
     return before is None or now is None or before == now
 
 
-def diff_scans(previous: dict, current: dict) -> dict:
-    """Return ``{cleared, new, persisting}`` lists of (ecu, code) pairs.
+def diff_scans(
+    previous: Mapping, current: Mapping, clears: Iterable[Mapping] = (), refs: EcuRefs | None = None
+) -> dict:
+    """Return ``{cleared, new, persisting, cleared_manually}`` lists of (rx, code) pairs.
 
-    An ECU one of the scans could not read, or read as another revision, is left out:
-    its codes neither cleared nor appeared, they were not comparable."""
-    prev = {p for p in _pairs(previous) if _comparable(p[0], previous, current)}
-    curr = {p for p in _pairs(current) if _comparable(p[0], previous, current)}
+    ``clears`` are the ``--clear`` runs between the two scans: the codes they wiped are
+    ``cleared_manually``, not "cleared", and one that is back is "new" again. An ECU one
+    of the scans could not read, or read as another revision, is left out: its codes
+    neither cleared nor appeared, they were not comparable."""
+    refs = refs or EcuRefs.current()
+    wiped = {str(c.get("rx")) for c in clears}
+    prev = {p for p in _pairs(previous) if _comparable(p[0], previous, current, refs)}
+    curr = {p for p in _pairs(current) if _comparable(p[0], previous, current, refs)}
+    manual = {p for p in prev if p[0] in wiped}
+    prev -= manual
     return {
         "cleared": sorted(prev - curr),
         "new": sorted(curr - prev),
         "persisting": sorted(prev & curr),
+        "cleared_manually": sorted(manual),
     }
 
 
-def format_diff(diff: dict, previous: dict) -> list[str]:
+def format_diff(diff: dict, previous: Mapping, refs: EcuRefs | None = None) -> list[str]:
     """Human-readable lines comparing the current scan to ``previous``."""
+    resolved = refs or EcuRefs.current()
+
+    def pairs(items) -> str:
+        return ", ".join(f"{resolved.label(rx)} {code}" for rx, code in items)
+
     lines = [f"  Compared to last scan ({previous.get('timestamp', '?')}):"]
     cleared, new = diff["cleared"], diff["new"]
+    manual = diff.get("cleared_manually") or []
+    if manual:
+        lines.append(
+            f"    {ansi.DIM}--clear since then ({len(manual)}): {pairs(manual)}{ansi.RESET}"
+        )
     if cleared:
-        lines.append(
-            f"    {ansi.GREEN}✓ cleared ({len(cleared)}){ansi.RESET}: "
-            + ", ".join(f"{e} {c}" for e, c in cleared)
-        )
+        lines.append(f"    {ansi.GREEN}✓ cleared ({len(cleared)}){ansi.RESET}: {pairs(cleared)}")
     if new:
-        lines.append(
-            f"    {ansi.RED}+ new ({len(new)}){ansi.RESET}: "
-            + ", ".join(f"{e} {c}" for e, c in new)
-        )
+        lines.append(f"    {ansi.RED}+ new ({len(new)}){ansi.RESET}: {pairs(new)}")
     lines.append(f"    = still present: {len(diff['persisting'])}")
     if not cleared and not new:
         lines.append(f"    {ansi.DIM}(no change since last scan){ansi.RESET}")
     return lines
 
 
-def ecu_name_for(display: str, info: Mapping) -> str:
-    """The registry name of the ECU a logged ``display`` label (and its ``tx``) names.
-
-    Resolved by TX id, so a code logged before an ECU rename is still described with
-    that ECU's meanings; falls back to the name in the label."""
-    from canlib.ecus import load_ecus
-
-    tx = display_tx(str(info.get("tx") or "")) or display_tx(display)
-    try:
-        entry = load_ecus().get(tx) if tx is not None else None
-    except Exception:
-        entry = None
-    return str(entry["name"]) if entry else display_name(display)
-
-
-def describe_car(entry: dict) -> str | None:
+def describe_car(entry: Mapping) -> str | None:
     """``variant 28kwh · VCU kwp`` for a tagged entry, None for an untagged one."""
     parts = [f"variant {entry['variant']}"] if entry.get("variant") else []
     revisions = entry.get("revisions")
-    if isinstance(revisions, dict):
+    if isinstance(revisions, Mapping):
         parts += [f"{ecu} {rid}" for ecu, rid in revisions.items()]
     return " · ".join(parts) or None
 
 
-def render_scan(entry: dict, previous: dict | None = None) -> list[str]:
+def scope_label(scope: str, refs: EcuRefs | None = None) -> str:
+    """``all``, or the scanned ECU as people name it."""
+    return scope if scope == ALL_SCOPE else (refs or EcuRefs.current()).label(scope)
+
+
+def render_scan(
+    entry: Mapping, previous: Mapping | None = None, clears: Iterable[Mapping] = ()
+) -> list[str]:
     """Human-readable, decoded view of a logged scan entry (offline; no device).
 
     Shows the scan's timestamp/scope/label/state, every ECU's codes with their
     decoded meaning, and — when a ``previous`` same-scope scan is given — the
-    change since it. This is what ``canair dtc log`` prints."""
+    change since it (``clears`` are the ``--clear`` runs in between). This is what
+    ``canair dtc log`` prints."""
     from canlib.dtc.describe import describe_dtc
 
-    lines = [f"\n  DTC log: {entry.get('scope', '?')}"]
+    refs = EcuRefs.current()
+    lines = [f"\n  DTC log: {scope_label(str(entry.get('scope', '?')), refs)}"]
     lines.append(f"  Scanned:     {entry.get('timestamp', '?')}")
     car = describe_car(entry)
     if car:
@@ -371,23 +394,24 @@ def render_scan(entry: dict, previous: dict | None = None) -> list[str]:
     if not total:
         lines.append(f"  {ansi.GREEN}No DTCs stored in this scan.{ansi.RESET}")
     else:
-        for ecu in sorted(ecus):
-            codes = (ecus[ecu] or {}).get("dtcs") or []
+        for rx in sorted(ecus, key=refs.label):
+            codes = (ecus[rx] or {}).get("dtcs") or []
             if not codes:
                 continue
-            lines.append(f"  {ecu} — {len(codes)} DTC(s):")
+            lines.append(f"  {refs.label(rx)} — {len(codes)} DTC(s):")
             code_w = max(len(c) for c in codes)
-            name = ecu_name_for(ecu, ecus[ecu] or {})
+            name = refs.name(rx)
             for code in codes:
                 meaning = describe_dtc(code, ecu=name).get("meaning") or ""
                 lines.append(f"    {code:<{code_w}}  {meaning}".rstrip())
             lines.append("")
     if entry.get("unread"):
-        lines.append(f"  {ansi.DIM}Not read: {', '.join(entry['unread'])}{ansi.RESET}")
+        unread = ", ".join(refs.label(u) for u in entry["unread"])
+        lines.append(f"  {ansi.DIM}Not read: {unread}{ansi.RESET}")
         lines.append("")
 
     if previous is not None:
-        lines.extend(format_diff(diff_scans(previous, entry), previous))
+        lines.extend(format_diff(diff_scans(previous, entry, clears, refs), previous, refs))
     else:
         lines.append(f"  {ansi.DIM}(no earlier scan of this scope to compare against){ansi.RESET}")
     lines.append("")

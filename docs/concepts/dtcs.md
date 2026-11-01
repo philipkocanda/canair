@@ -207,7 +207,13 @@ kept in user state, `~/.config/canair/dtc_log/<profile>.yaml`, and not in the pr
 directory, which a reinstall, a re-clone or a `git clean` deletes. A
 `dtc_log.yaml` left in a profile by an older canair is moved there automatically:
 the first time that profile's log is used, and for every profile at once by
-`canair config` and before `canair update` reinstalls.
+`canair config` and before `canair update` reinstalls. A log written by an earlier
+version is converted to the current format the same way.
+
+**It records readings, not names.** Each entry names an ECU only by its response
+address, as a capture does; the name you see comes from the profile, so renaming an
+ECU changes nothing in the log. Only scans and clears are stored — which codes
+cleared on their own is worked out from consecutive scans when you look.
 
 **It belongs to one car.** Each entry records the [variant](variants.md) it was
 read from and the revision of each multi-revision ECU it covers. A code read from
@@ -231,8 +237,9 @@ Clearing sends `ClearDiagnosticInformation` (`0x14`) and **mutates the ECU's
 fault memory** — so it prompts for confirmation unless `--yes` is given. By
 default it clears all groups (`--group FFFFFF` for UDS, `FFFF` for KWP2000). When
 logging is on, canair reads the current codes first so the log records exactly
-what was cleared, writes a `manual` clear event, and resets that ECU's scan
-baseline to clean.
+what was cleared. The ECU counts as clean from then until it is next read, and the
+next scan lists the codes the clear wiped separately from those that went away on
+their own; one that is back shows as new.
 
 !!! warning "Clearing hides symptoms, not causes"
     Erasing a DTC doesn't fix the underlying fault — if the condition persists
