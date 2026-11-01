@@ -348,6 +348,78 @@ class TestFinalizeJournal:
         sess = json.loads(next(tmp_path.glob("*.json")).read_text())["sessions"][0]
         assert sess["label"] == "prov"
 
+    def test_non_answers_alone_are_saved(self, tmp_path):
+        j = CaptureJournal.open(tmp_path, label="prov", source="query")
+        j.append_response("0x7A8", "24B004", "NRC 0x11 (serviceNotSupported)")
+        _finalize_journal(j, 0, "probe", None, None, non_answers=1)
+        sess = json.loads(next(tmp_path.glob("*.json")).read_text())["sessions"][0]
+        assert sess["captures"][0]["response"] == "NRC 0x11 (serviceNotSupported)"
+
+
+class _RawStepTerminal:
+    """Answers each request from a table; anything else gets NO DATA."""
+
+    def __init__(self, replies: dict):
+        self.replies = replies
+
+    async def set_header(self, tx_id):
+        pass
+
+    async def send_uds(self, request, *a, **k):
+        return self.replies.get(request, {"ok": False, "error": "No response from ECU (NO DATA)"})
+
+
+class TestMultiSaveRawNonAnswers:
+    """A raw step is a probe, so `read --save` keeps its refusal as well as its payload,
+    the way a standalone `canair raw --save` always has."""
+
+    def _run(self, tmp_path, monkeypatch, steps, replies):
+        from canlib.modes.multi import mode_multi
+
+        real_open = CaptureJournal.open
+        monkeypatch.setattr(
+            CaptureJournal, "open", classmethod(lambda cls, _dir, **kw: real_open(tmp_path, **kw))
+        )
+        asyncio.run(
+            mode_multi(
+                _RawStepTerminal(replies),
+                steps,
+                {},
+                verbose=False,
+                no_repl=True,
+                save=True,
+                label="probe",
+            )
+        )
+        files = list(tmp_path.glob("*.json"))
+        if not files:
+            return []
+        return json.loads(files[0].read_text())["sessions"][0]["captures"]
+
+    def test_nrc_and_no_data_are_recorded(self, tmp_path, monkeypatch):
+        nrc = {"ok": False, "nrc": 0x11, "nrc_desc": "serviceNotSupported"}
+        caps = self._run(
+            tmp_path, monkeypatch, ["raw 7A0:24B004", "raw 7A0:24B003"], {"24B004": nrc}
+        )
+        assert [(c["pid"], c["response"]) for c in caps] == [
+            ("24B004", "NRC 0x11 (serviceNotSupported)"),
+            ("24B003", "No response from ECU (NO DATA)"),
+        ]
+        assert all("time" not in c for c in caps)
+
+    def test_payload_and_refusal_share_a_session(self, tmp_path, monkeypatch):
+        replies = {
+            "1902FF": {"ok": True, "hex": "590209", "bytes": bytes.fromhex("590209")},
+            "190A": {"ok": False, "nrc": 0x12, "nrc_desc": "subFunctionNotSupported"},
+        }
+        caps = self._run(tmp_path, monkeypatch, ["raw 7A0:1902FF", "raw 7A0:190A"], replies)
+        assert caps[0]["payload"] == "590209" and "time" in caps[0]
+        assert caps[1] == {
+            "rx": caps[0]["rx"],
+            "pid": "190A",
+            "response": "NRC 0x12 (subFunctionNotSupported)",
+        }
+
 
 class TestMultiSaveTimestamp:
     """mode_multi --save must persist each PID's sub-second acquisition time

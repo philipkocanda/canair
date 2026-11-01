@@ -17,13 +17,16 @@ Journal format (one JSON object per line):
      "notes": "...", "source": "monitor", "keep_mode": "changes"}
     {"type": "capture", "rx": "0x7EC", "pid": "2101", "payload": "6101...",
      "date": "2026-07-22", "time": "12:00:01", "elapsed_ms": 47}
+    {"type": "response", "rx": "0x7A0", "pid": "24B004",
+     "response": "NRC 0x11 (serviceNotSupported)", "date": "2026-07-22"}
     ...
 
 Each ``capture`` row carries its own ``date`` (the acquisition date), so a
 session that spans midnight reconciles into the correct per-day capture files
 rather than being lumped under a single date fixed at reconcile time. The
 ``meta`` ``date`` (session start) is the fallback for rows written before
-per-record dates existed.
+per-record dates existed. A ``response`` row is a request that drew an NRC or no
+reply; it reconciles into an untimed capture with a ``response`` field.
 
 Multiple ``meta`` lines may appear (metadata edited mid-session); reconcile uses
 the **last** one. For one-shot producers that already build a full session dict
@@ -171,6 +174,17 @@ class CaptureJournal:
             rec["elapsed_ms"] = elapsed_ms
         self._write(rec)
 
+    def append_response(self, ecu_ref: str, pid: str, response: str, date: str = "") -> None:
+        """Append a request that drew no payload (an NRC or no reply).
+
+        ``response`` is the text the capture stores
+        (:func:`~canlib.captures.non_answer_text`). It is untimed on reconcile, so
+        only the ``date`` (which day's file it lands in) is recorded.
+        """
+        rec: dict = {"type": "response", "rx": ecu_ref, "pid": pid, "response": response}
+        rec["date"] = date or datetime.now().strftime("%Y-%m-%d")
+        self._write(rec)
+
     def append_session(self, session: CaptureSession) -> None:
         """Append a fully-built session dict (one-shot scan/raw/discover)."""
         self._write({"type": "session", "session": session}, durable=True)
@@ -294,7 +308,8 @@ def build_session_from_records(
     ``keep_mode`` unless ``keep_mode`` is passed explicitly. Payload rows are
     grouped by their per-record ``date`` so a session spanning midnight yields
     one session per calendar day (each landing in the correct ``YYYY-MM-DD.yaml``
-    on save); rows missing a date fall back to the ``meta`` date. Returns an
+    on save); rows missing a date fall back to the ``meta`` date. ``response`` rows
+    (non-answers) are grouped the same way and never deduplicated. Returns an
     empty list when the journal has no capture/session payloads.
     """
     from canlib.captures import apply_capture_tag, build_query_session
@@ -302,6 +317,7 @@ def build_session_from_records(
     meta = {"label": "", "vehicle_states": [], "notes": "", "keep_mode": None, "date": ""}
     session_records: list[dict] = []
     rows: list[tuple[str, str, str, str, str, int | None]] = []
+    non_answers: list[tuple[str, str, str, str]] = []
     meta_date = ""
     transport: str | None = None
     quality: Quality | None = None
@@ -336,6 +352,15 @@ def build_session_from_records(
                     rec.get("time", ""),
                     str(rec.get("date") or meta_date),
                     rec.get("elapsed_ms"),
+                )
+            )
+        elif rtype == "response":
+            non_answers.append(
+                (
+                    rec.get("rx", ""),
+                    rec.get("pid", ""),
+                    str(rec.get("response") or "unknown error"),
+                    str(rec.get("date") or meta_date),
                 )
             )
 
@@ -373,7 +398,7 @@ def build_session_from_records(
             base.setdefault("captures", []).extend(extra.get("captures", []))
         return [apply_capture_tag(base, tag)]
 
-    if not rows:
+    if not rows and not non_answers:
         return []
 
     rows = _dedup(rows, effective_keep)
@@ -383,6 +408,10 @@ def build_session_from_records(
     by_date: dict[str, list[tuple[str, str, str, str, int | None]]] = {}
     for ecu, pid, hex_val, ts, rdate, elapsed_ms in rows:
         by_date.setdefault(rdate, []).append((ecu, pid, hex_val, ts, elapsed_ms))
+    refused_by_date: dict[str, list[tuple[str, str, str]]] = {}
+    for ecu, pid, response, rdate in non_answers:
+        by_date.setdefault(rdate, [])
+        refused_by_date.setdefault(rdate, []).append((ecu, pid, response))
 
     sessions: list[CaptureSession] = []
     for rdate, day_rows in by_date.items():
@@ -396,6 +425,7 @@ def build_session_from_records(
                 date=rdate or None,
                 transport=transport,
                 quality=quality,
+                non_answers=refused_by_date.get(rdate, ()),
             )
         )
     return [apply_capture_tag(s, tag) for s in sessions]

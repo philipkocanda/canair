@@ -279,6 +279,81 @@ class TestBuildSessionFromRecords:
         recs = [{"type": "meta", "label": "L"}]
         assert build_session_from_records(recs) == []
 
+    def test_non_answer_alone_is_a_session(self):
+        # A probe whose only result is a refusal still records that refusal.
+        recs = [
+            {"type": "meta", "label": "probe", "date": "2026-11-01"},
+            {
+                "type": "response",
+                "rx": "0x7A8",
+                "pid": "24B004",
+                "response": "NRC 0x11 (serviceNotSupported)",
+            },
+        ]
+        (session,) = build_session_from_records(recs)
+        assert session["date"] == "2026-11-01"
+        assert session["captures"] == [
+            {"rx": "0x7A8", "pid": "24B004", "response": "NRC 0x11 (serviceNotSupported)"}
+        ]
+
+    def test_non_answers_follow_payloads_untimed_and_undeduplicated(self):
+        refusal = {
+            "type": "response",
+            "rx": "0x7A8",
+            "pid": "190A",
+            "response": "NRC 0x12 (subFunctionNotSupported)",
+            "date": "2026-11-01",
+        }
+        recs = [
+            {"type": "meta", "label": "probe", "keep_mode": "changes"},
+            refusal,
+            {
+                "type": "capture",
+                "rx": "0x7A8",
+                "pid": "1902FF",
+                "payload": "590209",
+                "date": "2026-11-01",
+                "time": "23:07:01.000",
+            },
+            refusal,
+        ]
+        (session,) = build_session_from_records(recs)
+        caps = session["captures"]
+        assert [c["pid"] for c in caps] == ["1902FF", "190A", "190A"]
+        assert all("time" not in c for c in caps[1:])
+        assert caps[1]["response"] == "NRC 0x12 (subFunctionNotSupported)"
+
+    def test_non_answer_lands_on_its_own_date(self):
+        recs = [
+            {"type": "meta", "label": "overnight"},
+            {
+                "type": "capture",
+                "rx": "0x7EC",
+                "pid": "2101",
+                "payload": "6101AA",
+                "date": "2026-07-22",
+                "time": "23:59:58.100",
+            },
+            {
+                "type": "response",
+                "rx": "0x7EC",
+                "pid": "0101",
+                "response": "No response from ECU (NO DATA)",
+                "date": "2026-07-23",
+            },
+        ]
+        by_date = {s["date"]: s for s in build_session_from_records(recs)}
+        assert [c["pid"] for c in by_date["2026-07-22"]["captures"]] == ["2101"]
+        assert [c["pid"] for c in by_date["2026-07-23"]["captures"]] == ["0101"]
+
+    def test_append_response_round_trips_through_reconcile(self, tmp_path):
+        j = CaptureJournal.open(tmp_path, label="probe")
+        j.append_response("0x7A8", "24B004", "NRC 0x11 (serviceNotSupported)")
+        j.reconcile()
+        sess = _read_capture_file(tmp_path)["sessions"][0]
+        assert sess["captures"][0]["response"] == "NRC 0x11 (serviceNotSupported)"
+        assert "time" not in sess["captures"][0]
+
     def test_splits_sessions_by_capture_date(self):
         # A journal spanning midnight must reconcile into one session per
         # calendar day, each carrying its own date + the shared metadata.

@@ -140,6 +140,7 @@ def build_query_session(
     date: str | None = None,
     transport: str | None = None,
     quality: Quality | None = None,
+    non_answers: Sequence[tuple[str, str, str]] = (),
 ) -> CaptureSession:
     """Build a capture session dict from query/raw payload results.
 
@@ -150,6 +151,11 @@ def build_query_session(
     capture's ``rx`` field. Captures are grouped by ECU then PID in the order
     given. Decoded parameter values are intentionally NOT stored — they are
     regenerated on demand from the payload + PID definitions.
+
+    ``non_answers`` holds ``(ecu_ref, pid, response)`` for requests that drew an
+    NRC or no reply (``response`` as :func:`non_answer_text` renders it). They
+    follow the payload captures, untimed like :func:`build_raw_session`'s,
+    because a refusal is a fact about the request, not a time-series sample.
 
     ``date`` sets the session date (the acquisition date, from the journal's
     per-record dates); it falls back to today when omitted, for the direct
@@ -193,6 +199,8 @@ def build_query_session(
         if elapsed_ms is not None:
             capture["elapsed_ms"] = elapsed_ms
         captures.append(capture)
+    for ecu_ref, pid, response in non_answers:
+        captures.append({"rx": ecu_ref, "pid": pid, "response": response})
 
     return {"date": date or _today(), "label": label, **meta, "captures": captures}
 
@@ -288,12 +296,16 @@ def build_raw_session(
         capture["time"] = datetime.now().strftime("%H:%M:%S")
     else:
         # A non-answer (NRC / error) is not a sample and is deliberately untimed.
-        if response.get("nrc") is not None:
-            capture["response"] = f"NRC 0x{response['nrc']:02X} ({response['nrc_desc']})"
-        else:
-            capture["response"] = response.get("error", "unknown error")
+        capture["response"] = non_answer_text(response)
 
     return {"date": _today(), "label": label, **meta, "captures": [capture]}
+
+
+def non_answer_text(response: UdsResponse) -> str:
+    """How a capture records a request that drew no payload: its NRC, else the error."""
+    if response.get("nrc") is not None:
+        return f"NRC 0x{response['nrc']:02X} ({response.get('nrc_desc', '')})"
+    return response.get("error") or "unknown error"
 
 
 def build_discover_session(

@@ -110,6 +110,7 @@ def _finalize_journal(
     prompt: bool = True,
     suggested_state: str | None = None,
     quality: Quality | None = None,
+    non_answers: int = 0,
 ) -> None:
     """Resolve metadata (optionally prompting) and reconcile the write-ahead journal.
 
@@ -119,18 +120,20 @@ def _finalize_journal(
     metadata already on it — no stdin interaction. ``suggested_state`` pre-fills
     the interactive state prompt (auto-suggested from decoded PID values).
     ``quality`` (the transport exchange/error footprint) is stamped onto the
-    session before reconcile.
+    session before reconcile. ``count`` is the payloads journaled and
+    ``non_answers`` the refusals (NRC or no reply); either alone is worth saving.
     """
     from ..captures import resolve_metadata
 
     if journal is None:
         return
-    if count == 0:
+    if count == 0 and non_answers == 0:
         print("\n  --save: no payloads captured — nothing to save.")
         journal.discard()
         return
 
-    print(f"\n  --save: {count} payload(s) captured.")
+    refused = f" and {non_answers} non-answer(s)" if non_answers else ""
+    print(f"\n  --save: {count} payload(s){refused} captured.")
     if prompt:
         meta = resolve_metadata(
             label,
@@ -169,8 +172,9 @@ async def mode_multi(
         pids_data: Loaded PID definitions.
         verbose: Show debug output.
         no_repl: If True, don't drop into REPL after pipeline.
-        save: If True, collect payloads from query/raw steps and save them to
-            captures/YYYY-MM-DD.yaml after the pipeline completes.
+        save: If True, collect payloads from query/raw steps (and the NRC or
+            no-reply of a raw step) and save them to captures/ after the
+            pipeline completes.
         label/state/notes: Session metadata. When ``label`` is provided, saving
             is non-interactive; otherwise the user is prompted.
     """
@@ -180,6 +184,8 @@ async def mode_multi(
     repl_executed = False
     # Collected (ecu_ref, pid, hex, time) rows for --save (also counts for report).
     collected: list[tuple[str, str, str, str]] = []
+    # Raw steps that drew an NRC or no reply, journaled as non-answers.
+    non_answers = 0
     # Accumulated decoded values for state auto-suggestion at save time.
     pipe_values: dict[str, float] = {}
     pipe_responded: set[str] = set()
@@ -309,12 +315,22 @@ async def mode_multi(
                 raw_result = await _exec_raw(sm, cmd["spec"], cmd["hold"], verbose)
                 if save and raw_result:
                     tx_id, req, resp = raw_result
+                    ecu_ref = _rx_addr_for_tx(tx_id)
+                    cap_date, cap_time = _capture_stamp(None)
                     if resp.get("ok") and resp.get("hex"):
-                        ecu_ref = _rx_addr_for_tx(tx_id)
-                        cap_date, cap_time = _capture_stamp(None)
                         collected.append((ecu_ref, req, resp["hex"], cap_time))
                         if journal is not None:
                             journal.append(ecu_ref, req, resp["hex"], cap_time, cap_date)
+                    else:
+                        # An explicit raw request is a probe, so its refusal is the
+                        # result: keep it, as a standalone `canair raw --save` does.
+                        from ..captures import non_answer_text
+
+                        non_answers += 1
+                        if journal is not None:
+                            journal.append_response(
+                                ecu_ref, req, non_answer_text(resp), date=cap_date
+                            )
 
             elif cmd_type == "scan":
                 print(f"\n{step} Scan {cmd['tx']} service {cmd['service']} range {cmd['range']}...")
@@ -355,6 +371,7 @@ async def mode_multi(
                 notes,
                 suggested_state=_suggest_pipeline_state(),
                 quality=getattr(getattr(terminal, "diag", None), "quality", lambda: None)(),
+                non_answers=non_answers,
             )
             journal = None
 
@@ -378,6 +395,7 @@ async def mode_multi(
                 notes,
                 prompt=False,
                 quality=getattr(getattr(terminal, "diag", None), "quality", lambda: None)(),
+                non_answers=non_answers,
             )
             journal = None
 
