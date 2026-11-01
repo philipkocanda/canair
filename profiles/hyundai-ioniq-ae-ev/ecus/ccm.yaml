@@ -420,29 +420,50 @@ CCM:
         - Find the Dem_ReportErrorStatus caller or the BSW config entry that carries event 0x11 in references/ccm-ghidra.
     - type: decode
       target: DTC snapshot DID 4710
-      status: pending
+      status: captured
       priority: P3
       vehicle_states: [IG3]
       created: "2026-11-01"
       updated: "2026-11-01"
       result: >-
-        2026-11-01, AC charging: 19 02 FF -> 59 02 09 58 2C 00 08 (status availability mask 0x09;
-        C182C-00 confirmed) and 19 01 FF -> 59 01 09 00 00 01. 19 03 -> 59 03 582C00 01 582C00 02:
-        C182C has snapshot records 01 and 02. 19 04 582C00 01 and 02 each hold one DID, 4710, with 9
-        bytes: record 01 02 1A A7 20 7C 0A FF FF FF, record 02 C0 2E 67 36 FC 0A FF FF F8 (19 04 ...
-        FF returns both). 22 4710 returns NRC 0x31 in the default and extended sessions, so the DID
-        exists only in snapshots; functionally only the KWP2000 ECUs answer, with NRCs. 19 0A and 19
-        06 (extended data) return NRC 0x12. 0x24 on F190 returns NRC 0x11.
+        Layout from the firmware (MSB first; signal names from signals/powertrain.yaml). Byte 1: b7
+        CCS_EV_READY, b6 CCS_EV_NO_ERROR, b5 CCS_ERR_RESS_TEMP_INHIBIT, b4 CCS_ERR_SHIFT_POSITION,
+        b3 CCS_ERR_CONNECTOR_LOCK_FAULT, b2 CCS_ERR_RESS_MALFUNCTION, b1
+        CCS_ERR_CURRENT_DIFFERENTIAL, b0 CCS_ERR_VOLTAGE_OUT_OF_RANGE (0x599). Byte 2: b7
+        CCS_ERR_SYSTEM_INCOMPATIBLE, b6 CCS_ERR_NO_DATA, b5 CCS_READY_TO_CHARGE, b4
+        CCS_STOP_REQUEST, b3 CCS_TRIGGER, b2 CCS_RELAYS_CLOSED (0x599), b1-b0 OBC_PLUG_STATE
+        (0x57F). Byte 3: b7 OBC_STATUS_B0_3, b6 OBC_B4_2, b5 OBC_DC_CHARGING (0x57F), b4-b1
+        CCS_ENERGY_TRANSFER_TYPE, b0 BMS_MAIN_CONTACTOR_CLOSED (0x5A3). Byte 4 is C350 data byte 61:
+        b0 CCM_SESSION_STOPPED, b1-b4 CCM_STOP_REASON, b5-b7 EVSE_STATUS_CODE. Byte 5: b7
+        CCM_SESSION_STOPPED_2, b6-b0 the charge progress in reversed bit order, as C350 byte 63.
+        Byte 6 is C350 data byte 77: the lowest SLAC attenuation among the chargers that answered,
+        kept when the CCM picks one. Bytes 7-9: one flag per SLAC step reached (byte 7 and byte 8
+        b7-b6), C350's SLAC-started bit (byte 8 b5), then one flag per DIN 70121 request record, the
+        bit C350 stores but which is not decoded there. Record 01: 02 1A A7 20 7C 0A FF FF FF =
+        current differential error and the vehicle's stop request set, CCS trigger on, plug state 2,
+        DC charging, energy transfer type 3 (DC_extended), contactor closed, stop reason 0,
+        EVSE_Ready, progress 31 (CurrentDemand), attenuation 10, every flag set. Record 02: C0 2E 67
+        36 FC 0A FF FF F8 = EV ready and no error, ready to charge, trigger and relays on, the same
+        plug, DC and contactor state, stop reason 11 (charger failure ResponseCode, one of the
+        reasons that raise C182C), EVSE_Ready, CCM_SESSION_STOPPED_2 set, progress 31, attenuation
+        10, the last three request flags clear. So both aborts happened during CurrentDemand: in 01
+        the car stopped on a current-differential error, in 02 the charger answered with a failure
+        ResponseCode.
       notes: >-
-        4710 is the environment data the CCM stores with a DTC, so its layout is likely in the Dem
-        snapshot configuration of the decompiled firmware this file already draws on. Bytes 7-9 read
-        FF FF FF in record 01 and FF FF F8 in record 02, which looks like invalid fill and would
-        mark field boundaries.
+        Dem config in the CCM firmware: DID records at 0x2ABEC (DID, length, element count, first
+        element), data elements at 0x2ABAC (reader, size), capture in FUN_0004494e. Each element
+        packs bits from the status struct the C350 log stores (data byte k is RAM 0x4000BDF2 + k),
+        so the layout follows from those readers and FUN_0001a8ce/FUN_0001abc6, which fill the
+        struct. A second 9-byte layout for 4710 exists (state-machine byte plus FF 00 00) for
+        another DTC; neither record ends that way, so both use the first. A reader that fails also
+        fills FF, so record 01's FF FF FF could mean a failed read rather than every flag set. 22
+        4710 returns NRC 0x31 in the default and extended sessions: the DID exists only in
+        snapshots. 19 0A and 19 06 return NRC 0x12.
       sources:
-        - on-car 2026-11-01 support probe (canair read raw steps --save, wican-ws, AC charging)
+        - CCM firmware (uhi22 code-flash dump, decompiled), 2026-11-01
+        - on-car 2026-11-01 (canair read raw 733:1903 and 733:1904582C00xx --save, wican-ws, AC charging)
       what_to_test:
-        - Find DID 4710's Dem snapshot layout in the CCM firmware and decode the two records
-        - After the next CCM DTC, compare a fresh snapshot with the vehicle state at the time it was set
+        - After the next CCM fault, read the new snapshot and compare it with that session's 0x599/0x5E8 values to confirm the bit order
       capture_protocol: >-
         canair read 'raw 733:1903' 'raw 733:1904582C00FF' --save --label 'CCM snapshot' --state
         CHARGING
