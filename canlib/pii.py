@@ -64,9 +64,11 @@ from .textscan import has_data_vin, has_vin_token, looks_redacted
 # a module rather than a person — the project treats those as shareable diagnostic
 # data, so flagging them was noise. Suffixes are matched after stripping the
 # service prefix (``22``/``1A``) so ``22F190``, ``1AF190`` and a bare ``F190`` all
-# match.
+# match. OBD-II carries the VIN as mode 09 InfoType 02 (``0902``), matched whole,
+# since its 1-byte InfoType would otherwise collide with the KWP2000 record set.
 _SENSITIVE_UDS_DIDS = {"F190"}  # VIN
 _SENSITIVE_KWP_RECORDS = {"90"}  # VIN
+_SENSITIVE_OBD_REQUESTS = {"0902"}  # VIN
 
 # ``ecus/<ecu>.yaml`` identity fields worth scanning, and how.
 #
@@ -105,6 +107,8 @@ def _strip_service_prefix(pid: str) -> str:
 
 def _did_is_sensitive(pid: str) -> str | None:
     """Return a human reason if ``pid`` addresses a VIN identifier, else None."""
+    if pid.strip().upper() in _SENSITIVE_OBD_REQUESTS:
+        return "VIN (OBD-II mode 09)"
     ident = _strip_service_prefix(pid)
     if ident in _SENSITIVE_UDS_DIDS:
         return "VIN"

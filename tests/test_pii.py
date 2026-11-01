@@ -61,6 +61,30 @@ class TestIdentityDids:
         )
         assert any(f.kind == "identity-did" for f in pii.scan_profile(prof))
 
+    def test_flags_obd_mode_09_vin(self, tmp_path):
+        payload = "490201" + b"1HGCM82633A004352".hex()
+        prof = _write_profile(
+            tmp_path,
+            captures={
+                "label": "x",
+                "captures": [{"rx": "0x7E8", "pid": "0902", "payload": payload}],
+            },
+        )
+        found = {(f.kind, f.detail) for f in pii.scan_profile(prof)}
+        assert ("identity-did", "VIN (OBD-II mode 09)") in found
+        assert any(kind == "vin-payload" for kind, _ in found)
+
+    def test_other_mode_09_infotypes_are_not_identity(self, tmp_path):
+        # InfoType 0A is the ECU name, the same across a model.
+        prof = _write_profile(
+            tmp_path,
+            captures={
+                "label": "x",
+                "captures": [{"rx": "0x7E8", "pid": "090A", "payload": "490A01"}],
+            },
+        )
+        assert not any(f.kind == "identity-did" for f in pii.scan_profile(prof))
+
     def test_part_number_did_not_flagged(self, tmp_path):
         # F188 (part number) is the same across a model — not identifying.
         prof = _write_profile(
