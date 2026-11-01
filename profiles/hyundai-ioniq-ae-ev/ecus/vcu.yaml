@@ -495,9 +495,17 @@ VCU:
       source: "uhi22 EPCU bench DTC read"
       verified: false
     U1112:
-      description: "Manufacturer-specific network fault; meaning unknown"
-      source: "uhi22 EPCU bench DTC read"
+      description: "Manufacturer-specific network fault; possibly lost communication with the AVN"
+      source: "uhi22 EPCU bench DTC read; owner observation on the 28 kWh Ioniq"
       verified: false
+      notes: >-
+        Unconfirmed guess. Stored on the VCU in the 2026-11-01 full DTC scan, taken with the AVN
+        fuse pulled to avoid draining the 12 V battery. The 2026-07-22 full scans (the first after
+        KWP2000 DTC reading landed) did not list it, but a full sweep omits an ECU with no codes and
+        one whose read failed alike, so that cannot prove it was absent then. The uhi22 bench EPCU
+        had no AVN either and stored this code together with five others, so the bench read does not
+        single it out. To confirm: refit the AVN fuse, clear the VCU DTCs, rescan after a drive; if
+        U1112 stays gone, it is the AVN.
     U1017:
       description: "Manufacturer-specific network fault; meaning unknown"
       source: "uhi22 EPCU bench DTC read"
