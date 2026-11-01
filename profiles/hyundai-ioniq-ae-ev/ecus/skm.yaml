@@ -43,9 +43,22 @@ SKM:
       period: 10000
       vehicle_states: [SLEEP]
       notes: >-
-        178 data bytes, byte-identical across sessions and states (READY with fob 2026-07-22, SLEEP
-        without fob 2026-07-29), with repeating 6-7 byte groups. The 136-byte 2026-04-18 capture is
-        a corrupt reassembly with reordered frames.
+        178 data bytes, constant in every capture except B162 (SKM_GEAR). The 136-byte 2026-04-18
+        capture is a corrupt reassembly with reordered frames.
+      parameters:
+        SKM_GEAR:
+          expression: B162
+          type: enum
+          values:
+            0: P
+            5: D
+          min: "0"
+          max: "15"
+          source: Cross-tab vs VCU 2101 GEAR_* over all SKM captures, 2026-11-01
+          verified: false
+          notes: >-
+            0 in all 753 captures with VCU in P, 5 in all 18 in D (2026-10-25 drive). The only byte
+            of 22B002 that varies. Hyundai gear encoding puts N at 6 and R at 7; neither captured.
 
     22B003:
       response_frames: 4
@@ -64,40 +77,45 @@ SKM:
       status: draft
       period: 10000
       vehicle_states: [SLEEP]
-      source: support-bitmap sweep 2026-10-29
+      source: Cross-tab vs BCM, IGPM and VCU over all SKM captures, 2026-11-01
       verified: false
+      unit: V
+      ha_class: voltage
+      min: "0"
+      max: "20"
+      notes: >-
+        Analog inputs at 0.08 V per count, plus vehicle speed. B17, B18 and B19 (SKM_IGN_LINE_V_*)
+        are ignition-line feedback: non-zero in all 32 captures with IGPM IGN1_SWITCH = 1 and 0 in
+        every other, including 282 charging and top-up captures; 14.2-15.0 V when on, within a count
+        of BCM 22B003 B26/B27/B28. They are the SKM's ACC, ON/START and ON inputs, but all three
+        were on together in every capture, so which byte is which line is open.
       parameters:
 
-        SKM_B006_VAL_A:
-          expression: B10
-          source: state-contrast analysis 2026-07-29
-          notes: 0x9A-0xA2 across sessions, drifting about 1 per reading.
-        SKM_B006_VAL_B:
-          expression: B21
-          source: state-contrast analysis 2026-07-29
-          notes: Within 1 of SKM_B006_VAL_A in every capture.
-        SKM_B006_B12:
+        SKM_12V_BATTERY:
+          expression: B10*0.08
+          notes: >-
+            Reads 2-3 counts (about 0.2 V) above BCM_12V_BATTERY in 175 of 186 co-polled rows
+            (r=0.96), the same 0.08 V/count scale: about 12.4 V parked, 14.8 V in READY and while
+            charging.
+        SKM_12V_SUPPLY_B21:
+          expression: B21*0.08
+          notes: >-
+            Equals SKM_12V_BATTERY or 1 count below in every capture: a second battery-fed supply
+            input.
+        SKM_VEHICLE_SPEED:
           expression: B12
-          notes: Marked by the 22B006 support map. 0-92; non-zero only on 2026-10-25 (19 captures).
-          enabled: false
-        SKM_B006_B17:
-          expression: B17
           notes: >-
-            Marked by the 22B006 support map. 183-187 when non-zero (2026-10-22 x8, 2026-10-25 x24),
-            else 0; the same range as SKM_B006_VAL_A/B.
-          enabled: false
-        SKM_B006_B18:
-          expression: B18
-          notes: >-
-            Marked by the 22B006 support map. Non-zero in the same captures as SKM_B006_B17,
-            183-186.
-          enabled: false
-        SKM_B006_B19:
-          expression: B19
-          notes: >-
-            Marked by the 22B006 support map. Non-zero in the same captures as SKM_B006_B17,
-            183-186.
-          enabled: false
+            0 except while driving on 2026-10-25 (12:22-12:36, 19 captures): 41 at VCU_VEHICLE_SPEED
+            42.3, 84 at 87.4, 66 at 66-70, 0 when stopped. VCU reads about 4% high.
+          unit: km/h
+          ha_class: speed
+          max: "255"
+        SKM_IGN_LINE_V_B17:
+          expression: B17*0.08
+        SKM_IGN_LINE_V_B18:
+          expression: B18*0.08
+        SKM_IGN_LINE_V_B19:
+          expression: B19*0.08
     22B007:
       response_frames: 3
       status: draft
@@ -109,7 +127,9 @@ SKM:
           expression: B11
           source: state-contrast analysis 2026-07-29
           verified: false
-          notes: Only 0x00 and 0x06 observed; the only byte in B007 that varies.
+          notes: >-
+            0x00, 0x04 or 0x06 with the ignition off; 0xE4 or 0xE6 in all 34 captures with IGPM
+            IGN1_SWITCH = 1. Bit 1 is the part not explained by the ignition.
     22B008:
       response_frames: 3
       status: draft
@@ -327,9 +347,9 @@ SKM:
       vehicle_states: [SLEEP]
       date: "2026-07-29"
       notes: >-
-        178-byte block, byte-identical in READY with the fob present (2026-07-22) and in SLEEP
-        without it (2026-07-29), so it does not encode power state or fob presence. Repeating 6-7
-        byte groups. Undecoded.
+        178-byte block, constant across READY with the fob present, SLEEP without it, charging and
+        driving, except B162 (SKM_GEAR, 0 in P, 5 in D). Repeating 6-7 byte groups; probably
+        configuration. Undecoded.
       what_to_test:
         - "Fob near vs removed/far in one session; diff B002"
         - "Add or remove a registered key; check whether a record count or a repeated group changes"
@@ -358,10 +378,12 @@ SKM:
       vehicle_states: [SLEEP]
       created: "2026-07-30"
       updated: "2026-07-30"
+      result: >-
+        B10/B21 are 12 V supply voltages at 0.08 V/count: B10 reads 2-3 counts above BCM_12V_BATTERY
+        (SKM_12V_BATTERY, SKM_12V_SUPPLY_B21).
       notes: >-
-        B10/B21 (SKM_B006_VAL_A/B): 0x9A-0xA2, drifting about 1 per reading and within 1 of each
-        other. Identify the unit against a controlled reference (12 V rail or temperature). B007 B11
-        (SKM_B007_FLAG, 0x00/0x06): correlate with a physical event.
+        Open: B007 B11 (SKM_B007_FLAG) bit 1, 0x04/0x06 with the ignition off; correlate with a
+        physical event.
     - type: decode
       target: 22B002/22B003/22B005/22B006/22B008/22B00A terminal-feedback bits
       status: pending
@@ -369,6 +391,10 @@ SKM:
       vehicle_states: [ACC, "ON"]
       created: "2026-10-23"
       updated: "2026-10-23"
+      result: >-
+        22B006 B17, B18 and B19 (SKM_IGN_LINE_V_*) read the ignition-line voltages: non-zero exactly
+        when IGN1_SWITCH = 1. The ON-only and ACC states have not been captured, so which byte is
+        which line, and whether ACC shows on its own, is open.
       notes: >-
         No signal tells ACC apart from OFF yet. The SKM reads back three terminal lines after its
         relays: ON (IGN2), ACC/ON (ACC) and ON/START (IGN1), on SMK connector C pins 8, 18 and 9,
@@ -389,14 +415,11 @@ SKM:
       updated: "2026-10-29"
       result: >-
         22B006's constant map AF E0 00 00 marks B10, B12, B14, B15 and B17-B21 as signals (one bit
-        per data byte, MSB first); all 6 varying bytes are inside. 22B005 does not follow the map (4
-        of 9 set bits outside).
-      notes: >-
-        B17, B18 and B19 read 183-187 when non-zero (2026-10-22 x8, 2026-10-25 x24) and 0 otherwise,
-        the same range as VAL_A/VAL_B. B12 reads 0-92, non-zero only on 2026-10-25. B14 (0, once
-        160), B15 and B20 (always 0) have not moved. B12 and B17-B19 are defined as disabled
-        candidates.
+        per data byte, MSB first); all varying bytes are inside. B10/B21 are 12 V supplies, B12
+        vehicle speed, B17-B19 ignition-line voltages. 22B005 does not follow the map (4 of 9 set
+        bits outside).
+      notes: B14 (0, once 160 while driving), B15 and B20 (always 0) have not moved.
       sources:
         - byte sweep over all stored SKM captures, 2026-10-29
       what_to_test:
-        - Record SKM 22B006 with --keep-all while moving the fob around the car (inside, each door, the trunk), noting each position, to see whether B10/B17/B18/B19/B21 are per-antenna readings.
+        - Record SKM 22B006 with --keep-all through ACC and ON without READY, to see whether B14, B15 or B20 move.
