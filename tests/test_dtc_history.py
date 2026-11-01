@@ -275,3 +275,88 @@ class TestCommands:
         assert stats["logs"][0]["profile"] == "other"
         assert stats["logs"][0]["dtcs_seen"] == 1
         assert "open" not in stats["logs"][0]  # only the active car's codes are "open"
+
+
+_BACKFILL_ECUS = {
+    "VCU": {"tx_id": 0x7E2, "revisions": {"kwp": {}, "uds": {}}},
+    "BMS": {"tx_id": 0x7E4},
+}
+
+
+class TestBackfill:
+    def _variants(self, **revisions):
+        from canlib.variants import Variant
+
+        return {
+            vid: Variant(id=vid, name=vid, revisions={"VCU": revs})
+            for vid, revs in revisions.items()
+        }
+
+    def test_tags_only_what_the_profile_settles(self):
+        from canlib.migrations.dtc_log import implied_tags
+
+        variants = self._variants(**{"40kwh": ("kwp",), "60kwh": ("kwp", "uds")})
+        assert implied_tags({"scope": "all", "variant": "40kwh"}, variants, _BACKFILL_ECUS) == {
+            "revisions": {"VCU": "kwp"}
+        }
+        assert implied_tags({"scope": "all", "variant": "60kwh"}, variants, _BACKFILL_ECUS) == {}
+        assert implied_tags({"scope": "all"}, variants, _BACKFILL_ECUS) == {}  # which car?
+        tagged = {"scope": "all", "variant": "40kwh", "revisions": {"VCU": "kwp"}}
+        assert implied_tags(tagged, variants, _BACKFILL_ECUS) == {}
+
+    def test_a_single_ecu_scan_is_tagged_only_for_its_ecu(self):
+        from canlib.migrations.dtc_log import implied_tags
+
+        variants = self._variants(**{"40kwh": ("kwp",)})
+        assert implied_tags({"scope": "BMS (0x7E4)"}, variants, _BACKFILL_ECUS) == {
+            "variant": "40kwh"
+        }
+        assert implied_tags({"scope": "VCU (0x7E2)"}, variants, _BACKFILL_ECUS) == {
+            "variant": "40kwh",
+            "revisions": {"VCU": "kwp"},
+        }
+
+    def test_runs_on_first_use_of_the_log(self, tmp_path, monkeypatch, capsys):
+        from pathlib import Path
+
+        monkeypatch.setattr(dtc_log, "log_dir", lambda: tmp_path)
+        root = Path(__file__).parent / "fixtures" / "profiles" / "variants"
+        log = tmp_path / "variants.yaml"
+        _write(log, _scan("all", ts="t1", variant="40kwh"), _scan("all", ts="t2", variant="60kwh"))
+        dtc_log.log_file(Profile("variants", root))
+        scans = dtc_log.load_log(log)["scans"]
+        assert scans[0]["revisions"] == {"VCU": "kwp"}
+        assert "revisions" not in scans[1]
+        assert "tagged 1 earlier DTC-log entr" in capsys.readouterr().err
+
+
+class TestMigrateAll:
+    def test_moves_every_profiles_legacy_log(self, tmp_path, monkeypatch):
+        from canlib.migrations.dtc_log import migrate_all
+
+        roots = tmp_path / "profiles"
+        for name in ("car-a", "car-b"):
+            (roots / name / "ecus").mkdir(parents=True)
+            (roots / name / "profile.yaml").write_text("car_model: x\ninit: ''\n")
+            _write(roots / name / "dtc_log.yaml", _scan("all", ts=name))
+        monkeypatch.setattr(dtc_log, "log_dir", lambda: tmp_path / "state")
+        monkeypatch.setattr(
+            "canlib.profile.selectable_profiles", lambda: {n: roots / n for n in ("car-a", "car-b")}
+        )
+        monkeypatch.setattr(
+            "canlib.profile.resolve_profile", lambda name: Profile(name, roots / name)
+        )
+        migrate_all()
+        for name in ("car-a", "car-b"):
+            assert not (roots / name / "dtc_log.yaml").exists()
+            moved = dtc_log.load_log(tmp_path / "state" / f"{name}.yaml")["scans"]
+            assert [s["timestamp"] for s in moved] == [name]
+
+    def test_update_moves_them_before_a_reinstall(self, monkeypatch):
+        from canlib.commands import update
+
+        calls = []
+        monkeypatch.setattr("canlib.migrations.dtc_log.migrate_all", lambda: calls.append(1))
+        monkeypatch.setattr("canlib.install_context.snapshot_profile_risks", lambda clone: [])
+        update._warn_about_snapshot_data(None, None)
+        assert calls == [1]

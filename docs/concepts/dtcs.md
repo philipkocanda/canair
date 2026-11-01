@@ -174,8 +174,9 @@ logged scan read), and `canair config` shows each profile's log totals.
 **Where it lives.** The log is the only record of your car's fault history, so it is
 kept in user state, `~/.config/canair/dtc_log/<profile>.yaml`, and not in the profile
 directory, which a reinstall, a re-clone or a `git clean` deletes. A
-`dtc_log.yaml` left in a profile by an older canair is moved there the first time
-the log is used.
+`dtc_log.yaml` left in a profile by an older canair is moved there automatically:
+the first time that profile's log is used, and for every profile at once by
+`canair config` and before `canair update` reinstalls.
 
 **It belongs to one car.** Each entry records the [variant](variants.md) it was
 read from and the revision of each multi-revision ECU it covers. A code read from
@@ -183,7 +184,10 @@ another variant, or from another revision of the ECU (a swapped module starts wi
 its own fault memory), says nothing about this car, so it is left out of the
 comparison, the open codes and the totals. With several variants and none selected,
 pick one with `--variant`. A full sweep also records which ECUs it could not read:
-an ECU that was asleep is neither "cleared" nor "clean".
+an ECU that was asleep is neither "cleared" nor "clean". An entry logged before
+the log carried these tags is given them where the profile settles them on its own
+(its only variant, or the only revision that car can carry); otherwise it is read as
+the selected car.
 
 ## Clearing codes
 

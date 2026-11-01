@@ -473,14 +473,14 @@ def _gather(args) -> dict:
 def _dtc_log_stats(active_name: str | None) -> dict:
     """Every profile's DTC log in user state; open codes only for the active car."""
     from canlib.dtc.history import log_stats
-    from canlib.dtc.log import log_dir, log_path
+    from canlib.dtc.log import log_dir
     from canlib.dtc.scope import ANY_CAR
+    from canlib.migrations.dtc_log import migrate_all
 
-    if active_name:
-        try:
-            log_path()  # folds a legacy in-profile log in before it is counted
-        except Exception:
-            pass
+    try:
+        migrate_all()  # a legacy in-profile log is counted only once it is moved
+    except Exception:
+        pass
     directory = log_dir()
     logs = []
     for path in sorted(directory.glob("*.yaml")) if directory.is_dir() else []:

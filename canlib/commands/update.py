@@ -200,6 +200,13 @@ def _warn_about_snapshot_data(c, clone: Path | None) -> None:
     user who has no intention of keeping them.
     """
     from ..install_context import snapshot_profile_risks
+    from ..migrations.dtc_log import migrate_all
+
+    # The DTC log is user state now; move any legacy copy out before it is deleted.
+    try:
+        migrate_all()
+    except Exception as e:  # say so, but never block an update over it
+        c.print(f"  [yellow]Couldn't move the legacy DTC logs out of the profiles: {e}[/yellow]")
 
     risks = snapshot_profile_risks(clone)
     if not risks:

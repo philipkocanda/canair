@@ -216,7 +216,9 @@ and **`g`/`G` address the view's primary axis**.
   `failure_types:` in `profile.yaml`. Read-only unless `--clear` (`0x14`). **The DTC log is user
   state, not a bundle member** — `<config dir>/dtc_log/<profile>.yaml`
   (`canlib/dtc/log.py::log_file`), because a reinstall or re-clone deletes a profile directory;
-  a legacy `<profile>/dtc_log.yaml` is folded in on first use (`canlib/migrations/dtc_log.py`).
+  a legacy `<profile>/dtc_log.yaml` is folded in on first use, and for every profile by
+  `canair config` and before `canair update` reinstalls (`canlib/migrations/dtc_log.py`, which
+  also tags older entries with what the profile alone settles, never a guess).
   Entries are tagged with the car (variant + `revisions:`, like a capture session) and every
   reader filters through `canlib/dtc/scope.py::Car`: another variant's or another ECU
   revision's codes say nothing about this car. Open codes and totals
