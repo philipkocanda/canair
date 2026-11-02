@@ -28,15 +28,21 @@ CLU:
           source: "Original WiCAN config"
           verified: true
           notes: 3-byte odometer in km.
-        CLU_B11_TEMP:
-          expression: B11/2-40
-          unit: degC
-          source: 2026-08-08 whole-day byte scan
+        CLU_SUPPLY_VOLTAGE:
+          expression: B11*0.08
+          unit: V
+          source: canair hunt vs ESC, VCU and BMS 12 V signals, 2026-11-02
           verified: false
           notes: >-
-            31-47 °C; rose slowly across the 2026-08-08 whole-day scan and runs warmer than ambient.
-            Which sensor is unknown.
+            12 V supply as the cluster measures it: r=+0.994 vs ESC_SUPPLY_VOLTAGE (n=1069, all
+            dates), +0.996 vs VCU_AUX_BATTERY_VOLTAGE_FINE and +0.997 vs BMS AUX_BATTERY_VOLTAGE on
+            2026-11-02, where it tracked the 12 V sag from 14.6 to 10.7 V in ON. Raw 125-174. At
+            0.08 V/count it reads 0.92 V below ESC_SUPPLY_VOLTAGE (sd 0.06 V); the least-squares fit
+            is 0.081 V/count + 0.76 V. Scale unconfirmed. GDS lists Battery Voltage on CLU in the
+            cluster's Current Data.
           enabled: true
+          min: "0"
+          max: "20"
     22B001:
       response_frames: 2
       status: draft
@@ -85,13 +91,19 @@ CLU:
         - kia-e-niro-can-messages.xlsx (CM Commands sheet)
     - type: verify
       target: 22B002 CLU_B11_TEMP
-      status: captured
+      status: done
       priority: P3
       vehicle_states: [ALL]
       created: "2026-08-08"
-      updated: "2026-08-08"
+      updated: "2026-11-02"
+      result: >-
+        Not a temperature: B11 is the cluster's 12 V supply voltage, now CLU_SUPPLY_VOLTAGE
+        (B11*0.08, scale unconfirmed). r=+0.994 vs ESC_SUPPLY_VOLTAGE over every co-polled date
+        (n=1069); it tracked the 2026-11-02 sag from 14.6 to 10.7 V in ON and stayed at 46-47 on the
+        old raw/2-40 reading while ambient was 9 °C and the cabin warmed 15 to 19 °C.
       notes: >-
-        B11 reads 31-47 °C on raw/2-40. Not yet correlated against ambient or cabin temperature.
+        Superseded by CLU_SUPPLY_VOLTAGE. Open, as a new question if wanted: the scale (0.08 V/count
+        reads 0.9 V below the other ECUs); compare with the GDS Battery Voltage on CLU reading.
       what_to_test:
         - >-
           Correlate against AAF:2181:AMBIENT_TEMP and HVAC_INTERIOR_TEMP; an internal temperature
@@ -102,11 +114,12 @@ CLU:
       priority: P3
       vehicle_states: ["ON"]
       created: "2026-11-01"
-      updated: "2026-11-01"
+      updated: "2026-11-02"
       notes: >-
         The GDS cluster list (shop manual page 0462) is FUEL INPUT, Battery Voltage on CLU, IGN1,
-        Battery Charge Status, Washer Low. 22B003 (62B0038800000001) marks two bits, B10:0 and
-        B10:4; B10:0 is 1 in every capture (the cluster only answers with the ignition on), which
-        fits IGN1. Which of Battery Charge Status and Washer Low is B10:4 is open.
+        Battery Charge Status, Washer Low. Battery Voltage on CLU is 22B002 B11
+        (CLU_SUPPLY_VOLTAGE). 22B003 (62B0038800000001) marks two bits, B10:0 and B10:4; B10:0 is 1
+        in every capture (the cluster only answers with the ignition on), which fits IGN1. Which of
+        Battery Charge Status and Washer Low is B10:4 is open.
       what_to_test:
         - Read CLU:22B003 with the washer reservoir low, and with the 12 V charge warning lit
