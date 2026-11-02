@@ -66,6 +66,25 @@ def is_swept(status: PidStatus) -> bool:
     return status not in _UNSWEPT
 
 
+def is_snapshot_only(pid_def: dict) -> bool:
+    """Whether the ECU serves this DID only inside a DTC snapshot (``snapshot_only: true``).
+
+    Such a PID is defined so its snapshot data decodes, but a live read of it only draws
+    an NRC, so nothing polls it and nothing ships it.
+    """
+    return (pid_def or {}).get("snapshot_only") is True
+
+
+def pid_ships(pid_def: dict) -> bool:
+    """Whether a PID goes into the generated WiCAN device profile (status and snapshot rule)."""
+    return is_shipped(pid_status(pid_def)) and not is_snapshot_only(pid_def)
+
+
+def pid_swept(pid_def: dict) -> bool:
+    """Whether a bare-ECU selector includes the PID (status and snapshot rule)."""
+    return is_swept(pid_status(pid_def)) and not is_snapshot_only(pid_def)
+
+
 def pid_status(pid_def: dict) -> PidStatus:
     """Return a PID definition's lifecycle status, defaulting to ``active``.
 
@@ -131,16 +150,18 @@ def _inherit_dtc_fields(ecus: dict[str, Any]) -> None:
 class PidIndexEntry(TypedDict):
     """One PID's entry in a :func:`build_ecu_index` result.
 
-    ``shipped``/``swept`` are derived from ``status`` (single source of truth) so
-    callers never re-implement the lifecycle rules — see ``PID_STATUSES``.
+    ``shipped``/``swept`` are derived from ``status`` and ``snapshot_only`` (single
+    source of truth) so callers never re-implement the lifecycle rules — see
+    ``PID_STATUSES``, :func:`pid_ships` and :func:`pid_swept`.
     """
 
     parameters: dict[str, Any]
     period: int | None  # the PID's declared poll period (ms); None when it declares none
     status: PidStatus
-    shipped: bool  # include in the generated WiCAN device profile (see is_shipped)
-    swept: bool  # include in a bare-ECU sweep (see is_swept)
+    shipped: bool  # include in the generated WiCAN device profile (see pid_ships)
+    swept: bool  # include in a bare-ECU sweep (see pid_swept)
     support_map: Any  # raw `support_map:` declaration or None (see canlib.uds.support_map)
+    snapshot_only: bool  # served only inside a DTC snapshot (see is_snapshot_only)
 
 
 class EcuIndexEntry(TypedDict):
@@ -707,10 +728,11 @@ def build_ecu_index(pids_data: dict) -> dict[str, EcuIndexEntry]:
                 "parameters": pid_def.get("parameters", {}),
                 "period": pid_def.get("period"),
                 "status": status,
-                # Derived visibility flags (single source: `status`) so callers
-                # never re-implement the lifecycle rules:
-                "shipped": is_shipped(status),
-                "swept": is_swept(status),
+                # Derived visibility flags (single source: `status` and
+                # `snapshot_only`) so callers never re-implement the lifecycle rules:
+                "shipped": pid_ships(pid_def),
+                "swept": pid_swept(pid_def),
                 "support_map": pid_def.get("support_map"),
+                "snapshot_only": is_snapshot_only(pid_def),
             }
     return index

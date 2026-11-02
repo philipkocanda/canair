@@ -590,7 +590,9 @@ reuse these instead of re-declaring a flag:
   hand** — the mapping depends on the response's *length* (one vs two PCI bytes) and its *service*
   (header width and field order), which `bix` reads off the payload; the skill's byte-index
   reference explains the trap. Code map: roles come from **`canlib/uds/layout.py`** (a `response_SID
-  → [(role, width)]` table over the `canlib/uds/services.py` registry), which also owns
+  → [(role, width)]` table over the `canlib/uds/services.py` registry, plus a
+  `(response_SID, sub-function)` table for headers whose shape depends on the sub-function, such as
+  the `59 04` snapshot record; `layout_of(payload)` picks the right one), which also owns
   **`SUBFUNCTION_NAMES`**, the single home for per-SID sub-function enums —
   `canlib/formatting.py::decode_uds_response` and `modes/sessions_scan.py` both read it, and a test
   cross-checks the two layout models.
@@ -807,7 +809,12 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   occupies, written back automatically once a session proves it (never hand-set; mutually exclusive
   with `variable_length:`, which is how a PID whose length legitimately changes says it has no
   count). A PID may also carry **`support_map:`** — where its constant leading support map sits
-  (`canair pids set-support-map`; see `investigate --support-map`). Edit via `canair pids`/`ecu`;
+  (`canair pids set-support-map`; see `investigate --support-map`). A service-22 PID may carry
+  **`snapshot_only: true`** (plus `snapshot_length:`) when the ECU serves that DID only inside a
+  DTC snapshot (`pids set-snapshot-only`): defined so the snapshot decodes, never swept and never
+  shipped — the rule is `canlib/pids.py::pid_swept`/`pid_ships`, which every sweep and the
+  AutoPID gate read instead of the bare status. The reply parser is the I/O-free
+  `canlib/dtc/snapshot.py`; plan `plans/2026-11-02-dtc-snapshots.md`. Edit via `canair pids`/`ecu`;
   validate with `canair validate pids`.
 - **`profiles/<car>/captures/`** — Recorded UDS payloads, one **JSON** file per date
   (`captures/YYYY-MM-DD.json`; JSON parses ~60× faster than YAML, the dominant cost of every

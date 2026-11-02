@@ -226,6 +226,32 @@ the log carried these tags is given them where the profile settles them on its o
 (its only variant, or the only revision that car can carry); otherwise it is read as
 the selected car.
 
+## Snapshots
+
+Many ECUs store a **snapshot** with a code: the values of a few signals at the moment
+the code was set. It is the only record of the car's state when the fault happened,
+and clearing the code erases it. A UDS ECU lists the snapshot records it holds for a
+code with `19 03` and returns one with `19 04 <DTC> <record>`. Each record holds one or
+more DIDs with their data:
+
+```bash
+canair read 'raw 733:1903' 'raw 733:1904582C0001' --save --label 'CCM snapshot'
+canair bix -a 5904582C000801014710021AA7207C0AFFFFFF   # labels DTC, STATUS, REC, COUNT, DID
+```
+
+A snapshot DID is defined like any other PID, under its read form (`224710`), so its
+signals decode a snapshot's data exactly as they would a live read. Some DIDs answer
+only inside a snapshot: a live `22` read of them draws an NRC. Mark those so a bare-ECU
+sweep never polls them and they never ship to the device:
+
+```bash
+canair pids set-snapshot-only CCM 224710 --length 9
+```
+
+`--length` records the DID's data length in a record. The reply does not carry it, so
+a record holding several DIDs cannot be split without it; a record of one DID is
+self-describing.
+
 ## Clearing codes
 
 ```bash

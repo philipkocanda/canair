@@ -19,7 +19,7 @@ from collections import OrderedDict
 from dataclasses import dataclass, field
 
 from canlib.addressing import EcuAddress, resolve_ecu_address
-from canlib.pids import is_shipped, pid_status
+from canlib.pids import pid_ships
 from canlib.response_frames import stored_count
 from canlib.transport.elm327_addressing import (
     AUTO,
@@ -246,8 +246,8 @@ def ship_profile(
         for pid_code, pid_data in (ecu.get("pids") or {}).items():
             # Only `active` and `slow` PIDs ship to the device. draft (unshipped
             # placeholder), static (unchanging identity/cal) and ignored (dead) are all
-            # excluded — this is the single gate, replacing the old enabled/static/ignored mix.
-            if not is_shipped(pid_status(pid_data)):
+            # excluded, and so is a snapshot-only DID (a live read only draws an NRC).
+            if not pid_ships(pid_data):
                 continue
 
             params: dict[str, dict] = {}

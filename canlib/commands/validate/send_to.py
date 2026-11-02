@@ -12,7 +12,7 @@ from pathlib import Path
 import yaml
 
 from canlib import yaml_io
-from canlib.pids import is_shipped, pid_status
+from canlib.pids import is_shipped, is_snapshot_only, pid_status
 from canlib.wican.autopid_send_to import topic_problem
 
 
@@ -30,6 +30,8 @@ def _never_ships(pid_def: dict, param: dict) -> str | None:
     status = pid_status(pid_def)
     if not is_shipped(status):
         return f"its PID is '{status}'"
+    if is_snapshot_only(pid_def):
+        return "its PID is snapshot-only"
     if not param.get("enabled", True):
         return "the signal is disabled"
     return None

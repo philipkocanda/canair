@@ -4,13 +4,13 @@
 
 ```
 usage: canair pids [-h]
-                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-research-capture-protocol,set-pid-status,set-pid-variable-length,set-support-map,set-pid-period,set-response-frames,set-pid-notes,set-pid-defaults,hoist-defaults,migrate-categories,set-identity,rm-identity,set-can-bus,set-revisions,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing}
+                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-research-capture-protocol,set-pid-status,set-pid-variable-length,set-snapshot-only,set-support-map,set-pid-period,set-response-frames,set-pid-notes,set-pid-defaults,hoist-defaults,migrate-categories,set-identity,rm-identity,set-can-bus,set-revisions,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing}
                    ...
 
 [UDS] Safely edit ecus/ parameters and research entries (domain A — diagnostic UDS PIDs, freeform WiCAN expressions). The broadcast-frame (domain B) authoring counterpart is `canair signals` (linear signals/ maps).
 
 positional arguments:
-  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-research-capture-protocol,set-pid-status,set-pid-variable-length,set-support-map,set-pid-period,set-response-frames,set-pid-notes,set-pid-defaults,hoist-defaults,migrate-categories,set-identity,rm-identity,set-can-bus,set-revisions,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing}
+  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-research-capture-protocol,set-pid-status,set-pid-variable-length,set-snapshot-only,set-support-map,set-pid-period,set-response-frames,set-pid-notes,set-pid-defaults,hoist-defaults,migrate-categories,set-identity,rm-identity,set-can-bus,set-revisions,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing}
     upsert-param        Add or update a signal
     rename-param        Rename a signal (key only; fields preserved)
     rm-param            Remove a signal
@@ -30,6 +30,8 @@ positional arguments:
     set-pid-variable-length
                         Flag a PID as returning legitimately variable-length
                         responses
+    set-snapshot-only   Mark a DID as served only inside a DTC snapshot
+                        (decoded by canair dtc)
     set-support-map     Declare where a PID's support map sits (which
                         following bits/bytes are signals)
     set-pid-period      Set how often the WiCAN AutoPID re-polls a PID (ms)
@@ -441,6 +443,32 @@ options:
   -h, --help     show this help message and exit
   --dir DIR      ecus/ directory (default: active profile)
   --no-validate  Skip the post-edit schema validation gate
+```
+
+## `canair pids set-snapshot-only`
+
+```
+usage: canair pids set-snapshot-only [-h] [--length LENGTH] [--clear]
+                                     [--dir DIR] [--no-validate]
+                                     ecu pid
+
+Record that the ECU serves this service-22 DID only inside a DTC snapshot: a
+live read draws an NRC, but the snapshot data `canair dtc` reads decodes with
+the PID's signals. A snapshot-only PID is never polled in a bare-ECU sweep and
+never shipped to the device. --length gives the DID's data length in a
+snapshot record, which a record holding several DIDs needs (a one-DID record
+is self-describing). --clear removes the mark and the length.
+
+positional arguments:
+  ecu
+  pid              The DID's read PID, e.g. 224710
+
+options:
+  -h, --help       show this help message and exit
+  --length LENGTH  Data length in a snapshot record, in bytes
+  --clear          Remove snapshot_only and the length
+  --dir DIR        ecus/ directory (default: active profile)
+  --no-validate    Skip the post-edit schema validation gate
 ```
 
 ## `canair pids set-support-map`

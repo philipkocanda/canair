@@ -26,7 +26,7 @@ from collections import Counter, defaultdict
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 
-from canlib.uds.layout import response_layout
+from canlib.uds.layout import layout_of
 
 # A length is an ECU's "own" for a PID only once it is seen often and almost exclusively, so
 # variable-length PIDs and thinly sampled ones never produce a length finding.
@@ -92,7 +92,7 @@ def _data(payload: bytes) -> bytes:
     would let ``62 D0 01`` + a page of ``FF`` pass as a substantial, distinctive reply.
     An unknown service keeps everything but the SID.
     """
-    layout = response_layout(payload[0])
+    layout = layout_of(payload)
     return payload[layout.header_bytes if layout is not None else 1 :]
 
 

@@ -18,7 +18,7 @@ from dataclasses import dataclass
 
 from canlib.textscan import Span, ascii_fold, folded_runs, is_plausible_token
 from canlib.uds.byteindex import elm_to_wican_idx
-from canlib.uds.layout import response_layout
+from canlib.uds.layout import layout_of
 
 # A single-frame response (<= 7 bytes) carries one PCI byte, a multi-frame one two.
 # Both the WiCAN expression and the run's byte labels depend on which, so a group
@@ -133,7 +133,7 @@ def data_start(data: bytes) -> int:
     """
     if not data:
         return 0
-    layout = response_layout(data[0])
+    layout = layout_of(data)
     return 0 if layout is None else min(layout.header_bytes, len(data))
 
 

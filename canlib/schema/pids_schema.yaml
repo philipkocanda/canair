@@ -399,6 +399,15 @@ optional_pid_fields:
                      #   --support-map`, written by `canair pids set-support-map`, read by
                      #   `canair coverage` (which then stops reporting bits that are not
                      #   signals). Per-PID by design: the layout is not make-wide.
+  - snapshot_only    # bool: the ECU serves this DID only inside a DTC snapshot (a live
+                     #   `22` read draws an NRC). Defined so `canair dtc` can decode the
+                     #   snapshot data with its signals; never polled in a bare-ECU sweep and
+                     #   never shipped, whatever its status. Only on a service-22 PID.
+                     #   Edit with `canair pids set-snapshot-only`.
+  - snapshot_length  # int >= 1: the DID's data length in a snapshot record (the reply does
+                     #   not carry it). Needed to split a record that holds several DIDs;
+                     #   a record of one DID is self-describing. Set with
+                     #   `canair pids set-snapshot-only --length N`.
   - vehicle_states   # Power states in which this PID responds. Array of tokens from the
                      # profile's vehicle_states.yaml; the bundled Ioniq's include:
                      #   SLEEP    — deep sleep, 12V standby only (unplugged)

@@ -576,6 +576,11 @@ def _frame_sid(frame: list[tuple[int, int | None]]) -> int | None:
     return next((value for value, pi in frame if pi == 0), None)
 
 
+def _frame_sub_function(frame: list[tuple[int, int | None]]) -> int | None:
+    """ISO-TP payload byte 1 of a reconstructed frame: the sub-function, where there is one."""
+    return next((value for value, pi in frame if pi == 1), None)
+
+
 def _resolve_annotate_layout(
     frame: list[tuple[int, int | None]], explicit: int | None, pid: str | None
 ) -> tuple[int, ResponseLayout | None, str | None]:
@@ -597,7 +602,7 @@ def _resolve_annotate_layout(
     ``PID``/``DID`` labelling is used instead, with a warning.
     """
     sid = _frame_sid(frame)
-    layout = response_layout(sid) if sid is not None else None
+    layout = response_layout(sid, _frame_sub_function(frame)) if sid is not None else None
     # Carry the conclusive PID and its width together, so the non-optional name is
     # available wherever the width is (and neither can be used without the other).
     from_pid: tuple[str, int] | None = None

@@ -84,6 +84,7 @@ from canlib.pids_edit import (
     set_research_status,
     set_research_text,
     set_response_frames,
+    set_snapshot_only,
     set_support_map,
     set_wake,
     update_iocontrol_field,
@@ -525,6 +526,21 @@ def cmd_set_pid_variable_length(args: argparse.Namespace) -> int:
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
     state = "true" if value else "false (cleared)"
     echo_edit(f"{args.ecu} {args.pid} variable_length -> {state}", fpath)
+    return 0
+
+
+def cmd_set_snapshot_only(args: argparse.Namespace) -> int:
+    value = not args.clear
+
+    def do():
+        set_snapshot_only(args.ecu, args.pid, value, length=args.length, pids_dir=args.dir)
+
+    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
+    if not value:
+        state = "cleared"
+    else:
+        state = "true" + (f", snapshot_length {args.length}" if args.length is not None else "")
+    echo_edit(f"{args.ecu} {args.pid} snapshot_only -> {state}", fpath)
     return 0
 
 
@@ -1146,6 +1162,25 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     )
     _add_common(spv)
     spv.set_defaults(_pids_func=cmd_set_pid_variable_length)
+
+    sso = sub.add_parser(
+        "set-snapshot-only",
+        help="Mark a DID as served only inside a DTC snapshot (decoded by canair dtc)",
+        description=(
+            "Record that the ECU serves this service-22 DID only inside a DTC snapshot: a live "
+            "read draws an NRC, but the snapshot data `canair dtc` reads decodes with the PID's "
+            "signals. A snapshot-only PID is never polled in a bare-ECU sweep and never "
+            "shipped to the device. --length gives the DID's data length in a snapshot record, "
+            "which a record holding several DIDs needs (a one-DID record is self-describing). "
+            "--clear removes the mark and the length."
+        ),
+    )
+    sso.add_argument("ecu")
+    sso.add_argument("pid", help="The DID's read PID, e.g. 224710")
+    sso.add_argument("--length", type=int, help="Data length in a snapshot record, in bytes")
+    sso.add_argument("--clear", action="store_true", help="Remove snapshot_only and the length")
+    _add_common(sso)
+    sso.set_defaults(_pids_func=cmd_set_snapshot_only)
 
     ssm = sub.add_parser(
         "set-support-map",

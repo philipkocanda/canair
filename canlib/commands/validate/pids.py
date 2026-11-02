@@ -13,9 +13,10 @@ from canlib import yaml_io
 from canlib.dtc.definitions import SECTION_FIELDS as DTC_SECTION_FIELDS
 from canlib.dtc.definitions import is_dtc_code
 from canlib.dtc.definitions import split_section as split_dtc_section
+from canlib.dtc.snapshot import did_of_read
 from canlib.expression.decode_value import BYTE_RUN_TYPES as _BYTE_RUN_TYPES
 from canlib.expression.lint import firmware_grammar_problems, signed_low_bytes
-from canlib.pids import PID_STATUSES, effective_param, is_shipped, pid_status
+from canlib.pids import PID_STATUSES, effective_param, pid_ships, pid_status
 from canlib.pids_edit.categories import RETIRED_FIELD
 from canlib.signal_category import category_findings
 from canlib.uds.byteindex import wican_to_isotp
@@ -595,6 +596,26 @@ def _validate_pids(
     return True
 
 
+def _snapshot_field_errors(pid_str: str, pid_def: dict, label: str) -> list[str]:
+    """``snapshot_only`` must be a boolean on a service-22 DID; ``snapshot_length`` an int >= 1."""
+    errors: list[str] = []
+    only = pid_def.get("snapshot_only")
+    if only is not None and not isinstance(only, bool):
+        errors.append(f"{label}: snapshot_only must be a boolean")
+    elif only and did_of_read(pid_str) is None:
+        errors.append(
+            f"{label}: snapshot_only needs a service-22 DID key (22 + 4 hex digits): a DTC "
+            "snapshot records data identifiers"
+        )
+    length = pid_def.get("snapshot_length")
+    # `bool` is an `int` subclass, so `snapshot_length: true` would otherwise pass as 1.
+    if length is not None and (
+        isinstance(length, bool) or not isinstance(length, int) or length < 1
+    ):
+        errors.append(f"{label}: snapshot_length must be an int >= 1")
+    return errors
+
+
 def _validate_one_pid(
     pid_code,
     pid_def,
@@ -654,6 +675,7 @@ def _validate_one_pid(
     variable_length = pid_def.get("variable_length")
     if variable_length is not None and not isinstance(variable_length, bool):
         errors.append(f"{label}: variable_length must be a boolean")
+    errors.extend(_snapshot_field_errors(pid_str, pid_def, label))
 
     _validate_shared_fields(pid_def, label, errors)
     try:
@@ -733,7 +755,7 @@ def _validate_parameters(
         warnings.append(f"{path.name}/{ecu_name}/{pid_str}: no parameters defined")
 
     # Only what ships reaches the device, so only that can sink its table.
-    pid_ships = is_shipped(pid_status(pid_def))
+    pid_shipped = pid_ships(pid_def)
 
     for param_name, param in params.items():
         stats["params"] += 1
@@ -760,7 +782,7 @@ def _validate_parameters(
         warnings.extend(category_warnings)
 
         expr = param.get("expression", "")
-        ships = pid_ships and param.get("enabled", True)
+        ships = pid_shipped and param.get("enabled", True)
         if expr:
             errors.extend(validate_expression(expr, param_name, pid_str, ecu_name))
             if ships:
@@ -1743,7 +1765,6 @@ def _duplicate_param_errors(file_paths: list[Path]) -> list[str]:
     must be globally unique. Catching it here means CI/`validate` fails before
     `wican autopid write` does. See ``canlib.wican.autopid_profile.generate_profile``.
     """
-    from canlib.pids import is_shipped
     from canlib.variants.revisions import owner_revisions
 
     errors: list[str] = []
@@ -1763,7 +1784,7 @@ def _duplicate_param_errors(file_paths: list[Path]) -> list[str]:
             if not isinstance(ecu_def, dict):
                 continue
             for pid_code, pid_def in (ecu_def.get("pids") or {}).items():
-                if not isinstance(pid_def, dict) or not is_shipped(pid_status(pid_def)):
+                if not isinstance(pid_def, dict) or not pid_ships(pid_def):
                     continue
                 for pname, param in (pid_def.get("parameters") or {}).items():
                     if not isinstance(param, dict) or not param.get("enabled", True):

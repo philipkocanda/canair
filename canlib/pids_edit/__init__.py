@@ -8,6 +8,7 @@ Split by concern into a package:
   * :mod:`.params` — parameter / PID / identity editors (the RE workflow)
   * :mod:`.research` — the ``research:`` backlog editors
   * :mod:`.support_map` — the per-PID ``support_map:`` declaration editor
+  * :mod:`.snapshot` — the per-PID ``snapshot_only:``/``snapshot_length:`` editor
   * :mod:`.defaults` — PID-level defaults for parameter fields and hoisting them out of parameters
   * :mod:`.categories` — the one-time ``ha_class`` → ``category`` migration
 
@@ -57,6 +58,7 @@ from .research import (
     set_research_status,
     set_research_text,
 )
+from .snapshot import set_snapshot_only
 from .support_map import set_support_map
 
 __all__ = [
@@ -96,6 +98,7 @@ __all__ = [
     "set_research_status",
     "set_research_text",
     "set_response_frames",
+    "set_snapshot_only",
     "set_support_map",
     "set_wake",
     "update_iocontrol_field",

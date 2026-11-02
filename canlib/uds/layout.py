@@ -46,6 +46,9 @@ ROLE_FRAME = "FRAME"
 ROLE_CTRL = "CTRL"
 ROLE_REJ_SID = "REJ SID"
 ROLE_NRC = "NRC"
+ROLE_DTC = "DTC"
+ROLE_STATUS = "STATUS"
+ROLE_COUNT = "COUNT"
 
 #: Plain-language definition of every role, for a legend/definition list.
 ROLE_HELP: dict[str, str] = {
@@ -59,12 +62,18 @@ ROLE_HELP: dict[str, str] = {
     ),
     ROLE_PID: "Parameter ID — 1-byte OBD-II parameter number (modes 0x01 / 0x02)",
     ROLE_RID: "Routine Identifier — 2-byte UDS routine id (service 0x31)",
-    ROLE_REC: "Record number — 1-byte KWP2000 ReadEcuIdentification record (0x1A)",
+    ROLE_REC: (
+        "Record number — a 1-byte KWP2000 ReadEcuIdentification record (0x1A) or "
+        "DTC snapshot record (0x19 04)"
+    ),
     ROLE_INFO: "InfoType — 1-byte OBD-II mode 0x09 vehicle-information id",
     ROLE_FRAME: "freeze-frame number (OBD-II mode 0x02)",
     ROLE_CTRL: "inputOutputControlParameter — what the ECU was told to do (0x2F / 0x30)",
     ROLE_REJ_SID: "the rejected service's SID, echoed back in a negative response",
     ROLE_NRC: "Negative Response Code — why the request was refused",
+    ROLE_DTC: "Diagnostic Trouble Code — the 3-byte UDS fault code the reply is about (0x19)",
+    ROLE_STATUS: "statusOfDTC — the fault code's status bits (0x19)",
+    ROLE_COUNT: "number of identifiers in the snapshot record that follows (0x19 04)",
 }
 
 
@@ -163,6 +172,23 @@ _RESPONSE_FIELDS: dict[int, tuple[HeaderField, ...]] = {
     0xC5: (_f(ROLE_SF),),  # 0x85 ControlDTCSetting — DTCSettingType
 }
 
+# Header fields for a response whose shape depends on its sub-function, keyed by
+# ``(response SID, sub-function)``; anything not listed falls back to the SID-only table.
+# Only fixed-shape headers belong here: a repeated list (``59 02``'s DTC records,
+# ``59 03``'s DTC/record pairs) is data after the sub-function.
+_SUBFUNCTION_FIELDS: dict[tuple[int, int], tuple[HeaderField, ...]] = {
+    # reportDTCSnapshotRecordByDTCNumber: the DTC and its status, then the first record's
+    # number, identifier count and first DID (canlib/dtc/snapshot.py parses the rest).
+    (0x59, 0x04): (
+        _f(ROLE_SF),
+        _f(ROLE_DTC, 3),
+        _f(ROLE_STATUS),
+        _f(ROLE_REC),
+        _f(ROLE_COUNT),
+        _f(ROLE_DID, 2),
+    ),
+}
+
 #: A negative response is ``7F <rejected SID> <NRC>`` regardless of service.
 _NEGATIVE_FIELDS: tuple[HeaderField, ...] = (_f(ROLE_REJ_SID), _f(ROLE_NRC))
 
@@ -259,11 +285,12 @@ def subfunction_name(request_sid: int, value: int) -> str | None:
     return SUBFUNCTION_NAMES.get(request_sid, {}).get(value)
 
 
-def response_layout(resp_sid: int) -> ResponseLayout | None:
+def response_layout(resp_sid: int, sub_function: int | None = None) -> ResponseLayout | None:
     """The header layout for response SID ``resp_sid``, or ``None`` if unknown.
 
     ``0x7F`` resolves to the service-independent negative-response layout. For a
-    positive response the explicit table wins; failing that, a service the
+    positive response a ``(SID, sub_function)`` entry wins when ``sub_function`` is
+    given, then the SID-only table; failing both, a service the
     :mod:`canlib.uds.services` registry gives an ``id_width`` for resolves to a
     single identifier field (2 bytes → ``DID``, 1 byte → ``LID``), so a plain
     identifier read is covered without being listed twice.
@@ -271,13 +298,24 @@ def response_layout(resp_sid: int) -> ResponseLayout | None:
     if resp_sid == NEGATIVE_RESPONSE_SID:
         return ResponseLayout(resp_sid, _NEGATIVE_FIELDS, negative=True)
     request_sid = (resp_sid - RESPONSE_SID_OFFSET) & 0xFF
-    fields = _RESPONSE_FIELDS.get(resp_sid)
+    fields = None
+    if sub_function is not None:
+        fields = _SUBFUNCTION_FIELDS.get((resp_sid, sub_function))
+    if fields is None:
+        fields = _RESPONSE_FIELDS.get(resp_sid)
     if fields is None:
         info = service_info(request_sid)
         if info is None or info.id_width <= 0:
             return None
         fields = (_f(ROLE_DID if info.id_width == 2 else ROLE_LID, info.id_width),)
     return ResponseLayout(resp_sid, fields, request_sid=request_sid)
+
+
+def layout_of(payload: bytes) -> ResponseLayout | None:
+    """The header layout of a whole response ``payload`` (SID first), sub-function included."""
+    if not payload:
+        return None
+    return response_layout(payload[0], payload[1] if len(payload) > 1 else None)
 
 
 def nrc_name(nrc: int) -> str:

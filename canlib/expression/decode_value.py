@@ -228,7 +228,7 @@ def _payload_slice_for_type(wican_bytes: bytes, param: dict) -> bytes:
     the decoded text.
 
     The fallback's header width is **looked up, not guessed**: the payload's own
-    response SID resolves through :func:`canlib.uds.layout.response_layout`, so a
+    response SID resolves through :func:`canlib.uds.layout.layout_of`, so a
     ``0x5A`` KWP2000 record read drops ``SID + REC`` (2 bytes) while a ``0x62`` DID
     read drops ``SID + DID`` (3). An unregistered service drops only the SID —
     the one byte every positive response certainly has — since eating a
@@ -243,12 +243,12 @@ def _payload_slice_for_type(wican_bytes: bytes, param: dict) -> bytes:
         if 0 <= lo <= hi < len(wican_bytes):
             return _data_run(wican_bytes, lo, hi)
 
-    from canlib.uds.layout import response_layout
+    from canlib.uds.layout import layout_of
 
     data = _data_run(wican_bytes, 0, len(wican_bytes) - 1)
     if not data:
         return data
-    layout = response_layout(data[0])
+    layout = layout_of(data)
     return data[layout.header_bytes if layout else 1 :]
 
 

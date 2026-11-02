@@ -3,21 +3,63 @@
 import pytest
 
 from canlib.uds.layout import (
+    ROLE_COUNT,
     ROLE_CTRL,
     ROLE_DID,
+    ROLE_DTC,
     ROLE_HELP,
     ROLE_LID,
     ROLE_NRC,
     ROLE_PID,
+    ROLE_REC,
     ROLE_REJ_SID,
     ROLE_RID,
     ROLE_SF,
     ROLE_SID,
+    ROLE_STATUS,
+    layout_of,
     nrc_name,
     response_layout,
     role_definitions,
 )
 from canlib.uds.services import SERVICES, service_info
+
+
+class TestSubFunctionLayouts:
+    """A ``(SID, sub-function)`` entry wins when the caller knows the sub-function."""
+
+    SNAPSHOT = bytes.fromhex("5904582C000801014710021AA7207C0AFFFFFF")
+
+    def test_snapshot_record_header(self):
+        layout = layout_of(self.SNAPSHOT)
+        assert layout is not None
+        roles = [layout.role_at(i) for i in range(13)]
+        assert roles == [
+            ROLE_SID,
+            ROLE_SF,
+            ROLE_DTC,
+            ROLE_DTC,
+            ROLE_DTC,
+            ROLE_STATUS,
+            ROLE_REC,
+            ROLE_COUNT,
+            ROLE_DID,
+            ROLE_DID,
+            None,  # the DID's first data byte
+            None,
+            None,
+        ]
+
+    def test_other_sub_functions_fall_back_to_the_sid_layout(self):
+        assert response_layout(0x59, 0x02) == response_layout(0x59)
+        assert [f.role for f in response_layout(0x59).fields] == [ROLE_SF]
+
+    def test_a_sub_function_is_ignored_where_the_sid_has_none(self):
+        assert response_layout(0x62, 0xC3) == response_layout(0x62)
+
+    def test_layout_of_an_empty_or_one_byte_payload(self):
+        assert layout_of(b"") is None
+        assert layout_of(bytes([0x62])) == response_layout(0x62)
 
 
 class TestResponseLayout:
