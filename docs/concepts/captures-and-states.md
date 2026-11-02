@@ -306,6 +306,11 @@ canair captures purge-sensitive             # confirm, then rewrite
 If those files were already committed or pushed, the data stays in git history
 until the history is rewritten.
 
+A text row someone already redacted by hand is not a reply, so none of this
+applies to it. For now only one exact mask counts as redacted: the Ioniq VIN
+placeholder `KMHCXXXXXXXXXXXXX` (`REDACTED_VALUES` in `canlib/sensitive.py`). A row
+that also stores payload bytes is still sensitive.
+
 ## Journaling — you won't lose data
 
 Saves are **journaled**: written to a write-ahead log under `captures/.journal/`

@@ -203,6 +203,25 @@ class TestStoredHistory:
         assert main(["captures", "purge-sensitive", "--json", "--yes"]) == 0
         assert json.loads(capsys.readouterr().out)["removed"] == 1
 
+    def test_a_hand_redacted_value_is_kept_everywhere(self, prof):
+        from canlib.captures.sensitive_purge import purge_dir, sensitive_findings
+        from canlib.captures.store import load_all_captures
+
+        (mask,) = sensitive.REDACTED_VALUES
+        redacted = {"rx": "0x73B", "pid": "22F102", "response": mask, "notes": "redacted"}
+        _write_store(prof, [redacted, _cap("22F102", "62F102AABBCCDDEEFF")])
+        path = prof / "captures" / "2026-11-02.json"
+        sset = sensitive.profile_set()
+        assert len(sensitive_findings(path, sset)) == 1  # the real reply only
+        assert [e.get("response") for e in load_all_captures()] == [mask]
+        purge_dir(prof / "captures", sset)
+        assert mask in path.read_text() and not sensitive_findings(path, sset)
+
+    def test_a_real_payload_beside_a_redacted_text_is_still_sensitive(self):
+        (mask,) = sensitive.REDACTED_VALUES
+        row = {"pid": "22F102", "payload": "62F102AABB", "response": mask}
+        assert not sensitive.is_redacted(row)
+
 
 class TestNeverShared:
     def test_contribute_strips_the_staged_copy(self, prof, tmp_path):

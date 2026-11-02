@@ -108,7 +108,7 @@ class TestNeedle:
         assert finding["expression"] is None  # bytes are not an ascii run
 
     def test_vin_searches_payloads_and_text(self, tmp_path, monkeypatch, capsys):
-        vin = "KMHC851HFHU012435"
+        vin = "KMHC000T0HU000001"
         _write(
             tmp_path,
             [_cap("BCM", "22F190", (bytes([0x62, 0xF1, 0x90]) + vin.encode()).hex())],
@@ -120,7 +120,7 @@ class TestNeedle:
 
     def test_a_sensitive_pids_reply_is_not_searched(self, tmp_path, monkeypatch, capsys):
         # The bundled Ioniq marks VCU:1A90 (the KWP2000 VIN page) sensitive.
-        vin = "KMHC851HFHU012435"
+        vin = "KMHC000T0HU000001"
         _write(tmp_path, [_cap("VCU", "1A90", (bytes([0x5A, 0x90]) + vin.encode()).hex())])
         assert _run(tmp_path, monkeypatch, ["--vin", "--json"]) == 1
 

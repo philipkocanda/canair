@@ -32,6 +32,17 @@ from typing import Any
 MASK = "*****"
 FIELD = "sensitive"
 
+# Values a person already redacted by hand before the PID was flagged. A stored reply
+# that holds only one of these discloses nothing, so it is kept, with the note that
+# explains it. Hardcoded until a second profile needs one: the Ioniq's VCU VIN page
+# (its WMI+VDS prefix, which names the model, not the car, then 13 `X`).
+REDACTED_VALUES = frozenset({"KMHCXXXXXXXXXXXXX"})
+
+
+def is_redacted(cap: Mapping[str, Any]) -> bool:
+    """Is this stored capture row a hand-redacted value rather than a real reply?"""
+    return not cap.get("payload") and str(cap.get("response") or "") in REDACTED_VALUES
+
 
 def _flag(defn: Any) -> bool:
     return isinstance(defn, Mapping) and defn.get(FIELD) is True
@@ -109,7 +120,12 @@ class SensitiveSet:
         return (int(tx_id), norm_pid(request)) in self.by_tx
 
     def has_capture(self, cap: Mapping[str, Any]) -> bool:
-        """Is this stored or journaled capture row a reply to a sensitive PID?"""
+        """Is this stored or journaled capture row a reply to a sensitive PID?
+
+        A hand-redacted row (:func:`is_redacted`) is not: it holds no reply.
+        """
+        if is_redacted(cap):
+            return False
         rx = _rx_int(cap.get("rx") or cap.get("ecu"))
         return rx is not None and (rx, norm_pid(cap.get("pid", ""))) in self.by_rx
 

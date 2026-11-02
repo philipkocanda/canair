@@ -127,7 +127,7 @@ class TestIdentityDids:
                     {
                         "rx": "0x7EC",
                         "pid": "22F18C",
-                        "payload": "62F18C" + b"KMHC851HFHU012435".hex(),
+                        "payload": "62F18C" + b"KMHC000T0HU000001".hex(),
                     }
                 ],
             },
@@ -209,7 +209,7 @@ class TestLooksRedacted:
         assert pii.looks_redacted("VF1????1234")
 
     def test_real_vin_is_not_redacted(self):
-        assert not pii.looks_redacted("KMHC851HFHU012435")
+        assert not pii.looks_redacted("KMHC000T0HU000001")
         assert not pii.looks_redacted("1HGCM82633A004352")
 
     def test_short_run_is_not_a_mask(self):
@@ -226,13 +226,13 @@ class TestEcuIdentityScan:
     """
 
     def test_flags_unredacted_vin(self, tmp_path):
-        prof = _write_profile(tmp_path, ecus={"VCU": _ecu_yaml("VCU", vin="KMHC851HFHU012435")})
+        prof = _write_profile(tmp_path, ecus={"VCU": _ecu_yaml("VCU", vin="KMHC000T0HU000001")})
         findings = pii.scan_profile(prof)
         vin = [f for f in findings if f.kind == "identity-vin"]
         assert len(vin) == 1
         assert "identity.vin" in vin[0].location
         # The value itself is not reproduced in full — only a locating prefix.
-        assert "KMHC851HFHU012435" not in vin[0].detail
+        assert "KMHC000T0HU000001" not in vin[0].detail
         assert "KMHC" in vin[0].detail
 
     def test_redacted_vin_not_flagged(self, tmp_path):
@@ -241,7 +241,7 @@ class TestEcuIdentityScan:
 
     def test_scanned_even_without_captures(self, tmp_path):
         # The whole point: a definitions-only PR still ships the VIN.
-        prof = _write_profile(tmp_path, ecus={"VCU": _ecu_yaml("VCU", vin="KMHC851HFHU012435")})
+        prof = _write_profile(tmp_path, ecus={"VCU": _ecu_yaml("VCU", vin="KMHC000T0HU000001")})
         assert any(f.kind == "identity-vin" for f in pii.scan_profile(prof, include_captures=False))
 
     def test_ecu_serial_not_flagged(self, tmp_path):
@@ -273,7 +273,7 @@ class TestEcuIdentityScan:
     def test_vin_token_in_identity_notes(self, tmp_path):
         prof = _write_profile(
             tmp_path,
-            ecus={"VCU": _ecu_yaml("VCU", notes="read the VIN KMHC851HFHU012435 here")},
+            ecus={"VCU": _ecu_yaml("VCU", notes="read the VIN KMHC000T0HU000001 here")},
         )
         assert any(f.kind == "vin-text" for f in pii.scan_profile(prof))
 
@@ -349,7 +349,7 @@ class TestRedactionSuppressesCaptureFindings:
             tmp_path,
             captures={
                 "label": "identity",
-                "captures": [{"rx": "0x7EA", "pid": "2101", "response": "KMHC851HFHU012435"}],
+                "captures": [{"rx": "0x7EA", "pid": "2101", "response": "KMHC000T0HU000001"}],
             },
         )
         assert any(f.kind == "vin-payload" for f in pii.scan_profile(prof))
@@ -383,7 +383,7 @@ class TestVinTokenRequiresALetter:
     def test_real_vin_in_notes_still_flagged(self, tmp_path):
         prof = _write_profile(
             tmp_path,
-            captures={"label": "read KMHC851HFHU012435 off the VCU", "captures": []},
+            captures={"label": "read KMHC000T0HU000001 off the VCU", "captures": []},
         )
         assert any(f.kind == "vin-text" for f in pii.scan_profile(prof))
 
@@ -404,7 +404,7 @@ class TestVinTokenRequiresALetter:
         assert pii.scan_profile(prof) == []
 
     def test_helper_directly(self):
-        assert pii.has_vin_token("KMHC851HFHU012435")
+        assert pii.has_vin_token("KMHC000T0HU000001")
         assert pii.has_vin_token("1HGCM82633A004352")
         assert not pii.has_vin_token("31114851712211429")  # all digits -> serial
         assert not pii.has_vin_token("too short")
@@ -467,7 +467,7 @@ class TestScanContribution:
 
     def test_ecus_identity_scanned_on_definitions_only_pr(self, tmp_path):
         # A --no-captures contribution still ships ecus/, so the VIN must be caught.
-        prof = _write_profile(tmp_path, ecus={"VCU": _ecu_yaml("VCU", vin="KMHC851HFHU012435")})
+        prof = _write_profile(tmp_path, ecus={"VCU": _ecu_yaml("VCU", vin="KMHC000T0HU000001")})
         findings = pii.scan_contribution(
             prof, tmp_path / "captures", include_captures=False, base_reader=lambda rel: None
         )

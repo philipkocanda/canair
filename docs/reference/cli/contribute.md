@@ -6,8 +6,9 @@
 
 ```
 usage: canair contribute [-h] [--captures | --no-captures] [--branch BRANCH]
-                         [--title TITLE] [--body BODY] [--repo-dir REPO_DIR]
-                         [--dry-run] [--diff] [-y] [--json]
+                         [--title TITLE] [--body BODY] [--include-logs]
+                         [--repo-dir REPO_DIR] [--dry-run] [--diff] [-y]
+                         [--json]
 
 Open a pull request contributing the active profile upstream.
 
@@ -25,7 +26,13 @@ options:
   --branch BRANCH      Branch name to push (default:
                        contribute/<profile>-<date>)
   --title TITLE        Pull request title (default: generated)
-  --body BODY          Pull request body (default: generated checklist)
+  --body BODY          Pull request body (default: generated summary of the
+                       car, ECUs, states, sessions and link quality, plus a
+                       checklist)
+  --include-logs       Attach the diagnostics log (canair logs) since the
+                       first contributed session to the PR body, for
+                       debugging; device addresses, local paths, emails and
+                       VINs are scrubbed
   --repo-dir REPO_DIR  Use this existing canair checkout (with a fork as
                        'origin') instead of the managed fork clone
   --dry-run            Prepare the branch and commit locally, but do not push
@@ -41,6 +48,7 @@ examples:
   canair contribute --no-captures       # contribute definitions only
   canair contribute --diff              # show what would be contributed, then stop
   canair contribute --dry-run           # prepare the branch + commit locally; no push/PR
+  canair contribute --include-logs      # attach the scrubbed diagnostics log for debugging
   canair contribute --yes --json        # non-interactive (agents/CI); emit the PR URL
 
 requires the GitHub CLI:

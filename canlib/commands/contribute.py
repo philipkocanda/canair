@@ -74,6 +74,7 @@ examples:
   canair contribute --no-captures       # contribute definitions only
   canair contribute --diff              # show what would be contributed, then stop
   canair contribute --dry-run           # prepare the branch + commit locally; no push/PR
+  canair contribute --include-logs      # attach the scrubbed diagnostics log for debugging
   canair contribute --yes --json        # non-interactive (agents/CI); emit the PR URL
 
 requires the GitHub CLI:
@@ -100,7 +101,18 @@ requires the GitHub CLI:
         "--branch", help="Branch name to push (default: contribute/<profile>-<date>)"
     )
     parser.add_argument("--title", help="Pull request title (default: generated)")
-    parser.add_argument("--body", help="Pull request body (default: generated checklist)")
+    parser.add_argument(
+        "--body",
+        help="Pull request body (default: generated summary of the car, ECUs, states, "
+        "sessions and link quality, plus a checklist)",
+    )
+    parser.add_argument(
+        "--include-logs",
+        action="store_true",
+        help="Attach the diagnostics log (canair logs) since the first contributed session "
+        "to the PR body, for debugging; device addresses, local paths, emails and VINs are "
+        "scrubbed",
+    )
     parser.add_argument(
         "--repo-dir",
         help="Use this existing canair checkout (with a fork as 'origin') instead of "
@@ -141,6 +153,7 @@ class _Contribution:
     rollback: list[tuple[str, int]] = field(default_factory=list)
     replaced: list[C.CaptureReplacement] = field(default_factory=list)
     findings: list[Any] = field(default_factory=list)
+    summary: Any = None  # canlib.contribute_summary.ContributionSummary
 
     @property
     def target(self) -> str:
@@ -310,7 +323,56 @@ def _stage_contribution(run_: _Contribution) -> int | None:
     # upstream lines suggests a stale source. Computed here because both --diff
     # and the privacy gate report it.
     run_.rollback = C.definition_rollback(pre, workspace, run_.profile.name)
+    run_.summary = _summarize(run_)
     return None
+
+
+def _summarize(run_: _Contribution):
+    """What the staged contribution adds, for the PR body and ``--json``."""
+    from .. import contribute_summary as S
+
+    try:
+        from ..ecus import build_rx_index
+
+        rx_names = build_rx_index()
+    except Exception:
+        rx_names = {}
+    name = run_.profile.name
+    summary = S.summarize(
+        run_.workspace / "profiles" / name / "captures",
+        profile_name=name,
+        base_reader=C.base_reader(run_.pre, run_.workspace),
+        definition_files=C.changed_definition_files(run_.pre, run_.workspace, name),
+        rx_names=rx_names,
+    )
+    if not run_.include_captures:
+        summary.sessions.clear()
+    run_.rep.note(summary=summary.to_json())
+    return summary
+
+
+def _pr_body(run_: _Contribution) -> str:
+    """The PR body: ``--body`` as given, else the generated summary (+ logs)."""
+    from .. import contribute_logs as L
+    from .. import contribute_summary as S
+
+    if run_.args.body:
+        return run_.args.body
+    summary = run_.summary
+    rendered = S.render_markdown(summary, include_captures=run_.include_captures) if summary else ""
+    logs = ""
+    if getattr(run_.args, "include_logs", False):
+        dates = summary.dates if summary else []
+        excerpt = L.collect(dates[0] if dates else None)
+        logs = L.render_markdown(excerpt)
+        run_.rep.note(log_lines=len(excerpt.lines))
+        if not run_.rep.json_mode:
+            run_.rep.console.print(
+                f"  attaching {len(excerpt.lines)} scrubbed diagnostics log line(s) to the PR"
+            )
+    return C.default_pr_body(
+        run_.profile, include_captures=run_.include_captures, summary=rendered, logs=logs
+    )
 
 
 def _clear_leftovers(run_: _Contribution) -> None:
@@ -414,15 +476,24 @@ def _submit(run_: _Contribution) -> int:
     rep = run_.rep
     _commit(run_)
     if run_.args.dry_run:
+        body = _pr_body(run_)
 
         def prepared() -> None:
+            rep.console.print("\n  pull request body:\n")
+            rep.console.print(body, markup=False, highlight=False)
             rep.console.print(
                 f"\n  [green]✓ Prepared[/green] branch [cyan]{run_.branch}[/cyan] "
                 f"in {run_.workspace}"
             )
             rep.console.print("  [dim](dry run — nothing pushed; no PR opened)[/dim]")
 
-        return rep.done(prepared, dry_run=True, findings=findings_json(run_.findings), pr_url=None)
+        return rep.done(
+            prepared,
+            dry_run=True,
+            findings=findings_json(run_.findings),
+            pr_url=None,
+            pr_body=body,
+        )
     return _push_and_open_pr(run_)
 
 
@@ -476,10 +547,16 @@ def _push_and_open_pr(run_: _Contribution) -> int:
             human=lambda: rep.console.print(f"  [red]push failed:[/red] [dim]{push.output}[/dim]"),
         )
 
+    body = _pr_body(run_)
+
     # Re-running on the same day pushes to a branch that already has a PR, and the
     # push has just updated it — so that is a success, not a `gh pr create` error.
+    # The branch now holds everything this run staged, so the body is regenerated.
     if existing := C.find_open_pr(pre, run_.branch):
         number, url = existing
+        edit = C.update_pr_body(pre, number, body)
+        if not edit.ok:
+            rep.warn(f"could not update the PR description: {edit.output}")
 
         def updated() -> None:
             rep.console.print(f"\n  [green]✓ Updated pull request #{number}:[/green] {url}")
@@ -499,7 +576,7 @@ def _push_and_open_pr(run_: _Contribution) -> int:
         workspace,
         title=args.title
         or C.default_message(run_.profile, include_captures=run_.include_captures).splitlines()[0],
-        body=args.body or C.default_pr_body(run_.profile, include_captures=run_.include_captures),
+        body=body,
         head=C.pr_head(pre, run_.branch, run_.mode),
     )
     if not pr.ok:

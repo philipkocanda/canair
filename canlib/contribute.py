@@ -724,6 +724,24 @@ def has_changes(pre: Preflight, workspace: Path, profile_name: str) -> bool:
     return bool(status.stdout.strip())
 
 
+def changed_definition_files(pre: Preflight, workspace: Path, profile_name: str) -> list[str]:
+    """Uncommitted files under ``profiles/<name>/`` outside ``captures/``, profile-relative."""
+    assert pre.git
+    rel = f"profiles/{profile_name}"
+    res = _run(
+        [pre.git, "-C", str(workspace), "status", "--porcelain", "--untracked-files=all", "--", rel]
+    )
+    prefix = f"{rel}/"
+    files = []
+    for line in res.stdout.splitlines():
+        path = line[3:].split(" -> ")[-1].strip().strip('"')
+        if path.startswith(prefix):
+            path = path[len(prefix) :]
+        if path and not path.startswith(f"{_CAPTURE_MEMBER}/"):
+            files.append(path)
+    return sorted(files)
+
+
 def diff_profile(pre: Preflight, workspace: Path, profile_name: str) -> str:
     """The full diff of the copied-in profile vs the upstream base.
 
@@ -842,21 +860,43 @@ def default_message(profile, *, include_captures: bool) -> str:
     return f"profiles: contribute {profile.name} ({model})\n\nAdd/update {scope} for {model}."
 
 
-def default_pr_body(profile, *, include_captures: bool) -> str:
+def default_pr_body(
+    profile,
+    *,
+    include_captures: bool,
+    summary: str = "",
+    logs: str = "",
+) -> str:
+    """The generated PR body. ``summary``/``logs`` are pre-rendered Markdown sections."""
     model = str(profile.meta.get("car_model") or profile.name)
-    captures_line = (
-        "- Includes `captures/` (raw evidence).\n"
-        if include_captures
-        else "- Definitions only (no captures).\n"
+    if summary:
+        detail = f"{summary}\n"
+    elif include_captures:
+        detail = "- Includes `captures/` (raw evidence).\n"
+    else:
+        detail = "- Definitions only (no captures).\n"
+    variant = getattr(profile, "variant", None)
+    variant = (
+        f"**Variant:** `{variant}`\n" if variant and variant not in ("all", "untagged") else ""
     )
-    return (
+    body = (
         f"Contributed via `canair contribute`.\n\n"
         f"**Vehicle:** {model}\n"
+        f"{variant}"
         f"**Profile:** `profiles/{profile.name}/`\n\n"
-        f"{captures_line}\n"
+        f"{detail}\n"
         "- [ ] `canair validate all` passes\n"
         "- [ ] Reviewed for PII / VIN / location data\n"
     )
+    if logs:
+        body += f"\n{logs}\n"
+    return body
+
+
+def update_pr_body(pre: Preflight, number: int, body: str) -> Step:
+    """Replace an open upstream PR's body (a re-run's new summary)."""
+    assert pre.gh
+    return _run([pre.gh, "pr", "edit", str(number), "--repo", UPSTREAM_REPO, "--body", body])
 
 
 def manual_instructions(profile_name: str, branch: str) -> str:
