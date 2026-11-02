@@ -18,6 +18,10 @@ Selection rules (each one a regression that once misreported a gap):
 - Only a positive reply that **echoes the PID** counts — an NRC (``7F …``) has no data
   bytes and a misfiled reply belongs to another PID. A PID that only ever answered
   with an NRC is reported as such, not as "no capture".
+- A ``snapshot_only:`` PID has no live reply to capture, so a saved DTC snapshot
+  (``canair dtc --save``, a ``59 04`` reply) stands in for it: each DID the reply
+  describes counts as the ``62 <DID> <data>`` reply a live read would have given. A
+  PID that also answers live keeps only its live replies.
 """
 
 from collections import Counter
@@ -141,13 +145,17 @@ def select_captures(
     *,
     variable_length: Collection[PidKey] = frozenset(),
     hk_f1xx_offset: bool = False,
+    snapshot_only: Collection[PidKey] = frozenset(),
 ) -> CoverageCaptures:
     """Choose each PID's representative reply from flattened capture rows.
 
     ``entries`` are :func:`canlib.captures.store.load_all_captures` rows, in any order.
     ``variable_length`` names the ``(ECU, PID)`` keys flagged ``variable_length:``;
-    ``hk_f1xx_offset`` tolerates the Hyundai/Kia identity-DID echo quirk.
+    ``hk_f1xx_offset`` tolerates the Hyundai/Kia identity-DID echo quirk;
+    ``snapshot_only`` names the keys whose replies come from saved DTC snapshots.
     """
+    from canlib.dtc.snapshot import did_replies
+
     sessions: dict[tuple, _Session] = {}
     first_time: dict[tuple, str] = {}
     nrcs: dict[PidKey, list[tuple[tuple, int]]] = {}
@@ -163,6 +171,14 @@ def select_captures(
             continue
         pid = str(e.get("pid", "")).upper()
         pkey = (str(e.get("ecu", "")).upper(), pid)
+        if snapshot_only and pid.startswith("1904") and payload[:4].upper() == "5904":
+            for did_pid, reply in did_replies(payload):
+                dkey = (pkey[0], did_pid)
+                if dkey in snapshot_only:
+                    sess.by_length.setdefault(dkey, {}).setdefault(len(reply) // 2, []).append(
+                        reply
+                    )
+            continue
         if payload[:2].upper() == "7F":
             code = _nrc_code(pid, payload)
             if code is not None:
@@ -222,6 +238,7 @@ def load_coverage_captures(
     *,
     variable_length: Collection[PidKey] = frozenset(),
     hk_f1xx_offset: bool = False,
+    snapshot_only: Collection[PidKey] = frozenset(),
 ) -> CoverageCaptures:
     """:func:`select_captures` over the active profile's captures, in scope."""
     from canlib.captures.dates import filter_by_date_range, filter_by_text
@@ -236,6 +253,7 @@ def load_coverage_captures(
         entries,
         variable_length=variable_length,
         hk_f1xx_offset=hk_f1xx_offset,
+        snapshot_only=snapshot_only,
     )
 
 

@@ -33,6 +33,10 @@ async def handle_dtc(args, terminal: Terminal, pids_data, host, *, reconnect=Non
             log=getattr(args, "dtc_log", True),
             label=args.label,
             vehicle_states=parse_states(getattr(args, "state", None)),
+            snapshots=getattr(args, "dtc_snapshots", True),
+            pids_data=pids_data,
+            save=getattr(args, "save", False),
+            notes=getattr(args, "notes", None),
         )
         return
 
@@ -74,6 +78,8 @@ async def handle_dtc(args, terminal: Terminal, pids_data, host, *, reconnect=Non
             verbose=args.verbose,
             log=getattr(args, "dtc_log", True),
             label=args.label,
+            snapshots=getattr(args, "dtc_snapshots", True),
+            pids_data=pids_data,
         )
     else:
         try:
@@ -102,4 +108,8 @@ async def handle_dtc(args, terminal: Terminal, pids_data, host, *, reconnect=Non
             label=args.label,
             vehicle_states=parse_states(getattr(args, "state", None)),
             supported=supported,
+            snapshots=getattr(args, "dtc_snapshots", True),
+            pids_data=pids_data,
+            save=getattr(args, "save", False),
+            notes=getattr(args, "notes", None),
         )

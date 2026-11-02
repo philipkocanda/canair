@@ -1,6 +1,6 @@
 """Persistent DTC scan history — record scans and diff against the previous one.
 
-Each ``canair dtc`` read appends a decoded snapshot to the profile's DTC log
+Each ``canair dtc`` read appends a record of the scan to the profile's DTC log
 (unless ``--no-log``) and reports what changed since the last scan *of the same
 scope* (all-ECU sweep, or a single ECU) on the same car: which codes **cleared**,
 which are **new**, and which **persist**. That's how you tell, next time, whether a
@@ -16,7 +16,11 @@ response address only (:mod:`canlib.dtc.refs`); its name comes from the profile:
       label: before clearing     # optional, from --label
       ecus:                      # rx -> what it reported; a sweep lists only ECUs with codes
         '0x78B': {protocol: kwp, dtcs: [B2915-00, B2916-00]}
-        '0x73B': {protocol: uds, dtcs: [C182C-00]}
+        '0x73B':
+          protocol: uds
+          dtcs: [C182C-00]
+          snapshots:             # optional: each code's DTC snapshot replies (59 04), raw
+            C182C-00: [{record: 1, hex: 5904582C0008010147…}]
       unread: ['0x7AD']          # full sweep only: ECUs that gave no DTC list
       variant: 28kwh             # the car (a variants.yaml ID), when one is selected
       revisions: {VCU: kwp}      # determined revisions of multi-revision ECUs
@@ -26,6 +30,7 @@ response address only (:mod:`canlib.dtc.refs`); its name comes from the profile:
       protocol: kwp
       group: '0xFFFF'
       codes: [P1AAA-00]          # what it held before the clear, when that could be read
+      snapshots: {…}             # optional (UDS): the snapshots the clear erased
 
 Only readings and clears are recorded. Whatever follows from them — that an ECU was
 clean after a clear, which codes disappeared between two scans — is worked out when
@@ -142,7 +147,8 @@ def build_scan(
     timestamp: str | None = None,
 ) -> dict:
     """Build a scan entry. ``scope`` is ``all`` or the ECU's rx; ``ecus`` maps rx →
-    {protocol, dtcs:[codes]}; ``unread`` lists the ECUs a full sweep got no DTC list from."""
+    {protocol, dtcs:[codes], snapshots?: {code: [{record, hex}]}}; ``unread`` lists the
+    ECUs a full sweep got no DTC list from."""
     entry: dict = {
         "timestamp": timestamp or datetime.now().isoformat(timespec="seconds"),
         "scope": scope,
@@ -172,10 +178,19 @@ def build_clear(
     codes: list[str] | None = None,
     label: str | None = None,
     timestamp: str | None = None,
+    snapshots: dict | None = None,
 ) -> dict:
-    """Build the record of a ``--clear`` on the ECU ``rx``; ``codes`` are what it held."""
+    """Build the record of a ``--clear`` on the ECU ``rx``; ``codes`` are what it held, and
+    ``snapshots`` (``{code: [{record, hex}]}``) the snapshots the clear erased."""
     entry: dict = {"timestamp": timestamp or datetime.now().isoformat(timespec="seconds")}
-    fields = {"rx": rx, "protocol": protocol, "group": group, "codes": codes, "label": label}
+    fields = {
+        "rx": rx,
+        "protocol": protocol,
+        "group": group,
+        "codes": codes,
+        "label": label,
+        "snapshots": snapshots,
+    }
     entry.update({k: v for k, v in fields.items() if v is not None})
     return entry
 
@@ -364,6 +379,26 @@ def scope_label(scope: str, refs: EcuRefs | None = None) -> str:
     return scope if scope == ALL_SCOPE else (refs or EcuRefs.current()).label(scope)
 
 
+def _erased_snapshot_lines(clears: Iterable[Mapping], refs: EcuRefs) -> list[str]:
+    """The snapshots each ``--clear`` erased, read just before it, decoded now."""
+    from canlib.dtc.snapshot_report import logged_lines
+
+    lines: list[str] = []
+    for clear in clears:
+        erased = clear.get("snapshots") or {}
+        if not erased:
+            continue
+        rx = str(clear.get("rx", "?"))
+        lines.append(
+            f"  Snapshots erased by the clear of {refs.label(rx)} at {clear.get('timestamp', '?')}:"
+        )
+        for code, records in erased.items():
+            lines.append(f"    {code}")
+            lines.extend(logged_lines(refs.name(rx), records, "      "))
+        lines.append("")
+    return lines
+
+
 def render_scan(
     entry: Mapping, previous: Mapping | None = None, clears: Iterable[Mapping] = ()
 ) -> list[str]:
@@ -374,6 +409,7 @@ def render_scan(
     change since it (``clears`` are the ``--clear`` runs in between). This is what
     ``canair dtc log`` prints."""
     from canlib.dtc.describe import describe_dtc
+    from canlib.dtc.snapshot_report import logged_lines
 
     refs = EcuRefs.current()
     lines = [f"\n  DTC log: {scope_label(str(entry.get('scope', '?')), refs)}"]
@@ -401,15 +437,27 @@ def render_scan(
             lines.append(f"  {refs.label(rx)} — {len(codes)} DTC(s):")
             code_w = max(len(c) for c in codes)
             name = refs.name(rx)
+            snapshots = (ecus[rx] or {}).get("snapshots") or {}
+            before = ((previous or {}).get("ecus") or {}).get(rx) or {}
             for code in codes:
                 meaning = describe_dtc(code, ecu=name).get("meaning") or ""
                 lines.append(f"    {code:<{code_w}}  {meaning}".rstrip())
+                lines.extend(
+                    logged_lines(
+                        name,
+                        snapshots.get(code),
+                        f"    {'':<{code_w}}  ",
+                        previous,
+                        (before.get("snapshots") or {}).get(code),
+                    )
+                )
             lines.append("")
     if entry.get("unread"):
         unread = ", ".join(refs.label(u) for u in entry["unread"])
         lines.append(f"  {ansi.DIM}Not read: {unread}{ansi.RESET}")
         lines.append("")
 
+    lines.extend(_erased_snapshot_lines(clears, refs))
     if previous is not None:
         lines.extend(format_diff(diff_scans(previous, entry, clears, refs), previous, refs))
     else:

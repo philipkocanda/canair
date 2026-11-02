@@ -162,6 +162,7 @@ class PidIndexEntry(TypedDict):
     swept: bool  # include in a bare-ECU sweep (see pid_swept)
     support_map: Any  # raw `support_map:` declaration or None (see canlib.uds.support_map)
     snapshot_only: bool  # served only inside a DTC snapshot (see is_snapshot_only)
+    snapshot_length: int | None  # the DID's data length in a snapshot record, when declared
 
 
 class EcuIndexEntry(TypedDict):
@@ -734,5 +735,6 @@ def build_ecu_index(pids_data: dict) -> dict[str, EcuIndexEntry]:
                 "swept": pid_swept(pid_def),
                 "support_map": pid_def.get("support_map"),
                 "snapshot_only": is_snapshot_only(pid_def),
+                "snapshot_length": pid_def.get("snapshot_length"),
             }
     return index

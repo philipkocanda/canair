@@ -74,6 +74,8 @@ examples:
   canair dtc --all --no-log            Scan every ECU without recording to the DTC log
   canair dtc BMS --label fixed         Read + log a single-ECU scan with a label
   canair dtc --all --state ready       Log a full scan tagged with the vehicle state
+  canair dtc --all --no-snapshots      Scan every ECU without reading DTC snapshots
+  canair dtc CCM --save --label fault  Read + keep the snapshot replies in captures/
   canair dtc BMS --mask 08             Read confirmed DTCs only (mask 0x08)
   canair dtc IGPM --session --wake     Wake + read in extended session
   canair dtc BMS --json                Machine-readable output
@@ -105,6 +107,15 @@ examples:
         "reporting what cleared/appeared since the last scan)",
     )
     parser.add_argument(
+        "--no-snapshots",
+        dest="dtc_snapshots",
+        action="store_false",
+        default=True,
+        help="Don't read the snapshots a UDS ECU stored with its codes (19 03 / 19 04). By "
+        "default each reported code's snapshots are read and decoded with the profile's PIDs; "
+        "with --all that is a final step, which a keypress (s or esc) skips on a terminal",
+    )
+    parser.add_argument(
         "--no-retry",
         dest="dtc_retry",
         action="store_false",
@@ -127,6 +138,13 @@ examples:
         "(comma-separated, e.g. 'READY' or 'SLEEP, PLUGGED'; case-insensitive). "
         "Vocabulary from vehicle_states.yaml (`canair states`).",
     )
+    parser.add_argument(
+        "--save",
+        action="store_true",
+        help="Save the snapshot replies read to captures/, each under its own 19 04 request "
+        "(never as a live read of the DID); --label/--state/--notes describe the session",
+    )
+    parser.add_argument("--notes", default=None, help="Session notes for --save")
     parser.add_argument(
         "--mask",
         metavar="HEX",

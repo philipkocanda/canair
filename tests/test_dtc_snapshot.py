@@ -122,3 +122,84 @@ class TestSnapshotReply:
     def test_malformed_replies(self, hex_, needle):
         with pytest.raises(SnapshotError, match=needle):
             parse_snapshot_reply(bytes.fromhex(hex_), _nine)
+
+
+class TestLengthResolver:
+    def test_a_declared_length_wins_without_reading_captures(self):
+        from canlib.dtc.snapshot_decode import length_resolver
+
+        def no_captures(ecu, pid):
+            raise AssertionError("the captures must not be read")
+
+        length_of = length_resolver({"224710": {"snapshot_length": 9}}, "CCM", no_captures)
+        assert length_of(0x4710) == 9
+
+    def test_falls_back_to_the_live_length(self):
+        from canlib.dtc.snapshot_decode import length_resolver
+
+        seen = []
+
+        def live(ecu, pid):
+            seen.append((ecu, pid))
+            return 4
+
+        assert length_resolver({}, "BCM", live)(0xB004) == 4
+        assert seen == [("BCM", "22B004")]
+
+    def test_live_length_is_the_most_common_echoing_reply(self, monkeypatch):
+        from canlib.dtc import snapshot_decode
+
+        rows = [
+            {"payload": "62B00411223344"},
+            {"payload": "62B00411223344"},
+            {"payload": "62B004112233"},
+            {"payload": "62C00B1122334455"},  # misfiled: another DID's reply
+        ]
+        monkeypatch.setattr("canlib.captures.store.load_pid_captures", lambda ecu, pid: rows)
+        snapshot_decode.live_reply_length.cache_clear()
+        try:
+            assert snapshot_decode.live_reply_length("BCM", "22B004") == 4
+        finally:
+            snapshot_decode.live_reply_length.cache_clear()
+
+    def test_no_live_reply_means_unknown(self, monkeypatch):
+        from canlib.dtc import snapshot_decode
+
+        monkeypatch.setattr("canlib.captures.store.load_pid_captures", lambda ecu, pid: [])
+        snapshot_decode.live_reply_length.cache_clear()
+        try:
+            assert snapshot_decode.live_reply_length("BCM", "22B004") is None
+        finally:
+            snapshot_decode.live_reply_length.cache_clear()
+
+
+class TestSnapshotEntries:
+    def test_an_incomplete_record_keeps_its_raw_rest(self):
+        from canlib.dtc.snapshot_decode import snapshot_entries
+
+        reply = parse_snapshot_reply(BOTH, _unknown)
+        entry = snapshot_entries(reply.records[0], BOTH.hex(), {})
+        assert entry["unresolved_did"] == "4710"
+        assert entry["undecoded"] == BOTH[8:].hex().upper()
+        assert entry["dids"] == []
+
+    def test_an_undefined_did_has_no_signals(self):
+        from canlib.dtc.snapshot_decode import snapshot_entries
+
+        reply = parse_snapshot_reply(RECORD_01, _unknown, single_record=True)
+        entry = snapshot_entries(reply.records[0], RECORD_01.hex(), {})
+        assert entry["dids"] == [
+            {"did": "4710", "pid": "224710", "data": "021AA7207C0AFFFFFF", "signals": None}
+        ]
+
+
+class TestDidReplies:
+    def test_a_one_did_record_becomes_its_live_reply(self):
+        from canlib.dtc.snapshot import did_replies
+
+        assert did_replies(RECORD_01.hex()) == [("224710", "624710021AA7207C0AFFFFFF")]
+
+    def test_a_malformed_reply_gives_nothing(self):
+        from canlib.dtc.snapshot import did_replies
+
+        assert did_replies("5904") == [] and did_replies("zz") == []

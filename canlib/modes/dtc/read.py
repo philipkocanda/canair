@@ -8,15 +8,18 @@ import json
 from canlib import ansi
 
 from ...dtc.refs import ecu_ref
+from ...dtc.snapshot_report import snapshot_lines, status_line, undefined_hints
 from ...ecus import ecu_display
 from ...transport.protocol import Terminal
 from .codes import resolve_protocol
 from .reading import _read_one
 from .scan_log import _log_scan, _print_log_result
+from .snapshot_capture import report_saved
+from .snapshots import SnapshotRun, ecu_pids, fetch_snapshots, wants_snapshots
 
 
-def _report_read(as_json: bool, result: dict) -> None:
-    """Print a read result (positive, NRC, or error) as text or JSON."""
+def _report_read(as_json: bool, result: dict, verbose: bool = False) -> None:
+    """Print a read result (positive, NRC, or error) as text or JSON, snapshots included."""
     if as_json:
         print(json.dumps(result, indent=2))
         return
@@ -49,6 +52,12 @@ def _report_read(as_json: bool, result: dict) -> None:
         meaning = interp.get("meaning")
         if meaning:
             print(f"  {'':<{dtc_w}}  → {meaning}")
+        for line in snapshot_lines(d, f"  {'':<{dtc_w}}  "):
+            print(line)
+    if verbose and (line := status_line(result)):
+        print(line)
+    for hint in undefined_hints([result]):
+        print(hint)
     print()
 
 
@@ -65,11 +74,19 @@ async def mode_dtc_read(
     label: str | None = None,
     vehicle_states=None,
     supported: bool = False,
+    snapshots: bool = True,
+    pids_data: dict | None = None,
+    save: bool = False,
+    notes: str | None = None,
 ):
     """Read stored DTCs, auto-selecting UDS 0x19 or KWP2000 0x18 by protocol.
 
     ``supported`` lists every DTC a KWP2000 ECU can report instead (``18 03 FF 00``). That is
     a catalogue, not a fault list, so it is never written to the DTC log.
+
+    With ``snapshots`` (the default) each code a UDS ECU reports also gets the snapshots it
+    stored with it (:mod:`.snapshots`), decoded by ``pids_data``'s definitions. ``save``
+    keeps those snapshot replies as captures (:mod:`.snapshot_capture`).
     """
     proto = resolve_protocol(protocol, tx_id)
     if supported and proto != "kwp":
@@ -95,7 +112,12 @@ async def mode_dtc_read(
             print(f"  Protocol: {fam}\n")
 
         result = await _read_one(terminal, tx_id, mask, protocol, verbose, supported=supported)
-        _report_read(as_json, result)
+        if snapshots and not supported and wants_snapshots(result):
+            ecu, pids = ecu_pids(pids_data, tx_id)
+            await fetch_snapshots(terminal, tx_id, result, pids, ecu, SnapshotRun())
+        _report_read(as_json, result, verbose)
+        if save:
+            report_saved(terminal, [result], label, vehicle_states, notes, as_json)
         if log and "dtcs" in result:
             path, previous, diff = _log_scan(ecu_ref(tx_id), [result], label, vehicle_states)
             if not as_json:

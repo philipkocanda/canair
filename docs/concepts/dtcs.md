@@ -230,14 +230,35 @@ the selected car.
 
 Many ECUs store a **snapshot** with a code: the values of a few signals at the moment
 the code was set. It is the only record of the car's state when the fault happened,
-and clearing the code erases it. A UDS ECU lists the snapshot records it holds for a
-code with `19 03` and returns one with `19 04 <DTC> <record>`. Each record holds one or
-more DIDs with their data:
+and clearing the code erases it.
 
-```bash
-canair read 'raw 733:1903' 'raw 733:1904582C0001' --save --label 'CCM snapshot'
-canair bix -a 5904582C000801014710021AA7207C0AFFFFFF   # labels DTC, STATUS, REC, COUNT, DID
+`canair dtc` reads them by default. For every code a UDS ECU reports, it asks which
+snapshot records the ECU holds (`19 03`), reads each one (`19 04 <DTC> <record>`) and
+prints it under the code, each DID decoded with the profile's signals:
+
+```text
+  C182C-00  0x08  confirmedDTC
+            → CCS session failed: …
+            snapshot 01  DID 4710
+              CCM_SNAP_EV_READY  0
+              …
 ```
+
+- **With `--all`**, snapshots are a final step, after every ECU's codes are read, so a
+  slow snapshot read never delays them. On a terminal, `s` or `esc` skips the rest of
+  that step; the codes and any snapshots already read are kept.
+- **`--no-snapshots`** leaves the step out, for one ECU or a sweep.
+- An ECU that refuses the record list (many do) is asked once and skipped; `--verbose`
+  says why. KWP2000 ECUs keep their freeze frames in a different service, which canair
+  does not read yet.
+- **The DTC log keeps the raw replies** with each code and decodes them when you look,
+  so `canair dtc log` shows a snapshot recorded before its DID was defined, decoded once
+  it is. A snapshot identical to the previous scan's says "unchanged since".
+- **`--clear` reads the snapshots first** and logs them with the clear, since clearing
+  erases them; `canair dtc log` lists what a clear erased.
+- **`--save`** also keeps the replies as captures (with `--label`, `--state`, `--notes`).
+  Each is stored under its own request (`1904582C0001`), never as a live read of the
+  DID, and its time is when it was read, not when the fault was set.
 
 A snapshot DID is defined like any other PID, under its read form (`224710`), so its
 signals decode a snapshot's data exactly as they would a live read. Some DIDs answer
@@ -245,12 +266,17 @@ only inside a snapshot: a live `22` read of them draws an NRC. Mark those so a b
 sweep never polls them and they never ship to the device:
 
 ```bash
+canair pids add-pid CCM 224710
 canair pids set-snapshot-only CCM 224710 --length 9
 ```
 
 `--length` records the DID's data length in a record. The reply does not carry it, so
 a record holding several DIDs cannot be split without it; a record of one DID is
-self-describing.
+self-describing, and a DID that also answers live takes its length from those replies.
+`canair dtc` prints these two commands for any snapshot DID it cannot decode, and
+`canair coverage` audits a snapshot-only PID against its saved snapshots. To look at a
+reply byte by byte, `canair bix -a 5904582C0008…` labels its DTC, status, record, count
+and DID.
 
 ## Clearing codes
 

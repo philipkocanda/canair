@@ -7,10 +7,10 @@ A ``59 04`` reply (reportDTCSnapshotRecordByDTCNumber, ISO 14229-1) is::
 
     59 04 <DTC: 3> <status: 1> { <record: 1> <count: 1> { <DID: 2> <data: n> }×count }*
 
-The data length ``n`` of each DID is not in the reply: the client has to know it. So
-:func:`parse_snapshot_reply` takes a ``length_of(did)`` callback, and, when the request
-asked for one record (``19 04 <DTC> <record>``), it lets the last DID of that record take
-whatever remains, which makes the common one-DID record self-describing. A DID whose
+The data length ``n`` of each DID is not in the reply: the client has to know it. When the
+request asked for one record (``19 04 <DTC> <record>``) the last DID of that record takes
+whatever remains, which makes the common one-DID record self-describing; every other DID's
+length comes from the ``length_of(did)`` callback :func:`parse_snapshot_reply` is given. A DID whose
 length cannot be resolved is never guessed: parsing stops there and the rest of the reply
 is kept, raw, on the record (:attr:`SnapshotRecord.undecoded`).
 
@@ -110,7 +110,7 @@ def parse_snapshot_reply(
 
     ``length_of(did)`` returns a DID's data length, or None when it is not known.
     ``single_record`` says the request named one record, so the last DID of the (only)
-    record may take the remaining bytes. A reply with no records (the DTC has no
+    record takes the remaining bytes without asking ``length_of``. A reply with no records (the DTC has no
     snapshot stored) parses to an empty ``records``.
     """
     _check_header(data, _SNAPSHOT_RECORD_SF)
@@ -130,10 +130,12 @@ def parse_snapshot_reply(
                 raise SnapshotError(f"record {number:02X} ends inside DID {k + 1} of {count}")
             did = (data[i] << 8) | data[i + 1]
             i += 2
-            last_of_only_record = single_record and not records and k == count - 1
-            n = length_of(did)
-            if n is None and last_of_only_record:
-                n = len(data) - i
+            # The last DID of the only record of a one-record reply owns what remains: the
+            # reply itself says so, so no declared length is needed (or consulted).
+            if single_record and not records and k == count - 1:
+                n: int | None = len(data) - i
+            else:
+                n = length_of(did)
             if n is None:
                 records.append(
                     SnapshotRecord(number, tuple(dids), bytes(data[i - 2 :]), unresolved_did=did)
@@ -147,6 +149,27 @@ def parse_snapshot_reply(
             i += n
         records.append(SnapshotRecord(number, tuple(dids)))
     return SnapshotReply(dtc, status, tuple(records))
+
+
+def did_replies(reply_hex: str) -> list[tuple[str, str]]:
+    """``(read PID, live-equivalent reply)`` per DID of a one-record ``59 04`` reply.
+
+    ``59 04 … 4710 <data>`` gives ``("224710", "624710<data>")``: the reply a live read of
+    the DID would have given, which is how its signals decode a snapshot. Only the DIDs
+    the reply describes by itself are returned (a one-DID record, or a record's last DID);
+    a malformed reply gives nothing.
+    """
+    try:
+        parsed = parse_snapshot_reply(
+            bytes.fromhex(reply_hex), lambda _did: None, single_record=True
+        )
+    except (SnapshotError, ValueError):
+        return []
+    return [
+        (read_pid(d.did), f"62{d.did:04X}{d.data.hex().upper()}")
+        for record in parsed.records
+        for d in record.dids
+    ]
 
 
 def _check_header(data: bytes, sub_function: int) -> None:

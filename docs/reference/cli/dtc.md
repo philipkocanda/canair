@@ -31,8 +31,9 @@ Run `canair dtc <kind> --help` for the flags of each kind.
 ## `canair dtc read`
 
 ```
-usage: canair dtc read [-h] [--all] [--no-log] [--no-retry] [--label LABEL]
-                       [--state STATES] [--mask HEX]
+usage: canair dtc read [-h] [--all] [--no-log] [--no-snapshots] [--no-retry]
+                       [--label LABEL] [--state STATES] [--save]
+                       [--notes NOTES] [--mask HEX]
                        [--protocol {auto,uds,kwp}] [--supported] [--clear]
                        [--group HEX] [--yes] [--session] [--wake]
                        [--wican WICAN]
@@ -54,6 +55,11 @@ options:
   --no-log              Don't record this scan to the DTC log (scans are
                         logged by default, reporting what cleared/appeared
                         since the last scan)
+  --no-snapshots        Don't read the snapshots a UDS ECU stored with its
+                        codes (19 03 / 19 04). By default each reported code's
+                        snapshots are read and decoded with the profile's
+                        PIDs; with --all that is a final step, which a
+                        keypress (s or esc) skips on a terminal
   --no-retry            With --all, don't retry unresponsive ECUs (by default
                         a no-response ECU is retried once with a wake + longer
                         timeout so it isn't skipped)
@@ -64,6 +70,10 @@ options:
                         the log entry (comma-separated, e.g. 'READY' or
                         'SLEEP, PLUGGED'; case-insensitive). Vocabulary from
                         vehicle_states.yaml (`canair states`).
+  --save                Save the snapshot replies read to captures/, each
+                        under its own 19 04 request (never as a live read of
+                        the DID); --label/--state/--notes describe the session
+  --notes NOTES         Session notes for --save
   --mask HEX            statusOfDTC mask for the UDS read (hex, default FF =
                         all; falls back to 08 if the ECU rejects FF with
                         requestOutOfRange)
@@ -127,6 +137,8 @@ examples:
   canair dtc --all --no-log            Scan every ECU without recording to the DTC log
   canair dtc BMS --label fixed         Read + log a single-ECU scan with a label
   canair dtc --all --state ready       Log a full scan tagged with the vehicle state
+  canair dtc --all --no-snapshots      Scan every ECU without reading DTC snapshots
+  canair dtc CCM --save --label fault  Read + keep the snapshot replies in captures/
   canair dtc BMS --mask 08             Read confirmed DTCs only (mask 0x08)
   canair dtc IGPM --session --wake     Wake + read in extended session
   canair dtc BMS --json                Machine-readable output

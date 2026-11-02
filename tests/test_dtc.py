@@ -71,7 +71,9 @@ class TestModeRead:
         assert data["dtcs"][0]["status"] == "0x2F"
         assert "confirmedDTC" in data["dtcs"][0]["status_bits"]
         assert data["dtcs"][0]["interpretation"]["category"] == "Powertrain"
-        assert t.sent == ["1902FF"]
+        # A UDS ECU that reported a code is asked which snapshots it stored (here: none).
+        assert t.sent == ["1902FF", "1903"]
+        assert data["snapshot_status"]["status"] == "unsupported"
 
     @pytest.mark.asyncio
     async def test_read_no_dtcs(self, capsys):
@@ -458,7 +460,7 @@ class TestDispatchTransportAgnostic:
         t = FakeTerminal({"1902FF": _ok("5902FF" + "0123002F")})
         args = self._args(dtc="7E4", mask="FF", protocol="uds", clear=False)
         await dispatch_mode(args, t, {}, "1.2.3.4")
-        assert t.sent == ["1902FF"]
+        assert t.sent == ["1902FF", "1903"]
         assert "P0123-00" in capsys.readouterr().out
 
     @pytest.mark.asyncio

@@ -232,6 +232,14 @@ and **`g`/`G` address the view's primary axis**.
   revision's codes say nothing about this car. Open codes and totals
   (`canlib/dtc/history.py`) back the bare-`dtc` hint, `canair ecu <ECU>` (open codes in red)
   and `canair config`.
+  **Snapshots:** `dtc read` also reads the snapshots a UDS ECU stored with each code it
+  reports (`19 03`, then `19 04` per record; `--no-snapshots` opts out), as a skippable final
+  step with `--all` (`canlib/tui/skip_key.py`), and before a `--clear` erases them. The mode
+  package is `canlib/modes/dtc/` (one module per concern; device side `snapshots.py`, `--save`
+  `snapshot_capture.py`), the I/O-free parser `canlib/dtc/snapshot.py`, the profile bridge
+  (lengths, decoding as a `62 <DID>` reply) `canlib/dtc/snapshot_decode.py`, the text
+  `canlib/dtc/snapshot_report.py`. The log keeps only each record's raw reply and decodes it
+  when read. Plan `plans/2026-11-02-dtc-snapshots.md`.
 - **`canair sniff`** — Passive sniffer, **`slcan-tcp` only** (offers to switch the device). Live
   per-ID table plus optional `.asc`/`.blf`/`.csv` logging via `--save`. The only way to observe
   broadcasts the request/response path can't see.

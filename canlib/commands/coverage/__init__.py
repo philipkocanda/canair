@@ -101,6 +101,7 @@ __all__ = [
     "run",
     "select_captures",
     "session_length",
+    "snapshot_only_pids",
     "subfunction_bytes",
     "variable_length_pids",
 ]
@@ -185,6 +186,18 @@ def variable_length_pids(pids_data: dict) -> frozenset[PidKey]:
         for ecu, ecu_def in (pids_data.get("ecus") or {}).items()
         for pid, pid_def in ((ecu_def or {}).get("pids") or {}).items()
         if (pid_def or {}).get("variable_length")
+    )
+
+
+def snapshot_only_pids(pids_data: dict) -> frozenset[PidKey]:
+    """``(ECU, PID)`` keys flagged ``snapshot_only:``, whose replies come from DTC snapshots."""
+    from canlib.pids import is_snapshot_only
+
+    return frozenset(
+        (str(ecu).upper(), str(pid).upper())
+        for ecu, ecu_def in (pids_data.get("ecus") or {}).items()
+        for pid, pid_def in ((ecu_def or {}).get("pids") or {}).items()
+        if is_snapshot_only(pid_def or {})
     )
 
 
@@ -291,6 +304,7 @@ def run(args) -> int:
         label=getattr(args, "label", None),
         variable_length=variable_length_pids(pids_data),
         hk_f1xx_offset=has_quirk(pids_data, HK_F1XX_MINUS_ONE),
+        snapshot_only=snapshot_only_pids(pids_data),
     )
 
     # Accept an ECU-registry alias (e.g. LDC for OBC) or any case, matching

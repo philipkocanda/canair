@@ -33,6 +33,9 @@ def _log_scan(scope: str, results: list[dict], label: str | None, vehicle_states
         # compare can see its codes clear.
         if scope != "all" or codes:
             ecus[rx] = {"protocol": r["protocol"], "dtcs": codes}
+            snapshots = logged_snapshots(r["dtcs"])
+            if snapshots:
+                ecus[rx]["snapshots"] = snapshots
 
     current = build_scan(
         scope,
@@ -50,6 +53,25 @@ def _log_scan(scope: str, results: list[dict], label: str | None, vehicle_states
     return path, previous, diff
 
 
+def logged_snapshots(dtcs: list[dict]) -> dict[str, list[dict]]:
+    """``{code: [{record, hex}]}`` for the codes whose snapshot replies were read.
+
+    Only the raw replies are kept, as the log keeps only readings: they are decoded when
+    the log is read, so a later definition improves an old entry. A record whose read
+    failed has no reply to keep.
+    """
+    out: dict[str, list[dict]] = {}
+    for d in dtcs:
+        records = [
+            {"record": s["record"], "hex": s["hex"]}
+            for s in d.get("snapshots") or ()
+            if s.get("hex")
+        ]
+        if records:
+            out[d["dtc"]] = records
+    return out
+
+
 def _print_log_result(path, previous, diff) -> None:
     from canlib.dtc.log import format_diff
 
@@ -61,8 +83,11 @@ def _print_log_result(path, previous, diff) -> None:
     print(f"  {ansi.DIM}Logged scan to {path} (`canair dtc log` to review){ansi.RESET}\n")
 
 
-def _log_manual_clear(tx_id, proto, group, pre_codes, label):
-    """Record a ``--clear``: readers take the ECU as clean from here until it is read."""
+def _log_manual_clear(tx_id, proto, group, pre_codes, label, snapshots=None):
+    """Record a ``--clear``: readers take the ECU as clean from here until it is read.
+
+    ``snapshots`` (``{code: [{record, hex}]}``) are the snapshots the clear erased, read
+    just before it, since the clear leaves no other record of them."""
     from canlib.dtc.log import append_clear, build_clear
 
     append_clear(
@@ -72,5 +97,6 @@ def _log_manual_clear(tx_id, proto, group, pre_codes, label):
             group=group,
             codes=pre_codes or None,
             label=label,
+            snapshots=snapshots or None,
         )
     )

@@ -6,10 +6,13 @@ import json
 
 from canlib import ansi
 
+from ...dtc.snapshot_report import snapshot_lines, undefined_hints
 from ...ecus import ecu_display
 from ...transport.protocol import Terminal
 from .reading import _read_one
 from .scan_log import _log_scan, _print_log_result
+from .snapshot_capture import report_saved
+from .snapshots import SnapshotRun, ecu_pids, fetch_snapshots, wants_snapshots
 
 
 def _scan_status(res: dict) -> str:
@@ -69,6 +72,10 @@ async def mode_dtc_scan_all(
     log: bool = False,
     label: str | None = None,
     vehicle_states=None,
+    snapshots: bool = True,
+    pids_data: dict | None = None,
+    save: bool = False,
+    notes: str | None = None,
 ):
     """Sweep every ECU in the profile registry and read its stored DTCs.
 
@@ -79,6 +86,10 @@ async def mode_dtc_scan_all(
     Non-responding ECUs (asleep/slow) are, by default, retried once with a wake
     (1001) and a longer timeout so a genuinely-present ECU isn't silently
     skipped; ``retry=False`` disables that.
+
+    With ``snapshots`` (the default), the snapshots of every code a UDS ECU reported are
+    read last, once every ECU's codes are in, so a slow snapshot read never delays them.
+    On a TTY a keypress skips the rest of that step (:func:`_snapshot_step`).
     """
     from ...ecus import load_ecus
 
@@ -122,6 +133,12 @@ async def mode_dtc_scan_all(
                 )
                 print(f"  {_scan_line(results[i], name_w)}  {mark}")
 
+    snapshot_run = None
+    if snapshots and any(wants_snapshots(r) for r in results):
+        snapshot_run = await _snapshot_step(terminal, results, pids_data, as_json)
+    if save:
+        report_saved(terminal, results, label, vehicle_states, notes, as_json)
+
     faulty = [r for r in results if _classify(r) == "faulty"]
     clean = [r for r in results if _classify(r) == "clean"]
     nrc = [r for r in results if _classify(r) == "nrc"]
@@ -143,6 +160,14 @@ async def mode_dtc_scan_all(
             "total_codes": total_codes,
             "results": results,
         }
+        if snapshot_run is not None:
+            out["snapshots"] = {
+                "records_read": snapshot_run.records_read,
+                "skipped": snapshot_run.skipped,
+                "unsupported": {
+                    f"0x{tx:03X}": reason for tx, reason in snapshot_run.refused.items()
+                },
+            }
         if log:
             # log_path is set by _log_scan() in the identical `if log:` block above.
             assert log_path is not None
@@ -175,9 +200,45 @@ async def mode_dtc_scan_all(
                 print(f"      {d['dtc']}  {d['status']}  {flags}")
                 if meaning:
                     print(f"        → {meaning}")
+                for line in snapshot_lines(d, "        "):
+                    print(line)
+        for hint in undefined_hints(faulty):
+            print(hint)
         print()
     else:
         print(f"  ✓ No DTCs on any of the {len(results) - len(no_resp)} responding ECUs.\n")
 
     if log:
         _print_log_result(log_path, log_prev, log_diff)
+
+
+async def _snapshot_step(
+    terminal: Terminal, results: list[dict], pids_data: dict | None, as_json: bool
+) -> SnapshotRun:
+    """Read the snapshots of every code the sweep found, skippable with a keypress on a TTY."""
+    from canlib.tui.skip_key import skip_listener
+
+    pending = [r for r in results if wants_snapshots(r)]
+    codes = sum(len(r["dtcs"]) for r in pending)
+    with skip_listener(enabled=not as_json) as keys:
+        run = SnapshotRun(skip=lambda: keys.pressed)
+        if not as_json:
+            hint = f"  {ansi.DIM}(press s or esc to skip){ansi.RESET}" if keys.active else ""
+            print(f"\n  Reading snapshots for {codes} code(s) on {len(pending)} ECU(s)...{hint}\n")
+        for result in pending:
+            tx_id = int(result["tx"], 16)
+            ecu, pids = ecu_pids(pids_data, tx_id)
+            before = run.records_read
+            await fetch_snapshots(terminal, tx_id, result, pids, ecu, run)
+            if as_json:
+                continue
+            if run.skipped:
+                break
+            status = result.get("snapshot_status")
+            if status:
+                print(f"  {result['ecu']}  {ansi.DIM}no snapshots ({status['detail']}){ansi.RESET}")
+            else:
+                print(f"  {result['ecu']}  {run.records_read - before} snapshot record(s)")
+    if run.skipped and not as_json:
+        print(f"  {ansi.YELLOW}Snapshot step skipped{ansi.RESET} — the codes are unaffected.")
+    return run
