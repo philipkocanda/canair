@@ -13,7 +13,9 @@ async device orchestration.
 import asyncio
 import json
 
+from canlib.uds.echo import request_echo
 from canlib.uds.protocol import KWP, UDS
+from canlib.uds.response import UdsResponse
 
 from ..ecus import ecu_display
 from ..sensitive import MASK, request_hidden
@@ -39,14 +41,26 @@ __all__ = [
 ]
 
 
+async def _read(terminal: Terminal, request: str) -> UdsResponse:
+    """Send one identity read, validated against the echo its reply must carry.
+
+    Without it a late reply to the previous record would be printed under this
+    record's label (the terminal's HK F1xx quirk still applies).
+    """
+    echo = request_echo(request)
+    if echo is None:
+        return await terminal.send_uds(request)
+    return await terminal.send_uds(request, expected_sid=echo[0], expected_echo=echo[1])
+
+
 async def _probe_protocol(terminal: Terminal) -> tuple[str | None, str]:
     """Probe the ECU to decide UDS vs KWP2000. Returns (protocol, reason)."""
-    uds = await terminal.send_uds("22F190")
+    uds = await _read(terminal, "22F190")
     uds_ok = service_supported(uds)
     if uds_ok:
         return UDS, "UDS service 22 supported (probe 22F190)"
 
-    kwp = await terminal.send_uds("1A90")
+    kwp = await _read(terminal, "1A90")
     kwp_ok = service_supported(kwp)
     if kwp_ok:
         return KWP, "KWP2000 service 1A supported (probe 1A90)"
@@ -119,7 +133,7 @@ async def mode_identity(
         responded: dict[str, bool] = {}
 
         for did_hex, label, fmt in records:
-            response = await terminal.send_uds(f"{prefix}{did_hex}")
+            response = await _read(terminal, f"{prefix}{did_hex}")
             responded[f"{prefix}{did_hex}"] = bool(response["ok"])
             if response["ok"]:
                 n_ok += 1

@@ -17,9 +17,10 @@ from typing import Literal
 from canlib.uds.services import RESPONSE_SID_OFFSET
 
 #: Services whose request carries one 1-byte identifier that a positive reply
-#: repeats right after its SID: KWP2000 readDataByLocalIdentifier, and OBD-II
-#: modes 0x01 (current data) and 0x09 (vehicle information).
-_ONE_BYTE_ID_SERVICES = frozenset({0x01, 0x09, 0x21})
+#: repeats right after its SID: KWP2000 readEcuIdentification (0x1A) and
+#: readDataByLocalIdentifier (0x21), and OBD-II modes 0x01 (current data) and 0x09
+#: (vehicle information).
+_ONE_BYTE_ID_SERVICES = frozenset({0x01, 0x09, 0x1A, 0x21})
 
 
 def hex_bytes(text: str) -> bytes | None:
@@ -38,6 +39,8 @@ def request_echo(request_hex: str) -> tuple[int, bytes] | None:
 
     Which request bytes count as the identifier is service-specific:
 
+    - ``1A xx``   (KWP2000 readEcuIdentification): 1-byte identificationOption echo —
+      ``5A xx …``, as ISO 14230-3 specifies and every Ioniq KWP2000 ECU answers.
     - ``21 xx``   (readDataByLocalId / mfr live data): 1-byte PID echo — the
       response is ``61 xx …``. This is the case the ELM327 stale-frame bug hits
       (a ``61 01`` response leaking into a ``2102`` request slot passes a

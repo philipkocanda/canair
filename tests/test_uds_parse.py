@@ -213,6 +213,17 @@ class TestRequestEcho:
     def test_service_22_did(self):
         assert request_echo("22BC03") == (0x22, b"\xbc\x03")
 
+    def test_kwp_read_ecu_identification(self):
+        # ISO 14230-3: the positive response repeats the identificationOption.
+        assert request_echo("1A90") == (0x1A, b"\x90")
+
+    def test_a_late_identification_record_is_caught(self):
+        echo = request_echo("1A91")
+        assert echo is not None
+        r = parse_uds_response("5A9041454556", expected_sid=echo[0], expected_echo=echo[1])
+        assert r["ok"] is False
+        assert r["error_kind"] == "stale"
+
     def test_spaces_tolerated(self):
         assert request_echo("21 01") == (0x21, b"\x01")
 

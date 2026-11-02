@@ -60,6 +60,19 @@ class TestModeIdentity:
         assert not any(c.startswith("22") for c in t.sent)
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize("protocol", ["kwp", "uds"])
+    async def test_every_identity_read_is_echo_validated(self, monkeypatch, protocol):
+        # Unvalidated, a late reply to the previous record would be printed under
+        # this record's label.
+        monkeypatch.setattr(idec, "ecu_protocol", lambda tx: protocol)
+        t = FakeTerminal({})
+        await ident.mode_identity(t, 0x7E4, session=False, wake=False, as_json=True)
+        assert t.sent
+        for request, kwargs in zip(t.sent, t.uds_kwargs, strict=True):
+            assert kwargs["expected_sid"] == int(request[:2], 16), request
+            assert kwargs["expected_echo"] == bytes.fromhex(request[2:]), request
+
+    @pytest.mark.asyncio
     async def test_no_data_reports_clearly(self, monkeypatch, capsys):
         monkeypatch.setattr(idec, "ecu_protocol", lambda tx: "unknown")
         t = FakeTerminal({})
