@@ -455,6 +455,7 @@ VCU:
         end, an event count and fields that change after a drive or charge (B38-B44 after charging),
         plus the ASCII tag 6000 at B95-B99. See the 21F2 research entries.
     1A90:
+      sensitive: true
       response_frames: 3
       parameters:
         VIN:
