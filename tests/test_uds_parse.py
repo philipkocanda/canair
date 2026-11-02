@@ -115,9 +115,12 @@ class TestRequestEchoStripping:
         assert r["ok"] is True
         assert r["hex"].startswith("490201")
 
-    def test_line_that_is_not_the_request_is_kept(self):
+    def test_another_requests_echo_marks_the_block_stale(self):
+        # `2101` is not this request's echo, so it is kept — and it shows the block is
+        # an earlier command's whole exchange, so its reply is not this one's answer.
         r = parse_uds_response("2101\n6101AA", request="2102")
-        assert r["hex"] == "21016101AA"
+        assert r["ok"] is False
+        assert r["error_kind"] == "stale"
 
     def test_only_the_echo_is_no_data(self):
         r = parse_uds_response("0100", request="0100")
@@ -126,8 +129,11 @@ class TestRequestEchoStripping:
 
     def test_unknown_request_falls_back_to_the_first_byte_guess(self):
         assert parse_uds_response("2101\n6101AA")["hex"] == "6101AA"
-        # Without the request, an OBD-II echo is still indistinguishable from data.
-        assert parse_uds_response("0100\n410080000001")["hex"] == "0100410080000001"
+        # Without the request, an OBD-II echo is indistinguishable from a reply, and
+        # two lines are never merged into one payload.
+        r = parse_uds_response("0100\n410080000001")
+        assert r["ok"] is False
+        assert r["error_kind"] == "stale"
 
 
 class TestEchoValidation:

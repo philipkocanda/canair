@@ -30,7 +30,7 @@ from canlib.uds.response import (
     CAT_STALE,
     UdsResponse,
 )
-from canlib.uds.services import NEGATIVE_RESPONSE_SID
+from canlib.uds.services import NEGATIVE_RESPONSE_SID, RESPONSE_SID_OFFSET
 
 # Adapter status lines that end a reply: line -> (category, message). Each message
 # must classify to the same category under `canlib.uds.response.classify_error`.
@@ -126,6 +126,12 @@ class _Rejected(Exception):
         self.message = message
 
 
+def _request_sid(request: str | None) -> int | None:
+    """The service byte of the command as sent, when it is hex."""
+    text = _compact(request or "")
+    return int(text[:2], 16) if len(text) >= 2 and _is_hex(text[:2]) else None
+
+
 def _adapter_lines(raw: str) -> list[str]:
     """The reply's data lines; raises :class:`_Rejected` on an adapter status line."""
     data_lines: list[str] = []
@@ -140,6 +146,56 @@ def _adapter_lines(raw: str) -> list[str]:
             raise _Rejected(*status)
         data_lines.append(line)
     return data_lines
+
+
+def _is_multiframe(lines: list[str]) -> bool:
+    return any(_FRAME_LINE.match(line.upper()) for line in lines)
+
+
+def _answers(reply: bytes, sid: int, echo: bytes, hk_f1xx_offset: bool) -> bool:
+    """Does ``reply`` answer a request of service ``sid`` (and identifier ``echo``)?"""
+    if reply[0] == NEGATIVE_RESPONSE_SID:
+        return len(reply) >= 3 and reply[1] == sid
+    return echo_mismatch(sid, echo, reply, hk_f1xx_offset=hk_f1xx_offset) is None
+
+
+def _pick_reply(lines: list[str], sid: int | None, echo: bytes, hk_f1xx_offset: bool) -> str | None:
+    """The one line answering the request among several single-frame lines.
+
+    Several unprefixed lines are several separate messages — a late reply to an
+    earlier request that landed in this one's window, or more than one ECU answering
+    — and joining them would yield a payload no ECU sent. The line that answers the
+    request is kept when exactly one does and nothing else in the block is another
+    request's echo (which would mean the whole exchange belongs to an earlier
+    command, so this one's answer has not arrived). Returns None when a line is not
+    hex, leaving the caller's decode check to report it; raises :class:`_Rejected`
+    when the lines cannot be told apart.
+    """
+    replies = [bytes.fromhex(c) for c in map(_compact, lines) if _is_hex(c) and len(c) % 2 == 0]
+    if len(replies) != len(lines):
+        return None
+    if sid is None:
+        raise _Rejected(
+            CAT_STALE,
+            f"{len(lines)} separate replies and no request to tell them apart: "
+            + ", ".join(r.hex().upper()[:16] for r in replies),
+        )
+    answering = [r for r in replies if _answers(r, sid, echo, hk_f1xx_offset)]
+    if not answering:
+        return _compact(lines[0])  # the first one's mismatch is the error to report
+    if len(set(answering)) > 1:
+        raise _Rejected(
+            CAT_STALE,
+            f"{len(set(answering))} different replies answer request SID 0x{sid:02X} "
+            "(more than one ECU responded?)",
+        )
+    if any(r[0] < RESPONSE_SID_OFFSET for r in replies if r not in answering):
+        raise _Rejected(
+            CAT_STALE,
+            "the reply holds another request's echo, so it belongs to an earlier "
+            "command (stale/misaligned exchange)",
+        )
+    return answering[0].hex().upper()
 
 
 def _reassemble(data_lines: list[str]) -> tuple[str, int, int | None]:
@@ -162,9 +218,8 @@ def _reassemble(data_lines: list[str]) -> tuple[str, int, int | None]:
     the printed nibble) is what reassembles a 16+ frame reply, where counters repeat.
     """
     upper = [line.upper() for line in data_lines]
-    if not any(_FRAME_LINE.match(line) for line in upper):
+    if not _is_multiframe(upper):
         # Each unprefixed line is one CAN frame, so a single-frame reply counts 1.
-        # Several lines here means several responders to one request.
         return "".join(_compact(line) for line in upper), len(upper), None
 
     frame_hex: list[str] = []
@@ -243,6 +298,14 @@ def parse_uds_response(
     # when nothing followed is it reported (as the NRC it is).
     while len(lines) > 1 and _PENDING_LINE.fullmatch(_compact(lines[0])):
         lines = lines[1:]
+    if len(lines) > 1 and not _is_multiframe(lines):
+        sid = expected_sid if expected_sid is not None else _request_sid(request)
+        try:
+            picked = _pick_reply(lines, sid, expected_echo or b"", hk_f1xx_offset)
+        except _Rejected as rejected:
+            return _fail(rejected.kind, rejected.message)
+        if picked is not None:
+            lines = [picked]
 
     try:
         hex_clean, frame_count, declared_len = _reassemble(lines)
