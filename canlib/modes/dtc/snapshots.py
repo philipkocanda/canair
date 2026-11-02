@@ -17,6 +17,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
+from canlib.uds.protocol import UDS
+
 from ...dtc.snapshot import SnapshotError, parse_snapshot_ids, parse_snapshot_reply
 from ...dtc.snapshot_decode import length_resolver, snapshot_entries
 from ...transport.protocol import Terminal
@@ -56,7 +58,7 @@ def ecu_pids(pids_data: Mapping[str, Any] | None, tx_id: int) -> tuple[str, Mapp
 
 def wants_snapshots(result: Mapping[str, Any]) -> bool:
     """Whether a read result has codes whose snapshots the step can fetch (a UDS ECU)."""
-    return result.get("protocol") == "uds" and bool(result.get("dtcs"))
+    return result.get("protocol") == UDS and bool(result.get("dtcs"))
 
 
 async def fetch_snapshots(

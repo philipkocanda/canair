@@ -13,6 +13,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from canlib.uds.protocol import KWP, classify_protocol
+
 from .did_families import FAMILY_SIZE, did_families, family_ranges
 from .id_ranges import IdRange
 
@@ -281,7 +283,7 @@ def plan_scan(
 
     canonical_name = _ecu_name(tx_id, ecus_data)
     info = ecus_data.get(tx_id, {}) if ecus_data else {}
-    protocol = str(info.get("id_protocol", "")).upper()
+    protocol = classify_protocol(info.get("id_protocol"))
 
     found = _find_ecu_def(canonical_name, pids_data) or _find_ecu_def(str(ecu), pids_data)
     defn = found[1] if found else {}
@@ -319,7 +321,7 @@ def plan_scan(
         )
 
     # 3. Fall back to id_protocol.
-    if protocol.startswith("KWP"):
+    if protocol == KWP:
         return ScanPlan(
             ecu=canonical_name,
             tx_id=tx_id,

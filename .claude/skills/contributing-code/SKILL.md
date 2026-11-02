@@ -66,7 +66,7 @@ ELM path (`commands/_live/runtime.py::async_main`) and the raw path (`modes/raw_
 - **Do not** open your own WebSocket, python-can bus, or socket, and do not branch on
   `transport.type` inside a mode. If you think you must, add the method to *all* terminal
   implementations instead so the mode stays transport-agnostic (matching signatures, identical
-  returned dict shape — everything funnels through `uds_parse.parse_uds_response`).
+  returned dict shape — everything funnels through `canlib/uds/parse.py::parse_uds_response`).
 - A genuinely transport-specific optimization (e.g. the pipelined `raw_monitor` fast path) must
   *optimize* an already-working shared path, and the shared path must still work everywhere.
 - A new ELM327 wire is a new `Channel`, not a duplicated engine.
@@ -86,8 +86,8 @@ vehicle-neutral `can.BusABC` — the seam to build on. Keep the domains symmetri
   modelled in the profile with the same edit-via-tool/schema-validated discipline
   (`canair signals`).
 - **Shared primitives, separate concerns** — frame parsing lives in its own module (mirroring
-  `uds_parse.py`); shared logic (byte/bit extraction, expression eval, correlation) goes in a
-  neutral helper both domains call.
+  `canlib/uds/parse.py`); shared logic (byte/bit extraction, expression eval, correlation) goes
+  in a neutral helper both domains call.
 
 If a diagnostics assumption leaks into shared code (e.g. a loader assuming an ISO-TP `payload` +
 `pid`), generalize the shared layer rather than special-casing frames.

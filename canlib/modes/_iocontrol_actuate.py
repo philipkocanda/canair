@@ -20,12 +20,13 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING, Literal, get_args
 
-from canlib.uds.parse import UdsResponse, nrc_abbrev
+from canlib.uds.nrc import nrc_abbrev
+from canlib.uds.protocol import KWP
+from canlib.uds.response import UdsResponse
 from canlib.uds.services import RESPONSE_SID_OFFSET, service_info
 
 from ..actuation import IOCONTROL_KWP, on_refusal, parse_io_request
 from ..pids import DEFAULT_IOCONTROL_SESSION_MODE
-from ..safety import KWP
 
 if TYPE_CHECKING:
     from ..transport.protocol import Terminal
@@ -131,7 +132,9 @@ class IOControlActuator:
             tail = b[echo:] if len(b) >= echo else []
             self.t.status_bytes[did] = " ".join(f"{x:02X}" for x in tail)
         elif resp.get("nrc") is not None:
-            self.t.status_bytes[did] = f"NRC {resp['nrc']:02X} {nrc_abbrev(resp['nrc'])}"
+            self.t.status_bytes[did] = (
+                f"NRC {resp['nrc']:02X} {nrc_abbrev(resp['nrc'], self.t.protocol)}"
+            )
         else:
             self.t.status_bytes[did] = "ERR"
 
@@ -175,7 +178,9 @@ class IOControlActuator:
                 t.last_response[did] = resp["hex"]
             elif resp.get("nrc") is not None:
                 t.state[did] = ACTUATOR_ERROR
-                t.last_response[did] = f"NRC 0x{resp['nrc']:02X} {nrc_abbrev(resp['nrc'])}"
+                t.last_response[did] = (
+                    f"NRC 0x{resp['nrc']:02X} {nrc_abbrev(resp['nrc'], t.protocol)}"
+                )
             else:
                 t.state[did] = ACTUATOR_ERROR
                 t.last_response[did] = resp.get("error", "unknown error")
@@ -226,7 +231,9 @@ class IOControlActuator:
                 t.last_response[did] = resp["hex"]
             elif resp.get("nrc") is not None:
                 t.state[did] = ACTUATOR_ERROR
-                t.last_response[did] = f"NRC 0x{resp['nrc']:02X} {nrc_abbrev(resp['nrc'])}"
+                t.last_response[did] = (
+                    f"NRC 0x{resp['nrc']:02X} {nrc_abbrev(resp['nrc'], t.protocol)}"
+                )
             else:
                 t.state[did] = ACTUATOR_ERROR
                 t.last_response[did] = resp.get("error", "unknown error")
@@ -328,7 +335,9 @@ class IOControlActuator:
                 t.last_value[did] = value_bytes
             elif resp.get("nrc") is not None:
                 t.state[did] = ACTUATOR_ERROR
-                t.last_response[did] = f"NRC 0x{resp['nrc']:02X} {nrc_abbrev(resp['nrc'])}"
+                t.last_response[did] = (
+                    f"NRC 0x{resp['nrc']:02X} {nrc_abbrev(resp['nrc'], t.protocol)}"
+                )
                 t.last_value[did] = value_bytes  # still store for +/- stepping
             else:
                 t.state[did] = ACTUATOR_ERROR

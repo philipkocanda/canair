@@ -34,7 +34,7 @@ from canlib.safety import SessionPolicy
 from canlib.timing import TimingRecorder
 from canlib.transport.isotp_params import ISOTP_MAX_REQUEST_BYTES
 from canlib.transport.stats import TransportStats
-from canlib.uds.parse import UdsResponse
+from canlib.uds.response import UdsResponse
 
 NO_DATA: UdsResponse = {"ok": False, "error": "NO DATA", "raw": "NO DATA"}
 
@@ -133,7 +133,6 @@ class FakeTerminal:
         req: str,
         timeout: float | None = None,
         expected_sid: int | None = None,
-        expected_did: int | None = None,
         expected_echo: bytes | None = None,
         retries: int = 0,
         **kw,
@@ -144,7 +143,6 @@ class FakeTerminal:
             {
                 "timeout": timeout,
                 "expected_sid": expected_sid,
-                "expected_did": expected_did,
                 "expected_echo": expected_echo,
                 "retries": retries,
                 **kw,

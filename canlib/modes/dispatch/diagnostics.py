@@ -11,6 +11,7 @@ import sys
 
 from canlib.states import parse_states
 from canlib.transport.protocol import Terminal
+from canlib.uds.protocol import KWP
 
 
 async def handle_dtc(args, terminal: Terminal, pids_data, host, *, reconnect=None) -> None:
@@ -88,7 +89,7 @@ async def handle_dtc(args, terminal: Terminal, pids_data, host, *, reconnect=Non
             print(f"Error: --mask must be hex (e.g. FF), got {args.mask!r}", file=sys.stderr)
             sys.exit(1)
         supported = getattr(args, "dtc_supported", False)
-        if supported and resolve_protocol(args.protocol, tx_id) != "kwp":
+        if supported and resolve_protocol(args.protocol, tx_id) != KWP:
             print(
                 f"Error: --supported needs a KWP2000 ECU, but {args.dtc} is not one "
                 "(see `canair ecu`; --protocol kwp forces it)",

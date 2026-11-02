@@ -12,6 +12,8 @@ Each entry is ``(identifier_hex, label, decode_hint)`` where the hint is one of
 ``ascii``/``date``/``hex``/``auto`` (see ``identity_decode.decode_identity_payload``).
 """
 
+from canlib.uds.protocol import KWP, UDS
+
 from ..quirks import HK_F1XX_MINUS_ONE
 
 # UDS ReadDataByIdentifier (service 22) identity DIDs. F100-F17F and F1A0-F1EF are
@@ -83,8 +85,8 @@ IDENTITY_DIDS = UDS_IDENTITY_DIDS
 # Per-protocol wire details: request SID prefix, positive-response payload
 # offset (bytes to skip past SID + identifier echo), and the record table.
 PROTOCOLS: dict[str, dict] = {
-    "uds": {"prefix": "22", "payload_offset": 3, "records": UDS_IDENTITY_DIDS},
-    "kwp": {"prefix": "1A", "payload_offset": 2, "records": KWP_IDENTITY_RECORDS},
+    UDS: {"prefix": "22", "payload_offset": 3, "records": UDS_IDENTITY_DIDS},
+    KWP: {"prefix": "1A", "payload_offset": 2, "records": KWP_IDENTITY_RECORDS},
 }
 
 

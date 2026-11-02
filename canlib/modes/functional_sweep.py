@@ -16,9 +16,10 @@ from typing import Any
 
 from canlib.addressing import AddressingMode, physical_request_id
 from canlib.captures.types import CaptureRecord, RespondingEntry, ScanResults
-from canlib.safety import session_protocol
 from canlib.transport.functional import FunctionalResult, is_pending
-from canlib.uds.parse import parse_uds_response, request_echo
+from canlib.uds.echo import request_echo
+from canlib.uds.parse import parse_uds_response
+from canlib.uds.protocol import classify_protocol
 
 UNKNOWN_BUS = "(no bus declared)"
 NOT_IN_PROFILE = "not in profile"
@@ -127,7 +128,7 @@ def classify_round(
             expected_sid=request[0],
             expected_echo=expected_echo,
             hk_f1xx_offset=hk_f1xx_offset,
-            protocol=session_protocol(known[1].get("id_protocol")) if known else None,
+            protocol=classify_protocol(known[1].get("id_protocol")) if known else None,
         )
         nrc = resp.get("nrc")
         if not resp.get("ok") and nrc is None:

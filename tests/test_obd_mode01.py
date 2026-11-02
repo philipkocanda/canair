@@ -24,8 +24,8 @@ from canlib.query import (
     pids_named_by,
 )
 from canlib.transport.elm327_terminal import Elm327Terminal
+from canlib.uds.echo import request_echo
 from canlib.uds.obd import supported_pids
-from canlib.uds.parse import request_echo
 
 from ._fakes import QueuedChannel
 

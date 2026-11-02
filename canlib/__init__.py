@@ -10,7 +10,8 @@ except PackageNotFoundError:  # not installed (e.g. running from a bare source t
 
 from canlib.expression.decoding import decode_param_rows
 from canlib.transport.wican_terminal import WiCANTerminal, reboot_wican
-from canlib.uds.parse import NRC_ABBREV, NRC_CODES, nrc_abbrev, parse_uds_response
+from canlib.uds.nrc import NRC_ABBREV, NRC_CODES, nrc_abbrev
+from canlib.uds.parse import parse_uds_response
 from canlib.wican.autopid_layout import uds_hex_to_wican_bytes
 
 from .constants import SCRIPT_DIR

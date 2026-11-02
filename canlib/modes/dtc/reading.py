@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from canlib.uds.protocol import KWP, UDS
+
 from ...ecus import ecu_display
 from ...transport.protocol import Terminal
 from .codes import decode_dtc_records, decode_kwp_dtc_records, resolve_protocol
@@ -57,7 +59,7 @@ async def _read_one(
     """Set the header and read DTCs from one ECU (no session handling)."""
     proto = resolve_protocol(protocol, tx_id)
     await terminal.set_header(tx_id)
-    if proto == "kwp":
+    if proto == KWP:
         return await _read_kwp(terminal, tx_id, timeout=timeout, supported=supported)
     return await _read_uds(terminal, tx_id, mask, verbose, timeout=timeout)
 
@@ -80,7 +82,7 @@ async def _read_uds(
         cmd = f"1902{_MASK_FALLBACK:02X}"
         response = await terminal.send_uds(cmd, timeout=timeout, expected_sid=0x19)
 
-    base = {"ecu": ecu, "tx": f"0x{tx_id:03X}", "protocol": "uds", "command": cmd}
+    base = {"ecu": ecu, "tx": f"0x{tx_id:03X}", "protocol": UDS, "command": cmd}
     if response["ok"]:
         data = response["bytes"]
         avail = data[2] if len(data) >= 3 else None
@@ -114,7 +116,7 @@ async def _read_kwp(
 
     # _KWP_READ_REQUESTS is non-empty, so the loop always ran and set `response`.
     assert response is not None
-    base = {"ecu": ecu, "tx": f"0x{tx_id:03X}", "protocol": "kwp", "command": cmd}
+    base = {"ecu": ecu, "tx": f"0x{tx_id:03X}", "protocol": KWP, "command": cmd}
     if response["ok"]:
         data = response["bytes"]
         # 58 <count> [dtc_hi dtc_lo status]* — count is advisory; decode by length.

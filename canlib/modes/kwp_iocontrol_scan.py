@@ -50,7 +50,7 @@ import dataclasses
 import sys
 from typing import NamedTuple
 
-from canlib.uds.parse import UdsResponse
+from canlib.uds.response import UdsResponse
 
 from ..quirks import NISSAN_C0_SESSION, has_quirk
 from ..transport.protocol import Terminal

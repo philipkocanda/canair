@@ -24,7 +24,8 @@ from collections.abc import Collection
 from dataclasses import dataclass
 from typing import Final, Literal
 
-from .safety import KWP, UDS, SessionProtocol
+from canlib.uds.protocol import KWP, UDS, DiagProtocol
+
 from .uds.services import service_info
 
 RequestClass = Literal["read", "release", "actuate"]
@@ -134,7 +135,7 @@ def parse_io_request(request: str | bytes) -> IoRequest | None:
 
 def classify(
     request: str | bytes,
-    protocol: SessionProtocol,
+    protocol: DiagProtocol,
     releases: Collection[str] = (),
 ) -> RequestClass:
     """Classify ``request`` for an ECU speaking ``protocol``.
@@ -175,7 +176,7 @@ def classify(
     return ACTUATE
 
 
-def default_release(request: str | bytes, protocol: SessionProtocol) -> str:
+def default_release(request: str | bytes, protocol: DiagProtocol) -> str:
     """The release implied by an IOControl request, or ``""`` when none is.
 
     A UDS ``0x2F`` request is released by returnControlToECU on the same DID
@@ -210,7 +211,7 @@ def release_mismatch(on: str, release: str) -> str | None:
     return None
 
 
-def on_refusal(on: str, release: str, protocol: SessionProtocol) -> str | None:
+def on_refusal(on: str, release: str, protocol: DiagProtocol) -> str | None:
     """Why ``canair io`` must not send the ON request ``on``, or None to allow it.
 
     An actuating request is only sent when canair knows how to hand control back
@@ -225,7 +226,7 @@ def on_refusal(on: str, release: str, protocol: SessionProtocol) -> str | None:
         return str(exc)
 
 
-def _on_refusal(on: str, release: str, protocol: SessionProtocol) -> str | None:
+def _on_refusal(on: str, release: str, protocol: DiagProtocol) -> str | None:
     # Judged without the declared release: declaring the ON request itself as its
     # release must not make it pass.
     if classify(on, protocol) != ACTUATE:

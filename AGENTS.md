@@ -271,7 +271,7 @@ and **`g`/`G` address the view's primary axis**.
   with `captures uds --recover`.
 - **`canair logs`** — The central diagnostics event log (`~/.config/canair/logs/canair.log`,
   size-rotated so it never grows unbounded): dropped/stale ISO-TP frames, timeouts, bus errors,
-  decode failures (classified by `canlib/uds/parse.py::classify_response` into
+  decode failures (classified by `canlib/uds/response.py::classify_response` into
   `drop`/`stale`/`no_data`/`bus`/`decode`) plus unexpected internal exceptions. Written by the
   per-exchange recorder `canlib/transport/stats.py::TransportStats` (attached as `.diag` on both
   terminals and the raw client) — the same tally behind the monitor's live `drops` indicator and a
@@ -973,6 +973,12 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   (`$car_model`), so literal braces in YAML/comments need no escaping. **Shipped in the wheel** via
   `pyproject.toml`'s `force-include`, so installed copies can still scaffold. Change the scaffold
   output by editing these files, not Python strings.
+- **`canlib/uds/`** — the I/O-free diagnostic protocol layer; `uds` names the request/response
+  *domain* (UDS, KWP2000 and the OBD-II modes), as in the CLI's `uds` kinds. Its package
+  docstring maps one module per protocol fact. The rule a change must keep: **an ECU's protocol
+  is classified once, by `canlib/uds/protocol.py::classify_protocol`** (or `ecus.ecu_protocol`
+  for a TX id) and compared against its `UDS`/`KWP` constants — never by matching the raw
+  `id_protocol` string (that mapping had been re-implemented, slightly differently, in six places).
 - Historical note: there is no top-level `ecus.yaml` or `dtc.yaml` — both were folded into the
   per-ECU `ecus/` files.
 
@@ -1046,7 +1052,7 @@ pipe keeps returning well-formed replies — to the *previous* request, forever.
 sit under the reconnect above, and a new request path must not bypass them:
 
 - **Every request slot is echo-validated**, so a one-slot offset is detectable at all. Pass
-  `expected_sid` *and* `expected_echo` (`canlib/uds/parse.py::request_echo`) on any new
+  `expected_sid` *and* `expected_echo` (`canlib/uds/echo.py::request_echo`) on any new
   `send_uds` call — an unvalidated request laughs off a desync and returns the wrong PID's bytes as
   the right PID's value. Keepalives are validated too (`3E00` with `expected_sid=0x3E`): an
   unvalidated one *consumes* the orphaned reply and clears the dirty-pipe flag, which is precisely

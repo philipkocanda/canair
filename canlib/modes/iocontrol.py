@@ -13,10 +13,11 @@ import termios
 import tty
 from pathlib import Path
 
+from canlib.uds.protocol import DiagProtocol
+
 from ..actuation import on_refusal
 from ..pids import IoControlCommand, IoControlIndexEntry, build_iocontrol_index, load_pids
 from ..pids_edit import PidsEditError, promote_discovery, update_iocontrol_field
-from ..safety import SessionProtocol
 from ..transport.protocol import Terminal
 from ..tui import terminal_columns as _terminal_columns
 from ..tui import terminal_lines as _terminal_lines
@@ -308,7 +309,7 @@ class _IOControlTUI:
         # A KWP2000 ECU's actuators are service 0x30, whose control-option byte is
         # manufacturer-defined: an ON needs a declared release, and the UDS-shaped
         # value keys are refused (canlib.actuation).
-        self.protocol: SessionProtocol = ecu_info["protocol"]
+        self.protocol: DiagProtocol = ecu_info["protocol"]
         # Background status polling is OPT-IN. When enabled, the poll loop sends
         # each DID's release (2F{DID}00, returnControlToECU, on UDS) — which can
         # actuate relay/solenoid-backed DIDs (audible click). Off by default so

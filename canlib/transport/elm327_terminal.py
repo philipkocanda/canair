@@ -41,7 +41,8 @@ from collections.abc import AsyncIterator, Iterable
 
 from canlib.transport.link_latency import LinkLatency
 from canlib.transport.stats import TransportStats
-from canlib.uds.parse import CAT_DECODE, CAT_STALE, UdsResponse, parse_uds_response
+from canlib.uds.parse import parse_uds_response
+from canlib.uds.response import CAT_DECODE, CAT_STALE, UdsResponse
 
 from ..addressing import AddressBook
 from ..log import log_command, log_event, log_response
@@ -608,7 +609,6 @@ class Elm327Terminal:
         service_pid: str,
         timeout: float | None = None,
         expected_sid: int | None = None,
-        expected_did: int | None = None,
         expected_echo: bytes | None = None,
         retries: int = 0,
     ) -> UdsResponse:
@@ -619,8 +619,6 @@ class Elm327Terminal:
             timeout: channel-level timeout in seconds (see send_command docstring)
             expected_sid: If set, the parser validates the response echoes this SID
                 (catches stale frames from previous requests).
-            expected_did: If set along with ``expected_sid``, the parser also
-                validates the DID echo in bytes 1..2 of the positive response.
             expected_echo: Variable-width identifier echo (see
                 ``parse_uds_response``); validates the 1-byte service-21 PID or
                 2-byte service-22 DID a positive response must repeat.
@@ -657,7 +655,6 @@ class Elm327Terminal:
                 resp = parse_uds_response(
                     raw,
                     expected_sid=expected_sid,
-                    expected_did=expected_did,
                     expected_echo=expected_echo,
                     hk_f1xx_offset=self.hk_f1xx_offset,
                     protocol=self.session_policy.protocol(header),
@@ -695,7 +692,7 @@ class Elm327Terminal:
                     #   prompt-terminated, so the dirty-pipe flag never trips
                     #   again and the session never recovers.
                     # - `decode`: the adapter sent bytes that are not a UDS
-                    #   response at all — a connect banner, an `?`, line noise.
+                    #   response at all — a connect banner or line noise.
                     #   Prompt accounting cannot catch this one, because a banner
                     #   carries its own prompt and so looks like a paid debt; only
                     #   its content gives it away.

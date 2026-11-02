@@ -9,13 +9,13 @@ module is the one table that says so, so a byte can be *named* (``DID`` / ``LID`
 ``RID`` / ``NRC`` / …) instead of guessed at from a 1-vs-2-byte width flag.
 
 It builds on :mod:`canlib.uds.services` (the SID registry) and reuses
-:func:`canlib.uds.parse.nrc_description` for response-code names; the roles use the same
+:func:`canlib.uds.nrc.nrc_description` for response-code names; the roles use the same
 ``DID``/``LID``/``RID`` vocabulary as :class:`canlib.modes.discovery_scan.DiscoveryProbe`.
 Data-only plus small resolvers: no I/O, no formatting decisions (a caller renders
 the labels and picks which definitions to show).
 
 The layouts are grounded in this repo's existing per-service knowledge — chiefly
-:func:`canlib.formatting.decode_uds_response`, :func:`canlib.uds.parse.request_echo`,
+:func:`canlib.formatting.decode_uds_response`, :func:`canlib.uds.echo.request_echo`,
 and the scanner docstrings in :mod:`canlib.modes.kwp_routines_scan` /
 :mod:`canlib.modes.kwp_iocontrol_scan` — and a service is deliberately **omitted**
 rather than guessed when its layout isn't established, so callers fall back to
@@ -27,7 +27,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass
 
-from canlib.uds.parse import nrc_description
+from canlib.uds.nrc import nrc_description
 from canlib.uds.services import NEGATIVE_RESPONSE_SID, RESPONSE_SID_OFFSET, service_info
 
 # ── role vocabulary ────────────────────────────────────────────────────────

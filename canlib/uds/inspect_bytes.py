@@ -12,7 +12,7 @@ These pure primitives are the shared bedrock of the cross-signal analysis engine
 (``xanalysis``), the frame-series sweep (``frame_series``), and the plot signal
 explorer (``commands/decode/plot``) — so they live in this neutral library leaf
 (depending only on the library layer) and every consumer imports *down* from
-here. This is a single-purpose module, mirroring the ``uds_parse``/``notation``
+here. This is a single-purpose module, mirroring the ``parse``/``notation``
 leaf style.
 """
 

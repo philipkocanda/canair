@@ -1,1 +1,16 @@
-"""UDS/KWP protocol: parsing, service registry, byte layout, and notation."""
+"""The diagnostic request/response protocol layer (domain A), I/O-free.
+
+``uds`` names the *domain* here, as in the CLI's ``uds`` kinds (``captures uds``,
+``import uds``): request/response diagnostics on UDS (ISO 14229), KWP2000 (ISO 14230)
+and the OBD-II (SAE J1979) modes, as opposed to broadcast CAN frames. Per-protocol
+facts live in one module each, and code elsewhere branches on them rather than
+re-deriving them:
+
+* :mod:`~canlib.uds.protocol` — which protocol an ECU speaks (``id_protocol`` → ``uds``/``kwp``).
+* :mod:`~canlib.uds.services` — what each request SID means, per protocol family.
+* :mod:`~canlib.uds.nrc` — negative response code names, per protocol.
+* :mod:`~canlib.uds.obd` — OBD-II facts beyond the service table.
+* :mod:`~canlib.uds.response` / :mod:`~canlib.uds.parse` / :mod:`~canlib.uds.echo` — the
+  parsed-response shape and outcome taxonomy, reading a transport's reply into it, and the
+  request echo a reply must repeat.
+"""

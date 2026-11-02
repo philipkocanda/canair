@@ -120,7 +120,7 @@ async def test_obd_pid_with_echo_on(emulator):
     Regression: a mode 01 echo (``0105``) passed the old first-byte guess, so the
     stored payload read ``01054105xx``.
     """
-    from canlib.uds.parse import request_echo
+    from canlib.uds.echo import request_echo
 
     host, port = emulator
     term = Elm327TcpTerminal(host, port, timeout=6.0)

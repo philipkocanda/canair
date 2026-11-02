@@ -23,7 +23,8 @@ import isotp
 
 from canlib.transport.link_latency import LinkLatency
 from canlib.transport.stats import TransportStats
-from canlib.uds.parse import CAT_STALE, payload_echo_mismatch
+from canlib.uds.payload import payload_echo_mismatch
+from canlib.uds.response import CAT_STALE
 
 from ..addressing import DEFAULT_RX_OFFSET, EcuAddress, build_isotp_address
 from ..log import log_command, log_event
@@ -116,7 +117,7 @@ class RawUdsClient:
         29-bit normal/fixed/extended, plus any flow-control-address override).
         ``hk_f1xx_offset``: profile opts into the Hyundai/Kia F1xx identity-DID -1
         quirk, so echo validation tolerates that off-by-one (see
-        :func:`canlib.uds.parse.payload_echo_mismatch`).
+        :func:`canlib.uds.payload.payload_echo_mismatch`).
         ``session_policy``: the profile's per-ECU session context for the command
         blocklist (:mod:`canlib.safety`). Every request is checked against it, so
         this client can never send what the terminals would refuse; there is no

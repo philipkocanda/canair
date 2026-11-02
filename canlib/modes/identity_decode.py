@@ -11,9 +11,10 @@ way); this module re-exports ``decode_date`` and layers the identity-specific
 """
 
 from canlib.expression.decode_value import bytes_to_ascii, decode_date
-from canlib.uds.parse import UdsResponse
+from canlib.uds.protocol import KWP, UDS, UNKNOWN
+from canlib.uds.response import UdsResponse
 
-from ..ecus import ecu_id_protocol
+from ..ecus import ecu_protocol
 
 __all__ = [
     "decode_date",
@@ -52,14 +53,10 @@ def resolve_protocol_hint(tx_id: int, requested: str) -> str | None:
     Returns ``None`` when it should be auto-probed on the device.
     """
     requested = (requested or "auto").lower()
-    if requested in ("uds", "kwp"):
+    if requested in (UDS, KWP):
         return requested
-    hint = (ecu_id_protocol(tx_id) or "").upper()
-    if hint == "UDS":
-        return "uds"
-    if hint.startswith("KWP"):
-        return "kwp"
-    return None  # "none"/"unknown"/missing -> probe
+    hint = ecu_protocol(tx_id)
+    return None if hint == UNKNOWN else hint  # "none"/"unknown"/missing -> probe
 
 
 def service_supported(resp: UdsResponse) -> bool | None:

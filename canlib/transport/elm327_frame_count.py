@@ -30,7 +30,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 
-from canlib.uds.parse import CAT_DECODE, CAT_DROP, CAT_STALE, UdsResponse
+from canlib.uds.response import CAT_DECODE, CAT_DROP, CAT_STALE, UdsResponse
 
 from ..frame_counts import CountKey, FrameCountLedger
 

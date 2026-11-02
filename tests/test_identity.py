@@ -41,8 +41,8 @@ class TestModeIdentity:
     @pytest.mark.asyncio
     async def test_kwp_ecu_json(self, monkeypatch, capsys):
         # UDS not supported; KWP records respond. resolve_protocol_hint reads
-        # the registry via identity_decode.ecu_id_protocol.
-        monkeypatch.setattr(idec, "ecu_id_protocol", lambda tx: "KWP2000")
+        # the registry via identity_decode.ecu_protocol.
+        monkeypatch.setattr(idec, "ecu_protocol", lambda tx: "kwp")
         t = FakeTerminal(
             {
                 "1A90": _ok("5A90" + "4145455620424D53"),  # "AEEV BMS"
@@ -61,7 +61,7 @@ class TestModeIdentity:
 
     @pytest.mark.asyncio
     async def test_no_data_reports_clearly(self, monkeypatch, capsys):
-        monkeypatch.setattr(idec, "ecu_id_protocol", lambda tx: None)
+        monkeypatch.setattr(idec, "ecu_protocol", lambda tx: "unknown")
         t = FakeTerminal({})
         await ident.mode_identity(t, 0x7E2, session=False, wake=False, as_json=False)
         out = capsys.readouterr().out
@@ -82,7 +82,7 @@ class TestHkDidGating:
     async def test_f187_skipped_without_quirk(self, monkeypatch):
         from canlib.modes import identity_records as recs
 
-        monkeypatch.setattr(idec, "ecu_id_protocol", lambda tx: "UDS")
+        monkeypatch.setattr(idec, "ecu_protocol", lambda tx: "uds")
         t = FakeTerminal({"22F190": _ok("62F190" + "0102030405")})
         await ident.mode_identity(
             t, 0x770, session=False, wake=False, as_json=True, quirks=frozenset()
@@ -95,7 +95,7 @@ class TestHkDidGating:
     async def test_f187_probed_with_hk_quirk(self, monkeypatch):
         from canlib.quirks import HK_F1XX_MINUS_ONE
 
-        monkeypatch.setattr(idec, "ecu_id_protocol", lambda tx: "UDS")
+        monkeypatch.setattr(idec, "ecu_protocol", lambda tx: "uds")
         t = FakeTerminal({"22F190": _ok("62F190" + "0102030405")})
         await ident.mode_identity(
             t,

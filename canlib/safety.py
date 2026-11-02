@@ -27,9 +27,10 @@ import asyncio
 import sys
 from collections.abc import Collection, Mapping
 from dataclasses import dataclass, field, replace
-from typing import Any, Final, Literal
+from typing import Any, Final
 
 from .log import log_command
+from .uds.protocol import KWP, UDS, UNKNOWN, DiagProtocol, classify_protocol
 
 # Services that write ECU memory, reflash firmware, reset an ECU or silence its
 # traffic. Blocked by default to prevent accidental damage. The SIDs mean the same
@@ -81,23 +82,6 @@ class SafetyBlocked(ValueError):
     working; the CLI and the live-session guard catch it by name to report
     ``error: …`` instead of a traceback.
     """
-
-
-# Which protocol's DiagnosticSessionControl semantics apply to an ECU.
-SessionProtocol = Literal["uds", "kwp", "unknown"]
-UDS: Final[SessionProtocol] = "uds"
-KWP: Final[SessionProtocol] = "kwp"
-UNKNOWN: Final[SessionProtocol] = "unknown"
-
-
-def session_protocol(id_protocol: object) -> SessionProtocol:
-    """Classify a profile ``identity.id_protocol`` value for the session rule."""
-    text = str(id_protocol or "").strip().upper()
-    if text.startswith("KWP"):
-        return KWP
-    if text == "UDS":
-        return UDS
-    return UNKNOWN
 
 
 @dataclass(frozen=True)
@@ -199,7 +183,7 @@ def _kwp_block(sub: int, allowed: Collection[int]) -> SessionBlock | None:
 
 
 def session_mode_block(
-    sub: int, protocol: SessionProtocol = UNKNOWN, allowed: Collection[int] = frozenset()
+    sub: int, protocol: DiagProtocol = UNKNOWN, allowed: Collection[int] = frozenset()
 ) -> SessionBlock | None:
     """Why ``10 {sub}`` is refused on an ECU speaking ``protocol``, or None if safe.
 
@@ -219,7 +203,7 @@ def session_mode_block(
 
 
 def check_session_mode(
-    sub: int, protocol: SessionProtocol = UNKNOWN, allowed: Collection[int] = frozenset()
+    sub: int, protocol: DiagProtocol = UNKNOWN, allowed: Collection[int] = frozenset()
 ) -> str | None:
     """:func:`session_mode_block` as the ``BLOCKED: …`` message the guard reports."""
     block = session_mode_block(sub, protocol, allowed)
@@ -243,8 +227,8 @@ class SessionPolicy:
     duration of its own send.
     """
 
-    protocols: Mapping[int, SessionProtocol] = field(default_factory=dict)
-    allowed: Mapping[SessionProtocol, frozenset[int]] = field(default_factory=dict)
+    protocols: Mapping[int, DiagProtocol] = field(default_factory=dict)
+    allowed: Mapping[DiagProtocol, frozenset[int]] = field(default_factory=dict)
     grants: frozenset[tuple[int, str]] = frozenset()
 
     @classmethod
@@ -252,13 +236,13 @@ class SessionPolicy:
         """Build the policy from loaded profile data (``ecus`` + ``quirks``)."""
         from .quirks import allowed_session_modes
 
-        protocols: dict[int, SessionProtocol] = {}
+        protocols: dict[int, DiagProtocol] = {}
         ecus = (pids_data or {}).get("ecus") or {}
         for ecu_def in ecus.values() if isinstance(ecus, Mapping) else ():
             if not isinstance(ecu_def, Mapping) or ecu_def.get("tx_id") is None:
                 continue
             identity = ecu_def.get("identity")
-            proto = session_protocol(
+            proto = classify_protocol(
                 identity.get("id_protocol") if isinstance(identity, Mapping) else None
             )
             tx = int(ecu_def["tx_id"])
@@ -266,10 +250,10 @@ class SessionPolicy:
         allowed = {p: allowed_session_modes(pids_data, p) for p in (UDS, KWP, UNKNOWN)}
         return cls(protocols=protocols, allowed=allowed)
 
-    def protocol(self, tx_id: int | None) -> SessionProtocol:
+    def protocol(self, tx_id: int | None) -> DiagProtocol:
         return UNKNOWN if tx_id is None else self.protocols.get(tx_id, UNKNOWN)
 
-    def allowed_for(self, protocol: SessionProtocol) -> frozenset[int]:
+    def allowed_for(self, protocol: DiagProtocol) -> frozenset[int]:
         return self.allowed.get(protocol, frozenset())
 
     def check(self, sub: int, tx_id: int | None) -> str | None:

@@ -6,6 +6,8 @@ These tests drive `ResponsePipe` directly, so the accounting rules are pinned
 without any I/O — which is the point of it being a separate module.
 """
 
+import pytest
+
 from canlib.transport.elm327_pipe import (
     MAX_OWED_PROMPTS,
     PipeRead,
@@ -109,6 +111,31 @@ class TestResponsePending:
         pipe = ResponsePipe()
         pipe.begin()
         assert pipe.feed("627F78AA>") is False
+
+    @pytest.mark.parametrize(
+        "reply",
+        [
+            "62017F2278AA",  # a positive reply whose data holds the bytes 7F 22 78
+            "62A7F2278B",  # nibbles that spell 7F2278 across byte boundaries
+            "22017F\r62017F2278\r",  # with the request echo on its own line
+        ],
+    )
+    def test_a_positive_reply_containing_the_pattern_is_the_answer(self, reply):
+        pipe = ResponsePipe()
+        pipe.begin()
+        assert pipe.feed(f"{reply}>") is False
+        assert pipe.satisfied
+
+    def test_an_answer_after_a_pending_line_in_one_block_is_the_answer(self):
+        pipe = ResponsePipe()
+        pipe.begin()
+        assert pipe.feed(f"22F190\r{PENDING}\r{REPLY}\r>") is False
+        assert pipe.satisfied
+
+    def test_a_pending_line_after_the_request_echo_is_pending(self):
+        pipe = ResponsePipe()
+        pipe.begin()
+        assert pipe.feed(f"22F190\r{PENDING}\r\r>") is True
 
 
 class TestAbandonedCommands:

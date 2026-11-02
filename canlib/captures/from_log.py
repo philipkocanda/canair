@@ -42,7 +42,7 @@ from typing import TYPE_CHECKING
 from canlib.captures.types import CaptureRecord
 from canlib.ecus import EcuRegistryEntry, rx_addr_str, rx_for_tx
 from canlib.uds.isotp_passive import ReassemblyStats, reassemble
-from canlib.uds.parse import nrc_description
+from canlib.uds.nrc import nrc_description
 
 if TYPE_CHECKING:
     import can

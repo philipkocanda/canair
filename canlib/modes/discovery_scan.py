@@ -21,7 +21,7 @@ import sys
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
-from canlib.uds.parse import UdsResponse
+from canlib.uds.response import UdsResponse
 
 from ..scan_state import ScanStateWriter
 from ..transport.protocol import Terminal

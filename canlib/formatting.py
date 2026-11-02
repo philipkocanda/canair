@@ -11,7 +11,7 @@ from canlib.sensitive import MASK
 from canlib.uds.byteindex import extract_byte_indices, wican_to_elm_idx
 from canlib.uds.layout import subfunction_name
 from canlib.uds.obd import is_support_bitmap_pid, supported_pids
-from canlib.uds.parse import UdsResponse
+from canlib.uds.response import UdsResponse
 
 if TYPE_CHECKING:
     from canlib.uds.notation import ByteDisplay

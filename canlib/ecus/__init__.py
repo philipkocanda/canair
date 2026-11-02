@@ -23,6 +23,7 @@ from canlib.addressing import (
     resolve_rx,
     resolve_rx_offset,
 )
+from canlib.uds.protocol import KWP, UNKNOWN, DiagProtocol, classify_protocol
 
 # Non-address ECU references allowed in capture files (multi-ECU / broadcast
 # captures that don't map to a single physical responder).
@@ -128,19 +129,17 @@ def ecu_name(tx_id: int, ecus: Mapping[int, EcuRegistryEntry] | None = None) -> 
     return info["name"] if info else f"0x{tx_id:03X}"
 
 
-def ecu_id_protocol(tx_id: int, ecus: Mapping[int, EcuRegistryEntry] | None = None) -> str | None:
-    """Return the identity protocol hint for a TX ID from the registry.
+def ecu_protocol(tx_id: int, ecus: Mapping[int, EcuRegistryEntry] | None = None) -> DiagProtocol:
+    """The diagnostic protocol the registry records for a TX ID.
 
-    One of ``"UDS"``, ``"KWP2000"``, ``"none"``, ``"unknown"``, or ``None`` when
-    the ECU is not in the registry or has no ``id_protocol`` recorded. Used by
-    ``canair identity`` to pick the right identity service without probing.
+    :data:`~canlib.uds.protocol.UNKNOWN` when the ECU is not in the registry or its
+    ``id_protocol`` is missing, ``none`` or ``unknown``; see
+    :func:`~canlib.uds.protocol.classify_protocol`.
     """
     if ecus is None:
         ecus = load_ecus()
     info = ecus.get(tx_id)
-    if not info:
-        return None
-    return info.get("id_protocol")
+    return classify_protocol(info.get("id_protocol") if info else None)
 
 
 # Evidence markers in a note that indicate the identity rests on weak, external
@@ -181,7 +180,7 @@ def derive_identity_confidence(info: EcuRegistryEntry) -> str:
     """
     name = str(info.get("name") or "")
     notes = str(info.get("notes") or "").lower()
-    proto = str(info.get("id_protocol") or "").lower()
+    proto = classify_protocol(info.get("id_protocol"))
     has_part_number = bool(info.get("part_number"))
     has_identity = any(info.get(k) for k in _IDENTITY_EVIDENCE_FIELDS)
 
@@ -191,7 +190,7 @@ def derive_identity_confidence(info: EcuRegistryEntry) -> str:
         return "tentative"
     if has_part_number:
         return "confirmed"
-    if has_identity and proto in ("uds", "kwp2000"):
+    if has_identity and proto != UNKNOWN:
         return "probable"
     return "tentative"
 
@@ -496,8 +495,7 @@ def split_ecus_by_protocol(names: list[str]) -> tuple[list[str], list[str]]:
     kwp: list[str] = []
     for name in names:
         tx_id = resolve_tx(name)
-        proto = ecu_id_protocol(tx_id) if tx_id is not None else None
-        if str(proto or "").upper().startswith("KWP"):
+        if tx_id is not None and ecu_protocol(tx_id) == KWP:
             kwp.append(name)
         else:
             uds.append(name)

@@ -13,6 +13,8 @@ async device orchestration.
 import asyncio
 import json
 
+from canlib.uds.protocol import KWP, UDS
+
 from ..ecus import ecu_display
 from ..sensitive import MASK, request_hidden
 from ..transport.protocol import Terminal
@@ -42,12 +44,12 @@ async def _probe_protocol(terminal: Terminal) -> tuple[str | None, str]:
     uds = await terminal.send_uds("22F190")
     uds_ok = service_supported(uds)
     if uds_ok:
-        return "uds", "UDS service 22 supported (probe 22F190)"
+        return UDS, "UDS service 22 supported (probe 22F190)"
 
     kwp = await terminal.send_uds("1A90")
     kwp_ok = service_supported(kwp)
     if kwp_ok:
-        return "kwp", "KWP2000 service 1A supported (probe 1A90)"
+        return KWP, "KWP2000 service 1A supported (probe 1A90)"
 
     if uds_ok is False and kwp_ok is False:
         return None, "neither UDS 22 nor KWP2000 1A supported (both NRC 0x11)"
@@ -90,7 +92,7 @@ async def mode_identity(
         if not as_json:
             print(f"\n  Identity query: {ecu_display(tx_id)}")
             if resolved:
-                fam = "UDS (22 F1xx)" if resolved == "uds" else "KWP2000 (1A 8x/9x)"
+                fam = "UDS (22 F1xx)" if resolved == UDS else "KWP2000 (1A 8x/9x)"
                 detail = f" — {probe_reason}" if probe_reason else ""
                 print(f"  Protocol: {fam}{detail}\n")
             else:

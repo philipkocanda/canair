@@ -5,15 +5,12 @@ from __future__ import annotations
 import pytest
 
 from canlib.safety import (
-    KWP,
-    UDS,
-    UNKNOWN,
     SessionPolicy,
     check_command_safety,
     check_session_mode,
     session_mode_block,
-    session_protocol,
 )
+from canlib.uds.protocol import KWP, UDS, UNKNOWN, classify_protocol
 
 KWP_ECU, UDS_ECU = 0x7E4, 0x770
 POLICY = SessionPolicy({KWP_ECU: KWP, UDS_ECU: UDS})
@@ -181,11 +178,11 @@ class TestSessionPolicyFromProfile:
 
 
 def test_session_protocol_classification():
-    assert session_protocol("KWP2000") == KWP
-    assert session_protocol("kwp") == KWP
-    assert session_protocol("UDS") == UDS
+    assert classify_protocol("KWP2000") == KWP
+    assert classify_protocol("kwp") == KWP
+    assert classify_protocol("UDS") == UDS
     for value in (None, "", "none", "unknown", 3):
-        assert session_protocol(value) == UNKNOWN
+        assert classify_protocol(value) == UNKNOWN
 
 
 class TestCheckCommandSafety:

@@ -16,7 +16,7 @@ from typing import NotRequired, TypedDict
 
 from canlib.expression.decoding import ParamRow, decode_param_rows
 from canlib.uds.multi_did import split_chain
-from canlib.uds.parse import UdsResponse
+from canlib.uds.response import UdsResponse
 
 from ..formatting import decode_uds_response
 from ..frame_counts import frames_for_payload

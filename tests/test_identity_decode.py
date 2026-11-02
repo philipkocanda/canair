@@ -93,17 +93,17 @@ class TestResolveProtocolHint:
         assert idec.resolve_protocol_hint(0x770, "kwp") == "kwp"
 
     def test_registry_uds(self, monkeypatch):
-        monkeypatch.setattr(idec, "ecu_id_protocol", lambda tx: "UDS")
+        monkeypatch.setattr(idec, "ecu_protocol", lambda tx: "uds")
         assert idec.resolve_protocol_hint(0x7A0, "auto") == "uds"
 
     def test_registry_kwp(self, monkeypatch):
-        monkeypatch.setattr(idec, "ecu_id_protocol", lambda tx: "KWP2000")
+        monkeypatch.setattr(idec, "ecu_protocol", lambda tx: "kwp")
         assert idec.resolve_protocol_hint(0x7E4, "auto") == "kwp"
 
     def test_registry_none_triggers_probe(self, monkeypatch):
-        monkeypatch.setattr(idec, "ecu_id_protocol", lambda tx: "none")
+        monkeypatch.setattr(idec, "ecu_protocol", lambda tx: "unknown")
         assert idec.resolve_protocol_hint(0x783, "auto") is None
 
     def test_registry_missing_triggers_probe(self, monkeypatch):
-        monkeypatch.setattr(idec, "ecu_id_protocol", lambda tx: None)
+        monkeypatch.setattr(idec, "ecu_protocol", lambda tx: "unknown")
         assert idec.resolve_protocol_hint(0x999, "auto") is None

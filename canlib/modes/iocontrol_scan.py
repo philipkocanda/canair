@@ -41,7 +41,7 @@ from __future__ import annotations
 import sys
 from typing import NamedTuple
 
-from canlib.uds.parse import UdsResponse
+from canlib.uds.response import UdsResponse
 
 from ..transport.protocol import Terminal
 from .discovery_scan import DiscoveryProbe, mode_discovery_scan
@@ -90,7 +90,7 @@ async def probe_iocontrol(
 ) -> UdsResponse:
     """Send ``2F {DID_HI} {DID_LO} {SF}`` and return the parsed response.
 
-    Uses SID/DID echo validation (``expected_sid=0x2F``, ``expected_did=did``)
+    Uses SID/DID echo validation (``expected_sid=0x2F``, ``expected_echo`` = the DID)
     so that stale or misaligned frames buffered in the ELM327 adapter are
     caught and reported as errors rather than misattributed to the wrong
     DID. Observed failure mode: a late-arriving ``6F {prev_did} 00`` from
@@ -107,7 +107,7 @@ async def probe_iocontrol(
         req,
         timeout=2.0,
         expected_sid=0x2F,
-        expected_did=did,
+        expected_echo=did.to_bytes(2, "big"),
     )
 
 

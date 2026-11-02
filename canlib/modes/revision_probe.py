@@ -52,7 +52,7 @@ def targeted_ecus(args) -> set[str] | None:
 async def _ask(terminal: Terminal, tx_id: int, request: str) -> bool | None:
     """Whether the ECU answered ``request`` positively (None: it could not be asked)."""
     from canlib.safety import SafetyBlocked
-    from canlib.uds.parse import request_echo
+    from canlib.uds.echo import request_echo
 
     echo = request_echo(request)
     sid = echo[0] if echo else int(request[:2], 16)

@@ -29,10 +29,11 @@ import sys
 from typing import NamedTuple
 
 from canlib.uds.layout import SUBFUNCTION_NAMES
-from canlib.uds.parse import UdsResponse
+from canlib.uds.protocol import KWP, classify_protocol
+from canlib.uds.response import UdsResponse
 
 from ..quirks import allowed_session_modes
-from ..safety import KWP, SessionPolicy, session_protocol
+from ..safety import SessionPolicy
 from ..transport.protocol import Terminal
 
 # Human labels for the session sub-functions, from the shared table in
@@ -110,7 +111,7 @@ def _modes_for_protocol(proto: str | None, pids_data: dict | None = None) -> tup
     A KWP2000 ECU also gets the OEM sessions the profile's quirks permit on
     KWP2000 (e.g. Nissan's ``C0``), so the scan can confirm them.
     """
-    if session_protocol(proto) == KWP:
+    if classify_protocol(proto) == KWP:
         extra = sorted(allowed_session_modes(pids_data, KWP) - set(KWP_SESSION_MODES))
         return KWP_SESSION_MODES + tuple(extra)
     return UDS_SESSION_MODES

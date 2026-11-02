@@ -22,9 +22,9 @@ def _scan_status(res: dict) -> str:
         base = f"{n} DTC(s)" if n else "clean"
         return f"{base} (via {res['command']})" if res.get("note") else base
     if "nrc" in res:
-        from canlib.uds.parse import nrc_abbrev
+        from canlib.uds.nrc import nrc_abbrev
 
-        return f"NRC {res['nrc']} {nrc_abbrev(int(res['nrc'], 16))}"
+        return f"NRC {res['nrc']} {nrc_abbrev(int(res['nrc'], 16), res.get('protocol'))}"
     err = res.get("error", "error")
     return "no response" if ("NO DATA" in err or "No response" in err) else err
 

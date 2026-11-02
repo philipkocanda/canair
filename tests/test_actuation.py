@@ -17,7 +17,7 @@ from canlib.actuation import (
 )
 from canlib.pids import build_iocontrol_index
 from canlib.profile import ProfileError
-from canlib.safety import KWP, UDS, UNKNOWN
+from canlib.uds.protocol import KWP, UDS, UNKNOWN
 
 PROTOCOLS = (UDS, KWP, UNKNOWN)
 

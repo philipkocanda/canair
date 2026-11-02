@@ -1,487 +1,89 @@
-"""UDS response parsing and Negative Response Code (NRC) tables.
+"""Turning a transport's response text into a :class:`~canlib.uds.response.UdsResponse`.
 
-Transport-independent: both the ``wican-ws`` (ELM327 dongle) and ``slcan-tcp``
-(client-side ISO-TP) paths funnel their raw response text/hex through
-:func:`parse_uds_response` so downstream code sees an identical result dict
-regardless of which transport produced the bytes. The parser tolerates
-ELM327-flavored artifacts (AT echoes, ``NO DATA``/``CAN ERROR`` strings, ``>``
-prompts, flow-control frame echoes) which never appear on the raw path but are
-harmless there.
+Transport-independent: both the ELM327 transports (``wican-ws``/``elm327-tcp``, whose
+adapter does ISO-TP) and ``slcan-tcp`` (client-side ISO-TP) funnel their response
+through :func:`parse_uds_response`, so downstream code sees an identical result
+regardless of which transport produced the bytes. The raw path hands it one line of
+already-reassembled hex; the ELM327 path hands it terminal output, with the adapter's
+artifacts — request echoes, status lines (``NO DATA``, ``CAN ERROR``), ``>`` prompts,
+flow-control echoes, interim ResponsePending frames and numbered multi-frame lines —
+which this module strips or reassembles. It assumes headers off (``ATH0``), which
+every profile init and the engine keep; a reply printed with headers is not a
+UDS payload this parser can read.
+
+The pieces it judges with live beside it: the response shape and outcome categories
+(:mod:`canlib.uds.response`), NRC names (:mod:`canlib.uds.nrc`) and the request echo
+(:mod:`canlib.uds.echo`).
 """
 
+from __future__ import annotations
+
 import re
-from typing import NotRequired, TypedDict
 
-from ..safety import KWP, UDS
-
-# Exchange-outcome taxonomy. Every parsed response falls into exactly one
-# category; on a failure the same value is also stamped onto the response as
-# ``error_kind`` (set at the error site, so classification never has to re-parse
-# an error *string*). `canlib.transport.stats.TransportStats` tallies these per
-# transport, the monitor surfaces them, and recorded captures carry the counts.
-CAT_OK = "ok"  # positive, echo-matching response
-CAT_NRC = "nrc"  # legitimate negative response (7F …) — an answer, not a fault
-CAT_NO_DATA = "no_data"  # NO DATA / empty — the ECU said nothing
-CAT_DROP = "drop"  # ISO-TP consecutive frame dropped (truncated reassembly)
-CAT_STALE = "stale"  # stale/leaked frame: non-contiguous counters, SID/echo mismatch
-CAT_DECODE = "decode"  # non-hex / too-short / undecodable payload
-CAT_BUS = "bus"  # CAN ERROR / unable to connect / buffer full / bus init
-CAT_OTHER = "other"  # unclassified fallback
-
-# All categories a recorded exchange can fall into (drives TransportStats init).
-RESPONSE_CATEGORIES: tuple[str, ...] = (
-    CAT_OK,
-    CAT_NRC,
-    CAT_NO_DATA,
-    CAT_DROP,
-    CAT_STALE,
-    CAT_DECODE,
+from canlib.uds.echo import echo_mismatch
+from canlib.uds.nrc import nrc_description
+from canlib.uds.response import (
     CAT_BUS,
-    CAT_OTHER,
-)
-
-# The subset that means something went wrong (not a clean positive / valid NRC).
-ERROR_CATEGORIES: tuple[str, ...] = (
-    CAT_NO_DATA,
-    CAT_DROP,
-    CAT_STALE,
     CAT_DECODE,
-    CAT_BUS,
-    CAT_OTHER,
+    CAT_DROP,
+    CAT_NO_DATA,
+    CAT_STALE,
+    UdsResponse,
 )
+from canlib.uds.services import NEGATIVE_RESPONSE_SID
 
-
-class UdsResponse(TypedDict):
-    """Structured result of :func:`parse_uds_response` — the shape every transport returns.
-
-    Both the ``wican-ws`` (:class:`canlib.transport.wican_terminal.WiCANTerminal`) and
-    ``slcan-tcp`` (:class:`canlib.transport.raw_terminal.RawTerminal`) paths
-    funnel their raw response through :func:`parse_uds_response`, so downstream
-    code sees this identical shape regardless of transport. ``raw``/``ok`` are
-    always present; the rest depend on the outcome:
-
-    - a parseable positive carries ``hex``/``bytes`` (and ``isotp_declared_len``
-      on a multi-frame read that reported an ISO-TP First Frame length);
-    - a negative (``7F``) carries ``nrc``/``nrc_service``/``nrc_desc`` — unless
-      the NRC echoes a *different* service, in which case those are dropped and
-      ``error`` is set instead;
-    - a parse failure / ``NO DATA`` / echo mismatch carries ``error``.
-    """
-
-    raw: str  # always: original response text
-    ok: bool  # always: positive + echo-matching?
-    hex: NotRequired[str]  # parseable positive: uppercased, space-stripped
-    bytes: NotRequired[bytes]  # parseable positive
-    isotp_declared_len: NotRequired[int]  # multi-frame: ISO-TP First Frame length
-    isotp_frame_count: NotRequired[int]  # CAN frames/responses the adapter handed back
-    nrc: NotRequired[int]  # negative (7F): the NRC byte
-    nrc_service: NotRequired[int]  # negative: echoed service byte
-    nrc_desc: NotRequired[str]  # negative: human description
-    error: NotRequired[str]  # parse failure / NO DATA / echo mismatch
-    error_kind: NotRequired[str]  # failure category (a CAT_* value), set with `error`
-
-
-# UDS Negative Response Code descriptions
-NRC_CODES = {
-    0x10: "generalReject",
-    0x11: "serviceNotSupported",
-    0x12: "subFunctionNotSupported",
-    0x13: "incorrectMessageLengthOrInvalidFormat",
-    0x14: "responseTooLong",
-    0x21: "busyRepeatRequest",
-    0x22: "conditionsNotCorrect",
-    0x24: "requestSequenceError",
-    0x25: "noResponseFromSubnetComponent",
-    0x26: "failurePreventsExecutionOfRequestedAction",
-    0x31: "requestOutOfRange",
-    0x33: "securityAccessDenied",
-    0x35: "invalidKey",
-    0x36: "exceededNumberOfAttempts",
-    0x37: "requiredTimeDelayNotExpired",
-    0x70: "uploadDownloadNotAccepted",
-    0x71: "transferDataSuspended",
-    0x72: "generalProgrammingFailure",
-    0x73: "wrongBlockSequenceCounter",
-    0x78: "requestCorrectlyReceivedResponsePending",
-    0x7E: "subFunctionNotSupportedInActiveSession",
-    0x7F: "serviceNotSupportedInActiveSession",
-    # ISO 14229-1 conditionsNotCorrect refinements: why the ECU refused *now*.
-    0x81: "rpmTooHigh",
-    0x82: "rpmTooLow",
-    0x83: "engineIsRunning",
-    0x84: "engineIsNotRunning",
-    0x85: "engineRunTimeTooLow",
-    0x86: "temperatureTooHigh",
-    0x87: "temperatureTooLow",
-    0x88: "vehicleSpeedTooHigh",
-    0x89: "vehicleSpeedTooLow",
-    0x8A: "throttle/PedalTooHigh",
-    0x8B: "throttle/PedalTooLow",
-    0x8C: "transmissionRangeNotInNeutral",
-    0x8D: "transmissionRangeNotInGear",
-    0x8F: "brakeSwitch(es)NotClosed",
-    0x90: "shifterLeverNotInPark",
-    0x91: "torqueConverterClutchLocked",
-    0x92: "voltageTooHigh",
-    0x93: "voltageTooLow",
+# Adapter status lines that end a reply: line -> (category, message). Each message
+# must classify to the same category under `canlib.uds.response.classify_error`.
+# `?` (command not understood) is a complete, prompt-terminated refusal that leaves
+# nothing queued, so it is a bus-side failure rather than a dirty pipe.
+ADAPTER_STATUS: dict[str, tuple[str, str]] = {
+    "?": (CAT_BUS, "Unknown command"),
+    "NO DATA": (CAT_NO_DATA, "No response from ECU (NO DATA)"),
+    "CAN ERROR": (CAT_BUS, "CAN bus error"),
+    "BUS ERROR": (CAT_BUS, "CAN bus error (BUS ERROR)"),
+    "BUS BUSY": (CAT_BUS, "CAN bus busy"),
+    "UNABLE TO CONNECT": (CAT_BUS, "Unable to connect to CAN bus"),
+    "BUS INIT: ...ERROR": (CAT_BUS, "Bus initialization error"),
+    "STOPPED": (CAT_BUS, "Request stopped"),
+    "BUFFER FULL": (CAT_BUS, "Response buffer full"),
 }
 
-# ISO 14229-1 ranges without per-code names. 0xF0-0xFE differ per make (Hyundai/Kia use
-# them for gateway authentication and downgrade refusals), so they get the range name only.
-_NRC_RANGES = (
-    (range(0x94, 0xF0), "reservedForSpecificConditionsNotCorrect"),
-    (range(0xF0, 0xFF), "vehicleManufacturerSpecificConditionsNotCorrect"),
-)
+# Adapter progress lines that precede a reply and carry none of it. `SEARCHING...`
+# is what an adapter left on automatic protocol detection (`ATSP0`) prints first.
+_ADAPTER_INFO = frozenset({"OK", "SEARCHING..."})
 
-# KWP2000 response codes that are absent from, or mean something other than, their ISO 14229-1
-# namesake. Names and ranges follow SSF 14230-3 Issue 2 section 4.4, the implementation standard
-# the KWP2000 scanners already cite; the ISO 14230-3 draft leaves 0x80-0xFF entirely to the
-# manufacturer. Codes with the same meaning in both (0x10, 0x11, 0x21, 0x31, 0x33, 0x35-0x37,
-# 0x71, 0x78) are not repeated: a KWP lookup falls through to NRC_CODES.
-KWP_NRC_CODES = {
-    0x12: "subFunctionNotSupportedOrInvalidFormat",  # UDS splits this into 0x12 + 0x13
-    0x22: "conditionsNotCorrectOrRequestSequenceError",  # UDS splits this into 0x22 + 0x24
-    # Still running, not refused: repeating the request must not restart it, and the ECU then
-    # answers 0x21 busyRepeatRequest until it finishes. Reserved in UDS.
-    0x23: "routineNotCompleteOrServiceInProgress",
-    0x40: "downloadNotAccepted",
-    0x41: "improperDownloadType",
-    0x42: "cantDownloadToSpecifiedAddress",
-    0x43: "cantDownloadNumberOfBytesRequested",
-    0x50: "uploadNotAccepted",
-    0x51: "improperUploadType",
-    0x52: "cantUploadFromSpecifiedAddress",
-    0x53: "cantUploadNumberOfBytesRequested",
-    0x72: "transferAborted",  # UDS 0x72 is generalProgrammingFailure
-    0x74: "illegalAddressInBlockTransfer",
-    0x75: "illegalByteCountInBlockTransfer",
-    0x76: "illegalBlockTransferType",
-    0x77: "blockTransferDataChecksumError",
-    0x79: "incorrectByteCountDuringBlockTransfer",
-    0x80: "serviceNotSupportedInActiveDiagnosticSession",  # UDS: 0x7F
-}
-# KWP2000 range names for the rest of 0x80-0xFF. ISO 14229-1's 0x81-0x93 conditionsNotCorrect
-# refinements (rpmTooHigh, ...) are not KWP2000 codes, so they must not be read into one.
-_KWP_NRC_RANGES = (
-    (range(0x81, 0x90), "reservedByDocument"),
-    (range(0x90, 0xFA), "vehicleManufacturerSpecific"),
-    (range(0xFA, 0xFF), "systemSupplierSpecific"),
-)
+_HEX_DIGITS = frozenset("0123456789ABCDEF")
+
+# One numbered multi-frame line: a single hex-digit counter, then that frame's bytes
+# (`0:62C00B…`, or `0: 62 C0 0B …` with spaces on).
+_FRAME_LINE = re.compile(r"([0-9A-F])\s*:\s*([0-9A-F][0-9A-F ]*)")
+# The bare-hex ISO-TP First Frame length an adapter prints before the frame lines.
+_LENGTH_TOKEN = re.compile(r"[0-9A-F]{1,4}")
+# UDS ResponsePending (`7F <sid> 78`): an interim "still working" frame.
+_PENDING_LINE = re.compile(r"7F[0-9A-F]{2}78")
 
 
-def nrc_description(nrc: int, protocol: str | None = None) -> str:
-    """Human name for a negative response code, or ``unknown (0xNN)``.
+def _compact(line: str) -> str:
+    return line.replace(" ", "").upper()
 
-    ``protocol`` is the target ECU's diagnostic protocol (``"uds"``/``"kwp"``), when
-    known, because the same code can mean different things:
 
-    * ``"kwp"`` reads SSF 14230-3 first (``0x23`` is ``routineNotCompleteOrServiceInProgress``,
-      ``0x72`` ``transferAborted``, ``0x90``-``0xF9`` ``vehicleManufacturerSpecific``), then
-      falls back to the shared names.
-    * ``"uds"`` reads ISO 14229-1 only.
-    * Anything else (unknown protocol) reads ISO 14229-1 and, for a code that standard
-      leaves unnamed, the KWP2000 name tagged ``(KWP2000)``.
+def _is_hex(text: str) -> bool:
+    return bool(text) and set(text) <= _HEX_DIGITS
+
+
+def _is_flow_control_echo(line: str) -> bool:
+    """True for the adapter's echo of a Flow Control frame it sent (``F00``…).
+
+    No reply starts with ``F`` (positive response SIDs are ``0x41``-``0x7F``, a negative
+    one ``7F``), so a short line opening ``F0`` is never data. With headers printed the
+    echo carries one (``770 F00``), recognised only when a space sets it apart: a
+    contiguous ``620F00`` is the reply ``62 0F 00``, not a header plus an echo.
     """
-    if protocol == KWP:
-        if nrc in KWP_NRC_CODES:
-            return KWP_NRC_CODES[nrc]
-        for codes, range_name in _KWP_NRC_RANGES:
-            if nrc in codes:
-                return range_name
-    name = NRC_CODES.get(nrc)
-    if name is not None:
-        return name
-    for codes, range_name in _NRC_RANGES:
-        if nrc in codes:
-            return range_name
-    if protocol != UDS and nrc in KWP_NRC_CODES:
-        return f"{KWP_NRC_CODES[nrc]} (KWP2000)"
-    return f"unknown (0x{nrc:02X})"
-
-
-# Short mnemonics for compact UI display (TUI "Last response" column, etc).
-# Derived from the initials of each NRC name; use `nrc_abbrev(n)` for lookup.
-NRC_ABBREV = {
-    0x10: "GR",  # generalReject
-    0x11: "SNS",  # serviceNotSupported
-    0x12: "SFNS",  # subFunctionNotSupported
-    0x13: "IMLIF",  # incorrectMessageLengthOrInvalidFormat
-    0x14: "RTL",  # responseTooLong
-    0x21: "BRR",  # busyRepeatRequest
-    0x22: "CNC",  # conditionsNotCorrect
-    0x24: "RSE",  # requestSequenceError
-    0x25: "NRFSC",  # noResponseFromSubnetComponent
-    0x26: "FPE",  # failurePreventsExecution
-    0x31: "ROOR",  # requestOutOfRange
-    0x33: "SAD",  # securityAccessDenied
-    0x35: "IK",  # invalidKey
-    0x36: "ENOA",  # exceededNumberOfAttempts
-    0x37: "RTDNE",  # requiredTimeDelayNotExpired
-    0x70: "UDNA",  # uploadDownloadNotAccepted
-    0x71: "TDS",  # transferDataSuspended
-    0x72: "GPF",  # generalProgrammingFailure
-    0x73: "WBSC",  # wrongBlockSequenceCounter
-    0x78: "RCRRP",  # requestCorrectlyReceivedResponsePending
-    0x7E: "SFNSIAS",  # subFunctionNotSupportedInActiveSession
-    0x7F: "SNSIAS",  # serviceNotSupportedInActiveSession
-    # ISO 14229-1's own mnemonics for the conditionsNotCorrect refinements.
-    0x81: "RPMTH",
-    0x82: "RPMTL",
-    0x83: "EIR",
-    0x84: "EINR",
-    0x85: "ERTTL",
-    0x86: "TEMPTH",
-    0x87: "TEMPTL",
-    0x88: "VSTH",
-    0x89: "VSTL",
-    0x8A: "TPTH",
-    0x8B: "TPTL",
-    0x8C: "TRNIN",
-    0x8D: "TRNIG",
-    0x8F: "BSNC",
-    0x90: "SLNIP",
-    0x91: "TCCL",
-    0x92: "VTH",
-    0x93: "VTL",
-}
-
-# Mnemonics for the KWP2000-only response codes (:data:`KWP_NRC_CODES`) that ISO 14229-1
-# leaves unnamed, as SSF 14230-3 Issue 2 section 4.4 spells them. Kept apart from NRC_ABBREV so
-# that dict stays the ISO 14229-1 set; the codes shared with UDS (0x12, 0x22, 0x72) deliberately
-# keep their UDS mnemonic.
-_KWP_ONLY_ABBREV = {
-    0x23: "RNC",  # routineNotCompleteOrServiceInProgress
-    0x40: "DNA",  # downloadNotAccepted
-    0x41: "IDT",  # improperDownloadType
-    0x42: "CNDTSA",  # cantDownloadToSpecifiedAddress
-    0x43: "CNDNOBR",  # cantDownloadNumberOfBytesRequested
-    0x50: "UNA",  # uploadNotAccepted
-    0x51: "IUT",  # improperUploadType
-    0x52: "CNUFSA",  # cantUploadFromSpecifiedAddress
-    0x53: "CNUNOBR",  # cantUploadNumberOfBytesRequested
-    0x74: "IAIBT",  # illegalAddressInBlockTransfer
-    0x75: "IBCIBT",  # illegalByteCountInBlockTransfer
-    0x76: "IBTT",  # illegalBlockTransferType
-    0x77: "BTDCE",  # blockTransferDataChecksumError
-    0x79: "IBCDBT",  # incorrectByteCountDuringBlockTransfer
-    0x80: "SNSIADS",  # serviceNotSupportedInActiveDiagnosticSession
-}
-
-
-def nrc_abbrev(nrc: int) -> str:
-    """Short mnemonic for an NRC, or ``?`` if unknown."""
-    if nrc in NRC_ABBREV:
-        return NRC_ABBREV[nrc]
-    if nrc in _KWP_ONLY_ABBREV:
-        return _KWP_ONLY_ABBREV[nrc]
-    return "VMSCNC" if 0xF0 <= nrc <= 0xFE else "?"
-
-
-def classify_response(resp: UdsResponse) -> str:
-    """Classify a parsed response into one :data:`RESPONSE_CATEGORIES` value.
-
-    A clean positive is ``ok`` and a legitimate negative (``7F …``) is ``nrc``
-    (an answer, not a fault). Every other outcome reports the ``error_kind``
-    stamped at the point of failure; for a response carrying only an ``error``
-    string (built outside this parser) it falls back to :func:`classify_error`
-    on that text, and finally to ``other`` so a total never silently disappears.
-    This is the single taxonomy both transports feed the diagnostics recorder,
-    so drops/stale-frames/timeouts count identically regardless of transport.
-    """
-    if resp.get("ok"):
-        return CAT_OK
-    if resp.get("nrc") is not None:
-        return CAT_NRC
-    return resp.get("error_kind") or classify_error(resp.get("error"))
-
-
-# Ordered (substring → category) rules matched case-insensitively against an
-# error string. First match wins, so order matters (drops before the generic
-# reassembly wording, mismatch before the rest). This is the fallback path for
-# a response that carries an ``error`` string but no structured ``error_kind``
-# (e.g. an error built outside :func:`parse_uds_response`); the parser itself
-# stamps ``error_kind`` directly, so classification rarely needs the text.
-_ERROR_RULES: tuple[tuple[str, str], ...] = (
-    ("non-contiguous iso-tp", "drop"),
-    ("truncated iso-tp", "drop"),
-    ("mismatch", "stale"),
-    ("no data", "no_data"),
-    ("no response", "no_data"),
-    ("empty response", "no_data"),
-    ("timeout", "no_data"),
-    ("can bus error", "bus"),
-    ("unable to connect", "bus"),
-    ("bus initialization", "bus"),
-    ("connection closed", "bus"),
-    ("request stopped", "bus"),
-    ("buffer full", "bus"),
-    ("non-hex", "decode"),
-    ("hex decode", "decode"),
-    ("too short", "decode"),
-    ("odd hex", "decode"),
-    ("unknown command", "decode"),
-)
-
-
-def classify_error(error: str | None) -> str:
-    """Classify a UDS error string into an :data:`ERROR_CATEGORIES` bucket.
-
-    Matches known substrings emitted by :func:`parse_uds_response` (and the raw
-    clients); anything unrecognised falls back to ``"other"`` so a total never
-    silently disappears. Pure/side-effect-free — safe to call on the hot path.
-    """
-    if not error:
-        return "other"
-    low = error.lower()
-    for needle, category in _ERROR_RULES:
-        if needle in low:
-            return category
-    return "other"
-
-
-#: Services whose request carries one 1-byte identifier that a positive reply
-#: repeats right after its SID: KWP2000 readDataByLocalIdentifier, and OBD-II
-#: modes 0x01 (current data) and 0x09 (vehicle information).
-_ONE_BYTE_ID_SERVICES = frozenset({0x01, 0x09, 0x21})
-
-
-def request_echo(request_hex: str) -> tuple[int, bytes] | None:
-    """Derive the (expected_sid, echo_bytes) a positive response must repeat.
-
-    A UDS positive response echoes the request SID (``+0x40``) followed by the
-    request's *identifier* bytes verbatim. Which bytes count as the identifier
-    is service-specific:
-
-    - ``21 xx``   (readDataByLocalId / mfr live data): 1-byte PID echo — the
-      response is ``61 xx …``. This is the case the ELM327 stale-frame bug hits
-      (a ``61 01`` response leaking into a ``2102`` request slot passes a
-      SID-only check because both PIDs share SID ``0x61``).
-    - ``22 xxxx`` (readDataByIdentifier): 2-byte DID echo — ``62 xx xx …``. A
-      multi-DID batch (``22 xxxx yyyy …``) is validated against its *first* DID,
-      which the response must still repeat immediately after the SID.
-    - ``01 xx`` / ``09 xx`` (OBD-II current data / vehicle information): 1-byte PID
-      or InfoType echo — ``41 xx …`` / ``49 xx …``. Only the single-PID form: a
-      multi-PID ``01 0C 0D …`` reply interleaves each PID with its data, so it is
-      left unvalidated.
-
-    Returns ``(sid, echo_bytes)`` for those services (``echo_bytes`` may be
-    empty if the request carried no identifier), or ``None`` when the request
-    isn't a plain identifier read we can validate (unknown length, sub-function
-    services, etc.) — callers should then skip echo validation.
-    """
-    cleaned = request_hex.replace(" ", "").strip()
-    if len(cleaned) < 2 or len(cleaned) % 2 != 0:
-        return None
-    try:
-        req = bytes.fromhex(cleaned)
-    except ValueError:
-        return None
-    sid = req[0]
-    if sid in _ONE_BYTE_ID_SERVICES:
-        # A 1-byte PID. Only the single-PID form is validated: a multi-PID service-21
-        # request is unusual, and a multi-PID OBD-II reply is not a plain echo.
-        return (sid, req[1:2]) if len(req) == 2 else None
-    if sid == 0x22:
-        # service 22 carries 2-byte DIDs. A positive response repeats them in
-        # request order, so the *first* DID always follows the response SID — the
-        # one byte pair that is validatable whatever the batch size. A batch's
-        # later DIDs sit at data-dependent offsets, so they are left to
-        # `multi_batch.split_multi_did`, which walks the response to find them.
-        odd_length = len(req) % 2 == 1
-        return (sid, req[1:3]) if len(req) >= 3 and odd_length else None
-    return None
-
-
-def _hk_identity_offset(expected_sid: int, expected_id: bytes, got: bytes) -> bool:
-    """True when ``got`` is the expected identifier minus one — the Hyundai/Kia
-    identity-DID quirk (request 22F188 -> response 62F187). Expected ECU
-    behaviour on HK modules, not a stale/misfiled frame, so echo validation
-    tolerates it for F1xx DIDs **when the profile opts into the quirk** (see
-    :data:`canlib.quirks.HK_F1XX_MINUS_ONE`); off for make-neutral profiles.
-    """
-    return (
-        expected_sid == 0x22
-        and len(expected_id) == 2
-        and len(got) == 2
-        and expected_id[0] == 0xF1
-        and got[0] == 0xF1
-        and got[1] == (expected_id[1] - 1) & 0xFF
-    )
-
-
-def payload_echo_mismatch(
-    request_pid: str, payload_hex: str, hk_f1xx_offset: bool = False
-) -> str | None:
-    """Cross-check a stored capture payload against the PID it was recorded for.
-
-    Returns a human-readable reason string when the payload's SID+identifier
-    echo does NOT match ``request_pid`` (e.g. a ``6101…`` payload filed under a
-    ``2102`` request — the ELM327 stale-frame bug), or ``None`` when it matches
-    or when we can't validate (non-identifier request, NRC/short payload, hex we
-    can't parse). Only known echo mismatches are reported, so this is safe to
-    surface as a soft lint warning.
-
-    ``hk_f1xx_offset``: when True (the profile opts into the HK F1xx -1 quirk),
-    an F1xx identity DID answering one *less* than requested is tolerated.
-    """
-    echo = request_echo(request_pid)
-    if echo is None:
-        return None  # not a plain identifier read — nothing to check
-    expected_sid, expected_id = echo
-    cleaned = payload_hex.replace(" ", "").strip()
-    if len(cleaned) < 2 or len(cleaned) % 2 != 0:
-        return None
-    try:
-        resp = bytes.fromhex(cleaned)
-    except ValueError:
-        return None
-    if resp[0] == 0x7F:
-        return None  # negative response — not an echo, leave to other checks
-    expected_resp_sid = (expected_sid + 0x40) & 0xFF
-    if resp[0] != expected_resp_sid:
-        return (
-            f"payload SID 0x{resp[0]:02X} != expected 0x{expected_resp_sid:02X} "
-            f"for request {request_pid}"
-        )
-    if expected_id and resp[1 : 1 + len(expected_id)] != expected_id:
-        got = resp[1 : 1 + len(expected_id)]
-        # Hyundai/Kia identity DIDs answer one *less* than requested (the HK -1
-        # offset: 22F188 -> 62F187, etc.). On an HK profile that's expected ECU
-        # behaviour, not a misfiled frame, so don't flag exact off-by-one F1xx.
-        if hk_f1xx_offset and _hk_identity_offset(expected_sid, expected_id, got):
-            return None
-        return (
-            f"payload echoes id 0x{got.hex().upper()} but request {request_pid} "
-            f"expects 0x{expected_id.hex().upper()} (stale/misfiled frame?)"
-        )
-    return None
-
-
-def payload_not_hex(payload: str) -> str | None:
-    """Reason a stored capture payload is not a valid UDS byte string, else None.
-
-    A capture payload should be an even-length run of hex digits (the raw
-    response bytes). Anything else is a mis-recorded capture: an ELM327/status
-    string kept verbatim (``NO DATA``, ``CAN ERROR``, ``5001 at attempts …``),
-    free-text notes, or a mixed hex+ASCII transcription (e.g. a part-number
-    ``62F18791950G7510`` where the ``G`` breaks pure-hex). Reported as a soft
-    lint warning, never an error — payloads are recorded by the tool, so a
-    non-hex one signals a bug/manual edit rather than a schema violation.
-    """
-    if not payload:
-        return None
-    cleaned = str(payload).replace(" ", "").strip()
-    if len(cleaned) < 2:
-        return f"payload too short to be a UDS response: {payload!r}"
-    bad = {c for c in cleaned.upper() if c not in "0123456789ABCDEF"}
-    if bad:
-        return f"payload is not hex (contains {''.join(sorted(bad))!r}): {str(payload)[:40]!r}"
-    if len(cleaned) % 2 != 0:
-        return f"payload has an odd hex length ({len(cleaned)} nibbles): {str(payload)[:40]!r}"
-    return None
-
-
-_HEX = frozenset("0123456789ABCDEF")
+    text = line.upper()
+    head, sep, rest = text.partition(" ")
+    body = rest if sep and len(head) == 3 and _is_hex(head) else text
+    body = body.replace(" ", "")
+    return body.startswith("F0") and len(body) <= 8 and _is_hex(body)
 
 
 def _is_request_echo(data_lines: list[str], request: str | None) -> bool:
@@ -502,23 +104,97 @@ def _is_request_echo(data_lines: list[str], request: str | None) -> bool:
     """
     if not data_lines:
         return False
-    first = data_lines[0].replace(" ", "").upper()
+    first = _compact(data_lines[0])
     if request is not None:
-        sent = request.replace(" ", "").upper()
+        sent = _compact(request)
         if not sent:
             return False
         return first == sent or (
-            len(first) == len(sent) + 1 and first.startswith(sent) and first[-1] in _HEX
+            len(first) == len(sent) + 1 and first.startswith(sent) and first[-1] in _HEX_DIGITS
         )
-    if len(data_lines) < 2 or len(first) < 2 or not set(first) <= _HEX:
+    if len(data_lines) < 2 or len(first) < 2 or not _is_hex(first):
         return False
     return 0x10 <= int(first[:2], 16) <= 0x3E
+
+
+class _Rejected(Exception):
+    """A reply that cannot be read, carrying its outcome category and message."""
+
+    def __init__(self, kind: str, message: str) -> None:
+        super().__init__(message)
+        self.kind = kind
+        self.message = message
+
+
+def _adapter_lines(raw: str) -> list[str]:
+    """The reply's data lines; raises :class:`_Rejected` on an adapter status line."""
+    data_lines: list[str] = []
+    for line in raw.split("\n"):
+        line = line.strip().rstrip(">").strip()
+        if not line or line.upper().startswith("AT") or line in _ADAPTER_INFO:
+            continue
+        if _is_flow_control_echo(line):
+            continue
+        status = ADAPTER_STATUS.get(line)
+        if status is not None:
+            raise _Rejected(*status)
+        data_lines.append(line)
+    return data_lines
+
+
+def _reassemble(data_lines: list[str]) -> tuple[str, int, int | None]:
+    """``(hex, frame_count, declared_len)`` of the reply; raises :class:`_Rejected`.
+
+    The ELM327 prints a multi-frame reply as a bare-hex total length (the ISO-TP First
+    Frame length, e.g. ``017`` = 23 bytes) followed by numbered frame lines::
+
+        017
+        0:62C00BFFFF00
+        1:00C84F0100C84E
+        2:...
+
+    The adapter emits frame lines in transmission order, so arrival order — not the
+    printed counter — is authoritative: each line's single hex-digit counter must be
+    the next value of the wrapping 0..F,0..F,… sequence. A missing, duplicate or
+    out-of-order counter means a frame was dropped or a stale frame leaked in, which
+    would silently misalign every later byte; the length check cannot catch it when
+    trailing padding hides the gap. Unwrapping by arrival order (rather than sorting
+    the printed nibble) is what reassembles a 16+ frame reply, where counters repeat.
+    """
+    upper = [line.upper() for line in data_lines]
+    if not any(_FRAME_LINE.match(line) for line in upper):
+        # Each unprefixed line is one CAN frame, so a single-frame reply counts 1.
+        # Several lines here means several responders to one request.
+        return "".join(_compact(line) for line in upper), len(upper), None
+
+    frame_hex: list[str] = []
+    counters: list[str] = []
+    declared_len: int | None = None
+    for line in upper:
+        frame = _FRAME_LINE.fullmatch(line)
+        if frame:
+            counters.append(frame.group(1))
+            frame_hex.append(frame.group(2).replace(" ", ""))
+            continue
+        if _FRAME_LINE.match(line):
+            raise _Rejected(CAT_DECODE, f"Non-hex response frame: {line[:80]}")
+        # The length token is the last bare-hex line *before* the frames; anything
+        # else (a stale single-frame reply that preceded it, say) is not part of this
+        # reply's reassembly.
+        if not frame_hex and _LENGTH_TOKEN.fullmatch(line):
+            declared_len = int(line, 16)
+    if any(int(c, 16) != i & 0xF for i, c in enumerate(counters)):
+        raise _Rejected(
+            CAT_DROP,
+            f"non-contiguous ISO-TP frames: line counters {counters} are not a "
+            f"contiguous 0,1,…,F(,0,…) run (dropped/duplicate/stale frame)",
+        )
+    return "".join(frame_hex), len(frame_hex), declared_len
 
 
 def parse_uds_response(
     raw: str,
     expected_sid: int | None = None,
-    expected_did: int | None = None,
     expected_echo: bytes | None = None,
     hk_f1xx_offset: bool = False,
     protocol: str | None = None,
@@ -527,158 +203,51 @@ def parse_uds_response(
     """Parse a UDS response (as returned by any transport) into structured data.
 
     Args:
-        raw: Raw response text. On the ``wican-ws`` path this is ELM327
-            terminal output; on the ``slcan-tcp`` path :class:`RawTerminal`
-            formats the reassembled ISO-TP payload into the same shape.
-        expected_sid: If set, the positive response must echo this request SID
-            (i.e. response byte 0 == expected_sid + 0x40). Mismatches are
-            reported as ``error="SID mismatch: ..."`` and ``ok=False``. Used
-            to catch stale/misaligned responses from the ELM327 adapter
-            where a late-arriving frame from a previous request leaks into
-            the next read (seen during 0x2F IOControl scans — see
-            ``canlib/modes/iocontrol_scan.py``).
-        expected_did: If set AND ``expected_sid`` is set, the positive
-            response must also echo this 16-bit DID in bytes 1..2
-            (big-endian). Used by services that carry a DID
-            immediately after the SID: 0x22 ReadDataByIdentifier,
-            0x2E WriteDataByIdentifier, 0x2F InputOutputControlByIdentifier.
-        expected_echo: If set AND ``expected_sid`` is set, the positive response
-            must echo these identifier bytes verbatim starting at byte 1. This
-            is the variable-width generalization of ``expected_did`` — a 1-byte
-            value validates the service-21 PID echo (catching a ``6101`` frame
-            returned for a ``2102`` request), a 2-byte value the service-22 DID.
-            Prefer :func:`request_echo` to derive it from the request. If both
-            ``expected_did`` and ``expected_echo`` are given, ``expected_echo``
-            takes precedence.
-
-    Returns dict with keys:
-        ok: bool - whether a positive and (if requested) echo-matching response was received
-        hex: str - raw hex string of response data (if ok)
-        bytes: bytes - parsed response bytes (if ok)
-        nrc: int - negative response code (if not ok)
-        nrc_desc: str - NRC description (if not ok)
-        error: str - error message (if parse failed or echo mismatched)
-        raw: str - original response text
-
-    ``hk_f1xx_offset``: when True (the profile opts into the HK F1xx -1 quirk),
-    an F1xx identity DID answering one *less* than requested passes echo
-    validation instead of being rejected as a stale/misfiled frame.
-
-    ``protocol``: the target ECU's diagnostic protocol (``"uds"``/``"kwp"``/``"unknown"``),
-    which selects the NRC names in ``nrc_desc`` (see :func:`nrc_description`).
-
-    ``request``: the command as sent (hex, with or without the ELM327 frame-count
-    digit). An adapter echo is then recognised by equality rather than guessed at;
-    see :func:`_is_request_echo`. Pass it whenever it is known.
+        raw: Raw response text — ELM327 terminal output, or the hex line
+            :class:`~canlib.transport.raw_terminal.RawTerminal` formats from the
+            reassembled ISO-TP payload.
+        expected_sid: If set, the response must answer this request SID: a positive
+            one starts with ``expected_sid + 0x40`` and a negative one names it as
+            its service. A mismatch is a stale/misaligned reply (``error_kind``
+            ``stale``) — a late frame from an earlier request leaking into this one.
+        expected_echo: If set with ``expected_sid``, the identifier bytes a positive
+            response must repeat right after its SID (the 1-byte service-21 PID, the
+            2-byte service-22/2F DID). Derive it with
+            :func:`canlib.uds.echo.request_echo`.
+        hk_f1xx_offset: The profile opts into the HK F1xx -1 quirk, so an F1xx
+            identity DID answering one *less* than requested passes echo validation.
+        protocol: The target ECU's diagnostic protocol, which selects the NRC names
+            in ``nrc_desc`` (see :func:`canlib.uds.nrc.nrc_description`).
+        request: The command as sent (hex, with or without the ELM327 frame-count
+            digit). An adapter echo is then recognised by equality rather than
+            guessed at; see :func:`_is_request_echo`. Pass it whenever it is known.
     """
     result: UdsResponse = {"raw": raw, "ok": False}
 
     def _fail(kind: str, msg: str) -> UdsResponse:
-        """Set ``error`` + its ``error_kind`` (a CAT_* category) and return."""
         result["error"] = msg
         result["error_kind"] = kind
         return result
 
-    lines = raw.strip().split("\n")
-    lines = [line.strip() for line in lines if line.strip()]
-
-    data_lines = []
-    for line in lines:
-        line = line.rstrip(">").strip()
-        if not line:
-            continue
-        if line.startswith("AT") or line.startswith("at"):
-            continue
-        if line == "OK":
-            continue
-        # Filter out ISO-TP flow control frame echoes
-        fc_check = line.replace(" ", "").upper()
-        if len(fc_check) >= 6 and fc_check[:3].isalnum():
-            fc_body = fc_check[3:]
-        else:
-            fc_body = fc_check
-        if fc_body.startswith("F0") and len(fc_body) <= 8:
-            continue
-        if line == "?":
-            return _fail(CAT_BUS, "Unknown command")
-        if line == "NO DATA":
-            return _fail(CAT_NO_DATA, "No response from ECU (NO DATA)")
-        if line == "CAN ERROR":
-            return _fail(CAT_BUS, "CAN bus error")
-        if line == "UNABLE TO CONNECT":
-            return _fail(CAT_BUS, "Unable to connect to CAN bus")
-        if line == "BUS INIT: ...ERROR":
-            return _fail(CAT_BUS, "Bus initialization error")
-        if line == "STOPPED":
-            return _fail(CAT_BUS, "Request stopped")
-        if line == "BUFFER FULL":
-            return _fail(CAT_BUS, "Response buffer full")
-        data_lines.append(line)
-
-    if not data_lines:
+    try:
+        lines = _adapter_lines(raw)
+    except _Rejected as rejected:
+        return _fail(rejected.kind, rejected.message)
+    if not lines:
         return _fail(CAT_NO_DATA, "Empty response")
-
-    if _is_request_echo(data_lines, request):
-        data_lines = data_lines[1:]
-        if not data_lines:
+    if _is_request_echo(lines, request):
+        lines = lines[1:]
+        if not lines:
             return _fail(CAT_NO_DATA, "Empty response (only the request echo)")
+    # An interim ResponsePending frame ahead of the answer is not part of it; only
+    # when nothing followed is it reported (as the NRC it is).
+    while len(lines) > 1 and _PENDING_LINE.fullmatch(_compact(lines[0])):
+        lines = lines[1:]
 
-    # Check for multi-frame ISO-TP format. The ELM327 prefixes each numbered
-    # frame line with a SINGLE hex-digit counter (0..F) that wraps back to 0
-    # after F, so responses with 16+ frames use A..F and repeat — the prefix is
-    # hex, not decimal.
-    is_multiframe = any(re.match(r"^[0-9A-Fa-f]:", line) for line in data_lines)
-
-    # ELM327 multi-frame output precedes the numbered frame lines with a bare-hex
-    # total-length token (the ISO-TP First Frame length), e.g. `017` = 23 bytes:
-    #   22C00B\r 017 \r 0:62C00BFFFF00 \r 1:00C84F0100C84E \r 2:... \r 3:...
-    # Capture it so we can reject truncated multi-frame reads (a dropped consecutive
-    # frame silently misaligns every downstream byte) rather than store them.
-    declared_len: int | None = None
-
-    if is_multiframe:
-        # The ELM327 emits frame lines in transmission order, so arrival order —
-        # not the printed counter — is authoritative. Reassemble in order and
-        # verify each line's single hex-digit counter is the next value in the
-        # wrapping 0..F,0..F,… sequence. A missing, duplicate, or out-of-order
-        # counter means a frame was dropped or a stale frame from a prior request
-        # leaked in, so the concatenation would silently misalign every
-        # downstream byte. A gap can be masked by trailing padding (total length
-        # still >= declared), so the length guard below can't catch it — check
-        # contiguity explicitly. Unwrapping by arrival order (rather than sorting
-        # the printed nibble) is what makes 16+ frame responses reassemble
-        # correctly, where the counter wraps and nibbles collide.
-        frame_hex: list[str] = []
-        counters: list[str] = []  # printed nibbles, for the error message
-        contiguous = True
-        expected_counter = 0
-        for line in data_lines:
-            m = re.match(r"^([0-9A-Fa-f]):([0-9A-Fa-f]+)$", line)
-            if m:
-                counters.append(m.group(1).upper())
-                if int(m.group(1), 16) != (expected_counter & 0xF):
-                    contiguous = False
-                frame_hex.append(m.group(2))
-                expected_counter += 1
-                continue
-            # A non-frame, bare-hex line before the frames is the length token.
-            if declared_len is None and re.fullmatch(r"[0-9A-Fa-f]{1,4}", line):
-                declared_len = int(line, 16)
-        if not contiguous:
-            result["error"] = (
-                f"non-contiguous ISO-TP frames: line counters {counters} are not a "
-                f"contiguous 0,1,…,F(,0,…) run (dropped/duplicate/stale frame)"
-            )
-            result["error_kind"] = CAT_DROP
-            return result
-        hex_clean = "".join(frame_hex)
-        frame_count = len(frame_hex)
-    else:
-        hex_str = " ".join(data_lines)
-        hex_clean = hex_str.replace(" ", "")
-        # Each unprefixed line is one CAN frame, so a single-frame ISO-TP reply
-        # counts 1. Several lines here means several responders to one request.
-        frame_count = len(data_lines)
+    try:
+        hex_clean, frame_count, declared_len = _reassemble(lines)
+    except _Rejected as rejected:
+        return _fail(rejected.kind, rejected.message)
 
     # How many frames the adapter actually handed back. This is the ground truth
     # the ELM327 expected-response-count optimization validates its learned count
@@ -686,91 +255,69 @@ def parse_uds_response(
     # truncation checks below so a short read still reports what did arrive.
     result["isotp_frame_count"] = frame_count
 
-    if not all(c in "0123456789ABCDEFabcdef" for c in hex_clean):
+    if not _is_hex(hex_clean.upper()):
         return _fail(CAT_DECODE, f"Non-hex response: {hex_clean[:80]}")
-
     if len(hex_clean) < 2:
         return _fail(CAT_DECODE, f"Response too short: {hex_clean}")
+    if len(hex_clean) % 2:
+        return _fail(CAT_DECODE, f"Odd hex length response: {hex_clean[:80]}")
+    response_bytes = bytes.fromhex(hex_clean)
 
-    try:
-        response_bytes = bytes.fromhex(hex_clean)
-    except ValueError as e:
-        return _fail(CAT_DECODE, f"Hex decode failed: {e}")
-
-    # Reject truncated multi-frame reads. The ELM327 adapter reassembles ISO-TP
-    # and reports the declared total length; if the frames it handed back fall
-    # short of that (a dropped consecutive frame), every byte after the gap is
-    # misaligned and the payload is worthless. Trailing ISO-TP padding may make
-    # the reassembly *longer* than declared, which is fine; only short is fatal.
+    # A dropped consecutive frame misaligns every byte after the gap, so a reply
+    # shorter than its declared length is worthless. Trailing ISO-TP padding may make
+    # it *longer*, which is fine: the padding is cut off.
     if declared_len is not None:
         result["isotp_declared_len"] = declared_len
         if len(response_bytes) < declared_len:
-            result["error"] = (
-                f"truncated ISO-TP: got {len(response_bytes)} bytes, declared {declared_len}"
+            return _fail(
+                CAT_DROP,
+                f"truncated ISO-TP: got {len(response_bytes)} bytes, declared {declared_len}",
             )
-            result["error_kind"] = CAT_DROP
-            return result
-        # Drop any trailing ISO-TP padding beyond the declared payload length.
-        if len(response_bytes) > declared_len:
-            response_bytes = response_bytes[:declared_len]
-            hex_clean = response_bytes.hex()
+        response_bytes = response_bytes[:declared_len]
 
-    result["hex"] = hex_clean.upper()
+    result["hex"] = response_bytes.hex().upper()
     result["bytes"] = response_bytes
 
-    if response_bytes[0] == 0x7F and len(response_bytes) >= 3:
-        nrc = response_bytes[2]
-        result["nrc"] = nrc
-        result["nrc_service"] = response_bytes[1]
-        result["nrc_desc"] = nrc_description(nrc, protocol)
+    if response_bytes[0] == NEGATIVE_RESPONSE_SID:
+        if len(response_bytes) < 3:
+            return _fail(CAT_DECODE, f"Negative response too short: {result['hex']}")
         if expected_sid is not None and response_bytes[1] != expected_sid:
-            # NRC is reporting rejection for a *different* service — this is
-            # a stale/misaligned frame, not a real NRC for our request.
-            result["error"] = (
+            # The NRC rejects a *different* service: a stale/misaligned frame, not
+            # a real answer to our request, so no nrc fields are reported.
+            return _fail(
+                CAT_STALE,
                 f"NRC echo mismatch: NRC service byte 0x{response_bytes[1]:02X} "
-                f"!= expected SID 0x{expected_sid:02X}"
+                f"!= expected SID 0x{expected_sid:02X}",
             )
-            result["error_kind"] = CAT_STALE
-            # Keep nrc/nrc_desc for diagnostics, but leave ok=False.
-            result.pop("nrc", None)
-            result.pop("nrc_service", None)
-            result.pop("nrc_desc", None)
+        result["nrc"] = response_bytes[2]
+        result["nrc_service"] = response_bytes[1]
+        result["nrc_desc"] = nrc_description(response_bytes[2], protocol)
         return result
 
     if expected_sid is not None:
-        expected_resp_sid = (expected_sid + 0x40) & 0xFF
-        if response_bytes[0] != expected_resp_sid:
-            result["error"] = (
+        problem = echo_mismatch(
+            expected_sid, expected_echo or b"", response_bytes, hk_f1xx_offset=hk_f1xx_offset
+        )
+        if problem is not None and problem.field == "sid":
+            return _fail(
+                CAT_STALE,
                 f"SID mismatch: response SID 0x{response_bytes[0]:02X} "
-                f"!= expected 0x{expected_resp_sid:02X} "
-                f"(for request SID 0x{expected_sid:02X})"
+                f"!= expected 0x{problem.expected.hex().upper()} "
+                f"(for request SID 0x{expected_sid:02X})",
             )
-            result["error_kind"] = CAT_STALE
-            return result
-        # expected_echo is the variable-width generalization of expected_did;
-        # a 2-byte expected_did becomes a 2-byte echo when no explicit echo given.
-        echo = expected_echo
-        if echo is None and expected_did is not None:
-            echo = bytes([(expected_did >> 8) & 0xFF, expected_did & 0xFF])
-        if echo:
-            if len(response_bytes) < 1 + len(echo):
-                result["error"] = (
-                    f"Response too short for echo: got {len(response_bytes)} bytes, "
-                    f"need >= {1 + len(echo)}"
-                )
-                result["error_kind"] = CAT_DECODE
-                return result
-            got = response_bytes[1 : 1 + len(echo)]
-            if got != echo and not (
-                hk_f1xx_offset and _hk_identity_offset(expected_sid, echo, got)
-            ):
-                result["error"] = (
-                    f"Echo mismatch: response id 0x{got.hex().upper()} "
-                    f"!= expected 0x{echo.hex().upper()} "
-                    f"(for request SID 0x{expected_sid:02X})"
-                )
-                result["error_kind"] = CAT_STALE
-                return result
+        if problem is not None and problem.field == "length":
+            return _fail(
+                CAT_DECODE,
+                f"Response too short for echo: got {len(response_bytes)} bytes, "
+                f"need >= {1 + len(problem.expected)}",
+            )
+        if problem is not None:
+            return _fail(
+                CAT_STALE,
+                f"Echo mismatch: response id 0x{problem.got.hex().upper()} "
+                f"!= expected 0x{problem.expected.hex().upper()} "
+                f"(for request SID 0x{expected_sid:02X})",
+            )
 
     result["ok"] = True
     return result

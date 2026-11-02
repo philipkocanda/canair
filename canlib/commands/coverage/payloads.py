@@ -30,7 +30,9 @@ from dataclasses import dataclass, field
 from typing import TypedDict
 
 from canlib.captures import IMPORT_TRANSPORT
-from canlib.uds.parse import NRC_CODES, payload_echo_mismatch, request_echo
+from canlib.uds.echo import request_echo
+from canlib.uds.nrc import nrc_description
+from canlib.uds.payload import payload_echo_mismatch
 
 PidKey = tuple[str, str]
 
@@ -215,7 +217,7 @@ def select_captures(
         meta = sessions[skey].meta
         out.negative_only[pkey] = {
             "nrc": f"0x{code:02X}",
-            "name": NRC_CODES.get(code, "unknown"),
+            "name": nrc_description(code),
             "date": str(meta.get("date") or ""),
             "file": meta.get("file", ""),
             "count": len(seen),

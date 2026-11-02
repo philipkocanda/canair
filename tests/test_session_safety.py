@@ -14,7 +14,8 @@ import pytest
 
 from canlib.addressing import EcuAddress
 from canlib.modes.monitor import MonitorController
-from canlib.safety import KWP, SafetyBlocked, SessionPolicy
+from canlib.safety import SafetyBlocked, SessionPolicy
+from canlib.uds.protocol import KWP
 
 PIDS = {
     "ecus": {

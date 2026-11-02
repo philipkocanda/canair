@@ -17,8 +17,8 @@ from canlib import yaml_io
 from canlib.actuation import default_release, normalize_request
 from canlib.addressing import AddressingMode, EcuAddress
 from canlib.dtc.definitions import effective_entries as _effective_dtc_entries
-from canlib.safety import SessionProtocol, session_protocol
 from canlib.signal_category import category_of
+from canlib.uds.protocol import DiagProtocol, classify_protocol
 
 # ── PID visibility lifecycle ──────────────────────────────────────────────
 # A PID's `status:` is a single, mutually-exclusive lifecycle value that
@@ -230,7 +230,7 @@ class IoControlIndexEntry(TypedDict):
     """One ECU's entry in a :func:`build_iocontrol_index` result."""
 
     tx_id: int
-    protocol: SessionProtocol
+    protocol: DiagProtocol
     cmds: dict[str, IoControlCommand]
 
 
@@ -552,7 +552,7 @@ def build_iocontrol_index(
         if not ioctrl and not discoveries:
             continue
         identity = ecu_def.get("identity")
-        protocol = session_protocol(
+        protocol = classify_protocol(
             identity.get("id_protocol") if isinstance(identity, dict) else None
         )
         cmds: dict[str, IoControlCommand] = {}
@@ -611,7 +611,7 @@ def build_iocontrol_index(
 
 
 def _resolve_release(
-    declared: object, on: str, off: str, protocol: SessionProtocol, key: str = ""
+    declared: object, on: str, off: str, protocol: DiagProtocol, key: str = ""
 ) -> str:
     """An entry's release: the declared ``release:``, else the one it implies.
 

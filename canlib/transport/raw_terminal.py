@@ -28,7 +28,8 @@ import can
 import isotp
 
 from canlib.transport.stats import TransportStats
-from canlib.uds.parse import UdsResponse, parse_uds_response
+from canlib.uds.parse import parse_uds_response
+from canlib.uds.response import UdsResponse
 
 from ..addressing import (
     DEFAULT_MODE,
@@ -153,7 +154,6 @@ class RawTerminal:
         service_pid: str,
         timeout: float | None = None,
         expected_sid: int | None = None,
-        expected_did: int | None = None,
         expected_echo: bytes | None = None,
         retries: int = 0,
     ) -> UdsResponse:
@@ -170,7 +170,6 @@ class RawTerminal:
             resp = parse_uds_response(
                 raw,
                 expected_sid=expected_sid,
-                expected_did=expected_did,
                 expected_echo=expected_echo,
                 hk_f1xx_offset=self.hk_f1xx_offset,
                 protocol=self.session_policy.protocol(self._cur),

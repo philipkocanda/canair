@@ -28,7 +28,7 @@ from canlib.keepmode import KeepMode, PersistedKeepMode, persisted_keep_mode
 from canlib.states import join_states as _join_states
 from canlib.states import parse_states as _parse_states
 from canlib.states.spans import StateSpan
-from canlib.uds.parse import UdsResponse
+from canlib.uds.response import UdsResponse
 
 # The ``transport`` of a device-free session (``canair import uds``): its payloads
 # never came off a live bus here.

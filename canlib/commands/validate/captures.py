@@ -370,12 +370,12 @@ def _capture_echo_warnings(path: Path, hk_f1xx_offset: bool = False) -> list[Cap
     A UDS positive response echoes the request SID (+0x40) and identifier bytes;
     a ``6101…`` payload stored under a ``2102`` request is a stale/misfiled frame
     (the ELM327 leaks a previous request's late response into the next read — see
-    ``uds_parse.payload_echo_mismatch``). Reported as a warning, never an error,
+    ``canlib.uds.payload.payload_echo_mismatch``). Reported as a warning, never an error,
     since free-form/raw captures and multi-frame quirks shouldn't hard-fail.
 
     ``hk_f1xx_offset``: tolerate the HK F1xx -1 identity-DID quirk (profile opt-in).
     """
-    from canlib.uds.parse import payload_echo_mismatch
+    from canlib.uds.payload import payload_echo_mismatch
 
     warnings: list[CaptureWarning] = []
     data = capture_io.load_capture_file(path)
@@ -409,9 +409,9 @@ def _capture_nonhex_warnings(path: Path) -> list[CaptureWarning]:
     Payloads are recorded by the tool as raw response hex, so a non-hex one
     (an ELM327 status string like ``NO DATA``, free-text notes, or a mixed
     hex+ASCII transcription) signals a mis-recorded capture — see
-    ``uds_parse.payload_not_hex``. Reported as a warning, never an error.
+    ``canlib.uds.payload.payload_not_hex``. Reported as a warning, never an error.
     """
-    from canlib.uds.parse import payload_not_hex
+    from canlib.uds.payload import payload_not_hex
 
     warnings: list[CaptureWarning] = []
     data = capture_io.load_capture_file(path)

@@ -9,7 +9,7 @@ a one-PID poll would report a cycle-old reading indefinitely.
 
 Two defences, tested here:
 
-- **Echo validation** (`uds_parse.payload_echo_mismatch`) rejects a reply whose
+- **Echo validation** (`canlib.uds.payload.payload_echo_mismatch`) rejects a reply whose
   SID+identifier isn't what was asked for. Cheap and immediate, but blind when the
   stale reply echoes the same PID.
 - **The owed-response ledger** covers exactly that blind spot: an ISO-TP stack

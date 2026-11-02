@@ -6,6 +6,7 @@ import asyncio
 import json
 
 from canlib import ansi
+from canlib.uds.protocol import KWP
 
 from ...ecus import ecu_display
 from ...transport.protocol import Terminal
@@ -61,7 +62,7 @@ async def mode_dtc_clear(
                 pre_snapshots = logged_snapshots(pre["dtcs"])
             await terminal.set_header(tx_id)
 
-        if proto == "kwp":
+        if proto == KWP:
             g = group & 0xFFFF
             cmd = f"14{g:04X}"
         else:

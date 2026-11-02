@@ -1,6 +1,6 @@
 """Prompt accounting in the shared ELM327 engine — correlating replies to commands.
 
-UDS carries no transaction id. A SID+DID echo (`uds_parse.request_echo`) identifies
+UDS carries no transaction id. A SID+DID echo (`canlib.uds.echo.request_echo`) identifies
 the request's *content*, so it catches a desync only while the poll cycle happens to
 be walking different PIDs — the exact circumstance that made the original bug report
 legible. It is structurally blind to an offset of exactly one cycle, and to any

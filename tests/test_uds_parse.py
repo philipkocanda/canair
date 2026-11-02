@@ -1,11 +1,8 @@
 """Tests for canlib.uds.parse — UDS response parsing and NRC handling."""
 
-from canlib.uds.parse import (
-    parse_uds_response,
-    payload_echo_mismatch,
-    payload_not_hex,
-    request_echo,
-)
+from canlib.uds.echo import request_echo
+from canlib.uds.parse import parse_uds_response
+from canlib.uds.payload import payload_echo_mismatch, payload_not_hex
 
 
 class TestParseUdsResponse:
@@ -140,13 +137,17 @@ class TestEchoValidation:
     BC0A's response."""
 
     def test_sid_echo_ok(self):
-        r = parse_uds_response("6F BC 0A 00", expected_sid=0x2F, expected_did=0xBC0A)
+        r = parse_uds_response(
+            "6F BC 0A 00", expected_sid=0x2F, expected_echo=bytes.fromhex("BC0A")
+        )
         assert r["ok"] is True
         assert r["hex"] == "6FBC0A00"
 
     def test_sid_mismatch_detected(self):
         """Response SID 0x62 (from a 0x22 request) arriving in a 0x2F read."""
-        r = parse_uds_response("62 BC 0A 00", expected_sid=0x2F, expected_did=0xBC0A)
+        r = parse_uds_response(
+            "62 BC 0A 00", expected_sid=0x2F, expected_echo=bytes.fromhex("BC0A")
+        )
         assert r["ok"] is False
         assert "SID mismatch" in r["error"]
         assert "0x62" in r["error"]
@@ -154,34 +155,36 @@ class TestEchoValidation:
 
     def test_did_mismatch_detected(self):
         """The off-by-one: probe BC0A gets back BC09's late response."""
-        r = parse_uds_response("6F BC 09 00", expected_sid=0x2F, expected_did=0xBC0A)
+        r = parse_uds_response(
+            "6F BC 09 00", expected_sid=0x2F, expected_echo=bytes.fromhex("BC0A")
+        )
         assert r["ok"] is False
         assert "Echo mismatch" in r["error"]
         assert "BC09" in r["error"]
         assert "BC0A" in r["error"]
 
     def test_response_too_short_for_did(self):
-        r = parse_uds_response("6F BC", expected_sid=0x2F, expected_did=0xBC0A)
+        r = parse_uds_response("6F BC", expected_sid=0x2F, expected_echo=bytes.fromhex("BC0A"))
         assert r["ok"] is False
         assert "too short" in r["error"].lower()
 
     def test_garbage_first_byte_rejected(self):
         """The '7E00' anomaly seen in discoveries — not a valid 2F response."""
-        r = parse_uds_response("7E 00", expected_sid=0x2F, expected_did=0xBB51)
+        r = parse_uds_response("7E 00", expected_sid=0x2F, expected_echo=bytes.fromhex("BB51"))
         assert r["ok"] is False
         # '7E00' parses as 2 bytes; first is 0x7E != 0x6F → SID mismatch
         assert "SID mismatch" in r["error"]
 
     def test_nrc_with_matching_service_ok(self):
         """NRC 0x7F {SID=0x2F} {0x31} — correctly-addressed NRC for our 0x2F request."""
-        r = parse_uds_response("7F 2F 31", expected_sid=0x2F, expected_did=0xBC0A)
+        r = parse_uds_response("7F 2F 31", expected_sid=0x2F, expected_echo=bytes.fromhex("BC0A"))
         assert r["ok"] is False
         assert r["nrc"] == 0x31
         assert r.get("error") is None  # No mismatch error
 
     def test_nrc_with_wrong_service_rejected(self):
         """NRC 0x7F {SID=0x22} {0x31} arriving in a 0x2F scan — stale frame."""
-        r = parse_uds_response("7F 22 31", expected_sid=0x2F, expected_did=0xBC0A)
+        r = parse_uds_response("7F 22 31", expected_sid=0x2F, expected_echo=bytes.fromhex("BC0A"))
         assert r["ok"] is False
         assert "NRC echo mismatch" in r["error"]
         # The stale nrc is suppressed so scanner doesn't misclassify as "absent"
@@ -272,14 +275,6 @@ class TestParseServicePidEcho:
         assert "Echo mismatch" in r["error"]
         assert "01" in r["error"]
 
-    def test_expected_did_still_works(self):
-        # Backward-compat: expected_did (2-byte) still validated.
-        r = parse_uds_response("62 BC 03 00", expected_sid=0x22, expected_did=0xBC03)
-        assert r["ok"] is True
-        r = parse_uds_response("62 BC 04 00", expected_sid=0x22, expected_did=0xBC03)
-        assert r["ok"] is False
-        assert "Echo mismatch" in r["error"]
-
     def test_hk_identity_offset_tolerated_when_quirk_on(self):
         # 22F188 -> 62F187 is the expected Hyundai/Kia -1 offset when the profile
         # opts into the quirk (hk_f1xx_offset=True), not a mismatch.
@@ -338,6 +333,16 @@ class TestPayloadEchoMismatch:
     def test_unparseable_payload_skipped(self):
         assert payload_echo_mismatch("2102", "ZZ") is None
         assert payload_echo_mismatch("2102", "") is None
+
+    def test_payload_too_short_for_the_identifier_is_flagged(self):
+        reason = payload_echo_mismatch("22F190", "62F1")
+        assert reason is not None
+        assert "too short" in reason
+
+    def test_wrong_service_is_flagged(self):
+        reason = payload_echo_mismatch("2102", "6202AA")
+        assert reason is not None
+        assert "SID 0x62" in reason and "0x61" in reason
 
 
 class TestPayloadNotHex:
@@ -512,78 +517,3 @@ class TestIsoTpFrameCounterWrap:
         r = parse_uds_response(body)
         assert r["ok"] is True
         assert r["hex"] == expected.upper()
-
-
-class TestNrcNames:
-    def test_condition_refinements_are_named(self):
-        from canlib.uds.parse import nrc_abbrev, nrc_description
-
-        assert nrc_description(0x88) == "vehicleSpeedTooHigh"
-        assert nrc_description(0x90) == "shifterLeverNotInPark"
-        assert nrc_abbrev(0x93) == "VTL"
-
-    def test_ranges_get_their_iso_name(self):
-        from canlib.uds.parse import nrc_abbrev, nrc_description
-
-        assert nrc_description(0x8E) == "unknown (0x8E)"  # ISO/SAE reserved
-        assert nrc_description(0xA0) == "reservedForSpecificConditionsNotCorrect"
-        assert nrc_description(0xF3) == "vehicleManufacturerSpecificConditionsNotCorrect"
-        assert nrc_abbrev(0xF3) == "VMSCNC"
-        assert nrc_abbrev(0xFF) == "?"
-
-    def test_kwp_codes_without_a_uds_meaning_are_named_and_tagged(self):
-        from canlib.uds.parse import nrc_abbrev, nrc_description
-
-        # Protocol unknown: ISO 14229-1 has no 0x23, so the KWP2000 name is offered, tagged.
-        assert nrc_description(0x23) == "routineNotCompleteOrServiceInProgress (KWP2000)"
-        assert nrc_description(0x77) == "blockTransferDataChecksumError (KWP2000)"
-        assert nrc_description(0x80) == "serviceNotSupportedInActiveDiagnosticSession (KWP2000)"
-        assert nrc_abbrev(0x23) == "RNC"
-        assert nrc_abbrev(0x77) == "BTDCE"
-        assert nrc_abbrev(0x80) == "SNSIADS"
-
-    def test_kwp_protocol_prefers_iso_14230_names(self):
-        from canlib.uds.parse import nrc_description
-
-        assert nrc_description(0x23, "kwp") == "routineNotCompleteOrServiceInProgress"
-        assert nrc_description(0x72, "kwp") == "transferAborted"  # UDS: generalProgrammingFailure
-        assert nrc_description(0x22, "kwp") == "conditionsNotCorrectOrRequestSequenceError"
-        assert nrc_description(0x12, "kwp") == "subFunctionNotSupportedOrInvalidFormat"
-
-    def test_kwp_shared_codes_fall_through_to_the_common_names(self):
-        from canlib.uds.parse import nrc_description
-
-        assert nrc_description(0x31, "kwp") == "requestOutOfRange"
-        assert nrc_description(0x21, "kwp") == "busyRepeatRequest"
-        assert nrc_description(0x78, "kwp") == "requestCorrectlyReceivedResponsePending"
-
-    def test_kwp_high_range_is_not_read_as_iso_14229_refinements(self):
-        from canlib.uds.parse import nrc_description
-
-        # 0x88 is vehicleSpeedTooHigh in ISO 14229-1 but reserved in SSF 14230-3, and
-        # 0x90 is shifterLeverNotInPark there but vehicle-manufacturer-specific here.
-        assert nrc_description(0x88) == "vehicleSpeedTooHigh"
-        assert nrc_description(0x88, "kwp") == "reservedByDocument"
-        assert nrc_description(0x90) == "shifterLeverNotInPark"
-        assert nrc_description(0x90, "kwp") == "vehicleManufacturerSpecific"
-        assert nrc_description(0xF3, "kwp") == "vehicleManufacturerSpecific"
-        assert nrc_description(0xFB, "kwp") == "systemSupplierSpecific"
-        assert nrc_description(0x80, "kwp") == "serviceNotSupportedInActiveDiagnosticSession"
-
-    def test_uds_protocol_does_not_borrow_kwp_names(self):
-        from canlib.uds.parse import nrc_description
-
-        assert nrc_description(0x23, "uds") == "unknown (0x23)"
-        assert nrc_description(0x72, "uds") == "generalProgrammingFailure"
-        assert nrc_description(0x88, "uds") == "vehicleSpeedTooHigh"
-
-    def test_parse_uses_the_target_protocol_for_nrc_desc(self):
-        kwp = parse_uds_response("7F3323", expected_sid=0x33, protocol="kwp")
-        assert kwp["nrc"] == 0x23 and kwp["nrc_desc"] == "routineNotCompleteOrServiceInProgress"
-        unknown = parse_uds_response("7F3323", expected_sid=0x33)
-        assert unknown["nrc_desc"] == "routineNotCompleteOrServiceInProgress (KWP2000)"
-
-    def test_parsed_negative_response_uses_the_range_name(self):
-        r = parse_uds_response("7F31F4", expected_sid=0x31)
-        assert r["nrc"] == 0xF4
-        assert r["nrc_desc"] == "vehicleManufacturerSpecificConditionsNotCorrect"

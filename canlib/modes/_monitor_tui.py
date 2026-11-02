@@ -392,7 +392,7 @@ class EditParamDialog(ModalScreen[dict | None]):
 # Central-log categories mapped to a display colour. Data-integrity faults
 # (frames dropped/corrupted, bus errors, internal exceptions) are the loud red
 # class; the softer non-answers (stale/no-data/decode) are yellow; anything else
-# is dim. Categories are produced by canlib.uds.parse.classify_response +
+# is dim. Categories are produced by canlib.uds.response.classify_response +
 # canlib.log.log_exception ("internal").
 _EVENT_CATEGORY_STYLE = {
     "drop": "red",

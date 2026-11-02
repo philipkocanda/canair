@@ -45,7 +45,7 @@ Kona log is full of `0x13` (incorrectMessageLength), `0x12`/`0x31`, `0x33`
 | no reply / timeout | inconclusive |
 
 This is the same inference `sessions_scan` already uses for `0x10` sub-functions, generalized
-across SIDs, and it reuses `canlib/uds/parse.py::classify_response` for the NRC taxonomy.
+across SIDs, and it reuses `canlib/uds/response.py::classify_response` for the NRC taxonomy.
 
 ### The tiered policy
 

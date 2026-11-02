@@ -27,7 +27,7 @@ import termios
 import tty
 from pathlib import Path
 
-from canlib.uds.parse import nrc_abbrev
+from canlib.uds.nrc import nrc_abbrev
 
 from ..pids import RoutineIndexEntry, build_routines_index, load_pids
 from ..pids_edit import PidsEditError, update_routines_field

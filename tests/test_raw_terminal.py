@@ -83,7 +83,7 @@ class TestRawTerminalSendUds:
     async def test_did_echo_validation(self, make_terminal):
         t = make_terminal({(0x770, bytes.fromhex("22BC03")): bytes.fromhex("62BC03FDEE")})
         await t.set_header(0x770)
-        r = await t.send_uds("22BC03", expected_sid=0x22, expected_did=0xBC03)
+        r = await t.send_uds("22BC03", expected_sid=0x22, expected_echo=bytes.fromhex("BC03"))
         assert r["ok"] is True
         await t.close()
 
@@ -291,7 +291,8 @@ class TestRawTerminalSafety:
 
     @pytest.mark.asyncio
     async def test_oem_session_honours_the_profile_allowance(self, make_terminal):
-        from canlib.safety import KWP, UDS, SessionPolicy
+        from canlib.safety import SessionPolicy
+        from canlib.uds.protocol import KWP, UDS
 
         t = make_terminal({(0x745, bytes.fromhex("10C0")): bytes.fromhex("50C0")})
         await t.set_header(0x745)
@@ -309,7 +310,8 @@ class TestRawTerminalSafety:
 
     @pytest.mark.asyncio
     async def test_nrc_name_follows_the_addressed_ecus_protocol(self, make_terminal):
-        from canlib.safety import KWP, SessionPolicy
+        from canlib.safety import SessionPolicy
+        from canlib.uds.protocol import KWP
 
         t = make_terminal({(0x7E4, bytes.fromhex("3301")): bytes.fromhex("7F3323")})
         await t.set_header(0x7E4)

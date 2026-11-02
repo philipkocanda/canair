@@ -15,7 +15,7 @@ from collections.abc import Callable
 from typing import Literal
 
 from canlib.query import inferred_request, pids_named_by
-from canlib.uds.parse import request_echo
+from canlib.uds.echo import request_echo
 
 from ..actuation import on_refusal
 from ..formatting import (

@@ -19,11 +19,12 @@ import re
 from dataclasses import dataclass, field
 
 # UDS ResponsePending negative response: `7F <sid> 78` ("request received,
-# response pending"). Matched against the whitespace-stripped ELM327 text, so it
-# works with `ATS1` (spaces on) and `ATS0` alike. Anchoring to the full 3-byte
-# shape — rather than testing for `7F` and `78` separately — keeps a positive
-# response that merely *contains* those bytes from being mistaken for the NRC.
-# The raw-CAN counterpart is `uds_raw.is_response_pending`.
+# response pending"). Matched against one whitespace-stripped ELM327 line, so it
+# works with `ATS1` (spaces on) and `ATS0` alike. Requiring the whole line to be the
+# 3-byte NRC — rather than searching the block for `7F..78` — keeps a positive
+# response that merely *contains* those bytes (`62 01 7F 22 78`, or the nibbles of
+# `A7 F2 27 8B`) from being mistaken for it. The raw-CAN counterpart is
+# `uds_raw.is_response_pending`.
 PENDING_RE = re.compile(r"7F[0-9A-Fa-f]{2}78")
 
 # The ELM327's reply delimiter, and the only per-exchange framing signal the
@@ -39,6 +40,18 @@ MAX_OWED_PROMPTS = 4
 def compact(text: str) -> str:
     """Strip whitespace/line breaks, so hex tests work with ``ATS1`` and ``ATS0``."""
     return text.replace(" ", "").replace("\r", "").replace("\n", "")
+
+
+def is_pending_block(block: str) -> bool:
+    """True when a completed block is an interim ResponsePending, not an answer.
+
+    Only the block's *last* line decides: a block whose pending frame is followed by
+    the real reply (an adapter that kept waiting rather than prompting in between)
+    is the answer, and the parser drops the interim line from it.
+    """
+    lines = [compact(line) for line in block.replace("\r", "\n").split("\n")]
+    lines = [line for line in lines if line]
+    return bool(lines) and PENDING_RE.fullmatch(lines[-1]) is not None
 
 
 def split_prompt_blocks(text: str) -> tuple[list[str], str]:
@@ -189,7 +202,7 @@ class ResponsePipe:
         blocks, self._buf = split_prompt_blocks(self._buf)
         saw_pending = False
         for block in blocks:
-            if PENDING_RE.search(compact(block)):
+            if is_pending_block(block):
                 # UDS ResponsePending (7F xx 78) — an interim "still working" ack
                 # which the adapter terminates with its own prompt, NOT the answer.
                 # It leaves the ledger alone on purpose: it consumed a prompt but

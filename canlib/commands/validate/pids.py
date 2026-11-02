@@ -863,7 +863,7 @@ def _validate_iocontrol(
     ecu_def, path, ecu_name, allowed_states_set, errors, warnings, stats, profile_meta=None
 ) -> None:
     """Validate an ECU's ``iocontrol:`` block."""
-    from canlib.safety import session_protocol
+    from canlib.uds.protocol import classify_protocol
 
     iocontrol = ecu_def.get("iocontrol")
     if iocontrol is None:
@@ -872,7 +872,9 @@ def _validate_iocontrol(
         errors.append(f"{path.name}/{ecu_name}: 'iocontrol' must be a dict")
         return
     identity = ecu_def.get("identity")
-    protocol = session_protocol(identity.get("id_protocol") if isinstance(identity, dict) else None)
+    protocol = classify_protocol(
+        identity.get("id_protocol") if isinstance(identity, dict) else None
+    )
 
     valid_fields = {
         "label",

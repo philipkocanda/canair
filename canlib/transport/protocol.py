@@ -23,7 +23,7 @@ from contextlib import AbstractAsyncContextManager
 from typing import Protocol, runtime_checkable
 
 from canlib.transport.stats import TransportStats
-from canlib.uds.parse import UdsResponse
+from canlib.uds.response import UdsResponse
 
 from ..frame_counts import FrameCountLedger
 from ..safety import SessionPolicy
@@ -83,7 +83,6 @@ class Terminal(Protocol):
         service_pid: str,
         timeout: float | None = ...,
         expected_sid: int | None = ...,
-        expected_did: int | None = ...,
         expected_echo: bytes | None = ...,
         retries: int = ...,
     ) -> UdsResponse: ...

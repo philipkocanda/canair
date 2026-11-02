@@ -6,6 +6,7 @@ import asyncio
 import json
 
 from canlib import ansi
+from canlib.uds.protocol import KWP, UDS
 
 from ...dtc.refs import ecu_ref
 from ...dtc.snapshot_report import snapshot_lines, status_line, undefined_hints
@@ -89,7 +90,7 @@ async def mode_dtc_read(
     keeps those snapshot replies as captures (:mod:`.snapshot_capture`).
     """
     proto = resolve_protocol(protocol, tx_id)
-    if supported and proto != "kwp":
+    if supported and proto != KWP:
         raise ValueError("--supported is only available for KWP2000 ECUs (id_protocol: KWP2000)")
     if supported:
         log = False
@@ -103,7 +104,7 @@ async def mode_dtc_read(
         if not as_json:
             fam = (
                 "UDS 19 02 (reportDTCByStatusMask)"
-                if proto == "uds"
+                if proto == UDS
                 else "KWP2000 18 (readDTCByStatus)"
             )
             if supported:

@@ -49,6 +49,7 @@ from collections.abc import Mapping
 from typing import Any, Final
 
 from canlib.addressing import FUNCTIONAL_11BIT_ID
+from canlib.uds.protocol import KWP
 
 # The Hyundai/Kia identity-DID -1 offset (22F188 → 62F187).
 HK_F1XX_MINUS_ONE: Final = "hk_f1xx_minus_one"
@@ -84,8 +85,8 @@ KNOWN_QUIRKS: Final = frozenset(
 # the same byte is OEM session 0x40 with the suppress-response bit, so the
 # allowance is scoped to KWP2000 ECUs.
 _QUIRK_SESSIONS: Final[dict[str, dict[str, frozenset[int]]]] = {
-    NISSAN_C0_SESSION: {"kwp": frozenset({0xC0})},
-    HK_90_SESSION: {"kwp": frozenset({0x90})},
+    NISSAN_C0_SESSION: {KWP: frozenset({0xC0})},
+    HK_90_SESSION: {KWP: frozenset({0x90})},
 }
 
 
@@ -121,7 +122,7 @@ def has_quirk(meta: Mapping[str, Any] | None, name: str) -> bool:
 def allowed_session_modes(meta: Mapping[str, Any] | None, protocol: str) -> frozenset[int]:
     """The OEM session sub-functions the profile's quirks make safe on ``protocol`` ECUs.
 
-    ``protocol`` is a :data:`canlib.safety.SessionProtocol` (``"uds"``/``"kwp"``/
+    ``protocol`` is a :data:`canlib.uds.protocol.DiagProtocol` (``"uds"``/``"kwp"``/
     ``"unknown"``). An ECU of unknown protocol gets no allowance.
     """
     allowed: frozenset[int] = frozenset()
