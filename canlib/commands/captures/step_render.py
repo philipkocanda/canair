@@ -201,8 +201,12 @@ def frame_header_text(
     tol_s: float | None = None,
     states: str = "",
     label: str = "",
+    gaps: str = "",
 ) -> Text:
-    """The stacked view's frame header: locator, anchor time, tolerance, session tags."""
+    """The stacked view's frame header: locator, anchor time, tolerance, session tags.
+
+    ``gaps`` names the recorded gaps since the previous frame, on a line of its own.
+    """
     out = Text()
     out.append("\n  ")
     out.append(position, style="bold")
@@ -218,4 +222,6 @@ def frame_header_text(
     detail.stylize("dim")
     out.append(detail)
     out.append("\n")
+    if gaps:
+        out.append(f"  ⚠ since the previous frame: {gaps}\n", style="yellow")
     return out

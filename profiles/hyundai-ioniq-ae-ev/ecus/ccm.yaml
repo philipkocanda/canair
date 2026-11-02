@@ -20,9 +20,10 @@ CCM:
     app_sw: "1104"
     id_protocol: UDS  # F1xx
     notes: >-
-      Charge Control Module (power-line communication for CCS DC charging). Answers at ignition-on
-      and during AC charging with the ignition off (2026-11-01), including 22C350 and 22CC01. Not
-      yet read during or right after a DC fast charge.
+      Charge Control Module (power-line communication for CCS DC charging). Answers at ignition-on,
+      in READY while parked and driving (2026-11-02), and during AC charging with the ignition off
+      (2026-11-01), including 22C350 and 22CC01. Not yet read during or right after a DC fast
+      charge.
   # 0x744 does not answer: CAN-level errors on discovery (2026-04-17), NO DATA to service 21
   # during AC charging (2026-04-18).
   vehicle_states: [CHARGING]
@@ -41,8 +42,8 @@ CCM:
         4 bytes from the stored identification block: ASCII '1104', the application software version
         (identity app_sw), on this car (2026-11-01) and on uhi22's unit.
     22F102:
-      status: static
       sensitive: true
+      status: static
       vehicle_states: ["ON", READY]
       notes: >-
         6 bytes from the stored identification block: the PLC MAC address, which the CCM sends to
@@ -71,11 +72,18 @@ CCM:
         0x59C, 0x59E, 0x5A3, 0x57F and 0x5D5 (bit flags in reversed bit order), the values it
         broadcasts on 0x5E5, 0x5E6, 0x5E8 and 0x5E9, the SLAC result, and per DIN 70121 request a
         ResponseCode, sent and answered flags and two timestamps (from byte 123, not decoded). Three
-        NvM slots (blocks 11-13) hold the records; a read returns the newest, and while no session
-        runs the firmware resets the read pointer every 10 ms, so repeated reads return the same
-        record. A record is saved only when a CCM DTC other than C160E is raised (not at a normal
-        session end), in the first idle cycle after the fault, so inputs the CCM has already reset
-        read 0. 2026-11-01, AC charging: record 62, with no SLAC attempt and all charger fields 0.
+        NvM slots (blocks 11-13) hold the records. Each read usually returns the next slot, newest
+        first, then wraps (2026-11-02: 62, 61, 60, 62, ... in READY, and with the main relay open
+        from 10:14). Sometimes every read returns the newest record instead: 2026-11-01 during AC
+        charging (4 reads), and 2026-11-02 10:08:33-10:13:56, the 5.5 minutes after record 63 was
+        saved, with the main relay open. The firmware resets the read pointer every 10 ms while no
+        session runs; what decides between the two behaviours is not known. Per the firmware a
+        record is saved only when a CCM DTC other than C160E is raised (not at a normal session
+        end), in the first idle cycle after the fault, so inputs the CCM has already reset read 0.
+        2026-11-02 saved two records with no charging: 63 between 10:08:09 and 10:08:33, as the car
+        dropped from READY to ON (main relay opened, 12 V fell from 14.5 to 12.2 V), and 64 while
+        driving, between 10:19 and 11:10 (a gap in the recording). Both have every charge and
+        charger field 0.
       source: CCM firmware (uhi22 code-flash dump, decompiled)
       verified: false
       parameters:
@@ -136,7 +144,9 @@ CCM:
         CCM_LOG_PACK_VOLTAGE:
           expression: "[B29:B30] * 0.1"
           unit: V
-          notes: 0x59E bytes 4-5. 345.7 V in the 2026-11-01 reads.
+          notes: >-
+            0x59E bytes 4-5. Records 60-64: 346.0, 344.0, 345.7, 377.5, 372.4 V. Record 63's value
+            equals BMS 2101 BATTERY_VOLTAGE just before the main relay opened.
         CCM_LOG_EV_MAX_POWER:
           expression: ((B31 << 8) | B33) * 0.01
           unit: kW
@@ -245,6 +255,12 @@ CCM:
           notes: >-
             Session-log counter at the time the record was saved; increments by one per saved record
             and wraps at 256.
+        CCM_LOG_ALIVE:
+          expression: B77:7
+          source: CCM firmware (uhi22 code-flash dump, decompiled)
+          verified: false
+          notes: >-
+            0x5E9 byte 0 bit 0 (CCM_ALIVE) at the moment the record was saved, so 0 or 1 at random.
     2212A0:
       status: ignored
       vehicle_states: ["ON", READY]
@@ -260,7 +276,8 @@ CCM:
         broadcasts. Byte 4 bits 0-1 are 0x5E6 byte 0 bits 0-1, bits 2-7 are 0x5E6 byte 1 bits 2-7.
         Byte 5 is 0x5E8 byte 6. Byte 6 bit 0 is 0x5E8 byte 7 bit 0, bit 1 is 0x5E6 byte 0 bit 7,
         bits 2-7 are 0x5E9 byte 0 bits 0-5. Byte 7 bits 0-1 are 0x5E9 byte 0 bits 6-7. 2026-11-01,
-        AC charging: FF FF FF C0 F0 00 00 00.
+        AC charging: FF FF FF C0 F0 00 00 00. 2026-11-02, READY, parked and driving: the same, with
+        only the alive bit (byte 6 bit 2) changing.
       source: CCM firmware (uhi22 code-flash dump, decompiled)
       verified: false
       parameters:
@@ -320,6 +337,13 @@ CCM:
           notes: >-
             Same value as 0x5E6 byte 1 bits 4-7; the firmware initialises it to 15, the value read
             on 2026-11-01.
+        CCM_SESSION_ALIVE:
+          expression: B12:2
+          source: CCM firmware (uhi22 code-flash dump, decompiled)
+          verified: false
+          notes: >-
+            Same value as 0x5E9 byte 0 bit 0 (CCM_ALIVE). Toggled between reads while driving on
+            2026-11-02.
   # Meanings from the code that raises each Dem event in the CCM firmware (uhi22 code-flash dump,
   # decompiled): event config 0x2ACAC (0x30 per event, DTC index at +0x0E), DTC table 0x2B7C4
   # (0x14 per DTC). The application monitors C182B, C182C, B2211, C1829 and C1865 only while the
@@ -386,8 +410,8 @@ CCM:
       what_to_test:
         - "Ignition on: canair read CCM:22F101,22F103,22BCFF,22CC01 --save --label 'CCM firmware DIDs'"
         - >-
-          Read CCM:22C350 with --save: the newest saved session log (repeated reads return the
-          same record). Best right after a failed DC fast charge.
+          Read CCM:22C350 with --save: the saved session logs (reads usually step through the
+          three slots, newest first). Best right after a failed DC fast charge.
         - "Read CCM:22F102 separately without --save: it is the car's EVCCID (Autocharge identity)."
     - type: verify
       target: 22C350 session log after a DC fast charge
@@ -397,9 +421,10 @@ CCM:
       created: "2026-11-01"
       updated: "2026-11-01"
       notes: >-
-        The signals come from the firmware and every recorded value so far is 0 except the counter,
-        pack voltage and two flag fields. A record is saved only when a CCM DTC is raised, so the
-        useful moment is right after a failed DC fast charge.
+        The signals come from the firmware. Every value recorded so far, in records 60-64, is 0
+        except the counter, pack voltage, the alive bit and two flag fields. A record is saved only
+        when a CCM DTC is raised, so the useful moment is right after a failed DC fast charge. Reads
+        step through all three slots, so a few reads in a row return every saved record.
       sources:
         - CCM firmware (uhi22 code-flash dump), decompiled 2026-11-01
       what_to_test:
@@ -468,3 +493,38 @@ CCM:
       capture_protocol: >-
         canair read 'raw 733:1903' 'raw 733:1904582C00FF' --save --label 'CCM snapshot' --state
         CHARGING
+    - type: verify
+      target: 22C350 record saves without charging (records 63, 64)
+      status: pending
+      priority: P2
+      vehicle_states: [READY]
+      created: "2026-11-02"
+      updated: "2026-11-02"
+      notes: >-
+        Records 63 and 64 were saved on 2026-11-02 with no charging, and no DTC scan was made that
+        day. 63 was saved as the car dropped from READY to ON (main relay opened, 12 V fell from
+        14.5 to 12.2 V). Possible cause: the BMS stopped 0x597 while the CCM stayed awake, raising
+        B2211 or C1865. 64 was saved while driving, in a gap in the recording; cause unknown. Saves
+        seem rare (counter 64 after nine years), so a normal key-off does not seem to save one.
+      sources:
+        - on-car 2026-11-02 (monitor --save, wican-ws, READY parked and driving)
+      what_to_test:
+        - "canair dtc CCM: look for B2211, C1865 or C1829 (stored or history) to see which fault saved records 63 and 64."
+        - In READY, poll CCM:22C350 with --save, switch to ON without READY, and check that CCM_LOG_COUNTER rises by one; then read canair dtc CCM.
+        - "Key fully off from READY while polling: check that the counter does not rise."
+    - type: decode
+      target: "22C350 read pointer: cycling vs newest-only"
+      status: pending
+      priority: P3
+      created: "2026-11-02"
+      updated: "2026-11-02"
+      notes: >-
+        Reads of 22C350 usually step through the three slots newest first and wrap. They returned
+        only the newest record during AC charging (2026-11-01, 4 reads) and for 5.5 minutes after
+        record 63 was saved (2026-11-02 10:08:33-10:13:56, main relay open). Cycling resumed at
+        10:14:01 with the relay still open, so the relay state alone does not explain it.
+      sources:
+        - on-car 2026-11-01 and 2026-11-02; CCM firmware (uhi22 code-flash dump, decompiled)
+      what_to_test:
+        - Find the condition around the 10 ms read-pointer reset in references/ccm-ghidra (a post-save timer, or a session or plug state).
+        - Read 22C350 repeatedly during AC charging with the ignition on, to separate charging from ignition state.

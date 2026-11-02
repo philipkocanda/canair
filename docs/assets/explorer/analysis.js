@@ -27,16 +27,28 @@
   }
 
   /**
-   * Hold each sample until the next one (zero-order hold), up to `holdMs`.
+   * Whether a value sampled at fromMs may NOT be held to toMs, because a recorded gap
+   * ([{t, end}] ms: the session's disconnects and pauses) began in between. Nothing was
+   * gathered in a gap, so no value is known to have lasted into it, nor past it.
+   */
+  function crossesGap(gaps, fromMs, toMs) {
+    if (!gaps || toMs <= fromMs) return false;
+    for (var i = 0; i < gaps.length; i++) if (gaps[i].t >= fromMs && gaps[i].t <= toMs) return true;
+    return false;
+  }
+
+  /**
+   * Hold each sample until the next one (zero-order hold), up to `holdMs`, and never
+   * across a recorded gap (see crossesGap).
    * t: ascending sample times (ms), v: values (NaN = no value). Grid time i is startMs + i*stepMs.
    */
-  function resample(t, v, startMs, stepMs, n, holdMs) {
+  function resample(t, v, startMs, stepMs, n, holdMs, gaps) {
     var out = new Float64Array(n).fill(NaN);
     var j = -1;
     for (var i = 0; i < n; i++) {
       var g = startMs + i * stepMs;
       while (j + 1 < t.length && t[j + 1] <= g) j++;
-      if (j >= 0 && g - t[j] <= holdMs) out[i] = v[j];
+      if (j >= 0 && g - t[j] <= holdMs && !crossesGap(gaps, t[j], g)) out[i] = v[j];
     }
     return out;
   }
@@ -206,7 +218,8 @@
   }
 
   return {
-    MIRROR_R: MIRROR_R, medianGap: medianGap, resample: resample, summary: summary, diff: diff,
+    MIRROR_R: MIRROR_R, medianGap: medianGap, resample: resample, crossesGap: crossesGap,
+    summary: summary, diff: diff,
     pearson: pearson, rankRelated: rankRelated, changeScores: changeScores, binMeans: binMeans,
     normalize: normalize, clusterOrder: clusterOrder,
   };

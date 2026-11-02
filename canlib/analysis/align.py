@@ -215,7 +215,7 @@ class LoadedPid:
     # the loader computes it once and shares the one dict with every ``LoadedPid``
     # it returns.
     session_ends: dict[SessionKey, datetime] = field(default_factory=dict, repr=False)
-    _hold_cache: dict[FillPolicy, list[datetime | None]] = field(
+    _hold_cache: dict[tuple[FillPolicy, bool], list[datetime | None]] = field(
         default_factory=dict, repr=False, compare=False
     )
 
@@ -262,7 +262,9 @@ class LoadedPid:
         """
         return [(d.dt, d.frame) for d in self._timed if d.dt is not None]
 
-    def timed_holds(self, policy: FillPolicy | None) -> list[datetime | None]:
+    def timed_holds(
+        self, policy: FillPolicy | None, *, respect_gaps: bool = True
+    ) -> list[datetime | None]:
         """Each :meth:`timed_frames` row's ``hold_until``, under ``policy``.
 
         Parallel to :meth:`timed_frames`, so a series builder can zip the two and
@@ -270,10 +272,12 @@ class LoadedPid:
         command run uses one policy but builds up to hundreds of series over the
         same PID (``investigate --bits``), and the vector depends only on the
         captures and the policy — never on which signal is being decoded.
+        ``respect_gaps=False`` ignores recorded gaps, so a report can count the
+        carries they stopped (:func:`canlib.analysis.fill.hold_until_vector`).
         """
         if policy is None or not policy.enabled:
             return [None] * len(self._timed)
-        cached = self._hold_cache.get(policy)
+        cached = self._hold_cache.get((policy, respect_gaps))
         if cached is None:
             entries: list[CaptureEntry] = []
             dts: list[datetime] = []
@@ -281,8 +285,14 @@ class LoadedPid:
                 assert d.dt is not None  # _timed filters on exactly this
                 entries.append(d.entry)
                 dts.append(d.dt)
-            cached = hold_until_vector(entries, dts, session_ends=self.session_ends, policy=policy)
-            self._hold_cache[policy] = cached
+            cached = hold_until_vector(
+                entries,
+                dts,
+                session_ends=self.session_ends,
+                policy=policy,
+                respect_gaps=respect_gaps,
+            )
+            self._hold_cache[(policy, respect_gaps)] = cached
         return cached
 
 

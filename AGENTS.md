@@ -282,7 +282,7 @@ and **`g`/`G` address the view's primary axis**.
   `--latest`, `--summary`, `--sessions` (the fast "what's in the captures?" index — time-span,
   state, label, notes, ECUs, the car's `variant` tag (or `untagged` on a multi-variant profile),
   acquisition `transport`, recording `version`, a `quality` line, a `gaps:` line from the
-  session's `link_events`; no payloads).
+  session's `link_events` and an `inferred gaps:` line; no payloads).
   **The default list view is capped at `--limit N` (default 50) with a loud footer** for hidden
   history, so a bare query can't blow the context window; widen with `--limit 0` or scope tighter.
   Mutating modes: `--delete` (refuses a bare `--delete`, previews with `--dry-run`, confirms unless
@@ -1015,9 +1015,11 @@ device comes online. Backed by `fallback.py::wait_for_reachable`.
 rather than abandoned: it re-probes reachable **same-transport** devices (raw↔raw / ws↔ws — only the
 *initial* connect crosses transports), rebuilds the client, re-opens sessions and resumes, with a
 `--save` recording continuing on the same journal. The gap is recorded in the session's
-`link_events` (`canlib/captures/link_events.py`; the monitor side is
-`modes/_monitor_link_events.py`, fed through `MonitorController.mark_disconnected`, so a new
-link-failure path must call that rather than set `disconnected` itself). Bounded by
+`link_events` (`canlib/captures/link_events.py`, which also records pauses, silent ECUs,
+unpolled PIDs and backoff; the monitor side is `modes/_monitor_link_events.py`, fed through
+`MonitorController.mark_disconnected`, so a new link-failure path must call that rather than
+set `disconnected` itself). Gaps bound forward fill (`analysis/fill.py::next_gap_starts`);
+holes no event explains are inferred for display only (`captures/inferred_gaps.py`). Bounded by
 `transport.reconnect_max_wait` (default 60.0s); `--wait` retries forever. Infra
 `canlib/modes/monitor_reconnect.py` plus the per-transport connect closures in
 `commands/_live/connect.py` and `modes/raw_monitor.py`. Plan:

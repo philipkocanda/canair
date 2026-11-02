@@ -64,7 +64,7 @@
       S.grids = {};
       varyingKeys(S).forEach(function (k) {
         var s = S.signals[k];
-        S.grids[k] = A.resample(s.t, s.v, 0, S.step, S.n, s.hold);
+        S.grids[k] = A.resample(s.t, s.v, 0, S.step, S.n, s.hold, S.gaps);
       });
     }
     return S.grids;

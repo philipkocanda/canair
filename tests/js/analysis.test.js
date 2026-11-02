@@ -83,3 +83,15 @@ test("binMeans and normalize keep gaps as gaps", () => {
   assert.ok(n[1] !== n[1]);
   assert.equal(n[2], 1);
 });
+
+test("a held value never crosses a recorded gap", () => {
+  const gaps = [{ t: 2000, end: 4000, kind: "disconnect" }];
+  assert.equal(A.crossesGap(gaps, 0, 1999), false);
+  assert.equal(A.crossesGap(gaps, 0, 2000), true);
+  assert.equal(A.crossesGap(gaps, 2000, 2000), false); // a sample at its own instant
+  assert.equal(A.crossesGap(gaps, 4500, 6000), false); // a sample after the gap
+  assert.equal(A.crossesGap(undefined, 0, 9000), false);
+  const g = A.resample([0, 5000], [7, 8], 0, 1000, 7, Infinity, gaps);
+  // Held up to the gap, blank through it and after it until the next sample.
+  assert.deepEqual(Array.from(g).map((x) => (x !== x ? null : x)), [7, 7, null, null, null, 8, 8]);
+});

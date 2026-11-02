@@ -9,16 +9,26 @@ payload-level views live in :mod:`listing` and :mod:`diff`.
 import re
 import sys
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 from canlib import ansi
 from canlib.analysis.fill import format_hold_duration
-from canlib.captures.link_events import LinkEvent, summarize
+from canlib.captures.inferred_gaps import format_key, infer_gaps
+from canlib.captures.link_events import (
+    BACKOFF,
+    DISCONNECT,
+    ECU_SILENT,
+    PAUSED,
+    RESYNC,
+    UNPOLLED,
+    LinkEvent,
+    summarize,
+)
 from canlib.captures.types import CaptureEntry, Quality
 from canlib.states import join_states as _join_states
 from canlib.states.spans import parse_time_key
 
-from .query import _dump_json, group_sessions
+from .query import SessionGroup, _dump_json, group_sessions
 
 
 def cmd_summary(entries: Sequence[CaptureEntry], as_json: bool = False) -> None:
@@ -115,27 +125,68 @@ def _quality_tag(quality: Quality | None) -> str:
     return f"{ansi.DIM}⚠ quality:{ansi.RESET} " + " ".join(parts) + ex_txt
 
 
-def _gaps_tag(events: Sequence[LinkEvent], times: Sequence[str]) -> str:
+def _plural(n: int, word: str) -> str:
+    return f"{n} {word}{'s' if n != 1 else ''}"
+
+
+def _ecu_names(rxs: Sequence[str], names: Mapping[str, str]) -> str:
+    return ", ".join(names.get(rx.upper(), rx) for rx in rxs)
+
+
+def _gaps_tag(
+    events: Sequence[LinkEvent], times: Sequence[str], names: Mapping[str, str] | None = None
+) -> str:
     """A one-liner saying when the recording could not see the car, or ''.
 
-    An open disconnect (the recording ended inside it) is measured to the session's
-    last capture.
+    An open interval (the recording ended inside it) is measured to the session's last
+    capture. ``names`` maps a response address (upper-case) to its ECU name.
     """
     if not events:
         return ""
+    names = names or {}
     keys = [k for k in (parse_time_key(t) for t in times) if k is not None]
     summary = summarize(events, max(keys) if keys else None)
+
+    def length(kind: str) -> str:
+        return format_hold_duration(summary[kind].seconds)
+
     parts: list[str] = []
-    if summary["disconnects"]:
-        n = summary["disconnects"]
-        length = format_hold_duration(summary["gap_seconds"])
-        parts.append(f"{ansi.YELLOW}{n} disconnect{'s' if n != 1 else ''} ({length}){ansi.RESET}")
-    if summary["resyncs"]:
-        n = summary["resyncs"]
-        parts.append(f"{n} resync{'s' if n != 1 else ''}")
+    if s := summary.get(DISCONNECT):
+        parts.append(
+            f"{ansi.YELLOW}{_plural(s.count, 'disconnect')} ({length(DISCONNECT)}){ansi.RESET}"
+        )
+    if s := summary.get(PAUSED):
+        parts.append(f"paused {s.count}× ({length(PAUSED)})")
+    if s := summary.get(ECU_SILENT):
+        parts.append(
+            f"{ansi.YELLOW}silent: {_ecu_names(s.rxs, names)} ({length(ECU_SILENT)}){ansi.RESET}"
+        )
+    if s := summary.get(UNPOLLED):
+        parts.append(f"unpolled: {_ecu_names(s.rxs, names)} ({length(UNPOLLED)})")
+    if s := summary.get(BACKOFF):
+        parts.append(f"slowed: {_ecu_names(s.rxs, names)} (up to ×{s.factor})")
+    if s := summary.get(RESYNC):
+        parts.append(_plural(s.count, "resync"))
     if not parts:
         return ""
     return f"{ansi.DIM}⚠ gaps:{ansi.RESET} " + f"{ansi.DIM} · {ansi.RESET}".join(parts)
+
+
+def _inferred(session: SessionGroup) -> list[tuple[float, float]]:
+    return infer_gaps(session["times"], session["link_events"], session["keep_mode"])
+
+
+def _inferred_tag(gaps: Sequence[tuple[float, float]]) -> str:
+    """A dim one-liner for holes the timestamps imply but no link event records, or ''."""
+    if not gaps:
+        return ""
+    total = format_hold_duration(sum(b - a for a, b in gaps))
+    longest = max(gaps, key=lambda g: g[1] - g[0])
+    return (
+        f"{ansi.DIM}⚠ inferred gaps: {len(gaps)} ({total}), longest "
+        f"{format_key(longest[0])}-{format_key(longest[1])} — nothing stored, not "
+        f"recorded as a link event{ansi.RESET}"
+    )
 
 
 def _declared_variants() -> dict:
@@ -161,6 +212,7 @@ def cmd_sessions(
     ``--sessions --state driving`` is a quick index of every drive.
     """
     sessions = group_sessions(entries)
+    names = {str(e.get("ecu_addr") or "").upper(): e["ecu"] for e in entries if e.get("ecu")}
 
     if as_json:
         import json
@@ -177,6 +229,9 @@ def cmd_sessions(
                 "transport": s["transport"],
                 "quality": s["quality"],
                 "link_events": s["link_events"],
+                "inferred_gaps": [
+                    {"at": format_key(a), "until": format_key(b)} for a, b in _inferred(s)
+                ],
                 "variant": s["variant"] or None,
                 "captures": s["n"],
                 "ecus": list(s["ecus"]),
@@ -235,9 +290,12 @@ def cmd_sessions(
         qtag = _quality_tag(s.get("quality"))
         if qtag:
             print(f"    {qtag}")
-        gtag = _gaps_tag(s["link_events"], s["times"])
+        gtag = _gaps_tag(s["link_events"], s["times"], names)
         if gtag:
             print(f"    {gtag}")
+        itag = _inferred_tag(_inferred(s))
+        if itag:
+            print(f"    {itag}")
         # Distinct capture-level notes (RE annotations) — the other place notes live.
         for cn in s["cap_notes"][:max_notes]:
             clean = _clean(cn)
