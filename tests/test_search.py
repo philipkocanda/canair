@@ -111,12 +111,18 @@ class TestNeedle:
         vin = "KMHC851HFHU012435"
         _write(
             tmp_path,
-            [_cap("VCU", "1A90", (bytes([0x5A, 0x90]) + vin.encode()).hex())],
+            [_cap("BCM", "22F190", (bytes([0x62, 0xF1, 0x90]) + vin.encode()).hex())],
             session={"notes": f"typed {vin} by hand"},
         )
         assert _run(tmp_path, monkeypatch, ["--vin", "--json"]) == 0
         env = json.loads(capsys.readouterr().out)
         assert {f["source"] for f in env["findings"]} == {"payload", "text"}
+
+    def test_a_sensitive_pids_reply_is_not_searched(self, tmp_path, monkeypatch, capsys):
+        # The bundled Ioniq marks VCU:1A90 (the KWP2000 VIN page) sensitive.
+        vin = "KMHC851HFHU012435"
+        _write(tmp_path, [_cap("VCU", "1A90", (bytes([0x5A, 0x90]) + vin.encode()).hex())])
+        assert _run(tmp_path, monkeypatch, ["--vin", "--json"]) == 1
 
     def test_no_match_exits_1(self, corpus, monkeypatch, capsys):
         assert _run(corpus, monkeypatch, ["nothing-like-this"]) == 1
