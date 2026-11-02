@@ -146,7 +146,8 @@ fork/clone/branch/push, and it works regardless of where the profile is stored
    rather than an error.
 
 Useful modes (verify against `--help`): `--no-captures` (definitions-only PR),
-`--dry-run` (prepare branch+commit, no push/PR), `--yes` (non-interactive, for
+`--dry-run` (prepare branch+commit, no push/PR, prints the generated PR body),
+`--include-logs` (attach the scrubbed `canair logs` excerpt for debugging), `--yes` (non-interactive, for
 agents/CI), `--json` (emit the PR URL + findings), `--profile NAME` to target a
 specific profile.
 

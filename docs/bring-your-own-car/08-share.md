@@ -134,6 +134,7 @@ canair contribute            # PR the active profile (definitions + captures)
 canair contribute --no-captures   # definitions only (smaller)
 canair contribute --diff          # show exactly what would be contributed, then stop
 canair contribute --dry-run       # prepare it locally, but don't push/open the PR
+canair contribute --include-logs  # attach your diagnostics log so maintainers can debug
 ```
 
 It copies your profile into a fork of the repo and opens the PR against
@@ -171,7 +172,18 @@ with the fields that differ. If you didn't edit it, sync first.
 Re-running is the normal way to revise a contribution: the default branch name is
 per-day, so a second run on the same day pushes to the branch your pull request
 already tracks, and canair reports the **updated PR** rather than failing to open
-a second one for it.
+a second one for it. Want a separate PR the same day? Name a new branch with `--branch`.
+
+The PR description is generated from what the contribution adds: the definition files it
+changes and, for the new and replaced capture sessions, the car variant and ECU revisions they
+were tagged with, the ECUs and vehicle states covered, the session and capture counts, and the
+link quality (transport errors, resyncs, disconnects). A re-run regenerates it. `--dry-run`
+prints it, and `--body` replaces it.
+
+`--include-logs` adds an excerpt of the diagnostics log (`canair logs`) from the day before the
+first contributed session on, so a maintainer can see what your link did. Device addresses,
+local paths, email addresses and VINs are replaced with placeholders, and the excerpt is
+capped to fit the PR description; check it in the `--dry-run` output if you want to be sure.
 
 !!! tip "Run it from your own checkout"
 
