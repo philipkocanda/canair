@@ -93,6 +93,7 @@ IGPM:
           enabled: false
 
     22BC03:
+      response_frames: 2
       support_map: {at: 0, length: 4, unit: bit, order: msb}
       status: active
       period: 2500
