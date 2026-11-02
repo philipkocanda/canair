@@ -870,6 +870,17 @@ class MonitorApp(HelpMixin, App):
         self._flash_msg = ""
         self._flash_expires = 0.0
 
+    def _note_pause(self, on: bool) -> None:
+        """Record that polling actually stopped (``on``) or resumed.
+
+        Called by the poll loop rather than wherever ``paused`` is set (the space key,
+        a modal dialog), because a cycle already in flight finishes first: the gap in
+        the recording starts when polling stops, not when it was asked to.
+        """
+        tracker = getattr(self.controller, "link_events", None)
+        if tracker is not None:
+            tracker.paused(on)
+
     # -- layout ------------------------------------------------------------
     def compose(self) -> ComposeResult:
         yield Static("", id="header", markup=True)
@@ -901,7 +912,11 @@ class MonitorApp(HelpMixin, App):
         self.exit()
 
     async def _poll_loop(self) -> None:
+        stopped = False
         while True:
+            if self.paused != stopped:
+                stopped = self.paused
+                self._note_pause(stopped)
             # Chunked wait, re-asking the schedule each time, so pause/quit stay
             # responsive and a live rate change or a just-added PID takes effect at
             # once rather than after a sleep chosen before it.

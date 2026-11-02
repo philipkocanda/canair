@@ -51,6 +51,7 @@ from .query import (
     group_sessions,
     key_index,
 )
+from .step_gaps import describe_gap, gaps_before
 from .step_render import (
     capture_block_text,
     frame_header_text,
@@ -670,6 +671,7 @@ class StepModel:
             tol_s=self.tol_s if len(self.keys) > 1 else None,
             states=_join_states((lead or {}).get("vehicle_states")),
             label=str((lead or {}).get("session_label") or ""),
+            gaps=self._gaps_line(n),
         )
 
         for slot, key in enumerate(self.keys):
@@ -698,6 +700,31 @@ class StepModel:
                 )
             )
         return out
+
+    def gaps_before(self, n: int) -> list[Mapping[str, Any]]:
+        """The recorded gaps between frame ``n - 1`` and frame ``n`` (stacked views)."""
+        if not self.stacked or not 0 <= n < len(self.frames):
+            return []
+        frame = self.frames[n]
+        here = [self.captures[i] for i in frame.indices if i is not None]
+        if n == 0:
+            return gaps_before(here, frame.anchor_dt, [], None)
+        prev = self.frames[n - 1]
+        before = [self.captures[i] for i in prev.indices if i is not None]
+        return gaps_before(here, frame.anchor_dt, before, prev.anchor_dt)
+
+    def _gaps_line(self, n: int) -> str:
+        gaps = self.gaps_before(n)
+        if not gaps:
+            return ""
+        names = self._ecu_names()
+        return " · ".join(describe_gap(e, names) for e in gaps)
+
+    def _ecu_names(self) -> dict[str, str]:
+        """Response address (upper-case) → ECU name, for naming a scoped gap."""
+        return {
+            str(e.get("ecu_addr") or "").upper(): e["ecu"] for e in self.entries if e.get("ecu")
+        }
 
     def _dt_label(self, idx: int, anchor: datetime) -> str:
         """``Δt`` of a block's capture relative to the frame anchor."""
@@ -763,13 +790,14 @@ class StepModel:
                     else None
                 )
                 blocks.append(block)
-            frames.append(
-                {
-                    "frame": n + 1,
-                    "time": anchor.isoformat(sep=" ") if anchor else None,
-                    "blocks": blocks,
-                }
-            )
+            frame: dict[str, Any] = {
+                "frame": n + 1,
+                "time": anchor.isoformat(sep=" ") if anchor else None,
+                "blocks": blocks,
+            }
+            if gaps := self.gaps_before(n):
+                frame["gaps_before"] = [dict(g) for g in gaps]
+            frames.append(frame)
         return {
             "view": self.view,
             "tol_s": self.tol_s if self.stacked else None,

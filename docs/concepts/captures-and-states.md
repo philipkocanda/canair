@@ -169,28 +169,62 @@ drops), and every error is also written to the central log — inspect it with
 
 A `monitor --save` session that loses its link keeps recording across the gap (the
 monitor reconnects onto the same recording), so its timestamps show a hole. The
-session's `link_events` list says what caused it:
+session's `link_events` list says what caused it, and also marks the stretches in which
+one ECU or one PID was not being read:
 
 ```json
 "link_events": [
   {"at": "14:02:11.400", "until": "14:03:20.900", "kind": "disconnect", "cause": "stale"},
+  {"at": "14:10:05.000", "until": "14:10:41.200", "kind": "ecu_silent", "rx": "0x7EC"},
+  {"at": "14:12:00.000", "until": "14:14:00.000", "kind": "backoff", "rx": "0x7EA", "factor": 4},
   {"at": "14:15:00.020", "kind": "resync", "count": 2}
 ]
 ```
 
+These are **gaps**: nothing was gathered for their scope, so no stored value is known to
+have held across one.
+
 - **`disconnect`** — no ECU answered coherently from `at` (the last answer before the
-  drop) until `until` (the first answer after it). No `until` means the recording ended
-  inside it. `cause` is `error` (the connection failed), `stale` (several poll cycles
-  with no coherent answer) or `manual` (you asked the monitor to reconnect).
+  drop) until `until` (the first answer after it). `cause` is `error` (the connection
+  failed), `stale` (several poll cycles with no coherent answer) or `manual` (you asked
+  the monitor to reconnect).
+- **`paused`** — polling was paused (the space key, or a dialog that stops polling while
+  it is open).
+- **`ecu_silent`** — one ECU (`rx`, its response address) stopped answering for three
+  polls in a row while the others still answered: usually the ECU going to sleep. It
+  runs from that ECU's last answer to its next one.
+- **`unpolled`** — a PID (`rx` + `pid`), or a whole ECU (`rx` alone), was taken out of
+  the poll set with the monitor's `p` picker, until it was put back.
+
+These are not gaps, but explain sparse data:
+
+- **`backoff`** — a slow ECU was polled `factor` times less often (one event per
+  factor).
 - **`resync`** — the transport had to realign a desynchronised ELM327 pipe at that
   moment (`count` when it happened several times in one poll).
 
-Events are recorded live and never derived from payloads, so they are absent on older
-sessions and on sessions that had no trouble. They hold no free text, so no device
-address ends up in a shared capture file. `--sessions` adds a `gaps:` line per affected
-session, and `align`/`correlate`/`hunt`/`investigate` never carry a `keep:changes` value
-forward into a disconnect: nothing was observed there, so no value is known to have
-held.
+An interval with no `until` lasted until the recording ended. Events are recorded live
+and never derived from payloads, so they are absent on older sessions and on sessions
+that had no trouble. They hold no free text, so no device address ends up in a shared
+capture file.
+
+Where they show up:
+
+- `captures uds --sessions` adds a `gaps:` line per affected session (and `--json`
+  carries the list). For a session that keeps every poll, it also adds an
+  **inferred gaps** line for long holes in the timestamps that no event explains —
+  typically an older recording. Inferred gaps are a guess, so they are only shown, never
+  stored.
+- `align`/`correlate`/`hunt`/`investigate` never carry a `keep:changes` value forward
+  into a gap that covers its ECU and PID, and the fill note says how many values a gap
+  stopped.
+- `captures uds --step` says, in the frame header, which gaps fell between the previous
+  frame and this one.
+- The [profile explorer](../profiles/explorer.md) shades disconnects and pauses on its
+  plots and never draws a line across one.
+
+`validate captures` warns about a payload timed inside a closed disconnect, pause or
+silence of its ECU: nothing answered then, so a clock or the event is wrong.
 
 
 ## Recording captures
@@ -234,40 +268,6 @@ and `--backfill-states` refuse when a matched row belongs to the base, naming th
 file. `--dry-run` still previews it, and rows in your own layer are freely
 editable.
 
-## Journaling — you won't lose data
-
-Saves are **journaled**: written to a write-ahead log under `captures/.journal/`
-as they stream, and reconciled into the dated capture file when the session
-exits. A killed, crashed, or disconnected session is therefore never lost:
-
-```bash
-canair captures uds --recover      # reconcile orphaned journals into capture files
-canair captures uds --recover --discard   # or drop them unsaved
-```
-
-## Recording in the live monitor
-
-`canair monitor … --save` records continuously: every poll cycle is
-journaled as it arrives and written to a capture file automatically when you
-quit. Every poll is kept (`--keep-all`, the default), so the stored rows show the real
-polling cadence; repeats cost little space because they are
-[folded on disk](#repeated-polls-are-folded-on-disk). `--keep-changes` instead stores only
-value-transitions per PID (run-length), and the session records `keep_mode: changes` so the
-analysis tools know to [carry each value forward](analysis-commands.md#forward-fill-a-run-length-row-is-a-segment-not-a-sample). The live view
-collapses each run of identical payloads into one row with its poll count (`×37`) and shows
-the newest few (`--keep N` sets how many). The scrollable live view shows a blinking `● REC`
-whenever a `--save` recording is active, and two keys control the session:
-
-- **`s` (label recording)** — set or edit the label / state / notes of the **current**
-  recording. Everything is already journaled, so this only *labels* the session; it doesn't
-  write a separate file. The state field is free text (comma-separated), pre-filled with the
-  **union of every state auto-suggested so far in the segment** — not just the one active as
-  you press `s`, so a top-up that ended a minute ago is still offered. Accepting the
-  pre-fill unchanged (or leaving it blank) keeps the state automatic, so states seen after
-  the keypress still count; typing a different state pins it. (Without `--save`, `s`
-  instead writes the payloads captured since the previous `s` to a new capture file,
-  pre-filled with the union of states seen over that span.)
-- **`n` (finish & start new)** — write the current session to its own capture file **now**
 ## Sensitive PIDs and signals
 
 Some readings identify the car or its owner the way a VIN does. The Ioniq's CCM
@@ -306,6 +306,40 @@ canair captures purge-sensitive             # confirm, then rewrite
 If those files were already committed or pushed, the data stays in git history
 until the history is rewritten.
 
+## Journaling — you won't lose data
+
+Saves are **journaled**: written to a write-ahead log under `captures/.journal/`
+as they stream, and reconciled into the dated capture file when the session
+exits. A killed, crashed, or disconnected session is therefore never lost:
+
+```bash
+canair captures uds --recover      # reconcile orphaned journals into capture files
+canair captures uds --recover --discard   # or drop them unsaved
+```
+
+## Recording in the live monitor
+
+`canair monitor … --save` records continuously: every poll cycle is
+journaled as it arrives and written to a capture file automatically when you
+quit. Every poll is kept (`--keep-all`, the default), so the stored rows show the real
+polling cadence; repeats cost little space because they are
+[folded on disk](#repeated-polls-are-folded-on-disk). `--keep-changes` instead stores only
+value-transitions per PID (run-length), and the session records `keep_mode: changes` so the
+analysis tools know to [carry each value forward](analysis-commands.md#forward-fill-a-run-length-row-is-a-segment-not-a-sample). The live view
+collapses each run of identical payloads into one row with its poll count (`×37`) and shows
+the newest few (`--keep N` sets how many). The scrollable live view shows a blinking `● REC`
+whenever a `--save` recording is active, and two keys control the session:
+
+- **`s` (label recording)** — set or edit the label / state / notes of the **current**
+  recording. Everything is already journaled, so this only *labels* the session; it doesn't
+  write a separate file. The state field is free text (comma-separated), pre-filled with the
+  **union of every state auto-suggested so far in the segment** — not just the one active as
+  you press `s`, so a top-up that ended a minute ago is still offered. Accepting the
+  pre-fill unchanged (or leaving it blank) keeps the state automatic, so states seen after
+  the keypress still count; typing a different state pins it. (Without `--save`, `s`
+  instead writes the payloads captured since the previous `s` to a new capture file,
+  pre-filled with the union of states seen over that span.)
+- **`n` (finish & start new)** — write the current session to its own capture file **now**
   and start a **fresh** recording, labelled via the same modal (pre-filled with the state
   active now, and likewise automatic unless you change it). Press it at each phase change
   (parked → driving → charging) to get several independently-labelled sessions from one run.

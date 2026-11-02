@@ -35,6 +35,7 @@ from rich.text import Text
 from canlib.uds.notation import ByteNotation
 
 from .. import config
+from ..captures.link_events import is_rx
 from ..formatting import (
     _HIGHLIGHT_STYLE,
     _bytes_to_ascii,
@@ -288,7 +289,7 @@ class MonitorController:
         # When the recording could not see the car (disconnects, resyncs), journaled
         # into the --save session's link_events. Looks the journal up per write, since
         # a segment rotation replaces it.
-        self.link_events = LinkEventTracker(lambda: self.recorder.journal)
+        self.link_events = LinkEventTracker(lambda: self.recorder.journal, rx_of=self._event_rx)
         self._name_index: dict | None = None
         # Vehicle-state auto-suggestion (decoded-value accumulation, per-signal
         # clocks + expiry, vehicle_states.yaml evaluation) lives in the
@@ -685,11 +686,25 @@ class MonitorController:
             self.last_stale = delta.stale
             self.link_events.resynced(delta.resyncs)
         self._record(self.fresh_queries)
+        self._observe_ecu_answers()
         self._apply_backoff()
         self._check_liveness(
             {_label_ecu(label) for label, rows in self.fresh_queries if rows},
             {_label_ecu(label) for label, _rows in self.last_queries},
         )
+
+    def _observe_ecu_answers(self) -> None:
+        """Tell the link-event recorder which polled ECUs answered this tick.
+
+        ``link_ok`` is whether anything answered at all: an ECU that misses while the
+        others answer is going quiet on its own, one that misses with them is part of a
+        disconnect, which the liveness check records instead.
+        """
+        for ecu, cost in self.ecu_costs.items():
+            if cost.reads:
+                self.link_events.ecu_polled(
+                    ecu, answered=cost.answered > 0, link_ok=self._cycle_answered
+                )
 
     def _apply_backoff(self) -> None:
         """Slow down (or restore) each ECU this tick's costs say is holding up the poll."""
@@ -698,6 +713,7 @@ class MonitorController:
             if factor is None:
                 continue
             self.schedule.set_slowdown(ecu, factor)
+            self.link_events.backoff(ecu, factor)
             if factor > 1:
                 detail = f"{ecu} is slow ({self.backoff.reason(ecu)}): polled {factor}x less often"
             else:
@@ -892,7 +908,7 @@ class MonitorController:
         shown = self._decide_display(key, entry)
         self._last_shown[key] = shown
         if _answered(entry):
-            self.link_events.answered(entry.get("acquired_at"))
+            self.link_events.answered(entry.get("acquired_at"), ecu=_label_ecu(key[0]))
         return shown
 
     def _decide_display(self, key: tuple[str, str], entry: ResultEntry) -> ResultEntry:
@@ -953,6 +969,14 @@ class MonitorController:
         if self.keep_mode == KEEP_LAST and self.keep_n:
             return self.keep_n
         return _RENDER_DEFAULT_ROWS
+
+    def _event_rx(self, ecu: str) -> str | None:
+        """``ecu``'s response address for a link event, or None when it has none."""
+        try:
+            ref = self._ecu_ref(ecu)
+        except Exception:
+            return None
+        return ref if is_rx(ref) else None
 
     def _ecu_ref(self, ecu_label: str) -> str:
         """Resolve a monitor ECU label (e.g. "BMS") to its CAN response address.

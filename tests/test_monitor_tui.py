@@ -258,6 +258,21 @@ class TestMonitorApp:
             await pilot.press("q")
 
     @pytest.mark.asyncio
+    async def test_a_pause_is_recorded_when_polling_stops_and_resumes(self):
+        calls: list[bool] = []
+        ctrl = FakeController()
+        ctrl.link_events = type("T", (), {"paused": lambda _self, on: calls.append(on)})()
+        app = MonitorApp(ctrl)
+        async with app.run_test(size=(80, 20)) as pilot:
+            await pilot.pause(0.15)
+            await pilot.press("space")
+            await pilot.pause(0.2)
+            await pilot.press("space")
+            await pilot.pause(0.2)
+            assert calls == [True, False]
+            await pilot.press("q")
+
+    @pytest.mark.asyncio
     async def test_toggle_rulers(self):
         ctrl = FakeController()
         app = MonitorApp(ctrl)

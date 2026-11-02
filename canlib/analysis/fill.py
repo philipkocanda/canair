@@ -52,6 +52,7 @@ __all__ = [
     "forced_hold_warning",
     "format_hold_duration",
     "hold_until_vector",
+    "next_gap_starts",
     "parse_fill_mode",
     "session_end_times",
     "session_key",
@@ -152,6 +153,7 @@ def hold_until_vector(
     *,
     session_ends: dict[SessionKey, datetime],
     policy: FillPolicy,
+    respect_gaps: bool = True,
 ) -> list[datetime | None]:
     """When each row's value stops being known, aligned with ``entries``/``dts``.
 
@@ -161,10 +163,12 @@ def hold_until_vector(
     not eligible for filling, or with nothing to fill into.
 
     The window is ``min(next capture of this PID in the same session, that
-    session's end, the session's next disconnect, this row's timestamp +
-    max_hold_s)``. A disconnect (:mod:`canlib.captures.link_events`) bounds it
-    because nothing was observed during one: under ``keep:changes`` the absence of a
-    row there is no evidence that the value held. Rows are visited in time
+    session's end, the next recorded gap covering its ECU/PID, this row's timestamp +
+    max_hold_s)``. A gap (:mod:`canlib.captures.link_events`: a disconnect, a pause,
+    the ECU falling silent, the PID taken out of the poll set) bounds it because
+    nothing was gathered during one: under ``keep:changes`` the absence of a row there
+    is no evidence that the value held. ``respect_gaps=False`` leaves gaps out, which
+    is how a report counts the carries they stopped. Rows are visited in time
     order to find each one's successor, but the result is returned in **input
     order** so a caller can zip it against an unsorted frame list.
     """
@@ -185,14 +189,14 @@ def hold_until_vector(
     for key, i in open_row.items():
         holds[i] = session_ends.get(key)
 
-    gap_starts: dict[SessionKey, list[datetime]] = {}
+    cuts = next_gap_starts(entries, dts) if respect_gaps else [None] * n
     cap = timedelta(seconds=policy.max_hold_s) if policy.max_hold_s else None
     for i in range(n):
         if not policy.allows(entries[i]):
             holds[i] = None
             continue
         until = holds[i]
-        cut = _next_gap_start(entries[i], dts[i], gap_starts)
+        cut = cuts[i]
         if cut is not None and (until is None or cut < until):
             until = cut
         if cap is not None:
@@ -204,21 +208,36 @@ def hold_until_vector(
     return holds
 
 
-def _next_gap_start(
-    entry: CaptureEntry, dt: datetime, cache: dict[SessionKey, list[datetime]]
-) -> datetime | None:
-    """The first disconnect of ``entry``'s session starting at or after ``dt``, if any."""
-    key = session_key(entry)
-    starts = cache.get(key)
-    if starts is None:
-        starts = []
-        day = entry_date(entry)
-        if day is not None:
-            for start, _end in gap_intervals(entry.get("session_link_events") or []):
-                starts.append(datetime.combine(day, time()) + timedelta(seconds=start))
-        cache[key] = starts
-    idx = bisect_left(starts, dt)
-    return starts[idx] if idx < len(starts) else None
+def next_gap_starts(
+    entries: Sequence[CaptureEntry], dts: Sequence[datetime]
+) -> list[datetime | None]:
+    """For each row, the start of the first gap covering it at or after its timestamp.
+
+    Parallel to ``entries``/``dts``. A gap covers a row when it is one of the row's own
+    session's link events and is unscoped, or scoped to the row's ECU (and PID).
+    """
+    cache: dict[tuple[SessionKey, str, str], list[datetime]] = {}
+    out: list[datetime | None] = []
+    for entry, dt in zip(entries, dts, strict=True):
+        events = entry.get("session_link_events") or []
+        if not events:
+            out.append(None)
+            continue
+        rx = str(entry.get("ecu_addr") or "")
+        pid = str(entry.get("pid") or "")
+        key = (session_key(entry), rx, pid)
+        starts = cache.get(key)
+        if starts is None:
+            starts = []
+            day = entry_date(entry)
+            if day is not None:
+                midnight = datetime.combine(day, time())
+                for start, _end in gap_intervals(events, rx or None, pid or None):
+                    starts.append(midnight + timedelta(seconds=start))
+            cache[key] = starts
+        idx = bisect_left(starts, dt)
+        out.append(starts[idx] if idx < len(starts) else None)
+    return out
 
 
 def format_hold_duration(seconds: float) -> str:

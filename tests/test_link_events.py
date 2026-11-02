@@ -126,7 +126,10 @@ class TestReaders:
 
     def test_summarize_measures_an_open_gap_to_the_session_end(self):
         summary = summarize(EVENTS, session_end=51030.0)
-        assert summary == {"disconnects": 2, "gap_seconds": 90.0, "resyncs": 2}
+        assert set(summary) == {"disconnect", "resync"}
+        assert summary["disconnect"].count == 2
+        assert summary["disconnect"].seconds == 90.0
+        assert summary["resync"].count == 2
 
     def test_session_link_events_tolerates_a_malformed_block(self):
         assert session_link_events({"link_events": "nope"}) == []
@@ -198,9 +201,11 @@ class _ListJournal:
 
     def __init__(self):
         self.rows: list[tuple] = []
+        self.scopes: list[dict] = []
 
-    def append_event(self, kind, at, *, event_id=None, cause=None, count=None):
-        self.rows.append(("event", kind, at, event_id, cause, count))
+    def append_event(self, kind, at, *, event_id=None, **scope):
+        self.rows.append(("event", kind, at, event_id, scope.get("cause"), scope.get("count")))
+        self.scopes.append({"kind": kind, "id": event_id, **scope})
 
     def append_event_end(self, event_id, at):
         self.rows.append(("end", event_id, at))
@@ -391,7 +396,7 @@ class TestValidateWarning:
         path = tmp_path / f"{DAY}.json"
         capture_io.dump_capture_file(path, {"sessions": [_session(events)]})
         (warning,) = link_event_warnings(path)
-        assert "1 payload capture(s) timed inside a recorded disconnect" in str(warning)
+        assert "1 payload capture(s) timed inside a recorded gap" in str(warning)
 
     def test_payloads_at_the_bounds_do_not_warn(self, tmp_path):
         from canlib.commands.validate.link_events import link_event_warnings
@@ -400,3 +405,396 @@ class TestValidateWarning:
         path = tmp_path / f"{DAY}.json"
         capture_io.dump_capture_file(path, {"sessions": [_session(events)]})
         assert link_event_warnings(path) == []
+
+
+# ---------------------------------------------------------------------------
+# Scoped gaps: paused, ecu_silent, unpolled, backoff
+# ---------------------------------------------------------------------------
+
+
+class TestScopedEvents:
+    def test_scoped_kinds_keep_their_scope_and_need_an_ecu(self):
+        recs = [
+            {"type": "event", "id": 1, "kind": "ecu_silent", "rx": "0x7EC", "at": "14:00:00"},
+            {
+                "type": "event",
+                "id": 2,
+                "kind": "unpolled",
+                "rx": "0x7EC",
+                "pid": "2105",
+                "at": "14:00:01",
+            },
+            {
+                "type": "event",
+                "id": 3,
+                "kind": "backoff",
+                "rx": "0x7EA",
+                "factor": 4,
+                "at": "14:00:02",
+            },
+            {"type": "event", "id": 4, "kind": "ecu_silent", "at": "14:00:03"},  # no ECU
+            {
+                "type": "event",
+                "id": 5,
+                "kind": "backoff",
+                "rx": "0x7EA",
+                "at": "14:00:04",
+            },  # no factor
+            {"type": "event", "id": 6, "kind": "unpolled", "rx": "BMS", "at": "14:00:05"},  # a name
+        ]
+        out = events_by_date(recs, DAY)[DAY]
+        assert out == [
+            {"at": "14:00:00", "kind": "ecu_silent", "rx": "0x7EC"},
+            {"at": "14:00:01", "kind": "unpolled", "rx": "0x7EC", "pid": "2105"},
+            {"at": "14:00:02", "kind": "backoff", "rx": "0x7EA", "factor": 4},
+        ]
+
+    def test_applies_to(self):
+        from canlib.captures.link_events import applies_to
+
+        whole = {"kind": "disconnect"}
+        ecu = {"kind": "ecu_silent", "rx": "0x7EC"}
+        pid = {"kind": "unpolled", "rx": "0x7EC", "pid": "2105"}
+        assert applies_to(whole) and applies_to(whole, "0x7EA", "2101")
+        assert applies_to(ecu, "0x7ec", "2101") and not applies_to(ecu, "0x7EA", "2101")
+        assert not applies_to(ecu)  # a session-wide question
+        assert applies_to(pid, "0x7EC", "2105") and not applies_to(pid, "0x7EC", "2101")
+
+    def test_gap_intervals_by_scope_and_kind(self):
+        from canlib.captures.link_events import SESSION_GAP_KINDS
+
+        events = [
+            {"at": "14:00:00", "until": "14:00:10", "kind": "paused"},
+            {"at": "14:01:00", "until": "14:01:10", "kind": "ecu_silent", "rx": "0x7EC"},
+            {"at": "14:02:00", "kind": "backoff", "rx": "0x7EC", "factor": 2},  # not a gap
+        ]
+        assert len(gap_intervals(events, "0x7EC", "2101")) == 2
+        assert len(gap_intervals(events, "0x7EA", "2101")) == 1
+        assert len(gap_intervals(events, "0x7EC", "2101", kinds=SESSION_GAP_KINDS)) == 1
+
+    def test_summarize_per_kind(self):
+        events = [
+            {"at": "14:00:00", "until": "14:00:30", "kind": "ecu_silent", "rx": "0x7EC"},
+            {"at": "14:01:00", "until": "14:01:10", "kind": "ecu_silent", "rx": "0x7EA"},
+            {"at": "14:02:00", "until": "14:03:00", "kind": "backoff", "rx": "0x7EC", "factor": 2},
+            {"at": "14:03:00", "kind": "backoff", "rx": "0x7EC", "factor": 8},
+        ]
+        summary = summarize(events, session_end=parse_key("14:05:00"))
+        assert summary["ecu_silent"].count == 2
+        assert summary["ecu_silent"].seconds == 40.0
+        assert summary["ecu_silent"].rxs == ["0x7EC", "0x7EA"]
+        assert summary["backoff"].factor == 8
+        assert summary["backoff"].seconds == 180.0
+
+    def test_a_scoped_journal_round_trip_validates(self, tmp_path):
+        j = CaptureJournal.open(tmp_path, label="drive")
+        j.append("0x7EC", "2101", "6101AA", "14:00:00.000", DAY)
+        j.append_event("unpolled", _at(1), event_id=1, rx="0x7EC", pid="2105")
+        j.append_event("backoff", _at(2), event_id=2, rx="0x7EA", factor=4)
+        j.append_event_end(2, _at(9))
+        data = capture_io.load_capture_file(j.reconcile())
+        assert list(_schema_validator().iter_errors(data)) == []
+        assert data["sessions"][0]["link_events"][1] == {
+            "at": "14:00:02.000",
+            "kind": "backoff",
+            "rx": "0x7EA",
+            "factor": 4,
+            "until": "14:00:09.000",
+        }
+
+
+def parse_key(raw: str) -> float:
+    from canlib.states.spans import parse_time_key
+
+    key = parse_time_key(raw)
+    assert key is not None
+    return key
+
+
+RX = {"BMS": "0x7EC", "VCU": "0x7EA"}
+
+
+class TestScopedTracker:
+    def _tracker(self):
+        journal, clock = _ListJournal(), _Clock(_at(100))
+        tracker = LinkEventTracker(lambda: journal, rx_of=RX.get, clock=clock)
+        return tracker, journal, clock
+
+    def test_an_ecu_goes_silent_after_three_misses_while_others_answer(self):
+        tracker, journal, _clock = self._tracker()
+        tracker.answered(_at(5).timestamp(), ecu="BMS")
+        for _ in range(2):
+            tracker.ecu_polled("BMS", answered=False, link_ok=True)
+        assert journal.scopes == []
+        tracker.ecu_polled("BMS", answered=False, link_ok=True)
+        assert journal.scopes == [{"kind": "ecu_silent", "id": 1, "rx": "0x7EC"}]
+        assert journal.rows[0][2] == _at(5)  # from its last answer
+        tracker.answered(_at(120).timestamp(), ecu="BMS")
+        assert journal.rows[-1] == ("end", 1, _at(120))
+
+    def test_misses_during_a_disconnect_do_not_count(self):
+        tracker, journal, _clock = self._tracker()
+        for _ in range(5):
+            tracker.ecu_polled("BMS", answered=False, link_ok=False)
+        assert journal.scopes == []
+
+    def test_an_answer_resets_the_count(self):
+        tracker, journal, _clock = self._tracker()
+        for answered in (False, False, True, False, False):
+            tracker.ecu_polled("BMS", answered=answered, link_ok=True)
+        assert journal.scopes == []
+
+    def test_an_ecu_without_an_address_records_nothing(self):
+        tracker, journal, _clock = self._tracker()
+        for _ in range(3):
+            tracker.ecu_polled("XYZ", answered=False, link_ok=True)
+        tracker.backoff("XYZ", 4)
+        assert journal.scopes == []
+
+    def test_backoff_is_one_interval_per_factor(self):
+        tracker, journal, clock = self._tracker()
+        tracker.backoff("BMS", 2)
+        clock.at = _at(110)
+        tracker.backoff("BMS", 4)
+        clock.at = _at(120)
+        tracker.backoff("BMS", 1)
+        assert [r[0] for r in journal.rows] == ["event", "end", "event", "end"]
+        assert [s.get("factor") for s in journal.scopes] == [2, 4]
+        assert not tracker.is_open("backoff", "BMS")
+
+    def test_pause_and_resume(self):
+        tracker, journal, clock = self._tracker()
+        tracker.paused(True)
+        tracker.paused(True)
+        clock.at = _at(140)
+        tracker.paused(False)
+        assert journal.rows == [
+            ("event", "paused", _at(100), 1, None, None),
+            ("end", 1, _at(140)),
+        ]
+
+    def test_a_dropped_pid_is_unpolled_until_readded(self):
+        tracker, journal, clock = self._tracker()
+        both = {("BMS", "2101"), ("BMS", "2105")}
+        tracker.poll_set_changed(both, {("BMS", "2101")})
+        assert journal.scopes == [{"kind": "unpolled", "id": 1, "rx": "0x7EC", "pid": "2105"}]
+        clock.at = _at(130)
+        tracker.poll_set_changed({("BMS", "2101")}, both)
+        assert journal.rows[-1] == ("end", 1, _at(130))
+
+    def test_a_dropped_ecu_is_one_event_split_when_partly_readded(self):
+        tracker, journal, clock = self._tracker()
+        old = {("BMS", "2101"), ("BMS", "2105"), ("VCU", "2101")}
+        tracker.poll_set_changed(old, {("VCU", "2101")})
+        assert journal.scopes == [{"kind": "unpolled", "id": 1, "rx": "0x7EC"}]
+        clock.at = _at(130)
+        tracker.poll_set_changed({("VCU", "2101")}, {("VCU", "2101"), ("BMS", "2101")})
+        assert journal.rows[-2] == ("end", 1, _at(130))
+        assert journal.scopes[-1] == {"kind": "unpolled", "id": 2, "rx": "0x7EC", "pid": "2105"}
+
+    def test_rotation_restates_every_open_event(self):
+        first, second = _ListJournal(), _ListJournal()
+        current = {"j": first}
+        tracker = LinkEventTracker(lambda: current["j"], rx_of=RX.get, clock=_Clock(_at(1)))
+        tracker.paused(True)
+        tracker.backoff("VCU", 8)
+        current["j"] = second
+        tracker.segment_rotated()
+        assert [s["kind"] for s in second.scopes] == ["paused", "backoff"]
+        assert second.scopes[1]["factor"] == 8
+
+
+class TestControllerScopedHooks:
+    def _controller(self):
+        from canlib.modes.monitor import MonitorController
+
+        c = MonitorController(object(), [], {"ecus": {}}, verbose=False)
+        journal = _ListJournal()
+        c.link_events = LinkEventTracker(lambda: journal, rx_of={"BMS": "0x7EC"}.get)
+        return c, journal
+
+    def test_a_silent_ecu_among_answering_ones(self):
+        from canlib.poll_backoff import PollCost
+
+        c, journal = self._controller()
+        for _ in range(3):
+            c._cycle_answered = True  # VCU answered this tick
+            c.ecu_costs = {
+                "BMS": PollCost(reads=2, answered=0),
+                "VCU": PollCost(reads=1, answered=1),
+            }
+            c._observe_ecu_answers()
+        assert journal.scopes == [{"kind": "ecu_silent", "id": 1, "rx": "0x7EC"}]
+
+    def test_backoff_changes_are_recorded(self, monkeypatch):
+        from canlib.poll_backoff import PollCost
+
+        c, journal = self._controller()
+        monkeypatch.setattr(c.backoff, "observe", lambda _ecu, _cost: 4)
+        c.ecu_costs = {"BMS": PollCost(reads=1, answered=0)}
+        c._apply_backoff()
+        assert journal.scopes == [{"kind": "backoff", "id": 1, "rx": "0x7EC", "factor": 4}]
+
+
+class TestScopedFill:
+    def _rows(self, events, rx="0x7EC", pid="2101"):
+        from canlib.analysis.fill import FillPolicy, hold_until_vector, session_end_times
+
+        rows = []
+        for sec in (0, 600):
+            rows.append(
+                {
+                    "file": f"{DAY}.json",
+                    "_session_idx": 0,
+                    "keep_mode": "changes",
+                    "date": DAY,
+                    "time": _at(sec).strftime("%H:%M:%S.%f"),
+                    "ecu_addr": rx,
+                    "pid": pid,
+                    "session_link_events": events,
+                }
+            )
+        dts = [_at(0), _at(600)]
+        return hold_until_vector(
+            rows, dts, session_ends=session_end_times(rows), policy=FillPolicy()
+        )
+
+    def test_a_silent_ecu_cuts_only_its_own_rows(self):
+        events = [{"at": "14:00:30.000", "kind": "ecu_silent", "rx": "0x7EC"}]
+        assert self._rows(events)[0] == _at(30)
+        assert self._rows(events, rx="0x7EA")[0] == _at(600)
+
+    def test_an_unpolled_pid_cuts_only_that_pid(self):
+        events = [{"at": "14:00:30.000", "kind": "unpolled", "rx": "0x7EC", "pid": "2105"}]
+        assert self._rows(events, pid="2105")[0] == _at(30)
+        assert self._rows(events, pid="2101")[0] == _at(600)
+
+    def test_a_backoff_does_not_cut(self):
+        events = [{"at": "14:00:30.000", "kind": "backoff", "rx": "0x7EC", "factor": 4}]
+        assert self._rows(events)[0] == _at(600)
+
+
+class TestFillReport:
+    def test_cut_carries_are_counted_and_reported(self):
+        from canlib.analysis.align import LoadedPid
+        from canlib.analysis.fill import FillPolicy, session_end_times
+        from canlib.commands._join import fill_summaries, fill_summary_line
+
+        events = [{"at": "14:01:00.000", "until": "14:02:00.000", "kind": "disconnect"}]
+        caps = [
+            {
+                "file": f"{DAY}.json",
+                "_session_idx": 0,
+                "keep_mode": "changes",
+                "date": DAY,
+                "time": _at(sec).strftime("%H:%M:%S.%f"),
+                "ecu_addr": "0x7EC",
+                "pid": "2101",
+                "payload": "6101AA",
+                "session_link_events": events,
+            }
+            for sec in (0, 600)
+        ]
+        lp = LoadedPid("BMS", "2101", captures=caps, session_ends=session_end_times(caps))
+        (summary,) = fill_summaries([lp], FillPolicy(), tol_s=5.0)
+        assert summary.n_cut == 1
+        assert summary.as_json()["gap_cut_rows"] == 1
+        line = fill_summary_line([summary], FillPolicy())
+        assert line is not None and "1 value not carried into a recorded gap" in line
+
+
+class TestInferredGaps:
+    def _times(self, *secs):
+        return [_at(s).strftime("%H:%M:%S.%f")[:-3] for s in secs]
+
+    def test_a_long_hole_in_a_keep_all_session_is_inferred(self):
+        from canlib.captures.inferred_gaps import infer_gaps
+
+        times = self._times(*range(0, 20, 2), 200, 202)
+        assert infer_gaps(times) == [(parse_key("14:00:18"), parse_key("14:03:20"))]
+
+    def test_run_length_sessions_and_short_sessions_infer_nothing(self):
+        from canlib.captures.inferred_gaps import infer_gaps
+
+        times = self._times(*range(0, 20, 2), 200)
+        assert infer_gaps(times, keep_mode="changes") == []
+        assert infer_gaps(self._times(0, 200)) == []
+
+    def test_a_recorded_gap_explains_the_hole(self):
+        from canlib.captures.inferred_gaps import infer_gaps
+
+        times = self._times(*range(0, 20, 2), 200, 202)
+        events = [{"at": "14:00:18.000", "until": "14:03:20.000", "kind": "disconnect"}]
+        assert infer_gaps(times, events) == []
+
+    def test_the_spacing_scales_the_threshold(self):
+        from canlib.captures.inferred_gaps import infer_gaps
+
+        # One PID polled once a minute: a two-minute hole is not ten times its spacing.
+        assert infer_gaps(self._times(*range(0, 600, 60), 720)) == []
+
+    def test_sessions_view_prints_inferred_gaps(self, tmp_path, capsys):
+        from canlib.captures.store import flatten_session
+        from canlib.commands.captures.sessions import cmd_sessions
+
+        session = _session([], times=self._times(*range(0, 20, 2), 200, 202))
+        del session["link_events"]
+        entries = flatten_session(tmp_path / f"{DAY}.json", 0, session, rx_index={})
+        cmd_sessions(entries)
+        assert "inferred gaps: 1" in capsys.readouterr().out
+        cmd_sessions(entries, as_json=True)
+        out = json.loads(capsys.readouterr().out)
+        assert out[0]["inferred_gaps"] == [{"at": "14:00:18", "until": "14:03:20"}]
+
+
+class TestStepGaps:
+    def _entry(self, sec, events, rx="0x7EC", pid="2101"):
+        return {
+            "_path": "x.json",
+            "_session_idx": 0,
+            "ecu": "BMS",
+            "ecu_addr": rx,
+            "pid": pid,
+            "time": _at(sec).strftime("%H:%M:%S.%f"),
+            "session_link_events": events,
+        }
+
+    def test_a_gap_between_two_frames_is_reported_once(self):
+        from canlib.commands.captures.step_gaps import describe_gap, gaps_before
+
+        events = [{"at": "14:00:10.000", "until": "14:01:10.000", "kind": "disconnect"}]
+        a, b, c = (self._entry(s, events) for s in (0, 80, 90))
+        (gap,) = gaps_before([b], _at(80), [a], _at(0))
+        assert describe_gap(gap, {}) == "disconnect 14:00:10-14:01:10 (1m)"
+        assert gaps_before([c], _at(90), [b], _at(80)) == []
+
+    def test_scoped_gaps_show_only_for_the_ecu_in_view(self):
+        from canlib.commands.captures.step_gaps import describe_gap, gaps_before
+
+        events = [{"at": "14:00:10.000", "kind": "ecu_silent", "rx": "0x7EC"}]
+        mine = self._entry(80, events)
+        other = self._entry(80, events, rx="0x7EA")
+        (gap,) = gaps_before([mine], _at(80), [self._entry(0, events)], _at(0))
+        assert describe_gap(gap, {"0X7EC": "BMS"}) == "BMS silent from 14:00:10"
+        assert gaps_before([other], _at(80), [self._entry(0, events, rx="0x7EA")], _at(0)) == []
+
+
+class TestExplorerGaps:
+    def test_session_wide_gaps_are_exported_as_offsets(self):
+        from canlib.explorer.series import _Clock, _gaps
+
+        session = {
+            "link_events": [
+                {"at": "14:00:10.000", "until": "14:00:20.000", "kind": "disconnect"},
+                {"at": "14:00:30.000", "kind": "paused"},
+                {"at": "14:00:40.000", "kind": "ecu_silent", "rx": "0x7EC"},
+                {"at": "14:00:45.000", "kind": "resync"},
+            ]
+        }
+        clock = _Clock()
+        origin = clock("14:00:00.000")
+        assert origin is not None
+        assert _gaps(session, clock, origin, 60_000) == [
+            {"t": 10_000, "end": 20_000, "kind": "disconnect"},
+            {"t": 30_000, "end": 60_000, "kind": "paused"},
+        ]

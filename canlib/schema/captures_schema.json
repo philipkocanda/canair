@@ -45,7 +45,7 @@
         },
         "quality": { "$ref": "#/$defs/quality" },
         "link_events": {
-          "description": "When the recording could not see the car, and why: intervals in which no ECU answered coherently ('disconnect') and instants at which the transport realigned a desynchronised pipe ('resync'). Recorded live by the monitor, never derived from payloads (so never rebuilt by a back-fill). Explains a gap in the timestamps, and bounds forward fill. Absent when nothing happened, and on sessions recorded before it existed.",
+          "description": "When the recording could not see the car, and why. Gaps (nothing was gathered for their scope): 'disconnect' (no ECU answered coherently), 'paused' (polling was paused), 'ecu_silent' (one ECU stopped answering while others still did), 'unpolled' (a PID, or a whole ECU, was taken out of the poll set). Not gaps: 'backoff' (a slow ECU was polled less often) and 'resync' (an instant: the transport realigned a desynchronised pipe). Recorded live by the monitor, never derived from payloads (so never rebuilt by a back-fill). Explains holes and sparse stretches in the timestamps, and bounds forward fill. Absent when nothing happened, and on sessions recorded before it existed.",
           "type": "array",
           "items": { "$ref": "#/$defs/link_event" }
         },
@@ -161,23 +161,37 @@
       "type": "object",
       "required": ["at", "kind"],
       "additionalProperties": false,
-      "description": "One link event. Enums and counts only, never free text: an error message can name a device address, and capture files are shared.",
+      "description": "One link event. Enums, addresses and counts only, never free text: an error message can name a device address, and capture files are shared.",
       "properties": {
         "at": {
-          "description": "When it began, HH:MM:SS[.fff] on the session's own date. For a disconnect: the last coherent answer before the drop.",
+          "description": "When it began, HH:MM:SS[.fff] on the session's own date. A disconnect or ecu_silent begins at the last coherent answer before it.",
           "type": "string"
         },
         "until": {
-          "description": "When an interval event ended (a disconnect: the first coherent answer after it). Absent on an interval event = it lasted until the recording ended.",
+          "description": "When an interval event ended (a disconnect or ecu_silent: the first coherent answer after it). Absent on an interval event = it lasted until the recording ended.",
           "type": "string"
         },
         "kind": {
-          "description": "'disconnect' (an interval with no usable data from any ECU) or 'resync' (an instant: the transport realigned its pipe).",
-          "enum": ["disconnect", "resync"]
+          "description": "See the session's link_events.",
+          "enum": ["disconnect", "paused", "ecu_silent", "unpolled", "backoff", "resync"]
+        },
+        "rx": {
+          "description": "The ECU an ecu_silent, unpolled or backoff event is about: its CAN response address, as a capture's rx. Absent = the whole session.",
+          "type": "string",
+          "pattern": "^0x[0-9A-Fa-f]{3,8}$"
+        },
+        "pid": {
+          "description": "The PID an unpolled event is about. Absent on an unpolled event = every PID of its ECU.",
+          "type": "string"
         },
         "cause": {
           "description": "Why a disconnect began: 'error' (the transport raised), 'stale' (several poll cycles with no coherent answer), 'manual' (a user-requested reconnect).",
           "enum": ["error", "stale", "manual"]
+        },
+        "factor": {
+          "description": "How many times less often a backoff polled its ECU.",
+          "type": "integer",
+          "minimum": 2
         },
         "count": {
           "description": "How many resyncs landed in one poll cycle, when more than one.",

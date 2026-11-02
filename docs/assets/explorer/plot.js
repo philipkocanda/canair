@@ -72,7 +72,7 @@
       });
     });
     var step = Math.max(1000, Math.ceil(doc.dur / GRID_POINTS / 1000) * 1000);
-    return { entry: entry, doc: doc, dur: doc.dur, signals: signals, step: step, n: Math.floor(doc.dur / step) + 1, spans: doc.spans || [], heat: null, grids: null };
+    return { entry: entry, doc: doc, dur: doc.dur, signals: signals, step: step, n: Math.floor(doc.dur / step) + 1, spans: doc.spans || [], gaps: doc.gaps || [], heat: null, grids: null };
   }
 
   function valueAt(sig, tMs) {
@@ -81,14 +81,19 @@
       var mid = (lo + hi) >> 1;
       if (sig.t[mid] <= tMs) { idx = mid; lo = mid + 1; } else hi = mid - 1;
     }
-    return idx < 0 || tMs - sig.t[idx] > sig.hold ? NaN : sig.v[idx];
+    return idx < 0 || tMs - sig.t[idx] > sig.hold || A.crossesGap(V.S && V.S.gaps, sig.t[idx], tMs) ? NaN : sig.v[idx];
   }
 
-  /** One shared time axis (seconds) for the chosen signals, each held to every instant. */
+  /**
+   * One shared time axis (seconds) for the chosen signals, each held to every instant. A
+   * recorded gap's start is a point of its own, blank for every signal, so a held line
+   * stops where the recording could not see the car instead of bridging the gap.
+   */
   function align(S, keys) {
-    var total = 0;
+    var total = S.gaps.length;
     keys.forEach(function (k) { total += S.signals[k].t.length; });
     var all = new Float64Array(total), at = 0;
+    S.gaps.forEach(function (g) { all[at++] = g.t; });
     keys.forEach(function (k) { all.set(S.signals[k].t, at); at += S.signals[k].t.length; });
     all.sort();
     var ts = [];
@@ -98,7 +103,7 @@
       var sig = S.signals[k], out = new Array(ts.length), j = -1;
       for (var i = 0; i < ts.length; i++) {
         while (j + 1 < sig.t.length && sig.t[j + 1] <= ts[i]) j++;
-        var ok = j >= 0 && ts[i] - sig.t[j] <= sig.hold && sig.v[j] === sig.v[j];
+        var ok = j >= 0 && ts[i] - sig.t[j] <= sig.hold && sig.v[j] === sig.v[j] && !A.crossesGap(S.gaps, sig.t[j], ts[i]);
         out[i] = ok ? sig.v[j] : null;
       }
       ys[k] = out;
@@ -299,6 +304,7 @@
       e.keep_mode === "unique" ? el("div", { class: "cx-note" }, "Recorded with the older keep-unique mode: a value that went back to one seen earlier " +
         "was not stored, so a line can stay flat after the signal actually changed back. Treat timings and the analysis below with care.") : null,
       e.quality && (e.quality.drop || e.quality.stale) ? el("div", { class: "cx-note" }, "Link quality: " + (e.quality.drop || 0) + " dropped and " + (e.quality.stale || 0) + " stale frames during this recording.") : null,
+      S.gaps.length ? el("div", { class: "cx-note" }, gapNote(S.gaps)) : null,
       e.notes ? el("details", {}, el("summary", {}, "Notes"), X.notes(e.notes)) : null);
     V.heat = el("div", { class: "cx-heat" });
     V.controls = el("div", { class: "cx-controls" });
@@ -308,6 +314,18 @@
     fill(V.main, V.head, V.heat, V.controls, V.lanes, V.readout, V.discover, V.cli = el("div", {}));
     if (window.canairDiscover) window.canairDiscover.heat(V);
     V.draw();
+  }
+
+  /** "2 disconnects (1m 10s) and 1 pause (40s), shaded on the plots". */
+  function gapNote(gaps) {
+    var by = {};
+    gaps.forEach(function (g) { var k = by[g.kind] = by[g.kind] || { n: 0, ms: 0 }; k.n++; k.ms += g.end - g.t; });
+    var words = { disconnect: ["disconnect", "disconnects"], paused: ["pause", "pauses"] };
+    var parts = Object.keys(by).map(function (k) {
+      var w = words[k] || [k, k];
+      return by[k].n + " " + w[by[k].n === 1 ? 0 : 1] + " (" + duration(by[k].ms) + ")";
+    });
+    return "Recording gaps: " + parts.join(" and ") + ", shaded on the plots. Nothing was gathered there, so no line bridges them.";
   }
 
   function setRange(a, b) {
@@ -472,6 +490,12 @@
       ribbon.forEach(function (row, i) { ctx.fillText(row.state, b.left - 6 * dpr, b.top - ribbonH * dpr + (i * RIBBON_ROW + RIBBON_ROW - 1) * dpr); });
     }
     ctx.beginPath(); ctx.rect(b.left, b.top, b.width, b.height); ctx.clip();
+    ctx.fillStyle = textColor; ctx.globalAlpha = 0.08;
+    V.S.gaps.forEach(function (g) {
+      var x0 = u.valToPos(g.t / 1000, "x", true), x1 = u.valToPos(g.end / 1000, "x", true);
+      if (x1 > x0) ctx.fillRect(x0, b.top, x1 - x0, b.height);
+    });
+    ctx.globalAlpha = 1;
     ctx.strokeStyle = textColor; ctx.lineWidth = dpr; ctx.setLineDash([4 * dpr, 3 * dpr]);
     V.pins.forEach(function (t) {
       var x = u.valToPos(t, "x", true);

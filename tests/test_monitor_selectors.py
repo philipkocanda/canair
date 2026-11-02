@@ -27,6 +27,14 @@ class _State:
         self.forgotten.append((ecu, pid))
 
 
+class _LinkEvents:
+    def __init__(self) -> None:
+        self.changes: list[tuple[set, set]] = []
+
+    def poll_set_changed(self, old, new) -> None:
+        self.changes.append((set(old), set(new)))
+
+
 def _pid(swept: bool = True) -> dict:
     return {"parameters": {"x": {}}, "status": "active" if swept else "slow", "swept": swept}
 
@@ -42,6 +50,7 @@ def _controller(steps: list[dict]) -> SimpleNamespace:
         include_static=False,
         schedule=_Schedule(),
         state=_State(),
+        link_events=_LinkEvents(),
         _last_good={("BMS (0x7E4)", "2105", "x"): 1, ("VCU (0x7E2)", "2101", "x"): 2},
         _last_shown={("BMS (0x7E4)", "2105", "x"): 1},
     )
@@ -70,6 +79,8 @@ class TestApply:
         assert ("BMS (0x7E4)", "2105", "x") not in c._last_good
         assert c._last_shown == {}
         assert c.schedule.woken == 0
+        # The dropped PID is reported, so the recording marks it unpolled.
+        assert c.link_events.changes == [({("BMS", "2101"), ("BMS", "2105")}, {("BMS", "2101")})]
 
     def test_keeps_poll_order_and_appends_new_ecus(self):
         c = _controller([_q("VCU", "2102"), _q("BMS", "2101")])

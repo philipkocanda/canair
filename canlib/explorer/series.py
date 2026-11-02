@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any
 
 from canlib.captures import io as capture_io
+from canlib.captures.link_events import SESSION_GAP_KINDS, session_link_events
 from canlib.captures.merge import session_anchor
 from canlib.expression.decoding import decode_param_rows
 from canlib.pids import load_pids, pid_status
@@ -104,6 +105,28 @@ def _spans(session: Mapping[str, Any], clock: _Clock, origin_ms: float) -> list[
     return spans
 
 
+def _gaps(
+    session: Mapping[str, Any], clock: _Clock, origin_ms: float, duration: int
+) -> list[dict[str, Any]]:
+    """The session-wide recorded gaps (disconnects, pauses), as ms from the session start.
+
+    An open one (the recording ended inside it) runs to the end of the session.
+    """
+    gaps = []
+    for event in session_link_events(session):
+        if event.get("kind") not in SESSION_GAP_KINDS:
+            continue
+        start = clock(event.get("at"))
+        if start is None:
+            continue
+        end = clock(event.get("until"))
+        t = max(round(start - origin_ms), 0)
+        stop = min(round(end - origin_ms), duration) if end is not None else duration
+        if stop > t:
+            gaps.append({"t": t, "end": stop, "kind": event["kind"]})
+    return gaps
+
+
 def _parameters(ecu_def: Mapping, pid: str) -> dict | None:
     """The signals to plot for one PID; None for an ignored or sensitive one."""
     for key, pid_def in (ecu_def.get("pids") or {}).items():
@@ -174,6 +197,8 @@ def _session(
     doc: dict[str, Any] = {"t0": f"{date}T{start}", "dur": duration, "streams": streams}
     if spans := _spans(session, clock, origin):
         doc["spans"] = spans
+    if gaps := _gaps(session, clock, origin, duration):
+        doc["gaps"] = gaps
     entry = {
         "date": date,
         "start": start,

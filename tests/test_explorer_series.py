@@ -66,7 +66,7 @@ def test_index_and_documents_agree(exported):
 def test_documents_contain_only_decoded_values(exported):
     _root, _data, _index, docs = exported
     for doc in docs.values():
-        assert set(doc) <= {"t0", "dur", "streams", "spans"}
+        assert set(doc) <= {"t0", "dur", "streams", "spans", "gaps"}
         for stream in doc["streams"]:
             assert set(stream) == {"ecu", "pid", "t", "sig"}
             assert all(d >= 0 for d in stream["t"])

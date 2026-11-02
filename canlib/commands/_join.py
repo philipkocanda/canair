@@ -132,6 +132,7 @@ class FillSummary:
     n_held: int  # rows whose value extends past their own timestamp
     n_rows: int  # timed rows for this PID in scope
     max_hold_s: float  # the longest segment
+    n_cut: int = 0  # rows a recorded gap stopped from being carried further
 
     def as_json(self) -> dict:
         return {
@@ -139,6 +140,7 @@ class FillSummary:
             "held_rows": self.n_held,
             "rows": self.n_rows,
             "max_hold_s": round(self.max_hold_s, 3),
+            "gap_cut_rows": self.n_cut,
         }
 
 
@@ -158,25 +160,33 @@ def fill_summaries(
     window covers only instants the strict nearest-join already reached, so it can
     never contribute a row. Without the filter nearly every report grew a "values
     carried forward" note describing 2-second holds that changed nothing.
+
+    ``n_cut`` counts the rows a recorded gap (a disconnect, a pause, a silent ECU, an
+    unpolled PID) stopped short, by the same rule: only a shortening longer than
+    ``tol_s`` could have changed a row.
     """
     out: list[FillSummary] = []
     for lp in loaded:
         holds = lp.timed_holds(policy)
         if not holds:
             continue
-        spans = [
-            span
-            for (dt, _frame), h in zip(lp.timed_frames(), holds, strict=True)
-            if h is not None and (span := (h - dt).total_seconds()) > tol_s
-        ]
-        if not spans:
+        uncut = lp.timed_holds(policy, respect_gaps=False)
+        spans: list[float] = []
+        n_cut = 0
+        for (dt, _frame), h, u in zip(lp.timed_frames(), holds, uncut, strict=True):
+            if h is not None and (span := (h - dt).total_seconds()) > tol_s:
+                spans.append(span)
+            if u is not None and (u - (h or dt)).total_seconds() > tol_s:
+                n_cut += 1
+        if not spans and not n_cut:
             continue
         out.append(
             FillSummary(
                 label=f"{lp.ecu}:{lp.pid}",
                 n_held=len(spans),
                 n_rows=len(holds),
-                max_hold_s=max(spans),
+                max_hold_s=max(spans, default=0.0),
+                n_cut=n_cut,
             )
         )
     return out
@@ -194,7 +204,16 @@ def fill_summary_line(
     """
     if not summaries:
         return None
-    ranked = sorted(summaries, key=lambda s: -s.max_hold_s)
+    cut = sum(s.n_cut for s in summaries)
+    cut_note = (
+        f"; {cut} value{'s' if cut != 1 else ''} not carried into a recorded gap "
+        "(see captures uds --sessions)"
+        if cut
+        else ""
+    )
+    ranked = sorted((s for s in summaries if s.n_held), key=lambda s: -s.max_hold_s)
+    if not ranked:
+        return f"fill: {policy.mode} — nothing carried forward{cut_note}"
     shown = ranked[:top]
     detail = ", ".join(
         f"{s.label} ({s.n_held}/{s.n_rows} rows, up to {format_hold_duration(s.max_hold_s)})"
@@ -205,5 +224,5 @@ def fill_summary_line(
     return (
         f"fill: {policy.mode} — run-length values carried forward from {detail}; "
         "rows at instants these signals were not sampled are reconstructed, "
-        "not measured (--fill none to disable)"
+        f"not measured (--fill none to disable){cut_note}"
     )

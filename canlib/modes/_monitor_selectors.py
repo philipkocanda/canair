@@ -113,6 +113,7 @@ class MonitorSelectors:
 
         new_pairs = self._polled_pairs(steps)
         c.query_steps[:] = steps
+        c.link_events.poll_set_changed(old_pairs, new_pairs)
         for ecu, pid in old_pairs - new_pairs:
             self._forget(ecu, pid)
         if new_pairs - old_pairs:
