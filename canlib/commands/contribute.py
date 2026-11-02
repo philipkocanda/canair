@@ -109,9 +109,9 @@ requires the GitHub CLI:
     parser.add_argument(
         "--include-logs",
         action="store_true",
-        help="Attach the diagnostics log (canair logs) since the first contributed session "
-        "to the PR body, for debugging; device addresses, local paths, emails and VINs are "
-        "scrubbed",
+        help="Attach the diagnostics log (canair logs) entries written while the contributed "
+        "sessions were recording to the PR body, for debugging; device addresses, local "
+        "paths, emails and VINs are scrubbed",
     )
     parser.add_argument(
         "--repo-dir",
@@ -362,8 +362,8 @@ def _pr_body(run_: _Contribution) -> str:
     rendered = S.render_markdown(summary, include_captures=run_.include_captures) if summary else ""
     logs = ""
     if getattr(run_.args, "include_logs", False):
-        dates = summary.dates if summary else []
-        excerpt = L.collect(dates[0] if dates else None)
+        sessions = summary.sessions if summary else []
+        excerpt = L.collect(L.session_windows((s.date, s.start, s.end) for s in sessions))
         logs = L.render_markdown(excerpt)
         run_.rep.note(log_lines=len(excerpt.lines))
         if not run_.rep.json_mode:

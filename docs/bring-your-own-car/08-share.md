@@ -180,10 +180,11 @@ were tagged with, the ECUs and vehicle states covered, the session and capture c
 link quality (transport errors, resyncs, disconnects). A re-run regenerates it. `--dry-run`
 prints it, and `--body` replaces it.
 
-`--include-logs` adds an excerpt of the diagnostics log (`canair logs`) from the day before the
-first contributed session on, so a maintainer can see what your link did. Device addresses,
-local paths, email addresses and VINs are replaced with placeholders, and the excerpt is
-capped to fit the PR description; check it in the `--dry-run` output if you want to be sure.
+`--include-logs` adds the diagnostics log (`canair logs`) entries written while the contributed
+sessions were recording, from shortly before each session's first capture to shortly after its
+last, so a maintainer can see what your link did; other sessions' entries are left out. Device
+addresses, local paths, email addresses and VINs are replaced with placeholders, and the excerpt
+is capped to fit the PR description; check it in the `--dry-run` output if you want to be sure.
 
 !!! tip "Run it from your own checkout"
 

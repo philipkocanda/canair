@@ -31,6 +31,9 @@ class SessionLine:
     errors: int
     disconnects: int
     replaced: bool = False
+    # Local wall-clock times of the first and last capture ("" when untimed).
+    start: str = ""
+    end: str = ""
 
 
 @dataclass
@@ -153,6 +156,9 @@ def _add(out: ContributionSummary, session: dict, rx_names: dict[int, str], *, r
     errors = {k: int(quality.get(k) or 0) for k in _ERROR_KEYS if quality.get(k)}
     events = [e for e in session.get("link_events") or [] if isinstance(e, dict)]
     disconnects = sum(e.get("kind") == "disconnect" for e in events)
+    # Canonical HH:MM:SS[.mmm] times sort as text, and a session never crosses
+    # midnight (a recording spanning it is split into one session per day).
+    times = [t for t in (c.get("time") for c in captures) if isinstance(t, str) and t]
 
     out.sessions.append(
         SessionLine(
@@ -164,6 +170,8 @@ def _add(out: ContributionSummary, session: dict, rx_names: dict[int, str], *, r
             errors=sum(errors.values()),
             disconnects=disconnects,
             replaced=replaced,
+            start=min(times, default=""),
+            end=max(times, default=""),
         )
     )
     out.variants[str(session.get("variant") or "untagged")] += 1

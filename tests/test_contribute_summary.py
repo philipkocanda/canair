@@ -3,9 +3,22 @@
 from __future__ import annotations
 
 import json
+import time
+
+import pytest
 
 from canlib import contribute_logs as L
 from canlib import contribute_summary as S
+
+
+@pytest.fixture
+def local_tz(monkeypatch):
+    """Pin the local time zone (capture times are local, event times UTC)."""
+    monkeypatch.setenv("TZ", "Europe/Amsterdam")
+    time.tzset()
+    yield
+    monkeypatch.undo()
+    time.tzset()
 
 
 def _session(label, *, states=("READY",), rx="0x7EC", quality=None, events=None, **extra):
@@ -87,9 +100,54 @@ class TestLogs:
             assert gone not in clean
         assert "~/x" in clean
 
-    def test_window_and_cap(self):
-        lines = [f"2026-10-0{d}T00:00:00Z WARNING drop :: n{d}" for d in range(1, 10)]
-        excerpt = L.collect("2026-10-05", lines=lines, max_lines=3)
+    def test_window_and_cap(self, local_tz):
+        lines = [f"2026-10-0{d}T10:00:00Z WARNING drop :: n{d}" for d in range(1, 10)]
+        windows = L.session_windows((f"2026-10-0{d}", "", "") for d in range(4, 10))
+        excerpt = L.collect(windows, lines=lines, max_lines=3)
         assert [ln[-2:] for ln in excerpt.lines] == ["n7", "n8", "n9"]
         assert excerpt.total == 6 and excerpt.truncated
         assert "last 3 of 6" in L.render_markdown(excerpt)
+
+    def test_only_events_inside_a_contributed_session(self, local_tz):
+        # 10:00 to 10:30 local (UTC+1 in winter) is 09:00 to 09:30 UTC, widened by the margins.
+        windows = L.session_windows([("2026-11-01", "10:00:00.000", "10:30:00.000")])
+        lines = [
+            "2026-11-01T08:40:00.000000Z WARNING drop run=a :: before the session",
+            "2026-11-01T08:59:00.000000Z WARNING bus run=b :: while connecting",
+            "2026-11-01T09:15:00.000000Z WARNING stale run=b :: mid-session",
+            "2026-11-01T09:30:30.000000Z WARNING drop run=b :: shutting down",
+            "2026-11-01T10:15:00.000000Z WARNING drop run=c :: a later session",
+            "garbage",
+        ]
+        excerpt = L.collect(windows, lines=lines)
+        assert [ln.rsplit(":: ", 1)[1] for ln in excerpt.lines] == [
+            "while connecting",
+            "mid-session",
+            "shutting down",
+        ]
+
+    def test_untimed_session_covers_its_local_day(self, local_tz):
+        window = L.session_window("2026-11-01")
+        assert window is not None
+        lo, hi = window
+        assert lo.isoformat() == "2026-10-31T23:00:00+00:00"
+        assert hi.isoformat() == "2026-11-01T23:00:00+00:00"
+        assert L.session_window("not a date") is None
+
+    def test_no_sessions_attaches_nothing(self):
+        excerpt = L.collect([], lines=["2026-11-01T09:00:00Z WARNING drop :: x"])
+        assert excerpt.lines == []
+        assert "adds no capture sessions" in L.render_markdown(excerpt)
+
+    def test_summary_records_each_session_span(self, tmp_path):
+        session = _session("drive")
+        session["captures"] += [
+            {"rx": "0x7EC", "pid": "2101", "payload": "6102", "time": "10:20:00.500"},
+            {"rx": "0x7EC", "pid": "2101", "payload": "6103", "time": "09:59:59"},
+        ]
+        caps = tmp_path / "captures"
+        caps.mkdir()
+        _write(caps / "2026-11-01.json", [session])
+        summary = S.summarize(caps, profile_name="car", base_reader=lambda rel: None)
+        line = summary.sessions[0]
+        assert (line.date, line.start, line.end) == ("2026-11-01", "09:59:59", "10:20:00.500")

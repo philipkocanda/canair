@@ -29,10 +29,10 @@ options:
   --body BODY          Pull request body (default: generated summary of the
                        car, ECUs, states, sessions and link quality, plus a
                        checklist)
-  --include-logs       Attach the diagnostics log (canair logs) since the
-                       first contributed session to the PR body, for
-                       debugging; device addresses, local paths, emails and
-                       VINs are scrubbed
+  --include-logs       Attach the diagnostics log (canair logs) entries
+                       written while the contributed sessions were recording
+                       to the PR body, for debugging; device addresses, local
+                       paths, emails and VINs are scrubbed
   --repo-dir REPO_DIR  Use this existing canair checkout (with a fork as
                        'origin') instead of the managed fork clone
   --dry-run            Prepare the branch and commit locally, but do not push
