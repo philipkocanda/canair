@@ -81,8 +81,8 @@ class CaptureJournal:
         self.path = path
         self.captures_dir = captures_dir
         self._fh = None
-        self._sensitive: SensitiveSet | None = None
         self._closed = False
+        self._sensitive: SensitiveSet | None = None
 
     # -- lifecycle ---------------------------------------------------------
 
@@ -137,9 +137,9 @@ class CaptureJournal:
         return journal
 
     def _write(self, record: dict, *, durable: bool = False) -> None:
+        assert self._fh is not None
         if not self._admit(record):
             return
-        assert self._fh is not None
         self._fh.write(json.dumps(record, ensure_ascii=False) + "\n")
         if durable:
             self.flush()
