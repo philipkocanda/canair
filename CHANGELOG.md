@@ -15,6 +15,22 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [4.2.0](https://github.com/philipkocanda/canair/compare/v4.1.0...v4.2.0) (2026-11-02)
+
+
+### Added
+
+* **contribute:** describe the contribution in the PR body, add --include-logs ([ac637a1](https://github.com/philipkocanda/canair/commit/ac637a18324f0e78194ef4f613be8a109c086b32))
+* **monitor:** move through the ECU/PID picker with enter ([c7ebfc0](https://github.com/philipkocanda/canair/commit/c7ebfc0d8a3d791e99b8812af393e76e3e1099c7))
+
+
+### Fixed
+
+* **identity:** validate every identity read against its request ([e917ec1](https://github.com/philipkocanda/canair/commit/e917ec18a88d9995ac6aa9276a7dd08aeee0dfb5))
+* **transport:** stop every ELM327 connect from writing the adapter's EEPROM ([e9447e6](https://github.com/philipkocanda/canair/commit/e9447e63068061199085ea257306e6734fd867c8))
+* **uds:** name NRCs for the ECU's protocol on every remaining surface ([69b1604](https://github.com/philipkocanda/canair/commit/69b1604cf93100c6b776af5e13c4110267a2ee71))
+* **uds:** never merge separate single-frame replies into one payload ([cb73328](https://github.com/philipkocanda/canair/commit/cb733283f3a937bee0174ead2730cd18dba6de77))
+
 ## [4.1.0](https://github.com/philipkocanda/canair/compare/v4.0.0...v4.1.0) (2026-11-02)
 
 
