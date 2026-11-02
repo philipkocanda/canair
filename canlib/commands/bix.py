@@ -27,11 +27,11 @@ from canlib.uds.layout import (
     ROLE_PID,
     ROLE_SID,
     ResponseLayout,
-    nrc_name,
     response_layout,
     role_definitions,
 )
 from canlib.uds.notation import subfunction_bytes_for_pid
+from canlib.uds.nrc import nrc_description
 from canlib.uds.services import service_response_name
 from canlib.uds.support_map import MapDecl, ResolvedMap, SupportMapError, declaration, resolve
 
@@ -649,8 +649,14 @@ def _generic_role(isotp_idx: int, sub_bytes: int) -> str:
     return ""
 
 
-def _print_service_line(layout: ResponseLayout, frame: list[tuple[int, int | None]]):
-    """One dim line naming the service the payload came from (and, if negative, why)."""
+def _print_service_line(
+    layout: ResponseLayout, frame: list[tuple[int, int | None]], protocol: str | None = None
+):
+    """One dim line naming the service the payload came from (and, if negative, why).
+
+    ``protocol`` is the ECU's diagnostic protocol when ``--ecu`` names one, so an NRC
+    is named as that ECU means it.
+    """
     name = service_response_name(layout.resp_sid) or "unknown service"
     if layout.negative:
         by_idx = {pi: value for value, pi in frame if pi is not None}
@@ -660,7 +666,7 @@ def _print_service_line(layout: ResponseLayout, frame: list[tuple[int, int | Non
             rej_name = service_response_name(rejected) or f"service 0x{rejected:02X}"
             detail = f" rejecting 0x{rejected:02X} {rej_name}"
         if nrc is not None:
-            detail += f" — NRC 0x{nrc:02X} {nrc_name(nrc)}"
+            detail += f" — NRC 0x{nrc:02X} {nrc_description(nrc, protocol)}"
         print(ansi.c(f"  {name}{detail}", ansi.DIM))
         return
     shape = " + ".join(f"{f.role}×{f.width}" if f.width > 1 else f.role for f in layout.fields)
@@ -704,6 +710,7 @@ def _annotate_payload(
     pid: str | None = None,
     legend: bool = True,
     support: MapDecl | None = None,
+    protocol: str | None = None,
 ) -> int:
     """Annotate each byte of a UDS response payload with WiCAN Bnn indices.
 
@@ -763,7 +770,7 @@ def _annotate_payload(
         resolved = resolve(support, bytes(payload_bytes), 1 + sub_bytes)
 
     if layout is not None:
-        _print_service_line(layout, frame)
+        _print_service_line(layout, frame, protocol)
     elif derived_from:
         kind = "2-byte DID" if sub_bytes == 2 else "1-byte PID"
         print(
@@ -982,17 +989,21 @@ def run(args) -> int:
     if args.annotate:
         params = None
         support = None
+        protocol = None
         if args.ecu:
             if not args.pid:
                 print("Error: --ecu requires --pid.", file=sys.stderr)
                 return 1
-            from canlib.ecus import canonical_ecu_name_safe
+            from canlib.ecus import canonical_ecu_name_safe, ecu_protocol
             from canlib.pids import build_ecu_index, load_pids
 
             ecu = canonical_ecu_name_safe(args.ecu).upper()
             pid = args.pid.upper()
             idx = build_ecu_index(load_pids())
-            pid_entry = idx.get(ecu, {}).get("pids", {}).get(pid, {})
+            ecu_entry = idx.get(ecu)
+            if ecu_entry is not None:
+                protocol = ecu_protocol(ecu_entry["tx_id"])
+            pid_entry = (ecu_entry or {}).get("pids", {}).get(pid, {})
             params = pid_entry.get("parameters", {})
             try:
                 support = declaration({"support_map": pid_entry.get("support_map")})
@@ -1017,6 +1028,7 @@ def run(args) -> int:
             pid=args.pid,
             legend=args.legend,
             support=support,
+            protocol=protocol,
         )
 
     if args.raw_frame:

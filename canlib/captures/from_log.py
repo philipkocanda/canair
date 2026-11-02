@@ -40,7 +40,7 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
 from canlib.captures.types import CaptureRecord
-from canlib.ecus import EcuRegistryEntry, rx_addr_str, rx_for_tx
+from canlib.ecus import EcuRegistryEntry, ecu_protocol, rx_addr_str, rx_for_tx
 from canlib.uds.isotp_passive import ReassemblyStats, reassemble
 from canlib.uds.nrc import nrc_description
 
@@ -132,7 +132,8 @@ def extract_replies(
                 result.negatives_skipped += 1
                 continue
             pid = f"{request.service:02X}{request.first_id.hex().upper()}"
-            notes = f"NRC 0x{payload[2]:02X} {nrc_description(payload[2])}"
+            protocol = ecu_protocol(tx, ecus)
+            notes = f"NRC 0x{payload[2]:02X} {nrc_description(payload[2], protocol)}"
         else:
             result.other_services[sid] += 1
             continue

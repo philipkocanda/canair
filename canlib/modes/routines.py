@@ -445,7 +445,10 @@ class _RoutinesTUI:
                 self.last_response[rid] = resp["hex"]
             elif resp.get("nrc") is not None:
                 self.state[rid] = "nrc"
-                self.last_response[rid] = f"NRC 0x{resp['nrc']:02X} {nrc_abbrev(resp['nrc'])}"
+                protocol = self.terminal.session_policy.protocol(self.tx_id)
+                self.last_response[rid] = (
+                    f"NRC 0x{resp['nrc']:02X} {nrc_abbrev(resp['nrc'], protocol)}"
+                )
             else:
                 self.state[rid] = "error"
                 self.last_response[rid] = resp.get("error", "unknown error")

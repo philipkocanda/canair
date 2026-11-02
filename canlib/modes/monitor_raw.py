@@ -21,6 +21,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from ..poll_backoff import PollCost
+from ..uds.protocol import DiagProtocol, classify_protocol
 
 if TYPE_CHECKING:
     from .monitor import MonitorController
@@ -34,11 +35,14 @@ def _raw_pid_result(
     value: bytes | Exception | None,
     acquired_at: float | None,
     ecu: str | None = None,
+    protocol: str | None = None,
 ) -> ResultEntry:
     """Turn a raw-CAN poll result (bytes / Exception / None) into a result dict.
 
     Mirrors the ELM path's result shape so the renderer/decoder are unchanged;
-    ``ecu`` names the ECU so a sensitive reply is masked as on the ELM path.
+    ``ecu`` names the ECU so a sensitive reply is masked as on the ELM path, and
+    ``protocol`` (its :data:`~canlib.uds.protocol.DiagProtocol`) names an NRC the
+    way the ELM path's parser does.
     """
     from .multi_batch import _decode_pid_result
 
@@ -54,10 +58,10 @@ def _raw_pid_result(
             "acquired_at": acquired_at,
         }
     if resp[0] == 0x7F:  # negative response: 7F <sid> <nrc>
-        from canlib.uds.nrc import nrc_abbrev
+        from canlib.uds.nrc import nrc_description
 
         error = (
-            f"NRC 0x{resp[2]:02X} ({nrc_abbrev(resp[2])})"
+            f"NRC 0x{resp[2]:02X} ({nrc_description(resp[2], protocol)})"
             if len(resp) >= 3
             else f"negative response too short: {resp.hex().upper()}"
         )
@@ -304,11 +308,15 @@ class MonitorRawPoller:
                     # It answers no single member, so none of them may take it as its payload.
                     outcome = ValueError("multi-DID reply did not split into the requested DIDs")
                 for code, pi, un in s["members"]:
-                    by_pid[(ecu, code)] = _raw_pid_result(code, pi, un, outcome, acquired, ecu)
+                    by_pid[(ecu, code)] = _raw_pid_result(
+                        code, pi, un, outcome, acquired, ecu, self._protocol(ecu)
+                    )
             else:
                 for code, pi, un in s["members"]:
                     sub = bytes.fromhex(split[_did4(code)])
-                    by_pid[(ecu, code)] = _raw_pid_result(code, pi, un, sub, acquired, ecu)
+                    by_pid[(ecu, code)] = _raw_pid_result(
+                        code, pi, un, sub, acquired, ecu, self._protocol(ecu)
+                    )
             return
 
         code, pi, un = s["members"][0]
@@ -332,11 +340,19 @@ class MonitorRawPoller:
                 )
             val = ValueError(LEAKED_BATCH_ERROR)
             resp = None
-        by_pid[(ecu, code)] = _raw_pid_result(code, pi, un, val, acquired, ecu)
+        by_pid[(ecu, code)] = _raw_pid_result(code, pi, un, val, acquired, ecu, self._protocol(ecu))
         if _is_did22(code) and resp and resp[0] != 0x7F:  # learn length for batching
             dlen = _did_data_len(resp.hex().upper(), _did4(code), self.pad)
             if dlen is not None and dlen >= 1:
                 self.lengths[(ecu, _did4(code))] = dlen
+
+    def _protocol(self, ecu: str) -> DiagProtocol:
+        """``ecu``'s diagnostic protocol, from the definitions the monitor polls."""
+        ecu_def = ((getattr(self.c, "pids_data", None) or {}).get("ecus") or {}).get(ecu)
+        identity = ecu_def.get("identity") if isinstance(ecu_def, dict) else None
+        return classify_protocol(
+            identity.get("id_protocol") if isinstance(identity, dict) else None
+        )
 
     def _ecu_ref(self, ecu: str) -> str:
         """``ecu``'s request id as the diagnostics log names ECUs (``0x770``), else its name."""

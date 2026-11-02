@@ -123,6 +123,16 @@ class TestNegativeResponses:
         assert (reply.pid, reply.payload) == ("22C101", "7F2231")
         assert reply.notes == "NRC 0x31 requestOutOfRange"
 
+    def test_a_kept_nrc_is_named_for_the_ecus_protocol(self, ecus):
+        # 0x72 is transferAborted on KWP2000 and generalProgrammingFailure on UDS.
+        for protocol, name in (
+            ("KWP2000", "transferAborted"),
+            ("UDS", "generalProgrammingFailure"),
+        ):
+            registry = {BMS_TX: {**ecus[BMS_TX], "id_protocol": protocol}}
+            out = extract_replies(exchange("22C101", "7F2272", 1.0), registry, keep_negative=True)
+            assert out.replies[0].notes == f"NRC 0x72 {name}"
+
     def test_not_kept_when_the_request_was_a_batch_or_a_different_service(self, ecus):
         batch = extract_replies(exchange("22C1010102", self.NRC, 1.0), ecus, keep_negative=True)
         other = extract_replies(exchange("2101", self.NRC, 1.0), ecus, keep_negative=True)

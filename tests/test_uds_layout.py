@@ -18,7 +18,6 @@ from canlib.uds.layout import (
     ROLE_SID,
     ROLE_STATUS,
     layout_of,
-    nrc_name,
     response_layout,
     role_definitions,
 )
@@ -165,15 +164,6 @@ class TestResponseLayout:
                 f"0x{info.sid:02X} declares id_width={info.id_width} "
                 f"but its response layout has widths {widths}"
             )
-
-
-class TestNrcName:
-    def test_known_codes(self):
-        assert nrc_name(0x31) == "requestOutOfRange"
-        assert nrc_name(0x78) == "requestCorrectlyReceivedResponsePending"
-
-    def test_unknown_code_is_reported_not_hidden(self):
-        assert nrc_name(0x5A) == "unknown (0x5A)"
 
 
 class TestRoleDefinitions:
