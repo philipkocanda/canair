@@ -1715,10 +1715,12 @@
           "min": 0
         },
         {
-          "name": "CLU_B11_TEMP",
-          "expression": "B11/2-40",
-          "unit": "degC",
-          "class": "temperature"
+          "name": "CLU_SUPPLY_VOLTAGE",
+          "expression": "B11*0.08",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 20
         }
       ]
     },

@@ -176,6 +176,7 @@ def _run_captures(
     # DID, only stands out against the whole corpus. Load it once for both checks.
     from canlib.captures.payload_corpus import load_payload_corpus
 
+    from .link_events import link_event_warnings
     from .misfiled import misfile_warnings
     from .unsplit import unsplit_batch_warnings
 
@@ -186,14 +187,20 @@ def _run_captures(
     total_errors = 0
     total_warnings = 0
     total_time_gaps = 0
+    from canlib.captures.sensitive_purge import sensitive_findings
+    from canlib.sensitive import profile_set
+
+    sset = profile_set(prof)
     for path in files:
         errors = validate_captures_file(path, validator, rx_addrs)
+        errors += sensitive_findings(path, sset)
         warnings: list[CaptureWarning] = (
             _capture_state_warnings(path, vocab, state_rules) if vocab else []
         )
         warnings += _capture_echo_warnings(path, hk_f1xx_offset)
         warnings += _capture_nonhex_warnings(path)
         warnings += _capture_quality_warnings(path)
+        warnings += link_event_warnings(path)
         warnings += misfiled.get(path, [])
         warnings += unsplit.get(path, [])
         # Missing-time on payload captures: an error under --strict (new-data

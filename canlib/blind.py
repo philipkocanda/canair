@@ -281,6 +281,11 @@ def strip_profile(src: Path, dst: Path, *, scrub_labels: bool = True) -> StripRe
     shutil.copytree(src, dst, ignore=_COPY_IGNORE)
 
     sandbox = Profile(dst.name, dst)
+    # Before the definitions lose their signals (and so their signal-level flags).
+    from canlib.captures.sensitive_purge import purge_dir
+    from canlib.sensitive import profile_set
+
+    purge_dir(sandbox.captures_dir, profile_set(sandbox))
     report = StripReport()
     yaml = yaml_rt.round_trip_yaml()
     ecus_dir = sandbox.ecus_dir

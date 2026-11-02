@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import cast
 
 from canlib.captures import io as capture_io
+from canlib.captures.link_events import LinkEvent
 from canlib.captures.types import (
     CaptureFile,
     CaptureRecord,
@@ -141,6 +142,7 @@ def build_query_session(
     transport: str | None = None,
     quality: Quality | None = None,
     non_answers: Sequence[tuple[str, str, str]] = (),
+    link_events: Sequence[LinkEvent] = (),
 ) -> CaptureSession:
     """Build a capture session dict from query/raw payload results.
 
@@ -171,7 +173,8 @@ def build_query_session(
     ``transport`` records how the payloads were acquired (the transport label,
     e.g. ``"slcan-tcp"``) and ``quality`` a small exchange/error footprint —
     provenance for judging how trustworthy the session's data is. Both are
-    omitted when not supplied.
+    omitted when not supplied. ``link_events`` (when the recording could not see
+    the car, :mod:`canlib.captures.link_events`) likewise.
     """
     meta = _session_meta(vehicle_states, notes)
     persisted = persisted_keep_mode(keep_mode)
@@ -182,6 +185,8 @@ def build_query_session(
     if quality:
         # Copied so the session doesn't alias the caller's footprint.
         meta["quality"] = quality.copy()
+    if link_events:
+        meta["link_events"] = [event.copy() for event in link_events]
 
     captures: list[CaptureRecord] = []
     for row in results:
@@ -496,9 +501,10 @@ def saved_banner(capture_file: Path, n_captures: int) -> str:
     """
     banner = f"  \u2192 Saved {n_captures} capture(s) to {capture_file}"
     from canlib.install_context import snapshot_write_note
+    from canlib.sensitive import take_withheld_note
 
-    note = snapshot_write_note(capture_file)
-    return f"{banner}\n{note}" if note else banner
+    notes = [n for n in (take_withheld_note(), snapshot_write_note(capture_file)) if n]
+    return "\n".join([banner, *notes])
 
 
 def save_session(
@@ -528,6 +534,14 @@ def save_session(
         from canlib.profile import active
 
         captures_dir = active().captures_dir
+    # The last gate before disk: a reply to a sensitive PID is never written,
+    # whichever producer built the session (the journal applies the same rule).
+    from canlib import sensitive
+
+    session = cast(
+        CaptureSession,
+        sensitive.withhold_session(dict(session), sensitive.set_for_captures(captures_dir)),
+    )
     # Use the session's own date (leading YYYY-MM-DD, tolerating a same-day
     # suffix like "2026-04-17-b") so the file matches when the payloads were
     # actually acquired; only fall back to "now" when the session has no date.

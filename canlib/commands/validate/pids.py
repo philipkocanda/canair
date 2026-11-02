@@ -18,6 +18,7 @@ from canlib.expression.decode_value import BYTE_RUN_TYPES as _BYTE_RUN_TYPES
 from canlib.expression.lint import firmware_grammar_problems, signed_low_bytes
 from canlib.pids import PID_STATUSES, effective_param, pid_ships, pid_status
 from canlib.pids_edit.categories import RETIRED_FIELD
+from canlib.sensitive import param_sensitive
 from canlib.signal_category import category_findings
 from canlib.uds.byteindex import wican_to_isotp
 from canlib.uds.support_map import SupportMapError
@@ -676,6 +677,8 @@ def _validate_one_pid(
     if variable_length is not None and not isinstance(variable_length, bool):
         errors.append(f"{label}: variable_length must be a boolean")
     errors.extend(_snapshot_field_errors(pid_str, pid_def, label))
+    if "sensitive" in pid_def and not isinstance(pid_def["sensitive"], bool):
+        errors.append(f"{label}: sensitive must be a boolean")
 
     _validate_shared_fields(pid_def, label, errors)
     try:
@@ -775,6 +778,13 @@ def _validate_parameters(
                 warnings.append(f"{label}: unknown field '{field}'")
 
         _validate_shared_fields(param, label, errors)
+        if "sensitive" in param and not isinstance(param["sensitive"], bool):
+            errors.append(f"{label}: sensitive must be a boolean")
+        elif param_sensitive(pid_def, param) and "send_to" in param:
+            errors.append(
+                f"{label}: a sensitive signal never ships to the device, so it cannot "
+                "declare send_to"
+            )
         category_errors, category_warnings = category_findings(
             effective_param(pid_def, param), label
         )
@@ -1789,6 +1799,8 @@ def _duplicate_param_errors(file_paths: list[Path]) -> list[str]:
                 for pname, param in (pid_def.get("parameters") or {}).items():
                     if not isinstance(param, dict) or not param.get("enabled", True):
                         continue
+                    if param_sensitive(pid_def, param):
+                        continue  # never shipped (canlib.sensitive)
                     where = f"{ecu_name} {pid_code}"
                     revs = owner_revisions(ecu_def, pid_def, param)
                     clash = next(

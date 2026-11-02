@@ -165,6 +165,33 @@ became suspect; see the note below):
 drops), and every error is also written to the central log — inspect it with
 `canair logs`.
 
+### Gaps: `link_events`
+
+A `monitor --save` session that loses its link keeps recording across the gap (the
+monitor reconnects onto the same recording), so its timestamps show a hole. The
+session's `link_events` list says what caused it:
+
+```json
+"link_events": [
+  {"at": "14:02:11.400", "until": "14:03:20.900", "kind": "disconnect", "cause": "stale"},
+  {"at": "14:15:00.020", "kind": "resync", "count": 2}
+]
+```
+
+- **`disconnect`** — no ECU answered coherently from `at` (the last answer before the
+  drop) until `until` (the first answer after it). No `until` means the recording ended
+  inside it. `cause` is `error` (the connection failed), `stale` (several poll cycles
+  with no coherent answer) or `manual` (you asked the monitor to reconnect).
+- **`resync`** — the transport had to realign a desynchronised ELM327 pipe at that
+  moment (`count` when it happened several times in one poll).
+
+Events are recorded live and never derived from payloads, so they are absent on older
+sessions and on sessions that had no trouble. They hold no free text, so no device
+address ends up in a shared capture file. `--sessions` adds a `gaps:` line per affected
+session, and `align`/`correlate`/`hunt`/`investigate` never carry a `keep:changes` value
+forward into a disconnect: nothing was observed there, so no value is known to have
+held.
+
 
 ## Recording captures
 
@@ -241,6 +268,44 @@ whenever a `--save` recording is active, and two keys control the session:
   instead writes the payloads captured since the previous `s` to a new capture file,
   pre-filled with the union of states seen over that span.)
 - **`n` (finish & start new)** — write the current session to its own capture file **now**
+## Sensitive PIDs and signals
+
+Some readings identify the car or its owner the way a VIN does. The Ioniq's CCM
+`22F102`, for example, is the MAC address the car sends a CCS charger as its
+EVCCID, and chargers that offer Autocharge bill against it. Mark such a PID, or
+just one of its signals, as sensitive:
+
+```bash
+canair pids set-sensitive CCM 22F102 true                 # the whole reply
+canair pids set-sensitive ECU PID true --param SIGNAL     # one signal
+```
+
+What a sensitive reading gets:
+
+- **It is masked on screen.** Every read view (`read`, `monitor`, `raw`,
+  `identity`, `scan`) shows `*****` instead of the value. A sensitive signal
+  also hides its PID's raw bytes, which give the value away. To see it once, run
+  `canair read CCM:22F102 --reveal`. This only changes the display and can't be
+  combined with `--save`.
+- **It is never saved.** A `--save` session leaves the reply out of the journal
+  and out of `captures/`, and a `⚠ Not saved` line says so. A range scan still
+  records the hit, but not its bytes.
+- **It is never shared.** `contribute` strips it from the copy it stages, and so
+  do the blind-test strip and the docs-site explorer. The WiCAN AutoPID export
+  never ships the signal, and `validate pids` rejects a `send_to:` on it.
+
+A PID you mark sensitive after recording it still has history on disk. Every
+analysis leaves that history out (with a one-line note), and `validate captures`
+reports it as an error. Remove it with:
+
+```bash
+canair captures purge-sensitive --dry-run   # preview
+canair captures purge-sensitive             # confirm, then rewrite
+```
+
+If those files were already committed or pushed, the data stays in git history
+until the history is rewritten.
+
   and start a **fresh** recording, labelled via the same modal (pre-filled with the state
   active now, and likewise automatic unless you change it). Press it at each phase change
   (parked → driving → charging) to get several independently-labelled sessions from one run.

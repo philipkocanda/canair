@@ -170,6 +170,13 @@ def upsert_parameter(
     cleared = {k for k in CLEARABLE_PARAM_FIELDS if fields.get(k) == ""}
     for key in cleared:
         del fields[key]
+    # A type change drops the map the new type cannot carry: validation rejects
+    # `values` off an enum and `bits` off a bitmask, so keeping them fails the edit.
+    if type is not None:
+        if type != "enum" and "values" not in fields:
+            cleared.add("values")
+        if type != "bitmask" and "bits" not in fields:
+            cleared.add("bits")
 
     fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
     original = fpath.read_text()

@@ -27,7 +27,8 @@ def snapshot_rows(results: Iterable[Mapping[str, Any]]) -> list[tuple[str, str, 
         rx = rx_addr_str(int(result["tx"], 16))
         for code in result.get("dtcs") or ():
             for snap in code.get("snapshots") or ():
-                if snap.get("hex") and snap.get("request"):
+                # A reply holding a sensitive DID is never written (canlib.sensitive).
+                if snap.get("hex") and snap.get("request") and not snap.get("sensitive"):
                     rows.append((rx, snap["request"], snap["hex"], snap.get("time", "")))
     return rows
 

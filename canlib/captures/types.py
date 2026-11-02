@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from typing import Literal, NotRequired, TypedDict
 
+from canlib.captures.link_events import LinkEvent
 from canlib.keepmode import EntryKeepMode, PersistedKeepMode
 from canlib.states.spans import StateSpan
 
@@ -155,6 +156,8 @@ class SessionMeta(TypedDict, total=False):
     keep_mode: PersistedKeepMode
     transport: str
     quality: Quality
+    # When the recording could not see the car (see canlib.captures.link_events).
+    link_events: list[LinkEvent]
     # The profile variant (variants.yaml ID) the recorded car is, and how that was decided.
     variant: str
     # ECU name -> its revision, for each captured ECU that declares several.
@@ -228,6 +231,8 @@ class CaptureEntry(TypedDict):
     keep_mode: EntryKeepMode  # "" when the session recorded no dedup policy
     transport: str
     quality: Quality | None
+    # The session's link events, one list shared by every row of the session.
+    session_link_events: list[LinkEvent]
     # -- the capture itself --
     ecu: str  # resolved short name ("" when the rx address is unknown)
     ecu_addr: str  # raw CAN response address, e.g. "0x7EC"

@@ -73,16 +73,21 @@ def live_reply_length(ecu: str, pid: str) -> int | None:
 
 
 def decode_did(snap: SnapshotDid, pids: Mapping[str, Mapping[str, Any]]) -> list[dict] | None:
-    """The signals of ``snap``'s ``22<DID>`` PID decoded from its data, or None if undefined."""
+    """The signals of ``snap``'s ``22<DID>`` PID decoded from its data, or None if undefined.
+
+    A sensitive signal's value is masked (:func:`canlib.sensitive.mask_rows`), like a live
+    read's.
+    """
+    from canlib.sensitive import mask_rows
+
     pid_info = pids.get(read_pid(snap.did)) or {}
     parameters = pid_info.get("parameters") or {}
     if not parameters:
         return None
     payload_hex = f"62{snap.did:04X}{snap.data.hex().upper()}"
     signals = []
-    for name, value, unit, _expr, error, verified, display in decode_param_rows(
-        payload_hex, parameters
-    ):
+    rows = mask_rows(decode_param_rows(payload_hex, parameters), pid_info)
+    for name, value, unit, _expr, error, verified, display in rows:
         entry: dict[str, Any] = {"name": name, "value": value, "unit": unit}
         if display:
             entry["display"] = display
@@ -101,24 +106,39 @@ def snapshot_entries(
 
     ``signals`` is None for a DID the profile does not define. A record that could not be
     split completely also carries ``unresolved_did`` and the raw ``undecoded`` rest.
+
+    A record holding a sensitive DID (:mod:`canlib.sensitive`) is tagged ``sensitive``,
+    which keeps it out of the DTC log and the captures, and unless revealed its raw bytes
+    are masked on screen: the reply gives the value away.
     """
+    from canlib.sensitive import MASK, masked, pid_sensitive
+
+    dids = []
+    hidden = False
+    for d in record.dids:
+        pid_info = pids.get(read_pid(d.did)) or {}
+        sensitive = pid_sensitive(pid_info)
+        hidden = hidden or sensitive
+        did: dict[str, Any] = {
+            "did": f"{d.did:04X}",
+            "pid": read_pid(d.did),
+            "data": MASK if masked(sensitive) else d.data.hex().upper(),
+            "signals": decode_did(d, pids),
+        }
+        if sensitive:
+            did["sensitive"] = True
+        dids.append(did)
     entry: dict[str, Any] = {
         "record": record.number,
-        "hex": reply_hex.upper(),
-        "dids": [
-            {
-                "did": f"{d.did:04X}",
-                "pid": read_pid(d.did),
-                "data": d.data.hex().upper(),
-                "signals": decode_did(d, pids),
-            }
-            for d in record.dids
-        ],
+        "hex": MASK if masked(hidden) else reply_hex.upper(),
+        "dids": dids,
     }
+    if hidden:
+        entry["sensitive"] = True
     if not record.complete:
         assert record.unresolved_did is not None
         entry["unresolved_did"] = f"{record.unresolved_did:04X}"
-        entry["undecoded"] = record.undecoded.hex().upper()
+        entry["undecoded"] = MASK if masked(hidden) else record.undecoded.hex().upper()
     return entry
 
 

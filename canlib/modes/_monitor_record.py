@@ -504,6 +504,10 @@ class MonitorRecorder:
         self._record_closed_segment(closing_states, written)
 
         self.journal = _open_journal(self.c, label, states, notes)
+        # A disconnect still open belongs to both segments: restate it in the new one.
+        tracker = getattr(self.c, "link_events", None)
+        if tracker is not None:
+            tracker.segment_rotated()
         # As with `s`: the pre-filled current state accepted unchanged is an
         # auto-suggestion, so the new segment still back-fills from what it sees.
         self.state_explicit = bool(states) and not self._is_offer(states, self._offered_next)

@@ -138,23 +138,28 @@ AAF:
           expression: B27
           type: enum
           values:
+            2: heat_pump
             7: charging
           source: 2026-08-08 DCFC byte-diff + full-corpus state check
           notes: >-
-            Reads 7 in every charging capture, AC and DC; otherwise 0, 2, 5 or 6 (meaning unknown).
+            7 in every charging capture, AC and DC. 2 in all 218 rows with HVAC_HEAT_PUMP_ON = 1
+            (2026-07-26, 2026-11-02) and in no row with it 0; on 2026-11-02 it went 2 -> 6 in the
+            same poll as the heat pump stopped. 6 only with the compressor off; 0 mostly with the
+            A/C running; 5 unknown. Fits a 3-bit mode (opendbc AAF11 CF_Aaf_ModeStatus).
           enabled: true
         AAF_2181_B15:
           expression: B15
-          type: enum
-          values:
-            0: dc_charging
-            52: idle_parked
-            67: driving
-          source: 2026-08-08 DCFC byte-diff + full-corpus state check
+          type: numeric
+          source: 2026-08-08 DCFC byte-diff; compressor and speed analysis 2026-11-02
           notes: >-
-            Reads 0, 52, 67 or 82. 0 in every charging capture, but also in most READY parked ones;
-            82 is unmapped.
+            Reads 0, 52, 67 or 82. Nonzero in 344 of 477 rows with HVAC_COMPRESSOR_POWER above 0 and
+            8 of 409 without. With the A/C on while driving it reads 52 above about 50 km/h and 67
+            below about 40 km/h; 67 during heat-pump heating parked at 9 °C (2026-07-26,
+            2026-11-02); 82 only parked at 30 °C ambient; 0 while charging and with the compressor
+            off. Fits a front-flap opening (opendbc AAF11 CF_Aaf_PStatus, 0-100 %), not checked
+            against the flaps.
           enabled: true
+          max: "100"
         AAF_COOLANT_TEMP_2:
           expression: B23-40
           unit: °C
@@ -188,28 +193,29 @@ AAF:
       priority: P2
       vehicle_states: [CHARGING, DRIVING]
       created: "2026-08-08"
-      updated: "2026-08-08"
+      updated: "2026-11-02"
       notes: >-
-        Found by byte-diff on the 2026-08-08 DC charge; single-session evidence. B27 reads 7 while
-        charging, B15 follows charge and motion state but is not a clean tri-state, B23-40 tracks
-        VCU_COOLANT_TEMP (r=0.976).
+        B27 and B15 were reworked on 2026-11-02 against HVAC compressor and heat-pump data (see
+        their notes and the AAF11 lead). Open: B27 values 0, 5 and 6; AAF_COOLANT_TEMP_2 (B23-40,
+        r=0.976 vs VCU_COOLANT_TEMP) sensor location relative to MOTOR_COOLANT_TEMP (B22).
       what_to_test:
         - "AAF_2181_B27: what raw 0/2/5/6 correspond to"
         - "AAF_2181_B15: correlate against AAF_VEHICLE_SPEED_KMH and time parked"
         - "AAF_COOLANT_TEMP_2: sensor location relative to MOTOR_COOLANT_TEMP (B22)"
     - type: decode
       target: 2181 flap position/status (AAF11 lead)
-      status: pending
+      status: captured
       priority: P3
       vehicle_states: [READY]
       created: "2026-10-21"
-      updated: "2026-10-21"
+      updated: "2026-11-02"
       notes: >-
-        opendbc AAF11 (0x584, sender AAF) broadcasts the flap state: CF_Aaf_ActFlapStatus (2-bit),
-        CF_Aaf_ModeStatus (3-bit), CF_Aaf_ErrStatus (10-bit), CF_Aaf_PStatus (position, 0-100 %)
-        and CF_Aaf_SolFlapStatus. On the uhi22 Ioniq 28 logs ActFlapStatus is 1 and PStatus 41 %,
-        constant. No flap position is decoded on 2180/2181 yet; AAF_2181_B15 is the first
-        candidate.
+        AAF_2181_B15 is the flap-position candidate: it reads only 0, 52, 67 and 82 (inside 0-100),
+        opens with the refrigerant compressor (nonzero in 344 of 477 compressor-on rows, 8 of 409
+        compressor-off), and with the A/C on while driving steps 52 above about 50 km/h and 67 below
+        about 40 km/h. AAF_2181_B27 is the mode candidate: 2 exactly while the heat pump runs, 7
+        while charging. Open: watch the flaps (grille) at each B15 value; no 2-bit status or error
+        word found yet.
       sources:
         - opendbc hyundai_2015_ccan.dbc (commaai, MIT), cross-checked against uhi22 Ioniq28Investigations P-CAN logs (scripts/fetch_can_corpus.py)
       what_to_test:

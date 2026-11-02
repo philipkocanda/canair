@@ -1097,6 +1097,24 @@ class TestUpsertTypedParameter:
         # Neighbouring param untouched.
         assert "EXISTING" in _params(pids_dir, "2101")
 
+    def test_type_change_drops_the_old_map(self, pids_dir):
+        upsert_parameter(
+            "TESTECU", "2101", "FAN", "B5", type="enum", values={40: "a"}, pids_dir=pids_dir
+        )
+        upsert_parameter("TESTECU", "2101", "FAN", "B5", type="numeric", pids_dir=pids_dir)
+        p = _params(pids_dir, "2101")["FAN"]
+        assert p["type"] == "numeric"
+        assert "values" not in p
+        upsert_parameter(
+            "TESTECU", "2101", "FAN", "B5", type="bitmask", bits={0: "on"}, pids_dir=pids_dir
+        )
+        upsert_parameter(
+            "TESTECU", "2101", "FAN", "B5", type="enum", values={1: "on"}, pids_dir=pids_dir
+        )
+        p = _params(pids_dir, "2101")["FAN"]
+        assert p["values"] == {1: "on"}
+        assert "bits" not in p
+
 
 class TestLeadingZeroPidKeys:
     """A PID code of all decimal digits with a leading zero (standard OBD-II

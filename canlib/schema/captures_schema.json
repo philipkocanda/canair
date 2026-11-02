@@ -44,6 +44,11 @@
           "type": "string"
         },
         "quality": { "$ref": "#/$defs/quality" },
+        "link_events": {
+          "description": "When the recording could not see the car, and why: intervals in which no ECU answered coherently ('disconnect') and instants at which the transport realigned a desynchronised pipe ('resync'). Recorded live by the monitor, never derived from payloads (so never rebuilt by a back-fill). Explains a gap in the timestamps, and bounds forward fill. Absent when nothing happened, and on sessions recorded before it existed.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/link_event" }
+        },
         "variant": {
           "description": "The profile variant the recorded car is: an ID from the profile's variants.yaml (e.g. '28kwh'). Absent when the session was recorded without one (untagged). Written by a save given --variant, by `captures migrate-variants`, or by `captures uds --set-variant`.",
           "type": "string",
@@ -150,6 +155,35 @@
         "decode": { "type": "integer", "description": "Malformed/undecodable responses." },
         "other": { "type": "integer", "description": "Unclassified errors." },
         "resyncs": { "type": "integer", "description": "Times the transport realigned a desynchronised pipe (a recovery, not a lost payload) — several means a marginal link." }
+      }
+    },
+    "link_event": {
+      "type": "object",
+      "required": ["at", "kind"],
+      "additionalProperties": false,
+      "description": "One link event. Enums and counts only, never free text: an error message can name a device address, and capture files are shared.",
+      "properties": {
+        "at": {
+          "description": "When it began, HH:MM:SS[.fff] on the session's own date. For a disconnect: the last coherent answer before the drop.",
+          "type": "string"
+        },
+        "until": {
+          "description": "When an interval event ended (a disconnect: the first coherent answer after it). Absent on an interval event = it lasted until the recording ended.",
+          "type": "string"
+        },
+        "kind": {
+          "description": "'disconnect' (an interval with no usable data from any ECU) or 'resync' (an instant: the transport realigned its pipe).",
+          "enum": ["disconnect", "resync"]
+        },
+        "cause": {
+          "description": "Why a disconnect began: 'error' (the transport raised), 'stale' (several poll cycles with no coherent answer), 'manual' (a user-requested reconnect).",
+          "enum": ["error", "stale", "manual"]
+        },
+        "count": {
+          "description": "How many resyncs landed in one poll cycle, when more than one.",
+          "type": "integer",
+          "minimum": 2
+        }
       }
     },
     "state_spans": {

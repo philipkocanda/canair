@@ -98,7 +98,7 @@
       "period": "60000",
       "parameters": {
         "ODOMETER": "[B12:B14]",
-        "CLU_B11_TEMP": "B11/2-40"
+        "CLU_SUPPLY_VOLTAGE": "B11*0.08"
       }
     },
     {

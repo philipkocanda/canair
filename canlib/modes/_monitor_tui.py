@@ -918,7 +918,7 @@ class MonitorApp(HelpMixin, App):
                     f"poll cycle failed: {type(e).__name__}: {e}",
                     transport=self.controller.transport_type,
                 )
-                self.controller.disconnected = True
+                self.controller.mark_disconnected("error")
             except Exception as e:
                 # Not the transport — a genuine internal fault. Reconnecting
                 # would not fix it and would hide it, so stop cleanly rather
@@ -1362,7 +1362,7 @@ class MonitorApp(HelpMixin, App):
         if getattr(c, "reconnect", None) is None:
             self._flash("Reconnect unavailable (no reconnector for this session)")
             return
-        c.disconnected = True
+        c.mark_disconnected("manual")
         self._flash("Reconnecting after this poll cycle…")
 
     def action_verify(self) -> None:

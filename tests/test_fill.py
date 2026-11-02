@@ -198,6 +198,60 @@ class TestHoldUntilVector:
     def test_empty_input(self):
         assert hold_until_vector([], [], session_ends={}, policy=FillPolicy()) == []
 
+    def test_a_disconnect_ends_the_carry(self):
+        """Nothing was observed during a disconnect, so no row may vouch for it."""
+        events = [{"at": "12:00:10.000", "until": "12:01:00.000", "kind": "disconnect"}]
+        rows = [_entry(sec=0), _entry(sec=600)]
+        for row in rows:
+            row["session_link_events"] = events
+        holds = hold_until_vector(
+            rows, [_at(0), _at(600)], session_ends=session_end_times(rows), policy=FillPolicy()
+        )
+        assert holds[0] == _at(10)
+
+    def test_a_row_after_the_disconnect_is_not_cut_by_it(self):
+        events = [{"at": "12:00:10.000", "until": "12:01:00.000", "kind": "disconnect"}]
+        rows = [_entry(sec=70), _entry(sec=600)]
+        for row in rows:
+            row["session_link_events"] = events
+        holds = hold_until_vector(
+            rows, [_at(70), _at(600)], session_ends=session_end_times(rows), policy=FillPolicy()
+        )
+        assert holds[0] == _at(600)
+
+    def test_a_row_at_the_disconnect_start_carries_nothing(self):
+        """The gap opens at the last answer, so that answer holds for no time at all."""
+        events = [{"at": "12:00:00.000", "kind": "disconnect"}]
+        rows = [_entry(sec=0), _entry(sec=600)]
+        for row in rows:
+            row["session_link_events"] = events
+        holds = hold_until_vector(
+            rows, [_at(0), _at(600)], session_ends=session_end_times(rows), policy=FillPolicy()
+        )
+        assert holds[0] is None
+
+    def test_an_instant_event_does_not_cut(self):
+        events = [{"at": "12:00:10.000", "kind": "resync"}]
+        rows = [_entry(sec=0), _entry(sec=600)]
+        for row in rows:
+            row["session_link_events"] = events
+        holds = hold_until_vector(
+            rows, [_at(0), _at(600)], session_ends=session_end_times(rows), policy=FillPolicy()
+        )
+        assert holds[0] == _at(600)
+
+    def test_another_sessions_disconnect_does_not_cut(self):
+        events = [{"at": "12:00:10.000", "kind": "disconnect"}]
+        rows = [_entry(sec=0, session=0), _entry(sec=600, session=0), _entry(sec=5, session=1)]
+        rows[2]["session_link_events"] = events
+        holds = hold_until_vector(
+            rows,
+            [_at(0), _at(600), _at(5)],
+            session_ends=session_end_times(rows),
+            policy=FillPolicy(),
+        )
+        assert holds[0] == _at(600)
+
 
 class TestForcedHoldWarning:
     def test_warns_when_forcing_hold_over_unique_data(self):

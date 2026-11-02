@@ -30,6 +30,7 @@ from typing import Any
 
 from canlib.captures import io as capture_io
 from canlib.captures import merge as captures_merge
+from canlib.captures.link_events import session_link_events
 from canlib.captures.types import CaptureEntry
 from canlib.states.spans import span_keys, states_at
 from canlib.variants import tags as variant_tags
@@ -200,6 +201,7 @@ def flatten_session(
     keep_mode = session.get("keep_mode", "")
     transport = session.get("transport", "")
     quality = session.get("quality") or None
+    link_events = session_link_events(session)
 
     entries: list[CaptureEntry] = []
     for c_idx, cap in enumerate(session.get("captures", [])):
@@ -221,6 +223,7 @@ def flatten_session(
                 "keep_mode": keep_mode,
                 "transport": transport,
                 "quality": quality,
+                "session_link_events": link_events,
                 "ecu": ecu_name_from_ref(raw_ecu, rx_index) if raw_ecu else "",
                 "ecu_addr": raw_ecu,
                 "pid": cap.get("pid", ""),
@@ -339,11 +342,39 @@ def load_all_captures(captures_dir: Path | None = None) -> list[CaptureEntry]:
             continue
         seen.add(key)
         entries.extend(flatten_session(fpath, s_idx, session, rx_index))
+    entries = _hide_sensitive(entries, captures_dir)
     if len(layers) > 1:
         # Within one store, file order already is chronological; across layers it
         # is not, and a stable sort leaves the single-layer result untouched.
         entries.sort(key=lambda e: (e.get("date") or "", e.get("time") or ""))
     return entries
+
+
+_noted_sensitive: list[int] = []
+
+
+def _hide_sensitive(entries: list[CaptureEntry], captures_dir: Path | None) -> list[CaptureEntry]:
+    """``entries`` minus every reply to a sensitive PID, said once per process.
+
+    Nothing writes one any more (:mod:`canlib.sensitive`), but a PID marked
+    sensitive after it was recorded still has history on disk. Leaving it out here
+    keeps it off every analysis and display; ``captures purge-sensitive`` removes it.
+    """
+    from canlib import sensitive
+
+    sset = sensitive.set_for_captures(captures_dir)
+    if not sset:
+        return entries
+    kept = [e for e in entries if not sset.has(e.get("ecu", ""), e.get("pid", ""))]
+    hidden = len(entries) - len(kept)
+    if hidden and not _noted_sensitive:
+        _noted_sensitive.append(hidden)
+        print(
+            f"note: {hidden} capture(s) of sensitive PIDs hidden — remove them with "
+            "`canair captures purge-sensitive`.",
+            file=sys.stderr,
+        )
+    return kept
 
 
 def _variant_scope() -> tuple[str | None, bool]:

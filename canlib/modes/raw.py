@@ -8,6 +8,7 @@ from canlib.transport.stats import client_transport
 from canlib.uds.parse import UdsResponse
 
 from ..formatting import decode_uds_response, format_raw_with_bnn, print_hexdump, print_json_result
+from ..sensitive import MASK, masked_response, request_hidden
 from ..transport.protocol import Terminal
 
 
@@ -68,9 +69,10 @@ async def mode_raw(
 
     try:
         response = await terminal.send_uds(service_pid, retries=1)
+        hidden = response["ok"] and request_hidden(tx_id, service_pid)
 
         if as_json:
-            print_json_result(response)
+            print_json_result(masked_response(response) if hidden else response)
             if not hold:
                 if save:
                     save_result(response)
@@ -86,6 +88,8 @@ async def mode_raw(
                 if save:
                     save_result(response)
                 return
+        elif hidden:
+            print(f"  Response: {MASK}  (sensitive — read --reveal to show)")
         else:
             decode = decode_uds_response(response["bytes"])
             if decode:

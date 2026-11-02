@@ -95,7 +95,8 @@ seconds. Two different failures have to be handled, and only one of them raises 
 
 **The link dies.** `canair monitor` re-homes the session: it re-probes reachable
 same-transport devices, rebuilds the client, re-opens any diagnostic sessions and resumes. A
-`--save` recording continues on the same journal, with the gap visible in the timestamps. This is
+`--save` recording continues on the same journal, and the session's `link_events` records the
+gap and its cause ([Captures & states](captures-and-states.md#gaps-link_events)). This is
 bounded by `transport.reconnect_max_wait` (default 60 s) — or retries forever with `--wait`.
 
 **The link stays open but stops being useful.** This is the subtler one. A half-open socket keeps
@@ -114,7 +115,8 @@ therefore correlates every reply to its request rather than trusting arrival ord
   the reply reached the right slot.
 
 Every discard, realignment and reconnect is tallied and visible in `canair logs` and in a
-recording's `quality` provenance, so a session that recovered silently is still auditable.
+recording's `quality` provenance, and each disconnect and realignment is timestamped in its
+`link_events`, so a session that recovered silently is still auditable.
 
 !!! tip "Recording a drive remotely"
     ```bash

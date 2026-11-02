@@ -12,8 +12,11 @@ from collections import defaultdict
 from collections.abc import Sequence
 
 from canlib import ansi
+from canlib.analysis.fill import format_hold_duration
+from canlib.captures.link_events import LinkEvent, summarize
 from canlib.captures.types import CaptureEntry, Quality
 from canlib.states import join_states as _join_states
+from canlib.states.spans import parse_time_key
 
 from .query import _dump_json, group_sessions
 
@@ -112,6 +115,29 @@ def _quality_tag(quality: Quality | None) -> str:
     return f"{ansi.DIM}⚠ quality:{ansi.RESET} " + " ".join(parts) + ex_txt
 
 
+def _gaps_tag(events: Sequence[LinkEvent], times: Sequence[str]) -> str:
+    """A one-liner saying when the recording could not see the car, or ''.
+
+    An open disconnect (the recording ended inside it) is measured to the session's
+    last capture.
+    """
+    if not events:
+        return ""
+    keys = [k for k in (parse_time_key(t) for t in times) if k is not None]
+    summary = summarize(events, max(keys) if keys else None)
+    parts: list[str] = []
+    if summary["disconnects"]:
+        n = summary["disconnects"]
+        length = format_hold_duration(summary["gap_seconds"])
+        parts.append(f"{ansi.YELLOW}{n} disconnect{'s' if n != 1 else ''} ({length}){ansi.RESET}")
+    if summary["resyncs"]:
+        n = summary["resyncs"]
+        parts.append(f"{n} resync{'s' if n != 1 else ''}")
+    if not parts:
+        return ""
+    return f"{ansi.DIM}⚠ gaps:{ansi.RESET} " + f"{ansi.DIM} · {ansi.RESET}".join(parts)
+
+
 def _declared_variants() -> dict:
     """The active profile's variants (empty when it declares none or can't be read)."""
     from canlib.profile import ProfileError, active
@@ -150,6 +176,7 @@ def cmd_sessions(
                 "keep_mode": s["keep_mode"],
                 "transport": s["transport"],
                 "quality": s["quality"],
+                "link_events": s["link_events"],
                 "variant": s["variant"] or None,
                 "captures": s["n"],
                 "ecus": list(s["ecus"]),
@@ -208,6 +235,9 @@ def cmd_sessions(
         qtag = _quality_tag(s.get("quality"))
         if qtag:
             print(f"    {qtag}")
+        gtag = _gaps_tag(s["link_events"], s["times"])
+        if gtag:
+            print(f"    {gtag}")
         # Distinct capture-level notes (RE annotations) — the other place notes live.
         for cn in s["cap_notes"][:max_notes]:
             clean = _clean(cn)

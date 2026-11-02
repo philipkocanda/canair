@@ -11,6 +11,7 @@ import time
 
 from rich.text import Text
 
+from canlib.sensitive import MASK
 from canlib.uds.notation import ByteDisplay, ByteNotation, subfunction_bytes_for_pid
 
 from ..formatting import (
@@ -265,7 +266,7 @@ def _render_entry(
             payload_len=len(raw_hex) // 2,
             sub_bytes=subfunction_bytes_for_pid(pid),
         ).aligned()
-        if (show_rulers and raw_hex and show_hex)
+        if (show_rulers and raw_hex and show_hex and raw_hex != MASK)
         else None
     )
 
@@ -277,7 +278,7 @@ def _render_entry(
         # name/value cells are gated on the interpreted value moving.
         changed_styles = (
             changed_param_highlights(params, raw_hex, prev_raw, prev_values)
-            if raw_hex and not stale
+            if raw_hex and not stale and raw_hex != MASK
             else {}
         )
         entry_text.append_text(

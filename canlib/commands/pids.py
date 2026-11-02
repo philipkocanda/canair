@@ -84,6 +84,7 @@ from canlib.pids_edit import (
     set_research_status,
     set_research_text,
     set_response_frames,
+    set_sensitive,
     set_snapshot_only,
     set_support_map,
     set_wake,
@@ -541,6 +542,32 @@ def cmd_set_snapshot_only(args: argparse.Namespace) -> int:
     else:
         state = "true" + (f", snapshot_length {args.length}" if args.length is not None else "")
     echo_edit(f"{args.ecu} {args.pid} snapshot_only -> {state}", fpath)
+    return 0
+
+
+def cmd_set_sensitive(args: argparse.Namespace) -> int:
+    value = args.value == "true"
+
+    def do():
+        set_sensitive(args.ecu, args.pid, value, param=args.param, pids_dir=args.dir)
+
+    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
+    what = f"{args.ecu} {args.pid}" + (f" {args.param}" if args.param else "")
+    state = "true" if value else "false (cleared)"
+    echo_edit(f"{what} sensitive -> {state}", fpath)
+    if value:
+        from canlib.captures.sensitive_purge import purge_dir
+        from canlib.profile import active
+        from canlib.sensitive import profile_set
+
+        found = sum(
+            r.removed for r in purge_dir(active().captures_dir, profile_set(), dry_run=True)
+        )
+        if found:
+            print(
+                f"  {ansi.YELLOW}{found} stored capture(s) of it — now hidden from every "
+                f"command; remove them with `canair captures purge-sensitive`.{ansi.RESET}"
+            )
     return 0
 
 
@@ -1181,6 +1208,25 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     sso.add_argument("--clear", action="store_true", help="Remove snapshot_only and the length")
     _add_common(sso)
     sso.set_defaults(_pids_func=cmd_set_snapshot_only)
+
+    sse = sub.add_parser(
+        "set-sensitive",
+        help="Mark a PID or signal as sensitive: masked on screen, never saved or shared",
+        description=(
+            "Mark a PID (or, with --param, one of its signals) whose value identifies the "
+            "car or its owner like a VIN does — e.g. the CCM's EVCCID, which Autocharge "
+            "chargers bill against. Its reply is shown as ***** (`canair read --reveal` "
+            "shows it), never written to captures/, and left out of contribute, the blind "
+            "strip, the docs explorer and the WiCAN AutoPID export. A sensitive signal also "
+            "hides its PID's raw bytes, which give it away."
+        ),
+    )
+    sse.add_argument("ecu")
+    sse.add_argument("pid")
+    sse.add_argument("value", choices=["true", "false"], help="true = sensitive; false = clear")
+    sse.add_argument("--param", metavar="NAME", help="Flag this signal instead of the whole PID")
+    _add_common(sse)
+    sse.set_defaults(_pids_func=cmd_set_sensitive)
 
     ssm = sub.add_parser(
         "set-support-map",

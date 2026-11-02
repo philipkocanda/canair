@@ -19,9 +19,9 @@ This module owns the fix, and deliberately owns *only* the policy half of it: it
 turns capture rows into one derived quantity per row — **``hold_until``**, the
 instant a stored value stops being known — which the join primitives then consult
 as a fallback. Everything that needs provenance (the session's ``keep_mode``, the
-session identity, the session's end) is decided here, once, while the capture rows
-are still adjacent; :mod:`canlib.analysis.align` stays pure mechanism and never learns what
-a keep mode is.
+session identity, the session's end, its disconnects) is decided here, once, while the
+capture rows are still adjacent; :mod:`canlib.analysis.align` stays pure mechanism and never
+learns what a keep mode is.
 
 Pure inspection over already-loaded capture entries: no I/O, and no canair imports
 beyond the capture row helpers, so any layer may depend on it.
@@ -29,12 +29,14 @@ beyond the capture row helpers, so any layer may depend on it.
 
 from __future__ import annotations
 
+from bisect import bisect_left
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 from typing import Literal, get_args
 
-from canlib.captures.dates import entry_datetime
+from canlib.captures.dates import entry_date, entry_datetime
+from canlib.captures.link_events import gap_intervals
 from canlib.captures.types import CaptureEntry
 from canlib.keepmode import KEEP_CHANGES, KEEP_UNIQUE, scope_is_keep_unique
 
@@ -159,7 +161,10 @@ def hold_until_vector(
     not eligible for filling, or with nothing to fill into.
 
     The window is ``min(next capture of this PID in the same session, that
-    session's end, this row's timestamp + max_hold_s)``. Rows are visited in time
+    session's end, the session's next disconnect, this row's timestamp +
+    max_hold_s)``. A disconnect (:mod:`canlib.captures.link_events`) bounds it
+    because nothing was observed during one: under ``keep:changes`` the absence of a
+    row there is no evidence that the value held. Rows are visited in time
     order to find each one's successor, but the result is returned in **input
     order** so a caller can zip it against an unsorted frame list.
     """
@@ -180,12 +185,16 @@ def hold_until_vector(
     for key, i in open_row.items():
         holds[i] = session_ends.get(key)
 
+    gap_starts: dict[SessionKey, list[datetime]] = {}
     cap = timedelta(seconds=policy.max_hold_s) if policy.max_hold_s else None
     for i in range(n):
         if not policy.allows(entries[i]):
             holds[i] = None
             continue
         until = holds[i]
+        cut = _next_gap_start(entries[i], dts[i], gap_starts)
+        if cut is not None and (until is None or cut < until):
+            until = cut
         if cap is not None:
             capped = dts[i] + cap
             if until is None or capped < until:
@@ -193,6 +202,23 @@ def hold_until_vector(
         # A run with no width carries nothing (the session ended on this row).
         holds[i] = until if until is not None and until > dts[i] else None
     return holds
+
+
+def _next_gap_start(
+    entry: CaptureEntry, dt: datetime, cache: dict[SessionKey, list[datetime]]
+) -> datetime | None:
+    """The first disconnect of ``entry``'s session starting at or after ``dt``, if any."""
+    key = session_key(entry)
+    starts = cache.get(key)
+    if starts is None:
+        starts = []
+        day = entry_date(entry)
+        if day is not None:
+            for start, _end in gap_intervals(entry.get("session_link_events") or []):
+                starts.append(datetime.combine(day, time()) + timedelta(seconds=start))
+        cache[key] = starts
+    idx = bisect_left(starts, dt)
+    return starts[idx] if idx < len(starts) else None
 
 
 def format_hold_duration(seconds: float) -> str:

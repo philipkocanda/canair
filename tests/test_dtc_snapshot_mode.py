@@ -405,3 +405,39 @@ class TestCoverage:
         from canlib.commands.coverage import snapshot_only_pids
 
         assert snapshot_only_pids(PIDS_DATA) == {("CCM", "224710")}
+
+
+class TestSensitive:
+    """A snapshot holding a sensitive DID is masked on screen and never logged or saved."""
+
+    def _pids(self):
+        import copy
+
+        data = copy.deepcopy(PIDS_DATA)
+        data["ecus"]["CCM"]["pids"]["224710"]["sensitive"] = True
+        return data
+
+    @pytest.mark.asyncio
+    async def test_masked_not_logged_not_saved(self, logp, monkeypatch, capsys):
+        from canlib.dtc import log as dtc_log
+        from canlib.sensitive import MASK
+
+        saved = []
+        monkeypatch.setattr("canlib.captures.save_session_journaled", saved.append)
+        t = FakeTerminal(CCM_REPLIES)
+        await dtc.mode_dtc_read(
+            t,
+            CCM,
+            protocol="uds",
+            as_json=True,
+            log=True,
+            save=True,
+            label="x",
+            pids_data=self._pids(),
+        )
+        snap = json.loads(capsys.readouterr().out)["dtcs"][0]["snapshots"][0]
+        assert snap["hex"] == MASK and snap["dids"][0]["data"] == MASK
+        assert {s["value"] for s in snap["dids"][0]["signals"]} == {MASK}
+        (scan,) = dtc_log.load_log(logp)["scans"]
+        assert "snapshots" not in next(iter(scan["ecus"].values()))
+        assert saved == []

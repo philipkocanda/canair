@@ -40,6 +40,7 @@ from fnmatch import fnmatch
 from pathlib import Path
 
 from canlib.captures.merge import SessionReplacement
+from canlib.sensitive import SensitiveSet
 
 from .constants import GITHUB_REPO as UPSTREAM_REPO
 from .profile import member_names, members_by_role
@@ -570,9 +571,20 @@ def copy_profile(
             shutil.copy2(src, target)
 
     if include_captures:
+        from canlib.captures.sensitive_purge import purge_dir
+        from canlib.sensitive import profile_set
+
+        sset = profile_set(profile)
         _overlay_captures(
-            profile.captures_dir, dest / _CAPTURE_MEMBER, warn=warn, replaced=replaced
+            profile.captures_dir, dest / _CAPTURE_MEMBER, warn=warn, replaced=replaced, sset=sset
         )
+        # Whatever either side held, a reply to a sensitive PID never ships.
+        for r in purge_dir(dest / _CAPTURE_MEMBER, sset):
+            if warn:
+                warn(
+                    f"{_CAPTURE_MEMBER}/{r.path.name}: left out {r.removed} capture(s) of "
+                    "sensitive PIDs"
+                )
     return dest
 
 
@@ -595,6 +607,7 @@ def _overlay_captures(
     *,
     warn: Callable[[str], None] | None = None,
     replaced: Callable[[CaptureReplacement], None] | None = None,
+    sset: SensitiveSet | None = None,
 ) -> None:
     """Overlay ``src`` captures onto ``dst`` without ever deleting upstream data.
 
@@ -620,7 +633,9 @@ def _overlay_captures(
         target.parent.mkdir(parents=True, exist_ok=True)
         # A dated capture log present on both sides → append the new sessions.
         if rel.parent == Path(".") and path.suffix == ".json" and target.exists():
-            problem = _overlay_capture_file(upstream=target, source=path, replaced=replaced)
+            problem = _overlay_capture_file(
+                upstream=target, source=path, replaced=replaced, sset=sset
+            )
             if problem and warn:
                 warn(problem)
         else:
@@ -640,8 +655,12 @@ def _overlay_capture_file(
     upstream: Path,
     source: Path,
     replaced: Callable[[CaptureReplacement], None] | None = None,
+    sset: SensitiveSet | None = None,
 ) -> str | None:
     """Overlay ``source``'s sessions onto ``upstream``. Returns a warning, or None.
+
+    The source's sensitive rows are stripped first (``sset``), so a session that
+    held one does not read as an edited copy replacing its upstream original.
 
     Leaves the file **untouched** when the source changes no session, so a
     contribution never rewrites — and never reorders — a capture log it doesn't
@@ -660,6 +679,10 @@ def _overlay_capture_file(
         ours = load_capture_file(source)
     except (OSError, ValueError) as e:  # ValueError: bad JSON or a bad repeat encoding
         return f"{_CAPTURE_MEMBER}/{source.name}: not contributed (unreadable capture file: {e})"
+    if sset:
+        from canlib.captures.sensitive_purge import strip_doc
+
+        ours = strip_doc(ours, sset)[0]
     result = overlay(up, ours)
     if result.doc is not None:
         dump_capture_file(upstream, result.doc)

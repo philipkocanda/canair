@@ -14,6 +14,7 @@ import asyncio
 import json
 
 from ..ecus import ecu_display
+from ..sensitive import MASK, request_hidden
 from ..transport.protocol import Terminal
 from .identity_decode import (
     decode_identity_payload,
@@ -123,6 +124,8 @@ async def mode_identity(
                 payload = response["bytes"][offset:]
                 decoded = decode_identity_payload(payload, fmt)
                 raw_hex = payload.hex().upper()
+                if request_hidden(tx_id, f"{prefix}{did_hex}"):
+                    decoded = raw_hex = MASK
                 if as_json:
                     results.append(
                         {

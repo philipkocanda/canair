@@ -58,6 +58,7 @@ from .research import (
     set_research_status,
     set_research_text,
 )
+from .sensitive import set_sensitive
 from .snapshot import set_snapshot_only
 from .support_map import set_support_map
 
@@ -98,6 +99,7 @@ __all__ = [
     "set_research_status",
     "set_research_text",
     "set_response_frames",
+    "set_sensitive",
     "set_snapshot_only",
     "set_support_map",
     "set_wake",

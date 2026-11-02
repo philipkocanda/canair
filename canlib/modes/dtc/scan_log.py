@@ -58,14 +58,15 @@ def logged_snapshots(dtcs: list[dict]) -> dict[str, list[dict]]:
 
     Only the raw replies are kept, as the log keeps only readings: they are decoded when
     the log is read, so a later definition improves an old entry. A record whose read
-    failed has no reply to keep.
+    failed has no reply to keep, and one holding a sensitive DID is never written
+    (:mod:`canlib.sensitive`).
     """
     out: dict[str, list[dict]] = {}
     for d in dtcs:
         records = [
             {"record": s["record"], "hex": s["hex"]}
             for s in d.get("snapshots") or ()
-            if s.get("hex")
+            if s.get("hex") and not s.get("sensitive")
         ]
         if records:
             out[d["dtc"]] = records

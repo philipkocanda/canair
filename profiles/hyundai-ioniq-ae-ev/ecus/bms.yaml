@@ -21,7 +21,11 @@ BMS:
       draws cabin air in under the middle rear seat and out through the right rear wheel well.
       OBD-II mode 09 (2026-11-01): 09 00 advertises InfoTypes 04, 06 and 0A; the calibration ID (09
       04) is AEEVB4604R, which carries the 4604 ROM ID, the CVN (09 06) is FF62F854 and the ECU name
-      (09 0A) is BECM-B+EnergyCtrl. 09 02 (VIN) is not answered.
+      (09 0A) is BECM-B+EnergyCtrl. 09 02 (VIN) is not answered. 28 kWh pack layout (96 cells in
+      series, 12 modules): 6 modules in 6S configuration (modules 1, 2, 3 and 10, 11, 12) in the
+      front; 6 modules in 10S configuration (modules 4, 5, 6, 7, 8, 9) in the rear, where module 8
+      is the middle of the three right-side modules. Source:
+      https://github.com/uhi22/Ioniq28Investigations/commit/9392caa53129294ac5a7a0cec47b08b69a829a70
   revisions:
     kwp:
       identity: {id_protocol: KWP2000}

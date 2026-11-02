@@ -7,7 +7,8 @@
 ```
 usage: canair read [-h] [--param NAME [NAME ...]] [--session] [--wake]
                    [--repl] [--save] [--label TEXT] [--state TEXT]
-                   [--notes TEXT] [--include-static] [--wican WICAN]
+                   [--notes TEXT] [--reveal] [--include-static]
+                   [--wican WICAN]
                    [--transport {slcan-tcp,wican-ws,elm327-tcp}]
                    [--no-fallback] [--wait] [--elm-timeout MS]
                    [--timeout SECONDS] [--no-learn-frames] [--json]
@@ -31,6 +32,10 @@ options:
   --label TEXT          Session label for --save
   --state TEXT          Session state for --save
   --notes TEXT          Session notes for --save
+  --reveal              Show sensitive PIDs and signals (`sensitive: true`,
+                        e.g. the CCM's EVCCID) in clear instead of *****.
+                        Display only: cannot be combined with --save, and a
+                        sensitive reply is never saved either way.
   --include-static      Include static and slow PIDs (identity/calibration
                         blocks and per-cycle records such as 21F2) in a bare-
                         ECU sweep. By default `canair read ECU` omits PIDs
