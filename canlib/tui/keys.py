@@ -118,7 +118,8 @@ ROLES: dict[str, KeyRole] = {
         _r("reconnect", "R", "reconnect"),
         _r("clear", "c", "clear"),
         # -- dialogs -------------------------------------------------------
-        _r("apply", "ctrl+s", "apply", "save"),
+        _r("accept", "enter", "accept", "next / start", "next / apply"),
+        _r("apply", "ctrl+s", "apply", "save", "next / start", "next / apply"),
         _r("confirm_yes", "y", "yes"),
         _r("confirm_no", "n", "no"),
         _r("notes_only", "ctrl+n", "notes only"),

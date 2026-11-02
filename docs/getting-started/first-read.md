@@ -80,15 +80,17 @@ it is — `(stale 12s)`.
 Not sure what to type? Run `canair monitor` with no arguments on a terminal and
 pick from the profile instead: first tick saved groups (the `@` rows, see
 `canair groups`) and/or individual ECUs (`space` toggles, `/` filters, `ctrl+a`
-selects all or none of the visible ECUs, `ctrl+s` continues), then untick any
-PIDs you don't want. A group ticks its member ECUs and pre-selects the PIDs it
-names; an ECU ticked on its own starts from its default sweep. The equivalent
-command is printed before the monitor starts so you can reuse it. It only reads
-the profile, so it works before the device is reachable.
+selects all or none of the visible ECUs, `enter` continues — with nothing ticked
+it takes the highlighted row, so one ECU is just `enter`), then untick any PIDs
+you don't want and press `enter` to start. A group ticks its member ECUs and
+pre-selects the PIDs it names; an ECU ticked on its own starts from its default
+sweep. `escape` clears the filter, then steps back. The equivalent command is
+printed before the monitor starts so you can reuse it. It only reads the profile,
+so it works before the device is reachable.
 
 Changed your mind mid-run? Press **`p`** in the running monitor (the header and
 status bar both show it) to open the same picker on what is being polled now:
-add or drop ECUs and PIDs, then `ctrl+s` twice to apply without restarting;
+add or drop ECUs and PIDs, then `enter` twice to apply without restarting;
 `escape` or `q` leaves the selection as it was.
 
 ## On a different car
