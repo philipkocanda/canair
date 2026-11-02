@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import cast
 
 from canlib.captures import io as capture_io
+from canlib.captures.link_events import LinkEvent
 from canlib.captures.types import (
     CaptureFile,
     CaptureRecord,
@@ -141,6 +142,7 @@ def build_query_session(
     transport: str | None = None,
     quality: Quality | None = None,
     non_answers: Sequence[tuple[str, str, str]] = (),
+    link_events: Sequence[LinkEvent] = (),
 ) -> CaptureSession:
     """Build a capture session dict from query/raw payload results.
 
@@ -171,7 +173,8 @@ def build_query_session(
     ``transport`` records how the payloads were acquired (the transport label,
     e.g. ``"slcan-tcp"``) and ``quality`` a small exchange/error footprint —
     provenance for judging how trustworthy the session's data is. Both are
-    omitted when not supplied.
+    omitted when not supplied. ``link_events`` (when the recording could not see
+    the car, :mod:`canlib.captures.link_events`) likewise.
     """
     meta = _session_meta(vehicle_states, notes)
     persisted = persisted_keep_mode(keep_mode)
@@ -182,6 +185,8 @@ def build_query_session(
     if quality:
         # Copied so the session doesn't alias the caller's footprint.
         meta["quality"] = quality.copy()
+    if link_events:
+        meta["link_events"] = [event.copy() for event in link_events]
 
     captures: list[CaptureRecord] = []
     for row in results:

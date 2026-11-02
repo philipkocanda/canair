@@ -45,6 +45,7 @@ from ..log import log_event
 from ..poll_backoff import EcuBackoff, PollCost, describe_slowdown
 from ..poll_schedule import DEFAULT_SCHEDULE, MONITOR_PERIOD_SPEEDUP, PollScheduler, Schedule
 from ..session_manager import SessionManager
+from ._monitor_link_events import LinkEventTracker
 from ._monitor_record import MonitorRecorder, _merge_history, _open_journal, _write_merged
 from ._monitor_render import (
     _RENDER_DEFAULT_ROWS,
@@ -61,6 +62,7 @@ from .monitor_raw import MonitorRawPoller, _raw_pid_result
 from .multi_batch import EcuFrame, ResultEntry
 
 if TYPE_CHECKING:
+    from ..captures.link_events import DisconnectCause
     from .monitor_reconnect import Reconnector
 
 # _HIGHLIGHT_STYLE, _bytes_to_ascii and _render_hex_line moved to canlib.formatting;
@@ -283,6 +285,10 @@ class MonitorController:
         # properties/methods below. Constructed after keep_mode/save are set,
         # since it initialises its history maps from them.
         self.recorder = MonitorRecorder(self)
+        # When the recording could not see the car (disconnects, resyncs), journaled
+        # into the --save session's link_events. Looks the journal up per write, since
+        # a segment rotation replaces it.
+        self.link_events = LinkEventTracker(lambda: self.recorder.journal)
         self._name_index: dict | None = None
         # Vehicle-state auto-suggestion (decoded-value accumulation, per-signal
         # clocks + expiry, vehicle_states.yaml evaluation) lives in the
@@ -677,6 +683,7 @@ class MonitorController:
             self.last_drops = delta.drops
             self.last_errors = delta.errors
             self.last_stale = delta.stale
+            self.link_events.resynced(delta.resyncs)
         self._record(self.fresh_queries)
         self._apply_backoff()
         self._check_liveness(
@@ -739,7 +746,16 @@ class MonitorController:
         )
         self._unanswered.clear()
         self.dead_cycles = 0
+        self.mark_disconnected("stale")
+
+    def mark_disconnected(self, cause: "DisconnectCause") -> None:
+        """Hand the session to the reconnector, recording the gap this opens.
+
+        Every link failure goes through here rather than setting ``disconnected``
+        directly, so a ``--save`` session's ``link_events`` says why its data stops.
+        """
         self.disconnected = True
+        self.link_events.disconnected(cause)
 
     def diag_recorder(self):
         """The active client's transport-diagnostics recorder, or None.
@@ -799,7 +815,7 @@ class MonitorController:
                     plan_filter=_take_due,
                 )
             except ConnectionError:
-                self.disconnected = True
+                self.mark_disconnected("error")
                 return
             if result is not None and due_on:
                 # The ELM327 pipe is serial: this step's wall time is exactly how long
@@ -875,6 +891,8 @@ class MonitorController:
         """
         shown = self._decide_display(key, entry)
         self._last_shown[key] = shown
+        if _answered(entry):
+            self.link_events.answered(entry.get("acquired_at"))
         return shown
 
     def _decide_display(self, key: tuple[str, str], entry: ResultEntry) -> ResultEntry:

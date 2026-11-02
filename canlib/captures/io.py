@@ -151,9 +151,9 @@ def capture_text(data: Any) -> str:
     """The canonical on-disk JSON text of a capture file (see :func:`dump_capture_file`).
 
     Repeated polls are folded (:mod:`canlib.captures.folding`), and the document is
-    pretty-printed with ``indent=2`` except that each capture and each ``state_spans``
-    span is one line: a session's metadata stays readable while a long recording costs a
-    line per stored capture, not one per field.
+    pretty-printed with ``indent=2`` except that each capture, each ``state_spans``
+    span and each link event is one line: a session's metadata stays readable while a
+    long recording costs a line per stored capture, not one per field.
     """
     return _render(fold_file(data), 0, ()) + "\n"
 
@@ -163,6 +163,7 @@ def capture_text(data: Any) -> str:
 _ONE_LINE_ITEMS: dict[tuple[str, ...], tuple[str, str]] = {
     ("sessions", "captures"): (",", ":"),
     ("sessions", "state_spans", "spans"): (", ", ": "),
+    ("sessions", "link_events"): (", ", ": "),
 }
 
 

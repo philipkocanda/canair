@@ -231,7 +231,7 @@ class MonitorRawPoller:
             result_dict = await fut  # surface a bus-level failure (connection dropped)
         except Exception:
             c.fresh_queries = self.fresh_queries(plan_by_ecu, by_pid)
-            c.disconnected = True
+            c.mark_disconnected("error")
             return
 
         # Completeness net: fold in any results not delivered via the callback

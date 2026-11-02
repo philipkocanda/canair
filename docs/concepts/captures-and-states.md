@@ -165,6 +165,33 @@ became suspect; see the note below):
 drops), and every error is also written to the central log — inspect it with
 `canair logs`.
 
+### Gaps: `link_events`
+
+A `monitor --save` session that loses its link keeps recording across the gap (the
+monitor reconnects onto the same recording), so its timestamps show a hole. The
+session's `link_events` list says what caused it:
+
+```json
+"link_events": [
+  {"at": "14:02:11.400", "until": "14:03:20.900", "kind": "disconnect", "cause": "stale"},
+  {"at": "14:15:00.020", "kind": "resync", "count": 2}
+]
+```
+
+- **`disconnect`** — no ECU answered coherently from `at` (the last answer before the
+  drop) until `until` (the first answer after it). No `until` means the recording ended
+  inside it. `cause` is `error` (the connection failed), `stale` (several poll cycles
+  with no coherent answer) or `manual` (you asked the monitor to reconnect).
+- **`resync`** — the transport had to realign a desynchronised ELM327 pipe at that
+  moment (`count` when it happened several times in one poll).
+
+Events are recorded live and never derived from payloads, so they are absent on older
+sessions and on sessions that had no trouble. They hold no free text, so no device
+address ends up in a shared capture file. `--sessions` adds a `gaps:` line per affected
+session, and `align`/`correlate`/`hunt`/`investigate` never carry a `keep:changes` value
+forward into a disconnect: nothing was observed there, so no value is known to have
+held.
+
 
 ## Recording captures
 

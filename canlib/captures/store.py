@@ -30,6 +30,7 @@ from typing import Any
 
 from canlib.captures import io as capture_io
 from canlib.captures import merge as captures_merge
+from canlib.captures.link_events import session_link_events
 from canlib.captures.types import CaptureEntry
 from canlib.states.spans import span_keys, states_at
 from canlib.variants import tags as variant_tags
@@ -200,6 +201,7 @@ def flatten_session(
     keep_mode = session.get("keep_mode", "")
     transport = session.get("transport", "")
     quality = session.get("quality") or None
+    link_events = session_link_events(session)
 
     entries: list[CaptureEntry] = []
     for c_idx, cap in enumerate(session.get("captures", [])):
@@ -221,6 +223,7 @@ def flatten_session(
                 "keep_mode": keep_mode,
                 "transport": transport,
                 "quality": quality,
+                "session_link_events": link_events,
                 "ecu": ecu_name_from_ref(raw_ecu, rx_index) if raw_ecu else "",
                 "ecu_addr": raw_ecu,
                 "pid": cap.get("pid", ""),

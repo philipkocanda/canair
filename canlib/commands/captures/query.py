@@ -19,6 +19,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any, TypedDict
 
 from canlib import ansi
+from canlib.captures.link_events import LinkEvent
 from canlib.captures.store import (
     PidDefs,
     decoded_preview,
@@ -268,6 +269,7 @@ class SessionGroup(TypedDict):
     keep_mode: EntryKeepMode
     transport: str
     quality: Quality | None
+    link_events: list[LinkEvent]
     variant: str  # "" when untagged
     n: int
     ecus: dict  # ordered set (dict) of ECU names
@@ -308,6 +310,7 @@ def group_sessions(entries: Sequence[CaptureEntry]) -> list[SessionGroup]:
                 "keep_mode": e.get("keep_mode", ""),
                 "transport": e.get("transport", ""),
                 "quality": e.get("quality") or None,
+                "link_events": list(e.get("session_link_events") or []),
                 "variant": e.get("session_variant", ""),
                 "n": 0,
                 "ecus": {},  # ordered set (dict) of ECU names

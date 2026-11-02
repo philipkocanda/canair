@@ -281,7 +281,8 @@ and **`g`/`G` address the view's primary axis**.
   `--step` (Textual stepper/comparator; a multi-PID QUERY stacks the PIDs time-joined in one frame),
   `--latest`, `--summary`, `--sessions` (the fast "what's in the captures?" index — time-span,
   state, label, notes, ECUs, the car's `variant` tag (or `untagged` on a multi-variant profile),
-  acquisition `transport`, recording `version`, a `quality` line; no payloads).
+  acquisition `transport`, recording `version`, a `quality` line, a `gaps:` line from the
+  session's `link_events`; no payloads).
   **The default list view is capped at `--limit N` (default 50) with a loud footer** for hidden
   history, so a bare query can't blow the context window; widen with `--limit 0` or scope tighter.
   Mutating modes: `--delete` (refuses a bare `--delete`, previews with `--dry-run`, confirms unless
@@ -1009,7 +1010,10 @@ device comes online. Backed by `fallback.py::wait_for_reachable`.
 **Mid-session reconnect / auto-failover (`monitor`)** — a session that drops mid-run is **re-homed**
 rather than abandoned: it re-probes reachable **same-transport** devices (raw↔raw / ws↔ws — only the
 *initial* connect crosses transports), rebuilds the client, re-opens sessions and resumes, with a
-`--save` recording continuing on the same journal (the gap shows in the timestamps). Bounded by
+`--save` recording continuing on the same journal. The gap is recorded in the session's
+`link_events` (`canlib/captures/link_events.py`; the monitor side is
+`modes/_monitor_link_events.py`, fed through `MonitorController.mark_disconnected`, so a new
+link-failure path must call that rather than set `disconnected` itself). Bounded by
 `transport.reconnect_max_wait` (default 60.0s); `--wait` retries forever. Infra
 `canlib/modes/monitor_reconnect.py` plus the per-transport connect closures in
 `commands/_live/connect.py` and `modes/raw_monitor.py`. Plan:

@@ -19,6 +19,9 @@ Journal format (one JSON object per line):
      "date": "2026-07-22", "time": "12:00:01", "elapsed_ms": 47}
     {"type": "response", "rx": "0x7A0", "pid": "24B004",
      "response": "NRC 0x11 (serviceNotSupported)", "date": "2026-07-22"}
+    {"type": "event", "id": 1, "kind": "disconnect", "cause": "stale",
+     "date": "2026-07-22", "at": "12:03:10.250"}
+    {"type": "event_end", "id": 1, "date": "2026-07-22", "at": "12:04:02.800"}
     ...
 
 Each ``capture`` row carries its own ``date`` (the acquisition date), so a
@@ -26,7 +29,10 @@ session that spans midnight reconciles into the correct per-day capture files
 rather than being lumped under a single date fixed at reconcile time. The
 ``meta`` ``date`` (session start) is the fallback for rows written before
 per-record dates existed. A ``response`` row is a request that drew an NRC or no
-reply; it reconciles into an untimed capture with a ``response`` field.
+reply; it reconciles into an untimed capture with a ``response`` field. ``event`` /
+``event_end`` rows are the session's link events (:mod:`canlib.captures.link_events`):
+an interval's start and end share an ``id``, and a start whose end never arrived (the
+process died mid-disconnect) reconciles open-ended.
 
 Multiple ``meta`` lines may appear (metadata edited mid-session); reconcile uses
 the **last** one. For one-shot producers that already build a full session dict
@@ -42,6 +48,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import cast
 
+from canlib.captures.link_events import (
+    JOURNAL_EVENT,
+    JOURNAL_EVENT_END,
+    DisconnectCause,
+    LinkEventKind,
+    events_by_date,
+    format_time,
+)
 from canlib.captures.types import CaptureSession, Quality
 from canlib.keepmode import KEEP_CHANGES, KeepMode, PersistedKeepMode, parse_keep_mode
 
@@ -188,6 +202,41 @@ class CaptureJournal:
     def append_session(self, session: CaptureSession) -> None:
         """Append a fully-built session dict (one-shot scan/raw/discover)."""
         self._write({"type": "session", "session": session}, durable=True)
+
+    def append_event(
+        self,
+        kind: LinkEventKind,
+        at: datetime,
+        *,
+        event_id: int | None = None,
+        cause: DisconnectCause | None = None,
+        count: int | None = None,
+    ) -> None:
+        """Record a link event (durably: a crash mid-disconnect is the likely ending).
+
+        An interval event passes ``event_id``, which its :meth:`append_event_end`
+        repeats; an instant event passes none.
+        """
+        rec: dict = {"type": JOURNAL_EVENT, "kind": kind}
+        if event_id is not None:
+            rec["id"] = event_id
+        if cause is not None:
+            rec["cause"] = cause
+        if count is not None:
+            rec["count"] = count
+        rec["date"] = at.strftime("%Y-%m-%d")
+        rec["at"] = format_time(at)
+        self._write(rec, durable=True)
+
+    def append_event_end(self, event_id: int, at: datetime) -> None:
+        """Close the interval event opened with ``event_id``."""
+        rec = {
+            "type": JOURNAL_EVENT_END,
+            "id": event_id,
+            "date": at.strftime("%Y-%m-%d"),
+            "at": format_time(at),
+        }
+        self._write(rec, durable=True)
 
     def update_meta(
         self,
@@ -414,20 +463,21 @@ def build_session_from_records(
         refused_by_date.setdefault(rdate, []).append((ecu, pid, response))
 
     sessions: list[CaptureSession] = []
+    link_events = events_by_date(records, meta_date)
     for rdate, day_rows in by_date.items():
-        sessions.append(
-            build_query_session(
-                day_rows,
-                label,
-                vehicle_states,
-                notes,
-                keep_mode=effective_keep,
-                date=rdate or None,
-                transport=transport,
-                quality=quality,
-                non_answers=refused_by_date.get(rdate, ()),
-            )
+        session = build_query_session(
+            day_rows,
+            label,
+            vehicle_states,
+            notes,
+            keep_mode=effective_keep,
+            date=rdate or None,
+            transport=transport,
+            quality=quality,
+            non_answers=refused_by_date.get(rdate, ()),
+            link_events=link_events.get(rdate, ()),
         )
+        sessions.append(session)
     return [apply_capture_tag(s, tag) for s in sessions]
 
 
