@@ -58,6 +58,7 @@ from canlib.captures.link_events import (
 )
 from canlib.captures.types import CaptureSession, Quality
 from canlib.keepmode import KEEP_CHANGES, KeepMode, PersistedKeepMode, parse_keep_mode
+from canlib.sensitive import SensitiveSet
 
 JOURNAL_VERSION = 1
 JOURNAL_DIRNAME = ".journal"
@@ -81,6 +82,7 @@ class CaptureJournal:
         self.path = path
         self.captures_dir = captures_dir
         self._fh = None
+        self._sensitive: SensitiveSet | None = None
         self._closed = False
 
     # -- lifecycle ---------------------------------------------------------
@@ -136,10 +138,28 @@ class CaptureJournal:
         return journal
 
     def _write(self, record: dict, *, durable: bool = False) -> None:
+        if not self._admit(record):
+            return
         assert self._fh is not None
         self._fh.write(json.dumps(record, ensure_ascii=False) + "\n")
         if durable:
             self.flush()
+
+    def _admit(self, record: dict) -> bool:
+        """Keep a reply to a sensitive PID out of the journal (it is never saved).
+
+        The gate sits here, not only in :func:`~canlib.captures.save_session`, because
+        the journal is on disk from the first append and outlives a crash.
+        """
+        from canlib import sensitive
+
+        if self._sensitive is None:
+            self._sensitive = sensitive.set_for_captures(self.captures_dir)
+        if record.get("type") in ("capture", "response"):
+            return bool(sensitive.withhold([record], self._sensitive))
+        if record.get("type") == "session":
+            record["session"] = sensitive.withhold_session(record["session"], self._sensitive)
+        return True
 
     def flush(self) -> None:
         """Flush buffered records durably (flush + ``fsync``).

@@ -30,6 +30,8 @@ positional arguments:
                       per-DID captures
     compact           Rewrite capture files with repeated polls folded, one
                       capture per line
+    purge-sensitive   Remove stored replies to sensitive PIDs from capture
+                      files
     migrate-variants  Tag untagged capture sessions with the profile variant
                       they came from
     merge-driver      Git merge driver: auto-union capture-file sessions (or
@@ -361,6 +363,24 @@ A poll that repeats the previous payload of the same ECU and PID is stored as a 
 options:
   -h, --help  show this help message and exit
   --dry-run   Preview without writing
+  --json      Machine-readable JSON output
+  --dir DIR   Captures directory (default: active profile)
+```
+
+## `canair captures purge-sensitive`
+
+```
+usage: canair captures purge-sensitive [-h] [--dry-run] [--yes] [--json]
+                                       [--dir DIR]
+
+Remove every stored reply to a PID or signal marked `sensitive: true` (see `canair pids set-sensitive`) from the active profile's capture files.
+
+No command saves such a reply, but a PID marked sensitive after it was recorded still has history on disk: analyses already leave it out, `validate captures` reports it, and this removes it. A session left with no capture is dropped. A layered profile's read-only base is refused (exit 1). Asks before writing unless --yes; --dry-run previews.
+
+options:
+  -h, --help  show this help message and exit
+  --dry-run   Preview without writing
+  --yes, -y   Do not ask for confirmation
   --json      Machine-readable JSON output
   --dir DIR   Captures directory (default: active profile)
 ```

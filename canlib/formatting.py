@@ -7,6 +7,7 @@ from rich.console import Console
 from rich.text import Text
 
 from canlib.expression.decoding import ParamRow
+from canlib.sensitive import MASK
 from canlib.uds.byteindex import extract_byte_indices, wican_to_elm_idx
 from canlib.uds.layout import subfunction_name
 from canlib.uds.obd import is_support_bitmap_pid, supported_pids
@@ -242,7 +243,9 @@ def _render_hex_line(
     t = Text()
     t.append(prefix, style=prefix_style)
 
-    if unmapped or not params:
+    if raw_hex == MASK:
+        t.append(f"{MASK}  (sensitive — read --reveal to show)", style="bright_black")
+    elif unmapped or not params:
         for i, hb in enumerate(elm_bytes):
             if i > 0:
                 t.append(" ")

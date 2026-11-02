@@ -8,6 +8,7 @@ from canlib.wican.autopid_layout import uds_hex_to_wican_bytes
 
 from ..formatting import print_decoded_params
 from ..pids import build_ecu_index
+from ..sensitive import MASK, mask_rows, masked, profile_set
 from ..transport.protocol import Terminal
 
 
@@ -32,6 +33,7 @@ async def mode_ecu(
 
     ecu_info = ecu_index[ecu_key]
     tx_id = ecu_info["tx_id"]
+    sset = profile_set()
 
     await terminal.set_header(tx_id)
 
@@ -64,12 +66,17 @@ async def mode_ecu(
                 continue
 
             wican_bytes = uds_hex_to_wican_bytes(response["hex"])
+            hidden = masked(sset.has_request(tx_id, pid_code))
 
-            if verbose:
+            if verbose and hidden:
+                print(f"    Response: {MASK} (sensitive)")
+            elif verbose:
                 print(f"    Response: {response['hex']}")
                 print(f"    WiCAN bytes ({len(wican_bytes)}): {wican_bytes.hex().upper()}")
 
             results = decode_param_rows(response["hex"], parameters)
+            if hidden:
+                results = mask_rows(results, pid_info)
 
             if as_json:
                 for row in results:

@@ -33,10 +33,12 @@ def _raw_pid_result(
     unmapped: bool,
     value: bytes | Exception | None,
     acquired_at: float | None,
+    ecu: str | None = None,
 ) -> ResultEntry:
     """Turn a raw-CAN poll result (bytes / Exception / None) into a result dict.
 
-    Mirrors the ELM path's result shape so the renderer/decoder are unchanged.
+    Mirrors the ELM path's result shape so the renderer/decoder are unchanged;
+    ``ecu`` names the ECU so a sensitive reply is masked as on the ELM path.
     """
     from .multi_batch import _decode_pid_result
 
@@ -61,7 +63,9 @@ def _raw_pid_result(
             "unmapped": unmapped,
             "acquired_at": acquired_at,
         }
-    return _decode_pid_result(pid_code, pid_info, unmapped, resp.hex().upper(), resp, acquired_at)
+    return _decode_pid_result(
+        pid_code, pid_info, unmapped, resp.hex().upper(), resp, acquired_at, target=ecu
+    )
 
 
 class MonitorRawPoller:
@@ -296,11 +300,11 @@ class MonitorRawPoller:
                     # It answers no single member, so none of them may take it as its payload.
                     outcome = ValueError("multi-DID reply did not split into the requested DIDs")
                 for code, pi, un in s["members"]:
-                    by_pid[(ecu, code)] = _raw_pid_result(code, pi, un, outcome, acquired)
+                    by_pid[(ecu, code)] = _raw_pid_result(code, pi, un, outcome, acquired, ecu)
             else:
                 for code, pi, un in s["members"]:
                     sub = bytes.fromhex(split[_did4(code)])
-                    by_pid[(ecu, code)] = _raw_pid_result(code, pi, un, sub, acquired)
+                    by_pid[(ecu, code)] = _raw_pid_result(code, pi, un, sub, acquired, ecu)
             return
 
         code, pi, un = s["members"][0]
@@ -324,7 +328,7 @@ class MonitorRawPoller:
                 )
             val = ValueError(LEAKED_BATCH_ERROR)
             resp = None
-        by_pid[(ecu, code)] = _raw_pid_result(code, pi, un, val, acquired)
+        by_pid[(ecu, code)] = _raw_pid_result(code, pi, un, val, acquired, ecu)
         if _is_did22(code) and resp and resp[0] != 0x7F:  # learn length for batching
             dlen = _did_data_len(resp.hex().upper(), _did4(code), self.pad)
             if dlen is not None and dlen >= 1:

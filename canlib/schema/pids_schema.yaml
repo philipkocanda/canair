@@ -399,6 +399,12 @@ optional_pid_fields:
                      #   --support-map`, written by `canair pids set-support-map`, read by
                      #   `canair coverage` (which then stops reporting bits that are not
                      #   signals). Per-PID by design: the layout is not make-wide.
+  - sensitive        # bool: the reply identifies the car or its owner like a VIN (e.g. the
+                     #   CCM's EVCCID). Masked as ***** on screen (`read --reveal` shows it),
+                     #   never saved to captures/, left out of contribute, the blind strip,
+                     #   the docs explorer and the WiCAN AutoPID export. A signal may set it
+                     #   too, which also hides its PID's raw bytes. Rules: canlib/sensitive.py;
+                     #   set with `canair pids set-sensitive`.
   - vehicle_states   # Power states in which this PID responds. Array of tokens from the
                      # profile's vehicle_states.yaml; the bundled Ioniq's include:
                      #   SLEEP    — deep sleep, 12V standby only (unplugged)
@@ -465,6 +471,8 @@ optional_param_fields:
   - notes
   - enabled
   - display
+  - sensitive       # bool: this signal's value is masked, never saved or shared (see the
+                    #   PID-level `sensitive`; a PID's flag covers all its signals).
   # --- typed (multi-modal) decoding ---------------------------------------
   # A param is a numeric scalar by default. Declaring `type:` (and its
   # companion map) attaches a PARALLEL typed decoding: the WiCAN `expression`

@@ -25,6 +25,7 @@ from ..formatting import (
 )
 from ..log import log_event
 from ..pids import EcuIndexEntry, PidIndexEntry, build_iocontrol_index
+from ..sensitive import MASK, request_hidden
 from ..session_manager import SessionManager
 from ..transport.elm327_terminal import Elm327Terminal
 from ._iocontrol_actuate import send_iocontrol
@@ -142,7 +143,7 @@ async def _read_single(sm, tx_id, pid_code, pid_info, unmapped, batch_state):
     if batch_state is not None and _is_did22(pid_code) and resp.get("hex"):
         batch_state.learn(tx_id, _did4(pid_code), resp["hex"])
     return _decode_pid_result(
-        pid_code, pid_info, unmapped, resp["hex"], resp["bytes"], acquired_at, elapsed_ms
+        pid_code, pid_info, unmapped, resp["hex"], resp["bytes"], acquired_at, elapsed_ms, tx_id
     )
 
 
@@ -193,7 +194,13 @@ async def _read_batch(sm, tx_id, group, out, batch_state) -> BatchOutcome:
         sub_hex = split[_did4(pid_code)]
         out.append(
             _decode_pid_result(
-                pid_code, pid_info, unmapped, sub_hex, bytes.fromhex(sub_hex), acquired_at
+                pid_code,
+                pid_info,
+                unmapped,
+                sub_hex,
+                bytes.fromhex(sub_hex),
+                acquired_at,
+                target=tx_id,
             )
         )
     return "ok"
@@ -428,6 +435,8 @@ async def _exec_raw(sm: SessionManager, spec: str, hold: bool, verbose: bool):
             print(f"  NRC: 0x{response['nrc']:02X} -- {response['nrc_desc']}")
         else:
             print(f"  Error: {error}")
+    elif request_hidden(tx_id, service_pid):
+        print(f"  Response: {MASK}  (sensitive — read --reveal to show)")
     else:
         decode = decode_uds_response(response["bytes"])
         if decode:

@@ -70,6 +70,13 @@ examples:
     parser.add_argument("--state", metavar="TEXT", default=None, help="Session state for --save")
     parser.add_argument("--notes", metavar="TEXT", default=None, help="Session notes for --save")
     parser.add_argument(
+        "--reveal",
+        action="store_true",
+        help="Show sensitive PIDs and signals (`sensitive: true`, e.g. the CCM's EVCCID) "
+        "in clear instead of *****. Display only: cannot be combined with --save, and "
+        "a sensitive reply is never saved either way.",
+    )
+    parser.add_argument(
         "--include-static",
         action="store_true",
         help="Include static and slow PIDs (identity/calibration blocks and per-cycle "
@@ -84,6 +91,13 @@ examples:
 
 
 def run(args) -> int:
+    if args.reveal:
+        if args.save:
+            print("Error: --reveal cannot be combined with --save", file=sys.stderr)
+            return 2
+        from canlib.sensitive import set_reveal
+
+        set_reveal(True)
     if args.steps:
         # Expand any @group references into their member selectors before the
         # mini-language parser sees them (composes with ad-hoc selectors).

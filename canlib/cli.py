@@ -59,6 +59,7 @@ _GROUP_DEFAULTS = {
             "migrate-discover",
             "split-batched",
             "compact",
+            "purge-sensitive",
             "migrate-variants",
             "merge-driver",
         },
@@ -365,6 +366,12 @@ def main(argv: list[str] | None = None) -> int:
     except (ProfileError, LegacyCaptureError, SafetyBlocked) as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
+    finally:
+        # A save whose every row was withheld printed no banner to carry the note.
+        from canlib.sensitive import take_withheld_note
+
+        if note := take_withheld_note():
+            print(note, file=sys.stderr)
     if check_updates:
         update_check.print_notice_if_any()
     return result if isinstance(result, int) else 0

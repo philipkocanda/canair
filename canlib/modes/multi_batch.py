@@ -45,6 +45,7 @@ class ResultEntry(TypedDict):
     unmapped: NotRequired[bool]
     error: NotRequired[str]
     stale: NotRequired[bool]
+    sensitive: NotRequired[bool]
 
 
 # One render/collect frame: per-ECU ``(label, results)`` pairs, where ``label``
@@ -303,12 +304,17 @@ def _decode_pid_result(
     bytes_val: bytes,
     acquired_at: float | None,
     elapsed_ms: int | None = None,
+    target: int | str | None = None,
 ) -> ResultEntry:
     """Build a result dict from a successful (single or split-out) response.
 
     ``elapsed_ms`` (wall-clock round-trip) is carried through to the saved
     capture only for single per-DID reads — batched multi-DID reads share one
     round-trip across several PIDs, so they pass ``None`` and omit the field.
+
+    With the request's ``target`` (its TX id, or the ECU's name), a reply to a
+    sensitive PID is masked here, before anything renders or records it
+    (:func:`canlib.sensitive.mask_result`).
     """
     entry: ResultEntry
     if pid_info:
@@ -329,6 +335,10 @@ def _decode_pid_result(
         }
     if elapsed_ms is not None:
         entry["elapsed_ms"] = elapsed_ms
+    if target is not None:
+        from canlib.sensitive import mask_result
+
+        mask_result(entry, target, pid_info)
     return entry
 
 

@@ -7,6 +7,7 @@ from canlib.expression.decoding import decode_param_rows
 
 from ..formatting import print_decoded_params
 from ..pids import build_param_index
+from ..sensitive import mask_rows
 from ..transport.protocol import Terminal
 
 
@@ -26,6 +27,7 @@ def _param_def(p: dict) -> dict:
         "values": p.get("values", {}),
         "bits": p.get("bits", {}),
         "fields": p.get("fields", []),
+        "sensitive": p.get("sensitive", False),
     }
 
 
@@ -89,7 +91,8 @@ async def mode_param(
             # Decode the requested params (typed-aware — enum/bitmask labels,
             # display expressions) via the shared row decoder.
             param_defs = {p["name"]: _param_def(p) for p in params}
-            all_results.extend(decode_param_rows(response["hex"], param_defs))
+            rows = decode_param_rows(response["hex"], param_defs)
+            all_results.extend(mask_rows(rows, {"parameters": param_defs}))
     finally:
         for task in tester_tasks:
             if task is None:

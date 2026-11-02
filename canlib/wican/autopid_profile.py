@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from canlib.addressing import EcuAddress, resolve_ecu_address
 from canlib.pids import is_shipped, pid_status
 from canlib.response_frames import stored_count
+from canlib.sensitive import param_sensitive
 from canlib.transport.elm327_addressing import (
     AUTO,
     elm_id,
@@ -223,9 +224,9 @@ def ship_profile(
     """Everything that ships to the device, before any firmware's file format.
 
     The single shipping gate: a PID ships when its status says so (``active`` or
-    ``slow``) and at least one of its signals is enabled (and verified, with
-    ``verified_only``). Refuses a signal name shipped twice and a malformed or shared
-    ``send_to`` topic, reporting every offender at once.
+    ``slow``) and at least one of its signals is enabled, not sensitive (and
+    verified, with ``verified_only``). Refuses a signal name shipped twice and a
+    malformed or shared ``send_to`` topic, reporting every offender at once.
     """
     # Where each shipped parameter name was first seen, so a collision can name
     # both origins. Populated as we build; checked after the full pass so every
@@ -254,6 +255,9 @@ def ship_profile(
             send_to: dict[str, str] = {}
             for param_name, param in pid_data["parameters"].items():
                 if not param.get("enabled", True):
+                    continue
+                # The device publishes what it decodes (MQTT, Home Assistant).
+                if param_sensitive(pid_data, param):
                     continue
                 if verified_only and not param.get("verified", False):
                     continue

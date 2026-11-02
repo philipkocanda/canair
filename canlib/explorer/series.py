@@ -26,6 +26,7 @@ from canlib.captures import io as capture_io
 from canlib.captures.merge import session_anchor
 from canlib.expression.decoding import decode_param_rows
 from canlib.pids import load_pids, pid_status
+from canlib.sensitive import pid_sensitive
 from canlib.states.spans import parse_time_key
 
 # Sessions with fewer numeric samples than this are not worth a plot and are left out.
@@ -104,9 +105,12 @@ def _spans(session: Mapping[str, Any], clock: _Clock, origin_ms: float) -> list[
 
 
 def _parameters(ecu_def: Mapping, pid: str) -> dict | None:
+    """The signals to plot for one PID; None for an ignored or sensitive one."""
     for key, pid_def in (ecu_def.get("pids") or {}).items():
         if str(key).upper() == pid.upper() and isinstance(pid_def, Mapping):
             if pid_status(dict(pid_def)) == "ignored" or not pid_def.get("parameters"):
+                return None
+            if pid_sensitive(pid_def):
                 return None
             return dict(pid_def["parameters"])
     return None

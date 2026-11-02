@@ -808,7 +808,11 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   occupies, written back automatically once a session proves it (never hand-set; mutually exclusive
   with `variable_length:`, which is how a PID whose length legitimately changes says it has no
   count). A PID may also carry **`support_map:`** — where its constant leading support map sits
-  (`canair pids set-support-map`; see `investigate --support-map`). Edit via `canair pids`/`ecu`;
+  (`canair pids set-support-map`; see `investigate --support-map`). A PID or signal may be
+  **`sensitive: true`** (`pids set-sensitive`): masked on screen, never journaled or saved, left
+  out of `load_all_captures`, contribute, blind strip, explorer and AutoPID. The rule lives once
+  in `canlib/sensitive.py`; a new display or save path must go through it (`mask_result`,
+  `withhold`), never re-check the flag itself. Edit via `canair pids`/`ecu`;
   validate with `canair validate pids`.
 - **`profiles/<car>/captures/`** — Recorded UDS payloads, one **JSON** file per date
   (`captures/YYYY-MM-DD.json`; JSON parses ~60× faster than YAML, the dominant cost of every

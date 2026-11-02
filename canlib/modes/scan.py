@@ -6,6 +6,7 @@ import sys
 from collections.abc import Sequence
 
 from ..id_ranges import IdRange, as_id_ranges, count_ids, format_id_ranges, iter_ids
+from ..sensitive import MASK, profile_set
 from ..transport.protocol import Terminal
 
 
@@ -81,6 +82,7 @@ async def mode_scan(
     positive = []
     negative = []
     errors = []
+    sensitive = profile_set()
 
     is_tty = sys.stdout.isatty()
 
@@ -106,6 +108,9 @@ async def mode_scan(
 
                 if response["ok"]:
                     n_bytes = len(response["bytes"])
+                    if sensitive.has_request(tx_id, req):
+                        # The hit is reported and recorded, its bytes never are.
+                        response["hex"] = MASK
                     positive.append((pid_val, response))
                     line = (
                         f"  [green]+[/green] 0x{pid_val:{did_fmt}}: "

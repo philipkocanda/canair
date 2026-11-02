@@ -4,13 +4,13 @@
 
 ```
 usage: canair pids [-h]
-                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-research-capture-protocol,set-pid-status,set-pid-variable-length,set-support-map,set-pid-period,set-response-frames,set-pid-notes,set-pid-defaults,hoist-defaults,migrate-categories,set-identity,rm-identity,set-can-bus,set-revisions,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing}
+                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-research-capture-protocol,set-pid-status,set-pid-variable-length,set-sensitive,set-support-map,set-pid-period,set-response-frames,set-pid-notes,set-pid-defaults,hoist-defaults,migrate-categories,set-identity,rm-identity,set-can-bus,set-revisions,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing}
                    ...
 
 [UDS] Safely edit ecus/ parameters and research entries (domain A — diagnostic UDS PIDs, freeform WiCAN expressions). The broadcast-frame (domain B) authoring counterpart is `canair signals` (linear signals/ maps).
 
 positional arguments:
-  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-research-capture-protocol,set-pid-status,set-pid-variable-length,set-support-map,set-pid-period,set-response-frames,set-pid-notes,set-pid-defaults,hoist-defaults,migrate-categories,set-identity,rm-identity,set-can-bus,set-revisions,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing}
+  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-research-capture-protocol,set-pid-status,set-pid-variable-length,set-sensitive,set-support-map,set-pid-period,set-response-frames,set-pid-notes,set-pid-defaults,hoist-defaults,migrate-categories,set-identity,rm-identity,set-can-bus,set-revisions,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing}
     upsert-param        Add or update a signal
     rename-param        Rename a signal (key only; fields preserved)
     rm-param            Remove a signal
@@ -30,6 +30,8 @@ positional arguments:
     set-pid-variable-length
                         Flag a PID as returning legitimately variable-length
                         responses
+    set-sensitive       Mark a PID or signal as sensitive: masked on screen,
+                        never saved or shared
     set-support-map     Declare where a PID's support map sits (which
                         following bits/bytes are signals)
     set-pid-period      Set how often the WiCAN AutoPID re-polls a PID (ms)
@@ -439,6 +441,32 @@ positional arguments:
 
 options:
   -h, --help     show this help message and exit
+  --dir DIR      ecus/ directory (default: active profile)
+  --no-validate  Skip the post-edit schema validation gate
+```
+
+## `canair pids set-sensitive`
+
+```
+usage: canair pids set-sensitive [-h] [--param NAME] [--dir DIR]
+                                 [--no-validate]
+                                 ecu pid {true,false}
+
+Mark a PID (or, with --param, one of its signals) whose value identifies the
+car or its owner like a VIN does — e.g. the CCM's EVCCID, which Autocharge
+chargers bill against. Its reply is shown as ***** (`canair read --reveal`
+shows it), never written to captures/, and left out of contribute, the blind
+strip, the docs explorer and the WiCAN AutoPID export. A sensitive signal also
+hides its PID's raw bytes, which give it away.
+
+positional arguments:
+  ecu
+  pid
+  {true,false}   true = sensitive; false = clear
+
+options:
+  -h, --help     show this help message and exit
+  --param NAME   Flag this signal instead of the whole PID
   --dir DIR      ecus/ directory (default: active profile)
   --no-validate  Skip the post-edit schema validation gate
 ```

@@ -57,6 +57,7 @@ from .research import (
     set_research_status,
     set_research_text,
 )
+from .sensitive import set_sensitive
 from .support_map import set_support_map
 
 __all__ = [
@@ -96,6 +97,7 @@ __all__ = [
     "set_research_status",
     "set_research_text",
     "set_response_frames",
+    "set_sensitive",
     "set_support_map",
     "set_wake",
     "update_iocontrol_field",

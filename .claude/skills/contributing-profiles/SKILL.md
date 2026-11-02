@@ -176,6 +176,10 @@ Watch for these leaks (reason about the *class*, not just the list):
   redact them yourself. A per-unit **ECU serial** (`F18C`/`F18B`,
   `identity.serial`) is *not* in this class — it names a module, not a person, and
   the project treats it as shareable diagnostic data.
+  **Mark a DID like this `sensitive: true`** (`canair pids set-sensitive`; the
+  Ioniq CCM's `22F102` EVCCID is one): canair then masks it on screen, never saves
+  it and strips it from every shared copy, so the rule holds without relying on
+  you remembering it.
 - **Identity:** real names, emails, phone numbers, usernames. Only emails are
   scanned for — a phone number is on you to keep out.
 - **Location:** home/work addresses, GPS, odometer-at-a-place, Wi-Fi SSIDs, and

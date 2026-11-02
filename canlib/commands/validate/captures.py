@@ -187,8 +187,13 @@ def _run_captures(
     total_errors = 0
     total_warnings = 0
     total_time_gaps = 0
+    from canlib.captures.sensitive_purge import sensitive_findings
+    from canlib.sensitive import profile_set
+
+    sset = profile_set(prof)
     for path in files:
         errors = validate_captures_file(path, validator, rx_addrs)
+        errors += sensitive_findings(path, sset)
         warnings: list[CaptureWarning] = (
             _capture_state_warnings(path, vocab, state_rules) if vocab else []
         )

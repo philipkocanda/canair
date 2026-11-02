@@ -141,6 +141,7 @@ class PidIndexEntry(TypedDict):
     shipped: bool  # include in the generated WiCAN device profile (see is_shipped)
     swept: bool  # include in a bare-ECU sweep (see is_swept)
     support_map: Any  # raw `support_map:` declaration or None (see canlib.uds.support_map)
+    sensitive: bool  # the PID's own `sensitive:` flag (signals carry theirs; canlib.sensitive)
 
 
 class EcuIndexEntry(TypedDict):
@@ -452,7 +453,12 @@ def _load_dir(path: Path, meta: dict) -> dict:
 
 
 def build_param_index(pids_data: dict) -> dict:
-    """Build lookup: PARAM_NAME -> {ecu, tx_id, pid, expression, unit, ...}."""
+    """Build lookup: PARAM_NAME -> {ecu, tx_id, pid, expression, unit, ...}.
+
+    ``sensitive`` is the signal's effective flag: its own, or its PID's.
+    """
+    from .sensitive import param_sensitive
+
     index = {}
     for ecu_name, ecu_def in pids_data.get("ecus", {}).items():
         tx_id = ecu_def["tx_id"]
@@ -473,6 +479,7 @@ def build_param_index(pids_data: dict) -> dict:
                     "values": param.get("values", {}),
                     "bits": param.get("bits", {}),
                     "fields": param.get("fields", []),
+                    "sensitive": param_sensitive(pid_def, param),
                 }
     return index
 
@@ -712,5 +719,6 @@ def build_ecu_index(pids_data: dict) -> dict[str, EcuIndexEntry]:
                 "shipped": is_shipped(status),
                 "swept": is_swept(status),
                 "support_map": pid_def.get("support_map"),
+                "sensitive": pid_def.get("sensitive") is True,
             }
     return index

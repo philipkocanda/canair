@@ -42,12 +42,13 @@ CCM:
         (identity app_sw), on this car (2026-11-01) and on uhi22's unit.
     22F102:
       status: static
+      sensitive: true
       vehicle_states: ["ON", READY]
       notes: >-
         6 bytes from the stored identification block: the PLC MAC address, which the CCM sends to
         the charger as the EVCCID (equal in all 8 of uhi22's DC sessions). Chargers that offer
-        Autocharge use it to identify and bill the car, so treat it like the VIN: never contribute
-        it, and redact it from captures.
+        Autocharge use it to identify and bill the car, so it is marked sensitive: masked on screen,
+        never saved to captures or contributed.
     22F103:
       status: static
       vehicle_states: ["ON", READY]

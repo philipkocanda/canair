@@ -501,9 +501,10 @@ def saved_banner(capture_file: Path, n_captures: int) -> str:
     """
     banner = f"  \u2192 Saved {n_captures} capture(s) to {capture_file}"
     from canlib.install_context import snapshot_write_note
+    from canlib.sensitive import take_withheld_note
 
-    note = snapshot_write_note(capture_file)
-    return f"{banner}\n{note}" if note else banner
+    notes = [n for n in (take_withheld_note(), snapshot_write_note(capture_file)) if n]
+    return "\n".join([banner, *notes])
 
 
 def save_session(
@@ -533,6 +534,14 @@ def save_session(
         from canlib.profile import active
 
         captures_dir = active().captures_dir
+    # The last gate before disk: a reply to a sensitive PID is never written,
+    # whichever producer built the session (the journal applies the same rule).
+    from canlib import sensitive
+
+    session = cast(
+        CaptureSession,
+        sensitive.withhold_session(dict(session), sensitive.set_for_captures(captures_dir)),
+    )
     # Use the session's own date (leading YYYY-MM-DD, tolerating a same-day
     # suffix like "2026-04-17-b") so the file matches when the payloads were
     # actually acquired; only fall back to "now" when the session has no date.

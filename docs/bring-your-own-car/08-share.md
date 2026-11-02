@@ -147,6 +147,8 @@ pushes from, so you know which copy is being shared. Before anything is shared i
   (where `canair identity` records a live VIN), so a `--no-captures` PR is checked too. A
   masked VIN (`KMHCXXXXXXXXXXXXX`) isn't re-flagged, and per-unit **ECU serials** are left alone
   because they name a module, not you;
+- **leaves out every reply to a [sensitive PID](../concepts/captures-and-states.md#sensitive-pids-and-signals)**
+  (such as the CCM's EVCCID), whatever your captures hold;
 - **warns if your profile looks stale** — it was read from an installed snapshot (a bare
   `canair` reads the frozen `site-packages` copy, not your checkout), or the contribution would
   *remove* lines already merged upstream — and asks you to confirm;
