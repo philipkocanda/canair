@@ -319,6 +319,155 @@ CCM:
           notes: >-
             Same value as 0x5E6 byte 1 bits 4-7; the firmware initialises it to 15, the value read
             on 2026-11-01.
+    224710:
+      snapshot_only: true
+      snapshot_length: 9
+      status: draft
+      notes: >-
+        Environment data the CCM stores with a DTC snapshot (19 04), 9 bytes; a live 22 4710 read
+        draws NRC 0x31. Each byte packs bits of the status struct the C350 session log also stores:
+        bytes 1-3 the vehicle's 0x599, 0x57F and 0x5A3 flags, byte 4 C350 data byte 61 (as 0x5E8
+        byte 6, fields in reverse order), byte 5 the charge progress (bits reversed, as C350 byte
+        63), byte 6 C350 data byte 77, bytes 7-9 progress flags. Layout from the Dem configuration
+        (DID record 0x2ABEC, data elements 0x2ABAC); see the research entry.
+      source: CCM firmware (uhi22 code-flash dump, decompiled), Dem snapshot DID 4710
+      verified: false
+      parameters:
+        CCM_SNAP_EV_READY:
+          expression: B05:7
+          notes: 0x599 byte 0 bit 0 (CCS_EV_READY).
+        CCM_SNAP_EV_NO_ERROR:
+          expression: B05:6
+          notes: 0x599 byte 0 bit 3 (CCS_EV_NO_ERROR).
+        CCM_SNAP_ERR_RESS_TEMP_INHIBIT:
+          expression: B05:5
+          notes: 0x599 byte 0 bit 4.
+        CCM_SNAP_ERR_SHIFT_POSITION:
+          expression: B05:4
+          notes: 0x599 byte 0 bit 5.
+        CCM_SNAP_ERR_CONNECTOR_LOCK_FAULT:
+          expression: B05:3
+          notes: 0x599 byte 0 bit 6.
+        CCM_SNAP_ERR_RESS_MALFUNCTION:
+          expression: B05:2
+          notes: 0x599 byte 0 bit 7.
+        CCM_SNAP_ERR_CURRENT_DIFFERENTIAL:
+          expression: B05:1
+          notes: 0x599 byte 1 bit 0.
+        CCM_SNAP_ERR_VOLTAGE_OUT_OF_RANGE:
+          expression: B05:0
+          notes: 0x599 byte 1 bit 1.
+        CCM_SNAP_ERR_SYSTEM_INCOMPATIBLE:
+          expression: B06:7
+          notes: 0x599 byte 1 bit 2.
+        CCM_SNAP_ERR_NO_DATA:
+          expression: B06:6
+          notes: 0x599 byte 1 bit 3.
+        CCM_SNAP_READY_TO_CHARGE:
+          expression: B06:5
+          notes: 0x599 byte 1 bit 4 (CCS_READY_TO_CHARGE).
+        CCM_SNAP_EV_STOP_REQUEST:
+          expression: B06:4
+          notes: 0x599 byte 1 bit 7 (CCS_STOP_REQUEST).
+        CCM_SNAP_CCS_TRIGGER:
+          expression: B06:3
+          notes: 0x599 byte 7 bit 0.
+        CCM_SNAP_RELAYS_CLOSED:
+          expression: B06:2
+          notes: 0x599 byte 7 bit 1.
+        CCM_SNAP_PLUG_STATE:
+          expression: B06 & 3
+          notes: 0x57F byte 0 bits 1-2 (OBC_PLUG_STATE).
+        CCM_SNAP_OBC_STATUS_B0_3:
+          expression: B07:7
+          notes: 0x57F byte 0 bit 3.
+        CCM_SNAP_OBC_B4_2:
+          expression: B07:6
+          notes: 0x57F byte 4 bit 2.
+        CCM_SNAP_OBC_DC_CHARGING:
+          expression: B07:5
+          notes: 0x57F byte 5 bit 5 (OBC_DC_CHARGING).
+        CCM_SNAP_ENERGY_TRANSFER_TYPE:
+          expression: (B07 >> 1) & 15
+          type: enum
+          values:
+            0: AC_single_phase_core
+            1: AC_three_phase_core
+            2: DC_core
+            3: DC_extended
+            4: DC_combo_core
+            5: DC_unique
+          notes: 0x5A3 byte 0 bits 0-3; labels are DIN 70121's EVRequestedEnergyTransferType.
+        CCM_SNAP_MAIN_CONTACTOR_CLOSED:
+          expression: B07:0
+          notes: 0x5A3 byte 0 bit 6.
+        CCM_SNAP_SESSION_STOPPED:
+          expression: B09:0
+          notes: 0x5E8 byte 6 bit 7.
+        CCM_SNAP_STOP_REASON:
+          expression: (B09 >> 1) & 15
+          type: enum
+          values:
+            0: none
+            2: normal end
+            3: normal end (3)
+            4: SLAC failed
+            5: response timeout
+            6: setup timer (30 s)
+            7: CableCheck timer (60 s)
+            8: PreCharge timer (10 s)
+            9: ContractAuthentication/ChargeParameterDiscovery timer (180 s)
+            10: vehicle input timeout
+            11: charger failure ResponseCode
+            12: charger EmergencyShutdown/Malfunction
+          notes: 0x5E8 byte 6 bits 3-6.
+        CCM_SNAP_EVSE_STATUS_CODE:
+          expression: B09 >> 5
+          type: enum
+          values:
+            0: EVSE_NotReady
+            1: EVSE_Ready
+            2: EVSE_Shutdown
+            3: EVSE_UtilityInterruptEvent
+            4: EVSE_IsolationMonitoringActive
+            5: EVSE_EmergencyShutdown
+            6: EVSE_Malfunction
+          notes: 0x5E8 byte 6 bits 0-2.
+        CCM_SNAP_SESSION_STOPPED_2:
+          expression: B10:7
+          notes: 0x5E8 byte 7 bit 0.
+        CCM_SNAP_CHARGE_PROGRESS:
+          expression: ((B10:0 << 6) | (B10:1 << 5) | (B10:2 << 4) | (B10:3 << 3) | (B10:4 << 2) | (B10:5 << 1) | B10:6)
+          type: enum
+          values:
+            0: idle
+            1: charge parameters known
+            3: CableCheck
+            7: PreCharge
+            15: PowerDelivery
+            31: CurrentDemand
+            63: PowerDeliveryStop
+            127: WeldingDetection
+          notes: 0x5E9 byte 0 bits 1-7, bits reversed as in C350 byte 63.
+        CCM_SNAP_SLAC_ATTENUATION:
+          expression: B11
+          unit: dB
+          notes: >-
+            The lowest SLAC attenuation among the chargers that answered, kept when the CCM picks
+            one (C350 data byte 77).
+        CCM_SNAP_SLAC_STEPS:
+          expression: B12
+          notes: One bit per SLAC step reached (set as each runs, cleared at session start).
+        CCM_SNAP_PROGRESS_FLAGS_8:
+          expression: B13
+          notes: >-
+            Bits 7-6: two more SLAC steps; bit 5: C350's SLAC-started bit; bits 4-0: the first five
+            DIN 70121 request flags.
+        CCM_SNAP_PROGRESS_FLAGS_9:
+          expression: B14
+          notes: >-
+            The next eight DIN 70121 request flags (the bit C350 stores per request, not decoded
+            there).
   # Meanings from the code that raises each Dem event in the CCM firmware (uhi22 code-flash dump,
   # decompiled): event config 0x2ACAC (0x30 per event, DTC index at +0x0E), DTC table 0x2B7C4
   # (0x14 per DTC). The application monitors C182B, C182C, B2211, C1829 and C1865 only while the
@@ -426,28 +575,16 @@ CCM:
       created: "2026-11-01"
       updated: "2026-11-01"
       result: >-
-        Layout from the firmware (MSB first; signal names from signals/powertrain.yaml). Byte 1: b7
-        CCS_EV_READY, b6 CCS_EV_NO_ERROR, b5 CCS_ERR_RESS_TEMP_INHIBIT, b4 CCS_ERR_SHIFT_POSITION,
-        b3 CCS_ERR_CONNECTOR_LOCK_FAULT, b2 CCS_ERR_RESS_MALFUNCTION, b1
-        CCS_ERR_CURRENT_DIFFERENTIAL, b0 CCS_ERR_VOLTAGE_OUT_OF_RANGE (0x599). Byte 2: b7
-        CCS_ERR_SYSTEM_INCOMPATIBLE, b6 CCS_ERR_NO_DATA, b5 CCS_READY_TO_CHARGE, b4
-        CCS_STOP_REQUEST, b3 CCS_TRIGGER, b2 CCS_RELAYS_CLOSED (0x599), b1-b0 OBC_PLUG_STATE
-        (0x57F). Byte 3: b7 OBC_STATUS_B0_3, b6 OBC_B4_2, b5 OBC_DC_CHARGING (0x57F), b4-b1
-        CCS_ENERGY_TRANSFER_TYPE, b0 BMS_MAIN_CONTACTOR_CLOSED (0x5A3). Byte 4 is C350 data byte 61:
-        b0 CCM_SESSION_STOPPED, b1-b4 CCM_STOP_REASON, b5-b7 EVSE_STATUS_CODE. Byte 5: b7
-        CCM_SESSION_STOPPED_2, b6-b0 the charge progress in reversed bit order, as C350 byte 63.
-        Byte 6 is C350 data byte 77: the lowest SLAC attenuation among the chargers that answered,
-        kept when the CCM picks one. Bytes 7-9: one flag per SLAC step reached (byte 7 and byte 8
-        b7-b6), C350's SLAC-started bit (byte 8 b5), then one flag per DIN 70121 request record, the
-        bit C350 stores but which is not decoded there. Record 01: 02 1A A7 20 7C 0A FF FF FF =
-        current differential error and the vehicle's stop request set, CCS trigger on, plug state 2,
-        DC charging, energy transfer type 3 (DC_extended), contactor closed, stop reason 0,
-        EVSE_Ready, progress 31 (CurrentDemand), attenuation 10, every flag set. Record 02: C0 2E 67
-        36 FC 0A FF FF F8 = EV ready and no error, ready to charge, trigger and relays on, the same
-        plug, DC and contactor state, stop reason 11 (charger failure ResponseCode, one of the
-        reasons that raise C182C), EVSE_Ready, CCM_SESSION_STOPPED_2 set, progress 31, attenuation
-        10, the last three request flags clear. So both aborts happened during CurrentDemand: in 01
-        the car stopped on a current-differential error, in 02 the charger answered with a failure
+        Defined as PID 224710 (snapshot_only, 9 bytes) from the firmware's Dem configuration; canair
+        dtc CCM reads and decodes both records. Record 01: 02 1A A7 20 7C 0A FF FF FF = current
+        differential error and the vehicle's stop request set, CCS trigger on, plug state 2, DC
+        charging, energy transfer type 3 (DC_extended), contactor closed, stop reason 0, EVSE_Ready,
+        progress 31 (CurrentDemand), attenuation 10 dB, every flag set. Record 02: C0 2E 67 36 FC 0A
+        FF FF F8 = EV ready and no error, ready to charge, trigger and relays on, the same plug, DC
+        and contactor state, stop reason 11 (charger failure ResponseCode, one of the reasons that
+        raise C182C), EVSE_Ready, CCM_SNAP_SESSION_STOPPED_2 set, progress 31, attenuation 10 dB,
+        the last three request flags clear. So both aborts happened during CurrentDemand: in 01 the
+        car stopped on a current-differential error, in 02 the charger answered with a failure
         ResponseCode.
       notes: >-
         Dem config in the CCM firmware: DID records at 0x2ABEC (DID, length, element count, first
@@ -464,6 +601,4 @@ CCM:
         - on-car 2026-11-01 (canair read raw 733:1903 and 733:1904582C00xx --save, wican-ws, AC charging)
       what_to_test:
         - After the next CCM fault, read the new snapshot and compare it with that session's 0x599/0x5E8 values to confirm the bit order
-      capture_protocol: >-
-        canair read 'raw 733:1903' 'raw 733:1904582C00FF' --save --label 'CCM snapshot' --state
-        CHARGING
+      capture_protocol: canair dtc CCM --save --label 'CCM snapshot' --state CHARGING

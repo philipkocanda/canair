@@ -1,6 +1,7 @@
 # DTC snapshots: read, decode and log them with `canair dtc`
 
-Status: **PLANNED** (2026-11-02).
+Status: **PHASES 1-4 DONE** (2026-11-02); phase 5 open. See "As built" for where the code
+differs from the design below.
 
 ## Problem
 
@@ -202,3 +203,26 @@ sample. `AGENTS.md`'s `canair dtc` entry gets one line on snapshots and the new 
 2. **Record numbering.** AUTOSAR Dem usually means 01 = first occurrence and 02 = most recent, but
    it is configurable. The output prints the record number and says nothing more until a profile
    can declare it.
+
+## As built
+
+Phases 1-4 shipped on 2026-11-02; phase 5 (KWP2000 freeze frames, OBD-II Mode 02) is open.
+Where the code differs from the design above:
+
+- **The DTC log stays at format 2.** `snapshots:` is an optional key on an ECU's scan
+  entry and on a clear, so an older canair reads the log as before and no migration is
+  needed; bumping the format would have forced one for nothing.
+- **The last DID of a one-record reply always takes the remaining bytes**, even when a
+  `snapshot_length:` is declared: the reply's own length is the stronger evidence.
+  Declared and live lengths serve the DIDs before it in a record.
+- **`bix -a` labels the `59 04` header only.** Mapping a snapshot's data bytes onto the
+  DID's signals in `bix` is not done; `canair dtc` and `canair dtc log` print the decoded
+  values.
+- **`--save` is a `dtc read` flag** with its own `--notes`; `--label`/`--state` serve both
+  the log entry and the capture session.
+- **Modules.** The device side is `canlib/modes/dtc/snapshots.py`, `--save` is
+  `snapshot_capture.py` beside it, the text is `canlib/dtc/snapshot_report.py` (shared by
+  `dtc read` and `dtc log`), and the keypress skip is `canlib/tui/skip_key.py`.
+- **Phase 4:** CCM `224710` is defined with 29 signals from the firmware layout, and both
+  stored C182C records decode to what was worked out by hand.
+
