@@ -68,25 +68,25 @@ class TestPlausibility:
 
 class TestVin:
     def test_vin_shaped_token(self):
-        assert ts.has_vin_token("KMHC851HFHU012435")
+        assert ts.has_vin_token("KMHC000T0HU000001")
         assert ts.has_vin_token("1HGCM82633A004352")
 
     def test_all_digit_serial_is_not_a_vin(self):
         assert not ts.has_vin_token("31114851712211429")
 
     def test_excluded_letters_and_length(self):
-        assert not ts.has_vin_token("KMHC851HFHU01243I")  # I is not a VIN character
-        assert not ts.has_vin_token("KMHC851HFHU01243")  # 16 chars
+        assert not ts.has_vin_token("KMHC000T0HU00000I")  # I is not a VIN character
+        assert not ts.has_vin_token("KMHC000T0HU00000")  # 16 chars
 
     def test_spans_locate_the_vin_inside_text(self):
-        text = "vin=KMHC851HFHU012435;"
+        text = "vin=KMHC000T0HU000001;"
         ((s, e),) = ts.vin_spans(text)
-        assert text[s:e] == "KMHC851HFHU012435"
+        assert text[s:e] == "KMHC000T0HU000001"
 
     def test_a_vin_in_a_folded_payload_is_found_by_byte_offset(self):
-        data = b"\x62\xf1\x90" + b"KMHC851HFHU012435" + b"\xaa\xaa"
+        data = b"\x62\xf1\x90" + b"KMHC000T0HU000001" + b"\xaa\xaa"
         ((s, e),) = ts.vin_spans(ts.ascii_fold(data))
-        assert data[s:e] == b"KMHC851HFHU012435"
+        assert data[s:e] == b"KMHC000T0HU000001"
 
     def test_a_vin_glued_to_a_non_vin_word_character_is_found(self):
         # ``\b`` treated these neighbours as part of the word and missed the VIN.
@@ -126,7 +126,7 @@ class TestVin:
     def test_redaction_mask(self):
         assert ts.looks_redacted("KMHCXXXXXXXXXXXXX")
         assert ts.looks_redacted("WBA****1234")
-        assert not ts.looks_redacted("KMHC851HFHU012435")
+        assert not ts.looks_redacted("KMHC000T0HU000001")
         assert not ts.looks_redacted("ABCXXX123")  # three is not a mask
 
 
