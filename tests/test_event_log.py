@@ -64,3 +64,36 @@ class TestEventLog:
 
     def test_parse_unmatched_line_is_raw(self):
         assert clog.parse_event_line("garbage") == {"raw": "garbage"}
+
+    def test_events_carry_this_process_run_id(self, isolated_log):
+        clog.log_event("drop", "x", ecu="BMS")
+        parsed = clog.parse_event_line(clog.read_event_log()[0])
+        assert parsed["run"] == clog.run_id()
+        assert parsed["ecu"] == "BMS" and parsed["detail"] == "x"
+
+    def test_read_filters_by_run_before_the_tail(self, isolated_log, monkeypatch):
+        monkeypatch.setattr(clog, "_RUN_ID", "other")
+        for i in range(5):
+            clog.log_event("no_data", f"other {i}")
+        monkeypatch.setattr(clog, "_RUN_ID", "mine")
+        clog.log_event("no_data", "mine 0")
+        clog.log_event("no_data", "mine 1")
+        monkeypatch.setattr(clog, "_RUN_ID", "other")
+        clog.log_event("no_data", "other 5")
+
+        mine = clog.read_event_log(lines=3, run="mine")
+        assert [clog.parse_event_line(ln)["detail"] for ln in mine] == ["mine 0", "mine 1"]
+        assert len(clog.read_event_log()) == 8
+
+    def test_monitor_modal_shows_only_this_session(self, isolated_log, monkeypatch):
+        from canlib.modes._monitor_tui import EventLogModal
+
+        monkeypatch.setattr(clog, "_RUN_ID", "earlier")
+        clog.log_event("drop", "from an earlier session")
+        monkeypatch.setattr(clog, "_RUN_ID", "now")
+        assert "no events logged this session" in EventLogModal()._render_events().plain
+        clog.log_event("stale", "from this session")
+
+        shown = EventLogModal()._render_events().plain
+        assert "from this session" in shown
+        assert "earlier session" not in shown

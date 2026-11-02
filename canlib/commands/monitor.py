@@ -70,7 +70,7 @@ header and the status line say so. --no-backoff keeps polling it at the normal r
 In the TUI: mouse wheel / scrollbar / arrows-jk / PgUp-PgDn / g-G scroll,
 space pauses, =/- poll faster/slower (the interval on the fixed schedule, every
 PID's rate by 1.5x on the per-PID one), m switches schedule,
-r toggles the byte-index ruler, E opens the errors/diagnostics log,
+r toggles the byte-index ruler, E opens this session's errors/diagnostics log,
 V cycles the view mode (ecus / ranges / signals / full),
 i opens the session-info overlay (segment history + summary),
 ↑/↓ select a signal (esc deselects), e/v/x/F edit/verify/en-disable/filter,

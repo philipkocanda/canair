@@ -10,13 +10,16 @@ Two independent facilities live here:
    error/drop events and unexpected internal exceptions are recorded so they are
    inspectable after the fact (``canair logs``). Rotation (a small ``maxBytes``
    with a few backups) bounds its growth — it self-cleans and never needs manual
-   pruning. Everything here is best-effort: a filesystem error must never break a
-   command, so writes are guarded.
+   pruning. Every event carries a ``run=`` field naming the canair process that
+   wrote it, so one session's events can be told apart from every other
+   session's in the shared file. Everything here is best-effort: a filesystem
+   error must never break a command, so writes are guarded.
 """
 
 import logging
 import logging.handlers
 import re
+import secrets
 import traceback
 from datetime import UTC, datetime
 
@@ -113,14 +116,21 @@ def log_response(cmd: str, response: str):
 _EVENT_LOG_MAX_BYTES = 256 * 1024
 _EVENT_LOG_BACKUPS = 3
 _event_logger: logging.Logger | None = None
+_RUN_ID = secrets.token_hex(4)
 
 # Line format written to the log; parsed back by `canair logs` (fields optional).
-# e.g. `2026-07-28T09:00:00.000Z WARNING drop transport=slcan-tcp ecu=BMS pid=2102 :: <detail>`
+# e.g. `2026-07-28T09:00:00.000Z WARNING drop transport=slcan-tcp ecu=BMS pid=2102 run=1a2b3c4d
+# :: <detail>` (one line)
 _EVENT_RE = re.compile(
     r"^(?P<ts>\S+)\s+(?P<level>\w+)\s+(?P<category>\S+)"
     r"(?P<fields>(?:\s+\w+=\S+)*)"
     r"(?:\s+::\s+(?P<detail>.*))?$"
 )
+
+
+def run_id() -> str:
+    """The ``run=`` value this process stamps on its events (random, so PII-free)."""
+    return _RUN_ID
 
 
 def event_log_path():
@@ -187,7 +197,7 @@ def log_event(
         return
     ts = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
     level_name = logging.getLevelName(level)
-    fields = _fields(transport=transport, ecu=ecu, pid=pid)
+    fields = _fields(transport=transport, ecu=ecu, pid=pid, run=_RUN_ID)
     suffix = f" :: {detail}" if detail else ""
     try:
         logger.log(level, f"{ts} {level_name} {category}{fields}{suffix}")
@@ -204,12 +214,13 @@ def log_exception(message: str, exc: BaseException | None = None) -> None:
     log_event("internal", detail, level=logging.ERROR)
 
 
-def read_event_log(lines: int | None = None) -> list[str]:
+def read_event_log(lines: int | None = None, *, run: str | None = None) -> list[str]:
     """Return the central log's lines (oldest→newest), optionally last ``lines``.
 
     Reads the active file plus any rotated ``.1``/``.2`` backups so a recent
-    burst that rolled over is still visible. Returns an empty list when the log
-    doesn't exist.
+    burst that rolled over is still visible. ``run`` keeps only the events that
+    process wrote (see :func:`run_id`), applied before the ``lines`` tail.
+    Returns an empty list when the log doesn't exist.
     """
     path = event_log_path()
     if not path.exists():
@@ -221,6 +232,8 @@ def read_event_log(lines: int | None = None) -> list[str]:
         if backup.exists():
             collected.extend(_read_lines(backup))
     collected.extend(_read_lines(path))
+    if run is not None:
+        collected = [ln for ln in collected if parse_event_line(ln).get("run") == run]
     if lines is not None and lines >= 0:
         return collected[-lines:]
     return collected

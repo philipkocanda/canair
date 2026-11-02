@@ -425,12 +425,14 @@ def _link_items(controller) -> list[StatusItem]:
 
 
 class EventLogModal(ModalScreen[None]):
-    """Scrollable overlay of the central diagnostics event log.
+    """Scrollable overlay of this monitor session's diagnostics events.
 
     Snapshots the last N lines of ``canair logs`` (the same size-rotated file
     the transport-fault recorder writes drops/stale/timeouts/bus/decode and
-    internal-exception events to) and colour-codes them by category. Read-only;
-    reopen to refresh. The full history and management live in ``canair logs``.
+    internal-exception events to) that this process wrote, and colour-codes them
+    by category. Other sessions share the file, so their events are left out.
+    Read-only; reopen to refresh. The full history and management live in
+    ``canair logs``.
     """
 
     _MAX_LINES = 200
@@ -460,11 +462,13 @@ class EventLogModal(ModalScreen[None]):
         from textual.containers import Vertical
 
         with Vertical(id="evlog-box"):
-            yield Label("Diagnostics event log (canair logs)", id="evlog-title")
+            yield Label("Diagnostics events this session", id="evlog-title")
             with VerticalScroll(id="evlog-rows"):
                 yield Static(self._render_events(), id="evlog-body", markup=False)
             yield Label(
-                "newest last · j/k g/G pgup/pgdn scroll · E / esc / q to close", id="evlog-hint"
+                "newest last · j/k g/G pgup/pgdn scroll · E / esc / q to close · "
+                "every session: canair logs",
+                id="evlog-hint",
             )
 
     def on_mount(self) -> None:
@@ -477,11 +481,11 @@ class EventLogModal(ModalScreen[None]):
         rows.scroll_end(animate=False)
 
     def _render_events(self) -> Text:
-        from ..log import parse_event_line, read_event_log
+        from ..log import parse_event_line, read_event_log, run_id
 
-        lines = read_event_log(lines=self._MAX_LINES)
+        lines = read_event_log(lines=self._MAX_LINES, run=run_id())
         if not lines:
-            return Text("(no events logged yet)", style="dim")
+            return Text("(no events logged this session)", style="dim")
         out = Text()
         for line in lines:
             fields = parse_event_line(line)
