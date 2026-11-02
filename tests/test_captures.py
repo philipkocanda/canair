@@ -698,7 +698,7 @@ class TestCmdDiffJson:
 class TestTimeEnforcement:
     """Tranche 2.6 — payload captures always timestamped; validator gate.
 
-    The invariant is enforced at every *write* path; the 284 legacy untimed rows in
+    The invariant is enforced at every *write* path; the 275 legacy untimed rows in
     the bundled profile stay readable and are only flagged by `validate --strict`.
     An untimed payload capture is silently dropped by every time-aligned analysis,
     and by the long-horizon counter sweep the calendar span is the evidence for.

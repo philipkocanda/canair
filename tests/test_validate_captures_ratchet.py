@@ -20,7 +20,7 @@ from canlib.pids import clear_cache
 # The hyundai-ioniq-ae-ev baseline gated in .github/workflows/ci.yml. The count can only
 # fall (writes enforce a timestamp), so the profile must sit AT or under it — a
 # real regression pushes it over and fails both CI and this test in lockstep.
-IONIQ_2017_UNTIMED_BASELINE = 284
+IONIQ_2017_UNTIMED_BASELINE = 275
 
 
 @pytest.fixture(autouse=True)
