@@ -1027,7 +1027,7 @@
     {
       "name": "IGPM_22BC03",
       "type": "specific",
-      "cmd": "22BC03",
+      "cmd": "22BC032",
       "init": "ATSH770;ATFCSH770",
       "rxheader": "",
       "group": "default",
