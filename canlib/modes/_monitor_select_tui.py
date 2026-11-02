@@ -2,8 +2,10 @@
 
 Two steps in one screen. Step 1 ticks saved ``@groups`` and ECUs; step 2 lists every
 PID of the ticked ECUs (pre-ticked with each ECU's default sweep, so accepting
-without changes is the same as typing the bare ECU names). The same screen serves
-both entry points, so picking looks and works the same before and during a run:
+without changes is the same as typing the bare ECU names). ``space`` toggles a row
+and ``enter`` moves on, so the quickest path — highlight one ECU, ``enter``,
+``enter`` — needs no tick at all. The same screen serves both entry points, so
+picking looks and works the same before and during a run:
 
 - :class:`MonitorSelectApp` — a bare ``canair monitor`` runs it before any
   connection is made (it only needs the profile) and exits with
@@ -42,11 +44,16 @@ class MonitorSelectScreen(Screen["Picks | None"]):
     names; an ECU ticked on its own gets its default sweep, and when both apply
     the two are combined. ``initial`` opens the screen on an existing selection
     (ECUs ticked, their PIDs carried into step 2 as they are).
+
+    ``enter`` is bound with priority because the list itself would otherwise take
+    it as a second toggle key; in the filter it just returns to the list.
     """
 
     HELP_TITLE: ClassVar[str] = "Select what to monitor"
-    #: What ``ctrl+s`` does on step 2, as shown in the status bar.
+    #: What ``enter`` does on step 2, as shown in the status bar.
     FINISH_HINT: ClassVar[str] = "start"
+    #: How ``enter`` is advertised in the help sheet.
+    ACCEPT_DESC: ClassVar[str] = "next / start"
     #: What ``q`` does, as shown in the status bar.
     QUIT_HINT: ClassVar[str] = "quit"
     #: Whether ``escape`` on step 1 cancels. Off at the top level of the
@@ -65,14 +72,20 @@ class MonitorSelectScreen(Screen["Picks | None"]):
     #monitor-select #choices { margin: 1 2; height: 1fr; }
     """
 
+    #: Keys the list handles itself, so they are not in ``BINDINGS``.
+    HELP_ROWS: ClassVar[tuple[tuple[str, str], ...]] = (("space", "toggle the highlighted row"),)
+
     BINDINGS: ClassVar[list[Binding]] = [
         *bind("quit", "cancel"),
         *bind("quit_force", "cancel", show=False, priority=True),
         *bind("help", "help"),
         *bind("back", "back", show=False),
+        *bind("move_down", "move_cursor(1)", show=False),
+        *bind("move_up", "move_cursor(-1)", show=False),
         *bind("filter", "focus_filter"),
         *bind("select_all", "toggle_all", priority=True),
-        *bind("apply", "advance"),
+        *bind("accept", "advance", desc=ACCEPT_DESC, priority=True),
+        *bind("apply", "advance", desc=ACCEPT_DESC, show=False),
     ]
 
     def __init__(
@@ -158,12 +171,20 @@ class MonitorSelectScreen(Screen["Picks | None"]):
                     options.append(Selection(label, (name, p.pid), p.pid in picked))
 
         selection = self.query_one("#choices", SelectionList)
-        keep = selection.highlighted
+        keep = self._highlighted_value()
         selection.clear_options()
         selection.add_options(options)
         if options:
-            selection.highlighted = min(keep or 0, len(options) - 1)
+            values = [option.value for option in options]
+            selection.highlighted = values.index(keep) if keep in values else 0
         self._update_header()
+
+    def _highlighted_value(self) -> object | None:
+        """The value under the cursor, so a re-render can put the cursor back on it."""
+        selection = self.query_one("#choices", SelectionList)
+        if selection.highlighted is None or not selection.option_count:
+            return None
+        return selection.get_option_at_index(selection.highlighted).value
 
     def _update_header(self) -> None:
         if self._step == 1:
@@ -174,7 +195,7 @@ class MonitorSelectScreen(Screen["Picks | None"]):
                 StatusItem("[dim]space toggle[/]", P_NORMAL),
                 StatusItem("[dim]/ filter[/]", P_NORMAL),
                 StatusItem("[dim]ctrl+a all/none[/]", P_LOW),
-                StatusItem("[dim]ctrl+s next[/]", P_HIGH),
+                StatusItem("[dim]enter next[/]", P_HIGH),
             ]
             if self._groups:
                 items.append(StatusItem("[dim]@rows are saved groups[/]", P_LOW))
@@ -187,7 +208,7 @@ class MonitorSelectScreen(Screen["Picks | None"]):
                 StatusItem("[dim]/ filter[/]", P_NORMAL),
                 StatusItem("[dim]ctrl+a all/none[/]", P_LOW),
                 StatusItem("[dim]esc back[/]", P_NORMAL),
-                StatusItem(f"[dim]ctrl+s {self.FINISH_HINT}[/]", P_HIGH),
+                StatusItem(f"[dim]enter {self.FINISH_HINT}[/]", P_HIGH),
             ]
         items += [
             StatusItem("[dim]? help[/]", P_ESSENTIAL),
@@ -199,9 +220,6 @@ class MonitorSelectScreen(Screen["Picks | None"]):
     # -- events ------------------------------------------------------------
     def on_input_changed(self, _event: Input.Changed) -> None:
         self._render_list()
-
-    def on_input_submitted(self, _event: Input.Submitted) -> None:
-        self.query_one("#choices", SelectionList).focus()
 
     def on_selection_list_selection_toggled(
         self, event: SelectionList.SelectionToggled[object]
@@ -260,15 +278,26 @@ class MonitorSelectScreen(Screen["Picks | None"]):
     def action_help(self) -> None:
         if isinstance(self.app.screen, HelpModal):
             return
-        rows = bindings_help_rows(self) + list(SCROLL_HELP_ROWS)
+        rows = bindings_help_rows(self) + list(self.HELP_ROWS) + list(SCROLL_HELP_ROWS)
         self.app.push_screen(HelpModal(self.HELP_TITLE, rows))
 
     def action_focus_filter(self) -> None:
         self.query_one("#filter", Input).focus()
 
+    def action_move_cursor(self, delta: int) -> None:
+        """Move the list cursor, also while typing in the filter."""
+        selection = self.query_one("#choices", SelectionList)
+        (selection.action_cursor_down if delta > 0 else selection.action_cursor_up)()
+
     async def action_back(self) -> None:
-        if isinstance(self.focused, Input):
-            self.query_one("#choices", SelectionList).focus()
+        """Back out one level: clear the filter, then leave step 2, then (live) close."""
+        field = self.query_one("#filter", Input)
+        selection = self.query_one("#choices", SelectionList)
+        if field.value:
+            field.value = ""
+            selection.focus()
+        elif self.focused is field:
+            selection.focus()
         elif self._step == 2:
             self._show_step(1)
         elif self.BACK_CANCELS:
@@ -289,8 +318,17 @@ class MonitorSelectScreen(Screen["Picks | None"]):
         self._render_list()
 
     def action_advance(self) -> None:
+        if self.focused is self.query_one("#filter", Input):
+            self.query_one("#choices", SelectionList).focus()
+            return
         if self._step == 1:
             effective = self._effective_ecus()
+            if not effective:
+                # Nothing ticked: take the highlighted row, so one ECU is just enter.
+                value = self._highlighted_value()
+                if value is not None:
+                    self._record(value, True)
+                    effective = self._effective_ecus()
             if not effective:
                 self.notify("Select at least one ECU or group first.", severity="warning")
                 return
@@ -321,6 +359,7 @@ class LiveMonitorSelectScreen(MonitorSelectScreen):
 
     HELP_TITLE = "Select what to monitor (live)"
     FINISH_HINT = "apply"
+    ACCEPT_DESC = "next / apply"
     QUIT_HINT = "close"
     BACK_CANCELS = True
 
@@ -328,9 +367,12 @@ class LiveMonitorSelectScreen(MonitorSelectScreen):
         *bind("quit", "cancel", desc=DISMISS_DESCRIPTION),
         *bind("help", "help"),
         *bind("back", "back", show=False),
+        *bind("move_down", "move_cursor(1)", show=False),
+        *bind("move_up", "move_cursor(-1)", show=False),
         *bind("filter", "focus_filter"),
         *bind("select_all", "toggle_all", priority=True),
-        *bind("apply", "advance"),
+        *bind("accept", "advance", desc=ACCEPT_DESC, priority=True),
+        *bind("apply", "advance", desc=ACCEPT_DESC, show=False),
     ]
 
 

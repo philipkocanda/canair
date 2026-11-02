@@ -114,9 +114,9 @@ class TestApp:
         app = self._app()
         async with app.run_test(size=(100, 30)) as pilot:
             await pilot.pause()
-            await _press(pilot, "space", "ctrl+s")  # tick BMS, next
+            await _press(pilot, "space", "enter")  # tick BMS, next
             assert app.picker._step == 2
-            await _press(pilot, "ctrl+s")
+            await _press(pilot, "enter")
         assert app.return_value == {"BMS": ["2101", "2105"]}
 
     @pytest.mark.asyncio
@@ -124,15 +124,42 @@ class TestApp:
         app = self._app()
         async with app.run_test(size=(100, 30)) as pilot:
             await pilot.pause()
-            await _press(pilot, "space", "ctrl+s", "space", "ctrl+s")  # drop BMS 2101
+            await _press(pilot, "space", "enter", "space", "enter")  # drop BMS 2101
         assert app.return_value == {"BMS": ["2105"]}
 
     @pytest.mark.asyncio
-    async def test_next_without_an_ecu_stays_on_step_one(self):
+    async def test_ctrl_s_still_advances(self):
         app = self._app()
         async with app.run_test(size=(100, 30)) as pilot:
             await pilot.pause()
-            await _press(pilot, "ctrl+s")
+            await _press(pilot, "space", "ctrl+s", "ctrl+s")
+        assert app.return_value == {"BMS": ["2101", "2105"]}
+
+    @pytest.mark.asyncio
+    async def test_enter_with_nothing_ticked_takes_the_highlighted_ecu(self):
+        app = self._app()
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            await _press(pilot, "down", "enter")  # VCU highlighted, nothing ticked
+            assert app.picker._step == 2
+            assert list(app.picker._pids) == ["VCU"]
+            await _press(pilot, "enter")
+        assert app.return_value == {"VCU": ["2101", "2102"]}
+
+    @pytest.mark.asyncio
+    async def test_enter_with_ticks_ignores_the_highlighted_row(self):
+        app = self._app()
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            await _press(pilot, "space", "down", "enter")  # tick BMS, cursor on VCU
+            assert list(app.picker._pids) == ["BMS"]
+
+    @pytest.mark.asyncio
+    async def test_next_with_nothing_to_pick_stays_on_step_one(self):
+        app = self._app()
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            await _press(pilot, "slash", "z", "z", "enter", "enter")  # empty list
             assert app.picker._step == 1
             await _press(pilot, "q")
         assert app.return_value is None
@@ -142,9 +169,9 @@ class TestApp:
         app = self._app()
         async with app.run_test(size=(100, 30)) as pilot:
             await pilot.pause()
-            await _press(pilot, "space", "ctrl+s", "space", "escape")  # drop 2101, back
+            await _press(pilot, "space", "enter", "space", "escape")  # drop 2101, back
             assert app.picker._step == 1
-            await _press(pilot, "ctrl+s", "ctrl+s")
+            await _press(pilot, "enter", "enter")
         assert app.return_value == {"BMS": ["2105"]}
 
     @pytest.mark.asyncio
@@ -154,12 +181,54 @@ class TestApp:
             await pilot.pause()
             await _press(pilot, "slash", "v", "c", "u")
             assert isinstance(app.focused, Input)
-            await _press(pilot, "escape", "ctrl+a")  # leave filter, tick visible (VCU)
+            await _press(pilot, "enter")  # back to the list, filter kept
+            assert app.picker._step == 1
+            assert isinstance(app.focused, SelectionList)
+            await _press(pilot, "ctrl+a")  # tick visible (VCU)
             assert app.picker._ecus == {"VCU"}
-            await _press(pilot, "ctrl+s")
+            await _press(pilot, "enter")
             assert list(app.picker._pids) == ["VCU"]
-            await _press(pilot, "ctrl+s")
+            await _press(pilot, "enter")
         assert app.return_value == {"VCU": ["2101", "2102"]}
+
+    @pytest.mark.asyncio
+    async def test_escape_clears_the_filter_before_leaving_the_step(self):
+        app = self._app()
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            await _press(pilot, "space", "enter", "slash", "2", "1", "0", "2", "enter")
+            selection = app.screen.query_one(SelectionList)
+            assert selection.option_count == 0  # step 2 lists BMS only
+            await _press(pilot, "escape")
+            assert app.picker._step == 2
+            assert app.screen.query_one(Input).value == ""
+            assert selection.option_count == 3
+            await _press(pilot, "escape")
+            assert app.picker._step == 1
+
+    @pytest.mark.asyncio
+    async def test_cursor_stays_on_its_row_when_the_list_changes(self):
+        app = self._grouped_app()
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            await _press(pilot, "down", "down", "slash", "c", "escape")  # VCU; filter; clear
+            selection = app.screen.query_one(SelectionList)
+            assert selection.highlighted is not None
+            assert selection.get_option_at_index(selection.highlighted).value == "VCU"
+
+    @pytest.mark.asyncio
+    async def test_cursor_keys_reach_the_list_from_the_filter(self):
+        app = self._app()
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            selection = app.screen.query_one(SelectionList)
+            await _press(pilot, "j")
+            assert selection.highlighted == 1
+            await _press(pilot, "k", "slash", "down")
+            assert isinstance(app.focused, Input)
+            assert selection.highlighted == 1
+            await _press(pilot, "j")  # typed, not a cursor move
+            assert app.screen.query_one(Input).value == "j"
 
     def _grouped_app(self) -> MonitorSelectApp:
         choices = build_choices(_index())
@@ -175,7 +244,7 @@ class TestApp:
             await pilot.pause()
             await _press(pilot, "space")  # the @drive row is first
             assert app.picker._effective_ecus() == {"BMS", "VCU"}
-            await _press(pilot, "ctrl+s", "ctrl+s")
+            await _press(pilot, "enter", "enter")
         assert app.return_value == {"BMS": ["2105"], "VCU": ["2102"]}
 
     @pytest.mark.asyncio
@@ -184,7 +253,7 @@ class TestApp:
         async with app.run_test(size=(100, 30)) as pilot:
             await pilot.pause()
             await _press(pilot, "down", "space", "up", "space")  # BMS row, then @drive
-            await _press(pilot, "ctrl+s", "ctrl+s")
+            await _press(pilot, "enter", "enter")
         assert app.return_value == {"BMS": ["2101", "2105"], "VCU": ["2102"]}
 
     @pytest.mark.asyncio
@@ -249,14 +318,27 @@ class TestPresentation:
             await pilot.pause()
             status = _plain(app.screen.query_one("#status").render())
             assert "step 1/2" in status
-            assert "ctrl+s next" in status
+            assert "enter next" in status
             assert "? help" in status
             assert "q quit" in status
-            await _press(pilot, "space", "ctrl+s")  # tick BMS, advance to step 2
+            await _press(pilot, "space", "enter")  # tick BMS, advance to step 2
             status = _plain(app.screen.query_one("#status").render())
             assert "step 2/2" in status
-            assert "ctrl+s start" in status
+            assert "enter start" in status
             assert "esc back" in status
+
+    @pytest.mark.asyncio
+    async def test_help_advertises_enter_and_space(self):
+        from canlib.tui.help import HelpModal
+
+        app = MonitorSelectApp(build_choices(_index()))
+        async with app.run_test(size=(100, 40)) as pilot:
+            await pilot.pause()
+            await _press(pilot, "question_mark")
+            assert isinstance(app.screen, HelpModal)
+            rows = dict(app.screen._rows)
+            assert rows["⏎/ctrl+s"] == "next / start"
+            assert rows["space"] == "toggle the highlighted row"
 
 
 class TestPureHelpers:
@@ -292,9 +374,9 @@ class TestInitialSelection:
         async with app.run_test(size=(100, 30)) as pilot:
             await pilot.pause()
             assert screen._effective_ecus() == {"BMS"}
-            await _press(pilot, "ctrl+s")
+            await _press(pilot, "enter")
             assert screen._pids == {"BMS": {"21F2"}}
-            await _press(pilot, "ctrl+s")
+            await _press(pilot, "enter")
         assert app.return_value == {"BMS": ["21F2"]}
 
     @pytest.mark.asyncio
@@ -326,7 +408,7 @@ class TestLivePicker:
             # Arrows must reach the list, not the monitor's own signal cursor.
             await _press(pilot, "down", "space")  # tick HVAC
             assert picker._effective_ecus() == {"BMS", "HVAC"}
-            await _press(pilot, "ctrl+s", "ctrl+s")
+            await _press(pilot, "enter", "enter")
             assert not isinstance(app.screen, LiveMonitorSelectScreen)
             assert app.controller.applied == {"BMS": ["2101"], "HVAC": ["2101", "2102"]}
             await pilot.press("q")
