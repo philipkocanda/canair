@@ -15,6 +15,14 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [4.2.1](https://github.com/philipkocanda/canair/compare/v4.2.0...v4.2.1) (2026-11-02)
+
+
+### Fixed
+
+* **contribute:** attach only the contributed sessions' events with --include-logs ([5d59ba4](https://github.com/philipkocanda/canair/commit/5d59ba4c794c70d544b30df6c708579441328815))
+* **monitor:** show only this session's events in the diagnostics log overlay ([bc7b948](https://github.com/philipkocanda/canair/commit/bc7b9481f9298a444227bba43c910415244db060))
+
 ## [4.2.0](https://github.com/philipkocanda/canair/compare/v4.1.0...v4.2.0) (2026-11-02)
 
 
