@@ -1,0 +1,76 @@
+"""Record ``canair dtc`` scans and clears to the DTC log (:mod:`canlib.dtc.log`)."""
+
+from __future__ import annotations
+
+from canlib import ansi
+
+from ...dtc.refs import ecu_ref
+
+
+def _log_scan(scope: str, results: list[dict], label: str | None, vehicle_states=None):
+    """Append this scan to the DTC log; return (path, previous_scan, diff).
+
+    ``scope`` is ``all`` or the scanned ECU's reference (:func:`canlib.dtc.refs.ecu_ref`).
+    The diff is against the previous same-scope scan, net of any ``--clear`` since."""
+    from canlib.dtc.log import (
+        append_scan,
+        build_scan,
+        clears_between,
+        diff_scans,
+        latest_matching,
+    )
+
+    ecus: dict = {}
+    unread: list[str] = []
+    for r in results:
+        rx = ecu_ref(int(r["tx"], 16))
+        if "dtcs" not in r:
+            unread.append(rx)
+            continue
+        codes = [d["dtc"] for d in r["dtcs"]]
+        # Full sweep keeps only ECUs with codes (absence on a same-scope sweep =
+        # cleared); a single-ECU scope keeps the ECU even when clean so a later
+        # compare can see its codes clear.
+        if scope != "all" or codes:
+            ecus[rx] = {"protocol": r["protocol"], "dtcs": codes}
+
+    current = build_scan(
+        scope,
+        ecus,
+        label=label,
+        vehicle_states=vehicle_states,
+        unread=unread if scope == "all" else None,
+    )
+    previous = latest_matching(scope)
+    diff = None
+    if previous:
+        since = clears_between(previous.get("timestamp", ""), current["timestamp"])
+        diff = diff_scans(previous, current, since)
+    path = append_scan(current)
+    return path, previous, diff
+
+
+def _print_log_result(path, previous, diff) -> None:
+    from canlib.dtc.log import format_diff
+
+    if previous:
+        for line in format_diff(diff, previous):
+            print(line)
+    else:
+        print("  No previous scan of this scope — recorded as baseline.")
+    print(f"  {ansi.DIM}Logged scan to {path} (`canair dtc log` to review){ansi.RESET}\n")
+
+
+def _log_manual_clear(tx_id, proto, group, pre_codes, label):
+    """Record a ``--clear``: readers take the ECU as clean from here until it is read."""
+    from canlib.dtc.log import append_clear, build_clear
+
+    append_clear(
+        build_clear(
+            ecu_ref(tx_id),
+            protocol=proto,
+            group=group,
+            codes=pre_codes or None,
+            label=label,
+        )
+    )

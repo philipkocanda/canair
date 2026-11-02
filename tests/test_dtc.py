@@ -6,6 +6,7 @@ import json
 import pytest
 
 from canlib.modes import dtc
+from canlib.modes.dtc import sweep as dtc_sweep
 from tests._fakes import FakeTerminal
 from tests._fakes import ok as _ok
 
@@ -175,8 +176,8 @@ class TestModeReadKwp:
             "dtcs": [],
             "note": "x",
         }
-        assert dtc._scan_status(res) == "2 DTC(s) (via 1802FF00)"
-        assert dtc._scan_status({**res, "note": None}) == "2 DTC(s)"
+        assert dtc_sweep._scan_status(res) == "2 DTC(s) (via 1802FF00)"
+        assert dtc_sweep._scan_status({**res, "note": None}) == "2 DTC(s)"
 
 
 class TestSupportedList:
@@ -206,7 +207,7 @@ class TestSupportedList:
     @pytest.mark.asyncio
     async def test_never_written_to_the_dtc_log(self, capsys, monkeypatch):
         logged = []
-        monkeypatch.setattr(dtc, "_log_scan", lambda *a, **k: logged.append(a))
+        monkeypatch.setattr("canlib.modes.dtc.read._log_scan", lambda *a, **k: logged.append(a))
         t = FakeTerminal({"1803FF00": _ok("5801" + "0123" + "10")})
         await dtc.mode_dtc_read(t, 0x7E4, protocol="kwp", supported=True, log=True)
         assert logged == []
@@ -330,7 +331,7 @@ class TestScanAll:
 
     @pytest.mark.asyncio
     async def test_scan_all_text_no_dtcs(self, monkeypatch, capsys):
-        monkeypatch.setattr(dtc, "resolve_protocol", lambda proto, tx: "uds")
+        monkeypatch.setattr("canlib.modes.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
         monkeypatch.setattr(
             "canlib.ecus.load_ecus",
             lambda: {0x7A0: {"name": "BCM"}, 0x770: {"name": "IGPM"}},
@@ -341,14 +342,14 @@ class TestScanAll:
         assert "No DTCs on any" in out
 
     def test_classify(self):
-        assert dtc._classify({"count": 1, "dtcs": [{}]}) == "faulty"
-        assert dtc._classify({"count": 0, "dtcs": []}) == "clean"
-        assert dtc._classify({"nrc": "0x11"}) == "nrc"
-        assert dtc._classify({"error": "NO DATA"}) == "no_response"
+        assert dtc_sweep._classify({"count": 1, "dtcs": [{}]}) == "faulty"
+        assert dtc_sweep._classify({"count": 0, "dtcs": []}) == "clean"
+        assert dtc_sweep._classify({"nrc": "0x11"}) == "nrc"
+        assert dtc_sweep._classify({"error": "NO DATA"}) == "no_response"
 
     @pytest.mark.asyncio
     async def test_scan_all_reports_no_response_separately(self, monkeypatch, capsys):
-        monkeypatch.setattr(dtc, "resolve_protocol", lambda proto, tx: "uds")
+        monkeypatch.setattr("canlib.modes.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
         monkeypatch.setattr(
             "canlib.ecus.load_ecus",
             lambda: {0x7A0: {"name": "BCM"}, 0x770: {"name": "IGPM"}},
@@ -362,7 +363,7 @@ class TestScanAll:
 
     @pytest.mark.asyncio
     async def test_scan_all_retry_recovers_slow_ecu(self, monkeypatch, capsys):
-        monkeypatch.setattr(dtc, "resolve_protocol", lambda proto, tx: "uds")
+        monkeypatch.setattr("canlib.modes.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
         monkeypatch.setattr("canlib.ecus.load_ecus", lambda: {0x7A0: {"name": "BCM"}})
         # NO DATA on first read, a DTC once retried (after the wake).
         t = FakeTerminal(flaky_recover={"1902FF": "5902FF0123002F"})
@@ -374,7 +375,7 @@ class TestScanAll:
 
     @pytest.mark.asyncio
     async def test_scan_all_no_retry_leaves_no_response(self, monkeypatch, capsys):
-        monkeypatch.setattr(dtc, "resolve_protocol", lambda proto, tx: "uds")
+        monkeypatch.setattr("canlib.modes.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
         monkeypatch.setattr("canlib.ecus.load_ecus", lambda: {0x7A0: {"name": "BCM"}})
         t = FakeTerminal(flaky_recover={"1902FF": "5902FF0123002F"})
         await dtc.mode_dtc_scan_all(t, as_json=True, timeout=0.1, retry=False)
@@ -392,7 +393,7 @@ class TestScanAll:
 
         logp = tmp_path / "dtc_log.yaml"
         monkeypatch.setattr(dtc_log, "log_path", lambda path=None: logp if path is None else path)
-        monkeypatch.setattr(dtc, "resolve_protocol", lambda proto, tx: "uds")
+        monkeypatch.setattr("canlib.modes.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
         monkeypatch.setattr("canlib.ecus.load_ecus", lambda: {0x7A0: {"name": "BCM"}})
         t = FakeTerminal({"1902FF": _ok("5902FF" + "0123002F")})  # BCM: 1 DTC
         args = argparse.Namespace(**{**CANAIR_DEFAULTS, "dtc_all": True, "mask": "FF"})

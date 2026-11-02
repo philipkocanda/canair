@@ -10,7 +10,7 @@ standardized — and what this module decodes — is:
 * the failure-type byte / DTCFailureType (ISO 14229-1 Annex D.3 / SAE J2012-DA),
   the ``-XX`` suffix on a 3-byte UDS DTC.
 
-Keep this pure and data-driven; ``modes/dtc.py`` calls :func:`describe_dtc` to
+Keep this pure and data-driven; ``modes/dtc/reading.py`` calls :func:`describe_dtc` to
 annotate each decoded record, naming the ECU that reported it.
 """
 
