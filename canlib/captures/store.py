@@ -365,7 +365,11 @@ def _hide_sensitive(entries: list[CaptureEntry], captures_dir: Path | None) -> l
     sset = sensitive.set_for_captures(captures_dir)
     if not sset:
         return entries
-    kept = [e for e in entries if not sset.has(e.get("ecu", ""), e.get("pid", ""))]
+    kept = [
+        e
+        for e in entries
+        if sensitive.is_redacted(e) or not sset.has(e.get("ecu", ""), e.get("pid", ""))
+    ]
     hidden = len(entries) - len(kept)
     if hidden and not _noted_sensitive:
         _noted_sensitive.append(hidden)
