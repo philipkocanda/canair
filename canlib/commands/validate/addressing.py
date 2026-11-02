@@ -35,10 +35,11 @@ _EXTENDED_ADDRESSING_MODES = frozenset(
 # conventional ECU keeps, which is how the ELM327-Emulator fixture filters to one ECU.
 _MANAGED_PREFIXES = ("ATSH", "ATFCSH", "ATFCSD", "ATFCSM")
 
-# ELM327 CAN protocols by id width (ATSP6/8 are 11-bit, 7/9 are 29-bit).
+# ELM327 CAN protocols by id width (6/8 are 11-bit, 7/9 are 29-bit), selected by
+# `AT SP` or `AT TP`, either with the auto-search `A` before or after the digit.
 _11BIT_PROTOCOLS = frozenset("68")
 _29BIT_PROTOCOLS = frozenset("79")
-_PROTOCOL_RE = re.compile(r"^ATSPA?([0-9A-C])$")
+_PROTOCOL_RE = re.compile(r"^AT[ST]P(?:A([0-9A-C])|([0-9A-C])A?)$")
 
 
 def _init_commands(init: str) -> list[str]:
@@ -51,7 +52,7 @@ def _init_protocol(commands: list[str]) -> str | None:
     for cmd in commands:
         match = _PROTOCOL_RE.match(cmd)
         if match:
-            protocol = match.group(1)
+            protocol = match.group(1) or match.group(2)
     return protocol
 
 
@@ -127,13 +128,13 @@ def addressing_warnings(pids_data: Mapping[str, Any]) -> list[str]:
             continue
         extended = is_extended(address.mode)
         if extended and protocol in _11BIT_PROTOCOLS:
-            width, wanted = "29-bit", "ATSP7/ATSP9"
+            width, wanted = "29-bit", "protocol 7 or 9 (ATTP7/ATTP9)"
         elif not extended and protocol in _29BIT_PROTOCOLS:
-            width, wanted = "11-bit", "ATSP6/ATSP8"
+            width, wanted = "11-bit", "protocol 6 or 8 (ATTP6/ATTP8)"
         else:
             continue
         warnings.append(
-            f"{ecu_name}: {width} addressing ({address.mode}) but init selects ATSP{protocol}; "
-            f"the ELM327 transports need {wanted} for it"
+            f"{ecu_name}: {width} addressing ({address.mode}) but init selects protocol "
+            f"{protocol}; the ELM327 transports need {wanted} for it"
         )
     return warnings

@@ -607,6 +607,14 @@ flow control only in answer to a First Frame. Plan: `plans/2026-10-20-elm327-ecu
 > **Verify a reset by interleaving two ECUs on their own rx addresses.** A single-ECU check is
 > worthless: `0x770` replies on `0x778`, which is exactly the filter you may have left set.
 
+> **Never let a connect write the chip's EEPROM.** `ATSP h` saves the protocol to EEPROM every
+> time it is sent, whatever `ATM` says, and with the memory function on (`ATM1`, the STN2120's
+> state after every reset) even an `ATTP h` the next request validates is stored. The EEPROM is
+> rated for about 10,000 writes, and the init runs on every connect, so `init_elm` sends `ATM0`
+> after each reset and every `ATSP` as `ATTP` (`canlib/transport/elm327_eeprom.py`). 4.52p passes
+> both to the chip unchanged (it only swaps `ATZ` for `ATWS`); v6 rewrites them itself, and only
+> from `beta.7` on also switches the memory function off. In `canair repl`, prefer `ATTP`.
+
 Absolute numbers are LAN-local; the config default `vpn` device measured ~320 ms for the same work.
 **Ratios transfer, absolutes do not** — and a fix that removes a fixed wait helps *more* on a slow
 link.

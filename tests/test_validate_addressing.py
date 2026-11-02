@@ -10,7 +10,7 @@ from canlib.commands.validate.addressing import (
     _init_protocol,
     addressing_warnings,
 )
-from canlib.commands.validate.pids import _addressing_warnings, _run_pids
+from canlib.commands.validate.pids import _elm327_warnings, _run_pids
 
 
 def _data(init: str = "ATSP6;ATS0;", **ecus) -> dict:
@@ -45,11 +45,11 @@ class TestAddressingWarnings:
     def test_29bit_ecu_with_an_11bit_protocol(self):
         ecu = {"tx_id": 0x18DA10F1, "addressing": {"mode": "normal_fixed_29bit"}}
         (warning,) = addressing_warnings(_data("ATSP6;", ENG=ecu))
-        assert "ATSP6" in warning and "ATSP7/ATSP9" in warning
+        assert "selects protocol 6" in warning and "ATTP7/ATTP9" in warning
 
     def test_11bit_ecu_with_a_29bit_protocol(self):
         (warning,) = addressing_warnings(_data("ATSPA7;", BMS={"tx_id": 0x7E4}))
-        assert "ATSP6/ATSP8" in warning
+        assert "ATTP6/ATTP8" in warning
 
     def test_no_protocol_in_init_is_not_a_mismatch(self):
         assert addressing_warnings(_data("ATS0;", BMS={"tx_id": 0x7E4})) == []
@@ -87,6 +87,10 @@ class TestInitProtocol:
             ("ATSPA6;", "6"),
             ("AT SP 0;", "0"),
             ("ATSP6;ATS0;ATSP7;", "7"),  # the last one wins
+            ("ATTP7;", "7"),
+            ("at tp a6;", "6"),
+            ("ATTP6A;", "6"),
+            ("ATSP00;", None),  # erases the stored protocol, selects none
             ("ATS0;ATST96;", None),
         ],
     )
@@ -97,9 +101,14 @@ class TestInitProtocol:
         ecu = {"tx_id": 0x18DA10F1, "addressing": {"mode": "normal_fixed_29bit"}}
         assert addressing_warnings(_data("ATSP0;", ENG=ecu)) == []
 
+    def test_a_try_protocol_init_is_checked_like_a_set_protocol_one(self):
+        ecu = {"tx_id": 0x18DA10F1, "addressing": {"mode": "normal_fixed_29bit"}}
+        (warning,) = addressing_warnings(_data("ATTP6;", ENG=ecu))
+        assert "selects protocol 6" in warning
+
 
 class TestThroughValidatePids:
-    """The warnings reach `validate pids` via `_addressing_warnings`."""
+    """The warnings reach `validate pids` via `_elm327_warnings`."""
 
     def _profile(self, tmp_path: Path, init: str, ecus: dict) -> Path:
         (tmp_path / "profile.yaml").write_text(yaml.safe_dump({"car_model": "Car", "init": init}))
@@ -111,13 +120,13 @@ class TestThroughValidatePids:
 
     def test_warnings_come_from_the_profile_on_disk(self, tmp_path):
         ecus_dir = self._profile(tmp_path, "ATSP6;ATFCSM1;", {"OBD": {"tx_id": 0x7DF}})
-        warnings = _addressing_warnings(ecus_dir)
+        warnings = _elm327_warnings(ecus_dir)
         assert len(warnings) == 2 and "ATFCSM1" in warnings[0]
 
-    def test_an_unparseable_file_yields_no_addressing_warnings(self, tmp_path):
+    def test_an_unparseable_file_yields_no_elm327_warnings(self, tmp_path):
         ecus_dir = self._profile(tmp_path, "ATSP6;", {})
         (ecus_dir / "bad.yaml").write_text("BMS: [unclosed\n")
-        assert _addressing_warnings(ecus_dir) == []
+        assert _elm327_warnings(ecus_dir) == []
 
     def test_run_pids_prints_them(self, tmp_path, monkeypatch, capsys):
         from canlib.profile import profile_for_path

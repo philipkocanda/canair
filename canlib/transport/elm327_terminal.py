@@ -56,6 +56,7 @@ from .elm327_addressing import (
     elm_id,
     target_in,
 )
+from .elm327_eeprom import init_commands
 from .elm327_frame_count import CountKey, FrameCountCache
 from .elm327_functional import elm_functional_exchange
 from .elm327_pipe import ResponsePipe, compact
@@ -483,15 +484,16 @@ class Elm327Terminal:
         return result
 
     async def init_elm(self, init_string: str):
-        """Send ELM327 initialization commands (``;``-separated AT commands)."""
+        """Reset the adapter and send its ``;``-separated init, without wearing its EEPROM.
+
+        See :mod:`canlib.transport.elm327_eeprom` for what is sent instead of the
+        profile's own commands, and why.
+        """
         resp = await self.send_command("ATZ", timeout=3.0)
         if self.verbose:
             print(f"  [init] ATZ -> {resp!r}", file=sys.stderr)
 
-        for cmd in init_string.rstrip(";").split(";"):
-            cmd = cmd.strip()
-            if not cmd:
-                continue
+        for cmd in init_commands(init_string):
             resp = await self.send_command(cmd)
             if self.verbose:
                 print(f"  [init] {cmd} -> {resp!r}", file=sys.stderr)

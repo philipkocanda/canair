@@ -1222,6 +1222,11 @@ not in the terminal:
   the TesterPresent keepalive loop. **`canlib/transport/raw_terminal.py` has its own, divergent
   copy** (shorter timeout, no retry, an unvalidated + exception-swallowed keepalive); unifying them
   changes raw-path behaviour, so it is a deliberate open item, not shared code you can assume.
+- **`canlib/transport/elm327_eeprom.py`** — what `init_elm` sends so a connect never writes the
+  chip's EEPROM (~10,000-write rating): `ATM0` after every reset, every `ATSP h` as `ATTP h`.
+  4.52p and generic adapters pass both through unchanged. Never send an init or a protocol
+  selection around `init_commands`/`ram_only`; `validate pids` warns about init commands that still
+  write it (`init_eeprom.py`).
 
 The engine exposes `drain()` + `recv_frame(timeout)` so modes that collect late frames go through
 the transport-agnostic surface, not a raw socket. All three backends satisfy the `Terminal` protocol

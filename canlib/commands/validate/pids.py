@@ -1651,7 +1651,7 @@ def _run_pids(files: list[str] | None, stats: bool) -> int:
         # at `wican autopid write`.
         all_errors.extend(_duplicate_param_errors(file_paths))
         all_errors.extend(_variant_reference_errors(prof))
-        all_warnings.extend(_addressing_warnings(prof.ecus_dir))
+        all_warnings.extend(_elm327_warnings(prof.ecus_dir))
 
     # Print results
     if all_warnings:
@@ -1724,18 +1724,22 @@ def _variant_reference_errors(prof) -> list[str]:
     return [f"variants.yaml: {e}" for e in variant_reference_errors(variants, ecus)]
 
 
-def _addressing_warnings(ecus_dir: Path) -> list[str]:
-    """ELM327/AutoPID addressing warnings (see :mod:`.addressing`); [] if unloadable."""
+def _elm327_warnings(ecus_dir: Path) -> list[str]:
+    """ELM327/AutoPID warnings for the loaded profile; [] if unloadable.
+
+    Addressing (:mod:`.addressing`) and EEPROM wear (:mod:`.init_eeprom`).
+    """
     from canlib.pids import load_pids
 
     from .addressing import addressing_warnings
+    from .init_eeprom import init_eeprom_warnings
 
     try:
         pids_data = load_pids(ecus_dir)
     except (OSError, yaml.YAMLError):
         # A broken file is already reported as an error by the per-file checks.
         return []
-    return addressing_warnings(pids_data)
+    return init_eeprom_warnings(pids_data.get("init")) + addressing_warnings(pids_data)
 
 
 def _duplicate_name_errors(file_paths: list[Path]) -> list[str]:
