@@ -15,6 +15,37 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [4.1.0](https://github.com/philipkocanda/canair/compare/v4.0.0...v4.1.0) (2026-11-02)
+
+
+### Added
+
+* **captures:** record disconnects and resyncs as a session's link_events ([5559cd2](https://github.com/philipkocanda/canair/commit/5559cd2c9df616e10dbec1575345abd14f96aa17))
+* **captures:** record paused, silent and unpolled stretches, and show every gap ([a201d1d](https://github.com/philipkocanda/canair/commit/a201d1d1b33850f9f125fef8c34db4ebfa905711))
+* **dtc:** read, decode and log DTC snapshots with every code ([16b6334](https://github.com/philipkocanda/canair/commit/16b63342f3e82f8ed30a8bdd14dc42625dd1e442))
+* **hyundai-ioniq-ae-ev:** define the CCM's DTC snapshot DID 4710 ([7835715](https://github.com/philipkocanda/canair/commit/783571536043f2ee3f5dd5e171c95141c5c47d26))
+* **pids:** define DTC snapshot DIDs and parse snapshot replies ([3a7d069](https://github.com/philipkocanda/canair/commit/3a7d0697bfe49a9891c3d1a1297df83029ba4e28))
+* **pids:** mark a PID or signal sensitive so it is masked, never saved or shared ([1456299](https://github.com/philipkocanda/canair/commit/1456299412e22162c33a21398917028eaab17d68))
+
+
+### Fixed
+
+* **captures:** keep a hand-redacted value of a sensitive PID ([ef18f6e](https://github.com/philipkocanda/canair/commit/ef18f6ea54919b62fae97655a9a7540e25ed9cd7))
+* **pids:** drop the enum or bitmask map when upsert-param changes a signal's type ([44a7b9b](https://github.com/philipkocanda/canair/commit/44a7b9b0fa344715082c17af075bf0cead798e67))
+* **uds:** stop the reply parser dropping or misreading valid replies ([6b07390](https://github.com/philipkocanda/canair/commit/6b07390fb765e576103ab664e7e67298a219d9da))
+
+
+### Changed
+
+* **captures:** assert the journal is open before admitting a record ([70f594e](https://github.com/philipkocanda/canair/commit/70f594ebdf31189410f4b450d676d610e17077e2))
+* **dtc:** split modes/dtc.py into a package by concern ([82fd0b0](https://github.com/philipkocanda/canair/commit/82fd0b0b6856faa74e40aae060e069a94954569b))
+
+
+### Documentation
+
+* **captures:** move the journaling and live-monitor sections after the transport notes ([cb88a78](https://github.com/philipkocanda/canair/commit/cb88a78ed71067e6a7c2e40d79e29d2ceacf4779))
+* **ioniq:** note the 28 kWh pack module layout in BMS notes ([eafa2e3](https://github.com/philipkocanda/canair/commit/eafa2e3091adb6de12f314511888fcc827d339e1))
+
 ## [4.0.0](https://github.com/philipkocanda/canair/compare/v3.1.0...v4.0.0) (2026-11-01)
 
 
