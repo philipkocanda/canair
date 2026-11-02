@@ -268,40 +268,6 @@ and `--backfill-states` refuse when a matched row belongs to the base, naming th
 file. `--dry-run` still previews it, and rows in your own layer are freely
 editable.
 
-## Journaling — you won't lose data
-
-Saves are **journaled**: written to a write-ahead log under `captures/.journal/`
-as they stream, and reconciled into the dated capture file when the session
-exits. A killed, crashed, or disconnected session is therefore never lost:
-
-```bash
-canair captures uds --recover      # reconcile orphaned journals into capture files
-canair captures uds --recover --discard   # or drop them unsaved
-```
-
-## Recording in the live monitor
-
-`canair monitor … --save` records continuously: every poll cycle is
-journaled as it arrives and written to a capture file automatically when you
-quit. Every poll is kept (`--keep-all`, the default), so the stored rows show the real
-polling cadence; repeats cost little space because they are
-[folded on disk](#repeated-polls-are-folded-on-disk). `--keep-changes` instead stores only
-value-transitions per PID (run-length), and the session records `keep_mode: changes` so the
-analysis tools know to [carry each value forward](analysis-commands.md#forward-fill-a-run-length-row-is-a-segment-not-a-sample). The live view
-collapses each run of identical payloads into one row with its poll count (`×37`) and shows
-the newest few (`--keep N` sets how many). The scrollable live view shows a blinking `● REC`
-whenever a `--save` recording is active, and two keys control the session:
-
-- **`s` (label recording)** — set or edit the label / state / notes of the **current**
-  recording. Everything is already journaled, so this only *labels* the session; it doesn't
-  write a separate file. The state field is free text (comma-separated), pre-filled with the
-  **union of every state auto-suggested so far in the segment** — not just the one active as
-  you press `s`, so a top-up that ended a minute ago is still offered. Accepting the
-  pre-fill unchanged (or leaving it blank) keeps the state automatic, so states seen after
-  the keypress still count; typing a different state pins it. (Without `--save`, `s`
-  instead writes the payloads captured since the previous `s` to a new capture file,
-  pre-filled with the union of states seen over that span.)
-- **`n` (finish & start new)** — write the current session to its own capture file **now**
 ## Sensitive PIDs and signals
 
 Some readings identify the car or its owner the way a VIN does. The Ioniq's CCM
@@ -340,6 +306,40 @@ canair captures purge-sensitive             # confirm, then rewrite
 If those files were already committed or pushed, the data stays in git history
 until the history is rewritten.
 
+## Journaling — you won't lose data
+
+Saves are **journaled**: written to a write-ahead log under `captures/.journal/`
+as they stream, and reconciled into the dated capture file when the session
+exits. A killed, crashed, or disconnected session is therefore never lost:
+
+```bash
+canair captures uds --recover      # reconcile orphaned journals into capture files
+canair captures uds --recover --discard   # or drop them unsaved
+```
+
+## Recording in the live monitor
+
+`canair monitor … --save` records continuously: every poll cycle is
+journaled as it arrives and written to a capture file automatically when you
+quit. Every poll is kept (`--keep-all`, the default), so the stored rows show the real
+polling cadence; repeats cost little space because they are
+[folded on disk](#repeated-polls-are-folded-on-disk). `--keep-changes` instead stores only
+value-transitions per PID (run-length), and the session records `keep_mode: changes` so the
+analysis tools know to [carry each value forward](analysis-commands.md#forward-fill-a-run-length-row-is-a-segment-not-a-sample). The live view
+collapses each run of identical payloads into one row with its poll count (`×37`) and shows
+the newest few (`--keep N` sets how many). The scrollable live view shows a blinking `● REC`
+whenever a `--save` recording is active, and two keys control the session:
+
+- **`s` (label recording)** — set or edit the label / state / notes of the **current**
+  recording. Everything is already journaled, so this only *labels* the session; it doesn't
+  write a separate file. The state field is free text (comma-separated), pre-filled with the
+  **union of every state auto-suggested so far in the segment** — not just the one active as
+  you press `s`, so a top-up that ended a minute ago is still offered. Accepting the
+  pre-fill unchanged (or leaving it blank) keeps the state automatic, so states seen after
+  the keypress still count; typing a different state pins it. (Without `--save`, `s`
+  instead writes the payloads captured since the previous `s` to a new capture file,
+  pre-filled with the union of states seen over that span.)
+- **`n` (finish & start new)** — write the current session to its own capture file **now**
   and start a **fresh** recording, labelled via the same modal (pre-filled with the state
   active now, and likewise automatic unless you change it). Press it at each phase change
   (parked → driving → charging) to get several independently-labelled sessions from one run.
