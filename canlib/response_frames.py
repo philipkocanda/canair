@@ -68,11 +68,17 @@ def seed_counts(pids_data: dict) -> dict[CountKey, int]:
     (``FrameCountCache.seed`` applies ``MAX_REQUESTABLE_FRAMES``). Keeping the
     ceiling in one place stops a profile fact from being silently rewritten by
     the layer that happens to read it.
+
+    A request id several ECUs share (extended addressing) is left out: a
+    :data:`CountKey` cannot tell them apart, so one ECU's count would be asked of
+    another's reply, an undercount whenever the other's is longer. The write-back
+    refuses those ids for the same reason (:func:`resolve_edits`).
     """
+    shared = {tx for tx, names in _owners_by_tx(pids_data).items() if len(names) > 1}
     out: dict[CountKey, int] = {}
     for ecu_def in (pids_data.get("ecus") or {}).values():
         tx = ecu_def.get("tx_id")
-        if tx is None:
+        if tx is None or int(tx) in shared:
             continue
         for pid_code, pid_def in (ecu_def.get("pids") or {}).items():
             frames = stored_count(pid_def)
@@ -99,7 +105,7 @@ def variable_length_keys(pids_data: dict) -> frozenset[CountKey]:
         for pid_code, pid_def in (ecu_def.get("pids") or {}).items():
             if (
                 isinstance(pid_def, dict)
-                and pid_def.get("variable_length") is True
+                and pid_def.get("variable_length")
                 and pid_status(pid_def) != "ignored"
             ):
                 out.add((int(tx), _pid_request(pid_code)))

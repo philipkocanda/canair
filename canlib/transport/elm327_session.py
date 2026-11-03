@@ -34,6 +34,11 @@ _KEEPALIVE_INTERVAL = 2.0
 # stay awake, which a 600ms-per-attempt budget cannot deliver.
 _WAKE_TIMEOUT_CMD = "ATST10"  # 64ms
 
+# A session reply is checked by its service only: a stale reply to an earlier read
+# must not count as an open session, but the sub-function echo is left alone, since
+# some KWP2000 ECUs are not known to repeat it.
+_SESSION_SID = 0x10
+
 
 async def enter_extended_session(
     terminal: Elm327Terminal, wake: bool = False, mode: str = "03"
@@ -57,7 +62,7 @@ async def enter_extended_session(
     if wake:
         await _wake(terminal)
 
-    resp = await terminal.send_uds(req, timeout=5.0)
+    resp = await terminal.send_uds(req, timeout=5.0, expected_sid=_SESSION_SID)
     if resp.get("ok"):
         print(f"  Session (10 {mode}) established.")
     elif resp.get("nrc") is not None:
@@ -70,7 +75,7 @@ async def enter_extended_session(
         error = resp.get("error", "unknown")
         print(f"  Session request failed: {error} — retrying in 0.5s...")
         await asyncio.sleep(0.5)
-        resp = await terminal.send_uds(req, timeout=5.0)
+        resp = await terminal.send_uds(req, timeout=5.0, expected_sid=_SESSION_SID)
         if resp.get("ok"):
             print(f"  Session (10 {mode}) established (on retry).")
         elif resp.get("nrc") is not None:
@@ -86,10 +91,10 @@ async def enter_extended_session(
 async def _wake(terminal: Elm327Terminal) -> None:
     """Nudge a deep-sleeping ECU with a default session request before the real one."""
     await terminal.send_command(_WAKE_TIMEOUT_CMD)
-    wake_resp = await terminal.send_uds("1001", timeout=3.0)
+    wake_resp = await terminal.send_uds("1001", timeout=3.0, expected_sid=_SESSION_SID)
     if not wake_resp.get("ok"):
         # First frame may just trigger the transceiver — retry.
-        wake_resp = await terminal.send_uds("1001", timeout=3.0)
+        wake_resp = await terminal.send_uds("1001", timeout=3.0, expected_sid=_SESSION_SID)
     if wake_resp.get("ok"):
         print("  Wake-up: ECU responded.")
     await terminal.send_command(terminal.elm_timeout_cmd)  # restore

@@ -80,7 +80,8 @@ def requestable(request: str, frames: int | None) -> bool:
     """
     if frames is None or frames < 1 or frames > MAX_REQUESTABLE_FRAMES:
         return False
-    return len(request) % 2 == 0
+    # Hex digits, not characters: a request written with spaces is no shorter.
+    return len("".join(request.split())) % 2 == 0
 
 
 def annotate_request(request: str, frames: int) -> str:

@@ -165,6 +165,17 @@ class TestSeedCounts:
         data = _profile({"21F2": {"status": "active", FIELD: 13}})
         assert seed_counts(data) == {(0x7E4, "21F2"): 13}
 
+    def test_a_request_id_several_ecus_share_is_not_seeded(self):
+        """Extended addressing: one header, told apart by a byte a CountKey lacks."""
+        data = {
+            "ecus": {
+                "DME": {"tx_id": 0x6F1, "pids": {"22F190": {"status": "active", FIELD: 1}}},
+                "EGS": {"tx_id": 0x6F1, "pids": {"22F190": {"status": "active", FIELD: 3}}},
+                "BMS": {"tx_id": 0x7E4, "pids": {"2101": {"status": "active", FIELD: 4}}},
+            }
+        }
+        assert seed_counts(data) == {(0x7E4, "2101"): 4}
+
 
 class TestVariableLengthKeys:
     """The keys the transport must never ask for a count on."""
@@ -177,9 +188,11 @@ class TestVariableLengthKeys:
         data = _profile({"2101": {"status": "ignored", "variable_length": True}})
         assert variable_length_keys(data) == frozenset()
 
-    def test_only_a_true_flag_counts(self):
+    def test_any_true_flag_counts_the_same_way_the_seed_reads_it(self):
+        """The seed and write-back skip a truthy flag, so the opt-out must not differ."""
         data = _profile({"2101": {"variable_length": False}, "2105": {"variable_length": "yes"}})
-        assert variable_length_keys(data) == frozenset()
+        assert variable_length_keys(data) == frozenset({(0x7E4, "2105")})
+        assert seed_counts(_profile({"2105": {"variable_length": "yes", FIELD: 2}})) == {}
 
     def test_a_session_never_writes_a_count_onto_it(self):
         data = _profile({"2101": {"status": "active", "variable_length": True}})

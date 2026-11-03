@@ -495,6 +495,10 @@ class TestWireRules:
         # command odd-length; appending to an odd request changes the question.
         assert requestable("210", 4) is False
 
+    def test_spaces_in_the_request_do_not_count_as_digits(self):
+        assert requestable("21 01", 4) is True
+        assert requestable("22 C0 0", 4) is False
+
     def test_the_digit_is_uppercase_hex_appended(self):
         assert annotate_request("2101", 4) == "21014"
         assert annotate_request("22C00B", 9) == "22C00B9"
