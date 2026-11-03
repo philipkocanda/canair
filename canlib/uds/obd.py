@@ -17,6 +17,12 @@ def is_support_bitmap_pid(pid: int) -> bool:
 
 
 def supported_pids(base: int, bitmap: bytes) -> list[int]:
-    """The PIDs a 4-byte support ``bitmap`` read from PID ``base`` advertises."""
-    bits = int.from_bytes(bitmap[:4], "big")
+    """The PIDs a 4-byte support ``bitmap`` read from PID ``base`` advertises.
+
+    Raises :class:`ValueError` for a bitmap of any other length: each bit's PID is
+    fixed by its position in the four bytes, so a short one would shift every bit.
+    """
+    if len(bitmap) != 4:
+        raise ValueError(f"a support bitmap is 4 bytes, got {len(bitmap)}")
+    bits = int.from_bytes(bitmap, "big")
     return [base + i + 1 for i in range(32) if bits & (1 << (31 - i))]

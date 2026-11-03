@@ -191,3 +191,10 @@ class TestEchoOnTheElm327Wire:
 def test_support_bitmap():
     assert supported_pids(0x00, bytes.fromhex("80000001")) == [0x01, 0x20]
     assert supported_pids(0x20, bytes.fromhex("80018001")) == [0x21, 0x30, 0x31, 0x40]
+
+
+@pytest.mark.parametrize("bitmap", ["800000", "8000000100"])
+def test_a_bitmap_of_another_length_is_refused(bitmap):
+    # 800000 used to read as 0x00800000, advertising PID 09 instead of 01.
+    with pytest.raises(ValueError, match="4 bytes"):
+        supported_pids(0x00, bytes.fromhex(bitmap))
