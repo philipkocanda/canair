@@ -1,14 +1,16 @@
 """Query specific named parameters."""
 
-import asyncio
 import json
 
 from canlib.expression.decoding import decode_param_rows
+from canlib.uds.echo import request_echo
 
 from ..formatting import print_decoded_params
 from ..pids import build_param_index
 from ..sensitive import mask_rows
+from ..session_manager import SessionManager
 from ..transport.protocol import Terminal
+from .multi_exec import timed_exchange
 
 
 def _param_def(p: dict) -> dict:
@@ -62,21 +64,30 @@ async def mode_param(
         return
 
     all_results = []
-    tester_tasks = []
-    opened: set[int] = set()  # ECUs we've already entered a session on
-
+    # One session per ECU, each kept alive on its own header. The terminal's own
+    # TesterPresent loop sends 3E00 to whichever ECU the adapter is addressed at
+    # when it fires, so with two ECUs the first one's session lapsed while the
+    # second was read.
+    sm = SessionManager(terminal, verbose=verbose)
+    if session:
+        sm.start_background_keepalive(interval=2.0)
     try:
         for (tx_id, pid), params in groups.items():
-            await terminal.set_header(tx_id)
+            if session and not sm.has_session(tx_id):
+                await sm.open_session(tx_id, wake=wake)
 
-            if session and tx_id not in opened:
-                # One session (+ TesterPresent loop) per ECU, not per (ECU, PID) —
-                # several params on the same ECU must not each open a session.
-                _, tester_task = await terminal.enter_extended_session(wake=wake)
-                tester_tasks.append(tester_task)
-                opened.add(tx_id)
-
-            response = await terminal.send_uds(pid, retries=1)
+            await sm.keepalive_stale()
+            echo = request_echo(pid)
+            response, _wall, _held = await timed_exchange(
+                sm,
+                tx_id,
+                pid,
+                retries=1,
+                expected_sid=echo[0] if echo else None,
+                expected_echo=echo[1] if echo else None,
+            )
+            if response.get("ok") or response.get("nrc") is not None:
+                sm.mark_active(tx_id)
 
             if not response["ok"]:
                 error = response.get("error") or response.get("nrc_desc", "unknown error")
@@ -94,14 +105,7 @@ async def mode_param(
             rows = decode_param_rows(response["hex"], param_defs)
             all_results.extend(mask_rows(rows, {"parameters": param_defs}))
     finally:
-        for task in tester_tasks:
-            if task is None:
-                continue
-            task.cancel()
-            try:
-                await task
-            except asyncio.CancelledError:
-                pass
+        sm.stop_background_keepalive()
 
     if as_json:
         json_out = []

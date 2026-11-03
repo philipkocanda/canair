@@ -172,9 +172,9 @@ and **`g`/`G` address the view's primary axis**.
   the PID's row. A reconnect restores every PID's rate (`MonitorController.reset_backoff`,
   called from `rebind`), clearing the backoff and the scheduler's slowdown together: never
   reset one alone, or the scheduler keeps a factor nothing will ever restore. On the ELM327
-  path each result carries its request's `request_s` (`multi_exec._exchange`), which excludes
-  keepalive time (`SessionManager.keepalive_seconds`); a multi-DID batch is one request for
-  each PID it answers, timed as the whole batch. The scheduler is a
+  path each result carries its request's `request_s` (`multi_exec.timed_exchange`), which
+  excludes keepalive time (`SessionManager.keepalive_seconds`); a multi-DID batch is one
+  request for each PID it answers, timed as the whole batch. The scheduler is a
   dependency-free leaf, `canlib/poll_schedule.py::PollScheduler` (the parser imports its
   vocabulary at CLI start-up, so it must not reach into `canlib/modes`); it drives which PIDs each
   tick reads and, since a slow PID is now polled far less often than a fast one, also supplies the

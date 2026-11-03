@@ -608,7 +608,7 @@ class MonitorController:
         from ..uds.echo import request_echo
         from .multi import _exec_session, _exec_skm_wake
         from .multi_batch import BatchState
-        from .multi_exec import _exchange
+        from .multi_exec import timed_exchange
 
         assert self.sm is not None  # not self.raw ⟺ sm was constructed
         from ..transport.isotp_params import resolve_rx_padding
@@ -637,7 +637,7 @@ class MonitorController:
             with contextlib.suppress(Exception):
                 # One transaction, echo-validated: the background keepalive is already
                 # running, and could otherwise re-point the header between the two.
-                await _exchange(
+                await timed_exchange(
                     self.sm,
                     info["tx_id"],
                     request,

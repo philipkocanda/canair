@@ -86,7 +86,9 @@ async def _exec_session(
     return await sm.open_session(tx_id, wake=wake, mode=mode, wake_plan=wake_plan)
 
 
-async def _exchange(sm, tx_id: int, request: str, **kwargs) -> tuple[UdsResponse, float, float]:
+async def timed_exchange(
+    sm, tx_id: int, request: str, **kwargs
+) -> tuple[UdsResponse, float, float]:
     """Send ``request`` to ``tx_id``: its reply, wall seconds, and seconds it held the pipe.
 
     set_header + send_uds run inside one transaction, so a background keepalive can't
@@ -108,13 +110,13 @@ async def _read_single(sm, tx_id, pid_code, pid_info, unmapped, batch_state):
     """Send one PID, return its result dict; learn its 22-DID length for batching.
 
     keepalive_stale runs *outside* the request's transaction (it is unrelated traffic
-    that shouldn't be serialised behind this exchange); see :func:`_exchange`.
+    that shouldn't be serialised behind this exchange); see :func:`timed_exchange`.
     """
     await sm.keepalive_stale()
     echo = request_echo(pid_code)
     expected_sid = echo[0] if echo else None
     expected_echo = echo[1] if echo else None
-    resp, wall, request_s = await _exchange(
+    resp, wall, request_s = await timed_exchange(
         sm, tx_id, pid_code, retries=1, expected_sid=expected_sid, expected_echo=expected_echo
     )
     # Wall-clock round-trip (transport + ECU) for this single read — persisted on
@@ -189,7 +191,7 @@ async def _read_batch(sm, tx_id, group, out, batch_state) -> BatchOutcome:
     # `stale` (triggering a pipe resync) instead of letting split_multi_did fail
     # silently — which the caller reads as "unsplittable" and reacts to by
     # permanently disabling batching for the whole ECU.
-    resp, _wall, request_s = await _exchange(
+    resp, _wall, request_s = await timed_exchange(
         sm,
         tx_id,
         "22" + "".join(dids),
