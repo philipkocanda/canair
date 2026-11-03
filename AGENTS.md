@@ -142,8 +142,12 @@ and **`g`/`G` address the view's primary axis**.
   each PID to its ECU with a colon (`IGPM:22BC07`), never a space**: in a query step a space
   separates *independent ECU selectors*, so `"query IGPM 22BC07"` means "all of IGPM plus a bogus
   ECU" and is rejected. A **`@group`** token expands to a saved selector set (`canair groups`).
-  **An undefined 4-hex-digit PID is a service-22 DID** (`BMS:0101` sends `220101`); name OBD-II
-  mode 01/09 with the explicit `SERVICE/ID` form (`BMS:01/0D` sends `010D`; `canlib/query.py`).
+  **An undefined PID token is inferred by `canlib/query.py::inferred_request`**: two digits are a
+  KWP local identifier (`01` → `2101`), four starting `21` stay a KWP read, any other four are a
+  service-22 DID (`0101` → `220101`, `2201` → `222201`), six starting `22` go as written; anything
+  else (odd length, `BC0301`) is refused, never guessed. A token picks defined PIDs by prefix *or*
+  suffix (`VCU:22` = every `22xxxx`) in live reads and captures alike. Name OBD-II mode 01/09 with
+  the explicit `SERVICE/ID` form (`BMS:01/0D` sends `010D`).
   **TesterPresent keepalives are automatic — there is no `tester-present` command/flag**; opening a
   session keeps it alive with idle-aware `3E00` (shared by UDS and KWP2000). Use `--reboot` to
   restore AutoPID after a WebSocket session. `--verbose` is for debugging canair itself.
@@ -163,7 +167,12 @@ and **`g`/`G` address the view's primary axis**.
   (`MONITOR_PERIOD_SPEEDUP`), a PID without one every `--interval` (`--schedule fixed` reads
   every PID every cycle). A slow or silent ECU holds up every other ECU's next read, so the
   leaf `canlib/poll_backoff.py::EcuBackoff` slows it (×2 up to ×32, `--no-backoff` off) from
-  per-ECU `PollCost`s the pollers leave in `MonitorController.ecu_costs`. The scheduler is a
+  per-ECU `PollCost`s the pollers leave in `MonitorController.ecu_costs`. A reconnect restores
+  every ECU's rate (`MonitorController.reset_backoff`, called from `rebind`), clearing the
+  backoff and the scheduler's slowdown together: never reset one alone, or the scheduler keeps a
+  factor nothing will ever restore. On the ELM327 path an ECU's cost excludes keepalive time
+  (`SessionManager.keepalive_seconds`) and counts a multi-DID batch as one request. The
+  scheduler is a
   dependency-free leaf, `canlib/poll_schedule.py::PollScheduler` (the parser imports its
   vocabulary at CLI start-up, so it must not reach into `canlib/modes`); it drives which PIDs each
   tick reads and, since a slow PID is now polled far less often than a fast one, also supplies the
@@ -183,15 +192,22 @@ and **`g`/`G` address the view's primary axis**.
 - **`canair discover`** (alias `disc`) — Which ECUs answer right now; `--register` writes a new ECU
   into `ecus/`. **`--functional`** sends one read on the functional id instead and groups every
   responder by `can_bus:` (the gateway routing map). Its request is an **allow-list**
-  (`canlib/safety.py::check_functional_request`, never widened by `--unsafe`); reception is
+  (`canlib/safety.py::check_functional_request`, never widened by `--unsafe`), and
+  `check_command_safety` applies the same allow-list to *every* request sent to an unregistered
+  functional id, so `raw 7DF:…` and the REPL cannot broadcast a state change either; reception is
   `Terminal.send_functional` over the pure collector `canlib/transport/functional.py` (raw:
-  `functional_raw.py` sends flow control to each responder's *physical* id via
-  `addressing.physical_request_id`; ELM: `elm327_functional.py` brackets the request with
-  `ATH1`/`ATH0` in one transaction, tracked by `AdapterState.headers`); classification is
-  `canlib/modes/functional_sweep.py`.
+  `functional_raw.py` flow-controls only a First Frame that answers the request, sent to the
+  responder's *physical* id via `addressing.physical_request_id`, and times each responder on its
+  own N_Cr under an absolute cap; ELM: `elm327_functional.py` brackets the request with
+  `ATH1`/`ATH0` in one transaction, tracked by `AdapterState.headers`, and opens the receive
+  filter with `ATCF`/`ATCM` for it, since the auto filter behind `0x7DF` passes only
+  `0x7E8`–`0x7EF`); classification is `canlib/modes/functional_sweep.py`. CAN-FD and
+  `normal_29bit` profiles are refused.
 - **`canair identity`** (alias `id`) — Identity DIDs/records (UDS `22 F1xx`, KWP2000 `1A 8x/9x`),
   printed only: nothing is written to the ECU's `identity:` (which can hold a live VIN when
-  filled by hand or `ecu add` — see PII).
+  filled by hand or `ecu add` — see PII). On a profile without `hk_f1xx_minus_one`, a reply
+  naming exactly the requested DID minus one stays refused but is reported as answered one
+  lower, with a hint to enable the quirk.
 - **`canair io`** / **`canair routines`** — IOControl (`0x2F`, or an entry's own KWP `0x30`
   commands) and RoutineControl (`0x31`): interactive TUI or a single actuation. **Mutative** —
   confirm-first, and actuators auto-release when the session ends, with each entry's resolved
@@ -640,9 +656,12 @@ reuse these instead of re-declaring a flag:
   ISO-TP state machine is the leaf `canlib/uds/isotp_passive.py` (a lost frame costs exactly one
   message, counted once, never repaired), pairing and stamping are `canlib/captures/from_log.py`,
   and the CLI is `commands/import_uds/log.py`. **Replies are filed by their own echo, never by the
-  last request** (a tool that pipelines requests or interleaves a scan mis-files them); the request
-  is tracked only to skip a *batched* `22 D1 D2 …` read, whose reply cannot be split safely, and to
-  file an opt-in (`--keep-nrc`) NRC. Lost frames land in the session's `quality.drop`. Normal
+  last request** (a tool that pipelines requests or interleaves a scan mis-files them). Every
+  data-read request is kept until answered or for P2\*max (5 s), so a reply starting with an
+  outstanding batch's first DID is skipped even when later requests were pipelined, and so is a
+  reply that splits on lengths earlier replies showed; a negative reply answers the oldest
+  outstanding request of its service (`--keep-nrc` files it only if that was a single read).
+  Frames lost on reply ids land in the session's `quality.drop`. Normal
   addressing only; `--until-ts` exists because public logs go intermittent part-way through.
 - **`canair import can <FILE>`** — Domain B: reads a raw broadcast frame log
   (`.asc`/`.blf`/python-can `.csv`/candump `.log`/`.trc`/SavvyCAN GVRET `.csv`; `--format auto` by
