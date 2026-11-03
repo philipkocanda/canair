@@ -14,8 +14,7 @@ from canlib.yaml_edit.text import (
     _find_ecu_block,
     _keyed_block,
     _remove_field_line,
-    _safe_write,
-    find_ecu_file,
+    edit_ecu_text,
 )
 
 FIELD = "support_map"
@@ -30,9 +29,6 @@ def set_support_map(
     like the other PID-level scalars. The result is re-parsed and must read back as ``decl``;
     on failure the original file is restored.
     """
-    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
-    original = fpath.read_text()
-    ecu_key = ecu_name.strip().upper()
     pid_u = str(pid).strip().upper()
 
     def transform(text: str) -> str:
@@ -63,5 +59,4 @@ def set_support_map(
         if got != decl:
             raise PidsEditError(f"support_map mismatch after edit: {got!r} != {decl!r}")
 
-    _safe_write(fpath, original, transform(original), ecu_key, checker)
-    return fpath
+    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)

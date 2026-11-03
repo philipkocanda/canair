@@ -26,8 +26,8 @@ from canlib.yaml_edit.text import (
     _keyed_block,
     _norm_states,
     _replace_field_in_block_at,
-    _safe_write,
     _today,
+    edit_ecu_text,
     find_ecu_file,
 )
 
@@ -125,9 +125,6 @@ def add_research_entry(
         if not str(fields.get(req, "")).strip():
             raise PidsEditError(f"research entry requires non-empty {req!r}")
 
-    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
-    original = fpath.read_text()
-    ecu_key = ecu_name.strip().upper()
     item_lines = _format_research_item(fields, indent=4)
 
     def transform(text: str) -> str:
@@ -148,9 +145,7 @@ def add_research_entry(
         ):
             raise PidsEditError("research entry missing after edit")
 
-    new_text = transform(original)
-    _safe_write(fpath, original, new_text, ecu_key, checker)
-    return fpath
+    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
 
 
 def _find_research_block(text: str, ecu_name: str):
@@ -265,12 +260,10 @@ def set_research_status(
     ``PidsEditError`` if no item matches, ``index`` is out of range, or the
     match is still ambiguous.
     """
-    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
-    original = fpath.read_text()
-    ecu_key = ecu_name.strip().upper()
     target_norm = str(target).strip().strip('"').strip("'")
     today = _today()
 
+    original = find_ecu_file(ecu_name, pids_dir=pids_dir).read_text()
     research_block = _find_research_block(original, ecu_name)
     matches = _match_research_items(original, research_block, target, type)
     s, e = _select_research_match(target, type, matches, index=index)
@@ -298,9 +291,7 @@ def set_research_status(
         if not ok:
             raise PidsEditError("status not applied after edit")
 
-    new_text = transform(original)
-    _safe_write(fpath, original, new_text, ecu_key, checker)
-    return fpath
+    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
 
 
 def delete_research_entry(
@@ -322,11 +313,9 @@ def delete_research_entry(
     (an empty ``research:`` key parses to ``None`` and fails the schema).
     Verified by YAML re-parse; the file is restored on failure.
     """
-    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
-    original = fpath.read_text()
-    ecu_key = ecu_name.strip().upper()
     target_norm = str(target).strip().strip('"').strip("'")
 
+    original = find_ecu_file(ecu_name, pids_dir=pids_dir).read_text()
     research_block = _find_research_block(original, ecu_name)
     matches = _match_research_items(original, research_block, target, type)
     s, e = _select_research_match(target, type, matches, index=index)
@@ -353,9 +342,7 @@ def delete_research_entry(
         if post_count != pre_count - 1:
             raise PidsEditError("research entry still present after delete")
 
-    new_text = transform(original)
-    _safe_write(fpath, original, new_text, ecu_key, checker)
-    return fpath
+    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
 
 
 #: The free-text fields :func:`set_research_text` edits, each rendered by the shared
@@ -386,15 +373,13 @@ def set_research_text(
     """
     if field not in RESEARCH_TEXT_FIELDS:
         raise PidsEditError(f"{field!r} is not one of {', '.join(RESEARCH_TEXT_FIELDS)}")
-    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
-    original = fpath.read_text()
-    ecu_key = ecu_name.strip().upper()
     target_norm = str(target).strip().strip('"').strip("'")
     text_val = "" if text is None else str(text).strip()
     clearing = not text_val
     later = "|".join(RESEARCH_FIELD_ORDER[RESEARCH_FIELD_ORDER.index(field) + 1 :])
     later_re = re.compile(rf"^ {{6}}({later}):") if later else None
 
+    original = find_ecu_file(ecu_name, pids_dir=pids_dir).read_text()
     research_block = _find_research_block(original, ecu_name)
     matches = _match_research_items(original, research_block, target, type)
     s, e = _select_research_match(target, type, matches, index=index)
@@ -441,9 +426,7 @@ def set_research_text(
         if " ".join(str(got).split()) != " ".join(text_val.split()):
             raise PidsEditError(f"{field} mismatch after edit")
 
-    new_text = transform(original)
-    _safe_write(fpath, original, new_text, ecu_key, checker)
-    return fpath
+    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
 
 
 def set_research_notes(

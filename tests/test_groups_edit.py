@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 from pathlib import Path
 
 import pytest
@@ -150,10 +151,11 @@ class TestReparseGuard:
         add_group("charging", ["BMS"], profile=prof)
         original = prof.groups_file.read_text()
 
-        def _boom(path):
+        def _boom(data):
             raise GroupsEditError("simulated invalid file")
 
-        monkeypatch.setattr(groups_edit, "_reparse_validate", _boom)
+        broken = dataclasses.replace(groups_edit.GROUPS, check=_boom)
+        monkeypatch.setattr(groups_edit, "GROUPS", broken)
         with pytest.raises(GroupsEditError):
             add_group("driving", ["VCU"], profile=prof)
         assert prof.groups_file.read_text() == original

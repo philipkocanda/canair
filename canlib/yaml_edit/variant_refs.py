@@ -20,6 +20,9 @@ from canlib import yaml_io
 from canlib.captures import io as capture_io
 from canlib.variants import normalize_variant_id
 
+from .commit import restore, write_atomic
+from .ecufile import clear_cache
+
 if TYPE_CHECKING:
     from canlib.profile import Profile
 
@@ -148,11 +151,11 @@ def retag_history(profile: Profile, old: str, new: str) -> list[Path]:
     written: list[Path] = []
     try:
         for path, text in planned.items():
-            path.write_text(text)
+            write_atomic(path, text)
             written.append(path)
     except OSError:
         for path in written:
-            path.write_text(originals[path])
+            restore(path, originals[path])
         raise
     return written
 
@@ -188,11 +191,9 @@ def rename_everywhere(old: str, new: str, profile: Profile) -> tuple[Path, list[
             set_ecu_variants(name, renamed, profile=profile)
         written = [*ecu_files, *retag_history(profile, old, new)]
     except Exception:
-        profile.variants_file.write_text(original)
+        restore(profile.variants_file, original)
         for fpath, text in ecu_files.items():
-            fpath.write_text(text)
-        from canlib.pids import clear_cache
-
+            restore(fpath, text)
         clear_cache()
         raise
     return path, written

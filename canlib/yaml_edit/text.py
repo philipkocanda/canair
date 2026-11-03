@@ -27,18 +27,17 @@ from __future__ import annotations
 import datetime
 import functools
 import re
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
+from typing import NamedTuple
+
+from .commit import commit_text, resolve_validate
+from .ecufile import clear_cache, schema_validator
+from .ecufile import find_ecu_file as _find_ecu_file
+from .errors import EditError
 
 
-def _invalidate() -> None:
-    """Drop the memoized ECU-definition load after a file write."""
-    from canlib.pids import clear_cache
-
-    clear_cache()
-
-
-class PidsEditError(Exception):
+class PidsEditError(EditError):
     """Raised when a DID or file cannot be located / edited safely."""
 
 
@@ -52,12 +51,7 @@ def find_ecu_file(ecu_name: str, pids_dir: Path | None = None) -> Path:
     the one that will be rewritten. Raises when no file claims the ECU (an edit
     must never invent a definition file — that is `canair ecu add`'s job).
     """
-    from canlib.ecus.files import find_by_name
-
-    fpath = find_by_name(ecu_name, pids_dir)
-    if fpath is None:
-        raise PidsEditError(f"ECU {ecu_name!r} not found in any ecus/*.yaml")
-    return fpath
+    return _find_ecu_file(ecu_name, pids_dir, error=PidsEditError)
 
 
 # ── DID block location ───────────────────────────────────────────────────────
@@ -291,7 +285,22 @@ def _attached_comments_start(text: str, body_start: int, body_end: int, indent: 
     return body_end if start is None else start
 
 
-def _keyed_block(text: str, name: str, indent: int, win_start: int, win_end: int):
+class Block(NamedTuple):
+    """Where a keyed block sits in the text (what :func:`_keyed_block` locates)."""
+
+    hdr: int
+    """Offset of the key line."""
+    line_end: int
+    """Offset of the newline ending the key line."""
+    body: int
+    """Offset of the first child line."""
+    end: int
+    """Offset just past the block's own lines and trailing blank lines."""
+    inline: str
+    """Any text after ``name:`` on the header line (e.g. ``{}``)."""
+
+
+def _keyed_block(text: str, name: str, indent: int, win_start: int, win_end: int) -> Block | None:
     """Locate ``<indent spaces><name>:`` within ``[win_start, win_end)``.
 
     The key may be bare or quoted (``0105:`` / ``"0105":`` / ``'0105':``) — a PID
@@ -321,7 +330,7 @@ def _keyed_block(text: str, name: str, indent: int, win_start: int, win_end: int
     tail = re.compile(rf"^ {{0,{indent}}}[^\s#]", re.MULTILINE).search(text, body_start, win_end)
     body_end = tail.start() if tail else win_end
     body_end = _attached_comments_start(text, body_start, body_end, indent)
-    return (m.start(), line_end, body_start, body_end, inline)
+    return Block(m.start(), line_end, body_start, body_end, inline)
 
 
 def _needs_key_quoting(key: str) -> bool:
@@ -485,54 +494,158 @@ def _reparse_or_raise(fpath: Path) -> dict:
     return data
 
 
-def _file_newline(fpath: Path) -> str:
-    """The line ending ``fpath`` uses on disk (``"\\r\\n"`` or ``"\\n"``).
+def _reparse_or_raise(fpath: Path) -> dict:
+    """Re-read the file as YAML; raise ``PidsEditError`` if it no longer parses."""
+    import yaml
 
-    Every editor reads with universal newlines, so its text is always LF; this is
-    how a CRLF file keeps its line endings when written back.
-    """
     try:
-        with fpath.open("rb") as f:
-            head = f.read(65536)
-    except OSError:
-        return "\n"
-    nl = head.find(b"\n")
-    return "\r\n" if nl > 0 and head[nl - 1 : nl] == b"\r" else "\n"
+        data = yaml.safe_load(fpath.read_text())
+    except yaml.YAMLError as e:
+        raise PidsEditError(f"edit produced invalid YAML: {e}") from e
+    if not isinstance(data, dict):
+        raise PidsEditError("edit produced a non-mapping top-level document")
+    return data
 
 
-def _write_text(fpath: Path, text: str) -> None:
-    """Write an edited (LF) ``text`` over ``fpath`` in the file's own line endings."""
-    fpath.write_text(text, newline=_file_newline(fpath))
+def _ecu_def_of(data: dict, ecu: str) -> dict:
+    """The ECU's mapping in a parsed file (the key's case may differ from ``ecu``)."""
+    ecu_def = data.get(ecu)
+    if not isinstance(ecu_def, dict):
+        # ECU file keys may be mixed-case (e.g. `Unknown-746`) while callers
+        # pass the upper-cased key — resolve case-insensitively.
+        ecu_def = next((v for k, v in data.items() if str(k).upper() == str(ecu).upper()), None)
+    if not isinstance(ecu_def, dict):
+        raise PidsEditError(f"ECU {ecu!r} missing after edit")
+    return ecu_def
 
 
-def _safe_write(fpath: Path, original: str, new_text: str, ecu: str, checker) -> None:
-    """Write ``new_text``, re-parse, and run ``checker(data[ecu])``.
+def write_ecu_text(
+    fpath: Path,
+    original: str,
+    new_text: str,
+    ecu: str,
+    checker: Callable[[dict], None] | None = None,
+    *,
+    validate: bool = False,
+) -> None:
+    """Write ``new_text`` over ``original``, re-parse, and run ``checker(data[ecu])``.
 
     Restores ``original`` and raises ``PidsEditError`` if the result is invalid
     YAML or ``checker`` fails — so a broken surgical edit never persists. The
-    file's line endings are kept (:func:`_write_text`).
+    file's line endings are kept. ``validate`` adds the schema check of
+    ``canair validate pids`` (the caller's ``--no-validate`` can override it, see
+    :func:`canlib.yaml_edit.commit.schema_validation`).
     """
-    newline = _file_newline(fpath)
-    fpath.write_text(new_text, newline=newline)
-    _invalidate()
-    try:
-        data = _reparse_or_raise(fpath)
-        ecu_def = data.get(ecu)
-        if not isinstance(ecu_def, dict):
-            # ECU file keys may be mixed-case (e.g. `Unknown-746`) while callers
-            # pass the upper-cased key — resolve case-insensitively.
-            ecu_def = next((v for k, v in data.items() if str(k).upper() == str(ecu).upper()), None)
-        if not isinstance(ecu_def, dict):
-            raise PidsEditError(f"ECU {ecu!r} missing after edit")
-        checker(ecu_def)
-    except PidsEditError:
-        fpath.write_text(original, newline=newline)
-        _invalidate()
-        raise
-    except Exception as e:  # pragma: no cover - defensive
-        fpath.write_text(original, newline=newline)
-        _invalidate()
-        raise PidsEditError(f"edit failed post-check, reverted: {e}") from e
+
+    def check(path: Path) -> None:
+        ecu_def = _ecu_def_of(_reparse_or_raise(path), ecu)
+        if checker is not None:
+            checker(ecu_def)
+
+    commit_text(
+        fpath,
+        new_text,
+        original,
+        check=check,
+        error=PidsEditError,
+        validate=schema_validator(PidsEditError) if resolve_validate(validate) else None,
+        after_write=clear_cache,
+    )
+
+
+def edit_ecu_text(
+    ecu_name: str,
+    transform: Callable[[str], str],
+    checker: Callable[[dict], None] | None = None,
+    *,
+    pids_dir: Path | None = None,
+    validate: bool = False,
+) -> Path:
+    """Apply a text edit to the ECU's file; the one entry point of every text editor.
+
+    ``transform`` maps the file's text to the edited text (raising ``PidsEditError`` when it
+    cannot find what it must change); ``checker`` judges the re-parsed ECU mapping and raises
+    ``PidsEditError`` to reject the result. The file is restored on any failure. Returns the
+    path written.
+    """
+    fpath = find_ecu_file(ecu_name, pids_dir)
+    original = fpath.read_text()
+    write_ecu_text(
+        fpath, original, transform(original), ecu_name.strip().upper(), checker, validate=validate
+    )
+    return fpath
+
+
+# ── Locating a PID, a signal, and the PID-level scalars ──────────────────────
+
+
+def locate_pid(text: str, ecu_name: str, pid_u: str) -> Block:
+    """The ``pids:`` entry for ``pid_u`` in ``ecu_name``'s block."""
+    ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
+    pids = _keyed_block(text, "pids", 2, ecu_start, ecu_end)
+    if not pids:
+        raise PidsEditError(f"ECU {ecu_name!r} has no pids: section")
+    pidb = _keyed_block(text, pid_u, 4, pids.body, pids.end)
+    if not pidb:
+        raise PidsEditError(f"PID {pid_u!r} not found under {ecu_name!r}")
+    return pidb
+
+
+def pid_span(text: str, ecu_name: str, pid_u: str) -> tuple[int, int]:
+    """``(start, end)`` offsets of the PID's own block in ``text``."""
+    b = locate_pid(text, ecu_name, pid_u)
+    return b.hdr, b.end
+
+
+def locate_param(
+    text: str, ecu_name: str, pid_u: str, param: str, *, noun: str = "parameter"
+) -> tuple[Block, Block, Block]:
+    """``(pid, parameters:, signal)`` blocks for one signal of a PID."""
+    pidb = locate_pid(text, ecu_name, pid_u)
+    params = _keyed_block(text, "parameters", 6, pidb.body, pidb.end)
+    if not params:
+        raise PidsEditError(f"PID {pid_u!r} has no parameters:")
+    existing = _keyed_block(text, param, 8, params.body, params.end)
+    if not existing:
+        raise PidsEditError(f"{noun} {param!r} not found on {ecu_name} {pid_u}")
+    return pidb, params, existing
+
+
+def edit_pid_block(text: str, ecu_name: str, pid_u: str, edit: Callable[[str], str]) -> str:
+    """``text`` with the PID's own block (header line included) replaced by ``edit(block)``."""
+    b = locate_pid(text, ecu_name, pid_u)
+    return text[: b.hdr] + edit(text[b.hdr : b.end]) + text[b.end :]
+
+
+def set_scalar(block: str, field: str, line: str | None, *, indent: int = 6) -> str:
+    """Put ``field: …`` straight after the block's header line, or drop the field (``None``).
+
+    Any earlier occurrence (and a block scalar or nested body it owns) goes first, so the field
+    moves to the top of the block. :func:`replace_in_place` keeps its position instead.
+    """
+    block = _remove_field_line(block, field, indent=indent)
+    if line is None:
+        return block
+    lines = block.splitlines(keepends=True)
+    return lines[0] + f"{' ' * indent}{line}\n" + "".join(lines[1:])
+
+
+def pid_def_of(ecu_def: dict, pid_u: str) -> dict:
+    """The parsed PID mapping, or ``PidsEditError`` if the edit lost it."""
+    pids_map = ecu_def.get("pids", {}) or {}
+    pdef = next((v for k, v in pids_map.items() if str(k).upper() == pid_u), None)
+    if pdef is None:
+        raise PidsEditError(f"PID {pid_u!r} missing after edit")
+    return pdef or {}
+
+
+def pid_checker(pid_u: str, assert_pid: Callable[[dict], None]) -> Callable[[dict], None]:
+    """A ``checker`` that finds the PID in the re-parsed ECU and hands it to ``assert_pid``."""
+
+    def checker(ecu_def: dict) -> None:
+        assert_pid(pid_def_of(ecu_def, pid_u))
+
+    return checker
 
 
 def _remove_field_line(block: str, field: str, indent: int) -> str:

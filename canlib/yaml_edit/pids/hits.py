@@ -21,12 +21,11 @@ from canlib.yaml_edit.text import (
     _format_label,
     _format_verified,
     _insert_lines,
-    _invalidate,
     _key_token,
     _keyed_block,
     _replace_field_in_block,
-    _write_text,
     find_ecu_file,
+    write_ecu_text,
 )
 
 # IOControl fields editable from the TUI.
@@ -179,8 +178,7 @@ def append_sessions_block(ecu_name: str, hits, pids_dir: Path | None = None) -> 
     new_ecu_block = body + "\n\n" + new_section
 
     new_text = text[:ecu_start] + new_ecu_block + text[ecu_end:]
-    _write_text(fpath, new_text)
-    _invalidate()
+    write_ecu_text(fpath, text, new_text, ecu_name)
     return fpath
 
 
@@ -293,8 +291,7 @@ def _append_hit_block(
     new_ecu_block = body + "\n\n" + new_section
 
     new_text = text[:ecu_start] + new_ecu_block + text[ecu_end:]
-    _write_text(fpath, new_text)
-    _invalidate()
+    write_ecu_text(fpath, text, new_text, ecu_name)
     return fpath
 
 
@@ -347,8 +344,7 @@ def update_routines_field(
         return fpath  # no-op
 
     new_text = text[:start] + new_block + text[end:]
-    _write_text(fpath, new_text)
-    _invalidate()
+    write_ecu_text(fpath, text, new_text, ecu_name)
     return fpath
 
 
@@ -392,8 +388,7 @@ def update_iocontrol_field(
         return fpath  # no-op
 
     new_text = text[:start] + new_block + text[end:]
-    _write_text(fpath, new_text)
-    _invalidate()
+    write_ecu_text(fpath, text, new_text, ecu_name)
     return fpath
 
 
@@ -523,6 +518,5 @@ def promote_discovery(
         new_block = body + "\n\n  iocontrol:\n" + "".join(ln + "\n" for ln in new_entry)
 
     new_text = text[:ecu_start] + new_block + text[ecu_end:]
-    _write_text(fpath, new_text)
-    _invalidate()
+    write_ecu_text(fpath, text, new_text, ecu_name)
     return fpath

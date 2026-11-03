@@ -52,6 +52,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from canlib import yaml_io
+from canlib.yaml_edit.errors import EditError
 
 if TYPE_CHECKING:
     from canlib.modes.multi_batch import EcuFrame
@@ -136,7 +137,7 @@ NO_STATE_KEY = "(no state)"
 BASE_STATES = POWER_STATES
 
 
-class StatePredicateError(Exception):
+class StatePredicateError(EditError):
     """Raised when a state ``when:`` expression uses disallowed/invalid syntax."""
 
 

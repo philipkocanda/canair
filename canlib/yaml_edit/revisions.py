@@ -2,7 +2,7 @@
 
 ``canair ecu revisions`` / ``canair ecu set-variants`` / ``canair pids set-revisions`` /
 ``canair variants set-revisions`` write through here.
-Each ECU-file edit is a ruamel round-trip through :func:`canlib.yaml_edit.ecu._safe_write`,
+Each ECU-file edit is a ruamel round-trip through :func:`canlib.yaml_edit.ecu.edit_ecu`,
 which re-parses, validates (including :func:`canlib.variants.revisions.check_ecu`) and
 reverts on failure, so comments and field order survive and a broken edit never lands.
 
@@ -30,7 +30,11 @@ from canlib.variants.revisions import (
     normalize_revision_id,
     revision_id_problem,
 )
-from canlib.yaml_edit.ecu import EcusEditError, _load_doc, _safe_write
+
+from .commit import restore, write_atomic
+from .ecu import EcusEditError, edit_ecu
+from .ecufile import clear_cache, find_ecu_file
+from .ruamel_ops import find_key, flow_map, flow_seq, place_after, remove_key, rename_key
 
 if TYPE_CHECKING:
     from canlib.profile import Profile
@@ -44,15 +48,13 @@ def _profile(profile: Profile | None) -> Profile:
 
 def _ecu_file(ecu: str, profile: Profile) -> tuple[Path, str]:
     """The ECU's file and its canonical (top-level key) name."""
-    from canlib.ecus.files import find_by_name
+    from canlib import yaml_io
 
-    fpath = find_by_name(ecu, profile.ecus_dir)
-    if fpath is None:
-        raise EcusEditError(f"ECU {ecu!r} not found in any ecus/*.yaml")
-    data = _load_doc(fpath)
-    name = next((k for k in data if str(k).upper() == ecu.strip().upper()), None)
+    fpath = find_ecu_file(ecu, profile.ecus_dir, error=EcusEditError)
+    keys = list(yaml_io.safe_load(fpath.read_text()) or {})
+    name = next((k for k in keys if str(k).upper() == ecu.strip().upper()), None)
     if name is None:  # matched by alias: the file holds one ECU
-        name = next(iter(data))
+        name = keys[0]
     return fpath, name
 
 
@@ -63,38 +65,11 @@ def _checked_id(raw: str) -> str:
     return rid
 
 
-def _flow_seq(items: Sequence[Any]) -> CommentedSeq:
-    seq = CommentedSeq(items)
-    seq.fa.set_flow_style()
-    return seq
-
-
-def _flow_map(pairs: Mapping[str, Any]) -> CommentedMap:
-    m = CommentedMap(pairs)
-    m.fa.set_flow_style()
-    return m
-
-
-def _insert_after(mapping: CommentedMap, key: str, value: Any, after: Sequence[str]) -> None:
-    """Set ``key``; a new key goes straight after the last of ``after`` present, else last."""
-    if key in mapping:
-        mapping[key] = value
-        return
-    keys = list(mapping)
-    pos = max((keys.index(a) + 1 for a in after if a in mapping), default=len(keys))
-    mapping.insert(pos, key, value)
-
-
 def _edit_ecu(ecu: str, profile: Profile | None, change) -> Path:
     prof = _profile(profile)
     fpath, name = _ecu_file(ecu, prof)
-    original = fpath.read_text()
-    data = _load_doc(fpath)
-    ecu_def = data[name]
-    if not isinstance(ecu_def, dict):
-        raise EcusEditError(f"{fpath.name}/{name} is not a mapping")
-    change(name, ecu_def)
-    _safe_write(fpath, original, data)
+    with edit_ecu(fpath, name) as doc:
+        change(name, doc.section)
     return fpath
 
 
@@ -112,7 +87,7 @@ def _block(ecu_def: CommentedMap) -> CommentedMap:
 
 
 def _find(block: Mapping, rid: str) -> Any:
-    return next((k for k in block if normalize_revision_id(k) == rid), None)
+    return find_key(block, rid, normalize_revision_id)
 
 
 def add_revision(
@@ -125,12 +100,12 @@ def add_revision(
         block = ecu_def.get("revisions")
         if not isinstance(block, dict):
             block = CommentedMap()
-            _insert_after(ecu_def, "revisions", block, _REVISIONS_AFTER)
+            place_after(ecu_def, "revisions", block, _REVISIONS_AFTER)
         if _find(block, rid) is not None:
             raise EcusEditError(f"{name} already declares revision {rid!r}")
         entry = CommentedMap()
         if protocol:
-            entry["identity"] = _flow_map({"id_protocol": protocol})
+            entry["identity"] = flow_map({"id_protocol": protocol})
         block[rid] = entry if entry else CommentedMap()
 
     return _edit_ecu(ecu, profile, change)
@@ -174,10 +149,10 @@ def set_fingerprint(
             fps = CommentedSeq()
             entry["fingerprints"] = fps
         if responds is not None:
-            fp = _flow_map({"responds": DoubleQuotedScalarString(responds.strip().upper())})
+            fp = flow_map({"responds": DoubleQuotedScalarString(responds.strip().upper())})
         else:
             fields = {k: DoubleQuotedScalarString(v) for k, v in (identity or {}).items()}
-            fp = _flow_map({"identity": _flow_map(fields)})
+            fp = flow_map({"identity": flow_map(fields)})
         fps.append(fp)
 
     return _edit_ecu(ecu, profile, change)
@@ -206,10 +181,10 @@ def set_ecu_variants(
                 raise EcusEditError(f"{name} is already fitted to every variant")
             del ecu_def["variants"]
             return
-        _insert_after(
+        place_after(
             ecu_def,
             "variants",
-            _flow_seq(list(dict.fromkeys(ids))),
+            flow_seq(list(dict.fromkeys(ids))),
             (*_REVISIONS_AFTER, "revisions"),
         )
 
@@ -257,7 +232,7 @@ def set_gate(
                 raise EcusEditError("it already applies to every revision")
             del node["revisions"]
             return
-        _insert_after(node, "revisions", _flow_seq(list(dict.fromkeys(revs))), after)
+        place_after(node, "revisions", flow_seq(list(dict.fromkeys(revs))), after)
 
     return _edit_ecu(ecu, profile, change)
 
@@ -403,11 +378,11 @@ def _write_all(planned: Mapping[Path, str]) -> list[Path]:
     written: list[Path] = []
     try:
         for path, text in planned.items():
-            path.write_text(text)
+            write_atomic(path, text)
             written.append(path)
     except OSError:
         for path in written:
-            path.write_text(originals[path])
+            restore(path, originals[path])
         raise
     return written
 
@@ -435,19 +410,14 @@ def rename_revision(
             raise EcusEditError(f"{name} declares no revision {old_id!r}")
         if old_id != new_id and _find(block, new_id) is not None:
             raise EcusEditError(f"{name} already declares revision {new_id!r}")
-        rebuilt = CommentedMap()
-        for k, v in block.items():
-            rebuilt[new_id if k == key else k] = v
-        ecu_def["revisions"] = rebuilt
+        rename_key(block, key, new_id)
         for node in _gate_nodes(ecu_def):
-            node["revisions"] = _flow_seq(
+            node["revisions"] = flow_seq(
                 [new_id if normalize_revision_id(r) == old_id else r for r in node["revisions"]]
             )
         for node in _override_nodes(ecu_def, old_id):
-            rebuilt_over = CommentedMap()
-            for k, v in node["per_revision"].items():
-                rebuilt_over[new_id if normalize_revision_id(k) == old_id else k] = v
-            node["per_revision"] = rebuilt_over
+            over = node["per_revision"]
+            rename_key(over, find_key(over, old_id, normalize_revision_id), new_id)
 
     def retag(session: dict) -> bool:
         tags = session.get("revisions")
@@ -477,11 +447,9 @@ def rename_revision(
                     written.append(prof.variants_file)
         written += _write_all(planned)
     except Exception:
-        fpath.write_text(ecu_original)
+        restore(fpath, ecu_original)
         if variants_original is not None:
-            prof.variants_file.write_text(variants_original)
-        from canlib.pids import clear_cache
-
+            restore(prof.variants_file, variants_original)
         clear_cache()
         raise
     return fpath, written
@@ -503,7 +471,7 @@ def remove_revision(ecu: str, revision: str, *, profile: Profile | None = None) 
         key = _find(block, rid)
         if key is None:
             raise EcusEditError(f"{name} declares no revision {rid!r}")
-        del block[key]
+        remove_key(block, key, parent=ecu_def, parent_key="revisions")
         if not block:
             del ecu_def["revisions"]
 

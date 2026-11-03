@@ -32,8 +32,7 @@ from canlib.yaml_edit.text import (
     _norm_states,
     _remove_field_line,
     _replace_field_in_block_at,
-    _safe_write,
-    find_ecu_file,
+    edit_ecu_text,
 )
 
 # ── Parameter editing (reverse-engineering workflow) ──────────────────────────
@@ -98,7 +97,7 @@ def _parsed_param(block_text: str, param_name: str) -> dict:
     Only used to spot an unchanged field, so a block that doesn't parse in
     isolation (an alias to an anchor elsewhere in the file) or isn't a mapping
     just means "treat every field as changed"; the whole-file re-parse in
-    :func:`_safe_write` is what judges the edit.
+    :func:`write_ecu_text` is what judges the edit.
     """
     try:
         doc = yaml.safe_load(textwrap.dedent(block_text))
@@ -178,9 +177,6 @@ def upsert_parameter(
         if type != "bitmask" and "bits" not in fields:
             cleared.add("bits")
 
-    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
-    original = fpath.read_text()
-    ecu_key = ecu_name.strip().upper()
     pid_u = str(pid).strip().upper()
 
     def transform(text: str) -> str:
@@ -291,9 +287,7 @@ def upsert_parameter(
         if params[param_name].get("expression") != expression:
             raise PidsEditError("expression mismatch after edit")
 
-    new_text = transform(original)
-    _safe_write(fpath, original, new_text, ecu_key, checker)
-    return fpath
+    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
 
 
 # Boolean param fields a surgical single-field set is allowed to touch.
@@ -320,9 +314,6 @@ def set_param_field(
     if field not in _PARAM_BOOL_FIELDS:
         raise PidsEditError(f"field must be one of {_PARAM_BOOL_FIELDS}, got {field!r}")
 
-    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
-    original = fpath.read_text()
-    ecu_key = ecu_name.strip().upper()
     pid_u = str(pid).strip().upper()
 
     def transform(text: str) -> str:
@@ -355,9 +346,7 @@ def set_param_field(
         if bool(pm.get(field)) != bool(value):
             raise PidsEditError(f"{field} mismatch after edit")
 
-    new_text = transform(original)
-    _safe_write(fpath, original, new_text, ecu_key, checker)
-    return fpath
+    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
 
 
 def rename_parameter(
@@ -372,9 +361,6 @@ def rename_parameter(
     if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", new_name or ""):
         raise PidsEditError(f"invalid parameter name {new_name!r}")
 
-    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
-    original = fpath.read_text()
-    ecu_key = ecu_name.strip().upper()
     pid_u = str(pid).strip().upper()
 
     def transform(text: str) -> str:
@@ -411,9 +397,7 @@ def rename_parameter(
         if old_name in params:
             raise PidsEditError(f"old parameter {old_name!r} still present after rename")
 
-    new_text = transform(original)
-    _safe_write(fpath, original, new_text, ecu_key, checker)
-    return fpath
+    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
 
 
 def delete_parameter(
@@ -424,9 +408,6 @@ def delete_parameter(
     Fails if the parameter is absent. Verified by YAML re-parse; the file is
     restored on failure.
     """
-    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
-    original = fpath.read_text()
-    ecu_key = ecu_name.strip().upper()
     pid_u = str(pid).strip().upper()
 
     def transform(text: str) -> str:
@@ -463,9 +444,7 @@ def delete_parameter(
         if param_name in params:
             raise PidsEditError(f"parameter {param_name!r} still present after delete")
 
-    new_text = transform(original)
-    _safe_write(fpath, original, new_text, ecu_key, checker)
-    return fpath
+    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
 
 
 def add_pid(
@@ -513,10 +492,6 @@ def add_pid(
             lines.extend(_format_block_scalar(indent + "  ", "notes", str(notes)))
         return lines
 
-    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
-    original = fpath.read_text()
-    ecu_key = ecu_name.strip().upper()
-
     def transform(text: str) -> str:
         ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
         pids = _keyed_block(text, "pids", 2, ecu_start, ecu_end)
@@ -545,9 +520,7 @@ def add_pid(
         if got != status:
             raise PidsEditError(f"status mismatch after edit: {got!r} != {status!r}")
 
-    new_text = transform(original)
-    _safe_write(fpath, original, new_text, ecu_key, checker)
-    return fpath
+    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
 
 
 def set_pid_status(ecu_name: str, pid: str, status: str, *, pids_dir: Path | None = None) -> Path:
@@ -563,9 +536,6 @@ def set_pid_status(ecu_name: str, pid: str, status: str, *, pids_dir: Path | Non
     if status not in PID_STATUSES:
         raise PidsEditError(f"status must be one of {PID_STATUSES}, got {status!r}")
 
-    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
-    original = fpath.read_text()
-    ecu_key = ecu_name.strip().upper()
     pid_u = str(pid).strip().upper()
 
     def transform(text: str) -> str:
@@ -593,9 +563,7 @@ def set_pid_status(ecu_name: str, pid: str, status: str, *, pids_dir: Path | Non
         if got != status:
             raise PidsEditError(f"status mismatch after edit: {got!r} != {status!r}")
 
-    new_text = transform(original)
-    _safe_write(fpath, original, new_text, ecu_key, checker)
-    return fpath
+    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
 
 
 def set_pid_variable_length(
@@ -611,9 +579,6 @@ def set_pid_variable_length(
     (the default is fixed-length). Written after the PID header; verified by a YAML
     re-parse, restored on failure.
     """
-    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
-    original = fpath.read_text()
-    ecu_key = ecu_name.strip().upper()
     pid_u = str(pid).strip().upper()
 
     def transform(text: str) -> str:
@@ -643,9 +608,7 @@ def set_pid_variable_length(
         if got != value:
             raise PidsEditError(f"variable_length mismatch after edit: {got!r} != {value!r}")
 
-    new_text = transform(original)
-    _safe_write(fpath, original, new_text, ecu_key, checker)
-    return fpath
+    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
 
 
 def set_pid_period(
@@ -668,9 +631,6 @@ def set_pid_period(
                 "the firmware substitutes a default)"
             )
 
-    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
-    original = fpath.read_text()
-    ecu_key = ecu_name.strip().upper()
     pid_u = str(pid).strip().upper()
 
     def transform(text: str) -> str:
@@ -709,9 +669,7 @@ def set_pid_period(
         if got != value:
             raise PidsEditError(f"period mismatch after edit: {got!r} != {value!r}")
 
-    new_text = transform(original)
-    _safe_write(fpath, original, new_text, ecu_key, checker)
-    return fpath
+    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
 
 
 def set_response_frames(
@@ -736,9 +694,6 @@ def set_response_frames(
         if value < 1:
             raise PidsEditError(f"response_frames must be >= 1, got {value}")
 
-    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
-    original = fpath.read_text()
-    ecu_key = ecu_name.strip().upper()
     pid_u = str(pid).strip().upper()
 
     def transform(text: str) -> str:
@@ -772,9 +727,7 @@ def set_response_frames(
                 "fixed frame count"
             )
 
-    new_text = transform(original)
-    _safe_write(fpath, original, new_text, ecu_key, checker)
-    return fpath
+    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
 
 
 def set_pid_notes(
@@ -798,9 +751,6 @@ def set_pid_notes(
     which is how the hand-authored files read. Verified by a YAML re-parse; the
     original file is restored on failure.
     """
-    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
-    original = fpath.read_text()
-    ecu_key = ecu_name.strip().upper()
     pid_u = str(pid).strip().upper()
     text_val = "" if notes is None else str(notes).strip()
     clearing = not text_val
@@ -854,9 +804,7 @@ def set_pid_notes(
         if " ".join(str(got).split()) != " ".join(text_val.split()):
             raise PidsEditError(f"PID {pid_u!r} notes mismatch after edit")
 
-    new_text = transform(original)
-    _safe_write(fpath, original, new_text, ecu_key, checker)
-    return fpath
+    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
 
 
 def rename_pid(ecu_name: str, old_pid: str, new_pid: str, *, pids_dir: Path | None = None) -> Path:
@@ -870,10 +818,6 @@ def rename_pid(ecu_name: str, old_pid: str, new_pid: str, *, pids_dir: Path | No
     new_u = str(new_pid).strip().upper()
     if not re.fullmatch(r"[0-9A-F]+", new_u):
         raise PidsEditError(f"invalid PID code {new_pid!r} (expected hex, e.g. 22B002)")
-
-    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
-    original = fpath.read_text()
-    ecu_key = ecu_name.strip().upper()
 
     def transform(text: str) -> str:
         e_start, e_end = _find_ecu_block(text, ecu_name)
@@ -901,9 +845,7 @@ def rename_pid(ecu_name: str, old_pid: str, new_pid: str, *, pids_dir: Path | No
         if new_u != old_u and old_u in keys:
             raise PidsEditError(f"old PID {old_u!r} still present after rename")
 
-    new_text = transform(original)
-    _safe_write(fpath, original, new_text, ecu_key, checker)
-    return fpath
+    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
 
 
 def delete_pid(ecu_name: str, pid: str, *, pids_dir: Path | None = None) -> Path:
@@ -913,9 +855,6 @@ def delete_pid(ecu_name: str, pid: str, *, pids_dir: Path | None = None) -> Path
     ``pids:`` section (leaving an identity-only ECU) rather than an invalid empty
     mapping. Verified by YAML re-parse; the file is restored on failure.
     """
-    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
-    original = fpath.read_text()
-    ecu_key = ecu_name.strip().upper()
     pid_u = str(pid).strip().upper()
 
     def transform(text: str) -> str:
@@ -940,9 +879,7 @@ def delete_pid(ecu_name: str, pid: str, *, pids_dir: Path | None = None) -> Path
         if any(str(k).upper() == pid_u for k in (ecu_def.get("pids") or {})):
             raise PidsEditError(f"PID {pid_u!r} still present after delete")
 
-    new_text = transform(original)
-    _safe_write(fpath, original, new_text, ecu_key, checker)
-    return fpath
+    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
 
 
 def _replace_param_field_line(indent: str, key: str, value) -> str:
@@ -978,10 +915,6 @@ def set_identity_field(
     if value is None or not str(value).strip():
         raise PidsEditError("value must not be empty")
 
-    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
-    original = fpath.read_text()
-    ecu_key = ecu_name.strip().upper()
-
     def transform(text: str) -> str:
         ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
         identity = _keyed_block(text, "identity", 2, ecu_start, ecu_end)
@@ -1007,9 +940,7 @@ def set_identity_field(
         if " ".join(str(got).split()) != " ".join(str(value).split()):
             raise PidsEditError(f"identity.{field} mismatch after edit")
 
-    new_text = transform(original)
-    _safe_write(fpath, original, new_text, ecu_key, checker)
-    return fpath
+    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
 
 
 def remove_identity_field(
@@ -1027,10 +958,6 @@ def remove_identity_field(
     """
     if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", field or ""):
         raise PidsEditError(f"invalid identity field name {field!r}")
-
-    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
-    original = fpath.read_text()
-    ecu_key = ecu_name.strip().upper()
 
     def transform(text: str) -> str:
         ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
@@ -1064,9 +991,7 @@ def remove_identity_field(
         if field in identity:
             raise PidsEditError(f"identity.{field} still present after edit")
 
-    new_text = transform(original)
-    _safe_write(fpath, original, new_text, ecu_key, checker)
-    return fpath
+    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
 
 
 # ── Top-level list-field editor ───────────────────────────────────────────────
@@ -1093,10 +1018,6 @@ def set_can_bus(
     if not cleaned:
         raise PidsEditError("can_bus must have at least one code")
 
-    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
-    original = fpath.read_text()
-    ecu_key = ecu_name.strip().upper()
-
     def transform(text: str) -> str:
         ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
         # The ECU block body is everything after the `ECU:` header line; top-level
@@ -1120,9 +1041,7 @@ def set_can_bus(
         if got != cleaned:
             raise PidsEditError(f"can_bus mismatch after edit (got {got!r})")
 
-    new_text = transform(original)
-    _safe_write(fpath, original, new_text, ecu_key, checker)
-    return fpath
+    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
 
 
 def _normalize_iocontrol_range(spec: str) -> str:
@@ -1164,9 +1083,6 @@ def set_iocontrol_scan_ranges(
     if not cleaned:
         raise PidsEditError("iocontrol_scan_ranges must have at least one range")
 
-    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
-    original = fpath.read_text()
-    ecu_key = ecu_name.strip().upper()
     field = "iocontrol_scan_ranges"
 
     def transform(text: str) -> str:
@@ -1189,9 +1105,7 @@ def set_iocontrol_scan_ranges(
         if got != cleaned:
             raise PidsEditError(f"{field} mismatch after edit (got {got!r})")
 
-    new_text = transform(original)
-    _safe_write(fpath, original, new_text, ecu_key, checker)
-    return fpath
+    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
 
 
 # Canonical field order for a rendered `wake:` block (matches pids_schema.yaml).
@@ -1240,10 +1154,6 @@ def set_wake(
         else:
             lines.append(_format_scalar_field(" " * 4, key, val))
 
-    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
-    original = fpath.read_text()
-    ecu_key = ecu_name.strip().upper()
-
     def transform(text: str) -> str:
         ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
         header_end = text.find("\n", ecu_start)
@@ -1270,6 +1180,4 @@ def set_wake(
         if got.get("method") != method:
             raise PidsEditError(f"wake.method mismatch after edit (got {got.get('method')!r})")
 
-    new_text = transform(original)
-    _safe_write(fpath, original, new_text, ecu_key, checker)
-    return fpath
+    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)

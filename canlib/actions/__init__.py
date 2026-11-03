@@ -39,6 +39,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Final, Literal
 
 from canlib import yaml_io
+from canlib.yaml_edit.errors import EditError
 
 if TYPE_CHECKING:
     from canlib.profile import Profile
@@ -57,7 +58,7 @@ _NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
 _HEX_RE = re.compile(r"^(?:[0-9A-F]{2})+$")
 
 
-class ActionError(ValueError):
+class ActionError(EditError, ValueError):
     """An actions.yaml definition (or a reference to one) is invalid."""
 
 

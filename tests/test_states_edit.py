@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 from pathlib import Path
 
 import pytest
@@ -354,10 +355,11 @@ class TestReparseGuard:
         add_state("READY", profile=prof)
         original = prof.states_file.read_text()
 
-        def _boom(path):
+        def _boom(data):
             raise StatesEditError("simulated invalid file")
 
-        monkeypatch.setattr(states_edit, "_reparse_validate", _boom)
+        broken = dataclasses.replace(states_edit.STATES, check=_boom)
+        monkeypatch.setattr(states_edit, "STATES", broken)
         with pytest.raises(StatesEditError):
             add_state("CHARGING", profile=prof)
         assert prof.states_file.read_text() == original

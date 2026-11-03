@@ -21,15 +21,16 @@ import yaml
 
 from canlib.pids import effective_param
 from canlib.signal_category import CATEGORIES, unit_category
-from canlib.yaml_edit.pids.defaults import _ecu_def, _locate_pid, _params
+from canlib.yaml_edit.pids.defaults import _ecu_def, _params
 from canlib.yaml_edit.text import (
     PidsEditError,
     _format_scalar_field,
     _keyed_block,
     _remove_field_line,
     _replace_field_in_block_at,
-    _safe_write,
+    edit_ecu_text,
     find_ecu_file,
+    pid_span,
 )
 
 RETIRED_FIELD = "ha_class"
@@ -121,15 +122,14 @@ def migrate_categories(
     kept: no ``ha_class`` may remain, and every signal must carry exactly the planned
     category.
     """
-    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
-    original = fpath.read_text()
+    original = find_ecu_file(ecu_name, pids_dir=pids_dir).read_text()
     plan = plan_ecu(_ecu_def(yaml.safe_load(original), ecu_name))
     if dry_run or not plan:
         return plan
 
     def transform(text: str) -> str:
         for pid_u in dict.fromkeys(m.pid for m in plan):
-            start, end = _locate_pid(text, ecu_name, pid_u)
+            start, end = pid_span(text, ecu_name, pid_u)
             block = text[start:end]
             for m in (m for m in plan if m.pid == pid_u and m.param is not None):
                 block = _rewrite_param(block, m)
@@ -149,5 +149,5 @@ def migrate_categories(
             if RETIRED_FIELD in param or param.get("category") != m.category:
                 raise PidsEditError(f"{m.pid}/{m.param}: category not migrated, reverted")
 
-    _safe_write(fpath, original, transform(original), ecu_name.strip().upper(), checker)
+    edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
     return plan

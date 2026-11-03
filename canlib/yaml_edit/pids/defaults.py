@@ -22,13 +22,13 @@ import yaml
 from canlib.pids import INHERITED_PARAM_FIELDS, effective_param
 from canlib.yaml_edit.text import (
     PidsEditError,
-    _find_ecu_block,
     _format_list_field,
     _format_scalar_field,
     _keyed_block,
     _remove_field_line,
-    _safe_write,
+    edit_ecu_text,
     find_ecu_file,
+    pid_span,
 )
 
 # Fewest parameters that must share a value before it is worth stating on the PID: a pair
@@ -105,17 +105,6 @@ def _ecu_def(data: dict, ecu_name: str) -> dict:
     return found
 
 
-def _locate_pid(text: str, ecu_name: str, pid_u: str) -> tuple[int, int]:
-    ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
-    pids = _keyed_block(text, "pids", 2, ecu_start, ecu_end)
-    if not pids:
-        raise PidsEditError(f"ECU {ecu_name!r} has no pids: section")
-    pidb = _keyed_block(text, pid_u, 4, pids[2], pids[3])
-    if not pidb:
-        raise PidsEditError(f"PID {pid_u!r} not found under {ecu_name!r}")
-    return pidb[0], pidb[3]
-
-
 def _render(indent: str, field: str, value: Any) -> list[str]:
     """The YAML lines for one shared field, keeping the value's own type."""
     if field == "source_links":
@@ -178,13 +167,11 @@ def set_pid_defaults(
         if _empty(value):
             raise PidsEditError(f"{field} must not be empty (use clear to remove it)")
 
-    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
-    original = fpath.read_text()
     pid_u = str(pid).strip().upper()
     ordered = [f for f in INHERITED_PARAM_FIELDS if f in fields]
 
     def transform(text: str) -> str:
-        start, end = _locate_pid(text, ecu_name, pid_u)
+        start, end = pid_span(text, ecu_name, pid_u)
         block = text[start:end]
         for field in clear:
             block = _set_pid_field(block, field, [])
@@ -205,8 +192,7 @@ def set_pid_defaults(
             if field in pdef:
                 raise PidsEditError(f"PID {pid_u!r} {field} still present after clear")
 
-    _safe_write(fpath, original, transform(original), ecu_name.strip().upper(), checker)
-    return fpath
+    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
 
 
 def _hoist_in_block(block: str, plan: dict[str, tuple[Any, tuple[str, ...]]]) -> str:
@@ -241,8 +227,7 @@ def hoist_defaults(
     the same shared fields as before, so the move never changes what any signal reports.
     With ``dry_run`` nothing is written. Returns what moved (or would).
     """
-    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
-    original = fpath.read_text()
+    original = find_ecu_file(ecu_name, pids_dir=pids_dir).read_text()
     ecu_def = _ecu_def(yaml.safe_load(original), ecu_name)
     wanted = str(pid).strip().upper() if pid else None
     if wanted and _pid_def(ecu_def, wanted) is None:
@@ -271,7 +256,7 @@ def hoist_defaults(
 
     def transform(text: str) -> str:
         for pid_u, plan in plans.items():
-            start, end = _locate_pid(text, ecu_name, pid_u)
+            start, end = pid_span(text, ecu_name, pid_u)
             text = text[:start] + _hoist_in_block(text[start:end], plan) + text[end:]
         return text
 
@@ -289,5 +274,5 @@ def hoist_defaults(
                             f"{pid_u}/{name}: {field} changed by the hoist, reverted"
                         )
 
-    _safe_write(fpath, original, transform(original), ecu_name.strip().upper(), checker)
+    edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
     return hoisted

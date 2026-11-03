@@ -15,7 +15,6 @@ from typing import TYPE_CHECKING
 
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
-from canlib import yaml_io
 from canlib.actions import (
     ActionError,
     ActionRequest,
@@ -23,34 +22,23 @@ from canlib.actions import (
     parse_action,
     parse_actions_doc,
 )
-from canlib.yaml_edit.rt import detect_sequence_indent as _detect_seq
-from canlib.yaml_edit.rt import dump as _dump
-from canlib.yaml_edit.rt import folded as _folded
-from canlib.yaml_edit.rt import round_trip_yaml as _yaml
+
+from .doc import Target, edit_doc
+from .rt import folded as _folded
+from .ruamel_ops import find_key, flow_map, flow_seq, remove_key
 
 if TYPE_CHECKING:
     from canlib.profile import Profile
 
 
-def _actions_path(profile: Profile | None) -> Path:
-    from canlib.profile import active
-
-    return (profile or active()).actions_file
-
-
-def _flow_list(items: Sequence[str]) -> CommentedSeq:
-    seq = CommentedSeq(list(items))
-    seq.fa.set_flow_style()
-    return seq
-
-
 def _request_map(req: ActionRequest) -> CommentedMap:
-    entry = CommentedMap()
-    entry["to"] = req.target.lower() if req.target == "functional" else req.target
-    entry["send"] = req.send
-    entry["response"] = req.response
-    entry.fa.set_flow_style()
-    return entry
+    return flow_map(
+        {
+            "to": req.target.lower() if req.target == "functional" else req.target,
+            "send": req.send,
+            "response": req.response,
+        }
+    )
 
 
 def _entry(
@@ -62,51 +50,35 @@ def _entry(
     entry = CommentedMap()
     if description:
         entry["description"] = _folded(description, key="description")
-    entry["reads"] = _flow_list(reads)
+    entry["reads"] = flow_seq(reads)
     entry["require"] = _folded(require, key="require")
     entry["requests"] = CommentedSeq([_request_map(r) for r in requests])
     return entry
 
 
-def _load_doc(path: Path) -> CommentedMap:
-    if not path.exists():
-        doc = CommentedMap()
-        doc["actions"] = CommentedMap()
-        return doc
-    data = _yaml().load(path.read_text())
-    if data is None:
-        data = CommentedMap()
-    if not isinstance(data, dict):
-        raise ActionError(f"{path.name}: top level must be a mapping")
-    if data.get("actions") is None:
-        data["actions"] = CommentedMap()
-    if not isinstance(data["actions"], dict):
-        raise ActionError(f"{path.name}: 'actions:' must be a mapping")
-    return data
+def _check(data: object) -> None:
+    """Re-parse with the loader's own checks; it raises ``ActionError`` for a bad action."""
+    parse_actions_doc(data)
 
 
-def _find(actions: dict, name: str) -> str | None:
-    for key in actions:
-        if str(key).strip().lower() == name:
-            return key
-    return None
+ACTIONS = Target(
+    key="actions",
+    path=lambda profile: profile.actions_file,
+    error=ActionError,
+    section="actions",
+    check=_check,
+)
 
 
-def _safe_write(path: Path, original: str | None, data: CommentedMap) -> None:
-    """Dump, then re-parse with the loader's checks; revert on any failure."""
-    seq = _detect_seq(original or "") or (4, 2)
-    with open(path, "w") as f:
-        _dump(data, f, sequence=seq[0], offset=seq[1])
-    try:
-        parse_actions_doc(yaml_io.safe_load(path.read_text()))
-    except Exception as e:
-        if original is None:
-            path.unlink(missing_ok=True)
-        else:
-            path.write_text(original)
-        if isinstance(e, ActionError):
-            raise
-        raise ActionError(f"edit failed post-check, reverted: {e}") from e
+def _normalized(key: object) -> str:
+    return str(key).strip().lower()
+
+
+def _key(doc, name: str):
+    key = find_key(doc.section, name, _normalized)
+    if key is None:
+        raise ActionError(f"action {name!r} not found")
+    return key
 
 
 def add_action(
@@ -122,14 +94,11 @@ def add_action(
     key = normalize_name(name)
     entry = _entry(description, reads, require, requests)
     parse_action(key, entry)  # fail before touching the file
-    path = _actions_path(profile)
-    original = path.read_text() if path.exists() else None
-    data = _load_doc(path)
-    if _find(data["actions"], key) is not None:
-        raise ActionError(f"action {key!r} already exists")
-    data["actions"][key] = entry
-    _safe_write(path, original, data)
-    return path
+    with edit_doc(ACTIONS, profile, create=True) as doc:
+        if find_key(doc.section, key, _normalized) is not None:
+            raise ActionError(f"action {key!r} already exists")
+        doc.section[key] = entry
+    return doc.path
 
 
 def update_action(
@@ -143,43 +112,27 @@ def update_action(
 ) -> Path:
     """Replace the given fields of an existing action. ``description=""`` clears it."""
     key = normalize_name(name)
-    path = _actions_path(profile)
-    if not path.exists():
-        raise ActionError("no actions.yaml to edit")
-    original = path.read_text()
-    data = _load_doc(path)
-    found = _find(data["actions"], key)
-    if found is None:
-        raise ActionError(f"action {key!r} not found")
-    entry = data["actions"][found]
-    if not isinstance(entry, dict):
-        raise ActionError(f"action {key!r} is not a mapping")
-    if description is not None:
-        if description:
-            entry["description"] = _folded(description, key="description")
-        else:
-            entry.pop("description", None)
-    if reads is not None:
-        entry["reads"] = _flow_list(reads)
-    if require is not None:
-        entry["require"] = _folded(require, key="require")
-    if requests is not None:
-        entry["requests"] = CommentedSeq([_request_map(r) for r in requests])
-    _safe_write(path, original, data)
-    return path
+    with edit_doc(ACTIONS, profile) as doc:
+        entry = doc.section[_key(doc, key)]
+        if not isinstance(entry, dict):
+            raise ActionError(f"action {key!r} is not a mapping")
+        if description is not None:
+            if description:
+                entry["description"] = _folded(description, key="description")
+            else:
+                entry.pop("description", None)
+        if reads is not None:
+            entry["reads"] = flow_seq(reads)
+        if require is not None:
+            entry["require"] = _folded(require, key="require")
+        if requests is not None:
+            entry["requests"] = CommentedSeq([_request_map(r) for r in requests])
+    return doc.path
 
 
 def remove_action(name: str, *, profile: Profile | None = None) -> Path:
     """Remove an action. Errors if it isn't declared."""
     key = normalize_name(name)
-    path = _actions_path(profile)
-    if not path.exists():
-        raise ActionError("no actions.yaml to edit")
-    original = path.read_text()
-    data = _load_doc(path)
-    found = _find(data["actions"], key)
-    if found is None:
-        raise ActionError(f"action {key!r} not found")
-    del data["actions"][found]
-    _safe_write(path, original, data)
-    return path
+    with edit_doc(ACTIONS, profile) as doc:
+        remove_key(doc.section, _key(doc, key), parent=doc.data, parent_key="actions")
+    return doc.path

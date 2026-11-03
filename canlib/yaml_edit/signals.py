@@ -13,6 +13,8 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ruamel.yaml.comments import CommentedMap
+
 from canlib.validation.signals import (
     BYTE_ORDERS,
     CLASSIC_MAX_LENGTH,
@@ -28,11 +30,15 @@ from canlib.validation.signals import (
     message_length,
 )
 
+from .doc import Target, edit_doc
+from .errors import EditError
+from .ruamel_ops import place_in_order, remove_key
+
 if TYPE_CHECKING:
     from canlib.profile import Profile
 
 
-class SignalsEditError(Exception):
+class SignalsEditError(EditError):
     """A signals/ edit was rejected (invalid input or failed post-validation)."""
 
 
@@ -42,8 +48,20 @@ CLEARABLE_SIGNAL_FIELDS = ("scale", "offset", "min", "max", "unit", "source", "n
 _TEXT_FIELDS = ("unit", "source", "notes")
 
 
-def _bus_path(profile: Profile, bus: str) -> Path:
-    return profile.signals_dir / f"{bus}.yaml"
+def _check(data: object) -> None:
+    errors, _ = check_signals_doc(data or {})
+    if errors:
+        raise SignalsEditError("; ".join(errors[:5]))
+
+
+SIGNALS = Target(
+    key="signals",
+    path=lambda profile, bus: profile.signals_dir / f"{bus}.yaml",
+    error=SignalsEditError,
+    section="messages",
+    check=_check,
+    sequence=(2, 0),
+)
 
 
 def _normalize_id(arb_id: str | int) -> str:
@@ -60,8 +78,6 @@ def _normalize_id(arb_id: str | int) -> str:
 
 
 def _ordered_signal(fields: dict) -> dict:
-    from ruamel.yaml.comments import CommentedMap
-
     out = CommentedMap()
     for k in SIGNAL_FIELDS:
         if k in fields and fields[k] is not None:
@@ -69,22 +85,8 @@ def _ordered_signal(fields: dict) -> dict:
     return out
 
 
-def _set_field(mapping, key: str, value, order: tuple[str, ...]) -> None:
-    """Set ``mapping[key]``, inserting a new key at its canonical position in ``order``.
-
-    A plain assignment appends, so a ``name`` or ``length`` added to a message that
-    already has ``signals`` would otherwise land after the whole signal block.
-    """
-    if key in mapping:
-        mapping[key] = value
-        return
-    rank = order.index(key)
-    pos = sum(1 for k in mapping if k in order and order.index(k) < rank)
-    mapping.insert(pos, key, value)
-
-
 def _set_message_field(msg, key: str, value) -> None:
-    _set_field(msg, key, value, MESSAGE_FIELDS)
+    place_in_order(msg, key, value, MESSAGE_FIELDS)
 
 
 def _canonical_frame_format(frame_id: int, msg) -> None:
@@ -141,11 +143,6 @@ def upsert_signal(
     ``msg_length``, ``extended``, ``fd``) overwrite the message's. Comment-preserving;
     the write is re-parsed and structurally validated, and rolled back on failure.
     """
-    from ruamel.yaml.comments import CommentedMap
-
-    from canlib.profile import active
-    from canlib.yaml_edit.rt import round_trip_yaml as _yaml
-
     clear = set(clear)
     if unknown := clear - set(CLEARABLE_SIGNAL_FIELDS):
         raise SignalsEditError(
@@ -188,8 +185,6 @@ def upsert_signal(
     if msg_length is not None and not is_message_length(msg_length):
         raise SignalsEditError(f"message length must be {MESSAGE_LENGTH_RULE} bytes")
 
-    prof = profile or active()
-    path = _bus_path(prof, bus)
     mid = _normalize_id(arb_id)
     frame_id = int(mid, 16)
     if extended is False and frame_id > MAX_STANDARD_ID:
@@ -197,40 +192,34 @@ def upsert_signal(
             f"{mid} cannot be a standard frame (11-bit IDs end at 0x{MAX_STANDARD_ID:X})"
         )
 
-    original = path.read_text() if path.exists() else None
-    data = _yaml().load(original) if original else CommentedMap()
-    if not isinstance(data, dict):
-        raise SignalsEditError(f"{path.name}: top level is not a mapping")
-    messages = data.setdefault("messages", CommentedMap())
-    msg = messages.setdefault(mid, CommentedMap())
-    for key, value in (
-        ("name", msg_name),
-        ("tx_ecu", tx_ecu),
-        ("length", msg_length),
-        ("extended", extended),
-        ("fd", fd),
-    ):
-        if value is not None:
-            _set_message_field(msg, key, value)
-    signals = msg.setdefault("signals", CommentedMap())
+    with edit_doc(SIGNALS, profile, create=True, bus=bus) as doc:
+        msg = doc.section.setdefault(mid, CommentedMap())
+        for key, value in (
+            ("name", msg_name),
+            ("tx_ecu", tx_ecu),
+            ("length", msg_length),
+            ("extended", extended),
+            ("fd", fd),
+        ):
+            if value is not None:
+                _set_message_field(msg, key, value)
+        signals = msg.setdefault("signals", CommentedMap())
 
-    sig = signals.get(name)
-    if sig is None:
-        missing = [k for k in ("start_bit", "length") if k not in updates]
-        if missing:
-            raise SignalsEditError(
-                f"{mid}/{name} is a new signal: {' and '.join(missing)} required"
-            )
-        signals[name] = _ordered_signal({"byte_order": "little", **updates})
-    else:
-        for key in clear:
-            sig.pop(key, None)
-        for key, value in updates.items():
-            _set_field(sig, key, value, SIGNAL_FIELDS)
-    _canonical_frame_format(frame_id, msg)
-
-    _safe_write(path, original, data, check_signals_doc)
-    return path
+        sig = signals.get(name)
+        if sig is None:
+            missing = [k for k in ("start_bit", "length") if k not in updates]
+            if missing:
+                raise SignalsEditError(
+                    f"{mid}/{name} is a new signal: {' and '.join(missing)} required"
+                )
+            signals[name] = _ordered_signal({"byte_order": "little", **updates})
+        else:
+            for key in clear:
+                sig.pop(key, None)
+            for key, value in updates.items():
+                place_in_order(sig, key, value, SIGNAL_FIELDS)
+        _canonical_frame_format(frame_id, msg)
+    return doc.path
 
 
 def merge_bus(
@@ -249,105 +238,51 @@ def merge_bus(
     message under the same ID — those are two different frames sharing one key. One
     comment-preserving write + one validate + rollback. Returns ``(path, signal_count)``.
     """
-    from ruamel.yaml.comments import CommentedMap
-
-    from canlib.profile import active
-    from canlib.yaml_edit.rt import round_trip_yaml as _yaml
-
-    prof = profile or active()
-    path = _bus_path(prof, bus)
-    original = path.read_text() if path.exists() else None
-    data = _yaml().load(original) if original else CommentedMap()
-    if not isinstance(data, dict):
-        raise SignalsEditError(f"{path.name}: top level is not a mapping")
-    messages = data.setdefault("messages", CommentedMap())
-
     n = 0
-    for arb_id, spec in imported.items():
-        mid = _normalize_id(arb_id)
-        frame_id = int(mid, 16)
-        if mid in messages and isinstance(messages[mid], dict):
-            have = message_is_extended(frame_id, messages[mid])
-            want = message_is_extended(frame_id, spec)
-            if have != want:
-                kinds = {True: "an extended", False: "a standard"}
-                raise SignalsEditError(
-                    f"{mid} is {kinds[have]} frame in {path.name} but {kinds[want]} one in "
-                    "the import; import it into another bus (--bus)"
-                )
-        msg = messages.setdefault(mid, CommentedMap())
-        for key in ("name", "tx_ecu"):
-            if spec.get(key):
-                _set_message_field(msg, key, spec[key])
-        for key in ("length", "extended"):
-            if spec.get(key) is not None:
-                _set_message_field(msg, key, spec[key])
-        if spec.get("fd") is not None:
-            _set_message_field(msg, "fd", spec["fd"])
-        else:
-            msg.pop("fd", None)
-        sigs = msg.setdefault("signals", CommentedMap())
-        for sname, fields in (spec.get("signals") or {}).items():
-            sigs[sname] = _ordered_signal(fields)
-            n += 1
-        _canonical_frame_format(frame_id, msg)
-
-    _safe_write(path, original, data, check_signals_doc)
-    return path, n
+    with edit_doc(SIGNALS, profile, create=True, bus=bus) as doc:
+        messages = doc.section
+        for arb_id, spec in imported.items():
+            mid = _normalize_id(arb_id)
+            frame_id = int(mid, 16)
+            if mid in messages and isinstance(messages[mid], dict):
+                have = message_is_extended(frame_id, messages[mid])
+                want = message_is_extended(frame_id, spec)
+                if have != want:
+                    kinds = {True: "an extended", False: "a standard"}
+                    raise SignalsEditError(
+                        f"{mid} is {kinds[have]} frame in {doc.path.name} but {kinds[want]} one "
+                        "in the import; import it into another bus (--bus)"
+                    )
+            msg = messages.setdefault(mid, CommentedMap())
+            for key in ("name", "tx_ecu"):
+                if spec.get(key):
+                    _set_message_field(msg, key, spec[key])
+            for key in ("length", "extended"):
+                if spec.get(key) is not None:
+                    _set_message_field(msg, key, spec[key])
+            if spec.get("fd") is not None:
+                _set_message_field(msg, "fd", spec["fd"])
+            else:
+                msg.pop("fd", None)
+            sigs = msg.setdefault("signals", CommentedMap())
+            for sname, fields in (spec.get("signals") or {}).items():
+                sigs[sname] = _ordered_signal(fields)
+                n += 1
+            _canonical_frame_format(frame_id, msg)
+    return doc.path, n
 
 
 def remove_signal(
     bus: str, arb_id: str | int, name: str, *, profile: Profile | None = None
 ) -> Path:
     """Remove a signal (and any now-empty message) from ``signals/<bus>.yaml``."""
-    from canlib.profile import active
-    from canlib.yaml_edit.rt import round_trip_yaml as _yaml
-
-    prof = profile or active()
-    path = _bus_path(prof, bus)
-    if not path.exists():
-        raise SignalsEditError(f"no signals file for bus {bus!r}")
     mid = _normalize_id(arb_id)
-    original = path.read_text()
-    data = _yaml().load(original) or {}
-    msg = (data.get("messages") or {}).get(mid) or {}
-    sigs = msg.get("signals") or {}
-    if name not in sigs:
-        raise SignalsEditError(f"{mid}/{name} not found in {path.name}")
-    del sigs[name]
-    if not sigs:  # drop the now-signal-less message
-        del data["messages"][mid]
-    if not data.get("messages"):  # no messages left → remove the empty file
-        path.unlink()
-        return path
-    _safe_write(path, original, data, check_signals_doc)
-    return path
-
-
-def _safe_write(path: Path, original: str | None, data, checker) -> None:
-    """Write ``data`` (comment-preserving), re-parse, check, and roll back on error."""
-    import yaml as _pyyaml
-
-    from canlib.yaml_edit.rt import dump as _dump
-
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w") as f:
-        _dump(data, f)
-    try:
-        reparsed = _pyyaml.safe_load(path.read_text()) or {}
-        errors, _ = checker(reparsed)
-        if errors:
-            raise SignalsEditError("; ".join(errors[:5]))
-    except SignalsEditError:
-        _restore(path, original)
-        raise
-    except Exception as e:  # pragma: no cover - defensive
-        _restore(path, original)
-        raise SignalsEditError(f"edit failed post-check, reverted: {e}") from e
-
-
-def _restore(path: Path, original: str | None) -> None:
-    if original is None:
-        path.unlink(missing_ok=True)
-    else:
-        path.write_text(original)
+    with edit_doc(SIGNALS, profile, bus=bus, missing=f"no signals file for bus {bus!r}") as doc:
+        sigs = (doc.section.get(mid) or {}).get("signals") or {}
+        if name not in sigs:
+            raise SignalsEditError(f"{mid}/{name} not found in {doc.path.name}")
+        remove_key(sigs, name)
+        if not sigs:  # drop the now-signal-less message
+            remove_key(doc.section, mid, parent=doc.data, parent_key="messages")
+        doc.delete_file = not doc.section  # no messages left → remove the empty file
+    return doc.path

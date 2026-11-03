@@ -14,8 +14,7 @@ from canlib.yaml_edit.text import (
     _find_ecu_block,
     _keyed_block,
     _remove_field_line,
-    _safe_write,
-    find_ecu_file,
+    edit_ecu_text,
 )
 
 ONLY_FIELD = "snapshot_only"
@@ -48,9 +47,6 @@ def set_snapshot_only(
     if length is not None and not value:
         raise PidsEditError("a snapshot length only goes with snapshot_only")
 
-    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
-    original = fpath.read_text()
-    ecu_key = ecu_name.strip().upper()
     kept_length: list[int | None] = [None]
 
     def transform(text: str) -> str:
@@ -85,8 +81,7 @@ def set_snapshot_only(
         if got != want:
             raise PidsEditError(f"snapshot fields mismatch after edit: {got!r} != {want!r}")
 
-    _safe_write(fpath, original, transform(original), ecu_key, checker)
-    return fpath
+    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
 
 
 def _current_length(block: str) -> int | None:

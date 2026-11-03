@@ -9,14 +9,13 @@ field, from the same field table the checker uses.
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.scalarstring import DoubleQuotedScalarString
 
-from canlib import yaml_io
 from canlib.variants import (
     BATTERY_FIELDS,
     PROFILE_OVERRIDE_FIELDS,
@@ -25,9 +24,11 @@ from canlib.variants import (
     id_problem,
     normalize_variant_id,
 )
-from canlib.yaml_edit.rt import NOTE_WRAP_WIDTH, folded
-from canlib.yaml_edit.rt import dump as _dump
-from canlib.yaml_edit.rt import round_trip_yaml as _yaml
+
+from .doc import Target, edit_doc
+from .errors import EditError
+from .rt import NOTE_WRAP_WIDTH, folded
+from .ruamel_ops import find_key, flow_seq, place_in_order, remove_key, rename_key
 
 if TYPE_CHECKING:
     from canlib.profile import Profile
@@ -38,14 +39,8 @@ _HEADER = (
 )
 
 
-class VariantsEditError(Exception):
+class VariantsEditError(EditError):
     """Raised when a ``variants.yaml`` edit cannot be applied safely."""
-
-
-def _path(profile: Profile | None) -> Path:
-    from canlib.profile import active
-
-    return (profile or active()).variants_file
 
 
 def _checked_id(raw: str) -> str:
@@ -57,12 +52,6 @@ def _checked_id(raw: str) -> str:
 
 # Where a field sits: ``  <id>:`` then ``    <field>:``.
 _FIELD_INDENT = 4
-
-
-def _flow_seq(items: Sequence[Any]) -> CommentedSeq:
-    seq = CommentedSeq(items)
-    seq.fa.set_flow_style()
-    return seq
 
 
 def _text_list(key: str, items: list[str]) -> CommentedSeq:
@@ -107,7 +96,7 @@ def _override_value(sub: str, raw: str) -> Any:
             raise VariantsEditError(f"profile_overrides.{sub}: must be a whole number")
         return value
     if kind == "texts":
-        return _flow_seq([p.strip() for p in raw.split(",") if p.strip()])
+        return flow_seq([p.strip() for p in raw.split(",") if p.strip()])
     raise VariantsEditError(
         f"profile_overrides.{sub} is a mapping; it cannot be given on the command line"
     )
@@ -155,51 +144,43 @@ def parse_value(key: str, raw: str) -> Any:
         return _text_list(key, [raw.strip()] if raw.strip() else [])
     if kind == "year_months":
         # Quoted, so a bare year stays text instead of reading back as a number.
-        return _flow_seq([DoubleQuotedScalarString(v) for v in _pair(key, raw)])
+        return flow_seq([DoubleQuotedScalarString(v) for v in _pair(key, raw)])
     if kind == "years":
         try:
-            return _flow_seq([int(p) for p in _pair(key, raw)])
+            return flow_seq([int(p) for p in _pair(key, raw)])
         except ValueError:
             raise VariantsEditError(f"{key}: give two years, e.g. 2017,2019") from None
     raise AssertionError(kind)  # pragma: no cover - every kind is handled above
 
 
-def _load(path: Path) -> CommentedMap:
-    if not path.exists():
-        doc = CommentedMap()
-        doc["variants"] = CommentedMap()
-        return doc
-    data = _yaml().load(path.read_text()) or CommentedMap()
-    if not isinstance(data, dict):
-        raise VariantsEditError(f"{path.name}: top-level must be a mapping")
-    if data.get("variants") is None:
-        data["variants"] = CommentedMap()
-    if not isinstance(data["variants"], dict):
-        raise VariantsEditError(f"{path.name}: 'variants:' must be a mapping")
-    return data
+def _check(data: object) -> None:
+    errors = check_variants_doc(data)
+    if errors:
+        raise VariantsEditError("; ".join(errors) + " (reverted)")
 
 
-def _find(variants: Mapping, vid: str) -> Any:
-    return next((k for k in variants if normalize_variant_id(k) == vid), None)
+VARIANTS = Target(
+    key="variants",
+    path=lambda profile: profile.variants_file,
+    error=VariantsEditError,
+    section="variants",
+    check=_check,
+    header=_HEADER,
+    sequence=(2, 0),
+)
 
 
-def _entry(data: CommentedMap, vid: str) -> CommentedMap:
-    key = _find(data["variants"], vid)
+def _entry(doc, vid: str) -> CommentedMap:
+    key = find_key(doc.section, vid, normalize_variant_id)
     if key is None:
-        known = ", ".join(str(k) for k in data["variants"]) or "none"
+        known = ", ".join(str(k) for k in doc.section) or "none"
         raise VariantsEditError(f"variant {vid!r} not found (declared: {known})")
-    return data["variants"][key]
+    return doc.section[key]
 
 
 def _place(entry: CommentedMap, key: str, value: Any) -> None:
     """Set ``key``, inserting a new one at its canonical position."""
-    if key in entry:
-        entry[key] = value
-        return
-    order = list(VARIANT_FIELDS)
-    rank = order.index(key) if key in order else len(order)
-    pos = sum(1 for k in entry if k in order and order.index(k) < rank)
-    entry.insert(pos, key, value)
+    place_in_order(entry, key, value, list(VARIANT_FIELDS))
 
 
 def _assign(entry: CommentedMap, key: str, raw: str) -> None:
@@ -221,11 +202,7 @@ def _assign_sub(entry: CommentedMap, field: str, order: list[str], sub: str, val
         if field == "battery":
             block.fa.set_flow_style()
         _place(entry, field, block)
-    if sub in block:
-        block[sub] = value
-    else:
-        pos = sum(1 for k in block if k in order and order.index(k) < order.index(sub))
-        block.insert(pos, sub, value)
+    place_in_order(block, sub, value, order)
 
 
 def _assign_all(entry: CommentedMap, assignments: Sequence[tuple[str, str]]) -> None:
@@ -238,33 +215,6 @@ def _assign_all(entry: CommentedMap, assignments: Sequence[tuple[str, str]]) -> 
             _assign(entry, key, raw)
     for key, items in gathered.items():
         _place(entry, key, _text_list(key, [i for i in items if i]))
-
-
-def _write(path: Path, original: str | None, data: CommentedMap) -> Path:
-    """Dump ``data``, re-parse and check it, and revert on any failure."""
-    with open(path, "w") as f:
-        if original is None:
-            f.write(_HEADER)
-        _dump(data, f)
-    try:
-        errors = check_variants_doc(yaml_io.safe_load(path.read_text()))
-    except Exception as e:  # pragma: no cover - defensive
-        errors = [f"edit failed post-check: {e}"]
-    if errors:
-        if original is None:
-            path.unlink(missing_ok=True)
-        else:
-            path.write_text(original)
-        raise VariantsEditError("; ".join(errors) + " (reverted)")
-    return path
-
-
-def _edit(profile: Profile | None, change) -> Path:
-    path = _path(profile)
-    original = path.read_text() if path.exists() else None
-    data = _load(path)
-    change(data)
-    return _write(path, original, data)
 
 
 # ── public editors ──────────────────────────────────────────────────────────
@@ -281,16 +231,14 @@ def add_variant(
     vid = _checked_id(variant_id)
     if not name.strip():
         raise VariantsEditError("a variant needs a name")
-
-    def change(data: CommentedMap) -> None:
-        if _find(data["variants"], vid) is not None:
+    with edit_doc(VARIANTS, profile, create=True) as doc:
+        if find_key(doc.section, vid, normalize_variant_id) is not None:
             raise VariantsEditError(f"variant {vid!r} already exists")
         entry = CommentedMap()
         entry["name"] = name.strip()
         _assign_all(entry, meta)
-        data["variants"][vid] = entry
-
-    return _edit(profile, change)
+        doc.section[vid] = entry
+    return doc.path
 
 
 def set_variant_meta(
@@ -304,11 +252,9 @@ def set_variant_meta(
     vid = _checked_id(variant_id)
     if not assignments:
         raise VariantsEditError("nothing to set (give KEY=VALUE pairs)")
-
-    def change(data: CommentedMap) -> None:
-        _assign_all(_entry(data, vid), assignments)
-
-    return _edit(profile, change)
+    with edit_doc(VARIANTS, profile, create=True) as doc:
+        _assign_all(_entry(doc, vid), assignments)
+    return doc.path
 
 
 def unset_variant_meta(
@@ -316,9 +262,8 @@ def unset_variant_meta(
 ) -> Path:
     """Remove metadata fields from a variant. ``name`` cannot be removed."""
     vid = _checked_id(variant_id)
-
-    def change(data: CommentedMap) -> None:
-        entry = _entry(data, vid)
+    with edit_doc(VARIANTS, profile, create=True) as doc:
+        entry = _entry(doc, vid)
         for key in keys:
             if key == "name":
                 raise VariantsEditError("a variant's name cannot be removed")
@@ -334,39 +279,31 @@ def unset_variant_meta(
                 del entry[key]
             else:
                 raise VariantsEditError(f"variant {vid!r} has no {key}")
-
-    return _edit(profile, change)
+    return doc.path
 
 
 def rename_variant(old: str, new: str, *, profile: Profile | None = None) -> Path:
     """Change a variant's ID, keeping its position and metadata."""
     old_id, new_id = _checked_id(old), _checked_id(new)
-
-    def change(data: CommentedMap) -> None:
-        key = _find(data["variants"], old_id)
+    with edit_doc(VARIANTS, profile, create=True) as doc:
+        key = find_key(doc.section, old_id, normalize_variant_id)
         if key is None:
             raise VariantsEditError(f"variant {old_id!r} not found")
-        if old_id != new_id and _find(data["variants"], new_id) is not None:
+        if old_id != new_id and find_key(doc.section, new_id, normalize_variant_id) is not None:
             raise VariantsEditError(f"variant {new_id!r} already exists")
-        rebuilt = CommentedMap()
-        for k, v in data["variants"].items():
-            rebuilt[new_id if k == key else k] = v
-        data["variants"] = rebuilt
-
-    return _edit(profile, change)
+        rename_key(doc.section, key, new_id)
+    return doc.path
 
 
 def remove_variant(variant_id: str, *, profile: Profile | None = None) -> Path:
     """Remove a variant."""
     vid = _checked_id(variant_id)
-
-    def change(data: CommentedMap) -> None:
-        key = _find(data["variants"], vid)
+    with edit_doc(VARIANTS, profile, create=True) as doc:
+        key = find_key(doc.section, vid, normalize_variant_id)
         if key is None:
             raise VariantsEditError(f"variant {vid!r} not found")
-        del data["variants"][key]
-
-    return _edit(profile, change)
+        remove_key(doc.section, key, parent=doc.data, parent_key="variants")
+    return doc.path
 
 
 def set_variant_revisions(
@@ -382,9 +319,8 @@ def set_variant_revisions(
     for rid in revs:
         if problem := id_problem(rid, "revision", "uds"):
             raise VariantsEditError(problem)
-
-    def change(data: CommentedMap) -> None:
-        entry = _entry(data, vid)
+    with edit_doc(VARIANTS, profile, create=True) as doc:
+        entry = _entry(doc, vid)
         block = entry.get("revisions")
         if not revs:
             if not isinstance(block, dict) or ecu not in block:
@@ -392,13 +328,12 @@ def set_variant_revisions(
             del block[ecu]
             if not block:
                 del entry["revisions"]
-            return
-        if not isinstance(block, dict):
-            block = CommentedMap()
-            _place(entry, "revisions", block)
-        block[ecu] = _flow_seq(list(dict.fromkeys(revs)))
-
-    return _edit(profile, change)
+        else:
+            if not isinstance(block, dict):
+                block = CommentedMap()
+                _place(entry, "revisions", block)
+            block[ecu] = flow_seq(list(dict.fromkeys(revs)))
+    return doc.path
 
 
 def rename_variant_revisions_ecu(old: str, new: str, *, profile: Profile | None = None) -> bool:
@@ -406,26 +341,16 @@ def rename_variant_revisions_ecu(old: str, new: str, *, profile: Profile | None 
 
     Returns whether anything changed (the file is left untouched otherwise).
     """
-    path = _path(profile)
-    if not path.exists():
+    from canlib.profile import active
+
+    if not (profile or active()).variants_file.exists():
         return False
     found = False
-
-    def change(data: CommentedMap) -> None:
-        nonlocal found
-        for entry in data["variants"].values():
+    with edit_doc(VARIANTS, profile) as doc:
+        for entry in doc.section.values():
             block = entry.get("revisions") if isinstance(entry, dict) else None
             if isinstance(block, dict) and old in block:
-                rebuilt = CommentedMap()
-                for k, v in block.items():
-                    rebuilt[new if k == old else k] = v
-                entry["revisions"] = rebuilt
+                rename_key(block, old, new)
                 found = True
-
-    original = path.read_text()
-    data = _load(path)
-    change(data)
-    if not found:
-        return False
-    _write(path, original, data)
-    return True
+        doc.discard = not found
+    return found

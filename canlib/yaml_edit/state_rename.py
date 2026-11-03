@@ -25,14 +25,16 @@ Each store is rewritten in the narrowest way that keeps its file stable:
 
 from __future__ import annotations
 
-import os
 import re
-import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from canlib.states import ALL_STATE, needs_yaml_quotes
+
+from .commit import write_atomic
+from .ecufile import clear_cache
+from .errors import EditError
 
 if TYPE_CHECKING:
     from canlib.profile import Profile
@@ -44,7 +46,7 @@ _FLOW_LINE = re.compile(
 )
 
 
-class StateRenameError(Exception):
+class StateRenameError(EditError):
     """Raised when a rename cannot be planned or applied safely."""
 
 
@@ -217,7 +219,8 @@ def plan_state_rename(old: str, new: str, *, profile: Profile | None = None) -> 
     """
     from canlib.dtc.log import log_file as dtc_log_file
     from canlib.profile import active
-    from canlib.yaml_edit.states import _find, _load_doc, normalize_name
+    from canlib.yaml_edit.doc import load_doc
+    from canlib.yaml_edit.states import STATES, find_state, normalize_name
 
     profile = profile or active()
     old, new = normalize_name(old), normalize_name(new)
@@ -225,10 +228,10 @@ def plan_state_rename(old: str, new: str, *, profile: Profile | None = None) -> 
         raise StateRenameError(f"{ALL_STATE} is the every-state meta-token and cannot be renamed")
     if old == new:
         raise StateRenameError(f"{old} is already called {new}")
-    states = _load_doc(profile.states_file)["states"]
-    if _find(states, old) == -1:
+    states = load_doc(STATES, profile.states_file, create=True).section
+    if find_state(states, old) == -1:
         raise StateRenameError(f"state {old!r} not found in {profile.states_file}")
-    if _find(states, new) != -1:
+    if find_state(states, new) != -1:
         raise StateRenameError(f"state {new!r} already exists")
 
     plan = StateRenamePlan(old=old, new=new, states_file=profile.states_file)
@@ -247,7 +250,6 @@ def apply_state_rename(plan: StateRenamePlan, *, profile: Profile | None = None)
     re-raised.
     """
     from canlib.commands.validate import validate_pids_file
-    from canlib.pids import clear_cache
     from canlib.profile import active
     from canlib.yaml_edit.states import rename_state
 
@@ -257,7 +259,7 @@ def apply_state_rename(plan: StateRenamePlan, *, profile: Profile | None = None)
         rename_state(plan.old, plan.new, profile=profile)
         for path, text in plan._texts.items():
             originals[path] = path.read_text()
-            _write_atomic(path, text)
+            write_atomic(path, text)
             if path in plan.ecu_refs:
                 clear_cache()
                 ok, msg = validate_pids_file(path, profile)
@@ -265,19 +267,7 @@ def apply_state_rename(plan: StateRenamePlan, *, profile: Profile | None = None)
                     raise StateRenameError(f"{path.name} invalid after the rename:\n{msg}")
     except Exception:
         for path, text in originals.items():
-            _write_atomic(path, text)
+            write_atomic(path, text)
         clear_cache()
         raise
     clear_cache()
-
-
-def _write_atomic(path: Path, text: str) -> None:
-    """Replace ``path`` with ``text`` via a temp file, so a crash never truncates it."""
-    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write(text)
-        os.replace(tmp, path)
-    except BaseException:
-        Path(tmp).unlink(missing_ok=True)
-        raise

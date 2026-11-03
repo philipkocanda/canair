@@ -10,24 +10,27 @@ without clobbering hand-authored edits:
 * :func:`set_ecu_fields` — update identity fields on an existing ECU file.
 * :func:`append_scan_log` — record a probe outcome under the ECU's ``scan_log:``.
 
-All writes go through :func:`_safe_write`, which re-parses and schema-validates
-the file and reverts on failure — a broken edit never persists. Identity fields
+All writes go through :func:`canlib.yaml_edit.doc.edit_doc`, which re-parses and
+schema-validates the file and reverts on failure — a broken edit never persists. Identity fields
 are validated against ``canlib/schema/pids_schema.yaml`` (``identity_fields``).
 Merges never overwrite existing non-empty values unless ``overwrite=True``.
 """
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import date as _date
 from pathlib import Path
 
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.scalarint import HexCapsInt
 
-from canlib.yaml_edit.rt import detect_sequence_indent as _detect_seq
-from canlib.yaml_edit.rt import dump as _dump
-from canlib.yaml_edit.rt import folded as _folded
-from canlib.yaml_edit.rt import round_trip_yaml as _yaml
+from .doc import Doc, Target, edit_doc
+from .ecufile import clear_cache, schema_validator
+from .errors import EditError
+from .rt import folded as _folded
+from .ruamel_ops import flow_seq, rename_key
 
 # Free-text ECU fields rendered per the shared note policy (canlib.yaml_edit.rt):
 # inline when short, else a wrapped folded block scalar. Kept in one place so a
@@ -60,7 +63,7 @@ CANONICAL_FIELD_ORDER = (
 )
 
 
-class EcusEditError(Exception):
+class EcusEditError(EditError):
     """Raised when an ECU-file edit cannot be applied safely."""
 
 
@@ -75,11 +78,7 @@ def _flow_states(vehicle_states) -> CommentedSeq | None:
     from canlib.yaml_edit.rt import state_token
 
     toks = parse_states(vehicle_states)
-    if not toks:
-        return None
-    seq = CommentedSeq([state_token(t) for t in toks])
-    seq.fa.set_flow_style()
-    return seq
+    return flow_seq([state_token(t) for t in toks]) if toks else None
 
 
 # ── helpers ───────────────────────────────────────────────────────────────
@@ -145,20 +144,6 @@ def find_ecu_file_by_tx(tx_id: int, ecus_dir: Path | None = None) -> Path | None
     return fpath
 
 
-def _load_doc(path: Path) -> CommentedMap:
-    """Round-trip load an ECU file (or a fresh doc if absent/empty)."""
-    y = _yaml()
-    data = None
-    if path.exists():
-        with open(path) as f:
-            data = y.load(f)
-    if data is None:
-        data = CommentedMap()
-    if not isinstance(data, dict):
-        raise EcusEditError(f"{path} top-level must be a mapping")
-    return data
-
-
 def _render_field(key: str, value, key_indent: int):
     """Wrap a free-text field value per the shared note policy; pass others through.
 
@@ -196,41 +181,31 @@ def _new_identity(fields: dict) -> CommentedMap:
     return ident
 
 
-def _safe_write(path: Path, original: str | None, data) -> None:
-    """Write ``data``, then re-parse + schema-validate; revert on failure."""
-    seq_off = _detect_seq(original or "") or (4, 2)
-    with open(path, "w") as f:
-        _dump(data, f, sequence=seq_off[0], offset=seq_off[1])
-    _invalidate()
-    try:
-        from canlib.commands.validate import validate_pids_file
-
-        # validate_pids_file derives the profile from the file's own path (so a
-        # write to a non-active profile validates without a resolvable active
-        # one — avoids a spurious "Multiple profiles found").
-        ok, msg = validate_pids_file(path)
-        if not ok:
-            raise EcusEditError(f"ECU file invalid after edit:\n{msg}")
-    except EcusEditError:
-        _restore(path, original)
-        raise
-    except Exception as e:  # pragma: no cover - defensive
-        _restore(path, original)
-        raise EcusEditError(f"edit failed post-check, reverted: {e}") from e
+ECU = Target(
+    key="ecu",
+    path=None,
+    error=EcusEditError,
+    validate=schema_validator(EcusEditError),
+    after_write=clear_cache,
+)
 
 
-def _restore(path: Path, original: str | None) -> None:
-    if original is None:
-        path.unlink(missing_ok=True)
-    else:
-        path.write_text(original)
-    _invalidate()
+@contextmanager
+def edit_ecu(
+    fpath: Path, name: str | None, *, validate: bool = True, create: bool = False
+) -> Iterator[Doc]:
+    """Open an ECU file; ``doc.section`` is the ECU's own mapping (``doc.data[name]``)."""
 
+    def pick(data):
+        ecu_def = data[name]
+        if not isinstance(ecu_def, dict):
+            raise EcusEditError(f"{fpath.name}/{name} is not a mapping")
+        return ecu_def
 
-def _invalidate() -> None:
-    from canlib.pids import clear_cache
-
-    clear_cache()
+    with edit_doc(
+        ECU, path=fpath, create=create, validate=validate, section_of=pick if name else None
+    ) as doc:
+        yield doc
 
 
 # ── public API ──────────────────────────────────────────────────────────────
@@ -269,38 +244,32 @@ def register_ecu(
     fpath, existing_name = _find_file_by_tx(tx_id, ecus_dir)
 
     if fpath is not None:
-        original = fpath.read_text()
-        data = _load_doc(fpath)
-        ecu_def = data[existing_name]
-        if not isinstance(ecu_def, dict):
-            raise EcusEditError(f"{fpath.name}/{existing_name} is not a mapping")
-        ident = ecu_def.get("identity")
-        if not isinstance(ident, dict):
-            ident = CommentedMap()
-            ecu_def["identity"] = ident
-        changed = _merge_fields(ident, fields, overwrite)
-        # Don't clobber an existing rx_id unless overwrite is requested; the rest
-        # of the addressing block merges (only differing values change).
-        merge_rx = rx_id if (overwrite or ecu_def.get("rx_id") is None) else None
-        changed |= _apply_addressing(
-            ecu_def,
-            mode=mode,
-            target_address=target_address,
-            source_address=source_address,
-            fc_id=fc_id,
-            rx_id=merge_rx,
-        )
-        if changed:
-            _safe_write(fpath, original, data)
+        with edit_ecu(fpath, existing_name) as doc:
+            ecu_def = doc.section
+            ident = ecu_def.get("identity")
+            if not isinstance(ident, dict):
+                ident = CommentedMap()
+                ecu_def["identity"] = ident
+            changed = _merge_fields(ident, fields, overwrite)
+            # Don't clobber an existing rx_id unless overwrite is requested; the rest
+            # of the addressing block merges (only differing values change).
+            merge_rx = rx_id if (overwrite or ecu_def.get("rx_id") is None) else None
+            changed |= _apply_addressing(
+                ecu_def,
+                mode=mode,
+                target_address=target_address,
+                source_address=source_address,
+                fc_id=fc_id,
+                rx_id=merge_rx,
+            )
+            doc.discard = not changed
         return changed
 
     # New file
     ecu_name = name or f"Unknown-{tx_id:03X}"
-    ecus_dir.mkdir(parents=True, exist_ok=True)
     fpath = ecus_dir / _slug(ecu_name)
     if fpath.exists():
         raise EcusEditError(f"{fpath.name} already exists but has no tx_id {disp}")
-    data = CommentedMap()
     ecu_def = CommentedMap()
     ecu_def["tx_id"] = _hex_tx(tx_id)
     # Seed addressing (rx_id + block) BEFORE the single validating write, so a
@@ -316,8 +285,8 @@ def register_ecu(
     ident = _new_identity(fields)
     if len(ident):
         ecu_def["identity"] = ident
-    data[ecu_name] = ecu_def
-    _safe_write(fpath, None, data)
+    with edit_ecu(fpath, None, create=True) as doc:
+        doc.data[ecu_name] = ecu_def
     return True
 
 
@@ -325,7 +294,7 @@ def rename_ecu(tx_id: int, new_name: str, *, ecus_dir: Path | None = None) -> Pa
     """Rename an ECU: rewrite its top-level key and rename ``ecus/<name>.yaml``.
 
     An ECU's name *is* its single top-level YAML key plus its filename, so a
-    rename touches both. The key is rewritten in place through :func:`_safe_write`
+    rename touches both. The key is rewritten in place through :func:`edit_ecu`
     (re-parsed, schema-validated, reverted on failure — comments and field order
     survive), then the file is moved to ``_slug(new_name)`` if the slug changed.
     The document-leading comment block and every nested comment are preserved.
@@ -353,24 +322,19 @@ def rename_ecu(tx_id: int, new_name: str, *, ecus_dir: Path | None = None) -> Pa
             f"cannot rename {old_name!r} → {new_name!r}: {new_path.name} already exists"
         )
 
-    original = fpath.read_text()
-    data = _load_doc(fpath)
-    keys = list(data.keys())
-    if len(keys) != 1 or keys[0] != old_name:
-        raise EcusEditError(
-            f"{fpath.name} must hold exactly one top-level ECU key ({old_name!r}) to rename"
-        )
-
-    # Rewrite the single top-level key, keeping the (comment-bearing) value object.
-    data[new_name] = data[old_name]
-    del data[old_name]
     # In-place validate+revert first, then move the file (a pure rename can't
     # invalidate an already-validated document), so a broken edit never leaves a
     # renamed file behind.
-    _safe_write(fpath, original, data)
+    with edit_ecu(fpath, None) as doc:
+        keys = list(doc.data.keys())
+        if len(keys) != 1 or keys[0] != old_name:
+            raise EcusEditError(
+                f"{fpath.name} must hold exactly one top-level ECU key ({old_name!r}) to rename"
+            )
+        rename_key(doc.data, old_name, new_name)
     if new_path.resolve() != fpath.resolve():
         fpath.rename(new_path)
-        _invalidate()
+        clear_cache()
     return new_path
 
 
@@ -394,18 +358,13 @@ def set_ecu_fields(
     if fpath is None:
         raise EcusEditError(f"ECU {disp} not registered; call register_ecu first")
 
-    original = fpath.read_text()
-    data = _load_doc(fpath)
-    ecu_def = data[name]
-    if not isinstance(ecu_def, dict):
-        raise EcusEditError(f"{fpath.name}/{name} is not a mapping")
-    ident = ecu_def.get("identity")
-    if not isinstance(ident, dict):
-        ident = CommentedMap()
-        ecu_def["identity"] = ident
-    changed = _merge_fields(ident, fields, overwrite)
-    if changed:
-        _safe_write(fpath, original, data)
+    with edit_ecu(fpath, name) as doc:
+        ident = doc.section.get("identity")
+        if not isinstance(ident, dict):
+            ident = CommentedMap()
+            doc.section["identity"] = ident
+        changed = _merge_fields(ident, fields, overwrite)
+        doc.discard = not changed
     return changed
 
 
@@ -511,22 +470,16 @@ def set_addressing(
     if fpath is None:
         raise EcusEditError(f"ECU {disp} not registered; call register_ecu first")
 
-    original = fpath.read_text()
-    data = _load_doc(fpath)
-    ecu_def = data[name]
-    if not isinstance(ecu_def, dict):
-        raise EcusEditError(f"{fpath.name}/{name} is not a mapping")
-
-    changed = _apply_addressing(
-        ecu_def,
-        mode=mode,
-        target_address=target_address,
-        source_address=source_address,
-        fc_id=fc_id,
-        rx_id=rx_id,
-    )
-    if changed:
-        _safe_write(fpath, original, data)
+    with edit_ecu(fpath, name) as doc:
+        changed = _apply_addressing(
+            doc.section,
+            mode=mode,
+            target_address=target_address,
+            source_address=source_address,
+            fc_id=fc_id,
+            rx_id=rx_id,
+        )
+        doc.discard = not changed
     return changed
 
 
@@ -550,31 +503,25 @@ def append_scan_log(
     if fpath is None:
         raise EcusEditError(f"ECU {disp} not registered; call register_ecu first")
 
-    original = fpath.read_text()
-    data = _load_doc(fpath)
-    ecu_def = data[name]
-    if not isinstance(ecu_def, dict):
-        raise EcusEditError(f"{fpath.name}/{name} is not a mapping")
+    with edit_ecu(fpath, name) as doc:
+        ecu_def = doc.section
+        if ecu_def.get("scan_log") is None:
+            ecu_def["scan_log"] = []
 
-    if ecu_def.get("scan_log") is None:
-        ecu_def["scan_log"] = []
-
-    values = {
-        "service": HexCapsInt(service)
-        if isinstance(service, int) and not isinstance(service, bool)
-        else service,
-        "range": range,
-        "date": date if date is not None else _date.today().isoformat(),
-        "hits": hits,
-        "probes": probes,
-        "vehicle_states": _flow_states(vehicle_states),
-        "notes": notes,
-    }
-    entry = CommentedMap()
-    for field in _SCAN_LOG_FIELDS:
-        if values[field] is not None:
-            # scan_log entries are list items: dash at 4, fields at 6.
-            entry[field] = _render_field(field, values[field], key_indent=6)
-    ecu_def["scan_log"].append(entry)
-
-    _safe_write(fpath, original, data)
+        values = {
+            "service": HexCapsInt(service)
+            if isinstance(service, int) and not isinstance(service, bool)
+            else service,
+            "range": range,
+            "date": date if date is not None else _date.today().isoformat(),
+            "hits": hits,
+            "probes": probes,
+            "vehicle_states": _flow_states(vehicle_states),
+            "notes": notes,
+        }
+        entry = CommentedMap()
+        for field in _SCAN_LOG_FIELDS:
+            if values[field] is not None:
+                # scan_log entries are list items: dash at 4, fields at 6.
+                entry[field] = _render_field(field, values[field], key_indent=6)
+        ecu_def["scan_log"].append(entry)

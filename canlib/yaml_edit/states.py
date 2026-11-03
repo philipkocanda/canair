@@ -6,7 +6,7 @@ of ``can_buses.yaml`` for the state axis. These helpers let ``canair states``
 add/remove/rename a state and edit its description or ``when:`` predicate
 without clobbering the file's comments or layout.
 
-Every write goes through :func:`_safe_write`, which re-parses and re-validates
+Every write goes through :func:`canlib.yaml_edit.doc.edit_doc`, which re-parses and re-validates
 the file (structure + predicate syntax) and reverts on failure — a broken edit
 never lands on disk. State names are normalized to the canonical UPPERCASE form
 (see :mod:`canlib.states`).
@@ -20,10 +20,8 @@ from typing import TYPE_CHECKING
 
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
-from canlib import yaml_io
 from canlib.states import (
     ALL_STATE,
-    StatePredicateError,
     StateRule,
     compile_predicate,
     exclusion_conflicts,
@@ -31,10 +29,11 @@ from canlib.states import (
     parse_implies,
     unquoted_boolean_error,
 )
-from canlib.yaml_edit.rt import detect_sequence_indent as _detect_seq
-from canlib.yaml_edit.rt import dump as _dump
-from canlib.yaml_edit.rt import round_trip_yaml as _yaml
-from canlib.yaml_edit.rt import state_token as _token
+
+from .doc import Target, edit_doc
+from .errors import EditError
+from .rt import state_token as _token
+from .ruamel_ops import insert_item_before_last, place_in_order, remove_item
 
 if TYPE_CHECKING:
     from canlib.profile import Profile
@@ -45,14 +44,8 @@ if TYPE_CHECKING:
 _NAME_RE = re.compile(r"^[A-Z0-9]+$")
 
 
-class StatesEditError(Exception):
+class StatesEditError(EditError):
     """Raised when a vehicle_states.yaml edit cannot be applied safely."""
-
-
-def _states_path(profile: Profile | None = None) -> Path:
-    from canlib.profile import active
-
-    return (profile or active()).states_file
 
 
 def normalize_name(name: str) -> str:
@@ -68,25 +61,7 @@ def normalize_name(name: str) -> str:
     return norm
 
 
-def _load_doc(path: Path) -> CommentedMap:
-    """Load the states file round-trip; scaffold an empty doc when absent."""
-    if not path.exists():
-        doc = CommentedMap()
-        doc["states"] = CommentedSeq()
-        return doc
-    data = _yaml().load(path.read_text())
-    if data is None:
-        data = CommentedMap()
-    if not isinstance(data, dict):
-        raise StatesEditError(f"{path.name}: top-level must be a mapping")
-    if "states" not in data or data["states"] is None:
-        data["states"] = CommentedSeq()
-    if not isinstance(data["states"], list):
-        raise StatesEditError(f"{path.name}: 'states:' must be a list")
-    return data
-
-
-def _find(states: list, name: str) -> int:
+def find_state(states: list, name: str) -> int:
     """Index of the state named ``name`` (case-insensitive), or -1."""
     for i, entry in enumerate(states):
         if isinstance(entry, dict) and str(entry.get("name", "")).upper() == name:
@@ -128,15 +103,7 @@ def _put_relation(entry: CommentedMap, field: str, flow: CommentedSeq | None) ->
     if flow is None:
         entry.pop(field, None)
         return
-    if field in entry:
-        entry[field] = flow
-        return
-    successors = _FIELD_ORDER[_FIELD_ORDER.index(field) + 1 :]
-    present = [k for k in successors if k in entry]
-    if not present:
-        entry[field] = flow
-        return
-    entry.insert(list(entry).index(present[0]), field, flow)
+    place_in_order(entry, field, flow, _FIELD_ORDER)
 
 
 def _new_entry(
@@ -159,84 +126,9 @@ def _new_entry(
     return entry
 
 
-def _comment_slot(data: CommentedMap, idx: int) -> tuple[dict, object | None, int]:
-    """Locate where the comment block *preceding* ``states[idx]`` is stored.
-
-    ruamel does not keep a sequence item's leading comment on the item itself:
-    it lands as the trailing comment of the *previous* item's last key, or — for
-    the first item — in the pre-comment list of the ``states`` key. Returns the
-    owning ``ca.items`` dict, the key within it, and the slot index.
-    """
-    if idx <= 0:
-        return data.ca.items, "states", 3
-    prev = data["states"][idx - 1]
-    keys = list(prev.keys()) if isinstance(prev, dict) else []
-    return prev.ca.items, (keys[-1] if keys else None), 2
-
-
-def _as_pre_comment(token) -> list:
-    """Split a trailing CommentToken into per-line tokens for a pre-comment list.
-
-    A trailing comment stores the whole block (blank lines and indentation
-    included) in one token, whereas a pre-comment list holds one token per line.
-    """
-    from ruamel.yaml.error import CommentMark
-    from ruamel.yaml.tokens import CommentToken
-
-    column = getattr(getattr(token, "start_mark", None), "column", 2)
-    lines = [ln.strip() for ln in str(token.value).splitlines()]
-    return [CommentToken(f"{ln}\n", CommentMark(column)) for ln in lines if ln]
-
-
-def _insert_before_last(data: CommentedMap, entry: CommentedMap) -> None:
-    """Insert ``entry`` just before the last state, keeping that state's leading comment.
-
-    The comment above the last entry is stored on the entry before it (see
-    :func:`_comment_slot`), so a plain insert would leave it above the new entry
-    instead. It moves to the new entry's last key, which is where ruamel keeps the
-    comment above the entry that follows.
-    """
-    states = data["states"]
-    idx = len(states) - 1
-    items, key, slot = _comment_slot(data, idx)
-    leading = None
-    if key is not None and slot == 2 and key in items:
-        leading = items[key][slot]
-        items[key][slot] = None
-    states.insert(idx, entry)
-    if leading is not None:
-        entry.ca.items[list(entry.keys())[-1]] = [None, None, leading, None]
-
-
-def _delete_state_entry(data: CommentedMap, idx: int) -> None:
-    """Delete ``states[idx]`` without stealing the next entry's leading comment.
-
-    A plain ``del`` loses the *following* entry's comment (ruamel stores it on
-    the victim) and orphans the victim's own comment onto its successor — so
-    removing a state silently re-labels the next one. Re-homing the victim's
-    trailing comment onto the slot that held its leading comment keeps every
-    surviving entry with the comment written above it.
-    """
-    v_items, v_key, v_slot = _comment_slot(data, idx + 1)
-    victim_trailing = v_items.get(v_key, [None] * 4)[v_slot] if v_key is not None else None
-
-    d_items, d_key, d_slot = _comment_slot(data, idx)
-    del data["states"][idx]
-    if d_key is None:
-        return
-    slot = d_items.setdefault(d_key, [None, None, None, None])
-    if victim_trailing is None:
-        slot[d_slot] = None
-    elif d_slot == 3:  # the parent key's pre-comment list wants per-line tokens
-        slot[d_slot] = _as_pre_comment(victim_trailing)
-    else:
-        slot[d_slot] = victim_trailing
-
-
-def _reparse_validate(path: Path) -> None:
-    """Re-parse the written file and validate structure + predicate syntax."""
-    data = yaml_io.safe_load(path.read_text()) or {}
-    states = data.get("states")
+def _check(data: dict | None) -> None:
+    """Validate the re-parsed file: structure and predicate syntax."""
+    states = (data or {}).get("states")
     if not isinstance(states, list):
         raise StatesEditError("top-level 'states:' must be a list after edit")
     seen: set[str] = set()
@@ -301,26 +193,14 @@ def _validate_relations(
         )
 
 
-def _safe_write(path: Path, original: str | None, data) -> None:
-    """Dump ``data``, then re-parse + re-validate; revert on any failure."""
-    seq = _detect_seq(original or "") or (4, 2)
-    with open(path, "w") as f:
-        _dump(data, f, sequence=seq[0], offset=seq[1])
-    try:
-        _reparse_validate(path)
-    except (StatesEditError, StatePredicateError):
-        _restore(path, original)
-        raise
-    except Exception as e:  # pragma: no cover - defensive
-        _restore(path, original)
-        raise StatesEditError(f"edit failed post-check, reverted: {e}") from e
-
-
-def _restore(path: Path, original: str | None) -> None:
-    if original is None:
-        path.unlink(missing_ok=True)
-    else:
-        path.write_text(original)
+STATES = Target(
+    key="states",
+    path=lambda profile: profile.states_file,
+    error=StatesEditError,
+    section="states",
+    kind=CommentedSeq,
+    check=_check,
+)
 
 
 # ── public editors ──────────────────────────────────────────────────────────
@@ -347,49 +227,41 @@ def add_state(
     if when:
         compile_predicate(when)  # fail fast on bad syntax, before touching disk
 
-    path = _states_path(profile)
-    original = path.read_text() if path.exists() else None
-    data = _load_doc(path)
-    states = data["states"]
-    if _find(states, name) != -1:
-        raise StatesEditError(f"state {name!r} already exists")
-    entry = _new_entry(name, description, when, implies, excludes)
-    # ALL is the catch-all, conventionally listed last: a new state goes before it,
-    # and the comment written above ALL stays above it.
-    last = states[-1] if len(states) else None
-    if isinstance(last, dict) and str(last.get("name", "")).upper() == ALL_STATE:
-        _insert_before_last(data, entry)
-    else:
-        states.append(entry)
-    _safe_write(path, original, data)
-    return path
+    with edit_doc(STATES, profile, create=True) as doc:
+        states = doc.section
+        if find_state(states, name) != -1:
+            raise StatesEditError(f"state {name!r} already exists")
+        entry = _new_entry(name, description, when, implies, excludes)
+        # ALL is the catch-all, conventionally listed last: a new state goes before it,
+        # and the comment written above ALL stays above it.
+        last = states[-1] if len(states) else None
+        if isinstance(last, dict) and str(last.get("name", "")).upper() == ALL_STATE:
+            insert_item_before_last(doc.data, "states", entry)
+        else:
+            states.append(entry)
+    return doc.path
 
 
 def remove_state(name: str, *, profile: Profile | None = None) -> Path:
     """Remove a state from the vocabulary. Errors if it isn't declared.
 
     The removed entry's own leading comment goes with it; every surviving
-    entry keeps the comment written above it (see :func:`_delete_state_entry`).
+    entry keeps the comment written above it (see :func:`ruamel_ops.remove_item`).
     Sibling ``implies:``/``excludes:`` targets naming it are dropped, so neither
     relation is left pointing at a state that no longer exists.
     """
     name = normalize_name(name)
-    path = _states_path(profile)
-    if not path.exists():
-        raise StatesEditError("no vehicle_states.yaml to edit")
-    original = path.read_text()
-    data = _load_doc(path)
-    idx = _find(data["states"], name)
-    if idx == -1:
-        raise StatesEditError(f"state {name!r} not found")
-    _delete_state_entry(data, idx)
-    for entry in data["states"]:
-        for field in _RELATION_FIELDS:
-            targets = parse_implies(entry.get(field))
-            if name in targets:
-                _put_relation(entry, field, _flow_states([t for t in targets if t != name]))
-    _safe_write(path, original, data)
-    return path
+    with edit_doc(STATES, profile) as doc:
+        idx = find_state(doc.section, name)
+        if idx == -1:
+            raise StatesEditError(f"state {name!r} not found")
+        remove_item(doc.section, idx, parent=doc.data, parent_key="states")
+        for entry in doc.section:
+            for field in _RELATION_FIELDS:
+                targets = parse_implies(entry.get(field))
+                if name in targets:
+                    _put_relation(entry, field, _flow_states([t for t in targets if t != name]))
+    return doc.path
 
 
 def rename_state(old: str, new: str, *, profile: Profile | None = None) -> Path:
@@ -405,25 +277,20 @@ def rename_state(old: str, new: str, *, profile: Profile | None = None) -> Path:
     """
     old = normalize_name(old)
     new = normalize_name(new)
-    path = _states_path(profile)
-    if not path.exists():
-        raise StatesEditError("no vehicle_states.yaml to edit")
-    original = path.read_text()
-    data = _load_doc(path)
-    idx = _find(data["states"], old)
-    if idx == -1:
-        raise StatesEditError(f"state {old!r} not found")
-    if old != new and _find(data["states"], new) != -1:
-        raise StatesEditError(f"state {new!r} already exists")
-    data["states"][idx]["name"] = _token(new)
-    for entry in data["states"]:
-        for field in _RELATION_FIELDS:
-            targets = parse_implies(entry.get(field))
-            if old in targets:
-                # In place: the key already exists, so field order is unaffected.
-                entry[field] = _flow_states([new if t == old else t for t in targets])
-    _safe_write(path, original, data)
-    return path
+    with edit_doc(STATES, profile) as doc:
+        idx = find_state(doc.section, old)
+        if idx == -1:
+            raise StatesEditError(f"state {old!r} not found")
+        if old != new and find_state(doc.section, new) != -1:
+            raise StatesEditError(f"state {new!r} already exists")
+        doc.section[idx]["name"] = _token(new)
+        for entry in doc.section:
+            for field in _RELATION_FIELDS:
+                targets = parse_implies(entry.get(field))
+                if old in targets:
+                    # In place: the key already exists, so field order is unaffected.
+                    entry[field] = _flow_states([new if t == old else t for t in targets])
+    return doc.path
 
 
 def set_state_field(
@@ -448,20 +315,15 @@ def set_state_field(
     if field == "when" and value:
         compile_predicate(value)
 
-    path = _states_path(profile)
-    if not path.exists():
-        raise StatesEditError("no vehicle_states.yaml to edit")
-    original = path.read_text()
-    data = _load_doc(path)
-    idx = _find(data["states"], name)
-    if idx == -1:
-        raise StatesEditError(f"state {name!r} not found")
-    entry = data["states"][idx]
-    if field in _RELATION_FIELDS:
-        _put_relation(entry, field, _flow_states(value))
-    elif value:
-        entry[field] = value
-    elif field in entry:
-        del entry[field]
-    _safe_write(path, original, data)
-    return path
+    with edit_doc(STATES, profile) as doc:
+        idx = find_state(doc.section, name)
+        if idx == -1:
+            raise StatesEditError(f"state {name!r} not found")
+        entry = doc.section[idx]
+        if field in _RELATION_FIELDS:
+            _put_relation(entry, field, _flow_states(value))
+        elif value:
+            entry[field] = value
+        elif field in entry:
+            del entry[field]
+    return doc.path
