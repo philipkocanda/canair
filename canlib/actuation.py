@@ -26,6 +26,7 @@ from typing import Final, Literal
 
 from canlib.uds.protocol import KWP, UDS, DiagProtocol
 
+from .safety import check_command_safety
 from .uds.services import service_info
 
 RequestClass = Literal["read", "release", "actuate"]
@@ -73,6 +74,7 @@ _KWP_READ: Final = frozenset({0x33, 0x3A})  # routine results by LID / by addres
 # StopDiagnosticSession ends the session, and ISO 14230-3 has the ECU release every
 # actuator the tester drove; StopRoutineByLocalIdentifier stops a started routine.
 _KWP_RELEASE: Final = frozenset({0x20, 0x32})
+_KWP_STOP_SESSION: Final = bytes([0x20])
 
 # UDS RoutineControl (0x31) sub-functions. On KWP2000 the same byte is
 # StartRoutineByLocalIdentifier, which actuates whatever follows it.
@@ -195,13 +197,29 @@ def default_release(request: str | bytes, protocol: DiagProtocol) -> str:
 def release_mismatch(on: str, release: str) -> str | None:
     """Why ``release`` cannot release ``on``, or None when it can.
 
-    A release has to address the same output: the same service and identifier.
+    A release has to address the same output: an IOControl request on the same
+    service and identifier, or, for a KWP2000 ``0x30`` output, StopDiagnosticSession
+    (``20``), which hands every driven output back. Anything else (a TesterPresent,
+    an ECU reset) would leave the output driven, and a release the blocklist refuses
+    could never be sent at all.
     """
     if normalize_request(on) == normalize_request(release):
         return f"release {normalize_request(release)} is the ON request itself"
+    blocked = check_command_safety(release)
+    if blocked is not None:
+        return f"release {normalize_request(release)} could never be sent: {blocked}"
     on_io, rel_io = parse_io_request(on), parse_io_request(release)
-    if on_io is None or rel_io is None:
+    if on_io is None:
         return None
+    if rel_io is None:
+        if on_io.service == IOCONTROL_KWP and request_bytes(release) == _KWP_STOP_SESSION:
+            return None
+        return (
+            f"release {normalize_request(release)} is not an IOControl request on "
+            f"{on_io.service:02X} {on_io.identifier.hex().upper()}"
+            + (" or StopDiagnosticSession (20)" if on_io.service == IOCONTROL_KWP else "")
+            + ", so it would not hand the output back"
+        )
     if (on_io.service, on_io.identifier) != (rel_io.service, rel_io.identifier):
         return (
             f"release {normalize_request(release)} addresses "

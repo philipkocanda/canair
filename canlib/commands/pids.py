@@ -1493,8 +1493,9 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         default=None,
         metavar="HEX",
         help="Full request that hands the output back to the ECU, sent on exit, on Ctrl+C "
-        "and by --poll. UDS implies 2F{DID}00; a KWP2000 0x30 entry has no standard one, "
-        "and `canair io` refuses its ON until this is set",
+        "and by --poll: IOControl on the same identifier, or 20 (StopDiagnosticSession) "
+        "for a KWP2000 0x30 entry. UDS implies 2F{DID}00; a KWP2000 0x30 entry has no "
+        "standard one, and `canair io` refuses its ON until this is set",
     )
     sio.add_argument(
         "--session",

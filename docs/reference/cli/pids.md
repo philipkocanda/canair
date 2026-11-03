@@ -809,9 +809,11 @@ options:
   --on HEX              Full ON request (e.g. 2FBC0103)
   --off HEX             Full OFF request (e.g. 2FBC0100)
   --release HEX         Full request that hands the output back to the ECU,
-                        sent on exit, on Ctrl+C and by --poll. UDS implies
-                        2F{DID}00; a KWP2000 0x30 entry has no standard one,
-                        and `canair io` refuses its ON until this is set
+                        sent on exit, on Ctrl+C and by --poll: IOControl on
+                        the same identifier, or 20 (StopDiagnosticSession) for
+                        a KWP2000 0x30 entry. UDS implies 2F{DID}00; a KWP2000
+                        0x30 entry has no standard one, and `canair io`
+                        refuses its ON until this is set
   --session, --no-session
                         Open a diagnostic session before actuating
   --session-mode XX     DiagnosticSessionControl sub-function to open (default

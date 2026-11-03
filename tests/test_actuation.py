@@ -113,6 +113,22 @@ class TestRelease:
         assert "addresses 30 02" in (release_mismatch("300100", "300211") or "")
         assert "ON request itself" in (release_mismatch("300100", "30 01 00") or "")
 
+    @pytest.mark.parametrize("release", ["3E00", "1101", "1001", "2E010100", "3101FF00"])
+    def test_a_request_that_does_not_address_the_output_is_no_release(self, release):
+        """A release that is not IOControl on the same output would leave it driven."""
+        assert release_mismatch("300101", release) is not None
+        assert on_refusal("300101", release, KWP) is not None
+        assert on_refusal("2FBC0103", release, UDS) is not None
+
+    def test_a_release_the_blocklist_refuses_could_never_be_sent(self):
+        assert "never be sent" in (release_mismatch("300101", "1101") or "")
+
+    def test_kwp_stop_diagnostic_session_releases_a_0x30_output(self):
+        assert release_mismatch("300101", "20") is None
+        assert on_refusal("300101", "20", KWP) is None
+        # ...but not a UDS 0x2F one, whose release is returnControlToECU.
+        assert release_mismatch("2FBC0103", "20") is not None
+
     def test_on_refusal(self):
         assert on_refusal("2FBC0103", "2FBC0100", UDS) is None
         assert on_refusal("300100", "300111", KWP) is None

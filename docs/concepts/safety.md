@@ -109,9 +109,11 @@ Note the difference between *discovering* a capability and *using* it:
   profile entry declares a `release:` — the request that hands the output back,
   which canair sends on exit and on Ctrl-C. Find that request per ECU (test it with
   `canair raw`) and record it with `canair pids set-iocontrol ECU KEY --release
-  HEX`. The `canair io` TUI's status poll (`--poll`) sends each entry's release, so
-  it skips a `0x30` entry without one, and its value keys build UDS `0x2F` requests,
-  so they are refused for a KWP2000 ECU.
+  HEX`. It must be a `0x30` request on the same local identifier, or
+  StopDiagnosticSession (`20`), which hands every output back; anything else would
+  leave the output driven, so it is refused. The `canair io` TUI's status poll
+  (`--poll`) sends each entry's release, so it skips a `0x30` entry without one, and
+  its value keys build UDS `0x2F` requests, so they are refused for a KWP2000 ECU.
 
 ## Profile actions: guarded, make-specific requests
 
