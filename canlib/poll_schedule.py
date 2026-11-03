@@ -93,10 +93,10 @@ class PollScheduler:
         # already the caller's own choice of seconds).
         self.period_speedup = period_speedup
         self.rate_steps = 0
-        # Per-ECU period multiplier set by the slow-ECU backoff (canlib.poll_backoff).
-        self._slowdown: dict[str, int] = {}
-        # Fixed schedule only: rounds a slowed-down ECU still sits out.
-        self._skip: dict[str, int] = {}
+        # Per-PID period multiplier set by the slow-PID backoff (canlib.poll_backoff).
+        self._slowdown: dict[Key, int] = {}
+        # Fixed schedule only: rounds a slowed-down PID still sits out.
+        self._skip: dict[Key, int] = {}
         self._anchor: dict[Key, float] = {}
         self._period_ms: dict[Key, int | None] = {}
         self._due_count: dict[Key, int] = {}
@@ -104,6 +104,7 @@ class PollScheduler:
         self._live: set[Key] = set()
         self._now = 0.0
         self._ecus_due: set[str] = set()
+        self._keys_due: set[Key] = set()
         self._woken = True
 
     # -- the per-tick protocol -------------------------------------------
@@ -112,6 +113,7 @@ class PollScheduler:
         self._now = now
         self._live = set()
         self._ecus_due = set()
+        self._keys_due = set()
         self._woken = False
         if self.schedule == "fixed":
             self._advance(_ROUND, self.interval)
@@ -121,31 +123,30 @@ class PollScheduler:
 
         Plan order is preserved.
         """
-        if self.schedule == "fixed" and self._sits_out(ecu):
-            for entry in plan:
-                key = (ecu, entry[0])
-                self._period_ms[key] = declared_period_ms(entry[1])
-                self._live.add(key)
-            return []
         due: list[PlanEntry] = []
         for entry in plan:
             key = (ecu, entry[0])
             self._period_ms[key] = declared_period_ms(entry[1])
             self._live.add(key)
-            if self.schedule == "dynamic":
+            if self.schedule == "fixed":
+                if self._sits_out(key):
+                    continue
+            else:
                 if not self._is_due(key):
                     continue
                 self._advance(key, self.period(key))
             due.append(entry)
             self._due_count[key] = self._due_count.get(key, 0) + 1
             self._ecus_due.add(ecu)
+            self._keys_due.add(key)
         return due
 
     def end_tick(self) -> None:
         for ecu in self._ecus_due:
             self._ecu_ticks[ecu] = self._ecu_ticks.get(ecu, 0) + 1
-            if self.schedule == "fixed":
-                self._skip[ecu] = self.slowdown(ecu) - 1
+        if self.schedule == "fixed":
+            for key in self._keys_due:
+                self._skip[key] = self.slowdown(key) - 1
 
     def seconds_until_due(self, now: float) -> float:
         """How long the poll loop may sleep before something is due (0 = poll now)."""
@@ -179,33 +180,33 @@ class PollScheduler:
         """How many ticks any of this ECU's PIDs were due on, or None if never."""
         return self._ecu_ticks.get(ecu)
 
-    # -- the slow-ECU backoff ----------------------------------------------
+    # -- the slow-PID backoff ----------------------------------------------
 
-    def set_slowdown(self, ecu: str, factor: int) -> None:
-        """Poll ``ecu`` ``factor`` times less often (1 restores its normal rate)."""
+    def set_slowdown(self, key: Key, factor: int) -> None:
+        """Poll ``key`` (ECU, PID) ``factor`` times less often (1 restores its rate)."""
         if factor <= 1:
-            self._slowdown.pop(ecu, None)
-            self._skip.pop(ecu, None)
+            self._slowdown.pop(key, None)
+            self._skip.pop(key, None)
         else:
             # Shift the rounds it still sits out by the change, so a slowdown applied
             # straight after a poll takes effect from the next round.
-            old = self.slowdown(ecu)
-            skip = self._skip.get(ecu, 0) + factor - old
-            self._slowdown[ecu] = factor
-            self._skip[ecu] = max(0, min(skip, factor - 1))
+            old = self.slowdown(key)
+            skip = self._skip.get(key, 0) + factor - old
+            self._slowdown[key] = factor
+            self._skip[key] = max(0, min(skip, factor - 1))
 
-    def slowdown(self, ecu: str) -> int:
-        return self._slowdown.get(ecu, 1)
+    def slowdown(self, key: Key) -> int:
+        return self._slowdown.get(key, 1)
 
-    def slowed(self) -> dict[str, int]:
-        """Every slowed-down ECU and its slowdown factor."""
+    def slowed(self) -> dict[Key, int]:
+        """Every slowed-down PID and its slowdown factor."""
         return dict(self._slowdown)
 
-    def _sits_out(self, ecu: str) -> bool:
-        skip = self._skip.get(ecu, 0)
+    def _sits_out(self, key: Key) -> bool:
+        skip = self._skip.get(key, 0)
         if skip <= 0:
             return False
-        self._skip[ecu] = skip - 1
+        self._skip[key] = skip - 1
         return True
 
     # -- periods and live rate control -------------------------------------
@@ -213,10 +214,10 @@ class PollScheduler:
     def period(self, key: Key) -> float:
         """The effective poll period of one PID, in seconds."""
         if self.schedule == "fixed":
-            return self.interval * self.slowdown(key[0])
+            return self.interval * self.slowdown(key)
         ms = self._period_ms.get(key)
         base = ms / 1000.0 / self.period_speedup if ms is not None else self.interval
-        return base / self.rate * self.slowdown(key[0])
+        return base / self.rate * self.slowdown(key)
 
     @property
     def rate(self) -> float:

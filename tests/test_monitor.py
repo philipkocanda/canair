@@ -266,17 +266,28 @@ class TestRenderResults:
         assert "(stale 5s)" in _render_results(results, now=1005.0, **kw).plain
         assert "(stale 9s)" in _render_results(results, now=1009.0, **kw).plain
 
-    def test_ecu_note_follows_the_header(self):
+    def test_pid_note_follows_its_row(self):
+        slow = {"pid": "2101", "raw_hex": "6101AA"}
+        healthy = {"pid": "2102", "raw_hex": "6102AA"}
+        kw = {"verbose": False, "cycle": 3, "elapsed": 0.1, "interval": 5.0}
+        notes = {("SKM (0x7A5)", "2101"): "slow · polled 2× less often"}
+        for cache in (None, RenderCache()):
+            lines = _render_results(
+                [("SKM (0x7A5)", [slow, healthy])], cache=cache, pid_notes=notes, **kw
+            ).plain.splitlines()
+            assert any(
+                "2101" in line and line.endswith("slow · polled 2× less often") for line in lines
+            )
+            assert not any("polled" in line for line in lines if "SKM" in line or "2102" in line)
+
+    def test_a_pid_note_invalidates_the_cached_row(self):
         entry = {"pid": "2101", "raw_hex": "6101AA"}
-        t = _render_results(
-            [("SKM (0x7A5)", [entry])],
-            verbose=False,
-            cycle=3,
-            elapsed=0.1,
-            interval=5.0,
-            ecu_notes={"SKM (0x7A5)": "slow · polled 2× less often"},
-        )
-        assert "SKM (0x7A5)  slow · polled 2× less often" in t.plain
+        kw = {"verbose": False, "cycle": 3, "elapsed": 0.1, "interval": 5.0}
+        cache = RenderCache()
+        results = [("SKM (0x7A5)", [entry])]
+        assert "polled" not in _render_results(results, cache=cache, **kw).plain
+        notes = {("SKM (0x7A5)", "2101"): "slow · polled 2× less often"}
+        assert "polled" in _render_results(results, cache=cache, pid_notes=notes, **kw).plain
 
     def test_params_rendered(self):
         params = [("SOC_BMS", 50.0, "%", "B09/2", None, True, "")]

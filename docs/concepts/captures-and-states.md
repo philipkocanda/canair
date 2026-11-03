@@ -176,7 +176,7 @@ one ECU or one PID was not being read:
 "link_events": [
   {"at": "14:02:11.400", "until": "14:03:20.900", "kind": "disconnect", "cause": "stale"},
   {"at": "14:10:05.000", "until": "14:10:41.200", "kind": "ecu_silent", "rx": "0x7EC"},
-  {"at": "14:12:00.000", "until": "14:14:00.000", "kind": "backoff", "rx": "0x7EA", "factor": 4},
+  {"at": "14:12:00.000", "until": "14:14:00.000", "kind": "backoff", "rx": "0x7EA", "pid": "22B002", "factor": 4},
   {"at": "14:15:00.020", "kind": "resync", "count": 2}
 ]
 ```
@@ -198,8 +198,9 @@ have held across one.
 
 These are not gaps, but explain sparse data:
 
-- **`backoff`** — a slow ECU was polled `factor` times less often (one event per
-  factor).
+- **`backoff`** — a slow PID (`rx` + `pid`) was polled `factor` times less often (one
+  event per factor). Sessions recorded before the backoff worked per PID carry `rx`
+  alone: the whole ECU was slowed.
 - **`resync`** — the transport had to realign a desynchronised ELM327 pipe at that
   moment (`count` when it happened several times in one poll).
 

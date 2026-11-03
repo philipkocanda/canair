@@ -31,9 +31,9 @@ options:
                         dynamic (default): poll each PID at its own profile
                         `period:`, falling back to --interval; fixed: poll
                         every PID every cycle, --interval apart
-  --no-backoff          Keep polling an ECU that times out or answers slowly
-                        at its normal rate (default: poll it less often until
-                        it recovers, so it can't hold up the rest)
+  --no-backoff          Keep polling a PID that times out or is answered
+                        slowly at its normal rate (default: poll it less often
+                        until it recovers, so it can't hold up the rest)
   --session             Enter extended session (10 03)
   --wake                Wake ECUs from deep sleep (10 01)
   --keep-all            Record every polled payload (full time-series) — the
@@ -113,9 +113,10 @@ Polling: by default each PID is read every half of its own `period:` from the pr
 PID without one every --interval seconds. --schedule fixed reads every PID on every cycle,
 --interval apart.
 
-An ECU that stops answering or answers very slowly holds up every other ECU's next poll,
-so it is polled 2x, 4x, then up to 32x less often until it answers promptly again; its
-header and the status line say so. --no-backoff keeps polling it at the normal rate.
+A PID that stops answering or is answered very slowly holds up every other PID's next
+poll, so it is polled 2x, 4x, then up to 32x less often until it answers promptly again
+(its ECU's other PIDs keep their rate); its row and the status line say so. --no-backoff
+keeps polling it at the normal rate.
 
 In the TUI: mouse wheel / scrollbar / arrows-jk / PgUp-PgDn / g-G scroll,
 space pauses, =/- poll faster/slower (the interval on the fixed schedule, every

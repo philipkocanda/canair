@@ -108,6 +108,7 @@ def _entry_signature(
     stat_sig: tuple | None = None,
     notation: ByteNotation = ByteNotation.WICAN,
     stale_label: str = "",
+    note: str = "",
 ) -> tuple:
     """A hashable signature of everything that affects one PID entry's render.
 
@@ -143,6 +144,7 @@ def _entry_signature(
         view_mode,
         stat_sig,
         notation,
+        note,
     )
 
 
@@ -197,6 +199,7 @@ def _render_entry(
     pid_stats: dict | None = None,
     notation: ByteNotation = ByteNotation.WICAN,
     stale_label: str = "",
+    note: str = "",
 ) -> Text:
     """Render one PID entry (mark line, param table, hex/history) to its own Text.
 
@@ -212,7 +215,8 @@ def _render_entry(
     ``notation`` is the byte-index notation the ruler and each signal's
     byte-reference column are drawn in (the user's ``display.byte_notation``).
 
-    ``stale_label`` (see :func:`stale_age`) says how long a stale value has been held.
+    ``stale_label`` (see :func:`stale_age`) says how long a stale value has been held, and
+    ``note`` is appended to the PID's line (the slow-PID backoff's).
     """
     pid = entry["pid"]
     error = entry.get("error")
@@ -243,6 +247,8 @@ def _render_entry(
         entry_text.append(f" (stale{held})", style="dim")
     if unmapped:
         entry_text.append(" (unmapped)", style="dim")
+    if note:
+        entry_text.append(f"  {note}", style="yellow")
     # Show history count when keeping history (full view only — the count refers
     # to the raw-payload history the other views don't draw).
     if history is not None and show_hex:
@@ -376,7 +382,7 @@ def _render_results(
     view_mode: str = "full",
     param_stats=None,
     notation: ByteNotation = ByteNotation.WICAN,
-    ecu_notes: dict[str, str] | None = None,
+    pid_notes: dict[tuple[str, str], str] | None = None,
     now: float | None = None,
 ) -> Text:
     """Render all ECU query results as a Rich Text object for display.
@@ -407,7 +413,7 @@ def _render_results(
     ``notation`` selects the byte-index notation used by the rulers and the
     per-signal byte-reference column (see :class:`~canlib.uds.notation.ByteDisplay`).
 
-    ``ecu_notes`` adds a note after an ECU's header, keyed by its label (the slow-ECU
+    ``pid_notes`` adds a note to a PID's row, keyed by ``(ECU label, PID)`` (the slow-PID
     backoff's). ``now`` is the wall clock a stale value's age is measured against.
 
     ``view_mode`` (see :data:`VIEW_MODES`) selects the presentation: ``"ecus"``
@@ -437,9 +443,6 @@ def _render_results(
 
         text.append("\n  ")
         text.append(ecu_label, style="bold cyan")
-        note = (ecu_notes or {}).get(ecu_label)
-        if note:
-            text.append(f"  {note}", style="yellow")
         text.append("\n")
 
         # "ecus" view: just the responding ECU + a compact count, no per-PID rows.
@@ -479,6 +482,7 @@ def _render_results(
                 _pid_stat_signature(pid_stats) if (view_mode == "ranges" and pid_stats) else None
             )
             stale_label = stale_age(entry, now)
+            note = (pid_notes or {}).get(hex_key, "")
 
             if cache is not None:
                 sig = _entry_signature(
@@ -496,6 +500,7 @@ def _render_results(
                     stat_sig=stat_sig,
                     notation=notation,
                     stale_label=stale_label,
+                    note=note,
                 )
                 block = cache.get(hex_key, sig)
                 if block is None:
@@ -514,6 +519,7 @@ def _render_results(
                         pid_stats=pid_stats,
                         notation=notation,
                         stale_label=stale_label,
+                        note=note,
                     )
                     cache.put(hex_key, sig, block)
             else:
@@ -532,6 +538,7 @@ def _render_results(
                     pid_stats=pid_stats,
                     notation=notation,
                     stale_label=stale_label,
+                    note=note,
                 )
             text.append_text(block)
 

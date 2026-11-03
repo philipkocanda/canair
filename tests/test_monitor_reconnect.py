@@ -407,18 +407,26 @@ class TestControllerRebind:
         from canlib.poll_backoff import ESCALATE_AFTER, PollCost
 
         c = self._controller(raw=False)
-        silent = PollCost(reads=2, seconds=2.0, answered=0)
+        BMS = ("BMS", "2101")
+        silent = PollCost(reads=1, seconds=1.0, answered=0)
         for _ in range(ESCALATE_AFTER + 1):
-            c.ecu_costs = {"BMS": silent}
+            c.poll_costs = {BMS: silent}
             c._apply_backoff()
-        assert c.schedule.slowdown("BMS") == 4
+        assert c.schedule.slowdown(BMS) == 4
         c.rebind(object())
-        assert c.schedule.slowdown("BMS") == 1
+        assert c.schedule.slowdown(BMS) == 1
         assert c.backoff.slowed() == {}
         # And the next slow spell starts from scratch (one slow poll is not a pattern).
-        c.ecu_costs = {"BMS": silent}
+        c.poll_costs = {BMS: silent}
         c._apply_backoff()
-        assert c.schedule.slowdown("BMS") == 1
+        assert c.schedule.slowdown(BMS) == 1
+
+    def test_reset_restores_a_factor_the_backoff_no_longer_tracks(self):
+        c = self._controller(raw=False)
+        c.schedule.set_slowdown(("BMS", "2101"), 8)
+        assert c.backoff.slowed() == {}
+        c.reset_backoff()
+        assert c.schedule.slowed() == {}
 
     def test_close_client_raw_is_best_effort(self):
         class Boom:

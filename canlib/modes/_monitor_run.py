@@ -142,7 +142,7 @@ async def mode_monitor(
         schedule:       ``"dynamic"`` (default) polls each PID at its own profile
                         ``period:`` (twice as often, see MONITOR_PERIOD_SPEEDUP);
                         ``"fixed"`` polls every PID every cycle.
-        backoff:        Poll an ECU that times out or answers very slowly less
+        backoff:        Poll a PID that times out or is answered very slowly less
                         often, so it stops holding up the rest (canlib.poll_backoff).
         session_steps:  Optional list of session/skm-wake steps to run once before
                         the first poll cycle.

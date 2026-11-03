@@ -161,6 +161,7 @@ def _mk_sm(send_uds, max_request_bytes: int = ISOTP_MAX_REQUEST_BYTES):
     sm = MagicMock()
     sm.keepalive_stale = AsyncMock()
     sm.has_session = MagicMock(return_value=True)
+    sm.keepalive_seconds = 0.0
     sm.terminal = MagicMock()
     sm.terminal.set_header = AsyncMock()
     sm.terminal.send_uds = send_uds

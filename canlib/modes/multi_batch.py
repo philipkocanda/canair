@@ -41,6 +41,9 @@ class ResultEntry(TypedDict):
     raw_hex: NotRequired[str]
     acquired_at: NotRequired[float | None]
     elapsed_ms: NotRequired[int]
+    # Seconds the request behind this entry held the pipe, keepalives excluded (a batch's
+    # members share their one request's). Feeds the monitor's backoff; never recorded.
+    request_s: NotRequired[float]
     decode: NotRequired[str | None]
     unmapped: NotRequired[bool]
     error: NotRequired[str]

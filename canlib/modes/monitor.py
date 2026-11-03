@@ -43,8 +43,13 @@ from ..formatting import (
 )
 from ..keepmode import KEEP_LAST, KeepMode
 from ..log import log_event
-from ..poll_backoff import EcuBackoff, PollCost, describe_slowdown
-from ..poll_schedule import DEFAULT_SCHEDULE, MONITOR_PERIOD_SPEEDUP, PollScheduler, Schedule
+from ..poll_backoff import (
+    PollBackoff,
+    PollCost,
+    describe_slowdown,
+    slowdown_log_message,
+)
+from ..poll_schedule import DEFAULT_SCHEDULE, MONITOR_PERIOD_SPEEDUP, Key, PollScheduler, Schedule
 from ..session_manager import SessionManager
 from ._monitor_link_events import LinkEventTracker
 from ._monitor_record import MonitorRecorder, _merge_history, _open_journal, _write_merged
@@ -100,19 +105,20 @@ def _answered(entry: ResultEntry) -> bool:
     return bool(entry.get("raw_hex")) or _is_nrc(entry)
 
 
-def _request_outcomes(entries: Sequence[ResultEntry]) -> tuple[int, int]:
-    """``(requests, answered)`` behind one ECU step's ``entries``, counted per request.
+def _pid_costs(ecu: str, entries: Sequence[ResultEntry]) -> dict[Key, PollCost]:
+    """Each PID's cost behind one ECU step's ``entries``, keyed ``(ecu, pid)``.
 
-    A multi-DID batch answers several PIDs with one request, so counting entries would
-    spread one slow request over its members and hide it from the backoff. Only a single
-    read stamps ``elapsed_ms`` on a payload (``_decode_pid_result``); a batch's members
-    carry none and share the one ``acquired_at`` of their reply. Errors are always
-    single reads (a failed batch falls back to per-DID reads), so every batch answered.
+    Every entry is one request for its PID, timed by the ``request_s`` the executor
+    stamps on it (keepalives already left out). A multi-DID batch's members all carry
+    their one request's time: each was held up that long, so the batch counts as one
+    request per PID rather than being divided among them, which would hide it.
     """
-    batches = {e.get("acquired_at") for e in entries if e.get("raw_hex") and "elapsed_ms" not in e}
-    singles = [e for e in entries if not e.get("raw_hex") or "elapsed_ms" in e]
-    answered = sum(1 for e in singles if _answered(e)) + len(batches)
-    return len(singles) + len(batches), answered
+    return {
+        (ecu, e["pid"]): PollCost(
+            reads=1, seconds=e.get("request_s", 0.0), answered=int(_answered(e))
+        )
+        for e in entries
+    }
 
 
 def _label_ecu(label: str) -> str:
@@ -182,11 +188,11 @@ class MonitorController:
         self.pids_data = pids_data
         self.verbose = verbose
         self.schedule = PollScheduler(schedule, interval, period_speedup=MONITOR_PERIOD_SPEEDUP)
-        # Slow-ECU backoff: an ECU that times out or answers very slowly holds up every
-        # other ECU's next poll, so it is polled less often until it recovers. Fed the
-        # per-ECU cost of each tick, which the poll backends leave in ecu_costs.
-        self.backoff = EcuBackoff(enabled=backoff)
-        self.ecu_costs: dict[str, PollCost] = {}
+        # Slow-PID backoff: a PID that times out or is answered very slowly holds up
+        # every other PID's next poll, so it is polled less often until it recovers.
+        # Fed each PID's cost of a tick, which the poll backends leave in poll_costs.
+        self.backoff = PollBackoff(enabled=backoff)
+        self.poll_costs: dict[Key, PollCost] = {}
         self.keep_mode = keep_mode
         self.keep_n = keep_n
         self.save = save
@@ -688,7 +694,7 @@ class MonitorController:
         base = diag.snapshot() if diag is not None else None
         self._cycle_answered = False
         self.fresh_queries = []
-        self.ecu_costs = {}
+        self.poll_costs = {}
         t0 = time.monotonic()
         self.schedule.begin_tick(t0)
         try:
@@ -720,54 +726,57 @@ class MonitorController:
         others answer is going quiet on its own, one that misses with them is part of a
         disconnect, which the liveness check records instead.
         """
-        for ecu, cost in self.ecu_costs.items():
+        answered: dict[str, bool] = {}
+        for (ecu, _pid), cost in self.poll_costs.items():
             if cost.reads:
-                self.link_events.ecu_polled(
-                    ecu, answered=cost.answered > 0, link_ok=self._cycle_answered
-                )
+                answered[ecu] = answered.get(ecu, False) or cost.answered > 0
+        for ecu, ok in answered.items():
+            self.link_events.ecu_polled(ecu, answered=ok, link_ok=self._cycle_answered)
 
     def _apply_backoff(self) -> None:
-        """Slow down (or restore) each ECU this tick's costs say is holding up the poll."""
-        for ecu, cost in self.ecu_costs.items():
-            factor = self.backoff.observe(ecu, cost)
+        """Slow down (or restore) each PID this tick's costs say is holding up the poll."""
+        for key, cost in self.poll_costs.items():
+            factor = self.backoff.observe(key, cost)
             if factor is None:
                 continue
-            self.schedule.set_slowdown(ecu, factor)
-            self.link_events.backoff(ecu, factor)
-            if factor > 1:
-                detail = f"{ecu} is slow ({self.backoff.reason(ecu)}): polled {factor}x less often"
-            else:
-                detail = f"{ecu} answers promptly again: back to its normal poll rate"
+            ecu, pid = key
+            self.schedule.set_slowdown(key, factor)
+            self.link_events.backoff(ecu, factor, pid=pid)
+            detail = slowdown_log_message(f"{ecu} {pid}", factor, self.backoff.reason(key))
             log_event("config", detail, level=logging.INFO, transport=self.transport_type)
 
     def reset_backoff(self) -> None:
-        """Restore every slowed-down ECU to its normal poll rate.
+        """Restore every slowed-down PID to its normal poll rate.
 
         Clears both halves of the slowdown: the backoff's history and the scheduler's
-        factor. Resetting only the backoff would leave the scheduler stretching an ECU
+        factor. Resetting only the backoff would leave the scheduler stretching a PID
         the backoff no longer tracks, so nothing would ever restore it.
         """
         slowed = set(self.backoff.slowed()) | set(self.schedule.slowed())
-        for ecu in sorted(slowed):
-            self.schedule.set_slowdown(ecu, 1)
-            self.link_events.backoff(ecu, 1)
+        for key in sorted(slowed):
+            ecu, pid = key
+            self.schedule.set_slowdown(key, 1)
+            self.link_events.backoff(ecu, 1, pid=pid)
         self.backoff.reset()
         if slowed:
+            names = ", ".join(f"{ecu} {pid}" for ecu, pid in sorted(slowed))
             log_event(
                 "config",
-                f"poll rates restored after reconnecting: {', '.join(sorted(slowed))}",
+                f"poll rates restored after reconnecting: {names}",
                 level=logging.INFO,
                 transport=self.transport_type,
             )
 
-    def ecu_notes(self) -> dict[str, str]:
-        """Header note per slowed-down ECU, keyed by its display label."""
-        notes: dict[str, str] = {}
-        for label, _rows in self.last_queries:
+    def pid_notes(self) -> dict[tuple[str, str], str]:
+        """Row note per slowed-down PID, keyed by its ``(ECU label, PID)`` display key."""
+        notes: dict[tuple[str, str], str] = {}
+        for label, rows in self.last_queries:
             ecu = _label_ecu(label)
-            factor = self.schedule.slowdown(ecu)
-            if factor > 1:
-                notes[label] = describe_slowdown(factor, self.backoff.reason(ecu))
+            for row in rows:
+                key = (ecu, row["pid"])
+                factor = self.schedule.slowdown(key)
+                if factor > 1:
+                    notes[(label, row["pid"])] = describe_slowdown(factor, self.backoff.reason(key))
         return notes
 
     def _check_liveness(self, polled: set[str], live: set[str]) -> None:
@@ -855,8 +864,6 @@ class MonitorController:
                     due_on.append(ecu)
                 return due
 
-            step_t0 = _t.monotonic()
-            keepalive0 = self.sm.keepalive_seconds
             try:
                 result = await _exec_query(
                     self.sm,
@@ -875,16 +882,7 @@ class MonitorController:
                 self.mark_disconnected("error")
                 return
             if result is not None and due_on:
-                # The ELM327 pipe is serial: this step's wall time is how long this ECU
-                # kept every other ECU waiting — less the keepalives sent meanwhile to
-                # keep *other* ECUs' sessions open, which are no fault of this one.
-                keepalives = self.sm.keepalive_seconds - keepalive0
-                requests, answered = _request_outcomes(result[1])
-                self.ecu_costs[due_on[0]] = PollCost(
-                    reads=requests,
-                    seconds=max(0.0, _t.monotonic() - step_t0 - keepalives),
-                    answered=answered,
-                )
+                self.poll_costs.update(_pid_costs(due_on[0], result[1]))
             if result is not None:
                 label, pids = result
                 # Keep a timed-out PID's last-good values (stale/dimmed) instead
@@ -998,7 +996,7 @@ class MonitorController:
             view_mode=self.view_mode,
             param_stats=self.param_stats,
             notation=self.notation,
-            ecu_notes=self.ecu_notes(),
+            pid_notes=self.pid_notes(),
         )
 
     def cycle_view(self) -> str:

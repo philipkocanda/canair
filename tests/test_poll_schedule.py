@@ -201,56 +201,66 @@ class TestFixedRateControl:
 
 
 class TestSlowdown:
-    def test_dynamic_slowdown_stretches_only_that_ecu(self):
+    def test_dynamic_slowdown_stretches_only_that_pid(self):
         s = PollScheduler("dynamic", interval=5.0)
-        plan = _plan(("A", 1000))
+        plan = _plan(("A", 1000), ("B", 1000))
         s.begin_tick(0.0)
-        s.take_due("SLOW", plan)
-        s.take_due("FAST", plan)
+        s.take_due("E", plan)
         s.end_tick()
-        s.set_slowdown("SLOW", 4)
-        due_slow = []
-        due_fast = []
+        s.set_slowdown(("E", "A"), 4)
+        due = []
         for t in (1.0, 2.0, 3.0, 4.0):
             s.begin_tick(t)
-            due_slow += s.take_due("SLOW", plan)
-            due_fast += s.take_due("FAST", plan)
+            due += [code for code, _i, _u in s.take_due("E", plan)]
             s.end_tick()
-        assert len(due_fast) == 4
-        assert len(due_slow) == 1  # only at t=4
+        assert due.count("B") == 4
+        assert due.count("A") == 1  # only at t=4
 
     def test_fixed_slowdown_sits_out_rounds(self):
         s = PollScheduler("fixed", interval=1.0)
-        plan = _plan(("A", None))
+        plan = _plan(("A", None), ("B", None))
         polled = []
         for t in range(7):
             s.begin_tick(float(t))
-            polled.append(bool(s.take_due("SLOW", plan)))
-            assert s.take_due("FAST", plan) == plan
+            due = [code for code, _i, _u in s.take_due("E", plan)]
+            polled.append("A" in due)
+            assert "B" in due
             s.end_tick()
             if t == 0:
                 # Applied straight after a poll, as the monitor's backoff does.
-                s.set_slowdown("SLOW", 3)
+                s.set_slowdown(("E", "A"), 3)
         assert polled == [True, False, False, True, False, False, True]
+
+    def test_a_sitting_out_pid_still_counts_its_ecu_as_polled(self):
+        # The per-ECU clock ticks on any of its PIDs being due, not all of them.
+        s = PollScheduler("fixed", interval=1.0)
+        plan = _plan(("A", None), ("B", None))
+        s.set_slowdown(("E", "A"), 4)
+        for t in range(3):
+            s.begin_tick(float(t))
+            s.take_due("E", plan)
+            s.end_tick()
+        assert s.ecu_ticks("E") == 3
+        assert s.due_count("E", "B") == 3
 
     def test_clearing_the_slowdown_restores_the_rate(self):
         s = PollScheduler("fixed", interval=1.0)
         plan = _plan(("A", None))
-        s.set_slowdown("E", 4)
+        s.set_slowdown(("E", "A"), 4)
         s.begin_tick(0.0)
         s.take_due("E", plan)
         s.end_tick()
-        s.set_slowdown("E", 1)
+        s.set_slowdown(("E", "A"), 1)
         s.begin_tick(1.0)
         assert s.take_due("E", plan) == plan
-        assert s.slowdown("E") == 1
+        assert s.slowdown(("E", "A")) == 1
 
-    def test_slowed_lists_only_slowed_ecus(self):
+    def test_slowed_lists_only_slowed_pids(self):
         s = PollScheduler("dynamic", interval=1.0)
-        s.set_slowdown("A", 4)
-        s.set_slowdown("B", 2)
-        s.set_slowdown("B", 1)
-        assert s.slowed() == {"A": 4}
+        s.set_slowdown(("E", "A"), 4)
+        s.set_slowdown(("E", "B"), 2)
+        s.set_slowdown(("E", "B"), 1)
+        assert s.slowed() == {("E", "A"): 4}
 
 
 class TestToggle:

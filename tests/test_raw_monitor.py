@@ -5,6 +5,7 @@ import asyncio
 from canlib.addressing import EcuAddress
 from canlib.modes.monitor import MonitorController, _raw_pid_result
 from canlib.modes.raw_monitor import _keep_mode, query_ecu_addresses
+from canlib.poll_backoff import PollCost
 
 
 class _Args:
@@ -500,8 +501,8 @@ class _TimedRawClient(FakeRawClient):
         return out
 
 
-class TestSlowEcuBackoff:
-    """A silent ECU holds up every other ECU's next poll, so it is polled less often."""
+class TestSlowPidBackoff:
+    """A silent PID holds up every other PID's next poll, so it is polled less often."""
 
     def _ctrl(self, backoff=True):
         table = {("BMS", bytes.fromhex("2101")): bytes.fromhex("6101AA")}
@@ -518,28 +519,38 @@ class TestSlowEcuBackoff:
         c._ecu_index = _IGPM_BMS_INDEX
         return c
 
-    def test_raw_costs_sum_each_ecus_latency(self):
+    def test_raw_costs_are_each_requests_latency(self):
         c = self._ctrl()
         asyncio.run(c._poll_raw())
-        assert c.ecu_costs["IGPM"].reads == 1 and c.ecu_costs["IGPM"].answered == 0
-        assert c.ecu_costs["IGPM"].seconds == 1.0
-        assert c.ecu_costs["BMS"].answered == 1
+        igpm = c.poll_costs[("IGPM", "22BC03")]
+        assert (igpm.reads, igpm.answered, igpm.seconds) == (1, 0, 1.0)
+        assert c.poll_costs[("BMS", "2101")].answered == 1
 
-    def test_a_silent_ecu_is_slowed_and_flagged(self):
+    def test_a_batch_charges_each_member_its_latency(self):
+        steps = [{"ecu": "IGPM", "pids": ["BC03", "BC06"]}]
+        c = _mk_ctrl(steps, _IGPM_BMS_INDEX, lengths={("IGPM", "BC03"): 8, ("IGPM", "BC06"): 8})
+        c.raw_client = _TimedRawClient({})
+        asyncio.run(c._poll_raw())
+        assert c.poll_costs == {
+            ("IGPM", "22BC03"): PollCost(reads=1, seconds=1.0, answered=0),
+            ("IGPM", "22BC06"): PollCost(reads=1, seconds=1.0, answered=0),
+        }
+
+    def test_a_silent_pid_is_slowed_and_flagged(self):
         from canlib.poll_backoff import ESCALATE_AFTER
 
         c = self._ctrl()
         for _ in range(ESCALATE_AFTER):
             asyncio.run(c.poll_once())
-        assert c.schedule.slowdown("IGPM") == 2
-        assert c.schedule.slowdown("BMS") == 1
+        assert c.schedule.slowdown(("IGPM", "22BC03")) == 2
+        assert c.schedule.slowdown(("BMS", "2101")) == 1
         # It now sits out the next round while BMS keeps being read.
         asyncio.run(c.poll_once())
-        assert "IGPM" not in c.ecu_costs and "BMS" in c.ecu_costs
+        assert set(c.poll_costs) == {("BMS", "2101")}
         assert "slow (not answering) · polled 2× less often" in c.render().plain
 
     def test_no_backoff_keeps_polling(self):
         c = self._ctrl(backoff=False)
         for _ in range(6):
             asyncio.run(c.poll_once())
-        assert c.schedule.slowdown("IGPM") == 1
+        assert c.schedule.slowed() == {}

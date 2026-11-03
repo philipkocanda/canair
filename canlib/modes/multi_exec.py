@@ -16,6 +16,7 @@ from typing import Literal
 
 from canlib.query import QueryError, inferred_request, pids_named_by
 from canlib.uds.echo import request_echo
+from canlib.uds.response import UdsResponse
 
 from ..actuation import on_refusal
 from ..formatting import (
@@ -33,6 +34,7 @@ from .multi_batch import (
     LEAKED_BATCH_ERROR,
     LEAKED_BATCH_REASON,
     BatchState,
+    ResultEntry,
     _decode_pid_result,
     _did4,
     _error_result,
@@ -87,29 +89,52 @@ async def _exec_session(
     return await sm.open_session(tx_id, wake=wake, mode=mode, wake_plan=wake_plan)
 
 
+async def _exchange(sm, tx_id: int, request: str, **kwargs) -> tuple[UdsResponse, float, float]:
+    """Send ``request`` to ``tx_id``: its reply, wall seconds, and seconds it held the pipe.
+
+    set_header + send_uds run inside one transaction, so a background keepalive can't
+    re-point the ELM header between them and send this request to the wrong ECU. A
+    keepalive queued ahead of it on the serial pipe still delays it, so the time spent on
+    keepalives meanwhile is no part of what this request cost (the monitor's backoff
+    must not slow a PID for another ECU's session upkeep).
+    """
+    keepalive0 = sm.keepalive_seconds
+    t0 = time.monotonic()
+    async with sm.terminal.transaction():
+        await sm.terminal.set_header(tx_id)
+        resp = await sm.terminal.send_uds(request, **kwargs)
+    wall = time.monotonic() - t0
+    return resp, wall, max(0.0, wall - (sm.keepalive_seconds - keepalive0))
+
+
 async def _read_single(sm, tx_id, pid_code, pid_info, unmapped, batch_state):
     """Send one PID, return its result dict; learn its 22-DID length for batching.
 
-    keepalive_stale runs *outside* the transaction (it is unrelated traffic that
-    shouldn't be serialised behind this exchange); set_header + send_uds run
-    *inside* it, so a background keepalive can't re-point the ELM header between
-    them and send this request to the wrong ECU.
+    keepalive_stale runs *outside* the request's transaction (it is unrelated traffic
+    that shouldn't be serialised behind this exchange); see :func:`_exchange`.
     """
     await sm.keepalive_stale()
     echo = request_echo(pid_code)
     expected_sid = echo[0] if echo else None
     expected_echo = echo[1] if echo else None
-    t0 = time.monotonic()
-    async with sm.terminal.transaction():
-        await sm.terminal.set_header(tx_id)
-        resp = await sm.terminal.send_uds(
-            pid_code, retries=1, expected_sid=expected_sid, expected_echo=expected_echo
-        )
+    resp, wall, request_s = await _exchange(
+        sm, tx_id, pid_code, retries=1, expected_sid=expected_sid, expected_echo=expected_echo
+    )
     # Wall-clock round-trip (transport + ECU) for this single read — persisted on
     # the capture as a relative timing signal. Batched multi-DID reads don't get
     # this (one round-trip answers several PIDs), so it lives here, not in
     # _read_batch.
-    elapsed_ms = round((time.monotonic() - t0) * 1000)
+    entry = _single_result(
+        sm, tx_id, pid_code, pid_info, unmapped, batch_state, resp, round(wall * 1000)
+    )
+    entry["request_s"] = request_s
+    return entry
+
+
+def _single_result(
+    sm, tx_id, pid_code, pid_info, unmapped, batch_state, resp: UdsResponse, elapsed_ms: int
+) -> ResultEntry:
+    """Shape one single read's reply (see :func:`_read_single`)."""
     # Timestamp the moment the response arrived so sequentially-polled PIDs keep
     # their true sub-second acquisition skew.
     acquired_at = time.time()
@@ -167,13 +192,13 @@ async def _read_batch(sm, tx_id, group, out, batch_state) -> BatchOutcome:
     # `stale` (triggering a pipe resync) instead of letting split_multi_did fail
     # silently — which the caller reads as "unsplittable" and reacts to by
     # permanently disabling batching for the whole ECU.
-    async with sm.terminal.transaction():
-        await sm.terminal.set_header(tx_id)
-        resp = await sm.terminal.send_uds(
-            "22" + "".join(dids),
-            expected_sid=0x22,
-            expected_echo=bytes.fromhex(dids[0]) if dids else None,
-        )
+    resp, _wall, request_s = await _exchange(
+        sm,
+        tx_id,
+        "22" + "".join(dids),
+        expected_sid=0x22,
+        expected_echo=bytes.fromhex(dids[0]) if dids else None,
+    )
     acquired_at = time.time()
     if resp.get("ok") or resp.get("nrc") is not None:
         sm.mark_active(tx_id)  # a real answer resets S3 — no redundant 3E00 needed
@@ -192,17 +217,12 @@ async def _read_batch(sm, tx_id, group, out, batch_state) -> BatchOutcome:
     batch_state.batch_answered(tx_id)
     for pid_code, pid_info, unmapped in group:
         sub_hex = split[_did4(pid_code)]
-        out.append(
-            _decode_pid_result(
-                pid_code,
-                pid_info,
-                unmapped,
-                sub_hex,
-                bytes.fromhex(sub_hex),
-                acquired_at,
-                target=tx_id,
-            )
+        entry = _decode_pid_result(
+            pid_code, pid_info, unmapped, sub_hex, bytes.fromhex(sub_hex), acquired_at, target=tx_id
         )
+        # Each member was answered by the one request, so each was held up that long.
+        entry["request_s"] = request_s
+        out.append(entry)
     return "ok"
 
 
@@ -330,7 +350,10 @@ async def _run_query_plan(sm, tx_id, query_plan, out, batch_state, max_dids=None
             )
             if outcome == "ok":
                 continue
-            # Single DID, or batch failed → per-DID.
+            # Single DID, or batch failed → per-DID. A failed batch's own time is charged
+            # to none of its members: it ends in batching being given up (at once, or
+            # after BATCH_UNANSWERED_BEFORE_DISABLE misses), and charging it would slow
+            # healthy PIDs for a batch's fault.
             singles = [await _read_single(sm, tx_id, e[0], e[1], e[2], batch_state) for e in group]
             out.extend(singles)
             if outcome == "unanswered" and any("raw_hex" in r for r in singles):

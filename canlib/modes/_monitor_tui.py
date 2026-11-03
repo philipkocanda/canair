@@ -75,6 +75,7 @@ import time
 from datetime import datetime
 
 from ..log import log_event, log_exception
+from ..poll_backoff import summarize_slowed
 from ..transport.errors import transport_error_types
 from ._monitor_render import MONITOR_LEGEND
 
@@ -1029,8 +1030,7 @@ class MonitorApp(HelpMixin, App):
         backoff = getattr(c, "backoff", None)
         slowed = backoff.slowed() if backoff is not None else {}
         if slowed:
-            ecus = " ".join(f"{ecu}÷{factor}" for ecu, factor in sorted(slowed.items()))
-            items.append(StatusItem(f"[dim]slow[/] [yellow]{ecus}[/]", P_HIGH))
+            items.append(StatusItem(f"[dim]slow[/] [yellow]{summarize_slowed(slowed)}[/]", P_HIGH))
         items.append(StatusItem(f"{c.elapsed:.1f}[dim]s[/]", P_LOW))
         # ELM path reports commands + time spent in the ELM327; the raw path
         # reports UDS requests (no ELM involved).

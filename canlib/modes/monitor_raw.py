@@ -22,6 +22,7 @@ from collections.abc import Mapping
 from typing import TYPE_CHECKING, TypedDict
 
 from ..poll_backoff import PollCost
+from ..poll_schedule import Key
 from ..uds.protocol import DiagProtocol, classify_protocol
 
 if TYPE_CHECKING:
@@ -273,23 +274,26 @@ class MonitorRawPoller:
         c.fresh_queries = self.fresh_queries(plan_by_ecu, by_pid)
         c.last_cmds = len(requests)
         c.last_elm_time = 0.0
-        c.ecu_costs = self.ecu_costs(submissions, result_dict)
+        c.poll_costs = self.poll_costs(submissions, result_dict)
 
-    def ecu_costs(self, submissions: list[Submission], results: PollResults) -> dict[str, PollCost]:
-        """Per-ECU cost of this tick: requests, their summed latency, coherent answers.
+    def poll_costs(
+        self, submissions: list[Submission], results: PollResults
+    ) -> dict[Key, PollCost]:
+        """Each PID's cost of this tick: its request's latency and whether it was answered.
 
-        Summed per ECU because the client works through an ECU's queue one request
-        per round, so that sum is how long the ECU kept the tick open.
+        A batch's members each take the whole batch's latency as one request: each was
+        held up that long. The client works through an ECU's queue one request per round,
+        so a slow request keeps the whole tick open.
         """
         latency = getattr(self.c.raw_client, "last_latency", None) or {}
-        costs: dict[str, PollCost] = {}
+        costs: dict[Key, PollCost] = {}
         for s in submissions:
             key = (s["ecu"], s["req"])
-            cost = costs.setdefault(s["ecu"], PollCost())
-            cost.reads += 1
-            cost.seconds += latency.get(key, 0.0)
-            if isinstance(results.get(key), (bytes, bytearray)):
-                cost.answered += 1
+            answered = int(isinstance(results.get(key), (bytes, bytearray)))
+            for code, _info, _unmapped in s["members"]:
+                costs[(s["ecu"], code)] = PollCost(
+                    reads=1, seconds=latency.get(key, 0.0), answered=answered
+                )
         return costs
 
     def apply_submission(

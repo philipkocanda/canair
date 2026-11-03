@@ -165,14 +165,16 @@ and **`g`/`G` address the view's primary axis**.
   reconnect forever (see Mid-session reconnect). **Polling is per-PID by default**
   (`--schedule dynamic`): each PID is read at half its profile `period:`
   (`MONITOR_PERIOD_SPEEDUP`), a PID without one every `--interval` (`--schedule fixed` reads
-  every PID every cycle). A slow or silent ECU holds up every other ECU's next read, so the
-  leaf `canlib/poll_backoff.py::EcuBackoff` slows it (×2 up to ×32, `--no-backoff` off) from
-  per-ECU `PollCost`s the pollers leave in `MonitorController.ecu_costs`. A reconnect restores
-  every ECU's rate (`MonitorController.reset_backoff`, called from `rebind`), clearing the
-  backoff and the scheduler's slowdown together: never reset one alone, or the scheduler keeps a
-  factor nothing will ever restore. On the ELM327 path an ECU's cost excludes keepalive time
-  (`SessionManager.keepalive_seconds`) and counts a multi-DID batch as one request. The
-  scheduler is a
+  every PID every cycle). A slow or silent PID holds up every other PID's next read, so the
+  leaf `canlib/poll_backoff.py::PollBackoff` slows that PID alone (×2 up to ×32,
+  `--no-backoff` off; its ECU's healthy PIDs keep their rate) from the per-`(ECU, PID)`
+  `PollCost`s the pollers leave in `MonitorController.poll_costs`; the slowdown is shown on
+  the PID's row. A reconnect restores every PID's rate (`MonitorController.reset_backoff`,
+  called from `rebind`), clearing the backoff and the scheduler's slowdown together: never
+  reset one alone, or the scheduler keeps a factor nothing will ever restore. On the ELM327
+  path each result carries its request's `request_s` (`multi_exec._exchange`), which excludes
+  keepalive time (`SessionManager.keepalive_seconds`); a multi-DID batch is one request for
+  each PID it answers, timed as the whole batch. The scheduler is a
   dependency-free leaf, `canlib/poll_schedule.py::PollScheduler` (the parser imports its
   vocabulary at CLI start-up, so it must not reach into `canlib/modes`); it drives which PIDs each
   tick reads and, since a slow PID is now polled far less often than a fast one, also supplies the

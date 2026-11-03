@@ -74,11 +74,13 @@ and `m` to switch to `--schedule fixed`, which reads *every* PID on every cycle
 `--interval` apart — handy when you want an even time-series of one signal for
 analysis.
 
-The ECUs are read one after another, so an ECU that stops answering (a body module
-that has gone to sleep, say) or answers very slowly holds up everyone else's next
-read. The monitor notices and polls that ECU 2×, then 4×, up to 32× less often until it
-answers promptly again; its header says `slow (not answering) · polled 4× less often`
-and the status line lists it (`slow SKM÷4`). Pass `--no-backoff` to keep hammering it.
+The ECUs are read one after another, so a PID that stops answering (a body module that
+has gone to sleep, say, or a PID the ECU only answers in another vehicle state) or is
+answered very slowly holds up everyone else's next read. The monitor notices and polls
+that PID 2×, then 4×, up to 32× less often until it answers promptly again, while the
+same ECU's healthy PIDs keep their normal rate; its row says
+`slow (not answering) · polled 4× less often` and the status line lists it
+(`slow SKM:22B002÷4`). Pass `--no-backoff` to keep hammering it.
 A PID whose read failed keeps showing its last value, greyed and marked with how old
 it is — `(stale 12s)`.
 

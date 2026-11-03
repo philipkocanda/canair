@@ -161,15 +161,16 @@ class LinkEventTracker:
         elif not on:
             self._close(key, self._clock())
 
-    def backoff(self, ecu: str, factor: int) -> None:
-        """``ecu`` is now polled ``factor`` times less often (1 = back to normal)."""
+    def backoff(self, ecu: str, factor: int, pid: str | None = None) -> None:
+        """``ecu``'s ``pid`` is now polled ``factor`` times less often (1 = back to normal)."""
         ecu = ecu.upper()
-        key = (BACKOFF, ecu, None)
+        pid = pid.upper() if pid else None
+        key = (BACKOFF, ecu, pid)
         now = self._clock()
         self._close(key, now)
         rx = self._rx_of(ecu)
         if factor > 1 and rx is not None:
-            self._start(key, BACKOFF, now, rx=rx, factor=factor)
+            self._start(key, BACKOFF, now, rx=rx, pid=pid, factor=factor)
 
     def poll_set_changed(self, old: Set[tuple[str, str]], new: Set[tuple[str, str]]) -> None:
         """The polled ``(ECU, PID)`` pairs changed from ``old`` to ``new``.

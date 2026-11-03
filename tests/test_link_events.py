@@ -441,12 +441,22 @@ class TestScopedEvents:
                 "at": "14:00:04",
             },  # no factor
             {"type": "event", "id": 6, "kind": "unpolled", "rx": "BMS", "at": "14:00:05"},  # a name
+            {
+                "type": "event",
+                "id": 7,
+                "kind": "backoff",
+                "rx": "0x7EA",
+                "pid": "22b002",
+                "factor": 2,
+                "at": "14:00:06",
+            },
         ]
         out = events_by_date(recs, DAY)[DAY]
         assert out == [
             {"at": "14:00:00", "kind": "ecu_silent", "rx": "0x7EC"},
             {"at": "14:00:01", "kind": "unpolled", "rx": "0x7EC", "pid": "2105"},
             {"at": "14:00:02", "kind": "backoff", "rx": "0x7EA", "factor": 4},
+            {"at": "14:00:06", "kind": "backoff", "rx": "0x7EA", "pid": "22B002", "factor": 2},
         ]
 
     def test_applies_to(self):
@@ -562,6 +572,18 @@ class TestScopedTracker:
         assert [s.get("factor") for s in journal.scopes] == [2, 4]
         assert not tracker.is_open("backoff", "BMS")
 
+    def test_each_pid_backs_off_on_its_own(self):
+        tracker, journal, _clock = self._tracker()
+        tracker.backoff("BMS", 2, pid="2101")
+        tracker.backoff("BMS", 4, pid="2102")
+        tracker.backoff("BMS", 1, pid="2101")
+        assert [(s.get("pid"), s.get("factor")) for s in journal.scopes] == [
+            ("2101", 2),
+            ("2102", 4),
+        ]
+        assert not tracker.is_open("backoff", "BMS", "2101")
+        assert tracker.is_open("backoff", "BMS", "2102")
+
     def test_pause_and_resume(self):
         tracker, journal, clock = self._tracker()
         tracker.paused(True)
@@ -619,9 +641,10 @@ class TestControllerScopedHooks:
         c, journal = self._controller()
         for _ in range(3):
             c._cycle_answered = True  # VCU answered this tick
-            c.ecu_costs = {
-                "BMS": PollCost(reads=2, answered=0),
-                "VCU": PollCost(reads=1, answered=1),
+            c.poll_costs = {
+                ("BMS", "2101"): PollCost(reads=1, answered=0),
+                ("BMS", "2102"): PollCost(reads=1, answered=0),
+                ("VCU", "2101"): PollCost(reads=1, answered=1),
             }
             c._observe_ecu_answers()
         assert journal.scopes == [{"kind": "ecu_silent", "id": 1, "rx": "0x7EC"}]
@@ -630,10 +653,25 @@ class TestControllerScopedHooks:
         from canlib.poll_backoff import PollCost
 
         c, journal = self._controller()
-        monkeypatch.setattr(c.backoff, "observe", lambda _ecu, _cost: 4)
-        c.ecu_costs = {"BMS": PollCost(reads=1, answered=0)}
+        monkeypatch.setattr(c.backoff, "observe", lambda _key, _cost: 4)
+        c.poll_costs = {("BMS", "2101"): PollCost(reads=1, answered=0)}
         c._apply_backoff()
-        assert journal.scopes == [{"kind": "backoff", "id": 1, "rx": "0x7EC", "factor": 4}]
+        assert journal.scopes == [
+            {"kind": "backoff", "id": 1, "rx": "0x7EC", "pid": "2101", "factor": 4}
+        ]
+
+    def test_an_ecu_with_one_answering_pid_is_not_silent(self):
+        from canlib.poll_backoff import PollCost
+
+        c, journal = self._controller()
+        for _ in range(3):
+            c._cycle_answered = True
+            c.poll_costs = {
+                ("BMS", "2101"): PollCost(reads=1, answered=0),
+                ("BMS", "2102"): PollCost(reads=1, answered=1),
+            }
+            c._observe_ecu_answers()
+        assert journal.scopes == []
 
 
 class TestScopedFill:

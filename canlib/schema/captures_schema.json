@@ -45,7 +45,7 @@
         },
         "quality": { "$ref": "#/$defs/quality" },
         "link_events": {
-          "description": "When the recording could not see the car, and why. Gaps (nothing was gathered for their scope): 'disconnect' (no ECU answered coherently), 'paused' (polling was paused), 'ecu_silent' (one ECU stopped answering while others still did), 'unpolled' (a PID, or a whole ECU, was taken out of the poll set). Not gaps: 'backoff' (a slow ECU was polled less often) and 'resync' (an instant: the transport realigned a desynchronised pipe). Recorded live by the monitor, never derived from payloads (so never rebuilt by a back-fill). Explains holes and sparse stretches in the timestamps, and bounds forward fill. Absent when nothing happened, and on sessions recorded before it existed.",
+          "description": "When the recording could not see the car, and why. Gaps (nothing was gathered for their scope): 'disconnect' (no ECU answered coherently), 'paused' (polling was paused), 'ecu_silent' (one ECU stopped answering while others still did), 'unpolled' (a PID, or a whole ECU, was taken out of the poll set). Not gaps: 'backoff' (a slow PID was polled less often) and 'resync' (an instant: the transport realigned a desynchronised pipe). Recorded live by the monitor, never derived from payloads (so never rebuilt by a back-fill). Explains holes and sparse stretches in the timestamps, and bounds forward fill. Absent when nothing happened, and on sessions recorded before it existed.",
           "type": "array",
           "items": { "$ref": "#/$defs/link_event" }
         },
@@ -181,7 +181,7 @@
           "pattern": "^0x[0-9A-Fa-f]{3,8}$"
         },
         "pid": {
-          "description": "The PID an unpolled event is about. Absent on an unpolled event = every PID of its ECU.",
+          "description": "The PID an unpolled or backoff event is about. Absent = every PID of its ECU (a backoff recorded before the backoff was per PID covered its whole ECU).",
           "type": "string"
         },
         "cause": {
@@ -189,7 +189,7 @@
           "enum": ["error", "stale", "manual"]
         },
         "factor": {
-          "description": "How many times less often a backoff polled its ECU.",
+          "description": "How many times less often a backoff polled its PID (or ECU).",
           "type": "integer",
           "minimum": 2
         },

@@ -16,8 +16,9 @@ is known to have held across one:
   of the poll set.
 
 The other kinds explain sparse data without being a gap: ``backoff`` (an interval in
-which one slow ECU was polled ``factor`` times less often) and ``resync`` (an instant at
-which the transport realigned a desynchronised pipe).
+which one slow PID — ``rx`` + ``pid``, or a whole ECU on sessions recorded before the
+backoff was per PID — was polled ``factor`` times less often) and ``resync`` (an instant
+at which the transport realigned a desynchronised pipe).
 
 Deliberately not part of ``state_spans``: spans describe the car, are derived from stored
 payloads (and so rebuilt by a back-fill), and cannot express a gap. A link event describes
@@ -123,7 +124,7 @@ def _event_from_record(rec: Mapping[str, Any]) -> LinkEvent | None:
             return None  # an ECU-scoped event with no ECU says nothing
         event["rx"] = str(rx)
     pid = rec.get("pid")
-    if kind == UNPOLLED and isinstance(pid, str) and pid:
+    if kind in (UNPOLLED, BACKOFF) and isinstance(pid, str) and pid:
         event["pid"] = pid.upper()
     cause = rec.get("cause")
     if kind == DISCONNECT and cause in DISCONNECT_CAUSES:
