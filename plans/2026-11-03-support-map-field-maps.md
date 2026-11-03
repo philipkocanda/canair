@@ -221,9 +221,34 @@ an ECU revision, and could become a revision fingerprint.
 - **bix** labels every declared bitmap's bytes but does not number the parameters.
 - **Capture views.** `captures.store.PidDefs` became a named tuple carrying the PID's map
   bytes, so `captures uds --step` and `--diff` colour them like the monitor.
-- **Declared:** Ioniq BMS `2101`-`2104`, VCU `2101`, BCM `22C00B`, HVAC `220102`; Kona BMS
-  `220101`-`220104`, BCM `22C00B`. Left for review: Ioniq OBC `2101`, BMS `2105`, `21F2`, CLU
-  `22B002`, MCU `2101`/`2102` (all consistent, not exact).
+- **Declared:** Ioniq BMS `2101`-`2104`, VCU `2101`, BCM `22C00B`, `22C011`, HVAC `220102`;
+  Kona BMS `220101`-`220104`, BCM `22C00B`. Left for review: Ioniq OBC `2101`, BMS `2105`,
+  `21F2`, CLU `22B002`, MCU `2101`/`2102` (all consistent, not exact).
+
+## Further candidates on the Ioniq (sweep of 2026-11-03)
+
+BCM `22C011` (`E0 00 00 00`: a byte and two 2-byte values) was the one new exact split, read per
+byte as rejected before. A search at data offsets 1-6 found nothing but shifted copies of maps
+already known, so on this car a map always sits right after the DID echo. Not declared, by
+reason:
+
+- **Consistent with no violations, but too little movement to prove** (per bit, the family of
+  the declared BCM `22B004`/`22B007`): BCM `22B002`, `22B006`, `22B009`, `22B00A`, `22B00C`,
+  `22B00D`, `22B00E`; SKM `22B007` per bit, SKM `22B006` and MCU `21F2` per byte. Declaring them
+  on the family's and the spec's strength would only stop `coverage` counting unmarked bits.
+- **Consistent per field, with few signals defined:** OBC `2101`/`2102`, BMS `2105`/`21F2`,
+  ESC `22C101`/`22C102`, AAF `2180`/`2181`, BCM `22B001`, CLU `22B002`, MCU `2101`/`2102` (LSB
+  first). Each newly defined signal can make one exact.
+- **Too few captures (under 20) to test:** BCM `22B00F` (1 capture; the map of `22B00D`), BCM
+  `22C010`/`22C014` (a 1-byte bitmapped record each), BCM `22C012`/`22C013` (`80 00 00 00` then
+  one ASCII string), BCM `22C002` (`FF FF 00 00`, a count and four 4-byte sensor IDs), BCM
+  `22C00C`-`22C00F` (`FF FF 03 00`, per-wheel records; broken as read, across three
+  different-length payloads), GSA `220100` (`FF 00 00 00`), EPB `22C101` (`FB 18 00 00`).
+- **Leading `00 00 00 00` with data after it:** BCM `22C003`-`22C00A` (each an ASCII tag, then
+  data), SKM `22B002`/`22B003`. An all-zero map would mean no parameter is supported, so these are
+  either not maps or a BCM that zeroes them.
+- **Two layouts under one DID:** BCM `22C001` read `00 00 00 00 …` in ON (2026-04-15) and the
+  `22C002` layout parked (2026-04-16). One of the two may be misfiled.
 
 ## Validation
 
