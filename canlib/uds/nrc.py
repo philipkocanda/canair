@@ -132,8 +132,7 @@ _NRC_RANGES = (
 # KWP2000 response codes that are absent from, or mean something other than, their ISO 14229-1
 # namesake. Names and ranges follow SSF 14230-3 Issue 2 section 4.4, the implementation standard
 # the KWP2000 scanners already cite; the ISO 14230-3 draft leaves 0x80-0xFF entirely to the
-# manufacturer. Codes with the same meaning in both (0x10, 0x11, 0x21, 0x31, 0x33, 0x35-0x37,
-# 0x71, 0x78) are not repeated: a KWP lookup falls through to NRC_CODES.
+# manufacturer. The codes both protocols define alike are _KWP_SHARED_CODES.
 KWP_NRC_CODES = {
     0x12: "subFunctionNotSupportedOrInvalidFormat",  # UDS splits this into 0x12 + 0x13
     0x22: "conditionsNotCorrectOrRequestSequenceError",  # UDS splits this into 0x22 + 0x24
@@ -179,9 +178,15 @@ _KWP_ABBREV = {
     0x80: "SNSIADS",  # serviceNotSupportedInActiveDiagnosticSession
 }
 
-# KWP2000 range names for the rest of 0x80-0xFF. ISO 14229-1's 0x81-0x93 conditionsNotCorrect
-# refinements (rpmTooHigh, ...) are not KWP2000 codes, so they must not be read into one.
+# The ISO 14229-1 codes KWP2000 defines with the same meaning, so a KWP lookup reads their
+# NRC_CODES name. Every other code ISO 14229-1 names below 0x80 (0x13, 0x14, 0x24-0x26, 0x70,
+# 0x73, 0x7E, 0x7F) is not a KWP2000 code and must not be read as one.
+_KWP_SHARED_CODES = frozenset({0x10, 0x11, 0x21, 0x31, 0x33, 0x35, 0x36, 0x37, 0x71, 0x78})
+
+# KWP2000 range names for every code neither table names. ISO 14229-1's 0x81-0x93
+# conditionsNotCorrect refinements (rpmTooHigh, ...) are not KWP2000 codes either.
 _KWP_NRC_RANGES = (
+    (range(0x00, 0x80), "reservedByDocument", "RBD"),
     (range(0x81, 0x90), "reservedByDocument", "RBD"),
     (range(0x90, 0xFA), "vehicleManufacturerSpecific", "VMS"),
     (range(0xFA, 0xFF), "systemSupplierSpecific", "SSS"),
@@ -196,9 +201,12 @@ def _resolve(nrc: int, protocol: str | None) -> tuple[str, str, bool] | None:
     if protocol == KWP:
         if nrc in KWP_NRC_CODES:
             return KWP_NRC_CODES[nrc], _KWP_ABBREV[nrc], False
+        if nrc in _KWP_SHARED_CODES:
+            return NRC_CODES[nrc], NRC_ABBREV[nrc], False
         for codes, name, abbrev in _KWP_NRC_RANGES:
             if nrc in codes:
                 return name, abbrev, False
+        return None
     if nrc in NRC_CODES:
         return NRC_CODES[nrc], NRC_ABBREV[nrc], False
     for codes, name, abbrev in _NRC_RANGES:
@@ -215,9 +223,10 @@ def nrc_description(nrc: int, protocol: str | None = None) -> str:
     ``protocol`` is the target ECU's diagnostic protocol (``"uds"``/``"kwp"``), when
     known, because the same code can mean different things:
 
-    * ``"kwp"`` reads SSF 14230-3 first (``0x23`` is ``routineNotCompleteOrServiceInProgress``,
-      ``0x72`` ``transferAborted``, ``0x90``-``0xF9`` ``vehicleManufacturerSpecific``), then
-      falls back to the shared names.
+    * ``"kwp"`` reads SSF 14230-3 only (``0x23`` is ``routineNotCompleteOrServiceInProgress``,
+      ``0x72`` ``transferAborted``, ``0x90``-``0xF9`` ``vehicleManufacturerSpecific``), using
+      the shared name for a code both protocols define alike; a code only ISO 14229-1 names
+      (``0x13``, ``0x7F``) is ``reservedByDocument`` there.
     * ``"uds"`` reads ISO 14229-1 only.
     * Anything else (unknown protocol) reads ISO 14229-1 and, for a code that standard
       leaves unnamed, the KWP2000 name tagged ``(KWP2000)``.

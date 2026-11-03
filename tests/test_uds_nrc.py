@@ -45,6 +45,19 @@ class TestNrcNames:
         assert nrc_description(0x31, "kwp") == "requestOutOfRange"
         assert nrc_description(0x21, "kwp") == "busyRepeatRequest"
         assert nrc_description(0x78, "kwp") == "requestCorrectlyReceivedResponsePending"
+        assert nrc_description(0x71, "kwp") == "transferDataSuspended"
+
+    @pytest.mark.parametrize("nrc", [0x13, 0x14, 0x24, 0x25, 0x26, 0x70, 0x73, 0x7E, 0x7F])
+    def test_kwp_does_not_read_uds_only_codes(self, nrc):
+        # ISO 14230-3 defines none of these; on a KWP2000 ECU 0x7F is not
+        # serviceNotSupportedInActiveSession (KWP2000 uses 0x80 for that).
+        assert nrc_description(nrc, "kwp") == "reservedByDocument"
+        assert nrc_abbrev(nrc, KWP) == "RBD"
+        assert nrc_description(nrc, "uds") == NRC_CODES[nrc]
+
+    def test_kwp_names_every_unlisted_low_code_reserved(self):
+        assert nrc_description(0x5A, "kwp") == "reservedByDocument"
+        assert nrc_description(0x5A) == "unknown (0x5A)"
 
     def test_kwp_high_range_is_not_read_as_iso_14229_refinements(self):
         # 0x88 is vehicleSpeedTooHigh in ISO 14229-1 but reserved in SSF 14230-3, and
