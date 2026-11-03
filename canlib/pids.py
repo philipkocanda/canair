@@ -163,6 +163,7 @@ class PidIndexEntry(TypedDict):
     support_map: Any  # raw `support_map:` declaration or None (see canlib.uds.support_map)
     snapshot_only: bool  # served only inside a DTC snapshot (see is_snapshot_only)
     snapshot_length: int | None  # the DID's data length in a snapshot record, when declared
+    variable_length: bool  # the PID's replies legitimately vary in length (no one length)
     sensitive: bool  # the PID's own `sensitive:` flag (signals carry theirs; canlib.sensitive)
 
 
@@ -743,6 +744,7 @@ def build_ecu_index(pids_data: dict) -> dict[str, EcuIndexEntry]:
                 "support_map": pid_def.get("support_map"),
                 "snapshot_only": is_snapshot_only(pid_def),
                 "snapshot_length": pid_def.get("snapshot_length"),
+                "variable_length": pid_def.get("variable_length") is True,
                 "sensitive": pid_def.get("sensitive") is True,
             }
     return index

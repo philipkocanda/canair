@@ -3,7 +3,8 @@
 The bridge between the I/O-free parser (:mod:`canlib.dtc.snapshot`) and the profile:
 
 * :func:`length_resolver` answers the parser's "how long is this DID's data?" from a
-  declared ``snapshot_length:``, else from the DID's own live replies in the captures.
+  declared ``snapshot_length:``, else from the DID's own live replies in the captures
+  (never for a ``variable_length:`` PID, whose live replies have no one length).
 * :func:`snapshot_entries` turns a parsed record into the JSON-able shape ``canair dtc``
   prints, logs and emits with ``--json``, each DID decoded by its ``22<DID>`` PID's
   signals. A snapshot's data is decoded as the reply a live read would have given
@@ -39,7 +40,9 @@ def length_resolver(
 
     ``pids`` is the ECU's ``pids`` index (:func:`canlib.pids.build_ecu_index`). The live
     length (``live_length(ecu, pid)``, :func:`live_reply_length` by default) is only
-    consulted for a DID with no declaration, since it reads the capture history.
+    consulted for a DID with no declaration, since it reads the capture history, and never
+    for a ``variable_length:`` PID: its live replies have no one length, so their most
+    common one would be a guess that silently mis-splits the rest of the record.
     """
     lookup = live_length or live_reply_length
 
@@ -48,6 +51,8 @@ def length_resolver(
         declared = pid_info.get("snapshot_length")
         if isinstance(declared, int) and not isinstance(declared, bool) and declared > 0:
             return declared
+        if pid_info.get("variable_length") is True:
+            return None
         return lookup(ecu, read_pid(did))
 
     return length_of

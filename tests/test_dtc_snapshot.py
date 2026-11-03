@@ -146,6 +146,24 @@ class TestLengthResolver:
         assert length_resolver({}, "BCM", live)(0xB004) == 4
         assert seen == [("BCM", "22B004")]
 
+    def test_a_variable_length_pid_has_no_live_length(self):
+        # Its most common live length is a guess, and a wrong one mis-splits the record.
+        from canlib.dtc.snapshot_decode import length_resolver
+        from canlib.pids import build_ecu_index
+
+        def no_captures(ecu, pid):
+            raise AssertionError("the captures must not be read")
+
+        pids = {"22B004": {"variable_length": True, "parameters": {}}}
+        index = build_ecu_index({"ecus": {"BCM": {"tx_id": 0x7A0, "pids": pids}}})
+        assert length_resolver(index["BCM"]["pids"], "BCM", no_captures)(0xB004) is None
+
+    def test_a_declared_length_still_wins_on_a_variable_length_pid(self):
+        from canlib.dtc.snapshot_decode import length_resolver
+
+        pids = {"22B004": {"variable_length": True, "snapshot_length": 4}}
+        assert length_resolver(pids, "BCM", lambda *_: 9)(0xB004) == 4
+
     def test_live_length_is_the_most_common_echoing_reply(self, monkeypatch):
         from canlib.dtc import snapshot_decode
 
