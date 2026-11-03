@@ -414,6 +414,16 @@ reuse these instead of re-declaring a flag:
 
 ### Authoring (writes into a profile — pass `--profile`)
 
+**Every definition edit goes through `canlib/yaml_edit/`** (its package docstring is the map).
+An editor declares a `Target` (file, section, checks), registers it in `yaml_edit/targets.py`, and
+writes through `edit_doc` (ruamel round-trip) or `edit_ecu_text` (text surgery on an ECU file);
+both end in `commit.commit_text`, which writes atomically, re-checks and **reverts on any
+failure**. A rejected edit raises `EditError`; no command catches it — `cli.py` prints
+`  Error: …` and exits 1. On the command side `commands/_edit.py::run_edit` is the whole sequence
+(read-only-profile refusal, `--no-validate`, the editor call, the `✓` confirmation). Use
+`yaml_edit.ruamel_ops` to remove or rename an entry (it keeps the comments around it; a bare
+`del`/rebuild does not). A new editor never opens the file itself.
+
 - **`canair pids`** — Add/update `ecus/` **parameters** and **research** entries. Every edit is
   YAML-reparsed, schema-validated (`canair validate pids`) and **auto-reverted on failure**;
   comments and field order survive. Prefer it over hand-editing the rich per-ECU YAML. Subcommands
@@ -796,9 +806,10 @@ to `plans/2026-07-30-profile-variant-inheritance.md` — `extends:` is deliberat
   `write_root` and `capture_layers`. Definitions (`ecus_dir`, `states_file`, `signals_dir`,
   `can_buses_file`, `groups_file`, `meta_file`) stay on `root`; `captures_dir`/
   `out_dir` derive from `write_root`. **Definitions do not overlay in this slice** — an edit is
-  refused by `canlib/profile.py::require_writable_definitions()`, called from the single edit funnel
-  in each of `pids`/`states`/`groups`/`signals`/`ecu add`. It raises `ProfileError`, which
-  `canlib/cli.py` already turns into `error: …` + exit 2, so no command handles it.
+  refused by `canlib/profile.py::require_writable_definitions()`, called from the one edit funnel
+  every authoring command shares (`canlib/commands/_edit.py::edit_scope`). It raises
+  `ProfileError`, which `canlib/cli.py` already turns into `error: …` + exit 2, so no command
+  handles it.
 - **Reads span layers, writes do not.** `canlib/captures/io.py::resolve_capture_layers` is the read
   seam; `capture_store.load_all_captures` iterates it, dedupes sessions across layers by
   `captures_merge.session_key` (base wins, so a contributed-then-pulled session stays read-only),

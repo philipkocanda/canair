@@ -167,6 +167,13 @@ data itself is **`contributing-profiles`**.
 - `profiles/*/ecus/` is the source of truth, edited only through the surgical/validated editors
   (`canlib/yaml_edit/`: `pids/` and `ecu.py`). **Keep editor coverage complete** — a field
   reachable only by hand is a bug to close, not a reason to normalize hand-editing.
+- **Every definition editor lives in `canlib/yaml_edit/` and shares one write path.** A new one
+  declares a `Target` beside its rules, lists it in `yaml_edit/targets.py` (a test fails if you
+  forget), and writes through `edit_doc` (ruamel) or `edit_ecu_text` (text surgery). It raises
+  `EditError` (a subclass per file kind) and never prints or exits — `cli.py` reports it. It never
+  opens or writes the file itself, and never `del`s or rebuilds a ruamel mapping to remove or rename
+  an entry: `ruamel_ops.remove_key`/`remove_item`/`rename_key` keep the comments around it. The
+  command is `run_edit(lambda: editor(...), "confirmation")` from `commands/_edit.py`.
 - **Free-text fields render themselves** via one shared policy (`canlib/yaml_edit/rt.py`): short
   notes inline, longer ones a wrapped folded `>-` block (double-quoted when folding can't carry
   the text exactly), never reflowing the rest of the file. A new ruamel-written free-text field
