@@ -196,6 +196,21 @@ class TestEnsureWorkspace:
         _, mode, ok = C.ensure_workspace(_ready(), ws)
         assert ok and mode == C.MODE_DIRECT  # fetch failure not fatal
 
+    def test_fetches_only_the_base_branch(self, tmp_path, monkeypatch):
+        ws = tmp_path / "canair"
+        (ws / ".git").mkdir(parents=True)  # existing fork clone
+
+        def responder(args):
+            if args[-1] == "remote":
+                return 0, "origin\nupstream\n", ""
+            return 0, "", ""
+
+        runner = FakeRunner(responder)
+        monkeypatch.setattr(C, "_run", runner)
+        C.ensure_workspace(_ready(), ws)
+        fetches = [call for call in runner.calls if "fetch" in call]
+        assert fetches == [["git", "-C", str(ws), "fetch", "upstream", C.BASE_BRANCH, "--quiet"]]
+
 
 class TestPrHead:
     def test_direct_is_bare_branch(self):

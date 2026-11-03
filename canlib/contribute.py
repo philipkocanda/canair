@@ -47,6 +47,8 @@ from .profile import member_names, members_by_role
 
 UPSTREAM_URL = f"https://github.com/{UPSTREAM_REPO}.git"
 UPSTREAM_OWNER = UPSTREAM_REPO.split("/")[0]
+# The upstream branch contributions are based on and opened against.
+BASE_BRANCH = "main"
 GH_INSTALL_URL = "https://github.com/cli/cli#installation"
 
 # GitHub permission levels that allow pushing a branch to the repo directly
@@ -335,13 +337,26 @@ def ensure_workspace(pre: Preflight, workspace: Path) -> tuple[list[Step], str, 
     # Fetches are best-effort (don't fail the run when offline / no remote).
     if mode == MODE_FORK:
         steps.append(_ensure_upstream_remote(pre, workspace))
-        fetched = _run([pre.git, "-C", str(workspace), "fetch", "upstream", "--quiet"])
+        fetched = _fetch_base(pre, workspace, "upstream")
         steps.append(fetched)
         if not fetched.ok:
-            steps.append(_run([pre.git, "-C", str(workspace), "fetch", "origin", "--quiet"]))
+            steps.append(_fetch_base(pre, workspace, "origin"))
     else:
-        steps.append(_run([pre.git, "-C", str(workspace), "fetch", "origin", "--quiet"]))
+        steps.append(_fetch_base(pre, workspace, "origin"))
     return steps, mode, True
+
+
+def _fetch_base(pre: Preflight, workspace: Path, remote: str) -> Step:
+    """Fetch only ``remote``'s base branch, the one ref :func:`_upstream_ref` reads.
+
+    A plain ``git fetch`` also downloads every other branch on the remote (each
+    open contribution's branch among them), which nothing here reads. Not
+    refreshing the contribution branch's tracking ref also keeps the
+    ``--force-with-lease`` in :func:`push_branch` meaningful: a commit someone
+    else pushed to that branch makes the push fail instead of being overwritten.
+    """
+    assert pre.git
+    return _run([pre.git, "-C", str(workspace), "fetch", remote, BASE_BRANCH, "--quiet"])
 
 
 def _detect_mode(pre: Preflight, workspace: Path, fresh: bool) -> str:
@@ -367,10 +382,10 @@ def _ensure_upstream_remote(pre: Preflight, workspace: Path) -> Step:
 
 def _upstream_ref(workspace: Path, git: str) -> str:
     """The base ref to branch from — prefer upstream/main, else origin/main."""
-    for ref in ("upstream/main", "origin/main"):
+    for ref in (f"upstream/{BASE_BRANCH}", f"origin/{BASE_BRANCH}"):
         if _run([git, "-C", str(workspace), "rev-parse", "--verify", "--quiet", ref]).ok:
             return ref
-    return "main"
+    return BASE_BRANCH
 
 
 def base_reader(pre: Preflight, workspace: Path):
@@ -840,7 +855,7 @@ def create_pr(
             "--repo",
             UPSTREAM_REPO,
             "--base",
-            "main",
+            BASE_BRANCH,
             "--head",
             head,
             "--title",
