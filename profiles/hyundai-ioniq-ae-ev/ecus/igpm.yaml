@@ -543,6 +543,7 @@ IGPM:
         unknown (research/IGPM_FINDINGS.md section 6.4). BCFD and BCFF are the only DIDs in
         BC08-BCFF that answer.
     22BCFF:
+      response_frames: 1
       parameters:
         IGPM_BCFF_TAG:
           expression: "[B04:B07]"
