@@ -29,8 +29,8 @@ MCU:
       vehicle_states: [IG3]
       notes: >-
         30 bytes. Words are little-endian, unlike BMS 2101. B23 and B26 are constant 0x02 and 0x04.
-        B9/B10/B11 read 8/56/1 in 5121 of 5776 CHARGING captures and in all 35 TOPUP captures; in
-        READY B11 is 0 in all 2369 captures and B9 is 140 or 12.
+        B9/B10/B11 read 8/56/1 in 5121 of 5776 CHARGING captures and in all 301 captures of the
+        three recorded 12 V top-ups; in READY B11 is 0 in all 2369 captures and B9 is 140 or 12.
       source: canair analysis 2026-08-08 long drive + DCFC
       verified: false
       parameters:
@@ -444,11 +444,14 @@ MCU:
       priority: P2
       vehicle_states: [DRIVING]
       created: "2026-08-08"
-      updated: "2026-08-08"
+      updated: "2026-11-03"
       notes: >-
         Neither is a temperature (see MCU_2101_B22, MCU_2101_B25). B22 is fast, 6-136, and steps
         with propulsion; B23 is constant 0x02, so it is a single byte. B25 is slow but r=-0.720 vs
-        AAF coolant and heatsink; B26 is constant 0x04.
+        AAF coolant and heatsink; B26 is constant 0x04. Both also move with the motor stopped and
+        the inverter off: through the 2026-11-03 parked 12 V top-up B22 fell 116 to 69 and B25 117
+        to 91, steadily, while AAF MOTOR_COOLANT_TEMP rose 11 to 17 °C; the 2026-10-30 top-up went
+        88 to 72 and 106 to 91 with the coolant at 14 to 17 °C.
       what_to_test:
         - Identify B22 (fast, 6-136, steps with propulsion); try modulation index, current limit or
           derating factor

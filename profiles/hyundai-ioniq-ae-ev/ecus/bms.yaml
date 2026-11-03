@@ -1282,7 +1282,7 @@ BMS:
       priority: P3
       vehicle_states: [ACC, READY]
       created: "2026-10-27"
-      updated: "2026-10-27"
+      updated: "2026-11-03"
       notes: >-
         The Ioniq shop manual's GDS list (page 0647) places four flags between Accumulative
         Operating Time and Inverter Capacitor Voltage: MCU Ready, MCU Main Relay Off Request, MCU

@@ -43,8 +43,12 @@ OBC:
           max: "500"
           source: "Live READY vs charging + BMS cross-check (2026-07-20)"
           notes: >-
-            HV pack voltage at the LDC, present at READY and while charging. r=0.998 vs
-            VCU:2102:VCU_INVERTER_INPUT_VOLTAGE (n=5689).
+            HV DC-link voltage at the LDC input, downstream of the main relay: present at READY,
+            while charging and during the 12 V top-up. r=0.998 vs
+            VCU:2102:VCU_INVERTER_INPUT_VOLTAGE (n=5689). At the end of the 2026-11-03 top-up it
+            read 353.2 V 0.3 s after the BMS first reported the relay open and 11.1 V 2.9 s later,
+            while BMS BATTERY_VOLTAGE stayed at 361.8 V; 19 V 1.3 s after the relay was last seen
+            closed at the 2026-10-21 top-up end.
 
         LDC_OUTPUT_V:
           expression: "[B25:B26]/100"
@@ -53,8 +57,10 @@ OBC:
           max: "20"
           source: "Decoded from live captures (2026-04-14)"
           notes: >-
-            12 V rail: 14.52 V charging, 14.31 V at READY. Sagged 14.5 to 13.6 V and recovered as a
-            rear defroster load switched on and off (2026-07-22).
+            12 V rail: 14.52 V charging, 14.31 V at READY, 14.59-14.62 V through the parked 12 V
+            top-ups. Sagged 14.5 to 13.6 V and recovered as a rear defroster load switched on and
+            off (2026-07-22). Down to 13.38 V 2.1 s after the last 14.59 V reading at the 2026-11-03
+            top-up end, once the LDC had stopped.
 
         LDC_TEMP:
           expression: "B19-100"
@@ -181,8 +187,9 @@ OBC:
           notes: >-
             0xBC/0xBD idle (READY, 12 V top-up, plugged but not charging), 0xBA/0xBB AC charging,
             0x73 throughout both recorded DC fast charges (2026-08-08). Bit 0 alternates between
-            reads in the idle and AC states. The US logs add 0xB8 at power-up and 0x70, 0x74, 0x75
-            and 0x80 around AC plug-in and charge end.
+            reads in the idle and AC states, except in the 12 V top-up: 0xBD in all 533 reads of the
+            three recorded top-ups. The US logs add 0xB8 at power-up and 0x70, 0x74, 0x75 and 0x80
+            around AC plug-in and charge end.
         OBC_DC_CHARGE_MODE:
           expression: B23:6
           min: "0"

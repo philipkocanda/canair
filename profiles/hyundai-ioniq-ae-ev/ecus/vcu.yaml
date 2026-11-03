@@ -123,11 +123,12 @@ VCU:
           expression: "B11:4"
           notes: >-
             IG3 rail powered. When it falls (B11 = 0x80) the OBC, BMS, MCU, AAF and HVAC stop
-            answering and VCU 2102 stops updating, while the VCU, IGPM and BCM answer for another
-            1.7-3 min (9 stored stretches). Equals VCU_IG3_ON_MIRROR (BMS 2101 B61:3) in 10845 of
-            10846 aligned rows. 1 in READY, AC and DC charging, the 12 V top-up and ignition-on
-            standby. Reads 1 in the uhi22 EPCU bench log (EPCU on its 12 V and wake-line pins only)
-            while VCU_IGN_ON reads 0, so it follows the EPCU wake input, not the ignition.
+            answering within a few seconds and VCU 2102 stops updating, while the VCU, IGPM and BCM
+            answer for another 1.7-3.1 min (the VCU 3 min 4 s after the 2026-11-03 top-up ended).
+            Equals VCU_IG3_ON_MIRROR (BMS 2101 B61:3) in 10845 of 10846 aligned rows. 1 in READY, AC
+            and DC charging, the 12 V top-up and ignition-on standby. Reads 1 in the uhi22 EPCU
+            bench log (EPCU on its 12 V and wake-line pins only) while VCU_IGN_ON reads 0, so it
+            follows the EPCU wake input, not the ignition.
           source: canair cross-ECU response-presence analysis 2026-10-23 (stored captures + JejuSoul US Ioniq logs)
 
 
@@ -145,8 +146,9 @@ VCU:
           notes: >-
             1 at READY (B11 = 0x5A), while charging and during the parked 12 V top-up (B11 = 0x10);
             0 in accessory or off (B11 = 0x92, 0x91, 0x80). With VCU_POWER_STATE == 1 it is the
-            TOPUP state predicate (exact on all 35 top-up captures, no false positive). Does not
-            tell ACC, ON and off apart.
+            TOPUP state predicate: it matches the 640 VCU 2101 rows of the three recorded top-ups
+            (2026-10-21, 2026-10-30, 2026-11-03) and no other row. Does not tell ACC, ON and off
+            apart.
 
         VCU_APS1_VOLTAGE:
           expression: ((B13<<8)|B12)/2048
@@ -204,10 +206,10 @@ VCU:
           source: canair historical analysis 2026-07-23; values 1, 2 and 6 re-read 2026-10-23 against stored captures and the JejuSoul US Ioniq logs
           notes: >-
             VCU operating mode: 4 drive-ready, 7 charging (AC, DC and plugged-in preconditioning), 6
-            at entry to and exit from a charge, 1 standby (ignition on but not READY, and the parked
-            12 V top-up). 2 appears only in the JejuSoul US Ioniq logs, at power-off. Reads 8 in the
-            uhi22 EPCU bench log, where the VCU stores no-communication DTCs for the BMS, gateway
-            and HVAC.
+            at entry to and exit from a charge, 1 standby (ignition on but not READY, the parked 12
+            V top-up and the 3 min after a top-up ends). 2 appears only in the JejuSoul US Ioniq
+            logs, at power-off. Reads 8 in the uhi22 EPCU bench log, where the VCU stores
+            no-communication DTCs for the BMS, gateway and HVAC.
           type: enum
           values:
             1: standby
@@ -598,14 +600,16 @@ VCU:
       priority: P1
       vehicle_states: [ACC, READY]
       created: "2026-08-06"
-      updated: "2026-11-02"
+      updated: "2026-11-03"
       notes: >-
         2026-11-02 (keep-all, one VCU poll per 7.5 s): B10:5 cleared at each of 5 ignition off-to-on
         edges (10:09-10:13) and both READY starts (09:37, 10:17), always in Park, and set again
         25-35 s later or at the next ignition off; it never cleared at an off edge (6 seen). B25
         read 1 from 30 s after the 10:08 power-off from parked READY until READY at 10:17, in ON and
-        OFF alike; after the 11:20 power-off from a drive it stayed 4 for at least 3 min. Open:
-        whether B10:5 drops outside Park.
+        OFF alike; after the 11:20 power-off from a drive it stayed 4 for at least 3 min.
+        2026-11-03: B10:5 stayed 1 and B25 1 through a parked 12 V top-up, its IG3-off edge (B11
+        0x10 to 0x80, 10:16:21) and the 3 min until the VCU went quiet. Open: whether B10:5 drops
+        outside Park.
       sources:
         - canair bitfield analysis 2026-08-06 (plans/2026-08-06-bitfield-audit-and-gear-state.md)
       what_to_test:
@@ -707,15 +711,19 @@ VCU:
       priority: P2
       vehicle_states: [READY, SLEEP]
       created: "2026-10-23"
-      updated: "2026-11-02"
+      updated: "2026-11-03"
       notes: >-
         VCU_IG3_ON falls when the IG3-fed ECUs (OBC, BMS, MCU, AAF, HVAC) stop answering. Two
         keep-all power-offs from READY on 2026-11-02 (10:08 parked, 11:20 after a drive; one VCU
         poll per 7.5 s): B11 went 0x5A to 0x80 between two polls and VCU_POWER_STATE stayed 4, so
         neither 0xD0 nor 2 was seen. At 11:20 the BMS still answered at 11:20:10.9 with
         BMS_MAIN_RELAY 0 and VCU_IG3_ON_MIRROR 0, 1.2 s before the VCU read 0x80; the MCU last
-        answered at 11:19:53. OBC was not polled. The US logs show B11 = 0xD0 and VCU_POWER_STATE 2
-        at power-off, then 0x80.
+        answered at 11:19:53. OBC was not polled. End of the 2026-11-03 parked 12 V top-up (VCU
+        polled every 2 s): B11 went 0x10 (10:16:19.0) to 0x80 (10:16:21.1) and VCU_POWER_STATE
+        stayed 1 through it and the following 3 min, so no 0xD0 or 2 there either. The BMS answered
+        at 10:16:20.6 with BMS_MAIN_RELAY 0 and VCU_IG3_ON_MIRROR still 1, last at 10:16:23.3 with
+        it 0; the OBC last answered at 10:16:23.7, 2.6 s after the VCU read 0x80, and the VCU at
+        10:19:25. The US logs show B11 = 0xD0 and VCU_POWER_STATE 2 at power-off, then 0x80.
       sources:
         - canair response-presence analysis 2026-10-23; JejuSoul US Ioniq logs
       what_to_test:

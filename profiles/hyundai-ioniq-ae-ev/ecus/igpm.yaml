@@ -68,10 +68,11 @@ IGPM:
           expression: "B12:3"
           notes: >-
             ScanDoc 'Ignition 3 Relay' (actuator BC44): the IGPM's own IG3 relay output. 1 in READY
-            (60 of 61 aligned VCU 2101 rows) and through the parked 12 V top-up (2026-10-21); 0
-            while charging with the ignition off (239 of 242 BMS charging rows), from the first
-            sample of both 2026-08-08 DC fast charges. Not the same signal as OBC_AC_NOT_CONNECTED,
-            which reads 1 through those DC charges.
+            (60 of 61 aligned VCU 2101 rows) and through the parked 12 V top-ups (2026-10-21,
+            2026-10-30, 2026-11-03); at the 2026-11-03 top-up end it fell in the same 2 s as
+            VCU_IG3_ON and the HV main relay opening. 0 while charging with the ignition off (239 of
+            242 BMS charging rows), from the first sample of both 2026-08-08 DC fast charges. Not
+            the same signal as OBC_AC_NOT_CONNECTED, which reads 1 through those DC charges.
           source: align vs VCU 2101 and BMS 2101 over stored captures, 2026-10-23
         CHARGE_DOOR_LAMP_REAR:
           expression: B12:2
@@ -900,7 +901,7 @@ IGPM:
       priority: P2
       vehicle_states: [READY, CHARGING, PLUGGED]
       created: "2026-10-23"
-      updated: "2026-10-23"
+      updated: "2026-11-03"
       notes: >-
         Factory wiring (a US-market diagram; the captures are from the EU car): the IG3 #1 relay
         closes the EV IG3 supply while the HV controller operates, except during charging, and its
@@ -908,7 +909,11 @@ IGPM:
         runs to the AVN head unit's 'IG3 relay control' pins (see the AVN research entry).
         IG3_RELAY_OUTPUT follows the #1 pattern: 1 in READY and the parked 12 V top-up, 0 while
         charging with the ignition off, 1 in a charging session with the ignition on. Not excluded:
-        it is the IGPM's request for the Main relay it controls, or another IG3 path.
+        it is the IGPM's request for the Main relay it controls, or another IG3 path. At the end of
+        the 2026-11-03 top-up it read 1 at 10:16:20.0 and 0 at 10:16:21.6; the BMS reported the main
+        relay open at 10:16:20.6 (closed at 10:16:18.4) and the VCU read VCU_IG3_ON 0 at 10:16:21.1
+        (1 at 10:16:19.0), so the three fell within the same 2 s and their order is not resolved. It
+        was the only IGPM or BCM bit that moved during that top-up.
       sources:
         - align over stored captures 2026-10-23
       what_to_test:
@@ -1069,22 +1074,34 @@ IGPM:
       priority: P2
       vehicle_states: [SLEEP, TOPUP]
       created: "2026-10-30"
-      updated: "2026-10-30"
+      updated: "2026-11-03"
       result: >-
-        Not settled. The VCU cannot start itself: on uhi22's bench the EPCU's supply came up only
-        from its wake-line pin (CN1000 3P), and IG3 is that rail (VCU_IG3_ON). Leading candidate:
-        the IGPM's IG3 relay output (22BC07 B12:3), which reads 1 for the whole 2026-10-21 top-up.
-        The VCU ends it: the HV relay was open by 21:17:08, IG3 fell by 21:17:11 and the IGPM bit by
-        21:17:21. Not excluded: the BCM, which measures the 12 V battery during deep sleep, asking
-        the IGPM to close the relay.
+        Start not settled; the end is ordered from the HV side. In the 2026-10-21 and 2026-11-03
+        top-ups the LDC stopped with the BMS still awake, and the HV main relay opened while the BMS
+        still read IG3 on (B61:3); VCU_IG3_ON and the IGPM bit (22BC07 B12:3) fell within the same 2
+        s, and no other IGPM or BCM bit moved. The VCU cannot start itself: on uhi22's bench the
+        EPCU's supply came up only from its wake-line pin (CN1000 3P), which VCU_IG3_ON follows.
+        Leading candidate for the start: the IGPM's IG3 relay output. Not excluded: the BCM, which
+        measures the 12 V battery during deep sleep, asking the IGPM to close the relay.
       notes: >-
-        Only one top-up is recorded (2026-10-21), joined mid-run, so its start is missing. The other
-        parked VCU wake-ups in the captures are charging sessions polled about once a minute, too
-        coarse to order. The 2017 owner's manual has Aux. Battery Saver+ run with the car off and
-        doors, hood and tailgate closed, every 72 hours for at most 20 minutes; uhi22 reports a
-        24-hour cycle. The VCU stayed alive at least 3 minutes after IG3 fell. The gateway clock on
-        0x567 does not tick until the head unit's time arrives, so nothing shows the IGPM keeping
-        calendar time while asleep. Background: research/IGPM_FINDINGS.md sections 5, 6.2 and 8.
+        Three top-ups are recorded (2026-10-21, 2026-10-30, 2026-11-03), all joined mid-run with the
+        relay already closed and the LDC at 14.6 V: a sleeping WiCAN wakes only when the 12 V rises
+        above its wake threshold, which happens once the LDC runs, so it cannot record a start.
+        2026-11-03 (VCU and BMS 2101 polled every 2 s, IGPM 22BC07 every 2.6 s): pack current
+        tapered from 0.8 A (290 W) at 09:56:53 to the 0.1 A floor by 10:11, and the top-up ended 5
+        min later. End: OBC LDC_OUTPUT_V 14.59 V at 10:16:18.8 and VCU B11 0x10 at 10:16:19.0; IGPM
+        bit 1 at 10:16:20.0; BMS at 10:16:20.6 with the relay open, 12 V 13.5 V, DC link 356 V and
+        B61:3 still 1; VCU B11 0x80 at 10:16:21.1; IGPM bit 0 at 10:16:21.6; BMS (B61 0x01) and OBC
+        last answered at 10:16:23.3 and 10:16:23.7, the VCU at 10:19:25. 2026-10-21: BMS read the
+        relay closed with the 12 V already at 13.9 V at 21:17:08.8, the DC link was 19 V at
+        21:17:10.0 and VCU_IG3_ON 0 at 21:17:11.3. 2026-10-30 was polled every 20 s and ended
+        between 13:39:59.8 and 13:40:17.7. Recorded lengths: at least 16 min (10-21), 13 min (10-30)
+        and 19 min 27 s (11-03), the last ending 5 min after the current had tapered, so a timer end
+        is likely. The 2017 owner's manual has Aux. Battery Saver+ run with the car off and doors,
+        hood and tailgate closed, every 72 hours for at most 20 minutes; uhi22 reports a 24-hour
+        cycle. The gateway clock on 0x567 does not tick until the head unit's time arrives, so
+        nothing shows the IGPM keeping calendar time while asleep. Background:
+        research/IGPM_FINDINGS.md sections 5, 6.2 and 8.
       sources:
         - uhi22 EPCU readme (CN1000 3P wake line, bench power-up)
         - Hyundai Ioniq Electric 2017 owner's manual, Aux. Battery Saver+ (Cycle Mode)
