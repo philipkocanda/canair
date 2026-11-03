@@ -17,6 +17,8 @@ module owns the CLI surface and the actions; its collaborators own the rest:
 * :mod:`canlib.commands._contribute_report` — the human/``--json`` duality every
   outcome is reported through.
 * :mod:`canlib.contribute` — the git/gh orchestration (device-free testable).
+* :mod:`canlib.contribute_source` — which of the source checkout's changes the
+  contribution holds, so they can be dropped once the PR is open.
 * :mod:`canlib.pii` — the privacy scan the PII gate runs.
 
 The user-facing ``--help`` text is :data:`_DESCRIPTION`, deliberately separate
@@ -74,7 +76,7 @@ examples:
   canair contribute --no-captures       # contribute definitions only
   canair contribute --diff              # show what would be contributed, then stop
   canair contribute --dry-run           # prepare the branch + commit locally; no push/PR
-  canair contribute --include-logs      # attach the scrubbed diagnostics log for debugging
+  canair contribute --no-logs           # leave the scrubbed diagnostics log out of the PR
   canair contribute --yes --json        # non-interactive (agents/CI); emit the PR URL
 
 requires the GitHub CLI:
@@ -106,12 +108,21 @@ requires the GitHub CLI:
         help="Pull request body (default: generated summary of the car, ECUs, states, "
         "sessions and link quality, plus a checklist)",
     )
-    parser.add_argument(
+    logs = parser.add_mutually_exclusive_group()
+    logs.add_argument(
         "--include-logs",
+        dest="include_logs",
         action="store_true",
+        default=True,
         help="Attach the diagnostics log (canair logs) entries written while the contributed "
         "sessions were recording to the PR body, for debugging; device addresses, local "
-        "paths, emails and VINs are scrubbed",
+        "paths, emails and VINs are scrubbed (default)",
+    )
+    logs.add_argument(
+        "--no-logs",
+        dest="include_logs",
+        action="store_false",
+        help="Leave the diagnostics log out of the PR body",
     )
     parser.add_argument(
         "--repo-dir",
@@ -129,6 +140,23 @@ requires the GitHub CLI:
         help="Show the diff this contribution would submit, then stop (no commit/push/PR)",
     )
     parser.add_argument("-y", "--yes", action="store_true", help="Skip confirmation prompts")
+    local = parser.add_mutually_exclusive_group()
+    local.add_argument(
+        "--discard-local",
+        dest="local_changes",
+        action="store_const",
+        const="discard",
+        help="Once the PR is open, drop the changes it carries from your canair checkout "
+        "(backed up first), so pulling the merged PR does not conflict with them. Without "
+        "this or --keep-local you are asked; with --yes or --json they are kept",
+    )
+    local.add_argument(
+        "--keep-local",
+        dest="local_changes",
+        action="store_const",
+        const="keep",
+        help="Leave your checkout's uncommitted profile changes alone without asking",
+    )
     parser.add_argument("--json", action="store_true", help="Emit a machine-readable summary")
     parser.set_defaults(func=run)
     return parser
@@ -150,6 +178,7 @@ class _Contribution:
     pre: C.Preflight
     workspace: Path
     mode: str = ""
+    staged: bool = False  # the profile is (being) copied into the workspace
     rollback: list[tuple[str, int]] = field(default_factory=list)
     replaced: list[C.CaptureReplacement] = field(default_factory=list)
     findings: list[Any] = field(default_factory=list)
@@ -195,28 +224,31 @@ def _contribute(args, rep: Reporter) -> int:
         pre=pre,
         workspace=workspace,
     )
-    if (no_changes := _stage_contribution(run_)) is not None:
-        return no_changes
-    if args.diff:
-        return _report_diff(run_)
+    try:
+        if (no_changes := _stage_contribution(run_)) is not None:
+            return no_changes
+        if args.diff:
+            return _report_diff(run_)
 
-    run_.findings = gates.privacy(
-        rep,
-        profile,
-        pre,
-        workspace,
-        include_captures=include_captures,
-        rollback=run_.rollback,
-    )
-    gates.captures(
-        rep,
-        profile,
-        pre,
-        workspace,
-        include_captures=include_captures,
-        replaced=run_.replaced,
-    )
-    return _submit(run_)
+        run_.findings = gates.privacy(
+            rep,
+            profile,
+            pre,
+            workspace,
+            include_captures=include_captures,
+            rollback=run_.rollback,
+        )
+        gates.captures(
+            rep,
+            profile,
+            pre,
+            workspace,
+            include_captures=include_captures,
+            replaced=run_.replaced,
+        )
+        return _submit(run_)
+    finally:
+        _discard_staged(run_)
 
 
 # --- stages -----------------------------------------------------------------
@@ -300,6 +332,7 @@ def _stage_contribution(run_: _Contribution) -> int | None:
                 f"  [red]could not create branch {run_.branch}:[/red] [dim]{br.output}[/dim]"
             ),
         )
+    run_.staged = True
 
     _make_hermetic(run_)
 
@@ -313,11 +346,10 @@ def _stage_contribution(run_: _Contribution) -> int | None:
 
     if not C.has_changes(pre, workspace, run_.profile.name):
         msg = "No changes to contribute — the upstream profile already matches yours."
-        return rep.done(
-            lambda: rep.console.print(f"\n  [green]{msg}[/green]"),
-            no_changes=True,
-            message=msg,
-        )
+        if not rep.json_mode:
+            rep.console.print(f"\n  [green]{msg}[/green]")
+        local = None if run_.args.diff or run_.args.dry_run else _tidy_source(run_)
+        return rep.done(lambda: None, no_changes=True, message=msg, local_changes=local)
 
     # Curated definitions normally only grow, so a diff that *removes* committed
     # upstream lines suggests a stale source. Computed here because both --diff
@@ -361,8 +393,9 @@ def _pr_body(run_: _Contribution) -> str:
     summary = run_.summary
     rendered = S.render_markdown(summary, include_captures=run_.include_captures) if summary else ""
     logs = ""
-    if getattr(run_.args, "include_logs", False):
-        sessions = summary.sessions if summary else []
+    sessions = summary.sessions if summary else []
+    # On by default, so a PR without new sessions gets no "nothing attached" section.
+    if getattr(run_.args, "include_logs", False) and sessions:
         excerpt = L.collect(L.session_windows((s.date, s.start, s.end) for s in sessions))
         logs = L.render_markdown(excerpt)
         run_.rep.note(log_lines=len(excerpt.lines))
@@ -431,7 +464,6 @@ def _report_diff(run_: _Contribution) -> int:
     """``--diff``: show exactly what would be contributed, then stop."""
     rep, pre, workspace = run_.rep, run_.pre, run_.workspace
     diff = C.diff_profile(pre, workspace, run_.profile.name)
-    _discard_preview(run_)
 
     def show() -> None:
         from rich.syntax import Syntax
@@ -457,18 +489,21 @@ def _report_diff(run_: _Contribution) -> int:
     )
 
 
-def _discard_preview(run_: _Contribution) -> None:
-    """Drop the copy ``--diff`` staged, so the next run starts from a clean workspace.
+def _discard_staged(run_: _Contribution) -> None:
+    """Drop whatever the run copied in but did not commit, however it ended.
 
-    Without this, the preview-then-contribute workflow would meet the leftovers
-    prompt every time. Managed workspace only: a ``--repo-dir`` may hold the
-    user's own uncommitted work alongside the copy.
+    A ``--diff`` preview, a declined gate, ``--json`` without ``--yes`` or a failed
+    commit all leave the copy uncommitted, and the next run would meet it as a
+    leftover. The copy is derived from the source and upstream alone, so nothing
+    is lost: a commit (including a ``--dry-run`` one) survives, since this resets
+    to ``HEAD``. Managed workspace only: a ``--repo-dir`` may hold the user's own
+    uncommitted work alongside the copy.
     """
-    if not C.is_managed_workspace(run_.workspace):
+    if not run_.staged or not C.is_managed_workspace(run_.workspace):
         return
     failed = next((s for s in C.discard_local_changes(run_.pre, run_.workspace) if not s.ok), None)
     if failed is not None:
-        run_.rep.warn(f"could not clean up the staged preview: {failed.output}")
+        run_.rep.warn(f"could not clean up the staging workspace: {failed.output}")
 
 
 def _submit(run_: _Contribution) -> int:
@@ -562,7 +597,8 @@ def _push_and_open_pr(run_: _Contribution) -> int:
             rep.console.print(f"\n  [green]✓ Updated pull request #{number}:[/green] {url}")
             rep.console.print("  Thank you for contributing! 🎉")
 
-        return rep.done(
+        return _finish(
+            run_,
             updated,
             dry_run=False,
             findings=findings_json(run_.findings),
@@ -593,12 +629,92 @@ def _push_and_open_pr(run_: _Contribution) -> int:
         rep.console.print(f"\n  [green]✓ Pull request opened:[/green] {pr_url}")
         rep.console.print("  Thank you for contributing! 🎉")
 
-    return rep.done(
+    return _finish(
+        run_,
         celebrate,
         dry_run=False,
         findings=findings_json(run_.findings),
         pr_url=pr_url,
         pr_updated=False,
+    )
+
+
+def _finish(run_: _Contribution, human, **extra: Any) -> int:
+    """Report the open PR, then offer to tidy the source checkout it came from."""
+    if not run_.rep.json_mode:
+        human()
+    return run_.rep.done(lambda: None, **extra, local_changes=_tidy_source(run_))
+
+
+def _tidy_source(run_: _Contribution) -> dict[str, Any] | None:
+    """Offer to drop the source checkout's changes that the contribution now holds.
+
+    A profile recorded in a canair checkout keeps those changes uncommitted on its
+    branch, so pulling the merged PR would conflict with them. Only changes the
+    workspace's ``HEAD`` holds exactly are offered (:mod:`canlib.contribute_source`);
+    the rest are listed and left alone. Asked interactively, kept under ``--yes`` or
+    ``--json`` unless ``--discard-local`` says otherwise.
+    """
+    from .. import contribute_source as src
+
+    rep = run_.rep
+    changes = src.find_changes(run_.pre, run_.profile.root, run_.profile.name, run_.workspace)
+    if changes is None or not changes.held:
+        return None
+    report: dict[str, Any] = {
+        "checkout": str(changes.checkout),
+        "paths": changes.held,
+        "not_contributed": changes.not_held,
+        "action": "kept",
+        "backup": None,
+    }
+    backup = C.backup_dir() / f"{datetime.now():%Y%m%d-%H%M%S}-source"
+    choice = getattr(run_.args, "local_changes", None)
+    if choice is None and not (rep.json_mode or rep.yes):
+        _show_source_changes(run_, changes, backup)
+        choice = "discard" if confirm("Discard them?", False, json_mode=False) else "keep"
+    if choice != "discard":
+        if not rep.json_mode and getattr(run_.args, "local_changes", None) is None:
+            rep.console.print(
+                "  Kept. Drop them before pulling the merged PR, or re-run with "
+                "[cyan]--discard-local[/cyan]."
+            )
+        return report
+
+    failed = src.discard(run_.pre, changes, backup)
+    report["backup"] = str(backup)
+    if failed:
+        rep.warn(f"could not discard the contributed changes: {failed[0].output}")
+        report["action"] = "failed"
+        return report
+    report["action"] = "discarded"
+    if not rep.json_mode:
+        rep.console.print(
+            f"  [green]✓[/green] Discarded {len(changes.held)} change(s) from "
+            f"{changes.checkout}; backup → {backup}"
+        )
+    return report
+
+
+def _show_source_changes(run_: _Contribution, changes, backup: Path) -> None:
+    console = run_.rep.console
+    console.print(
+        f"\n  Your checkout [dim]{changes.checkout}[/dim] still holds {len(changes.held)} "
+        f"uncommitted change(s)\n  under [cyan]profiles/{run_.profile.name}/[/cyan] that "
+        "the contribution already holds:\n"
+    )
+    for path in changes.held[:10]:
+        console.print(f"    [dim]{path}[/dim]")
+    if len(changes.held) > 10:
+        console.print(f"    [dim]… and {len(changes.held) - 10} more[/dim]")
+    if changes.not_held:
+        console.print(
+            f"\n  {len(changes.not_held)} other change(s) there are not in the PR and are "
+            "left alone."
+        )
+    console.print(
+        "\n  Pulling the merged PR would conflict with them. Discarding restores them to\n"
+        f"  your last commit, after a backup to [cyan]{backup}[/cyan].\n"
     )
 
 

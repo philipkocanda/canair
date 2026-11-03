@@ -674,12 +674,21 @@ reuse these instead of re-declaring a flag:
   cleared before branching:** an earlier run's uncommitted copy makes `checkout -B` refuse
   whenever the old branch and the base disagree on a path, so `gates.leftovers` asks (`--yes`
   passes), the files are copied to `contribute.backup_dir()` (outside the clone), and
-  `discard_local_changes` resets to `HEAD` (keeping an earlier `--dry-run` commit). `--diff`
-  discards its own preview the same way, so preview-then-contribute never prompts. A user's own
+  `discard_local_changes` resets to `HEAD` (keeping an earlier `--dry-run` commit). **Every run
+  discards its own uncommitted copy on the way out** (`_discard_staged`, in a `finally`), so a
+  `--diff`, a declined gate or `--json` without `--yes` never leaves one for the next run; the
+  gate is left for crashes. A user's own
   `--repo-dir` is **never** reset; it is warned about instead (`_own_checkout_is_clean`), gated on
   `is_managed_workspace`. **A re-run updates the open PR** rather than failing: the branch name is
   date-based, so `find_open_pr` looks it up (`gh pr list --head <plain branch>`) after the push and
-  reports `updated PR #N` as success instead of letting `gh pr create` error.
+  reports `updated PR #N` as success instead of letting `gh pr create` error. **Once the PR is
+  open (or the profile already matches upstream), the source checkout is offered a clean-up**:
+  when the profile sits at `profiles/<name>` of a git checkout, its uncommitted changes that the
+  workspace's `HEAD` holds exactly are backed up and restored to `HEAD` on request
+  (`--discard-local`/`--keep-local`, else asked; kept under `--yes`/`--json`), so pulling the
+  merged PR does not conflict. "Holds exactly" is `canlib/contribute_source.py` (blob identity
+  through the clone's filters, or a capture log the overlay would not change); anything else is
+  left alone.
   Captures are **overlaid** (append-only, `canlib/captures/merge.py::overlay`), so a
   source behind upstream never proposes deleting upstream sessions, and a capture log it adds
   nothing to stays byte-identical. A source session sharing an upstream one's **anchor** (see

@@ -1028,3 +1028,33 @@ class TestExistingPullRequest:
         assert payload["pr_url"] == "https://github.com/x/canair/pull/7"
         assert payload["pr_updated"] is True
         assert payload["branch"].startswith("contribute/testcar-")
+
+
+class TestLogsDefault:
+    """The diagnostics log rides along unless the contributor opts out."""
+
+    def _parse(self, *argv):
+        parser = argparse.ArgumentParser()
+        cmd.add_parser(parser.add_subparsers())
+        return parser.parse_args(["contribute", *argv])
+
+    def test_logs_are_attached_by_default(self):
+        assert self._parse().include_logs is True
+
+    def test_no_logs_opts_out(self):
+        assert self._parse("--no-logs").include_logs is False
+
+    def test_a_pr_without_sessions_gets_no_log_section(self, tmp_path):
+        from canlib import contribute_summary as S
+
+        run_ = cmd._Contribution(
+            args=_cmd_args(include_logs=True),
+            rep=_reporter(),
+            profile=_make_profile(tmp_path / "prof"),
+            branch="contribute/testcar-20261103",
+            include_captures=True,
+            pre=_ready(),
+            workspace=tmp_path / "ws",
+            summary=S.ContributionSummary(),
+        )
+        assert "Diagnostics log" not in cmd._pr_body(run_)

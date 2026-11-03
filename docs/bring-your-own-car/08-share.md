@@ -134,7 +134,7 @@ canair contribute            # PR the active profile (definitions + captures)
 canair contribute --no-captures   # definitions only (smaller)
 canair contribute --diff          # show exactly what would be contributed, then stop
 canair contribute --dry-run       # prepare it locally, but don't push/open the PR
-canair contribute --include-logs  # attach your diagnostics log so maintainers can debug
+canair contribute --no-logs       # leave the scrubbed diagnostics log out of the PR
 ```
 
 It copies your profile into a fork of the repo and opens the PR against
@@ -180,11 +180,12 @@ were tagged with, the ECUs and vehicle states covered, the session and capture c
 link quality (transport errors, resyncs, disconnects). A re-run regenerates it. `--dry-run`
 prints it, and `--body` replaces it.
 
-`--include-logs` adds the diagnostics log (`canair logs`) entries written while the contributed
-sessions were recording, from shortly before each session's first capture to shortly after its
-last, so a maintainer can see what your link did; other sessions' entries are left out. Device
-addresses, local paths, email addresses and VINs are replaced with placeholders, and the excerpt
-is capped to fit the PR description; check it in the `--dry-run` output if you want to be sure.
+The PR description also carries the diagnostics log (`canair logs`) entries written while the
+contributed sessions were recording, from shortly before each session's first capture to shortly
+after its last, so a maintainer can see what your link did; other sessions' entries are left out,
+and a PR that adds no sessions gets none. Device addresses, local paths, email addresses and VINs
+are replaced with placeholders, and the excerpt is capped to fit the PR description; check it in
+the `--dry-run` output if you want to be sure, or pass `--no-logs` to leave it out.
 
 !!! tip "Run it from your own checkout"
 
@@ -193,13 +194,23 @@ is capped to fit the PR description; check it in the `--dry-run` output if you w
     which is exactly where this command *writes*. canair refuses that case; the fix is to run
     `canair contribute` from your own checkout (or wherever your profile lives).
 
-    The clone is rebuilt from upstream on every run, and `--diff` cleans up its preview, so
-    nothing staged earlier can ride along in a later PR. When an interrupted or refused run left
+    The clone is rebuilt from upstream on every run, and every run cleans up what it staged
+    there, so nothing staged earlier can ride along in a later PR. When an interrupted run left
     a contribution staged there, canair lists the files and asks before discarding them, after
     copying them to `~/.config/canair/contribute/backups/<timestamp>/` (`--yes` discards without
     asking, still backing up). Your own checkout is never reset: if you point `--repo-dir` at one
     with uncommitted changes under `profiles/<your-car>/`, canair lists them and asks first,
     since everything in that directory is committed.
+
+!!! tip "Recording in a canair checkout? Drop what the PR carries"
+
+    When your profile lives in a clone of canair (`profiles/<your-car>/`), the captures and
+    edits you contribute stay uncommitted there, and pulling the merged PR would conflict with
+    them. Once the PR is open, canair lists the changes the PR holds exactly and asks whether
+    to discard them. It backs them up to `~/.config/canair/contribute/backups/` first, and
+    leaves alone anything the PR does not hold. `--discard-local` and `--keep-local` answer
+    without asking; with `--yes` or `--json` and neither flag, they are kept. A profile outside
+    a canair checkout (such as `~/.config/canair/profiles/`) is never touched.
 
 Not sure what you're about to send? Run `canair contribute --diff` first — it
 prepares everything and prints the full diff of `profiles/<your-car>/` vs

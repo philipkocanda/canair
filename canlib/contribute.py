@@ -434,11 +434,24 @@ def leftover_changes(pre: Preflight, workspace: Path) -> list[str]:
     why they are cleared (after a backup) *before* branching.
     """
     assert pre.git
-    res = _run(
-        [pre.git, "-C", str(workspace), "status", "--porcelain=v1", "-z", "--untracked-files=all"]
-    )
-    fields = res.stdout.split("\0")
-    paths: list[str] = []
+    return [
+        path
+        for code, path in status_entries(pre.git, workspace)
+        if code != "??" or path.startswith("profiles/")
+    ]
+
+
+def status_entries(git: str, repo: Path, *pathspec: str) -> list[tuple[str, str]]:
+    """``(XY code, repo-relative path)`` for every uncommitted change in ``repo``.
+
+    Untracked files are listed one by one. A rename or copy is reported as its
+    destination; its source path is dropped.
+    """
+    cmd = [git, "-C", str(repo), "status", "--porcelain=v1", "-z", "--untracked-files=all"]
+    if pathspec:
+        cmd += ["--", *pathspec]
+    fields = _run(cmd).stdout.split("\0")
+    entries: list[tuple[str, str]] = []
     i = 0
     while i < len(fields):
         entry = fields[i]
@@ -448,10 +461,8 @@ def leftover_changes(pre: Preflight, workspace: Path) -> list[str]:
         code, path = entry[:2], entry[3:]
         if code[0] in "RC":
             i += 1  # the rename/copy source follows as its own field
-        if code == "??" and not path.startswith("profiles/"):
-            continue
-        paths.append(path)
-    return paths
+        entries.append((code, path))
+    return entries
 
 
 def backup_dir() -> Path:
@@ -463,12 +474,15 @@ def backup_dir() -> Path:
     return workspace_dir().parent / "backups"
 
 
-def backup_leftovers(workspace: Path, paths: list[str], dest: Path) -> Path:
+def backup_leftovers(
+    workspace: Path, paths: list[str], dest: Path, *, heading: str | None = None
+) -> Path:
     """Copy each leftover in ``paths`` from ``workspace`` into ``dest``.
 
     Files are copied verbatim (no git filters, so LFS-tracked capture logs keep
     their content), preserving their repo-relative paths. A path that no longer
-    exists (a deletion) is only listed in the ``MANIFEST.txt`` written alongside.
+    exists (a deletion) is only listed in the ``MANIFEST.txt`` written alongside,
+    under ``heading``.
     """
     dest.mkdir(parents=True, exist_ok=True)
     lines = []
@@ -481,9 +495,8 @@ def backup_leftovers(workspace: Path, paths: list[str], dest: Path) -> Path:
             lines.append(f"saved    {rel}")
         else:
             lines.append(f"deleted  {rel}")
-    (dest / "MANIFEST.txt").write_text(
-        f"Uncommitted leftovers discarded from {workspace}\n\n" + "\n".join(lines) + "\n"
-    )
+    heading = heading or f"Uncommitted leftovers discarded from {workspace}"
+    (dest / "MANIFEST.txt").write_text(f"{heading}\n\n" + "\n".join(lines) + "\n")
     return dest
 
 

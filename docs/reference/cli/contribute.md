@@ -6,9 +6,10 @@
 
 ```
 usage: canair contribute [-h] [--captures | --no-captures] [--branch BRANCH]
-                         [--title TITLE] [--body BODY] [--include-logs]
-                         [--repo-dir REPO_DIR] [--dry-run] [--diff] [-y]
-                         [--json]
+                         [--title TITLE] [--body BODY]
+                         [--include-logs | --no-logs] [--repo-dir REPO_DIR]
+                         [--dry-run] [--diff] [-y]
+                         [--discard-local | --keep-local] [--json]
 
 Open a pull request contributing the active profile upstream.
 
@@ -32,7 +33,8 @@ options:
   --include-logs       Attach the diagnostics log (canair logs) entries
                        written while the contributed sessions were recording
                        to the PR body, for debugging; device addresses, local
-                       paths, emails and VINs are scrubbed
+                       paths, emails and VINs are scrubbed (default)
+  --no-logs            Leave the diagnostics log out of the PR body
   --repo-dir REPO_DIR  Use this existing canair checkout (with a fork as
                        'origin') instead of the managed fork clone
   --dry-run            Prepare the branch and commit locally, but do not push
@@ -40,6 +42,13 @@ options:
   --diff               Show the diff this contribution would submit, then stop
                        (no commit/push/PR)
   -y, --yes            Skip confirmation prompts
+  --discard-local      Once the PR is open, drop the changes it carries from
+                       your canair checkout (backed up first), so pulling the
+                       merged PR does not conflict with them. Without this or
+                       --keep-local you are asked; with --yes or --json they
+                       are kept
+  --keep-local         Leave your checkout's uncommitted profile changes alone
+                       without asking
   --json               Emit a machine-readable summary
 
 examples:
@@ -48,7 +57,7 @@ examples:
   canair contribute --no-captures       # contribute definitions only
   canair contribute --diff              # show what would be contributed, then stop
   canair contribute --dry-run           # prepare the branch + commit locally; no push/PR
-  canair contribute --include-logs      # attach the scrubbed diagnostics log for debugging
+  canair contribute --no-logs           # leave the scrubbed diagnostics log out of the PR
   canair contribute --yes --json        # non-interactive (agents/CI); emit the PR URL
 
 requires the GitHub CLI:

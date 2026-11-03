@@ -147,9 +147,10 @@ fork/clone/branch/push, and it works regardless of where the profile is stored
 
 Useful modes (verify against `--help`): `--no-captures` (definitions-only PR),
 `--dry-run` (prepare branch+commit, no push/PR, prints the generated PR body),
-`--include-logs` (attach the scrubbed `canair logs` excerpt for debugging), `--yes` (non-interactive, for
-agents/CI), `--json` (emit the PR URL + findings), `--profile NAME` to target a
-specific profile.
+`--no-logs` (leave out the scrubbed `canair logs` excerpt the PR body carries by default),
+`--discard-local` (drop the changes the PR holds from your canair checkout once it is open),
+`--yes` (non-interactive, for agents/CI), `--json` (emit the PR URL + findings), `--profile NAME`
+to target a specific profile.
 
 **Prefer doing it by hand?** A normal PR putting the bundle under
 `profiles/<your-car>/` works just as well — but you still owe the same
