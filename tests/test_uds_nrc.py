@@ -2,7 +2,13 @@
 
 import pytest
 
-from canlib.uds.nrc import NRC_ABBREV, NRC_CODES, nrc_abbrev, nrc_description
+from canlib.uds.nrc import (
+    NRC_ABBREV,
+    NRC_CODES,
+    is_response_pending,
+    nrc_abbrev,
+    nrc_description,
+)
 from canlib.uds.parse import parse_uds_response
 from canlib.uds.protocol import KWP, UDS, UNKNOWN
 
@@ -66,6 +72,16 @@ class TestNrcNames:
         r = parse_uds_response("7F31F4", expected_sid=0x31)
         assert r["nrc"] == 0xF4
         assert r["nrc_desc"] == "vehicleManufacturerSpecificConditionsNotCorrect"
+
+
+class TestResponsePending:
+    def test_only_a_7f_78_reply_is_pending(self):
+        assert is_response_pending(bytes.fromhex("7F2278"))
+        assert is_response_pending(bytes.fromhex("7F2278"), 0x22)
+        assert not is_response_pending(bytes.fromhex("7F2278"), 0x21)
+        assert not is_response_pending(bytes.fromhex("7F2231"))
+        assert not is_response_pending(bytes.fromhex("622278"))
+        assert not is_response_pending(bytes.fromhex("7F22"))
 
 
 class TestNameAndMnemonicAgree:

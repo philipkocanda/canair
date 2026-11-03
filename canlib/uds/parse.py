@@ -21,7 +21,7 @@ from __future__ import annotations
 import re
 
 from canlib.uds.echo import echo_mismatch
-from canlib.uds.nrc import nrc_description
+from canlib.uds.nrc import is_response_pending, nrc_description
 from canlib.uds.response import (
     CAT_BUS,
     CAT_DECODE,
@@ -59,8 +59,6 @@ _HEX_DIGITS = frozenset("0123456789ABCDEF")
 _FRAME_LINE = re.compile(r"([0-9A-F])\s*:\s*([0-9A-F][0-9A-F ]*)")
 # The bare-hex ISO-TP First Frame length an adapter prints before the frame lines.
 _LENGTH_TOKEN = re.compile(r"[0-9A-F]{1,4}")
-# UDS ResponsePending (`7F <sid> 78`): an interim "still working" frame.
-_PENDING_LINE = re.compile(r"7F[0-9A-F]{2}78")
 
 
 def _compact(line: str) -> str:
@@ -69,6 +67,16 @@ def _compact(line: str) -> str:
 
 def _is_hex(text: str) -> bool:
     return bool(text) and set(text) <= _HEX_DIGITS
+
+
+def _is_pending_line(line: str) -> bool:
+    """True for a line that is exactly an interim ResponsePending (``7F <sid> 78``).
+
+    The whole line must be the 3-byte NRC, so a reply merely *containing* those bytes
+    (``62 01 7F 22 78``) is never taken for one.
+    """
+    text = _compact(line)
+    return len(text) == 6 and _is_hex(text) and is_response_pending(bytes.fromhex(text))
 
 
 def _is_flow_control_echo(line: str) -> bool:
@@ -294,10 +302,12 @@ def parse_uds_response(
         lines = lines[1:]
         if not lines:
             return _fail(CAT_NO_DATA, "Empty response (only the request echo)")
-    # An interim ResponsePending frame ahead of the answer is not part of it; only
-    # when nothing followed is it reported (as the NRC it is).
-    while len(lines) > 1 and _PENDING_LINE.fullmatch(_compact(lines[0])):
-        lines = lines[1:]
+    # An interim ResponsePending frame is not an answer, wherever it sits — ahead of
+    # the reply, or between a late reply to an earlier request and this one's. Only
+    # when it is the last line is it reported (as the NRC it is): the answer it
+    # promises has not arrived.
+    last = len(lines) - 1
+    lines = [line for i, line in enumerate(lines) if i == last or not _is_pending_line(line)]
     if len(lines) > 1 and not _is_multiframe(lines):
         sid = expected_sid if expected_sid is not None else _request_sid(request)
         try:

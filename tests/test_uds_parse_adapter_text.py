@@ -54,6 +54,18 @@ class TestResponsePending:
         r = parse_uds_response("7F2278", expected_sid=0x22)
         assert r["nrc"] == 0x78
 
+    def test_a_pending_line_between_replies_is_not_a_competing_answer(self):
+        # A late reply to an earlier read, then this read's pending frame and its answer.
+        raw = "6201AABB\n7F2278\n620202CC\n"
+        r = parse_uds_response(raw, expected_sid=0x22, expected_echo=b"\x02\x02", request="220202")
+        assert r["ok"] is True
+        assert r["hex"] == "620202CC"
+
+    def test_a_reply_containing_the_pending_bytes_is_not_dropped(self):
+        r = parse_uds_response("62017F2278", expected_sid=0x22, expected_echo=b"\x01\x7f")
+        assert r["ok"] is True
+        assert r["hex"] == "62017F2278"
+
 
 class TestAdapterLines:
     def test_searching_is_a_progress_line(self):

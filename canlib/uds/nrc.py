@@ -10,7 +10,25 @@ name and the mnemonic of a code can never disagree.
 
 from __future__ import annotations
 
+from typing import Final
+
 from canlib.uds.protocol import KWP, UDS
+from canlib.uds.services import NEGATIVE_RESPONSE_SID
+
+#: requestCorrectlyReceivedResponsePending: an interim "still working" answer, the same
+#: code on UDS and KWP2000. The ECU sends its real answer later.
+NRC_RESPONSE_PENDING: Final = 0x78
+
+
+def is_response_pending(reply: bytes, sid: int | None = None) -> bool:
+    """True when ``reply`` is a ResponsePending (``7F <sid> 78``), optionally for ``sid``."""
+    return (
+        len(reply) >= 3
+        and reply[0] == NEGATIVE_RESPONSE_SID
+        and reply[2] == NRC_RESPONSE_PENDING
+        and (sid is None or reply[1] == sid)
+    )
+
 
 # UDS Negative Response Code descriptions
 NRC_CODES = {
