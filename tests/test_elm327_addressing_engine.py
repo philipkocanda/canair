@@ -223,6 +223,46 @@ class TestResyncAndReset:
         assert await term.send_command("AT WS", timeout=0.05) == "OK"
 
 
+class TestAddressedEcuSurvivesForgetting:
+    """A resync forgets what the adapter holds, never which ECU the next request is for.
+
+    On the car, every request after a resync was keyed on a header of None, which all
+    ECUs share: a frame count learned on the driver door module was then sent to the
+    passenger one (`22F1872`). An undercount desyncs the pipe.
+    """
+
+    VCU = EcuAddress(0x7E2, 0x7EA)
+
+    @staticmethod
+    async def _read(term: Elm327Terminal, request: str) -> dict:
+        return await term.send_uds(
+            request, expected_sid=0x22, expected_echo=bytes.fromhex(request[2:])
+        )
+
+    @pytest.mark.asyncio
+    async def test_a_count_learned_after_a_resync_stays_with_its_ecu(self):
+        replies = {"22F190": ["GARBAGE", "GARBAGE"], "22F187": ["62F187AABB", "62F187CCDD"]}
+        term, ch = _terminal(BMS, self.VCU, replies=replies)
+        for tx_id in (0x7E4, 0x7E2):
+            await term.set_header(tx_id)
+            await self._read(term, "22F190")  # not a reply: the pipe resyncs
+            assert term._cur_header == tx_id
+            ch.sent.clear()
+            assert (await self._read(term, "22F187"))["ok"]
+            # The forgotten header is restated before the request, which goes out
+            # plain: the count the BMS taught belongs to the BMS.
+            assert ch.sent == [f"ATSH{tx_id:03X}", f"ATFCSH{tx_id:03X}", "ATCRA", "22F187"]
+        assert term._frame_counts.count_for((0x7E4, "22F187")) == 1
+        assert term._frame_counts.count_for((None, "22F187")) is None
+
+    @pytest.mark.asyncio
+    async def test_a_new_connection_addresses_nothing(self):
+        term, _ = _terminal(BMS)
+        await term.set_header(0x7E4)
+        await term.connect()
+        assert term._cur_header is None
+
+
 class TestIdleGap:
     @pytest.mark.asyncio
     async def test_a_long_gap_restates_the_addressing(self):

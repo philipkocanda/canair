@@ -251,10 +251,20 @@ class Elm327Terminal:
         # makes the next `set_header` restate everything.
         self._clock = time.monotonic
         self._last_command_at: float | None = None
+        # The ECU the caller last addressed, kept apart from `_address`, which is only
+        # what the adapter is known to hold: a resync, a reset or an idle gap forgets
+        # that, but not which ECU the next request is for.
+        self._addressed: tuple[int, ElmTarget] | None = None
 
     @property
     def _cur_header(self) -> int | None:
-        return self._address.header
+        """The header of the ECU the caller addressed, even while the adapter's is unknown.
+
+        What the frame-count key, the per-ECU timeout and the safety check are keyed
+        on. Reading the adapter's cached header instead keyed every request after a
+        resync on None, which all ECUs share.
+        """
+        return self._addressed[1].header if self._addressed is not None else None
 
     async def connect(self):
         """Open the underlying channel and reset ELM/session state."""
@@ -262,6 +272,7 @@ class Elm327Terminal:
         # A new connection may reach an adapter another tool or session configured.
         # `init_elm`'s ATZ normally resets it at once; until then nothing is assumed.
         self._address.forget()
+        self._addressed = None
         self._pipe.reset()
         self._resyncing = False
         # A learned frame count measures one link. A reconnect may have re-homed
@@ -641,6 +652,9 @@ class Elm327Terminal:
             if self.addresses.is_shared(tx_id):
                 self._report_shared(tx_id)
             target = target_in(self.addresses, tx_id)
+        # Recorded before anything is sent: if the adapter refuses the header, the
+        # next request tries again (and fails) instead of reaching the previous ECU.
+        self._addressed = (tx_id, target)
         for _ in range(_ADDRESSING_ROUNDS):
             epoch = self._address.epoch
             for cmd in self._address.plan(target, self.flow_control_data):
@@ -718,17 +732,19 @@ class Elm327Terminal:
             timeout = self.ecu_timeouts.get(self._cur_header, self.timeout)
         attempt = 0
         # The header cannot move under us here: `transaction()` locks out the
-        # keepalive and `send_uds` never re-points it. A resync does forget the
-        # addressing (it can no longer be trusted), so a retry after one first puts
-        # the header back.
+        # keepalive and `send_uds` never re-points it. A resync, an adapter reset or
+        # an idle gap does forget what the adapter holds (it can no longer be
+        # trusted), so every attempt first restates the addressed ECU; when nothing
+        # was forgotten that sends nothing.
         header = self._cur_header
         counting = self._frame_counts.attempt((header, service_pid))
         # One transaction for the whole retry sequence: a keepalive slipping in
         # between attempts would re-point the header and invalidate the retry.
         async with self.transaction():
             while True:
-                if header is not None and self._cur_header != header:
-                    await self.set_header(header)
+                if self._addressed is not None:
+                    tx_id, target = self._addressed
+                    await self.set_header(tx_id, target=target)
                 command = counting.command(service_pid)
                 raw = await self.send_command(command, timeout=timeout)
                 resp = parse_uds_response(
