@@ -189,16 +189,14 @@ def _is_multiframe(lines: list[str]) -> bool:
     return any(_FRAME_LINE.match(line.upper()) for line in lines)
 
 
-def _answers(reply: bytes, sid: int, echo: bytes, hk_f1xx_offset: bool) -> bool:
+def _answers(reply: bytes, sid: int, echo: bytes) -> bool:
     """Does ``reply`` answer a request of service ``sid`` (and identifier ``echo``)?"""
     if reply[0] == NEGATIVE_RESPONSE_SID:
         return len(reply) >= 3 and reply[1] == sid
-    return echo_mismatch(sid, echo, reply, hk_f1xx_offset=hk_f1xx_offset) is None
+    return echo_mismatch(sid, echo, reply) is None
 
 
-def _pick_reply(
-    lines: list[str], sid: int | None, echo: bytes, hk_f1xx_offset: bool, *, validated: bool
-) -> str | None:
+def _pick_reply(lines: list[str], sid: int | None, echo: bytes, *, validated: bool) -> str | None:
     """The one line answering the request among several single-frame lines.
 
     Several unprefixed lines are several separate messages — a late reply to an
@@ -221,7 +219,7 @@ def _pick_reply(
             f"{len(lines)} separate replies and no request to tell them apart: "
             + ", ".join(r.hex().upper()[:16] for r in replies),
         )
-    answering = [r for r in replies if _answers(r, sid, echo, hk_f1xx_offset)]
+    answering = [r for r in replies if _answers(r, sid, echo)]
     if not answering:
         if validated:
             return _compact(lines[0])  # the first one's mismatch is the error to report
@@ -300,7 +298,6 @@ def parse_uds_response(
     raw: str,
     expected_sid: int | None = None,
     expected_echo: bytes | None = None,
-    hk_f1xx_offset: bool = False,
     protocol: DiagProtocol | None = None,
     request: str | None = None,
 ) -> UdsResponse:
@@ -318,8 +315,6 @@ def parse_uds_response(
             response must repeat right after its SID (the 1-byte service-21 PID, the
             2-byte service-22/2F DID). Derive it with
             :func:`canlib.uds.echo.request_echo`.
-        hk_f1xx_offset: The profile opts into the HK F1xx -1 quirk, so an F1xx
-            identity DID answering one *less* than requested passes echo validation.
         protocol: The target ECU's diagnostic protocol, which selects the NRC names
             in ``nrc_desc`` (see :func:`canlib.uds.nrc.nrc_description`).
         request: The command as sent (hex, with or without the ELM327 frame-count
@@ -358,9 +353,7 @@ def parse_uds_response(
         if echo is None:
             echo = sent_echo if sid == sent_sid else b""
         try:
-            picked = _pick_reply(
-                lines, sid, echo, hk_f1xx_offset, validated=expected_sid is not None
-            )
+            picked = _pick_reply(lines, sid, echo, validated=expected_sid is not None)
         except _Rejected as rejected:
             return _fail(rejected.kind, rejected.message)
         if picked is not None:
@@ -417,9 +410,7 @@ def parse_uds_response(
         return result
 
     if expected_sid is not None:
-        problem = echo_mismatch(
-            expected_sid, expected_echo or b"", response_bytes, hk_f1xx_offset=hk_f1xx_offset
-        )
+        problem = echo_mismatch(expected_sid, expected_echo or b"", response_bytes)
         if problem is not None and problem.field == "sid":
             return _fail(
                 CAT_STALE,

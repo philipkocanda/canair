@@ -80,7 +80,7 @@ def _io_scan(data, confirmed=False, **kw):
     return term
 
 
-@pytest.mark.parametrize("quirk", [None, "hk_f1xx_minus_one"])
+@pytest.mark.parametrize("quirk", [None, "skm_wakeup"])
 def test_the_iso_probe_is_refused_unconfirmed(quirk, capsys):
     # 30 {LID} 00 switches a Kia Soul EV charger LED on, so not even a
     # Hyundai/Kia profile may sweep it without saying yes.
@@ -90,7 +90,7 @@ def test_the_iso_probe_is_refused_unconfirmed(quirk, capsys):
 
 
 def test_the_iso_probe_runs_once_confirmed():
-    term = _io_scan(_data(["hk_f1xx_minus_one"]), confirmed=True)
+    term = _io_scan(_data(["skm_wakeup"]), confirmed=True)
     assert term.sent == ["300700"]
 
 
@@ -103,13 +103,13 @@ def test_the_nissan_probe_needs_no_confirmation(capsys):
 def test_kwp_wrong_session_nrc_escalates_lazily_on_a_non_nissan_profile():
     # 0x80 serviceNotSupportedInActiveDiagnosticMode is a session problem, not a
     # hit: the engine opens the default session and retries.
-    term = _io_scan(_data(["hk_f1xx_minus_one"]), confirmed=True, responses={"300700": nrc(0x80)})
+    term = _io_scan(_data(["skm_wakeup"]), confirmed=True, responses={"300700": nrc(0x80)})
     assert term.sessions == [(False, "03")]
     assert term.sent == ["300700", "300700"]
 
 
 class TestIOControlScanDispatch:
-    def _run(self, monkeypatch, *, yes, stdin, quirks=("hk_f1xx_minus_one",)):
+    def _run(self, monkeypatch, *, yes, stdin, quirks=("skm_wakeup",)):
         from canlib.modes.dispatch import scans
 
         calls: list[dict] = []
@@ -178,7 +178,7 @@ def test_nissan_routine_scan_runs_once_confirmed():
 
 
 def test_other_profiles_need_no_confirmation():
-    assert not kwp_routines_scan.needs_confirmation(_data(["hk_f1xx_minus_one"]))
+    assert not kwp_routines_scan.needs_confirmation(_data(["skm_wakeup"]))
 
 
 class TestRoutinesScanDispatch:

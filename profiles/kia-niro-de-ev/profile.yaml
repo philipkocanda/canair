@@ -55,11 +55,8 @@ isotp:
   tx_padding: 0x55
   rx_padding: 0xAA
 
-# The Hyundai/Kia identity-DID -1 offset (request 22F188 -> response 62F187), make-wide; not
-# yet observed on this car. The Kona's hk_90_session is not carried over until a capture shows
-# this car's KWP2000 ECUs need session 10 90.
-quirks:
-  - hk_f1xx_minus_one
+# No quirks: the Kona's hk_90_session is not carried over until a capture shows this car's
+# KWP2000 ECUs need session 10 90.
 
 # Physical-value band for the reference-free scan (`canair hunt --physical` /
 # `canair investigate`), wide enough for both packs: the 39.2 kWh pack is 90S (90 x 2.5 V =

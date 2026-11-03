@@ -71,23 +71,6 @@ def request_echo(request_hex: str) -> tuple[int, bytes] | None:
     return None
 
 
-def hk_identity_offset(expected_sid: int, expected_id: bytes, got: bytes) -> bool:
-    """True when ``got`` is the expected identifier minus one — the Hyundai/Kia
-    identity-DID quirk (request 22F188 -> response 62F187). Expected ECU
-    behaviour on HK modules, not a stale/misfiled frame, so echo validation
-    tolerates it for F1xx DIDs **when the profile opts into the quirk** (see
-    :data:`canlib.quirks.HK_F1XX_MINUS_ONE`); off for make-neutral profiles.
-    """
-    return (
-        expected_sid == 0x22
-        and len(expected_id) == 2
-        and len(got) == 2
-        and expected_id[0] == 0xF1
-        and got[0] == 0xF1
-        and got[1] == (expected_id[1] - 1) & 0xFF
-    )
-
-
 @dataclass(frozen=True)
 class EchoMismatch:
     """How a positive reply fails to echo its request.
@@ -103,18 +86,8 @@ class EchoMismatch:
     got: bytes
 
 
-def echo_mismatch(
-    expected_sid: int,
-    echo: bytes,
-    response: bytes,
-    *,
-    hk_f1xx_offset: bool = False,
-) -> EchoMismatch | None:
-    """Compare a non-negative ``response`` against the echo its request expects.
-
-    ``hk_f1xx_offset``: the profile opts into the HK F1xx -1 quirk, so an F1xx
-    identity DID answering one *less* than requested passes.
-    """
+def echo_mismatch(expected_sid: int, echo: bytes, response: bytes) -> EchoMismatch | None:
+    """Compare a non-negative ``response`` against the echo its request expects."""
     expected_resp_sid = (expected_sid + RESPONSE_SID_OFFSET) & 0xFF
     if not response or response[0] != expected_resp_sid:
         return EchoMismatch("sid", bytes([expected_resp_sid]), response[:1])
@@ -123,6 +96,6 @@ def echo_mismatch(
     got = response[1 : 1 + len(echo)]
     if len(got) < len(echo):
         return EchoMismatch("length", echo, got)
-    if got != echo and not (hk_f1xx_offset and hk_identity_offset(expected_sid, echo, got)):
+    if got != echo:
         return EchoMismatch("id", echo, got)
     return None

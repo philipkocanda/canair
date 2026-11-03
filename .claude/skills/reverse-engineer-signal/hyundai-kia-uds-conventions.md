@@ -43,8 +43,8 @@ follow the same 1- vs 2-byte-subfunction split. User-facing summary lives in
 
 Hyundai/Kia's own spec (ES95486, summarized in
 `profiles/hyundai-ioniq-ae-ev/research/HKMC_UDS_SPEC_FINDINGS.md`) assigns the UDS DID space
-roughly as below. It is a guide, not a fence: a supplier's WPC uses `BExx`, inside a range the map calls
-legislative.
+roughly as below. It is a guide, not a fence: a supplier's WPC uses `BExx`, inside a range the map
+calls legislative.
 
 | DIDs | Holds |
 |---|---|
@@ -103,9 +103,14 @@ Rules of thumb:
   signals give the widths. A record with few signals defined reads `CONSISTENT` (several splits
   fit) until more are decoded; each new signal can make it `EXACT`.
 
-## Identity DIDs and the `-1` echo
+## Identity DIDs, and the reply that looks one lower
 
 Hyundai/Kia store the part number at `F187`, the manufacture date at `F18B` (4 bytes `YYYYMMDD`)
 and the HW number at `F191`, as ISO assigns them; a tester that expects the part number at `F188`
-sees them as "one less". Some of this car's ECUs also answer a `22F188` request with a `62F187`
-echo, which is what the `hk_f1xx_minus_one` quirk tolerates. `canair identity` queries both.
+sees them as "one less". `canair identity` queries both.
+
+Some of this car's ECUs (DDM, ADM; PSM answers a bare `62`) answer an F1xx DID they do not
+support by repeating their previous reply. When the previous DID was the one just below, the
+repeat looks like a "one lower" answer (`22F101` → `62F100…`). It is not: the bytes are identical
+to the previous reply. Echo validation refuses it as stale. A retired `hk_f1xx_minus_one` quirk
+used to accept it, which invented fields that copied the one above.

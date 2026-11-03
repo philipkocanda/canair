@@ -166,12 +166,6 @@ def _run_captures(
     except StatePredicateError:
         state_rules = []
 
-    # Profile HK F1xx -1 identity-DID quirk: only tolerate off-by-one F1xx echoes
-    # on a profile that opts in (make-neutral profiles flag them).
-    from canlib.quirks import HK_F1XX_MINUS_ONE, has_quirk
-
-    hk_f1xx_offset = has_quirk(prof.meta, HK_F1XX_MINUS_ONE)
-
     # Cross-file: a reply saved under the wrong ECU, or a multi-DID reply saved whole under one
     # DID, only stands out against the whole corpus. Load it once for both checks.
     from canlib.captures.payload_corpus import load_payload_corpus
@@ -197,7 +191,7 @@ def _run_captures(
         warnings: list[CaptureWarning] = (
             _capture_state_warnings(path, vocab, state_rules) if vocab else []
         )
-        warnings += _capture_echo_warnings(path, hk_f1xx_offset)
+        warnings += _capture_echo_warnings(path)
         warnings += _capture_nonhex_warnings(path)
         warnings += _capture_quality_warnings(path)
         warnings += link_event_warnings(path)
@@ -364,7 +358,7 @@ def _capture_quality_warnings(path: Path) -> list[CaptureWarning]:
     return warnings
 
 
-def _capture_echo_warnings(path: Path, hk_f1xx_offset: bool = False) -> list[CaptureWarning]:
+def _capture_echo_warnings(path: Path) -> list[CaptureWarning]:
     """Soft warnings for captures whose payload doesn't echo their recorded PID.
 
     A UDS positive response echoes the request SID (+0x40) and identifier bytes;
@@ -372,8 +366,6 @@ def _capture_echo_warnings(path: Path, hk_f1xx_offset: bool = False) -> list[Cap
     (the ELM327 leaks a previous request's late response into the next read — see
     ``canlib.uds.payload.payload_echo_mismatch``). Reported as a warning, never an error,
     since free-form/raw captures and multi-frame quirks shouldn't hard-fail.
-
-    ``hk_f1xx_offset``: tolerate the HK F1xx -1 identity-DID quirk (profile opt-in).
     """
     from canlib.uds.payload import payload_echo_mismatch
 
@@ -391,7 +383,7 @@ def _capture_echo_warnings(path: Path, hk_f1xx_offset: bool = False) -> list[Cap
             payload = cap.get("payload")
             if not pid or not payload:
                 continue
-            reason = payload_echo_mismatch(str(pid), str(payload), hk_f1xx_offset)
+            reason = payload_echo_mismatch(str(pid), str(payload))
             if reason:
                 warnings.append(
                     CaptureWarning(

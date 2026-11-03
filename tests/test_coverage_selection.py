@@ -109,10 +109,9 @@ class TestMisfiledReplies:
         got = pick(rows).payloads[(ECU, "2102")]
         assert got["date"] == "2026-08-08"
 
-    def test_hk_identity_offset_is_tolerated_only_with_the_quirk(self):
+    def test_a_reply_naming_the_identifier_one_lower_is_misfiled(self):
         rows = [row("62F187" + "41" * 10, pid="22F188")]
         assert (ECU, "22F188") not in pick(rows).payloads
-        assert (ECU, "22F188") in pick(rows, hk_f1xx_offset=True).payloads
 
 
 class TestPastEnd:

@@ -83,60 +83,31 @@ class TestModeIdentity:
         assert "asleep" in out
 
 
-class TestHkOffsetWithoutQuirk:
-    """A Hyundai/Kia ECU on a profile without the hk_f1xx_minus_one quirk."""
+class TestRepeatedPreviousReply:
+    """DDM, ADM and PSM answer a DID they do not support by repeating their previous reply.
 
-    @staticmethod
-    def _offset_reply(did: str, data: str) -> dict:
-        lower = f"{int(did, 16) - 1:04X}"
-        return parse_uds_response(
-            f"62{lower}{data}", expected_sid=0x22, expected_echo=bytes.fromhex(did)
-        )
+    The repeat often names the DID just below the one asked for, which is how it once
+    passed for a Hyundai/Kia "one lower" answer. It is another DID's reply: never printed
+    as the requested field, and no hint.
+    """
 
     def _terminal(self) -> FakeTerminal:
-        return FakeTerminal(
-            {
-                "22F190": self._offset_reply("F190", "4B4D48"),
-                "22F188": self._offset_reply("F188", "3931323334"),
-            }
-        )
+        repeat = parse_uds_response("62F100313730", expected_sid=0x22, expected_echo=b"\xf1\x01")
+        return FakeTerminal({"22F100": _ok("62F100313730"), "22F101": repeat})
 
     @pytest.mark.asyncio
-    async def test_the_offset_is_reported_with_the_quirk_hint(self, monkeypatch, capsys):
+    async def test_it_is_not_printed_as_the_requested_field(self, monkeypatch, capsys):
         monkeypatch.setattr(idec, "ecu_protocol", lambda tx: "uds")
-        await ident.mode_identity(
-            self._terminal(), 0x7A0, session=False, wake=False, as_json=False, quirks=frozenset()
-        )
-        out = capsys.readouterr().out
-        assert "answered as F187" in out
-        assert "hk_f1xx_minus_one" in out
-        assert "asleep" not in out
-        # Still refused: the reply is never printed as the requested DID's value.
-        assert "91234" not in out
-
-    @pytest.mark.asyncio
-    async def test_json_lists_the_offset_answers(self, monkeypatch, capsys):
-        monkeypatch.setattr(idec, "ecu_protocol", lambda tx: "uds")
-        await ident.mode_identity(
-            self._terminal(), 0x7A0, session=False, wake=False, as_json=True, quirks=frozenset()
-        )
+        await ident.mode_identity(self._terminal(), 0x7A1, session=False, wake=False, as_json=True)
         data = json.loads(capsys.readouterr().out)
-        assert data["results"] == []
-        assert data["summary"]["offset"] == 2
-        assert {a["did"]: a["answered_as"] for a in data["offset_answers"]} == {
-            "F190": "F18F",
-            "F188": "F187",
-        }
+        assert {r["did"]: r["decoded"] for r in data["results"]} == {"F100": "170"}
+        assert "offset_answers" not in data
 
     @pytest.mark.asyncio
-    async def test_the_probe_takes_an_offset_answer_as_uds(self):
-        proto, _ = await ident._probe_protocol(self._terminal())
-        assert proto == "uds"
-
-    def test_another_identifier_is_not_taken_for_the_offset(self):
-        r = parse_uds_response("62F18A41", expected_sid=0x22, expected_echo=b"\xf1\x88")
-        assert ident._offset_answer("22F188", r) is None
-        assert r["error_kind"] == "stale"
+    async def test_the_probe_does_not_take_another_dids_reply_as_uds(self):
+        repeat = parse_uds_response("62F18F41", expected_sid=0x22, expected_echo=b"\xf1\x90")
+        proto, _ = await ident._probe_protocol(FakeTerminal({"22F190": repeat}))
+        assert proto is None
 
 
 class TestReExports:
@@ -147,47 +118,16 @@ class TestReExports:
         assert len(ident.KWP_IDENTITY_RECORDS) > 0
 
 
-class TestHkDidGating:
+class TestProbedDids:
     @pytest.mark.asyncio
-    async def test_f187_skipped_without_quirk(self, monkeypatch):
-        from canlib.modes import identity_records as recs
-
+    async def test_f187_is_probed_on_every_profile(self, monkeypatch):
+        # ISO 14229's vehicleManufacturerSparePartNumber, answered directly on the Ioniq.
         monkeypatch.setattr(idec, "ecu_protocol", lambda tx: "uds")
         t = FakeTerminal({"22F190": _ok("62F190" + "0102030405")})
-        await ident.mode_identity(
-            t, 0x770, session=False, wake=False, as_json=True, quirks=frozenset()
-        )
-        # Make-neutral profile must never probe the HK-only F187 DID.
-        assert not any(c.upper() == "22F187" for c in t.sent)
-        assert "F187" in recs.QUIRK_GATED_DIDS
-
-    @pytest.mark.asyncio
-    async def test_f187_probed_with_hk_quirk(self, monkeypatch):
-        from canlib.quirks import HK_F1XX_MINUS_ONE
-
-        monkeypatch.setattr(idec, "ecu_protocol", lambda tx: "uds")
-        t = FakeTerminal({"22F190": _ok("62F190" + "0102030405")})
-        await ident.mode_identity(
-            t,
-            0x770,
-            session=False,
-            wake=False,
-            as_json=True,
-            quirks=frozenset({HK_F1XX_MINUS_ONE}),
-        )
-        assert any(c.upper() == "22F187" for c in t.sent)
+        await ident.mode_identity(t, 0x770, session=False, wake=False, as_json=True)
+        assert "22F187" in t.sent
+        assert "22C0DE" not in t.sent
 
     def test_no_hk_label_in_tables(self):
         for _did, label, _fmt in ident.UDS_IDENTITY_DIDS:
             assert "(HK)" not in label
-
-    def test_c0de_is_gated_like_f187(self):
-        from canlib.modes import identity_records as recs
-        from canlib.quirks import HK_F1XX_MINUS_ONE
-
-        def dids(quirks):
-            return {d for d, _, _ in recs.records_for("uds", quirks)}
-
-        assert "C0DE" not in dids(frozenset())
-        assert "C0DE" in dids(frozenset({HK_F1XX_MINUS_ONE}))
-        assert "F186" in dids(frozenset())  # ISO standard, never gated

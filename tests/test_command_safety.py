@@ -121,7 +121,7 @@ def test_nissan_quirk_allows_only_the_c0_session_and_only_on_kwp():
     assert allowed_session_modes(meta, KWP) == {0xC0}
     assert allowed_session_modes(meta, UDS) == frozenset()
     assert allowed_session_modes(meta, UNKNOWN) == frozenset()
-    assert allowed_session_modes({"quirks": ["hk_f1xx_minus_one"]}, KWP) == frozenset()
+    assert allowed_session_modes({"quirks": ["skm_wakeup"]}, KWP) == frozenset()
     assert allowed_session_modes(None, KWP) == frozenset()
 
 

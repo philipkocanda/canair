@@ -108,9 +108,9 @@
 #                              #   (default 3; per-ECU multi_did_max overrides it)
 #   dtcs: {CODE: {...}}        # optional — DTC meanings shared by every ECU (see dtcs_fields)
 #   quirks: [str]          # optional — make-specific behavior toggles the profile opts
-#                          #   into (make-neutral profiles omit). Known: hk_f1xx_minus_one
-#                          #   (Hyundai/Kia identity DIDs answer one less than requested,
-#                          #   22F188 -> 62F187; echo validation tolerates it for F1xx).
+#                          #   into (make-neutral profiles omit). Known: skm_wakeup,
+#                          #   nissan_c0_session, hk_90_session, hk_forced_sleep
+#                          #   (see canlib/quirks.py).
 #   isotp: {...}           # optional — client-side ISO-TP tuning (slcan-tcp transport):
 #                          #   tx_padding/rx_padding/blocksize/stmin/
 #                          #   rx_flowcontrol_timeout/rx_consecutive_frame_timeout/can_fd/

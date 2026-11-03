@@ -51,14 +51,11 @@ isotp:
   tx_padding: 0x55
   rx_padding: 0xAA
 
-# Make-specific quirk shared across Hyundai/Kia: identity DIDs answer one less
-# than requested (request 22F188 -> response 62F187); echo validation tolerates
-# it for F1xx. (The Ioniq's skm_wakeup quirk is NOT included — its relay-wake
-# DIDs/magic are specific to the Ioniq AE Smart Key Module.)
 # hk_90_session permits the KWP2000 OEM session 10 90, which a Car Scanner sweep
-# in captures/can/221210-1-* opens on 7E0-7E7 and the VCU accepts.
+# in captures/can/221210-1-* opens on 7E0-7E7 and the VCU accepts. (The Ioniq's
+# skm_wakeup quirk is NOT included — its relay-wake DIDs/magic are specific to the
+# Ioniq AE Smart Key Module.)
 quirks:
-  - hk_f1xx_minus_one
   - hk_90_session
 
 # Physical-value band for the reference-free scan (`canair hunt --physical` /

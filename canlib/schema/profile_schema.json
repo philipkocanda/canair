@@ -154,7 +154,6 @@
       "items": {
         "enum": [
           "hk_90_session",
-          "hk_f1xx_minus_one",
           "hk_forced_sleep",
           "nissan_c0_session",
           "skm_wakeup"

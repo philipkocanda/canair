@@ -127,7 +127,6 @@ def classify_round(
     time: str = "",
     rx_offset: int = 0x08,
     mode: AddressingMode = AddressingMode.NORMAL_11BIT,
-    hk_f1xx_offset: bool = False,
 ) -> SweepRound:
     """Classify every message in ``result`` against the ECU registry ``ecus``.
 
@@ -159,7 +158,6 @@ def classify_round(
             payload_hex,
             expected_sid=request[0],
             expected_echo=expected_echo,
-            hk_f1xx_offset=hk_f1xx_offset,
             protocol=classify_protocol(known[1].get("id_protocol")) if known else None,
         )
         nrc = resp.get("nrc")

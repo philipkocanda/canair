@@ -23,8 +23,6 @@ async def handle_identity(args, terminal: Terminal, pids_data, host, *, reconnec
             file=sys.stderr,
         )
         sys.exit(1)
-    from canlib.quirks import resolve_quirks
-
     await mode_identity(
         terminal,
         tx_id,
@@ -32,7 +30,6 @@ async def handle_identity(args, terminal: Terminal, pids_data, host, *, reconnec
         wake=args.wake,
         as_json=args.json,
         protocol=getattr(args, "protocol", "auto"),
-        quirks=resolve_quirks(pids_data),
     )
 
 

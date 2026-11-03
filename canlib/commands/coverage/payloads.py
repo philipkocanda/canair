@@ -146,14 +146,12 @@ def select_captures(
     entries: Iterable[Mapping],
     *,
     variable_length: Collection[PidKey] = frozenset(),
-    hk_f1xx_offset: bool = False,
     snapshot_only: Collection[PidKey] = frozenset(),
 ) -> CoverageCaptures:
     """Choose each PID's representative reply from flattened capture rows.
 
     ``entries`` are :func:`canlib.captures.store.load_all_captures` rows, in any order.
     ``variable_length`` names the ``(ECU, PID)`` keys flagged ``variable_length:``;
-    ``hk_f1xx_offset`` tolerates the Hyundai/Kia identity-DID echo quirk;
     ``snapshot_only`` names the keys whose replies come from saved DTC snapshots.
     """
     from canlib.dtc.snapshot import did_replies
@@ -186,7 +184,7 @@ def select_captures(
             if code is not None:
                 nrcs.setdefault(pkey, []).append((skey, code))
             continue
-        if payload_echo_mismatch(pid, payload, hk_f1xx_offset):
+        if payload_echo_mismatch(pid, payload):
             continue
         sess.by_length.setdefault(pkey, {}).setdefault(len(payload) // 2, []).append(payload)
 
@@ -239,7 +237,6 @@ def load_coverage_captures(
     label=None,
     *,
     variable_length: Collection[PidKey] = frozenset(),
-    hk_f1xx_offset: bool = False,
     snapshot_only: Collection[PidKey] = frozenset(),
 ) -> CoverageCaptures:
     """:func:`select_captures` over the active profile's captures, in scope."""
@@ -254,7 +251,6 @@ def load_coverage_captures(
     return select_captures(
         entries,
         variable_length=variable_length,
-        hk_f1xx_offset=hk_f1xx_offset,
         snapshot_only=snapshot_only,
     )
 

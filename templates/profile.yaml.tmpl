@@ -44,11 +44,10 @@ init: "$init"
 #   can_fd: false      # true for CAN-FD ECUs
 
 # Make-specific behaviour this profile opts into; a make-neutral profile omits it. Known:
-# hk_f1xx_minus_one (Hyundai/Kia identity DIDs answer one less than requested: 22F188 ->
-# 62F187), hk_90_session, hk_forced_sleep and skm_wakeup (Hyundai/Kia), nissan_c0_session
-# (Nissan). Each is described in docs/concepts/profiles.md.
+# hk_90_session, hk_forced_sleep and skm_wakeup (Hyundai/Kia), nissan_c0_session (Nissan).
+# Each is described in docs/concepts/profiles.md.
 # quirks:
-#   - hk_f1xx_minus_one
+#   - hk_90_session
 
 # UDS service-22 multi-DID batching (several DIDs in one request) is off unless enabled here or
 # with an ECU's own `multi_did:`; an ECU that refuses it falls back to single reads.

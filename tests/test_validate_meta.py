@@ -142,15 +142,23 @@ class TestQuirks:
         return 'car_model: "C"\ninit: "ATSP6;"\n' + extra
 
     def test_valid_quirk(self, tmp_path):
-        p = _write(tmp_path, self._base("quirks:\n  - hk_f1xx_minus_one\n"))
+        p = _write(tmp_path, self._base("quirks:\n  - skm_wakeup\n"))
         assert validate_meta(p, REQUIRED) == []
+
+    def test_a_retired_quirk_warns_instead_of_failing(self, tmp_path):
+        from canlib.commands.validate.pids import retired_quirk_warnings
+
+        p = _write(tmp_path, self._base("quirks:\n  - hk_f1xx_minus_one\n  - skm_wakeup\n"))
+        assert validate_meta(p, REQUIRED) == []
+        (warning,) = retired_quirk_warnings(p)
+        assert "quirk 'hk_f1xx_minus_one' is retired" in warning
 
     def test_unknown_quirk(self, tmp_path):
         p = _write(tmp_path, self._base("quirks:\n  - not_a_quirk\n"))
         assert any("unknown quirk 'not_a_quirk'" in e for e in validate_meta(p, REQUIRED))
 
     def test_quirks_must_be_list(self, tmp_path):
-        p = _write(tmp_path, self._base("quirks: hk_f1xx_minus_one\n"))
+        p = _write(tmp_path, self._base("quirks: skm_wakeup\n"))
         assert any("'quirks' must be a list" in e for e in validate_meta(p, REQUIRED))
 
 

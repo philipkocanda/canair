@@ -7,12 +7,8 @@ profile declares the quirks it needs under a top-level ``quirks:`` list in
 quirks (make-neutral); the bundled ``hyundai-ioniq-ae-ev`` profile opts into the ones its
 ECUs actually exhibit.
 
-Today there are five quirks:
+Today there are four quirks:
 
-- :data:`HK_F1XX_MINUS_ONE` — Hyundai/Kia identity DIDs answer one *less* than
-  requested (request ``22F188`` → response ``62F187``). Expected HK behaviour,
-  but on any other make an off-by-one identifier echo is a genuinely stale /
-  misfiled frame, so echo validation must only tolerate it when this quirk is on.
 - :data:`SKM_WAKEUP` — the Ioniq/HKMC Smart Key Module *relay*-wake procedure
   (:mod:`canlib.modes.skm_wakeup`): rouse the SKM then close a power relay
   (ACC/IGN) via IOControl. The relay DIDs / magic bytes / addresses are
@@ -30,9 +26,10 @@ Today there are five quirks:
   one-shot command.
 - :data:`HK_90_SESSION` — Hyundai/Kia KWP2000 ECUs take the OEM session
   ``10 90`` before an actuator test (``0x30``): the OVMS Kia Soul EV firmware
-  opens it before its ``0x30`` commands, and a Car Scanner sweep of a 2021 Kona EV opens it on every powertrain ECU it reads
-  DTCs from (``profiles/hyundai-kona-os-ev/captures/can/``). It permits exactly
-  ``10 90`` on the profile's KWP2000 ECUs.
+  opens it before its ``0x30`` commands, and a Car Scanner sweep of a 2021 Kona EV
+  opens it on every powertrain ECU it reads DTCs from
+  (``profiles/hyundai-kona-os-ev/captures/can/``). It permits exactly ``10 90`` on
+  the profile's KWP2000 ECUs.
 - :data:`HK_FORCED_SLEEP` — Hyundai/Kia's ES95486 (revisions 3-29) defines
   DiagnosticSessionControl ``10 D1`` "Sleep Mode Start Request", sent on the
   functional id so the gateway passes it to every network. Unlike the session
@@ -50,9 +47,6 @@ from typing import Any, Final
 
 from canlib.addressing import FUNCTIONAL_11BIT_ID
 from canlib.uds.protocol import KWP
-
-# The Hyundai/Kia identity-DID -1 offset (22F188 → 62F187).
-HK_F1XX_MINUS_ONE: Final = "hk_f1xx_minus_one"
 
 # The Ioniq/HKMC Smart Key Module relay-wake procedure (canlib.modes.skm_wakeup):
 # rouse the SKM, then actuate a power relay (ACC/IGN) via IOControl. Make-specific
@@ -74,9 +68,16 @@ HK_90_SESSION: Final = "hk_90_session"
 HK_FORCED_SLEEP: Final = "hk_forced_sleep"
 
 # Every recognized quirk token (the validation whitelist).
-KNOWN_QUIRKS: Final = frozenset(
-    {HK_F1XX_MINUS_ONE, SKM_WAKEUP, NISSAN_C0_SESSION, HK_90_SESSION, HK_FORCED_SLEEP}
-)
+KNOWN_QUIRKS: Final = frozenset({SKM_WAKEUP, NISSAN_C0_SESSION, HK_90_SESSION, HK_FORCED_SLEEP})
+
+# Quirks that no longer do anything, and why. `canair validate` warns about one in a
+# profile instead of failing it, since a user's own profile may still list it.
+RETIRED_QUIRKS: Final[dict[str, str]] = {
+    "hk_f1xx_minus_one": (
+        "the Hyundai/Kia identity DIDs it allowed to answer one lower were ECUs repeating "
+        "their previous reply for a DID they do not support; remove it"
+    ),
+}
 
 # DiagnosticSessionControl sub-functions a quirk makes safe to enter, keyed by the
 # protocol whose ECUs it applies to. Only ever widens the OEM band the blocklist

@@ -9,7 +9,7 @@ import isotp
 
 from canlib.addressing import AddressingMode, EcuAddress, build_isotp_address
 from canlib.modes.discover import discovery_targets, fmt_id
-from canlib.quirks import HK_F1XX_MINUS_ONE, has_quirk, resolve_quirks
+from canlib.quirks import SKM_WAKEUP, has_quirk, resolve_quirks
 from canlib.transport.slcan_tcp import format_slcan_frame
 
 
@@ -94,11 +94,11 @@ class TestQuirks:
         assert resolve_quirks({}) == frozenset()
 
     def test_declared_quirk(self):
-        meta = {"quirks": ["hk_f1xx_minus_one"]}
-        assert has_quirk(meta, HK_F1XX_MINUS_ONE) is True
+        meta = {"quirks": ["skm_wakeup"]}
+        assert has_quirk(meta, SKM_WAKEUP) is True
 
     def test_undeclared_quirk(self):
-        assert has_quirk({"quirks": []}, HK_F1XX_MINUS_ONE) is False
+        assert has_quirk({"quirks": []}, SKM_WAKEUP) is False
 
     def test_malformed_block(self):
         assert resolve_quirks({"quirks": "nope"}) == frozenset()

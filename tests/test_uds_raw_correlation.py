@@ -157,18 +157,14 @@ class TestEchoValidation:
         assert c.diag.stale == 1
 
 
-class TestHkQuirk:
-    """The Hyundai/Kia F1xx -1 identity offset is ECU behaviour, not a stale frame."""
+class TestIdentifierOneLower:
+    """A reply naming the identifier one lower is another DID's reply, on every make.
 
-    def test_tolerated_when_the_profile_opts_in(self, monkeypatch):
-        c, st = _bms(monkeypatch, hk_f1xx_offset=True)
-        st.answers(["62F1874B"])
-        out = _poll(c, "BMS", "22F188")
-        assert out[("BMS", bytes.fromhex("22F188"))] == bytes.fromhex("62F1874B")
-        assert c.diag.stale == 0
+    On the Ioniq it is an ECU repeating its previous reply for a DID it does not support.
+    """
 
-    def test_rejected_on_a_make_neutral_profile(self, monkeypatch):
-        c, st = _bms(monkeypatch, hk_f1xx_offset=False)
+    def test_rejected(self, monkeypatch):
+        c, st = _bms(monkeypatch)
         st.answers(["62F1874B"])
         out = _poll(c, "BMS", "22F188")
         assert isinstance(out[("BMS", bytes.fromhex("22F188"))], TimeoutError)

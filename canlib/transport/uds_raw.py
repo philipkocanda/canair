@@ -98,7 +98,6 @@ class RawUdsClient:
         timeout: float = 1.0,
         isotp_config: dict | None = None,
         ecu_timeouts: dict[str, float] | None = None,
-        hk_f1xx_offset: bool = False,
         session_policy: SessionPolicy | None = None,
     ):
         """``addresses``: name -> resolved :class:`EcuAddress`. ``timeout``: per-request seconds.
@@ -108,9 +107,6 @@ class RawUdsClient:
         ``isotp_config``: optional profile ``isotp:`` block (flow-control/padding/
         CAN-FD). Each ECU's :class:`EcuAddress` shapes its ISO-TP stack (11-bit vs
         29-bit normal/fixed/extended, plus any flow-control-address override).
-        ``hk_f1xx_offset``: profile opts into the Hyundai/Kia F1xx identity-DID -1
-        quirk, so echo validation tolerates that off-by-one (see
-        :func:`canlib.uds.payload.payload_echo_mismatch`).
         ``session_policy``: the profile's per-ECU session context for the command
         blocklist (:mod:`canlib.safety`). Every request is checked against it, so
         this client can never send what the terminals would refuse; there is no
@@ -121,7 +117,6 @@ class RawUdsClient:
         self.bus = bus
         self.timeout = timeout
         self.ecu_timeouts = ecu_timeouts or {}
-        self.hk_f1xx_offset = hk_f1xx_offset
         self.session_policy = session_policy or SessionPolicy()
         self._tx_ids = {name: address.tx_id for name, address in addresses.items()}
         # Per-(ECU, PID) round-trip timing (surfaced by `canair read --timings`).
@@ -180,7 +175,7 @@ class RawUdsClient:
         """
         if owed > 0:
             return f"{ecu} still owed {owed} earlier response(s)"
-        return payload_echo_mismatch(req.hex().upper(), resp.hex().upper(), self.hk_f1xx_offset)
+        return payload_echo_mismatch(req.hex().upper(), resp.hex().upper())
 
     def _abandon(self, ecu: str) -> None:
         """Record that ``ecu`` never answered, so its reply may still be in flight."""

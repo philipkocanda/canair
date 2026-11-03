@@ -121,7 +121,6 @@ async def _run_session(args, target: SlcanTarget, pids_data) -> int:
     from canlib.transport.timeouts import cli_timeout, ecu_timeouts_by_tx
 
     from ..addressing import AddressBook
-    from ..quirks import HK_F1XX_MINUS_ONE, has_quirk
     from ..safety import SessionPolicy
     from ..transport import RawTerminal
     from .dispatch import run_session_guarded
@@ -144,7 +143,6 @@ async def _run_session(args, target: SlcanTarget, pids_data) -> int:
             addr_map=dict(addresses.by_tx),
             rx_offset=addresses.rx_offset,
             mode=addresses.mode,
-            hk_f1xx_offset=has_quirk(pids_data, HK_F1XX_MINUS_ONE),
         )
     except OSError as e:
         # The pre-flight check above should catch an unreachable port, but guard

@@ -14,14 +14,12 @@ import asyncio
 import json
 import sys
 
-from canlib.uds.echo import hk_identity_offset, request_echo
+from canlib.uds.echo import request_echo
 from canlib.uds.protocol import KWP, UDS
 from canlib.uds.response import UdsResponse
-from canlib.uds.services import RESPONSE_SID_OFFSET
 
 from .. import ansi
 from ..ecus import ecu_display
-from ..quirks import HK_F1XX_MINUS_ONE
 from ..sensitive import MASK, request_hidden
 from ..transport.protocol import Terminal
 from .discover_render import Painter
@@ -35,7 +33,6 @@ from .identity_records import (
     KWP_IDENTITY_RECORDS,
     PROTOCOLS,
     UDS_IDENTITY_DIDS,
-    records_for,
 )
 
 __all__ = [
@@ -50,7 +47,8 @@ async def _read(terminal: Terminal, request: str) -> UdsResponse:
     """Send one identity read, validated against the echo its reply must carry.
 
     Without it a late reply to the previous record would be printed under this
-    record's label (the terminal's HK F1xx quirk still applies).
+    record's label. Some ECUs answer a DID they do not support by repeating their
+    previous reply; the check turns that into a stale reply, not a field.
     """
     echo = request_echo(request)
     if echo is None:
@@ -58,38 +56,10 @@ async def _read(terminal: Terminal, request: str) -> UdsResponse:
     return await terminal.send_uds(request, expected_sid=echo[0], expected_echo=echo[1])
 
 
-def _offset_answer(request: str, response: UdsResponse) -> str | None:
-    """The identifier a refused F1xx read was answered with, when it is exactly one lower.
-
-    That is how Hyundai/Kia ECUs answer (``22F188`` -> ``62F187``), which a profile
-    accepts only with the :data:`~canlib.quirks.HK_F1XX_MINUS_ONE` quirk. Without it
-    the reply stays refused — on another make it is a stale reply to the previous
-    record — but it is reported as what it most likely is rather than as silence.
-    """
-    echo = request_echo(request)
-    data = response.get("bytes")
-    if response.get("ok") or echo is None or data is None or len(data) < 3:
-        return None
-    sid, expected = echo
-    if data[0] != sid + RESPONSE_SID_OFFSET or not hk_identity_offset(sid, expected, data[1:3]):
-        return None
-    return data[1:3].hex().upper()
-
-
-def _offset_hint(offsets: list[tuple[str, str]]) -> list[str]:
-    pairs = ", ".join(f"{asked}->{got}" for asked, got in offsets)
-    return [
-        f"\n  {len(offsets)} field(s) answered with the identifier one lower ({pairs}):",
-        "  the Hyundai/Kia identity offset. On a Hyundai/Kia ECU, add",
-        f"  `{HK_F1XX_MINUS_ONE}` to `quirks:` in the profile's profile.yaml to read them.",
-    ]
-
-
 async def _probe_protocol(terminal: Terminal) -> tuple[str | None, str]:
     """Probe the ECU to decide UDS vs KWP2000. Returns (protocol, reason)."""
     uds = await _read(terminal, "22F190")
-    # A 62 reply proves service 22 even when it names the identifier one lower.
-    uds_ok = True if _offset_answer("22F190", uds) else service_supported(uds)
+    uds_ok = service_supported(uds)
     if uds_ok:
         return UDS, "UDS service 22 supported (probe 22F190)"
 
@@ -113,19 +83,8 @@ async def mode_identity(
     wake: bool,
     as_json: bool,
     protocol: str = "auto",
-    quirks: frozenset[str] | None = None,
 ):
-    """Query identity DIDs/records from an ECU across UDS and KWP2000.
-
-    ``quirks`` is the active profile's declared quirk set; when None it is
-    resolved from the active profile. It gates make-specific identity DIDs
-    (e.g. the HK-only ``F187``) so a make-neutral profile never probes them.
-    """
-    if quirks is None:
-        from ..profile import active
-        from ..quirks import resolve_quirks
-
-        quirks = resolve_quirks(active().meta)
+    """Query identity DIDs/records from an ECU across UDS and KWP2000."""
     paint = Painter(sys.stdout)
 
     await terminal.set_header(tx_id)
@@ -161,7 +120,7 @@ async def mode_identity(
             return
 
         spec = PROTOCOLS[resolved]
-        records = records_for(resolved, quirks)
+        records = spec["records"]
         offset = spec["payload_offset"]
         prefix = spec["prefix"]
         label_width = max(len(label) for _, label, _ in records)
@@ -169,7 +128,6 @@ async def mode_identity(
 
         results = []
         n_ok = n_nrc = n_nodata = 0
-        offsets: list[tuple[str, str]] = []
         responded: dict[str, bool] = {}
 
         for did_hex, label, fmt in records:
@@ -201,12 +159,6 @@ async def mode_identity(
                         print(f"  {paint(raw_line, ansi.raw.DIM)}")
             elif response.get("nrc") is not None:
                 n_nrc += 1
-            elif (answered_as := _offset_answer(request, response)) is not None:
-                offsets.append((did_hex, answered_as))
-                if not as_json:
-                    did = paint(did_hex.ljust(did_width), ansi.raw.YELLOW)
-                    note = paint(f"(answered as {answered_as})", ansi.raw.YELLOW)
-                    print(f"  {did}  {label:<{label_width}}  {note}")
             else:
                 n_nodata += 1
 
@@ -224,33 +176,24 @@ async def mode_identity(
                     "ok": n_ok,
                     "nrc": n_nrc,
                     "no_data": n_nodata,
-                    "offset": len(offsets),
                 },
                 "results": results,
             }
-            if offsets:
-                out["offset_answers"] = [
-                    {"did": asked, "answered_as": got, "quirk": HK_F1XX_MINUS_ONE}
-                    for asked, got in offsets
-                ]
             if revision is not None:
                 out["revision"] = revision
             print(json.dumps(out, indent=2))
         else:
-            if n_ok == 0 and not offsets:
+            if n_ok == 0:
                 if n_nodata and not n_nrc:
                     print("  No response — ECU may be asleep or unpowered.")
                     print("  Try --session/--wake, or power the ECU (ACC/ignition on).")
                 else:
                     print("  No identity fields returned (all DIDs rejected/unsupported).")
-            offset_note = f", {len(offsets)} answered one lower" if offsets else ""
             summary = (
                 f"{n_ok} field(s) returned, {n_nrc} rejected, "
-                f"{n_nodata} no-response{offset_note} (of {len(records)} probed)."
+                f"{n_nodata} no-response (of {len(records)} probed)."
             )
             print(f"\n  {paint(summary, ansi.raw.DIM)}")
-            if offsets:
-                print("\n".join(_offset_hint(offsets)))
             if revision is not None:
                 print("\n".join(describe_identity_report(revision)))
 

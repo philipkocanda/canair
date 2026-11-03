@@ -156,7 +156,6 @@ async def mode_discover_functional(
     """Broadcast ``request`` ``repeat`` times and report every responder."""
     from canlib.addressing import functional_request_id, resolve_mode, resolve_rx_offset
     from canlib.ecus import load_ecus
-    from canlib.quirks import HK_F1XX_MINUS_ONE, has_quirk
 
     if interval < MIN_INTERVAL_S:
         raise ValueError(f"--interval must be at least {MIN_INTERVAL_S:g} s")
@@ -190,7 +189,6 @@ async def mode_discover_functional(
             time=stamp,
             rx_offset=resolve_rx_offset(pids_data),
             mode=mode,
-            hk_f1xx_offset=has_quirk(pids_data, HK_F1XX_MINUS_ONE),
         )
         rounds.append(sweep)
         _print_round(sweep, repeat, out)

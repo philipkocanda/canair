@@ -14,8 +14,6 @@ Each entry is ``(identifier_hex, label, decode_hint)`` where the hint is one of
 
 from canlib.uds.protocol import KWP, UDS
 
-from ..quirks import HK_F1XX_MINUS_ONE
-
 # UDS ReadDataByIdentifier (service 22) identity DIDs. F100-F17F and F1A0-F1EF are
 # vehicle-manufacturer identification options in ISO 14229-1, so their labels name the
 # Hyundai/Kia use: F1A0 is its own SW version (ES95486 Annex C), F100 the CAN database
@@ -43,15 +41,7 @@ UDS_IDENTITY_DIDS: list[tuple[str, str, str]] = [
     ("F1A0", "OEM ID (Hyundai/Kia: SW Version)", "ascii"),
     ("F1A2", "HW Version", "ascii"),
     ("F1A4", "HW Part 2", "ascii"),
-    ("C0DE", "EOL Coding Number", "hex"),
 ]
-
-# Make-specific identity DIDs, keyed by the profile quirk token that enables probing
-# them, so make-neutral profiles skip them. F187 is answered by Hyundai/Kia ECUs as the
-# "-1" echo of a ``22F188`` request (see the ``hk_f1xx_minus_one`` quirk). C0DE is
-# Hyundai/Kia's EOL coding number (the ECU's variant coding, ES95486 Annex C), outside
-# the ISO identification range; that quirk is the profile's only Hyundai/Kia marker.
-QUIRK_GATED_DIDS: dict[str, str] = {"F187": HK_F1XX_MINUS_ONE, "C0DE": HK_F1XX_MINUS_ONE}
 
 # KWP2000 ReadEcuIdentification (service 1A) records. Record identifiers 8x/9x
 # follow the ISO 14230 layout; the labels below are the common
@@ -88,14 +78,3 @@ PROTOCOLS: dict[str, dict] = {
     UDS: {"prefix": "22", "payload_offset": 3, "records": UDS_IDENTITY_DIDS},
     KWP: {"prefix": "1A", "payload_offset": 2, "records": KWP_IDENTITY_RECORDS},
 }
-
-
-def records_for(protocol: str, quirks: frozenset[str]) -> list[tuple[str, str, str]]:
-    """Identity records to probe for ``protocol``, filtered by profile ``quirks``.
-
-    Drops any quirk-gated DID (see :data:`QUIRK_GATED_DIDS`) whose enabling quirk
-    the profile does not declare — so a make-neutral profile never probes an
-    HK-only identifier like ``F187``.
-    """
-    records = PROTOCOLS[protocol]["records"]
-    return [r for r in records if QUIRK_GATED_DIDS.get(r[0], None) in (None, *quirks)]

@@ -1400,17 +1400,35 @@ def _validate_physical_bands(bands: Any) -> list[str]:
 
 def _validate_quirks(quirks: Any) -> list[str]:
     """Validate the profile.yaml ``quirks:`` list against the known vocabulary."""
-    from canlib.quirks import KNOWN_QUIRKS
+    from canlib.quirks import KNOWN_QUIRKS, RETIRED_QUIRKS
 
     if not isinstance(quirks, list):
         return ["profile.yaml: 'quirks' must be a list of quirk tokens"]
     errors: list[str] = []
     for q in quirks:
-        if q not in KNOWN_QUIRKS:
+        if q not in KNOWN_QUIRKS and q not in RETIRED_QUIRKS:
             errors.append(
                 f"profile.yaml: unknown quirk '{q}' (allowed: {', '.join(sorted(KNOWN_QUIRKS))})"
             )
     return errors
+
+
+def retired_quirk_warnings(path: Path) -> list[str]:
+    """A warning per retired quirk the profile.yaml still lists (see ``RETIRED_QUIRKS``)."""
+    from canlib.quirks import RETIRED_QUIRKS
+
+    try:
+        data = yaml_io.safe_load(path.read_text())
+    except yaml.YAMLError:
+        return []  # validate_meta reports the parse error
+    quirks = data.get("quirks") if isinstance(data, dict) else None
+    if not isinstance(quirks, list):
+        return []
+    return [
+        f"profile.yaml: quirk '{q}' is retired and does nothing: {RETIRED_QUIRKS[q]}"
+        for q in quirks
+        if isinstance(q, str) and q in RETIRED_QUIRKS
+    ]
 
 
 # Accepted keys in the profile.yaml `addressing:` block: the TX→RX offset
@@ -1643,6 +1661,7 @@ def _run_pids(files: list[str] | None, stats: bool) -> int:
             name_errors, name_warnings = profile_name_findings(prof)
             all_errors.extend(name_errors)
             all_warnings.extend(name_warnings)
+            all_warnings.extend(retired_quirk_warnings(profile_yaml))
 
         # Cross-file: an ECU short name (or alias) must be unique across ecus/.
         all_errors.extend(_duplicate_name_errors(file_paths))

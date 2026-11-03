@@ -77,7 +77,6 @@ async def connect_elm_terminal(transport, pids_data: dict, args) -> Terminal:
     """
     from canlib import config
     from canlib.addressing import AddressBook
-    from canlib.quirks import HK_F1XX_MINUS_ONE, has_quirk
     from canlib.response_frames import seed_counts, variable_length_keys
     from canlib.safety import SessionPolicy
     from canlib.transport import DEFAULT_ELM327_TCP_PORT, Elm327TcpTerminal, Elm327Terminal
@@ -92,7 +91,6 @@ async def connect_elm_terminal(transport, pids_data: dict, args) -> Terminal:
 
     _cli_timeout = cli_timeout(args)
     _ws_timeout = _cli_timeout if _cli_timeout is not None else 3.0
-    hk = has_quirk(pids_data, HK_F1XX_MINUS_ONE)
     counts = config.expected_responses()
     # Counts previous sessions proved, so the first read of each PID is already
     # fast instead of paying the adapter's full ATST wait to re-learn it.
@@ -107,7 +105,6 @@ async def connect_elm_terminal(transport, pids_data: dict, args) -> Terminal:
             timeout=_ws_timeout,
             verbose=args.verbose,
             unsafe=args.unsafe,
-            hk_f1xx_offset=hk,
             expected_responses=counts,
             response_frames=seeds,
             variable_length=variable,
@@ -119,7 +116,6 @@ async def connect_elm_terminal(transport, pids_data: dict, args) -> Terminal:
             timeout=_ws_timeout,
             verbose=args.verbose,
             unsafe=args.unsafe,
-            hk_f1xx_offset=hk,
             expected_responses=counts,
             response_frames=seeds,
             variable_length=variable,

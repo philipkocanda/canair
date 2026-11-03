@@ -151,7 +151,6 @@ class Elm327Terminal:
         timeout: float = 3.0,
         verbose: bool = False,
         unsafe: bool = False,
-        hk_f1xx_offset: bool = False,
         expected_responses: bool = True,
         response_frames: dict[CountKey, int] | None = None,
         variable_length: Iterable[CountKey] | None = None,
@@ -167,9 +166,6 @@ class Elm327Terminal:
         # (canlib.safety.SessionPolicy); set by whoever builds the terminal from a
         # profile. The default knows no ECU, so the stricter reading applies.
         self.session_policy = SessionPolicy()
-        # Profile HK F1xx -1 identity-DID quirk (tolerate 62F187 for a 22F188
-        # request); forwarded to parse_uds_response's echo validation.
-        self.hk_f1xx_offset = hk_f1xx_offset
         # Expected-response-count digits, which let the adapter return as soon as a
         # reply is complete instead of waiting out its ATST budget. Learned counts
         # are per-connection, so a reconnect re-learns rather than trusting one
@@ -751,7 +747,6 @@ class Elm327Terminal:
                     raw,
                     expected_sid=expected_sid,
                     expected_echo=expected_echo,
-                    hk_f1xx_offset=self.hk_f1xx_offset,
                     protocol=self.session_policy.protocol(header),
                     request=command,
                 )

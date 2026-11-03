@@ -293,8 +293,6 @@ def run(args) -> int:
     if err:
         print(f"error: {err}", file=sys.stderr)
         return 2
-    from canlib.quirks import HK_F1XX_MINUS_ONE, has_quirk
-
     pids_data = load_pids()
     ecu_index = build_ecu_index(pids_data)
     captures = load_coverage_captures(
@@ -303,7 +301,6 @@ def run(args) -> int:
         state=getattr(args, "state", None),
         label=getattr(args, "label", None),
         variable_length=variable_length_pids(pids_data),
-        hk_f1xx_offset=has_quirk(pids_data, HK_F1XX_MINUS_ONE),
         snapshot_only=snapshot_only_pids(pids_data),
     )
 

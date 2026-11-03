@@ -11,9 +11,7 @@ from canlib.uds.echo import echo_mismatch, hex_bytes, request_echo
 from canlib.uds.services import NEGATIVE_RESPONSE_SID
 
 
-def payload_echo_mismatch(
-    request_pid: str, payload_hex: str, hk_f1xx_offset: bool = False
-) -> str | None:
+def payload_echo_mismatch(request_pid: str, payload_hex: str) -> str | None:
     """Cross-check a reply payload against the PID it was recorded for.
 
     Returns a human-readable reason when the payload's SID+identifier echo does NOT
@@ -21,9 +19,6 @@ def payload_echo_mismatch(
     the ELM327 stale-frame bug), or ``None`` when it matches or when we can't
     validate (non-identifier request, NRC, hex we can't parse). Only known echo
     mismatches are reported, so this is safe to surface as a soft lint warning.
-
-    ``hk_f1xx_offset``: when True (the profile opts into the HK F1xx -1 quirk),
-    an F1xx identity DID answering one *less* than requested is tolerated.
     """
     echo = request_echo(request_pid)
     if echo is None:
@@ -32,7 +27,7 @@ def payload_echo_mismatch(
     if resp is None or resp[0] == NEGATIVE_RESPONSE_SID:
         return None  # unparseable, or a negative response — leave to other checks
     expected_sid, expected_id = echo
-    problem = echo_mismatch(expected_sid, expected_id, resp, hk_f1xx_offset=hk_f1xx_offset)
+    problem = echo_mismatch(expected_sid, expected_id, resp)
     if problem is None:
         return None
     if problem.field == "sid":

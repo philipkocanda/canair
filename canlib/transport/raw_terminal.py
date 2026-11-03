@@ -75,7 +75,6 @@ class RawTerminal:
         addr_map: dict[int, EcuAddress] | None = None,
         rx_offset: int = DEFAULT_RX_OFFSET,
         mode: AddressingMode = DEFAULT_MODE,
-        hk_f1xx_offset: bool = False,
     ):
         from .isotp_params import ISOTP_MAX_REQUEST_BYTES, build_isotp_params
         from .slcan_tcp import SlcanTcpBus
@@ -95,8 +94,6 @@ class RawTerminal:
         self.rx_offset = rx_offset
         # Profile-default addressing mode for TX ids not in addr_map.
         self.mode = mode
-        # Profile HK F1xx -1 identity-DID quirk; forwarded to echo validation.
-        self.hk_f1xx_offset = hk_f1xx_offset
         # Parity attributes some callers read.
         self.cmd_count = 0
         self.cmd_time = 0.0
@@ -174,7 +171,6 @@ class RawTerminal:
                 raw,
                 expected_sid=expected_sid,
                 expected_echo=expected_echo,
-                hk_f1xx_offset=self.hk_f1xx_offset,
                 protocol=self.session_policy.protocol(self._cur),
             )
             if resp_bytes is not None and self._classic_can:

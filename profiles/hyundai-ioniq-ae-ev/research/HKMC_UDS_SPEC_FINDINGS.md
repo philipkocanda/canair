@@ -21,7 +21,9 @@ sections:
   - section: "3"
     status: integrated
     date: 2026-10-30
-    note: C0DE is probed by canair identity on this profile.
+    note: >-
+      C0DE was probed by canair identity; every ECU refused it (NRC 0x31, READY, 2026-11-03), so
+      it is no longer probed.
   - section: "10"
     status: integrated
     date: 2026-10-30
@@ -110,14 +112,14 @@ The spec's service table (section 3.1) sets three rules that explain NRCs seen o
 |---|---|---|---|
 | `F100` | Hyundai/Kia identification option; the WPC spec defines it as the CAN database version | - | Several `boot_sw` values are probably CAN database versions (RCAM's `CAN_15.11.01` reads as one) |
 | `F186` | Active diagnostic session (ISO) | - | A cheap check that a session switch took effect |
-| `F187` | Spare part number, ASCII, 10-15 bytes, mandatory | early | See the `hk_f1xx_minus_one` quirk |
+| `F187` | Spare part number, ASCII, 10-15 bytes, mandatory | early | Answered directly by IGPM, BCM, CCM, VESS, GSA, DDM, ADM, PSM and WPC; probed by `canair identity` |
 | `F18B` | ECU manufacturing date, 4 bytes `YYYYMMDD` (hex digits) | rev 9 | `mfg_date` |
 | `F18C` | ECU serial number, ASCII, mandatory | early | `serial` |
 | `F18D` | Supported functional units (ISO), not a date | - | canair had it labelled as a date |
 | `F1A0` | Hyundai/Kia's own SW version, ASCII, mandatory for batch reading | rev 10 | SKM's `diag_address: "190"` is probably a SW version |
 | `F1A1` | Supplier code, 4 ASCII bytes | rev 15 (2018) | Probably absent on this car |
 | `F1B0`-`F1BF` | Number of SW units, then each unit's version | undated; the WPC spec adds them in 2020 | Probably absent |
-| `C0DE` | EOL coding number: the ECU's variant coding, 4 or 8 bytes | - | Now probed by `canair identity` on this profile |
+| `C0DE` | EOL coding number: the ECU's variant coding, 4 or 8 bytes | - | Refused (NRC 0x31) by all 23 ECUs that answer in READY; not probed |
 
 `F1A2` (application version) and `F1A4` were assigned in 2023 and later, so they say nothing about
 how this car uses them. The DID map also reserves `F010`-`F0FF` for Hyundai/Kia IOControl DIDs

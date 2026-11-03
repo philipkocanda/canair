@@ -207,9 +207,9 @@ and **`g`/`G` address the view's primary axis**.
   `normal_29bit` profiles are refused.
 - **`canair identity`** (alias `id`) — Identity DIDs/records (UDS `22 F1xx`, KWP2000 `1A 8x/9x`),
   printed only: nothing is written to the ECU's `identity:` (which can hold a live VIN when
-  filled by hand or `ecu add` — see PII). On a profile without `hk_f1xx_minus_one`, a reply
-  naming exactly the requested DID minus one stays refused but is reported as answered one
-  lower, with a hint to enable the quirk.
+  filled by hand or `ecu add` — see PII). Every read is echo-validated: some Hyundai/Kia ECUs
+  answer an F1xx DID they do not support by repeating their previous reply, which often names
+  the DID just below and is refused as stale (the retired `hk_f1xx_minus_one` quirk accepted it).
 - **`canair io`** / **`canair routines`** — IOControl (`0x2F`, or an entry's own KWP `0x30`
   commands) and RoutineControl (`0x31`): interactive TUI or a single actuation. **Mutative** —
   confirm-first, and actuators auto-release when the session ends, with each entry's resolved
@@ -975,13 +975,13 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
     CAN-FD); defaults in `canlib/transport/isotp_params.py`. `tx_padding` is what canair sends
     (raw path only; an ELM327 pads its own requests); `rx_padding` (defaulting to `tx_padding`)
     is what replies carry, and drives multi-DID split/strip (`resolve_rx_padding`).
-  - **`quirks:`** — make-specific behaviour the profile opts into. Known: `hk_f1xx_minus_one` (the
-    Hyundai/Kia identity-DID `-1` offset, `22F188`→`62F187`), `skm_wakeup` (enables the Ioniq SKM
-    relay-wake), `nissan_c0_session` (permits the Nissan OEM session `10 C0` on KWP2000 ECUs,
-    which the `canlib/safety.py` blocklist otherwise refuses, and switches the KWP2000 IOControl
-    scan to Nissan's `30 {LID} 01 00` probe), `hk_90_session` (permits the Hyundai/Kia
-    KWP2000 actuator-test session `10 90` on KWP2000 ECUs) and `hk_forced_sleep` (lets a guarded
-    `canair action` send the functional `10 D1`; not a session allowance). Resolver
+  - **`quirks:`** — make-specific behaviour the profile opts into. Known: `skm_wakeup` (enables
+    the Ioniq SKM relay-wake), `nissan_c0_session` (permits the Nissan OEM session `10 C0` on
+    KWP2000 ECUs, which the `canlib/safety.py` blocklist otherwise refuses, and switches the
+    KWP2000 IOControl scan to Nissan's `30 {LID} 01 00` probe), `hk_90_session` (permits the
+    Hyundai/Kia KWP2000 actuator-test session `10 90` on KWP2000 ECUs) and `hk_forced_sleep`
+    (lets a guarded `canair action` send the functional `10 D1`; not a session allowance). A
+    retired quirk (`RETIRED_QUIRKS`) is a `validate` warning, not an error. Resolver
     `canlib/quirks.py`; a quirk may only *widen* the OEM session band for one protocol
     (`allowed_session_modes(meta, protocol)`) or grant an action one exact request
     (`action_grants`), never reach a programming or safety-system session.

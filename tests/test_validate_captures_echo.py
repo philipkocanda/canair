@@ -61,26 +61,8 @@ def test_clean_capture_no_warning(tmp_path):
     assert _capture_echo_warnings(path) == []
 
 
-def test_hk_identity_offset_not_flagged_when_quirk_on(tmp_path):
-    # 22F188 -> 62F187 is the expected Hyundai/Kia -1 identity offset — tolerated
-    # only when the profile opts into the quirk (hk_f1xx_offset=True).
-    path = _write(
-        tmp_path,
-        """
-        sessions:
-          - date: "2026-07-19"
-            captures:
-              - ecu: "0x7A8"
-                pid: "22F188"
-                payload: "62F187414243"
-                time: "10:00:00"
-        """,
-    )
-    assert _capture_echo_warnings(path, hk_f1xx_offset=True) == []
-
-
-def test_hk_identity_offset_flagged_when_quirk_off(tmp_path):
-    # Make-neutral default: the -1 echo is flagged as a stale/misfiled frame.
+def test_an_identity_reply_one_lower_is_flagged(tmp_path):
+    # On every make, a reply naming another identifier is a stale/misfiled frame.
     path = _write(
         tmp_path,
         """
@@ -97,7 +79,7 @@ def test_hk_identity_offset_flagged_when_quirk_off(tmp_path):
 
 
 def test_did_offset_minus_two_flagged(tmp_path):
-    # A -2 lag is a genuine stale frame, not the HK quirk.
+    # A -2 lag is a stale frame too.
     path = _write(
         tmp_path,
         """

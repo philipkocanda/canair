@@ -425,16 +425,6 @@ class TestRawTerminalModeResolution:
         assert (tx, rx, mode) == (0x18DA10F1, 0x18DAF110, AddressingMode.NORMAL_FIXED_29BIT)
 
 
-class TestRawTerminalQuirk:
-    def test_hk_f1xx_offset_forwarded(self, monkeypatch):
-        monkeypatch.setattr(slcan_mod, "SlcanTcpBus", FakeBus)
-        monkeypatch.setattr(raw_terminal.can, "Notifier", FakeNotifier)
-        t = raw_terminal.RawTerminal("h", 3333, 500000, hk_f1xx_offset=True)
-        assert t.hk_f1xx_offset is True
-        t2 = raw_terminal.RawTerminal("h", 3333, 500000)
-        assert t2.hk_f1xx_offset is False
-
-
 class TestRawTerminalFcOverride:
     """_stack must thread the ECU's fc_id (from its addr_map EcuAddress) into
     build_isotp_stack (gap G-J: functional-TX / physical-RX ECUs). An ECU without
