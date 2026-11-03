@@ -46,12 +46,18 @@ the answers:
   session rule, not in the command.
 - **Collecting replies:** keep listening for a window, default 300 ms. That covers the spec's
   50 ms answer time plus gateway delay and the 100 kbit/s buses; it is tunable with `--window`.
+  A responder mid-message holds the window only until its own next frame is overdue (N_Cr), a
+  ResponsePending extends it, and an absolute cap bounds the whole collection.
 - **Report:** one row per response ID, mapped through the profile (`rx_for_tx` in reverse) to the
-  ECU name and its `can_bus`. Mark each reply positive or NRC, flag responders the profile does not
-  know, and list known ECUs that stayed silent. Grouped by bus, that is the routing map.
+  ECU name and its `can_bus`. Mark each reply positive, NRC, or pending (only ResponsePending by
+  the end of the window), flag responders the profile does not know, and list known ECUs that
+  stayed silent. Grouped by bus, that is the routing map.
 - **Multi-frame replies:** for `22`/`19` requests, send each responder's flow control on its own
   physical request ID (response − 8, or the ECU's `fc_id`), never on `0x7DF`. The AVN times out
-  otherwise.
+  otherwise. Only a First Frame that answers the request (SID + 0x40, or 0x7F) gets one: another
+  tester's multi-frame request falls in the same ID block.
+- **Out of scope:** CAN-FD profiles and `normal_29bit` addressing (free-form 29-bit reply IDs)
+  are refused; replies are recognised as `0x700`-`0x7FF` or `0x18DAF1xx`.
 - **Repeats:** `--repeat N --interval S`, interval at least 1 s, to reproduce the Kona burst
   silence (findings section 3).
 - **`--save`:** writes a discover-style capture (`rx: broadcast`, one entry per responder with its
@@ -64,12 +70,17 @@ the answers:
   here; the response set is small.
 - **ELM327 (`wican-ws`, `elm327-tcp`):**
   - Turn headers on (`ATH1`) and use the functional target the addressing module already has
-    (`functional_target`, automatic filter, flow-control mode 0).
+    (`functional_target`, flow-control mode 0) directly, never a profile ECU registered on the
+    functional ID.
+  - Open the receive filter with `ATCF`/`ATCM` (`700`/`700`, or `18DAF100`/`1FFFFF00`): the
+    automatic filter behind `0x7DF` passes only `0x7E8`-`0x7EF`, which would hide most Hyundai
+    ECUs. Restore it with `ATCRA` afterwards; an adapter that refuses the filter is named in the
+    report.
   - The adapter collects replies until its `ATST` budget runs out, which covers the window.
   - Multi-frame replies from several ECUs at once are the risky case for an ELM327. Start with
     single-frame requests (`3E 00`), and treat `22`/`19` on ELM as best-effort.
-  - Restore headers-off afterwards. `AdapterState` must observe `ATH1` and `ATH0`, or the
-    header cache drifts.
+  - Restore headers-off, the `ATST` wait and the filter afterwards, each even if another restore
+    fails. `AdapterState` must observe `ATH1` and `ATH0`, or the header cache drifts.
 
 ### Tests
 

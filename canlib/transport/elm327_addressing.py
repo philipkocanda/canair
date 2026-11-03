@@ -223,7 +223,9 @@ def functional_target(tx_id: int) -> ElmTarget:
     """A broadcast request with no single responder: every ECU's reply must get through.
 
     The filter goes back to auto and flow control to mode 0, so each responder gets
-    flow control on its own physical id.
+    flow control on its own physical id. Behind ``0x7DF`` the auto filter passes only
+    the OBD-II reply ids ``0x7E8``-``0x7EF``; a responder sweep opens it to every
+    diagnostic reply for its one request (:mod:`canlib.transport.elm327_functional`).
     """
     return ElmTarget(
         header=tx_id,

@@ -88,7 +88,9 @@ the physical sweep.
 - **Transport:** `slcan-tcp` sees every frame and sends each multi-frame responder its flow
   control on that ECU's own request ID. An ELM327 (`wican-ws`, `elm327-tcp`) is best-effort: the
   adapter handles flow control and decides when to stop listening, and overlapping multi-frame
-  replies are where it is weakest.
+  replies are where it is weakest. For the request canair opens the adapter's receive filter to
+  every diagnostic reply ID, since its automatic filter would pass only `0x7E8`-`0x7EF`; an
+  adapter that refuses is named in the report.
 - **Slow answers:** an ECU that only sent ResponsePending (`7F xx 78`) by the end of the window
   is listed as `pending`, not as silent.
 - **Limits:** profiles on CAN-FD, and on `normal_29bit` addressing (free-form 29-bit reply IDs),

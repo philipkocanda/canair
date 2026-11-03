@@ -286,14 +286,26 @@ class TestElmPath:
         ch = QueuedChannel(
             "OK\r\r>",  # ATSH7DF
             "OK\r\r>",  # ATFCSH7DF
+            "OK\r\r>",  # ATCF700
+            "OK\r\r>",  # ATCM700
             "OK\r\r>",  # ATH1
             "7EC037F3E12\r778027E00\r\r>",  # the request
             "OK\r\r>",  # ATH0
+            "OK\r\r>",  # ATCRA
         )
         term = Elm327Terminal(ch, timeout=2.0)
         result = await term.send_functional(0x7DF, "3E00", 0.3)
         sent = [s.strip() for s in ch.sent]
-        assert sent == ["ATSH7DF", "ATFCSH7DF", "ATH1", "3E00", "ATH0"]
+        assert sent == [
+            "ATSH7DF",
+            "ATFCSH7DF",
+            "ATCF700",
+            "ATCM700",
+            "ATH1",
+            "3E00",
+            "ATH0",
+            "ATCRA",
+        ]
         assert {m.rx_id: m.payload.hex().upper() for m in result.messages} == {
             0x7EC: "7F3E12",
             0x778: "7E00",
@@ -303,11 +315,11 @@ class TestElmPath:
 
     @pytest.mark.asyncio
     async def test_a_long_window_raises_the_adapter_wait_and_restores_it(self):
-        ch = QueuedChannel(*["OK\r\r>"] * 4, "778027E00\r\r>", *["OK\r\r>"] * 2)
+        ch = QueuedChannel(*["OK\r\r>"] * 6, "778027E00\r\r>", *["OK\r\r>"] * 3)
         term = Elm327Terminal(ch, timeout=2.0)
         await elm_functional_exchange(term, 0x7DF, b"\x3e\x00", window=0.9)
         sent = [s.strip() for s in ch.sent]
-        assert sent[3:] == ["ATSTDC", "3E00", "ATH0", "ATST96"]
+        assert sent[5:] == ["ATSTDC", "3E00", "ATH0", "ATST96", "ATCRA"]
 
 
 # --------------------------------------------------------------------------- report

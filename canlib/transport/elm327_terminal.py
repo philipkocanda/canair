@@ -53,6 +53,7 @@ from .elm327_addressing import (
     DEFAULT_FC_DATA,
     IDLE_FORGET_SECONDS,
     AdapterState,
+    ElmTarget,
     elm_id,
     target_in,
 )
@@ -614,14 +615,15 @@ class Elm327Terminal:
             transport=self.diag.transport,
         )
 
-    async def set_header(self, tx_id: int):
+    async def set_header(self, tx_id: int, *, target: ElmTarget | None = None):
         """Address the adapter at ``tx_id``: header, flow control and receive filter.
 
         Cached: only what differs from the adapter's current state is sent, so
         polling many PIDs on one ECU (or re-selecting the same ECU across cycles)
         costs zero round trips after the first. A conventional ECU (ISO 15765-4
         ``tx + 0x08``) gets exactly the ATSH/ATFCSH pair it always did; see
-        :mod:`canlib.transport.elm327_addressing` for the others.
+        :mod:`canlib.transport.elm327_addressing` for the others. ``target``
+        overrides what the profile's ECU registry says ``tx_id`` needs.
 
         Raises:
             AdapterRefusedError: the adapter rejected a command the request cannot
@@ -634,9 +636,10 @@ class Elm327Terminal:
             and self._clock() - self._last_command_at > IDLE_FORGET_SECONDS
         ):
             self._address.forget()
-        if self.addresses.is_shared(tx_id):
-            self._report_shared(tx_id)
-        target = target_in(self.addresses, tx_id)
+        if target is None:
+            if self.addresses.is_shared(tx_id):
+                self._report_shared(tx_id)
+            target = target_in(self.addresses, tx_id)
         for _ in range(_ADDRESSING_ROUNDS):
             epoch = self._address.epoch
             for cmd in self._address.plan(target, self.flow_control_data):

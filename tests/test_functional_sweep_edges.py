@@ -6,11 +6,17 @@ exchanges and the report. The happy paths are in ``test_discover_functional.py``
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
+
 import can
 import pytest
 
-from canlib.addressing import EcuAddress
+from canlib.addressing import AddressBook, EcuAddress
 from canlib.modes.functional_sweep import classify_round
+from canlib.transport.elm327_addressing import AUTO
+from canlib.transport.elm327_functional import elm_functional_exchange
+from canlib.transport.elm327_terminal import Elm327Terminal
 from canlib.transport.functional import (
     ABSOLUTE_CAP_S,
     CONSECUTIVE_FRAME_TIMEOUT_S,
@@ -19,6 +25,7 @@ from canlib.transport.functional import (
     FunctionalResult,
 )
 from canlib.transport.functional_raw import raw_functional_exchange
+from canlib.transport.stats import TransportStats
 
 # --------------------------------------------------------------------------- collector
 
@@ -173,6 +180,132 @@ class TestRawTerminal:
         term._classic_can = False
         with pytest.raises(ValueError, match="classic CAN"):
             await term.send_functional(0x7DF, "3E00")
+
+
+# --------------------------------------------------------------------------- ELM327 path
+
+
+class _Channel:
+    """Answers each command from a script ("OK" for anything unscripted)."""
+
+    transport_name = "elm327-tcp"
+
+    def __init__(self, replies: dict[str, str] | None = None):
+        self.sent: list[str] = []
+        self._replies = replies or {}
+        self._q: asyncio.Queue[str] = asyncio.Queue()
+
+    async def connect(self) -> None:
+        pass
+
+    async def send(self, text: str) -> None:
+        cmd = text.rstrip("\r")
+        self.sent.append(cmd)
+        await self._q.put(self._replies.get(cmd, "OK") + "\r>")
+
+    async def recv(self, timeout: float) -> str | None:
+        try:
+            return self._q.get_nowait()
+        except asyncio.QueueEmpty:
+            await asyncio.sleep(0)
+            return None
+
+    async def drain(self, per_recv_timeout: float = 0.2, max_seconds: float = 1.0) -> None:
+        pass
+
+    async def close(self) -> None:
+        pass
+
+
+class TestElmPath:
+    @pytest.mark.asyncio
+    async def test_the_filter_is_opened_for_the_request_and_restored(self):
+        ch = _Channel({"3E00": "7EC027E00\r778027E00\r"})
+        term = Elm327Terminal(ch)
+        result = await term.send_functional(0x7DF, "3E00")
+        assert ch.sent.index("ATCF700") < ch.sent.index("ATCM700") < ch.sent.index("3E00")
+        assert ch.sent[-1] == "ATCRA"
+        assert {m.rx_id for m in result.messages} == {0x7EC, 0x778}
+        assert result.notes == []
+        assert term._address.rx_filter == AUTO
+
+    @pytest.mark.asyncio
+    async def test_29bit_opens_the_physical_response_block(self):
+        ch = _Channel({"3E00": "18DAF110027E00\r"})
+        term = Elm327Terminal(ch)
+        result = await term.send_functional(0x18DB33F1, "3E00")
+        assert "ATCF18DAF100" in ch.sent and "ATCM1FFFFF00" in ch.sent
+        assert [m.rx_id for m in result.messages] == [0x18DAF110]
+
+    @pytest.mark.asyncio
+    async def test_a_refused_filter_is_reported(self):
+        ch = _Channel({"ATCF700": "?", "3E00": "7EC027E00\r"})
+        result = await Elm327Terminal(ch).send_functional(0x7DF, "3E00")
+        assert "ATCM700" not in ch.sent
+        assert result.notes and "ATCF700" in result.notes[0]
+        sweep = classify_round(result, {})
+        assert sweep.notes == result.notes
+
+    @pytest.mark.asyncio
+    async def test_a_registered_functional_ecu_does_not_pin_the_filter(self):
+        ch = _Channel({"3E00": "7EC027E00\r778027E00\r"})
+        term = Elm327Terminal(ch)
+        obd = EcuAddress(0x7DF, 0x7E8, fc_id=0x7E0)
+        term.addresses = AddressBook({0x7DF: obd}, {})
+        await term.send_functional(0x7DF, "3E00")
+        assert not any(c.startswith("ATCRA7") for c in ch.sent)
+        assert "ATFCSM1" not in ch.sent
+
+    @pytest.mark.asyncio
+    async def test_losses_reach_the_terminal_diagnostics(self):
+        ch = _Channel({"22F18C": "7EC100A62F18C313233\r"})
+        term = Elm327Terminal(ch)
+        result = await term.send_functional(0x7DF, "22F18C")
+        assert result.lost == 1
+        assert term.diag.counts["drop"] == 1
+
+
+class _FailingTerminal:
+    """The surface ``elm_functional_exchange`` uses; ``ATH0`` fails."""
+
+    elm_timeout_cmd = "ATST96"
+
+    def __init__(self):
+        self.sent: list[str] = []
+        self.diag = TransportStats()
+
+    def elm_response_budget(self) -> float:
+        return 0.1
+
+    @contextlib.asynccontextmanager
+    async def transaction(self):
+        yield
+
+    async def set_header(self, tx_id, *, target=None):
+        self.sent.append(f"header {tx_id:X}")
+
+    def headers_command(self, on: bool) -> str:
+        return "ATH1" if on else "ATH0"
+
+    async def send_command(self, cmd: str, timeout=None) -> str:
+        self.sent.append(cmd)
+        if cmd == "ATH0":
+            raise ConnectionError("gone")
+        return "OK"
+
+
+class TestRestore:
+    @pytest.mark.asyncio
+    async def test_a_failed_headers_off_still_restores_the_wait_and_filter(self):
+        term = _FailingTerminal()
+        with pytest.raises(ConnectionError):
+            await elm_functional_exchange(
+                term,  # type: ignore[arg-type]
+                0x7DF,
+                b"\x3e\x00",
+                window=0.5,
+            )
+        assert term.sent[-3:] == ["ATH0", "ATST96", "ATCRA"]
 
 
 # --------------------------------------------------------------------------- report
