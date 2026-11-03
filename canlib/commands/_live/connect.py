@@ -8,7 +8,6 @@ sleep/battery banner, which is presentation and so stays in the command layer.
 from __future__ import annotations
 
 import contextlib
-import re
 
 from canlib import (
     WiCANTerminal,
@@ -149,10 +148,8 @@ async def connect_elm_terminal(transport, pids_data: dict, args) -> Terminal:
         elif pids_data.get("response_timeout_ms") is not None:
             atst_val = max(1, min(255, round(pids_data["response_timeout_ms"] / 4.096)))
             candidate = f"ATST{atst_val:02X}"
-            # Skip if the init string already applied this exact ATST (avoid a
-            # redundant round-trip on connect).
-            _init_atst = re.search(r"ATST([0-9A-Fa-f]{2})", init_string)
-            if not (_init_atst and f"ATST{_init_atst.group(1).upper()}" == candidate):
+            # Skip it when the init already left the adapter there.
+            if terminal.adapter_timeout_cmd != candidate:
                 atst_cmd = candidate
                 label = ", from profile"
         if atst_cmd is not None:

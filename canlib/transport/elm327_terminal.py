@@ -56,7 +56,7 @@ from .elm327_addressing import (
     elm_id,
     target_in,
 )
-from .elm327_eeprom import init_commands
+from .elm327_eeprom import RESET_COMMANDS, canonical, init_commands
 from .elm327_frame_count import CountKey, FrameCountCache
 from .elm327_functional import elm_functional_exchange
 from .elm327_pipe import ResponsePipe, compact
@@ -81,6 +81,18 @@ _ELM_MAX_REQUEST_BYTES = 7
 # parsed. `ATST hh` sets the wait to hh * 4.096 ms, so ATST96 (0x96 = 150) is ~614ms.
 _ELM_ST_UNIT = 0.004096
 _DEFAULT_ELM_BUDGET = 0x96 * _ELM_ST_UNIT
+# The ECU wait an ELM327 (and an STN chip) comes back with after a reset: ~205 ms.
+ADAPTER_DEFAULT_TIMEOUT_CMD = "ATST32"
+_ATST_RE = re.compile(r"ATST[0-9A-F]{1,2}")
+
+
+def timeout_budget(atst_cmd: str) -> float:
+    """Seconds an ``ATST hh`` command makes the adapter wait (the default if unparsable)."""
+    cu = atst_cmd.upper().replace(" ", "")
+    if _ATST_RE.fullmatch(cu):
+        return int(cu[4:], 16) * _ELM_ST_UNIT
+    return _DEFAULT_ELM_BUDGET
+
 
 # Floor for the link-latency slack added to the ELM's own budget when deciding how
 # long "quiet" must last for the pipe to be provably empty. It is only a floor:
@@ -176,7 +188,18 @@ class Elm327Terminal:
         # :mod:`canlib.transport.elm327_pipe` for why counting prompts is the only
         # per-exchange framing signal the ELM327 protocol offers.
         self._pipe = ResponsePipe()
-        self.elm_timeout_cmd = "ATST96"  # current ELM327 timeout command
+        # The session's ECU wait: what a temporary change (the wake ritual, a
+        # functional sweep) restores. The profile's init or the connect sets it.
+        self.elm_timeout_cmd = "ATST96"
+        # What the adapter is actually set to, as observed from the commands sent
+        # (an applied ATST, or a reset back to the chip default); None until one is
+        # seen. The resync drain must outlast *this* wait, not the intended one.
+        self.adapter_timeout_cmd: str | None = None
+        # The profile's init, kept so an adapter that resets itself mid-session
+        # (a voltage dip while cranking) gets it again; None before `init_elm`.
+        self._init_string: str | None = None
+        self._reinit_pending = False
+        self._reiniting = False
         self._cmd_lock = asyncio.Lock()  # serialize all ELM327 commands
         # The task currently holding `_cmd_lock`, so a multi-command *transaction*
         # (see `transaction()`) can nest send_command calls without deadlocking on
@@ -346,14 +369,9 @@ class Elm327Terminal:
         The ELM327 guarantees it emits *something* (data, ``NO DATA``, an error)
         within its ``ATST`` timeout, so this is the basis for deciding how long
         silence must last before the pipe is provably empty — see :meth:`_resync`.
+        The adapter's observed setting wins over the session's intended one.
         """
-        cu = self.elm_timeout_cmd.upper().replace(" ", "")
-        if cu.startswith("ATST"):
-            try:
-                return int(cu[4:], 16) * _ELM_ST_UNIT
-            except ValueError:
-                pass
-        return _DEFAULT_ELM_BUDGET
+        return timeout_budget(self.adapter_timeout_cmd or self.elm_timeout_cmd)
 
     async def _resync(self, reason: str) -> None:
         """Realign the command/response pipe, or raise :class:`ConnectionError`.
@@ -429,6 +447,8 @@ class Elm327Terminal:
         # with — see `ResponsePipe.needs_resync`.
         if self._pipe.needs_resync():
             await self._resync("dirty pipe")
+        if self._reinit_pending and not (self._resyncing or self._reiniting):
+            await self._reapply_init()
 
         self.cmd_count += 1
         _t0 = time.monotonic()
@@ -471,6 +491,7 @@ class Elm327Terminal:
         # A command whose reply never arrived may or may not have been applied, so
         # what it sets is recorded as unknown rather than as done.
         self._address.observe(cmd, result, answered=read.clean)
+        self._observe_timeout(cu, result, answered=read.clean)
         elapsed = time.monotonic() - _t0
         self.cmd_time += elapsed
         # Feed the link estimate only from commands the adapter answers by itself,
@@ -493,6 +514,14 @@ class Elm327Terminal:
         if self.verbose:
             print(f"  [init] ATZ -> {resp!r}", file=sys.stderr)
 
+        self._init_string = init_string
+        await self._send_init(init_string)
+        # The ECU wait the init leaves (its own ATST, else the chip default after the
+        # reset) is what a temporary change restores, unless the connect sets one.
+        if self.adapter_timeout_cmd is not None:
+            self.elm_timeout_cmd = self.adapter_timeout_cmd
+
+    async def _send_init(self, init_string: str) -> None:
         for cmd in init_commands(init_string):
             resp = await self.send_command(cmd)
             if self.verbose:
@@ -501,6 +530,45 @@ class Elm327Terminal:
         # Whatever filter the init left (auto, or its own ATCRA) is what a
         # conventional ECU keeps, exactly as before addressing was managed per ECU.
         self._address.mark_baseline()
+
+    def _observe_timeout(self, cu: str, result: str, *, answered: bool) -> None:
+        """Track the adapter's ECU wait from the commands that change it.
+
+        A reset puts it back to the chip default. An ``ATST`` whose answer never
+        came may or may not have been applied, so the longer of the two waits is
+        assumed: the resync drain must not be shorter than the adapter's own wait.
+        """
+        if cu in RESET_COMMANDS:
+            self.adapter_timeout_cmd = ADAPTER_DEFAULT_TIMEOUT_CMD
+        elif _ATST_RE.fullmatch(cu) and "?" not in result:
+            previous = self.adapter_timeout_cmd
+            if answered or previous is None or timeout_budget(cu) > timeout_budget(previous):
+                self.adapter_timeout_cmd = cu
+
+    async def _reapply_init(self) -> None:
+        """Bring an adapter that reset itself back to the session's settings.
+
+        Its memory function is on again, its protocol is the stored one (an
+        ``AT TP`` is not saved) and its ECU wait is the default. The real reply to
+        the command the banner answered is still on its way, so the pipe is
+        realigned first.
+        """
+        self._reinit_pending = False
+        if self._init_string is None:
+            return
+        self._reiniting = True
+        try:
+            await self._resync("adapter reset itself")
+            await self._send_init(self._init_string)
+            if self.adapter_timeout_cmd != canonical(self.elm_timeout_cmd):
+                await self.send_command(self.elm_timeout_cmd)
+        finally:
+            self._reiniting = False
+        log_event(
+            "bus",
+            "adapter reset itself; the profile init and the session's ECU wait were sent again",
+            transport=self.diag.transport,
+        )
 
     def _report_rejected(self, cmd: str, resp: str, context: str) -> None:
         """Record, once per command, that the adapter answered ``?`` (it did not apply it).
@@ -529,15 +597,20 @@ class Elm327Terminal:
         is trusted. Not raised: a UDS reply that is a banner already fails to parse
         and resyncs, and both ``set_header`` (which replans when the state is
         forgotten mid-way) and a ``send_uds`` retry then restate the addressing.
+        The profile init is sent again before the next command
+        (:meth:`_reapply_init`), since the reset also undid it.
         """
         if not _RESET_BANNER_RE.search(result):
             return
         self._address.forget()
+        self.adapter_timeout_cmd = ADAPTER_DEFAULT_TIMEOUT_CMD
+        if not self._reiniting:
+            self._reinit_pending = True
         log_event(
             "bus",
             f"adapter answered {cmd} with its start-up banner {compact(result)[:24]!r}; "
-            "if it reset itself its settings are back to defaults, so the addressing is "
-            "restated",
+            "if it reset itself its settings are back to defaults, so the init is sent "
+            "again and the addressing restated",
             transport=self.diag.transport,
         )
 

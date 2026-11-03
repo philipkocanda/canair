@@ -24,7 +24,7 @@ class TestRamOnly:
             ("ATSP6", "ATTP6"),
             ("at sp 7", "ATTP7"),
             ("ATSPA6", "ATTPA6"),
-            ("ATSP6A", "ATTP6A"),
+            ("ATSP6A", "ATTPA6"),  # AT TP takes its auto flag first only
             ("ATSP0", "ATTP0"),
             ("ATSPC", "ATTPC"),
             ("ATM1", "ATM0"),
@@ -78,7 +78,7 @@ class TestInitCommands:
             "ATST96",
         ]
 
-    def test_memory_goes_off_again_after_a_reset_in_the_init(self):
+    def test_memory_and_protocol_are_set_again_after_a_reset_in_the_init(self):
         assert init_commands("ATD;ATSP7;at ws;ATE0") == [
             "ATM0",
             "ATD",
@@ -86,8 +86,12 @@ class TestInitCommands:
             "ATTP7",
             "at ws",
             "ATM0",
+            "ATTP7",
             "ATE0",
         ]
+
+    def test_a_reset_before_any_protocol_selection_restores_none(self):
+        assert init_commands("ATZ;ATSP6") == ["ATM0", "ATZ", "ATM0", "ATTP6"]
 
     def test_an_empty_init_still_turns_memory_off(self):
         assert init_commands(" ; ") == ["ATM0"]
@@ -139,6 +143,77 @@ class TestConnect:
             await term.connect()
             await term.init_elm("ATSP6;")
         assert ch.sent == ["ATZ", "ATM0", "ATTP6"] * 2
+
+
+class _ScriptedChannel(_Channel):
+    """Answers OK, except the commands given a scripted reply (consumed once each)."""
+
+    def __init__(self, replies: dict[str, str]):
+        super().__init__()
+        self.replies = replies
+
+    async def send(self, text: str) -> None:
+        cmd = text.rstrip("\r")
+        self.sent.append(cmd)
+        await self._q.put(self.replies.pop(cmd, "OK") + "\r>")
+
+
+class TestEcuWait:
+    """The adapter's ECU wait is tracked from what was sent, init included."""
+
+    @pytest.mark.asyncio
+    async def test_the_init_sets_the_wait_a_temporary_change_restores(self):
+        term = Elm327Terminal(_Channel())
+        await term.init_elm("ATSP6;ATS0;ATAL;ATSTFF;")
+        assert term.elm_timeout_cmd == "ATSTFF"
+        assert term.elm_response_budget() == pytest.approx(0xFF * 0.004096)
+
+    @pytest.mark.asyncio
+    async def test_without_an_atst_the_wait_is_the_chip_default(self):
+        term = Elm327Terminal(_Channel())
+        await term.init_elm("ATSP6;")
+        assert term.elm_timeout_cmd == "ATST32"
+
+    @pytest.mark.asyncio
+    async def test_a_temporary_change_is_what_the_drain_follows(self):
+        term = Elm327Terminal(_Channel())
+        await term.init_elm("ATSP6;ATST96;")
+        await term.send_command("ATSTFF")
+        assert term.elm_timeout_cmd == "ATST96"  # still what a restore sends
+        assert term.elm_response_budget() == pytest.approx(0xFF * 0.004096)
+
+    @pytest.mark.asyncio
+    async def test_an_unanswered_atst_assumes_the_longer_wait(self):
+        term = Elm327Terminal(_Channel())
+        await term.init_elm("ATSP6;ATSTFF;")
+        term._observe_timeout("ATST10", "", answered=False)
+        assert term.adapter_timeout_cmd == "ATSTFF"
+        term._observe_timeout("ATST10", "OK", answered=True)
+        assert term.adapter_timeout_cmd == "ATST10"
+
+
+class TestAdapterResetItself:
+    @pytest.mark.asyncio
+    async def test_the_init_is_sent_again_before_the_next_command(self):
+        """After a self-reset its memory is on and AT TP is gone: both must come back."""
+        ch = _ScriptedChannel({"ATI": "ELM327 v1.5"})
+        term = Elm327Terminal(ch, timeout=0.05)
+        await term.init_elm("ATSP6;ATS0;ATST96;")
+        ch.replies["0100"] = "ELM327 v1.5"  # the banner answers the read
+        await term.send_command("0100")
+        ch.sent.clear()
+        await term.send_command("0105")
+        assert ch.sent == ["ATI", "ATM0", "ATTP6", "ATS0", "ATST96", "0105"]
+        assert term.adapter_timeout_cmd == "ATST96"
+
+    @pytest.mark.asyncio
+    async def test_without_an_init_nothing_is_resent(self):
+        ch = _ScriptedChannel({"0100": "ELM327 v1.5"})
+        term = Elm327Terminal(ch, timeout=0.05)
+        await term.send_command("0100")
+        ch.sent.clear()
+        await term.send_command("0105")
+        assert ch.sent == ["0105"]
 
 
 class TestValidateWarning:
