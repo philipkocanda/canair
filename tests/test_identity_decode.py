@@ -1,5 +1,7 @@
 """Tests for canlib.modes.identity_decode — pure decode + protocol selection."""
 
+import pytest
+
 from canlib.modes import identity_decode as idec
 
 # --- decode_identity_payload ---
@@ -73,6 +75,11 @@ class TestServiceSupported:
 
     def test_service_not_supported(self):
         assert idec.service_supported({"ok": False, "nrc": 0x11}) is False
+
+    @pytest.mark.parametrize("nrc", [0x7F, 0x80])
+    def test_not_in_the_active_session_is_not_supported(self, nrc):
+        # 0x7F is UDS serviceNotSupportedInActiveSession; KWP2000 spells it 0x80.
+        assert idec.service_supported({"ok": False, "nrc": nrc}) is False
 
     def test_other_nrc_means_supported(self):
         # requestOutOfRange -> service exists, this DID doesn't.

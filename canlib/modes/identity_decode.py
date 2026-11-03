@@ -23,6 +23,9 @@ __all__ = [
     "service_supported",
 ]
 
+# NRCs that refuse the service itself rather than this one request.
+_SERVICE_REFUSALS = frozenset({0x11, 0x7F, 0x80})
+
 
 def decode_identity_payload(payload_bytes: bytes, fmt: str) -> str:
     """Decode an identity payload to a human-readable string.
@@ -62,13 +65,14 @@ def resolve_protocol_hint(tx_id: int, requested: str) -> str | None:
 def service_supported(resp: UdsResponse) -> bool | None:
     """Interpret a probe response: True=supported, False=not, None=no signal.
 
-    A positive response or any NRC other than serviceNotSupported (0x11) /
-    serviceNotSupportedInActiveSession (0x7F) means the service exists. A bare
-    ``NO DATA``/timeout carries no signal (ECU asleep or busy).
+    A positive response or any NRC other than the refusals of the service itself —
+    serviceNotSupported (0x11), and not-in-the-active-session as UDS (0x7F) and
+    KWP2000 (0x80) spell it — means the service exists. A bare ``NO DATA``/timeout
+    carries no signal (ECU asleep or busy).
     """
     if resp.get("ok"):
         return True
     nrc = resp.get("nrc")
     if nrc is not None:
-        return nrc not in (0x11, 0x7F)
+        return nrc not in _SERVICE_REFUSALS
     return None

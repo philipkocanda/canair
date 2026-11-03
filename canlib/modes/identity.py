@@ -96,7 +96,10 @@ async def _probe_protocol(terminal: Terminal) -> tuple[str | None, str]:
         return KWP, "KWP2000 service 1A supported (probe 1A90)"
 
     if uds_ok is False and kwp_ok is False:
-        return None, "neither UDS 22 nor KWP2000 1A supported (both NRC 0x11)"
+        return None, (
+            "neither UDS 22 nor KWP2000 1A supported (NRC 0x11, or 0x7F/0x80 "
+            "refused in the active session)"
+        )
     return None, "no response to probe (22F190 / 1A90) — ECU may be asleep or unpowered"
 
 
