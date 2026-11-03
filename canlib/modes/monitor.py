@@ -1165,13 +1165,20 @@ class MonitorController:
         Every ECU's poll rate is restored too: a desynchronised pipe makes every ECU
         look unanswered, so by the time the liveness check reconnects they are all
         backed off, and the old link's timings say nothing about the new one.
+
+        The old client's transport counts move to the new client, so the session's
+        recorded ``quality`` still covers the exchanges made before the reconnect.
         """
+        previous = self.diag_recorder()
         if self.raw:
             self.raw_client = new_client
             self.raw_poller = MonitorRawPoller(self)
         else:
             self.terminal = new_client
             self.sm = SessionManager(new_client, verbose=self.verbose)
+        current = self.diag_recorder()
+        if previous is not None and current is not None and current is not previous:
+            current.absorb(previous)
         self.reset_backoff()
         self.disconnected = False
 

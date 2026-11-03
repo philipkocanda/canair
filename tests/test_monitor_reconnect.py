@@ -421,6 +421,33 @@ class TestControllerRebind:
         c._apply_backoff()
         assert c.schedule.slowdown(BMS) == 1
 
+    @pytest.mark.parametrize("raw", [False, True])
+    def test_rebind_keeps_the_segment_quality_of_the_old_link(self, raw):
+        # A reconnect swaps in a client whose recorder starts at zero; the segment's
+        # recorded quality must still count what the old link exchanged.
+        from types import SimpleNamespace
+
+        from canlib.transport.stats import TransportStats
+
+        def client():
+            return SimpleNamespace(diag=TransportStats(transport="wican-ws"))
+
+        c = self._controller(raw=raw)
+        old = client()
+        if raw:
+            c.raw_client = old
+        else:
+            c.terminal = old
+        c.recorder._reset_diag_base()
+        for _ in range(5):
+            old.diag.record("ok")
+        old.diag.record("drop")
+        new = client()
+        c.rebind(new)
+        new.diag.record("ok")
+        quality = c.recorder.segment_quality()
+        assert quality == {"exchanges": 7, "drop": 1}
+
     def test_reset_restores_a_factor_the_backoff_no_longer_tracks(self):
         c = self._controller(raw=False)
         c.schedule.set_slowdown(("BMS", "2101"), 8)

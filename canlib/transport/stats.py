@@ -206,3 +206,15 @@ class TransportStats:
             delta.counts[cat] = max(0, self.counts[cat] - base.get(cat, 0))
         delta.resyncs = max(0, self.resyncs - base.get("resyncs", 0))
         return delta
+
+    def absorb(self, previous: TransportStats) -> None:
+        """Add a replaced client's counts to this one's.
+
+        A reconnect gives the session a new client whose recorder starts at zero.
+        Without carrying the old counts forward, a segment's quality (a diff
+        against a baseline taken from the old client) would cover only the last
+        link, and every exchange and error before the reconnect would vanish.
+        """
+        for cat in RESPONSE_CATEGORIES:
+            self.counts[cat] += previous.counts.get(cat, 0)
+        self.resyncs += previous.resyncs
