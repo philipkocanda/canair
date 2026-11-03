@@ -15,10 +15,15 @@ What counts as a reply, and why only that:
   broadcast scan is interleaved.
 - The one thing a reply does *not* name is a **batched** request (``22 D1 D2 …``): its
   reply starts with ``D1`` and carries ``D2`` at a data-dependent offset, so filing it
-  under ``D1`` would be a misfiled capture. The tester's last request to that ECU is
-  the only way to tell, so it is tracked and such replies are skipped, not guessed.
+  under ``D1`` would be a misfiled capture. Only the requests can tell, so every
+  data-read request to an ECU is kept until it is answered (or could no longer be: see
+  :data:`_REPLY_WINDOW_S`), and a reply starting with the first DID of a batch still
+  outstanding is skipped, not guessed, however many requests were sent after it. A
+  reply that splits into several DIDs whose lengths earlier replies showed is skipped
+  too, which catches a batch whose request frame is missing from the log.
 - A negative reply (``7F sid nrc``) does not repeat the identifier either, so it is
-  filed only on request, and only against an unambiguous single-identifier request.
+  filed only on request, and only against an unambiguous single-identifier request: the
+  oldest outstanding request of that service, since an ECU answers its requests in turn.
   ``responsePending`` (``0x78``) is never a result, always followed by one.
 - OBD-II mode 01 replies (``41 PID …``) are left out, and reported with the other
   services. A multi-PID request (``01 0C 0D``) is answered by one reply interleaving
@@ -34,7 +39,7 @@ caller can say which to register.
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
@@ -42,6 +47,7 @@ from typing import TYPE_CHECKING
 from canlib.captures.types import CaptureRecord
 from canlib.ecus import EcuRegistryEntry, ecu_protocol, rx_addr_str, rx_for_tx
 from canlib.uds.isotp_passive import ReassemblyStats, reassemble
+from canlib.uds.multi_did import split_chain
 from canlib.uds.nrc import nrc_description
 
 if TYPE_CHECKING:
@@ -91,6 +97,39 @@ class _Request:
     count: int
 
 
+# How long a request can still be answered: P2*server_max, the longest an ECU may take
+# after a responsePending (ISO 14229-2). A request older than that is never answered,
+# so a batch the ECU ignored stops making later single reads of its first DID look
+# batched.
+_REPLY_WINDOW_S = 5.0
+
+
+@dataclass
+class _Outstanding:
+    """One ECU's data-read requests not yet answered, oldest first."""
+
+    requests: list[tuple[float, _Request]] = field(default_factory=list)
+    lengths: dict[str, int] = field(default_factory=dict)  # DID4 -> data bytes, from replies
+
+    def expire(self, now: float) -> None:
+        self.requests = [(t, r) for t, r in self.requests if now - t <= _REPLY_WINDOW_S]
+
+    def take(self, match: Callable[[_Request], bool]) -> _Request | None:
+        """Remove and return the oldest outstanding request ``match`` accepts."""
+        for i, (_t, request) in enumerate(self.requests):
+            if match(request):
+                del self.requests[i]
+                return request
+        return None
+
+    def refresh(self, service: int, now: float) -> None:
+        """responsePending: the oldest request of ``service`` gets a new reply window."""
+        for i, (_t, request) in enumerate(self.requests):
+            if request.service == service:
+                self.requests[i] = (now, request)
+                return
+
+
 def extract_replies(
     frames: Iterable[can.Message],
     ecus: Mapping[int, EcuRegistryEntry],
@@ -100,13 +139,17 @@ def extract_replies(
     """Find every data-read reply in ``frames`` from an ECU in ``ecus`` (keyed by TX id)."""
     result = Extraction()
     rx_to_tx = {rx_for_tx(tx, ecus): tx for tx in ecus}
-    last_request: dict[tuple[int | str | None, int], _Request | None] = {}
+    outstanding: dict[tuple[int | str | None, int], _Outstanding] = {}
 
     tracked = set(ecus) | set(rx_to_tx)
     for msg in reassemble(frames, result.reassembly, tracked=tracked):
         payload = msg.payload
         if msg.arbitration_id in ecus:
-            last_request[(msg.channel, msg.arbitration_id)] = _parse_request(payload)
+            pending = outstanding.setdefault((msg.channel, msg.arbitration_id), _Outstanding())
+            pending.expire(msg.timestamp)
+            request = _parse_request(payload)
+            if request is not None:
+                pending.requests.append((msg.timestamp, request))
             continue
 
         tx = rx_to_tx.get(msg.arbitration_id)
@@ -115,20 +158,30 @@ def extract_replies(
                 result.unregistered[msg.arbitration_id] += 1
             continue
 
-        request = last_request.get((msg.channel, tx))
+        pending = outstanding.setdefault((msg.channel, tx), _Outstanding())
+        pending.expire(msg.timestamp)
         sid = payload[0]
         notes: str | None = None
         if sid == _READ_BY_ID + 0x40 and len(payload) >= 3:
-            if _is_batched(request, _READ_BY_ID, payload[1:3]):
+            echoed = payload[1:3]
+            batch = pending.take(lambda r, e=echoed: _is_batch_for(r, e))
+            if batch is not None or split_chain(payload, pending.lengths.get) is not None:
                 result.batched_skipped += 1
                 continue
-            pid = f"22{payload[1:3].hex().upper()}"
+            pending.take(lambda r, e=echoed: r.service == _READ_BY_ID and r.first_id == e)
+            pending.lengths[echoed.hex().upper()] = len(payload) - 3
+            pid = f"22{echoed.hex().upper()}"
         elif sid == _READ_BY_LOCAL_ID + 0x40 and len(payload) >= 2:
-            pid = f"21{payload[1:2].hex().upper()}"
+            echoed = payload[1:2]
+            pending.take(lambda r, e=echoed: r.service == _READ_BY_LOCAL_ID and r.first_id == e)
+            pid = f"21{echoed.hex().upper()}"
         elif sid == _NEGATIVE and len(payload) == 3 and payload[1] in (0x21, 0x22):
+            service = payload[1]
             if payload[2] == _RESPONSE_PENDING:
+                pending.refresh(service, msg.timestamp)
                 continue
-            if not (keep_negative and request and _answers_single_read(request, payload[1])):
+            request = pending.take(lambda r, s=service: r.service == s)
+            if not (keep_negative and request is not None and request.count == 1):
                 result.negatives_skipped += 1
                 continue
             pid = f"{request.service:02X}{request.first_id.hex().upper()}"
@@ -152,18 +205,9 @@ def _parse_request(payload: bytes) -> _Request | None:
     return None
 
 
-def _is_batched(request: _Request | None, service: int, echoed_id: bytes) -> bool:
-    return (
-        request is not None
-        and request.service == service
-        and request.count > 1
-        and request.first_id == echoed_id
-    )
-
-
-def _answers_single_read(request: _Request, service: int) -> bool:
-    """True when ``request`` is a one-identifier read of ``service``, so an NRC is unambiguous."""
-    return request.service == service and request.count == 1
+def _is_batch_for(request: _Request, echoed_id: bytes) -> bool:
+    """Is ``request`` a batched service-22 read whose reply starts ``62 echoed_id``?"""
+    return request.service == _READ_BY_ID and request.count > 1 and request.first_id == echoed_id
 
 
 def stamp(replies: Iterable[ExtractedReply], start: datetime) -> list[CaptureRecord]:

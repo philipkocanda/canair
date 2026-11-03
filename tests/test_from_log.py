@@ -109,6 +109,55 @@ class TestBatchedReads:
         assert [r.pid for r in out.replies] == ["220101"]
         assert out.batched_skipped == 1
 
+    def test_a_batch_reply_is_skipped_when_later_requests_were_pipelined(self, ecus):
+        # The batch is no longer the last request when its reply lands.
+        frames = [
+            *at(message_frames(BMS_TX, bytes.fromhex("2201010102")), 1.0),
+            *at(message_frames(BMS_TX, bytes.fromhex("220105")), 1.001),
+            *at(message_frames(BMS_RX, bytes.fromhex("62010111010222")), 1.02),
+            *at(message_frames(BMS_RX, bytes.fromhex("62010533")), 1.03),
+        ]
+        out = extract_replies(frames, ecus)
+        assert [(r.pid, r.payload) for r in out.replies] == [("220105", "62010533")]
+        assert out.batched_skipped == 1
+
+    def test_a_refused_batch_does_not_hold_up_the_single_reads_after_it(self, ecus):
+        frames = [
+            *exchange("2201010102", "7F2213", 1.0),
+            *exchange("220101", "620101AABB", 1.1),
+        ]
+        out = extract_replies(frames, ecus)
+        assert [r.pid for r in out.replies] == ["220101"] and out.batched_skipped == 0
+
+    def test_an_unanswered_batch_expires(self, ecus):
+        frames = [
+            *at(message_frames(BMS_TX, bytes.fromhex("2201010102")), 1.0),
+            *exchange("220101", "620101AABB", 10.0),
+        ]
+        out = extract_replies(frames, ecus)
+        assert [r.pid for r in out.replies] == ["220101"]
+
+    def test_a_batch_reply_whose_request_was_lost_splits_on_learned_lengths(self, ecus):
+        frames = [
+            *exchange("220101", "620101AABB", 1.0),
+            *exchange("220102", "620102CCDD", 1.1),
+            *at(message_frames(BMS_RX, bytes.fromhex("620101AABB0102CCDD")), 2.0),
+        ]
+        out = extract_replies(frames, ecus)
+        assert [r.pid for r in out.replies] == ["220101", "220102"]
+        assert out.batched_skipped == 1
+
+
+class TestPipelinedNegatives:
+    def test_an_nrc_answers_the_oldest_outstanding_request(self, ecus):
+        frames = [
+            *at(message_frames(BMS_TX, bytes.fromhex("22C101")), 1.0),
+            *at(message_frames(BMS_TX, bytes.fromhex("22C1010102")), 1.001),
+            *at(message_frames(BMS_RX, bytes.fromhex("7F2231")), 1.02),
+        ]
+        out = extract_replies(frames, ecus, keep_negative=True)
+        assert [r.pid for r in out.replies] == ["22C101"]
+
 
 class TestNegativeResponses:
     NRC = "7F2231"
