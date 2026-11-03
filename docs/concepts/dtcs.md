@@ -272,7 +272,8 @@ canair pids set-snapshot-only CCM 224710 --length 9
 
 `--length` records the DID's data length in a record. The reply does not carry it, so
 a record holding several DIDs cannot be split without it; a record of one DID is
-self-describing, and a DID that also answers live takes its length from those replies.
+self-describing, and a DID that also answers live takes its length from those replies
+(unless its PID is `variable_length`, whose replies have no one length: declare it).
 `canair dtc` prints these two commands for any snapshot DID it cannot decode, and
 `canair coverage` audits a snapshot-only PID against its saved snapshots. To look at a
 reply byte by byte, `canair bix -a 5904582C0008…` labels its DTC, status, record, count
