@@ -59,7 +59,7 @@ from ._monitor_selectors import MonitorSelectors, PickerSeed
 from ._monitor_sessions import MonitorSessions
 from ._monitor_state import STATE_INPUT_STALE_CYCLES, MonitorStateSuggester
 from ._monitor_stats import ParamStats
-from .monitor_raw import MonitorRawPoller, _raw_pid_result
+from .monitor_raw import MonitorRawPoller, Submission, _raw_pid_result
 from .multi_batch import EcuFrame, ResultEntry
 
 if TYPE_CHECKING:
@@ -932,7 +932,11 @@ class MonitorController:
         await self.raw_poller.poll()
 
     def _apply_raw_submission(
-        self, s: dict, val, acquired: float, by_pid: dict[tuple[str, str], ResultEntry]
+        self,
+        s: Submission,
+        val: bytes | Exception | None,
+        acquired: float,
+        by_pid: dict[tuple[str, str], ResultEntry],
     ) -> None:
         self.raw_poller.apply_submission(s, val, acquired, by_pid)
 
