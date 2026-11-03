@@ -101,6 +101,12 @@ class TestPidsNamedBy:
     def test_suffix_still_matches_without_an_exact_key(self):
         assert pids_named_by("BC03", self.KEYS) == ["22BC03"]
 
+    def test_a_service_prefix_picks_what_the_capture_tools_list(self):
+        # VCU:22 used to pick nothing live (suffix-only) and send 2122 instead.
+        assert pids_named_by("22", self.KEYS) == ["220101", "22BC03"]
+        q = parse_query("VCU:22")
+        assert [k for k in self.KEYS if q.matches("VCU", k)] == ["220101", "22BC03"]
+
 
 class TestCaptureMatching:
     def test_explicit_selector_matches_only_its_request(self):
@@ -142,6 +148,9 @@ class TestQueryPlan:
 
     def test_explicit_did_picks_the_defined_one(self):
         assert self._plan(["22/0101"]) == [("220101", False)]
+
+    def test_a_service_prefix_reads_the_defined_dids_not_a_raw_2122(self):
+        assert self._plan(["22"]) == [("220101", False)]
 
     def test_a_defined_mode_01_pid_is_decoded(self):
         info = {**self.INFO, "pids": {**self.INFO["pids"], "0101": {"parameters": {}}}}

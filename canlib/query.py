@@ -20,7 +20,9 @@ Grammar
   boundary-anchored match: the PID must *start with* or *end with* the token
   (so ``22`` matches every ``22xxxx`` service DID and ``BC03`` matches the
   stored ``22BC03`` regardless of service byte). A token that appears only in
-  the middle does not match.
+  the middle does not match. A live read (:func:`pids_named_by`) picks defined
+  PIDs by the same rule, except that a token equal to a defined PID picks only
+  that one.
 - A ``SERVICE/ID`` token names the service explicitly and matches exactly one
   request code: ``01/0D`` is OBD-II mode 01 PID 0D (request ``010D``), which a
   bare ``010D`` cannot say, since four hex digits read as a service-22 DID.
@@ -153,21 +155,37 @@ def inferred_request(token: str) -> str:
     )
 
 
+def _token_names(token: str, pid: str) -> bool:
+    """Whether one upper-cased PID ``token`` names the upper-cased ``pid``.
+
+    The one matching rule both the live planner and the capture tools apply. A
+    ``SERVICE/ID`` token names only its exact request code; a bare token names a
+    PID that starts or ends with it (``22`` names every ``22xxxx`` DID, ``BC03``
+    names ``22BC03``), never one it only appears in the middle of.
+    """
+    explicit = explicit_request(token)
+    if explicit is not None:
+        return pid == explicit
+    return pid.startswith(token) or pid.endswith(token)
+
+
 def pids_named_by(token: str, keys: Iterable[str]) -> list[str]:
     """The defined PID ``keys`` a PID token picks, in ``keys`` order.
 
     A ``SERVICE/ID`` token picks only its exact request code. A bare token picks
-    a key equal to it if there is one, else every key ending with it (``BC03``
-    picks ``22BC03``), so a token that *is* a defined PID never also drags in
-    another PID it happens to end (``0101`` vs ``220101``).
+    a key equal to it if there is one, else every key starting or ending with it
+    (``22`` picks every ``22xxxx`` DID, ``BC03`` picks ``22BC03``) — the capture tools'
+    rule, so ``VCU:22`` reads what it lists. The exact-key preference is the one
+    difference: a token that *is* a defined PID never also drags in another PID it
+    happens to end (``0101`` vs ``220101``).
     """
-    explicit = explicit_request(token)
-    upper = [(k, str(k).upper()) for k in keys]
-    if explicit is not None:
-        return [k for k, u in upper if u == explicit]
     tok = token.upper()
-    exact = [k for k, u in upper if u == tok]
-    return exact or [k for k, u in upper if u.endswith(tok)]
+    upper = [(k, str(k).upper()) for k in keys]
+    if explicit_request(tok) is None:
+        exact = [k for k, u in upper if u == tok]
+        if exact:
+            return exact
+    return [k for k, u in upper if _token_names(tok, u)]
 
 
 def looks_like_pid(token: str) -> bool:
@@ -220,14 +238,7 @@ class Selector:
         if not self.pids:
             return True
         p = str(pid).upper()
-        for tok in self.pids:
-            explicit = explicit_request(tok)
-            if explicit is not None:
-                if p == explicit:
-                    return True
-            elif p == tok or p.startswith(tok) or p.endswith(tok):
-                return True
-        return False
+        return any(_token_names(tok, p) for tok in self.pids)
 
     def matches(self, ecu: str, pid: str) -> bool:
         return self.matches_ecu(ecu) and self.matches_pid(pid)

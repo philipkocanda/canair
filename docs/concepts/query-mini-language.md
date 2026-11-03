@@ -15,7 +15,14 @@ whatever the *active* profile defines; see `canair ecu`.)
 | `BMS:2101` | BMS PID `2101` only |
 | `IGPM:BC03,BC06` | two IGPM DIDs (comma-separated) |
 | `BMS:01/0D` | OBD-II mode 01 PID `0D` (request `010D`) — see below |
+| `VCU:22` | every VCU PID starting with `22` (all its service-22 DIDs) |
 | `VCU:2101 BMS:2101` | cross-ECU — a **space separates independent selectors** |
+
+A PID token picks every PID that **starts or ends** with it (`BC03` picks `22BC03`,
+`22` picks every `22xxxx` DID), never one it only appears in the middle of — the same
+rule in `read`/`monitor` as in the capture tools. The one difference: in a live read, a
+token that *is* a defined PID picks only that one (`0101` reads `0101`, not also
+`220101`), where the capture tools list both.
 
 A PID like `2101` vs `22B002` differs by its service-byte prefix — see
 [ECU protocols & PID prefixes](ecu-protocols.md) for what the `21`/`22` means and
@@ -31,6 +38,9 @@ written (`22BC03`). That makes `0101` the DID `0x0101`, which is a real identifi
 some ECUs — so it can never also mean OBD-II mode 01 PID `01`. Anything else — an odd
 number of digits, or a longer request such as `BC0301` — is skipped with a warning
 rather than sent as a guess; write it with `SERVICE/ID` or send it with a `raw` step.
+Inference applies only when no defined PID matches, so a short token that picks
+defined pages (`21`, `22`) needs the explicit form to read the bare identifier
+(`21/22` for local identifier `0x22`).
 
 Write the service and the identifier with a `/` to say exactly which request you
 mean:
