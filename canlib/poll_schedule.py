@@ -25,6 +25,7 @@ of *that* PID's polls, not three ticks of a faster neighbour.
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from typing import Any, Literal, get_args
 
 Schedule = Literal["dynamic", "fixed"]
@@ -38,6 +39,9 @@ MONITOR_PERIOD_SPEEDUP = 2.0
 
 # A (canonical ECU name, PID code) pair, as the query plans name them.
 Key = tuple[str, str]
+# One query-plan entry, ``(pid_code, pid_info_or_None, unmapped)``, as built by
+# :func:`~canlib.modes.multi_exec.build_query_plan`.
+PlanEntry = tuple[str, dict[str, Any] | None, bool]
 
 # Due times computed along different grids (2 s x 5 vs 10 s x 1) differ by float
 # rounding; treat anything this close as on time so phase-locked PIDs coincide.
@@ -112,11 +116,10 @@ class PollScheduler:
         if self.schedule == "fixed":
             self._advance(_ROUND, self.interval)
 
-    def take_due(self, ecu: str, plan: list) -> list:
+    def take_due(self, ecu: str, plan: Sequence[PlanEntry]) -> list[PlanEntry]:
         """The entries of one ECU's full query plan that are due on this tick.
 
-        ``plan`` is ``[(pid_code, pid_info_or_None, unmapped)]`` as built by
-        :func:`~canlib.modes.multi_exec.build_query_plan`; order is preserved.
+        Plan order is preserved.
         """
         if self.schedule == "fixed" and self._sits_out(ecu):
             for entry in plan:
@@ -124,7 +127,7 @@ class PollScheduler:
                 self._period_ms[key] = declared_period_ms(entry[1])
                 self._live.add(key)
             return []
-        due = []
+        due: list[PlanEntry] = []
         for entry in plan:
             key = (ecu, entry[0])
             self._period_ms[key] = declared_period_ms(entry[1])

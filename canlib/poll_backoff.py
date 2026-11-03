@@ -31,7 +31,7 @@ ESCALATE_AFTER = 2
 RECOVER_AFTER = 3
 
 
-@dataclass
+@dataclass(slots=True)
 class PollCost:
     """What polling one ECU cost on one tick.
 
@@ -45,7 +45,7 @@ class PollCost:
     answered: int = 0
 
 
-@dataclass
+@dataclass(slots=True)
 class _EcuHealth:
     slowdown: int = 1
     slow_streak: int = 0
