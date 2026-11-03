@@ -329,6 +329,12 @@ class CountAttempt:
                 # Continued silence falls through untouched — it proves nothing, so
                 # the digit stays for the next poll.
                 self.cache.disable_digit(self.key)
+            if resp.get("ok"):
+                # The plain retry is itself a plain request answered ``ok``, so its
+                # length is evidence like any other plain read's. Fed in after the
+                # verdict: a retry that disagreed has just retired the key, and the
+                # ledger ignores a retired key, so it cannot rehabilitate it.
+                self.cache.observe(self.key, plain)
         elif requested is not None:
             # A request that *carried* the count came back whole. This is the only
             # direct test of the count there is, and passing it is what promotes the

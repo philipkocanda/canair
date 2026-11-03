@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import pytest
 
+from canlib.frame_counts import OBSERVATIONS_REQUIRED
 from canlib.transport.elm327_frame_count import (
     MAX_REQUESTABLE_FRAMES,
     CountVerdict,
@@ -414,6 +415,40 @@ class TestDecisionProcedure:
         assert key not in cache.ledger.retired()
         cache.reset()
         assert cache.attempt(key).command("22C00B") == "22C00B4"
+
+    def _diagnose(self, cache: FrameCountCache, key, plain_reply: dict) -> None:
+        """One digit-bearing read that comes back short, then its plain retry."""
+        attempt = cache.attempt(key)
+        attempt.command(key[1])
+        assert attempt.verdict(self._short(2)).retry_plain
+        attempt.command(key[1])
+        attempt.verdict(plain_reply)
+
+    def _plain_read(self, cache: FrameCountCache, key, reply: dict) -> None:
+        attempt = cache.attempt(key)
+        assert attempt.command(key[1]) == key[1]
+        attempt.verdict(reply)
+
+    def test_the_plain_retry_counts_as_a_plain_observation(self):
+        # The retry is itself a plain request answered ok, so its length is evidence:
+        # with it, two further plain reads reach the observations a count needs.
+        key = (0x7A0, "22C00B")
+        cache = FrameCountCache()
+        cache.learn(key, 4)
+        self._diagnose(cache, key, self._ok(4))
+        for _ in range(OBSERVATIONS_REQUIRED - 1):
+            self._plain_read(cache, key, self._ok(4))
+        assert cache.ledger.confirmed() == {key: 4}
+
+    def test_a_retry_that_disagreed_never_rehabilitates_the_key(self):
+        key = (0x7A0, "22C00B")
+        cache = FrameCountCache()
+        cache.learn(key, 4)
+        self._diagnose(cache, key, self._ok(6))
+        for _ in range(OBSERVATIONS_REQUIRED + 1):
+            self._plain_read(cache, key, self._ok(6))
+        assert key in cache.ledger.retired()
+        assert key not in cache.ledger.confirmed()
 
     def test_an_nrc_on_the_plain_retry_keeps_the_count(self):
         # An NRC is a complete answer that simply occupies fewer frames; it proves
