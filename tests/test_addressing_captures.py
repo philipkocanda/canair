@@ -8,6 +8,7 @@ the capture schema must accept the 29-bit RX that raw/scan/import/discover now r
 from __future__ import annotations
 
 import json
+import re
 
 import pytest
 
@@ -149,7 +150,7 @@ class TestDiscoverRxConsistency:
         session = _saved(root)
         [entry] = session["captures"][0]["scan_results"]["responding"]
         assert (entry["tx"], entry["rx"]) == ("0x18DA10F1", "0x18DAF110")
-        assert "0x18DA10F1 (RX 0x18DAF110)" in capsys.readouterr().out
+        assert re.search(r"0x18DA10F1\s+RX 0x18DAF110", capsys.readouterr().out)
         [path] = sorted((root / "captures").glob("*.json"))
         validator = Draft202012Validator(json.loads(CAPTURES_SCHEMA_FILE.read_text()))
         assert validate_captures_file(path, validator, set()) == []

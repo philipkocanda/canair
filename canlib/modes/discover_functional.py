@@ -19,10 +19,26 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import Any, TextIO
 
+from canlib import ansi
 from canlib.transport.functional import DEFAULT_WINDOW_S
 from canlib.transport.protocol import Terminal
 
+from .discover_render import (
+    GAP,
+    INDENT,
+    NO_ANSWER,
+    POSITIVE,
+    REFUSED,
+    Cell,
+    Painter,
+    column_widths,
+    render_row,
+    status_cell,
+)
 from .functional_sweep import (
+    NOT_IN_PROFILE,
+    UNKNOWN_BUS,
+    Responder,
     SweepRound,
     classify_round,
     group_by_bus,
@@ -38,46 +54,86 @@ DEFAULT_REQUEST = "3E00"
 MIN_INTERVAL_S = 1.0
 
 
+def _bus_heading(bus: str, paint: Painter) -> str:
+    if bus == NOT_IN_PROFILE:
+        return f"  {paint(bus, ansi.raw.BOLD + ansi.raw.YELLOW)}"
+    if bus == UNKNOWN_BUS:
+        return f"  {paint(bus, ansi.raw.DIM)}"
+    return f"  {paint(bus, ansi.raw.BOLD + ansi.raw.CYAN)}"
+
+
+def _responder_row(r: Responder) -> list[Cell]:
+    mark = POSITIVE if r.positive else NO_ANSWER if not r.answered else REFUSED
+    name: Cell = (r.name, ansi.raw.BOLD) if r.name else ("NEW", ansi.raw.BOLD + ansi.raw.YELLOW)
+    extra = [r.detail] if r.detail else []
+    if r.elapsed_ms is not None:
+        extra.append(f"{r.elapsed_ms} ms")
+    if r.pending:
+        extra.append(f"{r.pending}x pending")
+    return [
+        mark,
+        (hex_id(r.rx_id), ""),
+        name,
+        status_cell(r.status),
+        (r.payload_hex, ansi.raw.DIM),
+        ("  ".join(extra), ansi.raw.DIM),
+    ]
+
+
 def _print_round(sweep: SweepRound, total: int, out: TextIO) -> None:
+    paint = Painter(out)
     head = f"Round {sweep.index}/{total}" if total > 1 else "Responders"
-    print(f"\n  --- {head} ({sweep.time}): {len(sweep.responders)} answered ---", file=out)
-    for bus, rows in group_by_bus(sweep.responders).items():
-        print(f"  {bus}", file=out)
-        for r in rows:
-            mark = "+" if r.positive else "?" if not r.answered else "~"
-            tag = r.name or "NEW"
-            timing = f"  {r.elapsed_ms} ms" if r.elapsed_ms is not None else ""
-            pending = f"  ({r.pending}x pending)" if r.pending else ""
-            detail = f" ({r.detail})" if r.detail else ""
-            print(
-                f"    {mark} {hex_id(r.rx_id)} [{tag}] {r.status}{detail}  {r.payload_hex}"
-                f"{timing}{pending}",
-                file=out,
-            )
+    print(paint.heading(head, sweep.time, f"{len(sweep.responders)} answered"), file=out)
+    groups = group_by_bus(sweep.responders)
+    rows = {bus: [_responder_row(r) for r in members] for bus, members in groups.items()}
+    # One set of widths for every bus, so the columns line up down the whole report.
+    widths = column_widths([row for bus_rows in rows.values() for row in bus_rows])
+    for bus, bus_rows in rows.items():
+        print(_bus_heading(bus, paint), file=out)
+        for row in bus_rows:
+            print(render_row(row, widths, paint), file=out)
     if sweep.silent:
-        print("  Silent (in the profile, did not answer):", file=out)
-        for bus, rows in silent_by_bus(sweep.silent).items():
-            print(f"    {bus}: {', '.join(s.name for s in rows)}", file=out)
+        silent = silent_by_bus(sweep.silent)
+        print(
+            paint.heading("Silent", f"{len(sweep.silent)} in the profile did not answer"), file=out
+        )
+        width = max(len(bus) for bus in silent)
+        for bus, members in silent.items():
+            names = ", ".join(s.name for s in members)
+            print(f"{INDENT}{paint(bus.ljust(width), ansi.raw.DIM)}{GAP}{names}", file=out)
     if sweep.other:
-        print("  Other traffic (did not answer the request):", file=out)
-        for o in sweep.other:
-            print(f"    {hex_id(o.rx_id)}: {o.payload_hex}", file=out)
+        print(paint.heading("Other traffic", "did not answer the request"), file=out)
+        other = [[(hex_id(o.rx_id), ""), (o.payload_hex, ansi.raw.DIM)] for o in sweep.other]
+        for row in other:
+            print(render_row(row, column_widths(other), paint), file=out)
+    if sweep.lost or sweep.notes:
+        print(file=out)
     if sweep.lost:
-        print(f"  Lost: {sweep.lost} reply/replies missing frames (not shown)", file=out)
+        lost = paint("Lost:", ansi.raw.YELLOW)
+        print(f"  {lost} {sweep.lost} reply/replies missing frames (not shown)", file=out)
     for note in sweep.notes:
-        print(f"  Note: {note}", file=out)
+        print(f"  {paint('Note:', ansi.raw.YELLOW)} {note}", file=out)
 
 
 def _print_summary(rounds: list[SweepRound], out: TextIO) -> None:
     """Per responder, how many rounds it answered (a dropped bus shows up here)."""
+    paint = Painter(out)
     answered: dict[int, tuple[str, int]] = {}
     for sweep in rounds:
         for r in sweep.responders:
             label, count = answered.get(r.rx_id, (r.name or f"NEW {hex_id(r.rx_id)}", 0))
             answered[r.rx_id] = (label, count + 1)
-    print(f"\n  --- Answered per round ({len(rounds)} rounds) ---", file=out)
-    for label, count in sorted(answered.values()):
-        print(f"    {label}: {count}/{len(rounds)}", file=out)
+    print(paint.heading("Answered per round", f"{len(rounds)} rounds"), file=out)
+    rows: list[list[Cell]] = [
+        [
+            (label, ansi.raw.BOLD),
+            (f"{count}/{len(rounds)}", ansi.raw.GREEN if count == len(rounds) else ansi.raw.YELLOW),
+        ]
+        for label, count in sorted(answered.values())
+    ]
+    widths = column_widths(rows)
+    for row in rows:
+        print(render_row(row, widths, paint), file=out)
 
 
 async def mode_discover_functional(
@@ -110,13 +166,16 @@ async def mode_discover_functional(
     ecus = load_ecus()
     out = sys.stderr if as_json else sys.stdout
 
-    print(
-        f"\n  Functional discovery: {request} on {hex_id(tx_id)}"
-        f"\n  Mode: {mode.value}"
-        f"\n  Window: {window * 1000:.0f} ms"
-        + (f"\n  Rounds: {repeat}, {interval:g} s apart" if repeat > 1 else ""),
-        file=out,
-    )
+    paint = Painter(out)
+    settings = [
+        ("request", f"{request} on {hex_id(tx_id)}"),
+        ("mode", mode.value),
+        ("window", f"{window * 1000:.0f} ms"),
+    ]
+    if repeat > 1:
+        settings.append(("rounds", f"{repeat}, {interval:g} s apart"))
+    print(paint.heading("Functional discovery"), file=out)
+    print("\n".join(paint.fields(settings)), file=out)
 
     rounds: list[SweepRound] = []
     for i in range(1, repeat + 1):

@@ -12,16 +12,19 @@ async device orchestration.
 
 import asyncio
 import json
+import sys
 
 from canlib.uds.echo import hk_identity_offset, request_echo
 from canlib.uds.protocol import KWP, UDS
 from canlib.uds.response import UdsResponse
 from canlib.uds.services import RESPONSE_SID_OFFSET
 
+from .. import ansi
 from ..ecus import ecu_display
 from ..quirks import HK_F1XX_MINUS_ONE
 from ..sensitive import MASK, request_hidden
 from ..transport.protocol import Terminal
+from .discover_render import Painter
 from .identity_decode import (
     decode_identity_payload,
     resolve_protocol_hint,
@@ -123,6 +126,7 @@ async def mode_identity(
         from ..quirks import resolve_quirks
 
         quirks = resolve_quirks(active().meta)
+    paint = Painter(sys.stdout)
 
     await terminal.set_header(tx_id)
 
@@ -137,13 +141,14 @@ async def mode_identity(
             resolved, probe_reason = await _probe_protocol(terminal)
 
         if not as_json:
-            print(f"\n  Identity query: {ecu_display(tx_id)}")
+            fam = ""
             if resolved:
                 fam = "UDS (22 F1xx)" if resolved == UDS else "KWP2000 (1A 8x/9x)"
-                detail = f" — {probe_reason}" if probe_reason else ""
-                print(f"  Protocol: {fam}{detail}\n")
-            else:
-                print()
+            print(f"\n  {paint(ecu_display(tx_id), ansi.raw.BOLD + ansi.raw.CYAN)}", end="")
+            print(paint(f" · identity · {fam}" if fam else " · identity", ansi.raw.DIM))
+            if resolved and probe_reason:
+                print(paint(f"  {probe_reason}", ansi.raw.DIM))
+            print()
 
         if resolved is None:
             msg = probe_reason or "could not determine identity protocol"
@@ -160,6 +165,7 @@ async def mode_identity(
         offset = spec["payload_offset"]
         prefix = spec["prefix"]
         label_width = max(len(label) for _, label, _ in records)
+        did_width = max(len(did) for did, _, _ in records)
 
         results = []
         n_ok = n_nrc = n_nodata = 0
@@ -188,15 +194,19 @@ async def mode_identity(
                         }
                     )
                 else:
-                    print(f"  {did_hex}  {label:<{label_width}}  {decoded}")
+                    did = paint(did_hex.ljust(did_width), ansi.raw.YELLOW)
+                    print(f"  {did}  {label:<{label_width}}  {decoded}")
                     if (fmt != "ascii" or "." in decoded) and decoded != raw_hex:
-                        print(f"        {'':>{label_width}}  raw: {raw_hex}")
+                        raw_line = f"{'':{did_width}}  {'':>{label_width}}  raw: {raw_hex}"
+                        print(f"  {paint(raw_line, ansi.raw.DIM)}")
             elif response.get("nrc") is not None:
                 n_nrc += 1
             elif (answered_as := _offset_answer(request, response)) is not None:
                 offsets.append((did_hex, answered_as))
                 if not as_json:
-                    print(f"  {did_hex}  {label:<{label_width}}  (answered as {answered_as})")
+                    did = paint(did_hex.ljust(did_width), ansi.raw.YELLOW)
+                    note = paint(f"(answered as {answered_as})", ansi.raw.YELLOW)
+                    print(f"  {did}  {label:<{label_width}}  {note}")
             else:
                 n_nodata += 1
 
@@ -234,10 +244,11 @@ async def mode_identity(
                 else:
                     print("  No identity fields returned (all DIDs rejected/unsupported).")
             offset_note = f", {len(offsets)} answered one lower" if offsets else ""
-            print(
-                f"\n  {n_ok} field(s) returned, {n_nrc} rejected, "
+            summary = (
+                f"{n_ok} field(s) returned, {n_nrc} rejected, "
                 f"{n_nodata} no-response{offset_note} (of {len(records)} probed)."
             )
+            print(f"\n  {paint(summary, ansi.raw.DIM)}")
             if offsets:
                 print("\n".join(_offset_hint(offsets)))
             if revision is not None:

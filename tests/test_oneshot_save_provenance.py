@@ -17,6 +17,7 @@ to, so a saved ``"fake"`` proves the label came from the client.
 from __future__ import annotations
 
 import json
+import re
 
 import pytest
 
@@ -106,7 +107,7 @@ class TestDiscoverSave:
             ("0x74E", "0x76E", "positive"),  # unregistered: profile +0x20, not +8
         }
         # The saved RX is the one the sweep printed.
-        assert "0x74E (RX 0x76E) [NEW]" in out
+        assert re.search(r"0x74E\s+RX 0x76E\s+NEW\b", out)
 
 
 class TestScanAndRawSave:

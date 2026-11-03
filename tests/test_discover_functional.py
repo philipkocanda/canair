@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 
 import can
 import pytest
@@ -511,7 +512,7 @@ class TestMode:
             (None, ()),
         }
         assert [s["name"] for s in rnd["silent"]] == ["AVN"]
-        assert "not in profile" in out.err and "MM-CAN: AVN" in out.err
+        assert "not in profile" in out.err and re.search(r"MM-CAN\s+AVN", out.err)
 
     @pytest.mark.asyncio
     async def test_repeat_sends_each_round(self, gateway_profile, monkeypatch, capsys):
@@ -529,4 +530,4 @@ class TestMode:
         assert [c for c in term.calls if c[0] == "send_functional"] == [
             ("send_functional", (0x7DF, "22F18C", 0.3))
         ] * 3
-        assert "BMS: 3/3" in capsys.readouterr().out
+        assert re.search(r"BMS\s+3/3", capsys.readouterr().out)

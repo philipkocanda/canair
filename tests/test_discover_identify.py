@@ -6,6 +6,8 @@ Covers canlib.modes.discover._classify_alive and _offer_identify (the
 
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from canlib import profile
@@ -145,5 +147,5 @@ class TestDiscoverCrossReference:
         await disc.mode_discover(term, (0x7E4, 0x7E5), verbose=False, as_json=False, delay=0.0)
         out = capsys.readouterr().out
         assert "Cross-reference:" in out
-        assert "[BMS]" in out
+        assert re.search(r"0x7E4\s+RX 0x7EC\s+BMS\s+positive", out)
         assert "1 known" in out

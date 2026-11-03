@@ -4,8 +4,19 @@ import asyncio
 import json
 import sys
 
+from .. import ansi
 from ..addressing import DEFAULT_MODE, AddressingMode, is_extended
 from ..transport.protocol import Terminal
+from .discover_render import (
+    INDENT,
+    POSITIVE,
+    REFUSED,
+    Cell,
+    Painter,
+    column_widths,
+    render_row,
+    status_cell,
+)
 
 # Standard tester/source address used to form 29-bit physical request ids
 # (0x18DA{target}{tester}); F1 is the ISO 15765-4 external-tester address.
@@ -33,6 +44,20 @@ def discovery_targets(
     if is_extended(mode):
         return [0x18DA0000 | (target << 8) | tester for target in range(start, end + 1)]
     return list(range(start, end + 1))
+
+
+def _alive_row(tx_id: int, rx_id: int, name: str | None, status: str, detail: str) -> list[Cell]:
+    """One responding address: request and reply id, ECU, status, reply or NRC meaning."""
+    mark = POSITIVE if status == "positive" else REFUSED
+    ecu: Cell = (name, ansi.raw.BOLD) if name else ("NEW", ansi.raw.BOLD + ansi.raw.YELLOW)
+    return [
+        mark,
+        (fmt_id(tx_id), ""),
+        (f"RX {fmt_id(rx_id)}", ansi.raw.DIM),
+        ecu,
+        status_cell(status),
+        (detail, ansi.raw.DIM),
+    ]
 
 
 async def mode_discover(
@@ -81,12 +106,15 @@ async def mode_discover(
         if is_extended(mode)
         else f"TX {fmt_id(start)}..{fmt_id(end)}"
     )
-    print(
-        f"\n  ECU discovery: {scope} ({total} addresses)"
-        f"\n  Mode: {mode.value}"
-        f"\n  Probe: 10 01 (default session request)"
-        f"\n  Delay: {delay}s between addresses"
-    )
+    paint = Painter(sys.stdout)
+    print(paint.heading("ECU discovery", f"{total} addresses"))
+    settings = [
+        ("range", scope),
+        ("mode", mode.value),
+        ("probe", "10 01 (default session request)"),
+        ("delay", f"{delay}s between addresses"),
+    ]
+    print("\n".join(paint.fields(settings)))
     print()
 
     alive = []
@@ -99,7 +127,7 @@ async def mode_discover(
         except Exception as e:
             errors.append((tx_id, str(e)))
             if verbose:
-                print(f"  ! {fmt_id(tx_id)}: {e}")
+                print(f"  {paint('!', ansi.raw.RED)} {fmt_id(tx_id)}: {e}")
             # On connection errors, wait longer before retrying
             await asyncio.sleep(1.0)
             continue
@@ -107,18 +135,21 @@ async def mode_discover(
         if response["ok"]:
             n_bytes = len(response["bytes"])
             alive.append((tx_id, "positive", response["hex"]))
-            print(f"  + {fmt_id(tx_id)}: OK ({n_bytes} bytes) {response['hex']}")
+            mark = paint(*POSITIVE)
+            print(
+                f"  {mark} {fmt_id(tx_id)}: OK ({n_bytes} bytes) {paint(response['hex'], ansi.raw.DIM)}"
+            )
         elif response.get("nrc") is not None:
             nrc = response["nrc"]
             desc = response["nrc_desc"]
             # NRC means the ECU is alive but rejected the request
             alive.append((tx_id, f"NRC 0x{nrc:02X}", desc))
-            print(f"  ~ {fmt_id(tx_id)}: NRC 0x{nrc:02X} ({desc}) — ECU alive")
+            print(f"  {paint(*REFUSED)} {fmt_id(tx_id)}: NRC 0x{nrc:02X} ({desc}) — ECU alive")
         else:
             # NO DATA / no response — not an ECU at this address
             if verbose:
                 error = response.get("error", "no response")
-                print(f"  - {fmt_id(tx_id)}: {error}")
+                print(f"  {paint('-', ansi.raw.DIM)} {fmt_id(tx_id)}: {error}")
 
         # Progress indicator (non-verbose)
         if not verbose and not response["ok"] and response.get("nrc") is None:
@@ -134,10 +165,13 @@ async def mode_discover(
         # Pace requests to avoid overwhelming the WiCAN
         await asyncio.sleep(delay)
 
-    print("\n  --- Discovery Results ------------------------------------")
-    print(f"  Alive:  {len(alive)}")
-    print(f"  Silent: {total - len(alive) - len(errors)}")
-    print(f"  Errors: {len(errors)}")
+    print(paint.heading("Discovery results"))
+    counts = [
+        ("alive", paint(str(len(alive)), ansi.raw.GREEN if alive else "")),
+        ("silent", str(total - len(alive) - len(errors))),
+        ("errors", paint(str(len(errors)), ansi.raw.RED if errors else "")),
+    ]
+    print("\n".join(paint.fields(counts)))
 
     # Each responder's RX is resolved exactly once, so the printed table, the
     # --json document and the saved capture cannot disagree about it.
@@ -148,17 +182,18 @@ async def mode_discover(
     names = {tx: name for tx, _, _, name in _classify_alive(alive)[0]}
 
     if alive:
-        print("\n  Responding addresses:")
-        for tx_id, status, detail in alive:
-            tag = names.get(tx_id) or "NEW"
-            print(f"    {fmt_id(tx_id)} (RX {fmt_id(rx_of[tx_id])}) [{tag}] — {status}: {detail}")
         n_new = len(alive) - len(names)
+        print(paint.heading("Responding addresses"))
+        rows = [_alive_row(tx_id, rx_of[tx_id], names.get(tx_id), s, d) for tx_id, s, d in alive]
+        widths = column_widths(rows)
+        for row in rows:
+            print(render_row(row, widths, paint))
         print(f"\n  Cross-reference: {len(names)} known, {n_new} new (not in ECU registry).")
 
     if errors:
-        print("\n  Errors:")
+        print(paint.heading("Errors"))
         for tx_id, err in errors:
-            print(f"    {fmt_id(tx_id)}: {err}")
+            print(f"{INDENT}{fmt_id(tx_id)}  {paint(err, ansi.raw.RED)}")
 
     if as_json:
         out = {
@@ -297,7 +332,8 @@ def _register_discovered(
 
     from ..ecus import load_ecus
 
-    print("\n  --- Register ---------------------------------------------")
+    paint = Painter(sys.stdout)
+    print(paint.heading("Register"))
     if not alive:
         print("  No alive ECUs to register.")
         return
@@ -312,8 +348,8 @@ def _register_discovered(
     if dry_run:
         print(f"  Would register {len(new)} new ECU(s) ({len(alive) - len(new)} already known):")
         for tx, status in new:
-            print(f"    {fmt_id(tx)} -> Unknown-{tx:03X}  ({status})")
-        print("  (dry-run — nothing written)")
+            print(f"{INDENT}{fmt_id(tx)} -> Unknown-{tx:03X}  {paint(f'({status})', ansi.raw.DIM)}")
+        print(paint("  (dry-run — nothing written)", ansi.raw.DIM))
         return
 
     from canlib.ecus.edit import EcusEditError, register_ecu
@@ -324,8 +360,11 @@ def _register_discovered(
         try:
             register_ecu(tx, notes=f"Discovered {today} via {via} ({status}).")
             added += 1
-            print(f"    + {fmt_id(tx)} -> Unknown-{tx:03X}  ({status})")
+            mark = paint(*POSITIVE)
+            print(
+                f"{INDENT}{mark} {fmt_id(tx)} -> Unknown-{tx:03X}  {paint(f'({status})', ansi.raw.DIM)}"
+            )
         except EcusEditError as e:
-            print(f"    ! {fmt_id(tx)}: {e}")
+            print(f"{INDENT}{paint('!', ansi.raw.RED)} {fmt_id(tx)}: {e}")
     print(f"  Registered {added} new ECU(s); {len(alive) - len(new)} already known.")
     print("  Next: name them, then run `canair identity <ecu>` to fill in metadata.")
