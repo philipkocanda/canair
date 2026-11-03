@@ -299,9 +299,8 @@ SKM:
           min: "0"
           max: "1"
           notes: >-
-            1 in OFF and ACC, 0 in ON and READY (957 rows); B12:3 is identical. B12:4 is set in
-            single 5 s polls every 1-4 min in every state, unexplained. Disabled as a duplicate of
-            SKM_IGN1_INPUT, inverted.
+            1 in OFF and ACC, 0 in ON and READY (957 rows); B12:3 is identical. Disabled as a
+            duplicate of SKM_IGN1_INPUT, inverted.
           enabled: false
     22B008:
       response_frames: 3
@@ -644,6 +643,28 @@ SKM:
         - byte sweep over all stored SKM captures, 2026-10-29
       what_to_test:
         - Record SKM 22B006 with --keep-all through ACC and ON without READY, to see whether B14, B15 or B20 move.
+    - type: decode
+      target: 22B007 B12:4 pulses; 22B00B B39/B54 30 s window
+      status: pending
+      priority: P3
+      vehicle_states: [ACC, "ON", READY]
+      created: "2026-11-03"
+      updated: "2026-11-03"
+      result: >-
+        22B007 B12:4 is set in single 5 s polls, 7 times in 28 min on 2026-11-03, in every state; 3
+        fell within 6 s before a button press or the driver door closing, 4 had no co-polled change.
+        22B00B B54 bit 2 and B39 bits 4 and 7 come on at each change to ACC or ON and clear about 30
+        s later; B54:2 and B39:4 then stay on through READY.
+      notes: >-
+        Both look like smart-key activity (an interior fob search, an authorisation window), but
+        nothing decoded confirms it. The 5 s polling could not time them better.
+      sources:
+        - power-state cycles 2026-11-03
+      what_to_test:
+        - "Poll SKM 22B007 and 22B00B alone at the fastest rate in ON: press the brake, touch a door handle button, take the fob out of the car, and wait 2 min untouched, noting each step."
+      capture_protocol: >-
+        canair monitor SKM:22B007,22B00B IGPM:22BC03 --save --keep-all --interval 0.5 --label 'SKM
+        fob search and 30 s window' --state ON; press s at every action.
   dtcs:
     source: Ioniq Electric 2017 service manual, Smart Key Unit diagnosis (EV)
     source_links:
