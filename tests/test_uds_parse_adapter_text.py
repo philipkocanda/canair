@@ -11,6 +11,7 @@ from canlib.uds.parse import ADAPTER_STATUS, parse_uds_response
 from canlib.uds.response import (
     CAT_BUS,
     CAT_DECODE,
+    CAT_DROP,
     CAT_NO_DATA,
     CAT_STALE,
     classify_error,
@@ -90,6 +91,38 @@ class TestAdapterLines:
 
     def test_bus_busy_is_a_bus_failure(self):
         assert parse_uds_response("BUS BUSY")["error_kind"] == CAT_BUS
+
+
+# One reply per failure message the parser can produce, with the category it stamps.
+_EVERY_FAILURE = [
+    ("", {}, CAT_NO_DATA),  # Empty response
+    ("22F190", {"request": "22F190"}, CAT_NO_DATA),  # only the request echo
+    ("62F19041\n6101AA", {}, CAT_STALE),  # separate replies, no request
+    ("62F19041\n62F19042", {"expected_sid": 0x22, "expected_echo": b"\xf1\x90"}, CAT_STALE),
+    ("2101\n6102AA", {"request": "2102"}, CAT_STALE),  # another request's echo
+    ("5001\n6101AA", {"request": "2102"}, CAT_STALE),  # no line answers
+    ("00A\n0:6101AABBCCDD\n1:EEFFGG11", {}, CAT_DECODE),  # non-hex frame line
+    ("00A\n1:6101AABBCCDD\n0:EEFF0011", {}, CAT_DROP),  # non-contiguous counters
+    ("GARBAGE", {}, CAT_DECODE),  # non-hex response
+    ("6", {}, CAT_DECODE),  # too short
+    ("62F1904", {}, CAT_DECODE),  # odd hex length
+    ("014\n0:6101AABBCCDD\n1:EEFF0011", {}, CAT_DROP),  # truncated
+    ("7F22", {}, CAT_DECODE),  # negative response too short
+    ("7F2131", {"expected_sid": 0x22}, CAT_STALE),  # NRC echo mismatch
+    ("6101AA", {"expected_sid": 0x22}, CAT_STALE),  # SID mismatch
+    ("6201", {"expected_sid": 0x22, "expected_echo": b"\xf1\x90"}, CAT_DECODE),  # too short
+    ("62F18F41", {"expected_sid": 0x22, "expected_echo": b"\xf1\x90"}, CAT_STALE),  # echo
+]
+
+
+@pytest.mark.parametrize(("raw", "kwargs", "kind"), _EVERY_FAILURE)
+def test_every_failure_message_classifies_as_the_kind_it_is_stamped(raw, kwargs, kind):
+    # The recorder falls back to classifying the message when no kind was stamped, so
+    # the two must never disagree.
+    r = parse_uds_response(raw, **kwargs)
+    assert r["ok"] is False
+    assert r["error_kind"] == kind
+    assert classify_error(r["error"]) == kind
 
 
 class TestMultiFrameText:
