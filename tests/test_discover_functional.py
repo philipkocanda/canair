@@ -132,6 +132,43 @@ class TestArgumentChecks:
         assert discover_cmd.functional_args_error(_discover_args(functional=True)) is None
         assert discover_cmd.functional_args_error(_discover_args()) is None
 
+    def test_a_zero_window_is_refused(self):
+        args = _discover_args(functional=True, window=0.0)
+        assert discover_cmd.functional_args_error(args) == "--window must be positive"
+
+
+class TestDispatchForwardsTheParsedValues:
+    def _run(self, monkeypatch, **kw) -> dict:
+        import asyncio
+
+        from canlib.modes.dispatch.scans import handle_discover
+
+        seen: dict = {}
+
+        async def fake_mode(terminal, pids_data, **kwargs):
+            seen.update(kwargs)
+
+        monkeypatch.setattr("canlib.modes.discover_functional.mode_discover_functional", fake_mode)
+        common = {"json": False, "save": False, "label": None, "state": None, "notes": None}
+        args = _discover_args(functional=True, **common, **kw)
+        asyncio.run(handle_discover(args, object(), {}, None))
+        return seen
+
+    def test_unset_flags_take_the_defaults(self, monkeypatch):
+        from canlib.modes.discover_functional import DEFAULT_REQUEST
+        from canlib.transport.functional import DEFAULT_WINDOW_S
+
+        seen = self._run(monkeypatch)
+        assert (seen["request"], seen["window"], seen["repeat"]) == (
+            DEFAULT_REQUEST,
+            DEFAULT_WINDOW_S,
+            1,
+        )
+
+    def test_given_flags_pass_through(self, monkeypatch):
+        seen = self._run(monkeypatch, request="22F190", window=1.5, repeat=3)
+        assert (seen["request"], seen["window"], seen["repeat"]) == ("22F190", 1.5, 3)
+
 
 # --------------------------------------------------------------------------- collector
 

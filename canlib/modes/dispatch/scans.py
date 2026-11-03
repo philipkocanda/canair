@@ -221,12 +221,15 @@ async def handle_discover(args, terminal: Terminal, pids_data, host, *, reconnec
         from canlib.modes.discover_functional import DEFAULT_REQUEST, mode_discover_functional
         from canlib.transport.functional import DEFAULT_WINDOW_S
 
+        # Set only by the discover parser, whose --request/--window default to None
+        # (meaning the defaults here) and whose functional_args_error has already
+        # refused a non-positive --window, so a None test cannot hide a zero.
         await mode_discover_functional(
             terminal,
             pids_data,
-            request=getattr(args, "request", None) or DEFAULT_REQUEST,
-            window=getattr(args, "window", None) or DEFAULT_WINDOW_S,
-            repeat=getattr(args, "repeat", 1),
+            request=DEFAULT_REQUEST if args.request is None else args.request,
+            window=DEFAULT_WINDOW_S if args.window is None else args.window,
+            repeat=args.repeat,
             interval=args.interval,
             as_json=args.json,
             save=args.save,
