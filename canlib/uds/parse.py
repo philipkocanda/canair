@@ -65,8 +65,13 @@ _LENGTH_TOKEN = re.compile(r"[0-9A-F]{1,4}")
 _MIN_FIRST_FRAME_LEN = 8
 
 
+def compact(text: str) -> str:
+    """Strip spaces and line breaks, so hex tests work with ``ATS1`` and ``ATS0``."""
+    return text.replace(" ", "").replace("\r", "").replace("\n", "")
+
+
 def _compact(line: str) -> str:
-    return line.replace(" ", "").upper()
+    return compact(line).upper()
 
 
 def _is_hex(text: str) -> bool:

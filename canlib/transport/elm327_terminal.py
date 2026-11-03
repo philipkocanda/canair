@@ -41,7 +41,7 @@ from collections.abc import AsyncIterator, Iterable
 
 from canlib.transport.link_latency import LinkLatency
 from canlib.transport.stats import TransportStats
-from canlib.uds.parse import parse_uds_response
+from canlib.uds.parse import compact, parse_uds_response
 from canlib.uds.response import CAT_DECODE, CAT_STALE, UdsResponse
 
 from ..addressing import AddressBook
@@ -57,10 +57,11 @@ from .elm327_addressing import (
     elm_id,
     target_in,
 )
-from .elm327_eeprom import RESET_COMMANDS, canonical, init_commands
+from .elm327_commands import RESET_COMMANDS, canonical
+from .elm327_eeprom import init_commands
 from .elm327_frame_count import CountKey, FrameCountCache
 from .elm327_functional import elm_functional_exchange
-from .elm327_pipe import ResponsePipe, compact
+from .elm327_pipe import ResponsePipe
 from .elm327_session import enter_extended_session
 from .errors import AdapterRefusedError
 from .functional import DEFAULT_WINDOW_S, FunctionalResult, functional_request_bytes
@@ -89,7 +90,7 @@ _ATST_RE = re.compile(r"ATST[0-9A-F]{1,2}")
 
 def timeout_budget(atst_cmd: str) -> float:
     """Seconds an ``ATST hh`` command makes the adapter wait (the default if unparsable)."""
-    cu = atst_cmd.upper().replace(" ", "")
+    cu = canonical(atst_cmd)
     if _ATST_RE.fullmatch(cu):
         return int(cu[4:], 16) * _ELM_ST_UNIT
     return _DEFAULT_ELM_BUDGET
@@ -486,7 +487,7 @@ class Elm327Terminal:
 
         result = raw.strip()
         log_response(cmd, result)
-        cu = cmd.replace(" ", "").upper()
+        cu = canonical(cmd)
         if not self._resyncing and not cu.startswith(_BANNER_COMMANDS):
             self._check_for_reset(cmd, result)
         # A command whose reply never arrived may or may not have been applied, so

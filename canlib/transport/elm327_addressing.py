@@ -42,6 +42,7 @@ from ..addressing import (
     fixed_29bit_rx,
     is_extended,
 )
+from .elm327_commands import RESET_COMMANDS, canonical
 
 # Flow-control modes (`ATFCSM`): 0 = the adapter derives id and data; 1 = the user's
 # `ATFCSH` + `ATFCSD`.
@@ -71,9 +72,6 @@ AUTO: Final = "auto"
 _UNADDRESSABLE_MODES: Final = frozenset(
     {AddressingMode.NORMAL_EXTENDED_11BIT, AddressingMode.EXTENDED_29BIT}
 )
-
-# Commands that reset the whole adapter to its defaults.
-_RESET_COMMANDS: Final = frozenset({"ATZ", "ATWS", "ATD"})
 
 # Commands canair never sends itself that replace the receive filter: the ELM327 raw
 # filter/mask (ATCF/ATCM), receive address (ATSR), CAN extended addressing (ATCEA,
@@ -333,12 +331,12 @@ class AdapterState:
         ``answered`` False means the reply never arrived: the adapter may or may not
         have applied the command, so what it sets becomes unknown.
         """
-        cu = "".join(cmd.split()).upper()
+        cu = canonical(cmd)
         rejected = answered and "?" in reply
         failed = rejected or not answered
         if rejected and self._skippable_after_rejection(cu):
             self._rejected.add(cu)
-        if cu in _RESET_COMMANDS:
+        if cu in RESET_COMMANDS:
             if failed:
                 self.forget()
             else:
@@ -397,7 +395,7 @@ class AdapterState:
 
     def _skippable_after_rejection(self, cu: str) -> bool:
         """Whether a ``?`` to ``cu`` means the adapter will never accept it."""
-        if cu.startswith("ATSH") or cu in _RESET_COMMANDS:
+        if cu.startswith("ATSH") or cu in RESET_COMMANDS:
             return False
         if cu == "ATFCSM1":
             return self.fc_header is not None and isinstance(self.fc_data, str)
@@ -415,7 +413,7 @@ class AdapterState:
         mode 1 is (or is about to be) in force, since that mode sends flow control to
         it; in mode 0 the adapter derives the id itself and ignores it.
         """
-        cu = "".join(cmd.split()).upper()
+        cu = canonical(cmd)
         if cu.startswith("ATSH"):
             return True
         if cu.startswith("ATFCSH"):

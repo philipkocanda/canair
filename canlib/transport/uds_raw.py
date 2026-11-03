@@ -23,6 +23,7 @@ import isotp
 
 from canlib.transport.link_latency import LinkLatency
 from canlib.transport.stats import TransportStats
+from canlib.uds.nrc import is_response_pending
 from canlib.uds.payload import payload_echo_mismatch
 from canlib.uds.response import CAT_STALE
 
@@ -48,18 +49,10 @@ def response_id(tx_id: int) -> int:
     return tx_id + RESPONSE_OFFSET
 
 
-def is_response_pending(resp: bytes) -> bool:
-    """True if ``resp`` is a UDS ResponsePending negative response (7F xx 78).
-
-    The ECU acknowledges the request but needs more time; it will send the final
-    response in a follow-up frame. Both raw-CAN clients must wait through this so
-    they behave like the ELM327 firmware (which handles 0x78 automatically).
-    """
-    return len(resp) >= 3 and resp[0] == 0x7F and resp[2] == 0x78
-
-
-# UDS ResponsePending (0x78) bounds — the ECU said "still working"; wait for the
-# real answer, capped. Shared by both raw-CAN clients (RawUdsClient + RawTerminal).
+# UDS ResponsePending (0x78, `canlib.uds.nrc.is_response_pending`) bounds — the ECU
+# acknowledged the request but needs more time and will send the final response in a
+# follow-up frame. Both raw-CAN clients (RawUdsClient + RawTerminal) wait through it,
+# capped, so they behave like the ELM327 firmware, which handles 0x78 automatically.
 PENDING_RECV_TIMEOUT = 5.0  # per follow-up wait after a 0x78
 PENDING_TOTAL_TIMEOUT = 20.0  # overall cap while the ECU keeps saying "pending"
 

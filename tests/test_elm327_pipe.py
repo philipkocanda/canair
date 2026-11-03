@@ -12,9 +12,9 @@ from canlib.transport.elm327_pipe import (
     MAX_OWED_PROMPTS,
     PipeRead,
     ResponsePipe,
-    compact,
     split_prompt_blocks,
 )
+from canlib.uds.parse import compact
 
 # A ResponsePending interim frame (7F <sid> 78) and an ordinary positive reply.
 PENDING = "7F2278"

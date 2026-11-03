@@ -28,6 +28,7 @@ import can
 import isotp
 
 from canlib.transport.stats import TransportStats
+from canlib.uds.nrc import is_response_pending
 from canlib.uds.parse import parse_uds_response
 from canlib.uds.response import UdsResponse
 
@@ -53,11 +54,7 @@ from .functional import (
 )
 from .functional_raw import raw_functional_exchange
 from .isotp_stack import build_isotp_stack
-from .uds_raw import (
-    PENDING_RECV_TIMEOUT,
-    PENDING_TOTAL_TIMEOUT,
-    is_response_pending,
-)
+from .uds_raw import PENDING_RECV_TIMEOUT, PENDING_TOTAL_TIMEOUT
 
 logging.getLogger("isotp").setLevel(logging.ERROR)
 

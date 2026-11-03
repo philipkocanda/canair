@@ -16,8 +16,9 @@ from typing import Any, NamedTuple
 
 from canlib.addressing import AddressingMode, physical_request_id
 from canlib.captures.types import CaptureRecord, RespondingEntry, ScanResults
-from canlib.transport.functional import FunctionalResult, is_pending
+from canlib.transport.functional import FunctionalResult
 from canlib.uds.echo import request_echo
+from canlib.uds.nrc import is_response_pending
 from canlib.uds.parse import parse_uds_response
 from canlib.uds.protocol import classify_protocol
 
@@ -149,7 +150,7 @@ def classify_round(
     final: dict[int, _Reply] = {}
     for message in result.messages:
         payload_hex = message.payload.hex().upper()
-        if is_pending(message.payload, request[0]):
+        if is_response_pending(message.payload, request[0]):
             pending[message.rx_id] = pending.get(message.rx_id, 0) + 1
             last_pending[message.rx_id] = _Reply(payload_hex, message.elapsed_ms, None, "")
             continue

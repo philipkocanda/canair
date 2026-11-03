@@ -6,7 +6,7 @@ before its real reply. The ELM327 chip emits each of those as a *complete*
 exchange terminated by its own `>` prompt, so the engine must recognise the NRC
 and keep waiting instead of returning the pending frame as the answer.
 
-This was covered on the raw path (`uds_raw.is_response_pending`, tests in
+This was covered on the raw path (`canlib.uds.nrc.is_response_pending`, tests in
 `test_uds_raw.py`) but **not** on either ELM transport, even though the engine
 implements it twice — once on the prompt-received branch and once on the
 receive-timeout branch. A break here makes every slow service spuriously report

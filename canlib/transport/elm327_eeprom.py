@@ -30,10 +30,9 @@ from __future__ import annotations
 import re
 from typing import Final
 
-MEMORY_OFF: Final = "ATM0"
+from .elm327_commands import RESET_COMMANDS, canonical
 
-# Commands that put the adapter back to its defaults, memory function included.
-RESET_COMMANDS: Final = frozenset({"ATZ", "ATWS", "ATD"})
+MEMORY_OFF: Final = "ATM0"
 
 # `AT SP h`, `AT SP Ah` and `AT SP hA`. `AT SP 00` (erase the stored protocol) has
 # no `AT TP` counterpart, so it is not matched.
@@ -41,11 +40,6 @@ _SET_PROTOCOL_RE: Final = re.compile(r"^ATSP(?:A([0-9A-C])|([0-9A-C])(A?))$")
 
 # Writes with no RAM-only form, matched as prefixes. ATPPS (the summary) only reads.
 _PERSISTENT_PREFIXES: Final = ("ATSD", "ATCV", "STWBR", "STSAVCAL")
-
-
-def canonical(command: str) -> str:
-    """An adapter command upper-cased without spaces, the form it is compared in."""
-    return command.replace(" ", "").upper()
 
 
 def ram_only(command: str) -> str:

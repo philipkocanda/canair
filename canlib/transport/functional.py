@@ -25,6 +25,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Final
 
 from canlib.uds.isotp_passive import Reassembler, ReassemblyStats, is_first_frame
+from canlib.uds.nrc import is_response_pending
 from canlib.uds.response import CAT_DROP
 
 if TYPE_CHECKING:
@@ -158,16 +159,6 @@ def record_functional_losses(diag: TransportStats, result: FunctionalResult) -> 
         )
 
 
-def is_pending(payload: bytes, request_sid: int) -> bool:
-    """A ResponsePending (``7F {sid} 78``) to this request."""
-    return (
-        len(payload) >= 3
-        and payload[0] == 0x7F
-        and payload[1] == request_sid
-        and (payload[2] == 0x78)
-    )
-
-
 class FunctionalCollector:
     """Collect the replies to one functional request, frame by frame.
 
@@ -240,7 +231,7 @@ class FunctionalCollector:
             self._result.messages.append(
                 FunctionalMessage(can_id, message.payload, round((now - self._started) * 1000))
             )
-            if is_pending(message.payload, self._result.request[0]):
+            if is_response_pending(message.payload, self._result.request[0]):
                 self._deadline = max(
                     self._deadline, min(now + PENDING_EXTENSION_S, self._pending_cap)
                 )

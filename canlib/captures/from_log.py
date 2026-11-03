@@ -48,18 +48,19 @@ from canlib.captures.types import CaptureRecord
 from canlib.ecus import EcuRegistryEntry, ecu_protocol, rx_addr_str, rx_for_tx
 from canlib.uds.isotp_passive import ReassemblyStats, reassemble
 from canlib.uds.multi_did import split_chain
-from canlib.uds.nrc import nrc_description
+from canlib.uds.nrc import is_response_pending, nrc_description
+from canlib.uds.services import NEGATIVE_RESPONSE_SID
 
 if TYPE_CHECKING:
     import can
 
 _READ_BY_LOCAL_ID = 0x21
 _READ_BY_ID = 0x22
-_NEGATIVE = 0x7F
-_RESPONSE_PENDING = 0x78
 # Replies from an id outside the registry are only worth mentioning when they look like
 # the answer to a data read, otherwise every broadcast frame would be "unregistered".
-_DATA_READ_REPLY_SIDS = frozenset({_READ_BY_ID + 0x40, _READ_BY_LOCAL_ID + 0x40, _NEGATIVE})
+_DATA_READ_REPLY_SIDS = frozenset(
+    {_READ_BY_ID + 0x40, _READ_BY_LOCAL_ID + 0x40, NEGATIVE_RESPONSE_SID}
+)
 
 
 @dataclass(frozen=True)
@@ -176,9 +177,9 @@ def extract_replies(
             echoed = payload[1:2]
             pending.take(lambda r, e=echoed: r.service == _READ_BY_LOCAL_ID and r.first_id == e)
             pid = f"21{echoed.hex().upper()}"
-        elif sid == _NEGATIVE and len(payload) == 3 and payload[1] in (0x21, 0x22):
+        elif sid == NEGATIVE_RESPONSE_SID and len(payload) == 3 and payload[1] in (0x21, 0x22):
             service = payload[1]
-            if payload[2] == _RESPONSE_PENDING:
+            if is_response_pending(payload, service):
                 pending.refresh(service, msg.timestamp)
                 continue
             request = pending.take(lambda r, s=service: r.service == s)

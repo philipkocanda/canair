@@ -27,6 +27,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 
 from canlib.uds.layout import layout_of
+from canlib.uds.services import NEGATIVE_RESPONSE_SID
 
 # A length is an ECU's "own" for a PID only once it is seen often and almost exclusively, so
 # variable-length PIDs and thinly sampled ones never produce a length finding.
@@ -37,8 +38,6 @@ MIN_SIGNATURE_SHARE = 0.9
 # identical across ECUs, so the identical-bytes rule needs some substance to compare.
 MIN_IDENTICAL_BYTES = 8
 MIN_IDENTICAL_DISTINCT = 4
-
-NEGATIVE_RESPONSE_SID = 0x7F
 
 
 @dataclass(frozen=True)

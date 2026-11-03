@@ -18,14 +18,18 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
+from canlib.uds.nrc import NRC_RESPONSE_PENDING
+from canlib.uds.parse import compact
+from canlib.uds.services import NEGATIVE_RESPONSE_SID
+
 # UDS ResponsePending negative response: `7F <sid> 78` ("request received,
 # response pending"). Matched against one whitespace-stripped ELM327 line, so it
 # works with `ATS1` (spaces on) and `ATS0` alike. Requiring the whole line to be the
 # 3-byte NRC — rather than searching the block for `7F..78` — keeps a positive
 # response that merely *contains* those bytes (`62 01 7F 22 78`, or the nibbles of
-# `A7 F2 27 8B`) from being mistaken for it. The raw-CAN counterpart is
-# `uds_raw.is_response_pending`.
-PENDING_RE = re.compile(r"7F[0-9A-Fa-f]{2}78")
+# `A7 F2 27 8B`) from being mistaken for it. The byte-level counterpart is
+# `canlib.uds.nrc.is_response_pending`.
+PENDING_RE = re.compile(rf"{NEGATIVE_RESPONSE_SID:02X}[0-9A-Fa-f]{{2}}{NRC_RESPONSE_PENDING:02X}")
 
 # The ELM327's reply delimiter, and the only per-exchange framing signal the
 # protocol offers (see the module docstring).
@@ -35,11 +39,6 @@ PROMPT = ">"
 # adapter owes replies it will never send, at which point the count is no longer
 # evidence of anything and a drain-and-probe resync is the honest fallback.
 MAX_OWED_PROMPTS = 4
-
-
-def compact(text: str) -> str:
-    """Strip whitespace/line breaks, so hex tests work with ``ATS1`` and ``ATS0``."""
-    return text.replace(" ", "").replace("\r", "").replace("\n", "")
 
 
 def is_pending_block(block: str) -> bool:
@@ -208,8 +207,8 @@ class ResponsePipe:
                 # It leaves the ledger alone on purpose: it consumed a prompt but
                 # promises another for the *same* answer, so the number of real
                 # blocks still expected has not changed. All it buys the ECU is
-                # more time. (The raw path does the same in
-                # `uds_raw.is_response_pending`.)
+                # more time. (The raw path does the same with
+                # `canlib.uds.nrc.is_response_pending`.)
                 saw_pending = True
                 continue
             self._done.append(block)
