@@ -80,7 +80,8 @@ answered very slowly holds up everyone else's next read. The monitor notices and
 that PID 2×, then 4×, up to 32× less often until it answers promptly again, while the
 same ECU's healthy PIDs keep their normal rate; its row says
 `slow (not answering) · polled 4× less often` and the status line lists it
-(`slow SKM:22B002÷4`). Pass `--no-backoff` to keep hammering it.
+(`slow SKM:22B002÷4`). A reconnect restores every PID's normal rate, since the old link's
+timings say nothing about the new one. Pass `--no-backoff` to keep hammering it.
 A PID whose read failed keeps showing its last value, greyed and marked with how old
 it is — `(stale 12s)`.
 

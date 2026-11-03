@@ -401,8 +401,9 @@ reuse these instead of re-declaring a flag:
   time so the join primitives never learn what a keep mode is; a value is never carried across a
   session boundary, and every fill is reported. Plan:
   `plans/2026-08-05-run-length-forward-fill-joins.md`.
-- `--find-mirrors` / `--mirror-match` / `--allow-offset` — one matcher, `canlib/analysis/mirrors.py`,
-  behind three sweeps (`decode` intra-PID, `correlate` cross-ECU, `correlate can` cross-ID).
+- `--find-mirrors` / `--mirror-match` / `--allow-offset` — one matcher,
+  `canlib/analysis/mirrors.py`, behind three sweeps (`decode` intra-PID, `correlate` cross-ECU,
+  `correlate can` cross-ID).
 - `--notation {wican,isotp,torque,bix}` — **display only**; `--json`/`--promote` always emit the
   canonical WiCAN expression. A byte is modelled in ISO-TP space (`canlib/uds/notation.py::ByteRef`,
   rendered via `ByteDisplay`); WiCAN/Torque/bix are derived views. Persist a default with
@@ -614,8 +615,9 @@ reuse these instead of re-declaring a flag:
   9-frame ceiling, or on an odd-length request. `autopid stats` shows a `Frames` column so you can
   see which PIDs have earned one. **A signal with `send_to: TOPIC` streams to that MQTT topic on
   every poll** (emitted as `type: MQTT_Topic`; rule in
-  `canlib/wican/autopid_send_to.py`), because the batch snapshot's `cycle` (10 s default) is **device
-  config canair does not manage** — a faster `period` alone never reaches the broker faster.
+  `canlib/wican/autopid_send_to.py`), because the batch snapshot's `cycle` (10 s default) is
+  **device config canair does not manage** — a faster `period` alone never reaches the broker
+  faster.
   `mode set MODE` switches the device protocol and **auto-aligns the config `transport.type`**
   (`slcan`→`slcan-tcp`, `elm327`→`wican-ws`; `--no-transport` opts out).
 - **`canair bix`** — Byte-index converter and payload annotator (WiCAN ↔ ISO-TP ↔ Torque ↔ bix). A
@@ -996,12 +998,12 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
     user-config `grid_region` instead — an 800 V pack or a non-EU grid otherwise gets no hit.)
 - **`canlib/explorer/export.py` / `explorer/layout.py`** — The docs-site profile explorer
   (`docs/profiles/explorer.md`). The export turns a profile into an **allow-listed** JSON-able dict
-  (never `identity:` values, captures or `scan_log`), with a `src: {file, line}` on every record read
-  via ruamel; the layout places ECUs on bus lanes. `scripts/mkdocs_hooks/explorer.py` writes it as
-  virtual files at docs build time and `docs/assets/explorer/explorer.{js,css}` only render it, so
-  content rules belong in the exporter (unit-tested in `tests/test_explorer_export.py`). Plan:
-  `plans/2026-10-21-profile-explorer.md`. Its **data view** (plot captured signals, find related
-  signals) decodes captures at build time with the shared evaluator in
+  (never `identity:` values, captures or `scan_log`), with a `src: {file, line}` on every record
+  read via ruamel; the layout places ECUs on bus lanes. `scripts/mkdocs_hooks/explorer.py` writes
+  it as virtual files at docs build time and `docs/assets/explorer/explorer.{js,css}` only render
+  it, so content rules belong in the exporter (unit-tested in `tests/test_explorer_export.py`).
+  Plan: `plans/2026-10-21-profile-explorer.md`. Its **data view** (plot captured signals, find
+  related signals) decodes captures at build time with the shared evaluator in
   `canlib/explorer/series.py` (decoded numbers only, never payloads; size-budgeted in
   `tests/test_explorer_series.py`); `docs/assets/explorer/{plot,discover}.js` draw it and the pure
   maths is `analysis.js`, tested with `node --test tests/js/analysis.test.js` (a CI step; name the
@@ -1039,9 +1041,9 @@ Each device carries a `host` plus optional `transport`/`port`/`bitrate` (precede
 `--transport`/`--wican` CLI > device entry > global `transport:` block > default). Select with
 `--wican home|vpn|<ip>`; with no config it falls back to `192.168.80.1` (WiCAN AP mode). The legacy
 flat `wican_addresses: {alias: host}` form still works when no `devices:` block exists and is
-**auto-migrated into `devices:` on first run** (`canlib/migrations/devices.py`); once `devices:` exists
-it is ignored. Resolvers: `canlib/config.py::wican_devices` (authoritative map + `DeviceEntry`) and
-`fallback_settings`; `wican_settings` is a back-compat shim.
+**auto-migrated into `devices:` on first run** (`canlib/migrations/devices.py`); once `devices:`
+exists it is ignored. Resolvers: `canlib/config.py::wican_devices` (authoritative map +
+`DeviceEntry`) and `fallback_settings`; `wican_settings` is a back-compat shim.
 
 WebSocket terminal: `ws://<ip>/ws` (send `{"ws_mode": "terminal", "terminal_type": "elm327"}`).
 

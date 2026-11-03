@@ -105,8 +105,9 @@ the answers:
 bytes:
 
 - the fill byte canair **sends** in short frames (`build_isotp_params` → can-isotp);
-- the fill byte canair **strips** from ECU replies (`resolve_tx_padding` in
-  `modes/multi_batch.py`, `modes/monitor_raw.py`, `modes/multi.py`, `modes/monitor.py`).
+- the fill byte canair **strips** from ECU replies (then resolved by `resolve_tx_padding`, since
+  removed, in `modes/multi_batch.py`, `modes/monitor_raw.py`, `modes/multi.py`,
+  `modes/monitor.py`).
 
 ES95486 has them differ: requests are padded with `0x55`, responses with `0xAA`. Today a profile
 cannot follow the spec. Setting `tx_padding: 0x55` would make the multi-DID splitter look for
@@ -122,8 +123,10 @@ conformance, with a small chance of mattering on a stricter ECU.
 - **Backward compatibility:** when `rx_padding` is absent it defaults to `tx_padding` when that is
   set, else `0xAA`. Profiles that set `tx_padding` today keep their behaviour.
 - **Resolvers:** add `resolve_rx_padding(pids_data)` and switch the four strip/split call sites to
-  it. `resolve_tx_padding` stays, for the transmit side only. Grep for every `pad=` / `self.pad`
-  consumer; the multi-DID split and the identity-decode strip are the known ones.
+  it. `resolve_tx_padding` then has no caller and goes (`b4ffa5e`): the transmit side reads
+  `tx_padding` from the params `build_isotp_params` assembles (`_params["tx_padding"]`). Grep for
+  every `pad=` / `self.pad` consumer; the multi-DID split and the identity-decode strip are the
+  known ones.
 - **Validation:** accept `rx_padding` in the `isotp:` key whitelist and the `validate pids` byte
   check. It is not added to `_DEFAULTS` itself: that dict is handed to can-isotp verbatim, which
   has no reply-padding parameter, so `rx_padding` is listed as a canair-only field next to it.
