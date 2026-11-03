@@ -342,7 +342,7 @@ class MonitorRawPoller:
             resp = None
         by_pid[(ecu, code)] = _raw_pid_result(code, pi, un, val, acquired, ecu, self._protocol(ecu))
         if _is_did22(code) and resp and resp[0] != 0x7F:  # learn length for batching
-            dlen = _did_data_len(resp.hex().upper(), _did4(code), self.pad)
+            dlen = _did_data_len(resp.hex().upper(), _did4(code))
             if dlen is not None and dlen >= 1:
                 self.lengths[(ecu, _did4(code))] = dlen
 

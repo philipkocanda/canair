@@ -213,6 +213,13 @@ class TestPollRaw:
         assert got["22BC03"] == "62BC03FDEE3C730A000000"
         assert got["22BC06"] == "62BC06B480000000000000"
 
+    def test_learns_a_length_whose_data_ends_in_the_fill_byte(self):
+        # The raw stack trims a reply to its PCI length, so trailing AAs are data.
+        table = {("IGPM", bytes.fromhex("22BC03")): bytes.fromhex("62BC031122AAAA")}
+        c = _mk_ctrl([{"ecu": "IGPM", "pids": ["BC03"]}], _IGPM_BMS_INDEX, table=table)
+        asyncio.run(c._poll_raw())
+        assert c._raw_lengths[("IGPM", "BC03")] == 4
+
     def test_batch_nrc_falls_back_to_nobatch(self):
         table = {
             ("IGPM", bytes.fromhex("22BC03BC06")): bytes.fromhex("7F2213"),  # rejected

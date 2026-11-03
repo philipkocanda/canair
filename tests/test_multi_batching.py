@@ -30,13 +30,14 @@ from tests._fakes import FakeTerminal
 from tests._fakes import nrc as _nrc
 from tests._fakes import ok as _ok
 
-BC03_SINGLE = "62BC03FDEE3C730A000000AAAA"
-BC06_SINGLE = "62BC06B480000000000000AAAA"
+# Single reads at their exact ISO-TP length, as both live transports return them.
+BC03_SINGLE = "62BC03FDEE3C730A000000"
+BC06_SINGLE = "62BC06B480000000000000"
 MULTI = "62BC03FDEE3C730A000000BC06B480000000000000AAAAAAAAAAAA"
 
 
 class TestSplitHelpers:
-    def test_did_data_len_strips_padding(self):
+    def test_did_data_len_is_the_bytes_after_the_did(self):
         assert _did_data_len(BC03_SINGLE, "BC03") == 8
         assert _did_data_len(BC06_SINGLE, "BC06") == 8
 
@@ -66,8 +67,8 @@ class TestSplitHelpers:
     def test_custom_pad_byte(self):
         # A make that pads with 0x00 (not 0xAA): the pad byte is profile-driven.
         # (Data ends in a non-pad byte so stripping padding can't eat real data.)
-        single = "62BC03FDEE3C730A0000FF0000"  # 8 data bytes + 00 pad
-        assert _did_data_len(single, "BC03", pad=0x00) == 8
+        single = "62BC03FDEE3C730A0000FF"  # 8 data bytes
+        assert _did_data_len(single, "BC03") == 8
         multi = "62BC03FDEE3C730A0000FFBC06B4800000000000FF000000"
         assert split_multi_did(multi, [("BC03", 8), ("BC06", 8)], pad=0x00) == {
             "BC03": "62BC03FDEE3C730A0000FF",
@@ -78,7 +79,8 @@ class TestSplitHelpers:
 
     def test_batchstate_carries_pad(self):
         bs = BatchState(pad=0x00)
-        bs.learn(0x770, "BC03", "62BC03FDEE3C730A0000FF0000")
+        assert bs.pad == 0x00
+        bs.learn(0x770, "BC03", "62BC03FDEE3C730A0000FF")
         assert bs.lengths[(0x770, "BC03")] == 8
 
     def test_split_strips_reply_padding_not_request_padding(self):
@@ -614,21 +616,25 @@ class TestUnansweredBatches:
         assert 0x770 not in bs.disabled
 
 
-class TestLearnedLengthPadding:
-    """Only a response that fills its last CAN frame can carry padding, and only in that frame."""
+class TestLearnedLength:
+    """A live reply is at its exact ISO-TP length, so a learned length strips nothing."""
 
-    def test_a_response_with_room_in_its_last_frame_is_taken_at_its_length(self):
-        # 11 bytes: the second frame has room to spare, so its trailing AA is data.
-        assert _did_data_len("62BC03FDEE3C730A00AAAA", "BC03") == 8
-        assert _did_data_len("62BC030102AA", "BC03") == 3  # single frame, 6 of 7 bytes
+    def test_data_ending_in_the_fill_byte_is_learned_whole(self):
+        # A full single frame whose data ends AA AA: four bytes, not two.
+        assert _did_data_len("62BC031122AAAA", "BC03") == 4
+        assert _did_data_len("62BC03" + "11" * 10 + "AA" * 7, "BC03") == 17
 
-    def test_padding_is_stripped_only_within_the_final_frame(self):
-        # 20 bytes fill three frames; the third holds at least one real byte, so 14 remain.
-        resp = "62BC03" + "11" * 10 + "AA" * 7
-        assert _did_data_len(resp, "BC03") == 11
+    def test_a_batch_of_it_keeps_the_real_trailing_bytes(self):
+        bs = BatchState()
+        bs.learn(0x770, "BC03", "62BC031122AAAA")
+        bs.learn(0x770, "BC06", "62BC0633")
+        lengths = [(d, bs.lengths[(0x770, d)]) for d in ("BC03", "BC06")]
+        assert split_multi_did("62BC031122AAAABC0633", lengths) == {
+            "BC03": "62BC031122AAAA",
+            "BC06": "62BC0633",
+        }
 
     def test_a_did_is_never_learned_with_no_data(self):
-        assert _did_data_len("62BC03AAAAAAAA", "BC03") == 1
         bs = BatchState()
         bs.learn(0x770, "BC03", "62BC03")
         assert bs.lengths == {}

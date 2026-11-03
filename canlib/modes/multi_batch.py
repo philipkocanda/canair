@@ -20,7 +20,6 @@ from canlib.uds.response import UdsResponse
 from canlib.uds.support_map import map_byte_indices
 
 from ..formatting import decode_uds_response
-from ..frame_counts import frames_for_payload
 from ..log import log_event
 
 
@@ -155,7 +154,7 @@ class BatchState:
 
     def learn(self, tx_id: int, did4: str, resp_hex: str) -> None:
         """Record a DID's data length from a single-DID ``62 DID <data>`` response."""
-        dlen = _did_data_len(resp_hex, did4, self.pad)
+        dlen = _did_data_len(resp_hex, did4)
         if dlen is not None and dlen >= 1:
             self.lengths[(tx_id, did4.upper())] = dlen
 
@@ -177,19 +176,15 @@ class BatchState:
             self.disable(tx_id, f"{n} multi-DID requests in a row went unanswered")
 
 
-def _did_data_len(resp_hex: str, did4: str, pad: int = 0xAA) -> int | None:
-    """Length (bytes) of a single-DID response's data, without its ISO-TP padding.
+def _did_data_len(resp_hex: str, did4: str) -> int | None:
+    """Length (bytes) of a single-DID ``62 <DID> <data>`` response's data.
 
-    ``resp_hex`` is a ``62 <DID> <data> [pad…]`` positive response. Returns the
-    number of data bytes after the 2-byte DID, or None if it doesn't parse.
-
-    Both transports hand back a response at its ISO-TP length, but older paths
-    (and replies recorded from them) kept the final frame's padding. Padding fills
-    a frame to its end, so only a response that fills its last classic-CAN frame
-    exactly can carry any, and only within that frame: ``pad`` bytes are stripped
-    there and nowhere else, and never past the first data byte (a DID's data
-    record is never empty). A frame-filling response whose data really ends in
-    ``pad`` is indistinguishable from a padded one and is still read short.
+    Returns the number of bytes after the 2-byte DID, or None if it doesn't parse.
+    The response must be at its exact ISO-TP length, which is what both live
+    transports hand back (the raw stack trims to the PCI length, the ELM327 path to
+    the adapter's declared length). Nothing is stripped as padding: a reply whose
+    data happens to end in the fill byte would be learned short, and every later
+    batch would then split it short and take its real last bytes for padding.
     """
     try:
         b = bytes.fromhex(resp_hex)
@@ -198,13 +193,7 @@ def _did_data_len(resp_hex: str, did4: str, pad: int = 0xAA) -> int | None:
         return None
     if len(b) < 3 or b[0] != 0x62 or b[1:3] != did:
         return None
-    frames = frames_for_payload(len(b))
-    if frames_for_payload(len(b) + 1) == frames:
-        return len(b) - 3  # the last frame has room left, so nothing in it is padding
-    end = len(b)
-    while end > 4 and b[end - 1] == pad and frames_for_payload(end - 1) == frames:
-        end -= 1
-    return end - 3
+    return len(b) - 3
 
 
 def split_multi_did(
