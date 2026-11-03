@@ -159,6 +159,26 @@ class TestSeveralSingleFrameLines:
         assert r["ok"] is True
         assert r["hex"] == "6102CCDD"
 
+    def test_the_answer_is_picked_by_the_requests_identifier(self):
+        # Regression: with only `request` given, both 62 replies answered "service 22"
+        # and were refused as two ECUs; the DID tells them apart.
+        r = parse_uds_response("620101AA\n620202BB\n", request="220202")
+        assert r["ok"] is True
+        assert r["hex"] == "620202BB"
+
+    def test_the_frame_count_digit_is_not_part_of_the_identifier(self):
+        r = parse_uds_response("2202021\n620101AA\n620202BB", request="2202021")
+        assert r["ok"] is True
+        assert r["hex"] == "620202BB"
+
+    def test_no_line_answering_the_request_alone_is_refused(self):
+        # Without an expected SID nothing re-checks the picked line, so a block with
+        # no answer in it must not pass as the first line.
+        r = parse_uds_response("5001\n6101AA", request="2102")
+        assert r["ok"] is False
+        assert r["error_kind"] == CAT_STALE
+        assert classify_error(r["error"]) == CAT_STALE
+
     def test_two_ecus_answering_is_refused(self):
         r = parse_uds_response("62F19041\n62F19042", expected_sid=0x22, expected_echo=b"\xf1\x90")
         assert r["ok"] is False

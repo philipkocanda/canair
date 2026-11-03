@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import re
 
-from canlib.uds.echo import echo_mismatch
+from canlib.uds.echo import echo_mismatch, request_echo
 from canlib.uds.nrc import is_response_pending, nrc_description
 from canlib.uds.response import (
     CAT_BUS,
@@ -136,10 +136,19 @@ class _Rejected(Exception):
         self.message = message
 
 
-def _request_sid(request: str | None) -> int | None:
-    """The service byte of the command as sent, when it is hex."""
+def _sent_request(request: str | None) -> tuple[int | None, bytes]:
+    """``(sid, identifier echo)`` of the command as sent, as far as it can be read.
+
+    The ELM327 expected-frame count digit a command may end in is not part of the
+    request. The echo is empty for a request :func:`request_echo` cannot judge.
+    """
     text = _compact(request or "")
-    return int(text[:2], 16) if len(text) >= 2 and _is_hex(text[:2]) else None
+    if len(text) % 2:
+        text = text[:-1]
+    derived = request_echo(text)
+    if derived is not None:
+        return derived
+    return (int(text[:2], 16) if len(text) >= 2 and _is_hex(text[:2]) else None), b""
 
 
 def _adapter_lines(raw: str) -> list[str]:
@@ -169,7 +178,9 @@ def _answers(reply: bytes, sid: int, echo: bytes, hk_f1xx_offset: bool) -> bool:
     return echo_mismatch(sid, echo, reply, hk_f1xx_offset=hk_f1xx_offset) is None
 
 
-def _pick_reply(lines: list[str], sid: int | None, echo: bytes, hk_f1xx_offset: bool) -> str | None:
+def _pick_reply(
+    lines: list[str], sid: int | None, echo: bytes, hk_f1xx_offset: bool, *, validated: bool
+) -> str | None:
     """The one line answering the request among several single-frame lines.
 
     Several unprefixed lines are several separate messages — a late reply to an
@@ -177,9 +188,11 @@ def _pick_reply(lines: list[str], sid: int | None, echo: bytes, hk_f1xx_offset: 
     — and joining them would yield a payload no ECU sent. The line that answers the
     request is kept when exactly one does and nothing else in the block is another
     request's echo (which would mean the whole exchange belongs to an earlier
-    command, so this one's answer has not arrived). Returns None when a line is not
-    hex, leaving the caller's decode check to report it; raises :class:`_Rejected`
-    when the lines cannot be told apart.
+    command, so this one's answer has not arrived). When no line answers, the first
+    is returned for the caller's echo check to report — if ``validated`` says there
+    is one; otherwise that is refused here. Returns None when a line is not hex,
+    leaving the caller's decode check to report it; raises :class:`_Rejected` when
+    the lines cannot be told apart.
     """
     replies = [bytes.fromhex(c) for c in map(_compact, lines) if _is_hex(c) and len(c) % 2 == 0]
     if len(replies) != len(lines):
@@ -192,7 +205,12 @@ def _pick_reply(lines: list[str], sid: int | None, echo: bytes, hk_f1xx_offset: 
         )
     answering = [r for r in replies if _answers(r, sid, echo, hk_f1xx_offset)]
     if not answering:
-        return _compact(lines[0])  # the first one's mismatch is the error to report
+        if validated:
+            return _compact(lines[0])  # the first one's mismatch is the error to report
+        raise _Rejected(
+            CAT_STALE,
+            f"Echo mismatch: none of {len(lines)} separate replies answers request SID 0x{sid:02X}",
+        )
     if len(set(answering)) > 1:
         raise _Rejected(
             CAT_STALE,
@@ -314,9 +332,17 @@ def parse_uds_response(
     last = len(lines) - 1
     lines = [line for i, line in enumerate(lines) if i == last or not _is_pending_line(line)]
     if len(lines) > 1 and not _is_multiframe(lines):
-        sid = expected_sid if expected_sid is not None else _request_sid(request)
+        # Lines are told apart by what this request's answer must echo; what the
+        # caller did not say is read off the request itself.
+        sent_sid, sent_echo = _sent_request(request)
+        sid = expected_sid if expected_sid is not None else sent_sid
+        echo = expected_echo
+        if echo is None:
+            echo = sent_echo if sid == sent_sid else b""
         try:
-            picked = _pick_reply(lines, sid, expected_echo or b"", hk_f1xx_offset)
+            picked = _pick_reply(
+                lines, sid, echo, hk_f1xx_offset, validated=expected_sid is not None
+            )
         except _Rejected as rejected:
             return _fail(rejected.kind, rejected.message)
         if picked is not None:
