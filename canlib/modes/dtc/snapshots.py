@@ -18,6 +18,7 @@ from datetime import datetime
 from typing import Any
 
 from canlib.uds.protocol import UDS
+from canlib.uds.response import UdsResponse
 
 from ...dtc.snapshot import SnapshotError, parse_snapshot_ids, parse_snapshot_reply
 from ...dtc.snapshot_decode import length_resolver, snapshot_entries
@@ -27,6 +28,8 @@ SNAPSHOT_IDS_REQUEST = "1903"
 _SID = 0x19
 _IDS_SF = 0x03
 _RECORD_SF = 0x04
+# 59 04 <DTC: 3> <status: 1> <record: 1> …: where a 59 04 reply names its record.
+_RECORD_BYTE = 6
 
 
 @dataclass
@@ -64,7 +67,7 @@ def wants_snapshots(result: Mapping[str, Any]) -> bool:
 async def fetch_snapshots(
     terminal: Terminal,
     tx_id: int,
-    result: dict,
+    result: dict[str, Any],
     pids: Mapping[str, Mapping[str, Any]],
     ecu: str,
     run: SnapshotRun,
@@ -127,7 +130,7 @@ async def _read_record(
     length_of: Callable[[int], int | None],
     pids: Mapping[str, Mapping[str, Any]],
     timeout: float,
-) -> dict:
+) -> dict[str, Any]:
     request = f"1904{dtc.hex().upper()}{number:02X}"
     read_at = datetime.now().strftime("%H:%M:%S.%f")[:-3]
     async with terminal.transaction():
@@ -142,6 +145,11 @@ async def _read_record(
         return {"record": number, "error": _refusal(reply)}
     data = bytes(reply["bytes"])
     stamp = {"request": request, "time": read_at}
+    # The echo check covers the DTC only; a reply for another record would decode, log and
+    # save as this one, so it is reported without its bytes.
+    if len(data) > _RECORD_BYTE and data[_RECORD_BYTE] != number:
+        got = data[_RECORD_BYTE]
+        return {"record": number, "error": f"reply is for record {got:02X}, not {number:02X}"}
     try:
         parsed = parse_snapshot_reply(data, length_of, single_record=True)
     except SnapshotError as e:
@@ -151,8 +159,9 @@ async def _read_record(
     return {**snapshot_entries(parsed.records[0], data.hex(), pids), **stamp}
 
 
-def _refusal(response: Mapping[str, Any]) -> str:
-    if response.get("nrc") is not None:
+def _refusal(response: UdsResponse) -> str:
+    nrc = response.get("nrc")
+    if nrc is not None:
         desc = response.get("nrc_desc") or ""
-        return f"NRC 0x{response['nrc']:02X}" + (f" ({desc})" if desc else "")
+        return f"NRC 0x{nrc:02X}" + (f" ({desc})" if desc else "")
     return str(response.get("error") or "no response")

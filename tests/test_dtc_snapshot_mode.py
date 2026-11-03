@@ -126,6 +126,15 @@ class TestRead:
         assert snaps[0] == {"record": 1, "error": "NRC 0x31 (requestOutOfRange)"}
         assert snaps[1]["dids"][0]["did"] == "4710"
 
+    @pytest.mark.asyncio
+    async def test_a_reply_for_another_record_is_an_error(self, capsys):
+        # The echo covers the DTC only: record 02's reply must not decode, log or save as 01.
+        replies = {**CCM_REPLIES, "1904582C0001": REC_02}
+        t = FakeTerminal(replies)
+        await dtc.mode_dtc_read(t, CCM, protocol="uds", as_json=True, pids_data=PIDS_DATA)
+        first = json.loads(capsys.readouterr().out)["dtcs"][0]["snapshots"][0]
+        assert first == {"record": 1, "error": "reply is for record 02, not 01"}
+
 
 class _Pressed:
     active = True
