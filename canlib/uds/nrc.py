@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Final
 
-from canlib.uds.protocol import KWP, UDS
+from canlib.uds.protocol import KWP, UDS, DiagProtocol
 from canlib.uds.services import NEGATIVE_RESPONSE_SID
 
 #: requestCorrectlyReceivedResponsePending: an interim "still working" answer, the same
@@ -193,7 +193,7 @@ _KWP_NRC_RANGES = (
 )
 
 
-def _resolve(nrc: int, protocol: str | None) -> tuple[str, str, bool] | None:
+def _resolve(nrc: int, protocol: DiagProtocol | None) -> tuple[str, str, bool] | None:
     """``(name, mnemonic, borrowed)`` for a code, or None when no table names it.
 
     ``borrowed`` marks a KWP2000 name offered for an ECU whose protocol is unknown.
@@ -217,7 +217,7 @@ def _resolve(nrc: int, protocol: str | None) -> tuple[str, str, bool] | None:
     return None
 
 
-def nrc_description(nrc: int, protocol: str | None = None) -> str:
+def nrc_description(nrc: int, protocol: DiagProtocol | None = None) -> str:
     """Human name for a negative response code, or ``unknown (0xNN)``.
 
     ``protocol`` is the target ECU's diagnostic protocol (``"uds"``/``"kwp"``), when
@@ -238,7 +238,7 @@ def nrc_description(nrc: int, protocol: str | None = None) -> str:
     return f"{name} (KWP2000)" if borrowed else name
 
 
-def nrc_abbrev(nrc: int, protocol: str | None = None) -> str:
+def nrc_abbrev(nrc: int, protocol: DiagProtocol | None = None) -> str:
     """Short mnemonic for an NRC on ``protocol`` (see :func:`nrc_description`), or ``?``."""
     found = _resolve(nrc, protocol)
     return found[1] if found else "?"

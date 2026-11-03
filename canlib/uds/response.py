@@ -10,21 +10,32 @@ the monitor's live ``drops`` indicator and a recorded session's ``quality`` coun
 
 from __future__ import annotations
 
-from typing import NotRequired, TypedDict
+from typing import Final, Literal, NotRequired, TypedDict
+
+ResponseCategory = Literal["ok", "nrc", "no_data", "drop", "stale", "decode", "bus", "other"]
 
 # On a failure the category is also stamped onto the response as ``error_kind`` at
 # the error site, so classification never has to re-parse an error *string*.
-CAT_OK = "ok"  # positive, echo-matching response
-CAT_NRC = "nrc"  # legitimate negative response (7F …) — an answer, not a fault
-CAT_NO_DATA = "no_data"  # NO DATA / empty — the ECU said nothing
-CAT_DROP = "drop"  # ISO-TP consecutive frame dropped (truncated reassembly)
-CAT_STALE = "stale"  # stale/leaked frame: non-contiguous counters, SID/echo mismatch
-CAT_DECODE = "decode"  # non-hex / too-short / undecodable payload
-CAT_BUS = "bus"  # CAN ERROR / unable to connect / buffer full / adapter refusal (`?`)
-CAT_OTHER = "other"  # unclassified fallback
+#
+# - ok: a positive, echo-matching response
+# - nrc: a legitimate negative response (7F …) — an answer, not a fault
+# - no_data: NO DATA / empty — the ECU said nothing
+# - drop: an ISO-TP consecutive frame dropped (truncated reassembly)
+# - stale: a stale/leaked frame — non-contiguous counters, SID/echo mismatch
+# - decode: a non-hex / too-short / undecodable payload
+# - bus: CAN ERROR / unable to connect / buffer full / adapter refusal (`?`)
+# - other: the unclassified fallback
+CAT_OK: Final[ResponseCategory] = "ok"
+CAT_NRC: Final[ResponseCategory] = "nrc"
+CAT_NO_DATA: Final[ResponseCategory] = "no_data"
+CAT_DROP: Final[ResponseCategory] = "drop"
+CAT_STALE: Final[ResponseCategory] = "stale"
+CAT_DECODE: Final[ResponseCategory] = "decode"
+CAT_BUS: Final[ResponseCategory] = "bus"
+CAT_OTHER: Final[ResponseCategory] = "other"
 
 # All categories a recorded exchange can fall into (drives TransportStats init).
-RESPONSE_CATEGORIES: tuple[str, ...] = (
+RESPONSE_CATEGORIES: tuple[ResponseCategory, ...] = (
     CAT_OK,
     CAT_NRC,
     CAT_NO_DATA,
@@ -36,7 +47,7 @@ RESPONSE_CATEGORIES: tuple[str, ...] = (
 )
 
 # The subset that means something went wrong (not a clean positive / valid NRC).
-ERROR_CATEGORIES: tuple[str, ...] = (
+ERROR_CATEGORIES: tuple[ResponseCategory, ...] = (
     CAT_NO_DATA,
     CAT_DROP,
     CAT_STALE,
@@ -64,15 +75,17 @@ class UdsResponse(TypedDict):
     hex: NotRequired[str]  # parseable positive: uppercased, space-stripped
     bytes: NotRequired[bytes]  # parseable positive
     isotp_declared_len: NotRequired[int]  # multi-frame: ISO-TP First Frame length
-    isotp_frame_count: NotRequired[int]  # CAN frames/responses the adapter handed back
+    # CAN frames the reply occupied: the frame lines an ELM327 printed, or (raw ISO-TP)
+    # derived from the payload length by the terminal
+    isotp_frame_count: NotRequired[int]
     nrc: NotRequired[int]  # negative (7F): the NRC byte
     nrc_service: NotRequired[int]  # negative: echoed service byte
     nrc_desc: NotRequired[str]  # negative: human description
     error: NotRequired[str]  # parse failure / NO DATA / echo mismatch
-    error_kind: NotRequired[str]  # failure category (a CAT_* value), set with `error`
+    error_kind: NotRequired[ResponseCategory]  # failure category, set with `error`
 
 
-def classify_response(resp: UdsResponse) -> str:
+def classify_response(resp: UdsResponse) -> ResponseCategory:
     """Classify a parsed response into one :data:`RESPONSE_CATEGORIES` value.
 
     A clean positive is ``ok`` and a legitimate negative (``7F …``) is ``nrc``
@@ -93,7 +106,7 @@ def classify_response(resp: UdsResponse) -> str:
 # reassembly wording, mismatch before the rest). They must agree with the
 # ``error_kind`` the parser stamps for the same message, which
 # ``tests/test_uds_parse_adapter_text.py`` checks for every message it can produce.
-_ERROR_RULES: tuple[tuple[str, str], ...] = (
+_ERROR_RULES: tuple[tuple[str, ResponseCategory], ...] = (
     ("non-contiguous iso-tp", CAT_DROP),
     ("truncated iso-tp", CAT_DROP),
     ("mismatch", CAT_STALE),
@@ -120,7 +133,7 @@ _ERROR_RULES: tuple[tuple[str, str], ...] = (
 )
 
 
-def classify_error(error: str | None) -> str:
+def classify_error(error: str | None) -> ResponseCategory:
     """Classify an error string into an :data:`ERROR_CATEGORIES` bucket.
 
     Matches known substrings emitted by the parser (and the raw clients); anything

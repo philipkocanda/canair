@@ -32,6 +32,7 @@ from canlib.uds.layout import (
 )
 from canlib.uds.notation import subfunction_bytes_for_pid
 from canlib.uds.nrc import nrc_description
+from canlib.uds.protocol import DiagProtocol
 from canlib.uds.services import service_response_name
 from canlib.uds.support_map import MapDecl, ResolvedMap, SupportMapError, declaration, resolve
 
@@ -650,7 +651,9 @@ def _generic_role(isotp_idx: int, sub_bytes: int) -> str:
 
 
 def _print_service_line(
-    layout: ResponseLayout, frame: list[tuple[int, int | None]], protocol: str | None = None
+    layout: ResponseLayout,
+    frame: list[tuple[int, int | None]],
+    protocol: DiagProtocol | None = None,
 ):
     """One dim line naming the service the payload came from (and, if negative, why).
 
@@ -710,7 +713,7 @@ def _annotate_payload(
     pid: str | None = None,
     legend: bool = True,
     support: MapDecl | None = None,
-    protocol: str | None = None,
+    protocol: DiagProtocol | None = None,
 ) -> int:
     """Annotate each byte of a UDS response payload with WiCAN Bnn indices.
 

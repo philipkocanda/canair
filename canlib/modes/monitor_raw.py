@@ -50,7 +50,7 @@ def _raw_pid_result(
     value: bytes | Exception | None,
     acquired_at: float | None,
     ecu: str | None = None,
-    protocol: str | None = None,
+    protocol: DiagProtocol | None = None,
 ) -> ResultEntry:
     """Turn a raw-CAN poll result (bytes / Exception / None) into a result dict.
 

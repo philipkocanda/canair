@@ -22,12 +22,14 @@ import re
 
 from canlib.uds.echo import echo_mismatch, request_echo
 from canlib.uds.nrc import is_response_pending, nrc_description
+from canlib.uds.protocol import DiagProtocol
 from canlib.uds.response import (
     CAT_BUS,
     CAT_DECODE,
     CAT_DROP,
     CAT_NO_DATA,
     CAT_STALE,
+    ResponseCategory,
     UdsResponse,
 )
 from canlib.uds.services import NEGATIVE_RESPONSE_SID, RESPONSE_SID_OFFSET
@@ -36,7 +38,7 @@ from canlib.uds.services import NEGATIVE_RESPONSE_SID, RESPONSE_SID_OFFSET
 # must classify to the same category under `canlib.uds.response.classify_error`.
 # `?` (command not understood) is a complete, prompt-terminated refusal that leaves
 # nothing queued, so it is a bus-side failure rather than a dirty pipe.
-ADAPTER_STATUS: dict[str, tuple[str, str]] = {
+ADAPTER_STATUS: dict[str, tuple[ResponseCategory, str]] = {
     "?": (CAT_BUS, "Unknown command"),
     "NO DATA": (CAT_NO_DATA, "No response from ECU (NO DATA)"),
     "CAN ERROR": (CAT_BUS, "CAN bus error"),
@@ -139,7 +141,7 @@ def _is_request_echo(data_lines: list[str], request: str | None) -> bool:
 class _Rejected(Exception):
     """A reply that cannot be read, carrying its outcome category and message."""
 
-    def __init__(self, kind: str, message: str) -> None:
+    def __init__(self, kind: ResponseCategory, message: str) -> None:
         super().__init__(message)
         self.kind = kind
         self.message = message
@@ -294,7 +296,7 @@ def parse_uds_response(
     expected_sid: int | None = None,
     expected_echo: bytes | None = None,
     hk_f1xx_offset: bool = False,
-    protocol: str | None = None,
+    protocol: DiagProtocol | None = None,
     request: str | None = None,
 ) -> UdsResponse:
     """Parse a UDS response (as returned by any transport) into structured data.
@@ -321,7 +323,7 @@ def parse_uds_response(
     """
     result: UdsResponse = {"raw": raw, "ok": False}
 
-    def _fail(kind: str, msg: str) -> UdsResponse:
+    def _fail(kind: ResponseCategory, msg: str) -> UdsResponse:
         result["error"] = msg
         result["error_kind"] = kind
         return result
