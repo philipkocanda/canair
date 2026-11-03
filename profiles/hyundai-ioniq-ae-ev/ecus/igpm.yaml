@@ -272,7 +272,7 @@ IGPM:
         REAR_DEFOGGER_RELAY:
           expression: B13:1
           source: bitfield analysis 2026-08-06; VCU_AUX_POWER align 2026-10-21; GDS order
-          verified: false
+          verified: true
           notes: >-
             Set only in the 2026-07-30 10:17-10:25 window narrated 'defroster on'; each edge moves
             VCU_AUX_POWER by a 127-172 W step with the blower unchanged. The 10:20:41 off edge is
