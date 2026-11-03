@@ -61,7 +61,7 @@ Never write (`2E`) any of them; canair's command guard refuses it anyway.
 A body ECU keeps its live data in a few DIDs that share a high byte, numbered up from `xx01`:
 IGPM `BC01`-`BC08`, BCM `B001`-`B00F`, SKM `B002`-`B00B`. Newer ECUs fix the slots (`xx01` user
 options, `xx02` byte-wide I/O, `xx03` bit-wide I/O) and start each record with a 4-byte support
-map (see `canair investigate --support-map`). Three consequences for scanning:
+map (see Support maps below). Three consequences for scanning:
 
 - **Sweep every family, not a fixed range.** A sweep of `B001`-`B010` alone misses an ECU whose
   family is `B4xx` or `BExx`. `canair scan range <ECU>` with no `--range` already sweeps each
@@ -72,6 +72,36 @@ map (see `canair investigate --support-map`). Three consequences for scanning:
   --gaps` lists every such family with the scan to run; after it, try the neighbouring families.
 - **An NRC-only IOControl "hit" is not evidence.** The DDM answers NRC 0x22 to every DID of
   `B000`-`B524`; only its positive `B1xx` releases say where its actuators are.
+
+## Support maps: one bit per parameter
+
+Hyundai/Kia records number their parameters from 1, and parameter 0 is a 4-byte "supported"
+bitmap right after the echo: bit 7 of its first byte is parameter 1, bit 0 of its fourth byte
+parameter 32, and a set bit means this ECU has that parameter. A record of more than 32
+parameters carries another bitmap as parameter 32 (and 64, …), each covering the next 31.
+`canair investigate <ECU> --support-map` detects all of this; on this car:
+
+| Layout | Where | What a map bit marks |
+|---|---|---|
+| per bit (a bitmapped DID) | IGPM `22BC03`-`07`, BCM `22B004`/`07` | one data bit; a multi-bit field is marked on its first bit only (`field continuation`) |
+| per byte | HVAC `220100` | one data byte; unmarked bytes read `FF` |
+| per field | BMS `2101`-`2104`, VCU `2101`, HVAC `220102`, BCM `22C00B` | one parameter of any width, in order |
+
+Rules of thumb:
+
+- **An unmarked parameter is filler on this unit, not a signal that never moved.** The Kona's
+  BMS `220101` leaves a fifth module temperature and the two battery-fan parameters unmarked:
+  it has a liquid-cooled pack, the Ioniq an air-cooled one with a fan. Compare two cars' maps to
+  see what one lacks.
+- **The maps are fixed per unit**, never per state, and shared between models (Kona and Ioniq
+  carry identical HVAC and IGPM maps). Two maps in one PID's captures mean two cars or two
+  software versions; `--support-map` then reports `VARIANTS`.
+- **Not every supplier counts the same way.** The MCU pages fit only least significant bit first
+  (`LSB first` in the report). VCU `2102`'s `F8 F8` and BCM `22B005`'s light-stalk bits fit no
+  reading: check before you declare, and never assume a map from the family alone.
+- **A per-field split needs definitions.** The map gives the parameter count, the defined
+  signals give the widths. A record with few signals defined reads `CONSISTENT` (several splits
+  fit) until more are decoded; each new signal can make it `EXACT`.
 
 ## Identity DIDs and the `-1` echo
 

@@ -107,6 +107,24 @@ canair coverage --unmapped      # captured PIDs with undecoded bytes
 evidence points at; `coverage` surfaces *undecoded bytes* in PIDs you already capture.
 `canair ecu` shows which ECUs carry which kind of signal.
 
+**Once an ECU has captures, run `canair investigate <ECU> --support-map` before decoding
+it.** Some records lead with a constant bitmap saying which of the data that follows are
+real signals, one bit per data bit, per data byte or per parameter of any width. Where one
+fits, it does part of the work for you:
+
+- **`open, marked`** (and `open, moving` on a per-bit map) lists marked positions no signal
+  reads yet: the next targets.
+- **`unsupported` / `fill`** are bytes the map leaves unmarked. They are filler on this unit,
+  so do not spend time decoding them.
+- On a per-field map, *N* marks over *W* bytes means *W − N* bytes belong to multi-byte
+  parameters. That fixes how the record splits before any correlation.
+- **`no map: leading bytes vary`** is an answer too: the data starts right after the DID echo.
+
+Declare a fit with the `pids set-support-map` command it prints, and `coverage` stops listing
+non-signals as gaps. The method and verdicts are in `docs/concepts/analysis-commands.md`
+(Support maps); the Hyundai/Kia layouts are in
+[`hyundai-kia-uds-conventions.md`](hyundai-kia-uds-conventions.md).
+
 ### 2. Prerequisites — power state & access
 
 Decide the power state the PID needs (`vehicle_states`: UPPERCASE tokens from the profile's
@@ -448,6 +466,7 @@ Flags live in each command's `--help`; `docs/concepts/analysis-commands.md` is t
 | explain an unknown PID | `canair investigate <ECU> <PID>` (mapped? / state F / best anchor + unit / triage / band); omit positionals to sweep an ECU or the profile |
 | test expressions | `canair decode --try` / `--stats` / `--corr` / `--plot` |
 | decode a body event capture | `canair investigate … --events --bits` + `canair correlate --find-mirrors --bits` |
+| which bytes/bits are signals at all · how many parameters a record holds | `canair investigate [<ECU> [<PID>]] --support-map` (per-bit/per-byte/per-field map, open and unsupported positions, `--json`); declare with `canair pids set-support-map` |
 | find an odometer / hour meter / cycle count | `canair investigate [<ECU> [<PID>]] --counters` (monotonic windows over the WHOLE corpus, scored in bits) — the one question correlation can't answer |
 | what's co-polled here | `canair correlate --overlap` |
 | cross-ECU correlate | `canair decode … --corr ECU:PID:PARAM`; `canair correlate [--against REF] [--bytes/--bits]` |

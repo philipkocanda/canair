@@ -72,6 +72,12 @@ not a handful of captures:
 - `canair coverage` and `canair investigate ECU PID` help spot constants; a
   byte triaged `constant` across a wide `--state` spread is a removal
   candidate.
+- A **support map** settles it faster: `canair investigate ECU --support-map`
+  names the bytes (or bits, or parameters) the map leaves unmarked. On this unit
+  they are filler, so a signal defined there is a removal candidate, and
+  `coverage` reports it as `OUTSIDE MAP` once the map is declared. Check the
+  map's verdict first: a `REJECTED`/`BROKEN` fit, or a documented exception like
+  BCM `22B005`, proves nothing.
 
 Judgement: a byte that is constant only within one state, or across a thin
 dataset, is **not** proven static — leave it (optionally note the observed

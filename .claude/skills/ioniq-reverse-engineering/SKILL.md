@@ -358,10 +358,11 @@ otherwise), `m` switch schedule,
 log overlay, `↑`/`↓` select a signal (`esc` deselects), `e`/`v`/`x`/`F`
 edit/verify/en-disable/filter, `s` save payloads with a metadata modal, `i` the
 session-info overlay (incl. the `--save` journal path), `?` a
-keybinding help modal, `q` quit); piped, it polls silently until
+keybinding help modal with a colour legend, `q` quit); piped, it polls silently until
 Ctrl+C. Signals are listed in **payload order** (by the byte each reads first),
-so a value sits above the hex byte it came from. Hex view highlights bytes changed since the previous cycle, colors bytes
-by verification state, and shows ASCII for unmapped PIDs; a changed byte also
+so a value sits above the hex byte it came from. Hex view highlights bytes changed since
+the previous cycle, colors bytes by verification state (a declared support map's bytes in a
+muted grey-blue), and shows ASCII for unmapped PIDs; a changed byte also
 highlights the parameter row(s) whose expression decodes it, with the same
 coverage-coloured background the byte gets. The status line shows a
 **`captured N/uniq M`** frame counter — total fresh payloads received vs distinct

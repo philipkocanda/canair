@@ -75,6 +75,27 @@ Scope with `coverage IGPM 22BC03 --bitfields`; `--json` gives
 `--bitfields` filters which **PIDs** print, not which lines — `UNMAPPED`/
 `UNVERIFIED` still appear on a selected PID.
 
+### Check for a support map first
+
+Many Hyundai/Kia body DIDs lead with a 4-byte **support map** that marks which data bits are
+signals at all (`reverse-engineer-signal`'s `hyundai-kia-uds-conventions.md`). Before you work a
+`BITS` gap, run:
+
+```
+uv run canair --profile hyundai-ioniq-ae-ev investigate IGPM --support-map
+```
+
+- Only **marked** bits are work. `open, moving` are the cheapest (they already change in the
+  captures); `open, never set` are bits nobody has exercised yet, so plan the narrated capture
+  (Step 3) to trigger them.
+- An **unmarked** bit is not a signal on this unit. If the map is declared (`pids
+  set-support-map`, printed by the command), `coverage` already lists only marked bits as
+  `missing{}` and counts the rest as `(+N not signals)`.
+- A set bit directly above a mark is a **field continuation**: the mark starts a multi-bit field,
+  such as the IGPM's 2-bit turn signal. Define it as one field, not as two flags.
+- A *defined* bit outside the map (`OUTSIDE MAP` in `coverage`) deserves a second look. BCM
+  `22B005`'s light-stalk bits are the documented exception, backed by a deliberate test.
+
 ### Coverage's remaining blind spot
 
 `coverage --bitfields` used to under-report badly; two of the three historical

@@ -5,7 +5,7 @@ subject: >-
   Sessions, power-state rules, identification and record DIDs, support maps, IOControl, routines,
   security access, NRCs and DTCs from Hyundai/Kia's ES95486 specs and a supplier's ECU spec
 created: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-03
 status: active
 verification: >-
   Specification evidence, not observation. Only ES95486 rules from revision 10 (2016-07) or
@@ -32,6 +32,8 @@ relations:
       note: Section 4 covers the spec's functional-addressing, timing and reprogramming rules.
     - path: plans/2026-10-29-support-bitmap-coverage.md
       note: Section 4 shows the empirically found support maps are a Hyundai/Kia template.
+    - path: plans/2026-11-03-support-map-field-maps.md
+      note: Section 4's per-parameter numbering, applied to the service-21 pages.
   related:
     - path: profiles/hyundai-ioniq-ae-ev/research/IGPM_FINDINGS.md
     - path: plans/2026-10-29-service-id-enumeration.md
@@ -135,6 +137,14 @@ single bits, with item 1 at bit 0 of the first data byte (the plan's bit order).
 takes the number of its first bit, which is the plan's "field continuation" tolerance. The same
 spec's own numbering skips and repeats items across bytes, so real ECUs need not be exactly
 positional either. Declaring a map per PID after review, as the plan does, remains right.
+
+The same section numbers *parameters*, not bytes or bits, and says a record of more than 32
+parameters carries a further bitmap as parameter 32, 64, and so on. That explains the service-21
+pages, whose leading bytes fit neither granularity: each bit marks one parameter of any width.
+Ioniq BMS `2101` (32 parameters), VCU `2101` (11) and the cell pages split exactly, and BMS `21F2`
+has its second bitmap at data offset 48. canair reads these as `unit: field` maps
+(`plans/2026-11-03-support-map-field-maps.md`). The MCU pages fit only least significant bit
+first, which the spec does not describe.
 
 ## 5. IOControl
 
