@@ -18,7 +18,8 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
-from typing import TYPE_CHECKING
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, TypedDict
 
 from ..poll_backoff import PollCost
 from ..uds.protocol import DiagProtocol, classify_protocol
@@ -26,6 +27,20 @@ from ..uds.protocol import DiagProtocol, classify_protocol
 if TYPE_CHECKING:
     from .monitor import MonitorController
     from .multi_batch import EcuFrame, ResultEntry
+
+# One query-plan entry: ``(pid_code, pid_info or None, unmapped)``.
+PlanEntry = tuple[str, dict | None, bool]
+# What the pipelined client resolved each ``(ecu, request)`` to.
+PollResults = Mapping[tuple[str, bytes], bytes | Exception]
+
+
+class Submission(TypedDict):
+    """One request of a raw poll tick and the plan entries its reply answers."""
+
+    ecu: str
+    req: bytes
+    members: list[PlanEntry]
+    lengths: list[tuple[str, int]] | None  # (DID4, data bytes) per member of a batch
 
 
 def _raw_pid_result(
@@ -97,32 +112,33 @@ class MonitorRawPoller:
 
         self.pad = resolve_rx_padding(getattr(controller, "pids_data", None))
 
-    def build_submissions(self):
+    def build_submissions(
+        self,
+    ) -> tuple[list[Submission], list[tuple[str, int, list[PlanEntry]]]]:
         """Plan this tick's raw requests, batching multi-DID ECUs.
 
         Returns ``(submissions, plan_by_ecu)``. ``plan_by_ecu`` holds every ECU's
         *full* plan (it lays out the display); the submissions cover only the
         entries the controller's scheduler says are due this tick. Each submission
-        is a dict with ``ecu``, ``req`` (bytes to send), ``members`` [(pid_code,
-        pid_info, unmapped)], and ``lengths`` ([(did4, data_len)] for a batch, else
-        None). Consecutive due service-22 DIDs on a ``multi_did`` ECU whose lengths
-        are already learned are combined (up to the ECU's ``multi_did_max``, default
-        3); everything else is a single request (and 22-DID lengths are learned
-        from single reads).
+        is a :class:`Submission`. Consecutive due service-22 DIDs on a ``multi_did``
+        ECU whose lengths are already learned are combined (up to the ECU's
+        ``multi_did_max``, default 3); everything else is a single request (and
+        22-DID lengths are learned from single reads).
         """
+        from ..pids import ecu_index_key
         from .multi_batch import _did4, _is_did22
         from .multi_exec import build_query_plan
 
         c = self.c
         # Only reached during polling, after setup() built the ECU index.
         assert c._ecu_index is not None
-        submissions: list[dict] = []
-        plan_by_ecu: list[tuple[str, int, list]] = []
+        submissions: list[Submission] = []
+        plan_by_ecu: list[tuple[str, int, list[PlanEntry]]] = []
         for step in c.query_steps:
-            ecu = step["ecu"].upper()
-            info = c._ecu_index.get(ecu)
-            if info is None:
+            ecu = ecu_index_key(step["ecu"], c._ecu_index)
+            if ecu is None:
                 continue
+            info = c._ecu_index[ecu]
             plan = (
                 build_query_plan(
                     info, step.get("pids", []), quiet=True, include_static=c.include_static
@@ -259,7 +275,7 @@ class MonitorRawPoller:
         c.last_elm_time = 0.0
         c.ecu_costs = self.ecu_costs(submissions, result_dict)
 
-    def ecu_costs(self, submissions: list[dict], results: dict) -> dict[str, PollCost]:
+    def ecu_costs(self, submissions: list[Submission], results: PollResults) -> dict[str, PollCost]:
         """Per-ECU cost of this tick: requests, their summed latency, coherent answers.
 
         Summed per ECU because the client works through an ECU's queue one request
@@ -277,7 +293,11 @@ class MonitorRawPoller:
         return costs
 
     def apply_submission(
-        self, s: dict, val, acquired: float, by_pid: dict[tuple[str, str], ResultEntry]
+        self,
+        s: Submission,
+        val: bytes | Exception | None,
+        acquired: float,
+        by_pid: dict[tuple[str, str], ResultEntry],
     ) -> None:
         """Fold one completed submission's response into ``by_pid`` (split batches,
         learn 22-DID lengths, track ECUs that can't batch)."""

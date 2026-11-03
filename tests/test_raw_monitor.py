@@ -185,6 +185,19 @@ class TestBuildRawSubmissions:
         # 5 DIDs -> batch of 3 + batch of 2.
         assert [len(s["members"]) for s in subs] == [3, 2]
 
+    def test_an_alias_resolves_to_the_key_the_elm_path_uses(self, monkeypatch):
+        import canlib.ecus
+
+        monkeypatch.setattr(
+            canlib.ecus,
+            "canonical_ecu_name_safe",
+            lambda name, *a, **k: "IGPM" if name.upper() == "SJB" else name.upper(),
+        )
+        c = _mk_ctrl([{"ecu": "sjb", "pids": ["BC03"]}], _IGPM_BMS_INDEX)
+        subs, plan_by_ecu = c._build_raw_submissions()
+        assert [s["ecu"] for s in subs] == ["IGPM"]
+        assert [ecu for ecu, _tx, _plan in plan_by_ecu] == ["IGPM"]
+
 
 class TestPollRaw:
     def test_learn_then_batch_and_decode(self):

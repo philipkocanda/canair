@@ -9,7 +9,7 @@ settings (``car_model``, ``init``, shared ``dtcs``, ...) live one level up in
 """
 
 import sys
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
 from typing import Any, Literal, TypedDict, get_args
 
@@ -746,3 +746,19 @@ def build_ecu_index(pids_data: dict) -> dict[str, EcuIndexEntry]:
                 "sensitive": pid_def.get("sensitive") is True,
             }
     return index
+
+
+def ecu_index_key(name: str, index: Mapping[str, object]) -> str | None:
+    """The :func:`build_ecu_index` key a query step's ECU name selects, or None.
+
+    The upper-cased name when the index has it, else the canonical name of an
+    alias. Every poll path resolves a step through this, so the keys its
+    scheduler, backoff and results use cannot differ between transports.
+    """
+    upper = name.upper()
+    if upper in index:
+        return upper
+    from .ecus import canonical_ecu_name_safe
+
+    canonical = canonical_ecu_name_safe(name).upper()
+    return canonical if canonical in index else None
