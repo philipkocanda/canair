@@ -111,26 +111,46 @@ def explicit_request(token: str) -> str | None:
     return service + ident
 
 
-def inferred_request(token: str) -> str | None:
-    """The request a PID token sends when no definition matches it, or None.
+def inferred_request(token: str) -> str:
+    """The request a PID token sends when no definition matches it.
 
-    A ``SERVICE/ID`` token sends exactly what it names. A bare token infers its
-    service from its length: two hex digits are a KWP2000 local identifier
-    (``01`` -> ``2101``), four are a service-22 DID (``B001`` -> ``22B001``, and
-    ``0101`` -> ``220101``, *not* OBD-II mode 01 — write ``01/01`` for that), and a
-    token that already starts with ``21``/``22`` is sent as written.
+    A ``SERVICE/ID`` token sends exactly what it names. A bare token is either a
+    complete read already or an identifier whose service its length implies:
+
+    - two hex digits are a KWP2000 local identifier (``01`` -> ``2101``);
+    - four starting with ``21`` are a complete KWP2000 read (``2101``), the
+      conventional way to write one;
+    - any other four are a service-22 DID (``B001`` -> ``22B001``, ``2201`` ->
+      ``222201``, and ``0101`` -> ``220101``, *not* OBD-II mode 01 — write
+      ``01/01`` for that);
+    - six starting with ``22`` are a complete DID read (``22BC03``).
+
+    Raises :class:`QueryError` for anything else — not hex, an odd number of digits
+    (a request is whole bytes, and an ELM327 reads a trailing nibble as a
+    response-frame count), or a shape no single read has (``BC0301`` is neither a
+    2-byte DID nor a ``22`` request), rather than sending a guess.
     """
     explicit = explicit_request(token)
     if explicit is not None:
         return explicit
     u = token.upper()
     if not _is_hex(u):
-        return None
-    if len(u) <= 2:
+        raise QueryError(f"PID {token!r} is not hex")
+    if len(u) % 2:
+        raise QueryError(
+            f"PID {token!r} has an odd number of hex digits (a request is whole bytes)"
+        )
+    if len(u) == 2:
         return f"21{u}"
-    if len(u) >= 4 and u[:2] in ("21", "22"):
+    if len(u) == 4:
+        return u if u.startswith("21") else f"22{u}"
+    if len(u) == 6 and u.startswith("22"):
         return u
-    return f"22{u}"
+    raise QueryError(
+        f"PID {token!r} is not defined, and is neither a local identifier (01), a DID "
+        "(B001) nor a 2101/22B001 read; write another request as SERVICE/ID (01/0D) or "
+        "send it with a raw step (raw 7E4:3E00)"
+    )
 
 
 def pids_named_by(token: str, keys: Iterable[str]) -> list[str]:

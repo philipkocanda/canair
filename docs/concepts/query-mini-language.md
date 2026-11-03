@@ -24,9 +24,13 @@ why canair can resolve a bare identifier.
 ### Naming the service: `SERVICE/ID`
 
 A PID the profile does not define is sent with a service inferred from its length:
-two hex digits are a KWP2000 local identifier (`01` → `2101`), four are a UDS
-service-22 DID (`B001` → `22B001`). That makes `0101` the DID `0x0101`, which is a
-real identifier on some ECUs — so it can never also mean OBD-II mode 01 PID `01`.
+two hex digits are a KWP2000 local identifier (`01` → `2101`), four starting with `21`
+are a KWP2000 read as written (`2101`), any other four are a UDS service-22 DID
+(`B001` → `22B001`, `2201` → `222201`), and six starting with `22` are a DID read as
+written (`22BC03`). That makes `0101` the DID `0x0101`, which is a real identifier on
+some ECUs — so it can never also mean OBD-II mode 01 PID `01`. Anything else — an odd
+number of digits, or a longer request such as `BC0301` — is skipped with a warning
+rather than sent as a guess; write it with `SERVICE/ID` or send it with a `raw` step.
 
 Write the service and the identifier with a `/` to say exactly which request you
 mean:
@@ -143,7 +147,8 @@ thing automatically:
     polling loop injects no redundant keepalives. TesterPresent is shared by UDS
     and KWP2000, so it's sent identically regardless of the ECU's protocol.
 
-To send one by hand, use a query step (`canair read BMS:3E00`).
+To send one by hand, use a raw step (`canair read "raw 7E4:3E00"`): as a query token,
+`3E00` would be read as the DID `0x3E00`.
 
 ## After a session
 

@@ -62,16 +62,29 @@ class TestInference:
             ("01", "2101"),
             ("B001", "22B001"),
             ("0101", "220101"),  # a DID, as before: never OBD-II mode 01
+            ("2201", "222201"),  # DID 0x2201, not a 1-byte-DID service-22 request
             ("22BC03", "22BC03"),
-            ("2101", "2101"),
+            ("2101", "2101"),  # the conventional KWP2000 spelling stays a 21 read
             ("01/01", "0101"),
         ],
     )
     def test_request_for_an_undefined_token(self, token, code):
         assert inferred_request(token) == code
 
-    def test_non_hex_is_none(self):
-        assert inferred_request("SOC") is None
+    @pytest.mark.parametrize(
+        ("token", "needle"),
+        [
+            ("SOC", "not hex"),
+            ("1", "odd number"),
+            ("B01", "odd number"),  # an ELM327 would read the 1 as a frame count
+            ("BC0301", "SERVICE/ID"),
+            ("21BC03", "SERVICE/ID"),
+            ("22BC0301", "SERVICE/ID"),
+        ],
+    )
+    def test_a_token_naming_no_single_read_is_refused(self, token, needle):
+        with pytest.raises(QueryError, match=needle):
+            inferred_request(token)
 
 
 class TestPidsNamedBy:
@@ -120,6 +133,12 @@ class TestQueryPlan:
 
     def test_a_bare_four_digit_token_still_means_a_did(self):
         assert self._plan(["0102"]) == [("220102", True)]
+
+    def test_an_unsendable_token_is_skipped_with_its_reason(self, capsys):
+        assert self._plan(["B01", "0102"]) == [("220102", True)]
+        out = capsys.readouterr().out
+        assert "odd number of hex digits (a request is whole bytes); skipping" in out
+        assert build_query_plan(self.INFO, ["BC0301"]) is None
 
     def test_explicit_did_picks_the_defined_one(self):
         assert self._plan(["22/0101"]) == [("220101", False)]

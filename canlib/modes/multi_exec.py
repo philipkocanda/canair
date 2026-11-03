@@ -14,7 +14,7 @@ import time
 from collections.abc import Callable
 from typing import Literal
 
-from canlib.query import inferred_request, pids_named_by
+from canlib.query import QueryError, inferred_request, pids_named_by
 from canlib.uds.echo import request_echo
 
 from ..actuation import on_refusal
@@ -219,7 +219,8 @@ def build_query_plan(
     :func:`canlib.query.pids_named_by` (``BC03`` picks key ``22BC03``, ``01/0D``
     exactly ``010D``); an unmatched filter becomes the raw request
     :func:`canlib.query.inferred_request` names (``01``->``2101``,
-    ``B001``->``22B001``, ``22BC03`` verbatim, ``01/0D``->``010D``).
+    ``B001``->``22B001``, ``22BC03`` verbatim, ``01/0D``->``010D``), or is warned
+    about and skipped when it names no single read (``BC0301``, ``B01``).
 
     A bare ECU selector (empty ``pid_filter`` = "all PIDs") omits PIDs flagged
     ``status: static`` (identity/calibration blocks) or ``status: slow`` (per-cycle
@@ -237,11 +238,13 @@ def build_query_plan(
                 picked[key] = pids_to_query[key]
             if hits:
                 continue
-            request = inferred_request(token)
-            if request is None:
+            try:
+                request = inferred_request(token)
+            except QueryError as e:
                 if not quiet:
-                    print(f"  WARNING: Invalid PID format '{token}', skipping")
-            elif request not in raw_pids:
+                    print(f"  WARNING: {e}; skipping")
+                continue
+            if request not in raw_pids:
                 raw_pids.append(request)
         pids_to_query = picked
         if raw_pids and not quiet:
