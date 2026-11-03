@@ -92,6 +92,15 @@ class TestAdapterLines:
     def test_bus_busy_is_a_bus_failure(self):
         assert parse_uds_response("BUS BUSY")["error_kind"] == CAT_BUS
 
+    @pytest.mark.parametrize("eol", ["\r", "\r\n", "\n"])
+    def test_every_line_ending_splits_lines(self, eol):
+        # Regression: CR-only output (an ELM327's default) was one line, so a pending
+        # frame and its answer read as one non-hex payload.
+        raw = eol.join(["7F2278", "62F19041", ">"])
+        r = parse_uds_response(raw, expected_sid=0x22, expected_echo=b"\xf1\x90")
+        assert r["ok"] is True
+        assert r["hex"] == "62F19041"
+
 
 # One reply per failure message the parser can produce, with the category it stamps.
 _EVERY_FAILURE = [

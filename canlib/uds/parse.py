@@ -163,7 +163,9 @@ def _sent_request(request: str | None) -> tuple[int | None, bytes]:
 def _adapter_lines(raw: str) -> list[str]:
     """The reply's data lines; raises :class:`_Rejected` on an adapter status line."""
     data_lines: list[str] = []
-    for line in raw.split("\n"):
+    # An ELM327 ends lines with CR (``ATL0``, the default) or CR LF, a WebSocket
+    # bridge often with LF alone.
+    for line in raw.replace("\r", "\n").split("\n"):
         line = line.strip().rstrip(">").strip()
         if not line or line.upper().startswith("AT") or line in _ADAPTER_INFO:
             continue
