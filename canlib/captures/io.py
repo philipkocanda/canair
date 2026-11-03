@@ -24,7 +24,9 @@ from __future__ import annotations
 import json
 import os
 import tempfile
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
+from contextvars import ContextVar
 from pathlib import Path
 from typing import Any
 
@@ -125,12 +127,44 @@ def parse_capture_text(text: str) -> CaptureFile:
 
 
 def load_capture_file(path: Path) -> CaptureFile:
-    """Parse one capture file (see :func:`parse_capture_text`)."""
+    """Parse one capture file (see :func:`parse_capture_text`).
+
+    Inside :func:`reading_once`, a file is parsed once and the same document is
+    returned to every later caller.
+    """
+    memo = _READ_ONCE.get()
+    if memo is not None:
+        key = path.resolve()
+        if key not in memo:
+            memo[key] = _load_capture_file(path)
+        return memo[key]
+    return _load_capture_file(path)
+
+
+def _load_capture_file(path: Path) -> CaptureFile:
     text = path.read_text()
     try:
         return parse_capture_text(text)
     except CaptureFormatError as e:
         raise CaptureFormatError(f"{path.name}: {e}") from e
+
+
+_READ_ONCE: ContextVar[dict[Path, CaptureFile] | None] = ContextVar("_READ_ONCE", default=None)
+
+
+@contextmanager
+def reading_once() -> Iterator[None]:
+    """Parse each capture file at most once while the block runs.
+
+    For read-only passes that run several checks over the same files (``validate
+    captures`` read each file eleven times). Every caller gets the *same* document,
+    so nothing inside the block may modify one or write a capture file.
+    """
+    token = _READ_ONCE.set({})
+    try:
+        yield
+    finally:
+        _READ_ONCE.reset(token)
 
 
 def capture_rx(cap: Mapping[str, Any]) -> str:

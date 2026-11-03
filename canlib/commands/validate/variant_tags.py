@@ -44,6 +44,13 @@ def revision_tag_findings(files: list[Path], profile) -> Counter[str]:
     ecus = load_raw_pids(profile).get("ecus") or {}
     variants = load_variants(profile)
     rx_index = build_rx_index()
+    pid_defs = {
+        name: {
+            str(k).upper(): d
+            for k, d in reversed(list(((ecu_def or {}).get("pids") or {}).items()))
+        }
+        for name, ecu_def in ecus.items()
+    }
     found: Counter[str] = Counter()
     for path in files:
         for session in (capture_io.load_capture_file(path) or {}).get("sessions") or []:
@@ -53,15 +60,7 @@ def revision_tag_findings(files: list[Path], profile) -> Counter[str]:
                 rx = capture_io.capture_rx(cap)
                 ecu = str(ecu_name_from_ref(rx, rx_index)) if rx else ""
                 rid = tags.get(ecu.upper())
-                ecu_def = ecus.get(ecu) or {}
-                pid_def = next(
-                    (
-                        d
-                        for k, d in (ecu_def.get("pids") or {}).items()
-                        if str(k).upper() == str(cap.get("pid", "")).upper()
-                    ),
-                    None,
-                )
+                pid_def = pid_defs.get(ecu, {}).get(str(cap.get("pid", "")).upper())
                 applies = gate(pid_def)
                 if rid and applies is not None and rid not in applies and cap.get("payload"):
                     outside.add(f"{ecu} {cap.get('pid')}")

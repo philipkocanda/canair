@@ -13,6 +13,7 @@ from canlib.captures import io as capture_io
 from canlib.states import StateRule, contradictory_states
 
 from ._common import CAPTURES_SCHEMA_FILE, DEPRECATED_FIELDS
+from .capture_schema import CaptureSchemaChecker
 
 # How many locations to list inline before collapsing a grouped warning to "(+N more)".
 _MAX_GROUP_LOCATIONS = 6
@@ -74,15 +75,19 @@ def _path_str(abs_path) -> str:
     return out or "<root>"
 
 
-def validate_captures_file(path: Path, validator: Validator, rx_addrs: set[int]) -> list[str]:
+def validate_captures_file(
+    path: Path, validator: Validator | CaptureSchemaChecker, rx_addrs: set[int]
+) -> list[str]:
     from canlib.ecus import SENTINELS, parse_ecu_ref
 
+    if not isinstance(validator, CaptureSchemaChecker):
+        validator = CaptureSchemaChecker(validator.schema)
     errors: list[str] = []
     data = capture_io.load_capture_file(path)
 
     # Schema validation (structure, types, required/allowed fields, patterns).
-    for err in sorted(validator.iter_errors(data), key=lambda e: list(e.absolute_path)):
-        loc = _path_str(err.absolute_path)
+    for at, err in sorted(validator.errors(data), key=lambda found: found[0]):
+        loc = _path_str(at)
         # Nicer message for known-deprecated fields flagged by additionalProperties.
         dep = DEPRECATED_FIELDS & set(err.instance) if isinstance(err.instance, dict) else set()
         if err.validator == "additionalProperties" and dep:
@@ -129,10 +134,18 @@ def _run_captures(
     show_untimed: bool = False,
     max_untagged: int | None = None,
 ) -> int:
+    # Every check below reads the same files; parse each one once.
+    with capture_io.reading_once():
+        return _check_captures(strict, max_untimed, show_untimed, max_untagged)
+
+
+def _check_captures(
+    strict: bool, max_untimed: int | None, show_untimed: bool, max_untagged: int | None
+) -> int:
     with open(CAPTURES_SCHEMA_FILE) as f:
         schema = json.load(f)
     Draft202012Validator.check_schema(schema)
-    validator = Draft202012Validator(schema)
+    validator = CaptureSchemaChecker(schema)
     rx_addrs = load_valid_rx_addrs()
 
     from canlib.profile import active
