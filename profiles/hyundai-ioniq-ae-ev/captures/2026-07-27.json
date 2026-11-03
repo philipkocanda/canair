@@ -6,6 +6,7 @@
       "vehicle_states": [
         "CHARGING",
         "PLUGGED",
+        "OFF",
         "PARKED",
         "IG3"
       ],
@@ -258,6 +259,7 @@
       "vehicle_states": [
         "CHARGING",
         "PLUGGED",
+        "OFF",
         "PARKED",
         "IG3"
       ],
@@ -307,6 +309,7 @@
       "vehicle_states": [
         "CHARGING",
         "PLUGGED",
+        "OFF",
         "PARKED",
         "IG3"
       ],
@@ -977,6 +980,7 @@
       "vehicle_states": [
         "CHARGING",
         "PLUGGED",
+        "OFF",
         "PARKED",
         "IG3"
       ],
@@ -1768,6 +1772,7 @@
       "vehicle_states": [
         "CHARGING",
         "PLUGGED",
+        "OFF",
         "PARKED",
         "IG3"
       ],

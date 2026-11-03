@@ -14,6 +14,9 @@
       "attribution": {
         "variant": "migrated"
       },
+      "vehicle_states": [
+        "OFF"
+      ],
       "captures": [
         {"rx":"0x7A8","pid":"22B001","payload":"62B00140C0000000010000000000000201000000","time":"08:28:28.033"},
         {"rx":"0x7A8","pid":"22B002","payload":"62B002C00000000200","time":"08:28:28.223"},
@@ -221,6 +224,7 @@
       "vehicle_states": [
         "CHARGING",
         "PLUGGED",
+        "OFF",
         "PARKED",
         "IG3"
       ],
@@ -6724,6 +6728,7 @@
       "vehicle_states": [
         "CHARGING",
         "PLUGGED",
+        "OFF",
         "PARKED",
         "IG3"
       ],

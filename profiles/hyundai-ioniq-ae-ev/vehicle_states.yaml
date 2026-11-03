@@ -6,28 +6,30 @@
 # session is composite (e.g. READY + PARKED).
 #
 # `implies:` names the broader states a state specializes: DRIVING implies READY,
-# CHARGING implies PLUGGED, READY implies ON, ON implies ACC, TOPUP implies
+# CHARGING implies PLUGGED, READY implies ON, ON implies ACC, SLEEP implies OFF, TOPUP implies
 # PARKED, and READY, CHARGING and TOPUP each imply IG3. Both readings stay true (a
 # recorded session keeps every state it was in), but a view that must name one (the
 # monitor status bar) names the most specific, so driving reads DRIVING rather than READY.
 #
-# Names versus the car: ACC and ON are the owner's manual names for the Start/Stop button
-# positions (OFF → ACC → ON, then READY with the brake). ACC is the ACC relay alone; ON is ACC +
-# IGN1 + IGN2 energised. ON is written quoted ("ON") because YAML 1.1 reads a bare ON as true.
+# Names versus the car: OFF, ACC and ON are the owner's manual names for the Start/Stop button
+# positions (OFF → ACC → ON, then READY with the brake). OFF is no terminal at all; ACC is the ACC
+# relay alone; ON is ACC + IGN1 + IGN2 energised. OFF and ON are written quoted ("OFF", "ON")
+# because YAML 1.1 reads them bare as booleans.
 # IG3 is a separate EV-only supply rail the HV side closes without the button (READY, charging,
 # the 12 V top-up, a while after plug-in), so it is its own state rather than a rung of the
 # ladder. The ignition-lines table in the ioniq-reverse-engineering skill has the relays, fuses
 # and consumers.
 #
-# Power states and transitions. "press" is the Start/Stop button without the brake; "off" is
-# SLEEP once the ECUs have timed out (canair has no separate OFF state).
+# Power states and transitions. "press" is the Start/Stop button without the brake. OFF holds
+# whether the car is awake or asleep (the BCM answers either way); SLEEP is the narrower reading
+# once the ECUs have timed out, which no stored signal shows.
 #
 #   Ignition ladder (the button):
 #
 #                 press            press            press
-#      SLEEP -----------> ACC -----------> "ON" -----------> off
+#      "OFF" -----------> ACC -----------> "ON" -----------> "OFF"
 #        |                 |                 |
-#        +- brake + press -+-----------------+-------> READY ---- press ----> off
+#        +- brake + press -+-----------------+-------> READY ---- press ----> "OFF"
 #                                                      |   ^
 #                                             moving   |   |   stopped
 #                                                      v   |
@@ -72,14 +74,23 @@ states:
 
   # SLEEP has no positive signal in a stored capture (it is an absence of replies), so it has no
   # predicate. SLEEP does not exclude PLUGGED: a car left plugged in sleeps with the cable in, and
-  # the IGPM's charge-port lock (a PLUGGED input) answers while asleep. ACC is BCM 22B004 B10 = 2
-  # (BCM_IGN_STATE_B004) or SKM_POWER_MODE = 2, both 2026-11-03.
+  # the IGPM's charge-port lock (a PLUGGED input) answers while asleep.
   - name: SLEEP
     description: Deep sleep / 12V standby (unplugged).
+    implies: ["OFF"]
     excludes: [READY, ACC, "ON", DRIVING, CHARGING, TOPUP, IG3]
   - name: PLUGGED
     description: Charge cable connected (AC or DC), not necessarily charging.
     when: BMS.AC_CHARGER_CONNECTED == 1 or BMS.CHARGING_DC == 1 or IGPM.CHARGE_PORT_LOCK == 1
+
+  # The button positions, from the BCM (answers in every state) or the SKM: BCM 22B004 B10
+  # (BCM_IGN_STATE_B004) reads 0 OFF, 2 ACC, 14 ON or READY; SKM_POWER_MODE 0, 2, 7, 9
+  # (narrated cycles, 2026-11-03). OFF does not exclude CHARGING or TOPUP, which run with the
+  # button off.
+  - name: "OFF"
+    description: 'Start/Stop button off (LED off): no ACC, IGN1 or IGN2, with the car awake or asleep. The HV side may still run (charging, the 12 V top-up).'
+    excludes: [ACC, "ON", READY, DRIVING]
+    when: BCM.BCM_IGN_STATE_B004 == 0 or SKM.SKM_POWER_MODE == 0
   - name: ACC
     description: 'Start/Stop button ACC position (amber LED, one press without the brake): the ACC relay only.'
     when: BCM.BCM_IGN_STATE_B004 == 2 or SKM.SKM_POWER_MODE == 2

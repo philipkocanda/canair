@@ -123,7 +123,8 @@ driven by the OBC. IG3 #2 is meant for AC charging and another relay for DC, but
 runs to the head unit's "IG3 relay control" pins, so who closes it is unresolved. The PCB-block Main
 relay is commanded by the IGPM's IPS control module. "IGN3" in pin tables means IG3.
 
-**Mapping to canair names.** The `ACC` state is the ACC relay alone; `ON` (IGPM `IGN1_SWITCH`,
+**Mapping to canair names.** The `OFF` state is no terminal on, with the car awake or asleep
+(`SLEEP` implies it); the `ACC` state is the ACC relay alone; `ON` (IGPM `IGN1_SWITCH`,
 the GDS "IGN1 Switch") is ACC + IGN1 + IGN2 (called `ACC2` until 2026-10-30); `READY` also needs
 IG3. The `IG3` state (`VCU_IG3_ON == 1`) is the rail
 itself: READY, CHARGING and TOPUP imply it, and it alone names the plugged-in idle window after a
@@ -256,13 +257,14 @@ everywhere). `validate` errors if a PID omits it; set it with
 seeds `status: active` on a newly-created PID). Power
 states in which a PID/ECU responds, and those a research lead needs, use the
 shared **`vehicle_states:`** list (UPPERCASE vocabulary from the profile's
-`vehicle_states.yaml` — `SLEEP, PLUGGED, ACC, "ON", READY, CHARGING, IG3, TOPUP, PARKED, DRIVING`
-— plus the `ALL` meta-token; list/edit it with `canair states`). It's written as an inline flow
-list (`[READY, CHARGING]`); input is case-insensitive. Tag an ECU with the *broadest* state it
-answers in: `canair states READY` lists an ECU tagged `[IG3]` because READY implies IG3, so the
-battery-side ECUs (BMS, OBC, MCU, AAF, VCU) are `[IG3]` and HVAC `["ON", IG3]`. ACC and ON are
-the owner's manual names for the Start/Stop button positions; ON must stay quoted (`"ON"`), since
-YAML 1.1 reads a bare ON as `true` and `canair validate` rejects it.
+`vehicle_states.yaml` — `SLEEP, PLUGGED, "OFF", ACC, "ON", READY, PARKED, DRIVING, TOPUP, IG3`,
+CHARGING — plus the `ALL` meta-token; list/edit it with `canair states`). It's written as an
+inline flow list (`[READY, CHARGING]`); input is case-insensitive. Tag an ECU with the *broadest*
+state it answers in: `canair states READY` lists an ECU tagged `[IG3]` because READY implies IG3,
+so the battery-side ECUs (BMS, OBC, MCU, AAF, VCU) are `[IG3]` and HVAC `["ON", IG3]`. OFF, ACC and
+ON
+are the owner's manual names for the Start/Stop button positions; OFF and ON must stay quoted
+(`"OFF"`, `"ON"`), since YAML 1.1 reads them bare as booleans and `canair validate` rejects that.
 
 Edit with `canair pids upsert-param / add-research / set-status / set-pid-status /
 set-pid-notes`

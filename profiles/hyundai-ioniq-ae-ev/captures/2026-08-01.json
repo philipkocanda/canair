@@ -12,6 +12,7 @@
         "no_data": 248
       },
       "vehicle_states": [
+        "OFF",
         "PARKED"
       ],
       "variant": "28kwh",
@@ -92,6 +93,9 @@
       "attribution": {
         "variant": "migrated"
       },
+      "vehicle_states": [
+        "OFF"
+      ],
       "captures": [
         {"rx":"0x778","pid":"22BC01","payload":"62BC01400000000002","time":"20:49:48.136"},
         {"rx":"0x778","pid":"22BC02","payload":"62BC0200000000","time":"20:49:48.257"},

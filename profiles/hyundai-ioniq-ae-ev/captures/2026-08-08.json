@@ -4006,6 +4006,9 @@
       "attribution": {
         "variant": "migrated"
       },
+      "vehicle_states": [
+        "OFF"
+      ],
       "captures": [
         {"rx":"0x778","pid":"22BC01","payload":"62BC01400000000002","time":"09:36:55.683"},
         {"rx":"0x778","pid":"22BC02","payload":"62BC0200000000","time":"09:36:55.764"},

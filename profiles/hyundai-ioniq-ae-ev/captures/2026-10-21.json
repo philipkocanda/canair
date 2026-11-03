@@ -54,6 +54,7 @@
       "label": "IGPM BCM SKM BMS:2101,2105 OBC VCU MCU",
       "version": "1.28.0",
       "vehicle_states": [
+        "OFF",
         "PARKED",
         "TOPUP",
         "IG3"
@@ -197,6 +198,7 @@
       "label": "IGPM BCM SKM BMS:2101,2105 OBC VCU MCU",
       "version": "1.28.0",
       "vehicle_states": [
+        "OFF",
         "PARKED",
         "TOPUP",
         "IG3"

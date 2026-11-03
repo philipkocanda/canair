@@ -1,20 +1,20 @@
 
   Investigate IGPM 22BC03 (292 timed captures, ≤5s join)
-    B11 [IGN1_SWITCH]  stateF=12565379.8  r=+1.000 vs BCM:22B008:BCM_IGN_ON_B008 n=261 fit y=96.0000·x+0.00 slope≈96.0000 ⇒ raw/100  enum
-    B11:5 [IGN1_SWITCH]  stateF=11849.1  r=+1.000 vs BCM:22B008:BCM_IGN_ON_B008 n=261 fit y=1.0000·x+0.00 slope≈1.0000 ⇒ raw (×1)
-    B11:6 [IGN2_SWITCH]  stateF=11849.1  r=+1.000 vs BCM:22B008:BCM_IGN_ON_B008 n=261 fit y=1.0000·x+0.00 slope≈1.0000 ⇒ raw (×1)
-    B10:1 [DOOR_LOCK_RL]  stateF=263.0  r=+1.000 vs IGPM:22BC04:DOOR_LOCK_FL n=274 fit y=1.0000·x+0.00 slope≈1.0000 ⇒ raw (×1)
-    B10:3 [DOOR_LOCK_RR]  stateF=263.0  r=+1.000 vs IGPM:22BC04:DOOR_LOCK_FL n=274 fit y=1.0000·x+0.00 slope≈1.0000 ⇒ raw (×1)
-    B10:7 [TRUNK_OPEN]  stateF=4.8  r=+1.000 vs IGPM:22BC07:TRUNK_OPEN_BC07 n=273 fit y=1.0000·x+0.00 slope≈1.0000 ⇒ raw (×1)
-    B10:5 [DOOR_DRV_OPEN]  stateF=59.1  r=+0.974 vs IGPM:22BC06:STOP_LAMP_LEFT n=274 fit y=0.9961·x+0.00 slope≈0.9961 ⇒ raw (×1)
-    B10 [DOOR_DRV_OPEN]  stateF=12.0  r=+0.921 vs IGPM:22BC06:STOP_LAMP_LEFT n=274 fit y=23.1425·x+9.66  /10·[B10:B11] ≈ HV pack V  enum
-    B12:2 [TAIL_LAMP_INTERIOR]  stateF=17.9  r=+0.867 vs BMS:2101:MODULE_5_TEMP n=252 fit y=0.1180·x-2.12
-    B12:3 [TAIL_LIGHTS]  stateF=17.9  r=+0.867 vs BMS:2101:MODULE_5_TEMP n=252 fit y=0.1180·x-2.12
-    B12:5 [LOW_BEAM]  stateF=17.9  r=+0.867 vs BMS:2101:MODULE_5_TEMP n=252 fit y=0.1180·x-2.12
-    B12 [TAIL_LAMP_INTERIOR]  stateF=17.9  r=+0.867 vs BMS:2101:MODULE_5_TEMP n=252 fit y=5.1910·x-93.39  enum
-    B10:4 [DOOR_PAS_OPEN]  stateF=4.8  r=+0.815 vs BCM:22B008:BCM_B008_B13_1 n=261 fit y=0.6667·x+0.00 slope≈0.6667 ⇒ raw (×1)
-    B10:0 [DOOR_RL_OPEN]  stateF=12.8  r=+0.706 vs IGPM:22BC05:PASSENGER_SEAT_OCCUPIED n=280 fit y=0.9964·x+0.00 slope≈0.9964 ⇒ raw (×1)
-    B13 [REAR_DEFOGGER_RELAY]  stateF=5.8  r=+0.686 vs HVAC:220102:HVAC_HOTSIDE_TEMP n=16 fit y=0.0550·x-1.65  enum
-    B13:1 [REAR_DEFOGGER_RELAY]  stateF=5.8  r=+0.686 vs HVAC:220102:HVAC_HOTSIDE_TEMP n=16 fit y=0.0275·x-0.82
-    B11:0 [HOOD_OPEN]  stateF=6.5
+    B11 [IGN1_SWITCH]  stateF=9703265.5  r=+1.000 vs BCM:22B008:BCM_IGN_ON_B008 n=261 fit y=96.0000·x+0.00 slope≈96.0000 ⇒ raw/100  enum
+    B11:5 [IGN1_SWITCH]  stateF=9216.0  r=+1.000 vs BCM:22B008:BCM_IGN_ON_B008 n=261 fit y=1.0000·x+0.00 slope≈1.0000 ⇒ raw (×1)
+    B11:6 [IGN2_SWITCH]  stateF=9216.0  r=+1.000 vs BCM:22B008:BCM_IGN_ON_B008 n=261 fit y=1.0000·x+0.00 slope≈1.0000 ⇒ raw (×1)
+    B10:1 [DOOR_LOCK_RL]  stateF=528.9  r=+1.000 vs IGPM:22BC04:DOOR_LOCK_FL n=274 fit y=1.0000·x+0.00 slope≈1.0000 ⇒ raw (×1)
+    B10:3 [DOOR_LOCK_RR]  stateF=528.9  r=+1.000 vs IGPM:22BC04:DOOR_LOCK_FL n=274 fit y=1.0000·x+0.00 slope≈1.0000 ⇒ raw (×1)
+    B10:7 [TRUNK_OPEN]  stateF=6.1  r=+1.000 vs IGPM:22BC07:TRUNK_OPEN_BC07 n=273 fit y=1.0000·x+0.00 slope≈1.0000 ⇒ raw (×1)
+    B10:5 [DOOR_DRV_OPEN]  stateF=49.7  r=+0.974 vs IGPM:22BC06:STOP_LAMP_LEFT n=274 fit y=0.9961·x+0.00 slope≈0.9961 ⇒ raw (×1)
+    B10 [DOOR_DRV_OPEN]  stateF=13.4  r=+0.921 vs IGPM:22BC06:STOP_LAMP_LEFT n=274 fit y=23.1425·x+9.66  /10·[B10:B11] ≈ HV pack V  enum
+    B12:2 [TAIL_LAMP_INTERIOR]  stateF=14.6  r=+0.867 vs BMS:2101:MODULE_5_TEMP n=252 fit y=0.1180·x-2.12
+    B12:3 [TAIL_LIGHTS]  stateF=14.6  r=+0.867 vs BMS:2101:MODULE_5_TEMP n=252 fit y=0.1180·x-2.12
+    B12:5 [LOW_BEAM]  stateF=14.6  r=+0.867 vs BMS:2101:MODULE_5_TEMP n=252 fit y=0.1180·x-2.12
+    B12 [TAIL_LAMP_INTERIOR]  stateF=14.6  r=+0.867 vs BMS:2101:MODULE_5_TEMP n=252 fit y=5.1910·x-93.39  enum
+    B10:4 [DOOR_PAS_OPEN]  stateF=6.1  r=+0.815 vs BCM:22B008:BCM_B008_B13_1 n=261 fit y=0.6667·x+0.00 slope≈0.6667 ⇒ raw (×1)
+    B10:0 [DOOR_RL_OPEN]  stateF=45.5  r=+0.706 vs IGPM:22BC05:PASSENGER_SEAT_OCCUPIED n=280 fit y=0.9964·x+0.00 slope≈0.9964 ⇒ raw (×1)
+    B13 [REAR_DEFOGGER_RELAY]  stateF=4.5  r=+0.686 vs HVAC:220102:HVAC_HOTSIDE_TEMP n=16 fit y=0.0550·x-1.65  enum
+    B13:1 [REAR_DEFOGGER_RELAY]  stateF=4.5  r=+0.686 vs HVAC:220102:HVAC_HOTSIDE_TEMP n=16 fit y=0.0275·x-0.82
+    B11:0 [HOOD_OPEN]  stateF=5.0
 

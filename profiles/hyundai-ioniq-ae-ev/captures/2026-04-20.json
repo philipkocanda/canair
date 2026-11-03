@@ -3,7 +3,9 @@
     {
       "date": "2026-04-20",
       "label": "\u0003",
-      "vehicle_states": [],
+      "vehicle_states": [
+        "OFF"
+      ],
       "notes": "[migrated state: C]",
       "variant": "28kwh",
       "attribution": {
