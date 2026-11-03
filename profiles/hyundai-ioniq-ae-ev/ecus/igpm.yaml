@@ -67,13 +67,14 @@ IGPM:
         IG3_RELAY_OUTPUT:
           expression: "B12:3"
           notes: >-
-            ScanDoc 'Ignition 3 Relay' (actuator BC44): the IGPM's own IG3 relay output. 1 in READY
-            (60 of 61 aligned VCU 2101 rows) and through the parked 12 V top-ups (2026-10-21,
-            2026-10-30, 2026-11-03); at the 2026-11-03 top-up end it fell in the same 2 s as
-            VCU_IG3_ON and the HV main relay opening. 0 while charging with the ignition off (239 of
-            242 BMS charging rows), from the first sample of both 2026-08-08 DC fast charges. Not
-            the same signal as OBC_AC_NOT_CONNECTED, which reads 1 through those DC charges.
-          source: align vs VCU 2101 and BMS 2101 over stored captures, 2026-10-23
+            ScanDoc 'Ignition 3 Relay' (actuator BC44): the IGPM's own IG3 relay output. 1 in every
+            row with IGN1_SWITCH = 1 (1188 aligned rows), including 62 in ON without READY on
+            2026-11-03, and through the parked 12 V top-ups (2026-10-21, 2026-10-30, 2026-11-03); at
+            the 2026-11-03 top-up end it fell in the same 2 s as VCU_IG3_ON and the HV main relay
+            opening. 0 while charging with the ignition off (239 of 242 BMS charging rows), from the
+            first sample of both 2026-08-08 DC fast charges. Not the same signal as
+            OBC_AC_NOT_CONNECTED, which reads 1 through those DC charges.
+          source: align vs VCU 2101 and BMS 2101 over stored captures, 2026-10-23; power-state cycles 2026-11-03
         CHARGE_DOOR_LAMP_REAR:
           expression: B12:2
           source: event-timeline analysis 2026-08-05
@@ -257,12 +258,13 @@ IGPM:
           expression: B11:6
           min: "0"
           max: "1"
-          source: RE 2026-07-23 bit analysis (40 captures)
-          verified: false
+          source: RE 2026-07-23 bit analysis; START captures 2026-11-03
+          verified: true
           notes: >-
-            GDS 'IGN2 Switch'. Equals IGN1_SWITCH in every capture; START held (when IGN2 drops and
-            IGN1 stays) has not been recorded. Disabled as a duplicate.
-          enabled: false
+            GDS 'IGN2 Switch'. Equals IGN1_SWITCH except during START: at each of the 3
+            brake-pressed starts on 2026-11-03 it read 0 with IGN1_SWITCH 1 (4 rows, each start
+            under 1.7 s), as the wiring expects (IGN2 drops out in START, IGN1 stays).
+          enabled: true
         HOOD_OPEN:
           expression: B11:0
           min: "0"
@@ -907,13 +909,14 @@ IGPM:
         closes the EV IG3 supply while the HV controller operates, except during charging, and its
         coil is driven by the OBC; IG3 #2 serves AC charging and a third relay DC. The #2 coil line
         runs to the AVN head unit's 'IG3 relay control' pins (see the AVN research entry).
-        IG3_RELAY_OUTPUT follows the #1 pattern: 1 in READY and the parked 12 V top-up, 0 while
-        charging with the ignition off, 1 in a charging session with the ignition on. Not excluded:
-        it is the IGPM's request for the Main relay it controls, or another IG3 path. At the end of
-        the 2026-11-03 top-up it read 1 at 10:16:20.0 and 0 at 10:16:21.6; the BMS reported the main
-        relay open at 10:16:20.6 (closed at 10:16:18.4) and the VCU read VCU_IG3_ON 0 at 10:16:21.1
-        (1 at 10:16:19.0), so the three fell within the same 2 s and their order is not resolved. It
-        was the only IGPM or BCM bit that moved during that top-up.
+        IG3_RELAY_OUTPUT is 1 whenever IGN1_SWITCH is 1 (ON and READY, including ON without READY on
+        2026-11-03, and a charging session with the ignition on) and in the parked 12 V top-up, 0
+        while charging with the ignition off. Not excluded: it is the IGPM's request for the Main
+        relay it controls, or another IG3 path. At the end of the 2026-11-03 top-up it read 1 at
+        10:16:20.0 and 0 at 10:16:21.6; the BMS reported the main relay open at 10:16:20.6 (closed
+        at 10:16:18.4) and the VCU read VCU_IG3_ON 0 at 10:16:21.1 (1 at 10:16:19.0), so the three
+        fell within the same 2 s and their order is not resolved. It was the only IGPM or BCM bit
+        that moved during that top-up.
       sources:
         - align over stored captures 2026-10-23
       what_to_test:
@@ -930,10 +933,10 @@ IGPM:
       created: "2026-10-23"
       updated: "2026-10-23"
       notes: >-
-        IG3_RELAY_OUTPUT is 1 in READY, the 12 V top-up and AC charging with the ignition on, 0 in
-        AC and DC charging with it off. OBC_AC_NOT_CONNECTED (B22:0) is 0 whenever an AC cable is
-        connected, ignition or not, and 1 during DC charging. The IG3 rail itself is VCU_IG3_ON. The
-        two disagree only where the stored data is thin.
+        IG3_RELAY_OUTPUT is 1 with the ignition on (ON and READY), in the 12 V top-up and in AC
+        charging with the ignition on, 0 in AC and DC charging with it off. OBC_AC_NOT_CONNECTED
+        (B22:0) is 0 whenever an AC cable is connected, ignition or not, and 1 during DC charging.
+        The IG3 rail itself is VCU_IG3_ON. The two disagree only where the stored data is thin.
       sources:
         - canair cross-tab 2026-10-23
       what_to_test:

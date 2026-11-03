@@ -239,6 +239,7 @@
         "SEATBELT_FR": "B11:2",
         "DOOR_LOCK_RL": "B10:1",
         "DOOR_LOCK_RR": "B10:3",
+        "IGN2_SWITCH": "B11:6",
         "HOOD_OPEN": "B11:0",
         "REAR_DEFOGGER_RELAY": "B13:1",
         "BRAKE_FLUID_SWITCH": "B11:4",

@@ -97,7 +97,7 @@ CASES: list[tuple[str, str, list[str]]] = [
     (
         "investigate-bits",
         "hyundai-ioniq-ae-ev",
-        ["investigate", "uds", "IGPM", "22BC03", "--bits", "--until", FROZEN_UNTIL],
+        ["investigate", "uds", "IGPM", "22BC03", "--bits", "--all", "--until", FROZEN_UNTIL],
     ),
     # -- support maps: the IGPM family corroborating one another, and BCM 22B005, the
     # documented exception whose light-stalk bits fall outside its map --

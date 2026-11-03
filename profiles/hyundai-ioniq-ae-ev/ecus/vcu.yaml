@@ -545,9 +545,10 @@ VCU:
         Map each B11 value (0x80, 0x90, 0x91, 0x92) to the start-button states OFF, ACC (amber) and
         ON (blue). 2026-11-02 (keep-all, co-polled with IGPM 22BC03): 0x92 with IGN1_SWITCH and
         IGN2_SWITCH both 1 (ON), 0x80 with both 0, 0x5A in READY, over 5 off-on cycles. 0x90 and
-        0x91 were not seen, so ACC is still unmapped; 0x80 can be OFF or ACC. Capture: canair
-        monitor VCU:2101 IGPM:22BC03 --interval 1 --keep-all --save, dwelling about 10 s in each
-        state.
+        0x91 were not seen, so ACC is still unmapped on the VCU; 0x80 can be OFF or ACC. The LED
+        itself and the ACC state are decoded elsewhere: SKM 22B007 SSB_LED_ACC/SSB_LED_ON and
+        BCM_IGN_STATE_B004 (2026-11-03). Capture: canair monitor VCU:2101 IGPM:22BC03 BCM:22B004
+        --interval 1 --keep-all --save, dwelling about 10 s in each state.
     - type: decode
       target: 2102 aux power siblings
       status: pending

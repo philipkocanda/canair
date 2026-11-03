@@ -1119,6 +1119,14 @@
           "class": "lock"
         },
         {
+          "name": "IGN2_SWITCH",
+          "expression": "B11:6",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 1
+        },
+        {
           "name": "HOOD_OPEN",
           "expression": "B11:0",
           "unit": "",

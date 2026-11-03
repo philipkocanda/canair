@@ -8,6 +8,6 @@ Support maps — 0 of 1 PID(s) carry one
       open, never set  -
       field continuation  B10:3 (set, unmarked, directly above a mark)
       outside the map  B10:5, B10:7
-      defined signals outside the map  BCM_LIGHT_SW_ON_B5 (B10:5), BCM_LIGHT_SW_AUTO (B10:6), BCM_LIGHT_SW_ON_B7 (B10:7)
+      defined signals outside the map  BCM_LIGHT_SW_PARKING (B10:5), BCM_LIGHT_SW_AUTO (B10:6), BCM_LIGHT_SW_HEADLAMP (B10:7)
       closest fit only; not proposed for declaration
 

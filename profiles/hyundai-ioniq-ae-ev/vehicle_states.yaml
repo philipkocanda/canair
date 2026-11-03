@@ -59,16 +59,21 @@ states:
     excludes: [DRIVING]
     when: "BMS.CHARGING == 1 or BMS.CHARGING_DC == 1"
 
-  # VCU 2101 B11:3, verified.
+  # No BCM bit separates READY from ON, so the BCM reading is the 12 V level: the LDC runs in
+  # READY (13.4-15.0 V) and not in ON (11.6-12.7 V), and the charge-port lock rules out ON while
+  # charging, when the LDC also runs. Over the stored ignition-on rows it agrees with the VCU in
+  # all but 1 row (a READY-to-OFF edge) and misses 10 READY rows in the seconds after START,
+  # while the LDC voltage is still rising. SKM 22B008 SKM_POWER_MODE (9 = READY) and VCU 2101
+  # B11:3 are direct readings.
   - name: READY
     description: HV active, car in READY (driveable).
     implies: ["ON", IG3]
-    when: "VCU.VEHICLE_STATE_EV_READY == 1"
+    when: "(BCM.BCM_IGN_STATE_B004 == 14 and BCM.BCM_12V_BATTERY >= 13.3 and IGPM.CHARGE_PORT_LOCK == 0) or SKM.SKM_POWER_MODE == 9 or VCU.VEHICLE_STATE_EV_READY == 1"
 
-  # SLEEP and ACC have no positive signal in a stored capture (SLEEP is an absence of
-  # replies), so they have no predicate. SLEEP does not exclude PLUGGED: a car left plugged in
-  # sleeps with the cable in, and the IGPM's charge-port lock (a PLUGGED input) answers while
-  # asleep.
+  # SLEEP has no positive signal in a stored capture (it is an absence of replies), so it has no
+  # predicate. SLEEP does not exclude PLUGGED: a car left plugged in sleeps with the cable in, and
+  # the IGPM's charge-port lock (a PLUGGED input) answers while asleep. ACC is BCM 22B004 B10 = 2
+  # (BCM_IGN_STATE_B004) or SKM_POWER_MODE = 2, both 2026-11-03.
   - name: SLEEP
     description: Deep sleep / 12V standby (unplugged).
     excludes: [READY, ACC, "ON", DRIVING, CHARGING, TOPUP, IG3]
@@ -77,10 +82,11 @@ states:
     when: BMS.AC_CHARGER_CONNECTED == 1 or BMS.CHARGING_DC == 1 or IGPM.CHARGE_PORT_LOCK == 1
   - name: ACC
     description: 'Start/Stop button ACC position (amber LED, one press without the brake): the ACC relay only.'
+    when: BCM.BCM_IGN_STATE_B004 == 2 or SKM.SKM_POWER_MODE == 2
   - name: "ON"
     description: "Start/Stop button ON position (blue LED, second press without the brake): ACC, IGN1 and IGN2 energised; HV may be off."
     implies: [ACC]
-    when: IGPM.IGN1_SWITCH == 1
+    when: IGPM.IGN1_SWITCH == 1 or BCM.BCM_IGN_STATE_B004 == 14
   - name: PARKED
     description: Stationary, gear in Park.
     when: VCU.GEAR_P == 1 or ESC.GEAR_SELECTOR == 1

@@ -74,84 +74,91 @@ SKM:
       notes: >-
         11 bytes. Support map FA 60 90 at B05-B07. The marked bits follow the GDS Current Data order
         (shop manual page 0417), LSB first: start button switches, ACC/IGN1/IGN2, start relay
-        feedback, stop lamp switch and fuse, door handle buttons. ON/READY reads B10 = 0x1C, B12 =
-        0xC0, B13 = 0x01; off 0x00, 0x00, 0x00. B11 is 0x04 except one 0x06 (driving) and one 0x24
-        (parked). B12 bits 6-7 and B13 are outside the map.
+        feedback, stop lamp switch and fuse, door handle buttons. B10 reads 0x00 OFF, 0x04 ACC, 0x1C
+        ON and READY. B12 bit 6 is the ACC line and B12 bit 7 and B13 bit 0 the ignition, all
+        outside the map. B11 is 0x04, 0x06 with the brake pressed, once 0x24 (parked).
+      min: "0"
+      max: "1"
+      verified: false
       parameters:
         SSB_SWITCH_1:
           expression: B10:0
-          min: "0"
-          max: "1"
           source: GDS Current Data list order (shop manual 0417) vs the support map
-          verified: false
-          notes: GDS 'Start Stop Button Switch1'. 0 in every capture.
+          notes: >-
+            GDS 'Start Stop Button Switch1'. 1 only at 2026-11-03 20:38:43.6, with SSB_SWITCH_2: the
+            one of 13 button presses that a 5 s poll caught. 0 in every other capture.
         SSB_SWITCH_2:
           expression: B10:1
-          min: "0"
-          max: "1"
           source: GDS Current Data list order (shop manual 0417) vs the support map
-          verified: false
-          notes: GDS 'Start Stop Button Switch2'. 0 in every capture.
+          notes: >-
+            GDS 'Start Stop Button Switch2'. 1 only at 2026-11-03 20:38:43.6, with SSB_SWITCH_1 (one
+            captured press); 0 in every other capture.
         SKM_ACC_INPUT:
           expression: B10:2
-          min: "0"
-          max: "1"
-          source: GDS Current Data list order (shop manual 0417) vs the support map
-          verified: false
-          notes: GDS 'ACC'. 1 in every ON/READY capture, 0 off; ACC alone not captured.
+          source: GDS Current Data list order (shop manual 0417) vs the support map; Narrated power-state cycles 2026-11-03
+          verified: true
+          notes: >-
+            GDS 'ACC'. 1 in ACC, ON and READY; 0 in OFF. In ACC alone (3 episodes, 15 rows) B10
+            reads 0x04.
         SKM_IGN1_INPUT:
           expression: B10:3
-          min: "0"
-          max: "1"
-          source: GDS Current Data list order (shop manual 0417) vs the support map
-          verified: false
-          notes: GDS 'IGN1'. 1 in every ON/READY capture, 0 off.
+          source: GDS Current Data list order (shop manual 0417) vs the support map; Narrated power-state cycles 2026-11-03
+          verified: true
+          notes: GDS 'IGN1'. 1 in ON and READY, 0 in OFF and ACC.
         SKM_IGN2_INPUT:
           expression: B10:4
-          min: "0"
-          max: "1"
-          source: GDS Current Data list order (shop manual 0417) vs the support map
-          verified: false
-          notes: GDS 'IGN2'. 1 in every ON/READY capture, 0 off.
+          source: GDS Current Data list order (shop manual 0417) vs the support map; Narrated power-state cycles 2026-11-03
+          verified: true
+          notes: >-
+            GDS 'IGN2'. 1 in ON and READY, 0 in OFF and ACC. No SKM read landed inside a START, when
+            IGN2 drops out.
         START_RELAY_FEEDBACK:
           expression: B10:6
-          min: "0"
-          max: "1"
           source: GDS Current Data list order (shop manual 0417) vs the support map
-          verified: false
           notes: >-
             GDS lists 'Start Relay Feed Back Signal' then 'Gearshift P Position' after IGN2, with
             only B10:6 marked (B10:5 is not). 0 in every capture, including parked in P, so it is
             not an active-high P switch.
         STOP_LAMP_SWITCH:
           expression: B11:1
-          min: "0"
-          max: "1"
-          source: GDS Current Data list order (shop manual 0417) vs the support map
-          verified: false
+          source: GDS Current Data list order (shop manual 0417) vs the support map; brake cross-tab 2026-11-03
+          verified: true
           notes: >-
-            GDS 'Stop Lamp Switch'. Set in 1 capture, while driving; not checked against the brake.
+            GDS 'Stop Lamp Switch'. 1 in 10 of 11 rows aligned with IGPM BRAKE_LIGHT on (3 brake
+            presses on 2026-11-03), 0 in all 1238 with it off.
         STOP_LAMP_FUSE:
           expression: B11:2
-          min: "0"
-          max: "1"
           source: GDS Current Data list order (shop manual 0417) vs the support map
-          verified: false
           notes: GDS 'Stop Lamp Fuse' (ON = fuse intact). 1 in every capture.
         DRIVER_DOOR_HANDLE_BUTTON:
           expression: B12:0
-          min: "0"
-          max: "1"
           source: GDS Current Data list order (shop manual 0417) vs the support map
-          verified: false
           notes: GDS 'Driver Door Handle Toggle Button Switch'. 0 in every capture.
         ASSIST_DOOR_HANDLE_BUTTON:
           expression: B12:3
-          min: "0"
-          max: "1"
           source: GDS Current Data list order (shop manual 0417) vs the support map
-          verified: false
           notes: GDS 'Assist Door Handle Toggle Button Switch'. 0 in every capture.
+        SKM_ACC_B005_B12:
+          expression: B12:6
+          source: ""
+          notes: >-
+            Outside the support map. 1 in ACC, ON and READY, 0 in OFF: the ACC line, as
+            SKM_ACC_INPUT. Disabled as a duplicate.
+          enabled: false
+        SKM_IGN_B005_B12:
+          expression: B12:7
+          source: ""
+          notes: >-
+            Outside the support map. 1 in ON and READY, 0 in OFF and ACC: the ignition, as
+            SKM_IGN1_INPUT. Disabled as a duplicate.
+          enabled: false
+        SKM_IGN_B005_B13:
+          expression: B13:0
+          source: ""
+          notes: >-
+            Outside the support map. Equals SKM_IGN_B005_B12 in every capture. Disabled as a
+            duplicate.
+          enabled: false
     22B006:
       response_frames: 4
       status: draft
@@ -166,10 +173,11 @@ SKM:
         Analog inputs at 0.08 V per count, plus vehicle speed. Marked bytes follow the GDS Current
         Data order (shop manual page 0417): Battery Voltage (by CPU) B10, Engine Speed (unmarked
         B11), Vehicle Speed B12, then ACC, IGN1, IGN2 and Starter Relay Output, then Battery Voltage
-        (by Load) B21. B17-B19 are the three relay outputs: non-zero in all 32 captures with IGPM
-        IGN1_SWITCH = 1 and 0 in every other, including 282 charging and top-up captures; 14.2-15.0
-        V when on, within a count of BCM 22B003 B26/B27/B28. B20 is the starter output (always 0);
-        B14 and B15 have no GDS item (B15 always 0, B14 160 in one capture).
+        (by Load) B21. B17-B19 are the three relay outputs, 14.2-15.0 V when on and within a count
+        of BCM 22B003 B26/B27/B28: B17 (ACC) on in ACC, ON and READY, B18 and B19 (IGN1, IGN2) in ON
+        and READY only; all three 0 in charging and top-up captures with the ignition off. B20 is
+        the starter output and B14, B15 have no GDS item; all three read 0 through OFF, ACC, ON and
+        READY on 2026-11-03 (B14 160 once while driving).
       parameters:
 
         SKM_12V_BATTERY:
@@ -188,15 +196,26 @@ SKM:
           notes: >-
             GDS 'Vehicle Speed Signal', after 'Engine Speed' (unmarked B11). 0 except while driving
             on 2026-10-25 (12:22-12:36, 19 captures): 41 at VCU_VEHICLE_SPEED 42.3, 84 at 87.4, 66
-            at 66-70, 0 when stopped; within 1 of AAF_VEHICLE_SPEED_KMH.
+            at 66-70, 0 when stopped; within 1 of AAF_VEHICLE_SPEED_KMH. Read 255 once, parked, at
+            the ACC to ON press on 2026-11-03 20:38:43.
           unit: km/h
           max: "255"
         SKM_ACC_RELAY_OUTPUT_V:
           expression: B17*0.08
+          source: Narrated power-state cycles 2026-11-03
+          verified: true
+          notes: >-
+            GDS 'ACC Relay Output'. On in ACC, ON and READY (12 ACC rows on 2026-11-03), 0 in OFF.
         SKM_IGN1_RELAY_OUTPUT_V:
           expression: B18*0.08
+          source: Narrated power-state cycles 2026-11-03
+          verified: true
+          notes: GDS 'IGN1 Relay Output'. On in ON and READY, 0 in OFF and ACC.
         SKM_IGN2_RELAY_OUTPUT_V:
           expression: B19*0.08
+          source: Narrated power-state cycles 2026-11-03
+          verified: true
+          notes: GDS 'IGN2 Relay Output'. On in ON and READY, 0 in OFF and ACC.
         SKM_STARTER_RELAY_OUTPUT_V:
           expression: B20*0.08
           source: GDS Current Data list order (shop manual 0417) vs the support map
@@ -209,39 +228,150 @@ SKM:
       status: draft
       period: 10000
       vehicle_states: [SLEEP]
+      notes: >-
+        B11 is a status byte (SKM_B007_FLAG and its bit signals): unlock, tail lamps off, the
+        start-button LED colour, ACC and ignition. B12 bits 2-3 read 1 with the ignition off. B10:3
+        was set once, as the driver door closed in READY on 2026-11-03.
+      source: Narrated power-state cycles 2026-11-03
+      verified: false
       parameters:
 
         SKM_B007_FLAG:
           expression: B11
-          source: state-contrast analysis 2026-07-29
-          verified: false
+          source: state-contrast analysis 2026-07-29; Narrated power-state cycles 2026-11-03
           notes: >-
-            0x00, 0x04 or 0x06 with the ignition off; 0xE4 or 0xE6 in all 34 captures with IGPM
-            IGN1_SWITCH = 1. Bit 1 is the part not explained by the ignition.
+            Whole byte. 0x00 locked and off; 0x04 unlocked and off, 0x2C ACC, 0xF4 ON, 0xE4 READY;
+            bit 1 (0x02) is added while the tail lamps are off. See the bit signals below.
+        SSB_LED_ACC:
+          expression: B11:3
+          min: "0"
+          max: "1"
+          notes: >-
+            1 in ACC only (3 episodes, 15 rows on 2026-11-03), 0 in OFF, ON and READY: matches the
+            start button's amber LED as narrated in every state. The LED and the ACC state never
+            diverged, so the bit may be the state rather than the lamp drive.
+        SSB_LED_ON:
+          expression: B11:4
+          min: "0"
+          max: "1"
+          notes: >-
+            1 in ON without READY only (3 episodes, 32 rows on 2026-11-03), 0 in OFF, ACC and READY:
+            matches the start button's blue LED as narrated, which goes out in READY. The LED and
+            the state never diverged, so the bit may be the state rather than the lamp drive.
+        SKM_ACC_B007:
+          expression: B11:5
+          min: "0"
+          max: "1"
+          notes: >-
+            1 in ACC, ON and READY, 0 in OFF: the ACC line. Disabled as a duplicate of
+            SKM_ACC_INPUT.
+          enabled: false
+        SKM_IGN_B007:
+          expression: B11:6
+          min: "0"
+          max: "1"
+          notes: >-
+            1 in ON and READY, 0 in OFF and ACC; B11:7 is identical in every capture. Disabled as a
+            duplicate of SKM_IGN1_INPUT.
+          enabled: false
+        SKM_UNLOCKED:
+          expression: B11:2
+          type: enum
+          values:
+            0: locked
+            1: unlocked
+          category: lock
+          min: "0"
+          max: "1"
+          source: Lock cross-tab vs IGPM DOOR_LOCK_FL 2026-11-03
+          notes: 1 in all 338 rows aligned with the doors unlocked, 0 in all 955 with them locked.
+        SKM_TAIL_LAMPS_OFF:
+          expression: B11:1
+          min: "0"
+          max: "1"
+          source: Cross-tab vs IGPM TAIL_LIGHTS 2026-11-03
+          notes: >-
+            1 when the tail lamps are off: 365 of 367 aligned rows with the car unlocked, both
+            misses at stalk changes; 1 with the stalk at AUTO and the lamps off (2026-10-22). 0
+            whenever the car is locked.
+        SKM_IGN_OFF_B007:
+          expression: B12:2
+          min: "0"
+          max: "1"
+          notes: >-
+            1 in OFF and ACC, 0 in ON and READY (957 rows); B12:3 is identical. B12:4 is set in
+            single 5 s polls every 1-4 min in every state, unexplained. Disabled as a duplicate of
+            SKM_IGN1_INPUT, inverted.
+          enabled: false
     22B008:
       response_frames: 3
       status: draft
       period: 10000
       vehicle_states: [SLEEP]
-      notes: "17 bytes, mostly 0: 62B0080000000000000009000000000000."
+      notes: >-
+        17 bytes, mostly 0. B13 is the power mode (SKM_POWER_MODE). Sample in READY:
+        62B0080000000000000009000000000000.
+      parameters:
+        SKM_POWER_MODE:
+          expression: B13
+          type: enum
+          values:
+            0: "off"
+            2: acc
+            7: "on"
+            9: ready
+          min: "0"
+          max: "15"
+          source: Narrated power-state cycles 2026-11-03; cross-tab vs VCU 2101 VEHICLE_STATE_EV_READY
+          verified: true
+          notes: >-
+            0 OFF, 2 ACC, 7 ON without READY, 9 READY. Followed the narrated sequence of 2026-11-03
+            through all 336 reads (4 OFF, 3 ACC, 3 ON, 4 READY episodes); 9 in all rows aligned with
+            VCU READY (2026-10-22, 2026-10-25), 0 in all 180 with it off. Already 9 at the first
+            read after each START. The only READY signal readable without the VCU.
     22B009:
       response_frames: 5
       status: draft
       period: 10000
       vehicle_states: [SLEEP]
-      notes: 33 bytes, all 0 in all 17 captures.
+      notes: >-
+        33 bytes, all 0 when locked and off. B11 bit 1 is set with the ignition off and a door open
+        (2026-11-03); B10 read 5 and 4 for 10 s as the driver door was closed and reopened in READY.
     22B00A:
       response_frames: 3
       status: draft
       period: 10000
       vehicle_states: [SLEEP]
-      notes: "19 bytes: 62B00A0100F038000501080600000040010000."
+      notes: >-
+        19 bytes: 62B00A0100F038000501080600000040010000. B19 bit 0 reads 1 in ON and READY, 0 in
+        OFF and ACC (312 of 312 ignition-on rows).
     22B00B:
       response_frames: 8
       status: draft
       period: 10000
       vehicle_states: [SLEEP]
-      notes: 52 bytes, beginning 62B00B800000000200000000000000000000000400005319420000000002.
+      notes: >-
+        52 bytes, beginning 62B00B800000000200000000000000000000000400005319420000000002. B57 copies
+        SKM_POWER_MODE. On 2026-11-03: B31 bit 1 and B41 bit 5 are set with the ignition off and a
+        door open; B54 bit 2 and B39 bits 4 and 7 come on for about 30 s after each change to ACC or
+        ON, and B54 bit 2 and B39 bit 4 stay on through READY; B33 and B37 bit 4 are set with the
+        ignition on or in ACC until the driver door closed at 20:48:35.
+      parameters:
+        SKM_POWER_MODE_B00B:
+          expression: B57
+          type: enum
+          values:
+            0: "off"
+            2: acc
+            7: "on"
+            9: ready
+          min: "0"
+          max: "15"
+          source: Narrated power-state cycles 2026-11-03
+          verified: false
+          notes: >-
+            Equals SKM_POWER_MODE (22B008 B13) in every co-polled read. Disabled as a duplicate.
+          enabled: false
   iocontrol:
     B108:
       vehicle_states: []
@@ -461,36 +591,35 @@ SKM:
         - "Obsidian: SKM.md — KIA Soul commands"
     - type: verify
       target: 22B006 SKM_B006_VAL_A/B
-      status: captured
+      status: done
       priority: P2
       vehicle_states: [SLEEP]
       created: "2026-07-30"
-      updated: "2026-07-30"
+      updated: "2026-11-03"
       result: >-
         B10/B21 are 12 V supply voltages at 0.08 V/count: B10 reads 2-3 counts above BCM_12V_BATTERY
         (SKM_12V_BATTERY, SKM_12V_BATTERY_BY_LOAD).
       notes: >-
-        Open: B007 B11 (SKM_B007_FLAG) bit 1, 0x04/0x06 with the ignition off; correlate with a
-        physical event.
+        B007 B11 bit 1 (SKM_B007_FLAG) is decoded: 1 while the tail lamps are off
+        (SKM_TAIL_LAMPS_OFF, 2026-11-03).
     - type: decode
       target: 22B002/22B003/22B005/22B006/22B008/22B00A terminal-feedback bits
-      status: pending
+      status: done
       priority: P2
       vehicle_states: [ACC, "ON"]
       created: "2026-10-23"
-      updated: "2026-10-23"
+      updated: "2026-11-03"
       result: >-
-        22B006 B17, B18 and B19 are non-zero exactly when IGN1_SWITCH = 1; GDS order names them the
-        ACC, IGN1 and IGN2 relay outputs. 22B005 B10 bits 2-4 are the GDS ACC, IGN1 and IGN2 inputs
-        (SKM_ACC_INPUT etc.). The ACC-only state has not been captured, so whether B17 and B10:2
-        show ACC on their own is open.
+        Captured on 2026-11-03 (OFF, ACC, ON and READY, 3-4 episodes each): 22B005 SKM_ACC_INPUT and
+        22B006 B17 are on in ACC alone, the IGN1/IGN2 inputs and B18/B19 only in ON and READY.
+        22B008 B13 (SKM_POWER_MODE) reads 0/2/7/9 for OFF/ACC/ON/READY, and 22B007 B11 bits 3 and 4
+        match the amber and blue start-button LED. BCM 22B004 B10 = 2 gives an ACC state without the
+        SKM.
       notes: >-
-        No signal tells ACC apart from OFF yet, so the ACC state has no when: predicate. Candidates
-        by GDS name: 22B005 SKM_ACC_INPUT (B10:2) and 22B006 SKM_ACC_RELAY_OUTPUT_V (B17), plus BCM
-        22B004 B10:1. If one is 1 in ACC with IGN1/IGN2 off, it can back an ACC predicate. The SKM
-        reads back three terminal lines after its relays: ON (IGN2), ACC/ON (ACC) and ON/START
-        (IGN1), on SMK connector C pins 8, 18 and 9 (US-market wiring), and drives separate ACC and
-        IGN LEDs on the start button.
+        The SKM reads back three terminal lines after its relays: ON (IGN2), ACC/ON (ACC) and
+        ON/START (IGN1), on SMK connector C pins 8, 18 and 9 (US-market wiring), and drives separate
+        ACC and IGN LEDs on the start button. Open: an SKM read inside a START, when IGN2 and ACC
+        drop out.
       what_to_test:
         - "Press the start button without the brake: OFF to ACC to ON to OFF, holding each state about 10 s, recording the SKM B0xx pages with --keep-changes and pressing s at every press. Look for bits that change at each step."
       capture_protocol: >-
@@ -499,16 +628,17 @@ SKM:
         press.
     - type: decode
       target: 22B006 byte map (B05-B07, B09)
-      status: pending
+      status: done
       priority: P3
       vehicle_states: [SLEEP, READY]
       created: "2026-10-29"
-      updated: "2026-10-29"
+      updated: "2026-11-03"
       result: >-
         22B006's constant map AF E0 00 00 marks B10, B12, B14, B15 and B17-B21 as signals (one bit
         per data byte, MSB first); all varying bytes are inside. B10/B21 are 12 V supplies, B12
-        vehicle speed, B17-B19 ignition-line voltages. 22B005 does not follow the map (4 of 9 set
-        bits outside).
+        vehicle speed, B17-B19 the ACC, IGN1 and IGN2 relay outputs. B14, B15 and B20 read 0 through
+        OFF, ACC, ON and READY on 2026-11-03. 22B005 does not follow the map (4 of 9 set bits
+        outside).
       notes: B14 (0, once 160 while driving), B15 and B20 (always 0) have not moved.
       sources:
         - byte sweep over all stored SKM captures, 2026-10-29

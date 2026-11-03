@@ -1109,6 +1109,9 @@ class TestCmdBackfillStates:
     _VCU_READY_PARK = "6101ffe0000009215a5e064803000000009478340420"
     # VCU:2101, EV_READY=0 & GEAR_PARK=1 → PARKED and IG3 (B11 = 0x10; READY provably false).
     _VCU_PARK_NOT_READY = "6101FFE000000921106A064A03000000008E770007200000000000"
+    # BCM:22B004 with B10 = 0 (ignition off) and SKM:22B008 with B13 = 0 (power mode OFF).
+    _BCM_B004_OFF = "62B0047402990C00008000"
+    _SKM_B008_OFF = "62B0080000000000000000000000000000"
 
     def _seed(self, cdir, payload, states, *, rx="0x7EA", pid="2101"):
         s = build_query_session([(rx, pid, payload, "")], "test", states, "")
@@ -1141,13 +1144,27 @@ class TestCmdBackfillStates:
         assert self._states(tmp_path) == ["ready"]
 
     def test_overwrite_corrects_conflict(self, tmp_path):
-        self._seed(tmp_path, self._VCU_PARK_NOT_READY, ["ready"])
+        # READY reads the BCM, the SKM and the VCU (any one can say yes), so it is only
+        # provably false when all three answer and say no.
+        rows = [
+            ("0x7EA", "2101", self._VCU_PARK_NOT_READY, ""),
+            ("0x7A8", "22B004", self._BCM_B004_OFF, ""),
+            ("0x7AD", "22B008", self._SKM_B008_OFF, ""),
+        ]
+        save_session(build_query_session(rows, "test", ["ready"], ""), tmp_path)
         rc = self._run(tmp_path, overwrite=True, assume_yes=True)
         assert rc == 0
         result = self._states(tmp_path)
         # READY was provably false → dropped; PARKED (matched) written.
         assert "READY" not in result
         assert "PARKED" in result
+
+    def test_vcu_alone_cannot_disprove_ready(self, tmp_path):
+        # With the BCM and SKM unread, a VCU "not READY" leaves READY undetermined.
+        self._seed(tmp_path, self._VCU_PARK_NOT_READY, ["ready"])
+        rc = self._run(tmp_path, overwrite=True, assume_yes=True)
+        assert rc == 0
+        assert "READY" in self._states(tmp_path)
 
     def test_dry_run_writes_nothing(self, tmp_path, capsys):
         self._seed(tmp_path, self._VCU_READY_PARK, [])

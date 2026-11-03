@@ -155,12 +155,15 @@ BCM:
           values:
             0: "off"
             1: auto
+            2: parking
             3: "on"
-          max: "3"
-          source: Cross-tab vs 22B005 B10 bits 5-7 and 22B003 B14, 2026-10-22
+            19: on_high_beam
+          max: "255"
+          source: Cross-tab vs 22B005 B10 bits 5-7 and 22B003 B14, 2026-10-22; stalk positions 2026-11-03
           notes: >-
             Light-stalk position. Agrees with BCM_LIGHT_SW_ADC in all 375 aligned rows and with
-            BCM_LIGHT_SW_ON_B5/_AUTO in all 344. Parking position not captured.
+            BCM_LIGHT_SW_PARKING/_AUTO in all 344. 2 (parking lamps) in 3 episodes and 19 (bit 4
+            added to 3) in 2 rows on 2026-11-03, while IGPM HIGH_BEAM was on.
         BCM_B00D_B11_4:
           expression: B11:4
           source: Cross-tab vs 22B003 B18 2026-10-22
@@ -214,9 +217,9 @@ BCM:
       status: draft
       vehicle_states: [ALL]
       notes: >-
-        11 bytes. B10 ignition state (BCM_IGN_STATE_B004); B11:6 short pulses with the ignition off;
-        B12:3 light stalk AUTO; B12:5 the digital reading of the 22B003 B18 input; B12:7 constant 1.
-        B05=0x74, B06=0x02, B07=0x99 constant; B09=0x0C except 2 untimed captures.
+        11 bytes. B10 the power state (BCM_IGN_STATE_B004); B11:6 short pulses with the ignition
+        off; B12:3 light stalk AUTO; B12:5 the digital reading of the 22B003 B18 input; B12:7
+        constant 1. B05=0x74, B06=0x02, B07=0x99 constant; B09=0x0C except 2 untimed captures.
       source: support-bitmap sweep 2026-10-29
       verified: false
       parameters:
@@ -243,16 +246,20 @@ BCM:
           type: enum
           values:
             0: "off"
+            2: acc
             14: ign_on
             192: unknown_192
           min: "0"
           max: "255"
-          source: Cross-tab vs IGPM IGN1_SWITCH and BCM_IGN_SUPPLY_V 2026-10-22
+          source: Cross-tab vs IGPM IGN1_SWITCH 2026-10-22; narrated power-state cycles 2026-11-03
           notes: >-
-            Bits 1-3 only ever set together (14). Equals IGPM IGN1_SWITCH in all 326 aligned rows,
-            including CHARGING+ON with the drive path down. 192 (bits 6, 7) only in 2 untimed SLEEP
-            captures on 2026-04-17. Disabled as a duplicate of IGN1_SWITCH.
-          enabled: false
+            Power state: 0 OFF, 2 ACC, 14 ON or READY (not told apart). Bit 1 is the ACC line, bits
+            2-3 the ignition. All 12 state changes of the narrated 2026-11-03 cycles (4 OFF, 3 ACC,
+            3 ON, 4 READY), and ACC on 2026-11-02 10:12:54. 14 equals IGPM IGN1_SWITCH in every
+            aligned row, including CHARGING+ON. 192 (bits 6, 7) only in 2 untimed SLEEP captures on
+            2026-04-17.
+          enabled: true
+          verified: true
         BCM_B004_B12_5:
           expression: B12:5
           min: "0"
@@ -278,7 +285,7 @@ BCM:
       vehicle_states: [ALL]
       notes: >-
         11 bytes. B10 bits 2,3 (0x0C) set on fob unlock, together with B004 and B006; bits 5-7 are
-        the light-stalk position (BCM_LIGHT_SW_*). B05=0x20, B07=0x10, B12=0x08.
+        the light-stalk contacts (BCM_LIGHT_SW_*). B05=0x20, B07=0x10, B12=0x08.
       source: "RE 2026-10-22: all 22B003/22B005 co-polled sessions 2026-04-17..2026-10-22"
       min: "0"
       max: "1"
@@ -290,25 +297,25 @@ BCM:
           source: Fob lock/unlock tests 2026-04-18, 2026-07-24
           notes: >-
             Whole byte. Bits 2 and 3 set (0x0C) on fob unlock. Bits 5-7 are the light-stalk position
-            (BCM_LIGHT_SW_*): 0xA0 with the stalk in a lamps-on position, 0x00/0x08/0x0C at OFF,
-            0x48 at AUTO.
+            (BCM_LIGHT_SW_*): 0x20 parking lamps, 0xA0 headlamps, 0x40 AUTO, none at OFF.
         BCM_LIGHT_SW_AUTO:
           expression: B10:6
           notes: >-
             1 only on 2026-10-22 (21 captures), with the light stalk at AUTO; 0 in every other
             session. Bits 5 and 7 clear while set. Duplicated by 22B004 B12:3.
-        BCM_LIGHT_SW_ON_B5:
+        BCM_LIGHT_SW_PARKING:
           expression: B10:5
           notes: >-
-            Set together with B10:7 whenever 22B003 B14 reads ~211, including READY captures with
-            IGPM LOW_BEAM and TAIL_LIGHTS on; clear at ~249. Cleared with B10:7 as LOW_BEAM went
-            1->0 on 2026-07-30. Parking position never captured, so the parking-light and headlamp
-            contacts are not separated.
-        BCM_LIGHT_SW_ON_B7:
+            The parking-lamp contact: set with the stalk at parking lamps and at headlamps. At the
+            parking position (3 episodes, 2026-11-03) it is set alone, with IGPM TAIL_LIGHTS on and
+            LOW_BEAM off, BCM_LIGHT_SW_POSITION 2 and BCM_LIGHT_SW_ADC ~156.
+          source: RE 2026-10-22; parking-lamp position 2026-11-03
+        BCM_LIGHT_SW_HEADLAMP:
           expression: B10:7
           notes: >-
-            Always equal to B10:5 (BCM_LIGHT_SW_ON_B5): set with the stalk in a lamps-on position,
-            clear at OFF and AUTO.
+            The headlamp contact: set only with the stalk at headlamps (together with B10:5), with
+            IGPM LOW_BEAM on; clear at parking lamps, OFF and AUTO.
+          source: RE 2026-10-22; parking-lamp position 2026-11-03
         BCM_UNLOCKED_OR_IGN_ON:
           expression: B10:3
           source: Cross-tab vs IGPM 22BC04 B13:6 2026-10-22
@@ -321,8 +328,8 @@ BCM:
       status: draft
       vehicle_states: [ALL]
       notes: >-
-        11 bytes. B10 reads 0x04 (bit 2) on fob unlock, together with B004 and B005. B05=0x20, the
-        rest normally 0.
+        11 bytes. B10 bit 2 is set with the ignition off, the car unlocked and a door open
+        (BCM_B006_UNLOCK_BITS). B05=0x20, the rest normally 0.
       parameters:
         BCM_B006_UNLOCK_BITS:
           expression: B10
@@ -330,7 +337,10 @@ BCM:
           max: "255"
           source: Fob lock/unlock tests 2026-04-18, 2026-07-24
           verified: false
-          notes: 0x00, or 0x04 (bit 2) on fob unlock. 0x04 in 6 of 301 captures.
+          notes: >-
+            0x00, or 0x04 (bit 2) with the ignition off, the car unlocked and a door open: 19 of 23
+            such aligned rows. 0 with the doors shut (10 rows), in ACC and with the ignition on.
+            0x04 in 25 of 4631 captures.
     22B007:
       support_map: {at: 0, length: 4, unit: bit, order: msb}
       parameters:
@@ -355,31 +365,36 @@ BCM:
       status: draft
       vehicle_states: [ALL]
       notes: >-
-        11 bytes. B12:4 follows the brake (BCM_BRAKE_SWITCH), B13:2 the ignition (BCM_IGN_ON_B008).
-        B13:1 set in 3 captures, 2 with the passenger door open. B05=0x00, B06=0x51, B07=0x0C,
+        11 bytes. B12:4 follows the brake (BCM_BRAKE_SWITCH), B13:2 the ignition (BCM_IGN_ON_B008),
+        B13:1 a door open with the ignition off (BCM_B008_B13_1). B05=0x00, B06=0x51, B07=0x0C,
         B09=0x20, B11=0x88 constant.
+      min: "0"
+      max: "1"
+      verified: false
       parameters:
         BCM_IGN_ON_B008:
           expression: B13:2
-          min: "0"
-          max: "1"
           source: Ignition cross-tab 2026-10-22
-          verified: false
           notes: >-
-            1 in 50 of 348 captures. Equals IGPM IGN1_SWITCH and BCM_IGN_SUPPLY_V in every aligned
-            row (kappa 1.00), including ignition-on rows with the drive path down, so it follows the
-            ignition, not READY. Disabled as a duplicate.
+            1 in ON and READY, 0 in OFF and ACC. Equals IGPM IGN1_SWITCH and BCM_IGN_SUPPLY_V in
+            every aligned row (kappa 1.00), including ignition-on rows with the drive path down, so
+            it follows the ignition, not READY. Disabled as a duplicate.
           enabled: false
         BCM_BRAKE_SWITCH:
           expression: B12:4
-          min: "0"
-          max: "1"
           source: Cross-tab vs IGPM 22BC06 BRAKE_LIGHT 2026-10-22
-          verified: false
           notes: >-
             1 only while IGPM BRAKE_LIGHT reads 0x2D: all 19 captures on 2026-07-21 (READY), and on
             2026-08-01 1-2 s after each BRAKE_LIGHT edge. 0 in all 315 aligned rows with the brake
             released.
+        BCM_B008_B13_1:
+          expression: B13:1
+          source: Ignition, lock and door cross-tab 2026-11-03
+          notes: >-
+            1 with the ignition off or in ACC, the car unlocked and a door open: all 39 such aligned
+            rows (2026-11-02, 2026-11-03). 0 with the ignition on, with the doors shut and when
+            locked. Only the driver door was open on 2026-11-03, so which door counts is open.
+          enabled: false
 
     22B009:
       response_frames: 2
@@ -413,8 +428,8 @@ BCM:
       status: draft
       vehicle_states: [ALL]
       notes: >-
-        11 bytes. B11:3 the 22B003 B18 input, B12 bits 6-7 the ignition (BCM_IGN_ON_B00A). B05=0xE3,
-        B06=0xFE, B07=0xE3 constant.
+        11 bytes. B11:3 the 22B003 B18 input, B12 bit 6 the ignition (BCM_IGN_ON_B00A) and bit 7 the
+        ACC line (BCM_ACC_ON_B00A). B05=0xE3, B06=0xFE, B07=0xE3 constant.
       source: support-bitmap sweep 2026-10-29
       verified: false
       parameters:
@@ -424,10 +439,10 @@ BCM:
           max: "1"
           source: Ignition cross-tab 2026-10-22
           notes: >-
-            B12 is 0x05 off, 0xC5 on (bit 7 moves with it). 1 in 50 of 344 captures. Equals IGPM
-            IGN1_SWITCH and BCM_IGN_SUPPLY_V in every aligned row (kappa 1.00), including
-            ignition-on rows with the drive path down, so it follows the ignition, not READY.
-            Disabled as a duplicate.
+            The ignition: 1 in ON and READY, 0 in OFF and ACC, and 1 in the 2026-11-02 START row.
+            Equals IGPM IGN1_SWITCH and BCM_IGN_SUPPLY_V in every aligned row (kappa 1.00),
+            including ignition-on rows with the drive path down, so it follows the ignition, not
+            READY. Disabled as a duplicate.
           enabled: false
         BCM_B00A_B11_3:
           expression: B11:3
@@ -453,10 +468,15 @@ BCM:
           notes: >-
             Marked by the 22B00A map. 1 in 1689 of 1694 captures; 0 only in 5 rows on 2026-10-25.
           enabled: false
-        BCM_B00A_B12_7:
+        BCM_ACC_ON_B00A:
           expression: B12:7
-          notes: Marked by the 22B00A map. 1 in 82 of 1694 captures, spread over 8 dates.
+          notes: >-
+            The ACC line: B12 reads 0x05 OFF, 0x85 ACC, 0xC5 ON and READY. 1 in all 15 ACC rows
+            (BCM_IGN_STATE_B004 = 2) and all 817 ignition-on rows, 0 in all 3775 off rows. Read 0x45
+            (bit 6 only) once, at the START on 2026-11-02 10:17:46, when ACC drops out. Disabled as
+            a duplicate of BCM_IGN_STATE_B004.
           enabled: false
+          source: Narrated power-state cycles 2026-11-02 and 2026-11-03
 
     22B00B:
       status: ignored
@@ -487,7 +507,8 @@ BCM:
       vehicle_states: [ALL]
       notes: >-
         20 bytes, mostly 0. Gives NO DATA on the first read after wake, then answers. B20 read 0x02
-        in ACC (2026-04-14) and 0x01 in ON while charging (2026-04-19).
+        in ACC on 2026-04-14 and 0x01 on 2026-04-19, but 0x01 in OFF, ACC, ON and READY on
+        2026-11-03, so it does not follow the power state.
       parameters: {}
 
     22B002:
@@ -503,10 +524,10 @@ BCM:
       period: 10000
       vehicle_states: [ALL]
       notes: >-
-        24 bytes. Analog inputs at about 0.08 V per count: B10 the 12 V battery, B23/B26/B27/B28
-        ignition-switched supplies, B12/B13/B14/B18 sensor and switch inputs. B11 and B19 read 61-62
-        (about 4.9 V) in 3685 of 3688 captures. B15, B17 and B20 sit at 246-249 (open circuit) in
-        every capture. B05-B07, B09, B21, B22 and B25 are constant.
+        24 bytes. Analog inputs at about 0.08 V per count: B10 the 12 V battery, B26 the ACC supply,
+        B23/B27/B28 ignition-switched supplies, B12/B13/B14/B18 sensor and switch inputs. B11 and
+        B19 read 61-62 (about 4.9 V) in 3685 of 3688 captures. B15, B17 and B20 sit at 246-249 (open
+        circuit) in every capture. B05-B07, B09, B21, B22 and B25 are constant.
       source: Same-payload cross-tab 2026-10-22
       min: "0"
       max: "20"
@@ -537,18 +558,19 @@ BCM:
           notes: >-
             Ignition-switched supply at the BCM; 1-3 counts above BCM_12V_BATTERY when on. Equals
             IGPM IGN1_SWITCH in all 356 aligned rows and is on in all 612 CHARGING+ON rows with the
-            drive path down, so it follows the ignition, not READY. B23, B26 and B27 read the same
-            within 1-3 counts; none of the four is on in ACC. US-market wiring gives the BCM IGN1
-            (pin D2), IGN2 (D23), ACC (D24) and two IG2 heated-steering supplies (D3, D4); which
-            channel is which is unknown.
+            drive path down, so it follows the ignition, not READY. B23 and B27 read the same within
+            1-3 counts; all three are 0 in ACC, while B26 (BCM_ACC_SUPPLY_V) is on. US-market wiring
+            gives the BCM IGN1 (pin D2), IGN2 (D23), ACC (D24) and two IG2 heated-steering supplies
+            (D3, D4); which of B23, B27 and B28 is IGN1 is unknown: no BCM read has landed inside a
+            START.
         BCM_LIGHT_SW_ADC:
           expression: B14
           max: "255"
           source: "RE 2026-10-22: B14 levels vs 22B005 B10 bits 5-7 and IGPM 22BC03 lamp outputs"
           notes: >-
-            Discrete levels with +-1 LSB flicker: ~249 OFF, ~211 lamps on, 101 AUTO. Same partition
-            as BCM_LIGHT_SW_* on 22B005 in every co-polled session. Parking-light level not
-            captured.
+            Discrete levels with +-1 LSB flicker: ~249 OFF, ~156 parking lamps, ~211 headlamps, 101
+            AUTO. Same partition as BCM_LIGHT_SW_* on 22B005 in every co-polled session; the parking
+            level from 3 episodes on 2026-11-03.
         BCM_TEMP_RAW_B13:
           expression: B13
           max: "255"
@@ -564,13 +586,15 @@ BCM:
             0 in the same captures as BCM_IGN_SUPPLY_V (B28), within 1-3 counts of it otherwise.
             Disabled as a duplicate.
           enabled: false
-        BCM_IGN_SUPPLY_V_B26:
+        BCM_ACC_SUPPLY_V:
           expression: B26*0.08
           unit: V
           notes: >-
-            0 in the same captures as BCM_IGN_SUPPLY_V (B28), within 1-3 counts of it otherwise.
-            Disabled as a duplicate.
+            The ACC-switched supply: on in all 16 ACC rows (BCM_IGN_STATE_B004 = 2), where B23, B27
+            and B28 read 0, and within 1-3 counts of BCM_IGN_SUPPLY_V in ON and READY. Disabled as a
+            duplicate of BCM_IGN_STATE_B004.
           enabled: false
+          source: Narrated power-state cycles 2026-11-02 and 2026-11-03
         BCM_IGN_SUPPLY_V_B27:
           expression: B27*0.08
           unit: V
@@ -732,13 +756,13 @@ BCM:
         B13:B14 BCM_EVENT_COUNTER_C011. B12 takes all 256 values because it is the low byte of the
         12 V word (about 40 counts of noise between reads).
       min: "0"
+      verified: false
       parameters:
         BCM_12V_BUS_C011:
           expression: ((B11<<8)|B12)/3276.8
           unit: V
           max: "20"
           source: RE 2026-08-05 cross-PID mirror vs BCM 22B003 BCM_12V_BATTERY (B11); B12 low byte 2026-11-03 top-up decay
-          verified: false
           notes: >-
             16-bit big-endian 12 V bus voltage, 0.305 mV per count. B11 alone is exactly 12.8 x
             BCM_12V_BATTERY in 1781 of 1965 co-polled rows. B12 is its low byte: over the smooth 12
@@ -751,16 +775,17 @@ BCM:
         BCM_EVENT_COUNTER_C011:
           expression: "[B13:B14]"
           max: "65535"
-          source: monotonic-counter sweep of all captures 2026-04-16..2026-08-05
-          verified: false
+          source: monotonic-counter sweep 2026-08-05; power-state cycles 2026-11-02 and 2026-11-03
           notes: >-
-            16-bit big-endian. Only rises (9835 to 10279), flat within every recording session. Not
-            a timer.
+            16-bit big-endian. Only rises (9835 to 10301, about 2.3 a day). On 2026-11-03 (5 s
+            polling) it rose by 1 at each of the 4 ignition-on edges (OFF or ACC to ON or READY) and
+            at none of the 7 other state changes. On 2026-11-02 (8-25 s polling) it rose 12 times
+            against 6 visible ignition-on edges, some while the ignition read off. Flat within every
+            other recording session. Not a timer.
         BCM_IGN_ON_C011:
           expression: B10:0
           max: "1"
           source: Ignition cross-tab 2026-10-22
-          verified: false
           notes: >-
             1 in 703 of 3760 captures. Equals IGPM IGN1_SWITCH and BCM_IGN_SUPPLY_V in every aligned
             row (kappa 1.00), including ignition-on rows with the drive path down, so it follows the
@@ -1082,6 +1107,10 @@ BCM:
       vehicle_states: [ACC, READY]
       created: "2026-08-07"
       updated: "2026-08-07"
+      result: >-
+        2026-11-03: +1 at each of 4 ignition-on edges with the car parked, unchanged at the 7 other
+        state changes, so it counts ignition cycles, not distance. 2026-11-02 shows more steps than
+        visible ignition-on edges at 8-25 s polling.
       notes: >-
         BCM_EVENT_COUNTER_C011 only rises. Read 22C011, cycle the ignition once without moving the
         car, and re-read: +1 means a power-cycle count, unchanged a distance-gated count. Repeat
@@ -1094,9 +1123,9 @@ BCM:
       created: "2026-10-22"
       updated: "2026-10-22"
       notes: >-
-        Stalk OFF, lamps-on and AUTO are decoded (BCM_LIGHT_SW_*, BCM_LIGHT_SW_ADC,
-        BCM_LIGHT_SW_POSITION). Not captured: the parking-light position, and whether
-        BCM_AMBIENT_LIGHT is the auto-headlight sensor (its AUTO on/off threshold).
+        Stalk OFF, parking, headlamps and AUTO are decoded (BCM_LIGHT_SW_*, BCM_LIGHT_SW_ADC,
+        BCM_LIGHT_SW_POSITION; parking from 2026-11-03). Not captured: whether BCM_AMBIENT_LIGHT is
+        the auto-headlight sensor (its AUTO on/off threshold).
       what_to_test:
         - Stalk OFF, AUTO, parking, low beam (~3 s each); parking = B10:5 alone?
         - "AUTO, cover dash sensor: BCM_AMBIENT_LIGHT at LOW_BEAM on and off"
@@ -1126,16 +1155,23 @@ BCM:
       vehicle_states: [READY]
       created: "2026-10-23"
       updated: "2026-10-23"
+      result: >-
+        B26 is the ACC supply: on in ACC with the other three at 0 (2026-11-02, 2026-11-03). B23,
+        B27 and B28 are still identical; no 22B003 read landed inside one of the three STARTs on
+        2026-11-03, each under 1.7 s.
       notes: >-
-        Four ignition-switched analog channels, identical in every capture. The BCM has IGN1 and
-        IGN2 plus two IG2 heated-steering supplies; during START only IGN1 stays on (IGN2 and ACC
-        drop out), so a fast recording across OFF to READY may separate the channels. Terminal list
-        from US-market wiring.
+        Three ignition-switched analog channels (B23, B27, B28), identical in every capture. The BCM
+        has IGN1 and IGN2 plus two IG2 heated-steering supplies; during START only IGN1 stays on
+        (IGN2 and ACC drop out; IGPM IGN2_SWITCH reads 0 for under 1.7 s), so a fast recording
+        across a start may separate them. 22B004 B10 bits 2 and 3 (BCM_IGN_STATE_B004) are the same
+        question. Terminal list from US-market wiring.
       what_to_test:
         - Record BCM 22B003 with --keep-all at the fastest interval across a brake-pressed OFF to READY start and look for a channel that dips while the others stay up.
       capture_protocol: >-
-        canair monitor BCM:22B003 --save --keep-all --interval 0.5 --label 'BCM ignition channels
-        across start' --state ACC; start with the brake pressed and press s at button press.
+        canair monitor BCM:22B003,22B004 IGPM:22BC03 --save --keep-all --interval 0.5 --label 'BCM
+        ignition channels across start' --state ACC; start with the brake pressed and press s at
+        button press. Poll nothing else, so the BCM pages are read often enough to land inside the
+        START.
     - type: verify
       target: 22C00B rear tyre order (RL/RR)
       status: pending
