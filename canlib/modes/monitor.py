@@ -605,8 +605,10 @@ class MonitorController:
                     self.raw_client.read(ecu, bytes.fromhex(request), timeout=3.0)
             return
 
+        from ..uds.echo import request_echo
         from .multi import _exec_session, _exec_skm_wake
         from .multi_batch import BatchState
+        from .multi_exec import _exchange
 
         assert self.sm is not None  # not self.raw ⟺ sm was constructed
         from ..transport.isotp_params import resolve_rx_padding
@@ -631,9 +633,18 @@ class MonitorController:
         # idle is slow, so warm the path before the first *displayed* cycle. The
         # retry (retries=1) also rides out a cold NO-DATA on this throwaway read.
         for _ecu, info, request in self._warmup_reads():
+            echo = request_echo(request)
             with contextlib.suppress(Exception):
-                await self.sm.terminal.set_header(info["tx_id"])
-                await self.sm.terminal.send_uds(request, retries=1)
+                # One transaction, echo-validated: the background keepalive is already
+                # running, and could otherwise re-point the header between the two.
+                await _exchange(
+                    self.sm,
+                    info["tx_id"],
+                    request,
+                    retries=1,
+                    expected_sid=echo[0] if echo else None,
+                    expected_echo=echo[1] if echo else None,
+                )
 
     def _warmup_reads(self) -> "list[tuple[str, EcuIndexEntry, str]]":
         """``(ECU key, its index entry, first planned request)`` per polled ECU step."""

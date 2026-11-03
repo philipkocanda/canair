@@ -1287,3 +1287,34 @@ class TestRecorderKeepModes:
         (session,) = capture_io.load_capture_file(next(tmp_path.glob("*.json")))["sessions"]
         assert [cap["payload"] for cap in session["captures"]] == ["6101AA", "6101BB", "6101AA"]
         assert session["keep_mode"] == "changes"
+
+
+def test_the_elm327_warmup_read_is_one_validated_transaction(monkeypatch):
+    # The background keepalive is already running when the warm-up reads go out, so a
+    # bare set_header + send_uds could be re-pointed at another ECU in between.
+    import asyncio
+
+    from canlib.modes.monitor import MonitorController
+    from tests._fakes import FakeTerminal, ok
+
+    terminal = FakeTerminal({"22BC03": ok("62BC03AA")})
+    c = MonitorController(terminal, [{"ecu": "IGPM", "pids": []}], {}, verbose=False)
+    monkeypatch.setattr(
+        "canlib.pids.build_ecu_index",
+        lambda _data: {"IGPM": {"tx_id": 0x770, "pids": {"22BC03": {"parameters": {}}}}},
+    )
+
+    async def run():
+        await c.setup([])
+        assert c.sm is not None
+        c.sm.stop_background_keepalive()
+
+    asyncio.run(run())
+    assert terminal.calls == [
+        ("transaction_enter", None),
+        ("set_header", 0x770),
+        ("send_uds", "22BC03"),
+        ("transaction_exit", None),
+    ]
+    assert terminal.uds_kwargs[0]["expected_sid"] == 0x22
+    assert terminal.uds_kwargs[0]["expected_echo"] == bytes.fromhex("BC03")
