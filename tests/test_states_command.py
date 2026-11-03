@@ -123,14 +123,13 @@ class TestEditDispatch:
         }
         assert "added state PRECONDITION" in capsys.readouterr().out
 
-    def test_add_error_is_clean(self, monkeypatch):
+    def test_add_error_reaches_the_central_handler(self, monkeypatch):
         from canlib.yaml_edit.states import StatesEditError
 
         def _add(*a, **k):
             raise StatesEditError("already exists")
 
         monkeypatch.setattr("canlib.yaml_edit.states.add_state", _add)
-        monkeypatch.setenv("NO_COLOR", "1")
         args = argparse.Namespace(
             name="READY",
             description=None,
@@ -139,9 +138,8 @@ class TestEditDispatch:
             excludes=None,
             _states_func=states_cmd.cmd_add,
         )
-        with pytest.raises(SystemExit) as exc:
+        with pytest.raises(StatesEditError, match="already exists"):
             states_cmd.run(args)
-        assert "already exists" in str(exc.value)
 
 
 class TestReverseLookup:

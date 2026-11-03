@@ -56,15 +56,15 @@ import argparse
 from pathlib import Path
 
 from canlib import ansi
-from canlib.commands._hexarg import HexArgError, parse_hex_arg
+from canlib.commands._edit import add_edit_args, clear_sentinel, edit_scope, run_edit
+from canlib.commands._hexarg import parse_hex_arg
 from canlib.pids import INHERITED_PARAM_FIELDS, PID_STATUSES
-from canlib.profile import require_writable_definitions
 from canlib.signal_category import CATEGORIES, QUANTITY_CATEGORIES
 from canlib.uds.support_map import MapDecl, SupportMapError
 from canlib.yaml_edit.echo import echo_edit
+from canlib.yaml_edit.errors import EditError, translate
 from canlib.yaml_edit.pids import (
     Migrated,
-    PidsEditError,
     add_pid,
     add_research_entry,
     delete_parameter,
@@ -98,36 +98,22 @@ from canlib.yaml_edit.pids import (
 NAME = "pids"
 
 
-def _schema_validate(fpath: Path) -> tuple[bool, str]:
-    """Validate a single pids file in-process. Returns (ok, output)."""
-    from canlib.commands.validate import validate_pids_file
-
-    return validate_pids_file(fpath)
+def _int_or_clear(text: str) -> int | None:
+    """``period``/``response_frames`` value: an integer, or the word ``clear`` for none."""
+    return None if clear_sentinel(text) is None else int(text)
 
 
-def _guarded(ecu: str, pids_dir: Path | None, do_edit, *, validate: bool):
-    """Snapshot -> edit -> schema-validate -> commit or roll back."""
-    if pids_dir is None:
-        require_writable_definitions()
-    fpath = find_ecu_file(ecu, pids_dir=pids_dir)
-    snapshot = fpath.read_text()
-    do_edit()
-    if validate:
-        ok, out = _schema_validate(fpath)
-        if not ok:
-            fpath.write_text(snapshot)
-            print(out)
-            raise SystemExit(f"{ansi.RED}  Schema validation failed — reverted {fpath}{ansi.RESET}")
-    return fpath
+def _words_verb(text: str | None) -> str:
+    """The confirmation for a free-text field: ``cleared`` or ``set (N words)``."""
+    words = (text or "").split()
+    return f"set ({len(words)} words)" if words else "cleared"
 
 
-def _add_common(sp: argparse.ArgumentParser) -> None:
-    sp.add_argument(
-        "--dir", type=Path, default=None, help="ecus/ directory (default: active profile)"
-    )
-    sp.add_argument(
-        "--no-validate", action="store_true", help="Skip the post-edit schema validation gate"
-    )
+def _apply(args: argparse.Namespace, do, ecu: str | None = None) -> Path:
+    """Run ``do`` (the editor calls) in an edit scope; return the ECU's file for the echo."""
+    with edit_scope(args):
+        do()
+    return find_ecu_file(ecu or args.ecu, pids_dir=args.dir)
 
 
 def _parse_pairs(raw: list[str] | None, kind: str) -> dict | None:
@@ -137,16 +123,12 @@ def _parse_pairs(raw: list[str] | None, kind: str) -> dict | None:
     out: dict[int, str] = {}
     for item in raw:
         if "=" not in item:
-            raise SystemExit(
-                f"{ansi.RED}  Error: --{kind} expects KEY=LABEL, got {item!r}{ansi.RESET}"
-            )
+            raise EditError(f"--{kind} expects KEY=LABEL, got {item!r}")
         k, _, v = item.partition("=")
         try:
             out[int(k.strip(), 0)] = v.strip()
         except ValueError:
-            raise SystemExit(
-                f"{ansi.RED}  Error: --{kind} key must be an integer, got {k!r}{ansi.RESET}"
-            ) from None
+            raise EditError(f"--{kind} key must be an integer, got {k!r}") from None
     return out
 
 
@@ -253,7 +235,7 @@ def cmd_upsert_param(args: argparse.Namespace) -> int:
             pids_dir=args.dir,
         )
 
-    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
+    fpath = _apply(args, do)
     if revision:
         # A new signal seen on one revision exists only there until shown otherwise.
         _gate_new_signal(args, revision)
@@ -293,22 +275,17 @@ def _signal_exists(ecu: str, pid: str, name: str, pids_dir) -> bool:
 
 
 def _gate_new_signal(args: argparse.Namespace, revision: str) -> None:
-    from canlib.yaml_edit.ecu import EcusEditError
     from canlib.yaml_edit.revisions import set_gate
 
-    try:
-        set_gate(args.ecu, args.pid, args.name, [revision])
-    except EcusEditError as e:
-        raise SystemExit(f"{ansi.RED}  Error: {e}{ansi.RESET}") from None
+    set_gate(args.ecu, args.pid, args.name, [revision])
 
 
 def _upsert_revision_override(args: argparse.Namespace, ptype, values, bits) -> int:
     """``upsert-param --revision R`` on an existing signal: write ``per_revision.R``."""
-    from canlib.yaml_edit.ecu import EcusEditError
     from canlib.yaml_edit.revisions import set_override
 
     if args.dir is not None:
-        raise SystemExit(f"{ansi.RED}  Error: --revision does not take --dir{ansi.RESET}")
+        raise EditError("--revision does not take --dir")
     fields: dict = {"expression": args.expression}
     for key, value in (
         ("unit", args.unit),
@@ -336,14 +313,9 @@ def _upsert_revision_override(args: argparse.Namespace, ptype, values, bits) -> 
         if value is not None
     ]
     if unsupported:
-        raise SystemExit(
-            f"{ansi.RED}  Error: {', '.join(unsupported)} cannot differ by revision{ansi.RESET}"
-        )
-    require_writable_definitions()
-    try:
+        raise EditError(f"{', '.join(unsupported)} cannot differ by revision")
+    with edit_scope(args):
         fpath = set_override(args.ecu, args.pid, args.name, args.revision, fields)
-    except EcusEditError as e:
-        raise SystemExit(f"{ansi.RED}  Error: {e}{ansi.RESET}") from None
     echo_edit(f"{args.ecu} {args.pid} {args.name} (revision {args.revision})", fpath)
     return 0
 
@@ -376,7 +348,7 @@ def cmd_rename_param(args: argparse.Namespace) -> int:
     def do():
         rename_parameter(args.ecu, args.pid, args.old, args.new, pids_dir=args.dir)
 
-    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
+    fpath = _apply(args, do)
     echo_edit(f"{args.ecu} {args.pid} {args.old} → {args.new}", fpath)
     _warn_state_predicates(
         args.ecu,
@@ -391,7 +363,7 @@ def cmd_rm_param(args: argparse.Namespace) -> int:
     def do():
         delete_parameter(args.ecu, args.pid, args.name, pids_dir=args.dir)
 
-    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
+    fpath = _apply(args, do)
     echo_edit(f"removed {args.ecu} {args.pid} {args.name}", fpath)
     _warn_state_predicates(
         args.ecu,
@@ -404,26 +376,24 @@ def cmd_rm_param(args: argparse.Namespace) -> int:
 
 
 def cmd_rename_pid(args: argparse.Namespace) -> int:
-    def do():
-        rename_pid(args.ecu, args.old, args.new, pids_dir=args.dir)
-
-    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
-    echo_edit(f"{args.ecu} {args.old} → {args.new}", fpath)
-    return 0
+    return run_edit(
+        lambda: rename_pid(args.ecu, args.old, args.new, pids_dir=args.dir),
+        f"{args.ecu} {args.old} → {args.new}",
+        args=args,
+    )
 
 
 def cmd_rm_pid(args: argparse.Namespace) -> int:
-    def do():
-        delete_pid(args.ecu, args.pid, pids_dir=args.dir)
-
-    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
-    echo_edit(f"removed {args.ecu} {args.pid}", fpath)
-    return 0
+    return run_edit(
+        lambda: delete_pid(args.ecu, args.pid, pids_dir=args.dir),
+        f"removed {args.ecu} {args.pid}",
+        args=args,
+    )
 
 
 def cmd_add_pid(args: argparse.Namespace) -> int:
-    def do():
-        add_pid(
+    return run_edit(
+        lambda: add_pid(
             args.ecu,
             args.pid,
             status=args.status,
@@ -431,16 +401,15 @@ def cmd_add_pid(args: argparse.Namespace) -> int:
             period=args.period,
             notes=args.notes,
             pids_dir=args.dir,
-        )
-
-    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
-    echo_edit(f"{args.ecu} {args.pid} [{args.status}]", fpath)
-    return 0
+        ),
+        f"{args.ecu} {args.pid} [{args.status}]",
+        args=args,
+    )
 
 
 def cmd_add_research(args: argparse.Namespace) -> int:
-    def do():
-        add_research_entry(
+    return run_edit(
+        lambda: add_research_entry(
             args.ecu,
             type=args.type,
             target=args.target,
@@ -457,22 +426,20 @@ def cmd_add_research(args: argparse.Namespace) -> int:
             capture_protocol=args.capture_protocol,
             revisions=args.revisions or None,
             pids_dir=args.dir,
-        )
-
-    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
-    echo_edit(f"research {args.ecu} {args.type} {args.target} [{args.status}]", fpath)
-    return 0
+        ),
+        f"research {args.ecu} {args.type} {args.target} [{args.status}]",
+        args=args,
+    )
 
 
 def cmd_set_status(args: argparse.Namespace) -> int:
-    def do():
-        set_research_status(
+    return run_edit(
+        lambda: set_research_status(
             args.ecu, args.target, args.status, type=args.type, index=args.index, pids_dir=args.dir
-        )
-
-    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
-    echo_edit(f"{args.ecu} research {args.target} -> {args.status}", fpath)
-    return 0
+        ),
+        f"{args.ecu} research {args.target} -> {args.status}",
+        args=args,
+    )
 
 
 def cmd_rm_research(args: argparse.Namespace) -> int:
@@ -481,7 +448,7 @@ def cmd_rm_research(args: argparse.Namespace) -> int:
             args.ecu, args.target, type=args.type, index=args.index, pids_dir=args.dir
         )
 
-    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
+    fpath = _apply(args, do)
     echo_edit(f"removed {args.ecu} research {args.target}", fpath)
     return 0
 
@@ -498,51 +465,47 @@ def cmd_set_research_text(args: argparse.Namespace) -> int:
     """Set or clear the research free-text field the subcommand names."""
     field, text = args.research_field, args.value
 
-    def do():
-        set_research_text(
+    what = _words_verb(text)
+    return run_edit(
+        lambda: set_research_text(
             args.ecu, args.target, field, text, type=args.type, index=args.index, pids_dir=args.dir
-        )
-
-    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
-    what = "cleared" if not (text or "").strip() else f"set ({len((text or '').split())} words)"
-    echo_edit(f"{args.ecu} research {args.target} {field} {what}", fpath)
-    return 0
+        ),
+        f"{args.ecu} research {args.target} {field} {what}",
+        args=args,
+    )
 
 
 def cmd_set_pid_status(args: argparse.Namespace) -> int:
-    def do():
-        set_pid_status(args.ecu, args.pid, args.status, pids_dir=args.dir)
-
-    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
-    echo_edit(f"{args.ecu} {args.pid} status -> {args.status}", fpath)
-    return 0
+    return run_edit(
+        lambda: set_pid_status(args.ecu, args.pid, args.status, pids_dir=args.dir),
+        f"{args.ecu} {args.pid} status -> {args.status}",
+        args=args,
+    )
 
 
 def cmd_set_pid_variable_length(args: argparse.Namespace) -> int:
     value = args.value == "true"
 
-    def do():
-        set_pid_variable_length(args.ecu, args.pid, value, pids_dir=args.dir)
-
-    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
     state = "true" if value else "false (cleared)"
-    echo_edit(f"{args.ecu} {args.pid} variable_length -> {state}", fpath)
-    return 0
+    return run_edit(
+        lambda: set_pid_variable_length(args.ecu, args.pid, value, pids_dir=args.dir),
+        f"{args.ecu} {args.pid} variable_length -> {state}",
+        args=args,
+    )
 
 
 def cmd_set_snapshot_only(args: argparse.Namespace) -> int:
     value = not args.clear
 
-    def do():
-        set_snapshot_only(args.ecu, args.pid, value, length=args.length, pids_dir=args.dir)
-
-    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
     if not value:
         state = "cleared"
     else:
         state = "true" + (f", snapshot_length {args.length}" if args.length is not None else "")
-    echo_edit(f"{args.ecu} {args.pid} snapshot_only -> {state}", fpath)
-    return 0
+    return run_edit(
+        lambda: set_snapshot_only(args.ecu, args.pid, value, length=args.length, pids_dir=args.dir),
+        f"{args.ecu} {args.pid} snapshot_only -> {state}",
+        args=args,
+    )
 
 
 def cmd_set_sensitive(args: argparse.Namespace) -> int:
@@ -551,7 +514,7 @@ def cmd_set_sensitive(args: argparse.Namespace) -> int:
     def do():
         set_sensitive(args.ecu, args.pid, value, param=args.param, pids_dir=args.dir)
 
-    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
+    fpath = _apply(args, do)
     what = f"{args.ecu} {args.pid}" + (f" {args.param}" if args.param else "")
     state = "true" if value else "false (cleared)"
     echo_edit(f"{what} sensitive -> {state}", fpath)
@@ -574,70 +537,60 @@ def cmd_set_sensitive(args: argparse.Namespace) -> int:
 def _int_list(text: str) -> list[int]:
     try:
         return [int(v) for v in text.split(",") if v.strip()]
-    except ValueError as e:
-        raise SystemExit(
-            f"{ansi.RED}  Error: --also-at takes comma-separated integers{ansi.RESET}"
-        ) from e
+    except ValueError:
+        raise EditError("--also-at takes comma-separated integers") from None
 
 
 def cmd_set_support_map(args: argparse.Namespace) -> int:
     decl = None
     if not args.clear:
         if args.at is None or args.length is None or args.unit is None:
-            raise SystemExit(
-                f"{ansi.RED}  Error: give --at, --length and --unit, or --clear{ansi.RESET}"
-            )
+            raise EditError("give --at, --length and --unit, or --clear")
         raw = {"at": args.at, "length": args.length, "unit": args.unit, "order": args.order}
         if args.also_at:
             raw["also_at"] = _int_list(args.also_at)
-        try:
+        with translate(SupportMapError, EditError):
             decl = MapDecl.from_mapping(raw)
-        except SupportMapError as e:
-            raise SystemExit(f"{ansi.RED}  Error: {e}{ansi.RESET}") from e
 
-    def do():
-        set_support_map(args.ecu, args.pid, decl, pids_dir=args.dir)
-
-    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
     state = decl.flow() if decl else "cleared"
-    echo_edit(f"{args.ecu} {args.pid} support_map -> {state}", fpath)
-    return 0
+    return run_edit(
+        lambda: set_support_map(args.ecu, args.pid, decl, pids_dir=args.dir),
+        f"{args.ecu} {args.pid} support_map -> {state}",
+        args=args,
+    )
 
 
 def cmd_set_pid_period(args: argparse.Namespace) -> int:
-    value = None if args.value.lower() == "clear" else int(args.value)
+    value = _int_or_clear(args.value)
 
-    def do():
-        set_pid_period(args.ecu, args.pid, value, pids_dir=args.dir)
-
-    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
     state = "cleared (device default 5000)" if value is None else f"{value} ms"
-    echo_edit(f"{args.ecu} {args.pid} period -> {state}", fpath)
-    return 0
+    return run_edit(
+        lambda: set_pid_period(args.ecu, args.pid, value, pids_dir=args.dir),
+        f"{args.ecu} {args.pid} period -> {state}",
+        args=args,
+    )
 
 
 def cmd_set_response_frames(args: argparse.Namespace) -> int:
-    value = None if args.value.lower() == "clear" else int(args.value)
+    value = _int_or_clear(args.value)
 
-    def do():
-        set_response_frames(args.ecu, args.pid, value, pids_dir=args.dir)
-
-    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
     state = "cleared" if value is None else str(value)
-    echo_edit(f"{args.ecu} {args.pid} response_frames -> {state}", fpath)
-    return 0
+    return run_edit(
+        lambda: set_response_frames(args.ecu, args.pid, value, pids_dir=args.dir),
+        f"{args.ecu} {args.pid} response_frames -> {state}",
+        args=args,
+    )
 
 
 def cmd_set_pid_notes(args: argparse.Namespace) -> int:
     notes = args.value
 
-    def do():
-        set_pid_notes(args.ecu, args.pid, notes, pids_dir=args.dir)
-
-    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
-    what = "cleared" if not (notes or "").strip() else f"set ({len((notes or '').split())} words)"
-    echo_edit(f"{args.ecu} {args.pid} notes {what}", fpath)
-    return 0
+    what = _words_verb(notes)
+    return run_edit(
+        lambda: set_pid_notes(args.ecu, args.pid, notes, pids_dir=args.dir),
+        f"{args.ecu} {args.pid} notes {what}",
+        args=args,
+    )
 
 
 def cmd_set_pid_defaults(args: argparse.Namespace) -> int:
@@ -652,16 +605,12 @@ def cmd_set_pid_defaults(args: argparse.Namespace) -> int:
     fields = {k: v for k, v in fields.items() if v is not None}
     clear = args.clear or []
 
-    def do():
-        set_pid_defaults(args.ecu, args.pid, fields, clear=clear, pids_dir=args.dir)
-
-    try:
-        fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
-    except PidsEditError as e:
-        raise SystemExit(f"{ansi.RED}  Error: {e}{ansi.RESET}") from e
     detail = ", ".join([*fields, *(f"-{c}" for c in clear)])
-    echo_edit(f"{args.ecu} {args.pid} defaults: {detail}", fpath)
-    return 0
+    return run_edit(
+        lambda: set_pid_defaults(args.ecu, args.pid, fields, clear=clear, pids_dir=args.dir),
+        f"{args.ecu} {args.pid} defaults: {detail}",
+        args=args,
+    )
 
 
 def _ecu_names(ecus_dir: Path | None) -> list[str]:
@@ -680,7 +629,7 @@ def _ecu_names(ecus_dir: Path | None) -> list[str]:
 
 def cmd_hoist_defaults(args: argparse.Namespace) -> int:
     if args.pid and not args.ecu:
-        raise SystemExit(f"{ansi.RED}  Error: a PID needs its ECU{ansi.RESET}")
+        raise EditError("a PID needs its ECU")
     ecus = [args.ecu] if args.ecu else _ecu_names(args.dir)
     pids = fields = 0
     for ecu in ecus:
@@ -693,9 +642,7 @@ def cmd_hoist_defaults(args: argparse.Namespace) -> int:
             do()
             fpath = find_ecu_file(ecu, pids_dir=args.dir)
         else:
-            if not args.dir:
-                require_writable_definitions()
-            fpath = _guarded(ecu, args.dir, do, validate=not args.no_validate)
+            fpath = _apply(args, do, ecu)
         by_pid: dict[str, list] = {}
         for h in found:
             by_pid.setdefault(h.pid, []).append(h)
@@ -724,9 +671,7 @@ def cmd_migrate_categories(args: argparse.Namespace) -> int:
             do()
             fpath = find_ecu_file(ecu, pids_dir=args.dir)
         else:
-            if not args.dir:
-                require_writable_definitions()
-            fpath = _guarded(ecu, args.dir, do, validate=not args.no_validate)
+            fpath = _apply(args, do, ecu)
         for m in found:
             where = f"{m.pid}/{m.param}" if m.param else f"{m.pid} (PID default)"
             change = f"category: {m.category}" if m.category else "removed"
@@ -743,21 +688,19 @@ def cmd_migrate_categories(args: argparse.Namespace) -> int:
 
 
 def cmd_set_identity(args: argparse.Namespace) -> int:
-    def do():
-        set_identity_field(args.ecu, args.field, args.value, pids_dir=args.dir)
-
-    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
-    echo_edit(f"{args.ecu} identity.{args.field} updated", fpath)
-    return 0
+    return run_edit(
+        lambda: set_identity_field(args.ecu, args.field, args.value, pids_dir=args.dir),
+        f"{args.ecu} identity.{args.field} updated",
+        args=args,
+    )
 
 
 def cmd_rm_identity(args: argparse.Namespace) -> int:
-    def do():
-        remove_identity_field(args.ecu, args.field, pids_dir=args.dir)
-
-    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
-    echo_edit(f"{args.ecu} identity.{args.field} removed", fpath)
-    return 0
+    return run_edit(
+        lambda: remove_identity_field(args.ecu, args.field, pids_dir=args.dir),
+        f"{args.ecu} identity.{args.field} removed",
+        args=args,
+    )
 
 
 def cmd_set_can_bus(args: argparse.Namespace) -> int:
@@ -773,49 +716,40 @@ def cmd_set_can_bus(args: argparse.Namespace) -> int:
     if allowed:
         bad = [c for c in args.codes if c not in allowed]
         if bad:
-            raise SystemExit(
-                f"{ansi.RED}  Error: unknown CAN bus code(s) {bad} — "
-                f"declared in can_buses.yaml: {sorted(allowed)}{ansi.RESET}"
+            raise EditError(
+                f"unknown CAN bus code(s) {bad} — declared in can_buses.yaml: {sorted(allowed)}"
             )
 
-    def do():
-        set_can_bus(args.ecu, args.codes, pids_dir=args.dir)
-
-    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
-    echo_edit(f"{args.ecu} can_bus -> [{', '.join(args.codes)}]", fpath)
-    return 0
+    return run_edit(
+        lambda: set_can_bus(args.ecu, args.codes, pids_dir=args.dir),
+        f"{args.ecu} can_bus -> [{', '.join(args.codes)}]",
+        args=args,
+    )
 
 
 def cmd_set_revisions(args: argparse.Namespace) -> int:
-    from canlib.yaml_edit.ecu import EcusEditError
     from canlib.yaml_edit.revisions import set_gate
 
     parts = args.target.split(":")
     if len(parts) not in (2, 3) or not all(p.strip() for p in parts):
-        raise SystemExit(
-            f"{ansi.RED}  Error: expected ECU:PID or ECU:PID:SIGNAL, got {args.target!r}{ansi.RESET}"
-        )
+        raise EditError(f"expected ECU:PID or ECU:PID:SIGNAL, got {args.target!r}")
     ecu, pid, signal = parts[0], parts[1], (parts[2] if len(parts) == 3 else None)
     revs = [r for part in args.revisions for r in part.split(",") if r.strip()]
     if args.clear == bool(revs):
-        raise SystemExit(f"{ansi.RED}  Error: give the revisions, or --clear{ansi.RESET}")
-    require_writable_definitions()
-    try:
+        raise EditError("give the revisions, or --clear")
+    with edit_scope(args):
         fpath = set_gate(ecu, pid, signal, None if args.clear else revs)
-    except EcusEditError as e:
-        raise SystemExit(f"{ansi.RED}  Error: {e}{ansi.RESET}") from None
     what = f"[{', '.join(revs)}]" if revs else "every revision (cleared)"
     echo_edit(f"{args.target} revisions -> {what}", fpath)
     return 0
 
 
 def cmd_set_iocontrol_ranges(args: argparse.Namespace) -> int:
-    def do():
-        set_iocontrol_scan_ranges(args.ecu, args.ranges, pids_dir=args.dir)
-
-    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
-    echo_edit(f"{args.ecu} iocontrol_scan_ranges -> [{', '.join(args.ranges)}]", fpath)
-    return 0
+    return run_edit(
+        lambda: set_iocontrol_scan_ranges(args.ecu, args.ranges, pids_dir=args.dir),
+        f"{args.ecu} iocontrol_scan_ranges -> [{', '.join(args.ranges)}]",
+        args=args,
+    )
 
 
 def cmd_set_iocontrol(args: argparse.Namespace) -> int:
@@ -838,27 +772,24 @@ def cmd_set_iocontrol(args: argparse.Namespace) -> int:
         if value is not None
     }
     if not fields:
-        raise SystemExit(f"{ansi.RED}  Error: nothing to set — pass at least one field{ansi.RESET}")
+        raise EditError("nothing to set — pass at least one field")
     if args.session_mode is not None:
         from canlib.pids import normalize_session_mode
 
         try:
             fields["session_mode"] = normalize_session_mode(args.session_mode)
         except ValueError as exc:
-            raise SystemExit(f"{ansi.RED}  Error: --session-mode: {exc}{ansi.RESET}") from None
+            raise EditError(f"--session-mode: {exc}") from None
     for name in ("on", "off", "release"):
         value = fields.get(name)
         if isinstance(value, str) and value and not re.fullmatch(r"(?:[0-9A-Fa-f]{2})+", value):
-            raise SystemExit(
-                f"{ansi.RED}  Error: --{name} expects a full hex request "
-                f"(e.g. 2FBC0103), got {value!r}{ansi.RESET}"
-            )
+            raise EditError(f"--{name} expects a full hex request (e.g. 2FBC0103), got {value!r}")
 
     def do():
         for name, value in fields.items():
             update_iocontrol_field(args.ecu, args.did, name, value, pids_dir=args.dir)
 
-    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
+    fpath = _apply(args, do)
     detail = ", ".join(f"{k}={v}" for k, v in fields.items() if k != "notes")
     echo_edit(f"{args.ecu} iocontrol {args.did.upper()} -> {{{detail}}}", fpath)
     return 0
@@ -879,31 +810,27 @@ def cmd_set_wake(args: argparse.Namespace) -> int:
     if args.notes is not None:
         fields["notes"] = args.notes
 
-    def do():
-        set_wake(args.ecu, fields, pids_dir=args.dir)
-
-    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
     detail = ", ".join(f"{k}={v}" for k, v in fields.items() if k != "notes")
-    echo_edit(f"{args.ecu} wake -> {{{detail}}}", fpath)
-    return 0
+    return run_edit(
+        lambda: set_wake(args.ecu, fields, pids_dir=args.dir),
+        f"{args.ecu} wake -> {{{detail}}}",
+        args=args,
+    )
 
 
 def cmd_set_addressing(args: argparse.Namespace) -> int:
     from canlib import yaml_io
-    from canlib.yaml_edit.ecu import EcusEditError, set_addressing, tx_key
+    from canlib.yaml_edit.ecu import set_addressing, tx_key
     from canlib.yaml_edit.pids import find_ecu_file
 
     if not any(
         getattr(args, k) is not None
         for k in ("mode", "target_address", "source_address", "fc_id", "rx_id")
     ):
-        raise SystemExit(
-            f"{ansi.RED}  Error: nothing to set — pass at least one of --mode/"
-            f"--target-address/--source-address/--fc-id/--rx-id{ansi.RESET}"
+        raise EditError(
+            "nothing to set — pass at least one of --mode/--target-address/--source-address/--fc-id/--rx-id"
         )
 
-    if args.dir is None:
-        require_writable_definitions()
     fpath = find_ecu_file(args.ecu, pids_dir=args.dir)
     doc = yaml_io.safe_load(fpath.read_text()) or {}
     tx_id = next(
@@ -911,9 +838,9 @@ def cmd_set_addressing(args: argparse.Namespace) -> int:
         None,
     )
     if tx_id is None:
-        raise SystemExit(f"{ansi.RED}  Error: no tx_id found in {fpath}{ansi.RESET}")
+        raise EditError(f"no tx_id found in {fpath}")
 
-    try:
+    with edit_scope(args):
         changed = set_addressing(
             tx_id,
             mode=args.mode,
@@ -923,10 +850,6 @@ def cmd_set_addressing(args: argparse.Namespace) -> int:
             rx_id=parse_hex_arg(args.rx_id, "rx-id"),
             ecus_dir=args.dir,
         )
-    except HexArgError as e:
-        raise SystemExit(str(e)) from None
-    except EcusEditError as e:
-        raise SystemExit(f"{ansi.RED}  Error: {e}{ansi.RESET}") from None
 
     disp = tx_key(tx_id)
     if changed:
@@ -1019,7 +942,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "under per_revision.ID (the rest stay shared); a new one is created gated to "
         "revisions: [ID], never claimed for every revision",
     )
-    _add_common(up)
+    add_edit_args(up)
     up.set_defaults(_pids_func=cmd_upsert_param)
 
     rn = sub.add_parser("rename-param", help="Rename a signal (key only; fields preserved)")
@@ -1027,27 +950,27 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     rn.add_argument("pid")
     rn.add_argument("old", help="Current signal name")
     rn.add_argument("new", help="New signal name")
-    _add_common(rn)
+    add_edit_args(rn)
     rn.set_defaults(_pids_func=cmd_rename_param)
 
     rm = sub.add_parser("rm-param", help="Remove a signal")
     rm.add_argument("ecu")
     rm.add_argument("pid")
     rm.add_argument("name")
-    _add_common(rm)
+    add_edit_args(rm)
     rm.set_defaults(_pids_func=cmd_rm_param)
 
     rnp = sub.add_parser("rename-pid", help="Rename a PID key (e.g. B002 -> 22B002)")
     rnp.add_argument("ecu")
     rnp.add_argument("old", help="Current PID code")
     rnp.add_argument("new", help="New PID code (hex, e.g. 22B002)")
-    _add_common(rnp)
+    add_edit_args(rnp)
     rnp.set_defaults(_pids_func=cmd_rename_pid)
 
     rmp = sub.add_parser("rm-pid", help="Remove a whole PID (header, status, parameters)")
     rmp.add_argument("ecu")
     rmp.add_argument("pid")
-    _add_common(rmp)
+    add_edit_args(rmp)
     rmp.set_defaults(_pids_func=cmd_rm_pid)
 
     adp = sub.add_parser(
@@ -1072,7 +995,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     )
     adp.add_argument("--period", type=int, help="Polling interval in ms")
     adp.add_argument("--notes", help="Freeform notes for the PID")
-    _add_common(adp)
+    add_edit_args(adp)
     adp.set_defaults(_pids_func=cmd_add_pid)
 
     ar = sub.add_parser("add-research", help="Append a research: entry")
@@ -1110,7 +1033,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         help="An ECU revision the task concerns (repeatable; absent = every revision): a "
         "car on another revision doesn't list it",
     )
-    _add_common(ar)
+    add_edit_args(ar)
     ar.set_defaults(_pids_func=cmd_add_research)
 
     ss = sub.add_parser("set-status", help="Update a research item's status")
@@ -1128,7 +1051,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         help="Disambiguate by 0-based position among matches (after --type filtering); "
         "needed when several items share the same target and type",
     )
-    _add_common(ss)
+    add_edit_args(ss)
     ss.set_defaults(_pids_func=cmd_set_status)
 
     rr = sub.add_parser("rm-research", help="Remove a research: item")
@@ -1145,7 +1068,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         help="Disambiguate by 0-based position among matches (after --type filtering); "
         "needed when several items share the same target and type",
     )
-    _add_common(rr)
+    add_edit_args(rr)
     rr.set_defaults(_pids_func=cmd_rm_research)
 
     for command, field, what in _RESEARCH_TEXT_COMMANDS:
@@ -1174,14 +1097,14 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
             help="Disambiguate by 0-based position among matches (after --type filtering); "
             "needed when several items share the same target and type",
         )
-        _add_common(p)
+        add_edit_args(p)
         p.set_defaults(_pids_func=cmd_set_research_text, research_field=field)
 
     sps = sub.add_parser("set-pid-status", help="Set a PID's lifecycle status")
     sps.add_argument("ecu")
     sps.add_argument("pid")
     sps.add_argument("status", choices=list(PID_STATUSES))
-    _add_common(sps)
+    add_edit_args(sps)
     sps.set_defaults(_pids_func=cmd_set_pid_status)
 
     spv = sub.add_parser(
@@ -1197,7 +1120,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "count is ever requested or recorded; drops any response_frames count); "
         "false = clear the flag (fixed-length, the default)",
     )
-    _add_common(spv)
+    add_edit_args(spv)
     spv.set_defaults(_pids_func=cmd_set_pid_variable_length)
 
     sso = sub.add_parser(
@@ -1216,7 +1139,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     sso.add_argument("pid", help="The DID's read PID, e.g. 224710")
     sso.add_argument("--length", type=int, help="Data length in a snapshot record, in bytes")
     sso.add_argument("--clear", action="store_true", help="Remove snapshot_only and the length")
-    _add_common(sso)
+    add_edit_args(sso)
     sso.set_defaults(_pids_func=cmd_set_snapshot_only)
 
     sse = sub.add_parser(
@@ -1235,7 +1158,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     sse.add_argument("pid")
     sse.add_argument("value", choices=["true", "false"], help="true = sensitive; false = clear")
     sse.add_argument("--param", metavar="NAME", help="Flag this signal instead of the whole PID")
-    _add_common(sse)
+    add_edit_args(sse)
     sse.set_defaults(_pids_func=cmd_set_sensitive)
 
     ssm = sub.add_parser(
@@ -1271,7 +1194,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         help="Comma-separated data offsets of further bitmaps (--unit field only)",
     )
     ssm.add_argument("--clear", action="store_true", help="Remove the declaration")
-    _add_common(ssm)
+    add_edit_args(ssm)
     ssm.set_defaults(_pids_func=cmd_set_support_map)
 
     spp = sub.add_parser(
@@ -1291,7 +1214,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         metavar="MS|clear",
         help="interval in milliseconds (int >= 1), or 'clear' to remove it (device default 5000)",
     )
-    _add_common(spp)
+    add_edit_args(spp)
     spp.set_defaults(_pids_func=cmd_set_pid_period)
 
     srf = sub.add_parser(
@@ -1306,7 +1229,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         help="frame count (int >= 1), or 'clear' to remove it. Normally maintained "
         "automatically by the live commands once a count is confirmed on the wire",
     )
-    _add_common(srf)
+    add_edit_args(srf)
     srf.set_defaults(_pids_func=cmd_set_response_frames)
 
     spn = sub.add_parser(
@@ -1329,7 +1252,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         nargs="?",
         help="New notes text (omit to clear the field)",
     )
-    _add_common(spn)
+    add_edit_args(spn)
     spn.set_defaults(_pids_func=cmd_set_pid_notes)
 
     spd = sub.add_parser(
@@ -1360,7 +1283,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         metavar="FIELD",
         help="Remove a PID-level default (repeatable): " + ", ".join(INHERITED_PARAM_FIELDS),
     )
-    _add_common(spd)
+    add_edit_args(spd)
     spd.set_defaults(_pids_func=cmd_set_pid_defaults)
 
     hp = sub.add_parser(
@@ -1379,7 +1302,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     hp.add_argument("ecu", nargs="?", help="Limit to this ECU (default: every ECU)")
     hp.add_argument("pid", nargs="?", help="Limit to this PID")
     hp.add_argument("--dry-run", action="store_true", help="List what would move; write nothing")
-    _add_common(hp)
+    add_edit_args(hp)
     hp.set_defaults(_pids_func=cmd_hoist_defaults)
 
     mc = sub.add_parser(
@@ -1398,20 +1321,20 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     )
     mc.add_argument("ecu", nargs="?", help="Limit to this ECU (default: every ECU)")
     mc.add_argument("--dry-run", action="store_true", help="List what would change; write nothing")
-    _add_common(mc)
+    add_edit_args(mc)
     mc.set_defaults(_pids_func=cmd_migrate_categories)
 
     si = sub.add_parser("set-identity", help="Set a curated identity field (e.g. notes)")
     si.add_argument("ecu")
     si.add_argument("field", help="Identity field name, e.g. notes or description")
     si.add_argument("value", help="New value (notes are stored as a folded block scalar)")
-    _add_common(si)
+    add_edit_args(si)
     si.set_defaults(_pids_func=cmd_set_identity)
 
     ri = sub.add_parser("rm-identity", help="Remove an identity field from an ECU")
     ri.add_argument("ecu")
     ri.add_argument("field", help="Identity field name to drop, e.g. software")
-    _add_common(ri)
+    add_edit_args(ri)
     ri.set_defaults(_pids_func=cmd_rm_identity)
 
     scb = sub.add_parser("set-can-bus", help="Set the physical CAN bus segment(s) the ECU sits on")
@@ -1423,7 +1346,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         help="One or more bus codes from the profile's can_buses.yaml "
         "(Hyundai: B-CAN/P-CAN/C-CAN/MM-CAN/H-CAN/ALL); some ECUs span two, e.g. H-CAN P-CAN",
     )
-    _add_common(scb)
+    add_edit_args(scb)
     scb.set_defaults(_pids_func=cmd_set_can_bus)
 
     srv = sub.add_parser(
@@ -1460,7 +1383,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         metavar="RANGE",
         help="One or more 'START-END' hex DID ranges (e.g. B000-BFFF C000-C0FF)",
     )
-    _add_common(sir)
+    add_edit_args(sir)
     sir.set_defaults(_pids_func=cmd_set_iocontrol_ranges)
 
     sio = sub.add_parser(
@@ -1522,7 +1445,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         metavar="NAME",
         help="Signal read before and after actuating, as a best-effort readback",
     )
-    _add_common(sio)
+    add_edit_args(sio)
     sio.set_defaults(_pids_func=cmd_set_iocontrol)
 
     sw = sub.add_parser(
@@ -1578,7 +1501,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         help="DiagnosticSessionControl sub-function entered after waking (default 03)",
     )
     sw.add_argument("--notes", default=None, help="Free-text note on the wake ritual")
-    _add_common(sw)
+    add_edit_args(sw)
     sw.set_defaults(_pids_func=cmd_set_wake)
 
     sad = sub.add_parser(
@@ -1623,7 +1546,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         dest="rx_id",
         help="CAN response-address override (hex, e.g. 0x784)",
     )
-    _add_common(sad)
+    add_edit_args(sad)
     sad.set_defaults(_pids_func=cmd_set_addressing)
 
     parser.set_defaults(func=run)
@@ -1631,10 +1554,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
 
 
 def run(args) -> int:
-    try:
-        return args._pids_func(args)
-    except PidsEditError as e:
-        raise SystemExit(f"{ansi.RED}  Error: {e}{ansi.RESET}") from None
+    return args._pids_func(args)
 
 
 if __name__ == "__main__":

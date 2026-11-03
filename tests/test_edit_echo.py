@@ -68,6 +68,8 @@ class TestAuthoringCommandsUseIt:
         root = Path(__file__).resolve().parent.parent / "canlib" / "commands"
         for name in ("pids.py", "signals.py", "states.py", "groups.py", "ecu.py"):
             text = (root / name).read_text()
-            assert "echo_edit" in text, f"{name} does not use the shared edit echo"
+            assert "echo_edit" in text or "run_edit" in text, (
+                f"{name} does not use the shared edit echo"
+            )
             for marker in ("({fpath.name})", "({path.name})", "'(' + path.name"):
                 assert marker not in text, f"{name} still prints a bare file name"

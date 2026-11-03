@@ -23,8 +23,8 @@ import json
 import sys
 
 from canlib import ansi
+from canlib.commands._edit import run_edit, subcommand_dispatch
 from canlib.commands._live import add_connection_args, finalize_live_parser
-from canlib.yaml_edit.echo import echo_edit
 
 NAME = "action"
 
@@ -81,19 +81,6 @@ def cmd_list(args) -> int:
     return 0
 
 
-def _run_edit(message: str, edit) -> int:
-    from canlib.actions import ActionError
-    from canlib.profile import require_writable_definitions
-
-    require_writable_definitions()
-    try:
-        path = edit()
-    except ActionError as e:
-        raise SystemExit(ansi.c(f"  Error: {e}", ansi.RED)) from None
-    echo_edit(message, path)
-    return 0
-
-
 def _requests(specs):
     from canlib.actions import parse_request_spec
 
@@ -115,14 +102,13 @@ def cmd_add(args) -> int:
             description=args.description,
         )
 
-    return _run_edit(f"added action {args.name.strip().lower()}", edit)
+    return run_edit(edit, f"added action {args.name.strip().lower()}")
 
 
 def cmd_set(args) -> int:
     from canlib.yaml_edit.actions import update_action
 
-    return _run_edit(
-        f"updated action {args.name.strip().lower()}",
+    return run_edit(
         lambda: update_action(
             args.name,
             description=args.description,
@@ -130,15 +116,14 @@ def cmd_set(args) -> int:
             require=args.require,
             requests=_requests(args.request),
         ),
+        f"updated action {args.name.strip().lower()}",
     )
 
 
 def cmd_rm(args) -> int:
     from canlib.yaml_edit.actions import remove_action
 
-    return _run_edit(
-        f"removed action {args.name.strip().lower()}", lambda: remove_action(args.name)
-    )
+    return run_edit(lambda: remove_action(args.name), f"removed action {args.name.strip().lower()}")
 
 
 def _add_definition_args(p: argparse.ArgumentParser) -> None:
@@ -217,6 +202,4 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     return parser
 
 
-def run(args) -> int:
-    func = getattr(args, "_action_func", None)
-    return cmd_list(args) if func is None else func(args)
+run = subcommand_dispatch("_action_func", cmd_list)

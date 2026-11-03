@@ -331,9 +331,11 @@ def main(argv: list[str] | None = None) -> int:
     if should_offer(args, seeded=seeded):
         run_first_run_setup(args)
 
+    from canlib import ansi
     from canlib.captures.io import LegacyCaptureError
     from canlib.profile import ProfileError, set_active
     from canlib.safety import SafetyBlocked
+    from canlib.yaml_edit.errors import EditError
 
     # Resolve the active vehicle profile before dispatching.
     if (
@@ -366,6 +368,10 @@ def main(argv: list[str] | None = None) -> int:
     except (ProfileError, LegacyCaptureError, SafetyBlocked) as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
+    except EditError as e:
+        # A rejected profile edit: the editor has already put the file back.
+        print(ansi.cerr(f"  Error: {e}", ansi.RED), file=sys.stderr)
+        return 1
     finally:
         # A save whose every row was withheld printed no banner to carry the note.
         from canlib.sensitive import take_withheld_note

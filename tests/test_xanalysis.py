@@ -997,7 +997,9 @@ class TestPromotePciGuard:
 
         from canlib.commands._promote import write_candidate
 
-        monkeypatch.setattr("canlib.commands.pids._guarded", lambda *a, **k: Path("x.yaml"))
+        monkeypatch.setattr(
+            "canlib.yaml_edit.pids.upsert_parameter", lambda *a, **k: Path("x.yaml")
+        )
         write_candidate("BMS", "2101", "X", expr, source="s", notes="n")
 
     def test_the_refusal_names_the_offending_byte_and_the_fix(self):

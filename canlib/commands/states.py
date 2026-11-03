@@ -46,7 +46,9 @@ from pathlib import Path
 from typing import TypedDict
 
 from canlib import ansi
+from canlib.commands._edit import run_edit, set_or_clear, subcommand_dispatch
 from canlib.yaml_edit.echo import echo_edit
+from canlib.yaml_edit.errors import EditError
 
 NAME = "states"
 
@@ -366,20 +368,6 @@ def cmd_list(args) -> int:
     return 0
 
 
-def _run_edit(args, action) -> int:
-    from canlib.profile import require_writable_definitions
-    from canlib.states import StatePredicateError
-    from canlib.yaml_edit.states import StatesEditError
-
-    require_writable_definitions()
-    try:
-        path = action()
-    except (StatesEditError, StatePredicateError) as e:
-        raise SystemExit(f"{ansi.c('  Error: ' + str(e), ansi.RED)}") from None
-    echo_edit(args._states_msg, path)
-    return 0
-
-
 def _warn_unresolved_refs(state: str, expr: str | None) -> None:
     """Warn when a just-written ``when:`` predicate reads signals that don't exist.
 
@@ -408,9 +396,7 @@ def _warn_unresolved_refs(state: str, expr: str | None) -> None:
 def cmd_add(args) -> int:
     from canlib.yaml_edit.states import add_state
 
-    args._states_msg = f"added state {args.name.upper()}"
-    rc = _run_edit(
-        args,
+    rc = run_edit(
         lambda: add_state(
             args.name,
             description=args.description,
@@ -418,6 +404,7 @@ def cmd_add(args) -> int:
             implies=args.implies,
             excludes=args.excludes,
         ),
+        f"added state {args.name.upper()}",
     )
     _warn_unresolved_refs(args.name.upper(), args.when)
     return rc
@@ -426,25 +413,15 @@ def cmd_add(args) -> int:
 def cmd_rm(args) -> int:
     from canlib.yaml_edit.states import remove_state
 
-    args._states_msg = f"removed state {args.name.upper()}"
-    return _run_edit(args, lambda: remove_state(args.name))
+    return run_edit(lambda: remove_state(args.name), f"removed state {args.name.upper()}")
 
 
 def cmd_rename(args) -> int:
     from canlib.profile import require_writable_definitions
-    from canlib.states import StatePredicateError
-    from canlib.yaml_edit.state_rename import (
-        StateRenameError,
-        apply_state_rename,
-        plan_state_rename,
-    )
-    from canlib.yaml_edit.states import StatesEditError
+    from canlib.yaml_edit.state_rename import apply_state_rename, plan_state_rename
 
     profile = require_writable_definitions()
-    try:
-        plan = plan_state_rename(args.old, args.new, profile=profile)
-    except (StateRenameError, StatesEditError) as e:
-        raise SystemExit(f"{ansi.c('  Error: ' + str(e), ansi.RED)}") from None
+    plan = plan_state_rename(args.old, args.new, profile=profile)
 
     _print_rename_plan(plan, profile.root)
     journals = sorted((profile.captures_dir / ".journal").glob("*.jsonl"))
@@ -459,17 +436,14 @@ def cmd_rename(args) -> int:
         return 0
     if plan.rewrites_history and not args.yes:
         if not (sys.stdin.isatty() and sys.stdout.isatty()):
-            raise SystemExit(
-                f"{ansi.c('  Error:', ansi.RED)} refusing to rewrite recorded data without "
-                "confirmation (pass --yes, or --dry-run to preview)."
+            raise EditError(
+                "refusing to rewrite recorded data without confirmation "
+                "(pass --yes, or --dry-run to preview)."
             )
         if input("  Rewrite these files? [y/N] ").strip().lower() not in ("y", "yes"):
             print("  Cancelled — nothing written.")
             return 1
-    try:
-        apply_state_rename(plan, profile=profile)
-    except (StateRenameError, StatesEditError, StatePredicateError) as e:
-        raise SystemExit(f"{ansi.c('  Error (nothing changed): ' + str(e), ansi.RED)}") from None
+    apply_state_rename(plan, profile=profile)
     echo_edit(f"renamed {plan.old} → {plan.new}", plan.states_file)
     return 0
 
@@ -502,34 +476,38 @@ def _print_rename_plan(plan, root: Path) -> None:
 def cmd_set_description(args) -> int:
     from canlib.yaml_edit.states import set_state_field
 
-    args._states_msg = f"set description on {args.name.upper()}"
-    return _run_edit(args, lambda: set_state_field(args.name, "description", args.value))
+    return run_edit(
+        lambda: set_state_field(args.name, "description", args.value),
+        f"set description on {args.name.upper()}",
+    )
 
 
 def cmd_set_predicate(args) -> int:
     from canlib.yaml_edit.states import set_state_field
 
-    verb = "cleared" if not args.value else "set"
-    args._states_msg = f"{verb} when: predicate on {args.name.upper()}"
-    rc = _run_edit(args, lambda: set_state_field(args.name, "when", args.value or None))
+    rc = run_edit(
+        lambda: set_state_field(args.name, "when", args.value or None),
+        f"{set_or_clear(args.value)} when: predicate on {args.name.upper()}",
+    )
     _warn_unresolved_refs(args.name.upper(), args.value)
     return rc
 
 
-def cmd_set_implies(args) -> int:
+def _set_relation(args, field: str) -> int:
     from canlib.yaml_edit.states import set_state_field
 
-    verb = "cleared" if not args.value else "set"
-    args._states_msg = f"{verb} implies: on {args.name.upper()}"
-    return _run_edit(args, lambda: set_state_field(args.name, "implies", args.value or None))
+    return run_edit(
+        lambda: set_state_field(args.name, field, args.value or None),
+        f"{set_or_clear(args.value)} {field}: on {args.name.upper()}",
+    )
+
+
+def cmd_set_implies(args) -> int:
+    return _set_relation(args, "implies")
 
 
 def cmd_set_excludes(args) -> int:
-    from canlib.yaml_edit.states import set_state_field
-
-    verb = "cleared" if not args.value else "set"
-    args._states_msg = f"{verb} excludes: on {args.name.upper()}"
-    return _run_edit(args, lambda: set_state_field(args.name, "excludes", args.value or None))
+    return _set_relation(args, "excludes")
 
 
 def add_parser(subparsers) -> argparse.ArgumentParser:
@@ -648,11 +626,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     return parser
 
 
-def run(args) -> int:
-    func = getattr(args, "_states_func", None)
-    if func is None:
-        return cmd_list(args)
-    return func(args)
+run = subcommand_dispatch("_states_func", cmd_list)
 
 
 if __name__ == "__main__":

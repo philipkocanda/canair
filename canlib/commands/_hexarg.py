@@ -13,10 +13,10 @@ free of any one command's control-flow shape.
 
 from __future__ import annotations
 
-from canlib import ansi
+from canlib.yaml_edit.errors import EditError
 
 
-class HexArgError(ValueError):
+class HexArgError(EditError, ValueError):
     """A CLI hex argument that isn't valid hex. ``str(e)`` is a ready-to-print message."""
 
 
@@ -32,6 +32,4 @@ def parse_hex_arg(value: str | None, label: str) -> int | None:
     try:
         return int(str(value), 16)
     except ValueError:
-        raise HexArgError(
-            f"{ansi.RED}  Error: --{label} expects hex (e.g. 0x784), got {value!r}{ansi.RESET}"
-        ) from None
+        raise HexArgError(f"--{label} expects hex (e.g. 0x784), got {value!r}") from None

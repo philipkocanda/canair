@@ -34,7 +34,7 @@ def schema_validator(error: type[EditError]) -> Callable[[Path], None]:
 
         ok, msg = validate_pids_file(path)
         if not ok:
-            raise error(f"ECU file invalid after edit:\n{msg}")
+            raise error(f"ECU file invalid after edit (reverted):\n{msg}")
 
     return validate
 

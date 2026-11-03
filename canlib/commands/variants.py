@@ -33,7 +33,8 @@ import json
 import sys
 
 from canlib import ansi
-from canlib.yaml_edit.echo import echo_edit
+from canlib.commands._edit import run_edit, subcommand_dispatch
+from canlib.yaml_edit.errors import EditError
 
 NAME = "variants"
 
@@ -124,29 +125,16 @@ def _assignments(pairs: list[str]) -> list[tuple[str, str]]:
     for pair in pairs:
         key, sep, value = pair.partition("=")
         if not sep or not key.strip():
-            raise SystemExit(f"error: expected KEY=VALUE, got {pair!r}")
+            raise EditError(f"expected KEY=VALUE, got {pair!r}")
         out.append((key.strip(), value))
     return out
-
-
-def _run_edit(message: str, action) -> int:
-    from canlib.profile import require_writable_definitions
-    from canlib.yaml_edit.variants import VariantsEditError
-
-    require_writable_definitions()
-    try:
-        path = action()
-    except VariantsEditError as e:
-        raise SystemExit(f"{ansi.c('  Error: ' + str(e), ansi.RED)}") from None
-    echo_edit(message, path)
-    return 0
 
 
 def cmd_add(args) -> int:
     from canlib.yaml_edit.variants import add_variant
 
     meta = _assignments(args.meta)
-    return _run_edit(f"added variant {args.id}", lambda: add_variant(args.id, args.name, meta))
+    return run_edit(lambda: add_variant(args.id, args.name, meta), f"added variant {args.id}")
 
 
 def cmd_set_meta(args) -> int:
@@ -154,48 +142,43 @@ def cmd_set_meta(args) -> int:
 
     meta = _assignments(args.meta)
     keys = ", ".join(dict.fromkeys(k for k, _ in meta))
-    return _run_edit(f"set {keys} on variant {args.id}", lambda: set_variant_meta(args.id, meta))
+    return run_edit(lambda: set_variant_meta(args.id, meta), f"set {keys} on variant {args.id}")
 
 
 def cmd_unset_meta(args) -> int:
     from canlib.yaml_edit.variants import unset_variant_meta
 
     keys = ", ".join(args.keys)
-    return _run_edit(
-        f"removed {keys} from variant {args.id}", lambda: unset_variant_meta(args.id, args.keys)
+    return run_edit(
+        lambda: unset_variant_meta(args.id, args.keys),
+        f"removed {keys} from variant {args.id}",
     )
 
 
 def cmd_set_revisions(args) -> int:
     from canlib.pids import load_raw_pids
     from canlib.variants.revisions import canonical_ecu, declared
-    from canlib.yaml_edit.variants import VariantsEditError, set_variant_revisions
+    from canlib.yaml_edit.variants import set_variant_revisions
 
     revs = [r.strip().lower() for part in args.revisions for r in part.split(",") if r.strip()]
     if args.clear == bool(revs):
-        raise SystemExit(f"{ansi.c('  Error: give the revisions, or --clear', ansi.RED)}")
+        raise EditError("give the revisions, or --clear")
     ecus = load_raw_pids().get("ecus") or {}
     ecu = canonical_ecu(args.ecu, ecus)
     if ecu is None:
-        raise SystemExit(f"{ansi.c(f'  Error: no ECU {args.ecu!r} in ecus/', ansi.RED)}")
+        raise EditError(f"no ECU {args.ecu!r} in ecus/")
     have = declared(ecus[ecu])
     unknown = [r for r in revs if r not in have]
     if unknown:
-        raise SystemExit(
-            ansi.c(
-                f"  Error: {ecu} declares no revision {', '.join(unknown)} "
-                f"(declared: {', '.join(have) or 'none'})",
-                ansi.RED,
-            )
+        raise EditError(
+            f"{ecu} declares no revision {', '.join(unknown)} "
+            f"(declared: {', '.join(have) or 'none'})"
         )
     what = f"[{', '.join(revs)}]" if revs else "any revision"
-    try:
-        return _run_edit(
-            f"variant {args.id}: {ecu} -> {what}",
-            lambda: set_variant_revisions(args.id, ecu, None if args.clear else revs),
-        )
-    except VariantsEditError as e:  # pragma: no cover - _run_edit reports these
-        raise SystemExit(str(e)) from None
+    return run_edit(
+        lambda: set_variant_revisions(args.id, ecu, None if args.clear else revs),
+        f"variant {args.id}: {ecu} -> {what}",
+    )
 
 
 def cmd_rename(args) -> int:
@@ -209,7 +192,7 @@ def cmd_rename(args) -> int:
         written.extend(rewritten)
         return path
 
-    rc = _run_edit(f"renamed variant {args.old} → {args.new}", action)
+    rc = run_edit(action, f"renamed variant {args.old} → {args.new}")
     for path in written:
         print(f"  {ansi.c('retagged', ansi.DIM)} {path}")
     return rc
@@ -219,7 +202,7 @@ def cmd_rm(args) -> int:
     from canlib.profile import active
     from canlib.yaml_edit.variant_refs import remove_unreferenced
 
-    return _run_edit(f"removed variant {args.id}", lambda: remove_unreferenced(args.id, active()))
+    return run_edit(lambda: remove_unreferenced(args.id, active()), f"removed variant {args.id}")
 
 
 def add_parser(subparsers) -> argparse.ArgumentParser:
@@ -296,8 +279,4 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     return parser
 
 
-def run(args) -> int:
-    func = getattr(args, "_variants_func", None)
-    if func is None:
-        return cmd_list(args)
-    return func(args)
+run = subcommand_dispatch("_variants_func", cmd_list)

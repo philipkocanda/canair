@@ -4,7 +4,7 @@
 ``hunt`` and ``correlate`` both turn a strong analysis hit into an enabled,
 unverified candidate parameter. The write goes through the same
 snapshot → edit → schema-validate → auto-revert gate as ``canair pids
-upsert-param`` (via ``pids._guarded``), so a promoted expression that fails
+upsert-param`` (via :func:`canlib.commands._edit.edit_scope`), so a promoted expression that fails
 schema validation is rejected and rolled back rather than committed.
 
 A **PCI-crossing read is refused up front** (see :func:`_reject_pci_reads`)
@@ -45,17 +45,17 @@ def _reject_pci_reads(ecu: str, pid: str, name: str, expr: str) -> None:
 def write_candidate(ecu: str, pid: str, name: str, expr: str, *, source: str, notes: str) -> Path:
     """Guarded upsert of one enabled, unverified candidate param.
 
-    Returns the written file path. Raises ``PidsEditError``/``SystemExit`` (from
-    the guard, or from the PCI pre-check) if the expression is unfit or the edit
-    fails schema validation and is reverted.
+    Returns the written file path. Raises ``PidsEditError`` (from the PCI pre-check,
+    or when the edit fails schema validation and is reverted) if the expression is
+    unfit.
     """
-    from canlib.commands.pids import _guarded
+    from canlib.commands._edit import edit_scope
     from canlib.yaml_edit.pids import upsert_parameter
 
     _reject_pci_reads(ecu, pid, name, expr)
 
-    def do():
-        upsert_parameter(
+    with edit_scope():
+        return upsert_parameter(
             ecu,
             pid,
             name,
@@ -65,8 +65,6 @@ def write_candidate(ecu: str, pid: str, name: str, expr: str, *, source: str, no
             verified=False,
             enabled=True,
         )
-
-    return _guarded(ecu, None, do, validate=True)
 
 
 def print_promoted(ecu: str, pid: str, name: str, expr: str, r: float, fpath: Path) -> None:

@@ -259,19 +259,19 @@ class TestUpsertCli:
         with pytest.raises(SystemExit):
             _cli(argv)
 
-    def test_new_signal_without_layout_fails_cleanly(self, temp_profile, capsys):
-        assert _cli([*self.BASE, "--unit", "rpm"]) == 1
-        assert "start_bit and length required" in capsys.readouterr().err
+    def test_new_signal_without_layout_fails_cleanly(self, temp_profile):
+        with pytest.raises(SignalsEditError, match="start_bit and length required"):
+            _cli([*self.BASE, "--unit", "rpm"])
 
     def test_clear_flag(self, temp_profile):
         _seed_rich(temp_profile)
         assert _cli([*self.BASE, "--clear", "min", "--clear", "max"]) == 0
         assert not {"min", "max"} & set(_sig(temp_profile, "0x1DA", "RPM"))
 
-    def test_bad_msg_length_reports(self, temp_profile, capsys):
+    def test_bad_msg_length_reports(self, temp_profile):
         argv = [*self.BASE, "--start-bit", "0", "--length", "8", "--msg-length", "10"]
-        assert _cli(argv) == 1
-        assert "CAN FD size" in capsys.readouterr().err
+        with pytest.raises(SignalsEditError, match="CAN FD size"):
+            _cli(argv)
 
     def test_list_shows_length_and_frame_format(self, temp_profile, capsys):
         upsert_signal(

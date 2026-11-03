@@ -50,14 +50,15 @@ from typing import Any
 
 from canlib import ansi
 from canlib.captures.types import CaptureEntry
+from canlib.commands._edit import edit_scope
 from canlib.commands._group import group_help
-from canlib.commands._hexarg import HexArgError, parse_hex_arg
+from canlib.commands._hexarg import parse_hex_arg
 from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.ecus import load_ecus, resolve_tx, rx_addr_str
 from canlib.pids import load_pids, pid_status
-from canlib.profile import require_writable_definitions
 from canlib.states import ecu_states
 from canlib.yaml_edit.echo import echo_edit
+from canlib.yaml_edit.errors import EditError
 
 NAME = "ecu"
 
@@ -916,25 +917,17 @@ def _add_add_parser(kinds) -> argparse.ArgumentParser:
 
 
 def cmd_add(args) -> int:
-    from canlib.yaml_edit.ecu import EcusEditError, find_ecu_file_by_tx, register_ecu, tx_key
+    from canlib.yaml_edit.ecu import find_ecu_file_by_tx, register_ecu, tx_key
 
     try:
         tx_id = int(str(args.tx), 16)
     except ValueError:
-        print(
-            f"{ansi.RED}Invalid TX id {args.tx!r} — expected hex (e.g. 7C6).{ansi.RESET}",
-            file=sys.stderr,
-        )
-        return 1
+        raise EditError(f"invalid TX id {args.tx!r} — expected hex (e.g. 7C6)") from None
 
-    try:
-        rx_id = parse_hex_arg(getattr(args, "rx_id", None), "rx-id")
-        target_address = parse_hex_arg(getattr(args, "target_address", None), "target-address")
-        source_address = parse_hex_arg(getattr(args, "source_address", None), "source-address")
-        fc_id = parse_hex_arg(getattr(args, "fc_id", None), "fc-id")
-    except HexArgError as e:
-        print(str(e), file=sys.stderr)
-        return 1
+    rx_id = parse_hex_arg(getattr(args, "rx_id", None), "rx-id")
+    target_address = parse_hex_arg(getattr(args, "target_address", None), "target-address")
+    source_address = parse_hex_arg(getattr(args, "source_address", None), "source-address")
+    fc_id = parse_hex_arg(getattr(args, "fc_id", None), "fc-id")
 
     fields = {
         k: v
@@ -945,9 +938,7 @@ def cmd_add(args) -> int:
         )
         if v is not None
     }
-    if args.dir is None:
-        require_writable_definitions()
-    try:
+    with edit_scope(args):
         wrote = register_ecu(
             tx_id,
             name=args.name,
@@ -960,9 +951,6 @@ def cmd_add(args) -> int:
             fc_id=fc_id,
             **fields,
         )
-    except EcusEditError as e:
-        print(f"{ansi.RED}{e}{ansi.RESET}", file=sys.stderr)
-        return 1
 
     disp = tx_key(tx_id)
     label = args.name or f"Unknown-{tx_id:03X}"
@@ -1003,20 +991,15 @@ def _add_rename_parser(kinds) -> argparse.ArgumentParser:
 
 
 def cmd_rename(args) -> int:
-    from canlib.yaml_edit.ecu import EcusEditError, rename_ecu, tx_key
+    from canlib.yaml_edit.ecu import rename_ecu, tx_key
 
     tx_id = resolve_tx(args.ecu)
     if tx_id is None:
         return _unknown_ecu(args.ecu, _list_records(load_ecus(), load_pids()))
 
-    if args.dir is None:
-        require_writable_definitions()
     old_name = (load_ecus().get(tx_id) or {}).get("name")
-    try:
+    with edit_scope(args):
         new_path = rename_ecu(tx_id, args.new_name, ecus_dir=args.dir)
-    except EcusEditError as e:
-        print(f"{ansi.RED}{e}{ansi.RESET}", file=sys.stderr)
-        return 1
 
     echo_edit(f"renamed {args.ecu} → {args.new_name} ({tx_key(tx_id)})", new_path)
     if args.dir is None and old_name and old_name != args.new_name:

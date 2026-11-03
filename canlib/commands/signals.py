@@ -19,10 +19,9 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 
 from canlib import ansi
-from canlib.yaml_edit.echo import echo_edit
+from canlib.commands._edit import run_edit
 from canlib.yaml_edit.signals import CLEARABLE_SIGNAL_FIELDS
 
 NAME = "signals"
@@ -233,12 +232,11 @@ def _frame_facts(mid: object, msg: dict) -> list[str]:
 
 
 def cmd_upsert(args) -> int:
-    from canlib.profile import active, require_writable_definitions
-    from canlib.yaml_edit.signals import SignalsEditError, upsert_signal
+    from canlib.profile import active
+    from canlib.yaml_edit.signals import upsert_signal
 
-    require_writable_definitions()
-    try:
-        path = upsert_signal(
+    return run_edit(
+        lambda: upsert_signal(
             args.bus,
             args.arb_id,
             args.name,
@@ -261,25 +259,18 @@ def cmd_upsert(args) -> int:
             msg_length=args.msg_length,
             extended=args.extended,
             fd=args.fd,
-        )
-    except SignalsEditError as e:
-        print(f"signals upsert: {e}", file=sys.stderr)
-        return 1
-    echo_edit(
-        f"[{ansi.CYAN}{active().name}{ansi.RESET}] {args.bus}: {args.arb_id} {args.name}", path
+        ),
+        lambda _p: (
+            f"[{ansi.CYAN}{active().name}{ansi.RESET}] {args.bus}: {args.arb_id} {args.name}"
+        ),
     )
-    return 0
 
 
 def cmd_rm(args) -> int:
-    from canlib.profile import active, require_writable_definitions
-    from canlib.yaml_edit.signals import SignalsEditError, remove_signal
+    from canlib.profile import active
+    from canlib.yaml_edit.signals import remove_signal
 
-    require_writable_definitions()
-    try:
-        path = remove_signal(args.bus, args.arb_id, args.name)
-    except SignalsEditError as e:
-        print(f"signals rm: {e}", file=sys.stderr)
-        return 1
-    echo_edit(f"[{ansi.CYAN}{active().name}{ansi.RESET}] removed {args.arb_id} {args.name}", path)
-    return 0
+    return run_edit(
+        lambda: remove_signal(args.bus, args.arb_id, args.name),
+        lambda _p: f"[{ansi.CYAN}{active().name}{ansi.RESET}] removed {args.arb_id} {args.name}",
+    )

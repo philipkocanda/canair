@@ -469,8 +469,7 @@ class TestEditors:
         assert _vcu_doc(copy)["pids"]["21F0"]["parameters"]["GEAR"]["revisions"] == ["kwp"]
         # A PID gate the signal falls outside is refused (and reverted).
         before = (copy / "ecus" / "vcu.yaml").read_text()
-        with pytest.raises(SystemExit):
-            _run(copy, "pids", "set-revisions", "VCU:21F0", "uds")
+        assert _run(copy, "pids", "set-revisions", "VCU:21F0", "uds") == 1
         assert (copy / "ecus" / "vcu.yaml").read_text() == before
         assert _run(copy, "pids", "set-revisions", "VCU:21F0:GEAR", "--clear") == 0
         assert "revisions" not in _vcu_doc(copy)["pids"]["21F0"]["parameters"]["GEAR"]
@@ -487,8 +486,7 @@ class TestEditors:
         assert _run(copy, "variants", "set-revisions", "60kwh", "VCU", "uds") == 0
         doc = yaml.safe_load((copy / "variants.yaml").read_text())
         assert doc["variants"]["60kwh"]["revisions"]["VCU"] == ["uds"]
-        with pytest.raises(SystemExit):
-            _run(copy, "variants", "set-revisions", "60kwh", "VCU", "can")
+        assert _run(copy, "variants", "set-revisions", "60kwh", "VCU", "can") == 1
         assert _run(copy, "variants", "set-revisions", "40kwh", "VCU", "--clear") == 0
         assert (
             "revisions"
@@ -508,8 +506,8 @@ class TestEditors:
         from canlib.captures import io as capture_io
 
         cap.write_text(capture_io.capture_text(data))
-        with pytest.raises(SystemExit, match="ECU\\(s\\) HEATER"):
-            _run(copy, "variants", "rm", "60kwh")
+        assert _run(copy, "variants", "rm", "60kwh") == 1
+        assert "ECU(s) HEATER" in capsys.readouterr().err
 
     def test_ecu_rename_follows_into_variants_and_capture_tags(self, copy):
         assert _run(copy, "ecu", "rename", "VCU", "PCU") == 0

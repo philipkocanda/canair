@@ -1,10 +1,12 @@
-"""Tests for `canair pids` CLI orchestration (snapshot -> edit -> validate gate)."""
+"""Tests for `canair pids` CLI orchestration (edit -> schema gate -> confirm)."""
 
 import argparse
 
 import pytest
 
 from canlib.commands import pids as cli
+from canlib.yaml_edit.errors import EditError
+from canlib.yaml_edit.pids import PidsEditError
 
 
 @pytest.fixture
@@ -15,33 +17,39 @@ def pids_dir(tmp_path):
     return tmp_path
 
 
-def test_guarded_commits_when_gate_passes(pids_dir, monkeypatch):
-    fp = pids_dir / "e.yaml"
-    monkeypatch.setattr(cli, "_schema_validate", lambda p: (True, ""))
-    cli._guarded(
-        "TESTECU", pids_dir, lambda: fp.write_text(fp.read_text() + "# ok\n"), validate=True
+def _status_args(pids_dir, **kw):
+    return argparse.Namespace(
+        ecu="TESTECU", pid="2101", status="draft", dir=pids_dir, no_validate=False, **kw
     )
-    assert "# ok" in fp.read_text()
 
 
-def test_guarded_rolls_back_when_gate_fails(pids_dir, monkeypatch):
+def test_the_gate_commits_when_the_schema_check_passes(pids_dir, monkeypatch):
+    fp = pids_dir / "e.yaml"
+    monkeypatch.setattr("canlib.commands.validate.validate_pids_file", lambda p, *a: (True, ""))
+    assert cli.cmd_set_pid_status(_status_args(pids_dir)) == 0
+    assert "status: draft" in fp.read_text()
+
+
+def test_the_gate_rolls_back_when_the_schema_check_fails(pids_dir, monkeypatch):
     fp = pids_dir / "e.yaml"
     original = fp.read_text()
-    monkeypatch.setattr(cli, "_schema_validate", lambda p: (False, "  ERROR: bad"))
-    with pytest.raises(SystemExit):
-        cli._guarded("TESTECU", pids_dir, lambda: fp.write_text("CORRUPTED"), validate=True)
+    monkeypatch.setattr(
+        "canlib.commands.validate.validate_pids_file", lambda p, *a: (False, "  ERROR: bad")
+    )
+    with pytest.raises(PidsEditError, match="reverted"):
+        cli.cmd_set_pid_status(_status_args(pids_dir))
     assert fp.read_text() == original  # reverted
 
 
-def test_guarded_skips_gate_when_disabled(pids_dir, monkeypatch):
-    fp = pids_dir / "e.yaml"
+def test_the_gate_is_skipped_when_disabled(pids_dir, monkeypatch):
+    def _boom(*_a):
+        raise AssertionError("validator should not run with --no-validate")
 
-    def _boom(_):
-        raise AssertionError("validator should not run when validate=False")
-
-    monkeypatch.setattr(cli, "_schema_validate", _boom)
-    cli._guarded("TESTECU", pids_dir, lambda: fp.write_text("whatever"), validate=False)
-    assert fp.read_text() == "whatever"
+    monkeypatch.setattr("canlib.commands.validate.validate_pids_file", _boom)
+    args = _status_args(pids_dir)
+    args.no_validate = True
+    assert cli.cmd_set_pid_status(args) == 0
+    assert "status: draft" in (pids_dir / "e.yaml").read_text()
 
 
 class _Args:
@@ -68,12 +76,12 @@ def test_set_addressing_writes_block(pids_dir):
 
 
 def test_set_addressing_requires_a_field(pids_dir):
-    with pytest.raises(SystemExit, match="nothing to set"):
+    with pytest.raises(EditError, match="nothing to set"):
         cli.cmd_set_addressing(_Args(dir=pids_dir))
 
 
 def test_set_addressing_bad_hex(pids_dir):
-    with pytest.raises(SystemExit, match="fc-id"):
+    with pytest.raises(EditError, match="fc-id"):
         cli.cmd_set_addressing(_Args(dir=pids_dir, fc_id="nothex"))
 
 
@@ -117,24 +125,24 @@ def test_set_iocontrol_writes_a_quoted_release(io_dir):
 
 
 def test_set_iocontrol_rejects_a_non_hex_release(io_dir):
-    with pytest.raises(SystemExit, match="--release"):
+    with pytest.raises(EditError, match="--release"):
         cli.cmd_set_iocontrol(_io_args(io_dir, release="off"))
 
 
 def test_set_iocontrol_rejects_a_non_hex_command(io_dir):
-    with pytest.raises(SystemExit, match="--on"):
+    with pytest.raises(EditError, match="--on"):
         cli.cmd_set_iocontrol(_io_args(io_dir, on="lock"))
 
 
 def test_set_iocontrol_rolls_back_a_programming_session(io_dir):
     original = (io_dir / "e.yaml").read_text()
-    with pytest.raises(SystemExit, match="reverted"):
+    with pytest.raises(EditError, match="reverted"):
         cli.cmd_set_iocontrol(_io_args(io_dir, session_mode="02"))
     assert (io_dir / "e.yaml").read_text() == original
 
 
 def test_set_iocontrol_requires_a_field(io_dir):
-    with pytest.raises(SystemExit, match="nothing to set"):
+    with pytest.raises(EditError, match="nothing to set"):
         cli.cmd_set_iocontrol(_io_args(io_dir))
 
 
@@ -158,9 +166,8 @@ def test_set_iocontrol_ranges_writes_field(pids_dir):
 
 
 def test_set_iocontrol_ranges_rejects_bad_range(pids_dir):
-    from canlib.yaml_edit.pids import PidsEditError
 
-    with pytest.raises((PidsEditError, SystemExit)):
+    with pytest.raises(EditError):
         cli.cmd_set_iocontrol_ranges(_RangeArgs(["not-a-range"], dir=pids_dir))
 
 
@@ -243,10 +250,9 @@ def test_set_status_index_disambiguates(research_pids_dir):
 
 
 def test_set_status_ambiguous_without_index_exits(research_pids_dir):
-    from canlib.yaml_edit.pids import PidsEditError
 
     args = _ResearchArgs(status="done", type="decode", dir=research_pids_dir)
-    with pytest.raises((PidsEditError, SystemExit)):
+    with pytest.raises(EditError):
         cli.cmd_set_status(args)
 
 
@@ -323,6 +329,6 @@ def test_upsert_send_to_round_trips(pids_dir):
 def test_upsert_reverts_an_invalid_send_to(pids_dir):
     fp = pids_dir / "e.yaml"
     original = fp.read_text()
-    with pytest.raises(SystemExit, match="reverted"):
+    with pytest.raises(EditError, match="reverted"):
         cli.cmd_upsert_param(_upsert_args(pids_dir, "--send-to", "car/#"))
     assert fp.read_text() == original

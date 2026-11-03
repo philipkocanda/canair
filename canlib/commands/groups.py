@@ -25,12 +25,11 @@ import sys
 from typing import TypedDict
 
 from canlib import ansi
-from canlib.yaml_edit.echo import echo_edit
+from canlib.commands._edit import run_edit, set_or_clear, subcommand_dispatch
 
 NAME = "groups"
 
 
-# ANSI colors — emitted only when stdout is a TTY (piped output stays plain).
 class GroupRecord(TypedDict):
     """One group row in the ``canair groups`` output / ``--json`` payload."""
 
@@ -88,56 +87,50 @@ def cmd_list(args) -> int:
     return 0
 
 
-def _run_edit(args, action) -> int:
-    from canlib.profile import require_writable_definitions
-    from canlib.yaml_edit.groups import GroupsEditError
-
-    require_writable_definitions()
-    try:
-        path = action()
-    except GroupsEditError as e:
-        raise SystemExit(f"{ansi.c('  Error: ' + str(e), ansi.RED)}") from None
-    echo_edit(args._groups_msg, path)
-    return 0
+def _name(raw: str) -> str:
+    return f"@{raw.strip().lower()}"
 
 
 def cmd_add(args) -> int:
     from canlib.yaml_edit.groups import add_group
 
-    args._groups_msg = f"added group @{args.name.strip().lower()}"
-    return _run_edit(
-        args,
+    return run_edit(
         lambda: add_group(args.name, args.members, description=args.description),
+        f"added group {_name(args.name)}",
     )
 
 
 def cmd_rm(args) -> int:
     from canlib.yaml_edit.groups import remove_group
 
-    args._groups_msg = f"removed group @{args.name.strip().lower()}"
-    return _run_edit(args, lambda: remove_group(args.name))
+    return run_edit(lambda: remove_group(args.name), f"removed group {_name(args.name)}")
 
 
 def cmd_rename(args) -> int:
     from canlib.yaml_edit.groups import rename_group
 
-    args._groups_msg = f"renamed @{args.old.strip().lower()} → @{args.new.strip().lower()}"
-    return _run_edit(args, lambda: rename_group(args.old, args.new))
+    return run_edit(
+        lambda: rename_group(args.old, args.new),
+        f"renamed {_name(args.old)} → {_name(args.new)}",
+    )
 
 
 def cmd_set_description(args) -> int:
     from canlib.yaml_edit.groups import set_group_description
 
-    verb = "cleared" if not args.value else "set"
-    args._groups_msg = f"{verb} description on @{args.name.strip().lower()}"
-    return _run_edit(args, lambda: set_group_description(args.name, args.value or None))
+    return run_edit(
+        lambda: set_group_description(args.name, args.value or None),
+        f"{set_or_clear(args.value)} description on {_name(args.name)}",
+    )
 
 
 def cmd_set_members(args) -> int:
     from canlib.yaml_edit.groups import set_group_members
 
-    args._groups_msg = f"set members on @{args.name.strip().lower()}"
-    return _run_edit(args, lambda: set_group_members(args.name, args.members))
+    return run_edit(
+        lambda: set_group_members(args.name, args.members),
+        f"set members on {_name(args.name)}",
+    )
 
 
 def add_parser(subparsers) -> argparse.ArgumentParser:
@@ -186,11 +179,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     return parser
 
 
-def run(args) -> int:
-    func = getattr(args, "_groups_func", None)
-    if func is None:
-        return cmd_list(args)
-    return func(args)
+run = subcommand_dispatch("_groups_func", cmd_list)
 
 
 if __name__ == "__main__":

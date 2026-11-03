@@ -19,6 +19,7 @@ from canlib import profile
 from canlib.commands.ecu import cmd_add, cmd_rename
 from canlib.pids import clear_cache
 from canlib.yaml_edit.ecu import register_ecu
+from canlib.yaml_edit.errors import EditError
 
 
 @pytest.fixture(autouse=True)
@@ -88,14 +89,13 @@ class TestEcuAdd:
 
     def test_invalid_hex_tx_is_error(self, tmp_path, capsys):
         root = _mk_profile(tmp_path)
-        rc = cmd_add(_args(tx="ZZZ", dir=root / "ecus"))
-        assert rc == 1
-        assert "Invalid TX" in capsys.readouterr().err
+        with pytest.raises(EditError, match="invalid TX"):
+            cmd_add(_args(tx="ZZZ", dir=root / "ecus"))
 
     def test_out_of_range_tx_is_error(self, tmp_path, capsys):
         root = _mk_profile(tmp_path)
-        rc = cmd_add(_args(tx="999", dir=root / "ecus"))
-        assert rc == 1
+        with pytest.raises(EditError):
+            cmd_add(_args(tx="999", dir=root / "ecus"))
 
     def test_rx_id_override_written(self, tmp_path):
         # A non-standard response address (XPeng: 0x704 -> 0x784) is written as a
@@ -109,9 +109,8 @@ class TestEcuAdd:
 
     def test_invalid_rx_id_is_error(self, tmp_path, capsys):
         root = _mk_profile(tmp_path)
-        rc = cmd_add(_args(tx="704", name="BMS", rx_id="ZZ", dir=root / "ecus"))
-        assert rc == 1
-        assert "--rx-id expects hex" in capsys.readouterr().err
+        with pytest.raises(EditError, match="--rx-id expects hex"):
+            cmd_add(_args(tx="704", name="BMS", rx_id="ZZ", dir=root / "ecus"))
 
     def test_29bit_functional_tx_with_fc_id(self, tmp_path):
         # Gap G-J: a functional-TX 29-bit ECU seeded in one command (the mode makes
@@ -203,9 +202,8 @@ class TestEcuRename:
         register_ecu(0x7D5, "Unknown-7D5", ecus_dir=root / "ecus")
         register_ecu(0x7E0, "VCU", ecus_dir=root / "ecus")
         clear_cache()
-        rc = cmd_rename(self._rargs(ecu="Unknown-7D5", new_name="VCU"))
-        assert rc == 1
-        assert "already exists" in capsys.readouterr().err
+        with pytest.raises(EditError, match="already exists"):
+            cmd_rename(self._rargs(ecu="Unknown-7D5", new_name="VCU"))
 
 
 class TestOfflineValidationProfileScoping:

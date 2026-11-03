@@ -25,24 +25,11 @@ import json
 import sys
 
 from canlib import ansi
+from canlib.commands._edit import run_edit
 from canlib.commands._hints import ecu_completer as _ecu_completer
-from canlib.yaml_edit.echo import echo_edit
+from canlib.yaml_edit.errors import EditError
 
 _EXAMPLES = __doc__.split("Examples:")[1]
-
-
-def _run_edit(message: str, action) -> int:
-    from canlib.profile import require_writable_definitions
-    from canlib.yaml_edit.ecu import EcusEditError
-
-    require_writable_definitions()
-    try:
-        path = action()
-    except EcusEditError as e:
-        print(f"{ansi.RED}  Error: {e}{ansi.RESET}", file=sys.stderr)
-        return 1
-    echo_edit(message, path)
-    return 0
 
 
 def cmd_list(args) -> int:
@@ -118,9 +105,9 @@ def cmd_list(args) -> int:
 def cmd_add(args) -> int:
     from canlib.yaml_edit.revisions import add_revision
 
-    return _run_edit(
-        f"{args.ecu}: added revision {args.revision}",
+    return run_edit(
         lambda: add_revision(args.ecu, args.revision, protocol=args.protocol),
+        f"{args.ecu}: added revision {args.revision}",
     )
 
 
@@ -131,11 +118,9 @@ def cmd_set_fingerprint(args) -> int:
     for pair in args.identity or []:
         key, sep, value = pair.partition("=")
         if not sep or not key.strip() or not value.strip():
-            print(f"error: --identity expects FIELD=PATTERN, got {pair!r}", file=sys.stderr)
-            return 1
+            raise EditError(f"--identity expects FIELD=PATTERN, got {pair!r}")
         identity[key.strip()] = value.strip()
-    return _run_edit(
-        f"{args.ecu} {args.revision}: fingerprints updated",
+    return run_edit(
         lambda: set_fingerprint(
             args.ecu,
             args.revision,
@@ -143,6 +128,7 @@ def cmd_set_fingerprint(args) -> int:
             identity=identity or None,
             clear=args.clear,
         ),
+        f"{args.ecu} {args.revision}: fingerprints updated",
     )
 
 
@@ -156,7 +142,7 @@ def cmd_rename(args) -> int:
         written.extend(others)
         return path
 
-    rc = _run_edit(f"{args.ecu}: renamed revision {args.old} → {args.new}", action)
+    rc = run_edit(action, f"{args.ecu}: renamed revision {args.old} → {args.new}")
     for path in written:
         print(f"  {ansi.c('rewrote', ansi.DIM)} {path}")
     return rc
@@ -165,9 +151,9 @@ def cmd_rename(args) -> int:
 def cmd_rm(args) -> int:
     from canlib.yaml_edit.revisions import remove_revision
 
-    return _run_edit(
-        f"{args.ecu}: removed revision {args.revision}",
+    return run_edit(
         lambda: remove_revision(args.ecu, args.revision),
+        f"{args.ecu}: removed revision {args.revision}",
     )
 
 
@@ -175,13 +161,12 @@ def cmd_set_variants(args) -> int:
     from canlib.yaml_edit.revisions import set_ecu_variants
 
     if args.clear == bool(args.variants):
-        print("error: give the variants, or --clear", file=sys.stderr)
-        return 1
+        raise EditError("give the variants, or --clear")
     ids = [v for part in args.variants for v in part.split(",") if v.strip()]
     what = ", ".join(ids) if ids else "every variant"
-    return _run_edit(
-        f"{args.ecu}: fitted to {what}",
+    return run_edit(
         lambda: set_ecu_variants(args.ecu, None if args.clear else ids),
+        f"{args.ecu}: fitted to {what}",
     )
 
 

@@ -8,6 +8,7 @@ import yaml
 from canlib.commands import pids as cli
 from canlib.commands import validate as validate_pids
 from canlib.uds.support_map import MapDecl
+from canlib.yaml_edit.errors import EditError
 from canlib.yaml_edit.pids import PidsEditError, set_support_map
 
 YAML = """\
@@ -122,12 +123,12 @@ class TestCommand:
 
     @pytest.mark.parametrize("missing", ["at", "length", "unit"])
     def test_needs_the_whole_layout(self, pids_dir, missing):
-        with pytest.raises(SystemExit, match="--at, --length and --unit"):
+        with pytest.raises(EditError, match="--at, --length and --unit"):
             cli.cmd_set_support_map(_Args(pids_dir, **{missing: None}))
 
     def test_a_bad_layout_is_refused_before_touching_the_file(self, pids_dir):
         before = (pids_dir / "test.yaml").read_text()
-        with pytest.raises(SystemExit, match="length"):
+        with pytest.raises(EditError, match="length"):
             cli.cmd_set_support_map(_Args(pids_dir, length=9))
         assert (pids_dir / "test.yaml").read_text() == before
 
@@ -142,17 +143,19 @@ class TestCommand:
         }
 
     def test_lsb_is_refused_on_a_per_bit_map(self, pids_dir):
-        with pytest.raises(SystemExit, match="lsb needs unit field"):
+        with pytest.raises(EditError, match="lsb needs unit field"):
             cli.cmd_set_support_map(_Args(pids_dir, order="lsb"))
 
     def test_also_at_must_be_integers(self, pids_dir):
-        with pytest.raises(SystemExit, match="comma-separated integers"):
+        with pytest.raises(EditError, match="comma-separated integers"):
             cli.cmd_set_support_map(_Args(pids_dir, unit="field", also_at="48,x"))
 
     def test_the_schema_gate_can_veto_and_revert(self, pids_dir, monkeypatch):
         before = (pids_dir / "test.yaml").read_text()
-        monkeypatch.setattr(cli, "_schema_validate", lambda p: (False, "  ERROR: nope"))
-        with pytest.raises(SystemExit):
+        monkeypatch.setattr(
+            "canlib.commands.validate.validate_pids_file", lambda p, *a: (False, "  ERROR: nope")
+        )
+        with pytest.raises(EditError):
             cli.cmd_set_support_map(_Args(pids_dir, no_validate=False))
         assert (pids_dir / "test.yaml").read_text() == before
 
