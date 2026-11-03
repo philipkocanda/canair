@@ -717,20 +717,25 @@ BCM:
       status: draft
       vehicle_states: [ALL]
       notes: >-
-        12 bytes. B10:0 the ignition (BCM_IGN_ON_C011), B11 the 12 V bus (BCM_12V_BUS_C011), B13:B14
-        BCM_EVENT_COUNTER_C011. B12 takes all 256 values, with no relation between reads 3 s apart:
-        random, not a counter or a signal.
+        12 bytes. B10:0 the ignition (BCM_IGN_ON_C011), B11:B12 the 12 V bus (BCM_12V_BUS_C011),
+        B13:B14 BCM_EVENT_COUNTER_C011. B12 takes all 256 values because it is the low byte of the
+        12 V word (about 40 counts of noise between reads).
       min: "0"
       parameters:
         BCM_12V_BUS_C011:
-          expression: B11/12.8
+          expression: ((B11<<8)|B12)/3276.8
           unit: V
           max: "20"
-          source: RE 2026-08-05 cross-PID mirror vs the verified BCM 22B003 BCM_12V_BATTERY
-          verified: true
+          source: RE 2026-08-05 cross-PID mirror vs BCM 22B003 BCM_12V_BATTERY (B11); B12 low byte 2026-11-03 top-up decay
+          verified: false
           notes: >-
-            B11 is exactly 12.8 x BCM_12V_BATTERY in 1781 of 1965 co-polled rows. 12.66 V at rest,
-            14.53 V during AC charging. Disabled as a duplicate of the 22B003 signal.
+            16-bit big-endian 12 V bus voltage, 0.305 mV per count. B11 alone is exactly 12.8 x
+            BCM_12V_BATTERY in 1781 of 1965 co-polled rows. B12 is its low byte: over the smooth 12
+            V decay after the 2026-11-03 top-up (10:17-10:43, 306 reads) the word scatters 12 mV
+            around a rolling median against 29-35 mV for B11 plus a random byte (50 simulations),
+            and follows BCM_12V_BATTERY at r=0.932 against 0.890 for B11 alone. 12.66 V at rest,
+            14.53 V during AC charging, 14.57-14.70 V in the 12 V top-up. Disabled as a duplicate of
+            the 22B003 signal.
           enabled: false
         BCM_EVENT_COUNTER_C011:
           expression: "[B13:B14]"

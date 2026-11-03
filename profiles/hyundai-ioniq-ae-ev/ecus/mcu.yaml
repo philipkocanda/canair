@@ -449,9 +449,12 @@ MCU:
         Neither is a temperature (see MCU_2101_B22, MCU_2101_B25). B22 is fast, 6-136, and steps
         with propulsion; B23 is constant 0x02, so it is a single byte. B25 is slow but r=-0.720 vs
         AAF coolant and heatsink; B26 is constant 0x04. Both also move with the motor stopped and
-        the inverter off: through the 2026-11-03 parked 12 V top-up B22 fell 116 to 69 and B25 117
-        to 91, steadily, while AAF MOTOR_COOLANT_TEMP rose 11 to 17 °C; the 2026-10-30 top-up went
-        88 to 72 and 106 to 91 with the coolant at 14 to 17 °C.
+        the inverter off, and the same way every time: aligned on the end of the three parked 12 V
+        top-ups (2026-10-21, 2026-10-30, 2026-11-03), their per-minute means agree within 1-2 counts
+        over the last 13 min (B22 about 88 to 70, B25 about 104 to 92), although pack voltage
+        (362-390 V) and starting coolant temperature differed. On 2026-11-03 B22 started at 116 and
+        B25 at 117, 19 min before the end. So in a top-up both follow a fixed course in time (time
+        since wake, or a temperature the LDC raises the same way each time).
       what_to_test:
         - Identify B22 (fast, 6-136, steps with propulsion); try modulation index, current limit or
           derating factor
@@ -462,13 +465,18 @@ MCU:
       status: captured
       priority: P3
       created: "2026-10-21"
-      updated: "2026-10-21"
+      updated: "2026-11-03"
       notes: >-
         Open: MCU_21F2_W27/W31 (B27:B28, B31:B33), the latched MCU 2102 bytes B34-B42 copied to 21F2
         B38-B46, and what MCU_TEMP_B18 measures. Only cycles with nothing unlogged between the cycle
         and the next 21F2 read can be matched (2026-08-08 has five). The latched bytes (B34 67-146,
         signed (S37<<8)|B36 -4702 to 648, B38 36-51, (B42<<8)|B41 599-2779) change only at power-up
-        and at the first motion of a drive.
+        and at the first motion of a drive. The parked 12 V top-up is not recorded as a cycle: BMS
+        OPERATING_TIME advanced only 118 s between the end of the 2026-10-21 top-up and the
+        2026-10-22 09:25:50 read, so the top-up was the last completed cycle, yet that read (like
+        the 25 reads during the top-up) shows a cycle with the 12 V at 11.6-12.2 V and coolant at
+        8-9 °C, not 14.6 V. BMS 21F2 did not change across that top-up either, and VCU 21F2 only in
+        B10 (0x5E to 0x3E by the next morning).
       sources:
         - canair 21F2 cross-check vs live data 2026-10-21
       what_to_test:

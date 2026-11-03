@@ -76,7 +76,10 @@ BMS:
           max: "300"
           notes: >-
             Signed 16-bit: high byte B15 signed, low byte B17 unsigned (B16 is a PCI byte). Negative
-            = charging. Captures reach -174 A (DC charging) and +276.7 A (hard acceleration).
+            = charging. Captures reach -174 A (DC charging) and +276.7 A (hard acceleration). Reads
+            low near zero: through the 2026-10-21 12 V top-up (pack 390 V) it read 0.0-0.1 A while
+            VCU_AUX_POWER put 85-125 W on the LDC output, which needs about 0.25-0.35 A from the
+            pack (fit 0.00427 A/W - 0.41 A, r=0.73, n=35).
 
         MAX_CELL_VOLTAGE:
           expression: "B30*0.02"
